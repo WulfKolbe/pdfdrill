@@ -172,3 +172,103 @@ def detect_algorithms(lines: list[dict], x_tol: float = 20.0) -> list[dict]:
 
 def algorithm_max_depth(algos: list[dict]) -> int:
     return max((s["depth"] for a in algos for s in a["steps"]), default=0)
+
+
+# ---------------------------------------------------------------------------
+# Geometry re-split: recover bullets the OCR merged onto one line (no linefeed)
+# ---------------------------------------------------------------------------
+
+def resplit_list_items_by_geometry(doc, eps: float = 0.004) -> int:
+    """Split a `ListItem` whose MathPix line genuinely spans several lines.
+
+    A real OCR merge has a region tall enough to cover multiple visual lines.
+    So we only act when the item's region height is >= ~1.5x the page line
+    spacing AND its band covers >=2 `pdf_lines` that each start with a bullet.
+    (Without the height gate a normal one-line item's band can bleed into the
+    next line via `eps` and duplicate it.) We rewrite the original item to the
+    first visual line and add a `ListItem` per remaining one, taking text +
+    indentation from each pdf_line. Returns the number of items added.
+    """
+    from collections import defaultdict
+    from statistics import median
+    from docmodel.core import DocObject, Realization
+    from docmodel.modules.list_items import _detect_marker
+    import re as _re
+
+    pl = doc.streams.get("pdf_lines")
+    mp = doc.streams.get("mathpix_lines")
+    if pl is None or mp is None:
+        return 0
+
+    by_page: dict = defaultdict(list)
+    for a in pl.anchors:
+        p = pl.payload[a]
+        by_page[p.get("page")].append((p.get("y_norm"), p.get("x0_norm"), p.get("text") or ""))
+    for v in by_page.values():
+        v.sort(key=lambda t: (t[0] if t[0] is not None else 1e9))
+
+    def line_spacing(page) -> float:
+        ys = [y for y, _, _ in by_page.get(page, []) if y is not None]
+        gaps = [b - a for a, b in zip(ys, ys[1:]) if 0 < (b - a) < 0.1]
+        return median(gaps) if gaps else 0.02
+
+    pages = {p["page"]: p for p in doc.meta.get("pages", [])}
+    body_left = (doc.meta.get("geometry", {}) or {}).get("body_left_norm", {})
+
+    def indent_of(x0n, page):
+        if x0n is None:
+            return None
+        return round(x0n - (body_left.get(str(page), 0.0) or 0.0), 4)
+
+    def strip_marker(text):
+        t = text.strip()
+        m = _detect_marker(t)
+        return (m or ""), (_re.sub(r"^" + _re.escape(m) + r"\s+", "", t).strip() if m else t)
+
+    added = 0
+    for li in list(doc.objects.values()):
+        if li.type != "ListItem" or li.props.get("provenance") == "geometry_resplit":
+            continue
+        sr = next((r for r in li.realizations
+                   if r.stream == "mathpix_lines" and r.start is not None), None)
+        if sr is None:
+            continue
+        payload = mp.payload.get(sr.start) or {}
+        region = payload.get("region")
+        page = payload.get("_page")
+        pm = pages.get(page)
+        if not region or not pm or not pm.get("page_height"):
+            continue
+        ph = pm["page_height"]
+        y0 = (region.get("top_left_y") or 0) / ph
+        h_norm = (region.get("height") or 0) / ph
+        y1 = y0 + h_norm
+        if y1 <= y0:
+            continue
+        # Gate: only a region clearly taller than one line can be a merge.
+        if h_norm < 1.5 * line_spacing(page):
+            continue
+        covered = [t for t in by_page.get(page, [])
+                   if t[0] is not None and y0 - eps <= t[0] <= y1 + eps]
+        bulleted = [t for t in covered if _detect_marker(t[2].strip())]
+        if len(bulleted) < 2:
+            continue                       # single visual line — nothing merged
+
+        m0, c0 = strip_marker(bulleted[0][2])
+        li.props["marker"] = m0 or li.props.get("marker")
+        li.props["content"] = c0
+        li.props["_resplit_indent"] = indent_of(bulleted[0][1], page)
+        for (yn, x0n, txt) in bulleted[1:]:
+            mk, content = strip_marker(txt)
+            n = DocObject(type="ListItem", props={
+                "marker": mk, "content": content, "page": page,
+                "line_index": li.props.get("line_index"),
+                "provenance": "geometry_resplit",
+                "_resplit_indent": indent_of(x0n, page),
+                "bibkey": li.props.get("bibkey")})
+            n.add_realization(Realization(stream="mathpix_lines", start=sr.start,
+                                          end=sr.start, role="surface",
+                                          provenance="geometry_resplit"))
+            doc.add(n)
+            added += 1
+    return added

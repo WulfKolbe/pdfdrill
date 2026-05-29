@@ -193,9 +193,19 @@ Block detectors on the substrate (`src/pdfdrill/blocks.py`):
 - Bullet handling: the PDF's `•` (U+2022) is normalized to `-` by MathPix; the
   `ListProcessor` marker set covers both. `_split_bullets` also splits a line
   on **mid-line strong-bullet glyphs** (`•‣◦▪●○`) so OCR that merges several
-  bullets onto one line (no linefeed) still yields separate `ListItem`s — a
-  no-op on 2605 (MathPix already separates each `-` bullet; 91 `•` ↔ 96 `-`
-  lines, 0 merged), defensive for docs where bullets merge.
+  bullets onto one line (no linefeed) still yields separate `ListItem`s.
+- **Geometry y-position re-split** (`blocks.resplit_list_items_by_geometry`,
+  run by `pdfdrill lists`): when a list item's MathPix region is **taller than
+  ~1.5x the page line-spacing** AND its y-band covers ≥2 bulleted `pdf_lines`,
+  the OCR merged several visual lines with no linefeed (and no glyph to split
+  on) — we rewrite the item to the first visual line and add one `ListItem`
+  (provenance `geometry_resplit`) per remaining line, taking text + indent
+  from each pdf_line. The **height gate is essential**: without it a normal
+  one-line region's band bleeds into the next line via `eps` and duplicates
+  it (this produced 18 false splits on 2605 before the gate). With the gate,
+  2605 correctly yields **0 re-splits** (it has no genuine merges); verified to
+  recover real merges on a synthetic tall-region case. Tests:
+  `tests/test_blocks.py`.
 - **`pdfdrill algorithms <pdf>`** — MathPix tags algorithm bodies with line
   type `pseudocode` and keeps indentation in `region.top_left_x`, so we group
   per `Algorithm N:` caption and derive an integer `depth` per step

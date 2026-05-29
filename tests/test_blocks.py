@@ -9,7 +9,9 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "src"))
 from pdfdrill.blocks import (
     nest_list_items, max_depth, count_lists,
     detect_algorithms, algorithm_max_depth,
+    resplit_list_items_by_geometry,
 )
+from docmodel.core import Document, DocObject, Realization
 from docmodel.modules.list_items import _split_bullets
 
 
@@ -118,6 +120,46 @@ def test_merged_bullet_line_splits_on_midline_glyphs():
         ("-", "evidence supporting the relation")]
     assert _split_bullets("1. step one") == [("1.", "step one")]
     assert _split_bullets("just prose, no bullet") == []
+
+
+def test_geometry_resplit_recovers_merged_bullets():
+    # One MathPix line whose region spans three pdftotext bullet lines.
+    doc = Document()
+    doc.meta["pages"] = [{"page": 1, "page_height": 1000, "page_width": 800}]
+    doc.meta["geometry"] = {"body_left_norm": {"1": 0.10}}
+    mp = doc.ensure_stream("mathpix_lines")
+    merged = mp.append(text="- alpha - beta - gamma", _page=1, type="text",
+                       region={"top_left_x": 80, "top_left_y": 300, "width": 600, "height": 90})
+    li = DocObject(type="ListItem", props={"marker": "-", "content": "alpha - beta - gamma",
+                                           "page": 1, "line_index": 5})
+    li.add_realization(Realization(stream="mathpix_lines", start=merged, end=merged, role="surface"))
+    doc.add(li)
+    # pdftotext separated them by y: 0.30, 0.33, 0.36 (within the region band)
+    pl = doc.ensure_stream("pdf_lines")
+    for y, txt in [(0.30, "- alpha"), (0.33, "- beta"), (0.39, "- gamma")]:
+        pl.append(page=1, y_norm=y, x0_norm=0.10, text=txt)
+    pl.append(page=1, y_norm=0.80, x0_norm=0.10, text="- unrelated far away")
+
+    added = resplit_list_items_by_geometry(doc)
+    assert added == 2                              # 1 original + 2 new = 3 items
+    items = [o for o in doc.objects.values() if o.type == "ListItem"]
+    contents = sorted(o.props["content"] for o in items)
+    assert contents == ["alpha", "beta", "gamma"]
+    assert sum(1 for o in items if o.props.get("provenance") == "geometry_resplit") == 2
+
+
+def test_geometry_resplit_noop_on_single_line():
+    doc = Document()
+    doc.meta["pages"] = [{"page": 1, "page_height": 1000}]
+    mp = doc.ensure_stream("mathpix_lines")
+    a = mp.append(text="- single item", _page=1, type="text",
+                  region={"top_left_y": 300, "height": 20})
+    li = DocObject(type="ListItem", props={"marker": "-", "content": "single item", "page": 1})
+    li.add_realization(Realization(stream="mathpix_lines", start=a, end=a, role="surface"))
+    doc.add(li)
+    pl = doc.ensure_stream("pdf_lines")
+    pl.append(page=1, y_norm=0.30, x0_norm=0.1, text="- single item")
+    assert resplit_list_items_by_geometry(doc) == 0
 
 
 if __name__ == "__main__":

@@ -394,7 +394,8 @@ def cmd_lists(pdf: Path, force: bool = False) -> str:
     ListItem/List children and parent links.
     """
     from docmodel.core import Document, DocObject
-    from .blocks import nest_list_items, max_depth, count_lists
+    from .blocks import (nest_list_items, max_depth, count_lists,
+                         resplit_list_items_by_geometry)
 
     sc = Sidecar(pdf)
     model_path = _model_path(sc)
@@ -422,10 +423,20 @@ def cmd_lists(pdf: Path, force: bool = False) -> str:
             o.children = [c for c in o.children if c not in ids]
             if o.parent in ids:
                 o.parent = None
+        # drop previously geometry-resplit items so we don't accumulate
+        for o in [o for o in doc.objects.values()
+                  if o.type == "ListItem" and o.props.get("provenance") == "geometry_resplit"]:
+            doc.objects.pop(o.id, None)
+
+    # Recover bullets the OCR merged onto one line, using pdftotext y-breaks.
+    resplit = resplit_list_items_by_geometry(doc)
 
     mp = doc.stream("mathpix_lines") if "mathpix_lines" in doc.streams else None
 
     def _indent_of(item_obj):
+        ri = item_obj.props.get("_resplit_indent")
+        if ri is not None:
+            return ri
         if mp is None:
             return None
         r = next((r for r in item_obj.realizations
@@ -488,6 +499,7 @@ def cmd_lists(pdf: Path, force: bool = False) -> str:
     sc.set_evidence("lists_created", created[0])
     sc.set_evidence("lists_max_depth", depth)
     sc.set_evidence("lists_items", n_items)
+    sc.set_evidence("lists_resplit", resplit)
     prev = ",".join(sorted(sc.facts - {LISTS_BUILT})) or "INIT"
     sc.add_fact(LISTS_BUILT)
     sc.log_transition(
@@ -608,10 +620,12 @@ def _list_type(markers: list[str]) -> str:
 
 
 def _format_lists(sc: Sidecar) -> str:
+    resplit = sc.get_evidence("lists_resplit", 0)
+    rs = f" Recovered {resplit} merged bullet(s) via y-position re-split." if resplit else ""
     return (
         f"Reconstructed {sc.get_evidence('lists_created', 0)} nested List(s) "
         f"from {sc.get_evidence('lists_items', 0)} list items "
-        f"(max nesting depth {sc.get_evidence('lists_max_depth', 0)}). "
+        f"(max nesting depth {sc.get_evidence('lists_max_depth', 0)}).{rs} "
         f"List objects carry list_type (itemize/enumerate) and indent_norm; "
         f"ListItems are now children of their List."
     )
