@@ -1,0 +1,8 @@
+#!/usr/bin/env bash
+# Convenience wrapper: run the pdfdrill CLI from the merged repo without
+# having to export PYTHONPATH by hand.
+#   ./pdfdrill size paper.pdf
+#   ./pdfdrill urls paper.pdf
+set -e
+HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+PYTHONPATH="$HERE/src" exec python3 -m pdfdrill "$@"

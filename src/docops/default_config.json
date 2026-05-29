@@ -1,0 +1,9 @@
+[
+  { "op": "mutator",   "classname": "Dehyphenate",         "title": "dehyphenate" },
+
+  { "op": "projector", "classname": "PlainTextProjector",  "title": "plaintext" },
+  { "op": "projector", "classname": "LLMCompactProjector", "title": "llm_compact",
+    "params": { "repeat_threshold": 1, "include_glossary": true } },
+  { "op": "projector", "classname": "TiddlyWikiProjector", "title": "tiddlywiki" },
+  { "op": "projector", "classname": "CompressedTiddlersProjector", "title": "compressed_tiddlers" }
+]

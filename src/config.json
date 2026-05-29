@@ -1,0 +1,26 @@
+[
+  { "title": "PageProcessor",              "type": "application/python", "classname": "PageProcessor",              "procOrder": 1 },
+  { "title": "FootnoteProcessor",          "type": "application/python", "classname": "FootnoteProcessor",          "procOrder": 2 },
+  { "title": "CitationProcessor",          "type": "application/python", "classname": "CitationProcessor",          "procOrder": 3 },
+  { "title": "TableProcessor",             "type": "application/python", "classname": "TableProcessor",             "procOrder": 4 },
+  { "title": "SidenoteProcessor",          "type": "application/python", "classname": "SidenoteProcessor",          "procOrder": 5 },
+  { "title": "TocProcessor",               "type": "application/python", "classname": "TocProcessor",               "procOrder": 6 },
+  { "title": "AbstractProcessor",          "type": "application/python", "classname": "AbstractProcessor",          "procOrder": 6 },
+  { "title": "DiagramProcessor",           "type": "application/python", "classname": "DiagramProcessor",           "procOrder": 7 },
+  { "title": "HeaderProcessor",            "type": "application/python", "classname": "HeaderProcessor",            "procOrder": 8 },
+  { "title": "PictureProcessor",           "type": "application/python", "classname": "PictureProcessor",           "procOrder": 9 },
+  { "title": "ListProcessor",              "type": "application/python", "classname": "ListProcessor",              "procOrder": 10 },
+  { "title": "EquationProcessor",          "type": "application/python", "classname": "EquationProcessor",          "procOrder": 11 },
+  { "title": "FormulaProcessor",           "type": "application/python", "classname": "FormulaProcessor",           "procOrder": 12 },
+  { "title": "ParagraphProcessor",         "type": "application/python", "classname": "ParagraphProcessor",         "procOrder": 13 },
+  { "title": "DehyphenationProcessor",     "type": "application/python", "classname": "DehyphenationProcessor",     "procOrder": 14 },
+  { "title": "DocumentFlowProcessor",      "type": "application/python", "classname": "DocumentFlowProcessor",      "procOrder": 999 },
+  { "title": "DocumentStructureProcessor", "type": "application/python", "classname": "DocumentStructureProcessor", "procOrder": 1000 },
+
+  { "op": "mutator",   "classname": "Dehyphenate" },
+  { "op": "projector", "classname": "PlainTextProjector" },
+  { "op": "projector", "classname": "LLMCompactProjector" },
+  { "op": "projector", "classname": "TiddlyWikiProjector" },
+  { "op": "projector", "classname": "CompressedTiddlersProjector",
+    "params": { "delimiter": "%%%%" } }
+]

@@ -1,0 +1,27 @@
+# Python
+__pycache__/
+*.pyc
+*.pyo
+
+# CodeGraph index (local)
+.codegraph/
+
+# pdfdrill sidecars + heavy blobs (regenerated next to each PDF)
+*.drill.json
+*.drill/
+
+# Generated unified-model artifacts
+*.docmodel.json
+
+# Source documents / OCR payloads (large, license-bound) — keep fixtures under tests/
+/data/*.pdf
+/data/*.lines.json
+/data/*.tex.zip
+
+# Secrets — MathPix credentials live in env, never in the repo
+.env
+mtestzx.ts
+
+# Editor / OS
+.DS_Store
+*.swp
