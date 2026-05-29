@@ -1,17 +1,17 @@
 """
 ComparisonHtmlProjector — the QC table.
 
-For every object that carries a MathPix CDN image (display `Equation`s), emit
-one HTML row with three things side by side:
+One HTML row per display `Equation` that carries a MathPix CDN crop. The
+baseline columns are the MathPix-PDF LaTeX, its KaTeX rendering, and the
+cropped image MathPix produced. Whenever an equation also carries competing
+`latex_candidate` realizations (e.g. provenance "snip" from MathPix /v3/text,
+or "llm"), each distinct provenance adds its own LaTeX + KaTeX columns, with
+the candidate's score shown inline. This lets a human — and, later, a scorer —
+see at a glance how the readings agree and whether they match the image.
 
-  1. the LaTeX MathPix produced (as source code),
-  2. that LaTeX rendered by KaTeX in the browser, and
-  3. the cropped image MathPix actually rendered (the CDN `<img>`).
-
-This lets a human (and, later, a scorer) see at a glance whether MathPix's
-LaTeX faithfully reproduces the image it was derived from. KaTeX is loaded
-from a CDN and each cell is rendered via `katex.render` against a `data-tex`
-attribute, so LaTeX delimiters in the body can't break the page.
+KaTeX is loaded from a CDN and each cell is rendered via `katex.render`
+against a `data-tex` attribute, so LaTeX delimiters in the body can't break
+the page.
 """
 from __future__ import annotations
 
@@ -23,6 +23,9 @@ from .common import flow_ordered_content, equation_label
 
 
 _KATEX_VERSION = "0.16.11"
+
+# Preferred left-to-right order for competing-provenance columns.
+_PROV_PREF = ["snip", "llm"]
 
 _PAGE_TEMPLATE = """<!DOCTYPE html>
 <html lang="en">
@@ -43,21 +46,19 @@ _PAGE_TEMPLATE = """<!DOCTYPE html>
   td.ref {{ white-space: nowrap; color: #444; }}
   pre {{ margin: 0; white-space: pre-wrap; word-break: break-word;
          font: 12px/1.4 ui-monospace, Menlo, Consolas, monospace; }}
-  .katex-cell {{ min-width: 12rem; }}
+  .katex-cell {{ min-width: 11rem; }}
+  .score {{ color: #888; font-size: 11px; margin-top: 4px; }}
   .render-error {{ color: #b00; font-family: monospace; white-space: pre-wrap; }}
   img.crop {{ max-width: 360px; height: auto; background: #fff;
               border: 1px solid #eee; }}
-  td.noimg {{ color: #999; font-style: italic; }}
+  td.empty {{ color: #ccc; text-align: center; }}
 </style>
 </head>
 <body>
 <h1>LaTeX vs MathPix image — {title}</h1>
-<div class="meta">{source} · {count} expressions with a CDN crop</div>
+<div class="meta">{source} · {count} expressions · providers: {providers}</div>
 <table>
-<thead><tr>
-  <th>#</th><th>ref</th><th>p</th>
-  <th>LaTeX (MathPix)</th><th>KaTeX render</th><th>MathPix image</th>
-</tr></thead>
+<thead><tr>{head_cells}</tr></thead>
 <tbody>
 {rows}
 </tbody>
@@ -84,41 +85,85 @@ class ComparisonHtmlProjector(BaseProjector):
         return ".compare.html"
 
     def project(self, doc: Document) -> str:
-        row_html: list[str] = []
-        n = 0
+        rows_data: list[dict] = []
+        provs: set[str] = set()
         for obj in flow_ordered_content(doc):
             cdn = obj.props.get("cdn_url") or ""
-            latex = (obj.props.get("latex") or "").strip()
-            # The comparison only means something where MathPix gave us an
-            # image to compare the LaTeX against.
-            if not cdn or not latex:
+            mlatex = (obj.props.get("latex") or "").strip()
+            if not cdn or not mlatex:
                 continue
-            n += 1
+            cands: dict[str, dict] = {}
+            for r in obj.realizations:
+                if r.role != "latex_candidate":
+                    continue
+                lx = (r.props.get("latex") or "").strip()
+                if not lx:
+                    continue
+                prov = r.provenance or "?"
+                cands[prov] = {"latex": lx, "score": r.score}
+                provs.add(prov)
+            rows_data.append({
+                "ref": equation_label(obj),
+                "page": obj.props.get("page"),
+                "mathpix": mlatex,
+                "cdn": cdn,
+                "cands": cands,
+            })
             self.bump("rows")
-            ref = equation_label(obj)
-            page = obj.props.get("page")
-            esc = html.escape(latex)
-            esc_attr = html.escape(latex, quote=True)
-            img_cell = (
-                f'<img class="crop" loading="lazy" alt="MathPix crop" '
-                f'src="{html.escape(cdn, quote=True)}">'
-            )
-            row_html.append(
-                "<tr>"
-                f'<td class="num">{n}</td>'
-                f'<td class="ref">{html.escape(ref)}</td>'
-                f'<td class="num">{page if page is not None else ""}</td>'
-                f"<td><pre>{esc}</pre></td>"
-                f'<td><div class="katex-cell" data-tex="{esc_attr}"></div></td>'
-                f"<td>{img_cell}</td>"
-                "</tr>"
-            )
+
+        ordered = [p for p in _PROV_PREF if p in provs] + \
+                  sorted(p for p in provs if p not in _PROV_PREF)
+
+        head = ['<th>#</th>', '<th>ref</th>', '<th>p</th>',
+                '<th>LaTeX (mathpix)</th>', '<th>KaTeX (mathpix)</th>']
+        for p in ordered:
+            head.append(f'<th>LaTeX ({html.escape(p)})</th>')
+            head.append(f'<th>KaTeX ({html.escape(p)})</th>')
+        head.append('<th>MathPix image</th>')
+
+        row_html: list[str] = []
+        for i, rd in enumerate(rows_data, 1):
+            cells = [
+                f'<td class="num">{i}</td>',
+                f'<td class="ref">{html.escape(rd["ref"])}</td>',
+                f'<td class="num">{rd["page"] if rd["page"] is not None else ""}</td>',
+            ]
+            cells += self._latex_pair(rd["mathpix"])
+            for p in ordered:
+                c = rd["cands"].get(p)
+                if c:
+                    cells += self._latex_pair(c["latex"], score=c.get("score"))
+                else:
+                    cells += ['<td class="empty">—</td>', '<td class="empty">—</td>']
+            cells.append(f'<td>{self._img(rd["cdn"])}</td>')
+            row_html.append("<tr>" + "".join(cells) + "</tr>")
 
         meta = doc.meta
         return _PAGE_TEMPLATE.format(
             kv=_KATEX_VERSION,
             title=html.escape(str(meta.get("bibkey", "document"))),
             source=html.escape(str(meta.get("source_path", ""))),
-            count=n,
+            count=len(rows_data),
+            providers=", ".join(["mathpix"] + ordered),
+            head_cells="".join(head),
             rows="\n".join(row_html),
+        )
+
+    @staticmethod
+    def _latex_pair(latex: str, score=None) -> list[str]:
+        esc = html.escape(latex)
+        esc_attr = html.escape(latex, quote=True)
+        score_html = ""
+        if isinstance(score, (int, float)):
+            score_html = f'<div class="score">conf {score:.3f}</div>'
+        return [
+            f"<td><pre>{esc}</pre></td>",
+            f'<td><div class="katex-cell" data-tex="{esc_attr}"></div>{score_html}</td>',
+        ]
+
+    @staticmethod
+    def _img(cdn: str) -> str:
+        return (
+            f'<img class="crop" loading="lazy" alt="MathPix crop" '
+            f'src="{html.escape(cdn, quote=True)}">'
         )

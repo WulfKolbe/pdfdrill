@@ -110,6 +110,75 @@ class Range:
         }
 
 
+# ---------- Region ----------
+
+@dataclass(frozen=True)
+class Region:
+    """
+    A rectangle on a page, in MathPix image-pixel coordinates by default.
+
+    Stored in MathPix-native fields (`top_left_x/y`, `width`, `height`) so it
+    maps 1:1 to both the rectangle in lines.json and the query parameters of a
+    self-constructed cropped-image CDN URL (see docmodel.mathpix.crop_url).
+    `space` records the coordinate system, so regions from other sources
+    (e.g. a Snip `cnt` polygon, or PDF points) stay distinguishable.
+    """
+    page: Optional[int] = None
+    top_left_x: Optional[float] = None
+    top_left_y: Optional[float] = None
+    width: Optional[float] = None
+    height: Optional[float] = None
+    space: str = "mathpix_image_px"
+
+    @classmethod
+    def from_mathpix(cls, region: Optional[dict], page: Optional[int] = None) -> Optional["Region"]:
+        """Build from a MathPix `region` dict (the lines.json rectangle)."""
+        if not region:
+            return None
+        return cls(
+            page=page,
+            top_left_x=region.get("top_left_x"),
+            top_left_y=region.get("top_left_y"),
+            width=region.get("width"),
+            height=region.get("height"),
+        )
+
+    @classmethod
+    def from_cnt(cls, cnt, page: Optional[int] = None,
+                 space: str = "snip_px") -> Optional["Region"]:
+        """Build a bounding box from a Snip `cnt` bounding polygon."""
+        if not cnt:
+            return None
+        xs = [pt[0] for pt in cnt]
+        ys = [pt[1] for pt in cnt]
+        x0, y0 = min(xs), min(ys)
+        return cls(page=page, top_left_x=x0, top_left_y=y0,
+                   width=max(xs) - x0, height=max(ys) - y0, space=space)
+
+    def to_dict(self) -> dict:
+        return {
+            "page": self.page,
+            "top_left_x": self.top_left_x,
+            "top_left_y": self.top_left_y,
+            "width": self.width,
+            "height": self.height,
+            "space": self.space,
+        }
+
+    @classmethod
+    def from_dict(cls, d: Optional[dict]) -> Optional["Region"]:
+        if d is None:
+            return None
+        return cls(
+            page=d.get("page"),
+            top_left_x=d.get("top_left_x"),
+            top_left_y=d.get("top_left_y"),
+            width=d.get("width"),
+            height=d.get("height"),
+            space=d.get("space", "mathpix_image_px"),
+        )
+
+
 # ---------- Realization ----------
 
 @dataclass
@@ -123,21 +192,39 @@ class Realization:
       'caption'  — the caption sub-range of a figure
       'tikz'     — TikZ reconstruction of an image
       'cdn'      — opaque pointer (no anchor range) to a CDN-rendered image
+      'latex_candidate' — a competing LaTeX reading of the same content from
+                          another tool (e.g. a Snip/LLM OCR of the crop)
+
+    `provenance` names the producing tool ('mathpix', 'snip', 'llm', ...).
+    `score` is an optional quality signal (e.g. a Snip confidence) reserved
+    for the scoring layer. `region` locates the realization on the page when
+    it isn't addressed by stream anchors (opaque streams like 'cdn'/'snip').
     """
     stream: str
     start: Optional[Anchor] = None
     end: Optional[Anchor] = None
     role: str = "surface"
     props: dict[str, Any] = field(default_factory=dict)
+    provenance: str = ""
+    score: Optional[float] = None
+    region: Optional[Region] = None
 
     def to_dict(self) -> dict:
-        return {
+        d = {
             "stream": self.stream,
             "start": self.start.id if self.start else None,
             "end": self.end.id if self.end else None,
             "role": self.role,
             "props": self.props,
         }
+        # Only emit the new fields when set, so existing output is unchanged.
+        if self.provenance:
+            d["provenance"] = self.provenance
+        if self.score is not None:
+            d["score"] = self.score
+        if self.region is not None:
+            d["region"] = self.region.to_dict()
+        return d
 
 
 # ---------- DocObject ----------
@@ -295,6 +382,9 @@ class Document:
                     end=resolve(sname, rd.get("end")),
                     role=rd.get("role", "surface"),
                     props=dict(rd.get("props", {})),
+                    provenance=rd.get("provenance", ""),
+                    score=rd.get("score"),
+                    region=Region.from_dict(rd.get("region")),
                 ))
             obj = DocObject(
                 id=od["id"],

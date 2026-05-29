@@ -135,7 +135,21 @@ Competing-provenance OCR for equation crops:
   dependency, untested in the claude.ai web sandbox). The other competing
   provenance is the LLM itself, prompted on an equation crop.
 
-Still to do in Phase 1 (the "competing tools" substrate): the `Region` type +
-`provenance`/`score` on `Realization`, then a command to batch-OCR equation
-crops (snip/LLM) and attach them as extra comparison columns by equation id.
-Then Phase 2 (scoring, using snip `confidence`) and Phase 3 (self-learning).
+The "competing tools" substrate is in place:
+
+- **`docmodel.core.Region`** (MathPix-native rectangle: `top_left_x/y`,
+  `width`, `height`, `space`) + **`provenance`/`score`/`region` on
+  `Realization`** (round-tripped; unset fields omitted from JSON). See
+  `tests/test_model_ext.py`.
+- **`pdfdrill snip <pdf> [--limit N] [--force]`** — OCRs each equation's CDN
+  crop via MathPix Snip and attaches a `provenance="snip"` `latex_candidate`
+  realization (LaTeX + `confidence` → `score`) to the model.
+- **`ComparisonHtmlProjector`** now renders one LaTeX+KaTeX column pair per
+  competing provenance (MathPix baseline first, then snip/llm), with the
+  candidate confidence shown inline. Verified live on `2605.12061`: 12 crops
+  snipped (mean confidence 0.90), Snip column present in `compare.html`.
+
+Still to do: the **LLM provenance** (prompt-on-crop → `latex_candidate`,
+provenance `llm`), optionally rendering our own crop from the PDF page
+(independent of MathPix), then Phase 2 (scoring across provenances, using snip
+`confidence` and image agreement) and Phase 3 (self-learning loop).

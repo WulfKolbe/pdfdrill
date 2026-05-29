@@ -43,6 +43,7 @@ TSV_SOURCE = "TSV_SOURCE"  # evidence key: "pdftotext" or "tesseract"
 MATHPIX_KNOWN = "MATHPIX_KNOWN"
 MODEL_BUILT = "MODEL_BUILT"
 COMPARE_BUILT = "COMPARE_BUILT"
+SNIP_RAN = "SNIP_RAN"
 
 
 # ---------------------------------------------------------------------------
@@ -229,6 +230,92 @@ def cmd_compare(pdf: Path, force: bool = False) -> str:
         f"Comparison table: {rows} expressions (LaTeX | KaTeX | MathPix image). "
         f"Open {rel} in a browser."
     )
+
+
+def cmd_snip(pdf: Path, limit: int | None = None, force: bool = False) -> str:
+    """OCR each equation's CDN crop via MathPix Snip (/v3/text) as a competing
+    'snip' provenance, attaching the LaTeX + confidence to the model.
+
+    Auto-chains `model` if needed. Idempotent per equation: an equation that
+    already has a snip candidate is skipped unless --force. `--limit N` caps
+    how many crops are sent (each is one MathPix request).
+    """
+    from docmodel.core import Document, Realization, Region
+    from .mathpix_snip import snip_result
+
+    sc = Sidecar(pdf)
+    model_path = _model_path(sc)
+    if not sc.has(MODEL_BUILT) or not model_path.exists():
+        cmd_model(pdf)
+        sc = Sidecar(pdf)
+        model_path = _model_path(sc)
+    if not model_path.exists():
+        return f"No model for {pdf.name} (run `pdfdrill model` first)."
+
+    with open(model_path, "r", encoding="utf-8") as f:
+        doc = Document.from_dict(json.load(f))
+
+    eqs = [o for o in doc.objects.values()
+           if o.type == "Equation" and o.props.get("cdn_url")]
+    todo = []
+    for e in eqs:
+        has_snip = any(r.role == "latex_candidate" and r.provenance == "snip"
+                       for r in e.realizations)
+        if has_snip and not force:
+            continue
+        todo.append(e)
+    if limit is not None:
+        todo = todo[:limit]
+
+    t0 = time.monotonic()
+    done = errors = 0
+    confs: list[float] = []
+    for e in todo:
+        try:
+            res = snip_result(e.props["cdn_url"])
+        except Exception:  # noqa: BLE001 — one bad crop shouldn't abort the batch
+            errors += 1
+            continue
+        if force:
+            e.realizations = [r for r in e.realizations
+                              if not (r.role == "latex_candidate" and r.provenance == "snip")]
+        region = None
+        lines = res.get("lines") or []
+        if lines and lines[0].get("cnt"):
+            region = Region.from_cnt(lines[0]["cnt"], page=e.props.get("page"))
+        e.add_realization(Realization(
+            stream="snip", role="latex_candidate", provenance="snip",
+            score=res.get("confidence"),
+            props={"latex": res.get("latex", ""), "text": res.get("text", ""),
+                   "confidence": res.get("confidence")},
+            region=region,
+        ))
+        done += 1
+        if res.get("confidence") is not None:
+            confs.append(res["confidence"])
+
+    with open(model_path, "w", encoding="utf-8") as f:
+        json.dump(doc.to_dict(), f, indent=2, ensure_ascii=False)
+
+    avg = sum(confs) / len(confs) if confs else None
+    total = (sc.get_evidence("snip_count", 0) or 0) + done
+    sc.set_evidence("snip_count", total)
+    sc.set_evidence("snip_avg_confidence", avg)
+    prev = ",".join(sorted(sc.facts - {SNIP_RAN})) or "INIT"
+    sc.add_fact(SNIP_RAN)
+    sc.log_transition(
+        "snip", prev, SNIP_RAN, cost_ms=(time.monotonic() - t0) * 1000,
+        detail=f"{done} snipped, {errors} errors",
+    )
+    sc.save()
+
+    msg = f"Snipped {done} equation crop(s) via MathPix /v3/text"
+    if errors:
+        msg += f" ({errors} failed)"
+    if avg is not None:
+        msg += f"; mean confidence {avg:.3f}"
+    msg += f". Run `pdfdrill compare {pdf.name}` to see the Snip column."
+    return msg
 
 
 # ---------------------------------------------------------------------------

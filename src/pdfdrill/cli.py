@@ -54,6 +54,7 @@ def main():
         "mathpix": _do_mathpix,
         "model": _do_model,
         "compare": _do_compare,
+        "snip": _do_snip,
     }
 
     if cmd not in handlers:
@@ -188,6 +189,23 @@ def _do_compare(args):
     from .commands import cmd_compare
     pdf_args = [a for a in args if a != "--force"]
     return cmd_compare(_pdf(pdf_args), force="--force" in args)
+
+
+def _do_snip(args):
+    """pdfdrill snip <pdf> [--limit N] [--force]"""
+    from .commands import cmd_snip
+    pdf_args: list[str] = []
+    limit = None
+    force = False
+    i = 0
+    while i < len(args):
+        if args[i] == "--limit" and i + 1 < len(args):
+            limit = int(args[i + 1]); i += 2
+        elif args[i] == "--force":
+            force = True; i += 1
+        else:
+            pdf_args.append(args[i]); i += 1
+    return cmd_snip(_pdf(pdf_args), limit=limit, force=force)
 
 
 def _do_pix2tex(args):
@@ -387,6 +405,7 @@ Introspection (fast, no extraction):
   pdfdrill mathpix <pdf>       Download MathPix OCR (lines.json, md, tex.zip); --force re-uploads
   pdfdrill model <pdf>         Build unified docmodel from lines.json (auto-chains mathpix)
   pdfdrill compare <pdf>       LaTeX | KaTeX | MathPix-image comparison HTML (auto-chains model)
+  pdfdrill snip <pdf>          OCR each equation crop via MathPix Snip (/v3/text) → competing column; --limit N
   pdfdrill toc <pdf>           Table of contents
   pdfdrill abstract <pdf>      Abstract from first pages
   pdfdrill fonts <pdf>         Font analysis, math font detection
