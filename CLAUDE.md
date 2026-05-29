@@ -124,7 +124,18 @@ suites. The MathPix-only QC path is **end-to-end functional**:
 Test totals: `test_basic` 7, `test_docops` 14, `test_mathpix` 5,
 `test_compare` 3.
 
+Competing-provenance OCR for equation crops:
+
+- **`pdfdrill.mathpix_snip`** — small tool over MathPix `POST /v3/text` (Snip).
+  Accepts a local image, a `data:` URI, or an image URL (so it can point at a
+  self-constructed `cdn.mathpix.com` crop). Returns `latex_styled` / `data[]`
+  LaTeX plus per-line `confidence` (a ready-made score signal).
+  `python -m pdfdrill.mathpix_snip <image|url>`; tests in `tests/test_snip.py`.
+- **`pix2tex` is intentionally NOT used** in the comparison pipeline (PyTorch
+  dependency, untested in the claude.ai web sandbox). The other competing
+  provenance is the LLM itself, prompted on an equation crop.
+
 Still to do in Phase 1 (the "competing tools" substrate): the `Region` type +
-`provenance`/`score` on `Realization`, and injecting pdfdrill's own
-detected-math / pix2tex LaTeX as extra comparison columns. Then Phase 2
-(scoring) and Phase 3 (self-learning loop).
+`provenance`/`score` on `Realization`, then a command to batch-OCR equation
+crops (snip/LLM) and attach them as extra comparison columns by equation id.
+Then Phase 2 (scoring, using snip `confidence`) and Phase 3 (self-learning).
