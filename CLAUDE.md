@@ -190,6 +190,12 @@ Block detectors on the substrate (`src/pdfdrill/blocks.py`):
   stay one list; deeper indent opens a sublist; indent-less items inherit the
   current level. `List` props: `list_type`, `indent_norm`. On 2605.12061:
   163 items → 69 lists (was 99 before the gap-bridging refinement).
+- Bullet handling: the PDF's `•` (U+2022) is normalized to `-` by MathPix; the
+  `ListProcessor` marker set covers both. `_split_bullets` also splits a line
+  on **mid-line strong-bullet glyphs** (`•‣◦▪●○`) so OCR that merges several
+  bullets onto one line (no linefeed) still yields separate `ListItem`s — a
+  no-op on 2605 (MathPix already separates each `-` bullet; 91 `•` ↔ 96 `-`
+  lines, 0 merged), defensive for docs where bullets merge.
 - **`pdfdrill algorithms <pdf>`** — MathPix tags algorithm bodies with line
   type `pseudocode` and keeps indentation in `region.top_left_x`, so we group
   per `Algorithm N:` caption and derive an integer `depth` per step

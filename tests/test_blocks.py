@@ -10,6 +10,7 @@ from pdfdrill.blocks import (
     nest_list_items, max_depth, count_lists,
     detect_algorithms, algorithm_max_depth,
 )
+from docmodel.modules.list_items import _split_bullets
 
 
 def _items(spec, marker="-"):
@@ -106,6 +107,17 @@ def test_two_algorithms_split_on_caption():
     algos = detect_algorithms(lines)
     assert [a["number"] for a in algos] == [1, 2]
     assert all(len(a["steps"]) == 1 for a in algos)
+
+
+def test_merged_bullet_line_splits_on_midline_glyphs():
+    # OCR merged several bullets onto one line (no linefeed) -> split each.
+    assert _split_bullets("• first • second • third") == [
+        ("•", "first"), ("•", "second"), ("•", "third")]
+    # a single leading dash bullet stays one item ('-' is not split mid-line)
+    assert _split_bullets("- evidence supporting the relation") == [
+        ("-", "evidence supporting the relation")]
+    assert _split_bullets("1. step one") == [("1.", "step one")]
+    assert _split_bullets("just prose, no bullet") == []
 
 
 if __name__ == "__main__":

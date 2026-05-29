@@ -22,6 +22,11 @@ _BULLET = re.compile(r"^([•○▪\-*\u2022\u2023\u25E6\u2043\u2219])\s+")
 _NUMBERED = re.compile(r"^(\d+[.)])\s+")
 _LETTERED = re.compile(r"^([a-zA-Z][.)])\s+")
 
+# "Strong" bullet glyphs (NOT '-'/'*', too ambiguous mid-line). When one of
+# these appears *mid-line*, the line is a run of bullet items the OCR merged
+# without a linefeed — split it into separate items.
+_STRONG_BULLET = re.compile("[•‣◦⁃∙▪●○∙]")
+
 
 def _detect_marker(text: str) -> Optional[str]:
     for rx in (_BULLET, _NUMBERED, _LETTERED):
@@ -29,6 +34,23 @@ def _detect_marker(text: str) -> Optional[str]:
         if m:
             return m.group(1)
     return None
+
+
+def _split_bullets(text: str) -> list[tuple[str, str]]:
+    """Return [(marker, content)] for a line.
+
+    If a strong bullet glyph appears mid-line (merged bullets, no linefeed),
+    split into one item per segment. Otherwise a single leading-marker item,
+    or [] when the line isn't a list item.
+    """
+    if text and _STRONG_BULLET.search(text[1:]):
+        segs = [s.strip() for s in _STRONG_BULLET.split(text) if s.strip()]
+        return [("•", s) for s in segs]
+    marker = _detect_marker(text)
+    if marker:
+        content = re.sub(r"^" + re.escape(marker) + r"\s+", "", text).strip()
+        return [(marker, content)]
+    return []
 
 
 class ListProcessor(BaseModule):
@@ -44,21 +66,20 @@ class ListProcessor(BaseModule):
             if payload.get("type") != "text":
                 continue
             text = (payload.get("text") or "").strip()
-            marker = _detect_marker(text)
-            if not marker:
-                continue
-            content = re.sub(
-                r"^" + re.escape(marker) + r"\s+", "", text
-            ).strip()
-            global_index += 1
-            items.append({
-                "anchor": anchor,
-                "marker": marker,
-                "content": content,
-                "page": payload.get("_page"),
-                "line_index": payload.get("_line_index"),
-                "list_index": global_index,
-            })
+            # One line may carry several bullets the OCR merged (no linefeed):
+            # _split_bullets returns one (marker, content) per item.
+            for marker, content in _split_bullets(text):
+                if not content:
+                    continue
+                global_index += 1
+                items.append({
+                    "anchor": anchor,
+                    "marker": marker,
+                    "content": content,
+                    "page": payload.get("_page"),
+                    "line_index": payload.get("_line_index"),
+                    "list_index": global_index,
+                })
         return items
 
     def create_object(self, item: dict[str, Any], doc: Document) -> Optional[DocObject]:
