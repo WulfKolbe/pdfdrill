@@ -153,7 +153,17 @@ The "competing tools" substrate is in place:
   candidate confidence shown inline. Verified live on `2605.12061`: 12 crops
   snipped (mean confidence 0.90), Snip column present in `compare.html`.
 
-Still to do: the **LLM provenance** (prompt-on-crop → `latex_candidate`,
-provenance `llm`), optionally rendering our own crop from the PDF page
-(independent of MathPix), then Phase 2 (scoring across provenances, using snip
-`confidence` and image agreement) and Phase 3 (self-learning loop).
+External-reader (LLM / any tool) provenance, network-free:
+
+- **`pdfdrill candidates <pdf> [--provider llm] [--limit N]`** — export a
+  manifest (`eq_id`, `refnum`, `page`, `cdn_url`, `mathpix_latex`, empty
+  `latex`) for an LLM to fill by looking at each `cdn_url` crop.
+- **`pdfdrill ingest <pdf> <json> [--provider P]`** — attach the returned
+  `{eq_id, latex}` (manifest or bare list) as `provenance=P` `latex_candidate`
+  realizations; `compare` then grows a column for that provenance.
+  Tests: `tests/test_candidates.py`.
+
+Still to do: optionally render our own crop from the PDF page (independent of
+MathPix), then Phase 2 (scoring across provenances — snip `confidence` +
+LaTeX agreement) and Phase 3 (self-learning loop). Algorithm/multi-line block
+content (e.g. arXiv 2312.11532) is not yet modeled as a comparable unit.

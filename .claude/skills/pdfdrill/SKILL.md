@@ -66,6 +66,23 @@ bare LaTeX PDFs it will return mostly empty fields and note what's missing.
 | `pdfdrill drill <pdf>` | Runs size → fonts → abstract → toc → md in one call |
 | `pdfdrill mathpix <pdf>` | Download MathPix OCR (`lines.json`, `md`, `tex.zip`) next to the PDF; idempotent (skips upload if outputs exist), `--force` re-uploads. Needs `MATHPIX_APP_ID`/`MATHPIX_APP_KEY` (or a local `mathpix_creds.py`). `lines.json` is the input to the LaTeX-vs-image comparison pipeline. |
 
+### Math QC comparison pipeline (LaTeX vs image)
+
+For checking / improving math OCR quality, build the unified model and a
+LaTeX | KaTeX | image table, optionally with competing readings:
+
+| Command | Returns |
+|---|---|
+| `pdfdrill model <pdf>` | Build the unified docmodel from `lines.json` (auto-chains `mathpix`) |
+| `pdfdrill snip <pdf> [--limit N]` | OCR each equation crop via MathPix Snip → `snip` column (LaTeX + confidence) |
+| `pdfdrill candidates <pdf> [--provider llm]` | Export a manifest of equation crops (`eq_id` + `cdn_url` + MathPix LaTeX) for an LLM to read |
+| `pdfdrill ingest <pdf> <json> [--provider llm]` | Attach the reader's `{eq_id, latex}` back as a competing column |
+| `pdfdrill compare <pdf>` | Emit `compare.html`: one row per equation, a LaTeX+KaTeX pair per provenance, plus the MathPix image |
+
+The LLM-as-reader loop: run `candidates`, look at each entry's `cdn_url`
+image and fill its `latex`, then `ingest`. No API key — the LLM supplies the
+vision; pdfdrill just prepares the crops and folds the answers into the model.
+
 ### Query stored data
 
 | Command | Returns |

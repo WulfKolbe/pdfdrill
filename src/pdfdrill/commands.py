@@ -328,6 +328,151 @@ def cmd_snip(pdf: Path, limit: int | None = None, force: bool = False) -> str:
 
 
 # ---------------------------------------------------------------------------
+# External-provenance candidates (LLM, or any tool): export manifest + ingest
+# ---------------------------------------------------------------------------
+
+_LLM_PROMPT = (
+    "For each entry below, open the image at `cdn_url` and transcribe ONLY the "
+    "mathematics as a single LaTeX string (no surrounding $ or \\[ \\]; use "
+    "\\begin{aligned}...\\end{aligned} for multi-line). Return a JSON list of "
+    '{"eq_id": <unchanged>, "latex": <your LaTeX>}. Keep eq_id exactly as given.'
+)
+
+
+def cmd_candidates(pdf: Path, provider: str = "llm",
+                   limit: int | None = None, out: str | None = None) -> str:
+    """Export a manifest of equation crops for an external reader (e.g. an LLM).
+
+    Writes JSON the reader fills in: per equation its id, refnum, page,
+    `cdn_url` (the crop to look at) and the MathPix LaTeX for reference. The
+    reader returns a list of {eq_id, latex}; feed it back with `pdfdrill
+    ingest`. This keeps pdfdrill pure-Python — the LLM (claude.ai web, or an
+    agent) supplies the vision, not an embedded API client.
+    """
+    from docmodel.core import Document
+
+    sc = Sidecar(pdf)
+    model_path = _model_path(sc)
+    if not sc.has(MODEL_BUILT) or not model_path.exists():
+        cmd_model(pdf)
+        sc = Sidecar(pdf)
+        model_path = _model_path(sc)
+    if not model_path.exists():
+        return f"No model for {pdf.name} (run `pdfdrill model` first)."
+
+    with open(model_path, "r", encoding="utf-8") as f:
+        doc = Document.from_dict(json.load(f))
+
+    entries = []
+    for e in doc.objects.values():
+        if e.type != "Equation" or not e.props.get("cdn_url"):
+            continue
+        has = any(r.role == "latex_candidate" and r.provenance == provider
+                  for r in e.realizations)
+        if has:
+            continue
+        entries.append({
+            "eq_id": e.id,
+            "refnum": e.props.get("refnum") or "",
+            "page": e.props.get("page"),
+            "cdn_url": e.props["cdn_url"],
+            "mathpix_latex": e.props.get("latex", ""),
+            "latex": "",  # <- the reader fills this in
+        })
+    if limit is not None:
+        entries = entries[:limit]
+
+    manifest = {
+        "bibkey": doc.meta.get("bibkey", pdf.stem),
+        "provider": provider,
+        "instructions": _LLM_PROMPT,
+        "equations": entries,
+    }
+    out_path = Path(out) if out else (sc.blob_dir / f"candidates.{provider}.json")
+    out_path.parent.mkdir(parents=True, exist_ok=True)
+    with open(out_path, "w", encoding="utf-8") as f:
+        json.dump(manifest, f, indent=2, ensure_ascii=False)
+
+    try:
+        rel = out_path.relative_to(pdf.parent)
+    except ValueError:
+        rel = out_path
+    return (
+        f"Wrote {len(entries)} '{provider}' candidate slots to {rel}. "
+        f"Have the reader fill each entry's \"latex\" (look at \"cdn_url\"), "
+        f"then: pdfdrill ingest {pdf.name} {rel} --provider {provider}"
+    )
+
+
+def cmd_ingest(pdf: Path, candidates_path: str, provider: str = "llm",
+               force: bool = False) -> str:
+    """Attach externally-produced LaTeX candidates to the model.
+
+    Accepts a manifest from `pdfdrill candidates` (with each entry's "latex"
+    filled), or a bare list of {eq_id, latex[, confidence]}. Each becomes a
+    `latex_candidate` realization with the given provenance, so the comparison
+    table grows a column for it.
+    """
+    from docmodel.core import Document, Realization
+
+    sc = Sidecar(pdf)
+    model_path = _model_path(sc)
+    if not model_path.exists():
+        return f"No model for {pdf.name} (run `pdfdrill model` first)."
+
+    with open(candidates_path, "r", encoding="utf-8") as f:
+        data = json.load(f)
+    if isinstance(data, dict):
+        provider = data.get("provider", provider)
+        items = data.get("equations") or data.get("candidates") or []
+    else:
+        items = data
+
+    with open(model_path, "r", encoding="utf-8") as f:
+        doc = Document.from_dict(json.load(f))
+
+    attached = skipped = 0
+    for it in items:
+        eq_id = it.get("eq_id") or it.get("id")
+        latex = (it.get("latex") or "").strip()
+        if not eq_id or not latex:
+            continue
+        obj = doc.objects.get(eq_id)
+        if obj is None:
+            continue
+        has = any(r.role == "latex_candidate" and r.provenance == provider
+                  for r in obj.realizations)
+        if has and not force:
+            skipped += 1
+            continue
+        if force:
+            obj.realizations = [r for r in obj.realizations
+                                if not (r.role == "latex_candidate" and r.provenance == provider)]
+        obj.add_realization(Realization(
+            stream=provider, role="latex_candidate", provenance=provider,
+            score=it.get("confidence") if it.get("confidence") is not None else it.get("score"),
+            props={"latex": latex},
+        ))
+        attached += 1
+
+    with open(model_path, "w", encoding="utf-8") as f:
+        json.dump(doc.to_dict(), f, indent=2, ensure_ascii=False)
+
+    fact = f"CANDIDATES_{provider.upper()}"
+    sc.set_evidence(f"candidates_{provider}_count",
+                    (sc.get_evidence(f"candidates_{provider}_count", 0) or 0) + attached)
+    prev = ",".join(sorted(sc.facts - {fact})) or "INIT"
+    sc.add_fact(fact)
+    sc.log_transition("ingest", prev, fact, detail=f"{attached} {provider} candidates")
+    sc.save()
+    msg = f"Ingested {attached} '{provider}' candidate(s)"
+    if skipped:
+        msg += f" ({skipped} already present; use --force to replace)"
+    msg += f". Run `pdfdrill compare {pdf.name}` to see the {provider} column."
+    return msg
+
+
+# ---------------------------------------------------------------------------
 # Links — the fast "where is the code/data?" path (annotation layer only)
 # ---------------------------------------------------------------------------
 

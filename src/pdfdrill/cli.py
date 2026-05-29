@@ -56,6 +56,8 @@ def main():
         "model": _do_model,
         "compare": _do_compare,
         "snip": _do_snip,
+        "candidates": _do_candidates,
+        "ingest": _do_ingest,
     }
 
     if cmd not in handlers:
@@ -212,6 +214,45 @@ def _do_snip(args):
         else:
             pdf_args.append(args[i]); i += 1
     return cmd_snip(_pdf(pdf_args), limit=limit, force=force)
+
+
+def _do_candidates(args):
+    """pdfdrill candidates <pdf> [--provider P] [--limit N] [--out F]"""
+    from .commands import cmd_candidates
+    pdf_args: list[str] = []
+    provider = "llm"
+    limit = None
+    out = None
+    i = 0
+    while i < len(args):
+        if args[i] == "--provider" and i + 1 < len(args):
+            provider = args[i + 1]; i += 2
+        elif args[i] == "--limit" and i + 1 < len(args):
+            limit = int(args[i + 1]); i += 2
+        elif args[i] == "--out" and i + 1 < len(args):
+            out = args[i + 1]; i += 2
+        else:
+            pdf_args.append(args[i]); i += 1
+    return cmd_candidates(_pdf(pdf_args), provider=provider, limit=limit, out=out)
+
+
+def _do_ingest(args):
+    """pdfdrill ingest <pdf> <candidates.json> [--provider P] [--force]"""
+    from .commands import cmd_ingest
+    pos: list[str] = []
+    provider = "llm"
+    force = False
+    i = 0
+    while i < len(args):
+        if args[i] == "--provider" and i + 1 < len(args):
+            provider = args[i + 1]; i += 2
+        elif args[i] == "--force":
+            force = True; i += 1
+        else:
+            pos.append(args[i]); i += 1
+    if len(pos) < 2:
+        raise ValueError("Usage: pdfdrill ingest <pdf> <candidates.json> [--provider P] [--force]")
+    return cmd_ingest(_pdf(pos[:1]), pos[1], provider=provider, force=force)
 
 
 def _do_pix2tex(args):
@@ -413,6 +454,8 @@ Introspection (fast, no extraction):
   pdfdrill model <pdf>         Build unified docmodel from lines.json (auto-chains mathpix)
   pdfdrill compare <pdf>       LaTeX | KaTeX | MathPix-image comparison HTML (auto-chains model)
   pdfdrill snip <pdf>          OCR each equation crop via MathPix Snip (/v3/text) → competing column; --limit N
+  pdfdrill candidates <pdf>    Export equation crops as a manifest for an LLM to read; --provider P --limit N
+  pdfdrill ingest <pdf> <json> Attach externally-produced {eq_id,latex} candidates as a provenance column; --provider P
   pdfdrill toc <pdf>           Table of contents
   pdfdrill abstract <pdf>      Abstract from first pages
   pdfdrill fonts <pdf>         Font analysis, math font detection
