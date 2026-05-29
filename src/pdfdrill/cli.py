@@ -51,6 +51,7 @@ def main():
         "pix2tex": _do_pix2tex,
         "tsv": _do_tsv,
         "render": _do_render,
+        "mathpix": _do_mathpix,
     }
 
     if cmd not in handlers:
@@ -158,6 +159,19 @@ def _do_render(args):
         else:
             pdf_args.append(a)
     return cmd_render(_pdf(pdf_args), force=force)
+
+
+def _do_mathpix(args):
+    """pdfdrill mathpix <pdf> [--force]"""
+    from .commands import cmd_mathpix
+    pdf_args: list[str] = []
+    force = False
+    for a in args:
+        if a == "--force":
+            force = True
+        else:
+            pdf_args.append(a)
+    return cmd_mathpix(_pdf(pdf_args), force=force)
 
 
 def _do_pix2tex(args):
@@ -354,6 +368,7 @@ Introspection (fast, no extraction):
   pdfdrill pix2tex <pdf> --page N --rect x0,y0,x1,y1   Explicit crop OCR
   pdfdrill tsv <pdf>           Word-level bounding boxes (pdftotext -tsv; --ocr forces tesseract)
   pdfdrill render <pdf>        Render the built markdown to PDF (pandoc + lualatex)
+  pdfdrill mathpix <pdf>       Download MathPix OCR (lines.json, md, tex.zip); --force re-uploads
   pdfdrill toc <pdf>           Table of contents
   pdfdrill abstract <pdf>      Abstract from first pages
   pdfdrill fonts <pdf>         Font analysis, math font detection

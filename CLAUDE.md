@@ -110,7 +110,8 @@ git-ignored and is **not** part of this repo.
 
 ## Current status
 
-This is the first checked-in, tested baseline: the merged layout, a working
-pdfdrill CLI (verified on `2605.12061`), and the passing docmodel/docops
-suites. The Phase-1 feature commands (`mathpix`, `model`, `compare`) and the
-`Region`/provenance/score model extensions are not yet implemented.
+Merged layout + working pdfdrill CLI (verified on `2605.12061`) + passing
+docmodel/docops suites. **`pdfdrill mathpix`** is implemented (Python port of
+`mtestzx.ts`, idempotent, creds from env or a git-ignored `mathpix_creds.py`;
+tests in `tests/test_mathpix.py`). Still to do in Phase 1: the `model` and
+`compare` commands and the `Region`/provenance/score model extensions.

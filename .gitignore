@@ -21,6 +21,7 @@ __pycache__/
 # Secrets — MathPix credentials live in env, never in the repo
 .env
 mtestzx.ts
+src/pdfdrill/mathpix_creds.py
 
 # Editor / OS
 .DS_Store

@@ -39,6 +39,63 @@ IMAGES_LAYER_KNOWN = "IMAGES_LAYER_KNOWN"
 PIX2TEX_RAN = "PIX2TEX_RAN"
 TSV_KNOWN = "TSV_KNOWN"
 TSV_SOURCE = "TSV_SOURCE"  # evidence key: "pdftotext" or "tesseract"
+MATHPIX_KNOWN = "MATHPIX_KNOWN"
+
+
+# ---------------------------------------------------------------------------
+# MathPix OCR download
+# ---------------------------------------------------------------------------
+
+def cmd_mathpix(pdf: Path, force: bool = False) -> str:
+    """Download MathPix OCR outputs (lines.json, md, tex.zip) next to the PDF.
+
+    Idempotent: if the outputs already exist next to the PDF (and --force is
+    not given), no upload happens, so re-runs cost no MathPix credits. The
+    pdf_id and the downloaded files are recorded in the sidecar.
+
+    MathPix `lines.json` is the format the comparison pipeline needs: it pairs
+    each recognized expression's LaTeX with the CDN image MathPix rendered.
+    """
+    from .mathpix_client import fetch_mathpix
+
+    sc = Sidecar(pdf)
+    t0 = time.monotonic()
+    result = fetch_mathpix(str(pdf), force=force)
+
+    files_meta = []
+    for ext, path in result["files"].items():
+        p = Path(path)
+        files_meta.append({
+            "format": ext,
+            "path": p.name,
+            "bytes": p.stat().st_size if p.exists() else 0,
+        })
+
+    sc.set_evidence("mathpix_pdf_id", result.get("pdf_id"))
+    sc.set_evidence("mathpix_status", result["status"])
+    sc.set_evidence("mathpix_files", files_meta)
+    prev = ",".join(sorted(sc.facts - {MATHPIX_KNOWN})) or "INIT"
+    sc.add_fact(MATHPIX_KNOWN)
+    sc.log_transition(
+        "mathpix", prev, MATHPIX_KNOWN,
+        cost_ms=(time.monotonic() - t0) * 1000, detail=result["status"],
+    )
+    sc.save()
+    return _format_mathpix(result, files_meta)
+
+
+def _format_mathpix(result: dict, files_meta: list[dict]) -> str:
+    verb = "Already present" if result["status"] == "cached" else "Downloaded"
+    lines = []
+    for fm in files_meta:
+        kb = fm["bytes"] / 1024.0
+        lines.append(f"  {fm['format']:<10} {fm['path']}  ({kb:,.1f} KB)")
+    pid = result.get("pdf_id")
+    head = f"{verb} MathPix OCR outputs"
+    if pid:
+        head += f" (pdf_id {pid})"
+    tail = "\nNext: build the unified model from lines.json (pdfdrill model)."
+    return head + ":\n" + "\n".join(lines) + tail
 
 
 # ---------------------------------------------------------------------------

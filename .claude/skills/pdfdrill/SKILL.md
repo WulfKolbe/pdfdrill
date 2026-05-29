@@ -63,6 +63,7 @@ bare LaTeX PDFs it will return mostly empty fields and note what's missing.
 | `pdfdrill md <pdf>` | Summary sentence + stores full Markdown in sidecar |
 | `pdfdrill page <pdf> <n>` | Full text of page N |
 | `pdfdrill drill <pdf>` | Runs size → fonts → abstract → toc → md in one call |
+| `pdfdrill mathpix <pdf>` | Download MathPix OCR (`lines.json`, `md`, `tex.zip`) next to the PDF; idempotent (skips upload if outputs exist), `--force` re-uploads. Needs `MATHPIX_APP_ID`/`MATHPIX_APP_KEY` (or a local `mathpix_creds.py`). `lines.json` is the input to the LaTeX-vs-image comparison pipeline. |
 
 ### Query stored data
 
