@@ -47,6 +47,7 @@ SNIP_RAN = "SNIP_RAN"
 LINKS_KNOWN = "LINKS_KNOWN"
 GEOMETRY_FUSED = "GEOMETRY_FUSED"
 TIDDLERS_BUILT = "TIDDLERS_BUILT"
+LISTS_BUILT = "LISTS_BUILT"
 
 # Hosts that almost always mean "here is the code / data for this paper".
 _CODE_HOSTS = (
@@ -327,6 +328,141 @@ def cmd_snip(pdf: Path, limit: int | None = None, force: bool = False) -> str:
         msg += f"; mean confidence {avg:.3f}"
     msg += f". Run `pdfdrill compare {pdf.name}` to see the Snip column."
     return msg
+
+
+# ---------------------------------------------------------------------------
+# Block reconstruction — nest ListItems into a recursive List tree
+# ---------------------------------------------------------------------------
+
+def cmd_lists(pdf: Path, force: bool = False) -> str:
+    """Group flat ListItems into nested `List` containers using fused
+    indentation geometry. Auto-chains `model` and `geometry`.
+
+    Each contiguous run of list items (no page change / no big line gap)
+    becomes a List; items indented past the current level open a nested
+    sublist (LaTeX-list semantics). Recursive `List` DocObjects are added with
+    ListItem/List children and parent links.
+    """
+    from docmodel.core import Document, DocObject
+    from .blocks import nest_list_items, max_depth, count_lists
+
+    sc = Sidecar(pdf)
+    model_path = _model_path(sc)
+    if not sc.has(MODEL_BUILT) or not model_path.exists():
+        cmd_model(pdf)
+        sc = Sidecar(pdf)
+        model_path = _model_path(sc)
+    if not sc.has(GEOMETRY_FUSED):
+        cmd_geometry(pdf)
+        sc = Sidecar(pdf)
+    if not model_path.exists():
+        return f"No model for {pdf.name} (run `pdfdrill model` first)."
+
+    with open(model_path, "r", encoding="utf-8") as f:
+        doc = Document.from_dict(json.load(f))
+
+    existing = [o for o in doc.objects.values() if o.type == "List"]
+    if existing and not force:
+        return _format_lists(sc)
+    if force and existing:
+        ids = {o.id for o in existing}
+        for o in existing:
+            doc.objects.pop(o.id, None)
+        for o in doc.objects.values():          # detach children/parents
+            o.children = [c for c in o.children if c not in ids]
+            if o.parent in ids:
+                o.parent = None
+
+    mp = doc.stream("mathpix_lines") if "mathpix_lines" in doc.streams else None
+
+    def _indent_of(item_obj):
+        if mp is None:
+            return None
+        r = next((r for r in item_obj.realizations
+                  if r.stream == "mathpix_lines" and r.start is not None), None)
+        if r is None:
+            return None
+        g = mp.payload.get(r.start, {}).get("_geom")
+        return g.get("indent_norm") if g else None
+
+    items = []
+    for o in doc.objects.values():
+        if o.type != "ListItem":
+            continue
+        items.append({
+            "id": o.id,
+            "page": o.props.get("page"),
+            "line_index": o.props.get("line_index"),
+            "indent": _indent_of(o),
+            "marker": o.props.get("marker"),
+        })
+    items.sort(key=lambda it: (it["page"] if it["page"] is not None else 1 << 30,
+                               it["line_index"] if it["line_index"] is not None else 1 << 30))
+
+    roots = nest_list_items(items)
+
+    created = [0]
+
+    def materialize(nodes, parent_id):
+        for ch in nodes:
+            if ch["kind"] == "item":
+                it = doc.objects.get(ch["id"])
+                if it is None:
+                    continue
+                if parent_id:
+                    it.parent = parent_id
+                    doc.objects[parent_id].children.append(ch["id"])
+            else:
+                node = ch["node"]
+                markers = [c.get("marker") for c in node["children"]
+                           if c["kind"] == "item" and c.get("marker")]
+                lst = DocObject(type="List", props={
+                    "indent_norm": round(node["indent"], 4),
+                    "list_type": _list_type(markers),
+                    "bibkey": pdf.stem,
+                })
+                doc.add(lst)
+                created[0] += 1
+                if parent_id:
+                    lst.parent = parent_id
+                    doc.objects[parent_id].children.append(lst.id)
+                materialize(node["children"], lst.id)
+
+    materialize(roots, None)
+
+    with open(model_path, "w", encoding="utf-8") as f:
+        json.dump(doc.to_dict(), f, indent=2, ensure_ascii=False)
+
+    depth = max_depth(roots)
+    n_items = len(items)
+    sc.set_evidence("lists_created", created[0])
+    sc.set_evidence("lists_max_depth", depth)
+    sc.set_evidence("lists_items", n_items)
+    prev = ",".join(sorted(sc.facts - {LISTS_BUILT})) or "INIT"
+    sc.add_fact(LISTS_BUILT)
+    sc.log_transition(
+        "lists", prev, LISTS_BUILT,
+        detail=f"{created[0]} lists, depth {depth}, {n_items} items",
+    )
+    sc.save()
+    return _format_lists(sc)
+
+
+def _list_type(markers: list[str]) -> str:
+    if not markers:
+        return "list"
+    bullets = sum(1 for m in markers if m and m[0] in "•○▪-*•‣◦⁃∙")
+    return "itemize" if bullets >= len(markers) / 2 else "enumerate"
+
+
+def _format_lists(sc: Sidecar) -> str:
+    return (
+        f"Reconstructed {sc.get_evidence('lists_created', 0)} nested List(s) "
+        f"from {sc.get_evidence('lists_items', 0)} list items "
+        f"(max nesting depth {sc.get_evidence('lists_max_depth', 0)}). "
+        f"List objects carry list_type (itemize/enumerate) and indent_norm; "
+        f"ListItems are now children of their List."
+    )
 
 
 # ---------------------------------------------------------------------------

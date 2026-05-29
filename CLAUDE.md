@@ -181,10 +181,32 @@ Cross-level **geometry fusion** substrate (for multi-line block recovery):
   geometry; indentation clusters cleanly into nesting levels (1240 at body
   margin, 483 / 133 / 54 at successive indents).
 
-Still to do, on this substrate: **block detectors** — `Algorithm`
-(recursive numbered-line children, needs arXiv 2312.11532 MathPix-converted)
-and nested `List`/`ListItem` from indentation runs (comby-style structural
-templates tolerant of OCR noise); equation-number fusion by right-margin
-geometry. Then Phase 2 (scoring across provenances) and Phase 3 (self-learning
-loop). Later layers: a math-expression graph, a document-structure graph, and
-a citation graph queryable over the model.
+First block detector on the substrate:
+
+- **`pdfdrill lists <pdf>`** (`src/pdfdrill/blocks.py`) — nests flat
+  `ListItem`s into recursive `List` containers by fused `indent_norm`
+  (LaTeX-list semantics: deeper indent opens a sublist), auto-chaining
+  `model` + `geometry`. `List` props: `list_type` (itemize/enumerate),
+  `indent_norm`. Pure nesting logic in `nest_list_items`; tests in
+  `tests/test_blocks.py`.
+- First-cut limits observed on 2605.12061 (99 lists / 163 items, depth 1):
+  list items interleaved with answer paragraphs get split into singletons by
+  the line-gap heuristic, and ~26% of marker lines had no geometry match so
+  couldn't nest. Refinements: group across paragraph gaps by marker-style +
+  indent; widen geometry-match coverage for marker lines.
+
+**Annotation storage (how a URL is held).** Two layers today:
+(1) sidecar — `links` `[{page,url}]` and the richer `urls` layer
+`{page,kind,uri,dest_name,dest_page,rect,anchor_text,context}` from
+`links_layer.fetch_links`; (2) docmodel — URL-like pointers are a no-anchor
+`Realization` (`stream="cdn"`, `props={"url":…}`) plus `props["cdn_url"]` /
+`canonical_uri` and a `Region`. Hyperlink **annotations are not yet promoted
+into the model** as first-class nodes — a near-term follow-up is a `Link`
+DocObject (Region = rect, props = uri/anchor_text/context, Alignment to the
+covered text span) feeding the citation/provenance graph.
+
+Still to do: refine list grouping; `Algorithm` blocks (needs arXiv 2312.11532
+MathPix-converted) with comby-style structural templates; equation-number
+fusion by right-margin geometry; promote link annotations to `Link` nodes;
+then Phase 2 (scoring across provenances) and Phase 3 (self-learning). Later
+layers: math-expression graph, document-structure graph, citation graph.

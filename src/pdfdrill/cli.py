@@ -60,6 +60,7 @@ def main():
         "ingest": _do_ingest,
         "geometry": _do_geometry,
         "tiddlers": _do_tiddlers,
+        "lists": _do_lists,
     }
 
     if cmd not in handlers:
@@ -230,6 +231,13 @@ def _do_tiddlers(args):
     from .commands import cmd_tiddlers
     pdf_args = [a for a in args if a != "--force"]
     return cmd_tiddlers(_pdf(pdf_args), force="--force" in args)
+
+
+def _do_lists(args):
+    """pdfdrill lists <pdf> [--force]"""
+    from .commands import cmd_lists
+    pdf_args = [a for a in args if a != "--force"]
+    return cmd_lists(_pdf(pdf_args), force="--force" in args)
 
 
 def _do_candidates(args):
@@ -474,6 +482,7 @@ Introspection (fast, no extraction):
   pdfdrill ingest <pdf> <json> Attach externally-produced {eq_id,latex} candidates as a provenance column; --provider P
   pdfdrill geometry <pdf>      Fuse pdftotext -tsv layout (indent/margins) onto the model — substrate for block detection
   pdfdrill tiddlers <pdf>      Emit a TiddlyWiki JSON tiddler array (latex/displayMode/canonical_uri/width/height) for quick inspection
+  pdfdrill lists <pdf>         Nest flat ListItems into recursive List blocks using fused indentation (auto-chains geometry)
   pdfdrill toc <pdf>           Table of contents
   pdfdrill abstract <pdf>      Abstract from first pages
   pdfdrill fonts <pdf>         Font analysis, math font detection
