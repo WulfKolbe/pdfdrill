@@ -240,9 +240,24 @@ Cross-reference graph + geometry coverage (done):
   layout. 2605.12061 list items: 163/163 carry geometry (was 121/163), which
   lifted list nesting to depth 2.
 
-Still to do: **Phase 3 — self-learning loop** (use the Phase-2 scores to tune
-detection heuristics / OCR-engine choice / `latex_map`); equation-number
-fusion by right-margin geometry; a real BibTeX grammar (ANTLR/comby) to
-populate Citation objects so `cite` edges form. Later layers: math-expression
-graph, document-structure graph, citation graph — queried like Pyre/Pysa over
-code, over the persisted `model.docmodel.json` (the between-call memory).
+Phase 3 — closed self-learning loop (done):
+
+- Scoring gained **corroboration**: ≥2 independent readings agreeing ≥0.9 with
+  MathPix clears a `low_confidence` flag (consensus outweighs one tool's
+  confidence). `normalize_latex` now collapses single-token braces
+  (`x^{2}`==`x^2`) so cosmetic differences don't suppress agreement.
+- **`pdfdrill escalate <pdf>`** exports only the flagged equations (snapshotting
+  their signals) for a second reading; after `ingest`, **`pdfdrill relearn
+  <pdf>`** re-scores and reports resolved / improved / still-shaky. The LLM
+  (agent or claude.ai web) supplies the readings — no API, no new deps.
+- Demonstrated end-to-end on 2605.12061: 9 flagged → escalate → the agent read
+  the crops, ingested → **relearn: 7 resolved, 1 still flagged** (the hardest
+  multi-line equation, correctly retained). Flagged 9 → 1.
+  Tests: `tests/test_escalate.py` + corroboration in `tests/test_scoring.py`.
+
+Still to do: equation-number fusion by right-margin geometry; a real BibTeX
+grammar (ANTLR/comby) to populate Citation objects so `cite` edges form;
+deepen the loop (auto-tune normalization / engine choice from accumulated
+flags). Later layers: math-expression graph, document-structure graph,
+citation graph — queried like Pyre/Pysa over the persisted
+`model.docmodel.json` (the between-call memory).

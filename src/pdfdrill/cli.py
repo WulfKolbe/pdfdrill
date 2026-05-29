@@ -64,6 +64,8 @@ def main():
         "algorithms": _do_algorithms,
         "annotate": _do_annotate,
         "score": _do_score,
+        "escalate": _do_escalate,
+        "relearn": _do_relearn,
     }
 
     if cmd not in handlers:
@@ -262,6 +264,26 @@ def _do_score(args):
     from .commands import cmd_score
     pdf_args = [a for a in args if a != "--force"]
     return cmd_score(_pdf(pdf_args), force="--force" in args)
+
+
+def _do_escalate(args):
+    """pdfdrill escalate <pdf> [--limit N]"""
+    from .commands import cmd_escalate
+    pdf_args: list[str] = []
+    limit = None
+    i = 0
+    while i < len(args):
+        if args[i] == "--limit" and i + 1 < len(args):
+            limit = int(args[i + 1]); i += 2
+        else:
+            pdf_args.append(args[i]); i += 1
+    return cmd_escalate(_pdf(pdf_args), limit=limit)
+
+
+def _do_relearn(args):
+    """pdfdrill relearn <pdf>"""
+    from .commands import cmd_relearn
+    return cmd_relearn(_pdf(args))
 
 
 def _do_candidates(args):
@@ -510,6 +532,8 @@ Introspection (fast, no extraction):
   pdfdrill algorithms <pdf>    Reconstruct Algorithm blocks from MathPix pseudocode lines (caption + indented steps)
   pdfdrill annotate <pdf>      Promote hyperlink annotations into the model as first-class Link nodes (uri + rect Region)
   pdfdrill score <pdf>         Score equations by cross-provenance agreement + snip confidence; flags review candidates
+  pdfdrill escalate <pdf>      Phase-3: export flagged equations for a second LLM reading; --limit N
+  pdfdrill relearn <pdf>       Phase-3: re-score after ingest; report resolved vs still-flagged
   pdfdrill toc <pdf>           Table of contents
   pdfdrill abstract <pdf>      Abstract from first pages
   pdfdrill fonts <pdf>         Font analysis, math font detection

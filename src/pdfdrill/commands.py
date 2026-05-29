@@ -51,6 +51,7 @@ LISTS_BUILT = "LISTS_BUILT"
 ALGORITHMS_BUILT = "ALGORITHMS_BUILT"
 ANNOTATIONS_BUILT = "ANNOTATIONS_BUILT"
 SCORED = "SCORED"
+ESCALATION_OPEN = "ESCALATION_OPEN"
 
 # Hosts that almost always mean "here is the code / data for this paper".
 _CODE_HOSTS = (
@@ -761,6 +762,144 @@ def _format_score(sc: Sidecar) -> str:
             f"(low agreement or low snip confidence). "
             f"Run `pdfdrill compare {sc.pdf_path.name}` — flagged rows are "
             f"highlighted with a score column.")
+
+
+# ---------------------------------------------------------------------------
+# Phase 3 — closed self-learning loop: escalate flagged equations, relearn
+# ---------------------------------------------------------------------------
+
+_ESCALATE_PROMPT = (
+    "These equations were FLAGGED for review (low confidence or disagreement). "
+    "For each, open the image at `cdn_url` and transcribe ONLY the mathematics "
+    "as a single LaTeX string (no surrounding $; \\begin{aligned} for "
+    "multi-line). Return JSON list of {eq_id, latex}. A reading that "
+    "corroborates the existing one will resolve the flag."
+)
+
+
+def cmd_escalate(pdf: Path, limit: int | None = None) -> str:
+    """Phase-3 step 1: export the FLAGGED equations for a second opinion.
+
+    Auto-chains `score`. Writes a candidates manifest of only the flagged
+    equations and snapshots their current signals, so `relearn` can report
+    what improved after the new readings are ingested.
+    """
+    from docmodel.core import Document
+
+    sc = Sidecar(pdf)
+    model_path = _model_path(sc)
+    if not sc.has(SCORED):
+        cmd_score(pdf)
+        sc = Sidecar(pdf)
+    if not model_path.exists():
+        return f"No model for {pdf.name} (run `pdfdrill model` first)."
+
+    with open(model_path, "r", encoding="utf-8") as f:
+        doc = Document.from_dict(json.load(f))
+
+    flagged = []
+    snapshot = {}
+    for o in doc.objects.values():
+        if o.type != "Equation" or not o.props.get("cdn_url"):
+            continue
+        s = o.props.get("score") or {}
+        if not s.get("flags"):
+            continue
+        # Skip ones that already have an LLM reading (nothing new to ask).
+        if any(r.role == "latex_candidate" and r.provenance == "llm"
+               for r in o.realizations):
+            continue
+        flagged.append({
+            "eq_id": o.id,
+            "refnum": o.props.get("refnum") or "",
+            "page": o.props.get("page"),
+            "cdn_url": o.props["cdn_url"],
+            "mathpix_latex": o.props.get("latex", ""),
+            "current_flags": s.get("flags"),
+            "current_min_signal": s.get("min_signal"),
+            "latex": "",
+        })
+        snapshot[o.id] = {"before_min_signal": s.get("min_signal"),
+                          "before_flags": s.get("flags")}
+    if limit is not None:
+        flagged = flagged[:limit]
+        snapshot = {e["eq_id"]: snapshot[e["eq_id"]] for e in flagged}
+
+    manifest = {"bibkey": doc.meta.get("bibkey", pdf.stem), "provider": "llm",
+                "instructions": _ESCALATE_PROMPT, "equations": flagged}
+    sc.blob_dir.mkdir(parents=True, exist_ok=True)
+    out_path = sc.blob_dir / "escalate.llm.json"
+    out_path.write_text(json.dumps(manifest, indent=2, ensure_ascii=False),
+                        encoding="utf-8")
+
+    sc.set_evidence("escalation", snapshot)
+    sc.set_evidence("escalation_count", len(flagged))
+    sc.add_fact(ESCALATION_OPEN)
+    sc.save()
+    rel = out_path.relative_to(sc.pdf_path.parent)
+    return (
+        f"Escalated {len(flagged)} flagged equation(s) → {rel}. Provide LLM "
+        f"readings (look at each `cdn_url`), then:\n"
+        f"  pdfdrill ingest {pdf.name} {rel} --provider llm\n"
+        f"  pdfdrill relearn {pdf.name}"
+    )
+
+
+def cmd_relearn(pdf: Path) -> str:
+    """Phase-3 step 2: re-score and report what the new readings resolved.
+
+    Compares each escalated equation's signal against the pre-escalation
+    snapshot: resolved (flags cleared), improved (signal up, still flagged),
+    or still-shaky.
+    """
+    from docmodel.core import Document
+
+    sc = Sidecar(pdf)
+    snapshot = sc.get_evidence("escalation", {}) or {}
+    if not snapshot:
+        return ("No open escalation. Run `pdfdrill escalate <pdf>`, ingest the "
+                "readings, then `pdfdrill relearn`.")
+
+    cmd_score(pdf, force=True)        # recompute with the newly ingested readings
+    sc = Sidecar(pdf)
+    model_path = _model_path(sc)
+    with open(model_path, "r", encoding="utf-8") as f:
+        doc = Document.from_dict(json.load(f))
+
+    resolved = improved = still = 0
+    shaky: list[str] = []
+    for eq_id, before in snapshot.items():
+        o = doc.objects.get(eq_id)
+        if o is None:
+            continue
+        s = o.props.get("score") or {}
+        before_flags = before.get("before_flags") or []
+        before_sig = before.get("before_min_signal")
+        now_flags = s.get("flags") or []
+        now_sig = s.get("min_signal")
+        if before_flags and not now_flags:
+            resolved += 1
+        elif now_flags:
+            if before_sig is not None and now_sig is not None and now_sig > before_sig:
+                improved += 1
+            else:
+                still += 1
+            shaky.append(f"ref {o.props.get('refnum') or '?'} {now_flags}")
+        # else: was not flagged / nothing to do
+
+    sc.set_evidence("relearn_resolved", resolved)
+    sc.set_evidence("relearn_improved", improved)
+    sc.set_evidence("relearn_still", still)
+    prev = ",".join(sorted(sc.facts - {SCORED})) or "INIT"
+    sc.log_transition("relearn", prev, SCORED,
+                      detail=f"{resolved} resolved, {improved} improved, {still} still")
+    sc.save()
+
+    lines = [f"Relearn: {resolved} resolved, {improved} improved, "
+             f"{still} still flagged (of {len(snapshot)} escalated)."]
+    if shaky:
+        lines.append("Still shaky: " + "; ".join(shaky[:10]))
+    return "\n".join(lines)
 
 
 # ---------------------------------------------------------------------------

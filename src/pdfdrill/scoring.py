@@ -40,6 +40,12 @@ def normalize_latex(s: str) -> str:
     for sp in _SPACING:
         s = s.replace(sp, "")
     s = re.sub(r"\s+", "", s)
+    # Collapse single-token braces so x^{2}==x^2, _{i}==_i, {\beta}==\beta.
+    for _ in range(3):                       # a few passes for nested cases
+        new = re.sub(r"\{(\\?\w+)\}", r"\1", s)
+        if new == s:
+            break
+        s = new
     return s
 
 
@@ -70,10 +76,16 @@ def score_equation(mathpix_latex: str, candidates: dict[str, dict],
 
     mean_agreement = round(sum(agreement.values()) / len(agreement), 3) if agreement else None
 
+    # Corroborated = at least two independent readings agree strongly with the
+    # MathPix LaTeX. Independent consensus outweighs a single tool's low
+    # confidence, so a corroborated equation is trusted despite low snip conf.
+    high = [v for v in agreement.values() if v >= 0.9]
+    corroborated = len(high) >= 2
+
     flags: list[str] = []
     if mean_agreement is not None and mean_agreement < low_agreement:
         flags.append("low_agreement")
-    if snip_conf is not None and snip_conf < low_confidence:
+    if snip_conf is not None and snip_conf < low_confidence and not corroborated:
         flags.append("low_confidence")
     if not candidates:
         flags.append("no_competing_reading")
@@ -86,6 +98,7 @@ def score_equation(mathpix_latex: str, candidates: dict[str, dict],
         "agreement": agreement,
         "mean_agreement": mean_agreement,
         "snip_confidence": snip_conf,
+        "corroborated": corroborated,
         "min_signal": min_signal,
         "flags": flags,
     }

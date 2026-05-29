@@ -52,6 +52,21 @@ def test_no_candidates_flagged():
     assert s["mean_agreement"] is None
 
 
+def test_single_low_conf_not_corroborated():
+    s = score_equation("E=mc^2", {"snip": {"latex": "E=mc^2", "score": 0.3}})
+    assert s["corroborated"] is False
+    assert "low_confidence" in s["flags"]
+
+
+def test_corroboration_clears_low_confidence():
+    # Two independent readings agree strongly -> trust despite low snip conf.
+    cands = {"snip": {"latex": "E=mc^2", "score": 0.3},
+             "llm": {"latex": "E = mc^{2}", "score": None}}
+    s = score_equation("E=mc^2", cands)
+    assert s["corroborated"] is True
+    assert "low_confidence" not in s["flags"]
+
+
 if __name__ == "__main__":
     tests = [v for k, v in list(globals().items()) if k.startswith("test_")]
     failed = []
