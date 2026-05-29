@@ -301,6 +301,11 @@ class TiddlyWikiProjector(BaseProjector):
             t["latex"] = e.props.get("latex", "")
             t["displayMode"] = "true"   # display equations render in display mode
             t["refnum"] = e.props.get("refnum") or ""
+            # Displayed reference "(N)" for the ||FREF transclusion.
+            eqn = e.props.get("equation_number")
+            if not eqn and e.props.get("refnum"):
+                eqn = f"({e.props['refnum']})"
+            t["equation_number"] = eqn or ""
             t["page"] = self._p3(e.props.get("page"))
             if e.props.get("cdn_url"):
                 t["canonical_uri"] = e.props["cdn_url"]
@@ -728,6 +733,10 @@ class TiddlyWikiProjector(BaseProjector):
 
             # EQ — inline equation reference ("see Equation 1.1").
             ("EQ", "<$link to={{!!title}}>{{!!kind}} {{!!refnum}}</$link>"),
+
+            # FO — already defined above; display the equation/formula latex.
+            # FREF — equation reference: the displayed number, linked to the eq.
+            ("FREF", "<$link to={{!!title}}>{{!!equation_number}}</$link>"),
 
             # TAB — table block.
             ("TAB", "<div class=\"table\">{{!!text}}</div>"),

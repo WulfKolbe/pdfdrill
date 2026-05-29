@@ -255,9 +255,22 @@ Phase 3 — closed self-learning loop (done):
   multi-line equation, correctly retained). Flagged 9 → 1.
   Tests: `tests/test_escalate.py` + corroboration in `tests/test_scoring.py`.
 
-Still to do: equation-number fusion by right-margin geometry; a real BibTeX
-grammar (ANTLR/comby) to populate Citation objects so `cite` edges form;
-deepen the loop (auto-tune normalization / engine choice from accumulated
-flags). Later layers: math-expression graph, document-structure graph,
-citation graph — queried like Pyre/Pysa over the persisted
-`model.docmodel.json` (the between-call memory).
+Equation-number fusion (done):
+
+- **`pdfdrill eqnums <pdf>`** (`src/pdfdrill/eqnums.py`) attaches
+  `equation_number` ("(N)") to each display equation — normalizing
+  MathPix-supplied numbers and **recovering margin numbers MathPix dropped**
+  from the fused `pdf_lines` geometry (right/left-margin numeric token matched
+  by page + vertical position; records `Alignment(kind="equation_number")`).
+  Auto-chains `model` + `geometry`. 2605.12061: 238 from MathPix, 0 recovered
+  (already complete); recovery path covered by `tests/test_eqnums.py`.
+- TiddlyWiki: equation tiddlers now emit `equation_number`, and a **`FREF`**
+  template renders the linked reference — so both the equation and its
+  reference transclude: `{{<eq>||FO}} {{<eq>||FREF}}`.
+
+Still to do: a real BibTeX grammar (ANTLR/comby) to populate Citation objects
+so `cite` edges form; in-text equation-reference substitution (replace "(1)"
+in body text with `{{<eq>||FREF}}`); deepen the self-learning loop (auto-tune
+from accumulated flags). Later layers: math-expression graph,
+document-structure graph, citation graph — queried like Pyre/Pysa over the
+persisted `model.docmodel.json` (the between-call memory).

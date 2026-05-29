@@ -52,6 +52,7 @@ ALGORITHMS_BUILT = "ALGORITHMS_BUILT"
 ANNOTATIONS_BUILT = "ANNOTATIONS_BUILT"
 SCORED = "SCORED"
 ESCALATION_OPEN = "ESCALATION_OPEN"
+EQNUMS_FUSED = "EQNUMS_FUSED"
 
 # Hosts that almost always mean "here is the code / data for this paper".
 _CODE_HOSTS = (
@@ -692,6 +693,60 @@ def _format_geometry(sc: Sidecar) -> str:
         f"Block detectors (algorithm/itemize) and equation-number fusion can "
         f"now read each line's `_geom`."
     )
+
+
+# ---------------------------------------------------------------------------
+# Equation-number fusion — attach (N) from margin geometry
+# ---------------------------------------------------------------------------
+
+def cmd_eqnums(pdf: Path, force: bool = False) -> str:
+    """Attach `equation_number` ("(1)") to each display equation.
+
+    Normalizes MathPix-supplied numbers and recovers margin numbers MathPix
+    missed from the fused `pdf_lines` geometry (matching by page + vertical
+    position). Auto-chains `model` + `geometry`. Enables transcluding both the
+    equation and its reference (`||FO` / `||FREF`) in the TiddlyWiki output.
+    """
+    from docmodel.core import Document
+    from .eqnums import fuse_equation_numbers
+
+    sc = Sidecar(pdf)
+    model_path = _model_path(sc)
+    if not sc.has(MODEL_BUILT) or not model_path.exists():
+        cmd_model(pdf)
+        sc = Sidecar(pdf)
+        model_path = _model_path(sc)
+    if not sc.has(GEOMETRY_FUSED):
+        cmd_geometry(pdf)
+        sc = Sidecar(pdf)
+    if not model_path.exists():
+        return f"No model for {pdf.name} (run `pdfdrill model` first)."
+
+    with open(model_path, "r", encoding="utf-8") as f:
+        doc = Document.from_dict(json.load(f))
+
+    if force:
+        for o in doc.objects.values():
+            if o.type == "Equation":
+                o.props.pop("equation_number", None)
+        doc.alignments = [a for a in doc.alignments if a.kind != "equation_number"]
+
+    stats = fuse_equation_numbers(doc)
+
+    with open(model_path, "w", encoding="utf-8") as f:
+        json.dump(doc.to_dict(), f, indent=2, ensure_ascii=False)
+
+    sc.set_evidence("eqnums_from_mathpix", stats["from_mathpix"])
+    sc.set_evidence("eqnums_recovered", stats["recovered"])
+    prev = ",".join(sorted(sc.facts - {EQNUMS_FUSED})) or "INIT"
+    sc.add_fact(EQNUMS_FUSED)
+    sc.log_transition("eqnums", prev, EQNUMS_FUSED,
+                      detail=f"{stats['from_mathpix']} mathpix, {stats['recovered']} recovered")
+    sc.save()
+    return (f"Equation numbers: {stats['from_mathpix']} from MathPix + "
+            f"{stats['recovered']} recovered from margin geometry. Each "
+            f"equation now carries equation_number ('(N)') for ||FO/||FREF "
+            f"transclusion. Rebuild `pdfdrill tiddlers {pdf.name}`.")
 
 
 # ---------------------------------------------------------------------------
