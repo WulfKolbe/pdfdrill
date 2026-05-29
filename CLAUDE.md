@@ -289,11 +289,22 @@ Bibliography (heuristic first cut — `src/pdfdrill/bibliography.py`,
 Citation↔Reference linking + Markdown refs (done):
 
 - `bibliography.link_citations` adds `cites` edges from in-text `Citation`s to
-  their `Reference` (exact citekey or surname-prefix, `[Asai]`→`Asai2023`);
-  `pdfdrill bibliography` runs it. TiddlyWiki: in-text citations now link
-  straight to the bibliographic tiddler (placeholder only when unmatched).
-  (Real-doc yield is limited by in-text citation detection — numeric `[1]`
-  refs aren't captured yet; mechanism is test-covered.)
+  their `Reference` — by **reference number** for numeric citations, else by
+  exact citekey or surname-prefix (`[Asai]`→`Asai2023`). `pdfdrill
+  bibliography` runs it. TiddlyWiki: in-text citations link straight to the
+  bibliographic tiddler (by number or citekey; placeholder only when
+  unmatched).
+- **Numeric citation detection** (`detect_numeric_citations`): scans body text
+  for `[N]`, `[N,M]`, `[N–M]` (ranges expanded), keeps only numbers in
+  1..#refs (filters intervals like `[0,1]`), and links each to the reference
+  with that number. References are numbered from a printed `[N]`/`N.` marker
+  or sequentially; the segmenter splits on a numbered-entry start **or** a
+  year/page line-ending, so both numbered and author-year bibliographies
+  parse. Verified end-to-end on a synthetic numbered doc (3 refs → `[1]`,
+  `[2,3]` → 3 cite edges). NOTE: the two sample papers (2605.12061,
+  2312.11532) are **author-year**, so numeric detection fires minimally there
+  (2 on 2605) — author-year in-text detection ("(Asai et al., 2023)") is the
+  next unlock for those.
 - Markdown in-text refs: `LLMCompactProjector` gains an opt-in `eq_refs` param
   that rewrites `(N)` → the equation's compact placeholder `[E‹k›]` (off by
   default; for round-trip tests).

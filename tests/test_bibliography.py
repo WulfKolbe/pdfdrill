@@ -12,7 +12,10 @@ from docops.base import OperatorConfig
 from docops.projectors.tiddlywiki import TiddlyWikiProjector
 from docops.projectors.llm_compact import LLMCompactProjector
 from docmodel.core import DocObject, Realization
-from pdfdrill.bibliography import parse_bibliography, add_reference_objects, link_citations
+from pdfdrill.bibliography import (
+    parse_bibliography, add_reference_objects, link_citations,
+    detect_numeric_citations, _expand_numlist,
+)
 
 
 def _doc_with_references():
@@ -90,6 +93,38 @@ def test_markdown_in_text_eq_refs_opt_in():
                                             params={"eq_refs": True}))
     md = on.project(doc)
     assert "By [E1] we conclude." in md           # (1) -> equation placeholder
+
+
+def test_expand_numlist_handles_ranges_and_lists():
+    assert _expand_numlist("1,3-5") == [1, 3, 4, 5]
+    assert _expand_numlist("2") == [2]
+    assert _expand_numlist("7-9; 11") == [7, 8, 9, 11]
+
+
+def test_numeric_citation_detection_and_linking():
+    doc = Document()
+    doc.meta["bibkey"] = "DOC"
+    mp = doc.ensure_stream("mathpix_lines")
+    mp.append(text="prior work [1, 3-4] and an interval [0,9] here", _page=1, type="text")
+    # 4 numbered references
+    refs = []
+    for i in range(1, 5):
+        ra = mp.append(text=f"Ref {i} author. 20{10 + i}.", _page=10, type="text")
+        from docmodel.core import DocObject, Realization
+        r = DocObject(type="Reference", props={"citekey": f"k{i}", "number": i})
+        r.add_realization(Realization(stream="mathpix_lines", start=ra, end=ra, role="surface"))
+        doc.add(r)
+        refs.append(r)
+
+    n = detect_numeric_citations(doc, max_num=4, exclude_anchors={r.realizations[0].start for r in refs})
+    # [1,3-4] -> 1,3,4 ; [0,9] filtered (0 and 9 out of 1..4)
+    assert n == 3
+    cites = [c for c in doc.objects.values() if c.type == "Citation"]
+    assert sorted(c.props["number"] for c in cites) == [1, 3, 4]
+
+    edges = link_citations(doc)
+    assert edges == 3
+    assert all(a.props.get("number") in (1, 3, 4) for a in doc.alignments if a.kind == "cites")
 
 
 if __name__ == "__main__":

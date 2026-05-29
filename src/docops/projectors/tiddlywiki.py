@@ -83,10 +83,14 @@ class TiddlyWikiProjector(BaseProjector):
         # Reference tiddler titles by citekey, so in-text citations can link
         # straight to the bibliographic entry instead of a placeholder.
         ref_title_by_key: dict[str, str] = {}
+        ref_title_by_number: dict[str, str] = {}
         for r in inv["references"]:
             rk = (r.props.get("citekey") or "").lower()
             if rk:
                 ref_title_by_key[rk] = title[r.id]
+            num = r.props.get("number")
+            if num is not None:
+                ref_title_by_number[str(num)] = title[r.id]
 
         # Citation tiddler titles, deduplicated by citekey. Prefer a matching
         # Reference (exact or surname-prefix); fall back to a placeholder.
@@ -97,7 +101,8 @@ class TiddlyWikiProjector(BaseProjector):
             if not ck or ck in cit_title_by_key:
                 continue
             cl = ck.lower()
-            ref_t = ref_title_by_key.get(cl) or next(
+            ref_t = (ref_title_by_number.get(ck) if ck.isdigit() else None) \
+                or ref_title_by_key.get(cl) or next(
                 (t for k, t in ref_title_by_key.items()
                  if len(cl) >= 3 and k.startswith(cl)), None)
             if ref_t:

@@ -20,6 +20,8 @@ _HEAD = re.compile(r"^(references?|bibliography)\s*$", re.I)
 _YEAR = re.compile(r"\b(?:19|20)\d{2}[a-z]?\b")
 # An entry typically ends with "..., 2023." or a page range "13-22."
 _ENTRY_END = re.compile(r"(?:(?:19|20)\d{2}[a-z]?|\d{1,4}\s*[-–]\s*\d{1,4})\.?\s*$")
+# A numbered-bibliography entry starts with "[N] " or "N. " / "N) ".
+_REF_START = re.compile(r"^\s*(?:\[\d{1,3}\]|\d{1,3}[.)])\s+\S")
 
 
 def _author_block(text: str) -> str:
@@ -72,7 +74,14 @@ def parse_bibliography(doc) -> list[dict]:
     entries: list[list] = []
     cur: list = []
     for a, t in body:
+        # A line starting with a reference marker ([N]/N.) begins a new entry
+        # (numbered bibliographies, where the year sits mid-line).
+        if cur and _REF_START.match(t):
+            entries.append(cur)
+            cur = []
         cur.append((a, t))
+        # A line ending with a year/page range closes an entry (author-year
+        # bibliographies with a hanging last line).
         if _ENTRY_END.search(t):
             entries.append(cur)
             cur = []
@@ -92,14 +101,75 @@ def parse_bibliography(doc) -> list[dict]:
             key = f"{key}{chr(ord('a') + seen[key])}"
         else:
             seen[key] = 0
+        # The reference number: a leading [N]/N. if printed, else sequential
+        # position (numeric in-text citations [N] resolve against this).
+        lead = re.match(r"\s*\[?(\d{1,3})\]?[.\)]?\s", text)
+        number = int(lead.group(1)) if lead else idx + 1
         out.append({
             "raw_text": text,
             "year": year,
             "author": author,
             "citekey": key,
+            "number": number,
             "anchors": [a for a, _ in ent],
         })
     return out
+
+
+_NUMCITE = re.compile(r"\[(\d[\d,\s\-–]*)\]")
+
+
+def _expand_numlist(s: str) -> list[int]:
+    """`1,3-5` -> [1,3,4,5]."""
+    nums: list[int] = []
+    for part in re.split(r"[,;]", s):
+        part = part.strip()
+        m = re.match(r"(\d+)\s*[-–]\s*(\d+)$", part)
+        if m:
+            lo, hi = int(m.group(1)), int(m.group(2))
+            if hi - lo <= 50:              # guard against absurd ranges
+                nums.extend(range(lo, hi + 1))
+        elif part.isdigit():
+            nums.append(int(part))
+    return nums
+
+
+def detect_numeric_citations(doc, max_num: int, exclude_anchors=()) -> int:
+    """Detect in-text numeric citations [N], [N,M], [N-M] and add Citations.
+
+    Only brackets whose numbers all fall in 1..max_num are accepted (filters
+    intervals like [0,1] and out-of-range brackets). `exclude_anchors` skips
+    the bibliography's own lines. Returns the number of Citations added.
+    """
+    from docmodel.core import DocObject, Realization
+
+    mp = doc.streams.get("mathpix_lines")
+    if mp is None or max_num <= 0:
+        return 0
+    exclude = set(exclude_anchors)
+    added = 0
+    for anchor in mp.anchors:
+        if anchor in exclude:
+            continue
+        p = mp.payload[anchor]
+        if p.get("type") not in ("text", "title"):
+            continue
+        text = p.get("text_display") or p.get("text") or ""
+        for m in _NUMCITE.finditer(text):
+            nums = [x for x in _expand_numlist(m.group(1)) if 1 <= x <= max_num]
+            if not nums:
+                continue
+            for num in nums:
+                obj = DocObject(type="Citation", props={
+                    "citekey": str(num), "number": num, "numeric": True,
+                    "page": p.get("_page")})
+                obj.add_realization(Realization(
+                    stream="mathpix_lines", start=anchor, end=anchor,
+                    role="surface",
+                    props={"offset": m.start(), "length": m.end() - m.start()}))
+                doc.add(obj)
+                added += 1
+    return added
 
 
 def link_citations(doc) -> int:
@@ -111,11 +181,15 @@ def link_citations(doc) -> int:
     from docmodel.core import Range, Alignment
 
     by_key = {}
+    by_number = {}
     for r in doc.objects.values():
         if r.type == "Reference":
             ck = (r.props.get("citekey") or "").lower()
             if ck:
                 by_key[ck] = r
+            num = r.props.get("number")
+            if num is not None:
+                by_number[num] = r
 
     def find_ref(citekey: str):
         c = (citekey or "").lower().strip()
@@ -137,13 +211,15 @@ def link_citations(doc) -> int:
     for c in doc.objects.values():
         if c.type != "Citation":
             continue
-        r = find_ref(c.props.get("citekey") or "")
+        num = c.props.get("number")
+        r = by_number.get(num) if num is not None else find_ref(c.props.get("citekey") or "")
         if r is None:
             continue
         ls, rs = surface(c), surface(r)
         if ls and rs:
             doc.add_alignment(Alignment(kind="cites", left=ls, right=rs,
-                                        props={"citekey": r.props.get("citekey")}))
+                                        props={"citekey": r.props.get("citekey"),
+                                               "number": num}))
             n += 1
     return n
 
@@ -159,6 +235,7 @@ def add_reference_objects(doc, entries: list[dict]) -> int:
             "raw_text": e["raw_text"],
             "year": e["year"],
             "author": e["author"],
+            "number": e.get("number"),
             "entry_type": "misc",          # heuristic; refined by a real grammar
         })
         anchors = e.get("anchors") or []

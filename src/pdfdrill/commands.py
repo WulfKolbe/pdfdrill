@@ -754,7 +754,8 @@ def cmd_bibliography(pdf: Path, force: bool = False) -> str:
     `model`. Full structured BibTeX fields await a real grammar.
     """
     from docmodel.core import Document
-    from .bibliography import parse_bibliography, add_reference_objects, link_citations
+    from .bibliography import (parse_bibliography, add_reference_objects,
+                               link_citations, detect_numeric_citations)
 
     sc = Sidecar(pdf)
     model_path = _model_path(sc)
@@ -775,10 +776,19 @@ def cmd_bibliography(pdf: Path, force: bool = False) -> str:
         for o in existing:
             doc.objects.pop(o.id, None)
         doc.alignments = [a for a in doc.alignments if a.kind != "cites"]
+        # drop previously-detected numeric citations so we don't duplicate
+        for o in [o for o in doc.objects.values()
+                  if o.type == "Citation" and o.props.get("numeric")]:
+            doc.objects.pop(o.id, None)
 
     entries = parse_bibliography(doc)
     n = add_reference_objects(doc, entries)
     with_year = sum(1 for e in entries if e["year"])
+    # Numeric in-text citations [N] resolve against the numbered references;
+    # skip the bibliography's own lines.
+    ref_anchors = {r.start for o in doc.objects.values() if o.type == "Reference"
+                   for r in o.realizations if r.stream == "mathpix_lines" and r.start}
+    numeric = detect_numeric_citations(doc, max_num=n, exclude_anchors=ref_anchors)
     cites = link_citations(doc)
 
     with open(model_path, "w", encoding="utf-8") as f:
@@ -786,11 +796,12 @@ def cmd_bibliography(pdf: Path, force: bool = False) -> str:
 
     sc.set_evidence("bibliography_entries", n)
     sc.set_evidence("bibliography_with_year", with_year)
+    sc.set_evidence("bibliography_numeric_citations", numeric)
     sc.set_evidence("bibliography_cites", cites)
     prev = ",".join(sorted(sc.facts - {BIBLIOGRAPHY_BUILT})) or "INIT"
     sc.add_fact(BIBLIOGRAPHY_BUILT)
     sc.log_transition("bibliography", prev, BIBLIOGRAPHY_BUILT,
-                      detail=f"{n} entries, {with_year} with year, {cites} cite edges")
+                      detail=f"{n} entries, {numeric} numeric cites, {cites} cite edges")
     sc.save()
     return _format_bibliography(sc)
 
@@ -865,7 +876,9 @@ def _format_bibliography(sc: Sidecar) -> str:
     n = sc.get_evidence("bibliography_entries", 0)
     y = sc.get_evidence("bibliography_with_year", 0)
     cites = sc.get_evidence("bibliography_cites", 0)
-    cite_s = f" {cites} in-text citations linked." if cites else ""
+    numeric = sc.get_evidence("bibliography_numeric_citations", 0)
+    num_s = f" {numeric} numeric in-text citations detected;" if numeric else ""
+    cite_s = f"{num_s} {cites} citations linked to references." if (cites or numeric) else ""
     return (f"Parsed {n} bibliography entries ({y} with a year) into Reference "
             f"nodes (citekey + author + year + original text; heuristic).{cite_s} "
             f"TiddlyWiki renders each as a bib tiddler led by {{{{||CIT}}}}. "
