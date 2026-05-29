@@ -14,7 +14,7 @@ from docops.projectors.llm_compact import LLMCompactProjector
 from docmodel.core import DocObject, Realization
 from pdfdrill.bibliography import (
     parse_bibliography, add_reference_objects, link_citations,
-    detect_numeric_citations, _expand_numlist,
+    detect_numeric_citations, detect_author_year_citations, _expand_numlist,
 )
 
 
@@ -125,6 +125,28 @@ def test_numeric_citation_detection_and_linking():
     edges = link_citations(doc)
     assert edges == 3
     assert all(a.props.get("number") in (1, 3, 4) for a in doc.alignments if a.kind == "cites")
+
+
+def test_author_year_citation_detection_and_linking():
+    from docmodel.core import DocObject, Realization
+    doc = Document()
+    doc.meta["bibkey"] = "DOC"
+    mp = doc.ensure_stream("mathpix_lines")
+    mp.append(
+        text="Building on (Asai et al., 2023; Wu and Lee, 2024) and see (the year 2020).",
+        _page=1, type="text")
+    for ck in ("Asai2023", "Wu2024"):
+        ra = mp.append(text=f"{ck} entry.", _page=10, type="text")
+        r = DocObject(type="Reference", props={"citekey": ck, "number": None})
+        r.add_realization(Realization(stream="mathpix_lines", start=ra, end=ra, role="surface"))
+        doc.add(r)
+
+    refanch = {r.realizations[0].start for r in doc.objects.values() if r.type == "Reference"}
+    n = detect_author_year_citations(doc, exclude_anchors=refanch)
+    keys = sorted(c.props["citekey"] for c in doc.objects.values() if c.type == "Citation")
+    assert keys == ["Asai2023", "Wu2024"]          # "(the year 2020)" -> "the" is a stopword
+    assert n == 2
+    assert link_citations(doc) == 2                 # both match references by citekey
 
 
 if __name__ == "__main__":

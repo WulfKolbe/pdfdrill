@@ -299,12 +299,23 @@ Citation↔Reference linking + Markdown refs (done):
   1..#refs (filters intervals like `[0,1]`), and links each to the reference
   with that number. References are numbered from a printed `[N]`/`N.` marker
   or sequentially; the segmenter splits on a numbered-entry start **or** a
-  year/page line-ending, so both numbered and author-year bibliographies
-  parse. Verified end-to-end on a synthetic numbered doc (3 refs → `[1]`,
-  `[2,3]` → 3 cite edges). NOTE: the two sample papers (2605.12061,
-  2312.11532) are **author-year**, so numeric detection fires minimally there
-  (2 on 2605) — author-year in-text detection ("(Asai et al., 2023)") is the
-  next unlock for those.
+  year/page line-ending, so both numbered and author-year bibliographies parse.
+- **Author-year citation detection** (`detect_author_year_citations`): scans
+  body text for parenthetical `(Author …, YEAR)` groups (split on `;`,
+  surnames down to 2 chars like `Wu`), forming `surname+year` citekeys that
+  match the reference citekeys → `cites` edges. Verified:
+  `(Asai et al., 2023; Wu and Lee, 2024)` → `Asai2023, Wu2024`.
+- Both detectors run in `pdfdrill bibliography`; citations are tagged
+  `added_by="bibliography"` for clean `--force` re-runs.
+- NOTE on the samples: `2312.11532` is author-year text; `2605.12061`'s
+  in-text citations live in the **PDF annotation layer** as `cite.<key>` dest
+  links (only "(NeurIPS 2026)" is parenthetical in its OCR text), so the
+  precise next unlock for `2605` is promoting those `cite.<key>` annotations
+  into `Citation`→`Reference` edges (the `annotate`/`link_xref` machinery
+  already targets `cite.<key>`; it needs `Citation` nodes keyed by those dests).
+
+Full BibTeX burst: `pdfdrill bibfetch data/2312.11532.pdf` enriched **18/18**
+references with full BibTeX + title + citations via Perplexity SONAR.
 - Markdown in-text refs: `LLMCompactProjector` gains an opt-in `eq_refs` param
   that rewrites `(N)` → the equation's compact placeholder `[E‹k›]` (off by
   default; for round-trip tests).

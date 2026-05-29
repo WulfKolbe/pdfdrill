@@ -755,7 +755,8 @@ def cmd_bibliography(pdf: Path, force: bool = False) -> str:
     """
     from docmodel.core import Document
     from .bibliography import (parse_bibliography, add_reference_objects,
-                               link_citations, detect_numeric_citations)
+                               link_citations, detect_numeric_citations,
+                               detect_author_year_citations)
 
     sc = Sidecar(pdf)
     model_path = _model_path(sc)
@@ -776,19 +777,20 @@ def cmd_bibliography(pdf: Path, force: bool = False) -> str:
         for o in existing:
             doc.objects.pop(o.id, None)
         doc.alignments = [a for a in doc.alignments if a.kind != "cites"]
-        # drop previously-detected numeric citations so we don't duplicate
+        # drop citations we previously detected so we don't duplicate
         for o in [o for o in doc.objects.values()
-                  if o.type == "Citation" and o.props.get("numeric")]:
+                  if o.type == "Citation" and o.props.get("added_by") == "bibliography"]:
             doc.objects.pop(o.id, None)
 
     entries = parse_bibliography(doc)
     n = add_reference_objects(doc, entries)
     with_year = sum(1 for e in entries if e["year"])
-    # Numeric in-text citations [N] resolve against the numbered references;
-    # skip the bibliography's own lines.
+    # In-text citations resolve against the references; skip the bibliography's
+    # own lines. Numeric ([N]) and parenthetical author-year ((Asai, 2023)).
     ref_anchors = {r.start for o in doc.objects.values() if o.type == "Reference"
                    for r in o.realizations if r.stream == "mathpix_lines" and r.start}
     numeric = detect_numeric_citations(doc, max_num=n, exclude_anchors=ref_anchors)
+    authyear = detect_author_year_citations(doc, exclude_anchors=ref_anchors)
     cites = link_citations(doc)
 
     with open(model_path, "w", encoding="utf-8") as f:
@@ -797,11 +799,12 @@ def cmd_bibliography(pdf: Path, force: bool = False) -> str:
     sc.set_evidence("bibliography_entries", n)
     sc.set_evidence("bibliography_with_year", with_year)
     sc.set_evidence("bibliography_numeric_citations", numeric)
+    sc.set_evidence("bibliography_authoryear_citations", authyear)
     sc.set_evidence("bibliography_cites", cites)
     prev = ",".join(sorted(sc.facts - {BIBLIOGRAPHY_BUILT})) or "INIT"
     sc.add_fact(BIBLIOGRAPHY_BUILT)
     sc.log_transition("bibliography", prev, BIBLIOGRAPHY_BUILT,
-                      detail=f"{n} entries, {numeric} numeric cites, {cites} cite edges")
+                      detail=f"{n} entries, {numeric}+{authyear} cites detected, {cites} linked")
     sc.save()
     return _format_bibliography(sc)
 
@@ -877,8 +880,11 @@ def _format_bibliography(sc: Sidecar) -> str:
     y = sc.get_evidence("bibliography_with_year", 0)
     cites = sc.get_evidence("bibliography_cites", 0)
     numeric = sc.get_evidence("bibliography_numeric_citations", 0)
-    num_s = f" {numeric} numeric in-text citations detected;" if numeric else ""
-    cite_s = f"{num_s} {cites} citations linked to references." if (cites or numeric) else ""
+    authyear = sc.get_evidence("bibliography_authoryear_citations", 0)
+    det = numeric + authyear
+    det_s = (f" {det} in-text citations detected ({numeric} numeric, "
+             f"{authyear} author-year), {cites} linked to references." if det else "")
+    cite_s = det_s
     return (f"Parsed {n} bibliography entries ({y} with a year) into Reference "
             f"nodes (citekey + author + year + original text; heuristic).{cite_s} "
             f"TiddlyWiki renders each as a bib tiddler led by {{{{||CIT}}}}. "

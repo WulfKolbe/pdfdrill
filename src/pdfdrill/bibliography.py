@@ -162,11 +162,68 @@ def detect_numeric_citations(doc, max_num: int, exclude_anchors=()) -> int:
             for num in nums:
                 obj = DocObject(type="Citation", props={
                     "citekey": str(num), "number": num, "numeric": True,
-                    "page": p.get("_page")})
+                    "added_by": "bibliography", "page": p.get("_page")})
                 obj.add_realization(Realization(
                     stream="mathpix_lines", start=anchor, end=anchor,
                     role="surface",
                     props={"offset": m.start(), "length": m.end() - m.start()}))
+                doc.add(obj)
+                added += 1
+    return added
+
+
+_PAREN = re.compile(r"\(([^()]{1,250})\)")
+_AY_STOP = {
+    "in", "the", "see", "eq", "fig", "figure", "table", "section", "appendix",
+    "no", "yes", "note", "cf", "via", "and", "or", "of", "from", "with",
+    "left", "right", "top", "bottom", "where", "for", "all", "e", "i",
+}
+
+
+def detect_author_year_citations(doc, exclude_anchors=()) -> int:
+    """Detect parenthetical author-year citations and add Citations.
+
+    Matches `(Author ..., YEAR)` groups (split on `;` for multi-cites),
+    extracting the leading surname + year into a `surname+year` citekey — the
+    same shape `parse_bibliography` generates for references, so
+    `link_citations` matches them. Returns the number of Citations added.
+    """
+    from docmodel.core import DocObject, Realization
+
+    mp = doc.streams.get("mathpix_lines")
+    if mp is None:
+        return 0
+    exclude = set(exclude_anchors)
+    added = 0
+    for anchor in mp.anchors:
+        if anchor in exclude:
+            continue
+        p = mp.payload[anchor]
+        if p.get("type") not in ("text", "title"):
+            continue
+        text = p.get("text_display") or p.get("text") or ""
+        for m in _PAREN.finditer(text):
+            content = m.group(1)
+            if not _YEAR.search(content):
+                continue
+            off, length = m.start(), m.end() - m.start()
+            for part in content.split(";"):
+                ym = _YEAR.search(part)
+                if not ym:
+                    continue
+                sm = re.search(r"\b([A-Z][A-Za-z\-']{1,})", part)
+                if not sm:
+                    continue
+                surname = sm.group(1)
+                if surname.lower() in _AY_STOP:
+                    continue
+                obj = DocObject(type="Citation", props={
+                    "citekey": f"{surname}{ym.group(0)}", "author": surname,
+                    "year": ym.group(0), "style": "author-year",
+                    "added_by": "bibliography", "page": p.get("_page")})
+                obj.add_realization(Realization(
+                    stream="mathpix_lines", start=anchor, end=anchor,
+                    role="surface", props={"offset": off, "length": length}))
                 doc.add(obj)
                 added += 1
     return added
