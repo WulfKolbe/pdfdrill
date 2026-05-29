@@ -102,6 +102,52 @@ def parse_bibliography(doc) -> list[dict]:
     return out
 
 
+def link_citations(doc) -> int:
+    """Add `cites` Alignments from in-text Citations to their Reference.
+
+    Matches a citation's key to a reference citekey exactly, or by surname
+    prefix (in-text `[Asai]` -> reference `Asai2023`). Returns edges added.
+    """
+    from docmodel.core import Range, Alignment
+
+    by_key = {}
+    for r in doc.objects.values():
+        if r.type == "Reference":
+            ck = (r.props.get("citekey") or "").lower()
+            if ck:
+                by_key[ck] = r
+
+    def find_ref(citekey: str):
+        c = (citekey or "").lower().strip()
+        if not c:
+            return None
+        if c in by_key:
+            return by_key[c]
+        for ck, r in by_key.items():
+            if len(c) >= 3 and ck.startswith(c):
+                return r
+        return None
+
+    def surface(o):
+        rr = next((x for x in o.realizations
+                   if x.stream == "mathpix_lines" and x.start is not None), None)
+        return Range("mathpix_lines", rr.start, rr.end) if rr else None
+
+    n = 0
+    for c in doc.objects.values():
+        if c.type != "Citation":
+            continue
+        r = find_ref(c.props.get("citekey") or "")
+        if r is None:
+            continue
+        ls, rs = surface(c), surface(r)
+        if ls and rs:
+            doc.add_alignment(Alignment(kind="cites", left=ls, right=rs,
+                                        props={"citekey": r.props.get("citekey")}))
+            n += 1
+    return n
+
+
 def add_reference_objects(doc, entries: list[dict]) -> int:
     """Create a `Reference` DocObject per parsed entry. Returns the count."""
     from docmodel.core import DocObject, Realization

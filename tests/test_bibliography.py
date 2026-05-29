@@ -10,7 +10,9 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "src"))
 from docmodel.core import Document
 from docops.base import OperatorConfig
 from docops.projectors.tiddlywiki import TiddlyWikiProjector
-from pdfdrill.bibliography import parse_bibliography, add_reference_objects
+from docops.projectors.llm_compact import LLMCompactProjector
+from docmodel.core import DocObject, Realization
+from pdfdrill.bibliography import parse_bibliography, add_reference_objects, link_citations
 
 
 def _doc_with_references():
@@ -51,6 +53,43 @@ def test_reference_tiddler_has_cit_prefix_and_fields():
     assert r["kind"] == "reference"
     assert r["citekey"] and r["year"]
     assert "Self-rag" in r["text"]
+
+
+def test_link_citations_to_references_by_surname_prefix():
+    doc = Document()
+    doc.meta["bibkey"] = "DOC"
+    mp = doc.ensure_stream("mathpix_lines")
+    # in-text citation [Aletras] and a reference Aletras2013
+    ca = mp.append(text="as in [Aletras] we note", _page=1, type="text")
+    cit = DocObject(type="Citation", props={"citekey": "Aletras"})
+    cit.add_realization(Realization(stream="mathpix_lines", start=ca, end=ca, role="surface"))
+    doc.add(cit)
+    ra = mp.append(text="Aletras, N. 2013. Topic coherence.", _page=10, type="text")
+    ref = DocObject(type="Reference", props={"citekey": "Aletras2013"})
+    ref.add_realization(Realization(stream="mathpix_lines", start=ra, end=ra, role="surface"))
+    doc.add(ref)
+
+    n = link_citations(doc)
+    assert n == 1
+    assert any(a.kind == "cites" for a in doc.alignments)
+
+
+def test_markdown_in_text_eq_refs_opt_in():
+    doc = Document()
+    doc.meta["bibkey"] = "DOC"
+    para = DocObject(type="Paragraph", props={"text": "By (1) we conclude.", "flow_index": 0})
+    doc.add(para)
+    eq = DocObject(type="Equation", props={
+        "latex": "x=1", "equation_number": "(1)", "flow_index": 1, "cdn_url": "u"})
+    doc.add(eq)
+
+    off = LLMCompactProjector(OperatorConfig(op="projector", classname="LLMCompactProjector"))
+    assert "(1)" in off.project(doc)              # default: untouched
+
+    on = LLMCompactProjector(OperatorConfig(op="projector", classname="LLMCompactProjector",
+                                            params={"eq_refs": True}))
+    md = on.project(doc)
+    assert "By [E1] we conclude." in md           # (1) -> equation placeholder
 
 
 if __name__ == "__main__":

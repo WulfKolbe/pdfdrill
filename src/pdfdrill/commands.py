@@ -710,7 +710,7 @@ def cmd_bibliography(pdf: Path, force: bool = False) -> str:
     `model`. Full structured BibTeX fields await a real grammar.
     """
     from docmodel.core import Document
-    from .bibliography import parse_bibliography, add_reference_objects
+    from .bibliography import parse_bibliography, add_reference_objects, link_citations
 
     sc = Sidecar(pdf)
     model_path = _model_path(sc)
@@ -730,20 +730,23 @@ def cmd_bibliography(pdf: Path, force: bool = False) -> str:
     if force and existing:
         for o in existing:
             doc.objects.pop(o.id, None)
+        doc.alignments = [a for a in doc.alignments if a.kind != "cites"]
 
     entries = parse_bibliography(doc)
     n = add_reference_objects(doc, entries)
     with_year = sum(1 for e in entries if e["year"])
+    cites = link_citations(doc)
 
     with open(model_path, "w", encoding="utf-8") as f:
         json.dump(doc.to_dict(), f, indent=2, ensure_ascii=False)
 
     sc.set_evidence("bibliography_entries", n)
     sc.set_evidence("bibliography_with_year", with_year)
+    sc.set_evidence("bibliography_cites", cites)
     prev = ",".join(sorted(sc.facts - {BIBLIOGRAPHY_BUILT})) or "INIT"
     sc.add_fact(BIBLIOGRAPHY_BUILT)
     sc.log_transition("bibliography", prev, BIBLIOGRAPHY_BUILT,
-                      detail=f"{n} entries, {with_year} with year")
+                      detail=f"{n} entries, {with_year} with year, {cites} cite edges")
     sc.save()
     return _format_bibliography(sc)
 
@@ -751,8 +754,10 @@ def cmd_bibliography(pdf: Path, force: bool = False) -> str:
 def _format_bibliography(sc: Sidecar) -> str:
     n = sc.get_evidence("bibliography_entries", 0)
     y = sc.get_evidence("bibliography_with_year", 0)
+    cites = sc.get_evidence("bibliography_cites", 0)
+    cite_s = f" {cites} in-text citations linked." if cites else ""
     return (f"Parsed {n} bibliography entries ({y} with a year) into Reference "
-            f"nodes (citekey + author + year + original text; heuristic). "
+            f"nodes (citekey + author + year + original text; heuristic).{cite_s} "
             f"TiddlyWiki renders each as a bib tiddler led by {{{{||CIT}}}}. "
             f"Rebuild `pdfdrill tiddlers {sc.pdf_path.name}`.")
 

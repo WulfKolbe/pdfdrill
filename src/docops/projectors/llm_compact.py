@@ -37,6 +37,9 @@ class LLMCompactProjector(BaseProjector):
         repeat_threshold = int(self.params.get("repeat_threshold", 1))
         include_glossary = bool(self.params.get("include_glossary", True))
         include_meta = bool(self.params.get("include_meta", True))
+        # Opt-in (test path): rewrite in-text "(N)" refs to the equation's
+        # compact placeholder. Off by default so the markdown stays clean.
+        eq_refs = bool(self.params.get("eq_refs", False))
 
         # First pass: assign placeholders by deduplicated LaTeX content.
         # Formulas already deduplicate during conversion, but we still index
@@ -61,6 +64,16 @@ class LLMCompactProjector(BaseProjector):
                 equation_map[obj.id] = ph
                 equation_latex[ph] = obj.props.get("latex", "")
 
+        # Map "(N)" -> equation placeholder for in-text reference rewriting.
+        eqref_to_ph: list[tuple[str, str]] = []
+        if eq_refs:
+            for obj in doc.objects.values():
+                if obj.type == "Equation" and obj.props.get("equation_number"):
+                    ph = equation_map.get(obj.id)
+                    if ph:
+                        eqref_to_ph.append((obj.props["equation_number"], ph))
+            eqref_to_ph.sort(key=lambda kv: -len(kv[0]))
+
         # Second pass: render in flow order.
         out: list[str] = []
         if include_meta:
@@ -83,6 +96,7 @@ class LLMCompactProjector(BaseProjector):
                 equation_map=equation_map,
                 seen_placeholders=seen_placeholders,
                 seen_equations=seen_equations,
+                eqref_to_ph=eqref_to_ph,
             )
             if block:
                 out.append(block)
@@ -102,6 +116,7 @@ class LLMCompactProjector(BaseProjector):
         repeat_threshold: int,
         equation_map: dict[str, str],
         seen_placeholders: set[str], seen_equations: set[str],
+        eqref_to_ph: list = (),
     ) -> str:
         t = obj.type
         p = obj.props
@@ -113,7 +128,12 @@ class LLMCompactProjector(BaseProjector):
         if t == "Abstract":
             return "**Abstract.** " + p.get("text", "")
         if t == "Paragraph":
-            return p.get("text") or ""
+            text = p.get("text") or ""
+            for eqnum, ph in eqref_to_ph:
+                if eqnum in text:
+                    text = text.replace(eqnum, f"[{ph}]")
+                    self.bump("eq_ref_subs")
+            return text
         if t == "Equation":
             ph = equation_map.get(obj.id, "?")
             ref = equation_label(obj)

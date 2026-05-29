@@ -285,8 +285,21 @@ Bibliography (heuristic first cut — `src/pdfdrill/bibliography.py`,
   needs the ANTLR/comby BibTeX grammar, which will enrich `Reference` props
   without changing callers.
 
-Still to do: real BibTeX grammar (full fields + `entry_type`); link in-text
-citations to their `Reference` (citekey match → `cites` edges); deepen the
-self-learning loop (auto-tune from accumulated flags). Later layers:
-math-expression graph, document-structure graph, citation graph — queried like
-Pyre/Pysa over the persisted `model.docmodel.json` (the between-call memory).
+Citation↔Reference linking + Markdown refs (done):
+
+- `bibliography.link_citations` adds `cites` edges from in-text `Citation`s to
+  their `Reference` (exact citekey or surname-prefix, `[Asai]`→`Asai2023`);
+  `pdfdrill bibliography` runs it. TiddlyWiki: in-text citations now link
+  straight to the bibliographic tiddler (placeholder only when unmatched).
+  (Real-doc yield is limited by in-text citation detection — numeric `[1]`
+  refs aren't captured yet; mechanism is test-covered.)
+- Markdown in-text refs: `LLMCompactProjector` gains an opt-in `eq_refs` param
+  that rewrites `(N)` → the equation's compact placeholder `[E‹k›]` (off by
+  default; for round-trip tests).
+
+BibTeX field enrichment is **LLM-sourced**, not grammar-parsed (printed refs
+are truncated): a Perplexity SONAR request per Reference (ported from the
+user's `updateBibentries.ts`) fills full BibTeX + citations — see the
+`perplexity`/`bibfetch` step. Still to do after that: deepen the self-learning
+loop (auto-tune from accumulated flags); math-expression / document-structure
+/ citation graphs queried like Pyre/Pysa over the persisted model.

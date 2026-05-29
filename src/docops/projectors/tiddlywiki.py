@@ -80,13 +80,32 @@ class TiddlyWikiProjector(BaseProjector):
             if rn is not None and str(rn) not in fn_by_refnum:
                 fn_by_refnum[str(rn)] = title[fn.id]
 
-        # Citation tiddler titles, deduplicated by citekey.
+        # Reference tiddler titles by citekey, so in-text citations can link
+        # straight to the bibliographic entry instead of a placeholder.
+        ref_title_by_key: dict[str, str] = {}
+        for r in inv["references"]:
+            rk = (r.props.get("citekey") or "").lower()
+            if rk:
+                ref_title_by_key[rk] = title[r.id]
+
+        # Citation tiddler titles, deduplicated by citekey. Prefer a matching
+        # Reference (exact or surname-prefix); fall back to a placeholder.
         cit_title_by_key: dict[str, str] = {}
+        cit_placeholders: dict[str, str] = {}
         for c in inv["citations"]:
             ck = (c.props.get("citekey") or "").strip()
-            if ck and ck not in cit_title_by_key:
+            if not ck or ck in cit_title_by_key:
+                continue
+            cl = ck.lower()
+            ref_t = ref_title_by_key.get(cl) or next(
+                (t for k, t in ref_title_by_key.items()
+                 if len(cl) >= 3 and k.startswith(cl)), None)
+            if ref_t:
+                cit_title_by_key[ck] = ref_t
+            else:
                 safe = re.sub(r"[^A-Za-z0-9_\-]", "_", ck)
-                cit_title_by_key[ck] = f"{bibkey}_{safe}"
+                cit_title_by_key[ck] = cit_placeholders[ck] = f"{bibkey}_{safe}"
+        self._cit_placeholders = cit_placeholders
 
         # Inline-picture URL → title (only for pictures that originated
         # within text lines, NOT for figure-line Pictures which are block-level).
@@ -435,8 +454,9 @@ class TiddlyWikiProjector(BaseProjector):
             t["entry_type"] = ref.props.get("entry_type") or "misc"
             out.append(t)
 
-        # Citation placeholders (one per unique citekey)
-        for ck, ct in cit_title_by_key.items():
+        # Citation placeholders — only for citekeys that did NOT resolve to a
+        # Reference (resolved ones link straight to the bibliographic tiddler).
+        for ck, ct in getattr(self, "_cit_placeholders", {}).items():
             t = self._t(
                 ct, f"//Citation placeholder for// `{ck}`",
                 f"citation bibkey:{bibkey}",
