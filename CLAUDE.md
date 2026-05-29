@@ -181,19 +181,29 @@ Cross-level **geometry fusion** substrate (for multi-line block recovery):
   geometry; indentation clusters cleanly into nesting levels (1240 at body
   margin, 483 / 133 / 54 at successive indents).
 
-First block detector on the substrate:
+Block detectors on the substrate (`src/pdfdrill/blocks.py`):
 
-- **`pdfdrill lists <pdf>`** (`src/pdfdrill/blocks.py`) — nests flat
-  `ListItem`s into recursive `List` containers by fused `indent_norm`
-  (LaTeX-list semantics: deeper indent opens a sublist), auto-chaining
-  `model` + `geometry`. `List` props: `list_type` (itemize/enumerate),
-  `indent_norm`. Pure nesting logic in `nest_list_items`; tests in
-  `tests/test_blocks.py`.
-- First-cut limits observed on 2605.12061 (99 lists / 163 items, depth 1):
-  list items interleaved with answer paragraphs get split into singletons by
-  the line-gap heuristic, and ~26% of marker lines had no geometry match so
-  couldn't nest. Refinements: group across paragraph gaps by marker-style +
-  indent; widen geometry-match coverage for marker lines.
+- **`pdfdrill lists <pdf>`** — nests flat `ListItem`s into recursive `List`
+  containers. Runs split only on page change, **marker-family change**, or a
+  **large** line gap, so checklist items interleaved with answer paragraphs
+  stay one list; deeper indent opens a sublist; indent-less items inherit the
+  current level. `List` props: `list_type`, `indent_norm`. On 2605.12061:
+  163 items → 69 lists (was 99 before the gap-bridging refinement).
+- **`pdfdrill algorithms <pdf>`** — MathPix tags algorithm bodies with line
+  type `pseudocode` and keeps indentation in `region.top_left_x`, so we group
+  per `Algorithm N:` caption and derive an integer `depth` per step
+  (if/else/end nesting) — no geometry fusion needed. Adds `Algorithm` +
+  `AlgorithmStep` DocObjects. Verified on arXiv 2312.11532: 2 algorithms,
+  35 steps, max depth 2, recursive structure recovered.
+
+Link annotations are first-class now:
+
+- **`pdfdrill annotate <pdf>`** (`src/pdfdrill/annotations.py`) — lifts the
+  rich `urls` layer into `Link` DocObjects (uri/kind/anchor_text/context + a
+  `Region` for the rect, `space="pdf_points"`), using the no-anchor
+  Realization pattern. On 2605.12061: 398 Link nodes (7 code/data hosts); the
+  page-1 anonymized code URL is now a queryable graph node despite having no
+  visible anchor text. Tests: `tests/test_annotations.py`.
 
 **Annotation storage (how a URL is held).** Two layers today:
 (1) sidecar — `links` `[{page,url}]` and the richer `urls` layer
@@ -205,8 +215,8 @@ into the model** as first-class nodes — a near-term follow-up is a `Link`
 DocObject (Region = rect, props = uri/anchor_text/context, Alignment to the
 covered text span) feeding the citation/provenance graph.
 
-Still to do: refine list grouping; `Algorithm` blocks (needs arXiv 2312.11532
-MathPix-converted) with comby-style structural templates; equation-number
-fusion by right-margin geometry; promote link annotations to `Link` nodes;
+Still to do: align `Link` nodes to the text span they cover (Alignment) and
+to `dests`-resolved targets (citation graph seed); widen geometry-match
+coverage for list markers; equation-number fusion by right-margin geometry;
 then Phase 2 (scoring across provenances) and Phase 3 (self-learning). Later
 layers: math-expression graph, document-structure graph, citation graph.

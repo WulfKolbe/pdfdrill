@@ -48,6 +48,8 @@ LINKS_KNOWN = "LINKS_KNOWN"
 GEOMETRY_FUSED = "GEOMETRY_FUSED"
 TIDDLERS_BUILT = "TIDDLERS_BUILT"
 LISTS_BUILT = "LISTS_BUILT"
+ALGORITHMS_BUILT = "ALGORITHMS_BUILT"
+ANNOTATIONS_BUILT = "ANNOTATIONS_BUILT"
 
 # Hosts that almost always mean "here is the code / data for this paper".
 _CODE_HOSTS = (
@@ -168,7 +170,7 @@ def cmd_model(pdf: Path, force: bool = False) -> str:
         if o["type"] == "Equation" and o.get("props", {}).get("cdn_url")
     )
 
-    sc.set_evidence("model_path", str(model_path.relative_to(pdf.parent)))
+    sc.set_evidence("model_path", str(model_path.relative_to(sc.pdf_path.parent)))
     sc.set_evidence("model_object_counts", by_type)
     sc.set_evidence("model_equations_with_cdn", eq_with_cdn)
     prev = ",".join(sorted(sc.facts - {MODEL_BUILT})) or "INIT"
@@ -228,7 +230,7 @@ def cmd_compare(pdf: Path, force: bool = False) -> str:
     out_path = sc.blob_dir / "compare.html"
     out_path.write_text(html_str, encoding="utf-8")
 
-    sc.set_evidence("compare_path", str(out_path.relative_to(pdf.parent)))
+    sc.set_evidence("compare_path", str(out_path.relative_to(sc.pdf_path.parent)))
     sc.set_evidence("compare_rows", rows)
     prev = ",".join(sorted(sc.facts - {COMPARE_BUILT})) or "INIT"
     sc.add_fact(COMPARE_BUILT)
@@ -237,7 +239,7 @@ def cmd_compare(pdf: Path, force: bool = False) -> str:
         detail=f"{rows} rows",
     )
     sc.save()
-    rel = out_path.relative_to(pdf.parent)
+    rel = out_path.relative_to(sc.pdf_path.parent)
     return (
         f"Comparison table: {rows} expressions (LaTeX | KaTeX | MathPix image). "
         f"Open {rel} in a browser."
@@ -448,6 +450,108 @@ def cmd_lists(pdf: Path, force: bool = False) -> str:
     return _format_lists(sc)
 
 
+def cmd_algorithms(pdf: Path, force: bool = False) -> str:
+    """Reconstruct `Algorithm` blocks from MathPix `pseudocode` lines.
+
+    MathPix tags algorithm bodies with line type `pseudocode` and preserves
+    indentation in `region.top_left_x`; we group them per `Algorithm N:`
+    caption and derive an integer `depth` per step (if/else/end nesting).
+    Each Algorithm DocObject gets AlgorithmStep children. Auto-chains `model`.
+    """
+    from docmodel.core import Document, DocObject, Realization
+    from .blocks import detect_algorithms, algorithm_max_depth
+
+    sc = Sidecar(pdf)
+    model_path = _model_path(sc)
+    if not sc.has(MODEL_BUILT) or not model_path.exists():
+        cmd_model(pdf)
+        sc = Sidecar(pdf)
+        model_path = _model_path(sc)
+    if not model_path.exists():
+        return f"No model for {pdf.name} (run `pdfdrill model` first)."
+
+    with open(model_path, "r", encoding="utf-8") as f:
+        doc = Document.from_dict(json.load(f))
+
+    existing = [o for o in doc.objects.values() if o.type in ("Algorithm", "AlgorithmStep")]
+    if existing and not force:
+        return _format_algorithms(sc)
+    if force and existing:
+        ids = {o.id for o in existing}
+        for o in existing:
+            doc.objects.pop(o.id, None)
+        for o in doc.objects.values():
+            o.children = [c for c in o.children if c not in ids]
+            if o.parent in ids:
+                o.parent = None
+
+    mp = doc.stream("mathpix_lines") if "mathpix_lines" in doc.streams else None
+    if mp is None:
+        return f"No mathpix_lines in the model for {pdf.name}."
+
+    raw = []
+    idmap = {}
+    for i, anchor in enumerate(mp.anchors):
+        p = mp.payload[anchor]
+        if p.get("type") != "pseudocode":
+            continue
+        reg = p.get("region") or {}
+        raw.append({"id": i, "page": p.get("_page"), "line_index": p.get("_line_index"),
+                    "text": p.get("text") or p.get("text_display") or "",
+                    "x": reg.get("top_left_x")})
+        idmap[i] = anchor
+
+    algos = detect_algorithms(raw)
+
+    created = steps_total = 0
+    for a in algos:
+        alg = DocObject(type="Algorithm", props={
+            "number": a["number"], "title": a["title"], "page": a["page"],
+            "bibkey": pdf.stem})
+        step_anchors = [idmap[s["id"]] for s in a["steps"] if s["id"] in idmap]
+        span = ([idmap[a["caption_id"]]] if a["caption_id"] in idmap else []) + step_anchors
+        if span:
+            alg.add_realization(Realization(stream="mathpix_lines",
+                                            start=span[0], end=span[-1], role="surface"))
+        doc.add(alg)
+        created += 1
+        for s in a["steps"]:
+            st = DocObject(type="AlgorithmStep",
+                           props={"text": s["text"], "depth": s["depth"], "bibkey": pdf.stem},
+                           parent=alg.id)
+            anc = idmap.get(s["id"])
+            if anc is not None:
+                st.add_realization(Realization(stream="mathpix_lines",
+                                               start=anc, end=anc, role="surface"))
+            doc.add(st)
+            alg.children.append(st.id)
+            steps_total += 1
+
+    with open(model_path, "w", encoding="utf-8") as f:
+        json.dump(doc.to_dict(), f, indent=2, ensure_ascii=False)
+
+    depth = algorithm_max_depth(algos)
+    sc.set_evidence("algorithms_created", created)
+    sc.set_evidence("algorithms_steps", steps_total)
+    sc.set_evidence("algorithms_max_depth", depth)
+    prev = ",".join(sorted(sc.facts - {ALGORITHMS_BUILT})) or "INIT"
+    sc.add_fact(ALGORITHMS_BUILT)
+    sc.log_transition("algorithms", prev, ALGORITHMS_BUILT,
+                      detail=f"{created} algorithms, {steps_total} steps, depth {depth}")
+    sc.save()
+    return _format_algorithms(sc)
+
+
+def _format_algorithms(sc: Sidecar) -> str:
+    return (
+        f"Reconstructed {sc.get_evidence('algorithms_created', 0)} Algorithm "
+        f"block(s) with {sc.get_evidence('algorithms_steps', 0)} steps "
+        f"(max indent depth {sc.get_evidence('algorithms_max_depth', 0)}) from "
+        f"MathPix pseudocode lines. Each Algorithm carries number/title/page; "
+        f"steps carry text + depth (if/else/end nesting)."
+    )
+
+
 def _list_type(markers: list[str]) -> str:
     if not markers:
         return "list"
@@ -506,7 +610,7 @@ def cmd_tiddlers(pdf: Path, force: bool = False) -> str:
     out_path = sc.blob_dir / f"{bibkey}.tiddlers.json"
     out_path.write_text(result, encoding="utf-8")
 
-    sc.set_evidence("tiddlers_path", str(out_path.relative_to(pdf.parent)))
+    sc.set_evidence("tiddlers_path", str(out_path.relative_to(sc.pdf_path.parent)))
     sc.set_evidence("tiddlers_count", count)
     prev = ",".join(sorted(sc.facts - {TIDDLERS_BUILT})) or "INIT"
     sc.add_fact(TIDDLERS_BUILT)
@@ -515,7 +619,7 @@ def cmd_tiddlers(pdf: Path, force: bool = False) -> str:
         detail=f"{count} tiddlers",
     )
     sc.save()
-    rel = out_path.relative_to(pdf.parent)
+    rel = out_path.relative_to(sc.pdf_path.parent)
     return (f"Wrote {count} TiddlyWiki tiddlers to {rel}. Import into TiddlyWiki; "
             f"equation tiddlers carry latex / displayMode / canonical_uri / "
             f"width / height for your <$latex>/<$image> table macro.")
@@ -589,6 +693,69 @@ def _format_geometry(sc: Sidecar) -> str:
 
 
 # ---------------------------------------------------------------------------
+# Link annotations as first-class model nodes
+# ---------------------------------------------------------------------------
+
+def cmd_annotate(pdf: Path, force: bool = False) -> str:
+    """Promote hyperlink annotations into the model as `Link` DocObjects.
+
+    Pulls the rich `urls` layer (auto-running `urls` if needed) and lifts each
+    record into a Link node (uri/anchor_text/context + a Region for the rect),
+    so annotations — including code links with no visible text — become
+    queryable graph nodes instead of living only in the sidecar.
+    """
+    from docmodel.core import Document
+    from .annotations import add_link_objects
+
+    sc = Sidecar(pdf)
+    model_path = _model_path(sc)
+    if not sc.has(MODEL_BUILT) or not model_path.exists():
+        cmd_model(pdf)
+        sc = Sidecar(pdf)
+        model_path = _model_path(sc)
+    if not model_path.exists():
+        return f"No model for {pdf.name} (run `pdfdrill model` first)."
+    if not sc.has(URLS_KNOWN):
+        cmd_urls(pdf)
+        sc = Sidecar(pdf)
+    records = sc.urls or []
+
+    with open(model_path, "r", encoding="utf-8") as f:
+        doc = Document.from_dict(json.load(f))
+
+    existing = [o for o in doc.objects.values() if o.type == "Link"]
+    if existing and not force:
+        return _format_annotations(sc)
+    if force and existing:
+        for o in existing:
+            doc.objects.pop(o.id, None)
+
+    added = add_link_objects(doc, records)
+    code = sum(1 for r in records if _is_code_host(r.get("uri") or ""))
+
+    with open(model_path, "w", encoding="utf-8") as f:
+        json.dump(doc.to_dict(), f, indent=2, ensure_ascii=False)
+
+    sc.set_evidence("annotation_links", added)
+    sc.set_evidence("annotation_code_links", code)
+    prev = ",".join(sorted(sc.facts - {ANNOTATIONS_BUILT})) or "INIT"
+    sc.add_fact(ANNOTATIONS_BUILT)
+    sc.log_transition("annotate", prev, ANNOTATIONS_BUILT,
+                      detail=f"{added} links, {code} code/data")
+    sc.save()
+    return _format_annotations(sc)
+
+
+def _format_annotations(sc: Sidecar) -> str:
+    n = sc.get_evidence("annotation_links", 0)
+    code = sc.get_evidence("annotation_code_links", 0)
+    extra = f" ({code} to code/data hosts)" if code else ""
+    return (f"Promoted {n} hyperlink annotation(s) into the model as Link "
+            f"nodes{extra}. Each carries uri/kind/anchor_text/context + a "
+            f"Region (rect); they now participate in the document graph.")
+
+
+# ---------------------------------------------------------------------------
 # External-provenance candidates (LLM, or any tool): export manifest + ingest
 # ---------------------------------------------------------------------------
 
@@ -655,7 +822,7 @@ def cmd_candidates(pdf: Path, provider: str = "llm",
         json.dump(manifest, f, indent=2, ensure_ascii=False)
 
     try:
-        rel = out_path.relative_to(pdf.parent)
+        rel = out_path.relative_to(sc.pdf_path.parent)
     except ValueError:
         rel = out_path
     return (

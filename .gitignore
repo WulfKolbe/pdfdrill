@@ -17,6 +17,9 @@ __pycache__/
 /data/*.pdf
 /data/*.lines.json
 /data/*.tex.zip
+/data/*.md
+/data/*.drill.json
+/data/*.drill/
 
 # Secrets — MathPix credentials live in env, never in the repo
 .env
