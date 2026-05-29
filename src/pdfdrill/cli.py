@@ -59,6 +59,7 @@ def main():
         "candidates": _do_candidates,
         "ingest": _do_ingest,
         "geometry": _do_geometry,
+        "tiddlers": _do_tiddlers,
     }
 
     if cmd not in handlers:
@@ -222,6 +223,13 @@ def _do_geometry(args):
     from .commands import cmd_geometry
     pdf_args = [a for a in args if a != "--force"]
     return cmd_geometry(_pdf(pdf_args), force="--force" in args)
+
+
+def _do_tiddlers(args):
+    """pdfdrill tiddlers <pdf> [--force]"""
+    from .commands import cmd_tiddlers
+    pdf_args = [a for a in args if a != "--force"]
+    return cmd_tiddlers(_pdf(pdf_args), force="--force" in args)
 
 
 def _do_candidates(args):
@@ -465,6 +473,7 @@ Introspection (fast, no extraction):
   pdfdrill candidates <pdf>    Export equation crops as a manifest for an LLM to read; --provider P --limit N
   pdfdrill ingest <pdf> <json> Attach externally-produced {eq_id,latex} candidates as a provenance column; --provider P
   pdfdrill geometry <pdf>      Fuse pdftotext -tsv layout (indent/margins) onto the model — substrate for block detection
+  pdfdrill tiddlers <pdf>      Emit a TiddlyWiki JSON tiddler array (latex/displayMode/canonical_uri/width/height) for quick inspection
   pdfdrill toc <pdf>           Table of contents
   pdfdrill abstract <pdf>      Abstract from first pages
   pdfdrill fonts <pdf>         Font analysis, math font detection

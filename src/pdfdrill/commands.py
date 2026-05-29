@@ -46,6 +46,7 @@ COMPARE_BUILT = "COMPARE_BUILT"
 SNIP_RAN = "SNIP_RAN"
 LINKS_KNOWN = "LINKS_KNOWN"
 GEOMETRY_FUSED = "GEOMETRY_FUSED"
+TIDDLERS_BUILT = "TIDDLERS_BUILT"
 
 # Hosts that almost always mean "here is the code / data for this paper".
 _CODE_HOSTS = (
@@ -326,6 +327,62 @@ def cmd_snip(pdf: Path, limit: int | None = None, force: bool = False) -> str:
         msg += f"; mean confidence {avg:.3f}"
     msg += f". Run `pdfdrill compare {pdf.name}` to see the Snip column."
     return msg
+
+
+# ---------------------------------------------------------------------------
+# TiddlyWiki export — JSON tiddler array for quick data-structure inspection
+# ---------------------------------------------------------------------------
+
+def cmd_tiddlers(pdf: Path, force: bool = False) -> str:
+    """Emit a TiddlyWiki JSON tiddler array from the unified model.
+
+    Quick way to eyeball the structure: drop the array into TiddlyWiki and a
+    `<$list>` table macro renders each equation's LaTeX (`<$latex>`), its
+    KaTeX rendering, and the MathPix crop (`<$image source={{!!canonical_uri}}
+    width={{!!width}} height={{!!height}}>`). Equation tiddlers carry `latex`,
+    `displayMode`, `refnum`, `canonical_uri`, region `width`/`height`, and any
+    competing readings as `latex_<provenance>` fields. Auto-chains `model`.
+    """
+    from docmodel.core import Document
+    from docops.base import OperatorConfig
+    from docops.projectors.tiddlywiki import TiddlyWikiProjector
+
+    sc = Sidecar(pdf)
+    model_path = _model_path(sc)
+    if not sc.has(MODEL_BUILT) or not model_path.exists():
+        cmd_model(pdf)
+        sc = Sidecar(pdf)
+        model_path = _model_path(sc)
+    if not model_path.exists():
+        return f"No model for {pdf.name} (run `pdfdrill model` first)."
+
+    with open(model_path, "r", encoding="utf-8") as f:
+        doc = Document.from_dict(json.load(f))
+
+    t0 = time.monotonic()
+    proj = TiddlyWikiProjector(
+        OperatorConfig(op="projector", classname="TiddlyWikiProjector"))
+    result = proj.project(doc)
+    count = proj.counters.get("tiddlers_emitted", 0)
+
+    bibkey = doc.meta.get("bibkey", pdf.stem)
+    sc.blob_dir.mkdir(parents=True, exist_ok=True)
+    out_path = sc.blob_dir / f"{bibkey}.tiddlers.json"
+    out_path.write_text(result, encoding="utf-8")
+
+    sc.set_evidence("tiddlers_path", str(out_path.relative_to(pdf.parent)))
+    sc.set_evidence("tiddlers_count", count)
+    prev = ",".join(sorted(sc.facts - {TIDDLERS_BUILT})) or "INIT"
+    sc.add_fact(TIDDLERS_BUILT)
+    sc.log_transition(
+        "tiddlers", prev, TIDDLERS_BUILT, cost_ms=(time.monotonic() - t0) * 1000,
+        detail=f"{count} tiddlers",
+    )
+    sc.save()
+    rel = out_path.relative_to(pdf.parent)
+    return (f"Wrote {count} TiddlyWiki tiddlers to {rel}. Import into TiddlyWiki; "
+            f"equation tiddlers carry latex / displayMode / canonical_uri / "
+            f"width / height for your <$latex>/<$image> table macro.")
 
 
 # ---------------------------------------------------------------------------

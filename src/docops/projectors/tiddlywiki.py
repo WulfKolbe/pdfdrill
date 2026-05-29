@@ -299,11 +299,19 @@ class TiddlyWikiProjector(BaseProjector):
             )
             t["kind"] = "Equation"
             t["latex"] = e.props.get("latex", "")
+            t["displayMode"] = "true"   # display equations render in display mode
             t["refnum"] = e.props.get("refnum") or ""
             t["page"] = self._p3(e.props.get("page"))
             if e.props.get("cdn_url"):
                 t["canonical_uri"] = e.props["cdn_url"]
             self._copy_region(t, e.props)
+            # Competing LaTeX readings (snip/llm/...) as parallel fields so a
+            # TiddlyWiki table macro can show them side by side, like compare.html.
+            for r in e.realizations:
+                if r.role == "latex_candidate" and r.provenance:
+                    t[f"latex_{r.provenance}"] = r.props.get("latex", "")
+                    if r.score is not None:
+                        t[f"score_{r.provenance}"] = str(r.score)
             out.append(t)
 
         # Pictures
