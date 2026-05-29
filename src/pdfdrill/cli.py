@@ -58,6 +58,7 @@ def main():
         "snip": _do_snip,
         "candidates": _do_candidates,
         "ingest": _do_ingest,
+        "geometry": _do_geometry,
     }
 
     if cmd not in handlers:
@@ -214,6 +215,13 @@ def _do_snip(args):
         else:
             pdf_args.append(args[i]); i += 1
     return cmd_snip(_pdf(pdf_args), limit=limit, force=force)
+
+
+def _do_geometry(args):
+    """pdfdrill geometry <pdf> [--force]"""
+    from .commands import cmd_geometry
+    pdf_args = [a for a in args if a != "--force"]
+    return cmd_geometry(_pdf(pdf_args), force="--force" in args)
 
 
 def _do_candidates(args):
@@ -456,6 +464,7 @@ Introspection (fast, no extraction):
   pdfdrill snip <pdf>          OCR each equation crop via MathPix Snip (/v3/text) → competing column; --limit N
   pdfdrill candidates <pdf>    Export equation crops as a manifest for an LLM to read; --provider P --limit N
   pdfdrill ingest <pdf> <json> Attach externally-produced {eq_id,latex} candidates as a provenance column; --provider P
+  pdfdrill geometry <pdf>      Fuse pdftotext -tsv layout (indent/margins) onto the model — substrate for block detection
   pdfdrill toc <pdf>           Table of contents
   pdfdrill abstract <pdf>      Abstract from first pages
   pdfdrill fonts <pdf>         Font analysis, math font detection

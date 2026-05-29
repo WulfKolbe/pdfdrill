@@ -163,7 +163,28 @@ External-reader (LLM / any tool) provenance, network-free:
   realizations; `compare` then grows a column for that provenance.
   Tests: `tests/test_candidates.py`.
 
-Still to do: optionally render our own crop from the PDF page (independent of
-MathPix), then Phase 2 (scoring across provenances — snip `confidence` +
-LaTeX agreement) and Phase 3 (self-learning loop). Algorithm/multi-line block
-content (e.g. arXiv 2312.11532) is not yet modeled as a comparable unit.
+Cross-level **geometry fusion** substrate (for multi-line block recovery):
+
+- **`pdfdrill geometry <pdf>`** — lifts cheap `pdftotext -tsv` word geometry
+  into a `pdf_lines` Stream and fuses it onto `mathpix_lines` by page +
+  normalized-y + string match, recorded as `Alignment(kind="geometry")`. Each
+  matched line gets a `_geom` dict: normalized margins, baseline y, and
+  **indentation relative to the page body-left** + a `sim` trust score.
+  `src/pdfdrill/geometry.py`; tests in `tests/test_geometry.py`.
+- Layout (indentation, margins, line spacing) is a *different level* than the
+  text — block structure (algorithm bodies, itemize/enumerate nesting,
+  left/right-aligned equation numbers) is derived from it, not from OCR text.
+  `Stream` = a level, `Alignment` = a cross-level fusion edge, `Region` =
+  geometry; the persisted `model.docmodel.json` is the complex memory that
+  survives between LLM/tool calls.
+- Verified on 2605.12061: 2352 pdftotext lines → 3015 MathPix lines carry
+  geometry; indentation clusters cleanly into nesting levels (1240 at body
+  margin, 483 / 133 / 54 at successive indents).
+
+Still to do, on this substrate: **block detectors** — `Algorithm`
+(recursive numbered-line children, needs arXiv 2312.11532 MathPix-converted)
+and nested `List`/`ListItem` from indentation runs (comby-style structural
+templates tolerant of OCR noise); equation-number fusion by right-margin
+geometry. Then Phase 2 (scoring across provenances) and Phase 3 (self-learning
+loop). Later layers: a math-expression graph, a document-structure graph, and
+a citation graph queryable over the model.

@@ -45,6 +45,7 @@ MODEL_BUILT = "MODEL_BUILT"
 COMPARE_BUILT = "COMPARE_BUILT"
 SNIP_RAN = "SNIP_RAN"
 LINKS_KNOWN = "LINKS_KNOWN"
+GEOMETRY_FUSED = "GEOMETRY_FUSED"
 
 # Hosts that almost always mean "here is the code / data for this paper".
 _CODE_HOSTS = (
@@ -325,6 +326,73 @@ def cmd_snip(pdf: Path, limit: int | None = None, force: bool = False) -> str:
         msg += f"; mean confidence {avg:.3f}"
     msg += f". Run `pdfdrill compare {pdf.name}` to see the Snip column."
     return msg
+
+
+# ---------------------------------------------------------------------------
+# Geometry fusion — lift pdftotext -tsv layout onto the model (cross-level)
+# ---------------------------------------------------------------------------
+
+def cmd_geometry(pdf: Path, force: bool = False) -> str:
+    """Fuse cheap pdftotext -tsv word geometry onto the unified model.
+
+    Adds a `pdf_lines` stream, aligns each MathPix line to its pdftotext line
+    (page + normalized-y + string match) as `Alignment(kind="geometry")`, and
+    annotates each matched line with `_geom` (normalized margins + indentation
+    relative to the page body-left). This is the layout substrate that
+    algorithm/itemize/equation-number detectors consume. Auto-chains `model`.
+    """
+    from docmodel.core import Document
+    from .geometry import run_tsv, parse_tsv, group_lines, fuse, clear_geometry
+
+    sc = Sidecar(pdf)
+    model_path = _model_path(sc)
+    if not sc.has(MODEL_BUILT) or not model_path.exists():
+        cmd_model(pdf)
+        sc = Sidecar(pdf)
+        model_path = _model_path(sc)
+    if not model_path.exists():
+        return f"No model for {pdf.name} (run `pdfdrill model` first)."
+
+    with open(model_path, "r", encoding="utf-8") as f:
+        doc = Document.from_dict(json.load(f))
+
+    if "pdf_lines" in doc.streams and not force:
+        return _format_geometry(sc)
+    if force:
+        clear_geometry(doc)
+
+    t0 = time.monotonic()
+    words, page_dims = parse_tsv(run_tsv(str(pdf)))
+    lines = group_lines(words)
+    stats = fuse(doc, lines, page_dims)
+
+    with open(model_path, "w", encoding="utf-8") as f:
+        json.dump(doc.to_dict(), f, indent=2, ensure_ascii=False)
+
+    sc.set_evidence("geometry_pdf_lines", stats["pdf_lines"])
+    sc.set_evidence("geometry_matched", stats["matched"])
+    sc.set_evidence("geometry_mean_sim", stats["mean_sim"])
+    prev = ",".join(sorted(sc.facts - {GEOMETRY_FUSED})) or "INIT"
+    sc.add_fact(GEOMETRY_FUSED)
+    sc.log_transition(
+        "geometry", prev, GEOMETRY_FUSED, cost_ms=(time.monotonic() - t0) * 1000,
+        detail=f"{stats['matched']}/{stats['pdf_lines']} matched",
+    )
+    sc.save()
+    return _format_geometry(sc)
+
+
+def _format_geometry(sc: Sidecar) -> str:
+    pl = sc.get_evidence("geometry_pdf_lines", 0)
+    m = sc.get_evidence("geometry_matched", 0)
+    sim = sc.get_evidence("geometry_mean_sim")
+    sim_s = f", mean text-match {sim}" if sim is not None else ""
+    return (
+        f"Geometry fused: {pl} pdftotext lines lifted into `pdf_lines`; "
+        f"{m} MathPix lines now carry layout (indentation/margins){sim_s}. "
+        f"Block detectors (algorithm/itemize) and equation-number fusion can "
+        f"now read each line's `_geom`."
+    )
 
 
 # ---------------------------------------------------------------------------
