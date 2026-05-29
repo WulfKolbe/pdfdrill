@@ -38,7 +38,8 @@ Each command returns **prose**, not JSON. Quote it back to the user directly.
 | `pdfdrill size <pdf>` | One sentence: page count, MB, producer, encrypted? |
 | `pdfdrill pdfinfo <pdf>` | Full PdfInfo struct (title, author, dates, flags) |
 | `pdfdrill bibtex <pdf>` | Derived BibTeX record (auto-chains pdfinfo) |
-| `pdfdrill urls <pdf>` | URL annotations from pdfinfo -url |
+| `pdfdrill links <pdf>` | **FAST** external URLs via `pdfinfo -url` (~50 ms); flags code/data hosts (github, 4open.science, zenodo, huggingface, …) |
+| `pdfdrill urls <pdf>` | URL annotations **with anchor text** — heavier (pdfplumber over all pages, seconds on big PDFs). Use only when you need the visible link text |
 | `pdfdrill dests <pdf>` | Named destinations: theorem/equation/section anchors |
 | `pdfdrill fonts_layer <pdf>` | Structured per-font records (parsed `pdffonts`) |
 | `pdfdrill images <pdf>` | Image rectangles + metadata (pdfplumber + `pdfimages -list`) |
@@ -78,15 +79,41 @@ bare LaTeX PDFs it will return mostly empty fields and note what's missing.
 ## Decision flow
 
 1. **Always start with `size`** — free, takes ~40ms.
-2. **For "what is this paper about?"** → `abstract` is usually enough.
-3. **For "what are the sections?"** → `toc`.
-4. **For "is there math in this?"** → `fonts` (math fonts mean
+2. **For "where is the source code / repo / dataset?"** → `links` (~50 ms).
+   It reads the **annotation layer**, so it finds the code link even when it
+   has **no visible text** — the usual case for anonymized releases
+   (`anonymous.4open.science`). Do **not** reach for `md`/`mathpix` here: they
+   read *rendered* text and will miss an annotation-only link entirely. Only
+   escalate to `urls` if you need the visible anchor text.
+3. **For "what is this paper about?"** → `abstract` is usually enough.
+4. **For "what are the sections?"** → `toc`.
+5. **For "is there math in this?"** → `fonts` (math fonts mean
    pdfplumber extraction will work; their absence means MathPix may
    be needed for scanned math).
-5. **For specific content questions** → run `md`, then `fetch md
+6. **For specific content questions** → run `md`, then `fetch md
    --section N`.
-6. **For a single page** → `page <n>` is cheaper than full `md`.
-7. **Unsure?** → `plan <pdf> "the question"` shows what steps would run.
+7. **For a single page** → `page <n>` is cheaper than full `md`.
+8. **Unsure?** → `plan <pdf> "the question"` shows what steps would run.
+
+### Reach for the cheapest sufficient tool — powerful ≠ right
+
+A heavyweight tool can *miss the point*. "Where is the code?" is answered in
+~50 ms by `links` (annotation layer); `urls` re-derives the same link in ~6 s
+on a 60-page PDF, and MathPix wouldn't find it at all. Escalate only when a
+cheaper command can't answer. The state machine guarantees no wasted work:
+every command records cumulative *facts* in the sidecar and returns instantly
+if its fact is already set, so a higher-level call never repeats a low-level
+step that already ran.
+
+### ⚠️ Uploading a PDF to Claude.ai is NOT enough
+
+When a PDF is attached in the Claude.ai web chat it is silently converted to
+**Markdown** (math as Unicode symbols, roughly pdfplumber quality), and the
+original PDF — including its **annotation layer** — is never consulted. That
+is precisely why LLMs miss annotation-only links like the code URL above.
+Always run `pdfdrill` against the **actual PDF file**. For high-fidelity math,
+use `pdfdrill mathpix` (`lines.json`), which is far better than the auto-
+Markdown and is what the comparison pipeline consumes.
 
 ## Example flows
 

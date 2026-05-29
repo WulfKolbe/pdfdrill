@@ -44,6 +44,15 @@ MATHPIX_KNOWN = "MATHPIX_KNOWN"
 MODEL_BUILT = "MODEL_BUILT"
 COMPARE_BUILT = "COMPARE_BUILT"
 SNIP_RAN = "SNIP_RAN"
+LINKS_KNOWN = "LINKS_KNOWN"
+
+# Hosts that almost always mean "here is the code / data for this paper".
+_CODE_HOSTS = (
+    "github.com", "gitlab.com", "bitbucket.org", "4open.science",
+    "zenodo.org", "huggingface.co", "codeocean.com", "osf.io",
+    "sourceforge.net", "paperswithcode.com", "colab.research.google.com",
+    "figshare.com", "kaggle.com",
+)
 
 
 # ---------------------------------------------------------------------------
@@ -316,6 +325,84 @@ def cmd_snip(pdf: Path, limit: int | None = None, force: bool = False) -> str:
         msg += f"; mean confidence {avg:.3f}"
     msg += f". Run `pdfdrill compare {pdf.name}` to see the Snip column."
     return msg
+
+
+# ---------------------------------------------------------------------------
+# Links — the fast "where is the code/data?" path (annotation layer only)
+# ---------------------------------------------------------------------------
+
+_PDFINFO_URL_RE = re.compile(r"^\s*(\d+)\s+\S+\s+(https?://\S+)\s*$")
+
+
+def _parse_pdfinfo_urls(text: str) -> list[dict]:
+    """Parse `pdfinfo -url` output into [{page, url}] (external links only)."""
+    out: list[dict] = []
+    for line in text.splitlines():
+        m = _PDFINFO_URL_RE.match(line)
+        if m:
+            out.append({"page": int(m.group(1)), "url": m.group(2)})
+    return out
+
+
+def _is_code_host(url: str) -> bool:
+    u = url.lower()
+    return any(h in u for h in _CODE_HOSTS)
+
+
+def cmd_links(pdf: Path) -> str:
+    """List external URL annotations via `pdfinfo -url` (~50 ms).
+
+    This reads the PDF *annotation layer*, so it catches hyperlinks that have
+    no visible anchor text — the common case for a paper's code release. It is
+    the fast path for "where is the source code / dataset?"; escalate to
+    `urls` only when you need the visible anchor text, and never use the
+    Markdown/MathPix path for this (rendered text omits annotation-only links).
+    """
+    sc = Sidecar(pdf)
+    if sc.has(LINKS_KNOWN):
+        return _format_links(sc.get_evidence("links", []))
+
+    t0 = time.monotonic()
+    out = subprocess.run(
+        ["pdfinfo", "-url", str(pdf)], capture_output=True, text=True, timeout=30,
+    )
+    parsed = _parse_pdfinfo_urls(out.stdout)
+    # Deduplicate by URL, keeping the earliest page it appears on.
+    seen: set[str] = set()
+    links: list[dict] = []
+    for l in parsed:
+        if l["url"] not in seen:
+            seen.add(l["url"])
+            links.append(l)
+
+    sc.set_evidence("links", links)
+    prev = ",".join(sorted(sc.facts - {LINKS_KNOWN})) or "INIT"
+    sc.add_fact(LINKS_KNOWN)
+    sc.log_transition(
+        "links", prev, LINKS_KNOWN, cost_ms=(time.monotonic() - t0) * 1000,
+        detail=f"{len(links)} external urls",
+    )
+    sc.save()
+    return _format_links(links)
+
+
+def _format_links(links: list[dict] | None) -> str:
+    if not links:
+        return ("No external URL annotations found. (Use `pdfdrill urls` for "
+                "anchor-text-level analysis of internal/visible links.)")
+    code = [l for l in links if _is_code_host(l["url"])]
+    lines: list[str] = []
+    if code:
+        lines.append("Likely source-code / data links:")
+        for l in code:
+            lines.append(f"  p.{l['page']}  {l['url']}")
+        lines.append("")
+    lines.append(f"All external URL annotations ({len(links)}):")
+    for l in links[:40]:
+        lines.append(f"  p.{l['page']}  {l['url']}")
+    if len(links) > 40:
+        lines.append(f"  ... and {len(links) - 40} more")
+    return "\n".join(lines)
 
 
 # ---------------------------------------------------------------------------

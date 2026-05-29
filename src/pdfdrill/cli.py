@@ -45,6 +45,7 @@ def main():
         "pdfinfo": _do_pdfinfo,
         "bibtex": _do_bibtex,
         "urls": _do_urls,
+        "links": _do_links,
         "dests": _do_dests,
         "fonts_layer": _do_fonts_layer,
         "images": _do_images,
@@ -123,6 +124,11 @@ def _do_bibtex(args):
 def _do_urls(args):
     from .commands import cmd_urls
     return cmd_urls(_pdf(args))
+
+
+def _do_links(args):
+    from .commands import cmd_links
+    return cmd_links(_pdf(args))
 
 
 def _do_dests(args):
@@ -394,7 +400,8 @@ Introspection (fast, no extraction):
   pdfdrill size <pdf>          File size, page count, producer
   pdfdrill pdfinfo <pdf>       Full PdfInfo struct (title/author/dates/flags)
   pdfdrill bibtex <pdf>        Derived BibTeX record
-  pdfdrill urls <pdf>          URL annotations (pdfinfo -url)
+  pdfdrill links <pdf>         FAST external URLs via pdfinfo -url (~50ms); flags code/data hosts
+  pdfdrill urls <pdf>          URL annotations with anchor text (heavier; pdfplumber)
   pdfdrill dests <pdf>         Named destinations: theorems, equations, sections
   pdfdrill fonts_layer <pdf>   Structured per-font records (pdffonts)
   pdfdrill images <pdf>        Image rectangles + metadata (pdfplumber + pdfimages -list)

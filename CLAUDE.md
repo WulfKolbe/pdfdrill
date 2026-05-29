@@ -54,15 +54,19 @@ The pdfdrill commands (`size`, `pdfinfo`, `urls`, `dests`, `fonts`,
 
 ### Killer case worth remembering
 
-`pdfdrill urls` reads the PDF **annotation layer** (via `pdfinfo`), so it
-surfaces hyperlinks that have **no visible anchor text** and therefore never
-appear in any rendered-text stream an LLM reads. On the NeurIPS submission
-`2605.12061`, the paper's anonymized source-code release
+`pdfdrill links` (~50 ms, pure `pdfinfo -url`) reads the PDF **annotation
+layer**, so it surfaces hyperlinks that have **no visible anchor text** and
+therefore never appear in any rendered-text stream an LLM reads. On the
+NeurIPS submission `2605.12061`, the paper's anonymized source-code release
 (`https://anonymous.4open.science/r/Unified-Representation-A9D9/`) is a page-1
-link annotation with `'(no visible text)'` — invisible to plain text
-extraction, instant at level 1. Always run the cheap level 0–1 commands
-(`size`, `pdfinfo`, `urls`, `dests`) before assuming the rendered text is all
-there is.
+link annotation with no visible text — invisible to plain-text extraction and
+to MathPix, instant via `links`. Reach for the cheapest sufficient tool:
+`links` answers "where is the code?" in ~0.06 s; `urls` re-derives the same
+link in ~6 s (it runs pdfplumber over every page to recover anchor text); and
+a MathPix/Markdown pass misses annotation-only links entirely. Run the cheap
+level 0–1 commands (`size`, `pdfinfo`, `links`, `dests`) before assuming the
+rendered text is all there is — and always run against the real PDF, not a
+Claude.ai-uploaded Markdown rendering (which drops the annotation layer).
 
 ## Tests
 
