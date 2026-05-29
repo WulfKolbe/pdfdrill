@@ -53,6 +53,7 @@ ANNOTATIONS_BUILT = "ANNOTATIONS_BUILT"
 SCORED = "SCORED"
 ESCALATION_OPEN = "ESCALATION_OPEN"
 EQNUMS_FUSED = "EQNUMS_FUSED"
+BIBLIOGRAPHY_BUILT = "BIBLIOGRAPHY_BUILT"
 
 # Hosts that almost always mean "here is the code / data for this paper".
 _CODE_HOSTS = (
@@ -693,6 +694,67 @@ def _format_geometry(sc: Sidecar) -> str:
         f"Block detectors (algorithm/itemize) and equation-number fusion can "
         f"now read each line's `_geom`."
     )
+
+
+# ---------------------------------------------------------------------------
+# Bibliography — parse the References section into Reference objects
+# ---------------------------------------------------------------------------
+
+def cmd_bibliography(pdf: Path, force: bool = False) -> str:
+    """Parse the References section into `Reference` DocObjects.
+
+    Heuristic (entries are unstructured): segments on year/page-range line
+    endings, extracts year + author block + a generated citekey, keeps the
+    original text. The TiddlyWiki output renders each as a bibliographic
+    tiddler whose text starts with a `{{||CIT}}` self-reference. Auto-chains
+    `model`. Full structured BibTeX fields await a real grammar.
+    """
+    from docmodel.core import Document
+    from .bibliography import parse_bibliography, add_reference_objects
+
+    sc = Sidecar(pdf)
+    model_path = _model_path(sc)
+    if not sc.has(MODEL_BUILT) or not model_path.exists():
+        cmd_model(pdf)
+        sc = Sidecar(pdf)
+        model_path = _model_path(sc)
+    if not model_path.exists():
+        return f"No model for {pdf.name} (run `pdfdrill model` first)."
+
+    with open(model_path, "r", encoding="utf-8") as f:
+        doc = Document.from_dict(json.load(f))
+
+    existing = [o for o in doc.objects.values() if o.type == "Reference"]
+    if existing and not force:
+        return _format_bibliography(sc)
+    if force and existing:
+        for o in existing:
+            doc.objects.pop(o.id, None)
+
+    entries = parse_bibliography(doc)
+    n = add_reference_objects(doc, entries)
+    with_year = sum(1 for e in entries if e["year"])
+
+    with open(model_path, "w", encoding="utf-8") as f:
+        json.dump(doc.to_dict(), f, indent=2, ensure_ascii=False)
+
+    sc.set_evidence("bibliography_entries", n)
+    sc.set_evidence("bibliography_with_year", with_year)
+    prev = ",".join(sorted(sc.facts - {BIBLIOGRAPHY_BUILT})) or "INIT"
+    sc.add_fact(BIBLIOGRAPHY_BUILT)
+    sc.log_transition("bibliography", prev, BIBLIOGRAPHY_BUILT,
+                      detail=f"{n} entries, {with_year} with year")
+    sc.save()
+    return _format_bibliography(sc)
+
+
+def _format_bibliography(sc: Sidecar) -> str:
+    n = sc.get_evidence("bibliography_entries", 0)
+    y = sc.get_evidence("bibliography_with_year", 0)
+    return (f"Parsed {n} bibliography entries ({y} with a year) into Reference "
+            f"nodes (citekey + author + year + original text; heuristic). "
+            f"TiddlyWiki renders each as a bib tiddler led by {{{{||CIT}}}}. "
+            f"Rebuild `pdfdrill tiddlers {sc.pdf_path.name}`.")
 
 
 # ---------------------------------------------------------------------------

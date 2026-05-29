@@ -67,6 +67,7 @@ def main():
         "escalate": _do_escalate,
         "relearn": _do_relearn,
         "eqnums": _do_eqnums,
+        "bibliography": _do_bibliography,
     }
 
     if cmd not in handlers:
@@ -292,6 +293,13 @@ def _do_eqnums(args):
     from .commands import cmd_eqnums
     pdf_args = [a for a in args if a != "--force"]
     return cmd_eqnums(_pdf(pdf_args), force="--force" in args)
+
+
+def _do_bibliography(args):
+    """pdfdrill bibliography <pdf> [--force]"""
+    from .commands import cmd_bibliography
+    pdf_args = [a for a in args if a != "--force"]
+    return cmd_bibliography(_pdf(pdf_args), force="--force" in args)
 
 
 def _do_candidates(args):
@@ -543,6 +551,7 @@ Introspection (fast, no extraction):
   pdfdrill escalate <pdf>      Phase-3: export flagged equations for a second LLM reading; --limit N
   pdfdrill relearn <pdf>       Phase-3: re-score after ingest; report resolved vs still-flagged
   pdfdrill eqnums <pdf>        Fuse equation numbers ("(N)") from margin geometry for ||FO/||FREF transclusion
+  pdfdrill bibliography <pdf>  Parse the References section into Reference nodes (citekey/author/year/text)
   pdfdrill toc <pdf>           Table of contents
   pdfdrill abstract <pdf>      Abstract from first pages
   pdfdrill fonts <pdf>         Font analysis, math font detection

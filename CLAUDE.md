@@ -264,13 +264,29 @@ Equation-number fusion (done):
   by page + vertical position; records `Alignment(kind="equation_number")`).
   Auto-chains `model` + `geometry`. 2605.12061: 238 from MathPix, 0 recovered
   (already complete); recovery path covered by `tests/test_eqnums.py`.
-- TiddlyWiki: equation tiddlers now emit `equation_number`, and a **`FREF`**
-  template renders the linked reference — so both the equation and its
-  reference transclude: `{{<eq>||FO}} {{<eq>||FREF}}`.
+- TiddlyWiki: equation tiddlers now emit `equation_number`, a **`FREF`**
+  template renders the linked reference, and **in-text "(N)" references in body
+  paragraphs are substituted** with `{{<eq>||FREF}}` (TiddlyWiki-mandatory;
+  Markdown could opt in for tests). So both the equation and its reference
+  transclude: `{{<eq>||FO}} {{<eq>||FREF}}`. 2605.12061: 28 in-text refs
+  substituted.
 
-Still to do: a real BibTeX grammar (ANTLR/comby) to populate Citation objects
-so `cite` edges form; in-text equation-reference substitution (replace "(1)"
-in body text with `{{<eq>||FREF}}`); deepen the self-learning loop (auto-tune
-from accumulated flags). Later layers: math-expression graph,
-document-structure graph, citation graph — queried like Pyre/Pysa over the
-persisted `model.docmodel.json` (the between-call memory).
+Bibliography (heuristic first cut — `src/pdfdrill/bibliography.py`,
+`pdfdrill bibliography`):
+
+- Segments the References section into entries (year/page-range line endings),
+  extracts year + author block + a generated `citekey` (surname+year), keeps
+  the original text → `Reference` DocObjects. 2605.12061: 57 entries (56 with
+  a year); 2312.11532: 18. Tests: `tests/test_bibliography.py`.
+- TiddlyWiki emits a bibliographic tiddler per Reference: `kind=reference`,
+  fields `citekey/year/author/entry_type`, and **text led by `{{||CIT}}`** (the
+  self-reference, so the citekey link shows in front of the entry).
+- **Partial** by design: title/journal/volume are NOT separated yet — that
+  needs the ANTLR/comby BibTeX grammar, which will enrich `Reference` props
+  without changing callers.
+
+Still to do: real BibTeX grammar (full fields + `entry_type`); link in-text
+citations to their `Reference` (citekey match → `cites` edges); deepen the
+self-learning loop (auto-tune from accumulated flags). Later layers:
+math-expression graph, document-structure graph, citation graph — queried like
+Pyre/Pysa over the persisted `model.docmodel.json` (the between-call memory).

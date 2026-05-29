@@ -98,6 +98,15 @@ class TiddlyWikiProjector(BaseProjector):
             if url and url not in inline_url_to_title:
                 inline_url_to_title[url] = title[pic.id]
 
+        # Equation-number -> tiddler title, for in-text reference substitution
+        # ("(1)" in body text -> {{<eq>||FREF}}). Longest first so "(10)" wins
+        # over "(1)".
+        self._eqref_map = sorted(
+            ((e.props.get("equation_number"), title[e.id]) for e in inv["equations"]
+             if e.props.get("equation_number")),
+            key=lambda kv: -len(kv[0]),
+        )
+
         subs_by_line = self._build_inline_subs(doc, inv, title, cit_title_by_key)
 
         out = self._emit_tiddlers(
@@ -131,6 +140,7 @@ class TiddlyWikiProjector(BaseProjector):
             "list_items": self._sort_by_flow(doc.objects_of_type("ListItem")),
             "abstracts":  self._sort_by_flow(doc.objects_of_type("Abstract")),
             "tocs":       self._sort_by_flow(doc.objects_of_type("Toc")),
+            "references": self._sort_by_flow(doc.objects_of_type("Reference")),
             "pages":      sorted(doc.objects_of_type("Page"),
                                  key=lambda o: o.props.get("page_number", 0)),
         }
@@ -162,6 +172,9 @@ class TiddlyWikiProjector(BaseProjector):
             title[t.id] = f"{bibkey}_TOC{i+1:02d}"
         for pg in inv["pages"]:
             title[pg.id] = f"{bibkey}_PAGE_{int(pg.props.get('page_number') or 0):03d}"
+        for i, ref in enumerate(inv["references"]):
+            ck = re.sub(r"[^A-Za-z0-9]", "", ref.props.get("citekey") or "")
+            title[ref.id] = f"{bibkey}_REF_{ck or (i + 1)}"
         return title, inv
 
     # ----- phase 2: per-line inline substitution index -----
@@ -410,6 +423,18 @@ class TiddlyWikiProjector(BaseProjector):
             )
             out.append(t)
 
+        # References (bibliographic entries). The text leads with a {{||CIT}}
+        # self-reference so the citekey link shows in front of the entry.
+        for ref in inv["references"]:
+            body = "{{||CIT}} " + (ref.props.get("raw_text") or "")
+            t = self._t(title[ref.id], body, f"reference bibkey:{bibkey}")
+            t["kind"] = "reference"
+            t["citekey"] = ref.props.get("citekey") or ""
+            t["year"] = ref.props.get("year") or ""
+            t["author"] = ref.props.get("author") or ""
+            t["entry_type"] = ref.props.get("entry_type") or "misc"
+            out.append(t)
+
         # Citation placeholders (one per unique citekey)
         for ck, ct in cit_title_by_key.items():
             t = self._t(
@@ -480,7 +505,21 @@ class TiddlyWikiProjector(BaseProjector):
         # offset substitution above. These become synthetic FOX tiddlers.
         joined = self._substitute_residual_inline_math(
             joined, synthetic_formulas, bibkey)
+        joined = self._substitute_eq_refs(joined)
         return joined
+
+    def _substitute_eq_refs(self, text: str) -> str:
+        """Replace in-text equation references "(N)" with {{<eq>||FREF}}.
+
+        Only numbers that are actual equation numbers are replaced; the literal
+        parenthesized form is matched, longest-first, so "(10)" isn't clobbered
+        by "(1)".
+        """
+        for eqnum, eq_title in getattr(self, "_eqref_map", []):
+            if eqnum and eqnum in text:
+                text = text.replace(eqnum, "{{" + eq_title + "||FREF}}")
+                self.bump("eq_ref_subs")
+        return text
 
     @staticmethod
     def _apply_line_substitutions(

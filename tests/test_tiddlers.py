@@ -50,6 +50,29 @@ def test_fref_template_present():
     assert "equation_number" in fref[0]["text"]
 
 
+def test_in_text_equation_reference_substituted():
+    doc = Document()
+    doc.meta["bibkey"] = "DOC"
+    mp = doc.ensure_stream("mathpix_lines")
+    # a body line that references equation (2)
+    la = mp.append(text="As shown in (2) the result holds.", _page=1, _line_index=0, type="text")
+    para = DocObject(type="Paragraph", props={"text": "As shown in (2) the result holds.", "page": 1})
+    para.add_realization(Realization(stream="mathpix_lines", start=la, end=la, role="surface"))
+    doc.add(para)
+    eq = DocObject(type="Equation", props={
+        "latex": "y=2", "refnum": "2", "equation_number": "(2)", "page": 1, "cdn_url": "u"})
+    eb = mp.append(text="y=2", _page=1, _line_index=5, type="equation")
+    eq.add_realization(Realization(stream="mathpix_lines", start=eb, end=eb, role="surface"))
+    doc.add(eq)
+
+    proj = TiddlyWikiProjector(OperatorConfig(op="projector", classname="TiddlyWikiProjector"))
+    tids = json.loads(proj.project(doc))
+    p = [t for t in tids if "paragraph" in t.get("tags", "")][0]
+    eq_title = [t for t in tids if "equation" in t.get("tags", "")][0]["title"]
+    assert "{{" + eq_title + "||FREF}}" in p["text"]
+    assert "(2)" not in p["text"]                 # the bare ref was replaced
+
+
 def test_competing_readings_become_parallel_fields():
     t = [t for t in _tiddlers() if "equation" in t.get("tags", "")][0]
     assert t["latex_snip"] == "E=mc^{2}"
