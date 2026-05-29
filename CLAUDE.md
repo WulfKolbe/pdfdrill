@@ -24,7 +24,8 @@ It combines:
    `refnum`, and `cdn_url`.
 3. **`src/docops/`** — the operator pipeline over a `Document`: `Mutator`s
    (modify in place) and `Projector`s (emit artifacts — plaintext, LLM-compact
-   markdown, TiddlyWiki tiddlers, and the comparison table).
+   markdown, TiddlyWiki tiddlers, the comparison table, and the full
+   inline+display **formula report** via `pdfdrill report`).
 
 > **Naming:** the unified model package is `docmodel` (renamed from the
 > predecessor `docobject`). The on-disk model artifact is still suffixed

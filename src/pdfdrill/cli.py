@@ -69,6 +69,7 @@ def main():
         "eqnums": _do_eqnums,
         "bibliography": _do_bibliography,
         "bibfetch": _do_bibfetch,
+        "report": _do_report,
     }
 
     if cmd not in handlers:
@@ -301,6 +302,13 @@ def _do_bibliography(args):
     from .commands import cmd_bibliography
     pdf_args = [a for a in args if a != "--force"]
     return cmd_bibliography(_pdf(pdf_args), force="--force" in args)
+
+
+def _do_report(args):
+    """pdfdrill report <pdf> [--force]"""
+    from .commands import cmd_report
+    pdf_args = [a for a in args if a != "--force"]
+    return cmd_report(_pdf(pdf_args), force="--force" in args)
 
 
 def _do_bibfetch(args):
@@ -557,6 +565,7 @@ Introspection (fast, no extraction):
   pdfdrill mathpix <pdf>       Download MathPix OCR (lines.json, md, tex.zip); --force re-uploads
   pdfdrill model <pdf>         Build unified docmodel from lines.json (auto-chains mathpix)
   pdfdrill compare <pdf>       LaTeX | KaTeX | MathPix-image comparison HTML (auto-chains model)
+  pdfdrill report <pdf>        Full inline+display math report (formula-report.html)
   pdfdrill snip <pdf>          OCR each equation crop via MathPix Snip (/v3/text) → competing column; --limit N
   pdfdrill candidates <pdf>    Export equation crops as a manifest for an LLM to read; --provider P --limit N
   pdfdrill ingest <pdf> <json> Attach externally-produced {eq_id,latex} candidates as a provenance column; --provider P

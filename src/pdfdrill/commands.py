@@ -55,6 +55,7 @@ ESCALATION_OPEN = "ESCALATION_OPEN"
 EQNUMS_FUSED = "EQNUMS_FUSED"
 BIBLIOGRAPHY_BUILT = "BIBLIOGRAPHY_BUILT"
 BIBFETCH_DONE = "BIBFETCH_DONE"
+REPORT_BUILT = "REPORT_BUILT"
 
 # Hosts that almost always mean "here is the code / data for this paper".
 _CODE_HOSTS = (
@@ -249,6 +250,48 @@ def cmd_compare(pdf: Path, force: bool = False) -> str:
         f"Comparison table: {rows} expressions (LaTeX | KaTeX | MathPix image). "
         f"Open {rel} in a browser."
     )
+
+
+def cmd_report(pdf: Path, force: bool = False) -> str:
+    """Emit a full inline+display math report (formula-report.html).
+
+    Lists every inline Formula (LaTeX + KaTeX) and every display Equation
+    (+ MathPix CDN image + equation number). Auto-chains `model`.
+    """
+    from docmodel.core import Document
+    from docops.base import OperatorConfig
+    from docops.projectors.formula_report import FormulaReportProjector
+
+    sc = Sidecar(pdf)
+    model_path = _model_path(sc)
+    if not sc.has(MODEL_BUILT) or not model_path.exists():
+        cmd_model(pdf)
+        sc = Sidecar(pdf)
+        model_path = _model_path(sc)
+    if not model_path.exists():
+        return f"No model for {pdf.name} (run `pdfdrill model` first)."
+
+    with open(model_path, "r", encoding="utf-8") as f:
+        doc = Document.from_dict(json.load(f))
+
+    proj = FormulaReportProjector(
+        OperatorConfig(op="projector", classname="FormulaReportProjector"))
+    result = proj.project(doc)
+    inline = proj.counters.get("inline_rows", 0)
+    eqs = proj.counters.get("equation_rows", 0)
+
+    sc.blob_dir.mkdir(parents=True, exist_ok=True)
+    out_path = sc.blob_dir / "formula-report.html"
+    out_path.write_text(result, encoding="utf-8")
+
+    sc.set_evidence("report_path", str(out_path.relative_to(sc.pdf_path.parent)))
+    prev = ",".join(sorted(sc.facts - {REPORT_BUILT})) or "INIT"
+    sc.add_fact(REPORT_BUILT)
+    sc.log_transition("report", prev, REPORT_BUILT, detail=f"{inline} inline, {eqs} equations")
+    sc.save()
+    rel = out_path.relative_to(sc.pdf_path.parent)
+    return (f"Formula report: {inline} inline formulas + {eqs} display equations "
+            f"(LaTeX | KaTeX | image). Open {rel} in a browser.")
 
 
 def cmd_snip(pdf: Path, limit: int | None = None, force: bool = False) -> str:
