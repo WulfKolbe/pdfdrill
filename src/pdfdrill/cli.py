@@ -63,6 +63,7 @@ def main():
         "lists": _do_lists,
         "algorithms": _do_algorithms,
         "annotate": _do_annotate,
+        "score": _do_score,
     }
 
     if cmd not in handlers:
@@ -254,6 +255,13 @@ def _do_annotate(args):
     from .commands import cmd_annotate
     pdf_args = [a for a in args if a != "--force"]
     return cmd_annotate(_pdf(pdf_args), force="--force" in args)
+
+
+def _do_score(args):
+    """pdfdrill score <pdf> [--force]"""
+    from .commands import cmd_score
+    pdf_args = [a for a in args if a != "--force"]
+    return cmd_score(_pdf(pdf_args), force="--force" in args)
 
 
 def _do_candidates(args):
@@ -501,6 +509,7 @@ Introspection (fast, no extraction):
   pdfdrill lists <pdf>         Nest flat ListItems into recursive List blocks using fused indentation (auto-chains geometry)
   pdfdrill algorithms <pdf>    Reconstruct Algorithm blocks from MathPix pseudocode lines (caption + indented steps)
   pdfdrill annotate <pdf>      Promote hyperlink annotations into the model as first-class Link nodes (uri + rect Region)
+  pdfdrill score <pdf>         Score equations by cross-provenance agreement + snip confidence; flags review candidates
   pdfdrill toc <pdf>           Table of contents
   pdfdrill abstract <pdf>      Abstract from first pages
   pdfdrill fonts <pdf>         Font analysis, math font detection

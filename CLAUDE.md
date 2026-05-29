@@ -215,8 +215,20 @@ into the model** as first-class nodes — a near-term follow-up is a `Link`
 DocObject (Region = rect, props = uri/anchor_text/context, Alignment to the
 covered text span) feeding the citation/provenance graph.
 
-Still to do: align `Link` nodes to the text span they cover (Alignment) and
-to `dests`-resolved targets (citation graph seed); widen geometry-match
-coverage for list markers; equation-number fusion by right-margin geometry;
-then Phase 2 (scoring across provenances) and Phase 3 (self-learning). Later
-layers: math-expression graph, document-structure graph, citation graph.
+Phase 2 — scoring (`src/pdfdrill/scoring.py`, `pdfdrill score`):
+
+- Per equation, compares the readings (mathpix vs snip/llm) on a
+  *normalized* LaTeX form (light, language-aware canonicalization in the
+  comby/loadable-grammar spirit), combines with the snip `confidence`, and
+  stores `props["score"]` = {agreement per provenance, mean_agreement,
+  snip_confidence, min_signal 0..1, flags}. `compare` shows a score column and
+  highlights flagged rows. On 2605.12061: mean agreement 0.992, 9 flagged
+  (mostly low snip confidence — surfaced even when LaTeX agrees).
+  Tests: `tests/test_scoring.py`.
+
+Still to do: align `Link` nodes to the text span they cover and to
+`dests`/citekey targets (citation graph seed — a small dest-name micro-grammar
++ a future ANTLR/comby BibTeX grammar); widen geometry-match coverage for list
+markers; equation-number fusion by right-margin geometry; then Phase 3
+(self-learning loop using the scores). Later layers: math-expression graph,
+document-structure graph, citation graph — queryable like Pyre/Pysa over code.

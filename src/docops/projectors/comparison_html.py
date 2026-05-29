@@ -52,6 +52,9 @@ _PAGE_TEMPLATE = """<!DOCTYPE html>
   img.crop {{ max-width: 360px; height: auto; background: #fff;
               border: 1px solid #eee; }}
   td.empty {{ color: #ccc; text-align: center; }}
+  tr.flagged {{ background: #fff5f5; }}
+  td.score {{ white-space: nowrap; font-size: 12px; }}
+  .flag {{ color: #b00; font-size: 11px; }}
 </style>
 </head>
 <body>
@@ -108,14 +111,18 @@ class ComparisonHtmlProjector(BaseProjector):
                 "mathpix": mlatex,
                 "cdn": cdn,
                 "cands": cands,
+                "score": obj.props.get("score"),
             })
             self.bump("rows")
 
         ordered = [p for p in _PROV_PREF if p in provs] + \
                   sorted(p for p in provs if p not in _PROV_PREF)
+        has_scores = any(rd.get("score") for rd in rows_data)
 
-        head = ['<th>#</th>', '<th>ref</th>', '<th>p</th>',
-                '<th>LaTeX (mathpix)</th>', '<th>KaTeX (mathpix)</th>']
+        head = ['<th>#</th>', '<th>ref</th>', '<th>p</th>']
+        if has_scores:
+            head.append('<th>score</th>')
+        head += ['<th>LaTeX (mathpix)</th>', '<th>KaTeX (mathpix)</th>']
         for p in ordered:
             head.append(f'<th>LaTeX ({html.escape(p)})</th>')
             head.append(f'<th>KaTeX ({html.escape(p)})</th>')
@@ -123,11 +130,15 @@ class ComparisonHtmlProjector(BaseProjector):
 
         row_html: list[str] = []
         for i, rd in enumerate(rows_data, 1):
+            sc = rd.get("score") or {}
+            flagged = bool(sc.get("flags"))
             cells = [
                 f'<td class="num">{i}</td>',
                 f'<td class="ref">{html.escape(rd["ref"])}</td>',
                 f'<td class="num">{rd["page"] if rd["page"] is not None else ""}</td>',
             ]
+            if has_scores:
+                cells.append(self._score_cell(sc))
             cells += self._latex_pair(rd["mathpix"])
             for p in ordered:
                 c = rd["cands"].get(p)
@@ -136,7 +147,8 @@ class ComparisonHtmlProjector(BaseProjector):
                 else:
                     cells += ['<td class="empty">—</td>', '<td class="empty">—</td>']
             cells.append(f'<td>{self._img(rd["cdn"])}</td>')
-            row_html.append("<tr>" + "".join(cells) + "</tr>")
+            tr = '<tr class="flagged">' if flagged else "<tr>"
+            row_html.append(tr + "".join(cells) + "</tr>")
 
         meta = doc.meta
         return _PAGE_TEMPLATE.format(
@@ -160,6 +172,22 @@ class ComparisonHtmlProjector(BaseProjector):
             f"<td><pre>{esc}</pre></td>",
             f'<td><div class="katex-cell" data-tex="{esc_attr}"></div>{score_html}</td>',
         ]
+
+    @staticmethod
+    def _score_cell(score: dict) -> str:
+        if not score:
+            return '<td class="empty">—</td>'
+        parts = []
+        ag = score.get("mean_agreement")
+        if ag is not None:
+            parts.append(f"agree {ag:.2f}")
+        cf = score.get("snip_confidence")
+        if cf is not None:
+            parts.append(f"conf {cf:.2f}")
+        flags = score.get("flags") or []
+        flag_html = (f'<div class="flag">{html.escape(", ".join(flags))}</div>'
+                     if flags else "")
+        return f'<td class="score">{"<br>".join(parts)}{flag_html}</td>'
 
     @staticmethod
     def _img(cdn: str) -> str:

@@ -50,6 +50,7 @@ TIDDLERS_BUILT = "TIDDLERS_BUILT"
 LISTS_BUILT = "LISTS_BUILT"
 ALGORITHMS_BUILT = "ALGORITHMS_BUILT"
 ANNOTATIONS_BUILT = "ANNOTATIONS_BUILT"
+SCORED = "SCORED"
 
 # Hosts that almost always mean "here is the code / data for this paper".
 _CODE_HOSTS = (
@@ -690,6 +691,76 @@ def _format_geometry(sc: Sidecar) -> str:
         f"Block detectors (algorithm/itemize) and equation-number fusion can "
         f"now read each line's `_geom`."
     )
+
+
+# ---------------------------------------------------------------------------
+# Phase-2 scoring — quantify agreement across provenances
+# ---------------------------------------------------------------------------
+
+def cmd_score(pdf: Path, force: bool = False) -> str:
+    """Score each equation by cross-provenance agreement + snip confidence.
+
+    Stores `props["score"]` per equation (agreement vs each competing reading,
+    mean agreement, snip confidence, a 0..1 min_signal, and flags). Surfaces in
+    `compare` as a score column with low-signal rows highlighted. Auto-chains
+    `model`.
+    """
+    from docmodel.core import Document
+    from .scoring import score_equation
+
+    sc = Sidecar(pdf)
+    model_path = _model_path(sc)
+    if not sc.has(MODEL_BUILT) or not model_path.exists():
+        cmd_model(pdf)
+        sc = Sidecar(pdf)
+        model_path = _model_path(sc)
+    if not model_path.exists():
+        return f"No model for {pdf.name} (run `pdfdrill model` first)."
+
+    with open(model_path, "r", encoding="utf-8") as f:
+        doc = Document.from_dict(json.load(f))
+
+    scored = flagged = 0
+    agreements: list[float] = []
+    for o in doc.objects.values():
+        if o.type != "Equation" or not o.props.get("cdn_url"):
+            continue
+        cands: dict[str, dict] = {}
+        for r in o.realizations:
+            if r.role == "latex_candidate" and r.provenance:
+                cands[r.provenance] = {"latex": r.props.get("latex", ""), "score": r.score}
+        s = score_equation(o.props.get("latex", ""), cands)
+        o.props["score"] = s
+        scored += 1
+        if s["flags"]:
+            flagged += 1
+        if s["mean_agreement"] is not None:
+            agreements.append(s["mean_agreement"])
+
+    with open(model_path, "w", encoding="utf-8") as f:
+        json.dump(doc.to_dict(), f, indent=2, ensure_ascii=False)
+
+    mean_ag = round(sum(agreements) / len(agreements), 3) if agreements else None
+    sc.set_evidence("scored_equations", scored)
+    sc.set_evidence("scored_flagged", flagged)
+    sc.set_evidence("scored_mean_agreement", mean_ag)
+    prev = ",".join(sorted(sc.facts - {SCORED})) or "INIT"
+    sc.add_fact(SCORED)
+    sc.log_transition("score", prev, SCORED,
+                      detail=f"{scored} scored, {flagged} flagged")
+    sc.save()
+    return _format_score(sc)
+
+
+def _format_score(sc: Sidecar) -> str:
+    n = sc.get_evidence("scored_equations", 0)
+    fl = sc.get_evidence("scored_flagged", 0)
+    ag = sc.get_evidence("scored_mean_agreement")
+    ag_s = f"mean cross-provenance agreement {ag}; " if ag is not None else ""
+    return (f"Scored {n} equations; {ag_s}{fl} flagged for review "
+            f"(low agreement or low snip confidence). "
+            f"Run `pdfdrill compare {sc.pdf_path.name}` — flagged rows are "
+            f"highlighted with a score column.")
 
 
 # ---------------------------------------------------------------------------
