@@ -446,12 +446,20 @@ class TiddlyWikiProjector(BaseProjector):
         # self-reference so the citekey link shows in front of the entry.
         for ref in inv["references"]:
             body = "{{||CIT}} " + (ref.props.get("raw_text") or "")
-            t = self._t(title[ref.id], body, f"reference bibkey:{bibkey}")
+            # tagged both `reference` and `bibentry` so existing bibentry
+            # macros / updateBibentries.ts work on this output unchanged.
+            t = self._t(title[ref.id], body, f"reference bibentry bibkey:{bibkey}")
             t["kind"] = "reference"
             t["citekey"] = ref.props.get("citekey") or ""
             t["year"] = ref.props.get("year") or ""
-            t["author"] = ref.props.get("author") or ""
+            t["authors"] = ref.props.get("author") or ""   # plural, matches TS
             t["entry_type"] = ref.props.get("entry_type") or "misc"
+            if ref.props.get("title"):
+                t["titlefield"] = ref.props["title"]
+            if ref.props.get("bibtex"):          # full entry from Perplexity
+                t["bibtex"] = ref.props["bibtex"]
+            if ref.props.get("citations"):
+                t["citations"] = ref.props["citations"]
             out.append(t)
 
         # Citation placeholders — only for citekeys that did NOT resolve to a

@@ -25,6 +25,7 @@ __pycache__/
 .env
 mtestzx.ts
 src/pdfdrill/mathpix_creds.py
+src/pdfdrill/perplexity_creds.py
 
 # Editor / OS
 .DS_Store

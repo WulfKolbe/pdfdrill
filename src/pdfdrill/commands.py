@@ -54,6 +54,7 @@ SCORED = "SCORED"
 ESCALATION_OPEN = "ESCALATION_OPEN"
 EQNUMS_FUSED = "EQNUMS_FUSED"
 BIBLIOGRAPHY_BUILT = "BIBLIOGRAPHY_BUILT"
+BIBFETCH_DONE = "BIBFETCH_DONE"
 
 # Hosts that almost always mean "here is the code / data for this paper".
 _CODE_HOSTS = (
@@ -749,6 +750,72 @@ def cmd_bibliography(pdf: Path, force: bool = False) -> str:
                       detail=f"{n} entries, {with_year} with year, {cites} cite edges")
     sc.save()
     return _format_bibliography(sc)
+
+
+def cmd_bibfetch(pdf: Path, limit: int | None = None, force: bool = False) -> str:
+    """Enrich Reference entries with full BibTeX via Perplexity SONAR.
+
+    Printed references are truncated, so each Reference's BibTeX is requested
+    from the LLM (which searches online for missing fields), parsed, and stored
+    on the Reference (`bibtex`, `citations`, refined author/year/title).
+    Auto-chains `bibliography`. Idempotent per reference (skips those already
+    enriched unless --force); `--limit N` caps the number of API calls.
+    """
+    from docmodel.core import Document
+    from .perplexity_client import enrich
+
+    sc = Sidecar(pdf)
+    model_path = _model_path(sc)
+    if not sc.has(BIBLIOGRAPHY_BUILT):
+        cmd_bibliography(pdf)
+        sc = Sidecar(pdf)
+    if not model_path.exists():
+        return f"No model for {pdf.name} (run `pdfdrill bibliography` first)."
+
+    with open(model_path, "r", encoding="utf-8") as f:
+        doc = Document.from_dict(json.load(f))
+
+    refs = [o for o in doc.objects.values() if o.type == "Reference"]
+    todo = [r for r in refs if force or not r.props.get("bibtex")]
+    if limit is not None:
+        todo = todo[:limit]
+
+    done = errors = 0
+    for r in todo:
+        try:
+            res = enrich(
+                citekey=r.props.get("citekey", ""),
+                author=r.props.get("author", ""),
+                year=r.props.get("year", ""),
+                raw_text=r.props.get("raw_text", ""),
+                title=r.props.get("title", ""),
+            )
+        except Exception:  # noqa: BLE001 — one failure shouldn't abort the batch
+            errors += 1
+            continue
+        if res["bibtex"]:
+            r.props["bibtex"] = res["bibtex"]
+            r.props["citations"] = " ".join(res["citations"])
+            for k in ("author", "year", "title", "entry_type"):
+                if res["fields"].get(k):
+                    r.props[k] = res["fields"][k]
+            done += 1
+
+    with open(model_path, "w", encoding="utf-8") as f:
+        json.dump(doc.to_dict(), f, indent=2, ensure_ascii=False)
+
+    total = (sc.get_evidence("bibfetch_done", 0) or 0) + done
+    sc.set_evidence("bibfetch_done", total)
+    prev = ",".join(sorted(sc.facts - {BIBFETCH_DONE})) or "INIT"
+    sc.add_fact(BIBFETCH_DONE)
+    sc.log_transition("bibfetch", prev, BIBFETCH_DONE,
+                      detail=f"{done} enriched, {errors} errors")
+    sc.save()
+    msg = f"Enriched {done} reference(s) with full BibTeX via Perplexity SONAR"
+    if errors:
+        msg += f" ({errors} failed)"
+    msg += f". Rebuild `pdfdrill tiddlers {pdf.name}` — Reference tiddlers now carry bibtex + citations."
+    return msg
 
 
 def _format_bibliography(sc: Sidecar) -> str:

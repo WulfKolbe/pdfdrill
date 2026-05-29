@@ -298,8 +298,20 @@ Citation↔Reference linking + Markdown refs (done):
   default; for round-trip tests).
 
 BibTeX field enrichment is **LLM-sourced**, not grammar-parsed (printed refs
-are truncated): a Perplexity SONAR request per Reference (ported from the
-user's `updateBibentries.ts`) fills full BibTeX + citations — see the
-`perplexity`/`bibfetch` step. Still to do after that: deepen the self-learning
-loop (auto-tune from accumulated flags); math-expression / document-structure
-/ citation graphs queried like Pyre/Pysa over the persisted model.
+are truncated):
+
+- **`pdfdrill bibfetch <pdf> [--limit N]`** (`src/pdfdrill/perplexity_client.py`,
+  ported from `updateBibentries.ts`) requests a full BibTeX entry per Reference
+  from Perplexity SONAR (which searches online for missing fields), parses the
+  bibtex block + citations, and stores `bibtex` / `citations` + refined
+  `author`/`year`/`title`/`entry_type` on the Reference. Idempotent per ref;
+  `--limit` caps API calls. Key from `PERPLEXITY_API_KEY` env / git-ignored
+  `perplexity_creds.py`. Verified live on 2312.11532 (2 refs → full
+  @inproceedings/@article with online-completed fields + citations).
+- TiddlyWiki Reference tiddlers are tagged `reference bibentry`, carry
+  `citekey/authors/year/titlefield/entry_type/bibtex/citations`, text led by
+  `{{||CIT}}` — compatible with the existing bibentry macros / updateBibentries.
+
+Still to do: deepen the self-learning loop (auto-tune from accumulated flags);
+math-expression / document-structure / citation graphs queried like Pyre/Pysa
+over the persisted `model.docmodel.json` (the between-call memory).
