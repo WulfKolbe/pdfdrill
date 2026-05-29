@@ -6,8 +6,8 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "src"))
 
-from docmodel.core import Document
-from pdfdrill.annotations import add_link_objects
+from docmodel.core import Document, DocObject, Realization
+from pdfdrill.annotations import add_link_objects, link_xref_alignments
 
 
 _RECORDS = [
@@ -27,8 +27,8 @@ _RECORDS = [
 
 def test_add_link_objects_creates_nodes_with_region():
     doc = Document()
-    n = add_link_objects(doc, _RECORDS)
-    assert n == 3                              # empty-url record skipped
+    created = add_link_objects(doc, _RECORDS)
+    assert len(created) == 3                    # empty-url record skipped
     links = [o for o in doc.objects.values() if o.type == "Link"]
     assert len(links) == 3
 
@@ -55,6 +55,33 @@ def test_links_round_trip():
     r = links[0].realizations[0]
     assert r.provenance == "pdfplumber"
     assert r.region is not None and r.region.space == "pdf_points"
+
+
+def test_xref_alignments_cite_and_page():
+    doc = Document()
+    mp = doc.ensure_stream("mathpix_lines")
+    # a Citation object for foo2023 and a Page 5 object, both with surface ranges
+    ca = mp.append(text="[foo2023]", _page=13)
+    cit = DocObject(type="Citation", props={"citekey": "foo2023"})
+    cit.add_realization(Realization(stream="mathpix_lines", start=ca, end=ca, role="surface"))
+    doc.add(cit)
+    pa = mp.append(text="page 5 line", _page=5)
+    pg = DocObject(type="Page", props={"page_number": 5})
+    pg.add_realization(Realization(stream="mathpix_lines", start=pa, end=pa, role="surface"))
+    doc.add(pg)
+
+    recs = [
+        {"page": 1, "kind": "internal", "uri": "", "dest_name": "cite.foo2023",
+         "dest_page": 13, "rect": [1, 2, 3, 4]},
+        {"page": 1, "kind": "internal", "uri": "", "dest_name": "theorem.1.1",
+         "dest_page": 5, "rect": [1, 2, 3, 4]},
+    ]
+    created = add_link_objects(doc, recs)
+    counts = link_xref_alignments(doc, created)
+    assert counts["cites"] == 1                 # cite.foo2023 -> Citation
+    assert counts["xrefs"] == 1                 # theorem.1.1 -> Page 5
+    kinds = {a.kind for a in doc.alignments}
+    assert "cites" in kinds and "xref" in kinds
 
 
 if __name__ == "__main__":

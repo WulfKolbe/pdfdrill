@@ -226,9 +226,23 @@ Phase 2 — scoring (`src/pdfdrill/scoring.py`, `pdfdrill score`):
   (mostly low snip confidence — surfaced even when LaTeX agrees).
   Tests: `tests/test_scoring.py`.
 
-Still to do: align `Link` nodes to the text span they cover and to
-`dests`/citekey targets (citation graph seed — a small dest-name micro-grammar
-+ a future ANTLR/comby BibTeX grammar); widen geometry-match coverage for list
-markers; equation-number fusion by right-margin geometry; then Phase 3
-(self-learning loop using the scores). Later layers: math-expression graph,
-document-structure graph, citation graph — queryable like Pyre/Pysa over code.
+Cross-reference graph + geometry coverage (done):
+
+- `link_xref_alignments` (in `annotations.py`, run by `pdfdrill annotate`)
+  uses a dest-name micro-grammar (`prefix.key`): `cite.<key>` → `Alignment
+  (kind="cites")` to the matching Citation object (citation-graph seed);
+  any internal link with a `dest_page` → `Alignment(kind="xref")` to that
+  Page. 2605.12061: 380 page xrefs (no Citation objects in this model, so 0
+  cite edges — mechanism covered by tests). A future ANTLR/comby BibTeX
+  grammar fills in the citekey side.
+- Geometry fusion now widens coverage: y-tolerance 0.035 + a nearest-line
+  fallback (flagged in `_geom["fallback"]`) so every line with a region gets
+  layout. 2605.12061 list items: 163/163 carry geometry (was 121/163), which
+  lifted list nesting to depth 2.
+
+Still to do: **Phase 3 — self-learning loop** (use the Phase-2 scores to tune
+detection heuristics / OCR-engine choice / `latex_map`); equation-number
+fusion by right-margin geometry; a real BibTeX grammar (ANTLR/comby) to
+populate Citation objects so `cite` edges form. Later layers: math-expression
+graph, document-structure graph, citation graph — queried like Pyre/Pysa over
+code, over the persisted `model.docmodel.json` (the between-call memory).

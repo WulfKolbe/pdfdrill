@@ -776,7 +776,7 @@ def cmd_annotate(pdf: Path, force: bool = False) -> str:
     queryable graph nodes instead of living only in the sidecar.
     """
     from docmodel.core import Document
-    from .annotations import add_link_objects
+    from .annotations import add_link_objects, link_xref_alignments
 
     sc = Sidecar(pdf)
     model_path = _model_path(sc)
@@ -798,21 +798,27 @@ def cmd_annotate(pdf: Path, force: bool = False) -> str:
     if existing and not force:
         return _format_annotations(sc)
     if force and existing:
+        ids = {o.id for o in existing}
         for o in existing:
             doc.objects.pop(o.id, None)
+        doc.alignments = [a for a in doc.alignments if a.kind not in ("cites", "xref")]
 
-    added = add_link_objects(doc, records)
+    created = add_link_objects(doc, records)
+    xref = link_xref_alignments(doc, created)
     code = sum(1 for r in records if _is_code_host(r.get("uri") or ""))
 
     with open(model_path, "w", encoding="utf-8") as f:
         json.dump(doc.to_dict(), f, indent=2, ensure_ascii=False)
 
-    sc.set_evidence("annotation_links", added)
+    sc.set_evidence("annotation_links", len(created))
     sc.set_evidence("annotation_code_links", code)
+    sc.set_evidence("annotation_cites", xref["cites"])
+    sc.set_evidence("annotation_xrefs", xref["xrefs"])
     prev = ",".join(sorted(sc.facts - {ANNOTATIONS_BUILT})) or "INIT"
     sc.add_fact(ANNOTATIONS_BUILT)
     sc.log_transition("annotate", prev, ANNOTATIONS_BUILT,
-                      detail=f"{added} links, {code} code/data")
+                      detail=f"{len(created)} links, {code} code/data, "
+                             f"{xref['cites']} cites, {xref['xrefs']} xrefs")
     sc.save()
     return _format_annotations(sc)
 
@@ -820,10 +826,18 @@ def cmd_annotate(pdf: Path, force: bool = False) -> str:
 def _format_annotations(sc: Sidecar) -> str:
     n = sc.get_evidence("annotation_links", 0)
     code = sc.get_evidence("annotation_code_links", 0)
+    cites = sc.get_evidence("annotation_cites", 0)
+    xrefs = sc.get_evidence("annotation_xrefs", 0)
     extra = f" ({code} to code/data hosts)" if code else ""
+    edges = []
+    if cites:
+        edges.append(f"{cites} cite edges")
+    if xrefs:
+        edges.append(f"{xrefs} page xrefs")
+    edge_s = f" Graph: {', '.join(edges)}." if edges else ""
     return (f"Promoted {n} hyperlink annotation(s) into the model as Link "
             f"nodes{extra}. Each carries uri/kind/anchor_text/context + a "
-            f"Region (rect); they now participate in the document graph.")
+            f"Region (rect).{edge_s}")
 
 
 # ---------------------------------------------------------------------------

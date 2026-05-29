@@ -116,7 +116,7 @@ def clear_geometry(doc) -> None:
 
 
 def fuse(doc, pdf_lines: list[dict], page_dims_pts: dict[int, tuple[float, float]],
-         y_tol: float = 0.025) -> dict[str, Any]:
+         y_tol: float = 0.035) -> dict[str, Any]:
     """Add a pdf_lines stream, fuse it onto mathpix_lines, annotate _geom.
 
     Returns stats {pdf_lines, matched, mean_sim}.
@@ -158,8 +158,17 @@ def fuse(doc, pdf_lines: list[dict], page_dims_pts: dict[int, tuple[float, float
             if y_mp is None:
                 continue
             yn_mp = y_mp / pm["page_height"]
-            cands = [t for t in pl_by_page.get(page, [])
+            page_lines = pl_by_page.get(page, [])
+            cands = [t for t in page_lines
                      if t[4] is not None and abs(t[4] - yn_mp) <= y_tol]
+            fallback = False
+            if not cands:
+                # No line within tolerance: fall back to the nearest line on
+                # the page so the item still gets x-geometry (flagged, low sim).
+                with_y = [t for t in page_lines if t[4] is not None]
+                if with_y:
+                    cands = [min(with_y, key=lambda t: abs(t[4] - yn_mp))]
+                    fallback = True
             if not cands:
                 continue
             mptext = _norm_txt(p.get("text") or p.get("text_display") or "")
@@ -179,6 +188,7 @@ def fuse(doc, pdf_lines: list[dict], page_dims_pts: dict[int, tuple[float, float
                 "y_norm": round(yn, 4) if yn is not None else None,
                 "indent_norm": round(indent, 4) if indent is not None else None,
                 "sim": round(s, 3),
+                "fallback": fallback,
                 "pdf_text": L["text"],
             }
             doc.add_alignment(Alignment(
