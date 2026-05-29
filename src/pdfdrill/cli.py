@@ -52,6 +52,8 @@ def main():
         "tsv": _do_tsv,
         "render": _do_render,
         "mathpix": _do_mathpix,
+        "model": _do_model,
+        "compare": _do_compare,
     }
 
     if cmd not in handlers:
@@ -172,6 +174,20 @@ def _do_mathpix(args):
         else:
             pdf_args.append(a)
     return cmd_mathpix(_pdf(pdf_args), force=force)
+
+
+def _do_model(args):
+    """pdfdrill model <pdf> [--force]"""
+    from .commands import cmd_model
+    pdf_args = [a for a in args if a != "--force"]
+    return cmd_model(_pdf(pdf_args), force="--force" in args)
+
+
+def _do_compare(args):
+    """pdfdrill compare <pdf> [--force]"""
+    from .commands import cmd_compare
+    pdf_args = [a for a in args if a != "--force"]
+    return cmd_compare(_pdf(pdf_args), force="--force" in args)
 
 
 def _do_pix2tex(args):
@@ -369,6 +385,8 @@ Introspection (fast, no extraction):
   pdfdrill tsv <pdf>           Word-level bounding boxes (pdftotext -tsv; --ocr forces tesseract)
   pdfdrill render <pdf>        Render the built markdown to PDF (pandoc + lualatex)
   pdfdrill mathpix <pdf>       Download MathPix OCR (lines.json, md, tex.zip); --force re-uploads
+  pdfdrill model <pdf>         Build unified docmodel from lines.json (auto-chains mathpix)
+  pdfdrill compare <pdf>       LaTeX | KaTeX | MathPix-image comparison HTML (auto-chains model)
   pdfdrill toc <pdf>           Table of contents
   pdfdrill abstract <pdf>      Abstract from first pages
   pdfdrill fonts <pdf>         Font analysis, math font detection

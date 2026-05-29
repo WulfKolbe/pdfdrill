@@ -111,7 +111,20 @@ git-ignored and is **not** part of this repo.
 ## Current status
 
 Merged layout + working pdfdrill CLI (verified on `2605.12061`) + passing
-docmodel/docops suites. **`pdfdrill mathpix`** is implemented (Python port of
-`mtestzx.ts`, idempotent, creds from env or a git-ignored `mathpix_creds.py`;
-tests in `tests/test_mathpix.py`). Still to do in Phase 1: the `model` and
-`compare` commands and the `Region`/provenance/score model extensions.
+suites. The MathPix-only QC path is **end-to-end functional**:
+
+- **`pdfdrill mathpix <pdf>`** — Python port of `mtestzx.ts`, idempotent,
+  creds from env or git-ignored `mathpix_creds.py` (`tests/test_mathpix.py`).
+- **`pdfdrill model <pdf>`** — builds the unified docmodel `Document` from
+  `lines.json` (auto-chains `mathpix`), writes `<pdf>.drill/model.docmodel.json`.
+- **`pdfdrill compare <pdf>`** — `ComparisonHtmlProjector` emits
+  `<pdf>.drill/compare.html`: per equation, LaTeX | KaTeX render | MathPix CDN
+  image (`tests/test_compare.py`). Verified on `2605.12061`: 239 equations.
+
+Test totals: `test_basic` 7, `test_docops` 14, `test_mathpix` 5,
+`test_compare` 3.
+
+Still to do in Phase 1 (the "competing tools" substrate): the `Region` type +
+`provenance`/`score` on `Realization`, and injecting pdfdrill's own
+detected-math / pix2tex LaTeX as extra comparison columns. Then Phase 2
+(scoring) and Phase 3 (self-learning loop).

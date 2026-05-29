@@ -10,6 +10,7 @@ Every command:
 
 from __future__ import annotations
 
+import json
 import re
 import subprocess
 import time
@@ -40,6 +41,8 @@ PIX2TEX_RAN = "PIX2TEX_RAN"
 TSV_KNOWN = "TSV_KNOWN"
 TSV_SOURCE = "TSV_SOURCE"  # evidence key: "pdftotext" or "tesseract"
 MATHPIX_KNOWN = "MATHPIX_KNOWN"
+MODEL_BUILT = "MODEL_BUILT"
+COMPARE_BUILT = "COMPARE_BUILT"
 
 
 # ---------------------------------------------------------------------------
@@ -96,6 +99,136 @@ def _format_mathpix(result: dict, files_meta: list[dict]) -> str:
         head += f" (pdf_id {pid})"
     tail = "\nNext: build the unified model from lines.json (pdfdrill model)."
     return head + ":\n" + "\n".join(lines) + tail
+
+
+# ---------------------------------------------------------------------------
+# Unified model + comparison
+# ---------------------------------------------------------------------------
+
+def _lines_json_path(pdf: Path) -> Path:
+    """Path MathPix lines.json would occupy next to the PDF."""
+    base = pdf.name[:-4] if pdf.name.lower().endswith(".pdf") else pdf.name
+    return pdf.parent / f"{base}.lines.json"
+
+
+def _model_path(sc: Sidecar) -> Path:
+    return sc.blob_dir / "model.docmodel.json"
+
+
+def cmd_model(pdf: Path, force: bool = False) -> str:
+    """Build the unified docmodel Document from MathPix lines.json.
+
+    Auto-chains `mathpix` if the lines.json isn't there yet. Writes the
+    serialized Document to <pdf>.drill/model.docmodel.json and records counts
+    (objects, equations, equations carrying a CDN image) in the sidecar.
+    """
+    from docmodel.main import run as build_model, DEFAULT_CONFIG_PATH
+
+    sc = Sidecar(pdf)
+    model_path = _model_path(sc)
+    if sc.has(MODEL_BUILT) and model_path.exists() and not force:
+        return _format_model(sc)
+
+    lines_path = _lines_json_path(pdf)
+    if not lines_path.exists():
+        cmd_mathpix(pdf)  # acquire OCR first
+        sc = Sidecar(pdf)
+    if not lines_path.exists():
+        return f"No MathPix lines.json for {pdf.name} (run `pdfdrill mathpix` first)."
+
+    sc.blob_dir.mkdir(parents=True, exist_ok=True)
+    t0 = time.monotonic()
+    out = build_model(
+        lines_path=str(lines_path),
+        config_path=DEFAULT_CONFIG_PATH,
+        bibkey=pdf.stem,
+        out_path=str(model_path),
+        debug_modules=[],
+    )
+
+    objects = out.get("objects", [])
+    by_type: dict[str, int] = {}
+    for o in objects:
+        by_type[o["type"]] = by_type.get(o["type"], 0) + 1
+    eq_with_cdn = sum(
+        1 for o in objects
+        if o["type"] == "Equation" and o.get("props", {}).get("cdn_url")
+    )
+
+    sc.set_evidence("model_path", str(model_path.relative_to(pdf.parent)))
+    sc.set_evidence("model_object_counts", by_type)
+    sc.set_evidence("model_equations_with_cdn", eq_with_cdn)
+    prev = ",".join(sorted(sc.facts - {MODEL_BUILT})) or "INIT"
+    sc.add_fact(MODEL_BUILT)
+    sc.log_transition(
+        "model", prev, MODEL_BUILT, cost_ms=(time.monotonic() - t0) * 1000,
+        detail=f"{len(objects)} objects, {eq_with_cdn} eq w/ cdn",
+    )
+    sc.save()
+    return _format_model(sc)
+
+
+def _format_model(sc: Sidecar) -> str:
+    counts = sc.get_evidence("model_object_counts", {}) or {}
+    eq_cdn = sc.get_evidence("model_equations_with_cdn", 0)
+    total = sum(counts.values())
+    top = ", ".join(f"{n} {t}" for t, n in sorted(
+        counts.items(), key=lambda kv: -kv[1]) if t in (
+        "Equation", "Formula", "Paragraph", "Section", "Table", "Picture"))
+    return (
+        f"Built unified model: {total} objects ({top}). "
+        f"{eq_cdn} equations carry a MathPix CDN image. "
+        f"Stored at {sc.get_evidence('model_path')}.\n"
+        f"Next: pdfdrill compare <pdf> → LaTeX | KaTeX | image table."
+    )
+
+
+def cmd_compare(pdf: Path, force: bool = False) -> str:
+    """Emit the LaTeX | KaTeX | MathPix-image comparison HTML.
+
+    Auto-chains `model` if needed. Writes <pdf>.drill/compare.html.
+    """
+    from docmodel.core import Document
+    from docops.base import OperatorConfig
+    from docops.projectors.comparison_html import ComparisonHtmlProjector
+
+    sc = Sidecar(pdf)
+    model_path = _model_path(sc)
+    if not sc.has(MODEL_BUILT) or not model_path.exists() or force:
+        cmd_model(pdf, force=force)
+        sc = Sidecar(pdf)
+        model_path = _model_path(sc)
+    if not model_path.exists():
+        return f"No model for {pdf.name} (run `pdfdrill model` first)."
+
+    t0 = time.monotonic()
+    with open(model_path, "r", encoding="utf-8") as f:
+        doc = Document.from_dict(json.load(f))
+
+    proj = ComparisonHtmlProjector(
+        OperatorConfig(op="projector", classname="ComparisonHtmlProjector")
+    )
+    html_str = proj.project(doc)
+    rows = proj.counters.get("rows", 0)
+
+    sc.blob_dir.mkdir(parents=True, exist_ok=True)
+    out_path = sc.blob_dir / "compare.html"
+    out_path.write_text(html_str, encoding="utf-8")
+
+    sc.set_evidence("compare_path", str(out_path.relative_to(pdf.parent)))
+    sc.set_evidence("compare_rows", rows)
+    prev = ",".join(sorted(sc.facts - {COMPARE_BUILT})) or "INIT"
+    sc.add_fact(COMPARE_BUILT)
+    sc.log_transition(
+        "compare", prev, COMPARE_BUILT, cost_ms=(time.monotonic() - t0) * 1000,
+        detail=f"{rows} rows",
+    )
+    sc.save()
+    rel = out_path.relative_to(pdf.parent)
+    return (
+        f"Comparison table: {rows} expressions (LaTeX | KaTeX | MathPix image). "
+        f"Open {rel} in a browser."
+    )
 
 
 # ---------------------------------------------------------------------------
