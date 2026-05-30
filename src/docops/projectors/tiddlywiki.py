@@ -49,6 +49,12 @@ def _sanitize_title(t: str) -> str:
     return re.sub(r"[^A-Za-z0-9_\-\.]", "_", t)
 
 
+def _bibtag(bibkey: str) -> str:
+    """The bibkey as a single TiddlyWiki tag ([[...]]-wrapped if it has spaces)."""
+    bibkey = bibkey or "DOC"
+    return f"[[{bibkey}]]" if (" " in bibkey) else bibkey
+
+
 # Footnote anchor patterns (MathPix produces variations like \({ }^{1}\) or { }^{1}).
 _FN_REF_RE = re.compile(r"\\\(\s*\{\s*\}\s*\^\s*\{\s*(\d+)\s*\}\s*\\\)|\{\s*\}\s*\^\s*\{\s*(\d+)\s*\}")
 _INCLUDEGRAPHICS_RE = re.compile(r"\\includegraphics(?:\[[^\]]*\])?\{([^}]+)\}")
@@ -267,7 +273,7 @@ class TiddlyWikiProjector(BaseProjector):
             t = self._t(
                 title[pg.id],
                 f"Page {pg.props.get('page_number')} of //{bibkey}//.",
-                f"page bibkey:{bibkey}",
+                f"page {_bibtag(bibkey)}",
             )
             t["page"] = self._p3(pg.props.get("page_number"))
             if pg.props.get("image_id"):
@@ -284,7 +290,7 @@ class TiddlyWikiProjector(BaseProjector):
             )
             t = self._t(
                 title[p.id], transcluded,
-                f"paragraph bibkey:{bibkey}",
+                f"paragraph {_bibtag(bibkey)}",
             )
             t["page"] = self._p3(p.props.get("page"))
             if p.props.get("first_line_index") is not None:
@@ -303,7 +309,7 @@ class TiddlyWikiProjector(BaseProjector):
             body = self._section_body(s, doc, title)
             t = self._t(
                 title[s.id], body,
-                f"section bibkey:{bibkey}",
+                f"section {_bibtag(bibkey)}",
             )
             t["level"] = str(s.props.get("level", 1))
             t["section_number"] = s.props.get("section_number") or ""
@@ -321,7 +327,7 @@ class TiddlyWikiProjector(BaseProjector):
             t = self._t(
                 title[f.id],
                 "<$latex text={{!!latex}} displayMode={{!!displayMode}} />",
-                f"formula bibkey:{bibkey}",
+                f"formula {_bibtag(bibkey)}",
             )
             t["latex"] = f.props.get("latex", "")
             t["displayMode"] = "true" if f.props.get("display") else "false"
@@ -332,7 +338,7 @@ class TiddlyWikiProjector(BaseProjector):
             t = self._t(
                 title[e.id],
                 "<$latex text={{!!latex}} displayMode=true />",
-                f"equation bibkey:{bibkey}",
+                f"equation {_bibtag(bibkey)}",
             )
             t["kind"] = "Equation"
             t["latex"] = e.props.get("latex", "")
@@ -361,7 +367,7 @@ class TiddlyWikiProjector(BaseProjector):
             t = self._t(
                 title[pic.id],
                 "<$image source={{!!canonical_uri}} width={{!!width}} height={{!!height}}/>",
-                f"picture bibkey:{bibkey}",
+                f"picture {_bibtag(bibkey)}",
             )
             t["canonical_uri"] = pic.props.get("url") or ""
             t["page"] = self._p3(pic.props.get("page"))
@@ -375,7 +381,7 @@ class TiddlyWikiProjector(BaseProjector):
             t = self._t(
                 title[d.id],
                 "<$image source={{!!canonical_uri}} width={{!!width}} height={{!!height}}/>",
-                f"diagram bibkey:{bibkey}",
+                f"diagram {_bibtag(bibkey)}",
             )
             t["page"] = self._p3(d.props.get("page"))
             t["latex_code"] = d.props.get("latex_code") or ""
@@ -389,7 +395,7 @@ class TiddlyWikiProjector(BaseProjector):
             t = self._t(
                 title[tab.id],
                 tab.props.get("raw_text", ""),
-                f"table bibkey:{bibkey}",
+                f"table {_bibtag(bibkey)}",
             )
             t["page"] = self._p3(tab.props.get("page"))
             out.append(t)
@@ -399,7 +405,7 @@ class TiddlyWikiProjector(BaseProjector):
             t = self._t(
                 title[fn.id],
                 fn.props.get("content", ""),
-                f"footnote bibkey:{bibkey}",
+                f"footnote {_bibtag(bibkey)}",
             )
             t["refnum"] = str(fn.props.get("refnum") or "")
             t["anchor"] = fn.props.get("anchor_marker") or ""
@@ -411,7 +417,7 @@ class TiddlyWikiProjector(BaseProjector):
             t = self._t(
                 title[sn.id],
                 sn.props.get("content", ""),
-                f"sidenote bibkey:{bibkey}",
+                f"sidenote {_bibtag(bibkey)}",
             )
             t["page"] = self._p3(sn.props.get("page"))
             out.append(t)
@@ -421,7 +427,7 @@ class TiddlyWikiProjector(BaseProjector):
             t = self._t(
                 title[li.id],
                 li.props.get("content", ""),
-                f"listitem bibkey:{bibkey}",
+                f"listitem {_bibtag(bibkey)}",
             )
             t["marker"] = li.props.get("marker") or ""
             t["page"] = self._p3(li.props.get("page"))
@@ -432,7 +438,7 @@ class TiddlyWikiProjector(BaseProjector):
             t = self._t(
                 title[a.id],
                 a.props.get("text", ""),
-                f"abstract bibkey:{bibkey}",
+                f"abstract {_bibtag(bibkey)}",
             )
             t["page"] = self._p3(a.props.get("page"))
             out.append(t)
@@ -443,7 +449,7 @@ class TiddlyWikiProjector(BaseProjector):
             body = "\n".join(f"* {e}" for e in entries)
             t = self._t(
                 title[toc.id], body,
-                f"toc bibkey:{bibkey}",
+                f"toc {_bibtag(bibkey)}",
             )
             out.append(t)
 
@@ -453,7 +459,7 @@ class TiddlyWikiProjector(BaseProjector):
             body = "{{||CIT}} " + (ref.props.get("raw_text") or "")
             # tagged both `reference` and `bibentry` so existing bibentry
             # macros / updateBibentries.ts work on this output unchanged.
-            t = self._t(title[ref.id], body, f"reference bibentry bibkey:{bibkey}")
+            t = self._t(title[ref.id], body, f"reference bibentry {_bibtag(bibkey)}")
             t["kind"] = "reference"
             t["citekey"] = ref.props.get("citekey") or ""
             t["year"] = ref.props.get("year") or ""
@@ -472,7 +478,7 @@ class TiddlyWikiProjector(BaseProjector):
         for ck, ct in getattr(self, "_cit_placeholders", {}).items():
             t = self._t(
                 ct, f"//Citation placeholder for// `{ck}`",
-                f"citation bibkey:{bibkey}",
+                f"citation {_bibtag(bibkey)}",
             )
             t["citekey"] = ck
             t["text_display"] = ck
@@ -483,7 +489,7 @@ class TiddlyWikiProjector(BaseProjector):
             t = self._t(
                 title_,
                 "<$latex text={{!!latex}} displayMode={{!!displayMode}} />",
-                f"formula synthetic bibkey:{bibkey}",
+                f"formula synthetic {_bibtag(bibkey)}",
             )
             t["latex"] = info["latex"]
             t["displayMode"] = "true" if info["display"] else "false"
@@ -494,7 +500,7 @@ class TiddlyWikiProjector(BaseProjector):
             bibkey,
             self._root_body(bibkey, inv["pages"], inv["sections"],
                             inv["paragraphs"], inv["equations"], inv["formulas"]),
-            "document",
+            f"document {_bibtag(bibkey)}",
         ))
         return out
 
@@ -736,7 +742,7 @@ class TiddlyWikiProjector(BaseProjector):
             f"* Total Equations: {len(equations)}\n"
             f"* Total Formulas: {len(formulas)}\n\n"
             f"!! Top-level Sections\n\n"
-            f"<$list filter=\"[tag[section]bibkey:{bibkey}]!has[parent_section]] "
+            f"<$list filter=\"[tag[section]{_bibtag(bibkey)}]!has[parent_section]] "
             f"[tag[section]parent_section[{bibkey}]]\" variable=\"sec\">\n"
             f"  * <$link to=<<sec>>><<sec>></$link>\n"
             f"</$list>\n"
