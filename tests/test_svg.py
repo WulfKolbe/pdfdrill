@@ -44,6 +44,19 @@ def test_index_command_stripped_from_equation():
     assert "\\deg_+(v)" in eq["latex"] and "\\sum" in eq["latex"]
 
 
+def test_trailing_line_continuation_stripped():
+    # source: "\[ \sum s(v) = 0,\ \ \ \ <newline> \]" -> dangling \ before \]
+    body = "\\[ \\sum_{v} s(v) = 0,\\ \\ \\ \\\n \\]"
+    eq = ls.extract_display_equations(body)[0]
+    assert eq["latex"].rstrip().endswith("0,")     # trailing \ and spaces gone
+    assert not eq["latex"].rstrip().endswith("\\")  # no lone trailing backslash
+
+
+def test_internal_rowbreak_not_stripped():
+    # a real \\ row break inside an environment must survive _clean_eq
+    assert "\\\\" in ls._clean_eq(r"\begin{cases} a \\ b \end{cases}", "")
+
+
 def test_single_equation_not_wrapped():
     # a plain `equation` (no &) must NOT get an aligned wrapper
     body = r"\begin{equation} x = y + 1 \end{equation}"

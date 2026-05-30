@@ -338,6 +338,11 @@ def _clean_eq(inner: str, env: str = "") -> str:
     s = re.sub(r"\\index\{(?:[^{}]|\{[^{}]*\})*\}", "", s)  # \index{...}, 1 nest deep
     s = re.sub(r"\\(?:nonumber|notag)\b", "", s)
     s = _norm(s)
+    # Strip a dangling trailing line-continuation `\` (e.g. a source line that
+    # ended "= 0,\ \ \ \" right before \]) — a lone trailing backslash is a
+    # KaTeX error. Remove a run of trailing escaped-spaces / lone backslash,
+    # but NOT a real `\\` row break (which align/cases need).
+    s = re.sub(r"(?:\\\s|\s)*\\$", "", s).rstrip()
     # align/gather/… bodies carry bare & and \\ — wrap so KaTeX renders them
     # (KaTeX errors on a bare & outside an environment).
     if env in _ALIGNED_ENVS and ("&" in s or "\\\\" in s):
