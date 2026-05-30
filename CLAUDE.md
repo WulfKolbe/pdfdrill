@@ -416,7 +416,23 @@ output then has no live-CDN dependency — best for the Claude.ai preview, which
 may not load remote images. Verified: `report --embed` on 2312.11532 → 13
 data-URIs, 0 remaining cdn URLs.
 
-Still to do: the `latex → dvisvgm` SVG projector for TikZ/tables (tools present
-here); deepen the self-learning loop (auto-tune from accumulated flags);
+TikZ/table SVG (`src/pdfdrill/svg.py`, `pdfdrill svg`): KaTeX can't render TikZ
+pictures or full LaTeX tables, but SVG embeds in HTML. `compile_to_svg` wraps
+each `Diagram`/`Table`'s `latex_code` in the document's expanded `standalone`
+preamble (`class=report` so book/chapter counters exist) and runs
+`latex -interaction=nonstopmode … && dvisvgm -n --exact-bbox …`, with
+`TEXINPUTS` pointed at the source folder + its `style/` so a project's local
+`\usepackage{mystyle}`/`tkz-*` resolve. `pdfdrill svg <pdf|tex>` attaches the
+SVG to each object (`props["svg"]` + a `provenance="dvisvgm"` realization); the
+formula report grows a "TikZ & Tables" section embedding the SVG inline.
+Degrades gracefully when latex/dvisvgm are absent (`tools_available()`).
+Verified on the graphbook: **18/18** graphics rendered (7 TikZ + 11 tables, 0
+failures). `array` is excluded from graphics extraction (it's math-mode,
+KaTeX-rendered inside its equation — not a standalone table). The `\[…\]`
+display-math extractor no longer mis-splits `\\[4pt]` row-spacing in
+align/cases. `latex/pdflatex/dvisvgm/dvips` present here (`pdf2svg` missing).
+Tests: `tests/test_svg.py`, `tests/test_latexbook.py`.
+
+Still to do: deepen the self-learning loop (auto-tune from accumulated flags);
 math-expression / document-structure / citation graphs queried like Pyre/Pysa
 over the persisted `model.docmodel.json` (the between-call memory).

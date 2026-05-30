@@ -36,6 +36,7 @@ _HEAD = """<!DOCTYPE html>
     td.latex code {{ font-size: .75rem; white-space: pre-wrap; word-break: break-all; }}
     td.katex {{ min-width: 8rem; }}
     td.cdn img {{ max-width: 200px; max-height: 80px; }}
+    .svg svg {{ max-width: 320px; max-height: 220px; height: auto; }}
     td.cdn-missing {{ color: #aaa; text-align: center; }}
     .eq-num {{ font-size: .8rem; color: #666; margin-left: .4rem; }}
     a {{ color: #1a0dab; }}
@@ -137,6 +138,40 @@ class FormulaReportProjector(BaseProjector):
                 f"{img}"
                 "</tr>")
             self.bump("equation_rows")
-        parts.append("</tbody></table>\n</body>\n</html>\n")
+        parts.append("</tbody></table>")
 
+        # ---- TikZ diagrams + tables (SVG, where rendered) ----
+        graphics = flow(doc.objects_of_type("Diagram") + doc.objects_of_type("Table"))
+        graphics = [g for g in graphics
+                    if g.props.get("svg") or g.props.get("latex_code") or g.props.get("cdn_url")]
+        if graphics:
+            n_svg = sum(1 for g in graphics if g.props.get("svg"))
+            parts.append(f"  <h2>TikZ &amp; Tables ({len(graphics)}; {n_svg} rendered to SVG)</h2>")
+            parts.append('<table class="formula-table"><thead><tr>'
+                         "<th>#</th><th>type</th><th>caption</th>"
+                         "<th>LaTeX source</th><th>SVG render</th></tr></thead><tbody>")
+            for i, g in enumerate(graphics, 1):
+                code = g.props.get("latex_code") or ""
+                cap = html.escape(g.props.get("caption") or "")
+                svg = g.props.get("svg")
+                if svg:
+                    cell = f'<div class="svg">{svg}</div>'
+                elif g.props.get("cdn_url"):
+                    cell = (f'<img loading="lazy" alt="crop" '
+                            f'src="{html.escape(g.props["cdn_url"], quote=True)}">')
+                else:
+                    err = g.props.get("svg_error")
+                    cell = (f'<span class="cdn-missing">not rendered'
+                            + (f' ({html.escape(err[:60])})' if err else '')
+                            + ' — run <code>pdfdrill svg</code></span>')
+                parts.append(
+                    "<tr>"
+                    f'<td class="num">{i}</td>'
+                    f'<td>{g.type}</td><td>{cap}</td>'
+                    f'<td class="latex"><code>{html.escape(code[:400])}</code></td>'
+                    f"<td>{cell}</td></tr>")
+                self.bump("graphic_rows")
+            parts.append("</tbody></table>")
+
+        parts.append("\n</body>\n</html>\n")
         return "\n".join(parts)

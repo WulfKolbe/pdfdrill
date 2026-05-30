@@ -271,7 +271,11 @@ def standalone_preamble(preamble: str) -> str:
     pkgs = [m.group(0) for m in re.finditer(r"\\usepackage(\[[^\]]*\])?\{[^}]*\}", preamble)]
     defs = [m.group(0) for m in re.finditer(
         r"\\(?:re)?newcommand\*?.*|\\DeclareMathOperator\*?.*|\\def\\.*", preamble)]
-    return "\n".join(["\\documentclass{standalone}", *pkgs, *defs])
+    # `class=report` so book/report counters (\thechapter, …) that a project's
+    # styles reference exist under standalone; tikz so bare \begin{tikzpicture}
+    # compiles even if the project loads it indirectly. (Mirrors LATW.)
+    head = "\\documentclass[border=2pt,class=report]{standalone}\n\\usepackage{tikz}"
+    return "\n".join([head, *pkgs, *defs])
 
 
 # ---------------------------------------------------------------------------
@@ -299,8 +303,14 @@ def extract_display_equations(body: str) -> list[dict]:
         numbered = (star != "*") and ("\\nonumber" not in inner) and ("\\notag" not in inner)
         items.append({"env": env, "latex": _clean_eq(inner), "numbered": numbered,
                       "label": label, "pos": m.start()})
-    for m in re.finditer(r"\\\[(.*?)\\\]", body, re.S):
-        items.append({"env": "displaymath", "latex": _clean_eq(m.group(1)),
+    # \[ ... \] — but NOT \\[4pt] (a row-spacing break inside align/array),
+    # so require the brackets not be preceded by a backslash (negative
+    # lookbehind), and reject a body that itself starts like a length unit.
+    for m in re.finditer(r"(?<!\\)\\\[(.*?)(?<!\\)\\\]", body, re.S):
+        inner = m.group(1)
+        if re.match(r"^\s*-?\d*\.?\d+\s*(pt|mm|cm|ex|em|in|bp|pc|sp)\s*\]", inner):
+            continue  # e.g. "4pt] ..." — a mis-split row break, not display math
+        items.append({"env": "displaymath", "latex": _clean_eq(inner),
                       "numbered": False, "label": None, "pos": m.start()})
     for m in re.finditer(r"(?<!\\)\$\$(.+?)\$\$", body, re.S):
         items.append({"env": "displaymath", "latex": _clean_eq(m.group(1)),
@@ -318,6 +328,52 @@ def _clean_eq(inner: str) -> str:
 
 
 _SECTION_RE = re.compile(r"\\(part|chapter|section|subsection)\*?\{")
+
+# Environments that need a real LaTeX→SVG render (KaTeX can't do them).
+# NOTE: `array` is intentionally excluded — it is a math-mode matrix/cases
+# construct (rendered by KaTeX inside its display equation), not a standalone
+# table, and cannot compile on its own.
+_GRAPHIC_ENVS = ("tikzpicture", "tabular", "tabularx", "longtable", "tikzcd")
+
+
+def _env_blocks(body: str, env: str) -> list[dict]:
+    """All \\begin{env}…\\end{env} blocks (brace-balanced on the env name),
+    returning {env, code (full \\begin..\\end), pos}. Handles options after
+    \\begin{env}[...] and nested same-name envs are rare here so a non-greedy
+    match per outermost block is sufficient for tabular/tikzpicture."""
+    out = []
+    begin = re.compile(r"\\begin\{" + re.escape(env) + r"\}")
+    end_tok = "\\end{" + env + "}"
+    for m in begin.finditer(body):
+        depth = 1
+        i = m.end()
+        bre = re.compile(r"\\(begin|end)\{" + re.escape(env) + r"\}")
+        for bm in bre.finditer(body, m.end()):
+            depth += 1 if bm.group(1) == "begin" else -1
+            if depth == 0:
+                i = bm.end()
+                break
+        out.append({"env": env, "code": body[m.start():i], "pos": m.start()})
+    return out
+
+
+def extract_graphics(body: str) -> list[dict]:
+    """TikZ pictures and tables in document order: {env, code, pos, caption}.
+
+    `code` is the verbatim environment, ready to drop into a standalone
+    preamble for latex→dvisvgm. A nearby \\caption{...} is captured if the
+    block sits inside a figure/table float (best-effort)."""
+    out: list[dict] = []
+    for env in _GRAPHIC_ENVS:
+        out.extend(_env_blocks(body, env))
+    # attach a caption from the enclosing float, if any
+    for it in out:
+        window = body[it["pos"]: it["pos"] + len(it["code"]) + 400]
+        cap = re.search(r"\\caption\{", window)
+        it["caption"] = _balanced(window, cap.start() + len("\\caption"))[1:-1] if cap else ""
+        it["kind"] = "Diagram" if it["env"].startswith("tikz") else "Table"
+    out.sort(key=lambda t: t["pos"])
+    return out
 
 
 def extract_sections(body: str) -> list[dict]:
@@ -354,13 +410,15 @@ def build_source_model(tex_path: str, bibkey: str = "DOC") -> "object":
     doc.meta["latex_preamble"] = {"main": main, "num_macros": len(macros),
                                   "standalone": standalone_preamble(pre)}
 
-    # Merge sections + equations into one flow-ordered stream by source pos.
+    # Merge sections + equations + graphics into one flow-ordered stream.
+    graphics = extract_graphics(body)
     items = ([("section", s) for s in extract_sections(body)]
-             + [("equation", e) for e in extract_display_equations(body)])
+             + [("equation", e) for e in extract_display_equations(body)]
+             + [("graphic", g) for g in graphics])
     items.sort(key=lambda t: t[1].get("pos", 0))
 
+    n_sec = n_eq = n_dia = n_tab = 0
     fi = 0
-    n_sec = n_eq = 0
     for kind, it in items:
         fi += 1
         if kind == "section":
@@ -368,7 +426,7 @@ def build_source_model(tex_path: str, bibkey: str = "DOC") -> "object":
                 "level": it["level"], "caption": it["caption"],
                 "flow_index": fi, "bibkey": bibkey}))
             n_sec += 1
-        else:
+        elif kind == "equation":
             original = it["latex"]
             doc.add(DocObject(type="Equation", props={
                 "latex": expand_macros(original, macros),
@@ -376,6 +434,17 @@ def build_source_model(tex_path: str, bibkey: str = "DOC") -> "object":
                 "numbered": it.get("numbered"), "label": it.get("label"),
                 "env": it.get("env"), "flow_index": fi, "bibkey": bibkey}))
             n_eq += 1
+        else:  # graphic: TikZ or table → needs SVG render (latex_code kept)
+            code = expand_macros(it["code"], macros)
+            doc.add(DocObject(type=it["kind"], props={
+                "latex_code": code, "latex_original": it["code"],
+                "caption": it.get("caption", ""), "env": it["env"],
+                "flow_index": fi, "bibkey": bibkey}))
+            if it["kind"] == "Diagram":
+                n_dia += 1
+            else:
+                n_tab += 1
     doc.meta["source_counts"] = {"sections": n_sec, "equations": n_eq,
+                                 "diagrams": n_dia, "tables": n_tab,
                                  "macros": len(macros)}
     return doc

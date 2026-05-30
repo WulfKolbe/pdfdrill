@@ -73,6 +73,7 @@ def main():
         "folder": _do_folder,
         "latex": _do_latex,
         "latexbook": _do_latexbook,
+        "svg": _do_svg,
     }
 
     if cmd not in handlers:
@@ -312,6 +313,28 @@ def _do_report(args):
     from .commands import cmd_report
     pdf_args = [a for a in args if a not in ("--force", "--embed")]
     return cmd_report(_pdf(pdf_args), force="--force" in args, embed="--embed" in args)
+
+
+def _do_svg(args):
+    """pdfdrill svg <pdf|tex> [--limit N] [--force]"""
+    from .commands import cmd_svg
+    pos: list[str] = []
+    limit = None
+    force = False
+    i = 0
+    while i < len(args):
+        if args[i] == "--limit" and i + 1 < len(args):
+            limit = int(args[i + 1]); i += 2
+        elif args[i] == "--force":
+            force = True; i += 1
+        else:
+            pos.append(args[i]); i += 1
+    if not pos:
+        raise ValueError("Usage: pdfdrill svg <pdf|tex> [--limit N] [--force]")
+    t = Path(pos[0])
+    if not t.exists():
+        raise FileNotFoundError(f"Not found: {t}")
+    return cmd_svg(t, limit=limit, force=force)
 
 
 def _do_latexbook(args):
@@ -622,6 +645,7 @@ Introspection (fast, no extraction):
   pdfdrill report <pdf>        Full inline+display math report (formula-report.html)
   pdfdrill latex <pdf>         Ingest author .tex/.tgz as a `tex` provenance (original+expanded LaTeX); --tex <path>
   pdfdrill latexbook <book.tex> Build a source-only model + KaTeX formula report from LaTeX (no PDF/MathPix); resolves local .sty macros
+  pdfdrill svg <pdf|tex>       Render TikZ diagrams + tables to SVG via latex->dvisvgm (KaTeX can't); embeds in the report
   pdfdrill folder <dir>        Build the full structure for every PDF in <dir> from existing
                                .lines.json/.bib/.md — runs all levels, NO MathPix/Perplexity calls
   pdfdrill snip <pdf>          OCR each equation crop via MathPix Snip (/v3/text) → competing column; --limit N

@@ -388,6 +388,79 @@ def cmd_latexbook(tex: Path, bibkey: str | None = None, force: bool = False) -> 
             f"and {out_path.relative_to(tex.parent)} (KaTeX report; no MathPix).")
 
 
+def cmd_svg(target: Path, limit: int | None = None, force: bool = False) -> str:
+    """Render TikZ `Diagram`s and `Table`s to SVG via latex -> dvisvgm.
+
+    KaTeX can't render TikZ/tables; SVG embeds in HTML. For each Diagram/Table
+    carrying `latex_code`, compile a standalone snippet (using the document's
+    expanded preamble if stored) and attach the SVG to the object's props
+    (`svg`) + a `provenance="dvisvgm"` realization. `target` may be a PDF (its
+    .drill model) or a .tex (its .drill model from `latexbook`). Needs `latex`
+    + `dvisvgm` on PATH; degrades with a clear message if absent.
+    """
+    from docmodel.core import Document, Realization
+    from .svg import compile_to_svg, tools_available
+
+    target = Path(target)
+    # Resolve the model path: PDF sidecar OR <tex>.drill.
+    if target.suffix == ".tex":
+        model_path = target.parent / f"{target.name}.drill" / "model.docmodel.json"
+        sc = None
+    else:
+        sc = Sidecar(target)
+        model_path = _model_path(sc)
+    if not model_path.exists():
+        return (f"No model for {target.name}. Build it first "
+                f"(`pdfdrill model` for a PDF, `pdfdrill latexbook` for a .tex).")
+    if not tools_available():
+        return ("latex/dvisvgm not found on PATH — cannot render SVG here. "
+                "Install TeX Live + dvisvgm; the model still holds latex_code "
+                "for each Diagram/Table.")
+
+    with open(model_path, "r", encoding="utf-8") as f:
+        doc = Document.from_dict(json.load(f))
+
+    preamble = (doc.meta.get("latex_preamble") or {}).get("standalone")
+    # The document's own folder, so local \usepackage{mystyle}/tkz-* resolve.
+    resource_dir = str(target.parent)
+    targets = [o for o in doc.objects.values()
+               if o.type in ("Diagram", "Table") and o.props.get("latex_code")]
+    todo = [o for o in targets if force or not o.props.get("svg")]
+    if limit is not None:
+        todo = todo[:limit]
+
+    done = errors = 0
+    for o in todo:
+        if force:
+            o.realizations = [r for r in o.realizations if r.provenance != "dvisvgm"]
+            o.props.pop("svg", None)
+        res = compile_to_svg(o.props["latex_code"], preamble=preamble,
+                             resource_dir=resource_dir)
+        if res["ok"]:
+            o.props["svg"] = res["svg"]
+            if res["ratio"]:
+                o.props["svg_ratio"] = res["ratio"]
+            o.add_realization(Realization(stream="svg", role="svg_render",
+                                          provenance="dvisvgm",
+                                          props={"ratio": res["ratio"]}))
+            done += 1
+        else:
+            o.props["svg_error"] = res["error"]
+            errors += 1
+
+    with open(model_path, "w", encoding="utf-8") as f:
+        json.dump(doc.to_dict(), f, indent=2, ensure_ascii=False)
+
+    if sc is not None:
+        sc.set_evidence("svg_rendered", done)
+        sc.set_evidence("svg_errors", errors)
+        sc.save()
+    return (f"Rendered {done} TikZ/table SVG(s)"
+            + (f", {errors} failed" if errors else "")
+            + f" of {len(targets)} graphic object(s). SVGs stored on the model "
+            f"(props['svg']); the report embeds them inline.")
+
+
 def cmd_report(pdf: Path, force: bool = False, embed: bool = False) -> str:
     """Emit a full inline+display math report (formula-report.html).
 

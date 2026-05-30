@@ -80,7 +80,7 @@ def test_read_source_tex_file_with_input(tmp_path=None):
 def test_standalone_preamble():
     pre, _ = ls.split_preamble(_TEX)
     sa = ls.standalone_preamble(pre)
-    assert sa.startswith("\\documentclass{standalone}")
+    assert sa.startswith("\\documentclass[border=2pt,class=report]{standalone}")
     assert "\\usepackage{amsmath}" in sa
     assert "\\newcommand{\\R}" in sa or "newcommand" in sa
 
