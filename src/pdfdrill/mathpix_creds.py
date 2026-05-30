@@ -1,12 +1,27 @@
-"""Local MathPix credential fallback.
+"""MathPix credentials — loaded from the environment / .env (no secrets here).
 
-Used when MATHPIX_APP_ID / MATHPIX_APP_KEY are not set in the environment.
-
-NOTE: these keys are committed deliberately so the toolchain works out-of-the-
-box on a private clone (e.g. a Claude.ai sandbox) without any key setup. This
-file is SAFE ONLY while the repository is PRIVATE. Before making the repo
-public, delete this file (the env-var path still works) and ROTATE the keys.
+Resolution order (see pdfdrill.env): real environment > repo `.env` file.
+`.env` is git-ignored; `.env.example` documents the variable names. This file
+is SAFE TO COMMIT — it contains no keys.
 """
+from __future__ import annotations
 
-APP_ID = "REMOVED_MATHPIX_APP_ID"
-APP_KEY = "REMOVED_MATHPIX_APP_KEY"
+from .env import get
+
+APP_ID = get("MATHPIX_APP_ID", "")
+APP_KEY = get("MATHPIX_APP_KEY", "")
+
+
+def require() -> tuple[str, str]:
+    """Return (app_id, app_key) or exit with a friendly setup message."""
+    app_id = get("MATHPIX_APP_ID", "")
+    app_key = get("MATHPIX_APP_KEY", "")
+    if not app_id or not app_key:
+        raise SystemExit(
+            "MathPix credentials missing.\n"
+            "  export MATHPIX_APP_ID=...\n"
+            "  export MATHPIX_APP_KEY=...\n"
+            "or copy .env.example to .env and fill it in.\n"
+            "Get keys at https://mathpix.com/ (Console -> API Keys)."
+        )
+    return app_id, app_key

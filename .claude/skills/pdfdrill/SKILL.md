@@ -66,16 +66,15 @@ bare LaTeX PDFs it will return mostly empty fields and note what's missing.
 | `pdfdrill drill <pdf>` | Runs size → fonts → abstract → toc → md in one call |
 | `pdfdrill mathpix <pdf>` | Download MathPix OCR (`lines.json`, `md`, `tex.zip`) next to the PDF; idempotent (skips upload if outputs exist), `--force` re-uploads. `lines.json` is the input to the LaTeX-vs-image comparison pipeline. |
 
-> **Credentials are already configured — never ask the user for a key.**
-> MathPix and Perplexity keys ship in `src/pdfdrill/mathpix_creds.py` and
-> `src/pdfdrill/perplexity_creds.py` (env vars `MATHPIX_APP_ID` /
-> `MATHPIX_APP_KEY` / `PERPLEXITY_API_KEY` override them if set). So `mathpix`,
-> `snip`, and `bibfetch` work out-of-the-box. If you ever see a
-> "credentials not found" error, the package isn't importable from where
-> you're running — set `PYTHONPATH=src` (or `pip install -e .`) rather than
-> asking for a key. Most questions need **no** network at all: the structural
-> path (`model`, `compare`, `report`, `tiddlers`, `folder`, …) runs entirely
-> offline from an existing `<name>.lines.json`.
+> **Credentials come from the environment / `.env` — don't ask the user mid-task.**
+> `mathpix`, `snip`, and `bibfetch` read `MATHPIX_APP_ID` / `MATHPIX_APP_KEY` /
+> `PERPLEXITY_API_KEY` from the real environment, falling back to a `.env` file
+> at the repo root (real env wins; see `src/pdfdrill/env.py`). `.env` is
+> git-ignored; `.env.example` documents the names — `cp .env.example .env` and
+> fill in. If a key is genuinely missing the command exits with a one-line
+> setup hint (not a deep 401). Most questions need **no** network at all: the
+> structural path (`model`, `compare`, `report`, `tiddlers`, `folder`, `latex`,
+> …) runs entirely offline from an existing `<name>.lines.json`.
 
 > **Never transcribe math from rendered text — always go through the model.**
 > Every structural command runs **offline from an existing

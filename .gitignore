@@ -24,7 +24,10 @@ __pycache__/
 /data/*.drill.json
 /data/*.drill/
 
-# Secrets — MathPix credentials live in env, never in the repo
+# Secrets — keys live in .env (git-ignored); .env.example is committed.
+# mathpix_creds.py / perplexity_creds.py are now secret-free (read from env)
+# and ARE tracked. NOTE: their old secret-bearing blobs remain in git history
+# — purge (git-filter-repo/BFG) and ROTATE keys before going public.
 .env
 mtestzx.ts
 

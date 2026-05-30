@@ -1,11 +1,24 @@
-"""Local Perplexity credential fallback.
+"""Perplexity credentials — loaded from the environment / .env (no secrets here).
 
-Used when PERPLEXITY_API_KEY is not set in the environment.
-
-NOTE: this key is committed deliberately so `bibfetch` works out-of-the-box on
-a private clone without any key setup. SAFE ONLY while the repository is
-PRIVATE. Before making the repo public, delete this file (the env-var path
-still works) and ROTATE the key.
+Resolution order (see pdfdrill.env): real environment > repo `.env` file.
+`.env` is git-ignored; `.env.example` documents the variable names. This file
+is SAFE TO COMMIT — it contains no key.
 """
+from __future__ import annotations
 
-PERPLEXITY_API_KEY = "REMOVED_PERPLEXITY_KEY"
+from .env import get
+
+PERPLEXITY_API_KEY = get("PERPLEXITY_API_KEY", "")
+
+
+def require() -> str:
+    """Return the Perplexity key or exit with a friendly setup message."""
+    key = get("PERPLEXITY_API_KEY", "")
+    if not key:
+        raise SystemExit(
+            "Perplexity credentials missing.\n"
+            "  export PERPLEXITY_API_KEY=...\n"
+            "or copy .env.example to .env and fill it in.\n"
+            "Get a key at https://www.perplexity.ai/ (Settings -> API)."
+        )
+    return key

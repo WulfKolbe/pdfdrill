@@ -55,23 +55,9 @@ CONVERSION_OPTIONS = {
 # ---------------------------------------------------------------------------
 
 def _creds() -> tuple[str, str]:
-    """Resolve (app_id, app_key) from env, then an optional local module."""
-    app_id = os.environ.get("MATHPIX_APP_ID")
-    app_key = os.environ.get("MATHPIX_APP_KEY")
-    if not (app_id and app_key):
-        try:
-            from . import mathpix_creds as c  # git-ignored local fallback
-            app_id = app_id or getattr(c, "APP_ID", None)
-            app_key = app_key or getattr(c, "APP_KEY", None)
-        except Exception:
-            pass
-    if not (app_id and app_key):
-        raise RuntimeError(
-            "MathPix credentials not found. Set MATHPIX_APP_ID and "
-            "MATHPIX_APP_KEY environment variables, or create "
-            "src/pdfdrill/mathpix_creds.py with APP_ID / APP_KEY."
-        )
-    return app_id, app_key
+    """Resolve (app_id, app_key) from the environment / .env (see env.py)."""
+    from . import mathpix_creds
+    return mathpix_creds.require()
 
 
 def _auth_headers() -> dict[str, str]:

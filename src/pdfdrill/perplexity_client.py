@@ -30,18 +30,8 @@ _FIELD = r"{0}\s*=\s*[{{\"]([^}}\"]*)[}}\"]"
 
 
 def _api_key() -> str:
-    key = os.environ.get("PERPLEXITY_API_KEY")
-    if not key:
-        try:
-            from . import perplexity_creds as c
-            key = getattr(c, "PERPLEXITY_API_KEY", None)
-        except Exception:
-            pass
-    if not key:
-        raise RuntimeError(
-            "Perplexity key not found. Set PERPLEXITY_API_KEY or create "
-            "src/pdfdrill/perplexity_creds.py with PERPLEXITY_API_KEY.")
-    return key
+    from . import perplexity_creds
+    return perplexity_creds.require()
 
 
 def bibtex_prompt(citekey: str, author: str, year: str, title: str,
