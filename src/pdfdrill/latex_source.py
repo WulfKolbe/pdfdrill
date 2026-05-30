@@ -301,7 +301,7 @@ def extract_display_equations(body: str) -> list[dict]:
         env, star, inner = m.group(1), m.group(2), m.group(3)
         label = (re.search(r"\\label\{([^}]*)\}", inner) or [None, None])[1]
         numbered = (star != "*") and ("\\nonumber" not in inner) and ("\\notag" not in inner)
-        items.append({"env": env, "latex": _clean_eq(inner), "numbered": numbered,
+        items.append({"env": env, "latex": _clean_eq(inner, env), "numbered": numbered,
                       "label": label, "pos": m.start()})
     # \[ ... \] — but NOT \\[4pt] (a row-spacing break inside align/array),
     # so require the brackets not be preceded by a backslash (negative
@@ -321,10 +321,28 @@ def extract_display_equations(body: str) -> list[dict]:
     return items
 
 
-def _clean_eq(inner: str) -> str:
+# Multi-line math envs whose body uses & / \\ and so needs an `aligned`
+# wrapper to render standalone in KaTeX.
+_ALIGNED_ENVS = {"align", "gather", "multline", "eqnarray", "alignat", "flalign"}
+
+
+def _clean_eq(inner: str, env: str = "") -> str:
+    """Normalize a display-math body for KaTeX rendering.
+
+    Strips non-math LaTeX (\\label, \\index{…}, \\nonumber), maps old-style
+    font switches (\\rm→\\mathrm etc.), and — for align/gather/… bodies, which
+    carry bare `&`/`\\` — wraps them in `\\begin{aligned}…\\end{aligned}` so
+    KaTeX can render them (bare `&` is otherwise a KaTeX error).
+    """
     s = re.sub(r"\\label\{[^}]*\}", "", inner)
+    s = re.sub(r"\\index\{(?:[^{}]|\{[^{}]*\})*\}", "", s)  # \index{...}, 1 nest deep
     s = re.sub(r"\\(?:nonumber|notag)\b", "", s)
-    return _norm(s)
+    s = _norm(s)
+    # align/gather/… bodies carry bare & and \\ — wrap so KaTeX renders them
+    # (KaTeX errors on a bare & outside an environment).
+    if env in _ALIGNED_ENVS and ("&" in s or "\\\\" in s):
+        s = "\\begin{aligned} " + s + " \\end{aligned}"
+    return s
 
 
 _SECTION_RE = re.compile(r"\\(part|chapter|section|subsection)\*?\{")

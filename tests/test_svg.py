@@ -27,6 +27,30 @@ def test_rowspacing_not_mistaken_for_display_math():
     assert "c &= d" in al["latex"]
 
 
+def test_align_body_wrapped_in_aligned_for_katex():
+    body = (r"\begin{align*} \Gamma_0 &= [\,], \\[4pt] "
+            r"\Gamma_{n} &= \big[[0,\Gamma_{n-1}]\big] \end{align*}")
+    eq = ls.extract_display_equations(body)[0]
+    # bare & / \\ must be wrapped so KaTeX can render them
+    assert eq["latex"].startswith("\\begin{aligned}")
+    assert eq["latex"].rstrip().endswith("\\end{aligned}")
+    assert "&=" in eq["latex"] and "\\\\[4pt]" in eq["latex"]
+
+
+def test_index_command_stripped_from_equation():
+    body = r"\[ \deg_+(v)\index{$\deg_+$} = \sum_{e} 1 \]"
+    eq = ls.extract_display_equations(body)[0]
+    assert "\\index" not in eq["latex"]
+    assert "\\deg_+(v)" in eq["latex"] and "\\sum" in eq["latex"]
+
+
+def test_single_equation_not_wrapped():
+    # a plain `equation` (no &) must NOT get an aligned wrapper
+    body = r"\begin{equation} x = y + 1 \end{equation}"
+    eq = ls.extract_display_equations(body)[0]
+    assert "aligned" not in eq["latex"]
+
+
 def test_extract_graphics_tikz_and_table():
     body = (r"\begin{figure}\begin{tikzpicture}\node{x};\end{tikzpicture}"
             r"\caption{A graph}\end{figure}"
