@@ -30,3 +30,8 @@ src/pdfdrill/perplexity_creds.py
 # Editor / OS
 .DS_Store
 *.swp
+
+# Python build artifacts
+*.egg-info/
+build/
+dist/

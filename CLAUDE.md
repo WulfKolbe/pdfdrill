@@ -34,8 +34,18 @@ It combines:
 ## Running
 
 Everything runs in **Python 3** (no Bun/TypeScript on the live path — this was
-the accessibility requirement for the Claude.ai web chatbot). Packages live
-under `src/`, so the import root is `src`:
+the accessibility requirement for the Claude.ai web chatbot).
+
+**Install / dependencies.** `pyproject.toml` declares the package (entry point
+`pdfdrill = pdfdrill.cli:main`; packages found under `src/`); `pip install -e .`
+puts the `pdfdrill` console script on PATH. Core deps are `pdfplumber>=0.11`
+and `pydantic>=2.0` (also in `requirements.txt`); the **system** prerequisite
+is `poppler-utils` (not pip-installable). `pydantic` is imported at top level
+in `context.py`, so the `md`/`drill`/`page` engine path fails without it even
+though the docmodel/docops offline path doesn't need it — keep it declared.
+Optional `[pix2tex]` extra pulls Pillow+pix2tex (PyTorch; off the live path).
+
+Packages live under `src/`, so the import root is `src`:
 
 ```bash
 # convenience wrapper (sets PYTHONPATH=src for you)
