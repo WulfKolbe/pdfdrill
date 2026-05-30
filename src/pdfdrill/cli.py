@@ -338,25 +338,28 @@ def _do_svg(args):
 
 
 def _do_latexbook(args):
-    """pdfdrill latexbook <book.tex> [--bibkey K] [--force]"""
+    """pdfdrill latexbook <book.tex> [--bibkey K] [--force] [--no-svg]"""
     from .commands import cmd_latexbook
     pos: list[str] = []
     bibkey = None
     force = False
+    no_svg = False
     i = 0
     while i < len(args):
         if args[i] == "--bibkey" and i + 1 < len(args):
             bibkey = args[i + 1]; i += 2
         elif args[i] == "--force":
             force = True; i += 1
+        elif args[i] == "--no-svg":
+            no_svg = True; i += 1
         else:
             pos.append(args[i]); i += 1
     if not pos:
-        raise ValueError("Usage: pdfdrill latexbook <book.tex> [--bibkey K] [--force]")
+        raise ValueError("Usage: pdfdrill latexbook <book.tex> [--bibkey K] [--force] [--no-svg]")
     t = Path(pos[0])
     if not t.exists():
         raise FileNotFoundError(f"Not found: {t}")
-    return cmd_latexbook(t, bibkey=bibkey, force=force)
+    return cmd_latexbook(t, bibkey=bibkey, force=force, no_svg=no_svg)
 
 
 def _do_latex(args):
@@ -644,7 +647,7 @@ Introspection (fast, no extraction):
   pdfdrill compare <pdf>       LaTeX | KaTeX | MathPix-image comparison HTML (auto-chains model)
   pdfdrill report <pdf>        Full inline+display math report (formula-report.html)
   pdfdrill latex <pdf>         Ingest author .tex/.tgz as a `tex` provenance (original+expanded LaTeX); --tex <path>
-  pdfdrill latexbook <book.tex> Build a source-only model + KaTeX formula report from LaTeX (no PDF/MathPix); resolves local .sty macros
+  pdfdrill latexbook <book.tex> Source-only model + TikZ/table SVGs + KaTeX formula report from LaTeX (no PDF/MathPix); --no-svg to skip rendering
   pdfdrill svg <pdf|tex>       Render TikZ diagrams + tables to SVG via latex->dvisvgm (KaTeX can't); embeds in the report
   pdfdrill folder <dir>        Build the full structure for every PDF in <dir> from existing
                                .lines.json/.bib/.md — runs all levels, NO MathPix/Perplexity calls

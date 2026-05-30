@@ -98,6 +98,41 @@ def test_svg_compile_graceful_without_tools(monkeypatch):
     assert res["ok"] is False and "dvisvgm" in res["error"]
 
 
+def test_latexbook_autoruns_svg_and_embeds():
+    """cmd_latexbook should render TikZ/tables and embed SVG in the report in
+    one step (when latex/dvisvgm are present)."""
+    import tempfile, os
+    from pdfdrill.commands import cmd_latexbook
+    with tempfile.TemporaryDirectory() as d:
+        book = Path(d) / "book.tex"
+        book.write_text(
+            r"\documentclass{book}\begin{document}"
+            r"\section{S}\begin{equation} x=1 \end{equation}"
+            r"\begin{tikzpicture}\draw (0,0)--(1,1);\end{tikzpicture}"
+            r"\end{document}")
+        msg = cmd_latexbook(book)
+        report = (book.parent / "book.tex.drill" / "formula-report.html").read_text()
+        if svgmod.tools_available():
+            assert "1/1 TikZ/tables rendered to SVG" in msg
+            assert "<svg" in report            # embedded inline, one step
+        else:
+            assert "NOT rendered" in msg or "no_svg" in msg.lower()
+
+
+def test_latexbook_no_svg_skips_rendering():
+    import tempfile
+    from pdfdrill.commands import cmd_latexbook
+    with tempfile.TemporaryDirectory() as d:
+        book = Path(d) / "book.tex"
+        book.write_text(
+            r"\documentclass{book}\begin{document}"
+            r"\begin{tikzpicture}\draw (0,0)--(1,1);\end{tikzpicture}\end{document}")
+        msg = cmd_latexbook(book, no_svg=True)
+        assert "TikZ/tables rendered" not in msg   # rendering skipped
+        report = (book.parent / "book.tex.drill" / "formula-report.html").read_text()
+        assert "<svg" not in report
+
+
 if __name__ == "__main__":
     class _MP:
         def __init__(self): self._u = []

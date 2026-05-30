@@ -346,19 +346,24 @@ def cmd_folder(folder: Path, force: bool = False) -> str:
     return head + "\n" + "\n".join(lines_out)
 
 
-def cmd_latexbook(tex: Path, bibkey: str | None = None, force: bool = False) -> str:
-    """Build a source-only model + formula report straight from a LaTeX file.
+def cmd_latexbook(tex: Path, bibkey: str | None = None, force: bool = False,
+                  no_svg: bool = False) -> str:
+    """Build a source-only model from a LaTeX file, render TikZ/tables to SVG,
+    and emit the formula report — in one step.
 
     For a `.tex` (master with `\\input` chapters, e.g. a book) with NO PDF/OCR:
     inline includes, resolve macros from the preamble AND local style files
     (`\\usepackage{mystyle}` -> mystyle.sty), extract sections + display
-    equations (author LaTeX, macro-expanded), and emit a KaTeX formula report.
-    No MathPix, no credits. Artifacts go in `<tex>.drill/` next to the file.
+    equations (author LaTeX, macro-expanded) and TikZ/tables, render those to
+    SVG via latex->dvisvgm (skipped with --no-svg or when the tools are
+    absent), then write a KaTeX formula report embedding the SVGs. No MathPix,
+    no credits. Artifacts go in `<tex>.drill/` next to the file.
     """
     from docmodel.core import Document
     from docops.base import OperatorConfig
     from docops.projectors.formula_report import FormulaReportProjector
     from . import latex_source as ls
+    from .svg import tools_available
 
     tex = Path(tex)
     if not tex.exists():
@@ -375,17 +380,32 @@ def cmd_latexbook(tex: Path, bibkey: str | None = None, force: bool = False) -> 
         model_path.write_text(
             json.dumps(doc.to_dict(), indent=2, ensure_ascii=False), encoding="utf-8")
 
+    # Render TikZ/tables to SVG (cmd_svg mutates the saved model in place),
+    # then reload so the report embeds the freshly-rendered SVGs.
+    svg_note = ""
+    n_graphics = sum(1 for o in doc.objects.values() if o.type in ("Diagram", "Table"))
+    if not no_svg and n_graphics:
+        if tools_available():
+            cmd_svg(tex, force=force)
+            doc = Document.from_dict(json.loads(model_path.read_text(encoding="utf-8")))
+            n_svg = sum(1 for o in doc.objects.values()
+                        if o.type in ("Diagram", "Table") and o.props.get("svg"))
+            svg_note = f" {n_svg}/{n_graphics} TikZ/tables rendered to SVG."
+        else:
+            svg_note = (f" {n_graphics} TikZ/tables NOT rendered "
+                        f"(latex/dvisvgm absent; use --no-svg to silence).")
+
     proj = FormulaReportProjector(
         OperatorConfig(op="projector", classname="FormulaReportProjector"))
-    html = proj.project(doc)
     out_path = drill / "formula-report.html"
-    out_path.write_text(html, encoding="utf-8")
+    out_path.write_text(proj.project(doc), encoding="utf-8")
 
     c = doc.meta.get("source_counts", {})
     return (f"LaTeX source model for {tex.name}: {c.get('sections', 0)} sections, "
             f"{c.get('equations', 0)} display equations, {c.get('macros', 0)} macros "
-            f"(preamble + local style files). Wrote {model_path.relative_to(tex.parent)} "
-            f"and {out_path.relative_to(tex.parent)} (KaTeX report; no MathPix).")
+            f"(preamble + local style files).{svg_note} Wrote "
+            f"{model_path.relative_to(tex.parent)} and "
+            f"{out_path.relative_to(tex.parent)} (KaTeX report; no MathPix).")
 
 
 def cmd_svg(target: Path, limit: int | None = None, force: bool = False) -> str:

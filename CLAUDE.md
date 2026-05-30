@@ -381,6 +381,15 @@ are truncated):
   `citekey/authors/year/titlefield/entry_type/bibtex/citations`, text led by
   `{{||CIT}}` — compatible with the existing bibentry macros / updateBibentries.
 
+`pdfdrill latexbook <book.tex>` is the one-shot source-only pipeline (no PDF,
+no MathPix): build the model from `.tex` (inline `\input`, resolve preamble +
+local `.sty` macros, extract sections/equations/TikZ/tables), **auto-render
+TikZ + tables to SVG** (`latex→dvisvgm`), and emit the KaTeX formula report
+with SVGs embedded — all in one call. `--no-svg` skips rendering; it also
+degrades cleanly (clear message) when `latex`/`dvisvgm` are absent. Verified
+on the graphbook: 128 sections, 343 equations, 118 macros, **18/18** TikZ/
+tables → SVG, one command.
+
 LaTeX-source upper layer (`src/pdfdrill/latex_source.py`, `pdfdrill latex`):
 
 - For arXiv we usually have both the PDF (→ MathPix `lines.json`) and the
