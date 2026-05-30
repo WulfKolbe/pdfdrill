@@ -56,13 +56,20 @@ class EquationProcessor(BaseModule):
             return []
         stream = doc.stream(self.LINES_STREAM)
         anchors = stream.anchors
-        items: list[dict[str, Any]] = []
 
+        # Number equations by page + vertical position, not stream proximity.
+        # MathPix often emits all of a page's `math` lines first and then all
+        # its `equation_number` lines, so a +-N stream-index window only catches
+        # the first equation per page (this left 12/13 equations of arXiv
+        # 2312.11532 unnumbered, incl. eq 9, when running `model` alone).
+        refnum_by_anchor = self._match_equation_numbers(anchors, stream)
+
+        items: list[dict[str, Any]] = []
         for i, anchor in enumerate(anchors):
             payload = stream.payload[anchor]
             if payload.get("type") not in self.EQ_TYPES:
                 continue
-            refnum = self._refnum_near(anchors, stream, i)
+            refnum = refnum_by_anchor.get(anchor) or self._refnum_near(anchors, stream, i)
             latex_raw = payload.get("text_display") or payload.get("text") or ""
             items.append({
                 "anchor": anchor,
@@ -74,6 +81,45 @@ class EquationProcessor(BaseModule):
                 "latex": _normalize_latex(latex_raw),
             })
         return items
+
+    def _match_equation_numbers(self, anchors, stream) -> dict:
+        """Pair each math/equation line with the same-page `equation_number`
+        line whose region y-center is closest (greedy nearest-pair, each number
+        used once). Returns {equation_anchor: "N"}."""
+        def y_center(p):
+            r = p.get("region") or {}
+            top = r.get("top_left_y")
+            return None if top is None else top + (r.get("height") or 0) / 2.0
+
+        eqs_by_page: dict = {}
+        nums_by_page: dict = {}
+        for a in anchors:
+            p = stream.payload[a]
+            yc = y_center(p)
+            if yc is None:
+                continue
+            pg = p.get("_page")
+            if p.get("type") in self.EQ_TYPES:
+                eqs_by_page.setdefault(pg, []).append((yc, a))
+            elif p.get("type") == "equation_number":
+                t = re.sub(r"[()]", "", (p.get("text") or p.get("text_display") or "").strip()).strip()
+                if t:
+                    nums_by_page.setdefault(pg, []).append((yc, t))
+
+        out: dict = {}
+        for pg, eqs in eqs_by_page.items():
+            nums = nums_by_page.get(pg, [])
+            pairs = sorted(
+                ((abs(ey - ny), ea, ny, nt) for (ey, ea) in eqs for (ny, nt) in nums),
+                key=lambda t: t[0],
+            )
+            used_num: set = set()
+            for _d, ea, ny, nt in pairs:
+                if ea in out or ny in used_num:
+                    continue
+                out[ea] = nt
+                used_num.add(ny)
+        return out
 
     @staticmethod
     def _refnum_near(anchors, stream, i: int) -> str:

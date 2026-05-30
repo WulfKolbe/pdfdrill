@@ -291,6 +291,17 @@ Phase 3 — closed self-learning loop (done):
   multi-line equation, correctly retained). Flagged 9 → 1.
   Tests: `tests/test_escalate.py` + corroboration in `tests/test_scoring.py`.
 
+Equation-number matching (fixed): `EquationProcessor` pairs each `math`/
+`equation` line with the `equation_number` line on the **same page whose
+region y-center is closest** (greedy nearest-pair, each number used once) — NOT
+a ±N stream-index window. MathPix groups all of a page's math lines first and
+its equation_number lines separately, so the old window left 12/13 equations
+of arXiv 2312.11532 unnumbered when running `pdfdrill model` alone (incl. eq
+(9), the per-document likelihood). Now `model` alone numbers all 13 (2605:
+239/239 unchanged). This matters because the structural path is offline — a
+user without a MathPix key still gets correct equation numbers from an existing
+`lines.json`. Tests: `tests/test_eqnum_match.py`.
+
 Equation-number fusion (done):
 
 - **`pdfdrill eqnums <pdf>`** (`src/pdfdrill/eqnums.py`) attaches

@@ -66,6 +66,16 @@ bare LaTeX PDFs it will return mostly empty fields and note what's missing.
 | `pdfdrill drill <pdf>` | Runs size → fonts → abstract → toc → md in one call |
 | `pdfdrill mathpix <pdf>` | Download MathPix OCR (`lines.json`, `md`, `tex.zip`) next to the PDF; idempotent (skips upload if outputs exist), `--force` re-uploads. Needs `MATHPIX_APP_ID`/`MATHPIX_APP_KEY` (or a local `mathpix_creds.py`). `lines.json` is the input to the LaTeX-vs-image comparison pipeline. |
 
+> **No MathPix key? Don't fall back to ad-hoc OCR.** Every structural command
+> works **offline from an existing `<name>.lines.json`** next to the PDF —
+> `model`, `compare`, `report`, `tiddlers`, `folder`, etc. need no key and no
+> network (only `mathpix`/`snip`/`bibfetch` call out). For an
+> equation/structure question, if a `lines.json` exists run `pdfdrill model
+> <pdf>` and query the model — the equation numbers, LaTeX and CDN crops are
+> already there (e.g. eq (9) of a paper). Reach for `mathpix` only when no
+> `lines.json` exists yet AND a key is configured; otherwise report that the
+> OCR sidecar is missing rather than guessing from rendered text.
+
 ### Math QC comparison pipeline (LaTeX vs image)
 
 For checking / improving math OCR quality, build the unified model and a
