@@ -85,6 +85,39 @@ def test_standalone_preamble():
     assert "\\newcommand{\\R}" in sa or "newcommand" in sa
 
 
+def test_cmd_latex_attaches_tex_provenance_end_to_end():
+    """Guards the full wiring: cmd_latex must attach a tex candidate to the
+    matching MathPix equation (this caught a missing CLI registration once)."""
+    import json, tempfile, os
+    from docmodel.core import Document, DocObject, Realization
+    from pdfdrill.sidecar import Sidecar
+    from pdfdrill.commands import cmd_latex, MODEL_BUILT
+
+    with tempfile.TemporaryDirectory() as d:
+        pdf = Path(d) / "p.pdf"
+        pdf.write_bytes(b"%PDF-1.7")
+        # a model with one equation whose OCR latex ~ the source equation
+        doc = Document()
+        doc.add(DocObject(type="Equation", props={
+            "latex": r"E = m c^{2}", "refnum": "1", "page": 1, "cdn_url": "u"}))
+        sc = Sidecar(pdf)
+        sc.blob_dir.mkdir(parents=True, exist_ok=True)
+        (sc.blob_dir / "model.docmodel.json").write_text(json.dumps(doc.to_dict()))
+        sc.add_fact(MODEL_BUILT)
+        sc.save()
+        # the author source
+        tex = Path(d) / "p.tex"
+        tex.write_text(r"\documentclass{article}\begin{document}"
+                       r"\begin{equation} E = mc^2 \end{equation}\end{document}")
+
+        msg = cmd_latex(pdf, tex=str(tex))
+        assert "Attached 1" in msg
+        m = json.loads((sc.blob_dir / "model.docmodel.json").read_text())
+        eq = m["objects"][0]
+        tx = [r for r in eq["realizations"] if r.get("provenance") == "tex"]
+        assert tx and tx[0]["props"]["latex_original"].strip().startswith("E = mc^2")
+
+
 if __name__ == "__main__":
     tests = [v for k, v in list(globals().items()) if k.startswith("test_")]
     failed = []

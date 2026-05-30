@@ -71,6 +71,7 @@ def main():
         "bibfetch": _do_bibfetch,
         "report": _do_report,
         "folder": _do_folder,
+        "latex": _do_latex,
     }
 
     if cmd not in handlers:
