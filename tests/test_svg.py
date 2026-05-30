@@ -52,6 +52,18 @@ def test_trailing_line_continuation_stripped():
     assert not eq["latex"].rstrip().endswith("\\")  # no lone trailing backslash
 
 
+def test_naked_superscript_gets_empty_base():
+    # the left-transpose idiom "\, ^tD" (no base before ^) is a KaTeX error;
+    # _clean_eq inserts an empty base {} so it renders.
+    out = ls._clean_eq(r"L = D\cdot \, ^tD = X", "")
+    assert "\\, {}^tD" in out
+    # real bases must NOT be altered
+    assert ls._clean_eq(r"x^2 + a_b^c", "") == "x^2 + a_b^c"
+    # opener / start cases
+    assert ls._clean_eq(r"(^tA)", "") == "({}^tA)"
+    assert ls._clean_eq(r"^{T}M", "").startswith("{}^{T}M")
+
+
 def test_internal_rowbreak_not_stripped():
     # a real \\ row break inside an environment must survive _clean_eq
     assert "\\\\" in ls._clean_eq(r"\begin{cases} a \\ b \end{cases}", "")

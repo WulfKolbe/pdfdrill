@@ -343,6 +343,12 @@ def _clean_eq(inner: str, env: str = "") -> str:
     # KaTeX error. Remove a run of trailing escaped-spaces / lone backslash,
     # but NOT a real `\\` row break (which align/cases need).
     s = re.sub(r"(?:\\\s|\s)*\\$", "", s).rstrip()
+    # Naked super/subscript: a `^`/`_` with no base (LaTeX tolerates the
+    # left-transpose idiom "\, ^tD"; KaTeX errors "Expected group after ^").
+    # Insert an empty base `{}` when the script follows a spacing macro
+    # (\,\;\:\! or \quad/\qquad), an opener, or the start — i.e. there is no
+    # real base to its left.
+    s = re.sub(r"(^|[({\[]\s*|\\[,;:!]\s*|\\q?quad\s*)([_^])", r"\1{}\2", s)
     # align/gather/… bodies carry bare & and \\ — wrap so KaTeX renders them
     # (KaTeX errors on a bare & outside an environment).
     if env in _ALIGNED_ENVS and ("&" in s or "\\\\" in s):
