@@ -346,6 +346,48 @@ def cmd_folder(folder: Path, force: bool = False) -> str:
     return head + "\n" + "\n".join(lines_out)
 
 
+def cmd_latexbook(tex: Path, bibkey: str | None = None, force: bool = False) -> str:
+    """Build a source-only model + formula report straight from a LaTeX file.
+
+    For a `.tex` (master with `\\input` chapters, e.g. a book) with NO PDF/OCR:
+    inline includes, resolve macros from the preamble AND local style files
+    (`\\usepackage{mystyle}` -> mystyle.sty), extract sections + display
+    equations (author LaTeX, macro-expanded), and emit a KaTeX formula report.
+    No MathPix, no credits. Artifacts go in `<tex>.drill/` next to the file.
+    """
+    from docmodel.core import Document
+    from docops.base import OperatorConfig
+    from docops.projectors.formula_report import FormulaReportProjector
+    from . import latex_source as ls
+
+    tex = Path(tex)
+    if not tex.exists():
+        return f"No such LaTeX file: {tex}"
+    key = bibkey or tex.stem
+    drill = tex.parent / f"{tex.name}.drill"
+    model_path = drill / "model.docmodel.json"
+
+    if model_path.exists() and not force:
+        doc = Document.from_dict(json.loads(model_path.read_text(encoding="utf-8")))
+    else:
+        doc = ls.build_source_model(str(tex), bibkey=key)
+        drill.mkdir(parents=True, exist_ok=True)
+        model_path.write_text(
+            json.dumps(doc.to_dict(), indent=2, ensure_ascii=False), encoding="utf-8")
+
+    proj = FormulaReportProjector(
+        OperatorConfig(op="projector", classname="FormulaReportProjector"))
+    html = proj.project(doc)
+    out_path = drill / "formula-report.html"
+    out_path.write_text(html, encoding="utf-8")
+
+    c = doc.meta.get("source_counts", {})
+    return (f"LaTeX source model for {tex.name}: {c.get('sections', 0)} sections, "
+            f"{c.get('equations', 0)} display equations, {c.get('macros', 0)} macros "
+            f"(preamble + local style files). Wrote {model_path.relative_to(tex.parent)} "
+            f"and {out_path.relative_to(tex.parent)} (KaTeX report; no MathPix).")
+
+
 def cmd_report(pdf: Path, force: bool = False, embed: bool = False) -> str:
     """Emit a full inline+display math report (formula-report.html).
 

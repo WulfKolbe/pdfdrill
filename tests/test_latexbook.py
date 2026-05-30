@@ -1,0 +1,93 @@
+"""
+Tests for the source-only LaTeX path: local .sty macro resolution
+(collect_macros), section extraction, and build_source_model — used by
+`pdfdrill latexbook`. No PDF, no MathPix.
+"""
+import sys
+import tempfile
+from pathlib import Path
+
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "src"))
+
+from pdfdrill import latex_source as ls
+
+
+def _make_book(d: Path):
+    # local style package with custom macros (mimics graphbook's mystyle.sty)
+    (d / "style").mkdir()
+    (d / "style" / "mystyle.sty").write_text(
+        r"\newcommand{\R}{\mathbb{R}}"
+        "\n\\DeclareMathOperator*{\\iadj}{iadj}\n")
+    (d / "tex").mkdir()
+    (d / "tex" / "ch1.tex").write_text(
+        r"\section{First}"
+        r"\begin{equation}\label{e1} x \in \R \end{equation}")
+    (d / "book.tex").write_text(
+        r"\documentclass{book}"
+        "\n\\usepackage{mystyle}\n"
+        r"\begin{document}\input{tex/ch1}"
+        r"\begin{equation} \iadj(v) \subseteq V \end{equation}"
+        r"\end{document}")
+    return d / "book.tex"
+
+
+def test_collect_macros_resolves_local_style_file():
+    with tempfile.TemporaryDirectory() as dd:
+        book = _make_book(Path(dd))
+        full, _ = ls.read_source(str(book))
+        pre, _ = ls.split_preamble(full)
+        macros = ls.collect_macros(pre, str(book.parent))
+        # \R and \iadj are defined in style/mystyle.sty, reached via \usepackage
+        assert "R" in macros and "iadj" in macros
+        assert macros["iadj"]["body"] == "\\operatorname{iadj}"
+
+
+def test_extract_sections_in_order():
+    body = r"\chapter{A} text \section{B} more \subsection{C}"
+    secs = ls.extract_sections(body)
+    assert [s["caption"] for s in secs] == ["A", "B", "C"]
+    assert [s["level"] for s in secs] == [1, 2, 3]
+
+
+def test_build_source_model_expands_style_macros():
+    with tempfile.TemporaryDirectory() as dd:
+        book = _make_book(Path(dd))
+        doc = ls.build_source_model(str(book), bibkey="BK")
+        eqs = [o for o in doc.objects.values() if o.type == "Equation"]
+        secs = [o for o in doc.objects.values() if o.type == "Section"]
+        assert len(eqs) == 2 and len(secs) == 1
+        latexes = " ".join(e.props["latex"] for e in eqs)
+        # \R -> \mathbb{R}, \iadj -> \operatorname{iadj} (expanded from .sty)
+        assert "\\mathbb{R}" in latexes
+        assert "\\operatorname{iadj}" in latexes
+        assert "\\R" not in latexes and "\\iadj" not in latexes
+        assert doc.meta["source_counts"]["macros"] >= 2
+
+
+def test_build_source_model_flow_order():
+    with tempfile.TemporaryDirectory() as dd:
+        book = _make_book(Path(dd))
+        doc = ls.build_source_model(str(book))
+        ordered = sorted(doc.objects.values(), key=lambda o: o.props.get("flow_index", 0))
+        types = [o.type for o in ordered if o.type in ("Section", "Equation")]
+        # \section, then ch1's equation, then book's second equation
+        assert types == ["Section", "Equation", "Equation"]
+
+
+if __name__ == "__main__":
+    tests = [v for k, v in list(globals().items()) if k.startswith("test_")]
+    failed = []
+    for t in tests:
+        try:
+            t()
+            print(f"PASS {t.__name__}")
+        except AssertionError as e:
+            failed.append(t.__name__)
+            print(f"FAIL {t.__name__}: {e}")
+        except Exception as e:
+            failed.append(t.__name__)
+            print(f"ERROR {t.__name__}: {e!r}")
+    if failed:
+        print(f"\n{len(failed)} failed out of {len(tests)}")
+        sys.exit(1)
+    print(f"\nAll {len(tests)} tests passed.")

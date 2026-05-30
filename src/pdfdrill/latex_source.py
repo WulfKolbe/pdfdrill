@@ -161,6 +161,58 @@ def extract_macros(preamble: str) -> dict[str, dict]:
     return macros
 
 
+def _resolve_style_file(name: str, base_dir: str) -> Optional[str]:
+    """Find a local package/input source file by name, searching common dirs.
+
+    `\\usepackage{mystyle}` → mystyle.sty; `\\input{tex/foo}` → tex/foo.tex.
+    Returns the file's text, or None if it's a system package (not local)."""
+    name = name.strip()
+    cands = []
+    for ext in ("", ".sty", ".tex"):
+        cands.append(os.path.join(base_dir, name + ext))
+        for sub in ("style", "styles", "tex", "include", "preamble"):
+            cands.append(os.path.join(base_dir, sub, name + ext))
+    for p in cands:
+        if os.path.isfile(p):
+            try:
+                return strip_comments(open(p, encoding="utf-8", errors="replace").read())
+            except Exception:
+                return None
+    return None
+
+
+def collect_macros(preamble: str, base_dir: str, _depth: int = 0,
+                   _seen: Optional[set] = None) -> dict[str, dict]:
+    """Macros from the preamble PLUS any local \\usepackage/\\input files it
+    pulls in (e.g. a project `mystyle.sty`). System packages (amsmath, …) that
+    aren't present as local files are simply skipped. Recurses into nested
+    \\usepackage/\\RequirePackage/\\input within those files."""
+    _seen = _seen if _seen is not None else set()
+    macros: dict[str, dict] = {}
+    if _depth > 8:
+        return macros
+
+    # 1) the local files this text references (parse their macros first, so
+    #    preamble redefinitions can override).
+    refs = re.findall(
+        r"\\(?:usepackage|RequirePackage)(?:\[[^\]]*\])?\{([^}]+)\}|\\input\{([^}]+)\}",
+        preamble)
+    for grp in refs:
+        for nm in (grp[0] or grp[1] or "").split(","):
+            nm = nm.strip()
+            key = (base_dir, nm)
+            if not nm or key in _seen:
+                continue
+            _seen.add(key)
+            text = _resolve_style_file(nm, base_dir)
+            if text:
+                macros.update(collect_macros(text, base_dir, _depth + 1, _seen))
+
+    # 2) this text's own definitions (win over included ones).
+    macros.update(extract_macros(preamble))
+    return macros
+
+
 def _apply_once(text: str, name: str, mac: dict) -> tuple[str, bool]:
     """Expand all calls of one macro once. Returns (text, changed)."""
     nargs = mac["nargs"]
@@ -263,3 +315,67 @@ def _clean_eq(inner: str) -> str:
     s = re.sub(r"\\label\{[^}]*\}", "", inner)
     s = re.sub(r"\\(?:nonumber|notag)\b", "", s)
     return _norm(s)
+
+
+_SECTION_RE = re.compile(r"\\(part|chapter|section|subsection)\*?\{")
+
+
+def extract_sections(body: str) -> list[dict]:
+    """Headings in document order: {level, caption, pos}. Levels 1..4."""
+    level = {"part": 1, "chapter": 1, "section": 2, "subsection": 3, "subsubsection": 4}
+    out = []
+    for m in _SECTION_RE.finditer(body):
+        kind = m.group(1)
+        cap = _balanced(body, m.end() - 1)[1:-1]
+        out.append({"level": level.get(kind, 2), "caption": _norm(cap),
+                    "kind": kind, "pos": m.start()})
+    return out
+
+
+def build_source_model(tex_path: str, bibkey: str = "DOC") -> "object":
+    """Build a docmodel `Document` from a LaTeX source file (NO OCR/MathPix).
+
+    Inlines \\input/\\include, resolves macros from the preamble AND local
+    style files (\\usepackage{mystyle} -> mystyle.sty), then emits Section and
+    display-Equation DocObjects in document order. Each Equation carries the
+    author's `latex_original` and a macro-`latex` (expanded) form; no cdn_url
+    (there is no rendered crop on the source-only path). Returns the Document.
+    """
+    from docmodel.core import Document, DocObject
+
+    full, main = read_source(tex_path)
+    pre, body = split_preamble(full)
+    base_dir = os.path.dirname(os.path.abspath(tex_path))
+    macros = collect_macros(pre, base_dir)
+
+    doc = Document()
+    doc.meta["bibkey"] = bibkey
+    doc.meta["source_path"] = f"{main} (LaTeX source, no OCR)"
+    doc.meta["latex_preamble"] = {"main": main, "num_macros": len(macros),
+                                  "standalone": standalone_preamble(pre)}
+
+    # Merge sections + equations into one flow-ordered stream by source pos.
+    items = ([("section", s) for s in extract_sections(body)]
+             + [("equation", e) for e in extract_display_equations(body)])
+    items.sort(key=lambda t: t[1].get("pos", 0))
+
+    fi = 0
+    n_sec = n_eq = 0
+    for kind, it in items:
+        fi += 1
+        if kind == "section":
+            doc.add(DocObject(type="Section", props={
+                "level": it["level"], "caption": it["caption"],
+                "flow_index": fi, "bibkey": bibkey}))
+            n_sec += 1
+        else:
+            original = it["latex"]
+            doc.add(DocObject(type="Equation", props={
+                "latex": expand_macros(original, macros),
+                "latex_original": original,
+                "numbered": it.get("numbered"), "label": it.get("label"),
+                "env": it.get("env"), "flow_index": fi, "bibkey": bibkey}))
+            n_eq += 1
+    doc.meta["source_counts"] = {"sections": n_sec, "equations": n_eq,
+                                 "macros": len(macros)}
+    return doc

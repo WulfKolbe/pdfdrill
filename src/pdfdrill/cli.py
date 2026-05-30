@@ -72,6 +72,7 @@ def main():
         "report": _do_report,
         "folder": _do_folder,
         "latex": _do_latex,
+        "latexbook": _do_latexbook,
     }
 
     if cmd not in handlers:
@@ -311,6 +312,28 @@ def _do_report(args):
     from .commands import cmd_report
     pdf_args = [a for a in args if a not in ("--force", "--embed")]
     return cmd_report(_pdf(pdf_args), force="--force" in args, embed="--embed" in args)
+
+
+def _do_latexbook(args):
+    """pdfdrill latexbook <book.tex> [--bibkey K] [--force]"""
+    from .commands import cmd_latexbook
+    pos: list[str] = []
+    bibkey = None
+    force = False
+    i = 0
+    while i < len(args):
+        if args[i] == "--bibkey" and i + 1 < len(args):
+            bibkey = args[i + 1]; i += 2
+        elif args[i] == "--force":
+            force = True; i += 1
+        else:
+            pos.append(args[i]); i += 1
+    if not pos:
+        raise ValueError("Usage: pdfdrill latexbook <book.tex> [--bibkey K] [--force]")
+    t = Path(pos[0])
+    if not t.exists():
+        raise FileNotFoundError(f"Not found: {t}")
+    return cmd_latexbook(t, bibkey=bibkey, force=force)
 
 
 def _do_latex(args):
@@ -598,6 +621,7 @@ Introspection (fast, no extraction):
   pdfdrill compare <pdf>       LaTeX | KaTeX | MathPix-image comparison HTML (auto-chains model)
   pdfdrill report <pdf>        Full inline+display math report (formula-report.html)
   pdfdrill latex <pdf>         Ingest author .tex/.tgz as a `tex` provenance (original+expanded LaTeX); --tex <path>
+  pdfdrill latexbook <book.tex> Build a source-only model + KaTeX formula report from LaTeX (no PDF/MathPix); resolves local .sty macros
   pdfdrill folder <dir>        Build the full structure for every PDF in <dir> from existing
                                .lines.json/.bib/.md — runs all levels, NO MathPix/Perplexity calls
   pdfdrill snip <pdf>          OCR each equation crop via MathPix Snip (/v3/text) → competing column; --limit N
