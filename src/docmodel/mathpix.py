@@ -27,6 +27,21 @@ def crop_url(image_id: Optional[str], region: Optional[dict]) -> str:
     )
 
 
+def page_url(image_id_or_crop_url: Optional[str]) -> str:
+    """Return the full-page CDN image URL for a crop.
+
+    A crop URL is the same base image as the full page, so dropping the region
+    query yields the complete-page render. Accepts a full crop URL or a bare
+    image_id; returns '' if nothing usable is given.
+    """
+    s = image_id_or_crop_url
+    if not s:
+        return ""
+    if s.startswith("http"):
+        return s.split("?", 1)[0]
+    return f"https://cdn.mathpix.com/cropped/{s}.jpg"
+
+
 def region_from_url(url: str) -> dict[str, Optional[str]]:
     """Recover region fields from a CDN URL's query string."""
     try:

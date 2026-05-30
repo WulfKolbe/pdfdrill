@@ -19,6 +19,7 @@ import html
 
 from docmodel.core import Document
 from ..base import BaseProjector
+from docmodel.mathpix import page_url
 from .common import flow_ordered_content, equation_label, embed_image
 
 
@@ -190,8 +191,10 @@ class ComparisonHtmlProjector(BaseProjector):
         return f'<td class="score">{"<br>".join(parts)}{flag_html}</td>'
 
     @staticmethod
-    def _img(cdn: str) -> str:
-        return (
-            f'<img class="crop" loading="lazy" alt="MathPix crop" '
-            f'src="{html.escape(cdn, quote=True)}">'
-        )
+    def _img(cdn: str, page_link: str = "") -> str:
+        tag = (f'<img class="crop" loading="lazy" alt="MathPix crop" '
+               f'src="{html.escape(cdn, quote=True)}">')
+        if page_link:
+            tag = (f'<a href="{html.escape(page_link, quote=True)}" target="_blank" '
+                   f'rel="noopener" title="full page">{tag}</a>')
+        return tag

@@ -12,6 +12,7 @@ from __future__ import annotations
 import html
 
 from docmodel.core import Document
+from docmodel.mathpix import page_url
 from ..base import BaseProjector
 from .common import embed_image
 
@@ -116,8 +117,16 @@ class FormulaReportProjector(BaseProjector):
             cdn = e.props.get("cdn_url") or ""
             if cdn:
                 src = embed_image(cdn) if self.params.get("embed") else cdn
-                img = (f'<td class="cdn"><img loading="lazy" alt="crop" '
-                       f'src="{html.escape(src, quote=True)}"></td>')
+                # Link the crop to the full page it was taken from (the crop is
+                # always embeddable; the page link stays a live CDN URL).
+                page_link = page_url(cdn)
+                img_tag = (f'<img loading="lazy" alt="crop" '
+                           f'src="{html.escape(src, quote=True)}">')
+                if page_link:
+                    img_tag = (f'<a href="{html.escape(page_link, quote=True)}" '
+                               f'target="_blank" rel="noopener" '
+                               f'title="full page {page}">{img_tag}</a>')
+                img = f'<td class="cdn">{img_tag}</td>'
             else:
                 img = '<td class="cdn-missing">—</td>'
             parts.append(
