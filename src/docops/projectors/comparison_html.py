@@ -147,7 +147,8 @@ class ComparisonHtmlProjector(BaseProjector):
                     cells += self._latex_pair(c["latex"], score=c.get("score"))
                 else:
                     cells += ['<td class="empty">—</td>', '<td class="empty">—</td>']
-            cells.append(f'<td>{self._img(rd["cdn"])}</td>')
+            cdn_src = embed_image(rd["cdn"]) if self.params.get("embed") else rd["cdn"]
+            cells.append(f'<td>{self._img(cdn_src, page_link=page_url(rd["cdn"]))}</td>')
             tr = '<tr class="flagged">' if flagged else "<tr>"
             row_html.append(tr + "".join(cells) + "</tr>")
 

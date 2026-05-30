@@ -402,6 +402,13 @@ LaTeX-source upper layer (`src/pdfdrill/latex_source.py`, `pdfdrill latex`):
 - `latex`, `pdflatex`, `dvisvgm`, `dvips` are present in this sandbox (only
   `pdf2svg` is missing), so the SVG projector is feasible here next.
 
+Full-page links: in `report` and `compare`, each equation crop `<img>` is
+wrapped in an `<a target="_blank">` to the **full page image** it was cropped
+from — `docmodel.mathpix.page_url()` strips the region query from the crop URL
+(same base image = the whole page). The page link stays a live CDN URL even
+under `--embed` (crop inlined, page click-through live). Verified on
+2312.11532: 13 crops → 13 page links; eq (9) → its page-3 image.
+
 Self-contained HTML (`--embed`): `compare`, `report`, and `tiddlers` accept
 `--embed`, which base64-inlines every MathPix CDN crop at emit time
 (`docops.projectors.common.embed_image`, cached, graceful URL fallback). The

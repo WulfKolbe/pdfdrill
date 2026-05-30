@@ -44,7 +44,12 @@ def test_report_embed_inlines_image(monkeypatch):
         op="projector", classname="FormulaReportProjector", params={"embed": True}))
     h = proj.project(_doc())
     assert "data:image/png;base64," in h
-    assert "cdn.mathpix.com/cropped/abc.jpg" not in h     # URL replaced
+    # The <img src> is the inlined data URI, not the crop URL …
+    assert 'src="data:image/png;base64,' in h
+    assert 'src="https://cdn.mathpix.com/cropped/abc.jpg"' not in h
+    # … but the crop links to its full page (page_url == the crop URL here,
+    # since the synthetic crop has no region query), kept live under --embed.
+    assert '<a href="https://cdn.mathpix.com/cropped/abc.jpg"' in h
 
 
 def test_report_default_keeps_url(monkeypatch):
