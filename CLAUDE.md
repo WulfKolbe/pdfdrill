@@ -48,6 +48,15 @@ PYTHONPATH=src python3 -m docmodel.main --bib KEY --lines X.lines.json
 PYTHONPATH=src python3 -m docops.main   --in KEY.docmodel.json --out-dir ./out
 ```
 
+### Batch a whole folder offline (no MathPix/Perplexity)
+
+`pdfdrill folder <dir>` builds the full structure for every `<name>.pdf` that
+already has a sibling `<name>.lines.json` — running all state levels (model,
+geometry, eqnums, lists, algorithms, annotate, bibliography, score) and
+loading `<name>.bib` into the References if present. PDFs without a lines.json
+are skipped (no upload). Verified on `data/` (2312.11532 → full model incl. 24
+author-year cites, 2 algorithms; the 2605 copy lacking a lines.json skipped).
+
 The pdfdrill commands (`size`, `pdfinfo`, `urls`, `dests`, `fonts`,
 `fonts_layer`, `images`, `pix2tex`, `abstract`, `toc`, `md`, `page`, `fetch`,
 `plan`, `drill`, `status`, `tsv`, `render`) are documented in

@@ -252,6 +252,95 @@ def cmd_compare(pdf: Path, force: bool = False) -> str:
     )
 
 
+def _load_bib_sidecar(pdf: Path, bib_path: Path) -> dict:
+    """Apply a .bib file to the model's References (no Perplexity call)."""
+    from docmodel.core import Document
+    from .bibliography import load_bibtex_file
+
+    sc = Sidecar(pdf)
+    model_path = _model_path(sc)
+    if not model_path.exists():
+        return {"attached": 0, "created": 0}
+    with open(model_path, "r", encoding="utf-8") as f:
+        doc = Document.from_dict(json.load(f))
+    res = load_bibtex_file(doc, bib_path.read_text(encoding="utf-8"))
+    with open(model_path, "w", encoding="utf-8") as f:
+        json.dump(doc.to_dict(), f, indent=2, ensure_ascii=False)
+    sc.set_evidence("bibtex_file_entries", res["attached"])
+    sc.save()
+    return res
+
+
+def cmd_folder(folder: Path, force: bool = False) -> str:
+    """Build the full structure for every PDF in a folder from existing
+    sidecars — NO MathPix/Perplexity calls.
+
+    For each `<name>.pdf` that has a sibling `<name>.lines.json`, run all the
+    state-building levels (model, geometry, equation numbers, lists,
+    algorithms, link annotations, bibliography, scoring) and, if present, load
+    `<name>.bib` into the References. PDFs without a lines.json are skipped
+    (run `pdfdrill mathpix` for those first). `<name>.md` is noted if present.
+    """
+    folder = Path(folder)
+    if not folder.is_dir():
+        raise NotADirectoryError(f"Not a folder: {folder}")
+    pdfs = sorted(folder.glob("*.pdf"))
+    if not pdfs:
+        return f"No PDF files in {folder}."
+
+    # Ordered, network-free levels (each is idempotent / honors --force).
+    levels = [
+        ("model", cmd_model), ("geometry", cmd_geometry), ("eqnums", cmd_eqnums),
+        ("lists", cmd_lists), ("algorithms", cmd_algorithms),
+        ("annotate", cmd_annotate), ("bibliography", cmd_bibliography),
+        ("score", cmd_score),
+    ]
+
+    lines_out, processed, skipped = [], 0, 0
+    for pdf in pdfs:
+        lines = pdf.parent / f"{pdf.stem}.lines.json"
+        if not lines.exists():
+            lines_out.append(f"  {pdf.name}: SKIP — no {pdf.stem}.lines.json "
+                             f"(run `pdfdrill mathpix {pdf.name}` first)")
+            skipped += 1
+            continue
+        errs = []
+        for name, fn in levels:
+            try:
+                fn(pdf, force=force)
+            except Exception as e:  # noqa: BLE001 — one level shouldn't abort the file
+                errs.append(f"{name}({e})")
+
+        extra = []
+        bib = pdf.parent / f"{pdf.stem}.bib"
+        if bib.exists():
+            try:
+                res = _load_bib_sidecar(pdf, bib)
+                extra.append(f"bib+{res['attached']}")
+            except Exception as e:  # noqa: BLE001
+                errs.append(f"bib({e})")
+        if (pdf.parent / f"{pdf.stem}.md").exists():
+            extra.append("md")
+
+        sc = Sidecar(pdf)
+        counts = sc.get_evidence("model_object_counts", {}) or {}
+        summary = (f"eq={counts.get('Equation', 0)} "
+                   f"forms={counts.get('Formula', 0)} "
+                   f"lists={sc.get_evidence('lists_created', 0)} "
+                   f"algs={sc.get_evidence('algorithms_created', 0)} "
+                   f"links={sc.get_evidence('annotation_links', 0)} "
+                   f"refs={sc.get_evidence('bibliography_entries', 0)} "
+                   f"flagged={sc.get_evidence('scored_flagged', 0)}")
+        tail = (" ERRORS: " + ", ".join(errs)) if errs else ""
+        extra_s = (" [" + ",".join(extra) + "]") if extra else ""
+        lines_out.append(f"  {pdf.name}: {summary}{extra_s}{tail}")
+        processed += 1
+
+    head = (f"Folder {folder}: {processed} built, {skipped} skipped "
+            f"(of {len(pdfs)} PDFs) — no MathPix/Perplexity calls.")
+    return head + "\n" + "\n".join(lines_out)
+
+
 def cmd_report(pdf: Path, force: bool = False) -> str:
     """Emit a full inline+display math report (formula-report.html).
 

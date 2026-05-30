@@ -70,6 +70,7 @@ def main():
         "bibliography": _do_bibliography,
         "bibfetch": _do_bibfetch,
         "report": _do_report,
+        "folder": _do_folder,
     }
 
     if cmd not in handlers:
@@ -309,6 +310,18 @@ def _do_report(args):
     from .commands import cmd_report
     pdf_args = [a for a in args if a != "--force"]
     return cmd_report(_pdf(pdf_args), force="--force" in args)
+
+
+def _do_folder(args):
+    """pdfdrill folder <dir> [--force]"""
+    from .commands import cmd_folder
+    pos = [a for a in args if a != "--force"]
+    if not pos:
+        raise ValueError("Usage: pdfdrill folder <dir> [--force]")
+    d = Path(pos[0])
+    if not d.is_dir():
+        raise NotADirectoryError(f"Not a folder: {d}")
+    return cmd_folder(d, force="--force" in args)
 
 
 def _do_bibfetch(args):
@@ -566,6 +579,8 @@ Introspection (fast, no extraction):
   pdfdrill model <pdf>         Build unified docmodel from lines.json (auto-chains mathpix)
   pdfdrill compare <pdf>       LaTeX | KaTeX | MathPix-image comparison HTML (auto-chains model)
   pdfdrill report <pdf>        Full inline+display math report (formula-report.html)
+  pdfdrill folder <dir>        Build the full structure for every PDF in <dir> from existing
+                               .lines.json/.bib/.md — runs all levels, NO MathPix/Perplexity calls
   pdfdrill snip <pdf>          OCR each equation crop via MathPix Snip (/v3/text) → competing column; --limit N
   pdfdrill candidates <pdf>    Export equation crops as a manifest for an LLM to read; --provider P --limit N
   pdfdrill ingest <pdf> <json> Attach externally-produced {eq_id,latex} candidates as a provenance column; --provider P

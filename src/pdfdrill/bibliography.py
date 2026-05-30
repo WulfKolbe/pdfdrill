@@ -281,6 +281,62 @@ def link_citations(doc) -> int:
     return n
 
 
+def _split_bib_entries(text: str) -> list[tuple[str, str]]:
+    """Brace-aware split of a .bib file into (citekey, raw_entry) pairs."""
+    entries: list[tuple[str, str]] = []
+    i, n = 0, len(text)
+    while True:
+        at = text.find("@", i)
+        if at < 0:
+            break
+        km = re.match(r"@\w+\s*\{\s*([^,\s]+)", text[at:])
+        brace = text.find("{", at)
+        if brace < 0 or km is None:
+            i = at + 1
+            continue
+        depth, j = 0, brace
+        while j < n:
+            c = text[j]
+            if c == "{":
+                depth += 1
+            elif c == "}":
+                depth -= 1
+                if depth == 0:
+                    break
+            j += 1
+        entries.append((km.group(1).strip(), text[at:j + 1]))
+        i = j + 1
+    return entries
+
+
+def load_bibtex_file(doc, bibtext: str) -> dict:
+    """Attach BibTeX from a .bib file to References (by citekey), creating a
+    Reference for any entry not already present. Returns {attached, created}."""
+    from docmodel.core import DocObject
+    from .perplexity_client import parse_bibtex_fields
+
+    refs = {(r.props.get("citekey") or ""): r
+            for r in doc.objects.values() if r.type == "Reference"}
+    attached = created = 0
+    for key, raw in _split_bib_entries(bibtext):
+        f = parse_bibtex_fields(raw)
+        r = refs.get(key)
+        if r is None:
+            r = DocObject(type="Reference", props={
+                "citekey": key, "raw_text": f.get("title") or "",
+                "year": f.get("year") or "", "author": f.get("author") or "",
+                "entry_type": f.get("entry_type") or "misc"})
+            doc.add(r)
+            refs[key] = r
+            created += 1
+        r.props["bibtex"] = raw
+        for k in ("author", "year", "title", "entry_type"):
+            if f.get(k):
+                r.props[k] = f[k]
+        attached += 1
+    return {"attached": attached, "created": created}
+
+
 def add_reference_objects(doc, entries: list[dict]) -> int:
     """Create a `Reference` DocObject per parsed entry. Returns the count."""
     from docmodel.core import DocObject, Realization
