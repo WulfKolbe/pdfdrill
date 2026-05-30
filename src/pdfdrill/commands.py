@@ -1836,15 +1836,53 @@ def cmd_size(pdf: Path) -> str:
     sc.set_evidence("producer", info.get("Producer", ""))
     sc.set_evidence("creator", info.get("Creator", ""))
     sc.set_evidence("encrypted", info.get("Encrypted", "no") != "no")
-    sc.set_evidence("text_layer", True)  # refined by fonts
     sc.set_evidence("pdfinfo", info)
+
+    # Determine the text layer NOW (the key level-0 signal): a scanned PDF has
+    # no extractable text and no fonts -> OCR is mandatory. Two cheap probes:
+    # the first page's extractable chars (pdftotext -l 1) and the font count.
+    has_text, n_fonts, n_chars = _probe_text_layer(pdf)
+    sc.set_evidence("text_layer", has_text)
+    sc.set_evidence("font_count", n_fonts)
+    sc.set_evidence("first_page_chars", n_chars)
+    sc.set_evidence("needs_ocr", not has_text)
 
     sc.add_fact(SIZE_KNOWN)
     elapsed = time.monotonic() - t0
     sc.log_transition("size", "INIT", SIZE_KNOWN, cost_ms=elapsed * 1000,
-                      detail=f"pdfinfo: {sc.page_count} pages, {sc.file_size} bytes")
+                      detail=f"pdfinfo: {sc.page_count} pages, {sc.file_size} bytes, "
+                             f"text_layer={has_text}")
     sc.save()
     return _format_size(sc)
+
+
+def _probe_text_layer(pdf: Path) -> tuple[bool, int, int]:
+    """Cheap scan detector. Returns (has_text_layer, n_fonts, first_page_chars).
+
+    A born-digital PDF has embedded fonts AND extractable text; a scan has
+    neither (just a page-image). We check both because some PDFs carry fonts
+    only for headers/stamps yet are otherwise images, and some carry an OCR
+    text layer with no listed fonts — requiring real characters on page 1 is
+    the robust signal, fonts the corroborator."""
+    n_fonts = 0
+    try:
+        fout = subprocess.run(["pdffonts", str(pdf)], capture_output=True,
+                              text=True, timeout=30)
+        rows = fout.stdout.strip().splitlines()
+        n_fonts = max(0, len(rows) - 2)  # minus the 2 header rows
+    except Exception:
+        pass
+    n_chars = 0
+    try:
+        tout = subprocess.run(["pdftotext", "-l", "1", str(pdf), "-"],
+                              capture_output=True, text=True, timeout=60)
+        n_chars = len("".join(tout.stdout.split()))
+    except Exception:
+        pass
+    # Text layer iff page 1 yields real characters (a handful, to ignore stray
+    # artifacts). Fonts alone don't prove extractable text.
+    has_text = n_chars >= 4
+    return has_text, n_fonts, n_chars
 
 
 def _format_size(sc: Sidecar) -> str:
@@ -1860,6 +1898,8 @@ def _format_size(sc: Sidecar) -> str:
     parts.append(f"produced by {producer}")
     if sc.get_evidence("text_layer"):
         parts.append("has a text layer")
+    else:
+        parts.append("NO text layer — scanned, OCR required (run `pdfdrill mathpix`)")
     if encrypted:
         parts.append("ENCRYPTED")
     else:
@@ -1898,7 +1938,13 @@ def cmd_fonts(pdf: Path) -> str:
     sc.set_evidence("fonts", fonts)
     sc.set_evidence("math_fonts", math_fonts)
     sc.set_evidence("has_math_fonts", len(math_fonts) > 0)
-    sc.set_evidence("text_layer", len(fonts) > 0)
+    sc.set_evidence("font_count", len(fonts))
+    # The authoritative text-layer signal is page-1 extractable chars, set by
+    # `size` (_probe_text_layer). Only fill it here if size never ran; don't
+    # let a stray stamp font flip a scanned PDF back to "has text layer".
+    if sc.get_evidence("text_layer") is None:
+        sc.set_evidence("text_layer", len(fonts) > 0)
+        sc.set_evidence("needs_ocr", len(fonts) == 0)
 
     sc.add_fact(FONTS_KNOWN)
     elapsed = time.monotonic() - t0

@@ -35,7 +35,7 @@ Each command returns **prose**, not JSON. Quote it back to the user directly.
 
 | Command | Returns |
 |---|---|
-| `pdfdrill size <pdf>` | One sentence: page count, MB, producer, encrypted? |
+| `pdfdrill size <pdf>` | One sentence: page count, MB, producer, **text layer vs. scanned (OCR required)**, encrypted? Detects a scan (no extractable text on page 1, no fonts) and says "NO text layer — scanned, OCR required" + sets `needs_ocr`. |
 | `pdfdrill pdfinfo <pdf>` | Full PdfInfo struct (title, author, dates, flags) |
 | `pdfdrill bibtex <pdf>` | Derived BibTeX record (auto-chains pdfinfo) |
 | `pdfdrill links <pdf>` | **FAST** external URLs via `pdfinfo -url` (~50 ms); flags code/data hosts (github, 4open.science, zenodo, huggingface, …) |

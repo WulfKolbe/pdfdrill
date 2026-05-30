@@ -88,6 +88,17 @@ level 0–1 commands (`size`, `pdfinfo`, `links`, `dests`) before assuming the
 rendered text is all there is — and always run against the real PDF, not a
 Claude.ai-uploaded Markdown rendering (which drops the annotation layer).
 
+**Scan / OCR-mandatory detection.** `pdfdrill size` determines the text layer
+at level 0 via `_probe_text_layer`: a born-digital PDF has extractable text on
+page 1 (`pdftotext -l 1`) AND fonts; a scan has neither. Page-1 char count is
+the authoritative signal (fonts only corroborate — a stray stamp font on an
+image PDF won't flip it to "has text"). `size` sets `text_layer`/`needs_ocr`/
+`font_count`/`first_page_chars` and says "NO text layer — scanned, OCR
+required" for scans; `cmd_fonts` no longer downgrades that determination.
+Verified on `~/Downloads/scans/scan_20260527_204203.pdf` (pdf-lib image, 0
+fonts, 0 chars → needs_ocr=True) vs a born-digital paper (32 fonts, 1436
+page-1 chars → text_layer=True). Tests: `tests/test_text_layer.py`.
+
 ## Tests
 
 ```bash
