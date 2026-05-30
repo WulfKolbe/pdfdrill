@@ -216,8 +216,11 @@ def cmd_compare(pdf: Path, force: bool = False, embed: bool = False) -> str:
 
     sc = Sidecar(pdf)
     model_path = _model_path(sc)
-    if not sc.has(MODEL_BUILT) or not model_path.exists() or force:
-        cmd_model(pdf, force=force)
+    # Projectors only READ the model. `--force` re-emits the artifact but must
+    # NOT rebuild the model (that would wipe geometry/lists/annotate/biblio/
+    # latex layers); only build when the model is genuinely absent.
+    if not sc.has(MODEL_BUILT) or not model_path.exists():
+        cmd_model(pdf)
         sc = Sidecar(pdf)
         model_path = _model_path(sc)
     if not model_path.exists():
