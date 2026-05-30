@@ -64,17 +64,28 @@ bare LaTeX PDFs it will return mostly empty fields and note what's missing.
 | `pdfdrill md <pdf>` | Summary sentence + stores full Markdown in sidecar |
 | `pdfdrill page <pdf> <n>` | Full text of page N |
 | `pdfdrill drill <pdf>` | Runs size → fonts → abstract → toc → md in one call |
-| `pdfdrill mathpix <pdf>` | Download MathPix OCR (`lines.json`, `md`, `tex.zip`) next to the PDF; idempotent (skips upload if outputs exist), `--force` re-uploads. Needs `MATHPIX_APP_ID`/`MATHPIX_APP_KEY` (or a local `mathpix_creds.py`). `lines.json` is the input to the LaTeX-vs-image comparison pipeline. |
+| `pdfdrill mathpix <pdf>` | Download MathPix OCR (`lines.json`, `md`, `tex.zip`) next to the PDF; idempotent (skips upload if outputs exist), `--force` re-uploads. `lines.json` is the input to the LaTeX-vs-image comparison pipeline. |
 
-> **No MathPix key? Don't fall back to ad-hoc OCR.** Every structural command
-> works **offline from an existing `<name>.lines.json`** next to the PDF —
-> `model`, `compare`, `report`, `tiddlers`, `folder`, etc. need no key and no
-> network (only `mathpix`/`snip`/`bibfetch` call out). For an
-> equation/structure question, if a `lines.json` exists run `pdfdrill model
-> <pdf>` and query the model — the equation numbers, LaTeX and CDN crops are
-> already there (e.g. eq (9) of a paper). Reach for `mathpix` only when no
-> `lines.json` exists yet AND a key is configured; otherwise report that the
-> OCR sidecar is missing rather than guessing from rendered text.
+> **Credentials are already configured — never ask the user for a key.**
+> MathPix and Perplexity keys ship in `src/pdfdrill/mathpix_creds.py` and
+> `src/pdfdrill/perplexity_creds.py` (env vars `MATHPIX_APP_ID` /
+> `MATHPIX_APP_KEY` / `PERPLEXITY_API_KEY` override them if set). So `mathpix`,
+> `snip`, and `bibfetch` work out-of-the-box. If you ever see a
+> "credentials not found" error, the package isn't importable from where
+> you're running — set `PYTHONPATH=src` (or `pip install -e .`) rather than
+> asking for a key. Most questions need **no** network at all: the structural
+> path (`model`, `compare`, `report`, `tiddlers`, `folder`, …) runs entirely
+> offline from an existing `<name>.lines.json`.
+
+> **Never transcribe math from rendered text — always go through the model.**
+> Every structural command runs **offline from an existing
+> `<name>.lines.json`** next to the PDF (`model`, `compare`, `report`,
+> `tiddlers`, `folder`, …). For an equation/structure question: if a
+> `lines.json` exists, `pdfdrill model <pdf>` then query the model — the
+> equation numbers, LaTeX and CDN crops are already there (e.g. eq (9)). If no
+> `lines.json` exists yet, run `pdfdrill mathpix <pdf>` (keys are bundled, see
+> above) to fetch it. Either way the answer comes from MathPix LaTeX + the CDN
+> image, never from reading the rendered page.
 
 ### Math QC comparison pipeline (LaTeX vs image)
 
