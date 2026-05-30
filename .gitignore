@@ -17,6 +17,9 @@ __pycache__/
 /data/*.pdf
 /data/*.lines.json
 /data/*.tex.zip
+/data/*.tgz
+/data/*.tar.gz
+/data/*.tex
 /data/*.md
 /data/*.drill.json
 /data/*.drill/

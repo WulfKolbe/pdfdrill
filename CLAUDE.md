@@ -381,6 +381,35 @@ are truncated):
   `citekey/authors/year/titlefield/entry_type/bibtex/citations`, text led by
   `{{||CIT}}` — compatible with the existing bibentry macros / updateBibentries.
 
-Still to do: deepen the self-learning loop (auto-tune from accumulated flags);
+LaTeX-source upper layer (`src/pdfdrill/latex_source.py`, `pdfdrill latex`):
+
+- For arXiv we usually have both the PDF (→ MathPix `lines.json`) and the
+  author's LaTeX (e-print `.tgz`). `pdfdrill latex <pdf> [--tex P]` reads the
+  `.tex`/`.tgz` (inlining `\input`/`\include`, stripping comments), splits the
+  preamble, parses macros (`\newcommand`/`\renewcommand`/`\def`/
+  `\DeclareMathOperator`), extracts display equations, and attaches each to the
+  closest MathPix `Equation` (normalized-LaTeX similarity ≥0.55) as a
+  `provenance="tex"` `latex_candidate` — the **gold** reference vs OCR, a new
+  `compare` column. Inspired by the BUN/TS LATW pipeline in `~/MX/LATW`.
+- **Two LaTeX forms per element**: `latex_original` (verbatim author code, may
+  use preamble macros) and `latex` (preamble-**expanded** via a bounded
+  fixpoint, self-contained). Needed because TikZ/operator macros only compile
+  after expansion — the basis for the future `latex → DVI → dvisvgm` SVG step
+  (TikZ + tables can't render in KaTeX; SVG embeds fine in HTML). The expanded
+  + `standalone` preamble is stored on `doc.meta["latex_preamble"]`. Verified
+  on arXiv 2312.11532: 47 macros, 13/16 source equations matched; eq (9)
+  carries the author's `\label{eq:likelihood}` original+expanded LaTeX.
+- `latex`, `pdflatex`, `dvisvgm`, `dvips` are present in this sandbox (only
+  `pdf2svg` is missing), so the SVG projector is feasible here next.
+
+Self-contained HTML (`--embed`): `compare`, `report`, and `tiddlers` accept
+`--embed`, which base64-inlines every MathPix CDN crop at emit time
+(`docops.projectors.common.embed_image`, cached, graceful URL fallback). The
+output then has no live-CDN dependency — best for the Claude.ai preview, which
+may not load remote images. Verified: `report --embed` on 2312.11532 → 13
+data-URIs, 0 remaining cdn URLs.
+
+Still to do: the `latex → dvisvgm` SVG projector for TikZ/tables (tools present
+here); deepen the self-learning loop (auto-tune from accumulated flags);
 math-expression / document-structure / citation graphs queried like Pyre/Pysa
 over the persisted `model.docmodel.json` (the between-call memory).

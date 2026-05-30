@@ -206,10 +206,10 @@ def _do_model(args):
 
 
 def _do_compare(args):
-    """pdfdrill compare <pdf> [--force]"""
+    """pdfdrill compare <pdf> [--force] [--embed]"""
     from .commands import cmd_compare
-    pdf_args = [a for a in args if a != "--force"]
-    return cmd_compare(_pdf(pdf_args), force="--force" in args)
+    pdf_args = [a for a in args if a not in ("--force", "--embed")]
+    return cmd_compare(_pdf(pdf_args), force="--force" in args, embed="--embed" in args)
 
 
 def _do_snip(args):
@@ -237,10 +237,10 @@ def _do_geometry(args):
 
 
 def _do_tiddlers(args):
-    """pdfdrill tiddlers <pdf> [--force]"""
+    """pdfdrill tiddlers <pdf> [--force] [--embed]"""
     from .commands import cmd_tiddlers
-    pdf_args = [a for a in args if a != "--force"]
-    return cmd_tiddlers(_pdf(pdf_args), force="--force" in args)
+    pdf_args = [a for a in args if a not in ("--force", "--embed")]
+    return cmd_tiddlers(_pdf(pdf_args), force="--force" in args, embed="--embed" in args)
 
 
 def _do_lists(args):
@@ -306,10 +306,27 @@ def _do_bibliography(args):
 
 
 def _do_report(args):
-    """pdfdrill report <pdf> [--force]"""
+    """pdfdrill report <pdf> [--force] [--embed]"""
     from .commands import cmd_report
-    pdf_args = [a for a in args if a != "--force"]
-    return cmd_report(_pdf(pdf_args), force="--force" in args)
+    pdf_args = [a for a in args if a not in ("--force", "--embed")]
+    return cmd_report(_pdf(pdf_args), force="--force" in args, embed="--embed" in args)
+
+
+def _do_latex(args):
+    """pdfdrill latex <pdf> [--tex <path>] [--force]"""
+    from .commands import cmd_latex
+    pdf_args: list[str] = []
+    tex = None
+    force = False
+    i = 0
+    while i < len(args):
+        if args[i] == "--tex" and i + 1 < len(args):
+            tex = args[i + 1]; i += 2
+        elif args[i] == "--force":
+            force = True; i += 1
+        else:
+            pdf_args.append(args[i]); i += 1
+    return cmd_latex(_pdf(pdf_args), tex=tex, force=force)
 
 
 def _do_folder(args):
@@ -579,6 +596,7 @@ Introspection (fast, no extraction):
   pdfdrill model <pdf>         Build unified docmodel from lines.json (auto-chains mathpix)
   pdfdrill compare <pdf>       LaTeX | KaTeX | MathPix-image comparison HTML (auto-chains model)
   pdfdrill report <pdf>        Full inline+display math report (formula-report.html)
+  pdfdrill latex <pdf>         Ingest author .tex/.tgz as a `tex` provenance (original+expanded LaTeX); --tex <path>
   pdfdrill folder <dir>        Build the full structure for every PDF in <dir> from existing
                                .lines.json/.bib/.md — runs all levels, NO MathPix/Perplexity calls
   pdfdrill snip <pdf>          OCR each equation crop via MathPix Snip (/v3/text) → competing column; --limit N

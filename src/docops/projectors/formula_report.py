@@ -13,6 +13,7 @@ import html
 
 from docmodel.core import Document
 from ..base import BaseProjector
+from .common import embed_image
 
 _KV = "0.16.11"
 
@@ -114,8 +115,9 @@ class FormulaReportProjector(BaseProjector):
             num_html = f'<span class="eq-num">{html.escape(eqnum)}</span>' if eqnum else ""
             cdn = e.props.get("cdn_url") or ""
             if cdn:
+                src = embed_image(cdn) if self.params.get("embed") else cdn
                 img = (f'<td class="cdn"><img loading="lazy" alt="crop" '
-                       f'src="{html.escape(cdn, quote=True)}"></td>')
+                       f'src="{html.escape(src, quote=True)}"></td>')
             else:
                 img = '<td class="cdn-missing">—</td>'
             parts.append(

@@ -38,6 +38,7 @@ from typing import Optional
 
 from docmodel.core import Document, DocObject
 from ..base import BaseProjector
+from .common import embed_image
 
 
 def _tw_now() -> str:
@@ -351,7 +352,7 @@ class TiddlyWikiProjector(BaseProjector):
             t["equation_number"] = eqn or ""
             t["page"] = self._p3(e.props.get("page"))
             if e.props.get("cdn_url"):
-                t["canonical_uri"] = e.props["cdn_url"]
+                t["canonical_uri"] = self._uri(e.props["cdn_url"])
             self._copy_region(t, e.props)
             # Competing LaTeX readings (snip/llm/...) as parallel fields so a
             # TiddlyWiki table macro can show them side by side, like compare.html.
@@ -369,7 +370,7 @@ class TiddlyWikiProjector(BaseProjector):
                 "<$image source={{!!canonical_uri}} width={{!!width}} height={{!!height}}/>",
                 f"picture {_bibtag(bibkey)}",
             )
-            t["canonical_uri"] = pic.props.get("url") or ""
+            t["canonical_uri"] = self._uri(pic.props.get("url") or "")
             t["page"] = self._p3(pic.props.get("page"))
             if pic.props.get("caption"):
                 t["caption"] = pic.props["caption"]
@@ -386,7 +387,7 @@ class TiddlyWikiProjector(BaseProjector):
             t["page"] = self._p3(d.props.get("page"))
             t["latex_code"] = d.props.get("latex_code") or ""
             if d.props.get("cdn_url"):
-                t["canonical_uri"] = d.props["cdn_url"]
+                t["canonical_uri"] = self._uri(d.props["cdn_url"])
             self._copy_region(t, d.props)
             out.append(t)
 
@@ -753,6 +754,11 @@ class TiddlyWikiProjector(BaseProjector):
     @staticmethod
     def _sort_by_flow(objs: list[DocObject]) -> list[DocObject]:
         return sorted(objs, key=lambda o: o.props.get("flow_index", 10**9))
+
+    def _uri(self, url: str) -> str:
+        """Pass a URL through, or base64-embed it as a data: URI when the
+        projector is in --embed mode (self-contained tiddlers)."""
+        return embed_image(url) if self.params.get("embed") else url
 
     @staticmethod
     def _p3(value) -> str:

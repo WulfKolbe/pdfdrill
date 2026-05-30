@@ -56,6 +56,7 @@ EQNUMS_FUSED = "EQNUMS_FUSED"
 BIBLIOGRAPHY_BUILT = "BIBLIOGRAPHY_BUILT"
 BIBFETCH_DONE = "BIBFETCH_DONE"
 REPORT_BUILT = "REPORT_BUILT"
+LATEX_INGESTED = "LATEX_INGESTED"
 
 # Hosts that almost always mean "here is the code / data for this paper".
 _CODE_HOSTS = (
@@ -204,7 +205,7 @@ def _format_model(sc: Sidecar) -> str:
     )
 
 
-def cmd_compare(pdf: Path, force: bool = False) -> str:
+def cmd_compare(pdf: Path, force: bool = False, embed: bool = False) -> str:
     """Emit the LaTeX | KaTeX | MathPix-image comparison HTML.
 
     Auto-chains `model` if needed. Writes <pdf>.drill/compare.html.
@@ -227,7 +228,8 @@ def cmd_compare(pdf: Path, force: bool = False) -> str:
         doc = Document.from_dict(json.load(f))
 
     proj = ComparisonHtmlProjector(
-        OperatorConfig(op="projector", classname="ComparisonHtmlProjector")
+        OperatorConfig(op="projector", classname="ComparisonHtmlProjector",
+                   params={"embed": embed})
     )
     html_str = proj.project(doc)
     rows = proj.counters.get("rows", 0)
@@ -341,7 +343,7 @@ def cmd_folder(folder: Path, force: bool = False) -> str:
     return head + "\n" + "\n".join(lines_out)
 
 
-def cmd_report(pdf: Path, force: bool = False) -> str:
+def cmd_report(pdf: Path, force: bool = False, embed: bool = False) -> str:
     """Emit a full inline+display math report (formula-report.html).
 
     Lists every inline Formula (LaTeX + KaTeX) and every display Equation
@@ -364,7 +366,8 @@ def cmd_report(pdf: Path, force: bool = False) -> str:
         doc = Document.from_dict(json.load(f))
 
     proj = FormulaReportProjector(
-        OperatorConfig(op="projector", classname="FormulaReportProjector"))
+        OperatorConfig(op="projector", classname="FormulaReportProjector",
+                   params={"embed": embed}))
     result = proj.project(doc)
     inline = proj.counters.get("inline_rows", 0)
     eqs = proj.counters.get("equation_rows", 0)
@@ -701,6 +704,117 @@ def _format_algorithms(sc: Sidecar) -> str:
     )
 
 
+def cmd_latex(pdf: Path, tex: str | None = None, force: bool = False) -> str:
+    """Ingest the author's LaTeX source (.tex or arXiv .tgz) as a competing
+    `tex` provenance on each matched equation.
+
+    For each display equation found in the source, store the **original** author
+    LaTeX and a preamble-**expanded** form, then attach it to the MathPix
+    `Equation` whose normalized LaTeX is the closest match — as a
+    `provenance="tex"` `latex_candidate` realization (the gold reference vs OCR;
+    a new column in `compare`). Two forms are kept because TikZ/operator macros
+    only compile after preamble expansion (future latex->dvisvgm step). No
+    LaTeX tools or network needed. Auto-chains `model`.
+    """
+    from docmodel.core import Document, Realization
+    from . import latex_source as ls
+    from .scoring import normalize_latex, latex_similarity
+
+    sc = Sidecar(pdf)
+    model_path = _model_path(sc)
+    if not sc.has(MODEL_BUILT) or not model_path.exists():
+        cmd_model(pdf)
+        sc = Sidecar(pdf)
+        model_path = _model_path(sc)
+    if not model_path.exists():
+        return f"No model for {pdf.name} (run `pdfdrill model` first)."
+
+    # Locate the source: explicit --tex, else <stem>.tex / <stem>.tgz / .tar.gz.
+    src = Path(tex) if tex else None
+    if src is None:
+        for ext in (".tex", ".tgz", ".tar.gz"):
+            cand = pdf.parent / f"{pdf.stem}{ext}"
+            if cand.exists():
+                src = cand
+                break
+    if src is None or not src.exists():
+        return (f"No LaTeX source found for {pdf.name} "
+                f"(looked for {pdf.stem}.tex / .tgz / .tar.gz; pass --tex <path>).")
+
+    full, main = ls.read_source(str(src))
+    if not full:
+        return f"Could not read LaTeX source from {src.name}."
+    preamble, body = ls.split_preamble(full)
+    macros = ls.extract_macros(preamble)
+    src_eqs = ls.extract_display_equations(body)
+
+    with open(model_path, "r", encoding="utf-8") as f:
+        doc = Document.from_dict(json.load(f))
+
+    if force:
+        for o in doc.objects.values():
+            if o.type == "Equation":
+                o.realizations = [r for r in o.realizations
+                                  if not (r.role == "latex_candidate" and r.provenance == "tex")]
+        doc.meta.pop("latex_preamble", None)
+
+    # Persist the two preamble forms on the document for the later SVG step.
+    doc.meta["latex_preamble"] = {
+        "main": main,
+        "original": preamble.strip(),
+        "standalone": ls.standalone_preamble(preamble),
+        "num_macros": len(macros),
+    }
+
+    eqs = [o for o in doc.objects.values() if o.type == "Equation"]
+    # Precompute normalized OCR latex per equation.
+    eq_norm = [(o, normalize_latex(o.props.get("latex", ""))) for o in eqs]
+
+    attached = unmatched = 0
+    for se in src_eqs:
+        original = se["latex"]
+        expanded = ls.expand_macros(original, macros)
+        target = normalize_latex(expanded)
+        if not target:
+            continue
+        best, best_sim = None, 0.0
+        for o, onorm in eq_norm:
+            if any(r.role == "latex_candidate" and r.provenance == "tex"
+                   for r in o.realizations):
+                continue  # already has a tex reading
+            s = latex_similarity(expanded, o.props.get("latex", ""))
+            if s > best_sim:
+                best_sim, best = s, o
+        if best is not None and best_sim >= 0.55:
+            best.add_realization(Realization(
+                stream="tex", role="latex_candidate", provenance="tex",
+                score=round(best_sim, 3),
+                props={"latex": expanded, "latex_original": original,
+                       "env": se["env"], "label": se.get("label"),
+                       "numbered": se.get("numbered"), "match_sim": round(best_sim, 3)}))
+            attached += 1
+        else:
+            unmatched += 1
+
+    with open(model_path, "w", encoding="utf-8") as f:
+        json.dump(doc.to_dict(), f, indent=2, ensure_ascii=False)
+
+    sc.set_evidence("latex_source", src.name)
+    sc.set_evidence("latex_macros", len(macros))
+    sc.set_evidence("latex_src_equations", len(src_eqs))
+    sc.set_evidence("latex_attached", attached)
+    prev = ",".join(sorted(sc.facts - {LATEX_INGESTED})) or "INIT"
+    sc.add_fact(LATEX_INGESTED)
+    sc.log_transition("latex", prev, LATEX_INGESTED,
+                      detail=f"{attached}/{len(src_eqs)} eqs matched, {len(macros)} macros")
+    sc.save()
+    return (f"Ingested LaTeX source {src.name}: {len(src_eqs)} display equations, "
+            f"{len(macros)} preamble macros. Attached {attached} as `tex` "
+            f"provenance to MathPix equations ({unmatched} source eqs unmatched). "
+            f"Kept original+expanded LaTeX; preamble stored for the SVG step. "
+            f"Run `pdfdrill compare {pdf.name}` to see the tex column.")
+
+
 def _list_type(markers: list[str]) -> str:
     if not markers:
         return "list"
@@ -724,7 +838,7 @@ def _format_lists(sc: Sidecar) -> str:
 # TiddlyWiki export — JSON tiddler array for quick data-structure inspection
 # ---------------------------------------------------------------------------
 
-def cmd_tiddlers(pdf: Path, force: bool = False) -> str:
+def cmd_tiddlers(pdf: Path, force: bool = False, embed: bool = False) -> str:
     """Emit a TiddlyWiki JSON tiddler array from the unified model.
 
     Quick way to eyeball the structure: drop the array into TiddlyWiki and a
@@ -752,7 +866,8 @@ def cmd_tiddlers(pdf: Path, force: bool = False) -> str:
 
     t0 = time.monotonic()
     proj = TiddlyWikiProjector(
-        OperatorConfig(op="projector", classname="TiddlyWikiProjector"))
+        OperatorConfig(op="projector", classname="TiddlyWikiProjector",
+                   params={"embed": embed}))
     result = proj.project(doc)
     count = proj.counters.get("tiddlers_emitted", 0)
 

@@ -7,7 +7,33 @@ present, falling back to surface anchor position).
 """
 from __future__ import annotations
 
+import base64
+import urllib.request
+
 from docmodel.core import Document, DocObject
+
+
+# Cache so a repeated crop URL is fetched only once per run.
+_embed_cache: dict[str, str] = {}
+
+
+def embed_image(url: str, timeout: float = 30.0) -> str:
+    """Return a `data:` URI for an image URL (base64), or the URL unchanged on
+    failure. Used by projectors' `--embed` mode so the emitted HTML/tiddlers
+    are self-contained (no live CDN dependency)."""
+    if not url or url.startswith("data:"):
+        return url
+    if url in _embed_cache:
+        return _embed_cache[url]
+    try:
+        with urllib.request.urlopen(url, timeout=timeout) as r:
+            ctype = r.headers.get_content_type() or "image/jpeg"
+            b64 = base64.b64encode(r.read()).decode("ascii")
+        data = f"data:{ctype};base64,{b64}"
+    except Exception:
+        data = url  # graceful: keep the URL if the fetch fails
+    _embed_cache[url] = data
+    return data
 
 
 CONTENT_TYPES = {

@@ -19,7 +19,7 @@ import html
 
 from docmodel.core import Document
 from ..base import BaseProjector
-from .common import flow_ordered_content, equation_label
+from .common import flow_ordered_content, equation_label, embed_image
 
 
 _KATEX_VERSION = "0.16.11"
