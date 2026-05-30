@@ -98,8 +98,9 @@ LaTeX | KaTeX | image table, optionally with competing readings:
 | `pdfdrill snip <pdf> [--limit N]` | OCR each equation crop via MathPix Snip → `snip` column (LaTeX + confidence) |
 | `pdfdrill candidates <pdf> [--provider llm]` | Export a manifest of equation crops (`eq_id` + `cdn_url` + MathPix LaTeX) for an LLM to read |
 | `pdfdrill ingest <pdf> <json> [--provider llm]` | Attach the reader's `{eq_id, latex}` back as a competing column |
-| `pdfdrill compare <pdf>` | Emit `compare.html`: one row per equation, a LaTeX+KaTeX pair per provenance, plus the MathPix image |
-| `pdfdrill tiddlers <pdf>` | Emit a TiddlyWiki JSON tiddler array for quick inspection. Equation tiddlers carry `latex`, `displayMode`, `refnum`, `canonical_uri`, `width`/`height`, and competing readings as `latex_<provenance>` — drive a `<$list>`+`<$latex>`+`<$image>` table macro |
+| `pdfdrill compare <pdf>` | Emit `compare.html`: one row per equation, a LaTeX+KaTeX pair per provenance, plus the MathPix image. Each crop **links to its full page**. `--embed` base64-inlines crops; `--force` rebuilds. |
+| `pdfdrill report <pdf>` | Emit `formula-report.html`: **every** inline Formula + display Equation as LaTeX source \| KaTeX render (`data-latex`) \| MathPix CDN image. The grounded artifact for "show me equation N"; each crop **links to its full page**. `--embed` makes it self-contained (best for the Claude.ai preview, which may not load remote images); the page link stays live even when embedded. |
+| `pdfdrill tiddlers <pdf>` | Emit a TiddlyWiki JSON tiddler array for quick inspection. Equation tiddlers carry `latex`, `displayMode`, `refnum`, `canonical_uri`, `width`/`height`, and competing readings as `latex_<provenance>` — drive a `<$list>`+`<$latex>`+`<$image>` table macro. `--embed` inlines `canonical_uri` as a data: URI. |
 
 The LLM-as-reader loop: run `candidates`, look at each entry's `cdn_url`
 image and fill its `latex`, then `ingest`. No API key — the LLM supplies the
