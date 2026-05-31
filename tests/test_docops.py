@@ -194,6 +194,51 @@ def test_tiddlywiki_inlines_formulas_as_transclusions():
     assert len(matches) >= 2, f"expected 2 FO transclusions, got {matches}"
 
 
+def test_footnote_marker_not_extracted_as_formula():
+    """MathPix renders a footnote-reference superscript as inline math
+    \\({ }^{N}\\). FormulaProcessor must NOT turn it into a Formula (it's a
+    reference marker), but real math on the same/other lines must survive."""
+    from docmodel.modules.formula import FormulaProcessor
+    doc = _build_sample_doc(extra_lines=[
+        {"id": "fn1", "type": "text",
+         "text": r"a footnote here \({ }^{1}\) and another \(4{ }^{2}\)",
+         "text_display": r"a footnote here \({ }^{1}\) and another \(4{ }^{2}\)"},
+        {"id": "real", "type": "text",
+         "text": r"the area is \(6 \times 8 \mathrm{~m}^{2}\) total",
+         "text_display": r"the area is \(6 \times 8 \mathrm{~m}^{2}\) total"},
+    ])
+    _make_module(FormulaProcessor).process_document(doc)
+    formulas = [o.props.get("latex") for o in doc.objects.values() if o.type == "Formula"]
+    # the two footnote markers must NOT appear as formulas
+    assert not any("{ }^" in (f or "") for f in formulas), formulas
+    # the genuine m^2 area formula must be present
+    assert any("\\times" in (f or "") for f in formulas), formulas
+
+
+def test_footnote_marker_becomes_FN_transclusion_not_formula():
+    """End-to-end: a body footnote ref \\({ }^{1}\\) + a footnote line must
+    yield an ||FN transclusion in the paragraph, a Footnote tiddler, and NO
+    formula/FOX tiddler for the marker."""
+    from docmodel.modules.page import ingest_lines_json, PageProcessor
+    from docmodel.modules.footnote import FootnoteProcessor
+    from docmodel.modules.formula import FormulaProcessor
+    from docmodel.modules.paragraph import ParagraphProcessor
+    lines = {"pages": [{"page": 1, "image_id": "i", "lines": [
+        {"id": "p1", "type": "text", "text": r"See the note \({ }^{1}\) here."},
+        {"id": "fn", "type": "footnote", "text": r"\({ }^{1}\) The footnote body."},
+    ]}]}
+    doc = Document(); doc.meta["bibkey"] = "T"
+    ingest_lines_json(doc, lines)
+    for cls in (PageProcessor, FootnoteProcessor, FormulaProcessor, ParagraphProcessor):
+        _make_module(cls).process_document(doc)
+    arr = json.loads(_make_op(TiddlyWikiProjector).project(doc))
+    assert sum(1 for t in arr if "formula" in t.get("tags", "")) == 0
+    assert sum(1 for t in arr if "footnote" in t.get("tags", "")) == 1
+    para = next(t for t in arr if "paragraph" in t.get("tags", ""))
+    assert "||FN}}" in para["text"]
+    assert "{ }^{1}" not in para["text"] and "FOX" not in para["text"]
+
+
 def test_tiddlywiki_emits_formula_tiddlers():
     """For every Formula DocObject we expect a corresponding tiddler with
     the same title that the paragraph transclusion targets."""

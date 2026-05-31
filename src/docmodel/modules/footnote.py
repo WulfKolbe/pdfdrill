@@ -51,10 +51,14 @@ class FootnoteProcessor(BaseModule):
 
     @staticmethod
     def _collect_footnote_text(line_payload: dict, by_id: dict) -> tuple[str, Optional[str]]:
-        """Concatenate child text and detect the first ${ }^{N}$ anchor for refnum."""
+        """Concatenate child text and detect the first ${ }^{N}$ anchor for refnum.
+
+        Falls back to the line's own text when it has no children (MathPix puts
+        the footnote anchor on the line itself for single-line footnotes)."""
         text = ""
         refnum: Optional[str] = None
-        for cid in line_payload.get("children_ids", []) or []:
+        children = line_payload.get("children_ids", []) or []
+        for cid in children:
             child = by_id.get(cid)
             if not child:
                 continue
@@ -64,6 +68,12 @@ class FootnoteProcessor(BaseModule):
                 if m:
                     refnum = m.group(1)
             text += child_text
+        if not text:
+            text = line_payload.get("text_display") or line_payload.get("text") or ""
+        if refnum is None:
+            m = _ANCHOR_PATTERN.search(text)
+            if m:
+                refnum = m.group(1)
         return text, refnum
 
     @staticmethod

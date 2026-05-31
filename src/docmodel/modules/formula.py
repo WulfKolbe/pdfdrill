@@ -28,6 +28,19 @@ _MATH_RE = re.compile(
 )
 
 
+# A footnote/endnote reference superscript as MathPix renders it: an empty
+# base `{ }` carrying just a number, e.g. `{ }^{1}` (sometimes with an adjacent
+# digit from the surrounding text, like `4{ }^{1}` or `{ }^{1} 4`). This is NOT
+# real math — it's a reference marker, handled by the footnote layer and
+# substituted in body text — so FormulaProcessor must not turn it into a
+# Formula object.
+_FOOTNOTE_MARKER = re.compile(r"^\d*\s*\{\s*\}\s*\^\s*\{?\s*\d+\s*\}?\s*\d*$")
+
+
+def _is_footnote_marker(body: str) -> bool:
+    return bool(_FOOTNOTE_MARKER.match(body.strip()))
+
+
 def _strip_delims(s: str) -> tuple[str, bool]:
     """Return (latex_body, is_display)."""
     if s.startswith("\\[") and s.endswith("\\]"):
@@ -67,6 +80,10 @@ class FormulaProcessor(BaseModule):
                 body, is_display = _strip_delims(m.group(0))
                 body = re.sub(r"\s+", " ", body).strip()
                 if not body:
+                    continue
+                # A bare footnote-reference superscript ({ }^{N}) is a marker,
+                # not a formula — leave it for the footnote layer to handle.
+                if _is_footnote_marker(body):
                     continue
                 items.append({
                     "anchor": anchor,

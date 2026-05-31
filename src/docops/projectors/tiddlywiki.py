@@ -653,9 +653,16 @@ class TiddlyWikiProjector(BaseProjector):
         """
         import hashlib
 
+        from docmodel.modules.formula import _is_footnote_marker
+
         def make_repl(latex_body: str, display: bool, fallback: str) -> str:
             latex = re.sub(r"\s+", " ", latex_body).strip()
             if not latex:
+                return fallback
+            # A footnote-reference superscript ({ }^{N}) is NOT a formula —
+            # don't synthesize a FOX tiddler for it. Leave the literal match so
+            # the footnote substitution / FREF handling owns it.
+            if _is_footnote_marker(latex):
                 return fallback
             h = hashlib.sha1(latex.encode("utf-8")).hexdigest()[:10]
             title = f"{bibkey}_FOX_{h}"
