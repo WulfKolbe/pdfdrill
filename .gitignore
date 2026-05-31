@@ -39,3 +39,5 @@ mtestzx.ts
 *.egg-info/
 build/
 dist/
+/data/*.chars.json
+/data/*.docmodel.json
