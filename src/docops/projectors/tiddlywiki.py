@@ -609,15 +609,16 @@ class TiddlyWikiProjector(BaseProjector):
 
     @staticmethod
     def _substitute_footnotes(text: str, fn_by_refnum: dict[str, str]) -> str:
-        if not fn_by_refnum:
-            return text
-
         def repl(m):
             n = m.group(1) or m.group(2)
-            title = fn_by_refnum.get(n)
-            if not title:
-                return m.group(0)
-            return "{{" + title + "||FN}}"
+            title = (fn_by_refnum or {}).get(n)
+            if title:
+                return "{{" + title + "||FN}}"
+            # No Footnote object for this number (common: the body refers to a
+            # footnote MathPix didn't capture as a `footnote` line). Still don't
+            # leak the empty-base LaTeX `\({ }^{N}\)` — render a plain
+            # superscript reference so it reads as the footnote marker it is.
+            return f"<sup>{n}</sup>"
         return _FN_REF_RE.sub(repl, text)
 
     @staticmethod

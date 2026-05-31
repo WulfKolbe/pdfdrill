@@ -239,6 +239,32 @@ def test_footnote_marker_becomes_FN_transclusion_not_formula():
     assert "{ }^{1}" not in para["text"] and "FOX" not in para["text"]
 
 
+def test_unmatched_footnote_ref_becomes_superscript_not_raw_latex():
+    """A body footnote ref \\({ }^{31}\\) whose footnote MathPix didn't capture
+    must NOT leak as raw \\({ }^{N}\\); it renders as <sup>31</sup>. A matched
+    ref still becomes ||FN, and real-math { }^{-1} inside a formula survives."""
+    from docmodel.modules.page import ingest_lines_json, PageProcessor
+    from docmodel.modules.footnote import FootnoteProcessor
+    from docmodel.modules.formula import FormulaProcessor
+    from docmodel.modules.paragraph import ParagraphProcessor
+    lines = {"pages": [{"page": 1, "image_id": "i", "lines": [
+        {"id": "p1", "type": "text",
+         "text": r"Smolin \({ }^{31}\) and the tensor \(x_{0}{ }^{-1} g_{ik}\) here."},
+    ]}]}
+    doc = Document(); doc.meta["bibkey"] = "T"
+    ingest_lines_json(doc, lines)
+    for cls in (PageProcessor, FootnoteProcessor, FormulaProcessor, ParagraphProcessor):
+        _make_module(cls).process_document(doc)
+    arr = json.loads(_make_op(TiddlyWikiProjector).project(doc))
+    para = next(t for t in arr if "paragraph" in t.get("tags", ""))
+    assert "<sup>31</sup>" in para["text"]            # unmatched ref -> superscript
+    assert "\\({ }^{31}\\)" not in para["text"]       # no leaked empty-base LaTeX
+    # the real tensor formula x_0{ }^{-1} g_ik is a Formula, transcluded as ||FO
+    assert "||FO}}" in para["text"]
+    forms = [o.props.get("latex", "") for o in doc.objects.values() if o.type == "Formula"]
+    assert any("{ }^{-1}" in f for f in forms)        # real math kept
+
+
 def test_tiddlywiki_emits_formula_tiddlers():
     """For every Formula DocObject we expect a corresponding tiddler with
     the same title that the paragraph transclusion targets."""
