@@ -58,6 +58,7 @@ BIBFETCH_DONE = "BIBFETCH_DONE"
 REPORT_BUILT = "REPORT_BUILT"
 LATEX_INGESTED = "LATEX_INGESTED"
 NLP_ENHANCED = "NLP_ENHANCED"
+OCR_BUILT = "OCR_BUILT"
 
 # Hosts that almost always mean "here is the code / data for this paper".
 _CODE_HOSTS = (
@@ -138,6 +139,59 @@ def _model_path(sc: Sidecar) -> Path:
     return sc.blob_dir / "model.docmodel.json"
 
 
+def cmd_ocr(pdf: Path, lang: str = "eng", ppi: int = 300, force: bool = False) -> str:
+    """Build a MathPix-compatible `<pdf>.lines.json` via tesseract OCR.
+
+    The MathPix-free OCR input path: render each page, OCR with tesseract, group
+    word boxes into text lines, and write a `lines.json` of the shape
+    `pdfdrill model` ingests — so the whole toolkit runs without a MathPix key.
+    Plain text only (no LaTeX / no equation typing / no CDN crops): the math
+    comparison columns stay empty on this path. Use `--lang eng+equ` for math
+    glyphs or `eng+deu` for German.
+    """
+    from . import ocr_lines
+
+    sc = Sidecar(pdf)
+    lines_path = _lines_json_path(pdf)
+    if lines_path.exists() and not force:
+        try:
+            existing = json.loads(lines_path.read_text(encoding="utf-8"))
+        except (json.JSONDecodeError, OSError):
+            existing = {}
+        src = existing.get("source")
+        if src != "tesseract":
+            return (f"{lines_path.name} already exists (looks like a MathPix "
+                    f"lines.json). Refusing to overwrite — pass --force to "
+                    f"replace it with tesseract OCR.")
+
+    ok, msg = ocr_lines.tools_available()
+    if not ok:
+        return msg
+
+    t0 = time.monotonic()
+    out_dir = sc.blob_dir / "ocr"
+    sc.blob_dir.mkdir(parents=True, exist_ok=True)
+    lj = ocr_lines.build_lines_json(pdf, out_dir, ppi=ppi, lang=lang)
+    lines_path.write_text(json.dumps(lj, ensure_ascii=False), encoding="utf-8")
+
+    n_pages = len(lj["pages"])
+    n_lines = sum(len(p["lines"]) for p in lj["pages"])
+    sc.set_evidence("ocr_lang", lang)
+    sc.set_evidence("ocr_pages", n_pages)
+    sc.set_evidence("ocr_lines", n_lines)
+    prev = ",".join(sorted(sc.facts - {OCR_BUILT})) or "INIT"
+    sc.add_fact(OCR_BUILT)
+    sc.log_transition("ocr", prev, OCR_BUILT, cost_ms=(time.monotonic() - t0) * 1000,
+                      detail=f"{n_pages} pages, {n_lines} lines, lang={lang}")
+    sc.save()
+    return (
+        f"Tesseract OCR ({lang}): {n_lines} text line(s) across {n_pages} page(s) "
+        f"→ {lines_path.name} (MathPix-compatible). Build the structure with "
+        f"`pdfdrill model {pdf.name}`. Note: plain text only — no LaTeX/equation "
+        f"typing/CDN crops (math comparison is MathPix-only)."
+    )
+
+
 def cmd_model(pdf: Path, force: bool = False) -> str:
     """Build the unified docmodel Document from MathPix lines.json.
 
@@ -154,10 +208,24 @@ def cmd_model(pdf: Path, force: bool = False) -> str:
 
     lines_path = _lines_json_path(pdf)
     if not lines_path.exists():
-        cmd_mathpix(pdf)  # acquire OCR first
+        # Prefer MathPix (gives LaTeX + CDN crops). If it's unavailable — no
+        # creds, no network — fall back to the tesseract OCR path so the
+        # toolkit still runs end-to-end (plain text, no math fidelity).
+        try:
+            cmd_mathpix(pdf)
+        except Exception as mathpix_err:
+            from .ocr_lines import tools_available
+            ok, _ = tools_available()
+            if not ok:
+                return (f"No lines.json for {pdf.name}. MathPix unavailable "
+                        f"({mathpix_err}); tesseract OCR also unavailable. "
+                        f"Set MathPix creds, or install poppler-utils + "
+                        f"tesseract-ocr and run `pdfdrill ocr {pdf.name}`.")
+            cmd_ocr(pdf)
         sc = Sidecar(pdf)
     if not lines_path.exists():
-        return f"No MathPix lines.json for {pdf.name} (run `pdfdrill mathpix` first)."
+        return (f"No lines.json for {pdf.name} "
+                f"(run `pdfdrill mathpix` or `pdfdrill ocr` first).")
 
     sc.blob_dir.mkdir(parents=True, exist_ok=True)
     t0 = time.monotonic()

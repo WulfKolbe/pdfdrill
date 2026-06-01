@@ -79,7 +79,7 @@ author-year cites, 2 algorithms; the 2605 copy lacking a lines.json skipped).
 
 The pdfdrill commands (`size`, `pdfinfo`, `urls`, `dests`, `fonts`,
 `fonts_layer`, `images`, `pix2tex`, `abstract`, `toc`, `md`, `page`, `fetch`,
-`plan`, `drill`, `status`, `tsv`, `render`, `nlp`) are documented in
+`plan`, `drill`, `status`, `tsv`, `render`, `nlp`, `ocr`) are documented in
 `.claude/skills/pdfdrill/SKILL.md`. Each returns prose, not JSON.
 
 ### Killer case worth remembering
@@ -463,14 +463,43 @@ display-math extractor no longer mis-splits `\\[4pt]` row-spacing in
 align/cases. `latex/pdflatex/dvisvgm/dvips` present here (`pdf2svg` missing).
 Tests: `tests/test_svg.py`, `tests/test_latexbook.py`.
 
+MathPix-free OCR input path (so the repo runs keyless, all functions
+testable):
+
+- **`pdfdrill ocr <pdf> [--lang eng] [--ppi 300]`** (`commands.cmd_ocr` +
+  `src/pdfdrill/ocr_lines.py`) renders each page (`pdftoppm`), OCRs it with
+  **tesseract** (`--psm 1 tsv`), groups the word boxes into text lines, and
+  writes a **MathPix-compatible `<pdf>.lines.json`** (`source:"tesseract"`,
+  one `type:"text"` line per visual line, MathPix-style pixel `region`). It
+  reuses the TSV parser + `group_lines` already in `geometry.py` (one code
+  path). `pdfdrill model` then ingests it unchanged.
+- TSV chosen over makebox: TSV carries the block/par/line hierarchy +
+  per-word confidence + boxes needed to rebuild lines; makebox is per-glyph.
+- **`pdfdrill model`** now prefers MathPix but **falls back to `ocr`** when
+  MathPix is unavailable (no creds/network) and tesseract is present — so the
+  pipeline runs end-to-end without a key.
+- Limits (documented, not hidden): tesseract is **plain text only** — no
+  LaTeX, no equation/figure typing, no CDN crops, so the math-comparison
+  columns are empty on this path (math fidelity stays MathPix-only). Use
+  `--lang eng+equ` for math glyphs (the `equ` model) or `eng+deu` for German.
+  `cmd_ocr` refuses to overwrite a MathPix `lines.json` without `--force`.
+  Verified live: page 1 of arXiv 2312.11532 → 69 OCR lines → `model` built (1
+  Paragraph), title recovered. Tests: `tests/test_ocr.py` (pure assembler +
+  feeds-the-docmodel + clobber/unavailable guards).
+
 NLP layer (Stanza — optional `[nlp]` extra, first-class command):
 
 - **`pdfdrill nlp <pdf> [--limit N] [--pages N] [--types T,T]`**
   (`commands.cmd_nlp`) loads/auto-builds the model and runs the
   `StanzaNlpMutator` (`src/docops/mutators/stanza_nlp.py` + portable engine
   `src/docops/nlp_stanza.py`) over each prose object (Paragraph/Abstract/
-  Section/ListItem/Footnote): projects the text to clean prose (LaTeX/
-  TiddlyWiki markup stripped, inline math → `⟨math⟩`, `[n]` cites dropped),
+  Section/ListItem/Footnote): projects the text to clean prose (LaTeX markup
+  stripped, inline math → `⟨math⟩`, `[n]` cites dropped, and **TiddlyWiki
+  transclusions rewritten to natural-language phrases** — `{{Bibkey_FO0139||FO}}`
+  → "formula 139", `||FREF` → "referenced formula number N", `||PIC/DIA` →
+  "picture/diagram N", `||CIT` → "a citation" — so Stanza's tokenizer/parser
+  sees real noun phrases instead of opaque IDs; the rewrite is stable per
+  template (`docops.nlp_stanza._rewrite_transclusion`)),
   splits into sentences, and attaches per-sentence tokens (POS/lemma/xpos/
   feats/head/deprel) + named entities under `props["nlp"]`. The raw source
   field is untouched; result is persisted back to `model.docmodel.json`.

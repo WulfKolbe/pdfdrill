@@ -93,7 +93,8 @@ LaTeX | KaTeX | image table, optionally with competing readings:
 
 | Command | Returns |
 |---|---|
-| `pdfdrill model <pdf>` | Build the unified docmodel from `lines.json` (auto-chains `mathpix`) |
+| `pdfdrill ocr <pdf> [--lang eng] [--ppi 300]` | **MathPix-free OCR input.** Render pages → tesseract → a MathPix-compatible `<pdf>.lines.json` (so the whole toolkit runs without a key). Reuses the TSV word-geometry + line-grouping already in `geometry.py`. **Plain text only** — no LaTeX, no equation/figure typing, no CDN crops (math fidelity stays MathPix-only). `--lang eng+equ` for math glyphs, `eng+deu` for German. Refuses to overwrite a MathPix `lines.json` without `--force`. |
+| `pdfdrill model <pdf>` | Build the unified docmodel from `lines.json` (auto-chains `mathpix`; **falls back to `ocr` (tesseract)** when MathPix is unavailable, so it runs keyless) |
 | `pdfdrill snip <pdf> [--limit N]` | OCR each equation crop via MathPix Snip → `snip` column (LaTeX + confidence) |
 | `pdfdrill candidates <pdf> [--provider llm]` | Export a manifest of equation crops (`eq_id` + `cdn_url` + MathPix LaTeX) for an LLM to read |
 | `pdfdrill ingest <pdf> <json> [--provider llm]` | Attach the reader's `{eq_id, latex}` back as a competing column |

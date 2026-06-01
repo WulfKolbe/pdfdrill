@@ -44,6 +44,29 @@ def test_clean_empty():
     assert clean_text("   ") == ""
 
 
+def test_clean_rewrites_transclusions_to_natural_language():
+    # Formula transclusion mid-sentence -> a real noun phrase, no braces/IDs.
+    out = clean_text("As shown in {{Heim_FO0139||FO}} the energy is conserved.")
+    assert "formula 139" in out
+    assert "{{" not in out and "FO0139" not in out and "||" not in out
+
+    # Formula reference (||FREF) on an EQ title, page suffix stripped.
+    out = clean_text("see {{Heim_EQ0264_p003||FREF}} above")
+    assert "referenced formula number 264" in out
+
+    # Picture / Diagram / Citation templates.
+    assert "picture 1" in clean_text("{{Heim_PIC_0001||PIC}}")
+    assert "diagram 3" in clean_text("{{Heim_DIA_0003||DIA}}")
+    assert "a citation" in clean_text("text {{Heim_Asai2023||CIT}} more")
+    assert "a citation" in clean_text("bare {{||CIT}} cite")
+
+
+def test_clean_drops_template_less_transclusion():
+    out = clean_text("a {{X}} b")
+    assert "{{" not in out and "X" not in out
+    assert out == "a b"
+
+
 # ---------- pure: object_text ----------
 
 def _obj(type_, **props):

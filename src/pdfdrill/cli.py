@@ -53,6 +53,7 @@ def main():
         "tsv": _do_tsv,
         "render": _do_render,
         "mathpix": _do_mathpix,
+        "ocr": _do_ocr,
         "model": _do_model,
         "compare": _do_compare,
         "snip": _do_snip,
@@ -200,6 +201,26 @@ def _do_mathpix(args):
         else:
             pdf_args.append(a)
     return cmd_mathpix(_pdf(pdf_args), force=force)
+
+
+def _do_ocr(args):
+    """pdfdrill ocr <pdf> [--lang eng] [--ppi 300] [--force]"""
+    from .commands import cmd_ocr
+    pdf_args: list[str] = []
+    lang = "eng"
+    ppi = 300
+    force = False
+    i = 0
+    while i < len(args):
+        if args[i] == "--lang" and i + 1 < len(args):
+            lang = args[i + 1]; i += 2
+        elif args[i] == "--ppi" and i + 1 < len(args):
+            ppi = int(args[i + 1]); i += 2
+        elif args[i] == "--force":
+            force = True; i += 1
+        else:
+            pdf_args.append(args[i]); i += 1
+    return cmd_ocr(_pdf(pdf_args), lang=lang, ppi=ppi, force=force)
 
 
 def _do_model(args):
@@ -666,7 +687,8 @@ Introspection (fast, no extraction):
   pdfdrill tsv <pdf>           Word-level bounding boxes (pdftotext -tsv; --ocr forces tesseract)
   pdfdrill render <pdf>        Render the built markdown to PDF (pandoc + lualatex)
   pdfdrill mathpix <pdf>       Download MathPix OCR (lines.json, md, tex.zip); --force re-uploads
-  pdfdrill model <pdf>         Build unified docmodel from lines.json (auto-chains mathpix)
+  pdfdrill ocr <pdf>           MathPix-free OCR: tesseract → MathPix-compatible lines.json (--lang eng+equ, --ppi N). Plain text only (no LaTeX/CDN)
+  pdfdrill model <pdf>         Build unified docmodel from lines.json (auto-chains mathpix, falls back to tesseract ocr if no MathPix)
   pdfdrill compare <pdf>       LaTeX | KaTeX | MathPix-image comparison HTML (auto-chains model)
   pdfdrill report <pdf>        Full inline+display math report (formula-report.html)
   pdfdrill latex <pdf>         Ingest author .tex/.tgz as a `tex` provenance (original+expanded LaTeX); --tex <path>
