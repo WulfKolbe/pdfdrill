@@ -372,8 +372,9 @@ class TiddlyWikiProjector(BaseProjector):
             )
             t["canonical_uri"] = self._uri(pic.props.get("url") or "")
             t["page"] = self._p3(pic.props.get("page"))
-            if pic.props.get("caption"):
-                t["caption"] = pic.props["caption"]
+            for k in ("caption", "kind", "refnum"):
+                if pic.props.get(k):
+                    t[k] = pic.props[k]
             self._copy_region(t, pic.props)
             out.append(t)
 
@@ -388,6 +389,9 @@ class TiddlyWikiProjector(BaseProjector):
             t["latex_code"] = d.props.get("latex_code") or ""
             if d.props.get("cdn_url"):
                 t["canonical_uri"] = self._uri(d.props["cdn_url"])
+            for k in ("caption", "kind", "refnum"):
+                if d.props.get(k):
+                    t[k] = d.props[k]
             self._copy_region(t, d.props)
             out.append(t)
 

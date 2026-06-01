@@ -152,7 +152,9 @@ class FormulaReportProjector(BaseProjector):
                          "<th>LaTeX source</th><th>SVG render</th></tr></thead><tbody>")
             for i, g in enumerate(graphics, 1):
                 code = g.props.get("latex_code") or ""
-                cap = html.escape(g.props.get("caption") or "")
+                label = " ".join(x for x in (g.props.get("kind"), g.props.get("refnum")) if x)
+                cap_body = g.props.get("caption") or ""
+                cap = html.escape((f"{label}: " if label else "") + cap_body) if (label or cap_body) else ""
                 svg = g.props.get("svg")
                 if svg:
                     cell = f'<div class="svg">{svg}</div>'
