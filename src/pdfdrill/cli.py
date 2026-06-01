@@ -60,6 +60,7 @@ def main():
         "candidates": _do_candidates,
         "ingest": _do_ingest,
         "vision": _do_vision,
+        "embedimages": _do_embedimages,
         "geometry": _do_geometry,
         "tiddlers": _do_tiddlers,
         "lists": _do_lists,
@@ -202,6 +203,13 @@ def _do_mathpix(args):
         else:
             pdf_args.append(a)
     return cmd_mathpix(_pdf(pdf_args), force=force)
+
+
+def _do_embedimages(args):
+    """pdfdrill embedimages <pdf> [--force]"""
+    from .commands import cmd_embedimages
+    pdf_args = [a for a in args if a != "--force"]
+    return cmd_embedimages(_pdf(pdf_args), force="--force" in args)
 
 
 def _do_vision(args):
@@ -718,6 +726,7 @@ Introspection (fast, no extraction):
   pdfdrill candidates <pdf>    Export equation crops as a manifest for an LLM to read; --provider P --limit N
   pdfdrill ingest <pdf> <json> Attach externally-produced {eq_id,latex} candidates as a provenance column; --provider P
   pdfdrill vision <pdf>        GPT-4o vision reads every MathPix CDN crop (incl. table-cell images) → math/TikZ/gnuplot/table as the `openai` provenance; --limit N (needs OPENAI_API_KEY)
+  pdfdrill embedimages <pdf>   Lift pdfimages + pdfplumber image rects into the model as EmbeddedImage nodes (pixel size/encoding/ppi + page rect), fused onto MathPix crops they contain
   pdfdrill geometry <pdf>      Fuse pdftotext -tsv layout (indent/margins) onto the model — substrate for block detection
   pdfdrill tiddlers <pdf>      Emit a TiddlyWiki JSON tiddler array (latex/displayMode/canonical_uri/width/height) for quick inspection
   pdfdrill lists <pdf>         Nest flat ListItems into recursive List blocks using fused indentation (auto-chains geometry)

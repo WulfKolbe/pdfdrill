@@ -79,7 +79,8 @@ author-year cites, 2 algorithms; the 2605 copy lacking a lines.json skipped).
 
 The pdfdrill commands (`size`, `pdfinfo`, `urls`, `dests`, `fonts`,
 `fonts_layer`, `images`, `pix2tex`, `abstract`, `toc`, `md`, `page`, `fetch`,
-`plan`, `drill`, `status`, `tsv`, `render`, `nlp`, `ocr`, `vision`) are documented in
+`plan`, `drill`, `status`, `tsv`, `render`, `nlp`, `ocr`, `vision`,
+`embedimages`) are documented in
 `.claude/skills/pdfdrill/SKILL.md`. Each returns prose, not JSON.
 
 ### Killer case worth remembering
@@ -462,6 +463,31 @@ KaTeX-rendered inside its equation — not a standalone table). The `\[…\]`
 display-math extractor no longer mis-splits `\\[4pt]` row-spacing in
 align/cases. `latex/pdflatex/dvisvgm/dvips` present here (`pdf2svg` missing).
 Tests: `tests/test_svg.py`, `tests/test_latexbook.py`.
+
+Embedded-image fusion — all image routes on one node
+(`src/pdfdrill/image_model.py`, `pdfdrill embedimages`):
+
+- **`pdfdrill embedimages <pdf>`** lifts every embedded raster image from
+  `pdfimages -list` (true pixel size / encoding / colour / bpc / ppi / file
+  size / object_id) + `pdfplumber` page rects into the model as `EmbeddedImage`
+  DocObjects (a `Region` in `space="pdf_points"`), then **fuses** each MathPix
+  `Picture`/`Diagram` crop onto the embedded image that *contains* it. Fusion
+  normalizes both coordinate systems to page fractions [0,1] (pdfplumber rect ÷
+  page-points; MathPix region ÷ MathPix page-pixels) and links by containment →
+  `Alignment(kind="image_region")` + an `embedded_image_id` cross-link on the
+  crop. Coordinate values are coerced (regions parsed from CDN URLs are
+  strings).
+- The point (the user's "ONE structure"): every route to an image — MathPix
+  CDN crop, GPT-4o vision read (`openai` provenance), `pdfimages` XObject
+  metadata, `pdfplumber` rect — now hangs off the same graph, so the state
+  machine can take whichever route succeeds. Runs in the offline `folder`
+  batch (no key). On a scanned PDF each page is one full-page image and all its
+  crops link to it; on a born-digital PDF the per-figure XObjects link to their
+  matching crops.
+- Verified on `~/WKprivate/Scanned/ocrtest.pdf`: 45 EmbeddedImage nodes, 29
+  MathPix crops fused (image_region edges + cross-links). Tests:
+  `tests/test_embedimages.py` (containment fusion, crop-outside-not-fused,
+  string coords, idempotent re-run).
 
 OpenAI GPT-4o vision provenance (`src/pdfdrill/openai_vision.py`,
 `pdfdrill vision`):

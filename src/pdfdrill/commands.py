@@ -60,6 +60,7 @@ LATEX_INGESTED = "LATEX_INGESTED"
 NLP_ENHANCED = "NLP_ENHANCED"
 OCR_BUILT = "OCR_BUILT"
 VISION_DONE = "VISION_DONE"
+EMBEDDED_IMAGES_BUILT = "EMBEDDED_IMAGES_BUILT"
 
 # Hosts that almost always mean "here is the code / data for this paper".
 _CODE_HOSTS = (
@@ -367,8 +368,8 @@ def cmd_folder(folder: Path, force: bool = False) -> str:
     levels = [
         ("model", cmd_model), ("geometry", cmd_geometry), ("eqnums", cmd_eqnums),
         ("lists", cmd_lists), ("algorithms", cmd_algorithms),
-        ("annotate", cmd_annotate), ("bibliography", cmd_bibliography),
-        ("score", cmd_score),
+        ("annotate", cmd_annotate), ("embedimages", cmd_embedimages),
+        ("bibliography", cmd_bibliography), ("score", cmd_score),
     ]
 
     lines_out, processed, skipped = [], 0, 0
@@ -2021,6 +2022,59 @@ def cmd_vision(pdf: Path, limit: int | None = None, force: bool = False) -> str:
         f"Run `pdfdrill compare {pdf.name}` to see the column."
         + (f" {remaining} crop(s) not yet read — raise --limit to continue."
            if (limit is not None and len(todo) >= limit and remaining > 0) else "")
+    )
+
+
+def cmd_embedimages(pdf: Path, force: bool = False) -> str:
+    """Wire embedded raster images (pdfplumber rects + `pdfimages -list`) into
+    the model as `EmbeddedImage` nodes, fused onto MathPix Picture/Diagram crops.
+
+    Each embedded image becomes a DocObject with a `Region` (PDF points) + its
+    pdfimages metadata (true pixel size, encoding, colour, ppi, file size); a
+    MathPix crop contained within an image is linked by
+    `Alignment(kind="image_region")` so every route to an image lives on one
+    graph. Auto-chains `model`.
+    """
+    from docmodel.core import Document
+    from . import image_model
+    from .font_image_layers import fetch_image_layer
+
+    sc = Sidecar(pdf)
+    model_path = _model_path(sc)
+    if not sc.has(MODEL_BUILT) or not model_path.exists():
+        cmd_model(pdf)
+        sc = Sidecar(pdf)
+        model_path = _model_path(sc)
+    if not model_path.exists():
+        return f"No model for {pdf.name} (run `pdfdrill model` first)."
+
+    t0 = time.monotonic()
+    image_layer = fetch_image_layer(pdf)
+    page_dims = image_model.fetch_page_dims_pts(pdf)
+
+    with open(model_path, "r", encoding="utf-8") as f:
+        doc = Document.from_dict(json.load(f))
+    stats = image_model.attach_embedded_images(
+        doc, image_layer, page_dims, bibkey=pdf.stem)
+    with open(model_path, "w", encoding="utf-8") as f:
+        json.dump(doc.to_dict(), f, indent=2, ensure_ascii=False)
+
+    sc.set_evidence("embedded_images", stats["created"])
+    sc.set_evidence("embedded_images_fused", stats["fused"])
+    prev = ",".join(sorted(sc.facts - {EMBEDDED_IMAGES_BUILT})) or "INIT"
+    sc.add_fact(EMBEDDED_IMAGES_BUILT)
+    sc.log_transition("embedimages", prev, EMBEDDED_IMAGES_BUILT,
+                      cost_ms=(time.monotonic() - t0) * 1000,
+                      detail=f"{stats['created']} images, {stats['fused']} fused")
+    sc.save()
+    return (
+        f"Embedded images: {stats['created']} pdfimages/pdfplumber image(s) "
+        f"lifted into the model as EmbeddedImage nodes (Region in PDF points + "
+        f"pixel size/encoding/colour/ppi). {stats['fused']} MathPix crop(s) "
+        f"linked to the image containing them (Alignment 'image_region'); "
+        f"{stats['with_coords']} image(s) had positions to fuse. Every route to "
+        f"an image (CDN crop, vision read, XObject metadata, page rect) now "
+        f"hangs off one graph."
     )
 
 
