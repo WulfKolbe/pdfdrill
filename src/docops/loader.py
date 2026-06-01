@@ -18,6 +18,7 @@ DEFAULT_REGISTRY: dict[str, str] = {
     # Mutators
     "Dehyphenate":          "docops.mutators.dehyphenate",
     "PromoteCleanedText":   "docops.mutators.promote_cleaned",
+    "StanzaNlpMutator":     "docops.mutators.stanza_nlp",
 
     # Projectors
     "PlainTextProjector":   "docops.projectors.plaintext",

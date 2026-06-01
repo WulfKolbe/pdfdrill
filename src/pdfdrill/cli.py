@@ -64,6 +64,7 @@ def main():
         "algorithms": _do_algorithms,
         "annotate": _do_annotate,
         "score": _do_score,
+        "nlp": _do_nlp,
         "escalate": _do_escalate,
         "relearn": _do_relearn,
         "eqnums": _do_eqnums,
@@ -230,6 +231,28 @@ def _do_snip(args):
         else:
             pdf_args.append(args[i]); i += 1
     return cmd_snip(_pdf(pdf_args), limit=limit, force=force)
+
+
+def _do_nlp(args):
+    """pdfdrill nlp <pdf> [--limit N] [--pages N] [--types T,T] [--force]"""
+    from .commands import cmd_nlp
+    pdf_args: list[str] = []
+    limit = pages = None
+    types = None
+    force = False
+    i = 0
+    while i < len(args):
+        if args[i] == "--limit" and i + 1 < len(args):
+            limit = int(args[i + 1]); i += 2
+        elif args[i] == "--pages" and i + 1 < len(args):
+            pages = int(args[i + 1]); i += 2
+        elif args[i] == "--types" and i + 1 < len(args):
+            types = [t.strip() for t in args[i + 1].split(",") if t.strip()]; i += 2
+        elif args[i] == "--force":
+            force = True; i += 1
+        else:
+            pdf_args.append(args[i]); i += 1
+    return cmd_nlp(_pdf(pdf_args), limit=limit, pages=pages, types=types, force=force)
 
 
 def _do_geometry(args):
@@ -660,6 +683,7 @@ Introspection (fast, no extraction):
   pdfdrill algorithms <pdf>    Reconstruct Algorithm blocks from MathPix pseudocode lines (caption + indented steps)
   pdfdrill annotate <pdf>      Promote hyperlink annotations into the model as first-class Link nodes (uri + rect Region)
   pdfdrill score <pdf>         Score equations by cross-provenance agreement + snip confidence; flags review candidates
+  pdfdrill nlp <pdf>           Stanza NLP over prose (POS/lemma/dependency + NER → props['nlp']); --limit N --pages N --types T,T  (optional [nlp] extra)
   pdfdrill escalate <pdf>      Phase-3: export flagged equations for a second LLM reading; --limit N
   pdfdrill relearn <pdf>       Phase-3: re-score after ingest; report resolved vs still-flagged
   pdfdrill eqnums <pdf>        Fuse equation numbers ("(N)") from margin geometry for ||FO/||FREF transclusion

@@ -7,3 +7,9 @@
 
 pdfplumber>=0.11      # anchor-text URL layer, char geometry, image rects
 pydantic>=2.0         # DocumentContext state-machine carrier (md / drill / page engine path)
+
+# Optional NLP enhancement (docops StanzaNlpMutator). Heavy + needs a one-time
+# model download, so it lives in the [nlp] extra rather than the core path:
+#   pip install 'pdfdrill[nlp]'
+#   python -c "import stanza; stanza.download('en')"
+# stanza>=1.10

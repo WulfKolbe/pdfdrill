@@ -26,6 +26,16 @@ It combines:
    (modify in place) and `Projector`s (emit artifacts — plaintext, LLM-compact
    markdown, TiddlyWiki tiddlers, the comparison table, and the full
    inline+display **formula report** via `pdfdrill report`).
+   - **NLP enhancement (`StanzaNlpMutator`)** attaches Stanza per-sentence
+     annotations (`tokens`/POS/lemma/deps/`entities`) under `props.nlp` on prose
+     objects — Paragraph, Abstract, Section (caption), ListItem (marker folded
+     in), Footnote. Pure markup-cleaning + Stanza wrapper live in
+     `docops/nlp_stanza.py` (the `stanza_nlp.py` mutator is thin glue). It is an
+     **optional, off-by-default** step: Stanza is the `[nlp]` extra
+     (`pip install 'pdfdrill[nlp]'` + `stanza.download('en')`), kept out of
+     `default_config.json`. Enable via `docops/nlp_config.json`. Distinct from
+     `pdfdrill/nodes/stub_nlp.py`, which is the engine-layer regex sentence
+     splitter over `DocumentContext` spans, not the docmodel.
 
 > **Naming:** the unified model package is `docmodel` (renamed from the
 > predecessor `docobject`). The on-disk model artifact is still suffixed
@@ -69,7 +79,7 @@ author-year cites, 2 algorithms; the 2605 copy lacking a lines.json skipped).
 
 The pdfdrill commands (`size`, `pdfinfo`, `urls`, `dests`, `fonts`,
 `fonts_layer`, `images`, `pix2tex`, `abstract`, `toc`, `md`, `page`, `fetch`,
-`plan`, `drill`, `status`, `tsv`, `render`) are documented in
+`plan`, `drill`, `status`, `tsv`, `render`, `nlp`) are documented in
 `.claude/skills/pdfdrill/SKILL.md`. Each returns prose, not JSON.
 
 ### Killer case worth remembering
@@ -452,6 +462,29 @@ KaTeX-rendered inside its equation — not a standalone table). The `\[…\]`
 display-math extractor no longer mis-splits `\\[4pt]` row-spacing in
 align/cases. `latex/pdflatex/dvisvgm/dvips` present here (`pdf2svg` missing).
 Tests: `tests/test_svg.py`, `tests/test_latexbook.py`.
+
+NLP layer (Stanza — optional `[nlp]` extra, first-class command):
+
+- **`pdfdrill nlp <pdf> [--limit N] [--pages N] [--types T,T]`**
+  (`commands.cmd_nlp`) loads/auto-builds the model and runs the
+  `StanzaNlpMutator` (`src/docops/mutators/stanza_nlp.py` + portable engine
+  `src/docops/nlp_stanza.py`) over each prose object (Paragraph/Abstract/
+  Section/ListItem/Footnote): projects the text to clean prose (LaTeX/
+  TiddlyWiki markup stripped, inline math → `⟨math⟩`, `[n]` cites dropped),
+  splits into sentences, and attaches per-sentence tokens (POS/lemma/xpos/
+  feats/head/deprel) + named entities under `props["nlp"]`. The raw source
+  field is untouched; result is persisted back to `model.docmodel.json`.
+- Optional + graceful: needs `pip install 'pdfdrill[nlp]'` (stanza) plus a
+  one-time `stanza.download('en')`. When the library/model is missing the
+  command prints an install hint and changes nothing (mutator skips unless
+  `require:true`). Model load is ~30–40 s, so `--limit`/`--pages` keep dev
+  runs fast. The sibling project `~/MX/NLP` (`mxnlp`) is a standalone twin
+  (same engine + an `annotate`/`search` CLI) and is what installed stanza +
+  the `en` model into this environment.
+- Verified on the Ludwiger model: 8 prose objects → 47 sentences, 78 entities
+  (PERSON/DATE/ORG/GPE/CARDINAL; e.g. "Burkhard Heim", "Potsdam", "1944").
+  Tests: `tests/test_nlp_stanza.py` (engine + mutator, fake annotator) +
+  `tests/test_nlp_command.py` (cmd_nlp wiring + graceful-unavailable path).
 
 Still to do: deepen the self-learning loop (auto-tune from accumulated flags);
 math-expression / document-structure / citation graphs queried like Pyre/Pysa

@@ -17,6 +17,7 @@ dependencies = [
 
 [project.optional-dependencies]
 pix2tex = ["pillow>=10.0", "pix2tex>=0.1.2"]
+nlp = ["stanza>=1.10"]
 
 [project.scripts]
 pdfdrill = "pdfdrill.cli:main"

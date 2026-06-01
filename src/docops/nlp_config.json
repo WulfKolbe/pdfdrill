@@ -1,0 +1,12 @@
+[
+  { "op": "mutator", "classname": "Dehyphenate", "title": "dehyphenate" },
+  { "op": "mutator", "classname": "StanzaNlpMutator", "title": "stanza_nlp",
+    "params": {
+      "lang": "en",
+      "processors": "tokenize,mwt,pos,lemma,depparse,ner",
+      "types": ["Paragraph", "Abstract", "Section", "ListItem", "Footnote"],
+      "max_page": null,
+      "limit": null,
+      "require": false
+    } }
+]

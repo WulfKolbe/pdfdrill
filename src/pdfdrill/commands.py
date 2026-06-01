@@ -57,6 +57,7 @@ BIBLIOGRAPHY_BUILT = "BIBLIOGRAPHY_BUILT"
 BIBFETCH_DONE = "BIBFETCH_DONE"
 REPORT_BUILT = "REPORT_BUILT"
 LATEX_INGESTED = "LATEX_INGESTED"
+NLP_ENHANCED = "NLP_ENHANCED"
 
 # Hosts that almost always mean "here is the code / data for this paper".
 _CODE_HOSTS = (
@@ -1369,6 +1370,105 @@ def _format_score(sc: Sidecar) -> str:
             f"(low agreement or low snip confidence). "
             f"Run `pdfdrill compare {sc.pdf_path.name}` — flagged rows are "
             f"highlighted with a score column.")
+
+
+# ---------------------------------------------------------------------------
+# NLP enhancement (Stanza) — optional [nlp] extra
+# ---------------------------------------------------------------------------
+
+# Object types StanzaNlpMutator can annotate, in a sensible default order.
+_NLP_DEFAULT_TYPES = ["Paragraph", "Abstract", "Section", "ListItem", "Footnote"]
+
+
+def cmd_nlp(pdf: Path, limit: int | None = None, pages: int | None = None,
+            types: list[str] | None = None, force: bool = False) -> str:
+    """Run the Stanza neural NLP pipeline over the model's prose objects.
+
+    For each Paragraph/Abstract/Section/ListItem/Footnote, projects the text to
+    clean prose (LaTeX/TiddlyWiki markup stripped, inline math → ⟨math⟩) and
+    attaches per-sentence tokens (POS/lemma/dependency) + named entities under
+    `props["nlp"]`. The raw source field is left untouched. Auto-chains `model`.
+
+    Optional. Needs the `[nlp]` extra (`pip install 'pdfdrill[nlp]'`) plus the
+    one-time model download (`python -c "import stanza; stanza.download('en')"`);
+    when Stanza or the model is missing this returns a friendly install hint
+    instead of an error.
+    """
+    from docmodel.core import Document
+    from docops.base import OperatorConfig
+    from docops.mutators.stanza_nlp import StanzaNlpMutator
+
+    sc = Sidecar(pdf)
+    model_path = _model_path(sc)
+    if not sc.has(MODEL_BUILT) or not model_path.exists():
+        cmd_model(pdf)
+        sc = Sidecar(pdf)
+        model_path = _model_path(sc)
+    if not model_path.exists():
+        return f"No model for {pdf.name} (run `pdfdrill model` first)."
+
+    with open(model_path, "r", encoding="utf-8") as f:
+        doc = Document.from_dict(json.load(f))
+
+    cfg = OperatorConfig(
+        op="mutator", classname="StanzaNlpMutator", title="nlp",
+        params={
+            "lang": "en",
+            "types": types or _NLP_DEFAULT_TYPES,
+            "max_page": pages,
+            "limit": limit,
+            "require": False,
+        },
+    )
+    mutator = StanzaNlpMutator(cfg)
+    mutator.apply(doc)
+
+    if mutator.counters.get("skipped_stanza_unavailable"):
+        return (
+            "NLP skipped: Stanza (or its English model) is not available. "
+            "Install the optional extra and download the model once:\n"
+            "  pip install 'pdfdrill[nlp]'\n"
+            "  python -c \"import stanza; stanza.download('en')\""
+        )
+
+    annotated = mutator.counters.get("objects_annotated", 0)
+    # Aggregate signal for the prose summary.
+    sentences = entities = 0
+    ent_types: dict[str, int] = {}
+    sample: list[str] = []
+    for o in doc.objects.values():
+        nlp = (o.props or {}).get("nlp")
+        if not nlp:
+            continue
+        for s in nlp.get("sentences", []):
+            sentences += 1
+            for e in s.get("entities", []):
+                entities += 1
+                ent_types[e["type"]] = ent_types.get(e["type"], 0) + 1
+                if len(sample) < 6 and e["text"] not in sample:
+                    sample.append(e["text"])
+
+    with open(model_path, "w", encoding="utf-8") as f:
+        json.dump(doc.to_dict(), f, indent=2, ensure_ascii=False)
+
+    sc.set_evidence("nlp_objects_annotated", annotated)
+    sc.set_evidence("nlp_sentences", sentences)
+    sc.set_evidence("nlp_entities", entities)
+    prev = ",".join(sorted(sc.facts - {NLP_ENHANCED})) or "INIT"
+    sc.add_fact(NLP_ENHANCED)
+    sc.log_transition("nlp", prev, NLP_ENHANCED,
+                      detail=f"{annotated} objects, {entities} entities")
+    sc.save()
+
+    by_type = ", ".join(f"{k} {v}" for k, v in
+                        sorted(ent_types.items(), key=lambda kv: -kv[1])[:5])
+    sample_s = ("; e.g. " + ", ".join(sample)) if sample else ""
+    return (
+        f"NLP (Stanza): annotated {annotated} prose object(s), {sentences} "
+        f"sentence(s), {entities} named entit{'y' if entities == 1 else 'ies'}"
+        f"{' (' + by_type + ')' if by_type else ''}{sample_s}. "
+        f"Stored under each object's props['nlp'] in model.docmodel.json."
+    )
 
 
 # ---------------------------------------------------------------------------
