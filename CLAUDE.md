@@ -79,7 +79,7 @@ author-year cites, 2 algorithms; the 2605 copy lacking a lines.json skipped).
 
 The pdfdrill commands (`size`, `pdfinfo`, `urls`, `dests`, `fonts`,
 `fonts_layer`, `images`, `pix2tex`, `abstract`, `toc`, `md`, `page`, `fetch`,
-`plan`, `drill`, `status`, `tsv`, `render`, `nlp`, `ocr`) are documented in
+`plan`, `drill`, `status`, `tsv`, `render`, `nlp`, `ocr`, `vision`) are documented in
 `.claude/skills/pdfdrill/SKILL.md`. Each returns prose, not JSON.
 
 ### Killer case worth remembering
@@ -462,6 +462,30 @@ KaTeX-rendered inside its equation — not a standalone table). The `\[…\]`
 display-math extractor no longer mis-splits `\\[4pt]` row-spacing in
 align/cases. `latex/pdflatex/dvisvgm/dvips` present here (`pdf2svg` missing).
 Tests: `tests/test_svg.py`, `tests/test_latexbook.py`.
+
+OpenAI GPT-4o vision provenance (`src/pdfdrill/openai_vision.py`,
+`pdfdrill vision`):
+
+- MathPix sometimes can't OCR a region and drops a CDN **image** in its place
+  — including `![](cdn…)` links **inside table cells** (seen on scanned office
+  docs). **`pdfdrill vision <pdf> [--limit N]`** reads every CDN crop in the
+  model with GPT-4o (`gpt-4o-2024-08-06`, structured-JSON `selector`:
+  math/tikzpicture/commutative_diagram/gnuplot/tensor/**table**/empty), and
+  attaches the returned LaTeX/TikZ/tabular as a `provenance="openai"`
+  `latex_candidate` realization — the third competing reading alongside MathPix
+  and Snip. `_collect_cdn_crops` finds an object's own `cdn_url`/`url` AND crops
+  embedded in any string prop (table `raw_text`, with `\&`→`&`).
+- Ported from the predecessor `~/MX/mathpix_images` (llmUtils.js/imagetester.js
+  + prompt.txt). Stdlib `urllib` (no `openai` package). Key from
+  `OPENAI_API_KEY` (env/.env), **never hardcoded**; `--limit` caps calls (a doc
+  can carry 100+ crops, e.g. ocrtest has 109). Graceful no-key + per-crop error
+  handling (a bad key counts as errors, no crash). Tests: `tests/test_vision.py`
+  (crop collection incl. escaped table cell, selector→latex, cmd wiring,
+  no-key path; no real API call).
+- Verified on `~/WKprivate/Scanned/ocrtest.pdf`: the model carries 109 CDN
+  crops (28 tables, 2 with embedded cell-images); `cmd_vision` collects them
+  and (with a valid key) extracts each. The intended-table case proven by hand:
+  the p20 invoice crop reads as a full 7-row tabular.
 
 MathPix-free OCR input path (so the repo runs keyless, all functions
 testable):

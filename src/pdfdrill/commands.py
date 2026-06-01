@@ -59,6 +59,7 @@ REPORT_BUILT = "REPORT_BUILT"
 LATEX_INGESTED = "LATEX_INGESTED"
 NLP_ENHANCED = "NLP_ENHANCED"
 OCR_BUILT = "OCR_BUILT"
+VISION_DONE = "VISION_DONE"
 
 # Hosts that almost always mean "here is the code / data for this paper".
 _CODE_HOSTS = (
@@ -1897,6 +1898,130 @@ def cmd_ingest(pdf: Path, candidates_path: str, provider: str = "llm",
         msg += f" ({skipped} already present; use --force to replace)"
     msg += f". Run `pdfdrill compare {pdf.name}` to see the {provider} column."
     return msg
+
+
+# ---------------------------------------------------------------------------
+# OpenAI GPT-4o vision — extract LaTeX/TikZ/gnuplot/table from CDN crops that
+# MathPix left as an image (incl. CDN links embedded inside table cells).
+# ---------------------------------------------------------------------------
+
+_CDN_CROP_RE = re.compile(r'https://cdn\.mathpix\.com/cropped/\S+?\.jpg\?[^)"\s\\]*')
+
+
+def _collect_cdn_crops(doc) -> list[tuple]:
+    """Yield (object, crop_url) for every MathPix CDN crop in the model.
+
+    Picks up an object's own `cdn_url`/`url` AND any crop embedded in a string
+    prop (e.g. a table cell's `![](cdn…)` left in `raw_text`). LaTeX-escaped
+    `\\&` in the query string is normalized. De-duplicated per (object, url).
+    """
+    out: list[tuple] = []
+    seen: set = set()
+    for o in doc.objects.values():
+        urls: list[str] = []
+        for k in ("cdn_url", "url"):
+            v = (o.props or {}).get(k)
+            if isinstance(v, str) and "cdn.mathpix.com/cropped" in v:
+                urls.append(v)
+        for v in (o.props or {}).values():
+            if isinstance(v, str) and "cdn.mathpix.com/cropped" in v:
+                urls.extend(_CDN_CROP_RE.findall(v.replace("\\&", "&")))
+        for u in urls:
+            key = (o.id, u)
+            if u and key not in seen:
+                seen.add(key)
+                out.append((o, u))
+    return out
+
+
+def cmd_vision(pdf: Path, limit: int | None = None, force: bool = False) -> str:
+    """Read every MathPix CDN crop with GPT-4o vision (the `openai` provenance).
+
+    For each crop (equation/picture/diagram image, or a CDN link MathPix left
+    inside a table cell) the model returns a `selector`
+    (math/tikzpicture/commutative_diagram/gnuplot/tensor/table/empty) plus the
+    corresponding LaTeX/TikZ/table code; we attach it as a
+    `provenance="openai"` `latex_candidate` realization (with `selector` and any
+    gnuplot/csv_data). Needs `OPENAI_API_KEY` (env / .env). Auto-chains `model`.
+    """
+    from collections import Counter
+    from docmodel.core import Document, Realization
+    from . import openai_vision
+
+    sc = Sidecar(pdf)
+    model_path = _model_path(sc)
+    if not sc.has(MODEL_BUILT) or not model_path.exists():
+        cmd_model(pdf)
+        sc = Sidecar(pdf)
+        model_path = _model_path(sc)
+    if not model_path.exists():
+        return f"No model for {pdf.name} (run `pdfdrill model` first)."
+    if not openai_vision.available():
+        return ("OpenAI vision unavailable: set OPENAI_API_KEY in the "
+                "environment or .env (https://platform.openai.com/api-keys), "
+                "then rerun `pdfdrill vision`.")
+
+    with open(model_path, "r", encoding="utf-8") as f:
+        doc = Document.from_dict(json.load(f))
+
+    def _has_openai(o, url):
+        return any(r.role == "latex_candidate" and r.provenance == "openai"
+                   and (r.props or {}).get("url") == url for r in o.realizations)
+
+    targets = _collect_cdn_crops(doc)
+    todo = [(o, u) for (o, u) in targets if force or not _has_openai(o, u)]
+    if limit is not None:
+        todo = todo[:limit]
+
+    t0 = time.monotonic()
+    processed = 0
+    by_sel: Counter = Counter()
+    errors = 0
+    for o, url in todo:
+        try:
+            res = openai_vision.analyze_image(url)
+        except Exception:
+            errors += 1
+            continue
+        selector, code = openai_vision.result_to_latex(res)
+        if force:
+            o.realizations = [r for r in o.realizations
+                              if not (r.role == "latex_candidate"
+                                      and r.provenance == "openai"
+                                      and (r.props or {}).get("url") == url)]
+        o.add_realization(Realization(
+            stream="openai", role="latex_candidate", provenance="openai",
+            props={"url": url, "selector": selector, "latex": code,
+                   "gnuplot": res.get("gnuplot", ""),
+                   "csv_data": res.get("csv_data", "")},
+        ))
+        processed += 1
+        by_sel[selector or "?"] += 1
+
+    with open(model_path, "w", encoding="utf-8") as f:
+        json.dump(doc.to_dict(), f, indent=2, ensure_ascii=False)
+
+    sc.set_evidence("vision_crops_total", len(targets))
+    sc.set_evidence("vision_processed",
+                    (sc.get_evidence("vision_processed", 0) or 0) + processed)
+    prev = ",".join(sorted(sc.facts - {VISION_DONE})) or "INIT"
+    sc.add_fact(VISION_DONE)
+    sc.log_transition("vision", prev, VISION_DONE,
+                      cost_ms=(time.monotonic() - t0) * 1000,
+                      detail=f"{processed}/{len(todo)} crops, {errors} errors")
+    sc.save()
+
+    sel_s = ", ".join(f"{n} {s}" for s, n in by_sel.most_common()) or "none"
+    err_s = f", {errors} error(s)" if errors else ""
+    remaining = len(targets) - processed if limit is None else max(0, len(targets) - len(todo))
+    return (
+        f"OpenAI vision: read {processed} CDN crop(s) ({sel_s}){err_s}; "
+        f"{len(targets)} total crops in the model. Attached as the 'openai' "
+        f"provenance (selector + LaTeX/TikZ/table). "
+        f"Run `pdfdrill compare {pdf.name}` to see the column."
+        + (f" {remaining} crop(s) not yet read — raise --limit to continue."
+           if (limit is not None and len(todo) >= limit and remaining > 0) else "")
+    )
 
 
 # ---------------------------------------------------------------------------

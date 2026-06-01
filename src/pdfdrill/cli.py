@@ -59,6 +59,7 @@ def main():
         "snip": _do_snip,
         "candidates": _do_candidates,
         "ingest": _do_ingest,
+        "vision": _do_vision,
         "geometry": _do_geometry,
         "tiddlers": _do_tiddlers,
         "lists": _do_lists,
@@ -201,6 +202,23 @@ def _do_mathpix(args):
         else:
             pdf_args.append(a)
     return cmd_mathpix(_pdf(pdf_args), force=force)
+
+
+def _do_vision(args):
+    """pdfdrill vision <pdf> [--limit N] [--force]"""
+    from .commands import cmd_vision
+    pdf_args: list[str] = []
+    limit = None
+    force = False
+    i = 0
+    while i < len(args):
+        if args[i] == "--limit" and i + 1 < len(args):
+            limit = int(args[i + 1]); i += 2
+        elif args[i] == "--force":
+            force = True; i += 1
+        else:
+            pdf_args.append(args[i]); i += 1
+    return cmd_vision(_pdf(pdf_args), limit=limit, force=force)
 
 
 def _do_ocr(args):
@@ -699,6 +717,7 @@ Introspection (fast, no extraction):
   pdfdrill snip <pdf>          OCR each equation crop via MathPix Snip (/v3/text) → competing column; --limit N
   pdfdrill candidates <pdf>    Export equation crops as a manifest for an LLM to read; --provider P --limit N
   pdfdrill ingest <pdf> <json> Attach externally-produced {eq_id,latex} candidates as a provenance column; --provider P
+  pdfdrill vision <pdf>        GPT-4o vision reads every MathPix CDN crop (incl. table-cell images) → math/TikZ/gnuplot/table as the `openai` provenance; --limit N (needs OPENAI_API_KEY)
   pdfdrill geometry <pdf>      Fuse pdftotext -tsv layout (indent/margins) onto the model — substrate for block detection
   pdfdrill tiddlers <pdf>      Emit a TiddlyWiki JSON tiddler array (latex/displayMode/canonical_uri/width/height) for quick inspection
   pdfdrill lists <pdf>         Nest flat ListItems into recursive List blocks using fused indentation (auto-chains geometry)
