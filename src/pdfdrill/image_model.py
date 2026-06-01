@@ -132,6 +132,18 @@ def attach_embedded_images(
                 width=rec.get("w_pt"), height=rec.get("h_pt"),
                 space="pdf_points",
             ).to_dict()
+            # x0/y0 above are TOP-left origin (pdfplumber). Also record the
+            # PDF-native BOTTOM-left origin Y + page dims, so the node is
+            # self-describing and matches a bottom-origin tool exactly:
+            #   y_bottom = page_height - y_top.
+            pdims = page_dims_pts.get(pg)
+            ph = _f(pdims[1]) if pdims else None
+            if ph:
+                props["page_width_pt"] = round(_f(pdims[0]), 2)
+                props["page_height_pt"] = round(ph, 2)
+                props["y0_pdf"] = round(ph - _f(rec["y1"]), 3)   # bottom-left
+                props["y1_pdf"] = round(ph - _f(rec["y0"]), 3)
+                props["y_origin"] = "top_left"  # the region's own y convention
         obj = DocObject(type="EmbeddedImage", props=props)
         obj.add_realization(Realization(
             stream=PDF_IMAGES_STREAM, start=anchor, end=anchor, role="embedded",

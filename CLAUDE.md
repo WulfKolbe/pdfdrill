@@ -476,7 +476,12 @@ Embedded-image fusion — all image routes on one node
   page-points; MathPix region ÷ MathPix page-pixels) and links by containment →
   `Alignment(kind="image_region")` + an `embedded_image_id` cross-link on the
   crop. Coordinate values are coerced (regions parsed from CDN URLs are
-  strings).
+  strings). The EmbeddedImage carries the pdfplumber rect (top-left origin) in
+  its `Region` **and** the PDF-native bottom-left Y (`y0_pdf`/`y1_pdf`) +
+  `page_width_pt`/`page_height_pt`, so it is self-describing and matches a
+  bottom-origin tool byte-for-byte (verified field-for-field against an
+  external `pdfimagepos.py` on arXiv 2004.05631: page/obj/src_w/src_h/x0/x1/
+  w_pt/h_pt identical, Y = page_height − y).
 - The point (the user's "ONE structure"): every route to an image — MathPix
   CDN crop, GPT-4o vision read (`openai` provenance), `pdfimages` XObject
   metadata, `pdfplumber` rect — now hangs off the same graph, so the state

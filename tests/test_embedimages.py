@@ -57,6 +57,12 @@ def test_embedded_image_node_and_metadata():
     ei = doc.objects_of_type("EmbeddedImage")[0]
     assert ei.props["width_px"] == 2480 and ei.props["encoding"] == "image"
     assert ei.props["region"]["space"] == "pdf_points"
+    # PDF-native bottom-left Y recorded alongside the top-left region.
+    # Page is 792pt tall; image y_top spans 0..792 -> y_bottom spans 0..792.
+    assert ei.props["page_height_pt"] == 792.0
+    assert ei.props["y0_pdf"] == round(792.0 - _FULL_PAGE_IMG["y1"], 3)
+    assert ei.props["y1_pdf"] == round(792.0 - _FULL_PAGE_IMG["y0"], 3)
+    assert ei.props["y_origin"] == "top_left"
     # The crop is linked both ways.
     assert crop.props.get("embedded_image_id") == ei.id
     aligns = [a for a in doc.alignments if a.kind == "image_region"]
