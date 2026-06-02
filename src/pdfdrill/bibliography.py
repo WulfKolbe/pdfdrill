@@ -337,6 +337,117 @@ def load_bibtex_file(doc, bibtext: str) -> dict:
     return {"attached": attached, "created": created}
 
 
+# ---------------------------------------------------------------------------
+# Gold bibliography ingest from the author's compiled .bbl (+ .bib)
+# ---------------------------------------------------------------------------
+
+_BIBITEM = re.compile(
+    r"\\bibitem(?:\[(?P<label>[^\]]*)\])?\s*\{(?P<key>[^}]+)\}"
+    r"(?P<body>.*?)(?=\\bibitem|\\end\{thebibliography\}|\Z)",
+    re.DOTALL)
+_NEWBLOCK = re.compile(r"\\newblock\s*")
+_URL = re.compile(r"\\url\s*\{([^}]*)\}")
+_EM = re.compile(r"\{\\(?:em|it|bf)\s+([^{}]*)\}")
+_TEXCMD = re.compile(r"\\[a-zA-Z]+\b")
+
+
+def _clean_bbl(body: str) -> str:
+    """Light-clean a \\bibitem body to readable prose."""
+    t = _NEWBLOCK.sub(" ", body)
+    t = _URL.sub(r"\1", t)
+    t = _EM.sub(r"\1", t)
+    t = t.replace("~", " ")
+    t = _TEXCMD.sub("", t)
+    t = t.replace("{", "").replace("}", "")
+    return re.sub(r"\s+", " ", t).strip()
+
+
+def _norm_label(s: str) -> str:
+    """Normalize an alpha citation label for OCR-tolerant matching.
+
+    MathPix reads `ASV02` as `ASVo2`, `NC00` as `NCoo`; map the confusable
+    glyphs (o->0, l->1) after lowercasing + stripping non-alphanumerics.
+    """
+    s = re.sub(r"[^A-Za-z0-9]", "", (s or "").lower())
+    return s.replace("o", "0").replace("l", "1")
+
+
+def parse_bbl(text: str) -> list[dict]:
+    """Parse a compiled `.bbl` into [{label, citekey, text, number}]."""
+    out = []
+    for i, m in enumerate(_BIBITEM.finditer(text)):
+        out.append({
+            "label": (m.group("label") or "").strip(),
+            "citekey": m.group("key").strip(),
+            "text": _clean_bbl(m.group("body")),
+            "number": i + 1,
+        })
+    return out
+
+
+def ingest_bbl(doc, bbltext: str) -> int:
+    """Create a `Reference` per `\\bibitem` (citekey + alpha label + printed
+    text), each addressable via a `references` stream anchor. Returns count."""
+    from docmodel.core import DocObject, Realization
+
+    stream = doc.ensure_stream("references")
+    n = 0
+    for e in parse_bbl(bbltext):
+        anchor = stream.append(citekey=e["citekey"], label=e["label"],
+                               number=e["number"])
+        obj = DocObject(type="Reference", props={
+            "citekey": e["citekey"], "label": e["label"], "number": e["number"],
+            "raw_text": e["text"], "entry_type": "misc"})
+        obj.add_realization(Realization(stream="references", start=anchor,
+                                        end=anchor, role="surface",
+                                        provenance="bbl"))
+        doc.add(obj)
+        n += 1
+    return n
+
+
+def _ref_range(o):
+    from docmodel.core import Range
+    for st in ("references", "mathpix_lines"):
+        r = next((x for x in o.realizations
+                  if x.stream == st and x.start is not None), None)
+        if r:
+            return Range(st, r.start, r.end)
+    return None
+
+
+def link_citations_by_label(doc) -> int:
+    """Link in-text Citations to References by alpha LABEL (OCR-tolerant).
+
+    The thesis's printed citations are alpha labels (`[ASV02]`); MathPix OCRs
+    them as the Citation citekey. Match each to the `.bbl` Reference whose label
+    normalizes equally, adding a `cites` Alignment. Returns edges added.
+    """
+    from docmodel.core import Alignment
+
+    by_label = {}
+    for r in doc.objects.values():
+        if r.type == "Reference":
+            lab = _norm_label(r.props.get("label") or "")
+            if lab:
+                by_label[lab] = r
+
+    n = 0
+    for c in doc.objects.values():
+        if c.type != "Citation":
+            continue
+        r = by_label.get(_norm_label(c.props.get("citekey") or ""))
+        if r is None:
+            continue
+        ls, rs = _ref_range(c), _ref_range(r)
+        if ls and rs:
+            doc.add_alignment(Alignment(kind="cites", left=ls, right=rs, props={
+                "citekey": r.props.get("citekey"), "label": r.props.get("label")}))
+            c.props["cited_reference_id"] = r.id
+            n += 1
+    return n
+
+
 def add_reference_objects(doc, entries: list[dict]) -> int:
     """Create a `Reference` DocObject per parsed entry. Returns the count."""
     from docmodel.core import DocObject, Realization

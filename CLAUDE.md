@@ -388,6 +388,28 @@ references with full BibTeX + title + citations via Perplexity SONAR.
   that rewrites `(N)` → the equation's compact placeholder `[E‹k›]` (off by
   default; for round-trip tests).
 
+Gold bibliography ingest from the author's `.bbl`/`.bib`
+(`bibliography.parse_bbl`/`ingest_bbl`/`link_citations_by_label`,
+`pdfdrill bibsource`):
+
+- The bibliography analogue of `pdfdrill latex` (author .tex as gold equations).
+  When the arXiv e-print is on hand, **`pdfdrill bibsource <pdf> --bbl X.bbl
+  --bib X.bib`** ingests the author's compiled bibliography instead of
+  reconstructing it from OCR (heuristic) or the web (Perplexity): the `.bbl`
+  gives `\bibitem[<alpha label>]{<citekey>}` + the printed entry (each Reference
+  gets a `references`-stream anchor so it's addressable), the `.bib` enriches
+  structured fields (author/year/title/entry_type/bibtex), and in-text
+  Citations are linked to References **by alpha label**, OCR-tolerant
+  (`_norm_label` maps MathPix's `ASVo2`→`ASV02`, `NCoo`→`NC00`). Authoritative:
+  it drops prior heuristic References + `cites` edges first. No API.
+- Verified on arXiv 2004.05631 (Bradley thesis): the heuristic found **1**
+  garbage Reference and linked 0 citations; `bibsource` from `thesis.bbl` +
+  `thesis.bib` built **63 References** (all enriched) and linked **108/115**
+  in-text citations (the 7 misses are mostly section/appendix cross-refs
+  mis-detected as citations). Tests: `tests/test_bibsource.py`.
+- Use `bibsource` when the `.bbl`/`.bib` is available; `bibfetch` (below) is the
+  fallback when only the printed (truncated) references exist.
+
 BibTeX field enrichment is **LLM-sourced**, not grammar-parsed (printed refs
 are truncated):
 

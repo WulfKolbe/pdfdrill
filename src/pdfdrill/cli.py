@@ -72,6 +72,7 @@ def main():
         "relearn": _do_relearn,
         "eqnums": _do_eqnums,
         "bibliography": _do_bibliography,
+        "bibsource": _do_bibsource,
         "bibfetch": _do_bibfetch,
         "report": _do_report,
         "folder": _do_folder,
@@ -376,6 +377,25 @@ def _do_bibliography(args):
     from .commands import cmd_bibliography
     pdf_args = [a for a in args if a != "--force"]
     return cmd_bibliography(_pdf(pdf_args), force="--force" in args)
+
+
+def _do_bibsource(args):
+    """pdfdrill bibsource <pdf> [--bbl f.bbl] [--bib f.bib] [--force]"""
+    from .commands import cmd_bibsource
+    pdf_args: list[str] = []
+    bib = bbl = None
+    force = False
+    i = 0
+    while i < len(args):
+        if args[i] == "--bib" and i + 1 < len(args):
+            bib = args[i + 1]; i += 2
+        elif args[i] == "--bbl" and i + 1 < len(args):
+            bbl = args[i + 1]; i += 2
+        elif args[i] == "--force":
+            force = True; i += 1
+        else:
+            pdf_args.append(args[i]); i += 1
+    return cmd_bibsource(_pdf(pdf_args), bib_path=bib, bbl_path=bbl, force=force)
 
 
 def _do_report(args):
@@ -738,6 +758,7 @@ Introspection (fast, no extraction):
   pdfdrill relearn <pdf>       Phase-3: re-score after ingest; report resolved vs still-flagged
   pdfdrill eqnums <pdf>        Fuse equation numbers ("(N)") from margin geometry for ||FO/||FREF transclusion
   pdfdrill bibliography <pdf>  Parse the References section into Reference nodes (citekey/author/year/text)
+  pdfdrill bibsource <pdf>     Ingest the author's GOLD bibliography (--bbl file.bbl + --bib file.bib): alpha label↔citekey↔fields, links in-text citations by label. No API.
   pdfdrill bibfetch <pdf>      Enrich References with full BibTeX via Perplexity SONAR; --limit N (needs PERPLEXITY_API_KEY)
   pdfdrill toc <pdf>           Table of contents
   pdfdrill abstract <pdf>      Abstract from first pages

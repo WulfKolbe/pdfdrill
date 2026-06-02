@@ -61,6 +61,7 @@ NLP_ENHANCED = "NLP_ENHANCED"
 OCR_BUILT = "OCR_BUILT"
 VISION_DONE = "VISION_DONE"
 EMBEDDED_IMAGES_BUILT = "EMBEDDED_IMAGES_BUILT"
+BIBSOURCE_BUILT = "BIBSOURCE_BUILT"
 
 # Hosts that almost always mean "here is the code / data for this paper".
 _CODE_HOSTS = (
@@ -325,6 +326,86 @@ def cmd_compare(pdf: Path, force: bool = False, embed: bool = False) -> str:
     return (
         f"Comparison table: {rows} expressions (LaTeX | KaTeX | MathPix image). "
         f"Open {rel} in a browser."
+    )
+
+
+def cmd_bibsource(pdf: Path, bib_path: str | None = None,
+                  bbl_path: str | None = None, force: bool = False) -> str:
+    """Ingest the author's GOLD bibliography (`.bbl` + `.bib`) into the model.
+
+    This is the bibliography analogue of `pdfdrill latex` (author .tex as gold
+    equations): rather than reconstructing references from OCR (heuristic) or
+    the web (Perplexity `bibfetch`), it reads the author's compiled `.bbl`
+    (alpha label ↔ citekey ↔ printed entry) and `.bib` (structured fields), then
+    links the in-text Citations to them by alpha label (OCR-tolerant). The
+    `.bbl`/`.bib` become the authoritative References. Auto-chains `model`.
+
+    Defaults: `<pdf-stem>.bbl` / `.bib` next to the PDF if present; else pass
+    `--bbl`/`--bib`.
+    """
+    from docmodel.core import Document
+    from .bibliography import (ingest_bbl, load_bibtex_file,
+                               link_citations_by_label, link_citations)
+
+    sc = Sidecar(pdf)
+    model_path = _model_path(sc)
+    if not sc.has(MODEL_BUILT) or not model_path.exists():
+        cmd_model(pdf)
+        sc = Sidecar(pdf)
+        model_path = _model_path(sc)
+    if not model_path.exists():
+        return f"No model for {pdf.name} (run `pdfdrill model` first)."
+
+    def _default(ext):
+        c = pdf.parent / f"{pdf.stem}{ext}"
+        return str(c) if c.exists() else None
+    bbl = bbl_path or _default(".bbl")
+    bib = bib_path or _default(".bib")
+    if not bbl and not bib:
+        return ("No .bbl/.bib found next to the PDF. Pass --bbl <file.bbl> "
+                "and/or --bib <file.bib> (the author's compiled bibliography).")
+
+    with open(model_path, "r", encoding="utf-8") as f:
+        doc = Document.from_dict(json.load(f))
+
+    # The author's bibliography is authoritative: drop prior (heuristic)
+    # References + their cites edges so we don't mix gold with OCR guesses.
+    for oid in [oid for oid, o in doc.objects.items() if o.type == "Reference"]:
+        doc.objects.pop(oid, None)
+    doc.alignments = [a for a in doc.alignments if a.kind != "cites"]
+    doc.streams.pop("references", None)
+
+    created = enriched = 0
+    if bbl:
+        created = ingest_bbl(doc, Path(bbl).read_text(encoding="utf-8"))
+    if bib:
+        enriched = load_bibtex_file(doc, Path(bib).read_text(encoding="utf-8"))["attached"]
+
+    n_refs = sum(1 for o in doc.objects.values() if o.type == "Reference")
+    n_cits = sum(1 for o in doc.objects.values() if o.type == "Citation")
+    linked = link_citations_by_label(doc)        # primary: alpha label
+    if not bbl:                                   # no labels → citekey/number
+        linked = link_citations(doc)
+
+    with open(model_path, "w", encoding="utf-8") as f:
+        json.dump(doc.to_dict(), f, indent=2, ensure_ascii=False)
+
+    sc.set_evidence("bibsource_references", n_refs)
+    sc.set_evidence("bibsource_enriched", enriched)
+    sc.set_evidence("bibsource_citations_linked", linked)
+    prev = ",".join(sorted(sc.facts - {BIBSOURCE_BUILT})) or "INIT"
+    sc.add_fact(BIBSOURCE_BUILT)
+    sc.log_transition("bibsource", prev, BIBSOURCE_BUILT,
+                      detail=f"{n_refs} refs, {linked}/{n_cits} citations linked")
+    sc.save()
+    src = " + ".join(x for x in (Path(bbl).name if bbl else "",
+                                 Path(bib).name if bib else "") if x)
+    return (
+        f"Gold bibliography ingested from {src}: {n_refs} Reference(s) "
+        f"({enriched} enriched with structured BibTeX fields); "
+        f"{linked}/{n_cits} in-text citations linked to a reference "
+        f"(by alpha label, OCR-tolerant). No Perplexity needed — the author's "
+        f"own .bbl/.bib is the gold source. Rebuild `pdfdrill tiddlers {pdf.name}`."
     )
 
 

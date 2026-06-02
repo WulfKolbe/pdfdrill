@@ -1,0 +1,116 @@
+"""
+Tests for the gold-bibliography ingest (pdfdrill.bibliography .bbl/.bib path).
+
+Covers the .bbl parser, OCR-tolerant alpha-label normalization, Reference
+creation with addressable `references`-stream anchors, structured-field
+enrichment from a .bib, and label-based citation linking (incl. an OCR-garbled
+label like `ASVo2` -> `ASV02`).
+"""
+import sys
+from pathlib import Path
+
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "src"))
+
+from docmodel.core import Document, DocObject, Realization
+from pdfdrill import bibliography as B
+
+
+_BBL = r"""\begin{thebibliography}{XYZ99}
+\bibitem[ASV02]{kitaev2002classical}
+A.~Y. Kitaev, A.~Shen, and M.~N. Vyalyi.
+\newblock {\em Classical and Quantum Computation}.
+\newblock AMS, 2002.
+
+\bibitem[Awo10]{awodey2010category}
+Steve Awodey.
+\newblock {\em Category Theory}.
+\newblock Oxford University Press, 2010.
+\end{thebibliography}
+"""
+
+_BIB = r"""
+@book{kitaev2002classical,
+  title={Classical and Quantum Computation},
+  author={Kitaev, A. Y. and Shen, A. and Vyalyi, M. N.},
+  year={2002}, publisher={AMS}
+}
+@book{awodey2010category,
+  title={Category Theory}, author={Awodey, Steve}, year={2010}
+}
+"""
+
+
+def test_norm_label_ocr_tolerant():
+    assert B._norm_label("ASVo2") == B._norm_label("ASV02")   # o->0
+    assert B._norm_label("NCoo") == B._norm_label("NC00")
+    assert B._norm_label("[Awo10]") == B._norm_label("Awo10")  # strips brackets
+
+
+def test_parse_bbl():
+    items = B.parse_bbl(_BBL)
+    assert [i["label"] for i in items] == ["ASV02", "Awo10"]
+    assert [i["citekey"] for i in items] == ["kitaev2002classical", "awodey2010category"]
+    assert "Classical and Quantum Computation" in items[0]["text"]
+    assert "newblock" not in items[0]["text"] and "{" not in items[0]["text"]
+    assert items[1]["number"] == 2
+
+
+def test_ingest_bbl_and_enrich_and_link():
+    doc = Document()
+    # An in-text citation whose OCR'd label is the garbled "ASVo2".
+    mp = doc.ensure_stream("mathpix_lines")
+    a = mp.append(type="text", _page=3)
+    cit = DocObject(type="Citation", props={"citekey": "ASVo2", "page": 3})
+    cit.add_realization(Realization(stream="mathpix_lines", start=a, end=a, role="surface"))
+    doc.add(cit)
+
+    created = B.ingest_bbl(doc, _BBL)
+    assert created == 2
+    refs = doc.objects_of_type("Reference")
+    assert {r.props["label"] for r in refs} == {"ASV02", "Awo10"}
+    # References are addressable (references stream) for the cites alignment.
+    assert all(any(z.stream == "references" for z in r.realizations) for r in refs)
+
+    enriched = B.load_bibtex_file(doc, _BIB)["attached"]
+    assert enriched == 2
+    asv = next(r for r in refs if r.props["label"] == "ASV02")
+    assert asv.props["entry_type"] == "book"
+    assert "Kitaev" in asv.props.get("author", "")
+    assert asv.props.get("year") == "2002"
+
+    # The garbled "ASVo2" citation links to the ASV02 reference.
+    linked = B.link_citations_by_label(doc)
+    assert linked == 1
+    assert cit.props.get("cited_reference_id") == asv.id
+    assert any(al.kind == "cites" for al in doc.alignments)
+
+
+def test_cmd_bibsource_end_to_end(tmp_path=None):
+    import json, tempfile
+    from pdfdrill.sidecar import Sidecar
+    from pdfdrill.commands import cmd_bibsource, MODEL_BUILT, BIBSOURCE_BUILT
+    with tempfile.TemporaryDirectory() as d:
+        d = Path(d)
+        pdf = d / "doc.pdf"; pdf.write_bytes(b"%PDF-1.4\n")
+        (d / "doc.bbl").write_text(_BBL); (d / "doc.bib").write_text(_BIB)
+        doc = Document()
+        mp = doc.ensure_stream("mathpix_lines")
+        a = mp.append(type="text", _page=1)
+        cit = DocObject(type="Citation", props={"citekey": "Awo10", "page": 1})
+        cit.add_realization(Realization(stream="mathpix_lines", start=a, end=a, role="surface"))
+        doc.add(cit)
+        sc = Sidecar(pdf); sc.blob_dir.mkdir(parents=True, exist_ok=True)
+        (sc.blob_dir / "model.docmodel.json").write_text(json.dumps(doc.to_dict()))
+        sc.add_fact(MODEL_BUILT); sc.save()
+
+        out = cmd_bibsource(pdf)   # finds doc.bbl/doc.bib next to the PDF
+        assert "2 Reference" in out and "1/1 in-text citations linked" in out
+        assert Sidecar(pdf).has(BIBSOURCE_BUILT)
+
+
+if __name__ == "__main__":
+    import tempfile
+    for fn in [test_norm_label_ocr_tolerant, test_parse_bbl,
+               test_ingest_bbl_and_enrich_and_link, test_cmd_bibsource_end_to_end]:
+        fn(); print(f"PASS {fn.__name__}")
+    print("\nAll tests passed.")
