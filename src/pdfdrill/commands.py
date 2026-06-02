@@ -62,6 +62,7 @@ OCR_BUILT = "OCR_BUILT"
 VISION_DONE = "VISION_DONE"
 EMBEDDED_IMAGES_BUILT = "EMBEDDED_IMAGES_BUILT"
 BIBSOURCE_BUILT = "BIBSOURCE_BUILT"
+TRANSLATED = "TRANSLATED"
 
 # Hosts that almost always mean "here is the code / data for this paper".
 _CODE_HOSTS = (
@@ -1321,6 +1322,122 @@ def cmd_tiddlers(pdf: Path, force: bool = False, embed: bool = False,
     return (f"Wrote {count} TiddlyWiki tiddlers to {rel}. Import into TiddlyWiki; "
             f"equation tiddlers carry latex / displayMode / canonical_uri / "
             f"width / height for your <$latex>/<$image> table macro.")
+
+
+# Tag -> the tiddler field whose prose gets translated. Math/code/image/toc
+# tiddlers (equation, formula, code, picture, diagram, table, toc, page,
+# reference) are intentionally absent — their text is not natural-language prose.
+_TRANSLATE_FIELD = {
+    "paragraph": "text", "footnote": "text", "sidenote": "text",
+    "abstract": "text", "section": "caption",
+}
+
+
+def _translate_field_for(tiddler: dict) -> Optional[str]:
+    tags = set((tiddler.get("tags") or "").split())
+    for tag, field in _TRANSLATE_FIELD.items():
+        if tag in tags:
+            return field
+    return None
+
+
+def cmd_translate(pdf: Path, target_lang: str = "EN-US",
+                  source_lang: str | None = None, limit: int | None = None,
+                  force: bool = False) -> str:
+    """Translate prose tiddlers via DeepL, preserving the original.
+
+    For each prose tiddler (paragraph/footnote/sidenote/abstract → `text`,
+    section → `caption`) the field is translated in place: the translation goes
+    back into the ORIGINAL field name and the untranslated value is kept under
+    `org_<field>` (e.g. `org_text`), so existing `<$transclude>`/templates show
+    the translation while the source survives for review. Each translated
+    tiddler gains a `translated` tag + `translated_lang`. Writes a sibling
+    `<bibkey>.<lang>.tiddlers.json`; the untranslated array is left intact.
+    Auto-chains `tiddlers`. Needs `DEEPL_API_KEY` (env / .env).
+    """
+    from . import deepl_client
+    from .net import NetworkBlocked
+
+    sc = Sidecar(pdf)
+    key = resolve_bibkey(pdf, None, sc)
+    tiddlers_path = sc.blob_dir / f"{key}.tiddlers.json"
+    if not tiddlers_path.exists():
+        cmd_tiddlers(pdf)
+        sc = Sidecar(pdf)
+        key = resolve_bibkey(pdf, None, sc)
+        tiddlers_path = sc.blob_dir / f"{key}.tiddlers.json"
+    if not tiddlers_path.exists():
+        return f"No tiddlers for {pdf.name} (run `pdfdrill tiddlers` first)."
+    if not deepl_client.available():
+        return ("DeepL unavailable: set DEEPL_API_KEY in the environment or .env "
+                "(https://www.deepl.com/your-account/keys), then rerun "
+                "`pdfdrill translate`.")
+
+    # Read the prior translated set when it exists (so already-done tiddlers
+    # carry org_<field> and are skipped — incremental + idempotent); a --force
+    # run starts from the untranslated source so org_<field> is the true original.
+    out_path = sc.blob_dir / f"{key}.{target_lang.lower()}.tiddlers.json"
+    src_path = out_path if (out_path.exists() and not force) else tiddlers_path
+    tiddlers = json.loads(src_path.read_text(encoding="utf-8"))
+
+    # Collect (tiddler, field, org_field, source_text) for prose not yet done.
+    jobs: list[tuple] = []
+    for t in tiddlers:
+        field = _translate_field_for(t)
+        if not field:
+            continue
+        src = t.get(field)
+        if not (isinstance(src, str) and src.strip()):
+            continue
+        org_field = f"org_{field}"
+        if org_field in t and not force:      # already translated
+            continue
+        jobs.append((t, field, org_field, src))
+    if limit is not None:
+        jobs = jobs[:limit]
+
+    if not jobs:
+        return (f"Nothing to translate for {key} (no prose tiddlers, or all "
+                f"already translated — use --force to re-translate).")
+
+    t0 = time.monotonic()
+    texts = [j[3] for j in jobs]
+    translated: list[str] = []
+    try:
+        for i in range(0, len(texts), 40):       # DeepL: up to 50 texts/request
+            translated.extend(deepl_client.translate_batch(
+                texts[i:i + 40], target_lang, source_lang))
+    except NetworkBlocked as e:
+        return str(e)
+
+    changed = 0
+    for (t, field, org_field, src), tr in zip(jobs, translated):
+        if not tr or tr == src:
+            continue
+        t[org_field] = src                       # preserve the original
+        t[field] = tr                            # translation under the original name
+        tags = set((t.get("tags") or "").split())
+        tags.add("translated")
+        t["tags"] = " ".join(sorted(tags))
+        t["translated_lang"] = target_lang.upper()
+        changed += 1
+
+    out_path.write_text(json.dumps(tiddlers, ensure_ascii=False, indent=1),
+                        encoding="utf-8")
+
+    sc.set_evidence("translated_lang", target_lang.upper())
+    sc.set_evidence("translated_count", changed)
+    prev = ",".join(sorted(sc.facts - {TRANSLATED})) or "INIT"
+    sc.add_fact(TRANSLATED)
+    sc.log_transition("translate", prev, TRANSLATED,
+                      cost_ms=(time.monotonic() - t0) * 1000,
+                      detail=f"{changed} tiddlers -> {target_lang}")
+    sc.save()
+    rel = out_path.relative_to(sc.pdf_path.parent)
+    return (f"Translated {changed} prose tiddler(s) to {target_lang.upper()} via "
+            f"DeepL → {rel}. Each field holds the translation; the original is "
+            f"kept under org_<field> (e.g. org_text) and the tiddler is tagged "
+            f"`translated`.")
 
 
 # ---------------------------------------------------------------------------

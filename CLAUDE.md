@@ -87,7 +87,7 @@ author-year cites, 2 algorithms; the 2605 copy lacking a lines.json skipped).
 The pdfdrill commands (`size`, `pdfinfo`, `urls`, `dests`, `fonts`,
 `fonts_layer`, `images`, `pix2tex`, `abstract`, `toc`, `md`, `page`, `fetch`,
 `plan`, `drill`, `status`, `tsv`, `render`, `nlp`, `ocr`, `vision`,
-`embedimages`, `bibsource`, `doctor`) are documented in
+`embedimages`, `bibsource`, `translate`, `doctor`) are documented in
 `.claude/skills/pdfdrill/SKILL.md`. Each returns prose, not JSON.
 
 ### Killer case worth remembering
@@ -493,6 +493,28 @@ are truncated):
 - TiddlyWiki Reference tiddlers are tagged `reference bibentry`, carry
   `citekey/authors/year/titlefield/entry_type/bibtex/citations`, text led by
   `{{||CIT}}` — compatible with the existing bibentry macros / updateBibentries.
+
+DeepL translation of tiddlers (`src/pdfdrill/deepl_client.py`,
+`pdfdrill translate`):
+
+- **`pdfdrill translate <pdf> [--to EN-US] [--from DE] [--limit N]`** translates
+  prose tiddlers via DeepL API v2 (stdlib `urllib`, no SDK), preserving the
+  original: paragraph/footnote/sidenote/abstract → the `text` field, section →
+  `caption`; the translation is written back under the **original field name**
+  and the source is kept under **`org_<field>`** (e.g. `org_text`), so existing
+  templates render the translation while the source survives. Each translated
+  tiddler gains a `translated` tag + `translated_lang`. Math/code/image/toc
+  tiddlers are skipped (not prose). Writes a sibling
+  `<bibkey>.<lang>.tiddlers.json`; re-runs are incremental + idempotent (read
+  the prior output, skip tiddlers that already have `org_<field>`; `--force`
+  re-translates from the untranslated source). Ported from the tested
+  `~/MX/tiddly-translation` (its field-mapping rules + backup-field pattern).
+- Key from `DEEPL_API_KEY` (env/.env; free keys end `:fx` → api-free host).
+  Calls go through `net.urlopen` (graceful sandbox-block message); a DeepL
+  quota/error degrades to the ORIGINAL text so a batch never aborts. Verified
+  live on the AKolbe BA thesis (DE→EN): `text` = English, `org_text` = German,
+  `\title{}`/`\author{}` wrappers preserved. Tests: `tests/test_translate.py`
+  (no real API).
 
 `pdfdrill latexbook <book.tex>` is the one-shot source-only pipeline (no PDF,
 no MathPix): build the model from `.tex` (inline `\input`, resolve preamble +
