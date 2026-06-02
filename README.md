@@ -47,6 +47,8 @@ pdfdrill links paper.pdf           # external URLs from the annotation layer,
 pdfdrill model paper.pdf           # build the unified docmodel from lines.json
 pdfdrill compare paper.pdf         # LaTeX | KaTeX | MathPix-image QC table
 pdfdrill report  paper.pdf         # full inline+display formula report
+pdfdrill tiddlers paper.pdf        # TiddlyWiki tiddler array (--bibkey KEY sets the prefix)
+pdfdrill translate paper.pdf --from DE --to EN-US   # DeepL-translate prose tiddlers
 pdfdrill folder  ./papers          # batch-build every PDF that already has a
                                    #   sibling .lines.json — no network calls
 ```
@@ -65,6 +67,26 @@ that have no visible anchor text — e.g. a paper whose page-1 text says only
 in any rendered-text stream (plain extraction, Markdown, or a chatbot upload
 all drop it); `links` surfaces it in ~50 ms.
 
+### Translating the tiddlers (DeepL)
+
+`pdfdrill translate <pdf> [--from DE] [--to EN-US] [--limit N]` renders the
+prose tiddlers into another language via DeepL (paragraph/footnote/sidenote/
+abstract → `text`, section → `caption`). The translation is written back under
+the **original field name**, and the source is preserved under `org_<field>`
+(e.g. `org_text`) — so your existing `<$transclude>`/templates show the
+translation while the original survives for review:
+
+```jsonc
+{ "title": "doc_PARA_0001", "tags": "paragraph translated",
+  "text":     "Correlation in the Hubbard model",   // ← DeepL translation
+  "org_text": "Korrelation im Hubbard Modell",      // ← original, preserved
+  "translated_lang": "EN-US" }
+```
+
+Math/code/image tiddlers are skipped (not prose). Output goes to a sibling
+`<bibkey>.<lang>.tiddlers.json` (the untranslated array is left intact); re-runs
+are incremental and idempotent. Needs `DEEPL_API_KEY` (see **API keys** below).
+
 ## Layout
 
 - `src/pdfdrill/` — the CLI toolkit, sidecar state machine, and capture layer.
@@ -73,12 +95,23 @@ all drop it); `links` surfaces it in ~50 ms.
 - `src/docops/` — `Mutator`s and `Projector`s over a `Document` (plaintext,
   LLM-compact markdown, TiddlyWiki, comparison table, formula report).
 
-## MathPix / Perplexity credentials
+## API keys
 
-Network features (`mathpix`, `snip`, `bibfetch`) read credentials from
-environment variables — `MATHPIX_APP_ID` / `MATHPIX_APP_KEY` and
-`PERPLEXITY_API_KEY` — and never store them in the repo. The whole offline
-path (`folder`, `model`, `compare`, `report`, `tiddlers`, …) needs no keys.
+Network features read their credentials from **environment variables** (or a
+git-ignored `.env` — copy `.env.example`); keys are never stored in the repo.
+The whole offline path (`folder`, `model`, `compare`, `report`, `tiddlers`,
+`ocr`, `embedimages`, `bibsource`, `latexbook`, …) needs **no keys at all**.
+
+| Key | Used by | Get it |
+|-----|---------|--------|
+| `MATHPIX_APP_ID` / `MATHPIX_APP_KEY` | `mathpix`, `model` (OCR → `lines.json`), `snip` | <https://mathpix.com/> → Console → API Keys |
+| `OPENAI_API_KEY` | `vision` (GPT-4o reads CDN crops MathPix left as images → math/TikZ/table) | <https://platform.openai.com/api-keys> |
+| `DEEPL_API_KEY` | `translate` (DeepL-translate prose tiddlers) | <https://www.deepl.com/your-account/keys> (free keys end in `:fx`) |
+| `PERPLEXITY_API_KEY` | `bibfetch` (online BibTeX enrichment) | <https://www.perplexity.ai/> → Settings → API |
+
+Run `pdfdrill doctor` to see which system tools, Python deps, and keys are
+present and what each enables. A blocked sandbox host yields a clear
+"enable it in your network settings" message, never a stack trace.
 
 ## Tests
 
