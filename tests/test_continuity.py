@@ -80,7 +80,7 @@ def test_cmd_continuity_caches_and_attaches_to_pages(monkeypatch):
         sc.add_fact(MODEL_BUILT); sc.save()
 
         out = commands.cmd_continuity(pdf)
-        assert "2/2 page(s) carry a 'Seite N'" in out
+        assert "2/2 page(s) carry a continuity marker" in out
         assert "Seite 1 von 2" in out and "Fortsetzung Seite 2" in out
         # Persisted in sidecar + attached to Page objects.
         sc2 = Sidecar(pdf)
