@@ -32,6 +32,11 @@ def test_result_to_latex_mapping():
     ) == ("tikzpicture", "\\begin{tikzpicture}\\end{tikzpicture}")
     assert openai_vision.result_to_latex({"selector": "table", "table": "\\begin{tabular}{ll}a&b\\end{tabular}"})[0] == "table"
     assert openai_vision.result_to_latex({"selector": "empty"}) == ("empty", "")
+    # Office-doc selectors: text/handwriting -> text field; picture-likes -> description.
+    assert openai_vision.result_to_latex({"selector": "text", "text": "Datum: 30.04.2018"}) == ("text", "Datum: 30.04.2018")
+    assert openai_vision.result_to_latex({"selector": "handwriting", "text": "Grimm"}) == ("handwriting", "Grimm")
+    assert openai_vision.result_to_latex({"selector": "chart", "description": "decreasing curve"}) == ("chart", "decreasing curve")
+    assert openai_vision.result_to_latex({"selector": "logo", "description": "Deutsche Post posthorn"})[0] == "logo"
 
 
 def _doc():

@@ -26,32 +26,34 @@ API_ENDPOINT = "https://api.openai.com/v1/chat/completions"
 DEFAULT_MODEL = "gpt-4o-2024-08-06"
 
 # The classification prompt (ported verbatim from mathpix_images/prompt.txt).
-DEFAULT_PROMPT = """You are given a base64 encoded image that has not been resolved by an OCR service.
-Analyze the image content and return a JSON object with this structure:
+DEFAULT_PROMPT = """You are given a base64-encoded image crop that an OCR service could NOT resolve and left as a raw image. Identify what it contains and return a JSON object with this structure:
 
 {
-  "selector": "empty|math|commutative_diagram|gnuplot|tikzpicture|tensor|table",
-  "math": "optional LaTeX math expression",
-  "commutative_diagram": "optional tikz-cd code",
-  "gnuplot": "optional GnuPlot rendering commands",
-  "csv_data": "optional extracted plot data as CSV",
-  "tikzpicture": "optional tikzpicture LaTeX code",
-  "tensor": "optional tensor diagram LaTeX code",
-  "table": "optional LaTeX tabular for a data table"
+  "selector": "text|handwriting|table|math|commutative_diagram|gnuplot|tikzpicture|tensor|diagram|chart|photo|logo|empty",
+  "text": "verbatim transcription of printed OR handwritten text",
+  "table": "LaTeX tabular for a data table",
+  "math": "LaTeX math expression",
+  "commutative_diagram": "tikz-cd code",
+  "gnuplot": "GnuPlot script reproducing a plot",
+  "csv_data": "extracted plot data as CSV",
+  "tikzpicture": "tikzpicture LaTeX code",
+  "tensor": "tensor diagram LaTeX code",
+  "description": "concise factual description for diagram/chart/photo/logo"
 }
 
-CLASSIFICATION RULES
-- "empty" - blank area. All other fields empty.
-- "math" - unresolved math expression. Fill "math" with LaTeX in $$ delimiters.
+CLASSIFICATION RULES — fill ONLY the field named by selector.
+- "text" - printed prose/labels/numbers/addresses. Transcribe verbatim into "text".
+- "handwriting" - cursive or hand-printed writing. Transcribe your best reading into "text".
+- "table" - rows/columns of text or numbers. Fill "table" with a \\begin{tabular}...\\end{tabular} reproducing every visible cell, row by row.
+- "math" - a math expression. Fill "math" with LaTeX in $$ delimiters.
 - "commutative_diagram" - fill "commutative_diagram" with tikz-cd code.
-- "gnuplot" - data plot/graph: fill "csv_data" with every readable data point
-  (CSV, header row, x in column 1) AND "gnuplot" with a complete self-contained
-  script that reads 'data.csv' and reproduces the plot.
-- "tikzpicture" - general TikZ diagram. Fill "tikzpicture".
+- "gnuplot" - a data plot: fill "csv_data" with every readable data point (CSV, header row, x in column 1) AND "gnuplot" with a complete self-contained script reading 'data.csv'.
+- "tikzpicture" - general TikZ-style line drawing. Fill "tikzpicture".
 - "tensor" - tensor network diagram. Fill "tensor".
-- "table" - a data table rendered as an image (rows/columns of text or numbers).
-  Fill "table" with a LaTeX \\begin{tabular}...\\end{tabular} reproducing every
-  visible cell, row by row.
+- "diagram" / "chart" / "photo" / "logo" - a picture with no transcribable text. Fill "description".
+- "empty" - ONLY for a genuinely blank/featureless area.
+
+IMPORTANT: faint, low-contrast, light-grey, or cursive content is NOT empty. If you can perceive ANY strokes, glyphs, lines, or marks, classify and extract them (use "handwriting" or "text" for writing, "diagram" otherwise). Reserve "empty" for a truly blank crop.
 
 Return ONLY the JSON object. No markdown fences, no explanation."""
 
@@ -63,13 +65,15 @@ _SCHEMA = {
         "type": "object",
         "properties": {
             "selector": {"type": "string"},
+            "text": {"type": "string"},
+            "table": {"type": "string"},
             "math": {"type": "string"},
             "commutative_diagram": {"type": "string"},
             "gnuplot": {"type": "string"},
             "csv_data": {"type": "string"},
             "tikzpicture": {"type": "string"},
             "tensor": {"type": "string"},
-            "table": {"type": "string"},
+            "description": {"type": "string"},
         },
         "additionalProperties": False,
     },
@@ -146,12 +150,18 @@ def analyze_image(
 # Map a vision result to a (kind, latex) pair for the model. `kind` mirrors the
 # selector so downstream code can decide rendering (KaTeX vs TikZ→SVG vs table).
 _FIELD_BY_SELECTOR = {
+    "text": "text",
+    "handwriting": "text",
+    "table": "table",
     "math": "math",
     "commutative_diagram": "commutative_diagram",
     "tikzpicture": "tikzpicture",
     "tensor": "tensor",
-    "table": "table",
     "gnuplot": "gnuplot",
+    "diagram": "description",
+    "chart": "description",
+    "photo": "description",
+    "logo": "description",
 }
 
 

@@ -1999,13 +1999,20 @@ def cmd_vision(pdf: Path, limit: int | None = None, force: bool = False) -> str:
     processed = 0
     by_sel: Counter = Counter()
     errors = 0
+    api_calls = 0
+    url_cache: dict[str, tuple] = {}   # the same crop can hang off >1 object
     for o, url in todo:
-        try:
-            res = openai_vision.analyze_image(url)
-        except Exception:
-            errors += 1
-            continue
-        selector, code = openai_vision.result_to_latex(res)
+        if url in url_cache:
+            selector, code, res = url_cache[url]
+        else:
+            try:
+                res = openai_vision.analyze_image(url)
+            except Exception:
+                errors += 1
+                continue
+            api_calls += 1
+            selector, code = openai_vision.result_to_latex(res)
+            url_cache[url] = (selector, code, res)
         if force:
             o.realizations = [r for r in o.realizations
                               if not (r.role == "latex_candidate"
@@ -2030,14 +2037,15 @@ def cmd_vision(pdf: Path, limit: int | None = None, force: bool = False) -> str:
     sc.add_fact(VISION_DONE)
     sc.log_transition("vision", prev, VISION_DONE,
                       cost_ms=(time.monotonic() - t0) * 1000,
-                      detail=f"{processed}/{len(todo)} crops, {errors} errors")
+                      detail=f"{processed} attached / {api_calls} API calls, {errors} errors")
     sc.save()
 
     sel_s = ", ".join(f"{n} {s}" for s, n in by_sel.most_common()) or "none"
     err_s = f", {errors} error(s)" if errors else ""
+    dedup_s = f" ({api_calls} GPT-4o calls; {processed - api_calls} reused across objects)" if processed > api_calls else ""
     remaining = len(targets) - processed if limit is None else max(0, len(targets) - len(todo))
     return (
-        f"OpenAI vision: read {processed} CDN crop(s) ({sel_s}){err_s}; "
+        f"OpenAI vision: read {processed} CDN crop(s){dedup_s} ({sel_s}){err_s}; "
         f"{len(targets)} total crops in the model. Attached as the 'openai' "
         f"provenance (selector + LaTeX/TikZ/table). "
         f"Run `pdfdrill compare {pdf.name}` to see the column."
