@@ -63,6 +63,7 @@ VISION_DONE = "VISION_DONE"
 EMBEDDED_IMAGES_BUILT = "EMBEDDED_IMAGES_BUILT"
 BIBSOURCE_BUILT = "BIBSOURCE_BUILT"
 TRANSLATED = "TRANSLATED"
+CONTINUITY_BUILT = "CONTINUITY_BUILT"
 
 # Hosts that almost always mean "here is the code / data for this paper".
 _CODE_HOSTS = (
@@ -291,6 +292,99 @@ def cmd_ocr(pdf: Path, lang: str = "eng", ppi: int = 300, force: bool = False) -
         f"`pdfdrill model {pdf.name}`. Note: plain text only — no LaTeX/equation "
         f"typing/CDN crops (math comparison is MathPix-only)."
     )
+
+
+def _load_or_build_continuity(pdf: Path, sc: "Sidecar", force: bool = False,
+                              ppi: int = 250, lang: str = "deu+eng"):
+    """Return {page_no: continuity-info}, from the sidecar cache or by OCRing
+    the full pages. Cached because the render+OCR of every page is slow. Returns
+    (data, error_msg): error_msg set only when the OCR tools are unavailable."""
+    from . import continuity
+    cached = sc.get_evidence("continuity")
+    if cached and not force:
+        return {int(k): v for k, v in cached.items()}, None
+    ok, msg = continuity.tools_available()
+    if not ok:
+        return None, msg
+    out_dir = sc.blob_dir / "continuity"
+    sc.blob_dir.mkdir(parents=True, exist_ok=True)
+    data = continuity.extract_continuity(pdf, out_dir, ppi=ppi, lang=lang)
+    sc.set_evidence("continuity", {str(k): v for k, v in data.items()})
+    sc.save()
+    return data, None
+
+
+def cmd_continuity(pdf: Path, force: bool = False, ppi: int = 250,
+                   lang: str = "deu+eng") -> str:
+    """Recover page-continuity markers from the page MARGINS via full-page OCR.
+
+    German documents print "Seite N von M" / "Fortsetzung Seite N" / control
+    numbers in the margin, OUTSIDE MathPix's content crop — so they're invisible
+    to the MathPix path. This renders each page and OCRs the whole page
+    (margins included) with tesseract, then classifies the continuity tokens
+    (with their margin position). When a `model` exists, the page-sequence is
+    also attached to each `Page` (`seq_in_doc`/`doc_total`/`is_continuation`/
+    `control_no`) — see `pdfdrill status`. Reuses the `ocr`/`geometry` plumbing;
+    never routes through the MathPix crop. Cached in the sidecar.
+    """
+    sc = Sidecar(pdf)
+    data, err = _load_or_build_continuity(pdf, sc, force=force, ppi=ppi, lang=lang)
+    if err:
+        return (f"Continuity OCR needs {err} Install poppler-utils + "
+                f"tesseract-ocr (with the `deu` language pack) and rerun.")
+
+    # ISSUE 2: attach the page-sequence to the model's Page objects, if built.
+    attached = 0
+    model_path = _model_path(sc)
+    if model_path.exists():
+        from docmodel.core import Document
+        doc = Document.from_dict(json.loads(model_path.read_text(encoding="utf-8")))
+        pages = {p.props.get("page_number"): p for p in doc.objects_of_type("Page")}
+        for page_no, info in data.items():
+            pg = pages.get(page_no)
+            if pg is None:
+                continue
+            for k in ("seq_in_doc", "doc_total", "is_continuation",
+                      "next_seite", "control_no"):
+                if info.get(k) not in (None, False):
+                    pg.props[k] = info[k]
+            attached += 1
+        model_path.write_text(json.dumps(doc.to_dict(), indent=2, ensure_ascii=False),
+                              encoding="utf-8")
+
+    prev = ",".join(sorted(sc.facts - {CONTINUITY_BUILT})) or "INIT"
+    sc.add_fact(CONTINUITY_BUILT)
+    n_seq = sum(1 for i in data.values() if i.get("seq_in_doc") is not None)
+    n_marker = sum(1 for i in data.values()
+                   if i.get("seq_in_doc") is not None or i.get("is_continuation"))
+    sc.set_evidence("continuity_pages_with_seq", n_seq)
+    sc.set_evidence("continuity_pages_with_marker", n_marker)
+    sc.log_transition("continuity", prev, CONTINUITY_BUILT,
+                      detail=f"{n_marker}/{len(data)} pages w/ a continuity marker")
+    sc.save()
+
+    lines = []
+    for page_no in sorted(data):
+        i = data[page_no]
+        bits = []
+        if i.get("seq_in_doc") is not None:
+            bits.append(f"Seite {i['seq_in_doc']}"
+                        + (f" von {i['doc_total']}" if i.get("doc_total") else ""))
+        if i.get("is_continuation"):
+            bits.append(f"→ Fortsetzung Seite {i.get('next_seite') or '?'}")
+        if i.get("control_no"):
+            bits.append(f"control={i['control_no']}")
+        if bits:
+            where = ",".join(sorted({m["where"] for m in i.get("markers", [])}))
+            lines.append(f"  p{page_no:>2}: {' | '.join(bits)}  [{where}]")
+    body = "\n".join(lines) if lines else "  (no continuity markers found)"
+    head = (f"Continuity (full-page OCR, margins included): {n_marker}/{len(data)} "
+            f"page(s) carry a continuity marker ({n_seq} a 'Seite N' sequence, "
+            f"{n_marker - n_seq} a 'Fortsetzung' pointer)"
+            + (f"; page-sequence attached to {attached} Page object(s)" if attached else "")
+            + ". Pages without a marker are typically single-page documents. "
+            f"These include margin-only markers MathPix's content crop drops.")
+    return head + "\n" + body
 
 
 def cmd_model(pdf: Path, force: bool = False, bibkey: str | None = None) -> str:
@@ -3028,6 +3122,19 @@ def cmd_status(pdf: Path) -> str:
         parts.append(f"  Markdown extracted ({md_meta.get('words', '?')} words)")
     if MMD_BUILT in facts:
         parts.append("  MathPix-style Markdown built")
+    if CONTINUITY_BUILT in facts:
+        cont = sc.get_evidence("continuity") or {}
+        n_seq = sc.get_evidence("continuity_pages_with_seq", 0)
+        parts.append(f"  continuity ({n_seq}/{len(cont)} pages carry a Seite N marker):")
+        for page_no in sorted(cont, key=lambda k: int(k)):
+            i = cont[page_no]
+            if i.get("seq_in_doc") is None and not i.get("is_continuation"):
+                continue
+            seq = (f"Seite {i['seq_in_doc']}"
+                   + (f"/{i['doc_total']}" if i.get("doc_total") else "")
+                   ) if i.get("seq_in_doc") is not None else "Seite ?"
+            cont_s = " (→cont.)" if i.get("is_continuation") else ""
+            parts.append(f"    p{int(page_no):>2}: {seq}{cont_s}")
 
     last = sc.last_node
     parts.append(f"\nLast action: {last}. {len(sc.transitions)} transitions logged.")
