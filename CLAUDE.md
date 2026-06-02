@@ -494,6 +494,31 @@ Embedded-image fusion — all image routes on one node
   `tests/test_embedimages.py` (containment fusion, crop-outside-not-fused,
   string coords, idempotent re-run).
 
+Leftover-crop recovery — empirical route comparison (which tool for what):
+
+- A 37-crop study on `~/WKprivate/Scanned/ocrtest.pdf` (every MathPix-leftover
+  image), scoring three recovery routes per crop against the actual image
+  (tesseract `deu+eng` OCR, MathPix Snip `/v3/text`, LLM vision). Result: **all
+  37 recoverable**; **vision wins 34/37** (mean fidelity 0.91) vs Snip 0.26 vs
+  tesseract 0.24. Per content type vision wins every class; the cheap routes
+  are competitive only on machine-printed text/table/equation (tesseract hit
+  1.0 on a clean printed address block + a printed equation; Snip's single win
+  was a handwritten table at 0.85). **Handwriting (12 crops) is vision-only**
+  (tesseract 0.06, Snip 0.35, vision 0.85).
+- **MathPix Snip is text/math-only:** it returns "Content not found" on photos/
+  charts/logos — *identically* whether given the image URL or the uploaded
+  bytes (so it's a no-content signal, not a fetch failure). **tesseract emits
+  noise** on non-text crops (skip it there).
+- **State-machine routing rule** (keeps all options open, vision as the
+  terminal fallback so extraction always succeeds): normalize the crop URL
+  (unescape `\&`→`&`, else upload bytes) → if confidently machine-printed
+  text/table/equation, try tesseract then Snip (accept at ≥0.7) → for
+  handwriting, optionally Snip for tables else vision → for chart/diagram/logo/
+  mixed/photo, go straight to vision (don't call Snip/tesseract) → vision is the
+  terminal route for every path; if max score <0.3, flag unrecoverable (none
+  occurred). The competing readings already attach as provenances (`snip`,
+  `openai`); `_collect_cdn_crops` now yields only clean fetchable URLs.
+
 OpenAI GPT-4o vision provenance (`src/pdfdrill/openai_vision.py`,
 `pdfdrill vision`):
 
