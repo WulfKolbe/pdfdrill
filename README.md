@@ -2,6 +2,8 @@
 
 **Token-economical drill-down extraction + PDF→LaTeX OCR quality control.**
 
+🔗 **Project page:** <https://wulfkolbe.github.io>
+
 `pdfdrill` is a flat CLI that returns prose, persists state in a sidecar next
 to each PDF, and wraps the heavy tools (poppler, pdfplumber) so an LLM can
 drill into a document with the cheapest sufficient command. It is paired with
