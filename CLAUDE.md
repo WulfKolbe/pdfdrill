@@ -346,6 +346,19 @@ Equation-number fusion (done):
   Markdown could opt in for tests). So both the equation and its reference
   transclude: `{{<eq>||FO}} {{<eq>||FREF}}`. 2605.12061: 28 in-text refs
   substituted.
+- TiddlyWiki: **LaTeX sectioning commands that MathPix leaves inside a
+  paragraph body** (`\section*{X}`/`\subsection*{X}`/…) are converted to the
+  native WikiText heading (`! X` / `!! X` / `!!! X`; chapter→`!`) by
+  `tiddlywiki.latex_sectioning_to_wikitext`, applied at the single chokepoint
+  where PARA `text` is built (`_transclude_paragraph`, last so it doesn't
+  disturb offset-based inline substitutions). The PARA template is
+  `<p>{{!!text}}</p>` and KaTeX renders only math, so an un-converted
+  `\section*{...}` showed as the literal string. The title is brace-balanced so
+  a `{{<eq>||FO}}` transclusion inside it survives. On 2004.05631: 57 leaking
+  paragraphs → **0** (53 now open with a heading). Footnote refs are emitted as
+  `{{<fn>||FN}}` (the `FN` template = superscript link); there is **no**
+  `FNREF` and none is emitted — generator and template set are consistent.
+  Tests: `tests/test_tiddler_headings.py`.
 
 Bibliography (heuristic first cut — `src/pdfdrill/bibliography.py`,
 `pdfdrill bibliography`):

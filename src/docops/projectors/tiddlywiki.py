@@ -56,6 +56,56 @@ def _bibtag(bibkey: str) -> str:
     return f"[[{bibkey}]]" if (" " in bibkey) else bibkey
 
 
+# LaTeX sectioning commands that MathPix sometimes leaves inside a paragraph
+# body (`\section*{...}`) instead of tagging the line as a section header. The
+# PARA template is `<p>{{!!text}}</p>` and KaTeX only renders math, so these
+# render as the literal string. Convert to the native WikiText heading the
+# document uses (`!`/`!!`/`!!!`). Longest command first so `subsubsection`
+# isn't shadowed by `section`. Title taken as the first brace group (titles
+# don't nest braces in practice).
+# Match the command + opening brace; the title (which may itself contain
+# balanced braces, e.g. a `{{...||FO}}` transclusion) is walked brace-balanced.
+# Longest command first so `subsubsection` isn't shadowed by `section`.
+_SECTIONING_HEAD = re.compile(
+    r"\\(chapter|subsubsection|subsection|section)\*?\s*\{")
+_HEADING_LEVEL = {"chapter": "!", "section": "!", "subsection": "!!",
+                  "subsubsection": "!!!"}
+
+
+def latex_sectioning_to_wikitext(text: str) -> str:
+    """Convert leaked LaTeX sectioning commands in prose to WikiText headings.
+
+    `\\section*{X}` -> `! X`, `\\subsection{X}` -> `!! X`, etc. The title is
+    extracted with a balanced-brace walk so a `{{...||FO}}` transclusion inside
+    it survives. The heading is put on its own line (WikiText headings must
+    start a line); runs of blank lines are collapsed. No-op without a `\\`.
+    """
+    if not text or "\\" not in text:
+        return text
+    out: list[str] = []
+    i, n = 0, len(text)
+    while i < n:
+        m = _SECTIONING_HEAD.search(text, i)
+        if not m:
+            out.append(text[i:])
+            break
+        out.append(text[i:m.start()])
+        depth, j = 1, m.end()
+        while j < n and depth > 0:
+            if text[j] == "{":
+                depth += 1
+            elif text[j] == "}":
+                depth -= 1
+            j += 1
+        if depth != 0:                       # unbalanced — leave the rest as-is
+            out.append(text[m.start():])
+            break
+        title = text[m.end():j - 1].strip()
+        out.append(f"\n\n{_HEADING_LEVEL[m.group(1)]} {title}\n\n")
+        i = j
+    return re.sub(r"\n{3,}", "\n\n", "".join(out)).strip()
+
+
 # Footnote anchor patterns (MathPix produces variations like \({ }^{1}\) or { }^{1}).
 _FN_REF_RE = re.compile(r"\\\(\s*\{\s*\}\s*\^\s*\{\s*(\d+)\s*\}\s*\\\)|\{\s*\}\s*\^\s*\{\s*(\d+)\s*\}")
 _INCLUDEGRAPHICS_RE = re.compile(r"\\includegraphics(?:\[[^\]]*\])?\{([^}]+)\}")
@@ -529,7 +579,7 @@ class TiddlyWikiProjector(BaseProjector):
             None,
         )
         if surface is None:
-            return para.props.get("text", "")
+            return latex_sectioning_to_wikitext(para.props.get("text", ""))
 
         stream = doc.stream("mathpix_lines")
         anchors = stream.slice_anchors(surface.start, surface.end)
@@ -550,7 +600,10 @@ class TiddlyWikiProjector(BaseProjector):
         joined = self._substitute_residual_inline_math(
             joined, synthetic_formulas, bibkey)
         joined = self._substitute_eq_refs(joined)
-        return joined
+        # Convert any leaked LaTeX sectioning command (\section*{...}) to a
+        # native WikiText heading — done last so it doesn't disturb the
+        # offset-based inline substitutions above.
+        return latex_sectioning_to_wikitext(joined)
 
     def _substitute_eq_refs(self, text: str) -> str:
         """Replace in-text equation references "(N)" with {{<eq>||FREF}}.
