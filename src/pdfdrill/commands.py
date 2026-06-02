@@ -64,6 +64,7 @@ EMBEDDED_IMAGES_BUILT = "EMBEDDED_IMAGES_BUILT"
 BIBSOURCE_BUILT = "BIBSOURCE_BUILT"
 TRANSLATED = "TRANSLATED"
 CONTINUITY_BUILT = "CONTINUITY_BUILT"
+ENTITIES_BUILT = "ENTITIES_BUILT"
 
 # Hosts that almost always mean "here is the code / data for this paper".
 _CODE_HOSTS = (
@@ -385,6 +386,107 @@ def cmd_continuity(pdf: Path, force: bool = False, ppi: int = 250,
             + ". Pages without a marker are typically single-page documents. "
             f"These include margin-only markers MathPix's content crop drops.")
     return head + "\n" + body
+
+
+# A bank name: the bank-type keyword + ≤2 preceding capitalised tokens, on a
+# single line (no newline spanning, so it doesn't swallow a sender block).
+_BANK_NAME = re.compile(
+    r"\b((?:[A-ZÄÖÜ][\wäöüß.\-]*[^\S\n]+){0,2}"
+    r"(?:Kreissparkasse|Sparkasse|Volksbank|Raiffeisenbank|Bankhaus|Bank)"
+    r"(?:[^\S\n]+[A-ZÄÖÜ][\wäöüß.\-]*){0,2})\b")
+
+
+def _bank_near(text: str, pos: int) -> str:
+    """Best-effort bank name in a window around an IBAN occurrence."""
+    window = text[max(0, pos - 160):pos + 40]
+    m = _BANK_NAME.search(window)
+    return re.sub(r"\s+", " ", m.group(1)).strip() if m else ""
+
+
+def _page_text_from_model(doc) -> dict:
+    """Per-page content text from the mathpix_lines stream (the OCR content)."""
+    pages: dict[int, list[str]] = {}
+    mp = doc.streams.get("mathpix_lines")
+    if mp is None:
+        return {}
+    for a in mp.anchors:
+        p = mp.payload[a]
+        t = p.get("text_display") or p.get("text") or ""
+        if t.strip():
+            pages.setdefault(p.get("_page"), []).append(t)
+    return {pg: "\n".join(v) for pg, v in pages.items() if pg is not None}
+
+
+def cmd_entities(pdf: Path, force: bool = False) -> str:
+    """Extract commercial entities per page — self-contained, zero external tools.
+
+    Per page: IBAN (mod-97 checksum-validated; DE BLZ/Konto + bank name derived
+    from the page text), BIC, German postal ADDRESS block, and labelled ids
+    (Steuernummer/Kassenzeichen/Aktenzeichen/Rechnungs-/Kundennummer). Built on
+    the additive `features` extractors; reuses the existing model's content text.
+    """
+    from docmodel.core import Document
+    from features import (extract_iban, extract_bic, extract_german_address,
+                          extract_ids)
+
+    sc = Sidecar(pdf)
+    model_path = _model_path(sc)
+    if not sc.has(MODEL_BUILT) or not model_path.exists():
+        cmd_model(pdf)
+        sc = Sidecar(pdf)
+        model_path = _model_path(sc)
+    if not model_path.exists():
+        return f"No model for {pdf.name} (run `pdfdrill model` first)."
+
+    doc = Document.from_dict(json.loads(model_path.read_text(encoding="utf-8")))
+    page_text = _page_text_from_model(doc)
+
+    per_page: dict[int, dict] = {}
+    n_iban = n_valid = 0
+    for page in sorted(page_text):
+        text = page_text[page]
+        ibans = extract_iban.extract(text, str(page))
+        rec = {"iban": [], "bic": [f.value for f in extract_bic.extract(text, str(page))],
+               "address": [f.value for f in extract_german_address.extract(text, str(page))],
+               "ids": [(f.type, f.value) for f in extract_ids.extract(text, str(page))]}
+        for f in ibans:
+            n_iban += 1
+            valid = f.confidence >= 1.0
+            n_valid += valid
+            parts = extract_iban.german_parts(f.value)
+            bank = _bank_near(text, f.start or 0)
+            rec["iban"].append({"iban": f.value, "valid": valid,
+                                 "blz": parts.get("blz"), "konto": parts.get("konto"),
+                                 "bank": bank})
+        if rec["iban"] or rec["bic"] or rec["address"] or rec["ids"]:
+            per_page[page] = rec
+
+    sc.set_evidence("entities", {str(k): v for k, v in per_page.items()})
+    sc.set_evidence("entities_ibans_valid", n_valid)
+    prev = ",".join(sorted(sc.facts - {ENTITIES_BUILT})) or "INIT"
+    sc.add_fact(ENTITIES_BUILT)
+    sc.log_transition("entities", prev, ENTITIES_BUILT,
+                      detail=f"{n_valid}/{n_iban} valid IBAN, {len(per_page)} pages")
+    sc.save()
+
+    lines = []
+    for page in sorted(per_page):
+        r = per_page[page]
+        for ib in r["iban"]:
+            tag = "valid" if ib["valid"] else "INVALID checksum"
+            extra = (f", BLZ {ib['blz']}, Konto {ib['konto']}" if ib.get("blz") else "")
+            bank = f" — {ib['bank']}" if ib.get("bank") else ""
+            lines.append(f"  p{page:>2} IBAN {ib['iban']} ({tag}{extra}){bank}")
+        for b in r["bic"]:
+            lines.append(f"  p{page:>2} BIC  {b}")
+        for a in r["address"]:
+            lines.append(f"  p{page:>2} ADDR {a}")
+        for typ, val in r["ids"]:
+            lines.append(f"  p{page:>2} {typ} {val}")
+    body = "\n".join(lines) if lines else "  (no commercial entities found)"
+    return (f"Entities: {n_valid}/{n_iban} IBAN(s) checksum-valid across "
+            f"{len(per_page)} page(s); BIC / German address / ids too. "
+            f"Zero external tools (built-in mod-97 IBAN check).\n" + body)
 
 
 def cmd_model(pdf: Path, force: bool = False, bibkey: str | None = None) -> str:
