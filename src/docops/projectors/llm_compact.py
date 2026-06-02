@@ -162,6 +162,9 @@ class LLMCompactProjector(BaseProjector):
             label = (cap or f"figure on p{p.get('page')}").strip()
             return f"_({label})_"
         if t == "Diagram":
+            if p.get("subtype") == "code":
+                lang = p.get("language") or ""
+                return f"```{lang}\n{p.get('code', '')}\n```"
             return f"_(diagram on p{p.get('page')})_"
         if t == "Footnote":
             return f"^{p.get('refnum')}: {p.get('content', '')}"

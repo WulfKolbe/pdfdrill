@@ -32,6 +32,36 @@ def tools_available() -> bool:
     return bool(shutil.which("latex")) and bool(shutil.which("dvisvgm"))
 
 
+_MD_FENCE = re.compile(r"^\s*(```|~~~)")
+# A renderable graphic must contain a LaTeX environment, a `\tikz` command, or a
+# TikZ drawing command. Raw source-code listings have none (so they're skipped,
+# not compiled). The drawing-command set is curated rather than "any backslash"
+# so a Julia left-division `A\b` isn't mistaken for a graphic.
+_HAS_LATEX_GFX = re.compile(
+    # Known graphic/table environments only — NOT any `\begin{...}` (so a math
+    # `\begin{matrix}` in a code string isn't mistaken for a renderable graphic).
+    r"\\begin\{(?:tikzpicture|tikzcd|circuitikz|forest|tabular\*?|tabularx"
+    r"|longtable|pgfpicture|scope|qcircuit|chemfig)\}"
+    r"|\\tikz\b"
+    r"|\\(draw|node|fill|filldraw|shade|shadedraw|path|clip|coordinate"
+    r"|foreach|pic|pgf[A-Za-z]*)\b")
+
+
+def is_latex_graphic(latex_code: str) -> bool:
+    """True if `latex_code` looks like a real LaTeX graphic worth compiling.
+
+    False for empty bodies, markdown-fenced code listings (```/~~~), and any
+    snippet with no LaTeX environment / `\\tikz` command (e.g. raw Julia or
+    Python source captured as a `Diagram`). Used to hard-guard `compile_to_svg`
+    so latex is never spawned on non-graphic content.
+    """
+    if not latex_code or not latex_code.strip():
+        return False
+    if _MD_FENCE.match(latex_code):
+        return False
+    return bool(_HAS_LATEX_GFX.search(latex_code))
+
+
 def _graphic_ratio(dvisvgm_out: str) -> str:
     m = re.search(r"graphic size:\s*([0-9.]+)pt\s*x\s*([0-9.]+)pt", dvisvgm_out, re.I)
     if not m:
@@ -50,6 +80,11 @@ def compile_to_svg(latex_code: str, preamble: str | None = None,
     `resource_dir` (the document's own folder) is prepended to TEXINPUTS so a
     project preamble's local `\\usepackage{mystyle}` / tkz-* styles resolve.
     """
+    # Hard guard: never feed non-graphic content (empty, a markdown code fence,
+    # or raw source with no LaTeX env / \tikz) to latex — it would always fail.
+    if not is_latex_graphic(latex_code):
+        return {"ok": False, "svg": "", "ratio": "", "skipped": True,
+                "error": "not a LaTeX graphic (skipped)"}
     if not tools_available():
         return {"ok": False, "svg": "", "ratio": "",
                 "error": "latex/dvisvgm not on PATH"}

@@ -428,8 +428,23 @@ class TiddlyWikiProjector(BaseProjector):
             self._copy_region(t, pic.props)
             out.append(t)
 
-        # Diagrams
+        # Diagrams (a `subtype=code` diagram is a source-code listing, not an
+        # image — emit it as a fenced code block, which TiddlyWiki renders as
+        # <pre><code>; never an <$image>).
         for d in inv["diagrams"]:
+            if d.props.get("subtype") == "code":
+                lang = d.props.get("language") or ""
+                code = d.props.get("code") or d.props.get("latex_code") or ""
+                t = self._t(
+                    title[d.id],
+                    f"```{lang}\n{code}\n```",
+                    f"code {_bibtag(bibkey)}",
+                )
+                t["page"] = self._p3(d.props.get("page"))
+                if lang:
+                    t["language"] = lang
+                out.append(t)
+                continue
             t = self._t(
                 title[d.id],
                 "<$image source={{!!canonical_uri}} width={{!!width}} height={{!!height}}/>",
@@ -776,6 +791,12 @@ class TiddlyWikiProjector(BaseProjector):
             if b.id not in title:
                 continue
             t = title[b.id]
+            # A code-listing Diagram is a fenced code block, NOT an image:
+            # transclude it plainly so its own text renders, never via the
+            # image-only DIA template (mirrors the standalone-emit branch).
+            if b.type == "Diagram" and b.props.get("subtype") == "code":
+                lines.append("{{" + t + "}}")
+                continue
             tpl = {
                 "Paragraph": "PARA",
                 "Equation": "EQBLOCK",

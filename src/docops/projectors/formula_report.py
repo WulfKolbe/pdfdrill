@@ -143,7 +143,8 @@ class FormulaReportProjector(BaseProjector):
         # ---- TikZ diagrams + tables (SVG, where rendered) ----
         graphics = flow(doc.objects_of_type("Diagram") + doc.objects_of_type("Table"))
         graphics = [g for g in graphics
-                    if g.props.get("svg") or g.props.get("latex_code") or g.props.get("cdn_url")]
+                    if g.props.get("svg") or g.props.get("latex_code")
+                    or g.props.get("cdn_url") or g.props.get("code")]
         if graphics:
             n_svg = sum(1 for g in graphics if g.props.get("svg"))
             parts.append(f"  <h2>TikZ &amp; Tables ({len(graphics)}; {n_svg} rendered to SVG)</h2>")
@@ -156,7 +157,13 @@ class FormulaReportProjector(BaseProjector):
                 cap_body = g.props.get("caption") or ""
                 cap = html.escape((f"{label}: " if label else "") + cap_body) if (label or cap_body) else ""
                 svg = g.props.get("svg")
-                if svg:
+                if g.props.get("subtype") == "code":
+                    # A source-code listing — show it verbatim, never an SVG/image.
+                    lang = g.props.get("language") or ""
+                    code = g.props.get("code") or ""
+                    cap = cap or html.escape(f"code listing{(' (' + lang + ')') if lang else ''}")
+                    cell = f'<pre class="code"><code>{html.escape(code)}</code></pre>'
+                elif svg:
                     cell = f'<div class="svg">{svg}</div>'
                 elif g.props.get("cdn_url"):
                     cell = (f'<img loading="lazy" alt="crop" '

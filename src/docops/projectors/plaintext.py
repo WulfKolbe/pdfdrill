@@ -59,6 +59,9 @@ class PlainTextProjector(BaseProjector):
             cap = p.get("caption") or ""
             return f"[PICTURE p{p.get('page')}]" + (f" {cap}" if cap else "")
         if t == "Diagram":
+            if p.get("subtype") == "code":
+                lang = p.get("language") or ""
+                return f"[CODE{(' ' + lang) if lang else ''} p{p.get('page')}]\n{p.get('code', '')}"
             return f"[DIAGRAM p{p.get('page')}]"
         if t == "Footnote":
             return f"[FN {p.get('refnum')}]: {p.get('content', '')}"

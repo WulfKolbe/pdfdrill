@@ -146,6 +146,34 @@ def _model_path(sc: Sidecar) -> Path:
     return sc.blob_dir / "model.docmodel.json"
 
 
+# A "junky" filename stem that makes a poor tiddler prefix: a long leading
+# digit run (≥5, so arXiv ids like `2004.05631v1` are NOT flagged), whitespace,
+# or doubled punctuation. Used to suggest `--bibkey`.
+_JUNK_STEM = re.compile(r"^\d{5,}|\s|[._-]{2,}")
+
+
+def resolve_bibkey(pdf: Path, explicit: str | None = None,
+                   sc: "Sidecar | None" = None) -> str:
+    """Resolve the bibkey/tiddler-prefix for a PDF.
+
+    Precedence: explicit `--bibkey` > the key persisted in the sidecar (set by a
+    previous `model --bibkey`) > the filename stem. A clean stem (e.g. an arXiv
+    id `2004.05631v1`) is kept as-is; the caller can warn when it's junky.
+    """
+    if explicit:
+        return explicit.strip()
+    sc = sc or Sidecar(pdf)
+    stored = sc.get_evidence("bibkey")
+    return stored or pdf.stem
+
+
+def _bibkey_hint(bibkey: str) -> str:
+    """A one-line tip when the resolved bibkey looks like a junky filename stem."""
+    return (f" Tip: the prefix '{bibkey}' is derived from the filename — pass "
+            f"--bibkey <key> (e.g. surname2018topic) for clean tiddler titles."
+            if _JUNK_STEM.search(bibkey) else "")
+
+
 def cmd_doctor() -> str:
     """Requirement check: report which system tools / Python deps / API keys are
     present, which routes they enable, and the apt-get line to fix any gaps.
@@ -264,17 +292,26 @@ def cmd_ocr(pdf: Path, lang: str = "eng", ppi: int = 300, force: bool = False) -
     )
 
 
-def cmd_model(pdf: Path, force: bool = False) -> str:
+def cmd_model(pdf: Path, force: bool = False, bibkey: str | None = None) -> str:
     """Build the unified docmodel Document from MathPix lines.json.
 
     Auto-chains `mathpix` if the lines.json isn't there yet. Writes the
     serialized Document to <pdf>.drill/model.docmodel.json and records counts
     (objects, equations, equations carrying a CDN image) in the sidecar.
+
+    `bibkey` sets the tiddler-prefix / object namespace (e.g. `kolbe2018hubbard`)
+    used by `tiddlers`/`report`/`compare`; it is persisted in the sidecar so
+    later commands reuse it without re-passing `--bibkey`. Defaults to the
+    filename stem (preserving clean arXiv ids like `2004.05631v1`).
     """
     from docmodel.main import run as build_model, DEFAULT_CONFIG_PATH
 
     sc = Sidecar(pdf)
     model_path = _model_path(sc)
+    key = resolve_bibkey(pdf, bibkey, sc)
+    # A new explicit --bibkey forces a rebuild so titles/meta pick it up.
+    if bibkey and key != sc.get_evidence("bibkey"):
+        force = True
     if sc.has(MODEL_BUILT) and model_path.exists() and not force:
         return _format_model(sc)
 
@@ -306,10 +343,11 @@ def cmd_model(pdf: Path, force: bool = False) -> str:
     out = build_model(
         lines_path=str(lines_path),
         config_path=DEFAULT_CONFIG_PATH,
-        bibkey=pdf.stem,
+        bibkey=key,
         out_path=str(model_path),
         debug_modules=[],
     )
+    sc.set_evidence("bibkey", key)
 
     objects = out.get("objects", [])
     by_type: dict[str, int] = {}
@@ -340,11 +378,13 @@ def _format_model(sc: Sidecar) -> str:
     top = ", ".join(f"{n} {t}" for t, n in sorted(
         counts.items(), key=lambda kv: -kv[1]) if t in (
         "Equation", "Formula", "Paragraph", "Section", "Table", "Picture"))
+    key = sc.get_evidence("bibkey") or ""
     return (
         f"Built unified model: {total} objects ({top}). "
         f"{eq_cdn} equations carry a MathPix CDN image. "
-        f"Stored at {sc.get_evidence('model_path')}.\n"
+        f"bibkey={key!r}. Stored at {sc.get_evidence('model_path')}.\n"
         f"Next: pdfdrill compare <pdf> → LaTeX | KaTeX | image table."
+        + _bibkey_hint(key)
     )
 
 
@@ -606,7 +646,10 @@ def cmd_latexbook(tex: Path, bibkey: str | None = None, force: bool = False,
     # Render TikZ/tables to SVG (cmd_svg mutates the saved model in place),
     # then reload so the report embeds the freshly-rendered SVGs.
     svg_note = ""
-    n_graphics = sum(1 for o in doc.objects.values() if o.type in ("Diagram", "Table"))
+    # Count only true graphics (carry latex_code); code-listing diagrams have
+    # latex_code="" so they're correctly excluded from the render ratio.
+    n_graphics = sum(1 for o in doc.objects.values()
+                     if o.type in ("Diagram", "Table") and o.props.get("latex_code"))
     if not no_svg and n_graphics:
         if tools_available():
             cmd_svg(tex, force=force)
@@ -672,7 +715,7 @@ def cmd_svg(target: Path, limit: int | None = None, force: bool = False) -> str:
     if limit is not None:
         todo = todo[:limit]
 
-    done = errors = 0
+    done = errors = skipped = 0
     for o in todo:
         if force:
             o.realizations = [r for r in o.realizations if r.provenance != "dvisvgm"]
@@ -687,6 +730,10 @@ def cmd_svg(target: Path, limit: int | None = None, force: bool = False) -> str:
                                           provenance="dvisvgm",
                                           props={"ratio": res["ratio"]}))
             done += 1
+        elif res.get("skipped"):
+            # Not a LaTeX graphic (e.g. a code listing) — never a render failure.
+            o.props["svg_skipped"] = res["error"]
+            skipped += 1
         else:
             o.props["svg_error"] = res["error"]
             errors += 1
@@ -697,9 +744,11 @@ def cmd_svg(target: Path, limit: int | None = None, force: bool = False) -> str:
     if sc is not None:
         sc.set_evidence("svg_rendered", done)
         sc.set_evidence("svg_errors", errors)
+        sc.set_evidence("svg_skipped", skipped)
         sc.save()
     return (f"Rendered {done} TikZ/table SVG(s)"
             + (f", {errors} failed" if errors else "")
+            + (f", {skipped} skipped (not a LaTeX graphic, e.g. code listing)" if skipped else "")
             + f" of {len(targets)} graphic object(s). SVGs stored on the model "
             f"(props['svg']); the report embeds them inline.")
 
@@ -936,7 +985,7 @@ def cmd_lists(pdf: Path, force: bool = False) -> str:
                 lst = DocObject(type="List", props={
                     "indent_norm": round(node["indent"], 4),
                     "list_type": _list_type(markers),
-                    "bibkey": pdf.stem,
+                    "bibkey": doc.meta.get("bibkey", pdf.stem),
                 })
                 doc.add(lst)
                 created[0] += 1
@@ -1023,7 +1072,7 @@ def cmd_algorithms(pdf: Path, force: bool = False) -> str:
     for a in algos:
         alg = DocObject(type="Algorithm", props={
             "number": a["number"], "title": a["title"], "page": a["page"],
-            "bibkey": pdf.stem})
+            "bibkey": doc.meta.get("bibkey", pdf.stem)})
         step_anchors = [idmap[s["id"]] for s in a["steps"] if s["id"] in idmap]
         span = ([idmap[a["caption_id"]]] if a["caption_id"] in idmap else []) + step_anchors
         if span:
@@ -1033,7 +1082,8 @@ def cmd_algorithms(pdf: Path, force: bool = False) -> str:
         created += 1
         for s in a["steps"]:
             st = DocObject(type="AlgorithmStep",
-                           props={"text": s["text"], "depth": s["depth"], "bibkey": pdf.stem},
+                           props={"text": s["text"], "depth": s["depth"],
+                                  "bibkey": doc.meta.get("bibkey", pdf.stem)},
                            parent=alg.id)
             anc = idmap.get(s["id"])
             if anc is not None:
@@ -1202,7 +1252,8 @@ def _format_lists(sc: Sidecar) -> str:
 # TiddlyWiki export — JSON tiddler array for quick data-structure inspection
 # ---------------------------------------------------------------------------
 
-def cmd_tiddlers(pdf: Path, force: bool = False, embed: bool = False) -> str:
+def cmd_tiddlers(pdf: Path, force: bool = False, embed: bool = False,
+                 bibkey: str | None = None) -> str:
     """Emit a TiddlyWiki JSON tiddler array from the unified model.
 
     Quick way to eyeball the structure: drop the array into TiddlyWiki and a
@@ -1211,6 +1262,9 @@ def cmd_tiddlers(pdf: Path, force: bool = False, embed: bool = False) -> str:
     width={{!!width}} height={{!!height}}>`). Equation tiddlers carry `latex`,
     `displayMode`, `refnum`, `canonical_uri`, region `width`/`height`, and any
     competing readings as `latex_<provenance>` fields. Auto-chains `model`.
+
+    `bibkey` sets the tiddler-prefix / title namespace + the artifact filename;
+    it falls back to the key persisted by `model` (sidecar), then the stem.
     """
     from docmodel.core import Document
     from docops.base import OperatorConfig
@@ -1219,7 +1273,7 @@ def cmd_tiddlers(pdf: Path, force: bool = False, embed: bool = False) -> str:
     sc = Sidecar(pdf)
     model_path = _model_path(sc)
     if not sc.has(MODEL_BUILT) or not model_path.exists():
-        cmd_model(pdf)
+        cmd_model(pdf, bibkey=bibkey)
         sc = Sidecar(pdf)
         model_path = _model_path(sc)
     if not model_path.exists():
@@ -1228,6 +1282,20 @@ def cmd_tiddlers(pdf: Path, force: bool = False, embed: bool = False) -> str:
     with open(model_path, "r", encoding="utf-8") as f:
         doc = Document.from_dict(json.load(f))
 
+    # Resolve the prefix with documented precedence:
+    #   explicit --bibkey > sidecar (set by `model`) > model meta > filename stem.
+    key = (bibkey or sc.get_evidence("bibkey") or doc.meta.get("bibkey")
+           or pdf.stem)
+    key = key.strip()
+    # Make an explicit override DURABLE: persist into the model meta + sidecar so
+    # later `report`/`compare` (which read doc.meta['bibkey']) reuse it too.
+    if doc.meta.get("bibkey") != key:
+        doc.meta["bibkey"] = key
+        with open(model_path, "w", encoding="utf-8") as f:
+            json.dump(doc.to_dict(), f, indent=2, ensure_ascii=False)
+    if sc.get_evidence("bibkey") != key:
+        sc.set_evidence("bibkey", key)
+
     t0 = time.monotonic()
     proj = TiddlyWikiProjector(
         OperatorConfig(op="projector", classname="TiddlyWikiProjector",
@@ -1235,7 +1303,7 @@ def cmd_tiddlers(pdf: Path, force: bool = False, embed: bool = False) -> str:
     result = proj.project(doc)
     count = proj.counters.get("tiddlers_emitted", 0)
 
-    bibkey = doc.meta.get("bibkey", pdf.stem)
+    bibkey = key
     sc.blob_dir.mkdir(parents=True, exist_ok=True)
     out_path = sc.blob_dir / f"{bibkey}.tiddlers.json"
     out_path.write_text(result, encoding="utf-8")
@@ -2262,7 +2330,7 @@ def cmd_embedimages(pdf: Path, force: bool = False) -> str:
     with open(model_path, "r", encoding="utf-8") as f:
         doc = Document.from_dict(json.load(f))
     stats = image_model.attach_embedded_images(
-        doc, image_layer, page_dims, bibkey=pdf.stem)
+        doc, image_layer, page_dims, bibkey=doc.meta.get("bibkey", pdf.stem))
     with open(model_path, "w", encoding="utf-8") as f:
         json.dump(doc.to_dict(), f, indent=2, ensure_ascii=False)
 

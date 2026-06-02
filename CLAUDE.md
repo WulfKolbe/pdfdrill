@@ -140,6 +140,32 @@ Both are self-contained (they add `src/` to `sys.path`).
   same config are tagged `"op": "mutator"` / `"op": "projector"`; each loader
   ignores entries it doesn't own.
 
+## Code listings vs graphics + the `--bibkey` flag
+
+- **Code listings are not graphics.** MathPix wraps source-code listings (e.g.
+  Julia ```` ```julia … ``` ````) as `diagram` lines; `DiagramProcessor` now
+  detects a fenced-code body (`_extract_code`) and reclassifies it as
+  `subtype="code"` with `code`/`language` set and `latex_code`/`cdn_url`
+  cleared — so `svg` never feeds it to latex→dvisvgm. `svg.is_latex_graphic`
+  hard-guards `compile_to_svg` (skips empty / markdown-fenced / non-graphic
+  bodies — only known graphic envs `tikzpicture|tikzcd|tabular|…` or `\tikz`/
+  `\draw`-family commands compile), and `cmd_svg` reports *skipped (not a
+  graphic)* separately from genuine *failures*. Every projector renders a
+  code-diagram as a code block — never an image: tiddlywiki standalone +
+  **section-body** transclusion (plain `{{id}}`, not `||DIA`), formula-report
+  (`<pre><code>`), plaintext (`[CODE …]`), llm_compact (fenced block). Tests:
+  `tests/test_codelisting_bibkey.py`.
+- **`--bibkey` on `model`/`tiddlers`.** `pdfdrill model <pdf> --bibkey KEY` (and
+  `tiddlers … --bibkey KEY`) set the tiddler-prefix / object namespace / title /
+  landing tiddler / artifact filename. The key is persisted in the sidecar AND
+  `doc.meta["bibkey"]`, so `report`/`compare`/etc. reuse it without re-passing
+  the flag (a `tiddlers --bibkey` override is written back to the model meta
+  durably). Precedence: explicit `--bibkey` > sidecar > model meta > filename
+  stem. A clean arXiv id (`2004.05631v1`) is preserved as-is; a junky stem
+  (`993787212-…`) prints a `--bibkey` tip. Verified on the AKolbe BA thesis:
+  `--bibkey kolbe2018hubbard` → titles `kolbe2018hubbard_EQ0001`…, the 6 Julia
+  listings render as code (not 6 failed SVGs).
+
 ## Roadmap (decomposed — each phase gets its own spec + plan)
 
 - **Phase 1 — Unified model + capture** *(in progress)*: extend `docmodel`

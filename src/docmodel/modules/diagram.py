@@ -22,10 +22,34 @@ from __future__ import annotations
 
 from typing import Any, Optional
 
+import re
+
 from ._captions import extract_figure_caption, parse_caption
 from ..base_module import BaseModule
 from ..core import Document, DocObject, Realization
 from ..mathpix import crop_url
+
+
+_FENCE = ("```", "~~~")
+
+
+def _extract_code(text: str):
+    """If `text` is a markdown-fenced code block, return (code, language); else
+    None. MathPix wraps source-code listings (e.g. Julia) as a `diagram` line
+    whose body is ```` ```julia … ``` ```` — that is CODE, not a TikZ graphic,
+    and must never be fed to latex→dvisvgm."""
+    s = (text or "").strip()
+    if not (s.startswith(_FENCE)):
+        return None
+    lines = s.splitlines()
+    # First fence line may carry an info string (```julia title=x); take the
+    # leading token as the language.
+    info = lines[0].strip().lstrip("`~").split()
+    language = info[0] if info and info[0].isalnum() else ""
+    # Drop ANY fence line (bare or with a language), not just exact bare fences,
+    # so interior fences from concatenated blocks don't leak into the code.
+    body = [ln for ln in lines[1:] if not ln.strip().startswith(_FENCE)]
+    return "\n".join(body).strip(), language
 
 
 class DiagramProcessor(BaseModule):
@@ -54,19 +78,27 @@ class DiagramProcessor(BaseModule):
             # label. The Markdown `![]()` form carries no caption.
             text = payload.get("text_display") or payload.get("text") or ""
             caption = extract_figure_caption(text)
+            latex_code = "\n".join(latex_parts).strip()
+            # A diagram whose body is a fenced code block is a source-code
+            # listing, not a TikZ/table graphic: keep the code, drop latex_code
+            # so it's never compiled by `svg`.
+            code = _extract_code(latex_code) or _extract_code(text)
             items.append({
                 "anchor": anchor,
                 "page": payload.get("_page"),
                 "image_id": payload.get("_image_id"),
                 "region": payload.get("region"),
-                "subtype": payload.get("subtype", ""),
-                "latex_code": "\n".join(latex_parts).strip(),
+                "subtype": "code" if code else payload.get("subtype", ""),
+                "latex_code": "" if code else latex_code,
+                "code": code[0] if code else "",
+                "language": code[1] if code else "",
                 "caption": caption,
             })
         return items
 
     def create_object(self, item: dict[str, Any], doc: Document) -> Optional[DocObject]:
         kind, refnum, cap_body = parse_caption(item.get("caption", ""))
+        is_code = item["subtype"] == "code"
         obj = DocObject(
             type="Diagram",
             props={
@@ -75,10 +107,13 @@ class DiagramProcessor(BaseModule):
                 "region": item["region"],
                 "subtype": item["subtype"],
                 "latex_code": item["latex_code"],
+                "code": item.get("code", ""),
+                "language": item.get("language", ""),
                 "caption": cap_body,
                 "kind": kind,           # 'Picture' / 'Sketch' / 'Figure' / ... / None
                 "refnum": refnum,
-                "cdn_url": crop_url(item["image_id"], item["region"]),
+                # A code listing is not an image: no CDN crop.
+                "cdn_url": "" if is_code else crop_url(item["image_id"], item["region"]),
                 "bibkey": self.bibkey,
             },
         )

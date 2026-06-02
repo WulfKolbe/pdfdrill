@@ -257,11 +257,23 @@ def _do_ocr(args):
     return cmd_ocr(_pdf(pdf_args), lang=lang, ppi=ppi, force=force)
 
 
+def _opt(args, name):
+    """Pop `--name VALUE`; return (value_or_None, remaining_args)."""
+    out, val, i = [], None, 0
+    while i < len(args):
+        if args[i] == name and i + 1 < len(args):
+            val = args[i + 1]; i += 2
+        else:
+            out.append(args[i]); i += 1
+    return val, out
+
+
 def _do_model(args):
-    """pdfdrill model <pdf> [--force]"""
+    """pdfdrill model <pdf> [--bibkey KEY] [--force]"""
     from .commands import cmd_model
+    bibkey, args = _opt(args, "--bibkey")
     pdf_args = [a for a in args if a != "--force"]
-    return cmd_model(_pdf(pdf_args), force="--force" in args)
+    return cmd_model(_pdf(pdf_args), force="--force" in args, bibkey=bibkey)
 
 
 def _do_compare(args):
@@ -318,10 +330,12 @@ def _do_geometry(args):
 
 
 def _do_tiddlers(args):
-    """pdfdrill tiddlers <pdf> [--force] [--embed]"""
+    """pdfdrill tiddlers <pdf> [--bibkey KEY] [--force] [--embed]"""
     from .commands import cmd_tiddlers
+    bibkey, args = _opt(args, "--bibkey")
     pdf_args = [a for a in args if a not in ("--force", "--embed")]
-    return cmd_tiddlers(_pdf(pdf_args), force="--force" in args, embed="--embed" in args)
+    return cmd_tiddlers(_pdf(pdf_args), force="--force" in args,
+                        embed="--embed" in args, bibkey=bibkey)
 
 
 def _do_lists(args):
@@ -741,7 +755,7 @@ Introspection (fast, no extraction):
   pdfdrill render <pdf>        Render the built markdown to PDF (pandoc + lualatex)
   pdfdrill mathpix <pdf>       Download MathPix OCR (lines.json, md, tex.zip); --force re-uploads
   pdfdrill ocr <pdf>           MathPix-free OCR: tesseract → MathPix-compatible lines.json (--lang eng+equ, --ppi N). Plain text only (no LaTeX/CDN)
-  pdfdrill model <pdf>         Build unified docmodel from lines.json (auto-chains mathpix, falls back to tesseract ocr if no MathPix)
+  pdfdrill model <pdf>         Build unified docmodel from lines.json (auto-chains mathpix, falls back to tesseract ocr if no MathPix); --bibkey KEY sets the tiddler prefix (persisted)
   pdfdrill compare <pdf>       LaTeX | KaTeX | MathPix-image comparison HTML (auto-chains model)
   pdfdrill report <pdf>        Full inline+display math report (formula-report.html)
   pdfdrill latex <pdf>         Ingest author .tex/.tgz as a `tex` provenance (original+expanded LaTeX); --tex <path>
@@ -755,7 +769,7 @@ Introspection (fast, no extraction):
   pdfdrill vision <pdf>        GPT-4o vision reads every MathPix CDN crop (incl. table-cell images) → math/TikZ/gnuplot/table as the `openai` provenance; --limit N (needs OPENAI_API_KEY)
   pdfdrill embedimages <pdf>   Lift pdfimages + pdfplumber image rects into the model as EmbeddedImage nodes (pixel size/encoding/ppi + page rect), fused onto MathPix crops they contain
   pdfdrill geometry <pdf>      Fuse pdftotext -tsv layout (indent/margins) onto the model — substrate for block detection
-  pdfdrill tiddlers <pdf>      Emit a TiddlyWiki JSON tiddler array (latex/displayMode/canonical_uri/width/height) for quick inspection
+  pdfdrill tiddlers <pdf>      Emit a TiddlyWiki JSON tiddler array (latex/displayMode/canonical_uri/width/height) for quick inspection; --bibkey KEY sets the title prefix + filename
   pdfdrill lists <pdf>         Nest flat ListItems into recursive List blocks using fused indentation (auto-chains geometry)
   pdfdrill algorithms <pdf>    Reconstruct Algorithm blocks from MathPix pseudocode lines (caption + indented steps)
   pdfdrill annotate <pdf>      Promote hyperlink annotations into the model as first-class Link nodes (uri + rect Region)
