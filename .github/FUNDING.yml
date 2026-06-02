@@ -1,7 +1,3 @@
-# .github/FUNDING.yml
-github: wulfkolbe
-# Please support this project
-
-This project now has ongoing API and maintenance costs. If it saves you time or you want to support further updates, you can sponsor development here:
-
-- [PayPal](https://paypal.me/wulf@wkolbe.de)
+# GitHub Sponsor button for this repository's page.
+# The published website (index.html) links the same destination separately.
+custom: ["https://paypal.me/wulfkolbe"]
