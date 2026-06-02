@@ -87,6 +87,26 @@ Math/code/image tiddlers are skipped (not prose). Output goes to a sibling
 `<bibkey>.<lang>.tiddlers.json` (the untranslated array is left intact); re-runs
 are incremental and idempotent. Needs `DEEPL_API_KEY` (see **API keys** below).
 
+## Feature extraction (commercial documents)
+
+`src/features/` is a small **additive** layer (a starter, not yet wired into the
+CLI): source-agnostic extractors take plain text and emit flat `Feature`
+objects, with flat `Relation` edges and a NetworkX `build_graph`. It never
+touches the existing pipeline.
+
+```bash
+pip install '.[features]'                      # dateparser, phonenumbers, price-parser, …
+PYTHONPATH=src python3 -m features invoice.txt # → JSON of EMAIL/URL/DOI/DATE/PHONE/PRICE/… features
+```
+
+Always-on (regex): `EMAIL`, `URL`, `DOI`. Library-backed (degrade to nothing
+when the dep is absent): `DATE` (dateparser), `PHONE` (phonenumbers), `PRICE`
+(price-parser), `PERSON_NAME` (probablepeople), `ADDRESS` (usaddress);
+`match_entities` (rapidfuzz) links OCR-typo/invoice/company duplicates as
+`SAME_AS` relations. Two read-only audits ship too:
+`python -m features.audit_deps` (module dependency graph) and
+`python -m features.audit_nested` (nested-container findings).
+
 ## Layout
 
 - `src/pdfdrill/` — the CLI toolkit, sidecar state machine, and capture layer.
@@ -94,6 +114,9 @@ are incremental and idempotent. Needs `DEEPL_API_KEY` (see **API keys** below).
   `Realization` / `Alignment` / `Region`), built from MathPix `lines.json`.
 - `src/docops/` — `Mutator`s and `Projector`s over a `Document` (plaintext,
   LLM-compact markdown, TiddlyWiki, comparison table, formula report).
+- `src/features/` — additive, source-agnostic feature extractors (commercial
+  documents): flat `Feature`/`Relation`, a registry, and a NetworkX graph
+  builder. Never modifies the pipeline.
 
 ## API keys
 

@@ -166,6 +166,42 @@ Both are self-contained (they add `src/` to `sys.path`).
   `--bibkey kolbe2018hubbard` → titles `kolbe2018hubbard_EQ0001`…, the 6 Julia
   listings render as code (not 6 failed SVGs).
 
+## Feature-extraction layer (`src/features/`, additive — starter)
+
+A NEW, self-contained package that is **purely additive**: extractors take plain
+text (`str`) and emit flat `Feature` objects; it never reads PDF/PNG/MathPix/
+Markdown specifics and never modifies the pdfdrill/docmodel/docops pipeline.
+Built per the "commercial-document extractors" spec (flat data + relations, no
+nested objects, named real libraries, no Stanza/heavy-NLP here).
+
+- **Core:** `features.py` (`Feature{id,page_id,type,value,confidence,start,end}`
+  + `Feature.create` for a deterministic id), `relations.py`
+  (`Relation{source,target,type,weight}`), `feature_registry.py`
+  (`FeatureRegistry.register_feature/find_features`), `graph_builder.py`
+  (`build_graph(list[Relation]) -> nx.DiGraph`, networkx).
+- **Extractors** (each `extract(text, page_id="") -> list[Feature]`):
+  regex/no-dep — `extract_email` (EMAIL), `extract_url` (URL), `extract_doi`
+  (DOI); library-backed (lazy import, **degrade to [] when the dep is absent**)
+  — `extract_dates` (dateparser→DATE), `extract_phone` (phonenumbers→PHONE),
+  `extract_price` (price-parser→PRICE), `extract_names` (probablepeople→
+  PERSON_NAME), `extract_address` (usaddress→ADDRESS). `match_entities`
+  (rapidfuzz) emits `Relation`s (`SAME_AS`, weight=score/100) for OCR-typo /
+  invoice-number / company-name dedup.
+- **Convenience:** `features.extract_all(text, page_id)` runs every available
+  extractor; `features.available_extractors()` reports dep presence; `python -m
+  features <file>` dumps features as JSON.
+- **Read-only audits:** `python -m features.audit_deps` (per-module
+  imports/defines → JSON dependency graph) and `python -m features.audit_nested`
+  (nested container annotations/literals → JSON; report only). Neither edits
+  source.
+- Optional deps in the `[features]` extra (`pip install 'pdfdrill[features]'`);
+  networkx + rapidfuzz are present in this env, the rest install on demand.
+  Math-paper extractors (CITATION/EQUATION_REF/THEOREM_REF/ARXIV_ID/MSC/… ,
+  regex-only) are a **later** step, deliberately not built yet. Tests:
+  `tests/test_features.py`. NOT yet wired into the `pdfdrill` CLI (the next step
+  would add a thin `pdfdrill features` command + persist Features alongside the
+  model).
+
 ## Roadmap (decomposed — each phase gets its own spec + plan)
 
 - **Phase 1 — Unified model + capture** *(in progress)*: extend `docmodel`

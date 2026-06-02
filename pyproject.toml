@@ -18,10 +18,23 @@ dependencies = [
 [project.optional-dependencies]
 pix2tex = ["pillow>=10.0", "pix2tex>=0.1.2"]
 nlp = ["stanza>=1.10"]
+# Additive commercial-document feature extractors (the `features` package).
+# networkx + rapidfuzz are the core; the rest back individual extractors and
+# are imported lazily (each extractor degrades to [] when its lib is absent).
+features = [
+    "networkx>=3.0",
+    "rapidfuzz>=3.0",
+    "dateparser>=1.2",
+    "phonenumbers>=8.13",
+    "price-parser>=0.3.4",
+    "probablepeople>=0.5.5",
+    "usaddress>=0.5.10",
+    "email-validator>=2.0",
+]
 
 [project.scripts]
 pdfdrill = "pdfdrill.cli:main"
 
 [tool.setuptools.packages.find]
 where = ["src"]
-include = ["pdfdrill*", "docmodel*", "docops*"]
+include = ["pdfdrill*", "docmodel*", "docops*", "features*"]
