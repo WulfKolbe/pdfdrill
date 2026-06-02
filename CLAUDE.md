@@ -410,6 +410,14 @@ Citation↔Reference linking + Markdown refs (done):
   `(Asai et al., 2023; Wu and Lee, 2024)` → `Asai2023, Wu2024`.
 - Both detectors run in `pdfdrill bibliography`; citations are tagged
   `added_by="bibliography"` for clean `--force` re-runs.
+- **Math-span guard (all citation detectors):** a `[...]`/`(...)` group inside
+  an inline/display math span (`\(...\)`, `$...$`, `\[...\]`, `$$...$$`) is an
+  interval/set/index, NOT a citation, so the `CitationProcessor` and both
+  bibliography detectors skip matches that fall inside a math span. Without it,
+  `\([A x, B x]\)` (MathPix's render of the interval `[A_x, B_x]`) produced two
+  bogus `A x`/`B x` Citations that then leaked into a synthetic FOX formula's
+  LaTeX as `{{...||CIT}}` transclusions. Tests:
+  `tests/test_citation_math_guard.py`.
 - NOTE on the samples: `2312.11532` is author-year text; `2605.12061`'s
   in-text citations live in the **PDF annotation layer** as `cite.<key>` dest
   links (only "(NeurIPS 2026)" is parenthetical in its OCR text), so the

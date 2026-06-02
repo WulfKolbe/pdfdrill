@@ -24,6 +24,24 @@ from ..core import Document, DocObject, Realization
 # no LaTeX backslashes (avoids picking up `\cite[opt]{key}` artifacts).
 _CITE = re.compile(r"\[([A-Za-z0-9_\-,;:\s]+?)\]")
 
+# Inline/display math spans. A `[...]` inside one of these is math (e.g.
+# `\([A x, B x]\)` — an interval, MathPix's render of `[A_x, B_x]`), NOT a
+# citation. Longest delimiters first so `$$` isn't split as `$..$`.
+_MATH_SPAN = re.compile(
+    r"\\\[[\s\S]*?\\\]"          # \[ ... \]
+    r"|\$\$[\s\S]*?\$\$"         # $$ ... $$
+    r"|\\\([\s\S]*?\\\)"         # \( ... \)
+    r"|\$(?:[^$\n]|\\\$)*?\$"    # $ ... $
+)
+
+
+def _math_ranges(text: str) -> list[tuple[int, int]]:
+    return [(m.start(), m.end()) for m in _MATH_SPAN.finditer(text)]
+
+
+def _in_math(pos: int, ranges: list[tuple[int, int]]) -> bool:
+    return any(a <= pos < b for a, b in ranges)
+
 
 def _is_valid_citekey(citekey: str) -> bool:
     """The TS heuristic, slightly relaxed for multi-citation comma lists."""
@@ -52,7 +70,11 @@ class CitationProcessor(BaseModule):
             text = payload.get("text_display") or payload.get("text") or ""
             if not text:
                 continue
+            math = _math_ranges(text)
             for match in _CITE.finditer(text):
+                # A `[...]` inside a math span is an interval/set, not a cite.
+                if _in_math(match.start(), math):
+                    continue
                 key = match.group(1).strip()
                 if not _is_valid_citekey(key):
                     continue

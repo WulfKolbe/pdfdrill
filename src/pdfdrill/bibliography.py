@@ -118,6 +118,18 @@ def parse_bibliography(doc) -> list[dict]:
 
 _NUMCITE = re.compile(r"\[(\d[\d,\s\-–]*)\]")
 
+# Inline/display math spans — a `[1,2]`/`(…)` inside one is math, not a cite.
+_MATH_SPAN = re.compile(
+    r"\\\[[\s\S]*?\\\]|\$\$[\s\S]*?\$\$|\\\([\s\S]*?\\\)|\$(?:[^$\n]|\\\$)*?\$")
+
+
+def _math_ranges(text: str) -> list[tuple[int, int]]:
+    return [(m.start(), m.end()) for m in _MATH_SPAN.finditer(text)]
+
+
+def _in_math(pos: int, ranges: list[tuple[int, int]]) -> bool:
+    return any(a <= pos < b for a, b in ranges)
+
 
 def _expand_numlist(s: str) -> list[int]:
     """`1,3-5` -> [1,3,4,5]."""
@@ -155,7 +167,10 @@ def detect_numeric_citations(doc, max_num: int, exclude_anchors=()) -> int:
         if p.get("type") not in ("text", "title"):
             continue
         text = p.get("text_display") or p.get("text") or ""
+        math = _math_ranges(text)
         for m in _NUMCITE.finditer(text):
+            if _in_math(m.start(), math):       # `[1,2]` inside math is not a cite
+                continue
             nums = [x for x in _expand_numlist(m.group(1)) if 1 <= x <= max_num]
             if not nums:
                 continue
@@ -202,7 +217,10 @@ def detect_author_year_citations(doc, exclude_anchors=()) -> int:
         if p.get("type") not in ("text", "title"):
             continue
         text = p.get("text_display") or p.get("text") or ""
+        math = _math_ranges(text)
         for m in _PAREN.finditer(text):
+            if _in_math(m.start(), math):       # `(…)` inside math is not a cite
+                continue
             content = m.group(1)
             if not _YEAR.search(content):
                 continue
