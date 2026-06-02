@@ -57,6 +57,16 @@ IMPORTANT: faint, low-contrast, light-grey, or cursive content is NOT empty. If 
 
 Return ONLY the JSON object. No markdown fences, no explanation."""
 
+# Targeted prompt for images whose caption/title names a graph/subgraph — these
+# are vertex+edge drawings that reconstruct cleanly as TikZ (see cmd_vision,
+# which selects this prompt when the owning object's caption matches).
+GRAPH_TIKZ_PROMPT = """This image is a GRAPH or SUBGRAPH diagram (vertices and edges) that OCR could not resolve. Reconstruct it as a faithful, standalone TikZ picture:
+- place every vertex (node) in roughly its observed position;
+- draw every edge between the correct vertices;
+- preserve colour/emphasis (e.g. a red or highlighted complete-bipartite subgraph) using the matching TikZ colour;
+- transcribe any vertex/edge labels you can read.
+Return a JSON object: {"selector":"tikzpicture","tikzpicture":"\\\\begin{tikzpicture} ... \\\\end{tikzpicture}"} with ONLY the tikzpicture field filled. No markdown fences, no explanation."""
+
 # json_schema enforcing the response shape.
 _SCHEMA = {
     "name": "img_repl",

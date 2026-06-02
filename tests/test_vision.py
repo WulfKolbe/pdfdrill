@@ -120,6 +120,34 @@ def test_cmd_vision_limit(monkeypatch):
         assert "not yet read" in out
 
 
+def test_cmd_vision_uses_graph_prompt_for_subgraph_caption(monkeypatch):
+    """A crop whose owning object's caption names a graph/subgraph gets the
+    TikZ-reconstruction prompt, not the default."""
+    monkeypatch.setattr(openai_vision, "available", lambda: True)
+    seen = {}
+
+    def fake_analyze(url, **kw):
+        seen[url] = kw.get("prompt", "")
+        return {"selector": "tikzpicture", "tikzpicture": "\\begin{tikzpicture}\\end{tikzpicture}"}
+
+    monkeypatch.setattr(openai_vision, "analyze_image", fake_analyze)
+    with tempfile.TemporaryDirectory() as d:
+        pdf = Path(d) / "doc.pdf"
+        pdf.write_bytes(b"%PDF-1.4\n")
+        doc = Document()
+        g = _CDN.replace("-20", "-11")
+        doc.add(DocObject(type="Diagram", props={
+            "cdn_url": g, "caption": "The subgraph in red is complete bipartite."}))
+        doc.add(DocObject(type="Picture", props={"url": _CDN, "caption": "a photo"}))
+        sc = Sidecar(pdf); sc.blob_dir.mkdir(parents=True, exist_ok=True)
+        (sc.blob_dir / "model.docmodel.json").write_text(json.dumps(doc.to_dict()))
+        sc.add_fact(MODEL_BUILT); sc.save()
+        out = cmd_vision(pdf)
+        assert "graph/subgraph image(s) reconstructed as TikZ" in out
+        assert openai_vision.GRAPH_TIKZ_PROMPT in seen[g]            # graph -> graph prompt
+        assert seen[_CDN] == openai_vision.DEFAULT_PROMPT            # non-graph -> default
+
+
 def test_cmd_vision_graceful_without_key(monkeypatch):
     monkeypatch.setattr(openai_vision, "available", lambda: False)
     with tempfile.TemporaryDirectory() as d:

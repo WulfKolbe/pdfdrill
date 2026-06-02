@@ -553,6 +553,13 @@ OpenAI GPT-4o vision provenance (`src/pdfdrill/openai_vision.py`,
   `latex_candidate` realization — the third competing reading alongside MathPix
   and Snip. `_collect_cdn_crops` finds an object's own `cdn_url`/`url` AND crops
   embedded in any string prop (table `raw_text`, with `\&`→`&`).
+- **Graph/subgraph images → TikZ.** When a crop's owning object's caption/title
+  names a graph/subgraph (`\b(sub)?graph\b`), `cmd_vision` swaps in
+  `openai_vision.GRAPH_TIKZ_PROMPT` (reconstruct vertices+edges+colour emphasis
+  as a standalone `tikzpicture`) instead of the default classifier — vertex/edge
+  drawings reconstruct cleanly as TikZ. Verified on arXiv 2004.05631: the p11
+  "subgraph in red is complete bipartite" diagram → a bipartite `tikzpicture`
+  with the red complete-bipartite subgraph emphasized.
 - Ported from the predecessor `~/MX/mathpix_images` (llmUtils.js/imagetester.js
   + prompt.txt). Stdlib `urllib` (no `openai` package). Key from
   `OPENAI_API_KEY` (env/.env), **never hardcoded**; `--limit` caps calls (a doc
