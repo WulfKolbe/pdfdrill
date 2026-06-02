@@ -142,6 +142,71 @@ def _model_path(sc: Sidecar) -> Path:
     return sc.blob_dir / "model.docmodel.json"
 
 
+def cmd_doctor() -> str:
+    """Requirement check: report which system tools / Python deps / API keys are
+    present, which routes they enable, and the apt-get line to fix any gaps.
+
+    The LaTeX DVI toolchain + dvisvgm (the TikZ/table SVG route) and
+    poppler/tesseract are system packages `bootstrap.sh` installs via apt-get.
+    """
+    import shutil
+    import importlib.util
+    from .env import get
+
+    # (tool, apt-package, route it enables)
+    tools = [
+        ("pdftotext", "poppler-utils", "core: text/geometry/embedimages"),
+        ("pdfimages", "poppler-utils", "core: images/embedimages"),
+        ("pdftoppm", "poppler-utils", "ocr/snip page rasterization"),
+        ("pdfinfo", "poppler-utils", "size/links/dests"),
+        ("tesseract", "tesseract-ocr", "keyless OCR route (pdfdrill ocr)"),
+        ("latex", "texlive-latex-base", "TikZ/table SVG (pdfdrill svg)"),
+        ("pdflatex", "texlive-latex-base", "SVG / latex expansion"),
+        ("dvips", "texlive-binaries", "DVI toolchain"),
+        ("dvisvgm", "dvisvgm", "DVI -> SVG (pdfdrill svg, latexbook)"),
+    ]
+    lines = ["pdfdrill requirement check", "=" * 27, "", "System tools:"]
+    missing_pkgs: list[str] = []
+    for tool, pkg, route in tools:
+        ok = shutil.which(tool) is not None
+        lines.append(f"  [{'OK ' if ok else 'MISSING'}] {tool:<10} — {route}")
+        if not ok and pkg not in missing_pkgs:
+            missing_pkgs.append(pkg)
+
+    lines.append("")
+    lines.append("Python deps:")
+    for mod, note in [("pdfplumber", "core"), ("pydantic", "core (md/drill path)"),
+                      ("stanza", "optional [nlp] extra — pdfdrill nlp")]:
+        ok = importlib.util.find_spec(mod) is not None
+        lines.append(f"  [{'OK ' if ok else 'MISSING'}] {mod:<10} — {note}")
+
+    lines.append("")
+    lines.append("API keys (env / .env; only needed for the named routes):")
+    for var, route in [("MATHPIX_APP_ID", "mathpix/model"), ("MATHPIX_APP_KEY", "mathpix/snip"),
+                       ("OPENAI_API_KEY", "vision"), ("PERPLEXITY_API_KEY", "bibfetch")]:
+        lines.append(f"  [{'set ' if get(var) else 'unset'}] {var:<18} — {route}")
+
+    lines.append("")
+    if missing_pkgs:
+        # Expand the LaTeX/SVG package to the full support set when needed.
+        if any(p in missing_pkgs for p in ("texlive-latex-base", "dvisvgm", "texlive-binaries")):
+            for p in ("texlive-latex-base", "dvisvgm", "texlive-binaries"):
+                if p in missing_pkgs:
+                    missing_pkgs.remove(p)
+            missing_pkgs += ["dvisvgm", "texlive-latex-base", "texlive-latex-recommended",
+                             "texlive-latex-extra", "texlive-pictures",
+                             "texlive-fonts-recommended", "texlive-science", "texlive-binaries"]
+        seen: list[str] = []
+        for p in missing_pkgs:
+            if p not in seen:
+                seen.append(p)
+        lines.append("To install the missing system tools (Debian/Ubuntu):")
+        lines.append("  sudo apt-get install -y " + " ".join(seen))
+    else:
+        lines.append("All system tools present — every route is available.")
+    return "\n".join(lines)
+
+
 def cmd_ocr(pdf: Path, lang: str = "eng", ppi: int = 300, force: bool = False) -> str:
     """Build a MathPix-compatible `<pdf>.lines.json` via tesseract OCR.
 

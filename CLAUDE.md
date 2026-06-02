@@ -49,11 +49,18 @@ the accessibility requirement for the Claude.ai web chatbot).
 **Install / dependencies.** `pyproject.toml` declares the package (entry point
 `pdfdrill = pdfdrill.cli:main`; packages found under `src/`); `pip install -e .`
 puts the `pdfdrill` console script on PATH. Core deps are `pdfplumber>=0.11`
-and `pydantic>=2.0` (also in `requirements.txt`); the **system** prerequisite
-is `poppler-utils` (not pip-installable). `pydantic` is imported at top level
-in `context.py`, so the `md`/`drill`/`page` engine path fails without it even
-though the docmodel/docops offline path doesn't need it — keep it declared.
-Optional `[pix2tex]` extra pulls Pillow+pix2tex (PyTorch; off the live path).
+and `pydantic>=2.0` (also in `requirements.txt`); the **system** prerequisites
+(not pip-installable) are `poppler-utils` (core), `tesseract-ocr` (keyless OCR
+route), and the **LaTeX DVI toolchain + dvisvgm** (`latex`/`pdflatex`/`dvips` +
+`dvisvgm` with `texlive-pictures`/`texlive-latex-extra`) for the TikZ/table SVG
+route. **`bash bootstrap.sh`** installs all of these via `apt-get` (only what's
+missing) and then runs the requirement check; **`pdfdrill doctor`** runs that
+check anytime — present/missing system tools + Python deps + API keys, plus the
+exact `sudo apt-get install …` line to fill any gap. `pydantic` is imported at
+top level in `context.py`, so the `md`/`drill`/`page` engine path fails without
+it even though the docmodel/docops offline path doesn't need it — keep it
+declared. Optional `[pix2tex]` extra pulls Pillow+pix2tex (PyTorch; off the
+live path).
 
 Packages live under `src/`, so the import root is `src`:
 
@@ -80,7 +87,7 @@ author-year cites, 2 algorithms; the 2605 copy lacking a lines.json skipped).
 The pdfdrill commands (`size`, `pdfinfo`, `urls`, `dests`, `fonts`,
 `fonts_layer`, `images`, `pix2tex`, `abstract`, `toc`, `md`, `page`, `fetch`,
 `plan`, `drill`, `status`, `tsv`, `render`, `nlp`, `ocr`, `vision`,
-`embedimages`) are documented in
+`embedimages`, `bibsource`, `doctor`) are documented in
 `.claude/skills/pdfdrill/SKILL.md`. Each returns prose, not JSON.
 
 ### Killer case worth remembering

@@ -1,17 +1,63 @@
 #!/usr/bin/env bash
-# One-shot setup for a fresh sandbox: install deps, confirm ready.
-#   tar -xzf pdfdrill.tgz -C ~/pdfdrill && cd ~/pdfdrill && bash bootstrap.sh
-set -euo pipefail
+# One-shot setup for a fresh sandbox: install Python + system deps, confirm ready.
+#   git clone … ~/pdfdrill && cd ~/pdfdrill && bash bootstrap.sh
+#   (or)  tar -xzf pdfdrill.tgz -C ~/pdfdrill && cd ~/pdfdrill && bash bootstrap.sh
+#
+# Installs (best-effort, only what's missing):
+#   - Python deps (pdfplumber, pydantic) via pip
+#   - poppler-utils                  -> pdftotext/pdfimages/pdftoppm/pdfinfo (core)
+#   - tesseract-ocr (+eng/deu/equ)   -> the keyless OCR route (`pdfdrill ocr`)
+#   - LaTeX DVI toolchain + dvisvgm  -> TikZ/table SVG route (`pdfdrill svg`,
+#     `latexbook`): latex/pdflatex/dvips + dvisvgm + tikz/standalone packages
+# System installs use apt-get when present (Debian/Ubuntu, e.g. the Claude.ai
+# sandbox); on other distros they're skipped and reported in the final check.
+set -uo pipefail
 ROOT="$(cd "$(dirname "$0")" && pwd)"
 cd "$ROOT"
 
+# ---- Python deps --------------------------------------------------------
 pip install --quiet --break-system-packages -r requirements.txt 2>/dev/null \
   || pip install --quiet --break-system-packages "pdfplumber>=0.11" "pydantic>=2.0" \
   || true
 
-if [ ! -f .env ] && [ -f .env.example ]; then
-  echo "note: no .env found. For mathpix/snip/bibfetch:  cp .env.example .env  and fill in."
+# ---- System deps (apt-get, best-effort) ---------------------------------
+SUDO=""
+if [ "$(id -u)" -ne 0 ] && command -v sudo >/dev/null 2>&1; then SUDO="sudo"; fi
+
+if command -v apt-get >/dev/null 2>&1; then
+  PKGS=()
+  command -v pdftotext >/dev/null 2>&1 || PKGS+=(poppler-utils)
+  if ! command -v tesseract >/dev/null 2>&1; then
+    PKGS+=(tesseract-ocr tesseract-ocr-eng tesseract-ocr-deu tesseract-ocr-equ)
+  fi
+  # LaTeX DVI toolchain + dvisvgm — needed for the TikZ/table SVG route.
+  # If either `latex` or `dvisvgm` is missing, install the whole support set
+  # (a present `latex` alone isn't enough — TikZ needs texlive-pictures, the
+  # standalone class lives in texlive-latex-extra, etc.).
+  if ! command -v latex >/dev/null 2>&1 || ! command -v dvisvgm >/dev/null 2>&1; then
+    PKGS+=(dvisvgm texlive-latex-base texlive-latex-recommended \
+           texlive-latex-extra texlive-pictures texlive-fonts-recommended \
+           texlive-science texlive-binaries)
+  fi
+  if [ "${#PKGS[@]}" -gt 0 ]; then
+    echo "Installing missing system packages: ${PKGS[*]}"
+    $SUDO apt-get update -q >/dev/null 2>&1 || true
+    $SUDO apt-get install -y -q "${PKGS[@]}" >/dev/null 2>&1 \
+      || echo "  (apt-get install failed — see the requirement check below)"
+  fi
+else
+  echo "note: apt-get not found — skipping system-package install (non-Debian host)."
 fi
 
+# ---- .env hint ----------------------------------------------------------
+if [ ! -f .env ] && [ -f .env.example ]; then
+  echo "note: no .env found. For mathpix/snip/bibfetch/vision:  cp .env.example .env  and fill in."
+fi
+
+# ---- Requirement check (also available anytime via: pdfdrill doctor) ----
+echo
+PYTHONPATH=src python3 -m pdfdrill doctor || true
+
+echo
 echo "pdfdrill ready.  Run:  PYTHONPATH=src python3 -m pdfdrill <cmd> <pdf>"
 echo "  offline math (no key):  PYTHONPATH=src python3 -m pdfdrill report <pdf>"

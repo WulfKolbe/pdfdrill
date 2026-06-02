@@ -32,6 +32,7 @@ def main():
     rest = args[1:]
 
     handlers = {
+        "doctor": _do_doctor,
         "size": _do_size,
         "abstract": _do_abstract,
         "toc": _do_toc,
@@ -107,6 +108,12 @@ def _pdf(args: list[str]) -> Path:
     if not p.exists():
         raise FileNotFoundError(f"Not found: {p}")
     return p
+
+
+def _do_doctor(args):
+    """pdfdrill doctor — check system tools / Python deps / API keys."""
+    from .commands import cmd_doctor
+    return cmd_doctor()
 
 
 def _do_size(args):
@@ -764,6 +771,7 @@ Introspection (fast, no extraction):
   pdfdrill abstract <pdf>      Abstract from first pages
   pdfdrill fonts <pdf>         Font analysis, math font detection
   pdfdrill status <pdf>        What is already known
+  pdfdrill doctor              Requirement check: system tools (poppler/tesseract/LaTeX+dvisvgm), Python deps, API keys + the apt-get fix line
 
 Extraction:
   pdfdrill md <pdf>            Full Markdown with math transclusions

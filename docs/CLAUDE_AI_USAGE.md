@@ -52,7 +52,18 @@ MathPix/Perplexity keys are bundled in `src/pdfdrill/mathpix_creds.py` and
 setup. The whole structural path needs no key at all. **Before any public
 release: delete those two files and rotate the keys** (env vars still work).
 
-## System prerequisite
+## System prerequisites
 
-poppler-utils (`pdfinfo`/`pdftotext`/`pdffonts`/`pdfimages`). The Claude.ai
-sandbox already has it; `pdfplumber` and `pydantic` are also present there.
+- **poppler-utils** (`pdfinfo`/`pdftotext`/`pdffonts`/`pdfimages`/`pdftoppm`) —
+  core; the Claude.ai sandbox already has it (`pdfplumber`/`pydantic` too).
+- **tesseract-ocr** (+ `eng`/`deu`/`equ`) — the keyless OCR route (`pdfdrill ocr`).
+- **LaTeX DVI toolchain + dvisvgm** (`latex`/`pdflatex`/`dvips` + `dvisvgm`,
+  with `texlive-pictures`/`texlive-latex-extra` for TikZ/standalone) — the
+  TikZ/table SVG route (`pdfdrill svg`, `latexbook`).
+
+`bash bootstrap.sh` installs all of these via `apt-get` (only what's missing),
+then prints a requirement check. Run that check anytime with **`pdfdrill
+doctor`** — it lists which system tools / Python deps / API keys are present,
+which routes they enable, and the exact `sudo apt-get install …` line to fill
+any gap (e.g. the full `dvisvgm texlive-latex-base … texlive-pictures` set for
+the SVG route).
