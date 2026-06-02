@@ -110,10 +110,12 @@ class PictureProcessor(BaseModule):
         caption = extract_figure_caption(text) if "\\begin{figure}" in text else ""
         urls: list[str] = []
         # Markdown image links, then bare CDN crop URLs — both page+rectangle.
+        # MathPix LaTeX-escapes query `&` as `\&` inside table-cell `![]()`;
+        # unescape so the stored URL is directly fetchable (no 400 downstream).
         for m in _MD_IMG.finditer(text):
-            urls.append(m.group(1).strip())
+            urls.append(m.group(1).strip().replace("\\&", "&"))
         for m in _CDN_URL.finditer(text):
-            urls.append(m.group(1).strip())
+            urls.append(m.group(1).strip().replace("\\&", "&"))
         # De-duplicate within this line while preserving order.
         seen = set()
         unique = []

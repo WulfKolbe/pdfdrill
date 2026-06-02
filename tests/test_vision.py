@@ -17,7 +17,9 @@ from docmodel.core import Document, DocObject
 from pdfdrill.sidecar import Sidecar
 from pdfdrill import openai_vision
 from pdfdrill import commands
-from pdfdrill.commands import cmd_vision, MODEL_BUILT, VISION_DONE, _collect_cdn_crops
+from pdfdrill.commands import (
+    cmd_vision, MODEL_BUILT, VISION_DONE, _collect_cdn_crops, _norm_crop_url,
+)
 
 
 _CDN = "https://cdn.mathpix.com/cropped/abc-20.jpg?height=821&width=1754&top_left_y=1564&top_left_x=255"
@@ -50,6 +52,19 @@ def test_collect_cdn_crops_finds_embedded_table_crop():
     # The table-embedded crop is recovered with `\&` un-escaped to `&`.
     assert any("-27.jpg" in u and "\\&" not in u and "&" in u for u in urls)
     assert len(crops) == 3
+
+
+def test_norm_crop_url_cleans_and_validates():
+    # LaTeX-escaped `\&` (as MathPix leaves it in table cells) -> unescaped.
+    dirty = "https://cdn.mathpix.com/cropped/abc-07.jpg?height=53\\&width=613\\&top_left_y=1\\&top_left_x=2"
+    clean = _norm_crop_url(dirty)
+    assert clean == "https://cdn.mathpix.com/cropped/abc-07.jpg?height=53&width=613&top_left_y=1&top_left_x=2"
+    # Trailing punctuation trimmed.
+    assert _norm_crop_url(_CDN + ").") == _CDN
+    # Garbage (a cnt-array fragment) and truncated links are rejected.
+    assert _norm_crop_url("0,54,3,70,5,102,cdn.mathpix.com/cropped") is None
+    assert _norm_crop_url("https://cdn.mathpix.com/cropped/abc-07.jpg?height=53") is None  # missing fields
+    assert _norm_crop_url("") is None
 
 
 class _FakeVision:

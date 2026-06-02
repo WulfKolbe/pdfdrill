@@ -1907,27 +1907,48 @@ def cmd_ingest(pdf: Path, candidates_path: str, provider: str = "llm",
 # ---------------------------------------------------------------------------
 
 _CDN_CROP_RE = re.compile(r'https://cdn\.mathpix\.com/cropped/\S+?\.jpg\?[^)"\s\\]*')
+# A well-formed MathPix cropped-page URL (page image + rectangle query).
+_VALID_CROP = re.compile(
+    r'^https://cdn\.mathpix\.com/cropped/[\w.-]+\.jpg\?'
+    r'(?=.*height=\d+)(?=.*width=\d+)(?=.*top_left_y=\d+)(?=.*top_left_x=\d+)\S+$')
+
+
+def _norm_crop_url(u: str) -> Optional[str]:
+    """Normalize a crop URL or return None if it isn't a valid crop link.
+
+    MathPix sometimes leaves LaTeX-escaped `\\&` in a URL stored inside a table
+    cell (`![](cdn…\\&width=…)`); URL-based routes (vision, snip, download) 400
+    on that. We unescape `\\&`→`&`, trim trailing punctuation, and validate the
+    page+rectangle shape so `cnt`-array fragments and truncated links are
+    dropped rather than handed to a fetcher.
+    """
+    if not u:
+        return None
+    u = u.replace("\\&", "&").replace("\\%", "%").strip().rstrip(').,"\'')
+    return u if _VALID_CROP.match(u) else None
 
 
 def _collect_cdn_crops(doc) -> list[tuple]:
-    """Yield (object, crop_url) for every MathPix CDN crop in the model.
+    """Yield (object, crop_url) for every well-formed MathPix CDN crop.
 
     Picks up an object's own `cdn_url`/`url` AND any crop embedded in a string
-    prop (e.g. a table cell's `![](cdn…)` left in `raw_text`). LaTeX-escaped
-    `\\&` in the query string is normalized. De-duplicated per (object, url).
+    prop (e.g. a table cell's `![](cdn…)` left in `raw_text`). Every URL is
+    normalized + validated by `_norm_crop_url`, so the (object, url) pairs are
+    always fetchable. De-duplicated per (object, url).
     """
     out: list[tuple] = []
     seen: set = set()
     for o in doc.objects.values():
-        urls: list[str] = []
+        candidates: list[str] = []
         for k in ("cdn_url", "url"):
             v = (o.props or {}).get(k)
             if isinstance(v, str) and "cdn.mathpix.com/cropped" in v:
-                urls.append(v)
+                candidates.append(v)
         for v in (o.props or {}).values():
             if isinstance(v, str) and "cdn.mathpix.com/cropped" in v:
-                urls.extend(_CDN_CROP_RE.findall(v.replace("\\&", "&")))
-        for u in urls:
+                candidates.extend(_CDN_CROP_RE.findall(v.replace("\\&", "&")))
+        for cand in candidates:
+            u = _norm_crop_url(cand)
             key = (o.id, u)
             if u and key not in seen:
                 seen.add(key)
