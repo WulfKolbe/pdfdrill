@@ -20,6 +20,7 @@ import urllib.error
 import urllib.request
 from typing import Any, Optional
 
+from . import net
 from .env import get
 
 API_ENDPOINT = "https://api.openai.com/v1/chat/completions"
@@ -110,7 +111,7 @@ def _image_bytes(image: str, timeout: float) -> bytes:
     if image.startswith("data:"):
         return base64.b64decode(image.split(",", 1)[1])
     if image.startswith(("http://", "https://")):
-        with urllib.request.urlopen(image, timeout=timeout) as resp:
+        with net.urlopen(image, timeout=timeout) as resp:
             return resp.read()
     with open(image, "rb") as f:
         return f.read()
@@ -148,7 +149,7 @@ def analyze_image(
         method="POST",
     )
     try:
-        with urllib.request.urlopen(req, timeout=timeout) as resp:
+        with net.urlopen(req, timeout=timeout, host="api.openai.com") as resp:
             envelope = json.loads(resp.read().decode("utf-8"))
     except urllib.error.HTTPError as e:
         body = e.read().decode("utf-8", "replace")[:300]

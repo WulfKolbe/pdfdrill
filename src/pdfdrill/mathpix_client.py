@@ -22,6 +22,8 @@ import sys
 import time
 import urllib.error
 import urllib.request
+
+from . import net
 import uuid
 from pathlib import Path
 from typing import Callable, Iterable, Optional
@@ -119,7 +121,7 @@ def upload_pdf(file_path: str, log: Callable[[str], None] = print) -> str:
         method="POST",
         headers={**_auth_headers(), "Content-Type": content_type},
     )
-    with urllib.request.urlopen(req) as response:
+    with net.urlopen(req, host="api.mathpix.com") as response:
         data = json.loads(response.read().decode("utf-8"))
     if "pdf_id" not in data:
         raise RuntimeError("Upload failed: " + json.dumps(data))
@@ -136,7 +138,7 @@ def poll_pdf_status(
         req = urllib.request.Request(
             f"{API_BASE}/pdf/{pdf_id}", headers=_auth_headers()
         )
-        with urllib.request.urlopen(req) as response:
+        with net.urlopen(req, host="api.mathpix.com") as response:
             data = json.loads(response.read().decode("utf-8"))
         percent = data.get("percent_done") or 0
         log(f"Status: {data.get('status')} - {percent:.2f}%")
@@ -156,7 +158,7 @@ def download_result(
         f"{API_BASE}/pdf/{pdf_id}.{ext}", headers=_auth_headers()
     )
     try:
-        with urllib.request.urlopen(req) as response:
+        with net.urlopen(req, host="api.mathpix.com") as response:
             content = response.read()
     except urllib.error.HTTPError as e:
         raise RuntimeError(f"Failed to download {ext}: HTTP {e.code} {e.reason}") from e

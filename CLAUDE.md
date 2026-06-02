@@ -161,6 +161,21 @@ MathPix `app_id`/`app_key` must come from environment variables and must never
 be committed. The predecessor `mtestzx.ts` hardcoded them; that file is
 git-ignored and is **not** part of this repo.
 
+## Sandbox network accessibility
+
+The four outbound routes (`mathpix`/`model`, `snip`, `vision`, `bibfetch`) call
+out via urllib through the shared **`src/pdfdrill/net.py`** wrapper. When a host
+is blocked/unreachable in a locked-down sandbox (connection-level
+`URLError`/`OSError`/timeout, or an egress-proxy `403/407/502` with a block-hint
+body), `net.urlopen` raises a typed **`NetworkBlocked`** carrying a clear,
+host-named message ("Network access to api.openai.com appears blocked … enable
+it in your sandbox/network settings … offline routes need no network") instead
+of a stack trace; genuine HTTP statuses from the host (401 auth, 429 rate)
+propagate unchanged. The commands surface it gracefully: `mathpix` returns the
+message (and `model` then falls back to tesseract `ocr`); `snip`/`vision`/
+`bibfetch` abort the batch on the first block and return the message rather than
+hammering N items. Tests: `tests/test_net.py`.
+
 ## Current status
 
 Merged layout + working pdfdrill CLI (verified on `2605.12061`) + passing

@@ -24,6 +24,8 @@ import mimetypes
 import sys
 import urllib.error
 import urllib.request
+
+from . import net
 from typing import Any, Iterable, Optional
 
 from .mathpix_client import API_BASE, _auth_headers
@@ -95,7 +97,7 @@ def snip(image: str, timeout: float = 120.0, **kwargs) -> dict:
         headers={**_auth_headers(), "Content-Type": "application/json"},
     )
     try:
-        with urllib.request.urlopen(req, timeout=timeout) as resp:
+        with net.urlopen(req, timeout=timeout, host="api.mathpix.com") as resp:
             data = json.loads(resp.read().decode("utf-8"))
     except urllib.error.HTTPError as e:
         raise RuntimeError(f"MathPix /v3/text failed: HTTP {e.code} {e.reason}") from e

@@ -87,10 +87,14 @@ def cmd_mathpix(pdf: Path, force: bool = False) -> str:
     each recognized expression's LaTeX with the CDN image MathPix rendered.
     """
     from .mathpix_client import fetch_mathpix
+    from .net import NetworkBlocked
 
     sc = Sidecar(pdf)
     t0 = time.monotonic()
-    result = fetch_mathpix(str(pdf), force=force)
+    try:
+        result = fetch_mathpix(str(pdf), force=force)
+    except NetworkBlocked as e:
+        return str(e)
 
     files_meta = []
     for ext, path in result["files"].items():
@@ -276,24 +280,26 @@ def cmd_model(pdf: Path, force: bool = False) -> str:
 
     lines_path = _lines_json_path(pdf)
     if not lines_path.exists():
-        # Prefer MathPix (gives LaTeX + CDN crops). If it's unavailable — no
-        # creds, no network — fall back to the tesseract OCR path so the
-        # toolkit still runs end-to-end (plain text, no math fidelity).
+        # Prefer MathPix (gives LaTeX + CDN crops). On ANY failure — no creds,
+        # network blocked in the sandbox, or a graceful message returned — fall
+        # back to the tesseract OCR path whenever no lines.json materialized, so
+        # the toolkit still runs end-to-end (plain text, no math fidelity).
         try:
             cmd_mathpix(pdf)
-        except Exception as mathpix_err:
-            from .ocr_lines import tools_available
-            ok, _ = tools_available()
-            if not ok:
-                return (f"No lines.json for {pdf.name}. MathPix unavailable "
-                        f"({mathpix_err}); tesseract OCR also unavailable. "
-                        f"Set MathPix creds, or install poppler-utils + "
-                        f"tesseract-ocr and run `pdfdrill ocr {pdf.name}`.")
-            cmd_ocr(pdf)
+        except Exception:
+            pass
         sc = Sidecar(pdf)
+        if not lines_path.exists():
+            from .ocr_lines import tools_available
+            if tools_available()[0]:
+                cmd_ocr(pdf)
+                sc = Sidecar(pdf)
     if not lines_path.exists():
-        return (f"No lines.json for {pdf.name} "
-                f"(run `pdfdrill mathpix` or `pdfdrill ocr` first).")
+        return (f"No lines.json for {pdf.name}: MathPix is unavailable (no "
+                f"creds, or its host is blocked in this sandbox) and tesseract "
+                f"OCR is not installed. Provide a lines.json, set MathPix creds, "
+                f"or install poppler-utils + tesseract-ocr and run "
+                f"`pdfdrill ocr {pdf.name}`.")
 
     sc.blob_dir.mkdir(parents=True, exist_ok=True)
     t0 = time.monotonic()
@@ -779,9 +785,12 @@ def cmd_snip(pdf: Path, limit: int | None = None, force: bool = False) -> str:
     t0 = time.monotonic()
     done = errors = 0
     confs: list[float] = []
+    from .net import NetworkBlocked
     for e in todo:
         try:
             res = snip_result(e.props["cdn_url"])
+        except NetworkBlocked as nb:  # blocked host: abort, don't hammer N crops
+            return str(nb)
         except Exception:  # noqa: BLE001 — one bad crop shouldn't abort the batch
             errors += 1
             continue
@@ -1410,6 +1419,7 @@ def cmd_bibfetch(pdf: Path, limit: int | None = None, force: bool = False) -> st
     if limit is not None:
         todo = todo[:limit]
 
+    from .net import NetworkBlocked
     done = errors = 0
     for r in todo:
         try:
@@ -1420,6 +1430,8 @@ def cmd_bibfetch(pdf: Path, limit: int | None = None, force: bool = False) -> st
                 raw_text=r.props.get("raw_text", ""),
                 title=r.props.get("title", ""),
             )
+        except NetworkBlocked as nb:  # blocked host: abort, don't hammer N refs
+            return str(nb)
         except Exception:  # noqa: BLE001 — one failure shouldn't abort the batch
             errors += 1
             continue
@@ -2115,6 +2127,7 @@ def cmd_vision(pdf: Path, limit: int | None = None, force: bool = False) -> str:
     from collections import Counter
     from docmodel.core import Document, Realization
     from . import openai_vision
+    from .net import NetworkBlocked as _NetworkBlocked
 
     sc = Sidecar(pdf)
     model_path = _model_path(sc)
@@ -2167,6 +2180,8 @@ def cmd_vision(pdf: Path, limit: int | None = None, force: bool = False) -> str:
                 prompt = (openai_vision.GRAPH_TIKZ_PROMPT if is_graph
                           else openai_vision.DEFAULT_PROMPT)
                 res = openai_vision.analyze_image(url, prompt=prompt)
+            except _NetworkBlocked as nb:   # blocked host: abort the batch
+                return str(nb)
             except Exception:
                 errors += 1
                 continue

@@ -18,6 +18,8 @@ import os
 import re
 import urllib.error
 import urllib.request
+
+from . import net
 from typing import Optional
 
 API_ENDPOINT = "https://api.perplexity.ai/chat/completions"
@@ -59,7 +61,7 @@ def call_sonar(prompt: str, timeout: float = 60.0) -> dict:
                  "Content-Type": "application/json"},
     )
     try:
-        with urllib.request.urlopen(req, timeout=timeout) as resp:
+        with net.urlopen(req, timeout=timeout, host="api.perplexity.ai") as resp:
             data = json.loads(resp.read().decode("utf-8"))
     except urllib.error.HTTPError as e:
         raise RuntimeError(f"Perplexity request failed: HTTP {e.code} {e.reason}") from e
