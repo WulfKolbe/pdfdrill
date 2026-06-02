@@ -166,6 +166,34 @@ Both are self-contained (they add `src/` to `sys.path`).
   `--bibkey kolbe2018hubbard` → titles `kolbe2018hubbard_EQ0001`…, the 6 Julia
   listings render as code (not 6 failed SVGs).
 
+## Multi-document scan triage (`continuity` / `entities` / `segment`)
+
+For a scanned bundle that is several shuffled German documents (the LLM-usability
+test on `ocrtest.pdf`), three commands let an LLM solve it from prose alone, with
+**zero external tools**:
+
+- **`pdfdrill continuity <pdf>`** (`continuity.py`) — full-page OCR including the
+  MARGINS (where MathPix's content crop drops "Seite N von M" / "Fortsetzung
+  Seite N" / Druck-/Kontrollnummern), classifying each token by margin position.
+  Attaches `seq_in_doc`/`doc_total`/`is_continuation`/`control_no` to each `Page`
+  (shown by `status`). Cached in the sidecar. ocrtest: 19/45 pages carry a
+  marker incl. margin-only ones MathPix loses (the rest are single-page docs).
+- **`pdfdrill entities <pdf>`** (`features/extract_iban|bic|german_address|ids`)
+  — per page: IBAN (built-in mod-97 checksum + DE BLZ/Konto + IBAN-local bank
+  name), BIC, German postal address, Steuer-/Kassen-/Aktenzeichen. No
+  schwifty/stdnum. ocrtest: 16/17 IBANs valid, recipient address + Kassenzeichen
+  recovered.
+- **`pdfdrill segment <pdf>`** (`segment.py`) — partition into ordered documents:
+  group pages by a stable signature (admin id by VALUE, type-agnostic; else
+  sender/letterhead), order each group by its continuity number (so duplex/
+  shuffle is irrelevant), flag duplicate copies. ocrtest: the three senders
+  (Finanzamt / Burkhardt Kundendienst GmbH / Stadt Köln) come out as separate
+  page-ordered docs with dups flagged.
+
+Target LLM flow: `continuity` → `segment` → `entities`, answering the triage
+task from prose. Tests: `tests/test_continuity.py`, `tests/test_entities.py`,
+`tests/test_segment.py`.
+
 ## Feature-extraction layer (`src/features/`, additive — starter)
 
 A NEW, self-contained package that is **purely additive**: extractors take plain

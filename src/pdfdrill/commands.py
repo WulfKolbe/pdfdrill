@@ -65,6 +65,7 @@ BIBSOURCE_BUILT = "BIBSOURCE_BUILT"
 TRANSLATED = "TRANSLATED"
 CONTINUITY_BUILT = "CONTINUITY_BUILT"
 ENTITIES_BUILT = "ENTITIES_BUILT"
+SEGMENTED = "SEGMENTED"
 
 # Hosts that almost always mean "here is the code / data for this paper".
 _CODE_HOSTS = (
@@ -487,6 +488,52 @@ def cmd_entities(pdf: Path, force: bool = False) -> str:
     return (f"Entities: {n_valid}/{n_iban} IBAN(s) checksum-valid across "
             f"{len(per_page)} page(s); BIC / German address / ids too. "
             f"Zero external tools (built-in mod-97 IBAN check).\n" + body)
+
+
+def cmd_segment(pdf: Path, force: bool = False) -> str:
+    """Partition a scanned bundle into ordered documents (CR #3).
+
+    Groups pages by a stable per-document signature (Kassen-/Akten-/Steuernummer,
+    else sender/letterhead), orders each group by its continuity number (so the
+    shuffled/duplex physical order is irrelevant), and flags duplicate copies.
+    Consumes `continuity` (Issue 1/2) + `entities` (Issue 4); auto-chains both.
+    """
+    from docmodel.core import Document
+    from . import segment as seg
+
+    sc = Sidecar(pdf)
+    cont, err = _load_or_build_continuity(pdf, sc, force=force)
+    if err:
+        return f"Segment needs continuity OCR: {err}"
+    if not sc.has(ENTITIES_BUILT) or force:
+        cmd_entities(pdf, force=force)
+        sc = Sidecar(pdf)
+    entities = sc.get_evidence("entities") or {}
+
+    model_path = _model_path(sc)
+    page_text = {}
+    if model_path.exists():
+        doc = Document.from_dict(json.loads(model_path.read_text(encoding="utf-8")))
+        page_text = _page_text_from_model(doc)
+
+    docs = seg.segment(cont, entities, page_text)
+
+    prev = ",".join(sorted(sc.facts - {SEGMENTED})) or "INIT"
+    sc.add_fact(SEGMENTED)
+    sc.set_evidence("segments", len(docs))
+    sc.log_transition("segment", prev, SEGMENTED, detail=f"{len(docs)} documents")
+    sc.save()
+
+    lines = []
+    for i, d in enumerate(docs, 1):
+        pp = ",".join(f"p{p}" for p in d["pages"])
+        tot = f"/{d['total']}" if d.get("total") else ""
+        dup = f"  [dup: {','.join('p'+str(p) for p in d['duplicates'])}]" if d["duplicates"] else ""
+        ident = f" ({d['identifier']})" if d.get("identifier") else ""
+        lines.append(f"  Doc {i} — {d['label']}{ident}, {len(d['pages'])} pp{tot}: {pp}{dup}")
+    return (f"Segmented {pdf.name} into {len(docs)} document(s) by sender/identifier "
+            f"+ continuity order (duplex/shuffle handled via the page-sequence "
+            f"number):\n" + "\n".join(lines))
 
 
 def cmd_model(pdf: Path, force: bool = False, bibkey: str | None = None) -> str:

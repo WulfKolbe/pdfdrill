@@ -57,6 +57,7 @@ def main():
         "ocr": _do_ocr,
         "continuity": _do_continuity,
         "entities": _do_entities,
+        "segment": _do_segment,
         "model": _do_model,
         "compare": _do_compare,
         "snip": _do_snip,
@@ -245,6 +246,13 @@ def _do_entities(args):
     from .commands import cmd_entities
     pdf_args = [a for a in args if a != "--force"]
     return cmd_entities(_pdf(pdf_args), force="--force" in args)
+
+
+def _do_segment(args):
+    """pdfdrill segment <pdf> [--force]"""
+    from .commands import cmd_segment
+    pdf_args = [a for a in args if a != "--force"]
+    return cmd_segment(_pdf(pdf_args), force="--force" in args)
 
 
 def _do_continuity(args):
@@ -789,6 +797,7 @@ Introspection (fast, no extraction):
   pdfdrill ocr <pdf>           MathPix-free OCR: tesseract → MathPix-compatible lines.json (--lang eng+equ, --ppi N). Plain text only (no LaTeX/CDN)
   pdfdrill continuity <pdf>    Full-page OCR of the MARGINS → page-sequence markers (Seite N von M / Fortsetzung) MathPix's content crop drops; attaches seq to Page objects
   pdfdrill entities <pdf>      Commercial entities per page: IBAN (mod-97 validated + BLZ/Konto/bank), BIC, German address, Steuer-/Kassen-/Aktenzeichen. Zero external tools
+  pdfdrill segment <pdf>       Partition a scanned bundle into ordered documents (by sender/identifier + continuity number); flags duplicate copies
   pdfdrill model <pdf>         Build unified docmodel from lines.json (auto-chains mathpix, falls back to tesseract ocr if no MathPix); --bibkey KEY sets the tiddler prefix (persisted)
   pdfdrill compare <pdf>       LaTeX | KaTeX | MathPix-image comparison HTML (auto-chains model)
   pdfdrill report <pdf>        Full inline+display math report (formula-report.html)
