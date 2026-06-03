@@ -97,6 +97,47 @@ def build_combined_tsv(pdf: Path, out_dir: Path, *, ppi: int = 300,
 
 
 # ---------------------------------------------------------------------------
+# Optional libpostal component parsing (graceful — None when absent)
+# ---------------------------------------------------------------------------
+
+def _libpostal_parser():
+    """Return libpostal's `parse_address` or None. libpostal (pypostal `postal`)
+    is a CRF address parser trained on ~1B OSM/OpenAddresses records; it *parses*
+    a known address string into components but cannot *find* addresses on a page
+    — which is why it runs AFTER the heuristic/GNN locates the block. Optional: a
+    C-library build + ~2 GB data download. Absent here → None → no enrichment."""
+    try:
+        from postal.parser import parse_address  # type: ignore
+        return parse_address
+    except Exception:
+        return None
+
+
+def _enrich_with_libpostal(addresses: list[dict]) -> int:
+    """Parse each heuristic address's raw block text into clean components
+    (road/house_number/postcode/city/…) via libpostal, in place. Only fills
+    addresses that lack components (so it never clobbers GNN per-word labels).
+    Returns the count enriched; a no-op (0) when libpostal is unavailable."""
+    parse_fn = _libpostal_parser()
+    if parse_fn is None:
+        return 0
+    from .extract_addresses import parse_components
+    n = 0
+    for e in addresses:
+        if e.get("kind") != "address" or e.get("components"):
+            continue
+        txt = e.get("text") or e.get("heuristic_text") or ""
+        if not txt:
+            continue
+        comp = parse_components(parse_fn, txt)
+        if comp:
+            e["components"] = comp
+            e["parsed_by"] = "libpostal"
+            n += 1
+    return n
+
+
+# ---------------------------------------------------------------------------
 # Orchestration
 # ---------------------------------------------------------------------------
 
@@ -140,11 +181,16 @@ def find_elements(pdf: Path, *, model_path: Optional[Path], bibkey: str,
     # or both; tags each address gnn+heuristic / gnn-only / heuristic-only.
     reconciled, _nodes = tsv_gcn.crosscheck(str(tsv_path), model)
 
+    # Optional libpostal upgrade: parse heuristic address blocks into clean
+    # components (road/house_number/postcode/city). Graceful no-op when absent.
+    n_libpostal = _enrich_with_libpostal(reconciled)
+
     if model is not None:
         # Full element set (addresses + BOM lines) with projection embeddings.
         tiddlers = tsv_gcn.emit_tiddlers(str(tsv_path), model, bibkey, source)
     else:
-        # Heuristic-only: emit the reconciled addresses as tiddlers.
+        # Heuristic-only: emit the reconciled addresses as tiddlers (now carrying
+        # libpostal components when available).
         serials: dict[str, int] = {}
         tiddlers = []
         for e in reconciled:
@@ -154,4 +200,4 @@ def find_elements(pdf: Path, *, model_path: Optional[Path], bibkey: str,
 
     return {"available": True, "message": "", "tiddlers": tiddlers,
             "elements": reconciled, "tsv_path": str(tsv_path),
-            "source": source, "model": model}
+            "source": source, "model": model, "libpostal_enriched": n_libpostal}

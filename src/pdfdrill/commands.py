@@ -629,9 +629,20 @@ def cmd_elements(pdf: Path, force: bool = False, model: str | None = None,
         extras.append(f"{n_geo} with a geo-projection")
     if n_proj:
         extras.append(f"{n_proj} with a learned GNN projection embedding")
+    # libpostal component-parsing status (optional upgrade for the address path).
+    n_lp = res.get("libpostal_enriched", 0)
+    if n_lp:
+        lp_note = f" {n_lp} address(es) parsed into components by libpostal."
+    elif n_ad and not res["model"]:
+        lp_note = (" Tip: install libpostal (pypostal `postal`) for clean "
+                   "road/house-number/postcode/city components on heuristic "
+                   "addresses (it degrades silently when absent).")
+    else:
+        lp_note = ""
     return (f"Layout elements ({route}): {len(tiddlers)} found — {n_ad} address(es), "
             f"{n_bm} BOM-line(s) → {out_path.name} (+ sidecar `layout` layer). "
-            f"Address provenance: {prov_str}. Tiddlers: {'; '.join(extras)}.\n" + body)
+            f"Address provenance: {prov_str}. Tiddlers: {'; '.join(extras)}.{lp_note}\n"
+            + body)
 
 
 def cmd_model(pdf: Path, force: bool = False, bibkey: str | None = None) -> str:

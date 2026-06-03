@@ -247,8 +247,12 @@ a **`layout` layer** + a sibling `<bibkey>.elements.tiddlers.json`.
   are reconciled against the heuristic (tagged gnn+heuristic/gnn-only/
   heuristic-only); **without a model** the vendored `extract_addresses` heuristic
   still finds **addresses** (provenance `heuristic-only`, content hash + bbox, no
-  embedding). **BOM-line items are GNN-only** (no heuristic equivalent) — they
-  need a `--model`.
+  embedding). When **libpostal** (pypostal `postal`) is installed it is
+  **auto-used** to parse each heuristic block into clean `road`/`house_number`/
+  `postcode`/`city` components (`parsed_by="libpostal"`); it degrades silently to
+  the raw block text when absent (`layout_elements._enrich_with_libpostal`).
+  **BOM-line items are GNN-only** (no heuristic equivalent) — they need a
+  `--model`.
 - **Optional `[layout]` extra** (`pip install 'pdfdrill[layout]'`): numpy
   (required, for the GNN) + blake3 (optional — `content_hash` falls back to
   sha256 without it). The heuristic address path is pure-stdlib (no extra

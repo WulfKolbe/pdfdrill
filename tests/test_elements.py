@@ -145,14 +145,62 @@ def test_find_elements_heuristic_only_without_model(monkeypatch):
     assert all(not t.get("projection") for t in res["tiddlers"])
 
 
+def test_libpostal_enrichment_absent_is_noop():
+    """When libpostal is unavailable, enrichment is a clean no-op (0)."""
+    monkeypatched = le._libpostal_parser()
+    # The real environment has no libpostal; enrichment must not raise / change.
+    addrs = [{"kind": "address", "components": {}, "text": "Hauptstraße 42a, 50667 Köln"}]
+    n = le._enrich_with_libpostal(addrs)
+    if monkeypatched is None:
+        assert n == 0 and addrs[0]["components"] == {}
+    else:
+        assert n >= 0  # libpostal present in this env — just don't crash
+
+
+def test_libpostal_enrichment_fills_components(monkeypatch):
+    """With a (fake) libpostal parser, a heuristic address block is parsed into
+    road/house_number/postcode/city components, tagged parsed_by=libpostal."""
+    def fake_parse_address(text):
+        return [("hauptstraße", "road"), ("42a", "house_number"),
+                ("50667", "postcode"), ("köln", "city")]
+    monkeypatch.setattr(le, "_libpostal_parser", lambda: fake_parse_address)
+    addrs = [{"kind": "address", "source": "heuristic-only", "components": {},
+              "text": "Hauptstraße 42a, 50667 Köln", "bbox": [1, 2, 3, 4]},
+             {"kind": "address", "source": "gnn-only",      # already has comps:
+              "components": {"road": "Keep"}, "text": "x"}]
+    n = le._enrich_with_libpostal(addrs)
+    assert n == 1                                            # only the empty one
+    assert addrs[0]["components"] == {"road": "hauptstraße", "house_number": "42a",
+                                      "postcode": "50667", "city": "köln"}
+    assert addrs[0]["parsed_by"] == "libpostal"
+    assert addrs[1]["components"] == {"road": "Keep"}        # GNN labels untouched
+
+
 if __name__ == "__main__":
-    test_patch_page_column_renumbers_and_drops_header(); print("PASS patch_page_column")
-    test_extract_addresses_heuristic_is_vendored_and_pure(); print("PASS heuristic_vendored")
-    # monkeypatch shim for standalone runs (no pytest):
+    # A restoring monkeypatch shim so standalone runs don't leak patches between
+    # tests (pytest's real fixture restores automatically).
     class _MP:
-        def setattr(self, obj, name, val): setattr(obj, name, val)
-    test_find_elements_heuristic_only_without_model(_MP()); print("PASS heuristic_only")
-    test_find_elements_emits_content_addressed_tiddlers(_MP()); print("PASS emit")
-    # graceful must run LAST: its non-restoring monkeypatch sets _HAVE_EA=False.
-    test_find_elements_graceful_without_model_or_heuristic(_MP()); print("PASS graceful")
+        def __init__(self): self._undo = []
+        def setattr(self, obj, name, val):
+            self._undo.append((obj, name, getattr(obj, name)))
+            setattr(obj, name, val)
+        def undo(self):
+            for obj, name, old in reversed(self._undo): setattr(obj, name, old)
+            self._undo = []
+
+    def run(fn, label, mp=None):
+        own = mp or _MP()
+        try:
+            fn(own) if fn.__code__.co_argcount else fn()
+        finally:
+            own.undo()
+        print(f"PASS {label}")
+
+    run(test_patch_page_column_renumbers_and_drops_header, "patch_page_column")
+    run(test_extract_addresses_heuristic_is_vendored_and_pure, "heuristic_vendored")
+    run(test_libpostal_enrichment_absent_is_noop, "libpostal_absent")
+    run(test_libpostal_enrichment_fills_components, "libpostal_fill")
+    run(test_find_elements_heuristic_only_without_model, "heuristic_only")
+    run(test_find_elements_emits_content_addressed_tiddlers, "emit")
+    run(test_find_elements_graceful_without_model_or_heuristic, "graceful")
     print("\nAll tests passed.")
