@@ -5,4 +5,12 @@
 #   ./pdfdrill urls paper.pdf
 set -e
 HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+
+# libpostal built from source installs into /usr/local/lib, which is NOT on the
+# default linker path unless `ldconfig` ran — without it `import postal.parser`
+# fails to dlopen libpostal.so.1. The Python code also ctypes-preloads the lib,
+# but exporting LD_LIBRARY_PATH here is the canonical fix and covers every
+# subprocess too (no root, no ldconfig). Harmless when libpostal isn't present.
+export LD_LIBRARY_PATH="/usr/local/lib:${LD_LIBRARY_PATH}"
+
 PYTHONPATH="$HERE/src" exec python3 -m pdfdrill "$@"
