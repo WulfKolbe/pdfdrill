@@ -105,11 +105,54 @@ def test_find_elements_emits_content_addressed_tiddlers(monkeypatch):
     assert h1 == h2
 
 
+def test_extract_addresses_heuristic_is_vendored_and_pure():
+    """The vendored extract_addresses gives tsv_gcn its no-model address path
+    (DEFAULT_POSTCODE + read_tsv + find_candidates) with NO libpostal."""
+    from pdfdrill import tsv_gcn
+    assert tsv_gcn._HAVE_EA is True               # heuristic enabled
+    from pdfdrill import extract_addresses as ea
+    import re
+    tsv = ("level\tpage_num\tblock\tpar\tline\tword\tleft\ttop\twidth\theight\tconf\ttext\n"
+           "5\t1\t1\t1\t1\t1\t300\t600\t200\t40\t96\tHauptstraße\n"
+           "5\t1\t1\t1\t1\t2\t520\t600\t60\t40\t96\t42a\n"
+           "5\t1\t1\t1\t2\t1\t300\t660\t120\t40\t95\t50667\n"
+           "5\t1\t1\t1\t2\t2\t440\t660\t90\t40\t95\tKöln\n")
+    segs = ea.read_tsv(tsv)
+    cands = ea.find_candidates(segs, re.compile(ea.DEFAULT_POSTCODE), 3, 50)
+    assert cands and any("50667" in c.text and c.bbox for c in cands)
+
+
+def test_find_elements_heuristic_only_without_model(monkeypatch):
+    """With extract_addresses vendored (_HAVE_EA=True) and NO model, find_elements
+    still recovers an address (provenance heuristic-only), no GNN, no libpostal."""
+    if not HAVE_NUMPY:
+        print("SKIP (numpy absent)"); return
+    import numpy as np
+    from pdfdrill import tsv_gcn
+    if not tsv_gcn._HAVE_EA:
+        print("SKIP (extract_addresses not importable)"); return
+    rng = np.random.default_rng(3)
+    one_tsv, _labels = tsv_gcn.synth_page(rng)     # has an address block w/ PLZ
+    monkeypatch.setattr(le, "tools_available", lambda: (True, ""))
+    monkeypatch.setattr(le, "build_combined_tsv", lambda *a, **k: one_tsv)
+    with tempfile.TemporaryDirectory() as d:
+        res = le.find_elements(Path("x.pdf"), model_path=None, bibkey="bk",
+                               source="x.pdf", blob_dir=Path(d), force=True)
+    assert res["available"] is True
+    assert any(t["kind"] == "address" for t in res["tiddlers"])
+    assert any(e.get("source") == "heuristic-only" for e in res["elements"])
+    # No model → no learned projection embedding on any tiddler.
+    assert all(not t.get("projection") for t in res["tiddlers"])
+
+
 if __name__ == "__main__":
     test_patch_page_column_renumbers_and_drops_header(); print("PASS patch_page_column")
+    test_extract_addresses_heuristic_is_vendored_and_pure(); print("PASS heuristic_vendored")
     # monkeypatch shim for standalone runs (no pytest):
     class _MP:
         def setattr(self, obj, name, val): setattr(obj, name, val)
-    test_find_elements_graceful_without_model_or_heuristic(_MP()); print("PASS graceful")
+    test_find_elements_heuristic_only_without_model(_MP()); print("PASS heuristic_only")
     test_find_elements_emits_content_addressed_tiddlers(_MP()); print("PASS emit")
+    # graceful must run LAST: its non-restoring monkeypatch sets _HAVE_EA=False.
+    test_find_elements_graceful_without_model_or_heuristic(_MP()); print("PASS graceful")
     print("\nAll tests passed.")

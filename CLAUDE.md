@@ -226,28 +226,51 @@ a **`layout` layer** + a sibling `<bibkey>.elements.tiddlers.json`.
   piece: NumPy absent, OCR tools absent, or **no trained model AND no
   `extract_addresses`** → a clear, actionable message (how to train a model)
   rather than a raise.
+- **`src/pdfdrill/extract_addresses.py`** — the vendored **heuristic** address
+  finder (the author's sibling module `tsv_gcn` cross-checks against). `tsv_gcn`
+  imports only its three **pure-stdlib** symbols — `DEFAULT_POSTCODE` (a German
+  PLZ anchor: 5 digits *followed by a city letter*, so it never fires on
+  invoice/HRB numbers), `read_tsv` (tesseract TSV → block/line `Segment`s), and
+  `find_candidates` (walk upward from each PLZ anchor collecting the address
+  block by geometry). **libpostal is NOT on this path** — it's used only by
+  `extract_addresses`' own CLI (`load_parser`/`run_invoice2data`, lazily
+  imported) for full component *parsing*, which `tsv_gcn` never calls. So
+  `_HAVE_EA=True` out of the box and the address path needs **no model and no
+  libpostal**. (libpostal — pypostal/`postal`, a CRF parser trained on ~1B
+  OSM/OpenAddresses records — is an *optional* upgrade for component breakdown,
+  a C-library build + ~2 GB data download; not installed here.)
 - **`pdfdrill elements <pdf> [--model M.npz] [--bibkey K] [--source S]
   [--lang deu+eng] [--ppi 300] [--force]`** — writes the `layout` sidecar layer
   (`layout_counts`, per-element title/kind/page/hash/bbox) + the tiddlers file,
-  returns prose. **The GNN path needs a model the caller supplies via `--model`**
-  (`emit_tiddlers` requires one); without a model it falls back to the optional
-  `extract_addresses` heuristic (address-only) when that module is importable.
+  returns prose. **Two routes:** with `--model` the GNN emits addresses *and*
+  BOM-line items, each carrying a learned `projection` embedding, and addresses
+  are reconciled against the heuristic (tagged gnn+heuristic/gnn-only/
+  heuristic-only); **without a model** the vendored `extract_addresses` heuristic
+  still finds **addresses** (provenance `heuristic-only`, content hash + bbox, no
+  embedding). **BOM-line items are GNN-only** (no heuristic equivalent) — they
+  need a `--model`.
 - **Optional `[layout]` extra** (`pip install 'pdfdrill[layout]'`): numpy
-  (required) + blake3 (optional — `content_hash` falls back to sha256 without
-  it). `extract_addresses` is **not** in the repo (an external heuristic);
-  `_HAVE_EA=False` here, so the heuristic cross-check path is off unless the user
-  adds it.
-- **Verified end-to-end** on a generated German invoice PDF (render → tesseract
-  → GNN, synth-trained model): the address `Firma Müller GmbH / Hauptstraße 42a
-  / 50667 Köln` isolated with components (road/house-number/postcode/city), 5
-  BOM-line tiddlers, each content-addressed + carrying projections. **Honest
-  caveat (the module's own):** a model trained only on *synthetic* pages
-  over-generalizes on a different real layout (here it mislabelled the table
-  header as a second address and split a couple of BOM rows). Element *quality*
-  tracks the training data; production use wants a model trained on real
-  labelled pages. The wiring, content-addressing, and graceful degradation are
-  what's verified. Tests: `tests/test_elements.py` (page-num patch, graceful
-  no-model path, model path emits content-addressed tiddlers with projections).
+  (required, for the GNN) + blake3 (optional — `content_hash` falls back to
+  sha256 without it). The heuristic address path is pure-stdlib (no extra
+  needed). A trained `.npz` GNN model is **not** shipped — train one with
+  `python -m pdfdrill.tsv_gcn synth <dir> -n 24 && python -m pdfdrill.tsv_gcn
+  train <dir>/*.tsv --labels-dir <dir> -o model.npz` (synthetic = smoke-test
+  quality) or supply a model trained on real labelled pages.
+- **Verified end-to-end** on a generated German invoice PDF (render →
+  tesseract): **(a) no model** — `extract_addresses` recovers the address
+  (`50667 Köln`, heuristic-only) with zero model/libpostal; **(b) synth-trained
+  GNN** — the address `Firma Müller GmbH / Hauptstraße 42a / 50667 Köln` isolated
+  with components (road/house-number/postcode/city) + 5 BOM-line tiddlers, each
+  content-addressed + carrying projections. **Honest caveat (the module's own):**
+  a model trained only on *synthetic* pages over-generalizes on a different real
+  layout (mislabelled the table header as a second address, split a couple of
+  BOM rows); and the heuristic, keyed on tesseract's unstable *block* number,
+  can clip a block-fragmented address to its PLZ line. Element *quality* tracks
+  the model/training data; production use wants a model trained on real labelled
+  pages. The wiring, content-addressing, dual-route, and graceful degradation are
+  what's verified. Tests: `tests/test_elements.py` (page-num patch, vendored
+  heuristic, no-model heuristic-only path, model path emits content-addressed
+  tiddlers with projections, fully-graceful no-source path).
 
 ## Feature-extraction layer (`src/features/`, additive — starter)
 

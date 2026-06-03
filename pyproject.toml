@@ -34,7 +34,11 @@ features = [
 # Layout-element GNN (the vendored `pdfdrill.tsv_gcn`): a pure-NumPy
 # geometric-attention model over tesseract word boxes that isolates addresses /
 # BOM line items as content-addressed tiddlers (`pdfdrill elements`). numpy is
-# required; blake3 is optional (content_hash falls back to sha256 without it).
+# required for the GNN; blake3 is optional (content_hash falls back to sha256).
+# The vendored `pdfdrill.extract_addresses` heuristic (no-model address path) is
+# pure-stdlib — no extra needed. libpostal/pypostal (`postal`) is an OPTIONAL
+# upgrade for full address-component parsing (a C-library build + ~2 GB data
+# download); it is NOT on the path `pdfdrill elements` uses.
 layout = [
     "numpy>=1.24",
     "blake3>=0.4",

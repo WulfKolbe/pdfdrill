@@ -47,7 +47,12 @@ from pathlib import Path
 import numpy as np
 
 try:
-    from extract_addresses import (DEFAULT_POSTCODE, read_tsv, find_candidates)
+    try:
+        # vendored sibling (pip install -e . ships it inside the package)
+        from .extract_addresses import (DEFAULT_POSTCODE, read_tsv, find_candidates)
+    except ImportError:
+        # the author's standalone module dropped on PYTHONPATH
+        from extract_addresses import (DEFAULT_POSTCODE, read_tsv, find_candidates)
     _HAVE_EA = True
 except Exception:
     DEFAULT_POSTCODE = r"(?<!\d)\d{5}(?!\d)\s*,?\s*[A-Za-zÄÖÜäöüß]"

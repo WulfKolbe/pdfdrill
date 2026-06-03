@@ -618,11 +618,20 @@ def cmd_elements(pdf: Path, force: bool = False, model: str | None = None,
         lines.append(f"  {t['title']}  [{t['kind']} p{t['page']} "
                      f"{t.get('source', '')}{agr}]  {txt}")
     body = "\n".join(lines) if lines else "  (no layout elements found)"
+    # Be route-accurate: only the GNN path attaches a learned projection
+    # embedding; the heuristic path emits a content hash (+ bbox/geo-projection
+    # when the page is known) but no embedding.
+    h0 = tiddlers[0]["hash"][:10] + "…" if tiddlers else "n/a"
+    n_proj = sum(1 for t in tiddlers if t.get("projection"))
+    n_geo = sum(1 for t in tiddlers if t.get("geo-projection"))
+    extras = [f"content-addressed ({h0})"]
+    if n_geo:
+        extras.append(f"{n_geo} with a geo-projection")
+    if n_proj:
+        extras.append(f"{n_proj} with a learned GNN projection embedding")
     return (f"Layout elements ({route}): {len(tiddlers)} found — {n_ad} address(es), "
             f"{n_bm} BOM-line(s) → {out_path.name} (+ sidecar `layout` layer). "
-            f"Address provenance: {prov_str}. Each tiddler is content-addressed "
-            f"({tiddlers[0]['hash'][:10] + '…' if tiddlers else 'n/a'}) with a "
-            f"geo-projection + GNN projection embedding.\n" + body)
+            f"Address provenance: {prov_str}. Tiddlers: {'; '.join(extras)}.\n" + body)
 
 
 def cmd_model(pdf: Path, force: bool = False, bibkey: str | None = None) -> str:
