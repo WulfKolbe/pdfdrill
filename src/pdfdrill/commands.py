@@ -66,6 +66,7 @@ TRANSLATED = "TRANSLATED"
 CONTINUITY_BUILT = "CONTINUITY_BUILT"
 ENTITIES_BUILT = "ENTITIES_BUILT"
 SEGMENTED = "SEGMENTED"
+ELEMENTS_BUILT = "ELEMENTS_BUILT"
 
 # Hosts that almost always mean "here is the code / data for this paper".
 _CODE_HOSTS = (
@@ -534,6 +535,94 @@ def cmd_segment(pdf: Path, force: bool = False) -> str:
     return (f"Segmented {pdf.name} into {len(docs)} document(s) by sender/identifier "
             f"+ continuity order (duplex/shuffle handled via the page-sequence "
             f"number):\n" + "\n".join(lines))
+
+
+def cmd_elements(pdf: Path, force: bool = False, model: str | None = None,
+                 bibkey: str | None = None, source: str | None = None,
+                 ppi: int = 300, lang: str = "deu+eng") -> str:
+    """Find structured layout ELEMENTS (postal addresses, BOM line items) with
+    the geometric-attention GNN over tesseract word boxes (`pdfdrill.tsv_gcn`).
+
+    The layout analogue of the MathPix→LaTeX layer: each element is isolated,
+    given a content-addressed identity (blake3/sha256), and emitted as a
+    TiddlyWiki tiddler (`<bibkey>_AD/BM_<serial>`) with data fields, a normalised
+    `geo-projection`, and a learned `projection` embedding. The result is dropped
+    into the sidecar as a `layout` layer and written to a sibling
+    `<bibkey>.elements.tiddlers.json`.
+
+    Additive — it never touches the docmodel/docops pipeline. The GNN path needs
+    a trained model supplied via `--model` (train one with `python -m
+    pdfdrill.tsv_gcn synth/train`); without a model it falls back to the optional
+    `extract_addresses` heuristic (address-only) if that module is importable,
+    else returns an actionable message. Degrades cleanly when NumPy/OCR tools are
+    absent. Reuses the `ocr`/`geometry` page-render + tesseract plumbing.
+    """
+    from . import layout_elements
+
+    sc = Sidecar(pdf)
+    key = resolve_bibkey(pdf, bibkey, sc)
+    model_path = Path(model).expanduser() if model else None
+    if model_path is not None and not model_path.exists():
+        return (f"--model {model_path} not found. Train one with "
+                f"`python -m pdfdrill.tsv_gcn synth <dir> -n 24 && "
+                f"python -m pdfdrill.tsv_gcn train <dir>/*.tsv --labels-dir <dir> "
+                f"-o {model_path.name}`.")
+
+    t0 = time.monotonic()
+    blob_dir = sc.blob_dir / "elements"
+    sc.blob_dir.mkdir(parents=True, exist_ok=True)
+    res = layout_elements.find_elements(
+        pdf, model_path=model_path, bibkey=key, source=source,
+        blob_dir=blob_dir, ppi=ppi, lang=lang, force=force)
+
+    if not res["available"]:
+        return f"pdfdrill elements: {res['message']}"
+
+    tiddlers = res["tiddlers"]
+    out_path = sc.blob_dir / f"{key}.elements.tiddlers.json"
+    out_path.write_text(json.dumps(tiddlers, ensure_ascii=False, indent=2),
+                        encoding="utf-8")
+
+    # Layout layer in the sidecar: a compact, prose-addressable summary.
+    by_kind: dict[str, int] = {}
+    layer = []
+    for t in tiddlers:
+        by_kind[t["kind"]] = by_kind.get(t["kind"], 0) + 1
+        layer.append({"title": t["title"], "kind": t["kind"], "page": t["page"],
+                      "source": t.get("source", ""), "hash": t["hash"],
+                      "bbox": t.get("bbox", "")})
+    sc.set_evidence("layout", layer)
+    sc.set_evidence("layout_counts", by_kind)
+    sc.set_evidence("layout_tiddlers_path",
+                    str(out_path.relative_to(sc.pdf_path.parent)))
+    prev = ",".join(sorted(sc.facts - {ELEMENTS_BUILT})) or "INIT"
+    sc.add_fact(ELEMENTS_BUILT)
+    sc.log_transition("elements", prev, ELEMENTS_BUILT,
+                      cost_ms=(time.monotonic() - t0) * 1000,
+                      detail=f"{len(tiddlers)} elements " + str(by_kind))
+    sc.save()
+
+    n_ad = by_kind.get("address", 0)
+    n_bm = by_kind.get("bom-line", 0)
+    prov = {}
+    for e in res["elements"]:
+        prov[e.get("source", "?")] = prov.get(e.get("source", "?"), 0) + 1
+    prov_str = (", ".join(f"{k}={v}" for k, v in sorted(prov.items()))
+                if prov else "—")
+    route = ("GNN model" if res["model"] else "extract_addresses heuristic")
+
+    lines = []
+    for t in tiddlers:
+        txt = (t.get("text", "") or "").replace("\n", " / ")[:60]
+        agr = f" agree={t['agreement']}" if t.get("agreement") not in (None, "", "0.0") else ""
+        lines.append(f"  {t['title']}  [{t['kind']} p{t['page']} "
+                     f"{t.get('source', '')}{agr}]  {txt}")
+    body = "\n".join(lines) if lines else "  (no layout elements found)"
+    return (f"Layout elements ({route}): {len(tiddlers)} found — {n_ad} address(es), "
+            f"{n_bm} BOM-line(s) → {out_path.name} (+ sidecar `layout` layer). "
+            f"Address provenance: {prov_str}. Each tiddler is content-addressed "
+            f"({tiddlers[0]['hash'][:10] + '…' if tiddlers else 'n/a'}) with a "
+            f"geo-projection + GNN projection embedding.\n" + body)
 
 
 def cmd_model(pdf: Path, force: bool = False, bibkey: str | None = None) -> str:

@@ -58,6 +58,7 @@ def main():
         "continuity": _do_continuity,
         "entities": _do_entities,
         "segment": _do_segment,
+        "elements": _do_elements,
         "model": _do_model,
         "compare": _do_compare,
         "snip": _do_snip,
@@ -253,6 +254,21 @@ def _do_segment(args):
     from .commands import cmd_segment
     pdf_args = [a for a in args if a != "--force"]
     return cmd_segment(_pdf(pdf_args), force="--force" in args)
+
+
+def _do_elements(args):
+    """pdfdrill elements <pdf> [--model M.npz] [--bibkey KEY] [--source S]
+    [--lang deu+eng] [--ppi 300] [--force]"""
+    from .commands import cmd_elements
+    model, args = _opt(args, "--model")
+    bibkey, args = _opt(args, "--bibkey")
+    source, args = _opt(args, "--source")
+    lang, args = _opt(args, "--lang")
+    ppi, args = _opt(args, "--ppi")
+    pdf_args = [a for a in args if a != "--force"]
+    return cmd_elements(_pdf(pdf_args), force="--force" in args, model=model,
+                        bibkey=bibkey, source=source,
+                        ppi=int(ppi) if ppi else 300, lang=lang or "deu+eng")
 
 
 def _do_continuity(args):
@@ -798,6 +814,7 @@ Introspection (fast, no extraction):
   pdfdrill continuity <pdf>    Full-page OCR of the MARGINS → page-sequence markers (Seite N von M / Fortsetzung) MathPix's content crop drops; attaches seq to Page objects
   pdfdrill entities <pdf>      Commercial entities per page: IBAN (mod-97 validated + BLZ/Konto/bank), BIC, German address, Steuer-/Kassen-/Aktenzeichen. Zero external tools
   pdfdrill segment <pdf>       Partition a scanned bundle into ordered documents (by sender/identifier + continuity number); flags duplicate copies
+  pdfdrill elements <pdf>      Find layout elements (postal address / BOM line) via the geometric-attention GNN over tesseract word boxes → content-addressed tiddlers (--model M.npz)
   pdfdrill model <pdf>         Build unified docmodel from lines.json (auto-chains mathpix, falls back to tesseract ocr if no MathPix); --bibkey KEY sets the tiddler prefix (persisted)
   pdfdrill compare <pdf>       LaTeX | KaTeX | MathPix-image comparison HTML (auto-chains model)
   pdfdrill report <pdf>        Full inline+display math report (formula-report.html)

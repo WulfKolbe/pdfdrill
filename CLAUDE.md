@@ -87,7 +87,7 @@ author-year cites, 2 algorithms; the 2605 copy lacking a lines.json skipped).
 The pdfdrill commands (`size`, `pdfinfo`, `urls`, `dests`, `fonts`,
 `fonts_layer`, `images`, `pix2tex`, `abstract`, `toc`, `md`, `page`, `fetch`,
 `plan`, `drill`, `status`, `tsv`, `render`, `nlp`, `ocr`, `vision`,
-`embedimages`, `bibsource`, `translate`, `doctor`) are documented in
+`embedimages`, `bibsource`, `translate`, `elements`, `doctor`) are documented in
 `.claude/skills/pdfdrill/SKILL.md`. Each returns prose, not JSON.
 
 ### Killer case worth remembering
@@ -193,6 +193,61 @@ test on `ocrtest.pdf`), three commands let an LLM solve it from prose alone, wit
 Target LLM flow: `continuity` → `segment` → `entities`, answering the triage
 task from prose. Tests: `tests/test_continuity.py`, `tests/test_entities.py`,
 `tests/test_segment.py`.
+
+## Layout-element layer (`pdfdrill elements` — GNN over word boxes, additive)
+
+The layout analogue of the MathPix→LaTeX layer: just as MathPix isolates each
+equation as a LaTeX expression, a **geometric-attention GNN** isolates each
+structured **layout element** (postal **address**, **BOM line item**) from the
+page's word geometry, gives it a **content-addressed identity** (blake3, or
+sha256 fallback), and emits it as a TiddlyWiki tiddler (`<bibkey>_AD/BM_<serial>`)
+with data fields, a normalised **`geo-projection`**, and a learned 48-dim
+**`projection`** embedding (for tw2graph / pgvector). Purely additive — it never
+touches the docmodel/docops pipeline; the result is dropped into the sidecar as
+a **`layout` layer** + a sibling `<bibkey>.elements.tiddlers.json`.
+
+- **`src/pdfdrill/tsv_gcn.py`** — the vendored, self-contained **pure-NumPy**
+  model (no PyTorch): per-word features (`FEAT_DIM`) + `EDGE_DIM=12` *relative*
+  edge features (dx/dy/|dx|/|dy|/distance/same-line/is-right/is-below/is-self/
+  h-v overlap/bias); a learned vector scores edges and a **per-target softmax**
+  turns scores into attention, so three identically-formatted numbers separate
+  into qty / unit-price / line-total *by column*. `gradcheck` validates the
+  backward pass (≤1e-5) before any training is trusted. Its own CLI trains and
+  runs the model: `python -m pdfdrill.tsv_gcn {gradcheck,synth,label,train,
+  predict,crosscheck,tiddlers}`. Two public entry points drive everything:
+  `crosscheck(tsv_path, model_path)` → reconciled addresses (GNN ∩ optional
+  `extract_addresses` heuristic, tagged `gnn+heuristic`/`gnn-only`/
+  `heuristic-only`) and `emit_tiddlers(tsv_path, model_path, bibkey, source)` →
+  the tiddler array.
+- **`src/pdfdrill/layout_elements.py`** — the thin glue: renders the pages
+  (`pdftoppm`) and OCRs each to a single **combined TSV with page numbers
+  patched to the real page** (reusing the `ocr`/`geometry` tesseract plumbing),
+  then calls `crosscheck`/`emit_tiddlers`. Degrades cleanly on every missing
+  piece: NumPy absent, OCR tools absent, or **no trained model AND no
+  `extract_addresses`** → a clear, actionable message (how to train a model)
+  rather than a raise.
+- **`pdfdrill elements <pdf> [--model M.npz] [--bibkey K] [--source S]
+  [--lang deu+eng] [--ppi 300] [--force]`** — writes the `layout` sidecar layer
+  (`layout_counts`, per-element title/kind/page/hash/bbox) + the tiddlers file,
+  returns prose. **The GNN path needs a model the caller supplies via `--model`**
+  (`emit_tiddlers` requires one); without a model it falls back to the optional
+  `extract_addresses` heuristic (address-only) when that module is importable.
+- **Optional `[layout]` extra** (`pip install 'pdfdrill[layout]'`): numpy
+  (required) + blake3 (optional — `content_hash` falls back to sha256 without
+  it). `extract_addresses` is **not** in the repo (an external heuristic);
+  `_HAVE_EA=False` here, so the heuristic cross-check path is off unless the user
+  adds it.
+- **Verified end-to-end** on a generated German invoice PDF (render → tesseract
+  → GNN, synth-trained model): the address `Firma Müller GmbH / Hauptstraße 42a
+  / 50667 Köln` isolated with components (road/house-number/postcode/city), 5
+  BOM-line tiddlers, each content-addressed + carrying projections. **Honest
+  caveat (the module's own):** a model trained only on *synthetic* pages
+  over-generalizes on a different real layout (here it mislabelled the table
+  header as a second address and split a couple of BOM rows). Element *quality*
+  tracks the training data; production use wants a model trained on real
+  labelled pages. The wiring, content-addressing, and graceful degradation are
+  what's verified. Tests: `tests/test_elements.py` (page-num patch, graceful
+  no-model path, model path emits content-addressed tiddlers with projections).
 
 ## Feature-extraction layer (`src/features/`, additive — starter)
 
