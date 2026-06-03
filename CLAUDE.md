@@ -87,7 +87,8 @@ author-year cites, 2 algorithms; the 2605 copy lacking a lines.json skipped).
 The pdfdrill commands (`size`, `pdfinfo`, `urls`, `dests`, `fonts`,
 `fonts_layer`, `images`, `pix2tex`, `abstract`, `toc`, `md`, `page`, `fetch`,
 `plan`, `drill`, `status`, `tsv`, `render`, `nlp`, `ocr`, `vision`,
-`embedimages`, `bibsource`, `translate`, `elements`, `doctor`) are documented in
+`embedimages`, `bibsource`, `translate`, `elements`, `rasterize`,
+`attachments`, `formfields`, `extractimages`, `tables`, `doctor`) are documented in
 `.claude/skills/pdfdrill/SKILL.md`. Each returns prose, not JSON.
 
 ### Killer case worth remembering
@@ -193,6 +194,52 @@ test on `ocrtest.pdf`), three commands let an LLM solve it from prose alone, wit
 Target LLM flow: `continuity` → `segment` → `entities`, answering the triage
 task from prose. Tests: `tests/test_continuity.py`, `tests/test_entities.py`,
 `tests/test_segment.py`.
+
+## PDF-reading parity (`rasterize`/`attachments`/`formfields`/`extractimages`/`tables`)
+
+Parity with the Claude.ai **`pdf-reading` skill** (its `SKILL.md` lives in the
+TiddlyWiki export `~/MX/claudestatic/wiki-static.html#skill/pdf-reading`), but
+**file-based**: every result lands in the sidecar (page images, extracted
+attachments/images, form-field + table JSON), not in an LLM context window.
+Pure helpers + tool wrappers live in `src/pdfdrill/pdf_reading.py`; each
+degrades gracefully (clear message, no raise) when its tool/lib is absent.
+
+The skill's tools were *already* covered by PDFDRILL for inventory (`pdfinfo`/
+`size`), fonts (`fonts`/`fonts_layer`), text (`page` uses `pdftotext -layout`),
+image **metadata** (`images`/`embedimages`), and scan→OCR (`size`→`ocr`). These
+five commands close the remaining gaps:
+
+- **`pdfdrill rasterize <pdf> [--pages N|N-M|all] [--dpi 150] [--fmt png|jpeg]`**
+  — the skill's core **visual-inspection** op (`pdftoppm`): render page(s) to
+  images in the sidecar (`rasterize/`) and return their paths so the driving LLM
+  **Reads the image** (text extraction is blind to charts/equations/multi-column
+  layout/forms). ~1,600 tokens per 150-DPI page — rasterize only what matters.
+  (Distinct from `render`, which is pandoc→PDF.)
+- **`pdfdrill attachments <pdf> [--extract]`** — embedded **file attachments**
+  (`pdfdetach -list`, pypdf document-level fallback): spreadsheets/data files in
+  reports/portfolios/PDF-A-3, invisible to text & MathPix (same spirit as the
+  annotation-only-link "killer case"). `--extract` → `attachments/`.
+- **`pdfdrill formfields <pdf>`** — interactive **AcroForm** field values (pypdf
+  `get_fields`): name/value/type/options for text/checkbox/radio/dropdown.
+  Relevant to German Formulare/government docs. Flat/scanned forms have no
+  fields → `rasterize` and read visually.
+- **`pdfdrill extractimages <pdf> [--pages N-M] [--all-formats]`** — extract
+  embedded raster image **bytes** to files (`pdfimages -png`/`-all`); tiny/empty
+  images (masks/decorative) filtered by size (≥1 KB). Vector charts are page
+  operators, not image objects — they won't appear (`rasterize` for those).
+  Complements `images`/`embedimages` (metadata only).
+- **`pdfdrill tables <pdf> [--pages N-M]`** — **keyless offline** table
+  extraction (pdfplumber `extract_tables`) → `tables.json` + `tables.md`; the
+  no-MathPix/no-vision table path.
+
+`pypdf>=4.0` is now a core dep (form fields + attachment fallback). Verified
+end-to-end on built fixtures: rasterize → page-1.png; a bordered tabular → a
+3×3 markdown table; a hyperref `\TextField`/`\CheckBox` AcroForm → 3 fields
+(`city='Köln'`, `paid=/Yes` options `[/Yes,/Off]`); a `pdfattach`-embedded CSV →
+listed + extracted; a real-content image → `img-000.png` (a solid-colour logo
+correctly filtered as sub-1KB). Tests: `tests/test_pdf_reading.py` (pure page-
+spec/pdfdetach/markdown helpers + graceful no-form/no-table + pypdf-built-PDF
+rasterize/attachments round-trips).
 
 ## Layout-element layer (`pdfdrill elements` — GNN over word boxes, additive)
 

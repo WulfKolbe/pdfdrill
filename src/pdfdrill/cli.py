@@ -59,6 +59,11 @@ def main():
         "entities": _do_entities,
         "segment": _do_segment,
         "elements": _do_elements,
+        "rasterize": _do_rasterize,
+        "attachments": _do_attachments,
+        "formfields": _do_formfields,
+        "extractimages": _do_extractimages,
+        "tables": _do_tables,
         "model": _do_model,
         "compare": _do_compare,
         "snip": _do_snip,
@@ -269,6 +274,47 @@ def _do_elements(args):
     return cmd_elements(_pdf(pdf_args), force="--force" in args, model=model,
                         bibkey=bibkey, source=source,
                         ppi=int(ppi) if ppi else 300, lang=lang or "deu+eng")
+
+
+def _do_rasterize(args):
+    """pdfdrill rasterize <pdf> [--pages N|N-M|all] [--dpi 150] [--fmt png|jpeg] [--force]"""
+    from .commands import cmd_rasterize
+    pages, args = _opt(args, "--pages")
+    dpi, args = _opt(args, "--dpi")
+    fmt, args = _opt(args, "--fmt")
+    pdf_args = [a for a in args if a != "--force"]
+    return cmd_rasterize(_pdf(pdf_args), pages=pages, dpi=int(dpi) if dpi else 150,
+                         fmt=fmt or "png", force="--force" in args)
+
+
+def _do_attachments(args):
+    """pdfdrill attachments <pdf> [--extract]"""
+    from .commands import cmd_attachments
+    pdf_args = [a for a in args if a != "--extract"]
+    return cmd_attachments(_pdf(pdf_args), extract="--extract" in args)
+
+
+def _do_formfields(args):
+    """pdfdrill formfields <pdf>"""
+    from .commands import cmd_formfields
+    return cmd_formfields(_pdf(args))
+
+
+def _do_extractimages(args):
+    """pdfdrill extractimages <pdf> [--pages N|N-M] [--all-formats] [--force]"""
+    from .commands import cmd_extractimages
+    pages, args = _opt(args, "--pages")
+    pdf_args = [a for a in args if a not in ("--force", "--all-formats")]
+    return cmd_extractimages(_pdf(pdf_args), pages=pages,
+                             original_format="--all-formats" in args,
+                             force="--force" in args)
+
+
+def _do_tables(args):
+    """pdfdrill tables <pdf> [--pages N|N-M]"""
+    from .commands import cmd_tables
+    pages, args = _opt(args, "--pages")
+    return cmd_tables(_pdf(args), pages=pages)
 
 
 def _do_continuity(args):
@@ -809,6 +855,11 @@ Introspection (fast, no extraction):
   pdfdrill pix2tex <pdf> --page N --rect x0,y0,x1,y1   Explicit crop OCR
   pdfdrill tsv <pdf>           Word-level bounding boxes (pdftotext -tsv; --ocr forces tesseract)
   pdfdrill render <pdf>        Render the built markdown to PDF (pandoc + lualatex)
+  pdfdrill rasterize <pdf>     Rasterize page(s) to PNG/JPEG for visual inspection (pdftoppm) → sidecar; --pages N|N-M|all --dpi 150. Read the images to see charts/equations/layout
+  pdfdrill attachments <pdf>   List embedded file attachments (pdfdetach + pypdf); --extract saves them to the sidecar. Surfaces embedded spreadsheets/data invisible to text/MathPix
+  pdfdrill formfields <pdf>    Read interactive AcroForm field values (pypdf get_fields): name/value/type/options. For government/Formulare PDFs
+  pdfdrill extractimages <pdf> Extract embedded raster image BYTES to files (pdfimages -png); --pages N-M --all-formats. Vector charts excluded (use rasterize)
+  pdfdrill tables <pdf>        Extract tables KEYLESS offline (pdfplumber extract_tables) → tables.json + tables.md; --pages N-M
   pdfdrill mathpix <pdf>       Download MathPix OCR (lines.json, md, tex.zip); --force re-uploads
   pdfdrill ocr <pdf>           MathPix-free OCR: tesseract → MathPix-compatible lines.json (--lang eng+equ, --ppi N). Plain text only (no LaTeX/CDN)
   pdfdrill continuity <pdf>    Full-page OCR of the MARGINS → page-sequence markers (Seite N von M / Fortsetzung) MathPix's content crop drops; attaches seq to Page objects

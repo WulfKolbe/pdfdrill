@@ -67,6 +67,11 @@ CONTINUITY_BUILT = "CONTINUITY_BUILT"
 ENTITIES_BUILT = "ENTITIES_BUILT"
 SEGMENTED = "SEGMENTED"
 ELEMENTS_BUILT = "ELEMENTS_BUILT"
+RASTERIZED = "RASTERIZED"
+ATTACHMENTS_KNOWN = "ATTACHMENTS_KNOWN"
+FORMFIELDS_KNOWN = "FORMFIELDS_KNOWN"
+IMAGES_EXTRACTED = "IMAGES_EXTRACTED"
+TABLES_KNOWN = "TABLES_KNOWN"
 
 # Hosts that almost always mean "here is the code / data for this paper".
 _CODE_HOSTS = (
@@ -643,6 +648,236 @@ def cmd_elements(pdf: Path, force: bool = False, model: str | None = None,
             f"{n_bm} BOM-line(s) → {out_path.name} (+ sidecar `layout` layer). "
             f"Address provenance: {prov_str}. Tiddlers: {'; '.join(extras)}.{lp_note}\n"
             + body)
+
+
+# ===========================================================================
+# pdf-reading primitives (parity with the Claude.ai pdf-reading skill, but
+# file-based: results land in the sidecar, not in an LLM context window).
+# ===========================================================================
+
+def cmd_rasterize(pdf: Path, pages: str | None = None, dpi: int = 150,
+                  fmt: str = "png", force: bool = False) -> str:
+    """Rasterize page(s) to images for visual inspection (the skill's core op).
+
+    Text extraction is blind to charts, diagrams, equations, multi-column layout
+    and form structure; when those matter, render the page and *look* at it.
+    Writes PNG/JPEG page images into the sidecar (`rasterize/`) and returns their
+    paths so the driving LLM can Read them. `--pages N|N-M|1,3,5|all`,
+    `--dpi 150`. Token-cost note (the skill's): a 150-DPI page image is ~1,600
+    tokens — rasterize only the pages that matter.
+    """
+    from . import pdf_reading
+
+    sc = Sidecar(pdf)
+    # page_count is 0 until `size` runs; coerce to None so parse_pages doesn't
+    # clamp every requested page away (which would silently render ALL pages).
+    page_list = pdf_reading.parse_pages(pages, getattr(sc, "page_count", None) or None)
+    out_dir = sc.blob_dir / "rasterize"
+    sc.blob_dir.mkdir(parents=True, exist_ok=True)
+    if force and out_dir.exists():
+        for p in out_dir.glob("page-*"):
+            p.unlink()
+    t0 = time.monotonic()
+    try:
+        imgs = pdf_reading.rasterize(pdf, out_dir, pages=page_list, dpi=dpi, fmt=fmt)
+    except RuntimeError as e:
+        return str(e)
+    if not imgs:
+        return f"No pages rasterized for {pdf.name}."
+
+    rel = [str(p.relative_to(sc.pdf_path.parent)) for p in imgs]
+    sc.set_evidence("rasterize_dir", str(out_dir.relative_to(sc.pdf_path.parent)))
+    sc.set_evidence("rasterize_pages", len(imgs))
+    sc.set_evidence("rasterize_dpi", dpi)
+    prev = ",".join(sorted(sc.facts - {RASTERIZED})) or "INIT"
+    sc.add_fact(RASTERIZED)
+    sc.log_transition("rasterize", prev, RASTERIZED,
+                      cost_ms=(time.monotonic() - t0) * 1000,
+                      detail=f"{len(imgs)} page(s) @ {dpi} DPI")
+    sc.save()
+    spec = f"pages {pages}" if page_list else "all pages"
+    body = "\n".join(f"  {r}" for r in rel)
+    return (f"Rasterized {len(imgs)} page image(s) ({spec}, {dpi} DPI, {fmt}) → "
+            f"{out_dir.name}/. Read these files to inspect the pages visually "
+            f"(~1,600 tokens each at 150 DPI):\n" + body)
+
+
+def cmd_attachments(pdf: Path, extract: bool = False) -> str:
+    """List (and optionally extract) embedded file attachments.
+
+    PDFs can carry embedded spreadsheets, data files, or whole documents
+    (business reports, PDF portfolios, PDF/A-3). These are invisible to text
+    extraction and to MathPix — like annotation-only links, a cheap dedicated
+    probe surfaces them. `pdfdetach -list`; `--extract` saves all to the sidecar
+    (`attachments/`). Falls back to pypdf's document-level attachments.
+    """
+    from . import pdf_reading
+
+    sc = Sidecar(pdf)
+    items, src = pdf_reading.list_attachments(pdf)
+    saved: list[str] = []
+    if extract and items:
+        out_dir = sc.blob_dir / "attachments"
+        sc.blob_dir.mkdir(parents=True, exist_ok=True)
+        try:
+            files = pdf_reading.extract_attachments(pdf, out_dir)
+            saved = [str(p.relative_to(sc.pdf_path.parent)) for p in files]
+        except RuntimeError as e:
+            return str(e)
+
+    sc.set_evidence("attachments", items)
+    sc.set_evidence("attachments_source", src)
+    prev = ",".join(sorted(sc.facts - {ATTACHMENTS_KNOWN})) or "INIT"
+    sc.add_fact(ATTACHMENTS_KNOWN)
+    sc.log_transition("attachments", prev, ATTACHMENTS_KNOWN,
+                      detail=f"{len(items)} attachment(s) via {src}")
+    sc.save()
+
+    if not items:
+        return (f"No embedded file attachments in {pdf.name} "
+                f"(checked via {src}). Note: rich-media (3D/video) annotations "
+                f"may not appear here.")
+    lines = [f"  {it['index']}: {it['name']}" for it in items]
+    head = (f"{len(items)} embedded file attachment(s) in {pdf.name} (via {src}):")
+    tail = ""
+    if extract:
+        tail = ("\nExtracted to:\n" + "\n".join(f"  {s}" for s in saved))
+    elif items:
+        tail = "\nRun with --extract to save them to the sidecar."
+    return head + "\n" + "\n".join(lines) + tail
+
+
+def cmd_formfields(pdf: Path) -> str:
+    """Read interactive (AcroForm) form-field values programmatically.
+
+    Government forms, applications and contracts carry fillable fields whose
+    values can be read without rasterizing. pypdf `get_fields()` covers text
+    inputs, checkboxes, radio buttons and dropdowns (name / value / type /
+    options). Persisted to the sidecar.
+    """
+    from . import pdf_reading
+
+    sc = Sidecar(pdf)
+    fields, err = pdf_reading.read_form_fields(pdf)
+    if err:
+        return f"pdfdrill formfields: {err}"
+
+    sc.set_evidence("form_fields", fields)
+    prev = ",".join(sorted(sc.facts - {FORMFIELDS_KNOWN})) or "INIT"
+    sc.add_fact(FORMFIELDS_KNOWN)
+    sc.log_transition("formfields", prev, FORMFIELDS_KNOWN,
+                      detail=f"{len(fields)} field(s)")
+    sc.save()
+
+    if not fields:
+        return (f"No interactive form fields in {pdf.name} (no AcroForm). "
+                f"If it's a flat/scanned form, rasterize the page and read it "
+                f"visually instead.")
+    by_type: dict[str, int] = {}
+    lines = []
+    for f in fields:
+        by_type[f["type"]] = by_type.get(f["type"], 0) + 1
+        opt = f" options={f['options']}" if f["options"] else ""
+        lines.append(f"  {f['name']}: {f['value']!r} ({f['type']}){opt}")
+    summary = ", ".join(f"{n} {t}" for t, n in sorted(by_type.items()))
+    return (f"{len(fields)} form field(s) in {pdf.name} ({summary}):\n"
+            + "\n".join(lines))
+
+
+def cmd_extractimages(pdf: Path, pages: str | None = None,
+                      original_format: bool = False, force: bool = False) -> str:
+    """Extract embedded raster image BYTES to files (`pdfimages`).
+
+    Complements `images`/`embedimages` (which carry only metadata): this writes
+    the actual PNGs so the driving LLM can Read them. Tiny/empty images (masks /
+    transparency / decorative layers) are filtered by size. Gotcha: vector charts
+    (matplotlib/Excel/R) are page operators, not image objects — they will NOT
+    appear; rasterize the page instead.
+    """
+    from . import pdf_reading
+
+    sc = Sidecar(pdf)
+    # page_count is 0 until `size` runs; coerce to None so parse_pages doesn't
+    # clamp every requested page away (which would silently render ALL pages).
+    page_list = pdf_reading.parse_pages(pages, getattr(sc, "page_count", None) or None)
+    out_dir = sc.blob_dir / "images_extracted"
+    sc.blob_dir.mkdir(parents=True, exist_ok=True)
+    if force and out_dir.exists():
+        for p in out_dir.glob("img*"):
+            p.unlink()
+    t0 = time.monotonic()
+    try:
+        files = pdf_reading.extract_images(pdf, out_dir, pages=page_list,
+                                           original_format=original_format)
+    except RuntimeError as e:
+        return str(e)
+    kept, dropped = pdf_reading.filter_real_images(files)
+
+    rel = [str(p.relative_to(sc.pdf_path.parent)) for p in kept]
+    sc.set_evidence("images_extracted_dir",
+                    str(out_dir.relative_to(sc.pdf_path.parent)))
+    sc.set_evidence("images_extracted", len(kept))
+    prev = ",".join(sorted(sc.facts - {IMAGES_EXTRACTED})) or "INIT"
+    sc.add_fact(IMAGES_EXTRACTED)
+    sc.log_transition("extractimages", prev, IMAGES_EXTRACTED,
+                      cost_ms=(time.monotonic() - t0) * 1000,
+                      detail=f"{len(kept)} kept, {dropped} filtered")
+    sc.save()
+    if not kept:
+        return (f"No raster images extracted from {pdf.name} "
+                f"({dropped} tiny/empty filtered). Vector charts won't appear "
+                f"here — rasterize the page with `pdfdrill rasterize`.")
+    note = f" ({dropped} tiny/empty filtered)" if dropped else ""
+    body = "\n".join(f"  {r}" for r in rel)
+    return (f"Extracted {len(kept)} raster image(s){note} → {out_dir.name}/. "
+            f"Read them to view the figures (vector charts excluded — use "
+            f"`rasterize` for those):\n" + body)
+
+
+def cmd_tables(pdf: Path, pages: str | None = None) -> str:
+    """Extract tables with pdfplumber — keyless, offline, no MathPix/vision key.
+
+    The no-key table path: pdfplumber's geometry-based `extract_tables()` per
+    page. Writes the tables (rows) to the sidecar (`tables.json`) + a markdown
+    rendering, and returns a preview. For garbled results, rasterize the page
+    and read it visually instead.
+    """
+    from . import pdf_reading
+
+    sc = Sidecar(pdf)
+    # page_count is 0 until `size` runs; coerce to None so parse_pages doesn't
+    # clamp every requested page away (which would silently render ALL pages).
+    page_list = pdf_reading.parse_pages(pages, getattr(sc, "page_count", None) or None)
+    t0 = time.monotonic()
+    tables, err = pdf_reading.extract_tables(pdf, pages=page_list)
+    if err and not tables:
+        return f"pdfdrill tables: {err}"
+
+    out_dir = sc.blob_dir
+    out_dir.mkdir(parents=True, exist_ok=True)
+    (out_dir / "tables.json").write_text(
+        json.dumps(tables, ensure_ascii=False, indent=2), encoding="utf-8")
+    md = pdf_reading.tables_to_markdown(tables)
+    (out_dir / "tables.md").write_text(md, encoding="utf-8")
+
+    sc.set_evidence("tables_count", len(tables))
+    sc.set_evidence("tables_path", str((out_dir / "tables.json")
+                                       .relative_to(sc.pdf_path.parent)))
+    prev = ",".join(sorted(sc.facts - {TABLES_KNOWN})) or "INIT"
+    sc.add_fact(TABLES_KNOWN)
+    sc.log_transition("tables", prev, TABLES_KNOWN,
+                      cost_ms=(time.monotonic() - t0) * 1000,
+                      detail=f"{len(tables)} table(s)")
+    sc.save()
+    if not tables:
+        return (f"No tables found by pdfplumber in {pdf.name}"
+                + (f" (pages {pages})" if page_list else "")
+                + ". If a table is present but garbled, rasterize the page.")
+    pages_with = sorted({t["page"] for t in tables})
+    preview = pdf_reading.tables_to_markdown(tables[:2])
+    return (f"Extracted {len(tables)} table(s) across page(s) {pages_with} "
+            f"→ tables.json + tables.md (keyless, pdfplumber). Preview:\n\n"
+            + preview)
 
 
 def cmd_model(pdf: Path, force: bool = False, bibkey: str | None = None) -> str:
