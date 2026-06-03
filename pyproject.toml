@@ -38,8 +38,11 @@ features = [
 # required for the GNN; blake3 is optional (content_hash falls back to sha256).
 # The vendored `pdfdrill.extract_addresses` heuristic (no-model address path) is
 # pure-stdlib — no extra needed. libpostal/pypostal (`postal`) is an OPTIONAL
-# upgrade for full address-component parsing (a C-library build + ~2 GB data
-# download); it is NOT on the path `pdfdrill elements` uses.
+# upgrade that PARSES a found address block into components; it's wired as an
+# enrichment step (auto-used when present; the .so is ctypes-preloaded from
+# /usr/local/lib so it works without ldconfig/root). Install: build libpostal
+# from source, then `pip install postal`. Not declared here (the C-lib build is
+# not pip-installable); pdfdrill degrades silently to the raw block when absent.
 layout = [
     "numpy>=1.24",
     "blake3>=0.4",

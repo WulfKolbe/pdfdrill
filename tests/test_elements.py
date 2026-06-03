@@ -145,16 +145,24 @@ def test_find_elements_heuristic_only_without_model(monkeypatch):
     assert all(not t.get("projection") for t in res["tiddlers"])
 
 
-def test_libpostal_enrichment_absent_is_noop():
-    """When libpostal is unavailable, enrichment is a clean no-op (0)."""
-    monkeypatched = le._libpostal_parser()
-    # The real environment has no libpostal; enrichment must not raise / change.
+def test_libpostal_enrichment_absent_is_noop(monkeypatch):
+    """When libpostal is unavailable, enrichment is a clean no-op (0) — forced
+    deterministically so the test holds whether or not libpostal is installed."""
+    monkeypatch.setattr(le, "_libpostal_parser", lambda: None)
     addrs = [{"kind": "address", "components": {}, "text": "Hauptstraße 42a, 50667 Köln"}]
     n = le._enrich_with_libpostal(addrs)
-    if monkeypatched is None:
-        assert n == 0 and addrs[0]["components"] == {}
-    else:
-        assert n >= 0  # libpostal present in this env — just don't crash
+    assert n == 0 and addrs[0]["components"] == {}
+
+
+def test_libpostal_real_parser_when_installed():
+    """If libpostal is actually installed (the user built it), the real parser
+    loads (ctypes-preloading the .so when it's off the loader path) and returns
+    address components. Skips cleanly when libpostal is genuinely absent."""
+    fn = le._libpostal_parser()
+    if fn is None:
+        print("SKIP (libpostal not installed)"); return
+    comps = dict((lbl, val) for val, lbl in fn("Hauptstraße 42a, 50667 Köln"))
+    assert comps.get("postcode") == "50667" and comps.get("road")
 
 
 def test_libpostal_enrichment_fills_components(monkeypatch):
@@ -199,6 +207,7 @@ if __name__ == "__main__":
     run(test_patch_page_column_renumbers_and_drops_header, "patch_page_column")
     run(test_extract_addresses_heuristic_is_vendored_and_pure, "heuristic_vendored")
     run(test_libpostal_enrichment_absent_is_noop, "libpostal_absent")
+    run(test_libpostal_real_parser_when_installed, "libpostal_real")
     run(test_libpostal_enrichment_fills_components, "libpostal_fill")
     run(test_find_elements_heuristic_only_without_model, "heuristic_only")
     run(test_find_elements_emits_content_addressed_tiddlers, "emit")

@@ -279,13 +279,26 @@ a **`layout` layer** + a sibling `<bibkey>.elements.tiddlers.json`.
   PLZ anchor: 5 digits *followed by a city letter*, so it never fires on
   invoice/HRB numbers), `read_tsv` (tesseract TSV → block/line `Segment`s), and
   `find_candidates` (walk upward from each PLZ anchor collecting the address
-  block by geometry). **libpostal is NOT on this path** — it's used only by
-  `extract_addresses`' own CLI (`load_parser`/`run_invoice2data`, lazily
-  imported) for full component *parsing*, which `tsv_gcn` never calls. So
-  `_HAVE_EA=True` out of the box and the address path needs **no model and no
-  libpostal**. (libpostal — pypostal/`postal`, a CRF parser trained on ~1B
-  OSM/OpenAddresses records — is an *optional* upgrade for component breakdown,
-  a C-library build + ~2 GB data download; not installed here.)
+  block by geometry). libpostal isn't needed to *find* a candidate (the PLZ
+  anchor does that), so `_HAVE_EA=True` out of the box and the address path runs
+  with **no model and no libpostal**. libpostal (pypostal/`postal`, a CRF parser
+  trained on ~1B OSM/OpenAddresses records, built from source into
+  `/usr/local/lib` + data in `~/libpostal`) is the *component-parsing* upgrade,
+  wired as an enrichment step (next bullet) and used by `extract_addresses`' own
+  CLI. **It IS installed in this environment** — verified loading + parsing real
+  components.
+- **libpostal loader fix (important).** A from-source `make install` leaves
+  `libpostal.so` in `/usr/local/lib`, which is **not** on the default linker
+  cache unless `ldconfig` ran — so `import postal.parser` fails with
+  `libpostal.so.1: cannot open shared object file` even though everything is
+  installed. Both `layout_elements._preload_libpostal` and
+  `extract_addresses._preload_libpostal_lib` **`ctypes.CDLL(..., RTLD_GLOBAL)`**
+  the `.so` (searching `/usr/local/lib`, `/usr/lib`, …) before importing the
+  binding, so the real parser loads with **no root, no `ldconfig`, no
+  `LD_LIBRARY_PATH`**. `pdfdrill doctor` reports `[OK] libpostal` by actually
+  attempting the load (not a bare `find_spec`). Verified: `parse_address`
+  returns `house=firma müller gmbh / road=hauptstraße / house_number=42a /
+  postcode=50667 / city=köln`.
 - **`pdfdrill elements <pdf> [--model M.npz] [--bibkey K] [--source S]
   [--lang deu+eng] [--ppi 300] [--force]`** — writes the `layout` sidecar layer
   (`layout_counts`, per-element title/kind/page/hash/bbox) + the tiddlers file,

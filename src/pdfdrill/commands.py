@@ -218,9 +218,21 @@ def cmd_doctor() -> str:
     lines.append("")
     lines.append("Python deps:")
     for mod, note in [("pdfplumber", "core"), ("pydantic", "core (md/drill path)"),
+                      ("pypdf", "core (formfields/attachments)"),
+                      ("numpy", "optional [layout] extra — pdfdrill elements GNN"),
                       ("stanza", "optional [nlp] extra — pdfdrill nlp")]:
         ok = importlib.util.find_spec(mod) is not None
         lines.append(f"  [{'OK ' if ok else 'MISSING'}] {mod:<10} — {note}")
+    # libpostal: a find_spec on `postal` isn't enough (the C-extension needs
+    # libpostal.so loadable), so actually attempt the load via the preloader.
+    try:
+        from .layout_elements import _libpostal_parser
+        lp_ok = _libpostal_parser() is not None
+    except Exception:
+        lp_ok = False
+    lines.append(f"  [{'OK ' if lp_ok else 'MISSING'}] {'libpostal':<10} — "
+                 f"optional: real address-component parsing (pdfdrill elements / "
+                 f"extract_addresses); auto-preloaded from /usr/local/lib")
 
     lines.append("")
     lines.append("API keys (env / .env; only needed for the named routes):")

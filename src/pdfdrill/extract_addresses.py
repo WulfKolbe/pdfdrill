@@ -295,11 +295,40 @@ def find_candidates(segs: list[Segment], anchor: re.Pattern,
 # ---------------------------------------------------------------------------
 # libpostal
 # ---------------------------------------------------------------------------
+def _preload_libpostal_lib() -> bool:
+    """dlopen libpostal.so RTLD_GLOBAL so the `postal` C-extension imports even
+    when the lib lives in /usr/local/lib without `ldconfig` having been run (a
+    from-source `make install` leaves it off the default loader path). No root,
+    no LD_LIBRARY_PATH needed."""
+    import ctypes
+    import glob
+    dirs = ["/usr/local/lib", "/usr/lib", "/usr/lib/x86_64-linux-gnu",
+            "/opt/homebrew/lib", "/usr/local/lib64", "/lib"]
+    names = ["libpostal.so.1", "libpostal.so", "libpostal.1.dylib", "libpostal.dylib"]
+    cands = [f"{d}/{n}" for d in dirs for n in names]
+    cands += sorted(g for d in dirs for g in glob.glob(f"{d}/libpostal.so*"))
+    for cand in cands:
+        try:
+            ctypes.CDLL(cand, mode=ctypes.RTLD_GLOBAL)
+            return True
+        except OSError:
+            continue
+    return False
+
+
 def load_parser():
     try:
         from postal.parser import parse_address  # type: ignore
         return parse_address
     except ImportError:
+        # The binding may be installed but libpostal.so off the loader path;
+        # preload it and retry before giving up.
+        if _preload_libpostal_lib():
+            try:
+                from postal.parser import parse_address  # type: ignore
+                return parse_address
+            except ImportError:
+                pass
         sys.stderr.write(
             "error: 'postal' (libpostal) not installed. Build libpostal, then "
             "`pip install postal`. https://github.com/openvenues/pypostal\n"

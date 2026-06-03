@@ -100,16 +100,47 @@ def build_combined_tsv(pdf: Path, out_dir: Path, *, ppi: int = 300,
 # Optional libpostal component parsing (graceful — None when absent)
 # ---------------------------------------------------------------------------
 
+def _preload_libpostal() -> bool:
+    """Make `libpostal.so` loadable for the `postal` C-extension without root or
+    LD_LIBRARY_PATH. A from-source `make install` puts the lib in /usr/local/lib,
+    which is NOT in the default linker cache unless `ldconfig` was run — so
+    `import postal._parser` fails with "libpostal.so.1: cannot open shared object
+    file" even though everything is installed. We dlopen the lib RTLD_GLOBAL
+    first; the subsequent extension import then finds the soname already
+    resident. Returns True if a lib was loaded (or already is)."""
+    import ctypes
+    import glob
+    dirs = ["/usr/local/lib", "/usr/lib", "/usr/lib/x86_64-linux-gnu",
+            "/opt/homebrew/lib", "/usr/local/lib64", "/lib"]
+    names = ["libpostal.so.1", "libpostal.so", "libpostal.1.dylib", "libpostal.dylib"]
+    cands = [f"{d}/{n}" for d in dirs for n in names]
+    cands += sorted(g for d in dirs for g in glob.glob(f"{d}/libpostal.so*"))
+    for cand in cands:
+        try:
+            ctypes.CDLL(cand, mode=ctypes.RTLD_GLOBAL)
+            return True
+        except OSError:
+            continue
+    return False
+
+
 def _libpostal_parser():
     """Return libpostal's `parse_address` or None. libpostal (pypostal `postal`)
     is a CRF address parser trained on ~1B OSM/OpenAddresses records; it *parses*
     a known address string into components but cannot *find* addresses on a page
-    — which is why it runs AFTER the heuristic/GNN locates the block. Optional: a
-    C-library build + ~2 GB data download. Absent here → None → no enrichment."""
+    — which is why it runs AFTER the heuristic/GNN locates the block. We try the
+    plain import; if the shared lib isn't on the loader path we ctypes-preload it
+    and retry. Returns None only when libpostal is genuinely absent."""
     try:
         from postal.parser import parse_address  # type: ignore
         return parse_address
     except Exception:
+        if _preload_libpostal():
+            try:
+                from postal.parser import parse_address  # type: ignore
+                return parse_address
+            except Exception:
+                return None
         return None
 
 
