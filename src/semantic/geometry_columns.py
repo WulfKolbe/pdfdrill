@@ -97,6 +97,17 @@ def classify_margin_item(text: str) -> MarginRole:
     return MarginRole.MARGINAL
 
 
+def is_substantive_marker(text: str, role: Optional[str] = None) -> bool:
+    """A margin marker is worth surfacing to an LLM only if it carries real
+    content — not a single character / punctuation fleaked from a vertical
+    margin strip or scan edge. A page_number keeps a bare digit; everything else
+    needs ≥3 chars with a ≥2-char alphanumeric run."""
+    t = (text or "").strip()
+    if role == "page_number" and re.search(r"\d", t):
+        return True
+    return len(t) >= 3 and bool(re.search(r"[A-Za-zÄÖÜäöüß0-9]{2,}", t))
+
+
 def tag_out_of_column(lines: list[dict[str, Any]], tol: float = 0.02
                       ) -> list[dict[str, Any]]:
     """Tag each out-of-column line in place with `out_of_column` (left/right) and

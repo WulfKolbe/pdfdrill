@@ -759,8 +759,14 @@ def cmd_semantic(pdf: Path, store: str | None = None, force: bool = False) -> st
     def _real_sender(name):
         """A genuine sender name has letters and isn't just an id/number — so a
         segment keyed on a Steuer-/Kassenzeichen value doesn't mint a pseudo-
-        company named after the number (its evidence stays document-level)."""
+        company named after the number. Also rejects a BANK name: on a commercial
+        doc the bank in the transfer line is the payee's bank (captured as the
+        account's `bank`/`bic` evidence), NOT the document issuer — so e.g. an AOK
+        dunning letter is not mis-attributed to 'Commerzbank AG'."""
         if not name or name.replace(" ", "").isdigit():
+            return None
+        if re.search(r"\b(Bank|Sparkasse|Volksbank|Raiffeisen|Commerzbank|Postbank|"
+                     r"Bankhaus|Kreditinstitut)\b", name, re.I):
             return None
         return name if re.search(r"[A-Za-zÄÖÜäöüß]{3,}", name) else None
 
@@ -828,7 +834,7 @@ def cmd_semantic(pdf: Path, store: str | None = None, force: bool = False) -> st
     # Out-of-column margin pass: continuity numbers / control keys printed outside
     # the body column are first-class CONFIRMATION, not footnotes. Attach control
     # keys + continuity markers to their page's document as geometry evidence.
-    from semantic.geometry_columns import tag_out_of_column
+    from semantic.geometry_columns import tag_out_of_column, is_substantive_marker
     from semantic.evidence import Evidence
     margin_markers: list[dict] = []
     for p, plines in _page_lines_from_model(doc).items():
@@ -838,12 +844,14 @@ def cmd_semantic(pdf: Path, store: str | None = None, force: bool = False) -> st
             if not side:
                 continue
             role = ln.get("margin_role")
-            margin_markers.append({"page": p, "side": side, "role": role,
-                                   "text": (ln.get("text") or "")[:80]})
+            text = (ln.get("text") or "").strip()
+            if not is_substantive_marker(text, role):
+                continue          # drop single-char / scan-edge noise (LLM clarity)
+            margin_markers.append({"page": p, "side": side, "role": role, "text": text[:80]})
             de = doc_entities.get(page2src.get(p))
             if de is not None and role in ("control_number", "continuity"):
                 de.attach(Evidence(page2src.get(p) or key, f"margin_{role}",
-                                   ln.get("text", ""), "geometry", confidence=0.85))
+                                   text, "geometry", confidence=0.85))
 
     # The compiler gate: type-check + consistency over the graph.
     result = compiler.compile(g)
@@ -857,8 +865,6 @@ def cmd_semantic(pdf: Path, store: str | None = None, force: bool = False) -> st
     if store_path:
         store_path.write_text(blob, encoding="utf-8")
 
-    from semantic.entity import EntityType
-    counts = {t.value: g.entity_count(t) for t in EntityType if g.entity_count(t)}
     prev = ",".join(sorted(sc.facts - {SEMANTIC_BUILT})) or "INIT"
     sc.add_fact(SEMANTIC_BUILT)
     sc.set_evidence("semantic_entities", g.entity_count())
@@ -872,49 +878,13 @@ def cmd_semantic(pdf: Path, store: str | None = None, force: bool = False) -> st
                              f"relations, {result.validity}")
     sc.save()
 
-    lines = []
-    for e in g.entities.values():
-        if e.type in (EntityType.COMPANY, EntityType.AUTHORITY, EntityType.PERSON,
-                      EntityType.BANK_ACCOUNT):
-            props = e.properties()
-            disp = e.value
-            extra = ", ".join(f"{k}={props[k]}" for k in
-                              ("iban", "steuernummer", "kassenzeichen", "address", "bic")
-                              if k in props)
-            srcs = ",".join(sorted(proof.sources(e)))
-            lines.append(f"  {e.id}  {disp}" + (f"  [{extra}]" if extra else "")
-                         + f"  ⟵ {srcs}")
-    rels = {}
-    for x in g.relations:
-        rels[x.predicate.value] = rels.get(x.predicate.value, 0) + 1
-    rel_str = ", ".join(f"{k}×{v}" for k, v in sorted(rels.items())) or "—"
-    accumulated = (f" (+{g.entity_count() - n_before} new this doc; store now "
-                   f"holds {g.entity_count()})" if store_path else "")
-    crit = result.critical()
-    valid_str = (f"compiler: {result.validity}"
-                 + (f", {len(crit)} critical / {len(result.warnings)} warning(s)"
-                    if result.warnings else ""))
-    seg_note = f"{n_docs} segmented document(s); " if n_docs > 1 else ""
-    if margin_markers:
-        by_role: dict[str, int] = {}
-        for m in margin_markers:
-            by_role[m["role"]] = by_role.get(m["role"], 0) + 1
-        marker_lines = [f"  ⌗ p{m['page']} [{m['side']} margin / {m['role']}]  {m['text']}"
-                        for m in margin_markers[:10]]
-        seg_note += (f"{len(margin_markers)} out-of-column marker(s) "
-                     f"({', '.join(f'{n} {r}' for r, n in sorted(by_role.items()))}); ")
-    head = (f"Semantic graph for {key}: {seg_note}{g.entity_count()} entit"
-            f"{'y' if g.entity_count() == 1 else 'ies'} "
-            f"({', '.join(f'{n} {t}' for t, n in counts.items())}), "
-            f"{len(g.relations)} relation(s) [{rel_str}] — {valid_str} → "
-            f"{sem_path.name}{accumulated}. "
-            f"Extractors are sensors; evidence accumulates on entities (⟵ source docs):")
-    warn_lines = [f"  ⚠ [{w.severity}/{w.code}] {w.message}" for w in result.warnings[:8]]
-    mk_lines = locals().get("marker_lines", [])
-    body = "\n".join(lines) if lines else "  (no agent entities yet)"
-    if mk_lines:
-        body += "\n  — out-of-column markers (confirmation, not footnotes) —\n" + "\n".join(mk_lines)
-    return head + "\n" + body + ("\n" + "\n".join(warn_lines) if warn_lines else "")
+    # The consumer is an LLM: emit the whole graph structured + clean, no prose.
+    from semantic.render import render_for_llm
+    store_note = (f" · +{g.entity_count() - n_before} new this doc (store holds "
+                  f"{g.entity_count()})" if store_path else "")
+    return render_for_llm(g, bibkey=key, validity=result.validity,
+                          warnings=result.warnings, markers=margin_markers,
+                          json_name=sem_path.name, n_docs=n_docs, store_note=store_note)
 
 
 # ===========================================================================

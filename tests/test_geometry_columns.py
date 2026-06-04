@@ -84,9 +84,20 @@ def test_ocr_lines_json_tags_out_of_column_margin():
     assert all(not l.get("out_of_column") for l in lines if l["text"].startswith("word"))
 
 
+def test_is_substantive_marker_filters_scan_noise():
+    from semantic.geometry_columns import is_substantive_marker
+    for noise in ("o", "N~", ")", "i", "S", ""):
+        assert not is_substantive_marker(noise)
+    assert is_substantive_marker("Seite 2 von 6")
+    assert is_substantive_marker("725.356.194.433")
+    assert is_substantive_marker("5", role="page_number")    # page number kept
+    assert not is_substantive_marker("5")                    # bare digit, no role → dropped
+
+
 if __name__ == "__main__":
     test_body_column_from_wide_body_lines(); print("PASS body_column")
     test_ocr_lines_json_tags_out_of_column_margin(); print("PASS ocr-parity")
+    test_is_substantive_marker_filters_scan_noise(); print("PASS substantive")
     test_out_of_column_detects_left_right_and_body(); print("PASS out_of_column")
     test_classify_margin_item(); print("PASS classify")
     test_tag_out_of_column_marks_margin_lines_with_role(); print("PASS tag")
