@@ -61,12 +61,14 @@ def classify_block(text: str, bbox, page_height: float = 1000.0) -> BlockRole:
         return BlockRole.BODY                 # recipient address block
     if _looks_like_table(t):
         return BlockRole.TABLE
-    # position fallback (bbox = [x1, y1, x2, y2], top-left origin)
+    # position fallback (bbox = [x1, y1, x2, y2], top-left origin). Header is
+    # judged by the block's TOP (a letterhead starts at the top, even if it runs
+    # a little down); footer by its bottom.
     top = (bbox[1] / page_height) if page_height else 0.0
     bottom = (bbox[3] / page_height) if page_height else 0.0
-    if bottom < 0.22:
+    if top < 0.22:
         return BlockRole.HEADER
-    if top > 0.82:
+    if bottom > 0.82:
         return BlockRole.FOOTER
     return BlockRole.BODY
 
@@ -112,6 +114,10 @@ def detect_recipient(text: str) -> Optional[dict[str, str]]:
         else:
             name = re.sub(r"^(Herrn|Herr|Frau|Firma)\s+", "", marker, flags=re.I)
             addr_lines = rest
+        # Reject a non-name (e.g. the block was just a PLZ-city line) so we don't
+        # fabricate a recipient Person named after a postal code.
+        if re.match(r"^\s*\d{4,}", name) or not re.search(r"[A-Za-zÄÖÜäöüß]{2,}", name):
+            return None
         return {"name": name, "address": ", ".join(addr_lines)}
     return None
 

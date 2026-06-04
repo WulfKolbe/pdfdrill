@@ -82,6 +82,12 @@ def test_detect_recipient_none_when_no_marker():
     assert detect_recipient("Sehr geehrte Damen und Herren, anbei ...") is None
 
 
+def test_detect_recipient_rejects_plz_as_name():
+    from semantic.blocks import detect_recipient
+    # a recipient block that is only a PLZ-city line must not become a Person
+    assert detect_recipient("An die\n51515 Kürten") is None
+
+
 def test_classify_blocks_tags_a_list():
     blocks = [{"id": bid, "text": text, "bbox": bbox} for bid, text, bbox, _ in PROVINZIAL]
     tagged = classify_blocks(blocks, page_height=1000)

@@ -477,11 +477,24 @@ out-of-column markers (continuity / control_number / page_number / label). Tests
 (phone numbers/times can read as control_number); the geometry *detection* is the
 robust part.
 
-**Next:** region-based sender/recipient attribution (use `classify_block` per
-line-region instead of text-level `detect_recipient`, now that the body-column
-model exists) to fix the residual recipient-address-on-company leakage; (E) the
-optional GPT-4o page pass validated by the compiler; the docmodel write-back so
-existing projectors render the graph.
+**Region-based sender/recipient attribution (done — `semantic/attribution.py`).**
+`attribute(lines)` classifies each line by its REGION (`classify_block` on the
+line bbox, page-height = lowest line bottom) and splits a page into the sender
+side (header/footer/stamp) and the body, pulling the recipient out of the body —
+so the recipient's address comes from the recipient REGION and lands on the
+recipient Person, not the sender. `classify_block` now judges HEADER by the
+block's TOP (letterheads start at the top). `cmd_semantic` builds per-line
+geometry (`_page_lines_from_model`), attributes company addresses from the
+header/footer region and the recipient from the body; sender = region `sender_of`
+→ full-text `sender_of` → segment label (region sharpens, never gates, so a
+messy-layout sender isn't lost). `detect_recipient` rejects a PLZ-only "name".
+Verified on ocrtest2: the recipient-address-on-company leak is FIXED — company
+addresses are now the companies' OWN cities (Magdeburg/Dörth/Nürnberg/Löwenberger
+Land), not the recipient's Kürten. Tests: `tests/test_semantic_attribution.py`.
+
+**Next:** (E) the optional GPT-4o page pass validated by the compiler; the
+docmodel write-back so existing projectors render the graph; detect individual/
+tradesperson senders (not just GmbH/AG/authority); refine the margin classifier.
 
 ## Roadmap (decomposed — each phase gets its own spec + plan)
 

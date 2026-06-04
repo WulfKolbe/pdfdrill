@@ -726,41 +726,32 @@ def cmd_semantic(pdf: Path, store: str | None = None, force: bool = False) -> st
     r = IdentityResolver(g).reindex()
 
     from semantic.blocks import detect_recipient
+    from semantic.attribution import attribute
 
-    # Per-page extractor output (the sensors).
+    # Per-page geometry (text + region) for region-based attribution.
+    page_lines = _page_lines_from_model(doc)
+
+    # Per-page extractor output (the sensors). IBAN/BIC/ids are not region-bound;
+    # addresses are attributed by region (sender vs recipient) below.
     page_recs: dict[int, dict] = {}
     for p in sorted(page_text):
         t = page_text[p]
-        prec = {"iban": [], "bic": [], "address": [], "ids": []}
+        prec = {"iban": [], "bic": [], "ids": []}
         for f in extract_iban.extract(t, str(p)):
             parts = extract_iban.german_parts(f.value)
             prec["iban"].append({"iban": f.value, "blz": parts.get("blz"),
                                  "konto": parts.get("konto"),
                                  "bank": _bank_near(t, f.start or 0)})
         prec["bic"] += [f.value for f in extract_bic.extract(t, str(p))]
-        prec["address"] += [f.value for f in extract_german_address.extract(t, str(p))]
         prec["ids"] += [(f.type, f.value) for f in extract_ids.extract(t, str(p))]
         page_recs[p] = prec
 
     def _agg(pages):
         rec = {"iban": [], "bic": [], "address": [], "ids": []}
         for p in pages:
-            for k in rec:
+            for k in ("iban", "bic", "ids"):
                 rec[k] += page_recs.get(p, {}).get(k, [])
         return rec, "\n".join(page_text.get(p, "") for p in pages)
-
-    def _split_recipient(rec, text):
-        """Phase-C attribution: pull the recipient (Herrn/Frau …) out of the text
-        so its address goes to the recipient Person, not the sender company."""
-        recp = detect_recipient(text)
-        if not recp:
-            return rec, None, None
-        m = re.search(r"\b(\d{5})\b", recp.get("address", ""))
-        rplz = m.group(1) if m else None
-        rec = dict(rec)
-        if rplz:                       # drop the recipient's address from the sender's
-            rec["address"] = [a for a in rec["address"] if rplz not in a]
-        return rec, recp["name"], {"address": [recp["address"]]}
 
     def _is_auth(name):
         return bool(re.search(r"\b(Finanzamt|Stadt|Stadtkasse|Bundes)", name or ""))
@@ -772,6 +763,32 @@ def cmd_semantic(pdf: Path, store: str | None = None, force: bool = False) -> st
         if not name or name.replace(" ", "").isdigit():
             return None
         return name if re.search(r"[A-Za-zÄÖÜäöüß]{3,}", name) else None
+
+    def _attribute(pages, fallback_text):
+        """Region-based: split into sender (header/footer) text + recipient (body)
+        using line geometry; fall back to whole text when no regions are present."""
+        lines = [l for p in pages for l in page_lines.get(p, [])]
+        if lines:
+            att = attribute(lines)
+            return (att.sender_text or fallback_text), att.recipient
+        return fallback_text, detect_recipient(fallback_text)
+
+    def _sender_and_recipient(rec, pages, text, label=None):
+        sender_text, recp = _attribute(pages, text)
+        # prefer the sender from the header/footer region; fall back to the whole
+        # text (then the segment label) so we never LOSE a sender when the layout
+        # doesn't classify cleanly — region only sharpens, it doesn't gate.
+        sender = _real_sender(seg.sender_of(sender_text) or seg.sender_of(text) or label)
+        rec = dict(rec)
+        # company addresses come from the sender (header/footer) region only
+        rec["address"] = [f.value for f in extract_german_address.extract(sender_text)]
+        rname = rrec = None
+        if recp:
+            rname, rrec = recp["name"], {"address": [recp["address"]]}
+            m = re.search(r"\b(\d{5})\b", recp["address"])
+            if m:                       # belt-and-suspenders: drop recipient PLZ from sender
+                rec["address"] = [a for a in rec["address"] if m.group(1) not in a]
+        return sender, rec, rname, rrec
 
     # Segment-aware: a scanned bundle is several senders → ingest each as its own
     # document so IBANs/ids don't collapse onto one company. Single-sender PDFs
@@ -787,9 +804,8 @@ def cmd_semantic(pdf: Path, store: str | None = None, force: bool = False) -> st
         for d in segments:
             rec_d, txt_d = _agg(d["pages"])
             label = d.get("label")
-            sender = label if label and label != "(unidentified)" else seg.sender_of(txt_d)
-            sender = _real_sender(sender)
-            rec_d, rname, rrec = _split_recipient(rec_d, txt_d)
+            label = label if label and label != "(unidentified)" else None
+            sender, rec_d, rname, rrec = _sender_and_recipient(rec_d, d["pages"], txt_d, label)
             src = f"{key}#{d.get('identifier') or 'p' + '-'.join(map(str, d['pages']))}"
             de = ingest_document(g, r, source=src, sender=sender, entities_rec=rec_d,
                                  recipient_name=rname, recipient_rec=rrec,
@@ -800,8 +816,7 @@ def cmd_semantic(pdf: Path, store: str | None = None, force: bool = False) -> st
         n_docs = len(segments)
     else:
         rec_all, full_text = _agg(sorted(page_text))
-        sender = _real_sender(seg.sender_of(full_text))
-        rec_all, rname, rrec = _split_recipient(rec_all, full_text)
+        sender, rec_all, rname, rrec = _sender_and_recipient(rec_all, sorted(page_text), full_text)
         de = ingest_document(g, r, source=key, sender=sender or None, entities_rec=rec_all,
                              recipient_name=rname, recipient_rec=rrec,
                              authority=_is_auth(sender), page_text=full_text)
