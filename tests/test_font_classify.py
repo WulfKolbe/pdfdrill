@@ -46,8 +46,34 @@ def test_classify_returns_topk_when_model_present():
     assert len(pred) == 3 and all(isinstance(n, str) and 0 <= p <= 1 for n, p in pred)
 
 
+def test_field_fonts_one_font_per_text_field():
+    # font is a property of each TEXT FIELD (OCR block), not one document vote:
+    # a heading block and a body block must come back as separate fields with
+    # their OWN fonts — never collapsed to a single dominant.
+    classified = [
+        ({"page": 1, "block": 1, "text": "Rechnung"}, ("Roboto-Bold", 0.92)),
+        ({"page": 1, "block": 1, "text": "Energie"},  ("Roboto-Bold", 0.81)),
+        ({"page": 1, "block": 2, "text": "Sehr"},     ("Lora-Regular", 0.74)),
+        ({"page": 1, "block": 2, "text": "geehrte"},  ("Lora-Regular", 0.66)),
+        ({"page": 1, "block": 2, "text": "Damen"},    ("Roboto-Bold", 0.51)),
+    ]
+    fields = fc.field_fonts(classified)
+    assert len(fields) == 2                                   # two fields, not one vote
+    assert fields[0]["block"] == 1 and fields[0]["font"] == "Roboto-Bold"
+    assert fields[0]["total"] == 2
+    assert fields[1]["font"] == "Lora-Regular" and fields[1]["votes"] == 2
+    assert fields[1]["total"] == 3                            # within-field majority
+    assert "Sehr" in fields[1]["sample"]                      # field carries its own text
+    assert {f["font"] for f in fields} == {"Roboto-Bold", "Lora-Regular"}
+
+
+def test_field_fonts_empty_is_empty():
+    assert fc.field_fonts([]) == []
+
+
 if __name__ == "__main__":
     for fn in (test_tools_available_reports_missing_clearly, test_aggregate_votes_and_confidence,
-               test_preprocess_shape_when_model_present, test_classify_returns_topk_when_model_present):
+               test_preprocess_shape_when_model_present, test_classify_returns_topk_when_model_present,
+               test_field_fonts_one_font_per_text_field, test_field_fonts_empty_is_empty):
         fn(); print("PASS", fn.__name__)
     print("\nAll tests passed.")

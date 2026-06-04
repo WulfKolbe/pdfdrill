@@ -1114,12 +1114,14 @@ def cmd_autosegment(pdf: Path, threshold: float = 0.5) -> str:
 def cmd_fontid(pdf: Path, pages: str | None = None, limit: int = 12,
                ppi: int = 200) -> str:
     """Identify the font VISUALLY for scanned/OCR input (the PDF has no font
-    layer, so `fonts`/`fonts_layer` return nothing). Renders text-line crops and
-    classifies them with the torch-free storia/font-classify ONNX model
-    (Google-Fonts classes), voting across crops. HONEST: the model is reliable on
-    distinctive faces but weak on scanned generic sans-serifs, and Arial/Helvetica
-    /Computer-Modern aren't clean classes — so confidence + agreement are reported
-    and a low result is flagged as a weak hint, not a fact.
+    layer, so `fonts`/`fonts_layer` return nothing). Renders WORD crops, classifies
+    each with the torch-free storia/font-classify ONNX model (Google-Fonts
+    classes), and votes WITHIN each OCR block — so font is reported as a property
+    of every text FIELD (heading vs body vs fine-print), not one document-level
+    vote. HONEST: the model is reliable on distinctive faces but weak on scanned
+    generic sans-serifs, and Arial/Helvetica/Computer-Modern aren't clean classes
+    — so per-field confidence + agreement are reported and a low field is flagged
+    as a weak hint, not a fact.
     """
     import subprocess
     import numpy as np
@@ -1135,55 +1137,80 @@ def cmd_fontid(pdf: Path, pages: str | None = None, limit: int = 12,
                 "HuggingFace on first use. Set $FONT_CLASSIFY_DIR or ensure network "
                 "access to huggingface.co, then retry.")
     out_dir = sc.blob_dir / "fontid"
-    page_list = pdf_reading.parse_pages(pages, getattr(sc, "page_count", None) or None)
+    n_pages = getattr(sc, "page_count", None) or None
+    if not n_pages:
+        try:
+            info = subprocess.run(["pdfinfo", str(pdf)], capture_output=True,
+                                  text=True, timeout=30)
+            m = re.search(r"Pages:\s*(\d+)", info.stdout)
+            n_pages = int(m.group(1)) if m else None
+        except Exception:
+            n_pages = None
+    page_list = pdf_reading.parse_pages(pages, n_pages)
+    # Font is sampled, not exhaustive: cap to the first few pages when none asked
+    # (so a 175-page scan doesn't rasterize all of it just to read a font), and
+    # never ask for a page past the document (pdftoppm errors on an out-of-range page).
+    if pages is None:
+        page_list = (page_list or list(range(1, (n_pages or 3) + 1)))[:3]
+    if n_pages:
+        page_list = [p for p in page_list if 1 <= p <= n_pages]
     imgs = pdf_reading.rasterize(pdf, out_dir, pages=page_list, dpi=ppi)
 
-    top1s: list[tuple[str, float]] = []
-    per_line: list[tuple[str, tuple[str, float]]] = []
-    for img_path in imgs:
-        if len(top1s) >= limit:
+    # WORD-level crops grouped per TEXT FIELD: a word's ~5:1 aspect fills the
+    # classifier's square box (vs a full line's thin band), and font is a property
+    # of each OCR block (heading vs body vs fine-print), NOT one document vote.
+    classified: list[tuple[dict, tuple[str, float]]] = []
+    n_words = 0
+    for pno, img_path in zip(page_list, imgs):
+        if n_words >= limit:
             break
         page_img = np.array(Image.open(img_path).convert("RGB"))
         res = subprocess.run(["tesseract", str(img_path), "-", "--psm", "1", "tsv"],
                              capture_output=True, text=True)
         words, _ = geometry.parse_tsv(res.stdout)
-        # WORD-level crops: a word's ~5:1 aspect fills the classifier's square box
-        # far better than a full line's ~20:1 strip (which ResizeWithPad shrinks to
-        # a thin band). Prefer long, alphabetic words for maximum glyph signal.
-        cands = sorted(
-            (w for w in words
-             if len(re.sub(r"[^A-Za-zÄÖÜäöüß]", "", w["text"])) >= 5
-             and (w["x1"] - w["x0"]) >= 40 and (w["y1"] - w["y0"]) >= 10),
-            key=lambda w: -(w["x1"] - w["x0"]))
+        cands = [w for w in words
+                 if len(re.sub(r"[^A-Za-zÄÖÜäöüß]", "", w["text"])) >= 5
+                 and (w["x1"] - w["x0"]) >= 40 and (w["y1"] - w["y0"]) >= 10]
+        # within each OCR block keep the widest few words (most glyph signal),
+        # so every field is sampled rather than spending the budget on one block.
+        from collections import defaultdict
+        by_block: dict[int, list] = defaultdict(list)
         for w in cands:
-            if len(top1s) >= limit:
-                break
-            y0, y1 = int(w["y0"]), int(w["y1"])
-            x0, x1 = int(w["x0"]), int(w["x1"])
-            pad = max(3, (y1 - y0) // 6)
-            crop = page_img[max(0, y0 - pad):y1 + pad, max(0, x0 - pad):x1 + pad]
-            pred = fc.classify_crop(crop, k=1)
-            if pred:
-                top1s.append(pred[0])
-                per_line.append((w["text"][:24], pred[0]))
+            by_block[w.get("block", 0)].append(w)
+        for blk, bws in by_block.items():
+            for w in sorted(bws, key=lambda w: -(w["x1"] - w["x0"]))[:4]:
+                if n_words >= limit:
+                    break
+                y0, y1 = int(w["y0"]), int(w["y1"])
+                x0, x1 = int(w["x0"]), int(w["x1"])
+                pad = max(3, (y1 - y0) // 6)
+                crop = page_img[max(0, y0 - pad):y1 + pad, max(0, x0 - pad):x1 + pad]
+                pred = fc.classify_crop(crop, k=1)
+                if pred:
+                    classified.append(({**w, "page": pno}, pred[0]))
+                    n_words += 1
 
-    agg = fc.aggregate(top1s)
-    if agg is None:
-        return f"No classifiable words found in {pdf.name}."
-    sc.set_evidence("fontid", agg)
+    fields = fc.field_fonts(classified)
+    if not fields:
+        return f"No classifiable text fields found in {pdf.name}."
+    from collections import Counter
+    distinct = Counter(f["font"] for f in fields)
+    sc.set_evidence("fontid", {"fields": fields,
+                               "distinct": dict(distinct.most_common())})
     sc.add_fact("FONTID_BUILT")
     sc.save()
 
-    reliable = agg["mean_conf"] >= 0.5 and agg["agreement"] >= 0.5
-    flag = ("" if reliable else
-            "  ⚠ LOW confidence/agreement — treat as a WEAK HINT: the Google-Fonts-"
-            "only model is unreliable on scanned/generic sans-serif text.")
-    out = [f"FONTID {pdf.name} (VISUAL estimate — no font layer; {len(top1s)} word "
-           f"crops): dominant '{agg['font']}' — {agg['votes']}/{agg['total']} crops "
-           f"agree ({int(agg['agreement'] * 100)}%), mean conf {agg['mean_conf']}.{flag}",
-           "Per-crop top-1 (Google-Fonts classes only; not the literal embedded font):"]
-    for txt, (f, c) in per_line[:limit]:
-        out.append(f"  {txt!r:34} → {f}  ({round(c, 3)})")
+    summ = ", ".join(f"{name}×{n}" for name, n in distinct.most_common())
+    out = [f"FONTID {pdf.name} (VISUAL estimate — no font layer; per text FIELD, "
+           f"{len(fields)} fields over {len(set(f['page'] for f in fields))} page(s)). "
+           f"Distinct fonts: {summ}.",
+           "Font is a property of each text field (Google-Fonts classes only; not "
+           "the literal embedded face). ⚠ = LOW confidence/agreement, a weak hint:"]
+    for f in fields:
+        weak = "" if (f["mean_conf"] >= 0.5 and f["agreement"] >= 0.5) else " ⚠"
+        out.append(
+            f"  p{f['page']} field {f['block']:>2} {f['sample']!r:50} → {f['font']} "
+            f"({f['votes']}/{f['total']} agree, conf {f['mean_conf']}){weak}")
     return "\n".join(out)
 
 

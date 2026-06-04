@@ -140,6 +140,37 @@ def aggregate(top1s: list[tuple[str, float]]) -> Optional[dict]:
             "agreement": round(n / len(top1s), 3)}
 
 
+def field_fonts(classified, page_key: str = "page", block_key: str = "block") -> list[dict]:
+    """Font as a property of each TEXT FIELD, not one document-level vote.
+
+    `classified` is a list of `(word_meta, (font, conf))` where `word_meta` is the
+    word's tesseract dict (page/block/line/bbox/text). Words are grouped by their
+    OCR field — `(page, block)` — and voted WITHIN the field, so a heading block
+    and a body block surface as separate fields each carrying their own font.
+    Returns one dict per field (first-seen order) with the field's font, vote
+    share, mean confidence, bbox, and a text sample. Empty input → []."""
+    from collections import OrderedDict
+    groups: "OrderedDict[tuple, list]" = OrderedDict()
+    for w, pred in classified:
+        groups.setdefault((w.get(page_key), w.get(block_key)), []).append((w, pred))
+    out: list[dict] = []
+    for (page, block), items in groups.items():
+        agg = aggregate([p for _, p in items])
+        if agg is None:
+            continue
+        ws = [w for w, _ in items]
+        xs0 = [w["x0"] for w in ws if "x0" in w]; ys0 = [w["y0"] for w in ws if "y0" in w]
+        xs1 = [w["x1"] for w in ws if "x1" in w]; ys1 = [w["y1"] for w in ws if "y1" in w]
+        bbox = ([min(xs0), min(ys0), max(xs1), max(ys1)]
+                if xs0 and ys0 and xs1 and ys1 else None)
+        sample = " ".join(w.get("text", "") for w in ws).strip()[:48]
+        out.append({"page": page, "block": block, "font": agg["font"],
+                    "votes": agg["votes"], "total": agg["total"],
+                    "mean_conf": agg["mean_conf"], "agreement": agg["agreement"],
+                    "bbox": bbox, "sample": sample})
+    return out
+
+
 def classify_image_file(path, k: int = 3) -> list[tuple[str, float]]:
     import numpy as np
     from PIL import Image

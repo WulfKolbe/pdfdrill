@@ -299,11 +299,23 @@ to `$FONT_CLASSIFY_DIR`/`~/.cache/pdfdrill` via `net.urlopen` (graceful when
 blocked). Votes across crops; reports the dominant font + agreement + mean
 confidence.
 
-**WORD-level crops (the tuning that makes the pipeline work).** A word's ~5:1
-aspect fills the model's square ResizeWithPad box; a full LINE's ~20:1 strip gets
-shrunk to a thin band and degrades discrimination. `cmd_fontid` classifies
-tesseract word boxes (≥5 alpha chars, ≥40 px wide) and votes. This took a page
-rendered in Roboto-MediumItalic from **wrong** (line crops → `Sarabun-SemiBoldItalic`,
+**Font is a property of each text FIELD, not one document vote.** A heading, body,
+and fine-print are different faces — collapsing the page to a single "dominant"
+font is the wrong model. `cmd_fontid` classifies WORD crops and votes **within
+each OCR block** (`font_classify.field_fonts` groups `(page, block)` and aggregates
+per group), emitting one font per field with its own vote-share / confidence /
+bbox / text sample, plus a distinct-fonts summary. Evidence shape:
+`{"fields":[…], "distinct":{font:count}}`. Demonstrated on a two-font page
+(mono heading + sans body): the heading and body come back as **separate fields
+with separate fonts**, each carrying its own confidence. Pages are capped to the
+first 3 when none are requested and clamped to the real page count (so a 175-page
+scan isn't fully rasterized, and pdftoppm is never asked for a non-existent page).
+
+**WORD-level crops (why per-word, not per-line).** A word's ~5:1 aspect fills the
+model's square ResizeWithPad box; a full LINE's ~20:1 strip gets shrunk to a thin
+band and degrades discrimination. `cmd_fontid` classifies tesseract word boxes
+(≥5 alpha chars, ≥40 px wide). Word crops took a page rendered in
+Roboto-MediumItalic from **wrong** (line crops → `Sarabun-SemiBoldItalic`,
 75%/0.75) to **right** (word crops → `Roboto-MediumItalic`, 14/14 = 100%, conf
 0.932) — matching the direct-render accuracy.
 
