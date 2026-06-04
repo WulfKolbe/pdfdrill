@@ -437,6 +437,23 @@ def _page_text_from_model(doc) -> dict:
     return {pg: "\n".join(v) for pg, v in pages.items() if pg is not None}
 
 
+def _page_lines_from_model(doc) -> dict:
+    """Per-page list of {text, region} from the mathpix_lines stream — the raw
+    geometry needed to detect out-of-column margin content (works for MathPix and
+    the tesseract-OCR path, both carrying a `region`)."""
+    pages: dict[int, list] = {}
+    mp = doc.streams.get("mathpix_lines")
+    if mp is None:
+        return {}
+    for a in mp.anchors:
+        p = mp.payload[a]
+        region = p.get("region")
+        text = p.get("text_display") or p.get("text") or ""
+        if region and text.strip() and p.get("_page") is not None:
+            pages.setdefault(p["_page"], []).append({"text": text, "region": region})
+    return pages
+
+
 def cmd_entities(pdf: Path, force: bool = False) -> str:
     """Extract commercial entities per page — self-contained, zero external tools.
 
@@ -764,6 +781,8 @@ def cmd_semantic(pdf: Path, store: str | None = None, force: bool = False) -> st
     segments = seg.segment({}, per_page_ent, page_text)
     identified = [d for d in segments if d.get("identifier")]
 
+    doc_entities: dict[str, object] = {}
+    page2src: dict[int, str] = {}
     if len(identified) >= 2:
         for d in segments:
             rec_d, txt_d = _agg(d["pages"])
@@ -772,18 +791,44 @@ def cmd_semantic(pdf: Path, store: str | None = None, force: bool = False) -> st
             sender = _real_sender(sender)
             rec_d, rname, rrec = _split_recipient(rec_d, txt_d)
             src = f"{key}#{d.get('identifier') or 'p' + '-'.join(map(str, d['pages']))}"
-            ingest_document(g, r, source=src, sender=sender, entities_rec=rec_d,
-                            recipient_name=rname, recipient_rec=rrec,
-                            authority=_is_auth(sender), page_text=txt_d)
+            de = ingest_document(g, r, source=src, sender=sender, entities_rec=rec_d,
+                                 recipient_name=rname, recipient_rec=rrec,
+                                 authority=_is_auth(sender), page_text=txt_d)
+            doc_entities[src] = de
+            for p in d["pages"]:
+                page2src[p] = src
         n_docs = len(segments)
     else:
         rec_all, full_text = _agg(sorted(page_text))
         sender = _real_sender(seg.sender_of(full_text))
         rec_all, rname, rrec = _split_recipient(rec_all, full_text)
-        ingest_document(g, r, source=key, sender=sender or None, entities_rec=rec_all,
-                        recipient_name=rname, recipient_rec=rrec,
-                        authority=_is_auth(sender), page_text=full_text)
+        de = ingest_document(g, r, source=key, sender=sender or None, entities_rec=rec_all,
+                             recipient_name=rname, recipient_rec=rrec,
+                             authority=_is_auth(sender), page_text=full_text)
+        doc_entities[key] = de
+        for p in page_text:
+            page2src[p] = key
         n_docs = 1
+
+    # Out-of-column margin pass: continuity numbers / control keys printed outside
+    # the body column are first-class CONFIRMATION, not footnotes. Attach control
+    # keys + continuity markers to their page's document as geometry evidence.
+    from semantic.geometry_columns import tag_out_of_column
+    from semantic.evidence import Evidence
+    margin_markers: list[dict] = []
+    for p, plines in _page_lines_from_model(doc).items():
+        tag_out_of_column(plines)
+        for ln in plines:
+            side = ln.get("out_of_column")
+            if not side:
+                continue
+            role = ln.get("margin_role")
+            margin_markers.append({"page": p, "side": side, "role": role,
+                                   "text": (ln.get("text") or "")[:80]})
+            de = doc_entities.get(page2src.get(p))
+            if de is not None and role in ("control_number", "continuity"):
+                de.attach(Evidence(page2src.get(p) or key, f"margin_{role}",
+                                   ln.get("text", ""), "geometry", confidence=0.85))
 
     # The compiler gate: type-check + consistency over the graph.
     result = compiler.compile(g)
@@ -805,6 +850,7 @@ def cmd_semantic(pdf: Path, store: str | None = None, force: bool = False) -> st
     sc.set_evidence("semantic_relations", len(g.relations))
     sc.set_evidence("semantic_validity", result.validity)
     sc.set_evidence("semantic_warnings", len(result.warnings))
+    sc.set_evidence("margin_markers", margin_markers)
     sc.set_evidence("semantic_path", str(sem_path.relative_to(sc.pdf_path.parent)))
     sc.log_transition("semantic", prev, SEMANTIC_BUILT,
                       detail=f"{g.entity_count()} entities, {len(g.relations)} "
@@ -834,6 +880,14 @@ def cmd_semantic(pdf: Path, store: str | None = None, force: bool = False) -> st
                  + (f", {len(crit)} critical / {len(result.warnings)} warning(s)"
                     if result.warnings else ""))
     seg_note = f"{n_docs} segmented document(s); " if n_docs > 1 else ""
+    if margin_markers:
+        by_role: dict[str, int] = {}
+        for m in margin_markers:
+            by_role[m["role"]] = by_role.get(m["role"], 0) + 1
+        marker_lines = [f"  ⌗ p{m['page']} [{m['side']} margin / {m['role']}]  {m['text']}"
+                        for m in margin_markers[:10]]
+        seg_note += (f"{len(margin_markers)} out-of-column marker(s) "
+                     f"({', '.join(f'{n} {r}' for r, n in sorted(by_role.items()))}); ")
     head = (f"Semantic graph for {key}: {seg_note}{g.entity_count()} entit"
             f"{'y' if g.entity_count() == 1 else 'ies'} "
             f"({', '.join(f'{n} {t}' for t, n in counts.items())}), "
@@ -841,7 +895,10 @@ def cmd_semantic(pdf: Path, store: str | None = None, force: bool = False) -> st
             f"{sem_path.name}{accumulated}. "
             f"Extractors are sensors; evidence accumulates on entities (⟵ source docs):")
     warn_lines = [f"  ⚠ [{w.severity}/{w.code}] {w.message}" for w in result.warnings[:8]]
+    mk_lines = locals().get("marker_lines", [])
     body = "\n".join(lines) if lines else "  (no agent entities yet)"
+    if mk_lines:
+        body += "\n  — out-of-column markers (confirmation, not footnotes) —\n" + "\n".join(mk_lines)
     return head + "\n" + body + ("\n" + "\n".join(warn_lines) if warn_lines else "")
 
 

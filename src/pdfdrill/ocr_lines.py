@@ -78,6 +78,16 @@ def lines_json_from_words(
             },
         })
 
+    # Flag out-of-column margin content per page (continuity numbers / control
+    # keys / page numbers printed outside the body column) — the geometry signal
+    # tesseract carries but the old assembler dropped, now at MathPix parity.
+    try:
+        from semantic.geometry_columns import tag_out_of_column
+        for pg_lines in by_page.values():
+            tag_out_of_column(pg_lines)
+    except Exception:
+        pass        # optional: degrade silently if the semantic layer is absent
+
     # Drive page list from page_dims so blank pages still appear.
     all_pages = sorted(set(page_dims) | set(by_page))
     pages = []

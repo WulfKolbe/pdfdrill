@@ -448,10 +448,40 @@ it and reports `compiler: valid/invalid` (+ writes `validity`/`warnings` into th
 graph JSON). Catches exactly the LLM-test failure modes (type violations,
 over-linking, ungrounded edges). Tests: `tests/test_semantic_compiler.py`.
 
-**Next:** (E) the optional GPT-4o page pass (`rasterize`+`vision`, the v3.0
-prompt) as a second-opinion proposer validated by the Phase-D compiler; the
-docmodel write-back so existing projectors render the graph; segment-aware
-ingestion + Phase-C-driven sender/recipient attribution.
+**Segment-aware ingestion + recipient attribution (done).** `cmd_semantic`
+partitions a bundle with `segment.segment({}, per_page_entities, page_text)` (no
+slow margin OCR) and ingests each segment as its own Document/sender;
+`blocks.detect_recipient` routes the recipient address to the recipient Person
+(not the sender), and a `_real_sender` guard drops numeric/id "senders". The
+compiler caught a real builder bug here (an account `belongs_to` a Document → type
+violation); fixed to `Document contains account` when no Agent owner is known.
+ocrtest2: 1 company → 20 segmented docs, 4 named companies + 2 Finanzämter +
+recipient Person, compiler valid.
+
+**Unified out-of-column geometry (done — `semantic/geometry_columns.py`).** The
+ONE place that reasons about content outside the body column, source-independent
+(MathPix AND OCR regions are `{top_left_x,top_left_y,width,height}`).
+`body_column(regions)` (from the WIDE body lines), `out_of_column(region, body)`
+(non-overlap test, indentation not flagged), `classify_margin_item(text)` →
+`MarginRole` (continuity / page_number / control_number / label / marginal),
+`tag_out_of_column(lines)`. **Closes two gaps the investigation found:** (1) the
+OCR path dropped tesseract's column signal — `ocr_lines` now tags margin lines
+(MathPix parity); (2) MathPix `type='column'` lines were flattened into role-less
+`Sidenote`s. `cmd_semantic` runs an out-of-column pass over the model's per-line
+regions (`_page_lines_from_model`) and attaches **control-key + continuity markers
+as geometry CONFIRMATION evidence** on the page's Document (a margin "key" is
+confirmation, not a footnote; page numbers are captured distinctly from the
+physical OCR index, for TOC reconciliation). Verified on ocrtest2: 89
+out-of-column markers (continuity / control_number / page_number / label). Tests:
+`tests/test_geometry_columns.py`. Caveat: the margin classifier is heuristic
+(phone numbers/times can read as control_number); the geometry *detection* is the
+robust part.
+
+**Next:** region-based sender/recipient attribution (use `classify_block` per
+line-region instead of text-level `detect_recipient`, now that the body-column
+model exists) to fix the residual recipient-address-on-company leakage; (E) the
+optional GPT-4o page pass validated by the compiler; the docmodel write-back so
+existing projectors render the graph.
 
 ## Roadmap (decomposed — each phase gets its own spec + plan)
 

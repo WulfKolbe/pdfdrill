@@ -20,8 +20,11 @@ from .graph import SemanticGraph
 from .identity import IdentityResolver
 from .relation import Relation, RelationType
 from .blocks import BlockRole, classify_block, classify_blocks
+from .geometry_columns import (MarginRole, body_column, out_of_column,
+                               classify_margin_item, tag_out_of_column)
 from . import proof, compiler
 
 __all__ = ["Entity", "EntityType", "Evidence", "SemanticGraph", "IdentityResolver",
            "Relation", "RelationType", "BlockRole", "classify_block",
-           "classify_blocks", "proof", "compiler"]
+           "classify_blocks", "MarginRole", "body_column", "out_of_column",
+           "classify_margin_item", "tag_out_of_column", "proof", "compiler"]
