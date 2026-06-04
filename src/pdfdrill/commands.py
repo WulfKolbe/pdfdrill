@@ -1084,6 +1084,65 @@ def cmd_autosegment(pdf: Path, threshold: float = 0.5) -> str:
     return head + cmd_segment(pdf)
 
 
+def cmd_spellqc(pdf: Path, lang: str | None = None) -> str:
+    """Dictionary-assisted de-hyphenation QC over the transcluded text.
+
+    For each `left-/right` line-break: join if the joined word is valid, keep if
+    the hyphenated compound is valid, else REVIEW (neither is a word — likely an
+    OCR error). Hunspell via spylls→enchant→.dic-set, loaded on demand for the
+    document language (auto-detected); falls back to the soft-break heuristic when
+    the dictionary is weak/absent (German affix-compounding). The `review` bucket
+    is the QC value — fragments to fix rather than silently guess.
+    """
+    from docmodel.core import Document
+    from . import spellqc
+
+    sc = Sidecar(pdf)
+    model_path = _model_path(sc)
+    if not model_path.exists():
+        cmd_model(pdf)
+        sc = Sidecar(pdf)
+        model_path = _model_path(sc)
+    if not model_path.exists():
+        return f"No model for {pdf.name} (run `pdfdrill model` first)."
+    doc = Document.from_dict(json.loads(model_path.read_text(encoding="utf-8")))
+    page_text = _page_text_from_model(doc)
+    if not lang:                          # resolve once so the dict label is accurate
+        lang = sc.get_evidence("language")
+    if not lang or lang == "und":
+        from features.extract_language import language_of
+        lang = language_of("\n".join(page_text.get(p, "") for p in sorted(page_text)))
+
+    all_dec = []
+    for p in sorted(page_text):
+        _fixed, dec = spellqc.dehyphenate_text(page_text[p], lang)
+        all_dec += dec
+    if not all_dec:
+        return (f"No line-break hyphenation found in {pdf.name} (the transcluded "
+                f"text has no `word-`/`word` wraps — already clean, e.g. MathPix).")
+
+    by = {"join": 0, "keep": 0, "review": 0}
+    for d in all_dec:
+        by[d.decision] += 1
+    backend = spellqc.get_speller(lang).backend if lang and lang != "und" else "heuristic"
+    sc.set_evidence("spellqc", by)
+    sc.add_fact("SPELLQC_BUILT")
+    sc.save()
+
+    lines = [f"SPELLQC {pdf.name} (lang={lang or 'auto'}, dict={backend}): "
+             f"{len(all_dec)} hyphen-break(s) — {by['join']} joined, "
+             f"{by['keep']} kept (compounds), {by['review']} flagged for REVIEW."]
+    reviews = [d for d in all_dec if d.decision == "review"]
+    if reviews:
+        lines.append("REVIEW (neither form is a word — likely OCR error, fix manually):")
+        lines += [f"  {d.left}-{d.right}  → ?  [{d.reason}]" for d in reviews[:15]]
+    joins = [d for d in all_dec if d.decision == "join"][:8]
+    if joins:
+        lines.append("Joined (de-hyphenated):")
+        lines += [f"  {d.left}-{d.right} → {d.joined}  [{d.reason}]" for d in joins]
+    return "\n".join(lines)
+
+
 def cmd_qr(pdf: Path, dpi: int = 300, pages: str | None = None,
            formats: str | None = None) -> str:
     """Scan for QR codes & barcodes — confirmation data the text layer can't give.

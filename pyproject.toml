@@ -60,6 +60,15 @@ lang = [
     "lingua-language-detector>=2.0",
     "langdetect>=1.0",
 ]
+# Hunspell-backed spellcheck + de-hyphenation QC (pdfdrill.spellqc). pyenchant
+# wraps libhunspell (best where it has the language, e.g. en_US). spylls is the
+# pure-Python Hunspell — reads .aff/.dic with no C build/binding, ideal for a
+# locked-down sandbox (vendor it / it has no install-time C deps). The pure
+# .dic-word-set floor needs neither. German needs de_DE.{aff,dic} on disk.
+spell = [
+    "pyenchant>=3.2",
+    "spylls>=0.1.7",
+]
 
 [project.scripts]
 pdfdrill = "pdfdrill.cli:main"

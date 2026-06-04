@@ -287,6 +287,33 @@ SHUFFLED bundle by signature value.
   BoW cosine); the per-page-OCR path is the correct input. Tests:
   `tests/test_continuity_scorer.py`.
 
+## Spellcheck / de-hyphenation QC (`pdfdrill spellqc`, on-demand hunspell)
+
+Repair line-break hyphenation in the transcluded paragraph text: a `left-/right`
+wrap is an ARTIFACT iff the *joined* word is real (`Versiche-/rung`→`Versicherung`),
+a real COMPOUND iff the *hyphenated* form is (`well-/known`), else REVIEW (neither
+is a word — an OCR fragment to fix). `src/pdfdrill/spellqc.py` decides with
+hunspell, loaded **on demand for the document language** (auto-detected via the
+`extract_language` feature).
+
+- **Multi-backend, sandbox-aware:** spylls (pure-Python Hunspell — reads .aff/.dic,
+  no C build/binding; best for affix-compounding languages) → enchant (pyenchant
+  → libhunspell; used where it has the language, e.g. en_US here) → a pure-Python
+  **.dic word-set floor** (no deps, works offline). Dictionaries are discovered on
+  disk (`/usr/share/hunspell`, texstudio, flatpak, a repo `dicts/`,
+  `$HUNSPELL_DICT_DIR`). When the dict is weak/absent, `classify` falls back to the
+  proven soft-break heuristic — so German (whose productive compounding means many
+  valid joined words aren't in the stem list) still de-hyphenates correctly: a
+  strong affix-aware dict makes "neither valid" a genuine `review`; a weak/absent
+  one leans `join`. (Distinct from `pyphen`, which computes where hyphens MAY go.)
+- **`pdfdrill spellqc <pdf> [--lang de|en]`** runs the QC over the model's
+  paragraph text and reports join/keep/**REVIEW** counts + the review fragments.
+  Verified: AOK (MathPix, already de-hyphenated) → none; an English paper →
+  `Expan-sion`/`architec-ture`/`dif-ference`→joined (enchant-confirmed); German
+  `Versiche-/rung`→`Versicherung` (heuristic, dic-set missed the affixed form),
+  `Bei-/trag`→`Beitrag` (dic-confirmed). Optional `[spell]` extra (pyenchant +
+  spylls). Tests: `tests/test_spellqc.py`.
+
 ## QR / barcode confirmation (`pdfdrill qr`, integrated into `semantic`)
 
 Codes carry data the text layer can't: a **GiroCode/EPC** payment QR encodes the
