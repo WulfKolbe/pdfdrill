@@ -79,10 +79,29 @@ def test_commercial_provenance_bibtex_has_publisher_and_receiver():
     assert "2026" in bib
 
 
+def test_acquisition_mode_detector():
+    from pdfdrill.continuity_scorer import detect_acquisition_mode
+    # contiguous runs per signature → ORDERED
+    m, reason, frac = detect_acquisition_mode(["A", "A", "B", "C", "C", "C"])
+    assert m == "ordered" and frac == 0.0
+    # a document's pages interleave (A…B…A) → SHUFFLED
+    m, reason, frac = detect_acquisition_mode(["A", "B", "A", "C", "B"])
+    assert m == "shuffled" and frac >= 0.5
+    # single document → ordered
+    assert detect_acquisition_mode(["A", "A", "A"])[0] == "ordered"
+    # nothing to go on → default ordered
+    assert detect_acquisition_mode([None, None, ""])[0] == "ordered"
+    # the real ocrtest shape: three senders scattered across the stack → shuffled
+    sigs = ["FA", "BK", "SK", "FA", "BK", "FA", "SK"]
+    assert detect_acquisition_mode(sigs)[0] == "shuffled"
+
+
 if __name__ == "__main__":
+    from pdfdrill.continuity_scorer import detect_acquisition_mode  # noqa
     for fn in (test_fixture_segments_and_names, test_bug1_leading_separator_payload_names_first_doc,
                test_bug3_body_fraction_is_not_a_page_number,
                test_tracking_codes_two_level_mailing_and_boundary,
-               test_commercial_provenance_bibtex_has_publisher_and_receiver):
+               test_commercial_provenance_bibtex_has_publisher_and_receiver,
+               test_acquisition_mode_detector):
         fn(); print("PASS", fn.__name__)
     print("\nAll tests passed.")

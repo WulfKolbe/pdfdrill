@@ -939,36 +939,42 @@ def cmd_semantic(pdf: Path, store: str | None = None, force: bool = False) -> st
 # file-based: results land in the sidecar, not in an LLM context window).
 # ===========================================================================
 
-def cmd_ordered(pdf: Path, threshold: float = 0.5) -> str:
-    """Segment an ORDERED page stack into documents (continuity_scorer).
+_BANK_RE = re.compile(r"\b(Bank|Sparkasse|Commerzbank|Volksbank|Raiffeisen|Postbank|Bankhaus)\b", re.I)
 
-    For a straight scan whose page order is preserved (NAPS2 etc.): score each
-    adjacent-page GAP from page numbers / semantics / entities / letterhead /
-    Deutsche Post tracking codes, and cut where the boundary score crosses
-    `--threshold`. Two-level: the DataMatrix tracking codes give a HARD outer
-    MAILING grouping (one envelope), the soft signals refine letter-vs-enclosure
-    inside it. Each document carries commercial provenance (sender=publisher,
-    receiver=explicit audience) projectable to BibTeX. (For a SHUFFLED bundle use
-    `pdfdrill segment` instead.)
-    """
-    from . import continuity_scorer as csr
-    from . import segment as seg, qrscan, ocr_lines, geometry
-    from semantic.blocks import detect_recipient
 
-    sc = Sidecar(pdf)
-    # Per-PHYSICAL-page OCR (full German page text) — the ordered scorer needs
-    # complete per-page text for the semantic/structural signals; the MathPix
-    # logical model fragments pages and makes BoW cosine collapse to 0 (over-cut).
+def _per_page_ocr_text(pdf: Path, sc: "Sidecar", lang: str = "deu+eng") -> dict[int, str]:
+    """Per-PHYSICAL-page full OCR text, blank duplex backsides dropped. The
+    ordered scorer + the mode detector need complete per-page text (the MathPix
+    logical model fragments pages and collapses BoW cosine → over-segmentation)."""
+    from . import ocr_lines, geometry
     ok, msg = ocr_lines.tools_available()
     if not ok:
-        return f"`ordered` needs per-page OCR: {msg}"
-    words, _dims = ocr_lines._render_and_ocr(pdf, sc.blob_dir / "ordered_pages", 200, "deu+eng")
+        raise RuntimeError(msg)
+    words, _ = ocr_lines._render_and_ocr(pdf, sc.blob_dir / "ordered_pages", 200, lang)
     by_page: dict[int, list] = {}
     for ln in geometry.group_lines(words):
         by_page.setdefault(ln["page"], []).append(ln["text"])
-    # drop blank backsides (a duplex scan's empty pages)
-    page_text = {p: "\n".join(v) for p, v in by_page.items()
-                 if len("\n".join(v).strip()) >= 25}
+    return {p: "\n".join(v) for p, v in by_page.items()
+            if len("\n".join(v).strip()) >= 25}
+
+
+def _page_signature(text: str) -> Optional[str]:
+    """A stable per-page document key for shuffle detection: an admin id value
+    (Steuer-/Kassen-/Aktenzeichen) if present, else the sender/letterhead."""
+    from . import segment as seg
+    from features import extract_ids
+    for f in extract_ids.extract(text or ""):
+        if f.type in ("STEUERNUMMER", "KASSENZEICHEN", "AKTENZEICHEN"):
+            return f"{f.type}:{f.value}"
+    s = seg.sender_of(text or "")
+    return s or None
+
+
+def _run_ordered(pdf: Path, sc: "Sidecar", page_text: dict[int, str],
+                 threshold: float, mode_note: str = "") -> str:
+    from . import continuity_scorer as csr
+    from . import segment as seg, qrscan
+    from semantic.blocks import detect_recipient
 
     qr_by_page: dict[int, list] = {}
     try:
@@ -978,12 +984,11 @@ def cmd_ordered(pdf: Path, threshold: float = 0.5) -> str:
     except Exception:
         pass
 
-    _bank = re.compile(r"\b(Bank|Sparkasse|Commerzbank|Volksbank|Raiffeisen|Postbank|Bankhaus)\b", re.I)
     pages = []
     for p in sorted(page_text):
         text = page_text[p]
         sender = seg.sender_of(text) or None
-        if sender and _bank.search(sender):
+        if sender and _BANK_RE.search(sender):
             sender = None                       # the payee's bank, not the issuer
         recp = detect_recipient(text)
         tracking = epc_name = None
@@ -993,24 +998,20 @@ def cmd_ordered(pdf: Path, threshold: float = 0.5) -> str:
             c = (f.get("content") or "")
             if c.isdigit() and len(c) >= 12 and (tracking is None or len(c) > len(tracking)):
                 tracking = c
-        sender = sender or epc_name             # GiroCode creditor supplies the issuer
-        pages.append(csr.PageFeatures(
-            index=p, text=text, sender=sender,
-            receiver=recp["name"] if recp else None, tracking_code=tracking))
+        sender = sender or epc_name
+        pages.append(csr.PageFeatures(index=p, text=text, sender=sender,
+                                      receiver=recp["name"] if recp else None,
+                                      tracking_code=tracking))
 
     res = csr.segment(pages, threshold=threshold)
-
     sc.set_evidence("ordered_documents", res["documents"])
     sc.set_evidence("ordered_mailings", res["mailings"])
     sc.add_fact("ORDERED_BUILT")
-    sc.log_transition("ordered", ",".join(sorted(sc.facts - {"ORDERED_BUILT"})) or "INIT",
-                      "ORDERED_BUILT", detail=f"{res['n_documents']} docs, {len(res['mailings'])} mailings")
     sc.save()
 
     lines = [f"ORDERED SEGMENTATION {resolve_bibkey(pdf, None, sc)} · "
              f"{res['n_pages_in']} pages → {res['n_documents']} document(s) in "
-             f"{len(res['mailings'])} mailing(s) (threshold {threshold}).",
-             ""]
+             f"{len(res['mailings'])} mailing(s) (threshold {threshold}).{mode_note}", ""]
     if res["mailings"]:
         lines.append("MAILINGS (hard outer grouping — Deutsche Post tracking codes)")
         for m, ps in sorted(res["mailings"].items()):
@@ -1031,6 +1032,49 @@ def cmd_ordered(pdf: Path, threshold: float = 0.5) -> str:
         lines.append(f"  {g['gap']}: B={g['boundary_score']} → {verdict}"
                      + (" (hard)" if g["hard"] else "") + f"  [{why}]")
     return "\n".join(lines)
+
+
+def cmd_ordered(pdf: Path, threshold: float = 0.5) -> str:
+    """Segment an ORDERED page stack into documents (continuity_scorer).
+
+    Score each adjacent-page GAP from page numbers / semantics / entities /
+    letterhead / Deutsche Post tracking codes; cut where the boundary score
+    crosses `--threshold`. Two-level: DataMatrix tracking codes give a HARD outer
+    MAILING grouping, the soft signals refine letter-vs-enclosure inside. Each
+    document carries commercial provenance (sender=publisher, receiver=audience),
+    BibTeX-projectable. For a SHUFFLED bundle use `pdfdrill segment`, or let
+    `pdfdrill autosegment` pick.
+    """
+    sc = Sidecar(pdf)
+    try:
+        page_text = _per_page_ocr_text(pdf, sc)
+    except RuntimeError as e:
+        return f"`ordered` needs per-page OCR: {e}"
+    return _run_ordered(pdf, sc, page_text, threshold)
+
+
+def cmd_autosegment(pdf: Path, threshold: float = 0.5) -> str:
+    """Auto-pick the segmenter: ORDERED stack → gap scorer; SHUFFLED bundle →
+    signature grouping. Decides from whether each document's pages form a
+    contiguous run (ordered) or interleave (shuffled), then runs the right one.
+    """
+    from . import continuity_scorer as csr
+
+    sc = Sidecar(pdf)
+    try:
+        page_text = _per_page_ocr_text(pdf, sc)
+    except RuntimeError as e:
+        return f"`autosegment` needs per-page OCR: {e}"
+    sigs = [_page_signature(page_text[p]) for p in sorted(page_text)]
+    mode, reason, frac = csr.detect_acquisition_mode(sigs)
+    head = (f"AUTOSEGMENT {pdf.name}: mode={mode} ({reason}, interleave={frac}) → "
+            f"running `{'ordered' if mode == 'ordered' else 'segment'}`.\n")
+
+    if mode == "ordered":
+        return head + _run_ordered(pdf, sc, page_text, threshold,
+                                   mode_note=f"  [auto: ordered, interleave={frac}]")
+    # shuffled → delegate to the signature-grouping segmenter (model + entities)
+    return head + cmd_segment(pdf)
 
 
 def cmd_qr(pdf: Path, dpi: int = 300, pages: str | None = None,

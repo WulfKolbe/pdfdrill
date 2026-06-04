@@ -167,6 +167,36 @@ def same_mailing(a: Optional[str], b: Optional[str], minlen: int = 12) -> bool:
         return False
     return _common_suffix_len(a, b) >= minlen
 
+def detect_acquisition_mode(page_sigs: list, page_nos: Optional[list] = None
+                            ) -> tuple[str, str, float]:
+    """Decide 'ordered' vs 'shuffled' from per-page signatures (sender / id value)
+    in PHYSICAL order. In an ordered stack each document is a CONTIGUOUS run; a
+    shuffled bundle interleaves a document's pages (a signature recurs after a
+    different one sits between its occurrences). Returns (mode, reason, frac)."""
+    runs: dict = {}
+    for i, s in enumerate(page_sigs):
+        if not s:
+            continue
+        if s not in runs:
+            runs[s] = [i, i]
+        else:
+            runs[s][1] = i
+    interrupted = total = 0
+    for s, (a, b) in runs.items():
+        if b > a:                                   # a multi-page signature
+            total += 1
+            if any(page_sigs[k] not in (s, None, "") for k in range(a, b + 1)):
+                interrupted += 1
+    if total == 0:
+        # No multi-page signature to judge by. A page-number reset that lands
+        # mid-stack with a >1 page right after a different doc hints shuffled;
+        # otherwise default to ordered (it also handles the single-document case).
+        return ("ordered", "no multi-page signatures; default ordered", 0.0)
+    frac = interrupted / total
+    mode = "shuffled" if frac >= 0.5 else "ordered"
+    return (mode, f"{interrupted}/{total} multi-page signatures interleaved", round(frac, 3))
+
+
 def assign_mailings(pages: list[PageFeatures]) -> dict[int, str]:
     """index → mailing label (M1, M2, …) by clustering tracking codes."""
     labels: dict[int, str] = {}

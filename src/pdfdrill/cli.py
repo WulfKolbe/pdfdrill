@@ -62,6 +62,7 @@ def main():
         "semantic": _do_semantic,
         "qr": _do_qr,
         "ordered": _do_ordered,
+        "autosegment": _do_autosegment,
         "selftest": _do_selftest,
         "rasterize": _do_rasterize,
         "attachments": _do_attachments,
@@ -293,6 +294,13 @@ def _do_ordered(args):
     from .commands import cmd_ordered
     thr, args = _opt(args, "--threshold")
     return cmd_ordered(_pdf(args), threshold=float(thr) if thr else 0.5)
+
+
+def _do_autosegment(args):
+    """pdfdrill autosegment <pdf> [--threshold 0.5]"""
+    from .commands import cmd_autosegment
+    thr, args = _opt(args, "--threshold")
+    return cmd_autosegment(_pdf(args), threshold=float(thr) if thr else 0.5)
 
 
 def _do_qr(args):
@@ -906,6 +914,7 @@ Introspection (fast, no extraction):
   pdfdrill semantic <pdf>      Build the semantic graph (CSP): extractors become sensors emitting evidence; entities (Company/Person/BankAccount) accumulate it. --store graph.json accumulates ACROSS documents
   pdfdrill qr <pdf>            Scan QR codes & barcodes (zxing-cpp): GiroCode/EPC payment QR (creditor/IBAN/amount/reference) + Data Matrix franking marks — confirmation data outside the text layer. --dpi 300 --formats QRCode,DataMatrix
   pdfdrill ordered <pdf>       Segment an ORDERED scan stack into documents (gap scoring + DataMatrix tracking codes → 2-level mailing/letter-enclosure). Commercial provenance (publisher=sender, receiver). --threshold 0.5. (Shuffled bundle → use `segment`)
+  pdfdrill autosegment <pdf>   AUTO-PICK ordered vs shuffled: contiguous per-sender runs → `ordered` (gap scorer); interleaved → `segment` (signature grouping). Then runs the right one
   pdfdrill selftest <pdf|dir>  DIAGNOSTIC GRID: run the command battery across a PDF (or every PDF in a folder), log OK/⊘-n/a/✗-ERROR + the actual result per command → selftest.log. --full adds entities/elements/semantic
   pdfdrill model <pdf>         Build unified docmodel from lines.json (auto-chains mathpix, falls back to tesseract ocr if no MathPix); --bibkey KEY sets the tiddler prefix (persisted)
   pdfdrill compare <pdf>       LaTeX | KaTeX | MathPix-image comparison HTML (auto-chains model)

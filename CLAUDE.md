@@ -268,6 +268,14 @@ SHUFFLED bundle by signature value.
   the issuer) + `detect_recipient` + the QR/tracking codes, runs the scorer, and
   emits documents + mailings + per-gap **explainability** (why each cut/keep, for
   the LLM).
+- **`pdfdrill autosegment <pdf>` — the auto-selector.** `detect_acquisition_mode`
+  decides ORDERED vs SHUFFLED from per-page signatures (admin-id value else
+  sender) in physical order: each document a CONTIGUOUS run → ordered; a
+  signature that recurs after a different one interleaves between its occurrences
+  → shuffled. It then routes — ordered → `_run_ordered` (gap scorer), shuffled →
+  `cmd_segment` (signature grouping) — and reports the decision + interleave
+  fraction. Verified: AOK → ordered (interleave 0.0); the scattered three-sender
+  ocrtest shape → shuffled.
 - **Two fixes over the prototype** (both TDD'd): #1 a LEADING separator's QR
   payload now names the first document; #3 a bare `N/M` is read as a page number
   only in header/footer bands, never from body prose (`1/2 Tasse` is not a page).
