@@ -90,8 +90,63 @@ def test_no_duplicate_relations_on_reingest():
     assert len(belongs) == 1                            # not duplicated
 
 
+def test_recipient_address_attaches_to_person_not_company():
+    """Phase-C attribution: the recipient address is the PERSON's, not the sender
+    company's. The company keeps its IBAN; the person gets the address."""
+    g = SemanticGraph()
+    r = IdentityResolver(g)
+    ingest_document(g, r, source="d1", sender="Acme GmbH",
+                    entities_rec=_rec(iban=[{"iban": "DE89370400440532013000"}]),
+                    recipient_name="Wulf Alexander Kolbe",
+                    recipient_rec={"address": ["Rotkäppchenweg 1, 51515 Kürten"]})
+    company = g.entities_of(EntityType.COMPANY)[0]
+    person = g.entities_of(EntityType.PERSON)[0]
+    doc = g.entities_of(EntityType.DOCUMENT)[0]
+    assert "address" not in company.properties()        # NOT mis-attributed to the sender
+    assert "Rotkäppchenweg 1" in person.properties().get("address", "")
+    assert any(x.predicate == RelationType.SENT_TO and x.object_id == person.id
+               for x in g.relations_of(doc.id))
+
+
+def test_two_senders_do_not_cross_attribute_their_bank_accounts():
+    """Segment-aware ingestion's payoff: two documents with different senders
+    yield two distinct agents, each owning only its own bank account — instead of
+    every IBAN collapsing onto one company."""
+    g = SemanticGraph()
+    r = IdentityResolver(g)
+    ingest_document(g, r, source="d1", sender="Acme GmbH",
+                    entities_rec=_rec(iban=[{"iban": "DE89370400440532013000"}]))
+    ingest_document(g, r, source="d2", sender="Stadt Köln", authority=True,
+                    entities_rec=_rec(iban=[{"iban": "DE70560622270000124804"}]))
+    assert g.entity_count(EntityType.COMPANY) == 1
+    assert g.entity_count(EntityType.AUTHORITY) == 1
+    accts = g.entities_of(EntityType.BANK_ACCOUNT)
+    assert len(accts) == 2
+    owners = {x.object_id for a in accts for x in g.relations_of(a.id)
+              if x.predicate == RelationType.BELONGS_TO}
+    assert len(owners) == 2                              # each account → its own sender
+
+
+def test_account_without_sender_is_contained_not_owned_by_document():
+    """No Agent owner ⇒ the Document CONTAINS the account (type-valid); it must
+    NOT belongs_to a Document (the compiler would reject that)."""
+    from semantic import compiler
+    g = SemanticGraph()
+    r = IdentityResolver(g)
+    doc = ingest_document(g, r, source="d1", sender=None,
+                          entities_rec=_rec(iban=[{"iban": "DE89370400440532013000"}]))
+    acct = g.entities_of(EntityType.BANK_ACCOUNT)[0]
+    assert not any(x.predicate == RelationType.BELONGS_TO for x in g.relations_of(acct.id))
+    assert any(x.predicate == RelationType.CONTAINS and x.object_id == acct.id
+               for x in g.relations_of(doc.id))
+    assert compiler.compile(g).validity == "valid"
+
+
 if __name__ == "__main__":
     test_ingest_builds_document_company_and_bank_account(); print("PASS ingest")
+    test_account_without_sender_is_contained_not_owned_by_document(); print("PASS no-sender-contains")
+    test_recipient_address_attaches_to_person_not_company(); print("PASS recipient-attr")
+    test_two_senders_do_not_cross_attribute_their_bank_accounts(); print("PASS two-senders")
     test_two_documents_same_company_accumulate_into_one_entity(); print("PASS accumulate")
     test_no_duplicate_relations_on_reingest(); print("PASS dedupe")
     print("\nAll tests passed.")

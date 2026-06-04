@@ -68,6 +68,20 @@ def test_signature_cue():
     assert role == BlockRole.SIGNATURE
 
 
+def test_detect_recipient_separates_name_and_address():
+    from semantic.blocks import detect_recipient
+    rec = detect_recipient("Herrn\nWulf Alexander Kolbe\nRotkäppchenweg 1\n51515 Kürten")
+    assert rec is not None
+    assert rec["name"] == "Wulf Alexander Kolbe"
+    assert "Rotkäppchenweg 1" in rec["address"] and "51515 Kürten" in rec["address"]
+    assert "Wulf" not in rec["address"]          # the name is not folded into the address
+
+
+def test_detect_recipient_none_when_no_marker():
+    from semantic.blocks import detect_recipient
+    assert detect_recipient("Sehr geehrte Damen und Herren, anbei ...") is None
+
+
 def test_classify_blocks_tags_a_list():
     blocks = [{"id": bid, "text": text, "bbox": bbox} for bid, text, bbox, _ in PROVINZIAL]
     tagged = classify_blocks(blocks, page_height=1000)
@@ -77,6 +91,8 @@ def test_classify_blocks_tags_a_list():
 
 if __name__ == "__main__":
     test_classify_block_on_real_provinzial_blocks(); print("PASS provinzial")
+    test_detect_recipient_separates_name_and_address(); print("PASS recipient-detect")
+    test_detect_recipient_none_when_no_marker(); print("PASS recipient-none")
     test_stamp_cue_overrides_top_position(); print("PASS stamp")
     test_footer_cue_overrides_mid_position(); print("PASS footer")
     test_recipient_block_is_body_not_header(); print("PASS recipient")

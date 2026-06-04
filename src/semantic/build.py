@@ -37,10 +37,14 @@ _ID_PROP = {"STEUERNUMMER": "steuernummer", "KASSENZEICHEN": "kassenzeichen",
 def ingest_document(graph: SemanticGraph, resolver: IdentityResolver, *,
                     source: str, sender: Optional[str] = None,
                     persons: Iterable[str] = (), entities_rec: Optional[dict] = None,
+                    recipient_name: Optional[str] = None,
+                    recipient_rec: Optional[dict] = None,
                     page_text: str = "", authority: bool = False) -> Entity:
     """Ingest one document's extractor output into the graph. Returns the
-    Document entity. `entities_rec` is the per-page dict the `entities` command
-    produces ({iban,bic,address,ids})."""
+    Document entity. `entities_rec` is the sender-region dict the `entities`
+    command produces ({iban,bic,address,ids}). `recipient_name`/`recipient_rec`
+    carry Phase-C-attributed recipient evidence (the recipient's address belongs
+    to the recipient PERSON, never the sender company)."""
     rec = entities_rec or {}
 
     doc = resolver.resolve(EntityType.DOCUMENT, keys=[("doc_id", source)],
@@ -55,13 +59,21 @@ def ingest_document(graph: SemanticGraph, resolver: IdentityResolver, *,
         graph.relate_once(doc.id, RelationType.ISSUED_BY, company.id,
                           produced_by="segment", confidence=0.8)
 
-    for person in persons:
+    # Recipient (Phase-C attribution): address → the recipient Person.
+    recipients = list(persons)
+    if recipient_name:
+        recipients = [recipient_name] + [p for p in recipients if p != recipient_name]
+    for idx, person in enumerate(recipients):
         if not person:
             continue
         p = resolver.resolve(EntityType.PERSON, keys=[("name", person)],
                              evidence=[Evidence(source, "name", person, "ner", confidence=0.7)])
         graph.relate_once(doc.id, RelationType.SENT_TO, p.id,
                           produced_by="ner", confidence=0.6)
+        if idx == 0 and recipient_rec:
+            for addr in recipient_rec.get("address", []):
+                p.attach(Evidence(source, "address", str(addr), "german_address",
+                                  confidence=0.7))
 
     # IBAN → BankAccount (strong identity), owned by the sender company.
     accounts: list[Entity] = []
@@ -76,9 +88,14 @@ def ingest_document(graph: SemanticGraph, resolver: IdentityResolver, *,
                 ev.append(Evidence(source, k, str(v), "iban", confidence=0.9))
         acct = resolver.resolve(EntityType.BANK_ACCOUNT, keys=[("iban", iban)], evidence=ev)
         accounts.append(acct)
-        owner = company or doc
-        graph.relate_once(acct.id, RelationType.BELONGS_TO, owner.id,
-                          produced_by="iban", confidence=0.6 if company else 0.3)
+        if company is not None:
+            graph.relate_once(acct.id, RelationType.BELONGS_TO, company.id,
+                              produced_by="iban", confidence=0.6)
+        else:
+            # No Agent owner known → the document only CONTAINS the account
+            # (ownership unknown). belongs_to would be a type violation.
+            graph.relate_once(doc.id, RelationType.CONTAINS, acct.id,
+                              produced_by="iban", confidence=0.3)
 
     # Page-level BICs identify the bank account; attach to the single account
     # when unambiguous, else fall back to the company/document.

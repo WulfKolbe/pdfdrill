@@ -708,25 +708,82 @@ def cmd_semantic(pdf: Path, store: str | None = None, force: bool = False) -> st
     n_before = g.entity_count()
     r = IdentityResolver(g).reindex()
 
-    full_text = "\n".join(page_text.get(p, "") for p in sorted(page_text))
-    sender = seg.sender_of(full_text)
-    is_authority = bool(re.search(r"\b(Finanzamt|Stadt|Stadtkasse|Bundes)", sender or ""))
-    rec = {"iban": [], "bic": [], "address": [], "ids": []}
+    from semantic.blocks import detect_recipient
+
+    # Per-page extractor output (the sensors).
+    page_recs: dict[int, dict] = {}
     for p in sorted(page_text):
         t = page_text[p]
+        prec = {"iban": [], "bic": [], "address": [], "ids": []}
         for f in extract_iban.extract(t, str(p)):
             parts = extract_iban.german_parts(f.value)
-            rec["iban"].append({"iban": f.value, "blz": parts.get("blz"),
-                                "konto": parts.get("konto"),
-                                "bank": _bank_near(t, f.start or 0)})
-        rec["bic"] += [f.value for f in extract_bic.extract(t, str(p))]
-        rec["address"] += [f.value for f in extract_german_address.extract(t, str(p))]
-        rec["ids"] += [(f.type, f.value) for f in extract_ids.extract(t, str(p))]
+            prec["iban"].append({"iban": f.value, "blz": parts.get("blz"),
+                                 "konto": parts.get("konto"),
+                                 "bank": _bank_near(t, f.start or 0)})
+        prec["bic"] += [f.value for f in extract_bic.extract(t, str(p))]
+        prec["address"] += [f.value for f in extract_german_address.extract(t, str(p))]
+        prec["ids"] += [(f.type, f.value) for f in extract_ids.extract(t, str(p))]
+        page_recs[p] = prec
 
-    # Persons (recipient) are deferred to Phase C (block roles) to avoid the
-    # footer Vorstand-list noise; the person path is covered by the build tests.
-    ent = ingest_document(g, r, source=key, sender=sender or None, persons=[],
-                          entities_rec=rec, page_text=full_text, authority=is_authority)
+    def _agg(pages):
+        rec = {"iban": [], "bic": [], "address": [], "ids": []}
+        for p in pages:
+            for k in rec:
+                rec[k] += page_recs.get(p, {}).get(k, [])
+        return rec, "\n".join(page_text.get(p, "") for p in pages)
+
+    def _split_recipient(rec, text):
+        """Phase-C attribution: pull the recipient (Herrn/Frau …) out of the text
+        so its address goes to the recipient Person, not the sender company."""
+        recp = detect_recipient(text)
+        if not recp:
+            return rec, None, None
+        m = re.search(r"\b(\d{5})\b", recp.get("address", ""))
+        rplz = m.group(1) if m else None
+        rec = dict(rec)
+        if rplz:                       # drop the recipient's address from the sender's
+            rec["address"] = [a for a in rec["address"] if rplz not in a]
+        return rec, recp["name"], {"address": [recp["address"]]}
+
+    def _is_auth(name):
+        return bool(re.search(r"\b(Finanzamt|Stadt|Stadtkasse|Bundes)", name or ""))
+
+    def _real_sender(name):
+        """A genuine sender name has letters and isn't just an id/number — so a
+        segment keyed on a Steuer-/Kassenzeichen value doesn't mint a pseudo-
+        company named after the number (its evidence stays document-level)."""
+        if not name or name.replace(" ", "").isdigit():
+            return None
+        return name if re.search(r"[A-Za-zÄÖÜäöüß]{3,}", name) else None
+
+    # Segment-aware: a scanned bundle is several senders → ingest each as its own
+    # document so IBANs/ids don't collapse onto one company. Single-sender PDFs
+    # ingest as one document. (continuity={} → segment by sender/id only, no slow
+    # margin OCR.)
+    per_page_ent = {p: {"ids": page_recs[p]["ids"]} for p in page_recs}
+    segments = seg.segment({}, per_page_ent, page_text)
+    identified = [d for d in segments if d.get("identifier")]
+
+    if len(identified) >= 2:
+        for d in segments:
+            rec_d, txt_d = _agg(d["pages"])
+            label = d.get("label")
+            sender = label if label and label != "(unidentified)" else seg.sender_of(txt_d)
+            sender = _real_sender(sender)
+            rec_d, rname, rrec = _split_recipient(rec_d, txt_d)
+            src = f"{key}#{d.get('identifier') or 'p' + '-'.join(map(str, d['pages']))}"
+            ingest_document(g, r, source=src, sender=sender, entities_rec=rec_d,
+                            recipient_name=rname, recipient_rec=rrec,
+                            authority=_is_auth(sender), page_text=txt_d)
+        n_docs = len(segments)
+    else:
+        rec_all, full_text = _agg(sorted(page_text))
+        sender = _real_sender(seg.sender_of(full_text))
+        rec_all, rname, rrec = _split_recipient(rec_all, full_text)
+        ingest_document(g, r, source=key, sender=sender or None, entities_rec=rec_all,
+                        recipient_name=rname, recipient_rec=rrec,
+                        authority=_is_auth(sender), page_text=full_text)
+        n_docs = 1
 
     # The compiler gate: type-check + consistency over the graph.
     result = compiler.compile(g)
@@ -776,7 +833,8 @@ def cmd_semantic(pdf: Path, store: str | None = None, force: bool = False) -> st
     valid_str = (f"compiler: {result.validity}"
                  + (f", {len(crit)} critical / {len(result.warnings)} warning(s)"
                     if result.warnings else ""))
-    head = (f"Semantic graph for {key}: {g.entity_count()} entit"
+    seg_note = f"{n_docs} segmented document(s); " if n_docs > 1 else ""
+    head = (f"Semantic graph for {key}: {seg_note}{g.entity_count()} entit"
             f"{'y' if g.entity_count() == 1 else 'ies'} "
             f"({', '.join(f'{n} {t}' for t, n in counts.items())}), "
             f"{len(g.relations)} relation(s) [{rel_str}] — {valid_str} → "

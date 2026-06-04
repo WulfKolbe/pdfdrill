@@ -80,6 +80,42 @@ def classify_blocks(blocks: list[dict[str, Any]],
     return blocks
 
 
+_PLZ_CITY = re.compile(r"\b\d{5}\s+[A-ZÄÖÜ]")
+
+
+def detect_recipient(text: str) -> Optional[dict[str, str]]:
+    """Text-level recipient extraction (Phase-C attribution without bbox): find a
+    `Herrn/Frau/Firma …` block and split it into {name, address}. The name is the
+    line after a bare marker (or the marker line minus the marker); the address is
+    the following street + PLZ-city lines, name excluded. Returns None if no
+    recipient marker is present."""
+    lines = [ln.strip() for ln in (text or "").splitlines()]
+    for i, ln in enumerate(lines):
+        if not _RECIPIENT.match(ln):
+            continue
+        block: list[str] = []
+        for s in lines[i:]:
+            if not s and block:
+                break
+            if s:
+                block.append(s)
+            if _PLZ_CITY.search(s) and len(block) > 1:
+                break
+            if len(block) >= 5:
+                break
+        if not block:
+            continue
+        marker = block[0]
+        rest = block[1:]
+        if re.fullmatch(r"(Herrn|Herr|Frau|Firma|An\s+den|An\s+die)", marker, re.I) and rest:
+            name, addr_lines = rest[0], rest[1:]
+        else:
+            name = re.sub(r"^(Herrn|Herr|Frau|Firma)\s+", "", marker, flags=re.I)
+            addr_lines = rest
+        return {"name": name, "address": ", ".join(addr_lines)}
+    return None
+
+
 def is_sender_region(role: str) -> bool:
     return role in (BlockRole.HEADER.value, BlockRole.FOOTER.value)
 
