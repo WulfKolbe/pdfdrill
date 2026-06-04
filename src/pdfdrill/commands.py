@@ -939,6 +939,100 @@ def cmd_semantic(pdf: Path, store: str | None = None, force: bool = False) -> st
 # file-based: results land in the sidecar, not in an LLM context window).
 # ===========================================================================
 
+def cmd_ordered(pdf: Path, threshold: float = 0.5) -> str:
+    """Segment an ORDERED page stack into documents (continuity_scorer).
+
+    For a straight scan whose page order is preserved (NAPS2 etc.): score each
+    adjacent-page GAP from page numbers / semantics / entities / letterhead /
+    Deutsche Post tracking codes, and cut where the boundary score crosses
+    `--threshold`. Two-level: the DataMatrix tracking codes give a HARD outer
+    MAILING grouping (one envelope), the soft signals refine letter-vs-enclosure
+    inside it. Each document carries commercial provenance (sender=publisher,
+    receiver=explicit audience) projectable to BibTeX. (For a SHUFFLED bundle use
+    `pdfdrill segment` instead.)
+    """
+    from . import continuity_scorer as csr
+    from . import segment as seg, qrscan, ocr_lines, geometry
+    from semantic.blocks import detect_recipient
+
+    sc = Sidecar(pdf)
+    # Per-PHYSICAL-page OCR (full German page text) — the ordered scorer needs
+    # complete per-page text for the semantic/structural signals; the MathPix
+    # logical model fragments pages and makes BoW cosine collapse to 0 (over-cut).
+    ok, msg = ocr_lines.tools_available()
+    if not ok:
+        return f"`ordered` needs per-page OCR: {msg}"
+    words, _dims = ocr_lines._render_and_ocr(pdf, sc.blob_dir / "ordered_pages", 200, "deu+eng")
+    by_page: dict[int, list] = {}
+    for ln in geometry.group_lines(words):
+        by_page.setdefault(ln["page"], []).append(ln["text"])
+    # drop blank backsides (a duplex scan's empty pages)
+    page_text = {p: "\n".join(v) for p, v in by_page.items()
+                 if len("\n".join(v).strip()) >= 25}
+
+    qr_by_page: dict[int, list] = {}
+    try:
+        if qrscan.tools_available()[0]:
+            for f in qrscan.scan_pdf(pdf, sc.blob_dir / "qr_pages", dpi=300):
+                qr_by_page.setdefault(f.get("page"), []).append(f)
+    except Exception:
+        pass
+
+    _bank = re.compile(r"\b(Bank|Sparkasse|Commerzbank|Volksbank|Raiffeisen|Postbank|Bankhaus)\b", re.I)
+    pages = []
+    for p in sorted(page_text):
+        text = page_text[p]
+        sender = seg.sender_of(text) or None
+        if sender and _bank.search(sender):
+            sender = None                       # the payee's bank, not the issuer
+        recp = detect_recipient(text)
+        tracking = epc_name = None
+        for f in qr_by_page.get(p, []):
+            if f.get("epc"):
+                epc_name = f["epc"].get("name") or epc_name
+            c = (f.get("content") or "")
+            if c.isdigit() and len(c) >= 12 and (tracking is None or len(c) > len(tracking)):
+                tracking = c
+        sender = sender or epc_name             # GiroCode creditor supplies the issuer
+        pages.append(csr.PageFeatures(
+            index=p, text=text, sender=sender,
+            receiver=recp["name"] if recp else None, tracking_code=tracking))
+
+    res = csr.segment(pages, threshold=threshold)
+
+    sc.set_evidence("ordered_documents", res["documents"])
+    sc.set_evidence("ordered_mailings", res["mailings"])
+    sc.add_fact("ORDERED_BUILT")
+    sc.log_transition("ordered", ",".join(sorted(sc.facts - {"ORDERED_BUILT"})) or "INIT",
+                      "ORDERED_BUILT", detail=f"{res['n_documents']} docs, {len(res['mailings'])} mailings")
+    sc.save()
+
+    lines = [f"ORDERED SEGMENTATION {resolve_bibkey(pdf, None, sc)} · "
+             f"{res['n_pages_in']} pages → {res['n_documents']} document(s) in "
+             f"{len(res['mailings'])} mailing(s) (threshold {threshold}).",
+             ""]
+    if res["mailings"]:
+        lines.append("MAILINGS (hard outer grouping — Deutsche Post tracking codes)")
+        for m, ps in sorted(res["mailings"].items()):
+            lines.append(f"  {m}: pages {ps}")
+        lines.append("")
+    lines.append("DOCUMENTS")
+    for d in res["documents"]:
+        pv = d["provenance"]
+        mail = f" [{d['mailing']}]" if d["mailing"] else ""
+        lines.append(f"  doc{d['index']} pages {d['pages']}{mail} — {d['proposed_filename']}")
+        lines.append(f"    publisher(sender)={pv['sender'] or '?'} · "
+                     f"receiver={pv['receiver'] or '?'} · type={pv['doctype']} · date={pv['date'] or '?'}")
+    lines.append("")
+    lines.append("GAP DECISIONS (why each cut/keep — for the LLM)")
+    for g in res["gaps"]:
+        verdict = "CUT" if g["is_cut"] else "keep"
+        why = g["reason"] or ", ".join(f"{s['name']}={s['evidence']}" for s in g["signals"])
+        lines.append(f"  {g['gap']}: B={g['boundary_score']} → {verdict}"
+                     + (" (hard)" if g["hard"] else "") + f"  [{why}]")
+    return "\n".join(lines)
+
+
 def cmd_qr(pdf: Path, dpi: int = 300, pages: str | None = None,
            formats: str | None = None) -> str:
     """Scan for QR codes & barcodes — confirmation data the text layer can't give.

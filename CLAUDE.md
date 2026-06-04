@@ -241,6 +241,44 @@ correctly filtered as sub-1KB). Tests: `tests/test_pdf_reading.py` (pure page-
 spec/pdfdetach/markdown helpers + graceful no-form/no-table + pypdf-built-PDF
 rasterize/attachments round-trips).
 
+## Ordered-stack segmentation (`pdfdrill ordered` — gap scoring + tracking codes)
+
+For a straight scan whose page order is preserved (NAPS2 etc.), segment by
+scoring each adjacent-page GAP. `src/pdfdrill/continuity_scorer.py` (vendored
+from a reviewed prototype) fuses weighted, **abstaining** signals — page-number
+reset, embedding/BoW dissimilarity, entity (sender/doc#/date) change,
+header/footer distance, letterhead — and cuts where the boundary score crosses
+`--threshold`. Complements (does NOT replace) `pdfdrill segment`, which groups a
+SHUFFLED bundle by signature value.
+
+- **Two-level via Deutsche Post DataMatrix tracking codes.** `qrscan` decodes the
+  franking codes; pages sharing a trailing **batch id** (`same_mailing`, longest
+  common suffix ≥12) form a HARD outer **mailing** (one envelope); the soft
+  scorer refines letter-vs-enclosure INSIDE it. A different batch on an adjacent
+  page is a hard boundary.
+- **Commercial provenance → BibTeX.** A commercial document is a sender↔receiver
+  contract: the **sender is the publisher** (its employees are the authors), and
+  the **receiver is a NEW explicit field** (the audience a journal name leaves
+  implicit). `to_bibtex` projects each document to a BibTeX-like record with
+  `publisher`/`institution` = sender and a non-standard `receiver` field;
+  it round-trips back into the document.
+- **`pdfdrill ordered <pdf> [--threshold 0.5]`** builds `PageFeatures` from
+  per-PHYSICAL-page tesseract OCR (full German page text; drops blank duplex
+  backsides) + `sender_of` (bank names rejected — the GiroCode creditor supplies
+  the issuer) + `detect_recipient` + the QR/tracking codes, runs the scorer, and
+  emits documents + mailings + per-gap **explainability** (why each cut/keep, for
+  the LLM).
+- **Two fixes over the prototype** (both TDD'd): #1 a LEADING separator's QR
+  payload now names the first document; #3 a bare `N/M` is read as a page number
+  only in header/footer bands, never from body prose (`1/2 Tasse` is not a page).
+- Verified on the real AOK duplex scan: blanks 1/3/5 dropped → mailing `M1=[2,4,6]`
+  (tracking codes), doc `[2,4]` = Mahnung (publisher **AOK Rheinland/Hamburg**,
+  from the GiroCode), doc `[6]` = the Auflistung statement — your two-level model,
+  reproduced. **Honest caveat:** feeding the scorer the MathPix *logical* model
+  instead of per-physical-page OCR over-segments (fragmented page text collapses
+  BoW cosine); the per-page-OCR path is the correct input. Tests:
+  `tests/test_continuity_scorer.py`.
+
 ## QR / barcode confirmation (`pdfdrill qr`, integrated into `semantic`)
 
 Codes carry data the text layer can't: a **GiroCode/EPC** payment QR encodes the
