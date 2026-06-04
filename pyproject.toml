@@ -53,4 +53,4 @@ pdfdrill = "pdfdrill.cli:main"
 
 [tool.setuptools.packages.find]
 where = ["src"]
-include = ["pdfdrill*", "docmodel*", "docops*", "features*"]
+include = ["pdfdrill*", "docmodel*", "docops*", "features*", "semantic*"]

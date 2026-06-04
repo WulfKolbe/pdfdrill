@@ -372,6 +372,60 @@ nested objects, named real libraries, no Stanza/heavy-NLP here).
   would add a thin `pdfdrill features` command + persist Features alongside the
   model).
 
+## Semantic graph layer (`src/semantic/`, the CSP model — graph-first, in progress)
+
+A NEW, additive package implementing the **semantic-compiler** direction: a
+domain-agnostic, evidence-backed, typed **entity/relation graph** where **the
+graph is the primary artifact and extractors are sensors that emit evidence**.
+The inversion from flat extraction: an address/IBAN/VAT is *evidence pointing at
+a Company*, not the primary object — the Company is the entity, and it
+**accumulates evidence across documents over time** (so a chunk store can't track
+identity, but this can). One model unifies scientific (paper/formula/citation/
+concept) and commercial (company/person/invoice/bank-account) documents because
+`provenance`/`contains`/`derived_from`/`cites` are domain-agnostic. CSP layers:
+
+- **Entity layer** (`entity.py`): `Entity{id, type (EntityType), subtype,
+  evidence[]}`; properties are *derived* from accumulated evidence (best value by
+  confidence, ties→recency), never set directly. `EntityType` spans both domains
+  (person/company/authority/bank/department, paper/document, formula/image/table/
+  citation/concept, bank_account, event).
+- **Evidence** (`evidence.py`): the Proof-Layer primitive — `Evidence{source,
+  prop, value, produced_by, version, confidence, grounding}`. The atomic
+  observation a sensor emits.
+- **Relation layer** (`relation.py`): `Relation{subject, predicate
+  (RelationType), object, confidence, produced_by, version, grounding}`. Predicate
+  vocab = the CSP set (cites/derived_from/explains/contains/contradicts/
+  implements) + commercial (owns/sender/receiver/represented_by/acts_for/
+  publishes/belongs_to/issued_by/sent_to/has_attachment/references).
+- **IdentityResolver** (`identity.py`) — the heart: `find_existing_entity` /
+  `create_entity` / `attach_evidence`, composed by `resolve(type, keys, evidence)`
+  = find-or-create + attach. Strong keys (iban/vat/bic/email/tax_id/…) are indexed
+  when attached, so a later document mentioning only the IBAN resolves to the
+  company first seen by name. Soft keys (name/title) match on normalised exact for
+  now (fuzzy via rapidfuzz is a later refinement — entities merge only on strong
+  evidence).
+- **SemanticGraph** (`graph.py`): the primary artifact — entities + relations,
+  `relate`/`relations_of`/`relations_to`, JSON `to_dict`/`from_dict` (sidecar +
+  cross-document persistence; id counters restored on load).
+- **Proof layer** (`proof.py`): `created_by`/`processes`/`versions`/`sources`/
+  `evidence_supporting`/`explain` — answers why a node exists, what evidence
+  supports it, which process+version produced it.
+
+Built **test-first** (`tests/test_semantic_graph.py`, 9 tests): evidence
+provenance, evidence→property derivation, cross-document company unification,
+address/IBAN-as-evidence-not-entity, strong-key resolution, typed relations with
+provenance, the scientific∧commercial unification proof (one graph, same
+primitives), proof-layer queries, JSON round-trip. **Decisions** (per the user):
+build in `src/semantic/` AND write validated results back into docmodel so
+existing projectors render them (next phases); **deterministic-primary** (IR built
+from pdfdrill's validated extractors — features/entities/elements/segment+
+libpostal as evidence producers); the GPT-4o page pass (`rasterize`+`vision`) is
+an **optional gap-filler / second opinion**, not the source of truth. NOT yet
+wired into the CLI. Next phases: (B) evidence-producer adapters from the existing
+extractors + the docmodel write-back; (C) block-role classifier; (D) the
+type-checking/grounding **compiler** (relation signature table + grounding
+verification + consistency pass) as a validation gate; (E) the optional LLM pass.
+
 ## Roadmap (decomposed — each phase gets its own spec + plan)
 
 - **Phase 1 — Unified model + capture** *(in progress)*: extend `docmodel`
