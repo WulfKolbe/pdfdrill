@@ -299,19 +299,25 @@ to `$FONT_CLASSIFY_DIR`/`~/.cache/pdfdrill` via `net.urlopen` (graceful when
 blocked). Votes across crops; reports the dominant font + agreement + mean
 confidence.
 
-**HONEST verdict (verified):** the model is reliable on *distinctive* faces
-(script/brush/blackletter/italics → 0.7–0.99) but **weak on scanned generic
-sans-serifs** — it confuses Roboto-Regular with Kosugi/Inconsolata even on a
-clean render, and the 3473 classes are **Google-Fonts only** (Arial/Helvetica =
-no clean class; Computer/Latin Modern absent → Times-ish neighbour Tinos/STIX).
-On the AOK scan it correctly **self-flags**: dominant guess at 25% agreement /
-0.36 conf with a ⚠ LOW-confidence warning, output labelled "VISUAL estimate …
-not the literal embedded font". So it fills the empty-fonts-on-OCR gap as an
-opt-in **best-effort that flags its own unreliability** — trustworthy for
-Google-Fonts/designed PDFs, a weak hint on scanned standard mail. Optional
-`[fontid]` extra (onnxruntime + opencv + pyyaml). Tests:
-`tests/test_font_classify.py` (tools/availability, vote aggregation, preprocess
-shape + inference when the model is cached).
+**WORD-level crops (the tuning that makes the pipeline work).** A word's ~5:1
+aspect fills the model's square ResizeWithPad box; a full LINE's ~20:1 strip gets
+shrunk to a thin band and degrades discrimination. `cmd_fontid` classifies
+tesseract word boxes (≥5 alpha chars, ≥40 px wide) and votes. This took a page
+rendered in Roboto-MediumItalic from **wrong** (line crops → `Sarabun-SemiBoldItalic`,
+75%/0.75) to **right** (word crops → `Roboto-MediumItalic`, 14/14 = 100%, conf
+0.932) — matching the direct-render accuracy.
+
+**HONEST verdict (verified):** on clean / in-class renders the classifier works —
+**62% exact top-1, 85% top-3** across 39 Latin in-class system fonts, **0.9–0.99
+on distinctive faces**, and the full word-crop pipeline reproduces that (Roboto
+page → 100%/0.93). The 3473 classes are **Google-Fonts only** (Arial/Helvetica =
+no clean class; Computer/Latin Modern absent → Tinos/STIX neighbour), so a
+**scanned standard-font** doc (AOK: noisy scan + Arial-not-a-class) still classes
+poorly and **self-flags** (16% agreement / 0.25 conf, ⚠ LOW-confidence). So:
+trustworthy for Google-Fonts/designed PDFs, a flagged weak hint on scanned
+standard mail — and it never claims a low-confidence guess as fact. Optional
+`[fontid]` extra (onnxruntime + opencv + pyyaml); ~61 MB model fetched on demand.
+Tests: `tests/test_font_classify.py`.
 
 ## Spellcheck / de-hyphenation QC (`pdfdrill spellqc`, on-demand hunspell)
 

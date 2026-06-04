@@ -1147,23 +1147,29 @@ def cmd_fontid(pdf: Path, pages: str | None = None, limit: int = 12,
         res = subprocess.run(["tesseract", str(img_path), "-", "--psm", "1", "tsv"],
                              capture_output=True, text=True)
         words, _ = geometry.parse_tsv(res.stdout)
-        wide = sorted([l for l in geometry.group_lines(words)
-                       if (l["x1"] - l["x0"]) > 250 and len(l["text"].strip()) > 12],
-                      key=lambda l: -(l["x1"] - l["x0"]))
-        for l in wide:
+        # WORD-level crops: a word's ~5:1 aspect fills the classifier's square box
+        # far better than a full line's ~20:1 strip (which ResizeWithPad shrinks to
+        # a thin band). Prefer long, alphabetic words for maximum glyph signal.
+        cands = sorted(
+            (w for w in words
+             if len(re.sub(r"[^A-Za-zÄÖÜäöüß]", "", w["text"])) >= 5
+             and (w["x1"] - w["x0"]) >= 40 and (w["y1"] - w["y0"]) >= 10),
+            key=lambda w: -(w["x1"] - w["x0"]))
+        for w in cands:
             if len(top1s) >= limit:
                 break
-            y0, y1 = int(l["y0"]), int(l["y1"])
-            x0, x1 = int(l["x0"]), int(l["x1"])
-            crop = page_img[max(0, y0 - 3):y1 + 3, max(0, x0 - 3):x1 + 3]
+            y0, y1 = int(w["y0"]), int(w["y1"])
+            x0, x1 = int(w["x0"]), int(w["x1"])
+            pad = max(3, (y1 - y0) // 6)
+            crop = page_img[max(0, y0 - pad):y1 + pad, max(0, x0 - pad):x1 + pad]
             pred = fc.classify_crop(crop, k=1)
             if pred:
                 top1s.append(pred[0])
-                per_line.append((l["text"][:30], pred[0]))
+                per_line.append((w["text"][:24], pred[0]))
 
     agg = fc.aggregate(top1s)
     if agg is None:
-        return f"No classifiable text lines found in {pdf.name}."
+        return f"No classifiable words found in {pdf.name}."
     sc.set_evidence("fontid", agg)
     sc.add_fact("FONTID_BUILT")
     sc.save()
@@ -1172,7 +1178,7 @@ def cmd_fontid(pdf: Path, pages: str | None = None, limit: int = 12,
     flag = ("" if reliable else
             "  ⚠ LOW confidence/agreement — treat as a WEAK HINT: the Google-Fonts-"
             "only model is unreliable on scanned/generic sans-serif text.")
-    out = [f"FONTID {pdf.name} (VISUAL estimate — no font layer; {len(top1s)} line "
+    out = [f"FONTID {pdf.name} (VISUAL estimate — no font layer; {len(top1s)} word "
            f"crops): dominant '{agg['font']}' — {agg['votes']}/{agg['total']} crops "
            f"agree ({int(agg['agreement'] * 100)}%), mean conf {agg['mean_conf']}.{flag}",
            "Per-crop top-1 (Google-Fonts classes only; not the literal embedded font):"]
