@@ -894,6 +894,89 @@ def cmd_semantic(pdf: Path, store: str | None = None, force: bool = False) -> st
 # file-based: results land in the sidecar, not in an LLM context window).
 # ===========================================================================
 
+def cmd_selftest(target: Path, full: bool = False) -> str:
+    """Diagnostic grid: run the command battery across a PDF (or every PDF in a
+    folder), capture OK/ERROR + the actual one-line result/error per command, and
+    write a full log. So 'it failed' becomes a reproducible grid we can both read,
+    instead of cherry-picked verification. `--full` adds the heavy OCR/model
+    commands (entities/elements/semantic)."""
+    import traceback as _tb
+
+    tp = Path(target)
+    pdfs = sorted(tp.glob("*.pdf")) if tp.is_dir() else [tp]
+    pdfs = [p for p in pdfs if p.exists()]
+    if not pdfs:
+        return f"No PDF(s) at {target}."
+
+    core = [
+        ("doctor", lambda p: cmd_doctor()),
+        ("size", cmd_size), ("pdfinfo", cmd_pdfinfo), ("fonts", cmd_fonts),
+        ("links", cmd_links), ("dests", cmd_dests), ("images", cmd_images),
+        ("md", cmd_md), ("rasterize", lambda p: cmd_rasterize(p, pages="1", dpi=100)),
+        ("attachments", cmd_attachments), ("formfields", cmd_formfields),
+        ("tables", lambda p: cmd_tables(p, pages="1")),
+    ]
+    heavy = [("entities", cmd_entities), ("elements", lambda p: cmd_elements(p)),
+             ("semantic", lambda p: cmd_semantic(p))]
+    battery = core + (heavy if full else [])
+
+    results: dict[str, list[tuple]] = {}
+    for pdf in pdfs:
+        rows = []
+        for label, fn in battery:
+            try:
+                out = (fn(pdf) or "").strip()
+                first = out.splitlines()[0][:140] if out else "(empty output)"
+                # heuristic 3rd state: ran but not-applicable / degraded
+                low = first.lower()
+                degraded = any(s in low for s in (
+                    "no text layer", "scanned pdf", "no embedded", "no interactive",
+                    "no tables", "no model", "not installed", "needs ", "appears blocked",
+                    "no element source", "refusing", "(empty", "no commercial",
+                    "0 word", "no raster", "no pages"))
+                status = "skip" if degraded else "ok"
+                rows.append((label, status, first))
+            except Exception as e:
+                rows.append((label, "ERROR", f"{type(e).__name__}: {e}".replace("\n", " ")[:140],
+                             _tb.format_exc()))
+        results[str(pdf)] = rows
+
+    mark = {"ok": "✓", "skip": "⊘", "ERROR": "✗"}
+    lines, log = [], []
+    n_ok = n_skip = n_err = 0
+    for pdf, rows in results.items():
+        name = Path(pdf).name
+        lines.append(f"\n### {name}")
+        lines.append("| command | status | result / error (first line) |")
+        lines.append("|---|:---:|---|")
+        for row in rows:
+            label, status, first = row[0], row[1], row[2]
+            lines.append(f"| {label} | {mark[status]} | {first} |")
+            log.append(f"[{name}] {label}: {status}\n    {first}")
+            if status == "ok":
+                n_ok += 1
+            elif status == "skip":
+                n_skip += 1
+            else:
+                n_err += 1
+                if len(row) > 3:
+                    log.append("    --- traceback ---\n" + row[3])
+
+    # save full log
+    out_dir = tp if tp.is_dir() else (Sidecar(pdfs[0]).blob_dir)
+    out_dir.mkdir(parents=True, exist_ok=True)
+    log_path = out_dir / "selftest.log"
+    log_path.write_text("\n".join(log), encoding="utf-8")
+
+    head = (f"pdfdrill selftest — {len(pdfs)} document(s) × {len(battery)} commands: "
+            f"{n_ok} ✓ ran, {n_skip} ⊘ n/a-or-degraded, {n_err} ✗ ERROR. "
+            f"Full log + tracebacks: {log_path}.  "
+            f"(✓=returned a result, ⊘=ran but not-applicable/needs-a-tool, "
+            f"✗=raised — see log.)" + ("  Pass --full for entities/elements/semantic."
+                                       if not full else ""))
+    return head + "\n" + "\n".join(lines)
+
+
 def cmd_rasterize(pdf: Path, pages: str | None = None, dpi: int = 150,
                   fmt: str = "png", force: bool = False) -> str:
     """Rasterize page(s) to images for visual inspection (the skill's core op).
