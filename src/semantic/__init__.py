@@ -20,8 +20,8 @@ from .graph import SemanticGraph
 from .identity import IdentityResolver
 from .relation import Relation, RelationType
 from .blocks import BlockRole, classify_block, classify_blocks
-from . import proof
+from . import proof, compiler
 
 __all__ = ["Entity", "EntityType", "Evidence", "SemanticGraph", "IdentityResolver",
            "Relation", "RelationType", "BlockRole", "classify_block",
-           "classify_blocks", "proof"]
+           "classify_blocks", "proof", "compiler"]

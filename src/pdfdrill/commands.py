@@ -680,7 +680,7 @@ def cmd_semantic(pdf: Path, store: str | None = None, force: bool = False) -> st
     from semantic.graph import SemanticGraph
     from semantic.identity import IdentityResolver
     from semantic.build import ingest_document
-    from semantic import proof
+    from semantic import proof, compiler
     from . import segment as seg
 
     sc = Sidecar(pdf)
@@ -728,8 +728,14 @@ def cmd_semantic(pdf: Path, store: str | None = None, force: bool = False) -> st
     ent = ingest_document(g, r, source=key, sender=sender or None, persons=[],
                           entities_rec=rec, page_text=full_text, authority=is_authority)
 
+    # The compiler gate: type-check + consistency over the graph.
+    result = compiler.compile(g)
+
     sc.blob_dir.mkdir(parents=True, exist_ok=True)
-    blob = json.dumps(g.to_dict(), ensure_ascii=False, indent=2)
+    graph_out = g.to_dict()
+    graph_out["validity"] = result.validity
+    graph_out["warnings"] = result.to_dict()["warnings"]
+    blob = json.dumps(graph_out, ensure_ascii=False, indent=2)
     sem_path.write_text(blob, encoding="utf-8")
     if store_path:
         store_path.write_text(blob, encoding="utf-8")
@@ -740,9 +746,12 @@ def cmd_semantic(pdf: Path, store: str | None = None, force: bool = False) -> st
     sc.add_fact(SEMANTIC_BUILT)
     sc.set_evidence("semantic_entities", g.entity_count())
     sc.set_evidence("semantic_relations", len(g.relations))
+    sc.set_evidence("semantic_validity", result.validity)
+    sc.set_evidence("semantic_warnings", len(result.warnings))
     sc.set_evidence("semantic_path", str(sem_path.relative_to(sc.pdf_path.parent)))
     sc.log_transition("semantic", prev, SEMANTIC_BUILT,
-                      detail=f"{g.entity_count()} entities, {len(g.relations)} relations")
+                      detail=f"{g.entity_count()} entities, {len(g.relations)} "
+                             f"relations, {result.validity}")
     sc.save()
 
     lines = []
@@ -763,12 +772,19 @@ def cmd_semantic(pdf: Path, store: str | None = None, force: bool = False) -> st
     rel_str = ", ".join(f"{k}×{v}" for k, v in sorted(rels.items())) or "—"
     accumulated = (f" (+{g.entity_count() - n_before} new this doc; store now "
                    f"holds {g.entity_count()})" if store_path else "")
+    crit = result.critical()
+    valid_str = (f"compiler: {result.validity}"
+                 + (f", {len(crit)} critical / {len(result.warnings)} warning(s)"
+                    if result.warnings else ""))
     head = (f"Semantic graph for {key}: {g.entity_count()} entit"
             f"{'y' if g.entity_count() == 1 else 'ies'} "
             f"({', '.join(f'{n} {t}' for t, n in counts.items())}), "
-            f"{len(g.relations)} relation(s) [{rel_str}] → {sem_path.name}{accumulated}. "
+            f"{len(g.relations)} relation(s) [{rel_str}] — {valid_str} → "
+            f"{sem_path.name}{accumulated}. "
             f"Extractors are sensors; evidence accumulates on entities (⟵ source docs):")
-    return head + "\n" + ("\n".join(lines) if lines else "  (no agent entities yet)")
+    warn_lines = [f"  ⚠ [{w.severity}/{w.code}] {w.message}" for w in result.warnings[:8]]
+    body = "\n".join(lines) if lines else "  (no agent entities yet)"
+    return head + "\n" + body + ("\n" + "\n".join(warn_lines) if warn_lines else "")
 
 
 # ===========================================================================

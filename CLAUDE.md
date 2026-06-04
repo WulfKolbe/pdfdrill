@@ -416,15 +416,42 @@ provenance, evidence→property derivation, cross-document company unification,
 address/IBAN-as-evidence-not-entity, strong-key resolution, typed relations with
 provenance, the scientific∧commercial unification proof (one graph, same
 primitives), proof-layer queries, JSON round-trip. **Decisions** (per the user):
-build in `src/semantic/` AND write validated results back into docmodel so
-existing projectors render them (next phases); **deterministic-primary** (IR built
-from pdfdrill's validated extractors — features/entities/elements/segment+
-libpostal as evidence producers); the GPT-4o page pass (`rasterize`+`vision`) is
-an **optional gap-filler / second opinion**, not the source of truth. NOT yet
-wired into the CLI. Next phases: (B) evidence-producer adapters from the existing
-extractors + the docmodel write-back; (C) block-role classifier; (D) the
-type-checking/grounding **compiler** (relation signature table + grounding
-verification + consistency pass) as a validation gate; (E) the optional LLM pass.
+build in `src/semantic/`; **deterministic-primary** (IR from pdfdrill's validated
+extractors); the GPT-4o page pass is an **optional gap-filler**, not the source.
+
+**Phase B (done) — evidence producers + `pdfdrill semantic`.** `build.py`
+`ingest_document` turns extractor output into Evidence via the resolver: sender→
+Company/Authority (doc `issued_by`), IBAN→BankAccount (`belongs_to` company),
+BIC/blz/konto/bank→evidence on the account, Steuer-/Kassen-/Aktenzeichen+address→
+evidence on the company (conservative, confidence-labelled; refined by Phase C).
+`graph.relate_once`/`has_relation` dedupe edges; `identity.reindex()` resumes
+accumulation from a loaded graph. **`pdfdrill semantic <pdf> [--store graph.json]`**
+persists `<bibkey>.semantic.json`; `--store` accumulates **across documents** (run
+over many PDFs → one Company gathers evidence from all). Verified: ocrtest2 → 1
+company + 14 bank accounts; adding the front scan to the same store grew it to 18
+entities/2 docs with the second sender resolving into the SAME company. Caveat: on
+a multi-document bundle all IBANs attach to the single detected sender
+(segment-aware ingestion is future). Tests: `tests/test_semantic_build.py`.
+
+**Phase C (done) — block-role classifier.** `blocks.py` `classify_block(text,
+bbox)` → header/footer/body/table/signature/stamp/other; content cues override
+position (franking→stamp, HRB/USt-ID/Vorstand→footer, "Herrn …"→body recipient,
+"bitte wenden"→other). `is_sender_region`/`is_recipient_region` feed attribution.
+TDD against the real Provinzial-letter blocks. Tests: `tests/test_semantic_blocks.py`.
+
+**Phase D (done) — the compiler/validator.** `compiler.py` `compile(graph,
+blocks=None) → CompileResult{validity, warnings}`: a relation `SIGNATURE_TABLE`
+type-check, grounding verification (cited `evidence_text` must occur in the cited
+block — pdfdrill's edge: it HAS the OCR text), dangling-reference + `derived_from`
+cycle (DAG) + functional-relation contradiction checks. `pdfdrill semantic` runs
+it and reports `compiler: valid/invalid` (+ writes `validity`/`warnings` into the
+graph JSON). Catches exactly the LLM-test failure modes (type violations,
+over-linking, ungrounded edges). Tests: `tests/test_semantic_compiler.py`.
+
+**Next:** (E) the optional GPT-4o page pass (`rasterize`+`vision`, the v3.0
+prompt) as a second-opinion proposer validated by the Phase-D compiler; the
+docmodel write-back so existing projectors render the graph; segment-aware
+ingestion + Phase-C-driven sender/recipient attribution.
 
 ## Roadmap (decomposed — each phase gets its own spec + plan)
 
