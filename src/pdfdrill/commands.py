@@ -448,8 +448,10 @@ def _page_lines_from_model(doc) -> dict:
     for a in mp.anchors:
         p = mp.payload[a]
         region = p.get("region")
-        text = p.get("text_display") or p.get("text") or ""
-        if region and text.strip() and p.get("_page") is not None:
+        # use the clean `text` (text_display carries layout newlines that would
+        # split a multi-line recipient block with spurious blank lines)
+        text = (p.get("text") or p.get("text_display") or "").strip()
+        if region and text and p.get("_page") is not None:
             pages.setdefault(p["_page"], []).append({"text": text, "region": region})
     return pages
 
@@ -1134,13 +1136,18 @@ def cmd_model(pdf: Path, force: bool = False, bibkey: str | None = None) -> str:
     sc = Sidecar(pdf)
     model_path = _model_path(sc)
     key = resolve_bibkey(pdf, bibkey, sc)
+    lines_path = _lines_json_path(pdf)
     # A new explicit --bibkey forces a rebuild so titles/meta pick it up.
     if bibkey and key != sc.get_evidence("bibkey"):
         force = True
-    if sc.has(MODEL_BUILT) and model_path.exists() and not force:
+    # Auto-rebuild if the lines.json is NEWER than the model — e.g. MathPix
+    # replaced an earlier tesseract OCR. Otherwise a stale, garbled model would
+    # shadow the better OCR (the AOK 'Kürten'→'Kirten' bug).
+    stale = (lines_path.exists() and model_path.exists()
+             and lines_path.stat().st_mtime > model_path.stat().st_mtime)
+    if sc.has(MODEL_BUILT) and model_path.exists() and not force and not stale:
         return _format_model(sc)
 
-    lines_path = _lines_json_path(pdf)
     if not lines_path.exists():
         # Prefer MathPix (gives LaTeX + CDN crops). On ANY failure — no creds,
         # network blocked in the sandbox, or a graceful message returned — fall
@@ -3885,6 +3892,30 @@ def cmd_md(pdf: Path, pages: str | None = None) -> str:
         cmd_fonts(pdf)
 
     sc = Sidecar(pdf)
+
+    # A SCANNED PDF has no text layer — pdfplumber/pdftotext markdown is empty.
+    # If MathPix already produced `<stem>.md`, SERVE that (the real OCR markdown)
+    # into the md layer so `md`/`fetch md` return content, not an empty blob.
+    if sc.get_evidence("needs_ocr"):
+        mathpix_md = pdf.parent / f"{pdf.stem}.md"
+        if mathpix_md.exists() and mathpix_md.stat().st_size > 0:
+            md_text = mathpix_md.read_text(encoding="utf-8")
+            sc.write_blob("md.md", md_text)
+            sc.set_layer("md", {"blob": "md.md", "words": len(md_text.split()),
+                                "source": "mathpix",
+                                "built_at": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())})
+            sc.add_fact(MD_BUILT)
+            sc.save()
+            return (f"Markdown from MathPix OCR ({len(md_text.split())} words) — "
+                    f"{pdf.name} is scanned (no text layer), served from "
+                    f"{mathpix_md.name}. Use `pdfdrill fetch {pdf.name} md` to retrieve.")
+        lp = _lines_json_path(pdf)
+        hint = (f"A MathPix lines.json is present but no `{pdf.stem}.md` — re-run "
+                f"`pdfdrill mathpix {pdf.name}`." if lp.exists() else
+                f"Run `pdfdrill mathpix {pdf.name}` (OCR markdown; needs MathPix "
+                f"creds) or `pdfdrill ocr {pdf.name}` (keyless tesseract).")
+        return (f"{pdf.name} is a SCANNED PDF (no text layer) — `pdfdrill md` "
+                f"extracts the text layer and finds nothing. {hint}")
 
     if sc.has(MD_BUILT) and pages is None:
         md_meta = sc.get_layer("md") or {}

@@ -103,6 +103,8 @@ def is_substantive_marker(text: str, role: Optional[str] = None) -> bool:
     margin strip or scan edge. A page_number keeps a bare digit; everything else
     needs ≥3 chars with a ≥2-char alphanumeric run."""
     t = (text or "").strip()
+    if t.startswith("![") or t.startswith("http") or t.startswith("\\includegraphics"):
+        return False                       # a MathPix image placeholder, not a marker
     if role == "page_number" and re.search(r"\d", t):
         return True
     return len(t) >= 3 and bool(re.search(r"[A-Za-zÄÖÜäöüß0-9]{2,}", t))

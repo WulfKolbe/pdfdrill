@@ -92,6 +92,7 @@ def test_is_substantive_marker_filters_scan_noise():
     assert is_substantive_marker("725.356.194.433")
     assert is_substantive_marker("5", role="page_number")    # page number kept
     assert not is_substantive_marker("5")                    # bare digit, no role → dropped
+    assert not is_substantive_marker("![](https://cdn.mathpix.com/cropped/x.jpg)")  # image, not a marker
 
 
 if __name__ == "__main__":

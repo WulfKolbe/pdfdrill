@@ -44,6 +44,7 @@ def attribute(lines: list[dict[str, Any]]) -> Attribution:
 
     sender_parts: list[str] = []
     body_parts: list[str] = []
+    scan_parts: list[str] = []          # for the recipient: everything but footer/stamp
     for l in lines:
         r = l.get("region")
         t = l.get("text", "")
@@ -54,6 +55,11 @@ def attribute(lines: list[dict[str, Any]]) -> Attribution:
             sender_parts.append(t)
         elif role == BlockRole.BODY:
             body_parts.append(t)
-    body_text = "\n".join(body_parts)
-    return Attribution(sender_text="\n".join(sender_parts), body_text=body_text,
-                       recipient=detect_recipient(body_text))
+        if role not in (BlockRole.FOOTER, BlockRole.STAMP):
+            scan_parts.append(t)
+    # The recipient block is anchored by its "Herrn/Frau/…" cue and may sit in the
+    # address WINDOW (positionally header) with its name/street on cue-less lines;
+    # scan all non-footer lines in order so the block isn't split by line role.
+    return Attribution(sender_text="\n".join(sender_parts),
+                       body_text="\n".join(body_parts),
+                       recipient=detect_recipient("\n".join(scan_parts)))
