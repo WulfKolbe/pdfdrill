@@ -20,7 +20,8 @@ from .feature_registry import FeatureRegistry
 from .graph_builder import build_graph
 
 from . import (extract_email, extract_url, extract_doi, extract_dates,
-               extract_phone, extract_price, extract_names, extract_address)
+               extract_phone, extract_price, extract_names, extract_address,
+               extract_language)
 
 # Ordered registry of (name, module) — each module exposes extract(text, page_id).
 EXTRACTORS = [
@@ -32,10 +33,11 @@ EXTRACTORS = [
     ("price", extract_price),
     ("names", extract_names),
     ("address", extract_address),
+    ("language", extract_language),
 ]
 
-# The no-dependency extractors (always available).
-_ALWAYS = {"email", "url", "doi"}
+# The no-dependency extractors (always available — language has a pure fallback).
+_ALWAYS = {"email", "url", "doi", "language"}
 
 
 def extract_all(text: str, page_id: str = "", only: list[str] | None = None) -> list[Feature]:

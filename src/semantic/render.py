@@ -45,7 +45,7 @@ def _entity_line(e) -> str:
 
 def render_for_llm(graph, *, bibkey: str, validity: str, warnings: list,
                    markers: list, json_name: str, n_docs: int = 1,
-                   store_note: str = "") -> str:
+                   store_note: str = "", language: str = "") -> str:
     ents = list(graph.entities.values())
     agents = [e for e in ents if e.type in _AGENT]
     accounts = [e for e in ents if e.type == EntityType.BANK_ACCOUNT]
@@ -53,7 +53,8 @@ def render_for_llm(graph, *, bibkey: str, validity: str, warnings: list,
     others = [e for e in ents if e.type not in _AGENT
               and e.type not in (EntityType.BANK_ACCOUNT, EntityType.DOCUMENT, EntityType.PAPER)]
 
-    out = [f"SEMANTIC GRAPH {bibkey} · validity={validity} · {n_docs} doc(s) · "
+    lang_note = f" · lang={language}" if language else ""
+    out = [f"SEMANTIC GRAPH {bibkey} · validity={validity}{lang_note} · {n_docs} doc(s) · "
            f"{len(ents)} entities · {len(graph.relations)} relations{store_note}",
            f"full graph + per-fact evidence/provenance: {json_name}", "", "ENTITIES"]
     for e in agents + accounts + others:

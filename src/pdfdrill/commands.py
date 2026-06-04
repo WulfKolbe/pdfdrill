@@ -925,13 +925,20 @@ def cmd_semantic(pdf: Path, store: str | None = None, force: bool = False) -> st
                              f"relations, {result.validity}")
     sc.save()
 
+    # Implicit language detection (features layer; pure-Python fallback, no deps).
+    from features.extract_language import language_of
+    doc_lang = language_of("\n".join(page_text.get(p, "") for p in sorted(page_text)))
+    sc.set_evidence("language", doc_lang)
+    sc.save()
+
     # The consumer is an LLM: emit the whole graph structured + clean, no prose.
     from semantic.render import render_for_llm
     store_note = (f" · +{g.entity_count() - n_before} new this doc (store holds "
                   f"{g.entity_count()})" if store_path else "")
     return render_for_llm(g, bibkey=key, validity=result.validity,
                           warnings=result.warnings, markers=margin_markers,
-                          json_name=sem_path.name, n_docs=n_docs, store_note=store_note)
+                          json_name=sem_path.name, n_docs=n_docs, store_note=store_note,
+                          language=doc_lang)
 
 
 # ===========================================================================

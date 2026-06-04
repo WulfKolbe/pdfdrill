@@ -53,6 +53,13 @@ layout = [
 qr = [
     "zxing-cpp>=2.0",
 ]
+# Language detection accuracy upgrade (features.extract_language). Without it the
+# pure-Python stopword fallback (or langdetect, if present) is used — detection
+# always works offline. lingua is best on short/mixed text.
+lang = [
+    "lingua-language-detector>=2.0",
+    "langdetect>=1.0",
+]
 
 [project.scripts]
 pdfdrill = "pdfdrill.cli:main"

@@ -428,6 +428,14 @@ nested objects, named real libraries, no Stanza/heavy-NLP here).
 - **Convenience:** `features.extract_all(text, page_id)` runs every available
   extractor; `features.available_extractors()` reports dep presence; `python -m
   features <file>` dumps features as JSON.
+- **Language detection** (`extract_language`): `detect_language(text)` →
+  `{lang (ISO-639-1 or 'und'), confidence, engine}` and `language_of(text)` → the
+  code. Multi-engine best-first (lingua → langdetect → langid, each lazy) with a
+  pure-Python **stopword fallback** so it ALWAYS works offline (no deps); emits a
+  `LANGUAGE` Feature and is in `_ALWAYS` (always available). Optional `[lang]`
+  extra (lingua + langdetect) upgrades accuracy on short text. Used implicitly by
+  `pdfdrill semantic` (header `lang=de`, sidecar `language`). Tests:
+  `tests/test_extract_language.py`.
 - **Read-only audits:** `python -m features.audit_deps` (per-module
   imports/defines → JSON dependency graph) and `python -m features.audit_nested`
   (nested container annotations/literals → JSON; report only). Neither edits
