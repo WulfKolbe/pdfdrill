@@ -241,6 +241,28 @@ correctly filtered as sub-1KB). Tests: `tests/test_pdf_reading.py` (pure page-
 spec/pdfdetach/markdown helpers + graceful no-form/no-table + pypdf-built-PDF
 rasterize/attachments round-trips).
 
+## QR / barcode confirmation (`pdfdrill qr`, integrated into `semantic`)
+
+Codes carry data the text layer can't: a **GiroCode/EPC** payment QR encodes the
+creditor name, IBAN, amount and payment reference; **Data Matrix** franking marks
+carry page-incrementing routing numbers (a continuity signal). `src/pdfdrill/
+qrscan.py` rasterizes with the existing pdftoppm (no PyMuPDF needed) and decodes
+with **zxing-cpp** (`[qr]` extra), degrading cleanly when absent. `parse_epc`
+turns a `BCD…` QR into structured SEPA fields; `_result_to_dict` is binary-safe
+(base64 for non-text codes).
+
+- **`pdfdrill qr <pdf> [--pages N-M] [--dpi 300] [--formats QRCode,DataMatrix]`**
+  — reports every code (format / content / page / EPC fields) into the sidecar
+  (`qr_codes`).
+- **Integrated into `pdfdrill semantic`**: QR/barcodes become confirmation
+  markers, and a GiroCode supplies the **issuer the OCR text omits** — it
+  resolves the creditor as an `Organization`, links `Document issued_by` it and
+  `BankAccount belongs_to` it, and attaches `qr_creditor`/`qr_iban`/`qr_amount`/
+  `qr_reference` as 0.95-confidence evidence. Verified on the AOK dunning letter:
+  the issuer **AOK Rheinland/Hamburg** (missed by `sender_of`) is recovered from
+  the GiroCode, the IBAN `DE24…` confirmed, the Versichertennummer `D990775288`
+  captured. Tests: `tests/test_qrscan.py` (EPC parser + binary-safe normalize).
+
 ## Layout-element layer (`pdfdrill elements` — GNN over word boxes, additive)
 
 The layout analogue of the MathPix→LaTeX layer: just as MathPix isolates each

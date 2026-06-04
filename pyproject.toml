@@ -47,6 +47,12 @@ layout = [
     "numpy>=1.24",
     "blake3>=0.4",
 ]
+# QR / barcode scanning (`pdfdrill qr`): GiroCode/EPC payment QR + Data Matrix
+# franking marks as confirmation data. zxing-cpp is the decode engine; pages are
+# rasterized with the existing pdftoppm (no PyMuPDF needed). Degrades cleanly.
+qr = [
+    "zxing-cpp>=2.0",
+]
 
 [project.scripts]
 pdfdrill = "pdfdrill.cli:main"

@@ -60,6 +60,7 @@ def main():
         "segment": _do_segment,
         "elements": _do_elements,
         "semantic": _do_semantic,
+        "qr": _do_qr,
         "selftest": _do_selftest,
         "rasterize": _do_rasterize,
         "attachments": _do_attachments,
@@ -284,6 +285,15 @@ def _do_semantic(args):
     store, args = _opt(args, "--store")
     pdf_args = [a for a in args if a != "--force"]
     return cmd_semantic(_pdf(pdf_args), store=store, force="--force" in args)
+
+
+def _do_qr(args):
+    """pdfdrill qr <pdf> [--pages N|N-M] [--dpi 300] [--formats QRCode,DataMatrix]"""
+    from .commands import cmd_qr
+    dpi, args = _opt(args, "--dpi")
+    pages, args = _opt(args, "--pages")
+    formats, args = _opt(args, "--formats")
+    return cmd_qr(_pdf(args), dpi=int(dpi) if dpi else 300, pages=pages, formats=formats)
 
 
 def _do_selftest(args):
@@ -886,6 +896,7 @@ Introspection (fast, no extraction):
   pdfdrill segment <pdf>       Partition a scanned bundle into ordered documents (by sender/identifier + continuity number); flags duplicate copies
   pdfdrill elements <pdf>      Find layout elements (postal address / BOM line) via the geometric-attention GNN over tesseract word boxes → content-addressed tiddlers (--model M.npz)
   pdfdrill semantic <pdf>      Build the semantic graph (CSP): extractors become sensors emitting evidence; entities (Company/Person/BankAccount) accumulate it. --store graph.json accumulates ACROSS documents
+  pdfdrill qr <pdf>            Scan QR codes & barcodes (zxing-cpp): GiroCode/EPC payment QR (creditor/IBAN/amount/reference) + Data Matrix franking marks — confirmation data outside the text layer. --dpi 300 --formats QRCode,DataMatrix
   pdfdrill selftest <pdf|dir>  DIAGNOSTIC GRID: run the command battery across a PDF (or every PDF in a folder), log OK/⊘-n/a/✗-ERROR + the actual result per command → selftest.log. --full adds entities/elements/semantic
   pdfdrill model <pdf>         Build unified docmodel from lines.json (auto-chains mathpix, falls back to tesseract ocr if no MathPix); --bibkey KEY sets the tiddler prefix (persisted)
   pdfdrill compare <pdf>       LaTeX | KaTeX | MathPix-image comparison HTML (auto-chains model)

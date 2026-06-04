@@ -73,6 +73,7 @@ ATTACHMENTS_KNOWN = "ATTACHMENTS_KNOWN"
 FORMFIELDS_KNOWN = "FORMFIELDS_KNOWN"
 IMAGES_EXTRACTED = "IMAGES_EXTRACTED"
 TABLES_KNOWN = "TABLES_KNOWN"
+QR_KNOWN = "QR_KNOWN"
 
 # Hosts that almost always mean "here is the code / data for this paper".
 _CODE_HOSTS = (
@@ -855,6 +856,50 @@ def cmd_semantic(pdf: Path, store: str | None = None, force: bool = False) -> st
                 de.attach(Evidence(page2src.get(p) or key, f"margin_{role}",
                                    text, "geometry", confidence=0.85))
 
+    # QR / barcode pass: codes are confirmation OUTSIDE the text layer. A
+    # GiroCode/EPC QR independently gives the creditor (often the issuer the OCR
+    # text omits), the IBAN and the payment reference; franking Data Matrix codes
+    # are page-continuity markers. Best-effort — graceful if zxing-cpp is absent.
+    from semantic.relation import RelationType as _RT
+    from semantic.entity import EntityType as _ET
+    qr_findings: list[dict] = []
+    try:
+        from . import qrscan
+        if qrscan.tools_available()[0]:
+            qr_findings = qrscan.scan_pdf(pdf, sc.blob_dir / "qr_pages", dpi=300)
+    except Exception:
+        qr_findings = []
+    for f in qr_findings:
+        p = f.get("page")
+        de = doc_entities.get(page2src.get(p)) if p else None
+        src = page2src.get(p) or key
+        epc = f.get("epc")
+        if epc:
+            margin_markers.append({"page": p, "side": "qr", "role": "qr_payment",
+                                   "text": (f"GiroCode creditor={epc['name']} "
+                                            f"IBAN={epc['iban']} {epc['currency']}{epc['amount']} "
+                                            f"ref={epc['remittance']}")[:120]})
+            if de is not None:
+                for prop, val in (("qr_creditor", epc["name"]), ("qr_iban", epc["iban"]),
+                                  ("qr_amount", f"{epc['currency']} {epc['amount']}".strip()),
+                                  ("qr_reference", epc["remittance"])):
+                    if val:
+                        de.attach(Evidence(src, prop, val, "qr", confidence=0.95))
+                # The GiroCode creditor is the issuer the text layer often omits.
+                if epc.get("name") and not g.relations_of(de.id, _RT.ISSUED_BY):
+                    org = r.resolve(_ET.ORGANIZATION, keys=[("name", epc["name"])],
+                                    evidence=[Evidence(src, "name", epc["name"], "qr", confidence=0.9)])
+                    g.relate_once(de.id, _RT.ISSUED_BY, org.id, produced_by="qr", confidence=0.9)
+                    acct = (r.find_existing_entity(_ET.BANK_ACCOUNT, [("iban", epc["iban"])])
+                            if epc.get("iban") else None)
+                    if acct is not None:        # the account named in the QR belongs to the creditor
+                        g.relate_once(acct.id, _RT.BELONGS_TO, org.id, produced_by="qr", confidence=0.9)
+        else:
+            content = (f.get("content") or "").replace("\n", " ")[:60]
+            margin_markers.append({"page": p, "side": "qr", "role": "barcode",
+                                   "text": (f"{f['format']}: {content}" if content
+                                            else f["format"])})
+
     # The compiler gate: type-check + consistency over the graph.
     result = compiler.compile(g)
 
@@ -893,6 +938,58 @@ def cmd_semantic(pdf: Path, store: str | None = None, force: bool = False) -> st
 # pdf-reading primitives (parity with the Claude.ai pdf-reading skill, but
 # file-based: results land in the sidecar, not in an LLM context window).
 # ===========================================================================
+
+def cmd_qr(pdf: Path, dpi: int = 300, pages: str | None = None,
+           formats: str | None = None) -> str:
+    """Scan for QR codes & barcodes — confirmation data the text layer can't give.
+
+    A GiroCode/EPC QR encodes the creditor name, IBAN, amount and payment
+    reference (often the issuer the OCR text omits, and an independent check on
+    the extracted IBAN/reference). Data Matrix franking/routing marks are
+    captured too. Rasterizes with pdftoppm, decodes with zxing-cpp. Findings land
+    in the sidecar (`qr_codes`).
+    """
+    from . import qrscan, pdf_reading
+
+    ok, msg = qrscan.tools_available()
+    if not ok:
+        return msg
+    sc = Sidecar(pdf)
+    page_list = pdf_reading.parse_pages(pages, getattr(sc, "page_count", None) or None)
+    out_dir = sc.blob_dir / "qr_pages"
+    sc.blob_dir.mkdir(parents=True, exist_ok=True)
+    t0 = time.monotonic()
+    try:
+        findings = qrscan.scan_pdf(pdf, out_dir, dpi=dpi, pages=page_list, formats=formats)
+    except Exception as e:
+        return f"QR scan failed: {type(e).__name__}: {e}"
+
+    sc.set_evidence("qr_codes", findings)
+    prev = ",".join(sorted(sc.facts - {QR_KNOWN})) or "INIT"
+    sc.add_fact(QR_KNOWN)
+    n_epc = sum(1 for f in findings if f.get("epc"))
+    sc.log_transition("qr", prev, QR_KNOWN, cost_ms=(time.monotonic() - t0) * 1000,
+                      detail=f"{len(findings)} code(s), {n_epc} EPC/GiroCode")
+    sc.save()
+    if not findings:
+        return (f"No QR/barcodes found in {pdf.name}"
+                + (f" (pages {pages})" if page_list else "") + ".")
+    lines = []
+    for f in findings:
+        loc = f"p{f['page']}"
+        if f.get("epc"):
+            e = f["epc"]
+            lines.append(f"  {f['format']} {loc} — GiroCode/EPC SEPA: "
+                         f"creditor='{e['name']}', IBAN={e['iban']}, "
+                         f"{e['currency']} {e['amount']}, ref='{e['remittance']}'")
+        else:
+            c = (f.get("content") or "").replace("\n", "⏎")
+            if not c and f.get("content_base64"):
+                c = f"<binary {len(f['content_base64'])}b base64>"
+            lines.append(f"  {f['format']} {loc} — {c[:90]}")
+    return (f"{len(findings)} code(s) found ({n_epc} GiroCode/EPC payment QR). "
+            f"These are confirmation data outside the text layer:\n" + "\n".join(lines))
+
 
 def cmd_selftest(target: Path, full: bool = False) -> str:
     """Diagnostic grid: run the command battery across a PDF (or every PDF in a
