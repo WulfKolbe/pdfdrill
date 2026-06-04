@@ -1201,6 +1201,10 @@ def cmd_fontid(pdf: Path, pages: str | None = None, limit: int = 12,
                                "categories": dict(cat_counts.most_common())})
     sc.add_fact("FONTID_BUILT")
     sc.save()
+    # also drop a human-readable report into .drill/fontid/ so `ls` shows a result
+    report = fc.format_report(pdf.name, fields, n_words=len(classified))
+    report_path = out_dir / "fontid.txt"
+    report_path.write_text(report, encoding="utf-8")
 
     npages = len(set(f["page"] for f in fields))
     # The CATEGORY vote (sans-serif/serif/mono/…) is the robust signal: on an
@@ -1224,6 +1228,7 @@ def cmd_fontid(pdf: Path, pages: str | None = None, limit: int = 12,
             f"  p{f['page']} field {f['block']:>2} {f['sample']!r:46} → {cat} "
             f"({f['cat_votes']}/{f['cat_total']}); face≈{f['font']} "
             f"(conf {f['mean_conf']}){weak}")
+    out.append(f"Report with statistics written to {report_path}")
     return "\n".join(out)
 
 

@@ -95,10 +95,36 @@ def test_field_fonts_votes_a_robust_category():
     assert f["agreement"] < f["cat_agreement"]              # category beats exact face
 
 
+def test_format_report_has_stats_and_per_field():
+    fields = [
+        {"page": 1, "block": 5, "font": "ZenMaruGothic-Black", "votes": 1, "total": 1,
+         "mean_conf": 0.35, "agreement": 1.0, "category": "sans-serif",
+         "cat_votes": 1, "cat_total": 1, "cat_agreement": 1.0, "sample": "einfach"},
+        {"page": 1, "block": 6, "font": "SplineSans[wght]", "votes": 1, "total": 4,
+         "mean_conf": 0.42, "agreement": 0.25, "category": "sans-serif",
+         "cat_votes": 3, "cat_total": 3, "cat_agreement": 1.0, "sample": "Erlaeuterungen"},
+        {"page": 2, "block": 9, "font": "PostNoBillsJaffna-SemiBold", "votes": 1, "total": 2,
+         "mean_conf": 0.31, "agreement": 0.5, "category": None,
+         "cat_votes": 0, "cat_total": 0, "cat_agreement": 0.0, "sample": "Energie"},
+    ]
+    r = fc.format_report("allocr.pdf", fields, n_words=8)
+    assert "allocr.pdf" in r
+    assert "predominantly sans-serif" in r          # 2 of 3 fields sans
+    assert "Fields: 3" in r and "Pages: 2" in r
+    assert "Words classified: 8" in r
+    assert "Distinct faces: 3" in r
+    assert "67%" in r and "33%" in r                # category distribution percentages
+    assert "uncertain" in r                         # the unresolved field is shown
+    assert "mean" in r and "max" in r               # confidence statistics
+    assert "field  5" in r and "ZenMaruGothic-Black" in r
+    assert fc.format_report("x.pdf", []) == "FONTID: no classifiable text fields."
+
+
 if __name__ == "__main__":
     for fn in (test_tools_available_reports_missing_clearly, test_aggregate_votes_and_confidence,
                test_preprocess_shape_when_model_present, test_classify_returns_topk_when_model_present,
                test_field_fonts_one_font_per_text_field, test_field_fonts_empty_is_empty,
-               test_category_of_maps_known_fonts, test_field_fonts_votes_a_robust_category):
+               test_category_of_maps_known_fonts, test_field_fonts_votes_a_robust_category,
+               test_format_report_has_stats_and_per_field):
         fn(); print("PASS", fn.__name__)
     print("\nAll tests passed.")

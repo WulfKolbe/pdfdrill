@@ -204,6 +204,57 @@ def field_fonts(classified, page_key: str = "page", block_key: str = "block") ->
     return out
 
 
+def format_report(name: str, fields: list[dict], n_words: Optional[int] = None) -> str:
+    """A human-readable fontid report with summary statistics + a per-field table,
+    written to `.drill/fontid/fontid.txt`. Leads with the document category verdict
+    (the robust signal), then category distribution, confidence stats, and one line
+    per text field. Pure (no I/O) so it is unit-tested directly."""
+    from collections import Counter
+    if not fields:
+        return "FONTID: no classifiable text fields."
+    n = len(fields)
+    pages = sorted(set(f["page"] for f in fields))
+    distinct = len(set(f["font"] for f in fields))
+    cat_counts = Counter((f["category"] or "uncertain") for f in fields)
+    resolved = Counter(f["category"] for f in fields if f["category"])
+    confs = [f["mean_conf"] for f in fields]
+    cagrs = [f["cat_agreement"] for f in fields]
+    hi = sum(1 for f in fields if f["category"] and f["cat_agreement"] >= 0.5)
+    verdict = (f"predominantly {resolved.most_common(1)[0][0]}"
+               if resolved else "category uncertain (faces out of the class set)")
+
+    head = f"FONTID REPORT — {name}"
+    L = [head, "=" * len(head),
+         "VISUAL estimate — the PDF has no font layer. The exact Google-Fonts face is",
+         "a low-confidence guess (Arial/Helvetica/Computer-Modern aren't classes); the",
+         "CATEGORY vote is the robust signal.", "",
+         f"Document verdict:    {verdict}",
+         f"Fields: {n}   Pages: {len(pages)}"
+         + (f"   Words classified: {n_words}" if n_words is not None else "")
+         + f"   Distinct faces: {distinct}",
+         "",
+         "Category distribution (share of fields):"]
+    for c, k in cat_counts.most_common():
+        bar = "#" * round(20 * k / n)
+        L.append(f"  {c:12} {k:3}  ({k / n:.0%})  {bar}")
+    mc = sum(confs) / n
+    L += ["",
+          "Statistics (face confidence is weak by design — judge by category agreement):",
+          f"  face confidence:     mean {mc:.2f}   min {min(confs):.2f}   max {max(confs):.2f}",
+          f"  category agreement:  mean {sum(cagrs) / n:.2f}   "
+          f"fields with high (>=0.5) agreement: {hi}/{n}",
+          f"  resolved categories: {len([f for f in fields if f['category']])}/{n} fields",
+          "",
+          "Per field (page · block · category · face guess · sample):"]
+    for f in fields:
+        cat = f["category"] or "uncertain"
+        flag = "" if (f["category"] and f["cat_agreement"] >= 0.5) else "  <weak>"
+        L.append(f"  p{f['page']} field {f['block']:>2}  {cat:11} "
+                 f"({f['cat_votes']}/{f['cat_total']}, agr {f['cat_agreement']:.2f})  "
+                 f"face≈{f['font']} (conf {f['mean_conf']:.2f})  {f['sample']!r}{flag}")
+    return "\n".join(L)
+
+
 def classify_image_file(path, k: int = 3) -> list[tuple[str, float]]:
     import numpy as np
     from PIL import Image
