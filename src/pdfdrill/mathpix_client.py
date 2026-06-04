@@ -18,7 +18,9 @@ from __future__ import annotations
 import json
 import mimetypes
 import os
+import shutil
 import sys
+import tempfile
 import time
 import urllib.error
 import urllib.request
@@ -71,12 +73,37 @@ def _auth_headers() -> dict[str, str]:
 # Multipart encoding (stdlib only) — verbatim from the tested port
 # ---------------------------------------------------------------------------
 
-def encode_multipart_formdata(fields, files) -> tuple[str, bytes]:
+# MathPix /v3/pdf upload limits (the documented file-size cap) + soft warnings.
+MATHPIX_MAX_BYTES = 512 * 1024 * 1024        # hard refuse above this
+MATHPIX_WARN_BYTES = 100 * 1024 * 1024       # large: slow upload / costly
+MATHPIX_WARN_PAGES = 100
+
+
+def upload_preflight(size_bytes: int, pages: Optional[int] = None) -> tuple[bool, str, str]:
+    """Decide whether to attempt a MathPix upload. Returns (ok, level, message),
+    level ∈ {ok, warn, refuse}. Over the cap we refuse (and route the caller to
+    OCR) rather than OOM on the in-memory encode or POST a doomed body."""
+    mb = size_bytes / (1024 * 1024)
+    if size_bytes > MATHPIX_MAX_BYTES:
+        return (False, "refuse",
+                f"{mb:.0f} MB exceeds MathPix's ~{MATHPIX_MAX_BYTES // (1024 * 1024)} MB "
+                f"upload limit — pdfdrill will not attempt a doomed upload. Use "
+                f"`pdfdrill ocr` (keyless tesseract) for the text layer, or split with "
+                f"`pdfseparate in.pdf part-%d.pdf` and run `mathpix` per chunk.")
+    if size_bytes > MATHPIX_WARN_BYTES or (pages and pages > MATHPIX_WARN_PAGES):
+        return (True, "warn",
+                f"large input ({mb:.0f} MB" + (f", {pages} pages" if pages else "")
+                + ") — the upload is streamed (bounded RAM) but may be slow and "
+                  "consume credits; `pdfdrill ocr` is the keyless alternative.")
+    return (True, "ok", "")
+
+
+def encode_multipart_formdata(fields, files, boundary: Optional[str] = None) -> tuple[str, bytes]:
     """fields: iterable of (name, value); files: (name, filename, bytes).
 
     Returns (content_type, body_bytes).
     """
-    boundary = uuid.uuid4().hex
+    boundary = boundary or uuid.uuid4().hex
     crlf = b"\r\n"
     parts: list[bytes] = []
 
@@ -102,27 +129,60 @@ def encode_multipart_formdata(fields, files) -> tuple[str, bytes]:
     return f"multipart/form-data; boundary={boundary}", body
 
 
+def _stream_multipart(out_path, options_json: str, file_path: str,
+                      boundary: str) -> tuple[str, int, str]:
+    """Write the upload multipart body to `out_path`, streaming the PDF in chunks
+    so RAM never holds 2× the file (the 463 MB OOM). Byte-identical to
+    encode_multipart_formdata; returns (content_type, length, out_path)."""
+    crlf = b"\r\n"
+    fname = os.path.basename(file_path)
+    ctype = mimetypes.guess_type(fname)[0] or "application/octet-stream"
+    prefix = crlf.join([
+        f"--{boundary}".encode(),
+        b'Content-Disposition: form-data; name="options_json"', b"",
+        options_json.encode(),
+        f"--{boundary}".encode(),
+        f'Content-Disposition: form-data; name="file"; filename="{fname}"'.encode(),
+        f"Content-Type: {ctype}".encode(), b"", b"",
+    ])
+    suffix = crlf.join([b"", f"--{boundary}--".encode(), b""])
+    with open(out_path, "wb") as out:
+        out.write(prefix)
+        with open(file_path, "rb") as f:
+            shutil.copyfileobj(f, out, length=4 * 1024 * 1024)
+        out.write(suffix)
+    return (f"multipart/form-data; boundary={boundary}",
+            os.path.getsize(out_path), str(out_path))
+
+
 # ---------------------------------------------------------------------------
 # API operations
 # ---------------------------------------------------------------------------
 
 def upload_pdf(file_path: str, log: Callable[[str], None] = print) -> str:
     log(f"Uploading {file_path}...")
-    with open(file_path, "rb") as f:
-        file_content = f.read()
-
-    content_type, body = encode_multipart_formdata(
-        fields=[("options_json", json.dumps(CONVERSION_OPTIONS))],
-        files=[("file", os.path.basename(file_path), file_content)],
-    )
-    req = urllib.request.Request(
-        f"{API_BASE}/pdf-file",
-        data=body,
-        method="POST",
-        headers={**_auth_headers(), "Content-Type": content_type},
-    )
-    with net.urlopen(req, host="api.mathpix.com") as response:
-        data = json.loads(response.read().decode("utf-8"))
+    boundary = uuid.uuid4().hex
+    tf = tempfile.NamedTemporaryFile(prefix="mxupload_", suffix=".bin", delete=False)
+    tf.close()
+    # Stream the body to a temp file (bounded RAM), then POST it with an explicit
+    # Content-Length so http.client streams the file object rather than buffering.
+    content_type, length, body_path = _stream_multipart(
+        tf.name, json.dumps(CONVERSION_OPTIONS), file_path, boundary)
+    bf = open(body_path, "rb")
+    try:
+        req = urllib.request.Request(
+            f"{API_BASE}/pdf-file", data=bf, method="POST",
+            headers={**_auth_headers(), "Content-Type": content_type,
+                     "Content-Length": str(length)},
+        )
+        with net.urlopen(req, host="api.mathpix.com") as response:
+            data = json.loads(response.read().decode("utf-8"))
+    finally:
+        bf.close()
+        try:
+            os.unlink(body_path)
+        except OSError:
+            pass
     if "pdf_id" not in data:
         raise RuntimeError("Upload failed: " + json.dumps(data))
     return data["pdf_id"]

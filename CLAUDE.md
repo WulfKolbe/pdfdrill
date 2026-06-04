@@ -668,6 +668,18 @@ suites. The MathPix-only QC path is **end-to-end functional**:
 
 - **`pdfdrill mathpix <pdf>`** — Python port of `mtestzx.ts`, idempotent,
   creds from env or git-ignored `mathpix_creds.py` (`tests/test_mathpix.py`).
+- **Large-file handling (the 463 MB / 175-page edge case).** The upload used to
+  `f.read()` the whole PDF + build a `crlf.join` body — a 2× copy that OOMs a
+  small sandbox. Now `upload_pdf` STREAMS the multipart body to a temp file
+  (chunked `copyfileobj`, bounded RAM) and POSTs it with an explicit
+  `Content-Length`; `_stream_multipart` is byte-identical to the in-memory encoder
+  (tested). `cmd_mathpix` runs `upload_preflight(size, pages)` only when an upload
+  would happen (not cached): **refuse** over MathPix's ~512 MB cap (clear message
+  → route to keyless `pdfdrill ocr` / `pdfseparate` chunks), **warn** for large
+  inputs (>100 MB / >100 pages: streamed but slow/costly). Any upload/conversion
+  failure (413 too-large, API error) is caught and degraded to OCR instead of a
+  traceback. The 463 MB file → `warn` + streamed; `model` falls back to tesseract
+  if no lines.json appears. Tests: `tests/test_mathpix_large.py`.
 - **`pdfdrill model <pdf>`** — builds the unified docmodel `Document` from
   `lines.json` (auto-chains `mathpix`), writes `<pdf>.drill/model.docmodel.json`.
 - **`pdfdrill compare <pdf>`** — `ComparisonHtmlProjector` emits

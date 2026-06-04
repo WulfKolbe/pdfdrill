@@ -98,15 +98,42 @@ def cmd_mathpix(pdf: Path, force: bool = False) -> str:
     MathPix `lines.json` is the format the comparison pipeline needs: it pairs
     each recognized expression's LaTeX with the CDN image MathPix rendered.
     """
-    from .mathpix_client import fetch_mathpix
+    from .mathpix_client import fetch_mathpix, upload_preflight, expected_outputs
     from .net import NetworkBlocked
 
     sc = Sidecar(pdf)
+
+    # Pre-flight the upload only if one would actually happen (not already cached).
+    # Refuse gracefully over MathPix's size limit (route to keyless OCR) rather
+    # than OOM on the encode or POST a doomed 463 MB body; warn on large inputs.
+    warn = ""
+    cached = all(Path(p).exists() for p in expected_outputs(str(pdf)).values())
+    if force or not cached:
+        size = pdf.stat().st_size if pdf.exists() else 0
+        pages = None
+        try:
+            info = subprocess.run(["pdfinfo", str(pdf)], capture_output=True,
+                                  text=True, timeout=30)
+            m = re.search(r"Pages:\s*(\d+)", info.stdout)
+            pages = int(m.group(1)) if m else None
+        except Exception:
+            pass
+        ok, level, msg = upload_preflight(size, pages)
+        if not ok:
+            return (f"MathPix upload skipped — {msg}\n(Built-in fallback: `pdfdrill "
+                    f"model` will use tesseract OCR instead when no lines.json appears.)")
+        if level == "warn":
+            warn = f"⚠ {msg}\n"
+
     t0 = time.monotonic()
     try:
         result = fetch_mathpix(str(pdf), force=force)
     except NetworkBlocked as e:
         return str(e)
+    except Exception as e:        # 413 too-large / API error / oversize → degrade to OCR
+        return (f"MathPix upload/conversion failed: {e}\nUse `pdfdrill ocr {pdf.name}` "
+                f"(keyless tesseract) — `pdfdrill model` falls back to it automatically "
+                f"when no lines.json appears.")
 
     files_meta = []
     for ext, path in result["files"].items():
@@ -127,7 +154,7 @@ def cmd_mathpix(pdf: Path, force: bool = False) -> str:
         cost_ms=(time.monotonic() - t0) * 1000, detail=result["status"],
     )
     sc.save()
-    return _format_mathpix(result, files_meta)
+    return warn + _format_mathpix(result, files_meta)
 
 
 def _format_mathpix(result: dict, files_meta: list[dict]) -> str:
