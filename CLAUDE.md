@@ -287,6 +287,32 @@ SHUFFLED bundle by signature value.
   BoW cosine); the per-page-OCR path is the correct input. Tests:
   `tests/test_continuity_scorer.py`.
 
+## Visual font id for scanned input (`pdfdrill fontid` — torch-free ONNX)
+
+A scanned PDF has no font layer, so `fonts`/`fonts_layer` (pdffonts) return
+nothing. `pdfdrill fontid` recovers a font *visually*: render OCR text-line crops
+and classify them with the storia/font-classify ONNX model, **torch-free** —
+onnxruntime + numpy + cv2 + PIL + yaml only (NO torch/timm/huggingface_hub; the
+three preprocessing ops are reimplemented pure numpy/cv2 in
+`src/pdfdrill/font_classify.py`). The ~61 MB model + config are fetched on demand
+to `$FONT_CLASSIFY_DIR`/`~/.cache/pdfdrill` via `net.urlopen` (graceful when
+blocked). Votes across crops; reports the dominant font + agreement + mean
+confidence.
+
+**HONEST verdict (verified):** the model is reliable on *distinctive* faces
+(script/brush/blackletter/italics → 0.7–0.99) but **weak on scanned generic
+sans-serifs** — it confuses Roboto-Regular with Kosugi/Inconsolata even on a
+clean render, and the 3473 classes are **Google-Fonts only** (Arial/Helvetica =
+no clean class; Computer/Latin Modern absent → Times-ish neighbour Tinos/STIX).
+On the AOK scan it correctly **self-flags**: dominant guess at 25% agreement /
+0.36 conf with a ⚠ LOW-confidence warning, output labelled "VISUAL estimate …
+not the literal embedded font". So it fills the empty-fonts-on-OCR gap as an
+opt-in **best-effort that flags its own unreliability** — trustworthy for
+Google-Fonts/designed PDFs, a weak hint on scanned standard mail. Optional
+`[fontid]` extra (onnxruntime + opencv + pyyaml). Tests:
+`tests/test_font_classify.py` (tools/availability, vote aggregation, preprocess
+shape + inference when the model is cached).
+
 ## Spellcheck / de-hyphenation QC (`pdfdrill spellqc`, on-demand hunspell)
 
 Repair line-break hyphenation in the transcluded paragraph text: a `left-/right`

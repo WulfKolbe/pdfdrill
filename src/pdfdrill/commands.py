@@ -1084,6 +1084,76 @@ def cmd_autosegment(pdf: Path, threshold: float = 0.5) -> str:
     return head + cmd_segment(pdf)
 
 
+def cmd_fontid(pdf: Path, pages: str | None = None, limit: int = 12,
+               ppi: int = 200) -> str:
+    """Identify the font VISUALLY for scanned/OCR input (the PDF has no font
+    layer, so `fonts`/`fonts_layer` return nothing). Renders text-line crops and
+    classifies them with the torch-free storia/font-classify ONNX model
+    (Google-Fonts classes), voting across crops. HONEST: the model is reliable on
+    distinctive faces but weak on scanned generic sans-serifs, and Arial/Helvetica
+    /Computer-Modern aren't clean classes — so confidence + agreement are reported
+    and a low result is flagged as a weak hint, not a fact.
+    """
+    import subprocess
+    import numpy as np
+    from PIL import Image
+    from . import font_classify as fc, geometry, pdf_reading
+
+    ok, msg = fc.tools_available()
+    if not ok:
+        return msg
+    sc = Sidecar(pdf)
+    if not fc.available():
+        return ("font-classify model unavailable offline — it fetches ~61 MB from "
+                "HuggingFace on first use. Set $FONT_CLASSIFY_DIR or ensure network "
+                "access to huggingface.co, then retry.")
+    out_dir = sc.blob_dir / "fontid"
+    page_list = pdf_reading.parse_pages(pages, getattr(sc, "page_count", None) or None)
+    imgs = pdf_reading.rasterize(pdf, out_dir, pages=page_list, dpi=ppi)
+
+    top1s: list[tuple[str, float]] = []
+    per_line: list[tuple[str, tuple[str, float]]] = []
+    for img_path in imgs:
+        if len(top1s) >= limit:
+            break
+        page_img = np.array(Image.open(img_path).convert("RGB"))
+        res = subprocess.run(["tesseract", str(img_path), "-", "--psm", "1", "tsv"],
+                             capture_output=True, text=True)
+        words, _ = geometry.parse_tsv(res.stdout)
+        wide = sorted([l for l in geometry.group_lines(words)
+                       if (l["x1"] - l["x0"]) > 250 and len(l["text"].strip()) > 12],
+                      key=lambda l: -(l["x1"] - l["x0"]))
+        for l in wide:
+            if len(top1s) >= limit:
+                break
+            y0, y1 = int(l["y0"]), int(l["y1"])
+            x0, x1 = int(l["x0"]), int(l["x1"])
+            crop = page_img[max(0, y0 - 3):y1 + 3, max(0, x0 - 3):x1 + 3]
+            pred = fc.classify_crop(crop, k=1)
+            if pred:
+                top1s.append(pred[0])
+                per_line.append((l["text"][:30], pred[0]))
+
+    agg = fc.aggregate(top1s)
+    if agg is None:
+        return f"No classifiable text lines found in {pdf.name}."
+    sc.set_evidence("fontid", agg)
+    sc.add_fact("FONTID_BUILT")
+    sc.save()
+
+    reliable = agg["mean_conf"] >= 0.5 and agg["agreement"] >= 0.5
+    flag = ("" if reliable else
+            "  ⚠ LOW confidence/agreement — treat as a WEAK HINT: the Google-Fonts-"
+            "only model is unreliable on scanned/generic sans-serif text.")
+    out = [f"FONTID {pdf.name} (VISUAL estimate — no font layer; {len(top1s)} line "
+           f"crops): dominant '{agg['font']}' — {agg['votes']}/{agg['total']} crops "
+           f"agree ({int(agg['agreement'] * 100)}%), mean conf {agg['mean_conf']}.{flag}",
+           "Per-crop top-1 (Google-Fonts classes only; not the literal embedded font):"]
+    for txt, (f, c) in per_line[:limit]:
+        out.append(f"  {txt!r:34} → {f}  ({round(c, 3)})")
+    return "\n".join(out)
+
+
 def cmd_spellqc(pdf: Path, lang: str | None = None) -> str:
     """Dictionary-assisted de-hyphenation QC over the transcluded text.
 

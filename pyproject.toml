@@ -69,6 +69,15 @@ spell = [
     "pyenchant>=3.2",
     "spylls>=0.1.7",
 ]
+# Visual font identification for scanned input (pdfdrill.font_classify): the
+# torch-free storia/font-classify ONNX path — onnxruntime + opencv + pyyaml only
+# (NO torch/timm/huggingface_hub). The ~61 MB model is fetched on demand to
+# $FONT_CLASSIFY_DIR / ~/.cache/pdfdrill. Google-Fonts classes only.
+fontid = [
+    "onnxruntime>=1.16",
+    "opencv-python-headless>=4.8",
+    "pyyaml>=6.0",
+]
 
 [project.scripts]
 pdfdrill = "pdfdrill.cli:main"

@@ -61,6 +61,7 @@ def main():
         "elements": _do_elements,
         "semantic": _do_semantic,
         "qr": _do_qr,
+        "fontid": _do_fontid,
         "spellqc": _do_spellqc,
         "ordered": _do_ordered,
         "autosegment": _do_autosegment,
@@ -302,6 +303,16 @@ def _do_autosegment(args):
     from .commands import cmd_autosegment
     thr, args = _opt(args, "--threshold")
     return cmd_autosegment(_pdf(args), threshold=float(thr) if thr else 0.5)
+
+
+def _do_fontid(args):
+    """pdfdrill fontid <pdf> [--pages N|N-M] [--limit 12] [--ppi 200]"""
+    from .commands import cmd_fontid
+    pages, args = _opt(args, "--pages")
+    limit, args = _opt(args, "--limit")
+    ppi, args = _opt(args, "--ppi")
+    return cmd_fontid(_pdf(args), pages=pages, limit=int(limit) if limit else 12,
+                      ppi=int(ppi) if ppi else 200)
 
 
 def _do_spellqc(args):
@@ -920,6 +931,7 @@ Introspection (fast, no extraction):
   pdfdrill segment <pdf>       Partition a scanned bundle into ordered documents (by sender/identifier + continuity number); flags duplicate copies
   pdfdrill elements <pdf>      Find layout elements (postal address / BOM line) via the geometric-attention GNN over tesseract word boxes → content-addressed tiddlers (--model M.npz)
   pdfdrill semantic <pdf>      Build the semantic graph (CSP): extractors become sensors emitting evidence; entities (Company/Person/BankAccount) accumulate it. --store graph.json accumulates ACROSS documents
+  pdfdrill fontid <pdf>        VISUAL font id for scanned/OCR input (no font layer): render line crops → torch-free ONNX font-classify (Google-Fonts classes) → vote. Reports confidence; weak on scanned generic sans. --limit 12 --ppi 200
   pdfdrill spellqc <pdf>       Dictionary-assisted de-hyphenation QC (hunspell via spylls→enchant→.dic-set, on-demand per language): join/keep/REVIEW each line-break hyphen. Surfaces OCR fragments to fix
   pdfdrill qr <pdf>            Scan QR codes & barcodes (zxing-cpp): GiroCode/EPC payment QR (creditor/IBAN/amount/reference) + Data Matrix franking marks — confirmation data outside the text layer. --dpi 300 --formats QRCode,DataMatrix
   pdfdrill ordered <pdf>       Segment an ORDERED scan stack into documents (gap scoring + DataMatrix tracking codes → 2-level mailing/letter-enclosure). Commercial provenance (publisher=sender, receiver). --threshold 0.5. (Shuffled bundle → use `segment`)
