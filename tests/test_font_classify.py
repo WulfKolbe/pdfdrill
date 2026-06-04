@@ -71,9 +71,34 @@ def test_field_fonts_empty_is_empty():
     assert fc.field_fonts([]) == []
 
 
+def test_category_of_maps_known_fonts():
+    # the bundled font_categories.json maps Google-Fonts classnames to a category;
+    # the category is the ROBUST signal on out-of-class scanned text.
+    assert fc.category_of("Roboto-Bold") == "sans-serif"
+    assert fc.category_of("Lora[wght]") == "serif"
+    assert fc.category_of("FiraCode[wght]") == "monospace"
+    assert fc.category_of("NoSuchFont-Regular") is None
+
+
+def test_field_fonts_votes_a_robust_category():
+    # exact faces disagree (every word a different Google font) but all are
+    # sans-serif — so the CATEGORY vote is unanimous where the exact-face vote
+    # is 1/3. This is what makes fontid useful on scanned standard-font docs.
+    classified = [
+        ({"page": 1, "block": 7, "text": "Abrechnung"},  ("Varta[wght]", 0.58)),
+        ({"page": 1, "block": 7, "text": "Konzession"},  ("Athiti-Medium", 0.50)),
+        ({"page": 1, "block": 7, "text": "Einzelpreis"}, ("Roboto-Light", 0.40)),
+    ]
+    f = fc.field_fonts(classified)[0]
+    assert f["category"] == "sans-serif"
+    assert f["cat_votes"] == 3 and f["cat_total"] == 3      # unanimous category
+    assert f["agreement"] < f["cat_agreement"]              # category beats exact face
+
+
 if __name__ == "__main__":
     for fn in (test_tools_available_reports_missing_clearly, test_aggregate_votes_and_confidence,
                test_preprocess_shape_when_model_present, test_classify_returns_topk_when_model_present,
-               test_field_fonts_one_font_per_text_field, test_field_fonts_empty_is_empty):
+               test_field_fonts_one_font_per_text_field, test_field_fonts_empty_is_empty,
+               test_category_of_maps_known_fonts, test_field_fonts_votes_a_robust_category):
         fn(); print("PASS", fn.__name__)
     print("\nAll tests passed.")

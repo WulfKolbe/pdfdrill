@@ -305,11 +305,32 @@ font is the wrong model. `cmd_fontid` classifies WORD crops and votes **within
 each OCR block** (`font_classify.field_fonts` groups `(page, block)` and aggregates
 per group), emitting one font per field with its own vote-share / confidence /
 bbox / text sample, plus a distinct-fonts summary. Evidence shape:
-`{"fields":[…], "distinct":{font:count}}`. Demonstrated on a two-font page
-(mono heading + sans body): the heading and body come back as **separate fields
-with separate fonts**, each carrying its own confidence. Pages are capped to the
-first 3 when none are requested and clamped to the real page count (so a 175-page
-scan isn't fully rasterized, and pdftoppm is never asked for a non-existent page).
+`{"fields":[…], "distinct":{font:count}, "categories":{cat:count}}`. Demonstrated
+on a two-font page (mono heading + sans body): the heading and body come back as
+**separate fields with separate fonts**, each carrying its own confidence. Pages
+are capped to the first 3 when none are requested and clamped to the real page
+count (so a 175-page scan isn't fully rasterized, and pdftoppm is never asked for
+a non-existent page).
+
+**CATEGORY is the robust signal; the exact face is a low-confidence hint.** On an
+out-of-class scanned face (Arial/Helvetica/Computer-Modern aren't Google-Fonts
+classes) the exact-face vote is noise — but the model's scattered guesses are all
+the SAME category. So each field also carries a `category` (sans-serif / serif /
+monospace / handwriting / display) voted from each word's top-1-font category, and
+`cmd_fontid` LEADS with it (`field≈sans-serif (4/4); face≈Varta (conf 0.58)`) plus
+a document verdict (`predominantly sans-serif (5/5 fields)`). `font_classify.
+category_of(name)` reads the bundled `font_categories.json` (3473 classes → 90%
+resolved: 81% from the google/fonts tag CSV's `/Sans /Serif /Slab /Monospace
+/Script` facets, the rest by base-family token + name keyword; built once offline
+by `tools/build_font_categories.py`, committed so runtime needs no network).
+**This is the fix that makes fontid useful on scanned standard-font mail:** the
+real allocr.pdf energy invoice went from "5 random wrong Google-Fonts names" to
+"**predominantly sans-serif, 5/5 fields, 3/3–4/4 category agreement**" — TRUE and
+useful, while the face stays an honest low-confidence guess. Honest caveat: the
+category is only as good as the model's top-1 (a face the model mis-sees — e.g. a
+FiraCode heading read as a geometric sans at 0.92 — carries that error into the
+category). Tests: `tests/test_font_classify.py` (`category_of`, robust field-
+category vote where exact-face agreement is 1/3).
 
 **WORD-level crops (why per-word, not per-line).** A word's ~5:1 aspect fills the
 model's square ResizeWithPad box; a full LINE's ~20:1 strip gets shrunk to a thin

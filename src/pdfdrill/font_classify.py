@@ -140,6 +140,26 @@ def aggregate(top1s: list[tuple[str, float]]) -> Optional[dict]:
             "agreement": round(n / len(top1s), 3)}
 
 
+_CATEGORIES: Optional[dict] = None
+
+
+def category_of(font_name: str) -> Optional[str]:
+    """Map a Google-Fonts classname to its font category (sans-serif / serif /
+    monospace / handwriting / display) from the bundled font_categories.json, or
+    None if unresolved. The category is the ROBUST signal on out-of-class scanned
+    text: the exact face may be wrong, but a sans-serif scan's top guesses are all
+    sans-serif. Table built by tools/build_font_categories.py (committed)."""
+    global _CATEGORIES
+    if _CATEGORIES is None:
+        import json
+        path = Path(__file__).with_name("font_categories.json")
+        try:
+            _CATEGORIES = json.loads(path.read_text())
+        except Exception:
+            _CATEGORIES = {}
+    return _CATEGORIES.get(font_name)
+
+
 def field_fonts(classified, page_key: str = "page", block_key: str = "block") -> list[dict]:
     """Font as a property of each TEXT FIELD, not one document-level vote.
 
@@ -153,6 +173,7 @@ def field_fonts(classified, page_key: str = "page", block_key: str = "block") ->
     groups: "OrderedDict[tuple, list]" = OrderedDict()
     for w, pred in classified:
         groups.setdefault((w.get(page_key), w.get(block_key)), []).append((w, pred))
+    from collections import Counter
     out: list[dict] = []
     for (page, block), items in groups.items():
         agg = aggregate([p for _, p in items])
@@ -164,9 +185,21 @@ def field_fonts(classified, page_key: str = "page", block_key: str = "block") ->
         bbox = ([min(xs0), min(ys0), max(xs1), max(ys1)]
                 if xs0 and ys0 and xs1 and ys1 else None)
         sample = " ".join(w.get("text", "") for w in ws).strip()[:48]
+        # category vote: each word's top-1 font → its category; the majority
+        # category is robust even when the exact faces disagree.
+        cats = [c for c in (category_of(pred[0]) for _, pred in items) if c]
+        if cats:
+            cvotes = Counter(cats)
+            cat, cn = cvotes.most_common(1)[0]
+            category, cat_votes, cat_total = cat, cn, len(cats)
+            cat_agreement = round(cn / len(cats), 3)
+        else:
+            category, cat_votes, cat_total, cat_agreement = None, 0, 0, 0.0
         out.append({"page": page, "block": block, "font": agg["font"],
                     "votes": agg["votes"], "total": agg["total"],
                     "mean_conf": agg["mean_conf"], "agreement": agg["agreement"],
+                    "category": category, "cat_votes": cat_votes,
+                    "cat_total": cat_total, "cat_agreement": cat_agreement,
                     "bbox": bbox, "sample": sample})
     return out
 

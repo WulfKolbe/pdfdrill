@@ -1195,22 +1195,35 @@ def cmd_fontid(pdf: Path, pages: str | None = None, limit: int = 12,
         return f"No classifiable text fields found in {pdf.name}."
     from collections import Counter
     distinct = Counter(f["font"] for f in fields)
+    cat_counts = Counter(f["category"] for f in fields if f["category"])
     sc.set_evidence("fontid", {"fields": fields,
-                               "distinct": dict(distinct.most_common())})
+                               "distinct": dict(distinct.most_common()),
+                               "categories": dict(cat_counts.most_common())})
     sc.add_fact("FONTID_BUILT")
     sc.save()
 
-    summ = ", ".join(f"{name}×{n}" for name, n in distinct.most_common())
+    npages = len(set(f["page"] for f in fields))
+    # The CATEGORY vote (sans-serif/serif/mono/…) is the robust signal: on an
+    # out-of-class scanned face the exact Google-Fonts guess is noise, but its
+    # top guesses are all the same CATEGORY. Lead with that; the face is a hint.
+    if cat_counts:
+        top_cat, tc = cat_counts.most_common(1)[0]
+        catsumm = ", ".join(f"{c}×{n}" for c, n in cat_counts.most_common())
+        verdict = f"predominantly {top_cat} ({tc}/{len(fields)} fields; {catsumm})"
+    else:
+        verdict = "category uncertain (faces out of the Google-Fonts class set)"
     out = [f"FONTID {pdf.name} (VISUAL estimate — no font layer; per text FIELD, "
-           f"{len(fields)} fields over {len(set(f['page'] for f in fields))} page(s)). "
-           f"Distinct fonts: {summ}.",
-           "Font is a property of each text field (Google-Fonts classes only; not "
-           "the literal embedded face). ⚠ = LOW confidence/agreement, a weak hint:"]
+           f"{len(fields)} fields over {npages} page(s)). Document is {verdict}.",
+           "Per field the CATEGORY is the robust signal; the specific Google-Fonts "
+           "face is a low-confidence guess (Arial/Helvetica/Computer-Modern aren't "
+           "classes). ⚠ = even the category is uncertain:"]
     for f in fields:
-        weak = "" if (f["mean_conf"] >= 0.5 and f["agreement"] >= 0.5) else " ⚠"
+        cat = f["category"] or "uncertain"
+        weak = "" if (f["category"] and f["cat_agreement"] >= 0.5) else " ⚠"
         out.append(
-            f"  p{f['page']} field {f['block']:>2} {f['sample']!r:50} → {f['font']} "
-            f"({f['votes']}/{f['total']} agree, conf {f['mean_conf']}){weak}")
+            f"  p{f['page']} field {f['block']:>2} {f['sample']!r:46} → {cat} "
+            f"({f['cat_votes']}/{f['cat_total']}); face≈{f['font']} "
+            f"(conf {f['mean_conf']}){weak}")
     return "\n".join(out)
 
 
