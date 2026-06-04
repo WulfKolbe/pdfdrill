@@ -57,6 +57,17 @@ class SemanticGraph:
         return [r for r in self.relations if r.object_id == entity_id
                 and (predicate is None or r.predicate == predicate)]
 
+    def has_relation(self, subject_id: str, predicate, object_id: str) -> bool:
+        return any(r.subject_id == subject_id and r.predicate == predicate
+                   and r.object_id == object_id for r in self.relations)
+
+    def relate_once(self, subject_id: str, predicate, object_id: str, **kw):
+        """relate(), but skip if an identical (subject,predicate,object) edge
+        already exists — so re-ingesting a document doesn't duplicate edges."""
+        if self.has_relation(subject_id, predicate, object_id):
+            return None
+        return self.relate(subject_id, predicate, object_id, **kw)
+
     # -- serialization --------------------------------------------------------
     def to_dict(self) -> dict[str, Any]:
         return {"entities": [e.to_dict() for e in self.entities.values()],

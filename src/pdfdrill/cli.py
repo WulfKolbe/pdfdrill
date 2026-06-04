@@ -59,6 +59,7 @@ def main():
         "entities": _do_entities,
         "segment": _do_segment,
         "elements": _do_elements,
+        "semantic": _do_semantic,
         "rasterize": _do_rasterize,
         "attachments": _do_attachments,
         "formfields": _do_formfields,
@@ -274,6 +275,14 @@ def _do_elements(args):
     return cmd_elements(_pdf(pdf_args), force="--force" in args, model=model,
                         bibkey=bibkey, source=source,
                         ppi=int(ppi) if ppi else 300, lang=lang or "deu+eng")
+
+
+def _do_semantic(args):
+    """pdfdrill semantic <pdf> [--store graph.json] [--force]"""
+    from .commands import cmd_semantic
+    store, args = _opt(args, "--store")
+    pdf_args = [a for a in args if a != "--force"]
+    return cmd_semantic(_pdf(pdf_args), store=store, force="--force" in args)
 
 
 def _do_rasterize(args):
@@ -866,6 +875,7 @@ Introspection (fast, no extraction):
   pdfdrill entities <pdf>      Commercial entities per page: IBAN (mod-97 validated + BLZ/Konto/bank), BIC, German address, Steuer-/Kassen-/Aktenzeichen. Zero external tools
   pdfdrill segment <pdf>       Partition a scanned bundle into ordered documents (by sender/identifier + continuity number); flags duplicate copies
   pdfdrill elements <pdf>      Find layout elements (postal address / BOM line) via the geometric-attention GNN over tesseract word boxes → content-addressed tiddlers (--model M.npz)
+  pdfdrill semantic <pdf>      Build the semantic graph (CSP): extractors become sensors emitting evidence; entities (Company/Person/BankAccount) accumulate it. --store graph.json accumulates ACROSS documents
   pdfdrill model <pdf>         Build unified docmodel from lines.json (auto-chains mathpix, falls back to tesseract ocr if no MathPix); --bibkey KEY sets the tiddler prefix (persisted)
   pdfdrill compare <pdf>       LaTeX | KaTeX | MathPix-image comparison HTML (auto-chains model)
   pdfdrill report <pdf>        Full inline+display math report (formula-report.html)

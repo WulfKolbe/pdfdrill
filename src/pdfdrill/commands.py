@@ -67,6 +67,7 @@ CONTINUITY_BUILT = "CONTINUITY_BUILT"
 ENTITIES_BUILT = "ENTITIES_BUILT"
 SEGMENTED = "SEGMENTED"
 ELEMENTS_BUILT = "ELEMENTS_BUILT"
+SEMANTIC_BUILT = "SEMANTIC_BUILT"
 RASTERIZED = "RASTERIZED"
 ATTACHMENTS_KNOWN = "ATTACHMENTS_KNOWN"
 FORMFIELDS_KNOWN = "FORMFIELDS_KNOWN"
@@ -660,6 +661,114 @@ def cmd_elements(pdf: Path, force: bool = False, model: str | None = None,
             f"{n_bm} BOM-line(s) → {out_path.name} (+ sidecar `layout` layer). "
             f"Address provenance: {prov_str}. Tiddlers: {'; '.join(extras)}.{lp_note}\n"
             + body)
+
+
+def cmd_semantic(pdf: Path, store: str | None = None, force: bool = False) -> str:
+    """Build the semantic graph (CSP layer): entities accumulate evidence.
+
+    Turns this document's extractor output (sender, IBAN/BIC/address/ids) into
+    Evidence fed through the IdentityResolver — extractors are sensors, the graph
+    is the artifact. The address/IBAN are evidence pointing at the Company, not
+    primary objects. Persists `<bibkey>.semantic.json`. Pass `--store graph.json`
+    to accumulate ACROSS documents: run it over several PDFs with the same store
+    and one Company gathers evidence (addresses, bank accounts, tax ids) from all
+    of them — the thing a flat chunk store cannot do.
+    """
+    from docmodel.core import Document
+    from features import (extract_iban, extract_bic, extract_german_address,
+                          extract_ids)
+    from semantic.graph import SemanticGraph
+    from semantic.identity import IdentityResolver
+    from semantic.build import ingest_document
+    from semantic import proof
+    from . import segment as seg
+
+    sc = Sidecar(pdf)
+    model_path = _model_path(sc)
+    if not model_path.exists():
+        cmd_model(pdf)
+        sc = Sidecar(pdf)
+        model_path = _model_path(sc)
+    if not model_path.exists():
+        return f"No model for {pdf.name} (run `pdfdrill model` first)."
+    doc = Document.from_dict(json.loads(model_path.read_text(encoding="utf-8")))
+    page_text = _page_text_from_model(doc)
+    key = resolve_bibkey(pdf, None, sc)
+
+    # Load-or-create the graph; --store enables cross-document accumulation.
+    store_path = Path(store).expanduser() if store else None
+    sem_path = sc.blob_dir / f"{key}.semantic.json"
+    g = None
+    if store_path and store_path.exists():
+        g = SemanticGraph.from_dict(json.loads(store_path.read_text(encoding="utf-8")))
+    elif sem_path.exists() and not force:
+        g = SemanticGraph.from_dict(json.loads(sem_path.read_text(encoding="utf-8")))
+    if g is None:
+        g = SemanticGraph()
+    n_before = g.entity_count()
+    r = IdentityResolver(g).reindex()
+
+    full_text = "\n".join(page_text.get(p, "") for p in sorted(page_text))
+    sender = seg.sender_of(full_text)
+    is_authority = bool(re.search(r"\b(Finanzamt|Stadt|Stadtkasse|Bundes)", sender or ""))
+    rec = {"iban": [], "bic": [], "address": [], "ids": []}
+    for p in sorted(page_text):
+        t = page_text[p]
+        for f in extract_iban.extract(t, str(p)):
+            parts = extract_iban.german_parts(f.value)
+            rec["iban"].append({"iban": f.value, "blz": parts.get("blz"),
+                                "konto": parts.get("konto"),
+                                "bank": _bank_near(t, f.start or 0)})
+        rec["bic"] += [f.value for f in extract_bic.extract(t, str(p))]
+        rec["address"] += [f.value for f in extract_german_address.extract(t, str(p))]
+        rec["ids"] += [(f.type, f.value) for f in extract_ids.extract(t, str(p))]
+
+    # Persons (recipient) are deferred to Phase C (block roles) to avoid the
+    # footer Vorstand-list noise; the person path is covered by the build tests.
+    ent = ingest_document(g, r, source=key, sender=sender or None, persons=[],
+                          entities_rec=rec, page_text=full_text, authority=is_authority)
+
+    sc.blob_dir.mkdir(parents=True, exist_ok=True)
+    blob = json.dumps(g.to_dict(), ensure_ascii=False, indent=2)
+    sem_path.write_text(blob, encoding="utf-8")
+    if store_path:
+        store_path.write_text(blob, encoding="utf-8")
+
+    from semantic.entity import EntityType
+    counts = {t.value: g.entity_count(t) for t in EntityType if g.entity_count(t)}
+    prev = ",".join(sorted(sc.facts - {SEMANTIC_BUILT})) or "INIT"
+    sc.add_fact(SEMANTIC_BUILT)
+    sc.set_evidence("semantic_entities", g.entity_count())
+    sc.set_evidence("semantic_relations", len(g.relations))
+    sc.set_evidence("semantic_path", str(sem_path.relative_to(sc.pdf_path.parent)))
+    sc.log_transition("semantic", prev, SEMANTIC_BUILT,
+                      detail=f"{g.entity_count()} entities, {len(g.relations)} relations")
+    sc.save()
+
+    lines = []
+    for e in g.entities.values():
+        if e.type in (EntityType.COMPANY, EntityType.AUTHORITY, EntityType.PERSON,
+                      EntityType.BANK_ACCOUNT):
+            props = e.properties()
+            disp = e.value
+            extra = ", ".join(f"{k}={props[k]}" for k in
+                              ("iban", "steuernummer", "kassenzeichen", "address", "bic")
+                              if k in props)
+            srcs = ",".join(sorted(proof.sources(e)))
+            lines.append(f"  {e.id}  {disp}" + (f"  [{extra}]" if extra else "")
+                         + f"  ⟵ {srcs}")
+    rels = {}
+    for x in g.relations:
+        rels[x.predicate.value] = rels.get(x.predicate.value, 0) + 1
+    rel_str = ", ".join(f"{k}×{v}" for k, v in sorted(rels.items())) or "—"
+    accumulated = (f" (+{g.entity_count() - n_before} new this doc; store now "
+                   f"holds {g.entity_count()})" if store_path else "")
+    head = (f"Semantic graph for {key}: {g.entity_count()} entit"
+            f"{'y' if g.entity_count() == 1 else 'ies'} "
+            f"({', '.join(f'{n} {t}' for t, n in counts.items())}), "
+            f"{len(g.relations)} relation(s) [{rel_str}] → {sem_path.name}{accumulated}. "
+            f"Extractors are sensors; evidence accumulates on entities (⟵ source docs):")
+    return head + "\n" + ("\n".join(lines) if lines else "  (no agent entities yet)")
 
 
 # ===========================================================================

@@ -41,6 +41,17 @@ class IdentityResolver:
         self.graph = graph
         self._index: dict[tuple, str] = {}      # (kind, norm_value) -> entity id
 
+    def reindex(self) -> "IdentityResolver":
+        """Rebuild the identity index from the graph's existing entities — call
+        after loading a persisted graph so cross-run accumulation resolves to the
+        already-known entities."""
+        self._index.clear()
+        for e in self.graph.entities.values():
+            for ev in e.evidence:
+                if ev.prop in STRONG_KEYS or ev.prop in SOFT_KEYS:
+                    self._register(ev.prop, ev.value, e.id)
+        return self
+
     def find_existing_entity(self, type: EntityType,
                              keys: Iterable[tuple]) -> Optional[Entity]:
         for kind, value in keys:
