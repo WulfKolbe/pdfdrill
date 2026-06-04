@@ -697,6 +697,15 @@ The "competing tools" substrate is in place:
 - **`pdfdrill snip <pdf> [--limit N] [--force]`** — OCRs each equation's CDN
   crop via MathPix Snip and attaches a `provenance="snip"` `latex_candidate`
   realization (LaTeX + `confidence` → `score`) to the model.
+- **Special-image delivery (state-machine fix).** `snip` was equation-locked even
+  though `mathpix_snip.snip()` accepts *any* image — so a consumer interested in a
+  SPECIAL image (figure/stamp/table/handwriting) couldn't get it. Now `pdfdrill
+  snip <pdf> --image <path|url|data:>` OCRs any image, and `--page N --rect
+  x0,y0,x1,y1 [--ppi]` rasterizes that region, **delivers the crop PNG** (Read it,
+  or `vision` it) via `_deliver_region_crop`, then OCRs it — the crop is delivered
+  **even when OCR is unavailable** (no key/blocked): deliver what we can. Honors
+  the image-routing principle (every route to an image hangs off one node; pick
+  whichever succeeds). Tests: `tests/test_snip_special.py`.
 - **`ComparisonHtmlProjector`** now renders one LaTeX+KaTeX column pair per
   competing provenance (MathPix baseline first, then snip/llm), with the
   candidate confidence shown inline. Verified live on `2605.12061`: 12 crops

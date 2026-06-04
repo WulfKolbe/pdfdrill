@@ -2082,18 +2082,83 @@ def cmd_report(pdf: Path, force: bool = False, embed: bool = False) -> str:
             f"(LaTeX | KaTeX | image). Open {rel} in a browser.")
 
 
-def cmd_snip(pdf: Path, limit: int | None = None, force: bool = False) -> str:
-    """OCR each equation's CDN crop via MathPix Snip (/v3/text) as a competing
-    'snip' provenance, attaching the LaTeX + confidence to the model.
+def _deliver_region_crop(pdf: Path, sc: "Sidecar", page: int,
+                         rect: tuple, ppi: int = 200) -> Path:
+    """Rasterize `page` and crop the pixel `rect` (x0,y0,x1,y1 at `ppi`), saving
+    the crop PNG into the sidecar. Delivers the image regardless of any OCR."""
+    from . import pdf_reading
+    from PIL import Image
+    out_dir = sc.blob_dir / "snip"
+    imgs = pdf_reading.rasterize(pdf, out_dir, pages=[page], dpi=ppi)
+    if not imgs:
+        raise RuntimeError(f"could not rasterize page {page}")
+    x0, y0, x1, y1 = (int(v) for v in rect)
+    crop = Image.open(imgs[0]).convert("RGB").crop((x0, y0, x1, y1))
+    crop_path = out_dir / f"snip_p{page}_{x0}-{y0}-{x1}-{y1}.png"
+    crop.save(crop_path)
+    return crop_path
 
-    Auto-chains `model` if needed. Idempotent per equation: an equation that
-    already has a snip candidate is skipped unless --force. `--limit N` caps
-    how many crops are sent (each is one MathPix request).
+
+def cmd_snip(pdf: Path, limit: int | None = None, force: bool = False,
+             image: str | None = None, page: int | None = None,
+             rect: tuple | None = None, ppi: int = 200) -> str:
+    """OCR image crops via MathPix Snip (/v3/text).
+
+    Three modes — the state machine should deliver ANY special image, not just
+    equations:
+      * `--image <path|url|data:>` → OCR exactly that image.
+      * `--page N --rect x0,y0,x1,y1` → rasterize that region, DELIVER the crop
+        PNG (Read it to view), and OCR it. The crop is delivered even when OCR is
+        unavailable (no key / blocked) — deliver what we can.
+      * neither → the default: OCR every equation's CDN crop as a competing
+        'snip' provenance attached to the model (auto-chains `model`; idempotent
+        per equation unless --force; `--limit N` caps requests).
     """
     from docmodel.core import Document, Realization, Region
     from .mathpix_snip import snip_result
+    from .net import NetworkBlocked
 
     sc = Sidecar(pdf)
+
+    # --- special-image delivery (explicit image, or a page region) ----------
+    if image or (page is not None and rect is not None):
+        delivered = None
+        if image is None:                       # region → deliver the crop first
+            sc.blob_dir.mkdir(parents=True, exist_ok=True)
+            try:
+                delivered = _deliver_region_crop(pdf, sc, page, rect, ppi)
+            except Exception as e:
+                return f"Could not deliver page {page} rect {rect}: {e}"
+            target = str(delivered)
+        else:
+            target = image
+            if Path(image).exists():
+                delivered = Path(image)
+        out = [f"Special image: {target}"]
+        if delivered is not None:
+            rel = (str(delivered.relative_to(sc.pdf_path.parent))
+                   if str(delivered).startswith(str(sc.pdf_path.parent)) else str(delivered))
+            out.append(f"  crop delivered → {rel}  (Read it to view; or `pdfdrill "
+                       f"vision` for a GPT-4o read)")
+        try:
+            res = snip_result(target)
+        except NetworkBlocked as nb:
+            out.append(f"  OCR unavailable: {nb}")
+            return "\n".join(out)
+        except Exception as e:
+            out.append(f"  OCR unavailable ({e}) — the crop above is still delivered.")
+            return "\n".join(out)
+        latex, text, conf = res.get("latex", ""), res.get("text", ""), res.get("confidence")
+        if latex:
+            out.append(f"  latex: {latex}")
+        if text and text != latex:
+            out.append(f"  text:  {text}")
+        if conf is not None:
+            out.append(f"  confidence: {conf:.3f}")
+        sc.set_evidence("snip_special", {"image": target, "crop": str(delivered) if delivered else None,
+                                         "latex": latex, "text": text, "confidence": conf})
+        sc.save()
+        return "\n".join(out)
     model_path = _model_path(sc)
     if not sc.has(MODEL_BUILT) or not model_path.exists():
         cmd_model(pdf)

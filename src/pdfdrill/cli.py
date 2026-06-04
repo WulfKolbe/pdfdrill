@@ -438,20 +438,21 @@ def _do_compare(args):
 
 
 def _do_snip(args):
-    """pdfdrill snip <pdf> [--limit N] [--force]"""
+    """pdfdrill snip <pdf> [--limit N] [--force]
+    pdfdrill snip <pdf> --image <path|url>            (OCR any special image)
+    pdfdrill snip <pdf> --page N --rect x0,y0,x1,y1   (deliver+OCR a region crop)"""
     from .commands import cmd_snip
-    pdf_args: list[str] = []
-    limit = None
-    force = False
-    i = 0
-    while i < len(args):
-        if args[i] == "--limit" and i + 1 < len(args):
-            limit = int(args[i + 1]); i += 2
-        elif args[i] == "--force":
-            force = True; i += 1
-        else:
-            pdf_args.append(args[i]); i += 1
-    return cmd_snip(_pdf(pdf_args), limit=limit, force=force)
+    image, args = _opt(args, "--image")
+    page, args = _opt(args, "--page")
+    rect_s, args = _opt(args, "--rect")
+    ppi, args = _opt(args, "--ppi")
+    limit, args = _opt(args, "--limit")
+    rect = tuple(float(x) for x in rect_s.split(",")) if rect_s else None
+    pdf_args = [a for a in args if a != "--force"]
+    return cmd_snip(_pdf(pdf_args), limit=int(limit) if limit else None,
+                    force="--force" in args, image=image,
+                    page=int(page) if page else None, rect=rect,
+                    ppi=int(ppi) if ppi else 200)
 
 
 def _do_nlp(args):
@@ -946,6 +947,8 @@ Introspection (fast, no extraction):
   pdfdrill folder <dir>        Build the full structure for every PDF in <dir> from existing
                                .lines.json/.bib/.md — runs all levels, NO MathPix/Perplexity calls
   pdfdrill snip <pdf>          OCR each equation crop via MathPix Snip (/v3/text) → competing column; --limit N
+  pdfdrill snip <pdf> --image <path|url>            Deliver+OCR ANY special image (not just equations)
+  pdfdrill snip <pdf> --page N --rect x0,y0,x1,y1   Rasterize+deliver a region crop (PNG to Read) + OCR it; the crop is delivered even if OCR is unavailable
   pdfdrill candidates <pdf>    Export equation crops as a manifest for an LLM to read; --provider P --limit N
   pdfdrill ingest <pdf> <json> Attach externally-produced {eq_id,latex} candidates as a provenance column; --provider P
   pdfdrill vision <pdf>        GPT-4o vision reads every MathPix CDN crop (incl. table-cell images) → math/TikZ/gnuplot/table as the `openai` provenance; --limit N (needs OPENAI_API_KEY)
