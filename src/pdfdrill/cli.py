@@ -121,7 +121,27 @@ def main():
 def _pdf(args: list[str]) -> Path:
     if not args:
         raise ValueError("No PDF file specified.")
-    p = Path(args[0])
+    arg = args[0]
+    from . import sources
+    if sources.is_url(arg):
+        # work directly on an https URL: download once (cached) to a local PDF so
+        # every command runs on it. For arXiv the stem is the id, and we record it
+        # so abstract/latex can take the FREE routes instead of paying MathPix.
+        info = sources.resolve_input(arg)
+        p = info["path"]
+        if not (p.exists() and p.stat().st_size > 0):
+            raise FileNotFoundError(f"Download failed: {arg}")
+        if info.get("arxiv_id"):
+            try:
+                from .sidecar import Sidecar
+                sc = Sidecar(p)
+                sc.set_evidence("source_arxiv_id", info["arxiv_id"])
+                sc.set_evidence("source_kind", info.get("source"))
+                sc.save()
+            except Exception:
+                pass
+        return p
+    p = Path(arg)
     if not p.exists():
         raise FileNotFoundError(f"Not found: {p}")
     return p
@@ -906,6 +926,12 @@ def _do_drill(args):
 
 def _print_help():
     print("""pdfdrill — portable PDF drill-down toolkit
+
+Input: <pdf> may be a local path OR an https URL from a known host. arXiv URLs/ids
+(https://arxiv.org/abs/<id>, /pdf/<id>, or a bare 2510.11170v2) download the PDF
+once (cached) and unlock the FREE routes — `abstract` reads the abs page and
+`latex` downloads the e-print .tgz (gold equations), so MathPix is skipped by
+default (use `mathpix --force` to override).
 
 Introspection (fast, no extraction):
   pdfdrill size <pdf>          File size, page count, producer

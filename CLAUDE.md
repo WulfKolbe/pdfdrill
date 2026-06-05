@@ -700,6 +700,48 @@ message (and `model` then falls back to tesseract `ocr`); `snip`/`vision`/
 `bibfetch` abort the batch on the first block and return the message rather than
 hammering N items. Tests: `tests/test_net.py`.
 
+## Known-host URL inputs + arXiv free routes (`src/pdfdrill/sources.py`)
+
+Every command's `<pdf>` argument may now be an **https URL from a known host**,
+not just a local path. `_pdf()` (the single arg-resolution chokepoint in
+`cli.py`) calls `sources.resolve_input(arg)`: a local file passes through
+unchanged; a known-host URL is **downloaded once (cached)** to a local PDF so the
+whole toolchain runs on it. `KNOWN_HOSTS` maps a host → kind (`arxiv` today;
+extend per host).
+
+**arXiv is the money-saver.** Given an `arxiv.org` argument (or a bare id like
+`2510.11170v2`) we DON'T pay MathPix at all — `parse_arxiv_id` accepts every
+spelling (`/abs/`, `/pdf/`, `/e-print/`, `arXiv:…`, bare, old-style
+`math/0309136`), `arxiv_urls` builds the abs/pdf/e-print URLs, and the id is
+recorded in the sidecar (`source_arxiv_id`) so downstream commands take the free
+routes:
+
+- **Abstract for free** — `cmd_abstract` tries the arXiv abs page FIRST (the
+  cheapest authoritative source: no MathPix, no text layer needed).
+  `parse_arxiv_abs_html` lifts title/authors/abstract/primary-category from the
+  page (pure, unit-tested). Verified live: `pdfdrill abstract
+  https://arxiv.org/abs/2510.11170v2` → the EAGer abstract `via arxiv-abs-page`.
+- **Gold LaTeX instead of MathPix** — `cmd_mathpix` **skips the paid upload by
+  default** for an arXiv input and prints the free-route guidance (so `model`
+  falls back to keyless tesseract for page structure); `--force` overrides.
+  `cmd_latex` **auto-downloads the e-print `.tgz`** (`download_arxiv_source`, the
+  endpoint the abs-page download button hides: `https://arxiv.org/e-print/<id>`)
+  when no local `--tex`/`.tgz` is present, then ingests the author's gold
+  equations. Verified live end-to-end on 2510.11170v2: PDF downloaded, MathPix
+  skipped, base model built by OCR (15 pages), `.tgz` fetched, 5 display
+  equations + 425 macros ingested — **zero MathPix spend**. Honest caveat: with
+  an OCR base model (no MathPix equation detection) the 5 gold equations matched
+  0 OCR equation slots — the gold LaTeX is still extracted/kept, but precise
+  overlay/comparison wants MathPix's equation isolation or a source-built model
+  (`latexbook`-style, a near-term follow-up).
+
+Pure parsers (`is_url`/`host_of`/`known_host`/`parse_arxiv_id`/`arxiv_urls`/
+`parse_arxiv_abs_html`) are network-free and unit-tested; the net routes
+(`fetch_arxiv_metadata`/`download`/`resolve_input`/`download_arxiv_source`) go
+through `net.urlopen`, so a sandbox block degrades to the local routes. Tests:
+`tests/test_sources.py` (pure) + `tests/test_arxiv_routes.py` (mathpix-skip +
+free-abstract wiring, network monkeypatched).
+
 ## Current status
 
 Merged layout + working pdfdrill CLI (verified on `2605.12061`) + passing

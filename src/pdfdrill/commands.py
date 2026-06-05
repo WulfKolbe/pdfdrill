@@ -108,6 +108,21 @@ def cmd_mathpix(pdf: Path, force: bool = False) -> str:
     # than OOM on the encode or POST a doomed 463 MB body; warn on large inputs.
     warn = ""
     cached = all(Path(p).exists() for p in expected_outputs(str(pdf)).values())
+    # arXiv: don't spend a MathPix credit by default — the author's LaTeX source
+    # is the FREE gold form. Skip the upload and point at the free routes; `model`
+    # then builds page structure with keyless tesseract. `--force` uses MathPix.
+    if not force and not cached:
+        aid = _arxiv_id_for(pdf, sc)
+        if aid:
+            return (f"MathPix skipped — {pdf.name} is arXiv:{aid}, and the author's "
+                    f"LaTeX source is FREE.\n"
+                    f"  • equations (gold): `pdfdrill latex {pdf.name}` auto-downloads "
+                    f"the e-print .tgz\n"
+                    f"  • abstract (free):  `pdfdrill abstract {pdf.name}` reads the abs "
+                    f"page\n"
+                    f"  • page structure:   `pdfdrill model {pdf.name}` falls back to "
+                    f"keyless tesseract OCR\n"
+                    f"Pass --force to use MathPix anyway.")
     if force or not cached:
         size = pdf.stat().st_size if pdf.exists() else 0
         pages = None
@@ -2580,6 +2595,16 @@ def cmd_latex(pdf: Path, tex: str | None = None, force: bool = False) -> str:
             if cand.exists():
                 src = cand
                 break
+    # arXiv: download the e-print .tgz (the free gold LaTeX) if no local source.
+    if src is None:
+        aid = _arxiv_id_for(pdf, sc)
+        if aid:
+            try:
+                from . import sources
+                src = sources.download_arxiv_source(aid, pdf.parent)
+            except Exception as e:
+                return (f"arXiv source download failed for arXiv:{aid}: {e}\n"
+                        f"(pass --tex <path> if you have the .tex/.tgz locally).")
     if src is None or not src.exists():
         return (f"No LaTeX source found for {pdf.name} "
                 f"(looked for {pdf.stem}.tex / .tgz / .tar.gz; pass --tex <path>).")
@@ -4292,6 +4317,33 @@ def cmd_abstract(pdf: Path) -> str:
     if sc.has(ABSTRACT_KNOWN):
         return _format_abstract(sc)
 
+    # FREE arxiv route: the abstract lives on the abs page — no MathPix, no text
+    # layer needed. Cheapest authoritative source, so try it before anything else.
+    arxiv_id = _arxiv_id_for(pdf, sc)
+    if arxiv_id:
+        try:
+            from . import sources
+            meta = sources.fetch_arxiv_metadata(arxiv_id)
+            abstract_text = (meta.get("abstract") or "").strip()
+            if abstract_text:
+                if sc.has(ABSTRACT_ABSENT):
+                    sc._data["facts"] = [f for f in sc._data.get("facts", [])
+                                         if f != ABSTRACT_ABSENT]
+                sc.set_evidence("abstract", abstract_text)
+                sc.set_evidence("abstract_method", "arxiv-abs-page")
+                sc.set_evidence("abstract_search_scope", "arxiv")
+                if meta.get("title"):
+                    sc.set_evidence("arxiv_title", meta["title"])
+                if meta.get("authors"):
+                    sc.set_evidence("arxiv_authors", meta["authors"])
+                if meta.get("primary_category"):
+                    sc.set_evidence("arxiv_primary_category", meta["primary_category"])
+                sc.add_fact(ABSTRACT_KNOWN)
+                sc.save()
+                return _format_abstract(sc)
+        except Exception:
+            pass  # network blocked / parse miss → fall through to local routes
+
     prev_scope = sc.get_evidence("abstract_search_scope")
     have_md = sc.has(MD_BUILT)
     desired_scope = "markdown" if have_md else "first2pages"
@@ -4376,6 +4428,16 @@ def _extract_abstract_from_markdown(md: str) -> str | None:
             continue
         return first_para
     return None
+
+
+def _arxiv_id_for(pdf: Path, sc: Sidecar) -> str | None:
+    """The arXiv id for this input, if any: from the sidecar (a resolved URL),
+    else parsed from the filename stem (a downloaded/named `<id>.pdf`)."""
+    from . import sources
+    aid = sc.get_evidence("source_arxiv_id")
+    if aid:
+        return aid
+    return sources.parse_arxiv_id(pdf.stem)
 
 
 def _format_abstract(sc: Sidecar) -> str:
