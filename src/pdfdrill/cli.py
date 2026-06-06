@@ -123,10 +123,11 @@ def _pdf(args: list[str]) -> Path:
         raise ValueError("No PDF file specified.")
     arg = args[0]
     from . import sources
-    if sources.is_url(arg):
-        # work directly on an https URL: download once (cached) to a local PDF so
-        # every command runs on it. For arXiv the stem is the id, and we record it
-        # so abstract/latex can take the FREE routes instead of paying MathPix.
+    # work directly on an https URL from a known host, OR a bare arXiv id — but
+    # never shadow a real local file (checked first inside resolve_input).
+    if (sources.is_url(arg) or sources.bare_arxiv_id(arg)) and not Path(arg).exists():
+        # download once (cached) to a local PDF so every command runs on it. For
+        # arXiv the stem is the id, recorded so abstract/latex take the FREE routes.
         info = sources.resolve_input(arg)
         p = info["path"]
         if not (p.exists() and p.stat().st_size > 0):

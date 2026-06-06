@@ -709,6 +709,22 @@ unchanged; a known-host URL is **downloaded once (cached)** to a local PDF so th
 whole toolchain runs on it. `KNOWN_HOSTS` maps a host → kind (`arxiv` today;
 extend per host).
 
+**Bare ids resolve too (skill gotcha fix).** `_pdf` routes a bare arXiv id
+(`pdfdrill latex 2510.11170v2`) — not just a URL — through `resolve_input`, so it
+no longer fails with `Not found`. `bare_arxiv_id` is a strict **fullmatch** (the
+whole arg is the id, optional `arXiv:`/`.pdf`), so an id merely *embedded* in a
+missing local path (`data/2312.11532.pdf`) is NOT hijacked into a download, and a
+**real local file always wins** (checked first). One consequence worth knowing for
+scripts/skills: every command accepts the same URL/id and resolves to the same
+cached `<id>.pdf`, so there is no need to `ls *.pdf` to discover the downloaded
+name — pass the URL/id to `size`/`model`/`tiddlers`/… directly.
+
+**State-machine ordering on arXiv.** Because `mathpix` skips by default for arXiv,
+the MathPix-**rich** path is `pdfdrill mathpix <id> --force` → `model` → `latex`
+→ `tiddlers` (force writes the detailed `lines.json`; `model` auto-rebuilds when
+`lines.json` is newer). Running `latex` first instead builds the keyless-OCR
+skeleton (pages/paragraphs/lists; the gold equations don't match OCR slots).
+
 **arXiv is the money-saver.** Given an `arxiv.org` argument (or a bare id like
 `2510.11170v2`) we DON'T pay MathPix at all — `parse_arxiv_id` accepts every
 spelling (`/abs/`, `/pdf/`, `/e-print/`, `arXiv:…`, bare, old-style

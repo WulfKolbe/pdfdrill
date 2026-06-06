@@ -80,6 +80,46 @@ def test_parse_arxiv_abs_html():
     assert m["primary_category"] == "cs.LG"
 
 
+def test_bare_arxiv_id_is_strict_fullmatch():
+    # a BARE id (the whole arg) is an arXiv id; an id embedded in a path is not
+    assert S.bare_arxiv_id("2510.11170v2") == "2510.11170v2"
+    assert S.bare_arxiv_id("arXiv:2510.11170") == "2510.11170"
+    assert S.bare_arxiv_id("2510.11170.pdf") == "2510.11170"
+    assert S.bare_arxiv_id("math/0309136") == "math/0309136"      # old-style id
+    assert S.bare_arxiv_id("paper.pdf") is None
+    assert S.bare_arxiv_id("data/2312.11532.pdf") is None         # embedded, not bare
+    assert S.bare_arxiv_id("https://arxiv.org/abs/2510.11170") is None  # that's a URL
+
+
+def test_resolve_bare_id_routes_to_arxiv(monkeypatch):
+    # a bare id (no local file) is resolved as arXiv — downloads the PDF
+    import tempfile
+    calls = {}
+
+    def fake_download(url, dest):
+        calls["url"] = url
+        Path(dest).write_bytes(b"%PDF-1.4")
+        return Path(dest)
+    monkeypatch.setattr(S, "download", fake_download)
+    with tempfile.TemporaryDirectory() as d:
+        out = S.resolve_input("2510.11170v2", dest_dir=Path(d))
+        assert out["source"] == "arxiv" and out["arxiv_id"] == "2510.11170v2"
+        assert out["path"].name == "2510.11170v2.pdf" and out["path"].exists()
+        assert "e-print" not in calls["url"] and "pdf/2510.11170v2" in calls["url"]
+
+
+def test_resolve_local_path_wins_over_arxiv_shape(monkeypatch):
+    # an existing local file named like an id is used as-is, never downloaded
+    import tempfile
+    monkeypatch.setattr(S, "download", lambda *a, **k: (_ for _ in ()).throw(
+        AssertionError("should not download a local file")))
+    with tempfile.TemporaryDirectory() as d:
+        p = Path(d) / "2312.11532.pdf"
+        p.write_bytes(b"%PDF-1.4")
+        out = S.resolve_input(str(p), dest_dir=Path(d))
+        assert out["path"] == p and out["source"] is None
+
+
 def test_local_path_passes_through_resolver():
     # a real local file is returned unchanged (no network)
     import tempfile
@@ -91,8 +131,14 @@ def test_local_path_passes_through_resolver():
 
 
 if __name__ == "__main__":
+    class _MP:
+        def setattr(self, o, n, v): setattr(o, n, v)
     for fn in [test_is_url_and_host, test_known_host_detection,
                test_parse_arxiv_id_every_spelling, test_arxiv_urls,
-               test_parse_arxiv_abs_html, test_local_path_passes_through_resolver]:
+               test_parse_arxiv_abs_html, test_bare_arxiv_id_is_strict_fullmatch,
+               test_local_path_passes_through_resolver]:
         fn(); print("PASS", fn.__name__)
+    for fn in [test_resolve_bare_id_routes_to_arxiv,
+               test_resolve_local_path_wins_over_arxiv_shape]:
+        fn(_MP()); print("PASS", fn.__name__)
     print("\nAll tests passed.")

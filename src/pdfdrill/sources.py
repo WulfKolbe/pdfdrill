@@ -78,6 +78,22 @@ def parse_arxiv_id(s: str) -> Optional[str]:
     return m.group(1)
 
 
+_BARE_ARXIV = re.compile(rf"(?:arxiv:)?({_ARXIV_NEW}|{_ARXIV_OLD})$", re.I)
+
+
+def bare_arxiv_id(s: str) -> Optional[str]:
+    """The arXiv id IFF the WHOLE argument is a bare id (optionally `arXiv:`-
+    prefixed, with a trailing `.pdf` allowed) — NOT a URL and NOT an id merely
+    embedded in a path. So `2510.11170v2` resolves, but `data/2312.11532.pdf`
+    (a real-looking local path) does not. This is the fix for the skill gotcha
+    where `pdfdrill latex 2510.11170` failed with `Not found`."""
+    if not s or is_url(s):
+        return None
+    text = re.sub(r"\.pdf$", "", s.strip(), flags=re.I)
+    m = _BARE_ARXIV.fullmatch(text)
+    return m.group(1) if m else None
+
+
 def arxiv_urls(arxiv_id: str) -> dict[str, str]:
     """abs / pdf / e-print URLs for an arXiv id (version preserved if present)."""
     return {
@@ -169,6 +185,17 @@ def resolve_input(arg: str, dest_dir: Optional[Path] = None) -> dict:
     """
     dest_dir = Path(dest_dir or Path.cwd())
     if not is_url(arg):
+        # a real local file always wins (even if it is named like an arXiv id)
+        if Path(arg).exists():
+            return {"path": Path(arg), "source": None, "arxiv_id": None}
+        # otherwise a BARE arXiv id is downloaded as arXiv (the skill gotcha fix)
+        arxiv_id = bare_arxiv_id(arg)
+        if arxiv_id:
+            dest = dest_dir / f"{arxiv_id.replace('/', '_')}.pdf"
+            if not (dest.exists() and dest.stat().st_size > 0):
+                download(arxiv_urls(arxiv_id)["pdf"], dest)
+            return {"path": dest, "source": "arxiv", "arxiv_id": arxiv_id}
+        # not a URL, not a local file, not a bare id → let the caller raise
         return {"path": Path(arg), "source": None, "arxiv_id": None}
 
     kind = known_host(arg)
