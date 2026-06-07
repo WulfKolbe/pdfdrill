@@ -982,7 +982,7 @@ Introspection (fast, no extraction):
   pdfdrill embedimages <pdf>   Lift pdfimages + pdfplumber image rects into the model as EmbeddedImage nodes (pixel size/encoding/ppi + page rect), fused onto MathPix crops they contain
   pdfdrill geometry <pdf>      Fuse pdftotext -tsv layout (indent/margins) onto the model — substrate for block detection
   pdfdrill tiddlers <pdf>      Emit a TiddlyWiki JSON tiddler array (latex/displayMode/canonical_uri/width/height) for quick inspection; --bibkey KEY sets the title prefix + filename
-  pdfdrill translate <pdf>     DeepL-translate prose tiddlers (--to EN-US --from DE): translation replaces the field, original kept as org_<field> (needs DEEPL_API_KEY)
+  pdfdrill translate <pdf>     DeepL-translate the document IN PLACE (--to EN-US --from RU): writes the changed tiddler file (translated text field) AND a bi-layer Markdown <bibkey>.md (translation + hidden source, CSS toggle); original kept under <field>_source (needs DEEPL_API_KEY)
   pdfdrill lists <pdf>         Nest flat ListItems into recursive List blocks using fused indentation (auto-chains geometry)
   pdfdrill algorithms <pdf>    Reconstruct Algorithm blocks from MathPix pseudocode lines (caption + indented steps)
   pdfdrill annotate <pdf>      Promote hyperlink annotations into the model as first-class Link nodes (uri + rect Region)

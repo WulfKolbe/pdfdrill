@@ -50,6 +50,30 @@ def _yaml_scalar(v) -> str:
     return s
 
 
+# Prose object type -> the field that carries a `<field>_source` backup when the
+# model has been translated in place (so the projector can render both layers).
+_BILAYER_FIELD = {
+    "Paragraph": "text", "Abstract": "text",
+    "Footnote": "content", "Sidenote": "content", "ListItem": "content",
+    "Section": "caption",
+}
+
+
+def _bilayer_header(src_lang: str, tgt_lang: str) -> str:
+    """Raw HTML/CSS for a browser show/hide toggle of the source layer. Default
+    is translation-only (clean reading); the button reveals the source."""
+    src = src_lang or "source"
+    return (
+        "<style>\n"
+        ".seg.source{display:none;opacity:.75;border-left:3px solid #bbb;"
+        "padding-left:.6em;margin:.3em 0}\n"
+        "body.show-source .seg.source{display:block}\n"
+        "</style>\n"
+        "<button onclick=\"document.body.classList.toggle('show-source')\">"
+        f"Toggle {src} source</button>"
+    )
+
+
 class LLMCompactProjector(BaseProjector):
 
     def output_extension(self) -> str:
@@ -61,6 +85,12 @@ class LLMCompactProjector(BaseProjector):
         repeat_threshold = int(self.params.get("repeat_threshold", 1))
         include_glossary = bool(self.params.get("include_glossary", True))
         include_meta = bool(self.params.get("include_meta", True))
+        # Bi-layer: when the model was translated in place (prose objects carry a
+        # `<field>_source` backup), render BOTH the translation and the source,
+        # wrapped in HTML divs a CSS/JS toggle can show/hide.
+        bilayer = bool(self.params.get("bilayer", False))
+        src_lang = self.params.get("source_lang") or ""
+        tgt_lang = self.params.get("target_lang") or ""
         # Opt-in (test path): rewrite in-text "(N)" refs to the equation's
         # compact placeholder. Off by default so the markdown stays clean.
         eq_refs = bool(self.params.get("eq_refs", False))
@@ -103,6 +133,9 @@ class LLMCompactProjector(BaseProjector):
         if include_meta:
             out.append(self._front_matter(doc))
             out.append("")
+        if bilayer:
+            out.append(_bilayer_header(src_lang, tgt_lang))
+            out.append("")
 
         # Track which placeholders we've shown inline so the glossary can
         # skip those that are 0-shot (shouldn't happen but defensive).
@@ -110,8 +143,7 @@ class LLMCompactProjector(BaseProjector):
         seen_equations: set[str] = set()
 
         for obj in flow_ordered_content(doc):
-            block = self._render_block(
-                obj, doc,
+            kw = dict(
                 formula_map=formula_map, formula_uses=formula_uses,
                 repeat_threshold=repeat_threshold,
                 equation_map=equation_map,
@@ -119,6 +151,20 @@ class LLMCompactProjector(BaseProjector):
                 seen_equations=seen_equations,
                 eqref_to_ph=eqref_to_ph,
             )
+            field = _BILAYER_FIELD.get(obj.type)
+            if bilayer and field and (field + "_source") in obj.props:
+                # render the translation (props[field]) and the source backup
+                trans = self._render_block(obj, doc, **kw)
+                keep = obj.props[field]
+                obj.props[field] = obj.props[field + "_source"]
+                source = self._render_block(obj, doc, **kw)
+                obj.props[field] = keep
+                block = (
+                    f'<div class="seg trans" lang="{tgt_lang}">\n\n{trans}\n\n</div>\n'
+                    f'<div class="seg source" lang="{src_lang}">\n\n{source}\n\n</div>'
+                )
+            else:
+                block = self._render_block(obj, doc, **kw)
             if block:
                 out.append(block)
                 out.append("")

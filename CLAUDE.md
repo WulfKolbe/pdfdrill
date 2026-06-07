@@ -1080,27 +1080,37 @@ are truncated):
   `citekey/authors/year/titlefield/entry_type/bibtex/citations`, text led by
   `{{||CIT}}` — compatible with the existing bibentry macros / updateBibentries.
 
-DeepL translation of tiddlers (`src/pdfdrill/deepl_client.py`,
-`pdfdrill translate`):
+DeepL translation IN PLACE → tiddlers + bi-layer Markdown
+(`src/pdfdrill/deepl_client.py`, `pdfdrill translate`):
 
-- **`pdfdrill translate <pdf> [--to EN-US] [--from DE] [--limit N]`** translates
-  prose tiddlers via DeepL API v2 (stdlib `urllib`, no SDK), preserving the
-  original: paragraph/footnote/sidenote/abstract → the `text` field, section →
-  `caption`; the translation is written back under the **original field name**
-  and the source is kept under **`org_<field>`** (e.g. `org_text`), so existing
-  templates render the translation while the source survives. Each translated
-  tiddler gains a `translated` tag + `translated_lang`. Math/code/image/toc
-  tiddlers are skipped (not prose). Writes a sibling
-  `<bibkey>.<lang>.tiddlers.json`; re-runs are incremental + idempotent (read
-  the prior output, skip tiddlers that already have `org_<field>`; `--force`
-  re-translates from the untranslated source). Ported from the tested
-  `~/MX/tiddly-translation` (its field-mapping rules + backup-field pattern).
-- Key from `DEEPL_API_KEY` (env/.env; free keys end `:fx` → api-free host).
-  Calls go through `net.urlopen` (graceful sandbox-block message); a DeepL
-  quota/error degrades to the ORIGINAL text so a batch never aborts. Verified
-  live on the AKolbe BA thesis (DE→EN): `text` = English, `org_text` = German,
-  `\title{}`/`\author{}` wrappers preserved. Tests: `tests/test_translate.py`
-  (no real API).
+- **`pdfdrill translate <pdf> [--to EN-US] [--from RU] [--limit N] [--force]`**
+  translates the document **in place** via DeepL API v2 (stdlib `urllib`, no
+  SDK) — one source, two outputs. The translation replaces the field and the
+  original is kept under **`<field>_source`**. Math/code/image objects untouched.
+  Idempotent (skips fields that already carry `<field>_source`; `--force`
+  re-translates from the preserved original). Key from `DEEPL_API_KEY` (env/.env;
+  free keys end `:fx` → api-free host); calls go through `net.urlopen` (graceful
+  block message; a quota/error degrades to the original so a batch never aborts).
+- **Two representations, two passes — by necessity.** The Markdown projector
+  (llm_compact) renders from the model's clean `props["text"]`, but the
+  **TiddlyWiki projector rebuilds transcluded paragraphs from the immutable
+  source stream BY OFFSET** (to re-insert `{{…||FO}}` tokens) — so translating
+  the model's `text` reaches the Markdown but NOT transcluded tiddlers. Hence
+  `cmd_translate` does both: (1) `translate_model_prose` translates the model
+  prose in place → re-projects the **bi-layer Markdown** `<bibkey>.md`
+  (`LLMCompactProjector` `bilayer=True`: a `<div class="seg trans">` + a hidden
+  `<div class="seg source">` per block, with a CSS/JS show-source toggle —
+  `_bilayer_header`); (2) regenerates `<bibkey>.tiddlers.json` and
+  `_translate_tiddler_file_inplace` translates the tiddler `text`/`caption` at the
+  tiddler level (tokens already inserted, so DeepL translates the prose around
+  them) — your original `~/MX/tiddly-translation` approach, writing the **changed
+  tiddler file in place** (not a new `<lang>` file). Verified live on the Russian
+  paper 576-659-1-PB (RU→EN-US): tiddler `text` = English / `text_source` =
+  Russian (43/46 prose tiddlers English; the rest author/affiliation lines), and
+  `576-659-1-PB.md` is bi-layer with the toggle. Tests:
+  `tests/test_translate.py` (`translate_model_prose` + `_translate_tiddler_file_inplace`,
+  no real API) and `tests/test_docops.py`
+  (`test_llmcompact_bilayer_emits_both_layers`).
 
 `pdfdrill latexbook <book.tex>` is the one-shot source-only pipeline (no PDF,
 no MathPix): build the model from `.tex` (inline `\input`, resolve preamble +

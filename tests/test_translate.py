@@ -70,41 +70,56 @@ def test_field_mapping():
     assert f({"tags": ""}) is None
 
 
-def _setup(tmp):
-    from pdfdrill.sidecar import Sidecar
-    pdf = tmp / "doc.pdf"; pdf.write_bytes(b"%PDF-1.4\n")
-    sc = Sidecar(pdf); sc.blob_dir.mkdir(parents=True, exist_ok=True)
-    sc.set_evidence("bibkey", "doc"); sc.save()
-    tids = [
-        {"title": "doc_PARA_0001", "tags": "paragraph doc", "type": "text/vnd.tiddlywiki",
-         "text": "Die Kette beschreibt Elektronen."},
-        {"title": "doc_H1", "tags": "section doc", "caption": "Einleitung", "text": "{{x||PARA}}"},
-        {"title": "doc_EQ0001", "tags": "equation doc", "latex": "E=mc^2", "text": "$E=mc^2$"},
-    ]
-    (sc.blob_dir / "doc.tiddlers.json").write_text(json.dumps(tids))
-    return pdf, sc.blob_dir
+def test_translate_model_prose_inplace():
+    # Model is translated IN PLACE: translation replaces the field, original kept
+    # under `<field>_source`; math untouched; idempotent; --force re-translates
+    # from the preserved original (never from the translation).
+    from docmodel.core import Document, DocObject
+    doc = Document()
+    doc.add(DocObject(type="Paragraph", id="p1", props={"text": "Hallo Welt"}))
+    doc.add(DocObject(type="Section", id="s1", props={"caption": "Einleitung"}))
+    doc.add(DocObject(type="ListItem", id="l1", props={"content": "erstens"}))
+    doc.add(DocObject(type="Equation", id="e1", props={"latex": "E=mc^2"}))
+    up = lambda texts, *a, **k: [t.upper() for t in texts]
+
+    n = commands.translate_model_prose(doc, up, "EN-US", "DE")
+    assert n == 3
+    p = doc.objects["p1"]
+    assert p.props["text"] == "HALLO WELT" and p.props["text_source"] == "Hallo Welt"
+    assert doc.objects["s1"].props["caption_source"] == "Einleitung"
+    assert doc.objects["l1"].props["content_source"] == "erstens"
+    assert doc.objects["e1"].props["latex"] == "E=mc^2"          # math untouched
+
+    # idempotent: already-translated objects (they carry _source) are skipped
+    assert commands.translate_model_prose(doc, up, "EN-US", "DE") == 0
+
+    # --force re-translates FROM the preserved original, not the translation
+    n2 = commands.translate_model_prose(
+        doc, lambda t, *a, **k: [x + "!" for x in t], "EN-US", "DE", force=True)
+    assert n2 == 3
+    assert doc.objects["p1"].props["text"] == "Hallo Welt!"      # from text_source
+    assert doc.objects["p1"].props["text_source"] == "Hallo Welt"
 
 
-def test_cmd_translate_transform(monkeypatch):
-    monkeypatch.setattr(deepl_client, "available", lambda: True)
-    # Fake batch: uppercase as a stand-in "translation" (deterministic).
-    monkeypatch.setattr(deepl_client, "translate_batch",
-                        lambda texts, *a, **k: [t.upper() for t in texts])
+def test_translate_tiddler_file_inplace():
+    # the tiddler-level pass translates prose tiddler text/caption IN the same
+    # file (transclusion tokens preserved), keeps the original under _source,
+    # and leaves equation tiddlers untouched.
+    up = lambda texts, *a, **k: [t.upper() for t in texts]
     with tempfile.TemporaryDirectory() as d:
-        pdf, blob = _setup(Path(d))
-        out = commands.cmd_translate(pdf, target_lang="EN-US", source_lang="DE")
-        assert "Translated 2" in out                      # PARA text + section caption
-        res = json.loads((blob / "doc.en-us.tiddlers.json").read_text())
-        by = {t["title"]: t for t in res}
-        para = by["doc_PARA_0001"]
-        assert para["org_text"] == "Die Kette beschreibt Elektronen."  # original kept
-        assert para["text"] == "DIE KETTE BESCHREIBT ELEKTRONEN."       # translation in `text`
-        assert "translated" in para["tags"].split() and para["translated_lang"] == "EN-US"
-        assert by["doc_H1"]["org_caption"] == "Einleitung"             # section -> caption
-        assert "org_text" not in by["doc_EQ0001"]                       # equation untouched
-        # Idempotent: re-run translates nothing more.
-        out2 = commands.cmd_translate(pdf, target_lang="EN-US")
-        assert "Nothing to translate" in out2
+        p = Path(d) / "x.tiddlers.json"
+        p.write_text(json.dumps([
+            {"title": "a", "tags": "paragraph", "text": "hallo {{a||FO}} welt"},
+            {"title": "b", "tags": "section", "caption": "einleitung", "text": "{{x||PARA}}"},
+            {"title": "c", "tags": "equation", "latex": "E=mc^2", "text": "$E=mc^2$"},
+        ]))
+        n = commands._translate_tiddler_file_inplace(p, up, "EN-US", "DE")
+        assert n == 2
+        res = {t["title"]: t for t in json.loads(p.read_text())}
+        assert res["a"]["text"] == "HALLO {{A||FO}} WELT"        # token preserved (fake upper)
+        assert res["a"]["text_source"] == "hallo {{a||FO}} welt"  # original kept
+        assert res["b"]["caption"] == "EINLEITUNG"
+        assert "text_source" not in res["c"]                      # equation untouched
 
 
 if __name__ == "__main__":
@@ -117,7 +132,8 @@ if __name__ == "__main__":
     fns = [test_translate_batch_order_and_empty_passthrough,
            test_translate_batch_http_error_returns_originals,
            test_translate_batch_networkblocked_propagates,
-           test_field_mapping, test_cmd_translate_transform]
+           test_field_mapping, test_translate_model_prose_inplace,
+           test_translate_tiddler_file_inplace]
     for fn in fns:
         mp = _MP()
         try:

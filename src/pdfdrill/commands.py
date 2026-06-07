@@ -2794,89 +2794,172 @@ def _translate_field_for(tiddler: dict) -> Optional[str]:
     return None
 
 
-def cmd_translate(pdf: Path, target_lang: str = "EN-US",
-                  source_lang: str | None = None, limit: int | None = None,
-                  force: bool = False) -> str:
-    """Translate prose tiddlers via DeepL, preserving the original.
+# DocObject type -> the prose prop translated in the MODEL. Math/code/image/
+# table objects are absent (their content is not natural-language prose).
+_TRANSLATE_MODEL_FIELD = {
+    "Paragraph": "text", "Abstract": "text",
+    "Footnote": "content", "Sidenote": "content", "ListItem": "content",
+    "Section": "caption",
+}
 
-    For each prose tiddler (paragraph/footnote/sidenote/abstract → `text`,
-    section → `caption`) the field is translated in place: the translation goes
-    back into the ORIGINAL field name and the untranslated value is kept under
-    `org_<field>` (e.g. `org_text`), so existing `<$transclude>`/templates show
-    the translation while the source survives for review. Each translated
-    tiddler gains a `translated` tag + `translated_lang`. Writes a sibling
-    `<bibkey>.<lang>.tiddlers.json`; the untranslated array is left intact.
-    Auto-chains `tiddlers`. Needs `DEEPL_API_KEY` (env / .env).
-    """
-    from . import deepl_client
-    from .net import NetworkBlocked
 
-    sc = Sidecar(pdf)
-    key = resolve_bibkey(pdf, None, sc)
-    tiddlers_path = sc.blob_dir / f"{key}.tiddlers.json"
-    if not tiddlers_path.exists():
-        cmd_tiddlers(pdf)
-        sc = Sidecar(pdf)
-        key = resolve_bibkey(pdf, None, sc)
-        tiddlers_path = sc.blob_dir / f"{key}.tiddlers.json"
-    if not tiddlers_path.exists():
-        return f"No tiddlers for {pdf.name} (run `pdfdrill tiddlers` first)."
-    if not deepl_client.available():
-        return ("DeepL unavailable: set DEEPL_API_KEY in the environment or .env "
-                "(https://www.deepl.com/your-account/keys), then rerun "
-                "`pdfdrill translate`.")
+def translate_model_prose(doc, batch_fn, target_lang: str,
+                          source_lang: str | None = None,
+                          limit: int | None = None, force: bool = False) -> int:
+    """Translate each prose DocObject's text IN PLACE, keeping the original under
+    `<field>_source` (the bi-layer backup). `batch_fn(texts, target, source)` is
+    the DeepL batch call (injected for unit-testing). Already-translated objects
+    (those that already carry `<field>_source`) are skipped unless `force`.
+    Returns the count changed; math/code/image objects are left untouched."""
+    jobs: list[tuple] = []
+    for obj in doc.objects.values():
+        field = _TRANSLATE_MODEL_FIELD.get(obj.type)
+        if not field:
+            continue
+        backup = field + "_source"
+        already = backup in obj.props
+        if already and not force:                         # already translated
+            continue
+        # on --force re-translate from the PRESERVED original, not the translation
+        src = obj.props.get(backup) if (already and force) else obj.props.get(field)
+        if not (isinstance(src, str) and src.strip()):
+            continue
+        jobs.append((obj, field, backup, src))
+    if limit is not None:
+        jobs = jobs[:limit]
+    if not jobs:
+        return 0
+    texts = [j[3] for j in jobs]
+    translated: list[str] = []
+    for i in range(0, len(texts), 40):                # DeepL: <=50 texts/request
+        translated.extend(batch_fn(texts[i:i + 40], target_lang, source_lang))
+    changed = 0
+    for (obj, field, backup, src), tr in zip(jobs, translated):
+        if tr and tr != src:
+            obj.props[backup] = src                       # keep the original (bi-layer)
+            obj.props[field] = tr                         # translation under the field
+            changed += 1
+    return changed
 
-    # Read the prior translated set when it exists (so already-done tiddlers
-    # carry org_<field> and are skipped — incremental + idempotent); a --force
-    # run starts from the untranslated source so org_<field> is the true original.
-    out_path = sc.blob_dir / f"{key}.{target_lang.lower()}.tiddlers.json"
-    src_path = out_path if (out_path.exists() and not force) else tiddlers_path
-    tiddlers = json.loads(src_path.read_text(encoding="utf-8"))
 
-    # Collect (tiddler, field, org_field, source_text) for prose not yet done.
+def _translate_tiddler_file_inplace(path: Path, batch_fn, target_lang: str,
+                                    source_lang: str | None = None,
+                                    force: bool = False) -> int:
+    """Translate prose tiddlers (`_translate_field_for`) IN the file at `path`,
+    writing the changed array back to the SAME file. Translation replaces the
+    field; the original is kept under `<field>_source`. Handles transcluded
+    paragraphs (the `{{...||FO}}` tokens are already in the text, so DeepL
+    translates the prose around them). Idempotent; `force` re-translates from the
+    preserved original. Returns the count changed."""
+    tiddlers = json.loads(path.read_text(encoding="utf-8"))
     jobs: list[tuple] = []
     for t in tiddlers:
         field = _translate_field_for(t)
         if not field:
             continue
-        src = t.get(field)
+        backup = field + "_source"
+        already = backup in t
+        if already and not force:
+            continue
+        src = t.get(backup) if (already and force) else t.get(field)
         if not (isinstance(src, str) and src.strip()):
             continue
-        org_field = f"org_{field}"
-        if org_field in t and not force:      # already translated
-            continue
-        jobs.append((t, field, org_field, src))
-    if limit is not None:
-        jobs = jobs[:limit]
-
+        jobs.append((t, field, backup, src))
     if not jobs:
-        return (f"Nothing to translate for {key} (no prose tiddlers, or all "
-                f"already translated — use --force to re-translate).")
-
-    t0 = time.monotonic()
+        return 0
     texts = [j[3] for j in jobs]
     translated: list[str] = []
+    for i in range(0, len(texts), 40):
+        translated.extend(batch_fn(texts[i:i + 40], target_lang, source_lang))
+    changed = 0
+    for (t, field, backup, src), tr in zip(jobs, translated):
+        if tr and tr != src:
+            t[backup] = src
+            t[field] = tr
+            tags = set((t.get("tags") or "").split())
+            tags.add("translated")
+            t["tags"] = " ".join(sorted(tags))
+            t["translated_lang"] = target_lang.upper()
+            changed += 1
+    path.write_text(json.dumps(tiddlers, ensure_ascii=False, indent=1),
+                    encoding="utf-8")
+    return changed
+
+
+def cmd_translate(pdf: Path, target_lang: str = "EN-US",
+                  source_lang: str | None = None, limit: int | None = None,
+                  force: bool = False) -> str:
+    """Translate the document in place via DeepL — one source, two outputs.
+
+    The MODEL's prose objects (Paragraph/Abstract → `text`, Section → `caption`,
+    ListItem/Footnote/Sidenote → `content`) are translated **in place**: the
+    translation replaces the field and the original is kept under `<field>_source`.
+    The translated `model.docmodel.json` is then re-projected, so BOTH the tiddler
+    file (`<bibkey>.tiddlers.json`, translated text in the `text` field) AND a
+    **bi-layer Markdown** (`<bibkey>.md`: translation + a hidden source layer with
+    a CSS/JS toggle) carry the translation. Math/code/image objects are untouched.
+    Idempotent (skips objects already carrying `<field>_source`; `--force` redoes).
+    Needs `DEEPL_API_KEY` (env / .env).
+    """
+    from . import deepl_client
+    from .net import NetworkBlocked
+    from docmodel.core import Document
+    from docops.base import OperatorConfig
+    from docops.projectors.llm_compact import LLMCompactProjector
+
+    sc = Sidecar(pdf)
+    key = resolve_bibkey(pdf, None, sc)
+    if not deepl_client.available():
+        return ("DeepL unavailable: set DEEPL_API_KEY in the environment or .env "
+                "(https://www.deepl.com/your-account/keys), then rerun "
+                "`pdfdrill translate`.")
+
+    model_path = _model_path(sc)
+    if not (sc.has(MODEL_BUILT) and model_path.exists()):
+        cmd_model(pdf)
+        sc = Sidecar(pdf)
+        key = resolve_bibkey(pdf, None, sc)
+        model_path = _model_path(sc)
+    if not model_path.exists():
+        return f"No model for {pdf.name} (run `pdfdrill model` first)."
+
+    doc = Document.from_dict(json.loads(model_path.read_text(encoding="utf-8")))
+    t0 = time.monotonic()
     try:
-        for i in range(0, len(texts), 40):       # DeepL: up to 50 texts/request
-            translated.extend(deepl_client.translate_batch(
-                texts[i:i + 40], target_lang, source_lang))
+        changed = translate_model_prose(
+            doc, deepl_client.translate_batch, target_lang, source_lang, limit, force)
     except NetworkBlocked as e:
         return str(e)
 
-    changed = 0
-    for (t, field, org_field, src), tr in zip(jobs, translated):
-        if not tr or tr == src:
-            continue
-        t[org_field] = src                       # preserve the original
-        t[field] = tr                            # translation under the original name
-        tags = set((t.get("tags") or "").split())
-        tags.add("translated")
-        t["tags"] = " ".join(sorted(tags))
-        t["translated_lang"] = target_lang.upper()
-        changed += 1
+    # Persist the translated model in place (only if it changed), then re-project.
+    if changed:
+        doc.meta["translated_lang"] = target_lang.upper()
+        model_path.write_text(json.dumps(doc.to_dict(), ensure_ascii=False, indent=1),
+                              encoding="utf-8")
 
-    out_path.write_text(json.dumps(tiddlers, ensure_ascii=False, indent=1),
-                        encoding="utf-8")
+    # Regenerate the tiddler file from the model, then translate it IN PLACE.
+    # The TiddlyWiki projector rebuilds transcluded paragraphs from the immutable
+    # source stream BY OFFSET (to re-insert {{...||FO}} tokens), so the model's
+    # translated `text` doesn't reach them — the tiddler `text`/`caption` fields
+    # must be translated at the tiddler level (tokens already inserted). This is
+    # your original approach; the changed tiddler file is written in place.
+    cmd_tiddlers(pdf, force=True)
+    sc = Sidecar(pdf)
+    key = resolve_bibkey(pdf, None, sc)
+    tid_path = sc.blob_dir / f"{key}.tiddlers.json"
+    try:
+        tid_changed = _translate_tiddler_file_inplace(
+            tid_path, deepl_client.translate_batch, target_lang, source_lang, force)
+    except NetworkBlocked as e:
+        return str(e)
+
+    projector = LLMCompactProjector(OperatorConfig(
+        op="projector", classname="LLMCompactProjector",
+        params={"bilayer": True, "source_lang": (source_lang or "").upper(),
+                "target_lang": target_lang.upper()}))
+    md_text = projector.project(doc)
+    md_path = sc.blob_dir / f"{key}.md"
+    md_path.write_text(md_text, encoding="utf-8")
 
     sc.set_evidence("translated_lang", target_lang.upper())
     sc.set_evidence("translated_count", changed)
@@ -2884,13 +2967,16 @@ def cmd_translate(pdf: Path, target_lang: str = "EN-US",
     sc.add_fact(TRANSLATED)
     sc.log_transition("translate", prev, TRANSLATED,
                       cost_ms=(time.monotonic() - t0) * 1000,
-                      detail=f"{changed} tiddlers -> {target_lang}")
+                      detail=f"{changed} prose objects -> {target_lang}")
     sc.save()
-    rel = out_path.relative_to(sc.pdf_path.parent)
-    return (f"Translated {changed} prose tiddler(s) to {target_lang.upper()} via "
-            f"DeepL → {rel}. Each field holds the translation; the original is "
-            f"kept under org_<field> (e.g. org_text) and the tiddler is tagged "
-            f"`translated`.")
+    tid_rel = tid_path.relative_to(sc.pdf_path.parent)
+    md_rel = md_path.relative_to(sc.pdf_path.parent)
+    return (f"Translated to {target_lang.upper()} via DeepL (in place; original kept "
+            f"under <field>_source).\n"
+            f"  • tiddlers: {tid_rel} — {tid_changed} tiddler(s), translated text in "
+            f"the `text` field\n"
+            f"  • markdown: {md_rel} — {changed} object(s), bi-layer (translation + "
+            f"hidden source, CSS/JS toggle)")
 
 
 # ---------------------------------------------------------------------------

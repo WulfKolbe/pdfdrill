@@ -181,6 +181,23 @@ def test_llmcompact_emits_yaml_front_matter():
     assert "Intro" in out                          # the body still follows the header
 
 
+def test_llmcompact_bilayer_emits_both_layers():
+    # when prose objects carry a `<field>_source` backup (model translated in
+    # place), the projector emits a translation layer + a source layer + a toggle.
+    doc = _build_sample_doc()
+    para = doc.objects_of_type("Paragraph")[0]
+    para.props["text_source"] = para.props["text"]      # original
+    para.props["text"] = "Hallo Welt"                   # "translation"
+    op = _make_op(LLMCompactProjector,
+                  {"bilayer": True, "source_lang": "DE", "target_lang": "EN-US"})
+    out = op.project(doc)
+    assert '<div class="seg trans" lang="EN-US">' in out
+    assert '<div class="seg source" lang="DE">' in out
+    assert "Hallo Welt" in out                           # translation layer
+    assert "Hello world" in out                          # source layer (the backup)
+    assert "show-source" in out and "<button" in out     # CSS/JS toggle present
+
+
 def test_tiddlywiki_projector_round_trips_json():
     doc = _build_sample_doc()
     op = _make_op(TiddlyWikiProjector)
