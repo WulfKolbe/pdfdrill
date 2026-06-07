@@ -3,9 +3,11 @@ DehyphenationProcessor (procOrder 14).
 
 Demonstrates the cross-stream pattern for cleaning OCR artifacts without
 destroying the original. For every Paragraph DocObject this builds a derived
-`dehyphenated_para_NNNN` stream of character anchors and stores explicit
-`Alignment` edges of kind 'dehyphenate' from the source line anchors (in
-`mathpix_lines`) to the corresponding runs of derived characters.
+`dehyphenated_para_NNNN` stream with ONE anchor PER LINE holding that line's
+cleaned text, and stores explicit `Alignment` edges of kind 'dehyphenate' from
+each source line anchor (in `mathpix_lines`) to its derived anchor. (It used to
+emit one anchor per CHARACTER — ~50 bytes/char that dominated the model file;
+the alignment is per-line, so per-line anchors lose nothing.)
 
 Heuristic applied: when a line ends with a hyphen and the next contributing
 line starts with a lowercase letter or digit, the hyphen is treated as a
@@ -96,29 +98,27 @@ class DehyphenationProcessor(BaseModule):
             else:
                 joiner = " " if i < len(anchors) - 1 else ""
 
-            # Emit character anchors for the written text + joiner.
-            line_start_anchor = None
-            line_end_anchor = None
-            for ch in written + joiner:
-                a = derived.append(codepoint=ch)
-                if first_derived_anchor is None:
-                    first_derived_anchor = a
-                if line_start_anchor is None:
-                    line_start_anchor = a
-                line_end_anchor = a
-                last_derived_anchor = a
+            # Emit ONE derived anchor per source line holding the line's cleaned
+            # text. (Previously one anchor PER CHARACTER — ~50 bytes/char of pure
+            # overhead, dwarfing the actual content. The 'dehyphenate' alignment
+            # is per-line anyway, so a single per-line anchor loses nothing.)
+            chunk = written + joiner
+            if not chunk:
+                continue
+            a = derived.append(text=chunk)
+            if first_derived_anchor is None:
+                first_derived_anchor = a
+            last_derived_anchor = a
 
-            # Alignment edge: this source line maps to this run of derived
-            # chars. Kind 'dehyphenate' carries provenance info as props.
-            if line_start_anchor is not None:
-                doc.add_alignment(Alignment(
-                    kind="dehyphenate",
-                    left=Range(self.LINES_STREAM, source_anchor, source_anchor),
-                    right=Range(derived_name, line_start_anchor, line_end_anchor),
-                    props={
-                        "soft_break_removed": is_soft_break,
-                    },
-                ))
+            # Alignment edge: this source line maps to its derived anchor.
+            doc.add_alignment(Alignment(
+                kind="dehyphenate",
+                left=Range(self.LINES_STREAM, source_anchor, source_anchor),
+                right=Range(derived_name, a, a),
+                props={
+                    "soft_break_removed": is_soft_break,
+                },
+            ))
 
         if first_derived_anchor is not None:
             para.add_realization(Realization(

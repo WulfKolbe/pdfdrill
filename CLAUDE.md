@@ -664,6 +664,32 @@ Land), not the recipient's Kürten. Tests: `tests/test_semantic_attribution.py`.
 docmodel write-back so existing projectors render the graph; detect individual/
 tradesperson senders (not just GmbH/AG/authority); refine the margin classifier.
 
+## Storage-overhead reduction (stage 1 of the tiddler-canonical move)
+
+The `model.docmodel.json` was dominated by the `DehyphenationProcessor`'s derived
+streams, which stored **one anchor per CHARACTER** (`{"codepoint":"x"}` keyed by a
+14-char opaque anchor → ~50 bytes/char). On 576-659-1-PB that was **1.59 MB of a
+3.1 MB file (51%)**, sitting *before* the actual text (key order `meta → streams →
+objects`) — the "scroll past 34 MB of offsets to reach the text" problem.
+
+- **Fix (stage 1, done):** the de-hyphenation derived stream now stores **one
+  anchor per LINE** holding that line's cleaned text (`{"text": …}`); the
+  `dehyphenate` alignment is per-line anyway, so nothing is lost.
+  `PromoteCleanedText` reads per-line `text` (per-char `codepoint` kept as a
+  fallback for old models). Result: model **3.1 MB → 1.1 MB (−64%)**, the
+  de-hyphenation streams **1.59 MB → 53 KB (−97%)**. Tests:
+  `tests/test_docops.py::test_dehyphenation_stream_is_per_line_not_per_char`.
+- **Direction (stage 2+ — tiddler-canonical, overlay/merge):** make the
+  TiddlyWiki tiddler array the canonical, editable store and rebuild the docmodel
+  transiently from the persisted `lines.json` for graph ops. Merge as much as
+  possible INTO tiddlers (overlay extra fields: lines.json/pdfplumber/OCR page
+  records keyed to the page, etc.) or LINK tiddlers (a diagram tiddler links its
+  svg tiddler). The offset machinery (the root cause of per-char/line streams)
+  retires once text carries materialized `{{…||FO}}` tokens. **Multi-document
+  layer:** per-document tiddlers carry a **bibtex-key prefix**; a top **CSP-prefix**
+  layer holds a document list + a concept tree, where concepts collect links to
+  documents as tiddler titles.
+
 ## Roadmap (decomposed — each phase gets its own spec + plan)
 
 - **Phase 1 — Unified model + capture** *(in progress)*: extend `docmodel`

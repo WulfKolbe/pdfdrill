@@ -24,10 +24,12 @@ from docmodel.modules.header import HeaderProcessor
 from docmodel.modules.equation import EquationProcessor
 from docmodel.modules.document_flow import DocumentFlowProcessor
 from docmodel.modules.document_structure import DocumentStructureProcessor
+from docmodel.modules.dehyphenation import DehyphenationProcessor
 from docmodel.base_module import ModuleConfig
 
 from docops.base import OperatorConfig
 from docops.mutators.dehyphenate import Dehyphenate
+from docops.mutators.promote_cleaned import PromoteCleanedText
 from docops.projectors.plaintext import PlainTextProjector
 from docops.projectors.llm_compact import LLMCompactProjector
 from docops.projectors.tiddlywiki import TiddlyWikiProjector
@@ -128,6 +130,31 @@ def test_dehyphenate_joins_soft_break():
     para = doc.objects_of_type("Paragraph")[0]
     op = _make_op(Dehyphenate)
     op.apply(doc)
+    assert para.props["text"] == "We need more information about this."
+
+
+def test_dehyphenation_stream_is_per_line_not_per_char():
+    # the derived cleaned stream must store ONE anchor PER LINE (not per
+    # character) — the per-char explosion was ~50 bytes/char of pure overhead.
+    doc = Document(); doc.meta["bibkey"] = "T"
+    sample = {"pages": [{"page": 1, "image_id": "i", "lines": [
+        {"id": "a", "type": "text", "text": "We need more in-",
+         "text_display": "We need more in-"},
+        {"id": "b", "type": "text", "text": "formation about this.",
+         "text_display": "formation about this."},
+    ]}]}
+    ingest_lines_json(doc, sample)
+    _make_module(PageProcessor).process_document(doc)
+    _make_module(ParagraphProcessor).process_document(doc)
+    _make_module(DehyphenationProcessor).process_document(doc)
+
+    derived = [n for n in doc.streams if n.startswith("dehyphenated_para_")]
+    assert len(derived) == 1
+    st = doc.stream(derived[0])
+    assert len(st.anchors) == 2          # one per SOURCE LINE, not ~35 per char
+    # PromoteCleanedText still reconstructs the dehyphenated text from the stream
+    PromoteCleanedText(OperatorConfig(op="mutator", classname="PromoteCleanedText")).apply(doc)
+    para = doc.objects_of_type("Paragraph")[0]
     assert para.props["text"] == "We need more information about this."
 
 

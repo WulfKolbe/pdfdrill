@@ -29,8 +29,11 @@ class PromoteCleanedText(BaseMutator):
                 continue
             stream = doc.stream(cleaned.stream)
             anchors = stream.slice_anchors(cleaned.start, cleaned.end)
+            # Per-line `text` (current) with a per-char `codepoint` fallback (old
+            # models written before the per-line collapse).
             text = "".join(
-                stream.payload[a].get("codepoint", "") for a in anchors
+                stream.payload[a].get("text", stream.payload[a].get("codepoint", ""))
+                for a in anchors
             )
             if text == para.props.get("text"):
                 continue
