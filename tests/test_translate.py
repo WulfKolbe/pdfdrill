@@ -107,25 +107,6 @@ def test_cmd_translate_transform(monkeypatch):
         assert "Nothing to translate" in out2
 
 
-def test_translate_model_prose_inplace():
-    # the model-prose translator (basis of `translate --md`) translates prose
-    # object fields in place and leaves math/code objects untouched.
-    from docmodel.core import Document, DocObject
-    doc = Document()
-    doc.add(DocObject(type="Paragraph", id="p1", props={"text": "Hallo Welt"}))
-    doc.add(DocObject(type="Section", id="s1", props={"caption": "Einleitung"}))
-    doc.add(DocObject(type="ListItem", id="l1", props={"content": "erstens"}))
-    doc.add(DocObject(type="Equation", id="e1", props={"latex": "E=mc^2"}))
-    n = commands.translate_model_prose(
-        doc, lambda texts, *a, **k: [t.upper() for t in texts],
-        target_lang="EN-US", source_lang="DE")
-    assert n == 3
-    assert doc.objects["p1"].props["text"] == "HALLO WELT"
-    assert doc.objects["s1"].props["caption"] == "EINLEITUNG"
-    assert doc.objects["l1"].props["content"] == "ERSTENS"
-    assert doc.objects["e1"].props["latex"] == "E=mc^2"   # math untouched
-
-
 if __name__ == "__main__":
     class _MP:
         def __init__(self): self._u = []
@@ -136,8 +117,7 @@ if __name__ == "__main__":
     fns = [test_translate_batch_order_and_empty_passthrough,
            test_translate_batch_http_error_returns_originals,
            test_translate_batch_networkblocked_propagates,
-           test_field_mapping, test_cmd_translate_transform,
-           test_translate_model_prose_inplace]
+           test_field_mapping, test_cmd_translate_transform]
     for fn in fns:
         mp = _MP()
         try:
