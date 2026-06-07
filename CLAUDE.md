@@ -1095,6 +1095,16 @@ DeepL translation of tiddlers (`src/pdfdrill/deepl_client.py`,
   the prior output, skip tiddlers that already have `org_<field>`; `--force`
   re-translates from the untranslated source). Ported from the tested
   `~/MX/tiddly-translation` (its field-mapping rules + backup-field pattern).
+- **Translated Markdown (`--md`).** `pdfdrill translate <pdf> --md --to EN-US
+  --from RU` translates the MODEL's prose objects (Paragraph/Abstract/Section
+  caption/ListItem/Footnote/Sidenote — `translate_model_prose`; math/code/image
+  untouched) and projects the LLM-compact Markdown to `<bibkey>.<lang>.md` (with
+  the YAML front-matter header) + a `<bibkey>.<lang>.docmodel.json`; the original
+  model is left intact. This is the Markdown analogue of the tiddler path (which
+  writes `<bibkey>.<lang>.tiddlers.json`) — a distinct DeepL pass, since the two
+  derive from different text (clean model text vs WikiText tiddlers). Verified on
+  576-659-1-PB (RU→EN-US): 81 prose objects → `576-659-1-PB.en-us.md`, English
+  title/body under the YAML header. Tests: `test_translate_model_prose_inplace`.
 - Key from `DEEPL_API_KEY` (env/.env; free keys end `:fx` → api-free host).
   Calls go through `net.urlopen` (graceful sandbox-block message); a DeepL
   quota/error degrades to the ORIGINAL text so a batch never aborts. Verified

@@ -2794,10 +2794,54 @@ def _translate_field_for(tiddler: dict) -> Optional[str]:
     return None
 
 
+# DocObject type -> the prose prop translated for the markdown path. Math/code/
+# image/table objects are absent (their content is not natural-language prose).
+_TRANSLATE_MODEL_FIELD = {
+    "Paragraph": "text", "Abstract": "text",
+    "Footnote": "content", "Sidenote": "content", "ListItem": "content",
+    "Section": "caption",
+}
+
+
+def translate_model_prose(doc, batch_fn, target_lang: str,
+                          source_lang: str | None = None,
+                          limit: int | None = None) -> int:
+    """Translate each prose DocObject's text in place (the basis of
+    `translate --md`). `batch_fn(texts, target, source) -> list[str]` is the
+    DeepL batch call (injected so this is unit-testable). Returns the count of
+    objects changed; math/code/image objects are left untouched."""
+    jobs: list[tuple] = []
+    for obj in doc.objects.values():
+        field = _TRANSLATE_MODEL_FIELD.get(obj.type)
+        if not field:
+            continue
+        src = obj.props.get(field)
+        if isinstance(src, str) and src.strip():
+            jobs.append((obj, field, src))
+    if limit is not None:
+        jobs = jobs[:limit]
+    if not jobs:
+        return 0
+    texts = [j[2] for j in jobs]
+    translated: list[str] = []
+    for i in range(0, len(texts), 40):                # DeepL: <=50 texts/request
+        translated.extend(batch_fn(texts[i:i + 40], target_lang, source_lang))
+    changed = 0
+    for (obj, field, src), tr in zip(jobs, translated):
+        if tr and tr != src:
+            obj.props[field] = tr
+            changed += 1
+    return changed
+
+
 def cmd_translate(pdf: Path, target_lang: str = "EN-US",
                   source_lang: str | None = None, limit: int | None = None,
-                  force: bool = False) -> str:
+                  force: bool = False, md: bool = False) -> str:
     """Translate prose tiddlers via DeepL, preserving the original.
+
+    With `md=True` (`--md`) the target is the **Markdown** instead: the model's
+    prose objects are DeepL-translated and the LLM-compact projector emits a
+    translated `<bibkey>.<lang>.md` (plus a `<bibkey>.<lang>.docmodel.json`).
 
     For each prose tiddler (paragraph/footnote/sidenote/abstract → `text`,
     section → `caption`) the field is translated in place: the translation goes
@@ -2813,6 +2857,15 @@ def cmd_translate(pdf: Path, target_lang: str = "EN-US",
 
     sc = Sidecar(pdf)
     key = resolve_bibkey(pdf, None, sc)
+    if not deepl_client.available():
+        return ("DeepL unavailable: set DEEPL_API_KEY in the environment or .env "
+                "(https://www.deepl.com/your-account/keys), then rerun "
+                "`pdfdrill translate`.")
+
+    if md:
+        return _translate_markdown(pdf, sc, key, target_lang, source_lang,
+                                   limit, deepl_client)
+
     tiddlers_path = sc.blob_dir / f"{key}.tiddlers.json"
     if not tiddlers_path.exists():
         cmd_tiddlers(pdf)
@@ -2821,10 +2874,6 @@ def cmd_translate(pdf: Path, target_lang: str = "EN-US",
         tiddlers_path = sc.blob_dir / f"{key}.tiddlers.json"
     if not tiddlers_path.exists():
         return f"No tiddlers for {pdf.name} (run `pdfdrill tiddlers` first)."
-    if not deepl_client.available():
-        return ("DeepL unavailable: set DEEPL_API_KEY in the environment or .env "
-                "(https://www.deepl.com/your-account/keys), then rerun "
-                "`pdfdrill translate`.")
 
     # Read the prior translated set when it exists (so already-done tiddlers
     # carry org_<field> and are skipped — incremental + idempotent); a --force
@@ -2891,6 +2940,59 @@ def cmd_translate(pdf: Path, target_lang: str = "EN-US",
             f"DeepL → {rel}. Each field holds the translation; the original is "
             f"kept under org_<field> (e.g. org_text) and the tiddler is tagged "
             f"`translated`.")
+
+
+def _translate_markdown(pdf: Path, sc: "Sidecar", key: str, target_lang: str,
+                        source_lang: str | None, limit: int | None,
+                        deepl_client) -> str:
+    """`translate --md`: translate the model's prose objects and project a
+    translated LLM-compact Markdown `<bibkey>.<lang>.md` (the original model is
+    left intact; the translated copy is also saved as `<bibkey>.<lang>.docmodel.json`)."""
+    from docmodel.core import Document
+    from docops.base import OperatorConfig
+    from docops.projectors.llm_compact import LLMCompactProjector
+    from .net import NetworkBlocked
+
+    model_path = _model_path(sc)
+    if not (sc.has(MODEL_BUILT) and model_path.exists()):
+        cmd_model(pdf)
+        sc = Sidecar(pdf)
+        model_path = _model_path(sc)
+    if not model_path.exists():
+        return f"No model for {pdf.name} (run `pdfdrill model` first)."
+
+    doc = Document.from_dict(json.loads(model_path.read_text(encoding="utf-8")))
+    t0 = time.monotonic()
+    try:
+        changed = translate_model_prose(
+            doc, deepl_client.translate_batch, target_lang, source_lang, limit)
+    except NetworkBlocked as e:
+        return str(e)
+    if not changed:
+        return (f"Nothing to translate for {key} (no prose objects in the model).")
+
+    lang = target_lang.lower()
+    doc.meta["translated_lang"] = target_lang.upper()
+    md_doc_path = sc.blob_dir / f"{key}.{lang}.docmodel.json"
+    md_doc_path.write_text(json.dumps(doc.to_dict(), ensure_ascii=False, indent=1),
+                           encoding="utf-8")
+
+    projector = LLMCompactProjector(
+        OperatorConfig(op="projector", classname="LLMCompactProjector", params={}))
+    md_text = projector.project(doc)
+    md_path = sc.blob_dir / f"{key}.{lang}.md"
+    md_path.write_text(md_text, encoding="utf-8")
+
+    sc.set_evidence("translated_md_lang", target_lang.upper())
+    sc.set_evidence("translated_md_count", changed)
+    sc.log_transition("translate-md", "INIT", "TRANSLATED_MD",
+                      cost_ms=(time.monotonic() - t0) * 1000,
+                      detail=f"{changed} prose objects -> {target_lang}")
+    sc.save()
+    rel = md_path.relative_to(sc.pdf_path.parent)
+    return (f"Translated {changed} prose object(s) to {target_lang.upper()} via "
+            f"DeepL and wrote the translated Markdown → {rel} "
+            f"(with a YAML front-matter header). Original model untouched.")
 
 
 # ---------------------------------------------------------------------------
