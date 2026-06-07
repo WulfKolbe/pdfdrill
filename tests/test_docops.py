@@ -153,6 +153,34 @@ def test_llmcompact_projector_emits_glossary():
     assert "[E1]" in out or "[F1]" in out
 
 
+def test_llmcompact_emits_yaml_front_matter():
+    doc = _build_sample_doc()
+    doc.meta["title"] = "EAGer: Entropy-Aware Generation"   # colon → must be quoted
+    doc.meta["authors"] = ["Daniel Scalena", "Ahmet Üstün"]
+    doc.meta["arxiv_id"] = "2510.11170v2"
+    doc.meta["primary_category"] = "cs.LG"
+    doc.meta["num_pages"] = 15
+    op = _make_op(LLMCompactProjector)
+    out = op.project(doc)
+
+    lines = out.splitlines()
+    assert lines[0] == "---"                       # front matter opens the document
+    close = lines.index("---", 1)                  # and closes before the body
+    fm = "\n".join(lines[1:close])
+    # valid YAML that round-trips the metadata (the colon in title is quoted)
+    import yaml
+    meta = yaml.safe_load(fm)
+    assert meta["title"] == "EAGer: Entropy-Aware Generation"
+    assert "Daniel Scalena" in meta["author"]
+    assert meta["arxiv_id"] == "2510.11170v2"
+    assert meta["bibkey"] == "T"
+    assert meta["pages"] == 15
+    assert "cs.LG" in meta["tags"] and "pdfdrill" in meta["tags"]
+    assert meta["generator"] == "pdfdrill"
+    assert meta["sections"] >= 1 and meta["equations"] >= 1   # status counts
+    assert "Intro" in out                          # the body still follows the header
+
+
 def test_tiddlywiki_projector_round_trips_json():
     doc = _build_sample_doc()
     op = _make_op(TiddlyWikiProjector)

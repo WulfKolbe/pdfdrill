@@ -17,13 +17,37 @@ Tunable params (in `params` on the config entry):
                              i.e. always placeholderize; set to 2 to inline
                              one-shot formulas).
   - `include_glossary`:      whether to append the glossary (default True)
-  - `include_meta`:          whether to add a small front-matter (default True)
+  - `include_meta`:          whether to prepend a YAML front-matter header with
+                             title/author/date/tags/description + pdfdrill status
+                             info (bibkey, arxiv id, pages, element counts)
+                             (default True)
 """
 from __future__ import annotations
+
+import re
 
 from docmodel.core import Document, DocObject
 from ..base import BaseProjector
 from .common import flow_ordered_content, equation_label
+
+
+def _yaml_scalar(v) -> str:
+    """Render a scalar as safe YAML: quote it when it could be misparsed."""
+    if isinstance(v, bool):
+        return "true" if v else "false"
+    if isinstance(v, (int, float)):
+        return str(v)
+    s = str(v)
+    needs_quote = (
+        s == ""
+        or s.strip() != s
+        or s[0] in "!&*?|>%@`\"'#-[{ "
+        or bool(re.search(r'[:#\[\]{},\n]', s))
+        or s.lower() in ("true", "false", "null", "yes", "no", "~")
+    )
+    if needs_quote:
+        return '"' + s.replace("\\", "\\\\").replace('"', '\\"') + '"'
+    return s
 
 
 class LLMCompactProjector(BaseProjector):
@@ -77,10 +101,7 @@ class LLMCompactProjector(BaseProjector):
         # Second pass: render in flow order.
         out: list[str] = []
         if include_meta:
-            meta = doc.meta
-            out.append(f"# {meta.get('bibkey', 'Document')}")
-            if meta.get("num_pages"):
-                out.append(f"_{meta['num_pages']} pages_")
+            out.append(self._front_matter(doc))
             out.append("")
 
         # Track which placeholders we've shown inline so the glossary can
@@ -109,6 +130,55 @@ class LLMCompactProjector(BaseProjector):
                 repeat_threshold=repeat_threshold,
             ))
         return "\n".join(out).rstrip() + "\n"
+
+    def _front_matter(self, doc: Document) -> str:
+        """A YAML front-matter block: bibliographic fields (title/author/date/
+        tags/description) plus pdfdrill status info (bibkey, arxiv id, pages, and
+        per-type element counts). Emitted at the very top so the markdown is a
+        valid YAML-front-matter document."""
+        from collections import Counter
+        meta = doc.meta
+        counts = Counter(o.type for o in doc.objects.values())
+
+        title = meta.get("title") or meta.get("bibkey") or "Document"
+        authors = meta.get("authors")
+        if isinstance(authors, (list, tuple)):
+            authors = ", ".join(str(a) for a in authors)
+        # description ← the document's Abstract (single line, truncated)
+        desc = ""
+        for o in doc.objects.values():
+            if o.type == "Abstract":
+                desc = " ".join((o.props.get("text") or "").split())[:240]
+                break
+        tags = ["pdfdrill"]
+        for t in (meta.get("primary_category"), meta.get("bibkey")):
+            if t and t not in tags:
+                tags.append(t)
+
+        lines = ["---"]
+
+        def emit(key, val):
+            if val not in (None, "", []):
+                lines.append(f"{key}: {_yaml_scalar(val)}")
+
+        emit("title", title)
+        emit("author", authors)
+        emit("date", meta.get("date") or meta.get("year"))
+        lines.append("tags: [" + ", ".join(_yaml_scalar(t) for t in tags) + "]")
+        emit("description", desc)
+        # --- pdfdrill status info ---
+        emit("bibkey", meta.get("bibkey"))
+        emit("arxiv_id", meta.get("arxiv_id"))
+        emit("primary_category", meta.get("primary_category"))
+        emit("pages", meta.get("num_pages") or meta.get("pages"))
+        for typ, label in (("Section", "sections"), ("Equation", "equations"),
+                           ("Formula", "formulas"), ("Picture", "figures"),
+                           ("Table", "tables"), ("Reference", "references")):
+            if counts.get(typ):
+                lines.append(f"{label}: {counts[typ]}")
+        lines.append("generator: pdfdrill")
+        lines.append("---")
+        return "\n".join(lines)
 
     def _render_block(
         self, obj: DocObject, doc: Document, *,

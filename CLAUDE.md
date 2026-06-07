@@ -1033,6 +1033,15 @@ references with full BibTeX + title + citations via Perplexity SONAR.
 - Markdown in-text refs: `LLMCompactProjector` gains an opt-in `eq_refs` param
   that rewrites `(N)` → the equation's compact placeholder `[E‹k›]` (off by
   default; for round-trip tests).
+- **YAML front-matter** (`include_meta`, default on): the LLM-compact markdown now
+  opens with a `--- … ---` YAML header instead of the old `# bibkey` line —
+  bibliographic fields (`title`/`author`/`date`/`tags`/`description` from the
+  Abstract) plus pdfdrill status info (`bibkey`/`arxiv_id`/`primary_category`/
+  `pages` + per-type element counts `sections`/`equations`/`formulas`/`figures`/
+  `tables`/`references`) and `generator: pdfdrill`. Scalars are YAML-escaped
+  (`llm_compact._yaml_scalar` quotes values with `:`,`,`,`#`,… so a title like
+  `EAGer: …` round-trips). Tests: `tests/test_docops.py`
+  (`test_llmcompact_emits_yaml_front_matter` — parses the block with `yaml.safe_load`).
 
 Gold bibliography ingest from the author's `.bbl`/`.bib`
 (`bibliography.parse_bbl`/`ingest_bbl`/`link_citations_by_label`,
