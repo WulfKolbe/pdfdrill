@@ -451,15 +451,20 @@ class TiddlyWikiProjector(BaseProjector):
                     t["language"] = lang
                 out.append(t)
                 continue
-            t = self._t(
-                title[d.id],
-                "<$image source={{!!canonical_uri}} width={{!!width}} height={{!!height}}/>",
-                f"diagram {_bibtag(bibkey)}",
-            )
+            # Prefer the locally-rendered SVG (from `pdfdrill svg`): emit it as a
+            # separate image/svg+xml tiddler and link it; else fall back to the
+            # CDN crop via <$image>.
+            svg_title = self._emit_svg_tiddler(out, title[d.id], d.props.get("svg"), bibkey)
+            body = (f'<$image source="{svg_title}"/>' if svg_title
+                    else "<$image source={{!!canonical_uri}} "
+                         "width={{!!width}} height={{!!height}}/>")
+            t = self._t(title[d.id], body, f"diagram {_bibtag(bibkey)}")
             t["page"] = self._p3(d.props.get("page"))
             t["latex_code"] = d.props.get("latex_code") or ""
             if d.props.get("latex_original"):
                 t["latex_original"] = d.props["latex_original"]   # verbatim macro source
+            if svg_title:
+                t["svg_tiddler"] = svg_title
             if d.props.get("cdn_url"):
                 t["canonical_uri"] = self._uri(d.props["cdn_url"])
             for k in ("caption", "kind", "refnum"):
@@ -470,12 +475,17 @@ class TiddlyWikiProjector(BaseProjector):
 
         # Tables
         for tab in inv["tables"]:
-            t = self._t(
-                title[tab.id],
-                tab.props.get("raw_text", ""),
-                f"table {_bibtag(bibkey)}",
-            )
+            svg_title = self._emit_svg_tiddler(out, title[tab.id], tab.props.get("svg"), bibkey)
+            body = (f'<$image source="{svg_title}"/>' if svg_title
+                    else tab.props.get("raw_text", ""))
+            t = self._t(title[tab.id], body, f"table {_bibtag(bibkey)}")
             t["page"] = self._p3(tab.props.get("page"))
+            if tab.props.get("latex_code"):
+                t["latex_code"] = tab.props["latex_code"]
+            if tab.props.get("latex_original"):
+                t["latex_original"] = tab.props["latex_original"]
+            if svg_title:
+                t["svg_tiddler"] = svg_title
             out.append(t)
 
         # Footnotes
@@ -878,6 +888,20 @@ class TiddlyWikiProjector(BaseProjector):
             "created": now,
             "modified": now,
         }
+
+    def _emit_svg_tiddler(self, out: list, base_title: str, svg: str | None,
+                          bibkey: str) -> str | None:
+        """If `svg` is a rendered SVG, append a separate `<base>_svg` image
+        tiddler (`type: image/svg+xml`, the SVG as its text) and return its
+        title; else return None. The owning diagram/table tiddler links it via
+        `<$image source="<title>">` and an `svg_tiddler` field."""
+        if not svg or not svg.strip():
+            return None
+        svg_title = _sanitize_title(f"{base_title}_svg")
+        st = self._t(svg_title, svg, f"svg {_bibtag(bibkey)}")
+        st["type"] = "image/svg+xml"
+        out.append(st)
+        return svg_title
 
     @staticmethod
     def _templates(bibkey: str) -> list[dict]:

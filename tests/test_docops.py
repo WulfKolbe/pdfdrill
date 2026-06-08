@@ -244,6 +244,28 @@ def test_tiddler_and_md_keep_both_latex_forms():
     assert "\\gR(x)" in md                           # macro source kept (glossary)
 
 
+def test_diagram_tiddler_links_to_svg_tiddler():
+    # When `pdfdrill svg` rendered a Diagram (props['svg']), the tiddler export
+    # must emit a separate image/svg+xml tiddler and link it from the diagram
+    # tiddler — not just point <$image> at the (maybe absent) CDN crop.
+    from docmodel.core import DocObject
+    doc = _build_sample_doc()
+    doc.add(DocObject(type="Diagram", id="d1", props={
+        "latex_code": r"\begin{tikzcd} A \arrow[r] & B \end{tikzcd}",
+        "svg": "<svg xmlns='http://www.w3.org/2000/svg'><text>cd</text></svg>",
+        "flow_index": 5}))
+    tids = json.loads(_make_op(TiddlyWikiProjector).project(doc))
+    by = {t["title"]: t for t in tids}
+
+    dt = next(t for t in tids if "diagram" in (t.get("tags") or "") and t.get("latex_code"))
+    svg_title = dt.get("svg_tiddler")
+    assert svg_title, "diagram tiddler must carry a svg_tiddler link field"
+    assert f'<$image source="{svg_title}"' in dt["text"]   # renders/links the svg tiddler
+    svgt = by[svg_title]
+    assert svgt["type"] == "image/svg+xml"
+    assert "<svg" in svgt["text"] and "cd" in svgt["text"]
+
+
 def test_tiddlywiki_projector_round_trips_json():
     doc = _build_sample_doc()
     op = _make_op(TiddlyWikiProjector)

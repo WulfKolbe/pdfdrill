@@ -1229,6 +1229,18 @@ proceedings, 55 `tikzcd` diagrams): `pdfdrill latex` → `pdfdrill svg` went fro
 **0 → 32/55** rendered (the rest fail on per-paper `\let`/`@`-internal macros, a
 long tail). Tests: `tests/test_svg.py` (graphics ingestion + multi-line preamble).
 
+**Rendered SVG reaches the tiddlers (link, per the overlay/link model).** The
+TiddlyWiki diagram/table tiddler used to hard-code `<$image source={{!!canonical_uri}}>`
+(the CDN crop) and dropped the locally-rendered `props["svg"]` entirely — so after
+`pdfdrill svg` the import had no SVG. Now, when a Diagram/Table carries a rendered
+`svg`, the projector emits a **separate `<title>_svg` tiddler** (`type:
+image/svg+xml`, the SVG as its text) and the diagram/table tiddler **links it** via
+`<$image source="<title>_svg"/>` + an `svg_tiddler` field (falling back to the CDN
+`<$image>` when there's no SVG). Verified on arXiv 2510.15795: 32 `image/svg+xml`
+tiddlers + 32 diagram tiddlers linking them. Re-run `pdfdrill tiddlers` AFTER
+`pdfdrill svg` so the SVGs are present. `_emit_svg_tiddler` in `tiddlywiki.py`;
+test `tests/test_docops.py::test_diagram_tiddler_links_to_svg_tiddler`.
+
 `array` is excluded from graphics extraction (it's math-mode,
 KaTeX-rendered inside its equation — not a standalone table). The `\[…\]`
 display-math extractor no longer mis-splits `\\[4pt]` row-spacing in
