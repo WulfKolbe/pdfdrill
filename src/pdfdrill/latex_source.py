@@ -347,6 +347,9 @@ def standalone_preamble(preamble: str) -> str:
         if any(name in _STANDALONE_DROP_PKGS for name in names):
             continue
         pkgs.append(m.group(0))
+    # TikZ libraries the diagrams/styles depend on (e.g. decorations.markings,
+    # which a \tikzset `decorate` style needs).
+    libs = re.findall(r"\\usetikzlibrary\s*\{[^}]*\}", pre)
     defs = _collect_macro_defs(pre)
     # Math-alphabet declarations (single-line, self-contained, no \makeatletter
     # needed) that define math letters a diagram may use, e.g.
@@ -355,11 +358,21 @@ def standalone_preamble(preamble: str) -> str:
     # internals or span lines, and break a bare standalone preamble.)
     decls = re.findall(
         r"\\(?:DeclareMathAlphabet|SetMathAlphabet)\b[^\n]*", pre)
+    # Low-level \font primitives (e.g. \font\maljapanese=dmjhira at 2ex, used to
+    # build the Yoneda symbol \yo) — a \def that references the named font fails
+    # without the \font load.
+    fonts = re.findall(r"\\font\\[A-Za-z@]+\s*=[^\n]*", pre)
+    # \tikzset{...}/\tikzcdset{...} blocks define custom arrow/node styles the
+    # diagrams use (e.g. utcofarrow); capture the whole brace-balanced block.
+    tikzsets: list[str] = []
+    for m in re.finditer(r"\\tikz(?:cd)?set\s*\{", pre):
+        open_idx = m.end() - 1
+        tikzsets.append(pre[m.start():open_idx] + _balanced(pre, open_idx))
     # `class=report` so book/report counters (\thechapter, …) that a project's
     # styles reference exist under standalone; tikz so bare \begin{tikzpicture}
     # compiles even if the project loads it indirectly. (Mirrors LATW.)
     head = "\\documentclass[border=2pt,class=report]{standalone}\n\\usepackage{tikz}"
-    return "\n".join([head, *pkgs, *decls, *defs])
+    return "\n".join([head, *pkgs, *libs, *fonts, *decls, *defs, *tikzsets])
 
 
 # ---------------------------------------------------------------------------

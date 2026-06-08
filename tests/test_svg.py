@@ -52,6 +52,37 @@ def test_standalone_preamble_keeps_multiline_macro_bodies():
     assert "standalone" in sa
 
 
+def test_standalone_preamble_keeps_font_primitive():
+    # \font\name=... primitive font loads must survive — e.g. the Yoneda symbol
+    # \yo built from \font\maljapanese=dmjhira (arXiv 2510.15795). Without the
+    # \font line, \maljapanese is undefined and every \yo diagram fails.
+    pre = ("\\documentclass{article}\n"
+           "\\font\\maljapanese=dmjhira at 2ex\n"
+           "\\def\\yo{\\textrm{\\maljapanese\\char\"48}}")
+    sa = ls.standalone_preamble(pre)
+    assert "\\font\\maljapanese=dmjhira at 2ex" in sa
+    assert "\\def\\yo" in sa
+
+
+def test_standalone_preamble_keeps_tikzset_block():
+    # \tikzset{...} blocks define the custom arrow styles a tikzcd diagram uses
+    # (e.g. utcofarrow in arXiv 2510.15795); the whole (multi-line, balanced)
+    # block must be captured or the diagram fails with an undefined pgfkeys style.
+    pre = ("\\documentclass{article}\n"
+           "\\usepackage{tikz-cd}\n"
+           "\\usetikzlibrary{decorations.markings}\n"
+           "\\tikzset{\n"
+           "  utcofarrow/.style={>->, dashed},\n"
+           "  we/.style={postaction={decorate}}\n"
+           "}\n"
+           "\\newcommand{\\fto}{\\to}")
+    sa = ls.standalone_preamble(pre)
+    assert "\\usetikzlibrary{decorations.markings}" in sa   # tikz library kept
+    assert "\\tikzset" in sa and "utcofarrow/.style" in sa
+    assert "\\fto" in sa
+    assert sa.count("{") == sa.count("}")     # full block captured, balanced
+
+
 def test_rowspacing_not_mistaken_for_display_math():
     # \\[4pt] is an align row break, NOT a \[ ... \] display block.
     body = (r"\begin{align*} a &= b \\[4pt] c &= d \end{align*}"

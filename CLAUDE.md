@@ -1224,10 +1224,17 @@ math/TikZ `\usepackage`s (dropping document-class STYLES + layout packages —
 standalone cropping with "Dimension too large") plus the author's macro defs with
 **full multi-line bodies** (`_collect_macro_defs` brace-balances them — the old
 line-anchored regex truncated a `\newcommand` and left a runaway def) plus
-`\DeclareMathAlphabet`/`\SetMathAlphabet`. Verified on arXiv 2510.15795 (SIAM
-proceedings, 55 `tikzcd` diagrams): `pdfdrill latex` → `pdfdrill svg` went from
-**0 → 32/55** rendered (the rest fail on per-paper `\let`/`@`-internal macros, a
-long tail). Tests: `tests/test_svg.py` (graphics ingestion + multi-line preamble).
+`\DeclareMathAlphabet`/`\SetMathAlphabet`. `standalone_preamble` also captures the rest of the math/diagram setup a snippet
+needs: `\usetikzlibrary{…}` (e.g. decorations.markings), `\tikzset{…}`/`\tikzcdset`
+style blocks (brace-balanced — custom arrow styles like `utcofarrow`),
+`\DeclareMathAlphabet`/`\SetMathAlphabet`, and low-level `\font\…=…` primitives
+(e.g. the Yoneda symbol `\yo` from `\font\maljapanese=dmjhira`). Verified on arXiv
+2510.15795 (SIAM proceedings, 55 `tikzcd` commutative diagrams): `pdfdrill latex`
+→ `pdfdrill svg` went from **0 → 55/55** rendered. The fixes were a cascade — each
+missing preamble element surfaced the next: minimal-math preamble (drop the class
+style) → multi-line `\newcommand` bodies → `\DeclareMathAlphabet` → `\font`
+primitive → `\tikzset` styles → `\usetikzlibrary`. Tests: `tests/test_svg.py`
+(graphics ingestion + multi-line/`\font`/`\tikzset`/`\usetikzlibrary` preamble).
 
 **Rendered SVG reaches the tiddlers (link, per the overlay/link model).** The
 TiddlyWiki diagram/table tiddler used to hard-code `<$image source={{!!canonical_uri}}>`
