@@ -83,6 +83,32 @@ def test_standalone_preamble_keeps_tikzset_block():
     assert sa.count("{") == sa.count("}")     # full block captured, balanced
 
 
+def test_externalize_svg_tiddlers_writes_files_and_canonical_uri():
+    # --embed-svg=false: move the inline svg_tiddler field out to external .svg
+    # files referenced by _canonical_uri, leaving non-SVG tiddlers untouched.
+    import tempfile, json
+    from pathlib import Path
+    tiddlers = [
+        {"title": "K_DIA_0001", "type": "text/vnd.tiddlywiki",
+         "text": "{{!!svg_tiddler}}", "svg_tiddler": "<svg>diagram</svg>",
+         "latex_code": "x"},
+        {"title": "K_PARA_0001", "type": "text/vnd.tiddlywiki", "text": "hello"},
+    ]
+    with tempfile.TemporaryDirectory() as d:
+        svg_dir = Path(d) / "svg"
+        n = commands._externalize_svg_tiddlers(tiddlers, svg_dir, "svg")
+        assert n == 1
+        dia = tiddlers[0]
+        assert "svg_tiddler" not in dia
+        assert dia["type"] == "image/svg+xml"
+        assert dia["_canonical_uri"] == "svg/K_DIA_0001.svg"
+        assert dia["text"] == ""
+        assert dia["latex_code"] == "x"                 # other fields preserved
+        assert (svg_dir / "K_DIA_0001.svg").read_text() == "<svg>diagram</svg>"
+        assert tiddlers[1] == {"title": "K_PARA_0001",  # prose tiddler untouched
+                               "type": "text/vnd.tiddlywiki", "text": "hello"}
+
+
 def test_rowspacing_not_mistaken_for_display_math():
     # \\[4pt] is an align row break, NOT a \[ ... \] display block.
     body = (r"\begin{align*} a &= b \\[4pt] c &= d \end{align*}"

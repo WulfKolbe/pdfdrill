@@ -1251,6 +1251,18 @@ diagram/table tiddlers, text `{{!!svg_tiddler}}`, field = pure `<svg …>`. Re-r
 `pdfdrill tiddlers` AFTER `pdfdrill svg`. Test
 `tests/test_docops.py::test_diagram_tiddler_transcludes_svg_field`.
 
+- **External-file mode (`--embed-svg=false`).** Inline SVG is the default, but a
+  paper with many diagrams inlines a lot (2510.15795: 1.5 MB tiddlers.json). The
+  projector stays pure (always inline); `cmd_tiddlers` then post-processes when
+  `--embed-svg=false` — `_externalize_svg_tiddlers` writes each diagram's SVG to
+  `<pdf>.drill/svg/<title>.svg` and rewrites the tiddler to `type:
+  image/svg+xml` + `_canonical_uri: svg/<title>.svg` + empty text (other fields,
+  e.g. `latex_code`, kept). Single boolean flag (also `--no-embed-svg`),
+  idempotent, sidecar records `tiddlers_svg_mode`; falls back cleanly when no SVGs
+  exist. 2510.15795: **1.5 MB → 147 KB** + 55 files in `svg/` (copy that folder
+  alongside the wiki HTML). Test:
+  `tests/test_svg.py::test_externalize_svg_tiddlers_writes_files_and_canonical_uri`.
+
 `array` is excluded from graphics extraction (it's math-mode,
 KaTeX-rendered inside its equation — not a standalone table). The `\[…\]`
 display-math extractor no longer mis-splits `\\[4pt]` row-spacing in

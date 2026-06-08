@@ -2772,8 +2772,33 @@ def _format_lists(sc: Sidecar) -> str:
 # TiddlyWiki export — JSON tiddler array for quick data-structure inspection
 # ---------------------------------------------------------------------------
 
+def _externalize_svg_tiddlers(tiddlers: list, svg_dir: Path, uri_prefix: str) -> int:
+    """`--embed-svg=false`: move each tiddler's inline `svg_tiddler` SVG out to an
+    external `<svg_dir>/<title>.svg` file and rewrite the tiddler to reference it
+    (`type: image/svg+xml`, `_canonical_uri: <prefix>/<title>.svg`, empty text) —
+    a lean wiki store instead of ~1 MB of inline SVG. Non-SVG tiddlers untouched.
+    Returns the count externalized."""
+    svg_dir = Path(svg_dir)
+    prefix = uri_prefix.rstrip("/")
+    n = 0
+    for t in tiddlers:
+        svg = t.get("svg_tiddler")
+        if not (isinstance(svg, str) and svg.lstrip().startswith("<svg")):
+            continue
+        if n == 0:
+            svg_dir.mkdir(parents=True, exist_ok=True)
+        fname = re.sub(r"[^\w.\-]", "_", t["title"]) + ".svg"
+        (svg_dir / fname).write_text(svg, encoding="utf-8")
+        t.pop("svg_tiddler", None)
+        t["type"] = "image/svg+xml"
+        t["_canonical_uri"] = f"{prefix}/{fname}" if prefix else fname
+        t["text"] = ""
+        n += 1
+    return n
+
+
 def cmd_tiddlers(pdf: Path, force: bool = False, embed: bool = False,
-                 bibkey: str | None = None) -> str:
+                 bibkey: str | None = None, embed_svg: bool = True) -> str:
     """Emit a TiddlyWiki JSON tiddler array from the unified model.
 
     Quick way to eyeball the structure: drop the array into TiddlyWiki and a
@@ -2826,21 +2851,36 @@ def cmd_tiddlers(pdf: Path, force: bool = False, embed: bool = False,
     bibkey = key
     sc.blob_dir.mkdir(parents=True, exist_ok=True)
     out_path = sc.blob_dir / f"{bibkey}.tiddlers.json"
+
+    # --embed-svg=false: write each diagram's SVG to an external file referenced
+    # by _canonical_uri, instead of inlining it in the svg_tiddler field.
+    svg_note = ""
+    if not embed_svg:
+        tiddlers = json.loads(result)
+        svg_dir = sc.blob_dir / "svg"
+        n_ext = _externalize_svg_tiddlers(tiddlers, svg_dir, "svg")
+        result = json.dumps(tiddlers, ensure_ascii=False, indent=1)
+        if n_ext:
+            rel_dir = svg_dir.relative_to(sc.pdf_path.parent)
+            svg_note = (f" {n_ext} diagram SVG(s) written to {rel_dir}/ and referenced "
+                        f"via _canonical_uri (svg/<title>.svg) — copy that folder "
+                        f"alongside your wiki HTML.")
     out_path.write_text(result, encoding="utf-8")
 
     sc.set_evidence("tiddlers_path", str(out_path.relative_to(sc.pdf_path.parent)))
     sc.set_evidence("tiddlers_count", count)
+    sc.set_evidence("tiddlers_svg_mode", "inline" if embed_svg else "external")
     prev = ",".join(sorted(sc.facts - {TIDDLERS_BUILT})) or "INIT"
     sc.add_fact(TIDDLERS_BUILT)
     sc.log_transition(
         "tiddlers", prev, TIDDLERS_BUILT, cost_ms=(time.monotonic() - t0) * 1000,
-        detail=f"{count} tiddlers",
+        detail=f"{count} tiddlers, svg={'inline' if embed_svg else 'external'}",
     )
     sc.save()
     rel = out_path.relative_to(sc.pdf_path.parent)
     return (f"Wrote {count} TiddlyWiki tiddlers to {rel}. Import into TiddlyWiki; "
-            f"equation tiddlers carry latex / displayMode / canonical_uri / "
-            f"width / height for your <$latex>/<$image> table macro.")
+            f"diagram SVGs render via {{{{!!svg_tiddler}}}} "
+            f"({'inline' if embed_svg else 'external _canonical_uri'}).{svg_note}")
 
 
 # Tag -> the tiddler field whose prose gets translated. Math/code/image/toc

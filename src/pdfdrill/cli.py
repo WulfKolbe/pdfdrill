@@ -518,12 +518,16 @@ def _do_translate(args):
 
 
 def _do_tiddlers(args):
-    """pdfdrill tiddlers <pdf> [--bibkey KEY] [--force] [--embed]"""
+    """pdfdrill tiddlers <pdf> [--bibkey KEY] [--force] [--embed] [--embed-svg=false]"""
     from .commands import cmd_tiddlers
     bibkey, args = _opt(args, "--bibkey")
-    pdf_args = [a for a in args if a not in ("--force", "--embed")]
+    # diagram SVGs: inline in the svg_tiddler field (default) or external files
+    # referenced by _canonical_uri (--embed-svg=false / --no-embed-svg).
+    embed_svg = not any(a in ("--embed-svg=false", "--no-embed-svg") for a in args)
+    flags = ("--force", "--embed", "--embed-svg=false", "--embed-svg=true", "--no-embed-svg")
+    pdf_args = [a for a in args if a not in flags]
     return cmd_tiddlers(_pdf(pdf_args), force="--force" in args,
-                        embed="--embed" in args, bibkey=bibkey)
+                        embed="--embed" in args, bibkey=bibkey, embed_svg=embed_svg)
 
 
 def _do_lists(args):
@@ -983,7 +987,7 @@ Introspection (fast, no extraction):
   pdfdrill vision <pdf>        GPT-4o vision reads every MathPix CDN crop (incl. table-cell images) → math/TikZ/gnuplot/table as the `openai` provenance; --limit N (needs OPENAI_API_KEY)
   pdfdrill embedimages <pdf>   Lift pdfimages + pdfplumber image rects into the model as EmbeddedImage nodes (pixel size/encoding/ppi + page rect), fused onto MathPix crops they contain
   pdfdrill geometry <pdf>      Fuse pdftotext -tsv layout (indent/margins) onto the model — substrate for block detection
-  pdfdrill tiddlers <pdf>      Emit a TiddlyWiki JSON tiddler array (latex/displayMode/canonical_uri/width/height) for quick inspection; --bibkey KEY sets the title prefix + filename
+  pdfdrill tiddlers <pdf>      Emit a TiddlyWiki JSON tiddler array (latex/displayMode/canonical_uri/width/height) for quick inspection; --bibkey KEY sets the title prefix + filename. Diagram SVGs inline by default; --embed-svg=false writes them to .drill/svg/<title>.svg and references via _canonical_uri (leaner store)
   pdfdrill translate <pdf>     DeepL-translate the document IN PLACE (--to EN-US --from RU): writes the changed tiddler file (translated text field) AND a bi-layer Markdown <bibkey>.md (translation + hidden source, CSS toggle); original kept under <field>_source (needs DEEPL_API_KEY)
   pdfdrill lists <pdf>         Nest flat ListItems into recursive List blocks using fused indentation (auto-chains geometry)
   pdfdrill algorithms <pdf>    Reconstruct Algorithm blocks from MathPix pseudocode lines (caption + indented steps)
