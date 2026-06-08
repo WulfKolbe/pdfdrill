@@ -2096,6 +2096,9 @@ def cmd_svg(target: Path, limit: int | None = None, force: bool = False) -> str:
     todo = [o for o in targets if force or not o.props.get("svg")]
     if limit is not None:
         todo = todo[:limit]
+    # graphics already rendered in a prior run (skipped unless --force) — report
+    # them so "Rendered 0" isn't mistaken for "nothing is rendered".
+    already = 0 if force else sum(1 for o in targets if o.props.get("svg"))
 
     done = errors = skipped = 0
     for o in todo:
@@ -2128,11 +2131,15 @@ def cmd_svg(target: Path, limit: int | None = None, force: bool = False) -> str:
         sc.set_evidence("svg_errors", errors)
         sc.set_evidence("svg_skipped", skipped)
         sc.save()
-    return (f"Rendered {done} TikZ/table SVG(s)"
+    total_svg = already + done
+    return (f"Rendered {done} new TikZ/table SVG(s)"
+            + (f", {already} already rendered" if already else "")
             + (f", {errors} failed" if errors else "")
             + (f", {skipped} skipped (not a LaTeX graphic, e.g. code listing)" if skipped else "")
-            + f" of {len(targets)} graphic object(s). SVGs stored on the model "
-            f"(props['svg']); the report embeds them inline.")
+            + f" of {len(targets)} graphic object(s) "
+            f"({total_svg} now have an SVG). SVGs stored on the model "
+            f"(props['svg']); `pdfdrill report {target.name}` embeds them inline."
+            + (f" Re-run with --force to retry the {errors} that failed." if errors else ""))
 
 
 def cmd_report(pdf: Path, force: bool = False, embed: bool = False,
