@@ -382,6 +382,10 @@ class TiddlyWikiProjector(BaseProjector):
             )
             t["latex"] = f.props.get("latex", "")
             t["displayMode"] = "true" if f.props.get("display") else "false"
+            # Keep the verbatim author source (may use private macros) alongside
+            # the expanded `latex` that <$latex>/KaTeX actually renders.
+            if f.props.get("latex_original"):
+                t["latex_original"] = f.props["latex_original"]
             out.append(t)
 
         # Equations
@@ -393,6 +397,8 @@ class TiddlyWikiProjector(BaseProjector):
             )
             t["kind"] = "Equation"
             t["latex"] = e.props.get("latex", "")
+            if e.props.get("latex_original"):
+                t["latex_original"] = e.props["latex_original"]   # verbatim macro source
             t["displayMode"] = "true"   # display equations render in display mode
             t["refnum"] = e.props.get("refnum") or ""
             # Displayed reference "(N)" for the ||FREF transclusion.
@@ -452,6 +458,8 @@ class TiddlyWikiProjector(BaseProjector):
             )
             t["page"] = self._p3(d.props.get("page"))
             t["latex_code"] = d.props.get("latex_code") or ""
+            if d.props.get("latex_original"):
+                t["latex_original"] = d.props["latex_original"]   # verbatim macro source
             if d.props.get("cdn_url"):
                 t["canonical_uri"] = self._uri(d.props["cdn_url"])
             for k in ("caption", "kind", "refnum"):

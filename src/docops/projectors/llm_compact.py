@@ -102,7 +102,10 @@ class LLMCompactProjector(BaseProjector):
         formula_map: dict[str, str] = {}        # latex -> placeholder
         formula_uses: dict[str, int] = {}       # placeholder -> count
         equation_map: dict[str, str] = {}       # eq.id -> placeholder
-        equation_latex: dict[str, str] = {}     # placeholder -> latex
+        equation_latex: dict[str, str] = {}     # placeholder -> latex (expanded)
+        # placeholder -> verbatim author source (only when it differs from the
+        # expanded form, i.e. the formula used a private macro).
+        macro_orig: dict[str, str] = {}
 
         for obj in flow_ordered_content(doc):
             if obj.type == "Formula":
@@ -113,10 +116,16 @@ class LLMCompactProjector(BaseProjector):
                     formula_map[latex] = f"{formula_prefix}{len(formula_map) + 1}"
                 ph = formula_map[latex]
                 formula_uses[ph] = formula_uses.get(ph, 0) + 1
+                orig = obj.props.get("latex_original", "")
+                if orig and orig.strip() != latex.strip():
+                    macro_orig.setdefault(ph, orig)
             elif obj.type == "Equation":
                 ph = f"{equation_prefix}{len(equation_map) + 1}"
                 equation_map[obj.id] = ph
                 equation_latex[ph] = obj.props.get("latex", "")
+                orig = obj.props.get("latex_original", "")
+                if orig and orig.strip() != obj.props.get("latex", "").strip():
+                    macro_orig[ph] = orig
 
         # Map "(N)" -> equation placeholder for in-text reference rewriting.
         eqref_to_ph: list[tuple[str, str]] = []
@@ -173,7 +182,7 @@ class LLMCompactProjector(BaseProjector):
         if include_glossary:
             out.append(self._render_glossary(
                 formula_map, formula_uses, equation_map, equation_latex,
-                repeat_threshold=repeat_threshold,
+                repeat_threshold=repeat_threshold, macro_orig=macro_orig,
             ))
         return "\n".join(out).rstrip() + "\n"
 
@@ -296,8 +305,16 @@ class LLMCompactProjector(BaseProjector):
         formula_uses: dict[str, int],
         equation_map: dict[str, str],
         equation_latex: dict[str, str],
-        *, repeat_threshold: int,
+        *, repeat_threshold: int, macro_orig: dict[str, str] | None = None,
     ) -> str:
+        macro_orig = macro_orig or {}
+
+        def _src(ph: str) -> str:
+            # show the verbatim macro source after the expanded form, when the
+            # formula used a private macro (so both versions survive the projection)
+            o = macro_orig.get(ph)
+            return f"  · macro source: `{o}`" if o else ""
+
         lines: list[str] = ["---", "## Glossary"]
         if formula_map:
             lines.append("\n### Inline formulas")
@@ -306,9 +323,9 @@ class LLMCompactProjector(BaseProjector):
                 if formula_uses.get(ph, 0) < repeat_threshold:
                     continue
                 uses = formula_uses.get(ph, 0)
-                lines.append(f"- **{ph}** ({uses}×): `{latex}`")
+                lines.append(f"- **{ph}** ({uses}×): `{latex}`{_src(ph)}")
         if equation_map:
             lines.append("\n### Display equations")
             for eq_id, ph in sorted(equation_map.items(), key=lambda kv: int(kv[1][1:])):
-                lines.append(f"- **{ph}**: `{equation_latex.get(ph, '')}`")
+                lines.append(f"- **{ph}**: `{equation_latex.get(ph, '')}`{_src(ph)}")
         return "\n".join(lines)

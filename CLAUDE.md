@@ -1165,6 +1165,19 @@ LaTeX-source upper layer (`src/pdfdrill/latex_source.py`, `pdfdrill latex`):
   + `standalone` preamble is stored on `doc.meta["latex_preamble"]`. Verified
   on arXiv 2312.11532: 47 macros, 13/16 source equations matched; eq (9)
   carries the author's `\label{eq:likelihood}` original+expanded LaTeX.
+- **Both forms survive projection — visualize expanded, keep the macro source.**
+  KaTeX/`<$latex>` can only render the **expanded** `latex` (a private macro like
+  the GDL book's `\renewcommand{\vec}{\mathbf}` makes the default `\vec` arrow
+  WRONG), so the tiddler/markdown render the expanded form — but the verbatim
+  macro source is no longer dropped. The TiddlyWiki projector emits a
+  `latex_original` field on formula/equation/diagram tiddlers (when present), and
+  the `LLMCompactProjector` glossary appends `· macro source: \`…\`` for any
+  formula/equation whose original differs from the expanded form. Verified on the
+  Geometric Deep Learning proto-book (arXiv 2104.13478, **468 preamble macros**,
+  built source-only via `latex_source.build_source_model` — no OCR): formulas
+  like `\gR→{\mathcal{R}}`, `\fg→{\mathfrak{g}}`, `\vec→\mathbf` render expanded
+  while their macro source is preserved. Tests: `tests/test_docops.py`
+  (`test_tiddler_and_md_keep_both_latex_forms`).
 - `latex`, `pdflatex`, `dvisvgm`, `dvips` are present in this sandbox (only
   `pdf2svg` is missing), so the SVG projector is feasible here next.
 

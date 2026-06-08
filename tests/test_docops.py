@@ -225,6 +225,25 @@ def test_llmcompact_bilayer_emits_both_layers():
     assert "show-source" in out and "<button" in out     # CSS/JS toggle present
 
 
+def test_tiddler_and_md_keep_both_latex_forms():
+    # LaTeX-source formulas carry an expanded `latex` (renderable) AND a verbatim
+    # `latex_original` (may use private macros). Visualization uses expanded, but
+    # BOTH forms must survive into the tiddler and the markdown.
+    doc = _build_sample_doc()
+    eq = doc.objects_of_type("Equation")[0]
+    eq.props["latex"] = "{\\mathcal{R}}(x)"        # expanded (KaTeX-renderable)
+    eq.props["latex_original"] = "\\gR(x)"          # macro form (not renderable)
+
+    tids = json.loads(_make_op(TiddlyWikiProjector).project(doc))
+    eqt = next(t for t in tids if t.get("kind") == "Equation")
+    assert eqt["latex"] == "{\\mathcal{R}}(x)"      # render field = expanded
+    assert eqt["latex_original"] == "\\gR(x)"        # macro source preserved
+
+    md = _make_op(LLMCompactProjector).project(doc)
+    assert "\\mathcal{R}" in md                      # visualized with expanded
+    assert "\\gR(x)" in md                           # macro source kept (glossary)
+
+
 def test_tiddlywiki_projector_round_trips_json():
     doc = _build_sample_doc()
     op = _make_op(TiddlyWikiProjector)
