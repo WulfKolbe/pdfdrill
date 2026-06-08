@@ -54,6 +54,23 @@ def test_equation_rows_have_cdn_and_eqnum_and_display_render():
     assert "katex.render" in h
 
 
+def test_katex_scaled_to_image_height_default_and_param():
+    # default: scale KaTeX to the CDN image height (multiplier 1.0)
+    _, h = _html()
+    assert "scaleKatexToImage(" in h
+    assert "scaleKatexToImage(1.0)" in h
+    assert "transform-origin" in h                # CSS for the scale anchor
+    assert "img.height" in h or ".height" in h    # derives target from image height
+    # configurable multiplier (e.g. 200%)
+    doc = Document(); doc.meta["bibkey"] = "DOC"
+    doc.add(DocObject(type="Equation", props={
+        "latex": "E=mc^2", "page": 1, "cdn_url": "https://cdn/x.jpg", "flow_index": 0}))
+    proj = FormulaReportProjector(OperatorConfig(
+        op="projector", classname="FormulaReportProjector", params={"katex_scale": 2.0}))
+    h2 = proj.project(doc)
+    assert "scaleKatexToImage(2.0)" in h2
+
+
 if __name__ == "__main__":
     tests = [v for k, v in list(globals().items()) if k.startswith("test_")]
     failed = []

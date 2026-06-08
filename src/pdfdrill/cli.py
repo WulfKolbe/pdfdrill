@@ -608,10 +608,12 @@ def _do_bibsource(args):
 
 
 def _do_report(args):
-    """pdfdrill report <pdf> [--force] [--embed]"""
+    """pdfdrill report <pdf> [--force] [--embed] [--scale 1.0]"""
     from .commands import cmd_report
+    scale, args = _opt(args, "--scale")
     pdf_args = [a for a in args if a not in ("--force", "--embed")]
-    return cmd_report(_pdf(pdf_args), force="--force" in args, embed="--embed" in args)
+    return cmd_report(_pdf(pdf_args), force="--force" in args, embed="--embed" in args,
+                      scale=float(scale) if scale else 1.0)
 
 
 def _do_svg(args):
@@ -967,7 +969,7 @@ Introspection (fast, no extraction):
   pdfdrill selftest <pdf|dir>  DIAGNOSTIC GRID: run the command battery across a PDF (or every PDF in a folder), log OK/⊘-n/a/✗-ERROR + the actual result per command → selftest.log. --full adds entities/elements/semantic
   pdfdrill model <pdf>         Build unified docmodel from lines.json (auto-chains mathpix, falls back to tesseract ocr if no MathPix); --bibkey KEY sets the tiddler prefix (persisted)
   pdfdrill compare <pdf>       LaTeX | KaTeX | MathPix-image comparison HTML (auto-chains model)
-  pdfdrill report <pdf>        Full inline+display math report (formula-report.html)
+  pdfdrill report <pdf>        Full inline+display math report (formula-report.html). --scale N scales each KaTeX render to the CDN image height (1.0=same, 2.0=200%); --embed
   pdfdrill latex <pdf>         Ingest author .tex/.tgz as a `tex` provenance (original+expanded LaTeX); --tex <path>
   pdfdrill latexbook <book.tex> Source-only model + TikZ/table SVGs + KaTeX formula report from LaTeX (no PDF/MathPix); --no-svg to skip rendering
   pdfdrill svg <pdf|tex>       Render TikZ diagrams + tables to SVG via latex->dvisvgm (KaTeX can't); embeds in the report

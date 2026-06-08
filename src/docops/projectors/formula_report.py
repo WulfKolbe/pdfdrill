@@ -34,7 +34,8 @@ _HEAD = """<!DOCTYPE html>
     .formula-table th {{ background: #f0f0f0; }}
     td.title {{ white-space: nowrap; font-size: .8rem; }}
     td.latex code {{ font-size: .75rem; white-space: pre-wrap; word-break: break-all; }}
-    td.katex {{ min-width: 8rem; }}
+    td.katex {{ min-width: 8rem; overflow: visible; vertical-align: top; }}
+    td.katex .math-render {{ display: inline-block; transform-origin: top left; }}
     td.cdn img {{ max-width: 200px; max-height: 80px; }}
     .svg svg {{ max-width: 320px; max-height: 220px; height: auto; }}
     td.cdn-missing {{ color: #aaa; text-align: center; }}
@@ -49,6 +50,31 @@ _HEAD = """<!DOCTYPE html>
         try {{ katex.render(latex, el, {{ displayMode: display, throwOnError: false }}); }}
         catch(e) {{ el.textContent = latex; }}
       }});
+
+      // Scale each equation's KaTeX render to the CDN image's drawn height
+      // (× multiplier) via CSS transform, so the rendered math and the MathPix
+      // crop sit at a comparable size. Multiplier 1.0 = same height, 2.0 = 200%.
+      function scaleKatexToImage(multiplier) {{
+        document.querySelectorAll("td.katex").forEach(function(cell) {{
+          var row  = cell.parentElement;
+          var img  = row.querySelector("td.cdn img");
+          var math = cell.querySelector(".math-render");
+          if (!img || !math) return;          // inline rows have no image — skip
+          function applyScale() {{
+            var imgH = img.height;
+            if (!imgH) return;
+            math.style.transform = "scale(1)";
+            var mathH = math.getBoundingClientRect().height;
+            if (!mathH) return;
+            var target = imgH * multiplier;
+            math.style.transform = "scale(" + (target / mathH) + ")";
+            cell.style.height = target + "px";
+          }}
+          if (img.complete) applyScale();
+          else img.addEventListener("load", applyScale, {{ once: true }});
+        }});
+      }}
+      scaleKatexToImage({katex_scale});
     }});
   </script>
 </head>
@@ -79,12 +105,16 @@ class FormulaReportProjector(BaseProjector):
         formulas = flow(doc.objects_of_type("Formula"))
         equations = flow(doc.objects_of_type("Equation"))
 
+        # KaTeX→image height scaling multiplier (1.0 = same height as the CDN
+        # crop, 2.0 = 200%); configurable via the `katex_scale` param.
+        katex_scale = float(self.params.get("katex_scale", 1.0))
         parts = [_HEAD.format(
             kv=_KV,
             title=html.escape(str(doc.meta.get("source_path", bibkey))),
             source=html.escape(str(doc.meta.get("source_path", bibkey))),
             n_formulas=len(formulas),
             n_equations=len(equations),
+            katex_scale=katex_scale,
         )]
 
         # ---- Inline math ----

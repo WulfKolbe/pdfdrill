@@ -2132,11 +2132,13 @@ def cmd_svg(target: Path, limit: int | None = None, force: bool = False) -> str:
             f"(props['svg']); the report embeds them inline.")
 
 
-def cmd_report(pdf: Path, force: bool = False, embed: bool = False) -> str:
+def cmd_report(pdf: Path, force: bool = False, embed: bool = False,
+               scale: float = 1.0) -> str:
     """Emit a full inline+display math report (formula-report.html).
 
     Lists every inline Formula (LaTeX + KaTeX) and every display Equation
-    (+ MathPix CDN image + equation number). Auto-chains `model`.
+    (+ MathPix CDN image + equation number). Auto-chains `model`. `scale` sets
+    the KaTeX-to-CDN-image height multiplier (1.0 = same height, 2.0 = 200%).
     """
     from docmodel.core import Document
     from docops.base import OperatorConfig
@@ -2156,7 +2158,7 @@ def cmd_report(pdf: Path, force: bool = False, embed: bool = False) -> str:
 
     proj = FormulaReportProjector(
         OperatorConfig(op="projector", classname="FormulaReportProjector",
-                   params={"embed": embed}))
+                   params={"embed": embed, "katex_scale": scale}))
     result = proj.project(doc)
     inline = proj.counters.get("inline_rows", 0)
     eqs = proj.counters.get("equation_rows", 0)
