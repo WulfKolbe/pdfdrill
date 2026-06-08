@@ -1236,17 +1236,20 @@ style) → multi-line `\newcommand` bodies → `\DeclareMathAlphabet` → `\font
 primitive → `\tikzset` styles → `\usetikzlibrary`. Tests: `tests/test_svg.py`
 (graphics ingestion + multi-line/`\font`/`\tikzset`/`\usetikzlibrary` preamble).
 
-**Rendered SVG reaches the tiddlers (link, per the overlay/link model).** The
+**Rendered SVG reaches the tiddlers (inline field + transclusion).** The
 TiddlyWiki diagram/table tiddler used to hard-code `<$image source={{!!canonical_uri}}>`
 (the CDN crop) and dropped the locally-rendered `props["svg"]` entirely — so after
 `pdfdrill svg` the import had no SVG. Now, when a Diagram/Table carries a rendered
-`svg`, the projector emits a **separate `<title>_svg` tiddler** (`type:
-image/svg+xml`, the SVG as its text) and the diagram/table tiddler **links it** via
-`<$image source="<title>_svg"/>` + an `svg_tiddler` field (falling back to the CDN
-`<$image>` when there's no SVG). Verified on arXiv 2510.15795: 32 `image/svg+xml`
-tiddlers + 32 diagram tiddlers linking them. Re-run `pdfdrill tiddlers` AFTER
-`pdfdrill svg` so the SVGs are present. `_emit_svg_tiddler` in `tiddlywiki.py`;
-test `tests/test_docops.py::test_diagram_tiddler_links_to_svg_tiddler`.
+`svg`, the projector puts the inline SVG in the tiddler's **`svg_tiddler` field**
+(`_svg_inline` cuts everything before the root `<svg>` — XML decl, DOCTYPE,
+dvisvgm comment — so the field is pure, inline-renderable SVG) and sets the
+tiddler **text to `{{!!svg_tiddler}}`** (simple field transclusion). NOTE:
+`<$image source="…">` does **not** render an svg tiddler (it wraps it in an
+`<img>` data-URI) — field transclusion renders the inline SVG directly. Falls
+back to the CDN `<$image>` when there's no SVG. Verified on arXiv 2510.15795: 55
+diagram/table tiddlers, text `{{!!svg_tiddler}}`, field = pure `<svg …>`. Re-run
+`pdfdrill tiddlers` AFTER `pdfdrill svg`. Test
+`tests/test_docops.py::test_diagram_tiddler_transcludes_svg_field`.
 
 `array` is excluded from graphics extraction (it's math-mode,
 KaTeX-rendered inside its equation — not a standalone table). The `\[…\]`

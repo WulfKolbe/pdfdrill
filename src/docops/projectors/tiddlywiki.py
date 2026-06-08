@@ -451,11 +451,11 @@ class TiddlyWikiProjector(BaseProjector):
                     t["language"] = lang
                 out.append(t)
                 continue
-            # Prefer the locally-rendered SVG (from `pdfdrill svg`): emit it as a
-            # separate image/svg+xml tiddler and link it; else fall back to the
-            # CDN crop via <$image>.
-            svg_title = self._emit_svg_tiddler(out, title[d.id], d.props.get("svg"), bibkey)
-            body = (f'<$image source="{svg_title}"/>' if svg_title
+            # Prefer the locally-rendered SVG (from `pdfdrill svg`): store it in
+            # the `svg_tiddler` field, shown by simple transclusion
+            # {{!!svg_tiddler}}; else fall back to the CDN crop via <$image>.
+            svg_field = self._svg_inline(d.props.get("svg"))
+            body = ("{{!!svg_tiddler}}" if svg_field
                     else "<$image source={{!!canonical_uri}} "
                          "width={{!!width}} height={{!!height}}/>")
             t = self._t(title[d.id], body, f"diagram {_bibtag(bibkey)}")
@@ -463,8 +463,8 @@ class TiddlyWikiProjector(BaseProjector):
             t["latex_code"] = d.props.get("latex_code") or ""
             if d.props.get("latex_original"):
                 t["latex_original"] = d.props["latex_original"]   # verbatim macro source
-            if svg_title:
-                t["svg_tiddler"] = svg_title
+            if svg_field:
+                t["svg_tiddler"] = svg_field
             if d.props.get("cdn_url"):
                 t["canonical_uri"] = self._uri(d.props["cdn_url"])
             for k in ("caption", "kind", "refnum"):
@@ -475,8 +475,8 @@ class TiddlyWikiProjector(BaseProjector):
 
         # Tables
         for tab in inv["tables"]:
-            svg_title = self._emit_svg_tiddler(out, title[tab.id], tab.props.get("svg"), bibkey)
-            body = (f'<$image source="{svg_title}"/>' if svg_title
+            svg_field = self._svg_inline(tab.props.get("svg"))
+            body = ("{{!!svg_tiddler}}" if svg_field
                     else tab.props.get("raw_text", ""))
             t = self._t(title[tab.id], body, f"table {_bibtag(bibkey)}")
             t["page"] = self._p3(tab.props.get("page"))
@@ -484,8 +484,8 @@ class TiddlyWikiProjector(BaseProjector):
                 t["latex_code"] = tab.props["latex_code"]
             if tab.props.get("latex_original"):
                 t["latex_original"] = tab.props["latex_original"]
-            if svg_title:
-                t["svg_tiddler"] = svg_title
+            if svg_field:
+                t["svg_tiddler"] = svg_field
             out.append(t)
 
         # Footnotes
@@ -889,19 +889,18 @@ class TiddlyWikiProjector(BaseProjector):
             "modified": now,
         }
 
-    def _emit_svg_tiddler(self, out: list, base_title: str, svg: str | None,
-                          bibkey: str) -> str | None:
-        """If `svg` is a rendered SVG, append a separate `<base>_svg` image
-        tiddler (`type: image/svg+xml`, the SVG as its text) and return its
-        title; else return None. The owning diagram/table tiddler links it via
-        `<$image source="<title>">` and an `svg_tiddler` field."""
+    @staticmethod
+    def _svg_inline(svg: str | None) -> str | None:
+        """The rendered SVG ready for a TiddlyWiki field, displayed by simple
+        transclusion `{{!!svg_tiddler}}`. The `<?xml…?>`/`<!DOCTYPE…>` prolog is
+        stripped so the bare `<svg>…</svg>` renders inline as wikitext HTML.
+        (`<$image source=…>` does NOT render an svg tiddler — hence the field.)"""
         if not svg or not svg.strip():
             return None
-        svg_title = _sanitize_title(f"{base_title}_svg")
-        st = self._t(svg_title, svg, f"svg {_bibtag(bibkey)}")
-        st["type"] = "image/svg+xml"
-        out.append(st)
-        return svg_title
+        # cut everything before the root <svg> (XML decl, DOCTYPE, dvisvgm
+        # comment) so the field is pure, inline-renderable SVG.
+        i = svg.find("<svg")
+        return (svg[i:] if i >= 0 else svg).strip()
 
     @staticmethod
     def _templates(bibkey: str) -> list[dict]:
