@@ -7,7 +7,7 @@ name = "pdfdrill"
 version = "0.1.0"
 description = "Token-economical drill-down extraction + PDF->LaTeX OCR quality control"
 readme = "README.md"
-license = "MIT"
+license = "LicenseRef-Prosperity-3.0.0"
 license-files = ["LICENSE"]
 requires-python = ">=3.10"
 dependencies = [
