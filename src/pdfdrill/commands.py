@@ -2086,8 +2086,11 @@ def cmd_svg(target: Path, limit: int | None = None, force: bool = False) -> str:
         doc = Document.from_dict(json.load(f))
 
     preamble = (doc.meta.get("latex_preamble") or {}).get("standalone")
-    # The document's own folder, so local \usepackage{mystyle}/tkz-* resolve.
-    resource_dir = str(target.parent)
+    # The extracted LaTeX-source folder (so a local \usepackage{siamproceedings}/
+    # mystyle resolves), else the document's own folder.
+    resource_dir = doc.meta.get("latex_source_dir") or str(target.parent)
+    if not (resource_dir and Path(resource_dir).is_dir()):
+        resource_dir = str(target.parent)
     targets = [o for o in doc.objects.values()
                if o.type in ("Diagram", "Table") and o.props.get("latex_code")]
     todo = [o for o in targets if force or not o.props.get("svg")]
@@ -2618,6 +2621,19 @@ def cmd_latex(pdf: Path, tex: str | None = None, force: bool = False) -> str:
     macros = ls.extract_macros(preamble)
     src_eqs = ls.extract_display_equations(body)
 
+    # Persist the source folder so `pdfdrill svg` can resolve the project's local
+    # style files (e.g. siamproceedings.sty bundled in the e-print .tgz). A
+    # tarball is extracted to <pdf>.drill/texsrc/; a loose .tex uses its folder.
+    import tarfile as _tarfile
+    if _tarfile.is_tarfile(str(src)):
+        texsrc = sc.blob_dir / "texsrc"
+        texsrc.mkdir(parents=True, exist_ok=True)
+        with _tarfile.open(str(src)) as tf:
+            tf.extractall(texsrc, filter="data")
+        source_dir = str(texsrc)
+    else:
+        source_dir = str(src.parent)
+
     with open(model_path, "r", encoding="utf-8") as f:
         doc = Document.from_dict(json.load(f))
 
@@ -2635,6 +2651,7 @@ def cmd_latex(pdf: Path, tex: str | None = None, force: bool = False) -> str:
         "standalone": ls.standalone_preamble(preamble),
         "num_macros": len(macros),
     }
+    doc.meta["latex_source_dir"] = source_dir   # for svg's TEXINPUTS (local .sty)
 
     eqs = [o for o in doc.objects.values() if o.type == "Equation"]
     # Precompute normalized OCR latex per equation.
@@ -2666,6 +2683,12 @@ def cmd_latex(pdf: Path, tex: str | None = None, force: bool = False) -> str:
         else:
             unmatched += 1
 
+    # Ingest the source's TikZ/tables (tikzcd commutative diagrams, tabular, …)
+    # as Diagram/Table objects with latex_code — so `pdfdrill svg` can render
+    # them. The base OCR/MathPix model rarely has these as graphic objects.
+    n_graphics = ingest_source_graphics(
+        doc, body, macros, doc.meta.get("bibkey", "DOC"), force)
+
     with open(model_path, "w", encoding="utf-8") as f:
         json.dump(doc.to_dict(), f, indent=2, ensure_ascii=False)
 
@@ -2673,16 +2696,50 @@ def cmd_latex(pdf: Path, tex: str | None = None, force: bool = False) -> str:
     sc.set_evidence("latex_macros", len(macros))
     sc.set_evidence("latex_src_equations", len(src_eqs))
     sc.set_evidence("latex_attached", attached)
+    sc.set_evidence("latex_graphics", n_graphics)
     prev = ",".join(sorted(sc.facts - {LATEX_INGESTED})) or "INIT"
     sc.add_fact(LATEX_INGESTED)
     sc.log_transition("latex", prev, LATEX_INGESTED,
-                      detail=f"{attached}/{len(src_eqs)} eqs matched, {len(macros)} macros")
+                      detail=f"{attached}/{len(src_eqs)} eqs matched, "
+                             f"{n_graphics} graphics, {len(macros)} macros")
     sc.save()
+    gfx = (f" Added {n_graphics} TikZ/table graphic object(s) — run "
+           f"`pdfdrill svg {pdf.name}` to render them to SVG." if n_graphics else "")
     return (f"Ingested LaTeX source {src.name}: {len(src_eqs)} display equations, "
             f"{len(macros)} preamble macros. Attached {attached} as `tex` "
             f"provenance to MathPix equations ({unmatched} source eqs unmatched). "
-            f"Kept original+expanded LaTeX; preamble stored for the SVG step. "
+            f"Kept original+expanded LaTeX; preamble stored for the SVG step.{gfx} "
             f"Run `pdfdrill compare {pdf.name}` to see the tex column.")
+
+
+def ingest_source_graphics(doc, body: str, macros: dict, bibkey: str,
+                           force: bool = False) -> int:
+    """Create Diagram/Table DocObjects from the LaTeX source's TikZ/tables
+    (tikzcd commutative diagrams, tabular, …), each carrying the expanded
+    `latex_code` + verbatim `latex_original` so `pdfdrill svg` can render it.
+    Tagged `added_by="latex"`; idempotent (dedupes by source code); `force`
+    drops previously-ingested source graphics first. Returns the count added."""
+    from docmodel.core import DocObject
+    from . import latex_source as ls
+    if force:
+        doc.objects = {k: v for k, v in doc.objects.items()
+                       if not (v.type in ("Diagram", "Table")
+                               and v.props.get("added_by") == "latex")}
+    existing = {o.props.get("latex_original", "").strip()
+                for o in doc.objects.values() if o.type in ("Diagram", "Table")}
+    base_fi = max((o.props.get("flow_index", 0) for o in doc.objects.values()),
+                  default=0)
+    added = 0
+    for gi, g in enumerate(ls.extract_graphics(body), 1):
+        if g["code"].strip() in existing:
+            continue
+        doc.add(DocObject(type=g["kind"], props={
+            "latex_code": ls.expand_macros(g["code"], macros),
+            "latex_original": g["code"], "caption": g.get("caption", ""),
+            "env": g["env"], "flow_index": base_fi + gi,
+            "bibkey": bibkey, "added_by": "latex"}))
+        added += 1
+    return added
 
 
 def _list_type(markers: list[str]) -> str:

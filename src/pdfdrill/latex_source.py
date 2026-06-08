@@ -265,17 +265,101 @@ def expand_macros(fragment: str, macros: dict[str, dict], max_iter: int = 8) -> 
     return text
 
 
+# Packages that fight `standalone`'s content-cropping (fixed page geometry, page
+# furniture) or are document-class STYLES that set up a full page — a cropped
+# diagram snippet doesn't need them and they cause "Dimension too large" at
+# shipout. Anything matching is dropped from the standalone preamble.
+_STANDALONE_DROP_PKGS = (
+    "geometry", "hyperref", "fancyhdr", "lastpage", "titlesec", "titling",
+    "siamproceedings", "siamart", "siamonline", "IEEEtran", "acmart", "revtex4",
+)
+
+_DEF_START = re.compile(r"\\(?:re|provide)?newcommand\*?|\\DeclareMathOperator\*?")
+
+
+def _collect_macro_defs(preamble: str) -> list[str]:
+    """Full `\\newcommand`/`\\renewcommand`/`\\providecommand`/`\\DeclareMathOperator`
+    and `\\def` definitions, with their (possibly multi-line, brace-balanced)
+    bodies intact — unlike a line-anchored regex, which truncated multi-line
+    bodies and left a runaway definition (the arXiv 2510.15795 `\\tailxrightarrow`
+    failure)."""
+    n = len(preamble)
+    out: list[str] = []
+
+    def skip_ws(i: int) -> int:
+        while i < n and preamble[i] in " \t\r\n":
+            i += 1
+        return i
+
+    for m in _DEF_START.finditer(preamble):
+        i = skip_ws(m.end())
+        # macro name: `{\foo}` or `\foo`
+        if i < n and preamble[i] == "{":
+            i += len(_balanced(preamble, i))
+        elif i < n and preamble[i] == "\\":
+            i += 1
+            while i < n and (preamble[i].isalpha() or preamble[i] == "@"):
+                i += 1
+        # optional [..] arg-count / default groups
+        while True:
+            i = skip_ws(i)
+            if i < n and preamble[i] == "[":
+                depth = 0
+                while i < n:
+                    if preamble[i] == "[":
+                        depth += 1
+                    elif preamble[i] == "]":
+                        depth -= 1
+                        if depth == 0:
+                            i += 1
+                            break
+                    i += 1
+            else:
+                break
+        # the body {..}
+        i = skip_ws(i)
+        if i < n and preamble[i] == "{":
+            i += len(_balanced(preamble, i))
+        out.append(preamble[m.start():i])
+
+    for m in re.finditer(r"\\def\\[A-Za-z@]+", preamble):
+        i = m.end()
+        while i < n and preamble[i] != "{":      # skip delimiter/param text (#1…)
+            i += 1
+        if i < n and preamble[i] == "{":
+            out.append(preamble[m.start():i + len(_balanced(preamble, i))])
+    return out
+
+
 def standalone_preamble(preamble: str) -> str:
-    """A `standalone` docclass + the author's packages + macro defs, for the
-    future latex→dvi→dvisvgm step (TikZ/tables that KaTeX can't render)."""
-    pkgs = [m.group(0) for m in re.finditer(r"\\usepackage(\[[^\]]*\])?\{[^}]*\}", preamble)]
-    defs = [m.group(0) for m in re.finditer(
-        r"\\(?:re)?newcommand\*?.*|\\DeclareMathOperator\*?.*|\\def\\.*", preamble)]
+    """A minimal `standalone` math preamble for the latex→dvi→dvisvgm step: the
+    author's math/TikZ packages + their macro definitions — but NOT the document
+    class style or page-layout packages, which break standalone cropping.
+
+    Keeps every `\\usepackage` except `_STANDALONE_DROP_PKGS`, plus the FULL macro
+    definitions (multi-line bodies preserved via `_collect_macro_defs`). Drops
+    everything else in the preamble (theorem setup like `\\newsiamremark`, page
+    furniture, title metadata) — none of which a cropped diagram needs."""
+    pre = strip_comments(preamble)
+    pkgs: list[str] = []
+    for m in re.finditer(r"\\usepackage\s*(?:\[[^\]]*\])?\s*\{([^}]*)\}", pre):
+        names = [x.strip() for x in m.group(1).split(",")]
+        if any(name in _STANDALONE_DROP_PKGS for name in names):
+            continue
+        pkgs.append(m.group(0))
+    defs = _collect_macro_defs(pre)
+    # Math-alphabet declarations (single-line, self-contained, no \makeatletter
+    # needed) that define math letters a diagram may use, e.g.
+    # \DeclareMathAlphabet{\mathbbe}{U}{bbold}{m}{n}. (Deliberately NOT \let or
+    # font-family/symbol declarations — those often reference \makeatletter `@`
+    # internals or span lines, and break a bare standalone preamble.)
+    decls = re.findall(
+        r"\\(?:DeclareMathAlphabet|SetMathAlphabet)\b[^\n]*", pre)
     # `class=report` so book/report counters (\thechapter, …) that a project's
     # styles reference exist under standalone; tikz so bare \begin{tikzpicture}
     # compiles even if the project loads it indirectly. (Mirrors LATW.)
     head = "\\documentclass[border=2pt,class=report]{standalone}\n\\usepackage{tikz}"
-    return "\n".join([head, *pkgs, *defs])
+    return "\n".join([head, *pkgs, *decls, *defs])
 
 
 # ---------------------------------------------------------------------------

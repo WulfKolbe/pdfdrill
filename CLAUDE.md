@@ -1206,7 +1206,30 @@ SVG to each object (`props["svg"]` + a `provenance="dvisvgm"` realization); the
 formula report grows a "TikZ & Tables" section embedding the SVG inline.
 Degrades gracefully when latex/dvisvgm are absent (`tools_available()`).
 Verified on the graphbook: **18/18** graphics rendered (7 TikZ + 11 tables, 0
-failures). `array` is excluded from graphics extraction (it's math-mode,
+failures).
+
+**Source graphics reach `svg` via `pdfdrill latex` (arXiv fix).** For an arXiv
+paper whose model is built by OCR (MathPix skipped), `pdfdrill latex` used to
+ingest only equations — so `svg` saw **0 graphic objects** even when the paper is
+full of diagrams. `commands.ingest_source_graphics` now also lifts the source's
+TikZ/tables (notably **`tikzcd` commutative diagrams**) into Diagram/Table objects
+with `latex_code` (+ `latex_original`), tagged `added_by="latex"`. `cmd_latex`
+extracts the e-print `.tgz` to `<pdf>.drill/texsrc/` and records
+`doc.meta["latex_source_dir"]`, which `cmd_svg` puts on `TEXINPUTS` so the
+project's **local `.sty`** (e.g. `siamproceedings.sty` bundled in the e-print)
+resolves. `compile_to_svg` decodes latex/dvisvgm output with `errors="replace"`
+(no crash on latin-1 source). `standalone_preamble` was rebuilt: it keeps the
+math/TikZ `\usepackage`s (dropping document-class STYLES + layout packages —
+`_STANDALONE_DROP_PKGS`: siamproceedings/geometry/hyperref/… that break
+standalone cropping with "Dimension too large") plus the author's macro defs with
+**full multi-line bodies** (`_collect_macro_defs` brace-balances them — the old
+line-anchored regex truncated a `\newcommand` and left a runaway def) plus
+`\DeclareMathAlphabet`/`\SetMathAlphabet`. Verified on arXiv 2510.15795 (SIAM
+proceedings, 55 `tikzcd` diagrams): `pdfdrill latex` → `pdfdrill svg` went from
+**0 → 32/55** rendered (the rest fail on per-paper `\let`/`@`-internal macros, a
+long tail). Tests: `tests/test_svg.py` (graphics ingestion + multi-line preamble).
+
+`array` is excluded from graphics extraction (it's math-mode,
 KaTeX-rendered inside its equation — not a standalone table). The `\[…\]`
 display-math extractor no longer mis-splits `\\[4pt]` row-spacing in
 align/cases. `latex/pdflatex/dvisvgm/dvips` present here (`pdf2svg` missing).

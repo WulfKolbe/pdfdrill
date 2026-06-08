@@ -111,7 +111,8 @@ def compile_to_svg(latex_code: str, preamble: str | None = None,
         try:
             r = subprocess.run(
                 ["latex", "-interaction=nonstopmode", "-halt-on-error", base + ".tex"],
-                cwd=d, capture_output=True, text=True, timeout=timeout, env=env)
+                cwd=d, capture_output=True, encoding="utf-8", errors="replace",
+                timeout=timeout, env=env)
         except subprocess.TimeoutExpired:
             return {"ok": False, "svg": "", "ratio": "", "error": "latex timeout"}
         dvi = os.path.join(d, base + ".dvi")
@@ -121,7 +122,8 @@ def compile_to_svg(latex_code: str, preamble: str | None = None,
         try:
             rs = subprocess.run(
                 ["dvisvgm", "-n", "--exact-bbox", base + ".dvi", "-o", base + ".svg"],
-                cwd=d, capture_output=True, text=True, timeout=timeout)
+                cwd=d, capture_output=True, encoding="utf-8", errors="replace",
+                timeout=timeout)
         except subprocess.TimeoutExpired:
             return {"ok": False, "svg": "", "ratio": "", "error": "dvisvgm timeout"}
         svg_path = os.path.join(d, base + ".svg")

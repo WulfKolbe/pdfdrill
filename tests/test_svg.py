@@ -10,6 +10,46 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "src"))
 
 from pdfdrill import latex_source as ls
 from pdfdrill import svg as svgmod
+from pdfdrill import commands
+
+
+def test_ingest_source_graphics_creates_diagram_and_table_objects():
+    # `pdfdrill latex` must ingest the source's TikZ/tables (e.g. commutative
+    # diagrams via tikzcd) as Diagram/Table objects with latex_code, so a later
+    # `pdfdrill svg` can render them — not just attach equations.
+    from docmodel.core import Document
+    doc = Document(); doc.meta["bibkey"] = "T"
+    body = (r"intro \begin{tikzcd} A \arrow[r] & B \end{tikzcd} mid "
+            r"\begin{tabular}{cc} a & b \end{tabular} end")
+    n = commands.ingest_source_graphics(doc, body, {}, "T")
+    assert n == 2
+    digs = doc.objects_of_type("Diagram"); tabs = doc.objects_of_type("Table")
+    assert len(digs) == 1 and len(tabs) == 1
+    assert "tikzcd" in digs[0].props["latex_code"]
+    assert digs[0].props["latex_original"] and digs[0].props["added_by"] == "latex"
+    assert svgmod.is_latex_graphic(digs[0].props["latex_code"])
+    # idempotent: re-ingesting the same body adds nothing
+    assert commands.ingest_source_graphics(doc, body, {}, "T") == 0
+
+
+def test_standalone_preamble_keeps_multiline_macro_bodies():
+    # A multi-line \newcommand body must survive intact. The old line-anchored
+    # regex (`\\newcommand.*`) captured only the first line, dropping the body and
+    # leaving a runaway \newcommand that aborts latex (the 2510.15795 failure).
+    pre = (r"\documentclass{article}" "\n"
+           r"\usepackage{tikz-cd}" "\n"
+           r"\newcommand\tailxrightarrow[2][]{" "\n"
+           r"  \mathrel{\ooalign{$\xrightarrow[#1]{#2}$\cr" "\n"
+           r"  \hidewidth$\Yright$}}" "\n"
+           r"}" "\n"
+           r"\newcommand{\fto}{\twoheadrightarrow}")
+    sa = ls.standalone_preamble(pre)
+    assert "tikz-cd" in sa
+    assert "\\ooalign" in sa and "\\hidewidth" in sa      # multi-line body preserved
+    assert "\\fto" in sa
+    assert sa.count("{") == sa.count("}")                 # balanced (not truncated)
+    assert "\\documentclass{article}" not in sa           # original docclass dropped
+    assert "standalone" in sa
 
 
 def test_rowspacing_not_mistaken_for_display_math():
