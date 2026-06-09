@@ -121,7 +121,12 @@ def test_ingest_docmodel_idempotent_and_dual_position():
         "parent_section": "s1", "flow_index": 2})
     ref = DocObject(type="Reference", id="r1", props={"citekey": "Heim1980", "title": "X", "year": "1980"})
     cit = DocObject(type="Citation", id="c1", props={"cited_reference_id": "r1", "page": 11})
-    for o in (sec, eq, ref, cit):
+    p1 = DocObject(type="Paragraph", id="p1", props={
+        "text": "We use a Convolutional Neural Network (CNN) for this.",
+        "page": 3, "parent_section": "s1", "flow_index": 3})
+    p2 = DocObject(type="Paragraph", id="p2", props={
+        "text": "The CNN is then evaluated.", "page": 5, "parent_section": "s1", "flow_index": 4})
+    for o in (sec, eq, ref, cit, p1, p2):
         doc.add(o)
 
     g = SemanticGraph()
@@ -142,6 +147,15 @@ def test_ingest_docmodel_idempotent_and_dual_position():
     # the in-text citation is a further occurrence of the bib entry
     bib = next(e for e in g.entities.values() if e.type == EntityType.CITATION)
     assert len(occurrence.further_occurrences(g, bib.id)) >= 1
+
+    # the acronym concept: one CONCEPT/acronym entity with a definition (p3) + a
+    # reference (p5) occurrence — the decl/use split the sTeX projector needs.
+    cnn = next(e for e in g.entities.values()
+               if e.type == EntityType.CONCEPT and e.subtype == "acronym")
+    assert cnn.properties().get("expansion") == "Convolutional Neural Network"
+    dcn = occurrence.definition(g, cnn.id)
+    assert dcn.grounding["pdf"]["page"] == 3 and dcn.grounding["path"] == "6.1"
+    assert len(occurrence.further_occurrences(g, cnn.id)) == 1
 
 
 if __name__ == "__main__":

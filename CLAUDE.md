@@ -704,10 +704,27 @@ Verified on arXiv 2004.05631 (254 eqs, 63 refs): 1359 FORMULA / 185 IMAGE / 63
 CITATION / 57 CONCEPT(section) entities; eq (1.1) → PDF p12 bbox + logical
 section node path; most-cited bibentry → 6 occurrences; `items_on_page(12)`→68.
 Tests: `tests/test_graph_layers.py::test_ingest_docmodel_idempotent_and_dual_position`.
-**Next layers (the user's roadmap, deferred):** all LaTeX collections (TOC/index/
-glossary/acronyms/list-of-*), graph→LaTeX and graph→linked-Tiddler projections,
-and the reasoning-flow / named-concept / abstraction layers. The LaTeX lists were
-the warm-up.
+
+**Named-concept layer (`src/semantic/concepts.py`) — the sTeX prerequisite.** A
+*named concept* is a term introduced once and referred to many times (the LaTeX
+`\acro`/`\newacronym`/`\newglossaryentry`/`\index` idea); it maps to the graph's
+declaration/use split exactly. Deterministic, no LLM: **acronyms** via the
+Schwartz-Hearst long-form/short-form algorithm over prose ("Convolutional Neural
+Network (CNN)" → defines CNN; later "CNN" → uses), and **glossary/notation/
+nomenclature/abbreviation/symbol-list/index SECTIONS** (each `TERM — definition`
+entry). `concept_records(doc)` (pure) returns each concept's `define` site + `[
+occurrences ]` located in the docmodel prose (page + containing section);
+`ingest_docmodel` turns each into a `CONCEPT` entity (subtype `acronym`/`term`)
+deduped by content_hash, with the L3 dual-positioned definition + reference
+occurrences — i.e. `\symdecl` + `sdefinition` + `\symref` once the sTeX projector
+lands. Verified on arXiv 2510.11170: `LLMs`/`CoT`/`RL`/`KL` extracted with correct
+expansions, definition page, and reference counts; idempotent on re-run. Tests:
+`tests/test_concepts.py` (Schwartz-Hearst + define-first-then-references + glossary
+section).
+**Still deferred (roadmap):** index from LaTeX `\index{}` source (rendered-index
+OCR is unreliable); the `stex.py` projector (graph→sTeX MathHub archive, `.tex`
+first, with PDF page+bbox provenance back-links); graph→linked-Tiddler projection;
+the reasoning-flow / abstraction layers.
 
 ## Storage-overhead reduction (stage 1 of the tiddler-canonical move)
 

@@ -311,4 +311,33 @@ def ingest_docmodel(graph: SemanticGraph, resolver: IdentityResolver, doc,
             counts["occurrences"] += 1
             counts["citations"] += 1
 
+    # --- Named concepts (acronyms / glossary-notation terms): one CONCEPT entity
+    # per concept with the decl/use split — the input the sTeX projector needs. ---
+    from . import concepts as _concepts
+
+    def _occ_node_path(section_id):
+        secobj = objs.get(section_id)
+        return (sec_node.get(section_id, root.id),
+                secobj.props.get("section_number", "") if secobj else "")
+
+    counts["concepts"] = 0
+    for rec in _concepts.concept_records(doc):
+        e = resolve_content(EntityType.CONCEPT, rec["kind"], f"concept|{rec['name']}",
+                            name=rec["name"], expansion=rec.get("expansion"))
+        node, path = _occ_node_path(rec["define"].get("section_id"))
+        page = rec["define"].get("page")
+        if not occ_exists(e.id, node, page, "definition"):
+            occurrence.define(graph, e.id, node, pdf=({"page": int(page)} if page else None),
+                              path=path, doc_ord=next_ord(), produced_by="concepts")
+            counts["occurrences"] += 1
+        for occ in rec["occurrences"]:
+            node, path = _occ_node_path(occ.get("section_id"))
+            page = occ.get("page")
+            if not occ_exists(e.id, node, page, "reference"):
+                occurrence.add_occurrence(graph, e.id, node,
+                                          pdf=({"page": int(page)} if page else None),
+                                          path=path, doc_ord=next_ord(), produced_by="concepts")
+                counts["occurrences"] += 1
+        counts["concepts"] += 1
+
     return counts
