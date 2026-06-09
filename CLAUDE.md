@@ -664,6 +664,34 @@ Land), not the recipient's Kürten. Tests: `tests/test_semantic_attribution.py`.
 docmodel write-back so existing projectors render the graph; detect individual/
 tradesperson senders (not just GmbH/AG/authority); refine the margin classifier.
 
+**Composable graph layers (`src/semantic/layers/` + `fracidx.py`, additive — Phase
+1 dropped in, NOT yet wired into ingest).** Three capabilities the graph lacked,
+each riding inside the existing `Relation.grounding` dict (zero schema change; no
+edit to graph/entity/relation/identity/evidence):
+- **L1 ordering** (`layers/ordering.py`) — sibling order that survives insertion,
+  via a fractional index (`fracidx.py`, a fuzz-tested rocicorp port) in
+  `grounding["ord"]`. `append_child`/`insert_child`/`ordered_children`/
+  `first_occurrence`. Insert-between adds exactly ONE edge.
+- **L2 content identity** (`layers/content_identity.py`) — adds the `content_hash`
+  strong key (idempotent `STRONG_KEYS.add` at import) so keyless FORMULA/TABLE/
+  FIGURE objects dedup across re-OCR; `resolve_formula` canonicalizes
+  (`canonicalize_latex` — the only corpus-specific knob) then routes through the
+  existing resolver.
+- **L3 occurrences** (`layers/occurrence.py`) — `define`/`add_occurrence` record
+  each item's site in BOTH coordinate systems: PDF (`grounding["pdf"]={page,bbox}`)
+  and logical (the edge's structural object + `grounding["path"]`), with `role`
+  (definition vs reference) and a doc-order `ord`. Carrier predicate `REFERENCES`
+  + `grounding["layer"]="occurrence"`.
+- **L4 SQLite view** (`layers/sqlite_view.py`) — read-only projection of
+  `graph.json` with indexed per-page / per-section queries (the `bun:sqlite`
+  TiddlyWiki bridge).
+Verified: `tests/test_graph_layers.py` (fracidx fuzz + dedup + insert-between +
+dual-position round-trip + SQLite dual-axis). **Phase 2 (the wiring) is open:**
+`build.py` `ingest_document` is commercial-only — there is no docmodel→graph
+scientific structural emission (chapter/section/¶ CONTAINS tree + FORMULA/TABLE/
+IMAGE/CITATION) to route through L1/L2/L3 yet; that ingest must be built around
+the layers.
+
 ## Storage-overhead reduction (stage 1 of the tiddler-canonical move)
 
 The `model.docmodel.json` was dominated by the `DehyphenationProcessor`'s derived
