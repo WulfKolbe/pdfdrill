@@ -45,6 +45,7 @@ _FIELD = {
     "cs.cl": "Computation and Language", "cs.cv": "Computer Vision",
     "stat.ml": "Machine Learning", "math.ct": "Category Theory",
     "math.at": "Algebraic Topology", "cs.lo": "Logic in Computer Science",
+    "cs.mm": "Multimedia", "cs.ir": "Information Retrieval",
 }
 
 # numeric/statistical facts -> (orkg property name, value)
