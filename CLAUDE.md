@@ -665,7 +665,10 @@ docmodel write-back so existing projectors render the graph; detect individual/
 tradesperson senders (not just GmbH/AG/authority); refine the margin classifier.
 
 **Composable graph layers (`src/semantic/layers/` + `fracidx.py`, additive — Phase
-1 dropped in, NOT yet wired into ingest).** Three capabilities the graph lacked,
+1 dropped in, NOT yet wired into ingest).** *(Consolidated data-structure summary
+of the 2026-06-09 additions — fracidx, the four layers, the concept record,
+Phase-2 ingest, the two projectors — in `docs/DATA-STRUCTURES-2026-06-09.md`.)*
+Three capabilities the graph lacked,
 each riding inside the existing `Relation.grounding` dict (zero schema change; no
 edit to graph/entity/relation/identity/evidence):
 - **L1 ordering** (`layers/ordering.py`) — sibling order that survives insertion,
