@@ -47,8 +47,15 @@ def ingest_document(graph: SemanticGraph, resolver: IdentityResolver, *,
     to the recipient PERSON, never the sender company)."""
     rec = entities_rec or {}
 
-    doc = resolver.resolve(EntityType.DOCUMENT, keys=[("doc_id", source)],
-                           evidence=[Evidence(source, "doc_id", source, "pdfdrill")])
+    # Key by content_hash too (not just doc_id) so the Document dedups across runs
+    # — doc_id alone doesn't survive the resolver's reindex (strong/soft keys only),
+    # which would otherwise re-mint the Document and cascade duplicate root edges.
+    from .layers import content_identity as _ci
+    _dh = _ci.content_hash(f"doc|{source}")
+    doc = resolver.resolve(EntityType.DOCUMENT,
+                           keys=[("content_hash", _dh), ("doc_id", source)],
+                           evidence=[Evidence(source, "doc_id", source, "pdfdrill"),
+                                     Evidence(source, "content_hash", _dh, "pdfdrill", confidence=1.0)])
 
     company: Optional[Entity] = None
     if sender:
@@ -111,3 +118,197 @@ def ingest_document(graph: SemanticGraph, resolver: IdentityResolver, *,
         if target is doc:
             continue
     return doc
+
+
+# ---------------------------------------------------------------------------
+# Scientific docmodel -> graph ingest (the structural tree + occurrence-bearing
+# items, wired through the composable layers). Additive: runs alongside the
+# commercial ingest above; everything lives on the same SemanticGraph.
+# ---------------------------------------------------------------------------
+
+def ingest_docmodel(graph: SemanticGraph, resolver: IdentityResolver, doc,
+                    bibkey: str, source: Optional[str] = None) -> dict:
+    """Map a docmodel `Document` into the semantic graph:
+
+      * the chapter/section CONTAINS tree, ordered by L1 (`ordering`),
+      * occurrence-bearing items (Equation/Formula -> FORMULA, Table -> TABLE,
+        Picture/Diagram -> IMAGE, Reference -> CITATION) deduped by L2 content
+        identity, and
+      * each item's dual-positioned occurrence via L3 (`occurrence`): PDF
+        {page,bbox} from the docmodel region + the containing section node +
+        `path` (the section number). In-text Citations become further
+        occurrences of their Reference (`cited_reference_id`).
+
+    Idempotent: entities dedup on re-run (content_hash / bibkey / doc_id), the
+    CONTAINS tree is `has_relation`-guarded, and an occurrence is not re-added at
+    the same (item, node, page, role). Returns a counts dict.
+    """
+    from .layers import ordering, content_identity, occurrence
+    from . import fracidx
+
+    source = source or bibkey
+    CONTAINS, DERIVED_FROM = RelationType.CONTAINS, RelationType.DERIVED_FROM
+    objs = doc.objects
+    by_flow = lambda os: sorted(os, key=lambda o: o.props.get("flow_index") or 0)
+
+    def resolve_content(etype, subtype, key_text, **props):
+        h = content_identity.content_hash(key_text)
+        ev = [Evidence(source, "content_hash", h, "docmodel", confidence=1.0)]
+        for k, v in props.items():
+            if v not in (None, "", []):
+                ev.append(Evidence(source, k, str(v), "docmodel"))
+        e = resolver.resolve(etype, keys=[("content_hash", h)], evidence=ev)
+        if subtype and not e.subtype:
+            e.subtype = subtype
+        return e
+
+    def pdf_pos(item):
+        page = item.props.get("page")
+        if page is None:
+            return None
+        d = {"page": int(page)}
+        reg = item.props.get("region")
+        if isinstance(reg, dict) and "top_left_x" in reg:
+            x0, y0 = reg["top_left_x"], reg["top_left_y"]
+            d["bbox"] = [x0, y0, x0 + reg.get("width", 0), y0 + reg.get("height", 0)]
+        return d
+
+    def occ_exists(item_id, node_id, page, role):
+        for r in graph.relations_of(item_id, RelationType.REFERENCES):
+            g = r.grounding or {}
+            if (g.get("layer") == "occurrence" and r.object_id == node_id
+                    and g.get("role") == role
+                    and (g.get("pdf") or {}).get("page") == page):
+                return True
+        return False
+
+    cur = {"k": None}
+    def next_ord():
+        cur["k"] = fracidx.key_after(cur["k"])
+        return cur["k"]
+
+    counts = {"sections": 0, "equations": 0, "formulas": 0, "tables": 0,
+              "figures": 0, "references": 0, "citations": 0, "occurrences": 0}
+
+    # --- Document root entity ---
+    # Keyed by BOTH doc_id (so it unifies with the commercial document within a
+    # run) AND content_hash (so it dedups across runs — doc_id alone doesn't
+    # survive the resolver's reindex, which only re-registers strong/soft keys).
+    dh = content_identity.content_hash(f"doc|{source}")
+    root = resolver.resolve(EntityType.DOCUMENT, keys=[("doc_id", source), ("content_hash", dh)],
+        evidence=[
+            Evidence(source, "title", str(doc.meta.get("title") or bibkey), "docmodel"),
+            Evidence(source, "bibkey", bibkey, "docmodel"),
+            Evidence(source, "content_hash", dh, "docmodel", confidence=1.0)])
+    if not root.subtype:
+        root.subtype = "paper"
+
+    # --- Structural tree: sections (CONCEPT) joined by ordered CONTAINS (L1) ---
+    sec_node: dict[str, str] = {}
+    sections = by_flow([o for o in objs.values() if o.type == "Section"])
+    for s in sections:
+        e = resolve_content(EntityType.CONCEPT, "section",
+                            f"{bibkey}|sec|{s.props.get('section_number','')}|{s.props.get('caption','')}",
+                            caption=s.props.get("caption"),
+                            section_number=s.props.get("section_number"),
+                            level=s.props.get("level"))
+        sec_node[s.id] = e.id
+        counts["sections"] += 1
+    for s in sections:
+        child = sec_node[s.id]
+        parent_obj = objs.get(s.parent) if getattr(s, "parent", None) else None
+        parent = (sec_node.get(s.parent) if (parent_obj and parent_obj.type == "Section")
+                  else root.id)
+        if not graph.has_relation(parent, CONTAINS, child):
+            ordering.append_child(graph, parent, CONTAINS, child, produced_by="docmodel")
+
+    def node_path(item):
+        ps = item.props.get("parent_section")
+        secobj = objs.get(ps)
+        return sec_node.get(ps, root.id), (secobj.props.get("section_number", "") if secobj else "")
+
+    def record(item, entity, role="definition"):
+        node, path = node_path(item)
+        p = pdf_pos(item)
+        page = p["page"] if p else None
+        if occ_exists(entity.id, node, page, role):
+            return
+        fn = occurrence.define if role == "definition" else occurrence.add_occurrence
+        fn(graph, entity.id, node, pdf=p, path=path, doc_ord=next_ord(), produced_by="docmodel")
+        counts["occurrences"] += 1
+
+    # --- Items 4-8: math / tables / figures, deduped by content identity (L2) ---
+    for it in by_flow([o for o in objs.values()
+                       if o.type in ("Equation", "Formula", "Table", "Picture", "Diagram")]):
+        if it.type == "Equation":
+            latex = it.props.get("latex", "")
+            if not latex:
+                continue
+            e = content_identity.resolve_formula(resolver, latex, source,
+                                                 produced_by="docmodel")
+            if not e.subtype:
+                e.subtype = "equation"
+            num = it.props.get("equation_number") or it.props.get("refnum")
+            if num:
+                e.attach(Evidence(source, "number", str(num), "eqnums"))
+            counts["equations"] += 1
+        elif it.type == "Formula":
+            latex = it.props.get("latex", "")
+            if not latex:
+                continue
+            e = content_identity.resolve_formula(resolver, latex, source,
+                                                 produced_by="docmodel")
+            if not e.subtype:
+                e.subtype = "inline"
+            counts["formulas"] += 1
+        elif it.type == "Table":
+            e = resolve_content(EntityType.TABLE, "table",
+                                it.props.get("raw_text") or it.props.get("latex_code") or it.id)
+            counts["tables"] += 1
+        else:  # Picture / Diagram -> figure (item 7), + external source (item 8)
+            kt = (it.props.get("caption") or it.props.get("url")
+                  or it.props.get("latex_code") or it.id)
+            e = resolve_content(EntityType.IMAGE, "figure", f"fig|{kt}",
+                                caption=it.props.get("caption"), label=it.props.get("refnum"))
+            counts["figures"] += 1
+            src_ref = it.props.get("url") or it.props.get("embedded_image_id")
+            if src_ref:
+                se = resolve_content(EntityType.IMAGE, "image_source", f"src|{src_ref}",
+                                     path=src_ref)
+                graph.relate_once(e.id, DERIVED_FROM, se.id, produced_by="docmodel")
+        record(it, e, role="definition")
+
+    # --- Item 9: bib entries (CITATION/bibentry) + citation occurrences ---
+    ref_node: dict[str, str] = {}
+    for ref in objs.values():
+        if ref.type != "Reference":
+            continue
+        ck = ref.props.get("citekey") or ref.id
+        # content_hash (on the citekey) is the strong key that dedups across runs;
+        # bibkey/title/year are attached as queryable properties.
+        e = resolve_content(EntityType.CITATION, "bibentry", f"bib|{ck}",
+                            bibkey=ck, title=ref.props.get("title"),
+                            year=ref.props.get("year"))
+        ref_node[ref.id] = e.id
+        counts["references"] += 1
+        page = ref.props.get("page")
+        if not occ_exists(e.id, root.id, page, "definition"):
+            occurrence.define(graph, e.id, root.id,
+                              pdf=({"page": int(page)} if page else None),
+                              path="Bibliography", doc_ord=next_ord(), produced_by="bib")
+            counts["occurrences"] += 1
+    for cit in objs.values():
+        if cit.type != "Citation":
+            continue
+        target = ref_node.get(cit.props.get("cited_reference_id"))
+        if not target:
+            continue
+        page = cit.props.get("page")
+        if not occ_exists(target, root.id, page, "reference"):
+            occurrence.add_occurrence(graph, target, root.id,
+                                      pdf=({"page": int(page)} if page else None),
+                                      path="", doc_ord=next_ord(), produced_by="cite")
+            counts["occurrences"] += 1
+            counts["citations"] += 1
+
+    return counts

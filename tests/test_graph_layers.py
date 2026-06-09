@@ -105,6 +105,45 @@ def test_occurrence_dual_position_definition_and_references_roundtrip():
     assert len(sqlite_view.occurrences_in_node(conn, sec3.id)) == 1   # item-2 axis
 
 
+def test_ingest_docmodel_idempotent_and_dual_position():
+    # The scientific docmodel->graph ingest: dual-positioned occurrences, content
+    # dedup, and a re-run (reload + reindex) must NOT grow entities or relations.
+    from docmodel.core import Document, DocObject
+    from semantic.build import ingest_docmodel
+    from semantic.layers import occurrence
+
+    doc = Document(); doc.meta["bibkey"] = "T"; doc.meta["title"] = "Paper"
+    sec = DocObject(type="Section", id="s1", props={
+        "caption": "Metric", "section_number": "6.1", "level": 1, "flow_index": 1, "page": 2})
+    eq = DocObject(type="Equation", id="e1", props={
+        "latex": r"\nabla_\mu g^{\mu\nu}=0", "equation_number": "(1.1)", "page": 12,
+        "region": {"top_left_x": 259, "top_left_y": 666, "width": 994, "height": 67},
+        "parent_section": "s1", "flow_index": 2})
+    ref = DocObject(type="Reference", id="r1", props={"citekey": "Heim1980", "title": "X", "year": "1980"})
+    cit = DocObject(type="Citation", id="c1", props={"cited_reference_id": "r1", "page": 11})
+    for o in (sec, eq, ref, cit):
+        doc.add(o)
+
+    g = SemanticGraph()
+    ingest_docmodel(g, IdentityResolver(g), doc, "T")
+    n_ent, n_rel = g.entity_count(), len(g.relations)
+
+    # re-run (simulating reload): fresh resolver + reindex, ingest the SAME doc
+    ingest_docmodel(g, IdentityResolver(g).reindex(), doc, "T")
+    assert g.entity_count() == n_ent, (n_ent, g.entity_count())   # entities dedup
+    assert len(g.relations) == n_rel                              # tree + occ guarded
+
+    # dual position on the equation: PDF {page,bbox} + logical node + path
+    eqent = next(e for e in g.entities.values() if e.type == EntityType.FORMULA)
+    d = occurrence.definition(g, eqent.id)
+    assert d.grounding["pdf"]["page"] == 12
+    assert d.grounding["pdf"]["bbox"] == [259, 666, 1253, 733]
+    assert d.grounding["path"] == "6.1" and d.object_id  # logical structural node
+    # the in-text citation is a further occurrence of the bib entry
+    bib = next(e for e in g.entities.values() if e.type == EntityType.CITATION)
+    assert len(occurrence.further_occurrences(g, bib.id)) >= 1
+
+
 if __name__ == "__main__":
     tests = [v for k, v in list(globals().items()) if k.startswith("test_")]
     failed = []

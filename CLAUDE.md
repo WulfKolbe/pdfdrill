@@ -686,11 +686,28 @@ edit to graph/entity/relation/identity/evidence):
   `graph.json` with indexed per-page / per-section queries (the `bun:sqlite`
   TiddlyWiki bridge).
 Verified: `tests/test_graph_layers.py` (fracidx fuzz + dedup + insert-between +
-dual-position round-trip + SQLite dual-axis). **Phase 2 (the wiring) is open:**
-`build.py` `ingest_document` is commercial-only — there is no docmodel→graph
-scientific structural emission (chapter/section/¶ CONTAINS tree + FORMULA/TABLE/
-IMAGE/CITATION) to route through L1/L2/L3 yet; that ingest must be built around
-the layers.
+dual-position round-trip + SQLite dual-axis).
+
+**Phase 2 — scientific docmodel→graph ingest, wired into `pdfdrill semantic`.**
+`build.py` was commercial-only; `ingest_docmodel(graph, resolver, doc, bibkey)`
+now maps the docmodel onto the SAME graph through the layers: the chapter/section
+`CONTAINS` tree ordered by L1; Equation/Formula→FORMULA, Table→TABLE,
+Picture/Diagram→IMAGE(+`image_source` via `DERIVED_FROM`), Reference→CITATION,
+all content-hash-deduped (L2); and each item's dual-positioned occurrence (L3) —
+PDF `{page,bbox}` from the docmodel `region` + the containing section node +
+`path` (section_number); in-text Citations (`cited_reference_id`) become further
+occurrences of their Reference. `cmd_semantic` imports `content_identity` BEFORE
+`reindex()` (so the `content_hash` strong key is indexed and re-runs dedup, not
+double-mint) and the Document root is keyed by doc_id + content_hash. Idempotent:
+re-running is `has_relation`-guarded (tree) + occurrence-existence-guarded.
+Verified on arXiv 2004.05631 (254 eqs, 63 refs): 1359 FORMULA / 185 IMAGE / 63
+CITATION / 57 CONCEPT(section) entities; eq (1.1) → PDF p12 bbox + logical
+section node path; most-cited bibentry → 6 occurrences; `items_on_page(12)`→68.
+Tests: `tests/test_graph_layers.py::test_ingest_docmodel_idempotent_and_dual_position`.
+**Next layers (the user's roadmap, deferred):** all LaTeX collections (TOC/index/
+glossary/acronyms/list-of-*), graph→LaTeX and graph→linked-Tiddler projections,
+and the reasoning-flow / named-concept / abstraction layers. The LaTeX lists were
+the warm-up.
 
 ## Storage-overhead reduction (stage 1 of the tiddler-canonical move)
 

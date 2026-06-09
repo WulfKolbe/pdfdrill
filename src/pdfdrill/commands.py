@@ -743,6 +743,10 @@ def cmd_semantic(pdf: Path, store: str | None = None, force: bool = False) -> st
     from semantic.identity import IdentityResolver
     from semantic.build import ingest_document
     from semantic import proof, compiler
+    # Import the content-identity layer BEFORE the resolver reindex below: it
+    # registers the `content_hash` strong key at import, so reindex() indexes the
+    # loaded graph's content hashes and a re-run dedups (not double-mints).
+    from semantic.layers import content_identity  # noqa: F401  (side effect)
     from . import segment as seg
 
     sc = Sidecar(pdf)
@@ -941,6 +945,14 @@ def cmd_semantic(pdf: Path, store: str | None = None, force: bool = False) -> st
             margin_markers.append({"page": p, "side": "qr", "role": "barcode",
                                    "text": (f"{f['format']}: {content}" if content
                                             else f["format"])})
+
+    # Scientific layer: the docmodel's structural tree + occurrence-bearing items
+    # (formulas/tables/figures/citations) ingested through the composable layers
+    # (ordering / content-identity / dual-positioned occurrences) onto the SAME
+    # graph. Additive; runs alongside the commercial ingest above.
+    from semantic.build import ingest_docmodel
+    sci_counts = ingest_docmodel(g, r, doc, key)
+    sc.set_evidence("semantic_scientific", sci_counts)
 
     # The compiler gate: type-check + consistency over the graph.
     result = compiler.compile(g)
