@@ -55,6 +55,33 @@ def test_scikgtex_emits_metadata_roles_facts_and_uri():
     assert r"\uri{https://doi.org/10.1000/abc123}" in tex  # bib DOI entity link
 
 
+def test_numeric_facts_reject_citation_numbers():
+    # A survey citing "[159]" near the word "accuracy" must NOT mint accuracy=159.
+    # Real metrics carry a % or a decimal; bare integers next to a metric word are
+    # almost always citation/reference numbers.
+    doc = Document()
+    doc.meta.update({"bibkey": "survey", "title": "A Survey"})
+    doc.add(DocObject(type="Paragraph", id="p", props={
+        "text": ("Prior accuracy results [159] and the precision of methods [10] "
+                 "are reviewed across 230 papers."),
+        "flow_index": 1}))
+    tex = _project(doc)
+    assert r"\contribution*{accuracy}" not in tex
+    assert r"\contribution*{precision}" not in tex
+    assert r"\contribution*{sample size}" not in tex
+
+
+def test_numeric_facts_keep_real_metrics():
+    doc = Document()
+    doc.meta.update({"bibkey": "exp", "title": "Experiments"})
+    doc.add(DocObject(type="Paragraph", id="p", props={
+        "text": "We reach an accuracy of 95.3% and an F1 of 0.88 on the test set.",
+        "flow_index": 1}))
+    tex = _project(doc)
+    assert r"\contribution*{accuracy}{95.3\%}" in tex
+    assert r"\contribution*{F1 score}{0.88}" in tex
+
+
 def _have_scikgtex():
     return (shutil.which("lualatex") and (_FIX / "scikgtex.sty").exists()
             and (_FIX / "scikgtex.lua").exists())

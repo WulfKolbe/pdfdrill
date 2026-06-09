@@ -48,11 +48,15 @@ _FIELD = {
 }
 
 # numeric/statistical facts -> (orkg property name, value)
+# The four ratio metrics REQUIRE a % or a decimal value: a real accuracy/F1/etc is
+# reported as "95.3%" or "0.88", never a bare integer. Without this guard a survey's
+# "accuracy ... [159]" mints a bogus accuracy=159 from the citation number.
+_RATIO = r"([0-9]{1,3}(?:\.[0-9]+)?\s*\%|[01]?\.[0-9]+)"
 _FACTS = [
-    ("accuracy",     re.compile(r"(?i)accuracy[^\d]{0,12}?([0-9]+(?:\.[0-9]+)?\s*\%?)")),
-    ("F1 score",     re.compile(r"(?i)\bF1[^\d]{0,12}?([0-9]+(?:\.[0-9]+)?\s*\%?)")),
-    ("precision",    re.compile(r"(?i)precision[^\d]{0,12}?([0-9]+(?:\.[0-9]+)?\s*\%?)")),
-    ("recall",       re.compile(r"(?i)recall[^\d]{0,12}?([0-9]+(?:\.[0-9]+)?\s*\%?)")),
+    ("accuracy",     re.compile(r"(?i)accuracy[^\d]{0,12}?" + _RATIO)),
+    ("F1 score",     re.compile(r"(?i)\bF1[^\d]{0,12}?" + _RATIO)),
+    ("precision",    re.compile(r"(?i)precision[^\d]{0,12}?" + _RATIO)),
+    ("recall",       re.compile(r"(?i)recall[^\d]{0,12}?" + _RATIO)),
     ("p-value",      re.compile(r"(?i)\bp\s*[<=]\s*([0-9]*\.[0-9]+)")),
     ("sample size",  re.compile(r"(?i)\bn\s*=\s*([0-9][0-9,]{1,8})")),
 ]
