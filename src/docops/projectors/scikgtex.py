@@ -162,13 +162,16 @@ class SciKGTeXProjector(BaseProjector):
                 ann.append(rf"\contribution*{{{name}}}{{{_esc(m.group(1))}}}")
                 self.bump("fact")
 
-        # --- bib DOIs -> entity-link URIs inside an annotation ---
+        # --- bib DOIs -> entity-link URIs; ONE \uri per cites annotation so each
+        # becomes its own RDF node (multiple \uri in one annotation collapse). ---
         dois = self._dois(doc)
-        if dois:
-            links = " ".join(rf"\uri{{https://doi.org/{d}}}{{{_esc(label)}}}"
-                             for d, label in dois[:15])
-            ann.append(rf"\contribution*{{cites}}{{{links}}}")
-            self.bump("doi_uri", len(dois[:15]))
+        seen_doi = set()
+        for d, label in dois:
+            if d in seen_doi:
+                continue
+            seen_doi.add(d)
+            ann.append(rf"\contribution*{{cites}}{{\uri{{https://doi.org/{d}}}{{{_esc(label)}}}}}")
+            self.bump("doi_uri")
         self.bump("contributions", n)
 
         body = ["% SciKGTeX metadata (invisible starred commands — layout-safe)"] + ann
