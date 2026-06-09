@@ -98,6 +98,7 @@ def main():
         "latexbook": _do_latexbook,
         "svg": _do_svg,
         "stex": _do_stex,
+        "scikgtex": _do_scikgtex,
     }
 
     if cmd not in handlers:
@@ -621,6 +622,13 @@ def _do_report(args):
                       scale=float(scale) if scale else 1.0)
 
 
+def _do_scikgtex(args):
+    """pdfdrill scikgtex <pdf> [--compile]"""
+    from .commands import cmd_scikgtex
+    pdf_args = [a for a in args if a != "--compile"]
+    return cmd_scikgtex(_pdf(pdf_args), compile="--compile" in args)
+
+
 def _do_stex(args):
     """pdfdrill stex <pdf> [--stex] [--compile]"""
     from .commands import cmd_stex
@@ -976,6 +984,8 @@ Introspection (fast, no extraction):
   pdfdrill semantic <pdf>      Build the semantic graph (CSP): extractors become sensors emitting evidence; entities (Company/Person/BankAccount) accumulate it. --store graph.json accumulates ACROSS documents
   pdfdrill fontid <pdf>        VISUAL font id for scanned/OCR input (no font layer): WORD crops → torch-free ONNX font-classify → vote WITHIN each OCR block, so font is reported per text FIELD (heading/body/fine-print), not one doc vote. Per-field confidence; weak on scanned generic sans. --limit 12 --ppi 200
   pdfdrill spellqc <pdf>       Dictionary-assisted de-hyphenation QC (hunspell via spylls→enchant→.dic-set, on-demand per language): join/keep/REVIEW each line-break hyphen. Surfaces OCR fragments to fix
+  pdfdrill stex <pdf>          Project the semantic graph to enriched LaTeX: acronyms/glossary/Table-of-Symbols/index (--compile runs lualatex), or sTeX smodule/\symdecl/\symref (--stex). Needs `semantic` first
+  pdfdrill scikgtex <pdf>      Project to SciKGTeX-annotated LaTeX → compiled PDF carries ORKG contribution metadata (title/authors/field + research-problem/method/result roles + numeric facts + bib-DOI links) as XMP/RDF. --compile (lualatex + vendored scikgtex)
   pdfdrill qr <pdf>            Scan QR codes & barcodes (zxing-cpp): GiroCode/EPC payment QR (creditor/IBAN/amount/reference) + Data Matrix franking marks — confirmation data outside the text layer. --dpi 300 --formats QRCode,DataMatrix
   pdfdrill ordered <pdf>       Segment an ORDERED scan stack into documents (gap scoring + DataMatrix tracking codes → 2-level mailing/letter-enclosure). Commercial provenance (publisher=sender, receiver). --threshold 0.5. (Shuffled bundle → use `segment`)
   pdfdrill autosegment <pdf>   AUTO-PICK ordered vs shuffled: contiguous per-sender runs → `ordered` (gap scorer); interleaved → `segment` (signature grouping). Then runs the right one

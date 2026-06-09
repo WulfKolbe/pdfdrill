@@ -5774,3 +5774,73 @@ def cmd_stex(pdf: Path, flavor: str = "latex", compile: bool = False) -> str:
            "enhanced LaTeX (acronyms/glossary/Table of Symbols/index)"
     return (f"Projected the semantic graph to {kind}: {n_concepts} named concepts → "
             f"{rel}.{note}")
+
+
+def cmd_scikgtex(pdf: Path, compile: bool = False) -> str:
+    """Project the drilled document to SciKGTeX-annotated LaTeX, so the compiled
+    PDF carries ORKG contribution metadata as XMP/RDF (title/authors/research
+    field + the five research-contribution roles + numeric facts + bib-DOI links).
+    `--compile` runs lualatex (needs `scikgtex.sty`/`.lua` — in texmf, or the repo's
+    `tests/fixtures/scikgtex/`). Auto-chains `model`."""
+    import shutil
+    import subprocess
+    from docmodel.core import Document
+    from docops.base import OperatorConfig
+    from docops.projectors.scikgtex import SciKGTeXProjector
+
+    sc = Sidecar(pdf)
+    model_path = _model_path(sc)
+    if not model_path.exists():
+        cmd_model(pdf)
+        sc = Sidecar(pdf)
+        model_path = _model_path(sc)
+    if not model_path.exists():
+        return f"No model for {pdf.name} (run `pdfdrill model` first)."
+    key = resolve_bibkey(pdf, None, sc)
+    doc = Document.from_dict(json.loads(model_path.read_text(encoding="utf-8")))
+    # enrich title/authors/field from the sidecar (the free arXiv-abs metadata that
+    # `abstract` fetched) when the OCR-built model doesn't carry them.
+    if not doc.meta.get("title") and sc.get_evidence("arxiv_title"):
+        doc.meta["title"] = sc.get_evidence("arxiv_title")
+    if not doc.meta.get("authors") and sc.get_evidence("arxiv_authors"):
+        doc.meta["authors"] = sc.get_evidence("arxiv_authors")
+    if not doc.meta.get("primary_category") and sc.get_evidence("arxiv_primary_category"):
+        doc.meta["primary_category"] = sc.get_evidence("arxiv_primary_category")
+
+    proj = SciKGTeXProjector(OperatorConfig(op="projector", classname="SciKGTeXProjector"))
+    tex = proj.project(doc)
+    out = sc.blob_dir / f"{key}.scikg.tex"
+    out.write_text(tex, encoding="utf-8")
+    c = proj.counters
+    summary = (f"{c.get('contributions', 0)} contribution role(s), "
+               f"{c.get('fact', 0)} numeric fact(s), {c.get('doi_uri', 0)} DOI link(s)")
+    rel = out.relative_to(sc.pdf_path.parent)
+
+    note = ""
+    if compile:
+        if not shutil.which("lualatex"):
+            note = " (lualatex not installed — emitted only)"
+        else:
+            # locate scikgtex: texmf, else the repo fixtures (dev convenience)
+            fix = Path(__file__).resolve().parents[2] / "tests" / "fixtures" / "scikgtex"
+            have_texmf = subprocess.run(["kpsewhich", "scikgtex.sty"],
+                                        capture_output=True).stdout.strip()
+            if not have_texmf and (fix / "scikgtex.sty").exists():
+                for f in ("scikgtex.sty", "scikgtex.lua"):
+                    shutil.copy(fix / f, sc.blob_dir / f)
+            elif not have_texmf:
+                return (f"Wrote {rel} ({summary}). To compile, install SciKGTeX "
+                        f"(github.com/Christof93/SciKGTeX) and rerun with --compile.")
+            env = {**__import__("os").environ, "TEXINPUTS": ".:"}
+            subprocess.run(["lualatex", "-interaction=nonstopmode", "-halt-on-error", out.name],
+                           cwd=sc.blob_dir, capture_output=True, env=env, timeout=300)
+            pdf_out = sc.blob_dir / f"{key}.scikg.pdf"
+            xmp = sc.blob_dir / f"{key}.scikg.xmp_metadata.xml"
+            note = (f" Compiled with lualatex → {pdf_out.relative_to(sc.pdf_path.parent)}"
+                    + (f"; ORKG XMP → {xmp.relative_to(sc.pdf_path.parent)}." if xmp.exists()
+                       else " (⚠ no XMP — see the .log).")) if pdf_out.exists() \
+                   else " ⚠ lualatex did not produce a PDF (see the .log)."
+
+    return (f"Projected to SciKGTeX/ORKG-annotated LaTeX → {rel} ({summary}). "
+            f"The compiled PDF embeds an orkg:Paper (title/authors/researchfield) + "
+            f"ResearchContributions in XMP/RDF that ORKG / PDF2ORKG can ingest.{note}")

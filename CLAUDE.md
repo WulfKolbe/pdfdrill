@@ -737,9 +737,31 @@ makeindex). **Compile-proven** with lualatex: the demo + the live EAGer
 Acronyms list (CoT, LLMs), Index, section structure, and per-concept provenance
 lines; the sTeX demo builds via `stex.sty`. Tests: `tests/test_stex.py` (macros +
 lualatex compile, gated on tool availability).
+**SciKGTeX / ORKG projector (`src/docops/projectors/scikgtex.py`, `pdfdrill
+scikgtex`).** A read-only docmodel projector → SciKGTeX-annotated LaTeX whose
+compiled PDF carries the paper's contribution metadata as **XMP/RDF in the ORKG
+vocabulary** (Christof93/SciKGTeX v3.0.0, LuaLaTeX). Emits `\metatitle*`/
+`\metaauthor*`/`\researchfield*` (title/authors from `doc.meta`, enriched from the
+sidecar arXiv metadata; field from primary category), the **invisible starred**
+contribution roles (v1 heuristic: Abstract → `\researchproblem*` P32; a Method/
+Results/Conclusion section → `\method*` P1005 / `\result*` P1006 / `\conclusion*`
+P15419 — where unsure, OMIT), `\contribution*{name}{value}` for numeric facts
+(accuracy/F1/precision/recall/p-value/n — the package resolves name→ORKG-P-ID
+offline via its bundled table), and `\uri{doi}{label}` for Reference DOIs. The
+package + `[compatibility]` write the RDF into XMP + a `SciKGMetadata` catalog key.
+`pdfdrill scikgtex <pdf> [--compile]` writes `<bibkey>.scikg.tex` and (with
+`--compile`, lualatex + the vendored `scikgtex.sty`/`.lua`) the PDF + an
+inspectable `xmp_metadata.xml`. **Compile-proven** (synthetic + live EAGer): the
+XMP shows `orkg:Paper` (hasTitle/hasAuthor/hasResearchField) + ResearchContributions
+with P32/P1005/P1006, `accuracy`→`P18048`, and the DOI as an `rdfs:label`led node.
+`scikgtex.sty`/`.lua` vendored under `tests/fixtures/scikgtex/` (not in the
+package). Tests: `tests/test_scikgtex.py` (macros + lualatex compile + XMP RDF
+checks, gated). **Out of scope (v2):** an LLM contribution classifier; direct
+pikepdf XMP embedding without LaTeX; serializing the occurrence graph into XMP.
+
 **Still deferred (roadmap):** index from LaTeX `\index{}` source (rendered-index
 OCR is unreliable); graph→linked-Tiddler projection; the reasoning-flow /
-abstraction layers; SciKGTeX/ORKG projector (separate task).
+abstraction layers.
 
 ## Storage-overhead reduction (stage 1 of the tiddler-canonical move)
 
