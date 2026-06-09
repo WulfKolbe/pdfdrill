@@ -97,6 +97,7 @@ def main():
         "latex": _do_latex,
         "latexbook": _do_latexbook,
         "svg": _do_svg,
+        "stex": _do_stex,
     }
 
     if cmd not in handlers:
@@ -618,6 +619,14 @@ def _do_report(args):
     pdf_args = [a for a in args if a not in ("--force", "--embed")]
     return cmd_report(_pdf(pdf_args), force="--force" in args, embed="--embed" in args,
                       scale=float(scale) if scale else 1.0)
+
+
+def _do_stex(args):
+    """pdfdrill stex <pdf> [--stex] [--compile]"""
+    from .commands import cmd_stex
+    flavor = "stex" if "--stex" in args else "latex"
+    pdf_args = [a for a in args if a not in ("--stex", "--compile")]
+    return cmd_stex(_pdf(pdf_args), flavor=flavor, compile="--compile" in args)
 
 
 def _do_svg(args):

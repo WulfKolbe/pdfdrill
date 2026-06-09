@@ -721,10 +721,25 @@ lands. Verified on arXiv 2510.11170: `LLMs`/`CoT`/`RL`/`KL` extracted with corre
 expansions, definition page, and reference counts; idempotent on re-run. Tests:
 `tests/test_concepts.py` (Schwartz-Hearst + define-first-then-references + glossary
 section).
+**LaTeX / sTeX projectors (`src/semantic/stex.py`, `pdfdrill stex`).** The graph's
+named-concept layer computed the hard part (one entity per concept + the
+definition/reference split), so these *render* it as enriched LaTeX:
+- `project_latex(graph)` — a standard compilable document with **all the LaTeX
+  lists**: ACRONYMS (`\newacronym`), GLOSSARY (`\newglossaryentry`), TABLE OF
+  SYMBOLS (the `symbols` glossary), INDEX (`\index`/`\printindex`) — driven by the
+  extracted concepts, each carrying pdfdrill's provenance back-link (PDF pages).
+- `project_stex(graph)` — the sTeX form: a `\symdecl` per concept inside an
+  `smodule`, an `sdefinition` at the definition site, `\symref` at each reference.
+`pdfdrill stex <pdf> [--stex] [--compile]` writes `<bibkey>.glossaries.tex` /
+`<bibkey>.stex.tex` and (with `--compile`) runs lualatex (+ makeglossaries +
+makeindex). **Compile-proven** with lualatex: the demo + the live EAGer
+(2510.11170) projection both build a PDF — the EAGer glossaries PDF shows the
+Acronyms list (CoT, LLMs), Index, section structure, and per-concept provenance
+lines; the sTeX demo builds via `stex.sty`. Tests: `tests/test_stex.py` (macros +
+lualatex compile, gated on tool availability).
 **Still deferred (roadmap):** index from LaTeX `\index{}` source (rendered-index
-OCR is unreliable); the `stex.py` projector (graph→sTeX MathHub archive, `.tex`
-first, with PDF page+bbox provenance back-links); graph→linked-Tiddler projection;
-the reasoning-flow / abstraction layers.
+OCR is unreliable); graph→linked-Tiddler projection; the reasoning-flow /
+abstraction layers; SciKGTeX/ORKG projector (separate task).
 
 ## Storage-overhead reduction (stage 1 of the tiddler-canonical move)
 

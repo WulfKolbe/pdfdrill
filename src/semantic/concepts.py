@@ -113,17 +113,29 @@ def _prose_blocks(doc) -> list[dict]:
     return blocks
 
 
+_SYMBOL_SECTION = re.compile(r"(?i)\b(nomenclature|notation|list of symbols|"
+                             r"symbol table|symbols)\b")
+
+
+def _section_kind(caption: str) -> str:
+    """Which named-concept list a SECTION caption denotes: symbol-list sections
+    (Notation / Nomenclature / List of Symbols) hold `symbol`s for the Table of
+    Symbols; glossary / acronym / abbreviation / index sections hold `term`s."""
+    return "symbol" if _SYMBOL_SECTION.search(caption or "") else "term"
+
+
 def _glossary_records(doc) -> list[dict]:
     """Entries of a glossary/notation/nomenclature/index SECTION → concept seeds.
-    Each ListItem (or `TERM — def` / `TERM: def` line) under such a section becomes
-    a `{name, expansion, kind:'term', section_id, page}` seed."""
+    Each ListItem (`TERM — def` / `TERM: def`) becomes a `{name, expansion, kind,
+    section_id, page}` seed; `kind` is `symbol` for a symbol-list section else
+    `term`."""
     seeds = []
-    sec_ids = {s.id for s in doc.objects.values()
-               if s.type == "Section" and _CONCEPT_SECTION.search(s.props.get("caption", ""))}
-    if not sec_ids:
+    secs = {s.id: _section_kind(s.props.get("caption", "")) for s in doc.objects.values()
+            if s.type == "Section" and _CONCEPT_SECTION.search(s.props.get("caption", ""))}
+    if not secs:
         return seeds
     for o in doc.objects.values():
-        if o.type != "ListItem" or o.props.get("parent_section") not in sec_ids:
+        if o.type != "ListItem" or o.props.get("parent_section") not in secs:
             continue
         body = (o.props.get("content") or "").strip()
         m = re.match(r"\s*(.{1,60}?)\s*[—:–\-]\s+(.+)", body)
@@ -132,7 +144,8 @@ def _glossary_records(doc) -> list[dict]:
         else:
             name, expansion = body.split("  ")[0].strip(), body
         if 1 <= len(name) <= 60:
-            seeds.append({"name": name, "expansion": expansion, "kind": "term",
+            seeds.append({"name": name, "expansion": expansion,
+                          "kind": secs[o.props.get("parent_section")],
                           "section_id": o.props.get("parent_section"),
                           "page": o.props.get("page")})
     return seeds

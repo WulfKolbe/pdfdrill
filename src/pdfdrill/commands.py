@@ -5718,3 +5718,59 @@ def cmd_render(pdf: Path, force: bool = False) -> str:
     rel = pdf_out.relative_to(pdf.resolve().parent)
     return (f"Rendered the markdown to PDF in {elapsed:.1f}s. "
             f"Output: {rel} ({pdf_out.stat().st_size//1024} KB).")
+
+
+def cmd_stex(pdf: Path, flavor: str = "latex", compile: bool = False) -> str:
+    """Project the semantic graph to enriched LaTeX.
+
+    `flavor="latex"` (default) emits a standard document with all the LaTeX lists
+    (acronyms / glossary / Table of Symbols / index) driven by the extracted named
+    concepts; `flavor="stex"` emits the sTeX form (smodule / \\symdecl / sdefinition
+    / \\symref). `--compile` runs lualatex (+ makeglossaries + makeindex) to prove
+    the output. Needs the semantic graph (auto-chains `semantic`)."""
+    import shutil
+    import subprocess
+    from semantic.graph import SemanticGraph
+    from semantic import stex as stexproj
+
+    sc = Sidecar(pdf)
+    key = resolve_bibkey(pdf, None, sc)
+    sem_path = sc.blob_dir / f"{key}.semantic.json"
+    if not sem_path.exists():
+        cmd_semantic(pdf)
+        sc = Sidecar(pdf)
+        key = resolve_bibkey(pdf, None, sc)
+        sem_path = sc.blob_dir / f"{key}.semantic.json"
+    if not sem_path.exists():
+        return f"No semantic graph for {pdf.name} (run `pdfdrill semantic` first)."
+
+    g = SemanticGraph.from_dict(json.loads(sem_path.read_text(encoding="utf-8")))
+    is_stex = flavor == "stex"
+    tex = stexproj.project_stex(g, key) if is_stex else stexproj.project_latex(g, key)
+    out = sc.blob_dir / (f"{key}.stex.tex" if is_stex else f"{key}.glossaries.tex")
+    out.write_text(tex, encoding="utf-8")
+    rel = out.relative_to(sc.pdf_path.parent)
+
+    note = ""
+    if compile:
+        if not shutil.which("lualatex"):
+            note = " (lualatex not installed — skipped compile)"
+        else:
+            d = out.parent
+            base = out.stem
+            r = lambda *c: subprocess.run(c, cwd=d, capture_output=True, text=True, timeout=300)
+            r("lualatex", "-interaction=nonstopmode", "-halt-on-error", out.name)
+            if not is_stex:
+                r("makeglossaries", base); r("makeindex", base + ".idx")
+            r("lualatex", "-interaction=nonstopmode", out.name)
+            r("lualatex", "-interaction=nonstopmode", out.name)
+            pdf_out = d / (base + ".pdf")
+            note = (f" Compiled with lualatex → {pdf_out.relative_to(sc.pdf_path.parent)}."
+                    if pdf_out.exists() else " ⚠ lualatex did not produce a PDF (see the .log).")
+
+    n_concepts = sum(1 for e in g.entities.values()
+                     if e.type.value == "concept" and e.subtype in ("acronym", "term", "symbol"))
+    kind = "sTeX (smodule/\\symdecl/sdefinition/\\symref)" if is_stex else \
+           "enhanced LaTeX (acronyms/glossary/Table of Symbols/index)"
+    return (f"Projected the semantic graph to {kind}: {n_concepts} named concepts → "
+            f"{rel}.{note}")

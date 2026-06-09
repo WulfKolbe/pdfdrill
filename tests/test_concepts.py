@@ -50,17 +50,22 @@ def test_concept_records_glossary_section_term():
     from docmodel.core import Document, DocObject
     doc = Document(); doc.meta["bibkey"] = "T"
     doc.add(DocObject(type="Section", id="g", props={
-        "caption": "Notation", "section_number": "", "flow_index": 1}))
+        "caption": "Glossary", "section_number": "", "flow_index": 1}))
+    doc.add(DocObject(type="Section", id="n", props={
+        "caption": "Notation", "section_number": "", "flow_index": 4}))
     doc.add(DocObject(type="ListItem", id="i1", props={
         "content": "metric tensor — the field g that measures distances",
         "page": 2, "parent_section": "g", "flow_index": 2}))
+    doc.add(DocObject(type="ListItem", id="i2", props={
+        "content": "psi — the wave function", "page": 3, "parent_section": "n", "flow_index": 5}))
     doc.add(DocObject(type="Paragraph", id="p1", props={
         "text": "The metric tensor appears again in section 3.",
         "page": 7, "parent_section": "g", "flow_index": 3}))
     recs = {r["name"]: r for r in concepts.concept_records(doc)}
     mt = recs["metric tensor"]
-    assert mt["kind"] == "term" and mt["define"]["page"] == 2     # the glossary entry
+    assert mt["kind"] == "term" and mt["define"]["page"] == 2     # glossary entry
     assert any(o["page"] == 7 for o in mt["occurrences"])         # later prose mention
+    assert recs["psi"]["kind"] == "symbol"                        # Notation section -> symbol
 
 
 if __name__ == "__main__":
