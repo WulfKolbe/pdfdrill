@@ -18,7 +18,13 @@ from ..core import Document, DocObject, Realization
 
 _TABLE_TYPES = {"table"}
 _ROW_TYPES = {"table_row"}
-_CELL_TYPES = {"simple_cell", "complex_cell"}
+# table_spanning_cell carries the layout structure (a header covering N
+# columns / a row-group label covering N rows); it was missing here, which
+# silently dropped every spanning cell from the model.
+_CELL_TYPES = {"simple_cell", "complex_cell", "table_spanning_cell"}
+# MathPix per-cell grid coordinates, kept verbatim on the collected child.
+_CELL_COORD_KEYS = ("cell_row", "cell_column", "cell_row_span", "cell_col_span",
+                    "region")
 
 
 class TableProcessor(BaseModule):
@@ -57,23 +63,38 @@ class TableProcessor(BaseModule):
             if ctype not in (_ROW_TYPES | _CELL_TYPES):
                 continue
             anchor = anchor_by_id.get(cid)
-            out.append({
+            entry: dict[str, Any] = {
                 "anchor": anchor,
                 "type": ctype,
                 "text": child.get("text_display") or child.get("text") or "",
                 "line_id": cid,
-            })
+            }
+            for key in _CELL_COORD_KEYS:
+                if key in child:
+                    entry[key] = child[key]
+            out.append(entry)
         return out
 
     def create_object(self, item: dict[str, Any], doc: Document) -> Optional[DocObject]:
         # The Table itself.
+        props: dict[str, Any] = {
+            "page": item["page"],
+            "raw_text": item["raw_text"],
+            "bibkey": self.bibkey,
+        }
+        # Span-aware cell structure: a value lives once at its anchor slot and
+        # covers a range (cell_row/cell_column/cell_row_span/cell_col_span come
+        # straight from MathPix). columns = flattened, linefeed-free header
+        # names so a column is findable by name later.
+        from pdfdrill.table_structure import cells_from_mathpix, column_headers
+        cells, n_rows, n_cols = cells_from_mathpix(item["children"])
+        if cells:
+            columns, header_rows = column_headers(cells, n_cols)
+            props.update(cells=cells, n_rows=n_rows, n_cols=n_cols,
+                         columns=columns, header_rows=header_rows)
         obj = DocObject(
             type="Table",
-            props={
-                "page": item["page"],
-                "raw_text": item["raw_text"],
-                "bibkey": self.bibkey,
-            },
+            props=props,
         )
         obj.add_realization(Realization(
             stream=self.LINES_STREAM,

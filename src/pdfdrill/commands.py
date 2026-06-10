@@ -1657,6 +1657,10 @@ def cmd_tables(pdf: Path, pages: str | None = None) -> str:
         json.dumps(tables, ensure_ascii=False, indent=2), encoding="utf-8")
     md = pdf_reading.tables_to_markdown(tables)
     (out_dir / "tables.md").write_text(md, encoding="utf-8")
+    # The QA projection: real <table>s with rowspan/colspan (a spanned header
+    # renders as the range it covers, not as '' placeholders).
+    (out_dir / "tables.html").write_text(
+        pdf_reading.tables_to_html(tables), encoding="utf-8")
 
     sc.set_evidence("tables_count", len(tables))
     sc.set_evidence("tables_path", str((out_dir / "tables.json")
@@ -1674,7 +1678,8 @@ def cmd_tables(pdf: Path, pages: str | None = None) -> str:
     pages_with = sorted({t["page"] for t in tables})
     preview = pdf_reading.tables_to_markdown(tables[:2])
     return (f"Extracted {len(tables)} table(s) across page(s) {pages_with} "
-            f"→ tables.json + tables.md (keyless, pdfplumber). Preview:\n\n"
+            f"→ tables.json + tables.md + tables.html (span-aware; open the "
+            f"html for QA — headers render with their covered range). Preview:\n\n"
             + preview)
 
 

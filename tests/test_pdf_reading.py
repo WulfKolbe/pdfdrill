@@ -77,6 +77,61 @@ def test_extract_tables_no_tables():
         assert tables == [] and err is None
 
 
+_SPAN_TABLE_TEX = r"""
+\documentclass{article}
+\pagestyle{empty}
+\usepackage{multirow}
+\begin{document}
+\begin{tabular}{|l|l|l|}
+\hline
+\multicolumn{2}{|l|}{Group} & C \\ \hline
+\multirow{2}{*}{A} & b1 & c1 \\ \cline{2-3}
+                   & b2 & c2 \\ \hline
+\end{tabular}
+\end{document}
+"""
+
+
+def test_extract_tables_span_aware_cells():
+    """A \\multicolumn/\\multirow tabular → span-aware cells + named columns."""
+    if shutil.which("pdflatex") is None:
+        print("SKIP span tables (no pdflatex)"); return
+    import subprocess
+    with tempfile.TemporaryDirectory() as d:
+        (Path(d) / "t.tex").write_text(_SPAN_TABLE_TEX)
+        subprocess.run(["pdflatex", "-interaction=nonstopmode", "t.tex"],
+                       cwd=d, capture_output=True, timeout=120)
+        pdf = Path(d) / "t.pdf"
+        assert pdf.exists()
+        tables, err = pr.extract_tables(pdf)
+        assert err is None and len(tables) == 1
+        t = tables[0]
+        assert t["rows"]                      # naive matrix kept (compat)
+        by = {(c["row"], c["col"]): c for c in t["cells"]}
+        assert by[(0, 0)]["col_span"] == 2    # the \multicolumn header
+        assert by[(0, 0)]["text"] == "Group"
+        assert by[(1, 0)]["row_span"] == 2    # the \multirow label
+        assert t["columns"]                   # findable column names
+        assert t["header_rows"] >= 1
+
+
+def test_tables_to_html_spans():
+    tables = [{"page": 3, "index": 0, "n_rows": 2, "n_cols": 2,
+               "rows": [["H", ""], ["a", "b"]],
+               "cells": [
+                   {"row": 0, "col": 0, "row_span": 1, "col_span": 2, "text": "H"},
+                   {"row": 1, "col": 0, "row_span": 1, "col_span": 1, "text": "a"},
+                   {"row": 1, "col": 1, "row_span": 1, "col_span": 1, "text": "b"}],
+               "columns": ["H", "H"], "header_rows": 1}]
+    html = pr.tables_to_html(tables)
+    assert 'colspan="2"' in html and "<caption>" in html
+    assert "p. 3" in html
+    # a table without cells (old shape) degrades to the naive grid
+    html2 = pr.tables_to_html([{"page": 1, "index": 0, "n_rows": 1, "n_cols": 2,
+                                "rows": [["x", "y"]]}])
+    assert "<td>x</td>" in html2 or "<th>x</th>" in html2
+
+
 def test_rasterize_roundtrip():
     if shutil.which("pdftoppm") is None:
         print("SKIP rasterize (no pdftoppm)"); return
@@ -100,6 +155,8 @@ if __name__ == "__main__":
     test_tables_to_markdown(); print("PASS tables_to_markdown")
     test_read_form_fields_no_form(); print("PASS form_fields_no_form")
     test_extract_tables_no_tables(); print("PASS tables_no_tables")
+    test_extract_tables_span_aware_cells(); print("PASS tables_span_aware")
+    test_tables_to_html_spans(); print("PASS tables_to_html")
     test_rasterize_roundtrip(); print("PASS rasterize_roundtrip")
     test_list_attachments_none(); print("PASS attachments_none")
     print("\nAll tests passed.")

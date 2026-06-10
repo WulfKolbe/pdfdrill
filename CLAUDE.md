@@ -229,8 +229,48 @@ five commands close the remaining gaps:
   operators, not image objects — they won't appear (`rasterize` for those).
   Complements `images`/`embedimages` (metadata only).
 - **`pdfdrill tables <pdf> [--pages N-M]`** — **keyless offline** table
-  extraction (pdfplumber `extract_tables`) → `tables.json` + `tables.md`; the
-  no-MathPix/no-vision table path.
+  extraction (pdfplumber, **span-aware** via `find_tables`) → `tables.json` +
+  `tables.md` + **`tables.html`** (the QA projection); the no-MathPix/no-vision
+  table path. See the span-aware table section below.
+
+## Span-aware table cells (`table_structure.py` — a value covers a RANGE)
+
+A table is NOT a naive matrix: a header like `BiomedicalDatasets` lives once in
+its top-left (anchor) slot and **covers a range of columns**; a row-group label
+(`Classical`) covers a range of rows. The naive matrix stored the value in the
+leftmost cell with `''` placeholders in the covered slots — losing the layout
+structure that carries meaning. Spec:
+`docs/superpowers/specs/2026-06-10-span-aware-tables-design.md`.
+
+- **The cell shape** (`src/pdfdrill/table_structure.py`, pure):
+  `{"row","col","row_span","col_span","text","region"?}` — covered slots are
+  NOT stored (HTML's table model). Stored on the `Table` DocObject as
+  `props["cells"]` + `n_rows`/`n_cols`/`columns`/`header_rows`; same keys per
+  entry in `tables.json`. **`columns`** = one clean, linefeed-free name per
+  column (stacked header cells joined top→bottom, a rowspan'd cell once,
+  `xxx-\nyyy`→`xxx-yyy`) so a column is **findable by name** later — e.g.
+  `columns.index("SciAD MaF1")`. Header rows = row 0 through the first all-leaf
+  row after the span-bearing rows.
+- **Both sources fill the same shape:** MathPix cells already carry
+  `cell_row`/`cell_column`/`cell_row_span`/`cell_col_span` — `TableProcessor`
+  now keeps them (and `_CELL_TYPES` includes **`table_spanning_cell`**, which
+  was missing — every spanning cell, the structurally most important ones, used
+  to be silently dropped). The keyless pdfplumber route reconstructs spans from
+  `find_tables()` cell rects (a rect covering k grid columns ⇒ `col_span=k`).
+- **QA projection:** `pdfdrill tables` writes **`tables.html`** — one real
+  `<table>` per table, spans rendered natively (`rowspan`/`colspan`), header
+  rows as `<th>` with the flattened column name as tooltip, caption = page +
+  dims + spanning-cell count + `check()` overlap/overflow warnings.
+  `tables.md`/`rows` keep the naive-grid shape for compatibility (`grid()`).
+- Verified on `~/Downloads/p2530-pereira.pdf` (3 multi-level benchmark tables):
+  `BiomedicalDatasets–Avg.` colspan 6, corner header rowspan 3, `Classical`
+  rowspan 6, columns like `"BiomedicalDatasets–Avg. Acronym F1"`; ocrtest
+  re-model keeps **67 spanning cells** (was 0). Honest caveat: on a scanned
+  FORM (not a data table) nearly every row spans, so header detection runs deep
+  and column names degrade — visible in tables.html, which is what QA is for.
+  Tests: `tests/test_table_structure.py` (producers, headers, html, grid,
+  check, TableProcessor wiring) + `tests/test_pdf_reading.py`
+  (`\multicolumn`/`\multirow` pdflatex fixture round-trip, tables_to_html).
 
 `pypdf>=4.0` is now a core dep (form fields + attachment fallback). Verified
 end-to-end on built fixtures: rasterize → page-1.png; a bordered tabular → a

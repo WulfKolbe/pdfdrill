@@ -189,23 +189,35 @@ def extract_images(pdf: Path, out_dir: Path, *, pages: Optional[list[int]] = Non
 
 def extract_tables(pdf: Path, *, pages: Optional[list[int]] = None
                    ) -> tuple[list[dict[str, Any]], Optional[str]]:
-    """Extract tables with pdfplumber. Returns (tables, error); each table:
-    {page, index, rows:[[cell,…],…], n_rows, n_cols}."""
+    """Extract tables with pdfplumber (`find_tables`, span-aware). Each table:
+    {page, index, rows (naive matrix, compat), n_rows, n_cols,
+     cells:[{row,col,row_span,col_span,text,region},…],   # value ONCE at its
+     columns:[…], header_rows}                            # anchor + its range
+    A merged header keeps its covered range instead of '' placeholders;
+    `columns` are the flattened, linefeed-free header names per column."""
     try:
         import pdfplumber
     except Exception:
         return [], "pdfplumber not installed (`pip install pdfplumber`)."
+    from .table_structure import cells_from_plumber, column_headers, grid
     out: list[dict[str, Any]] = []
     try:
         with pdfplumber.open(str(pdf)) as doc:
             for pageno, page in enumerate(doc.pages, start=1):
                 if pages and pageno not in pages:
                     continue
-                for ti, tbl in enumerate(page.extract_tables() or []):
-                    rows = [["" if c is None else str(c) for c in row] for row in tbl]
-                    out.append({"page": pageno, "index": ti, "rows": rows,
-                                "n_rows": len(rows),
-                                "n_cols": max((len(r) for r in rows), default=0)})
+                for ti, tbl in enumerate(page.find_tables() or []):
+                    cells, n_rows, n_cols = cells_from_plumber(tbl)
+                    entry: dict[str, Any] = {
+                        "page": pageno, "index": ti,
+                        "rows": grid(cells, n_rows, n_cols),
+                        "n_rows": n_rows, "n_cols": n_cols,
+                    }
+                    if cells:
+                        columns, header_rows = column_headers(cells, n_cols)
+                        entry.update(cells=cells, columns=columns,
+                                     header_rows=header_rows)
+                    out.append(entry)
     except Exception as e:
         return out, f"pdfplumber error: {e}"
     return out, None
@@ -227,3 +239,47 @@ def tables_to_markdown(tables: list[dict[str, Any]]) -> str:
         blocks.append(f"**Table p{t['page']}.{t['index']}** "
                       f"({t['n_rows']}×{t['n_cols']}):\n" + "\n".join(md))
     return "\n\n".join(blocks)
+
+
+_TABLES_HTML_CSS = """
+body{font-family:sans-serif;margin:1.5em}
+table{border-collapse:collapse;margin:1.5em 0}
+caption{text-align:left;font-weight:bold;padding:.3em 0;white-space:pre-line}
+td,th{border:1px solid #999;padding:.25em .5em;vertical-align:top}
+th{background:#eef} .warn{color:#b00}
+"""
+
+
+def tables_to_html(tables: list[dict[str, Any]]) -> str:
+    """The QA projection: one real <table> per extracted table, spans rendered
+    natively via rowspan/colspan. Caption = page, dims, spanning-cell count +
+    any structure warnings. Tables without `cells` (old shape) degrade to the
+    naive grid."""
+    import html as _h
+    from .table_structure import to_html, check
+    parts = ["<!doctype html><html><head><meta charset='utf-8'>"
+             f"<style>{_TABLES_HTML_CSS}</style></head><body>",
+             f"<h1>Tables ({len(tables)})</h1>"]
+    for t in tables:
+        cells = t.get("cells")
+        if not cells:                                  # degrade: naive grid
+            cells = [{"row": r, "col": c, "row_span": 1, "col_span": 1,
+                      "text": v}
+                     for r, row in enumerate(t.get("rows") or [])
+                     for c, v in enumerate(row)]
+        n_rows, n_cols = t.get("n_rows", 0), t.get("n_cols", 0)
+        spanning = sum(1 for c in cells
+                       if c["row_span"] > 1 or c["col_span"] > 1)
+        warnings = check(cells, n_rows, n_cols)
+        caption = (f"Table p. {t.get('page')}.{t.get('index')} — "
+                   f"{n_rows}×{n_cols}, {spanning} spanning cell(s)")
+        if warnings:
+            caption += "\n⚠ " + "; ".join(warnings[:5])
+        parts.append(to_html(cells, n_rows, n_cols, caption=caption,
+                             columns=t.get("columns"),
+                             header_rows=t.get("header_rows", 1)))
+        if t.get("columns"):
+            parts.append("<p><i>columns:</i> " + " | ".join(
+                _h.escape(c) for c in t["columns"]) + "</p>")
+    parts.append("</body></html>")
+    return "\n".join(parts)
