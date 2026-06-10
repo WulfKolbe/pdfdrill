@@ -262,6 +262,20 @@ structure that carries meaning. Spec:
   rows as `<th>` with the flattened column name as tooltip, caption = page +
   dims + spanning-cell count + `check()` overlap/overflow warnings.
   `tables.md`/`rows` keep the naive-grid shape for compatibility (`grid()`).
+- **Two-strategy extraction with quality gates** (found by QA on the
+  2410.21169v5 survey, whose tables.html was 15 empty grids): the lattice
+  (`lines`) pass **drops grids with <2 filled cells** (`table_has_text`) —
+  they're figure frames (nested boxes in architecture diagrams), reported as
+  a "skipped N empty lattice grid(s)" note, never silently. On a page with a
+  **table caption** but no usable lattice table (booktabs tables have no
+  vertical rules), the **`text` strategy** is tried, accepted only via
+  `plausible_text_table` (≥3×3, ≥40% filled) so prose never becomes a 70×1
+  "table". Caption regex tolerates pdfplumber's space-collapsing
+  (`Table2.`/`Tabelle 3:`). Each entry records its `strategy`. On
+  2410.21169v5: 15 artifacts skipped, Table 2 (p23, 64×9 `Model|Data|Param|
+  Overall↑…`) recovered via text fallback; Table 1 (p5, caption + prose page)
+  is honestly absent — its text-strategy read fails the plausibility gate
+  (rasterize for those).
 - Verified on `~/Downloads/p2530-pereira.pdf` (3 multi-level benchmark tables):
   `BiomedicalDatasets–Avg.` colspan 6, corner header rowspan 3, `Classical`
   rowspan 6, columns like `"BiomedicalDatasets–Avg. Acronym F1"`; ocrtest

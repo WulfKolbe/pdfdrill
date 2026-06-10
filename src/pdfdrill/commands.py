@@ -1648,6 +1648,9 @@ def cmd_tables(pdf: Path, pages: str | None = None) -> str:
     page_list = pdf_reading.parse_pages(pages, getattr(sc, "page_count", None) or None)
     t0 = time.monotonic()
     tables, err = pdf_reading.extract_tables(pdf, pages=page_list)
+    note = None
+    if err and err.startswith("skipped"):     # informational, not an error
+        note, err = err, None
     if err and not tables:
         return f"pdfdrill tables: {err}"
 
@@ -1674,12 +1677,14 @@ def cmd_tables(pdf: Path, pages: str | None = None) -> str:
     if not tables:
         return (f"No tables found by pdfplumber in {pdf.name}"
                 + (f" (pages {pages})" if page_list else "")
+                + (f" ({note})" if note else "")
                 + ". If a table is present but garbled, rasterize the page.")
     pages_with = sorted({t["page"] for t in tables})
     preview = pdf_reading.tables_to_markdown(tables[:2])
     return (f"Extracted {len(tables)} table(s) across page(s) {pages_with} "
             f"→ tables.json + tables.md + tables.html (span-aware; open the "
-            f"html for QA — headers render with their covered range). Preview:\n\n"
+            f"html for QA — headers render with their covered range)"
+            + (f". Note: {note}" if note else "") + f". Preview:\n\n"
             + preview)
 
 

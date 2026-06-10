@@ -187,40 +187,97 @@ def extract_images(pdf: Path, out_dir: Path, *, pages: Optional[list[int]] = Non
 # 5. Tables (pdfplumber)  — keyless, offline
 # ---------------------------------------------------------------------------
 
+def table_has_text(entry: dict[str, Any]) -> bool:
+    """A grid with fewer than two filled cells is a FIGURE FRAME the lattice
+    strategy mistook for a table (nested boxes in architecture diagrams,
+    possibly carrying one stray label), not a table."""
+    filled = sum(1 for c in entry.get("cells", [])
+                 if (c.get("text") or "").strip())
+    return filled >= 2
+
+
+def plausible_text_table(entry: dict[str, Any]) -> bool:
+    """Gate for the text-strategy fallback: it must LOOK like a table — at
+    least 3x3 and mostly filled — so a prose page never becomes a 70x1
+    'table' (the text strategy happily segments running text)."""
+    n_rows, n_cols = entry.get("n_rows", 0), entry.get("n_cols", 0)
+    if n_rows < 3 or n_cols < 3:
+        return False
+    cells = entry.get("cells", [])
+    filled = sum(1 for c in cells if (c.get("text") or "").strip())
+    return filled >= 0.4 * n_rows * n_cols
+
+
+# pdfplumber may collapse spaces ("Table2. Detailed…"), so \s* not \s+;
+# Tabelle covers German documents.
+_TABLE_CAPTION = re.compile(r"(?i)\btab(?:le|elle)\s*\d+\s*[.:]")
+_TEXT_STRATEGY = {"vertical_strategy": "text", "horizontal_strategy": "text"}
+
+
 def extract_tables(pdf: Path, *, pages: Optional[list[int]] = None
                    ) -> tuple[list[dict[str, Any]], Optional[str]]:
     """Extract tables with pdfplumber (`find_tables`, span-aware). Each table:
-    {page, index, rows (naive matrix, compat), n_rows, n_cols,
+    {page, index, rows (naive matrix, compat), n_rows, n_cols, strategy,
      cells:[{row,col,row_span,col_span,text,region},…],   # value ONCE at its
      columns:[…], header_rows}                            # anchor + its range
     A merged header keeps its covered range instead of '' placeholders;
-    `columns` are the flattened, linefeed-free header names per column."""
+    `columns` are the flattened, linefeed-free header names per column.
+
+    Two-strategy: the default LINES (lattice) pass first, dropping all-empty
+    grids (figure-frame artifacts); on a page with a "Table N." caption but no
+    usable lattice table (booktabs tables have no vertical rules), the TEXT
+    strategy is tried, accepted only via `plausible_text_table`. Skips are
+    reported in the second tuple element (informational, not an error)."""
     try:
         import pdfplumber
     except Exception:
         return [], "pdfplumber not installed (`pip install pdfplumber`)."
     from .table_structure import cells_from_plumber, column_headers, grid
+
+    def _entry(tbl, pageno: int, strategy: str) -> dict[str, Any]:
+        cells, n_rows, n_cols = cells_from_plumber(tbl)
+        entry: dict[str, Any] = {
+            "page": pageno, "index": 0,
+            "rows": grid(cells, n_rows, n_cols),
+            "n_rows": n_rows, "n_cols": n_cols, "strategy": strategy,
+        }
+        if cells:
+            columns, header_rows = column_headers(cells, n_cols)
+            entry.update(cells=cells, columns=columns, header_rows=header_rows)
+        return entry
+
     out: list[dict[str, Any]] = []
+    skipped_empty = 0
     try:
         with pdfplumber.open(str(pdf)) as doc:
             for pageno, page in enumerate(doc.pages, start=1):
                 if pages and pageno not in pages:
                     continue
-                for ti, tbl in enumerate(page.find_tables() or []):
-                    cells, n_rows, n_cols = cells_from_plumber(tbl)
-                    entry: dict[str, Any] = {
-                        "page": pageno, "index": ti,
-                        "rows": grid(cells, n_rows, n_cols),
-                        "n_rows": n_rows, "n_cols": n_cols,
-                    }
-                    if cells:
-                        columns, header_rows = column_headers(cells, n_cols)
-                        entry.update(cells=cells, columns=columns,
-                                     header_rows=header_rows)
-                    out.append(entry)
+                page_tables = []
+                for tbl in page.find_tables() or []:
+                    e = _entry(tbl, pageno, "lines")
+                    if table_has_text(e):
+                        page_tables.append(e)
+                    else:
+                        skipped_empty += 1
+                if not page_tables:
+                    # booktabs-style tables have no vertical rules; only try
+                    # the (noisy) text strategy where a caption says a table
+                    # is actually on this page.
+                    txt = page.extract_text() or ""
+                    if _TABLE_CAPTION.search(txt):
+                        for tbl in page.find_tables(_TEXT_STRATEGY) or []:
+                            e = _entry(tbl, pageno, "text")
+                            if plausible_text_table(e):
+                                page_tables.append(e)
+                for ti, e in enumerate(page_tables):
+                    e["index"] = ti
+                out.extend(page_tables)
     except Exception as e:
         return out, f"pdfplumber error: {e}"
-    return out, None
+    note = (f"skipped {skipped_empty} empty lattice grid(s) (figure-frame "
+            f"artifacts)" if skipped_empty else None)
+    return out, note
 
 
 def tables_to_markdown(tables: list[dict[str, Any]]) -> str:

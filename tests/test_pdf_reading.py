@@ -115,6 +115,38 @@ def test_extract_tables_span_aware_cells():
         assert t["header_rows"] >= 1
 
 
+def test_table_quality_filters():
+    """Artifact/junk gates for the keyless route: an all-empty lattice grid is
+    a figure frame, not a table; a text-strategy fallback table must look like
+    a real table (>=3x3, mostly filled) so prose never becomes a 70x1 'table'."""
+    empty = {"n_rows": 4, "n_cols": 4, "cells": [
+        {"row": r, "col": c, "row_span": 1, "col_span": 1, "text": ""}
+        for r in range(4) for c in range(4)]}
+    real = {"n_rows": 3, "n_cols": 3, "cells": [
+        {"row": r, "col": c, "row_span": 1, "col_span": 1, "text": f"v{r}{c}"}
+        for r in range(3) for c in range(3)]}
+    assert not pr.table_has_text(empty)
+    assert pr.table_has_text(real)
+    # a frame with ONE stray label is still a figure artifact, not a table
+    one_label = {"n_rows": 2, "n_cols": 2, "cells": [
+        {"row": 0, "col": 0, "row_span": 1, "col_span": 1, "text": "Mathematical"},
+        {"row": 1, "col": 0, "row_span": 1, "col_span": 1, "text": ""}]}
+    assert not pr.table_has_text(one_label)
+    # pdfplumber collapses spaces: "Table2." must still gate the fallback
+    assert pr._TABLE_CAPTION.search("Table2. DetailedPerformanceofVLMs")
+    assert pr._TABLE_CAPTION.search("Table 12: results")
+    assert not pr._TABLE_CAPTION.search("the table below shows")
+    # fallback plausibility: shape + fill ratio
+    assert pr.plausible_text_table(real)
+    one_col = {"n_rows": 70, "n_cols": 1, "cells": [
+        {"row": r, "col": 0, "row_span": 1, "col_span": 1, "text": "prose"}
+        for r in range(70)]}
+    assert not pr.plausible_text_table(one_col)          # p5 junk shape
+    sparse = {"n_rows": 5, "n_cols": 5, "cells": [
+        {"row": 0, "col": 0, "row_span": 1, "col_span": 1, "text": "x"}]}
+    assert not pr.plausible_text_table(sparse)           # mostly holes
+
+
 def test_tables_to_html_spans():
     tables = [{"page": 3, "index": 0, "n_rows": 2, "n_cols": 2,
                "rows": [["H", ""], ["a", "b"]],
@@ -156,6 +188,7 @@ if __name__ == "__main__":
     test_read_form_fields_no_form(); print("PASS form_fields_no_form")
     test_extract_tables_no_tables(); print("PASS tables_no_tables")
     test_extract_tables_span_aware_cells(); print("PASS tables_span_aware")
+    test_table_quality_filters(); print("PASS table_quality_filters")
     test_tables_to_html_spans(); print("PASS tables_to_html")
     test_rasterize_roundtrip(); print("PASS rasterize_roundtrip")
     test_list_attachments_none(); print("PASS attachments_none")
