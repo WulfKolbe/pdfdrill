@@ -41,6 +41,21 @@ It combines:
 > predecessor `docobject`). The on-disk model artifact is still suffixed
 > `.docmodel.json`.
 
+## The layer tower (L0–L8) — canonical docs in `docs/layers/`
+
+The whole toolchain is one stratified stack: **L0** container/pdfinfo → **L1**
+raster → **L2** glyph → **L3** word/line strings → **L4** layout regions
+(where splits originate) → **L5** typed DocObjects → **L6** expression syntax
+(math/tables/lists) → **L7** semantic graph (G1–G4 grounding sublayers) →
+**L8** ontology/theory. Index: `docs/layers/README.md`; the inter-layer
+semantics (support γ / abstraction α, the uniform node/support/edge schema,
+split recovery, level skipping, metrics): `docs/layers/TOWER.md`.
+
+**Parallel-work contract:** when working on layer N, edit only
+`docs/layers/L<N>-*.md` (plus code/tests); cross-layer semantics go to
+`TOWER.md`; do NOT duplicate layer documentation into this file — CLAUDE.md
+keeps operational instructions only.
+
 ## Running
 
 Everything runs in **Python 3** (no Bun/TypeScript on the live path — this was
