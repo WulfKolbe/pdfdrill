@@ -255,6 +255,22 @@ def test_latexbook_no_svg_skips_rendering():
         assert "<svg" not in report
 
 
+def test_chemistry_packages_injected_into_doc_preamble():
+    """An adopted \chemfig/\ce snippet must compile even when the DOCUMENT's
+    own preamble (from `pdfdrill latex`) doesn't load chemfig/mhchem — the
+    compiler injects the missing package."""
+    import shutil
+    from pdfdrill import svg as svgmod
+    if not svgmod.tools_available():
+        print("SKIP (latex/dvisvgm missing)"); return
+    doc_pre = ("\\documentclass[crop,border=2pt]{standalone}\n"
+               "\\usepackage{amsmath}\n\\usepackage{tikz}\n")
+    r1 = svgmod.compile_to_svg("\\chemfig{*6(-=-=-=)}", preamble=doc_pre)
+    assert r1.get("ok"), r1.get("error")
+    r2 = svgmod.compile_to_svg("\\ce{SO4^2-}", preamble=doc_pre)
+    assert r2.get("ok"), r2.get("error")
+
+
 if __name__ == "__main__":
     class _MP:
         def __init__(self): self._u = []

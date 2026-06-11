@@ -293,7 +293,10 @@ def cmd_doctor() -> str:
                     missing_pkgs.remove(p)
             missing_pkgs += ["dvisvgm", "texlive-latex-base", "texlive-latex-recommended",
                              "texlive-latex-extra", "texlive-pictures",
-                             "texlive-fonts-recommended", "texlive-science", "texlive-binaries"]
+                             "texlive-fonts-recommended", "texlive-science",
+                             # chemfig (texlive-pictures) inputs simplekv.tex,
+                             # which Debian/Ubuntu ship in texlive-plain-generic.
+                             "texlive-plain-generic", "texlive-binaries"]
         seen: list[str] = []
         for p in missing_pkgs:
             if p not in seen:
@@ -4015,21 +4018,40 @@ def cmd_vision(pdf: Path, limit: int | None = None, force: bool = False) -> str:
                        for k in ("caption", "title", "raw_text"))
         return bool(graph_kw.search(txt))
 
+    # An image whose caption/title names a molecule/compound/reaction (or a
+    # chemistry "Scheme N") is a drawn structure that reconstructs cleanly as
+    # chemfig — use the targeted chemistry prompt. Deliberately NOT matching
+    # bare "structure" (data structures!) or "formula" (math).
+    chem_kw = re.compile(
+        r"\b(molecul\w*|molekül\w*|compound|verbindung\w*|reaktion\w*|reaction"
+        r"|synthes\w*|reagent|reagenz\w*|catalyst|katalysator\w*|isomer\w*"
+        r"|ligand\w*|monomer\w*|polymer\w*|strukturformel\w*)\b"
+        r"|\bscheme\s+\d", re.I)
+
+    def _is_chem(o):
+        txt = " ".join(str((o.props or {}).get(k) or "")
+                       for k in ("caption", "title", "raw_text"))
+        return bool(chem_kw.search(txt))
+
     t0 = time.monotonic()
     processed = 0
     by_sel: Counter = Counter()
     errors = 0
     api_calls = 0
     graphs = 0
+    chems = 0
+    adopted = 0
     url_cache: dict[str, tuple] = {}   # the same crop can hang off >1 object
     for o, url in todo:
-        is_graph = _is_graph(o)
-        ckey = (url, is_graph)
+        is_chem = _is_chem(o)
+        is_graph = (not is_chem) and _is_graph(o)
+        ckey = (url, is_graph, is_chem)
         if ckey in url_cache:
             selector, code, res = url_cache[ckey]
         else:
             try:
-                prompt = (openai_vision.GRAPH_TIKZ_PROMPT if is_graph
+                prompt = (openai_vision.CHEM_STRUCTURE_PROMPT if is_chem
+                          else openai_vision.GRAPH_TIKZ_PROMPT if is_graph
                           else openai_vision.DEFAULT_PROMPT)
                 res = openai_vision.analyze_image(url, prompt=prompt)
             except _NetworkBlocked as nb:   # blocked host: abort the batch
@@ -4041,6 +4063,8 @@ def cmd_vision(pdf: Path, limit: int | None = None, force: bool = False) -> str:
             if is_graph:
                 graphs += 1
             selector, code = openai_vision.result_to_latex(res)
+            if is_chem and selector in ("chemical_structure", "chemical_equation"):
+                chems += 1
             url_cache[ckey] = (selector, code, res)
         if force:
             o.realizations = [r for r in o.realizations
@@ -4053,6 +4077,16 @@ def cmd_vision(pdf: Path, limit: int | None = None, force: bool = False) -> str:
                    "gnuplot": res.get("gnuplot", ""),
                    "csv_data": res.get("csv_data", "")},
         ))
+        # Chemistry bridge to the existing TikZ/table SVG route: a Diagram crop
+        # that MathPix left as an image has latex_code="" — adopt the chemfig /
+        # \ce code into latex_code (never overwriting MathPix/source LaTeX) so
+        # `pdfdrill svg` compiles it via latex->dvisvgm exactly like TikZ.
+        if (selector in ("chemical_structure", "chemical_equation") and code
+                and o.type in ("Diagram", "Table")
+                and not (o.props.get("latex_code") or "").strip()):
+            o.props["latex_code"] = code
+            o.props["latex_code_provenance"] = "openai"
+            adopted += 1
         processed += 1
         by_sel[selector or "?"] += 1
 
@@ -4073,11 +4107,15 @@ def cmd_vision(pdf: Path, limit: int | None = None, force: bool = False) -> str:
     err_s = f", {errors} error(s)" if errors else ""
     dedup_s = f" ({api_calls} GPT-4o calls; {processed - api_calls} reused across objects)" if processed > api_calls else ""
     graph_s = f" {graphs} graph/subgraph image(s) reconstructed as TikZ." if graphs else ""
+    chem_s = (f" {chems} chemistry image(s) reconstructed as chemfig/mhchem"
+              + (f"; {adopted} adopted into latex_code — run `pdfdrill svg "
+                 f"{pdf.name}` to render them via latex->dvisvgm."
+                 if adopted else ".")) if chems else ""
     remaining = len(targets) - processed if limit is None else max(0, len(targets) - len(todo))
     return (
         f"OpenAI vision: read {processed} CDN crop(s){dedup_s} ({sel_s}){err_s}; "
         f"{len(targets)} total crops in the model. Attached as the 'openai' "
-        f"provenance (selector + LaTeX/TikZ/table).{graph_s} "
+        f"provenance (selector + LaTeX/TikZ/table).{graph_s}{chem_s} "
         f"Run `pdfdrill compare {pdf.name}` to see the column."
         + (f" {remaining} crop(s) not yet read — raise --limit to continue."
            if (limit is not None and len(todo) >= limit and remaining > 0) else "")

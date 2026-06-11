@@ -36,6 +36,7 @@ _PAGE_TEMPLATE = """<!DOCTYPE html>
 <title>LaTeX vs MathPix image — {title}</title>
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@{kv}/dist/katex.min.css">
 <script defer src="https://cdn.jsdelivr.net/npm/katex@{kv}/dist/katex.min.js"></script>
+<script defer src="https://cdn.jsdelivr.net/npm/katex@{kv}/dist/contrib/mhchem.min.js"></script>
 <style>
   body {{ font: 14px/1.5 -apple-system, system-ui, sans-serif; margin: 2rem; color: #222; }}
   h1 {{ font-size: 1.2rem; }}

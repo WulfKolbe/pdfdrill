@@ -16,6 +16,7 @@ from __future__ import annotations
 
 import base64
 import json
+import re
 import urllib.error
 import urllib.request
 from typing import Any, Optional
@@ -30,10 +31,12 @@ DEFAULT_MODEL = "gpt-4o-2024-08-06"
 DEFAULT_PROMPT = """You are given a base64-encoded image crop that an OCR service could NOT resolve and left as a raw image. Identify what it contains and return a JSON object with this structure:
 
 {
-  "selector": "text|handwriting|table|math|commutative_diagram|gnuplot|tikzpicture|tensor|diagram|chart|photo|logo|empty",
+  "selector": "text|handwriting|table|math|chemical_equation|chemical_structure|commutative_diagram|gnuplot|tikzpicture|tensor|diagram|chart|photo|logo|empty",
   "text": "verbatim transcription of printed OR handwritten text",
   "table": "LaTeX tabular for a data table",
   "math": "LaTeX math expression",
+  "mhchem": "mhchem \\\\ce{...} expression for a chemical formula/equation",
+  "chemfig": "chemfig LaTeX code for a 2D molecular structure or reaction scheme",
   "commutative_diagram": "tikz-cd code",
   "gnuplot": "GnuPlot script reproducing a plot",
   "csv_data": "extracted plot data as CSV",
@@ -47,12 +50,16 @@ CLASSIFICATION RULES — fill ONLY the field named by selector.
 - "handwriting" - cursive or hand-printed writing. Transcribe your best reading into "text".
 - "table" - rows/columns of text or numbers. Fill "table" with a \\begin{tabular}...\\end{tabular} reproducing every visible cell, row by row.
 - "math" - a math expression. Fill "math" with LaTeX in $$ delimiters.
+- "chemical_equation" - a chemical formula, ion, isotope, or reaction equation written as TEXT on one line (e.g. 2H2 + O2 -> 2H2O, SO4^2-, ^{227}_{90}Th, CrO4^2- <=> Cr2O7^2-). Fill "mhchem" with one \\ce{...} expression using mhchem v4 syntax: digits become subscripts automatically, charges as ^2- / ^+, arrows as ->, <-, <=>, states as (s)/(aq)/(g), precipitate v, gas ^, reaction conditions above arrows as ->[\\text{...}].
+- "chemical_structure" - a DRAWN 2D molecular structure: skeletal/bond-line formula, ring system, Lewis structure, or a reaction scheme whose participants are drawn structures. Fill "chemfig" with chemfig code: bonds - = ~ and angle bonds like -[:30]; rings as *6(...) (e.g. benzene *6(-=-=-=)); branches in parentheses; charges as \\oplus/\\ominus or ^{+}/^{-} in atom labels; Lewis electron pairs via \\charge/\\Lewis. For a multi-structure reaction scheme wrap the whole thing in \\schemestart ... \\schemestop and connect structures with \\arrow (reagents above the arrow as \\arrow{->[reagent]}). Output only body code (no preamble, no \\documentclass).
 - "commutative_diagram" - fill "commutative_diagram" with tikz-cd code.
 - "gnuplot" - a data plot: fill "csv_data" with every readable data point (CSV, header row, x in column 1) AND "gnuplot" with a complete self-contained script reading 'data.csv'.
 - "tikzpicture" - general TikZ-style line drawing. Fill "tikzpicture".
 - "tensor" - tensor network diagram. Fill "tensor".
 - "diagram" / "chart" / "photo" / "logo" - a picture with no transcribable text. Fill "description".
 - "empty" - ONLY for a genuinely blank/featureless area.
+
+CHEMISTRY DISAMBIGUATION: element symbols with stoichiometric subscripts, charges, or reaction arrows = "chemical_equation" (NOT "math"); any drawing with bond lines, rings, or wedge/dash bonds = "chemical_structure" (NOT "diagram" or "tikzpicture"). A subscripted variable like x_2 with no element symbols stays "math".
 
 IMPORTANT: faint, low-contrast, light-grey, or cursive content is NOT empty. If you can perceive ANY strokes, glyphs, lines, or marks, classify and extract them (use "handwriting" or "text" for writing, "diagram" otherwise). Reserve "empty" for a truly blank crop.
 
@@ -68,6 +75,17 @@ GRAPH_TIKZ_PROMPT = """This image is a GRAPH or SUBGRAPH diagram (vertices and e
 - transcribe any vertex/edge labels you can read.
 Return a JSON object: {"selector":"tikzpicture","tikzpicture":"\\\\begin{tikzpicture} ... \\\\end{tikzpicture}"} with ONLY the tikzpicture field filled. No markdown fences, no explanation."""
 
+# Targeted prompt for images whose caption/context names a molecule/compound/
+# reaction — drawn structures reconstruct cleanly as chemfig (see cmd_vision,
+# which selects this prompt when the owning object's caption matches).
+CHEM_STRUCTURE_PROMPT = """This image is a CHEMICAL STRUCTURE or REACTION SCHEME that OCR could not resolve. Reconstruct it as faithful chemfig LaTeX code:
+- skeletal/bond-line formulas with chemfig bond syntax (- single, = double, ~ triple, angled bonds -[:30], branches in parentheses);
+- ring systems with the *n(...) ring syntax (benzene: *6(-=-=-=), fused rings by chaining);
+- preserve every heteroatom, charge (\\oplus / ^{+}), wedge/dash stereo bonds (< / <:), and substituent label exactly as drawn;
+- if the image is a reaction scheme with several drawn structures, wrap everything in \\schemestart ... \\schemestop and connect the structures with \\arrow, placing reagents/conditions above the arrow as \\arrow{->[\\chemname{}{reagent}]} or ->[text];
+- if instead the content is only a line formula / reaction EQUATION in plain text (no drawn bonds), return selector "chemical_equation" with an mhchem \\ce{...} expression in "mhchem".
+Return a JSON object: {"selector":"chemical_structure","chemfig":"\\\\chemfig{...}"} (or the chemical_equation/mhchem pair) with ONLY that field filled. Body code only — no preamble. No markdown fences, no explanation."""
+
 # json_schema enforcing the response shape.
 _SCHEMA = {
     "name": "img_repl",
@@ -79,6 +97,8 @@ _SCHEMA = {
             "text": {"type": "string"},
             "table": {"type": "string"},
             "math": {"type": "string"},
+            "mhchem": {"type": "string"},
+            "chemfig": {"type": "string"},
             "commutative_diagram": {"type": "string"},
             "gnuplot": {"type": "string"},
             "csv_data": {"type": "string"},
@@ -165,6 +185,8 @@ _FIELD_BY_SELECTOR = {
     "handwriting": "text",
     "table": "table",
     "math": "math",
+    "chemical_equation": "mhchem",
+    "chemical_structure": "chemfig",
     "commutative_diagram": "commutative_diagram",
     "tikzpicture": "tikzpicture",
     "tensor": "tensor",
@@ -176,15 +198,64 @@ _FIELD_BY_SELECTOR = {
 }
 
 
+_MD_FENCE_RE = re.compile(r"^\s*(?:```|~~~)[^\n]*\n?|\n?(?:```|~~~)\s*$")
+
+
+def _strip_fences(code: str) -> str:
+    """Drop markdown code fences the model sometimes adds despite instructions."""
+    return _MD_FENCE_RE.sub("", code).strip()
+
+
+def _normalize_mhchem(code: str) -> str:
+    """Normalize a chemical_equation result to a bare ``\\ce{...}`` expression.
+
+    The model may return ``$\\ce{...}$``, ``\\ce{...}``, or the raw formula
+    (``2H2 + O2 -> 2H2O``). Strip math delimiters; wrap in ``\\ce{}`` when the
+    command is missing — mhchem's \\ce works in text and math mode alike, so
+    the bare command compiles directly in the standalone SVG snippet AND
+    renders in KaTeX (mhchem extension) when wrapped by the report pages.
+    """
+    code = _strip_fences(code).strip("$").strip()
+    if not code:
+        return ""
+    if "\\ce{" in code or "\\ce {" in code:
+        return code
+    return "\\ce{" + code + "}"
+
+
+def _normalize_chemfig(code: str) -> str:
+    """Normalize a chemical_structure result to compilable chemfig body code.
+
+    Accepts ``\\chemfig{...}``, a ``\\schemestart``/``chemfig`` reaction-scheme
+    block, or a bare bond spec (``H_3C-CH_2-OH``) which gets wrapped in
+    ``\\chemfig{}``. Output is body-only LaTeX, ready for the standalone
+    latex->dvisvgm route (the preamble loads the chemfig package).
+    """
+    code = _strip_fences(code).strip("$").strip()
+    if not code:
+        return ""
+    if ("\\chemfig" in code or "\\schemestart" in code
+            or "\\begin{chemfig}" in code):
+        return code
+    return "\\chemfig{" + code + "}"
+
+
 def result_to_latex(result: dict[str, Any]) -> tuple[str, str]:
     """Return (selector, latex_or_code) from a vision result.
 
     For math the surrounding ``$$`` are stripped (the model stores bare LaTeX).
     For gnuplot the script is returned (csv_data stays on the raw result).
+    chemical_equation is normalized to a bare ``\\ce{...}`` (mhchem) and
+    chemical_structure to ``\\chemfig{...}``/``\\schemestart...`` body code, so
+    both are directly compilable by the TikZ/table SVG route (svg.py).
     """
     selector = (result.get("selector") or "").strip()
     field = _FIELD_BY_SELECTOR.get(selector)
     code = (result.get(field) or "").strip() if field else ""
     if selector == "math":
         code = code.strip("$").strip()
+    elif selector == "chemical_equation":
+        code = _normalize_mhchem(code)
+    elif selector == "chemical_structure":
+        code = _normalize_chemfig(code)
     return selector, code

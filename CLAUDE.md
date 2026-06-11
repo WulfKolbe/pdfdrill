@@ -1514,6 +1514,22 @@ OpenAI GPT-4o vision provenance (`src/pdfdrill/openai_vision.py`,
   drawings reconstruct cleanly as TikZ. Verified on arXiv 2004.05631: the p11
   "subgraph in red is complete bipartite" diagram → a bipartite `tikzpicture`
   with the red complete-bipartite subgraph emphasized.
+- **Chemistry images → chemfig/mhchem** (integrated from a downstream
+  Claude.ai patch). New selectors `chemical_equation` (→ a normalized bare
+  `\ce{…}`, mhchem v4) and `chemical_structure` (drawn 2D molecule/reaction
+  scheme → chemfig / `\schemestart` body code); a caption naming a molecule/
+  compound/reaction/`Scheme N` routes to `CHEM_STRUCTURE_PROMPT` (deliberately
+  NOT matching bare "structure"/"formula"). The result is **adopted into an
+  empty `latex_code`** (`latex_code_provenance="openai"`, never overwriting
+  MathPix/source LaTeX) so `pdfdrill svg` compiles it via latex→dvisvgm like
+  TikZ; `svg.is_latex_graphic` accepts `\chemfig|\schemestart|\ce`, the default
+  preamble loads chemfig+mhchem, and **compile_to_svg injects the packages into
+  a document-derived preamble that lacks them**. KaTeX mhchem extension added
+  to compare.html; `doctor` hints `texlive-plain-generic` (chemfig needs
+  simplekv.tex). Compile-proven: benzene ring, ethanol bond spec, `\ce`
+  reaction, `\schemestart` scheme → 4/4 SVGs. Tests: `tests/test_vision.py`
+  (normalizers + chem-prompt routing + latex_code adoption),
+  `tests/test_svg.py` (preamble injection).
 - Ported from the predecessor `~/MX/mathpix_images` (llmUtils.js/imagetester.js
   + prompt.txt). Stdlib `urllib` (no `openai` package). Key from
   `OPENAI_API_KEY` (env/.env), **never hardcoded**; `--limit` caps calls (a doc

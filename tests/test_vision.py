@@ -39,6 +39,39 @@ def test_result_to_latex_mapping():
     assert openai_vision.result_to_latex({"selector": "logo", "description": "Deutsche Post posthorn"})[0] == "logo"
 
 
+def test_result_to_latex_chemistry_normalization():
+    # chemical_equation: bare formula gets wrapped in \ce{}, $-delimiters and
+    # markdown fences stripped, existing \ce kept untouched.
+    assert openai_vision.result_to_latex(
+        {"selector": "chemical_equation", "mhchem": "2H2 + O2 -> 2H2O"}
+    ) == ("chemical_equation", "\\ce{2H2 + O2 -> 2H2O}")
+    assert openai_vision.result_to_latex(
+        {"selector": "chemical_equation", "mhchem": "$\\ce{SO4^2-}$"}
+    ) == ("chemical_equation", "\\ce{SO4^2-}")
+    assert openai_vision.result_to_latex(
+        {"selector": "chemical_equation", "mhchem": "```latex\n\\ce{CO2}\n```"}
+    ) == ("chemical_equation", "\\ce{CO2}")
+    # chemical_structure: bare bond spec gets wrapped in \chemfig{}; existing
+    # \chemfig / \schemestart blocks pass through.
+    assert openai_vision.result_to_latex(
+        {"selector": "chemical_structure", "chemfig": "H_3C-CH_2-OH"}
+    ) == ("chemical_structure", "\\chemfig{H_3C-CH_2-OH}")
+    benzene = "\\chemfig{*6(-=-=-=)}"
+    assert openai_vision.result_to_latex(
+        {"selector": "chemical_structure", "chemfig": benzene}
+    ) == ("chemical_structure", benzene)
+    scheme = "\\schemestart \\chemfig{A} \\arrow{->[cat.]} \\chemfig{B} \\schemestop"
+    assert openai_vision.result_to_latex(
+        {"selector": "chemical_structure", "chemfig": scheme}
+    )[1] == scheme
+    # Both normalized forms must pass the SVG-route renderability guard.
+    from pdfdrill import svg as svgmod
+    for sel, payload in ((("chemical_structure", "chemfig"), "*6(-=-=-=)"),
+                         (("chemical_equation", "mhchem"), "2H2 + O2 -> 2H2O")):
+        _s, code = openai_vision.result_to_latex({"selector": sel[0], sel[1]: payload})
+        assert svgmod.is_latex_graphic(code), code
+
+
 def _doc():
     doc = Document()
     doc.add(DocObject(type="Equation", props={"cdn_url": _CDN, "latex": "x"}))
@@ -148,6 +181,49 @@ def test_cmd_vision_uses_graph_prompt_for_subgraph_caption(monkeypatch):
         assert seen[_CDN] == openai_vision.DEFAULT_PROMPT            # non-graph -> default
 
 
+def test_cmd_vision_chem_prompt_and_latex_code_adoption(monkeypatch):
+    """A crop whose owning Diagram's caption names a molecule/reaction gets the
+    chemfig-reconstruction prompt; the chemfig result is adopted into the
+    Diagram's empty latex_code so `pdfdrill svg` renders it like TikZ."""
+    monkeypatch.setattr(openai_vision, "available", lambda: True)
+    seen = {}
+    benzene = "\\chemfig{*6(-=-=-=)}"
+
+    def fake_analyze(url, **kw):
+        seen[url] = kw.get("prompt", "")
+        if openai_vision.CHEM_STRUCTURE_PROMPT in seen[url]:
+            return {"selector": "chemical_structure", "chemfig": benzene,
+                    "gnuplot": "", "csv_data": ""}
+        return {"selector": "math", "math": "$$a$$", "gnuplot": "", "csv_data": ""}
+
+    monkeypatch.setattr(openai_vision, "analyze_image", fake_analyze)
+    with tempfile.TemporaryDirectory() as d:
+        pdf = Path(d) / "doc.pdf"
+        pdf.write_bytes(b"%PDF-1.4\n")
+        doc = Document()
+        c = _CDN.replace("-20", "-12")
+        doc.add(DocObject(type="Diagram", props={
+            "cdn_url": c, "latex_code": "",
+            "caption": "Scheme 2: synthesis of the target compound."}))
+        doc.add(DocObject(type="Equation", props={"cdn_url": _CDN, "latex": "x"}))
+        sc = Sidecar(pdf); sc.blob_dir.mkdir(parents=True, exist_ok=True)
+        (sc.blob_dir / "model.docmodel.json").write_text(json.dumps(doc.to_dict()))
+        sc.add_fact(MODEL_BUILT); sc.save()
+        out = cmd_vision(pdf)
+        assert "chemistry image(s) reconstructed as chemfig/mhchem" in out
+        assert "adopted into latex_code" in out
+        assert openai_vision.CHEM_STRUCTURE_PROMPT in seen[c]   # chem -> chem prompt
+        assert seen[_CDN] == openai_vision.DEFAULT_PROMPT       # equation -> default
+        model = json.loads((Path(d) / "doc.pdf.drill" / "model.docmodel.json").read_text())
+        objs = model["objects"] if isinstance(model["objects"], list) else list(model["objects"].values())
+        diag = next(o for o in objs if o["type"] == "Diagram")
+        assert diag["props"]["latex_code"] == benzene
+        assert diag["props"]["latex_code_provenance"] == "openai"
+        # The adopted code passes the SVG renderability guard (chemfig route).
+        from pdfdrill import svg as svgmod
+        assert svgmod.is_latex_graphic(diag["props"]["latex_code"])
+
+
 def test_cmd_vision_graceful_without_key(monkeypatch):
     monkeypatch.setattr(openai_vision, "available", lambda: False)
     with tempfile.TemporaryDirectory() as d:
@@ -164,8 +240,11 @@ if __name__ == "__main__":
         def undo(self):
             for o, n, v in reversed(self._u): setattr(o, n, v)
             self._u = []
-    plain = [test_result_to_latex_mapping, test_collect_cdn_crops_finds_embedded_table_crop]
+    plain = [test_result_to_latex_mapping, test_result_to_latex_chemistry_normalization,
+             test_collect_cdn_crops_finds_embedded_table_crop]
     mpd = [test_cmd_vision_attaches_openai_provenance, test_cmd_vision_limit,
+           test_cmd_vision_uses_graph_prompt_for_subgraph_caption,
+           test_cmd_vision_chem_prompt_and_latex_code_adoption,
            test_cmd_vision_graceful_without_key]
     for fn in plain:
         fn(); print(f"PASS {fn.__name__}")

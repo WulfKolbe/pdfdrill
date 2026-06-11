@@ -13,6 +13,7 @@ The *internal* structure of non-prose L5 objects.
 | List | recursive nesting tree (marker families, indent levels, geometry re-split) | `blocks.py` |
 | Citation/Reference | citekeys, resolved BibTeX fields | `bibliography.py`, `reference_detector.py`, gold `.bbl`/`.bib` ingest |
 | Sentence (prose) | dependency graphs, entities | Stanza via `docops/nlp_stanza.py` |
+| Chemistry | `chemical_equation` → mhchem `\ce{…}`; `chemical_structure` (drawn 2D molecule / reaction scheme) → chemfig / `\schemestart` body code; vision-adopted into empty `latex_code` (provenance `openai`, never overwriting MathPix/source LaTeX) and compiled by the same latex→dvisvgm route (packages auto-injected into doc preambles) | `openai_vision.py` (selectors + normalizers + `CHEM_STRUCTURE_PROMPT`), `commands.cmd_vision` (caption-keyword routing), `svg.py` |
 
 ## The verification loop (L6↔L1)
 

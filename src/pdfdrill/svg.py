@@ -24,6 +24,8 @@ _DEFAULT_PREAMBLE = (
     "\\usepackage{tikz}\n"
     "\\usetikzlibrary{calc,positioning,arrows.meta,shapes,decorations.pathreplacing}\n"
     "\\usepackage{array,booktabs,multirow,multicol}\n"
+    "\\usepackage{chemfig}\n"
+    "\\usepackage[version=4]{mhchem}\n"
 )
 
 
@@ -43,6 +45,11 @@ _HAS_LATEX_GFX = re.compile(
     r"\\begin\{(?:tikzpicture|tikzcd|circuitikz|forest|tabular\*?|tabularx"
     r"|longtable|pgfpicture|scope|qcircuit|chemfig)\}"
     r"|\\tikz\b"
+    # Chemistry commands (vision 'chemical_structure'/'chemical_equation'
+    # results arrive as bare \chemfig{...} / \schemestart blocks / \ce{...},
+    # not as environments). \ce works in text mode, so the standalone snippet
+    # compiles as-is with the mhchem package in the preamble.
+    r"|\\(?:chemfig|schemestart|ce)\b"
     r"|\\(draw|node|fill|filldraw|shade|shadedraw|path|clip|coordinate"
     r"|foreach|pic|pgf[A-Za-z]*)\b")
 
@@ -93,6 +100,13 @@ def compile_to_svg(latex_code: str, preamble: str | None = None,
     # passed without them.
     if "\\documentclass" not in pre:
         pre = _DEFAULT_PREAMBLE
+    # Chemistry code (vision-adopted \chemfig/\schemestart/\ce) may arrive with
+    # a DOCUMENT-derived preamble that doesn't load chemfig/mhchem — inject the
+    # missing package so the snippet compiles.
+    if re.search(r"\\(?:chemfig|schemestart)\b", latex_code) and "chemfig" not in pre:
+        pre += "\\usepackage{chemfig}\n"
+    if re.search(r"\\ce\b", latex_code) and "mhchem" not in pre:
+        pre += "\\usepackage[version=4]{mhchem}\n"
     src = f"{pre}\\begin{{document}}\n{latex_code}\n\\end{{document}}\n"
 
     # Let latex find the project's local .sty files (style/, the dir itself).
