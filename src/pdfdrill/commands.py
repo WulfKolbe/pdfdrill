@@ -381,6 +381,71 @@ def _load_or_build_continuity(pdf: Path, sc: "Sidecar", force: bool = False,
     return data, None
 
 
+def cmd_pageside(pdf: Path) -> str:
+    """Classify each page as recto (right) / verso (left) book page.
+
+    Column indices are LAYOUT positions, not semantic roles — on a book with
+    marginal side notes their meaning flips with the page side (verso: col 0 =
+    side notes; recto: col 0 = body). Three per-page signals (printed page-
+    number parity incl. roman numerals, page-number x-position on the OUTER
+    edge, narrow-side-note-column asymmetry) fused by confidence-weighted
+    vote, then the sequence-alternation post-pass (book pages alternate).
+    Attaches `page_side`/`page_side_confidence` to each model `Page`.
+    """
+    from . import rectoverso
+
+    sc = Sidecar(pdf)
+    lines_path = _lines_json_path(pdf)
+    if not lines_path.exists():
+        return (f"No {lines_path.name} — run `pdfdrill mathpix {pdf.name}` "
+                f"(or the keyless `pdfdrill ocr {pdf.name}`) first.")
+    t0 = time.monotonic()
+    results = rectoverso.apply_alternation(
+        rectoverso.classify_lines_json(str(lines_path)))
+    sides = [{"page": i, "side": r.side, "confidence": r.confidence,
+              "signals": r.evidence.get("signals", {})}
+             for i, r in enumerate(results, start=1)]
+    sc.set_evidence("page_sides", sides)
+
+    # Attach to the model's Page objects, if built (continuity pattern).
+    model_path = _model_path(sc)
+    annotated = 0
+    model_exists = model_path.exists()
+    if model_exists:
+        from docmodel.core import Document
+        doc = Document.from_dict(json.loads(model_path.read_text(encoding="utf-8")))
+        pages = {p.props.get("page_number"): p for p in doc.objects_of_type("Page")}
+        for i, r in enumerate(results, start=1):
+            pg = pages.get(i)
+            if pg is not None and r.side:
+                pg.props["page_side"] = r.side
+                pg.props["page_side_confidence"] = r.confidence
+                annotated += 1
+        model_path.write_text(json.dumps(doc.to_dict(), indent=2, ensure_ascii=False),
+                              encoding="utf-8")
+    sc.save()
+
+    n = len(results)
+    known = [r for r in results if r.side]
+    rectos = sum(1 for r in known if r.side == "recto")
+    by_sig = {}
+    for r in known:
+        for k in r.evidence.get("signals", {}):
+            by_sig[k] = by_sig.get(k, 0) + 1
+    sig_s = ", ".join(f"{k}:{v}" for k, v in sorted(by_sig.items()))
+    mean_conf = sum(r.confidence for r in known) / len(known) if known else 0.0
+    return (f"Page sides for {n} page(s): {rectos} recto / {len(known) - rectos} "
+            f"verso ({n - len(known)} unknown), mean confidence {mean_conf:.2f} "
+            f"(signals: {sig_s}). "
+            + (f"Attached page_side to {annotated} model Page(s). " if annotated
+               else ("Model present, nothing to attach (no page got a side). "
+                     if model_exists else
+                     "No model built yet — sides stored in the sidecar; `pdfdrill "
+                     "model` then re-run to annotate Pages. "))
+            + "Use it to map column 0/1 to body vs side note per page "
+              "({:.0f} ms).".format((time.monotonic() - t0) * 1000))
+
+
 def cmd_continuity(pdf: Path, force: bool = False, ppi: int = 250,
                    lang: str = "deu+eng") -> str:
     """Recover page-continuity markers from the page MARGINS via full-page OCR.

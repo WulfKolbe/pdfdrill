@@ -18,6 +18,7 @@ for types text/math/table/column/…, fused with L3 geometry via
 | `src/semantic/geometry_columns.py` | `MarginRole`: continuity, page_number, control_number, label, marginal | **source-independent** — works on MathPix and tesseract regions alike; `body_column` from the wide body lines, `out_of_column` non-overlap test |
 | `src/semantic/blocks.py` | `BlockRole`: header/footer/body/table/signature/stamp/handwritten | content cues beat position (franking→stamp, HRB/USt-ID→footer, "Herrn …"→body recipient) |
 | `src/pdfdrill/continuity.py` | margin markers | full-page margin OCR for "Seite N von M" / "Fortsetzung" / control numbers — explicitly OUTSIDE the MathPix content crop |
+| `src/pdfdrill/rectoverso.py` (`pdfdrill pageside`) | `page_side`: recto/verso | column indices are LAYOUT positions whose meaning flips with the book page side (verso: col 0 = side notes; recto: col 0 = body). Page-number parity (incl. roman) + outer-edge number position + narrow-column asymmetry, fused; sequence-alternation post-pass (abstains without anchors). Annotates model `Page`s; the planned front/back-of-scan annotation reuses this fusion shape |
 
 ## Learned elements + image fusion
 

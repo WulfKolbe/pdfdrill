@@ -56,6 +56,7 @@ def main():
         "mathpix": _do_mathpix,
         "ocr": _do_ocr,
         "continuity": _do_continuity,
+        "pageside": _do_pageside,
         "entities": _do_entities,
         "segment": _do_segment,
         "elements": _do_elements,
@@ -402,6 +403,12 @@ def _do_tables(args):
     from .commands import cmd_tables
     pages, args = _opt(args, "--pages")
     return cmd_tables(_pdf(args), pages=pages)
+
+
+def _do_pageside(args):
+    """pdfdrill pageside <pdf>"""
+    from .commands import cmd_pageside
+    return cmd_pageside(_pdf(args))
 
 
 def _do_continuity(args):
@@ -978,6 +985,7 @@ Introspection (fast, no extraction):
   pdfdrill mathpix <pdf>       Download MathPix OCR (lines.json, md, tex.zip); --force re-uploads
   pdfdrill ocr <pdf>           MathPix-free OCR: tesseract → MathPix-compatible lines.json (--lang eng+equ, --ppi N). Plain text only (no LaTeX/CDN)
   pdfdrill continuity <pdf>    Full-page OCR of the MARGINS → page-sequence markers (Seite N von M / Fortsetzung) MathPix's content crop drops; attaches seq to Page objects
+  pdfdrill pageside <pdf>     Classify each page recto/verso (book left/right) from page-number parity+position + side-note column asymmetry + sequence alternation; attaches page_side to model Pages (column roles flip with the side)
   pdfdrill entities <pdf>      Commercial entities per page: IBAN (mod-97 validated + BLZ/Konto/bank), BIC, German address, Steuer-/Kassen-/Aktenzeichen. Zero external tools
   pdfdrill segment <pdf>       Partition a scanned bundle into ordered documents (by sender/identifier + continuity number); flags duplicate copies
   pdfdrill elements <pdf>      Find layout elements (postal address / BOM line) via the geometric-attention GNN over tesseract word boxes → content-addressed tiddlers (--model M.npz)

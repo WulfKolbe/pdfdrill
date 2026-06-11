@@ -210,6 +210,27 @@ Target LLM flow: `continuity` → `segment` → `entities`, answering the triage
 task from prose. Tests: `tests/test_continuity.py`, `tests/test_entities.py`,
 `tests/test_segment.py`.
 
+## Recto/verso page sides (`pdfdrill pageside` — book left/right annotation)
+
+Column indices in OCR output are LAYOUT positions, not semantic roles: on a
+book with marginal side notes, **verso (left) page: col 0 = side notes / col 1
+= body; recto (right): col 0 = body / col 1 = side notes** — so footnote/
+side-note search needs the page side first. `src/pdfdrill/rectoverso.py`
+(vendored from the user's prototype, extended) fuses three per-page signals by
+confidence-weighted vote — printed page-number PARITY (odd=recto; roman
+front-matter numerals parsed too), page-number X POSITION (numbers sit on the
+OUTER edge), narrow-side-note-COLUMN asymmetry — plus the **sequence-
+alternation post-pass** (book pages alternate; the best-supported phase fills
+abstaining pages and overrules isolated weak contradictions, visibly:
+`signals["alternation"]`, original kept as `before_alternation`). **Abstains
+honestly without anchors** — a slide deck gets 21×unknown, never invented
+sides. `pdfdrill pageside <pdf>` classifies from the lines.json and attaches
+`page_side`/`page_side_confidence` to each model `Page` (continuity pattern).
+Verified: the 2004.05631 thesis → 135/135 pages sided, strictly alternating,
+mean conf 0.80 (115 position / 56 parity / 62 column votes, 19
+alternation-filled). A sibling FRONT/BACK annotation for scanned duplex is
+planned on the same fusion shape. Tests: `tests/test_rectoverso.py` (10).
+
 ## PDF-reading parity (`rasterize`/`attachments`/`formfields`/`extractimages`/`tables`)
 
 Parity with the Claude.ai **`pdf-reading` skill** (its `SKILL.md` lives in the
