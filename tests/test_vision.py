@@ -51,6 +51,11 @@ def test_result_to_latex_chemistry_normalization():
     assert openai_vision.result_to_latex(
         {"selector": "chemical_equation", "mhchem": "```latex\n\\ce{CO2}\n```"}
     ) == ("chemical_equation", "\\ce{CO2}")
+    # \textDelta (textgreek, NOT in the SVG preamble) is a common GPT output
+    # for the heat symbol over a reaction arrow -> normalize to math-mode \Delta.
+    assert openai_vision.result_to_latex(
+        {"selector": "chemical_equation", "mhchem": "\\ce{->[\\text{\\textDelta}]}"}
+    ) == ("chemical_equation", "\\ce{->[$\\Delta$]}")
     # chemical_structure: bare bond spec gets wrapped in \chemfig{}; existing
     # \chemfig / \schemestart blocks pass through.
     assert openai_vision.result_to_latex(

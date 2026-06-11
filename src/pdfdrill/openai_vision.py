@@ -218,6 +218,10 @@ def _normalize_mhchem(code: str) -> str:
     code = _strip_fences(code).strip("$").strip()
     if not code:
         return ""
+    # The model often writes the heat symbol over a reaction arrow as
+    # \textDelta (textgreek package, NOT in the SVG preamble); math-mode
+    # \Delta compiles everywhere mhchem does.
+    code = re.sub(r"\\text\{\\textDelta\}|\\textDelta\b", r"$\\Delta$", code)
     if "\\ce{" in code or "\\ce {" in code:
         return code
     return "\\ce{" + code + "}"
