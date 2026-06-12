@@ -852,6 +852,18 @@ package). Tests: `tests/test_scikgtex.py` (macros + lualatex compile + XMP RDF
 checks, gated). **Out of scope (v2):** an LLM contribution classifier; direct
 pikepdf XMP embedding without LaTeX; serializing the occurrence graph into XMP.
 
+**Bundles / observations / gaps (the sheaf-plan items, 2026-06-12).**
+`semantic/bundles.py` (per-entity global section, DERIVED — never stored back),
+the G4 view's new `observation` + `bundle`/`bundle_member` tables
+(`load_view(graph, bundles=…)`; Observation = the existing Evidence row, no new
+primitive), and **`pdfdrill gaps <pdf|md>`** (`semantic/gaps.py`) — missing-
+information diagnostics: acronym_undefined / symbol_undefined /
+claim_unsupported / citation_unmatched (trusts `cited_reference_id` from the
+linkers). Producer half: `concepts.undefined_concept_uses`. Verified: thesis →
+exactly bibsource's 7 unlinked; yt2tw summary → 4 undeclared greek symbols.
+Restriction maps deferred by decision. Details: `docs/layers/L7-semantic-graph.md`.
+Tests: `tests/test_semantic_gaps.py`, `tests/test_bundles.py`.
+
 **Still deferred (roadmap):** index from LaTeX `\index{}` source (rendered-index
 OCR is unreliable); graph→linked-Tiddler projection; the reasoning-flow /
 abstraction layers.

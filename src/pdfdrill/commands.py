@@ -2078,6 +2078,31 @@ def cmd_folder(folder: Path, force: bool = False) -> str:
     return head + "\n" + "\n".join(lines_out)
 
 
+def cmd_gaps(pdf: Path) -> str:
+    """Detect MISSING information — "cohomology as a linter".
+
+    Where `semantic`'s compiler validates what IS there, this reports what is
+    NOT: acronyms used but never expanded, greek symbols in math with no
+    notation entry, novelty claims without a citation, in-text citations that
+    resolve to no bibliography entry. Diagnostics with locations, never
+    exceptions. Works on any built model (PDF, markdown, latexbook).
+    """
+    from docmodel.core import Document
+    from semantic import gaps as _gaps
+
+    sc = Sidecar(pdf)
+    model_path = _model_path(sc)
+    if not model_path.exists():
+        return (f"No model for {pdf.name} — run `pdfdrill model` (PDF) or "
+                f"`pdfdrill markdown` (.md) first.")
+    doc = Document.from_dict(json.loads(model_path.read_text(encoding="utf-8")))
+    found = _gaps.detect_gaps(doc)
+    sc.set_evidence("gaps", [{k: g[k] for k in ("kind", "severity", "name", "detail")}
+                             for g in found])
+    sc.save()
+    return _gaps.report(found)
+
+
 def cmd_markdown(md: Path, bibkey: str | None = None, force: bool = False) -> str:
     """Build a source-only model from a Markdown file (the yt2tw route).
 

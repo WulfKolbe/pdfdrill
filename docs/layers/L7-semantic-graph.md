@@ -65,6 +65,29 @@ N `role=reference` occurrences, dual-positioned via G3.
 - `DERIVED_FROM` acyclicity (provenance is a DAG);
 - functional-relation contradiction flags (two issuers).
 
+## Bundles, observations, gaps (the sheaf-plan adoption, 2026-06-12)
+
+- **`semantic/bundles.py`** — the per-entity GLOBAL SECTION: `bundle(graph,
+  id)` assembles `{canonical, aliases, mentions (G3, doc order, dual-
+  positioned), claims (evidence rows + provenance), linked (per predicate),
+  consistent}`. **Derived, never a second writable store** (a stored bundle
+  is a cached join that drifts). `all_bundles(graph)` feeds the projections.
+- **Observation = Evidence** (decision record): "pass X asserted Y about node
+  Z" is the existing `Evidence` row; the G4 view now materializes it as an
+  indexed **`observation` table** (one row per evidence record) plus
+  **`bundle`/`bundle_member` tables** via `load_view(graph, bundles=…)` — a
+  query hit on any alias surfaces the whole bundle. No new primitive.
+- **`semantic/gaps.py`** (`pdfdrill gaps <pdf|md>`) — "cohomology as a
+  linter": where the compiler validates what IS there, this reports what is
+  MISSING, as diagnostics with locations: `acronym_undefined` (used ≥2×,
+  never expanded — producer half: `concepts.undefined_concept_uses`),
+  `symbol_undefined` (greek in display math, no notation entry),
+  `claim_unsupported` (novelty sentence without citation),
+  `citation_unmatched` (trusts the linkers' `cited_reference_id` first).
+  Eyeballed per the acceptance test: the thesis reports exactly bibsource's
+  7 unlinked citations; restriction maps stay deferred until real gap output
+  motivates their semantics.
+
 ## Producers (α into this level)
 
 `build.ingest_document` (commercial: sender/IBAN/BIC/address evidence),

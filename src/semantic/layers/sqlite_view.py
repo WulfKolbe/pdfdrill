@@ -17,7 +17,7 @@ from __future__ import annotations
 
 import json
 import sqlite3
-from typing import Any
+from typing import Any, Optional
 
 _SCHEMA = """
 CREATE TABLE node (id TEXT PRIMARY KEY, type TEXT, subtype TEXT, props TEXT);
@@ -27,14 +27,30 @@ CREATE TABLE edge (
     pdf_page INTEGER, bbox TEXT, logical_path TEXT,
     confidence REAL, produced_by TEXT, grounding TEXT
 );
+-- "pass X asserted Y about node Z": one row per Evidence record. NOT a new
+-- store — a projection of the entities' evidence arrays (the Observation
+-- primitive IS Evidence; this view just makes it SQL-queryable).
+CREATE TABLE observation (
+    entity TEXT, prop TEXT, value TEXT,
+    produced_by TEXT, version TEXT, confidence REAL, source TEXT
+);
+-- bundles: the per-entity global sections (semantic.bundles), materialized
+-- ONLY here in the regenerable view (never written back into the graph).
+CREATE TABLE bundle (id TEXT PRIMARY KEY, type TEXT, canonical TEXT,
+                     aliases TEXT, consistent INTEGER);
+CREATE TABLE bundle_member (bundle_id TEXT, node TEXT, role TEXT,
+                            pdf_page INTEGER, logical_path TEXT, ord TEXT);
 CREATE INDEX edge_fwd   ON edge(subject, predicate, ord);
 CREATE INDEX edge_back  ON edge(object,  predicate, ord);
 CREATE INDEX edge_page  ON edge(pdf_page);
 CREATE INDEX node_type  ON node(type);
+CREATE INDEX obs_entity ON observation(entity, prop);
+CREATE INDEX bm_bundle  ON bundle_member(bundle_id);
 """
 
 
-def load_view(graph: dict[str, Any], path: str = ":memory:") -> sqlite3.Connection:
+def load_view(graph: dict[str, Any], path: str = ":memory:",
+              bundles: Optional[list[dict]] = None) -> sqlite3.Connection:
     conn = sqlite3.connect(path)
     conn.executescript(_SCHEMA)
     conn.executemany(
@@ -53,6 +69,22 @@ def load_view(graph: dict[str, Any], path: str = ":memory:") -> sqlite3.Connecti
             json.dumps(g) if g else None))
     conn.executemany(
         "INSERT INTO edge VALUES (?,?,?,?,?,?,?,?,?,?,?,?)", rows)
+    obs = []
+    for e in graph.get("entities", []):
+        for ev in e.get("evidence", []) or []:
+            obs.append((e["id"], ev.get("prop", ""), str(ev.get("value", "")),
+                        ev.get("produced_by", ""), ev.get("version", ""),
+                        ev.get("confidence", 1.0), ev.get("source", "")))
+    conn.executemany("INSERT INTO observation VALUES (?,?,?,?,?,?,?)", obs)
+    for b in bundles or []:
+        conn.execute("INSERT OR REPLACE INTO bundle VALUES (?,?,?,?,?)",
+                     (b["id"], b.get("type", ""), b.get("canonical", ""),
+                      json.dumps(b.get("aliases", [])),
+                      1 if b.get("consistent") else 0))
+        conn.executemany(
+            "INSERT INTO bundle_member VALUES (?,?,?,?,?,?)",
+            [(b["id"], m.get("node", ""), m.get("role", ""), m.get("page"),
+              m.get("path", ""), m.get("ord", "")) for m in b.get("mentions", [])])
     conn.commit()
     return conn
 

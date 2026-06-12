@@ -195,3 +195,29 @@ def concept_records(doc) -> list[dict]:
         records.append({**{k: seed[k] for k in ("name", "expansion", "kind")},
                         "define": define, "occurrences": further})
     return records
+
+
+_ALLCAPS = re.compile(r"\b[A-Z][A-Z0-9]{1,5}\b")
+_ROMAN = re.compile(r"^[IVXLCDM]+$")
+
+
+def undefined_concept_uses(doc) -> list[dict]:
+    """Acronym-like tokens USED in prose but never expanded (no Schwartz-Hearst
+    long form) and never declared (no glossary/notation entry) — the producer
+    half of the 'undefined acronym' GAP rule. Conservative by design: all-caps
+    2-6 chars, at least 2 occurrences, roman numerals excluded.
+
+        [{name, kind: "acronym_use", occurrences: [{page, section_id}, ...]}]
+    """
+    blocks = _prose_blocks(doc)
+    defined = {r["name"] for r in concept_records(doc)}
+    hits: dict[str, list[dict]] = {}
+    for b in blocks:
+        for m in _ALLCAPS.finditer(b["text"]):
+            tok = m.group(0)
+            if tok in defined or _ROMAN.match(tok):
+                continue
+            hits.setdefault(tok, []).append(
+                {"page": b["page"], "section_id": b["section_id"]})
+    return [{"name": name, "kind": "acronym_use", "occurrences": occ}
+            for name, occ in sorted(hits.items()) if len(occ) >= 2]

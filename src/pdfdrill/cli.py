@@ -98,6 +98,7 @@ def main():
         "latex": _do_latex,
         "latexbook": _do_latexbook,
         "markdown": _do_markdown,
+        "gaps": _do_gaps,
         "svg": _do_svg,
         "stex": _do_stex,
         "scikgtex": _do_scikgtex,
@@ -667,6 +668,14 @@ def _do_svg(args):
     return cmd_svg(t, limit=limit, force=force)
 
 
+def _do_gaps(args):
+    """pdfdrill gaps <pdf|md>"""
+    from .commands import cmd_gaps
+    if not args:
+        raise ValueError("No file specified.")
+    return cmd_gaps(Path(args[0]))
+
+
 def _do_markdown(args):
     """pdfdrill markdown <file.md> [--bibkey K] [--force]"""
     from .commands import cmd_markdown
@@ -1015,6 +1024,7 @@ Introspection (fast, no extraction):
   pdfdrill latex <pdf>         Ingest author .tex/.tgz as a `tex` provenance (original+expanded LaTeX); --tex <path>
   pdfdrill latexbook <book.tex> Source-only model + TikZ/table SVGs + KaTeX formula report from LaTeX (no PDF/MathPix); --no-svg to skip rendering
   pdfdrill markdown <md>      Build a source-only model from LLM-summary Markdown (yt2tw route): sections/paragraphs/math/lists + cite{} commands linked to the gold ```bibtex appendix (or the numbered References list). --bibkey K
+  pdfdrill gaps <pdf|md>      Report MISSING information (cohomology-as-linter): acronyms used but never expanded, undeclared math symbols, novelty claims without citations, unmatched in-text citations
   pdfdrill svg <pdf|tex>       Render TikZ diagrams + tables to SVG via latex->dvisvgm (KaTeX can't); embeds in the report
   pdfdrill folder <dir>        Build the full structure for every PDF in <dir> from existing
                                .lines.json/.bib/.md — runs all levels, NO MathPix/Perplexity calls

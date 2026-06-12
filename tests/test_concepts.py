@@ -68,6 +68,27 @@ def test_concept_records_glossary_section_term():
     assert recs["psi"]["kind"] == "symbol"                        # Notation section -> symbol
 
 
+def test_undefined_concept_uses():
+    """Acronym-like tokens USED but never expanded/declared are recorded —
+    the producer half of the 'undefined acronym' gap rule. Conservative:
+    all-caps 2-6 chars, >=2 occurrences, not a defined concept, not a roman
+    numeral."""
+    from docmodel.core import Document, DocObject
+    doc = Document(); doc.meta["bibkey"] = "T"
+    doc.add(DocObject(type="Paragraph", id="p1", props={
+        "text": "We train a Convolutional Neural Network (CNN). The HMM baseline "
+                "uses GMM features.", "page": 1, "flow_index": 1}))
+    doc.add(DocObject(type="Paragraph", id="p2", props={
+        "text": "The HMM outperforms the GMM variant in chapter II.",
+        "page": 2, "flow_index": 2}))
+    uses = {u["name"]: u for u in concepts.undefined_concept_uses(doc)}
+    assert "HMM" in uses and "GMM" in uses        # used 2x, never expanded
+    assert "CNN" not in uses                      # defined via Schwartz-Hearst
+    assert "II" not in uses                       # roman numeral
+    assert uses["HMM"]["occurrences"][0]["page"] == 1
+    assert len(uses["HMM"]["occurrences"]) == 2
+
+
 if __name__ == "__main__":
     tests = [v for k, v in list(globals().items()) if k.startswith("test_")]
     failed = []
