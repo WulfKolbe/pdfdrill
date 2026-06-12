@@ -2078,6 +2078,57 @@ def cmd_folder(folder: Path, force: bool = False) -> str:
     return head + "\n" + "\n".join(lines_out)
 
 
+def cmd_markdown(md: Path, bibkey: str | None = None, force: bool = False) -> str:
+    """Build a source-only model from a Markdown file (the yt2tw route).
+
+    LLM-summary Markdown (Perplexity etc.): `#` title, `##`/`###` sections,
+    \\(...\\)/\\[...\\] math, `\\cite{key}` in prose, a numbered References
+    section, and a fenced ```bibtex appendix. The appendix is GOLD: its entries
+    become Reference objects (citekey/author/year/title/entry_type + verbatim
+    bibtex) and every \\cite links to them (`cites` alignments). No PDF, no
+    MathPix, no OCR. Artifacts go in `<md>.drill/` next to the file; run
+    `pdfdrill tiddlers/report/semantic` on it like any model.
+    """
+    from . import markdown_source as msrc
+
+    md = Path(md)
+    if not md.exists():
+        return f"No such Markdown file: {md}"
+    key = bibkey or md.stem
+    drill = md.parent / f"{md.name}.drill"
+    model_path = drill / "model.docmodel.json"
+
+    if model_path.exists() and not force:
+        from docmodel.core import Document
+        doc = Document.from_dict(json.loads(model_path.read_text(encoding="utf-8")))
+        c = doc.meta.get("source_counts", {})
+        return (f"Markdown model already built for {md.name} "
+                f"({', '.join(f'{v} {k}' for k, v in c.items() if v)}). "
+                f"--force rebuilds.")
+    doc = msrc.build_markdown_model(md.read_text(encoding="utf-8"),
+                                    bibkey=key, source_path=str(md))
+    drill.mkdir(parents=True, exist_ok=True)
+    model_path.write_text(
+        json.dumps(doc.to_dict(), indent=2, ensure_ascii=False), encoding="utf-8")
+
+    sc = Sidecar(md)
+    sc.set_evidence("bibkey", key)
+    sc.set_evidence("source_format", "markdown")
+    sc.add_fact(MODEL_BUILT)
+    sc.save()
+
+    c = doc.meta.get("source_counts", {})
+    linked = sum(1 for a in doc.alignments if a.kind == "cites")
+    parts = ", ".join(f"{v} {k}" for k, v in c.items() if v)
+    return (f"Built Markdown model for {md.name}: {parts}; {linked} citation(s) "
+            f"linked to references"
+            + (" (gold BibTeX appendix)" if any(
+                o.props.get("added_by") == "markdown_bibtex"
+                for o in doc.objects.values() if o.type == "Reference") else "")
+            + f". bibkey='{key}'. Stored at {drill.name}/model.docmodel.json. "
+              f"Next: pdfdrill tiddlers/report/semantic {md.name}.")
+
+
 def cmd_latexbook(tex: Path, bibkey: str | None = None, force: bool = False,
                   no_svg: bool = False) -> str:
     """Build a source-only model from a LaTeX file, render TikZ/tables to SVG,

@@ -1330,6 +1330,30 @@ DeepL translation IN PLACE → tiddlers + bi-layer Markdown
   no real API) and `tests/test_docops.py`
   (`test_llmcompact_bilayer_emits_both_layers`).
 
+## Markdown input (`pdfdrill markdown` — the yt2tw route)
+
+**`pdfdrill markdown <file.md> [--bibkey K] [--force]`**
+(`src/pdfdrill/markdown_source.py`) builds a source-only model from LLM-summary
+Markdown (Perplexity etc.; the yt2tw YouTube-summarizer output): `#` title →
+meta, `##`/`###` → Sections (Abstract/TOC/References/BibTeX headings handled
+specially), prose → Paragraphs, `\[...\]`/`$$` → Equations, bullets →
+ListItems, and `\cite{key}` in prose → Citation objects. The fenced
+```bibtex appendix is GOLD: entries become Reference objects (citekey/author/
+year/title/entry_type + verbatim bibtex) and citations link to them via
+`cites` alignments; without it the numbered References list is parsed
+heuristically. **Truncation-tolerant** (live-test find): real Perplexity
+output gets cut off mid-entry — an unclosed fence at EOF is flushed and a
+brace-unbalanced final entry is salvaged up to EOF, so its parsed fields
+survive. Every object anchors into a `markdown_source` Stream. Artifacts in
+`<md>.drill/`; the whole docops chain (tiddlers/report/semantic) runs on it.
+Verified on ~/Downloads/yt2tw-out/summary.md (sheaf-NN lecture summary): 21
+sections, 45 paragraphs, 7 equations, 4 gold references incl. the truncated
+phdthesis, 6/6 citations linked, 119 tiddlers. The sibling slide-extractor
+PDFs go through the ordinary PDF route; a shared --bibkey family combines a
+talk's summary + slides. (The yt2tw `*_video_0001.json` is already a
+TiddlyWiki tiddler list — JSON adaptation planned on the yt2tw side.)
+Tests: `tests/test_markdown_source.py` (9).
+
 `pdfdrill latexbook <book.tex>` is the one-shot source-only pipeline (no PDF,
 no MathPix): build the model from `.tex` (inline `\input`, resolve preamble +
 local `.sty` macros, extract sections/equations/TikZ/tables), **auto-render
