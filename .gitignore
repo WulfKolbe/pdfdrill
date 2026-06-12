@@ -41,3 +41,9 @@ build/
 dist/
 /data/*.chars.json
 /data/*.docmodel.json
+
+# regenerable cross-document artifacts in the corpus folder
+/data/*.semantic.json
+/data/*.rulebook.md
+/data/*.tgz
+/data/*.md
