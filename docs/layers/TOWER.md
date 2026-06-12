@@ -160,7 +160,13 @@ for free.
 ## Open work (tower-level)
 
 - The uniform `node/support/edge` tables (the two new commitments) as an
-  additive projection alongside G4.
+  additive projection alongside G4. *(Partial: the G4 view now also
+  materializes `observation`, `bundle`/`bundle_member`, and
+  `kitem`/`kitem_evidence` projections — kitem evidence rows are support-shaped
+  `{bibkey, node, range, role}`; the single uniform relation is still open.)*
 - Systematic split repair recorded as `role='continuation'` support fragments
   (per-kind energies in the table above).
 - Cross-level metric queries as canned G4 SQL.
+- The L7→L8 fixpoint is in place (`semantic/fixpoint.py`: stratified passes,
+  content-hash quiescence); extending it downward (re-running α producers on
+  repair) is open.

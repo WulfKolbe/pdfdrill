@@ -53,18 +53,22 @@ def emit_kitem(graph, resolver, statement_md: str, *, kind: str, stratum: int,
     Idempotent: same normalized statement -> same entity, evidence accumulates
     (duplicate spans are skipped)."""
     h = kitem_hash(statement_md)
-    ev = [Evidence("kitem", "statement_md", _WS.sub(" ", statement_md).strip(),
-                   produced_by, confidence=1.0),
-          Evidence("kitem", "kind", kind, produced_by, confidence=1.0),
-          Evidence("kitem", "stratum", stratum, produced_by, confidence=1.0)]
-    if valid_at:
-        ev.append(Evidence("kitem", "valid_at", valid_at, produced_by, confidence=1.0))
-    e = resolver.resolve(EntityType.KITEM, keys=[("content_hash", h)], evidence=ev)
+    keys = [("content_hash", h)]
+    # Core evidence only on CREATION — re-emitting the same statement must be
+    # a true no-op (the fixpoint quiescence test counts evidence rows).
+    e = resolver.find_existing_entity(EntityType.KITEM, keys)
+    if e is None:
+        ev = [Evidence("kitem", "statement_md", _WS.sub(" ", statement_md).strip(),
+                       produced_by, confidence=1.0),
+              Evidence("kitem", "kind", kind, produced_by, confidence=1.0),
+              Evidence("kitem", "stratum", stratum, produced_by, confidence=1.0),
+              Evidence("kitem", "content_hash", h, produced_by, confidence=1.0)]
+        if valid_at:
+            ev.append(Evidence("kitem", "valid_at", valid_at, produced_by,
+                               confidence=1.0))
+        e = resolver.resolve(EntityType.KITEM, keys=keys, evidence=ev)
     if not e.subtype:
         e.subtype = kind
-    # ensure the hash itself is a queryable property
-    if not any(x.prop == "content_hash" for x in e.evidence):
-        e.attach(Evidence("kitem", "content_hash", h, produced_by, confidence=1.0))
 
     existing = {(x.grounding or {}).get("node"): (x.grounding or {}).get("range")
                 for x in e.evidence if x.prop == "span"}

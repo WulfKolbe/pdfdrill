@@ -2078,6 +2078,66 @@ def cmd_folder(folder: Path, force: bool = False) -> str:
     return head + "\n" + "\n".join(lines_out)
 
 
+def cmd_rulebook(pdf: Path, force: bool = False) -> str:
+    """The vertical slice: claims/definitions -> kitems -> rulebook.md.
+
+    Runs the stratum-4 claim extractor inside the FIXPOINT driver over the
+    document's semantic graph (loaded from `<key>.semantic.json` when present,
+    so kitems join the entities `semantic` built; created fresh otherwise),
+    persists the graph, and projects `rulebook.md` — one supported/accepted
+    statement per line with a `[→k:hash]` drill-down anchor — plus the
+    `<key>.kitems.tiddlers.json` for the wiki. Re-running is a no-op (content-
+    hash identity).
+    """
+    from docmodel.core import Document
+    from semantic.graph import SemanticGraph
+    from semantic.identity import IdentityResolver
+    from semantic.layers import content_identity  # registers content_hash BEFORE reindex
+    from semantic import claims, fixpoint, kitems, rulebook as _rulebook
+
+    sc = Sidecar(pdf)
+    model_path = _model_path(sc)
+    if not model_path.exists():
+        return (f"No model for {pdf.name} — run `pdfdrill model` (PDF) or "
+                f"`pdfdrill markdown` (.md) first.")
+    doc = Document.from_dict(json.loads(model_path.read_text(encoding="utf-8")))
+    key = sc.get_evidence("bibkey") or doc.meta.get("bibkey") or pdf.stem
+
+    sem_path = sc.blob_dir / f"{key}.semantic.json"
+    if sem_path.exists() and not force:
+        g = SemanticGraph.from_dict(json.loads(sem_path.read_text(encoding="utf-8")))
+    else:
+        g = SemanticGraph()
+    r = IdentityResolver(g).reindex()
+
+    res = fixpoint.run_fixpoint(g, r, [(4, claims.make_claims_pass(doc, key))])
+    sem_path.parent.mkdir(parents=True, exist_ok=True)
+    sem_path.write_text(json.dumps(g.to_dict(), indent=2, ensure_ascii=False),
+                        encoding="utf-8")
+
+    md = _rulebook.project_rulebook(g, key)
+    rb_path = sc.blob_dir / "rulebook.md"
+    rb_path.write_text(md, encoding="utf-8")
+    tids = kitems.kitem_tiddlers(g, key)
+    (sc.blob_dir / f"{key}.kitems.tiddlers.json").write_text(
+        json.dumps(tids, ensure_ascii=False, indent=1), encoding="utf-8")
+
+    ks = kitems.all_kitems(g)
+    by_status: dict[str, int] = {}
+    for e in ks:
+        st = kitems.status_of(g, e.id)
+        by_status[st] = by_status.get(st, 0) + 1
+    sc.set_evidence("kitems", {"count": len(ks), **by_status})
+    sc.save()
+    stat_s = ", ".join(f"{v} {k}" for k, v in sorted(by_status.items()))
+    return (f"Fixpoint: {res['rounds']} round(s), {res['new_kitems']} new "
+            f"kitem(s) ({len(ks)} total: {stat_s}). Rulebook -> "
+            f"{rb_path.relative_to(sc.pdf_path.parent)} "
+            f"({len(tids)} kitem tiddler(s)). Drill-down: rulebook line "
+            f"[→k:hash] -> kitem tiddler -> evidence span (bibkey/node/page) "
+            f"-> the model object.")
+
+
 def cmd_gaps(pdf: Path) -> str:
     """Detect MISSING information — "cohomology as a linter".
 

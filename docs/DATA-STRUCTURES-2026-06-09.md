@@ -1,5 +1,10 @@
 # Data structures added 2026-06-09
 
+> **Historical snapshot** (the day G1–G4 landed). The living documentation is
+> the layer tower: [`docs/layers/`](layers/README.md), esp.
+> [`L7-semantic-graph.md`](layers/L7-semantic-graph.md) for what grew on top
+> (bundles, gaps, kitems, fixpoint, rulebook).
+
 A single day's work added the **composable semantic-graph layer stack** plus two
 **graph→LaTeX projectors**. Everything is *additive*: it rides inside existing
 types (mostly the open `Relation.grounding` dict) with **zero schema change** to

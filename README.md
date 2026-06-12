@@ -14,8 +14,10 @@ TiddlyWiki tiddlers.
 
 ## Install
 
-System prerequisite (not pip-installable): **poppler-utils**
-(`pdfinfo`, `pdftotext`, `pdffonts`, `pdfimages`).
+System prerequisites (not pip-installable): **poppler-utils** (core),
+**tesseract-ocr** (keyless OCR route), and the **LaTeX DVI toolchain +
+dvisvgm** (TikZ/table/chemistry SVG rendering). `bash bootstrap.sh` installs
+whatever is missing via apt-get; `pdfdrill doctor` reports the state anytime.
 
 ```bash
 apt-get install poppler-utils      # Debian/Ubuntu
@@ -51,7 +53,20 @@ pdfdrill tiddlers paper.pdf        # TiddlyWiki tiddler array (--bibkey KEY sets
 pdfdrill translate paper.pdf --from DE --to EN-US   # DeepL-translate prose tiddlers
 pdfdrill folder  ./papers          # batch-build every PDF that already has a
                                    #   sibling .lines.json — no network calls
+pdfdrill markdown summary.md       # source-only model from LLM-summary Markdown
+                                   #   (+ gold ```bibtex appendix)
+pdfdrill tables  paper.pdf         # span-aware tables (keyless) + tables.html QA
+pdfdrill semantic paper.pdf        # evidence-backed entity/relation graph
+pdfdrill gaps    paper.pdf         # MISSING-information linter (acronyms/symbols/
+                                   #   claims/citations)
+pdfdrill rulebook paper.pdf        # claims/definitions -> kitems -> rulebook.md
+                                   #   with [→k:hash] drill-down anchors
 ```
+
+Every command also accepts an **https URL from a known host or a bare arXiv
+id** (`pdfdrill model 2510.11170v2`) — downloaded once, cached; for arXiv the
+abstract and the author LaTeX come from the **free** routes (no MathPix
+spend).
 
 Without the installed console script, run as a module:
 
@@ -67,25 +82,15 @@ that have no visible anchor text — e.g. a paper whose page-1 text says only
 in any rendered-text stream (plain extraction, Markdown, or a chatbot upload
 all drop it); `links` surfaces it in ~50 ms.
 
-### Translating the tiddlers (DeepL)
+### Translating a document (DeepL, in place)
 
-`pdfdrill translate <pdf> [--from DE] [--to EN-US] [--limit N]` renders the
-prose tiddlers into another language via DeepL (paragraph/footnote/sidenote/
-abstract → `text`, section → `caption`). The translation is written back under
-the **original field name**, and the source is preserved under `org_<field>`
-(e.g. `org_text`) — so your existing `<$transclude>`/templates show the
-translation while the original survives for review:
-
-```jsonc
-{ "title": "doc_PARA_0001", "tags": "paragraph translated",
-  "text":     "Correlation in the Hubbard model",   // ← DeepL translation
-  "org_text": "Korrelation im Hubbard Modell",      // ← original, preserved
-  "translated_lang": "EN-US" }
-```
-
-Math/code/image tiddlers are skipped (not prose). Output goes to a sibling
-`<bibkey>.<lang>.tiddlers.json` (the untranslated array is left intact); re-runs
-are incremental and idempotent. Needs `DEEPL_API_KEY` (see **API keys** below).
+`pdfdrill translate <pdf> [--from RU] [--to EN-US] [--limit N] [--force]`
+translates the document **in place**: the model prose is translated (original
+preserved under `<field>_source`), the bi-layer Markdown `<bibkey>.md` is
+re-projected (translation shown, original behind a show-source toggle), and
+the tiddler file is rewritten in place — `text` carries the translation,
+`text_source` the original. Math/code/image objects are untouched; re-runs are
+idempotent. Needs `DEEPL_API_KEY` (see **API keys** below).
 
 ## Feature extraction (commercial documents)
 
@@ -117,6 +122,18 @@ when the dep is absent): `DATE` (dateparser), `PHONE` (phonenumbers), `PRICE`
 - `src/features/` — additive, source-agnostic feature extractors (commercial
   documents): flat `Feature`/`Relation`, a registry, and a NetworkX graph
   builder. Never modifies the pipeline.
+- `src/semantic/` — the evidence-backed semantic graph (entities/relations/
+  evidence, identity resolution, grounding layers G1–G4, concepts, kitems,
+  the compiler, gap detection, bundle/rulebook/sTeX projections).
+
+## The layer tower
+
+The whole toolchain is one stratified stack **L0–L8** (container → raster →
+glyph → text lines → layout regions → typed objects → expression syntax →
+semantic graph → ontology). **One canonical document per layer** lives in
+[`docs/layers/`](docs/layers/README.md); the inter-layer semantics (support/
+abstraction maps, split recovery, level skipping, metrics) in
+[`docs/layers/TOWER.md`](docs/layers/TOWER.md).
 
 ## API keys
 

@@ -125,6 +125,28 @@ vision; pdfdrill just prepares the crops and folds the answers into the model.
 | `pdfdrill fetch <pdf> toc` | Stored TOC |
 | `pdfdrill plan <pdf> "question"` | Lists what steps would be needed |
 
+### Structure, scan triage, and the semantic layer
+
+| Command | Returns |
+|---|---|
+| `pdfdrill geometry <pdf>` | Fuse cheap pdftotext word geometry onto the model (indentation/margins) |
+| `pdfdrill lists / algorithms / eqnums / annotate / bibliography <pdf>` | Nested lists, algorithm steps, equation numbers, link annotations, references + citation links |
+| `pdfdrill bibsource <pdf> --bbl X.bbl --bib X.bib` | GOLD bibliography from the author's compiled files |
+| `pdfdrill latex <pdf>` | Author LaTeX (arXiv e-print auto-download): gold equations + TikZ/tables |
+| `pdfdrill markdown <md> [--bibkey K]` | Source-only model from LLM-summary Markdown (+ gold ```bibtex appendix) |
+| `pdfdrill svg <pdf>` | Render TikZ/tables/chemfig/mhchem to SVG (latex→dvisvgm) |
+| `pdfdrill tables <pdf>` | Span-aware tables (keyless) → tables.json/md/**html** (QA) |
+| `pdfdrill pageside <pdf>` | recto/verso per page (column roles flip with the book side) |
+| `pdfdrill continuity / entities / segment / ordered / autosegment <pdf>` | Multi-document scan triage (margin markers, IBAN/ids, document grouping) |
+| `pdfdrill qr / fontid / spellqc <pdf>` | QR/GiroCode payloads, visual font id, de-hyphenation QC |
+| `pdfdrill semantic <pdf> [--store g.json]` | Evidence-backed entity/relation graph (accumulates across documents) |
+| `pdfdrill gaps <pdf\|md>` | MISSING-information linter: undefined acronyms/symbols, unsupported claims, unmatched citations |
+| `pdfdrill rulebook <pdf\|md>` | Claims/definitions → kitems (evidence spans) → rulebook.md with [→k:hash] drill-down |
+| `pdfdrill stex <pdf> [--stex] [--compile]` | Enriched LaTeX (acronyms/glossary/symbols/index) or sTeX |
+| `pdfdrill scikgtex <pdf> [--compile]` | SciKGTeX LaTeX → PDF carrying ORKG metadata in XMP |
+| `pdfdrill translate <pdf> --to EN-US` | DeepL-translate the document IN PLACE (bi-layer md + tiddlers) |
+| `pdfdrill doctor` | Which tools/deps/keys are present and what each enables |
+
 ## Decision flow
 
 1. **Always start with `size`** — free, takes ~40ms.

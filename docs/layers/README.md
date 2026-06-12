@@ -28,8 +28,8 @@ interference**:
 | **L3** | [L3-text-lines.md](L3-text-lines.md) | Word/line strings: the shared 12-column TSV schema, line grouping, `pdf_lines` Stream + per-line `_geom` | implemented |
 | **L4** | [L4-layout-regions.md](L4-layout-regions.md) | Layout regions: typed rects (MathPix shape) + role classifiers (margin/block/continuity) + learned elements. **Splits originate here** | implemented |
 | **L5** | [L5-docobjects.md](L5-docobjects.md) | Typed document objects: `Document`/`DocObject`/`Realization`/`Alignment`, the ~16 object types, in-place mutators | implemented |
-| **L6** | [L6-expression-syntax.md](L6-expression-syntax.md) | Expression syntax inside non-prose objects: LaTeX math, span-aware table cells, list nesting, citation keys, sentence graphs | partial |
-| **L7** | [L7-semantic-graph.md](L7-semantic-graph.md) | Semantic graph: evidence-backed entities/relations, identity resolution, grounding sublayers G1–G4, concepts, the compiler | implemented |
+| **L6** | [L6-expression-syntax.md](L6-expression-syntax.md) | Expression syntax inside non-prose objects: LaTeX math, span-aware table cells (+HTML QA), list nesting, citation keys, chemistry (chemfig/mhchem), sentence graphs | partial (operator-tree metric + split repair open) |
+| **L7** | [L7-semantic-graph.md](L7-semantic-graph.md) | Semantic graph: evidence-backed entities/relations, identity resolution, grounding sublayers G1–G4, concepts, the compiler — plus bundles/gaps/kitems + the fixpoint driver and the rulebook projection | implemented |
 | **L8** | [L8-ontology.md](L8-ontology.md) | Ontology/theory: concept grounding, theory modules (sTeX/MMT), document-class schemas, obligations/affordances | mostly planned |
 
 ## Cross-cutting documents

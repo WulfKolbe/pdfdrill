@@ -878,6 +878,22 @@ corroboration, transitive over DERIVED_FROM; disputed only via CONTRADICTS),
 (5), `tests/test_kitems.py` (5). Next: stratum monotonicity + fixpoint driver,
 then the vertical slice on 2004.05631.
 
+**Fixpoint + the vertical slice (two-store plan steps 3+4, 2026-06-12).**
+`semantic/fixpoint.py` — `run_fixpoint(graph, resolver, [(stratum, pass)])`
+loops stratified passes until a round adds no kitem/evidence (quiescence by
+content-hash fingerprint; the driver caught and fixed an emit_kitem evidence-
+bloat bug) + `check_stratum_order` (warn-only monotonicity).
+`semantic/claims.py` — the stratum-4 extractor: claim/definition SENTENCES →
+kitems with evidence spans `{bibkey, node, range, role, page}`, statements
+rendered through the `detranscluded` policy. `semantic/rulebook.py` +
+**`pdfdrill rulebook <pdf|md>`** — accepted/supported kitems → `rulebook.md`,
+one statement per line with a `[→k:hash8]` drill-down anchor (+ kitem
+tiddlers; below-bar count never hidden). **Vertical slice proven on
+2004.05631**: 37 kitems (definitions like Cartesian-closed/density-operator),
+anchor → kitem tiddler → span → the p95 model Paragraph; second run = 0 new
+(fixpoint no-op). Tests: `tests/test_fixpoint.py` (3),
+`tests/test_claims_rulebook.py` (3).
+
 **Still deferred (roadmap):** index from LaTeX `\index{}` source (rendered-index
 OCR is unreliable); graph→linked-Tiddler projection; the reasoning-flow /
 abstraction layers.
