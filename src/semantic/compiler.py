@@ -32,7 +32,13 @@ SCI = {EntityType.CONCEPT, EntityType.FORMULA}
 # predicate -> (allowed subject types, allowed object types)
 SIGNATURE_TABLE: dict[RelationType, tuple[set, set]] = {
     RelationType.CITES: (DOC, DOC | {EntityType.CITATION}),
-    RelationType.DERIVED_FROM: (DOC, DOC),
+    # provenance is for ARTIFACTS, not only documents: image_source edges
+    # (IMAGE derived_from IMAGE), kitem chains (KITEM derived_from KITEM),
+    # formula/table derivations.
+    RelationType.DERIVED_FROM: (DOC | SCI | {EntityType.KITEM, EntityType.IMAGE,
+                                             EntityType.TABLE},
+                                DOC | SCI | {EntityType.KITEM, EntityType.IMAGE,
+                                             EntityType.TABLE}),
     RelationType.EXPLAINS: (DOC | SCI, SCI),
     RelationType.CONTAINS: (DOC, ALL),
     RelationType.CONTRADICTS: (ALL, ALL),
@@ -92,6 +98,11 @@ def check_dangling(graph: SemanticGraph) -> list[Warning]:
 def typecheck(graph: SemanticGraph) -> list[Warning]:
     out = []
     for r in graph.relations:
+        # LAYER edges (G3 occurrences on the REFERENCES carrier, kitem
+        # derivations) are positional/structural, not domain assertions —
+        # the predicate signature does not apply to them.
+        if (r.grounding or {}).get("layer") in ("occurrence", "kitem_derivation"):
+            continue
         s, o = graph.get(r.subject_id), graph.get(r.object_id)
         if s is None or o is None:
             continue                      # reported by check_dangling

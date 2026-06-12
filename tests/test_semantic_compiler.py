@@ -94,6 +94,30 @@ def test_contradictory_functional_relation_flagged():
     assert any(w.code == "contradiction" for w in res.warnings)
 
 
+def test_occurrence_carrier_edges_are_exempt_from_signatures():
+    """G3 occurrence edges ride on REFERENCES with grounding layer='occurrence'
+    (formula REFERENCES section-node) — they are LAYER edges, not assertions,
+    and must not be type-checked against the REFERENCES signature. Same for
+    kitem_derivation-grounded edges."""
+    from semantic.graph import SemanticGraph
+    from semantic.entity import Entity, EntityType
+    from semantic.relation import RelationType
+    from semantic import compiler
+    g = SemanticGraph()
+    f = g.add_entity(Entity(id=g.new_id(EntityType.FORMULA), type=EntityType.FORMULA))
+    sec = g.add_entity(Entity(id=g.new_id(EntityType.CONCEPT), type=EntityType.CONCEPT,
+                              subtype="section"))
+    g.relate(f.id, RelationType.REFERENCES, sec.id,
+             grounding={"layer": "occurrence", "role": "definition", "ord": "a1"})
+    # provenance between ARTIFACTS is legitimate: image derived_from image
+    # (the docmodel image_source edge), kitem derived_from kitem
+    i1 = g.add_entity(Entity(id=g.new_id(EntityType.IMAGE), type=EntityType.IMAGE))
+    i2 = g.add_entity(Entity(id=g.new_id(EntityType.IMAGE), type=EntityType.IMAGE))
+    g.relate(i1.id, RelationType.DERIVED_FROM, i2.id)
+    warnings = compiler.typecheck(g)
+    assert not [w for w in warnings if w.code == "type_violation"]
+
+
 if __name__ == "__main__":
     test_valid_graph_compiles_valid(); print("PASS valid")
     test_type_violation_is_critical_and_invalid(); print("PASS type-violation")
@@ -101,4 +125,5 @@ if __name__ == "__main__":
     test_derived_from_cycle_is_detected(); print("PASS cycle")
     test_grounding_verification_flags_unsupported_evidence(); print("PASS grounding")
     test_contradictory_functional_relation_flagged(); print("PASS contradiction")
+    test_occurrence_carrier_edges_are_exempt_from_signatures(); print("PASS occurrence-exempt")
     print("\nAll tests passed.")
