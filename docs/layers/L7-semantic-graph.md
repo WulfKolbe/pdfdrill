@@ -88,6 +88,35 @@ N `role=reference` occurrences, dual-positioned via G3.
   7 unlinked citations; restriction maps stay deferred until real gap output
   motivates their semantics.
 
+## Kitems — the knowledge store half of the two-store plan (2026-06-12)
+
+Documents are the axioms; kitems are theorems; the evidence chain is the
+proof object. Decision: kitems live **canonically as entities**
+(`EntityType.KITEM`, subtype = rule/claim/definition/derivation/reuse_event/
+contradiction) — `statement_md`/`stratum`/`valid_at` as properties, the
+evidence chain as `Evidence` rows with span grounding `{bibkey, node, range,
+role, page}`, kitem_derivation as `DERIVED_FROM` edges. The `kitem`/
+`kitem_evidence` SQL tables are **G4 projections** (computed at view time),
+never a second writable store.
+
+- `semantic/kitems.py`: `emit_kitem` (content-hash dedup ⇒ re-emitting is a
+  **fixpoint no-op**, evidence accumulates), `status_of` — compiler-automatic:
+  *proposed* (no grounded span) → *supported* (≥1 span, or all parents
+  supported, transitively via DERIVED_FROM) → *accepted* (≥2 INDEPENDENT
+  spans in the transitive closure — corroboration) → *disputed* (only a
+  CONTRADICTS edge demotes; no LLM promotes). `kitem_tiddlers` emits
+  `$Bibkey_KI<serial>` tiddlers with the `khash` drill-down handle.
+- **Render-policy contract** (`docops/transclusion_render.py`): the canonical
+  paragraph text (transcluded tiddler form) is consumed by strata only through
+  named policies — `detranscluded` (natural-language gloss; what `nlp_stanza`
+  has always used, implementation now shared) and `typed_gloss`
+  (`[FORMULA 12]` / with a semantic lookup `[FORMULA: mass eigenvalue
+  relation]` — for transclusion-aware stratum-3 modules).
+
+Next per the build order: stratum monotonicity in BaseModule + the fixpoint
+driver; then the vertical slice (stratum-4 claim extractor + rulebook
+projector on 2004.05631).
+
 ## Producers (α into this level)
 
 `build.ingest_document` (commercial: sender/IBAN/BIC/address evidence),

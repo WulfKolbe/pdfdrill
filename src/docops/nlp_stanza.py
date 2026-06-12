@@ -75,48 +75,12 @@ _LATEX_CMD_BARE = re.compile(r"\\[a-zA-Z@]+\*?|\\\\")
 _BRACES = re.compile(r"[{}]")
 _WS = re.compile(r"\s+")
 
-# Map a TiddlyWiki transclusion template to a natural-language surface form.
-# Stanza tokenizes/parses the raw string, so an opaque `{{Bibkey_FO0139||FO}}`
-# distorts sentence boundaries and POS/dependency parsing; a real noun phrase
-# like "formula 139" behaves like ordinary text in context. Each template maps
-# the extracted reference number to a STABLE phrase (same transclusion always
-# rewrites to the same text). See the tiddlywiki projector for the title
-# formats: FO<NNNN>, EQ<NNNN>_p<NNN>, PIC_<NNNN>, DIA_<NNNN>, <citekey>.
-_TRANSCLUSION_PHRASE = {
-    "FO":   (lambda n: f"formula {n}" if n else "a formula"),
-    "FREF": (lambda n: f"referenced formula number {n}" if n else "a referenced formula"),
-    "PIC":  (lambda n: f"picture {n}" if n else "a picture"),
-    "DIA":  (lambda n: f"diagram {n}" if n else "a diagram"),
-    "CIT":  (lambda n: "a citation"),
-}
-
-_PAGE_SUFFIX = re.compile(r"_p\d+$")
-_DIGITS = re.compile(r"\d+")
-
-
-def _num_from_title(title: str) -> str:
-    """Extract the reference number from a transclusion title.
-
-    ``Bibkey_FO0139`` -> ``"139"``, ``Bibkey_EQ0264_p003`` -> ``"264"``. Strips a
-    trailing ``_p<page>`` first, then takes the last digit run with leading
-    zeros dropped. Returns ``""`` when the title carries no number.
-    """
-    base = _PAGE_SUFFIX.sub("", title or "")
-    groups = _DIGITS.findall(base)
-    return str(int(groups[-1])) if groups else ""
-
-
-def _rewrite_transclusion(match: "re.Match") -> str:
-    """Rewrite one ``{{title||TEMPLATE}}`` into a natural-language phrase.
-
-    Unknown / template-less transclusions (e.g. ``{{X}}``) are dropped to a
-    space, so the tokenizer never sees stray braces or opaque IDs.
-    """
-    title, _, template = match.group(1).rpartition("||")
-    if not template:
-        return " "
-    phrase = _TRANSCLUSION_PHRASE.get(template.strip())
-    return f" {phrase(_num_from_title(title))} " if phrase else " "
+# The transclusion phrase table + rewriter live in the SHARED render-policy
+# module (docops/transclusion_render.py) — this mutator is the stratum-2
+# "detranscluded" consumer. Names kept as aliases for back-compat.
+from .transclusion_render import (TRANSCLUSION_PHRASE as _TRANSCLUSION_PHRASE,  # noqa: F401
+                                  num_from_title as _num_from_title,
+                                  rewrite_transclusion_match as _rewrite_transclusion)
 
 
 def clean_text(raw: str) -> str:

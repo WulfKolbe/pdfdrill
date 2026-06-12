@@ -864,6 +864,20 @@ exactly bibsource's 7 unlinked; yt2tw summary → 4 undeclared greek symbols.
 Restriction maps deferred by decision. Details: `docs/layers/L7-semantic-graph.md`.
 Tests: `tests/test_semantic_gaps.py`, `tests/test_bundles.py`.
 
+**Kitems + render-policy contract (two-store plan steps 1+2, 2026-06-12).**
+`docops/transclusion_render.py` — the stratum contract over canonical
+(transcluded) paragraph text: policies `detranscluded` (nl gloss; nlp_stanza
+now imports the shared implementation, behavior unchanged) and `typed_gloss`
+(`[FORMULA 12]` / `[FORMULA: <caption>]` via a lookup). `semantic/kitems.py` —
+knowledge items as ENTITIES (`EntityType.KITEM`): `emit_kitem` (content-hash
+dedup = fixpoint no-op), `status_of` (proposed→supported→accepted by span
+corroboration, transitive over DERIVED_FROM; disputed only via CONTRADICTS),
+`kitem_tiddlers` (`$Bibkey_KI<serial>` + khash). G4 view gains `kitem` +
+`kitem_evidence` projection tables (status computed at view time). Details:
+`docs/layers/L7-semantic-graph.md`. Tests: `tests/test_transclusion_render.py`
+(5), `tests/test_kitems.py` (5). Next: stratum monotonicity + fixpoint driver,
+then the vertical slice on 2004.05631.
+
 **Still deferred (roadmap):** index from LaTeX `\index{}` source (rendered-index
 OCR is unreliable); graph→linked-Tiddler projection; the reasoning-flow /
 abstraction layers.

@@ -40,12 +40,21 @@ CREATE TABLE bundle (id TEXT PRIMARY KEY, type TEXT, canonical TEXT,
                      aliases TEXT, consistent INTEGER);
 CREATE TABLE bundle_member (bundle_id TEXT, node TEXT, role TEXT,
                             pdf_page INTEGER, logical_path TEXT, ord TEXT);
+-- kitems: knowledge items (entities of type 'kitem') with their span
+-- evidence lifted into indexed columns — the two-store plan's kitem/evidence
+-- tables, as PROJECTIONS of the graph (the entities stay canonical).
+CREATE TABLE kitem (id TEXT PRIMARY KEY, khash TEXT, stratum INTEGER,
+                    kind TEXT, statement_md TEXT, status TEXT, valid_at TEXT);
+CREATE TABLE kitem_evidence (kitem TEXT, bibkey TEXT, node TEXT, span TEXT,
+                             role TEXT, page INTEGER, produced_by TEXT);
 CREATE INDEX edge_fwd   ON edge(subject, predicate, ord);
 CREATE INDEX edge_back  ON edge(object,  predicate, ord);
 CREATE INDEX edge_page  ON edge(pdf_page);
 CREATE INDEX node_type  ON node(type);
 CREATE INDEX obs_entity ON observation(entity, prop);
 CREATE INDEX bm_bundle  ON bundle_member(bundle_id);
+CREATE INDEX ke_kitem   ON kitem_evidence(kitem);
+CREATE INDEX kitem_stat ON kitem(status, kind);
 """
 
 
@@ -76,6 +85,58 @@ def load_view(graph: dict[str, Any], path: str = ":memory:",
                         ev.get("produced_by", ""), ev.get("version", ""),
                         ev.get("confidence", 1.0), ev.get("source", "")))
     conn.executemany("INSERT INTO observation VALUES (?,?,?,?,?,?,?)", obs)
+    # kitems: entities of type 'kitem', span evidence lifted, status computed
+    # dict-side (the view stays class-free) with the same rule as
+    # semantic.kitems.status_of: disputed > accepted(>=2 independent spans,
+    # transitively via derived_from) > supported(>=1) > proposed.
+    kit = [e for e in graph.get("entities", []) if e.get("type") == "kitem"]
+    if kit:
+        spans_of: dict[str, list[dict]] = {}
+        for e in kit:
+            spans_of[e["id"]] = [ev.get("grounding") or {}
+                                 for ev in e.get("evidence", []) or []
+                                 if ev.get("prop") == "span"
+                                 and (ev.get("grounding") or {}).get("node")]
+        parents: dict[str, list[str]] = {}
+        disputed: set[str] = set()
+        for r in graph.get("relations", []):
+            if r.get("predicate") == "derived_from":
+                parents.setdefault(r["subject_id"], []).append(r["object_id"])
+            if r.get("predicate") == "contradicts":
+                disputed.add(r["object_id"])
+
+        def _closure(kid: str, seen: set) -> list[dict]:
+            if kid in seen:
+                return []
+            seen.add(kid)
+            out = list(spans_of.get(kid, []))
+            for p in parents.get(kid, []):
+                out += _closure(p, seen)
+            return out
+
+        for e in kit:
+            props = e.get("properties", {})
+            spans = _closure(e["id"], set())
+            indep = {(s.get("bibkey"), s.get("node")) for s in spans}
+            status = ("disputed" if e["id"] in disputed
+                      else "accepted" if len(indep) >= 2
+                      else "supported" if indep else "proposed")
+            conn.execute(
+                "INSERT OR REPLACE INTO kitem VALUES (?,?,?,?,?,?,?)",
+                (e["id"], props.get("content_hash", ""),
+                 props.get("stratum"), e.get("subtype") or props.get("kind", ""),
+                 props.get("statement_md", ""), status, props.get("valid_at", "")))
+            for ev in e.get("evidence", []) or []:
+                if ev.get("prop") != "span":
+                    continue
+                g = ev.get("grounding") or {}
+                if not g.get("node"):
+                    continue
+                conn.execute(
+                    "INSERT INTO kitem_evidence VALUES (?,?,?,?,?,?,?)",
+                    (e["id"], g.get("bibkey", ""), g.get("node", ""),
+                     g.get("range", ""), g.get("role", ""), g.get("page"),
+                     ev.get("produced_by", "")))
     for b in bundles or []:
         conn.execute("INSERT OR REPLACE INTO bundle VALUES (?,?,?,?,?)",
                      (b["id"], b.get("type", ""), b.get("canonical", ""),

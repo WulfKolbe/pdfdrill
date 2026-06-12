@@ -40,6 +40,10 @@ class EntityType(str, Enum):
     BANK_ACCOUNT = "bank_account"
     # cross-cutting
     EVENT = "event"
+    # knowledge items (the two-store plan): derived assertions whose existence
+    # is justified ONLY by evidence chains down to spans. Subtypes: rule |
+    # claim | definition | derivation | reuse_event | contradiction.
+    KITEM = "kitem"
 
 
 @dataclass
