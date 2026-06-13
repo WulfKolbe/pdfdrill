@@ -57,6 +57,11 @@ def test_html_contains_latex_katex_and_image():
     assert "cdn.mathpix.com/cropped/abc.jpg" in html_out  # MathPix image
     assert "katex.render" in html_out                  # client-side render
     assert "katex.min.css" in html_out
+    # KaTeX is loaded with `defer`, so the render loop MUST wait for
+    # DOMContentLoaded — otherwise it runs before katex is defined and no math
+    # renders (only the CDN images show).
+    assert "DOMContentLoaded" in html_out
+    assert html_out.index("DOMContentLoaded") < html_out.index("katex.render")
     assert "x + y" not in html_out                     # the cdn-less eq is gone
 
 

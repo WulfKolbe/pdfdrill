@@ -69,14 +69,20 @@ _PAGE_TEMPLATE = """<!DOCTYPE html>
 </tbody>
 </table>
 <script>
-document.querySelectorAll(".katex-cell").forEach(function (el) {{
-  var tex = el.getAttribute("data-tex") || "";
-  try {{
-    katex.render(tex, el, {{ displayMode: true, throwOnError: false }});
-  }} catch (e) {{
-    el.classList.add("render-error");
-    el.textContent = String(e);
-  }}
+// KaTeX is loaded with `defer`, so it isn't defined while the page is still
+// parsing — wait for DOMContentLoaded (deferred scripts have run by then),
+// otherwise the render loop runs before katex exists and only the CDN images
+// show.
+document.addEventListener("DOMContentLoaded", function () {{
+  document.querySelectorAll(".katex-cell").forEach(function (el) {{
+    var tex = el.getAttribute("data-tex") || "";
+    try {{
+      katex.render(tex, el, {{ displayMode: true, throwOnError: false }});
+    }} catch (e) {{
+      el.classList.add("render-error");
+      el.textContent = String(e);
+    }}
+  }});
 }});
 </script>
 </body>
