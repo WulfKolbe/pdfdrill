@@ -101,6 +101,7 @@ def main():
         "gaps": _do_gaps,
         "llmtext": _do_llmtext,
         "clean": _do_clean,
+        "locate": _do_locate,
         "rulebook": _do_rulebook,
         "svg": _do_svg,
         "stex": _do_stex,
@@ -680,6 +681,12 @@ def _do_rulebook(args):
     return cmd_rulebook(Path(rest[0]), force="--force" in args)
 
 
+def _do_locate(args):
+    """pdfdrill locate <pdf>"""
+    from .commands import cmd_locate
+    return cmd_locate(_pdf(args))
+
+
 def _do_clean(args):
     """pdfdrill clean <pdf|md>"""
     from .commands import cmd_clean
@@ -1058,6 +1065,7 @@ Introspection (fast, no extraction):
   pdfdrill gaps <pdf|md>      Report MISSING information (cohomology-as-linter): acronyms used but never expanded, undeclared math symbols, novelty claims without citations, unmatched in-text citations
   pdfdrill llmtext <pdf|md>   Flat LLM dump: per unit the tiddler title + paragraph text / formula latex, document order, units split on double line breaks + separated by --delimiter (default %%%%); empty formulas skipped
   pdfdrill clean <pdf|md>     Strip MathPix LaTeX residuals from the model: a leading section* command merged into a paragraph -> the title alone + kind/refnum fields (so semantic analysis sees plain text)
+  pdfdrill locate <pdf>       Locate embedded images on their pages (canonical pt/top-left coords + normalized [0,1] + PDF object number), detect full-page/template images, and COMPARE to MathPix regions (IoU) incl. MathPix-only figures
   pdfdrill rulebook <pdf|md>  Claims/definitions -> kitems (fixpoint, evidence spans) -> rulebook.md: one supported/accepted statement per line with a [->k:hash] drill-down anchor + kitem tiddlers
   pdfdrill svg <pdf|tex>       Render TikZ diagrams + tables to SVG via latex->dvisvgm (KaTeX can't); embeds in the report
   pdfdrill folder <dir>        Build the full structure for every PDF in <dir> from existing

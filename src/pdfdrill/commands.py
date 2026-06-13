@@ -2138,6 +2138,58 @@ def cmd_rulebook(pdf: Path, force: bool = False) -> str:
             f"-> the model object.")
 
 
+def cmd_locate(pdf: Path) -> str:
+    """Locate every embedded raster image on its page in ONE canonical system
+    (points, top-left origin, y-down — the MathPix orientation): native pixel
+    size + ppi, the placement rectangle (pdfplumber), full-page detection, the
+    PDF object number (the join key), and normalized [0,1] coords. When a
+    MathPix `lines.json` exists, each image is COMPARED to the MathPix line(s)
+    drawn over it (IoU / fraction-inside) and MathPix-only figures (vector
+    charts / figures inside a scanned full-page raster) are surfaced. Reuses
+    the stored pdfinfo/pdfimages text when present (no re-run). Stores
+    `image_placements` in the sidecar.
+    """
+    from . import pdfimg_locate as L
+
+    sc = Sidecar(pdf)
+    info_txt = sc.get_evidence("pdfinfo_text") or None
+    list_txt = sc.get_evidence("pdfimages_list_text") or None
+    try:
+        res = L.locate_pdf_images(str(pdf), pdfinfo_text=info_txt,
+                                  pdfimages_list_text=list_txt)
+    except Exception as e:
+        return f"pdfdrill locate: {e}"
+
+    # Compare against MathPix regions if the model/lines are available.
+    lines_path = _lines_json_path(pdf)
+    matched = mp_only = 0
+    if lines_path.exists():
+        try:
+            lines = json.loads(lines_path.read_text(encoding="utf-8"))
+            L.match_against_mathpix_lines(res, lines)
+            mo = L.mathpix_only_figures(dict(res), lines)
+            mp_only = sum(len(p.get("mathpix_only", [])) for p in mo.get("pages", []))
+            matched = sum(1 for p in res["pages"] for im in p["images"]
+                          if im.get("mathpix"))
+        except Exception:
+            pass
+
+    pages = res.get("pages", [])
+    imgs = [im for p in pages for im in p["images"]]
+    full = sum(1 for im in imgs if im.get("full_page"))
+    tmpl = sum(1 for im in imgs if im.get("template"))
+    sc.set_evidence("image_placements", res)
+    sc.save()
+    return (f"Located {len(imgs)} embedded image(s) across {len(pages)} page(s): "
+            f"{full} full-page, {tmpl} recurring template(s)"
+            + (f", {matched} matched to a MathPix region" if lines_path.exists() else "")
+            + (f", {mp_only} MathPix-only figure(s) (no XObject — vector/scan-inside)"
+               if mp_only else "")
+            + ". Canonical coords (pt, top-left, y-down) + normalized [0,1] + PDF "
+              "object number stored in the sidecar (image_placements). A full-page "
+              "image = 'nothing to do'; a MathPix-only figure -> rasterize+crop.")
+
+
 def cmd_clean(pdf: Path) -> str:
     """Clean MathPix LaTeX residuals from the model so semantic analysis sees
     plain text. Today: leading `\\section*{Title}` commands that MathPix merged

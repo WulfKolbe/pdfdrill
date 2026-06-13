@@ -938,6 +938,27 @@ Three QC actions:
   Tests: `tests/test_heading_residual.py` (5), `tests/test_tiddler_tags_toc.py`
   (4).
 
+**Image locate / compare (`pdfdrill locate`, `pdfimg_locate.py`; 2026-06-13).**
+Vendored the user's `pdfimg_locate.py` (stdlib + pdfplumber, no new deps) — a
+rigorous embedded-image locator that reports everything in ONE canonical
+coordinate system (points, **top-left origin, y-down — the MathPix lines.json
+orientation**): native pixel size + ppi (`pdfimages -list`), the placement
+rectangle (pdfplumber content-stream geometry), **full-page detection** (=
+"nothing to do") + recurring-**TEMPLATE** (slide background) detection, the PDF
+**object number** (the join key into the model), and normalized [0,1] coords
+(resolution-independent). `match_against_mathpix_lines` COMPARES each image to
+the MathPix region(s) drawn over it (IoU / fraction-inside in normalized space,
+so render DPI is irrelevant); `mathpix_only_figures` surfaces figures that exist
+ONLY in MathPix output (vector charts; figures inside a scanned full-page
+raster) for rasterize+crop. **`pdfdrill locate <pdf>`** reuses the stored
+pdfinfo/pdfimages text when present (no re-run), runs the comparison when a
+lines.json exists, and stores `image_placements` in the sidecar. Verified:
+2004.05631 → 100 images all matched to a MathPix region; ocrtest scan → 45
+full-page rasters flagged nothing-to-do. Complements (rigorous coords/IoU) the
+existing containment-fusion in `image_model.py`/`embedimages`. Tests:
+`tests/test_pdfimg_locate.py` (parsers, IoU/fraction-inside, canonical→MathPix
+px, built-PDF round-trip).
+
 **Still deferred (roadmap):** index from LaTeX `\index{}` source (rendered-index
 OCR is unreliable); graph→linked-Tiddler projection; the reasoning-flow /
 abstraction layers.
