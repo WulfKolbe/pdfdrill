@@ -28,6 +28,7 @@ DEFAULT_REGISTRY: dict[str, str] = {
     "ComparisonHtmlProjector": "docops.projectors.comparison_html",
     "FormulaReportProjector": "docops.projectors.formula_report",
     "SciKGTeXProjector":    "docops.projectors.scikgtex",
+    "LLMTextProjector":     "docops.projectors.llm_text",
 }
 
 

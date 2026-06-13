@@ -2138,6 +2138,41 @@ def cmd_rulebook(pdf: Path, force: bool = False) -> str:
             f"-> the model object.")
 
 
+def cmd_llmtext(pdf: Path, delimiter: str = "%%%%", split: bool = True) -> str:
+    """Flat, delimiter-separated dump for an LLM: per unit the tiddler-style
+    title then the content (paragraph TEXT or formula LATEX), in document
+    order, units separated by `delimiter` (default %%%%). A LaTeX paragraph is
+    one block — paragraph text is split on double line breaks into separate
+    units; empty/null formulas (CDN-crop only) are skipped. Writes
+    `<key>.llm.txt`.
+    """
+    from docmodel.core import Document
+    from docops.projectors.llm_text import LLMTextProjector
+    from docops.base import OperatorConfig
+
+    sc = Sidecar(pdf)
+    model_path = _model_path(sc)
+    if not model_path.exists():
+        return (f"No model for {pdf.name} — run `pdfdrill model` (PDF) or "
+                f"`pdfdrill markdown` (.md) first.")
+    doc = Document.from_dict(json.loads(model_path.read_text(encoding="utf-8")))
+    key = sc.get_evidence("bibkey") or doc.meta.get("bibkey") or pdf.stem
+    proj = LLMTextProjector(OperatorConfig(op="projector", classname="LLMTextProjector",
+                                           params={"delimiter": delimiter,
+                                                   "split_paragraphs": split}))
+    out = proj.project(doc)
+    out_path = sc.blob_dir / f"{key}.llm.txt"
+    out_path.parent.mkdir(parents=True, exist_ok=True)
+    out_path.write_text(out, encoding="utf-8")
+    n_units = out.count("\n" + delimiter + "\n") + 1 if out else 0
+    n_para = len(doc.objects_of_type("Paragraph"))
+    n_eq = len(doc.objects_of_type("Equation")) + len(doc.objects_of_type("Formula"))
+    return (f"LLM text dump: {n_units} unit(s) from {n_para} paragraph(s) + "
+            f"{n_eq} formula(s) (paragraphs split on double line breaks, "
+            f"empty formulas skipped), delimiter '{delimiter}' -> "
+            f"{out_path.relative_to(sc.pdf_path.parent)}.")
+
+
 def cmd_gaps(pdf: Path) -> str:
     """Detect MISSING information — "cohomology as a linter".
 

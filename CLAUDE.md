@@ -894,6 +894,27 @@ anchor → kitem tiddler → span → the p95 model Paragraph; second run = 0 ne
 (fixpoint no-op). Tests: `tests/test_fixpoint.py` (3),
 `tests/test_claims_rulebook.py` (3).
 
+**LLM text projection (`pdfdrill llmtext`, 2026-06-13).**
+`docops/projectors/llm_text.py` (`LLMTextProjector`) — a flat dump for an LLM:
+per unit the tiddler-style TITLE (`<bibkey>_PARA_<NNNN>` / `_EQ<NNNN>_p<NNN>` /
+`_FO<NNNN>`) then the content — paragraph TEXT or formula LATEX — in document
+order, units separated by a configurable delimiter (default `%%%%`). Two
+corpus-quality rules baked in: **a LaTeX paragraph is ONE block** so paragraph
+text is split on double line breaks into separate units (`#1`/`#2`-suffixed
+titles); **empty/null formulas are skipped** (latex `""`/`null`/`None` = a
+CDN-crop-only equation, nothing for the LLM to read). `pdfdrill llmtext
+<pdf|md> [--delimiter X] [--no-split]` → `<key>.llm.txt`. Verified on
+2312.11532: 262 units (58 paragraphs split out + 151 non-empty formulas), 0
+units with an internal double break. Tests: `tests/test_llm_text.py` (5).
+**Audit finding (the motivation):** across 25 drilled models, paragraph
+merging is pervasive (e.g. 36/58 paragraph tiddlers on 2312.11532 carry an
+internal `\n\n` — MathPix returns several LaTeX paragraphs as one block);
+the projector splits at consumption time. Transclusion-less paragraphs are NOT
+a defect (audited: such paragraphs contain no formula/inline-math reference).
+3 corpus formulas have empty latex + a CDN crop (vision/snip candidates). The
+model-level paragraph split (a docmodel mutator) is a deeper follow-up — it
+must preserve the offset-based transclusion machinery.
+
 **Still deferred (roadmap):** index from LaTeX `\index{}` source (rendered-index
 OCR is unreliable); graph→linked-Tiddler projection; the reasoning-flow /
 abstraction layers.

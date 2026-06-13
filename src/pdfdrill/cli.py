@@ -99,6 +99,7 @@ def main():
         "latexbook": _do_latexbook,
         "markdown": _do_markdown,
         "gaps": _do_gaps,
+        "llmtext": _do_llmtext,
         "rulebook": _do_rulebook,
         "svg": _do_svg,
         "stex": _do_stex,
@@ -678,6 +679,17 @@ def _do_rulebook(args):
     return cmd_rulebook(Path(rest[0]), force="--force" in args)
 
 
+def _do_llmtext(args):
+    """pdfdrill llmtext <pdf|md> [--delimiter %%%%] [--no-split]"""
+    from .commands import cmd_llmtext
+    delim, args = _opt(args, "--delimiter")
+    rest = [a for a in args if a != "--no-split"]
+    if not rest:
+        raise ValueError("No file specified.")
+    return cmd_llmtext(Path(rest[0]), delimiter=delim or "%%%%",
+                       split="--no-split" not in args)
+
+
 def _do_gaps(args):
     """pdfdrill gaps <pdf|md>"""
     from .commands import cmd_gaps
@@ -1035,6 +1047,7 @@ Introspection (fast, no extraction):
   pdfdrill latexbook <book.tex> Source-only model + TikZ/table SVGs + KaTeX formula report from LaTeX (no PDF/MathPix); --no-svg to skip rendering
   pdfdrill markdown <md>      Build a source-only model from LLM-summary Markdown (yt2tw route): sections/paragraphs/math/lists + cite{} commands linked to the gold ```bibtex appendix (or the numbered References list). --bibkey K
   pdfdrill gaps <pdf|md>      Report MISSING information (cohomology-as-linter): acronyms used but never expanded, undeclared math symbols, novelty claims without citations, unmatched in-text citations
+  pdfdrill llmtext <pdf|md>   Flat LLM dump: per unit the tiddler title + paragraph text / formula latex, document order, units split on double line breaks + separated by --delimiter (default %%%%); empty formulas skipped
   pdfdrill rulebook <pdf|md>  Claims/definitions -> kitems (fixpoint, evidence spans) -> rulebook.md: one supported/accepted statement per line with a [->k:hash] drill-down anchor + kitem tiddlers
   pdfdrill svg <pdf|tex>       Render TikZ diagrams + tables to SVG via latex->dvisvgm (KaTeX can't); embeds in the report
   pdfdrill folder <dir>        Build the full structure for every PDF in <dir> from existing
