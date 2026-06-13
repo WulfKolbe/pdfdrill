@@ -69,6 +69,35 @@ def is_latex_graphic(latex_code: str) -> bool:
     return bool(_HAS_LATEX_GFX.search(latex_code))
 
 
+_INCLUDEGFX = re.compile(r"\\includegraphics\s*(?:\[[^\]]*\])?\s*\{([^}]+)\}")
+_VEC_EXT = (".eps", ".ps")
+_RASTER_EXT = (".png", ".jpg", ".jpeg", ".pdf", ".gif", ".bmp", ".tif", ".tiff")
+
+
+def _nonvector_includegraphics(latex_code: str, resource_dir):
+    """Return the first \\includegraphics target that the DVI route can't embed
+    (a raster/PDF figure, or an extension-less name with no .eps/.ps beside the
+    source), or None. EPS/PS targets and resolvable .eps return None."""
+    import os
+    for m in _INCLUDEGFX.finditer(latex_code or ""):
+        name = m.group(1).strip()
+        low = name.lower()
+        if low.endswith(_VEC_EXT):
+            continue
+        if low.endswith(_RASTER_EXT):
+            return name
+        # no extension: DVI latex looks for <name>.eps/.ps — present beside src?
+        found = False
+        if resource_dir:
+            for ext in _VEC_EXT:
+                if os.path.exists(os.path.join(resource_dir, name + ext)):
+                    found = True
+                    break
+        if not found:
+            return name
+    return None
+
+
 def _graphic_ratio(dvisvgm_out: str) -> str:
     m = re.search(r"graphic size:\s*([0-9.]+)pt\s*x\s*([0-9.]+)pt", dvisvgm_out, re.I)
     if not m:
@@ -87,11 +116,23 @@ def compile_to_svg(latex_code: str, preamble: str | None = None,
     `resource_dir` (the document's own folder) is prepended to TEXINPUTS so a
     project preamble's local `\\usepackage{mystyle}` / tkz-* styles resolve.
     """
+    # See _nonvector_includegraphics below (defined at module scope).
     # Hard guard: never feed non-graphic content (empty, a markdown code fence,
     # or raw source with no LaTeX env / \tikz) to latex — it would always fail.
     if not is_latex_graphic(latex_code):
         return {"ok": False, "svg": "", "ratio": "", "skipped": True,
                 "error": "not a LaTeX graphic (skipped)"}
+    # A TikZ snippet that \includegraphics an external RASTER/PDF figure cannot
+    # render on the latex->dvips->dvisvgm (DVI) route, which embeds EPS/PS only.
+    # Skip with a clear reason (the bitmap itself is recoverable via
+    # `pdfdrill extractimages`/`embedimages`), unless the referenced file
+    # resolves to an .eps/.ps next to the source.
+    nonvec = _nonvector_includegraphics(latex_code, resource_dir)
+    if nonvec:
+        return {"ok": False, "svg": "", "ratio": "", "skipped": True,
+                "error": f"embeds external bitmap/PDF figure ({nonvec}); the "
+                         f"latex->dvisvgm route renders vector graphics only — "
+                         f"recover it via `pdfdrill extractimages`"}
     if not tools_available():
         return {"ok": False, "svg": "", "ratio": "",
                 "error": "latex/dvisvgm not on PATH"}

@@ -331,6 +331,31 @@ def _collect_macro_defs(preamble: str) -> list[str]:
     return out
 
 
+_NC_NAME = re.compile(r"^(\s*)\\(?:re)?newcommand\*?\s*\{?\\([A-Za-z@]+)\}?")
+
+
+def _robustify_macro_defs(defs: list[str]) -> list[str]:
+    """Make every collected \\newcommand/\\renewcommand definition compile in a
+    STANDALONE snippet regardless of what the dropped packages defined.
+
+    A thesis that `\\renewcommand{\\C}{...}` a macro defined only by a package
+    we drop fails with "Command \\C undefined"; a `\\newcommand{\\x}{...}` of a
+    name a KEPT package already defines fails the other way. Both are cured by:
+    pre-declare the name with `\\providecommand{\\name}{}` (no-op if it exists),
+    then emit the body as `\\renewcommand` (always succeeds once it exists).
+    `\\def`/`\\DeclareMathOperator`/`\\providecommand` defs pass through."""
+    out: list[str] = []
+    for d in defs:
+        m = _NC_NAME.match(d)
+        if not m:
+            out.append(d)
+            continue
+        name = m.group(2)
+        body = re.sub(r"^\s*\\(?:re)?newcommand", r"\\renewcommand", d, count=1).lstrip()
+        out.append(f"\\providecommand{{\\{name}}}{{}}{body}")
+    return out
+
+
 def standalone_preamble(preamble: str) -> str:
     """A minimal `standalone` math preamble for the latex→dvi→dvisvgm step: the
     author's math/TikZ packages + their macro definitions — but NOT the document
@@ -350,7 +375,7 @@ def standalone_preamble(preamble: str) -> str:
     # TikZ libraries the diagrams/styles depend on (e.g. decorations.markings,
     # which a \tikzset `decorate` style needs).
     libs = re.findall(r"\\usetikzlibrary\s*\{[^}]*\}", pre)
-    defs = _collect_macro_defs(pre)
+    defs = _robustify_macro_defs(_collect_macro_defs(pre))
     # Math-alphabet declarations (single-line, self-contained, no \makeatletter
     # needed) that define math letters a diagram may use, e.g.
     # \DeclareMathAlphabet{\mathbbe}{U}{bbold}{m}{n}. (Deliberately NOT \let or

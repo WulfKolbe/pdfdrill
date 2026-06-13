@@ -52,6 +52,33 @@ def test_standalone_preamble_keeps_multiline_macro_bodies():
     assert "standalone" in sa
 
 
+def test_standalone_preamble_robustifies_renewcommand():
+    # The thesis (2004.05631) failed: \renewcommand{\C}{\mathsf{C}} where \C is
+    # only defined by a package the standalone preamble drops -> "Command \C
+    # undefined". Every collected macro must be pre-declared so renew can't fail.
+    pre = (r"\documentclass{report}" "\n"
+           r"\usepackage{amssymb}" "\n"
+           r"\renewcommand{\C}{\mathsf{C}}" "\n"
+           r"\newcommand{\D}[1]{\mathbb{#1}}")
+    sa = ls.standalone_preamble(pre)
+    assert r"\providecommand{\C}" in sa            # pre-declared
+    assert r"\providecommand{\D}" in sa
+    assert r"\mathsf{C}" in sa                      # body kept
+    assert sa.count("{") == sa.count("}")
+
+
+def test_standalone_preamble_compiles_renewcommand_of_undefined():
+    from pdfdrill import svg as svgmod
+    if not svgmod.tools_available():
+        print("SKIP (latex/dvisvgm missing)"); return
+    pre = (r"\documentclass{report}" "\n\\usepackage{tikz}\n"
+           r"\renewcommand{\C}{\mathsf{C}}")
+    sa = ls.standalone_preamble(pre)
+    r = svgmod.compile_to_svg(r"\begin{tikzpicture}\node at (0,0) {$\C$};\end{tikzpicture}",
+                              preamble=sa)
+    assert r.get("ok"), r.get("error")
+
+
 def test_standalone_preamble_keeps_font_primitive():
     # \font\name=... primitive font loads must survive — e.g. the Yoneda symbol
     # \yo built from \font\maljapanese=dmjhira (arXiv 2510.15795). Without the
