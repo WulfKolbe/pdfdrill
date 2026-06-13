@@ -2138,6 +2138,31 @@ def cmd_rulebook(pdf: Path, force: bool = False) -> str:
             f"-> the model object.")
 
 
+def cmd_clean(pdf: Path) -> str:
+    """Clean MathPix LaTeX residuals from the model so semantic analysis sees
+    plain text. Today: leading `\\section*{Title}` commands that MathPix merged
+    into a Paragraph's text are stripped to the title alone, with `kind`
+    (section/subsection/...) + `refnum` recorded on the object. Re-saves the
+    model; idempotent.
+    """
+    from docmodel.core import Document
+    from . import heading_cleanup
+
+    sc = Sidecar(pdf)
+    model_path = _model_path(sc)
+    if not model_path.exists():
+        return f"No model for {pdf.name} — run `pdfdrill model` first."
+    doc = Document.from_dict(json.loads(model_path.read_text(encoding="utf-8")))
+    n = heading_cleanup.clean_heading_residuals(doc)
+    if n:
+        model_path.write_text(json.dumps(doc.to_dict(), indent=2, ensure_ascii=False),
+                              encoding="utf-8")
+    return (f"Cleaned {n} paragraph(s) carrying a leading LaTeX sectioning "
+            f"command (title lifted out; kind/refnum set). "
+            + ("Re-run tiddlers/report/semantic/llmtext to refresh." if n else
+               "Nothing to clean.")) 
+
+
 def cmd_llmtext(pdf: Path, delimiter: str = "%%%%", split: bool = True) -> str:
     """Flat, delimiter-separated dump for an LLM: per unit the tiddler-style
     title then the content (paragraph TEXT or formula LATEX), in document

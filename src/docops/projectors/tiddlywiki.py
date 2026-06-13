@@ -56,6 +56,30 @@ def _bibtag(bibkey: str) -> str:
     return f"[[{bibkey}]]" if (" " in bibkey) else bibkey
 
 
+_TIKZ = re.compile(r"\\begin\{(?:tikzpicture|tikzcd|circuitikz)\}|\\tikz\b"
+                   r"|\\(?:draw|node|tikzset|usetikzlibrary)\b")
+
+
+def fractal_index(doc) -> dict[str, str]:
+    """Hierarchical section number (1, 1.1, 2, 2.3, 2.3.1) per Section id,
+    from the flow-ordered sections + their `level`. This is the chapter.
+    section.subsection index the TOC/xref needs — distinct from the model's
+    `section_number`, which is only a flat sequential counter."""
+    secs = sorted((o for o in doc.objects_of_type("Section")),
+                  key=lambda o: o.props.get("flow_index") or 0)
+    counters: list[int] = []
+    out: dict[str, str] = {}
+    for s in secs:
+        lvl = max(1, int(s.props.get("level") or 1))
+        if lvl <= len(counters):
+            counters = counters[:lvl]
+            counters[lvl - 1] += 1
+        else:
+            counters += [1] * (lvl - len(counters))
+        out[s.id] = ".".join(str(c) for c in counters)
+    return out
+
+
 # LaTeX sectioning commands that MathPix sometimes leaves inside a paragraph
 # body (`\section*{...}`) instead of tagging the line as a section header. The
 # PARA template is `<p>{{!!text}}</p>` and KaTeX only renders math, so these
@@ -352,6 +376,12 @@ class TiddlyWikiProjector(BaseProjector):
             # Preserve the raw text if a mutator (e.g. Dehyphenate) saved it.
             if "text_raw" in p.props:
                 t["text_raw"] = p.props["text_raw"]
+            # A heading-residual-cleaned paragraph carries its sectioning kind +
+            # number as fields (the LaTeX command was stripped from the text).
+            if p.props.get("heading_residual_cleaned"):
+                t["kind"] = p.props.get("kind", "")
+                t["refnum"] = p.props.get("refnum", "")
+                t["heading_residual_cleaned"] = "true"
             self.bump("para_tiddlers")
             out.append(t)
 
@@ -458,7 +488,9 @@ class TiddlyWikiProjector(BaseProjector):
             body = ("{{!!svg_tiddler}}" if svg_field
                     else "<$image source={{!!canonical_uri}} "
                          "width={{!!width}} height={{!!height}}/>")
-            t = self._t(title[d.id], body, f"diagram {_bibtag(bibkey)}")
+            # TikZ diagrams also carry a `tikz` structural tag (for filters).
+            extra_tag = " tikz" if _TIKZ.search(d.props.get("latex_code") or "") else ""
+            t = self._t(title[d.id], body, f"diagram{extra_tag} {_bibtag(bibkey)}")
             t["page"] = self._p3(d.props.get("page"))
             t["latex_code"] = d.props.get("latex_code") or ""
             if d.props.get("latex_original"):
@@ -531,14 +563,31 @@ class TiddlyWikiProjector(BaseProjector):
             t["page"] = self._p3(a.props.get("page"))
             out.append(t)
 
-        # TOC
+        # TOC — rebuilt as a STRUCTURED xref index: each section's fractal
+        # index (1 / 2.3 / 2.3.1) + page + a link to its tiddler. This is the
+        # "convert page-number links to chapter name + fractal index + page"
+        # form; the raw OCR entry-strings are dropped.
+        fidx = fractal_index(doc)
+        toc_rows = []
+        for s in inv["sections"]:
+            cap = (s.props.get("caption") or "").strip()
+            if not cap:
+                continue
+            fi = fidx.get(s.id, "")
+            pg = s.props.get("page")
+            pg_s = f"p. {int(pg)}" if pg is not None else ""
+            indent = "*" * max(1, (fi.count(".") + 1))
+            toc_rows.append(f"{indent} {fi} [[{cap}|{title[s.id]}]] {pg_s}".rstrip())
+        toc_body = "\n".join(toc_rows)
         for toc in inv["tocs"]:
-            entries = toc.props.get("entries", []) or []
-            body = "\n".join(f"* {e}" for e in entries)
-            t = self._t(
-                title[toc.id], body,
-                f"toc {_bibtag(bibkey)}",
-            )
+            t = self._t(title[toc.id], toc_body, f"toc {_bibtag(bibkey)}")
+            t["format"] = "fractal_xref"
+            out.append(t)
+        # If the doc had NO Toc object but has sections, still emit one so the
+        # xref index always exists.
+        if not inv["tocs"] and toc_rows:
+            t = self._t(f"{bibkey}_TOC", toc_body, f"toc {_bibtag(bibkey)}")
+            t["format"] = "fractal_xref"
             out.append(t)
 
         # References (bibliographic entries). The text leads with a {{||CIT}}
@@ -547,7 +596,7 @@ class TiddlyWikiProjector(BaseProjector):
             body = "{{||CIT}} " + (ref.props.get("raw_text") or "")
             # tagged both `reference` and `bibentry` so existing bibentry
             # macros / updateBibentries.ts work on this output unchanged.
-            t = self._t(title[ref.id], body, f"reference bibentry {_bibtag(bibkey)}")
+            t = self._t(title[ref.id], body, f"reference bibentry bibtex {_bibtag(bibkey)}")
             t["kind"] = "reference"
             t["citekey"] = ref.props.get("citekey") or ""
             t["year"] = ref.props.get("year") or ""
@@ -588,7 +637,7 @@ class TiddlyWikiProjector(BaseProjector):
             bibkey,
             self._root_body(bibkey, inv["pages"], inv["sections"],
                             inv["paragraphs"], inv["equations"], inv["formulas"]),
-            f"document {_bibtag(bibkey)}",
+            f"document bibtex {_bibtag(bibkey)}",
         ))
         return out
 

@@ -915,6 +915,29 @@ a defect (audited: such paragraphs contain no formula/inline-math reference).
 model-level paragraph split (a docmodel mutator) is a deeper follow-up — it
 must preserve the offset-based transclusion machinery.
 
+**Cleanup + consolidation (tiddler tags, fractal TOC, heading residuals; 2026-06-13).**
+Three QC actions:
+- **Structural tags for filter performance** (`tiddlywiki.py`): the document
+  header + every reference/bibentry tiddler now carry **`bibtex`**; a TikZ
+  diagram (latex_code matches tikzpicture/tikzcd/`\draw`/…) carries **`tikz`**
+  alongside `diagram` (every type already had its own tag).
+- **Structured fractal-index TOC**: the `toc` tiddler is rebuilt as an xref
+  index — one row per section = its **fractal index** (`fractal_index(doc)`:
+  1 / 2.3 / 2.3.1 from the section tree's levels, distinct from the flat
+  `section_number`) + caption + page + a link to the section tiddler
+  (`format: fractal_xref`); emitted even when the model has no Toc object.
+- **MathPix heading-residual cleanup** (`pdfdrill clean`, `heading_cleanup.py`):
+  a Paragraph whose text MathPix merged with a leading `\section*{Title}` is
+  stripped to the title alone, recording `kind` (section/subsection/…) +
+  `refnum` (lifted leading number, else "") — so semantic analysis sees plain
+  text. The tiddler render still shows the WikiText heading (the projector
+  rebuilds transclusions from the immutable source stream, separately), while
+  `props["text"]` / llmtext / gaps now read clean text. Idempotent. Verified
+  on 2004.05631: 57 paragraphs cleaned, llmtext has 0 sectioning commands left,
+  header+63 refs `bibtex`-tagged, fractal TOC rows `2.1 [[Stalks|…_H…]] p. 8`.
+  Tests: `tests/test_heading_residual.py` (5), `tests/test_tiddler_tags_toc.py`
+  (4).
+
 **Still deferred (roadmap):** index from LaTeX `\index{}` source (rendered-index
 OCR is unreliable); graph→linked-Tiddler projection; the reasoning-flow /
 abstraction layers.
