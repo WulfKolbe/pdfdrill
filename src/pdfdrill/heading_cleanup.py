@@ -22,8 +22,9 @@ from __future__ import annotations
 import re
 
 _CMD = r"(chapter|part|section|subsection|subsubsection|paragraph|subparagraph)"
-# a LEADING sectioning command: optional whitespace, \cmd*{TITLE}
-_LEAD = re.compile(r"^\s*\\" + _CMD + r"\*?\s*\{")
+# a LEADING sectioning command: optional whitespace + an optional stray
+# wrapping "{" (MathPix sometimes emits `{\section*{TITLE}.`), then \cmd*{TITLE}
+_LEAD = re.compile(r"^\s*\{?\s*\\" + _CMD + r"\*?\s*\{")
 _LEAD_NUM = re.compile(r"^\s*(\d+(?:\.\d+)*)[.)]?\s+")
 
 
@@ -52,7 +53,7 @@ def clean_heading_residuals(doc) -> int:
         if not m:
             continue
         cmd = m.group(1)
-        brace = text.index("{", m.start())
+        brace = m.end() - 1          # the title-opening '{' (match ends on it)
         end = _balanced(text, brace)
         if end < 0:
             continue

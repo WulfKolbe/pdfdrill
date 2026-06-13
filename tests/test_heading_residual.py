@@ -61,6 +61,18 @@ def test_idempotent():
     assert hc.clean_heading_residuals(doc) == 0            # no command left
 
 
+def test_leading_brace_wrapped_residual():
+    # MathPix sometimes wraps the command: "{\section*{CONCLUSION}."
+    doc = Document(); doc.meta["bibkey"] = "T"
+    doc.add(DocObject(type="Paragraph", id="p1", props={
+        "text": "{\\section*{Annotation}.\n\nThe paper studies X.", "flow_index": 1}))
+    assert hc.clean_heading_residuals(doc) == 1
+    p = doc.objects["p1"].props
+    assert p["text"].startswith("Annotation")
+    assert "\\section" not in p["text"]
+    assert p["kind"] == "section"
+
+
 def test_heading_only_paragraph():
     doc = Document(); doc.meta["bibkey"] = "T"
     doc.add(DocObject(type="Paragraph", id="p1", props={
