@@ -82,6 +82,45 @@ def test_heading_only_paragraph():
     assert doc.objects["p1"].props["kind"] == "section"
 
 
+def test_extract_standalone_footnotetext_paragraph():
+    from docmodel.core import Document, DocObject
+    doc = Document(); doc.meta["bibkey"] = "T"
+    doc.add(DocObject(type="Paragraph", id="p1", props={
+        "text": "\\footnotetext{\n\\({ }^{1}\\) And almost every page is laced "
+                "with side notes.\n}", "page": 3, "flow_index": 1}))
+    n = hc.extract_footnote_paragraphs(doc)
+    assert n == 1
+    fns = doc.objects_of_type("Footnote")
+    assert len(fns) == 1
+    f = fns[0].props
+    assert f["refnum"] == "1"
+    assert f["anchor_marker"] == "{ }^{1}"
+    assert "side notes" in f["content"] and "\\footnotetext" not in f["content"]
+    assert "{ }^{1}" not in f["content"]                 # anchor stripped
+    # the standalone footnotetext paragraph is consumed
+    assert "p1" not in doc.objects or doc.objects["p1"].type == "Footnote"
+
+
+def test_extract_footnote_embedded_in_prose_keeps_prose():
+    from docmodel.core import Document, DocObject
+    doc = Document(); doc.meta["bibkey"] = "T"
+    doc.add(DocObject(type="Paragraph", id="p1", props={
+        "text": "Real prose here. \\footnotetext{\\({ }^{2}\\) the note}", "flow_index": 1}))
+    hc.extract_footnote_paragraphs(doc)
+    assert "Real prose here." in doc.objects["p1"].props["text"]
+    assert "\\footnotetext" not in doc.objects["p1"].props["text"]
+    assert any(o.props.get("refnum") == "2" for o in doc.objects_of_type("Footnote"))
+
+
+def test_extract_footnote_idempotent():
+    from docmodel.core import Document, DocObject
+    doc = Document(); doc.meta["bibkey"] = "T"
+    doc.add(DocObject(type="Paragraph", id="p1", props={
+        "text": "\\footnotetext{\\({ }^{1}\\) x}", "flow_index": 1}))
+    assert hc.extract_footnote_paragraphs(doc) == 1
+    assert hc.extract_footnote_paragraphs(doc) == 0
+
+
 if __name__ == "__main__":
     tests = [v for k, v in list(globals().items()) if k.startswith("test_")]
     failed = []

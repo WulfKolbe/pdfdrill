@@ -2205,14 +2205,18 @@ def cmd_clean(pdf: Path) -> str:
     if not model_path.exists():
         return f"No model for {pdf.name} — run `pdfdrill model` first."
     doc = Document.from_dict(json.loads(model_path.read_text(encoding="utf-8")))
-    n = heading_cleanup.clean_heading_residuals(doc)
-    if n:
+    fn = heading_cleanup.extract_footnote_paragraphs(doc)
+    nh = heading_cleanup.clean_heading_residuals(doc)
+    mt = heading_cleanup.materialize_transclusions(doc)
+    if fn or nh or mt:
         model_path.write_text(json.dumps(doc.to_dict(), indent=2, ensure_ascii=False),
                               encoding="utf-8")
-    return (f"Cleaned {n} paragraph(s) carrying a leading LaTeX sectioning "
-            f"command (title lifted out; kind/refnum set). "
-            + ("Re-run tiddlers/report/semantic/llmtext to refresh." if n else
-               "Nothing to clean.")) 
+    return (f"Cleaned: {fn} footnote(s) lifted into Footnote objects, {nh} leading "
+            f"LaTeX sectioning command(s) stripped (title + kind/refnum), {mt} "
+            f"paragraph(s) materialized with transclusion tokens ({{{{||FO}}}}/"
+            f"{{{{||FN}}}}) so semantic/llmtext read transcluded text. "
+            + ("Re-run tiddlers/report/semantic/llmtext to refresh."
+               if (fn or nh or mt) else "Nothing to clean.")) 
 
 
 def cmd_llmtext(pdf: Path, delimiter: str = "%%%%", split: bool = True) -> str:

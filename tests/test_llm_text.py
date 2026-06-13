@@ -53,7 +53,7 @@ def test_flow_order_interleaves_paragraphs_and_formulas():
     out = _project(_doc())
     titles = [b.splitlines()[0] for b in out.split("\n%%%%\n")]
     # flow order: p1a, p1b, EQ, p2, FO
-    assert titles[2].startswith("T_EQ0001_p003")
+    assert titles[2] == "T_EQ0001"          # page is a field, not in the title
     assert titles[3].startswith("T_PARA_0002")
     assert titles[4].startswith("T_FO0001")
 

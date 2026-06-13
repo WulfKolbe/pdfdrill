@@ -16,11 +16,11 @@ Tiddler title scheme (bibkey="DOC"):
     DOC_H<n>                — Section
     DOC_PAGE_<NNN>          — Page
     DOC_PARA_<NNNN>         — Paragraph
-    DOC_EQ<NNNN>_p<NNN>     — Equation (display)
+    DOC_EQ<NNNN>            — Equation (display); page is a FIELD, not the title
     DOC_FO<NNNN>            — Formula (inline math)
     DOC_PIC_<NNNN>          — Picture
     DOC_DIA_<NNNN>          — Diagram
-    DOC_TAB_<NNN>_p<NNN>    — Table
+    DOC_TAB_<NNN>           — Table; page is a FIELD, not the title
     DOC_FN<NNNN>            — Footnote
     DOC_SN<NNNN>            — Sidenote
     DOC_LI<NNNN>            — ListItem
@@ -256,7 +256,7 @@ class TiddlyWikiProjector(BaseProjector):
         for i, s in enumerate(inv["sections"]):
             title[s.id] = f"{bibkey}_H{i+1}"
         for i, e in enumerate(inv["equations"]):
-            title[e.id] = f"{bibkey}_EQ{i+1:04d}_p{int(e.props.get('page') or 0):03d}"
+            title[e.id] = f"{bibkey}_EQ{i+1:04d}"
         for i, f in enumerate(inv["formulas"]):
             title[f.id] = f"{bibkey}_FO{i+1:04d}"
         for i, p in enumerate(inv["pictures"]):
@@ -264,7 +264,7 @@ class TiddlyWikiProjector(BaseProjector):
         for i, d in enumerate(inv["diagrams"]):
             title[d.id] = f"{bibkey}_DIA_{i+1:04d}"
         for i, t in enumerate(inv["tables"]):
-            title[t.id] = f"{bibkey}_TAB_{i+1:03d}_p{int(t.props.get('page') or 0):03d}"
+            title[t.id] = f"{bibkey}_TAB_{i+1:03d}"
         for fn in inv["footnotes"]:
             title[fn.id] = f"{bibkey}_FN{int(fn.props.get('refnum') or 0):04d}"
         for i, s in enumerate(inv["sidenotes"]):

@@ -41,6 +41,97 @@ def _balanced(text: str, open_pos: int) -> int:
     return -1
 
 
+_FOOTNOTETEXT = re.compile(r"\\footnotetext\s*\{")
+_FN_ANCHOR = re.compile(r"^\s*\\?\(?\s*\{\s*\}\s*\^\s*\{?(\d+)\}?\s*\\?\)?\s*")
+
+
+def extract_footnote_paragraphs(doc) -> int:
+    """Lift `\\footnotetext{...}` that MathPix left inside a Paragraph (a plain
+    `text` line, so the FootnoteProcessor never saw it) into proper Footnote
+    objects — so they transclude (`{{<fn>||FN}}`) like any other footnote.
+
+    Parses the `\\({ }^{N}\\)` anchor for `refnum`, strips it from the content,
+    and removes the `\\footnotetext{...}` span from the paragraph (the paragraph
+    is dropped if nothing else remains). Idempotent. Returns the count."""
+    from docmodel.core import DocObject
+    n = 0
+    drop: list[str] = []
+    add: list[DocObject] = []
+    for o in doc.objects.values():
+        if o.type != "Paragraph":
+            continue
+        text = o.props.get("text") or ""
+        if "\\footnotetext" not in text:
+            continue
+        new_parts: list[str] = []
+        pos = 0
+        for m in _FOOTNOTETEXT.finditer(text):
+            new_parts.append(text[pos:m.start()])
+            brace = m.end() - 1
+            end = _balanced(text, brace)
+            if end < 0:
+                new_parts.append(text[m.start():])
+                pos = len(text)
+                break
+            body = text[brace + 1:end - 1].strip()
+            pos = end
+            am = _FN_ANCHOR.match(body)
+            refnum = am.group(1) if am else ""
+            if am:
+                body = body[am.end():].strip()
+            fn = DocObject(type="Footnote", props={
+                "refnum": refnum, "anchor_marker": f"{{ }}^{{{refnum}}}" if refnum else "",
+                "content": body, "page": o.props.get("page"),
+                "flow_index": o.props.get("flow_index"),
+                "bibkey": o.props.get("bibkey"), "added_by": "footnote_cleanup"})
+            for r in o.realizations:           # share provenance to the source
+                fn.add_realization(r)
+            add.append(fn)
+            n += 1
+        new_parts.append(text[pos:])
+        remaining = re.sub(r"\s+", " ", "".join(new_parts)).strip()
+        if remaining:
+            o.props["text"] = remaining
+        else:
+            drop.append(o.id)
+    for fn in add:
+        doc.add(fn)
+    for pid in drop:
+        doc.objects.pop(pid, None)
+    return n
+
+
+def materialize_transclusions(doc) -> int:
+    """Write the TiddlyWiki projector's TRANSCLUDED paragraph text back into the
+    model's `props["text"]`, so every consumer that reads the canonical text
+    (llmtext, semantic, markdown) sees `{{<eq>||FO}}` / `{{<fn>||FN}}` tokens
+    instead of raw inline math (`\\(X\\)`) or footnote markers — matching what
+    the tiddlers already show. The projector rebuilds transclusions from the
+    immutable source stream, so this is idempotent and re-running the tiddler
+    projector afterwards is unaffected (it ignores `props["text"]`).
+
+    Run AFTER `extract_footnote_paragraphs` so footnote markers resolve to
+    `{{||FN}}`. The original text is preserved under `text_source` on first
+    materialization. Returns the count of paragraphs changed."""
+    import json
+    from docops.projectors.tiddlywiki import TiddlyWikiProjector
+    from docops.base import OperatorConfig
+
+    bib = doc.meta.get("bibkey", "DOC")
+    tids = json.loads(TiddlyWikiProjector(
+        OperatorConfig(op="projector", classname="TiddlyWikiProjector")).project(doc))
+    by_title = {t["title"]: t.get("text", "") for t in tids}
+    flow = lambda o: o.props.get("flow_index") or 0
+    n = 0
+    for i, p in enumerate(sorted(doc.objects_of_type("Paragraph"), key=flow), 1):
+        new = (by_title.get(f"{bib}_PARA_{i:04d}") or "").strip()
+        if new and new != (p.props.get("text") or "").strip():
+            p.props.setdefault("text_source", p.props.get("text", ""))
+            p.props["text"] = new
+            n += 1
+    return n
+
+
 def clean_heading_residuals(doc) -> int:
     """Clean every Paragraph whose text begins with a sectioning command.
     Returns the number changed."""

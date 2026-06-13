@@ -959,6 +959,28 @@ existing containment-fusion in `image_model.py`/`embedimages`. Tests:
 `tests/test_pdfimg_locate.py` (parsers, IoU/fraction-inside, canonical→MathPix
 px, built-PDF round-trip).
 
+**Transclusion materialization + footnote/EQ-title cleanup (`pdfdrill clean`, 2026-06-13).**
+Three user-reported residuals, one root cause — `props["text"]` was the RAW
+source text while only the tiddler path transcluded:
+- **Footnotes** (`heading_cleanup.extract_footnote_paragraphs`): `\footnotetext{
+  \({ }^{N}\) …}` that MathPix left as a plain Paragraph (the FootnoteProcessor
+  only sees `type=footnote` lines) is lifted into a Footnote object (refnum +
+  anchor_marker + content), so it transcludes `{{<fn>||FN}}`; the spent
+  paragraph is dropped. 13 lifted on 2004.05631.
+- **Materialization** (`heading_cleanup.materialize_transclusions`): the
+  TiddlyWiki projector's transcluded paragraph text is written back into
+  `props["text"]`, so llmtext/semantic/markdown read `{{<eq>||FO}}` /
+  `{{<fn>||FN}}` instead of raw `\(X\)` / footnote markers — matching the
+  tiddlers. Idempotent (projector rebuilds from the immutable source stream;
+  original kept under `text_source`). 491 paragraphs on 2004.05631 → 0 PARA
+  llmtext units with raw inline math.
+- **EQ/TAB title**: dropped the `_p<NNN>` page suffix from the tiddler titles
+  (`2004.05631v1_EQ0038`, not `…_EQ0038_p029`) — page already lives in the
+  `page` FIELD; `llm_text` mirrors the scheme.
+`pdfdrill clean` now runs footnote-extraction → heading-residual strip →
+materialization. Tests: `tests/test_heading_residual.py` (footnote extraction),
+`tests/test_llm_text.py` (EQ title). Suite green.
+
 **Still deferred (roadmap):** index from LaTeX `\index{}` source (rendered-index
 OCR is unreliable); graph→linked-Tiddler projection; the reasoning-flow /
 abstraction layers.

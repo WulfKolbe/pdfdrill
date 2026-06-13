@@ -54,7 +54,7 @@ class LLMTextProjector(BaseProjector):
         for i, p in enumerate(sorted(doc.objects_of_type("Paragraph"), key=flow), 1):
             title[p.id] = f"{bib}_PARA_{i:04d}"
         for i, e in enumerate(sorted(doc.objects_of_type("Equation"), key=flow), 1):
-            title[e.id] = f"{bib}_EQ{i:04d}_p{int(e.props.get('page') or 0):03d}"
+            title[e.id] = f"{bib}_EQ{i:04d}"
         for i, f in enumerate(sorted(doc.objects_of_type("Formula"), key=flow), 1):
             title[f.id] = f"{bib}_FO{i:04d}"
         return title
