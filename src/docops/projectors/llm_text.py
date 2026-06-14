@@ -41,49 +41,52 @@ def _is_empty_latex(latex) -> bool:
     return latex is None or str(latex).strip().lower() in _NULLISH
 
 
+def build_llm_text(objects, meta, *, delimiter: str = "%%%%",
+                   split_paragraphs: bool = True) -> str:
+    """Pure core: render the LLM dump from any iterable of nodes exposing
+    `.type` / `.id` / `.props` — satisfied by BOTH `DocObject` (full model) and
+    `DocGraph.GraphNode` (the lazy packed read-path), so the fast loader and the
+    canonical loader produce byte-identical output."""
+    objs = list(objects)
+    bib = (meta or {}).get("bibkey", "DOC")
+    flow = lambda o: o.props.get("flow_index") or 0
+    title: dict[str, str] = {}
+    for fmt, typ in (("{b}_PARA_{i:04d}", "Paragraph"),
+                     ("{b}_EQ{i:04d}", "Equation"), ("{b}_FO{i:04d}", "Formula")):
+        for i, o in enumerate(sorted((x for x in objs if x.type == typ), key=flow), 1):
+            title[o.id] = fmt.format(b=bib, i=i)
+
+    units: list[tuple[float, str, str]] = []
+    for o in objs:
+        fi = o.props.get("flow_index") or 0
+        if o.type == "Paragraph":
+            text = (o.props.get("text") or "").strip()
+            if not text:
+                continue
+            blocks = [b.strip() for b in _DBL.split(text) if b.strip()] if split_paragraphs \
+                else [text]
+            if len(blocks) == 1:
+                units.append((fi, title[o.id], blocks[0]))
+            else:
+                for k, b in enumerate(blocks, 1):
+                    units.append((fi, f"{title[o.id]}#{k}", b))
+        elif o.type in ("Equation", "Formula"):
+            latex = o.props.get("latex")
+            if _is_empty_latex(latex):
+                continue
+            units.append((fi, title[o.id], str(latex).strip()))
+
+    units.sort(key=lambda u: (u[0], u[1]))
+    sep = f"\n{delimiter}\n"
+    return sep.join(f"{t}\n{c}" for _fi, t, c in units)
+
+
 class LLMTextProjector(BaseProjector):
 
     def output_extension(self) -> str:
         return ".llm.txt"
 
-    def _titles(self, doc: Document) -> dict[str, str]:
-        """Tiddler-compatible titles, per-type 1-based in flow order."""
-        bib = doc.meta.get("bibkey", "DOC")
-        flow = lambda o: o.props.get("flow_index") or 0
-        title: dict[str, str] = {}
-        for i, p in enumerate(sorted(doc.objects_of_type("Paragraph"), key=flow), 1):
-            title[p.id] = f"{bib}_PARA_{i:04d}"
-        for i, e in enumerate(sorted(doc.objects_of_type("Equation"), key=flow), 1):
-            title[e.id] = f"{bib}_EQ{i:04d}"
-        for i, f in enumerate(sorted(doc.objects_of_type("Formula"), key=flow), 1):
-            title[f.id] = f"{bib}_FO{i:04d}"
-        return title
-
     def project(self, doc: Document) -> str:
-        delimiter = self.params.get("delimiter", "%%%%")
-        split = self.params.get("split_paragraphs", True)
-        titles = self._titles(doc)
-
-        units: list[tuple[float, str, str]] = []   # (flow_index, title, content)
-        for o in doc.objects.values():
-            fi = o.props.get("flow_index") or 0
-            if o.type == "Paragraph":
-                text = (o.props.get("text") or "").strip()
-                if not text:
-                    continue
-                blocks = [b.strip() for b in _DBL.split(text) if b.strip()] if split \
-                    else [text]
-                if len(blocks) == 1:
-                    units.append((fi, titles[o.id], blocks[0]))
-                else:
-                    for k, b in enumerate(blocks, 1):
-                        units.append((fi, f"{titles[o.id]}#{k}", b))
-            elif o.type in ("Equation", "Formula"):
-                latex = o.props.get("latex")
-                if _is_empty_latex(latex):
-                    continue
-                units.append((fi, titles[o.id], str(latex).strip()))
-
-        units.sort(key=lambda u: (u[0], u[1]))
-        sep = f"\n{delimiter}\n"
-        return sep.join(f"{t}\n{c}" for _fi, t, c in units)
+        return build_llm_text(doc.objects.values(), doc.meta,
+                              delimiter=self.params.get("delimiter", "%%%%"),
+                              split_paragraphs=self.params.get("split_paragraphs", True))

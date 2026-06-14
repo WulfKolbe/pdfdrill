@@ -1013,6 +1013,48 @@ objects`) — the "scroll past 34 MB of offsets to reach the text" problem.
   layer holds a document list + a concept tree, where concepts collect links to
   documents as tiddler titles.
 
+## Reference-based model storage + lazy read path (docpack / docgraph, 2026-06-14)
+
+Per-call load time matters because an LLM drives `pdfdrill` repeatedly. The
+`model.docmodel.json` is large (≈75% is one `{"codepoint":…}` dict + a 14-char
+anchor PER CHARACTER of every dehyphenated paragraph / rendered equation), and
+`Document.from_dict` stays ~1.9s regardless of file size because it expands
+those char dicts. Two vendored, stdlib-only layers (Claude.ai proposal,
+reviewed + measured):
+
+- **`src/pdfdrill/docpack.py`** — lossless reference-based compaction: char
+  streams → one packed hex-anchor blob + codepoint string; shared intern tables
+  (STR/BOX/REG/GEOM/PROF + enums + cross-ref anchors). `unpack(pack(m)) == m`
+  (verified). 2004.05631: **52 MB → 15 MB (−71%), 4.4 MB gz (−91%)**; pack
+  0.69s, unpack 0.33s.
+- **`src/pdfdrill/docgraph.py`** — a lazy, indexed VIEW over the packed model:
+  id/type/reverse-link indexes built from the cheap `objects` list; props/text
+  de-interned on first access; the 25 MB of char streams are **never expanded**
+  unless asked. Loads the thesis in **~0.2s** (vs ~1.9s) at far lower memory.
+- **`src/pdfdrill/model_io.py`** — the single chokepoint: `save_model` writes
+  the canonical `.docmodel.json` AND the packed `.docpack.json` sidecar in
+  sync; `load_model` returns a full `Document` (packed sidecar preferred when
+  fresh, mtime-guarded, falls back to legacy); `load_docgraph` is the fast
+  read-path. All 15 model reads + 5 model writes in `commands.py` route through
+  these.
+
+**Pilot (the hot LLM read): `pdfdrill llmtext` now loads via DocGraph** —
+`build_llm_text` is a pure core over anything exposing `.type/.id/.props` (both
+`DocObject` and `GraphNode`), so the fast path is byte-identical to the
+full-Document path. End-to-end on the 50 MB thesis: **~2s → 0.38s wall, output
+identical**.
+
+**Correctness proven ("all projections stay correct"):** every projector
+(tiddlers / llm_compact / report / compare / plaintext / llmtext) emits
+byte-identical output (timestamp-normalized) whether the model is loaded
+canonically or via the docpack round-trip — confirmed live on 2312.11532.
+Tests: `tests/test_model_io.py` (round-trip, save/load, stale-sidecar guard,
+DocGraph↔Document byte-equality, counts). The `.docpack.json` sidecar lives in
+`.drill/` (gitignored). **Next:** migrate the remaining read-only LLM-facing
+commands (`status`, `gaps`, `tables`, `rulebook`, lookups) to `load_docgraph`
+for the same ~10× load win; mutating/transclusion commands keep the full
+`Document` via `load_model`.
+
 ## Roadmap (decomposed — each phase gets its own spec + plan)
 
 - **Phase 1 — Unified model + capture** *(in progress)*: extend `docmodel`

@@ -17,6 +17,7 @@ import time
 from pathlib import Path
 
 from .sidecar import Sidecar
+from .model_io import load_model, save_model
 
 
 # ---------------------------------------------------------------------------
@@ -413,7 +414,7 @@ def cmd_pageside(pdf: Path) -> str:
     model_exists = model_path.exists()
     if model_exists:
         from docmodel.core import Document
-        doc = Document.from_dict(json.loads(model_path.read_text(encoding="utf-8")))
+        doc = load_model(model_path)
         pages = {p.props.get("page_number"): p for p in doc.objects_of_type("Page")}
         for i, r in enumerate(results, start=1):
             pg = pages.get(i)
@@ -421,8 +422,7 @@ def cmd_pageside(pdf: Path) -> str:
                 pg.props["page_side"] = r.side
                 pg.props["page_side_confidence"] = r.confidence
                 annotated += 1
-        model_path.write_text(json.dumps(doc.to_dict(), indent=2, ensure_ascii=False),
-                              encoding="utf-8")
+        save_model(model_path, doc)
     sc.save()
 
     n = len(results)
@@ -470,7 +470,7 @@ def cmd_continuity(pdf: Path, force: bool = False, ppi: int = 250,
     model_path = _model_path(sc)
     if model_path.exists():
         from docmodel.core import Document
-        doc = Document.from_dict(json.loads(model_path.read_text(encoding="utf-8")))
+        doc = load_model(model_path)
         pages = {p.props.get("page_number"): p for p in doc.objects_of_type("Page")}
         for page_no, info in data.items():
             pg = pages.get(page_no)
@@ -481,8 +481,7 @@ def cmd_continuity(pdf: Path, force: bool = False, ppi: int = 250,
                 if info.get(k) not in (None, False):
                     pg.props[k] = info[k]
             attached += 1
-        model_path.write_text(json.dumps(doc.to_dict(), indent=2, ensure_ascii=False),
-                              encoding="utf-8")
+        save_model(model_path, doc)
 
     prev = ",".join(sorted(sc.facts - {CONTINUITY_BUILT})) or "INIT"
     sc.add_fact(CONTINUITY_BUILT)
@@ -588,7 +587,7 @@ def cmd_entities(pdf: Path, force: bool = False) -> str:
     if not model_path.exists():
         return f"No model for {pdf.name} (run `pdfdrill model` first)."
 
-    doc = Document.from_dict(json.loads(model_path.read_text(encoding="utf-8")))
+    doc = load_model(model_path)
     page_text = _page_text_from_model(doc)
 
     per_page: dict[int, dict] = {}
@@ -662,7 +661,7 @@ def cmd_segment(pdf: Path, force: bool = False) -> str:
     model_path = _model_path(sc)
     page_text = {}
     if model_path.exists():
-        doc = Document.from_dict(json.loads(model_path.read_text(encoding="utf-8")))
+        doc = load_model(model_path)
         page_text = _page_text_from_model(doc)
 
     docs = seg.segment(cont, entities, page_text)
@@ -825,7 +824,7 @@ def cmd_semantic(pdf: Path, store: str | None = None, force: bool = False) -> st
         model_path = _model_path(sc)
     if not model_path.exists():
         return f"No model for {pdf.name} (run `pdfdrill model` first)."
-    doc = Document.from_dict(json.loads(model_path.read_text(encoding="utf-8")))
+    doc = load_model(model_path)
     page_text = _page_text_from_model(doc)
     key = resolve_bibkey(pdf, None, sc)
 
@@ -1348,7 +1347,7 @@ def cmd_spellqc(pdf: Path, lang: str | None = None) -> str:
         model_path = _model_path(sc)
     if not model_path.exists():
         return f"No model for {pdf.name} (run `pdfdrill model` first)."
-    doc = Document.from_dict(json.loads(model_path.read_text(encoding="utf-8")))
+    doc = load_model(model_path)
     page_text = _page_text_from_model(doc)
     if not lang:                          # resolve once so the dict label is accurate
         lang = sc.get_evidence("language")
@@ -2100,7 +2099,7 @@ def cmd_rulebook(pdf: Path, force: bool = False) -> str:
     if not model_path.exists():
         return (f"No model for {pdf.name} — run `pdfdrill model` (PDF) or "
                 f"`pdfdrill markdown` (.md) first.")
-    doc = Document.from_dict(json.loads(model_path.read_text(encoding="utf-8")))
+    doc = load_model(model_path)
     key = sc.get_evidence("bibkey") or doc.meta.get("bibkey") or pdf.stem
 
     sem_path = sc.blob_dir / f"{key}.semantic.json"
@@ -2204,13 +2203,12 @@ def cmd_clean(pdf: Path) -> str:
     model_path = _model_path(sc)
     if not model_path.exists():
         return f"No model for {pdf.name} — run `pdfdrill model` first."
-    doc = Document.from_dict(json.loads(model_path.read_text(encoding="utf-8")))
+    doc = load_model(model_path)
     fn = heading_cleanup.extract_footnote_paragraphs(doc)
     nh = heading_cleanup.clean_heading_residuals(doc)
     mt = heading_cleanup.materialize_transclusions(doc)
     if fn or nh or mt:
-        model_path.write_text(json.dumps(doc.to_dict(), indent=2, ensure_ascii=False),
-                              encoding="utf-8")
+        save_model(model_path, doc)
     return (f"Cleaned: {fn} footnote(s) lifted into Footnote objects, {nh} leading "
             f"LaTeX sectioning command(s) stripped (title + kind/refnum), {mt} "
             f"paragraph(s) materialized with transclusion tokens ({{{{||FO}}}}/"
@@ -2236,18 +2234,21 @@ def cmd_llmtext(pdf: Path, delimiter: str = "%%%%", split: bool = True) -> str:
     if not model_path.exists():
         return (f"No model for {pdf.name} — run `pdfdrill model` (PDF) or "
                 f"`pdfdrill markdown` (.md) first.")
-    doc = Document.from_dict(json.loads(model_path.read_text(encoding="utf-8")))
-    key = sc.get_evidence("bibkey") or doc.meta.get("bibkey") or pdf.stem
-    proj = LLMTextProjector(OperatorConfig(op="projector", classname="LLMTextProjector",
-                                           params={"delimiter": delimiter,
-                                                   "split_paragraphs": split}))
-    out = proj.project(doc)
+    # Fast read-path: build the dump from the lazy DocGraph over the packed
+    # sidecar (≈0.2s, never expands the char streams) — byte-identical to the
+    # full-Document path (build_llm_text reads .type/.id/.props on either).
+    from docops.projectors.llm_text import build_llm_text
+    from . import model_io
+    g = model_io.load_docgraph(model_path)
+    key = sc.get_evidence("bibkey") or g.meta.get("bibkey") or pdf.stem
+    out = build_llm_text(list(g), g.meta, delimiter=delimiter, split_paragraphs=split)
+    doc = None
     out_path = sc.blob_dir / f"{key}.llm.txt"
     out_path.parent.mkdir(parents=True, exist_ok=True)
     out_path.write_text(out, encoding="utf-8")
     n_units = out.count("\n" + delimiter + "\n") + 1 if out else 0
-    n_para = len(doc.objects_of_type("Paragraph"))
-    n_eq = len(doc.objects_of_type("Equation")) + len(doc.objects_of_type("Formula"))
+    n_para = len(g.type_index.get("Paragraph", []))
+    n_eq = len(g.type_index.get("Equation", [])) + len(g.type_index.get("Formula", []))
     return (f"LLM text dump: {n_units} unit(s) from {n_para} paragraph(s) + "
             f"{n_eq} formula(s) (paragraphs split on double line breaks, "
             f"empty formulas skipped), delimiter '{delimiter}' -> "
@@ -2271,7 +2272,7 @@ def cmd_gaps(pdf: Path) -> str:
     if not model_path.exists():
         return (f"No model for {pdf.name} — run `pdfdrill model` (PDF) or "
                 f"`pdfdrill markdown` (.md) first.")
-    doc = Document.from_dict(json.loads(model_path.read_text(encoding="utf-8")))
+    doc = load_model(model_path)
     found = _gaps.detect_gaps(doc)
     sc.set_evidence("gaps", [{k: g[k] for k in ("kind", "severity", "name", "detail")}
                              for g in found])
@@ -2301,7 +2302,7 @@ def cmd_markdown(md: Path, bibkey: str | None = None, force: bool = False) -> st
 
     if model_path.exists() and not force:
         from docmodel.core import Document
-        doc = Document.from_dict(json.loads(model_path.read_text(encoding="utf-8")))
+        doc = load_model(model_path)
         c = doc.meta.get("source_counts", {})
         return (f"Markdown model already built for {md.name} "
                 f"({', '.join(f'{v} {k}' for k, v in c.items() if v)}). "
@@ -2309,8 +2310,7 @@ def cmd_markdown(md: Path, bibkey: str | None = None, force: bool = False) -> st
     doc = msrc.build_markdown_model(md.read_text(encoding="utf-8"),
                                     bibkey=key, source_path=str(md))
     drill.mkdir(parents=True, exist_ok=True)
-    model_path.write_text(
-        json.dumps(doc.to_dict(), indent=2, ensure_ascii=False), encoding="utf-8")
+    save_model(model_path, doc)
 
     sc = Sidecar(md)
     sc.set_evidence("bibkey", key)
@@ -2357,7 +2357,7 @@ def cmd_latexbook(tex: Path, bibkey: str | None = None, force: bool = False,
     model_path = drill / "model.docmodel.json"
 
     if model_path.exists() and not force:
-        doc = Document.from_dict(json.loads(model_path.read_text(encoding="utf-8")))
+        doc = load_model(model_path)
     else:
         doc = ls.build_source_model(str(tex), bibkey=key)
         drill.mkdir(parents=True, exist_ok=True)
@@ -2374,7 +2374,7 @@ def cmd_latexbook(tex: Path, bibkey: str | None = None, force: bool = False,
     if not no_svg and n_graphics:
         if tools_available():
             cmd_svg(tex, force=force)
-            doc = Document.from_dict(json.loads(model_path.read_text(encoding="utf-8")))
+            doc = load_model(model_path)
             n_svg = sum(1 for o in doc.objects.values()
                         if o.type in ("Diagram", "Table") and o.props.get("svg"))
             svg_note = f" {n_svg}/{n_graphics} TikZ/tables rendered to SVG."
@@ -3371,7 +3371,7 @@ def cmd_translate(pdf: Path, target_lang: str = "EN-US",
     if not model_path.exists():
         return f"No model for {pdf.name} (run `pdfdrill model` first)."
 
-    doc = Document.from_dict(json.loads(model_path.read_text(encoding="utf-8")))
+    doc = load_model(model_path)
     t0 = time.monotonic()
     try:
         changed = translate_model_prose(
@@ -3382,8 +3382,7 @@ def cmd_translate(pdf: Path, target_lang: str = "EN-US",
     # Persist the translated model in place (only if it changed), then re-project.
     if changed:
         doc.meta["translated_lang"] = target_lang.upper()
-        model_path.write_text(json.dumps(doc.to_dict(), ensure_ascii=False, indent=1),
-                              encoding="utf-8")
+        save_model(model_path, doc)
 
     # Regenerate the tiddler file from the model, then translate it IN PLACE.
     # The TiddlyWiki projector rebuilds transcluded paragraphs from the immutable
@@ -6162,7 +6161,7 @@ def cmd_scikgtex(pdf: Path, compile: bool = False) -> str:
     if not model_path.exists():
         return f"No model for {pdf.name} (run `pdfdrill model` first)."
     key = resolve_bibkey(pdf, None, sc)
-    doc = Document.from_dict(json.loads(model_path.read_text(encoding="utf-8")))
+    doc = load_model(model_path)
     # enrich title/authors/field from the sidecar (the free arXiv-abs metadata that
     # `abstract` fetched) when the OCR-built model doesn't carry them.
     if not doc.meta.get("title") and sc.get_evidence("arxiv_title"):
