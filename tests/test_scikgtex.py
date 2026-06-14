@@ -82,6 +82,25 @@ def test_numeric_facts_keep_real_metrics():
     assert r"\contribution*{F1 score}{0.88}" in tex
 
 
+def test_scikgtex_emits_rights_disclaimer():
+    tex = _project(_demo_doc())
+    # pdfdrill-namespace property commands are declared + given values
+    assert r"\newpropertycommand[pdfdrill, http://pdfdrill.org/property/]{disclaimer}" in tex
+    assert r"\newpropertycommand[pdfdrill, http://pdfdrill.org/property/]{liability}" in tex
+    assert r"\disclaimer*{" in tex and r"\liability*{" in tex
+    assert "readability" in tex
+    assert "no liability" in tex.lower()
+    assert "PDFDRILL" in tex and "trademark" in tex.lower()
+
+
+def test_scikgtex_disclaimer_overridable():
+    doc = _demo_doc()
+    cfg = OperatorConfig(op="projector", classname="SciKGTeXProjector",
+                         params={"liability": "Custom liability clause."})
+    tex = SciKGTeXProjector(cfg).project(doc)
+    assert r"\liability*{Custom liability clause.}" in tex
+
+
 def _have_scikgtex():
     return (shutil.which("lualatex") and (_FIX / "scikgtex.sty").exists()
             and (_FIX / "scikgtex.lua").exists())
@@ -112,6 +131,9 @@ def test_scikgtex_compiles_and_embeds_orkg_xmp():
         import re
         assert re.search(r"orkg_property:P\d+>95\.3%", xmp), "accuracy did not resolve to a P-id"
         assert "https://doi.org/10.1000/abc123" in xmp and "<rdfs:label>" in xmp  # DOI uri
+        # the rights/disclaimer properties land in the pdfdrill XMP namespace
+        assert "pdfdrill" in xmp and "readability" in xmp
+        assert "liability" in xmp.lower()
 
 
 if __name__ == "__main__":

@@ -847,6 +847,8 @@ package + `[compatibility]` write the RDF into XMP + a `SciKGMetadata` catalog k
 inspectable `xmp_metadata.xml`. **Compile-proven** (synthetic + live EAGer): the
 XMP shows `orkg:Paper` (hasTitle/hasAuthor/hasResearchField) + ResearchContributions
 with P32/P1005/P1006, `accuracy`→`P18048`, and the DOI as an `rdfs:label`led node.
+**Rights/disclaimer in the XMP (2026-06-14).** The projector also embeds a pdfdrill-namespace rights block in the XMP/RDF via SciKGTeX `\newpropertycommand[pdfdrill, http://pdfdrill.org/property/]{name}` + an invisible `\name*{value}` (names must be underscore-free — they become real LaTeX commands): `processedby` (PDFDRILL™), `disclaimer` ("enhanced readability + metadata only; original content not altered"), `liability` ("provided as-is, no liability accepted"), `trademark` ("PDFDRILL is a trademark of Wulf Kolbe, registration pending"). All four are overridable via projector params. Verified in the compiled XMP as `<pdfdrill:disclaimer>`/`<pdfdrill:liability>` etc.
+
 `scikgtex.sty`/`.lua` vendored under `tests/fixtures/scikgtex/` (not in the
 package). Tests: `tests/test_scikgtex.py` (macros + lualatex compile + XMP RDF
 checks, gated). **Out of scope (v2):** an LLM contribution classifier; direct

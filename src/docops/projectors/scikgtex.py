@@ -64,6 +64,26 @@ _FACTS = [
 
 _DOI = re.compile(r"(?i)\b(?:doi\s*=\s*[{\"]\s*)?(10\.\d{4,9}/[-._;()/:A-Z0-9]+)")
 
+# pdfdrill rights/provenance disclaimer, embedded as XMP/RDF properties in the
+# pdfdrill namespace (overridable via projector params). The stance: pdfdrill
+# ENHANCES readability + metadata and does NOT alter the original content, and
+# accepts no liability for its changes. "PDFDRILL(TM)" marks the (future) mark.
+_PDFDRILL_NS = "http://pdfdrill.org/property/"
+# NB: names must be underscore-free — \newpropertycommand makes a real LaTeX
+# command (\processedby*), and `_` is illegal in a command name.
+_DEFAULT_RIGHTS = {
+    "processedby": "PDFDRILL™",
+    "disclaimer": (
+        "PDFDRILL enhanced this document's readability and metadata only; the "
+        "original content was not altered."),
+    "liability": (
+        "Provided as-is. No liability is accepted for the changes made or for "
+        "the accuracy of the extracted metadata."),
+    "trademark": "PDFDRILL is a trademark of Wulf Kolbe (registration pending).",
+}
+# emission order
+_RIGHTS_KEYS = ("processedby", "disclaimer", "liability", "trademark")
+
 
 def _esc(s: str) -> str:
     s = re.sub(r"\s+", " ", str(s)).strip()
@@ -136,8 +156,12 @@ class SciKGTeXProjector(BaseProjector):
             for o in doc.objects.values() if o.type in ("Paragraph", "Abstract", "ListItem"))
 
         pre = [r"\usepackage[compatibility]{scikgtex}",
-               r"\addmetaproperty[pdfdrill, http://pdfdrill.org/property/]{extracted_by}",
-               rf"\metatitle*{{{_esc(title)}}}"]
+               r"\addmetaproperty[pdfdrill, http://pdfdrill.org/property/]{extracted_by}"]
+        # Declare the pdfdrill rights/disclaimer properties so they can carry
+        # values in the XMP/RDF (each becomes an invisible \name*{value}).
+        for k in _RIGHTS_KEYS:
+            pre.append(rf"\newpropertycommand[pdfdrill, {_PDFDRILL_NS}]{{{k}}}")
+        pre.append(rf"\metatitle*{{{_esc(title)}}}")
         for a in authors[:25]:
             pre.append(rf"\metaauthor*{{{_esc(a)}}}")
         pre.append(rf"\researchfield*{{{_esc(field)}}}")
@@ -179,7 +203,18 @@ class SciKGTeXProjector(BaseProjector):
             self.bump("doi_uri")
         self.bump("contributions", n)
 
-        body = ["% SciKGTeX metadata (invisible starred commands — layout-safe)"] + ann
+        # --- pdfdrill rights / disclaimer (invisible XMP properties) ---
+        rights = []
+        for k in _RIGHTS_KEYS:
+            val = self.params.get(k, _DEFAULT_RIGHTS[k])
+            if val:
+                rights.append(rf"\{k}*{{{_esc(val)}}}")
+                self.bump("rights")
+
+        body = (["% SciKGTeX metadata (invisible starred commands — layout-safe)"]
+                + ann
+                + ["% pdfdrill rights/provenance disclaimer (XMP, pdfdrill namespace)"]
+                + rights)
         if not standalone:
             return "\n".join(pre + [""] + body) + "\n"
 
