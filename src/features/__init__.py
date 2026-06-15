@@ -21,13 +21,14 @@ from .graph_builder import build_graph
 
 from . import (extract_email, extract_url, extract_doi, extract_dates,
                extract_phone, extract_price, extract_names, extract_address,
-               extract_language)
+               extract_language, extract_isbn)
 
 # Ordered registry of (name, module) — each module exposes extract(text, page_id).
 EXTRACTORS = [
     ("email", extract_email),
     ("url", extract_url),
     ("doi", extract_doi),
+    ("isbn", extract_isbn),
     ("dates", extract_dates),
     ("phone", extract_phone),
     ("price", extract_price),
@@ -37,7 +38,7 @@ EXTRACTORS = [
 ]
 
 # The no-dependency extractors (always available — language has a pure fallback).
-_ALWAYS = {"email", "url", "doi", "language"}
+_ALWAYS = {"email", "url", "doi", "isbn", "language"}
 
 
 def extract_all(text: str, page_id: str = "", only: list[str] | None = None) -> list[Feature]:
