@@ -693,9 +693,7 @@ def _do_rulebook(args):
     """pdfdrill rulebook <pdf|md> [--force]"""
     from .commands import cmd_rulebook
     rest = [a for a in args if a != "--force"]
-    if not rest:
-        raise ValueError("No file specified.")
-    return cmd_rulebook(Path(rest[0]), force="--force" in args)
+    return cmd_rulebook(_drilled(rest), force="--force" in args)
 
 
 def _do_locate(args):
@@ -717,9 +715,7 @@ def _do_llmtext(args):
     from .commands import cmd_llmtext
     delim, args = _opt(args, "--delimiter")
     rest = [a for a in args if a != "--no-split"]
-    if not rest:
-        raise ValueError("No file specified.")
-    return cmd_llmtext(Path(rest[0]), delimiter=delim or "%%%%",
+    return cmd_llmtext(_drilled(rest), delimiter=delim or "%%%%",
                        split="--no-split" not in args)
 
 
@@ -747,9 +743,7 @@ def _do_booktoc(args):
 def _do_gaps(args):
     """pdfdrill gaps <pdf|md>"""
     from .commands import cmd_gaps
-    if not args:
-        raise ValueError("No file specified.")
-    return cmd_gaps(Path(args[0]))
+    return cmd_gaps(_drilled(args))
 
 
 def _do_markdown(args):
