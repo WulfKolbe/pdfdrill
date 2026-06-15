@@ -1179,6 +1179,17 @@ not business). Whatever the native format, a source compiles to the SAME
   Unified-Field-Theory (English): rollup led by **83 Relativity & gravitation**
   (83C45 quantization of the gravitational field, 83C75 space-time
   singularities) + 78 electromagnetic + 70 mechanics. Tests: `tests/test_classify.py`.
+- **Multi-source federation (MSC + PhySH).** Any compiled scheme in
+  `vocab/compiled/` auto-participates — no code change. **PhySH** (Physics Subject
+  Headings, APS, CC-BY) is the physics complement to MSC's math view: download
+  `physh.nt.gz` from the `physh-org/PhySH` repo → `skos.py` ingests the N-Triples
+  → ~3900 concepts (DOI-UUID codes, readable `prefLabel`s). On the Heim corpus the
+  classifier then reports BOTH a math view (MSC: 83 relativity/gravitation, 33
+  special functions, 11 number theory) AND a physics view (PhySH: General
+  relativity formalism, Large scale structure of the Universe, Equations of state
+  of nuclear matter, Singularities in general relativity). `classify` shows the
+  MSC rollup + top codes, then each non-MSC scheme's top concepts by vote. STW /
+  GND / ACM CCS / GermaNet / DLMF / OntoMathPRO drop in the same way (their stubs).
 - **CLI:** `python3 -m vocabnet.sources {list,build <scheme> [path],build all}`.
   `build` defaults its input to the first present file under
   `vocab/sources/<scheme>/` and writes `vocab/compiled/<scheme>.json`.

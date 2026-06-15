@@ -2316,9 +2316,11 @@ def cmd_classify(pdf: Path, k: int = 8) -> str:
     for s in res["present"]:
         if s == "msc":
             continue
-        hits = res["per_source"].get(s, [])[:3]
+        hits = res["per_source"].get(s, [])[:k]
         if hits:
-            lines.append(f"  {s}: " + "; ".join(f"{h['code']} {h['pref'][:30]}" for h in hits))
+            lines.append(f"  {s} (top concepts by votes):")
+            for h in hits:
+                lines.append(f"    {h['pref'][:60]:60} (votes {h['votes']}, {h['score']:.0f})")
     return "\n".join(lines) + note
 
 

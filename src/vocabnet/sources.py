@@ -121,9 +121,11 @@ SOURCES: Dict[str, Source] = {s.scheme: s for s in [
            "E-number concept ids; already used as semdrill groundings",
            filenames=("ontomathpro.omn", "ontomath.omn")),
     Source("physh", "Physics Subject Headings (APS)", "en", "SKOS",
-           load_skos, "https://physh.org/",
-           "~3700 faceted concepts; APS copyright, check licence before redistributing",
-           filenames=("physh.rdf", "physh.nt")),
+           load_skos, "https://github.com/physh-org/PhySH",
+           "download physh.nt.gz from the physh-org/PhySH repo (gunzip -> physh.nt); "
+           "~3900 concepts, DOI-UUID codes + readable prefLabels; APS copyright "
+           "(CC-BY 4.0) — keep the data out of git",
+           filenames=("physh.nt", "physh.rdf")),
     Source("acmccs", "ACM Computing Classification System 2012", "en", "SKOS",
            load_skos, "https://dl.acm.org/ccs",
            "poly-hierarchical; same shape as MSC",
