@@ -715,7 +715,12 @@ def _do_classify(args):
     k, rest = _opt(args, "--k")
     if not rest:
         raise ValueError("No file specified.")
-    return cmd_classify(_pdf(rest), k=int(k) if k else 8)
+    # classify reads only the model, so accept a drilled doc whose source file
+    # was removed after drilling (e.g. a consumed .md): if `<arg>.drill` exists,
+    # use the literal path instead of resolving it as a file/URL.
+    cand = Path(rest[0])
+    target = cand if (cand.parent / (cand.name + ".drill")).exists() else _pdf(rest)
+    return cmd_classify(target, k=int(k) if k else 8)
 
 
 def _do_identifiers(args):

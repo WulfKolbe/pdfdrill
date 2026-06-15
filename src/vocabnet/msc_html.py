@@ -68,12 +68,24 @@ _BOILER = re.compile(
     r"\(\s*(?:should|must|may)\s+(?:also\s+)?be\s+assigned[^)]*\)?"
     r"|\(\s*(?:see|cf\.?|for)\b[^)]*\)",
     re.I)
+# the SAME instruction also appears WITHOUT parentheses, after a period, e.g.
+# "… electromagnetic theory. Must also be assigned at least one other
+# classification number in this section" — cut it (and anything after) entirely.
+_BOILER_TAIL = re.compile(
+    r"[.;,]?\s*(?:should|must|may)\s+(?:also\s+)?be\s+assigned.*$", re.I | re.S)
+# the applied-statistics 62Exx codes carry "… in connection with the topics on
+# distributions in this section" — strip that tail (but keep meaningful
+# "in connection with <topic>" like "PDEs in connection with quantum mechanics").
+_BOILER_TOPICS = re.compile(
+    r"\s*in connection with the topics on\b.*$|\s*in this section\b.*$", re.I | re.S)
 
 
 def _clean_title(s: str) -> str:
     s = _html.unescape(s)
     s = _fix_mojibake(s)
     s = _BOILER.sub("", s)
+    s = _BOILER_TAIL.sub("", s)
+    s = _BOILER_TOPICS.sub("", s)
     prev = None
     while prev != s:                                           # nested brackets
         prev = s
