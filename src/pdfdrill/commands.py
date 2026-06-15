@@ -2255,6 +2255,52 @@ def cmd_llmtext(pdf: Path, delimiter: str = "%%%%", split: bool = True) -> str:
             f"{out_path.relative_to(sc.pdf_path.parent)}.")
 
 
+def cmd_booktoc(pdf: Path) -> str:
+    """Greppable table of contents with printed→PDF page alignment.
+
+    A book's printed TOC pages list each chapter/section with its PRINTED page
+    number, which differs from the PDF page by the front-matter offset (title/
+    copyright/TOC/preface). We recover that offset by matching TOC titles to the
+    model's Section objects (which carry the real PDF page), then write
+    `<bibkey>.toc.txt` — one line per entry an LLM can grep by name to read the
+    PDF page directly, then `pdfdrill page`/`rasterize` it. Cheap read (loads
+    via the lazy DocGraph; no full model build).
+    """
+    from . import booktoc, model_io
+
+    sc = Sidecar(pdf)
+    model_path = _model_path(sc)
+    if not model_path.exists():
+        return f"No model for {pdf.name} — run `pdfdrill model` first."
+    g = model_io.load_docgraph(model_path)
+    key = sc.get_evidence("bibkey") or g.meta.get("bibkey") or pdf.stem
+
+    raw = []
+    for t in g.of_type("Toc"):
+        raw += (t.props.get("entries") or [])
+    sections = [{"caption": sn.props.get("caption"), "page": sn.props.get("page")}
+                for sn in g.of_type("Section")]
+    entries = booktoc.parse_toc_entries(raw)
+    if not entries:
+        return (f"No parseable TOC entries for {pdf.name} (no Toc object or "
+                f"unrecognized format). {len(sections)} Section(s) are available "
+                f"via `pdfdrill status`.")
+    offset, conf, pairs = booktoc.compute_offset(entries, sections)
+    aligned = booktoc.align_toc(entries, sections)
+    out = booktoc.render_toc(aligned, offset, key)
+    toc_path = sc.blob_dir / f"{key}.toc.txt"
+    toc_path.parent.mkdir(parents=True, exist_ok=True)
+    toc_path.write_text(out, encoding="utf-8")
+    sc.set_evidence("toc_offset", offset)
+    sc.save()
+    exact = sum(1 for a in aligned if a["exact"])
+    return (f"Book TOC: {len(aligned)} entrie(s), printed→PDF offset {offset:+d} "
+            f"(from {len(pairs)} title↔section matches, {conf:.0%} agree); "
+            f"{exact} page-exact, {len(aligned)-exact} estimated → "
+            f"{toc_path.relative_to(sc.pdf_path.parent)}. grep a chapter/section "
+            f"name for its PDF page, then `pdfdrill page {pdf.name} <pdf_page>`.")
+
+
 def cmd_gaps(pdf: Path) -> str:
     """Detect MISSING information — "cohomology as a linter".
 

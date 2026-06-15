@@ -1013,6 +1013,28 @@ objects`) — the "scroll past 34 MB of offsets to reach the text" problem.
   layer holds a document list + a concept tree, where concepts collect links to
   documents as tiddler titles.
 
+## Book TOC layer — greppable, printed→PDF page-aligned (`pdfdrill booktoc`)
+
+A book's printed TOC pairs each chapter/section with its PRINTED page number,
+which is NOT the PDF page (front matter — title/copyright/TOC/preface — shifts
+everything by a constant). `src/pdfdrill/booktoc.py` recovers that **front-
+matter offset** without guessing: it matches TOC titles to the model's
+`Section` objects (which carry the real PDF page) and takes
+`median(section.pdf_page − toc.printed_page)`. A matched entry resolves to its
+section's exact PDF page; an unmatched one falls back to `printed_page +
+offset`. `parse_toc_entries` dedupes MathPix's triplicate TOC fragments and
+lifts a leading section number out of the title.
+
+**`pdfdrill booktoc <pdf>`** writes `<bibkey>.toc.txt` — one line per entry
+(`number  title  printed_page  pdf_page  [~=estimated]`) an LLM can **grep by
+chapter/section name to get the PDF page directly**, then `pdfdrill page`/
+`rasterize` it. Cheap standalone navigation artifact: loads via the lazy
+**DocGraph** read path (~0.36s, no full model build) — the next read-path
+migration after `llmtext`. Verified: 2004.05631 → offset +0, 38/41 page-exact;
+the Heim book → **offset +1** (printed p5 → PDF p6), 34/35 page-exact, 100%
+agree. Tests: `tests/test_booktoc.py` (parse/offset-zero/offset-positive/
+align/greppable).
+
 ## Reference-based model storage + lazy read path (docpack / docgraph, 2026-06-14)
 
 Per-call load time matters because an LLM drives `pdfdrill` repeatedly. The

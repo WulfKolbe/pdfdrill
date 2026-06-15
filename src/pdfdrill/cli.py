@@ -98,6 +98,7 @@ def main():
         "latex": _do_latex,
         "latexbook": _do_latexbook,
         "markdown": _do_markdown,
+        "booktoc": _do_booktoc,
         "gaps": _do_gaps,
         "llmtext": _do_llmtext,
         "clean": _do_clean,
@@ -706,6 +707,12 @@ def _do_llmtext(args):
                        split="--no-split" not in args)
 
 
+def _do_booktoc(args):
+    """pdfdrill booktoc <pdf>"""
+    from .commands import cmd_booktoc
+    return cmd_booktoc(_pdf(args))
+
+
 def _do_gaps(args):
     """pdfdrill gaps <pdf|md>"""
     from .commands import cmd_gaps
@@ -1062,6 +1069,7 @@ Introspection (fast, no extraction):
   pdfdrill latex <pdf>         Ingest author .tex/.tgz as a `tex` provenance (original+expanded LaTeX); --tex <path>
   pdfdrill latexbook <book.tex> Source-only model + TikZ/table SVGs + KaTeX formula report from LaTeX (no PDF/MathPix); --no-svg to skip rendering
   pdfdrill markdown <md>      Build a source-only model from LLM-summary Markdown (yt2tw route): sections/paragraphs/math/lists + cite{} commands linked to the gold ```bibtex appendix (or the numbered References list). --bibkey K
+  pdfdrill booktoc <pdf>      Greppable TOC with printed→PDF page alignment (front-matter offset from title↔section matches): grep a chapter/section name → its PDF page
   pdfdrill gaps <pdf|md>      Report MISSING information (cohomology-as-linter): acronyms used but never expanded, undeclared math symbols, novelty claims without citations, unmatched in-text citations
   pdfdrill llmtext <pdf|md>   Flat LLM dump: per unit the tiddler title + paragraph text / formula latex, document order, units split on double line breaks + separated by --delimiter (default %%%%); empty formulas skipped
   pdfdrill clean <pdf|md>     Strip MathPix LaTeX residuals from the model: a leading section* command merged into a paragraph -> the title alone + kind/refnum fields (so semantic analysis sees plain text)
