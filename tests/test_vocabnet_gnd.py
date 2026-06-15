@@ -20,6 +20,7 @@ GND_RDF = """<?xml version="1.0" encoding="UTF-8"?>
     <rdf:type rdf:resource="https://d-nb.info/standards/elementset/gnd#SubjectHeadingSensoStricto"/>
     <gndo:preferredNameForTheSubjectHeading>Gravitation</gndo:preferredNameForTheSubjectHeading>
     <gndo:variantNameForTheSubjectHeading>Schwerkraft</gndo:variantNameForTheSubjectHeading>
+    <gndo:gndSubjectCategory rdf:resource="https://d-nb.info/standards/vocab/gnd/gnd-sc#21.1"/>
     <gndo:broaderTermGeneral rdf:resource="https://d-nb.info/gnd/4045956-1"/>
   </rdf:Description>
   <rdf:Description rdf:about="https://d-nb.info/gnd/4045956-1">
@@ -61,6 +62,20 @@ def test_gnd_parses_labels_hierarchy_related():
     assert v.ancestors("4027242-4") == ["4045956-1"]
     assert "4027242-4" in v.lookup("4045956-1").children
     assert "4027242-4" in v.lookup("4047992-4").related  # relatedTerm
+
+
+def test_gnd_subject_category_restriction():
+    # only Gravitation carries a gndSubjectCategory (21.1 = physics); restricting
+    # to the physics set keeps it and drops the category-less records
+    v = gnd.load_gnd(_tmp(GND_RDF), scheme="gnd", lang="de",
+                     subject_categories=gnd.PHYSICS_CATEGORIES)
+    assert v.lookup("4027242-4") is not None          # 21.1 physics -> kept
+    assert v.lookup("4045956-1") is None              # no category -> dropped
+    assert v.lookup("4027242-4").kind == "21"         # category prefix recorded
+    # a non-physics category is excluded
+    v2 = gnd.load_gnd(_tmp(GND_RDF), scheme="gnd", lang="de",
+                      subject_categories=frozenset({"30"}))  # computer science
+    assert v2.lookup("4027242-4") is None
 
 
 def test_gnd_classifies_german_terms():

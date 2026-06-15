@@ -1199,13 +1199,19 @@ not business). Whatever the native format, a source compiles to the SAME
   element set `gndo:`, NOT SKOS, so a dedicated **`gnd.py`** streaming adapter:
   keeps subject-heading types + ≤4-word labels, dropping the work/event/award
   titles GND mis-types as subjects). German function-word bigrams added to the
-  classify filler set. **Honest caveat:** GND is a vast general authority
-  (~169k terms); lexical classification of NOISY input (OCR'd scans) surfaces
-  off-domain false matches (art motifs, law, prizes) — it works best on clean
-  born-digital German text. On the OCR'd Heim corpus the **English MSC/PhySH view
-  over the clean DeepL translation is the reliable signal**; STW (economics) is
-  off-domain by design (its near-absence = "not economics", which is itself
-  federation signal). Tests: `tests/test_vocabnet_gnd.py`.
+  classify filler set. **Domain restriction is what makes GND useful:** the raw
+  ~169k-term authority is too broad — lexical matching of OCR'd input hits
+  off-domain false matches (art motifs, law, prizes). `gnd.load_gnd` therefore
+  restricts (by default here) to the **physics/astronomy/math GND Systematik**
+  (`gnd-sc` 20 Astronomie / 21 Physics / 28 Mathematics, verified against the
+  data) → **~15k concepts**; a physics doc is no longer matched against medicine/
+  law/art (`subject_categories=None` keeps the full authority). After the
+  restriction, GND classifies the German ORIGINALS directly to real concepts —
+  **Einheitliche Feldtheorie, Diracsche Löchertheorie, Übertragung in einer
+  Mannigfaltigkeit, System von partiellen Differentialgleichungen,
+  Ljapunov-Stabilitätstheorie, Orthonormalsystem**. STW (economics) stays
+  off-domain by design (near-absence = "not economics", itself federation
+  signal). Tests: `tests/test_vocabnet_gnd.py`.
 - **CLI:** `python3 -m vocabnet.sources {list,build <scheme> [path],build all}`.
   `build` defaults its input to the first present file under
   `vocab/sources/<scheme>/` and writes `vocab/compiled/<scheme>.json`.

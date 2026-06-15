@@ -43,6 +43,16 @@ _BROADER = ("{%s}broaderTermGeneral" % _GNDO, "{%s}broaderTermGeneric" % _GNDO,
             "{%s}broaderTermInstantial" % _GNDO)
 _RELATED = "{%s}relatedTerm" % _GNDO
 _TYPE = "{%s}type" % _RDF
+_SUBJCAT = "{%s}gndSubjectCategory" % _GNDO
+
+# GND Systematik (gnd-sc) integer prefixes relevant to physics, verified against
+# the data: 20 = Astronomie/Weltraumforschung, 21 = Physics (21.1 mathematical
+# physics, 21.4 particle/nuclear/atomic), 28 = Mathematics. (30 = computer
+# science, 31 = the largest unrelated class — excluded.)
+PHYSICS_CATEGORIES = frozenset({"20", "21", "28"})
+
+import re as _re
+_CAT_INT = _re.compile(r"gnd-sc#(\d+)")
 
 # Keep only true SUBJECT-heading records. The sachbegriff file also carries
 # work titles, historic events, transport/product/brand names, software, etc.
@@ -62,13 +72,19 @@ def _tail(uri: str) -> str:
 def load_gnd(path: str, scheme: str = "gnd", lang: str = "de",
              meta: Optional[dict] = None,
              keep_types: frozenset = _SUBJECT_TYPES,
-             max_label_words: int = 4) -> Vocabulary:
+             max_label_words: int = 4,
+             subject_categories: Optional[frozenset] = None) -> Vocabulary:
     """`max_label_words` drops long catalog entries that GND types as subject
     headings but that are really work/event/award TITLES ("Einführung in die
     sozialistische Produktion", "Dekade Solidarität der Kirchen mit den Frauen")
     — they match generic German prose via shared common words. Real subject terms
     are short (Gravitation, Allgemeine Relativitätstheorie); ≤4 words keeps them
-    while removing the long-title noise. Set 0 to disable."""
+    while removing the long-title noise. Set 0 to disable.
+
+    `subject_categories` (e.g. `PHYSICS_CATEGORIES`) keeps only records carrying a
+    `gndSubjectCategory` whose Systematik integer prefix is in the set — the
+    domain restriction that makes GND useful (a physics doc shouldn't be matched
+    against medicine/law/art subjects). None = no category restriction."""
     concepts: Dict[str, Concept] = {}
     for _ev, elem in ET.iterparse(path, events=("end",)):
         if elem.tag != _DESC:
@@ -82,6 +98,7 @@ def load_gnd(path: str, scheme: str = "gnd", lang: str = "de",
         parent: Optional[str] = None
         related: List[str] = []
         types: List[str] = []
+        cats: List[str] = []
         for ch in elem:
             t = ch.tag
             if t == _PREF and ch.text:
@@ -100,13 +117,21 @@ def load_gnd(path: str, scheme: str = "gnd", lang: str = "de",
                 r = ch.get(_RESOURCE)
                 if r:
                     types.append(r)
+            elif t == _SUBJCAT:
+                r = ch.get(_RESOURCE) or ""
+                m = _CAT_INT.search(r)
+                if m:
+                    cats.append(m.group(1))
         keep = pref and (not keep_types or any(ty in keep_types for ty in types))
         if keep and max_label_words and len(pref.split()) > max_label_words:
             keep = False                           # long title, not a subject term
+        if keep and subject_categories is not None:
+            keep = any(c in subject_categories for c in cats)
         if keep:                                   # only real subject concepts
             code = _tail(about)
             labels = [pref] + [a for a in alts if a and a != pref]
             concepts[code] = Concept(code=code, pref=pref, labels={lang: labels},
+                                     kind=(cats[0] if cats else ""),
                                      parent=parent, related=related)
         elem.clear()
 

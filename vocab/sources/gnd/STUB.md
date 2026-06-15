@@ -14,20 +14,26 @@ not `skos.py`:
 curl -L -o vocab/sources/gnd/gnd-sachbegriff.rdf.gz \
   https://data.dnb.de/opendata/authorities-gnd-sachbegriff_lds.rdf.gz
 gunzip -f vocab/sources/gnd/gnd-sachbegriff.rdf          # ~400 MB
-python3 -m vocabnet.sources build gnd                    # -> vocab/compiled/gnd.json (~169k concepts)
+python3 -m vocabnet.sources build gnd                    # -> vocab/compiled/gnd.json (~15k physics concepts)
 ```
 
 The adapter streams the RDF (bounded memory), keeps only subject-heading types
 (`SubjectHeadingSensoStricto`/`SubjectHeading`/`NomenclatureInBiologyOrChemistry`)
 and labels of ≤4 words (drops work/event/award TITLES that GND types as subjects
-but match generic prose).
+but match generic prose), and — by default in this repo — **restricts to the
+physics/astronomy/math GND Systematik** (`gnd-sc` 20 Astronomie / 21 Physics /
+28 Mathematics; verified against the data). That collapses ~169k general terms to
+**~15k physics/math subject terms** so a physics document isn't matched against
+medicine/law/art. Pass `subject_categories=None` (or a different set) to
+`gnd.load_gnd` for the full authority or another domain.
 
-## Honest caveat
+## Result
 
-GND is a vast general authority (~169k terms). Lexical classification of NOISY
-input (e.g. OCR'd scans) surfaces off-domain false matches; it works best on
-clean born-digital German text. For the physics corpus the English MSC/PhySH
-view (over the DeepL translation) is the more reliable signal.
+The restricted GND classifies German ORIGINALS directly to real concepts —
+Einheitliche Feldtheorie, Diracsche Löchertheorie, Übertragung in einer
+Mannigfaltigkeit, System von partiellen Differentialgleichungen,
+Ljapunov-Stabilitätstheorie, Orthonormalsystem. (Unrestricted GND on OCR'd input
+is noisy — the category restriction is what makes it useful.)
 
 ## Licence
 

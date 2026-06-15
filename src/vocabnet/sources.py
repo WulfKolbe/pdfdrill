@@ -31,7 +31,7 @@ from __future__ import annotations
 
 import os
 import sys
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import Callable, Dict, List, Optional
 
 from .vocab import Vocabulary, Concept
@@ -39,7 +39,7 @@ from .skos import load_skos
 from .dlmf import load_dlmf
 from .ontomathpro import load_ontomathpro
 from .germanet import load_germanet
-from .gnd import load_gnd
+from .gnd import load_gnd, PHYSICS_CATEGORIES as _GND_PHYSICS
 
 # repo-relative working area (src/vocabnet/sources.py -> repo root is two up)
 _REPO = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
@@ -105,6 +105,7 @@ class Source:
     url: str
     note: str = ""
     filenames: tuple = ()         # candidate input filenames under vocab/sources/<scheme>/
+    kwargs: dict = field(default_factory=dict)   # extra adapter kwargs
 
 
 SOURCES: Dict[str, Source] = {s.scheme: s for s in [
@@ -135,11 +136,14 @@ SOURCES: Dict[str, Source] = {s.scheme: s for s in [
            load_skos, "https://zbw.eu/stw/",
            "~6000 descriptors + 20000 synonyms; altLabels are the value",
            filenames=("stw.nt", "stw.rdf")),
-    Source("gnd", "Gemeinsame Normdatei subjects (DNB)", "de", "GND RDF/XML",
+    Source("gnd", "Gemeinsame Normdatei subjects (DNB), physics subset", "de",
+           "GND RDF/XML",
            load_gnd, "https://data.dnb.de/opendata/authorities-gnd-sachbegriff_lds.rdf.gz",
-           "~207000 subject terms; GND element set (gndo:), not SKOS — uses the "
-           "gnd.py adapter. Download authorities-gnd-sachbegriff_lds.rdf.gz, gunzip",
-           filenames=("gnd-sachbegriff.rdf", "gnd.rdf")),
+           "GND element set (gndo:), not SKOS — uses gnd.py. Restricted to the "
+           "physics/astronomy/math Systematik (gnd-sc 20/21/28) so a physics doc "
+           "isn't matched against medicine/law/art. Download the .rdf.gz, gunzip",
+           filenames=("gnd-sachbegriff.rdf", "gnd.rdf"),
+           kwargs={"subject_categories": _GND_PHYSICS}),
     Source("germanet", "GermaNet (German WordNet)", "de", "GermaNet XML",
            load_germanet, "https://uni-tuebingen.de/en/142806",
            "academic licence required; pairs with VerbNet typing in semdrill",
@@ -168,7 +172,8 @@ def build(scheme: str, path: Optional[str] = None,
             raise SystemExit(
                 f"no input for {scheme!r} under {os.path.join(SOURCE_DIR, scheme)}/ "
                 f"-- see its STUB.md (download from {src.url})")
-    vocab = src.adapter(path, scheme=scheme, lang=src.lang, meta={"title": src.title})
+    vocab = src.adapter(path, scheme=scheme, lang=src.lang,
+                        meta={"title": src.title}, **src.kwargs)
     os.makedirs(out_dir, exist_ok=True)
     out = os.path.join(out_dir, f"{scheme}.json")
     vocab.save(out)
