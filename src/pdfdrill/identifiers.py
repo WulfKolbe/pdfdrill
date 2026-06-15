@@ -85,3 +85,68 @@ def caps_entities(text: str) -> list[str]:
             seen.add(cand)
             out.append(cand)
     return out
+
+
+# author-list separators on a title page / byline
+_AUTHOR_SEP = re.compile(r"\s*(?:,|;|&|\band\b|\bund\b|\bet al\.?)\s*", re.I)
+_NAME_TOKEN = re.compile(r"^[A-Za-z][A-Za-z.'\-]*$")
+
+
+def split_author_names(text: str) -> list[str]:
+    """Split a byline / author run into individual names. Splits on commas /
+    'and' / '&' / ';', title-cases ALL-CAPS, and keeps only name-like chunks
+    (1–4 alphabetic tokens, ≥2 chars total)."""
+    out: list[str] = []
+    seen: set[str] = set()
+    for chunk in _AUTHOR_SEP.split(text or ""):
+        chunk = re.sub(r"\s+", " ", chunk).strip(" .,")
+        if not chunk:
+            continue
+        if chunk.isupper():
+            chunk = chunk.title()
+        toks = chunk.split()
+        if not (1 <= len(toks) <= 4):
+            continue
+        if not all(_NAME_TOKEN.match(t) for t in toks):
+            continue
+        if len(re.sub(r"[^A-Za-z]", "", chunk)) < 2:
+            continue
+        # drop role labels masquerading as a 1-2 word caps chunk
+        if chunk.lower() in ("edited by", "edited", "by", "author", "authors",
+                             "editor", "editors"):
+            continue
+        if chunk not in seen:
+            seen.add(chunk)
+            out.append(chunk)
+    return out
+
+
+def resolve_authors(candidates: list[str], reference: list[str],
+                    threshold: float = 80.0) -> dict:
+    """Resolve split candidate names against a canonical author list via
+    `match_entities` (rapidfuzz). Returns {resolved:[{candidate,canonical,
+    score}], confirmed:int (distinct reference authors matched), unresolved:[
+    candidates with no reference match]}. Degrades (no rapidfuzz) to exact,
+    case-insensitive matching."""
+    try:
+        from features.features import Feature
+        from features import match_entities
+        cf = [Feature.create("cand", "PERSON_NAME", c, 0.6, 0, 0) for c in candidates]
+        rf = [Feature.create("ref", "PERSON_NAME", r, 1.0, 0, 0) for r in reference]
+        cid = {f.id: f.value for f in cf}
+        rid = {f.id: f.value for f in rf}
+        rels = match_entities.match(cf, rf, threshold=threshold)
+        best: dict[str, tuple] = {}                  # candidate -> (canonical, score)
+        for rel in rels:
+            cand, canon, sc = cid[rel.source], rid[rel.target], rel.weight
+            if cand not in best or sc > best[cand][1]:
+                best[cand] = (canon, sc)
+    except Exception:
+        ref_l = {r.lower(): r for r in reference}
+        best = {c: (ref_l[c.lower()], 1.0) for c in candidates if c.lower() in ref_l}
+
+    resolved = [{"candidate": c, "canonical": v[0], "score": round(v[1], 3)}
+                for c, v in best.items()]
+    unresolved = [c for c in candidates if c not in best]
+    confirmed = len({v[0] for v in best.values()})
+    return {"resolved": resolved, "confirmed": confirmed, "unresolved": unresolved}

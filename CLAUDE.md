@@ -1013,6 +1013,17 @@ objects`) — the "scroll past 34 MB of offsets to reach the text" problem.
   layer holds a document list + a concept tree, where concepts collect links to
   documents as tiddler titles.
 
+## Born-digital chars→lines converter (`chars_to_lines.py`)
+
+A pdfplumber CHARACTER dump (`pages[].chars[]` with positions/fonts — a
+born-digital PDF's text layer) converts to a MathPix-shape `lines.json` so the
+PDF is drillable OFFLINE with no MathPix. `chars_to_lines_json` flips each char
+from PDF bottom-left to the MathPix top-left origin, groups chars into visual
+lines (baseline) then words (x-gaps), and hands the word records to
+`ocr_lines.lines_json_from_words` (the proven offline assembler). Verified on
+the Heim Massenformel (157 MB char dump → 1.5 MB lines.json, 138 pages / 5415
+lines → a 489-object model, zero MathPix). Tests: `tests/test_chars_to_lines.py`.
+
 ## Front-matter identifiers (`pdfdrill identifiers`)
 
 A book's ISBN/ISSN/DOI and its publisher/author live on the front matter (title
@@ -1026,7 +1037,7 @@ numbers) + the arXiv id from the sidecar, plus **`identifiers.caps_entities`** �
 the "uppercase sequences are NE candidates" idea: an ALL-CAPS run on the title
 page (publisher/author/institution) is surfaced as a candidate (roman numerals
 + id labels excluded; multi-word, or a single ≥4-letter word), complementing
-`extract_names`/concepts, never asserted as a resolved entity. Stores
+`extract_names`/concepts, never asserted as a resolved entity. **Author resolution**: the caps runs are split into names (`split_author_names`) and resolved against the known author list (arXiv metadata) via `match_entities` (`resolve_authors` — rapidfuzz SAME_AS), reporting N/M authors confirmed on the title page (honest on OCR-mashed bylines). Stores
 `identifiers` (front_pages + ids + ne_candidates) in the sidecar. Verified:
 arXiv paper → ARXIV id + author caps; the Heim book → "NEW WORLDVIEW OF THE
 PHYSICIST BURKHARD HEIM" + "DESY". (Our corpus is preprints, so no ISBN fires;

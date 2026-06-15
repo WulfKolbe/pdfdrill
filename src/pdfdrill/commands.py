@@ -2294,13 +2294,27 @@ def cmd_identifiers(pdf: Path) -> str:
         ids.append({"type": "ARXIV", "value": arxiv, "confidence": 1.0})
     ne = idn.caps_entities(text)
 
+    # Split author runs out of the caps candidates and resolve them against the
+    # known author list (arXiv metadata) via match_entities (fuzzy SAME_AS).
+    reference = sc.get_evidence("arxiv_authors") or g.meta.get("authors") or []
+    cand_names: list[str] = []
+    for run in ne:
+        cand_names.extend(idn.split_author_names(run))
+    authors = idn.resolve_authors(cand_names, reference) if reference else {
+        "resolved": [], "confirmed": 0, "unresolved": cand_names}
+
     sc.set_evidence("identifiers", {"front_pages": limit, "ids": ids,
-                                    "ne_candidates": ne})
+                                    "ne_candidates": ne, "authors": authors})
     sc.save()
     id_s = ("; ".join(f"{x['type']} {x['value']}" for x in ids) or "none")
     ne_s = (", ".join(ne[:8]) + (" …" if len(ne) > 8 else "")) if ne else "none"
+    au_s = ""
+    if reference:
+        au_s = (f" Authors: {authors['confirmed']}/{len(reference)} confirmed on the "
+                f"title page" + (f" ({len(authors['unresolved'])} unresolved candidate(s))"
+                                 if authors['unresolved'] else "") + ".")
     return (f"Front matter (PDF pages 1–{limit}{' via booktoc offset' if offset>=3 else ''}): "
-            f"identifiers — {id_s}. ALL-CAPS NE candidate(s): {ne_s}. "
+            f"identifiers — {id_s}. ALL-CAPS NE candidate(s): {ne_s}.{au_s} "
             f"Stored in the sidecar (identifiers).")
 
 

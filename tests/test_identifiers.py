@@ -48,6 +48,35 @@ def test_collect_frontmatter_text_respects_limit():
     assert "Deep in the body" not in txt
 
 
+def test_split_author_names():
+    # the common title-page byline form: First-Last names, comma/and separated
+    out = idn.split_author_names("QINTONG ZHANG, BIN WANG and HAO LIANG")
+    assert out == ["Qintong Zhang", "Bin Wang", "Hao Liang"]   # title-cased, split
+    out2 = idn.split_author_names("Jane Doe; John Roe & Max Mustermann")
+    assert out2 == ["Jane Doe", "John Roe", "Max Mustermann"]
+    # comma is the author separator, so a lone initial chunk is dropped
+    assert "J." not in idn.split_author_names("Bin Wang, J.")
+    # a role label is not a name
+    assert idn.split_author_names("EDITED BY") == []
+
+
+def test_resolve_authors_against_reference():
+    cands = ["Qintong Zhang", "Bin Wang", "Hao Liang", "Random Person"]
+    ref = ["Qintong Zhang", "Bin Wang", "Victor Shea-Jay Huang", "Hao Liang"]
+    res = idn.resolve_authors(cands, ref)
+    conf = {r["canonical"] for r in res["resolved"]}
+    assert "Qintong Zhang" in conf and "Hao Liang" in conf
+    assert "Random Person" in res["unresolved"]
+    assert res["confirmed"] >= 3                              # 3 of the ref list found
+
+
+def test_resolve_authors_tolerates_ocr_typo():
+    res = idn.resolve_authors(["Qintong Zhng", "Bin Wnag"],   # OCR typos
+                              ["Qintong Zhang", "Bin Wang"])
+    assert res["confirmed"] == 2                              # both still resolved
+    assert all(r["score"] >= 0.8 for r in res["resolved"])
+
+
 if __name__ == "__main__":
     tests = [v for k, v in list(globals().items()) if k.startswith("test_")]
     failed = []
