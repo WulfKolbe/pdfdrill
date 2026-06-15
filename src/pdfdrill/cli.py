@@ -98,6 +98,7 @@ def main():
         "latex": _do_latex,
         "latexbook": _do_latexbook,
         "markdown": _do_markdown,
+        "identifiers": _do_identifiers,
         "booktoc": _do_booktoc,
         "gaps": _do_gaps,
         "llmtext": _do_llmtext,
@@ -707,6 +708,12 @@ def _do_llmtext(args):
                        split="--no-split" not in args)
 
 
+def _do_identifiers(args):
+    """pdfdrill identifiers <pdf>"""
+    from .commands import cmd_identifiers
+    return cmd_identifiers(_pdf(args))
+
+
 def _do_booktoc(args):
     """pdfdrill booktoc <pdf>"""
     from .commands import cmd_booktoc
@@ -1069,6 +1076,7 @@ Introspection (fast, no extraction):
   pdfdrill latex <pdf>         Ingest author .tex/.tgz as a `tex` provenance (original+expanded LaTeX); --tex <path>
   pdfdrill latexbook <book.tex> Source-only model + TikZ/table SVGs + KaTeX formula report from LaTeX (no PDF/MathPix); --no-svg to skip rendering
   pdfdrill markdown <md>      Build a source-only model from LLM-summary Markdown (yt2tw route): sections/paragraphs/math/lists + cite{} commands linked to the gold ```bibtex appendix (or the numbered References list). --bibkey K
+  pdfdrill identifiers <pdf>  Front-matter scan (scoped by the booktoc offset): checksum-valid ISBN/ISSN/DOI/arXiv + German ids + ALL-CAPS named-entity candidates (publisher/author)
   pdfdrill booktoc <pdf>      Greppable TOC with printed→PDF page alignment (front-matter offset from title↔section matches): grep a chapter/section name → its PDF page
   pdfdrill gaps <pdf|md>      Report MISSING information (cohomology-as-linter): acronyms used but never expanded, undeclared math symbols, novelty claims without citations, unmatched in-text citations
   pdfdrill llmtext <pdf|md>   Flat LLM dump: per unit the tiddler title + paragraph text / formula latex, document order, units split on double line breaks + separated by --delimiter (default %%%%); empty formulas skipped

@@ -2255,6 +2255,55 @@ def cmd_llmtext(pdf: Path, delimiter: str = "%%%%", split: bool = True) -> str:
             f"{out_path.relative_to(sc.pdf_path.parent)}.")
 
 
+def cmd_identifiers(pdf: Path) -> str:
+    """Scan the FRONT MATTER for known identifiers + named-entity candidates.
+
+    Front matter (title + copyright/imprint page) holds a book's ISBN/ISSN/DOI
+    and its publisher/author. The window is scoped by the booktoc page offset
+    (pages 1..offset) when known, else the first few pages — so the scan is
+    cheap and precise. Runs the checksum-validated `features` extractors (ISBN/
+    ISSN, DOI, German admin ids) + the arXiv id, plus an ALL-CAPS pass for NE
+    candidates. Loads via the lazy DocGraph read path. Stores `identifiers` in
+    the sidecar.
+    """
+    import sys as _sys, os as _os
+    _sys.path.insert(0, _os.path.join(_os.path.dirname(__file__), ".."))
+    from . import booktoc, identifiers as idn, model_io
+    from features import extract_isbn, extract_doi, extract_ids
+
+    sc = Sidecar(pdf)
+    model_path = _model_path(sc)
+    if not model_path.exists():
+        return f"No model for {pdf.name} — run `pdfdrill model` first."
+    g = model_io.load_docgraph(model_path)
+
+    # front-matter window from the booktoc offset (or default)
+    raw = [e for t in g.of_type("Toc") for e in (t.props.get("entries") or [])]
+    sections = [{"caption": sn.props.get("caption"), "page": sn.props.get("page")}
+                for sn in g.of_type("Section")]
+    offset, _conf, _ = booktoc.compute_offset(booktoc.parse_toc_entries(raw), sections)
+    limit = idn.frontmatter_limit(offset)
+    text = idn.collect_frontmatter_text(list(g), limit)
+
+    ids: list[dict] = []
+    for f in (extract_isbn.extract(text) + extract_doi.extract(text)
+              + extract_ids.extract(text)):
+        ids.append({"type": f.type, "value": f.value, "confidence": f.confidence})
+    arxiv = sc.get_evidence("source_arxiv_id")
+    if arxiv:
+        ids.append({"type": "ARXIV", "value": arxiv, "confidence": 1.0})
+    ne = idn.caps_entities(text)
+
+    sc.set_evidence("identifiers", {"front_pages": limit, "ids": ids,
+                                    "ne_candidates": ne})
+    sc.save()
+    id_s = ("; ".join(f"{x['type']} {x['value']}" for x in ids) or "none")
+    ne_s = (", ".join(ne[:8]) + (" …" if len(ne) > 8 else "")) if ne else "none"
+    return (f"Front matter (PDF pages 1–{limit}{' via booktoc offset' if offset>=3 else ''}): "
+            f"identifiers — {id_s}. ALL-CAPS NE candidate(s): {ne_s}. "
+            f"Stored in the sidecar (identifiers).")
+
+
 def cmd_booktoc(pdf: Path) -> str:
     """Greppable table of contents with printed→PDF page alignment.
 

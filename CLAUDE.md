@@ -1013,6 +1013,26 @@ objects`) — the "scroll past 34 MB of offsets to reach the text" problem.
   layer holds a document list + a concept tree, where concepts collect links to
   documents as tiddler titles.
 
+## Front-matter identifiers (`pdfdrill identifiers`)
+
+A book's ISBN/ISSN/DOI and its publisher/author live on the front matter (title
++ copyright/imprint page). **`pdfdrill identifiers <pdf>`** scans only that
+window — pages 1..offset from `booktoc` when the offset is a real boundary
+(≥3), else the first `DEFAULT_FRONT=5` pages (capped 20) — so it's cheap and
+precise. Loads via the lazy **DocGraph** read path (third read-path command
+after `llmtext`/`booktoc`). Runs the checksum-validated `features` extractors
+(`extract_isbn` ISBN-10/13 + ISSN, `extract_doi`, `extract_ids` German admin
+numbers) + the arXiv id from the sidecar, plus **`identifiers.caps_entities`** —
+the "uppercase sequences are NE candidates" idea: an ALL-CAPS run on the title
+page (publisher/author/institution) is surfaced as a candidate (roman numerals
++ id labels excluded; multi-word, or a single ≥4-letter word), complementing
+`extract_names`/concepts, never asserted as a resolved entity. Stores
+`identifiers` (front_pages + ids + ne_candidates) in the sidecar. Verified:
+arXiv paper → ARXIV id + author caps; the Heim book → "NEW WORLDVIEW OF THE
+PHYSICIST BURKHARD HEIM" + "DESY". (Our corpus is preprints, so no ISBN fires;
+the extractor is unit-proven on real ISBN-10/13/ISSN with checksums.) Tests:
+`tests/test_extract_isbn.py` (6), `tests/test_identifiers.py` (5).
+
 ## Book TOC layer — greppable, printed→PDF page-aligned (`pdfdrill booktoc`)
 
 A book's printed TOC pairs each chapter/section with its PRINTED page number,
