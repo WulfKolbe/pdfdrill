@@ -2497,8 +2497,11 @@ def cmd_latexbook(tex: Path, bibkey: str | None = None, force: bool = False,
     out_path.write_text(proj.project(doc), encoding="utf-8")
 
     c = doc.meta.get("source_counts", {})
+    alg_note = (f" {c['algorithms']} algorithms ({c.get('algorithm_steps', 0)} steps);"
+                if c.get("algorithms") else "")
     return (f"LaTeX source model for {tex.name}: {c.get('sections', 0)} sections, "
-            f"{c.get('equations', 0)} display equations, {c.get('macros', 0)} macros "
+            f"{c.get('equations', 0)} display equations,{alg_note} "
+            f"{c.get('macros', 0)} macros "
             f"(preamble + local style files).{svg_note} Wrote "
             f"{model_path.relative_to(tex.parent)} and "
             f"{out_path.relative_to(tex.parent)} (KaTeX report; no MathPix).")

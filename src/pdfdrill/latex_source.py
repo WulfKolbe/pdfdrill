@@ -539,14 +539,160 @@ def extract_sections(body: str) -> list[dict]:
     return out
 
 
+# --------------------------------------------------------------------------- #
+#  Algorithm extraction (algorithmicx / algpseudocode / algorithmic)
+# --------------------------------------------------------------------------- #
+# Structural commands by role (matched case-insensitively, so both the
+# CamelCase algorithmicx \If/\EndIf and the uppercase algorithmic \IF/\ENDIF
+# are covered). Openers add a level; closers remove one; the mid-keywords
+# (\Else/\ElsIf) sit one level out from their block body.
+_ALG_OPEN = {"if": "if", "for": "for", "forall": "for all", "while": "while",
+             "loop": "loop", "repeat": "repeat", "function": "function",
+             "procedure": "procedure"}
+_ALG_MID = {"else": "else", "elsif": "else if", "elif": "else if"}
+_ALG_CLOSE = {"endif", "endfor", "endforall", "endwhile", "endloop",
+              "endfunction", "endprocedure", "until"}
+_ALG_STMT = {"state": "", "statex": "", "require": "Require: ",
+             "ensure": "Ensure: ", "input": "Input: ", "output": "Output: "}
+_ALG_ALL = set(_ALG_OPEN) | set(_ALG_MID) | _ALG_CLOSE | set(_ALG_STMT)
+_ALG_CMD = re.compile(r"\\([A-Za-z]+)\*?")
+_ALGORITHMIC_RE = re.compile(r"\\begin\{algorithmic\}(?:\[[^\]]*\])?", re.S)
+_ALGORITHM_FLOAT_RE = re.compile(r"\\begin\{algorithm\}(\*?)")
+
+
+def _strip_tex_comments(s: str) -> str:
+    return re.sub(r"(?<!\\)%.*", "", s)
+
+
+def _clean_step_text(s: str) -> str:
+    """Light prettify of a step's content: drop the \\State carrier, lower a few
+    very common inline keywords, collapse whitespace. Math is left verbatim."""
+    s = re.sub(r"\\Return\b", "return", s)
+    s = re.sub(r"\\Comment\{", "// ", s).replace("\\Comment ", "// ")
+    s = re.sub(r"\\(?:State|Statex)\b", " ", s)
+    s = re.sub(r"\\label\{[^}]*\}", "", s)                       # drop \label anchors
+    s = re.sub(r"\\(?:rm|bf|it|tt|sf|em|sl|sc|normalfont)\b", "", s)  # font switches
+    s = s.replace("~", " ")
+    s = re.sub(r"\s+", " ", s).strip(" {}")
+    return s.strip()
+
+
+def _parse_algorithmic_steps(body: str) -> list[dict]:
+    """Walk an algorithmic body into [{text, depth}], depth from the block
+    nesting (\\If/\\For/… open a level, \\EndIf/… close it, \\Else/\\ElsIf dedent
+    their own line)."""
+    body = _strip_tex_comments(body)
+    bounds = [(m.start(), m.end(), m.group(1).lower())
+              for m in _ALG_CMD.finditer(body) if m.group(1).lower() in _ALG_ALL]
+    steps: list[dict] = []
+    depth = 0
+    cursor = 0
+    for i, (s, e, name) in enumerate(bounds):
+        if s < cursor:                       # swallowed inside a previous arg
+            continue
+        # capture immediately-following {…} groups as the keyword argument
+        j = e
+        args: list[str] = []
+        while j < len(body) and body[j] in " \t":
+            j += 1
+        while j < len(body) and body[j] == "{":
+            grp = _balanced(body, j)
+            args.append(grp[1:-1])
+            j += len(grp)
+        cursor = j
+        nxt = next((bs for (bs, _, _) in bounds[i + 1:] if bs >= cursor), len(body))
+        tail = body[cursor:nxt]
+        arg = " ".join(a.strip() for a in args if a.strip())
+
+        if name in _ALG_CLOSE:
+            depth = max(0, depth - 1)
+            continue
+        if name in _ALG_MID:
+            text = (_ALG_MID[name] + " " + arg + " " + tail).strip()
+            steps.append({"text": _clean_step_text(text), "depth": max(0, depth - 1)})
+            continue
+        if name in _ALG_OPEN:
+            text = (_ALG_OPEN[name] + " " + arg + " " + tail).strip()
+            steps.append({"text": _clean_step_text(text), "depth": depth})
+            depth += 1
+            continue
+        # statement: \State / \Statex content, or \Require/\Ensure/\Input/\Output
+        prefix = _ALG_STMT[name]
+        text = (prefix + arg + " " + tail).strip()
+        cleaned = _clean_step_text(text)
+        if cleaned:
+            steps.append({"text": cleaned, "depth": depth})
+    return steps
+
+
+def extract_algorithms(body: str) -> list[dict]:
+    """Isolate every algorithm in document order: each
+    {number, title, label, page, pos, steps:[{text, depth}]}.
+
+    Primary unit = an `algorithmic` body (the part with parseable steps). A
+    `\\begin{algorithm}` float around it supplies `\\caption` (title), `\\label`,
+    and the auto-`number` (floats number sequentially in document order). A
+    standalone `algorithmic` (not in a float) has number=None / no caption.
+    """
+    # float spans → (start, end, ordinal, caption, label)
+    floats: list[dict] = []
+    n = 0
+    for m in _ALGORITHM_FLOAT_RE.finditer(body):
+        endm = re.compile(r"\\end\{algorithm\*?\}").search(body, m.end())
+        end = endm.end() if endm else len(body)
+        n += 1
+        head = body[m.start():end]
+        cap = re.search(r"\\caption\{", head)
+        title = _norm(_balanced(head, cap.start() + len("\\caption"))[1:-1]) if cap else ""
+        lab = re.search(r"\\label\{([^}]*)\}", head)
+        floats.append({"start": m.start(), "end": end, "number": n,
+                       "title": title, "label": lab.group(1) if lab else ""})
+
+    out: list[dict] = []
+    consumed_floats: set[int] = set()
+    for m in _ALGORITHMIC_RE.finditer(body):
+        endm = re.compile(r"\\end\{algorithmic\}").search(body, m.end())
+        inner_end = endm.start() if endm else len(body)
+        inner = body[m.end():inner_end]
+        owner = next((f for fi, f in enumerate(floats)
+                      if f["start"] <= m.start() < f["end"]
+                      and not consumed_floats.add(fi)), None)
+        out.append({
+            "number": owner["number"] if owner else None,
+            "title": owner["title"] if owner else "",
+            "label": owner["label"] if owner else "",
+            "page": None, "pos": m.start(),
+            "steps": _parse_algorithmic_steps(inner),
+        })
+
+    # algorithm floats with NO inner algorithmic body (algorithm2e / plain):
+    # isolate them too, one step per non-empty line.
+    for f in floats:
+        if f["number"] in {o["number"] for o in out if o["number"]}:
+            continue
+        head = body[f["start"]:f["end"]]
+        inner = re.sub(r"\\(?:begin|end)\{algorithm\*?\}", "", head)
+        inner = re.sub(r"\\caption\{.*?\}|\\label\{[^}]*\}", "", inner, flags=re.S)
+        lines = [_clean_step_text(x) for x in re.split(r"\\\\|\\;|\n", inner)]
+        steps = [{"text": x, "depth": 0} for x in lines if x]
+        if not steps:
+            continue
+        out.append({"number": f["number"], "title": f["title"], "label": f["label"],
+                    "page": None, "pos": f["start"], "steps": steps})
+
+    out.sort(key=lambda a: a["pos"])
+    return out
+
+
 def build_source_model(tex_path: str, bibkey: str = "DOC") -> "object":
     """Build a docmodel `Document` from a LaTeX source file (NO OCR/MathPix).
 
     Inlines \\input/\\include, resolves macros from the preamble AND local
-    style files (\\usepackage{mystyle} -> mystyle.sty), then emits Section and
-    display-Equation DocObjects in document order. Each Equation carries the
-    author's `latex_original` and a macro-`latex` (expanded) form; no cdn_url
-    (there is no rendered crop on the source-only path). Returns the Document.
+    style files (\\usepackage{mystyle} -> mystyle.sty), then emits Section,
+    display-Equation, graphic (TikZ/table) and Algorithm DocObjects in document
+    order. Each Equation carries the author's `latex_original` and a macro-`latex`
+    (expanded) form; no cdn_url (there is no rendered crop on the source-only
+    path). Returns the Document.
     """
     from docmodel.core import Document, DocObject
 
@@ -595,7 +741,29 @@ def build_source_model(tex_path: str, bibkey: str = "DOC") -> "object":
                 n_dia += 1
             else:
                 n_tab += 1
+
+    # Algorithms: each is an Algorithm DocObject with AlgorithmStep children
+    # (mirroring the MathPix `pdfdrill algorithms` shape, here from LaTeX source).
+    n_alg = n_steps = 0
+    for a in extract_algorithms(body):
+        fi += 1
+        alg = DocObject(type="Algorithm", props={
+            "number": a["number"], "title": a["title"], "label": a.get("label", ""),
+            "page": a.get("page"), "flow_index": fi, "bibkey": bibkey,
+            "added_by": "latex"})
+        doc.add(alg)
+        n_alg += 1
+        for s in a["steps"]:
+            st = DocObject(type="AlgorithmStep",
+                           props={"text": s["text"], "depth": s["depth"],
+                                  "bibkey": bibkey, "added_by": "latex"},
+                           parent=alg.id)
+            doc.add(st)
+            alg.children.append(st.id)
+            n_steps += 1
+
     doc.meta["source_counts"] = {"sections": n_sec, "equations": n_eq,
                                  "diagrams": n_dia, "tables": n_tab,
+                                 "algorithms": n_alg, "algorithm_steps": n_steps,
                                  "macros": len(macros)}
     return doc

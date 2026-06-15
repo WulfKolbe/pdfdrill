@@ -1641,6 +1641,26 @@ degrades cleanly (clear message) when `latex`/`dvisvgm` are absent. Verified
 on the graphbook: 128 sections, 343 equations, 118 macros, **18/18** TikZ/
 tables → SVG, one command.
 
+**Source-path algorithm isolation** (`latex_source.extract_algorithms`,
+2026-06-15). The MathPix `pdfdrill algorithms` path reads `pseudocode` lines;
+the LaTeX-source path now isolates algorithms directly from the `.tex`. Each
+`\begin{algorithmic}` body (algorithmicx / algpseudocode / algorithmic —
+`\Require`/`\Ensure`/`\If{}`/`\State`/`\Return`/`\EndIf`/`\For{}`…, matched
+case-insensitively) becomes an **`Algorithm`** DocObject with **`AlgorithmStep`**
+children, each step carrying an indentation **`depth`** derived from the
+If/For/While/Function block nesting (openers add a level, `\End*`/`\Until` close
+one, `\Else`/`\ElsIf` dedent their own line) — the same shape the MathPix path
+emits. An enclosing `\begin{algorithm}` float supplies the `\caption` title,
+`\label`, and the sequential auto-`number`; a standalone `algorithmic` (no
+float) gets `number=None`; an `algorithm` float with no inner `algorithmic`
+(algorithm2e/plain) is isolated one step per line. `build_source_model` emits
+them after the section/equation/graphic flow (tagged `added_by="latex"`) and
+records `algorithms`/`algorithm_steps` in `source_counts`; `cmd_latexbook`
+reports the count. **Closes the graphbook gap** (was 0 isolated): `pdfdrill
+latexbook book.tex` → **59 algorithms, 816 steps, max nesting depth 4**, all 59
+numbered floats. Tests: `tests/test_latex_algorithms.py` (5 — step/depth parse,
+float caption/label/number, standalone, ordering, build_source_model wiring).
+
 LaTeX-source upper layer (`src/pdfdrill/latex_source.py`, `pdfdrill latex`):
 
 - For arXiv we usually have both the PDF (→ MathPix `lines.json`) and the
