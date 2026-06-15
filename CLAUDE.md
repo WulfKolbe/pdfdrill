@@ -1146,6 +1146,33 @@ not business). Whatever the native format, a source compiles to the SAME
     files + `gn_relations.xml` hypernymy) or a single file (synsets only);
     `<synset>` → code, `<lexUnit><orthForm>` → labels[de], `<paraphrase>` →
     definition, `con_rel has_hyponym/has_hypernym` → parent/children.
+- **MSC acquisition (`msc_html.py`).** zbMATH's clean MSC2020 JSON is behind
+  Cloudflare + a T&C wall; the **CRAN MSC-2010 HTML** mirror is openly fetchable
+  (CC-BY-NC-SA) and structurally compatible (the physics branches 35Q/81/82/83
+  are stable). `parse_cran_msc(html)` parses each `CODE Title [See also …]` line,
+  strips `[See also]` / `(should also be assigned …)` boilerplate, repairs UTF-8
+  mojibake, and derives the hierarchy from the code prefix (81P05→81Pxx→81-XX);
+  `sources.load_msc` dispatches `.html`→msc_html, `.json`→the mscc.py shim.
+  Verified: CRAN HTML → **6198 MSC concepts** classifying physics correctly
+  (nonlinear Schrödinger→35Q55, QFT→81T, general relativity→83C05, Kaluza-Klein
+  →83E15). Tests: `tests/test_vocabnet_msc_html.py`.
+- **`pdfdrill classify <pdf|md>` (`src/pdfdrill/classify.py`).** Subject-classify
+  a drilled document against the federation (fast DocGraph read path; persists
+  `classification` in the sidecar). **Segment voting** (each section caption /
+  paragraph / equation classified, votes tallied) — robust to document length,
+  where a whole-doc blob lets generic words dominate. Precision levers, found
+  empirically on the Heim corpus: **strip LaTeX commands** from math
+  (`\partial`→"partial", `\right`→"right" otherwise match "Right alternative
+  rings"); **require a contentful phrase (bigram) match** (a single shared word
+  doesn't vote, and MSC filler bigrams like "in connection with" are excluded);
+  **drop catch-all codes** ("None of the above", "General reference"). Leads with
+  the **2-digit MSC discipline rollup** (the robust signal) + top fine codes.
+  German prose only matches the English MSC labels after `pdfdrill translate`
+  (`has_translation` detects the `text_source` marker; the command emits a NOTE
+  when the doc looks non-English and untranslated). Verified on Heim's
+  Unified-Field-Theory (English): rollup led by **83 Relativity & gravitation**
+  (83C45 quantization of the gravitational field, 83C75 space-time
+  singularities) + 78 electromagnetic + 70 mechanics. Tests: `tests/test_classify.py`.
 - **CLI:** `python3 -m vocabnet.sources {list,build <scheme> [path],build all}`.
   `build` defaults its input to the first present file under
   `vocab/sources/<scheme>/` and writes `vocab/compiled/<scheme>.json`.

@@ -79,6 +79,17 @@ def msc_from_json(path: str, scheme: str = "msc", lang: str = "en",
     return Vocabulary.compile(scheme, concepts, meta=m)
 
 
+def load_msc(path: str, scheme: str = "msc", lang: str = "en",
+             meta: Optional[dict] = None) -> Vocabulary:
+    """MSC dispatcher: a CRAN/AMS `.html` listing -> msc_html adapter, else the
+    mscc.py `.json` shim. (zbMATH's clean JSON is behind Cloudflare/T&C; the CRAN
+    MSC-2010 HTML is the openly-fetchable full listing — see msc/STUB.md.)"""
+    if path.rsplit(".", 1)[-1].lower() in ("html", "htm"):
+        from .msc_html import load_msc_html
+        return load_msc_html(path, scheme=scheme, lang=lang, meta=meta)
+    return msc_from_json(path, scheme=scheme, lang=lang, meta=meta)
+
+
 # --------------------------------------------------------------------------- #
 #  Registry
 # --------------------------------------------------------------------------- #
@@ -96,10 +107,11 @@ class Source:
 
 
 SOURCES: Dict[str, Source] = {s.scheme: s for s in [
-    Source("msc", "Mathematics Subject Classification 2020", "en", "PDF/CSV/TeX/JSON",
-           msc_from_json, "https://zbmath.org/static/msc2020.pdf",
-           "convert via mscc.py; CSV at msc2020.org is cleaner than the PDF",
-           filenames=("msc2020.json", "msc.json")),
+    Source("msc", "Mathematics Subject Classification (2020/2010)", "en", "HTML/JSON",
+           load_msc, "https://cran.r-project.org/web/classifications/MSC-2010.html",
+           "CRAN MSC-2010 HTML (full, CC-BY-NC-SA, fetchable) or mscc.py msc2020.json; "
+           "zbMATH's clean JSON is behind Cloudflare/T&C",
+           filenames=("MSC-2010.html", "msc2020.json", "msc.json", "msc.html")),
     Source("dlmf", "NIST Digital Library of Mathematical Functions", "en", "MathPix MD",
            load_dlmf, "https://dlmf.nist.gov/",
            "chapter/front-matter PDF -> pdfdrill md -> here; only PDF source in the set",

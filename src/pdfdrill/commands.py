@@ -2255,6 +2255,73 @@ def cmd_llmtext(pdf: Path, delimiter: str = "%%%%", split: bool = True) -> str:
             f"{out_path.relative_to(sc.pdf_path.parent)}.")
 
 
+def cmd_classify(pdf: Path, k: int = 8) -> str:
+    """Subject-classify the drilled document against the vocabnet vocabularies
+    (MSC first; any compiled scheme in vocab/compiled/ participates). Gathers
+    section captions + prose + equation LaTeX (fast DocGraph read path), runs
+    the federation, persists `classification` in the sidecar, returns prose.
+
+    German prose only matches the English vocabulary labels AFTER translation —
+    run `pdfdrill translate --from DE --to EN-US` first; a NOTE is emitted when
+    the doc looks non-English and untranslated (equation/caption signal still
+    classifies)."""
+    from . import classify as _cl
+    from . import model_io
+    from vocabnet.sources import COMPILED_DIR
+    from vocabnet import Federation
+
+    sc = Sidecar(pdf)
+    model_path = _model_path(sc)
+    if not model_path.exists():
+        return (f"No model for {pdf.name} — run `pdfdrill model` (PDF) or "
+                f"`pdfdrill markdown` (.md) first.")
+    g = model_io.load_docgraph(model_path)
+    nodes = list(g)
+
+    import os
+    fed = Federation.load_dir(COMPILED_DIR) if os.path.isdir(COMPILED_DIR) else Federation([])
+    if not fed.vocabs:
+        return ("No compiled vocabularies in vocab/compiled/ — build one first, "
+                "e.g. `python3 -m vocabnet.sources build msc` after dropping the "
+                "MSC listing into vocab/sources/msc/ (see its STUB.md).")
+
+    # language note (translation guidance)
+    note = ""
+    try:
+        from features.extract_language import language_of
+        lang = language_of(_cl.gather_classification_text(nodes)[:4000])
+    except Exception:
+        lang = "und"
+    if lang not in ("en", "und") and not _cl.has_translation(nodes):
+        note = (f" NOTE: document language looks '{lang}' and no translation is "
+                f"present — run `pdfdrill translate --from {lang.upper()} --to EN-US` "
+                f"for full keyword matching (math/captions still classified).")
+
+    res = _cl.classify_document(nodes, fed, k=k)
+    res["language"] = lang
+    sc.set_evidence("classification", res)
+    sc.save()
+
+    if not res["msc_top"]:
+        return (f"Classified {pdf.name} over {sorted(fed.vocabs)} but no subject "
+                f"hits (text chars={res['chars']}).{note}")
+    rolls = ", ".join(f"{c} ({s:.0f})" for c, s in list(res["msc_sections"].items())[:5])
+    lines = [f"Subject classification of {pdf.name} "
+             f"(schemes present: {', '.join(res['present']) or 'none'}; "
+             f"absent: {', '.join(res['absent']) or 'none'}):",
+             f"  MSC discipline rollup (2-digit): {rolls}",
+             "  Top MSC codes:"]
+    for h in res["msc_top"][:k]:
+        lines.append(f"    {h['code']:8} {h['pref'][:60]:60} {h['score']:.1f}")
+    for s in res["present"]:
+        if s == "msc":
+            continue
+        hits = res["per_source"].get(s, [])[:3]
+        if hits:
+            lines.append(f"  {s}: " + "; ".join(f"{h['code']} {h['pref'][:30]}" for h in hits))
+    return "\n".join(lines) + note
+
+
 def cmd_identifiers(pdf: Path) -> str:
     """Scan the FRONT MATTER for known identifiers + named-entity candidates.
 

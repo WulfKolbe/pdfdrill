@@ -102,6 +102,7 @@ def main():
         "booktoc": _do_booktoc,
         "gaps": _do_gaps,
         "llmtext": _do_llmtext,
+        "classify": _do_classify,
         "clean": _do_clean,
         "locate": _do_locate,
         "rulebook": _do_rulebook,
@@ -706,6 +707,15 @@ def _do_llmtext(args):
         raise ValueError("No file specified.")
     return cmd_llmtext(Path(rest[0]), delimiter=delim or "%%%%",
                        split="--no-split" not in args)
+
+
+def _do_classify(args):
+    """pdfdrill classify <pdf|md> [--k N]  — MSC/subject classification via vocabnet"""
+    from .commands import cmd_classify
+    k, rest = _opt(args, "--k")
+    if not rest:
+        raise ValueError("No file specified.")
+    return cmd_classify(_pdf(rest), k=int(k) if k else 8)
 
 
 def _do_identifiers(args):

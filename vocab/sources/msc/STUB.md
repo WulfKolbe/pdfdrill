@@ -1,34 +1,39 @@
-# msc — Mathematics Subject Classification 2020
+# msc — Mathematics Subject Classification (2020/2010)
 
-> **Download stub.** The vocabulary data for this source is licence-bound and is
-> **not committed** to the repo (`.gitignore` excludes everything in this folder
-> except this `STUB.md`). Download it yourself and drop it here, then build.
+> **Download stub.** The MSC data is not committed (`.gitignore` excludes this
+> folder except `STUB.md`). Two routes:
 
-| field | value |
-|-------|-------|
-| scheme | `msc` |
-| language | `en` |
-| native format | PDF/CSV/TeX/JSON |
-| upstream | <https://zbmath.org/static/msc2020.pdf> |
-| expected filename | `msc2020.json` or `msc.json` |
-| adapter | `vocabnet.sources.msc_from_json` |
+## Route A (recommended, fetchable): CRAN MSC-2010 HTML
 
-## Notes
+zbMATH's clean MSC2020 JSON is behind Cloudflare + a T&C wall, but the CRAN
+classification mirror serves the **full MSC-2010 listing** as HTML, openly and
+CC-BY-NC-SA. MSC-2010 is structurally compatible with MSC2020 for
+classification (section structure + the physics branches 35Q/81/82/83 are
+stable).
 
-convert via mscc.py; CSV at msc2020.org is cleaner than the PDF
+```sh
+curl -L -o vocab/sources/msc/MSC-2010.html \
+  https://cran.r-project.org/web/classifications/MSC-2010.html
+python3 -m vocabnet.sources build msc        # -> vocab/compiled/msc.json (~6200 concepts)
+```
 
-If you already have `msc2020.json` from `mscc.py`, just copy it here.
-The cleaner CSV lives at https://msc2020.org/ — convert it to the
-`{ "codes": { CODE: {title, parent, children, ...} } }` shape mscc.py emits.
+The `msc_html` adapter parses each `CODE  Title [See also …]` line, strips the
+`[See also]`/`(should also be assigned …)` boilerplate, repairs UTF-8 mojibake,
+and derives the hierarchy from the code prefix (81P05 → 81Pxx → 81-XX).
+
+## Route B: mscc.py msc2020.json
+
+If you have `msc2020.json` from `mscc.py` (`{ "codes": { CODE: {title, parent,
+children} } }`), copy it here as `msc2020.json` and `build msc` — the shim reads
+it directly.
 
 ## Licence
 
-MSC2020 is openly reusable (CC-BY-NC-SA 4.0). Source: zbMATH / Mathematical Reviews.
+MSC is © Mathematical Reviews & zbMATH, published CC-BY-NC-SA. Openly reusable;
+keep the downloaded file out of git (regenerable).
 
 ## Build
 
 ```sh
-# drop the download into this folder as one of: `msc2020.json` or `msc.json`
-python3 -m vocabnet.sources build msc
-# -> vocab/compiled/msc.json
+python3 -m vocabnet.sources build msc        # auto-finds MSC-2010.html / msc2020.json
 ```
