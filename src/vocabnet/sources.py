@@ -39,6 +39,7 @@ from .skos import load_skos
 from .dlmf import load_dlmf
 from .ontomathpro import load_ontomathpro
 from .germanet import load_germanet
+from .gnd import load_gnd
 
 # repo-relative working area (src/vocabnet/sources.py -> repo root is two up)
 _REPO = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
@@ -134,10 +135,11 @@ SOURCES: Dict[str, Source] = {s.scheme: s for s in [
            load_skos, "https://zbw.eu/stw/",
            "~6000 descriptors + 20000 synonyms; altLabels are the value",
            filenames=("stw.nt", "stw.rdf")),
-    Source("gnd", "Gemeinsame Normdatei subjects (DNB)", "de", "SKOS",
-           load_skos, "https://www.dnb.de/gnd",
-           "~134000 subject concepts; GND<->STW crosswalk available",
-           filenames=("gnd-subjects.nt", "gnd.nt")),
+    Source("gnd", "Gemeinsame Normdatei subjects (DNB)", "de", "GND RDF/XML",
+           load_gnd, "https://data.dnb.de/opendata/authorities-gnd-sachbegriff_lds.rdf.gz",
+           "~207000 subject terms; GND element set (gndo:), not SKOS — uses the "
+           "gnd.py adapter. Download authorities-gnd-sachbegriff_lds.rdf.gz, gunzip",
+           filenames=("gnd-sachbegriff.rdf", "gnd.rdf")),
     Source("germanet", "GermaNet (German WordNet)", "de", "GermaNet XML",
            load_germanet, "https://uni-tuebingen.de/en/142806",
            "academic licence required; pairs with VerbNet typing in semdrill",

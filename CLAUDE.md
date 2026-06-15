@@ -1188,8 +1188,24 @@ not business). Whatever the native format, a source compiles to the SAME
   special functions, 11 number theory) AND a physics view (PhySH: General
   relativity formalism, Large scale structure of the Universe, Equations of state
   of nuclear matter, Singularities in general relativity). `classify` shows the
-  MSC rollup + top codes, then each non-MSC scheme's top concepts by vote. STW /
-  GND / ACM CCS / GermaNet / DLMF / OntoMathPRO drop in the same way (their stubs).
+  MSC rollup + top codes, then each non-MSC scheme's top concepts by vote. ACM
+  CCS / GermaNet / DLMF / OntoMathPRO drop in the same way (their stubs).
+- **German vocabularies + language routing (STW, GND).** `classify_document`
+  routes each vocabulary to the text in ITS language: English schemes (msc/physh)
+  classify the translated `text`, **German schemes (stw/gnd) classify the original
+  `text_source`** (written by `pdfdrill translate`) — so a German original
+  classifies directly, no translation needed. **STW** (ZBW economics thesaurus,
+  SKOS via skos.py) and **GND** (DNB subject authority — RDF/XML in the GND
+  element set `gndo:`, NOT SKOS, so a dedicated **`gnd.py`** streaming adapter:
+  keeps subject-heading types + ≤4-word labels, dropping the work/event/award
+  titles GND mis-types as subjects). German function-word bigrams added to the
+  classify filler set. **Honest caveat:** GND is a vast general authority
+  (~169k terms); lexical classification of NOISY input (OCR'd scans) surfaces
+  off-domain false matches (art motifs, law, prizes) — it works best on clean
+  born-digital German text. On the OCR'd Heim corpus the **English MSC/PhySH view
+  over the clean DeepL translation is the reliable signal**; STW (economics) is
+  off-domain by design (its near-absence = "not economics", which is itself
+  federation signal). Tests: `tests/test_vocabnet_gnd.py`.
 - **CLI:** `python3 -m vocabnet.sources {list,build <scheme> [path],build all}`.
   `build` defaults its input to the first present file under
   `vocab/sources/<scheme>/` and writes `vocab/compiled/<scheme>.json`.

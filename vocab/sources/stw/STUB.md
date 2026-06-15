@@ -1,32 +1,21 @@
 # stw — Standard-Thesaurus Wirtschaft (ZBW)
 
-> **Download stub.** The vocabulary data for this source is licence-bound and is
-> **not committed** to the repo (`.gitignore` excludes everything in this folder
-> except this `STUB.md`). Download it yourself and drop it here, then build.
+> **Download stub.** Not committed (`.gitignore` keeps only `STUB.md`). STW is a
+> German **economics** thesaurus — for a physics document it mostly returns
+> misses, which is itself federation signal ("not economics"). Most useful on
+> German economic/business texts.
 
-| field | value |
-|-------|-------|
-| scheme | `stw` |
-| language | `de` |
-| native format | SKOS |
-| upstream | <https://zbw.eu/stw/> |
-| expected filename | `stw.nt` or `stw.rdf` |
-| adapter | `vocabnet.skos.load_skos` |
+## Download + build
 
-## Notes
+```sh
+curl -L -o /tmp/stw.rdf.zip https://zbw.eu/stw/version/latest/download/stw.rdf.zip
+unzip -o /tmp/stw.rdf.zip -d vocab/sources/stw/         # -> stw.rdf (RDF/XML SKOS)
+python3 -m vocabnet.sources build stw                   # -> vocab/compiled/stw.json (~7800 concepts)
+```
 
-~6000 descriptors + 20000 synonyms; altLabels are the value
-
-
+Standard SKOS, ingested by `skos.py`. German prefLabel + many altLabel synonyms.
 
 ## Licence
 
-STW (ZBW) is openly reusable (the SKOS dump is CC-licensed).
-
-## Build
-
-```sh
-# drop the download into this folder as one of: `stw.nt` or `stw.rdf`
-python3 -m vocabnet.sources build stw
-# -> vocab/compiled/stw.json
-```
+STW is published by ZBW under an open licence (the SKOS dump is freely reusable);
+keep the file out of git (regenerable).

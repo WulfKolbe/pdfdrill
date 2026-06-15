@@ -43,17 +43,25 @@ def has_translation(nodes) -> bool:
     return False
 
 
-def classification_segments(nodes) -> list[str]:
+def classification_segments(nodes, prefer_source: bool = False) -> list[str]:
     """The classifiable units of a document, one string each: section/abstract/
     toc captions, paragraph/list/footnote prose, equation/formula LaTeX, named
     concepts. Empty/null math skipped; non-text objects (pictures) excluded.
-    Segments (not one giant blob) are what the voting classifier scores."""
+    Segments (not one giant blob) are what the voting classifier scores.
+
+    `prefer_source` reads the ORIGINAL-language field (`<field>_source`, written
+    by `pdfdrill translate`) when present, else falls back to the current field —
+    so a German vocabulary classifies the German original directly. Math/concept
+    text is language-neutral and identical either way."""
+    prose_keys = (("text_source", "caption_source", "content_source",
+                   "text", "caption", "content", "title") if prefer_source
+                  else ("text", "caption", "content", "title"))
     segs: list[str] = []
     for o in nodes:
         t = getattr(o, "type", "")
         p = getattr(o, "props", {})
         if t in _PROSE:
-            for key in ("text", "caption", "content", "title"):
+            for key in prose_keys:
                 v = p.get(key)
                 if v:
                     segs.append(str(v))
@@ -97,6 +105,11 @@ _FILLER_BIGRAMS = {
     "general and", "with the", "for the", "in the", "of mathematical",
     "and the", "to the", "based on", "the topics", "topics on", "but in",
     "above but", "of a", "in a",
+    # German function-word bigrams (for gnd/stw on the original text)
+    "in der", "in dem", "in den", "mit der", "mit dem", "fur die", "fur den",
+    "und der", "und die", "und das", "auf der", "von der", "von dem", "an der",
+    "aus der", "uber die", "durch die", "bei der", "zu der", "der die",
+    "die der", "das ist", "ist die", "ist der",
 }
 
 
@@ -128,19 +141,25 @@ def classify_document(nodes, federation, k: int = 8, per_seg: int = 3,
     precision lever on lexical subject matching. If a segment yields no phrase
     hit at all, its (unigram-only) hits are dropped rather than adding noise.
     Returns a JSON-ready result. Graceful when no vocabulary."""
-    segs = [s for s in classification_segments(nodes) if s.strip()]
-    text_chars = sum(len(s) for s in segs)
-    if not federation.vocabs or not segs:
+    # English vocabularies match the (translated) `text`; German vocabularies
+    # match the original `text_source` — so each scheme classifies the language
+    # it was built in.
+    en_segs = [s for s in classification_segments(nodes) if s.strip()]
+    de_segs = [s for s in classification_segments(nodes, prefer_source=True) if s.strip()]
+    text_chars = sum(len(s) for s in en_segs)
+    if not federation.vocabs or not en_segs:
         return {"present": [], "absent": sorted(federation.vocabs),
                 "profile": {}, "msc_top": [], "msc_sections": {},
-                "per_source": {}, "chars": text_chars, "segments": len(segs)}
+                "per_source": {}, "chars": text_chars, "segments": len(en_segs)}
 
     votes: dict[str, dict[str, int]] = {s: {} for s in federation.vocabs}
     score: dict[str, dict[str, float]] = {s: {} for s in federation.vocabs}
     pref: dict[str, str] = {}
-    for seg in segs:
-        r = federation.classify(seg, k=per_seg * 2 if require_phrase else per_seg)
-        for scheme, hits in r.per_source.items():
+    for scheme, vocab in federation.vocabs.items():
+        lang = (vocab.meta.get("lang") or "en").lower()
+        segs = de_segs if lang.startswith("de") else en_segs
+        for seg in segs:
+            hits = vocab.classify(seg, k=per_seg * 2 if require_phrase else per_seg)
             if require_phrase:
                 hits = [h for h in hits if _phrase_evidence(h)][:per_seg]
             for h in hits:

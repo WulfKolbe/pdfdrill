@@ -1,32 +1,34 @@
 # gnd — Gemeinsame Normdatei subjects (DNB)
 
-> **Download stub.** The vocabulary data for this source is licence-bound and is
-> **not committed** to the repo (`.gitignore` excludes everything in this folder
-> except this `STUB.md`). Download it yourself and drop it here, then build.
+> **Download stub.** Not committed (`.gitignore` keeps only `STUB.md`). GND is the
+> German general subject authority — German originals classify against it directly
+> (`pdfdrill classify` routes German vocabularies to the `text_source` field).
 
-| field | value |
-|-------|-------|
-| scheme | `gnd` |
-| language | `de` |
-| native format | SKOS |
-| upstream | <https://www.dnb.de/gnd> |
-| expected filename | `gnd-subjects.nt` or `gnd.nt` |
-| adapter | `vocabnet.skos.load_skos` |
+## Download + build
 
-## Notes
+GND publishes the subject file (Sachbegriff) as RDF/XML but with the **GND
+element set** (gndo:), NOT plain SKOS — so it uses the dedicated `gnd.py` adapter,
+not `skos.py`:
 
-~134000 subject concepts; GND<->STW crosswalk available
+```sh
+curl -L -o vocab/sources/gnd/gnd-sachbegriff.rdf.gz \
+  https://data.dnb.de/opendata/authorities-gnd-sachbegriff_lds.rdf.gz
+gunzip -f vocab/sources/gnd/gnd-sachbegriff.rdf          # ~400 MB
+python3 -m vocabnet.sources build gnd                    # -> vocab/compiled/gnd.json (~169k concepts)
+```
 
+The adapter streams the RDF (bounded memory), keeps only subject-heading types
+(`SubjectHeadingSensoStricto`/`SubjectHeading`/`NomenclatureInBiologyOrChemistry`)
+and labels of ≤4 words (drops work/event/award TITLES that GND types as subjects
+but match generic prose).
 
+## Honest caveat
+
+GND is a vast general authority (~169k terms). Lexical classification of NOISY
+input (e.g. OCR'd scans) surfaces off-domain false matches; it works best on
+clean born-digital German text. For the physics corpus the English MSC/PhySH
+view (over the DeepL translation) is the more reliable signal.
 
 ## Licence
 
-GND subjects (DNB) are released as open data; a GND↔STW crosswalk is available.
-
-## Build
-
-```sh
-# drop the download into this folder as one of: `gnd-subjects.nt` or `gnd.nt`
-python3 -m vocabnet.sources build gnd
-# -> vocab/compiled/gnd.json
-```
+GND is DNB open data (CC0); keep the downloaded file out of git (regenerable).
