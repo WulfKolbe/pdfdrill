@@ -1153,6 +1153,12 @@ not business). Whatever the native format, a source compiles to the SAME
   strips `[See also]` / `(should also be assigned …)` boilerplate, repairs UTF-8
   mojibake, and derives the hierarchy from the code prefix (81P05→81Pxx→81-XX);
   `sources.load_msc` dispatches `.html`→msc_html, `.json`→the mscc.py shim.
+  **Cross-ref vs definition anchors:** CRAN links cross-references with an
+  internal-fragment `<a href="#code:41A25">` inside `[See also …]` notes while a
+  section header is an external-href `<a href="https://ams.org/…">81-XX</a> Title`;
+  the parser strips only the `href="#…"` cross-ref anchors (else a linked code is
+  read as a bogus definition whose "title" is the following note text — that lost
+  the 81-XX/81Txx/83-XX section headers and produced "see also" fragment titles).
   Verified: CRAN HTML → **6198 MSC concepts** classifying physics correctly
   (nonlinear Schrödinger→35Q55, QFT→81T, general relativity→83C05, Kaluza-Klein
   →83E15). Tests: `tests/test_vocabnet_msc_html.py`.

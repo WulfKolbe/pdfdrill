@@ -36,6 +36,13 @@ from .vocab import Concept, Vocabulary
 #   NN-XX (section), NN-NN (e.g. 81-00), NNLxx (subsection), NNLNN (5-char)
 _CODE = re.compile(r"^([0-9]{2}(?:-XX|-[0-9]{2}|[A-Za-z]xx|[A-Za-z][0-9]{2}))\b(.*)$")
 _TAG = re.compile(r"<[^>]+>")
+# Cross-ref links use an INTERNAL fragment href (<a href="#code:41A25">41A25</a>)
+# and appear only inside [See also …]/[For …] notes — drop them so a linked code
+# isn't read as a bogus definition line with the following note text as its
+# "title". A DEFINITION header anchor uses an EXTERNAL href
+# (<a href="https://www.ams.org/…">81-XX</a> Quantum theory) and must be KEPT —
+# its inner code + the title after </a> are the real entry, handled by _TAG.
+_ANCHOR = re.compile(r'<a\b[^>]*href="#[^"]*"[^>]*>.*?</a>', re.I | re.S)
 _BRACKET = re.compile(r"\[[^\[\]]*\]")          # [See also …] cross-references
 _BRACE = re.compile(r"\{[^{}]*\}")              # {For …: see …} notes
 
@@ -98,7 +105,8 @@ def _clean_title(s: str) -> str:
 
 def parse_cran_msc(html: str) -> Dict[str, dict]:
     """CRAN/AMS MSC listing HTML -> {"codes": {code: {title, parent, children}}}."""
-    text = _html.unescape(html)
+    text = _ANCHOR.sub(" ", html)          # drop cross-ref links before anything else
+    text = _html.unescape(text)
     # turn tags into line breaks so each table cell/row becomes its own line
     text = _TAG.sub("\n", text)
     lines = [ln.strip() for ln in text.splitlines()]
