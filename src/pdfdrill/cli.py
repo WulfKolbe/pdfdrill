@@ -160,6 +160,20 @@ def _pdf(args: list[str]) -> Path:
     return p
 
 
+def _drilled(args: list[str]) -> Path:
+    """Resolve the target for a MODEL-ONLY command (translate/classify). These
+    read only the persisted model, so accept a drilled doc whose source file was
+    removed after drilling (e.g. a consumed .md): if `<arg>.drill` exists, use
+    the literal path; otherwise fall back to the normal `_pdf` resolution
+    (local file / known-host URL / bare arXiv id)."""
+    if not args:
+        raise ValueError("No file specified.")
+    cand = Path(args[0])
+    if (cand.parent / (cand.name + ".drill")).exists():
+        return cand
+    return _pdf(args)
+
+
 def _do_doctor(args):
     """pdfdrill doctor — check system tools / Python deps / API keys."""
     from .commands import cmd_doctor
@@ -530,7 +544,7 @@ def _do_translate(args):
     src, args = _opt(args, "--from")
     limit, args = _opt(args, "--limit")
     pdf_args = [a for a in args if a != "--force"]
-    return cmd_translate(_pdf(pdf_args), target_lang=(to or "EN-US"),
+    return cmd_translate(_drilled(pdf_args), target_lang=(to or "EN-US"),
                          source_lang=src, limit=int(limit) if limit else None,
                          force="--force" in args)
 
@@ -715,12 +729,7 @@ def _do_classify(args):
     k, rest = _opt(args, "--k")
     if not rest:
         raise ValueError("No file specified.")
-    # classify reads only the model, so accept a drilled doc whose source file
-    # was removed after drilling (e.g. a consumed .md): if `<arg>.drill` exists,
-    # use the literal path instead of resolving it as a file/URL.
-    cand = Path(rest[0])
-    target = cand if (cand.parent / (cand.name + ".drill")).exists() else _pdf(rest)
-    return cmd_classify(target, k=int(k) if k else 8)
+    return cmd_classify(_drilled(rest), k=int(k) if k else 8)
 
 
 def _do_identifiers(args):
