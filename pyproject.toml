@@ -84,7 +84,7 @@ pdfdrill = "pdfdrill.cli:main"
 
 [tool.setuptools.packages.find]
 where = ["src"]
-include = ["pdfdrill*", "docmodel*", "docops*", "features*", "semantic*"]
+include = ["pdfdrill*", "docmodel*", "docops*", "features*", "semantic*", "vocabnet*"]
 
 [tool.setuptools.package-data]
 # the bundled font-category table (offline; built by tools/build_font_categories.py)

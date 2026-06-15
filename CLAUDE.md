@@ -1108,6 +1108,58 @@ commands (`status`, `gaps`, `tables`, `rulebook`, lookups) to `load_docgraph`
 for the same ~10× load win; mutating/transclusion commands keep the full
 `Document` via `load_model`.
 
+## Controlled-vocabulary layer (`src/vocabnet/`, additive — converters only)
+
+A NEW, self-contained, **pure-stdlib** package: one consistent interface over
+every controlled vocabulary / thesaurus / classification index feeding pdfdrill
+(MSC, DLMF, OntoMathPRO, PhySH, ACM CCS, STW, GND, GermaNet), plus a federation
+that **always queries all sources and keeps the misses as signal** (a string
+grounded in MSC + PhySH but absent from ACM CCS + STW is math-physics, not CS,
+not business). Whatever the native format, a source compiles to the SAME
+`Vocabulary` shape and answers the same queries.
+
+- **Core** (`vocab.py`): `Concept{code, pref, labels{lang:[...]}, parent,
+  children, related, definition}` + `Vocabulary` — `lookup`/`ancestors`/
+  `siblings`/`narrower` (O(len code) hierarchy) and `classify(text,k) ->
+  [Hit{scheme,code,pref,score,evidence}]`, an **IDF-scored inverted index** over
+  unigrams + adjacent bigrams (prefLabel 1.0, synonyms 0.7, bigrams ×1.3) with
+  diacritic folding (`Schr¨odinger`→`schrodinger`). No if/else chain. `compile`
+  is the single entry point every adapter ends in; `save`/`load` round-trip.
+- **Federation** (`federate.py`): `Federation.load_dir("vocab/compiled/")` →
+  `res = fed.classify(text)` with `present`/`absent`/`profile` (dense vector over
+  schemes, 0.0 for a miss)/`top`/`fingerprint()` (blake2b over the coverage
+  signature)/`to_dict()`. Misses are kept, never dropped.
+- **Adapters** (each ends in one `Vocabulary.compile(...)`):
+  - `skos.py` (vendored) — SKOS N-Triples + RDF/XML → PhySH, ACM CCS, STW, GND.
+  - `sources.msc_from_json` (vendored shim) — the `mscc.py` `msc2020.json`.
+  - **`dlmf.py`** (written here) — the **MathPix-Markdown** route (the only
+    PDF-route source: DLMF chapter PDF → `pdfdrill md` → here): an ATX heading's
+    leading **dotted section number** (`5.2.1`) is the concept code, hierarchy
+    follows the dotted prefix (independent of OCR-fragile `#` depth), and the
+    prose beneath a heading is folded in as an alt label so `classify` finds a
+    section by the function names in its body.
+  - **`ontomathpro.py`** (written here) — **OWL 2 Manchester** (`.omn`): a line
+    state machine over `Class:` frames, **E-number** codes, multi-lang
+    `rdfs:label`/`skos:prefLabel` annotations, `SubClassOf:` → parent (anonymous
+    restrictions skipped).
+  - **`germanet.py`** (written here) — **GermaNet XML**: a directory (synset
+    files + `gn_relations.xml` hypernymy) or a single file (synsets only);
+    `<synset>` → code, `<lexUnit><orthForm>` → labels[de], `<paraphrase>` →
+    definition, `con_rel has_hyponym/has_hypernym` → parent/children.
+- **CLI:** `python3 -m vocabnet.sources {list,build <scheme> [path],build all}`.
+  `build` defaults its input to the first present file under
+  `vocab/sources/<scheme>/` and writes `vocab/compiled/<scheme>.json`.
+- **Licence-bound downloads stay OUT of git.** The CONVERTERS (`src/vocabnet/`)
+  and a committed `STUB.md` per source (download link + licence + build command)
+  + `vocab/README.md` are tracked; `.gitignore` excludes everything under
+  `vocab/sources/*/` except `STUB.md`, and all of `vocab/compiled/`. PhySH
+  (APS copyright) and GermaNet (signed academic licence) must not be
+  redistributed; MSC2020 / STW / GND / ACM CCS / OntoMathPRO are openly
+  reusable. **Start with MCS** (`msc2020.json` from `mscc.py` → build).
+- Verified end-to-end: MSC fixture → `build msc` → `compiled/msc.json` →
+  `Federation.load_dir` → `classify`/`ancestors`/`resolve` round-trip. Tests:
+  `tests/test_vocabnet.py` (9 — core/shim/federation + the three new adapters).
+
 ## Roadmap (decomposed — each phase gets its own spec + plan)
 
 - **Phase 1 — Unified model + capture** *(in progress)*: extend `docmodel`

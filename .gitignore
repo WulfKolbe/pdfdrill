@@ -47,3 +47,10 @@ dist/
 /data/*.rulebook.md
 /data/*.tgz
 /data/*.md
+
+# vocabnet (src/vocabnet/): downloaded vocabularies are licence-bound and the
+# compiled indexes are regenerable — both stay out of git. Only the converters
+# (src/vocabnet/) and the committed STUB.md / README.md under vocab/ are tracked.
+/vocab/compiled/
+/vocab/sources/*/*
+!/vocab/sources/*/STUB.md
