@@ -102,22 +102,43 @@ def msc_rollup(hits) -> dict:
 _FILLER_BIGRAMS = {
     "in connection", "connection with", "none of", "of the", "such as",
     "and other", "related to", "other than", "the above", "as in", "and their",
-    "general and", "with the", "for the", "in the", "of mathematical",
-    "and the", "to the", "based on", "the topics", "topics on", "but in",
-    "above but", "of a", "in a",
-    # German function-word bigrams (for gnd/stw on the original text)
-    "in der", "in dem", "in den", "mit der", "mit dem", "fur die", "fur den",
-    "und der", "und die", "und das", "auf der", "von der", "von dem", "an der",
-    "aus der", "uber die", "durch die", "bei der", "zu der", "der die",
-    "die der", "das ist", "ist die", "ist der",
+    "general and", "based on", "the topics", "topics on", "but in",
+    "above but",
+}
+
+# Function/stop words (EN + DE). A bigram of TWO stopwords ("in die", "with the",
+# "und der") is never subject evidence — this generalises the per-language filler
+# lists so we don't have to enumerate every function-word pair (the "in die"
+# bug behind the "Eintritt <Raumfahrt>" outlier). A bigram with >=1 content word
+# ("eintritt in", "gravitational field") still counts.
+_STOPWORDS = {
+    # English
+    "a", "an", "the", "of", "in", "on", "for", "and", "or", "to", "with", "by",
+    "as", "at", "is", "are", "be", "but", "from", "into", "this", "that", "its",
+    "their", "other", "above", "general", "than", "such", "these", "those",
+    # German (folded: umlauts stripped)
+    "der", "die", "das", "den", "dem", "des", "ein", "eine", "einer", "einem",
+    "einen", "im", "an", "auf", "fur", "und", "oder", "mit", "von", "zu", "zur",
+    "zum", "aus", "uber", "durch", "bei", "ist", "sind", "wird", "werden", "als",
+    "am", "um", "vor", "nach", "bis", "dass", "sich", "auch", "nur", "wie",
 }
 
 
+def _is_filler_bigram(g: str) -> bool:
+    """A bigram carries no subject signal if it is a known boilerplate phrase OR
+    both of its tokens are stop/function words."""
+    if g in _FILLER_BIGRAMS:
+        return True
+    parts = g.split()
+    return len(parts) == 2 and all(p in _STOPWORDS for p in parts)
+
+
 def _phrase_evidence(hit) -> bool:
-    """True if the match rests on a CONTENTFUL multi-word phrase (a bigram in the
-    evidence that is not MSC-title filler like "in connection with"). A single
-    shared word, or only filler phrases, does not count."""
-    return any(" " in g and g not in _FILLER_BIGRAMS
+    """True if the match rests on a CONTENTFUL multi-word phrase: a bigram in the
+    evidence that is neither MSC-title boilerplate ("in connection with") nor a
+    pure function-word pair ("in die", "with the"). A single shared word doesn't
+    count."""
+    return any(" " in g and not _is_filler_bigram(g)
                for g in getattr(hit, "evidence", []))
 
 

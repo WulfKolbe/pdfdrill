@@ -44,6 +44,20 @@ def test_has_translation_marker():
     assert not classify.has_translation([N("Paragraph", text="x")])
 
 
+def test_phrase_evidence_rejects_function_word_bigrams():
+    from vocabnet import Hit
+    # a bigram of two stop/function words ("in die", "with the") is not evidence
+    assert not classify._phrase_evidence(Hit("gnd", "x", "Eintritt", 1.0, ["in die", "die"]))
+    assert not classify._phrase_evidence(Hit("msc", "x", "y", 1.0, ["with the", "the"]))
+    # an explicit MSC filler bigram (content word, but boilerplate) is rejected
+    assert not classify._phrase_evidence(Hit("msc", "x", "y", 1.0, ["in connection"]))
+    # a contentful phrase (>=1 non-stopword) counts
+    assert classify._phrase_evidence(Hit("msc", "x", "y", 1.0, ["gravitational field"]))
+    assert classify._phrase_evidence(Hit("gnd", "x", "y", 1.0, ["einheitliche feldtheorie"]))
+    # a content+stopword bigram still counts (the content word carries signal)
+    assert classify._phrase_evidence(Hit("gnd", "x", "y", 1.0, ["eintritt in"]))
+
+
 def test_msc_rollup_two_digit():
     from vocabnet import Hit
     hits = [Hit("msc", "81T08", "Constructive QFT", 30.0),
