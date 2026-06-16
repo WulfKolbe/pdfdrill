@@ -109,3 +109,23 @@ def enrich(citekey: str, author: str, year: str, raw_text: str,
         "citations": citations,
         "fields": parse_bibtex_fields(parsed["bibtex"]),
     }
+
+
+def links_prompt(title: str, author: str, year: str, raw_text: str) -> str:
+    return (
+        "Find every URL where the full text of this publication can be "
+        "DOWNLOADED — prefer direct PDF links and free/open-access routes "
+        "(arXiv, the DOI, institutional or author copies, open repositories).\n"
+        f"Title: {title}\nAuthors: {author}\nYear: {year}\n"
+        f"Full Reference Text: {raw_text}\n"
+        "Output ONE URL per line, most directly downloadable first. "
+        "No commentary."
+    )
+
+
+def fetch_links(title: str, author: str, year: str, raw_text: str) -> dict:
+    """Ask SONAR for all downloadable links for the publication. Returns
+    {links: [url, ...], answer}. `links` merges the answer's URLs with SONAR's
+    own citation URLs (de-dup done downstream by citedrill.extract_links)."""
+    resp = call_sonar(links_prompt(title, author, year, raw_text))
+    return {"answer": resp["answer"], "citations": resp["citations"]}

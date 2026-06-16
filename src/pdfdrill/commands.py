@@ -3821,6 +3821,104 @@ def cmd_bibfetch(pdf: Path, limit: int | None = None, force: bool = False) -> st
     return msg
 
 
+def cmd_citedrill(pdf: Path, limit: int | None = None, force: bool = False) -> str:
+    """Drill INTO each citation: find where the cited publication can be
+    downloaded (Perplexity SONAR for all links, plus links seeded from the
+    reference's own bibtex/raw_text), rank free routes first (arXiv → its PDF,
+    then .pdf, then DOI), attempt to fetch the PDF into `<drill>/cited/`, and
+    stamp the Reference with drill STATUS: `drill_status` (fetched/links_only/
+    no_links/blocked), `pdf_url`, `pdf_path`, `pdf_json` (the per-reference
+    attempt record), and `download_links`. Idempotent (skips already-drilled
+    unless --force); `--limit N` caps the references processed.
+    """
+    from docmodel.core import Document
+    from . import citedrill as cdr
+    from .net import NetworkBlocked
+
+    sc = Sidecar(pdf)
+    model_path = _model_path(sc)
+    if not sc.has(BIBLIOGRAPHY_BUILT) and not _has_references(model_path):
+        cmd_bibliography(pdf)
+        sc = Sidecar(pdf)
+    if not model_path.exists():
+        return f"No model for {pdf.name} (run `pdfdrill bibliography`/`bibsource` first)."
+
+    doc = load_model(model_path)
+    refs = [o for o in doc.objects.values() if o.type == "Reference"]
+    todo = [r for r in refs if force or not r.props.get("drill_status")]
+    if limit is not None:
+        todo = todo[:limit]
+    if not refs:
+        return f"No References in {pdf.name} — run `pdfdrill bibliography`/`bibsource` first."
+
+    cited_dir = sc.blob_dir / "cited"
+    fetched = links_only = no_links = blocked = 0
+    for r in todo:
+        p = r.props
+        title, author = p.get("title", ""), p.get("author", "")
+        year, raw = p.get("year", ""), p.get("raw_text", "")
+        # seed candidate links from the reference itself (works offline)
+        seed = cdr.extract_links(f"{raw}\n{p.get('bibtex','')}")
+        is_blocked = False
+        # Perplexity (graceful): a missing key / blocked network only affects this step
+        try:
+            from . import perplexity_client as _pc
+            res = _pc.fetch_links(title, author, year, raw)
+            seed = cdr.extract_links(res["answer"], res.get("citations")) + seed
+        except NetworkBlocked:
+            is_blocked = True
+        except Exception:
+            pass  # no key / API error → fall back to seeded links only
+
+        candidates = cdr.rank_links(seed)
+        pdf_url = pdf_path = None
+        for c in candidates:
+            c["verify"] = cdr.verify(c["url"])
+            c["fetched"] = False
+            if pdf_path is None:                       # attempt any link, in rank order
+                dest = cited_dir / f"{p.get('citekey','ref')}.pdf"
+                if cdr.fetch(c["url"], dest):
+                    c["fetched"] = True
+                    pdf_url = c["url"]
+                    pdf_path = str(dest.relative_to(sc.blob_dir))
+        record = cdr.build_record(p.get("citekey", ""), title, year, candidates,
+                                  pdf_url, pdf_path, blocked=is_blocked and not candidates)
+        # write the per-reference pdf.json attempt record
+        cited_dir.mkdir(parents=True, exist_ok=True)
+        jpath = cited_dir / f"{p.get('citekey','ref')}.pdf.json"
+        with open(jpath, "w", encoding="utf-8") as f:
+            json.dump(record, f, indent=2, ensure_ascii=False)
+        p.update(cdr.reference_fields(record, str(jpath.relative_to(sc.blob_dir))))
+        st = record["drill_status"]
+        fetched += st == "fetched"
+        links_only += st == "links_only"
+        no_links += st == "no_links"
+        blocked += st == "blocked"
+
+    with open(model_path, "w", encoding="utf-8") as f:
+        json.dump(doc.to_dict(), f, indent=2, ensure_ascii=False)
+    sc.set_evidence("citedrill", {"fetched": fetched, "links_only": links_only,
+                                  "no_links": no_links, "blocked": blocked,
+                                  "processed": len(todo)})
+    sc.save()
+    return (f"Drilled {len(todo)} citation(s): {fetched} PDF(s) fetched, "
+            f"{links_only} with links only, {no_links} no links"
+            + (f", {blocked} blocked (no Perplexity/network)" if blocked else "")
+            + f". Each Reference carries drill_status/pdf_url/pdf_path + a "
+            f"cited/<citekey>.pdf.json record. PDFs in {cited_dir.relative_to(sc.pdf_path.parent)}/.")
+
+
+def _has_references(model_path: Path) -> bool:
+    try:
+        import json as _j
+        d = _j.load(open(model_path, encoding="utf-8"))
+        objs = d.get("objects", {})
+        vals = objs.values() if isinstance(objs, dict) else objs
+        return any(o.get("type") == "Reference" for o in vals)
+    except Exception:
+        return False
+
+
 def _format_bibliography(sc: Sidecar) -> str:
     n = sc.get_evidence("bibliography_entries", 0)
     y = sc.get_evidence("bibliography_with_year", 0)

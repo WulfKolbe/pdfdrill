@@ -93,6 +93,7 @@ def main():
         "bibliography": _do_bibliography,
         "bibsource": _do_bibsource,
         "bibfetch": _do_bibfetch,
+        "citedrill": _do_citedrill,
         "report": _do_report,
         "folder": _do_folder,
         "latex": _do_latex,
@@ -825,6 +826,16 @@ def _do_bibfetch(args):
         else:
             pdf_args.append(args[i]); i += 1
     return cmd_bibfetch(_pdf(pdf_args), limit=limit, force=force)
+
+
+def _do_citedrill(args):
+    """pdfdrill citedrill <pdf|md> [--limit N] [--force]  — drill into citations:
+    find download links + fetch the cited PDFs, stamp drill status on each Reference."""
+    from .commands import cmd_citedrill
+    limit, rest = _opt(args, "--limit")
+    rest = [a for a in rest if a != "--force"]
+    return cmd_citedrill(_drilled(rest), limit=int(limit) if limit else None,
+                         force="--force" in args)
 
 
 def _do_candidates(args):

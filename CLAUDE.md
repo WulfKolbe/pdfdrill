@@ -1593,6 +1593,29 @@ Citation↔Reference linking + Markdown refs (done):
 
 Full BibTeX burst: `pdfdrill bibfetch data/2312.11532.pdf` enriched **18/18**
 references with full BibTeX + title + citations via Perplexity SONAR.
+
+Drill INTO a citation (`src/pdfdrill/citedrill.py`, `pdfdrill citedrill`): find
+where each cited publication can be **downloaded** and fetch it. Per Reference:
+(1) Perplexity SONAR is asked for ALL download links (`perplexity_client.
+fetch_links` / `links_prompt`), merged with links seeded from the reference's
+OWN `bibtex`/`raw_text` (so it still works offline / when the API is blocked);
+(2) `rank_links` orders **free routes first** — an arXiv abs/pdf URL is
+normalized to its direct PDF URL, then bare `.pdf`, then DOI, then anything
+else; (3) each candidate is HEAD-`verify`'d and then (attempt-ANY-link policy)
+downloaded in rank order until one PDF lands in `<drill>/cited/<citekey>.pdf`;
+(4) a per-reference **`cited/<citekey>.pdf.json`** records the attempt
+(candidates + verify/fetched status + the working link), and the Reference is
+stamped with **`drill_status`** (fetched / links_only / no_links / blocked) +
+`pdf_url` / `pdf_path` / `pdf_json` / `download_links`. Pure helpers (extract/
+classify/rank/record/status/fields) are unit-tested; the network parts degrade
+gracefully (no key / `NetworkBlocked` → seeded links only / `blocked`).
+`pdfdrill citedrill <pdf|md> [--limit N] [--force]`; idempotent per reference.
+Verified live on the cspmath monograph: 3/3 cited PDFs fetched (real `%PDF`
+files: Carlsson "Topology and data", Coifman-Lafon "Diffusion maps", …), each
+Reference carrying its drill status + a link to the pdf.json. Tests:
+`tests/test_citedrill.py` (6). Honest note: the attempt-any-link policy will
+fetch whatever a link returns (a `@misc` registry ref can pull an incidental
+PDF) — the candidates + verify status in the pdf.json are there to audit it.
 - Markdown in-text refs: `LLMCompactProjector` gains an opt-in `eq_refs` param
   that rewrites `(N)` → the equation's compact placeholder `[E‹k›]` (off by
   default; for round-trip tests).
