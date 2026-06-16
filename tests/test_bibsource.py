@@ -108,9 +108,38 @@ def test_cmd_bibsource_end_to_end(tmp_path=None):
         assert Sidecar(pdf).has(BIBSOURCE_BUILT)
 
 
+def test_detect_author_year_in_objects_square_brackets_and_folding():
+    """MathPix renders natbib author-year as [Surname, year] (square brackets) in
+    paragraph text of a markdown/source model (no mathpix_lines stream). The
+    object-text detector finds both [..] and (..), folds diacritics into the
+    citekey, and link_citations connects to the gold references."""
+    doc = Document()
+    s = doc.ensure_stream("markdown_source")
+    a1 = s.append(type="text", text="x")
+    p = DocObject(type="Paragraph", props={
+        "text": "a conceptual space [Gärdenfors, 2000] and multilayer "
+                "networks [Kivelä et al., 2014]; see also (Carlsson, 2009)."})
+    p.add_realization(Realization(stream="markdown_source", start=a1, end=a1, role="surface"))
+    doc.add(p)
+    # gold references (bibtex keys, as bibsource ingests them)
+    for ck in ("gardenfors2000", "kivela2014", "carlsson2009topology"):
+        r = DocObject(type="Reference", props={"citekey": ck})
+        ra = s.append(type="ref")
+        r.add_realization(Realization(stream="markdown_source", start=ra, end=ra, role="surface"))
+        doc.add(r)
+
+    n = B.detect_author_year_in_objects(doc)
+    assert n == 3                                   # 3 in-text citations detected
+    keys = sorted(c.props["citekey"] for c in doc.objects.values() if c.type == "Citation")
+    assert keys == ["carlsson2009", "gardenfors2000", "kivela2014"]  # diacritics folded
+    linked = B.link_citations(doc)                  # stream-agnostic surface()
+    assert linked == 3                              # all linked to the gold refs
+
+
 if __name__ == "__main__":
     import tempfile
     for fn in [test_norm_label_ocr_tolerant, test_parse_bbl,
-               test_ingest_bbl_and_enrich_and_link, test_cmd_bibsource_end_to_end]:
+               test_ingest_bbl_and_enrich_and_link, test_cmd_bibsource_end_to_end,
+               test_detect_author_year_in_objects_square_brackets_and_folding]:
         fn(); print(f"PASS {fn.__name__}")
     print("\nAll tests passed.")

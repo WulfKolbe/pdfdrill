@@ -247,12 +247,76 @@ def detect_author_year_citations(doc, exclude_anchors=()) -> int:
     return added
 
 
+import unicodedata as _ud
+
+# author-year inside ROUND or SQUARE brackets — MathPix renders natbib
+# author-year as [Surname, year]; LaTeX/prose may use (Surname, year). A pure
+# numeric `[12]` has no year+surname so it's ignored here (numeric detector owns it).
+_AY_GROUP = re.compile(r"[\(\[]([^()\[\]]{1,250})[\)\]]")
+_AY_SURNAME = re.compile(r"([A-ZÀ-Þ][A-Za-zÀ-ſ\-']{1,})")
+
+
+def _fold_key(s: str) -> str:
+    """Diacritic-fold a surname for citekey matching (Gärdenfors -> gardenfors)."""
+    s = _ud.normalize("NFKD", s)
+    return "".join(c for c in s if not _ud.combining(c)).lower()
+
+
+def detect_author_year_in_objects(doc, exclude_anchors=()) -> int:
+    """Stream-agnostic author-year citation detector over the prose OBJECTS'
+    text (Paragraph/Section/Abstract/ListItem/Footnote `text`/`caption`/
+    `content`) — works on markdown/source models that have no `mathpix_lines`
+    stream. Matches `[Surname, year]` AND `(Surname, year)` (the natbib forms
+    MathPix produces), splits multi-cites on `;`, and mints a diacritic-folded
+    `surname+year` citekey so `link_citations` connects to the gold references.
+    The Citation reuses the source object's realization as its surface.
+    Idempotent caller should drop prior `added_by="bibliography"` Citations."""
+    from docmodel.core import DocObject, Realization
+
+    added = 0
+    prose = ("Paragraph", "Section", "Abstract", "ListItem", "Footnote", "Toc")
+    for o in list(doc.objects.values()):
+        if o.type not in prose:
+            continue
+        text = o.props.get("text") or o.props.get("caption") or o.props.get("content") or ""
+        if not text or not _YEAR.search(text):
+            continue
+        math = _math_ranges(text)
+        rr = next((x for x in o.realizations if x.start is not None), None)
+        for m in _AY_GROUP.finditer(text):
+            if _in_math(m.start(), math):
+                continue
+            content = m.group(1)
+            if not _YEAR.search(content):
+                continue                       # not a year-bearing group → skip
+            for part in content.split(";"):
+                ym = _YEAR.search(part)
+                if not ym:
+                    continue
+                sm = _AY_SURNAME.search(part)
+                if not sm or sm.group(1).lower() in _AY_STOP:
+                    continue
+                obj = DocObject(type="Citation", props={
+                    "citekey": _fold_key(sm.group(1)) + ym.group(0),
+                    "author": sm.group(1), "year": ym.group(0),
+                    "style": "author-year", "added_by": "bibliography",
+                    "page": o.props.get("page")})
+                if rr is not None:
+                    obj.add_realization(Realization(
+                        stream=rr.stream, start=rr.start, end=rr.end, role="surface",
+                        props={"offset": m.start(), "length": m.end() - m.start()}))
+                doc.add(obj)
+                added += 1
+    return added
+
+
 def link_citations(doc) -> int:
     """Add `cites` Alignments from in-text Citations to their Reference.
 
     Matches a citation's key to a reference citekey exactly, or by surname
     prefix (in-text `[Asai]` -> reference `Asai2023`). Returns edges added.
-    """
+    Surface is taken from the citation's/reference's realization in ANY stream
+    (so markdown/source models link, not just mathpix_lines)."""
     from docmodel.core import Range, Alignment
 
     by_key = {}
@@ -280,7 +344,9 @@ def link_citations(doc) -> int:
     def surface(o):
         rr = next((x for x in o.realizations
                    if x.stream == "mathpix_lines" and x.start is not None), None)
-        return Range("mathpix_lines", rr.start, rr.end) if rr else None
+        if rr is None:                           # markdown/source model: any stream
+            rr = next((x for x in o.realizations if x.start is not None), None)
+        return Range(rr.stream, rr.start, rr.end) if rr else None
 
     n = 0
     for c in doc.objects.values():

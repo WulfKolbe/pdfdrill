@@ -1924,7 +1924,8 @@ def cmd_bibsource(pdf: Path, bib_path: str | None = None,
     """
     from docmodel.core import Document
     from .bibliography import (ingest_bbl, load_bibtex_file,
-                               link_citations_by_label, link_citations)
+                               link_citations_by_label, link_citations,
+                               detect_author_year_in_objects)
 
     sc = Sidecar(pdf)
     model_path = _model_path(sc)
@@ -1963,8 +1964,16 @@ def cmd_bibsource(pdf: Path, bib_path: str | None = None,
     n_refs = sum(1 for o in doc.objects.values() if o.type == "Reference")
     n_cits = sum(1 for o in doc.objects.values() if o.type == "Citation")
     linked = link_citations_by_label(doc)        # primary: alpha label
-    if not bbl:                                   # no labels → citekey/number
+    if not linked:                               # no labeled links → citekey/number
         linked = link_citations(doc)
+    if not linked:                               # still none: detect author-year
+        # MathPix renders natbib as [Surname, year]; mine them from object text
+        doc.objects = {k: v for k, v in doc.objects.items()
+                       if not (v.type == "Citation"
+                               and v.props.get("added_by") == "bibliography")}
+        detect_author_year_in_objects(doc)
+        linked = link_citations(doc)
+        n_cits = sum(1 for o in doc.objects.values() if o.type == "Citation")
 
     with open(model_path, "w", encoding="utf-8") as f:
         json.dump(doc.to_dict(), f, indent=2, ensure_ascii=False)
