@@ -161,6 +161,13 @@ class SciKGTeXProjector(BaseProjector):
         # values in the XMP/RDF (each becomes an invisible \name*{value}).
         for k in _RIGHTS_KEYS:
             pre.append(rf"\newpropertycommand[pdfdrill, {_PDFDRILL_NS}]{{{k}}}")
+        # subject classification (from `pdfdrill classify`) -> pdfdrill-namespace
+        # XMP properties, one repeatable command per scheme.
+        subjects = [("mscsubject", v) for v in (self.params.get("msc_subjects") or [])]
+        subjects += [("physhsubject", v) for v in (self.params.get("physh_subjects") or [])]
+        for k in ("mscsubject", "physhsubject"):
+            if any(c == k for c, _ in subjects):
+                pre.append(rf"\newpropertycommand[pdfdrill, {_PDFDRILL_NS}]{{{k}}}")
         pre.append(rf"\metatitle*{{{_esc(title)}}}")
         for a in authors[:25]:
             pre.append(rf"\metaauthor*{{{_esc(a)}}}")
@@ -211,10 +218,19 @@ class SciKGTeXProjector(BaseProjector):
                 rights.append(rf"\{k}*{{{_esc(val)}}}")
                 self.bump("rights")
 
+        # --- subject classification (invisible XMP, pdfdrill namespace) ---
+        subj_lines = []
+        for cmd, val in subjects:
+            if val:
+                subj_lines.append(rf"\{cmd}*{{{_esc(val)}}}")
+                self.bump("subjects")
+
         body = (["% SciKGTeX metadata (invisible starred commands — layout-safe)"]
                 + ann
                 + ["% pdfdrill rights/provenance disclaimer (XMP, pdfdrill namespace)"]
-                + rights)
+                + rights
+                + (["% pdfdrill subject classification (MSC/PhySH, XMP)"] + subj_lines
+                   if subj_lines else []))
         if not standalone:
             return "\n".join(pre + [""] + body) + "\n"
 

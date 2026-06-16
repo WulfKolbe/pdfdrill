@@ -6361,13 +6361,28 @@ def cmd_scikgtex(pdf: Path, compile: bool = False) -> str:
     if not doc.meta.get("primary_category") and sc.get_evidence("arxiv_primary_category"):
         doc.meta["primary_category"] = sc.get_evidence("arxiv_primary_category")
 
-    proj = SciKGTeXProjector(OperatorConfig(op="projector", classname="SciKGTeXProjector"))
+    # fold the MSC/PhySH subject tags from `pdfdrill classify` (sidecar) into the
+    # SciKGTeX XMP, if a classification has been run.
+    params = {}
+    cls = sc.get_evidence("classification") or {}
+    msc = [f"{h['code']} {h['pref']}".strip() for h in (cls.get("msc_top") or [])[:8]]
+    physh = [h["pref"] for h in (cls.get("per_source", {}).get("physh") or [])[:6] if h.get("pref")]
+    if msc:
+        params["msc_subjects"] = msc
+    if physh:
+        params["physh_subjects"] = physh
+
+    proj = SciKGTeXProjector(OperatorConfig(op="projector",
+                                            classname="SciKGTeXProjector", params=params))
     tex = proj.project(doc)
     out = sc.blob_dir / f"{key}.scikg.tex"
     out.write_text(tex, encoding="utf-8")
     c = proj.counters
     summary = (f"{c.get('contributions', 0)} contribution role(s), "
                f"{c.get('fact', 0)} numeric fact(s), {c.get('doi_uri', 0)} DOI link(s)")
+    if c.get("subjects"):
+        summary += (f", {len(msc)} MSC + {len(physh)} PhySH subject tag(s) "
+                    f"from classify")
     rel = out.relative_to(sc.pdf_path.parent)
 
     note = ""

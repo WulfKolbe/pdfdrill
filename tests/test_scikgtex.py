@@ -101,6 +101,28 @@ def test_scikgtex_disclaimer_overridable():
     assert r"\liability*{Custom liability clause.}" in tex
 
 
+def test_scikgtex_folds_subject_classification():
+    # MSC/PhySH subject tags (from `pdfdrill classify`) fold into the XMP as
+    # repeatable pdfdrill-namespace properties.
+    doc = _demo_doc()
+    cfg = OperatorConfig(op="projector", classname="SciKGTeXProjector", params={
+        "msc_subjects": ["46B85 Embeddings of discrete metric spaces into Banach spaces",
+                         "35K08 Heat kernel"],
+        "physh_subjects": ["Continuous-time random walk"]})
+    tex = SciKGTeXProjector(cfg).project(doc)
+    assert r"\newpropertycommand[pdfdrill, http://pdfdrill.org/property/]{mscsubject}" in tex
+    assert r"\newpropertycommand[pdfdrill, http://pdfdrill.org/property/]{physhsubject}" in tex
+    assert r"\mscsubject*{46B85 Embeddings of discrete metric spaces into Banach spaces}" in tex
+    assert r"\mscsubject*{35K08 Heat kernel}" in tex
+    assert r"\physhsubject*{Continuous-time random walk}" in tex
+
+
+def test_scikgtex_no_subjects_emits_no_subject_props():
+    tex = _project(_demo_doc())                     # no subject params
+    assert r"\mscsubject*" not in tex
+    assert r"{mscsubject}" not in tex
+
+
 def _have_scikgtex():
     return (shutil.which("lualatex") and (_FIX / "scikgtex.sty").exists()
             and (_FIX / "scikgtex.lua").exists())
