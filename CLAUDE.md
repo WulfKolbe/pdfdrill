@@ -897,6 +897,41 @@ anchor → kitem tiddler → span → the p95 model Paragraph; second run = 0 ne
 (fixpoint no-op). Tests: `tests/test_fixpoint.py` (3),
 `tests/test_claims_rulebook.py` (3).
 
+**Reified passes + provenance (2026-06-17).** `produced_by` was a bare string
+naming a process with no object behind it and no record of a single invocation.
+Three additive layers close that (stdlib-only; `produced_by` stays a string):
+- **`semantic/question.py`** — `Question` (frozen): the reusable DEFINITION of a
+  pass (`qid`=the produced_by value, `description`, `prompt_version`, `emits_
+  entities`/`emits_relations`, `stratum`) + a `REGISTRY` / `register` / `get`.
+  Every produced_by the package emits is pre-registered (bib/cite/claims_v1/
+  concepts/docmodel/iban/ner/segment + pdfdrill/mathpix/bic/german_address/
+  extract_ids + the invocation-level ingest_document/ingest_docmodel).
+  `compiler.check_provenance` warns at severity **`info`** (never critical) on an
+  unregistered produced_by — so existing graphs stay `valid`. Tests:
+  `tests/test_question.py`.
+- **`semantic/transformation.py`** — `Transformation`: ONE process invocation as
+  a content-addressed node (`tid = content_hash("trans|qid|model|version|" +
+  sorted source content-hashes)`, EXCLUDING timestamp/cost/responses → re-running
+  the same invocation on the same inputs is a fixpoint no-op). Stored on the
+  graph in `transformations: {tid: …}` (NOT as Relations — many→many hyperedges
+  would break the binary `SIGNATURE_TABLE`); `record_transformation` idempotent;
+  round-trips in the sidecar. `record_batch`/`snapshot` group an invocation's
+  evidence/edges and stamp its `tid` into `grounding["trans"]` (setdefault →
+  re-run never overwrites). Wired into `build.ingest_document`/`ingest_docmodel`
+  and the `claims` kitem pass (`seed=bibkey`; stamping touches only grounding,
+  never evidence counts → quiescence preserved). Verified: same doc twice →
+  identical transformations; cspmath → 2 transformations, 57 relations + 171
+  evidence carry the trans tid, compiler valid. Tests:
+  `tests/test_transformation.py`.
+- **`semantic/belief.py`** — a derived REPORT COLUMN, never a source of truth:
+  conservative weakest-link `belief_min(parents, own)=min(parents)*own`, computed
+  lazily over the `derived_from` DAG and exposed only as a `{entity_id: belief}`
+  column (never an Entity/Evidence field; never feeds the kitems `status`
+  lattice). Prerequisite fix: `Entity.best()` ties now break by deterministic
+  content-hash ordering (not recency), so belief is order-independent (verified:
+  identical across opposite ingestion orders; leaf 1.0 / mid 0.9 / top 0.72).
+  Tests: `tests/test_belief.py`.
+
 **LLM text projection (`pdfdrill llmtext`, 2026-06-13).**
 `docops/projectors/llm_text.py` (`LLMTextProjector`) — a flat dump for an LLM:
 per unit the tiddler-style TITLE (`<bibkey>_PARA_<NNNN>` / `_EQ<NNNN>_p<NNN>` /
