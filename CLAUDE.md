@@ -1336,6 +1336,38 @@ message (and `model` then falls back to tesseract `ocr`); `snip`/`vision`/
 `bibfetch` abort the batch on the first block and return the message rather than
 hammering N items. Tests: `tests/test_net.py`.
 
+## Ask-the-document chat proxy (`retrieve`/`chatlog` + `tools/drillui_chat.py`, 2026-06-17)
+
+A Headroom-style proxy: a question is enriched with pdfdrill context, sent to an
+LLM via the keyless `claude -p` fallback, and the Q&A is stored in pdfdrill's own
+structures. The conversational proxy stays **external** (never imports pdfdrill);
+pdfdrill grows the two primitives it shells out to (additive, read-mostly):
+- **`pdfdrill retrieve <pdf> "<q>" [--k N] [--json]`** (`retrieve.py`) — the
+  question→context TRANSFORMATION: an ephemeral per-doc IDF index scores the
+  drilled units (paragraphs/sections/formula-LaTeX/concepts; reuses
+  `classify._strip_latex` so a formula matches on identifiers not `\cmd`s) and
+  returns the top-k, each tagged by object id. `build_prompt` wraps them in a
+  cite-by-id, answer-only-from-context prompt — the one place the transformation
+  lives (the future-SKILL seed). `--json` returns `{question,units,prompt,title,
+  subjects}` (subjects from a prior `classify`). Fast DocGraph read path.
+- **`pdfdrill chatlog <pdf> --question … --answer … --units id,id [--model M]`** —
+  stores the turn in pdfdrill's shapes: a `chat.jsonl` transcript line AND the
+  answer as a **KITEM** in the semantic graph (statement = the Q&A, evidence =
+  the cited units' spans, grouped under a `Transformation(qid="ask", model=…)`).
+  The answer's honesty `status` follows the kitem lattice (≥2 independent cited
+  units ⇒ accepted), so a well-grounded answer is first-class + traceable.
+- **`tools/drillui_chat.py`** — the external proxy/REPL (stdlib, subprocess-only,
+  never imports pdfdrill): per question it shells `pdfdrill retrieve … --json` →
+  the enriched prompt → `claude -p … --output-format json` (the same fallback
+  trick) → `pdfdrill chatlog …`. One-shot (`-q`) or a REPL with rolling history;
+  `--src src` for a dev checkout, `--model`/`--k`/`--no-store` flags.
+- **Verified live** on the cspmath monograph: "why no single global metric?" →
+  `retrieve` surfaced *Remark 1.5 (Why not one metric…)* + the quality-domain
+  definition; `claude -p` answered grounded in 6 cited unit ids (incommensurable
+  domains, triangle-inequality failure; geodesic/quasi-metric recovery, Prop
+  1.2); stored as an `accepted` kitem. Tests: `tests/test_retrieve.py` (5),
+  `tests/test_chat.py` (4). Temporary until the transformation becomes a SKILL.
+
 ## Keyless LLM-delegation fallback (`src/pdfdrill/llm_delegate.py`, 2026-06-17)
 
 The two prompt-driven providers (`openai_vision`, `perplexity_client`) need a

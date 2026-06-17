@@ -731,9 +731,9 @@ commands:
   - *id001
 - name: llm
   section: Introspection (fast, no extraction)
-  summary: 'Keyless LLM-delegation driver: show detected runtime (cli/sandbox/none)
-    and any pending vision/bibtex/links requests deferred to the running Claude agent;
-    --show dumps open prompts, --runtime prints the runtime only'
+  summary: 'Keyless LLM-delegation driver: show detected runtime (cli/sandbox/none) and any pending vision/bibtex/links
+    requests deferred to the running Claude agent; --show dumps open prompts, --runtime prints the runtime
+    only'
   network: false
   max_concurrency: 1
   positionals:
@@ -1302,6 +1302,58 @@ commands:
   - name: pdf
     type: pdf
     required: true
+  typed: true
+- name: retrieve
+  section: Planning & automation
+  summary: 'Transform a question into grounded context: top-k relevant drilled units (the chat-proxy enrichment
+    / future-SKILL seed)'
+  offline_ok: true
+  requires:
+  - model
+  positionals:
+  - &id002
+    name: pdf
+    type: pdf
+    required: true
+    help: PDF/Markdown drilled-doc path, URL, or arXiv id
+  - name: question
+    type: str
+    required: true
+  flags:
+  - name: k
+    flag: --k
+    type: int
+    default: 8
+    help: number of units
+  - name: json
+    flag: --json
+    type: flag
+    help: machine-readable {units,prompt}
+  typed: true
+- name: chatlog
+  section: Planning & automation
+  summary: 'Store one Q&A turn: append the transcript + emit the answer as a kitem in the semantic graph
+    (provenance qid=ask)'
+  offline_ok: true
+  positionals:
+  - *id002
+  flags:
+  - name: question
+    flag: --question
+    type: str
+    required: true
+  - name: answer
+    flag: --answer
+    type: str
+    required: true
+  - name: units
+    flag: --units
+    type: str
+    help: comma-separated cited unit ids
+  - name: model
+    flag: --model
+    type: str
+    help: the LLM that answered
   typed: true
 help_intro: 'pdfdrill — portable PDF drill-down toolkit
 

@@ -2333,6 +2333,86 @@ def cmd_classify(pdf: Path, k: int = 8) -> str:
     return "\n".join(lines) + note
 
 
+# ---------------------------------------------------------------------------
+# Chat-proxy primitives (the external drillui_chat tool shells out to these):
+#   retrieve — the question→context transformation (RAG enrichment)
+#   chatlog  — store one Q&A turn as a transcript line + an answer kitem
+# Both are read-mostly and additive; the conversational proxy stays external.
+# ---------------------------------------------------------------------------
+
+def cmd_retrieve(pdf: Path, question: str, k: int = 8, as_json: bool = False) -> str:
+    """Transform a question into grounded CONTEXT from the drilled model: the
+    top-k relevant units (paragraphs/sections/formulas/concepts), each tagged by
+    object id. `--json` returns {question, units, prompt, title, subjects} for a
+    wrapper; otherwise prose. Fast DocGraph read path."""
+    from . import retrieve as R, model_io
+    sc = Sidecar(pdf)
+    model_path = _model_path(sc)
+    if not model_path.exists():
+        return f"No model for {pdf.name} — run `pdfdrill model`/`markdown` first."
+    g = model_io.load_docgraph(model_path)
+    hits = R.retrieve(question, list(g), k=k)
+    title = g.meta.get("title") or sc.get_evidence("arxiv_title") or pdf.stem
+    cls = sc.get_evidence("classification") or {}
+    subjects = ", ".join(list((cls.get("msc_sections") or {}).keys())[:4])
+    prompt = R.build_prompt(question, hits, title=str(title), subjects=subjects)
+    if as_json:
+        return json.dumps({"question": question, "units": hits, "prompt": prompt,
+                           "title": str(title), "subjects": subjects},
+                          ensure_ascii=False)
+    if not hits:
+        return f"No relevant units for the question in {pdf.name}."
+    lines = [f"Top {len(hits)} unit(s) for the question (cite these ids):"]
+    for h in hits:
+        lines.append(f"  [{h['id']}] ({h['type']}, {h['score']:.1f}) "
+                     f"{h['text'][:140].strip()}")
+    return "\n".join(lines)
+
+
+def cmd_chatlog(pdf: Path, question: str, answer: str,
+                units: str = "", model: str = "") -> str:
+    """Store one Q&A turn in pdfdrill's structures: append it to the sidecar
+    transcript (`chat.jsonl`) AND emit the answer as a KITEM in the semantic
+    graph — statement = the answer, evidence = the cited units' spans, grouped
+    under one Transformation(qid="ask", model=…). `units` is a comma-separated
+    list of the unit ids the answer cited."""
+    import time
+    from semantic.graph import SemanticGraph
+    from semantic.identity import IdentityResolver
+    from semantic import kitems, transformation as T
+    from semantic.layers import content_identity  # registers the content_hash key
+
+    sc = Sidecar(pdf)
+    key = resolve_bibkey(pdf, None, sc)
+    unit_ids = [u.strip() for u in units.split(",") if u.strip()]
+
+    # 1) transcript (always)
+    sc.blob_dir.mkdir(parents=True, exist_ok=True)
+    turn = {"question": question, "answer": answer, "units": unit_ids,
+            "model": model, "ts": time.strftime("%Y-%m-%dT%H:%M:%S")}
+    with open(sc.blob_dir / "chat.jsonl", "a", encoding="utf-8") as f:
+        f.write(json.dumps(turn, ensure_ascii=False) + "\n")
+
+    # 2) answer kitem in the semantic graph (load-or-create), provenance-stamped
+    sem_path = sc.blob_dir / f"{key}.semantic.json"
+    g = (SemanticGraph.from_dict(json.loads(sem_path.read_text(encoding="utf-8")))
+         if sem_path.exists() else SemanticGraph())
+    r = IdentityResolver(g).reindex()
+    snap = T.snapshot(g)
+    spans = [{"bibkey": key, "node": uid, "range": "", "role": "answers"}
+             for uid in unit_ids]
+    statement = f"Q: {question}\nA: {answer}"
+    k = kitems.emit_kitem(g, r, statement, kind="answer", stratum=5,
+                          spans=spans, produced_by="ask")
+    T.record_batch(g, "ask", snap, seed=key, model=model or "claude")
+    sem_path.write_text(json.dumps(g.to_dict(), ensure_ascii=False, indent=2),
+                        encoding="utf-8")
+    n_turns = sum(1 for _ in open(sc.blob_dir / "chat.jsonl", encoding="utf-8"))
+    return (f"Logged Q&A turn #{n_turns} for {pdf.name}: answer stored as kitem "
+            f"{k.id} (status {kitems.status_of(g, k.id)}), grounded in "
+            f"{len(unit_ids)} cited unit(s). Transcript: {sc.blob_dir.name}/chat.jsonl.")
+
+
 def cmd_identifiers(pdf: Path) -> str:
     """Scan the FRONT MATTER for known identifiers + named-entity candidates.
 

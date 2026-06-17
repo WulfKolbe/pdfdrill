@@ -1128,6 +1128,33 @@ def _do_steps(args):
     return planner.describe(args[0], _drilled(args[1:]))
 
 
+def _do_retrieve(args):
+    """pdfdrill retrieve <pdf|md> "<question>" [--k N] [--json] — top-k relevant
+    units as grounded context (the chat-proxy question transformation)."""
+    from .commands import cmd_retrieve
+    k, rest = _opt(args, "--k")
+    as_json = "--json" in rest
+    rest = [a for a in rest if a != "--json"]
+    if len(rest) < 2:
+        raise ValueError('usage: pdfdrill retrieve <pdf> "<question>" [--k N] [--json]')
+    return cmd_retrieve(_drilled(rest[:1]), rest[1], k=int(k) if k else 8,
+                        as_json=as_json)
+
+
+def _do_chatlog(args):
+    """pdfdrill chatlog <pdf|md> --question Q --answer A [--units id,id] [--model M]
+    — store one Q&A turn (transcript + answer kitem in the semantic graph)."""
+    from .commands import cmd_chatlog
+    q, rest = _opt(args, "--question")
+    a, rest = _opt(rest, "--answer")
+    units, rest = _opt(rest, "--units")
+    model, rest = _opt(rest, "--model")
+    if not rest or q is None or a is None:
+        raise ValueError('usage: pdfdrill chatlog <pdf> --question Q --answer A '
+                         '[--units id,id] [--model M]')
+    return cmd_chatlog(_drilled(rest), q, a, units=units or "", model=model or "")
+
+
 # Module-level command table — the single dispatch surface, also read by
 # `pdfdrill skill --check` and the skill-sync drift gate (manifest <-> HANDLERS).
 HANDLERS = {
@@ -1212,4 +1239,6 @@ HANDLERS = {
         "scikgtex": _do_scikgtex,
         "skill": _do_skill,
         "steps": _do_steps,
+        "retrieve": _do_retrieve,
+        "chatlog": _do_chatlog,
     }

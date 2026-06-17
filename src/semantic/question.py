@@ -129,5 +129,10 @@ for _q in [
              "tables/citations/concepts) into the graph as one invocation.",
              emits_entities=frozenset({_E.DOCUMENT, _E.CONCEPT, _E.FORMULA, _E.IMAGE,
                                        _E.TABLE, _E.CITATION})),
+    Question("ask", "Chat-proxy Q&A: an LLM answer grounded in retrieved document "
+             "units, stored as a kitem with the cited units as evidence.",
+             emits_entities=frozenset({_E.KITEM}),
+             emits_relations=frozenset({_R.DERIVED_FROM}),
+             stratum=5),
 ]:
     register(_q)

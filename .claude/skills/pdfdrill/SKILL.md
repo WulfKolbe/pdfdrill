@@ -383,6 +383,8 @@ _Generated from `commands.yaml` by skillsync. Edit the manifest, not this sectio
 | `pdfdrill plan <pdf> <question>` | Show what steps are needed |
 | `pdfdrill drill <pdf> [--full]` | Full auto-drill |
 | `pdfdrill steps <cmd> <pdf>` | Show the prerequisite chain for a command (what's done, what --ensure would run) |
+| `pdfdrill retrieve <pdf> <question> [--k K] [--json]` | Transform a question into grounded context: top-k relevant drilled units (the chat-proxy enrichment / future-SKILL seed) |
+| `pdfdrill chatlog <pdf> [--question QUESTION] [--answer ANSWER] [--units UNITS] [--model MODEL]` | Store one Q&A turn: append the transcript + emit the answer as a kitem in the semantic graph (provenance qid=ask) |
 
 ### Other
 
