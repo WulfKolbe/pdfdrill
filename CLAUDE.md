@@ -106,6 +106,44 @@ The pdfdrill commands (`size`, `pdfinfo`, `urls`, `dests`, `fonts`,
 `attachments`, `formfields`, `extractimages`, `tables`, `doctor`) are documented in
 `.claude/skills/pdfdrill/SKILL.md`. Each returns prose, not JSON.
 
+## Command-surface single source of truth (`commands.yaml` + skillsync, 2026-06-17)
+
+The ~80 commands used to be described in four hand-maintained, drifting places
+(cli.py `HANDLERS` / `--help` / SKILL.md / the external `drillui` TUI). Now a
+typed manifest is canonical and everything else is **generated**:
+- **`.claude/skills/pdfdrill/commands.yaml`** — the SSOT (80 typed commands;
+  per-command `section`/`summary`/`positionals`/`flags`/`network`/`requires`/
+  `done_when` + a `help_intro`). `cli.HANDLERS` (now a module-level dict) is the
+  ground truth for *which commands exist*; the manifest must match it.
+- **`tools/skillsync.py`** — `check` (manifest↔HANDLERS gate) / `render-help`
+  (→ `src/pdfdrill/_help_generated.txt`, which `_print_help` prints) /
+  `render-skill` (regenerates the tables between `<!--COMMANDS-->` markers, prose
+  untouched) / `bundle` (mirror the SKILL folder into `src/pdfdrill/skill/`) /
+  `all`. CI `.github/workflows/skill-sync.yml` + `tests/test_skill_sync.py` are
+  the drift gate (would have caught the historical `citedrill`/`classify` gap).
+- **`pdfdrill skill --emit DIR | --json | --check`** (`skill_cmd.py`, read-only,
+  additive) — pdfdrill *contains the SKILL folder completely* (bundled as
+  package-data), so in a fresh Claude.ai sandbox it can emit its own SKILL folder
+  if `.claude/` is absent. The external `drillui` TUI stays external and consumes
+  `pdfdrill skill --json`; it is NOT part of pdfdrill. **Workflow:** edit
+  `commands.yaml`, run `python3 tools/skillsync.py all .`, commit.
+
+## Prerequisite state machine (`pdfdrill steps` / `--ensure`, 2026-06-17)
+
+Commands form a dependency chain (analysis cmds need a built `model`;
+`bibfetch`/`citedrill` need a `bibliography`). It is now DECLARATIVE: each command
+carries `requires:` + `done_when:` in `commands.yaml`, and `src/pdfdrill/
+planner.py` resolves, from the current sidecar/artifact state, the ordered
+**missing** steps before a target — the machine reacting to a skipped step.
+- **`pdfdrill steps <cmd> <pdf>`** shows the chain (what's done, what would run).
+- **`pdfdrill <cmd> <pdf> --ensure`** auto-runs the missing prerequisites first,
+  then the target (`cli.main` pre-step; handlers are idempotent).
+- **Offline-safe by construction:** only `model` (self-bootstraps mathpix-or-OCR
+  internally) and `bibliography` (heuristic) are ever auto-inserted; paid/network
+  steps (mathpix/bibfetch/vision/translate) are NEVER auto-run — enforced by
+  `tests/test_planner.py::test_offline_safe_only`. Verified: `llmtext --ensure`
+  on a model-less doc auto-built the model (from lines.json) then ran llmtext.
+
 ### Killer case worth remembering
 
 `pdfdrill links` (~50 ms, pure `pdfinfo -url`) reads the PDF **annotation
