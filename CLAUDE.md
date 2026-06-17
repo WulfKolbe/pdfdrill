@@ -1336,6 +1336,40 @@ message (and `model` then falls back to tesseract `ocr`); `snip`/`vision`/
 `bibfetch` abort the batch on the first block and return the message rather than
 hammering N items. Tests: `tests/test_net.py`.
 
+## Keyless LLM-delegation fallback (`src/pdfdrill/llm_delegate.py`, 2026-06-17)
+
+The two prompt-driven providers (`openai_vision`, `perplexity_client`) need a
+hosted chat-LLM, but pdfdrill is *almost always run by a Claude agent* — under
+Claude Code CLI or in the Claude.ai sandbox. So when no API key is present,
+route the sub-task to **that Claude**, handed pdfdrill's OWN prompts
+(`DEFAULT_PROMPT`/`GRAPH_TIKZ_PROMPT`/chem prompt, `bibtex_prompt`/`links_prompt`)
+— the prompt IS the carried knowledge. tesseract/pix2tex are NOT fallbacks here
+(they can't consume a prompt; full-page OCR already degrades to tesseract).
+- **One task contract, two transports** chosen by `detect_runtime()` (CLI wins):
+  **CLI** → synchronous `claude -p <prompt> --output-format json --allowedTools
+  Read` (vision) / `"WebSearch WebFetch"` (bibtex), parsing the `.result`
+  envelope back into the provider's exact return shape; **SANDBOX** (`IS_SANDBOX`,
+  no binary) → a DEFERRED file handshake (`<drill>/llm/<task_id>.req.json` → the
+  agent writes `.resp.json` → re-run ingests). `task_id` is a blake2b content
+  hash (cache-friendly, fixpoint-stable). Overrides: `PDFDRILL_DELEGATE`
+  (cli|sandbox|none), `PDFDRILL_CLAUDE_BIN`, `PDFDRILL_DELEGATE_MODEL`.
+- **Wired into `cmd_vision`**: the hard no-key guard now detects the runtime; if
+  `NONE` it keeps the old "set OPENAI_API_KEY" message, else
+  `_vision_via_delegate` downloads each CDN crop locally, delegates, and attaches
+  `provenance="openai"` realizations byte-identically to the API loop (incl. the
+  chemistry `latex_code` adoption). The API path is untouched. `cmd_bibfetch`
+  delegation is proven by the module/test but not yet wired (additive follow-up).
+- **`pdfdrill llm <pdf> [--show|--runtime]`** — driver/inspector: detected
+  runtime + pending count; `--show` dumps open requests for the sandbox agent.
+- **Capability proven on the CLI (not just the sandbox):**
+  `tools/claude_capability_test.sh` grades a target model on pdfdrill's REAL
+  prompts — VERIFIED here (default model, 4/4): the vision output is a valid
+  `tikz-cd` that **recompiles** (more than OCR), and the BibTeX is
+  **web-searched** correct (recovered the hidden Vaswani co-authors + pages
+  5998–6008). Tests: `tests/test_llm_delegate.py` (7, incl. a full sandbox
+  round-trip), `tests/test_vision.py` (delegation round-trip). Additive; all
+  test files green; 81 commands in sync.
+
 ## Known-host URL inputs + arXiv free routes (`src/pdfdrill/sources.py`)
 
 Every command's `<pdf>` argument may now be an **https URL from a known host**,

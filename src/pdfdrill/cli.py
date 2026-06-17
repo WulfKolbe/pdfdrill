@@ -237,6 +237,17 @@ def _do_vision(args):
     return cmd_vision(_pdf(pdf_args), limit=limit, force=force)
 
 
+def _do_llm(args):
+    """pdfdrill llm <pdf> [--show | --runtime]"""
+    from .commands import cmd_llm
+    from .llm_delegate import detect_runtime
+    if "--runtime" in args:
+        return f"llm-delegation runtime: {detect_runtime().value}"
+    action = "show" if "--show" in args else "status"
+    pdf_args = [a for a in args if a not in ("--show", "--status")]
+    return cmd_llm(_pdf(pdf_args), action=action)
+
+
 def _do_entities(args):
     """pdfdrill entities <pdf>"""
     from .commands import cmd_entities
@@ -1166,6 +1177,7 @@ HANDLERS = {
         "candidates": _do_candidates,
         "ingest": _do_ingest,
         "vision": _do_vision,
+        "llm": _do_llm,
         "embedimages": _do_embedimages,
         "geometry": _do_geometry,
         "tiddlers": _do_tiddlers,

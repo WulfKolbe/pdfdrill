@@ -729,6 +729,26 @@ commands:
     flag: --limit
     type: int
   - *id001
+- name: llm
+  section: Introspection (fast, no extraction)
+  summary: 'Keyless LLM-delegation driver: show detected runtime (cli/sandbox/none)
+    and any pending vision/bibtex/links requests deferred to the running Claude agent;
+    --show dumps open prompts, --runtime prints the runtime only'
+  network: false
+  max_concurrency: 1
+  positionals:
+  - name: pdf
+    type: pdf
+    required: true
+    help: PDF path, https URL, or bare arXiv id
+  typed: true
+  flags:
+  - name: show
+    flag: --show
+    type: bool
+  - name: runtime
+    flag: --runtime
+    type: bool
 - name: embedimages
   section: Introspection (fast, no extraction)
   summary: Lift pdfimages + pdfplumber image rects into the model as EmbeddedImage nodes (pixel size/encoding/ppi

@@ -17,6 +17,7 @@ from docmodel.core import Document, DocObject
 from pdfdrill.sidecar import Sidecar
 from pdfdrill import openai_vision
 from pdfdrill import commands
+from pdfdrill import llm_delegate, net
 from pdfdrill.commands import (
     cmd_vision, MODEL_BUILT, VISION_DONE, _collect_cdn_crops, _norm_crop_url,
 )
@@ -230,12 +231,66 @@ def test_cmd_vision_chem_prompt_and_latex_code_adoption(monkeypatch):
 
 
 def test_cmd_vision_graceful_without_key(monkeypatch):
+    # No key AND no Claude agent reachable -> the friendly "set a key" message.
     monkeypatch.setattr(openai_vision, "available", lambda: False)
+    monkeypatch.setattr(llm_delegate, "detect_runtime",
+                        lambda: llm_delegate.Runtime.NONE)
     with tempfile.TemporaryDirectory() as d:
         pdf = _make_model(Path(d))
         out = cmd_vision(pdf)
         assert "OPENAI_API_KEY" in out
         assert not Sidecar(pdf).has(VISION_DONE)
+
+
+class _FakeResp:
+    """Minimal context-manager stand-in for net.urlopen returning image bytes."""
+    def __init__(self, data): self._d = data
+    def __enter__(self): return self
+    def __exit__(self, *a): return False
+    def read(self): return self._d
+
+
+def test_cmd_vision_delegates_in_sandbox(monkeypatch):
+    # No OpenAI key, but running inside the Claude.ai sandbox: cmd_vision must
+    # DEFER the crops to the agent (write request files, print the instruction)
+    # and, on re-run after the agent answers, ingest them as 'openai' provenance.
+    monkeypatch.setattr(openai_vision, "available", lambda: False)
+    monkeypatch.setattr(llm_delegate, "detect_runtime",
+                        lambda: llm_delegate.Runtime.SANDBOX)
+    # CDN crops are "downloaded" to local files so the agent can read them;
+    # distinct bytes per URL → three distinct content-hash tasks (as in reality).
+    monkeypatch.setattr(net, "urlopen",
+                        lambda url, **kw: _FakeResp(b"\x89PNG\r\n\x1a\n" + url.encode()))
+    with tempfile.TemporaryDirectory() as d:
+        pdf = _make_model(Path(d))
+        llm_dir = Path(d) / "doc.pdf.drill" / "llm"
+
+        # Pass 1: defer.
+        out1 = cmd_vision(pdf)
+        assert "deferred" in out1 and "PDFDRILL-LLM-DELEGATION" in out1
+        assert not Sidecar(pdf).has(VISION_DONE)
+        reqs = sorted(llm_dir.glob("*.req.json"))
+        assert len(reqs) == 3, f"expected 3 request files, got {len(reqs)}"
+
+        # Simulate the agent: answer every request with a math result.
+        for rq in reqs:
+            tid = rq.name[:-len(".req.json")]
+            (llm_dir / (tid + ".resp.json")).write_text(json.dumps({
+                "task_id": tid, "kind": "vision",
+                "result": {"selector": "math", "math": "a+b"},
+            }))
+
+        # Pass 2: ingest.
+        out2 = cmd_vision(pdf)
+        assert "delegated to sandbox" in out2 and "3 crop" in out2
+        model = json.loads((Path(d) / "doc.pdf.drill" / "model.docmodel.json").read_text())
+        objs = model["objects"] if isinstance(model["objects"], list) else list(model["objects"].values())
+        oai = [r for o in objs for r in o.get("realizations", [])
+               if r.get("provenance") == "openai"]
+        assert len(oai) == 3
+        assert oai[0]["props"]["selector"] == "math"
+        assert oai[0]["props"].get("delegated") == "sandbox"
+        assert Sidecar(pdf).has(VISION_DONE)
 
 
 if __name__ == "__main__":
@@ -250,7 +305,8 @@ if __name__ == "__main__":
     mpd = [test_cmd_vision_attaches_openai_provenance, test_cmd_vision_limit,
            test_cmd_vision_uses_graph_prompt_for_subgraph_caption,
            test_cmd_vision_chem_prompt_and_latex_code_adoption,
-           test_cmd_vision_graceful_without_key]
+           test_cmd_vision_graceful_without_key,
+           test_cmd_vision_delegates_in_sandbox]
     for fn in plain:
         fn(); print(f"PASS {fn.__name__}")
     for fn in mpd:

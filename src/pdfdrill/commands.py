@@ -4596,10 +4596,14 @@ def cmd_vision(pdf: Path, limit: int | None = None, force: bool = False) -> str:
         model_path = _model_path(sc)
     if not model_path.exists():
         return f"No model for {pdf.name} (run `pdfdrill model` first)."
-    if not openai_vision.available():
+    from . import llm_delegate as _D
+    use_delegate = not openai_vision.available()
+    if use_delegate and _D.detect_runtime() is _D.Runtime.NONE:
         return ("OpenAI vision unavailable: set OPENAI_API_KEY in the "
                 "environment or .env (https://platform.openai.com/api-keys), "
-                "then rerun `pdfdrill vision`.")
+                "then rerun `pdfdrill vision`. (No Claude agent detected for the "
+                "keyless delegation fallback — run under Claude Code or the "
+                "Claude.ai sandbox to use it.)")
 
     with open(model_path, "r", encoding="utf-8") as f:
         doc = Document.from_dict(json.load(f))
@@ -4612,6 +4616,10 @@ def cmd_vision(pdf: Path, limit: int | None = None, force: bool = False) -> str:
     todo = [(o, u) for (o, u) in targets if force or not _has_openai(o, u)]
     if limit is not None:
         todo = todo[:limit]
+
+    if use_delegate:
+        return _vision_via_delegate(pdf, doc, todo, targets, sc, model_path,
+                                    _D.detect_runtime(), force)
 
     # An image whose caption/title names a graph/subgraph is a vertex+edge
     # drawing that reconstructs cleanly as TikZ — use the targeted prompt.
@@ -6511,3 +6519,190 @@ def cmd_scikgtex(pdf: Path, compile: bool = False) -> str:
     return (f"Projected to SciKGTeX/ORKG-annotated LaTeX → {rel} ({summary}). "
             f"The compiled PDF embeds an orkg:Paper (title/authors/researchfield) + "
             f"ResearchContributions in XMP/RDF that ORKG / PDF2ORKG can ingest.{note}")
+
+
+# ---------------------------------------------------------------------------
+# llm — driver/inspector for the keyless LLM-delegation fallback
+# (the agent-facing SKILL/tool surface; see pdfdrill.llm_delegate)
+# ---------------------------------------------------------------------------
+
+def cmd_llm(pdf: Path, action: str = "status") -> str:
+    """Inspect / drive the keyless LLM-delegation queue for one PDF.
+
+      pdfdrill llm <pdf>             # status: detected runtime + pending count
+      pdfdrill llm <pdf> --show      # dump every open request (prompt+image) as JSON
+      pdfdrill llm <pdf> --runtime   # just print the detected delegation runtime
+
+    When pdfdrill runs without API keys inside the Claude.ai sandbox, LLM
+    sub-tasks (vision, bibtex, links) are written as request files under
+    `<pdf>.drill/llm/`. This command lets the driving Claude agent enumerate
+    them in one read (`--show`), answer each by writing `<task_id>.resp.json`,
+    then re-run the original command to ingest the answers.
+    """
+    from collections import Counter
+    from . import llm_delegate as D
+
+    if action == "runtime":
+        return f"llm-delegation runtime: {D.detect_runtime().value}"
+
+    sc = Sidecar(pdf)
+    pend = D.pending_requests(sc.blob_dir)
+
+    if action == "show":
+        return json.dumps(pend, ensure_ascii=False, indent=2)
+
+    # status (default)
+    rt = D.detect_runtime()
+    if not pend:
+        return (f"llm-delegation runtime: {rt.value}; no pending requests for "
+                f"{pdf.name}.")
+    kinds = Counter(p.get("kind", "?") for p in pend)
+    kind_s = ", ".join(f"{n} {k}" for k, n in kinds.most_common())
+    return (f"llm-delegation runtime: {rt.value}; {len(pend)} pending request(s) "
+            f"for {pdf.name} ({kind_s}). Run `pdfdrill llm {pdf.name} --show` to "
+            f"dump them, answer each as <task_id>.resp.json under "
+            f"{sc.blob_dir.name}/llm/, then re-run the original command.")
+
+
+# ---------------------------------------------------------------------------
+# Keyless vision fallback: delegate each CDN crop to the running Claude agent
+# (CLI: synchronous `claude -p`; sandbox: deferred request/response handshake).
+# Mirrors cmd_vision's realization-attach + chemistry-bridge ingestion, so a
+# delegated result is byte-identical to an OpenAI result downstream.
+# ---------------------------------------------------------------------------
+
+def _vision_via_delegate(pdf: Path, doc, todo, targets, sc, model_path,
+                         runtime, force: bool) -> str:
+    import re as _re
+    import hashlib
+    from docmodel.core import Realization
+    from . import llm_delegate as D, openai_vision, net
+
+    if not todo:
+        return (f"Vision (delegated/{runtime.value}): nothing to do — "
+                f"{len(targets)} crop(s) already have an 'openai' realization.")
+
+    graph_kw = _re.compile(r"\b(sub)?graph\b", _re.I)
+    chem_kw = _re.compile(
+        r"\b(molecul\w*|molekül\w*|compound|verbindung\w*|reaktion\w*|reaction"
+        r"|synthes\w*|reagent|reagenz\w*|catalyst|katalysator\w*|isomer\w*"
+        r"|ligand\w*|monomer\w*|polymer\w*|strukturformel\w*)\b"
+        r"|\bscheme\s+\d", _re.I)
+
+    def _ctx(o):
+        return " ".join(str((o.props or {}).get(k) or "")
+                        for k in ("caption", "title", "raw_text"))
+
+    # Resolve every crop to a LOCAL file the agent / Claude Code can read,
+    # then build one LLMTask per crop. CDN URLs are downloaded once; a crop
+    # that is already a local path is used as-is. A crop we cannot fetch
+    # (blocked host, 404) is skipped and reported.
+    crop_dir = sc.blob_dir / "llm" / "crops"
+    crop_dir.mkdir(parents=True, exist_ok=True)
+    tasks: list = []                      # unique tasks (deduped by content id)
+    seen_ids: set = set()
+    pairs: list = []                      # (object, url, task) per todo entry
+    fetch_errors = 0
+    for o, url in todo:
+        ctx = _ctx(o)
+        is_chem = bool(chem_kw.search(ctx))
+        is_graph = (not is_chem) and bool(graph_kw.search(ctx))
+        prompt = (openai_vision.CHEM_STRUCTURE_PROMPT if is_chem
+                  else openai_vision.GRAPH_TIKZ_PROMPT if is_graph
+                  else openai_vision.DEFAULT_PROMPT)
+        # local-vs-URL crop source
+        local = None
+        if url.startswith(("http://", "https://")):
+            dest = crop_dir / (hashlib.blake2b(url.encode(), digest_size=12)
+                               .hexdigest() + ".img")
+            if not dest.exists():
+                try:
+                    with net.urlopen(url, timeout=30) as r:
+                        dest.write_bytes(r.read())
+                except Exception:
+                    fetch_errors += 1
+                    continue
+            local = str(dest)
+        else:
+            local = url if os.path.exists(url) else None
+            if local is None:
+                fetch_errors += 1
+                continue
+        t = D.LLMTask(kind="vision", prompt=prompt, image_path=local,
+                      meta={"url": url, "chem": is_chem, "graph": is_graph})
+        pairs.append((o, url, t))
+        if t.task_id not in seen_ids:      # one request per distinct crop+prompt
+            seen_ids.add(t.task_id)
+            tasks.append(t)
+
+    if not tasks:
+        return (f"Vision (delegated/{runtime.value}): could not fetch any of "
+                f"{len(todo)} crop(s) ({fetch_errors} fetch error(s)). In a "
+                f"sandbox with a blocked CDN host, run `pdfdrill mathpix` where "
+                f"the host is reachable, or supply local crops.")
+
+    try:
+        results, deferred = D.delegate_batch(
+            tasks, drill_dir=sc.blob_dir, runtime=runtime, timeout=120.0)
+    except D.DelegateUnavailable as e:
+        return str(e)
+
+    if deferred is not None:
+        # Sandbox: requests written, hand the agent its instructions and stop.
+        return (f"Vision deferred to the {runtime.value} Claude agent: "
+                f"{len(deferred.tasks)} request(s) written"
+                + (f", {len(results)} already answered" if results else "")
+                + (f"; {fetch_errors} crop(s) unfetchable" if fetch_errors else "")
+                + ".\n\n" + deferred.instruction)
+
+    # CLI (or sandbox with everything already answered): ingest like cmd_vision.
+    # Iterate per-object PAIRS so a crop shared by several objects (deduped to
+    # one task) still attaches a realization to each — matching cmd_vision's
+    # url_cache behaviour.
+    from collections import Counter
+    processed = adopted = errors = 0
+    by_sel: Counter = Counter()
+    for o, url, t in pairs:
+        res = results.get(t.task_id)
+        if res is None:
+            errors += 1
+            continue
+        selector, code = openai_vision.result_to_latex(res)
+        if force:
+            o.realizations = [r for r in o.realizations
+                              if not (r.role == "latex_candidate"
+                                      and r.provenance == "openai"
+                                      and (r.props or {}).get("url") == url)]
+        o.add_realization(Realization(
+            stream="openai", role="latex_candidate", provenance="openai",
+            props={"url": url, "selector": selector, "latex": code,
+                   "gnuplot": res.get("gnuplot", ""),
+                   "csv_data": res.get("csv_data", ""),
+                   "delegated": runtime.value},
+        ))
+        if (selector in ("chemical_structure", "chemical_equation") and code
+                and o.type in ("Diagram", "Table")
+                and not (o.props.get("latex_code") or "").strip()):
+            o.props["latex_code"] = code
+            o.props["latex_code_provenance"] = "openai"
+            adopted += 1
+        processed += 1
+        by_sel[selector or "?"] += 1
+
+    with open(model_path, "w", encoding="utf-8") as f:
+        json.dump(doc.to_dict(), f, indent=2, ensure_ascii=False)
+    sc.set_evidence("vision_crops_total", len(targets))
+    sc.set_evidence("vision_processed",
+                    (sc.get_evidence("vision_processed", 0) or 0) + processed)
+    prev = ",".join(sorted(sc.facts - {VISION_DONE})) or "INIT"
+    sc.add_fact(VISION_DONE)
+    sc.save()
+
+    sel_s = ", ".join(f"{n} {s}" for s, n in by_sel.most_common()) or "none"
+    adopt_s = (f"; {adopted} chemistry crop(s) adopted into latex_code — run "
+               f"`pdfdrill svg {pdf.name}`." if adopted else ".")
+    return (f"Vision (delegated to {runtime.value} Claude): read {processed} "
+            f"crop(s) ({sel_s}){f', {errors} error(s)' if errors else ''}"
+            f"{f', {fetch_errors} unfetchable' if fetch_errors else ''}. "
+            f"Attached as the 'openai' provenance{adopt_s} "
+            f"Run `pdfdrill compare {pdf.name}` to see the column.")
