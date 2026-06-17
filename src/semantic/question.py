@@ -107,5 +107,11 @@ for _q in [
              emits_entities=frozenset({_E.KITEM}),
              emits_relations=frozenset({_R.DERIVED_FROM}),
              stratum=4),
+    Question("pdfdrill", "Core pdfdrill extraction: document identity "
+             "(doc_id / content_hash) stamping.",
+             emits_entities=frozenset({_E.DOCUMENT})),
+    Question("mathpix", "MathPix OCR: the rendered LaTeX content of a formula "
+             "(the content_identity.resolve_formula default sensor).",
+             emits_entities=frozenset({_E.FORMULA, _E.TABLE, _E.IMAGE})),
 ]:
     register(_q)
