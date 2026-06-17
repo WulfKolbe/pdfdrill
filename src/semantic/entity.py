@@ -12,11 +12,21 @@ The type vocabulary unifies scientific and commercial domains deliberately:
 """
 from __future__ import annotations
 
+import hashlib
 from dataclasses import dataclass, field
 from enum import Enum
 from typing import Any, Optional
 
 from .evidence import Evidence
+
+
+def _evidence_order_key(ev: Evidence) -> str:
+    """A stable, content-derived tiebreak key for evidence of equal confidence —
+    so `best()` (and anything built on it, e.g. derived belief) is reproducible
+    regardless of the order evidence was attached/ingested."""
+    return hashlib.blake2b(
+        f"{ev.prop}|{ev.value}|{ev.produced_by}|{ev.version}".encode("utf-8"),
+        digest_size=8).hexdigest()
 
 
 class EntityType(str, Enum):
@@ -62,15 +72,12 @@ class Entity:
 
     def best(self, prop: str) -> Optional[Evidence]:
         """The most trustworthy evidence for a property: highest confidence,
-        ties broken by recency (last attached wins)."""
+        ties broken by DETERMINISTIC content-hash ordering (not recency) — so the
+        derived value is reproducible regardless of ingestion/attachment order."""
         evs = self.evidence_for(prop)
         if not evs:
             return None
-        best = evs[0]
-        for e in evs[1:]:
-            if e.confidence >= best.confidence:   # >= → later wins ties
-                best = e
-        return best
+        return max(evs, key=lambda e: (e.confidence, _evidence_order_key(e)))
 
     def properties(self) -> dict[str, str]:
         """Derived view: the best value per observed property."""

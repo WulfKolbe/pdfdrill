@@ -22,10 +22,10 @@ from .relation import Relation, RelationType
 from .blocks import BlockRole, classify_block, classify_blocks
 from .geometry_columns import (MarginRole, body_column, out_of_column,
                                classify_margin_item, tag_out_of_column)
-from . import proof, compiler, question
+from . import proof, compiler, question, transformation, belief
 
 __all__ = ["Entity", "EntityType", "Evidence", "SemanticGraph", "IdentityResolver",
            "Relation", "RelationType", "BlockRole", "classify_block",
            "classify_blocks", "MarginRole", "body_column", "out_of_column",
            "classify_margin_item", "tag_out_of_column", "proof", "compiler",
-           "question"]
+           "question", "transformation", "belief"]
