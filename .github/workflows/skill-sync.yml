@@ -1,0 +1,22 @@
+# .github/workflows/skill-sync.yml — drift gate for the command surface.
+name: skill-sync
+on: [push, pull_request]
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: { python-version: "3.12" }
+      - run: pip install pyyaml
+      # 1) manifest ↔ handler dict (static)
+      - run: python tools/skillsync.py check .
+      # 2) generated artifacts are committed & up to date (no dirty diff)
+      - run: |
+          python tools/skillsync.py render-help .
+          python tools/skillsync.py render-skill .
+          python tools/skillsync.py bundle .
+          git diff --exit-code -- .claude/skills/pdfdrill/SKILL.md src/pdfdrill/_help_generated.txt src/pdfdrill/skill/ \
+            || { echo "::error::run skillsync and commit the regenerated files"; exit 1; }
+      # 3) the live CLI agrees with its bundled manifest
+      - run: PYTHONPATH=src python -m pdfdrill skill --check

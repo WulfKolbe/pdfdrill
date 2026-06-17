@@ -1,0 +1,96 @@
+pdfdrill — portable PDF drill-down toolkit
+
+Input: <pdf> may be a local path OR an https URL from a known host. arXiv URLs/ids
+(https://arxiv.org/abs/<id>, /pdf/<id>, or a bare 2510.11170v2) download the PDF
+once (cached) and unlock the FREE routes — `abstract` reads the abs page and
+`latex` downloads the e-print .tgz (gold equations), so MathPix is skipped by
+default (use `mathpix --force` to override).
+
+Introspection (fast, no extraction):
+  pdfdrill doctor                             (doctor)
+  pdfdrill size <pdf>                         File size, page count, producer
+  pdfdrill abstract <pdf>                     Abstract from first pages
+  pdfdrill toc <pdf>                          Table of contents
+  pdfdrill fonts <pdf>                        Font analysis, math font detection
+  pdfdrill status <pdf>                       What is already known
+  pdfdrill pdfinfo <pdf>                      Full PdfInfo struct (title/author/dates/flags)
+  pdfdrill bibtex <pdf>                       Derived BibTeX record
+  pdfdrill urls <pdf>                         URL annotations with anchor text (heavier; pdfplumber)
+  pdfdrill links <pdf>                        FAST external URLs via pdfinfo -url (~50ms); flags code/data hosts
+  pdfdrill dests <pdf>                        Named destinations: theorems, equations, sections
+  pdfdrill fonts_layer <pdf>                  Structured per-font records (pdffonts)
+  pdfdrill images <pdf>                       Image rectangles + metadata (pdfplumber + pdfimages -list)
+  pdfdrill pix2tex <pdf> [--page PAGE] [--rect RECT] [--rerun] Run pix2tex on candidate rects (auto from images_layer)
+  pdfdrill tsv <pdf>                          Word-level bounding boxes (pdftotext -tsv; --ocr forces tesseract)
+  pdfdrill render <pdf>                       Render the built markdown to PDF (pandoc + lualatex)
+  pdfdrill mathpix <pdf> [--force]            Download MathPix OCR (lines.json, md, tex.zip); --force re-uploads
+  pdfdrill ocr <pdf> [--lang LANG] [--ppi PPI] MathPix-free OCR: tesseract → MathPix-compatible lines.json (--lang eng+equ, --ppi N). Plain text only (no LaTeX/CDN)
+  pdfdrill continuity <pdf>                   Full-page OCR of the MARGINS → page-sequence markers (Seite N von M / Fortsetzung) MathPix's content crop drops; attaches seq to Page objects
+  pdfdrill pageside <pdf>                     Classify each page recto/verso (book left/right) from page-number parity+position + side-note column asymmetry + sequence alternation; attaches page_side to model Pages (column roles flip with the side)
+  pdfdrill entities <pdf>                     Commercial entities per page: IBAN (mod-97 validated + BLZ/Konto/bank), BIC, German address, Steuer-/Kassen-/Aktenzeichen. Zero external tools
+  pdfdrill segment <pdf>                      Partition a scanned bundle into ordered documents (by sender/identifier + continuity number); flags duplicate copies
+  pdfdrill elements <pdf>                     Find layout elements (postal address / BOM line) via the geometric-attention GNN over tesseract word boxes → content-addressed tiddlers (--model M.npz)
+  pdfdrill semantic <pdf> [--store STORE]     Build the semantic graph (CSP): extractors become sensors emitting evidence; entities (Company/Person/BankAccount) accumulate it. --store graph.json accumulates ACROSS documents
+  pdfdrill qr <pdf> [--dpi DPI] [--formats FORMATS] Scan QR codes & barcodes (zxing-cpp): GiroCode/EPC payment QR (creditor/IBAN/amount/reference) + Data Matrix franking marks — confirmation data outside the text layer. --dpi 300 --formats QRCode,DataMatrix
+  pdfdrill fontid <pdf>                       VISUAL font id for scanned/OCR input (no font layer): WORD crops → torch-free ONNX font-classify → vote WITHIN each OCR block, so font is reported per text FIELD (heading/body/fine-print), not one doc vote. Per-field confidence; weak on scanned generic sans. --limit 12 --ppi 200
+  pdfdrill spellqc <pdf>                      Dictionary-assisted de-hyphenation QC (hunspell via spylls→enchant→.dic-set, on-demand per language): join/keep/REVIEW each line-break hyphen. Surfaces OCR fragments to fix
+  pdfdrill ordered <pdf>                      Segment an ORDERED scan stack into documents (gap scoring + DataMatrix tracking codes → 2-level mailing/letter-enclosure). Commercial provenance (publisher=sender, receiver). --threshold 0.5. (Shuffled bundle → use `segment`)
+  pdfdrill autosegment <pdf>                  AUTO-PICK ordered vs shuffled: contiguous per-sender runs → `ordered` (gap scorer); interleaved → `segment` (signature grouping). Then runs the right one
+  pdfdrill selftest <target> [--full]         DIAGNOSTIC GRID: run the command battery across a PDF (or every PDF in a folder), log OK/⊘-n/a/✗-ERROR + the actual result per command → selftest.log. --full adds entities/elements/semantic
+  pdfdrill rasterize <pdf> [--pages PAGES] [--dpi DPI] [--fmt png|jpeg] [--force] Rasterize page(s) to PNG/JPEG for visual inspection (pdftoppm) → sidecar; --pages N|N-M|all --dpi 150. Read the images to see charts/equations/layout
+  pdfdrill attachments <pdf> [--extract]      List embedded file attachments (pdfdetach + pypdf); --extract saves them to the sidecar. Surfaces embedded spreadsheets/data invisible to text/MathPix
+  pdfdrill formfields <pdf>                   Read interactive AcroForm field values (pypdf get_fields): name/value/type/options. For government/Formulare PDFs
+  pdfdrill extractimages <pdf> [--pages PAGES] [--all-formats] (extractimages)
+  pdfdrill tables <pdf> [--pages PAGES]       Extract tables KEYLESS offline (pdfplumber extract_tables) → tables.json + tables.md; --pages N-M
+  pdfdrill model <pdf> [--bibkey BIBKEY]      Build unified docmodel from lines.json (auto-chains mathpix, falls back to tesseract ocr if no MathPix); --bibkey KEY sets the tiddler prefix (persisted)
+  pdfdrill compare <pdf>                      LaTeX | KaTeX | MathPix-image comparison HTML (auto-chains model)
+  pdfdrill snip <pdf> [--image IMAGE] [--page PAGE] [--rect RECT] [--limit LIMIT] [--force] OCR each equation crop via MathPix Snip (/v3/text) → competing column; --limit N
+  pdfdrill candidates <pdf>                   Export equation crops as a manifest for an LLM to read; --provider P --limit N
+  pdfdrill ingest <pdf> <json> [--provider PROVIDER] [--force] (ingest)
+  pdfdrill vision <pdf>                       GPT-4o vision reads every MathPix CDN crop (incl. table-cell images) → math/TikZ/gnuplot/table as the `openai` provenance; --limit N (needs OPENAI_API_KEY)
+  pdfdrill embedimages <pdf>                  Lift pdfimages + pdfplumber image rects into the model as EmbeddedImage nodes (pixel size/encoding/ppi + page rect), fused onto MathPix crops they contain
+  pdfdrill geometry <pdf>                     Fuse pdftotext -tsv layout (indent/margins) onto the model — substrate for block detection
+  pdfdrill tiddlers <pdf> [--bibkey BIBKEY] [--embed] [--force] [--no-embed-svg] Emit a TiddlyWiki JSON tiddler array (latex/displayMode/canonical_uri/width/height) for quick inspection; --bibkey KEY sets the title prefix + filename. Diagram SVGs inline by default; --embed-svg=false writes them to .drill/svg/<title>.svg and references via _canonical_uri (leaner store)
+  pdfdrill translate <pdf> [--to TO] [--from FROM_] [--limit LIMIT] [--force] DeepL-translate the document IN PLACE (--to EN-US --from RU): writes the changed tiddler file (translated text field) AND a bi-layer Markdown <bibkey>.md (translation + hidden source, CSS toggle); original kept under <field>_source (needs DEEPL_API_KEY)
+  pdfdrill lists <pdf>                        Nest flat ListItems into recursive List blocks using fused indentation (auto-chains geometry)
+  pdfdrill algorithms <pdf>                   Reconstruct Algorithm blocks from MathPix pseudocode lines (caption + indented steps)
+  pdfdrill annotate <pdf>                     Promote hyperlink annotations into the model as first-class Link nodes (uri + rect Region)
+  pdfdrill score <pdf>                        Score equations by cross-provenance agreement + snip confidence; flags review candidates
+  pdfdrill nlp <pdf> [--limit LIMIT] [--pages PAGES] [--types TYPES] Stanza NLP over prose (POS/lemma/dependency + NER → props['nlp']); --limit N --pages N --types T,T  (optional [nlp] extra)
+  pdfdrill escalate <pdf>                     Phase-3: export flagged equations for a second LLM reading; --limit N
+  pdfdrill relearn <pdf>                      Phase-3: re-score after ingest; report resolved vs still-flagged
+  pdfdrill eqnums <pdf>                       Fuse equation numbers ("(N)") from margin geometry for ||FO/||FREF transclusion
+  pdfdrill bibliography <pdf>                 Parse the References section into Reference nodes (citekey/author/year/text)
+  pdfdrill bibsource <pdf>                    Ingest the author's GOLD bibliography (--bbl file.bbl + --bib file.bib): alpha label↔citekey↔fields, links in-text citations by label. No API.
+  pdfdrill bibfetch <pdf>                     Enrich References with full BibTeX via Perplexity SONAR; --limit N (needs PERPLEXITY_API_KEY)
+  pdfdrill report <pdf> [--scale SCALE] [--embed] Full inline+display math report (formula-report.html). --scale N scales each KaTeX render to the CDN image height (1.0=same, 2.0=200%); --embed
+  pdfdrill folder <dir>                       Build the full structure for every PDF in <dir> from existing
+  pdfdrill latex <pdf> [--tex TEX]            Ingest author .tex/.tgz as a `tex` provenance (original+expanded LaTeX); --tex <path>
+  pdfdrill latexbook <tex> [--no-svg]         (latexbook)
+  pdfdrill markdown <md>                      Build a source-only model from LLM-summary Markdown (yt2tw route): sections/paragraphs/math/lists + cite{} commands linked to the gold ```bibtex appendix (or the numbered References list). --bibkey K
+  pdfdrill identifiers <pdf>                  Front-matter scan (scoped by the booktoc offset): checksum-valid ISBN/ISSN/DOI/arXiv + German ids + ALL-CAPS named-entity candidates (publisher/author)
+  pdfdrill booktoc <pdf>                      Greppable TOC with printed→PDF page alignment (front-matter offset from title↔section matches): grep a chapter/section name → its PDF page
+  pdfdrill gaps <pdf|md>                      Report MISSING information (cohomology-as-linter): acronyms used but never expanded, undeclared math symbols, novelty claims without citations, unmatched in-text citations
+  pdfdrill llmtext <pdf|md>                   Flat LLM dump: per unit the tiddler title + paragraph text / formula latex, document order, units split on double line breaks + separated by --delimiter (default %%%%); empty formulas skipped
+  pdfdrill clean <pdf|md>                     Strip MathPix LaTeX residuals from the model: a leading section* command merged into a paragraph -> the title alone + kind/refnum fields (so semantic analysis sees plain text)
+  pdfdrill locate <pdf>                       Locate embedded images on their pages (canonical pt/top-left coords + normalized [0,1] + PDF object number), detect full-page/template images, and COMPARE to MathPix regions (IoU) incl. MathPix-only figures
+  pdfdrill rulebook <pdf|md>                  Claims/definitions -> kitems (fixpoint, evidence spans) -> rulebook.md: one supported/accepted statement per line with a [->k:hash] drill-down anchor + kitem tiddlers
+  pdfdrill svg <pdf|tex>                      Render TikZ diagrams + tables to SVG via latex->dvisvgm (KaTeX can't); embeds in the report
+  pdfdrill stex <pdf>                         Project the semantic graph to enriched LaTeX: acronyms/glossary/Table-of-Symbols/index (--compile runs lualatex), or sTeX smodule/symdecl/symref (--stex). Needs `semantic` first
+  pdfdrill scikgtex <pdf>                     Project to SciKGTeX-annotated LaTeX → compiled PDF carries ORKG contribution metadata (title/authors/field + research-problem/method/result roles + numeric facts + bib-DOI links) as XMP/RDF. --compile (lualatex + vendored scikgtex)
+  pdfdrill skill [--emit EMIT] [--json] [--check] Emit/serve the bundled SKILL folder (--emit DIR | --json | --check)
+
+Extraction:
+  pdfdrill md <pdf> [--pages PAGES]           Full Markdown with math transclusions
+  pdfdrill page <pdf> <n>                     Single page text extraction
+
+Query:
+  pdfdrill fetch <pdf> <layer> [--section SECTION] Retrieve stored Markdown
+
+Planning & automation:
+  pdfdrill plan <pdf> <question>              Show what steps are needed
+  pdfdrill drill <pdf>                        Full auto-drill
+
+Other:
+  pdfdrill citedrill                          (citedrill)
+  pdfdrill classify                           (classify)

@@ -31,88 +31,8 @@ def main():
     cmd = args[0]
     rest = args[1:]
 
-    handlers = {
-        "doctor": _do_doctor,
-        "size": _do_size,
-        "abstract": _do_abstract,
-        "toc": _do_toc,
-        "fonts": _do_fonts,
-        "status": _do_status,
-        "md": _do_md,
-        "page": _do_page,
-        "fetch": _do_fetch,
-        "plan": _do_plan,
-        "drill": _do_drill,
-        "pdfinfo": _do_pdfinfo,
-        "bibtex": _do_bibtex,
-        "urls": _do_urls,
-        "links": _do_links,
-        "dests": _do_dests,
-        "fonts_layer": _do_fonts_layer,
-        "images": _do_images,
-        "pix2tex": _do_pix2tex,
-        "tsv": _do_tsv,
-        "render": _do_render,
-        "mathpix": _do_mathpix,
-        "ocr": _do_ocr,
-        "continuity": _do_continuity,
-        "pageside": _do_pageside,
-        "entities": _do_entities,
-        "segment": _do_segment,
-        "elements": _do_elements,
-        "semantic": _do_semantic,
-        "qr": _do_qr,
-        "fontid": _do_fontid,
-        "spellqc": _do_spellqc,
-        "ordered": _do_ordered,
-        "autosegment": _do_autosegment,
-        "selftest": _do_selftest,
-        "rasterize": _do_rasterize,
-        "attachments": _do_attachments,
-        "formfields": _do_formfields,
-        "extractimages": _do_extractimages,
-        "tables": _do_tables,
-        "model": _do_model,
-        "compare": _do_compare,
-        "snip": _do_snip,
-        "candidates": _do_candidates,
-        "ingest": _do_ingest,
-        "vision": _do_vision,
-        "embedimages": _do_embedimages,
-        "geometry": _do_geometry,
-        "tiddlers": _do_tiddlers,
-        "translate": _do_translate,
-        "lists": _do_lists,
-        "algorithms": _do_algorithms,
-        "annotate": _do_annotate,
-        "score": _do_score,
-        "nlp": _do_nlp,
-        "escalate": _do_escalate,
-        "relearn": _do_relearn,
-        "eqnums": _do_eqnums,
-        "bibliography": _do_bibliography,
-        "bibsource": _do_bibsource,
-        "bibfetch": _do_bibfetch,
-        "citedrill": _do_citedrill,
-        "report": _do_report,
-        "folder": _do_folder,
-        "latex": _do_latex,
-        "latexbook": _do_latexbook,
-        "markdown": _do_markdown,
-        "identifiers": _do_identifiers,
-        "booktoc": _do_booktoc,
-        "gaps": _do_gaps,
-        "llmtext": _do_llmtext,
-        "classify": _do_classify,
-        "clean": _do_clean,
-        "locate": _do_locate,
-        "rulebook": _do_rulebook,
-        "svg": _do_svg,
-        "stex": _do_stex,
-        "scikgtex": _do_scikgtex,
-    }
 
-    if cmd not in handlers:
+    if cmd not in HANDLERS:
         # Backward compat: if first arg is a file/dir, treat as "run"
         if Path(cmd).exists():
             rest = [cmd] + rest
@@ -122,7 +42,7 @@ def main():
             return 1
 
     try:
-        result = handlers[cmd](rest)
+        result = HANDLERS[cmd](rest)
         if result:
             print(result)
         return 0
@@ -1057,6 +977,14 @@ def _do_drill(args):
 
 
 def _print_help():
+    # Primary: the help body GENERATED from the canonical commands.yaml manifest
+    # (`tools/skillsync.py render-help`), so --help can never drift from the
+    # command surface again. Falls back to the hand-written text below when the
+    # generated file isn't present (e.g. a partial checkout).
+    _gen = Path(__file__).with_name("_help_generated.txt")
+    if _gen.exists():
+        print(_gen.read_text().rstrip())
+        return
     print("""pdfdrill — portable PDF drill-down toolkit
 
 Input: <pdf> may be a local path OR an https URL from a known host. arXiv URLs/ids
@@ -1157,3 +1085,94 @@ Planning & automation:
 
 State persists in <pdf>.drill.json next to the PDF file.
 Each command returns prose ready for LLM consumption.""")
+
+
+def _do_skill(args):
+    """pdfdrill skill --emit DIR | --json | --check  (read-only; bundled SKILL folder)"""
+    from .skill_cmd import run
+    return run(args)
+
+
+# Module-level command table — the single dispatch surface, also read by
+# `pdfdrill skill --check` and the skill-sync drift gate (manifest <-> HANDLERS).
+HANDLERS = {
+        "doctor": _do_doctor,
+        "size": _do_size,
+        "abstract": _do_abstract,
+        "toc": _do_toc,
+        "fonts": _do_fonts,
+        "status": _do_status,
+        "md": _do_md,
+        "page": _do_page,
+        "fetch": _do_fetch,
+        "plan": _do_plan,
+        "drill": _do_drill,
+        "pdfinfo": _do_pdfinfo,
+        "bibtex": _do_bibtex,
+        "urls": _do_urls,
+        "links": _do_links,
+        "dests": _do_dests,
+        "fonts_layer": _do_fonts_layer,
+        "images": _do_images,
+        "pix2tex": _do_pix2tex,
+        "tsv": _do_tsv,
+        "render": _do_render,
+        "mathpix": _do_mathpix,
+        "ocr": _do_ocr,
+        "continuity": _do_continuity,
+        "pageside": _do_pageside,
+        "entities": _do_entities,
+        "segment": _do_segment,
+        "elements": _do_elements,
+        "semantic": _do_semantic,
+        "qr": _do_qr,
+        "fontid": _do_fontid,
+        "spellqc": _do_spellqc,
+        "ordered": _do_ordered,
+        "autosegment": _do_autosegment,
+        "selftest": _do_selftest,
+        "rasterize": _do_rasterize,
+        "attachments": _do_attachments,
+        "formfields": _do_formfields,
+        "extractimages": _do_extractimages,
+        "tables": _do_tables,
+        "model": _do_model,
+        "compare": _do_compare,
+        "snip": _do_snip,
+        "candidates": _do_candidates,
+        "ingest": _do_ingest,
+        "vision": _do_vision,
+        "embedimages": _do_embedimages,
+        "geometry": _do_geometry,
+        "tiddlers": _do_tiddlers,
+        "translate": _do_translate,
+        "lists": _do_lists,
+        "algorithms": _do_algorithms,
+        "annotate": _do_annotate,
+        "score": _do_score,
+        "nlp": _do_nlp,
+        "escalate": _do_escalate,
+        "relearn": _do_relearn,
+        "eqnums": _do_eqnums,
+        "bibliography": _do_bibliography,
+        "bibsource": _do_bibsource,
+        "bibfetch": _do_bibfetch,
+        "citedrill": _do_citedrill,
+        "report": _do_report,
+        "folder": _do_folder,
+        "latex": _do_latex,
+        "latexbook": _do_latexbook,
+        "markdown": _do_markdown,
+        "identifiers": _do_identifiers,
+        "booktoc": _do_booktoc,
+        "gaps": _do_gaps,
+        "llmtext": _do_llmtext,
+        "classify": _do_classify,
+        "clean": _do_clean,
+        "locate": _do_locate,
+        "rulebook": _do_rulebook,
+        "svg": _do_svg,
+        "stex": _do_stex,
+        "scikgtex": _do_scikgtex,
+        "skill": _do_skill,
+    }
