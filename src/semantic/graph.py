@@ -17,6 +17,7 @@ class SemanticGraph:
     def __init__(self) -> None:
         self.entities: dict[str, Entity] = {}
         self.relations: list = []          # list[Relation]; typed in relation.py
+        self.transformations: dict = {}    # {tid: Transformation}; provenance nodes
         self._counters: dict[str, int] = {}
 
     # -- entities -------------------------------------------------------------
@@ -68,18 +69,34 @@ class SemanticGraph:
             return None
         return self.relate(subject_id, predicate, object_id, **kw)
 
+    # -- transformations (provenance nodes) -----------------------------------
+    def record_transformation(self, t):
+        """Store a Transformation idempotently on its content-address `tid`
+        (skip if already present, like relate_once). Returns the stored one."""
+        if t.tid in self.transformations:
+            return self.transformations[t.tid]
+        self.transformations[t.tid] = t
+        return t
+
     # -- serialization --------------------------------------------------------
     def to_dict(self) -> dict[str, Any]:
-        return {"entities": [e.to_dict() for e in self.entities.values()],
-                "relations": [r.to_dict() for r in self.relations]}
+        d = {"entities": [e.to_dict() for e in self.entities.values()],
+             "relations": [r.to_dict() for r in self.relations]}
+        if self.transformations:
+            d["transformations"] = [t.to_dict() for t in self.transformations.values()]
+        return d
 
     @classmethod
     def from_dict(cls, d: dict[str, Any]) -> "SemanticGraph":
         from .relation import Relation
+        from .transformation import Transformation
         g = cls()
         for ed in d.get("entities", []):
             g.add_entity(Entity.from_dict(ed))
         g.relations = [Relation.from_dict(rd) for rd in d.get("relations", [])]
+        for td in d.get("transformations", []):
+            t = Transformation.from_dict(td)
+            g.transformations[t.tid] = t
         # restore id counters so new_id keeps incrementing past loaded ids
         for e in g.entities.values():
             slug = e.type.value

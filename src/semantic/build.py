@@ -46,6 +46,8 @@ def ingest_document(graph: SemanticGraph, resolver: IdentityResolver, *,
     carry Phase-C-attributed recipient evidence (the recipient's address belongs
     to the recipient PERSON, never the sender company)."""
     rec = entities_rec or {}
+    from . import transformation as _trans
+    _snap = _trans.snapshot(graph)
 
     # Key by content_hash too (not just doc_id) so the Document dedups across runs
     # — doc_id alone doesn't survive the resolver's reindex (strong/soft keys only),
@@ -117,6 +119,9 @@ def ingest_document(graph: SemanticGraph, resolver: IdentityResolver, *,
         target.attach(Evidence(source, prop, str(val), "extract_ids", confidence=0.8))
         if target is doc:
             continue
+    # group this whole invocation under one content-addressed Transformation,
+    # stamping its tid into the grounding of every evidence/edge it just emitted.
+    _trans.record_batch(graph, "ingest_document", _snap, source_ids=[doc.id])
     return doc
 
 
@@ -189,6 +194,8 @@ def ingest_docmodel(graph: SemanticGraph, resolver: IdentityResolver, doc,
 
     counts = {"sections": 0, "equations": 0, "formulas": 0, "tables": 0,
               "figures": 0, "references": 0, "citations": 0, "occurrences": 0}
+    from . import transformation as _trans
+    _snap = _trans.snapshot(graph)
 
     # --- Document root entity ---
     # Keyed by BOTH doc_id (so it unifies with the commercial document within a
@@ -340,4 +347,5 @@ def ingest_docmodel(graph: SemanticGraph, resolver: IdentityResolver, doc,
                 counts["occurrences"] += 1
         counts["concepts"] += 1
 
+    _trans.record_batch(graph, "ingest_docmodel", _snap, source_ids=[root.id])
     return counts

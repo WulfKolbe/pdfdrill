@@ -78,6 +78,8 @@ def make_claims_pass(doc, bibkey: str):
     extracted = extract_claims(doc, bibkey)
 
     def claims_pass(graph, resolver):
+        from . import transformation as _trans
+        snap = _trans.snapshot(graph)
         for c in extracted:
             _kitems.emit_kitem(
                 graph, resolver, c["statement_md"], kind=c["kind"], stratum=4,
@@ -85,4 +87,9 @@ def make_claims_pass(doc, bibkey: str):
                         "range": c["range"], "role": "asserts",
                         "page": c["page"]}],
                 produced_by="claims_v1")
+        # group this invocation's kitems under one Transformation; doc-specific
+        # via `seed=bibkey` (no entity sources). Idempotent + a fixpoint no-op on
+        # later rounds: same tid (found, not re-recorded), and stamping only
+        # touches grounding (never evidence counts → quiescence is preserved).
+        _trans.record_batch(graph, "claims_v1", snap, seed=bibkey)
     return claims_pass

@@ -113,5 +113,21 @@ for _q in [
     Question("mathpix", "MathPix OCR: the rendered LaTeX content of a formula "
              "(the content_identity.resolve_formula default sensor).",
              emits_entities=frozenset({_E.FORMULA, _E.TABLE, _E.IMAGE})),
+    Question("bic", "BIC sensor: bank identifier code evidence on an account/agent.",
+             emits_entities=frozenset({_E.BANK_ACCOUNT})),
+    Question("german_address", "German postal-address sensor (PLZ-anchored).",
+             emits_entities=frozenset({_E.COMPANY, _E.PERSON})),
+    Question("extract_ids", "German admin-id sensor (Steuer-/Kassen-/Aktenzeichen, …).",
+             emits_entities=frozenset({_E.COMPANY, _E.DOCUMENT})),
+    # invocation-level questions — one Transformation per ingest call groups the
+    # fine-grained sensor evidence/edges above under a single recorded execution.
+    Question("ingest_document", "Ingest one commercial document's extractor output "
+             "(sender/recipient/IBAN/…) into the graph as one invocation.",
+             emits_entities=frozenset({_E.DOCUMENT, _E.COMPANY, _E.PERSON,
+                                       _E.BANK_ACCOUNT})),
+    Question("ingest_docmodel", "Ingest one scientific docmodel (sections/formulas/"
+             "tables/citations/concepts) into the graph as one invocation.",
+             emits_entities=frozenset({_E.DOCUMENT, _E.CONCEPT, _E.FORMULA, _E.IMAGE,
+                                       _E.TABLE, _E.CITATION})),
 ]:
     register(_q)
