@@ -41,6 +41,21 @@ def main():
             print(f"Unknown command: {cmd}. Run `pdfdrill help` for usage.", file=sys.stderr)
             return 1
 
+    # --ensure: auto-insert the missing OFFLINE prerequisite steps (model /
+    # bibliography) before running the target — the state machine reacting to a
+    # skipped step. The target's own handler still runs normally afterwards.
+    if "--ensure" in rest:
+        rest = [a for a in rest if a != "--ensure"]
+        try:
+            from . import planner
+            pdf_arg = next((a for a in rest if not a.startswith("-")), None)
+            if pdf_arg is not None:
+                ran = planner.ensure(cmd, Path(pdf_arg), HANDLERS, pdf_arg)
+                if ran:
+                    print(f"[ensure] ran missing prerequisite(s): {', '.join(ran)}")
+        except Exception as e:
+            print(f"[ensure] skipped ({e})", file=sys.stderr)
+
     try:
         result = HANDLERS[cmd](rest)
         if result:
@@ -1093,6 +1108,15 @@ def _do_skill(args):
     return run(args)
 
 
+def _do_steps(args):
+    """pdfdrill steps <cmd> <pdf|md> — show the prerequisite chain for a command
+    (what's already done, what `--ensure` would auto-run first)."""
+    from . import planner
+    if len(args) < 2:
+        raise ValueError("usage: pdfdrill steps <cmd> <pdf>")
+    return planner.describe(args[0], _drilled(args[1:]))
+
+
 # Module-level command table — the single dispatch surface, also read by
 # `pdfdrill skill --check` and the skill-sync drift gate (manifest <-> HANDLERS).
 HANDLERS = {
@@ -1175,4 +1199,5 @@ HANDLERS = {
         "stex": _do_stex,
         "scikgtex": _do_scikgtex,
         "skill": _do_skill,
+        "steps": _do_steps,
     }

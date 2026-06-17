@@ -381,6 +381,7 @@ _Generated from `commands.yaml` by skillsync. Edit the manifest, not this sectio
 |---|---|
 | `pdfdrill plan <pdf> <question>` | Show what steps are needed |
 | `pdfdrill drill <pdf>` | Full auto-drill |
+| `pdfdrill steps <cmd> <pdf>` | Show the prerequisite chain for a command (what's done, what --ensure would run) |
 
 ### Other
 
