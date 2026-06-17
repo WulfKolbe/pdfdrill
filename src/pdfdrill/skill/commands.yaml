@@ -11,7 +11,8 @@ invocation: PYTHONPATH=src python3 -m pdfdrill
 commands:
 - name: doctor
   section: Introspection (fast, no extraction)
-  summary: (doctor)
+  summary: 'Requirement check: system tools (poppler/tesseract/LaTeX+dvisvgm), Python deps, API keys +
+    the apt-get fix line'
   offline_ok: true
   typed: true
 - name: size
@@ -139,7 +140,13 @@ commands:
   - name: pdf
     type: pdf
     required: true
-  typed: false
+    help: PDF path, https URL, or bare arXiv id
+  typed: true
+  flags:
+  - name: full
+    flag: --full
+    type: flag
+    help: wipe sidecar + re-run from cold
 - name: pdfinfo
   section: Introspection (fast, no extraction)
   summary: Full PdfInfo struct (title/author/dates/flags)
@@ -198,7 +205,8 @@ commands:
   - name: pdf
     type: pdf
     required: true
-  typed: false
+    help: PDF path, https URL, or bare arXiv id
+  typed: true
 - name: images
   section: Introspection (fast, no extraction)
   summary: Image rectangles + metadata (pdfplumber + pdfimages -list)
@@ -207,7 +215,8 @@ commands:
   - name: pdf
     type: pdf
     required: true
-  typed: false
+    help: PDF path, https URL, or bare arXiv id
+  typed: true
 - name: pix2tex
   section: Introspection (fast, no extraction)
   summary: Run pix2tex on candidate rects (auto from images_layer)
@@ -237,7 +246,13 @@ commands:
   - name: pdf
     type: pdf
     required: true
-  typed: false
+    help: PDF path, https URL, or bare arXiv id
+  typed: true
+  flags:
+  - name: ocr
+    flag: --ocr
+    type: flag
+    help: force OCR TSV (no text layer)
 - name: render
   section: Introspection (fast, no extraction)
   summary: Render the built markdown to PDF (pandoc + lualatex)
@@ -246,7 +261,13 @@ commands:
   - name: pdf
     type: pdf
     required: true
-  typed: false
+    help: PDF path, https URL, or bare arXiv id
+  typed: true
+  flags:
+  - &id001
+    name: force
+    flag: --force
+    type: flag
 - name: mathpix
   section: Introspection (fast, no extraction)
   summary: Download MathPix OCR (lines.json, md, tex.zip); --force re-uploads
@@ -291,7 +312,18 @@ commands:
   - name: pdf
     type: pdf
     required: true
-  typed: false
+    help: PDF path, https URL, or bare arXiv id
+  typed: true
+  flags:
+  - name: lang
+    flag: --lang
+    type: str
+    default: deu+eng
+  - name: ppi
+    flag: --ppi
+    type: int
+    default: 250
+  - *id001
 - name: pageside
   section: Introspection (fast, no extraction)
   summary: Classify each page recto/verso (book left/right) from page-number parity+position + side-note
@@ -302,7 +334,8 @@ commands:
   - name: pdf
     type: pdf
     required: true
-  typed: false
+    help: PDF path, https URL, or bare arXiv id
+  typed: true
 - name: entities
   section: Introspection (fast, no extraction)
   summary: 'Commercial entities per page: IBAN (mod-97 validated + BLZ/Konto/bank), BIC, German address,
@@ -312,7 +345,10 @@ commands:
   - name: pdf
     type: pdf
     required: true
-  typed: false
+    help: PDF path, https URL, or bare arXiv id
+  typed: true
+  flags:
+  - *id001
 - name: segment
   section: Introspection (fast, no extraction)
   summary: Partition a scanned bundle into ordered documents (by sender/identifier + continuity number);
@@ -322,7 +358,10 @@ commands:
   - name: pdf
     type: pdf
     required: true
-  typed: false
+    help: PDF path, https URL, or bare arXiv id
+  typed: true
+  flags:
+  - *id001
 - name: elements
   section: Introspection (fast, no extraction)
   summary: Find layout elements (postal address / BOM line) via the geometric-attention GNN over tesseract
@@ -332,7 +371,28 @@ commands:
   - name: pdf
     type: pdf
     required: true
-  typed: false
+    help: PDF path, https URL, or bare arXiv id
+  typed: true
+  flags:
+  - name: model
+    flag: --model
+    type: path
+    help: trained GNN .npz
+  - name: bibkey
+    flag: --bibkey
+    type: str
+  - name: source
+    flag: --source
+    type: str
+  - name: lang
+    flag: --lang
+    type: str
+    default: deu+eng
+  - name: ppi
+    flag: --ppi
+    type: int
+    default: 300
+  - *id001
 - name: semantic
   section: Introspection (fast, no extraction)
   summary: 'Build the semantic graph (CSP): extractors become sensors emitting evidence; entities (Company/Person/BankAccount)
@@ -381,7 +441,20 @@ commands:
   - name: pdf
     type: pdf
     required: true
-  typed: false
+    help: PDF path, https URL, or bare arXiv id
+  typed: true
+  flags:
+  - name: pages
+    flag: --pages
+    type: pages
+  - name: limit
+    flag: --limit
+    type: int
+    default: 12
+  - name: ppi
+    flag: --ppi
+    type: int
+    default: 200
 - name: spellqc
   section: Introspection (fast, no extraction)
   summary: 'Dictionary-assisted de-hyphenation QC (hunspell via spylls→enchant→.dic-set, on-demand per
@@ -391,7 +464,13 @@ commands:
   - name: pdf
     type: pdf
     required: true
-  typed: false
+    help: PDF path, https URL, or bare arXiv id
+  typed: true
+  flags:
+  - name: lang
+    flag: --lang
+    type: str
+    help: de|en (auto-detected if omitted)
 - name: ordered
   section: Introspection (fast, no extraction)
   summary: Segment an ORDERED scan stack into documents (gap scoring + DataMatrix tracking codes → 2-level
@@ -402,7 +481,14 @@ commands:
   - name: pdf
     type: pdf
     required: true
-  typed: false
+    help: PDF path, https URL, or bare arXiv id
+  typed: true
+  flags:
+  - name: threshold
+    flag: --threshold
+    type: str
+    default: '0.5'
+    help: gap cut score 0..1
 - name: autosegment
   section: Introspection (fast, no extraction)
   summary: 'AUTO-PICK ordered vs shuffled: contiguous per-sender runs → `ordered` (gap scorer); interleaved
@@ -412,7 +498,14 @@ commands:
   - name: pdf
     type: pdf
     required: true
-  typed: false
+    help: PDF path, https URL, or bare arXiv id
+  typed: true
+  flags:
+  - name: threshold
+    flag: --threshold
+    type: str
+    default: '0.5'
+    help: gap cut score 0..1
 - name: selftest
   section: Introspection (fast, no extraction)
   summary: 'DIAGNOSTIC GRID: run the command battery across a PDF (or every PDF in a folder), log OK/⊘-n/a/✗-ERROR
@@ -483,10 +576,11 @@ commands:
   - name: pdf
     type: pdf
     required: true
-  typed: false
+    help: PDF path, https URL, or bare arXiv id
+  typed: true
 - name: extractimages
   section: Introspection (fast, no extraction)
-  summary: (extractimages)
+  summary: Extract embedded raster image BYTES to files (pdfimages); tiny masks/decorative <1KB filtered
   offline_ok: true
   positionals:
   - name: pdf
@@ -582,10 +676,23 @@ commands:
   - name: pdf
     type: pdf
     required: true
-  typed: false
+    help: PDF path, https URL, or bare arXiv id
+  typed: true
+  flags:
+  - name: provider
+    flag: --provider
+    type: str
+    default: llm
+  - name: limit
+    flag: --limit
+    type: int
+  - name: out
+    flag: --out
+    type: path
 - name: ingest
   section: Introspection (fast, no extraction)
-  summary: (ingest)
+  summary: Attach externally-supplied {eq_id,latex} readings as a competing provenance (grows a compare
+    column)
   offline_ok: true
   positionals:
   - name: pdf
@@ -615,7 +722,13 @@ commands:
   - name: pdf
     type: pdf
     required: true
-  typed: false
+    help: PDF path, https URL, or bare arXiv id
+  typed: true
+  flags:
+  - name: limit
+    flag: --limit
+    type: int
+  - *id001
 - name: embedimages
   section: Introspection (fast, no extraction)
   summary: Lift pdfimages + pdfplumber image rects into the model as EmbeddedImage nodes (pixel size/encoding/ppi
@@ -625,7 +738,10 @@ commands:
   - name: pdf
     type: pdf
     required: true
-  typed: false
+    help: PDF path, https URL, or bare arXiv id
+  typed: true
+  flags:
+  - *id001
 - name: geometry
   section: Introspection (fast, no extraction)
   summary: Fuse pdftotext -tsv layout (indent/margins) onto the model — substrate for block detection
@@ -634,7 +750,10 @@ commands:
   - name: pdf
     type: pdf
     required: true
-  typed: false
+    help: PDF path, https URL, or bare arXiv id
+  typed: true
+  flags:
+  - *id001
 - name: tiddlers
   section: Introspection (fast, no extraction)
   summary: Emit a TiddlyWiki JSON tiddler array (latex/displayMode/canonical_uri/width/height) for quick
@@ -701,9 +820,12 @@ commands:
   - name: pdf
     type: pdf
     required: true
-  typed: false
+    help: PDF path, https URL, or bare arXiv id
+  typed: true
   requires:
   - model
+  flags:
+  - *id001
 - name: algorithms
   section: Introspection (fast, no extraction)
   summary: Reconstruct Algorithm blocks from MathPix pseudocode lines (caption + indented steps)
@@ -712,9 +834,12 @@ commands:
   - name: pdf
     type: pdf
     required: true
-  typed: false
+    help: PDF path, https URL, or bare arXiv id
+  typed: true
   requires:
   - model
+  flags:
+  - *id001
 - name: annotate
   section: Introspection (fast, no extraction)
   summary: Promote hyperlink annotations into the model as first-class Link nodes (uri + rect Region)
@@ -723,9 +848,12 @@ commands:
   - name: pdf
     type: pdf
     required: true
-  typed: false
+    help: PDF path, https URL, or bare arXiv id
+  typed: true
   requires:
   - model
+  flags:
+  - *id001
 - name: score
   section: Introspection (fast, no extraction)
   summary: Score equations by cross-provenance agreement + snip confidence; flags review candidates
@@ -734,9 +862,12 @@ commands:
   - name: pdf
     type: pdf
     required: true
-  typed: false
+    help: PDF path, https URL, or bare arXiv id
+  typed: true
   requires:
   - model
+  flags:
+  - *id001
 - name: nlp
   section: Introspection (fast, no extraction)
   summary: Stanza NLP over prose (POS/lemma/dependency + NER → props['nlp']); --limit N --pages N --types
@@ -769,7 +900,12 @@ commands:
   - name: pdf
     type: pdf
     required: true
-  typed: false
+    help: PDF path, https URL, or bare arXiv id
+  typed: true
+  flags:
+  - name: limit
+    flag: --limit
+    type: int
 - name: relearn
   section: Introspection (fast, no extraction)
   summary: 'Phase-3: re-score after ingest; report resolved vs still-flagged'
@@ -778,7 +914,8 @@ commands:
   - name: pdf
     type: pdf
     required: true
-  typed: false
+    help: PDF path, https URL, or bare arXiv id
+  typed: true
 - name: eqnums
   section: Introspection (fast, no extraction)
   summary: Fuse equation numbers ("(N)") from margin geometry for ||FO/||FREF transclusion
@@ -787,9 +924,12 @@ commands:
   - name: pdf
     type: pdf
     required: true
-  typed: false
+    help: PDF path, https URL, or bare arXiv id
+  typed: true
   requires:
   - model
+  flags:
+  - *id001
 - name: bibliography
   section: Introspection (fast, no extraction)
   summary: Parse the References section into Reference nodes (citekey/author/year/text)
@@ -798,10 +938,13 @@ commands:
   - name: pdf
     type: pdf
     required: true
-  typed: false
+    help: PDF path, https URL, or bare arXiv id
+  typed: true
   requires:
   - model
   done_when: fact:BIBLIOGRAPHY_BUILT
+  flags:
+  - *id001
 - name: bibsource
   section: Introspection (fast, no extraction)
   summary: 'Ingest the author''s GOLD bibliography (--bbl file.bbl + --bib file.bib): alpha label↔citekey↔fields,
@@ -811,10 +954,21 @@ commands:
   - name: pdf
     type: pdf
     required: true
-  typed: false
+    help: PDF path, https URL, or bare arXiv id
+  typed: true
   requires:
   - model
   done_when: fact:BIBSOURCE_BUILT
+  flags:
+  - name: bib
+    flag: --bib
+    type: path
+    help: author .bib
+  - name: bbl
+    flag: --bbl
+    type: path
+    help: compiled .bbl
+  - *id001
 - name: bibfetch
   section: Introspection (fast, no extraction)
   summary: Enrich References with full BibTeX via Perplexity SONAR; --limit N (needs PERPLEXITY_API_KEY)
@@ -824,16 +978,33 @@ commands:
   - name: pdf
     type: pdf
     required: true
-  typed: false
+    help: PDF path, https URL, or bare arXiv id
+  typed: true
   requires:
   - bibliography
+  flags:
+  - name: limit
+    flag: --limit
+    type: int
+  - *id001
 - name: citedrill
   section: Other
-  summary: (citedrill)
+  summary: 'Drill INTO each citation: find download links (Perplexity + seeded), fetch the cited PDF,
+    stamp drill_status/pdf_url/pdf_json on the Reference'
   offline_ok: true
-  typed: false
+  typed: true
   requires:
   - bibliography
+  positionals:
+  - name: pdf
+    type: pdf
+    required: true
+    help: PDF path, https URL, or bare arXiv id
+  flags:
+  - name: limit
+    flag: --limit
+    type: int
+  - *id001
 - name: report
   section: Introspection (fast, no extraction)
   summary: Full inline+display math report (formula-report.html). --scale N scales each KaTeX render to
@@ -883,7 +1054,8 @@ commands:
   typed: true
 - name: latexbook
   section: Introspection (fast, no extraction)
-  summary: (latexbook)
+  summary: 'One-shot source-only pipeline from a .tex book: model + TikZ/table SVGs + KaTeX report (no
+    PDF, no MathPix)'
   offline_ok: true
   positionals:
   - name: tex
@@ -916,7 +1088,8 @@ commands:
   - name: pdf
     type: pdf
     required: true
-  typed: false
+    help: PDF path, https URL, or bare arXiv id
+  typed: true
 - name: booktoc
   section: Introspection (fast, no extraction)
   summary: 'Greppable TOC with printed→PDF page alignment (front-matter offset from title↔section matches):
@@ -926,17 +1099,19 @@ commands:
   - name: pdf
     type: pdf
     required: true
-  typed: false
+    help: PDF path, https URL, or bare arXiv id
+  typed: true
 - name: gaps
   section: Introspection (fast, no extraction)
   summary: 'Report MISSING information (cohomology-as-linter): acronyms used but never expanded, undeclared
     math symbols, novelty claims without citations, unmatched in-text citations'
   offline_ok: true
   positionals:
-  - name: pdf|md
-    type: str
+  - name: pdf
+    type: pdf
     required: true
-  typed: false
+    help: PDF/Markdown drilled-doc path, URL, or arXiv id
+  typed: true
   requires:
   - model
 - name: llmtext
@@ -945,29 +1120,51 @@ commands:
     units split on double line breaks + separated by --delimiter (default %%%%); empty formulas skipped'
   offline_ok: true
   positionals:
-  - name: pdf|md
-    type: str
+  - name: pdf
+    type: pdf
     required: true
-  typed: false
+    help: PDF/Markdown drilled-doc path, URL, or arXiv id
+  typed: true
   requires:
   - model
+  flags:
+  - name: delimiter
+    flag: --delimiter
+    type: str
+    default: '%%%%'
+  - name: no_split
+    flag: --no-split
+    type: flag
 - name: classify
   section: Other
-  summary: (classify)
+  summary: Subject-classify the drilled doc against the vocabnet vocabularies (MSC discipline rollup +
+    PhySH/GND/STW), persisted in the sidecar
   offline_ok: true
-  typed: false
+  typed: true
   requires:
   - model
+  positionals:
+  - name: pdf
+    type: pdf
+    required: true
+    help: PDF/Markdown drilled-doc path, URL, or arXiv id
+  flags:
+  - name: k
+    flag: --k
+    type: int
+    default: 8
+    help: top-k per scheme
 - name: clean
   section: Introspection (fast, no extraction)
   summary: 'Strip MathPix LaTeX residuals from the model: a leading section* command merged into a paragraph
     -> the title alone + kind/refnum fields (so semantic analysis sees plain text)'
   offline_ok: true
   positionals:
-  - name: pdf|md
-    type: str
+  - name: pdf
+    type: pdf
     required: true
-  typed: false
+    help: PDF/Markdown drilled-doc path, URL, or arXiv id
+  typed: true
   requires:
   - model
 - name: locate
@@ -980,7 +1177,8 @@ commands:
   - name: pdf
     type: pdf
     required: true
-  typed: false
+    help: PDF path, https URL, or bare arXiv id
+  typed: true
   requires:
   - model
 - name: rulebook
@@ -989,23 +1187,32 @@ commands:
     statement per line with a [->k:hash] drill-down anchor + kitem tiddlers'
   offline_ok: true
   positionals:
-  - name: pdf|md
-    type: str
+  - name: pdf
+    type: pdf
     required: true
-  typed: false
+    help: PDF/Markdown drilled-doc path, URL, or arXiv id
+  typed: true
   requires:
   - model
+  flags:
+  - *id001
 - name: svg
   section: Introspection (fast, no extraction)
   summary: Render TikZ diagrams + tables to SVG via latex->dvisvgm (KaTeX can't); embeds in the report
   offline_ok: true
   positionals:
-  - name: pdf|tex
-    type: str
+  - name: pdf
+    type: pdf
     required: true
-  typed: false
+    help: PDF, or a .tex/.tgz source
+  typed: true
   requires:
   - model
+  flags:
+  - name: limit
+    flag: --limit
+    type: int
+  - *id001
 - name: stex
   section: Introspection (fast, no extraction)
   summary: 'Project the semantic graph to enriched LaTeX: acronyms/glossary/Table-of-Symbols/index (--compile
@@ -1015,9 +1222,18 @@ commands:
   - name: pdf
     type: pdf
     required: true
-  typed: false
+    help: PDF path, https URL, or bare arXiv id
+  typed: true
   requires:
   - model
+  flags:
+  - name: stex
+    flag: --stex
+    type: flag
+    help: sTeX flavor (else glossaries LaTeX)
+  - name: compile
+    flag: --compile
+    type: flag
 - name: scikgtex
   section: Introspection (fast, no extraction)
   summary: Project to SciKGTeX-annotated LaTeX → compiled PDF carries ORKG contribution metadata (title/authors/field
@@ -1028,9 +1244,14 @@ commands:
   - name: pdf
     type: pdf
     required: true
-  typed: false
+    help: PDF path, https URL, or bare arXiv id
+  typed: true
   requires:
   - model
+  flags:
+  - name: compile
+    flag: --compile
+    type: flag
 - name: skill
   section: Introspection (fast, no extraction)
   summary: Emit/serve the bundled SKILL folder (--emit DIR | --json | --check)

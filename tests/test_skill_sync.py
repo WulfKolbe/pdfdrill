@@ -63,8 +63,17 @@ def test_skill_md_tables_region_is_current():
 
 
 def test_every_command_has_section_and_summary():
+    import re as _re
     for c in _manifest()["commands"]:
         assert c.get("section") and c.get("summary"), f"{c['name']} missing section/summary"
+        assert not _re.fullmatch(r"\(\w+\)", c["summary"].strip()), \
+            f"{c['name']} still has a placeholder summary"
+
+
+def test_manifest_is_fully_typed():
+    # every command carries typed positionals/flags (no `typed:false` stubs left)
+    stubs = [c["name"] for c in _manifest()["commands"] if not c.get("typed")]
+    assert stubs == [], f"untyped stubs remain: {stubs}"
 
 
 if __name__ == "__main__":
