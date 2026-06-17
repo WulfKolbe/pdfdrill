@@ -169,6 +169,29 @@ def verify_grounding(graph: SemanticGraph,
     return out
 
 
+def check_provenance(graph: SemanticGraph) -> list[Warning]:
+    """Every `produced_by` value should reference a registered `Question`. This
+    is the reified-pass migration check: severity `info` (NOT critical) so it
+    never invalidates a graph — it only surfaces a process that emitted evidence
+    or edges without a registered intent."""
+    from . import question
+    out = []
+    seen: set[str] = set()
+
+    def check(pb: str) -> None:
+        if pb and pb not in seen and question.get(pb) is None:
+            seen.add(pb)
+            out.append(Warning("info", "unregistered_question",
+                               f"produced_by '{pb}' has no registered Question"))
+
+    for e in graph.entities.values():
+        for ev in e.evidence:
+            check(ev.produced_by)
+    for r in graph.relations:
+        check(r.produced_by)
+    return out
+
+
 def check_contradictions(graph: SemanticGraph) -> list[Warning]:
     out = []
     seen: dict[tuple, set] = {}
@@ -193,5 +216,6 @@ def compile(graph: SemanticGraph,
     warnings += check_acyclic(graph)
     warnings += verify_grounding(graph, blocks)
     warnings += check_contradictions(graph)
+    warnings += check_provenance(graph)
     validity = "invalid" if any(w.severity == "critical" for w in warnings) else "valid"
     return CompileResult(validity=validity, warnings=warnings)
