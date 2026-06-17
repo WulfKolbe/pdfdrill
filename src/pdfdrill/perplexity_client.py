@@ -36,6 +36,15 @@ def _api_key() -> str:
     return perplexity_creds.require()
 
 
+def available() -> bool:
+    """True if a Perplexity API key is configured (env / .env / creds file).
+    When False, cmd_bibfetch falls back to the keyless LLM-delegation path."""
+    try:
+        return bool(_api_key())
+    except (Exception, SystemExit):    # require() raises SystemExit when unset
+        return False
+
+
 def bibtex_prompt(citekey: str, author: str, year: str, title: str,
                   raw_text: str) -> str:
     return (

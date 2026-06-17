@@ -3780,6 +3780,19 @@ def cmd_bibfetch(pdf: Path, limit: int | None = None, force: bool = False) -> st
     if limit is not None:
         todo = todo[:limit]
 
+    # Keyless fallback: with no PERPLEXITY_API_KEY, delegate the web-search BibTeX
+    # task to the Claude agent running pdfdrill (CLI `claude -p` or the sandbox
+    # handshake), handed perplexity_client's OWN bibtex_prompt. The API path
+    # below is untouched when a key is present.
+    from . import perplexity_client as _pc, llm_delegate as _D
+    if not _pc.available():
+        rt = _D.detect_runtime()
+        if rt is _D.Runtime.NONE:
+            return ("BibTeX enrichment unavailable: set PERPLEXITY_API_KEY (env "
+                    "or .env), or run pdfdrill under Claude Code / the Claude.ai "
+                    "sandbox to use the keyless web-search delegation fallback.")
+        return _bibfetch_via_delegate(pdf, doc, todo, sc, model_path, rt)
+
     from .net import NetworkBlocked
     done = errors = 0
     for r in todo:
@@ -3819,6 +3832,73 @@ def cmd_bibfetch(pdf: Path, limit: int | None = None, force: bool = False) -> st
         msg += f" ({errors} failed)"
     msg += f". Rebuild `pdfdrill tiddlers {pdf.name}` — Reference tiddlers now carry bibtex + citations."
     return msg
+
+
+def _bibfetch_via_delegate(pdf: Path, doc, todo, sc, model_path, runtime) -> str:
+    """Keyless BibTeX enrichment: one delegated web-search task per Reference,
+    handed perplexity_client.bibtex_prompt. CLI runtime answers synchronously;
+    SANDBOX writes request files + returns the agent instruction (re-run ingests).
+    Applies the parsed {bibtex, citations, fields} exactly as the API loop does."""
+    from . import perplexity_client as pc, llm_delegate as D
+
+    if not todo:
+        return (f"BibTeX (delegated/{runtime.value}): nothing to do — every "
+                f"Reference already carries bibtex (use --force to redo).")
+
+    pairs, tasks, seen = [], [], set()
+    for r in todo:
+        p = r.props
+        prompt = pc.bibtex_prompt(p.get("citekey", ""), p.get("author", ""),
+                                  p.get("year", ""), p.get("title", ""),
+                                  p.get("raw_text", ""))
+        t = D.LLMTask(kind="bibtex", prompt=prompt,
+                      meta={"citekey": p.get("citekey", "")})
+        pairs.append((r, t))
+        if t.task_id not in seen:
+            seen.add(t.task_id)
+            tasks.append(t)
+
+    try:
+        results, deferred = D.delegate_batch(
+            tasks, drill_dir=sc.blob_dir, runtime=runtime, timeout=120.0)
+    except D.DelegateUnavailable as e:
+        return str(e)
+
+    if deferred is not None:                       # sandbox: hand off + stop
+        return (f"BibTeX deferred to the {runtime.value} Claude agent: "
+                f"{len(deferred.tasks)} request(s) written"
+                + (f", {len(results)} already answered" if results else "")
+                + ".\n\n" + deferred.instruction)
+
+    done = errors = 0
+    for r, t in pairs:
+        res = results.get(t.task_id)
+        if res is None:
+            errors += 1
+            continue
+        if res.get("bibtex"):
+            r.props["bibtex"] = res["bibtex"]
+            r.props["citations"] = " ".join(res.get("citations", []))
+            for k in ("author", "year", "title", "entry_type"):
+                if res.get("fields", {}).get(k):
+                    r.props[k] = res["fields"][k]
+            done += 1
+        else:
+            errors += 1
+
+    with open(model_path, "w", encoding="utf-8") as f:
+        json.dump(doc.to_dict(), f, indent=2, ensure_ascii=False)
+    total = (sc.get_evidence("bibfetch_done", 0) or 0) + done
+    sc.set_evidence("bibfetch_done", total)
+    prev = ",".join(sorted(sc.facts - {BIBFETCH_DONE})) or "INIT"
+    sc.add_fact(BIBFETCH_DONE)
+    sc.log_transition("bibfetch", prev, BIBFETCH_DONE,
+                      detail=f"{done} enriched, {errors} errors (delegated/{runtime.value})")
+    sc.save()
+    return (f"Enriched {done} reference(s) with full BibTeX by delegating the "
+            f"web-search to the {runtime.value} Claude agent"
+            + (f" ({errors} failed)" if errors else "")
+            + f". Rebuild `pdfdrill tiddlers {pdf.name}`.")
 
 
 def cmd_citedrill(pdf: Path, limit: int | None = None, force: bool = False) -> str:
