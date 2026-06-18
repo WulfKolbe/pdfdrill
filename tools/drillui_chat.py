@@ -93,11 +93,27 @@ def _run(argv: list[str], env: dict, timeout: float = 180.0) -> str:
     return p.stdout
 
 
+def _extract_json(text: str) -> dict | None:
+    """The single JSON object in pdfdrill's output (first '{' … last '}'),
+    tolerant of leading prose / pretty-printing. None if there isn't one."""
+    i, j = text.find("{"), text.rfind("}")
+    if i < 0 or j <= i:
+        return None
+    try:
+        return json.loads(text[i:j + 1])
+    except json.JSONDecodeError:
+        return None
+
+
 def retrieve(base: list[str], env: dict, doc: str, q: str, k: int) -> dict:
     out = _run(base + ["retrieve", doc, q, "--k", str(k), "--json"], env)
-    # cmd_retrieve --json prints exactly one JSON object (last non-empty line).
-    line = [ln for ln in out.splitlines() if ln.strip().startswith("{")][-1]
-    return json.loads(line)
+    obj = _extract_json(out)
+    if obj is None:
+        # cmd_retrieve returns PROSE (no JSON) when the doc has no model, e.g.
+        # "No model for X — run `pdfdrill model`/`markdown` first." Surface THAT,
+        # not an opaque parse error.
+        raise RuntimeError(out.strip() or "pdfdrill retrieve returned no JSON")
+    return obj
 
 
 def ask_llm(prompt: str, *, claude: str, model: str | None, timeout: float) -> str:
@@ -117,6 +133,34 @@ def chatlog(base: list[str], env: dict, doc: str, q: str, a: str,
             units: list[str], model: str) -> str:
     return _run(base + ["chatlog", doc, "--question", q, "--answer", a,
                         "--units", ",".join(units), "--model", model or "claude"], env)
+
+
+def run_pdfdrill(base, env, doc: str, argv: list[str], timeout: float) -> str:
+    """Run an arbitrary pdfdrill subcommand on this doc (the `!cmd` passthrough),
+    e.g. !status / !mathpix / !model. The subcommand name is argv[0]; the doc is
+    inserted as its first positional."""
+    if not argv:
+        return "usage: !<pdfdrill-subcommand> [args]   e.g. !status, !mathpix, !model"
+    sub, rest = argv[0], argv[1:]
+    return _run(base + [sub, doc] + rest, env, timeout=timeout)
+
+
+def doc_status(base, env, doc: str, timeout: float) -> str:
+    try:
+        return _run(base + ["status", doc], env, timeout=timeout).strip()
+    except Exception as e:  # noqa: BLE001
+        return f"(status unavailable: {e})"
+
+
+_REPL_HELP = """\
+drillui_chat REPL — type a QUESTION about the document and get a grounded answer.
+Meta-commands:
+  :help, :h, ?        show this help
+  :status, :s         show `pdfdrill status <doc>`
+  :quit, :q           quit (also Ctrl-D)
+  !<cmd> [args]       run a pdfdrill subcommand on this doc, e.g.
+                        !status   !mathpix   !model   !mathcheck   !visionocr
+Anything else is treated as a question. (A blank line is ignored.)"""
 
 
 def one_turn(base, env, args, doc: str, q: str, history: str = "") -> str:
@@ -193,19 +237,48 @@ def main() -> int:
             print(f"  (pdfdrill via {how})", file=sys.stderr)
             return 1
 
-    print(f"drillui_chat — asking {args.doc} (pdfdrill via {how}). "
-          f"Blank line or Ctrl-D to quit.")
+    # Startup precondition check: a drilled MODEL is required. The exact signal
+    # is `retrieve` itself (the question path) — it returns JSON when a model
+    # exists and the prose "No model …" otherwise. Probe it offline once so we
+    # warn up front WITH the fix, instead of letting every turn error opaquely.
+    print(f"drillui_chat — asking {args.doc}\n  pdfdrill via {how}")
+    try:
+        retrieve(base, env, args.doc, "ping", 1)
+        drilled = True
+    except Exception as e:                            # noqa: BLE001
+        drilled = False
+        why = str(e).splitlines()[0] if str(e).strip() else "no model"
+    if not drilled:
+        print(f"  ⚠ not drilled yet ({why})")
+        print(f"     questions will fail until a model exists — build one here:  "
+              f"!model   (or for Markdown:  !markdown {args.doc})")
+    print("  Type a question, `:help` for commands, `:quit` to exit.")
     history = ""
     while True:
         try:
-            q = input("\n? ").strip()
+            line = input("\n? ").strip()
         except (EOFError, KeyboardInterrupt):
-            print(); break
-        if not q:
+            print()
             break
+        if not line:                                  # blank → ignore, don't quit
+            continue
+        if line in (":quit", ":q", ":exit"):
+            break
+        if line in (":help", ":h", "?"):
+            print(_REPL_HELP)
+            continue
+        if line in (":status", ":s"):
+            print(doc_status(base, env, args.doc, args.timeout))
+            continue
+        if line.startswith("!"):                       # pdfdrill passthrough
+            try:
+                print(run_pdfdrill(base, env, args.doc, line[1:].split(), args.timeout))
+            except Exception as e:                     # noqa: BLE001
+                print(f"error: {e}", file=sys.stderr)
+            continue
         try:
-            a = one_turn(base, env, args, args.doc, q, history)
-            history = (history + f"\nQ: {q}\nA: {a[:500]}")[-2000:]
+            a = one_turn(base, env, args, args.doc, line, history)
+            history = (history + f"\nQ: {line}\nA: {a[:500]}")[-2000:]
         except Exception as e:
             print(f"error: {e}", file=sys.stderr)
     return 0
