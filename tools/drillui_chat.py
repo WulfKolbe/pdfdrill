@@ -29,11 +29,22 @@ Stdlib only.
 from __future__ import annotations
 
 import argparse
+import atexit
 import json
 import os
 import subprocess
 import sys
 from pathlib import Path
+
+try:                       # line editing + arrow-key history for input()
+    import readline        # noqa: F401  (importing it is what hooks input())
+except ImportError:        # pragma: no cover
+    readline = None
+
+# Words that quit the REPL — typed bare or with a leading ':'. Generous on
+# purpose: quit/exit/stop/q/bye all work, so you never get stuck.
+_QUIT = {"quit", "exit", "stop", "q", "bye", "qui", ":quit", ":exit", ":stop",
+         ":q", ":bye"}
 
 
 # This script lives at <repo>/tools/drillui_chat.py, so pdfdrill is ALWAYS
@@ -135,6 +146,13 @@ def chatlog(base: list[str], env: dict, doc: str, q: str, a: str,
                         "--units", ",".join(units), "--model", model or "claude"], env)
 
 
+def _save_history(rl, path) -> None:
+    try:
+        rl.write_history_file(path)
+    except Exception:  # noqa: BLE001
+        pass
+
+
 def load_commands(base, env, timeout: float) -> dict:
     """{command_name: first_positional_type} from `pdfdrill skill --json`, so the
     REPL can run any pdfdrill subcommand by name and know whether to auto-insert
@@ -191,11 +209,11 @@ def _repl_help(cmds: dict) -> str:
         "  visionocr         mathcheck       tiddlers        report  …\n"
         f"  ({n} pdfdrill commands available; a leading '!' also forces command mode)\n"
         "Meta-commands:\n"
-        "  :help, :h, ?      show this help\n"
-        "  :commands         list every pdfdrill command name\n"
-        "  :quit, :q         quit (also Ctrl-D)\n"
+        "  help, :help, ?    show this help\n"
+        "  commands          list every pdfdrill command name\n"
+        "  quit / exit / q   quit the REPL (also stop, bye, or Ctrl-D)\n"
         "Rule: a known pdfdrill command name => command; anything else => question.\n"
-        "A blank line is ignored. Use arrow keys for history.")
+        "A blank line is ignored. Arrow keys recall history (real terminal only).")
 
 
 def one_turn(base, env, args, doc: str, q: str, history: str = "") -> str:
@@ -272,10 +290,15 @@ def main() -> int:
             print(f"  (pdfdrill via {how})", file=sys.stderr)
             return 1
 
-    try:
-        import readline  # noqa: F401  — enables arrow-key history + line editing
-    except ImportError:
-        pass
+    interactive = sys.stdin.isatty()
+    if readline and interactive:                       # persistent arrow-key history
+        hist = Path.home() / ".drillui_chat_history"
+        try:
+            readline.read_history_file(hist)
+        except Exception:                              # noqa: BLE001 (missing/locked)
+            pass
+        readline.set_history_length(1000)
+        atexit.register(lambda: _save_history(readline, hist))
 
     cmds = load_commands(base, env, args.timeout)      # {name: first-positional-type}
 
@@ -284,6 +307,9 @@ def main() -> int:
     # "No model …" otherwise. Probe it offline once and, if absent, name the
     # RIGHT builder for this doc (model for a PDF, markdown for a .md).
     print(f"drillui_chat — asking {args.doc}\n  pdfdrill via {how}")
+    if not interactive:
+        print("  (stdin is not a TTY — arrow-key history/line-editing is "
+              "unavailable; you're likely running through a pipe/bridge.)")
     try:
         retrieve(base, env, args.doc, "ping", 1)
         drilled = True
@@ -294,8 +320,8 @@ def main() -> int:
         builder = "markdown" if args.doc.lower().endswith(".md") else "model"
         print(f"  ⚠ not drilled yet ({why})")
         print(f"     questions need a model first — build one here by typing:  {builder}")
-    print("  Type a question, or a pdfdrill command (status, size, model, …); "
-          "`:help`, `:quit`.")
+    print("  Type a question, or a pdfdrill command (status, size, model, …).")
+    print("  Quit: quit / exit / q (or Ctrl-D).  Help: :help")
     history = ""
     while True:
         try:
@@ -305,12 +331,12 @@ def main() -> int:
             break
         if not line:                                  # blank → ignore, don't quit
             continue
-        if line in (":quit", ":q", ":exit"):
+        if line.lower() in _QUIT:                     # quit/exit/stop/q/:q/… all work
             break
-        if line in (":help", ":h", "?"):
+        if line in (":help", ":h", "help", "?"):
             print(_repl_help(cmds))
             continue
-        if line in (":commands", ":cmds"):
+        if line in (":commands", ":cmds", "commands"):
             print("  ".join(sorted(cmds)) or "(command list unavailable)")
             continue
         # A pdfdrill command — either forced with '!' or recognised by name —
