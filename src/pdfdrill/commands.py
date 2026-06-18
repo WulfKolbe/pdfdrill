@@ -2586,7 +2586,16 @@ def cmd_remath(pdf: Path, pages: "list[int] | None" = None, force: bool = False)
     return (f"Re-math: rebuilt {len(parts)} page(s) of MathPix-quality Markdown"
             + (f" ({gave} page(s) the model declined, skipped)" if gave else "")
             + f" → {out_md.relative_to(sc.pdf_path.parent)}. Now build the model "
-            f"WITH LaTeX transclusions: `pdfdrill markdown {out_md} --bibkey {key}`.")
+            f"WITH LaTeX transclusions: `pdfdrill markdown {out_md} --bibkey {key}`.\n"
+            + _MATHPIX_TIP)
+
+
+# Keyless page->LaTeX delegation is a fallback. MathPix does it natively, much
+# faster and cheaper (an LLM re-reads each rendered page; MathPix is one OCR
+# call). Surfaced in the prose of the delegating commands.
+_MATHPIX_TIP = ("Tip: with any volume of math PDFs, MathPix is much faster and "
+                "cheaper than per-page LLM OCR — https://mathpix.com/pricing/all "
+                "(set MATHPIX_APP_ID/KEY, then `pdfdrill mathpix`).")
 
 
 def _fold_eq_records_into_lines_json(lines_path: Path, records: list,
@@ -2689,7 +2698,7 @@ def cmd_visionocr(pdf: Path, ingest: str | None = None, dpi: int = 200,
                 f"into {lines_path.name} → rebuilt model with "
                 f"{counts.get('Equation', 0)} Equation node(s). "
                 f"NEEDS_VISION_OCR cleared. Next: `pdfdrill tiddlers {pdf.name}` / "
-                f"`pdfdrill report {pdf.name}`.")
+                f"`pdfdrill report {pdf.name}`.\n" + _MATHPIX_TIP)
 
     # --- explicit ingest of a supplied records file --------------------------
     if ingest:
@@ -2770,8 +2779,8 @@ def cmd_visionocr(pdf: Path, ingest: str | None = None, dpi: int = 200,
     if deferred is not None:
         return (f"visionocr deferred to the {rt.value} Claude agent: "
                 f"{len(deferred.tasks)} page request(s) written (manifest: "
-                f"{sc.blob_dir.name}/visionocr_manifest.json).\n\n"
-                + deferred.instruction)
+                f"{sc.blob_dir.name}/visionocr_manifest.json).\n" + _MATHPIX_TIP
+                + "\n\n" + deferred.instruction)
 
     records, blank = [], 0
     for pn, t in sorted(pairs):

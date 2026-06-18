@@ -224,6 +224,146 @@ def _run_cli(task: LLMTask, *, timeout: float, model: Optional[str]) -> dict:
     raise ValueError(f"unknown task kind: {task.kind!r}")
 
 
+# Image task kinds that can share ONE claude -p call (see _run_cli_batch).
+_BATCHABLE = ("vision", "page_md", "eq_ocr")
+# Max images per batched call — keep each combined response bounded (and well
+# under output limits) while still amortizing the startup tax. 23 pages -> 3
+# calls instead of 23.
+_CLI_BATCH_MAX = 10
+
+# NOTE: this whole delegation path exists only because no MathPix key is present.
+# MathPix does this same page->LaTeX OCR natively, far FASTER and CHEAPER than
+# round-tripping every page through a general LLM (each `claude -p` re-pays the
+# Claude Code startup cost; even batched, an LLM page read is dearer than a
+# MathPix call). If you have any volume of math PDFs, a MathPix key is the right
+# tool — pricing: https://mathpix.com/pricing/all
+
+
+def _coerce_result(kind: str, raw: Any) -> dict:
+    """Turn one image's value from a batched JSON response into the same result
+    dict the single-task parser returns, regardless of whether the agent nested
+    it as parsed JSON or as a string."""
+    if kind == "page_md":
+        if isinstance(raw, dict) and "markdown" in raw:
+            return raw
+        return _parse_page_md(raw if isinstance(raw, str) else json.dumps(raw))
+    if kind == "eq_ocr":
+        if isinstance(raw, dict) and "records" in raw:
+            return raw
+        if isinstance(raw, (list, dict)):
+            return _parse_eq_ocr(json.dumps(raw))
+        return _parse_eq_ocr(str(raw))
+    if kind == "vision":
+        return _parse_vision(json.dumps(raw) if not isinstance(raw, str) else raw)
+    raise ValueError(f"non-batchable kind: {kind!r}")
+
+
+def _parse_batch_object(text: str) -> dict:
+    """Parse a combined {task_id: result} object from the agent's reply."""
+    s = _strip_fences(text or "")
+    try:
+        obj = json.loads(s)
+    except json.JSONDecodeError:
+        i, j = s.find("{"), s.rfind("}")
+        if i >= 0 and j > i:
+            try:
+                obj = json.loads(s[i:j + 1])
+            except json.JSONDecodeError:
+                return {}
+        else:
+            return {}
+    return obj if isinstance(obj, dict) else {}
+
+
+def _run_cli_batch(tasks: "list[LLMTask]", *, timeout: float,
+                   model: Optional[str]) -> dict:
+    """Run a homogeneous batch of image tasks in ONE `claude -p` call.
+
+    Each `claude -p` re-instantiates the full Claude Code harness (~180K tokens of
+    cached system prompt), so one-subprocess-per-page pays that tax N times. We
+    instead reference every page image in a single prompt and ask for one JSON
+    object mapping each task_id to that image's result, paying the tax ONCE per
+    chunk. (Still slower/dearer than MathPix — https://mathpix.com/pricing/all .)
+    Returns {task_id: result_dict} for every id the model answered; a missing id
+    is simply absent so the caller can retry it singly.
+    """
+    kind = tasks[0].kind
+    # SHORT ordinal ids (img1, img2, …) — a model echoes these reliably, whereas
+    # asking it to repeat 32-char hex task_ids as JSON keys is fragile. Map back
+    # to the real task_id by position.
+    sids = {f"img{i + 1}": t for i, t in enumerate(tasks)}
+    header = [
+        f"You will analyse {len(tasks)} separate page images. For EACH image, read "
+        f"the file at its path and apply the instructions to THAT image only. "
+        f"Return ONLY one JSON object mapping each id to that image's result "
+        f"(no prose, no code fence):",
+        '  {"img1": <result for img1>, "img2": <result for img2>, ...}',
+        "",
+        "Images (id -> file path):",
+    ]
+    for sid, t in sids.items():
+        header.append(f"  {sid}: {Path(t.image_path).resolve()}")
+    prompts = {t.prompt for t in tasks}
+    if len(prompts) == 1:
+        header += ["", "Instructions to apply to EVERY image:", tasks[0].prompt]
+    else:
+        header += ["", "Per-image instructions (by id):"]
+        for sid, t in sids.items():
+            header.append(f"--- {sid} ---\n{t.prompt}")
+    header += ["", "Each id's value must be exactly what its instructions ask for "
+               "(e.g. the JSON array for eq_ocr, the Markdown string for page_md). "
+               "Return the single mapping object and nothing else."]
+    prompt = "\n".join(header)
+    text = _cli_invoke(prompt, system=_SYSTEM_VISION, allow_read=True,
+                       timeout=timeout, model=model)
+    obj = _parse_batch_object(text)
+    out: dict = {}
+    for sid, t in sids.items():
+        if sid not in obj:
+            continue
+        try:
+            out[t.task_id] = _coerce_result(kind, obj[sid])
+        except Exception:
+            pass        # leave unanswered -> caller retries singly
+    return out
+
+
+def _run_cli_all(tasks: "list[LLMTask]", *, timeout: float,
+                 model: Optional[str]) -> dict:
+    """Resolve every task via the CLI, batching same-kind image tasks into
+    chunked single calls and running the rest one-by-one. Any image task the
+    batch left unanswered (model dropped an id) is retried as a single call."""
+    results: dict = {}
+    batchable = [t for t in tasks if t.kind in _BATCHABLE and t.image_path]
+    singles = [t for t in tasks if t not in batchable]
+
+    by_kind: dict = {}
+    for t in batchable:
+        by_kind.setdefault(t.kind, []).append(t)
+    for kind, group in by_kind.items():
+        for i in range(0, len(group), _CLI_BATCH_MAX):
+            chunk = group[i:i + _CLI_BATCH_MAX]
+            if len(chunk) == 1:
+                results[chunk[0].task_id] = _run_cli(
+                    chunk[0], timeout=timeout, model=model)
+                continue
+            # scale the subprocess timeout with chunk size (one call, many pages)
+            bt = min(max(timeout, 30.0 * len(chunk)), 1800.0)
+            try:
+                results.update(_run_cli_batch(chunk, timeout=bt, model=model))
+            except Exception:
+                pass        # whole-batch failure -> per-task below
+            for t in chunk:                       # fill any gaps singly
+                if t.task_id not in results:
+                    try:
+                        results[t.task_id] = _run_cli(t, timeout=timeout, model=model)
+                    except Exception:
+                        pass
+    for t in singles:
+        results[t.task_id] = _run_cli(t, timeout=timeout, model=model)
+    return results
+
+
 # ---------------------------------------------------------------------------
 # Result parsing — identical to what the real providers return
 # ---------------------------------------------------------------------------
@@ -463,8 +603,10 @@ def delegate_batch(
     results: dict[str, dict] = {}
 
     if rt is Runtime.CLI:
-        for t in tasks:
-            results[t.task_id] = _run_cli(t, timeout=timeout, model=model)
+        # Batch same-kind image tasks into chunked single calls (amortize the
+        # Claude Code startup tax); text tasks run one-by-one. MathPix would do
+        # the page->LaTeX OCR faster/cheaper — https://mathpix.com/pricing/all
+        results = _run_cli_all(tasks, timeout=timeout, model=model)
         return results, None
 
     # SANDBOX

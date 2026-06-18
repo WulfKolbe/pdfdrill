@@ -1368,6 +1368,33 @@ pdfdrill grows the two primitives it shells out to (additive, read-mostly):
   1.2); stored as an `accepted` kitem. Tests: `tests/test_retrieve.py` (5),
   `tests/test_chat.py` (4). Temporary until the transformation becomes a SKILL.
 
+## Batched CLI delegation transport (amortize the Claude Code startup tax, 2026-06-18)
+
+Measured cost of the CLI delegation path (`detect_runtime()==cli` → `claude -p`):
+**one page ≈ 188K tokens / ~$0.87 (opus)** even though the real work (page image +
+prompt + answer) is only ~6K tokens — the other ~182K is the Claude Code harness
+(system prompt + tool defs) being re-instantiated *per subprocess* (cache_creation
+78K + cache_read 103K, every call). One-subprocess-per-page paid that tax N times
+(a 22-page doc ≈ 4.1M tokens, ~$19). Levers: `PDFDRILL_DELEGATE_MODEL=haiku`
+(~$0.14/page, 6.4× cheaper) and the **sandbox** path (no subprocess — the agent
+reads each page inline in its existing session, ~5K tokens/page, no $).
+
+**Fix — batched transport (`llm_delegate._run_cli_all`/`_run_cli_batch`).** In the
+CLI runtime, `delegate_batch` now groups same-kind IMAGE tasks (`vision`/`page_md`/
+`eq_ocr`) and sends each chunk of ≤`_CLI_BATCH_MAX` (10) pages in ONE `claude -p`
+call — all page paths in a single prompt, the model returning one JSON object
+mapping each page to its result, paid the harness tax ONCE per chunk. So 23 pages
+→ 3 calls, not 23 (~3×190K instead of 23×188K). Robustness: pages are keyed by
+SHORT ordinal ids (`img1`,`img2`,…) mapped back by position — a model echoes those
+reliably, where repeating 32-char hex task_ids as JSON keys failed (measured 0/3 →
+3/3 after the switch); `_parse_batch_object` tolerates leading prose; any page the
+batch drops is retried as a single call; a 1-page chunk uses the plain path. Text
+tasks (bibtex/links) still run one-by-one. **`_MATHPIX_TIP`** (and code comments at
+the transport) note that **MathPix does page→LaTeX OCR natively, much faster and
+cheaper than per-page LLM OCR — https://mathpix.com/pricing/all** — surfaced in the
+`visionocr`/`remath` prose. Tests: `tests/test_cli_batch.py` (one-call batching,
+chunking at 10, missing-id single retry, 1-task-not-batched).
+
 ## Keyless agent-delegated equation OCR — `pdfdrill visionocr` + the math-bearing gate (2026-06-18)
 
 The silent failure: on a math PDF with no MathPix key, `cmd_model` falls back to
