@@ -1,0 +1,698 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>drillui · ask the document</title>
+
+<!-- xterm.js v5 (the @xterm scope). The classic wavesoft/local-echo lib is NOT
+     used: it targets the removed term.on('data') API. The line editor below is a
+     self-contained re-implementation of its bash-like behaviour against v5's
+     term.onData(). Credit: Ioannis Charalampidis, "Local echo & xterm.js". -->
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@xterm/xterm@5.5.0/css/xterm.min.css" />
+<script src="https://cdn.jsdelivr.net/npm/@xterm/xterm@5.5.0/lib/xterm.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@xterm/addon-fit@0.10.0/lib/addon-fit.min.js"></script>
+
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet" />
+
+<style>
+  :root{
+    /* Gruvbox Dark */
+    --bg:#1d2021; --panel:#282828; --panel2:#32302f; --line:#3c3836;
+    --fg:#ebdbb2; --dim:#a89984; --faint:#928374;
+    --green:#b8bb26; --orange:#fe8019; --yellow:#fabd2f;
+    --blue:#83a598; --aqua:#8ec07c; --red:#fb4934; --purple:#d3869b;
+    --mono:"JetBrains Mono", ui-monospace, "SFMono-Regular", Menlo, Consolas, monospace;
+    --sans:system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  }
+  *{ box-sizing:border-box; }
+  html,body{ height:100%; margin:0; }
+  body{
+    background:var(--bg); color:var(--fg); font-family:var(--sans);
+    display:grid; grid-template-rows:auto 1fr; height:100vh; overflow:hidden;
+  }
+
+  /* ---- header ---- */
+  header{
+    display:flex; align-items:center; gap:14px; padding:10px 16px;
+    border-bottom:1px solid var(--line); background:var(--panel);
+  }
+  .brand{ font-family:var(--mono); font-weight:700; letter-spacing:.02em; }
+  .brand .glyph{ color:var(--orange); }
+  .brand .sub{ color:var(--faint); font-weight:400; margin-left:8px; font-size:13px; }
+  .spacer{ flex:1; }
+  .chip{
+    font-family:var(--mono); font-size:12px; padding:4px 10px; border-radius:999px;
+    border:1px solid var(--line); color:var(--dim); display:inline-flex; align-items:center; gap:7px;
+  }
+  .dot{ width:8px; height:8px; border-radius:50%; background:var(--faint); }
+  .chip[data-state="ready"] .dot{ background:var(--green); box-shadow:0 0 8px var(--green); }
+  .chip[data-state="busy"]  .dot{ background:var(--yellow); animation:pulse 1s infinite; }
+  .chip[data-state="down"]  .dot{ background:var(--red); }
+  @keyframes pulse{ 50%{ opacity:.35; } }
+
+  /* ---- main split ---- */
+  main{ display:grid; grid-template-columns:1fr 360px; min-height:0; }
+  @media (max-width:880px){ main{ grid-template-columns:1fr; } #rail{ display:none; } }
+
+  #term-wrap{ min-width:0; min-height:0; background:var(--bg); padding:10px 6px 6px 12px; }
+  #terminal{ width:100%; height:100%; }
+
+  /* ---- retrieval rail ---- */
+  #rail{
+    border-left:1px solid var(--line); background:var(--panel);
+    display:flex; flex-direction:column; min-height:0;
+  }
+  .rail-head{ padding:12px 14px 8px; }
+  .rail-title{
+    font-family:var(--mono); font-size:11px; text-transform:uppercase; letter-spacing:.14em;
+    color:var(--faint);
+  }
+  .meta{ display:grid; grid-template-columns:auto 1fr; gap:4px 10px; margin-top:8px; font-size:13px; }
+  .meta dt{ color:var(--faint); font-family:var(--mono); font-size:12px; }
+  .meta dd{ margin:0; font-family:var(--mono); color:var(--fg); overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .meta dd.ok{ color:var(--green); } .meta dd.off{ color:var(--faint); }
+
+  .rail-sub{
+    padding:10px 14px 6px; border-top:1px solid var(--line);
+    display:flex; align-items:baseline; gap:8px;
+  }
+  .rail-sub .count{ font-family:var(--mono); color:var(--orange); font-size:12px; }
+
+  #turns{ flex:1; overflow:auto; padding:4px 10px 14px; }
+
+  #artifacts{ max-height:30vh; overflow:auto; padding:4px 10px 8px; }
+  .art{
+    display:flex; align-items:center; gap:8px; padding:7px 9px; margin:6px 2px;
+    border:1px solid var(--line); border-radius:8px; background:var(--panel2);
+  }
+  .art .ext{
+    font-family:var(--mono); font-size:10px; text-transform:uppercase; letter-spacing:.06em;
+    padding:2px 6px; border-radius:5px; background:#3c3836; color:var(--orange); border:1px solid #504945;
+  }
+  .art .name{
+    flex:1; min-width:0; font-family:var(--mono); font-size:12px; color:var(--fg);
+    overflow:hidden; text-overflow:ellipsis; white-space:nowrap;
+  }
+  .art a, .art button.host{
+    font-family:var(--mono); font-size:11px; text-decoration:none; cursor:pointer;
+    padding:3px 8px; border-radius:6px; border:1px solid var(--line); background:transparent;
+  }
+  .art a{ color:var(--blue); } .art a:hover{ border-color:var(--blue); }
+  .art button.host{ color:var(--aqua); } .art button.host:hover{ border-color:var(--aqua); }
+  .art button.host:disabled{ color:var(--faint); cursor:default; border-color:var(--line); }
+  .turn{
+    border:1px solid var(--line); border-radius:8px; padding:9px 11px; margin:8px 2px;
+    background:var(--panel2);
+  }
+  .turn.err{ border-color:var(--red); }
+  .turn-top{ display:flex; align-items:center; gap:8px; margin-bottom:6px; }
+  .turn-n{ font-family:var(--mono); font-size:11px; color:var(--faint); }
+  .turn-stored{ margin-left:auto; font-family:var(--mono); font-size:11px; }
+  .turn-stored.yes{ color:var(--aqua); } .turn-stored.no{ color:var(--faint); } .turn-stored.err{ color:var(--red); }
+  .turn-q{ font-size:13px; color:var(--fg); line-height:1.35; }
+  .units{ display:flex; flex-wrap:wrap; gap:5px; margin-top:8px; }
+  .unit{
+    font-family:var(--mono); font-size:11px; padding:2px 7px; border-radius:5px;
+    background:#3c3836; color:var(--blue); border:1px solid #504945; cursor:default;
+  }
+  .units-empty{ font-family:var(--mono); font-size:11px; color:var(--faint); }
+
+  .art .name{ cursor:pointer; }
+  .art .name:hover{ color:var(--aqua); text-decoration:underline; }
+
+  .empty{ padding:24px 14px; color:var(--faint); font-size:13px; line-height:1.5; }
+  .empty code{ font-family:var(--mono); color:var(--dim); }
+
+  /* connect overlay */
+  #overlay{
+    position:fixed; inset:0; background:rgba(29,32,33,.92); display:none;
+    align-items:center; justify-content:center; z-index:10; padding:20px;
+  }
+  #overlay.show{ display:flex; }
+  .card{ background:var(--panel); border:1px solid var(--line); border-radius:12px; padding:22px 24px; max-width:460px; }
+  .card h2{ margin:0 0 6px; font-size:16px; }
+  .card p{ color:var(--dim); font-size:13px; line-height:1.55; margin:8px 0; }
+  .card code{ font-family:var(--mono); background:var(--bg); padding:1px 6px; border-radius:4px; color:var(--yellow); }
+  .row{ display:flex; gap:8px; margin-top:14px; }
+  .row input{
+    flex:1; font-family:var(--mono); font-size:13px; background:var(--bg); color:var(--fg);
+    border:1px solid var(--line); border-radius:7px; padding:9px 11px;
+  }
+  .row button{
+    font-family:var(--mono); font-size:13px; background:var(--green); color:#1d2021; border:0;
+    border-radius:7px; padding:9px 16px; font-weight:700; cursor:pointer;
+  }
+  .row button:hover{ background:var(--yellow); }
+</style>
+</head>
+<body>
+  <header>
+    <span class="brand"><span class="glyph">▚</span> drillui<span class="sub">ask the document</span></span>
+    <span class="spacer"></span>
+    <span class="chip" id="conn" data-state="down"><span class="dot"></span><span id="conn-label">offline</span></span>
+  </header>
+
+  <main>
+    <section id="term-wrap"><div id="terminal"></div></section>
+
+    <aside id="rail">
+      <div class="rail-head">
+        <div class="rail-title">Session</div>
+        <dl class="meta">
+          <dt>doc</dt><dd id="m-doc">—</dd>
+          <dt>model</dt><dd id="m-model">—</dd>
+          <dt>k</dt><dd id="m-k">—</dd>
+          <dt>store</dt><dd id="m-store">—</dd>
+        </dl>
+      </div>
+
+      <div class="rail-sub">
+        <div class="rail-title">Outputs</div>
+        <span class="count" id="art-count">0 files</span>
+      </div>
+      <div id="artifacts">
+        <div class="empty" id="art-empty">
+          HTML reports (<code>compare</code>, <code>report</code>, <code>tables</code>) and
+          other files pdfdrill writes show up here as links — open them in a tab
+          or in your own browser on the host.
+        </div>
+      </div>
+
+      <div class="rail-sub">
+        <div class="rail-title">Retrieval</div>
+        <span class="count" id="turn-count">0 turns</span>
+      </div>
+      <div id="turns">
+        <div class="empty" id="turns-empty">
+          Every answer is grounded in document units pulled by
+          <code>pdfdrill retrieve</code>. Ask a question and the cited unit ids
+          land here.
+        </div>
+      </div>
+    </aside>
+  </main>
+
+  <div id="overlay">
+    <div class="card">
+      <h2>Bridge not reachable</h2>
+      <p>This window edits commands locally, but the actual questions are
+         answered by <code>drillui_chat.py</code> running as a subprocess. Start the
+         bridge next to it:</p>
+      <p><code>bun drillui_bridge.ts &lt;doc&gt; --src src</code></p>
+      <p>Then point this window at its WebSocket:</p>
+      <div class="row">
+        <input id="ws-url" spellcheck="false" />
+        <button id="ws-connect">Connect</button>
+      </div>
+    </div>
+  </div>
+
+<script>
+"use strict";
+
+/* =====================================================================
+   1. LineEditor — a compact, self-contained local-echo for xterm v5.
+      Mirrors the bash-like editing described in wavesoft/local-echo
+      (history, cursor + word navigation, kill/yank), but driven by the
+      current term.onData() API instead of the removed term.on('data').
+   ===================================================================== */
+class LineEditor {
+  constructor(term){
+    this.term = term;
+    this.buf = "";
+    this.cursor = 0;        // index within buf
+    this.prompt = "";
+    this.active = false;
+    this.resolve = null;
+    this.history = [];
+    this.hist = 0;          // index into history (== length means "current")
+    this.stash = "";        // in-progress line stashed while browsing history
+    term.onData((d) => this._onData(d));
+  }
+
+  /* read one line, resolving with the entered string (Enter) */
+  read(prompt){
+    this.prompt = prompt;
+    this.buf = ""; this.cursor = 0; this.hist = this.history.length; this.stash = "";
+    this.active = true;
+    this.term.write(prompt);
+    return new Promise((res) => { this.resolve = res; });
+  }
+
+  _w(s){ this.term.write(s); }
+
+  _setLine(s){
+    if (this.cursor > 0) this._w(`\x1b[${this.cursor}D`);   // to input start
+    this._w("\x1b[K");                                      // clear to EOL
+    this.buf = s; this.cursor = s.length; this._w(s);
+  }
+
+  _insert(s){
+    const tail = this.buf.slice(this.cursor);
+    this.buf = this.buf.slice(0, this.cursor) + s + tail;
+    this.cursor += s.length;
+    this._w(s + tail);
+    if (tail.length) this._w(`\x1b[${tail.length}D`);
+  }
+
+  _backspace(){
+    if (this.cursor === 0) return;
+    this.cursor -= 1;
+    this.buf = this.buf.slice(0, this.cursor) + this.buf.slice(this.cursor + 1);
+    const tail = this.buf.slice(this.cursor);
+    this._w("\b" + tail + " " + `\x1b[${tail.length + 1}D`);
+  }
+
+  _delete(){
+    if (this.cursor >= this.buf.length) return;
+    this.buf = this.buf.slice(0, this.cursor) + this.buf.slice(this.cursor + 1);
+    const tail = this.buf.slice(this.cursor);
+    this._w(tail + " " + `\x1b[${tail.length + 1}D`);
+  }
+
+  _left(){ if (this.cursor > 0){ this.cursor--; this._w("\x1b[D"); } }
+  _right(){ if (this.cursor < this.buf.length){ this.cursor++; this._w("\x1b[C"); } }
+  _home(){ if (this.cursor > 0){ this._w(`\x1b[${this.cursor}D`); this.cursor = 0; } }
+  _end(){ const n = this.buf.length - this.cursor; if (n > 0){ this._w(`\x1b[${n}C`); this.cursor = this.buf.length; } }
+
+  _wordStart(){
+    let i = this.cursor;
+    while (i > 0 && this.buf[i-1] === " ") i--;
+    while (i > 0 && this.buf[i-1] !== " ") i--;
+    return i;
+  }
+  _wordEnd(){
+    let i = this.cursor, n = this.buf.length;
+    while (i < n && this.buf[i] === " ") i++;
+    while (i < n && this.buf[i] !== " ") i++;
+    return i;
+  }
+  _wordLeft(){ const i = this._wordStart(); if (i < this.cursor){ this._w(`\x1b[${this.cursor-i}D`); this.cursor = i; } }
+  _wordRight(){ const i = this._wordEnd(); if (i > this.cursor){ this._w(`\x1b[${i-this.cursor}C`); this.cursor = i; } }
+
+  _killToEnd(){ // Ctrl-K
+    if (this.cursor < this.buf.length){ this.buf = this.buf.slice(0, this.cursor); this._w("\x1b[K"); }
+  }
+  _killToStart(){ // Ctrl-U
+    if (this.cursor === 0) return;
+    const tail = this.buf.slice(this.cursor);
+    this._w(`\x1b[${this.cursor}D` + "\x1b[K" + tail);
+    if (tail.length) this._w(`\x1b[${tail.length}D`);
+    this.buf = tail; this.cursor = 0;
+  }
+  _killWordBack(){ // Ctrl-W / Alt-Backspace
+    const i = this._wordStart();
+    if (i === this.cursor) return;
+    const removed = this.cursor - i;
+    const tail = this.buf.slice(this.cursor);
+    this.buf = this.buf.slice(0, i) + tail;
+    this._w(`\x1b[${removed}D` + tail + "\x1b[K");
+    if (tail.length) this._w(`\x1b[${tail.length}D`);
+    this.cursor = i;
+  }
+
+  _histPrev(){
+    if (this.hist === 0 || this.history.length === 0) return;
+    if (this.hist === this.history.length) this.stash = this.buf;
+    this.hist -= 1; this._setLine(this.history[this.hist]);
+  }
+  _histNext(){
+    if (this.hist >= this.history.length) return;
+    this.hist += 1;
+    this._setLine(this.hist === this.history.length ? this.stash : this.history[this.hist]);
+  }
+
+  _submit(){
+    const line = this.buf;
+    if (line.trim().length && this.history[this.history.length-1] !== line) this.history.push(line);
+    this.active = false;
+    this._w("\r\n");
+    const r = this.resolve; this.resolve = null;
+    if (r) r(line);
+  }
+
+  _abort(){ // Ctrl-C: drop the line, do not submit
+    this.active = false;
+    this._w("^C\r\n");
+    const r = this.resolve; this.resolve = null;
+    if (r) r(null);
+  }
+
+  _onData(d){
+    if (!this.active) return;
+
+    // bulk printable (paste) — fast path
+    if (d.length > 1 && !/[\x00-\x1f\x7f]/.test(d)){ this._insert(d); return; }
+
+    // escape sequences
+    if (d === "\x1b[A"){ this._histPrev(); return; }
+    if (d === "\x1b[B"){ this._histNext(); return; }
+    if (d === "\x1b[C"){ this._right(); return; }
+    if (d === "\x1b[D"){ this._left(); return; }
+    if (d === "\x1b[H" || d === "\x1b[1~" || d === "\x01"){ this._home(); return; }  // Home / Ctrl-A
+    if (d === "\x1b[F" || d === "\x1b[4~" || d === "\x05"){ this._end(); return; }   // End / Ctrl-E
+    if (d === "\x1b[3~"){ this._delete(); return; }                                  // Delete
+    if (d === "\x1b[1;3C" || d === "\x1b[1;5C" || d === "\x1bf"){ this._wordRight(); return; }
+    if (d === "\x1b[1;3D" || d === "\x1b[1;5D" || d === "\x1bb"){ this._wordLeft(); return; }
+    if (d === "\x1b\x7f"){ this._killWordBack(); return; }                           // Alt-Backspace
+
+    // single control chars
+    switch (d){
+      case "\r": case "\n": this._submit(); return;
+      case "\x7f": case "\b": this._backspace(); return;
+      case "\x03": this._abort(); return;       // Ctrl-C
+      case "\x15": this._killToStart(); return; // Ctrl-U
+      case "\x0b": this._killToEnd(); return;   // Ctrl-K
+      case "\x17": this._killWordBack(); return;// Ctrl-W
+      case "\x0c": app.clearScreen(); return;   // Ctrl-L
+    }
+
+    if (d >= " " && d !== "\x7f") this._insert(d); // printable
+  }
+}
+
+/* =====================================================================
+   2. Terminal + bridge wiring
+   ===================================================================== */
+const C = {
+  fg:    (s)=>`\x1b[38;2;235;219;178m${s}\x1b[0m`,
+  green: (s)=>`\x1b[38;2;184;187;38m${s}\x1b[0m`,
+  orange:(s)=>`\x1b[38;2;254;128;25m${s}\x1b[0m`,
+  faint: (s)=>`\x1b[38;2;146;131;116m${s}\x1b[0m`,
+  red:   (s)=>`\x1b[38;2;251;73;52m${s}\x1b[0m`,
+};
+const PROMPT = `\x1b[38;2;184;187;38m\x1b[1m❯\x1b[0m `;
+
+const app = {
+  term:null, fit:null, editor:null, ws:null,
+  state:"down",          // down | ready | busy
+  session:{ doc:"—", model:"—", k:"—", store:true },
+  turnNo:0, pendingQ:null, turnBuf:"", turnErr:false,
+  httpBase:"", hostOpen:false, artifacts:new Map(),
+
+  init(){
+    const term = new Terminal({
+      fontFamily: '"JetBrains Mono", ui-monospace, Menlo, Consolas, monospace',
+      fontSize: 13.5, lineHeight: 1.25, cursorBlink:true, cursorStyle:"bar",
+      scrollback: 5000, convertEol: true,
+      theme:{
+        background:"#1d2021", foreground:"#ebdbb2", cursor:"#fe8019",
+        selectionBackground:"#504945",
+        black:"#282828", red:"#cc241d", green:"#98971a", yellow:"#d79921",
+        blue:"#458588", magenta:"#b16286", cyan:"#689d6a", white:"#a89984",
+        brightBlack:"#928374", brightRed:"#fb4934", brightGreen:"#b8bb26",
+        brightYellow:"#fabd2f", brightBlue:"#83a598", brightMagenta:"#d3869b",
+        brightCyan:"#8ec07c", brightWhite:"#ebdbb2",
+      },
+    });
+    const fit = new FitAddon.FitAddon();
+    term.loadAddon(fit);
+    term.open(document.getElementById("terminal"));
+    this.term = term; this.fit = fit; this.editor = new LineEditor(term);
+
+    (document.fonts ? document.fonts.ready : Promise.resolve()).then(()=>{ try{ fit.fit(); }catch(e){} });
+    new ResizeObserver(()=>{ try{ fit.fit(); }catch(e){} }).observe(document.getElementById("term-wrap"));
+
+    this.banner();
+    this.connect(this.defaultWsUrl());
+
+    document.getElementById("ws-connect").onclick = ()=>{
+      const u = document.getElementById("ws-url").value.trim();
+      if (u) this.connect(u);
+    };
+    document.getElementById("ws-url").value = this.defaultWsUrl();
+  },
+
+  defaultWsUrl(){
+    if (location.protocol === "file:") return "ws://localhost:8787/ws";
+    const proto = location.protocol === "https:" ? "wss" : "ws";
+    return `${proto}://${location.host}/ws`;
+  },
+
+  banner(){
+    this.term.writeln(C.orange("  ▚ drillui ") + C.faint("· ask-the-document terminal"));
+    this.term.writeln(C.faint("  bash-style editing — ↑/↓ history, ⌥←/→ word, ^A/^E, ^U/^K/^W, ^L clear"));
+    this.term.writeln(C.faint("  ") + C.fg("open <url|file>") + C.faint(" opens a window here · ")
+      + C.fg("status/size/model/…") + C.faint(" run pdfdrill · text → question · ")
+      + C.fg("lhelp") + C.faint(" for local cmds"));
+    this.term.writeln("");
+  },
+
+  setConn(state, label){
+    this.state = state;
+    const chip = document.getElementById("conn");
+    chip.dataset.state = state === "ready" || state === "busy" ? state : "down";
+    document.getElementById("conn-label").textContent =
+      label || (state === "ready" ? "ready" : state === "busy" ? "thinking…" : "offline");
+  },
+
+  clearScreen(){
+    // xterm's clear() keeps the current prompt line and makes it the top line,
+    // so the in-progress input and cursor are preserved — no reprint needed.
+    this.term.clear();
+  },
+
+  /* ---- bridge protocol ---- */
+  connect(url){
+    if (this.ws){ try{ this.ws.close(); }catch(e){} }
+    // HTTP origin of the bridge, for serving artifacts (ws→http, drop /ws path)
+    try{
+      const u = new URL(url);
+      u.protocol = u.protocol === "wss:" ? "https:" : "http:";
+      u.pathname = ""; u.search = ""; u.hash = "";
+      this.httpBase = u.toString().replace(/\/$/, "");
+    }catch(e){ this.httpBase = ""; }
+    this.setConn("down","connecting…");
+    let ws;
+    try{ ws = new WebSocket(url); }
+    catch(e){ this.showOverlay(); return; }
+    this.ws = ws;
+
+    ws.onopen = ()=>{ this.hideOverlay(); };
+    ws.onclose = ()=>{
+      this.setConn("down","offline");
+      this.term.writeln(C.red("\r\n[bridge disconnected]"));
+      this.showOverlay();
+    };
+    ws.onerror = ()=>{ this.showOverlay(); };
+    ws.onmessage = (ev)=>{
+      let msg; try{ msg = JSON.parse(ev.data); }catch(e){ return; }
+      this.onMessage(msg);
+    };
+  },
+
+  onMessage(msg){
+    switch (msg.type){
+      case "hello":
+        this.session = { doc:msg.doc||"—", model:msg.model||"default", k:msg.k??"—", store:msg.store!==false };
+        document.getElementById("m-doc").textContent = this.session.doc;
+        document.getElementById("m-model").textContent = this.session.model;
+        document.getElementById("m-k").textContent = String(this.session.k);
+        const sd = document.getElementById("m-store");
+        sd.textContent = this.session.store ? "on" : "off";
+        sd.className = this.session.store ? "ok" : "off";
+        this.hostOpen = msg.hostOpen === true;   // bridge can launch the system browser
+        break;
+
+      case "output":
+        this.term.write(msg.data);
+        if (this.state === "busy"){
+          this.turnBuf += msg.data;
+          if (msg.stream === "stderr") this.turnErr = true;
+        }
+        break;
+
+      case "ready":
+        this.setConn("ready");
+        if (this.pendingQ !== null){ this.commitTurn(); }
+        this.promptLoop();
+        break;
+
+      case "exit":
+        this.setConn("down","exited");
+        this.term.writeln(C.red(`\r\n[drillui_chat exited: ${msg.code}]`));
+        break;
+    }
+  },
+
+  async promptLoop(){
+    while (this.state === "ready"){
+      const line = await this.editor.read(PROMPT);
+      if (line === null) continue;        // Ctrl-C
+      const q = line.trim();
+      if (!q){                            // blank line would quit the REPL — keep session alive
+        this.term.writeln(C.faint("  (enter a question, or close the tab to quit)"));
+        continue;
+      }
+      // LOCAL commands are handled HERE in the browser and NEVER sent to the
+      // Python REPL (so `open …` opens a window — it is not a question/LLM call).
+      if (this.handleLocal(q)) continue;
+      this.pendingQ = q; this.turnBuf = ""; this.turnErr = false;
+      this.setConn("busy");
+      this.ws.send(JSON.stringify({ type:"input", data:q }));
+      return;                             // resume on next "ready"
+    }
+  },
+
+  /* Local (browser-side) commands. Returns true if `q` was handled here — the
+     caller then does NOT forward it to drillui_chat.py. The ONLY local commands
+     are `open` (+ aliases) and `lhelp`; everything else (questions AND pdfdrill
+     subcommands like status/size/model) goes to the Python REPL. This is the fix
+     for "open url called the LLM instead of opening". */
+  handleLocal(q){
+    const sp = q.search(/\s/);
+    const cmd = (sp < 0 ? q : q.slice(0, sp)).toLowerCase();
+    const arg = sp < 0 ? "" : q.slice(sp + 1).trim();
+    if (cmd === "open" || cmd === "openurl" || cmd === "url"){ this.localOpen(arg); return true; }
+    if (cmd === "lhelp"){ this.localHelp(); return true; }
+    return false;
+  },
+
+  localOpen(arg){
+    if (!arg){
+      this.term.writeln(C.faint("  usage: open <url | report.html | path>   (opens a new window)"));
+      return;
+    }
+    let url, label = arg;
+    if (/^https?:\/\//i.test(arg)){ url = arg; }
+    else if (/^www\./i.test(arg)){ url = "https://" + arg; label = url; }
+    else {
+      // a file pdfdrill wrote — served by the bridge under its artifacts root
+      if (!this.httpBase){
+        this.term.writeln(C.red("  no bridge connection — can only open http(s) URLs right now"));
+        return;
+      }
+      url = `${this.httpBase}/artifact?path=${encodeURIComponent(arg)}`;
+    }
+    const w = window.open(url, "_blank", "noopener,noreferrer");
+    if (w){
+      this.term.writeln(C.green("  opening ") + C.fg(label) + C.green("  ↗ (new window)"));
+    } else {
+      // async (post-keystroke) window.open can trip the popup blocker; offer the
+      // Outputs-panel route instead so a real click can open it.
+      this.term.writeln(C.red("  popup blocked") + C.faint(" — allow popups for this page, "
+        + "or click it in the Outputs panel →"));
+      const ext = (label.split(".").pop() || "").toLowerCase();
+      if (!/^https?:/i.test(url) && ["html","svg","pdf"].includes(ext)){
+        this.artifacts.set(arg, { path: arg, ext }); this.renderArtifacts();
+      }
+    }
+  },
+
+  localHelp(){
+    this.term.writeln(C.orange("  local commands") + C.faint(" (this window, not the LLM):"));
+    this.term.writeln("    " + C.fg("open <url|file>") + C.faint("   open a URL or pdfdrill output file in a new window"));
+    this.term.writeln("    " + C.fg("^L") + C.faint("                clear the screen"));
+    this.term.writeln(C.faint("  everything else → drillui_chat.py: a pdfdrill command "
+      + "(status, size, model, report, …) runs on the doc; anything else is a question."));
+  },
+
+  commitTurn(){
+    const q = this.pendingQ; this.pendingQ = null;
+    const text = this.turnBuf; this.turnBuf = "";
+    this.turnNo += 1;
+
+    const m = text.match(/\(grounded in:\s*([^)]*)\)/);
+    const units = m ? m[1].split(",").map(s=>s.trim()).filter(Boolean) : [];
+    const isErr = !!this.turnErr;
+
+    this.scanArtifacts(text);
+
+    document.getElementById("turns-empty")?.remove();
+    const wrap = document.getElementById("turns");
+    const el = document.createElement("div");
+    el.className = "turn" + (isErr ? " err" : "");
+    const stored = isErr ? '<span class="turn-stored err">failed</span>'
+                 : this.session.store ? '<span class="turn-stored yes">stored ✓</span>'
+                 : '<span class="turn-stored no">not stored</span>';
+    el.innerHTML =
+      `<div class="turn-top"><span class="turn-n">#${this.turnNo}</span>${stored}</div>`+
+      `<div class="turn-q"></div>`+
+      (units.length
+        ? `<div class="units">${units.map(u=>`<span class="unit"></span>`).join("")}</div>`
+        : `<div class="units-empty">no units cited</div>`);
+    el.querySelector(".turn-q").textContent = q;
+    if (units.length) el.querySelectorAll(".unit").forEach((s,i)=> s.textContent = units[i]);
+    wrap.prepend(el);
+
+    document.getElementById("turn-count").textContent =
+      `${this.turnNo} turn${this.turnNo===1?"":"s"}`;
+  },
+
+  /* ---- artifacts: turn pdfdrill's *.html/*.svg/*.pdf mentions into links ---- */
+  scanArtifacts(text){
+    // match path-like tokens ending in an openable extension; skip remote URLs
+    const re = /(?<![\w/])((?:[\w.+~@%-]+\/)*[\w.+~@%-]+\.(html|svg|pdf))\b/gi;
+    let m, added = false;
+    while ((m = re.exec(text)) !== null){
+      const path = m[1];
+      if (/^https?:/i.test(path)) continue;
+      if (!this.artifacts.has(path)){
+        this.artifacts.set(path, { path, ext: m[2].toLowerCase() });
+        added = true;
+      }
+    }
+    if (added) this.renderArtifacts();
+  },
+
+  renderArtifacts(){
+    document.getElementById("art-empty")?.remove();
+    const wrap = document.getElementById("artifacts");
+    wrap.innerHTML = "";
+    const items = [...this.artifacts.values()].reverse();   // newest first
+    for (const a of items){
+      const name = a.path.split("/").pop();
+      const row = document.createElement("div");
+      row.className = "art";
+      row.innerHTML =
+        `<span class="ext">${a.ext}</span>`+
+        `<span class="name" title="${a.path}"></span>`+
+        `<a target="_blank" rel="noopener">open ↗</a>`+
+        (this.hostOpen ? `<button class="host" type="button">host</button>` : "");
+      row.querySelector(".name").textContent = name;
+      const url = `${this.httpBase}/artifact?path=${encodeURIComponent(a.path)}`;
+      // Always open in a SEPARATE browser window/tab. preventDefault + window.open
+      // guarantees the terminal page is never navigated away (which would wipe
+      // the session). noopener keeps the new window from reaching back in.
+      const openNewWindow = (e)=>{
+        if (e) e.preventDefault();
+        window.open(url, "_blank", "noopener,noreferrer");
+      };
+      const link = row.querySelector("a");
+      link.href = url; link.target = "_blank"; link.rel = "noopener noreferrer";
+      link.onclick = openNewWindow;
+      const nameEl = row.querySelector(".name");
+      nameEl.title = a.path + "  (click to open in a new window)";
+      nameEl.onclick = openNewWindow;
+      const hb = row.querySelector("button.host");
+      if (hb) hb.onclick = ()=> this.openOnHost(a.path, hb);
+      wrap.appendChild(row);
+    }
+    document.getElementById("art-count").textContent =
+      `${this.artifacts.size} file${this.artifacts.size===1?"":"s"}`;
+  },
+
+  async openOnHost(path, btn){
+    if (!this.ws || this.ws.readyState !== 1) return;
+    const prev = btn.textContent; btn.disabled = true; btn.textContent = "…";
+    try{
+      const r = await fetch(`${this.httpBase}/open`, {
+        method:"POST", headers:{ "content-type":"application/json" },
+        body: JSON.stringify({ path }),
+      });
+      btn.textContent = r.ok ? "opened" : "error";
+    }catch(e){ btn.textContent = "error"; }
+    setTimeout(()=>{ btn.textContent = prev; btn.disabled = false; }, 1400);
+  },
+
+  showOverlay(){ document.getElementById("overlay").classList.add("show"); },
+  hideOverlay(){ document.getElementById("overlay").classList.remove("show"); },
+};
+
+window.addEventListener("DOMContentLoaded", ()=> app.init());
+</script>
+</body>
+</html>

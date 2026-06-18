@@ -1435,6 +1435,32 @@ signal. Two additive fixes (keyless, reuse existing layers, no new deps):
   Tests: `tests/test_visionocr.py` (prompt+parser, fold→refnum, gate
   sets/​warns/​skips, full sandbox per-page round-trip).
 
+## drillui terminal trio (`tools/drillui_*`, browser ask-the-document UI, 2026-06-18)
+
+Three co-located files in `tools/` (full guide: `tools/DRILLUI.md`), distinct
+roles — the shared `drillui_` prefix caused real confusion:
+- **`drillui_chat.py`** — the BRAIN (Python REPL over one doc: `retrieve` →
+  `claude -p` → `chatlog`; also runs pdfdrill subcommands on the doc by name).
+  Self-locates pdfdrill from `../src`.
+- **`drillui_bridge.ts`** — the BRIDGE (Bun): spawns ONE `drillui_chat.py <doc>`
+  per WebSocket, pipes stdin/stdout, serves the HTML + `/artifact` (files
+  pdfdrill writes) + `/open` (host browser). Pure plumbing. Resolves the .py as
+  its sibling → **zero-config**: `bun tools/drillui_bridge.ts data/x.pdf`.
+- **`drillui_term.html`** — the UI (xterm.js terminal + retrieval rail + Outputs
+  panel). Owns the visible prompt.
+
+**The command model (fixes "open url called the LLM"):** the browser decides
+FIRST — `open <url|file>` / `lhelp` / `^L` are LOCAL (handled in
+`drillui_term.html::handleLocal`, a new window via `/artifact` or the URL
+directly, NEVER forwarded). Everything else goes to the Python REPL, where a
+known pdfdrill command name runs on the doc and anything else is a question.
+`promptLoop` calls `handleLocal` BEFORE `ws.send`, so `open` never reaches the
+LLM. Test: `tools/test_drillui_bridge.ts` (spawns the real bridge: page serves,
+the open-is-local contract holds, `/artifact` serves-under-root + refuses
+traversal, `/open` refused when disabled, and a WS `status` round-trip runs on
+the doc). Live-verified end-to-end: a real question → grounded retrieval →
+`claude -p` → cited answer back in the terminal.
+
 ## Stale-model rebuild — projectors/read path honor a newer lines.json (2026-06-18)
 
 Bug (arXiv 2305.04710 "report shows no formulas/tables/images"): the model was
