@@ -36,19 +36,53 @@ import sys
 from pathlib import Path
 
 
-def _pdfdrill_cmd(args: argparse.Namespace) -> tuple[list[str], dict]:
-    """The base argv + env for invoking pdfdrill as a subprocess. Prefers an
-    installed `pdfdrill`; in a source checkout pass --src to run the module."""
-    env = dict(os.environ)
-    if args.src:
-        env["PYTHONPATH"] = args.src + os.pathsep + env.get("PYTHONPATH", "")
-        return [sys.executable, "-m", "pdfdrill"], env
-    if args.pdfdrill:
-        return args.pdfdrill.split(), env
+# This script lives at <repo>/tools/drillui_chat.py, so pdfdrill is ALWAYS
+# right here: <repo>/src/pdfdrill (import root) and <repo>/pdfdrill (the wrapper
+# that exports PYTHONPATH=src for you). We locate it from our OWN path instead
+# of depending on an install or a hand-passed --src — the source is never lost.
+_REPO_ROOT = Path(__file__).resolve().parents[1]
+
+
+def _pdfdrill_cmd(args: argparse.Namespace) -> tuple[list[str], dict, str]:
+    """Resolve how to invoke pdfdrill. Returns (argv_base, env, description).
+
+    Order: explicit --pdfdrill override > explicit --src > the in-repo src tree
+    (self-located from this file) > the in-repo ./pdfdrill wrapper > an installed
+    `pdfdrill` console script on PATH. Raises a clear error only if NONE exist —
+    which, from inside the repo, cannot happen.
+    """
     import shutil
-    if shutil.which("pdfdrill"):
-        return ["pdfdrill"], env
-    return [sys.executable, "-m", "pdfdrill"], env
+    env = dict(os.environ)
+    # libpostal (built into /usr/local/lib) isn't on the default linker path;
+    # mirror the ./pdfdrill wrapper so libpostal-using subcommands don't break.
+    env["LD_LIBRARY_PATH"] = "/usr/local/lib" + os.pathsep + env.get("LD_LIBRARY_PATH", "")
+
+    def _with_src(src: Path) -> tuple[list[str], dict, str]:
+        e = dict(env)
+        e["PYTHONPATH"] = str(src) + os.pathsep + e.get("PYTHONPATH", "")
+        return [sys.executable, "-m", "pdfdrill"], e, f"python -m pdfdrill (PYTHONPATH={src})"
+
+    if args.pdfdrill:                                  # explicit override
+        return args.pdfdrill.split(), env, f"override: {args.pdfdrill}"
+    if args.src:                                       # explicit --src DIR
+        return _with_src(Path(args.src).resolve())
+
+    src = _REPO_ROOT / "src"
+    if (src / "pdfdrill" / "__init__.py").exists():    # the obvious answer
+        return _with_src(src)
+
+    wrapper = _REPO_ROOT / "pdfdrill"
+    if wrapper.exists() and os.access(wrapper, os.X_OK):
+        return [str(wrapper)], env, f"wrapper: {wrapper}"
+
+    found = shutil.which("pdfdrill")
+    if found:                                          # pip-installed console script
+        return ["pdfdrill"], env, f"installed: {found}"
+
+    raise SystemExit(
+        f"error: could not locate pdfdrill. Looked for {src}/pdfdrill, "
+        f"{wrapper}, and a `pdfdrill` on PATH. Pass --src <dir> or "
+        f"--pdfdrill '<cmd>'.")
 
 
 def _run(argv: list[str], env: dict, timeout: float = 180.0) -> str:
@@ -101,28 +135,66 @@ def one_turn(base, env, args, doc: str, q: str, history: str = "") -> str:
     return answer
 
 
+_EPILOG = """\
+examples:
+  # one-shot question (pdfdrill auto-located from this script's repo)
+  tools/drillui_chat.py data/paper.pdf -q "why no single global metric?"
+
+  # interactive REPL with rolling history
+  tools/drillui_chat.py data/paper.pdf
+
+  # cheaper/faster model, more retrieved context, don't persist the turn
+  tools/drillui_chat.py data/paper.pdf --model claude-haiku-4-5-20251001 --k 12 --no-store
+
+  # point at a different pdfdrill (only needed outside the repo)
+  tools/drillui_chat.py paper.pdf --src /path/to/PDFDRILL/src
+  tools/drillui_chat.py paper.pdf --pdfdrill "python -m pdfdrill"
+
+The document must already be drilled (have a pdfdrill model): run
+`pdfdrill model <doc>` (or `markdown <doc>.md`) first. This is the external
+drillui frontend — it only talks to pdfdrill as a subprocess, never imports it.
+"""
+
+
 def main() -> int:
-    ap = argparse.ArgumentParser(description="ask-the-document proxy (external drillui frontend)")
-    ap.add_argument("doc", help="a drilled PDF / .md (must have a pdfdrill model)")
+    ap = argparse.ArgumentParser(
+        prog="drillui_chat.py",
+        description="Ask-the-document proxy: pdfdrill retrieves grounded context, "
+                    "an LLM answers, the Q&A is stored back as a pdfdrill kitem.",
+        epilog=_EPILOG,
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+    )
+    ap.add_argument("doc", nargs="?",
+                    help="a drilled PDF / .md (must have a pdfdrill model)")
     ap.add_argument("-q", "--question", help="one-shot question (omit for a REPL)")
-    ap.add_argument("--k", type=int, default=8, help="retrieved units per question")
+    ap.add_argument("--k", type=int, default=8, help="retrieved units per question (default 8)")
     ap.add_argument("--model", help="claude model (default: whatever `claude` uses)")
-    ap.add_argument("--claude", default="claude", help="claude CLI binary")
-    ap.add_argument("--src", help="dev: add this dir to PYTHONPATH (e.g. 'src')")
+    ap.add_argument("--claude", default="claude", help="claude CLI binary (default 'claude')")
+    ap.add_argument("--src", help="dev: add this dir to PYTHONPATH (e.g. 'src'); "
+                                  "normally auto-located from this script")
     ap.add_argument("--pdfdrill", help="override the pdfdrill invocation (space-separated)")
-    ap.add_argument("--timeout", type=float, default=180.0)
+    ap.add_argument("--timeout", type=float, default=180.0, help="per-call timeout s (default 180)")
     ap.add_argument("--no-store", action="store_true", help="don't write the transcript/kitem")
     args = ap.parse_args()
-    base, env = _pdfdrill_cmd(args)
+
+    # No args at all → show help rather than an argparse 'doc required' stub.
+    if args.doc is None:
+        ap.print_help()
+        return 0
+
+    base, env, how = _pdfdrill_cmd(args)
 
     if args.question:
         try:
             one_turn(base, env, args, args.doc, args.question)
             return 0
         except Exception as e:
-            print(f"error: {e}", file=sys.stderr); return 1
+            print(f"error: {e}", file=sys.stderr)
+            print(f"  (pdfdrill via {how})", file=sys.stderr)
+            return 1
 
-    print(f"drillui_chat — asking {args.doc}. Blank line or Ctrl-D to quit.")
+    print(f"drillui_chat — asking {args.doc} (pdfdrill via {how}). "
+          f"Blank line or Ctrl-D to quit.")
     history = ""
     while True:
         try:
