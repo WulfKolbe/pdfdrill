@@ -3870,7 +3870,9 @@ def cmd_bibfetch(pdf: Path, limit: int | None = None, force: bool = False) -> st
         if rt is _D.Runtime.NONE:
             return ("BibTeX enrichment unavailable: set PERPLEXITY_API_KEY (env "
                     "or .env), or run pdfdrill under Claude Code / the Claude.ai "
-                    "sandbox to use the keyless web-search delegation fallback.")
+                    "sandbox for the keyless web-search delegation fallback. In "
+                    "the sandbox but not detected? force it: "
+                    "PDFDRILL_DELEGATE=sandbox (check `pdfdrill llm <pdf> --runtime`).")
         return _bibfetch_via_delegate(pdf, doc, todo, sc, model_path, rt)
 
     from .net import NetworkBlocked
@@ -4763,7 +4765,9 @@ def cmd_vision(pdf: Path, limit: int | None = None, force: bool = False) -> str:
                 "environment or .env (https://platform.openai.com/api-keys), "
                 "then rerun `pdfdrill vision`. (No Claude agent detected for the "
                 "keyless delegation fallback — run under Claude Code or the "
-                "Claude.ai sandbox to use it.)")
+                "Claude.ai sandbox; if you ARE in the sandbox but it isn't "
+                "detected, force it with PDFDRILL_DELEGATE=sandbox — check with "
+                "`pdfdrill llm <pdf> --runtime`.)")
 
     with open(model_path, "r", encoding="utf-8") as f:
         doc = Document.from_dict(json.load(f))

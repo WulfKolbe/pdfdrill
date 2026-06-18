@@ -381,9 +381,12 @@ def delegate_batch(
     rt = runtime or detect_runtime()
     if rt is Runtime.NONE:
         raise DelegateUnavailable(
-            "no Claude agent available (not in the Claude.ai sandbox and no "
-            "claude CLI on PATH) — set OPENAI_API_KEY / PERPLEXITY_API_KEY, or "
-            "run pdfdrill under Claude Code or the Claude.ai sandbox.")
+            "no Claude agent available (no claude CLI on PATH, and neither "
+            "CLAUDECODE/CLAUDE_CODE_* nor IS_SANDBOX is set) — set OPENAI_API_KEY "
+            "/ PERPLEXITY_API_KEY, or run under Claude Code / the Claude.ai "
+            "sandbox. If you ARE in the sandbox but it isn't detected, force it "
+            "with PDFDRILL_DELEGATE=sandbox (check with `pdfdrill llm <pdf> "
+            "--runtime`).")
 
     results: dict[str, dict] = {}
 
