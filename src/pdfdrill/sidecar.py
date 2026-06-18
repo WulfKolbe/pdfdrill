@@ -69,6 +69,14 @@ class Sidecar:
         if fact not in facts:
             facts.append(fact)
 
+    def remove_fact(self, fact: str):
+        """Clear a fact (e.g. NEEDS_VISION_OCR once equations are folded in).
+        No-op if absent. Note: `facts` is a copy, so `.discard()` won't persist —
+        use this."""
+        facts = self._data.get("facts", [])
+        if fact in facts:
+            facts.remove(fact)
+
     def has(self, fact: str) -> bool:
         return fact in self.facts
 

@@ -1368,6 +1368,46 @@ pdfdrill grows the two primitives it shells out to (additive, read-mostly):
   1.2); stored as an `accepted` kitem. Tests: `tests/test_retrieve.py` (5),
   `tests/test_chat.py` (4). Temporary until the transformation becomes a SKILL.
 
+## Keyless agent-delegated equation OCR — `pdfdrill visionocr` + the math-bearing gate (2026-06-18)
+
+The silent failure: on a math PDF with no MathPix key, `cmd_model` falls back to
+tesseract, which **cannot type display equations** (`EquationProcessor` finds 0),
+yet `model` reported a clean build — 100% of the mathematics dropped with no
+signal. Two additive fixes (keyless, reuse existing layers, no new deps):
+
+- **The gate (`mathqc.is_math_bearing` + `cmd_model`).** `is_math_bearing(pdf, sc)`
+  returns `(True, reason)` when ANY cheap/offline signal fires: math fonts
+  (`font_image_layers` CMEX/CMMI/CMSY/MSAM/MSBM/Symbol…), an `equation.*` named
+  dest (`pdfinfo -dests`), or a cached md-display-math / geometry-eqnum signal.
+  After a build, if the lines.json `source` is `tesseract` AND 0 Equations AND
+  `is_math_bearing`, `cmd_model` sets the **`NEEDS_VISION_OCR`** fact and returns
+  an INSTRUCTING prose (not "success"): runtime `cli`/`sandbox` → "run `pdfdrill
+  visionocr`"; runtime `none` → a WARNING that the math was not captured. The
+  MathPix path and non-math docs are byte-for-byte unchanged (gate keys on
+  source==tesseract + 0 eq + math-bearing). `Sidecar.remove_fact` added (the
+  `facts` property returns a copy, so `.discard` never persisted).
+- **`pdfdrill visionocr <pdf>` (`cmd_visionocr`).** The keyless route to
+  first-class Equation nodes, mirroring `candidates`/`ingest`. Default: rasterize
+  every page (≥200 DPI) and delegate each to the running Claude agent via
+  `llm_delegate` (new **`eq_ocr`** task kind + `openai_vision.EQ_OCR_PROMPT`) —
+  one request per page, visible in `pdfdrill llm --show`, manifest written to the
+  sidecar. The agent returns a JSON array of `{page, number, latex, kind}`
+  (LaTeX with `_{}`/`^{}`/`\frac` preserved, `[]` for a math-free page, never
+  fabricated; `llm_delegate._parse_eq_ocr` is tolerant). `--ingest <json>` folds a
+  supplied records file directly. `_fold_eq_records_into_lines_json` appends
+  `equation` + paired `equation_number` lines (each number at its equation's
+  `top_left_y` so `EquationProcessor._match_equation_numbers` pairs them by
+  page+y), **preserving the tesseract prose**, then rebuilds `model`+`eqnums` and
+  clears `NEEDS_VISION_OCR`. CLI answers synchronously; the sandbox defers and a
+  re-run ingests. `doctor` now lists the three math-OCR routes (MathPix /
+  delegated visionocr / tesseract-prose-only) in preference order. SKILL carries
+  the DECISION RULE (math-bearing + no key + agent ⇒ visionocr) + ANTI-PATTERN
+  (never present a 0-equation tesseract model as complete; don't hand-roll a
+  flattened pseudo-lines.json). Distinct from `remath` (whole-page Markdown
+  rebuild); `visionocr` is surgical — keep prose, inject structured equations.
+  Tests: `tests/test_visionocr.py` (prompt+parser, fold→refnum, gate
+  sets/​warns/​skips, full sandbox per-page round-trip).
+
 ## Formula QC — `pdfdrill mathcheck` (flag FLATTENED formulas, 2026-06-18)
 
 A keyless/visual reconstruction that linearises a 2-D equation produces many

@@ -102,3 +102,4 @@ Other:
 
 OCR / model pipeline:
   pdfdrill remath <pdf> [--pages PAGES] [--force] Keyless MathPix replacement: rebuild MathPix-quality Markdown (LaTeX math) from rendered pages via Claude delegation, so transclusion works without a MathPix key
+  pdfdrill visionocr <pdf> [--ingest INGEST] [--dpi DPI] [--pages PAGES] [--force] Keyless agent-delegated EQUATION OCR: rasterize each page → the running Claude reads the math → fold {page,number,latex,kind} records into the lines.json as real Equation nodes (number paired by geometry). The keyless math route when tesseract built a doc prose-only (NEEDS_VISION_OCR)

@@ -206,13 +206,17 @@ def _cli_invoke(prompt: str, *, system: str, allow_read: bool,
 
 
 def _run_cli(task: LLMTask, *, timeout: float, model: Optional[str]) -> dict:
-    if task.kind in ("vision", "page_md"):
+    if task.kind in ("vision", "page_md", "eq_ocr"):
         # Reference the image path so Claude Code reads it with the Read tool.
         prompt = (f"Read the image file at {Path(task.image_path).resolve()} "
                   f"and analyse it.\n\n{task.prompt}")
         text = _cli_invoke(prompt, system=_SYSTEM_VISION, allow_read=True,
                           timeout=timeout, model=model)
-        return _parse_vision(text) if task.kind == "vision" else _parse_page_md(text)
+        if task.kind == "vision":
+            return _parse_vision(text)
+        if task.kind == "page_md":
+            return _parse_page_md(text)
+        return _parse_eq_ocr(text)
     elif task.kind in ("bibtex", "links"):
         text = _cli_invoke(task.prompt, system=_SYSTEM_BIB, allow_read=False,
                           timeout=timeout, model=model)
@@ -259,6 +263,44 @@ def _parse_page_md(text: str) -> dict:
         s = _strip_fences(s)
     given_up = (not s) or (ov.GIVE_UP_SENTINEL in s)
     return {"markdown": "" if given_up else s, "given_up": given_up}
+
+
+def _parse_eq_ocr(text: str) -> dict:
+    """Parse an equation-OCR reply into {records:[{page,number,latex,kind}]}.
+
+    The agent returns a JSON array (possibly fenced). Anything that doesn't parse
+    to a list of latex-bearing objects yields an empty record set — a page with
+    no readable display math is a valid, common answer, never an error."""
+    s = _strip_fences(text or "")
+    try:
+        arr = json.loads(s)
+    except json.JSONDecodeError:
+        i, j = s.find("["), s.rfind("]")
+        if i >= 0 and j > i:
+            try:
+                arr = json.loads(s[i:j + 1])
+            except json.JSONDecodeError:
+                return {"records": []}
+        else:
+            return {"records": []}
+    if not isinstance(arr, list):
+        return {"records": []}
+    records = []
+    for r in arr:
+        if not isinstance(r, dict):
+            continue
+        latex = (r.get("latex") or "").strip()
+        if not latex:
+            continue
+        kind = r.get("kind") if r.get("kind") in ("equation", "math") else "equation"
+        num = r.get("number")
+        records.append({
+            "page": r.get("page"),
+            "number": str(num).strip() if num not in (None, "") else None,
+            "latex": latex,
+            "kind": kind,
+        })
+    return {"records": records}
 
 
 def _parse_bib(kind: str, text: str) -> dict:
@@ -324,6 +366,8 @@ def _read_response(task: LLMTask, llm_dir: Path) -> Optional[dict]:
         return result if isinstance(result, dict) else _parse_vision(str(result))
     if task.kind == "page_md":
         return result if isinstance(result, dict) else _parse_page_md(str(result))
+    if task.kind == "eq_ocr":
+        return result if isinstance(result, dict) else _parse_eq_ocr(str(result))
     return result if isinstance(result, dict) else _parse_bib(task.kind, str(result))
 
 
@@ -332,6 +376,9 @@ _SCHEMA_HINT = {
                'by selector filled} — see the prompt for the field list.'),
     "page_md": ("Return this page as MathPix-Markdown (inline \\(..\\), display "
                 "$$..$$ on their own lines), or EXACTLY PDFDRILL_CANNOT_RECONSTRUCT."),
+    "eq_ocr": ('Return a JSON array of this page\'s display equations: '
+               '[{"page":int,"number":str|null,"latex":"<LaTeX, keep _{}/^{}/\\\\frac>",'
+               '"kind":"equation"|"math"}], or [] if none. Never fabricate.'),
     "bibtex": "Return a fenced ```bibtex block with one complete @entry{...}.",
     "links": "Return one downloadable URL per line, most direct first. No prose.",
 }

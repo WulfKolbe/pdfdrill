@@ -128,6 +128,34 @@ MATHPIX_MD_PROMPT = (
     f"hallucinate mathematics — an invented equation is far worse than giving up."
 )
 
+# Equation-only OCR: extract just the display equations from ONE page image as
+# structured records (page/number/latex/kind) — the keyless equivalent of
+# MathPix's equation isolation. Used by `pdfdrill visionocr` to fold real
+# Equation nodes back into a tesseract lines.json without re-transcribing prose.
+EQ_OCR_PROMPT = (
+    "You are standing in for MathPix's equation OCR on ONE rendered page. A "
+    "keyless tesseract pass already captured the prose, but it CANNOT type "
+    "mathematics. Look at the page IMAGE and extract every DISPLAY equation (and "
+    "any standalone display formula). Return ONLY a JSON array — no prose, no "
+    "code fence — of objects of this exact shape:\n"
+    '  {"page": <int>, "number": <string|null>, "latex": "<LaTeX>", '
+    '"kind": "equation"|"math"}\n'
+    "Rules:\n"
+    "- One object per display equation, in top-to-bottom reading order.\n"
+    "- `latex`: faithful, COMPILABLE LaTeX. PRESERVE the 2-D structure — "
+    "subscripts _{}, superscripts ^{}, fractions \\frac{}{}, roots \\sqrt{}. "
+    "NEVER linearise. WRONG (flattened): `M = m a (F + j ) (B65)` with the "
+    "subscripts dropped onto other lines. RIGHT: `M = m_a (F + j_0)`. Do NOT put "
+    "the equation number inside `latex`.\n"
+    "- `number`: the printed equation number WITHOUT parentheses (e.g. 'B65', "
+    "'12'), or null if the equation is unnumbered.\n"
+    "- `kind`: 'equation' for a numbered/display equation, 'math' for an "
+    "unnumbered display formula.\n"
+    "- If the page has NO display mathematics, return exactly `[]`. Never invent, "
+    "guess, or fabricate an equation you cannot read clearly — omit it instead.\n"
+    "Output ONLY the JSON array for this one page."
+)
+
 # json_schema enforcing the response shape.
 _SCHEMA = {
     "name": "img_repl",

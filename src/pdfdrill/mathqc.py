@@ -58,6 +58,61 @@ def is_flattened(latex: str) -> bool:
     return False
 
 
+def is_math_bearing(pdf, sc) -> "tuple[bool, str]":
+    """Best-effort, cheap, offline test that a document carries mathematics —
+    so a keyless (tesseract) build that produced 0 equations is a FAILURE, not a
+    result. Returns (True, reason) when ANY signal fires, reusing existing layers
+    with no new heavy deps:
+
+      - math fonts in the font layer (CMEX/CMMI/CMSY/MSAM/MSBM/Symbol/…);
+      - an `equation.*` named destination (pdfinfo -dests);
+      - display math ($$ / \\[) recorded by a prior `md` layer (cached only);
+      - right-margin equation-number tokens from a prior `geometry` pass (cached).
+
+    The first two run their (cheap, offline) tool directly; the last two are read
+    from the sidecar only (never triggered here — they may need MathPix). On a
+    pure scan with no font layer the first two can't fire; run `geometry`/`md`
+    first for that case.
+    """
+    # 1) math fonts (pdffonts — fast, offline). Cached layer preferred.
+    try:
+        from .font_image_layers import fetch_fonts, summarize_fonts
+        fonts = getattr(sc, "fonts_layer", None) or fetch_fonts(pdf)
+        if fonts:
+            s = summarize_fonts(fonts)
+            if s.get("n_math", 0) > 0:
+                names = ", ".join(sorted({
+                    (f.get("base") or f.get("name") or "").split("+")[-1]
+                    for f in fonts if f.get("is_math")})[:3]) or "math"
+                return True, f"math fonts: {names}"
+    except Exception:
+        pass
+    # 2) equation.* named destinations (pdfinfo -dests — cheap, offline).
+    try:
+        dests = getattr(sc, "dests", None)
+        if dests is None:
+            from .pdfinfo_layers import fetch_dests
+            dests = fetch_dests(pdf)
+        if any((d.get("kind") == "equation") for d in (dests or [])):
+            return True, "equation.* named destinations"
+    except Exception:
+        pass
+    # 3) display math detected by a prior md layer (sidecar cache only).
+    try:
+        md_math = sc.get_evidence("md_display_math")
+        if md_math:
+            return True, "display math in md layer"
+    except Exception:
+        pass
+    # 4) right-margin equation-number tokens from a prior geometry pass (cache).
+    try:
+        if sc.get_evidence("geometry_equation_numbers"):
+            return True, "right-margin equation numbers (geometry)"
+    except Exception:
+        pass
+    return False, ""
+
+
 def _latex_of(node) -> str:
     """Best LaTeX string for a doc node/graph node (props['latex'] or 'latex_code')."""
     props = getattr(node, "props", None) or {}

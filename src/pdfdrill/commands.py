@@ -61,6 +61,7 @@ LATEX_INGESTED = "LATEX_INGESTED"
 NLP_ENHANCED = "NLP_ENHANCED"
 OCR_BUILT = "OCR_BUILT"
 VISION_DONE = "VISION_DONE"
+NEEDS_VISION_OCR = "NEEDS_VISION_OCR"  # math-bearing doc built prose-only (tesseract)
 EMBEDDED_IMAGES_BUILT = "EMBEDDED_IMAGES_BUILT"
 BIBSOURCE_BUILT = "BIBSOURCE_BUILT"
 TRANSLATED = "TRANSLATED"
@@ -201,6 +202,18 @@ def _model_path(sc: Sidecar) -> Path:
     return sc.blob_dir / "model.docmodel.json"
 
 
+def _lines_json_source(lines_path: Path) -> str:
+    """Cheap read of the `source` field of a lines.json (e.g. 'tesseract',
+    'mathpix') without loading the whole file. Both producers emit `source`
+    near the top; falls back to '' if not found in the head."""
+    try:
+        head = lines_path.read_text(encoding="utf-8")[:8192]
+    except OSError:
+        return ""
+    m = re.search(r'"source"\s*:\s*"([^"]*)"', head)
+    return m.group(1) if m else ""
+
+
 # A "junky" filename stem that makes a poor tiddler prefix: a long leading
 # digit run (≥5, so arXiv ids like `2004.05631v1` are NOT flagged), whitespace,
 # or doubled punctuation. Used to suggest `--bibkey`.
@@ -284,6 +297,24 @@ def cmd_doctor() -> str:
     for var, route in [("MATHPIX_APP_ID", "mathpix/model"), ("MATHPIX_APP_KEY", "mathpix/snip"),
                        ("OPENAI_API_KEY", "vision"), ("PERPLEXITY_API_KEY", "bibfetch")]:
         lines.append(f"  [{'set ' if get(var) else 'unset'}] {var:<18} — {route}")
+
+    # Math-OCR routes — which path types equations, given what's available.
+    lines.append("")
+    lines.append("Math (equation) OCR routes — in preference order:")
+    has_mpx = bool(get("MATHPIX_APP_ID") and get("MATHPIX_APP_KEY"))
+    lines.append(f"  [{'OK ' if has_mpx else 'n/a'}] MathPix (`pdfdrill mathpix`) "
+                 f"— LaTeX + CDN crops; needs MATHPIX_APP_ID/KEY")
+    try:
+        from . import llm_delegate as _D
+        rt = _D.detect_runtime().value
+    except Exception:
+        rt = "none"
+    agent_ok = rt in ("cli", "sandbox")
+    lines.append(f"  [{'OK ' if agent_ok else 'n/a'}] delegated vision OCR "
+                 f"(`pdfdrill visionocr`) — KEYLESS math route: the running Claude "
+                 f"agent reads each page (runtime: {rt})")
+    lines.append("  [n/a] tesseract (`pdfdrill ocr`) — PROSE ONLY; cannot type "
+                 "equations (a math doc built this way sets NEEDS_VISION_OCR)")
 
     lines.append("")
     if missing_pkgs:
@@ -1836,6 +1867,37 @@ def cmd_model(pdf: Path, force: bool = False, bibkey: str | None = None) -> str:
         detail=f"{len(objects)} objects, {eq_with_cdn} eq w/ cdn",
     )
     sc.save()
+
+    # MATH-BEARING GATE: a tesseract (keyless) build that produced 0 Equations on
+    # a doc that clearly carries math is a FAILURE, not a result. Don't present it
+    # as complete — flag NEEDS_VISION_OCR and instruct the keyless delegation
+    # route (visionocr). The MathPix path and non-math docs are untouched.
+    if by_type.get("Equation", 0) == 0 and _lines_json_source(lines_path) == "tesseract":
+        from . import mathqc, llm_delegate as _D
+        bearing, reason = mathqc.is_math_bearing(pdf, sc)
+        if bearing:
+            sc.add_fact(NEEDS_VISION_OCR)
+            sc.save()
+            n_para = by_type.get("Paragraph", 0)
+            base = (f"{pdf.name} is math-bearing ({reason}) but was built from "
+                    f"tesseract OCR with no MathPix key — tesseract cannot type "
+                    f"equations, so this model has {n_para} Paragraph and 0 "
+                    f"Equation. ")
+            rt = _D.detect_runtime()
+            if rt is _D.Runtime.NONE:
+                return base + (
+                    "WARNING: the mathematics was NOT captured. With a Claude "
+                    "agent (Claude Code / the Claude.ai sandbox) run `pdfdrill "
+                    f"visionocr {pdf.name}` to read each page and supply equation "
+                    "LaTeX (keyless); with an OpenAI/MathPix key use `pdfdrill "
+                    "mathpix`. A 0-equation model on a math doc is a failure "
+                    "signal, not a result.")
+            return base + (
+                f"Run `pdfdrill visionocr {pdf.name}` to read each rendered page "
+                f"and supply equation LaTeX — keyless, delegated to YOU the agent; "
+                f"it folds them into the lines.json as real Equation nodes and "
+                f"rebuilds. (Alternatively `pdfdrill remath {pdf.name}` rebuilds "
+                f"each whole page as MathPix-Markdown.)")
     return _format_model(sc)
 
 
@@ -2525,6 +2587,207 @@ def cmd_remath(pdf: Path, pages: "list[int] | None" = None, force: bool = False)
             + (f" ({gave} page(s) the model declined, skipped)" if gave else "")
             + f" → {out_md.relative_to(sc.pdf_path.parent)}. Now build the model "
             f"WITH LaTeX transclusions: `pdfdrill markdown {out_md} --bibkey {key}`.")
+
+
+def _fold_eq_records_into_lines_json(lines_path: Path, records: list,
+                                     force: bool = False) -> "tuple[int, int]":
+    """Append agent-supplied equation records to a tesseract lines.json as real
+    `equation` (+ paired `equation_number`) lines, preserving the prose lines.
+
+    Each record is {page, number, latex, kind}. Within a page the equations are
+    laid out top-to-bottom at synthetic y positions (when none is supplied) and
+    each `equation_number` is placed at its equation's `top_left_y` so
+    `EquationProcessor` pairs them by page+y. Returns (n_equations, n_numbers).
+    Refuses to clobber a non-tesseract (MathPix) lines.json without `force`."""
+    lj = json.loads(lines_path.read_text(encoding="utf-8"))
+    if lj.get("source") not in ("tesseract", "visionocr") and not force:
+        raise ValueError(
+            f"{lines_path.name} is a {lj.get('source')!r} lines.json — refusing "
+            f"to fold equations into it without --force.")
+    pages_by_no = {p.get("page"): p for p in lj.get("pages", [])}
+    by_page: dict = {}
+    for r in records:
+        pg = r.get("page")
+        if pg is None and len(pages_by_no) == 1:        # single-page doc: assume it
+            pg = next(iter(pages_by_no))
+        by_page.setdefault(pg, []).append(r)
+
+    n_eq = n_num = 0
+    for pg, recs in by_page.items():
+        page = pages_by_no.get(pg)
+        if page is None:                                 # unknown page → skip
+            continue
+        ph = float(page.get("page_height") or 0) or 1400.0
+        pw = float(page.get("page_width") or 0) or 1000.0
+        step = ph / (len(recs) + 1)
+        for i, r in enumerate(recs):
+            latex = (r.get("latex") or "").strip()
+            if not latex:
+                continue
+            kind = r.get("kind") if r.get("kind") in ("equation", "math") else "equation"
+            reg = r.get("region")
+            y = (reg.get("top_left_y") if isinstance(reg, dict)
+                 and reg.get("top_left_y") is not None else round(step * (i + 1), 2))
+            n_eq += 1
+            page["lines"].append({
+                "id": f"veq_p{pg}_{i}", "type": kind,
+                "text": latex, "text_display": latex,
+                "region": {"top_left_x": round(pw * 0.12, 2), "top_left_y": y,
+                           "width": round(pw * 0.6, 2), "height": 24.0},
+            })
+            num = r.get("number")
+            if num not in (None, ""):
+                num_s = str(num).strip()
+                disp = num_s if num_s.startswith("(") else f"({num_s})"
+                n_num += 1
+                page["lines"].append({
+                    "id": f"veqn_p{pg}_{i}", "type": "equation_number",
+                    "text": disp, "text_display": disp,
+                    "region": {"top_left_x": round(pw * 0.85, 2), "top_left_y": y,
+                               "width": round(pw * 0.1, 2), "height": 24.0},
+                })
+    # mark provenance so a re-fold is allowed and a later `ocr` won't clobber blind
+    lj["source"] = "visionocr"
+    lines_path.write_text(json.dumps(lj, ensure_ascii=False), encoding="utf-8")
+    return n_eq, n_num
+
+
+def cmd_visionocr(pdf: Path, ingest: str | None = None, dpi: int = 200,
+                  pages: "list[int] | None" = None, force: bool = False) -> str:
+    """Keyless, agent-delegated equation OCR — the MathPix-free route to first-class
+    Equation nodes when tesseract built a math doc prose-only (NEEDS_VISION_OCR).
+
+    Default (export/delegate): rasterize every page (≥200 DPI) and delegate each
+    to the running Claude agent with `openai_vision.EQ_OCR_PROMPT` (one `eq_ocr`
+    request per page, visible in `pdfdrill llm --show`). The agent returns a JSON
+    array of `{page, number, latex, kind}` per page. CLI answers synchronously;
+    the sandbox defers and you re-run to ingest. Answers are folded into the
+    tesseract lines.json as `equation`/`equation_number` lines (number paired by
+    page+y), then `model`+`eqnums` rebuild and NEEDS_VISION_OCR is cleared.
+
+    `--ingest <json>`: fold a supplied records file (a flat array, or {records:[…]})
+    directly, skipping delegation. Mirrors `candidates`/`ingest`. Equations are
+    never transcribed in code — the agent (your sight) supplies the LaTeX."""
+    import re as _re
+    from . import openai_vision, llm_delegate as D, pdf_reading, mathqc  # noqa: F401
+
+    sc = Sidecar(pdf)
+    key = resolve_bibkey(pdf, None, sc)
+    lines_path = _lines_json_path(pdf)
+
+    def _rebuild_and_clear(n_eq: int, n_num: int, via: str) -> str:
+        cmd_model(pdf, force=True)
+        try:
+            cmd_eqnums(pdf, force=True)
+        except Exception:
+            pass
+        sc2 = Sidecar(pdf)
+        sc2.remove_fact(NEEDS_VISION_OCR)
+        sc2.save()
+        counts = sc2.get_evidence("model_object_counts", {}) or {}
+        return (f"visionocr ({via}): folded {n_eq} equation(s) ({n_num} numbered) "
+                f"into {lines_path.name} → rebuilt model with "
+                f"{counts.get('Equation', 0)} Equation node(s). "
+                f"NEEDS_VISION_OCR cleared. Next: `pdfdrill tiddlers {pdf.name}` / "
+                f"`pdfdrill report {pdf.name}`.")
+
+    # --- explicit ingest of a supplied records file --------------------------
+    if ingest:
+        ip = Path(ingest)
+        if not ip.exists():
+            return f"visionocr --ingest: file not found: {ingest}"
+        if not lines_path.exists():
+            return (f"visionocr --ingest needs the tesseract prose lines.json "
+                    f"({lines_path.name}); run `pdfdrill model {pdf.name}` first.")
+        try:
+            payload = json.loads(ip.read_text(encoding="utf-8"))
+        except json.JSONDecodeError as e:
+            return f"visionocr --ingest: {ingest} is not valid JSON ({e})."
+        records = payload.get("records") if isinstance(payload, dict) else payload
+        if not isinstance(records, list) or not records:
+            return f"visionocr --ingest: no records in {ingest}."
+        try:
+            n_eq, n_num = _fold_eq_records_into_lines_json(lines_path, records, force)
+        except ValueError as e:
+            return str(e)
+        if n_eq == 0:
+            return f"visionocr --ingest: {ingest} held no usable equations."
+        return _rebuild_and_clear(n_eq, n_num, "ingest")
+
+    # --- delegate: rasterize → eq_ocr per page → fold ------------------------
+    rt = D.detect_runtime()
+    if rt is D.Runtime.NONE:
+        return ("visionocr needs a Claude agent to read the page crops (this is "
+                "the keyless equation-OCR route). Run under Claude Code / the "
+                "Claude.ai sandbox; if in the sandbox but undetected, force it "
+                "with PDFDRILL_DELEGATE=sandbox (check `pdfdrill llm <pdf> "
+                "--runtime`). With a MathPix/OpenAI key use `pdfdrill mathpix`. "
+                "Or hand-supply LaTeX with `pdfdrill visionocr --ingest <json>`.")
+
+    if not lines_path.exists():
+        from .ocr_lines import tools_available
+        if tools_available()[0]:
+            cmd_ocr(pdf)                      # build the prose layer first
+        if not lines_path.exists():
+            return (f"visionocr needs a prose lines.json for {pdf.name} — run "
+                    f"`pdfdrill model` / `pdfdrill ocr` first.")
+
+    rdir = sc.blob_dir / "visionocr"
+    try:
+        pngs = pdf_reading.rasterize(pdf, rdir, pages=pages, dpi=dpi)
+    except Exception as e:  # noqa: BLE001
+        return f"visionocr: could not render pages ({e})."
+    if not pngs:
+        return f"visionocr: no pages rendered for {pdf.name}."
+
+    def _pageno(p: Path) -> int:
+        m = _re.search(r"page-(\d+)", p.name)
+        return int(m.group(1)) if m else 0
+
+    # write an inspectable manifest (per-page image + dims) alongside the requests
+    dims = {p.get("page"): (p.get("page_width"), p.get("page_height"))
+            for p in json.loads(lines_path.read_text(encoding="utf-8")).get("pages", [])}
+    manifest = []
+    tasks, pairs = [], []
+    for p in pngs:
+        pn = _pageno(p)
+        w, h = dims.get(pn, (None, None))
+        manifest.append({"page": pn, "image_path": str(p),
+                         "page_width": w, "page_height": h})
+        t = D.LLMTask(kind="eq_ocr", prompt=openai_vision.EQ_OCR_PROMPT,
+                      image_path=str(p), meta={"page": pn})
+        pairs.append((pn, t))
+        tasks.append(t)
+    (sc.blob_dir / "visionocr_manifest.json").write_text(
+        json.dumps({"pages": manifest}, ensure_ascii=False, indent=2),
+        encoding="utf-8")
+
+    try:
+        results, deferred = D.delegate_batch(tasks, drill_dir=sc.blob_dir,
+                                             runtime=rt, timeout=240.0)
+    except D.DelegateUnavailable as e:
+        return str(e)
+    if deferred is not None:
+        return (f"visionocr deferred to the {rt.value} Claude agent: "
+                f"{len(deferred.tasks)} page request(s) written (manifest: "
+                f"{sc.blob_dir.name}/visionocr_manifest.json).\n\n"
+                + deferred.instruction)
+
+    records, blank = [], 0
+    for pn, t in sorted(pairs):
+        res = results.get(t.task_id) or {}
+        recs = res.get("records") or []
+        if not recs:
+            blank += 1
+        for r in recs:
+            if r.get("page") is None:
+                r["page"] = pn                 # default to the task's page
+            records.append(r)
+    if not records:
+        return (f"visionocr: the agent reported no display equations on any of "
+                f"{len(pngs)} page(s) for {pdf.name} — nothing folded.")
+    n_eq, n_num = _fold_eq_records_into_lines_json(lines_path, records, force=True)
+    return _rebuild_and_clear(n_eq, n_num, rt.value)
 
 
 def cmd_identifiers(pdf: Path) -> str:

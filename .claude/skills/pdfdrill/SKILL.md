@@ -295,15 +295,29 @@ move. pdfdrill almost always has a better, deterministic route — use it:
   `pdfdrill vision <pdf>` — with no `OPENAI_API_KEY` it delegates the crops to you.
 - **Math equations, MathPix-KEYLESS (no CDN crops):** `vision` has nothing to
   delegate, and the tesseract text layer has NO LaTeX so transclusion breaks.
-  Two moves:
-  * one-off visual answer → `pdfdrill rasterize <pdf>` and READ the pages.
-  * to RESTORE the transcludable model → `pdfdrill remath <pdf>`: it renders the
-    pages and delegates each to you with the MathPix-replacement prompt; you
-    re-emit MathPix-quality Markdown (inline `\(..\)`, display `$$..$$`) or decline
-    a page honestly (`PDFDRILL_CANNOT_RECONSTRUCT` — never fake math). Then
-    `pdfdrill markdown <key>.mathpix.md` builds a model with REAL equation
-    transclusions. (`pdfdrill latex` is best of all for a born-digital paper: the
-    author's gold equations, no LLM.)
+  Moves, best first:
+  * born-digital paper → `pdfdrill latex <pdf>` (the author's GOLD equations, no LLM).
+  * to get first-class **Equation nodes** keyless → `pdfdrill visionocr <pdf>`: it
+    rasterizes every page and delegates each to YOU (`eq_ocr` request per page);
+    you read the page and return a JSON array of `{page, number, latex, kind}` —
+    real LaTeX, sub/superscripts preserved, `[]` for a page with no math, never
+    fabricated. The records are folded into the lines.json as `equation`/
+    `equation_number` lines (paired by geometry) and the model rebuilds. This is
+    the route the **`model` gate steers to** (see below).
+  * to rebuild the WHOLE page (prose + math) as Markdown → `pdfdrill remath <pdf>`:
+    delegates each page with the MathPix-replacement prompt; you re-emit MathPix-
+    quality Markdown (inline `\(..\)`, display `$$..$$`) or decline a page
+    (`PDFDRILL_CANNOT_RECONSTRUCT`). Then `pdfdrill markdown <key>.mathpix.md`.
+  * one-off visual answer (no model change) → `pdfdrill rasterize <pdf>` and READ.
+
+  **DECISION RULE:** *math-bearing PDF + no MathPix key + agent runtime ⇒
+  `visionocr` (rasterize → read → ingest), NOT the tesseract model.*
+  **ANTI-PATTERN:** *Never report a math paper's model as complete after a
+  tesseract fallback that produced 0 equations.* A 0-equation model on a
+  math-bearing doc is a FAILURE signal, not a result — `pdfdrill model` now
+  detects this, sets `NEEDS_VISION_OCR`, and tells you to run `visionocr`. Do not
+  hand-roll a pseudo-`lines.json` by linearising equations (that yields flattened,
+  unusable LaTeX — see `pdfdrill mathcheck`); let `visionocr` keep the structure.
 
 So "no LLM call happened" is usually CORRECT: a gold/visual route applied. Only
 `bibfetch` (truncated printed refs, no key) and `vision` (MathPix crops, no key)
@@ -421,6 +435,7 @@ _Generated from `commands.yaml` by skillsync. Edit the manifest, not this sectio
 | `pdfdrill booktoc <pdf>` | Greppable TOC with printed→PDF page alignment (front-matter offset from title↔section matches): grep a chapter/section name → its PDF page |
 | `pdfdrill gaps <pdf>` | Report MISSING information (cohomology-as-linter): acronyms used but never expanded, undeclared math symbols, novelty claims without citations, unmatched in-text citations |
 | `pdfdrill llmtext <pdf> [--delimiter DELIMITER] [--no-split]` | Flat LLM dump: per unit the tiddler title + paragraph text / formula latex, document order, units split on double line breaks + separated by --delimiter (default %%%%); empty formulas skipped |
+| `pdfdrill mathcheck <pdf> [--limit LIMIT]` | Formula QC: flag FLATTENED formulas (a visual/keyless reconstruction that linearised a 2-D equation instead of LaTeX — subscripts dropped, eq-number mashed in); steers to remath to rebuild |
 | `pdfdrill clean <pdf>` | Strip MathPix LaTeX residuals from the model: a leading section* command merged into a paragraph -> the title alone + kind/refnum fields (so semantic analysis sees plain text) |
 | `pdfdrill locate <pdf>` | Locate embedded images on their pages (canonical pt/top-left coords + normalized [0,1] + PDF object number), detect full-page/template images, and COMPARE to MathPix regions (IoU) incl. MathPix-only figures |
 | `pdfdrill rulebook <pdf> [--force]` | Claims/definitions -> kitems (fixpoint, evidence spans) -> rulebook.md: one supported/accepted statement per line with a [->k:hash] drill-down anchor + kitem tiddlers |
@@ -464,5 +479,6 @@ _Generated from `commands.yaml` by skillsync. Edit the manifest, not this sectio
 | Command | Returns |
 |---|---|
 | `pdfdrill remath <pdf> [--pages PAGES] [--force]` | Keyless MathPix replacement: rebuild MathPix-quality Markdown (LaTeX math) from rendered pages via Claude delegation, so transclusion works without a MathPix key |
+| `pdfdrill visionocr <pdf> [--ingest INGEST] [--dpi DPI] [--pages PAGES] [--force]` | Keyless agent-delegated EQUATION OCR: rasterize each page → the running Claude reads the math → fold {page,number,latex,kind} records into the lines.json as real Equation nodes (number paired by geometry). The keyless math route when tesseract built a doc prose-only (NEEDS_VISION_OCR) |
 
 <!-- COMMANDS:END -->

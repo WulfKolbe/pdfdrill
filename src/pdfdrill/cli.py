@@ -666,6 +666,29 @@ def _do_llmtext(args):
                        split="--no-split" not in args)
 
 
+def _do_visionocr(args):
+    """pdfdrill visionocr <pdf> [--ingest J] [--dpi N] [--pages N|N-M|all] [--force]"""
+    from .commands import cmd_visionocr
+    ingest, args = _opt(args, "--ingest")
+    dpi, args = _opt(args, "--dpi")
+    pages_s, args = _opt(args, "--pages")
+    force = "--force" in args
+    rest = [a for a in args if a != "--force"]
+    if not rest:
+        raise ValueError("No file specified.")
+    pages = None
+    if pages_s and pages_s != "all":
+        pages = []
+        for part in pages_s.split(","):
+            if "-" in part:
+                a, b = part.split("-", 1)
+                pages.extend(range(int(a), int(b) + 1))
+            else:
+                pages.append(int(part))
+    return cmd_visionocr(_pdf(rest), ingest=ingest, dpi=int(dpi) if dpi else 200,
+                         pages=pages, force=force)
+
+
 def _do_mathcheck(args):
     """pdfdrill mathcheck <pdf|md> [--limit N]  — flag flattened (non-LaTeX) formulas"""
     from .commands import cmd_mathcheck
@@ -1255,6 +1278,7 @@ HANDLERS = {
         "gaps": _do_gaps,
         "llmtext": _do_llmtext,
         "mathcheck": _do_mathcheck,
+        "visionocr": _do_visionocr,
         "classify": _do_classify,
         "clean": _do_clean,
         "locate": _do_locate,
