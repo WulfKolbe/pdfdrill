@@ -279,6 +279,30 @@ The Markdown output uses transclusion syntax for non-textual references:
 When the user asks "what's Theorem 3?", grep the markdown for
 `{{ref:Theorem 3}}` to find every site that cites it.
 
+## Routing — pick the right move BEFORE reaching for delegation
+
+LLM delegation (`vision`/`bibfetch`) is a *last-resort* fallback, not the first
+move. pdfdrill almost always has a better, deterministic route — use it:
+
+- **Bibliography of an arXiv paper, or ANY doc with the author's `.bbl`+`.bib`:**
+  use `pdfdrill bibsource <pdf> --bbl X.bbl --bib X.bib` — the GOLD route. It
+  already does the `\bibitem` alpha-label ↔ citekey ↔ field match and links the
+  in-text citations. **Do NOT hand-roll a bibitem/bib comparison, and do NOT use
+  `bibfetch`** — `bibfetch` (which delegates a web search) is ONLY for *truncated
+  printed* references when there is no gold source. (`pdfdrill latex <pdf>`
+  auto-downloads the arXiv e-print `.tgz`, so the `.bbl`/`.bib` are right there.)
+- **Math equations, MathPix model present (the model has CDN image crops):**
+  `pdfdrill vision <pdf>` — with no `OPENAI_API_KEY` it delegates the crops to you.
+- **Math equations, MathPix-KEYLESS (no CDN crops):** `vision` has nothing to
+  delegate. `pdfdrill rasterize <pdf>` and **READ the rendered pages directly** —
+  this recovers Greek/fractions/roots a Symbol-font text layer and keyless OCR
+  cannot, and IS the intended keyless-math move. (`pdfdrill latex` is even better
+  for a born-digital paper: the author's gold equations.)
+
+So "no LLM call happened" is usually CORRECT: a gold/visual route applied. Only
+`bibfetch` (truncated printed refs, no key) and `vision` (MathPix crops, no key)
+actually trigger the delegation handshake below.
+
 ## Keyless LLM delegation — the sandbox contract (READ THIS before `vision`/`bibfetch`)
 
 Two pdfdrill tasks need a hosted chat-LLM: **`vision`** (an image crop →

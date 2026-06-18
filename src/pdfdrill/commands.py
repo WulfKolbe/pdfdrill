@@ -4777,6 +4777,17 @@ def cmd_vision(pdf: Path, limit: int | None = None, force: bool = False) -> str:
                    and (r.props or {}).get("url") == url for r in o.realizations)
 
     targets = _collect_cdn_crops(doc)
+    if not targets:
+        # `vision` reads the image crops MathPix produces; a MathPix-KEYLESS model
+        # (tesseract / rasterize / chars→lines) has none, so there is nothing to
+        # delegate. The correct keyless math move is to render + read the pages.
+        return (f"No MathPix CDN image crops in {pdf.name}'s model — `vision` "
+                f"reads the crops MathPix emits, and this model has none. For a "
+                f"MathPix-keyless MATH document, render the pages and READ the "
+                f"equations visually: `pdfdrill rasterize {pdf.name}` (then open "
+                f"the PNGs). For born-digital papers, `pdfdrill latex {pdf.name}` "
+                f"recovers the author's gold equations. `vision` only applies once "
+                f"a MathPix model with CDN crops exists.")
     todo = [(o, u) for (o, u) in targets if force or not _has_openai(o, u)]
     if limit is not None:
         todo = todo[:limit]
