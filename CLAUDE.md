@@ -1368,6 +1368,27 @@ pdfdrill grows the two primitives it shells out to (additive, read-mostly):
   1.2); stored as an `accepted` kitem. Tests: `tests/test_retrieve.py` (5),
   `tests/test_chat.py` (4). Temporary until the transformation becomes a SKILL.
 
+## Formula QC — `pdfdrill mathcheck` (flag FLATTENED formulas, 2026-06-18)
+
+A keyless/visual reconstruction that linearises a 2-D equation produces many
+formula tiddlers that are NOT valid LaTeX (observed live: an LLM rasterized each
+page and hand-rolled a pseudo-`lines.json` → 65 formula tiddlers, but each was a
+flattened transcription — `M = m a (F + j ) (B65)` with the subscripts `m_a`/
+`j_0` dropped onto neighbouring lines and the equation number `(B65)` mashed
+in). Such a "formula" won't render in KaTeX or transclude. `src/pdfdrill/
+mathqc.py` `is_flattened(latex)` detects them **conservatively** — any LaTeX
+markup (`\ { } _ ^`) ⇒ structured math, never flagged (so real MathPix LaTeX
+like `\mathbf{x}^{(1)}` / `p(\mathbf{a}\mid\mathbf{b})` is clean); only a
+markup-free string is examined (spans visual lines / inline `(N)` eq-number /
+many detached single letters). `audit_formulas(nodes)` → {total, flattened,
+ratio, samples}. **`pdfdrill mathcheck <pdf>`** (fast DocGraph read path) reports
+the count + examples and, when any are flagged, steers to `pdfdrill remath` (the
+LaTeX-demanding rebuild). The `MATHPIX_MD_PROMPT` was also hardened with an
+explicit anti-linearisation rule (preserve `_{}`/`^{}`/`\frac`; the `M = m a (F +
+j ) (B65)` → `M = m_a (F + j_0) \tag{B65}` worked example). Verified: 1906.02691
+(MathPix model) → 372 formulas, 0 flattened. Tests: `tests/test_mathqc.py` (the
+reported case flagged; clean LaTeX not flagged; audit counts/samples).
+
 ## Keyless MathPix replacement — `pdfdrill remath` (rebuild the LaTeX-math .md, 2026-06-18)
 
 tesseract (the keyless OCR fallback) yields a plain-text layer with **no LaTeX**,

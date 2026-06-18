@@ -2264,6 +2264,50 @@ def cmd_llmtext(pdf: Path, delimiter: str = "%%%%", split: bool = True) -> str:
             f"{out_path.relative_to(sc.pdf_path.parent)}.")
 
 
+def cmd_mathcheck(pdf: Path, limit: int = 8) -> str:
+    """Formula QC: scan the model's formula LaTeX for FLATTENED equations — a
+    keyless/visual reconstruction that linearised a 2-D layout instead of
+    emitting LaTeX (subscripts dropped to neighbouring lines, the equation
+    number mashed in, e.g. `M = m a (F + j ) (B65) n 0`). Such formulas are not
+    valid LaTeX and won't render/transclude. Fast DocGraph read path. When any
+    are flagged, points back to `pdfdrill remath` (the LaTeX-demanding rebuild).
+    """
+    from . import mathqc, model_io
+
+    sc = Sidecar(pdf)
+    model_path = _model_path(sc)
+    if not model_path.exists():
+        return (f"No model for {pdf.name} — run `pdfdrill model` (PDF) or "
+                f"`pdfdrill markdown` (.md) first.")
+    g = model_io.load_docgraph(model_path)
+    rep = mathqc.audit_formulas(list(g), max_samples=limit)
+    total, flat = rep["total"], rep["flattened"]
+    if total == 0:
+        return f"mathcheck {pdf.name}: no formula objects in the model."
+    if flat == 0:
+        return (f"mathcheck {pdf.name}: {total} formula(s), 0 flattened — the "
+                f"LaTeX carries 2-D structure (subscripts/superscripts). Clean.")
+    lines = [
+        f"mathcheck {pdf.name}: {flat}/{total} formula(s) ({rep['ratio']*100:.0f}%) "
+        f"look FLATTENED — linearised text, not LaTeX (won't render/transclude).",
+        "",
+        "Examples:",
+    ]
+    for s in rep["samples"]:
+        lines.append(f"  [{s['id']}] {s['latex']!r}")
+    lines += [
+        "",
+        "These were transcribed visually without preserving the 2-D math layout "
+        "(the tesseract chain, or a hand-rolled pseudo-lines.json). To rebuild "
+        "them as real LaTeX (so transclusion works):",
+        f"  pdfdrill remath {pdf.name}",
+        "then `pdfdrill markdown <key>.mathpix.md` to re-model. `remath` delegates "
+        "each rendered page to the LLM with the MathPix-replacement prompt "
+        "(emit \\(..\\)/$$..$$ LaTeX, or decline a page honestly).",
+    ]
+    return "\n".join(lines)
+
+
 def cmd_classify(pdf: Path, k: int = 8) -> str:
     """Subject-classify the drilled document against the vocabnet vocabularies
     (MSC first; any compiled scheme in vocab/compiled/ participates). Gathers

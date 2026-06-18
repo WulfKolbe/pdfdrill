@@ -666,6 +666,15 @@ def _do_llmtext(args):
                        split="--no-split" not in args)
 
 
+def _do_mathcheck(args):
+    """pdfdrill mathcheck <pdf|md> [--limit N]  — flag flattened (non-LaTeX) formulas"""
+    from .commands import cmd_mathcheck
+    lim, rest = _opt(args, "--limit")
+    if not rest:
+        raise ValueError("No file specified.")
+    return cmd_mathcheck(_drilled(rest), limit=int(lim) if lim else 8)
+
+
 def _do_classify(args):
     """pdfdrill classify <pdf|md> [--k N]  — MSC/subject classification via vocabnet"""
     from .commands import cmd_classify
@@ -1245,6 +1254,7 @@ HANDLERS = {
         "booktoc": _do_booktoc,
         "gaps": _do_gaps,
         "llmtext": _do_llmtext,
+        "mathcheck": _do_mathcheck,
         "classify": _do_classify,
         "clean": _do_clean,
         "locate": _do_locate,
