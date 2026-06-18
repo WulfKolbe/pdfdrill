@@ -242,6 +242,19 @@ const server = Bun.serve<{ sess: Session | null }>({
     if (url.pathname === "/open" && req.method === "POST") {
       if (!OPENER) return new Response("host-open disabled", { status: 403 });
       let body: any; try { body = await req.json(); } catch { return new Response("bad json", { status: 400 }); }
+      // Open a URL in the host's browser (xdg-open/open/…). This is the reliable
+      // path for `open <url>` typed in the terminal: no popup blocker, no lost
+      // user-activation (which silently kills an async window.open / a.click).
+      const rawUrl = String(body?.url || "");
+      if (rawUrl) {
+        if (!/^https?:\/\//i.test(rawUrl))
+          return new Response("only http(s) urls", { status: 400 });
+        try {
+          Bun.spawn({ cmd: [...OPENER, rawUrl], stdout: "ignore", stderr: "ignore" });
+          return Response.json({ ok: true });
+        } catch (e) { return new Response("open failed: " + String(e), { status: 500 }); }
+      }
+      // else open a FILE the bridge serves (must exist under an allowed root)
       const abs = safeResolve(String(body?.path || ""));
       if (!abs) return new Response("forbidden path", { status: 403 });
       if (!(await Bun.file(abs).exists())) return new Response("not found", { status: 404 });

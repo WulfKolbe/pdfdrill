@@ -576,15 +576,44 @@ const app = {
       isUrl ? { url, label, ext, isUrl: true } : { path: arg, ext });
     this.renderArtifacts();
 
-    this.openExternal(url);
+    // A typed command runs in an async continuation, so the browser has lost the
+    // user-activation gesture and will SILENTLY refuse to open a tab (no popup,
+    // no error — exactly the "nothing happens" symptom). So prefer the bridge's
+    // HOST opener (xdg-open/open/…) which has none of those limits; fall back to
+    // an anchor click only when host-open isn't available.
+    if (this.hostOpen){
+      this.hostOpenTarget(isUrl ? { url } : { path: arg }, label);
+    } else {
+      this.openExternal(url);
+      this.term.writeln(C.green("  opening ") + C.fg(label)
+        + C.faint("  ↗ new tab — also in the Outputs panel → (click there if blocked)"));
+    }
+  },
+
+  /* Ask the bridge to open a URL/file in the host's real browser. Reliable for a
+     local session (no popup blocker / no lost gesture). Falls back to an in-page
+     new tab if the bridge can't. */
+  async hostOpenTarget(body, label){
+    try{
+      const r = await fetch(`${this.httpBase}/open`, {
+        method:"POST", headers:{ "content-type":"application/json" },
+        body: JSON.stringify(body),
+      });
+      if (r.ok){
+        this.term.writeln(C.green("  opening ") + C.fg(label) + C.faint("  ↗ in your browser"));
+        return;
+      }
+    }catch(e){ /* fall through to the in-page tab */ }
+    this.openExternal(body.url || `${this.httpBase}/artifact?path=${encodeURIComponent(body.path)}`);
     this.term.writeln(C.green("  opening ") + C.fg(label)
-      + C.faint("  ↗ new tab — also in the Outputs panel → (click there if your browser blocked it)"));
+      + C.faint("  ↗ new tab — or click it in the Outputs panel →"));
   },
 
   /* Open a URL in a new TAB the reliable way: a programmatic <a target="_blank">
      click. window.open(url, "_blank", "noopener…") opens a POPUP WINDOW (which
      popup blockers kill) and returns an unreliable handle; an anchor click is a
-     normal user-gesture navigation and is essentially never blocked. */
+     normal user-gesture navigation. (Used when host-open isn't available, and by
+     the Outputs-panel links, where a real click keeps the gesture.) */
   openExternal(url){
     try{
       const a = document.createElement("a");

@@ -112,5 +112,34 @@ if (up) {
 }
 
 try { proc.kill(); } catch {}
+
+// --- host-open URL path: a second bridge with a HARMLESS opener (/bin/true) ---
+// so we exercise POST /open {url} without actually launching a browser.
+const PORT2 = 8800;
+const proc2 = Bun.spawn({
+  cmd: ["bun", BRIDGE, doc, "--port", String(PORT2), "--opener", "/bin/true"],
+  cwd: resolve(HERE, ".."), stdout: "pipe", stderr: "pipe", env: { ...process.env },
+});
+const base2 = `http://localhost:${PORT2}`;
+let up2 = false;
+for (let i = 0; i < 60; i++) {
+  try { if ((await fetch(base2 + "/")).ok) { up2 = true; break; } } catch {}
+  await sleep(250);
+}
+ok("second bridge (with opener) is up", up2);
+if (up2) {
+  const okUrl = await fetch(base2 + "/open", {
+    method: "POST", headers: { "content-type": "application/json" },
+    body: JSON.stringify({ url: "https://arxiv.org/pdf/1802.08153" }),
+  });
+  ok("POST /open {url} accepted (host opener)", okUrl.ok);
+  const badUrl = await fetch(base2 + "/open", {
+    method: "POST", headers: { "content-type": "application/json" },
+    body: JSON.stringify({ url: "javascript:alert(1)" }),
+  });
+  ok("POST /open refuses a non-http(s) url", badUrl.status === 400);
+}
+try { proc2.kill(); } catch {}
+
 console.log(fails ? `\n${fails} FAILURE(S)` : "\nAll bridge checks passed.");
 process.exit(fails ? 1 : 0);
