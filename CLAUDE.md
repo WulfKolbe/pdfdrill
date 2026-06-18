@@ -1368,6 +1368,26 @@ pdfdrill grows the two primitives it shells out to (additive, read-mostly):
   1.2); stored as an `accepted` kitem. Tests: `tests/test_retrieve.py` (5),
   `tests/test_chat.py` (4). Temporary until the transformation becomes a SKILL.
 
+## Keyless MathPix replacement — `pdfdrill remath` (rebuild the LaTeX-math .md, 2026-06-18)
+
+tesseract (the keyless OCR fallback) yields a plain-text layer with **no LaTeX**,
+so equations never become `{{…||FO}}` transclusions and the whole transclusion
+model collapses. `pdfdrill remath <pdf> [--pages N|N-M|all]` is the fix: it
+renders the pages (`pdf_reading.rasterize`) and **delegates each page to the
+Claude agent** (the same `llm_delegate` handshake — CLI `claude -p`, or the
+sandbox deferred request/response) with **`openai_vision.MATHPIX_MD_PROMPT`** —
+the "stand in for MathPix on this page" prompt: re-emit MathPix-quality Markdown
+(inline `\(..\)`, display `$$..$$` on their own lines, headings/lists/tables,
+faithful, no summarising) **or output exactly `PDFDRILL_CANNOT_RECONSTRUCT`** and
+nothing else (a declined page is skipped + counted — math is never guessed). The
+result is written to `<key>.mathpix.md`; `pdfdrill markdown <key>.mathpix.md`
+then builds a model with **real Equation objects → transclusion restored**.
+Adds the `page_md` task kind to `llm_delegate` (`_parse_page_md` → {markdown,
+given_up}). Tests: `tests/test_remath.py` (prompt demands LaTeX + names the
+give-up token; give-up/markdown parsing; full sandbox per-page round-trip with
+one page declined; graceful no-agent). The SKILL routing block points keyless-
+math docs here (to restore transclusion) vs `rasterize`+read (one-off visual).
+
 ## Keyless LLM-delegation fallback (`src/pdfdrill/llm_delegate.py`, 2026-06-17)
 
 The two prompt-driven providers (`openai_vision`, `perplexity_client`) need a

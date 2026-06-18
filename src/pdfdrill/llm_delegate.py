@@ -206,13 +206,13 @@ def _cli_invoke(prompt: str, *, system: str, allow_read: bool,
 
 
 def _run_cli(task: LLMTask, *, timeout: float, model: Optional[str]) -> dict:
-    if task.kind == "vision":
-        # Reference the crop path so Claude Code reads it with the Read tool.
+    if task.kind in ("vision", "page_md"):
+        # Reference the image path so Claude Code reads it with the Read tool.
         prompt = (f"Read the image file at {Path(task.image_path).resolve()} "
                   f"and analyse it.\n\n{task.prompt}")
         text = _cli_invoke(prompt, system=_SYSTEM_VISION, allow_read=True,
                           timeout=timeout, model=model)
-        return _parse_vision(text)
+        return _parse_vision(text) if task.kind == "vision" else _parse_page_md(text)
     elif task.kind in ("bibtex", "links"):
         text = _cli_invoke(task.prompt, system=_SYSTEM_BIB, allow_read=False,
                           timeout=timeout, model=model)
@@ -248,6 +248,17 @@ def _parse_vision(text: str) -> dict:
     if not isinstance(obj, dict) or "selector" not in obj:
         raise RuntimeError("vision result missing 'selector'")
     return obj
+
+
+def _parse_page_md(text: str) -> dict:
+    """Parse a page→MathPix-Markdown reply: {markdown, given_up}. The sentinel (or
+    empty output) means the model honestly declined — don't ingest a guess."""
+    from . import openai_vision as ov
+    s = (text or "").strip()
+    if s.startswith("```") and s.rstrip().endswith("```"):   # whole page fenced
+        s = _strip_fences(s)
+    given_up = (not s) or (ov.GIVE_UP_SENTINEL in s)
+    return {"markdown": "" if given_up else s, "given_up": given_up}
 
 
 def _parse_bib(kind: str, text: str) -> dict:
@@ -311,12 +322,16 @@ def _read_response(task: LLMTask, llm_dir: Path) -> Optional[dict]:
     # it as a string, parse it through the same path as the CLI transport.
     if task.kind == "vision":
         return result if isinstance(result, dict) else _parse_vision(str(result))
+    if task.kind == "page_md":
+        return result if isinstance(result, dict) else _parse_page_md(str(result))
     return result if isinstance(result, dict) else _parse_bib(task.kind, str(result))
 
 
 _SCHEMA_HINT = {
     "vision": ('Return JSON: {"selector": "...", and ONLY the one field named '
                'by selector filled} — see the prompt for the field list.'),
+    "page_md": ("Return this page as MathPix-Markdown (inline \\(..\\), display "
+                "$$..$$ on their own lines), or EXACTLY PDFDRILL_CANNOT_RECONSTRUCT."),
     "bibtex": "Return a fenced ```bibtex block with one complete @entry{...}.",
     "links": "Return one downloadable URL per line, most direct first. No prose.",
 }

@@ -98,3 +98,6 @@ Planning & automation:
 Other:
   pdfdrill citedrill <pdf> [--limit LIMIT] [--force] Drill INTO each citation: find download links (Perplexity + seeded), fetch the cited PDF, stamp drill_status/pdf_url/pdf_json on the Reference
   pdfdrill classify <pdf> [--k K]             Subject-classify the drilled doc against the vocabnet vocabularies (MSC discipline rollup + PhySH/GND/STW), persisted in the sidecar
+
+OCR / model pipeline:
+  pdfdrill remath <pdf> [--pages PAGES] [--force] Keyless MathPix replacement: rebuild MathPix-quality Markdown (LaTeX math) from rendered pages via Claude delegation, so transclusion works without a MathPix key

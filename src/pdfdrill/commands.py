@@ -2413,6 +2413,76 @@ def cmd_chatlog(pdf: Path, question: str, answer: str,
             f"{len(unit_ids)} cited unit(s). Transcript: {sc.blob_dir.name}/chat.jsonl.")
 
 
+def cmd_remath(pdf: Path, pages: "list[int] | None" = None, force: bool = False) -> str:
+    """Rebuild MathPix-quality Markdown (WITH LaTeX math) from rendered pages by
+    delegating each page to the Claude agent (openai_vision.MATHPIX_MD_PROMPT).
+
+    The keyless fix for the broken-transclusion problem: tesseract's text layer
+    has no LaTeX, so equations never become `{{…||FO}}`. This renders the pages
+    and has a multimodal model re-emit MathPix-shape Markdown (inline `\\(..\\)`,
+    display `$$..$$`) that `markdown_source` turns into real Equation objects.
+    CLI runtime answers synchronously; the sandbox defers one request per page.
+    A page the model declines (PDFDRILL_CANNOT_RECONSTRUCT) is skipped + counted —
+    never faked. Writes `<key>.mathpix.md`; then `pdfdrill markdown` it."""
+    import re as _re
+    from . import openai_vision, llm_delegate as D, pdf_reading
+
+    sc = Sidecar(pdf)
+    key = resolve_bibkey(pdf, None, sc)
+    rt = D.detect_runtime()
+    if rt is D.Runtime.NONE:
+        return ("Re-math needs a Claude agent to read the pages (this is the "
+                "keyless MathPix replacement). Run under Claude Code / the "
+                "Claude.ai sandbox; if in the sandbox but undetected, force it "
+                "with PDFDRILL_DELEGATE=sandbox (check `pdfdrill llm <pdf> "
+                "--runtime`). With an OpenAI key, `pdfdrill mathpix` is the paid route.")
+
+    out_md = sc.blob_dir / f"{key}.mathpix.md"
+    rdir = sc.blob_dir / "remath"
+    try:
+        pngs = pdf_reading.rasterize(pdf, rdir, pages=pages, dpi=150)
+    except Exception as e:  # noqa: BLE001
+        return f"Re-math: could not render pages ({e})."
+    if not pngs:
+        return f"Re-math: no pages rendered for {pdf.name}."
+
+    def _pageno(p: Path) -> int:
+        m = _re.search(r"page-(\d+)", p.name)
+        return int(m.group(1)) if m else 0
+
+    tasks, pairs = [], []
+    for p in pngs:
+        t = D.LLMTask(kind="page_md", prompt=openai_vision.MATHPIX_MD_PROMPT,
+                      image_path=str(p), meta={"page": _pageno(p)})
+        pairs.append((_pageno(p), t))
+        tasks.append(t)
+    try:
+        results, deferred = D.delegate_batch(tasks, drill_dir=sc.blob_dir,
+                                             runtime=rt, timeout=240.0)
+    except D.DelegateUnavailable as e:
+        return str(e)
+    if deferred is not None:
+        return (f"Re-math deferred to the {rt.value} Claude agent: "
+                f"{len(deferred.tasks)} page request(s) written.\n\n"
+                + deferred.instruction)
+
+    parts, gave = [], 0
+    for _pageno_, t in sorted(pairs):
+        res = results.get(t.task_id) or {}
+        if res.get("given_up") or not res.get("markdown"):
+            gave += 1
+            continue
+        parts.append(res["markdown"])
+    if not parts:
+        return (f"Re-math: the model declined every page ({gave} gave up) for "
+                f"{pdf.name} — nothing written (no math was guessed).")
+    out_md.write_text(f"# {key}\n\n" + "\n\n".join(parts) + "\n", encoding="utf-8")
+    return (f"Re-math: rebuilt {len(parts)} page(s) of MathPix-quality Markdown"
+            + (f" ({gave} page(s) the model declined, skipped)" if gave else "")
+            + f" → {out_md.relative_to(sc.pdf_path.parent)}. Now build the model "
+            f"WITH LaTeX transclusions: `pdfdrill markdown {out_md} --bibkey {key}`.")
+
+
 def cmd_identifiers(pdf: Path) -> str:
     """Scan the FRONT MATTER for known identifiers + named-entity candidates.
 

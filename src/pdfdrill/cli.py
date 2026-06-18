@@ -1128,6 +1128,21 @@ def _do_steps(args):
     return planner.describe(args[0], _drilled(args[1:]))
 
 
+def _do_remath(args):
+    """pdfdrill remath <pdf> [--pages N|N-M|all] [--force] — rebuild MathPix-quality
+    Markdown (LaTeX math) from rendered pages via Claude delegation (keyless)."""
+    from .commands import cmd_remath
+    pages_s, rest = _opt(args, "--pages")
+    rest = [a for a in rest if a != "--force"]
+    pages = None
+    if pages_s and pages_s.lower() != "all":
+        if "-" in pages_s:
+            a, b = pages_s.split("-", 1); pages = list(range(int(a), int(b) + 1))
+        else:
+            pages = [int(pages_s)]
+    return cmd_remath(_pdf(rest), pages=pages, force="--force" in args)
+
+
 def _do_retrieve(args):
     """pdfdrill retrieve <pdf|md> "<question>" [--k N] [--json] — top-k relevant
     units as grounded context (the chat-proxy question transformation)."""
@@ -1241,4 +1256,5 @@ HANDLERS = {
         "steps": _do_steps,
         "retrieve": _do_retrieve,
         "chatlog": _do_chatlog,
+        "remath": _do_remath,
     }

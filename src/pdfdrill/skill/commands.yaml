@@ -1355,6 +1355,25 @@ commands:
     type: str
     help: the LLM that answered
   typed: true
+- name: remath
+  section: OCR / model pipeline
+  summary: 'Keyless MathPix replacement: rebuild MathPix-quality Markdown (LaTeX math) from rendered pages
+    via Claude delegation, so transclusion works without a MathPix key'
+  offline_ok: true
+  positionals:
+  - name: pdf
+    type: pdf
+    required: true
+    help: PDF path, https URL, or bare arXiv id
+  flags:
+  - name: pages
+    flag: --pages
+    type: pages
+    help: N | N-M | all (default all)
+  - name: force
+    flag: --force
+    type: flag
+  typed: true
 help_intro: 'pdfdrill — portable PDF drill-down toolkit
 
 

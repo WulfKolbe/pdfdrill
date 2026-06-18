@@ -294,10 +294,16 @@ move. pdfdrill almost always has a better, deterministic route — use it:
 - **Math equations, MathPix model present (the model has CDN image crops):**
   `pdfdrill vision <pdf>` — with no `OPENAI_API_KEY` it delegates the crops to you.
 - **Math equations, MathPix-KEYLESS (no CDN crops):** `vision` has nothing to
-  delegate. `pdfdrill rasterize <pdf>` and **READ the rendered pages directly** —
-  this recovers Greek/fractions/roots a Symbol-font text layer and keyless OCR
-  cannot, and IS the intended keyless-math move. (`pdfdrill latex` is even better
-  for a born-digital paper: the author's gold equations.)
+  delegate, and the tesseract text layer has NO LaTeX so transclusion breaks.
+  Two moves:
+  * one-off visual answer → `pdfdrill rasterize <pdf>` and READ the pages.
+  * to RESTORE the transcludable model → `pdfdrill remath <pdf>`: it renders the
+    pages and delegates each to you with the MathPix-replacement prompt; you
+    re-emit MathPix-quality Markdown (inline `\(..\)`, display `$$..$$`) or decline
+    a page honestly (`PDFDRILL_CANNOT_RECONSTRUCT` — never fake math). Then
+    `pdfdrill markdown <key>.mathpix.md` builds a model with REAL equation
+    transclusions. (`pdfdrill latex` is best of all for a born-digital paper: the
+    author's gold equations, no LLM.)
 
 So "no LLM call happened" is usually CORRECT: a gold/visual route applied. Only
 `bibfetch` (truncated printed refs, no key) and `vision` (MathPix crops, no key)
@@ -452,5 +458,11 @@ _Generated from `commands.yaml` by skillsync. Edit the manifest, not this sectio
 |---|---|
 | `pdfdrill citedrill <pdf> [--limit LIMIT] [--force]` | Drill INTO each citation: find download links (Perplexity + seeded), fetch the cited PDF, stamp drill_status/pdf_url/pdf_json on the Reference |
 | `pdfdrill classify <pdf> [--k K]` | Subject-classify the drilled doc against the vocabnet vocabularies (MSC discipline rollup + PhySH/GND/STW), persisted in the sidecar |
+
+### OCR / model pipeline
+
+| Command | Returns |
+|---|---|
+| `pdfdrill remath <pdf> [--pages PAGES] [--force]` | Keyless MathPix replacement: rebuild MathPix-quality Markdown (LaTeX math) from rendered pages via Claude delegation, so transclusion works without a MathPix key |
 
 <!-- COMMANDS:END -->
