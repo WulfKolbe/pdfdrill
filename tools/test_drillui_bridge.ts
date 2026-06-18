@@ -61,6 +61,14 @@ if (up) {
   const bad = await fetch(base + "/artifact?path=" + encodeURIComponent("../../etc/passwd"));
   ok("GET /artifact refuses path traversal", bad.status === 403);
 
+  // 2b) DOC-RELATIVE artifact: pdfdrill prints paths relative to the DOC's
+  //     folder (e.g. "1906.02691.pdf.drill/model.docmodel.json" for a doc in
+  //     data/), not the bridge cwd. This must still resolve (the report-404 bug).
+  const stem = (doc.split("/").pop() || doc);
+  const docRel = `${stem}.drill/model.docmodel.json`;
+  const dr = await fetch(base + "/artifact?path=" + encodeURIComponent(docRel));
+  ok("GET /artifact resolves a DOC-relative path (report-404 fix)", dr.ok, docRel);
+
   // 3) host-open disabled -> POST /open is 403
   const op = await fetch(base + "/open", {
     method: "POST", headers: { "content-type": "application/json" },

@@ -556,9 +556,9 @@ const app = {
       this.term.writeln(C.faint("  usage: open <url | report.html | path>   (opens a new window)"));
       return;
     }
-    let url, label = arg;
-    if (/^https?:\/\//i.test(arg)){ url = arg; }
-    else if (/^www\./i.test(arg)){ url = "https://" + arg; label = url; }
+    let url, label = arg, isUrl = false;
+    if (/^https?:\/\//i.test(arg)){ url = arg; isUrl = true; }
+    else if (/^www\./i.test(arg)){ url = "https://" + arg; label = url; isUrl = true; }
     else {
       // a file pdfdrill wrote — served by the bridge under its artifacts root
       if (!this.httpBase){
@@ -567,18 +567,22 @@ const app = {
       }
       url = `${this.httpBase}/artifact?path=${encodeURIComponent(arg)}`;
     }
+    // ALWAYS register a one-click entry in the Outputs panel first, so even if
+    // the popup blocker stops the async window.open below there is a real-click
+    // fallback (this is the common failure for a typed `open <url>`).
+    let ext = "url";
+    if (!isUrl) ext = (label.split(".").pop() || "").toLowerCase();
+    else { const mm = arg.split("?")[0].match(/\.(pdf|html|svg|png|jpe?g)$/i); if (mm) ext = mm[1].toLowerCase(); }
+    this.artifacts.set(isUrl ? url : arg,
+      isUrl ? { url, label, ext, isUrl: true } : { path: arg, ext });
+    this.renderArtifacts();
+
     const w = window.open(url, "_blank", "noopener,noreferrer");
     if (w){
       this.term.writeln(C.green("  opening ") + C.fg(label) + C.green("  ↗ (new window)"));
     } else {
-      // async (post-keystroke) window.open can trip the popup blocker; offer the
-      // Outputs-panel route instead so a real click can open it.
       this.term.writeln(C.red("  popup blocked") + C.faint(" — allow popups for this page, "
-        + "or click it in the Outputs panel →"));
-      const ext = (label.split(".").pop() || "").toLowerCase();
-      if (!/^https?:/i.test(url) && ["html","svg","pdf"].includes(ext)){
-        this.artifacts.set(arg, { path: arg, ext }); this.renderArtifacts();
-      }
+        + "or click it in the Outputs panel → (added there)"));
     }
   },
 
@@ -644,16 +648,20 @@ const app = {
     wrap.innerHTML = "";
     const items = [...this.artifacts.values()].reverse();   // newest first
     for (const a of items){
-      const name = a.path.split("/").pop();
+      // an entry is either a FILE {path, ext} (served via the bridge) or a URL
+      // {url, label, ext, isUrl} (opened directly). host-open applies to files.
+      const isUrl = a.isUrl === true;
+      const url = isUrl ? a.url : `${this.httpBase}/artifact?path=${encodeURIComponent(a.path)}`;
+      const name = isUrl ? a.label : a.path.split("/").pop();
+      const title = isUrl ? a.url : a.path;
       const row = document.createElement("div");
       row.className = "art";
       row.innerHTML =
         `<span class="ext">${a.ext}</span>`+
-        `<span class="name" title="${a.path}"></span>`+
+        `<span class="name"></span>`+
         `<a target="_blank" rel="noopener">open ↗</a>`+
-        (this.hostOpen ? `<button class="host" type="button">host</button>` : "");
+        (this.hostOpen && !isUrl ? `<button class="host" type="button">host</button>` : "");
       row.querySelector(".name").textContent = name;
-      const url = `${this.httpBase}/artifact?path=${encodeURIComponent(a.path)}`;
       // Always open in a SEPARATE browser window/tab. preventDefault + window.open
       // guarantees the terminal page is never navigated away (which would wipe
       // the session). noopener keeps the new window from reaching back in.
@@ -665,14 +673,14 @@ const app = {
       link.href = url; link.target = "_blank"; link.rel = "noopener noreferrer";
       link.onclick = openNewWindow;
       const nameEl = row.querySelector(".name");
-      nameEl.title = a.path + "  (click to open in a new window)";
+      nameEl.title = title + "  (click to open in a new window)";
       nameEl.onclick = openNewWindow;
       const hb = row.querySelector("button.host");
       if (hb) hb.onclick = ()=> this.openOnHost(a.path, hb);
       wrap.appendChild(row);
     }
     document.getElementById("art-count").textContent =
-      `${this.artifacts.size} file${this.artifacts.size===1?"":"s"}`;
+      `${this.artifacts.size} item${this.artifacts.size===1?"":"s"}`;
   },
 
   async openOnHost(path, btn){

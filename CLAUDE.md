@@ -1455,7 +1455,13 @@ FIRST — `open <url|file>` / `lhelp` / `^L` are LOCAL (handled in
 directly, NEVER forwarded). Everything else goes to the Python REPL, where a
 known pdfdrill command name runs on the doc and anything else is a question.
 `promptLoop` calls `handleLocal` BEFORE `ws.send`, so `open` never reaches the
-LLM. Test: `tools/test_drillui_bridge.ts` (spawns the real bridge: page serves,
+LLM. **Artifact paths resolve doc-relative:** pdfdrill prints report paths
+relative to the DOC's folder (`1906.02691.pdf.drill/formula-report.html` for a
+doc in `data/`), so the bridge resolves `/artifact` against BOTH its cwd AND the
+document's directory (`ART_ROOTS`, existing-file-wins) — fixing the report
+"file not found" 404. `open <url>` also always drops a one-click link into the
+Outputs panel (URL or file), so a blocked popup still has a real-click fallback.
+Test: `tools/test_drillui_bridge.ts` (spawns the real bridge: page serves,
 the open-is-local contract holds, `/artifact` serves-under-root + refuses
 traversal, `/open` refused when disabled, and a WS `status` round-trip runs on
 the doc). Live-verified end-to-end: a real question → grounded retrieval →

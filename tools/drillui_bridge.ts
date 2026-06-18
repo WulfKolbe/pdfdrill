@@ -97,7 +97,17 @@ function buildCmd(): string[] {
 const HTML_PATH = join(dirname(fileURLToPath(import.meta.url)), "drillui_term.html");
 
 // ---- artifact serving ------------------------------------------------------
+// pdfdrill prints artifact paths RELATIVE TO THE DOCUMENT'S folder (e.g.
+// "1906.02691.pdf.drill/formula-report.html" for a doc in data/), but the
+// bridge's cwd is the repo root — so resolving against cwd alone misses the
+// "data/" segment and 404s. We therefore resolve against BOTH the cwd
+// (artifactsRoot) AND the document's own directory, and serve whichever exists.
 const ART_ROOT = resolve(artifactsRoot);
+const DOC_DIR = (() => {
+  try { const abs = resolve(doc); return existsSync(abs) ? dirname(abs) : null; }
+  catch { return null; }
+})();
+const ART_ROOTS = [...new Set([ART_ROOT, DOC_DIR].filter(Boolean) as string[])];
 
 const MIME: Record<string, string> = {
   ".html": "text/html; charset=utf-8", ".htm": "text/html; charset=utf-8",
@@ -108,12 +118,27 @@ const MIME: Record<string, string> = {
   ".gif": "image/gif", ".webp": "image/webp", ".txt": "text/plain; charset=utf-8",
 };
 
-/** Resolve a user-supplied path under ART_ROOT, or null if it escapes the root. */
+/** A path under a single root, or null if it escapes that root (no traversal). */
+function underRoot(root: string, p: string): string | null {
+  const abs = resolve(root, normalize(p));         // relative → under root; absolute → as-is
+  if (abs !== root && !abs.startsWith(root + sep)) return null;
+  return abs;
+}
+
+/** Resolve a user path under ANY allowed root, preferring one where the file
+ *  actually exists (so a doc-relative path like "X.pdf.drill/report.html"
+ *  resolves under the doc dir). Falls back to the first root's path (which then
+ *  404s with a real location) so callers can still report a sensible error. */
 function safeResolve(p: string): string | null {
   if (!p) return null;
-  const abs = resolve(ART_ROOT, normalize(p));     // relative → under root; absolute → as-is
-  if (abs !== ART_ROOT && !abs.startsWith(ART_ROOT + sep)) return null;  // no traversal
-  return abs;
+  let firstValid: string | null = null;
+  for (const root of ART_ROOTS) {
+    const abs = underRoot(root, p);
+    if (!abs) continue;
+    if (firstValid === null) firstValid = abs;
+    if (existsSync(abs)) return abs;               // existing match wins
+  }
+  return firstValid;                               // none exist → first valid (will 404)
 }
 
 // Host opener: explicit --opener wins; else auto-detect by platform. "" disables.
