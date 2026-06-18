@@ -567,9 +567,8 @@ const app = {
       }
       url = `${this.httpBase}/artifact?path=${encodeURIComponent(arg)}`;
     }
-    // ALWAYS register a one-click entry in the Outputs panel first, so even if
-    // the popup blocker stops the async window.open below there is a real-click
-    // fallback (this is the common failure for a typed `open <url>`).
+    // ALWAYS register a one-click entry in the Outputs panel first, so there is
+    // a real-click fallback even if the auto-open is blocked by the browser.
     let ext = "url";
     if (!isUrl) ext = (label.split(".").pop() || "").toLowerCase();
     else { const mm = arg.split("?")[0].match(/\.(pdf|html|svg|png|jpe?g)$/i); if (mm) ext = mm[1].toLowerCase(); }
@@ -577,13 +576,21 @@ const app = {
       isUrl ? { url, label, ext, isUrl: true } : { path: arg, ext });
     this.renderArtifacts();
 
-    const w = window.open(url, "_blank", "noopener,noreferrer");
-    if (w){
-      this.term.writeln(C.green("  opening ") + C.fg(label) + C.green("  ↗ (new window)"));
-    } else {
-      this.term.writeln(C.red("  popup blocked") + C.faint(" — allow popups for this page, "
-        + "or click it in the Outputs panel → (added there)"));
-    }
+    this.openExternal(url);
+    this.term.writeln(C.green("  opening ") + C.fg(label)
+      + C.faint("  ↗ new tab — also in the Outputs panel → (click there if your browser blocked it)"));
+  },
+
+  /* Open a URL in a new TAB the reliable way: a programmatic <a target="_blank">
+     click. window.open(url, "_blank", "noopener…") opens a POPUP WINDOW (which
+     popup blockers kill) and returns an unreliable handle; an anchor click is a
+     normal user-gesture navigation and is essentially never blocked. */
+  openExternal(url){
+    try{
+      const a = document.createElement("a");
+      a.href = url; a.target = "_blank"; a.rel = "noopener noreferrer";
+      document.body.appendChild(a); a.click(); a.remove();
+    }catch(e){ /* fallback: the Outputs-panel link is always there */ }
   },
 
   localHelp(){
@@ -662,19 +669,13 @@ const app = {
         `<a target="_blank" rel="noopener">open ↗</a>`+
         (this.hostOpen && !isUrl ? `<button class="host" type="button">host</button>` : "");
       row.querySelector(".name").textContent = name;
-      // Always open in a SEPARATE browser window/tab. preventDefault + window.open
-      // guarantees the terminal page is never navigated away (which would wipe
-      // the session). noopener keeps the new window from reaching back in.
-      const openNewWindow = (e)=>{
-        if (e) e.preventDefault();
-        window.open(url, "_blank", "noopener,noreferrer");
-      };
+      // The <a> itself is a real new-tab link (target=_blank) — a plain click
+      // opens it with no popup-blocker issue and never navigates this page away.
       const link = row.querySelector("a");
       link.href = url; link.target = "_blank"; link.rel = "noopener noreferrer";
-      link.onclick = openNewWindow;
       const nameEl = row.querySelector(".name");
-      nameEl.title = title + "  (click to open in a new window)";
-      nameEl.onclick = openNewWindow;
+      nameEl.title = title + "  (click to open in a new tab)";
+      nameEl.onclick = ()=> this.openExternal(url);
       const hb = row.querySelector("button.host");
       if (hb) hb.onclick = ()=> this.openOnHost(a.path, hb);
       wrap.appendChild(row);

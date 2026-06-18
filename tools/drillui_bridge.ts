@@ -253,10 +253,14 @@ const server = Bun.serve<{ sess: Session | null }>({
       }
     }
 
-    // serve the terminal page (default route)
+    // serve the terminal page (default route). no-store: we iterate on this file
+    // a lot — a stale cached copy is a real source of "it doesn't work" (old JS).
     const file = Bun.file(HTML_PATH);
     if (await file.exists()) {
-      return new Response(file, { headers: { "content-type": "text/html; charset=utf-8" } });
+      return new Response(file, { headers: {
+        "content-type": "text/html; charset=utf-8",
+        "cache-control": "no-store, must-revalidate",
+      } });
     }
     return new Response("drillui_term.html not found next to the bridge", { status: 404 });
   },
