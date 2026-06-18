@@ -30,6 +30,7 @@ def _make_model(d: Path) -> Path:
     sc = Sidecar(pdf)
     sc.blob_dir.mkdir(parents=True, exist_ok=True)
     model_io.save_model(sc.blob_dir / "model.docmodel.json", doc)
+    sc.add_fact("MODEL_BUILT")        # a real built model carries this fact
     sc.save()
     return pdf
 

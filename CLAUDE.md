@@ -1435,6 +1435,27 @@ signal. Two additive fixes (keyless, reuse existing layers, no new deps):
   Tests: `tests/test_visionocr.py` (prompt+parser, fold→refnum, gate
   sets/​warns/​skips, full sandbox per-page round-trip).
 
+## Stale-model rebuild — projectors/read path honor a newer lines.json (2026-06-18)
+
+Bug (arXiv 2305.04710 "report shows no formulas/tables/images"): the model was
+built from a lines.json, then a NEWER lines.json was written (MathPix/OCR re-run,
+or a hand-built pseudo-lines.json with the math), but `report`/`tiddlers`/`compare`
+and the fast read-path commands only rebuilt the model when it was **absent** —
+never when it was merely **stale** — so they silently served the old, math-less
+model. Root-caused by mtime: lines.json 17:59 > model 17:56; the lines.json
+actually contained 5 `math` + 4 `diagram` + 2 `table` lines that the stale model
+lacked. `cmd_model` already rebuilt on stale, but nothing else called it.
+
+Fix: `_stale_or_absent(sc, model_path, lines_path)` (missing OR lines.json newer)
+replaces the bare `if not MODEL_BUILT or not model_path.exists()` guard at all 18
+projector sites, and `_fresh_docgraph(pdf, sc, model_path)` (rebuild-if-stale then
+`load_docgraph`) replaces the 6 read-path loaders (llmtext/mathcheck/classify/
+retrieve/identifiers/booktoc) — so a newer lines.json is never silently ignored.
+Offline-safe (cmd_model only auto-runs offline steps). Verified: touch the
+lines.json, `pdfdrill report` (no --force) auto-rebuilds → 5 equations / 40
+formulas / 4 diagrams. Tests: full suite green (test_chat fixture now sets the
+MODEL_BUILT fact, as a real build does).
+
 ## Formula QC — `pdfdrill mathcheck` (flag FLATTENED formulas, 2026-06-18)
 
 A keyless/visual reconstruction that linearises a 2-D equation produces many

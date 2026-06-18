@@ -202,6 +202,33 @@ def _model_path(sc: Sidecar) -> Path:
     return sc.blob_dir / "model.docmodel.json"
 
 
+def _stale_or_absent(sc: "Sidecar", model_path: Path, lines_path: Path) -> bool:
+    """True if the model must be (re)built before a projector/read can trust it:
+    it's missing, OR the lines.json is NEWER than the model (e.g. MathPix/OCR/a
+    hand-built lines.json was written AFTER the last build, so the model is stale
+    and silently missing that content — the 2305.04710 'no formulas' bug). When
+    True the caller's `cmd_model(pdf)` rebuilds (cmd_model itself detects stale)."""
+    if not sc.has(MODEL_BUILT) or not model_path.exists():
+        return True
+    try:
+        return (lines_path.exists()
+                and lines_path.stat().st_mtime > model_path.stat().st_mtime)
+    except OSError:
+        return False
+
+
+def _fresh_docgraph(pdf: Path, sc: "Sidecar", model_path: Path):
+    """Read-path loader that REBUILDS first if the model is stale (lines.json
+    newer), so fast DocGraph commands (llmtext/mathcheck/classify/retrieve/
+    identifiers/booktoc) never silently serve out-of-date content. Offline-safe:
+    cmd_model only auto-runs offline steps. The model must already exist (the
+    caller guards absence)."""
+    from . import model_io
+    if _stale_or_absent(sc, model_path, _lines_json_path(pdf)):
+        cmd_model(pdf)
+    return model_io.load_docgraph(model_path)
+
+
 def _lines_json_source(lines_path: Path) -> str:
     """Cheap read of the `source` field of a lines.json (e.g. 'tesseract',
     'mathpix') without loading the whole file. Both producers emit `source`
@@ -611,7 +638,7 @@ def cmd_entities(pdf: Path, force: bool = False) -> str:
 
     sc = Sidecar(pdf)
     model_path = _model_path(sc)
-    if not sc.has(MODEL_BUILT) or not model_path.exists():
+    if _stale_or_absent(sc, model_path, _lines_json_path(pdf)):
         cmd_model(pdf)
         sc = Sidecar(pdf)
         model_path = _model_path(sc)
@@ -1932,7 +1959,7 @@ def cmd_compare(pdf: Path, force: bool = False, embed: bool = False) -> str:
     # Projectors only READ the model. `--force` re-emits the artifact but must
     # NOT rebuild the model (that would wipe geometry/lists/annotate/biblio/
     # latex layers); only build when the model is genuinely absent.
-    if not sc.has(MODEL_BUILT) or not model_path.exists():
+    if _stale_or_absent(sc, model_path, _lines_json_path(pdf)):
         cmd_model(pdf)
         sc = Sidecar(pdf)
         model_path = _model_path(sc)
@@ -1991,7 +2018,7 @@ def cmd_bibsource(pdf: Path, bib_path: str | None = None,
 
     sc = Sidecar(pdf)
     model_path = _model_path(sc)
-    if not sc.has(MODEL_BUILT) or not model_path.exists():
+    if _stale_or_absent(sc, model_path, _lines_json_path(pdf)):
         cmd_model(pdf)
         sc = Sidecar(pdf)
         model_path = _model_path(sc)
@@ -2310,7 +2337,7 @@ def cmd_llmtext(pdf: Path, delimiter: str = "%%%%", split: bool = True) -> str:
     # full-Document path (build_llm_text reads .type/.id/.props on either).
     from docops.projectors.llm_text import build_llm_text
     from . import model_io
-    g = model_io.load_docgraph(model_path)
+    g = _fresh_docgraph(pdf, sc, model_path)
     key = sc.get_evidence("bibkey") or g.meta.get("bibkey") or pdf.stem
     out = build_llm_text(list(g), g.meta, delimiter=delimiter, split_paragraphs=split)
     doc = None
@@ -2341,7 +2368,7 @@ def cmd_mathcheck(pdf: Path, limit: int = 8) -> str:
     if not model_path.exists():
         return (f"No model for {pdf.name} — run `pdfdrill model` (PDF) or "
                 f"`pdfdrill markdown` (.md) first.")
-    g = model_io.load_docgraph(model_path)
+    g = _fresh_docgraph(pdf, sc, model_path)
     rep = mathqc.audit_formulas(list(g), max_samples=limit)
     total, flat = rep["total"], rep["flattened"]
     if total == 0:
@@ -2390,7 +2417,7 @@ def cmd_classify(pdf: Path, k: int = 8) -> str:
     if not model_path.exists():
         return (f"No model for {pdf.name} — run `pdfdrill model` (PDF) or "
                 f"`pdfdrill markdown` (.md) first.")
-    g = model_io.load_docgraph(model_path)
+    g = _fresh_docgraph(pdf, sc, model_path)
     nodes = list(g)
 
     import os
@@ -2456,7 +2483,7 @@ def cmd_retrieve(pdf: Path, question: str, k: int = 8, as_json: bool = False) ->
     model_path = _model_path(sc)
     if not model_path.exists():
         return f"No model for {pdf.name} — run `pdfdrill model`/`markdown` first."
-    g = model_io.load_docgraph(model_path)
+    g = _fresh_docgraph(pdf, sc, model_path)
     hits = R.retrieve(question, list(g), k=k)
     title = g.meta.get("title") or sc.get_evidence("arxiv_title") or pdf.stem
     cls = sc.get_evidence("classification") or {}
@@ -2819,7 +2846,7 @@ def cmd_identifiers(pdf: Path) -> str:
     model_path = _model_path(sc)
     if not model_path.exists():
         return f"No model for {pdf.name} — run `pdfdrill model` first."
-    g = model_io.load_docgraph(model_path)
+    g = _fresh_docgraph(pdf, sc, model_path)
 
     # front-matter window from the booktoc offset (or default)
     raw = [e for t in g.of_type("Toc") for e in (t.props.get("entries") or [])]
@@ -2879,7 +2906,7 @@ def cmd_booktoc(pdf: Path) -> str:
     model_path = _model_path(sc)
     if not model_path.exists():
         return f"No model for {pdf.name} — run `pdfdrill model` first."
-    g = model_io.load_docgraph(model_path)
+    g = _fresh_docgraph(pdf, sc, model_path)
     key = sc.get_evidence("bibkey") or g.meta.get("bibkey") or pdf.stem
 
     raw = []
@@ -3154,7 +3181,7 @@ def cmd_report(pdf: Path, force: bool = False, embed: bool = False,
 
     sc = Sidecar(pdf)
     model_path = _model_path(sc)
-    if not sc.has(MODEL_BUILT) or not model_path.exists():
+    if _stale_or_absent(sc, model_path, _lines_json_path(pdf)):
         cmd_model(pdf)
         sc = Sidecar(pdf)
         model_path = _model_path(sc)
@@ -3263,7 +3290,7 @@ def cmd_snip(pdf: Path, limit: int | None = None, force: bool = False,
         sc.save()
         return "\n".join(out)
     model_path = _model_path(sc)
-    if not sc.has(MODEL_BUILT) or not model_path.exists():
+    if _stale_or_absent(sc, model_path, _lines_json_path(pdf)):
         cmd_model(pdf)
         sc = Sidecar(pdf)
         model_path = _model_path(sc)
@@ -3358,7 +3385,7 @@ def cmd_lists(pdf: Path, force: bool = False) -> str:
 
     sc = Sidecar(pdf)
     model_path = _model_path(sc)
-    if not sc.has(MODEL_BUILT) or not model_path.exists():
+    if _stale_or_absent(sc, model_path, _lines_json_path(pdf)):
         cmd_model(pdf)
         sc = Sidecar(pdf)
         model_path = _model_path(sc)
@@ -3482,7 +3509,7 @@ def cmd_algorithms(pdf: Path, force: bool = False) -> str:
 
     sc = Sidecar(pdf)
     model_path = _model_path(sc)
-    if not sc.has(MODEL_BUILT) or not model_path.exists():
+    if _stale_or_absent(sc, model_path, _lines_json_path(pdf)):
         cmd_model(pdf)
         sc = Sidecar(pdf)
         model_path = _model_path(sc)
@@ -3590,7 +3617,7 @@ def cmd_latex(pdf: Path, tex: str | None = None, force: bool = False) -> str:
 
     sc = Sidecar(pdf)
     model_path = _model_path(sc)
-    if not sc.has(MODEL_BUILT) or not model_path.exists():
+    if _stale_or_absent(sc, model_path, _lines_json_path(pdf)):
         cmd_model(pdf)
         sc = Sidecar(pdf)
         model_path = _model_path(sc)
@@ -3815,7 +3842,7 @@ def cmd_tiddlers(pdf: Path, force: bool = False, embed: bool = False,
 
     sc = Sidecar(pdf)
     model_path = _model_path(sc)
-    if not sc.has(MODEL_BUILT) or not model_path.exists():
+    if _stale_or_absent(sc, model_path, _lines_json_path(pdf)):
         cmd_model(pdf, bibkey=bibkey)
         sc = Sidecar(pdf)
         model_path = _model_path(sc)
@@ -4100,7 +4127,7 @@ def cmd_geometry(pdf: Path, force: bool = False) -> str:
 
     sc = Sidecar(pdf)
     model_path = _model_path(sc)
-    if not sc.has(MODEL_BUILT) or not model_path.exists():
+    if _stale_or_absent(sc, model_path, _lines_json_path(pdf)):
         cmd_model(pdf)
         sc = Sidecar(pdf)
         model_path = _model_path(sc)
@@ -4169,7 +4196,7 @@ def cmd_bibliography(pdf: Path, force: bool = False) -> str:
 
     sc = Sidecar(pdf)
     model_path = _model_path(sc)
-    if not sc.has(MODEL_BUILT) or not model_path.exists():
+    if _stale_or_absent(sc, model_path, _lines_json_path(pdf)):
         cmd_model(pdf)
         sc = Sidecar(pdf)
         model_path = _model_path(sc)
@@ -4500,7 +4527,7 @@ def cmd_eqnums(pdf: Path, force: bool = False) -> str:
 
     sc = Sidecar(pdf)
     model_path = _model_path(sc)
-    if not sc.has(MODEL_BUILT) or not model_path.exists():
+    if _stale_or_absent(sc, model_path, _lines_json_path(pdf)):
         cmd_model(pdf)
         sc = Sidecar(pdf)
         model_path = _model_path(sc)
@@ -4554,7 +4581,7 @@ def cmd_score(pdf: Path, force: bool = False) -> str:
 
     sc = Sidecar(pdf)
     model_path = _model_path(sc)
-    if not sc.has(MODEL_BUILT) or not model_path.exists():
+    if _stale_or_absent(sc, model_path, _lines_json_path(pdf)):
         cmd_model(pdf)
         sc = Sidecar(pdf)
         model_path = _model_path(sc)
@@ -4635,7 +4662,7 @@ def cmd_nlp(pdf: Path, limit: int | None = None, pages: int | None = None,
 
     sc = Sidecar(pdf)
     model_path = _model_path(sc)
-    if not sc.has(MODEL_BUILT) or not model_path.exists():
+    if _stale_or_absent(sc, model_path, _lines_json_path(pdf)):
         cmd_model(pdf)
         sc = Sidecar(pdf)
         model_path = _model_path(sc)
@@ -4861,7 +4888,7 @@ def cmd_annotate(pdf: Path, force: bool = False) -> str:
 
     sc = Sidecar(pdf)
     model_path = _model_path(sc)
-    if not sc.has(MODEL_BUILT) or not model_path.exists():
+    if _stale_or_absent(sc, model_path, _lines_json_path(pdf)):
         cmd_model(pdf)
         sc = Sidecar(pdf)
         model_path = _model_path(sc)
@@ -4947,7 +4974,7 @@ def cmd_candidates(pdf: Path, provider: str = "llm",
 
     sc = Sidecar(pdf)
     model_path = _model_path(sc)
-    if not sc.has(MODEL_BUILT) or not model_path.exists():
+    if _stale_or_absent(sc, model_path, _lines_json_path(pdf)):
         cmd_model(pdf)
         sc = Sidecar(pdf)
         model_path = _model_path(sc)
@@ -5138,7 +5165,7 @@ def cmd_vision(pdf: Path, limit: int | None = None, force: bool = False) -> str:
 
     sc = Sidecar(pdf)
     model_path = _model_path(sc)
-    if not sc.has(MODEL_BUILT) or not model_path.exists():
+    if _stale_or_absent(sc, model_path, _lines_json_path(pdf)):
         cmd_model(pdf)
         sc = Sidecar(pdf)
         model_path = _model_path(sc)
@@ -5311,7 +5338,7 @@ def cmd_embedimages(pdf: Path, force: bool = False) -> str:
 
     sc = Sidecar(pdf)
     model_path = _model_path(sc)
-    if not sc.has(MODEL_BUILT) or not model_path.exists():
+    if _stale_or_absent(sc, model_path, _lines_json_path(pdf)):
         cmd_model(pdf)
         sc = Sidecar(pdf)
         model_path = _model_path(sc)
