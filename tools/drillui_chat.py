@@ -135,14 +135,43 @@ def chatlog(base: list[str], env: dict, doc: str, q: str, a: str,
                         "--units", ",".join(units), "--model", model or "claude"], env)
 
 
-def run_pdfdrill(base, env, doc: str, argv: list[str], timeout: float) -> str:
-    """Run an arbitrary pdfdrill subcommand on this doc (the `!cmd` passthrough),
-    e.g. !status / !mathpix / !model. The subcommand name is argv[0]; the doc is
-    inserted as its first positional."""
-    if not argv:
-        return "usage: !<pdfdrill-subcommand> [args]   e.g. !status, !mathpix, !model"
-    sub, rest = argv[0], argv[1:]
-    return _run(base + [sub, doc] + rest, env, timeout=timeout)
+def load_commands(base, env, timeout: float) -> dict:
+    """{command_name: first_positional_type} from `pdfdrill skill --json`, so the
+    REPL can run any pdfdrill subcommand by name and know whether to auto-insert
+    the open doc. Empty dict if pdfdrill can't report them (bare-command routing
+    then just falls back to treating input as a question; `!cmd` still works)."""
+    try:
+        out = _run(base + ["skill", "--json"], env, timeout=timeout)
+    except Exception:  # noqa: BLE001
+        return {}
+    obj = _extract_json(out)
+    cmds = (obj or {}).get("commands") or []
+    table = {}
+    for c in cmds:
+        pos = c.get("positionals") or []
+        table[c["name"]] = (pos[0].get("type") if pos else None)
+    return table
+
+
+def _command_argv(cmds: dict, doc: str, cmd: str, rest: list[str]) -> list[str]:
+    """Build the pdfdrill argv for a subcommand, auto-inserting the OPEN doc as
+    the first positional when the command takes one — so the user never repeats
+    the filename. `pdf` positionals always get the doc; `markdown` gets it only
+    when the doc is a .md; dir/no-positional commands get the user's args as-is."""
+    ptype = cmds.get(cmd)
+    if ptype == "pdf" or (cmd == "markdown" and doc.lower().endswith(".md")):
+        return [cmd, doc] + rest
+    return [cmd] + rest                       # doctor/skill/folder/… : no doc
+
+
+def run_command(base, env, cmds: dict, doc: str, line: str, timeout: float) -> str:
+    """Run `<cmd> [args]` (with or without a leading '!') as a pdfdrill subcommand
+    on the open doc."""
+    parts = line.lstrip("!").split()
+    if not parts:
+        return "usage: <pdfdrill-subcommand> [args]   e.g. status, mathpix, model"
+    return _run(base + _command_argv(cmds, doc, parts[0], parts[1:]), env,
+                timeout=timeout)
 
 
 def doc_status(base, env, doc: str, timeout: float) -> str:
@@ -152,15 +181,21 @@ def doc_status(base, env, doc: str, timeout: float) -> str:
         return f"(status unavailable: {e})"
 
 
-_REPL_HELP = """\
-drillui_chat REPL — type a QUESTION about the document and get a grounded answer.
-Meta-commands:
-  :help, :h, ?        show this help
-  :status, :s         show `pdfdrill status <doc>`
-  :quit, :q           quit (also Ctrl-D)
-  !<cmd> [args]       run a pdfdrill subcommand on this doc, e.g.
-                        !status   !mathpix   !model   !mathcheck   !visionocr
-Anything else is treated as a question. (A blank line is ignored.)"""
+def _repl_help(cmds: dict) -> str:
+    n = len(cmds) or "?"
+    return (
+        "drillui_chat REPL — type a QUESTION about the open document and get a\n"
+        "grounded answer. Or run any pdfdrill command on the doc by NAME (the\n"
+        "filename is filled in for you — never repeat it):\n"
+        "  status            size            mathpix         model\n"
+        "  visionocr         mathcheck       tiddlers        report  …\n"
+        f"  ({n} pdfdrill commands available; a leading '!' also forces command mode)\n"
+        "Meta-commands:\n"
+        "  :help, :h, ?      show this help\n"
+        "  :commands         list every pdfdrill command name\n"
+        "  :quit, :q         quit (also Ctrl-D)\n"
+        "Rule: a known pdfdrill command name => command; anything else => question.\n"
+        "A blank line is ignored. Use arrow keys for history.")
 
 
 def one_turn(base, env, args, doc: str, q: str, history: str = "") -> str:
@@ -237,10 +272,17 @@ def main() -> int:
             print(f"  (pdfdrill via {how})", file=sys.stderr)
             return 1
 
-    # Startup precondition check: a drilled MODEL is required. The exact signal
-    # is `retrieve` itself (the question path) — it returns JSON when a model
-    # exists and the prose "No model …" otherwise. Probe it offline once so we
-    # warn up front WITH the fix, instead of letting every turn error opaquely.
+    try:
+        import readline  # noqa: F401  — enables arrow-key history + line editing
+    except ImportError:
+        pass
+
+    cmds = load_commands(base, env, args.timeout)      # {name: first-positional-type}
+
+    # Startup precondition check: a drilled MODEL is required for QUESTIONS. The
+    # exact signal is `retrieve` itself — JSON when a model exists, the prose
+    # "No model …" otherwise. Probe it offline once and, if absent, name the
+    # RIGHT builder for this doc (model for a PDF, markdown for a .md).
     print(f"drillui_chat — asking {args.doc}\n  pdfdrill via {how}")
     try:
         retrieve(base, env, args.doc, "ping", 1)
@@ -249,10 +291,11 @@ def main() -> int:
         drilled = False
         why = str(e).splitlines()[0] if str(e).strip() else "no model"
     if not drilled:
+        builder = "markdown" if args.doc.lower().endswith(".md") else "model"
         print(f"  ⚠ not drilled yet ({why})")
-        print(f"     questions will fail until a model exists — build one here:  "
-              f"!model   (or for Markdown:  !markdown {args.doc})")
-    print("  Type a question, `:help` for commands, `:quit` to exit.")
+        print(f"     questions need a model first — build one here by typing:  {builder}")
+    print("  Type a question, or a pdfdrill command (status, size, model, …); "
+          "`:help`, `:quit`.")
     history = ""
     while True:
         try:
@@ -265,14 +308,18 @@ def main() -> int:
         if line in (":quit", ":q", ":exit"):
             break
         if line in (":help", ":h", "?"):
-            print(_REPL_HELP)
+            print(_repl_help(cmds))
             continue
-        if line in (":status", ":s"):
-            print(doc_status(base, env, args.doc, args.timeout))
+        if line in (":commands", ":cmds"):
+            print("  ".join(sorted(cmds)) or "(command list unavailable)")
             continue
-        if line.startswith("!"):                       # pdfdrill passthrough
+        # A pdfdrill command — either forced with '!' or recognised by name —
+        # runs on the open doc (filename auto-filled). Everything else is a
+        # question to the document.
+        first = line.lstrip("!").split(maxsplit=1)[0] if line.lstrip("!") else ""
+        if line.startswith("!") or first in cmds:
             try:
-                print(run_pdfdrill(base, env, args.doc, line[1:].split(), args.timeout))
+                print(run_command(base, env, cmds, args.doc, line, args.timeout))
             except Exception as e:                     # noqa: BLE001
                 print(f"error: {e}", file=sys.stderr)
             continue
