@@ -1467,6 +1467,29 @@ traversal, `/open` refused when disabled, and a WS `status` round-trip runs on
 the doc). Live-verified end-to-end: a real question → grounded retrieval →
 `claude -p` → cited answer back in the terminal.
 
+## Document title → `doc.meta["title"]` + tiddler `caption` (2026-06-19)
+
+Tiddler titles ARE bibkey-prefixed (`<bibkey>_PARA_0001`, `_H1`, `_EQ0001`, …)
+and the root/document tiddler's title IS the bibkey — which defaults to the
+**filename stem** when no `--bibkey` is given, so a batch (`folder`) over messy
+filenames yields filename-based tiddler titles (and, after a TiddlyWiki *node*
+save, filename-based `<title>.md`/`.md.meta` files — those sidecars are written
+by TiddlyWiki, not pdfdrill). Two fixes so the human title is preserved
+properly:
+- **The PDF path never captured the document title.** `page._extract_title`
+  (called from `ingest_lines_json`) now promotes the leading `type:"title"`
+  line(s) — resolving MathPix's parent/`children_ids` nesting, skipping a bare
+  "Abstract" — into `doc.meta["title"]` (only if unset; the tesseract path has no
+  title line → stays empty). This also feeds scikgtex / llm_compact YAML / etc.
+- **The document tiddler now carries the human title in `caption`** (TITLE stays
+  the bibkey id; heading + `caption` use the title, with the bibkey shown as a
+  sub-line). Section tiddlers already put their heading in `caption`. So: `title`
+  = stable bibkey id, `caption` = human title — exactly the split needed for a
+  node save. To get a clean bibkey instead of a messy stem, pass `--bibkey`
+  (single doc); `folder` batch still uses each file's stem. Tests:
+  `tests/test_docops.py` (title capture; root title=bibkey/caption=title;
+  no-title fallback).
+
 ## Keyless arXiv math recovery — `latex` CREATES gold equations; `report` explains an empty result (2026-06-19)
 
 Symptom (arXiv 2305.04710, keyless): `report` → "0 inline formulas + 0 display

@@ -17,10 +17,35 @@ page-level metadata on `doc.meta`.
 """
 from __future__ import annotations
 
+import re
 from typing import Any, Optional
 
 from ..base_module import BaseModule
 from ..core import Document, DocObject, Realization
+
+
+def _extract_title(lines_json: dict) -> str:
+    """Best-effort document title from the leading `type:"title"` line(s) on the
+    first page(s). MathPix often nests the title text in child lines (the parent
+    title line's own `text` is empty), so resolve `children_ids`. Returns "" when
+    there is no title line (e.g. the keyless tesseract path emits only `text`)."""
+    for page in lines_json.get("pages", [])[:2]:
+        lines = page.get("lines", [])
+        by_id = {l.get("id"): l for l in lines if l.get("id")}
+        parts: list[str] = []
+        for l in lines:
+            if l.get("type") != "title":
+                continue
+            txt = (l.get("text") or "").strip()
+            if not txt and l.get("children_ids"):
+                txt = " ".join((by_id.get(cid, {}).get("text") or "")
+                               for cid in l["children_ids"])
+            txt = " ".join(txt.split())
+            if txt and not re.fullmatch(r"abstract", txt, re.I):
+                parts.append(txt)
+        if parts:
+            return " ".join(parts).strip()
+    return ""
 
 
 def ingest_lines_json(doc: Document, lines_json: dict) -> None:
@@ -51,6 +76,12 @@ def ingest_lines_json(doc: Document, lines_json: dict) -> None:
             stream.append(**payload)
     doc.meta["pages"] = pages_meta
     doc.meta["num_pages"] = len(pages_meta)
+    # Capture the document title (for the tiddler `caption`, scikgtex, the
+    # llm_compact YAML header, …) — the PDF path never stored it before.
+    if not doc.meta.get("title"):
+        t = _extract_title(lines_json)
+        if t:
+            doc.meta["title"] = t
 
 
 class PageProcessor(BaseModule):

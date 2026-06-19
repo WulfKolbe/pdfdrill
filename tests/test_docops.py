@@ -573,6 +573,33 @@ def test_end_to_end_with_full_pipeline(tmp_path=None):
         assert "information here" in text  # dehyphenation took effect
 
 
+def test_document_title_captured_and_root_caption_is_title():
+    """A `type:"title"` line → doc.meta['title']; the document tiddler keeps the
+    bibkey as its TITLE and carries the human title in `caption`."""
+    doc = _build_sample_doc(extra_lines=[
+        {"id": "ti", "type": "title", "text": "", "children_ids": ["tic"]},
+        {"id": "tic", "type": "text", "text": "My Great Paper"},
+    ])
+    assert doc.meta.get("title") == "My Great Paper"
+    proj = TiddlyWikiProjector(OperatorConfig(
+        op="projector", classname="TiddlyWikiProjector", params={}))
+    tids = json.loads(proj.project(doc))
+    root = [t for t in tids if "document" in (t.get("tags") or "")][0]
+    assert root["title"] == "T"                       # bibkey, NOT the title
+    assert root.get("caption") == "My Great Paper"    # human title in caption
+    assert root["text"].splitlines()[0] == "! My Great Paper"
+
+
+def test_no_title_line_caption_falls_back_to_bibkey():
+    doc = _build_sample_doc()                          # no title line (tesseract-like)
+    assert not doc.meta.get("title")
+    proj = TiddlyWikiProjector(OperatorConfig(
+        op="projector", classname="TiddlyWikiProjector", params={}))
+    tids = json.loads(proj.project(doc))
+    root = [t for t in tids if "document" in (t.get("tags") or "")][0]
+    assert root["title"] == "T" and root.get("caption") == "T"
+
+
 if __name__ == "__main__":
     tests = [v for k, v in list(globals().items()) if k.startswith("test_")]
     failed = []

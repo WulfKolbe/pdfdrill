@@ -632,13 +632,18 @@ class TiddlyWikiProjector(BaseProjector):
             t["displayMode"] = "true" if info["display"] else "false"
             out.append(t)
 
-        # Root
-        out.append(self._t(
+        # Root / document tiddler: TITLE is the bibkey (the stable namespace /
+        # filename for a node save), the human document title lives in `caption`
+        # (TiddlyWiki shows the caption in tabs/links; the title stays a clean id).
+        doc_caption = (doc.meta.get("title") or "").strip() or bibkey
+        root = self._t(
             bibkey,
-            self._root_body(bibkey, inv["pages"], inv["sections"],
+            self._root_body(bibkey, doc_caption, inv["pages"], inv["sections"],
                             inv["paragraphs"], inv["equations"], inv["formulas"]),
             f"document bibtex {_bibtag(bibkey)}",
-        ))
+        )
+        root["caption"] = doc_caption
+        out.append(root)
         return out
 
     # ----- substitution -----
@@ -887,10 +892,12 @@ class TiddlyWikiProjector(BaseProjector):
         return "\n\n".join(lines)
 
     @staticmethod
-    def _root_body(bibkey, pages, sections, paragraphs, equations, formulas) -> str:
+    def _root_body(bibkey, caption, pages, sections, paragraphs, equations, formulas) -> str:
+        heading = caption if caption and caption != bibkey else bibkey
         return (
-            f"! {bibkey}\n\n"
-            f"* Total Pages: {len(pages)}\n"
+            f"! {heading}\n\n"
+            + (f"//{bibkey}//\n\n" if heading != bibkey else "")
+            + f"* Total Pages: {len(pages)}\n"
             f"* Total Sections: {len(sections)}\n"
             f"* Total Paragraphs: {len(paragraphs)}\n"
             f"* Total Equations: {len(equations)}\n"
