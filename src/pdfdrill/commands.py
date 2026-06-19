@@ -3967,9 +3967,27 @@ def cmd_tiddlers(pdf: Path, force: bool = False, embed: bool = False,
     )
     sc.save()
     rel = out_path.relative_to(sc.pdf_path.parent)
+    # Referential-integrity guard: every transclusion target/template must exist
+    # and no synthetic FOX may be orphaned (created but never referenced) — the
+    # "double bug" class. Report it so it can't hide.
+    from docops.projectors.tiddlywiki import tiddler_integrity
+    integ = tiddler_integrity(json.loads(result))
+    if integ["dangling"] or integ["orphan_synthetic"]:
+        bits = []
+        if integ["dangling"]:
+            bits.append(f"{len(integ['dangling'])} DANGLING transclusion(s) "
+                        f"(e.g. {', '.join(integ['dangling'][:3])})")
+        if integ["orphan_synthetic"]:
+            bits.append(f"{len(integ['orphan_synthetic'])} ORPHAN synthetic "
+                        f"formula(s) (e.g. {', '.join(integ['orphan_synthetic'][:3])})")
+        integ_note = " ⚠ integrity: " + "; ".join(bits) + "."
+    else:
+        integ_note = (f" Integrity OK: {integ['transclusions']} transclusions, "
+                      f"0 dangling, 0 orphan.")
     return (f"Wrote {count} TiddlyWiki tiddlers to {rel}. Import into TiddlyWiki; "
             f"diagram SVGs render via {{{{!!svg_tiddler}}}} "
-            f"({'inline' if embed_svg else 'external _canonical_uri'}).{svg_note}")
+            f"({'inline' if embed_svg else 'external _canonical_uri'}).{svg_note}"
+            f"{integ_note}")
 
 
 # Tag -> the tiddler field whose prose gets translated. Math/code/image/toc

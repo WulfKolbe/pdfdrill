@@ -600,6 +600,41 @@ def test_no_title_line_caption_falls_back_to_bibkey():
     assert root["title"] == "T" and root.get("caption") == "T"
 
 
+def test_fox_referenced_and_referential_integrity():
+    """A line-wrapped \\(...\\) → a synthetic FOX tiddler that IS referenced by
+    its paragraph, with no dangling transclusions and no orphan synthetics (the
+    'double bug' guard)."""
+    from docops.projectors.tiddlywiki import tiddler_integrity
+    doc = _build_sample_doc(extra_lines=[
+        {"id": "a", "type": "text", "text": r"the bound \(\alpha ="},
+        {"id": "b", "type": "text", "text": r"\beta^2\) holds"},
+    ])
+    proj = TiddlyWikiProjector(OperatorConfig(
+        op="projector", classname="TiddlyWikiProjector", params={}))
+    tids = json.loads(proj.project(doc))
+    fox = [t["title"] for t in tids if "synthetic" in (t.get("tags") or "")]
+    assert len(fox) == 1                                   # the wrapped inline math
+    paras = [t for t in tids if (t.get("tags") or "").startswith("paragraph")]
+    assert any(fox[0] in t["text"] for t in paras)         # NOT orphaned
+    integ = tiddler_integrity(tids)
+    assert integ["dangling"] == []                         # no broken transclusion
+    assert integ["orphan_synthetic"] == []                 # no orphan FOX
+
+
+def test_tiddler_integrity_flags_dangling_and_orphan():
+    from docops.projectors.tiddlywiki import tiddler_integrity
+    tids = [
+        {"title": "A", "text": "see {{B||FO}} and {{GHOST}}", "tags": "paragraph"},
+        {"title": "B", "text": "x", "tags": "formula"},
+        {"title": "FO", "text": "<$latex/>", "tags": ""},
+        {"title": "K_FOX_dead", "text": "<$latex/>", "tags": "formula synthetic"},
+    ]
+    rep = tiddler_integrity(tids)
+    assert "GHOST" in rep["dangling"]                       # missing target
+    assert "K_FOX_dead" in rep["orphan_synthetic"]          # never referenced
+    assert "B" not in rep["dangling"] and "FO" not in rep["dangling"]
+
+
 if __name__ == "__main__":
     tests = [v for k, v in list(globals().items()) if k.startswith("test_")]
     failed = []

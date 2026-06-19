@@ -50,6 +50,48 @@ def _sanitize_title(t: str) -> str:
     return re.sub(r"[^A-Za-z0-9_\-\.]", "_", t)
 
 
+_TRANSCLUDE_RE = re.compile(r"\{\{([^{}]+?)\}\}")
+
+
+def tiddler_integrity(tiddlers: list[dict]) -> dict:
+    """Referential-integrity audit of a tiddler array — guards the FOX class of
+    bug (a synthetic formula created but never referenced, or a transclusion
+    target/template that doesn't exist, so the formula silently doesn't render).
+
+    Returns {transclusions, dangling:[...], orphan_synthetic:[...]}:
+      - dangling: `{{target}}` / `{{target||tpl}}` whose target OR template tiddler
+        is missing (the transclusion would render nothing);
+      - orphan_synthetic: `synthetic` (FOX) tiddlers that no text references.
+    `{{!!field}}` (current-tiddler field) is correctly ignored.
+    """
+    titles = {t.get("title") for t in tiddlers}
+    targets_seen: set[str] = set()
+    dangling: set[str] = set()
+    n = 0
+    for t in tiddlers:
+        for m in _TRANSCLUDE_RE.finditer(t.get("text") or ""):
+            inner = m.group(1).strip()
+            if inner.startswith("!!"):                # {{!!field}} → no title
+                continue
+            target = inner.split("||")[0].split("!!")[0].strip()
+            tpl = None
+            if "||" in inner:
+                rest = inner.split("||", 1)[1]
+                tpl = (rest.split("}")[0].split()[0] or None) if rest else None
+            n += 1
+            if target:
+                targets_seen.add(target)
+                if target not in titles:
+                    dangling.add(target)
+            if tpl and tpl not in titles:
+                dangling.add(tpl)
+    orphan_synthetic = sorted(
+        t.get("title") for t in tiddlers
+        if "synthetic" in (t.get("tags") or "") and t.get("title") not in targets_seen)
+    return {"transclusions": n, "dangling": sorted(dangling),
+            "orphan_synthetic": orphan_synthetic}
+
+
 def _bibtag(bibkey: str) -> str:
     """The bibkey as a single TiddlyWiki tag ([[...]]-wrapped if it has spaces)."""
     bibkey = bibkey or "DOC"
