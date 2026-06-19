@@ -33,14 +33,20 @@ commands:
   typed: true
 - name: artifacts
   section: Introspection (fast, no extraction)
-  summary: 'List every openable file in the doc''s drill folder (report.html, the extracted <bibkey>.md,
-    model/tiddlers/semantic *.json, SVGs) with paths — all clickable in the drillui Outputs panel'
+  summary: 'List the openable files in the doc''s drill folder (report.html, the extracted <bibkey>.md,
+    tiddlers/semantic/llm *.json/*.txt, SVGs) with paths — clickable in the drillui Outputs panel. Giant
+    model JSON hidden unless --all. (`status` also lists them.)'
   offline_ok: true
   positionals:
   - name: pdf
     type: pdf
     required: true
     help: PDF/Markdown drilled-doc path, URL, or arXiv id
+  flags:
+  - name: all
+    flag: --all
+    type: flag
+    help: include the giant model/ir JSON
   typed: true
 - name: size
   section: Introspection (fast, no extraction)

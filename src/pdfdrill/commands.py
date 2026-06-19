@@ -401,33 +401,52 @@ def cmd_config(action: str = "show") -> str:
 
 _ARTIFACT_EXTS = (".html", ".htm", ".json", ".md", ".svg", ".pdf", ".txt",
                   ".tex", ".csv")
+# Huge / internal artifacts skipped by default (shown with --all): the raw model
+# (tens of MB) and the IR/packed sidecars — not things to open in a browser tab.
+_HEAVY_INTERNAL = {"model.docmodel.json", "model.docpack.json", "ir.json"}
+_HEAVY_BYTES = 15_000_000
 
 
-def cmd_artifacts(pdf: Path) -> str:
-    """List every openable file in this doc's drill folder (report.html, the
-    extracted `<bibkey>.md`, model/tiddlers/semantic `*.json`, SVGs, …) with its
-    path — so they ALL become clickable links in the drillui Outputs panel (the
-    browser opens md/json/svg/pdf/html directly). No `fetch`, no `find`."""
-    sc = Sidecar(pdf)
+def _list_artifacts(sc: "Sidecar", all_files: bool = False) -> "list[Path]":
+    """Top-level drill OUTPUTS (report.html, <bibkey>.md, *.json, *.txt) + rendered
+    `svg/` — NOT the texsrc/remath/ocr/… scratch trees. By default skips the giant
+    model JSON / IR sidecars; `all_files=True` keeps them."""
     d = sc.blob_dir
     if not d.exists():
-        return (f"No drill folder yet for {pdf.name} — run `pdfdrill model` / "
-                f"`md` / `report` / `tiddlers` first.")
-    # Top-level drill OUTPUTS (report.html, <bibkey>.md, *.json, …) + rendered
-    # SVGs — NOT the texsrc/remath/ocr/… scratch & extraction trees.
+        return []
     files = [p for p in d.glob("*")
              if p.is_file() and p.suffix.lower() in _ARTIFACT_EXTS]
     svgdir = d / "svg"
     if svgdir.is_dir():
         files += [p for p in svgdir.glob("*.svg")]
+    if not all_files:
+        files = [p for p in files if p.name not in _HEAVY_INTERNAL
+                 and p.stat().st_size <= _HEAVY_BYTES]
     files.sort(key=lambda p: (p.suffix.lower(), p.name))
-    rel_dir = d.relative_to(sc.pdf_path.parent)
+    return files
+
+
+def cmd_artifacts(pdf: Path, all_files: bool = False) -> str:
+    """List the openable files in this doc's drill folder (report.html, the
+    extracted `<bibkey>.md`, tiddlers/semantic/llm `*.json`/`*.txt`, SVGs) with
+    their paths — so they're clickable in the drillui Outputs panel (the browser
+    opens md/json/svg/pdf/html directly). The giant model JSON is skipped unless
+    `--all`. No `fetch`, no `find`."""
+    sc = Sidecar(pdf)
+    if not sc.blob_dir.exists():
+        return (f"No drill folder yet for {pdf.name} — run `pdfdrill model` / "
+                f"`md` / `report` / `tiddlers` first.")
+    rel_dir = sc.blob_dir.relative_to(sc.pdf_path.parent)
+    files = _list_artifacts(sc, all_files=all_files)
     if not files:
         return f"No openable artifacts in {rel_dir}/ yet (run md/report/tiddlers/…)."
     lines = [f"{len(files)} artifact(s) in {rel_dir}/ — click to open in a tab:"]
     for p in files:
         lines.append(f"  {p.relative_to(sc.pdf_path.parent)}  "
                      f"({p.stat().st_size / 1024:.0f} KB)")
+    if not all_files and any((sc.blob_dir / n).exists() for n in _HEAVY_INTERNAL):
+        lines.append("  (the raw model JSON is hidden — `pdfdrill artifacts "
+                     f"{pdf.name} --all` to include it)")
     return "\n".join(lines)
 
 
@@ -6220,6 +6239,15 @@ def cmd_status(pdf: Path) -> str:
                    ) if i.get("seq_in_doc") is not None else "Seite ?"
             cont_s = " (→cont.)" if i.get("is_continuation") else ""
             parts.append(f"    p{int(page_no):>2}: {seq}{cont_s}")
+
+    # Surface the openable artifacts so they appear as clickable links in the
+    # drillui Outputs panel (the giant model JSON is skipped — see `artifacts --all`).
+    arts = _list_artifacts(sc)
+    if arts:
+        parts.append("\nFiles (open in a tab / click in the Outputs panel):")
+        for p in arts:
+            parts.append(f"  {p.relative_to(sc.pdf_path.parent)}  "
+                         f"({p.stat().st_size / 1024:.0f} KB)")
 
     last = sc.last_node
     parts.append(f"\nLast action: {last}. {len(sc.transitions)} transitions logged.")

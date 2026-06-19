@@ -111,10 +111,13 @@ def _drilled(args: list[str]) -> Path:
 
 
 def _do_artifacts(args):
-    """pdfdrill artifacts <pdf|md> — list the drill-folder files (md/json/html/svg/…)
-    with paths, so they're all clickable in the drillui Outputs panel."""
+    """pdfdrill artifacts <pdf|md> [--all] — list the drill-folder files
+    (md/json/html/svg/…) with paths, clickable in the drillui Outputs panel.
+    --all includes the giant model JSON (hidden by default)."""
     from .commands import cmd_artifacts
-    return cmd_artifacts(_drilled(args))
+    all_files = "--all" in args
+    rest = [a for a in args if a != "--all"]
+    return cmd_artifacts(_drilled(rest), all_files=all_files)
 
 
 def _do_config(args):

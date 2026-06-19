@@ -1485,8 +1485,15 @@ Driven by drillui usage feedback (downloads landing in cwd/`/tmp`; re-drilling;
   folder (alongside the `md.md` blob that `fetch` reads) and **reports its path**
   in every return (`_write_named_md`) — no `fetch`/`find` needed.
 - **drillui Outputs panel links `.md`/`.json`/`.txt`/`.tex`** too (was html/svg/
-  pdf only): `scanArtifacts` regex + bridge MIME extended. So `report`, `md`,
-  `llmtext`, `tables`, `tiddlers` outputs all become clickable.
+  pdf only): `scanArtifacts` regex + bridge MIME extended; the bridge also serves
+  the **download dir** (`ART_ROOTS` += config `download_dir`) so `~/Downloads/
+  *.drill/*` links resolve. So `report`, `md`, `llmtext`, `tables`, `tiddlers`
+  outputs all become clickable.
+- **`pdfdrill artifacts <pdf> [--all]`** (`cmd_artifacts`/`_list_artifacts`) lists
+  the drill folder's openable OUTPUTS (report.html, `<bibkey>.md`, tiddlers/llm
+  `*.json`/`*.txt`, rendered `svg/`) with paths — **the giant model/ir JSON is
+  hidden unless `--all`** (>15 MB or a known internal name). **`status` appends
+  the same listing**, so running `status` in drillui fills the Outputs panel.
 - **drillui `add` reuses, never re-drills** (model is idempotent; dedup if already
   in context) and writes the session combined store to the config download dir
   (via `pdfdrill config --download-dir`), not a scratch cwd.
