@@ -51,16 +51,18 @@ for (let i = 0; i < argv.length; i++) {
   else passthrough.push(a);
 }
 
-if (!doc) {
+if (argv.includes("-h") || argv.includes("--help")) {
   console.error(
-    "usage: bun drillui_bridge.ts <doc> [flags]      (see tools/DRILLUI.md)\n" +
-    "  <doc>  a drilled PDF/.md, an https URL, or a bare arXiv id.\n" +
+    "usage: bun drillui_bridge.ts [doc] [flags]      (see tools/DRILLUI.md)\n" +
+    "  [doc]  OPTIONAL — a drilled PDF/.md, an https URL, or a bare arXiv id.\n" +
+    "         Omit it to start with an empty context and use `add <doc>` in the\n" +
+    "         terminal (the doc is optional now that `add` exists).\n" +
     "  Zero config from the repo: `bun tools/drillui_bridge.ts data/paper.pdf`\n" +
     "  finds drillui_chat.py as its sibling and pdfdrill in ../src.\n" +
     "  flags: [--port N] [--model NAME] [--k N] [--no-store] [--python BIN]\n" +
     "         [--chat PATH] [--src DIR] [--artifacts DIR]\n" +
     "         [--opener firefox|xdg-open|...] [--no-open]");
-  process.exit(2);
+  process.exit(0);
 }
 
 // Resolve drillui_chat.py to an ABSOLUTE, EXISTING path. Order: --chat flag,
@@ -86,7 +88,8 @@ function resolveChatScript(): string {
 const CHAT_SCRIPT = resolveChatScript();
 
 function buildCmd(): string[] {
-  const cmd = [pythonBin, CHAT_SCRIPT, doc, "--k", String(k)];
+  // doc is OPTIONAL — without it drillui_chat starts empty (use `add` in the UI).
+  const cmd = [pythonBin, CHAT_SCRIPT, ...(doc ? [doc] : []), "--k", String(k)];
   if (src) cmd.push("--src", src);
   if (model) cmd.push("--model", model);
   if (!store) cmd.push("--no-store");
@@ -104,6 +107,7 @@ const HTML_PATH = join(dirname(fileURLToPath(import.meta.url)), "drillui_term.ht
 // (artifactsRoot) AND the document's own directory, and serve whichever exists.
 const ART_ROOT = resolve(artifactsRoot);
 const DOC_DIR = (() => {
+  if (!doc) return null;
   try { const abs = resolve(doc); return existsSync(abs) ? dirname(abs) : null; }
   catch { return null; }
 })();
@@ -283,7 +287,7 @@ const server = Bun.serve<{ sess: Session | null }>({
       ws.data.sess = sess;
       send(ws, {
         type: "hello",
-        doc,
+        doc: doc || "(none — use add)",
         model: model ?? "default",
         k,
         store,

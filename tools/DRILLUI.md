@@ -34,7 +34,12 @@ one is and how they connect.
 
 ```bash
 bun tools/drillui_bridge.ts data/yourpaper.pdf      # then open http://localhost:8787/
+bun tools/drillui_bridge.ts                         # OR start EMPTY, then `add` docs in the UI
 ```
+
+The document is **optional** — start empty and bring documents in with `add
+<pdf|url|arxiv-id>` (repeat for more); the first `add` becomes the context, each
+further `add` merges into it.
 
 That's all: the bridge finds `drillui_chat.py` as its sibling, `python3` runs
 it, and `drillui_chat.py` finds `pdfdrill` in `../src`. Flags only if you need

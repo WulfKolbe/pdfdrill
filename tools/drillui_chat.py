@@ -206,6 +206,9 @@ def do_add(base, env, newdoc: str, docs: list, combined: str | None,
         print("  context unchanged.", file=sys.stderr)
         return (combined or docs[0]), combined
     docs.append(newdoc)
+    if len(docs) == 1:                                     # first doc — no merge needed
+        print(f"  context: {newdoc} (1 document) — ask away.")
+        return newdoc, None
     out = combined or ".drillui_session.docpack"
     try:
         msg = _run(base + ["combine", *docs, "--out", out, "--force"], env,
@@ -213,7 +216,7 @@ def do_add(base, env, newdoc: str, docs: list, combined: str | None,
     except Exception as e:                                 # noqa: BLE001
         print(f"  combine failed: {e}", file=sys.stderr)
         docs.pop()
-        return (combined or docs[0]), combined
+        return (combined or (docs[0] if docs else None)), combined
     print("  " + " ".join(msg.split()))
     print(f"  context now spans {len(docs)} document(s) — ask away.")
     return out, out
@@ -302,10 +305,13 @@ def main() -> int:
     ap.add_argument("--no-store", action="store_true", help="don't write the transcript/kitem")
     args = ap.parse_args()
 
-    # No args at all → show help rather than an argparse 'doc required' stub.
-    if args.doc is None:
-        ap.print_help()
-        return 0
+    # A one-shot question needs a document; the interactive REPL does NOT — you
+    # can start empty and bring documents in with `add` (the doc is optional now
+    # that `add` exists).
+    if args.question and args.doc is None:
+        print("error: -q/--question needs a <doc> (or start the REPL with no "
+              "args and use `add`).", file=sys.stderr)
+        return 2
 
     base, env, how = _pdfdrill_cmd(args)
 
@@ -330,31 +336,31 @@ def main() -> int:
 
     cmds = load_commands(base, env, args.timeout)      # {name: first-positional-type}
 
-    # Startup precondition check: a drilled MODEL is required for QUESTIONS. The
-    # exact signal is `retrieve` itself — JSON when a model exists, the prose
-    # "No model …" otherwise. Probe it offline once and, if absent, name the
-    # RIGHT builder for this doc (model for a PDF, markdown for a .md).
-    print(f"drillui_chat — asking {args.doc}\n  pdfdrill via {how}")
+    print(f"drillui_chat — {('asking ' + args.doc) if args.doc else 'empty context'}"
+          f"\n  pdfdrill via {how}")
     if not interactive:
         print("  (stdin is not a TTY — arrow-key history/line-editing is "
               "unavailable; you're likely running through a pipe/bridge.)")
-    try:
-        retrieve(base, env, args.doc, "ping", 1)
-        drilled = True
-    except Exception as e:                            # noqa: BLE001
-        drilled = False
-        why = str(e).splitlines()[0] if str(e).strip() else "no model"
-    if not drilled:
-        builder = "markdown" if args.doc.lower().endswith(".md") else "model"
-        print(f"  ⚠ not drilled yet ({why})")
-        print(f"     questions need a model first — build one here by typing:  {builder}")
-    print("  Type a question, or a pdfdrill command (status, size, model, …).")
-    print("  Multi-doc: `add <pdf|url|arxiv-id>` merges another doc into the context.")
+    if args.doc:
+        # Startup precondition check: questions need a drilled MODEL. `retrieve`
+        # itself is the signal — JSON when a model exists, "No model …" prose
+        # otherwise. Probe once; if absent, name the RIGHT builder for this doc.
+        try:
+            retrieve(base, env, args.doc, "ping", 1)
+        except Exception as e:                        # noqa: BLE001
+            why = str(e).splitlines()[0] if str(e).strip() else "no model"
+            builder = "markdown" if args.doc.lower().endswith(".md") else "model"
+            print(f"  ⚠ not drilled yet ({why})")
+            print(f"     questions need a model first — build one here by typing:  {builder}")
+    else:
+        print("  No document yet — `add <pdf|url|arxiv-id>` to bring one in.")
+    print("  Type a question, a pdfdrill command (status, size, model, …), or "
+          "`add <pdf|url|id>`.")
     print("  Quit: quit / exit / q (or Ctrl-D).  Help: :help")
     history = ""
-    docs = [args.doc]            # documents in the context
-    target = args.doc           # current retrieval target (a doc, or a combined store)
-    combined = None             # the combined-store path once >1 doc
+    docs = [args.doc] if args.doc else []   # documents in the context
+    target = args.doc                       # retrieval target (doc / combined store / None)
+    combined = None                         # the combined-store path once >1 doc
     while True:
         try:
             line = input("\n? ").strip()
@@ -379,6 +385,10 @@ def main() -> int:
                 print("  usage: add <pdf | https URL | arxiv-id>")
                 continue
             target, combined = do_add(base, env, newdoc, docs, combined, args.timeout)
+            continue
+        # Nothing in context yet → everything but `add`/meta needs a document.
+        if target is None:
+            print("  no document yet — `add <pdf|url|arxiv-id>` to bring one in.")
             continue
         # A pdfdrill command — either forced with '!' or recognised by name —
         # runs on the CURRENT target. Everything else is a question.
