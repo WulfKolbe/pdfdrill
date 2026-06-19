@@ -92,19 +92,23 @@ the tiddler file is rewritten in place — `text` carries the translation,
 `text_source` the original. Math/code/image objects are untouched; re-runs are
 idempotent. Needs `DEEPL_API_KEY` (see **API keys** below).
 
-## Feature extraction (commercial documents)
+## Feature extraction (`src/features/`)
 
-`src/features/` is a small **additive** layer (a starter, not yet wired into the
-CLI): source-agnostic extractors take plain text and emit flat `Feature`
-objects, with flat `Relation` edges and a NetworkX `build_graph`. It never
-touches the existing pipeline.
+`src/features/` is a small **additive** layer of **source-agnostic** extractors:
+each `extract(text, page_id="") -> list[Feature]` takes plain text and emits flat
+`Feature` objects, with flat `Relation` edges and a NetworkX `build_graph`. There
+is **no standalone `pdfdrill features` command**, but the extractors are now
+consumed by several commands — `identifiers` (ISBN/DOI/ids + author matching),
+`entities` (IBAN/BIC/German address/ids), `spellqc` and `semantic` (language
+detection).
 
 ```bash
 pip install '.[features]'                      # dateparser, phonenumbers, price-parser, …
 PYTHONPATH=src python3 -m features invoice.txt # → JSON of EMAIL/URL/DOI/DATE/PHONE/PRICE/… features
 ```
 
-Always-on (regex): `EMAIL`, `URL`, `DOI`. Library-backed (degrade to nothing
+Always-on (regex / checksum, no deps): `EMAIL`, `URL`, `DOI`, `IBAN`, `BIC`,
+`ISBN`/`ISSN`, German admin `ids`, `LANGUAGE`. Library-backed (degrade to nothing
 when the dep is absent): `DATE` (dateparser), `PHONE` (phonenumbers), `PRICE`
 (price-parser), `PERSON_NAME` (probablepeople), `ADDRESS` (usaddress);
 `match_entities` (rapidfuzz) links OCR-typo/invoice/company duplicates as
@@ -119,12 +123,40 @@ when the dep is absent): `DATE` (dateparser), `PHONE` (phonenumbers), `PRICE`
   `Realization` / `Alignment` / `Region`), built from MathPix `lines.json`.
 - `src/docops/` — `Mutator`s and `Projector`s over a `Document` (plaintext,
   LLM-compact markdown, TiddlyWiki, comparison table, formula report).
-- `src/features/` — additive, source-agnostic feature extractors (commercial
-  documents): flat `Feature`/`Relation`, a registry, and a NetworkX graph
-  builder. Never modifies the pipeline.
+- `src/features/` — additive, source-agnostic feature extractors: flat
+  `Feature`/`Relation`, a registry, and a NetworkX graph builder. No standalone
+  command; consumed by `identifiers`/`entities`/`spellqc`/`semantic`.
 - `src/semantic/` — the evidence-backed semantic graph (entities/relations/
   evidence, identity resolution, grounding layers G1–G4, concepts, kitems,
   the compiler, gap detection, bundle/rulebook/sTeX projections).
+- `tools/drillui_*` — an "ask-the-document" terminal UI (see below).
+
+## drillui — ask-the-document terminal
+
+`tools/drillui_*` is a browser terminal for chatting with one drilled document.
+Three co-located pieces (full guide: [`tools/DRILLUI.md`](tools/DRILLUI.md)):
+
+- **`drillui_chat.py`** — the *brain* (Python REPL over one doc): asks
+  `pdfdrill retrieve` for grounded context, sends the enriched prompt to an LLM
+  (`claude -p`), and stores the Q&A back via `pdfdrill chatlog`. Runs standalone
+  in a terminal; self-locates `pdfdrill` from `../src`.
+- **`drillui_bridge.ts`** — the *bridge* (Bun): spawns one `drillui_chat.py` per
+  WebSocket, pipes stdin/stdout, serves the UI + the files pdfdrill writes
+  (`/artifact`) + a host-browser opener (`/open`). Pure plumbing.
+- **`drillui_term.html`** — the *UI* (xterm.js terminal + retrieval rail +
+  Outputs panel of clickable reports).
+
+Run it (zero config from the repo root — the bridge finds its siblings):
+
+```bash
+bun tools/drillui_bridge.ts data/paper.pdf      # then open http://localhost:8787/
+bun tools/test_drillui_bridge.ts data/paper.pdf # integration test
+```
+
+Command model in the terminal: `open <url|file>` opens a new window (handled
+locally, never an LLM call); a pdfdrill command name (`status`, `report`,
+`model`, `latex`, …) runs **on the open doc**; anything else is a grounded
+question. The document must already be drilled (`pdfdrill model <doc>`).
 
 ## The layer tower
 
