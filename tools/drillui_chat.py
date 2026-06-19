@@ -192,6 +192,33 @@ def run_command(base, env, cmds: dict, doc: str, line: str, timeout: float) -> s
                 timeout=timeout)
 
 
+def do_add(base, env, newdoc: str, docs: list, combined: str | None,
+           timeout: float) -> tuple[str, str | None]:
+    """Add a document to the live chat context. Drills it (`pdfdrill model`,
+    which downloads an arXiv URL/id and builds a model), then re-merges ALL docs
+    into one combined store (`pdfdrill combine`). Returns (new retrieval target,
+    combined-store path). On failure leaves the context unchanged."""
+    print(f"  drilling {newdoc} … (downloads + builds a model; may take a while)")
+    try:
+        _run(base + ["model", newdoc], env, timeout=max(timeout, 600.0))
+    except Exception as e:                                 # noqa: BLE001
+        print(f"  could not drill {newdoc}: {e}", file=sys.stderr)
+        print("  context unchanged.", file=sys.stderr)
+        return (combined or docs[0]), combined
+    docs.append(newdoc)
+    out = combined or ".drillui_session.docpack"
+    try:
+        msg = _run(base + ["combine", *docs, "--out", out, "--force"], env,
+                   timeout=max(timeout, 300.0))
+    except Exception as e:                                 # noqa: BLE001
+        print(f"  combine failed: {e}", file=sys.stderr)
+        docs.pop()
+        return (combined or docs[0]), combined
+    print("  " + " ".join(msg.split()))
+    print(f"  context now spans {len(docs)} document(s) — ask away.")
+    return out, out
+
+
 def doc_status(base, env, doc: str, timeout: float) -> str:
     try:
         return _run(base + ["status", doc], env, timeout=timeout).strip()
@@ -209,6 +236,7 @@ def _repl_help(cmds: dict) -> str:
         "  visionocr         mathcheck       tiddlers        report  …\n"
         f"  ({n} pdfdrill commands available; a leading '!' also forces command mode)\n"
         "Meta-commands:\n"
+        "  add <pdf|url|id>  drill another doc and MERGE it into the context (multi-doc)\n"
         "  help, :help, ?    show this help\n"
         "  commands          list every pdfdrill command name\n"
         "  quit / exit / q   quit the REPL (also stop, bye, or Ctrl-D)\n"
@@ -321,8 +349,12 @@ def main() -> int:
         print(f"  ⚠ not drilled yet ({why})")
         print(f"     questions need a model first — build one here by typing:  {builder}")
     print("  Type a question, or a pdfdrill command (status, size, model, …).")
+    print("  Multi-doc: `add <pdf|url|arxiv-id>` merges another doc into the context.")
     print("  Quit: quit / exit / q (or Ctrl-D).  Help: :help")
     history = ""
+    docs = [args.doc]            # documents in the context
+    target = args.doc           # current retrieval target (a doc, or a combined store)
+    combined = None             # the combined-store path once >1 doc
     while True:
         try:
             line = input("\n? ").strip()
@@ -339,18 +371,26 @@ def main() -> int:
         if line in (":commands", ":cmds", "commands"):
             print("  ".join(sorted(cmds)) or "(command list unavailable)")
             continue
+        # add <doc>: drill it and merge into the live context (multi-document).
+        parts = line.split(None, 1)
+        if parts[0].lstrip(":").lower() == "add":
+            newdoc = parts[1].strip() if len(parts) > 1 else ""
+            if not newdoc:
+                print("  usage: add <pdf | https URL | arxiv-id>")
+                continue
+            target, combined = do_add(base, env, newdoc, docs, combined, args.timeout)
+            continue
         # A pdfdrill command — either forced with '!' or recognised by name —
-        # runs on the open doc (filename auto-filled). Everything else is a
-        # question to the document.
+        # runs on the CURRENT target. Everything else is a question.
         first = line.lstrip("!").split(maxsplit=1)[0] if line.lstrip("!") else ""
         if line.startswith("!") or first in cmds:
             try:
-                print(run_command(base, env, cmds, args.doc, line, args.timeout))
+                print(run_command(base, env, cmds, target, line, args.timeout))
             except Exception as e:                     # noqa: BLE001
                 print(f"error: {e}", file=sys.stderr)
             continue
         try:
-            a = one_turn(base, env, args, args.doc, line, history)
+            a = one_turn(base, env, args, target, line, history)
             history = (history + f"\nQ: {line}\nA: {a[:500]}")[-2000:]
         except Exception as e:
             print(f"error: {e}", file=sys.stderr)
