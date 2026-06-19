@@ -1467,6 +1467,25 @@ traversal, `/open` refused when disabled, and a WS `status` round-trip runs on
 the doc). Live-verified end-to-end: a real question → grounded retrieval →
 `claude -p` → cited answer back in the terminal.
 
+## `bibtex` augments from arXiv free metadata (no more `@misc{unknown2023}`, 2026-06-19)
+
+`pdfdrill bibtex` derived the record from the **embedded PDF Info dict only**
+(`derive_bibtex(pdfinfo)`), which for an arXiv PDF (and most LaTeX/scanned PDFs)
+has no title/author — yielding `@misc{unknown2023}` (`unknown` = no author,
+`2023` = the file's creation-date, `misc` = no DOI/arXiv). It never used the
+drilled content. Fix (`_augment_bibtex`): after the pdfinfo derive, pull the
+**free arXiv abs-page metadata** (title/authors via `sources.fetch_arxiv_metadata`
+— cached from a prior `abstract`, else fetched, graceful when blocked) when the
+input is an arXiv id/URL (`source_arxiv_id` in the sidecar), set
+`entry_type=article` + `arxiv_id`/`url` + year from the id (`_arxiv_year`), and
+recompute the citekey; secondary offline fallback = the model's `doc.meta["title"]`.
+The placeholder cache is never re-served (`_is_placeholder_bib`). When STILL a
+placeholder (non-arXiv, empty metadata, no model) it appends a warning naming the
+deep-drill steps (`abstract`/`model`+`bibsource`/`bibfetch`) — answering "bibtex
+after only info/size is useless". Verified: arXiv 2305.04710 →
+`@article{korfhage2023, …ElasticHash…, author={Korfhage and Mühling and
+Freisleben}, year=2023}`. Tests: `tests/test_bibtex.py`.
+
 ## `_FOX_` synthetic formula tiddlers — content-addressed inline math (reference)
 
 A `<bibkey>_FOX_<sha1[:10]>` tiddler (tag `formula synthetic`) is NOT a defect or

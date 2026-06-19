@@ -6384,19 +6384,105 @@ def _format_pdfinfo(info: dict) -> str:
     return "\n".join(parts)
 
 
+def _is_placeholder_bib(bib: dict | None) -> bool:
+    """A BibTeX record derived from EMPTY embedded PDF metadata — no title and an
+    `unknown…` / author-less citekey. Worthless; should be recomputed/augmented."""
+    if not bib:
+        return True
+    return (not (bib.get("title") or "").strip()
+            and (not (bib.get("author") or "").strip()
+                 or str(bib.get("citekey", "")).startswith("unknown")))
+
+
+def _arxiv_year(aid: str) -> str:
+    """Publication year encoded in an arXiv id (new-style YYMM `2305.04710` →
+    2023; old-style `math/0309136` → 2003)."""
+    m = re.match(r"(\d{2})\d{2}", aid or "")
+    if m:
+        return "20" + m.group(1)
+    m = re.search(r"/(\d{2})\d{2}", aid or "")
+    return "20" + m.group(1) if m else ""
+
+
+def _augment_bibtex(bib: dict, pdf: Path, sc: "Sidecar") -> str:
+    """Fill a pdfinfo-derived record from richer, FREE sources — the fix for an
+    arXiv input giving `@misc{unknown2023}` (the embedded PDF metadata is empty,
+    but arXiv has title/authors for free). Recomputes the citekey. Returns a
+    warning string when the record is STILL a placeholder (deep drill needed)."""
+    from .pdfinfo_layers import _make_citekey
+    from . import sources
+
+    aid = (sc.get_evidence("source_arxiv_id")
+           or sources.bare_arxiv_id(pdf.stem) or sources.parse_arxiv_id(pdf.stem))
+    if aid:
+        meta = None
+        if sc.get_evidence("arxiv_title") or sc.get_evidence("arxiv_authors"):
+            meta = {"title": sc.get_evidence("arxiv_title") or "",
+                    "authors": sc.get_evidence("arxiv_authors") or [],
+                    "primary_category": sc.get_evidence("arxiv_primary_category") or ""}
+        else:                                    # free abs-page metadata (graceful if blocked)
+            try:
+                meta = sources.fetch_arxiv_metadata(aid)
+                if meta.get("title"):
+                    sc.set_evidence("arxiv_title", meta["title"])
+                if meta.get("authors"):
+                    sc.set_evidence("arxiv_authors", meta["authors"])
+                if meta.get("primary_category"):
+                    sc.set_evidence("arxiv_primary_category", meta["primary_category"])
+            except Exception:
+                meta = None
+        if meta:
+            if meta.get("title"):
+                bib["title"] = meta["title"]
+            if meta.get("authors"):
+                bib["author"] = " and ".join(meta["authors"])
+            bib["arxiv_id"] = aid
+            bib["entry_type"] = "article"
+            bib["url"] = sources.arxiv_urls(aid).get("abs", bib.get("url", ""))
+            if not bib.get("year"):
+                bib["year"] = _arxiv_year(aid)
+
+    # Secondary (offline): the document title captured into the model meta.
+    if not (bib.get("title") or "").strip():
+        mp = _model_path(sc)
+        if mp.exists():
+            try:
+                from . import model_io
+                t = (model_io.load_docgraph(mp).meta or {}).get("title")
+                if t:
+                    bib["title"] = t
+            except Exception:
+                pass
+
+    bib["citekey"] = _make_citekey(bib.get("author", ""), bib.get("year", ""),
+                                   bib.get("title", ""))
+    if _is_placeholder_bib(bib):
+        return ("\n⚠ This is a PLACEHOLDER — the PDF's embedded metadata has no "
+                "title/author and no richer source was available. For a real "
+                "record run a deeper step first: `pdfdrill abstract` (free; arXiv "
+                "abs page) for title/authors, or `pdfdrill model` + `pdfdrill "
+                "bibsource`/`bibfetch`. `bibtex` alone reads only embedded metadata.")
+    return ""
+
+
 def cmd_bibtex(pdf: Path) -> str:
-    """Derive a BibTeX record from pdfinfo metadata."""
-    from .pdfinfo_layers import derive_bibtex, bibtex_to_string
+    """Derive a BibTeX record — from the embedded PDF metadata, AUGMENTED by the
+    free arXiv abs-page metadata (title/authors) and the drilled title when the
+    embedded metadata is empty (otherwise an arXiv PDF yields `@misc{unknown2023}`
+    because its Info dict has no title/author). Warns when still a placeholder."""
+    from .pdfinfo_layers import derive_bibtex
 
     sc = Sidecar(pdf)
     if not sc.has(PDFINFO_KNOWN):
         cmd_pdfinfo(pdf)
         sc = Sidecar(pdf)
-    if sc.has(BIBTEX_KNOWN):
+    # Trust the cache only if it's a REAL record — never re-serve a placeholder.
+    if sc.has(BIBTEX_KNOWN) and not _is_placeholder_bib(sc.bibtex):
         return _format_bibtex(sc.bibtex)
 
     t0 = time.monotonic()
     bib = derive_bibtex(sc.pdfinfo or {})
+    note = _augment_bibtex(bib, pdf, sc)
     sc.set_bibtex(bib)
     sc.add_fact(BIBTEX_KNOWN)
 
@@ -6405,7 +6491,7 @@ def cmd_bibtex(pdf: Path) -> str:
     sc.log_transition("bibtex", prev, BIBTEX_KNOWN, cost_ms=elapsed * 1000,
                       detail=f"citekey={bib['citekey']}")
     sc.save()
-    return _format_bibtex(bib)
+    return _format_bibtex(bib) + note
 
 
 def _format_bibtex(bib: dict | None) -> str:

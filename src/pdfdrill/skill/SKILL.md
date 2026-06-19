@@ -376,7 +376,7 @@ _Generated from `commands.yaml` by skillsync. Edit the manifest, not this sectio
 | `pdfdrill fonts <pdf>` | Font analysis, math font detection |
 | `pdfdrill status <pdf>` | What is already known |
 | `pdfdrill pdfinfo <pdf>` | Full PdfInfo struct (title/author/dates/flags) |
-| `pdfdrill bibtex <pdf>` | Derived BibTeX record |
+| `pdfdrill bibtex <pdf>` | Derived BibTeX record from embedded PDF metadata, AUGMENTED by the free arXiv abs-page metadata (title/authors) + the drilled title; warns when still a placeholder (run abstract/model first) |
 | `pdfdrill urls <pdf>` | URL annotations with anchor text (heavier; pdfplumber) |
 | `pdfdrill links <pdf>` | FAST external URLs via pdfinfo -url (~50ms); flags code/data hosts |
 | `pdfdrill dests <pdf>` | Named destinations: theorems, equations, sections |

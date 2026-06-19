@@ -159,7 +159,8 @@ commands:
   typed: true
 - name: bibtex
   section: Introspection (fast, no extraction)
-  summary: Derived BibTeX record
+  summary: 'Derived BibTeX record from embedded PDF metadata, AUGMENTED by the free arXiv abs-page
+    metadata (title/authors) + the drilled title; warns when still a placeholder (run abstract/model first)'
   offline_ok: true
   positionals:
   - name: pdf
