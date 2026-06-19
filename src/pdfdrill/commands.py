@@ -2488,7 +2488,7 @@ def cmd_combine(out: Path, pdfs: "list[Path]", force: bool = False) -> str:
     if not pdfs:
         return "combine: give two or more drilled PDFs/.md and --out <file>."
     objects: list[dict] = []
-    used, missing = [], []
+    used, missing, srcs = [], [], []
     for pdf in pdfs:
         sc = Sidecar(pdf)
         mp = _model_path(sc)
@@ -2506,6 +2506,7 @@ def cmd_combine(out: Path, pdfs: "list[Path]", force: bool = False) -> str:
             objects.append({"type": o.type, "id": f"{bk}:{o.id}", "props": props})
             n += 1
         used.append((bk, n))
+        srcs.append({"bibkey": bk, "path": str(pdf)})    # so per-doc commands can fan out
     if not used:
         return ("combine: none of the inputs has a built model — run `pdfdrill "
                 f"model` first. Missing: {', '.join(missing) or '(none given)'}.")
@@ -2514,7 +2515,7 @@ def cmd_combine(out: Path, pdfs: "list[Path]", force: bool = False) -> str:
         return f"combine: {out.name} exists — pass --force to overwrite."
     meta = {"title": f"Combined: {', '.join(bk for bk, _ in used)}",
             "bibkey": out.stem, "combined_docs": [bk for bk, _ in used],
-            "num_docs": len(used)}
+            "num_docs": len(used), "sources": srcs}
     out.write_text(json.dumps(
         {"is_combined": True, "meta": meta, "objects": objects},
         ensure_ascii=False), encoding="utf-8")
@@ -6561,6 +6562,24 @@ def cmd_bibtex(pdf: Path) -> str:
     embedded metadata is empty (otherwise an arXiv PDF yields `@misc{unknown2023}`
     because its Info dict has no title/author). Warns when still a placeholder."""
     from .pdfinfo_layers import derive_bibtex
+
+    # A combined store (from `pdfdrill combine`) isn't a PDF — fan out to each
+    # member doc (the multi-doc/drillui case where `bibtex` ran on the .docpack
+    # and got @misc{unknown} because the store has no embedded metadata).
+    combo = _load_combined_store(pdf)
+    if combo is not None:
+        _, meta = combo
+        srcs = meta.get("sources") or []
+        if not srcs:
+            return (f"{Path(pdf).name} is a combined store of "
+                    f"{', '.join(meta.get('combined_docs') or [])}; `bibtex` applies "
+                    f"to individual documents — run it on a source PDF, or re-make "
+                    f"the store with the current `pdfdrill combine` (records member "
+                    f"paths).")
+        out = [f"BibTeX for {len(srcs)} document(s) in {Path(pdf).name}:"]
+        for s in srcs:
+            out.append(cmd_bibtex(Path(s["path"])))
+        return "\n\n".join(out)
 
     sc = Sidecar(pdf)
     if not sc.has(PDFINFO_KNOWN):

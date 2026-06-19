@@ -1483,6 +1483,12 @@ model). For multi-document context the chosen design is **merge into one store**
   `bun tools/drillui_bridge.ts heim.docpack` chat over all docs at once.
   `cmd_chatlog` already works on any path (transcript + kitem by unit id), so
   storing multi-doc turns needs no change.
+The combined store records its member **source paths** (`meta["sources"]`), so a
+per-doc metadata command run on the store fans out: **`pdfdrill bibtex
+<combined>`** emits a real `@article{…}` for each member (the multi-doc/drillui
+case where bare `bibtex` previously hit the store and returned `@misc{unknown}`).
+drillui also has an interactive **`add <pdf|url|arxiv-id>`** that drills + re-merges
+into a session store live (one repeatable verb; `combine` is its CLI/batch form).
 Verified: combine data/1906.02691 + data/2312.11532 → 985 units; "variational
 autoencoder" → 1906 units, "diffusion manifold" → the other doc. Honest limit:
 the store holds retrievable text only (no streams), so it's for chat/retrieve —
