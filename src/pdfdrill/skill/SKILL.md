@@ -370,6 +370,7 @@ _Generated from `commands.yaml` by skillsync. Edit the manifest, not this sectio
 | Command | Returns |
 |---|---|
 | `pdfdrill doctor` | Requirement check: system tools (poppler/tesseract/LaTeX+dvisvgm), Python deps, API keys + the apt-get fix line |
+| `pdfdrill config [--init] [--json] [--download-dir]` | Show / init the config FILE (not CLI flags): where URL/arXiv downloads + each doc's .drill folder land (default ~/Downloads). --init writes ~/.config/pdfdrill/config.json; --json; --download-dir |
 | `pdfdrill size <pdf>` | File size, page count, producer |
 | `pdfdrill abstract <pdf>` | Abstract from first pages |
 | `pdfdrill toc <pdf>` | Table of contents |

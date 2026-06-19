@@ -193,23 +193,28 @@ def run_command(base, env, cmds: dict, doc: str, line: str, timeout: float) -> s
 
 
 def do_add(base, env, newdoc: str, docs: list, combined: str | None,
-           timeout: float) -> tuple[str, str | None]:
-    """Add a document to the live chat context. Drills it (`pdfdrill model`,
-    which downloads an arXiv URL/id and builds a model), then re-merges ALL docs
-    into one combined store (`pdfdrill combine`). Returns (new retrieval target,
-    combined-store path). On failure leaves the context unchanged."""
-    print(f"  drilling {newdoc} … (downloads + builds a model; may take a while)")
+           timeout: float, store_dir: str = "") -> tuple[str, str | None]:
+    """Add a document to the live chat context. `pdfdrill model` is IDEMPOTENT —
+    a doc drilled once (cached PDF + <name>.drill model) is reused, not re-drilled
+    — then re-merges ALL docs into one combined store. Returns (new retrieval
+    target, combined-store path). On failure leaves the context unchanged."""
+    if newdoc in docs:
+        print(f"  {newdoc} is already in the context ({len(docs)} doc(s)).")
+        return (combined or docs[0]), combined
+    print(f"  adding {newdoc} … (reuses an existing drill; only builds if new)")
     try:
         _run(base + ["model", newdoc], env, timeout=max(timeout, 600.0))
     except Exception as e:                                 # noqa: BLE001
         print(f"  could not drill {newdoc}: {e}", file=sys.stderr)
         print("  context unchanged.", file=sys.stderr)
-        return (combined or docs[0]), combined
+        return (combined or (docs[0] if docs else None)), combined
     docs.append(newdoc)
     if len(docs) == 1:                                     # first doc — no merge needed
         print(f"  context: {newdoc} (1 document) — ask away.")
         return newdoc, None
-    out = combined or ".drillui_session.docpack"
+    base_store = (Path(store_dir) / ".drillui_session.docpack") if store_dir \
+        else Path(".drillui_session.docpack")
+    out = combined or str(base_store)
     try:
         msg = _run(base + ["combine", *docs, "--out", out, "--force"], env,
                    timeout=max(timeout, 300.0))
@@ -220,6 +225,15 @@ def do_add(base, env, newdoc: str, docs: list, combined: str | None,
     print("  " + " ".join(msg.split()))
     print(f"  context now spans {len(docs)} document(s) — ask away.")
     return out, out
+
+
+def query_download_dir(base, env, timeout: float) -> str:
+    """The pdfdrill download dir (config-driven, default ~/Downloads) — so the
+    session combined store lives next to the drilled docs, not in a scratch cwd."""
+    try:
+        return _run(base + ["config", "--download-dir"], env, timeout=timeout).strip()
+    except Exception:                                      # noqa: BLE001
+        return str(Path.home() / "Downloads")
 
 
 def doc_status(base, env, doc: str, timeout: float) -> str:
@@ -361,6 +375,7 @@ def main() -> int:
     docs = [args.doc] if args.doc else []   # documents in the context
     target = args.doc                       # retrieval target (doc / combined store / None)
     combined = None                         # the combined-store path once >1 doc
+    store_dir = query_download_dir(base, env, args.timeout)   # stable home for the session store
     while True:
         try:
             line = input("\n? ").strip()
@@ -384,7 +399,8 @@ def main() -> int:
             if not newdoc:
                 print("  usage: add <pdf | https URL | arxiv-id>")
                 continue
-            target, combined = do_add(base, env, newdoc, docs, combined, args.timeout)
+            target, combined = do_add(base, env, newdoc, docs, combined,
+                                      args.timeout, store_dir)
             continue
         # Nothing in context yet → everything but `add`/meta needs a document.
         if target is None:

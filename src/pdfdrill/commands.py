@@ -367,6 +367,38 @@ def cmd_doctor() -> str:
     return "\n".join(lines)
 
 
+def cmd_config(action: str = "show") -> str:
+    """Show / init the pdfdrill config FILE (where downloads + `.drill` folders go).
+
+    `pdfdrill config`            → show the active config file + resolved locations
+    `pdfdrill config --init`     → write a starter ~/.config/pdfdrill/config.json
+    `pdfdrill config --json`     → machine-readable
+    `pdfdrill config --download-dir` → just the resolved download dir (for tooling)
+    """
+    from . import config as cfg
+    p = cfg.config_path()
+    dl = cfg.download_dir()
+    if action == "download-dir":
+        return str(dl)
+    if action == "init":
+        written = cfg.write_default()
+        cfg.load(refresh=True)
+        return (f"Wrote starter config: {written}\n"
+                f"  edit `download_dir` to change where downloads + each doc's "
+                f"`<name>.drill` sidecar land.\n  active download_dir: {cfg.download_dir()}")
+    if action == "json":
+        return json.dumps({"config_path": str(p) if p else None,
+                           "download_dir": str(dl)}, ensure_ascii=False)
+    return "\n".join([
+        "pdfdrill config",
+        f"  config file   : {p if p else '(none — using defaults; run `pdfdrill config --init`)'}",
+        f"  download_dir  : {dl}",
+        "                  ↑ URL/arXiv downloads AND each doc's `<name>.drill` "
+        "sidecar (model, report.html, *.md, *.json …) land HERE.",
+        f"  drillui store : {dl / '.drillui_session.docpack'}  (multi-doc `add`)",
+    ])
+
+
 def cmd_ocr(pdf: Path, lang: str = "eng", ppi: int = 300, force: bool = False) -> str:
     """Build a MathPix-compatible `<pdf>.lines.json` via tesseract OCR.
 
@@ -6166,6 +6198,22 @@ def cmd_status(pdf: Path) -> str:
 # Extraction commands
 # ---------------------------------------------------------------------------
 
+def _write_named_md(pdf: Path, sc: "Sidecar", md_text: str) -> str:
+    """Write a clearly-named, FINDABLE copy of the extracted markdown
+    (`<bibkey>.md` in the drill folder) and return a note naming its path — so
+    `md` output is discoverable on disk AND clickable in the drillui Outputs
+    panel (no `fetch`, no `find` needed). The `md.md` blob stays for `fetch`."""
+    try:
+        key = resolve_bibkey(pdf, None, sc)
+        sc.blob_dir.mkdir(parents=True, exist_ok=True)
+        p = sc.blob_dir / f"{key}.md"
+        p.write_text(md_text or "", encoding="utf-8")
+        return (f"\n→ Markdown file: {p.relative_to(sc.pdf_path.parent)}  "
+                f"(open it directly; clickable in the drillui Outputs panel).")
+    except Exception:                                      # noqa: BLE001
+        return ""
+
+
 def cmd_md(pdf: Path, pages: str | None = None) -> str:
     """Build Markdown via pdfplumber + layer pipeline."""
     sc = Sidecar(pdf)
@@ -6192,7 +6240,8 @@ def cmd_md(pdf: Path, pages: str | None = None) -> str:
             sc.save()
             return (f"Markdown from MathPix OCR ({len(md_text.split())} words) — "
                     f"{pdf.name} is scanned (no text layer), served from "
-                    f"{mathpix_md.name}. Use `pdfdrill fetch {pdf.name} md` to retrieve.")
+                    f"{mathpix_md.name}. Use `pdfdrill fetch {pdf.name} md` to "
+                    f"retrieve." + _write_named_md(pdf, sc, md_text))
         lp = _lines_json_path(pdf)
         hint = (f"A MathPix lines.json is present but no `{pdf.stem}.md` — re-run "
                 f"`pdfdrill mathpix {pdf.name}`." if lp.exists() else
@@ -6206,7 +6255,10 @@ def cmd_md(pdf: Path, pages: str | None = None) -> str:
         blob = sc.read_blob("md.md")
         if blob:
             words = len(blob.split())
-            return f"Markdown already extracted ({words} words across {sc.page_count} pages). Stored as layer `md`.\n\nUse `pdfdrill fetch {pdf.name} md` to retrieve."
+            return (f"Markdown already extracted ({words} words across "
+                    f"{sc.page_count} pages). Stored as layer `md`.\n\nUse "
+                    f"`pdfdrill fetch {pdf.name} md` to retrieve."
+                    + _write_named_md(pdf, sc, blob))
 
     t0 = time.monotonic()
 
@@ -6276,6 +6328,7 @@ def cmd_md(pdf: Path, pages: str | None = None) -> str:
                f"{refs} references. Stored as layer `md`.")
     if suppressed:
         summary += "\n\nSuperseded earlier absents using the markdown: " + ", ".join(suppressed)
+    summary += _write_named_md(pdf, sc, md_text)
     return summary
 
 

@@ -183,7 +183,10 @@ def resolve_input(arg: str, dest_dir: Optional[Path] = None) -> dict:
     once (cached): arXiv → the PDF at `<id>.pdf`; any other http(s) URL → the
     file at a sanitized name. Idempotent: an existing non-empty target is reused.
     """
-    dest_dir = Path(dest_dir or Path.cwd())
+    if dest_dir is None:
+        from . import config as _cfg
+        dest_dir = _cfg.download_dir()      # config download_dir, else ~/Downloads
+    dest_dir = Path(dest_dir)
     if not is_url(arg):
         # a real local file always wins (even if it is named like an arXiv id)
         if Path(arg).exists():

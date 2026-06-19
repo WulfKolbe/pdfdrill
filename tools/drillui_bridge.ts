@@ -118,6 +118,7 @@ const MIME: Record<string, string> = {
   ".svg": "image/svg+xml", ".pdf": "application/pdf",
   ".css": "text/css; charset=utf-8", ".js": "text/javascript; charset=utf-8",
   ".json": "application/json; charset=utf-8",
+  ".md": "text/markdown; charset=utf-8", ".tex": "text/plain; charset=utf-8",
   ".png": "image/png", ".jpg": "image/jpeg", ".jpeg": "image/jpeg",
   ".gif": "image/gif", ".webp": "image/webp", ".txt": "text/plain; charset=utf-8",
 };

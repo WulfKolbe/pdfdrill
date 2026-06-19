@@ -15,6 +15,22 @@ commands:
     the apt-get fix line'
   offline_ok: true
   typed: true
+- name: config
+  section: Introspection (fast, no extraction)
+  summary: 'Show / init the config FILE (not CLI flags): where URL/arXiv downloads + each doc''s .drill
+    folder land (default ~/Downloads). --init writes ~/.config/pdfdrill/config.json; --json; --download-dir'
+  offline_ok: true
+  flags:
+  - name: init
+    flag: --init
+    type: flag
+  - name: json
+    flag: --json
+    type: flag
+  - name: download_dir
+    flag: --download-dir
+    type: flag
+  typed: true
 - name: size
   section: Introspection (fast, no extraction)
   summary: File size, page count, producer

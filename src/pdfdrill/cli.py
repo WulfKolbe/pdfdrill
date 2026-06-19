@@ -110,6 +110,19 @@ def _drilled(args: list[str]) -> Path:
     return _pdf(args)
 
 
+def _do_config(args):
+    """pdfdrill config [--init|--json|--download-dir] — show/init the config file
+    (where downloads + .drill folders go; default ~/Downloads)."""
+    from .commands import cmd_config
+    if "--init" in args:
+        return cmd_config("init")
+    if "--json" in args:
+        return cmd_config("json")
+    if "--download-dir" in args:
+        return cmd_config("download-dir")
+    return cmd_config("show")
+
+
 def _do_doctor(args):
     """pdfdrill doctor — check system tools / Python deps / API keys."""
     from .commands import cmd_doctor
@@ -1221,6 +1234,7 @@ def _do_chatlog(args):
 # `pdfdrill skill --check` and the skill-sync drift gate (manifest <-> HANDLERS).
 HANDLERS = {
         "doctor": _do_doctor,
+        "config": _do_config,
         "size": _do_size,
         "abstract": _do_abstract,
         "toc": _do_toc,

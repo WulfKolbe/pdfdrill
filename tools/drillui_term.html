@@ -662,10 +662,10 @@ const app = {
       `${this.turnNo} turn${this.turnNo===1?"":"s"}`;
   },
 
-  /* ---- artifacts: turn pdfdrill's *.html/*.svg/*.pdf mentions into links ---- */
+  /* ---- artifacts: turn pdfdrill's *.html/*.svg/*.pdf/*.md/*.json/… mentions into links ---- */
   scanArtifacts(text){
     // match path-like tokens ending in an openable extension; skip remote URLs
-    const re = /(?<![\w/])((?:[\w.+~@%-]+\/)*[\w.+~@%-]+\.(html|svg|pdf))\b/gi;
+    const re = /(?<![\w/])((?:[\w.+~@%-]+\/)*[\w.+~@%-]+\.(html|svg|pdf|md|json|txt|tex))\b/gi;
     let m, added = false;
     while ((m = re.exec(text)) !== null){
       const path = m[1];

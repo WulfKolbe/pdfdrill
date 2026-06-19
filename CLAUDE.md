@@ -1467,6 +1467,30 @@ traversal, `/open` refused when disabled, and a WS `status` round-trip runs on
 the doc). Live-verified end-to-end: a real question → grounded retrieval →
 `claude -p` → cited answer back in the terminal.
 
+## Config FILE + stable download/drill location + findable artifacts (2026-06-19)
+
+Driven by drillui usage feedback (downloads landing in cwd/`/tmp`; re-drilling;
+`.md`/`.json` not clickable; can't find the `.md`):
+- **`src/pdfdrill/config.py`** — a config FILE (not CLI flags): `$PDFDRILL_CONFIG`
+  → `~/.config/pdfdrill/config.json` → `~/.pdfdrill.json`. Key `download_dir`
+  (default `~/Downloads` if present, else cwd). `sources.resolve_input` now
+  defaults its download dir to `config.download_dir()` instead of cwd — so URL/
+  arXiv downloads AND each doc's `<name>.drill` sidecar land in one **stable**
+  place. **`pdfdrill config` / `--init` / `--json` / `--download-dir`**
+  (`cmd_config`) shows/creates it. Stable location ⇒ a doc drilled once is
+  REUSED (resolve_input reuses the cached PDF; `model`/etc skip when built) —
+  "drill once, never again". (`/tmp/tmp*` are temp render dirs from killed runs;
+  `vocn*` is not pdfdrill.) Tests: `tests/test_config.py`.
+- **`pdfdrill md` now writes a findable, named file** `<bibkey>.md` in the drill
+  folder (alongside the `md.md` blob that `fetch` reads) and **reports its path**
+  in every return (`_write_named_md`) — no `fetch`/`find` needed.
+- **drillui Outputs panel links `.md`/`.json`/`.txt`/`.tex`** too (was html/svg/
+  pdf only): `scanArtifacts` regex + bridge MIME extended. So `report`, `md`,
+  `llmtext`, `tables`, `tiddlers` outputs all become clickable.
+- **drillui `add` reuses, never re-drills** (model is idempotent; dedup if already
+  in context) and writes the session combined store to the config download dir
+  (via `pdfdrill config --download-dir`), not a scratch cwd.
+
 ## Multi-document chat — `pdfdrill combine` → one store, retrieve across all (2026-06-19)
 
 drillui is one-doc-per-session (`drillui_chat.py <doc>`; `cmd_retrieve` over one
