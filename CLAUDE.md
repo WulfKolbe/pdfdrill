@@ -1467,6 +1467,24 @@ traversal, `/open` refused when disabled, and a WS `status` round-trip runs on
 the doc). Live-verified end-to-end: a real question → grounded retrieval →
 `claude -p` → cited answer back in the terminal.
 
+## `_FOX_` synthetic formula tiddlers — content-addressed inline math (reference)
+
+A `<bibkey>_FOX_<sha1[:10]>` tiddler (tag `formula synthetic`) is NOT a defect or
+a new feature — it is the projector's catch for **inline math that wraps across
+an OCR line boundary** (`\(` on one line, `\)` on the next), which the per-line
+`FormulaProcessor` can't number. `tiddlywiki._substitute_residual_inline_math`
+finds these residual spans during paragraph transclusion and mints ONE
+**content-addressed** tiddler per distinct LaTeX body (sha1 of the canonicalized
+LaTeX), reused everywhere that body appears. It is hash-titled (not `_FO0001`
+numbered) on purpose: discovered late (text pass, no stable global order) and
+**deduped by content** — the same expression always maps to the same FOX title,
+which is exactly what makes it a durable transclusion handle. Resolution is a
+LOOKUP, never memorization: the FOX tiddler carries the math in its `latex` field
+(and now its `caption`), so `{{…_FOX_<hash>||FO}}` resolves by reading that
+tiddler. As of 2026-06-19 every formula tiddler (`_FO` and `_FOX`) also sets
+`caption` = the LaTeX, so an opaque hash title is self-describing in any listing
+/ for an LLM building a title→latex index. Test: `tests/test_docops.py`.
+
 ## Document title → `doc.meta["title"]` + tiddler `caption` (2026-06-19)
 
 Tiddler titles ARE bibkey-prefixed (`<bibkey>_PARA_0001`, `_H1`, `_EQ0001`, …)

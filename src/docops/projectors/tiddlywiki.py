@@ -412,6 +412,9 @@ class TiddlyWikiProjector(BaseProjector):
             )
             t["latex"] = f.props.get("latex", "")
             t["displayMode"] = "true" if f.props.get("display") else "false"
+            # caption = the LaTeX, so the (otherwise opaque) tiddler is
+            # self-describing in any listing / for an LLM resolving transclusions.
+            t["caption"] = t["latex"]
             # Keep the verbatim author source (may use private macros) alongside
             # the expanded `latex` that <$latex>/KaTeX actually renders.
             if f.props.get("latex_original"):
@@ -621,7 +624,9 @@ class TiddlyWikiProjector(BaseProjector):
             t["text_display"] = ck
             out.append(t)
 
-        # Synthetic Formula tiddlers (cross-line inline math residuals)
+        # Synthetic Formula tiddlers (cross-line inline math residuals). These
+        # are content-addressed (FOX_<sha1>) and deduped by LaTeX body — the
+        # caption (= the LaTeX) makes the hash title self-describing.
         for title_, info in synthetic_formulas.items():
             t = self._t(
                 title_,
@@ -630,6 +635,7 @@ class TiddlyWikiProjector(BaseProjector):
             )
             t["latex"] = info["latex"]
             t["displayMode"] = "true" if info["display"] else "false"
+            t["caption"] = info["latex"]
             out.append(t)
 
         # Root / document tiddler: TITLE is the bibkey (the stable namespace /
