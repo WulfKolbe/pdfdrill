@@ -3208,8 +3208,27 @@ def cmd_report(pdf: Path, force: bool = False, embed: bool = False,
     sc.log_transition("report", prev, REPORT_BUILT, detail=f"{inline} inline, {eqs} equations")
     sc.save()
     rel = out_path.relative_to(sc.pdf_path.parent)
-    return (f"Formula report: {inline} inline formulas + {eqs} display equations "
-            f"(LaTeX | KaTeX | image). Open {rel} in a browser.")
+    msg = (f"Formula report: {inline} inline formulas + {eqs} display equations "
+           f"(LaTeX | KaTeX | image). Open {rel} in a browser.")
+    # If the report is EMPTY of math, don't leave the user guessing — say WHY and
+    # WHAT to do. A keyless (tesseract) build types no equations; the gate sets
+    # NEEDS_VISION_OCR. Steer to the right recovery, arXiv-gold first.
+    if inline == 0 and eqs == 0:
+        from . import mathqc
+        bearing, why = (True, "math-bearing") if sc.has(NEEDS_VISION_OCR) \
+            else mathqc.is_math_bearing(pdf, sc)
+        if bearing:
+            aid = _arxiv_id_for(pdf, sc)
+            routes = []
+            if aid:
+                routes.append(f"`pdfdrill latex {pdf.name}` (FREE: the author's gold "
+                              f"arXiv equations → real Equation objects)")
+            routes.append(f"`pdfdrill visionocr {pdf.name}` (keyless: an LLM reads each page)")
+            routes.append(f"`pdfdrill mathpix {pdf.name} --force` (paid MathPix)")
+            msg += ("\n⚠ 0 formulas because the model was built from keyless "
+                    f"tesseract OCR, which cannot type equations ({why}). Recover them with:\n  - "
+                    + "\n  - ".join(routes) + "\nthen re-run `report`.")
+    return msg
 
 
 def _deliver_region_crop(pdf: Path, sc: "Sidecar", page: int,
@@ -3670,10 +3689,13 @@ def cmd_latex(pdf: Path, tex: str | None = None, force: bool = False) -> str:
         doc = Document.from_dict(json.load(f))
 
     if force:
-        for o in doc.objects.values():
+        for o in list(doc.objects.values()):
             if o.type == "Equation":
                 o.realizations = [r for r in o.realizations
                                   if not (r.role == "latex_candidate" and r.provenance == "tex")]
+        # also drop equations we previously CREATED from source (re-created below)
+        doc.objects = {k: v for k, v in doc.objects.items()
+                       if not (v.type == "Equation" and v.props.get("added_by") == "latex")}
         doc.meta.pop("latex_preamble", None)
 
     # Persist the two preamble forms on the document for the later SVG step.
@@ -3686,8 +3708,11 @@ def cmd_latex(pdf: Path, tex: str | None = None, force: bool = False) -> str:
     doc.meta["latex_source_dir"] = source_dir   # for svg's TEXINPUTS (local .sty)
 
     eqs = [o for o in doc.objects.values() if o.type == "Equation"]
-    # Precompute normalized OCR latex per equation.
-    eq_norm = [(o, normalize_latex(o.props.get("latex", ""))) for o in eqs]
+    # Precompute normalized OCR latex per equation (skip ones WE created from
+    # source, so a re-run doesn't overlay gold-onto-gold).
+    eq_norm = [(o, normalize_latex(o.props.get("latex", ""))) for o in eqs
+               if o.props.get("added_by") != "latex"]
+    scaffold = len(eq_norm)   # genuine OCR/MathPix equation slots to overlay onto
 
     attached = unmatched = 0
     for se in src_eqs:
@@ -3715,6 +3740,33 @@ def cmd_latex(pdf: Path, tex: str | None = None, force: bool = False) -> str:
         else:
             unmatched += 1
 
+    # KEYLESS-BASE FIX: a tesseract/OCR base model has NO equation slots to
+    # overlay onto, so every gold equation is "unmatched" and the report stays
+    # empty. When there's no scaffold, the author's display equations ARE the
+    # document's equations — create them as first-class Equation objects so
+    # `report`/`compare`/tiddlers render them. (Skipped when a real MathPix
+    # scaffold exists, to avoid duplicating its equations.)
+    created = 0
+    if scaffold == 0 and src_eqs:
+        from docmodel.core import DocObject
+        base_fi = max((o.props.get("flow_index", 0) for o in doc.objects.values()),
+                      default=0)
+        bk = doc.meta.get("bibkey", "DOC")
+        for i, se in enumerate(src_eqs, 1):
+            original = se["latex"]
+            expanded = ls.expand_macros(original, macros)
+            if not normalize_latex(expanded):
+                continue
+            doc.add(DocObject(type="Equation", props={
+                "latex": expanded, "latex_raw": original, "latex_original": original,
+                "refnum": se.get("label") or "", "env": se["env"],
+                "numbered": se.get("numbered"), "bibkey": bk,
+                "added_by": "latex", "provenance": "tex",
+                "flow_index": base_fi + i, "page": None, "region": None,
+                "cdn_url": "",
+            }))
+            created += 1
+
     # Ingest the source's TikZ/tables (tikzcd commutative diagrams, tabular, …)
     # as Diagram/Table objects with latex_code — so `pdfdrill svg` can render
     # them. The base OCR/MathPix model rarely has these as graphic objects.
@@ -3724,19 +3776,31 @@ def cmd_latex(pdf: Path, tex: str | None = None, force: bool = False) -> str:
     with open(model_path, "w", encoding="utf-8") as f:
         json.dump(doc.to_dict(), f, indent=2, ensure_ascii=False)
 
+    # If we created equations, clear the keyless math-missing flag — the gold
+    # source filled the gap.
+    if created:
+        sc.remove_fact(NEEDS_VISION_OCR)
     sc.set_evidence("latex_source", src.name)
     sc.set_evidence("latex_macros", len(macros))
     sc.set_evidence("latex_src_equations", len(src_eqs))
     sc.set_evidence("latex_attached", attached)
+    sc.set_evidence("latex_created", created)
     sc.set_evidence("latex_graphics", n_graphics)
     prev = ",".join(sorted(sc.facts - {LATEX_INGESTED})) or "INIT"
     sc.add_fact(LATEX_INGESTED)
     sc.log_transition("latex", prev, LATEX_INGESTED,
-                      detail=f"{attached}/{len(src_eqs)} eqs matched, "
+                      detail=f"{attached}/{len(src_eqs)} eqs matched, {created} created, "
                              f"{n_graphics} graphics, {len(macros)} macros")
     sc.save()
     gfx = (f" Added {n_graphics} TikZ/table graphic object(s) — run "
            f"`pdfdrill svg {pdf.name}` to render them to SVG." if n_graphics else "")
+    if created:
+        # the keyless case: gold equations became first-class objects
+        return (f"Ingested LaTeX source {src.name}: {len(src_eqs)} display equations, "
+                f"{len(macros)} preamble macros. The base model had no equation "
+                f"slots (keyless OCR), so CREATED {created} Equation object(s) from "
+                f"the author's gold LaTeX.{gfx} Run `pdfdrill report {pdf.name}` — "
+                f"the equations now render.")
     return (f"Ingested LaTeX source {src.name}: {len(src_eqs)} display equations, "
             f"{len(macros)} preamble macros. Attached {attached} as `tex` "
             f"provenance to MathPix equations ({unmatched} source eqs unmatched). "

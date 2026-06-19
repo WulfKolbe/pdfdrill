@@ -1467,6 +1467,30 @@ traversal, `/open` refused when disabled, and a WS `status` round-trip runs on
 the doc). Live-verified end-to-end: a real question → grounded retrieval →
 `claude -p` → cited answer back in the terminal.
 
+## Keyless arXiv math recovery — `latex` CREATES gold equations; `report` explains an empty result (2026-06-19)
+
+Symptom (arXiv 2305.04710, keyless): `report` → "0 inline formulas + 0 display
+equations" with no hint why, even after the user ran `latex` as the `mathpix`
+skip-message suggested. Two causes, both fixed:
+- **`cmd_latex` only OVERLAID gold equations onto existing Equation slots** (sim
+  ≥0.55). A tesseract base has 0 such slots, so every gold equation was
+  "unmatched" → nothing rendered. Fix: when there is **no equation scaffold**
+  (`scaffold==0`, the keyless case), `latex` now **creates** first-class
+  `Equation` objects from the author's gold display equations (`added_by="latex"`,
+  expanded+original LaTeX, refnum from `\label`), clears `NEEDS_VISION_OCR`, and
+  reports "CREATED N Equation object(s)". Idempotent (force drops `added_by==latex`
+  eqs first; overlay skips them). The MathPix path is unchanged (scaffold>0 →
+  overlay only, no duplicates). Verified: 2305.04710 → `latex --force` creates 5
+  → `report` shows 5 display equations.
+- **`report` was silent on an empty result.** Now when `inline==0 && eqs==0` AND
+  the doc is math-bearing (or `NEEDS_VISION_OCR` set), it appends WHY (keyless
+  tesseract can't type equations) + the recovery routes, arXiv-gold first:
+  `pdfdrill latex` (free) / `visionocr` (keyless LLM) / `mathpix --force` (paid).
+
+Honest limit: the gold-source path objectifies DISPLAY equations only; inline
+formulas stay 0 on a keyless base (they live in prose, not separately extracted).
+For full inline+display fidelity use `mathpix --force` or `visionocr`.
+
 ## Stale-model rebuild — projectors/read path honor a newer lines.json (2026-06-18)
 
 Bug (arXiv 2305.04710 "report shows no formulas/tables/images"): the model was
