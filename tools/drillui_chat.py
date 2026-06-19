@@ -46,6 +46,10 @@ except ImportError:        # pragma: no cover
 _QUIT = {"quit", "exit", "stop", "q", "bye", "qui", ":quit", ":exit", ":stop",
          ":q", ":bye"}
 
+# pdfdrill commands that understand a COMBINED store (everything else needs a
+# single PDF and would produce nonsense on the .docpack).
+_COMBINED_OK = {"bibtex"}
+
 
 # This script lives at <repo>/tools/drillui_chat.py, so pdfdrill is ALWAYS
 # right here: <repo>/src/pdfdrill (import root) and <repo>/pdfdrill (the wrapper
@@ -200,30 +204,37 @@ def do_add(base, env, newdoc: str, docs: list, combined: str | None,
     target, combined-store path). On failure leaves the context unchanged."""
     if newdoc in docs:
         print(f"  {newdoc} is already in the context ({len(docs)} doc(s)).")
-        return (combined or docs[0]), combined
-    print(f"  adding {newdoc} … (reuses an existing drill; only builds if new)")
-    try:
-        _run(base + ["model", newdoc], env, timeout=max(timeout, 600.0))
-    except Exception as e:                                 # noqa: BLE001
-        print(f"  could not drill {newdoc}: {e}", file=sys.stderr)
-        print("  context unchanged.", file=sys.stderr)
         return (combined or (docs[0] if docs else None)), combined
+    print(f"  adding {newdoc} … (reuses an existing drill; only builds if new)")
     docs.append(newdoc)
-    if len(docs) == 1:                                     # first doc — no merge needed
-        print(f"  context: {newdoc} (1 document) — ask away.")
-        return newdoc, None
+    # Ensure EVERY doc in the context has a MODEL (combine needs one). `model` is
+    # idempotent — only the new/undrilled docs build. The launch doc may have had
+    # only `md` (not a model), which is why combine used to skip it.
+    drilled: list[str] = []
+    for d in docs:
+        try:
+            _run(base + ["model", d], env, timeout=max(timeout, 600.0))
+            drilled.append(d)
+        except Exception as e:                            # noqa: BLE001
+            print(f"  could not drill {d}: {e}", file=sys.stderr)
+    if not drilled:
+        docs.remove(newdoc)
+        print("  context unchanged.", file=sys.stderr)
+        return (combined or None), combined
+    if len(drilled) == 1:                                 # one usable doc — no merge
+        print(f"  context: {drilled[0]} (1 document) — ask away.")
+        return drilled[0], None
     base_store = (Path(store_dir) / ".drillui_session.docpack") if store_dir \
         else Path(".drillui_session.docpack")
     out = combined or str(base_store)
     try:
-        msg = _run(base + ["combine", *docs, "--out", out, "--force"], env,
+        msg = _run(base + ["combine", *drilled, "--out", out, "--force"], env,
                    timeout=max(timeout, 300.0))
     except Exception as e:                                 # noqa: BLE001
         print(f"  combine failed: {e}", file=sys.stderr)
-        docs.pop()
-        return (combined or (docs[0] if docs else None)), combined
+        return (combined or drilled[0]), combined
     print("  " + " ".join(msg.split()))
-    print(f"  context now spans {len(docs)} document(s) — ask away.")
+    print(f"  context spans {len(drilled)} document(s) — ask away.")
     return out, out
 
 
@@ -411,6 +422,17 @@ def main() -> int:
         # runs on the CURRENT target. Everything else is a question.
         first = line.lstrip("!").split(maxsplit=1)[0] if line.lstrip("!") else ""
         if line.startswith("!") or first in cmds:
+            # A combined multi-doc store is a RETRIEVAL artifact, not a PDF — most
+            # commands (status/md/latex/drill/…) produce nonsense on it. Only
+            # questions (and the combined-aware `bibtex`) make sense; route the
+            # rest to a clear message instead of running them on the .docpack.
+            on_combined = combined is not None and target == combined
+            if on_combined and first not in _COMBINED_OK:
+                print(f"  `{first}` runs on a SINGLE document; the context is a "
+                      f"combined store of {len(docs)} docs. Ask a question (spans "
+                      f"all of them), use `bibtex` (per-doc), or run `{first}` on "
+                      f"one doc via the CLI.")
+                continue
             try:
                 print(run_command(base, env, cmds, target, line, args.timeout))
             except Exception as e:                     # noqa: BLE001
