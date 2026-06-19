@@ -1322,10 +1322,29 @@ commands:
     type: pdf
     required: true
   typed: true
+- name: combine
+  section: Planning & automation
+  summary: 'Merge several drilled docs into ONE combined store (--out FILE) for MULTI-DOCUMENT chat/retrieve;
+    pools prose/math/concepts, ids namespaced <bibkey>:<id>. Each input must be drilled (model) first'
+  offline_ok: true
+  positionals:
+  - name: docs
+    type: path
+    required: true
+    help: two or more drilled PDFs/.md (each needs a built model)
+  flags:
+  - name: out
+    flag: --out
+    type: path
+    help: combined store file (e.g. heim.docpack)
+  - name: force
+    flag: --force
+    type: flag
+  typed: true
 - name: retrieve
   section: Planning & automation
   summary: 'Transform a question into grounded context: top-k relevant drilled units (the chat-proxy enrichment
-    / future-SKILL seed)'
+    / future-SKILL seed). Also accepts a COMBINED store (multi-document)'
   offline_ok: true
   requires:
   - model

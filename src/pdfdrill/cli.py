@@ -1188,6 +1188,21 @@ def _do_retrieve(args):
                         as_json=as_json)
 
 
+def _do_combine(args):
+    """pdfdrill combine <doc> <doc> [...] --out FILE [--force] — merge several
+    drilled docs into one combined store for multi-document chat/retrieve."""
+    from .commands import cmd_combine
+    out, rest = _opt(args, "--out")
+    force = "--force" in rest
+    rest = [a for a in rest if a != "--force"]
+    if not out:
+        raise ValueError('usage: pdfdrill combine <doc> <doc> … --out FILE [--force]')
+    if not rest:
+        raise ValueError("combine needs at least one input document.")
+    pdfs = [_drilled([a]) for a in rest]
+    return cmd_combine(Path(out), pdfs, force=force)
+
+
 def _do_chatlog(args):
     """pdfdrill chatlog <pdf|md> --question Q --answer A [--units id,id] [--model M]
     — store one Q&A turn (transcript + answer kitem in the semantic graph)."""
@@ -1289,6 +1304,7 @@ HANDLERS = {
         "skill": _do_skill,
         "steps": _do_steps,
         "retrieve": _do_retrieve,
+        "combine": _do_combine,
         "chatlog": _do_chatlog,
         "remath": _do_remath,
     }

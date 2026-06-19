@@ -2473,12 +2473,102 @@ def cmd_classify(pdf: Path, k: int = 8) -> str:
 # Both are read-mostly and additive; the conversational proxy stays external.
 # ---------------------------------------------------------------------------
 
+# Retrievable object types pooled into a combined store (what retrieve reads).
+_COMBINE_TYPES = ("Section", "Paragraph", "Abstract", "ListItem", "Footnote",
+                  "Toc", "Equation", "Formula", "Concept")
+
+
+def cmd_combine(out: Path, pdfs: "list[Path]", force: bool = False) -> str:
+    """Merge several drilled documents into ONE combined store for multi-document
+    chat: pool each doc's retrievable objects (prose/math/concepts), namespacing
+    every id as `<bibkey>:<id>` so an answer cites which paper. Each input must
+    already be drilled (`pdfdrill model`); writes a JSON store at `--out` that
+    `pdfdrill retrieve <out>` / drillui chat over as one context."""
+    from . import model_io
+    if not pdfs:
+        return "combine: give two or more drilled PDFs/.md and --out <file>."
+    objects: list[dict] = []
+    used, missing = [], []
+    for pdf in pdfs:
+        sc = Sidecar(pdf)
+        mp = _model_path(sc)
+        if not mp.exists():
+            missing.append(pdf.name)
+            continue
+        bk = resolve_bibkey(pdf, None, sc)
+        g = model_io.load_docgraph(mp)
+        n = 0
+        for o in g:
+            if getattr(o, "type", "") not in _COMBINE_TYPES:
+                continue
+            props = dict(getattr(o, "props", {}) or {})
+            props["bibkey"] = bk
+            objects.append({"type": o.type, "id": f"{bk}:{o.id}", "props": props})
+            n += 1
+        used.append((bk, n))
+    if not used:
+        return ("combine: none of the inputs has a built model — run `pdfdrill "
+                f"model` first. Missing: {', '.join(missing) or '(none given)'}.")
+    out = Path(out)
+    if out.exists() and not force:
+        return f"combine: {out.name} exists — pass --force to overwrite."
+    meta = {"title": f"Combined: {', '.join(bk for bk, _ in used)}",
+            "bibkey": out.stem, "combined_docs": [bk for bk, _ in used],
+            "num_docs": len(used)}
+    out.write_text(json.dumps(
+        {"is_combined": True, "meta": meta, "objects": objects},
+        ensure_ascii=False), encoding="utf-8")
+    parts = ", ".join(f"{bk} ({n})" for bk, n in used)
+    warn = (f" Skipped (no model): {', '.join(missing)}." if missing else "")
+    return (f"Combined {len(used)} document(s) → {len(objects)} units in {out.name} "
+            f"[{parts}].{warn} Chat over all: `pdfdrill retrieve {out.name} \"…\"` "
+            f"or `bun tools/drillui_bridge.ts {out.name}`.")
+
+
+def _load_combined_store(path: Path):
+    """If `path` is a combined store (from `pdfdrill combine`), return (nodes,
+    meta) where nodes expose .type/.id/.props for retrieve; else None."""
+    from types import SimpleNamespace
+    p = Path(path)
+    if not p.is_file() or p.suffix.lower() not in (".json", ".docpack", ".combined"):
+        return None
+    try:
+        d = json.loads(p.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError):
+        return None
+    if not isinstance(d, dict) or not d.get("is_combined"):
+        return None
+    nodes = [SimpleNamespace(type=o.get("type", ""), id=o.get("id", ""),
+                             props=o.get("props", {})) for o in d.get("objects", [])]
+    return nodes, d.get("meta", {})
+
+
 def cmd_retrieve(pdf: Path, question: str, k: int = 8, as_json: bool = False) -> str:
     """Transform a question into grounded CONTEXT from the drilled model: the
     top-k relevant units (paragraphs/sections/formulas/concepts), each tagged by
     object id. `--json` returns {question, units, prompt, title, subjects} for a
-    wrapper; otherwise prose. Fast DocGraph read path."""
+    wrapper; otherwise prose. Fast DocGraph read path. Also accepts a COMBINED
+    store from `pdfdrill combine` (multi-document context)."""
     from . import retrieve as R, model_io
+    # Multi-document: a combined store is retrieved across all pooled docs.
+    combo = _load_combined_store(pdf)
+    if combo is not None:
+        nodes, meta = combo
+        hits = R.retrieve(question, nodes, k=k)
+        title = meta.get("title") or Path(pdf).stem
+        prompt = R.build_prompt(question, hits, title=str(title), subjects="")
+        if as_json:
+            return json.dumps({"question": question, "units": hits, "prompt": prompt,
+                               "title": str(title), "subjects": ""}, ensure_ascii=False)
+        if not hits:
+            return f"No relevant units for the question in {Path(pdf).name}."
+        lines = [f"Top {len(hits)} unit(s) across {meta.get('num_docs', '?')} "
+                 f"document(s) (cite these ids):"]
+        for h in hits:
+            lines.append(f"  [{h['id']}] ({h['type']}, {h['score']:.1f}) "
+                         f"{h['text'][:140].strip()}")
+        return "\n".join(lines)
+
     sc = Sidecar(pdf)
     model_path = _model_path(sc)
     if not model_path.exists():

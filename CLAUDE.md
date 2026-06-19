@@ -1467,6 +1467,27 @@ traversal, `/open` refused when disabled, and a WS `status` round-trip runs on
 the doc). Live-verified end-to-end: a real question → grounded retrieval →
 `claude -p` → cited answer back in the terminal.
 
+## Multi-document chat — `pdfdrill combine` → one store, retrieve across all (2026-06-19)
+
+drillui is one-doc-per-session (`drillui_chat.py <doc>`; `cmd_retrieve` over one
+model). For multi-document context the chosen design is **merge into one store**:
+- **`pdfdrill combine <doc> <doc> … --out FILE`** (`cmd_combine`): each input must
+  already be drilled (`model`); it pools every retrievable object (prose/math/
+  concepts — `_COMBINE_TYPES`) into one JSON store, namespacing each id as
+  `<bibkey>:<id>` so an answer cites which paper. Writes `{is_combined, meta,
+  objects}` to `--out` (e.g. `heim.docpack`). Unbuilt inputs are skipped + warned.
+- **`cmd_retrieve` accepts a combined store** (`_load_combined_store` detects
+  `is_combined`): it retrieves across the pooled nodes (lightweight
+  SimpleNamespace nodes — retrieve only needs .type/.id/.props), citing
+  `bibkey:id`. So `pdfdrill retrieve heim.docpack "…"` and
+  `bun tools/drillui_bridge.ts heim.docpack` chat over all docs at once.
+  `cmd_chatlog` already works on any path (transcript + kitem by unit id), so
+  storing multi-doc turns needs no change.
+Verified: combine data/1906.02691 + data/2312.11532 → 985 units; "variational
+autoencoder" → 1906 units, "diffusion manifold" → the other doc. Honest limit:
+the store holds retrievable text only (no streams), so it's for chat/retrieve —
+projectors/transclusion still run per original doc. Tests: `tests/test_combine.py`.
+
 ## `bibtex` augments from arXiv free metadata (no more `@misc{unknown2023}`, 2026-06-19)
 
 `pdfdrill bibtex` derived the record from the **embedded PDF Info dict only**
