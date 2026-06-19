@@ -31,6 +31,17 @@ commands:
     flag: --download-dir
     type: flag
   typed: true
+- name: artifacts
+  section: Introspection (fast, no extraction)
+  summary: 'List every openable file in the doc''s drill folder (report.html, the extracted <bibkey>.md,
+    model/tiddlers/semantic *.json, SVGs) with paths — all clickable in the drillui Outputs panel'
+  offline_ok: true
+  positionals:
+  - name: pdf
+    type: pdf
+    required: true
+    help: PDF/Markdown drilled-doc path, URL, or arXiv id
+  typed: true
 - name: size
   section: Introspection (fast, no extraction)
   summary: File size, page count, producer

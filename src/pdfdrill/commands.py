@@ -399,6 +399,38 @@ def cmd_config(action: str = "show") -> str:
     ])
 
 
+_ARTIFACT_EXTS = (".html", ".htm", ".json", ".md", ".svg", ".pdf", ".txt",
+                  ".tex", ".csv")
+
+
+def cmd_artifacts(pdf: Path) -> str:
+    """List every openable file in this doc's drill folder (report.html, the
+    extracted `<bibkey>.md`, model/tiddlers/semantic `*.json`, SVGs, …) with its
+    path — so they ALL become clickable links in the drillui Outputs panel (the
+    browser opens md/json/svg/pdf/html directly). No `fetch`, no `find`."""
+    sc = Sidecar(pdf)
+    d = sc.blob_dir
+    if not d.exists():
+        return (f"No drill folder yet for {pdf.name} — run `pdfdrill model` / "
+                f"`md` / `report` / `tiddlers` first.")
+    # Top-level drill OUTPUTS (report.html, <bibkey>.md, *.json, …) + rendered
+    # SVGs — NOT the texsrc/remath/ocr/… scratch & extraction trees.
+    files = [p for p in d.glob("*")
+             if p.is_file() and p.suffix.lower() in _ARTIFACT_EXTS]
+    svgdir = d / "svg"
+    if svgdir.is_dir():
+        files += [p for p in svgdir.glob("*.svg")]
+    files.sort(key=lambda p: (p.suffix.lower(), p.name))
+    rel_dir = d.relative_to(sc.pdf_path.parent)
+    if not files:
+        return f"No openable artifacts in {rel_dir}/ yet (run md/report/tiddlers/…)."
+    lines = [f"{len(files)} artifact(s) in {rel_dir}/ — click to open in a tab:"]
+    for p in files:
+        lines.append(f"  {p.relative_to(sc.pdf_path.parent)}  "
+                     f"({p.stat().st_size / 1024:.0f} KB)")
+    return "\n".join(lines)
+
+
 def cmd_ocr(pdf: Path, lang: str = "eng", ppi: int = 300, force: bool = False) -> str:
     """Build a MathPix-compatible `<pdf>.lines.json` via tesseract OCR.
 

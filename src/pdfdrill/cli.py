@@ -110,6 +110,13 @@ def _drilled(args: list[str]) -> Path:
     return _pdf(args)
 
 
+def _do_artifacts(args):
+    """pdfdrill artifacts <pdf|md> — list the drill-folder files (md/json/html/svg/…)
+    with paths, so they're all clickable in the drillui Outputs panel."""
+    from .commands import cmd_artifacts
+    return cmd_artifacts(_drilled(args))
+
+
 def _do_config(args):
     """pdfdrill config [--init|--json|--download-dir] — show/init the config file
     (where downloads + .drill folders go; default ~/Downloads)."""
@@ -1235,6 +1242,7 @@ def _do_chatlog(args):
 HANDLERS = {
         "doctor": _do_doctor,
         "config": _do_config,
+        "artifacts": _do_artifacts,
         "size": _do_size,
         "abstract": _do_abstract,
         "toc": _do_toc,

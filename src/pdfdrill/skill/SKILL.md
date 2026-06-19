@@ -371,6 +371,7 @@ _Generated from `commands.yaml` by skillsync. Edit the manifest, not this sectio
 |---|---|
 | `pdfdrill doctor` | Requirement check: system tools (poppler/tesseract/LaTeX+dvisvgm), Python deps, API keys + the apt-get fix line |
 | `pdfdrill config [--init] [--json] [--download-dir]` | Show / init the config FILE (not CLI flags): where URL/arXiv downloads + each doc's .drill folder land (default ~/Downloads). --init writes ~/.config/pdfdrill/config.json; --json; --download-dir |
+| `pdfdrill artifacts <pdf>` | List every openable file in the doc's drill folder (report.html, the extracted <bibkey>.md, model/tiddlers/semantic *.json, SVGs) with paths — all clickable in the drillui Outputs panel |
 | `pdfdrill size <pdf>` | File size, page count, producer |
 | `pdfdrill abstract <pdf>` | Abstract from first pages |
 | `pdfdrill toc <pdf>` | Table of contents |

@@ -18,7 +18,8 @@
 
 import { dirname, join, resolve, normalize, sep, extname } from "node:path";
 import { fileURLToPath } from "node:url";
-import { existsSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
+import { homedir } from "node:os";
 
 // ---- arg parsing -----------------------------------------------------------
 const argv = process.argv.slice(2);
@@ -111,7 +112,25 @@ const DOC_DIR = (() => {
   try { const abs = resolve(doc); return existsSync(abs) ? dirname(abs) : null; }
   catch { return null; }
 })();
-const ART_ROOTS = [...new Set([ART_ROOT, DOC_DIR].filter(Boolean) as string[])];
+// The pdfdrill download dir (config `download_dir`, default ~/Downloads) is where
+// drilled docs + their `.drill` artifacts (report.html / *.md / *.json …) live, so
+// serve from there too — else links to ~/Downloads/<doc>.drill/* would 404.
+const DOWNLOAD_DIR = (() => {
+  const cands = [process.env.PDFDRILL_CONFIG,
+                 join(homedir(), ".config", "pdfdrill", "config.json"),
+                 join(homedir(), ".pdfdrill.json")].filter(Boolean) as string[];
+  for (const c of cands) {
+    try {
+      const d = JSON.parse(readFileSync(c, "utf8"));
+      if (d && d.download_dir)
+        return resolve(String(d.download_dir).replace(/^~(?=$|\/)/, homedir()));
+    } catch { /* not present / not json */ }
+  }
+  const dl = join(homedir(), "Downloads");
+  return existsSync(dl) ? dl : null;
+})();
+const ART_ROOTS = [...new Set(
+  [ART_ROOT, DOC_DIR, DOWNLOAD_DIR].filter(Boolean) as string[])];
 
 const MIME: Record<string, string> = {
   ".html": "text/html; charset=utf-8", ".htm": "text/html; charset=utf-8",
