@@ -1467,6 +1467,34 @@ traversal, `/open` refused when disabled, and a WS `status` round-trip runs on
 the doc). Live-verified end-to-end: a real question → grounded retrieval →
 `claude -p` → cited answer back in the terminal.
 
+## LaTeX-source projection parity — prose Paragraphs + inline Formulas (2026-06-20)
+
+The LaTeX-source builder (`latex_source.build_source_model`, used by `latexbook`)
+emitted only a SKELETON (Section/Equation/graphic/Algorithm) — no Paragraph, no
+inline Formula — so its TiddlyWiki projection had a totally different (far
+smaller) tiddler count than the MathPix path (which emits the full 15 object
+types incl. Page/Paragraph/Formula). Measured on 2305.04710: source-only 32
+tiddlers vs MathPix/OCR 48 (and a real MathPix model is far denser). Closed the
+biggest gaps (the user chose "extend the builder directly", not route-via-md):
+- `build_source_model` now interleaves, BY SOURCE POSITION, the structural items
+  with **prose Paragraphs** (the text between sectioning/float/math blocks;
+  `_prose_chunks` blanks structural blocks to equal-length whitespace so prose
+  splits at the right offsets) and **inline Formula objects** for each `$…$` /
+  `\(…\)`. `extract_display_equations` keeps `pos` now (was popped) so equations
+  order correctly too. Section→Paragraph parent linkage tracked.
+- **Both LaTeX forms in parallel** (the requirement): every inline Formula (and
+  display Equation) stores `latex` = macro-EXPANDED (what TiddlyWiki `<$latex>`/
+  KaTeX renders) AND `latex_original` = the author's un-expanded macro source.
+  The projector already renders `latex` and keeps `latex_original`.
+- Each inline formula is transcluded into its paragraph via a materialized
+  `{{<bibkey>_FO{k}||FO}}` marker whose title matches the projector's
+  deterministic FO numbering (flow order) — no FOX needed (FOX doesn't run on a
+  no-mathpix-surface paragraph), and `tiddler_integrity` confirms 0 dangling /
+  0 orphan. Verified on 2305.04710: 32 → 107 tiddlers (35 Paragraph, 40 Formula,
+  9 Section, 5 Equation, 2 Table), all 40 FO markers resolve. Tests:
+  `tests/test_latex_prose.py`. Still source-only-absent (later phases): Page
+  (needs compile/geometry), Citation/Abstract/ListItem/Footnote/Reference.
+
 ## Config FILE + stable download/drill location + findable artifacts (2026-06-19)
 
 Driven by drillui usage feedback (downloads landing in cwd/`/tmp`; re-drilling;

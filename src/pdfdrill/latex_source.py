@@ -438,9 +438,7 @@ def extract_display_equations(body: str) -> list[dict]:
         items.append({"env": "displaymath", "latex": _clean_eq(m.group(1)),
                       "numbered": False, "label": None, "pos": m.start()})
     items.sort(key=lambda it: it["pos"])
-    for it in items:
-        it.pop("pos", None)
-    return items
+    return items   # keep `pos` so build_source_model can interleave prose by position
 
 
 # Multi-line math envs whose body uses & / \\ and so needs an `aligned`
@@ -684,6 +682,47 @@ def extract_algorithms(body: str) -> list[dict]:
     return out
 
 
+# Structural blocks excluded from prose (blanked to equal-length whitespace so
+# the surrounding prose still splits into paragraphs at the right positions).
+_STRUCT_RE = re.compile(
+    r"\\\[.*?\\\]"
+    r"|\$\$.*?\$\$"
+    r"|\\begin\{(equation|align|gather|multline|eqnarray|displaymath|figure|table|"
+    r"tikzpicture|algorithm|algorithmic|verbatim|lstlisting|tabular|cases|array|"
+    r"itemize|enumerate|description|abstract|thebibliography)\*?\}.*?\\end\{\1\*?\}"
+    r"|\\(?:section|subsection|subsubsection|chapter|paragraph|subparagraph)\*?\s*\{[^{}]*\}",
+    re.S)
+
+# Inline math: \( … \) or $ … $ (never $$). Named groups p / d.
+_INLINE_MATH = re.compile(
+    r"(?<!\\)\\\((?P<p>.+?)(?<!\\)\\\)"
+    r"|(?<![\\$])\$(?!\$)(?P<d>.+?)(?<!\\)\$",
+    re.S)
+
+_PROSE_CLEAN = [
+    (re.compile(r"\\(?:textbf|textit|emph|texttt|textsc|textrm|textsf|mathrm)\s*\{([^{}]*)\}"), r"\1"),
+    (re.compile(r"\\cite[tp]?\s*(?:\[[^\]]*\])?\s*\{([^}]*)\}"), r"[\1]"),
+    (re.compile(r"\\(?:eqref|ref|autoref|cref|Cref)\s*\{[^}]*\}"), "(ref)"),
+    (re.compile(r"\\label\s*\{[^}]*\}"), ""),
+    (re.compile(r"\\%"), "%"), (re.compile(r"~"), " "),
+]
+
+
+def _clean_prose(s: str) -> str:
+    for rx, rep in _PROSE_CLEAN:
+        s = rx.sub(rep, s)
+    return re.sub(r"[ \t]+", " ", s).strip()
+
+
+def _prose_chunks(body: str):
+    """Yield (pos, raw_prose) for each blank-line-separated prose block, with
+    structural blocks blanked out (length preserved → positions stay valid)."""
+    cleaned = _STRUCT_RE.sub(lambda m: re.sub(r"[^\n]", " ", m.group(0)), body)
+    for m in re.finditer(r"(?s)\S.*?(?=\n[ \t]*\n|\Z)", cleaned):
+        if m.group(0).strip():
+            yield m.start(), m.group(0)
+
+
 def build_source_model(tex_path: str, bibkey: str = "DOC") -> "object":
     """Build a docmodel `Document` from a LaTeX source file (NO OCR/MathPix).
 
@@ -707,21 +746,28 @@ def build_source_model(tex_path: str, bibkey: str = "DOC") -> "object":
     doc.meta["latex_preamble"] = {"main": main, "num_macros": len(macros),
                                   "standalone": standalone_preamble(pre)}
 
-    # Merge sections + equations + graphics into one flow-ordered stream.
-    graphics = extract_graphics(body)
-    items = ([("section", s) for s in extract_sections(body)]
-             + [("equation", e) for e in extract_display_equations(body)]
-             + [("graphic", g) for g in graphics])
-    items.sort(key=lambda t: t[1].get("pos", 0))
+    # Merge sections + equations + graphics + PROSE PARAGRAPHS into one
+    # flow-ordered (by source position) stream, so the tiddler reading order
+    # matches the document. Paragraphs carry inline math as real Formula objects
+    # (latex = expanded for KaTeX, latex_original = the author's macro source).
+    items = ([("section", s["pos"], s) for s in extract_sections(body)]
+             + [("equation", e["pos"], e) for e in extract_display_equations(body)]
+             + [("graphic", g["pos"], g) for g in extract_graphics(body)]
+             + [("para", pos, raw) for pos, raw in _prose_chunks(body)])
+    items.sort(key=lambda t: t[1])
 
-    n_sec = n_eq = n_dia = n_tab = 0
+    n_sec = n_eq = n_dia = n_tab = n_para = n_formula = 0
     fi = 0
-    for kind, it in items:
+    formula_no = 0
+    current_section = None        # id of the most recent Section (parent linkage)
+    for kind, _pos, it in items:
         fi += 1
         if kind == "section":
-            doc.add(DocObject(type="Section", props={
+            s_obj = DocObject(type="Section", props={
                 "level": it["level"], "caption": it["caption"],
-                "flow_index": fi, "bibkey": bibkey}))
+                "flow_index": fi, "bibkey": bibkey})
+            doc.add(s_obj)
+            current_section = s_obj.id
             n_sec += 1
         elif kind == "equation":
             original = it["latex"]
@@ -731,7 +777,7 @@ def build_source_model(tex_path: str, bibkey: str = "DOC") -> "object":
                 "numbered": it.get("numbered"), "label": it.get("label"),
                 "env": it.get("env"), "flow_index": fi, "bibkey": bibkey}))
             n_eq += 1
-        else:  # graphic: TikZ or table → needs SVG render (latex_code kept)
+        elif kind == "graphic":
             code = expand_macros(it["code"], macros)
             doc.add(DocObject(type=it["kind"], props={
                 "latex_code": code, "latex_original": it["code"],
@@ -741,6 +787,33 @@ def build_source_model(tex_path: str, bibkey: str = "DOC") -> "object":
                 n_dia += 1
             else:
                 n_tab += 1
+        else:  # prose paragraph: extract inline math → Formula objects, transclude
+            text = it
+            out, last = [], 0
+            for mm in _INLINE_MATH.finditer(text):
+                original = (mm.group("p") or mm.group("d") or "").strip()
+                if not original:
+                    continue
+                formula_no += 1
+                fi += 1
+                doc.add(DocObject(type="Formula", props={
+                    "latex": expand_macros(original, macros),     # KaTeX renders this
+                    "latex_original": original,                   # author's macro source
+                    "display": False, "flow_index": fi, "bibkey": bibkey}))
+                n_formula += 1
+                title = re.sub(r"[^A-Za-z0-9_\-\.]", "_", f"{bibkey}_FO{formula_no:04d}")
+                out.append(text[last:mm.start()])
+                out.append("{{" + title + "||FO}}")            # transclude the FO tiddler
+                last = mm.end()
+            out.append(text[last:])
+            prose = _clean_prose("".join(out))
+            if not prose:
+                continue
+            props = {"text": prose, "flow_index": fi, "bibkey": bibkey}
+            if current_section:
+                props["parent_section"] = current_section
+            doc.add(DocObject(type="Paragraph", props=props))
+            n_para += 1
 
     # Algorithms: each is an Algorithm DocObject with AlgorithmStep children
     # (mirroring the MathPix `pdfdrill algorithms` shape, here from LaTeX source).
@@ -763,6 +836,7 @@ def build_source_model(tex_path: str, bibkey: str = "DOC") -> "object":
             n_steps += 1
 
     doc.meta["source_counts"] = {"sections": n_sec, "equations": n_eq,
+                                 "paragraphs": n_para, "formulas": n_formula,
                                  "diagrams": n_dia, "tables": n_tab,
                                  "algorithms": n_alg, "algorithm_steps": n_steps,
                                  "macros": len(macros)}
