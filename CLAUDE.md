@@ -1467,6 +1467,24 @@ traversal, `/open` refused when disabled, and a WS `status` round-trip runs on
 the doc). Live-verified end-to-end: a real question → grounded retrieval →
 `claude -p` → cited answer back in the terminal.
 
+## arXiv builds from LaTeX source by default — no slow tesseract OCR (2026-06-20)
+
+`pdfdrill model` on an arXiv doc with no lines.json fell back to **keyless
+tesseract OCR of every page** (~60 s for a real paper, and lossy). Working
+locally, the FREE e-print LaTeX is the right route. `cmd_model` now, when no
+lines.json materialises and the doc is arXiv (`_arxiv_id_for`), builds via
+`_build_arxiv_source_model` → `latex_source.build_source_model` (download the
+cached `.tgz`, parse) BEFORE the tesseract fallback. Verified: 1906.02691 →
+**0.28 s, 938 objects** (444 Formula, 260 Paragraph, 92 Equation, 65 Section, 3
+Table, 3 Algorithm) vs ~60 s OCR; 2305.04710 → 0.12 s. Tesseract remains only the
+last resort for a NON-arXiv doc with no source. `mathpix --force` still gets the
+paid OCR/CDN route. This also realises "a `tiddlers` command needs the model
+(from LaTeX) first" — the auto-chained `model` is now the fast source build.
+
+**drillui typo/singular tolerance:** a lone word that closely matches a command
+(`tiddler` → `tiddlers`, difflib cutoff 0.8) runs the command instead of being
+sent to the LLM as a question (which wasted a slow call and answered nothing).
+
 ## LaTeX-source projection parity — prose Paragraphs + inline Formulas (2026-06-20)
 
 The LaTeX-source builder (`latex_source.build_source_model`, used by `latexbook`)

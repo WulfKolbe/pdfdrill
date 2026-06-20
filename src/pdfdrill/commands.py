@@ -1896,6 +1896,44 @@ def cmd_tables(pdf: Path, pages: str | None = None) -> str:
             + preview)
 
 
+def _build_arxiv_source_model(pdf: Path, sc: "Sidecar", key: str,
+                              model_path: Path) -> "str | None":
+    """For an arXiv doc, build the model from the FREE LaTeX e-print
+    (`build_source_model`) — fast and gold — instead of keyless tesseract OCR.
+    Returns the formatted result on success, None to fall through to OCR."""
+    aid = _arxiv_id_for(pdf, sc)
+    if not aid:
+        return None
+    try:
+        from . import sources, latex_source as ls, model_io
+        src = sources.download_arxiv_source(aid, pdf.parent)
+        if not (src and Path(src).exists()):
+            return None
+        doc = ls.build_source_model(str(src), bibkey=key)
+    except Exception:
+        return None
+    objs = list(doc.objects.values())
+    if not objs:
+        return None
+    model_io.save_model(model_path, doc)
+    by_type: dict[str, int] = {}
+    for o in objs:
+        by_type[o.type] = by_type.get(o.type, 0) + 1
+    sc.set_evidence("bibkey", key)
+    sc.set_evidence("model_path", str(model_path.relative_to(sc.pdf_path.parent)))
+    sc.set_evidence("model_object_counts", by_type)
+    sc.set_evidence("model_equations_with_cdn", 0)
+    sc.set_evidence("model_source", "latex")
+    prev = ",".join(sorted(sc.facts - {MODEL_BUILT})) or "INIT"
+    sc.add_fact(MODEL_BUILT)
+    sc.log_transition("model", prev, MODEL_BUILT,
+                      detail=f"{len(objs)} objects from arXiv LaTeX source")
+    sc.save()
+    return _format_model(sc) + ("\n(Built from the free arXiv LaTeX source — "
+                                "fast + gold, no OCR. `mathpix --force` for the "
+                                "paid OCR/CDN route.)")
+
+
 def cmd_model(pdf: Path, force: bool = False, bibkey: str | None = None) -> str:
     """Build the unified docmodel Document from MathPix lines.json.
 
@@ -1936,6 +1974,11 @@ def cmd_model(pdf: Path, force: bool = False, bibkey: str | None = None) -> str:
             pass
         sc = Sidecar(pdf)
         if not lines_path.exists():
+            # arXiv: build from the FREE LaTeX e-print — FAST and gold — instead
+            # of slow keyless tesseract OCR (the right route when working locally).
+            built = _build_arxiv_source_model(pdf, sc, key, model_path)
+            if built:
+                return built
             from .ocr_lines import tools_available
             if tools_available()[0]:
                 cmd_ocr(pdf)

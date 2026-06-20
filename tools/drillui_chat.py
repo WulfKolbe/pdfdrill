@@ -30,6 +30,7 @@ from __future__ import annotations
 
 import argparse
 import atexit
+import difflib
 import json
 import os
 import subprocess
@@ -418,14 +419,23 @@ def main() -> int:
         if target is None:
             print("  no document yet — `add <pdf|url|arxiv-id>` to bring one in.")
             continue
-        # A pdfdrill command — either forced with '!' or recognised by name —
-        # runs on the CURRENT target. Everything else is a question.
+        # A pdfdrill command — forced with '!' or recognised by name — runs on the
+        # CURRENT target. Everything else is a question.
         first = line.lstrip("!").split(maxsplit=1)[0] if line.lstrip("!") else ""
-        if line.startswith("!") or first in cmds:
+        is_cmd = line.startswith("!") or first in cmds
+        # Typo / singular tolerance: a lone word that closely matches a command
+        # (e.g. `tiddler` → `tiddlers`) runs the command instead of being sent to
+        # the LLM as a question (which wastes a slow call and answers nothing).
+        if not is_cmd and len(line.split()) == 1 and first:
+            near = difflib.get_close_matches(first.lower(), list(cmds), n=1, cutoff=0.8)
+            if near:
+                print(f"  (no command `{first}` — running closest match `{near[0]}`)")
+                line = first = near[0]
+                is_cmd = True
+        if is_cmd:
             # A combined multi-doc store is a RETRIEVAL artifact, not a PDF — most
             # commands (status/md/latex/drill/…) produce nonsense on it. Only
-            # questions (and the combined-aware `bibtex`) make sense; route the
-            # rest to a clear message instead of running them on the .docpack.
+            # questions (and the combined-aware `bibtex`) make sense.
             on_combined = combined is not None and target == combined
             if on_combined and first not in _COMBINED_OK:
                 print(f"  `{first}` runs on a SINGLE document; the context is a "
