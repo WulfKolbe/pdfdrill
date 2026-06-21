@@ -204,6 +204,10 @@ def resolve_input(arg: str, dest_dir: Optional[Path] = None) -> dict:
     kind = known_host(arg)
     if kind == "arxiv":
         arxiv_id = parse_arxiv_id(arg)
+        if not arxiv_id:
+            raise ValueError(
+                f"{arg!r} is an arXiv URL but carries no valid id "
+                f"(expected e.g. 2604.17042 or math/0309136). Check the id.")
         dest = dest_dir / f"{arxiv_id.replace('/', '_')}.pdf"
         if not (dest.exists() and dest.stat().st_size > 0):
             download(arxiv_urls(arxiv_id)["pdf"], dest)
