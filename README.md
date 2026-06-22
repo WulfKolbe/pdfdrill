@@ -130,6 +130,8 @@ when the dep is absent): `DATE` (dateparser), `PHONE` (phonenumbers), `PRICE`
   evidence, identity resolution, grounding layers G1–G4, concepts, kitems,
   the compiler, gap detection, bundle/rulebook/sTeX projections).
 - `tools/drillui_*` — an "ask-the-document" terminal UI (see below).
+- `tools/pdfdrill_mcp.py` + `tools/drillbatch.py` — a stdio MCP server (drill
+  results as MCP resources) + a batch driver (see the MCP section below).
 
 ## drillui — ask-the-document terminal
 
@@ -157,6 +159,32 @@ Command model in the terminal: `open <url|file>` opens a new window (handled
 locally, never an LLM call); a pdfdrill command name (`status`, `report`,
 `model`, `latex`, …) runs **on the open doc**; anything else is a grounded
 question. The document must already be drilled (`pdfdrill model <doc>`).
+
+## MCP server — drill results as clickable resources in a chat client
+
+`tools/pdfdrill_mcp.py` is a **pure-stdlib stdio MCP server** (no `mcp` SDK,
+JSON-RPC 2.0 over stdin/stdout) exposing `drill` / `md` / `tiddlers` / `report`.
+Each tool runs pdfdrill on the resolved doc (local path, https URL, or arXiv id)
+and returns a text summary **plus the produced files as MCP resources** —
+`resource_link` items + embedded `resource` content, fetchable via
+`resources/read`. The client pulls files over the MCP connection, so there is
+**no localhost port and no dead `/artifact` link** (the failure mode when a
+drillui bridge URL is opened inside a hosted chat client).
+
+Best fit: **Claude Desktop / Claude Code** (local stdio) — add to
+`claude_desktop_config.json`:
+
+```json
+{ "mcpServers": { "pdfdrill": {
+    "command": "python3",
+    "args": ["/ABS/PATH/pdfdrill/tools/pdfdrill_mcp.py"] } } }
+```
+
+then ask: *"drill arxiv.org/abs/2305.04710 standard"* → the md/tiddlers come back
+as openable resources. The **claude.ai web** client needs the server behind an
+HTTP/SSE transport at a public HTTPS URL (a custom connector). Batch helper:
+`tools/drillbatch.py` (shallow→standard→deep ladder; `--list-outputs` prints
+every produced file). Full guide: [`tools/MCP.md`](tools/MCP.md).
 
 ## The layer tower
 

@@ -370,13 +370,15 @@ _Generated from `commands.yaml` by skillsync. Edit the manifest, not this sectio
 | Command | Returns |
 |---|---|
 | `pdfdrill doctor` | Requirement check: system tools (poppler/tesseract/LaTeX+dvisvgm), Python deps, API keys + the apt-get fix line |
+| `pdfdrill config [--init] [--json] [--download-dir]` | Show / init the config FILE (not CLI flags): where URL/arXiv downloads + each doc's .drill folder land (default ~/Downloads). --init writes ~/.config/pdfdrill/config.json; --json; --download-dir |
+| `pdfdrill artifacts <pdf> [--all]` | List the openable files in the doc's drill folder (report.html, the extracted <bibkey>.md, tiddlers/semantic/llm *.json/*.txt, SVGs) with paths — clickable in the drillui Outputs panel. Giant model JSON hidden unless --all. (`status` also lists them.) |
 | `pdfdrill size <pdf>` | File size, page count, producer |
 | `pdfdrill abstract <pdf>` | Abstract from first pages |
 | `pdfdrill toc <pdf>` | Table of contents |
 | `pdfdrill fonts <pdf>` | Font analysis, math font detection |
 | `pdfdrill status <pdf>` | What is already known |
 | `pdfdrill pdfinfo <pdf>` | Full PdfInfo struct (title/author/dates/flags) |
-| `pdfdrill bibtex <pdf>` | Derived BibTeX record |
+| `pdfdrill bibtex <pdf>` | Derived BibTeX record from embedded PDF metadata, AUGMENTED by the free arXiv abs-page metadata (title/authors) + the drilled title; warns when still a placeholder (run abstract/model first) |
 | `pdfdrill urls <pdf>` | URL annotations with anchor text (heavier; pdfplumber) |
 | `pdfdrill links <pdf>` | FAST external URLs via pdfinfo -url (~50ms); flags code/data hosts |
 | `pdfdrill dests <pdf>` | Named destinations: theorems, equations, sections |
@@ -464,7 +466,8 @@ _Generated from `commands.yaml` by skillsync. Edit the manifest, not this sectio
 | `pdfdrill plan <pdf> <question>` | Show what steps are needed |
 | `pdfdrill drill <pdf> [--full]` | Full auto-drill |
 | `pdfdrill steps <cmd> <pdf>` | Show the prerequisite chain for a command (what's done, what --ensure would run) |
-| `pdfdrill retrieve <pdf> <question> [--k K] [--json]` | Transform a question into grounded context: top-k relevant drilled units (the chat-proxy enrichment / future-SKILL seed) |
+| `pdfdrill combine <docs> [--out OUT] [--force]` | Merge several drilled docs into ONE combined store (--out FILE) for MULTI-DOCUMENT chat/retrieve; pools prose/math/concepts, ids namespaced <bibkey>:<id>. Each input must be drilled (model) first |
+| `pdfdrill retrieve <pdf> <question> [--k K] [--json]` | Transform a question into grounded context: top-k relevant drilled units (the chat-proxy enrichment / future-SKILL seed). Also accepts a COMBINED store (multi-document) |
 | `pdfdrill chatlog <pdf> [--question QUESTION] [--answer ANSWER] [--units UNITS] [--model MODEL]` | Store one Q&A turn: append the transcript + emit the answer as a kitem in the semantic graph (provenance qid=ask) |
 
 ### Other

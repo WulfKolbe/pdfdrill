@@ -10,6 +10,11 @@ __pycache__/
 *.drill.json
 *.drill/
 
+# MCP / drillbatch download + resource caches
+.mcp-pdfcache/
+tools/.mcp-pdfcache/
+_pdfcache/
+
 # Generated unified-model artifacts
 *.docmodel.json
 

@@ -1467,6 +1467,37 @@ traversal, `/open` refused when disabled, and a WS `status` round-trip runs on
 the doc). Live-verified end-to-end: a real question → grounded retrieval →
 `claude -p` → cited answer back in the terminal.
 
+## MCP server — drill results as clickable resources (`tools/pdfdrill_mcp.py`, 2026-06-22)
+
+The "result link doesn't open in chat" fix. drillui's `/artifact?path=…` is a
+localhost **bridge** route; opened inside a hosted client (claude.ai) it resolves
+against the client host and 404s. MCP is the reachable channel: a tool result
+carries the produced files as `resource_link` items + embedded `resource` content,
+and the client fetches them via `resources/read` over the MCP connection — no
+port, no dead link.
+- **`tools/pdfdrill_mcp.py`** — pure-stdlib stdio MCP server (JSON-RPC 2.0 over
+  stdin/stdout, NO `mcp` SDK; stdout = protocol, logs → stderr). Tools `drill`
+  (shallow|standard|deep via drillbatch), `md`, `tiddlers`, `report`; each runs
+  pdfdrill on the resolved doc and returns a text summary + the files as
+  resources (text files ≤256 KB embedded inline, larger/binary linked).
+  Implements `initialize`/`tools/list`/`tools/call`/`resources/list`/
+  `resources/read`. Imports `drillbatch` for `resolve`/`pdfdrill_base`/`run_cmd`/
+  `collect_outputs`; self-locates pdfdrill via `REPO_ROOT/src`.
+- **`tools/drillbatch.py`** — batch driver (shallow→standard→deep ladder over a
+  URL list), `collect_outputs` (the `<pdf>.drill/` openable artifacts), an HTML
+  card report, and `--list-outputs` (print every produced file path). Its card
+  report links outputs with **`file://` URIs** (open locally) — NOT the
+  bridge-only `/artifact` route that 404s in a hosted viewer (the dead-link fix).
+- **`tools/MCP.md`** — the guide (claude_desktop_config.json block; local-stdio
+  vs the web client needing an HTTP/SSE remote connector).
+- **Verified end-to-end in this repo** via a stdlib stdio client:
+  `initialize` (proto 2025-06-18) → `tools/list` (drill/md/tiddlers/report) →
+  `tools/call md` on a local doc → text + resource_link + embedded 152 KB md →
+  `resources/list` → `resources/read` returns the file. Pure-stdlib, so no test
+  dep; not in `tests/` (it shells the CLI). Honest limit: stdio fits Claude
+  Desktop/Code; the web client needs the server wrapped behind HTTP/SSE at a
+  public HTTPS URL (a future transport, not built).
+
 ## arXiv builds from LaTeX source by default — no slow tesseract OCR (2026-06-20)
 
 `pdfdrill model` on an arXiv doc with no lines.json fell back to **keyless
