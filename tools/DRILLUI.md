@@ -1,5 +1,12 @@
 # drillui — ask-the-document terminal
 
+**There is exactly ONE canonical copy of each file, and it lives in `tools/`.**
+If you find a `drillui_bridge.ts` / `drillui_term.html` anywhere else (e.g. an
+old `~/Downloads/` drop), it is a stale duplicate — delete it and use the repo
+copy. (Prerequisite: the Python deps must be installed once — `pip install -e .`
+in the repo; otherwise the bridge's `python -m pdfdrill` subprocess fails with
+e.g. `No module named 'pydantic'`.)
+
 Three files, three distinct roles. They are **not** interchangeable; the
 confusion comes from the shared `drillui_` prefix, so here is exactly what each
 one is and how they connect.
@@ -30,12 +37,17 @@ one is and how they connect.
   bash-style line editing + history, a retrieval rail (cited unit ids), and an
   Outputs panel (links to reports). It owns the visible prompt.
 
-## Run it (zero config, from the repo root)
+## Run it (zero config; launch from anywhere)
 
 ```bash
 bun tools/drillui_bridge.ts data/yourpaper.pdf      # then open http://localhost:8787/
 bun tools/drillui_bridge.ts                         # OR start EMPTY, then `add` docs in the UI
+cd tools && bun run drillui_bridge.ts               # also fine — launch location no longer matters
 ```
+
+The bridge self-locates the repo root from its own path, so the artifacts root +
+served files are correct no matter where you launch it (an earlier version used
+the launch cwd, so running from `tools/` served the wrong folder).
 
 The document is **optional** — start empty and bring documents in with `add
 <pdf|url|arxiv-id>` (repeat for more); the first `add` becomes the context, each

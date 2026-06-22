@@ -22,6 +22,12 @@ import { existsSync, readFileSync } from "node:fs";
 import { homedir } from "node:os";
 
 // ---- arg parsing -----------------------------------------------------------
+// Self-locate the repo root from THIS file (tools/drillui_bridge.ts → repo),
+// so launch location never matters: `bun tools/drillui_bridge.ts` from the repo
+// root and `cd tools && bun run drillui_bridge.ts` behave identically. Using
+// process.cwd() made artifacts-root = wherever you launched (e.g. tools/), so
+// produced files under data/*.drill or ~/Downloads/*.drill weren't served.
+const REPO_ROOT = dirname(dirname(fileURLToPath(import.meta.url)));
 const argv = process.argv.slice(2);
 let doc = "";
 let src: string | null = null;
@@ -29,7 +35,7 @@ let model: string | null = null;
 let k = 8;
 let store = true;
 let port = 8787;
-let artifactsRoot = process.cwd();   // where pdfdrill writes its files (its CWD)
+let artifactsRoot = REPO_ROOT;       // default; --artifacts overrides
 let opener: string | null = null;    // host browser launcher; null → auto/none
 let chatPath: string | null = null;  // explicit path to drillui_chat.py
 let pythonBin = process.env.DRILLUI_PYTHON ?? "python3";
