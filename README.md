@@ -12,6 +12,20 @@ turn MathPix `lines.json` into a typed `Document` and emit QC artifacts — a
 LaTeX | KaTeX | MathPix-image comparison table, a full formula report, and
 TiddlyWiki tiddlers.
 
+## Interfaces (five ways to drive it)
+
+| # | Interface | Entry point | For |
+|---|-----------|-------------|-----|
+| 1 | **CLI** | `pdfdrill <cmd> <pdf>` (or `python -m pdfdrill`) | scripts, agents, the SKILL |
+| 2 | **drillui terminal** | `bun tools/drillui_bridge.ts` → browser at `:8787` (spawns `tools/drillui_chat.py`, serves `tools/drillui_term.html`) | interactive ask-the-document chat in a browser terminal |
+| 3 | **MCP — stdio** | `tools/pdfdrill_mcp.py` | Claude Desktop / Claude Code (local) — results as MCP resources |
+| 4 | **MCP — Streamable HTTP** | `tools/pdfdrill_mcp_http.py` → `https://<host>/mcp` | claude.ai web **custom connector** |
+| 5 | **Batch** | `tools/drillbatch.py` | drill a list of URLs/ids shallow→deep; `--list-outputs` |
+
+drillui details → [`tools/DRILLUI.md`](tools/DRILLUI.md); MCP details →
+[`tools/MCP.md`](tools/MCP.md). All UI/server files have ONE canonical copy, in
+`tools/`.
+
 ## Install
 
 System prerequisites (not pip-installable): **poppler-utils** (core),

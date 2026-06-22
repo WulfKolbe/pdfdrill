@@ -6,7 +6,11 @@ and 404s. MCP returns each produced file as a **resource** the client fetches
 over the MCP connection (`resources/read`), so there's no port and no dead link.
 
 `tools/pdfdrill_mcp.py` is pure stdlib — JSON-RPC 2.0 over stdin/stdout, no `mcp`
-SDK, drops into `tools/` like the rest of pdfdrill.
+SDK, drops into `tools/` like the rest of pdfdrill. It imports
+`tools/drillbatch.py` (the batch driver: `resolve`/`run_cmd`/`collect_outputs`,
+also usable standalone with `--list-outputs`). `tools/pdfdrill_mcp_http.py`
+(below) is the remote HTTP transport — it imports this server, so both expose the
+same tools.
 
 ## Tools
 
