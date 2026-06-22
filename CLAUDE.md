@@ -1495,8 +1495,20 @@ port, no dead link.
   `tools/call md` on a local doc → text + resource_link + embedded 152 KB md →
   `resources/list` → `resources/read` returns the file. Pure-stdlib, so no test
   dep; not in `tests/` (it shells the CLI). Honest limit: stdio fits Claude
-  Desktop/Code; the web client needs the server wrapped behind HTTP/SSE at a
-  public HTTPS URL (a future transport, not built).
+  Desktop/Code; the web client uses the HTTP transport below.
+- **`tools/pdfdrill_mcp_http.py`** — the **Streamable HTTP** transport (the 2025
+  successor to HTTP+SSE) for a claude.ai web custom connector. A SEPARATE entry
+  point that **imports `pdfdrill_mcp`** and reuses its `TOOLS`/`RESOURCES` +
+  dispatch verbatim (the stdio server the user runs daily is untouched). Pure
+  stdlib (`http.server` + threading). One endpoint `/mcp`: POST a JSON-RPC msg →
+  response as an SSE `message` event (or `application/json`); GET → heartbeat SSE;
+  session id minted on `initialize` (`Mcp-Session-Id`); notifications → 202.
+  Optional bearer auth (`--token`/`$PDFDRILL_MCP_TOKEN`), CORS preflight handled.
+  TLS terminates at the front (sensorcloud HTTPS / a reverse proxy →
+  `http://127.0.0.1:8765`); add a claude.ai connector at `https://<host>/mcp`.
+  Verified via a stdlib urllib client: initialize (session via SSE) → tools/list
+  → tools/call md → text+resource_link+embedded 152 KB → resources/read; tokenless
+  POST → 401; OPTIONS → 204. Guide: `tools/MCP.md`.
 
 ## arXiv builds from LaTeX source by default — no slow tesseract OCR (2026-06-20)
 

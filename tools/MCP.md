@@ -41,14 +41,24 @@ also implements `resources/list` + `resources/read`.
   Then in chat: "drill arxiv.org/abs/2305.04710 standard" → the md/tiddlers come
   back as openable resources.
 
-- **claude.ai web (remote connector):** the web client can't speak stdio, so it
-  needs the server behind an HTTP/SSE MCP transport at a public HTTPS URL added as
-  a custom connector. Your sensorcloud host already has valid HTTPS — wrap this
-  stdio server with an HTTP/SSE transport (or the `mcp` SDK's streamable-http app)
-  and point a connector at it. Client rendering of returned resources varies, so
-  validate in your target client.
+- **claude.ai web (remote connector):** the web client can't speak stdio — use
+  **`tools/pdfdrill_mcp_http.py`**, the Streamable HTTP transport. It IMPORTS the
+  stdio server (same `drill`/`md`/`tiddlers`/`report` tools + resource registry),
+  so the two stay in lockstep and the stdio interface you use daily is untouched.
 
-## Proven (sandbox, stdio)
+  ```bash
+  python3 tools/pdfdrill_mcp_http.py --host 127.0.0.1 --port 8765 --token SECRET
+  ```
+
+  One endpoint `/mcp`: POST a JSON-RPC message → response as an SSE `message`
+  event (or `application/json`); GET opens a heartbeat SSE stream; a session id is
+  minted on `initialize` (`Mcp-Session-Id`). Optional bearer auth via `--token` /
+  `$PDFDRILL_MCP_TOKEN`; CORS preflight handled. Terminate TLS at your front (the
+  sensorcloud HTTPS host / a reverse proxy → `http://127.0.0.1:8765`), then add a
+  claude.ai **custom connector** at `https://<your-host>/mcp`. Client rendering of
+  returned resources varies, so validate in your target client.
+
+## Proven (stdio + Streamable HTTP)
 
 ```
 initialize → proto 2025-06-18 | caps tools,resources | server pdfdrill
@@ -59,3 +69,8 @@ resources/read → 1312.6114.md | text/markdown | 48051 bytes
 ```
 
 Drive it yourself with any JSON-RPC-over-stdio client; no SDK required.
+
+The **HTTP** transport is proven the same way (a stdlib urllib client):
+`initialize` mints a session (returned via an SSE `message` event) → `tools/list`
+→ `tools/call md` → text + resource_link + embedded resource → `resources/read`
+returns the file (152 KB); a tokenless POST is 401; the CORS preflight is 204.

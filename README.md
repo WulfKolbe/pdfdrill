@@ -181,10 +181,13 @@ Best fit: **Claude Desktop / Claude Code** (local stdio) — add to
 ```
 
 then ask: *"drill arxiv.org/abs/2305.04710 standard"* → the md/tiddlers come back
-as openable resources. The **claude.ai web** client needs the server behind an
-HTTP/SSE transport at a public HTTPS URL (a custom connector). Batch helper:
-`tools/drillbatch.py` (shallow→standard→deep ladder; `--list-outputs` prints
-every produced file). Full guide: [`tools/MCP.md`](tools/MCP.md).
+as openable resources. The **claude.ai web** client uses
+`tools/pdfdrill_mcp_http.py` — the **Streamable HTTP** transport (one `/mcp`
+endpoint, SSE responses, session + optional bearer auth + CORS) behind your
+public HTTPS front, added as a custom connector. It imports the stdio server, so
+both transports expose the same tools. Batch helper: `tools/drillbatch.py`
+(shallow→standard→deep ladder; `--list-outputs` prints every produced file).
+Full guide: [`tools/MCP.md`](tools/MCP.md).
 
 ## The layer tower
 
