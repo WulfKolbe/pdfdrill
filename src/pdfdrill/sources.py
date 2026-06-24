@@ -188,6 +188,9 @@ def resolve_input(arg: str, dest_dir: Optional[Path] = None) -> dict:
         dest_dir = _cfg.download_dir()      # config download_dir, else ~/Downloads
     dest_dir = Path(dest_dir)
     if not is_url(arg):
+        # expand `~`/`~user` ($HOME shorthand) so `~/x.pdf` resolves like the
+        # absolute path; harmless on a bare arXiv id (no leading ~).
+        arg = str(Path(arg).expanduser())
         # a real local file always wins (even if it is named like an arXiv id)
         if Path(arg).exists():
             return {"path": Path(arg), "source": None, "arxiv_id": None}

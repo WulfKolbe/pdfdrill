@@ -6317,6 +6317,25 @@ def _write_named_md(pdf: Path, sc: "Sidecar", md_text: str) -> str:
         return ""
 
 
+def _serve_mathpix_md(pdf: Path, sc: "Sidecar") -> str | None:
+    """If MathPix already produced `<stem>.md`, serve it into the md layer and
+    return the prose result; else None. Shared by cmd_md's needs_ocr branch."""
+    mathpix_md = pdf.parent / f"{pdf.stem}.md"
+    if not (mathpix_md.exists() and mathpix_md.stat().st_size > 0):
+        return None
+    md_text = mathpix_md.read_text(encoding="utf-8")
+    sc.write_blob("md.md", md_text)
+    sc.set_layer("md", {"blob": "md.md", "words": len(md_text.split()),
+                        "source": "mathpix",
+                        "built_at": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())})
+    sc.add_fact(MD_BUILT)
+    sc.save()
+    return (f"Markdown from MathPix OCR ({len(md_text.split())} words) — "
+            f"{pdf.name} is scanned (no text layer), served from "
+            f"{mathpix_md.name}. Use `pdfdrill fetch {pdf.name} md` to "
+            f"retrieve." + _write_named_md(pdf, sc, md_text))
+
+
 def cmd_md(pdf: Path, pages: str | None = None) -> str:
     """Build Markdown via pdfplumber + layer pipeline."""
     sc = Sidecar(pdf)
@@ -6332,19 +6351,21 @@ def cmd_md(pdf: Path, pages: str | None = None) -> str:
     # If MathPix already produced `<stem>.md`, SERVE that (the real OCR markdown)
     # into the md layer so `md`/`fetch md` return content, not an empty blob.
     if sc.get_evidence("needs_ocr"):
-        mathpix_md = pdf.parent / f"{pdf.stem}.md"
-        if mathpix_md.exists() and mathpix_md.stat().st_size > 0:
-            md_text = mathpix_md.read_text(encoding="utf-8")
-            sc.write_blob("md.md", md_text)
-            sc.set_layer("md", {"blob": "md.md", "words": len(md_text.split()),
-                                "source": "mathpix",
-                                "built_at": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())})
-            sc.add_fact(MD_BUILT)
-            sc.save()
-            return (f"Markdown from MathPix OCR ({len(md_text.split())} words) — "
-                    f"{pdf.name} is scanned (no text layer), served from "
-                    f"{mathpix_md.name}. Use `pdfdrill fetch {pdf.name} md` to "
-                    f"retrieve." + _write_named_md(pdf, sc, md_text))
+        served = _serve_mathpix_md(pdf, sc)
+        if served is not None:
+            return served
+        # No OCR markdown yet. If MathPix keys are configured, JUST RUN IT and
+        # return the result — no discussion about OCR (the user's instruction:
+        # keys present ⇒ produce the result). Paid step, so gated on real creds.
+        from . import mathpix_creds
+        if mathpix_creds.available():
+            cmd_mathpix(pdf)
+            sc = Sidecar(pdf)
+            served = _serve_mathpix_md(pdf, sc)
+            if served is not None:
+                return served
+        # keyless (or MathPix produced nothing, e.g. an arXiv skip) → the
+        # actionable hint, only when we genuinely can't produce the markdown.
         lp = _lines_json_path(pdf)
         hint = (f"A MathPix lines.json is present but no `{pdf.stem}.md` — re-run "
                 f"`pdfdrill mathpix {pdf.name}`." if lp.exists() else

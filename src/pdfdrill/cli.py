@@ -71,6 +71,10 @@ def _pdf(args: list[str]) -> Path:
         raise ValueError("No PDF file specified.")
     arg = args[0]
     from . import sources
+    # expand `~` / `~user` for local paths ($HOME shorthand) — so `~/x.pdf`
+    # resolves exactly like `/home/me/x.pdf`. A no-op on URLs / bare arXiv ids.
+    if not sources.is_url(arg):
+        arg = str(Path(arg).expanduser())
     # work directly on an https URL from a known host, OR a bare arXiv id — but
     # never shadow a real local file (checked first inside resolve_input).
     if (sources.is_url(arg) or sources.bare_arxiv_id(arg)) and not Path(arg).exists():
@@ -104,10 +108,12 @@ def _drilled(args: list[str]) -> Path:
     (local file / known-host URL / bare arXiv id)."""
     if not args:
         raise ValueError("No file specified.")
-    cand = Path(args[0])
+    from . import sources
+    a0 = args[0] if sources.is_url(args[0]) else str(Path(args[0]).expanduser())
+    cand = Path(a0)
     if (cand.parent / (cand.name + ".drill")).exists():
         return cand
-    return _pdf(args)
+    return _pdf([a0, *args[1:]])
 
 
 def _do_artifacts(args):

@@ -12,6 +12,14 @@ APP_ID = get("MATHPIX_APP_ID", "")
 APP_KEY = get("MATHPIX_APP_KEY", "")
 
 
+def available() -> bool:
+    """True iff both MathPix keys are configured (env / .env) — checked LIVE, so
+    it reflects the current environment, not import-time constants. Lets callers
+    (e.g. `pdfdrill md`) just RUN MathPix when keys exist instead of printing a
+    setup discussion."""
+    return bool(get("MATHPIX_APP_ID", "") and get("MATHPIX_APP_KEY", ""))
+
+
 def require() -> tuple[str, str]:
     """Return (app_id, app_key) or exit with a friendly setup message."""
     app_id = get("MATHPIX_APP_ID", "")
