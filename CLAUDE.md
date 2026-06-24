@@ -1408,6 +1408,15 @@ THIS paper's bibliography as the **cited subset** of a possibly-larger shared
   shared db): rebuilt model → **137 Citations**; bibsource → **104 References (the
   cited subset)** + **137/137 citations linked**. Tests: `tests/test_bibsource.py`
   (extract variants, restrict-to-cited + surface, builder extracts citations).
+- **`bibliography.build_bibliography_from_source(doc, dir)`** — the reusable core
+  (discover named bib → ingest cited subset → link), shared by `cmd_bibsource` and
+  the **citation PASS**: when a model has Citations but NO References, `CitationPass`
+  auto-discovers the source bib (`doc.meta["latex_source_dir"]` or `<pdf>.drill/
+  texsrc`) and builds the bibliography itself, so `pdfdrill enhance` does it in one
+  step. Verified: fresh 2606.16905 model (137 Citations, 0 Refs) → `enhance --only
+  citation` → 104 Refs (cited subset) + 137/137 linked. Idempotent (skips when Refs
+  exist or cites edges already present). Test: `tests/test_passes.py::test_citation_
+  pass_builds_bibliography_from_source`.
 
 ## Uniform enhancement pass pipeline (`src/passes/`, `pdfdrill enhance`)
 

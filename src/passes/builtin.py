@@ -48,15 +48,51 @@ class MathPass(EnhancementPass):
 
 
 class CitationPass(EnhancementPass):
+    """Link in-text Citations to References. When the model has Citations but NO
+    References yet (the LaTeX-source case), discover the bib the source NAMES and
+    build THIS paper's bibliography (the cited subset of a shared .bib) first —
+    the bibsource discovery, reused here so `enhance` does it automatically."""
     name = "citation"
     requires = ()
 
     def applies(self, ctx: PassContext) -> bool:
-        return _has_type(ctx.doc, ("Reference",)) and _has_type(ctx.doc, ("Citation",))
+        return _has_type(ctx.doc, ("Citation",))
+
+    @staticmethod
+    def _source_dir(ctx: PassContext):
+        from pathlib import Path
+        src = (getattr(ctx.doc, "meta", {}) or {}).get("latex_source_dir")
+        if src and Path(src).is_dir():
+            return src
+        if ctx.pdf is not None:                  # <pdf>.drill/texsrc fallback
+            cand = Path(str(ctx.pdf) + ".drill") / "texsrc"
+            if cand.is_dir():
+                return str(cand)
+        return None
 
     def run(self, ctx: PassContext) -> PassResult:
         from pdfdrill import bibliography
-        n = bibliography.link_citations(ctx.doc)
+        doc = ctx.doc
+
+        if not _has_type(doc, ("Reference",)):
+            src = self._source_dir(ctx)
+            if src:
+                r = bibliography.build_bibliography_from_source(doc, src)
+                return PassResult(self.name, "ran",
+                                  changed=(r["created"] or r["linked"]) > 0,
+                                  summary=f"{r['linked']} citations linked; "
+                                          f"{r['created']} refs built from the "
+                                          f"source bib (cited subset)",
+                                  stats=r)
+            return PassResult(self.name, "ran", changed=False,
+                              summary="citations present but no references / "
+                                      "source bib to build from")
+
+        already = sum(1 for a in getattr(doc, "alignments", []) if a.kind == "cites")
+        if already:
+            return PassResult(self.name, "ran", changed=False,
+                              summary=f"already linked ({already} cites edges)")
+        n = bibliography.link_citations(doc)
         return PassResult(self.name, "ran", changed=n > 0,
                           summary=f"{n} in-text citations linked to references",
                           stats={"linked": n})

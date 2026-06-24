@@ -447,6 +447,30 @@ _EM = re.compile(r"\{\\(?:em|it|bf)\s+([^{}]*)\}")
 _TEXCMD = re.compile(r"\\[a-zA-Z]+\b")
 
 
+def build_bibliography_from_source(doc, source_dir) -> dict:
+    """Discover the bib the LaTeX source NAMES (\\bibliography{}/\\addbibresource{})
+    in `source_dir`, ingest THIS paper's bibliography (the CITED subset of a
+    possibly-larger shared .bib — a compiled .bbl is already the cited set), and
+    link the in-text Citations. Idempotent caller should only invoke this when no
+    References exist yet. Returns {created, linked}."""
+    from pathlib import Path
+    from . import latex_source
+
+    res = latex_source.find_bib_resources(source_dir)
+    cited = {(c.props.get("citekey") or "").strip()
+             for c in doc.objects.values() if c.type == "Citation"}
+    cited.discard("")
+    created = 0
+    if res["bbl"]:
+        created += ingest_bbl(doc, Path(res["bbl"][0]).read_text(errors="replace"))
+    if res["bib"]:
+        created += load_bibtex_file(
+            doc, Path(res["bib"][0]).read_text(errors="replace"),
+            restrict=(cited or None))["created"]
+    linked = link_citations(doc)
+    return {"created": created, "linked": linked}
+
+
 def _clean_bbl(body: str) -> str:
     """Light-clean a \\bibitem body to readable prose."""
     t = _NEWBLOCK.sub(" ", body)

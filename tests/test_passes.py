@@ -119,6 +119,39 @@ def test_frontmatter_pass_enriches_from_sidecar_offline():
     assert rec["arxiv"] == "2401.00001"
 
 
+def test_citation_pass_builds_bibliography_from_source():
+    """A LaTeX-source model has Citations but no References. The citation pass
+    discovers the bib the source names, builds the CITED subset, and links."""
+    import tempfile
+    from docmodel.core import Document, DocObject, Realization
+    from passes import PassContext, run_pipeline
+
+    with tempfile.TemporaryDirectory() as d:
+        (Path(d) / "main.tex").write_text(
+            "\\documentclass{article}\n\\bibliography{biblio}\n", encoding="utf-8")
+        (Path(d) / "biblio.bib").write_text(
+            "@article{alpha, title={A}, year={2020}}\n"
+            "@book{beta, title={B}, year={2019}}\n"
+            "@misc{gamma, title={G}}\n", encoding="utf-8")   # gamma NOT cited
+
+        doc = Document()
+        doc.meta["latex_source_dir"] = d
+        st = doc.ensure_stream("source_cites")
+        for k in ("alpha", "beta"):
+            a = st.append(citekey=k)
+            c = DocObject(type="Citation", props={"citekey": k})
+            c.add_realization(Realization(stream="source_cites", start=a, end=a,
+                                          role="surface"))
+            doc.add(c)
+
+        res = {r.name: r for r in run_pipeline(PassContext(doc=doc), only={"citation"})}
+        assert res["citation"].status == "ran"
+        refs = {r.props["citekey"] for r in doc.objects.values()
+                if r.type == "Reference"}
+        assert refs == {"alpha", "beta"}                      # cited subset only
+        assert any(al.kind == "cites" for al in doc.alignments)
+
+
 def test_real_math_pass_through_pipeline():
     from passes import PassContext, run_pipeline
     from mathlayer import parse as mlparse
@@ -139,6 +172,7 @@ if __name__ == "__main__":
                test_builtin_passes_registered_in_sane_order,
                test_frontmatter_pass_writes_bibtex_record,
                test_frontmatter_pass_enriches_from_sidecar_offline,
+               test_citation_pass_builds_bibliography_from_source,
                test_real_math_pass_through_pipeline]:
         fn(); print("PASS", fn.__name__)
     print("\nAll tests passed.")
