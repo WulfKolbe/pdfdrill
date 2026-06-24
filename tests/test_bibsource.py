@@ -136,6 +136,46 @@ def test_detect_author_year_in_objects_square_brackets_and_folding():
     assert linked == 3                              # all linked to the gold refs
 
 
+def test_extract_citations_all_variants():
+    from pdfdrill import latex_source as LS
+    tex = (r"Intro \cite{alpha}. See \citep{beta, gamma} and "
+           r"\citet[p.~5]{delta}. \textcite{eps}. \nocite{*}")
+    assert LS.extract_citations(tex) == ["alpha", "beta", "gamma", "delta", "eps"]
+
+
+def test_load_bibtex_file_restrict_to_cited():
+    """A shared .bib has more entries than the paper cites — restrict builds only
+    the paper's bibliography, and created refs get a `references` surface."""
+    from docmodel.core import Document
+    from pdfdrill import bibliography as B
+    doc = Document()
+    bib = ("@article{a, title={A}, year={2020}}\n"
+           "@book{b, title={B}, year={2019}}\n"
+           "@misc{c, title={C}}\n")
+    B.load_bibtex_file(doc, bib, restrict={"a", "c"})
+    refs = {r.props["citekey"] for r in doc.objects.values() if r.type == "Reference"}
+    assert refs == {"a", "c"}                       # b not cited → excluded
+    r = next(o for o in doc.objects.values() if o.type == "Reference")
+    assert any(x.stream == "references" for x in r.realizations)   # linkable surface
+
+
+def test_build_source_model_extracts_citations():
+    from pdfdrill import latex_source as LS
+    import tempfile
+    with tempfile.TemporaryDirectory() as d:
+        tex = Path(d) / "main.tex"
+        tex.write_text(
+            "\\documentclass{article}\n\\begin{document}\n"
+            "Hello \\cite{alpha}. See \\citep{beta,gamma}.\n"
+            "\\bibliography{biblio}\n\\end{document}\n", encoding="utf-8")
+        doc = LS.build_source_model(str(tex), bibkey="x")
+        cks = sorted(c.props["citekey"] for c in doc.objects.values()
+                     if c.type == "Citation")
+        assert cks == ["alpha", "beta", "gamma"]
+        c = next(o for o in doc.objects.values() if o.type == "Citation")
+        assert any(x.start is not None for x in c.realizations)    # linkable surface
+
+
 def _mkdir_with(tmp, files: dict):
     import tempfile
     d = Path(tempfile.mkdtemp(dir=tmp))
@@ -193,6 +233,9 @@ if __name__ == "__main__":
                test_detect_author_year_in_objects_square_brackets_and_folding,
                test_find_bib_resources_from_bibliography_cmd,
                test_find_bib_resources_addbibresource_and_bbl,
-               test_find_bib_resources_fallback_any_bib]:
+               test_find_bib_resources_fallback_any_bib,
+               test_extract_citations_all_variants,
+               test_load_bibtex_file_restrict_to_cited,
+               test_build_source_model_extracts_citations]:
         fn(); print(f"PASS {fn.__name__}")
     print("\nAll tests passed.")

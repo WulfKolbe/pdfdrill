@@ -2186,11 +2186,19 @@ def cmd_bibsource(pdf: Path, bib_path: str | None = None,
     doc.alignments = [a for a in doc.alignments if a.kind != "cites"]
     doc.streams.pop("references", None)
 
+    # The paper's bibliography = the CITED subset of a (possibly larger, shared)
+    # .bib. Gather the cited keys from the in-text Citation objects the LaTeX-
+    # source builder extracted from \cite{}; restrict the .bib to them. (No
+    # citations detected → ingest all, backward-compatible.)
+    cited = {(c.props.get("citekey") or "").strip()
+             for c in doc.objects.values() if c.type == "Citation"}
+    cited.discard("")
     created = enriched = 0
     if bbl:
         created = ingest_bbl(doc, Path(bbl).read_text(encoding="utf-8"))
     if bib:
-        enriched = load_bibtex_file(doc, Path(bib).read_text(encoding="utf-8"))["attached"]
+        enriched = load_bibtex_file(doc, Path(bib).read_text(encoding="utf-8"),
+                                    restrict=(cited or None))["attached"]
 
     n_refs = sum(1 for o in doc.objects.values() if o.type == "Reference")
     n_cits = sum(1 for o in doc.objects.values() if o.type == "Citation")

@@ -1388,6 +1388,27 @@ SymPy is merely the first backend and the canonical anchor (its `srepr`).
   map; optional chaining of latex2sympy's own `normalize_latex`. Tests:
   `tests/test_mathlayer.py` (13).
 
+## LaTeX-source citations + cited-subset bibliography (`\cite{}` → Citation, 2026)
+
+The LaTeX-source builder now extracts in-text citations, and `bibsource` builds
+THIS paper's bibliography as the **cited subset** of a possibly-larger shared
+`.bib` (not all entries):
+- **`latex_source.extract_citations` / `extract_citation_occurrences`** — pick
+  EVERY `\cite`-family command (BibTeX `\cite/\citep/\citet/…`, biblatex
+  `\parencite/\textcite/\autocite/…`, with `[..]` opt-args), ordered keys.
+- **`build_source_model`** creates one **Citation** per `\cite{}` key, anchored in
+  a `source_cites` stream (a linkable surface), `added_by="latex"`; counted in
+  `source_counts["citations"]`.
+- **`bibliography.load_bibtex_file(doc, bibtext, restrict=set)`** — `restrict` to
+  the cited keys ingests only those entries (a shared db → the paper's biblio),
+  and CREATED References now get a `references` surface so they LINK.
+- **`cmd_bibsource`** gathers the cited keys from the Citation objects and passes
+  `restrict=cited` (no citations → ingest all, backward-compatible), then
+  `link_citations`. Verified live on 2606.16905 (`\bibliography{biblio}`, 107-entry
+  shared db): rebuilt model → **137 Citations**; bibsource → **104 References (the
+  cited subset)** + **137/137 citations linked**. Tests: `tests/test_bibsource.py`
+  (extract variants, restrict-to-cited + surface, builder extracts citations).
+
 ## Uniform enhancement pass pipeline (`src/passes/`, `pdfdrill enhance`)
 
 The general form of ChatGPT's linear `IR → math → citation → glossary → … →

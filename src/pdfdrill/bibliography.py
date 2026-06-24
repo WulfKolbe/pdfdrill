@@ -393,23 +393,35 @@ def _split_bib_entries(text: str) -> list[tuple[str, str]]:
     return entries
 
 
-def load_bibtex_file(doc, bibtext: str) -> dict:
+def load_bibtex_file(doc, bibtext: str, restrict=None) -> dict:
     """Attach BibTeX from a .bib file to References (by citekey), creating a
-    Reference for any entry not already present. Returns {attached, created}."""
-    from docmodel.core import DocObject
+    Reference for any entry not already present (with a `references` surface so
+    it links). When `restrict` (a set of citekeys) is given, only those entries
+    are ingested — so a larger SHARED .bib yields just THIS paper's bibliography
+    (the cited subset). Returns {attached, created}."""
+    from docmodel.core import DocObject, Realization
     from .perplexity_client import parse_bibtex_fields
 
     refs = {(r.props.get("citekey") or ""): r
             for r in doc.objects.values() if r.type == "Reference"}
+    rstream = None
     attached = created = 0
     for key, raw in _split_bib_entries(bibtext):
+        if restrict is not None and key not in restrict:
+            continue                             # entry the paper doesn't cite
         f = parse_bibtex_fields(raw)
         r = refs.get(key)
         if r is None:
+            if rstream is None:
+                rstream = doc.ensure_stream("references")
+            anchor = rstream.append(citekey=key)
             r = DocObject(type="Reference", props={
                 "citekey": key, "raw_text": f.get("title") or "",
                 "year": f.get("year") or "", "author": f.get("author") or "",
                 "entry_type": f.get("entry_type") or "misc"})
+            r.add_realization(Realization(stream="references", start=anchor,
+                                          end=anchor, role="surface",
+                                          provenance="bib"))
             doc.add(r)
             refs[key] = r
             created += 1

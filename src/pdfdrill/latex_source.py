@@ -569,6 +569,33 @@ _BIB_BIBLIOGRAPHY = re.compile(r"\\bibliography\s*\{([^}]*)\}")
 _BIB_ADDRESOURCE = re.compile(r"\\(?:addbibresource|bibresource)(?:\[[^\]]*\])?\s*\{([^}]*)\}")
 
 
+# in-text citations: any \cite-family command (BibTeX \cite/\citep/\citet/…,
+# biblatex \parencite/\textcite/\autocite/…), with optional [..] args before {keys}.
+_CITE_CMD = re.compile(
+    r"\\[a-zA-Z]*cite[a-zA-Z]*\*?\s*(?:\[[^\]]*\]\s*){0,2}\{([^}]*)\}")
+
+
+def extract_citation_occurrences(tex: str) -> list[tuple[str, int]]:
+    """Every (citekey, source_position) from all \\cite-family commands, in order.
+    `\\cite{a,b}` yields two occurrences; a `*` key (\\nocite{*}) is skipped."""
+    out: list[tuple[str, int]] = []
+    for m in _CITE_CMD.finditer(_strip_tex_comments(tex)):
+        for key in m.group(1).split(","):
+            key = key.strip()
+            if key and key != "*":
+                out.append((key, m.start()))
+    return out
+
+
+def extract_citations(tex: str) -> list[str]:
+    """Ordered, de-duplicated citekeys the paper cites — used to build THIS
+    paper's bibliography (the cited subset) from a possibly-larger shared .bib."""
+    seen: dict[str, None] = {}
+    for key, _ in extract_citation_occurrences(tex):
+        seen.setdefault(key, None)
+    return list(seen)
+
+
 def find_bib_resources(source_dir) -> dict:
     """Discover the bibliography database(s) a LaTeX source NAMES, by reading the
     `.tex` files in `source_dir` for `\\bibliography{}` (BibTeX) and
@@ -771,7 +798,7 @@ def build_source_model(tex_path: str, bibkey: str = "DOC") -> "object":
     (expanded) form; no cdn_url (there is no rendered crop on the source-only
     path). Returns the Document.
     """
-    from docmodel.core import Document, DocObject
+    from docmodel.core import Document, DocObject, Realization
 
     full, main = read_source(tex_path)
     pre, body = split_preamble(full)
@@ -853,6 +880,26 @@ def build_source_model(tex_path: str, bibkey: str = "DOC") -> "object":
             doc.add(DocObject(type="Paragraph", props=props))
             n_para += 1
 
+    # In-text citations: one Citation per \cite-family key, anchored in a
+    # `source_cites` stream so it carries a linkable surface. We pick ALL \cite
+    # commands — the paper's citation set — so a larger shared .bib is later
+    # restricted to exactly what THIS paper cites (cmd_bibsource).
+    n_cit = 0
+    occ = extract_citation_occurrences(body)
+    if occ:
+        cstream = doc.ensure_stream("source_cites")
+        for key, pos in occ:
+            fi += 1
+            anchor = cstream.append(citekey=key, pos=pos)
+            cobj = DocObject(type="Citation", props={
+                "citekey": key, "style": "latex", "added_by": "latex",
+                "flow_index": fi, "bibkey": bibkey})
+            cobj.add_realization(Realization(stream="source_cites", start=anchor,
+                                             end=anchor, role="surface",
+                                             provenance="latex"))
+            doc.add(cobj)
+            n_cit += 1
+
     # Algorithms: each is an Algorithm DocObject with AlgorithmStep children
     # (mirroring the MathPix `pdfdrill algorithms` shape, here from LaTeX source).
     n_alg = n_steps = 0
@@ -877,5 +924,5 @@ def build_source_model(tex_path: str, bibkey: str = "DOC") -> "object":
                                  "paragraphs": n_para, "formulas": n_formula,
                                  "diagrams": n_dia, "tables": n_tab,
                                  "algorithms": n_alg, "algorithm_steps": n_steps,
-                                 "macros": len(macros)}
+                                 "citations": n_cit, "macros": len(macros)}
     return doc
