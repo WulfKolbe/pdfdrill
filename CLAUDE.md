@@ -1338,6 +1338,40 @@ cell today is the BOOTSTRAP the generated one supersedes without changing caller
   parse_arxiv_abs_html`, `identifiers.caps_entities`, `page._extract_title`,
   `markdown_source`, `latex_source` title/author.
 
+## Canonical math layer (`src/mathlayer/`, SymPy seed — step 1)
+
+The first step toward a **canonical CSP math layer**: one tree per FO/EQ
+expression from which every target is later generated (SymPy, Lean4, FriCAS,
+Mathematica, SMT-LIB, GraphRAG). The value is the SINGLE tree, not SymPy itself —
+SymPy is merely the first backend and the canonical anchor (its `srepr`).
+
+- **`parse.py`** — LaTeX→SymPy via the IMPORTED `latex2sympy2_extended` library
+  (optional `[math]` extra; not vendored). Lazy + graceful: missing lib or an
+  unparseable string → None, never raises (`available()`/`to_sympy()`).
+- **`canonical.py`** — `CanonicalMath{latex, srepr, sympy, role, srepr_raw, error,
+  expr}` + `from_latex()`. latex2sympy returns a structure-preserving tree, but
+  SymPy auto-evaluates on reconstruction, so the canonical IR is the **evaluated
+  normal form** — a stable fixpoint that round-trips via `sympy.sympify(srepr)`;
+  the structure-preserving parse is kept as `srepr_raw` (provenance). `role` =
+  `relation` (an EQ with `=` → `Equality`) vs `expression` (an FO) vs `unparsed`.
+- **`backends.py`** — projections off the SAME tree: `sympy_srepr`/`sympy_str`/
+  `mathematica`/`smtlib` render today (SymPy's own printers); `PLANNED =
+  (lean4, fricas, graphrag)` raise a self-naming `NotImplementedError`. Add a real
+  backend by moving its name into `_RENDERERS` — no caller change (all via
+  `render(expr, target)` / `render_all`).
+- **`annotate.py`** — the FO/EQ integration: `annotate_object(obj)` parses
+  `obj.props["latex"]` (types `Formula`/`Equation`) and stores `props["math"]`
+  (ir/srepr/srepr_raw/sympy/role/error/renderings/targets_planned); duck-typed so
+  it works on a Document or a docgraph node. `annotate_document(doc)` → counts.
+- **Honest caveat:** latex2sympy is tuned for answer/competition math, so
+  research-paper LaTeX (`\mathcal{L}`, operator names, implicit `p(x)` application,
+  `\log`→log10, set membership) parses imperfectly or not at all — captured
+  faithfully (`role="unparsed"` + `error`). Feeding the macro-EXPANDED `latex`
+  (pdfdrill `latex` already stores expanded + `latex_original`) is the natural
+  fidelity upgrade. NEXT: wire a `pdfdrill mathir`/docops mutator that persists
+  `props["math"]`; expand macros before parse; real Lean4/SMT-LIB printers off the
+  canonical tree. Tests: `tests/test_mathlayer.py` (9).
+
 ## Roadmap (decomposed — each phase gets its own spec + plan)
 
 - **Phase 1 — Unified model + capture** *(in progress)*: extend `docmodel`
