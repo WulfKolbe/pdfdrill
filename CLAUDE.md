@@ -1300,6 +1300,44 @@ not business). Whatever the native format, a source compiles to the SAME
   `Federation.load_dir` → `classify`/`ancestors`/`resolve` round-trip. Tests:
   `tests/test_vocabnet.py` (9 — core/shim/federation + the three new adapters).
 
+## Semantic-compiler FRONT END (`src/semantic/frontend/`, object×format detection — seed)
+
+The detection half of the semantic compiler: general, abstract **object detectors**
+that feed the existing `semantic/` graph (the conclusion back end). Built per the
+user's architecture — **one module per OBJECT and one per input FORMAT**, with the
+detector for a pair living in its own **CELL** module. That granularity is the
+point: each cell is the slot where a **LEAN grammar** will later GENERATE the
+parser on the fly (LEAN expresses the recursive grammar via a fixed-point/Y-
+combinator) and generate+validate the cell's test corpus; the hand parser in each
+cell today is the BOOTSTRAP the generated one supersedes without changing callers.
+(Named `frontend` not `compiler` to avoid shadowing the existing graph validator
+`semantic/compiler.py`.)
+
+- **`contract.py`** — the three registries + ABCs: `FormatModule` (raw→`Surface`),
+  `ObjectModule` (canonical `schema()` + `conclude()`), `CellModule`
+  (`Surface`→`[DetectedObject]`); `DetectedObject{kind,format,fields,evidence,
+  confidence}`. `register_format/object/cell`, `get_*`, `FORMATS/OBJECTS/CELLS`.
+- **Driver (`__init__.py`)** — `detect(raw, fmt, kind)` = run the `(kind,fmt)` cell
+  over the format's surface; `to_bibtex(obj)` = the object's conclusion.
+- **First object — FRONTMATTER** (`objects/frontmatter.py`): the provenance header
+  of ANY document. The unification (the user's rule): an `agent` carries a ROLE and
+  **author (LaTeX) ≡ sender (letter) ≡ issuer (invoice)** all map to BibTeX
+  `author`; a letter's **recipient** is the only genre-specific addition → a new
+  `recipient` FIELD (not an address entity per author). Schema: `genre,title,
+  agents[{role,name,org?,address?}],date,recipients[],identifiers[],subject`.
+- **Formats:** `formats/latex.py` (splits preamble/body + documentclass),
+  `formats/text.py` (blank-line blocks for OCR/pdftotext).
+- **Cells:** `cells/frontmatter_latex.py` (\title/\author/\date/class→genre),
+  `cells/frontmatter_letter.py` (letterhead=sender, recipient block, date).
+- Verified: LaTeX (Kingma/Welling) → `@article` author record; German Finanzamt
+  letter → `@letter` with **author=sender, recipient as a field**. Tests:
+  `tests/test_frontmatter.py` (5). NEXT: more cells (mathpix/arxiv_html/zugferd_xml),
+  the LEAN grammar per cell (parser-gen + test oracle), and wiring `conclude()` into
+  the `semantic` graph (agents→Person/Org via IdentityResolver; recipient→field or
+  optional address node). The scattered detectors it replaces: `sources.
+  parse_arxiv_abs_html`, `identifiers.caps_entities`, `page._extract_title`,
+  `markdown_source`, `latex_source` title/author.
+
 ## Roadmap (decomposed — each phase gets its own spec + plan)
 
 - **Phase 1 — Unified model + capture** *(in progress)*: extend `docmodel`
