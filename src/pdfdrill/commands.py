@@ -2479,6 +2479,69 @@ def cmd_llmtext(pdf: Path, delimiter: str = "%%%%", split: bool = True) -> str:
             f"{out_path.relative_to(sc.pdf_path.parent)}.")
 
 
+def cmd_mathir(pdf: Path) -> str:
+    """Canonical math layer: parse every FO/EQ's macro-EXPANDED LaTeX into a
+    canonical tree (SymPy, anchored by its srepr) and PERSIST it under
+    `props["math"]` on the model. SymPy is the first of several backends off the
+    SAME tree (Lean4/FriCAS/Mathematica/SMT-LIB/GraphRAG planned). Our operator/
+    symbol layer normalizes the surface first (\\mathcal{L} -> L). Needs the
+    [math] extra; otherwise the model is left untouched.
+    """
+    sc = Sidecar(pdf)
+    model_path = _model_path(sc)
+    if not model_path.exists():
+        return (f"No model for {pdf.name} — run `pdfdrill model` (PDF) or "
+                f"`pdfdrill markdown` (.md) first.")
+    try:
+        from mathlayer import annotate_object, backends, parse as mlparse
+    except Exception:
+        return ("Canonical math layer unavailable — install the extra: "
+                "pip install 'pdfdrill[math]' (sympy + latex2sympy2_extended).")
+    if not mlparse.available():
+        return ("Canonical math layer needs a LaTeX→SymPy parser: "
+                "pip install 'pdfdrill[math]' (latex2sympy2_extended). "
+                "The FO/EQ LaTeX is unchanged.")
+
+    doc = load_model(model_path)
+    counts = {"seen": 0, "parsed": 0, "relations": 0, "unparsed": 0}
+    samples: list[str] = []
+    for obj in doc.objects.values():
+        if obj.type not in ("Formula", "Equation"):
+            continue
+        cm = annotate_object(obj)        # feeds props["latex"] (macro-expanded)
+        if cm is None:
+            continue
+        counts["seen"] += 1
+        if cm.role == "unparsed":
+            counts["unparsed"] += 1
+        else:
+            counts["parsed"] += 1
+            if cm.role == "relation":
+                counts["relations"] += 1
+            if len(samples) < 3 and cm.sympy:
+                samples.append(f"{obj.id}: {cm.sympy}")
+    if counts["seen"]:
+        save_model(model_path, doc)
+
+    seen = counts["seen"]
+    if not seen:
+        return f"No Formula/Equation objects in {pdf.name}'s model."
+    rate = 100.0 * counts["parsed"] / seen
+    out = [
+        f"Canonical math layer written to props['math'] for {seen} FO/EQ in "
+        f"{pdf.name}: {counts['parsed']} parsed ({rate:.0f}%), "
+        f"{counts['relations']} relations, {counts['unparsed']} unparsed.",
+        f"Backends now: {', '.join(backends.available())}; "
+        f"planned off the same tree: {', '.join(backends.PLANNED)}.",
+    ]
+    if samples:
+        out.append("Sample: " + " | ".join(samples))
+    if counts["unparsed"]:
+        out.append("(Unparsed = research-grade LaTeX the parser can't yet read; "
+                   "extend the operator layer or feed cleaner LaTeX.)")
+    return "\n".join(out)
+
+
 def cmd_mathcheck(pdf: Path, limit: int = 8) -> str:
     """Formula QC: scan the model's formula LaTeX for FLATTENED equations — a
     keyless/visual reconstruction that linearised a 2-D layout instead of

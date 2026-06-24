@@ -1363,14 +1363,30 @@ SymPy is merely the first backend and the canonical anchor (its `srepr`).
   `obj.props["latex"]` (types `Formula`/`Equation`) and stores `props["math"]`
   (ir/srepr/srepr_raw/sympy/role/error/renderings/targets_planned); duck-typed so
   it works on a Document or a docgraph node. `annotate_document(doc)` → counts.
+- **`operators.py`** — OUR operator/symbol-definition layer (a pre-parse LaTeX
+  improvement, like adding a TOC/glossary without changing content): `normalize(
+  latex, ops)` applies a user operator-definition map (`{r"\gL": "L"}`) then
+  collapses font wrappers on a simple-token arg (`\mathcal{L}`→`L`,
+  `\mathbb{R}`→`R`). `from_latex(normalize=True)` runs it before parsing and
+  records `normalized`.
+- **Empirical (expanded vs unexpanded):** the macro-EXPANDED `latex` parses far
+  better than the author's macro source — **5/7 vs 1/7** on a representative
+  sample (unknown author macros `\gL`/`\R`/`\vx`/`\dd` just fail). So
+  `annotate_object` feeds `props["latex"]` (expanded; falls back to
+  `latex_original` only if absent) and records `source`. Our operator layer then
+  lifts font-wrapped cases (`\mathbb{R}^n` 0→parses; `\mathcal{L}`→clean `L`).
+- **`pdfdrill mathir <pdf|md>`** (`cmd_mathir`, registered) — loads the full
+  model, annotates every FO/EQ, and **persists `props["math"]`** via
+  `save_model`. Verified live on 2312.11532: **151 FO/EQ, 84 parsed (56%), 12
+  relations**, persisted. Reports parse rate + available/planned backends.
 - **Honest caveat:** latex2sympy is tuned for answer/competition math, so
-  research-paper LaTeX (`\mathcal{L}`, operator names, implicit `p(x)` application,
-  `\log`→log10, set membership) parses imperfectly or not at all — captured
-  faithfully (`role="unparsed"` + `error`). Feeding the macro-EXPANDED `latex`
-  (pdfdrill `latex` already stores expanded + `latex_original`) is the natural
-  fidelity upgrade. NEXT: wire a `pdfdrill mathir`/docops mutator that persists
-  `props["math"]`; expand macros before parse; real Lean4/SMT-LIB printers off the
-  canonical tree. Tests: `tests/test_mathlayer.py` (9).
+  research LaTeX parses imperfectly (it lowercases symbols `R`→`r`, reads `\log`
+  as log10, `p(x)` as multiplication; `\to`/set-membership unparsed) — captured
+  faithfully (`role="unparsed"`). The fix is OUR operator-definition layer
+  (`operators.ops`) growing per corpus, not the parser. NEXT: a first real
+  non-SymPy printer (Lean4 or SMT-LIB) off the canonical tree; grow the operator
+  map; optional chaining of latex2sympy's own `normalize_latex`. Tests:
+  `tests/test_mathlayer.py` (13).
 
 ## Roadmap (decomposed — each phase gets its own spec + plan)
 

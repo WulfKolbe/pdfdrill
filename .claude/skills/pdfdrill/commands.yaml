@@ -1207,6 +1207,20 @@ commands:
     flag: --limit
     type: int
     default: 8
+- name: mathir
+  section: Introspection (fast, no extraction)
+  summary: 'Canonical math layer: parse each FO/EQ macro-expanded LaTeX into a canonical tree (SymPy,
+    anchored by its srepr) and persist it under props[''math''] — first backend of many (Lean4/FriCAS/
+    Mathematica/SMT-LIB/GraphRAG planned off the same tree). Needs the [math] extra.'
+  offline_ok: true
+  positionals:
+  - name: pdf
+    type: pdf
+    required: true
+    help: PDF/Markdown drilled-doc path, URL, or arXiv id
+  typed: true
+  requires:
+  - model
 - name: classify
   section: Other
   summary: Subject-classify the drilled doc against the vocabnet vocabularies (MSC discipline rollup +

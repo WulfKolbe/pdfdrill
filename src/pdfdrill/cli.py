@@ -727,6 +727,14 @@ def _do_mathcheck(args):
     return cmd_mathcheck(_drilled(rest), limit=int(lim) if lim else 8)
 
 
+def _do_mathir(args):
+    """pdfdrill mathir <pdf|md>  — canonical math (SymPy) into FO/EQ props['math']"""
+    from .commands import cmd_mathir
+    if not args:
+        raise ValueError("No file specified.")
+    return cmd_mathir(_drilled(args))
+
+
 def _do_classify(args):
     """pdfdrill classify <pdf|md> [--k N]  — MSC/subject classification via vocabnet"""
     from .commands import cmd_classify
@@ -1324,6 +1332,7 @@ HANDLERS = {
         "gaps": _do_gaps,
         "llmtext": _do_llmtext,
         "mathcheck": _do_mathcheck,
+        "mathir": _do_mathir,
         "visionocr": _do_visionocr,
         "classify": _do_classify,
         "clean": _do_clean,

@@ -16,12 +16,12 @@ is absent.
 """
 from __future__ import annotations
 
-from . import backends, parse
+from . import backends, operators, parse
 from .annotate import MATH_TYPES, annotate_document, annotate_object
 from .canonical import CanonicalMath, from_latex
 
 __all__ = [
     "from_latex", "CanonicalMath",
     "annotate_object", "annotate_document", "MATH_TYPES",
-    "backends", "parse",
+    "backends", "operators", "parse",
 ]

@@ -115,6 +115,49 @@ def test_annotate_skips_non_math_objects_and_empty_latex():
     assert annotate_object(empty) is None
 
 
+# --------------------------------------------------------------------------- #
+# Operator / symbol-normalization layer (our own LaTeX improvement, pre-parse)
+# --------------------------------------------------------------------------- #
+def test_operator_normalize_collapses_font_wrappers():
+    from mathlayer import operators
+    assert operators.normalize(r"\mathcal{L}") == "L"
+    assert operators.normalize(r"\mathbb{R}^n") == "R^n"
+    assert operators.normalize(r"\mathbf{x}^2") == "x^2"
+    # nested / repeated wrappers collapse fully
+    assert operators.normalize(r"\mathcal{X} \to \mathbb{Y}") == r"X \to Y"
+
+
+def test_operator_normalize_applies_user_ops_first():
+    """The operator-definition layer: a user map rewrites author operators that
+    expansion alone can't fix (e.g. an undefined-to-the-parser macro)."""
+    from mathlayer import operators
+    out = operators.normalize(r"\gL + 1", ops={r"\gL": "L"})
+    assert out == "L + 1"
+
+
+def test_from_latex_normalizes_before_parse():
+    if not _have_parser():
+        print("SKIP"); return
+    from mathlayer import from_latex
+    cm = from_latex(r"\mathbb{R}^n")           # fails raw, parses after normalize
+    assert cm.role == "expression"
+    # parses after our normalization (latex2sympy lowercases symbols: R->r)
+    assert "Pow(" in (cm.srepr or "") and "Symbol('r')" in (cm.srepr or "")
+    assert cm.normalized == "R^n" and cm.normalized != cm.latex
+
+
+def test_annotate_records_source_and_normalized():
+    if not _have_parser():
+        print("SKIP"); return
+    from mathlayer import annotate_object
+    fo = _obj("Formula", r"\mathcal{L}")
+    annotate_object(fo)
+    m = fo.props["math"]
+    assert m["source"] == "latex"              # the (expanded) latex field
+    assert m["normalized"] == "L"              # \mathcal{L} -> L (our layer)
+    assert "Symbol('l')" in (m["srepr"] or "")  # parser lowercases L->l
+
+
 def test_graceful_when_parser_absent(monkeypatch=None):
     """No parser installed → from_latex yields an 'unparsed' record, no raise."""
     from mathlayer import parse, from_latex
@@ -133,6 +176,10 @@ if __name__ == "__main__":
                test_planned_backends_are_explicit_stubs, test_available_vs_planned_listing,
                test_annotate_attaches_math_to_fo_and_eq,
                test_annotate_skips_non_math_objects_and_empty_latex,
+               test_operator_normalize_collapses_font_wrappers,
+               test_operator_normalize_applies_user_ops_first,
+               test_from_latex_normalizes_before_parse,
+               test_annotate_records_source_and_normalized,
                test_graceful_when_parser_absent]:
         fn(); print("PASS", fn.__name__)
     print("\nAll tests passed.")
