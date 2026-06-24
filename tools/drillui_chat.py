@@ -203,6 +203,10 @@ def do_add(base, env, newdoc: str, docs: list, combined: str | None,
     a doc drilled once (cached PDF + <name>.drill model) is reused, not re-drilled
     — then re-merges ALL docs into one combined store. Returns (new retrieval
     target, combined-store path). On failure leaves the context unchanged."""
+    # Expand a leading ~ and any $VARS: pdfdrill is a subprocess, so the shell
+    # never saw this path — `~/Scans/x.pdf` is still a literal tilde here and
+    # would not resolve. (URLs / arxiv ids contain neither ~ nor $, so untouched.)
+    newdoc = os.path.expandvars(os.path.expanduser(newdoc))
     if newdoc in docs:
         print(f"  {newdoc} is already in the context ({len(docs)} doc(s)).")
         return (combined or (docs[0] if docs else None)), combined

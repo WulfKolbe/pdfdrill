@@ -138,6 +138,23 @@ const DOWNLOAD_DIR = (() => {
 const ART_ROOTS = [...new Set(
   [ART_ROOT, DOC_DIR, DOWNLOAD_DIR].filter(Boolean) as string[])];
 
+// `add <doc>` can bring in a doc from ANY directory (e.g. ~/Scans/x.pdf). Its
+// PDF + `.drill` artifacts then live outside cwd / the launch-doc dir / the
+// download dir, so /artifact + /open would refuse them (the link is dead and the
+// PDF won't open). Register the doc's own directory — expanding a leading ~ —
+// so those files become servable. ART_ROOTS is a const array but we push to it.
+function registerDocDir(rawPath: string): void {
+  const p = rawPath.replace(/^~(?=$|\/)/, homedir());
+  if (/^https?:\/\//i.test(p)) return;            // a URL, not a local file
+  try {
+    const dir = dirname(resolve(p));
+    if (dir && !ART_ROOTS.includes(dir)) {
+      ART_ROOTS.push(dir);
+      console.error(`  + serving added-doc dir: ${dir}`);
+    }
+  } catch { /* ignore */ }
+}
+
 const MIME: Record<string, string> = {
   ".html": "text/html; charset=utf-8", ".htm": "text/html; charset=utf-8",
   ".svg": "image/svg+xml", ".pdf": "application/pdf",
@@ -326,6 +343,10 @@ const server = Bun.serve<{ sess: Session | null }>({
       let msg: any;
       try { msg = JSON.parse(String(raw)); } catch { return; }
       if (msg.type === "input" && typeof msg.data === "string") {
+        // `add <doc>` from an arbitrary dir → register that dir so its PDF +
+        // .drill artifacts are servable (mirrors the ~ expansion drillui_chat does).
+        const m = msg.data.match(/^\s*add\s+(\S+)/);
+        if (m) registerDocDir(m[1]);
         // feed one line to the REPL; the trailing newline makes input() return
         sess.proc.stdin.write(msg.data + "\n");
         sess.proc.stdin.flush();
