@@ -2479,6 +2479,40 @@ def cmd_llmtext(pdf: Path, delimiter: str = "%%%%", split: bool = True) -> str:
             f"{out_path.relative_to(sc.pdf_path.parent)}.")
 
 
+def cmd_enhance(pdf: Path, only: str | None = None, skip: str | None = None) -> str:
+    """Run the uniform enhancement PASS PIPELINE over the model's IR — an ordered,
+    dependency-aware sequence of idempotent passes (frontmatter / math / citation /
+    concepts / abstract / toc / index / summary). Loads the Document once, runs the
+    passes, persists once. `--only a,b` / `--skip a,b` filter. Each projector then
+    consumes the enriched model unchanged.
+    """
+    sc = Sidecar(pdf)
+    model_path = _model_path(sc)
+    if not model_path.exists():
+        return (f"No model for {pdf.name} — run `pdfdrill model` (PDF) or "
+                f"`pdfdrill markdown` (.md) first.")
+    try:
+        from passes import PassContext, run_pipeline
+    except Exception as e:
+        return f"Pass pipeline unavailable: {e}"
+
+    doc = load_model(model_path)
+    ctx = PassContext(doc=doc, pdf=pdf, sidecar=sc)
+    onlyset = {s.strip() for s in only.split(",")} if only else None
+    skipset = {s.strip() for s in skip.split(",")} if skip else None
+    results = run_pipeline(ctx, only=onlyset, skip=skipset)
+    if any(r.changed for r in results):
+        save_model(model_path, doc)
+
+    icon = {"ran": "✓", "n/a": "·", "skipped": "—", "error": "✗"}
+    lines = [f"Enhancement pipeline on {pdf.name} "
+             f"({sum(r.status == 'ran' for r in results)} ran, "
+             f"{sum(r.changed for r in results)} changed the model):"]
+    for r in results:
+        lines.append(f"  {icon.get(r.status, '?')} {r.name:11s} {r.summary}")
+    return "\n".join(lines)
+
+
 def cmd_mathir(pdf: Path) -> str:
     """Canonical math layer: parse every FO/EQ's macro-EXPANDED LaTeX into a
     canonical tree (SymPy, anchored by its srepr) and PERSIST it under

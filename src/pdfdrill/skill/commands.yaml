@@ -1221,6 +1221,27 @@ commands:
   typed: true
   requires:
   - model
+- name: enhance
+  section: Introspection (fast, no extraction)
+  summary: 'Run the uniform enhancement PASS PIPELINE over the model IR — an ordered, dependency-aware
+    sequence of idempotent passes (frontmatter/math/citation/concepts/abstract/toc/index/summary).
+    Loads the Document once, runs the passes, persists once. Projectors consume the enriched model.'
+  offline_ok: true
+  positionals:
+  - name: pdf
+    type: pdf
+    required: true
+    help: PDF/Markdown drilled-doc path, URL, or arXiv id
+  typed: true
+  requires:
+  - model
+  flags:
+  - name: only
+    flag: --only
+    type: str
+  - name: skip
+    flag: --skip
+    type: str
 - name: classify
   section: Other
   summary: Subject-classify the drilled doc against the vocabnet vocabularies (MSC discipline rollup +

@@ -735,6 +735,16 @@ def _do_mathir(args):
     return cmd_mathir(_drilled(args))
 
 
+def _do_enhance(args):
+    """pdfdrill enhance <pdf|md> [--only a,b] [--skip a,b]  — run the pass pipeline"""
+    from .commands import cmd_enhance
+    only, rest = _opt(args, "--only")
+    skip, rest = _opt(rest, "--skip")
+    if not rest:
+        raise ValueError("No file specified.")
+    return cmd_enhance(_drilled(rest), only=only, skip=skip)
+
+
 def _do_classify(args):
     """pdfdrill classify <pdf|md> [--k N]  — MSC/subject classification via vocabnet"""
     from .commands import cmd_classify
@@ -1333,6 +1343,7 @@ HANDLERS = {
         "llmtext": _do_llmtext,
         "mathcheck": _do_mathcheck,
         "mathir": _do_mathir,
+        "enhance": _do_enhance,
         "visionocr": _do_visionocr,
         "classify": _do_classify,
         "clean": _do_clean,

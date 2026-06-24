@@ -1388,6 +1388,38 @@ SymPy is merely the first backend and the canonical anchor (its `srepr`).
   map; optional chaining of latex2sympy's own `normalize_latex`. Tests:
   `tests/test_mathlayer.py` (13).
 
+## Uniform enhancement pass pipeline (`src/passes/`, `pdfdrill enhance`)
+
+The general form of ChatGPT's linear `IR → math → citation → glossary → … →
+Enhanced IR`: an ordered, dependency-aware sequence of idempotent PASSES over the
+L5 Document (the IR), decoupled from input format (multi-format acquisition feeds
+it) and output backend (any projector consumes the result). A pass mutates the
+Document in place and returns a `PassResult`; the driver loads once, runs, saves
+once — passes never touch the sidecar/CLI.
+
+- **`base.py`** — `EnhancementPass{name, requires, applies(), run()}`,
+  `PassContext{doc, pdf, sidecar, options}`, `PassResult{name, status, changed,
+  summary, stats}`, the `REGISTRY` + `register_pass`, `order()` (topological by
+  `requires`, deterministic, cycle-safe), `run_pipeline(ctx, only=, skip=)`. A
+  pass runs only if every in-pool dependency `ran`; n/a / skipped / errored passes
+  don't satisfy deps (dependents skip); one pass failing never aborts the run.
+- **`builtin.py`** — the named ordered slots. FULLY WIRED: **math**
+  (`mathlayer.annotate_document`), **citation** (`bibliography.link_citations`),
+  **concepts** (glossary+acronym via `semantic.concepts.concept_records`). Honest
+  reporting slots: **frontmatter** (title/BibTeX presence), **abstract**, **toc**
+  (Section count — links-bearing injection is the open wiring). Planned n/a:
+  **index** (requires concepts), **summary** (requires math+citation+concepts) —
+  so coverage AND gaps are visible, never silently missing.
+- **`pdfdrill enhance <pdf|md> [--only a,b] [--skip a,b]`** (`cmd_enhance`) — loads
+  the model once, runs the pipeline, persists once, prints a per-pass ✓/·/—/✗
+  report. Verified live on 2312.11532: 5 ran, 3 changed (citation 12 linked,
+  concepts 28, math 84/151), frontmatter/index/summary honestly n/a.
+- Adds the passes ChatGPT omits but we want (frontmatter/abstract/summary) and
+  keeps multi-format-in / multi-target-out. NEXT: wire frontmatter→BibTeX
+  provenance (semantic/frontend), the TOC-inject-with-links pass (reuse
+  `booktoc`'s page map), the `\index` pass, and summaries. Tests:
+  `tests/test_passes.py` (6).
+
 ## Roadmap (decomposed — each phase gets its own spec + plan)
 
 - **Phase 1 — Unified model + capture** *(in progress)*: extend `docmodel`
