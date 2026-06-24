@@ -87,6 +87,38 @@ def test_builtin_passes_registered_in_sane_order():
     assert names.index("math") < names.index("summary")
 
 
+def test_frontmatter_pass_writes_bibtex_record():
+    from passes import PassContext, run_pipeline
+    doc = _doc([], meta={"title": "T", "authors": ["X Y"], "bibkey": "k"})
+    ctx = PassContext(doc=doc)
+    res = {r.name: r for r in run_pipeline(ctx, only={"frontmatter"})}
+    assert res["frontmatter"].status == "ran"
+    rec = doc.meta["bibtex"]
+    assert rec["entrytype"] == "article"
+    assert "X Y" in rec["author"] and rec["title"] == "T"
+    assert rec["citekey"] == "k"
+
+
+def test_frontmatter_pass_enriches_from_sidecar_offline():
+    """When meta lacks title/authors, the pass reads the sidecar's CACHED arXiv
+    metadata (offline, no network)."""
+    from passes import PassContext, run_pipeline
+
+    class _SC:
+        _e = {"arxiv_title": "Cached Title", "arxiv_authors": ["Jane Roe"],
+              "source_arxiv_id": "2401.00001"}
+        def get_evidence(self, k, default=None):
+            return self._e.get(k, default)
+
+    doc = _doc([], meta={"bibkey": "2401.00001"})
+    ctx = PassContext(doc=doc, sidecar=_SC())
+    res = {r.name: r for r in run_pipeline(ctx, only={"frontmatter"})}
+    assert res["frontmatter"].status == "ran"
+    rec = doc.meta["bibtex"]
+    assert rec["title"] == "Cached Title" and "Jane Roe" in rec["author"]
+    assert rec["arxiv"] == "2401.00001"
+
+
 def test_real_math_pass_through_pipeline():
     from passes import PassContext, run_pipeline
     from mathlayer import parse as mlparse
@@ -105,6 +137,8 @@ if __name__ == "__main__":
                test_not_applicable_skips_dependents,
                test_error_is_isolated_and_pipeline_continues,
                test_builtin_passes_registered_in_sane_order,
+               test_frontmatter_pass_writes_bibtex_record,
+               test_frontmatter_pass_enriches_from_sidecar_offline,
                test_real_math_pass_through_pipeline]:
         fn(); print("PASS", fn.__name__)
     print("\nAll tests passed.")

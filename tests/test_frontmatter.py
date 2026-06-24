@@ -87,6 +87,28 @@ def test_conclude_latex_to_bibtex_author_record():
     assert "recipient" not in rec            # a paper has no recipient
 
 
+def test_detect_docmodel_frontmatter_to_bibtex():
+    """The Document IR is itself an input format: frontmatter × docmodel reads
+    meta (title/authors/bibkey) → the same FrontMatter → BibTeX record."""
+    import types
+    from semantic.frontend import detect, to_bibtex
+    doc = types.SimpleNamespace(
+        meta={"title": "A Paper", "authors": ["Ada Lovelace", "Grace Hopper"],
+              "bibkey": "2312.11532"},
+        objects={})
+    fms = detect(doc, fmt="docmodel", kind="frontmatter")
+    assert len(fms) == 1
+    f = fms[0].fields
+    assert f["genre"] == "article"
+    assert [a["name"] for a in f["agents"]] == ["Ada Lovelace", "Grace Hopper"]
+    assert any(i["scheme"] == "arxiv" and i["value"] == "2312.11532"
+               for i in f["identifiers"])
+    rec = to_bibtex(fms[0])
+    assert rec["entrytype"] == "article"
+    assert "Ada Lovelace" in rec["author"] and "Grace Hopper" in rec["author"]
+    assert rec["arxiv"] == "2312.11532"
+
+
 def test_conclude_letter_to_bibtex_sender_is_author_recipient_is_field():
     from semantic.frontend import detect, to_bibtex
     fm = detect(LETTER, fmt="text", kind="frontmatter")[0]
@@ -103,6 +125,7 @@ if __name__ == "__main__":
                test_detect_latex_frontmatter,
                test_detect_letter_frontmatter_sender_is_author,
                test_conclude_latex_to_bibtex_author_record,
+               test_detect_docmodel_frontmatter_to_bibtex,
                test_conclude_letter_to_bibtex_sender_is_author_recipient_is_field]:
         fn(); print("PASS", fn.__name__)
     print("\nAll tests passed.")

@@ -19,9 +19,11 @@ from .contract import DetectedObject, Surface
 # import side-effects register the modules into the registries
 from .formats import latex as _latex          # noqa: F401
 from .formats import text as _text            # noqa: F401
+from .formats import docmodel as _docmodel    # noqa: F401
 from .objects import frontmatter as _fm       # noqa: F401
 from .cells import frontmatter_latex as _fml  # noqa: F401
 from .cells import frontmatter_letter as _fmt  # noqa: F401
+from .cells import frontmatter_docmodel as _fmd  # noqa: F401
 
 
 def detect(raw: str, fmt: str, kind: str) -> list[DetectedObject]:

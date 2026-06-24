@@ -89,15 +89,55 @@ class ConceptsPass(EnhancementPass):
 # Named, ordered slots — report presence / flag the open wiring honestly
 # --------------------------------------------------------------------------- #
 class FrontmatterPass(EnhancementPass):
+    """Provenance: detect the document's frontmatter (via the semantic/frontend
+    FrontMatter object, with the Document IR as input format) and conclude it to
+    a BibTeX-like record stored on doc.meta['bibtex'] (+ ['frontmatter']).
+    Enriches from the sidecar's CACHED arXiv metadata first — offline, no network."""
     name = "frontmatter"
     requires = ()
 
     def run(self, ctx: PassContext) -> PassResult:
-        meta = getattr(ctx.doc, "meta", {}) or {}
-        title = meta.get("title")
-        return PassResult(self.name, "ran" if title else "n/a",
-                          summary=f"title {'present' if title else 'absent'} "
-                                  f"(BibTeX provenance wiring: semantic/frontend)")
+        from semantic.frontend import detect, to_bibtex
+
+        meta = getattr(ctx.doc, "meta", None)
+        if not isinstance(meta, dict):
+            return PassResult(self.name, "n/a", summary="document has no meta")
+
+        # enrich from the sidecar's cached arXiv metadata (offline; never fetches)
+        sc = ctx.sidecar
+        if sc is not None and hasattr(sc, "get_evidence"):
+            try:
+                if not meta.get("title") and sc.get_evidence("arxiv_title"):
+                    meta["title"] = sc.get_evidence("arxiv_title")
+                if not (meta.get("authors") or meta.get("author")) \
+                        and sc.get_evidence("arxiv_authors"):
+                    meta["authors"] = sc.get_evidence("arxiv_authors")
+                if not meta.get("arxiv_id") and sc.get_evidence("source_arxiv_id"):
+                    meta["arxiv_id"] = sc.get_evidence("source_arxiv_id")
+            except Exception:
+                pass
+
+        dets = detect(ctx.doc, fmt="docmodel", kind="frontmatter")
+        if not dets:
+            return PassResult(self.name, "n/a",
+                              summary="no frontmatter signal (no title/author/id)")
+        fm = dets[0]
+        rec = to_bibtex(fm)
+        bk = meta.get("bibkey")
+        if bk and not rec.get("citekey"):
+            rec["citekey"] = bk
+        if fm.fields.get("title") and not meta.get("title"):
+            meta["title"] = fm.fields["title"]
+
+        changed = meta.get("bibtex") != rec or meta.get("frontmatter") != fm.fields
+        meta["frontmatter"] = fm.fields
+        meta["bibtex"] = rec
+        return PassResult(self.name, "ran", changed=changed,
+                          summary=f"{rec['entrytype']} record "
+                                  f"(author {'set' if rec.get('author') else 'empty'}, "
+                                  f"title {'set' if rec.get('title') else 'empty'})",
+                          stats={"entrytype": rec["entrytype"],
+                                 "has_author": bool(rec.get("author"))})
 
 
 class AbstractPass(EnhancementPass):

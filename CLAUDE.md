@@ -1403,13 +1403,24 @@ once — passes never touch the sidecar/CLI.
   `requires`, deterministic, cycle-safe), `run_pipeline(ctx, only=, skip=)`. A
   pass runs only if every in-pool dependency `ran`; n/a / skipped / errored passes
   don't satisfy deps (dependents skip); one pass failing never aborts the run.
-- **`builtin.py`** — the named ordered slots. FULLY WIRED: **math**
-  (`mathlayer.annotate_document`), **citation** (`bibliography.link_citations`),
-  **concepts** (glossary+acronym via `semantic.concepts.concept_records`). Honest
-  reporting slots: **frontmatter** (title/BibTeX presence), **abstract**, **toc**
+- **`builtin.py`** — the named ordered slots. FULLY WIRED: **frontmatter**
+  (→ BibTeX provenance record, below), **math** (`mathlayer.annotate_document`),
+  **citation** (`bibliography.link_citations`), **concepts** (glossary+acronym via
+  `semantic.concepts.concept_records`). Honest reporting slots: **abstract**, **toc**
   (Section count — links-bearing injection is the open wiring). Planned n/a:
   **index** (requires concepts), **summary** (requires math+citation+concepts) —
   so coverage AND gaps are visible, never silently missing.
+- **frontmatter → BibTeX (wired):** the FrontmatterPass treats the **Document IR
+  as an input format** for the `semantic/frontend` FrontMatter object — a new
+  `formats/docmodel.py` + `cells/frontmatter_docmodel.py` (title/authors/date from
+  meta; arXiv id from meta or an arXiv-shaped bibkey; DOI). The pass first
+  enriches `doc.meta` from the sidecar's **cached** `arxiv_title`/`arxiv_authors`/
+  `source_arxiv_id` (offline — never fetches), runs the cell, concludes via
+  `to_bibtex`, and persists `doc.meta['bibtex']` + `['frontmatter']`. Verified
+  live on 2312.11532 → `@article{2312.11532, author="YoungJoon Yoo and Jongwon
+  Choi", title="Topic-VQ-VAE…", arxiv=2312.11532}`. Tests: `tests/test_frontmatter.py`
+  (docmodel cell→bibtex), `tests/test_passes.py` (pass writes bibtex; sidecar
+  offline enrichment).
 - **`pdfdrill enhance <pdf|md> [--only a,b] [--skip a,b]`** (`cmd_enhance`) — loads
   the model once, runs the pipeline, persists once, prints a per-pass ✓/·/—/✗
   report. Verified live on 2312.11532: 5 ran, 3 changed (citation 12 linked,
