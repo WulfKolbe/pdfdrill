@@ -136,10 +136,63 @@ def test_detect_author_year_in_objects_square_brackets_and_folding():
     assert linked == 3                              # all linked to the gold refs
 
 
+def _mkdir_with(tmp, files: dict):
+    import tempfile
+    d = Path(tempfile.mkdtemp(dir=tmp))
+    for name, content in files.items():
+        (d / name).write_text(content, encoding="utf-8")
+    return d
+
+
+def test_find_bib_resources_from_bibliography_cmd():
+    """\\bibliography{biblio} → biblio.bib, resolved in the source dir."""
+    from pdfdrill import latex_source as LS
+    import tempfile
+    with tempfile.TemporaryDirectory() as tmp:
+        d = _mkdir_with(tmp, {
+            "main.tex": "\\documentclass{article}\n"
+                        "\\bibliographystyle{colm2024_conference}\n"
+                        "\\bibliography{biblio}  % the database\n",
+            "biblio.bib": "@article{a2024, title={X}, year={2024}}\n",
+        })
+        res = LS.find_bib_resources(str(d))
+        assert [Path(p).name for p in res["bib"]] == ["biblio.bib"]
+        assert res["bbl"] == []
+
+
+def test_find_bib_resources_addbibresource_and_bbl():
+    """biblatex \\addbibresource{refs.bib} + a compiled .bbl are both found."""
+    from pdfdrill import latex_source as LS
+    import tempfile
+    with tempfile.TemporaryDirectory() as tmp:
+        d = _mkdir_with(tmp, {
+            "paper.tex": "\\addbibresource{refs.bib}\n",
+            "refs.bib": "@book{b, year={2020}}\n",
+            "paper.bbl": "\\begin{thebibliography}{1}\\end{thebibliography}\n",
+        })
+        res = LS.find_bib_resources(str(d))
+        assert [Path(p).name for p in res["bib"]] == ["refs.bib"]
+        assert [Path(p).name for p in res["bbl"]] == ["paper.bbl"]
+
+
+def test_find_bib_resources_fallback_any_bib():
+    """No \\bibliography command → fall back to any .bib in the dir."""
+    from pdfdrill import latex_source as LS
+    import tempfile
+    with tempfile.TemporaryDirectory() as tmp:
+        d = _mkdir_with(tmp, {"x.tex": "\\documentclass{article}\n",
+                              "whatever.bib": "@misc{m}\n"})
+        res = LS.find_bib_resources(str(d))
+        assert [Path(p).name for p in res["bib"]] == ["whatever.bib"]
+
+
 if __name__ == "__main__":
     import tempfile
     for fn in [test_norm_label_ocr_tolerant, test_parse_bbl,
                test_ingest_bbl_and_enrich_and_link, test_cmd_bibsource_end_to_end,
-               test_detect_author_year_in_objects_square_brackets_and_folding]:
+               test_detect_author_year_in_objects_square_brackets_and_folding,
+               test_find_bib_resources_from_bibliography_cmd,
+               test_find_bib_resources_addbibresource_and_bbl,
+               test_find_bib_resources_fallback_any_bib]:
         fn(); print(f"PASS {fn.__name__}")
     print("\nAll tests passed.")

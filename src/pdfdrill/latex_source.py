@@ -562,6 +562,44 @@ def _strip_tex_comments(s: str) -> str:
     return re.sub(r"(?<!\\)%.*", "", s)
 
 
+# bib-database discovery: the file(s) the LaTeX source actually NAMES, not a
+# guessed <stem>.bib. BibTeX: \bibliography{a,b} -> a.bib,b.bib. biblatex:
+# \addbibresource{x.bib} / \bibresource{x.bib}.
+_BIB_BIBLIOGRAPHY = re.compile(r"\\bibliography\s*\{([^}]*)\}")
+_BIB_ADDRESOURCE = re.compile(r"\\(?:addbibresource|bibresource)(?:\[[^\]]*\])?\s*\{([^}]*)\}")
+
+
+def find_bib_resources(source_dir) -> dict:
+    """Discover the bibliography database(s) a LaTeX source NAMES, by reading the
+    `.tex` files in `source_dir` for `\\bibliography{}` (BibTeX) and
+    `\\addbibresource{}`/`\\bibresource{}` (biblatex), resolving each name to an
+    existing `.bib` in the dir. Plus any compiled `.bbl`. Falls back to any
+    `.bib` in the dir when no command names one. Returns {"bib": [...], "bbl":
+    [...]} of existing paths (deduped, order-stable)."""
+    from pathlib import Path
+    d = Path(source_dir)
+    if not d.is_dir():
+        return {"bib": [], "bbl": []}
+    blob = ""
+    for tex in sorted(d.glob("*.tex")):
+        try:
+            blob += "\n" + _strip_tex_comments(tex.read_text(errors="replace"))
+        except Exception:
+            pass
+    names: list[str] = []
+    for rx in (_BIB_BIBLIOGRAPHY, _BIB_ADDRESOURCE):
+        for m in rx.finditer(blob):
+            for nm in m.group(1).split(","):
+                nm = nm.strip()
+                if nm:
+                    names.append(nm if nm.lower().endswith(".bib") else nm + ".bib")
+    bib = [str(d / nm) for nm in names if (d / nm).exists()]
+    if not bib:                                  # no command named one → any .bib
+        bib = [str(p) for p in sorted(d.glob("*.bib"))]
+    bbl = [str(p) for p in sorted(d.glob("*.bbl"))]
+    return {"bib": list(dict.fromkeys(bib)), "bbl": list(dict.fromkeys(bbl))}
+
+
 def _clean_step_text(s: str) -> str:
     """Light prettify of a step's content: drop the \\State carrier, lower a few
     very common inline keywords, collapse whitespace. Math is left verbatim."""

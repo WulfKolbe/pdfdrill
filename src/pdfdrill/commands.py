@@ -2151,17 +2151,33 @@ def cmd_bibsource(pdf: Path, bib_path: str | None = None,
     if not model_path.exists():
         return f"No model for {pdf.name} (run `pdfdrill model` first)."
 
+    with open(model_path, "r", encoding="utf-8") as f:
+        doc = Document.from_dict(json.load(f))
+
     def _default(ext):
         c = pdf.parent / f"{pdf.stem}{ext}"
         return str(c) if c.exists() else None
     bbl = bbl_path or _default(".bbl")
     bib = bib_path or _default(".bib")
+    discovered = ""
     if not bbl and not bib:
-        return ("No .bbl/.bib found next to the PDF. Pass --bbl <file.bbl> "
-                "and/or --bib <file.bib> (the author's compiled bibliography).")
-
-    with open(model_path, "r", encoding="utf-8") as f:
-        doc = Document.from_dict(json.load(f))
+        # DISCOVER the bib the LaTeX source NAMES (\bibliography{}/\addbibresource{})
+        # in the e-print source dir — e.g. \bibliography{biblio} -> texsrc/biblio.bib,
+        # which a bare <stem>.bib lookup would never find.
+        from . import latex_source
+        src_dir = (doc.meta.get("latex_source_dir")
+                   or str(model_path.parent / "texsrc"))
+        res = latex_source.find_bib_resources(src_dir)
+        if res["bbl"]:
+            bbl = res["bbl"][0]
+        if res["bib"]:
+            bib = res["bib"][0]
+        if bbl or bib:
+            discovered = f" (auto-discovered in {Path(src_dir).name}/)"
+    if not bbl and not bib:
+        return ("No .bbl/.bib found next to the PDF or named by the LaTeX source "
+                "(\\bibliography{}/\\addbibresource{}) in texsrc/. Pass --bbl "
+                "<file.bbl> and/or --bib <file.bib>.")
 
     # The author's bibliography is authoritative: drop prior (heuristic)
     # References + their cites edges so we don't mix gold with OCR guesses.
@@ -2204,7 +2220,7 @@ def cmd_bibsource(pdf: Path, bib_path: str | None = None,
     src = " + ".join(x for x in (Path(bbl).name if bbl else "",
                                  Path(bib).name if bib else "") if x)
     return (
-        f"Gold bibliography ingested from {src}: {n_refs} Reference(s) "
+        f"Gold bibliography ingested from {src}{discovered}: {n_refs} Reference(s) "
         f"({enriched} enriched with structured BibTeX fields); "
         f"{linked}/{n_cits} in-text citations linked to a reference "
         f"(by alpha label, OCR-tolerant). No Perplexity needed — the author's "
