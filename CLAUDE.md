@@ -2712,6 +2712,17 @@ OpenAI GPT-4o vision provenance (`src/pdfdrill/openai_vision.py`,
   reaction, `\schemestart` scheme → 4/4 SVGs. Tests: `tests/test_vision.py`
   (normalizers + chem-prompt routing + latex_code adoption),
   `tests/test_svg.py` (preamble injection).
+- **Coloured tables (`\rowcolor`/`\cellcolor`/`\columncolor`) — `xcolor[table]`**
+  (2026). A mass keyless-LaTeX run left ~34 tables unrendered because they need
+  `xcolor`'s `[table]` option (→ `colortbl`), which the standalone preamble
+  didn't carry. The default preamble now loads `\usepackage[table]{xcolor}` (BEFORE
+  tikz, which loads xcolor) + `colortbl`; and `svg._augment_preamble` (the
+  extracted chemfig/mhchem-injection helper) adds the `table` option to a
+  DOCUMENT-derived preamble via `\PassOptionsToPackage{table}{xcolor}` (prepended
+  before any explicit/implicit xcolor load → **no option clash**), loading xcolor
+  itself only when neither an explicit line nor tikz is present. Tests:
+  `tests/test_svg.py` (default-preamble carries it; doc-preamble injection no-clash;
+  no-trigger unchanged + chemfig still injected).
 - Ported from the predecessor `~/MX/mathpix_images` (llmUtils.js/imagetester.js
   + prompt.txt). Stdlib `urllib` (no `openai` package). Key from
   `OPENAI_API_KEY` (env/.env), **never hardcoded**; `--limit` caps calls (a doc

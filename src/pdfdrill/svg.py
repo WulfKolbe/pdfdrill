@@ -21,9 +21,12 @@ import tempfile
 _DEFAULT_PREAMBLE = (
     "\\documentclass[border=2pt]{standalone}\n"
     "\\usepackage{amsmath,amssymb}\n"
+    # xcolor[table] BEFORE tikz (tikz loads xcolor) so \rowcolor/\cellcolor/
+    # \columncolor in extracted tables compile (the common 'unrendered table' cause).
+    "\\usepackage[table]{xcolor}\n"
     "\\usepackage{tikz}\n"
     "\\usetikzlibrary{calc,positioning,arrows.meta,shapes,decorations.pathreplacing}\n"
-    "\\usepackage{array,booktabs,multirow,multicol}\n"
+    "\\usepackage{array,booktabs,multirow,multicol,colortbl}\n"
     "\\usepackage{chemfig}\n"
     "\\usepackage[version=4]{mhchem}\n"
 )
@@ -106,6 +109,33 @@ def _graphic_ratio(dvisvgm_out: str) -> str:
     return f"{100 * h / w:.2f}%" if w > 0 else ""
 
 
+def _xcolor_has_table(pre: str) -> bool:
+    m = re.search(r"\\usepackage\[([^\]]*)\]\{xcolor\}", pre)
+    return bool(m and "table" in m.group(1))
+
+
+def _augment_preamble(pre: str, latex_code: str) -> str:
+    """Ensure the standalone preamble carries what the snippet needs, injecting
+    packages a DOCUMENT-derived preamble may omit (mirrors the chemfig pattern):
+    chemfig/mhchem for vision chem code, and xcolor[table]/colortbl for
+    \\rowcolor/\\cellcolor/\\columncolor tables (a common 'unrendered table' cause).
+    """
+    if "\\documentclass" not in pre:
+        pre = _DEFAULT_PREAMBLE
+    if re.search(r"\\(?:chemfig|schemestart)\b", latex_code) and "chemfig" not in pre:
+        pre += "\\usepackage{chemfig}\n"
+    if re.search(r"\\ce\b", latex_code) and "mhchem" not in pre:
+        pre += "\\usepackage[version=4]{mhchem}\n"
+    if re.search(r"\\(?:row|cell|column)color\b", latex_code) and not _xcolor_has_table(pre):
+        # Add the `table` option without an option clash, whether xcolor is loaded
+        # explicitly or implicitly (tikz loads it): PassOptions before any load.
+        pre = "\\PassOptionsToPackage{table}{xcolor}\n" + pre
+        if (not re.search(r"\\usepackage(?:\[[^\]]*\])?\{xcolor\}", pre)
+                and "tikz" not in pre):
+            pre += "\\usepackage[table]{xcolor}\n"
+    return pre
+
+
 def compile_to_svg(latex_code: str, preamble: str | None = None,
                    timeout: float = 60.0, resource_dir: str | None = None) -> dict:
     """Compile one snippet to SVG. Returns {ok, svg, ratio, error}.
@@ -136,18 +166,7 @@ def compile_to_svg(latex_code: str, preamble: str | None = None,
     if not tools_available():
         return {"ok": False, "svg": "", "ratio": "",
                 "error": "latex/dvisvgm not on PATH"}
-    pre = preamble or _DEFAULT_PREAMBLE
-    # Ensure the standalone class + tikz are present even if a doc preamble was
-    # passed without them.
-    if "\\documentclass" not in pre:
-        pre = _DEFAULT_PREAMBLE
-    # Chemistry code (vision-adopted \chemfig/\schemestart/\ce) may arrive with
-    # a DOCUMENT-derived preamble that doesn't load chemfig/mhchem — inject the
-    # missing package so the snippet compiles.
-    if re.search(r"\\(?:chemfig|schemestart)\b", latex_code) and "chemfig" not in pre:
-        pre += "\\usepackage{chemfig}\n"
-    if re.search(r"\\ce\b", latex_code) and "mhchem" not in pre:
-        pre += "\\usepackage[version=4]{mhchem}\n"
+    pre = _augment_preamble(preamble or _DEFAULT_PREAMBLE, latex_code)
     src = f"{pre}\\begin{{document}}\n{latex_code}\n\\end{{document}}\n"
 
     # Let latex find the project's local .sty files (style/, the dir itself).

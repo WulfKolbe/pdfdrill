@@ -110,6 +110,32 @@ def test_standalone_preamble_keeps_tikzset_block():
     assert sa.count("{") == sa.count("}")     # full block captured, balanced
 
 
+def test_default_preamble_supports_table_colors():
+    # \rowcolor/\cellcolor need xcolor[table]+colortbl — the common 'unrendered
+    # table' cause from the mass run; the default preamble must carry them.
+    assert "[table]{xcolor}" in svgmod._DEFAULT_PREAMBLE
+    assert "colortbl" in svgmod._DEFAULT_PREAMBLE
+
+
+def test_augment_injects_table_color_into_doc_preamble_no_clash():
+    # a DOC-derived preamble that loads xcolor WITHOUT table → add via
+    # PassOptionsToPackage (before the load) so there's no option clash.
+    pre = "\\documentclass{standalone}\n\\usepackage{xcolor}\n\\usepackage{tikz}\n"
+    out = svgmod._augment_preamble(pre, r"\begin{tabular}{c}\rowcolor{gray}x\end{tabular}")
+    assert "\\PassOptionsToPackage{table}{xcolor}" in out
+    assert out.index("PassOptionsToPackage") < out.index("\\usepackage{xcolor}")
+    # already-[table] preamble is left alone (no PassOptions)
+    pre2 = "\\documentclass{standalone}\n\\usepackage[table]{xcolor}\n"
+    assert "PassOptionsToPackage" not in svgmod._augment_preamble(pre2, r"\rowcolor{gray}")
+
+
+def test_augment_no_table_color_unchanged_and_chemfig_injected():
+    pre = svgmod._DEFAULT_PREAMBLE
+    assert svgmod._augment_preamble(pre, r"$a^2+b^2$") == pre   # no trigger → unchanged
+    out = svgmod._augment_preamble("\\documentclass{standalone}\n", r"\chemfig{C}")
+    assert "chemfig" in out
+
+
 def test_externalize_svg_tiddlers_writes_files_and_canonical_uri():
     # --embed-svg=false: move the inline svg_tiddler field out to external .svg
     # files referenced by _canonical_uri, leaving non-SVG tiddlers untouched.
