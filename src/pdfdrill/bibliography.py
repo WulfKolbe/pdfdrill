@@ -16,7 +16,32 @@ from __future__ import annotations
 
 import re
 
-_HEAD = re.compile(r"^(references?|bibliography)\s*$", re.I)
+# The bibliography-section heading WORD (matched on a normalized line, so a
+# \section*{}/markdown/numbered wrapper is stripped first — see _is_ref_heading).
+_HEAD = re.compile(
+    r"^(references?|bibliography|references?\s+and\s+notes|literature\s+cited|"
+    r"works?\s+cited|reference\s+list|"
+    r"bibliographie|literatur(?:verzeichnis)?|quellenverzeichnis)$", re.I)
+
+
+def _norm_heading(t: str) -> str:
+    """Strip LaTeX/markdown/section-number wrappers so a heading like
+    `\\section*{7 References}` or `**References**` or `REFERENCES:` normalizes to
+    the bare word — the 0-references failure was MathPix headings the bare
+    `^references$` regex never matched."""
+    t = re.sub(r"\\(?:sub){0,2}section\*?\s*\{([^}]*)\}", r"\1", t)  # \section*{X}
+    t = re.sub(r"\\[A-Za-z]+\*?\s*", " ", t)        # any other leading \cmd
+    t = t.replace("{", " ").replace("}", " ")
+    t = re.sub(r"^[#>*_\s]+", "", t)                # markdown #, >, **, _
+    t = re.sub(r"[*_\s]+$", "", t)
+    t = re.sub(r"^\d+(?:\.\d+)*\.?\s+", "", t)      # leading "7 " / "7.2. "
+    return t.strip().strip(":.").strip()
+
+
+def _is_ref_heading(t: str) -> bool:
+    return bool(_HEAD.match(_norm_heading(t)))
+
+
 _YEAR = re.compile(r"\b(?:19|20)\d{2}[a-z]?\b")
 # An entry typically ends with "..., 2023." or a page range "13-22."
 _ENTRY_END = re.compile(r"(?:(?:19|20)\d{2}[a-z]?|\d{1,4}\s*[-–]\s*\d{1,4})\.?\s*$")
@@ -53,12 +78,13 @@ def parse_bibliography(doc) -> list[dict]:
         return []
     anchors = mp.anchors
 
+    # Prefer the LAST matching heading (a paper may say "References" in its text
+    # body before the actual section; the real list is the final one).
     start = None
     for i, a in enumerate(anchors):
         t = (mp.payload[a].get("text") or "").strip()
-        if _HEAD.match(t):
+        if _is_ref_heading(t):
             start = i + 1
-            break
     if start is None:
         return []
 
@@ -87,6 +113,15 @@ def parse_bibliography(doc) -> list[dict]:
             cur = []
     if cur:
         entries.append(cur)
+
+    # Fallback for unnumbered author-year bibliographies where the year sits
+    # MID-line (no [N] marker, no trailing year/page-range) — the marker/end
+    # logic above collapses them to a single blob. If most body lines carry a
+    # year, MathPix rendered one reference per line: split per line.
+    if len(entries) <= 1 and len(body) >= 3:
+        yr = sum(1 for _, t in body if _YEAR.search(t))
+        if yr >= 0.5 * len(body):
+            entries = [[bt] for bt in body]
 
     out = []
     seen: dict[str, int] = {}

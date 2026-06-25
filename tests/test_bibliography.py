@@ -33,6 +33,26 @@ def _doc_with_references():
     return doc
 
 
+def _doc_latex_heading_per_line_refs():
+    # the 0-references failure class: a \section*{}-wrapped heading and one
+    # author-year reference per line with the year MID-line (no [N] marker, no
+    # year at line-end) — the old scanner found 0.
+    doc = Document(); doc.meta["bibkey"] = "DOC"
+    mp = doc.ensure_stream("mathpix_lines")
+    mp.append(text="\\section*{7 References}", _page=9, type="text")
+    mp.append(text="Smith, J. 2019. A first paper. In ACL.", _page=9, type="text")
+    mp.append(text="Doe, A.; and Roe, B. 2020. A second paper. In EMNLP.", _page=9, type="text")
+    mp.append(text="Lee, K. 2021. A third paper. JMLR.", _page=9, type="text")
+    return doc
+
+
+def test_parse_latex_wrapped_heading_and_per_line_authoryear_entries():
+    entries = parse_bibliography(_doc_latex_heading_per_line_refs())
+    assert len(entries) == 3                          # was 0 (heading) / 1 (no split)
+    assert {e["year"] for e in entries} == {"2019", "2020", "2021"}
+    assert entries[0]["citekey"].startswith("Smith")
+
+
 def test_parse_segments_entries_and_extracts_year_citekey():
     doc = _doc_with_references()
     entries = parse_bibliography(doc)
