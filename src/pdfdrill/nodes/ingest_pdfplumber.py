@@ -240,6 +240,51 @@ def _learn_templates(
 # Line-break detection from y-coordinates
 # ---------------------------------------------------------------------------
 
+def _split_into_columns(chars: list[dict]) -> list[list[dict]]:
+    """Split a page's chars into reading-order COLUMNS (left→right) by detecting a
+    vertical gutter — an empty x-band in the central region. Returns [chars] for a
+    single-column page. Prevents the 2-column interleaving that merges left+right
+    lines at the same y into garbled text."""
+    if len(chars) < 60:
+        return [chars]
+    left = min(c.get("x0", 0) for c in chars)
+    right = max(c.get("x1", c.get("x0", 0)) for c in chars)
+    width = right - left
+    if width <= 0:
+        return [chars]
+    def cx(c):
+        return (c.get("x0", 0) + c.get("x1", c.get("x0", 0))) / 2
+
+    nbins = 100
+    binw = width / nbins
+    # DENSITY per x-bin (char centres) — a gutter is a LOW-density central band,
+    # not necessarily empty: a full-width title/author header puts a few chars in
+    # the gutter, so requiring 'empty' fails on real papers. Compare against the
+    # typical column density (median of non-empty bins).
+    # COVERAGE: each char fills its [x0,x1] bins, so within-column bins stay dense
+    # even though glyphs are spaced — otherwise intra-column gaps look like gutters.
+    counts = [0] * nbins
+    for c in chars:
+        a = int((c.get("x0", left) - left) / binw)
+        b = int((c.get("x1", c.get("x0", left)) - left) / binw)
+        for k in range(max(0, a), min(nbins, b + 1)):
+            counts[k] += 1
+    nonzero = sorted(v for v in counts if v)
+    if not nonzero:
+        return [chars]
+    typical = nonzero[len(nonzero) // 2]            # median non-empty bin
+    lo, hi = int(nbins * 0.35), int(nbins * 0.65)
+    gk = min(range(lo, hi + 1), key=lambda k: counts[k])
+    if counts[gk] > 0.25 * typical:                 # central band not empty enough
+        return [chars]
+    gutter = left + (gk + 0.5) * binw
+    leftcol = [c for c in chars if cx(c) < gutter]
+    rightcol = [c for c in chars if cx(c) >= gutter]
+    if min(len(leftcol), len(rightcol)) < 0.15 * len(chars):
+        return [chars]                              # one side too small → not 2-col
+    return [leftcol, rightcol]
+
+
 def _detect_line_breaks(chars: list[dict]) -> list[list[dict]]:
     """Group characters into lines by y-coordinate proximity."""
     if not chars:
@@ -326,8 +371,12 @@ class IngestPdfplumberNode(Node):
             if not chars:
                 continue
 
-            chars.sort(key=lambda c: (c.get("top", c.get("y0", 0)), c.get("x0", 0)))
-            lines = _detect_line_breaks(chars)
+            # Column-aware reading order: split into columns (left→right), then
+            # detect lines WITHIN each column so a 2-column page isn't interleaved.
+            lines = []
+            for col in _split_into_columns(chars):
+                col.sort(key=lambda c: (c.get("top", c.get("y0", 0)), c.get("x0", 0)))
+                lines.extend(_detect_line_breaks(col))
 
             for li, line in enumerate(lines):
                 space_positions = set(_detect_word_gaps(line))
