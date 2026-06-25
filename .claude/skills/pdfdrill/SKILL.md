@@ -300,15 +300,20 @@ will be rebuilt on next call.
 - **Don't** assume the auto-extracted upload text is complete — run
   `pdfdrill size` and check `text_layer` first.
 
-## Working with transclusions in the output
+## Output forms — reading-Markdown vs TiddlyWiki (per-format render)
 
-The Markdown output uses transclusion syntax for non-textual references:
+The docmodel holds the abstract link (Citation → Reference); each output renders
+it its OWN way — there is NO single literal transclusion baked into the text:
 
-- `$\nu(P)$` — inline math (LaTeX)
-- `$$...$$` — display math
-- `{{cite:[Erd46]}}` — bibliography citation
-- `{{ref:Theorem 1.1}}` — structural reference
-- `{{eq:5}}` — equation number reference
+- **`pdfdrill md` — reading-Markdown:** clean, human/LLM-readable. Inline math
+  `$…$`, display `$$…$$`, headings `##`, and citations/refs/eq-numbers in their
+  **printed form** (`[18]`, `(5)`, `Theorem 1.1`). The paper's own References
+  section is in the text, so `[18]` resolves there by reading. (No `{{cite:…}}`
+  pseudo-transclusions — those resolved nowhere and broke the Markdown.)
+- **`pdfdrill tiddlers` — TiddlyWiki:** real **templated transclusions** to
+  tiddlers: `{{<bibkey>_FO….||FO}}` (formula), `{{<bibkey>_REF_<key>||CIT}}`
+  (citation → Reference tiddler), `{{<bibkey>_…||FN}}` (footnote). Import THIS
+  into TiddlyWiki — not the Markdown.
 
 When the user asks "what's Theorem 3?", grep the markdown for
 `{{ref:Theorem 3}}` to find every site that cites it.

@@ -122,16 +122,23 @@ class MarkdownProjector(Projector):
                     output.append(f"**{_clean(content)}**")
                 elif atype == "italic":
                     output.append(f"*{_clean(content)}*")
+                # Reading-markdown: render citations / refs / eq-numbers as their
+                # CLEAN printed form (e.g. [18], (5), Theorem 1) — NOT an
+                # unresolvable {{cite:…}} pseudo-transclusion. The paper's own
+                # References section is in the extracted text, so [18] resolves
+                # there by reading. (TiddlyWiki output uses real {{…||CIT}}
+                # transclusions to Reference tiddlers — a per-format render of the
+                # same docmodel Citation→Reference link.)
                 elif atype == "citation":
-                    output.append(f"{{{{cite:{content}}}}}")
+                    output.append(content)
                 elif atype == "eq_num_suppress":
                     pass
                 elif atype == "eq_num":
-                    output.append(f"{{{{eq:{content}}}}}")
+                    output.append(content)
                 elif atype == "eq_ref":
-                    output.append(f"{{{{eqref:{content}}}}}")
+                    output.append(content)
                 elif atype == "struct_ref":
-                    output.append(f"{{{{ref:{content}}}}}")
+                    output.append(content)
 
                 i = end
                 if i < len(text) and text[i] == " " and i + 1 < len(text) and text[i + 1] in ".,;:!?)]}":
