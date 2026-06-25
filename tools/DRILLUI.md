@@ -99,6 +99,11 @@ between wikis and to install plugins). drillui pre-fetches the JSON so the drag
 carries the actual tiddler array; drop it onto the TiddlyWiki window and confirm
 the import.
 
+Each Outputs row also has **`save ⤓`** — it downloads the REAL file (valid JSON,
+correct name) to your browser's download dir. Use it when you'd rather drag the
+saved file in: clicking `open ↗` shows the browser's collapsible JSON *viewer*,
+whose text can't be copied as valid JSON — `save ⤓` gives you the actual file.
+
 Two equivalent paths if you prefer the OS:
 - The artifacts live under `~/Downloads/<name>.pdf.drill/` (the config download
   dir, never `/tmp`), so you can also drag the `*.tiddlers.json` **file** from the

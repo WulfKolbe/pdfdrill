@@ -101,6 +101,7 @@
     padding:3px 8px; border-radius:6px; border:1px solid var(--line); background:transparent;
   }
   .art a{ color:var(--blue); } .art a:hover{ border-color:var(--blue); }
+  .art a.save{ color:var(--green); } .art a.save:hover{ border-color:var(--green); }
   .art button.host{ color:var(--aqua); } .art button.host:hover{ border-color:var(--aqua); }
   .art button.host:disabled{ color:var(--faint); cursor:default; border-color:var(--line); }
   .turn{
@@ -698,15 +699,24 @@ const app = {
       row.innerHTML =
         `<span class="ext">${a.ext}</span>`+
         `<span class="name"></span>`+
-        `<a target="_blank" rel="noopener">open ↗</a>`+
+        `<a class="open" target="_blank" rel="noopener">open ↗</a>`+
+        (!isUrl ? `<a class="save">save ⤓</a>` : "")+
         (this.hostOpen && !isUrl ? `<button class="host" type="button">host</button>` : "");
       row.querySelector(".name").textContent = name;
       // The <a> itself is a real new-tab link (target=_blank) — a plain click
       // opens it with no popup-blocker issue and never navigates this page away.
-      const link = row.querySelector("a");
+      const link = row.querySelector("a.open");
       link.href = url; link.target = "_blank"; link.rel = "noopener noreferrer";
+      // SAVE: the `download` attribute makes the browser save the REAL file (valid,
+      // with its real name) instead of the un-copyable JSON viewer — then drag the
+      // saved file into TiddlyWiki. Lands in your browser's download dir (~/Downloads).
+      const save = row.querySelector("a.save");
+      if (save){
+        save.href = url; save.setAttribute("download", name);
+        save.title = "save the real file (valid JSON, real name) — then drag it into TiddlyWiki";
+      }
       const nameEl = row.querySelector(".name");
-      nameEl.title = title + "  (click to open in a new tab)";
+      nameEl.title = title + "  (click to open in a new tab; ‘save ⤓’ for the real file)";
       nameEl.onclick = ()=> this.openExternal(url);
       const hb = row.querySelector("button.host");
       if (hb) hb.onclick = ()=> this.openOnHost(a.path, hb);
