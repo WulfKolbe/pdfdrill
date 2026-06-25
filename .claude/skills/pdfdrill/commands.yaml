@@ -1550,4 +1550,8 @@ help_intro: 'pdfdrill — portable PDF drill-down toolkit
 
   `latex` downloads the e-print .tgz (gold equations), so MathPix is skipped by
 
-  default (use `mathpix --force` to override).'
+  default (use `mathpix --force` to override). NEVER curl/wget/tar a PDF or e-print
+
+  yourself, and never hand-process .tex/.tgz — pass the URL/id/path; pdfdrill
+
+  decides if/when to use the LaTeX source.'

@@ -77,10 +77,14 @@ pdfdrill rulebook paper.pdf        # claims/definitions -> kitems -> rulebook.md
                                    #   with [→k:hash] drill-down anchors
 ```
 
-Every command also accepts an **https URL from a known host or a bare arXiv
-id** (`pdfdrill model 2510.11170v2`) — downloaded once, cached; for arXiv the
-abstract and the author LaTeX come from the **free** routes (no MathPix
-spend).
+Every command's `<pdf>` argument is, interchangeably, a **local file path**, an
+**https URL from a known host**, or a **bare arXiv id** (`pdfdrill model
+2510.11170v2`) — downloaded once, cached. **pdfdrill does the acquisition and
+decides if/when to use the LaTeX source**: for an arXiv input the abstract and
+the author LaTeX come from the **free** routes (`latex`/`model` auto-download the
+e-print `.tgz` and ingest the gold equations, keyless, no MathPix). Pass the
+URL/id/path and let pdfdrill fetch it — **never `curl`/`wget`/`tar` a PDF or
+e-print yourself, and never hand-process a `.tex`/`.tgz`**.
 
 Without the installed console script, run as a module:
 

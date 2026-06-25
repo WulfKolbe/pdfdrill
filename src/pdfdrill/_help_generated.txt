@@ -4,7 +4,9 @@ Input: <pdf> may be a local path OR an https URL from a known host. arXiv URLs/i
 (https://arxiv.org/abs/<id>, /pdf/<id>, or a bare 2510.11170v2) download the PDF
 once (cached) and unlock the FREE routes — `abstract` reads the abs page and
 `latex` downloads the e-print .tgz (gold equations), so MathPix is skipped by
-default (use `mathpix --force` to override).
+default (use `mathpix --force` to override). NEVER curl/wget/tar a PDF or e-print
+yourself, and never hand-process .tex/.tgz — pass the URL/id/path; pdfdrill
+decides if/when to use the LaTeX source.
 
 Introspection (fast, no extraction):
   pdfdrill doctor                             Requirement check: system tools (poppler/tesseract/LaTeX+dvisvgm), Python deps, API keys + the apt-get fix line

@@ -2,7 +2,9 @@
 name: pdfdrill
 description: |
   Token-economical drill-down extraction from PDF documents. Use whenever
-  the user provides a PDF (URL or upload) with a question about its content.
+  the user provides a PDF — as a local file, an https URL, or a bare arXiv id
+  (pdfdrill downloads/resolves it; never fetch or hand-process it yourself) —
+  with a question about its content.
   Always starts shallow (pdfinfo, TOC, abstract) and escalates only when the
   question demands it. State persists in a sidecar JSON next to the PDF, so
   repeated calls accumulate knowledge instead of redoing work.
@@ -14,6 +16,35 @@ allowed-tools: [Read, Bash, Write]
 A PDF drill-down toolkit that starts shallow, returns prose, and remembers
 what it already knows. The LLM uses small commands; pdfdrill manages the
 state machine and the heavy tools underneath.
+
+## READ FIRST — input & who decides (do not work around pdfdrill)
+
+**You pass an identifier; pdfdrill does the acquisition.** Every command's
+`<pdf>` argument accepts, interchangeably:
+- a **local file path** (`paper.pdf`, `~/papers/x.pdf`),
+- an **https URL** from a known host (`https://arxiv.org/abs/2501.06699`),
+- a **bare arXiv id** (`2501.06699`, `math/0309136`).
+
+pdfdrill downloads (once, cached) and resolves it. **NEVER** `curl`/`wget`/
+`tar`/`unzip` a PDF or an arXiv e-print yourself, and never read/extract/edit a
+`.tex`/`.tgz` by hand. Just hand the URL/id/path to pdfdrill.
+
+**pdfdrill — not you — decides if and when to use the LaTeX source.** For an
+arXiv input, `pdfdrill model` / `pdfdrill latex` AUTOMATICALLY fetch the free
+e-print `.tgz` and ingest the author's gold LaTeX (equations + TikZ/tables),
+keylessly, with no OCR. Your job is one command; pdfdrill's job is the download,
+the macro expansion, and the model build.
+
+> **ANTI-PATTERN (this is cheating):** downloading the e-print `.tgz` yourself,
+> untarring it, hand-editing the `.tex`, or building a model by hand. If you find
+> yourself running `tar`/`curl`/`latexmk`/parsing `.tex`, STOP — call
+> `pdfdrill model <id>` (keyless arXiv → builds from the LaTeX source and sets the
+> model built so projectors consume it) then `svg` → `tiddlers`/`llmtext`. The
+> only sanctioned LaTeX entry points are `pdfdrill latex` / `model` / `latexbook`
+> (a local `.tex`/book) / `bibsource` — all of which do the acquisition for you.
+> If a paper has no LaTeX source and there is no MathPix key, do NOT fall back to
+> an OCR/pdfplumber workaround — wait for a key (or the proper route), as the
+> user instructed.
 
 ## When to use
 
@@ -258,6 +289,9 @@ will be rebuilt on next call.
 
 ## Things to avoid
 
+- **Don't** download/`tar`/`curl` a PDF or arXiv e-print yourself, or hand-process
+  a `.tex`/`.tgz`. Pass the URL/arXiv-id/path to pdfdrill; it acquires and decides
+  if/when to use the LaTeX source (see READ FIRST).
 - **Don't** call `pdftotext` or `pdfplumber` directly. pdfdrill knows how
   to call them with the right flags.
 - **Don't** delete `*.drill.json` unless you want a fresh start.
