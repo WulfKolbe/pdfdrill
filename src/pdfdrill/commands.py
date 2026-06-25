@@ -1973,7 +1973,15 @@ def _build_arxiv_source_model(pdf: Path, sc: "Sidecar", key: str,
             with _tarfile.open(str(src)) as tf:
                 tf.extractall(texsrc, filter="data")
             source_dir = str(texsrc)
-            paths = {str(p): "" for p in texsrc.rglob("*.tex")}
+            # find_main_tex inspects CONTENT for \documentclass — pass the REAL
+            # text, not "" (empty content made it pick the alphabetically-first
+            # file, e.g. Conclusion.tex, truncating multi-file \input papers).
+            paths = {}
+            for p in texsrc.rglob("*.tex"):
+                try:
+                    paths[str(p)] = p.read_text(errors="replace")
+                except Exception:
+                    paths[str(p)] = ""
             main = ls.find_main_tex(paths)
             if main:
                 build_target = main

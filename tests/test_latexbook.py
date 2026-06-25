@@ -74,6 +74,27 @@ def test_build_source_model_flow_order():
         assert types == ["Section", "Equation", "Equation"]
 
 
+def test_find_main_tex_real_content_and_multifile_input_expansion():
+    """Multi-file \\input papers: find_main_tex must pick the \\documentclass file
+    by CONTENT (not the alphabetically-first body file — the bug that truncated
+    2104.08926), and build_source_model must expand \\input so body-file \\cites
+    are extracted."""
+    with tempfile.TemporaryDirectory() as dd:
+        d = Path(dd)
+        (d / "aaa_intro.tex").write_text(   # alphabetically FIRST, no documentclass
+            "Intro \\cite{alpha} and \\cite{beta}.\n", encoding="utf-8")
+        (d / "main.tex").write_text(
+            "\\documentclass{article}\n\\begin{document}\n\\input{aaa_intro}\n"
+            "\\begin{thebibliography}{1}\n\\bibitem{alpha} A.\n\\bibitem{beta} B.\n"
+            "\\end{thebibliography}\n\\end{document}\n", encoding="utf-8")
+        paths = {str(p): p.read_text() for p in d.glob("*.tex")}
+        assert ls.find_main_tex(paths).endswith("main.tex")     # by content, not name
+        doc = ls.build_source_model(ls.find_main_tex(paths), bibkey="z")
+        cks = sorted(c.props["citekey"] for c in doc.objects.values()
+                     if c.type == "Citation")
+        assert cks == ["alpha", "beta"]                          # \input expanded
+
+
 def test_latexbook_marks_model_built_so_projectors_dont_rebuild():
     """The mass-run collision: latexbook wrote a model but never set MODEL_BUILT,
     so projectors saw 'not built' and force-rebuilt via MathPix/OCR, clobbering
