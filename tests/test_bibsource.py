@@ -176,6 +176,30 @@ def test_build_source_model_extracts_citations():
         assert any(x.start is not None for x in c.realizations)    # linkable surface
 
 
+def test_leaked_latex_command_captured_as_ltx_transclusion():
+    """A formatting command (\\setlength) leaking into prose must become an
+    LtxCommand object + a {{<bibkey>_LTX<n>||LTX}} transclusion (NOT raw text).
+    With no LTX template defined, it renders to nothing in every output, while the
+    command stays preserved + tagged in the tiddler."""
+    from pdfdrill import latex_source as LS
+    import tempfile
+    with tempfile.TemporaryDirectory() as d:
+        tex = Path(d) / "main.tex"
+        tex.write_text(
+            "\\documentclass{article}\n\\begin{document}\n\\section{Intro}\n"
+            "Body before. \\setlength{\\parindent}{0pt} body after.\n"
+            "\\end{document}\n", encoding="utf-8")
+        doc = LS.build_source_model(str(tex), bibkey="x")
+        ltx = [o for o in doc.objects.values() if o.type == "LtxCommand"]
+        assert len(ltx) == 1
+        assert "setlength" in ltx[0].props["latex_code"]
+        title = ltx[0].props["title"]
+        para = next(o for o in doc.objects.values()
+                    if o.type == "Paragraph" and "body after" in o.props.get("text", ""))
+        assert "{{" + title + "||LTX}}" in para.props["text"]
+        assert "\\setlength" not in para.props["text"]    # not raw in the prose
+
+
 def test_build_source_model_extracts_abstract_object():
     """\\begin{abstract} must become a first-class Abstract object (→ ## Abstract
     heading + a bibkey Abstract tiddler), not be dropped."""
@@ -331,6 +355,7 @@ if __name__ == "__main__":
                test_extract_citations_all_variants,
                test_load_bibtex_file_restrict_to_cited,
                test_build_source_model_extracts_citations,
+               test_leaked_latex_command_captured_as_ltx_transclusion,
                test_build_source_model_extracts_abstract_object,
                test_parse_bbl_extracts_author_and_year,
                test_ingest_bbl_sets_author_year_on_reference,

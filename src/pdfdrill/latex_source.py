@@ -807,6 +807,33 @@ def _transclude_cites(text: str, bibkey: str) -> str:
     return _CITE_CMD.sub(repl, text)
 
 
+# formatting / no-content commands that leak into prose — captured (not deleted)
+# as LtxCommand objects so the original LaTeX is preserved + tagged, and rendered
+# per-output via the LTX transclusion template (undefined ⇒ shows nothing).
+_LTX_LEAK = re.compile(
+    r"\\(?:setlength|setcounter|pagestyle|thispagestyle|pagenumbering|"
+    r"vspace\*?|hspace\*?|vskip|hskip|vfill|hfill|smallskip|medskip|bigskip|"
+    r"noindent|clearpage|cleardoublepage|newpage|pagebreak|nopagebreak|"
+    r"linebreak|newline|centering|raggedright|raggedleft)\b"
+    r"(?:\s*\{[^{}]*\}|\s*\[[^\]]*\]|\s*[-\d.][\w.]*)*")
+
+
+def _capture_ltx(text: str, bibkey: str, start_n: int) -> "tuple[str, list, int]":
+    """Replace each leaked formatting command with a `{{<bibkey>_LTX<n>||LTX}}`
+    transclusion; return (text, [{title, latex_code}], next_n). The command is
+    PRESERVED in the returned dict (→ an LtxCommand tiddler), never deleted."""
+    objs: list = []
+    n = [start_n]
+
+    def repl(m):
+        n[0] += 1
+        title = f"{bibkey}_LTX{n[0]}"
+        objs.append({"title": title, "latex_code": m.group(0).strip()})
+        return "{{" + title + "||LTX}}"
+    out = _LTX_LEAK.sub(repl, text)
+    return out, objs, n[0]
+
+
 def _clean_prose(s: str) -> str:
     for rx, rep in _PROSE_CLEAN:
         s = rx.sub(rep, s)
@@ -857,9 +884,10 @@ def build_source_model(tex_path: str, bibkey: str = "DOC") -> "object":
              + [("para", pos, raw) for pos, raw in _prose_chunks(body)])
     items.sort(key=lambda t: t[1])
 
-    n_sec = n_eq = n_dia = n_tab = n_para = n_formula = n_abs = 0
+    n_sec = n_eq = n_dia = n_tab = n_para = n_formula = n_abs = n_ltx = 0
     fi = 0
     formula_no = 0
+    ltx_no = 0
     current_section = None        # id of the most recent Section (parent linkage)
     for kind, _pos, it in items:
         fi += 1
@@ -913,6 +941,11 @@ def build_source_model(tex_path: str, bibkey: str = "DOC") -> "object":
                 last = mm.end()
             out.append(text[last:])
             prose = _clean_prose(_transclude_cites("".join(out), bibkey))
+            prose, _ltx_objs, ltx_no = _capture_ltx(prose, bibkey, ltx_no)
+            for _lo in _ltx_objs:
+                doc.add(DocObject(type="LtxCommand", props={
+                    **_lo, "flow_index": fi, "bibkey": bibkey}))
+                n_ltx += 1
             if not prose:
                 continue
             props = {"text": prose, "flow_index": fi, "bibkey": bibkey}
@@ -965,6 +998,6 @@ def build_source_model(tex_path: str, bibkey: str = "DOC") -> "object":
                                  "paragraphs": n_para, "formulas": n_formula,
                                  "diagrams": n_dia, "tables": n_tab,
                                  "algorithms": n_alg, "algorithm_steps": n_steps,
-                                 "abstract": n_abs,
+                                 "abstract": n_abs, "ltx_commands": n_ltx,
                                  "citations": n_cit, "macros": len(macros)}
     return doc

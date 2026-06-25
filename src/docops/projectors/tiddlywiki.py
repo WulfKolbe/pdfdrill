@@ -288,6 +288,7 @@ class TiddlyWikiProjector(BaseProjector):
             "abstracts":  self._sort_by_flow(doc.objects_of_type("Abstract")),
             "tocs":       self._sort_by_flow(doc.objects_of_type("Toc")),
             "references": self._sort_by_flow(doc.objects_of_type("Reference")),
+            "ltx":        self._sort_by_flow(doc.objects_of_type("LtxCommand")),
             "pages":      sorted(doc.objects_of_type("Page"),
                                  key=lambda o: o.props.get("page_number", 0)),
         }
@@ -322,6 +323,8 @@ class TiddlyWikiProjector(BaseProjector):
         for i, ref in enumerate(inv["references"]):
             ck = re.sub(r"[^A-Za-z0-9]", "", ref.props.get("citekey") or "")
             title[ref.id] = f"{bibkey}_REF_{ck or (i + 1)}"
+        for i, o in enumerate(inv["ltx"]):           # use the title baked at build
+            title[o.id] = o.props.get("title") or f"{bibkey}_LTX{i + 1}"
         return title, inv
 
     # ----- phase 2: per-line inline substitution index -----
@@ -580,6 +583,15 @@ class TiddlyWikiProjector(BaseProjector):
                 t["latex_original"] = tab.props["latex_original"]
             if svg_field:
                 t["svg_tiddler"] = svg_field
+            out.append(t)
+
+        # LtxCommand — a leaked LaTeX formatting command, PRESERVED + tagged but
+        # invisible: there is intentionally NO `LTX` template, so a
+        # {{<title>||LTX}} transclusion renders nothing in TiddlyWiki, while the
+        # raw command stays recoverable in the `latex_code` field.
+        for o in inv["ltx"]:
+            t = self._t(title[o.id], "", f"latex ltx {_bibtag(bibkey)}")
+            t["latex_code"] = o.props.get("latex_code", "")
             out.append(t)
 
         # Footnotes
