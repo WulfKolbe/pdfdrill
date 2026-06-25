@@ -176,6 +176,24 @@ def test_build_source_model_extracts_citations():
         assert any(x.start is not None for x in c.realizations)    # linkable surface
 
 
+def test_build_source_model_extracts_abstract_object():
+    """\\begin{abstract} must become a first-class Abstract object (→ ## Abstract
+    heading + a bibkey Abstract tiddler), not be dropped."""
+    from pdfdrill import latex_source as LS
+    import tempfile
+    with tempfile.TemporaryDirectory() as d:
+        tex = Path(d) / "main.tex"
+        tex.write_text(
+            "\\documentclass{article}\n"
+            "\\begin{document}\n\\begin{abstract}\nWe estimate mutual information.\n"
+            "\\end{abstract}\n\\section{Intro}\nBody.\n\\end{document}\n",
+            encoding="utf-8")
+        doc = LS.build_source_model(str(tex), bibkey="x")
+        abs_objs = [o for o in doc.objects.values() if o.type == "Abstract"]
+        assert len(abs_objs) == 1
+        assert "mutual information" in abs_objs[0].props["text"]
+
+
 def test_parse_bbl_extracts_author_and_year():
     bbl = (r"\begin{thebibliography}{1}" "\n"
            r"\bibitem[KSV02]{kitaev2002}" "\n"
@@ -313,6 +331,7 @@ if __name__ == "__main__":
                test_extract_citations_all_variants,
                test_load_bibtex_file_restrict_to_cited,
                test_build_source_model_extracts_citations,
+               test_build_source_model_extracts_abstract_object,
                test_parse_bbl_extracts_author_and_year,
                test_ingest_bbl_sets_author_year_on_reference,
                test_build_source_model_transcludes_cites_in_prose,

@@ -251,7 +251,7 @@ class LLMCompactProjector(BaseProjector):
             cap = p.get("caption") or ""
             return f"{'#' * max(1, min(6, depth))} {num} {cap}".strip()
         if t == "Abstract":
-            return "**Abstract.** " + p.get("text", "")
+            return "## Abstract\n\n" + p.get("text", "")
         if t == "Paragraph":
             text = p.get("text") or ""
             for eqnum, ph in eqref_to_ph:

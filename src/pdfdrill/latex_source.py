@@ -526,6 +526,23 @@ def extract_graphics(body: str) -> list[dict]:
     return out
 
 
+_ABSTRACT_ENV = re.compile(r"\\begin\{abstract\}(.*?)\\end\{abstract\}", re.S)
+_ABSTRACT_CMD = re.compile(r"\\abstract\s*\{", re.S)
+
+
+def extract_abstract(body: str) -> "dict | None":
+    """The `\\begin{abstract}…\\end{abstract}` (or `\\abstract{…}`) body + its
+    source position, or None. First-class so it becomes an Abstract object (→ a
+    `## Abstract` heading in markdown and a bibkey Abstract tiddler)."""
+    m = _ABSTRACT_ENV.search(body)
+    if m:
+        return {"text": m.group(1).strip(), "pos": m.start()}
+    m = _ABSTRACT_CMD.search(body)
+    if m:
+        return {"text": _balanced(body, m.end() - 1)[1:-1].strip(), "pos": m.start()}
+    return None
+
+
 def extract_sections(body: str) -> list[dict]:
     """Headings in document order: {level, caption, pos}. Levels 1..4."""
     level = {"part": 1, "chapter": 1, "section": 2, "subsection": 3, "subsubsection": 4}
@@ -830,13 +847,15 @@ def build_source_model(tex_path: str, bibkey: str = "DOC") -> "object":
     # flow-ordered (by source position) stream, so the tiddler reading order
     # matches the document. Paragraphs carry inline math as real Formula objects
     # (latex = expanded for KaTeX, latex_original = the author's macro source).
+    _ab = extract_abstract(body)
     items = ([("section", s["pos"], s) for s in extract_sections(body)]
              + [("equation", e["pos"], e) for e in extract_display_equations(body)]
              + [("graphic", g["pos"], g) for g in extract_graphics(body)]
+             + ([("abstract", _ab["pos"], _ab)] if _ab else [])
              + [("para", pos, raw) for pos, raw in _prose_chunks(body)])
     items.sort(key=lambda t: t[1])
 
-    n_sec = n_eq = n_dia = n_tab = n_para = n_formula = 0
+    n_sec = n_eq = n_dia = n_tab = n_para = n_formula = n_abs = 0
     fi = 0
     formula_no = 0
     current_section = None        # id of the most recent Section (parent linkage)
@@ -849,6 +868,11 @@ def build_source_model(tex_path: str, bibkey: str = "DOC") -> "object":
             doc.add(s_obj)
             current_section = s_obj.id
             n_sec += 1
+        elif kind == "abstract":
+            doc.add(DocObject(type="Abstract", props={
+                "text": _clean_prose(_transclude_cites(it["text"], bibkey)),
+                "flow_index": fi, "bibkey": bibkey}))
+            n_abs += 1
         elif kind == "equation":
             original = it["latex"]
             doc.add(DocObject(type="Equation", props={
@@ -939,5 +963,6 @@ def build_source_model(tex_path: str, bibkey: str = "DOC") -> "object":
                                  "paragraphs": n_para, "formulas": n_formula,
                                  "diagrams": n_dia, "tables": n_tab,
                                  "algorithms": n_alg, "algorithm_steps": n_steps,
+                                 "abstract": n_abs,
                                  "citations": n_cit, "macros": len(macros)}
     return doc
