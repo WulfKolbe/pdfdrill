@@ -36,6 +36,29 @@ def test_cli_pdf_expands_tilde():
                 os.environ["HOME"] = old
 
 
+def test_do_svg_resolves_url_via_pdf_not_path_collapse():
+    """svg used to `Path(url)` directly, collapsing https:// → https:/ → 'Not
+    found'. It must route the URL/arXiv-id through _pdf like every other command."""
+    from pathlib import Path as _P
+    from pdfdrill import cli
+    from pdfdrill import commands
+    seen = {}
+
+    def fake_pdf(args):
+        seen["arg"] = args[0]
+        return _P("/tmp/2208.09292.pdf")
+
+    real_pdf, real_svg = cli._pdf, commands.cmd_svg
+    cli._pdf = fake_pdf
+    commands.cmd_svg = lambda t, limit=None, force=False: seen.update(target=str(t)) or "ok"
+    try:
+        cli._do_svg(["https://arxiv.org/abs/2208.09292"])
+    finally:
+        cli._pdf, commands.cmd_svg = real_pdf, real_svg
+    assert seen["arg"] == "https://arxiv.org/abs/2208.09292"   # // intact, not collapsed
+    assert seen["target"] == "/tmp/2208.09292.pdf"             # resolved cached PDF
+
+
 def test_resolve_input_expands_tilde():
     from pdfdrill import sources as S
     old = os.environ.get("HOME")
@@ -132,7 +155,8 @@ def test_md_keeps_hint_when_no_keys():
 
 
 if __name__ == "__main__":
-    for fn in [test_cli_pdf_expands_tilde, test_resolve_input_expands_tilde,
+    for fn in [test_cli_pdf_expands_tilde, test_do_svg_resolves_url_via_pdf_not_path_collapse,
+               test_resolve_input_expands_tilde,
                test_mathpix_creds_available_reflects_env,
                test_md_runs_mathpix_when_keys_present_no_discussion,
                test_md_keeps_hint_when_no_keys]:

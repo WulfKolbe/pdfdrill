@@ -659,9 +659,10 @@ def _do_svg(args):
             pos.append(args[i]); i += 1
     if not pos:
         raise ValueError("Usage: pdfdrill svg <pdf|tex> [--limit N] [--force]")
-    t = Path(pos[0])
-    if not t.exists():
-        raise FileNotFoundError(f"Not found: {t}")
+    # Resolve via _pdf so a URL / bare arXiv id → the cached PDF (same one `model`/
+    # `latex` used), and a local .pdf/.tex passes through. NEVER Path()-wrap a URL
+    # directly — that collapses https:// → https:/ and 'Not found's it.
+    t = _pdf([pos[0]])
     return cmd_svg(t, limit=limit, force=force)
 
 
