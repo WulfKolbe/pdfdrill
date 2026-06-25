@@ -4753,13 +4753,35 @@ def cmd_bibliography(pdf: Path, force: bool = False) -> str:
     entries = parse_bibliography(doc)
     n = add_reference_objects(doc, entries)
     with_year = sum(1 for e in entries if e["year"])
-    # In-text citations resolve against the references; skip the bibliography's
-    # own lines. Numeric ([N]) and parenthetical author-year ((Asai, 2023)).
-    ref_anchors = {r.start for o in doc.objects.values() if o.type == "Reference"
-                   for r in o.realizations if r.stream == "mathpix_lines" and r.start}
-    numeric = detect_numeric_citations(doc, max_num=n, exclude_anchors=ref_anchors)
-    authyear = detect_author_year_citations(doc, exclude_anchors=ref_anchors)
-    cites = link_citations(doc)
+    numeric = authyear = cites = 0
+    source_note = ""
+
+    if n == 0:
+        # Heuristic found no INLINED references — the keyless arXiv LaTeX-source
+        # case: the entries live in biblio.bib (named by \bibliography{}), not in
+        # the prose. Build THIS paper's bibliography from that GOLD source (full
+        # BibTeX fields, free — Perplexity/bibfetch then has nothing to do).
+        from .bibliography import build_bibliography_from_source
+        src_dir = doc.meta.get("latex_source_dir") or str(model_path.parent / "texsrc")
+        if Path(src_dir).is_dir():
+            res = build_bibliography_from_source(doc, src_dir)
+            n = sum(1 for o in doc.objects.values() if o.type == "Reference")
+            with_year = sum(1 for o in doc.objects.values()
+                            if o.type == "Reference" and o.props.get("year"))
+            cites = sum(1 for a in doc.alignments if a.kind == "cites")
+            if n:
+                source_note = (f"  (heuristic found none → built {n} from the source "
+                               f"bibliography: gold BibTeX, {res['linked']} citations "
+                               f"linked, no Perplexity needed)")
+
+    if not source_note:
+        # In-text citations resolve against the references; skip the bibliography's
+        # own lines. Numeric ([N]) and parenthetical author-year ((Asai, 2023)).
+        ref_anchors = {r.start for o in doc.objects.values() if o.type == "Reference"
+                       for r in o.realizations if r.stream == "mathpix_lines" and r.start}
+        numeric = detect_numeric_citations(doc, max_num=n, exclude_anchors=ref_anchors)
+        authyear = detect_author_year_citations(doc, exclude_anchors=ref_anchors)
+        cites = link_citations(doc)
 
     with open(model_path, "w", encoding="utf-8") as f:
         json.dump(doc.to_dict(), f, indent=2, ensure_ascii=False)
@@ -4774,7 +4796,7 @@ def cmd_bibliography(pdf: Path, force: bool = False) -> str:
     sc.log_transition("bibliography", prev, BIBLIOGRAPHY_BUILT,
                       detail=f"{n} entries, {numeric}+{authyear} cites detected, {cites} linked")
     sc.save()
-    return _format_bibliography(sc)
+    return _format_bibliography(sc) + source_note
 
 
 def cmd_bibfetch(pdf: Path, limit: int | None = None, force: bool = False) -> str:

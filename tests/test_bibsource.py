@@ -176,6 +176,36 @@ def test_build_source_model_extracts_citations():
         assert any(x.start is not None for x in c.realizations)    # linkable surface
 
 
+def test_cmd_bibliography_falls_back_to_source_bib():
+    """A keyless arXiv LaTeX-source model has no INLINED refs — cmd_bibliography
+    must fall back to the source bib (so `bibfetch` isn't left with 0 references)."""
+    import tempfile
+    from pdfdrill import latex_source as LS, commands as K, model_io
+    from pdfdrill.sidecar import Sidecar
+    with tempfile.TemporaryDirectory() as d:
+        d = Path(d)
+        (d / "main.tex").write_text(
+            "\\documentclass{article}\n\\begin{document}\n"
+            "Body \\cite{a}.\n\\bibliography{biblio}\n\\end{document}\n",
+            encoding="utf-8")
+        (d / "biblio.bib").write_text(
+            "@article{a, title={A}, author={X Y}, year={2020}}\n", encoding="utf-8")
+        doc = LS.build_source_model(str(d / "main.tex"), bibkey="x")
+        doc.meta["latex_source_dir"] = str(d)
+        pdf = d / "x.pdf"
+        pdf.write_bytes(b"%PDF-1.4")
+        sc = Sidecar(pdf)
+        model_io.save_model(K._model_path(sc), doc)
+        sc.add_fact(K.MODEL_BUILT)
+        sc.save()
+
+        out = K.cmd_bibliography(pdf, force=True)
+        refs = [o for o in model_io.load_model(K._model_path(sc)).objects.values()
+                if o.type == "Reference"]
+        assert any(r.props.get("citekey") == "a" for r in refs)   # built from biblio.bib
+        assert "source bibliography" in out
+
+
 def _mkdir_with(tmp, files: dict):
     import tempfile
     d = Path(tempfile.mkdtemp(dir=tmp))
@@ -236,6 +266,7 @@ if __name__ == "__main__":
                test_find_bib_resources_fallback_any_bib,
                test_extract_citations_all_variants,
                test_load_bibtex_file_restrict_to_cited,
-               test_build_source_model_extracts_citations]:
+               test_build_source_model_extracts_citations,
+               test_cmd_bibliography_falls_back_to_source_bib]:
         fn(); print(f"PASS {fn.__name__}")
     print("\nAll tests passed.")
