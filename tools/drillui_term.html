@@ -57,8 +57,17 @@
   main{ display:grid; grid-template-columns:1fr 360px; min-height:0; }
   @media (max-width:880px){ main{ grid-template-columns:1fr; } #rail{ display:none; } }
 
-  #term-wrap{ min-width:0; min-height:0; background:var(--bg); padding:10px 6px 6px 12px; }
-  #terminal{ width:100%; height:100%; }
+  #term-wrap{ min-width:0; min-height:0; background:var(--bg); padding:10px 6px 6px 12px;
+              display:flex; flex-direction:column; }
+  #terminal{ width:100%; flex:1 1 auto; min-height:0; }
+  /* native command line — browser-native editing (insert/cursor/selection/IME),
+     no hand-rolled keystroke handling. xterm is OUTPUT only (disableStdin). */
+  #cmdbar{ display:flex; align-items:center; gap:8px; flex:0 0 auto;
+           padding:6px 4px 2px 2px; }
+  #cmdprompt{ color:var(--orange,#fe8019); font-family:var(--mono); font-weight:700; }
+  #cmdline{ flex:1 1 auto; background:transparent; border:none; outline:none;
+            color:#ebdbb2; font-family:'JetBrains Mono', ui-monospace, monospace;
+            font-size:13.5px; caret-color:#fe8019; }
 
   /* ---- retrieval rail ---- */
   #rail{
@@ -160,7 +169,15 @@
   </header>
 
   <main>
-    <section id="term-wrap"><div id="terminal"></div></section>
+    <section id="term-wrap">
+      <div id="terminal"></div>
+      <div id="cmdbar">
+        <span id="cmdprompt">❯</span>
+        <input id="cmdline" type="text" autocomplete="off" autocapitalize="off"
+               autocorrect="off" spellcheck="false" enterkeyhint="send"
+               aria-label="command line" />
+      </div>
+    </section>
 
     <aside id="rail">
       <div class="rail-head">
@@ -224,157 +241,74 @@
       current term.onData() API instead of the removed term.on('data').
    ===================================================================== */
 class LineEditor {
-  constructor(term){
+  /* Native-<input> line editor: the browser does ALL the editing — insert,
+     cursor, selection, word-nav, IME, the Insert key — correctly, for free. We
+     only add Enter (submit), Up/Down (history) and Ctrl-C/Ctrl-L. xterm is
+     OUTPUT only (the Terminal is created with disableStdin), so there is NO
+     hand-rolled keystroke handling and NO onData input path. read(prompt) keeps
+     the same Promise API the prompt loop already uses. */
+  constructor(term, inputEl){
     this.term = term;
-    this.buf = "";
-    this.cursor = 0;        // index within buf
+    this.el = inputEl;
     this.prompt = "";
     this.active = false;
     this.resolve = null;
     this.history = [];
     this.hist = 0;          // index into history (== length means "current")
-    this.stash = "";        // in-progress line stashed while browsing history
-    term.onData((d) => this._onData(d));
+    this.el.addEventListener("keydown", (e) => this._key(e));
+    // a click anywhere in the terminal focuses the input (so typing just works)
+    this.term.element && this.term.element.addEventListener("mousedown", () => {
+      setTimeout(() => { if (this.active) this.el.focus(); }, 0);
+    });
   }
 
-  /* read one line, resolving with the entered string (Enter) */
   read(prompt){
     this.prompt = prompt;
-    this.buf = ""; this.cursor = 0; this.hist = this.history.length; this.stash = "";
+    this.hist = this.history.length;
     this.active = true;
-    this.term.write(prompt);
+    this.el.value = "";
+    this.el.disabled = false;
+    this.el.focus();
     return new Promise((res) => { this.resolve = res; });
   }
 
-  _w(s){ this.term.write(s); }
+  _atEnd(){ const n = this.el.value.length; try { this.el.setSelectionRange(n, n); } catch(e){} }
 
-  _setLine(s){
-    if (this.cursor > 0) this._w(`\x1b[${this.cursor}D`);   // to input start
-    this._w("\x1b[K");                                      // clear to EOL
-    this.buf = s; this.cursor = s.length; this._w(s);
-  }
-
-  _insert(s){
-    const tail = this.buf.slice(this.cursor);
-    this.buf = this.buf.slice(0, this.cursor) + s + tail;
-    this.cursor += s.length;
-    this._w(s + tail);
-    if (tail.length) this._w(`\x1b[${tail.length}D`);
-  }
-
-  _backspace(){
-    if (this.cursor === 0) return;
-    this.cursor -= 1;
-    this.buf = this.buf.slice(0, this.cursor) + this.buf.slice(this.cursor + 1);
-    const tail = this.buf.slice(this.cursor);
-    this._w("\b" + tail + " " + `\x1b[${tail.length + 1}D`);
-  }
-
-  _delete(){
-    if (this.cursor >= this.buf.length) return;
-    this.buf = this.buf.slice(0, this.cursor) + this.buf.slice(this.cursor + 1);
-    const tail = this.buf.slice(this.cursor);
-    this._w(tail + " " + `\x1b[${tail.length + 1}D`);
-  }
-
-  _left(){ if (this.cursor > 0){ this.cursor--; this._w("\x1b[D"); } }
-  _right(){ if (this.cursor < this.buf.length){ this.cursor++; this._w("\x1b[C"); } }
-  _home(){ if (this.cursor > 0){ this._w(`\x1b[${this.cursor}D`); this.cursor = 0; } }
-  _end(){ const n = this.buf.length - this.cursor; if (n > 0){ this._w(`\x1b[${n}C`); this.cursor = this.buf.length; } }
-
-  _wordStart(){
-    let i = this.cursor;
-    while (i > 0 && this.buf[i-1] === " ") i--;
-    while (i > 0 && this.buf[i-1] !== " ") i--;
-    return i;
-  }
-  _wordEnd(){
-    let i = this.cursor, n = this.buf.length;
-    while (i < n && this.buf[i] === " ") i++;
-    while (i < n && this.buf[i] !== " ") i++;
-    return i;
-  }
-  _wordLeft(){ const i = this._wordStart(); if (i < this.cursor){ this._w(`\x1b[${this.cursor-i}D`); this.cursor = i; } }
-  _wordRight(){ const i = this._wordEnd(); if (i > this.cursor){ this._w(`\x1b[${i-this.cursor}C`); this.cursor = i; } }
-
-  _killToEnd(){ // Ctrl-K
-    if (this.cursor < this.buf.length){ this.buf = this.buf.slice(0, this.cursor); this._w("\x1b[K"); }
-  }
-  _killToStart(){ // Ctrl-U
-    if (this.cursor === 0) return;
-    const tail = this.buf.slice(this.cursor);
-    this._w(`\x1b[${this.cursor}D` + "\x1b[K" + tail);
-    if (tail.length) this._w(`\x1b[${tail.length}D`);
-    this.buf = tail; this.cursor = 0;
-  }
-  _killWordBack(){ // Ctrl-W / Alt-Backspace
-    const i = this._wordStart();
-    if (i === this.cursor) return;
-    const removed = this.cursor - i;
-    const tail = this.buf.slice(this.cursor);
-    this.buf = this.buf.slice(0, i) + tail;
-    this._w(`\x1b[${removed}D` + tail + "\x1b[K");
-    if (tail.length) this._w(`\x1b[${tail.length}D`);
-    this.cursor = i;
-  }
-
-  _histPrev(){
-    if (this.hist === 0 || this.history.length === 0) return;
-    if (this.hist === this.history.length) this.stash = this.buf;
-    this.hist -= 1; this._setLine(this.history[this.hist]);
-  }
-  _histNext(){
-    if (this.hist >= this.history.length) return;
-    this.hist += 1;
-    this._setLine(this.hist === this.history.length ? this.stash : this.history[this.hist]);
-  }
-
-  _submit(){
-    const line = this.buf;
-    if (line.trim().length && this.history[this.history.length-1] !== line) this.history.push(line);
+  _resolveWith(value){
     this.active = false;
-    this._w("\r\n");
     const r = this.resolve; this.resolve = null;
-    if (r) r(line);
+    if (r) r(value);
   }
 
-  _abort(){ // Ctrl-C: drop the line, do not submit
-    this.active = false;
-    this._w("^C\r\n");
-    const r = this.resolve; this.resolve = null;
-    if (r) r(null);
-  }
-
-  _onData(d){
+  _key(e){
     if (!this.active) return;
-
-    // bulk printable (paste) — fast path
-    if (d.length > 1 && !/[\x00-\x1f\x7f]/.test(d)){ this._insert(d); return; }
-
-    // escape sequences
-    if (d === "\x1b[A"){ this._histPrev(); return; }
-    if (d === "\x1b[B"){ this._histNext(); return; }
-    if (d === "\x1b[C"){ this._right(); return; }
-    if (d === "\x1b[D"){ this._left(); return; }
-    if (d === "\x1b[H" || d === "\x1b[1~" || d === "\x01"){ this._home(); return; }  // Home / Ctrl-A
-    if (d === "\x1b[F" || d === "\x1b[4~" || d === "\x05"){ this._end(); return; }   // End / Ctrl-E
-    if (d === "\x1b[3~"){ this._delete(); return; }                                  // Delete
-    if (d === "\x1b[1;3C" || d === "\x1b[1;5C" || d === "\x1bf"){ this._wordRight(); return; }
-    if (d === "\x1b[1;3D" || d === "\x1b[1;5D" || d === "\x1bb"){ this._wordLeft(); return; }
-    if (d === "\x1b\x7f"){ this._killWordBack(); return; }                           // Alt-Backspace
-
-    // single control chars
-    switch (d){
-      case "\r": case "\n": this._submit(); return;
-      case "\x7f": case "\b": this._backspace(); return;
-      case "\x03": this._abort(); return;       // Ctrl-C
-      case "\x15": this._killToStart(); return; // Ctrl-U
-      case "\x0b": this._killToEnd(); return;   // Ctrl-K
-      case "\x17": this._killWordBack(); return;// Ctrl-W
-      case "\x0c": app.clearScreen(); return;   // Ctrl-L
+    if (e.key === "Enter"){
+      e.preventDefault();
+      const v = this.el.value;
+      // echo to the scrollback so the transcript shows what was typed
+      this.term.write("\r\n" + this.prompt + v + "\r\n");
+      if (v.trim() && this.history[this.history.length-1] !== v) this.history.push(v);
+      this.hist = this.history.length;
+      this.el.value = "";
+      this._resolveWith(v);
+    } else if (e.key === "ArrowUp"){
+      e.preventDefault();
+      if (this.hist > 0){ this.hist--; this.el.value = this.history[this.hist] || ""; this._atEnd(); }
+    } else if (e.key === "ArrowDown"){
+      e.preventDefault();
+      if (this.hist < this.history.length - 1){ this.hist++; this.el.value = this.history[this.hist] || ""; }
+      else { this.hist = this.history.length; this.el.value = ""; }
+      this._atEnd();
+    } else if (e.ctrlKey && (e.key === "c" || e.key === "C")){
+      e.preventDefault();
+      this.term.write("^C\r\n");
+      this.el.value = "";
+      this._resolveWith(null);              // Ctrl-C: abort the line
+    } else if (e.ctrlKey && (e.key === "l" || e.key === "L")){
+      e.preventDefault();
+      app.clearScreen();
     }
-
-    if (d >= " " && d !== "\x7f") this._insert(d); // printable
+    // every other key: native <input> editing — nothing to do
   }
 }
 
@@ -400,8 +334,9 @@ const app = {
   init(){
     const term = new Terminal({
       fontFamily: '"JetBrains Mono", ui-monospace, Menlo, Consolas, monospace',
-      fontSize: 13.5, lineHeight: 1.25, cursorBlink:true, cursorStyle:"bar",
+      fontSize: 13.5, lineHeight: 1.25, cursorBlink:false,
       scrollback: 5000, convertEol: true,
+      disableStdin: true,        // xterm is OUTPUT only; the native #cmdline edits
       theme:{
         background:"#1d2021", foreground:"#ebdbb2", cursor:"#fe8019",
         selectionBackground:"#504945",
@@ -415,7 +350,8 @@ const app = {
     const fit = new FitAddon.FitAddon();
     term.loadAddon(fit);
     term.open(document.getElementById("terminal"));
-    this.term = term; this.fit = fit; this.editor = new LineEditor(term);
+    this.term = term; this.fit = fit;
+    this.editor = new LineEditor(term, document.getElementById("cmdline"));
 
     (document.fonts ? document.fonts.ready : Promise.resolve()).then(()=>{ try{ fit.fit(); }catch(e){} });
     new ResizeObserver(()=>{ try{ fit.fit(); }catch(e){} }).observe(document.getElementById("term-wrap"));
