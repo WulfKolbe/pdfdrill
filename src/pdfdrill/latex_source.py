@@ -787,6 +787,8 @@ _PROSE_CLEAN = [
     # NB: \cite is NOT bracketed here — it's turned into a {{…||CIT}} transclusion
     # by _transclude_cites BEFORE _clean_prose runs (LATW ReferenceScanner style).
     (re.compile(r"\\(?:eqref|ref|autoref|cref|Cref)\s*\{[^}]*\}"), "(ref)"),
+    (re.compile(r"\\(?:bibliography|bibliographystyle|addbibresource|bibresource"
+                r"|printbibliography|input|include)\s*\{[^}]*\}"), ""),
     (re.compile(r"\\label\s*\{[^}]*\}"), ""),
     (re.compile(r"\\%"), "%"), (re.compile(r"~"), " "),
 ]

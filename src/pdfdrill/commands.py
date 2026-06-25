@@ -6591,9 +6591,73 @@ def _serve_mathpix_md(pdf: Path, sc: "Sidecar") -> str | None:
             f"retrieve." + _write_named_md(pdf, sc, md_text))
 
 
+def _is_latex_source_model(model_path: Path) -> bool:
+    if not model_path.exists():
+        return False
+    try:
+        m = load_model(model_path).meta or {}
+    except Exception:
+        return False
+    return ("LaTeX source" in (m.get("source_path") or "")) or bool(m.get("latex_source_dir"))
+
+
+def _md_from_latex_source(pdf: Path, sc: "Sidecar") -> "str | None":
+    """Clean Markdown from the author's LaTeX docmodel, or None if no LaTeX source
+    is available. RULE: if LaTeX is available it MUST be used — the PDF text-layer
+    has line-break hyphenation, no isolated abstract, and no bibliography; the
+    LaTeX source has none of those. Builds the source model (arXiv → e-print) +
+    bibliography, projects the docmodel markdown, and renders the per-format
+    transclusions for Markdown ({{…||CIT}}→[CITATION: key], {{…||FO}}→[FORMULA N];
+    the formulas are listed in the trailing glossary)."""
+    model_path = _model_path(sc)
+    if not _is_latex_source_model(model_path):
+        if not _arxiv_id_for(pdf, sc):
+            return None                      # not arXiv, no source model → engine path
+        cmd_model(pdf)                       # arXiv → builds from the LaTeX e-print
+        sc = Sidecar(pdf)
+        model_path = _model_path(sc)
+        if not _is_latex_source_model(model_path):
+            return None                      # didn't actually build from source
+    if not sc.has(BIBLIOGRAPHY_BUILT):
+        cmd_bibliography(pdf)                 # references + linked citations (gold)
+        sc = Sidecar(pdf)
+
+    from docops.projectors.llm_compact import LLMCompactProjector
+    from docops.base import OperatorConfig
+    from docops import transclusion_render as _tr
+    doc = load_model(_model_path(sc))
+    md = LLMCompactProjector(OperatorConfig(
+        op="projector", classname="LLMCompactProjector")).project(doc)
+
+    def _lk(title, template):                 # citation transclusion → the citekey
+        if template == "CIT":
+            mm = re.search(r"_REF_(.+)$", title)
+            return mm.group(1) if mm else None
+        return None
+    md = _tr.render(md, "typed_gloss", _lk)
+
+    sc.write_blob("md.md", md)
+    sc.set_layer("md", {"blob": "md.md", "words": len(md.split()), "source": "latex",
+                        "built_at": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())})
+    sc.add_fact(MD_BUILT)
+    sc.save()
+    return (f"Markdown from the author's LaTeX source ({len(md.split())} words) — "
+            f"no OCR/text-layer, so NO line-break hyphenation, an isolated "
+            f"`## Abstract`, and the bibliography are included."
+            + _write_named_md(pdf, sc, md))
+
+
 def cmd_md(pdf: Path, pages: str | None = None) -> str:
-    """Build Markdown via pdfplumber + layer pipeline."""
+    """Build Markdown. Prefers the author's LaTeX (arXiv/source) — clean, no
+    hyphenation, isolated abstract, bibliography — else the PDF text-layer."""
     sc = Sidecar(pdf)
+
+    # RULE: if the LaTeX source is available, use it (not the lossy text-layer).
+    if pages is None:
+        latex_md = _md_from_latex_source(pdf, sc)
+        if latex_md is not None:
+            return latex_md
+        sc = Sidecar(pdf)
 
     if not sc.has(SIZE_KNOWN):
         cmd_size(pdf)
