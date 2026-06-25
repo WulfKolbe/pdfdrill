@@ -243,6 +243,68 @@ def do_add(base, env, newdoc: str, docs: list, combined: str | None,
     return out, out
 
 
+def _expand_add_spec(spec: str) -> list:
+    """`add` arguments → a flat list of doc tokens. Space-separated tokens are
+    taken literally; a `@file` token is expanded to the file's lines (one path/
+    URL/arxiv-id per line; blank lines and `#` comments skipped). So
+    `add a.pdf b.pdf @more.txt` adds a.pdf, b.pdf, and everything in more.txt."""
+    out: list = []
+    for tok in spec.split():
+        if tok.startswith("@"):
+            path = os.path.expanduser(tok[1:])
+            try:
+                for ln in Path(path).read_text(encoding="utf-8").splitlines():
+                    ln = ln.strip()
+                    if ln and not ln.startswith("#"):
+                        out.append(ln)
+            except Exception as e:                          # noqa: BLE001
+                print(f"  could not read {path}: {e}", file=sys.stderr)
+        else:
+            out.append(tok)
+    return out
+
+
+def do_add_many(base, env, newdocs: list, docs: list, combined,
+                timeout: float, store_dir: str = ""):
+    """Add MANY documents in one pass: append the new ones, drill all (model is
+    idempotent — only the undrilled build), combine ONCE. The list/`@file` form
+    of `add`; avoids the per-doc re-combine an add-loop would cause."""
+    fresh = [d for d in newdocs if d not in docs]
+    if not fresh:
+        print(f"  all {len(newdocs)} already in the context ({len(docs)} docs).")
+        return (combined or (docs[0] if docs else None)), combined
+    if len(fresh) == 1:                                     # one doc → the simple path
+        return do_add(base, env, fresh[0], docs, combined, timeout, store_dir)
+    print(f"  adding {len(fresh)} document(s) … (reuses existing drills; only new build)")
+    docs.extend(fresh)
+    drilled: list = []
+    for d in docs:
+        try:
+            _run(base + ["model", d], env, timeout=max(timeout, 600.0))
+            drilled.append(d)
+        except Exception as e:                              # noqa: BLE001
+            print(f"  could not drill {d}: {e}", file=sys.stderr)
+    docs[:] = drilled                                       # drop undrillable inputs
+    if not drilled:
+        print("  context unchanged.", file=sys.stderr)
+        return (combined or None), combined
+    if len(drilled) == 1:
+        print(f"  context: {drilled[0]} (1 document) — ask away.")
+        return drilled[0], None
+    base_store = (Path(store_dir) / ".drillui_session.docpack") if store_dir \
+        else Path(".drillui_session.docpack")
+    out = combined or str(base_store)
+    try:
+        msg = _run(base + ["combine", *drilled, "--out", out, "--force"], env,
+                   timeout=max(timeout, 900.0))
+        print("  " + " ".join(msg.split()))
+    except Exception as e:                                  # noqa: BLE001
+        print(f"  combine failed: {e}", file=sys.stderr)
+        return (combined or drilled[0]), combined
+    print(f"  context spans {len(drilled)} document(s) — commands fan out over all.")
+    return out, out
+
+
 def query_download_dir(base, env, timeout: float) -> str:
     """The pdfdrill download dir (config-driven, default ~/Downloads) — so the
     session combined store lives next to the drilled docs, not in a scratch cwd."""
@@ -270,7 +332,9 @@ def _repl_help(cmds: dict) -> str:
         "  artifacts (list every drill file as a clickable Outputs link)  …\n"
         f"  ({n} pdfdrill commands available; a leading '!' also forces command mode)\n"
         "Meta-commands:\n"
-        "  add <pdf|url|id>  drill another doc and MERGE it into the context (multi-doc)\n"
+        "  add <pdf|url|id> [more…]   add one or many docs (space-separated)\n"
+        "  add @list.txt             add every path/URL/id listed in a file (one per line)\n"
+        "  (with several docs loaded, a pdfdrill command runs on EVERY document)\n"
         "  help, :help, ?    show this help\n"
         "  commands          list every pdfdrill command name\n"
         "  quit / exit / q   quit the REPL (also stop, bye, or Ctrl-D)\n"
@@ -412,12 +476,16 @@ def main() -> int:
         # add <doc>: drill it and merge into the live context (multi-document).
         parts = line.split(None, 1)
         if parts[0].lstrip(":").lower() == "add":
-            newdoc = parts[1].strip() if len(parts) > 1 else ""
-            if not newdoc:
-                print("  usage: add <pdf | https URL | arxiv-id>")
+            spec = parts[1].strip() if len(parts) > 1 else ""
+            if not spec:
+                print("  usage: add <pdf|url|arxiv-id> [more…]   OR   add @list.txt")
                 continue
-            target, combined = do_add(base, env, newdoc, docs, combined,
-                                      args.timeout, store_dir)
+            newdocs = _expand_add_spec(spec)
+            if not newdocs:
+                print("  nothing to add.")
+                continue
+            target, combined = do_add_many(base, env, newdocs, docs, combined,
+                                           args.timeout, store_dir)
             continue
         # Nothing in context yet → everything but `add`/meta needs a document.
         if target is None:
@@ -437,15 +505,26 @@ def main() -> int:
                 line = first = near[0]
                 is_cmd = True
         if is_cmd:
-            # A combined multi-doc store is a RETRIEVAL artifact, not a PDF — most
-            # commands (status/md/latex/drill/…) produce nonsense on it. Only
-            # questions (and the combined-aware `bibtex`) make sense.
+            # Multi-document: a pdfdrill command runs on EVERY loaded document
+            # (fan-out). The combined store is a RETRIEVAL artifact, not a PDF, so
+            # per-doc commands run on the docs themselves; only the combined-aware
+            # `bibtex` runs on the store.
+            combined_aware = combined is not None and first in _COMBINED_OK
+            if len(docs) > 1 and not combined_aware:
+                print(f"  running `{first}` on {len(docs)} documents …")
+                for d in docs:
+                    print(f"\n=== {os.path.basename(d)} ===")
+                    try:
+                        print(run_command(base, env, cmds, d, line, args.timeout))
+                    except Exception as e:             # noqa: BLE001
+                        print(f"  error: {e}", file=sys.stderr)
+                continue
+            # single document (or a combined-aware command on the store)
             on_combined = combined is not None and target == combined
             if on_combined and first not in _COMBINED_OK:
                 print(f"  `{first}` runs on a SINGLE document; the context is a "
-                      f"combined store of {len(docs)} docs. Ask a question (spans "
-                      f"all of them), use `bibtex` (per-doc), or run `{first}` on "
-                      f"one doc via the CLI.")
+                      f"combined store. Ask a question (spans all), use `bibtex` "
+                      f"(per-doc), or `add` fewer docs.")
                 continue
             try:
                 print(run_command(base, env, cmds, target, line, args.timeout))

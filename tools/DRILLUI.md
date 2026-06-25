@@ -49,9 +49,20 @@ The bridge self-locates the repo root from its own path, so the artifacts root +
 served files are correct no matter where you launch it (an earlier version used
 the launch cwd, so running from `tools/` served the wrong folder).
 
-The document is **optional** — start empty and bring documents in with `add
-<pdf|url|arxiv-id>` (repeat for more); the first `add` becomes the context, each
-further `add` merges into it.
+The document is **optional** — start empty and bring documents in with `add`.
+`add` is multi-document (a drillui function, not pdfdrill):
+
+- `add <pdf|url|arxiv-id>` — one doc.
+- `add a.pdf https://arxiv.org/abs/2501.06699 2412.00001` — several at once.
+- `add @list.txt` — every path/URL/arXiv-id listed in a file (one per line, `#`
+  comments and blank lines skipped) — for the hundreds-of-URLs case.
+
+The first `add` becomes the context; each further `add` merges in. **With more
+than one document loaded, a pdfdrill command runs on EVERY loaded document**
+(e.g. `tiddlers` fans out over all of them, printing a `=== name ===` header per
+doc); questions still retrieve across the whole combined set, and `bibtex` reads
+the combined store. (Each doc is still acquired by pdfdrill from its URL/id —
+drillui never fetches a PDF or LaTeX itself.)
 
 That's all: the bridge finds `drillui_chat.py` as its sibling, `python3` runs
 it, and `drillui_chat.py` finds `pdfdrill` in `../src`. Flags only if you need
