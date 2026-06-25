@@ -526,23 +526,20 @@ class TiddlyWikiProjector(BaseProjector):
                     t["language"] = lang
                 out.append(t)
                 continue
-            # Prefer the locally-rendered SVG (from `pdfdrill svg`): store it in
-            # the `svg_tiddler` field, shown by simple transclusion
-            # {{!!svg_tiddler}}; else the CDN crop via <$image> (only when a
-            # cdn_url exists); else (LaTeX-source model, not yet rendered) show
-            # the LaTeX source — NEVER a dead <$image source={{!!canonical_uri}}>
-            # referencing a field we don't set.
+            # ONE route (same for DIA and TAB): the rendered SVG lives in the
+            # `svg_tiddler` FIELD and the text is the field transclusion
+            # {{!!svg_tiddler}}. MathPix (a cdn_url) instead gets a `canonical_uri`
+            # field + the <$image> widget. The LaTeX source stays in the
+            # `latex_code` FIELD — NEVER in the text; and the <$image> widget is
+            # emitted ONLY when canonical_uri is actually set (no dead reference).
             svg_field = self._svg_inline(d.props.get("svg"))
-            _lc = (d.props.get("latex_code") or "").strip()
             if svg_field:
                 body = "{{!!svg_tiddler}}"
             elif d.props.get("cdn_url"):
                 body = ("<$image source={{!!canonical_uri}} "
                         "width={{!!width}} height={{!!height}}/>")
-            elif _lc:
-                body = f"```latex\n{_lc}\n```"
             else:
-                body = "//(unrendered graphic — run `pdfdrill svg`)//"
+                body = ""        # not rendered yet — `pdfdrill svg`; source is in latex_code
             # TikZ diagrams also carry a `tikz` structural tag (for filters).
             extra_tag = " tikz" if _TIKZ.search(d.props.get("latex_code") or "") else ""
             t = self._t(title[d.id], body, f"diagram{extra_tag} {_bibtag(bibkey)}")
@@ -560,20 +557,23 @@ class TiddlyWikiProjector(BaseProjector):
             self._copy_region(t, d.props)
             out.append(t)
 
-        # Tables
+        # Tables — same route as diagrams (svg_tiddler field / MathPix image
+        # widget / a MathPix table's raw_text as a last resort; never latex in text).
         for tab in inv["tables"]:
             svg_field = self._svg_inline(tab.props.get("svg"))
-            _tlc = (tab.props.get("latex_code") or "").strip()
             if svg_field:
                 body = "{{!!svg_tiddler}}"
+            elif tab.props.get("cdn_url"):
+                body = ("<$image source={{!!canonical_uri}} "
+                        "width={{!!width}} height={{!!height}}/>")
             elif tab.props.get("raw_text"):
                 body = tab.props["raw_text"]
-            elif _tlc:                              # source-only table, not rendered
-                body = f"```latex\n{_tlc}\n```"
             else:
                 body = ""
             t = self._t(title[tab.id], body, f"table {_bibtag(bibkey)}")
             t["page"] = self._p3(tab.props.get("page"))
+            if tab.props.get("cdn_url"):
+                t["canonical_uri"] = self._uri(tab.props["cdn_url"])
             if tab.props.get("latex_code"):
                 t["latex_code"] = tab.props["latex_code"]
             if tab.props.get("latex_original"):

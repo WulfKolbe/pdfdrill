@@ -245,9 +245,9 @@ def test_tiddler_and_md_keep_both_latex_forms():
 
 
 def test_source_only_diagram_no_dead_canonical_uri_widget():
-    # LaTeX-source model: a diagram has latex_code but NO rendered svg and NO
-    # MathPix cdn_url. The tiddler must NOT emit `<$image source={{!!canonical_uri}}>`
-    # referencing a field it never sets — it shows the LaTeX source instead.
+    # LaTeX-source diagram, NO rendered svg, NO MathPix cdn_url: the tiddler must
+    # NOT emit `<$image source={{!!canonical_uri}}>` (the field is never set), must
+    # NOT put the LaTeX in the text, and keeps the LaTeX in the latex_code FIELD.
     from docmodel.core import DocObject
     doc = _build_sample_doc()
     doc.add(DocObject(type="Diagram", id="dsrc", props={
@@ -255,9 +255,24 @@ def test_source_only_diagram_no_dead_canonical_uri_widget():
         "flow_index": 6}))
     tids = json.loads(_make_op(TiddlyWikiProjector).project(doc))
     dt = next(t for t in tids if t.get("latex_code", "").startswith(r"\begin{tikzpicture}"))
-    assert "canonical_uri" not in dt              # no field…
-    assert "{{!!canonical_uri}}" not in dt["text"]  # …and no dead reference
-    assert "\\draw" in dt["text"]                 # the LaTeX source is shown instead
+    assert "canonical_uri" not in dt                  # no field…
+    assert "{{!!canonical_uri}}" not in dt["text"]    # …and no dead reference
+    assert "\\draw" not in dt["text"]                 # latex NOT in the text…
+    assert "\\draw" in dt["latex_code"]               # …it's in the latex_code field
+    assert dt["text"] == ""                           # empty until `pdfdrill svg`
+
+
+def test_mathpix_diagram_gets_canonical_uri_and_image_widget():
+    # MathPix route: a cdn_url ALWAYS yields a canonical_uri field + the <$image>
+    # widget in the text.
+    from docmodel.core import DocObject
+    doc = _build_sample_doc()
+    doc.add(DocObject(type="Diagram", id="dmpx", props={
+        "cdn_url": "https://cdn.mathpix.com/crop.png?x=1", "flow_index": 7}))
+    tids = json.loads(_make_op(TiddlyWikiProjector).project(doc))
+    dt = next(t for t in tids if "crop.png" in (t.get("canonical_uri") or ""))
+    assert dt["canonical_uri"]                          # field set
+    assert "<$image source={{!!canonical_uri}}" in dt["text"]
 
 
 def test_diagram_tiddler_transcludes_svg_field():
