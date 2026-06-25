@@ -1089,6 +1089,12 @@ class TiddlyWikiProjector(BaseProjector):
 
             # SN — sidenote.
             ("SN", "<aside>{{!!text}}</aside>"),
+
+            # LTX — a leaked LaTeX command: render NOTHING (the command is kept in
+            # the target tiddler's `latex_code` field for recovery, but shows
+            # nothing in the document). An EMPTY template, not a missing one, so
+            # the transclusion is referentially valid (no dangling warning).
+            ("LTX", ""),
         ]
         return [
             {

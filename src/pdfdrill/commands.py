@@ -4366,6 +4366,17 @@ def cmd_tiddlers(pdf: Path, force: bool = False, embed: bool = False,
     with open(model_path, "r", encoding="utf-8") as f:
         doc = Document.from_dict(json.load(f))
 
+    # If a LaTeX-source model has in-text Citations but NO References yet, build the
+    # bibliography from the source bib (.bbl/.bib) so citations resolve to Reference
+    # tiddlers (carrying the .bbl text) instead of "Citation placeholder for …".
+    if (not sc.has(BIBLIOGRAPHY_BUILT)
+            and any(o.type == "Citation" for o in doc.objects.values())
+            and not any(o.type == "Reference" for o in doc.objects.values())):
+        cmd_bibliography(pdf)
+        sc = Sidecar(pdf)
+        with open(model_path, "r", encoding="utf-8") as f:
+            doc = Document.from_dict(json.load(f))
+
     # Resolve the prefix with documented precedence:
     #   explicit --bibkey > sidecar (set by `model`) > model meta > filename stem.
     key = (bibkey or sc.get_evidence("bibkey") or doc.meta.get("bibkey")

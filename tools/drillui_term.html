@@ -714,6 +714,21 @@ const app = {
       if (save){
         save.href = url; save.setAttribute("download", name);
         save.title = "save the real file (valid JSON, real name) — then drag it into TiddlyWiki";
+        // Force a real DOWNLOAD via a blob, never a navigation: a plain link can
+        // open the file over drillui (and lose it). fetch→blob→<a download> saves
+        // to ~/Downloads and keeps drillui intact.
+        save.addEventListener("click", async (e) => {
+          e.preventDefault();
+          try {
+            const r = await fetch(url);
+            const blob = await r.blob();
+            const u = URL.createObjectURL(blob);
+            const a = document.createElement("a");
+            a.href = u; a.download = name;
+            document.body.appendChild(a); a.click(); a.remove();
+            setTimeout(() => URL.revokeObjectURL(u), 2000);
+          } catch (err) { window.open(url, "_blank", "noopener"); }
+        });
       }
       const nameEl = row.querySelector(".name");
       nameEl.title = title + "  (click to open in a new tab; ‘save ⤓’ for the real file)";
@@ -734,19 +749,22 @@ const app = {
         const prefetch = ()=>{ if (cache === null){
           cache = fetch(url).then(r=>r.text()).then(t=>{ cache = t; return t; })
                             .catch(()=>{ cache = null; }); } };
-        prefetch();                                   // warm on render
+        prefetch();                                   // warm on render…
         row.addEventListener("pointerenter", prefetch);
+        row.addEventListener("pointerdown", prefetch);   // …and before the drag
         row.addEventListener("dragstart", (e)=>{
           if (typeof cache === "string"){
-            e.dataTransfer.setData("text/vnd.tiddler", cache);   // TW imports this
+            // TiddlyWiki's native import type: the actual tiddler ARRAY. (We do
+            // NOT set text/uri-list — that made TW import the bare URL instead.)
+            e.dataTransfer.setData("text/vnd.tiddler", cache);
             e.dataTransfer.setData("application/json", cache);
             e.dataTransfer.setData("text/plain", cache);
+            e.dataTransfer.effectAllowed = "copy";
           } else {
-            prefetch();                               // not ready → offer the URL
-            e.dataTransfer.setData("text/uri-list", url);
-            e.dataTransfer.setData("text/plain", url);
+            // not fetched yet → cancel this drag (don't import a URL); the
+            // pointerdown prefetch makes the next drag carry the real tiddlers.
+            e.preventDefault();
           }
-          e.dataTransfer.effectAllowed = "copy";
         });
       }
       wrap.appendChild(row);
