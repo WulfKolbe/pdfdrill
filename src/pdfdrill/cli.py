@@ -735,6 +735,15 @@ def _do_mathir(args):
     return cmd_mathir(_drilled(args))
 
 
+def _do_conclusion(args):
+    """pdfdrill conclusion <pdf|md> [--limit N]  — the document's concluding paragraphs"""
+    from .commands import cmd_conclusion
+    lim, rest = _opt(args, "--limit")
+    if not rest:
+        raise ValueError("No file specified.")
+    return cmd_conclusion(_drilled(rest), limit=int(lim) if lim else 8)
+
+
 def _do_enhance(args):
     """pdfdrill enhance <pdf|md> [--only a,b] [--skip a,b]  — run the pass pipeline"""
     from .commands import cmd_enhance
@@ -1344,6 +1353,7 @@ HANDLERS = {
         "mathcheck": _do_mathcheck,
         "mathir": _do_mathir,
         "enhance": _do_enhance,
+        "conclusion": _do_conclusion,
         "visionocr": _do_visionocr,
         "classify": _do_classify,
         "clean": _do_clean,

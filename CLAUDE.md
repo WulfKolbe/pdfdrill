@@ -1338,6 +1338,25 @@ cell today is the BOOTSTRAP the generated one supersedes without changing caller
   parse_arxiv_abs_html`, `identifiers.caps_entities`, `page._extract_title`,
   `markdown_source`, `latex_source` title/author.
 
+## Conclusion retrieval (`pdfdrill conclusion`, `src/pdfdrill/conclusion.py`)
+
+The Abstract states the goal + chosen method, NOT the results — the conclusion is
+where the actual (often much narrower) outcome lives. `pdfdrill conclusion <pdf|md>
+[--limit N]` finds the conclusion SECTION by a heading heuristic over the Section
+captions (the document's own TOC): tiered keywords — STRONG (conclusion/concluding/
+fazit/schlussfolgerung) preferred before the References/Appendix boundary, then any
+strong, then MEDIUM (summary/discussion/outlook/future work/zusammenfassung/…) —
+and returns its paragraphs in `flow_index` order (the flow-range between the
+conclusion heading and the next section; `parent_section` for source models). No
+named conclusion → the final MAIN-body paragraphs (excluding the References/Appendix
+region). Fast DocGraph read path; pure helpers take any `.type`/`.props` object.
+Output leads with the section name + a caveat that the stated conclusion may
+overstate scope vs. the actual examples/code. Verified: 2312.11532 → “Conclusion
+and Future Remark”; 2606.16905 → “Conclusion and Future Work” (whose text —
+“an initial validation of the 'one model fits all' premise” — is markedly narrower
+than its broad abstract). Tests: `tests/test_conclusion.py` (4 — strong-before-
+appendix, flow-range paragraphs, medium-near-end, final-paragraph fallback).
+
 ## Canonical math layer (`src/mathlayer/`, SymPy seed — step 1)
 
 The first step toward a **canonical CSP math layer**: one tree per FO/EQ

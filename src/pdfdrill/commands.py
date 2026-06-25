@@ -2537,6 +2537,42 @@ def cmd_enhance(pdf: Path, only: str | None = None, skip: str | None = None) -> 
     return "\n".join(lines)
 
 
+def cmd_conclusion(pdf: Path, limit: int = 8) -> str:
+    """Retrieve the document's CONCLUDING paragraphs — the actual outcome, which
+    the Abstract (goal + method) does NOT give. Finds the conclusion SECTION by a
+    heading heuristic over the Section captions (the TOC), preferring a strong
+    match before the References/Appendix boundary; returns its paragraphs in flow
+    order, else the final body paragraphs. Fast DocGraph read path.
+    """
+    from . import conclusion as C
+
+    sc = Sidecar(pdf)
+    model_path = _model_path(sc)
+    if _stale_or_absent(sc, model_path, _lines_json_path(pdf)):
+        cmd_model(pdf)
+        sc = Sidecar(pdf)
+        model_path = _model_path(sc)
+    if not model_path.exists():
+        return (f"No model for {pdf.name} — run `pdfdrill model` (PDF) or "
+                f"`pdfdrill markdown` (.md) first.")
+
+    g = _fresh_docgraph(pdf, sc, model_path)
+    res = C.conclusion_text(list(g), final_n=limit)
+    paras = res["paragraphs"][:limit]
+    if not paras:
+        return (f"No concluding text found in {pdf.name} (no conclusion section "
+                f"and no final paragraphs).")
+    if res["source"] == "section":
+        head = f"Conclusion of {pdf.name} — section “{res['section']}”:"
+    else:
+        head = (f"No explicit conclusion section in {pdf.name}; the final "
+                f"{len(paras)} body paragraph(s):")
+    caveat = ("\n\n(Note: this is the authors' stated conclusion — distinct from "
+              "the Abstract, which gives the goal/method, not the results. It may "
+              "still overstate scope vs. the actual examples/code; check those.)")
+    return head + "\n\n" + "\n\n".join(paras) + caveat
+
+
 def cmd_mathir(pdf: Path) -> str:
     """Canonical math layer: parse every FO/EQ's macro-EXPANDED LaTeX into a
     canonical tree (SymPy, anchored by its srepr) and PERSIST it under

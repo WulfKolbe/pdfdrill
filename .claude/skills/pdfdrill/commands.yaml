@@ -1221,6 +1221,25 @@ commands:
   typed: true
   requires:
   - model
+- name: conclusion
+  section: Introspection (fast, no extraction)
+  summary: 'Retrieve the document''s CONCLUDING paragraphs — the actual outcome (the Abstract gives only
+    goal+method, not results). Finds the conclusion section by a heading heuristic over the TOC/Section
+    captions (strong match before References/Appendix), else the final body paragraphs.'
+  offline_ok: true
+  positionals:
+  - name: pdf
+    type: pdf
+    required: true
+    help: PDF/Markdown drilled-doc path, URL, or arXiv id
+  typed: true
+  requires:
+  - model
+  flags:
+  - name: limit
+    flag: --limit
+    type: int
+    default: 8
 - name: enhance
   section: Introspection (fast, no extraction)
   summary: 'Run the uniform enhancement PASS PIPELINE over the model IR — an ordered, dependency-aware
