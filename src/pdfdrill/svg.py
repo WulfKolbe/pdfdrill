@@ -177,7 +177,8 @@ def compile_to_svg(latex_code: str, preamble: str | None = None,
                                  os.path.join(rd, "styles"), ""])
         env["TEXINPUTS"] = extra + os.pathsep + env.get("TEXINPUTS", "")
 
-    with tempfile.TemporaryDirectory() as d:
+    from . import config as _cfg
+    with tempfile.TemporaryDirectory(dir=str(_cfg.scratch_dir())) as d:
         base = "snippet"
         tex = os.path.join(d, base + ".tex")
         with open(tex, "w", encoding="utf-8") as f:

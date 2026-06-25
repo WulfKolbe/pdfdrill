@@ -99,7 +99,8 @@ def read_source(path: str) -> tuple[str, str]:
         return expand_inputs(path, base), os.path.basename(path)
 
     if tarfile.is_tarfile(path):
-        with tempfile.TemporaryDirectory() as d:
+        from . import config as _cfg
+        with tempfile.TemporaryDirectory(dir=str(_cfg.scratch_dir())) as d:
             with tarfile.open(path) as tf:
                 tf.extractall(d, filter="data")
             contents: dict[str, str] = {}

@@ -62,6 +62,19 @@ def test_default_is_downloads_or_cwd(monkeypatch):
     assert dd == (Path.home() / "Downloads") or dd == Path.cwd()
 
 
+def test_scratch_dir_under_download_dir_not_system_tmp(monkeypatch):
+    with tempfile.TemporaryDirectory() as d:
+        d = Path(d)
+        cfgfile = d / "config.json"
+        cfgfile.write_text(json.dumps({"download_dir": str(d / "dl")}))
+        monkeypatch.setenv("PDFDRILL_CONFIG", str(cfgfile))
+        cfg.load(refresh=True)
+        sd = cfg.scratch_dir()
+        assert sd == (d / "dl" / ".pdfdrill-tmp")   # under the download dir…
+        assert sd.is_dir()                           # …created on demand
+    cfg.load(refresh=True)
+
+
 if __name__ == "__main__":
     import pytest
     raise SystemExit(pytest.main([__file__, "-q"]))

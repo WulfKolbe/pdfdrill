@@ -75,6 +75,20 @@ def download_dir() -> Path:
     return dl if dl.is_dir() else Path.cwd()
 
 
+def scratch_dir() -> Path:
+    """Scratch parent for transient work (latex→dvisvgm compiles, .tgz extraction)
+    — a hidden `.pdfdrill-tmp/` UNDER the download dir, NOT `/tmp`. So everything
+    pdfdrill creates lives in one place (e.g. ~/Downloads), and any leftovers from
+    a killed run are findable next to your docs instead of scattered in /tmp."""
+    d = download_dir() / ".pdfdrill-tmp"
+    try:
+        d.mkdir(parents=True, exist_ok=True)
+        return d
+    except OSError:
+        import tempfile
+        return Path(tempfile.gettempdir())
+
+
 def write_default(path: "Path | None" = None) -> Path:
     """Write a starter config (does not overwrite an existing one). Returns the path."""
     p = Path(path).expanduser() if path else DEFAULT_PATH
