@@ -104,6 +104,7 @@ Planning & automation:
 
 Other:
   pdfdrill citedrill <pdf> [--limit LIMIT] [--force] Drill INTO each citation: find download links (Perplexity + seeded), fetch the cited PDF, stamp drill_status/pdf_url/pdf_json on the Reference
+  pdfdrill docos <command>                    docOS document-set shell (L0 selector): run one command against the persisted working set — cd <path>, add <glob>, remove <glob>, clear, save-set/load-set/sets, show — and print the compact level-gated state UI. No args → show current state. (L1+ materialization wired in later steps.)
   pdfdrill classify <pdf> [--k K]             Subject-classify the drilled doc against the vocabnet vocabularies (MSC discipline rollup + PhySH/GND/STW), persisted in the sidecar
 
 OCR / model pipeline:

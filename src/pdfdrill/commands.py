@@ -2537,6 +2537,21 @@ def cmd_enhance(pdf: Path, only: str | None = None, skip: str | None = None) -> 
     return "\n".join(lines)
 
 
+def cmd_docos(line: str = "") -> str:
+    """docOS — the document-set shell. Runs one L0 selector command line against
+    the persisted working set (`cd`/`add <glob>`/`remove`/`clear`/`show`/
+    `save-set`/`load-set`/`sets`) and prints the compact, level-gated state UI.
+    No args → just show the current state. (L1+ materialization: later steps.)"""
+    from . import docos
+    state = docos.load_state()
+    msg = ""
+    if line.strip():
+        msg, state = docos.dispatch(state, line)
+        docos.save_state(state)
+    ui = docos.render_ui(state)
+    return (msg + "\n\n" + ui) if msg else ui
+
+
 def cmd_conclusion(pdf: Path, limit: int = 8) -> str:
     """Retrieve the document's CONCLUDING paragraphs — the actual outcome, which
     the Abstract (goal + method) does NOT give. Finds the conclusion SECTION by a

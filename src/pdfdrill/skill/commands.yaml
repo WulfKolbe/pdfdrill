@@ -1221,6 +1221,18 @@ commands:
   typed: true
   requires:
   - model
+- name: docos
+  section: Other
+  summary: 'docOS document-set shell (L0 selector): run one command against the persisted working set —
+    cd <path>, add <glob>, remove <glob>, clear, save-set/load-set/sets, show — and print the compact
+    level-gated state UI. No args → show current state. (L1+ materialization wired in later steps.)'
+  offline_ok: true
+  positionals:
+  - name: command
+    type: str
+    required: false
+    help: 'a docOS command line, e.g. "add *.pdf" or "cd ~/papers"'
+  typed: true
 - name: conclusion
   section: Introspection (fast, no extraction)
   summary: 'Retrieve the document''s CONCLUDING paragraphs — the actual outcome (the Abstract gives only

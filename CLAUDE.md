@@ -1338,6 +1338,32 @@ cell today is the BOOTSTRAP the generated one supersedes without changing caller
   parse_arxiv_abs_html`, `identifiers.caps_entities`, `page._extract_title`,
   `markdown_source`, `latex_source` title/author.
 
+## docOS — document-set shell (`pdfdrill docos`, `src/pdfdrill/docos.py`, multi-doc — Step 1/5)
+
+A working SET of documents managed like a Unix shell (`cd`, glob `add`/`remove`),
+with a strict materialization ladder **L0→L1→L1.5→L2→L3→L4** where each layer
+demands the lower ones and higher commands auto-build what's missing — the
+SET-level form of pdfdrill's per-doc prerequisite state machine. Most per-doc
+pieces already exist (`md`/`booktoc`/`mathir`/`abstract`/`conclusion`/`semantic`/
+`combine`/`retrieve`); docOS adds the orchestration the toolchain lacked.
+
+**Step 1 (done) — L0 selector.** `DocosState{folder, documents, saved_sets, level,
+materialized}` persisted to `<config>/docos.json` (or `$PDFDRILL_DOCOS_STATE`),
+stateful across invocations. Ops: `cd` (rel/abs), `add <glob>` (recursive `**`,
+dedup, `.pdf`/`.md` only; a dir → its PDFs), `remove <glob>` (fnmatch path or
+basename), `clear`, `save-set`/`load-set` (load demotes level→L0 per spec),
+`sets`, `show`. `render_ui` prints the compact, **level-gated** command block
+(L1/L1.5 live once a set is loaded; L2+ shown `[requires L<x>]`). `dispatch(state,
+line)` routes one command; L1+ verbs (`make`/`extract`/`ensemble`/`synthesize`)
+report as *planned* so the shell skeleton is complete and honest. **`pdfdrill
+docos [<command line>]`** runs one line + prints the UI; no args → show state.
+Verified: `cd data` → `add *.pdf` (8 docs) → `save-set corpus`, UI gates L2+,
+state round-trips. Tests: `tests/test_docos.py` (7).
+**Plan (bottom-up, one step per commit):** 2 = L1/L1.5 fan-out (make over the set,
+auto-build lower layers, per-doc status); 3 = L2 extract fan-out; 4 = L3 ensemble
+(reuse `combine`/`retrieve` for the index + search/stats); 5 = L4 synthesis
+(review/survey — the heavy, last piece).
+
 ## Conclusion retrieval (`pdfdrill conclusion`, `src/pdfdrill/conclusion.py`)
 
 The Abstract states the goal + chosen method, NOT the results — the conclusion is

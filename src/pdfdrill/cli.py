@@ -735,6 +735,12 @@ def _do_mathir(args):
     return cmd_mathir(_drilled(args))
 
 
+def _do_docos(args):
+    """pdfdrill docos [<command line>]  — the document-set shell (L0 selector)"""
+    from .commands import cmd_docos
+    return cmd_docos(" ".join(args))
+
+
 def _do_conclusion(args):
     """pdfdrill conclusion <pdf|md> [--limit N]  — the document's concluding paragraphs"""
     from .commands import cmd_conclusion
@@ -1354,6 +1360,7 @@ HANDLERS = {
         "mathir": _do_mathir,
         "enhance": _do_enhance,
         "conclusion": _do_conclusion,
+        "docos": _do_docos,
         "visionocr": _do_visionocr,
         "classify": _do_classify,
         "clean": _do_clean,
