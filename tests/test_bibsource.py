@@ -218,6 +218,44 @@ def test_build_source_model_extracts_abstract_object():
         assert "mutual information" in abs_objs[0].props["text"]
 
 
+def test_parse_bbl_acm_reference_format_with_comment_before_key():
+    """ACM-Reference-Format .bbl writes \\bibitem[...]%\\n{key} — the % comment
+    between ] and {key} broke the parser (0 entries on ACM/IEEE papers)."""
+    bbl = (
+        "\\begin{thebibliography}{1}\n"
+        "\\bibitem[\\protect\\citeauthoryear{Agichtein et~al\\.}{2006}]%\n"
+        "        {agichtein2006learning}\n"
+        "\\bibfield{author}{Eugene Agichtein and others}. 2006.\n"
+        "\\newblock Learning to rank. \\showDOI{10.1145/x}\n"
+        "\\end{thebibliography}\n")
+    e = B.parse_bbl(bbl)
+    assert len(e) == 1 and e[0]["citekey"] == "agichtein2006learning"
+    assert e[0]["year"] == "2006"
+
+
+def test_build_bibliography_from_inline_thebibliography():
+    """No .bbl/.bib file — references are inline \\begin{thebibliography} in the
+    .tex. build_bibliography_from_source must parse that block."""
+    import tempfile
+    from docmodel.core import Document
+    with tempfile.TemporaryDirectory() as d:
+        (Path(d) / "main.tex").write_text(
+            "\\documentclass{article}\n\\begin{document}\nText \\cite{smith20}.\n"
+            "\\begin{thebibliography}{1}\n"
+            "\\bibitem{smith20} J. Smith. A paper. Venue, 2020.\n"
+            "\\end{thebibliography}\n\\end{document}\n", encoding="utf-8")
+        doc = Document()
+        from docmodel.core import DocObject, Realization
+        st = doc.ensure_stream("source_cites")
+        a = st.append(citekey="smith20")
+        c = DocObject(type="Citation", props={"citekey": "smith20"})
+        c.add_realization(Realization(stream="source_cites", start=a, end=a, role="surface"))
+        doc.add(c)
+        res = B.build_bibliography_from_source(doc, d)
+        refs = {r.props["citekey"] for r in doc.objects.values() if r.type == "Reference"}
+        assert "smith20" in refs
+
+
 def test_parse_bbl_extracts_author_and_year():
     bbl = (r"\begin{thebibliography}{1}" "\n"
            r"\bibitem[KSV02]{kitaev2002}" "\n"
@@ -356,6 +394,8 @@ if __name__ == "__main__":
                test_load_bibtex_file_restrict_to_cited,
                test_build_source_model_extracts_citations,
                test_leaked_latex_command_captured_as_ltx_transclusion,
+               test_parse_bbl_acm_reference_format_with_comment_before_key,
+               test_build_bibliography_from_inline_thebibliography,
                test_build_source_model_extracts_abstract_object,
                test_parse_bbl_extracts_author_and_year,
                test_ingest_bbl_sets_author_year_on_reference,

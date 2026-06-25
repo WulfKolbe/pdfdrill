@@ -467,6 +467,20 @@ def build_bibliography_from_source(doc, source_dir) -> dict:
         created += load_bibtex_file(
             doc, Path(res["bib"][0]).read_text(errors="replace"),
             restrict=(cited or None))["created"]
+    if created == 0:
+        # No .bbl/.bib file — references may be INLINE in the .tex as a
+        # \begin{thebibliography} block (e.g. arXiv 2104.08926). Parse it.
+        for tex in sorted(Path(source_dir).glob("*.tex")):
+            try:
+                txt = tex.read_text(errors="replace")
+            except Exception:
+                continue
+            m = re.search(r"\\begin\{thebibliography\}.*?\\end\{thebibliography\}",
+                          txt, re.S)
+            if m:
+                created += ingest_bbl(doc, m.group(0))
+                if created:
+                    break
     linked = link_citations(doc)
     return {"created": created, "linked": linked}
 
@@ -515,6 +529,10 @@ def _bbl_author_year(text: str) -> tuple[str, str]:
 def parse_bbl(text: str) -> list[dict]:
     """Parse a compiled `.bbl` into
     [{label, citekey, text, number, author, year}]."""
+    # Strip TeX %-comments FIRST: ACM/IEEE-Reference-Format writes the label and
+    # key on separate lines with a trailing comment — `\bibitem[...]%\n  {key}` —
+    # so the `]…{key}` match fails on every entry unless the % line is removed.
+    text = re.sub(r"(?<!\\)%.*", "", text)
     out = []
     for i, m in enumerate(_BIBITEM.finditer(text)):
         body = _clean_bbl(m.group("body"))

@@ -1957,11 +1957,29 @@ def _build_arxiv_source_model(pdf: Path, sc: "Sidecar", key: str,
     if not aid:
         return None
     try:
+        import tarfile as _tarfile
         from . import sources, latex_source as ls, model_io
         src = sources.download_arxiv_source(aid, pdf.parent)
         if not (src and Path(src).exists()):
             return None
-        doc = ls.build_source_model(str(src), bibkey=key)
+        # Extract the e-print to <drill>/texsrc/ and build from the main .tex, so
+        # the source (incl. biblio.bib/.bbl or an inline thebibliography) PERSISTS
+        # for bibsource/bibliography — not a temp dir that vanishes.
+        build_target = str(src)
+        source_dir = None
+        if _tarfile.is_tarfile(str(src)):
+            texsrc = sc.blob_dir / "texsrc"
+            texsrc.mkdir(parents=True, exist_ok=True)
+            with _tarfile.open(str(src)) as tf:
+                tf.extractall(texsrc, filter="data")
+            source_dir = str(texsrc)
+            paths = {str(p): "" for p in texsrc.rglob("*.tex")}
+            main = ls.find_main_tex(paths)
+            if main:
+                build_target = main
+        doc = ls.build_source_model(build_target, bibkey=key)
+        if source_dir:
+            doc.meta["latex_source_dir"] = source_dir
     except Exception:
         return None
     objs = list(doc.objects.values())
