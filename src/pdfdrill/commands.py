@@ -269,6 +269,44 @@ def _bibkey_hint(bibkey: str) -> str:
             if _JUNK_STEM.search(bibkey) else "")
 
 
+# TeX .sty packages the TikZ/table SVG route commonly needs, → apt package.
+# (The first mass keyless-LaTeX run failed renders on the font ones — all in
+# texlive-fonts-extra — which a binary-only check could not foresee.)
+_TEX_STYLES = [
+    ("standalone.sty", "texlive-latex-extra", "standalone TikZ/table crop"),
+    ("tikz.sty", "texlive-pictures", "TikZ pictures"),
+    ("pgfplots.sty", "texlive-pictures", "plots"),
+    ("soul.sty", "texlive-latex-extra", "highlighting (common preamble)"),
+    ("multirow.sty", "texlive-latex-extra", "table multirow"),
+    ("inconsolata.sty", "texlive-fonts-extra", "mono font"),
+    ("fontawesome.sty", "texlive-fonts-extra", "icon font"),
+    ("bbold.sty", "texlive-fonts-extra", "blackboard-bold"),
+    ("bbding.sty", "texlive-fonts-extra", "dingbats"),
+    ("mhchem.sty", "texlive-science", "chemistry (mhchem)"),
+    ("chemfig.sty", "texlive-pictures", "chem structures"),
+]
+
+
+def tex_style_status(check=None) -> list:
+    """Which common TikZ/table-render .sty packages are present. `check(sty)->bool`
+    is injectable (tests); the default uses `kpsewhich`. Returns [] when there is
+    no TeX at all (the binary check already reports that)."""
+    import shutil
+    import subprocess
+    if check is None:
+        if not shutil.which("kpsewhich"):
+            return []
+        def check(sty):                                  # noqa: E306
+            try:
+                r = subprocess.run(["kpsewhich", sty], capture_output=True,
+                                   text=True, timeout=10)
+                return bool(r.stdout.strip())
+            except Exception:
+                return False
+    return [{"sty": s, "pkg": p, "desc": d, "present": bool(check(s))}
+            for s, p, d in _TEX_STYLES]
+
+
 def cmd_doctor() -> str:
     """Requirement check: report which system tools / Python deps / API keys are
     present, which routes they enable, and the apt-get line to fix any gaps.
@@ -299,6 +337,19 @@ def cmd_doctor() -> str:
         lines.append(f"  [{'OK ' if ok else 'MISSING'}] {tool:<10} — {route}")
         if not ok and pkg not in missing_pkgs:
             missing_pkgs.append(pkg)
+
+    # TeX .sty packages (only meaningful once `latex` exists) — names the missing
+    # font/style packages a mass TikZ/table render needs, BEFORE a batch fails.
+    if shutil.which("latex"):
+        sty_rows = tex_style_status()
+        if sty_rows:
+            lines.append("")
+            lines.append("TeX packages (TikZ/table SVG route):")
+            for r in sty_rows:
+                lines.append(f"  [{'OK ' if r['present'] else 'MISSING'}] "
+                             f"{r['sty']:<16} — {r['desc']}")
+                if not r["present"] and r["pkg"] not in missing_pkgs:
+                    missing_pkgs.append(r["pkg"])
 
     lines.append("")
     lines.append("Python deps:")
@@ -352,7 +403,8 @@ def cmd_doctor() -> str:
                     missing_pkgs.remove(p)
             missing_pkgs += ["dvisvgm", "texlive-latex-base", "texlive-latex-recommended",
                              "texlive-latex-extra", "texlive-pictures",
-                             "texlive-fonts-recommended", "texlive-science",
+                             "texlive-fonts-recommended", "texlive-fonts-extra",
+                             "texlive-science",
                              # chemfig (texlive-pictures) inputs simplekv.tex,
                              # which Debian/Ubuntu ship in texlive-plain-generic.
                              "texlive-plain-generic", "texlive-binaries"]

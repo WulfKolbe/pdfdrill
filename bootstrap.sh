@@ -37,7 +37,8 @@ if command -v apt-get >/dev/null 2>&1; then
   if ! command -v latex >/dev/null 2>&1 || ! command -v dvisvgm >/dev/null 2>&1; then
     PKGS+=(dvisvgm texlive-latex-base texlive-latex-recommended \
            texlive-latex-extra texlive-pictures texlive-fonts-recommended \
-           texlive-science texlive-binaries)
+           texlive-fonts-extra texlive-science texlive-plain-generic \
+           texlive-binaries)
   fi
   if [ "${#PKGS[@]}" -gt 0 ]; then
     echo "Installing missing system packages: ${PKGS[*]}"
