@@ -492,15 +492,40 @@ def _norm_label(s: str) -> str:
     return s.replace("o", "0").replace("l", "1")
 
 
+def _bbl_author_year(text: str) -> tuple[str, str]:
+    """Heuristic author + year from a cleaned .bbl entry. Year = the last 19xx/20xx;
+    author = the leading block up to the first sentence-ending period (one whose
+    preceding token is NOT an initial like `Y.` or `al`)."""
+    yrs = re.findall(r"\b(?:19|20)\d{2}\b", text)
+    year = yrs[-1] if yrs else ""
+    author = ""
+    for m in re.finditer(r"\.\s+", text):
+        prev = text[:m.start()].rstrip()
+        toks = prev.split()
+        last = toks[-1].strip(".").lower() if toks else ""
+        if len(last) <= 1 or last in ("al", "et", "jr", "ed", "eds"):
+            continue                         # an initial / "et al." — not terminal
+        author = prev
+        break
+    if not author:                            # no terminal period → first clause
+        author = text.split(".")[0].strip()
+    return author[:300], year
+
+
 def parse_bbl(text: str) -> list[dict]:
-    """Parse a compiled `.bbl` into [{label, citekey, text, number}]."""
+    """Parse a compiled `.bbl` into
+    [{label, citekey, text, number, author, year}]."""
     out = []
     for i, m in enumerate(_BIBITEM.finditer(text)):
+        body = _clean_bbl(m.group("body"))
+        author, year = _bbl_author_year(body)
         out.append({
             "label": (m.group("label") or "").strip(),
             "citekey": m.group("key").strip(),
-            "text": _clean_bbl(m.group("body")),
+            "text": body,
             "number": i + 1,
+            "author": author,
+            "year": year,
         })
     return out
 
@@ -517,7 +542,8 @@ def ingest_bbl(doc, bbltext: str) -> int:
                                number=e["number"])
         obj = DocObject(type="Reference", props={
             "citekey": e["citekey"], "label": e["label"], "number": e["number"],
-            "raw_text": e["text"], "entry_type": "misc"})
+            "raw_text": e["text"], "author": e.get("author", ""),
+            "year": e.get("year", ""), "entry_type": "misc"})
         obj.add_realization(Realization(stream="references", start=anchor,
                                         end=anchor, role="surface",
                                         provenance="bbl"))

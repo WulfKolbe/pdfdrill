@@ -176,6 +176,52 @@ def test_build_source_model_extracts_citations():
         assert any(x.start is not None for x in c.realizations)    # linkable surface
 
 
+def test_parse_bbl_extracts_author_and_year():
+    bbl = (r"\begin{thebibliography}{1}" "\n"
+           r"\bibitem[KSV02]{kitaev2002}" "\n"
+           r"A.~Y. Kitaev, A.~Shen, and M.~N. Vyalyi." "\n"
+           r"\newblock Classical and quantum computation." "\n"
+           r"\newblock American Mathematical Society, 2002." "\n"
+           r"\end{thebibliography}")
+    e = B.parse_bbl(bbl)[0]
+    assert e["citekey"] == "kitaev2002"
+    assert e["year"] == "2002"
+    assert "Kitaev" in e["author"] and "Vyalyi" in e["author"]
+    assert "Classical" not in e["author"]      # author stops before the title
+
+
+def test_ingest_bbl_sets_author_year_on_reference():
+    from docmodel.core import Document
+    doc = Document()
+    bbl = (r"\begin{thebibliography}{1}" "\n"
+           r"\bibitem[X]{a2020}" "\n"
+           r"Jane Roe and John Doe." "\n"
+           r"\newblock A nice paper. Venue, 2020." "\n"
+           r"\end{thebibliography}")
+    B.ingest_bbl(doc, bbl)
+    r = next(o for o in doc.objects.values() if o.type == "Reference")
+    assert r.props["year"] == "2020" and "Roe" in r.props["author"]
+
+
+def test_build_source_model_transcludes_cites_in_prose():
+    """In-text \\cite{k} must become a {{<bibkey>_REF_<k>||CIT}} transclusion in
+    the paragraph text (LATW ReferenceScanner behaviour) — not plain [k]."""
+    from pdfdrill import latex_source as LS
+    import tempfile
+    with tempfile.TemporaryDirectory() as d:
+        tex = Path(d) / "main.tex"
+        tex.write_text(
+            "\\documentclass{article}\n\\begin{document}\n"
+            "As shown by \\cite{DBLP:journals/tnn/WuPCLZY21}, graphs help.\n"
+            "\\bibliography{biblio}\n\\end{document}\n", encoding="utf-8")
+        doc = LS.build_source_model(str(tex), bibkey="x")
+        para = next(o for o in doc.objects.values()
+                    if o.type == "Paragraph" and "graphs help" in o.props.get("text", ""))
+        # the projector titles References x_REF_<alnum citekey>
+        assert "{{x_REF_DBLPjournalstnnWuPCLZY21||CIT}}" in para.props["text"]
+        assert "[DBLP" not in para.props["text"]     # NOT the plain-bracket form
+
+
 def test_cmd_bibliography_falls_back_to_source_bib():
     """A keyless arXiv LaTeX-source model has no INLINED refs — cmd_bibliography
     must fall back to the source bib (so `bibfetch` isn't left with 0 references)."""
@@ -267,6 +313,9 @@ if __name__ == "__main__":
                test_extract_citations_all_variants,
                test_load_bibtex_file_restrict_to_cited,
                test_build_source_model_extracts_citations,
+               test_parse_bbl_extracts_author_and_year,
+               test_ingest_bbl_sets_author_year_on_reference,
+               test_build_source_model_transcludes_cites_in_prose,
                test_cmd_bibliography_falls_back_to_source_bib]:
         fn(); print(f"PASS {fn.__name__}")
     print("\nAll tests passed.")

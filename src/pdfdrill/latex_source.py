@@ -767,11 +767,25 @@ _INLINE_MATH = re.compile(
 
 _PROSE_CLEAN = [
     (re.compile(r"\\(?:textbf|textit|emph|texttt|textsc|textrm|textsf|mathrm)\s*\{([^{}]*)\}"), r"\1"),
-    (re.compile(r"\\cite[tp]?\s*(?:\[[^\]]*\])?\s*\{([^}]*)\}"), r"[\1]"),
+    # NB: \cite is NOT bracketed here — it's turned into a {{…||CIT}} transclusion
+    # by _transclude_cites BEFORE _clean_prose runs (LATW ReferenceScanner style).
     (re.compile(r"\\(?:eqref|ref|autoref|cref|Cref)\s*\{[^}]*\}"), "(ref)"),
     (re.compile(r"\\label\s*\{[^}]*\}"), ""),
     (re.compile(r"\\%"), "%"), (re.compile(r"~"), " "),
 ]
+
+
+def _transclude_cites(text: str, bibkey: str) -> str:
+    """Replace every in-text \\cite-family command with a citation TRANSCLUSION
+    per key — `\\cite{a,b}` → `{{<bibkey>_REF_<a>||CIT}} {{<bibkey>_REF_<b>||CIT}}`
+    (LATW ReferenceScanner behaviour). The target title matches the TiddlyWiki
+    projector's Reference titling (`<bibkey>_REF_<alnum citekey>`), so it resolves
+    once the bibliography is built (`pdfdrill bibliography`/`bibsource`)."""
+    def repl(m):
+        keys = [k.strip() for k in m.group(1).split(",") if k.strip()]
+        return " ".join("{{" + bibkey + "_REF_" + re.sub(r"[^A-Za-z0-9]", "", k)
+                        + "||CIT}}" for k in keys)
+    return _CITE_CMD.sub(repl, text)
 
 
 def _clean_prose(s: str) -> str:
@@ -872,7 +886,7 @@ def build_source_model(tex_path: str, bibkey: str = "DOC") -> "object":
                 out.append("{{" + title + "||FO}}")            # transclude the FO tiddler
                 last = mm.end()
             out.append(text[last:])
-            prose = _clean_prose("".join(out))
+            prose = _clean_prose(_transclude_cites("".join(out), bibkey))
             if not prose:
                 continue
             props = {"text": prose, "flow_index": fi, "bibkey": bibkey}
