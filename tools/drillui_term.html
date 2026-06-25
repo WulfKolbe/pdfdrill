@@ -610,12 +610,22 @@ const app = {
     while ((m = re.exec(text)) !== null){
       const path = m[1];
       if (/^https?:/i.test(path)) continue;
+      if (this._isInternalArtifact(path)) continue;   // hide internal model/state JSON
       if (!this.artifacts.has(path)){
         this.artifacts.set(path, { path, ext: m[2].toLowerCase() });
         added = true;
       }
     }
     if (added) this.renderArtifacts();
+  },
+
+  /* Internal files pdfdrill mentions in its prose (the model/packed/char/state
+     blobs) are NOT user-facing outputs — don't list them in Outputs. Keep the
+     real artifacts: *.tiddlers.json, <bibkey>.md, report.html, *.llm.txt, svg. */
+  _isInternalArtifact(path){
+    const b = (path.split("/").pop() || "").toLowerCase();
+    return /\.(docmodel|docpack|chars|drill|lines|semantic)\.json$/.test(b)
+        || b === "md.md" || b === "ir.json";
   },
 
   renderArtifacts(){
