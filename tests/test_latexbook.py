@@ -74,6 +74,27 @@ def test_build_source_model_flow_order():
         assert types == ["Section", "Equation", "Equation"]
 
 
+def test_latexbook_marks_model_built_so_projectors_dont_rebuild():
+    """The mass-run collision: latexbook wrote a model but never set MODEL_BUILT,
+    so projectors saw 'not built' and force-rebuilt via MathPix/OCR, clobbering
+    the keyless source model. cmd_latexbook must mark it built and not look stale."""
+    from pdfdrill import commands as K
+    from pdfdrill.sidecar import Sidecar
+    with tempfile.TemporaryDirectory() as dd:
+        tex = Path(dd) / "main.tex"
+        tex.write_text(
+            "\\documentclass{article}\n\\begin{document}\n"
+            "\\section{Intro}\nHello $E=mc^2$ and a display \\[ a^2+b^2=c^2 \\].\n"
+            "\\end{document}\n", encoding="utf-8")
+        K.cmd_latexbook(tex, no_svg=True)
+        sc = Sidecar(tex)
+        assert sc.has(K.MODEL_BUILT)
+        mp = K._model_path(sc)
+        assert mp.exists()
+        # no lines.json, but built → projectors must NOT consider it stale
+        assert K._stale_or_absent(sc, mp, K._lines_json_path(tex)) is False
+
+
 if __name__ == "__main__":
     tests = [v for k, v in list(globals().items()) if k.startswith("test_")]
     failed = []

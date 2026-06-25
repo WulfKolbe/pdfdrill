@@ -3430,8 +3430,17 @@ def cmd_latexbook(tex: Path, bibkey: str | None = None, force: bool = False,
     else:
         doc = ls.build_source_model(str(tex), bibkey=key)
         drill.mkdir(parents=True, exist_ok=True)
-        model_path.write_text(
-            json.dumps(doc.to_dict(), indent=2, ensure_ascii=False), encoding="utf-8")
+        save_model(model_path, doc)
+
+    # Mark the source model BUILT on the sidecar so projectors (tiddlers/llmtext/
+    # svg) consume it directly instead of force-rebuilding via MathPix/OCR — which
+    # would clobber the keyless source model (the mass-run collision). A source
+    # model has no lines.json, so `_stale_or_absent` keys on this fact.
+    sc = Sidecar(tex)
+    sc.set_evidence("bibkey", key)
+    if not sc.has(MODEL_BUILT):
+        sc.add_fact(MODEL_BUILT)
+    sc.save()
 
     # Render TikZ/tables to SVG (cmd_svg mutates the saved model in place),
     # then reload so the report embeds the freshly-rendered SVGs.
