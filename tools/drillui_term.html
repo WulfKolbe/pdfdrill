@@ -122,6 +122,9 @@
 
   .art .name{ cursor:pointer; }
   .art .name:hover{ color:var(--aqua); text-decoration:underline; }
+  .art.draggable{ cursor:grab; }
+  .art .dnd{ color:var(--green); font-size:11px; margin-left:6px; user-select:none; }
+  .art.draggable:active{ cursor:grabbing; }
 
   .empty{ padding:24px 14px; color:var(--faint); font-size:13px; line-height:1.5; }
   .empty code{ font-family:var(--mono); color:var(--dim); }
@@ -707,6 +710,35 @@ const app = {
       nameEl.onclick = ()=> this.openExternal(url);
       const hb = row.querySelector("button.host");
       if (hb) hb.onclick = ()=> this.openOnHost(a.path, hb);
+      // A tiddler-array JSON (the document tiddlers / any tiddler list) is made
+      // DRAGGABLE straight into an open TiddlyWiki: on drop TW imports it via its
+      // native `text/vnd.tiddler` type — no file browser, no import menu. We
+      // pre-fetch the JSON (cached) so dragstart can set it synchronously.
+      if (!isUrl && a.ext === "json"){
+        row.classList.add("draggable");
+        row.setAttribute("draggable", "true");
+        const hint = document.createElement("span");
+        hint.className = "dnd"; hint.textContent = "⇲ drag → TiddlyWiki";
+        row.appendChild(hint);
+        let cache = null;   // string when ready, Promise while loading
+        const prefetch = ()=>{ if (cache === null){
+          cache = fetch(url).then(r=>r.text()).then(t=>{ cache = t; return t; })
+                            .catch(()=>{ cache = null; }); } };
+        prefetch();                                   // warm on render
+        row.addEventListener("pointerenter", prefetch);
+        row.addEventListener("dragstart", (e)=>{
+          if (typeof cache === "string"){
+            e.dataTransfer.setData("text/vnd.tiddler", cache);   // TW imports this
+            e.dataTransfer.setData("application/json", cache);
+            e.dataTransfer.setData("text/plain", cache);
+          } else {
+            prefetch();                               // not ready → offer the URL
+            e.dataTransfer.setData("text/uri-list", url);
+            e.dataTransfer.setData("text/plain", url);
+          }
+          e.dataTransfer.effectAllowed = "copy";
+        });
+      }
       wrap.appendChild(row);
     }
     document.getElementById("art-count").textContent =

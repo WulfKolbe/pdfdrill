@@ -89,6 +89,23 @@ The browser decides FIRST, then (only if not local) forwards to Python:
 So `open https://arxiv.org/pdf/2305.04710` opens the PDF in a window; it does
 **not** go to the LLM. This is the fix for the earlier "open url called Claude".
 
+## Importing tiddlers into TiddlyWiki — drag & drop (no file browser)
+
+A `*.tiddlers.json` (or any tiddler-array JSON) in the **Outputs** panel is
+**draggable straight into an open TiddlyWiki tab**: it shows `⇲ drag → TiddlyWiki`,
+and on drop TiddlyWiki imports it via its native `text/vnd.tiddler` type — **no
+file browser, no import menu** (the same mechanism TW uses to drag tiddlers
+between wikis and to install plugins). drillui pre-fetches the JSON so the drag
+carries the actual tiddler array; drop it onto the TiddlyWiki window and confirm
+the import.
+
+Two equivalent paths if you prefer the OS:
+- The artifacts live under `~/Downloads/<name>.pdf.drill/` (the config download
+  dir, never `/tmp`), so you can also drag the `*.tiddlers.json` **file** from the
+  file manager onto TiddlyWiki — same native import.
+- The dumb TiddlyWiki *file-input* browser is avoidable entirely; never paste the
+  `…/artifact?path=…` URL into it.
+
 ## Test it
 
 ```bash
