@@ -1358,11 +1358,23 @@ line)` routes one command; L1+ verbs (`make`/`extract`/`ensemble`/`synthesize`)
 report as *planned* so the shell skeleton is complete and honest. **`pdfdrill
 docos [<command line>]`** runs one line + prints the UI; no args → show state.
 Verified: `cd data` → `add *.pdf` (8 docs) → `save-set corpus`, UI gates L2+,
-state round-trips. Tests: `tests/test_docos.py` (7).
-**Plan (bottom-up, one step per commit):** 2 = L1/L1.5 fan-out (make over the set,
-auto-build lower layers, per-doc status); 3 = L2 extract fan-out; 4 = L3 ensemble
-(reuse `combine`/`retrieve` for the index + search/stats); 5 = L4 synthesis
-(review/survey — the heavy, last piece).
+state round-trips. Tests: `tests/test_docos.py`.
+
+**Step 2 (done) — L1/L1.5 fan-out.** `make <repr>` runs an existing per-doc
+command over the whole set, records per-doc status in `state.materialized`, and
+recomputes the level (any make → L1; all four L1.5 summaries ok for all docs →
+L1.5, which un-gates L2). Mapping: **L1** md→`cmd_md`, toc→`cmd_booktoc`,
+math→`cmd_mathir`, figures→`cmd_embedimages`, refs→`cmd_bibsource`; **L1.5**
+abstract→`cmd_abstract`, conclusion→`cmd_conclusion`, claims/contributions→cue-
+sentence extractors (`_cue_sentences` over the model prose → sidecar
+`docos_claims`/`docos_contributions`; the only new producers — contributions had
+none). Each per-doc command auto-builds its own model, so the lower layer
+materializes itself. `make`/`status` are now live in `dispatch`; `runner` is
+injectable (tested with a fake). `status` shows per-repr ok/total. Verified live:
+2-paper set → `make conclusion`/`abstract` 2/2 ok; single doc → all four summaries
+→ level **L1.5**, L2 un-gated. Tests: `tests/test_docos.py` (12).
+**Plan:** 3 = L2 extract fan-out; 4 = L3 ensemble (reuse `combine`/`retrieve` for
+the index + search/stats); 5 = L4 synthesis (review/survey — the heavy, last piece).
 
 ## Conclusion retrieval (`pdfdrill conclusion`, `src/pdfdrill/conclusion.py`)
 

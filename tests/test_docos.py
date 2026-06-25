@@ -105,10 +105,76 @@ def test_dispatch_routes_l0_verbs_and_reports_planned():
             s = docos.DocosState(folder=d)
             msg, s = docos.dispatch(s, "add *.pdf")
             assert "2" in msg and len(s.documents) == 2
-            msg, s = docos.dispatch(s, "make md")          # later step
+            msg, s = docos.dispatch(s, "ensemble search x")   # L3, later step
             assert "planned" in msg.lower() or "not yet" in msg.lower()
         finally:
             del os.environ["PDFDRILL_DOCOS_STATE"]
+
+
+def _fake_runner_ok(repr_name, path):
+    return ("ok", "")
+
+
+def test_make_fans_out_and_reaches_L1():
+    with tempfile.TemporaryDirectory() as d:
+        _mkfiles(d, ["a.pdf", "b.pdf"])
+        s = docos.DocosState(folder=d)
+        s.add("*.pdf")
+        res = docos.make(s, "md", runner=_fake_runner_ok)
+        assert res["ok"] == 2 and res["err"] == 0
+        assert s.level == "L1"                       # any make → L1
+        # per-doc status recorded
+        assert all(s.materialized[p]["md"] == "ok" for p in s.documents)
+
+
+def test_level_reaches_L15_when_all_summaries_made():
+    with tempfile.TemporaryDirectory() as d:
+        _mkfiles(d, ["a.pdf", "b.pdf"])
+        s = docos.DocosState(folder=d)
+        s.add("*.pdf")
+        for r in ("abstract", "conclusion", "claims", "contributions"):
+            docos.make(s, r, runner=_fake_runner_ok)
+        assert s.level == "L1.5"                      # all four summaries → L1.5
+        ui = docos.render_ui(s)
+        assert "L2 Extract" in ui and "[requires" not in ui.split("L2 Extract")[1].split("\n")[0]
+
+
+def test_status_reports_per_repr_counts():
+    with tempfile.TemporaryDirectory() as d:
+        _mkfiles(d, ["a.pdf", "b.pdf"])
+        s = docos.DocosState(folder=d)
+        s.add("*.pdf")
+        docos.make(s, "md", runner=_fake_runner_ok)
+
+        def half(repr_name, path):
+            return ("ok", "") if path.endswith("a.pdf") else ("err", "boom")
+        docos.make(s, "abstract", runner=half)
+        st = docos.status(s)
+        assert "md" in st and "2/2" in st           # md ok for both
+        assert "abstract" in st and "1/2" in st     # abstract ok for one
+
+
+def test_make_unknown_repr_and_empty_set():
+    s = docos.DocosState(folder="/tmp")
+    msg, s = docos.dispatch(s, "make bogus")
+    assert "unknown" in msg.lower()
+    s2 = docos.DocosState(folder="/tmp")
+    msg, s2 = docos.dispatch(s2, "make md")
+    assert "empty" in msg.lower()
+
+
+def test_dispatch_make_uses_injected_runner(monkeypatch=None):
+    with tempfile.TemporaryDirectory() as d:
+        _mkfiles(d, ["a.pdf"])
+        s = docos.DocosState(folder=d)
+        s.add("*.pdf")
+        saved = docos._run_make
+        docos._run_make = _fake_runner_ok
+        try:
+            msg, s = docos.dispatch(s, "make md")
+        finally:
+            docos._run_make = saved
+        assert "ok" in msg and s.level == "L1"
 
 
 if __name__ == "__main__":
@@ -117,6 +183,11 @@ if __name__ == "__main__":
                test_save_and_load_set_demotes_to_L0,
                test_state_round_trips_to_disk,
                test_ui_gates_levels_by_materialization,
-               test_dispatch_routes_l0_verbs_and_reports_planned]:
+               test_dispatch_routes_l0_verbs_and_reports_planned,
+               test_make_fans_out_and_reaches_L1,
+               test_level_reaches_L15_when_all_summaries_made,
+               test_status_reports_per_repr_counts,
+               test_make_unknown_repr_and_empty_set,
+               test_dispatch_make_uses_injected_runner]:
         fn(); print("PASS", fn.__name__)
     print("\nAll tests passed.")

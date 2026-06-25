@@ -23,6 +23,11 @@ from pathlib import Path
 LEVELS = ["L0", "L1", "L1.5", "L2", "L3", "L4"]
 _DOC_EXTS = (".pdf", ".md")
 
+# representations per layer (docOS `make <repr>`)
+L1_REPRS = ("md", "toc", "math", "figures", "refs")
+L15_REPRS = ("abstract", "conclusion", "claims", "contributions")
+_ALL_REPRS = L1_REPRS + L15_REPRS
+
 
 def state_path() -> Path:
     env = os.environ.get("PDFDRILL_DOCOS_STATE")
@@ -144,6 +149,125 @@ def save_state(state: DocosState) -> None:
 
 
 # --------------------------------------------------------------------------- #
+# L1 / L1.5 fan-out — run a per-doc representation over the whole set
+# --------------------------------------------------------------------------- #
+def _ensure_model(pdf) -> None:
+    from . import commands as K
+    from .sidecar import Sidecar
+    sc = Sidecar(pdf)
+    mp = K._model_path(sc)
+    if K._stale_or_absent(sc, mp, K._lines_json_path(pdf)):
+        K.cmd_model(pdf)
+
+
+_CLAIM_CUES = (r"we find that", r"we show that", r"we demonstrate", r"we observe",
+               r"our results? (?:show|indicate|demonstrate)",
+               r"results? (?:show|indicate|demonstrate)",
+               r"\boutperform", r"\bachieve[sd]?\b")
+_CONTRIB_CUES = (r"we propose", r"we introduce", r"we present", r"we contribute",
+                 r"we develop", r"our (?:main |key )?contribution",
+                 r"in this (?:paper|work),? we")
+
+
+def _cue_sentences(pdf, cues, key: str) -> int:
+    """Materialize cue-matched sentences (claims/contributions) from the model's
+    prose into the sidecar; returns the count. Builds the model if missing."""
+    import re as _re
+    from . import commands as K, model_io
+    from .sidecar import Sidecar
+    _ensure_model(pdf)
+    sc = Sidecar(pdf)
+    g = model_io.load_docgraph(K._model_path(sc))
+    rx = _re.compile("|".join(cues), _re.I)
+    hits = []
+    for n in g:
+        if getattr(n, "type", None) != "Paragraph":
+            continue
+        for s in _re.split(r"(?<=[.!?])\s+", (n.props.get("text") or "")):
+            s = s.strip()
+            if s and rx.search(s):
+                hits.append(s)
+    sc.set_evidence(f"docos_{key}", hits)
+    sc.save()
+    return len(hits)
+
+
+def _run_make(repr_name: str, path: str) -> tuple[str, str]:
+    """Materialize one representation for one document. Returns (status, detail),
+    status ∈ ok|err|na. Each per-doc command auto-builds its own model."""
+    from pathlib import Path
+    from . import commands as K
+    p = Path(path)
+    try:
+        if repr_name == "md":
+            K.cmd_md(p)
+        elif repr_name == "toc":
+            K.cmd_booktoc(p)
+        elif repr_name == "math":
+            K.cmd_mathir(p)
+        elif repr_name == "figures":
+            K.cmd_embedimages(p)
+        elif repr_name == "refs":
+            K.cmd_bibsource(p)
+        elif repr_name == "abstract":
+            K.cmd_abstract(p)
+        elif repr_name == "conclusion":
+            K.cmd_conclusion(p)
+        elif repr_name == "claims":
+            return ("ok", f"{_cue_sentences(p, _CLAIM_CUES, 'claims')} claims")
+        elif repr_name == "contributions":
+            return ("ok", f"{_cue_sentences(p, _CONTRIB_CUES, 'contributions')} contrib")
+        else:
+            return ("na", "unknown representation")
+        return ("ok", "")
+    except Exception as e:                              # noqa: BLE001
+        return ("err", str(e).splitlines()[0][:80] if str(e).strip() else type(e).__name__)
+
+
+def _recompute_level(state: "DocosState") -> None:
+    if not state.documents:
+        state.level = "L0"
+        return
+    docs = state.documents
+
+    def all_ok(r):
+        return all(state.materialized.get(d, {}).get(r) == "ok" for d in docs)
+    if all(all_ok(r) for r in L15_REPRS):
+        state.level = "L1.5"
+    elif any(state.materialized.get(d, {}).get(r) == "ok"
+             for d in docs for r in _ALL_REPRS):
+        state.level = "L1"
+    else:
+        state.level = "L0"
+
+
+def make(state: "DocosState", repr_name: str, runner=None) -> dict:
+    """Fan a representation out over the whole set; record per-doc status; update
+    the materialized level. `runner(repr, path)->(status,detail)` is injectable."""
+    run = runner or _run_make
+    res = {"ok": 0, "err": 0, "na": 0, "details": []}
+    for doc in state.documents:
+        st, detail = run(repr_name, doc)
+        res[st] = res.get(st, 0) + 1
+        state.materialized.setdefault(doc, {})[repr_name] = st
+        if detail:
+            res["details"].append((os.path.basename(doc), detail))
+    _recompute_level(state)
+    return res
+
+
+def status(state: "DocosState") -> str:
+    docs = state.documents
+    n = len(docs)
+    lines = [f"representations (ok/{n}):"]
+    for r in _ALL_REPRS:
+        c = sum(1 for d in docs if state.materialized.get(d, {}).get(r) == "ok")
+        layer = "L1.5" if r in L15_REPRS else "L1  "
+        lines.append(f"  [{layer}] {r:13s} {c}/{n}")
+    return "\n".join(lines)
+
+
+# --------------------------------------------------------------------------- #
 # Compact UI (level-gated command listing)
 # --------------------------------------------------------------------------- #
 def _mat_index(state: DocosState) -> int:
@@ -186,7 +310,7 @@ def render_ui(state: DocosState) -> str:
 # Dispatch (one command line → message + new state)
 # --------------------------------------------------------------------------- #
 _L0_VERBS = {"cd", "add", "remove", "clear", "save-set", "load-set", "sets", "show"}
-_PLANNED_VERBS = {"make", "extract", "ensemble", "synthesize", "compile", "status"}
+_PLANNED_VERBS = {"extract", "ensemble", "synthesize", "compile"}
 
 
 def dispatch(state: DocosState, line: str) -> tuple[str, DocosState]:
@@ -212,6 +336,24 @@ def dispatch(state: DocosState, line: str) -> tuple[str, DocosState]:
             return ("saved sets: " + (", ".join(state.sets()) or "(none)")), state
         if verb == "show":
             return state.show(), state
+        if verb == "make":
+            if not args:
+                return ("usage: make " + "|".join(_ALL_REPRS)), state
+            r = args[0]
+            if r not in _ALL_REPRS:
+                return f"unknown representation: {r}", state
+            if not state.documents:
+                return "empty set — `add <glob>` first", state
+            res = make(state, r)
+            msg = (f"make {r}: {res['ok']} ok, {res['err']} err, {res['na']} n/a "
+                   f"(level → {state.level})")
+            if res["details"][:3]:
+                msg += "\n  " + "; ".join(f"{n}: {d}" for n, d in res["details"][:3])
+            return msg, state
+        if verb == "status":
+            if not state.documents:
+                return "empty set — `add <glob>` first", state
+            return status(state), state
     except Exception as e:                              # noqa: BLE001
         return f"error: {e}", state
 
