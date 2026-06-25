@@ -244,6 +244,22 @@ def test_tiddler_and_md_keep_both_latex_forms():
     assert "\\gR(x)" in md                           # macro source kept (glossary)
 
 
+def test_source_only_diagram_no_dead_canonical_uri_widget():
+    # LaTeX-source model: a diagram has latex_code but NO rendered svg and NO
+    # MathPix cdn_url. The tiddler must NOT emit `<$image source={{!!canonical_uri}}>`
+    # referencing a field it never sets — it shows the LaTeX source instead.
+    from docmodel.core import DocObject
+    doc = _build_sample_doc()
+    doc.add(DocObject(type="Diagram", id="dsrc", props={
+        "latex_code": r"\begin{tikzpicture}\draw (0,0)--(1,1);\end{tikzpicture}",
+        "flow_index": 6}))
+    tids = json.loads(_make_op(TiddlyWikiProjector).project(doc))
+    dt = next(t for t in tids if t.get("latex_code", "").startswith(r"\begin{tikzpicture}"))
+    assert "canonical_uri" not in dt              # no field…
+    assert "{{!!canonical_uri}}" not in dt["text"]  # …and no dead reference
+    assert "\\draw" in dt["text"]                 # the LaTeX source is shown instead
+
+
 def test_diagram_tiddler_transcludes_svg_field():
     # The rendered SVG goes in the diagram tiddler's `svg_tiddler` FIELD and is
     # shown by simple field transclusion {{!!svg_tiddler}} — NOT <$image>, which

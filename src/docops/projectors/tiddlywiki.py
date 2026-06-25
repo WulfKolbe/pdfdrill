@@ -528,11 +528,21 @@ class TiddlyWikiProjector(BaseProjector):
                 continue
             # Prefer the locally-rendered SVG (from `pdfdrill svg`): store it in
             # the `svg_tiddler` field, shown by simple transclusion
-            # {{!!svg_tiddler}}; else fall back to the CDN crop via <$image>.
+            # {{!!svg_tiddler}}; else the CDN crop via <$image> (only when a
+            # cdn_url exists); else (LaTeX-source model, not yet rendered) show
+            # the LaTeX source — NEVER a dead <$image source={{!!canonical_uri}}>
+            # referencing a field we don't set.
             svg_field = self._svg_inline(d.props.get("svg"))
-            body = ("{{!!svg_tiddler}}" if svg_field
-                    else "<$image source={{!!canonical_uri}} "
-                         "width={{!!width}} height={{!!height}}/>")
+            _lc = (d.props.get("latex_code") or "").strip()
+            if svg_field:
+                body = "{{!!svg_tiddler}}"
+            elif d.props.get("cdn_url"):
+                body = ("<$image source={{!!canonical_uri}} "
+                        "width={{!!width}} height={{!!height}}/>")
+            elif _lc:
+                body = f"```latex\n{_lc}\n```"
+            else:
+                body = "//(unrendered graphic — run `pdfdrill svg`)//"
             # TikZ diagrams also carry a `tikz` structural tag (for filters).
             extra_tag = " tikz" if _TIKZ.search(d.props.get("latex_code") or "") else ""
             t = self._t(title[d.id], body, f"diagram{extra_tag} {_bibtag(bibkey)}")
@@ -553,8 +563,15 @@ class TiddlyWikiProjector(BaseProjector):
         # Tables
         for tab in inv["tables"]:
             svg_field = self._svg_inline(tab.props.get("svg"))
-            body = ("{{!!svg_tiddler}}" if svg_field
-                    else tab.props.get("raw_text", ""))
+            _tlc = (tab.props.get("latex_code") or "").strip()
+            if svg_field:
+                body = "{{!!svg_tiddler}}"
+            elif tab.props.get("raw_text"):
+                body = tab.props["raw_text"]
+            elif _tlc:                              # source-only table, not rendered
+                body = f"```latex\n{_tlc}\n```"
+            else:
+                body = ""
             t = self._t(title[tab.id], body, f"table {_bibtag(bibkey)}")
             t["page"] = self._p3(tab.props.get("page"))
             if tab.props.get("latex_code"):
