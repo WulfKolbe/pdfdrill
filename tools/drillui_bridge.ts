@@ -282,7 +282,14 @@ const server = Bun.serve<{ sess: Session | null }>({
       const f = Bun.file(abs);
       if (!(await f.exists())) return new Response("not found", { status: 404 });
       const ct = MIME[extname(abs).toLowerCase()] ?? "application/octet-stream";
-      return new Response(f, { headers: { "content-type": ct } });
+      // filename for save-as: the REAL basename (e.g. 2110.13883.tiddlers.json),
+      // not "artifact" (the route). `inline` keeps the in-tab viewer; the browser's
+      // own Save uses this name, as does the Outputs `save ⤓` link.
+      const fname = (abs.split("/").pop() || "artifact").replace(/["\\\r\n]/g, "");
+      return new Response(f, { headers: {
+        "content-type": ct,
+        "content-disposition": `inline; filename="${fname}"`,
+      } });
     }
 
     // open a file in the user's own browser on the host machine
