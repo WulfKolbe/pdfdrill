@@ -46,6 +46,29 @@ def _doc_latex_heading_per_line_refs():
     return doc
 
 
+def _doc_numbered_section_heading_refs():
+    # the real VLDB/IEEE failure (p1713-suchanek "5. REFERENCES",
+    # p1521-yahya "7. REFERENCES"): an all-caps heading carrying its section
+    # number — the old strict ^references$ rejected the "5. " prefix → 0 refs.
+    # Entries are numbered ("N. ...") and span two OCR lines each.
+    doc = Document(); doc.meta["bibkey"] = "DOC"
+    mp = doc.ensure_stream("mathpix_lines")
+    mp.append(text="5. REFERENCES", _page=12, type="text")
+    mp.append(text="1. Gad-Elrab, M.H., Stepanova, D.: Excut: Explainable", _page=12, type="text")
+    mp.append(text="clustering over knowledge graphs. In: ISWC (2020)", _page=12, type="text")
+    mp.append(text="2. Henson, C., Schmid, S.: Using a knowledge graph of", _page=12, type="text")
+    mp.append(text="scenes to enable search. In: ISWC (2019)", _page=12, type="text")
+    return doc
+
+
+def test_parse_numbered_section_reference_heading():
+    entries = parse_bibliography(_doc_numbered_section_heading_refs())
+    assert len(entries) == 2                           # was 0 (heading "5. REFERENCES")
+    assert entries[0]["number"] == 1 and entries[1]["number"] == 2
+    assert entries[0]["year"] == "2020" and entries[1]["year"] == "2019"
+    assert entries[0]["citekey"].startswith("GadElrab")
+
+
 def test_parse_latex_wrapped_heading_and_per_line_authoryear_entries():
     entries = parse_bibliography(_doc_latex_heading_per_line_refs())
     assert len(entries) == 3                          # was 0 (heading) / 1 (no split)
