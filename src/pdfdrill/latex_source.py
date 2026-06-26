@@ -23,6 +23,7 @@ import os
 import re
 import tarfile
 import tempfile
+import zipfile
 
 # Display-math environments whose body we lift as one equation each.
 _DISPLAY_ENVS = (
@@ -114,6 +115,26 @@ def read_source(path: str) -> tuple[str, str]:
             if not main:
                 return "", ""
             return expand_inputs(os.path.join(d, main), os.path.dirname(os.path.join(d, main))), main
+
+    # A ZIP — notably MathPix's `<name>.tex.zip` (clean LaTeX, minimal preamble,
+    # CDN-derived JPGs). Same shape as the tarball branch: extract, find main .tex.
+    if zipfile.is_zipfile(path):
+        from . import config as _cfg
+        with tempfile.TemporaryDirectory(dir=str(_cfg.scratch_dir())) as d:
+            with zipfile.ZipFile(path) as zf:
+                zf.extractall(d)
+            contents = {}
+            for root, _dirs, files in os.walk(d):
+                for f in files:
+                    if f.endswith(".tex"):
+                        fp = os.path.join(root, f)
+                        contents[os.path.relpath(fp, d)] = open(
+                            fp, encoding="utf-8", errors="replace").read()
+            main = find_main_tex(contents)
+            if not main:
+                return "", ""
+            return expand_inputs(os.path.join(d, main),
+                                 os.path.dirname(os.path.join(d, main))), main
     # plain text fallback
     return strip_comments(open(path, encoding="utf-8", errors="replace").read()), os.path.basename(path)
 

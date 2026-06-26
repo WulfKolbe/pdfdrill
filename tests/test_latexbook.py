@@ -89,6 +89,27 @@ def test_build_source_model_dedupes_repeated_inline_formula():
         assert len(marks) == 5 and len(set(marks)) == 2
 
 
+def test_read_source_handles_mathpix_tex_zip():
+    r"""`pdfdrill mathpix` downloads a `<stem>.tex.zip` (clean LaTeX, minimal
+    preamble, CDN-derived JPGs). read_source must extract it and find the main
+    .tex — the `mathpix`→`latex` connection that was lost (a .zip used to fall
+    through to the raw-bytes fallback)."""
+    import zipfile
+    with tempfile.TemporaryDirectory() as dd:
+        z = Path(dd) / "doc.tex.zip"
+        with zipfile.ZipFile(z, "w") as zf:
+            zf.writestr("doc.tex",
+                        "\\documentclass{article}\n\\begin{document}\n"
+                        "Body.\n\\begin{equation}\nE = mc^2\n\\end{equation}\n"
+                        "\\end{document}\n")
+            zf.writestr("images/img1.jpg", b"\xff\xd8\xff\xe0jpg")
+        full, main = ls.read_source(str(z))
+        assert main == "doc.tex"
+        assert "E = mc^2" in full
+        eqs = ls.extract_display_equations(full)
+        assert len(eqs) == 1 and "E = mc^2" in eqs[0]["latex"]
+
+
 def test_extract_sections_marks_appendix():
     r"""\appendix switches every following section into the appendix — the
     2110.11150 'large appendix' case. extract_sections must flag them so the

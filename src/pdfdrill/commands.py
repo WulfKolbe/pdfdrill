@@ -4172,10 +4172,12 @@ def cmd_latex(pdf: Path, tex: str | None = None, force: bool = False) -> str:
     if not model_path.exists():
         return f"No model for {pdf.name} (run `pdfdrill model` first)."
 
-    # Locate the source: explicit --tex, else <stem>.tex / <stem>.tgz / .tar.gz.
+    # Locate the source: explicit --tex, else <stem>.tex, the MathPix
+    # <stem>.tex.zip (clean LaTeX the `mathpix` command downloads), or an arXiv
+    # <stem>.tgz / .tar.gz.
     src = Path(tex) if tex else None
     if src is None:
-        for ext in (".tex", ".tgz", ".tar.gz"):
+        for ext in (".tex", ".tex.zip", ".tgz", ".tar.gz"):
             cand = pdf.parent / f"{pdf.stem}{ext}"
             if cand.exists():
                 src = cand
@@ -4192,7 +4194,9 @@ def cmd_latex(pdf: Path, tex: str | None = None, force: bool = False) -> str:
                         f"(pass --tex <path> if you have the .tex/.tgz locally).")
     if src is None or not src.exists():
         return (f"No LaTeX source found for {pdf.name} "
-                f"(looked for {pdf.stem}.tex / .tgz / .tar.gz; pass --tex <path>).")
+                f"(looked for {pdf.stem}.tex / .tex.zip / .tgz / .tar.gz). "
+                f"Run `pdfdrill mathpix {pdf.name}` first (it downloads the MathPix "
+                f"{pdf.stem}.tex.zip), or pass --tex <path>.")
 
     full, main = ls.read_source(str(src))
     if not full:
@@ -4205,11 +4209,18 @@ def cmd_latex(pdf: Path, tex: str | None = None, force: bool = False) -> str:
     # style files (e.g. siamproceedings.sty bundled in the e-print .tgz). A
     # tarball is extracted to <pdf>.drill/texsrc/; a loose .tex uses its folder.
     import tarfile as _tarfile
+    import zipfile as _zipfile
     if _tarfile.is_tarfile(str(src)):
         texsrc = sc.blob_dir / "texsrc"
         texsrc.mkdir(parents=True, exist_ok=True)
         with _tarfile.open(str(src)) as tf:
             tf.extractall(texsrc, filter="data")
+        source_dir = str(texsrc)
+    elif _zipfile.is_zipfile(str(src)):            # MathPix <stem>.tex.zip
+        texsrc = sc.blob_dir / "texsrc"
+        texsrc.mkdir(parents=True, exist_ok=True)
+        with _zipfile.ZipFile(str(src)) as zf:
+            zf.extractall(texsrc)
         source_dir = str(texsrc)
     else:
         source_dir = str(src.parent)
