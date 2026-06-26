@@ -4926,6 +4926,7 @@ def cmd_bibfetch(pdf: Path, limit: int | None = None, force: bool = False) -> st
         if res["bibtex"]:
             r.props["bibtex"] = res["bibtex"]
             r.props["citations"] = " ".join(res["citations"])
+            r.props["bibfetched"] = True   # web-sourced → may introduce errors
             for k in ("author", "year", "title", "entry_type"):
                 if res["fields"].get(k):
                     r.props[k] = res["fields"][k]
@@ -4993,6 +4994,7 @@ def _bibfetch_via_delegate(pdf: Path, doc, todo, sc, model_path, runtime) -> str
         if res.get("bibtex"):
             r.props["bibtex"] = res["bibtex"]
             r.props["citations"] = " ".join(res.get("citations", []))
+            r.props["bibfetched"] = True   # web-sourced → may introduce errors
             for k in ("author", "year", "title", "entry_type"):
                 if res.get("fields", {}).get(k):
                     r.props[k] = res["fields"][k]
@@ -6528,6 +6530,59 @@ def _format_abstract(sc: Sidecar) -> str:
     return "Abstract not yet extracted."
 
 
+_REF_SOURCE_LABEL = {
+    "bib": "from .bib (gold BibTeX)",
+    "bbl": "from .bbl (compiled)",
+    "bibitem": "from inline \\bibitem",
+    "text": "from text (OCR/printed, heuristic)",
+    "unknown": "source unrecorded",
+}
+
+
+def _format_bibliography_state(ref_props: list[dict], cites: int = 0) -> list[str]:
+    """Bibliography lines for `status`: count + per-SOURCE breakdown (where each
+    BibTeX record came from — .bib / .bbl / inline \\bibitem / printed text) +
+    how many carry full BibTeX, and a WARNING for any web-enriched via bibfetch
+    (Perplexity/LLM — may introduce errors). Pure over a list of Reference
+    props."""
+    if not ref_props:
+        return []
+    from collections import Counter
+    src = Counter((p.get("ref_source") or "unknown") for p in ref_props)
+    with_bibtex = sum(1 for p in ref_props if p.get("bibtex"))
+    with_year = sum(1 for p in ref_props if p.get("year"))
+    fetched = sum(1 for p in ref_props if p.get("bibfetched"))
+    src_str = ", ".join(f"{n} {_REF_SOURCE_LABEL.get(k, k)}"
+                        for k, n in src.most_common())
+    lines = [f"  bibliography ({len(ref_props)} entries: {src_str})",
+             f"    {with_bibtex} with full BibTeX, {with_year} with a year, "
+             f"{cites} in-text citations linked"]
+    if fetched:
+        lines.append(
+            f"    ⚠ {fetched} web-enriched via bibfetch "
+            f"(Perplexity/LLM — may introduce errors; verify against the source)")
+    return lines
+
+
+def _bibliography_status_lines(sc: "Sidecar") -> list[str]:
+    """Load the model (cheap DocGraph read, no rebuild) and summarise its
+    Reference state. Empty unless a bibliography has been built."""
+    if not sc.has(BIBLIOGRAPHY_BUILT):
+        return []
+    model_path = _model_path(sc)
+    cites = sc.get_evidence("bibliography_cites", 0) or 0
+    if not model_path.exists():
+        n = sc.get_evidence("bibliography_entries", 0) or 0
+        return [f"  bibliography ({n} entries; model file unavailable)"] if n else []
+    try:
+        from . import model_io
+        g = model_io.load_docgraph(model_path)
+        ref_props = [r.props for r in g.of_type("Reference")]
+    except Exception:                                          # noqa: BLE001
+        return []
+    return _format_bibliography_state(ref_props, cites)
+
+
 def cmd_status(pdf: Path) -> str:
     """Report what is already known, no subprocess."""
     sc = Sidecar(pdf)
@@ -6546,6 +6601,7 @@ def cmd_status(pdf: Path) -> str:
         bib = sc.bibtex or {}
         parts.append(f"  BibTeX record ({bib.get('citekey','?')}, "
                      f"entry type: {bib.get('entry_type','?')})")
+    parts.extend(_bibliography_status_lines(sc))
     if URLS_KNOWN in facts:
         links = sc.urls or []
         n_url = sum(1 for r in links if r.get("kind") == "url")

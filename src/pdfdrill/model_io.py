@@ -84,6 +84,7 @@ def load_docgraph(model_path):
     model on the fly if no sidecar exists yet."""
     from .docgraph import DocGraph
     packed = packed_path(model_path)
-    if packed.exists():
+    if _fresh(packed, Path(model_path)):           # mtime-guarded, like load_model
         return DocGraph.load(str(packed))
-    return DocGraph.load(str(model_path))          # accepts a plain model too
+    return DocGraph.load(str(model_path))          # sidecar absent OR stale (e.g.
+    #                          a command saved the .docmodel.json via json.dump)

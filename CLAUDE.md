@@ -1169,6 +1169,31 @@ the Heim book → **offset +1** (printed p5 → PDF p6), 34/35 page-exact, 100%
 agree. Tests: `tests/test_booktoc.py` (parse/offset-zero/offset-positive/
 align/greppable).
 
+## `status` bibliography/BibTeX state + load_docgraph staleness fix (2026-06-26)
+
+`pdfdrill status` now reports the bibliography: the entry COUNT, a per-SOURCE
+breakdown (where each BibTeX record came from), how many carry full BibTeX / a
+year / linked in-text citations, and a WARNING for any web-enriched entries.
+Each `Reference` carries a **`ref_source`** prop set at creation —
+`bib` (a `.bib` file, `load_bibtex_file`), `bbl` (a compiled `.bbl`,
+`ingest_bbl`), `bibitem` (an inline `\begin{thebibliography}`,
+`ingest_bbl(source="bibitem")`), `text` (printed/OCR'd refs parsed
+heuristically, `add_reference_objects`) — and `bibfetch` stamps
+**`bibfetched=True`** (web/Perplexity-sourced ⇒ may introduce errors).
+`commands._format_bibliography_state` (pure) formats the lines;
+`_bibliography_status_lines` loads the model (DocGraph) and aggregates. Verified
+live: 2104.08926 "16 from inline \bibitem", paper396 "16 from text (OCR/printed,
+heuristic)", 2109.04713 "39 from .bbl (compiled)".
+
+**Latent correctness bug fixed along the way:** `model_io.load_docgraph` read the
+`.docpack` sidecar with NO mtime guard (unlike `load_model`), so every read-path
+command (`status`/`llmtext`/`classify`/…) served STALE data after any command
+that saved the canonical `.docmodel.json` via raw `json.dump` (bibliography /
+bibfetch / bibsource all do). `load_docgraph` now uses the same `_fresh()` guard
+and falls back to the plain model when the sidecar is stale. Tests:
+`tests/test_bibliography.py` (ref_source tagging + `_format_bibliography_state`),
+`tests/test_model_io.py::test_load_docgraph_ignores_stale_sidecar`.
+
 ## Reference-based model storage + lazy read path (docpack / docgraph, 2026-06-14)
 
 Per-call load time matters because an LLM drives `pdfdrill` repeatedly. The

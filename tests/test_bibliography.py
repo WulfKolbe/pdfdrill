@@ -46,6 +46,48 @@ def _doc_latex_heading_per_line_refs():
     return doc
 
 
+def test_ref_source_tagged_per_creation_path():
+    """Each Reference records WHERE its BibTeX came from, for `status`."""
+    from pdfdrill.bibliography import ingest_bbl, load_bibtex_file, add_reference_objects
+    # .bbl
+    d1 = Document()
+    ingest_bbl(d1, r"\begin{thebibliography}{1}\bibitem{a} A. 2020.\end{thebibliography}")
+    assert all(r.props.get("ref_source") == "bbl"
+               for r in d1.objects.values() if r.type == "Reference")
+    # inline \bibitem
+    d2 = Document()
+    ingest_bbl(d2, r"\bibitem{b} B. 2021.", source="bibitem")
+    assert [r.props["ref_source"] for r in d2.objects.values()
+            if r.type == "Reference"] == ["bibitem"]
+    # .bib
+    d3 = Document()
+    load_bibtex_file(d3, "@article{c, title={C}, year={2022}, author={Z}}")
+    assert all(r.props.get("ref_source") == "bib"
+               for r in d3.objects.values() if r.type == "Reference")
+    # heuristic from printed text
+    d4 = Document()
+    add_reference_objects(d4, [{"citekey": "d2019", "raw_text": "D 2019",
+                                "year": "2019", "author": "D", "number": 1}])
+    assert [r.props["ref_source"] for r in d4.objects.values()
+            if r.type == "Reference"] == ["text"]
+
+
+def test_format_bibliography_state_lines():
+    from pdfdrill.commands import _format_bibliography_state
+    props = ([{"ref_source": "bbl", "year": "2020", "bibtex": "@x{}"}] * 3
+             + [{"ref_source": "text", "year": "2019"}] * 2
+             + [{"ref_source": "bib", "year": "2021", "bibtex": "@y{}",
+                 "bibfetched": True}])
+    lines = _format_bibliography_state(props, cites=4)
+    head = lines[0]
+    assert "6 entries" in head
+    assert "3 from .bbl (compiled)" in head and "2 from text" in head
+    assert "1 from .bib" in head
+    assert "4 with full BibTeX" in lines[1] and "4 in-text citations linked" in lines[1]
+    assert any("bibfetch" in l and "1" in l for l in lines)      # the warning line
+    assert _format_bibliography_state([]) == []                  # empty → no lines
+
+
 def _doc_numbered_section_heading_refs():
     # the real VLDB/IEEE failure (p1713-suchanek "5. REFERENCES",
     # p1521-yahya "7. REFERENCES"): an all-caps heading carrying its section

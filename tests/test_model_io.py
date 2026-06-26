@@ -69,6 +69,23 @@ def test_stale_sidecar_is_ignored():
         assert back.objects["p1"].props["text"] == "CHANGED"
 
 
+def test_load_docgraph_ignores_stale_sidecar():
+    """load_docgraph must honor an out-of-band newer .docmodel.json (e.g. a
+    command that saved via json.dump and left the .docpack stale) — else
+    read-path commands like `status` serve stale data."""
+    with tempfile.TemporaryDirectory() as d:
+        mp = Path(d) / "model.docmodel.json"
+        model_io.save_model(mp, _model())                # writes plain + packed
+        import os, time
+        time.sleep(0.01)
+        other = _model(); other.objects["p1"].props["text"] = "CHANGED"
+        mp.write_text(json.dumps(other.to_dict()))       # plain only, stale sidecar
+        os.utime(mp, None)
+        g = model_io.load_docgraph(mp)
+        node = next(n for n in g if n.id == "p1")
+        assert node.props["text"] == "CHANGED"
+
+
 def test_docgraph_llmtext_byte_identical_to_document():
     doc = _model()
     via_doc = LLMTextProjector(OperatorConfig(op="projector",

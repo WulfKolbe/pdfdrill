@@ -453,7 +453,8 @@ def load_bibtex_file(doc, bibtext: str, restrict=None) -> dict:
             r = DocObject(type="Reference", props={
                 "citekey": key, "raw_text": f.get("title") or "",
                 "year": f.get("year") or "", "author": f.get("author") or "",
-                "entry_type": f.get("entry_type") or "misc"})
+                "entry_type": f.get("entry_type") or "misc",
+                "ref_source": "bib"})       # from a .bib file (gold BibTeX)
             r.add_realization(Realization(stream="references", start=anchor,
                                           end=anchor, role="surface",
                                           provenance="bib"))
@@ -513,7 +514,7 @@ def build_bibliography_from_source(doc, source_dir) -> dict:
             m = re.search(r"\\begin\{thebibliography\}.*?\\end\{thebibliography\}",
                           txt, re.S)
             if m:
-                created += ingest_bbl(doc, m.group(0))
+                created += ingest_bbl(doc, m.group(0), source="bibitem")
                 if created:
                     break
     linked = link_citations(doc)
@@ -583,9 +584,13 @@ def parse_bbl(text: str) -> list[dict]:
     return out
 
 
-def ingest_bbl(doc, bbltext: str) -> int:
+def ingest_bbl(doc, bbltext: str, source: str = "bbl") -> int:
     """Create a `Reference` per `\\bibitem` (citekey + alpha label + printed
-    text), each addressable via a `references` stream anchor. Returns count."""
+    text), each addressable via a `references` stream anchor. Returns count.
+
+    `source` records WHERE the \\bibitem block came from: a compiled `.bbl`
+    file (default) or an inline `\\begin{thebibliography}` in the `.tex`
+    (`source="bibitem"`) — surfaced by `status`."""
     from docmodel.core import DocObject, Realization
 
     stream = doc.ensure_stream("references")
@@ -596,10 +601,11 @@ def ingest_bbl(doc, bbltext: str) -> int:
         obj = DocObject(type="Reference", props={
             "citekey": e["citekey"], "label": e["label"], "number": e["number"],
             "raw_text": e["text"], "author": e.get("author", ""),
-            "year": e.get("year", ""), "entry_type": "misc"})
+            "year": e.get("year", ""), "entry_type": "misc",
+            "ref_source": source})
         obj.add_realization(Realization(stream="references", start=anchor,
                                         end=anchor, role="surface",
-                                        provenance="bbl"))
+                                        provenance=source))
         doc.add(obj)
         n += 1
     return n
@@ -660,6 +666,7 @@ def add_reference_objects(doc, entries: list[dict]) -> int:
             "author": e["author"],
             "number": e.get("number"),
             "entry_type": "misc",          # heuristic; refined by a real grammar
+            "ref_source": "text",          # parsed from the printed/OCR'd refs
         })
         anchors = e.get("anchors") or []
         if anchors:
