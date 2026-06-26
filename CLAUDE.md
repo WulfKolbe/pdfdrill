@@ -1118,6 +1118,35 @@ PHYSICIST BURKHARD HEIM" + "DESY". (Our corpus is preprints, so no ISBN fires;
 the extractor is unit-proven on real ISBN-10/13/ISSN with checksums.) Tests:
 `tests/test_extract_isbn.py` (6), `tests/test_identifiers.py` (5).
 
+## `\appendix` → TOC connection (lettered appendix sections, 2026-06-26)
+
+The TOC analysis now knows where the appendix begins. `latex_source.
+find_appendix_pos(body)` locates `\appendix` (or `\begin{appendices}`);
+`extract_sections` flags every following section `is_appendix`, and
+`build_source_model` carries the flag onto the Section objects. **"If LaTeX is
+available it must be used":** `latex_source.mark_appendix_from_source(doc,
+src_dir)` overlays the source `\appendix` onto ANY model — including a
+MathPix/OCR model that has no `\appendix` signal — by sequential caption
+alignment that is **tail-sticky** (once the boundary is crossed every later
+section is appendix, so a large appendix with MathPix caption drift is fully
+marked). `cmd_model` auto-runs the overlay whenever the cached arXiv e-print
+`texsrc/` is present (idempotent; reports the count + sets the sidecar
+`appendix_sections`). `docops.projectors.tiddlywiki.fractal_index` became
+appendix-aware: it anchors the index to the MINIMUM section level (so a
+`\section`-only paper numbers 1, 2, 3 — not 1.1, 1.2) and renders appendix
+top-level sections as LETTERS (A, B, …; subsections A.1) — real LaTeX appendix
+numbering, flowing straight into the fractal TOC tiddler. Verified on arXiv
+2110.11150 (neurips_2022, large appendix in `\input{appendixtheory}`): 11/26
+sections flagged, TOC reads `6 Discussion` → `A Theory` → `A.1 Motivation…`.
+`_SECTION_RE` also gained `subsubsection` (was silently unmatched). Tests:
+`tests/test_latexbook.py` (appendix flag, build wiring, overlay onto a
+MathPix-shaped model with caption drift), `tests/test_tiddler_tags_toc.py`
+(letter numbering, min-level anchoring). *Open follow-up (flagged, not built):*
+a compression-preserving **JPEG/PNG→EPS** wrapper (Thomas Merz `jpeg2ps`-style
+PostScript DCTDecode embedding — ImageMagick `convert` RE-ENCODES and bloats) is
+needed when a TikZ/figure `\includegraphics` pulls in a JPG on the
+latex→dvips→dvisvgm route; no such tool is installed.
+
 ## Book TOC layer — greppable, printed→PDF page-aligned (`pdfdrill booktoc`)
 
 A book's printed TOC pairs each chapter/section with its PRINTED page number,

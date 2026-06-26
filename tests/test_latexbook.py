@@ -64,6 +64,72 @@ def test_build_source_model_expands_style_macros():
         assert doc.meta["source_counts"]["macros"] >= 2
 
 
+def test_extract_sections_marks_appendix():
+    r"""\appendix switches every following section into the appendix — the
+    2110.11150 'large appendix' case. extract_sections must flag them so the
+    TOC analysis can letter them (A, B, ...)."""
+    body = (r"\section{Intro} a \section{Method} b "
+            r"\appendix \section{Proofs} c \subsection{Lemmas} d")
+    secs = ls.extract_sections(body)
+    assert [(s["caption"], s.get("is_appendix", False)) for s in secs] == [
+        ("Intro", False), ("Method", False), ("Proofs", True), ("Lemmas", True)]
+    # the \begin{appendices} environment form is recognised too
+    secs2 = ls.extract_sections(r"\section{Body} x \begin{appendices}\section{Extra} y")
+    assert [s.get("is_appendix", False) for s in secs2] == [False, True]
+    assert ls.find_appendix_pos(r"\section{X} no appendix here") == -1
+
+
+def test_mark_appendix_from_source_overlays_onto_mathpix_model():
+    r"""A MathPix/OCR model has Section objects but no \appendix knowledge. With
+    the arXiv LaTeX source on hand (the 2110.11150 case), overlay it: every
+    model section at/after the source \appendix is flagged. Tail-sticky, so it
+    survives MathPix caption drift in the (large) appendix."""
+    from docmodel.core import Document, DocObject
+    with tempfile.TemporaryDirectory() as dd:
+        d = Path(dd)
+        (d / "main.tex").write_text(
+            "\\documentclass{article}\n\\begin{document}\n"
+            "\\section{Introduction}\n\\section{Method}\n\\section{Experiments}\n"
+            "\\appendix\n\\section{Theory}\n\\section{More Experiments}\n"
+            "\\end{document}\n", encoding="utf-8")
+        doc = Document(); doc.meta["bibkey"] = "z"
+        # MathPix-style sections: same order, slight caption drift, NO is_appendix
+        caps = ["Introduction", "Method", "Experiments", "Theory",
+                "More Experiments and extra OCR words"]
+        for i, c in enumerate(caps, 1):
+            doc.add(DocObject(type="Section",
+                              props={"caption": c, "level": 2, "flow_index": i}))
+        n = ls.mark_appendix_from_source(doc, str(d))
+        secs = sorted((o for o in doc.objects.values() if o.type == "Section"),
+                      key=lambda o: o.props["flow_index"])
+        assert n == 2
+        assert [s.props.get("is_appendix", False) for s in secs] == [
+            False, False, False, True, True]
+        # no appendix in source → no-op
+        (d / "main.tex").write_text(
+            "\\documentclass{article}\n\\begin{document}\n\\section{A}\n"
+            "\\end{document}\n", encoding="utf-8")
+        assert ls.mark_appendix_from_source(Document(), str(d)) == 0
+
+
+def test_build_source_model_marks_appendix_sections():
+    with tempfile.TemporaryDirectory() as dd:
+        tex = Path(dd) / "main.tex"
+        tex.write_text(
+            "\\documentclass{article}\n\\begin{document}\n"
+            "\\section{Intro}\nbody one.\n\\section{Method}\nbody two.\n"
+            "\\appendix\n\\section{Proofs}\nappendix one.\n"
+            "\\subsection{Lemmas}\nappendix two.\n\\end{document}\n",
+            encoding="utf-8")
+        doc = ls.build_source_model(str(tex), bibkey="z")
+        secs = sorted((o for o in doc.objects.values() if o.type == "Section"),
+                      key=lambda o: o.props.get("flow_index", 0))
+        assert [s.props.get("caption") for s in secs] == [
+            "Intro", "Method", "Proofs", "Lemmas"]
+        assert [s.props.get("is_appendix", False) for s in secs] == [
+            False, False, True, True]
+
+
 def test_build_source_model_flow_order():
     with tempfile.TemporaryDirectory() as dd:
         book = _make_book(Path(dd))

@@ -477,7 +477,18 @@ def _clean_eq(inner: str, env: str = "") -> str:
     return s
 
 
-_SECTION_RE = re.compile(r"\\(part|chapter|section|subsection)\*?\{")
+_SECTION_RE = re.compile(
+    r"\\(part|chapter|subsubsection|subsection|section)\*?\{")
+
+# `\appendix` (or the appendix-package `\begin{appendices}`) switches every
+# following \section into the appendix (lettered A, B, … in real LaTeX output).
+_APPENDIX_RE = re.compile(r"\\appendix\b|\\begin\{appendices\}")
+
+
+def find_appendix_pos(body: str) -> int:
+    """Source position where the appendix begins, or -1 if there is none."""
+    m = _APPENDIX_RE.search(body)
+    return m.start() if m else -1
 
 # Environments that need a real LaTeX→SVG render (KaTeX can't do them).
 # NOTE: `array` is intentionally excluded — it is a math-mode matrix/cases
@@ -546,13 +557,87 @@ def extract_abstract(body: str) -> "dict | None":
 def extract_sections(body: str) -> list[dict]:
     """Headings in document order: {level, caption, pos}. Levels 1..4."""
     level = {"part": 1, "chapter": 1, "section": 2, "subsection": 3, "subsubsection": 4}
+    appendix_pos = find_appendix_pos(body)
     out = []
     for m in _SECTION_RE.finditer(body):
         kind = m.group(1)
         cap = _balanced(body, m.end() - 1)[1:-1]
-        out.append({"level": level.get(kind, 2), "caption": _norm(cap),
-                    "kind": kind, "pos": m.start()})
+        d = {"level": level.get(kind, 2), "caption": _norm(cap),
+             "kind": kind, "pos": m.start()}
+        if 0 <= appendix_pos <= m.start():
+            d["is_appendix"] = True
+        out.append(d)
     return out
+
+
+def _cap_key(cap: str) -> str:
+    """Loose caption key for cross-source matching: lowercase alphanumerics of
+    the first few words (tolerates MathPix/OCR drift, dropped \\ref{}, etc.)."""
+    cap = re.sub(r"\\[A-Za-z]+\*?(\{[^}]*\})?", " ", cap or "")   # drop \cmd / \ref{}
+    return re.sub(r"[^a-z0-9]", "", cap.lower())[:16]
+
+
+def _cap_match(a: str, b: str) -> bool:
+    ka, kb = _cap_key(a), _cap_key(b)
+    if not ka or not kb:
+        return False
+    return ka == kb or ka.startswith(kb) or kb.startswith(ka)
+
+
+def mark_appendix_from_source(doc, src_dir: str) -> int:
+    """Overlay the LaTeX-source `\\appendix` onto a model's Section objects.
+
+    A MathPix/OCR model carries Section objects but no `\\appendix` signal; when
+    the arXiv e-print source is on hand (the "if LaTeX is available it must be
+    used" rule) this flags every model Section at/after the source `\\appendix`
+    as `is_appendix`. Sequential caption alignment (both lists are in document
+    order) finds the boundary; once crossed it is TAIL-STICKY (every later
+    section is appendix), so a large appendix with MathPix caption drift is
+    still fully marked. Idempotent; returns the number flagged."""
+    main = None
+    paths = {}
+    try:
+        for root, _dirs, files in os.walk(src_dir):
+            for fn in files:
+                if fn.endswith(".tex"):
+                    p = os.path.join(root, fn)
+                    try:
+                        paths[p] = open(p, encoding="utf-8", errors="replace").read()
+                    except OSError:
+                        paths[p] = ""
+        main = find_main_tex(paths)
+    except OSError:
+        return 0
+    if not main:
+        return 0
+    full, _ = read_source(main)
+    _pre, body = split_preamble(full)
+    if find_appendix_pos(body) < 0:
+        return 0
+    src_secs = extract_sections(body)
+    model_secs = sorted((o for o in doc.objects.values() if o.type == "Section"),
+                        key=lambda o: o.props.get("flow_index") or 0)
+    marked = 0
+    j = 0
+    in_app = False
+    for s in model_secs:
+        if in_app:
+            s.props["is_appendix"] = True
+            marked += 1
+            continue
+        cap = s.props.get("caption") or ""
+        if not cap:
+            continue
+        k = j
+        while k < len(src_secs) and not _cap_match(src_secs[k]["caption"], cap):
+            k += 1
+        if k < len(src_secs):
+            j = k + 1
+            if src_secs[k].get("is_appendix"):
+                in_app = True
+                s.props["is_appendix"] = True
+                marked += 1
+    return marked
 
 
 # --------------------------------------------------------------------------- #
@@ -894,7 +979,8 @@ def build_source_model(tex_path: str, bibkey: str = "DOC") -> "object":
         if kind == "section":
             s_obj = DocObject(type="Section", props={
                 "level": it["level"], "caption": it["caption"],
-                "flow_index": fi, "bibkey": bibkey})
+                "flow_index": fi, "bibkey": bibkey,
+                **({"is_appendix": True} if it.get("is_appendix") else {})})
             doc.add(s_obj)
             current_section = s_obj.id
             n_sec += 1

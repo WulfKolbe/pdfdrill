@@ -2129,7 +2129,35 @@ def cmd_model(pdf: Path, force: bool = False, bibkey: str | None = None) -> str:
                 f"it folds them into the lines.json as real Equation nodes and "
                 f"rebuilds. (Alternatively `pdfdrill remath {pdf.name}` rebuilds "
                 f"each whole page as MathPix-Markdown.)")
-    return _format_model(sc)
+
+    # "If LaTeX is available it must be used": when the arXiv e-print source is
+    # cached (texsrc/), overlay its \appendix onto the model's sections so the
+    # TOC/fractal index letters the appendix (A, B, …) even on a MathPix model.
+    n_app = _overlay_appendix_from_source(sc, model_path)
+    base = _format_model(sc)
+    if n_app:
+        base += (f" {n_app} section(s) flagged as appendix (from the LaTeX "
+                 f"\\appendix in the e-print source).")
+    return base
+
+
+def _overlay_appendix_from_source(sc: "Sidecar", model_path: Path) -> int:
+    """Mark model Section objects at/after the source `\\appendix` (idempotent).
+    No-op when no cached `texsrc/` source or no `\\appendix` is present."""
+    src_dir = sc.blob_dir / "texsrc"
+    if not src_dir.is_dir():
+        return 0
+    from . import latex_source as ls, model_io
+    try:
+        doc = model_io.load_model(model_path)
+        n = ls.mark_appendix_from_source(doc, str(src_dir))
+    except Exception:
+        return 0
+    if n:
+        model_io.save_model(model_path, doc)
+        sc.set_evidence("appendix_sections", n)
+        sc.save()
+    return n
 
 
 def _format_model(sc: Sidecar) -> str:

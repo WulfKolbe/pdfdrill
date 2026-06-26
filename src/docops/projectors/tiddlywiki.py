@@ -102,23 +102,51 @@ _TIKZ = re.compile(r"\\begin\{(?:tikzpicture|tikzcd|circuitikz)\}|\\tikz\b"
                    r"|\\(?:draw|node|tikzset|usetikzlibrary)\b")
 
 
+def _alpha_label(n: int) -> str:
+    """1->A, 2->B, … 26->Z, 27->AA (spreadsheet-column style) — LaTeX's
+    appendix top-level numbering."""
+    s = ""
+    while n > 0:
+        n, r = divmod(n - 1, 26)
+        s = chr(ord("A") + r) + s
+    return s
+
+
 def fractal_index(doc) -> dict[str, str]:
     """Hierarchical section number (1, 1.1, 2, 2.3, 2.3.1) per Section id,
     from the flow-ordered sections + their `level`. This is the chapter.
     section.subsection index the TOC/xref needs — distinct from the model's
-    `section_number`, which is only a flat sequential counter."""
+    `section_number`, which is only a flat sequential counter.
+
+    Two refinements: the index is anchored to the MINIMUM section level present
+    (so a `\\section`-only paper numbers 1, 2, 3 — not 1.1, 1.2), and sections
+    flagged `is_appendix` (set from the LaTeX `\\appendix`) get LETTERED
+    top-level numbers (A, B, …; subsections A.1) — connecting `\\appendix` to
+    the TOC analysis."""
     secs = sorted((o for o in doc.objects_of_type("Section")),
                   key=lambda o: o.props.get("flow_index") or 0)
+    if not secs:
+        return {}
+    base = min(max(1, int(s.props.get("level") or 1)) for s in secs)
     counters: list[int] = []
     out: dict[str, str] = {}
+    in_appendix = False
     for s in secs:
         lvl = max(1, int(s.props.get("level") or 1))
-        if lvl <= len(counters):
-            counters = counters[:lvl]
-            counters[lvl - 1] += 1
+        rel = lvl - base + 1                       # 1-based level relative to top
+        if s.props.get("is_appendix") and not in_appendix:
+            in_appendix = True
+            counters = []                          # restart top counter for A, B, …
+        if rel <= len(counters):
+            counters = counters[:rel]
+            counters[rel - 1] += 1
         else:
-            counters += [1] * (lvl - len(counters))
-        out[s.id] = ".".join(str(c) for c in counters)
+            counters += [1] * (rel - len(counters))
+        if in_appendix:
+            out[s.id] = ".".join(_alpha_label(c) if i == 0 else str(c)
+                                 for i, c in enumerate(counters))
+        else:
+            out[s.id] = ".".join(str(c) for c in counters)
     return out
 
 

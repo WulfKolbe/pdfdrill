@@ -48,6 +48,31 @@ def test_fractal_index_from_tree():
     assert fi["s1"] == "1" and fi["s2"] == "2" and fi["s3"] == "2.1"
 
 
+def test_fractal_index_letters_appendix_sections():
+    """\\appendix → TOC connection: appendix top-level sections are lettered
+    A, B, ... (real LaTeX appendix numbering); their subsections become A.1."""
+    doc = Document(); doc.meta["bibkey"] = "T"
+    doc.add(DocObject(type="Section", id="s1", props={"caption": "Intro", "level": 1, "flow_index": 1}))
+    doc.add(DocObject(type="Section", id="s2", props={"caption": "Method", "level": 1, "flow_index": 2}))
+    doc.add(DocObject(type="Section", id="a1", props={"caption": "Proofs", "level": 1, "flow_index": 3, "is_appendix": True}))
+    doc.add(DocObject(type="Section", id="a11", props={"caption": "Lemmas", "level": 2, "flow_index": 4, "is_appendix": True}))
+    doc.add(DocObject(type="Section", id="a2", props={"caption": "More", "level": 1, "flow_index": 5, "is_appendix": True}))
+    fi = fractal_index(doc)
+    assert fi["s1"] == "1" and fi["s2"] == "2"
+    assert fi["a1"] == "A" and fi["a11"] == "A.1" and fi["a2"] == "B"
+
+
+def test_fractal_index_top_level_for_section_only_paper():
+    """A paper with only \\section (level 2 in our map) numbers its top sections
+    1, 2, 3 — not 1.1, 1.2 — by anchoring the index to the minimum level."""
+    doc = Document(); doc.meta["bibkey"] = "P"
+    for i, lvl in enumerate([2, 2, 3, 2], 1):
+        doc.add(DocObject(type="Section", id=f"x{i}",
+                          props={"caption": f"S{i}", "level": lvl, "flow_index": i}))
+    fi = fractal_index(doc)
+    assert fi["x1"] == "1" and fi["x2"] == "2" and fi["x3"] == "2.1" and fi["x4"] == "3"
+
+
 def test_bibtex_tag_on_header_and_references():
     t = _proj(_doc())
     assert "bibtex" in t["T"]["tags"].split()                # document header
