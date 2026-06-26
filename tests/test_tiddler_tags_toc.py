@@ -73,6 +73,30 @@ def test_fractal_index_top_level_for_section_only_paper():
     assert fi["x1"] == "1" and fi["x2"] == "2" and fi["x3"] == "2.1" and fi["x4"] == "3"
 
 
+def test_caption_to_wikitext_resolves_refs():
+    from docops.projectors.tiddlywiki import caption_to_wikitext
+    lt = {"eq:DNN": "DOC_EQ0003"}
+    # unresolved theorem label → readable (label), font unwrapped, ~ → space
+    assert caption_to_wikitext(r"\texttt{Scaling}: Proof of Lemma~\ref{thm:scaling}",
+                               lt) == "Scaling: Proof of Lemma (thm:scaling)"
+    # known equation label → a <$link> to its tiddler
+    out = caption_to_wikitext(r"see \eqref{eq:DNN}", lt)
+    assert '<$link to="DOC_EQ0003">eq:DNN</$link>' in out
+
+
+def test_section_tiddler_caption_field_and_latex():
+    doc = Document(); doc.meta["bibkey"] = "T"
+    doc.add(DocObject(type="Equation", id="e1", props={
+        "latex": "x", "label": "eq:DNN", "flow_index": 1}))
+    doc.add(DocObject(type="Section", id="s1", props={
+        "caption": r"Proof of Lemma~\ref{thm:scaling}", "level": 1, "flow_index": 2}))
+    t = _proj(doc)
+    h = next(v for k, v in t.items() if v.get("kind") == "section" or "_H" in k)
+    assert h["text"].startswith("! {{!!caption}}")          # caption transcluded in text
+    assert h["caption"] == "Proof of Lemma (thm:scaling)"   # \ref resolved/cleaned
+    assert h["caption_latex"] == r"Proof of Lemma~\ref{thm:scaling}"   # raw kept
+
+
 def test_bibtex_tag_on_header_and_references():
     t = _proj(_doc())
     assert "bibtex" in t["T"]["tags"].split()                # document header

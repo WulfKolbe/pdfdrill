@@ -1147,6 +1147,29 @@ PostScript DCTDecode embedding — ImageMagick `convert` RE-ENCODES and bloats) 
 needed when a TikZ/figure `\includegraphics` pulls in a JPG on the
 latex→dvips→dvisvgm route; no such tool is installed.
 
+## Section-caption `\ref` handling + transcluded caption (2026-06-26)
+
+A section heading like `2110.11150_H19` "Scaling relationship: Proof of
+Lemma~\ref{thm:scaling}" carried a RAW `\ref` and never showed its own caption.
+`tiddlywiki.caption_to_wikitext(caption, label_to_title)` now renders a LaTeX
+caption as TiddlyWiki: the `\ref`-family (`\ref`/`\eqref`/`\cref`/`\autoref`/…)
+resolves to a `<$link>` when the label is known (the projector builds
+`label_to_title` from every object carrying `props["label"]` — equations,
+algorithms, …), else shows a readable `(label)`; `\texttt`/`\textbf`/… font
+wrappers are unwrapped and `~` ties become spaces. Each Section tiddler now: (a)
+leads its **text** with `! {{!!caption}}` (the heading transcludes the caption
+field), (b) stores the resolved wikitext in **`caption`**, and (c) preserves the
+verbatim LaTeX on **`caption_latex`** (only when the caption carried LaTeX).
+`tiddler_integrity` ignores `{{!!field}}`, so this adds 0 dangling. Verified on
+2110.11150: H19 → caption `Scaling relationship: Proof of Lemma (thm:scaling)`,
+caption_latex the raw `…~\ref{thm:scaling}`, text `! {{!!caption}}`. **The
+`thm:scaling` label resolves to a `<$link>` automatically once theorem/proof
+objects exist** (the next step — extract `\begin{theorem}`/`proof` blocks as
+Theorem/Proof DocObjects with `label`/number, paired and transcluded; the env
+census in `doc.meta["environments"]` + this label resolver are the groundwork).
+Tests: `tests/test_tiddler_tags_toc.py` (`caption_to_wikitext`, section caption
+field + caption_latex).
+
 ## Book TOC layer — greppable, printed→PDF page-aligned (`pdfdrill booktoc`)
 
 A book's printed TOC pairs each chapter/section with its PRINTED page number,

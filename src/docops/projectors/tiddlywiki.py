@@ -102,6 +102,37 @@ _TIKZ = re.compile(r"\\begin\{(?:tikzpicture|tikzcd|circuitikz)\}|\\tikz\b"
                    r"|\\(?:draw|node|tikzset|usetikzlibrary)\b")
 
 
+_REF_CMD = re.compile(
+    r"\\(?:eqref|autoref|cref|Cref|cpageref|pageref|nameref|ref)\s*\{([^}]+)\}")
+_CAPTION_FONT = re.compile(
+    r"\\(?:texttt|textbf|textit|textsf|textrm|textsc|emph|mathrm|mathbf)"
+    r"\s*\{([^{}]*)\}")
+
+
+def caption_to_wikitext(caption: str, label_to_title: dict) -> str:
+    r"""Render a LaTeX section/float caption as TiddlyWiki: resolve the
+    `\ref`-family to a `<$link>` when the label is known (an equation/algorithm/
+    section we have a tiddler for), else show the bare `(label)`; unwrap
+    `\texttt`/`\textbf`/… font commands; turn `~` ties into spaces. The raw
+    LaTeX is kept separately on the tiddler's `caption_latex` field, and the
+    text transcludes this via `{{!!caption}}`.
+
+    A `\ref` to a theorem/lemma label (e.g. `thm:scaling`) stays `(thm:scaling)`
+    until theorem/proof objects are extracted — then it resolves to the link."""
+    if not caption:
+        return caption or ""
+    s = caption.replace("~", " ")
+    s = _CAPTION_FONT.sub(r"\1", s)
+
+    def _ref(m):
+        lab = m.group(1).strip()
+        tgt = label_to_title.get(lab)
+        return f'<$link to="{tgt}">{lab}</$link>' if tgt else f"({lab})"
+
+    s = _REF_CMD.sub(_ref, s)
+    return re.sub(r"[ \t]+", " ", s).strip()
+
+
 def _alpha_label(n: int) -> str:
     """1->A, 2->B, … 26->Z, 27->AA (spreadsheet-column style) — LaTeX's
     appendix top-level numbering."""
@@ -458,16 +489,28 @@ class TiddlyWikiProjector(BaseProjector):
             self.bump("para_tiddlers")
             out.append(t)
 
-        # Sections (with body listing children as transclusions in flow order).
+        # label -> tiddler title, for resolving \ref in captions (equations,
+        # algorithms, …; theorem/proof labels resolve once those objects exist).
+        label_to_title = {
+            lab: title[o.id] for o in doc.objects.values()
+            if (lab := (o.props.get("label") or "").strip()) and o.id in title}
+
+        # Sections: the text leads with `! {{!!caption}}` (the heading renders
+        # the caption field), the caption field is \ref-resolved wikitext, and
+        # the verbatim LaTeX caption is preserved on `caption_latex`.
         for s in inv["sections"]:
-            body = self._section_body(s, doc, title)
+            raw_cap = s.props.get("caption") or ""
+            cap = caption_to_wikitext(raw_cap, label_to_title)
+            body = "! {{!!caption}}\n\n" + self._section_body(s, doc, title)
             t = self._t(
                 title[s.id], body,
                 f"section {_bibtag(bibkey)}",
             )
             t["level"] = str(s.props.get("level", 1))
             t["section_number"] = s.props.get("section_number") or ""
-            t["caption"] = s.props.get("caption") or ""
+            t["caption"] = cap
+            if raw_cap != cap:                       # caption carried LaTeX (\ref/font)
+                t["caption_latex"] = raw_cap
             t["page"] = self._p3(s.props.get("page"))
             t["kind"] = s.props.get("cmd") or "section"
             if s.parent and s.parent in title:
