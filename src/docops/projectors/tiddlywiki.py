@@ -742,9 +742,13 @@ class TiddlyWikiProjector(BaseProjector):
                 continue
             fi = fidx.get(s.id, "")
             pg = s.props.get("page")
-            pg_s = f"p. {int(pg)}" if pg is not None else ""
-            indent = "*" * max(1, (fi.count(".") + 1))
-            toc_rows.append(f"{indent} {fi} [[{cap}|{title[s.id]}]] {pg_s}".rstrip())
+            pg_s = f" — p. {int(pg)}" if pg is not None else ""
+            # Markdown nested list: 2-space indent per level (NOT `*`*depth, which
+            # is bold in Markdown), `-` bullet, a <$link> widget the Markdown
+            # plugin renders (NOT a `[[cap|title]]` wikilink).
+            indent = "  " * fi.count(".")
+            toc_rows.append(
+                f'{indent}- {fi} <$link to="{title[s.id]}">{cap}</$link>{pg_s}'.rstrip())
         toc_body = "\n".join(toc_rows)
         for toc in inv["tocs"]:
             t = self._t(title[toc.id], toc_body, f"toc {_bibtag(bibkey)}")
@@ -851,7 +855,8 @@ class TiddlyWikiProjector(BaseProjector):
         root = self._t(
             bibkey,
             self._root_body(bibkey, doc_caption, inv["pages"], inv["sections"],
-                            inv["paragraphs"], inv["equations"], inv["formulas"]),
+                            inv["paragraphs"], inv["equations"], inv["formulas"],
+                            title),
             f"document bibtex {_bibtag(bibkey)}",
         )
         root["caption"] = doc_caption
@@ -1098,28 +1103,40 @@ class TiddlyWikiProjector(BaseProjector):
                 lines.append("{{" + t + "}}")
         if subsection_titles:
             lines.append("")
-            lines.append("!! Subsections")
+            lines.append("## Subsections")              # markdown heading
             for st in subsection_titles:
-                lines.append("* <$link to=\"" + st + "\">{{" + st + "!!caption}}</$link>")
+                lines.append("- <$link to=\"" + st + "\">{{" + st + "!!caption}}</$link>")
         return "\n\n".join(lines)
 
     @staticmethod
-    def _root_body(bibkey, caption, pages, sections, paragraphs, equations, formulas) -> str:
+    def _root_body(bibkey, caption, pages, sections, paragraphs, equations,
+                   formulas, title) -> str:
+        """Markdown document tiddler: `#`/`##` headings, `-` stat list, and a
+        STATIC list of `<$link>` widgets to the top-level sections (the Markdown
+        plugin renders widgets; a `<$list>` filter + `<<sec>>` macro would not)."""
         heading = caption if caption and caption != bibkey else bibkey
-        return (
-            f"! {heading}\n\n"
-            + (f"*{bibkey}*\n\n" if heading != bibkey else "")
-            + f"* Total Pages: {len(pages)}\n"
-            f"* Total Sections: {len(sections)}\n"
-            f"* Total Paragraphs: {len(paragraphs)}\n"
-            f"* Total Equations: {len(equations)}\n"
-            f"* Total Formulas: {len(formulas)}\n\n"
-            f"!! Top-level Sections\n\n"
-            f"<$list filter=\"[tag[section]{_bibtag(bibkey)}]!has[parent_section]] "
-            f"[tag[section]parent_section[{bibkey}]]\" variable=\"sec\">\n"
-            f"  * <$link to=<<sec>>><<sec>></$link>\n"
-            f"</$list>\n"
-        )
+        lines = [f"# {heading}", ""]
+        if heading != bibkey:
+            lines += [f"*{bibkey}*", ""]
+        lines += [
+            f"- Pages: {len(pages)}",
+            f"- Sections: {len(sections)}",
+            f"- Paragraphs: {len(paragraphs)}",
+            f"- Equations: {len(equations)}",
+            f"- Formulas: {len(formulas)}",
+            "",
+            "## Top-level Sections",
+            "",
+        ]
+        for s in sections:
+            if s.props.get("parent_section"):
+                continue                                # top-level only
+            ttl = title.get(s.id)
+            if not ttl:
+                continue
+            cap = (s.props.get("caption") or ttl).strip()
+            lines.append(f'- <$link to="{ttl}">{cap}</$link>')
+        return "\n".join(lines) + "\n"
 
     # ----- helpers -----
 

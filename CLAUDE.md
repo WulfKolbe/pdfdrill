@@ -1147,6 +1147,35 @@ PostScript DCTDecode embedding — ImageMagick `convert` RE-ENCODES and bloats) 
 needed when a TikZ/figure `\includegraphics` pulls in a JPG on the
 latex→dvips→dvisvgm route; no such tool is installed.
 
+## Root/TOC/section tiddlers adapted to Markdown + `.md`/`.md.meta` export (2026-06-26)
+
+Following the `text/markdown` switch, the BIBKEY (root), TOC and `*_H*` (section)
+tiddler bodies — written for WikiText — are now Markdown:
+- **TOC** (`*_TOC`): was `"*"*depth` nesting (which is **bold** in Markdown — a
+  real bug) + `[[cap|title]]` wikilinks. Now a Markdown nested list (2-space
+  indent per fractal level, `-` bullet) with a `<$link to="…">cap</$link>` widget
+  (the Markdown plugin renders widgets) — `1`, then indented `1.1`, `1.2`, ….
+- **Root** (`_root_body`): `#`/`##` headings, `-` stat list, and a STATIC list of
+  `<$link>` widgets to the top-level sections (the old `<$list filter>` + `<<sec>>`
+  macro doesn't render under Markdown; the static list is also deterministic). Now
+  takes the `title` map.
+- **Section** (`_section_body`): `## Subsections` + `-` `<$link>` bullets.
+Verified on 2110.11150 (no `**` bold in the TOC; `<$link>` links throughout).
+
+**`.md`/`.md.meta` export — `tools/tiddlers_to_md.py`.** The Claude.ai-sandbox
+TiddlyWiki stores each tiddler as a FILE: this minimal stdlib tool reads a
+`<bibkey>.tiddlers.json` and writes, under `<out>/<bibkey>/`, one `<title>.md`
+(the `text`) + `<title>.md.meta` (the other fields, one `field: value` per line —
+identity fields lead, rest sorted). So a SKILL can point at an exact path from the
+bibkey-prefixed title (`2110.11150_H19.md`), and the wiki index lists them.
+Templates are exported too (so `{{id||TPL}}` resolves). Caveat: `.meta` fields are
+single-line, so a multi-line field (`lean4`, `svg_tiddler`) has its newlines
+collapsed — read those verbatim from the `.json`. `export_tiddlers(tiddlers,
+out, bibkey)` is importable; `python3 tools/tiddlers_to_md.py <json> [--out DIR]`.
+Verified: 2110.11150 → 369 `.md`+`.md.meta` pairs. **Deferred (user):** reference-
+list-driven features per tiddler. Tests: `tests/test_tiddlers_to_md.py`,
+`tests/test_tiddler_tags_toc.py` (markdown TOC).
+
 ## LEAN4 export — STORE then PROJECT (`pdfdrill lean`, 2026-06-26)
 
 The capstone over theorem/proof extraction, built to the user's architecture:
