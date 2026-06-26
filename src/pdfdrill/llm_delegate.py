@@ -221,7 +221,26 @@ def _run_cli(task: LLMTask, *, timeout: float, model: Optional[str]) -> dict:
         text = _cli_invoke(task.prompt, system=_SYSTEM_BIB, allow_read=False,
                           timeout=timeout, model=model)
         return _parse_bib(task.kind, text)
+    elif task.kind == "lean":
+        text = _cli_invoke(task.prompt, system=_SYSTEM_LEAN, allow_read=False,
+                          timeout=timeout, model=model)
+        return {"lean": _parse_lean(text)}
     raise ValueError(f"unknown task kind: {task.kind!r}")
+
+
+_SYSTEM_LEAN = (
+    "You are pdfdrill's LaTeX-to-Lean4 fallback. Translate the given statement "
+    "to Lean 4 / Mathlib. Return ONLY the Lean code (a fenced ```lean block is "
+    "fine), no commentary."
+)
+
+
+def _parse_lean(text: str) -> str:
+    """Pull the Lean code out of an LLM reply: prefer a fenced ```lean block,
+    else strip a generic fence, else the raw text."""
+    import re as _re
+    m = _re.search(r"```(?:lean4?|)\s*\n(.*?)```", text, _re.S | _re.I)
+    return (m.group(1) if m else text).strip()
 
 
 # Image task kinds that can share ONE claude -p call (see _run_cli_batch).
@@ -508,6 +527,8 @@ def _read_response(task: LLMTask, llm_dir: Path) -> Optional[dict]:
         return result if isinstance(result, dict) else _parse_page_md(str(result))
     if task.kind == "eq_ocr":
         return result if isinstance(result, dict) else _parse_eq_ocr(str(result))
+    if task.kind == "lean":
+        return result if isinstance(result, dict) else {"lean": _parse_lean(str(result))}
     return result if isinstance(result, dict) else _parse_bib(task.kind, str(result))
 
 

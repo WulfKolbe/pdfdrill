@@ -1372,6 +1372,34 @@ commands:
   - name: compile
     flag: --compile
     type: flag
+- name: lean
+  section: Introspection (fast, no extraction)
+  summary: 'Export theorems to Lean 4: STORE LLM-generated Lean per Theorem (props/tiddler
+    lean4 field, like bibfetch) then PROJECT <bibkey>.lean from the stored code (sorry-stub
+    if ungenerated). Needs theorem envs from a LaTeX-source build'
+  offline_ok: true
+  positionals:
+  - name: pdf
+    type: pdf
+    required: true
+    help: PDF path, https URL, or bare arXiv id
+  typed: true
+  requires:
+  - model
+  network: true
+  flags:
+  - name: limit
+    flag: --limit
+    type: int
+    help: cap the number of LLM translations
+  - name: force
+    flag: --force
+    type: flag
+    help: re-generate even theorems that already have stored Lean
+  - name: emit-only
+    flag: --emit-only
+    type: flag
+    help: skip generation, just re-project <bibkey>.lean from stored code
 - name: scikgtex
   section: Introspection (fast, no extraction)
   summary: Project to SciKGTeX-annotated LaTeX → compiled PDF carries ORKG contribution metadata (title/authors/field

@@ -810,6 +810,8 @@ class TiddlyWikiProjector(BaseProjector):
                 t["refnum"] = str(th.props["number"])
             if th.props.get("label"):
                 t["label"] = th.props["label"]
+            if th.props.get("lean4"):           # stored LaTeX→Lean4 (pdfdrill lean)
+                t["lean4"] = th.props["lean4"]
             if th.props.get("parent_section") and th.props["parent_section"] in title:
                 t["parent_section"] = title[th.props["parent_section"]]
             out.append(t)
@@ -822,6 +824,8 @@ class TiddlyWikiProjector(BaseProjector):
             of = pf.props.get("proof_of")
             if of and of in title:
                 t["proof_of"] = title[of]
+            if pf.props.get("lean4"):
+                t["lean4"] = pf.props["lean4"]
             if pf.props.get("parent_section") and pf.props["parent_section"] in title:
                 t["parent_section"] = title[pf.props["parent_section"]]
             out.append(t)

@@ -7973,6 +7973,64 @@ def cmd_stex(pdf: Path, flavor: str = "latex", compile: bool = False) -> str:
             f"{rel}.{note}")
 
 
+def cmd_lean(pdf: Path, limit: int | None = None, force: bool = False,
+             emit_only: bool = False) -> str:
+    """Export theorems to Lean 4 — STORE then PROJECT.
+
+    Stage 1 GENERATES Lean per Theorem via the keyless LLM delegation (the Claude
+    agent / CLI / sandbox, like `bibfetch`) and STORES it on each Theorem
+    (`props['lean4']` + the tiddler `lean4` field). Stage 2 PROJECTS the stored
+    code into `<bibkey>.lean` (a Theorem with no stored Lean → a `sorry` stub;
+    the paired proof is a LaTeX comment). `--emit-only` skips generation and just
+    re-projects from stored code. Needs theorem-like environments from a
+    LaTeX-source build. Auto-chains `model`."""
+    from . import lean_export, llm_delegate as D
+
+    sc = Sidecar(pdf)
+    model_path = _model_path(sc)
+    if _stale_or_absent(sc, model_path, _lines_json_path(pdf)):
+        cmd_model(pdf)
+        sc = Sidecar(pdf)
+        model_path = _model_path(sc)
+    if not model_path.exists():
+        return f"No model for {pdf.name} (run `pdfdrill model` first)."
+    doc = load_model(model_path)
+    theorems = [o for o in doc.objects.values() if o.type == "Theorem"]
+    if not theorems:
+        return (f"No Theorem objects in {pdf.name} — Lean export needs theorem-like "
+                f"environments (\\begin{{theorem}}/lemma/…) from a LaTeX-source build.")
+    key = resolve_bibkey(pdf, None, sc)
+
+    gen_note = ""
+    if not emit_only:
+        try:
+            res = lean_export.generate_lean(
+                doc, drill_dir=sc.blob_dir, limit=limit, force=force)
+        except D.DelegateUnavailable as e:
+            res = None
+            gen_note = (" Generation skipped (no LLM agent/key: "
+                        f"{str(e).splitlines()[0]}) — emitting sorry-stubs.")
+        if res is not None:
+            save_model(model_path, doc)              # persist stored Lean
+            if res["deferred"] is not None:
+                return (res["deferred"].instruction +
+                        f"\n\n{res['generated']}/{res['requested']} Lean translation(s) "
+                        f"ready; re-run `pdfdrill lean {pdf.name}` after answering to "
+                        f"finish and emit the .lean.")
+            gen_note = (f" Generated {res['generated']} new Lean theorem(s) "
+                        f"({res['answered']}/{res['requested']} answered).")
+
+    out = sc.blob_dir / f"{key}.lean"
+    out.parent.mkdir(parents=True, exist_ok=True)
+    out.write_text(lean_export.project_lean(doc), encoding="utf-8")
+    stored = sum(1 for o in theorems if o.props.get("lean4"))
+    return (f"Lean 4 export: {len(theorems)} theorem(s), {stored} with stored Lean "
+            f"(the rest are `sorry` stubs) → {out.relative_to(sc.pdf_path.parent)}.{gen_note} "
+            f"Lean is LLM-sourced (store-then-project) — VERIFY before trusting. "
+            f"Re-run `pdfdrill tiddlers {pdf.name}` to carry the lean4 field onto the "
+            f"theorem tiddlers.")
+
+
 def cmd_scikgtex(pdf: Path, compile: bool = False) -> str:
     """Project the drilled document to SciKGTeX-annotated LaTeX, so the compiled
     PDF carries ORKG contribution metadata as XMP/RDF (title/authors/research

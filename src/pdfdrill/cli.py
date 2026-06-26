@@ -643,6 +643,17 @@ def _do_stex(args):
     return cmd_stex(_pdf(pdf_args), flavor=flavor, compile="--compile" in args)
 
 
+def _do_lean(args):
+    """pdfdrill lean <pdf> [--limit N] [--force] [--emit-only]"""
+    from .commands import cmd_lean
+    limit, args = _opt(args, "--limit")
+    force = "--force" in args
+    emit_only = "--emit-only" in args
+    pdf_args = [a for a in args if a not in ("--force", "--emit-only")]
+    return cmd_lean(_pdf(pdf_args), limit=int(limit) if limit else None,
+                    force=force, emit_only=emit_only)
+
+
 def _do_svg(args):
     """pdfdrill svg <pdf|tex> [--limit N] [--force]"""
     from .commands import cmd_svg
@@ -1369,6 +1380,7 @@ HANDLERS = {
         "rulebook": _do_rulebook,
         "svg": _do_svg,
         "stex": _do_stex,
+        "lean": _do_lean,
         "scikgtex": _do_scikgtex,
         "skill": _do_skill,
         "steps": _do_steps,
