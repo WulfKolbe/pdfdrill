@@ -64,6 +64,31 @@ def test_build_source_model_expands_style_macros():
         assert doc.meta["source_counts"]["macros"] >= 2
 
 
+def test_build_source_model_dedupes_repeated_inline_formula():
+    r"""The 2110.11150 bug: the symbol $f$ used 20 times became 20 separate FO
+    tiddlers. Identical inline-formula content must map to ONE Formula object /
+    one FO tiddler, transcluded everywhere (LATW FormulaScanner parity)."""
+    import re
+    with tempfile.TemporaryDirectory() as dd:
+        tex = Path(dd) / "main.tex"
+        tex.write_text(
+            "\\documentclass{article}\n\\begin{document}\n"
+            "\\section{A}\nWe use $f$ and $g$ and again $f$ here.\n"
+            "\\section{B}\nLater $f$ appears once more, also $g$.\n"
+            "\\end{document}\n", encoding="utf-8")
+        doc = ls.build_source_model(str(tex), bibkey="K")
+        fos = [o for o in doc.objects.values() if o.type == "Formula"]
+        latexes = sorted(o.props.get("latex") for o in fos)
+        assert latexes == ["f", "g"]                       # was [f,f,f,g,g] before
+        # every {{K_FO..||FO}} marker for f resolves to the SAME tiddler title
+        marks = []
+        for p in doc.objects.values():
+            if p.type == "Paragraph":
+                marks += re.findall(r"\{\{(K_FO\d+)\|\|FO\}\}", p.props.get("text", ""))
+        # f appears 3x, g 2x → 5 markers but only 2 distinct titles
+        assert len(marks) == 5 and len(set(marks)) == 2
+
+
 def test_extract_sections_marks_appendix():
     r"""\appendix switches every following section into the appendix — the
     2110.11150 'large appendix' case. extract_sections must flag them so the

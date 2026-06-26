@@ -1880,6 +1880,29 @@ after only info/size is useless". Verified: arXiv 2305.04710 →
 `@article{korfhage2023, …ElasticHash…, author={Korfhage and Mühling and
 Freisleben}, year=2023}`. Tests: `tests/test_bibtex.py`.
 
+## Inline-formula de-duplication on the LaTeX-source path (2026-06-26)
+
+The symbol `$f$` used 20× in a paper became **20 separate `_FO` tiddlers** — a
+duplication impossible in the modular design. Root cause: the MathPix module
+`docmodel/modules/formula.py` (`FormulaProcessor`) ALREADY dedups by content
+(`self._dedupe`: one Formula object + many realizations), but the LaTeX-source
+builder `latex_source.build_source_model` is a MONOLITH that re-implemented
+inline-math extraction WITHOUT that dedup — one Formula object per occurrence.
+Fixed by content-keying (`formula_titles[expanded-latex]`) so identical inline
+math maps to ONE `_FO` tiddler transcluded everywhere, matching LATW's
+`FormulaScanner.processMathExpressions`/`getKeyForFormula` and the MathPix
+module. Verified on arXiv 2110.11150 (source-built): **465 → 273 Formula
+objects**, `f` 20→1, `f_0` 13→1, `L` 12→1; `tiddler_integrity` 0 dangling-FO /
+0 orphan-synthetic. Test: `tests/test_latexbook.py::
+test_build_source_model_dedupes_repeated_inline_formula` (distinct-vs-total
+assertion — the net a per-object explosion needs, since 0-orphan integrity alone
+won't catch it). The broader lesson (the two build paths duplicating logic the
+modules own) is the **modularity audit vs the LATW TypeScript scanners**:
+`docs/superpowers/specs/2026-06-26-modularity-audit-vs-latw.md` (PLAN — extract
+shared scanners so the source path is a pipeline, not a monolith; a both-paths
+parity test matrix; named gaps incl. span-aware tables + margin notes on the
+source path).
+
 ## `_FOX_` synthetic formula tiddlers — content-addressed inline math (reference)
 
 A `<bibkey>_FOX_<sha1[:10]>` tiddler (tag `formula synthetic`) is NOT a defect or

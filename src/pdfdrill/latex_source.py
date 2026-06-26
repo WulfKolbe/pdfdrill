@@ -972,6 +972,7 @@ def build_source_model(tex_path: str, bibkey: str = "DOC") -> "object":
     n_sec = n_eq = n_dia = n_tab = n_para = n_formula = n_abs = n_ltx = 0
     fi = 0
     formula_no = 0
+    formula_titles: dict[str, str] = {}    # content key -> FO title (de-dup)
     ltx_no = 0
     current_section = None        # id of the most recent Section (parent linkage)
     for kind, _pos, it in items:
@@ -1014,14 +1015,26 @@ def build_source_model(tex_path: str, bibkey: str = "DOC") -> "object":
                 original = (mm.group("p") or mm.group("d") or "").strip()
                 if not original:
                     continue
-                formula_no += 1
-                fi += 1
-                doc.add(DocObject(type="Formula", props={
-                    "latex": expand_macros(original, macros),     # KaTeX renders this
-                    "latex_original": original,                   # author's macro source
-                    "display": False, "flow_index": fi, "bibkey": bibkey}))
-                n_formula += 1
-                title = re.sub(r"[^A-Za-z0-9_\-\.]", "_", f"{bibkey}_FO{formula_no:04d}")
+                expanded = expand_macros(original, macros)     # KaTeX renders this
+                # CONTENT DE-DUPLICATION (LATW FormulaScanner / MathPix
+                # FormulaProcessor parity): identical inline math = ONE Formula
+                # tiddler, transcluded everywhere — so the symbol `f` used 20×
+                # is one FO tiddler, not 20. Key on the expanded LaTeX (what
+                # KaTeX renders), whitespace-collapsed.
+                key = re.sub(r"\s+", " ", expanded).strip()
+                if key in formula_titles:
+                    title = formula_titles[key]
+                else:
+                    formula_no += 1
+                    fi += 1
+                    doc.add(DocObject(type="Formula", props={
+                        "latex": expanded,
+                        "latex_original": original,            # author's macro source
+                        "display": False, "flow_index": fi, "bibkey": bibkey}))
+                    n_formula += 1
+                    title = re.sub(r"[^A-Za-z0-9_\-\.]", "_",
+                                   f"{bibkey}_FO{formula_no:04d}")
+                    formula_titles[key] = title
                 out.append(text[last:mm.start()])
                 out.append("{{" + title + "||FO}}")            # transclude the FO tiddler
                 last = mm.end()
