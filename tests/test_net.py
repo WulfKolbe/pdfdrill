@@ -107,6 +107,25 @@ def test_cmd_vision_blocked_returns_message(monkeypatch):
         assert "BLOCKED-MSG" in out
 
 
+def test_urlopen_attaches_browser_user_agent(monkeypatch):
+    captured = {}
+
+    def fake(req, *a, **k):
+        captured["is_request"] = isinstance(req, urllib.request.Request)
+        captured["ua"] = req.get_header("User-agent") if captured["is_request"] else None
+        class _R:
+            def read(self, *a): return b""
+            def __enter__(self): return self
+            def __exit__(self, *a): return False
+        return _R()
+
+    monkeypatch.setattr(urllib.request, "urlopen", fake)
+    net.urlopen("https://aclanthology.org/2020.emnlp-main.434.pdf", timeout=5)
+    # a bare string URL is wrapped in a Request carrying a browser UA (anti-bot)
+    assert captured["is_request"] is True
+    assert captured["ua"] and "Mozilla" in captured["ua"]
+
+
 if __name__ == "__main__":
     class _MP:
         def __init__(self): self._u = []
@@ -116,6 +135,7 @@ if __name__ == "__main__":
             self._u = []
     fns = [test_urlerror_becomes_networkblocked, test_oserror_becomes_networkblocked,
            test_real_http_status_propagates, test_proxy_block_http_becomes_networkblocked,
+           test_urlopen_attaches_browser_user_agent,
            test_cmd_snip_blocked_returns_message, test_cmd_vision_blocked_returns_message]
     for fn in fns:
         mp = _MP()

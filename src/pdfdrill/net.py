@@ -46,12 +46,27 @@ def friendly_message(host: str, detail: object) -> str:
     )
 
 
+# A browser-like User-Agent. Many hosts (aclanthology.org, Cloudflare-fronted
+# sites, …) reject urllib's default "Python-urllib/X.Y" with 403/418 even for a
+# public PDF; a normal UA gets the bytes. Applied to every string-URL request.
+_UA = ("Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 "
+       "(KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36")
+
+
 def urlopen(req, timeout: float | None = None, *, host: str | None = None):
     """`urllib.request.urlopen` that raises `NetworkBlocked` (friendly message)
     on a connection-level failure or an egress-proxy block, and otherwise
     behaves identically (HTTP statuses from the host propagate as `HTTPError`).
+
+    A browser `User-Agent` is attached (string URL → wrapped in a Request; a
+    Request without one → header added) so anti-bot hosts don't 403/418 a public
+    download.
     """
     host = host or _host(req)
+    if isinstance(req, str):
+        req = urllib.request.Request(req, headers={"User-Agent": _UA})
+    elif isinstance(req, urllib.request.Request) and not req.has_header("User-agent"):
+        req.add_header("User-Agent", _UA)
     try:
         if timeout is None:
             return urllib.request.urlopen(req)
