@@ -6575,23 +6575,53 @@ def _format_bibliography_state(ref_props: list[dict], cites: int = 0) -> list[st
     return lines
 
 
-def _bibliography_status_lines(sc: "Sidecar") -> list[str]:
-    """Load the model (cheap DocGraph read, no rebuild) and summarise its
-    Reference state. Empty unless a bibliography has been built."""
-    if not sc.has(BIBLIOGRAPHY_BUILT):
+def _format_environments(env: dict) -> list[str]:
+    """LaTeX-environment lines for `status` from `doc.meta["environments"]`:
+    the used census, theorem-like declarations (\\newtheorem) with theorem/proof
+    block counts (LEAN4-export candidates), and custom \\newenvironment defs."""
+    if not env:
         return []
+    used = env.get("used") or {}
+    nthm = env.get("newtheorem") or []
+    nenv = env.get("newenvironment") or []
+    thm_blocks = env.get("theorem_blocks") or 0
+    proof = env.get("proof_blocks") or 0
+    lines = [f"  LaTeX environments ({len(used)} distinct used, "
+             f"{sum(used.values())} total)"]
+    if nthm:
+        names = ", ".join(t["name"] for t in nthm)
+        lines.append(f"    theorem-like declared (\\newtheorem): {names}")
+    if thm_blocks or proof:
+        lines.append(f"    {thm_blocks} theorem/lemma/def block(s) + {proof} "
+                     f"proof block(s) — theorem–proof pairs (LEAN4 candidates)")
+    if nenv:
+        visible = [n for n in nenv if "@" not in n]      # hide style-internal @-names
+        shown = ", ".join(visible[:10]) + ("…" if len(visible) > 10 else "")
+        lines.append(f"    {len(nenv)} custom \\newenvironment(s)"
+                     + (f": {shown}" if shown else ""))
+    return lines
+
+
+def _model_status_lines(sc: "Sidecar") -> list[str]:
+    """Bibliography + LaTeX-environment status — one DocGraph load (no rebuild)."""
     model_path = _model_path(sc)
-    cites = sc.get_evidence("bibliography_cites", 0) or 0
     if not model_path.exists():
-        n = sc.get_evidence("bibliography_entries", 0) or 0
-        return [f"  bibliography ({n} entries; model file unavailable)"] if n else []
+        if sc.has(BIBLIOGRAPHY_BUILT):
+            n = sc.get_evidence("bibliography_entries", 0) or 0
+            return [f"  bibliography ({n} entries; model file unavailable)"] if n else []
+        return []
     try:
         from . import model_io
         g = model_io.load_docgraph(model_path)
-        ref_props = [r.props for r in g.of_type("Reference")]
     except Exception:                                          # noqa: BLE001
         return []
-    return _format_bibliography_state(ref_props, cites)
+    lines: list[str] = []
+    if sc.has(BIBLIOGRAPHY_BUILT):
+        cites = sc.get_evidence("bibliography_cites", 0) or 0
+        lines += _format_bibliography_state(
+            [r.props for r in g.of_type("Reference")], cites)
+    lines += _format_environments(g.meta.get("environments") or {})
+    return lines
 
 
 def cmd_status(pdf: Path) -> str:
@@ -6612,7 +6642,7 @@ def cmd_status(pdf: Path) -> str:
         bib = sc.bibtex or {}
         parts.append(f"  BibTeX record ({bib.get('citekey','?')}, "
                      f"entry type: {bib.get('entry_type','?')})")
-    parts.extend(_bibliography_status_lines(sc))
+    parts.extend(_model_status_lines(sc))
     if URLS_KNOWN in facts:
         links = sc.urls or []
         n_url = sum(1 for r in links if r.get("kind") == "url")

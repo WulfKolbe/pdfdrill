@@ -110,6 +110,49 @@ def test_build_source_model_emits_algorithm_objects():
     assert doc.meta["source_counts"]["algorithms"] == 1
 
 
+def test_scan_environments_usage_newtheorem_newenvironment():
+    r"""Track environment names used + custom/theorem-like declarations — the
+    2110.11150 case (valuable for higher layers / a LEAN4 theorem-proof export)."""
+    decl = (r"\newtheorem{theorem}{Theorem}[section]" "\n"
+            r"\newtheorem{lemma}[theorem]{Lemma}" "\n"
+            r"\newtheorem*{remark*}{Remark}" "\n"
+            r"\newenvironment{myenv}{\begingroup}{\endgroup}" "\n"
+            r"\renewenvironment{abstract}{}{}")
+    body = (r"\begin{theorem} x \end{theorem}"
+            r"\begin{lemma} y \end{lemma}\begin{lemma} z \end{lemma}"
+            r"\begin{proof} p \end{proof}\begin{align} a \end{align}")
+    env = ls.scan_environments(decl, body)
+    assert env["used"]["lemma"] == 2 and env["used"]["proof"] == 1
+    thm = {t["name"]: t for t in env["newtheorem"]}
+    assert thm["theorem"]["reset_counter"] == "section"
+    assert thm["lemma"]["shared_counter"] == "theorem"      # [theorem] before title
+    assert thm["remark*"]["starred"] is True
+    assert "myenv" in env["newenvironment"] and "abstract" in env["newenvironment"]
+    assert set(env["theorem_like"]) >= {"theorem", "lemma", "remark*"}
+    assert env["theorem_blocks"] == 3                        # 1 theorem + 2 lemma
+    assert env["proof_blocks"] == 1
+
+
+def test_format_environments_status_lines():
+    from pdfdrill.commands import _format_environments
+    env = {
+        "used": {"theorem": 1, "lemma": 4, "proof": 6, "align": 22},
+        "newtheorem": [{"name": "theorem"}, {"name": "lemma"}],
+        "newenvironment": ["abstract", "ALC@g", "table"],   # @-name hidden in display
+        "theorem_like": ["theorem", "lemma"],
+        "theorem_blocks": 5, "proof_blocks": 6,
+    }
+    lines = _format_environments(env)
+    assert "4 distinct used, 33 total" in lines[0]
+    assert any("theorem, lemma" in l for l in lines)
+    assert any("5 theorem/lemma/def block(s) + 6 proof" in l and "LEAN4" in l
+               for l in lines)
+    custom = next(l for l in lines if "custom" in l)
+    assert "3 custom" in custom and "abstract" in custom and "table" in custom
+    assert "ALC@g" not in custom                            # @-internal hidden
+    assert _format_environments({}) == []
+
+
 def test_algorithm2e_float_without_inner_algorithmic():
     r"""The 2110.11150 case: an algorithm2e \begin{algorithm}[h!] with NO inner
     \begin{algorithmic} (its own \KwIn/\For{}{}) and a \caption{\texttt{...}}.

@@ -2557,6 +2557,28 @@ degrades cleanly (clear message) when `latex`/`dvisvgm` are absent. Verified
 on the graphbook: 128 sections, 343 equations, 118 macros, **18/18** TikZ/
 tables → SVG, one command.
 
+**LaTeX environment tracking (`latex_source.scan_environments`, 2026-06-26).**
+The LATW `EnvironmentWrapperScanner`/`EnvironmentCleaner` analogue, but as a
+TRACKING layer for higher levels (e.g. a LEAN4 theorem/proof export).
+`scan_environments(decl_text, body)` (pure) returns: `used` (the `\begin{X}`
+census {name: count}), `newtheorem` (theorem-like envs DECLARED — name / printed
+title / shared+reset counter / starred), `newenvironment` (custom or redefined
+env names, `#`-parameter templates skipped), `theorem_like`, and
+`theorem_blocks`/`proof_blocks` (how many are USED). `build_source_model` scans
+the preamble + the local `.sty`/`.cls` (`_local_style_text` — where `\newtheorem`
+/`\newenvironment` actually live, incl. the publisher style the user flagged) and
+stores it in `doc.meta["environments"]`. `status` surfaces it
+(`_format_environments`): used count, the declared theorem-like list, the
+theorem–proof block tally tagged as LEAN4 candidates, and the custom-env list
+(style-internal `@`-names counted but hidden from display). Verified on arXiv
+2110.11150: 23 distinct envs used, theorem/proposition/lemma/corollary/definition/
+assumption/remark + starred theorem*/lemma* + example declared, **11 theorem-like
++ 6 proof blocks**, redefined `abstract`/`table` + `algorithmic` custom envs.
+Next: a LEAN4 projector consuming this (theorem/proof DocObjects, statement+proof
+pairing). Tests: `tests/test_latex_algorithms.py`
+(`test_scan_environments_usage_newtheorem_newenvironment`,
+`test_format_environments_status_lines`).
+
 **`algorithms` reports from the model objects, not stale sidecar evidence
 (2026-06-26).** `pdfdrill algorithms` showed **0** on a source-built doc that
 clearly had an algorithm (2110.11150's appendix `\begin{algorithm}[h!]`,

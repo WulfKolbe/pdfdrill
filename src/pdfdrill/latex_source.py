@@ -570,6 +570,82 @@ def extract_sections(body: str) -> list[dict]:
     return out
 
 
+# --------------------------------------------------------------------------- #
+#  Environment census + custom-environment / theorem-like declarations
+#  (the LATW EnvironmentWrapperScanner/EnvironmentCleaner analogue, but as a
+#  TRACKING layer for higher levels — e.g. a LEAN4 theorem/proof export).
+# --------------------------------------------------------------------------- #
+_ENV_NAME = r"[A-Za-z@][A-Za-z0-9@*]*"
+_BEGIN_ENV_RE = re.compile(r"\\begin\s*\{(" + _ENV_NAME + r")\}")
+# \newtheorem{name}{Title}[reset]  OR  \newtheorem{name}[shared]{Title}  (+ *)
+_NEWTHEOREM_RE = re.compile(
+    r"\\newtheorem(?P<star>\*)?\s*\{(?P<name>[^}]+)\}"
+    r"(?:\s*\[(?P<shared>[^\]]+)\])?"
+    r"\s*\{(?P<title>[^}]+)\}"
+    r"(?:\s*\[(?P<reset>[^\]]+)\])?")
+_NEWENV_RE = re.compile(r"\\(?:re)?newenvironment\s*\*?\s*\{(?P<name>[^}]+)\}")
+_PROOF_ENVS = ("proof",)
+
+
+def _local_style_text(base_dir: str) -> str:
+    """Concatenated text of the local .sty/.cls bundled in the source dir —
+    where `\\newtheorem`/`\\newenvironment` often live (publisher styles,
+    algorithmicx, …). e-print tarballs bundle exactly the styles they use."""
+    import glob as _glob
+    out = []
+    for ext in ("sty", "cls"):
+        for sub in ("", "style", "styles", "tex", "include", "preamble"):
+            for p in sorted(_glob.glob(os.path.join(base_dir, sub, f"*.{ext}"))):
+                try:
+                    out.append(strip_comments(
+                        open(p, encoding="utf-8", errors="replace").read()))
+                except OSError:
+                    pass
+    return "\n".join(out)
+
+
+def scan_environments(decl_text: str, body: str) -> dict:
+    """Track LaTeX environments for higher layers:
+      - `used`: census of `\\begin{X}` in the body ({name: count});
+      - `newtheorem`: theorem-like envs DECLARED (name/title/shared+reset
+        counter/starred) — the theorem/proof structure a LEAN4 export needs;
+      - `newenvironment`: custom or redefined environment names;
+      - `theorem_like`: the declared theorem-env names;
+      - `theorem_blocks`/`proof_blocks`: how many are actually USED.
+    `decl_text` is where declarations live (preamble + local .sty/.cls);
+    `body` is the document body. Pure."""
+    from collections import Counter
+    used = Counter(m.group(1) for m in _BEGIN_ENV_RE.finditer(body))
+    newtheorem = []
+    for m in _NEWTHEOREM_RE.finditer(decl_text):
+        newtheorem.append({
+            "name": m.group("name").strip(),
+            "title": _norm(m.group("title")),
+            "shared_counter": (m.group("shared") or "").strip(),
+            "reset_counter": (m.group("reset") or "").strip(),
+            "starred": bool(m.group("star")),
+        })
+    # de-dup declarations by name (a style + preamble may both declare; keep first)
+    seen: set = set()
+    newtheorem = [t for t in newtheorem
+                  if not (t["name"] in seen or seen.add(t["name"]))]
+    # Skip names carrying a `#` — those are `\newenvironment{#1}` templates inside
+    # a macro body (e.g. algorithmicx.sty), not real environment names.
+    newenvironment = sorted({m.group("name").strip()
+                             for m in _NEWENV_RE.finditer(decl_text)
+                             if "#" not in m.group("name")})
+    theorem_like = [t["name"] for t in newtheorem]
+    thm_set = set(theorem_like)
+    return {
+        "used": dict(used),
+        "newtheorem": newtheorem,
+        "newenvironment": newenvironment,
+        "theorem_like": theorem_like,
+        "theorem_blocks": sum(v for k, v in used.items() if k in thm_set),
+        "proof_blocks": sum(used.get(p, 0) for p in _PROOF_ENVS),
+    }
+
+
 def _cap_key(cap: str) -> str:
     """Loose caption key for cross-source matching: lowercase alphanumerics of
     the first few words (tolerates MathPix/OCR drift, dropped \\ref{}, etc.)."""
@@ -1092,6 +1168,12 @@ def build_source_model(tex_path: str, bibkey: str = "DOC") -> "object":
             doc.add(st)
             alg.children.append(st.id)
             n_steps += 1
+
+    # Environment tracking (used census + custom/theorem-like declarations) —
+    # valuable for higher layers (e.g. a LEAN4 theorem/proof export). Scan the
+    # preamble + the local .sty/.cls, where \newtheorem/\newenvironment live.
+    doc.meta["environments"] = scan_environments(
+        pre + "\n" + _local_style_text(base_dir), body)
 
     doc.meta["source_counts"] = {"sections": n_sec, "equations": n_eq,
                                  "paragraphs": n_para, "formulas": n_formula,
