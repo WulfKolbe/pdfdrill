@@ -1962,21 +1962,24 @@ biggest gaps (the user chose "extend the builder directly", not route-via-md):
   `tests/test_latex_prose.py`. Still source-only-absent (later phases): Page
   (needs compile/geometry), Citation/Abstract/ListItem/Footnote/Reference.
 
-## URL-download collision survival — same-basename papers don't clobber (2026-06-26)
+## Download registry (`pdfdrill-downloads.json`) — URL-keyed, BLAKE3, collision-safe (2026-06-26)
 
-A generic-URL download named the local file `<basename>.pdf`, so two DIFFERENT
-papers sharing a basename (`host1/fulltext.pdf` vs `host2/fulltext.pdf`) clobbered
-each other in the download dir — and the cache check (`dest.exists()`) then served
-the WRONG paper. Found in the 172-URL non-arxiv batch: 106 list entries collapsed
-to 100 local files (`fulltext.pdf`, `paper_15.pdf` ×N). `sources._pick_url_dest`
-keeps the clean `<basename>.pdf` for the first/owning URL and gives a colliding URL
-`<stem>-<urlhash8>.pdf`; a `<file>.source` marker records which URL each file came
-from, so a re-resolve of the SAME URL is a true cache hit and a legacy markerless
-file is adopted by its first claimant (no re-download). arXiv stays on its clean
-canonical `<id>.pdf` (ids are unique). Verified: two `fulltext.pdf` URLs → distinct
-files with distinct content; re-resolving each reuses its own; an existing
-markerless `C12-2133.pdf` adopted, not re-fetched. Tests: `tests/test_sources.py`
-(`test_url_download_collisions_survive_via_hash`).
+The user's model: the **URL is the identity** (users supply URLs, not filenames),
+logged in ONE JSON file. `src/pdfdrill/download_registry.py` writes
+`<download_dir>/pdfdrill-downloads.json` — `{url: {filename, hash, algo, bytes,
+downloaded_at}}` — recording every generic-URL download's complete URL → local
+filename + **BLAKE3** content hash (`algo` records `blake3` if the package is
+installed, else `sha256`, so the log never lies; `pip install blake3` upgrades it).
+Two payoffs in `sources.resolve_input`: (1) re-resolving a URL is a registry lookup
+→ the same local file (true cache by URL, not by guessed filename); (2) two
+DIFFERENT papers sharing a basename (`host1/fulltext.pdf` vs `host2/fulltext.pdf`)
+get DISTINCT files — the collider is renamed `<stem>-<hash8>.pdf` (`_place_download`)
+instead of clobbering, while IDENTICAL content (same hash) de-dups to one file.
+This fixes the 172-URL batch loss (106 entries → 100 files, `fulltext.pdf` ×N
+overwriting). arXiv stays on its clean canonical `<id>.pdf` (ids already unique).
+A download streams to a `.download-tmp` first so it is hashed before placement.
+Tests: `tests/test_sources.py::test_url_download_registry_logs_and_survives_collisions`
+(registry log, hash-suffixed collider, content de-dup, URL cache hit).
 
 ## Config FILE + stable download/drill location + findable artifacts (2026-06-19)
 

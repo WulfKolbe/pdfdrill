@@ -108,33 +108,44 @@ def test_resolve_bare_id_routes_to_arxiv(monkeypatch):
         assert "e-print" not in calls["url"] and "pdf/2510.11170v2" in calls["url"]
 
 
-def test_url_download_collisions_survive_via_hash(monkeypatch):
-    """Two DIFFERENT URLs sharing a basename (host1/fulltext.pdf vs
-    host2/fulltext.pdf) must download to DISTINCT local files — not clobber
-    each other — and re-resolving the same URL reuses its own file."""
+def test_url_download_registry_logs_and_survives_collisions(monkeypatch):
+    """The download registry logs every URL → filename + content hash; two
+    DIFFERENT papers sharing a basename get DISTINCT files (the collider is
+    hash-suffixed), identical content de-dups, and a re-resolve is a lookup."""
     import tempfile
+    from pdfdrill import download_registry as DR
     seen = []
 
     def fake_download(url, dest):
         seen.append(url)
-        Path(dest).write_bytes(b"%PDF-1.4 " + url.encode())
+        Path(dest).write_bytes(b"%PDF-1.4 " + url.encode())   # content varies by URL
         return Path(dest)
     monkeypatch.setattr(S, "download", fake_download)
     with tempfile.TemporaryDirectory() as d:
         dd = Path(d)
         a = S.resolve_input("https://host1.example/papers/fulltext.pdf", dest_dir=dd)
         b = S.resolve_input("https://host2.example/x/fulltext.pdf", dest_dir=dd)
-        # distinct files, both present, distinct content
-        assert a["path"] != b["path"]
         assert a["path"].name == "fulltext.pdf"            # first keeps the clean name
-        assert "fulltext-" in b["path"].name and b["path"].name.endswith(".pdf")
+        assert b["path"].name.startswith("fulltext-") and b["path"].name.endswith(".pdf")
         assert a["path"].read_bytes() != b["path"].read_bytes()
-        # re-resolving each URL reuses its OWN file (no re-download, no clobber)
+        # the registry logs both: complete URL → filename + hash + algo
+        reg = DR.load(dd)
+        assert set(reg) == {"https://host1.example/papers/fulltext.pdf",
+                            "https://host2.example/x/fulltext.pdf"}
+        assert reg["https://host2.example/x/fulltext.pdf"]["filename"] == b["path"].name
+        assert reg["https://host1.example/papers/fulltext.pdf"]["hash"]
+        assert reg["https://host1.example/papers/fulltext.pdf"]["algo"] in ("blake3", "sha256")
+        # re-resolving each URL is a registry cache hit — no new download
         n = len(seen)
-        a2 = S.resolve_input("https://host1.example/papers/fulltext.pdf", dest_dir=dd)
-        b2 = S.resolve_input("https://host2.example/x/fulltext.pdf", dest_dir=dd)
-        assert a2["path"] == a["path"] and b2["path"] == b["path"]
-        assert len(seen) == n                              # cache hits, no new downloads
+        assert S.resolve_input("https://host1.example/papers/fulltext.pdf", dest_dir=dd)["path"] == a["path"]
+        assert S.resolve_input("https://host2.example/x/fulltext.pdf", dest_dir=dd)["path"] == b["path"]
+        assert len(seen) == n
+        # IDENTICAL content from a third URL de-dups onto the existing file
+        monkeypatch.setattr(S, "download",
+                            lambda u, dest: Path(dest).write_bytes(b"%PDF-1.4 SAME"))
+        c1 = S.resolve_input("https://host3.example/a/same.pdf", dest_dir=dd)
+        c2 = S.resolve_input("https://host4.example/b/same.pdf", dest_dir=dd)
+        assert c1["path"] == c2["path"]                    # same content → one file
 
 
 def test_resolve_local_path_wins_over_arxiv_shape(monkeypatch):

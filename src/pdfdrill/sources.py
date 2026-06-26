@@ -175,27 +175,30 @@ def _safe_filename(url: str) -> str:
     return re.sub(r"[^\w.\-]", "_", name)
 
 
-def _url_hash(url: str) -> str:
-    import hashlib
-    return hashlib.sha1(url.encode("utf-8")).hexdigest()[:8]
+def _place_download(base: Path, tmp: Path, digest: str, reg: dict) -> Path:
+    """Move the freshly-downloaded `tmp` into place. The clean `<basename>.pdf`
+    is used if free or already holding IDENTICAL content (dedup by content hash);
+    a colliding URL with DIFFERENT content gets `<stem>-<hash8>.pdf` — so two
+    papers sharing a basename never clobber. The registry supplies known hashes;
+    a legacy file not in it is hashed once."""
+    from . import download_registry as _dl
 
+    def _content_hash(p: Path) -> str:
+        h = _dl.hash_for_filename(reg, p.name)
+        return h if h is not None else _dl.hash_file(p)[0]
 
-def _pick_url_dest(base: Path, url: str) -> Path:
-    """Pick the local file for a generic-URL download so two DIFFERENT URLs that
-    share a basename (`host1/fulltext.pdf` vs `host2/fulltext.pdf`) don't clobber
-    each other. The clean `<basename>.pdf` is kept for the first/owning URL; a
-    colliding URL falls back to `<stem>-<urlhash8>.pdf`. A `<file>.source` marker
-    records which URL each file came from (so a re-resolve is a true cache hit,
-    and a legacy markerless file is adopted by its first claimant)."""
-    cands = [base, base.with_name(f"{base.stem}-{_url_hash(url)}{base.suffix}")]
-    for cand in cands:
-        if not (cand.exists() and cand.stat().st_size > 0):
-            return cand                                 # free slot
-        marker = cand.with_name(cand.name + ".source")
-        if (not marker.exists()                         # legacy file → adopt
-                or marker.read_text(encoding="utf-8").strip() == url):  # same URL
-            return cand
-    return cands[-1]                                     # hashed name (this URL's)
+    if not (base.exists() and base.stat().st_size > 0):
+        tmp.replace(base)
+        return base
+    if _content_hash(base) == digest:                   # identical content already
+        tmp.unlink()
+        return base
+    hashed = base.with_name(f"{base.stem}-{digest[:8]}{base.suffix}")
+    if hashed.exists() and hashed.stat().st_size > 0 and _content_hash(hashed) == digest:
+        tmp.unlink()
+        return hashed
+    tmp.replace(hashed)
+    return hashed
 
 
 def resolve_input(arg: str, dest_dir: Optional[Path] = None) -> dict:
@@ -239,13 +242,22 @@ def resolve_input(arg: str, dest_dir: Optional[Path] = None) -> dict:
             download(arxiv_urls(arxiv_id)["pdf"], dest)
         return {"path": dest, "source": "arxiv", "arxiv_id": arxiv_id}
 
-    # generic http(s): download as-is, but disambiguate same-basename collisions
-    # (different papers both named fulltext.pdf) by URL hash so neither clobbers.
-    dest = _pick_url_dest(dest_dir / _safe_filename(arg), arg)
-    if not (dest.exists() and dest.stat().st_size > 0):
-        download(arg, dest)
-    try:                                                # record the source URL
-        dest.with_name(dest.name + ".source").write_text(arg, encoding="utf-8")
-    except OSError:
-        pass
-    return {"path": dest, "source": "url", "arxiv_id": None}
+    # generic http(s): one registry (pdfdrill-downloads.json) logs every download
+    # by URL → filename + BLAKE3 content hash. A re-resolve is a registry lookup
+    # (true cache by URL); same-basename papers from different URLs get distinct,
+    # content-hash-suffixed files instead of clobbering (identical content dedups).
+    from . import download_registry as _dl
+    reg = _dl.load(dest_dir)
+    hit = reg.get(arg)
+    if hit:
+        p = dest_dir / hit["filename"]
+        if p.exists() and p.stat().st_size > 0:
+            return {"path": p, "source": "url", "arxiv_id": None}
+    base = dest_dir / _safe_filename(arg)
+    tmp = dest_dir / f"{base.stem}.download-tmp{base.suffix}"
+    download(arg, tmp)
+    digest, algo = _dl.hash_file(tmp)
+    final = _place_download(base, tmp, digest, reg)
+    _dl.record(dest_dir, arg, final.name, digest, algo,
+               final.stat().st_size if final.exists() else 0)
+    return {"path": final, "source": "url", "arxiv_id": None}
