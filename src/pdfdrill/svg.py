@@ -189,11 +189,14 @@ def compile_to_svg(latex_code: str, preamble: str | None = None,
                 cwd=d, capture_output=True, encoding="utf-8", errors="replace",
                 timeout=timeout, env=env)
         except subprocess.TimeoutExpired:
-            return {"ok": False, "svg": "", "ratio": "", "error": "latex timeout"}
+            return {"ok": False, "svg": "", "ratio": "", "error": "latex timeout",
+                    "src": src, "log": ""}
+        log = r.stdout or ""
         dvi = os.path.join(d, base + ".dvi")
         if not os.path.exists(dvi):
-            tail = (r.stdout or "")[-400:]
-            return {"ok": False, "svg": "", "ratio": "", "error": f"no DVI: {tail}"}
+            tail = log[-400:]
+            return {"ok": False, "svg": "", "ratio": "", "error": f"no DVI: {tail}",
+                    "src": src, "log": log}
         try:
             rs = subprocess.run(
                 ["dvisvgm", "-n", "--exact-bbox", base + ".dvi", "-o", base + ".svg"],
@@ -204,7 +207,8 @@ def compile_to_svg(latex_code: str, preamble: str | None = None,
         svg_path = os.path.join(d, base + ".svg")
         if not os.path.exists(svg_path):
             return {"ok": False, "svg": "", "ratio": "",
-                    "error": f"no SVG: {(rs.stderr or '')[-300:]}"}
+                    "error": f"no SVG: {(rs.stderr or '')[-300:]}",
+                    "src": src, "log": log}
         svg = open(svg_path, encoding="utf-8", errors="replace").read()
         return {"ok": True, "svg": svg, "ratio": _graphic_ratio(rs.stderr or ""),
-                "error": ""}
+                "error": "", "src": src, "log": log}

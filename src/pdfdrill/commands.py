@@ -3629,13 +3629,24 @@ def cmd_svg(target: Path, limit: int | None = None, force: bool = False) -> str:
     # them so "Rendered 0" isn't mistaken for "nothing is rendered".
     already = 0 if force else sum(1 for o in targets if o.props.get("svg"))
 
+    # Persist the EXACT standalone .tex compiled for each graphic (+ the latex
+    # log on failure) so it can be opened in a LaTeX editor (Gummi) and debugged.
+    bibkey = doc.meta.get("bibkey") or target.stem
+    debug_dir = (sc.blob_dir if sc is not None else target.parent / f"{target.stem}.drill") / "svg" / "tex"
+
     done = errors = skipped = 0
-    for o in todo:
+    for i, o in enumerate(todo):
         if force:
             o.realizations = [r for r in o.realizations if r.provenance != "dvisvgm"]
             o.props.pop("svg", None)
         res = compile_to_svg(o.props["latex_code"], preamble=preamble,
                              resource_dir=resource_dir)
+        if res.get("src"):
+            debug_dir.mkdir(parents=True, exist_ok=True)
+            name = f"{bibkey}_{o.type}_{i+1:02d}"
+            (debug_dir / f"{name}.tex").write_text(res["src"], encoding="utf-8")
+            if not res["ok"] and res.get("log"):
+                (debug_dir / f"{name}.log").write_text(res["log"], encoding="utf-8")
         if res["ok"]:
             o.props["svg"] = res["svg"]
             if res["ratio"]:
@@ -3668,6 +3679,9 @@ def cmd_svg(target: Path, limit: int | None = None, force: bool = False) -> str:
             + f" of {len(targets)} graphic object(s) "
             f"({total_svg} now have an SVG). SVGs stored on the model "
             f"(props['svg']); `pdfdrill report {target.name}` embeds them inline."
+            + (f" The exact compiled .tex (+ latex .log for any failure) is in "
+               f"{debug_dir.relative_to(target.parent) if sc is not None else debug_dir}/ "
+               f"— open in a LaTeX editor (Gummi) to debug." if todo else "")
             + (f" Re-run with --force to retry the {errors} that failed." if errors else ""))
 
 

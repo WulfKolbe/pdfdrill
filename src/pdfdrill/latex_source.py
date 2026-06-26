@@ -275,6 +275,23 @@ _STANDALONE_DROP_PKGS = (
     "siamproceedings", "siamart", "siamonline", "IEEEtran", "acmart", "revtex4",
 )
 
+# Conference/journal PAGE-STYLE packages (named per venue+year, e.g.
+# neurips_2022, icml2023, iclr2024_conference) set full-page geometry that
+# breaks `standalone` cropping with "Dimension too large". Drop them — but NOT
+# style packages that define macros/colors/pgfplots cycle-lists a snippet needs
+# (e.g. a local `palettes.sty`), which is why this matches only known venue
+# names, never an arbitrary local style.
+_CONFERENCE_STYLE_RE = re.compile(
+    r"^(?:neurips|nips|icml|iclr|colm|tmlr|jmlr|cvpr|iccv|eccv|wacv|bmvc|aaai|"
+    r"ijcai|aamas|acl|emnlp|naacl|eacl|coling|tacl|colt|aistats|uai|kdd|sigir|"
+    r"www|chi|interspeech|icassp|siggraph|neurips_data)"
+    r"[-_]?\d{0,4}(?:_conference|_data|_submission)?$"
+    r"|^[a-z][a-z0-9]*[-_](?:conference|proceedings|submission)$", re.I)
+
+
+def _drop_from_standalone(name: str) -> bool:
+    return name in _STANDALONE_DROP_PKGS or bool(_CONFERENCE_STYLE_RE.match(name))
+
 _DEF_START = re.compile(r"\\(?:re|provide)?newcommand\*?|\\DeclareMathOperator\*?")
 
 
@@ -370,7 +387,7 @@ def standalone_preamble(preamble: str) -> str:
     pkgs: list[str] = []
     for m in re.finditer(r"\\usepackage\s*(?:\[[^\]]*\])?\s*\{([^}]*)\}", pre):
         names = [x.strip() for x in m.group(1).split(",")]
-        if any(name in _STANDALONE_DROP_PKGS for name in names):
+        if any(_drop_from_standalone(name) for name in names):
             continue
         pkgs.append(m.group(0))
     # TikZ libraries the diagrams/styles depend on (e.g. decorations.markings,

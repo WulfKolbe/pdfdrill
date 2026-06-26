@@ -2840,6 +2840,23 @@ OpenAI GPT-4o vision provenance (`src/pdfdrill/openai_vision.py`,
   itself only when neither an explicit line nor tikz is present. Tests:
   `tests/test_svg.py` (default-preamble carries it; doc-preamble injection no-clash;
   no-trigger unchanged + chemfig still injected).
+- **Conference page-styles dropped from the standalone preamble + executed `.tex`
+  persisted for inspection (2026-06-26).** `pdfdrill svg` failed all 4 graphics on
+  2110.11150 with `! Dimension too large` — `\usepackage[preprint]{neurips_2022}`
+  (the venue PAGE-STYLE) sets full-page geometry `standalone` can't crop. These
+  packages are named per venue+year, so a fixed drop-list can't catch them:
+  `latex_source._CONFERENCE_STYLE_RE` (neurips/icml/iclr/cvpr/aaai/acl/… + year, or
+  `*_conference`) now drops them in `standalone_preamble` via `_drop_from_standalone`
+  — but ONLY known venue names, so a LOCAL style that defines macros/colors/pgfplots
+  cycle-lists a snippet needs (here `palettes.sty` → the `juarez4` cycle list the
+  two pgfplots diagrams use) is KEPT. Dropping only `neurips_2022` (not `palettes`)
+  took 2110.11150 from 0/4 → **4/4** (2 booktabs tables + 2 pgfplots diagrams).
+  Rebuild the model so the regenerated `standalone` preamble (in `doc.meta`) takes
+  effect. For debugging, `compile_to_svg` now returns the exact `src` + latex `log`,
+  and `cmd_svg` writes each graphic's compiled standalone `.tex` (+ `.log` on
+  failure) to `<drill>/svg/tex/<bibkey>_<Type>_NN.tex` — open it in a LaTeX editor
+  (Gummi) to debug a failing snippet. Tests: `tests/test_svg.py`
+  (`test_standalone_preamble_drops_conference_style_keeps_local_styles`).
 - Ported from the predecessor `~/MX/mathpix_images` (llmUtils.js/imagetester.js
   + prompt.txt). Stdlib `urllib` (no `openai` package). Key from
   `OPENAI_API_KEY` (env/.env), **never hardcoded**; `--limit` caps calls (a doc

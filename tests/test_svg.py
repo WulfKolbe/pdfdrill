@@ -32,6 +32,29 @@ def test_ingest_source_graphics_creates_diagram_and_table_objects():
     assert commands.ingest_source_graphics(doc, body, {}, "T") == 0
 
 
+def test_standalone_preamble_drops_conference_style_keeps_local_styles():
+    r"""The 2110.11150 failure: \usepackage[preprint]{neurips_2022} sets full-page
+    geometry that breaks `standalone` ("Dimension too large"). Drop the venue
+    page-style — but KEEP a local style like palettes.sty that defines the
+    pgfplots cycle list the diagrams need."""
+    pre = (r"\documentclass{article}" "\n"
+           r"\usepackage[preprint]{neurips_2022}" "\n"
+           r"\usepackage{iclr2024_conference}" "\n"
+           r"\usepackage{booktabs}" "\n"
+           r"\usepackage{palettes}" "\n"
+           r"\usepackage[notheorems]{eda}" "\n"
+           r"\usepackage{pgfplots}")
+    sa = ls.standalone_preamble(pre)
+    assert "neurips_2022" not in sa                          # venue page-style dropped
+    assert "iclr2024_conference" not in sa
+    assert "booktabs" in sa and "pgfplots" in sa             # math/graphic kept
+    assert "palettes" in sa and "eda" in sa                  # local styles kept
+    assert ls._drop_from_standalone("neurips_2022")
+    assert ls._drop_from_standalone("icml2023")
+    assert not ls._drop_from_standalone("palettes")
+    assert not ls._drop_from_standalone("booktabs")
+
+
 def test_standalone_preamble_keeps_multiline_macro_bodies():
     # A multi-line \newcommand body must survive intact. The old line-anchored
     # regex (`\\newcommand.*`) captured only the first line, dropping the body and
