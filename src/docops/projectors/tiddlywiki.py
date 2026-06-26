@@ -348,6 +348,8 @@ class TiddlyWikiProjector(BaseProjector):
             "tocs":       self._sort_by_flow(doc.objects_of_type("Toc")),
             "references": self._sort_by_flow(doc.objects_of_type("Reference")),
             "ltx":        self._sort_by_flow(doc.objects_of_type("LtxCommand")),
+            "theorems":   self._sort_by_flow(doc.objects_of_type("Theorem")),
+            "proofs":     self._sort_by_flow(doc.objects_of_type("Proof")),
             "pages":      sorted(doc.objects_of_type("Page"),
                                  key=lambda o: o.props.get("page_number", 0)),
         }
@@ -384,6 +386,10 @@ class TiddlyWikiProjector(BaseProjector):
             title[ref.id] = f"{bibkey}_REF_{ck or (i + 1)}"
         for i, o in enumerate(inv["ltx"]):           # use the title baked at build
             title[o.id] = o.props.get("title") or f"{bibkey}_LTX{i + 1}"
+        for i, o in enumerate(inv["theorems"]):
+            title[o.id] = f"{bibkey}_THM{i + 1:04d}"
+        for i, o in enumerate(inv["proofs"]):
+            title[o.id] = f"{bibkey}_PROOF{i + 1:04d}"
         return title, inv
 
     # ----- phase 2: per-line inline substitution index -----
@@ -764,6 +770,44 @@ class TiddlyWikiProjector(BaseProjector):
             )
             t["citekey"] = ck
             t["text_display"] = ck
+            out.append(t)
+
+        # Theorems (theorem/lemma/proposition/… blocks). The caption is the
+        # printed title + number (+ bracket title); the text shows the statement
+        # and transcludes the paired Proof. `label` lets a \ref resolve here.
+        for th in inv["theorems"]:
+            num = th.props.get("number")
+            head = th.props.get("printed_title") or th.props.get("kind", "Theorem").title()
+            if num is not None:
+                head = f"{head} {num}"
+            if th.props.get("title"):
+                head = f"{head} ({th.props['title']})"
+            text = f"''{head}.'' " + (th.props.get("statement") or "")
+            pid = th.props.get("proof_id")
+            if pid and pid in title:
+                text += "\n\n{{" + title[pid] + "||PROOF}}"
+            t = self._t(title[th.id], text,
+                        f"theorem {th.props.get('kind', 'theorem')} {_bibtag(bibkey)}")
+            t["caption"] = head
+            t["kind"] = th.props.get("kind", "theorem")
+            if th.props.get("number") is not None:
+                t["refnum"] = str(th.props["number"])
+            if th.props.get("label"):
+                t["label"] = th.props["label"]
+            if th.props.get("parent_section") and th.props["parent_section"] in title:
+                t["parent_section"] = title[th.props["parent_section"]]
+            out.append(t)
+
+        # Proofs — paired to a Theorem via `proof_of` (back-link field).
+        for pf in inv["proofs"]:
+            text = "''Proof.'' " + (pf.props.get("statement") or "") + " $\\square$"
+            t = self._t(title[pf.id], text, f"proof {_bibtag(bibkey)}")
+            t["kind"] = "proof"
+            of = pf.props.get("proof_of")
+            if of and of in title:
+                t["proof_of"] = title[of]
+            if pf.props.get("parent_section") and pf.props["parent_section"] in title:
+                t["parent_section"] = title[pf.props["parent_section"]]
             out.append(t)
 
         # Synthetic Formula tiddlers (cross-line inline math residuals). These
@@ -1154,6 +1198,9 @@ class TiddlyWikiProjector(BaseProjector):
 
             # ABS — abstract block.
             ("ABS", "<div class=\"abstract\">{{!!text}}</div>"),
+
+            # PROOF — a proof block transcluded under its theorem.
+            ("PROOF", "<div class=\"proof\">{{!!text}}</div>"),
 
             # TOC — table of contents.
             ("TOC", "<div class=\"toc\">{{!!text}}</div>"),

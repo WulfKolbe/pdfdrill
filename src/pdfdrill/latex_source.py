@@ -943,6 +943,104 @@ def extract_algorithms(body: str) -> list[dict]:
     return out
 
 
+def _clean_theorem_body(s: str) -> str:
+    """Strip the `\\label{}` from a theorem/proof body and normalise whitespace.
+    Cite-transclusion + prose cleaning happen in build_source_model (it has the
+    bibkey), exactly as for a Paragraph."""
+    s = re.sub(r"\\label\{[^}]*\}", "", s)
+    return _norm(s)
+
+
+def extract_theorems(body: str, theorem_envs, newtheorem_decls: list) -> dict:
+    r"""Isolate theorem-like blocks and proofs in document order, for a LEAN4/
+    theorem-proof export. `theorem_envs` = the env names declared via
+    `\newtheorem` (from `scan_environments`); `newtheorem_decls` supplies each
+    env's printed title, shared/own counter and starred-ness.
+
+    Returns {theorems:[…], proofs:[…]}:
+      theorem = {env, kind, printed_title, bracket_title, label, number,
+                 statement, start, end, pos, starred}
+      proof   = {name, of_label, of_pos, statement, start, end, pos}
+    Numbering follows the shared-counter chain (`\newtheorem{lemma}[theorem]…`
+    → lemma shares theorem's counter); starred envs are unnumbered. Caveat: the
+    `[section]` reset/prefix is NOT applied (plain sequential per counter group).
+    A proof pairs to the theorem named by a `\ref` in its `[optional]` arg, else
+    to the nearest preceding unclaimed theorem (adjacency)."""
+    decl_by_name = {d["name"]: d for d in newtheorem_decls}
+
+    def root(name: str) -> str:
+        seen: set = set()
+        d = decl_by_name.get(name)
+        while (d and d.get("shared_counter")
+               and d["shared_counter"] in decl_by_name and name not in seen):
+            seen.add(name)
+            name = d["shared_counter"]
+            d = decl_by_name.get(name)
+        return name
+
+    blocks = []
+    for env in theorem_envs:
+        for b in _env_blocks(body, env):
+            blocks.append((b["pos"], b["pos"] + len(b["code"]), env, b["code"]))
+    blocks.sort()
+
+    counters: dict = {}
+    theorems = []
+    for start, end, env, code in blocks:
+        d = decl_by_name.get(env, {})
+        starred = d.get("starred", False)
+        inner = re.sub(r"^\\begin\{" + re.escape(env) + r"\}", "", code, count=1)
+        inner = re.sub(r"\\end\{" + re.escape(env) + r"\}\s*$", "", inner, count=1)
+        mt = re.match(r"\s*\[([^\]]*)\]", inner)
+        bracket = ""
+        if mt:
+            bracket = mt.group(1).strip()
+            inner = inner[mt.end():]
+        lm = re.search(r"\\label\{([^}]*)\}", inner)
+        label = lm.group(1).strip() if lm else ""
+        number = None
+        if not starred:
+            r = root(env)
+            counters[r] = counters.get(r, 0) + 1
+            number = counters[r]
+        theorems.append({
+            "env": env, "kind": env.rstrip("*"),
+            "printed_title": d.get("title") or env.rstrip("*").title(),
+            "bracket_title": bracket, "label": label, "number": number,
+            "statement": _clean_theorem_body(inner),
+            "start": start, "end": end, "pos": start, "starred": starred})
+
+    th_by_pos = sorted(theorems, key=lambda t: t["pos"])
+    claimed: set = set()
+    proofs = []
+    for b in sorted(_env_blocks(body, "proof"), key=lambda b: b["pos"]):
+        start, code = b["pos"], b["code"]
+        inner = re.sub(r"^\\begin\{proof\}", "", code, count=1)
+        inner = re.sub(r"\\end\{proof\}\s*$", "", inner, count=1)
+        mt = re.match(r"\s*\[([^\]]*)\]", inner)
+        name = ""
+        if mt:
+            name = mt.group(1).strip()
+            inner = inner[mt.end():]
+        rm = re.search(r"\\ref\{([^}]*)\}", name)
+        of_label = rm.group(1).strip() if rm else ""
+        of_pos = None
+        if of_label:
+            c = next((t for t in th_by_pos if t["label"] == of_label), None)
+            if c:
+                of_pos = c["pos"]
+                claimed.add(of_pos)
+        if of_pos is None:
+            prev = [t for t in th_by_pos if t["pos"] < start and t["pos"] not in claimed]
+            if prev:
+                of_pos = prev[-1]["pos"]
+                claimed.add(of_pos)
+        proofs.append({"name": name, "of_label": of_label, "of_pos": of_pos,
+                       "statement": _clean_theorem_body(inner),
+                       "start": start, "end": start + len(code), "pos": start})
+    return {"theorems": theorems, "proofs": proofs}
+
+
 # Structural blocks excluded from prose (blanked to equal-length whitespace so
 # the surrounding prose still splits into paragraphs at the right positions).
 _STRUCT_RE = re.compile(
@@ -1050,17 +1148,35 @@ def build_source_model(tex_path: str, bibkey: str = "DOC") -> "object":
     doc.meta["latex_preamble"] = {"main": main, "num_macros": len(macros),
                                   "standalone": standalone_preamble(pre)}
 
-    # Merge sections + equations + graphics + PROSE PARAGRAPHS into one
-    # flow-ordered (by source position) stream, so the tiddler reading order
-    # matches the document. Paragraphs carry inline math as real Formula objects
-    # (latex = expanded for KaTeX, latex_original = the author's macro source).
+    # Environment census + theorem/proof extraction (theorem-like blocks become
+    # Theorem objects with a label \ref can resolve; proofs pair to them). Needs
+    # the \newtheorem declarations, so scan the preamble + local styles up front.
+    env_scan = scan_environments(pre + "\n" + _local_style_text(base_dir), body)
+    thm = extract_theorems(body, env_scan["theorem_like"], env_scan["newtheorem"])
+
+    # Merge sections + equations + graphics + theorems/proofs + PROSE PARAGRAPHS
+    # into one flow-ordered (by source position) stream, so the tiddler reading
+    # order matches the document. Paragraphs carry inline math as real Formula
+    # objects (latex = expanded for KaTeX, latex_original = the author macro src).
+    # Blank theorem/proof spans from the prose body so their statements don't
+    # ALSO surface as Paragraphs (length-preserved → positions stay valid).
+    prose_body = body
+    for blk in thm["theorems"] + thm["proofs"]:
+        seg = prose_body[blk["start"]:blk["end"]]
+        prose_body = (prose_body[:blk["start"]]
+                      + re.sub(r"[^\n]", " ", seg) + prose_body[blk["end"]:])
+
     _ab = extract_abstract(body)
     items = ([("section", s["pos"], s) for s in extract_sections(body)]
              + [("equation", e["pos"], e) for e in extract_display_equations(body)]
              + [("graphic", g["pos"], g) for g in extract_graphics(body)]
              + ([("abstract", _ab["pos"], _ab)] if _ab else [])
-             + [("para", pos, raw) for pos, raw in _prose_chunks(body)])
+             + [("theorem", t["pos"], t) for t in thm["theorems"]]
+             + [("proof", p["pos"], p) for p in thm["proofs"]]
+             + [("para", pos, raw) for pos, raw in _prose_chunks(prose_body)])
     items.sort(key=lambda t: t[1])
+    pos_to_theorem_id: dict = {}        # theorem source pos -> Theorem object id
+    pending_proofs: list = []           # (proof dict, Proof object) to pair after
 
     n_sec = n_eq = n_dia = n_tab = n_para = n_formula = n_abs = n_ltx = 0
     fi = 0
@@ -1083,6 +1199,25 @@ def build_source_model(tex_path: str, bibkey: str = "DOC") -> "object":
                 "text": _clean_prose(_transclude_cites(it["text"], bibkey)),
                 "flow_index": fi, "bibkey": bibkey}))
             n_abs += 1
+        elif kind == "theorem":
+            t_obj = DocObject(type="Theorem", props={
+                "kind": it["kind"], "env": it["env"],
+                "printed_title": it["printed_title"],
+                "title": it["bracket_title"], "number": it["number"],
+                "label": it["label"], "starred": it["starred"],
+                "statement": _clean_prose(_transclude_cites(it["statement"], bibkey)),
+                "flow_index": fi, "bibkey": bibkey,
+                **({"parent_section": current_section} if current_section else {})})
+            doc.add(t_obj)
+            pos_to_theorem_id[it["pos"]] = t_obj.id
+        elif kind == "proof":
+            p_obj = DocObject(type="Proof", props={
+                "name": it["name"], "of_label": it["of_label"],
+                "statement": _clean_prose(_transclude_cites(it["statement"], bibkey)),
+                "flow_index": fi, "bibkey": bibkey,
+                **({"parent_section": current_section} if current_section else {})})
+            doc.add(p_obj)
+            pending_proofs.append((it, p_obj))
         elif kind == "equation":
             original = it["latex"]
             doc.add(DocObject(type="Equation", props={
@@ -1146,6 +1281,17 @@ def build_source_model(tex_path: str, bibkey: str = "DOC") -> "object":
             doc.add(DocObject(type="Paragraph", props=props))
             n_para += 1
 
+    # Pair each Proof to its Theorem (by \ref label or adjacency, resolved in
+    # extract_theorems) so a Theorem tiddler can transclude its proof and back.
+    n_thm = sum(1 for o in doc.objects.values() if o.type == "Theorem")
+    n_proof = 0
+    for pdict, p_obj in pending_proofs:
+        n_proof += 1
+        tid = pos_to_theorem_id.get(pdict["of_pos"])
+        if tid:
+            p_obj.props["proof_of"] = tid
+            doc.objects[tid].props.setdefault("proof_id", p_obj.id)
+
     # In-text citations: one Citation per \cite-family key, anchored in a
     # `source_cites` stream so it carries a linkable surface. We pick ALL \cite
     # commands — the paper's citation set — so a larger shared .bib is later
@@ -1187,15 +1333,15 @@ def build_source_model(tex_path: str, bibkey: str = "DOC") -> "object":
             n_steps += 1
 
     # Environment tracking (used census + custom/theorem-like declarations) —
-    # valuable for higher layers (e.g. a LEAN4 theorem/proof export). Scan the
-    # preamble + the local .sty/.cls, where \newtheorem/\newenvironment live.
-    doc.meta["environments"] = scan_environments(
-        pre + "\n" + _local_style_text(base_dir), body)
+    # valuable for higher layers (e.g. a LEAN4 theorem/proof export). Computed
+    # up front (env_scan) for theorem extraction; stored here.
+    doc.meta["environments"] = env_scan
 
     doc.meta["source_counts"] = {"sections": n_sec, "equations": n_eq,
                                  "paragraphs": n_para, "formulas": n_formula,
                                  "diagrams": n_dia, "tables": n_tab,
                                  "algorithms": n_alg, "algorithm_steps": n_steps,
+                                 "theorems": n_thm, "proofs": n_proof,
                                  "abstract": n_abs, "ltx_commands": n_ltx,
                                  "citations": n_cit, "macros": len(macros)}
     return doc

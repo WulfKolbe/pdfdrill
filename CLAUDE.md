@@ -1147,6 +1147,33 @@ PostScript DCTDecode embedding — ImageMagick `convert` RE-ENCODES and bloats) 
 needed when a TikZ/figure `\includegraphics` pulls in a JPG on the
 latex→dvips→dvisvgm route; no such tool is installed.
 
+## Theorem/proof extraction + paired transclusion + `\ref` resolution (2026-06-26)
+
+The LEAN4-prep payoff: `latex_source.extract_theorems(body, theorem_envs,
+newtheorem_decls)` isolates every theorem-like block (`\begin{theorem|lemma|…}`
+— the envs `scan_environments` found via `\newtheorem`) and every `\begin{proof}`
+in document order. Each theorem → a **`Theorem`** DocObject (kind / printed_title /
+bracket `[title]` / `label` / shared-counter `number` / statement); each proof →
+a **`Proof`** object PAIRED to its theorem (by the `\ref` in its `[optional]` arg,
+else nearest preceding unclaimed theorem). `build_source_model` emits them in
+flow order, BLANKS their spans from the prose body so statements don't also
+surface as Paragraphs, sets `proof_of`/`proof_id` cross-links, and records
+`source_counts.theorems`/`.proofs`. The TiddlyWiki projector emits `_THM`/`_PROOF`
+tiddlers (caption = `Lemma 2 (Scaling)`, `label` field, `kind`/`refnum`), the
+theorem **transcludes its proof** (`{{…||PROOF}}` + a new `PROOF` template), and
+because Theorem objects carry `props["label"]`, `caption_to_wikitext`'s
+`label_to_title` now **resolves a section caption's `\ref`** to the theorem.
+Verified on arXiv 2110.11150: **11 Theorem + 6 Proof** objects (Paragraphs
+94→65, no statement leak), 5 theorems transclude a proof, integrity 0 orphan, and
+H19 "Scaling relationship: Proof of Lemma~\ref{thm:scaling}" →
+`… Proof of Lemma <$link to="2110.11150_THM0003">thm:scaling</$link>` — the link
+the user asked for. **Numbering caveat:** the shared-counter chain is honored
+(`lemma`→`theorem`), but the `[section]` reset/prefix is NOT applied (plain
+sequential per counter group). Next: per-section numbering (3.1), inline-math in
+statements → `{{…||FO}}` dedup (currently kept as raw `$…$`), and a LEAN4
+projector over these objects. Tests: `tests/test_theorems.py` (extraction +
+numbering + pairing, build emits + no leak, tiddler pairing + caption \ref link).
+
 ## Section-caption `\ref` handling + transcluded caption (2026-06-26)
 
 A section heading like `2110.11150_H19` "Scaling relationship: Proof of
