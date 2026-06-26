@@ -1168,12 +1168,18 @@ TiddlyWiki stores each tiddler as a FILE: this minimal stdlib tool reads a
 (the `text`) + `<title>.md.meta` (the other fields, one `field: value` per line —
 identity fields lead, rest sorted). So a SKILL can point at an exact path from the
 bibkey-prefixed title (`2110.11150_H19.md`), and the wiki index lists them.
-Templates are exported too (so `{{id||TPL}}` resolves). Caveat: `.meta` fields are
-single-line, so a multi-line field (`lean4`, `svg_tiddler`) has its newlines
-collapsed — read those verbatim from the `.json`. `export_tiddlers(tiddlers,
-out, bibkey)` is importable; `python3 tools/tiddlers_to_md.py <json> [--out DIR]`.
-Verified: 2110.11150 → 369 `.md`+`.md.meta` pairs. **Deferred (user):** reference-
-list-driven features per tiddler. Tests: `tests/test_tiddlers_to_md.py`,
+Templates are exported too (so `{{id||TPL}}` resolves). **Code / multi-line fields
+are SIDECAR'd as their own CLEAN files (no escaping)** — `lean4`→`.lean`,
+`svg_tiddler`→`.svg`, `latex_code`/`latex_original`→`.tex`, `bibtex`→`.bib`, any
+other newline-bearing field→`.txt` — and the `.md.meta` points the field at that
+filename (the `_canonical_uri` idea at field level). This is the shape the incoming
+source-code handling needs (CHATDRILL whole codebases; LaTeX `lstlisting`s —
+TiddlyWiki gives a code snippet its own type + file); `--no-sidecar` falls back to
+single-line collapse. `export_tiddlers(tiddlers, out, bibkey, sidecar=True)` is
+importable; `python3 tools/tiddlers_to_md.py <json> [--out DIR] [--no-sidecar]`.
+Verified: 2110.11150 → 369 `.md`+`.md.meta` + 264 sidecars (`.bib`/`.tex`/`.txt`;
+`.lean` once `pdfdrill lean` runs). **Deferred (user):** reference-list-driven
+per-tiddler features. Tests: `tests/test_tiddlers_to_md.py`,
 `tests/test_tiddler_tags_toc.py` (markdown TOC).
 
 ## LEAN4 export — STORE then PROJECT (`pdfdrill lean`, 2026-06-26)

@@ -14,12 +14,17 @@ The content tiddlers are `text/markdown` (templates stay `text/vnd.tiddlywiki`);
 the `.md.meta` carries the `type:` field, so a mixed set round-trips. Transclusion
 templates (FO/PARA/THM/PROOF/…) are exported too, so `{{id||TPL}}` resolves.
 
-Caveat: TiddlyWiki `.meta` fields are single-line — a field whose value spans
-lines (e.g. `lean4`, `svg_tiddler`) has its newlines collapsed to spaces in the
-`.meta`; read those verbatim from the `.json` (a later revision may sidecar them
-as their own files). Reference-list driven features are not built yet.
+Code / multi-line fields are SIDECAR'd as their own CLEAN files (no escaping):
+`lean4` → `<title>.lean`, `svg_tiddler` → `<title>.svg`, `latex_code`/
+`latex_original` → `.tex`, `bibtex` → `.bib`, any other field carrying a newline
+→ `.txt`. The `.md.meta` then records `<field>: <sidecar filename>` (the
+`_canonical_uri` idea, at field level) so the verbatim content lives in a file the
+SKILL / wiki can open directly. This is the right shape for the source-code
+handling on the way (CHATDRILL whole codebases; LaTeX `lstlisting`s — TiddlyWiki
+gives a code snippet its own type + file). `--no-sidecar` falls back to collapsing
+multi-line fields to one line in the `.meta`.
 
-CLI:  python3 tools/tiddlers_to_md.py <bibkey>.tiddlers.json [--out DIR] [--bibkey K]
+CLI:  python3 tools/tiddlers_to_md.py <bibkey>.tiddlers.json [--out DIR] [--bibkey K] [--no-sidecar]
 """
 from __future__ import annotations
 
@@ -31,6 +36,12 @@ from pathlib import Path
 _UNSAFE = re.compile(r'[\\/:*?"<>|\x00-\x1f]+')
 # Field order: identity first, then the rest alphabetically (stable diffs).
 _LEAD_FIELDS = ("title", "type", "tags", "caption", "created", "modified")
+# Fields whose value is CODE / markup → a clean sidecar file with this extension
+# (verbatim, no escaping). Any OTHER field carrying a newline → a `.txt` sidecar.
+_CODE_EXT = {
+    "lean4": "lean", "svg_tiddler": "svg", "latex_code": "tex",
+    "latex_original": "tex", "bibtex": "bib", "code": "txt",
+}
 
 
 def safe_filename(title: str) -> str:
@@ -46,24 +57,52 @@ def _meta_value(v) -> str:
     return s.replace("\r\n", "\n").replace("\r", "\n").replace("\n", " ")
 
 
-def tiddler_files(t: dict) -> tuple[str, str]:
-    """Return (md_text, meta_text) for one tiddler dict."""
+def _is_sidecar_field(field: str, value) -> bool:
+    """A field is externalised to its own clean file if it is a known code field,
+    or its value spans multiple lines (can't live in a single-line .meta)."""
+    return field in _CODE_EXT or ("\n" in ("" if value is None else str(value)))
+
+
+def tiddler_files(t: dict, base: str = "", *, sidecar: bool = True) -> tuple[str, str, dict]:
+    """Return (md_text, meta_text, sidecars) for one tiddler dict.
+
+    `sidecars` maps a relative filename → verbatim content for each code /
+    multi-line field; the `.meta` then points the field at that filename. With
+    `sidecar=False` (legacy), multi-line fields are collapsed to one line."""
     md = t.get("text", "") or ""
-    keys = ([k for k in _LEAD_FIELDS if k in t]
-            + sorted(k for k in t if k not in _LEAD_FIELDS and k != "text"))
-    meta = "\n".join(f"{k}: {_meta_value(t[k])}" for k in keys) + "\n"
-    return md, meta
+    sidecars: dict[str, str] = {}
+    meta_val: dict[str, str] = {}
+    used = set()
+    for k, v in t.items():
+        if k == "text":
+            continue
+        if sidecar and base and _is_sidecar_field(k, v):
+            ext = _CODE_EXT.get(k, "txt")
+            name = f"{base}.{ext}"
+            if name in used:                       # rare: two same-ext fields
+                name = f"{base}.{k}.{ext}"
+            used.add(name)
+            sidecars[name] = "" if v is None else str(v)
+            meta_val[k] = name                     # field → sidecar filename
+        else:
+            meta_val[k] = _meta_value(v)
+    keys = ([k for k in _LEAD_FIELDS if k in meta_val]
+            + sorted(k for k in meta_val if k not in _LEAD_FIELDS))
+    meta = "\n".join(f"{k}: {meta_val[k]}" for k in keys) + "\n"
+    return md, meta, sidecars
 
 
-def export_tiddlers(tiddlers, out_dir, bibkey: str | None = None) -> tuple[int, Path]:
+def export_tiddlers(tiddlers, out_dir, bibkey: str | None = None,
+                    *, sidecar: bool = True) -> tuple[int, Path, int]:
     """Write every tiddler as `<title>.md` + `<title>.md.meta` under
-    `<out_dir>/<bibkey>/`. Returns (count, folder)."""
+    `<out_dir>/<bibkey>/`, plus a clean sidecar file per code/multi-line field.
+    Returns (tiddler_count, folder, sidecar_count)."""
     out = Path(out_dir)
     if bibkey:
         out = out / safe_filename(bibkey)
     out.mkdir(parents=True, exist_ok=True)
     seen: dict[str, int] = {}
-    written = 0
+    written = side_written = 0
     for t in tiddlers:
         base = safe_filename(t.get("title") or f"tiddler_{written}")
         if base in seen:                                   # disambiguate collisions
@@ -71,11 +110,14 @@ def export_tiddlers(tiddlers, out_dir, bibkey: str | None = None) -> tuple[int, 
             base = f"{base}~{seen[base]}"
         else:
             seen[base] = 0
-        md, meta = tiddler_files(t)
+        md, meta, sidecars = tiddler_files(t, base, sidecar=sidecar)
         (out / f"{base}.md").write_text(md, encoding="utf-8")
         (out / f"{base}.md.meta").write_text(meta, encoding="utf-8")
+        for name, content in sidecars.items():
+            (out / name).write_text(content, encoding="utf-8")
+            side_written += 1
         written += 1
-    return written, out
+    return written, out, side_written
 
 
 def main(argv=None) -> int:
@@ -85,12 +127,16 @@ def main(argv=None) -> int:
     ap.add_argument("--out", default="tiddlers_md", help="output root directory")
     ap.add_argument("--bibkey", default=None,
                     help="subfolder name (default: the tiddlers.json filename stem)")
+    ap.add_argument("--no-sidecar", action="store_true",
+                    help="collapse multi-line fields into the .meta (no code sidecars)")
     a = ap.parse_args(argv)
     p = Path(a.tiddlers_json)
     data = json.loads(p.read_text(encoding="utf-8"))
     bibkey = a.bibkey or p.name.split(".tiddlers")[0]
-    n, out = export_tiddlers(data, a.out, bibkey)
-    print(f"Wrote {n} tiddler(s) as .md + .md.meta under {out}/")
+    n, out, side = export_tiddlers(data, a.out, bibkey, sidecar=not a.no_sidecar)
+    print(f"Wrote {n} tiddler(s) as .md + .md.meta"
+          + (f" + {side} code sidecar file(s)" if side else "")
+          + f" under {out}/")
     return 0
 
 

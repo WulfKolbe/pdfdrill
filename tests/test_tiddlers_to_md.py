@@ -11,20 +11,29 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "tools"))
 import tiddlers_to_md as T
 
 
-def test_tiddler_files_text_to_md_fields_to_meta():
-    md, meta = T.tiddler_files({
-        "title": "K_H19", "type": "text/markdown",
-        "tags": "section K", "caption": "Proof of Lemma",
-        "text": "# {{!!caption}}\n\nbody.", "label": "thm:scaling",
-        "lean4": "theorem t :=\n  by sorry"})        # multi-line field
-    assert md == "# {{!!caption}}\n\nbody."           # text → .md verbatim
+def test_tiddler_files_sidecars_code_fields():
+    md, meta, side = T.tiddler_files({
+        "title": "K_THM0003", "type": "text/markdown",
+        "tags": "theorem K", "caption": "Lemma 2",
+        "text": "**Lemma 2.** body.", "label": "thm:scaling",
+        "lean4": "theorem t (a b : Prop) (h : a) : b :=\n  by sorry"},
+        base="K_THM0003")
+    assert md == "**Lemma 2.** body."                 # text → .md verbatim
     lines = meta.splitlines()
-    assert lines[0] == "title: K_H19"                 # identity fields lead
-    assert "type: text/markdown" in lines
+    assert lines[0] == "title: K_THM0003"             # identity fields lead
     assert "label: thm:scaling" in lines
-    assert "text:" not in meta                        # text is NOT in .meta
-    # multi-line field collapsed to single line (TiddlyWiki .meta is single-line)
-    assert "lean4: theorem t :=   by sorry" in meta
+    # lean4 is SIDECAR'd as a clean .lean file, NOT mangled into .meta
+    assert "lean4: K_THM0003.lean" in lines           # field → sidecar filename
+    assert side["K_THM0003.lean"] == "theorem t (a b : Prop) (h : a) : b :=\n  by sorry"
+    assert "by sorry" not in meta                      # the code is NOT in .meta
+
+
+def test_no_sidecar_collapses_to_meta():
+    md, meta, side = T.tiddler_files(
+        {"title": "K_X", "lean4": "a\nb", "text": "t"},
+        base="K_X", sidecar=False)
+    assert side == {}
+    assert "lean4: a b" in meta                        # legacy single-line collapse
 
 
 def test_export_writes_files_and_disambiguates():
@@ -34,7 +43,7 @@ def test_export_writes_files_and_disambiguates():
         {"title": "FO", "type": "text/vnd.tiddlywiki", "text": "<$latex/>"},
     ]
     with tempfile.TemporaryDirectory() as dd:
-        n, out = T.export_tiddlers(tiddlers, dd, bibkey="2110.11150")
+        n, out, side = T.export_tiddlers(tiddlers, dd, bibkey="2110.11150")
         assert n == 3
         assert out.name == "2110.11150"               # per-document folder
         assert (out / "K_H1.md").read_text() == "alpha"
@@ -44,6 +53,17 @@ def test_export_writes_files_and_disambiguates():
         assert "K_H1.md" in mds and "K_H1~1.md" in mds
         # the template tiddler keeps its wikitext type in the meta
         assert "type: text/vnd.tiddlywiki" in (out / "FO.md.meta").read_text()
+
+
+def test_export_writes_lean_sidecar_file():
+    tiddlers = [{"title": "K_THM0001", "type": "text/markdown",
+                 "text": "**Lemma.**", "lean4": "theorem foo : True := by\n  trivial"}]
+    with tempfile.TemporaryDirectory() as dd:
+        n, out, side = T.export_tiddlers(tiddlers, dd, bibkey="K")
+        assert side == 1
+        lean = out / "K_THM0001.lean"
+        assert lean.read_text() == "theorem foo : True := by\n  trivial"   # clean, no escaping
+        assert "lean4: K_THM0001.lean" in (out / "K_THM0001.md.meta").read_text()
 
 
 def test_safe_filename():
