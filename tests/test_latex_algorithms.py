@@ -110,6 +110,42 @@ def test_build_source_model_emits_algorithm_objects():
     assert doc.meta["source_counts"]["algorithms"] == 1
 
 
+def test_algorithm2e_float_without_inner_algorithmic():
+    r"""The 2110.11150 case: an algorithm2e \begin{algorithm}[h!] with NO inner
+    \begin{algorithmic} (its own \KwIn/\For{}{}) and a \caption{\texttt{...}}.
+    It must still be isolated, with the nested-brace caption recovered."""
+    body = (r"\begin{algorithm}[h!]" + "\n"
+            r"\caption{\texttt{edge-popup-scaled}}\label{alg:ep}" + "\n"
+            r"\KwIn{Data $(X,y)$}" + "\n"
+            r"\For{$i=1$ to $e$}{ step one\\ step two }" + "\n"
+            r"output: $f$" + "\n"
+            r"\end{algorithm}")
+    algs = ls.extract_algorithms(body)
+    assert len(algs) == 1
+    assert algs[0]["number"] == 1
+    assert algs[0]["title"] == r"\texttt{edge-popup-scaled}"
+    assert algs[0]["label"] == "alg:ep"
+    assert len(algs[0]["steps"]) >= 3            # one step per non-empty line
+
+
+def test_format_algorithms_counts_model_objects_not_sidecar():
+    """The bug: a source-built model HAS Algorithm objects but the sidecar
+    `algorithms_*` evidence is unset (only the MathPix path sets it), so
+    `_format_algorithms` reported 0. It must count from the model objects."""
+    from pdfdrill.commands import _format_algorithms
+    from docmodel.core import Document, DocObject
+    doc = Document()
+    alg = DocObject(type="Algorithm", props={"number": 1, "title": "edge-popup"})
+    doc.add(alg)
+    for i in range(3):
+        doc.add(DocObject(type="AlgorithmStep",
+                          props={"text": f"s{i}", "depth": i % 2}, parent=alg.id))
+    out = _format_algorithms(doc)
+    assert "1 Algorithm block(s)" in out and "3 steps" in out
+    assert "edge-popup" in out
+    assert "No algorithm blocks found" in _format_algorithms(Document())
+
+
 if __name__ == "__main__":
     tests = [v for k, v in list(globals().items()) if k.startswith("test_")]
     failed = []

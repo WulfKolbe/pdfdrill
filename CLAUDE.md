@@ -2557,6 +2557,24 @@ degrades cleanly (clear message) when `latex`/`dvisvgm` are absent. Verified
 on the graphbook: 128 sections, 343 equations, 118 macros, **18/18** TikZ/
 tables → SVG, one command.
 
+**`algorithms` reports from the model objects, not stale sidecar evidence
+(2026-06-26).** `pdfdrill algorithms` showed **0** on a source-built doc that
+clearly had an algorithm (2110.11150's appendix `\begin{algorithm}[h!]`,
+algorithm2e style). Root cause: `_format_algorithms` read the sidecar
+`algorithms_created`/`_steps`/`_max_depth` evidence, which ONLY the MathPix
+path sets — so when the model already carried Algorithm objects (built by
+`build_source_model`'s `extract_algorithms`, which DID isolate the algorithm2e
+float) the command early-returned a sidecar summary of 0. Fixed:
+`_format_algorithms(doc)` now counts the model's `Algorithm`/`AlgorithmStep`
+objects (the source of truth) and lists their titles, working for both build
+paths. Verified: 2110.11150 → "1 Algorithm block(s) with 18 steps — \texttt{
+edge-popup-scaled}". (`extract_algorithms` already handled an algorithm2e
+`\begin{algorithm}` float with NO inner `algorithmic`, one step per line,
+recovering the nested-brace `\caption{\texttt{…}}` title — now regression-
+tested.) Tests: `tests/test_latex_algorithms.py`
+(`test_algorithm2e_float_without_inner_algorithmic`,
+`test_format_algorithms_counts_model_objects_not_sidecar`).
+
 **Source-path algorithm isolation** (`latex_source.extract_algorithms`,
 2026-06-15). The MathPix `pdfdrill algorithms` path reads `pseudocode` lines;
 the LaTeX-source path now isolates algorithms directly from the `.tex`. Each

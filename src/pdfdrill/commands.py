@@ -4044,7 +4044,7 @@ def cmd_algorithms(pdf: Path, force: bool = False) -> str:
 
     existing = [o for o in doc.objects.values() if o.type in ("Algorithm", "AlgorithmStep")]
     if existing and not force:
-        return _format_algorithms(sc)
+        return _format_algorithms(doc)
     if force and existing:
         ids = {o.id for o in existing}
         for o in existing:
@@ -4109,16 +4109,27 @@ def cmd_algorithms(pdf: Path, force: bool = False) -> str:
     sc.log_transition("algorithms", prev, ALGORITHMS_BUILT,
                       detail=f"{created} algorithms, {steps_total} steps, depth {depth}")
     sc.save()
-    return _format_algorithms(sc)
+    return _format_algorithms(doc)
 
 
-def _format_algorithms(sc: Sidecar) -> str:
+def _format_algorithms(doc) -> str:
+    """Summarise the Algorithm blocks FROM THE MODEL OBJECTS (the source of
+    truth) — works for both the MathPix-pseudocode path and the LaTeX-source
+    path (`build_source_model`'s `extract_algorithms`, incl. algorithm2e
+    `\\begin{algorithm}` floats). The sidecar evidence is only set by the
+    MathPix path, so reading it reported 0 on a source-built model."""
+    algos = [o for o in doc.objects.values() if o.type == "Algorithm"]
+    steps = [o for o in doc.objects.values() if o.type == "AlgorithmStep"]
+    if not algos and not steps:
+        return ("No algorithm blocks found (no MathPix `pseudocode` lines and no "
+                "`\\begin{algorithm}`/`algorithmic` in the LaTeX source).")
+    max_depth = max((int(s.props.get("depth") or 0) for s in steps), default=0)
+    titles = [a.props.get("title") for a in algos if (a.props.get("title") or "").strip()]
+    extra = f" — {', '.join(titles)}" if titles else ""
     return (
-        f"Reconstructed {sc.get_evidence('algorithms_created', 0)} Algorithm "
-        f"block(s) with {sc.get_evidence('algorithms_steps', 0)} steps "
-        f"(max indent depth {sc.get_evidence('algorithms_max_depth', 0)}) from "
-        f"MathPix pseudocode lines. Each Algorithm carries number/title/page; "
-        f"steps carry text + depth (if/else/end nesting)."
+        f"{len(algos)} Algorithm block(s) with {len(steps)} steps "
+        f"(max indent depth {max_depth}){extra}. Each Algorithm carries "
+        f"number/title/page; steps carry text + depth (if/else/end nesting)."
     )
 
 
