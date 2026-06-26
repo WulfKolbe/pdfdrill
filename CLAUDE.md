@@ -1962,6 +1962,22 @@ biggest gaps (the user chose "extend the builder directly", not route-via-md):
   `tests/test_latex_prose.py`. Still source-only-absent (later phases): Page
   (needs compile/geometry), Citation/Abstract/ListItem/Footnote/Reference.
 
+## URL-download collision survival — same-basename papers don't clobber (2026-06-26)
+
+A generic-URL download named the local file `<basename>.pdf`, so two DIFFERENT
+papers sharing a basename (`host1/fulltext.pdf` vs `host2/fulltext.pdf`) clobbered
+each other in the download dir — and the cache check (`dest.exists()`) then served
+the WRONG paper. Found in the 172-URL non-arxiv batch: 106 list entries collapsed
+to 100 local files (`fulltext.pdf`, `paper_15.pdf` ×N). `sources._pick_url_dest`
+keeps the clean `<basename>.pdf` for the first/owning URL and gives a colliding URL
+`<stem>-<urlhash8>.pdf`; a `<file>.source` marker records which URL each file came
+from, so a re-resolve of the SAME URL is a true cache hit and a legacy markerless
+file is adopted by its first claimant (no re-download). arXiv stays on its clean
+canonical `<id>.pdf` (ids are unique). Verified: two `fulltext.pdf` URLs → distinct
+files with distinct content; re-resolving each reuses its own; an existing
+markerless `C12-2133.pdf` adopted, not re-fetched. Tests: `tests/test_sources.py`
+(`test_url_download_collisions_survive_via_hash`).
+
 ## Config FILE + stable download/drill location + findable artifacts (2026-06-19)
 
 Driven by drillui usage feedback (downloads landing in cwd/`/tmp`; re-drilling;

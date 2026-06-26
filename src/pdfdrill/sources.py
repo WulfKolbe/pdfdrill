@@ -175,6 +175,29 @@ def _safe_filename(url: str) -> str:
     return re.sub(r"[^\w.\-]", "_", name)
 
 
+def _url_hash(url: str) -> str:
+    import hashlib
+    return hashlib.sha1(url.encode("utf-8")).hexdigest()[:8]
+
+
+def _pick_url_dest(base: Path, url: str) -> Path:
+    """Pick the local file for a generic-URL download so two DIFFERENT URLs that
+    share a basename (`host1/fulltext.pdf` vs `host2/fulltext.pdf`) don't clobber
+    each other. The clean `<basename>.pdf` is kept for the first/owning URL; a
+    colliding URL falls back to `<stem>-<urlhash8>.pdf`. A `<file>.source` marker
+    records which URL each file came from (so a re-resolve is a true cache hit,
+    and a legacy markerless file is adopted by its first claimant)."""
+    cands = [base, base.with_name(f"{base.stem}-{_url_hash(url)}{base.suffix}")]
+    for cand in cands:
+        if not (cand.exists() and cand.stat().st_size > 0):
+            return cand                                 # free slot
+        marker = cand.with_name(cand.name + ".source")
+        if (not marker.exists()                         # legacy file → adopt
+                or marker.read_text(encoding="utf-8").strip() == url):  # same URL
+            return cand
+    return cands[-1]                                     # hashed name (this URL's)
+
+
 def resolve_input(arg: str, dest_dir: Optional[Path] = None) -> dict:
     """Resolve a command argument to a local PDF path.
 
@@ -216,8 +239,13 @@ def resolve_input(arg: str, dest_dir: Optional[Path] = None) -> dict:
             download(arxiv_urls(arxiv_id)["pdf"], dest)
         return {"path": dest, "source": "arxiv", "arxiv_id": arxiv_id}
 
-    # generic http(s): download the file as-is
-    dest = dest_dir / _safe_filename(arg)
+    # generic http(s): download as-is, but disambiguate same-basename collisions
+    # (different papers both named fulltext.pdf) by URL hash so neither clobbers.
+    dest = _pick_url_dest(dest_dir / _safe_filename(arg), arg)
     if not (dest.exists() and dest.stat().st_size > 0):
         download(arg, dest)
+    try:                                                # record the source URL
+        dest.with_name(dest.name + ".source").write_text(arg, encoding="utf-8")
+    except OSError:
+        pass
     return {"path": dest, "source": "url", "arxiv_id": None}
