@@ -92,7 +92,8 @@ def test_section_tiddler_caption_field_and_latex():
         "caption": r"Proof of Lemma~\ref{thm:scaling}", "level": 1, "flow_index": 2}))
     t = _proj(doc)
     h = next(v for k, v in t.items() if v.get("kind") == "section" or "_H" in k)
-    assert h["text"].startswith("! {{!!caption}}")          # caption transcluded in text
+    assert h["text"].startswith("# {{!!caption}}")          # markdown heading transcludes caption
+    assert h["type"] == "text/markdown"
     assert h["caption"] == "Proof of Lemma (thm:scaling)"   # \ref resolved/cleaned
     assert h["caption_latex"] == r"Proof of Lemma~\ref{thm:scaling}"   # raw kept
 

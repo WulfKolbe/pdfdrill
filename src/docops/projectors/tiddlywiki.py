@@ -133,6 +133,22 @@ def caption_to_wikitext(caption: str, label_to_title: dict) -> str:
     return re.sub(r"[ \t]+", " ", s).strip()
 
 
+# Content tiddlers are emitted as Markdown (the templates stay vnd.tiddlywiki —
+# pure widget machinery). Only WikiText HEADINGS need converting globally
+# (`! ` → `# `): they are line-anchored so there is no clash with math (`f''`,
+# `a!`, `//`); the few bold/italic spans we emit are written as Markdown at
+# their source (theorem/proof/placeholder), avoiding the `''`-vs-double-prime
+# hazard. Transclusions `{{…||TPL}}` and widgets `<$latex>`/`<$link>` are kept
+# verbatim (the TiddlyWiki Markdown plugin renders them).
+_WT_HEADING = re.compile(r"^(!{1,6})[ \t]+", re.M)
+
+
+def _to_markdown(text: str) -> str:
+    if not text:
+        return text
+    return _WT_HEADING.sub(lambda m: "#" * len(m.group(1)) + " ", text)
+
+
 def _alpha_label(n: int) -> str:
     """1->A, 2->B, … 26->Z, 27->AA (spreadsheet-column style) — LaTeX's
     appendix top-level numbering."""
@@ -457,7 +473,7 @@ class TiddlyWikiProjector(BaseProjector):
         for pg in inv["pages"]:
             t = self._t(
                 title[pg.id],
-                f"Page {pg.props.get('page_number')} of //{bibkey}//.",
+                f"Page {pg.props.get('page_number')} of *{bibkey}*.",
                 f"page {_bibtag(bibkey)}",
             )
             t["page"] = self._p3(pg.props.get("page_number"))
@@ -765,7 +781,7 @@ class TiddlyWikiProjector(BaseProjector):
         # Reference (resolved ones link straight to the bibliographic tiddler).
         for ck, ct in getattr(self, "_cit_placeholders", {}).items():
             t = self._t(
-                ct, f"//Citation placeholder for// `{ck}`",
+                ct, f"*Citation placeholder for* `{ck}`",
                 f"citation {_bibtag(bibkey)}",
             )
             t["citekey"] = ck
@@ -782,7 +798,7 @@ class TiddlyWikiProjector(BaseProjector):
                 head = f"{head} {num}"
             if th.props.get("title"):
                 head = f"{head} ({th.props['title']})"
-            text = f"''{head}.'' " + (th.props.get("statement") or "")
+            text = f"**{head}.** " + (th.props.get("statement") or "")
             pid = th.props.get("proof_id")
             if pid and pid in title:
                 text += "\n\n{{" + title[pid] + "||PROOF}}"
@@ -800,7 +816,7 @@ class TiddlyWikiProjector(BaseProjector):
 
         # Proofs — paired to a Theorem via `proof_of` (back-link field).
         for pf in inv["proofs"]:
-            text = "''Proof.'' " + (pf.props.get("statement") or "") + " $\\square$"
+            text = "**Proof.** " + (pf.props.get("statement") or "") + " $\\square$"
             t = self._t(title[pf.id], text, f"proof {_bibtag(bibkey)}")
             t["kind"] = "proof"
             of = pf.props.get("proof_of")
@@ -1088,7 +1104,7 @@ class TiddlyWikiProjector(BaseProjector):
         heading = caption if caption and caption != bibkey else bibkey
         return (
             f"! {heading}\n\n"
-            + (f"//{bibkey}//\n\n" if heading != bibkey else "")
+            + (f"*{bibkey}*\n\n" if heading != bibkey else "")
             + f"* Total Pages: {len(pages)}\n"
             f"* Total Sections: {len(sections)}\n"
             f"* Total Paragraphs: {len(paragraphs)}\n"
@@ -1130,8 +1146,8 @@ class TiddlyWikiProjector(BaseProjector):
         now = _tw_now()
         return {
             "title": _sanitize_title(title),
-            "text": text,
-            "type": "text/vnd.tiddlywiki",
+            "text": _to_markdown(text),           # WikiText headings → Markdown
+            "type": "text/markdown",
             "tags": tags,
             "created": now,
             "modified": now,
@@ -1160,8 +1176,9 @@ class TiddlyWikiProjector(BaseProjector):
         """
         now = _tw_now()
         templates = [
-            # FO — inline formula. Uses the formula tiddler's own !!latex.
-            ("FO", "<$latex text={{!!latex}} displayMode={{!!displayMode}}/>"),
+            # FO — inline formula, wrapped in a link to the formula tiddler so
+            # the rendered math is clickable (navigates to its own tiddler).
+            ("FO", "<$link><$latex text={{!!latex}} displayMode={{!!displayMode}}/></$link>"),
 
             # CIT — inline citation: link to the citation placeholder showing the citekey.
             ("CIT", "[<$link to={{!!title}}>{{!!citekey}}</$link>]"),

@@ -1147,6 +1147,24 @@ PostScript DCTDecode embedding — ImageMagick `convert` RE-ENCODES and bloats) 
 needed when a TikZ/figure `\includegraphics` pulls in a JPG on the
 latex→dvips→dvisvgm route; no such tool is installed.
 
+## Tiddlers are `text/markdown` now (2026-06-26)
+
+CONTENT tiddlers are emitted as **`text/markdown`** (per the user); the 16 built-in
+TEMPLATE tiddlers (FO/PARA/EQBLOCK/…) stay `text/vnd.tiddlywiki` — they are pure
+widget machinery (`<$latex>`/`<$link>`/`<div>`). At the single `_t` chokepoint the
+type is `text/markdown` and `_to_markdown` converts the only WikiText construct
+that clashes with Markdown: HEADINGS (`! `/`!! ` → `# `/`## `, line-anchored so no
+clash with math `f''`/`a!`/`//`). The few bold/italic spans we emit are written as
+Markdown **at the source** (theorem `**Lemma 2.**`, proof `**Proof.**`, `*bibkey*`,
+`*Citation placeholder for*`) — deliberately NOT a global `''`→`**` pass, which
+would corrupt math double-primes. Transclusions `{{…||TPL}}` and widgets are kept
+verbatim (the TiddlyWiki Markdown plugin renders them). The **FO** template now
+wraps the math in a `<$link>` (`<$link><$latex …/></$link>`) so a rendered inline
+formula is clickable → its own tiddler. Verified on 2110.11150: 353 markdown /
+16 wikitext-template tiddlers, section `# {{!!caption}}`, lemma `**Lemma 1.**`.
+Requires the official TiddlyWiki Markdown plugin in the wiki. Tests:
+`tests/test_tiddler_tags_toc.py`, `tests/test_docops.py` (type + `#` heading).
+
 ## Theorem/proof extraction + paired transclusion + `\ref` resolution (2026-06-26)
 
 The LEAN4-prep payoff: `latex_source.extract_theorems(body, theorem_envs,

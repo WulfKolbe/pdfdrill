@@ -618,7 +618,8 @@ def test_document_title_captured_and_root_caption_is_title():
     root = [t for t in tids if "document" in (t.get("tags") or "")][0]
     assert root["title"] == "T"                       # bibkey, NOT the title
     assert root.get("caption") == "My Great Paper"    # human title in caption
-    assert root["text"].splitlines()[0] == "! My Great Paper"
+    assert root["text"].splitlines()[0] == "# My Great Paper"   # markdown heading
+    assert root["type"] == "text/markdown"
 
 
 def test_no_title_line_caption_falls_back_to_bibkey():
