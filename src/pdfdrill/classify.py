@@ -173,11 +173,27 @@ def classify_document(nodes, federation, k: int = 8, per_seg: int = 3,
                 "profile": {}, "msc_top": [], "msc_sections": {},
                 "per_source": {}, "chars": text_chars, "segments": len(en_segs)}
 
+    # A German-language vocabulary (stw/gnd) must classify only GENUINELY German
+    # text: the original `text_source` after `pdfdrill translate`, or a German
+    # original. For an untranslated English doc, `de_segs` falls back to the
+    # English `text`, so a German scheme would match English NOISE
+    # (COMPASS-Detektor / German economics on an AI paper). Detect the routed
+    # language and skip German schemes unless it really is German.
+    de_is_german = False
+    if de_segs:
+        try:
+            from features.extract_language import language_of
+            de_is_german = language_of(" ".join(de_segs)[:5000]).startswith("de")
+        except Exception:                                    # noqa: BLE001
+            de_is_german = has_translation(nodes)            # trust a translation marker
+
     votes: dict[str, dict[str, int]] = {s: {} for s in federation.vocabs}
     score: dict[str, dict[str, float]] = {s: {} for s in federation.vocabs}
     pref: dict[str, str] = {}
     for scheme, vocab in federation.vocabs.items():
         lang = (vocab.meta.get("lang") or "en").lower()
+        if lang.startswith("de") and not de_is_german:
+            continue                                         # German vocab, non-German text → skip
         segs = de_segs if lang.startswith("de") else en_segs
         for seg in segs:
             hits = vocab.classify(seg, k=per_seg * 2 if require_phrase else per_seg)

@@ -84,6 +84,25 @@ def test_classify_document_end_to_end():
     assert res["chars"] > 0
 
 
+def test_german_vocab_skipped_on_english_document():
+    """A German-language vocab (stw/gnd) must NOT classify an untranslated
+    English doc (de_segs falls back to the English text) — else it matches
+    German noise (COMPASS-Detektor / German economics on an AI paper). The
+    English scheme still runs."""
+    fed = Federation([
+        Vocabulary.compile("msc", [        # phrase-matches the English fixture
+            Concept("81Txx", pref="Quantum field theory; related classical field theories"),
+            Concept("83-XX", pref="Relativity and gravitational theory")]),
+        Vocabulary.compile("stw", [
+            Concept("E1", pref="Preiskonvergenz"),
+            Concept("E2", pref="Leistungsfähigkeitsprinzip")],
+            meta={"lang": "de"}),
+    ])
+    res = classify.classify_document(_nodes(), fed, k=5)   # _nodes() is English
+    assert "stw" in res["absent"] and "stw" not in res["present"]
+    assert "msc" in res["present"]
+
+
 def test_classify_document_no_vocab_is_graceful():
     res = classify.classify_document(_nodes(), Federation([]), k=5)
     assert res["present"] == [] and res["msc_top"] == []

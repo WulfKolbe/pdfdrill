@@ -1474,6 +1474,19 @@ not business). Whatever the native format, a source compiles to the SAME
   Ljapunov-Stabilitätstheorie, Orthonormalsystem**. STW (economics) stays
   off-domain by design (near-absence = "not economics", itself federation
   signal). Tests: `tests/test_vocabnet_gnd.py`.
+  - **Language-routing fix — German vocab never classifies a non-German doc
+    (2026-06-27).** For an UNTRANSLATED English doc, `de_segs`
+    (`prefer_source=True`) falls back to the English `text`, so stw/gnd matched
+    English NOISE (arXiv 2603.16021, an AI paper → `COMPASS-Detektor`, German
+    economics). `classify_document` now detects the routed text's language
+    (`features.extract_language.language_of`, fallback `has_translation`) and
+    SKIPS a `lang="de"` vocab unless the text is actually German — so those
+    schemes land in `absent`, not as spurious hits. A German original (text or
+    `text_source`) still classifies directly. Tests: `tests/test_classify.py`
+    (`test_german_vocab_skipped_on_english_document`). Honest caveat (separate,
+    unfixed): with NO CS/AI vocabulary loaded (only MSC/PhySH/GND/STW), a CS
+    paper still produces lexical NOISE from MSC/PhySH (Matroids/plasmas) — the
+    real fix is loading ACM CCS (the adapter exists; the data isn't built).
 - **CLI:** `python3 -m vocabnet.sources {list,build <scheme> [path],build all}`.
   `build` defaults its input to the first present file under
   `vocab/sources/<scheme>/` and writes `vocab/compiled/<scheme>.json`.
@@ -3010,6 +3023,19 @@ OpenAI GPT-4o vision provenance (`src/pdfdrill/openai_vision.py`,
   failure) to `<drill>/svg/tex/<bibkey>_<Type>_NN.tex` — open it in a LaTeX editor
   (Gummi) to debug a failing snippet. Tests: `tests/test_svg.py`
   (`test_standalone_preamble_drops_conference_style_keeps_local_styles`).
+- **`\definecolor`/`\pgfplotsset` kept + booktabs injected (2026-06-27).** Two more
+  standalone-preamble gaps found on arXiv 2603.16021 (7/7 graphics failed):
+  `standalone_preamble` dropped the paper's `\definecolor{layerstructural}{…}` (and
+  `\pgfplotsset{…}`), so tikz errored `Undefined color`; and a booktabs table whose
+  paper loads `booktabs` INDIRECTLY (via the class) hit `Undefined control sequence
+  \toprule`. Fix: `standalone_preamble` now also captures every `\definecolor` line
+  and each brace-balanced `\pgfplotsset{…}` block; `svg._augment_preamble` injects
+  `\usepackage{booktabs}` when a snippet uses `\toprule`/`\midrule`/`\bottomrule`/
+  `\cmidrule`/`\addlinespace` and the preamble lacks it (mirrors the chemfig/xcolor
+  injection). 2603.16021 → **0/7 → 7/7** (2 booktabs tables + 5 tikz/pgfplots with
+  custom colors). Tests: `tests/test_svg.py`
+  (`test_standalone_preamble_keeps_definecolor_and_pgfplotsset`,
+  `test_augment_preamble_injects_booktabs`).
 - Ported from the predecessor `~/MX/mathpix_images` (llmUtils.js/imagetester.js
   + prompt.txt). Stdlib `urllib` (no `openai` package). Key from
   `OPENAI_API_KEY` (env/.env), **never hardcoded**; `--limit` caps calls (a doc

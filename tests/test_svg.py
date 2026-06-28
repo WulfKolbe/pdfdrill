@@ -55,6 +55,37 @@ def test_standalone_preamble_drops_conference_style_keeps_local_styles():
     assert not ls._drop_from_standalone("booktabs")
 
 
+def test_standalone_preamble_keeps_definecolor_and_pgfplotsset():
+    r"""tikz diagrams use custom \definecolor names (layerstructural, stagebox)
+    and pgfplots `axis` plots need \pgfplotsset — dropping them gave
+    "Undefined color ..." (the 2603.16021 failures)."""
+    pre = (r"\documentclass{article}" "\n"
+           r"\usepackage{tikz}\usepackage{pgfplots}" "\n"
+           r"\definecolor{layerstructural}{RGB}{10,20,30}" "\n"
+           r"\definecolor{stagebox}{HTML}{AABBCC}" "\n"
+           r"\pgfplotsset{compat=1.18, mybar/.style={ybar}}")
+    sa = ls.standalone_preamble(pre)
+    assert "\\definecolor{layerstructural}{RGB}{10,20,30}" in sa
+    assert "\\definecolor{stagebox}{HTML}{AABBCC}" in sa
+    assert "\\pgfplotsset{compat=1.18" in sa
+
+
+def test_augment_preamble_injects_booktabs():
+    r"""A booktabs table (\toprule/\midrule) whose paper loaded booktabs
+    INDIRECTLY (via a class) would hit "Undefined control sequence \toprule"
+    under standalone — _augment_preamble must inject it."""
+    pre = "\\documentclass{article}\n\\usepackage{tikz}\n"   # no booktabs
+    code = (r"\begin{tabular}{ll}\toprule a & b\\ \midrule c & d\\ "
+            r"\bottomrule\end{tabular}")
+    out = svgmod._augment_preamble(pre, code)
+    assert "\\usepackage{booktabs}" in out
+    # not double-injected when already present, and not added when unneeded
+    pre2 = "\\documentclass{article}\n\\usepackage{booktabs}\n"
+    assert svgmod._augment_preamble(pre2, code).count("booktabs") == 1
+    assert "booktabs" not in svgmod._augment_preamble(
+        pre, r"\begin{tikzpicture}\draw(0,0)--(1,1);\end{tikzpicture}")
+
+
 def test_standalone_preamble_keeps_multiline_macro_bodies():
     # A multi-line \newcommand body must survive intact. The old line-anchored
     # regex (`\\newcommand.*`) captured only the first line, dropping the body and

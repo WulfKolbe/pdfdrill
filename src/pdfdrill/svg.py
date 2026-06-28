@@ -126,6 +126,12 @@ def _augment_preamble(pre: str, latex_code: str) -> str:
         pre += "\\usepackage{chemfig}\n"
     if re.search(r"\\ce\b", latex_code) and "mhchem" not in pre:
         pre += "\\usepackage[version=4]{mhchem}\n"
+    # booktabs rules (\toprule/\midrule/\bottomrule/\cmidrule/\addlinespace) — a
+    # table snippet whose paper loaded booktabs INDIRECTLY (via a class) would
+    # otherwise hit "Undefined control sequence \toprule" under standalone.
+    if (re.search(r"\\(?:top|mid|bottom|cmid)rule\b|\\addlinespace\b", latex_code)
+            and "booktabs" not in pre):
+        pre += "\\usepackage{booktabs}\n"
     if re.search(r"\\(?:row|cell|column)color\b", latex_code) and not _xcolor_has_table(pre):
         # Add the `table` option without an option clash, whether xcolor is loaded
         # explicitly or implicitly (tikz loads it): PassOptions before any load.

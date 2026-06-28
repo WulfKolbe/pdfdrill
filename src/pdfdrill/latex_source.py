@@ -426,17 +426,27 @@ def standalone_preamble(preamble: str) -> str:
     # build the Yoneda symbol \yo) — a \def that references the named font fails
     # without the \font load.
     fonts = re.findall(r"\\font\\[A-Za-z@]+\s*=[^\n]*", pre)
+    # Custom colors (\definecolor) the diagrams reference (e.g. layerstructural,
+    # stagebox) — without them tikz/xcolor errors "Undefined color ...".
+    colors = re.findall(r"\\definecolor\b[^\n]*", pre)
     # \tikzset{...}/\tikzcdset{...} blocks define custom arrow/node styles the
     # diagrams use (e.g. utcofarrow); capture the whole brace-balanced block.
     tikzsets: list[str] = []
     for m in re.finditer(r"\\tikz(?:cd)?set\s*\{", pre):
         open_idx = m.end() - 1
         tikzsets.append(pre[m.start():open_idx] + _balanced(pre, open_idx))
+    # \pgfplotsset{...} blocks (compat level + custom plot/cycle styles) a
+    # pgfplots `axis` diagram needs.
+    pgfsets: list[str] = []
+    for m in re.finditer(r"\\pgfplotsset\s*\{", pre):
+        open_idx = m.end() - 1
+        pgfsets.append(pre[m.start():open_idx] + _balanced(pre, open_idx))
     # `class=report` so book/report counters (\thechapter, …) that a project's
     # styles reference exist under standalone; tikz so bare \begin{tikzpicture}
     # compiles even if the project loads it indirectly. (Mirrors LATW.)
     head = "\\documentclass[border=2pt,class=report]{standalone}\n\\usepackage{tikz}"
-    return "\n".join([head, *pkgs, *libs, *fonts, *decls, *defs, *tikzsets])
+    return "\n".join([head, *pkgs, *libs, *fonts, *decls, *colors, *defs,
+                      *tikzsets, *pgfsets])
 
 
 # ---------------------------------------------------------------------------
