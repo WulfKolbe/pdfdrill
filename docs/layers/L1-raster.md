@@ -17,7 +17,7 @@ Primitive types:
 
 | Module | What it contributes |
 |---|---|
-| `pdftoppm` path (`pdf_reading.rasterize`, `ocr_lines`, `qrscan`) | page renders |
+| Ghostscript renderer (`pdf_reading.rasterize`/`render_page`, the ONLY rasterizer; used by `ocr_lines`/`qrscan`/`layout_elements`/`text_layers`/`pdfimg_locate`/`pix2tex_runner`) | page renders at **>=400 DPI** (`RASTER_MIN_DPI`) — measured-best OCR/vision fidelity (gs-400 94.9% vs poppler/fitz; only gs reads umlauts) |
 | `src/pdfdrill/qrscan.py` | QR/GiroCode/DataMatrix decoding from the raster — the payload is **L0-quality data found at L1** (a GiroCode carries creditor/IBAN/amount/reference) |
 | `src/pdfdrill/font_classify.py` | ONNX glyph-image classifier (torch-free): WORD crops → font face + category votes per OCR field |
 | skew/blob detection | Hough-style; the external `blobcc` moment-based principal-axis estimator is the streaming variant of the same layer (not vendored) |

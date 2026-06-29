@@ -108,14 +108,9 @@ def fetch_tesseract_tsv(
         )
 
     out_dir.mkdir(parents=True, exist_ok=True)
-    root = out_dir / "page"
-
-    # Render all pages at once.
-    subprocess.run(
-        ["pdftoppm", "-png", "-r", str(ppi), str(pdf), str(root)],
-        check=True, capture_output=True, timeout=600,
-    )
-    page_pngs = sorted(out_dir.glob("page-*.png"))
+    # Render all pages via Ghostscript >= 400 DPI (the only rasterizer).
+    from . import pdf_reading
+    page_pngs = pdf_reading.rasterize(pdf, out_dir, dpi=ppi, fmt="png")
 
     all_words: list[dict[str, Any]] = []
     for png in page_pngs:

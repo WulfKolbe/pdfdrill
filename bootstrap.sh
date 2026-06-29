@@ -5,7 +5,9 @@
 #
 # Installs (best-effort, only what's missing):
 #   - Python deps (pdfplumber, pydantic) via pip
-#   - poppler-utils                  -> pdftotext/pdfimages/pdftoppm/pdfinfo (core)
+#   - ghostscript                    -> the ONLY page rasterizer (>=400 DPI:
+#     OCR/vision/layout/image-locate all render via gs; required)
+#   - poppler-utils                  -> pdftotext/pdfimages/pdfinfo (core)
 #   - tesseract-ocr (+eng/deu/equ)   -> the keyless OCR route (`pdfdrill ocr`)
 #   - LaTeX DVI toolchain + dvisvgm  -> TikZ/table SVG route (`pdfdrill svg`,
 #     `latexbook`): latex/pdflatex/dvips + dvisvgm + tikz/standalone packages

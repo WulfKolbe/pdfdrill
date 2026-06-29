@@ -32,13 +32,11 @@ from . import geometry
 
 
 def tools_available() -> tuple[bool, str]:
-    """Return (ok, message). Needs a rasterizer (Ghostscript, preferred; else
-    pdftoppm) and tesseract."""
-    have_raster = any(shutil.which(t) for t in ("gs", "gswin64c", "gswin32c",
-                                                "pdftoppm"))
+    """Return (ok, message). Needs Ghostscript (the only rasterizer) + tesseract."""
+    have_gs = any(shutil.which(t) for t in ("gs", "gswin64c", "gswin32c"))
     missing = []
-    if not have_raster:
-        missing.append("ghostscript (or pdftoppm)")
+    if not have_gs:
+        missing.append("ghostscript")
     if shutil.which("tesseract") is None:
         missing.append("tesseract")
     if missing:

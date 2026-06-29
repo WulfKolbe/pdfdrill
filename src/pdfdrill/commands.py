@@ -322,8 +322,7 @@ def cmd_doctor() -> str:
     tools = [
         ("pdftotext", "poppler-utils", "core: text/geometry/embedimages"),
         ("pdfimages", "poppler-utils", "core: images/embedimages"),
-        ("gs", "ghostscript", "PRIMARY page rasterizer (>=400 DPI; best OCR/vision fidelity)"),
-        ("pdftoppm", "poppler-utils", "fallback rasterizer when gs is absent"),
+        ("gs", "ghostscript", "REQUIRED page rasterizer (the ONLY one; >=400 DPI for OCR/vision/layout)"),
         ("pdfinfo", "poppler-utils", "size/links/dests"),
         ("tesseract", "tesseract-ocr", "keyless OCR route (pdfdrill ocr)"),
         ("latex", "texlive-latex-base", "TikZ/table SVG (pdfdrill svg)"),
@@ -1714,16 +1713,17 @@ def cmd_selftest(target: Path, full: bool = False) -> str:
     return head + "\n" + "\n".join(lines)
 
 
-def cmd_rasterize(pdf: Path, pages: str | None = None, dpi: int = 150,
+def cmd_rasterize(pdf: Path, pages: str | None = None, dpi: int = 400,
                   fmt: str = "png", force: bool = False) -> str:
     """Rasterize page(s) to images for visual inspection (the skill's core op).
 
     Text extraction is blind to charts, diagrams, equations, multi-column layout
     and form structure; when those matter, render the page and *look* at it.
-    Writes PNG/JPEG page images into the sidecar (`rasterize/`) and returns their
-    paths so the driving LLM can Read them. `--pages N|N-M|1,3,5|all`,
-    `--dpi 150`. Token-cost note (the skill's): a 150-DPI page image is ~1,600
-    tokens — rasterize only the pages that matter.
+    Writes PNG/JPEG page images into the sidecar (`rasterize/`) via Ghostscript
+    (the only rasterizer) and returns their paths so the driving LLM can Read
+    them. `--pages N|N-M|1,3,5|all`, `--dpi 400` (the >=400 floor — best OCR/
+    vision fidelity). A 400-DPI page is larger/more tokens than 150 but far more
+    legible — rasterize only the pages that matter.
     """
     from . import pdf_reading
 

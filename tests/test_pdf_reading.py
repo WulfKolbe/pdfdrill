@@ -165,8 +165,8 @@ def test_tables_to_html_spans():
 
 
 def test_rasterize_roundtrip():
-    if not any(shutil.which(t) for t in ("gs", "gswin64c", "pdftoppm")):
-        print("SKIP rasterize (no gs/pdftoppm)"); return
+    if not any(shutil.which(t) for t in ("gs", "gswin64c", "gswin32c")):
+        print("SKIP rasterize (no ghostscript)"); return
     with tempfile.TemporaryDirectory() as d:
         pdf = Path(d) / "x.pdf"; _blank_pdf(pdf)
         imgs = pr.rasterize(pdf, Path(d) / "out", pages=[2], dpi=72)

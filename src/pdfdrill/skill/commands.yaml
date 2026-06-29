@@ -557,8 +557,8 @@ commands:
   typed: true
 - name: rasterize
   section: Introspection (fast, no extraction)
-  summary: Rasterize page(s) to PNG/JPEG for visual inspection (pdftoppm) → sidecar; --pages N|N-M|all
-    --dpi 150. Read the images to see charts/equations/layout
+  summary: Rasterize page(s) to PNG/JPEG for visual inspection (Ghostscript, >=400 DPI) → sidecar;
+    --pages N|N-M|all --dpi 400. Read the images to see charts/equations/layout
   offline_ok: true
   positionals:
   - name: pdf
@@ -574,7 +574,7 @@ commands:
   - name: dpi
     type: int
     flag: --dpi
-    default: 150
+    default: 400
   - name: fmt
     type: enum
     flag: --fmt

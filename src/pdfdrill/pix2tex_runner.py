@@ -53,25 +53,12 @@ def _get_model():
 # ---------------------------------------------------------------------------
 
 def render_page_to_png(pdf: Path, page: int, out_dir: Path, ppi: int = PPI_RENDER) -> Path:
-    """Render a single PDF page to PNG via pdftoppm. Returns the file path.
-
-    pdftoppm names files `<root>-<n>.png` where <n> is the page number
-    zero-padded to the width of the total page count (e.g. `-01.png` for
-    docs of up to 99 pages, `-001.png` for 100+, etc.). We glob to find
-    whatever it produced.
-    """
+    """Render a single PDF page to PNG via Ghostscript (>= 400 DPI; the only
+    rasterizer). Returns the file path."""
     out_dir.mkdir(parents=True, exist_ok=True)
-    root = out_dir / f"page-{page:04d}-{ppi}dpi"
-    subprocess.run(
-        ["pdftoppm", "-png", "-r", str(ppi),
-         "-f", str(page), "-l", str(page),
-         str(pdf), str(root)],
-        check=True, capture_output=True, timeout=60,
-    )
-    matches = sorted(out_dir.glob(f"{root.name}-*.png"))
-    if matches:
-        return matches[-1]  # most recent (only one for single-page render)
-    raise FileNotFoundError(f"pdftoppm did not produce a PNG for page {page}")
+    from . import pdf_reading
+    out = out_dir / f"page-{page:04d}-{ppi}dpi.png"
+    return pdf_reading.render_page(pdf, page, out, dpi=ppi)
 
 
 def crop_rect_from_page(

@@ -1,0 +1,96 @@
+[1802.08153.pdf] doctor: ok
+    pdfdrill requirement check
+[1802.08153.pdf] size: ok
+    27-page PDF, 0.5 MB, letter, produced by dvips + GPL Ghostscript GIT PRERELEASE 9.22, has a text layer, not encrypted.
+[1802.08153.pdf] pdfinfo: ok
+    27 pages, PDF 1.4, 526,506 bytes
+[1802.08153.pdf] fonts: ok
+    Uses 24 font families. including math fonts (CMSY8, CMSY10, CMMI10, MSBM10). pdfplumber extraction will detect math expressions.
+[1802.08153.pdf] links: ok
+    All external URL annotations (6):
+[1802.08153.pdf] dests: ok
+    Found 137 named destinations across 7 kinds:
+[1802.08153.pdf] images: ok
+    Found 151 embedded image(s) across 14 page(s).
+[1802.08153.pdf] md: ok
+    Extracted 7688 words of Markdown across 27 pages. Detected 472 inline and 76 display math expressions, 113 references. Stored as layer `md`.
+[1802.08153.pdf] rasterize: ok
+    Rasterized 1 page image(s) (pages 1, 100 DPI, png) → rasterize/. Read these files to inspect the pages visually (~1,600 tokens each at 150 D
+[1802.08153.pdf] attachments: skip
+    No embedded file attachments in 1802.08153.pdf (checked via pdfdetach). Note: rich-media (3D/video) annotations may not appear here.
+[1802.08153.pdf] formfields: skip
+    No interactive form fields in 1802.08153.pdf (no AcroForm). If it's a flat/scanned form, rasterize the page and read it visually instead.
+[1802.08153.pdf] tables: skip
+    No tables found by pdfplumber in 1802.08153.pdf (pages 1). If a table is present but garbled, rasterize the page.
+[2305.04710v1.pdf] doctor: ok
+    pdfdrill requirement check
+[2305.04710v1.pdf] size: ok
+    10-page PDF, 1.4 MB, letter, produced by pdfTeX-1.40.21, has a text layer, not encrypted.
+[2305.04710v1.pdf] pdfinfo: ok
+    10 pages, PDF 1.5, 1,369,016 bytes
+[2305.04710v1.pdf] fonts: ok
+    Uses 22 font families. including math fonts (CMMI10, CMEX10, CMMI7, CMSY9). pdfplumber extraction will detect math expressions.
+[2305.04710v1.pdf] links: ok
+    Likely source-code / data links:
+[2305.04710v1.pdf] dests: ok
+    Found 89 named destinations across 8 kinds:
+[2305.04710v1.pdf] images: ok
+    Found 2 embedded image(s) across 2 page(s).
+[2305.04710v1.pdf] md: ok
+    Extracted 4283 words of Markdown across 10 pages. Detected 70 inline and 12 display math expressions, 42 references. Stored as layer `md`.
+[2305.04710v1.pdf] rasterize: ok
+    Rasterized 1 page image(s) (pages 1, 100 DPI, png) → rasterize/. Read these files to inspect the pages visually (~1,600 tokens each at 150 D
+[2305.04710v1.pdf] attachments: skip
+    No embedded file attachments in 2305.04710v1.pdf (checked via pdfdetach). Note: rich-media (3D/video) annotations may not appear here.
+[2305.04710v1.pdf] formfields: skip
+    No interactive form fields in 2305.04710v1.pdf (no AcroForm). If it's a flat/scanned form, rasterize the page and read it visually instead.
+[2305.04710v1.pdf] tables: skip
+    No tables found by pdfplumber in 2305.04710v1.pdf (pages 1). If a table is present but garbled, rasterize the page.
+[2601.07372.pdf] doctor: ok
+    pdfdrill requirement check
+[2601.07372.pdf] size: ok
+    33-page PDF, 1.4 MB, A4, produced by pikepdf 8.15.1, has a text layer, not encrypted.
+[2601.07372.pdf] pdfinfo: ok
+    Title: Conditional Memory via Scalable Lookup: A New Axis of Sparsity for Large Language Models
+[2601.07372.pdf] fonts: ok
+    Uses 25 font families. including math fonts (PazoMathBlackboardBold, XCharterMathRM, XCharterMathMI). pdfplumber extraction will detect math
+[2601.07372.pdf] links: ok
+    Likely source-code / data links:
+[2601.07372.pdf] dests: ok
+    Found 203 named destinations across 8 kinds:
+[2601.07372.pdf] images: ok
+    Found 1 embedded image(s) across 1 page(s).
+[2601.07372.pdf] md: ok
+    Extracted 14484 words of Markdown across 33 pages. Detected 86 inline and 10 display math expressions, 67 references. Stored as layer `md`.
+[2601.07372.pdf] rasterize: ok
+    Rasterized 1 page image(s) (pages 1, 100 DPI, png) → rasterize/. Read these files to inspect the pages visually (~1,600 tokens each at 150 D
+[2601.07372.pdf] attachments: skip
+    No embedded file attachments in 2601.07372.pdf (checked via pdfdetach). Note: rich-media (3D/video) annotations may not appear here.
+[2601.07372.pdf] formfields: skip
+    No interactive form fields in 2601.07372.pdf (no AcroForm). If it's a flat/scanned form, rasterize the page and read it visually instead.
+[2601.07372.pdf] tables: skip
+    No tables found by pdfplumber in 2601.07372.pdf (pages 1). If a table is present but garbled, rasterize the page.
+[subq-1-1-small-model-card.pdf] doctor: ok
+    pdfdrill requirement check
+[subq-1-1-small-model-card.pdf] size: ok
+    22-page PDF, 1.6 MB, letter, produced by pdfTeX-1.40.29, has a text layer, not encrypted.
+[subq-1-1-small-model-card.pdf] pdfinfo: ok
+    Title: SubQ-1.1-Small Technical Report
+[subq-1-1-small-model-card.pdf] fonts: ok
+    Uses 7 font families. including math fonts (LMMathSymbols7, LMMathSymbols6, LMMathItalic10, LMMathSymbols10). pdfplumber extraction will det
+[subq-1-1-small-model-card.pdf] links: ok
+    Likely source-code / data links:
+[subq-1-1-small-model-card.pdf] dests: ok
+    Found 115 named destinations across 7 kinds:
+[subq-1-1-small-model-card.pdf] images: ok
+    Found 12 embedded image(s) across 11 page(s).
+[subq-1-1-small-model-card.pdf] md: ok
+    Markdown already extracted (9903 words across 22 pages). Stored as layer `md`.
+[subq-1-1-small-model-card.pdf] rasterize: ok
+    Rasterized 1 page image(s) (pages 1, 100 DPI, png) → rasterize/. Read these files to inspect the pages visually (~1,600 tokens each at 150 D
+[subq-1-1-small-model-card.pdf] attachments: skip
+    No embedded file attachments in subq-1-1-small-model-card.pdf (checked via pdfdetach). Note: rich-media (3D/video) annotations may not appea
+[subq-1-1-small-model-card.pdf] formfields: skip
+    No interactive form fields in subq-1-1-small-model-card.pdf (no AcroForm). If it's a flat/scanned form, rasterize the page and read it visua
+[subq-1-1-small-model-card.pdf] tables: skip
+    No tables found by pdfplumber in subq-1-1-small-model-card.pdf (pages 1). If a table is present but garbled, rasterize the page.

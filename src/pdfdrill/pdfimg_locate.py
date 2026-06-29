@@ -730,14 +730,13 @@ def mathpix_only_figures(
 
 
 def render_page_png(pdf_path: str, page_number: int, dpi: int, out_path_noext: str) -> str:
-    """Render one PDF page to PNG via pdftoppm (poppler). Returns the file path."""
-    d = os.path.dirname(out_path_noext)
-    if d:
-        os.makedirs(d, exist_ok=True)
-    subprocess.run(["pdftoppm", "-png", "-r", str(dpi),
-                    "-f", str(page_number), "-l", str(page_number),
-                    "-singlefile", pdf_path, out_path_noext], check=True)
-    return out_path_noext + ".png"
+    """Render one PDF page to PNG via Ghostscript (>= 400 DPI; the only
+    rasterizer). Returns the file path."""
+    from pathlib import Path as _P
+    from . import pdf_reading
+    out = out_path_noext + ".png"
+    pdf_reading.render_page(_P(pdf_path), page_number, _P(out), dpi=dpi)
+    return out
 
 
 def extract_mathpix_figures(

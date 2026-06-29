@@ -77,15 +77,12 @@ def build_combined_tsv(pdf: Path, out_dir: Path, *, ppi: int = 300,
     the raw TSV (the GNN consumes word geometry directly) rather than grouping
     it into lines."""
     out_dir.mkdir(parents=True, exist_ok=True)
-    root = out_dir / "page"
-    subprocess.run(
-        ["pdftoppm", "-png", "-r", str(ppi), str(pdf), str(root)],
-        check=True, capture_output=True, timeout=900,
-    )
+    from . import pdf_reading                    # Ghostscript >= 400 DPI (only rasterizer)
+    pngs = pdf_reading.rasterize(pdf, out_dir, dpi=ppi, fmt="png")
     header = "\t".join(["level", "page_num", "block_num", "par_num", "line_num",
                         "word_num", "left", "top", "width", "height", "conf", "text"])
     rows: list[str] = [header]
-    for png in sorted(out_dir.glob("page-*.png")):
+    for png in pngs:
         digits = "".join(c for c in png.stem if c.isdigit())
         page_num = int(digits) if digits else 0
         res = subprocess.run(

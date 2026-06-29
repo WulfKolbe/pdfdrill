@@ -288,17 +288,21 @@ five commands close the remaining gaps:
   sidecar (`rasterize/`) and return their paths so the driving LLM **Reads the
   image** (text extraction is blind to charts/equations/multi-column layout/forms).
   (Distinct from `render`, which is pandoc→PDF.)
-  - **Ghostscript at ≥400 DPI is the rasterizer (2026-06-29).** `pdf_reading.
-    rasterize` (the single helper every raster task routes through — `rasterize`/
-    `visionocr`/`remath`/`vision`/`qr`/`ocr`) now renders with **`gs`** at a hard
-    **`RASTER_MIN_DPI=400`** floor; `pdftoppm` is only the fallback when gs is
-    absent. Measured OCR/vision fidelity (transcription scored vs the text layer):
-    **gs-400 94.9%** (best 98.3%) ≫ fitz-300 82.0% ≫ fitz-180 73.8%; and ONLY gs
-    read umlauts correctly ("Geschäftsführer"). Files keep the `page-<N>.<ext>`
-    naming (N = actual page) callers parse; `ocr_lines` (tesseract) routes through
-    it too. `dpi` below 400 is floored. `doctor` lists `gs` as the PRIMARY
-    rasterizer + `bootstrap.sh` installs `ghostscript`. Tests:
-    `tests/test_pdf_reading.py::test_rasterize_uses_ghostscript_at_400_floor`.
+  - **Ghostscript at ≥400 DPI is the ONLY rasterizer (2026-06-29).** Every raster
+    task routes through `pdf_reading.rasterize` (whole-doc) or `render_page`
+    (single page), which render with **`gs`** at a hard **`RASTER_MIN_DPI=400`**
+    floor — **no pdftoppm/fitz fallback** (gs absent → a clear "install
+    ghostscript" RuntimeError), so the downstream layers (OCR, vision, GNN
+    layout, image-locate) all get consistent high-res input. The 6 former direct
+    `pdftoppm` callers (`ocr_lines`, `layout_elements`, `text_layers`,
+    `pdfimg_locate`, `pix2tex_runner`, + the `rasterize`/`visionocr`/`remath`/
+    `vision`/`qr` helper users) now all go through it. Measured OCR/vision
+    fidelity (scored vs the text layer): **gs-400 94.9%** (best 98.3%) ≫ fitz-300
+    82.0% ≫ fitz-180 73.8%; ONLY gs read umlauts ("Geschäftsführer"). Files keep
+    `page-<N>.<ext>` naming (N = actual page) callers parse; `dpi` below 400 is
+    floored. `doctor` lists `gs` as REQUIRED; `bootstrap.sh` + `requirements.txt`
+    + `pyproject.toml` declare ghostscript. Tests: `tests/test_pdf_reading.py::
+    test_rasterize_uses_ghostscript_at_400_floor`.
 - **`pdfdrill attachments <pdf> [--extract]`** — embedded **file attachments**
   (`pdfdetach -list`, pypdf document-level fallback): spreadsheets/data files in
   reports/portfolios/PDF-A-3, invisible to text & MathPix (same spirit as the

@@ -364,13 +364,13 @@ def _do_selftest(args):
 
 
 def _do_rasterize(args):
-    """pdfdrill rasterize <pdf> [--pages N|N-M|all] [--dpi 150] [--fmt png|jpeg] [--force]"""
+    """pdfdrill rasterize <pdf> [--pages N|N-M|all] [--dpi 400] [--fmt png|jpeg] [--force]"""
     from .commands import cmd_rasterize
     pages, args = _opt(args, "--pages")
     dpi, args = _opt(args, "--dpi")
     fmt, args = _opt(args, "--fmt")
     pdf_args = [a for a in args if a != "--force"]
-    return cmd_rasterize(_pdf(pdf_args), pages=pages, dpi=int(dpi) if dpi else 150,
+    return cmd_rasterize(_pdf(pdf_args), pages=pages, dpi=int(dpi) if dpi else 400,
                          fmt=fmt or "png", force="--force" in args)
 
 

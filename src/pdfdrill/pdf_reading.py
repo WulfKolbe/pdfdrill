@@ -72,57 +72,73 @@ def filter_real_images(files: list[Path], min_bytes: int = 1024) -> tuple[list[P
 # 1. Rasterize pages (pdftoppm)  → PNG files for visual inspection
 # ---------------------------------------------------------------------------
 
-# Hard DPI floor for every rasterize task: measured OCR/vision fidelity is far
-# higher at Ghostscript-400 than poppler/fitz at lower DPI (gs-400 94.9% vs
-# fitz-300 82.0% vs fitz-180 73.8%; only gs read umlauts — "Geschäftsführer" —
-# correctly). So we render with Ghostscript at >= 400 DPI; pdftoppm is only the
-# fallback when gs is absent. Files are named page-<N>.<ext> (N = actual page
-# number) so callers can parse the page from the filename.
+# Ghostscript is the ONLY rasterizer (no pdftoppm/fitz fallback): the downstream
+# layers (OCR, vision, GNN layout, image-locate, …) all need consistent high-res
+# input, and measured OCR/vision fidelity is far higher at gs-400 (94.9%, best
+# 98.3%) than poppler/fitz (fitz-300 82.0%, fitz-180 73.8%) — only gs reads
+# umlauts ("Geschäftsführer") correctly. Every raster task renders at >= 400 DPI.
 RASTER_MIN_DPI = 400
+
+
+def gs_binary() -> Optional[str]:
+    """The Ghostscript executable, or None."""
+    return (shutil.which("gs") or shutil.which("gswin64c")
+            or shutil.which("gswin32c"))
+
+
+def _require_gs() -> str:
+    gs = gs_binary()
+    if not gs:
+        raise RuntimeError(
+            "Ghostscript (gs) is required for rasterization — pdfdrill renders all "
+            "page images with gs at >=400 DPI. Install it: `sudo apt-get install "
+            "ghostscript` (or run `bash bootstrap.sh`).")
+    return gs
+
+
+def _gs_base(gs: str, dpi: int, ext: str) -> list[str]:
+    device = "jpeg" if ext == "jpg" else "png16m"
+    base = [gs, "-q", "-dNOPAUSE", "-dBATCH", "-dSAFER", f"-sDEVICE={device}",
+            f"-r{max(int(dpi), RASTER_MIN_DPI)}"]
+    return base + (["-dJPEGQ=95"] if ext == "jpg" else [])
 
 
 def rasterize(pdf: Path, out_dir: Path, *, pages: Optional[list[int]] = None,
               dpi: int = RASTER_MIN_DPI, fmt: str = "png") -> list[Path]:
-    """Render pages to images via Ghostscript at >= 400 DPI (the measured-best
-    OCR/vision fidelity; see RASTER_MIN_DPI). `pages=None` → all pages. Returns
-    the written image paths (sorted). Falls back to pdftoppm only if gs is
-    absent. `dpi` is floored to 400."""
+    """Render pages to images via Ghostscript at >= 400 DPI (gs is the only
+    rasterizer — see RASTER_MIN_DPI). `pages=None` → all pages. Files are named
+    page-<N>.<ext> (N = actual page number) so callers can parse the page.
+    Returns the written image paths (sorted). `dpi` is floored to 400; raises if
+    gs is absent."""
     out_dir.mkdir(parents=True, exist_ok=True)
-    r = max(int(dpi), RASTER_MIN_DPI)                    # 400 DPI floor
+    gs = _require_gs()
     ext = "jpg" if fmt in ("jpg", "jpeg") else "png"
     pad = 4                                              # page-0001.png (sorts + parses)
-    gs = shutil.which("gs") or shutil.which("gswin64c") or shutil.which("gswin32c")
-    if gs:
-        device = "jpeg" if ext == "jpg" else "png16m"
-        base = [gs, "-q", "-dNOPAUSE", "-dBATCH", "-dSAFER",
-                f"-sDEVICE={device}", f"-r{r}"]
-        if ext == "jpg":
-            base += ["-dJPEGQ=95"]
-        if pages:
-            for p in pages:                             # one call per page → exact name
-                out = out_dir / f"page-{p:0{pad}d}.{ext}"
-                subprocess.run(base + [f"-dFirstPage={p}", f"-dLastPage={p}",
-                                       f"-sOutputFile={out}", str(pdf)],
-                               check=True, capture_output=True, timeout=900)
-        else:                                           # all pages: %d = 1..N = page no
-            subprocess.run(base + [f"-sOutputFile={out_dir}/page-%0{pad}d.{ext}",
-                                   str(pdf)],
-                           check=True, capture_output=True, timeout=1800)
-        return sorted(out_dir.glob(f"page-*.{ext}"))
-
-    # Fallback: pdftoppm (poppler) — same naming, same 400 DPI floor.
-    if shutil.which("pdftoppm") is None:
-        raise RuntimeError("neither Ghostscript (gs) nor pdftoppm (poppler-utils) "
-                           "on PATH — cannot rasterize.")
-    flag = "-jpeg" if ext == "jpg" else "-png"
-    ranges = [(p, p) for p in pages] if pages else [(None, None)]
-    for first, last in ranges:
-        cmd = ["pdftoppm", flag, "-r", str(r)]
-        if first is not None:
-            cmd += ["-f", str(first), "-l", str(last)]
-        cmd += [str(pdf), str(out_dir / "page")]
-        subprocess.run(cmd, check=True, capture_output=True, timeout=900)
+    base = _gs_base(gs, dpi, ext)
+    if pages:
+        for p in pages:                                 # one call per page → exact name
+            out = out_dir / f"page-{p:0{pad}d}.{ext}"
+            subprocess.run(base + [f"-dFirstPage={p}", f"-dLastPage={p}",
+                                   f"-sOutputFile={out}", str(pdf)],
+                           check=True, capture_output=True, timeout=900)
+    else:                                               # all pages: %d = 1..N = page no
+        subprocess.run(base + [f"-sOutputFile={out_dir}/page-%0{pad}d.{ext}",
+                               str(pdf)],
+                       check=True, capture_output=True, timeout=1800)
     return sorted(out_dir.glob(f"page-*.{ext}"))
+
+
+def render_page(pdf: Path, page: int, out_png: Path, *,
+                dpi: int = RASTER_MIN_DPI) -> Path:
+    """Render ONE page to an exact PNG path via Ghostscript (>= 400 DPI). For
+    callers that need a specific filename (image-locate, pix2tex crops)."""
+    out_png = Path(out_png)
+    out_png.parent.mkdir(parents=True, exist_ok=True)
+    gs = _require_gs()
+    subprocess.run(_gs_base(gs, dpi, "png") + [f"-dFirstPage={page}",
+                   f"-dLastPage={page}", f"-sOutputFile={out_png}", str(pdf)],
+                   check=True, capture_output=True, timeout=300)
+    return out_png
 
 
 # ---------------------------------------------------------------------------

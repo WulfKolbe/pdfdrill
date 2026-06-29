@@ -1,9 +1,12 @@
 # Core runtime dependencies for the offline pdfdrill / docmodel / docops path.
-# System prerequisite (NOT pip-installable): poppler-utils
-#   Debian/Ubuntu : apt-get install poppler-utils
-#   Fedora        : dnf install poppler-utils
-#   Solus         : eopkg install poppler   (provides pdfinfo/pdftotext/pdffonts/pdfimages)
-#   macOS         : brew install poppler
+# System prerequisites (NOT pip-installable):
+#   ghostscript   — the ONLY page rasterizer (>=400 DPI; OCR/vision/layout/
+#                   image-locate all render via `gs`). Required for any raster task.
+#     Debian/Ubuntu: apt-get install ghostscript   Fedora: dnf install ghostscript
+#     Solus: eopkg install ghostscript             macOS: brew install ghostscript
+#   poppler-utils — pdfinfo/pdftotext/pdffonts/pdfimages (NOT used for rasterizing)
+#     Debian/Ubuntu: apt-get install poppler-utils  Fedora: dnf install poppler-utils
+#     Solus: eopkg install poppler                  macOS: brew install poppler
 
 pdfplumber>=0.11      # anchor-text URL layer, char geometry, image rects
 pydantic>=2.0         # DocumentContext state-machine carrier (md / drill / page engine path)
