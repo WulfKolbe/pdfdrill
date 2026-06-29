@@ -6759,9 +6759,10 @@ def _write_named_md(pdf: Path, sc: "Sidecar", md_text: str) -> str:
         return ""
 
 
-def _serve_mathpix_md(pdf: Path, sc: "Sidecar") -> str | None:
+def _serve_mathpix_md(pdf: Path, sc: "Sidecar", *, scanned: bool = True) -> str | None:
     """If MathPix already produced `<stem>.md`, serve it into the md layer and
-    return the prose result; else None. Shared by cmd_md's needs_ocr branch."""
+    return the prose result; else None. Used both for a SCANNED doc and to
+    PREFER the user's MathPix markdown over the lossy text-layer engine."""
     mathpix_md = pdf.parent / f"{pdf.stem}.md"
     if not (mathpix_md.exists() and mathpix_md.stat().st_size > 0):
         return None
@@ -6772,10 +6773,13 @@ def _serve_mathpix_md(pdf: Path, sc: "Sidecar") -> str | None:
                         "built_at": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())})
     sc.add_fact(MD_BUILT)
     sc.save()
-    return (f"Markdown from MathPix OCR ({len(md_text.split())} words) — "
-            f"{pdf.name} is scanned (no text layer), served from "
-            f"{mathpix_md.name}. Use `pdfdrill fetch {pdf.name} md` to "
-            f"retrieve." + _write_named_md(pdf, sc, md_text))
+    why = ("scanned (no text layer)" if scanned
+           else "born-digital, but the MathPix markdown you generated is preferred "
+                "over the text-layer extraction")
+    return (f"Markdown from MathPix{' OCR' if scanned else ''} "
+            f"({len(md_text.split())} words) — {pdf.name} is {why}, served from "
+            f"{mathpix_md.name}. Use `pdfdrill fetch {pdf.name} md` to retrieve."
+            + _write_named_md(pdf, sc, md_text))
 
 
 def _is_latex_source_model(model_path: Path) -> bool:
@@ -6879,6 +6883,14 @@ def cmd_md(pdf: Path, pages: str | None = None) -> str:
                 f"creds) or `pdfdrill ocr {pdf.name}` (keyless tesseract).")
         return (f"{pdf.name} is a SCANNED PDF (no text layer) — `pdfdrill md` "
                 f"extracts the text layer and finds nothing. {hint}")
+
+    # PREFER the user's MathPix markdown (<stem>.md) over the text-layer engine,
+    # which can mis-flag nearly every short line of an old/2-column report as a
+    # heading. Only for whole-doc (pages is None); the engine handles page ranges.
+    if pages is None:
+        served = _serve_mathpix_md(pdf, sc, scanned=False)
+        if served is not None:
+            return served
 
     if sc.has(MD_BUILT) and pages is None:
         md_meta = sc.get_layer("md") or {}

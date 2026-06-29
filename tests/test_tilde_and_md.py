@@ -131,6 +131,35 @@ def test_md_runs_mathpix_when_keys_present_no_discussion():
         assert "keyless tesseract" not in out, out
 
 
+def test_md_prefers_mathpix_md_over_text_layer_engine():
+    """A born-digital doc (text layer, NOT needs_ocr) with a MathPix <stem>.md
+    present must SERVE the MathPix markdown, not re-derive a worse one via the
+    text-layer engine — which mis-flagged nearly every short line of an old
+    Berkeley report (CSD-91-628) as a `#` heading (570/742 lines)."""
+    from pdfdrill import commands
+    from pdfdrill.sidecar import Sidecar
+
+    with tempfile.TemporaryDirectory() as d:
+        pdf = Path(d) / "CSD-91-628.pdf"
+        pdf.write_bytes(b"%PDF-1.4")
+        # MathPix already produced a clean <stem>.md (real headings only)
+        (pdf.parent / "CSD-91-628.md").write_text(
+            "# A Debugger for the PostScript Language\n\n"
+            "Body paragraph one, no spurious headings.\n\n"
+            "Body paragraph two, ordinary prose.\n")
+        sc = Sidecar(pdf)
+        sc.add_fact(commands.SIZE_KNOWN)
+        sc.add_fact(commands.FONTS_KNOWN)        # born-digital: needs_ocr NOT set
+        sc.save()
+
+        out = commands.cmd_md(pdf)
+        assert "preferred over the text-layer" in out, out
+        named = pdf.parent / "CSD-91-628.pdf.drill" / "CSD-91-628.md"
+        body = named.read_text(encoding="utf-8")
+        assert "Body paragraph one" in body
+        assert body.count("#") <= 2              # only the real heading, not # everywhere
+
+
 def test_md_keeps_hint_when_no_keys():
     """needs_ocr + no md + NO creds → still the actionable hint (unchanged)."""
     from pdfdrill import commands, mathpix_creds

@@ -2011,6 +2011,18 @@ Driven by drillui usage feedback (downloads landing in cwd/`/tmp`; re-drilling;
 - **`pdfdrill md` now writes a findable, named file** `<bibkey>.md` in the drill
   folder (alongside the `md.md` blob that `fetch` reads) and **reports its path**
   in every return (`_write_named_md`) — no `fetch`/`find` needed.
+- **`md` PREFERS the MathPix `<stem>.md` when it exists (2026-06-29).** `cmd_md`
+  only served MathPix on a `needs_ocr` (scanned) doc; a born-digital doc always
+  took the text-layer ENGINE path even when the user had run `mathpix`. On an old
+  report (Berkeley CSD-91-628) that engine flagged nearly every short/2-column
+  line as a heading — `## ` on 570/742 lines (+ `(cid:3)` glyph artifacts). Fix:
+  `cmd_md` now serves the MathPix `<stem>.md` (`_serve_mathpix_md(scanned=False)`)
+  before the engine whenever it exists (whole-doc; page ranges still use the
+  engine) — the user ran MathPix, so its markdown is preferred. CSD-91-628: 570 →
+  **32** `#` lines (real headings only). The text-layer engine's over-eager
+  heading detection on such docs is the deeper, unfixed cause (left as-is — minimal
+  change per the user). Tests: `tests/test_tilde_and_md.py`
+  (`test_md_prefers_mathpix_md_over_text_layer_engine`).
 - **drillui Outputs panel links `.md`/`.json`/`.txt`/`.tex`** too (was html/svg/
   pdf only): `scanArtifacts` regex + bridge MIME extended; the bridge also serves
   the **download dir** (`ART_ROOTS` += config `download_dir`) so `~/Downloads/
