@@ -283,12 +283,22 @@ The skill's tools were *already* covered by PDFDRILL for inventory (`pdfinfo`/
 image **metadata** (`images`/`embedimages`), and scan→OCR (`size`→`ocr`). These
 five commands close the remaining gaps:
 
-- **`pdfdrill rasterize <pdf> [--pages N|N-M|all] [--dpi 150] [--fmt png|jpeg]`**
-  — the skill's core **visual-inspection** op (`pdftoppm`): render page(s) to
-  images in the sidecar (`rasterize/`) and return their paths so the driving LLM
-  **Reads the image** (text extraction is blind to charts/equations/multi-column
-  layout/forms). ~1,600 tokens per 150-DPI page — rasterize only what matters.
+- **`pdfdrill rasterize <pdf> [--pages N|N-M|all] [--dpi 400] [--fmt png|jpeg]`**
+  — the skill's core **visual-inspection** op: render page(s) to images in the
+  sidecar (`rasterize/`) and return their paths so the driving LLM **Reads the
+  image** (text extraction is blind to charts/equations/multi-column layout/forms).
   (Distinct from `render`, which is pandoc→PDF.)
+  - **Ghostscript at ≥400 DPI is the rasterizer (2026-06-29).** `pdf_reading.
+    rasterize` (the single helper every raster task routes through — `rasterize`/
+    `visionocr`/`remath`/`vision`/`qr`/`ocr`) now renders with **`gs`** at a hard
+    **`RASTER_MIN_DPI=400`** floor; `pdftoppm` is only the fallback when gs is
+    absent. Measured OCR/vision fidelity (transcription scored vs the text layer):
+    **gs-400 94.9%** (best 98.3%) ≫ fitz-300 82.0% ≫ fitz-180 73.8%; and ONLY gs
+    read umlauts correctly ("Geschäftsführer"). Files keep the `page-<N>.<ext>`
+    naming (N = actual page) callers parse; `ocr_lines` (tesseract) routes through
+    it too. `dpi` below 400 is floored. `doctor` lists `gs` as the PRIMARY
+    rasterizer + `bootstrap.sh` installs `ghostscript`. Tests:
+    `tests/test_pdf_reading.py::test_rasterize_uses_ghostscript_at_400_floor`.
 - **`pdfdrill attachments <pdf> [--extract]`** — embedded **file attachments**
   (`pdfdetach -list`, pypdf document-level fallback): spreadsheets/data files in
   reports/portfolios/PDF-A-3, invisible to text & MathPix (same spirit as the

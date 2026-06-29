@@ -72,27 +72,57 @@ def filter_real_images(files: list[Path], min_bytes: int = 1024) -> tuple[list[P
 # 1. Rasterize pages (pdftoppm)  → PNG files for visual inspection
 # ---------------------------------------------------------------------------
 
+# Hard DPI floor for every rasterize task: measured OCR/vision fidelity is far
+# higher at Ghostscript-400 than poppler/fitz at lower DPI (gs-400 94.9% vs
+# fitz-300 82.0% vs fitz-180 73.8%; only gs read umlauts — "Geschäftsführer" —
+# correctly). So we render with Ghostscript at >= 400 DPI; pdftoppm is only the
+# fallback when gs is absent. Files are named page-<N>.<ext> (N = actual page
+# number) so callers can parse the page from the filename.
+RASTER_MIN_DPI = 400
+
+
 def rasterize(pdf: Path, out_dir: Path, *, pages: Optional[list[int]] = None,
-              dpi: int = 150, fmt: str = "png") -> list[Path]:
-    """Render pages to images with pdftoppm. `pages=None` → all pages. Returns
-    the written image paths (sorted). pdftoppm zero-pads by total page count, so
-    we glob rather than guess names."""
-    if shutil.which("pdftoppm") is None:
-        raise RuntimeError("pdftoppm (poppler-utils) not on PATH.")
+              dpi: int = RASTER_MIN_DPI, fmt: str = "png") -> list[Path]:
+    """Render pages to images via Ghostscript at >= 400 DPI (the measured-best
+    OCR/vision fidelity; see RASTER_MIN_DPI). `pages=None` → all pages. Returns
+    the written image paths (sorted). Falls back to pdftoppm only if gs is
+    absent. `dpi` is floored to 400."""
     out_dir.mkdir(parents=True, exist_ok=True)
-    flag = "-jpeg" if fmt in ("jpg", "jpeg") else "-png"
-    ext = "jpg" if flag == "-jpeg" else "png"
-    written: list[Path] = []
+    r = max(int(dpi), RASTER_MIN_DPI)                    # 400 DPI floor
+    ext = "jpg" if fmt in ("jpg", "jpeg") else "png"
+    pad = 4                                              # page-0001.png (sorts + parses)
+    gs = shutil.which("gs") or shutil.which("gswin64c") or shutil.which("gswin32c")
+    if gs:
+        device = "jpeg" if ext == "jpg" else "png16m"
+        base = [gs, "-q", "-dNOPAUSE", "-dBATCH", "-dSAFER",
+                f"-sDEVICE={device}", f"-r{r}"]
+        if ext == "jpg":
+            base += ["-dJPEGQ=95"]
+        if pages:
+            for p in pages:                             # one call per page → exact name
+                out = out_dir / f"page-{p:0{pad}d}.{ext}"
+                subprocess.run(base + [f"-dFirstPage={p}", f"-dLastPage={p}",
+                                       f"-sOutputFile={out}", str(pdf)],
+                               check=True, capture_output=True, timeout=900)
+        else:                                           # all pages: %d = 1..N = page no
+            subprocess.run(base + [f"-sOutputFile={out_dir}/page-%0{pad}d.{ext}",
+                                   str(pdf)],
+                           check=True, capture_output=True, timeout=1800)
+        return sorted(out_dir.glob(f"page-*.{ext}"))
+
+    # Fallback: pdftoppm (poppler) — same naming, same 400 DPI floor.
+    if shutil.which("pdftoppm") is None:
+        raise RuntimeError("neither Ghostscript (gs) nor pdftoppm (poppler-utils) "
+                           "on PATH — cannot rasterize.")
+    flag = "-jpeg" if ext == "jpg" else "-png"
     ranges = [(p, p) for p in pages] if pages else [(None, None)]
     for first, last in ranges:
-        root = out_dir / (f"page" if first is None else f"page")
-        cmd = ["pdftoppm", flag, "-r", str(dpi)]
+        cmd = ["pdftoppm", flag, "-r", str(r)]
         if first is not None:
             cmd += ["-f", str(first), "-l", str(last)]
-        cmd += [str(pdf), str(root)]
+        cmd += [str(pdf), str(out_dir / "page")]
         subprocess.run(cmd, check=True, capture_output=True, timeout=900)
-    written = sorted(out_dir.glob(f"page-*.{ext}"))
-    return written
+    return sorted(out_dir.glob(f"page-*.{ext}"))
 
 
 # ---------------------------------------------------------------------------

@@ -32,12 +32,19 @@ from . import geometry
 
 
 def tools_available() -> tuple[bool, str]:
-    """Return (ok, message). Needs both pdftoppm (poppler) and tesseract."""
-    missing = [t for t in ("pdftoppm", "tesseract") if shutil.which(t) is None]
+    """Return (ok, message). Needs a rasterizer (Ghostscript, preferred; else
+    pdftoppm) and tesseract."""
+    have_raster = any(shutil.which(t) for t in ("gs", "gswin64c", "gswin32c",
+                                                "pdftoppm"))
+    missing = []
+    if not have_raster:
+        missing.append("ghostscript (or pdftoppm)")
+    if shutil.which("tesseract") is None:
+        missing.append("tesseract")
     if missing:
         return False, (
-            f"OCR needs {' and '.join(missing)} on PATH. Install poppler-utils "
-            f"and tesseract-ocr (plus a language pack, e.g. tesseract-ocr-eng)."
+            f"OCR needs {' and '.join(missing)} on PATH. Install ghostscript + "
+            f"tesseract-ocr (plus a language pack, e.g. tesseract-ocr-eng)."
         )
     return True, ""
 
@@ -116,15 +123,12 @@ def _render_and_ocr(
     page (tesseract reports page 1 for every single-image call).
     """
     out_dir.mkdir(parents=True, exist_ok=True)
-    root = out_dir / "page"
-    subprocess.run(
-        ["pdftoppm", "-png", "-r", str(ppi), str(pdf), str(root)],
-        check=True, capture_output=True, timeout=900,
-    )
+    from . import pdf_reading                    # Ghostscript >= 400 DPI (fidelity)
+    pngs = pdf_reading.rasterize(pdf, out_dir, dpi=ppi, fmt="png")
 
     all_words: list[dict] = []
     page_dims: dict[int, tuple[float, float]] = {}
-    for png in sorted(out_dir.glob("page-*.png")):
+    for png in pngs:
         digits = "".join(c for c in png.stem if c.isdigit())
         page_num = int(digits) if digits else 0
         res = subprocess.run(

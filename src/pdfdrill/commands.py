@@ -322,7 +322,8 @@ def cmd_doctor() -> str:
     tools = [
         ("pdftotext", "poppler-utils", "core: text/geometry/embedimages"),
         ("pdfimages", "poppler-utils", "core: images/embedimages"),
-        ("pdftoppm", "poppler-utils", "ocr/snip page rasterization"),
+        ("gs", "ghostscript", "PRIMARY page rasterizer (>=400 DPI; best OCR/vision fidelity)"),
+        ("pdftoppm", "poppler-utils", "fallback rasterizer when gs is absent"),
         ("pdfinfo", "poppler-utils", "size/links/dests"),
         ("tesseract", "tesseract-ocr", "keyless OCR route (pdfdrill ocr)"),
         ("latex", "texlive-latex-base", "TikZ/table SVG (pdfdrill svg)"),

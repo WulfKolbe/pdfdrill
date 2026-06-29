@@ -27,6 +27,9 @@ if [ "$(id -u)" -ne 0 ] && command -v sudo >/dev/null 2>&1; then SUDO="sudo"; fi
 if command -v apt-get >/dev/null 2>&1; then
   PKGS=()
   command -v pdftotext >/dev/null 2>&1 || PKGS+=(poppler-utils)
+  # Ghostscript is the PRIMARY page rasterizer (>=400 DPI; far better OCR/vision
+  # fidelity than poppler/fitz — gs-400 94.9% vs fitz-300 82%).
+  command -v gs >/dev/null 2>&1 || PKGS+=(ghostscript)
   if ! command -v tesseract >/dev/null 2>&1; then
     PKGS+=(tesseract-ocr tesseract-ocr-eng tesseract-ocr-deu tesseract-ocr-equ)
   fi

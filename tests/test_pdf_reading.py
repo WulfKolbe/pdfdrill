@@ -165,12 +165,44 @@ def test_tables_to_html_spans():
 
 
 def test_rasterize_roundtrip():
-    if shutil.which("pdftoppm") is None:
-        print("SKIP rasterize (no pdftoppm)"); return
+    if not any(shutil.which(t) for t in ("gs", "gswin64c", "pdftoppm")):
+        print("SKIP rasterize (no gs/pdftoppm)"); return
     with tempfile.TemporaryDirectory() as d:
         pdf = Path(d) / "x.pdf"; _blank_pdf(pdf)
         imgs = pr.rasterize(pdf, Path(d) / "out", pages=[2], dpi=72)
         assert len(imgs) == 1 and imgs[0].suffix == ".png" and imgs[0].exists()
+
+
+def test_rasterize_uses_ghostscript_at_400_floor():
+    """Every rasterize task must use Ghostscript at >= 400 DPI (measured-best
+    OCR/vision fidelity) — even when a caller passes a lower dpi (floored)."""
+    captured = []
+
+    def fake_run(cmd, *a, **k):
+        captured.append(cmd)
+        for c in cmd:
+            if isinstance(c, str) and c.startswith("-sOutputFile="):
+                of = c.split("=", 1)[1]
+                Path(of.replace("%04d", "0001")).write_bytes(b"\x89PNG")
+        class _R:
+            returncode = 0; stdout = b""; stderr = b""
+        return _R()
+
+    owhich, orun = pr.shutil.which, pr.subprocess.run
+    try:
+        pr.shutil.which = lambda t: "/usr/bin/gs" if t == "gs" else None
+        pr.subprocess.run = fake_run
+        with tempfile.TemporaryDirectory() as d:
+            imgs = pr.rasterize(Path(d) / "x.pdf", Path(d) / "out",
+                                pages=[1], dpi=150)          # 150 → must floor to 400
+        cmd = captured[0]
+        assert cmd[0] == "/usr/bin/gs"
+        assert "-r400" in cmd                                # floored
+        assert "-sDEVICE=png16m" in cmd
+        assert any("page-0001.png" in str(c) for c in cmd)   # actual-page naming
+        assert imgs and imgs[0].name == "page-0001.png"
+    finally:
+        pr.shutil.which, pr.subprocess.run = owhich, orun
 
 
 def test_list_attachments_none():
@@ -191,5 +223,6 @@ if __name__ == "__main__":
     test_table_quality_filters(); print("PASS table_quality_filters")
     test_tables_to_html_spans(); print("PASS tables_to_html")
     test_rasterize_roundtrip(); print("PASS rasterize_roundtrip")
+    test_rasterize_uses_ghostscript_at_400_floor(); print("PASS rasterize_gs_400")
     test_list_attachments_none(); print("PASS attachments_none")
     print("\nAll tests passed.")
