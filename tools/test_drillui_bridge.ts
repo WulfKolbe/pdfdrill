@@ -121,6 +121,56 @@ if (up) {
 
 try { proc.kill(); } catch {}
 
+// --- viewer auto-open: a `pyramid` run that makes <doc>.drill/viewer/manifest.json
+//     appear must push a `viewer` message with open:true (the drillui terminal then
+//     opens the deep-zoom page). A DEDICATED bridge (fresh process, fresh session)
+//     so there's no prior-session interaction. We simulate the build by creating the
+//     manifest on the first prompt, then send `pyramid` — flush detects the
+//     not-available→available transition. -----------------------------------------
+const PORT3 = 8801;
+const proc3 = Bun.spawn({
+  cmd: ["bun", BRIDGE, doc, "--port", String(PORT3), "--no-open"],
+  cwd: resolve(HERE, ".."),
+  stdout: "ignore", stderr: "ignore",
+  env: { ...process.env },
+});
+const base3 = `http://localhost:${PORT3}`;
+let up3 = false;
+for (let i = 0; i < 60; i++) {
+  try { if ((await fetch(base3 + "/")).ok) { up3 = true; break; } } catch {}
+  await sleep(250);
+}
+if (up3) {
+  const { mkdirSync, writeFileSync, rmSync } = await import("node:fs");
+  const { basename } = await import("node:path");
+  const viewerDir = join(dirname(resolve(doc)), basename(resolve(doc)) + ".drill", "viewer");
+  let viewerMsg: any = null;
+  const ws3 = new WebSocket(`ws://localhost:${PORT3}/ws`);
+  await new Promise<void>((done) => {
+    const finish = () => { try { ws3.close(); } catch {} done(); };
+    const timer = setTimeout(finish, 40000);
+    let r3 = 0, sent = false;
+    ws3.onmessage = (ev) => {
+      const m = JSON.parse(String(ev.data));
+      if (m.type === "viewer") viewerMsg = m;
+      if (m.type === "ready") {
+        r3++;
+        if (r3 === 1 && !sent) {                  // startup prompt passed with NO pyramid;
+          sent = true;                            // simulate the build happening THIS turn
+          mkdirSync(viewerDir, { recursive: true });
+          writeFileSync(join(viewerDir, "manifest.json"), "[]");
+          ws3.send(JSON.stringify({ type: "input", data: "pyramid" }));
+        } else if (r3 >= 2) { clearTimeout(timer); finish(); }
+      }
+    };
+    ws3.onerror = () => { clearTimeout(timer); finish(); };
+  });
+  try { rmSync(viewerDir, { recursive: true, force: true }); } catch {}   // cleanup
+  ok("WS: `pyramid` run announces the viewer with open:true",
+     !!viewerMsg && viewerMsg.open === true && /viewer\.html$/.test(viewerMsg.url || ""));
+}
+try { proc3.kill(); } catch {}
+
 // --- host-open URL path: a second bridge with a HARMLESS opener (/bin/true) ---
 // so we exercise POST /open {url} without actually launching a browser.
 const PORT2 = 8800;

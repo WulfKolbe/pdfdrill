@@ -281,6 +281,8 @@ type Session = {
   proc: ReturnType<typeof Bun.spawn>;
   out: string;            // accumulator until the REPL prompt appears
   closed: boolean;
+  lastInput: string;      // last line forwarded to the REPL (to detect `pyramid`)
+  viewerAnnounced: boolean; // sent the client a `viewer` message yet?
 };
 
 const PROMPT_TAIL = "\n? ";   // exactly what drillui_chat's input("\n? ") emits
@@ -298,7 +300,7 @@ function spawnSession(ws: any): Session {
     stderr: "pipe",
     env: { ...process.env, PYTHONUNBUFFERED: "1", TERM: "dumb" },
   });
-  const sess: Session = { proc, out: "", closed: false };
+  const sess: Session = { proc, out: "", closed: false, lastInput: "", viewerAnnounced: false };
 
   // stdout: accumulate until drillui's "\n? " prompt, then flush the turn body
   // (prompt stripped) and signal "ready". A short debounce guards the rare case
@@ -313,6 +315,14 @@ function spawnSession(ws: any): Session {
     const body = sess.out.slice(0, -PROMPT_TAIL.length);  // drop exactly "\n? "
     sess.out = "";
     if (body.length) send(ws, { type: "output", data: body });
+    // A `pyramid` run just built the doc's local tiles → the deep-zoom viewer is
+    // now available. Announce it once (auto-open when the user actually ran
+    // pyramid), and pre-spawn the image-server sidecar so the page loads instantly.
+    if (!sess.viewerAnnounced && docWithPyramid()) {
+      sess.viewerAnnounced = true;
+      const open = /^\s*pyramid\b/.test(sess.lastInput);
+      send(ws, { type: "viewer", url: "/viewer.html", open });  // sidecar spawns lazily on page load
+    }
     send(ws, { type: "ready" });
   };
   (async () => {
@@ -425,6 +435,10 @@ const server = Bun.serve<{ sess: Session | null }>({
         hostOpen: OPENER !== null,
         viewer: docWithPyramid() ? "/viewer.html" : null,  // local deep-zoom image source
       });
+      // if the doc already had a pyramid, the hello above carried the link — don't
+      // re-announce (or auto-open) it on the first turn. Only a fresh `pyramid`
+      // run (the not-yet-available → available transition) auto-opens the viewer.
+      sess.viewerAnnounced = docWithPyramid() !== null;
     },
     message(ws, raw) {
       const sess = ws.data.sess;
@@ -436,6 +450,7 @@ const server = Bun.serve<{ sess: Session | null }>({
         // .drill artifacts are servable (mirrors the ~ expansion drillui_chat does).
         const m = msg.data.match(/^\s*add\s+(\S+)/);
         if (m) registerDocDir(m[1]);
+        sess.lastInput = msg.data;                       // remember the verb (detect `pyramid`)
         // feed one line to the REPL; the trailing newline makes input() return
         sess.proc.stdin.write(msg.data + "\n");
         sess.proc.stdin.flush();

@@ -442,6 +442,23 @@ const app = {
         }
         break;
 
+      case "viewer": {   // a `pyramid` run made the local deep-zoom viewer available
+        const vurl = (this.httpBase || "") + (msg.url || "/viewer.html");
+        this.artifacts.set("__viewer__", { isUrl:true, url:vurl,
+          label:"deep-zoom viewer (local pyramid)", ext:"view" });
+        this.renderArtifacts();
+        if (msg.open){
+          this.term.writeln("");
+          if (this.hostOpen) this.hostOpenTarget({ url:vurl }, "deep-zoom viewer");
+          else {
+            this.openExternal(vurl);
+            this.term.writeln(C.green("  opening deep-zoom viewer ")
+              + C.faint("↗ new tab — also in the Outputs panel → (click there if blocked)"));
+          }
+        }
+        break;
+      }
+
       case "output":
         this.term.write(msg.data);
         if (this.state === "busy"){
