@@ -41,7 +41,7 @@ USAGE
   python3 mathpix_server.py --root ./viewer --tiles ./viewer/tiles --lines ./drill/
 """
 
-import argparse, glob, io, json, os, re, sys, threading, time
+import argparse, glob, io, json, os, re, signal, sys, threading, time
 from collections import OrderedDict
 from http.server import SimpleHTTPRequestHandler, ThreadingHTTPServer
 from urllib.parse import urlparse, parse_qs, unquote
@@ -356,6 +356,9 @@ def main():
     ap.add_argument("--cache-entries", type=int, default=256)
     ap.add_argument("--host", default="127.0.0.1")
     ap.add_argument("--port", type=int, default=8000)
+    ap.add_argument("--die-with-parent", action="store_true",
+                    help="exit (freeing the port) if the parent process dies — so a "
+                         "drillui bridge / shell that spawned us never leaves an orphan")
     args = ap.parse_args()
     if not args.root:
         args.root = os.path.dirname(os.path.abspath(args.tiles))
@@ -370,14 +373,45 @@ def main():
               + ("--mathpix-dpi" if args.mathpix_dpi else "1:1 (set --lines or --mathpix-dpi)"))
 
     Handler.server_logic = Server(args, index)
+    ThreadingHTTPServer.allow_reuse_address = True       # restart without TIME_WAIT block
     httpd = ThreadingHTTPServer((args.host, args.port), Handler)
     print(f"serving viewer + MathPix resolver on http://{args.host}:{args.port}")
     print(f"  viewer:   http://{args.host}:{args.port}/viewer.html")
     print(f"  resolver: http://{args.host}:{args.port}/cropped/<image_id>.jpg?top_left_x=..&top_left_y=..&width=..&height=..")
     print("  -> repoint TiddlyWiki image host from cdn.mathpix.com to this address.")
+    print("  (Ctrl-C to stop)", flush=True)
+
+    stopping = threading.Event()
+
+    def _stop(*_a):
+        if not stopping.is_set():
+            stopping.set()
+            threading.Thread(target=httpd.shutdown, daemon=True).start()  # unblock serve_forever
+
+    # SIGTERM (the drillui bridge kills us with it) + SIGINT both shut down cleanly
+    # so the socket closes and the PORT IS FREED — not left bound by an orphan.
+    signal.signal(signal.SIGTERM, _stop)
+    signal.signal(signal.SIGINT, _stop)
+
+    # Parent-death watchdog: if the process that launched us dies (terminal closed,
+    # bridge SIGKILLed — cases no signal handler can catch), os.getppid() becomes 1
+    # (reparented to init). Then exit, freeing the port. Opt-in (--die-with-parent)
+    # so a deliberately detached `--background` server is never killed by it.
+    if args.die_with_parent:
+        def _watch():
+            while not stopping.wait(1.0):
+                if os.getppid() == 1:
+                    print("\nparent gone — stopping.", flush=True)
+                    _stop()
+                    return
+        threading.Thread(target=_watch, daemon=True).start()
+
     try:
         httpd.serve_forever()
     except KeyboardInterrupt:
+        pass
+    finally:
+        httpd.server_close()                             # release the listening socket
         print("\nstopped.")
 
 if __name__ == "__main__":

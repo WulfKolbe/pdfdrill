@@ -102,6 +102,62 @@ def test_server_serves_viewer_tiles_and_crop():
             except Exception: proc.kill()
 
 
+def test_server_sigterm_frees_the_port():
+    """The server shuts down cleanly on SIGTERM (what the drillui bridge sends) and
+    RELEASES the listening socket — no orphan left holding the port. Regression for
+    'I have to close the terminal and the port stays locked'."""
+    ok, _ = pyramid.tools_available()
+    if not ok:
+        print("  (skip: gs/pyvips not available)"); return
+    import tempfile, socket, signal as _sig
+    from pypdf import PdfWriter
+
+    def _port_bound(p):
+        s = socket.socket()
+        try:
+            s.connect(("127.0.0.1", p)); return True
+        except OSError:
+            return False
+        finally:
+            s.close()
+
+    with tempfile.TemporaryDirectory() as d:
+        d = Path(d)
+        pdf = d / "x.pdf"
+        w = PdfWriter(); w.add_blank_page(width=612, height=792)
+        with open(pdf, "wb") as f:
+            w.write(f)
+        viewer = d / "viewer"
+        pyramid.build_pyramid(pdf, viewer, dpi=150, pages=[1])
+        s = socket.socket(); s.bind(("127.0.0.1", 0)); port = s.getsockname()[1]; s.close()
+        proc = subprocess.Popen(
+            [sys.executable, str(SERVER), "--root", str(viewer),
+             "--tiles", str(viewer / "tiles"), "--port", str(port)],
+            stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+        try:
+            up = False
+            for _ in range(60):
+                if _port_bound(port):
+                    up = True; break
+                time.sleep(0.2)
+            assert up, "server did not bind the port"
+
+            proc.send_signal(_sig.SIGTERM)                # what the bridge sends
+            proc.wait(timeout=8)                          # must exit on its own
+            assert proc.returncode is not None, "did not exit on SIGTERM"
+
+            # port released (give the OS a beat to reclaim the socket)
+            freed = False
+            for _ in range(20):
+                if not _port_bound(port):
+                    freed = True; break
+                time.sleep(0.1)
+            assert freed, "port still bound after SIGTERM (orphan/leak)"
+        finally:
+            if proc.poll() is None:
+                proc.kill()
+
+
 if __name__ == "__main__":
     tests = [v for k, v in list(globals().items()) if k.startswith("test_")]
     failed = []

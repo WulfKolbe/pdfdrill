@@ -1781,23 +1781,30 @@ def cmd_imageserve(pdf: Path, port: int = 8000, dpi: int | None = None,
     tiles) PLUS the deep-zoom viewer (`/viewer.html`). Needs `pdfdrill pyramid`
     first. Foreground (Ctrl-C to stop) unless `--background`. The bun drillui
     bridge spawns this and proxies /cropped,/tiles,/viewer.html to it."""
-    import subprocess
+    import os, sys, subprocess
     sc = Sidecar(pdf)
     argv, url, err = _imageserve_argv(pdf, sc, port, dpi)
     if err:
         return err
     if background:
-        subprocess.Popen(argv, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+        # detached on purpose (meant to outlive this shell) → NO --die-with-parent
+        subprocess.Popen(argv, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
+                         start_new_session=True)
         return (f"Image server started in the background → {url}  (cdn drop-in: "
-                f"/cropped/<id>?top_left_x=… from the local pyramid).")
+                f"/cropped/<id>?top_left_x=… from the local pyramid). Stop it with "
+                f"`pkill -f 'mathpix_server.py.*--port {port}'`.")
+    # Foreground: REPLACE this process with the server (os.execv) instead of running
+    # it as a child. So Ctrl-C / SIGTERM reach the server DIRECTLY (clean shutdown,
+    # port freed) and there is no wrapper child to orphan when the parent (a shell,
+    # or the drillui bridge) dies. --die-with-parent is the belt-and-braces: the
+    # server self-exits if it ever gets reparented to init (terminal closed / bridge
+    # SIGKILLed) — which is exactly what used to leave orphans holding the port.
     print(f"Image server (cdn.mathpix.com drop-in + deep-zoom viewer) on the local "
           f"pyramid → {url}\n  /cropped/<id>?top_left_x=… serves a 600-DPI region; "
-          f"Ctrl-C to stop.")
-    try:
-        subprocess.run(argv)
-    except KeyboardInterrupt:
-        pass
-    return ""
+          f"Ctrl-C to stop.", flush=True)
+    argv = argv + ["--die-with-parent"]
+    os.execv(argv[0], argv)        # never returns; the server's own banner follows
+    return ""                      # unreachable
 
 
 def cmd_rasterize(pdf: Path, pages: str | None = None, dpi: int = 400,

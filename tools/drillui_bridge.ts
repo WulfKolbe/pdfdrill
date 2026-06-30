@@ -262,7 +262,10 @@ async function proxyImage(req: Request, url: URL): Promise<Response> {
   }
 }
 
-for (const sig of ["exit", "SIGINT", "SIGTERM"] as const)
+// kill the image-server sidecar when the bridge goes away — incl. SIGHUP (the
+// terminal was closed). (The server also self-exits via --die-with-parent if it
+// is ever orphaned, covering an uncatchable SIGKILL of the bridge.)
+for (const sig of ["exit", "SIGINT", "SIGTERM", "SIGHUP"] as const)
   process.on(sig as any, () => { try { imgProc?.kill(); } catch {} });
 
 // Host opener: explicit --opener wins; else auto-detect by platform. "" disables.
