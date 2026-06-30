@@ -1713,6 +1713,46 @@ def cmd_selftest(target: Path, full: bool = False) -> str:
     return head + "\n" + "\n".join(lines)
 
 
+def cmd_pyramid(pdf: Path, dpi: int = 600, force: bool = False) -> str:
+    """Build a local 600-DPI Deep-Zoom (DZI) pyramid for the doc — the
+    MathPix-free image source. Renders pages with Ghostscript (the gs-only
+    rasterizer) and tiles them with pyvips into `<drill>/viewer/` (tiles/ +
+    manifest.json + viewer.html). The pyramid then backs BOTH `pdfdrill
+    imageserve` (the cdn.mathpix.com crop drop-in) and the deep-zoom viewer.
+    Needs ghostscript + pyvips/libvips (`pip install 'pdfdrill[imageserver]'`)."""
+    import shutil
+    from . import pyramid as _pyr
+
+    sc = Sidecar(pdf)
+    viewer = sc.blob_dir / "viewer"
+    ok, msg = _pyr.tools_available()
+    if not ok:
+        return f"Pyramid not built — {msg}"
+    if (viewer / "manifest.json").exists() and not force:
+        man = json.loads((viewer / "manifest.json").read_text(encoding="utf-8"))
+        return (f"Pyramid already built: {len(man)} page(s) at "
+                f"{viewer.relative_to(sc.pdf_path.parent)}/ (--force to rebuild). "
+                f"Serve it with `pdfdrill imageserve {pdf.name}`.")
+    try:
+        res = _pyr.build_pyramid(pdf, viewer, dpi=dpi)
+    except Exception as e:                                   # noqa: BLE001
+        return f"Pyramid build failed: {e}"
+    # copy the deep-zoom viewer into the doc's viewer/ so it is self-contained
+    vh = Path(__file__).resolve().parents[2] / "tools" / "imageserver" / "viewer.html"
+    if vh.exists():
+        try:
+            shutil.copy(vh, viewer / "viewer.html")
+        except OSError:
+            pass
+    sc.set_evidence("pyramid", {"dpi": res["dpi"], "pages": res["pages"],
+                                "tiles": str((viewer / "tiles").relative_to(sc.pdf_path.parent))})
+    sc.save()
+    return (f"Built a {res['dpi']}-DPI DZI pyramid: {res['pages']} page(s) → "
+            f"{viewer.relative_to(sc.pdf_path.parent)}/ (tiles + manifest.json + "
+            f"viewer.html). Serve the local cdn + deep-zoom viewer with "
+            f"`pdfdrill imageserve {pdf.name}`.")
+
+
 def cmd_rasterize(pdf: Path, pages: str | None = None, dpi: int = 400,
                   fmt: str = "png", force: bool = False) -> str:
     """Rasterize page(s) to images for visual inspection (the skill's core op).

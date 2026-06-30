@@ -1372,6 +1372,27 @@ commands:
   - name: compile
     flag: --compile
     type: flag
+- name: pyramid
+  section: Introspection (fast, no extraction)
+  summary: 'Build a local 600-DPI Deep-Zoom (DZI) pyramid for the doc (Ghostscript render +
+    pyvips tiling) → <drill>/viewer/ — the MathPix-free image source backing `imageserve` (cdn
+    crop drop-in) + the deep-zoom viewer. Needs ghostscript + pyvips/libvips'
+  offline_ok: true
+  positionals:
+  - name: pdf
+    type: pdf
+    required: true
+    help: PDF path, https URL, or bare arXiv id
+  typed: true
+  flags:
+  - name: dpi
+    flag: --dpi
+    type: int
+    help: pyramid full-res DPI (default 600)
+  - name: force
+    flag: --force
+    type: flag
+    help: rebuild even if a pyramid exists
 - name: lean
   section: Introspection (fast, no extraction)
   summary: 'Export theorems to Lean 4: STORE LLM-generated Lean per Theorem (props/tiddler

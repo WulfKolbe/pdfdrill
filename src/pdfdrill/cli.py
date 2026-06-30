@@ -643,6 +643,15 @@ def _do_stex(args):
     return cmd_stex(_pdf(pdf_args), flavor=flavor, compile="--compile" in args)
 
 
+def _do_pyramid(args):
+    """pdfdrill pyramid <pdf> [--dpi 600] [--force]"""
+    from .commands import cmd_pyramid
+    dpi, args = _opt(args, "--dpi")
+    force = "--force" in args
+    pdf_args = [a for a in args if a != "--force"]
+    return cmd_pyramid(_pdf(pdf_args), dpi=int(dpi) if dpi else 600, force=force)
+
+
 def _do_lean(args):
     """pdfdrill lean <pdf> [--limit N] [--force] [--emit-only]"""
     from .commands import cmd_lean
@@ -1381,6 +1390,7 @@ HANDLERS = {
         "svg": _do_svg,
         "stex": _do_stex,
         "lean": _do_lean,
+        "pyramid": _do_pyramid,
         "scikgtex": _do_scikgtex,
         "skill": _do_skill,
         "steps": _do_steps,
