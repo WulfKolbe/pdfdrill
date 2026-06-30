@@ -104,6 +104,56 @@ Key points:
    `_canonical_uri` (Phase A). This gives gold 600-DPI crops with zero MathPix —
    the regions come from pdfplumber/the model geometry.
 
+## 4b. drillui integration — viewer + cdn crops, one pyramid (the bun version)
+
+How the **pyramid PDF viewer** and the **local cdn image server** work together
+for a non-MathPix user, given drillui's actual shape:
+- **`drillui_bridge.ts`** (Bun, :8787): routes `/ws` (→ a `drillui_chat.py <doc>`
+  subprocess per socket), `/artifact?path=` (one file under `ART_ROOTS` = the doc
+  dir + `~/Downloads`), `/open` (host browser), else the terminal HTML. It KNOWS
+  the doc → `DOC_DIR`, so it can locate `<doc>.drill/viewer/`.
+- **`drillui_term.html`**: xterm + an **Outputs panel** of `open ↗` (new tab) /
+  `save ⤓` links; `open <url|file>` routes through `/open` or `/artifact`. No
+  inline image/iframe today — artifacts open in a tab.
+- **`drillui_chat.py`**: runs pdfdrill subcommands by name on the doc.
+
+**The unification: ONE 600-DPI gs DZI pyramid, TWO consumers.**
+`<doc>.drill/viewer/` (tiles + manifest) backs both (a) the **deep-zoom page
+viewer** (`viewer.html`/OpenSeadragon over the tiles — the "pyramid PDF viewer")
+and (b) the **crop server** (`/cropped/<id>?top_left_x=…` = a sub-rectangle
+assembled from the SAME tiles via `eqcrop`). A crop is just the viewer's pyramid
+at a page + sub-extent.
+
+**Wiring (the `/artifact` single-file route can't serve a tile tree or assemble
+crops — both are dynamic), recommended = proxy to a pdfdrill sidecar:**
+1. The bridge lazily spawns **`pdfdrill imageserve <doc> --port 8000`**
+   (mathpix_server over `<doc>.drill/viewer/` + the lines.json/model regions)
+   when the doc has a `viewer/`.
+2. The bridge gains **proxy routes** `/cropped/*`, `/tiles/*`, `/viewer.html`,
+   `/manifest.json` → `http://127.0.0.1:8000<path>`. Everything is then
+   **same-origin on :8787** (no CORS, one URL for the user).
+3. **Non-MathPix image URLs are LOCAL by construction:** pdfdrill emits the
+   figure/equation image tiddlers' crop URLs as `/cropped/page-<n>?top_left_x=…`
+   (region from the MODEL/pdfplumber geometry, Phase E) pointing at the bridge
+   origin — so they resolve from the gs pyramid with zero MathPix. (If a MathPix
+   lines.json IS present, the same proxy serves the `cdn.mathpix.com`-shaped ids;
+   the opt-in host-rewrite repoints them to the local origin.)
+4. **UI:** the Outputs panel gets a **`viewer`** entry (opens `/viewer.html` →
+   deep-zoom page browser); inline figure/equation crops render from the
+   same-origin `/cropped/…` URLs (in report.html, or optionally inline in the
+   rail). **Two-way nav:** a crop deep-links into the viewer at its page+rect
+   (`viewer.html?page=12&rect=x,y,w,h`, an OpenSeadragon viewport); the viewer's
+   manifest + the model's per-object regions are the same coordinate space.
+
+**REPL flow for the non-MathPix user:** `pyramid <doc>` (build gs DZI) → bridge
+auto-starts `imageserve` → Outputs shows `viewer` + every figure/equation crop
+resolves locally. No MathPix, no live CDN.
+
+Alternative (no sidecar): the bridge serves `viewer/` statically and shells
+`eqcrop` per `/cropped` request — pulls the Python crop into the bun process via
+subprocess; simpler topology, a subprocess per crop. The sidecar proxy is
+preferred (one warm process, mathpix_server already written).
+
 ## 5. Notes / decisions to confirm with the user
 - **gs for the pyramid render** (not pdftoppm) — consistent with the gs-only
   rasterizer + the 600-DPI fidelity evidence. dzsave (vips) does the tiling only.
