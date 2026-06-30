@@ -652,6 +652,17 @@ def _do_pyramid(args):
     return cmd_pyramid(_pdf(pdf_args), dpi=int(dpi) if dpi else 600, force=force)
 
 
+def _do_imageserve(args):
+    """pdfdrill imageserve <pdf> [--port 8000] [--dpi N] [--background]"""
+    from .commands import cmd_imageserve
+    port, args = _opt(args, "--port")
+    dpi, args = _opt(args, "--dpi")
+    background = "--background" in args
+    pdf_args = [a for a in args if a != "--background"]
+    return cmd_imageserve(_pdf(pdf_args), port=int(port) if port else 8000,
+                          dpi=int(dpi) if dpi else None, background=background)
+
+
 def _do_lean(args):
     """pdfdrill lean <pdf> [--limit N] [--force] [--emit-only]"""
     from .commands import cmd_lean
@@ -1391,6 +1402,7 @@ HANDLERS = {
         "stex": _do_stex,
         "lean": _do_lean,
         "pyramid": _do_pyramid,
+        "imageserve": _do_imageserve,
         "scikgtex": _do_scikgtex,
         "skill": _do_skill,
         "steps": _do_steps,

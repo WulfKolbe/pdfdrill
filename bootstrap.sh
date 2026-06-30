@@ -32,6 +32,10 @@ if command -v apt-get >/dev/null 2>&1; then
   # Ghostscript is the PRIMARY page rasterizer (>=400 DPI; far better OCR/vision
   # fidelity than poppler/fitz — gs-400 94.9% vs fitz-300 82%).
   command -v gs >/dev/null 2>&1 || PKGS+=(ghostscript)
+  # libvips (dzsave) — builds the local 600-DPI DZI pyramid for `pdfdrill
+  # pyramid`/`imageserve` (the MathPix-free image source). Optional but installed
+  # here so the image stack works out of the box.
+  command -v vips >/dev/null 2>&1 || PKGS+=(libvips-tools)
   if ! command -v tesseract >/dev/null 2>&1; then
     PKGS+=(tesseract-ocr tesseract-ocr-eng tesseract-ocr-deu tesseract-ocr-equ)
   fi

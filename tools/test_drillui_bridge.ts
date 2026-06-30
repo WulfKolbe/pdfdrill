@@ -69,6 +69,14 @@ if (up) {
   const dr = await fetch(base + "/artifact?path=" + encodeURIComponent(docRel));
   ok("GET /artifact resolves a DOC-relative path (report-404 fix)", dr.ok, docRel);
 
+  // 2c) local image-server proxy: with no built pyramid for the doc, an image
+  //     route (/cropped, /tiles, /viewer.html, /manifest.json) degrades to a
+  //     clear 404 JSON ("run `pdfdrill pyramid`") and never spawns a server.
+  const cr = await fetch(base + "/cropped/anything.jpg?top_left_x=0&top_left_y=0&width=10&height=10");
+  let crJson: any = null; try { crJson = await cr.json(); } catch {}
+  ok("image route 404s without a pyramid (graceful)",
+     cr.status === 404 && !!crJson && /pdfdrill pyramid/.test(crJson.error || ""));
+
   // 3) host-open disabled -> POST /open is 403
   const op = await fetch(base + "/open", {
     method: "POST", headers: { "content-type": "application/json" },

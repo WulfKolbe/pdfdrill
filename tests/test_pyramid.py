@@ -45,6 +45,43 @@ def test_cmd_pyramid_graceful_without_tools(monkeypatch=None):
         P.tools_available = real
 
 
+def test_imageserve_argv_without_pyramid():
+    """`pdfdrill imageserve` returns a clear 'run pyramid first' message when the
+    doc has no <drill>/viewer/manifest.json — never launches a server."""
+    import tempfile
+    from pdfdrill import commands
+    from pdfdrill.sidecar import Sidecar
+    with tempfile.TemporaryDirectory() as d:
+        pdf = Path(d) / "x.pdf"; pdf.write_bytes(b"%PDF-1.4")
+        sc = Sidecar(pdf)
+        argv, url, err = commands._imageserve_argv(pdf, sc, 8000, None)
+        assert argv is None and "pyramid" in err and "imageserve" not in err.lower()[:5]
+        assert "run `pdfdrill pyramid" in err
+
+
+def test_imageserve_argv_built_when_pyramid_present():
+    """With a built pyramid the argv targets mathpix_server.py over the viewer dir,
+    passes the gs --pyramid-dpi from the sidecar, and adds --lines when present."""
+    import json as _json, tempfile, sys as _sys
+    from pdfdrill import commands
+    from pdfdrill.sidecar import Sidecar
+    with tempfile.TemporaryDirectory() as d:
+        pdf = Path(d) / "x.pdf"; pdf.write_bytes(b"%PDF-1.4")
+        sc = Sidecar(pdf)
+        viewer = sc.blob_dir / "viewer"; (viewer / "tiles").mkdir(parents=True)
+        (viewer / "manifest.json").write_text("[]", encoding="utf-8")
+        sc.set_evidence("pyramid", {"dpi": 600})
+        lines = pdf.parent / "x.lines.json"; lines.write_text("{}", encoding="utf-8")
+        argv, url, err = commands._imageserve_argv(pdf, sc, 8123, None)
+        assert err == "" and argv is not None
+        assert argv[0] == _sys.executable and argv[1].endswith("mathpix_server.py")
+        assert "--root" in argv and str(viewer) in argv
+        assert "--pyramid-dpi" in argv and "600" in argv
+        assert "--port" in argv and "8123" in argv
+        assert "--lines" in argv and str(lines) in argv
+        assert url == "http://localhost:8123/viewer.html"
+
+
 if __name__ == "__main__":
     tests = [v for k, v in list(globals().items()) if k.startswith("test_")]
     failed = []

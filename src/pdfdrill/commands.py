@@ -1753,6 +1753,53 @@ def cmd_pyramid(pdf: Path, dpi: int = 600, force: bool = False) -> str:
             f"`pdfdrill imageserve {pdf.name}`.")
 
 
+def _imageserve_argv(pdf: Path, sc: "Sidecar", port: int, dpi: int | None):
+    """Build (argv, url, err) for the local image server over the doc's pyramid.
+    `err` is set (argv None) when the pyramid or the server script is missing."""
+    import sys as _sys
+    viewer = sc.blob_dir / "viewer"
+    if not (viewer / "manifest.json").exists():
+        return None, "", (f"No pyramid for {pdf.name} — run `pdfdrill pyramid "
+                          f"{pdf.name}` first to build the local 600-DPI tiles.")
+    server = Path(__file__).resolve().parents[2] / "tools" / "imageserver" / "mathpix_server.py"
+    if not server.exists():
+        return None, "", "imageserver not found (tools/imageserver/mathpix_server.py)."
+    pdpi = int(dpi or (sc.get_evidence("pyramid") or {}).get("dpi") or 600)
+    argv = [_sys.executable, str(server), "--root", str(viewer),
+            "--tiles", str(viewer / "tiles"), "--pyramid-dpi", str(pdpi),
+            "--port", str(port)]
+    lp = _lines_json_path(pdf)
+    if lp.exists():                                          # exact MathPix→pyramid scale
+        argv += ["--lines", str(lp)]
+    return argv, f"http://localhost:{port}/viewer.html", ""
+
+
+def cmd_imageserve(pdf: Path, port: int = 8000, dpi: int | None = None,
+                   background: bool = False) -> str:
+    """Serve the doc's local pyramid as a MathPix-free image source: a drop-in
+    `cdn.mathpix.com` (`/cropped/<id>?top_left_x=…` assembled from the 600-DPI
+    tiles) PLUS the deep-zoom viewer (`/viewer.html`). Needs `pdfdrill pyramid`
+    first. Foreground (Ctrl-C to stop) unless `--background`. The bun drillui
+    bridge spawns this and proxies /cropped,/tiles,/viewer.html to it."""
+    import subprocess
+    sc = Sidecar(pdf)
+    argv, url, err = _imageserve_argv(pdf, sc, port, dpi)
+    if err:
+        return err
+    if background:
+        subprocess.Popen(argv, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+        return (f"Image server started in the background → {url}  (cdn drop-in: "
+                f"/cropped/<id>?top_left_x=… from the local pyramid).")
+    print(f"Image server (cdn.mathpix.com drop-in + deep-zoom viewer) on the local "
+          f"pyramid → {url}\n  /cropped/<id>?top_left_x=… serves a 600-DPI region; "
+          f"Ctrl-C to stop.")
+    try:
+        subprocess.run(argv)
+    except KeyboardInterrupt:
+        pass
+    return ""
+
+
 def cmd_rasterize(pdf: Path, pages: str | None = None, dpi: int = 400,
                   fmt: str = "png", force: bool = False) -> str:
     """Rasterize page(s) to images for visual inspection (the skill's core op).

@@ -435,6 +435,11 @@ const app = {
         sd.textContent = this.session.store ? "on" : "off";
         sd.className = this.session.store ? "ok" : "off";
         this.hostOpen = msg.hostOpen === true;   // bridge can launch the system browser
+        if (msg.viewer){                          // local MathPix-free deep-zoom image source
+          this.artifacts.set("__viewer__", { isUrl:true, url:(this.httpBase||"")+msg.viewer,
+            label:"deep-zoom viewer (local pyramid)", ext:"view" });
+          this.renderArtifacts();
+        }
         break;
 
       case "output":

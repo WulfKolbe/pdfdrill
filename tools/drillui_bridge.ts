@@ -16,7 +16,7 @@
  * Stdlib + Bun only. Serves the sibling drillui_term.html at http://localhost:<port>/.
  */
 
-import { dirname, join, resolve, normalize, sep, extname } from "node:path";
+import { dirname, join, resolve, normalize, sep, extname, basename } from "node:path";
 import { fileURLToPath } from "node:url";
 import { existsSync, readFileSync } from "node:fs";
 import { homedir } from "node:os";
@@ -188,6 +188,83 @@ function safeResolve(p: string): string | null {
   return firstValid;                               // none exist → first valid (will 404)
 }
 
+// ---- local image server (sidecar proxy) ------------------------------------
+// The MathPix-free image source: `pdfdrill imageserve <doc>` serves the doc's
+// local 600-DPI DZI pyramid as a drop-in cdn.mathpix.com (/cropped/<id>?…) plus
+// the deep-zoom viewer (/viewer.html). The bridge spawns it LAZILY (first request
+// to an image route) when the launch doc has a built pyramid, then proxies the
+// image routes to it so the browser sees one same-origin host. Run `pdfdrill
+// pyramid <doc>` first to build the tiles.
+const IMG_PORT = port + 1;
+const PDFDRILL_BIN = join(REPO_ROOT, "pdfdrill");   // the repo's PYTHONPATH wrapper
+let imgProc: ReturnType<typeof Bun.spawn> | null = null;
+let imgReady: Promise<number | null> | null = null;
+
+/** The launch doc's absolute path IF it has a built pyramid (<doc>.drill/viewer/
+ *  manifest.json), else null (URL/arXiv-id docs and un-pyramided docs included). */
+function docWithPyramid(): string | null {
+  if (!doc) return null;
+  try {
+    const abs = resolve(doc.replace(/^~(?=$|\/)/, homedir()));
+    if (!existsSync(abs)) return null;               // URL / arXiv id / missing
+    const mani = join(dirname(abs), basename(abs) + ".drill", "viewer", "manifest.json");
+    return existsSync(mani) ? abs : null;
+  } catch { return null; }
+}
+
+/** Spawn `pdfdrill imageserve` once (foreground child the bridge owns), wait for
+ *  /healthz, and return its port. null when the doc has no pyramid. */
+async function ensureImageServer(): Promise<number | null> {
+  if (imgProc) return IMG_PORT;
+  if (imgReady) return imgReady;
+  const docAbs = docWithPyramid();
+  if (!docAbs) return null;
+  imgReady = (async () => {
+    const env: Record<string, string> = { ...process.env as any };
+    env.PYTHONPATH = [src ? resolve(src) : join(REPO_ROOT, "src"), env.PYTHONPATH]
+      .filter(Boolean).join(":");
+    imgProc = Bun.spawn({
+      cmd: [PDFDRILL_BIN, "imageserve", docAbs, "--port", String(IMG_PORT)],
+      env, stdout: "ignore", stderr: "ignore",
+    });
+    imgProc.exited.then(() => { imgProc = null; imgReady = null; });  // allow respawn
+    for (let i = 0; i < 60; i++) {                    // up to ~6s for the server to bind
+      try { if ((await fetch(`http://127.0.0.1:${IMG_PORT}/healthz`)).ok) return IMG_PORT; }
+      catch { /* not up yet */ }
+      await new Promise((r) => setTimeout(r, 100));
+    }
+    return IMG_PORT;                                  // best effort (proxy will 502 if dead)
+  })();
+  return imgReady;
+}
+
+const IMG_ROUTE = (p: string) =>
+  p.startsWith("/cropped/") || p.startsWith("/tiles/") ||
+  p === "/viewer.html" || p === "/manifest.json";
+
+/** Proxy an image route to the local sidecar, spawning it on first use. */
+async function proxyImage(req: Request, url: URL): Promise<Response> {
+  const imgPort = await ensureImageServer();
+  if (imgPort == null)
+    return Response.json(
+      { error: `no local pyramid for this doc — run \`pdfdrill pyramid ${doc}\` first` },
+      { status: 404 });
+  const target = `http://127.0.0.1:${imgPort}${url.pathname}${url.search}`;
+  try {
+    const r = await fetch(target, {
+      method: req.method,
+      headers: req.headers,
+      body: (req.method === "GET" || req.method === "HEAD") ? undefined : await req.arrayBuffer(),
+    });
+    return new Response(r.body, { status: r.status, headers: r.headers });
+  } catch (e) {
+    return new Response("image server unreachable: " + String(e), { status: 502 });
+  }
+}
+
+for (const sig of ["exit", "SIGINT", "SIGTERM"] as const)
+  process.on(sig as any, () => { try { imgProc?.kill(); } catch {} });
+
 // Host opener: explicit --opener wins; else auto-detect by platform. "" disables.
 function resolveOpener(): string[] | null {
   if (opener === "") return null;
@@ -275,6 +352,10 @@ const server = Bun.serve<{ sess: Session | null }>({
       return new Response("expected websocket", { status: 426 });
     }
 
+    // local image server (MathPix-free cdn drop-in + deep-zoom viewer): proxy the
+    // image routes to a lazily-spawned `pdfdrill imageserve` sidecar.
+    if (IMG_ROUTE(url.pathname)) return proxyImage(req, url);
+
     // serve a pdfdrill output file (under ART_ROOT only)
     if (url.pathname === "/artifact") {
       const abs = safeResolve(url.searchParams.get("path") || "");
@@ -342,6 +423,7 @@ const server = Bun.serve<{ sess: Session | null }>({
         k,
         store,
         hostOpen: OPENER !== null,
+        viewer: docWithPyramid() ? "/viewer.html" : null,  // local deep-zoom image source
       });
     },
     message(ws, raw) {
@@ -371,4 +453,7 @@ console.error(`  chat: ${pythonBin} ${CHAT_SCRIPT}`);
 console.error(`  doc=${doc}  model=${model ?? "default"}  k=${k}  store=${store}`);
 console.error(`  cwd / artifacts root: ${ART_ROOT}`);
 console.error(`  host-open: ${OPENER ? OPENER.join(" ") : "disabled"}`);
+console.error(`  image server: ${docWithPyramid()
+  ? `lazy /cropped,/tiles,/viewer.html → pdfdrill imageserve :${IMG_PORT}`
+  : "no local pyramid (run `pdfdrill pyramid <doc>` to enable /viewer.html)"}`);
 console.error(`  cmd: ${buildCmd().join(" ")}`);

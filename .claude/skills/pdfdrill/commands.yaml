@@ -1393,6 +1393,32 @@ commands:
     flag: --force
     type: flag
     help: rebuild even if a pyramid exists
+- name: imageserve
+  section: Introspection (fast, no extraction)
+  summary: 'Serve the doc''s local pyramid as a MathPix-free image source: a drop-in
+    cdn.mathpix.com (/cropped/<id>?top_left_x=… assembled from the 600-DPI tiles) PLUS the
+    deep-zoom viewer (/viewer.html). Run `pdfdrill pyramid` first. Foreground (Ctrl-C) unless
+    --background. The bun drillui bridge spawns this and proxies /cropped,/tiles,/viewer.html'
+  offline_ok: true
+  positionals:
+  - name: pdf
+    type: pdf
+    required: true
+    help: PDF path, https URL, or bare arXiv id
+  typed: true
+  flags:
+  - name: port
+    flag: --port
+    type: int
+    help: HTTP port to bind (default 8000)
+  - name: dpi
+    flag: --dpi
+    type: int
+    help: pyramid full-res DPI for MathPix→pyramid scaling (default from the build, 600)
+  - name: background
+    flag: --background
+    type: flag
+    help: spawn detached and return the URL (default foreground, Ctrl-C to stop)
 - name: lean
   section: Introspection (fast, no extraction)
   summary: 'Export theorems to Lean 4: STORE LLM-generated Lean per Theorem (props/tiddler
