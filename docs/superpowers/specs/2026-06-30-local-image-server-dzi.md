@@ -1,6 +1,7 @@
 # Plan — MathPix-free image source: local 600-DPI DZI pyramid + cdn drop-in
 
-**Status:** PLAN (investigation done; not yet built). Goal: serve the
+**Status:** Phases A–D BUILT (commits 15c3925/78cdce1/4b163e7/fa2b0c1); Phase E
+(keyless crop materialization) remains. Goal: serve the
 `cdn.mathpix.com/cropped/…` crop URLs that pdfdrill tiddlers/reports reference
 from a LOCAL Ghostscript-built 600-DPI Deep-Zoom pyramid, so the image layer
 works **without MathPix** — and let image tiddlers reference plain `.png`/`.jpg`
@@ -88,14 +89,20 @@ Key points:
    build_pyramids' pdftoppm), `dzsave` to `<drill>/viewer/tiles/pageNN.*`, write
    `manifest.json`. Record the pyramid in the sidecar.
 
-**Phase D — serve crops locally (cdn drop-in).**
-7. `pdfdrill imageserve <pdf|dir> [--port 8000]`: run `mathpix_server.py` over the
-   doc's pyramid + its `lines.json` (exact scale). Now any tiddler whose
-   `canonical_uri` host is `cdn.mathpix.com` resolves at `localhost:8000`.
-8. A tiddler-rewrite mode (`tiddlers --image-host localhost:8000`, or a projector
-   param) that repoints `cdn.mathpix.com` → the local host in `canonical_uri`, so
-   an offline wiki shows the local crops. (Keep the cdn URL as the default;
-   rewrite is opt-in.)
+**Phase D — serve crops locally (cdn drop-in). DONE (fa2b0c1).**
+7. ✅ `pdfdrill imageserve <pdf> [--port 8000] [--dpi N] [--background]`: runs
+   `mathpix_server.py` over the doc's `<drill>/viewer/` pyramid + its `lines.json`
+   (exact scale). Any tiddler whose `canonical_uri` host is `cdn.mathpix.com`
+   resolves at `localhost:8000`. Graceful "run `pdfdrill pyramid` first".
+   `drillui_bridge.ts` lazily spawns it (IMG_PORT = bridge port + 1) and proxies
+   `/cropped,/tiles,/viewer.html,/manifest.json` so the browser sees one
+   same-origin host; the hello `viewer` field adds a deep-zoom Output link.
+8. (Still opt-in, NOT yet built) a tiddler-rewrite mode (`tiddlers --image-host
+   localhost:8000`, or a projector param) that repoints `cdn.mathpix.com` → the
+   local host in `canonical_uri`, so an offline wiki shows the local crops. Keep
+   the cdn URL as the default; rewrite is opt-in. **Roll this into Phase E** (the
+   keyless path materializes `_canonical_uri` directly, making the rewrite moot
+   for no-MathPix docs; the rewrite only matters for an existing MathPix wiki).
 
 **Phase E — keyless crop materialization (the real MathPix-free win).**
 9. For a doc with NO MathPix lines.json: build the pyramid from gs, and for each
