@@ -1,0 +1,118 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>AHOIS paper — Deep Zoom viewer (27 pages)</title>
+<!-- OpenSeadragon from CDN (same version the guide uses) -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/openseadragon/4.1.0/openseadragon.min.js"></script>
+<style>
+  :root { --bg:#0d0f12; --panel:#16191f; --line:#262b33; --fg:#e6e9ee; --muted:#8a93a0; --accent:#6ea8fe; }
+  * { box-sizing:border-box; }
+  html,body { margin:0; height:100%; background:var(--bg); color:var(--fg);
+    font:14px/1.4 ui-sans-serif,system-ui,-apple-system,"Segoe UI",Roboto,sans-serif; }
+  #bar { display:flex; align-items:center; gap:14px; padding:8px 14px;
+    background:var(--panel); border-bottom:1px solid var(--line); height:52px; }
+  #bar .title { font-weight:600; letter-spacing:.2px; }
+  #bar .title small { color:var(--muted); font-weight:400; margin-left:6px; }
+  #bar .spacer { flex:1; }
+  .nav { display:flex; align-items:center; gap:6px; }
+  button, .pill {
+    background:#1e232b; color:var(--fg); border:1px solid var(--line);
+    border-radius:7px; padding:6px 11px; cursor:pointer; font-size:13px; }
+  button:hover { border-color:var(--accent); color:var(--accent); }
+  button:disabled { opacity:.35; cursor:default; border-color:var(--line); color:var(--muted); }
+  #pageInput { width:50px; text-align:center; background:#1e232b; color:var(--fg);
+    border:1px solid var(--line); border-radius:7px; padding:6px 4px; }
+  .pill { cursor:default; color:var(--muted); }
+  #viewer { width:100%; height:calc(100vh - 52px); background:#000; }
+  /* OSD navigator minimap */
+  .navigator { border:1px solid var(--line) !important; border-radius:6px; }
+  #hint { position:fixed; bottom:14px; left:14px; background:rgba(20,25,31,.85);
+    border:1px solid var(--line); border-radius:8px; padding:8px 12px; color:var(--muted);
+    font-size:12px; pointer-events:none; transition:opacity .6s; }
+</style>
+</head>
+<body>
+  <div id="bar">
+    <span class="title">Socratic agents for autonomous scientific discovery
+      <small>arXiv:2606.26722v1 — Deep Zoom</small></span>
+    <span class="spacer"></span>
+    <div class="nav">
+      <button id="first" title="First page">⏮</button>
+      <button id="prev"  title="Previous page (←)">◀ Prev</button>
+      <span class="pill">Page
+        <input id="pageInput" type="number" min="1" value="1"> / <span id="total">27</span>
+      </span>
+      <button id="next"  title="Next page (→)">Next ▶</button>
+      <button id="last"  title="Last page">⏭</button>
+      <button id="home"  title="Reset zoom (0)">Fit</button>
+    </div>
+  </div>
+  <div id="viewer"></div>
+  <div id="hint">Scroll / pinch to zoom · drag to pan · ← → to change page</div>
+
+<script>
+(async function () {
+  // Build the tileSources list from the generated pyramids.
+  let pages;
+  try {
+    pages = (await (await fetch("manifest.json")).json());
+  } catch (e) {
+    // Fallback if manifest.json can't be fetched: assume page01..page27
+    pages = Array.from({length:27}, (_,i)=>({dzi:`tiles/page${String(i+1).padStart(2,"0")}.dzi`}));
+  }
+  const tileSources = pages.map(p => p.dzi);
+  document.getElementById("total").textContent = tileSources.length;
+  document.getElementById("pageInput").max = tileSources.length;
+
+  const viewer = OpenSeadragon({
+    id: "viewer",
+    prefixUrl: "https://cdnjs.cloudflare.com/ajax/libs/openseadragon/4.1.0/images/",
+    tileSources,                 // array -> sequence mode
+    sequenceMode: true,
+    showReferenceStrip: true,    // thumbnail filmstrip of all pages
+    referenceStripScroll: "horizontal",
+    showNavigator: true,         // minimap, as in the guide
+    navigatorPosition: "TOP_RIGHT",
+    showNavigationControl: true,
+    showSequenceControl: false,  // we provide our own prev/next in the bar
+    animationTime: 0.4,
+    blendTime: 0.1,
+    maxZoomPixelRatio: 2.5,      // allow zooming past 1:1 to inspect text/figures
+    gestureSettingsMouse: { clickToZoom:false, dblClickToZoom:true },
+  });
+
+  const $ = id => document.getElementById(id);
+  const N = tileSources.length;
+  const clamp = p => Math.max(0, Math.min(N-1, p));
+  const go = p => viewer.goToPage(clamp(p));
+
+  function sync() {
+    const p = viewer.currentPage();
+    $("pageInput").value = p + 1;
+    $("prev").disabled = $("first").disabled = (p === 0);
+    $("next").disabled = $("last").disabled  = (p === N-1);
+  }
+  viewer.addHandler("open", sync);
+  viewer.addHandler("page", sync);
+
+  $("first").onclick = () => go(0);
+  $("prev").onclick  = () => go(viewer.currentPage()-1);
+  $("next").onclick  = () => go(viewer.currentPage()+1);
+  $("last").onclick  = () => go(N-1);
+  $("home").onclick  = () => viewer.viewport.goHome();
+  $("pageInput").onchange = e => go((parseInt(e.target.value,10)||1)-1);
+
+  window.addEventListener("keydown", e => {
+    if (e.target.tagName === "INPUT") return;
+    if (e.key === "ArrowRight") go(viewer.currentPage()+1);
+    else if (e.key === "ArrowLeft") go(viewer.currentPage()-1);
+    else if (e.key === "0") viewer.viewport.goHome();
+  });
+
+  setTimeout(() => { const h=$("hint"); if(h) h.style.opacity=0; }, 4500);
+})();
+</script>
+</body>
+</html>

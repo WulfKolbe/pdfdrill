@@ -55,6 +55,14 @@ layout = [
 qr = [
     "zxing-cpp>=2.0",
 ]
+# Local MathPix-free image server (tools/imageserver/ + src/pdfdrill/eqcrop.py):
+# a 600-DPI Ghostscript DZI pyramid serves the cdn.mathpix.com crops + a deep-zoom
+# viewer locally. Pillow does the region crops; pyvips (system libvips-tools) does
+# the dzsave tiling for `pdfdrill pyramid`. gs is already a hard requirement.
+imageserver = [
+    "pillow>=10.0",
+    "pyvips>=2.2",
+]
 # Language detection accuracy upgrade (features.extract_language). Without it the
 # pure-Python stopword fallback (or langdetect, if present) is used — detection
 # always works offline. lingua is best on short/mixed text.
