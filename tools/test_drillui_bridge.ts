@@ -171,6 +171,61 @@ if (up3) {
 }
 try { proc3.kill(); } catch {}
 
+// --- viewer is served STATICALLY by bun (no Python sidecar needed) -------------
+// The deep-zoom viewer only needs viewer.html / manifest.json / tiles/*, which bun
+// serves straight from <doc>.drill/viewer/. Only /cropped/* needs the sidecar. This
+// is the fix for "the viewer shows no data through the bridge (but http.server in
+// the folder works)". We lay down a FAKE pyramid (no gs needed — this tests bun's
+// static serving, not the tiles' validity) and fetch every viewer route.
+const PORT4 = 8802;
+{
+  const { mkdirSync, writeFileSync, rmSync } = await import("node:fs");
+  const { basename, dirname } = await import("node:path");
+  const vd = join(dirname(resolve(doc)), basename(resolve(doc)) + ".drill", "viewer");
+  mkdirSync(join(vd, "tiles", "page01_files", "0"), { recursive: true });
+  writeFileSync(join(vd, "manifest.json"),
+    JSON.stringify([{ page: 1, dzi: "tiles/page01.dzi", width: 10, height: 10, levels: 1 }]));
+  writeFileSync(join(vd, "viewer.html"), "<!doctype html><title>v</title>manifest.json");
+  writeFileSync(join(vd, "tiles", "page01.dzi"), '<?xml version="1.0"?><Image/>');
+  writeFileSync(join(vd, "tiles", "page01_files", "0", "0_0.jpg"), Buffer.from([0xff, 0xd8, 0xff, 0xd9]));
+  const proc4 = Bun.spawn({
+    cmd: ["bun", BRIDGE, doc, "--port", String(PORT4), "--no-open"],
+    cwd: resolve(HERE, ".."), stdout: "ignore", stderr: "ignore", env: { ...process.env },
+  });
+  const b4 = `http://localhost:${PORT4}`;
+  let up4 = false;
+  for (let i = 0; i < 60; i++) {
+    try { if ((await fetch(b4 + "/")).ok) { up4 = true; break; } } catch {}
+    await sleep(250);
+  }
+  if (up4) {
+    const vh = await fetch(b4 + "/viewer.html");
+    ok("bun serves /viewer.html (static, no sidecar)",
+       vh.status === 200 && (vh.headers.get("content-type") || "").includes("text/html"));
+    const mf = await fetch(b4 + "/manifest.json");
+    ok("bun serves /manifest.json", mf.status === 200 && (await mf.json()).length === 1);
+    const dz = await fetch(b4 + "/tiles/page01.dzi");
+    ok("bun serves /tiles/*.dzi as XML",
+       dz.status === 200 && (dz.headers.get("content-type") || "").includes("xml"));
+    const tl = await fetch(b4 + "/tiles/page01_files/0/0_0.jpg");
+    ok("bun serves a tile (max-age)", tl.status === 200 &&
+       (tl.headers.get("cache-control") || "").includes("max-age"));
+    // traversal: bun's URL normalizes ../ to /etc/passwd before we see it (so it
+    // doesn't match /tiles/ and never reaches the file layer) — assert the SECURITY
+    // property: /etc/passwd is never served, whatever the status.
+    const trav = await fetch(b4 + "/tiles/%2e%2e/%2e%2e/%2e%2e/etc/passwd");
+    const travBody = await trav.text();
+    ok("static viewer never leaks /etc/passwd", !/root:.*:0:0:/.test(travBody));
+    // the sidecar must NOT have been spawned just to view (only /cropped needs it)
+    const psout = Bun.spawnSync({ cmd: ["bash", "-c", "ps -e -o args | grep mathpix_server.py | grep -v grep || true"] }).stdout.toString();
+    ok("no Python sidecar spawned for the viewer", !psout.includes("mathpix_server.py"));
+  } else {
+    ok("bun serves /viewer.html (static, no sidecar)", false, "bridge4 did not come up");
+  }
+  try { proc4.kill(); } catch {}
+  try { rmSync(vd, { recursive: true, force: true }); } catch {}
+}
+
 // --- host-open URL path: a second bridge with a HARMLESS opener (/bin/true) ---
 // so we exercise POST /open {url} without actually launching a browser.
 const PORT2 = 8800;

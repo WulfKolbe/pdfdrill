@@ -238,11 +238,46 @@ async function ensureImageServer(): Promise<number | null> {
   return imgReady;
 }
 
-const IMG_ROUTE = (p: string) =>
-  p.startsWith("/cropped/") || p.startsWith("/tiles/") ||
-  p === "/viewer.html" || p === "/manifest.json";
+// The deep-zoom VIEWER only needs static files (viewer.html / manifest.json /
+// tiles/*) — exactly what `python3 -m http.server` serves. Only /cropped/* (the
+// cdn.mathpix.com replacement for TiddlyWiki) needs the Python sidecar. So bun
+// serves the static viewer DIRECTLY (no sidecar to spawn = the viewer always
+// works), and we proxy only /cropped to the lazily-spawned imageserve.
+const IMG_STATIC = (p: string) =>
+  p.startsWith("/tiles/") || p === "/viewer.html" || p === "/manifest.json";
 
-/** Proxy an image route to the local sidecar, spawning it on first use. */
+/** The launch doc's <doc>.drill/viewer/ dir, if a pyramid was built. */
+function viewerDir(): string | null {
+  const docAbs = docWithPyramid();   // already verifies <doc>.drill/viewer/manifest.json
+  return docAbs ? join(dirname(docAbs), basename(docAbs) + ".drill", "viewer") : null;
+}
+
+/** Serve a static viewer file (viewer.html/manifest.json/tiles/*) straight from
+ *  the pyramid dir — bun IS the http.server, so the viewer needs no sidecar. */
+async function serveViewerStatic(url: URL): Promise<Response> {
+  const vd = viewerDir();
+  if (!vd)
+    return Response.json(
+      { error: `no local pyramid for this doc — run \`pdfdrill pyramid ${doc}\` first` },
+      { status: 404 });
+  const rel = decodeURIComponent(url.pathname.replace(/^\/+/, ""));
+  const abs = resolve(vd, normalize(rel));
+  if (abs !== vd && !abs.startsWith(vd + sep))            // no traversal out of viewer/
+    return new Response("forbidden", { status: 403 });
+  const f = Bun.file(abs);
+  if (!(await f.exists())) return new Response("not found", { status: 404 });
+  const ext = extname(abs).toLowerCase();
+  const ct = ext === ".dzi" ? "application/xml"
+                            : (MIME[ext] ?? "application/octet-stream");
+  return new Response(f, { headers: {
+    "content-type": ct,
+    "access-control-allow-origin": "*",
+    "cache-control": url.pathname.startsWith("/tiles/")
+      ? "public, max-age=86400" : "no-cache",   // tiles immutable; viewer/manifest revalidate
+  } });
+}
+
+/** Proxy a /cropped/* request to the local sidecar, spawning it on first use. */
 async function proxyImage(req: Request, url: URL): Promise<Response> {
   const imgPort = await ensureImageServer();
   if (imgPort == null)
@@ -365,9 +400,11 @@ const server = Bun.serve<{ sess: Session | null }>({
       return new Response("expected websocket", { status: 426 });
     }
 
-    // local image server (MathPix-free cdn drop-in + deep-zoom viewer): proxy the
-    // image routes to a lazily-spawned `pdfdrill imageserve` sidecar.
-    if (IMG_ROUTE(url.pathname)) return proxyImage(req, url);
+    // local deep-zoom viewer: bun serves the static tiles/manifest/viewer.html
+    // directly (no sidecar needed — this is what makes the viewer just work), and
+    // only /cropped/* (the cdn.mathpix.com replacement) goes to the Python sidecar.
+    if (url.pathname.startsWith("/cropped/")) return proxyImage(req, url);
+    if (IMG_STATIC(url.pathname)) return serveViewerStatic(url);
 
     // serve a pdfdrill output file (under ART_ROOT only)
     if (url.pathname === "/artifact") {
