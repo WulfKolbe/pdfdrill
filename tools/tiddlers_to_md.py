@@ -42,6 +42,43 @@ _CODE_EXT = {
     "lean4": "lean", "svg_tiddler": "svg", "latex_code": "tex",
     "latex_original": "tex", "bibtex": "bib", "code": "txt",
 }
+# An image tiddler (`type: image/*`) is written as the IMAGE FILE (<title>.<ext>)
+# + a `<title>.<ext>.meta` sidecar, so TiddlyWiki transcludes it as `{{title}}`
+# (no `<$image>` widget) via the file's _canonical_uri.
+_IMAGE_EXT = {
+    "image/png": "png", "image/jpeg": "jpg", "image/jpg": "jpg",
+    "image/gif": "gif", "image/webp": "webp", "image/svg+xml": "svg",
+    "image/tiff": "tif", "image/bmp": "bmp",
+}
+
+
+def _decode_image_source(t: dict, src_dir):
+    """(bytes|None, ext) for an image tiddler. Bytes come from a `data:` URI, a
+    LOCAL-file `_canonical_uri`/`canonical_uri`, or a base64 `text` field; None
+    when the source is a remote URL (then only the .meta is written, URL kept)."""
+    import base64
+    mime = (t.get("type") or "").strip().lower()
+    ext = _IMAGE_EXT.get(mime, "png")
+    uri = (t.get("_canonical_uri") or t.get("canonical_uri") or "").strip()
+    if uri.startswith("data:"):
+        m = re.match(r"data:([^;,]*)(;base64)?,(.*)$", uri, re.S)
+        if m:
+            ext = _IMAGE_EXT.get(m.group(1), ext)
+            body = m.group(3)
+            return (base64.b64decode(body) if m.group(2) else body.encode()), ext
+    if uri and not re.match(r"^https?://", uri):                  # local file
+        p = Path(uri)
+        if src_dir and not p.is_absolute():
+            p = Path(src_dir) / uri
+        if p.is_file():
+            return p.read_bytes(), (p.suffix.lstrip(".").lower() or ext)
+    txt = (t.get("text") or "").strip()
+    if txt and not uri:                                          # base64 in text
+        try:
+            return base64.b64decode(txt), ext
+        except Exception:
+            pass
+    return None, ext                                            # remote/unresolved
 
 
 def safe_filename(title: str) -> str:
@@ -93,16 +130,19 @@ def tiddler_files(t: dict, base: str = "", *, sidecar: bool = True) -> tuple[str
 
 
 def export_tiddlers(tiddlers, out_dir, bibkey: str | None = None,
-                    *, sidecar: bool = True) -> tuple[int, Path, int]:
+                    *, sidecar: bool = True, src_dir=None) -> tuple[int, Path, int]:
     """Write every tiddler as `<title>.md` + `<title>.md.meta` under
-    `<out_dir>/<bibkey>/`, plus a clean sidecar file per code/multi-line field.
-    Returns (tiddler_count, folder, sidecar_count)."""
+    `<out_dir>/<bibkey>/`, plus a clean sidecar per code/multi-line field. An
+    `image/*` tiddler is written as the IMAGE FILE `<title>.<ext>` +
+    `<title>.<ext>.meta` instead (transcluded as `{{title}}`, no `<$image>`).
+    `src_dir` resolves a tiddler's relative local image path (default: cwd).
+    Returns (tiddler_count, folder, extra_file_count)."""
     out = Path(out_dir)
     if bibkey:
         out = out / safe_filename(bibkey)
     out.mkdir(parents=True, exist_ok=True)
     seen: dict[str, int] = {}
-    written = side_written = 0
+    written = extra_written = 0
     for t in tiddlers:
         base = safe_filename(t.get("title") or f"tiddler_{written}")
         if base in seen:                                   # disambiguate collisions
@@ -110,14 +150,28 @@ def export_tiddlers(tiddlers, out_dir, bibkey: str | None = None,
             base = f"{base}~{seen[base]}"
         else:
             seen[base] = 0
+        if (t.get("type") or "").lower().startswith("image/"):
+            data, ext = _decode_image_source(t, src_dir)
+            fname = f"{base}.{ext}"
+            meta_val = {k: _meta_value(v) for k, v in t.items() if k != "text"}
+            if data is not None:                           # write the bytes + point at them
+                (out / fname).write_bytes(data)
+                meta_val["_canonical_uri"] = fname
+                extra_written += 1
+            keys = ([k for k in _LEAD_FIELDS if k in meta_val]
+                    + sorted(k for k in meta_val if k not in _LEAD_FIELDS))
+            (out / f"{fname}.meta").write_text(
+                "\n".join(f"{k}: {meta_val[k]}" for k in keys) + "\n", encoding="utf-8")
+            written += 1
+            continue
         md, meta, sidecars = tiddler_files(t, base, sidecar=sidecar)
         (out / f"{base}.md").write_text(md, encoding="utf-8")
         (out / f"{base}.md.meta").write_text(meta, encoding="utf-8")
         for name, content in sidecars.items():
             (out / name).write_text(content, encoding="utf-8")
-            side_written += 1
+            extra_written += 1
         written += 1
-    return written, out, side_written
+    return written, out, extra_written
 
 
 def main(argv=None) -> int:
@@ -133,9 +187,10 @@ def main(argv=None) -> int:
     p = Path(a.tiddlers_json)
     data = json.loads(p.read_text(encoding="utf-8"))
     bibkey = a.bibkey or p.name.split(".tiddlers")[0]
-    n, out, side = export_tiddlers(data, a.out, bibkey, sidecar=not a.no_sidecar)
-    print(f"Wrote {n} tiddler(s) as .md + .md.meta"
-          + (f" + {side} code sidecar file(s)" if side else "")
+    n, out, side = export_tiddlers(data, a.out, bibkey, sidecar=not a.no_sidecar,
+                                   src_dir=p.parent)
+    print(f"Wrote {n} tiddler(s) as .md/.md.meta (image tiddlers as <name>.<ext>+"
+          f".meta)" + (f" + {side} sidecar/image file(s)" if side else "")
           + f" under {out}/")
     return 0
 

@@ -1195,6 +1195,14 @@ Verified: 2110.11150 → 369 `.md`+`.md.meta` + 264 sidecars (`.bib`/`.tex`/`.tx
 `.lean` once `pdfdrill lean` runs). **Deferred (user):** reference-list-driven
 per-tiddler features. Tests: `tests/test_tiddlers_to_md.py`,
 `tests/test_tiddler_tags_toc.py` (markdown TOC).
+**Image tiddlers (Phase A, 2026-06-30).** A `type: image/*` tiddler is exported as
+the IMAGE FILE `<title>.<ext>` + `<title>.<ext>.meta` (NOT a `.md`), so TiddlyWiki
+transcludes it as `{{title}}` with no `<$image>` widget (the `.meta` carries `type`
++ `_canonical_uri: <title>.<ext>`). Bytes from a `data:` URI, a LOCAL-file
+`_canonical_uri`/`canonical_uri`, or a base64 `text`; a remote URL keeps only the
+`.meta`. This is the on-disk image form the local gs-pyramid crops (Phases C/E of
+`docs/superpowers/specs/2026-06-30-local-image-server-dzi.md`) will fill. Test:
+`tests/test_tiddlers_to_md.py::test_image_tiddler_exported_as_file_plus_meta`.
 
 ## LEAN4 export — STORE then PROJECT (`pdfdrill lean`, 2026-06-26)
 

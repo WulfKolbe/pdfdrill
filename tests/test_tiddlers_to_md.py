@@ -66,6 +66,41 @@ def test_export_writes_lean_sidecar_file():
         assert "lean4: K_THM0001.lean" in (out / "K_THM0001.md.meta").read_text()
 
 
+def test_image_tiddler_exported_as_file_plus_meta():
+    """An image tiddler (type image/*) → the IMAGE FILE <name>.<ext> +
+    <name>.<ext>.meta (transcluded as {{name}}, no <$image>). Bytes from a data:
+    URI, a local file, or kept-as-URL for a remote source."""
+    import base64
+    import tempfile
+    png = b"\x89PNG\r\n\x1a\n" + b"fakepngbytes"
+    with tempfile.TemporaryDirectory() as dd:
+        src = Path(dd) / "src"; src.mkdir()
+        # 1) a local-file image
+        (src / "fig.png").write_bytes(png)
+        # 2) a data: URI image
+        b64 = base64.b64encode(png).decode()
+        tiddlers = [
+            {"title": "K_PIC_01", "type": "image/png", "_canonical_uri": "fig.png"},
+            {"title": "K_PIC_02", "type": "image/png",
+             "_canonical_uri": f"data:image/png;base64,{b64}"},
+            {"title": "K_PIC_03", "type": "image/jpeg",      # remote → meta only
+             "_canonical_uri": "https://cdn.mathpix.com/cropped/x.jpg?width=9"},
+        ]
+        n, out, extra = T.export_tiddlers(tiddlers, dd, bibkey="K", src_dir=src)
+        assert n == 3
+        # local + data URI → real image files, pointed at by _canonical_uri
+        assert (out / "K_PIC_01.png").read_bytes() == png
+        assert (out / "K_PIC_02.png").read_bytes() == png
+        assert "_canonical_uri: K_PIC_01.png" in (out / "K_PIC_01.png.meta").read_text()
+        assert "type: image/png" in (out / "K_PIC_01.png.meta").read_text()
+        assert not (out / "K_PIC_01.md").exists()          # NOT a markdown tiddler
+        # remote URL → no bytes, the .meta keeps the URL
+        assert not (out / "K_PIC_03.jpg").exists()
+        meta3 = (out / "K_PIC_03.jpg.meta").read_text()
+        assert "cdn.mathpix.com/cropped/x.jpg" in meta3
+        assert extra == 2                                   # two local image files written
+
+
 def test_safe_filename():
     assert T.safe_filename("2110.11150_THM0003") == "2110.11150_THM0003"
     assert T.safe_filename('a/b:c*?"<>|') == "a_b_c_"
