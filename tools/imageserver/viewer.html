@@ -3,11 +3,11 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>AHOIS paper — Deep Zoom viewer (27 pages)</title>
-<!-- OpenSeadragon from CDN (same version the guide uses) -->
+<title>Deep Zoom viewer</title>
+<!-- OpenSeadragon from CDN -->
 <script src="https://cdnjs.cloudflare.com/ajax/libs/openseadragon/4.1.0/openseadragon.min.js"></script>
 <style>
-  :root { --bg:#0d0f12; --panel:#16191f; --line:#262b33; --fg:#e6e9ee; --muted:#8a93a0; --accent:#6ea8fe; }
+  :root { --bg:#0d0f12; --panel:#16191f; --line:#262b33; --fg:#e6e9ee; --muted:#8a93a0; --accent:#6ea8fe; --err:#ff6b6b; }
   * { box-sizing:border-box; }
   html,body { margin:0; height:100%; background:var(--bg); color:var(--fg);
     font:14px/1.4 ui-sans-serif,system-ui,-apple-system,"Segoe UI",Roboto,sans-serif; }
@@ -26,23 +26,27 @@
     border:1px solid var(--line); border-radius:7px; padding:6px 4px; }
   .pill { cursor:default; color:var(--muted); }
   #viewer { width:100%; height:calc(100vh - 52px); background:#000; }
-  /* OSD navigator minimap */
   .navigator { border:1px solid var(--line) !important; border-radius:6px; }
   #hint { position:fixed; bottom:14px; left:14px; background:rgba(20,25,31,.85);
     border:1px solid var(--line); border-radius:8px; padding:8px 12px; color:var(--muted);
     font-size:12px; pointer-events:none; transition:opacity .6s; }
+  /* loud error panel — replaces the old silent 27-page guess */
+  #err { display:none; position:absolute; inset:52px 0 0 0; padding:32px; overflow:auto;
+    background:var(--bg); color:var(--fg); }
+  #err h2 { color:var(--err); margin:0 0 12px; }
+  #err code { background:#1e232b; border:1px solid var(--line); border-radius:5px; padding:1px 6px; }
+  #err pre { background:#11151b; border:1px solid var(--line); border-radius:8px; padding:12px; overflow:auto; }
 </style>
 </head>
 <body>
   <div id="bar">
-    <span class="title">Socratic agents for autonomous scientific discovery
-      <small>arXiv:2606.26722v1 — Deep Zoom</small></span>
+    <span class="title" id="title">Deep Zoom viewer <small id="sub"></small></span>
     <span class="spacer"></span>
     <div class="nav">
       <button id="first" title="First page">⏮</button>
       <button id="prev"  title="Previous page (←)">◀ Prev</button>
       <span class="pill">Page
-        <input id="pageInput" type="number" min="1" value="1"> / <span id="total">27</span>
+        <input id="pageInput" type="number" min="1" value="1"> / <span id="total">–</span>
       </span>
       <button id="next"  title="Next page (→)">Next ▶</button>
       <button id="last"  title="Last page">⏭</button>
@@ -50,40 +54,76 @@
     </div>
   </div>
   <div id="viewer"></div>
+  <div id="err"></div>
   <div id="hint">Scroll / pinch to zoom · drag to pan · ← → to change page</div>
 
 <script>
 (async function () {
-  // Build the tileSources list from the generated pyramids.
-  let pages;
+  const $ = id => document.getElementById(id);
+  const fail = (msg) => {                       // LOUD failure — never silently guess pages
+    const e = $("err");
+    e.style.display = "block";
+    e.innerHTML = msg;
+    $("title").textContent = "Deep Zoom viewer — error";
+  };
+
+  // The manifest is the ONLY source of truth for page count + dimensions. If it
+  // can't be fetched (the classic cause: the viewer was opened as a file:// page
+  // instead of over the server, so fetch() of a local file is blocked), we say so
+  // — rather than assuming a fixed page count and 404-ing every "missing" page.
+  let manifest;
   try {
-    pages = (await (await fetch("manifest.json")).json());
+    const r = await fetch("manifest.json", { cache: "no-store" });
+    if (!r.ok) throw new Error("HTTP " + r.status);
+    manifest = await r.json();
   } catch (e) {
-    // Fallback if manifest.json can't be fetched: assume page01..page27
-    pages = Array.from({length:27}, (_,i)=>({dzi:`tiles/page${String(i+1).padStart(2,"0")}.dzi`}));
+    return fail(
+      "<h2>Could not load <code>manifest.json</code></h2>" +
+      "<p>" + String(e) + "</p>" +
+      "<p>The deep-zoom viewer must be served over HTTP — open it via the image " +
+      "server, not as a local file:</p>" +
+      "<pre>pdfdrill pyramid &lt;doc&gt;     # build the tiles\n" +
+      "pdfdrill imageserve &lt;doc&gt;   # serve them, then open the printed URL</pre>" +
+      "<p>In drillui (bun bridge) it opens automatically right after " +
+      "<code>pyramid</code>.</p>");
   }
-  const tileSources = pages.map(p => p.dzi);
-  document.getElementById("total").textContent = tileSources.length;
-  document.getElementById("pageInput").max = tileSources.length;
+
+  // tolerate both shapes: a bare array of {dzi,...} (current) or {doc, pages:[...]}
+  const meta  = Array.isArray(manifest) ? {} : manifest;
+  const pages = Array.isArray(manifest) ? manifest : (manifest.pages || []);
+  const tileSources = pages.map(p => p.dzi).filter(Boolean);
+  if (!tileSources.length)
+    return fail("<h2>Empty pyramid</h2><p>manifest.json lists no pages. Re-run " +
+                "<code>pdfdrill pyramid &lt;doc&gt;</code>.</p>");
+
+  if (meta.doc) { document.title = meta.doc + " — Deep Zoom"; $("title").firstChild.textContent = meta.doc + " "; }
+  $("sub").textContent = tileSources.length + " page" + (tileSources.length === 1 ? "" : "s");
+  $("total").textContent = tileSources.length;
+  $("pageInput").max = tileSources.length;
 
   const viewer = OpenSeadragon({
     id: "viewer",
     prefixUrl: "https://cdnjs.cloudflare.com/ajax/libs/openseadragon/4.1.0/images/",
     tileSources,                 // array -> sequence mode
     sequenceMode: true,
-    showReferenceStrip: true,    // thumbnail filmstrip of all pages
+    showReferenceStrip: true,
     referenceStripScroll: "horizontal",
-    showNavigator: true,         // minimap, as in the guide
+    showNavigator: true,
     navigatorPosition: "TOP_RIGHT",
     showNavigationControl: true,
-    showSequenceControl: false,  // we provide our own prev/next in the bar
+    showSequenceControl: false,
     animationTime: 0.4,
     blendTime: 0.1,
-    maxZoomPixelRatio: 2.5,      // allow zooming past 1:1 to inspect text/figures
+    maxZoomPixelRatio: 2.5,
     gestureSettingsMouse: { clickToZoom:false, dblClickToZoom:true },
   });
 
-  const $ = id => document.getElementById(id);
+  // surface a per-tile-source load failure (a missing/!ok .dzi) instead of a black canvas
+  viewer.addHandler("open-failed", (ev) => fail(
+    "<h2>Tile source failed to load</h2><p>" + (ev && ev.message || "") +
+    "</p><p>A page's <code>.dzi</code> or its tiles did not load. Confirm the " +
+    "server serves <code>tiles/</code> (it is reached at the same origin as this page).</p>"));
+
   const N = tileSources.length;
   const clamp = p => Math.max(0, Math.min(N-1, p));
   const go = p => viewer.goToPage(clamp(p));

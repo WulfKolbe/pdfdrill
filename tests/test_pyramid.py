@@ -45,6 +45,35 @@ def test_cmd_pyramid_graceful_without_tools(monkeypatch=None):
         P.tools_available = real
 
 
+def test_real_pyramid_build_and_crop():
+    """END-TO-END (gated on gs + pyvips): build a real DZI pyramid from a pypdf PDF
+    and crop a region from it with eqcrop. Skips cleanly where the tools are absent."""
+    ok, _ = pyramid.tools_available()
+    if not ok:
+        print("  (skip: gs/pyvips not available)"); return
+    import tempfile
+    from pypdf import PdfWriter
+    from pdfdrill import eqcrop
+    with tempfile.TemporaryDirectory() as d:
+        pdf = Path(d) / "x.pdf"
+        w = PdfWriter(); w.add_blank_page(width=612, height=792)
+        with open(pdf, "wb") as f:
+            w.write(f)
+        out = Path(d) / "viewer"
+        res = pyramid.build_pyramid(pdf, out, dpi=150, pages=[1])
+        assert res["pages"] == 1
+        e = res["manifest"][0]
+        assert e["dzi"] == "tiles/page01.dzi" and e["width"] > 0 and e["height"] > 0
+        assert (out / "manifest.json").exists()
+        assert (out / "tiles" / "page01.dzi").exists()
+        # the deepest level holds the full render → eqcrop reads a region from it
+        files = out / "tiles" / "page01_files"
+        assert files.is_dir() and any(files.iterdir())
+        pyr = eqcrop.Pyramid(str(out / "tiles" / "page01.dzi"))
+        crop = pyr.crop(10, 10, 100, 60)               # a small region
+        assert crop is not None and crop.width > 0 and crop.height > 0
+
+
 def test_imageserve_argv_without_pyramid():
     """`pdfdrill imageserve` returns a clear 'run pyramid first' message when the
     doc has no <drill>/viewer/manifest.json — never launches a server."""

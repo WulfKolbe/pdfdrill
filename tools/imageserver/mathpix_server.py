@@ -308,6 +308,8 @@ class Handler(BaseHTTPRequestHandler):
             return self._send(404, b"not found", "text/plain")
         import mimetypes
         ctype = mimetypes.guess_type(full)[0] or "application/octet-stream"
+        if full.endswith(".dzi"):       # DZI tile-source is XML (mimetypes can't guess it)
+            ctype = "application/xml"
         with open(full, "rb") as f:
             return self._send(200, f.read(), ctype)
 

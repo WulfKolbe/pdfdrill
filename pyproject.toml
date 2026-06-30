@@ -57,11 +57,14 @@ qr = [
 ]
 # Local MathPix-free image server (tools/imageserver/ + src/pdfdrill/eqcrop.py):
 # a 600-DPI Ghostscript DZI pyramid serves the cdn.mathpix.com crops + a deep-zoom
-# viewer locally. Pillow does the region crops; pyvips (system libvips-tools) does
-# the dzsave tiling for `pdfdrill pyramid`. gs is already a hard requirement.
+# viewer locally. Pillow does the region crops; pyvips (libvips) does the dzsave
+# tiling for `pdfdrill pyramid`. gs is already a hard requirement.
+# pyvips[binary] pulls a wheel that BUNDLES libvips, so `pip install
+# 'pdfdrill[imageserver]'` works with NO system package / no root. If you prefer
+# the system lib, `apt-get install libvips-tools` (bootstrap.sh does) + plain pyvips.
 imageserver = [
     "pillow>=10.0",
-    "pyvips>=2.2",
+    "pyvips[binary]>=2.2",
 ]
 # Language detection accuracy upgrade (features.extract_language). Without it the
 # pure-Python stopword fallback (or langdetect, if present) is used — detection
