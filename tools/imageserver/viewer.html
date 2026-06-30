@@ -71,9 +71,17 @@
   // can't be fetched (the classic cause: the viewer was opened as a file:// page
   // instead of over the server, so fetch() of a local file is blocked), we say so
   // — rather than assuming a fixed page count and 404-ing every "missing" page.
+  // Resolve EVERYTHING against this page's own URL (location.href), as ABSOLUTE
+  // URLs. Relative paths ("manifest.json", "tiles/page01.dzi") would otherwise be
+  // resolved by OpenSeadragon against a base that need not equal where viewer.html
+  // was served — so the tiles "aren't found" when the server runs from elsewhere.
+  // An absolute URL built from location.href always points back at the same origin
+  // + folder that served this very page.
+  const abs = (rel) => new URL(rel, location.href).href;
+
   let manifest;
   try {
-    const r = await fetch("manifest.json", { cache: "no-store" });
+    const r = await fetch(abs("manifest.json"), { cache: "no-store" });
     if (!r.ok) throw new Error("HTTP " + r.status);
     manifest = await r.json();
   } catch (e) {
@@ -91,7 +99,9 @@
   // tolerate both shapes: a bare array of {dzi,...} (current) or {doc, pages:[...]}
   const meta  = Array.isArray(manifest) ? {} : manifest;
   const pages = Array.isArray(manifest) ? manifest : (manifest.pages || []);
-  const tileSources = pages.map(p => p.dzi).filter(Boolean);
+  // absolute .dzi URLs (relative to THIS page) so OSD fetches them from the same
+  // server that served viewer.html — not from whatever base OSD would assume.
+  const tileSources = pages.map(p => p.dzi).filter(Boolean).map(abs);
   if (!tileSources.length)
     return fail("<h2>Empty pyramid</h2><p>manifest.json lists no pages. Re-run " +
                 "<code>pdfdrill pyramid &lt;doc&gt;</code>.</p>");

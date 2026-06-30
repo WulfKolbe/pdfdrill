@@ -200,8 +200,13 @@ const PORT4 = 8802;
   }
   if (up4) {
     const vh = await fetch(b4 + "/viewer.html");
+    const vhBody = await vh.text();
     ok("bun serves /viewer.html (static, no sidecar)",
        vh.status === 200 && (vh.headers.get("content-type") || "").includes("text/html"));
+    // it must be the CURRENT package viewer.html (with absolute-URL resolution),
+    // NOT the per-doc fake we wrote — so an old pyramid's stale viewer never wins.
+    ok("serves the current package viewer.html (abs-URL, not the stale doc copy)",
+       /new URL\(rel, location\.href\)/.test(vhBody) && !vhBody.includes(">v</title>"));
     const mf = await fetch(b4 + "/manifest.json");
     ok("bun serves /manifest.json", mf.status === 200 && (await mf.json()).length === 1);
     const dz = await fetch(b4 + "/tiles/page01.dzi");

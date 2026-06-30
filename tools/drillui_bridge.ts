@@ -254,12 +254,22 @@ function viewerDir(): string | null {
 
 /** Serve a static viewer file (viewer.html/manifest.json/tiles/*) straight from
  *  the pyramid dir — bun IS the http.server, so the viewer needs no sidecar. */
+const PKG_VIEWER_HTML = join(REPO_ROOT, "tools", "imageserver", "viewer.html");
+
 async function serveViewerStatic(url: URL): Promise<Response> {
   const vd = viewerDir();
   if (!vd)
     return Response.json(
       { error: `no local pyramid for this doc — run \`pdfdrill pyramid ${doc}\` first` },
       { status: 404 });
+  // Always serve the CURRENT package viewer.html (the per-doc copy can be stale
+  // from an older `pyramid` build); manifest.json + tiles/* come from the pyramid.
+  if (url.pathname === "/viewer.html" && existsSync(PKG_VIEWER_HTML)) {
+    return new Response(Bun.file(PKG_VIEWER_HTML), { headers: {
+      "content-type": "text/html; charset=utf-8",
+      "access-control-allow-origin": "*", "cache-control": "no-cache",
+    } });
+  }
   const rel = decodeURIComponent(url.pathname.replace(/^\/+/, ""));
   const abs = resolve(vd, normalize(rel));
   if (abs !== vd && !abs.startsWith(vd + sep))            // no traversal out of viewer/

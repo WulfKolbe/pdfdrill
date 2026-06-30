@@ -1781,11 +1781,19 @@ def cmd_imageserve(pdf: Path, port: int = 8000, dpi: int | None = None,
     tiles) PLUS the deep-zoom viewer (`/viewer.html`). Needs `pdfdrill pyramid`
     first. Foreground (Ctrl-C to stop) unless `--background`. The bun drillui
     bridge spawns this and proxies /cropped,/tiles,/viewer.html to it."""
-    import os, sys, subprocess
+    import os, sys, subprocess, shutil
     sc = Sidecar(pdf)
     argv, url, err = _imageserve_argv(pdf, sc, port, dpi)
     if err:
         return err
+    # refresh the served viewer.html from the package so an OLD pyramid build never
+    # serves a stale viewer (the deep-zoom UI is decoupled from the tiles)
+    pkg_viewer = Path(__file__).resolve().parents[2] / "tools" / "imageserver" / "viewer.html"
+    if pkg_viewer.exists():
+        try:
+            shutil.copy(pkg_viewer, sc.blob_dir / "viewer" / "viewer.html")
+        except OSError:
+            pass
     if background:
         # detached on purpose (meant to outlive this shell) → NO --die-with-parent
         subprocess.Popen(argv, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
