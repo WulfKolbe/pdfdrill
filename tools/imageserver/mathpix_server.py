@@ -43,7 +43,7 @@ USAGE
 
 import argparse, glob, io, json, os, re, sys, threading, time
 from collections import OrderedDict
-from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
+from http.server import SimpleHTTPRequestHandler, ThreadingHTTPServer
 from urllib.parse import urlparse, parse_qs, unquote
 
 # Use the single vendored cropper (src/pdfdrill/eqcrop.py) — no duplicate copy.
@@ -251,34 +251,53 @@ class Server:
         return full if os.path.isfile(full) else None
 
 
-class Handler(BaseHTTPRequestHandler):
+class Handler(SimpleHTTPRequestHandler):
+    """Static files (viewer.html / manifest.json / tiles/*) are served by Python's
+    proven SimpleHTTPRequestHandler — the exact machinery `python3 -m http.server`
+    uses (correct MIME, Range, Last-Modified conditional caching) — which a browser
+    + OpenSeadragon are known to work against. We only OVERRIDE the two dynamic
+    routes: /cropped/<id> (the MathPix crop) and /healthz. A hand-rolled static
+    handler was the regression (and it blanket-cached viewer.html for a day)."""
     server_logic: Server = None
-    protocol_version = "HTTP/1.1"
+
+    # SimpleHTTPRequestHandler resolves paths under `directory`; point it at the
+    # pyramid root (parent of tiles/). server_logic is set as a class attr before serving.
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, directory=type(self).server_logic.root, **kwargs)
+
+    # .dzi is an XML tile-source (the stdlib map doesn't know it → octet-stream)
+    extensions_map = {**SimpleHTTPRequestHandler.extensions_map, ".dzi": "application/xml"}
 
     def log_message(self, *a):  # quiet; flip to print for debugging
         pass
+
+    def end_headers(self):
+        # CORS so a TiddlyWiki on another origin can pull these; revalidate the
+        # mutable docs (viewer.html/manifest.json) so a rebuild is picked up, while
+        # the immutable tiles cache hard.
+        self.send_header("Access-Control-Allow-Origin", "*")
+        p = urlparse(self.path).path
+        if p.startswith("/tiles/") or p.startswith("/cropped/"):
+            self.send_header("Cache-Control", "public, max-age=86400")  # immutable
+        else:
+            self.send_header("Cache-Control", "no-cache")               # viewer.html/manifest: revalidate
+        super().end_headers()
 
     def _send(self, code, body=b"", ctype="application/octet-stream", extra=None):
         self.send_response(code)
         self.send_header("Content-Type", ctype)
         self.send_header("Content-Length", str(len(body)))
-        self.send_header("Access-Control-Allow-Origin", "*")   # TW on another origin
-        self.send_header("Cache-Control", "public, max-age=86400")
         for k, v in (extra or {}).items():
             self.send_header(k, v)
         self.end_headers()
         if self.command != "HEAD":
             self.wfile.write(body)
 
-    def do_HEAD(self): self.do_GET()
-    def do_GET(self):
+    def _dynamic(self):
+        """Handle /healthz and /cropped; return True if this request was one of them."""
         L = self.server_logic
         u = urlparse(self.path)
         path = u.path
-
-        if path == "/" :
-            return self._send(302, b"", "text/plain", {"Location": "/viewer.html"})
-
         if path == "/healthz":
             info = {"ok": True,
                     "pages_indexed": len(L.index.dims),
@@ -287,31 +306,38 @@ class Handler(BaseHTTPRequestHandler):
                     "mathpix_dpi": L.mathpix_dpi,
                     "scale_mode": ("lines.json dims" if L.index.dims else
                                    "dpi ratio" if L.mathpix_dpi else "1:1 (no scale)")}
-            return self._send(200, json.dumps(info, indent=2).encode(), "application/json")
-
+            self._send(200, json.dumps(info, indent=2).encode(), "application/json")
+            return True
         if path.startswith("/cropped/"):
             image_id = re.sub(r"\.(jpe?g|png)$", "", path[len("/cropped/"):], flags=re.I)
             image_id = unquote(image_id)
             try:
                 body, ctype = L.resolve_crop(image_id, parse_qs(u.query))
-                return self._send(200, body, ctype)
+                self._send(200, body, ctype)
             except KeyError as e:
-                return self._send(404, str(e).encode(), "text/plain")
+                self._send(404, str(e).encode(), "text/plain")
             except ValueError as e:
-                return self._send(400, str(e).encode(), "text/plain")
+                self._send(400, str(e).encode(), "text/plain")
             except Exception as e:
-                return self._send(500, f"crop error: {e}".encode(), "text/plain")
+                self._send(500, f"crop error: {e}".encode(), "text/plain")
+            return True
+        return False
 
-        # static (viewer.html, manifest.json, tiles/*)
-        full = L.static_path(path)
-        if not full:
-            return self._send(404, b"not found", "text/plain")
-        import mimetypes
-        ctype = mimetypes.guess_type(full)[0] or "application/octet-stream"
-        if full.endswith(".dzi"):       # DZI tile-source is XML (mimetypes can't guess it)
-            ctype = "application/xml"
-        with open(full, "rb") as f:
-            return self._send(200, f.read(), ctype)
+    def do_GET(self):
+        if urlparse(self.path).path == "/":           # land on the viewer
+            self.send_response(302)
+            self.send_header("Location", "/viewer.html")
+            self.send_header("Content-Length", "0")
+            self.end_headers()
+            return
+        if self._dynamic():
+            return
+        return super().do_GET()                       # proven static serving
+
+    def do_HEAD(self):
+        if self._dynamic():
+            return
+        return super().do_HEAD()
 
 
 def main():
