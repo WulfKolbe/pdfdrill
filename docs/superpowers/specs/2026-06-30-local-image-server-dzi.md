@@ -1,0 +1,114 @@
+# Plan — MathPix-free image source: local 600-DPI DZI pyramid + cdn drop-in
+
+**Status:** PLAN (investigation done; not yet built). Goal: serve the
+`cdn.mathpix.com/cropped/…` crop URLs that pdfdrill tiddlers/reports reference
+from a LOCAL Ghostscript-built 600-DPI Deep-Zoom pyramid, so the image layer
+works **without MathPix** — and let image tiddlers reference plain `.png`/`.jpg`
+files (via a `.meta` sidecar) instead of `<$image>` widgets or base64.
+
+## 1. Where CDN images are base64-embedded today (the audit)
+
+- **`docops/projectors/common.embed_image(url)`** — the ONLY base64 path: fetches
+  the URL and returns a `data:<ctype>;base64,…` URI (cached; graceful URL
+  fallback). Triggered only by **`--embed`**:
+  - `formula_report.py:150` (`report --embed`)
+  - `comparison_html.py:157` (`compare --embed`)
+  - `tiddlywiki.py` `self._uri()` → the `canonical_uri` field of **EmbeddedImage
+    / Picture / Diagram / Table** tiddlers (lines ~582/600/649/672) under
+    `tiddlers --embed`.
+- WITHOUT `--embed`, those tiddlers keep the **live `cdn.mathpix.com/cropped/…`
+  URL** in `canonical_uri`, rendered by the `PIC`/`DIA` templates
+  (`<$image source={{!!canonical_uri}}>`). So today the image layer is either
+  (a) live-CDN, or (b) base64-inlined — both depend on MathPix having produced
+  the crop. The local pyramid replaces (a)'s host.
+
+## 2. Image-file tiddlers in tiddlers.json (`.png` + `.meta`, `{{name}}`)
+
+TiddlyWiki renders an **image-type tiddler** by its own view template, so
+transcluding `{{Title}}` (no `<$image>`) shows the image when the tiddler is:
+
+```json
+{ "title": "2603_FIG_03",
+  "type": "image/png",
+  "_canonical_uri": "2603_FIG_03.png" }      // external file, same folder
+```
+
+Key points:
+- The field is **`_canonical_uri`** (leading underscore — TiddlyWiki's external-
+  body pointer), NOT pdfdrill's current `canonical_uri`.
+- `text` is empty/absent; the bytes live in the sibling `.png`.
+- In the **file system adaptor** form this is exactly the user's `image.png` +
+  `image.png.meta` pair: `image.png` (bytes) + `image.png.meta`
+  (`title: …\ntype: image/png\n`). The `_canonical_uri` is implied by the file.
+- So `tiddlers_to_md.py` must, for an image tiddler, write the IMAGE BYTES as
+  `<title>.png` (not a `.md`) + `<title>.png.meta`. (Today it only sidecars
+  text/code fields; image tiddlers need byte output keyed on `type: image/*`.)
+
+## 3. The toolkit (`~/Downloads/imageserver.zip`)
+
+- **`build_pyramids.py`** — renders a PDF to per-page **DZI** pyramids; deepest
+  level = the full render, so a 600-DPI build gives a 600-DPI full-res level.
+  Uses `pdftoppm` + `pyvips.dzsave` today → **switch to Ghostscript** (our gs-only
+  rasterizer) for the render step; vips only for `dzsave` tiling.
+- **`eqcrop.py`** — `Pyramid` class: assemble an arbitrary rectangle from only the
+  tiles it overlaps (RAM-flat). Coordinate model matches ours: pt/px/norm,
+  top-left origin = pdfplumber/MathPix.
+- **`mathpix_server.py`** — **drop-in `cdn.mathpix.com` replacement**: serves
+  `/cropped/<image_id>.jpg?top_left_x=…&top_left_y=…&width=…&height=…` from the
+  pyramid. Resolves page (from a loaded lines.json `image_id→page`, else `?page=`,
+  else trailing int of the id) and scale (lines.json page dims → `pyramid_px /
+  mathpix_px`, exact). Routes: `/cropped/…`, `/viewer.html`, `/tiles/…`,
+  `/manifest.json`, `/healthz`. Pure stdlib + Pillow + eqcrop.
+- **`ahois_600dpi_viewer/`** — OpenSeadragon-style DZI viewer (`viewer.html` +
+  `manifest.json` + `tiles/`).
+
+## 4. Step-by-step integration
+
+**Phase A — image-file tiddlers (small, self-contained, do first).**
+1. Emit a real image tiddler for EmbeddedImage/Picture (and rendered crops):
+   `type: image/png|jpeg` + `_canonical_uri: <title>.<ext>`, empty text; keep the
+   existing `<$image>` PIC/DIA path only as a fallback for live-CDN mode.
+2. `tiddlers_to_md.py`: when `type` starts with `image/`, write the image BYTES to
+   `<title>.<ext>` (+ `<title>.<ext>.meta`) instead of a `.md`. Source bytes from:
+   a local file (`_canonical_uri`), an extracted embedded image
+   (`pdfdrill extractimages`), or a fetched/served crop.
+3. Test: an image tiddler round-trips to `name.png` + `name.png.meta`,
+   transcludable as `{{name}}`.
+
+**Phase B — vendor the pyramid toolkit.**
+4. Vendor `eqcrop.py` (the `Pyramid` cropper) into `src/pdfdrill/` (pure-Python,
+   the one piece pdfdrill itself needs to crop locally). Keep `mathpix_server.py`
+   + the viewer under `tools/imageserver/` (a runnable server, like drillui).
+5. `[imageserver]` extra: `pyvips` (dzsave) + `pillow`; system `libvips-tools`.
+   `bootstrap.sh`/`doctor` note them. gs is already required.
+
+**Phase C — `pdfdrill pyramid` (build the local pyramid).**
+6. `pdfdrill pyramid <pdf> [--dpi 600]`: render each page with **gs at 600 DPI**
+   (reuse `pdf_reading.rasterize`/`render_page`, the gs-only path — replaces
+   build_pyramids' pdftoppm), `dzsave` to `<drill>/viewer/tiles/pageNN.*`, write
+   `manifest.json`. Record the pyramid in the sidecar.
+
+**Phase D — serve crops locally (cdn drop-in).**
+7. `pdfdrill imageserve <pdf|dir> [--port 8000]`: run `mathpix_server.py` over the
+   doc's pyramid + its `lines.json` (exact scale). Now any tiddler whose
+   `canonical_uri` host is `cdn.mathpix.com` resolves at `localhost:8000`.
+8. A tiddler-rewrite mode (`tiddlers --image-host localhost:8000`, or a projector
+   param) that repoints `cdn.mathpix.com` → the local host in `canonical_uri`, so
+   an offline wiki shows the local crops. (Keep the cdn URL as the default;
+   rewrite is opt-in.)
+
+**Phase E — keyless crop materialization (the real MathPix-free win).**
+9. For a doc with NO MathPix lines.json: build the pyramid from gs, and for each
+   model object that needs an image (Picture/Diagram/Equation), `eqcrop` the
+   region from the pyramid to a local `.png`, attach it as the image tiddler's
+   `_canonical_uri` (Phase A). This gives gold 600-DPI crops with zero MathPix —
+   the regions come from pdfplumber/the model geometry.
+
+## 5. Notes / decisions to confirm with the user
+- **gs for the pyramid render** (not pdftoppm) — consistent with the gs-only
+  rasterizer + the 600-DPI fidelity evidence. dzsave (vips) does the tiling only.
+- Server stays **external** (`tools/imageserver/`, like drillui) — not imported by
+  pdfdrill; pdfdrill only vendors `eqcrop` for in-process crops.
+- `_canonical_uri` (with underscore) is the TiddlyWiki external-image field; our
+  current `canonical_uri` is a pdfdrill field read by the `<$image>` template.
+  Phase A introduces the underscore form for the no-widget `{{name}}` transclude.
