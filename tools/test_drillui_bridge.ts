@@ -259,5 +259,34 @@ if (up2) {
 }
 try { proc2.kill(); } catch {}
 
+// --- SIGINT (Ctrl-C) MUST stop the bridge -------------------------------------
+// Regression for "the bun program can't be stopped by Ctrl-C, so processes pile
+// up": registering a SIGINT handler overrides the runtime's default exit, so the
+// handler has to call process.exit() itself. Spawn a bridge, SIGINT it, and it
+// must actually terminate.
+{
+  const PORT5 = 8803;
+  const proc5 = Bun.spawn({
+    cmd: ["bun", BRIDGE, doc, "--port", String(PORT5), "--no-open"],
+    cwd: resolve(HERE, ".."), stdout: "ignore", stderr: "ignore", env: { ...process.env },
+  });
+  let up5 = false;
+  for (let i = 0; i < 60; i++) {
+    try { if ((await fetch(`http://localhost:${PORT5}/`)).ok) { up5 = true; break; } } catch {}
+    await sleep(250);
+  }
+  if (up5) {
+    proc5.kill("SIGINT");                       // the Ctrl-C signal
+    const exited = await Promise.race([
+      proc5.exited.then(() => true),
+      sleep(6000).then(() => false),            // must exit well within 6s
+    ]);
+    ok("SIGINT (Ctrl-C) stops the bridge", exited);
+    if (!exited) { try { proc5.kill("SIGKILL"); } catch {} }
+  } else {
+    ok("SIGINT (Ctrl-C) stops the bridge", false, "bridge5 did not come up");
+  }
+}
+
 console.log(fails ? `\n${fails} FAILURE(S)` : "\nAll bridge checks passed.");
 process.exit(fails ? 1 : 0);

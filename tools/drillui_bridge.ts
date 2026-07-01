@@ -307,11 +307,18 @@ async function proxyImage(req: Request, url: URL): Promise<Response> {
   }
 }
 
-// kill the image-server sidecar when the bridge goes away — incl. SIGHUP (the
+// Kill the image-server sidecar when the bridge goes away — incl. SIGHUP (the
 // terminal was closed). (The server also self-exits via --die-with-parent if it
 // is ever orphaned, covering an uncatchable SIGKILL of the bridge.)
-for (const sig of ["exit", "SIGINT", "SIGTERM", "SIGHUP"] as const)
-  process.on(sig as any, () => { try { imgProc?.kill(); } catch {} });
+//
+// IMPORTANT: registering a SIGINT/SIGTERM handler OVERRIDES the runtime's default
+// "exit on Ctrl-C" — so the handler MUST call process.exit() itself, otherwise
+// Ctrl-C only runs cleanup and the bridge keeps serving (the "can't stop it with
+// Ctrl-C, processes pile up" bug). The "exit" event is cleanup-only (no exit call).
+const killSidecar = () => { try { imgProc?.kill(); } catch {} };
+process.on("exit", killSidecar);
+for (const sig of ["SIGINT", "SIGTERM", "SIGHUP"] as const)
+  process.on(sig as any, () => { killSidecar(); process.exit(0); });
 
 // Host opener: explicit --opener wins; else auto-detect by platform. "" disables.
 function resolveOpener(): string[] | null {
