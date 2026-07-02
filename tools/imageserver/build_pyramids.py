@@ -22,6 +22,9 @@ def main():
     ap.add_argument("--quality", type=int, default=88, help="JPEG tile quality")
     ap.add_argument("--tile-size", type=int, default=254)
     ap.add_argument("--overlap", type=int, default=1)
+    ap.add_argument("--offline", action="store_true",
+                    help="also write a server-free viewer_offline.html (vendored OpenSeadragon + "
+                         "inline DZI descriptors) that opens via file:// with no web server")
     args = ap.parse_args()
 
     try:
@@ -54,6 +57,12 @@ def main():
             print(f"  {name}: {img.width}x{img.height}  {levels} levels")
     json.dump(manifest, open(os.path.join(args.out, "manifest.json"), "w"), indent=2)
     print(f"done: {len(manifest)} pyramids -> {tiles_dir}  (full-res level = {args.dpi} DPI)")
+
+    if args.offline:
+        from offline_viewer import write_offline_bundle
+        title = os.path.splitext(os.path.basename(args.pdf))[0]
+        dest = write_offline_bundle(args.out, title=title)
+        print(f"offline viewer -> {dest}  (open via file://, no server)")
 
 if __name__ == "__main__":
     main()

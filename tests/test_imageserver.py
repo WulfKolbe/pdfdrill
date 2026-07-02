@@ -158,6 +158,50 @@ def test_server_sigterm_frees_the_port():
                 proc.kill()
 
 
+def test_offline_bundle_is_server_free():
+    """`offline_viewer.write_offline_bundle` turns a built pyramid into a viewer that
+    opens over file:// — vendored OSD (no CDN), inlined manifest + DZI descriptors
+    (no fetch/XHR), tiles referenced by relative path. Regression against re-introducing
+    any network dependency that only works behind the server."""
+    ok, _ = pyramid.tools_available()
+    if not ok:
+        print("  (skip: gs/pyvips not available)"); return
+    import tempfile, re
+    from pypdf import PdfWriter
+    sys.path.insert(0, str(REPO / "tools" / "imageserver"))
+    import offline_viewer
+
+    with tempfile.TemporaryDirectory() as d:
+        d = Path(d)
+        pdf = d / "x.pdf"
+        w = PdfWriter(); w.add_blank_page(width=612, height=792)
+        with open(pdf, "wb") as f:
+            w.write(f)
+        viewer = d / "viewer"
+        pyramid.build_pyramid(pdf, viewer, dpi=150, pages=[1])
+
+        dest = offline_viewer.write_offline_bundle(viewer, title="x")
+        assert dest.exists(), "viewer_offline.html not written"
+        assert (viewer / "openseadragon.min.js").exists(), "OSD not vendored into bundle"
+        html = dest.read_text()
+
+        # no network: no http(s) refs except the (non-loaded) DZI xmlns identifier
+        externals = [u for u in re.findall(r"https?://[^\"' )]+", html)
+                     if "schemas.microsoft.com/deepzoom" not in u]
+        assert not externals, f"unexpected external refs: {externals}"
+        assert "fetch(" not in html and "XMLHttpRequest" not in html, "must not fetch/XHR"
+        assert '<script src="openseadragon.min.js">' in html, "OSD must load locally"
+        assert "const MANIFEST =" in html, "manifest must be inlined"
+
+        # the inline descriptor Url points at a real relative tile
+        mani = json.loads(re.search(r"const MANIFEST = (\{.*?\});", html, re.S).group(1))
+        assert len(mani["pages"]) == 1
+        p = mani["pages"][0]
+        import math
+        lvl = math.ceil(math.log2(max(p["w"], p["h"])))
+        assert (viewer / p["url"] / f"{lvl}/0_0.jpg").exists(), "full-res tile missing at descriptor Url"
+
+
 if __name__ == "__main__":
     tests = [v for k, v in list(globals().items()) if k.startswith("test_")]
     failed = []
