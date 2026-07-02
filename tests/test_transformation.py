@@ -75,6 +75,26 @@ def test_targets_traceable_to_invocation():
     assert any(doc.id in t.target_ids for t in g.transformations.values())
 
 
+def test_fns_field_roundtrips_and_stays_out_of_the_hash():
+    """S0.2: `fns` records the registry fids an invocation composed. It must
+    round-trip through to_dict/from_dict but NOT change the content address —
+    existing tids stay valid."""
+    g = SemanticGraph()
+    t_plain = T.make(g, "quantity", source_ids=[], seed="docA")
+    t_fns = T.make(g, "quantity", source_ids=[], seed="docA",
+                   fns=("SO.QUANT.EXTRACT", "VER.EQ.RECOMPUTE"))
+    assert t_fns.fns == ("SO.QUANT.EXTRACT", "VER.EQ.RECOMPUTE")
+    assert t_plain.tid == t_fns.tid                          # fns EXCLUDED from hash
+
+    d = t_fns.to_dict()
+    assert d["fns"] == ["SO.QUANT.EXTRACT", "VER.EQ.RECOMPUTE"]
+    back = T.Transformation.from_dict(d)
+    assert back.fns == t_fns.fns and back.tid == t_fns.tid
+    # a legacy dict without the field loads with fns=()
+    legacy = {k: v for k, v in d.items() if k != "fns"}
+    assert T.Transformation.from_dict(legacy).fns == ()
+
+
 if __name__ == "__main__":
     tests = [v for k, v in list(globals().items()) if k.startswith("test_")]
     failed = []

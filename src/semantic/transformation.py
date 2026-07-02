@@ -40,13 +40,15 @@ class Transformation:
     cost: float = 0.0
     timestamp: str = ""                        # iso; NOT part of the hash
     responses: list[str] = field(default_factory=list)    # raw output, for replay
+    fns: tuple[str, ...] = ()                  # registry fids composed; NOT in the hash
 
     def to_dict(self) -> dict[str, Any]:
         return {"tid": self.tid, "qid": self.qid,
                 "source_ids": list(self.source_ids), "target_ids": list(self.target_ids),
                 "model": self.model, "version": self.version,
                 "confidence": self.confidence, "cost": self.cost,
-                "timestamp": self.timestamp, "responses": list(self.responses)}
+                "timestamp": self.timestamp, "responses": list(self.responses),
+                "fns": list(self.fns)}
 
     @classmethod
     def from_dict(cls, d: dict[str, Any]) -> "Transformation":
@@ -56,7 +58,8 @@ class Transformation:
                    model=d.get("model", ""), version=d.get("version", ""),
                    confidence=d.get("confidence", 1.0), cost=d.get("cost", 0.0),
                    timestamp=d.get("timestamp", ""),
-                   responses=list(d.get("responses", [])))
+                   responses=list(d.get("responses", [])),
+                   fns=tuple(d.get("fns", ())))
 
 
 def _entity_content_hash(graph, eid: str) -> str:
@@ -80,11 +83,14 @@ def compute_tid(qid: str, model: str, version: str, source_hashes: list[str]) ->
 def make(graph, qid: str, source_ids=(), target_ids=(), *, model: str = "",
          version: str = "", seed: str = "", confidence: float = 1.0,
          cost: float = 0.0, timestamp: str = "",
-         responses: Optional[list] = None) -> Transformation:
+         responses: Optional[list] = None,
+         fns: tuple[str, ...] = ()) -> Transformation:
     """Build a Transformation, computing its content-address `tid` from the
     source entities' content hashes. `seed` folds an extra stable token into the
     hash (e.g. a bibkey) for invocations that have no entity sources, so two
-    documents' same-qid passes don't collide on one tid."""
+    documents' same-qid passes don't collide on one tid. `fns` records the
+    registry fids the invocation composed — provenance only, EXCLUDED from the
+    hash (existing tids stay valid)."""
     hashes = [_entity_content_hash(graph, sid) for sid in source_ids]
     if seed:
         hashes.append(content_hash(f"seed|{seed}"))
@@ -92,7 +98,7 @@ def make(graph, qid: str, source_ids=(), target_ids=(), *, model: str = "",
     return Transformation(tid=tid, qid=qid, source_ids=list(source_ids),
                           target_ids=list(target_ids), model=model, version=version,
                           confidence=confidence, cost=cost, timestamp=timestamp,
-                          responses=list(responses or []))
+                          responses=list(responses or []), fns=tuple(fns))
 
 
 # --------------------------------------------------------------------------- #
