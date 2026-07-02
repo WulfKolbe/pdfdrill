@@ -103,15 +103,47 @@ def _title(graph) -> str:
     return (d.properties().get("title") if d else "") or "Document"
 
 
+def _measured_quantities(graph) -> list[dict]:
+    """One record per MEASURES edge (S5.2): the measured concept, the measure
+    verb + conditions (edge grounding), the QUANTITY's value/unit/page, and its
+    arith verification state (verifies/refutes Evidence rows)."""
+    out = []
+    for r in graph.relations:
+        if r.predicate != RelationType.MEASURES:
+            continue
+        subj, q = graph.get(r.subject_id), graph.get(r.object_id)
+        if q is None:
+            continue
+        p = q.properties()
+        page = next(((ev.grounding or {}).get("page") for ev in q.evidence
+                     if (ev.grounding or {}).get("page") is not None), None)
+        g = r.grounding or {}
+        out.append({
+            "concept": (subj.properties().get("name") or subj.value or ""
+                        ) if subj is not None else "",
+            "measure": g.get("measure", ""),
+            "conditions": g.get("conditions") or {},
+            "value": p.get("value", ""), "unit": p.get("unit", ""),
+            "page": page,
+            "verified": any(ev.produced_by == "arith" and ev.prop == "verifies"
+                            for ev in q.evidence),
+            "refuted": any(ev.produced_by == "arith" and ev.prop == "refutes"
+                           for ev in q.evidence),
+            "hash": (p.get("content_hash") or "")[:8] or _key(str(p.get("value"))),
+        })
+    return out
+
+
 # ---------------------------------------------------------------------------
 # Enhanced standard LaTeX: acronyms + glossary + symbols + index
 # ---------------------------------------------------------------------------
 
-def project_latex(graph, bibkey: str = "DOC") -> str:
+def project_latex(graph, bibkey: str = "DOC", verify_marks: bool = True) -> str:
     concepts = _concepts(graph)
     acr = [c for c in concepts if c["kind"] == "acronym"]
     terms = [c for c in concepts if c["kind"] == "term"]
     syms = [c for c in concepts if c["kind"] == "symbol"]
+    quantities = _measured_quantities(graph)
 
     L = [r"\documentclass[11pt]{article}",
          r"\usepackage{lmodern}", r"\usepackage[T1]{fontenc}",
@@ -120,6 +152,7 @@ def project_latex(graph, bibkey: str = "DOC") -> str:
          r"\usepackage[acronym,symbols,toc]{glossaries-extra}",
          r"\setabbreviationstyle[acronym]{long-short}",
          r"\newglossary*{synonyms}{Synonyms}",
+         r"\newglossary*{quantities}{Table of Quantities}",
          r"\makeindex[intoc]", r"\makeglossaries", ""]
 
     for c in acr:
@@ -132,6 +165,31 @@ def project_latex(graph, bibkey: str = "DOC") -> str:
         desc = _esc(c["expansion"]) or "symbol"
         L.append(rf"\newglossaryentry{{{c['key']}}}{{type=symbols,name={{{_esc(c['name'])}}},"
                  rf"description={{{desc}}},sort={{{c['key']}}}}}")
+
+    # TABLE OF QUANTITIES (S5.2): one entry per MEASURES edge — the graph's
+    # quantitative layer as a LaTeX list. The verified-status suffix (\,\checkmark
+    # verified / \,! refuted) is a projector param so the marks can be disabled.
+    seen_qkeys: set = set()
+    for q in quantities:
+        qk = "q" + (q["hash"] or "x")
+        while qk in seen_qkeys:
+            qk += "x"
+        seen_qkeys.add(qk)
+        cond = ", ".join(f"{k}={v}" for k, v in sorted(q["conditions"].items()))
+        desc = f"{_esc(q['measure']) or 'measures'}: {_esc(str(q['value']))}"
+        if q["unit"]:
+            desc += f" {_esc(q['unit'])}"
+        if cond:
+            desc += f" ({_esc(cond)})"
+        if q["page"] is not None:
+            desc += rf", p.~{q['page']}"
+        if verify_marks and q["refuted"]:
+            desc += r"\,!"
+        elif verify_marks and q["verified"]:
+            desc += r"\,\checkmark"
+        L.append(rf"\newglossaryentry{{{qk}}}{{type=quantities,"
+                 rf"name={{{_esc(q['concept']) or 'quantity'}}},"
+                 rf"description={{{desc}}}}}")
 
     # SYNONYMS (S5.1): each alias is a glossaries-native cross-reference entry
     # (`see=` is the package's synonym mechanism) pointing at its main key, with
@@ -169,11 +227,12 @@ def project_latex(graph, bibkey: str = "DOC") -> str:
             L.append(rf"\Gls{{{c['key']}}}\index{{{_esc(c['name'])}}} "
                      rf"--- {c['n_occ']} occurrence(s), PDF page(s) {pages}.\par")
 
-    L += ["", r"\glsaddall[types={synonyms}]",       # see=-only entries still print
+    L += ["", r"\glsaddall[types={synonyms,quantities}]",   # list-only entries print
           r"\printglossary[type=symbols,title={Table of Symbols}]",
           r"\printglossary[type=\acronymtype,title={Acronyms}]",
           r"\printglossary[title={Glossary}]",
           r"\printglossary[type=synonyms,title={Synonyms}]",
+          r"\printglossary[type=quantities,title={Table of Quantities}]",
           r"\printindex",
           r"\end{document}", ""]
     return "\n".join(L)

@@ -97,6 +97,66 @@ def test_stex_alias_becomes_symref_variant_note():
     assert r"\symref{psi}{wavefunction symbol}" in tex  # the variant surface form
 
 
+def _measured_graph(corrupt=False):
+    """An S4.2-shaped graph: one measured quantity (+ verifies/refutes row)."""
+    import types
+    from semantic.graph import SemanticGraph
+    from semantic.identity import IdentityResolver
+    from semantic import build, compiler
+
+    def _o(id, ty, **props):
+        ns = types.SimpleNamespace(id=id, type=ty, props=props)
+        ns.parent = None
+        return ns
+
+    payload = {"lhs_terms": [7871085, 0.68 if corrupt else 0.86],
+               "op": "mul", "rhs": 6769133}
+    fo = _o("q1", "Formula", latex="d", flow_index=1, page=9,
+            quant=[{"kind": "derivation", "value": 6769133, "unit": None,
+                    "dimension": None, "raw": "d", "payload": payload}])
+    para = _o("p1", "Paragraph", flow_index=2, page=9,
+              text="We could add {{QD_FO0001||FO}} new facts.",
+              meas=[{"concept": "KBC Potential", "concept_source": "section",
+                     "measure": "could add",
+                     "quantity_ref": {"obj_id": "q1", "idx": 0},
+                     "conditions": {"accuracy": 0.82},
+                     "sentence_span": [0, 40]}])
+    doc = types.SimpleNamespace()
+    doc.objects = {o.id: o for o in (fo, para)}
+    doc.meta = {"bibkey": "QD", "title": "Q Doc"}
+    g = SemanticGraph(); r = IdentityResolver(g)
+    quant = [{**q, "obj_id": o.id} for o in doc.objects.values()
+             for q in (o.props.get("quant") or [])]
+    meas = [{**m, "para_id": o.id} for o in doc.objects.values()
+            for m in (o.props.get("meas") or [])]
+    build.ingest_docmodel(g, r, doc, "QD", quant_records=quant,
+                          meas_records=meas)
+    compiler.check_quantities(g)      # lands the verifies/refutes arith row
+    return g
+
+
+def test_table_of_quantities_list():
+    """S5.2: per MEASURES edge one `quantities`-type glossary entry — concept
+    name, measure: value (conditions), page back-link — printed as the Table of
+    Quantities; a verifies row appends the check mark."""
+    tex = stex.project_latex(_measured_graph(), "QD")
+    assert r"\printglossary[type=quantities,title={Table of Quantities}]" in tex
+    assert "type=quantities" in tex
+    assert "KBC Potential" in tex
+    assert "could add" in tex and "6769133" in tex
+    assert "accuracy" in tex                    # the conditions surface
+    assert "p.~9" in tex                        # the page back-link
+    assert r"\,\checkmark" in tex or "\\,\u2713" in repr(tex) or "verified" in tex
+
+
+def test_table_of_quantities_refuted_mark_and_disable():
+    tex = stex.project_latex(_measured_graph(corrupt=True), "QD")
+    assert r"\,!" in tex                        # the refuted mark
+    tex_off = stex.project_latex(_measured_graph(corrupt=True), "QD",
+                                 verify_marks=False)
+    assert r"\,!" not in tex_off                # the marks are a projector param
+
+
 def _have(*tools):
     return all(shutil.which(t) for t in tools)
 
