@@ -48,12 +48,6 @@ pip install -e .                   # installs the `pdfdrill` console script
 pip install -r requirements.txt
 ```
 
-Optional OCR extra (PyTorch — heavy, not on the live path):
-
-```bash
-pip install -e ".[pix2tex]"
-```
-
 ## Quick start
 
 ```bash

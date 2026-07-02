@@ -74,8 +74,8 @@ check anytime — present/missing system tools + Python deps + API keys, plus th
 exact `sudo apt-get install …` line to fill any gap. `pydantic` is imported at
 top level in `context.py`, so the `md`/`drill`/`page` engine path fails without
 it even though the docmodel/docops offline path doesn't need it — keep it
-declared. Optional `[pix2tex]` extra pulls Pillow+pix2tex (PyTorch; off the
-live path).
+declared. (For a PyTorch-capable box, the recommended local route is a self-hosted
+Gemma-4 vision model via `snip --gemma`, not a heavy OCR extra.)
 
 Packages live under `src/`, so the import root is `src`:
 
