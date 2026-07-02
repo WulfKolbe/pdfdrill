@@ -36,7 +36,14 @@ has more than one fragment.**
 A map that *proposes* Lₙ₊₁ nodes from Lₙ patterns. Every producer in the repo
 is an α: line-grouping (L3→L4), block detectors and `tsv_gcn` (L4→L5), the
 math assembler (L5→L6), `ingest_docmodel`/Schwartz-Hearst (L5/L6→L7), schema
-filling (L7→L8).
+filling (L7→L8). The quantitative layer (2026-07-02) adds two α maps —
+SO.QUANT.EXTRACT (Formula/Equation latex + prose → typed quantity records,
+L5/L6→L6) and SO.MEAS.BIND (transcluded quantities → concept-bound
+measurements, L6→L7) — and two γ-checker families: VER.* (arithmetic
+recompute of derivations) and PHY.* (bounds/conversion/conservation/
+monotonicity/uncertainty), both wired into `compiler.compile()` as
+`check_quantities` (a refuted derivation is a critical warning; the outcome
+lands as `arith` evidence on the QUANTITY node).
 
 **α is lossy and unreliable; γ is exact and total.** This asymmetry is the
 formal content of "retrieval searches high, import populates low": queries run

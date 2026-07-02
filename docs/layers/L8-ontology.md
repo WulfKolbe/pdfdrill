@@ -16,7 +16,12 @@ Linking CONCEPT entities to external vocabularies:
 - research-domain vocabularies (the ORKG research-field/property vocabulary is
   the first implemented instance — see `docops/projectors/scikgtex.py`, which
   projects L7 content into ORKG P-IDs);
-- unit/quantity ontologies for numeric facts.
+- unit/quantity ontologies for numeric facts — **first implemented step
+  (2026-07-02)**: `semantic/units.py` is the seed lexicon (ratio/currency/
+  time/data with canonical forms + dimension-safe `convert`), feeding the L6
+  quantity records and the L7 QUANTITY entities. External grounding of those
+  units/dimensions (QUDT-class ontologies, via an OP.GROUND registry function)
+  remains open.
 
 ## 2. Theory modules (the MMT/sTeX little-theories shape)
 

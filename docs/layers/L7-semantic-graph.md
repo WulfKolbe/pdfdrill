@@ -117,17 +117,52 @@ Next per the build order: stratum monotonicity in BaseModule + the fixpoint
 driver; then the vertical slice (stratum-4 claim extractor + rulebook
 projector on 2004.05631).
 
+## The quantitative layer (2026-07-02, the work order + 2606.28429v1 amendments)
+
+- **QUANTITY node type** (subtype = the record kind) + **MEASURES**
+  (SCI ∪ DOC → QUANTITY) and **UNDER_CONDITION** (QUANTITY → QUANTITY) edges.
+  `ingest_docmodel(quant_records=, meas_records=)` mints quantities on
+  `content_hash('quant|<canonical>|<unit>|<obj_id>')` with grounding
+  `{node, page, layer:'quant'}` (+ kind/approx/payload evidence rows, so the
+  graph is self-verifying) and relates concepts via MEASURES with
+  `{conditions, measure, ord}` grounding.
+- **Verification convention**: `compiler.check_quantities` (run by
+  `compile()`) recomputes derivations (VER.EQ.RECOMPUTE) + bounds
+  (PHY.BOUNDS); the outcome attaches as an Evidence row `produced_by='arith'`,
+  `prop='verifies'|'refutes'` — idempotent; a failed recompute is a `critical`
+  `quantity_refuted` warning (validity flips).
+- **qclaim kitems**: a sentence carrying a bound Measurement. Promotion is
+  gated WITHIN the status lattice (semantics untouched): a checkable
+  derivation gets its spans only once a `verifies` row exists (until then
+  span-less → `proposed`); a `refutes` row forces `disputed` via the
+  sanctioned CONTRADICTS edge — demotion only.
+- **The aggregation algebra** (`aggregate.py`, `spaces.py`, per 2606.28429v1):
+  declared semantic spaces with partial orders; Accumulators as commutative
+  monoids (Count/Min/Max/Sum/Mean/WitnessUnion/ProductAcc); Readouts
+  (Threshold/SignedDeficit/Hybrid); monotonicity property-tested — the
+  paper's soundness condition as a unit test. The kitems `accepted` rule IS
+  `Threshold(2) ∘ Count ∘ independent_spans` (named, behavior-identical);
+  `belief.py` IS the `(min, ×)` semiring over DERIVED_FROM; the rulebook's
+  `support≈` column is the Hybrid readout (display only, never status).
+- **Calibration** (`calibration.py`): chatlog `--verdict` tallies per producer
+  on a CONCEPT subtype `question-record` entity; Wilson lower bound =
+  the humble precision estimate; CAL.GATE is a Readout — `ask --precision p`
+  gates the answer parts' calibrated component through it; abstention is the
+  bottom of the status space.
+
 ## Producers (α into this level)
 
 `build.ingest_document` (commercial: sender/IBAN/BIC/address evidence),
 `build.ingest_docmodel` (scientific: section tree by G1, items deduped by G2,
-occurrences by G3, concepts), `attribution.py` (region-based sender/recipient),
-`geometry_columns` margin confirmation evidence, QR evidence (L1→L7/8).
-Projectors out: `stex.py` (enriched LaTeX / sTeX), `render.py`,
-`docops/projectors/scikgtex.py` (ORKG XMP).
+occurrences by G3, concepts, quantities/measurements), `attribution.py`
+(region-based sender/recipient), `geometry_columns` margin confirmation
+evidence, QR evidence (L1→L7/8).
+Projectors out: `stex.py` (enriched LaTeX / sTeX — now incl. the SYNONYMS list
+and the Table of Quantities), `render.py`, `docops/projectors/scikgtex.py`
+(ORKG XMP — numeric facts re-based on `props['meas']` when present).
 
 CLI: `semantic [--store graph.json]` (accumulates **across documents** — one
-Company gathers evidence from many), `stex`, `scikgtex`.
+Company gathers evidence from many), `stex`, `scikgtex`, `quantities`, `ask`.
 
 ## Open work
 

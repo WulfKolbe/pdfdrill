@@ -46,6 +46,33 @@ declaration/use split in the graph, and a symbol is only meaningful as
   score for cut equations; column-count/header consistency for cut tables;
   marker-sequence continuation for cut lists.
 
+## The quantity sublayer (2026-07-02, the quantitative-semantics work order)
+
+Typed QUANTITIES are the L6 records numeric expressions compile to
+(`semantic/quantities.py`, SO.QUANT.EXTRACT): `{value, unit, dimension, raw,
+obj_id, kind}` with `kind ∈ {number, ratio, money, count, named_metric,
+derivation}` plus kind extras (`approx`, `var`, `qualifier`, `name`/`param`,
+`payload` = the `{lhs_terms, op, rhs}` derivation chain, `noun`). Two producer
+paths, one record shape:
+
+- **stdlib lexer** — whole-string typing over Formula/Equation `latex` (a
+  token that is not entirely a quantity shape — `\cdot`, `(s,r,o)`,
+  `FT_{vocab}` — yields NO record) + unit/count-noun-attached prose numbers
+  (`units.COUNT_NOUNS`; bare prose numbers are not quantities);
+- **SymPy tree** — when the object carries `props['math']` (the `mathir`
+  srepr) the tree extraction is preferred; the import is guarded like
+  `cmd_mathir` (missing `[math]` extra → the lexer, never a hard dep).
+
+The unit lexicon (`semantic/units.py`) is the seed: ratio/currency/time/data
+tables with canonical forms + `convert` (dimension mismatch → None, never a
+guess) — the first implemented step of L8's unit-ontology item. The
+`quantity` enhancement pass stores records under `props['quant']` (content-
+idempotent); measurements (`props['meas']`, SO.MEAS.BIND) bind them to
+concepts sentence-wise, conditions from keyword-preceded ratios. Every record
+carries its `witness` (source node) STRUCTURALLY — the product-space
+discipline (value × witness_set, ⊞ = (op, ∪)): downstream folds union
+witnesses instead of looking spans up after the fact.
+
 ## Open work
 
 - Operator-tree metric (Tangent-style) over canonical LaTeX.
