@@ -1178,6 +1178,21 @@ commands:
   - name: no_split
     flag: --no-split
     type: flag
+- name: quantities
+  section: Introspection (fast, no extraction)
+  summary: 'Quantitative-layer report: quantities by kind (number/ratio/money/count/
+    named_metric/derivation), measurements, verification tally (verified/refuted/
+    uncheckable via VER.EQ.RECOMPUTE) + the top refuted item. Needs `pdfdrill enhance
+    --only quantity,measurement,concepts` first'
+  offline_ok: true
+  positionals:
+  - name: pdf
+    type: pdf
+    required: true
+    help: PDF/Markdown drilled-doc path, URL, or arXiv id
+  typed: true
+  requires:
+  - model
 - name: mathcheck
   section: Introspection (fast, no extraction)
   summary: 'Formula QC: flag FLATTENED formulas (a visual/keyless reconstruction that linearised a 2-D

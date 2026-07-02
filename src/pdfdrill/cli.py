@@ -766,6 +766,14 @@ def _do_mathcheck(args):
     return cmd_mathcheck(_drilled(rest), limit=int(lim) if lim else 8)
 
 
+def _do_quantities(args):
+    """pdfdrill quantities <pdf|md>  — quantitative-layer report (kinds, measurements, verification tally)"""
+    from .commands import cmd_quantities
+    if not args:
+        raise ValueError("No file specified.")
+    return cmd_quantities(_drilled(args))
+
+
 def _do_mathir(args):
     """pdfdrill mathir <pdf|md>  — canonical math (SymPy) into FO/EQ props['math']"""
     from .commands import cmd_mathir
@@ -1365,6 +1373,7 @@ HANDLERS = {
         "gaps": _do_gaps,
         "llmtext": _do_llmtext,
         "mathcheck": _do_mathcheck,
+        "quantities": _do_quantities,
         "mathir": _do_mathir,
         "enhance": _do_enhance,
         "conclusion": _do_conclusion,

@@ -2871,6 +2871,66 @@ def cmd_mathir(pdf: Path) -> str:
     return "\n".join(out)
 
 
+def cmd_quantities(pdf: Path) -> str:
+    """Quantitative-layer report (S4.4): quantities by kind, measurements, the
+    verification tally (verified/refuted/uncheckable via VER.EQ.RECOMPUTE — the
+    verifier is pure, so this runs offline over the stored props) and the top
+    refuted item. Fast DocGraph read path; hints at `pdfdrill enhance` when the
+    quantity/measurement layers are absent."""
+    from semantic.verify import verify_derivation
+
+    sc = Sidecar(pdf)
+    model_path = _model_path(sc)
+    if not model_path.exists():
+        return (f"No model for {pdf.name} — run `pdfdrill model` (PDF) or "
+                f"`pdfdrill markdown` (.md) first.")
+    g = _fresh_docgraph(pdf, sc, model_path)
+
+    quants: list[dict] = []
+    n_meas = 0
+    for o in g:
+        for q in (o.props.get("quant") or []):
+            quants.append(q)
+        n_meas += len(o.props.get("meas") or [])
+
+    if not quants and not n_meas:
+        return (f"quantities {pdf.name}: no quantity/measurement layer on the "
+                f"model — run `pdfdrill enhance {pdf.name} --only "
+                f"quantity,measurement,concepts` first.")
+
+    kinds: dict[str, int] = {}
+    for q in quants:
+        kinds[q.get("kind", "?")] = kinds.get(q.get("kind", "?"), 0) + 1
+    verified = refuted = uncheckable = 0
+    top_refuted = None
+    for q in quants:
+        if q.get("kind") != "derivation":
+            continue
+        v = verify_derivation(q)
+        if v["ok"] is True:
+            verified += 1
+        elif v["ok"] is False:
+            refuted += 1
+            if top_refuted is None:
+                top_refuted = (q.get("raw", ""), v["detail"])
+        else:
+            uncheckable += 1
+
+    lines = [
+        f"quantities {pdf.name}: {len(quants)} quantities "
+        f"({', '.join(f'{k}:{v}' for k, v in sorted(kinds.items()))}), "
+        f"{n_meas} measurement(s).",
+        f"  derivation check: {verified} verified, {refuted} refuted, "
+        f"{uncheckable} uncheckable (VER.EQ.RECOMPUTE).",
+    ]
+    if top_refuted is not None:
+        lines.append(f"  top refuted: `{top_refuted[0]}` — {top_refuted[1]}")
+    if n_meas:
+        lines.append("  measurements live on the paragraphs (props['meas']); "
+                     "`pdfdrill semantic` projects them as MEASURES edges.")
+    return "\n".join(lines)
+
+
 def cmd_mathcheck(pdf: Path, limit: int = 8) -> str:
     """Formula QC: scan the model's formula LaTeX for FLATTENED equations — a
     keyless/visual reconstruction that linearised a 2-D layout instead of
