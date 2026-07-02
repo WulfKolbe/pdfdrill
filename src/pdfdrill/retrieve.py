@@ -32,7 +32,14 @@ def _toks(s: str) -> list[str]:
 def gather_units(nodes) -> list[dict]:
     """The retrievable units of a document: {id, type, text}. Prose by its
     text/caption/content; math by its LaTeX (control words stripped); concepts
-    by name. Empty/null math and non-text objects are excluded."""
+    by name. Empty/null math and non-text objects are excluded.
+
+    S6.1: an object carrying `props['meas']` (the measurement pass) ALSO emits
+    one `Measurement` unit per bound measurement — text = "<concept> <measure>
+    <value> <unit> <conditions>" — so a quantitative question lexically hits
+    the Measurement itself, not just its paragraph."""
+    nodes = list(nodes)
+    by_id = {getattr(o, "id", ""): o for o in nodes}
     units: list[dict] = []
     for o in nodes:
         t = getattr(o, "type", "")
@@ -50,6 +57,24 @@ def gather_units(nodes) -> list[dict]:
         txt = str(txt).strip()
         if txt:
             units.append({"id": getattr(o, "id", ""), "type": t, "text": txt})
+    # measurement units (any object type can carry the pass layer)
+    for o in nodes:
+        p = getattr(o, "props", {})
+        for i, m in enumerate(p.get("meas") or []):
+            qref = m.get("quantity_ref") or {}
+            fo = by_id.get(qref.get("obj_id") or "")
+            quants = (getattr(fo, "props", {}).get("quant") or []) if fo else []
+            idx = qref.get("idx", 0)
+            q = quants[idx] if idx < len(quants) else {}
+            cond = " ".join(f"{k} {v}" for k, v in
+                            sorted((m.get("conditions") or {}).items()))
+            txt = " ".join(str(x) for x in [
+                m.get("concept") or "", m.get("measure") or "",
+                q.get("value", ""), q.get("unit") or "", cond] if x != "")
+            txt = txt.strip()
+            if txt:
+                units.append({"id": f"{getattr(o, 'id', '')}#m{i}",
+                              "type": "Measurement", "text": txt})
     return units
 
 

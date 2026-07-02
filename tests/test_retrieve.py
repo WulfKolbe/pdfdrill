@@ -68,6 +68,36 @@ def test_build_context_prompt_is_grounded_and_cites_ids():
     assert "heat kernel" in ctx.lower()
 
 
+def test_measurement_units_rank_above_prose_for_quantitative_questions():
+    """S6.1: a bound Measurement is its own retrievable unit — the question
+    "how many facts at what precision" hits it above the Abstract."""
+    nodes = [
+        N("Abstract", "abs", text="We probe language models for missing "
+          "knowledge and evaluate their factual precision on benchmarks."),
+        N("Formula", "q1", latex="5,550,689",
+          quant=[{"kind": "count", "value": 5550689, "unit": None,
+                  "dimension": None, "raw": "x", "noun": "facts",
+                  "witness": ["q1"]}]),
+        N("Paragraph", "p1",
+          text="We could add {{X_FO0001||FO}} new facts automatically.",
+          meas=[{"concept": "facts addable", "concept_source": "section",
+                 "measure": "could add",
+                 "quantity_ref": {"obj_id": "q1", "idx": 0},
+                 "conditions": {"precision": 0.82},
+                 "sentence_span": [0, 40], "witness": ["p1", "q1"]}]),
+    ]
+    units = retrieve.gather_units(nodes)
+    mu = [u for u in units if u["type"] == "Measurement"]
+    assert len(mu) == 1 and mu[0]["id"] == "p1#m0"
+    assert "facts addable" in mu[0]["text"] and "5550689" in mu[0]["text"]
+    assert "precision" in mu[0]["text"]
+
+    hits = retrieve.retrieve("how many facts at what precision", nodes, k=3)
+    ranked = [h["id"] for h in hits]
+    assert "p1#m0" in ranked
+    assert ranked.index("p1#m0") < ranked.index("abs"), ranked
+
+
 if __name__ == "__main__":
     tests = [v for k, v in list(globals().items()) if k.startswith("test_")]
     failed = []
