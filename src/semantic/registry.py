@@ -17,9 +17,18 @@ Namespace convention for fids:
     PHY.*  physical constraints (e.g. PHY.BOUNDS, PHY.CONSERVE)
     CAL.*  calibration       (e.g. CAL.PRECISION.WILSON)
 
-`laws` name the algebraic properties an impl is expected to satisfy
-("symmetric", "monotone", …) — documentation-grade today, property-test hooks
-tomorrow. `params` document the impl's tunables with their defaults.
+`laws` name the algebraic properties an impl is expected to satisfy —
+documentation-grade today, property-test hooks tomorrow. Core vocabulary (per
+the 2606.28429v1 quantitative-semantics discipline): "monotone" (order-
+preserving w.r.t. the declared spaces — the paper's soundness condition),
+"threshold-sound" (positive value ⇒ Boolean satisfaction survives the
+pipeline), "componentwise" (a product-space map acting per component).
+`params` document the impl's tunables with their defaults.
+
+`space_in`/`space_out` (A0) declare the semantic spaces a function maps
+between, drawn from the `semantic.spaces` vocabulary (scalar/bool/interval/
+count/ratio/money/time/witness_set/status + products). Empty = undeclared
+(legacy specs load unchanged).
 """
 from __future__ import annotations
 
@@ -34,17 +43,22 @@ class FnSpec:
     version: str = "1"                         # bump when the impl's logic changes
     params: dict = field(default_factory=dict, hash=False, compare=True)
     laws: tuple[str, ...] = ()                 # named algebraic properties
+    space_in: str = ""                         # semantic.spaces vocabulary (A0)
+    space_out: str = ""
 
     def to_dict(self) -> dict[str, Any]:
         return {"fid": self.fid, "description": self.description,
                 "version": self.version, "params": dict(self.params),
-                "laws": list(self.laws)}
+                "laws": list(self.laws),
+                "space_in": self.space_in, "space_out": self.space_out}
 
     @classmethod
     def from_dict(cls, d: dict[str, Any]) -> "FnSpec":
         return cls(fid=d["fid"], description=d.get("description", ""),
                    version=d.get("version", "1"), params=dict(d.get("params", {})),
-                   laws=tuple(d.get("laws", ())))
+                   laws=tuple(d.get("laws", ())),
+                   space_in=d.get("space_in", ""),
+                   space_out=d.get("space_out", ""))
 
 
 @dataclass(frozen=True)

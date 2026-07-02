@@ -70,6 +70,25 @@ def test_spec_roundtrip_and_frozen():
         pass
 
 
+def test_spaces_fields_and_laws_vocabulary():
+    """A0 (2606.28429v1 amendment): FnSpec declares its semantic spaces
+    (space_in/space_out, from the spaces.py vocabulary) and the laws vocabulary
+    gains monotone / threshold-sound / componentwise. Legacy dicts (no spaces)
+    load with empty strings."""
+    spec = R.FnSpec(
+        fid="SIM.TOY.SPACED", description="spaced toy", version="1",
+        space_in="witness_set", space_out="count",
+        laws=("monotone", "threshold-sound", "componentwise"))
+    assert spec.space_in == "witness_set" and spec.space_out == "count"
+    d = spec.to_dict()
+    assert d["space_in"] == "witness_set" and d["space_out"] == "count"
+    back = R.FnSpec.from_dict(d)
+    assert back == spec
+    legacy = {k: v for k, v in d.items() if k not in ("space_in", "space_out")}
+    old = R.FnSpec.from_dict(legacy)
+    assert old.space_in == "" and old.space_out == ""
+
+
 if __name__ == "__main__":
     tests = [v for k, v in list(globals().items()) if k.startswith("test_")]
     failed = []
