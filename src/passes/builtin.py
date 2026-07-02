@@ -225,3 +225,7 @@ class SummaryPass(EnhancementPass):
 for _p in (FrontmatterPass(), MathPass(), CitationPass(), ConceptsPass(),
            AbstractPass(), TocPass(), IndexPass(), SummaryPass()):
     register_pass(_p)
+
+# quantity (S1.3) lives in its own module; importing it registers the pass in
+# dependency order before summary (it has no deps; summary's deps are unchanged).
+from . import quantity as _quantity   # noqa: E402,F401

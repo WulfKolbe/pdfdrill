@@ -164,6 +164,27 @@ def test_real_math_pass_through_pipeline():
     assert "math" in fo.props and fo.props["math"]["ir"] == "sympy"
 
 
+def test_quantity_pass_stores_and_is_idempotent():
+    """S1.3: the quantity pass stores records under props['quant'] (a list per
+    object); a second run changes nothing (content-hash idempotence)."""
+    from passes import PassContext, run_pipeline
+    fo = _o("f1", "Formula", latex=r"82\%")
+    neg = _o("f2", "Formula", latex=r"FT_{vocab}")
+    para = _o("p1", "Paragraph", text="we could add 100,000 pairs")
+    ctx = PassContext(doc=_doc([fo, neg, para]))
+
+    res = {r.name: r for r in run_pipeline(ctx, only={"quantity"})}
+    assert res["quantity"].status == "ran" and res["quantity"].changed
+    assert fo.props["quant"][0]["kind"] == "ratio"
+    assert "quant" not in neg.props                 # negative stays clean
+    assert para.props["quant"][0]["kind"] == "count"
+
+    res2 = {r.name: r for r in run_pipeline(ctx, only={"quantity"})}
+    assert res2["quantity"].status == "ran"
+    assert res2["quantity"].changed is False        # idempotent re-run
+    assert res2["quantity"].stats.get("changed", 0) == 0
+
+
 if __name__ == "__main__":
     for fn in [test_topological_order_by_requires,
                test_pipeline_runs_in_dependency_order,
