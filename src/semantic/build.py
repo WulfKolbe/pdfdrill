@@ -131,6 +131,15 @@ def ingest_document(graph: SemanticGraph, resolver: IdentityResolver, *,
 # commercial ingest above; everything lives on the same SemanticGraph.
 # ---------------------------------------------------------------------------
 
+def quantity_content_key(rec: dict) -> str:
+    """The content-identity key of a quantity record — shared by the ingest
+    (minting) and the qclaim pass (finding), so both land on the SAME entity."""
+    from . import units as _units
+    v, unit = rec.get("value"), rec.get("unit")
+    canon = _units.convert(v, unit or "", "") if unit else None
+    return f"quant|{canon if canon is not None else v}|{unit or ''}|{rec.get('obj_id','')}"
+
+
 def ingest_docmodel(graph: SemanticGraph, resolver: IdentityResolver, doc,
                     bibkey: str, source: Optional[str] = None,
                     quant_records=(), meas_records=()) -> dict:
@@ -358,15 +367,9 @@ def ingest_docmodel(graph: SemanticGraph, resolver: IdentityResolver, doc,
     counts["measurements"] = 0
     quantity_entity: dict[tuple, object] = {}    # (obj_id, idx) -> entity
 
-    def _quant_key(rec) -> str:
-        from . import units as _units
-        v, unit = rec.get("value"), rec.get("unit")
-        canon = _units.convert(v, unit or "", "") if unit else None
-        return f"quant|{canon if canon is not None else v}|{unit or ''}|{rec.get('obj_id','')}"
-
     for i, rec in enumerate(quant_records or ()):
         oid = rec.get("obj_id", "")
-        h = content_identity.content_hash(_quant_key(rec))
+        h = content_identity.content_hash(quantity_content_key(rec))
         srcobj = objs.get(oid)
         page = srcobj.props.get("page") if srcobj is not None else None
         grounding = {"node": oid, "layer": "quant"}
