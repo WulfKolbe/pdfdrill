@@ -5,7 +5,7 @@
 [1802.08153.pdf] pdfinfo: ok
     27 pages, PDF 1.4, 526,506 bytes
 [1802.08153.pdf] fonts: ok
-    Uses 24 font families. including math fonts (CMSY8, CMSY10, CMMI10, MSBM10). pdfplumber extraction will detect math expressions.
+    Uses 24 font families. including math fonts (CMMI10, CMSY8, CMSY10, MSBM10). pdfplumber extraction will detect math expressions.
 [1802.08153.pdf] links: ok
     All external URL annotations (6):
 [1802.08153.pdf] dests: ok
@@ -13,9 +13,9 @@
 [1802.08153.pdf] images: ok
     Found 151 embedded image(s) across 14 page(s).
 [1802.08153.pdf] md: ok
-    Extracted 7688 words of Markdown across 27 pages. Detected 472 inline and 76 display math expressions, 113 references. Stored as layer `md`.
+    Markdown already extracted (7688 words across 27 pages). Stored as layer `md`.
 [1802.08153.pdf] rasterize: ok
-    Rasterized 1 page image(s) (pages 1, 100 DPI, png) → rasterize/. Read these files to inspect the pages visually (~1,600 tokens each at 150 D
+    Rasterized 2 page image(s) (pages 1, 100 DPI, png) → rasterize/. Read these files to inspect the pages visually (~1,600 tokens each at 150 D
 [1802.08153.pdf] attachments: skip
     No embedded file attachments in 1802.08153.pdf (checked via pdfdetach). Note: rich-media (3D/video) annotations may not appear here.
 [1802.08153.pdf] formfields: skip
@@ -29,7 +29,7 @@
 [2305.04710v1.pdf] pdfinfo: ok
     10 pages, PDF 1.5, 1,369,016 bytes
 [2305.04710v1.pdf] fonts: ok
-    Uses 22 font families. including math fonts (CMMI10, CMEX10, CMMI7, CMSY9). pdfplumber extraction will detect math expressions.
+    Uses 22 font families. including math fonts (CMEX10, CMSY9, CMMI7, CMMI10). pdfplumber extraction will detect math expressions.
 [2305.04710v1.pdf] links: ok
     Likely source-code / data links:
 [2305.04710v1.pdf] dests: ok
@@ -37,9 +37,9 @@
 [2305.04710v1.pdf] images: ok
     Found 2 embedded image(s) across 2 page(s).
 [2305.04710v1.pdf] md: ok
-    Extracted 4283 words of Markdown across 10 pages. Detected 70 inline and 12 display math expressions, 42 references. Stored as layer `md`.
+    Markdown from the author's LaTeX source (4479 words) — no OCR/text-layer, so NO line-break hyphenation, an isolated `## Abstract`, and the b
 [2305.04710v1.pdf] rasterize: ok
-    Rasterized 1 page image(s) (pages 1, 100 DPI, png) → rasterize/. Read these files to inspect the pages visually (~1,600 tokens each at 150 D
+    Rasterized 2 page image(s) (pages 1, 100 DPI, png) → rasterize/. Read these files to inspect the pages visually (~1,600 tokens each at 150 D
 [2305.04710v1.pdf] attachments: skip
     No embedded file attachments in 2305.04710v1.pdf (checked via pdfdetach). Note: rich-media (3D/video) annotations may not appear here.
 [2305.04710v1.pdf] formfields: skip
@@ -61,9 +61,9 @@
 [2601.07372.pdf] images: ok
     Found 1 embedded image(s) across 1 page(s).
 [2601.07372.pdf] md: ok
-    Extracted 14484 words of Markdown across 33 pages. Detected 86 inline and 10 display math expressions, 67 references. Stored as layer `md`.
+    Markdown already extracted (14484 words across 33 pages). Stored as layer `md`.
 [2601.07372.pdf] rasterize: ok
-    Rasterized 1 page image(s) (pages 1, 100 DPI, png) → rasterize/. Read these files to inspect the pages visually (~1,600 tokens each at 150 D
+    Rasterized 2 page image(s) (pages 1, 100 DPI, png) → rasterize/. Read these files to inspect the pages visually (~1,600 tokens each at 150 D
 [2601.07372.pdf] attachments: skip
     No embedded file attachments in 2601.07372.pdf (checked via pdfdetach). Note: rich-media (3D/video) annotations may not appear here.
 [2601.07372.pdf] formfields: skip
@@ -77,7 +77,7 @@
 [subq-1-1-small-model-card.pdf] pdfinfo: ok
     Title: SubQ-1.1-Small Technical Report
 [subq-1-1-small-model-card.pdf] fonts: ok
-    Uses 7 font families. including math fonts (LMMathSymbols7, LMMathSymbols6, LMMathItalic10, LMMathSymbols10). pdfplumber extraction will det
+    Uses 7 font families. including math fonts (LMMathItalic10, LMMathSymbols10, LMMathSymbols7, LMMathSymbols6). pdfplumber extraction will det
 [subq-1-1-small-model-card.pdf] links: ok
     Likely source-code / data links:
 [subq-1-1-small-model-card.pdf] dests: ok
@@ -85,9 +85,9 @@
 [subq-1-1-small-model-card.pdf] images: ok
     Found 12 embedded image(s) across 11 page(s).
 [subq-1-1-small-model-card.pdf] md: ok
-    Markdown already extracted (9903 words across 22 pages). Stored as layer `md`.
+    Markdown from MathPix (10246 words) — subq-1-1-small-model-card.pdf is born-digital, but the MathPix markdown you generated is preferred ove
 [subq-1-1-small-model-card.pdf] rasterize: ok
-    Rasterized 1 page image(s) (pages 1, 100 DPI, png) → rasterize/. Read these files to inspect the pages visually (~1,600 tokens each at 150 D
+    Rasterized 2 page image(s) (pages 1, 100 DPI, png) → rasterize/. Read these files to inspect the pages visually (~1,600 tokens each at 150 D
 [subq-1-1-small-model-card.pdf] attachments: skip
     No embedded file attachments in subq-1-1-small-model-card.pdf (checked via pdfdetach). Note: rich-media (3D/video) annotations may not appea
 [subq-1-1-small-model-card.pdf] formfields: skip
