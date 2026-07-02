@@ -33,6 +33,10 @@ class RelationType(str, Enum):
     SENT_TO = "sent_to"
     HAS_ATTACHMENT = "has_attachment"
     REFERENCES = "references"
+    # quantitative layer (S4.1): a concept/section/document MEASURES a quantity;
+    # a quantity holds UNDER_CONDITION another quantity (e.g. R@P under P=0.9)
+    MEASURES = "measures"
+    UNDER_CONDITION = "under_condition"
 
 
 @dataclass

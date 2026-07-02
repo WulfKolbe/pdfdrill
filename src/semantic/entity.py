@@ -46,6 +46,9 @@ class EntityType(str, Enum):
     TABLE = "table"
     CITATION = "citation"
     CONCEPT = "concept"
+    # a typed quantity (number/ratio/money/count/named_metric/derivation) —
+    # the L6 quantity sublayer projected into the graph (subtype = the kind)
+    QUANTITY = "quantity"
     # commercial objects
     BANK_ACCOUNT = "bank_account"
     # cross-cutting

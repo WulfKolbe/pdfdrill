@@ -56,6 +56,10 @@ SIGNATURE_TABLE: dict[RelationType, tuple[set, set]] = {
     RelationType.SENT_TO: (DOC, AGENT),
     RelationType.HAS_ATTACHMENT: (DOC, DOC),
     RelationType.REFERENCES: (DOC, ALL),
+    # quantitative layer (S4.1): concepts/sections/documents measure quantities;
+    # a quantity can hold under another quantity (R@P under P=0.9)
+    RelationType.MEASURES: (SCI | DOC, {EntityType.QUANTITY}),
+    RelationType.UNDER_CONDITION: ({EntityType.QUANTITY}, {EntityType.QUANTITY}),
 }
 
 # predicates that may hold at most ONE object per subject
