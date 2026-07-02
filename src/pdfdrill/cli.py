@@ -1298,16 +1298,19 @@ def _do_combine(args):
 
 def _do_chatlog(args):
     """pdfdrill chatlog <pdf|md> --question Q --answer A [--units id,id] [--model M]
-    — store one Q&A turn (transcript + answer kitem in the semantic graph)."""
+    [--verdict correct|wrong] — store one Q&A turn (transcript + answer kitem in
+    the semantic graph); --verdict feeds the ask-precision calibration tally."""
     from .commands import cmd_chatlog
     q, rest = _opt(args, "--question")
     a, rest = _opt(rest, "--answer")
     units, rest = _opt(rest, "--units")
     model, rest = _opt(rest, "--model")
+    verdict, rest = _opt(rest, "--verdict")
     if not rest or q is None or a is None:
         raise ValueError('usage: pdfdrill chatlog <pdf> --question Q --answer A '
-                         '[--units id,id] [--model M]')
-    return cmd_chatlog(_drilled(rest), q, a, units=units or "", model=model or "")
+                         '[--units id,id] [--model M] [--verdict correct|wrong]')
+    return cmd_chatlog(_drilled(rest), q, a, units=units or "", model=model or "",
+                       verdict=verdict)
 
 
 # Module-level command table — the single dispatch surface, also read by

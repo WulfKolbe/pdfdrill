@@ -3251,6 +3251,26 @@ def cmd_ask(pdf: Path, question: str, precision: float | None = None,
                           "count": 0, "calibrated": None, "conditions": {},
                           "detail": ""})
 
+    # --- the calibrated component (S6.3): the producer's Wilson estimate from
+    # the doc's semantic graph tallies, filled into every proposed part's tuple
+    # (still no collapse — the gate below is the readout). ---------------------
+    if precision is not None:
+        try:
+            from semantic.graph import SemanticGraph
+            from semantic import calibration as _C
+            key = resolve_bibkey(pdf, None, sc)
+            sem_path = sc.blob_dir / f"{key}.semantic.json"
+            if sem_path.exists():
+                sg = SemanticGraph.from_dict(
+                    json.loads(sem_path.read_text(encoding="utf-8")))
+                est = _C.precision_estimate(sg, "ask")
+                if est is not None:
+                    for p in parts:
+                        if p["label"] == "proposed" and p["calibrated"] is None:
+                            p["calibrated"] = est
+        except Exception:                        # calibration must never kill ask
+            pass
+
     answering = [p for p in parts if p["label"] in ("derived", "grounded")]
     proposed = [p for p in parts if p["label"] == "proposed"]
 
@@ -3309,16 +3329,21 @@ def cmd_ask(pdf: Path, question: str, precision: float | None = None,
 
 
 def cmd_chatlog(pdf: Path, question: str, answer: str,
-                units: str = "", model: str = "") -> str:
+                units: str = "", model: str = "",
+                verdict: str | None = None) -> str:
     """Store one Q&A turn in pdfdrill's structures: append it to the sidecar
     transcript (`chat.jsonl`) AND emit the answer as a KITEM in the semantic
     graph — statement = the answer, evidence = the cited units' spans, grouped
     under one Transformation(qid="ask", model=…). `units` is a comma-separated
-    list of the unit ids the answer cited."""
+    list of the unit ids the answer cited.
+
+    `verdict` ("correct"|"wrong", default None) is the S6.3 calibration
+    feedback: it lands as a tally row on the `ask` question-record, feeding the
+    Wilson precision estimate `ask --precision` gates with."""
     import time
     from semantic.graph import SemanticGraph
     from semantic.identity import IdentityResolver
-    from semantic import kitems, transformation as T
+    from semantic import kitems, transformation as T, calibration as C
     from semantic.layers import content_identity  # registers the content_hash key
 
     sc = Sidecar(pdf)
@@ -3329,6 +3354,8 @@ def cmd_chatlog(pdf: Path, question: str, answer: str,
     sc.blob_dir.mkdir(parents=True, exist_ok=True)
     turn = {"question": question, "answer": answer, "units": unit_ids,
             "model": model, "ts": time.strftime("%Y-%m-%dT%H:%M:%S")}
+    if verdict:
+        turn["verdict"] = verdict
     with open(sc.blob_dir / "chat.jsonl", "a", encoding="utf-8") as f:
         f.write(json.dumps(turn, ensure_ascii=False) + "\n")
 
@@ -3343,6 +3370,8 @@ def cmd_chatlog(pdf: Path, question: str, answer: str,
     statement = f"Q: {question}\nA: {answer}"
     k = kitems.emit_kitem(g, r, statement, kind="answer", stratum=5,
                           spans=spans, produced_by="ask")
+    if verdict in ("correct", "wrong"):
+        C.record_verdict(g, r, "ask", verdict == "correct")
     T.record_batch(g, "ask", snap, seed=key, model=model or "claude")
     sem_path.write_text(json.dumps(g.to_dict(), ensure_ascii=False, indent=2),
                         encoding="utf-8")

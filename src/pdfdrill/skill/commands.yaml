@@ -1604,6 +1604,10 @@ commands:
     flag: --model
     type: str
     help: the LLM that answered
+  - name: verdict
+    flag: --verdict
+    type: str
+    help: correct|wrong — calibration feedback feeding the ask --precision gate
   typed: true
 - name: remath
   section: OCR / model pipeline
