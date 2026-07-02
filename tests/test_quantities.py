@@ -128,6 +128,41 @@ def test_registered_in_fn_registry():
     assert entry.impl is Q.quantity_records
 
 
+def test_sympy_tree_path_wins_over_lexer():
+    """S1.4: when an object carries props['math'] (the mathir srepr), the SymPy
+    tree extraction is preferred; a missing/failed tree falls back to the lexer.
+    Skips silently when the [math] extra (sympy) is absent."""
+    try:
+        import sympy  # noqa: F401
+    except Exception:
+        print("  (skip: sympy not installed)"); return
+
+    class Obj:
+        def __init__(self, id, type, props):
+            self.id, self.type, self.props = id, type, props
+    class Doc:
+        objects = {
+            # srepr says 7 (a fake tree) while the latex says 82\% — tree wins
+            "f1": Obj("f1", "Formula", {"latex": r"82\%", "flow_index": 1,
+                                        "math": {"srepr": "Integer(7)"}}),
+            # a derivation via the tree: 2*3 = 6
+            "f2": Obj("f2", "Formula", {
+                "latex": r"2 \cdot 3=6", "flow_index": 2,
+                "math": {"srepr": "Eq(Mul(Integer(2), Integer(3), evaluate=False),"
+                                  " Integer(6), evaluate=False)"}}),
+            # an unusable srepr → lexer fallback still types the ratio
+            "f3": Obj("f3", "Formula", {"latex": r"82\%", "flow_index": 3,
+                                        "math": {"srepr": "not-a-srepr(("}}),
+        }
+    recs = {r["obj_id"]: r for r in Q.quantity_records(Doc())}
+    assert recs["f1"]["kind"] == "number" and recs["f1"]["value"] == 7
+    assert recs["f1"].get("source") == "sympy"
+    assert recs["f2"]["kind"] == "derivation"
+    assert recs["f2"]["payload"]["lhs_terms"] == [2, 3]
+    assert recs["f2"]["payload"]["op"] == "mul" and recs["f2"]["payload"]["rhs"] == 6
+    assert recs["f3"]["kind"] == "ratio" and recs["f3"].get("source") != "sympy"
+
+
 if __name__ == "__main__":
     tests = [v for k, v in list(globals().items()) if k.startswith("test_")]
     failed = []
