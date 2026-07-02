@@ -226,6 +226,8 @@ for _p in (FrontmatterPass(), MathPass(), CitationPass(), ConceptsPass(),
            AbstractPass(), TocPass(), IndexPass(), SummaryPass()):
     register_pass(_p)
 
-# quantity (S1.3) lives in its own module; importing it registers the pass in
-# dependency order before summary (it has no deps; summary's deps are unchanged).
+# quantity (S1.3) + measurement (S2.1) live in their own modules; importing
+# registers them in dependency order before summary (measurement requires
+# quantity+concepts; summary's deps are unchanged).
 from . import quantity as _quantity   # noqa: E402,F401
+from . import measurement as _measurement   # noqa: E402,F401
