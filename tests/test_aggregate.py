@@ -119,6 +119,39 @@ def test_independent_spans_collector():
     assert spans == frozenset({("A", "p1"), ("B", "p9")})
 
 
+def test_kitems_accepted_rule_is_the_named_pipeline_golden():
+    """A2 golden refactor (i): status_of == Threshold(2)∘Count∘IndependentSpans
+    by construction — verified against a manual re-derivation over 0/1/2-span
+    kitems, byte-identical statuses."""
+    from semantic.graph import SemanticGraph
+    from semantic.identity import IdentityResolver
+    from semantic import kitems
+    g = SemanticGraph(); r = IdentityResolver(g)
+    k0 = kitems.emit_kitem(g, r, "zero span statement here", kind="claim",
+                           stratum=4, spans=[], produced_by="claims_v1")
+    k1 = kitems.emit_kitem(g, r, "one span statement here", kind="claim",
+                           stratum=4, spans=[{"bibkey": "A", "node": "p1",
+                                              "range": "", "role": "asserts"}],
+                           produced_by="claims_v1")
+    k2 = kitems.emit_kitem(g, r, "two span statement here", kind="claim",
+                           stratum=4,
+                           spans=[{"bibkey": "A", "node": "p1", "range": "",
+                                   "role": "asserts"},
+                                  {"bibkey": "B", "node": "p2", "range": "",
+                                   "role": "asserts"}],
+                           produced_by="claims_v1")
+    golden = {}
+    for k in (k0, k1, k2):
+        n = A.Count().fold(A.independent_spans(g, k.id))
+        golden[k.id] = ("accepted" if A.Threshold(2)(n)
+                        else "supported" if A.Threshold(1)(n) else "proposed")
+    for k in (k0, k1, k2):
+        assert kitems.status_of(g, k.id) == golden[k.id]
+    assert golden[k0.id] == "proposed"
+    assert golden[k1.id] == "supported"
+    assert golden[k2.id] == "accepted"
+
+
 if __name__ == "__main__":
     tests = [v for k, v in list(globals().items()) if k.startswith("test_")]
     failed = []

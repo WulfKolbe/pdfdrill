@@ -115,7 +115,16 @@ def _transitive_spans(graph, kitem_id: str, _seen: Optional[set] = None) -> list
 
 
 def status_of(graph, kitem_id: str) -> str:
-    """Compiler-automatic status (see module docstring). Disputed wins."""
+    """Compiler-automatic status (see module docstring). Disputed wins.
+
+    The corroboration rule is (and always was) an instance of the
+    2606.28429v1 aggregation algebra, now NAMED into it (A2, behavior
+    identical): accepted = Threshold(2) ∘ Count ∘ IndependentSpans — a
+    count-constrained fold over the independent-witness multiset with a
+    threshold readout. Both stages carry the monotone law, so the paper's
+    soundness theorem licenses swapping order-compatible alternatives without
+    breaking the lattice's threshold behavior."""
+    from . import aggregate as _agg
     e = graph.get(kitem_id)
     if e is None:
         return "unknown"
@@ -123,11 +132,11 @@ def status_of(graph, kitem_id: str) -> str:
                        for r in graph.relations_to(kitem_id))
     if contradicted:
         return "disputed"
-    spans = _transitive_spans(graph, kitem_id)
-    independent = {(s.get("bibkey"), s.get("node")) for s in spans}
-    if len(independent) >= 2:
+    witnesses = _agg.independent_spans(graph, kitem_id)
+    n = _agg.Count().fold(witnesses)
+    if _agg.Threshold(2)(n):
         return "accepted"
-    if independent:
+    if _agg.Threshold(1)(n):
         return "supported"
     # a derivation with no spans anywhere below is unproven
     return "proposed"
