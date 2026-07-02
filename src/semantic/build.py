@@ -375,10 +375,19 @@ def ingest_docmodel(graph: SemanticGraph, resolver: IdentityResolver, doc,
         ev = [Evidence(source, "content_hash", h, "quantity", confidence=1.0,
                        grounding=dict(grounding)),
               Evidence(source, "value", str(rec.get("value")), "quantity",
+                       grounding=dict(grounding)),
+              Evidence(source, "kind", str(rec.get("kind", "")), "quantity",
                        grounding=dict(grounding))]
         if rec.get("unit"):
             ev.append(Evidence(source, "unit", str(rec["unit"]), "quantity",
                                grounding=dict(grounding)))
+        if rec.get("approx"):
+            ev.append(Evidence(source, "approx", "true", "quantity",
+                               grounding=dict(grounding)))
+        if rec.get("payload"):                   # derivation chain, verifiable
+            import json as _json
+            ev.append(Evidence(source, "payload", _json.dumps(rec["payload"]),
+                               "quantity", grounding=dict(grounding)))
         e = resolver.resolve(EntityType.QUANTITY, keys=[("content_hash", h)],
                              evidence=ev)
         if not e.subtype:

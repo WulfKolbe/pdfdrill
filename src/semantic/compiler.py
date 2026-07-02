@@ -212,6 +212,61 @@ def check_contradictions(graph: SemanticGraph) -> list[Warning]:
 
 # ---- the compiler ---------------------------------------------------------
 
+def check_quantities(graph: SemanticGraph,
+                     blocks: Optional[dict[str, str]] = None) -> list[Warning]:
+    """S3.3: run VER.EQ.RECOMPUTE + PHY.BOUNDS over QUANTITY entities. A failed
+    recompute is `critical` (the paper's own arithmetic contradicts it); a
+    bounds violation is `warning` (extraction may be at fault); uncheckable is
+    silent. Outcomes attach as Evidence rows produced_by='arith', prop=
+    'verifies'|'refutes' (idempotent — an existing arith row is not re-added).
+    Tolerates a graph with zero quantities."""
+    import json as _json
+    from .evidence import Evidence
+    from .verify import verify_derivation
+    from .physical import check_bounds
+    out: list[Warning] = []
+    for e in graph.entities.values():
+        if e.type != EntityType.QUANTITY:
+            continue
+        props = e.properties()
+        kind = props.get("kind") or e.subtype
+        try:
+            value = float(props.get("value", ""))
+        except (TypeError, ValueError):
+            value = None
+        qrec: dict = {"kind": kind, "value": value, "unit": props.get("unit"),
+                      "raw": props.get("value", "")}
+        if props.get("approx") == "true":
+            qrec["approx"] = True
+        if props.get("payload"):
+            try:
+                qrec["payload"] = _json.loads(props["payload"])
+            except (ValueError, TypeError):
+                pass
+
+        already = any(ev.produced_by == "arith" for ev in e.evidence)
+        src = e.evidence[0].source if e.evidence else ""
+
+        if kind == "derivation" and qrec.get("payload"):
+            v = verify_derivation(qrec)
+            if v["ok"] is False:
+                out.append(Warning("critical", "quantity_refuted",
+                                   f"{e.id}: {v['detail']}"))
+                if not already:
+                    e.evidence.append(Evidence(src, "refutes", v["detail"],
+                                               "arith"))
+            elif v["ok"] is True:
+                if not already:
+                    e.evidence.append(Evidence(src, "verifies", v["detail"],
+                                               "arith"))
+
+        b = check_bounds(qrec)
+        if b["ok"] is False:
+            out.append(Warning("warning", "quantity_bounds",
+                               f"{e.id}: {b['detail']}"))
+    return out
+
+
 def compile(graph: SemanticGraph,
             blocks: Optional[dict[str, str]] = None) -> CompileResult:
     warnings: list[Warning] = []
@@ -221,5 +276,6 @@ def compile(graph: SemanticGraph,
     warnings += verify_grounding(graph, blocks)
     warnings += check_contradictions(graph)
     warnings += check_provenance(graph)
+    warnings += check_quantities(graph, blocks)
     validity = "invalid" if any(w.severity == "critical" for w in warnings) else "valid"
     return CompileResult(validity=validity, warnings=warnings)
