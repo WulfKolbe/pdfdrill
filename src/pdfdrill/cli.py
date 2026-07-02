@@ -488,7 +488,7 @@ def _do_snip(args):
                     force="--force" in args, image=image,
                     page=int(page) if page else None, rect=rect,
                     ppi=int(ppi) if ppi else 200,
-                    provider=provider or "mathpix")
+                    provider=provider)      # None → vision_router decides
 
 
 def _do_nlp(args):

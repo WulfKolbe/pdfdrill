@@ -3943,7 +3943,7 @@ def _deliver_region_crop(pdf: Path, sc: "Sidecar", page: int,
 def cmd_snip(pdf: Path, limit: int | None = None, force: bool = False,
              image: str | None = None, page: int | None = None,
              rect: tuple | None = None, ppi: int = 200,
-             provider: str = "mathpix") -> str:
+             provider: str | None = None) -> str:
     """OCR image crops via MathPix Snip (/v3/text) — or Gemma-4 (`--gemma`).
 
     Three modes — the state machine should deliver ANY special image, not just
@@ -3956,15 +3956,26 @@ def cmd_snip(pdf: Path, limit: int | None = None, force: bool = False,
         'snip'/'gemma' provenance attached to the model (auto-chains `model`;
         idempotent per equation unless --force; `--limit N` caps requests).
 
-    `provider`: "mathpix" (default) → MathPix Snip; "gemma" (`--gemma`) → the
-    Gemma-4 vision model on Novita.ai (cheap, keyless-of-MathPix; the table
-    route — image→LaTeX via `gemma_client`). Both return the same record shape,
-    attached with `provenance=<provider>` so `compare` grows a column for it.
+    `provider`: None (default) → THE STATE MACHINE DECIDES via
+    `vision_router.route("equation_ocr")` — MathPix when its keys are present
+    (native, promptless), else the cheap Gemma-4 vision route on Novita.
+    Explicit "mathpix" / "gemma" (`--gemma`, `--provider`) remain as overrides.
+    Both return the same record shape, attached with `provenance=<provider>`
+    so `compare` grows a column for whichever served.
     """
     from docmodel.core import Document, Realization, Region
     from .net import NetworkBlocked
 
-    provider = (provider or "mathpix").lower()
+    if not provider:                            # the router decides, not the user
+        from . import vision_router
+        routed, reason = vision_router.route("equation_ocr")
+        if routed in (None, "delegate", "openai"):
+            # snip's two wired providers; anything else → the classic default
+            # (mathpix), whose own key error explains what to set.
+            provider = "mathpix" if routed is None else "mathpix"
+        else:
+            provider = routed
+    provider = provider.lower()
     if provider == "gemma":
         from .gemma_client import snip_result
         prov_name = "gemma"

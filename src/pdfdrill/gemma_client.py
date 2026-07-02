@@ -128,6 +128,52 @@ def strip_latex_fence(text: str) -> str:
     return t.strip()
 
 
+def chat_completion(
+    prompt: str,
+    image: Optional[str] = None,
+    *,
+    model: str,
+    base_url: str,
+    api_key: str,
+    system: str = SYSTEM_PROMPT,
+    max_tokens: int = 4000,
+    temperature: float = 0.2,
+    timeout: float = 120.0,
+) -> str:
+    """ONE generic OpenAI-compatible chat call (stdlib urllib) — the shared
+    transport for every provider speaking this protocol (Gemma on Novita,
+    Mercury diffusion, …). `image` optional: a text-only prompt makes a plain
+    chat request (the Mercury fast-text route)."""
+    content: Any = prompt
+    if image is not None:
+        content = [{"type": "text", "text": prompt},
+                   {"type": "image_url",
+                    "image_url": {"url": to_data_url(image, timeout)}}]
+    payload: dict[str, Any] = {
+        "model": model,
+        "messages": [{"role": "system", "content": system},
+                     {"role": "user", "content": content}],
+        "temperature": temperature,
+        "max_tokens": max_tokens,
+    }
+    endpoint = base_url.rstrip("/") + "/chat/completions"
+    req = urllib.request.Request(
+        endpoint,
+        data=json.dumps(payload).encode("utf-8"),
+        headers={"Authorization": f"Bearer {api_key}",
+                 "Content-Type": "application/json"},
+        method="POST",
+    )
+    host = urllib.parse.urlparse(endpoint).hostname or "api.novita.ai"
+    try:
+        with net.urlopen(req, timeout=timeout, host=host) as resp:
+            envelope = json.loads(resp.read().decode("utf-8"))
+    except urllib.error.HTTPError as e:
+        body = e.read().decode("utf-8", "replace")[:300]
+        raise RuntimeError(f"{host} HTTP {e.code}: {body}") from e
+    return envelope["choices"][0]["message"]["content"] or ""
+
+
 def analyze_image(
     image: str,
     *,
@@ -139,33 +185,10 @@ def analyze_image(
 ) -> str:
     """Send one image (path / URL / data URI) to a Gemma vision model on Novita;
     return the raw assistant text (LaTeX, usually inside a ```latex fence)."""
-    payload: dict[str, Any] = {
-        "model": model or _model(),
-        "messages": [
-            {"role": "system", "content": SYSTEM_PROMPT},
-            {"role": "user", "content": [
-                {"type": "text", "text": prompt},
-                {"type": "image_url", "image_url": {"url": to_data_url(image, timeout)}},
-            ]},
-        ],
-        "temperature": temperature,
-        "max_tokens": max_tokens,
-    }
-    req = urllib.request.Request(
-        _endpoint(),
-        data=json.dumps(payload).encode("utf-8"),
-        headers={"Authorization": f"Bearer {_api_key()}",
-                 "Content-Type": "application/json"},
-        method="POST",
-    )
-    host = urllib.parse.urlparse(_endpoint()).hostname or "api.novita.ai"
-    try:
-        with net.urlopen(req, timeout=timeout, host=host) as resp:
-            envelope = json.loads(resp.read().decode("utf-8"))
-    except urllib.error.HTTPError as e:
-        body = e.read().decode("utf-8", "replace")[:300]
-        raise RuntimeError(f"Novita/Gemma HTTP {e.code}: {body}") from e
-    return envelope["choices"][0]["message"]["content"] or ""
+    return chat_completion(prompt, image, model=model or _model(),
+                           base_url=_base_url(), api_key=_api_key(),
+                           max_tokens=max_tokens, temperature=temperature,
+                           timeout=timeout)
 
 
 def snip_result(image: str, *, prompt: str = TABLE_PROMPT, **kwargs) -> dict:
