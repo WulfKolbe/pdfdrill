@@ -74,6 +74,35 @@ def test_real_pyramid_build_and_crop():
         assert crop is not None and crop.width > 0 and crop.height > 0
 
 
+def test_cmd_pyramid_offline_writes_server_free_bundle():
+    """--offline on the MAIN gs command: after the build, the doc's viewer/ also
+    carries viewer_offline.html + the vendored OSD (the server-free bundle) —
+    and a repeat call on an existing pyramid can add the bundle without a
+    rebuild. Gated on gs+pyvips."""
+    ok, _ = pyramid.tools_available()
+    if not ok:
+        print("  (skip: gs/pyvips not available)"); return
+    import tempfile
+    from pypdf import PdfWriter
+    from pdfdrill import commands
+    from pdfdrill.sidecar import Sidecar
+    with tempfile.TemporaryDirectory() as d:
+        pdf = Path(d) / "x.pdf"
+        w = PdfWriter(); w.add_blank_page(width=612, height=792)
+        with open(pdf, "wb") as f:
+            w.write(f)
+        out = commands.cmd_pyramid(pdf, dpi=150, offline=True)
+        viewer = Sidecar(pdf).blob_dir / "viewer"
+        assert (viewer / "viewer_offline.html").exists(), out
+        assert (viewer / "openseadragon.min.js").exists(), out
+        assert "viewer_offline.html" in out           # the prose names the bundle
+        # idempotent add-on: pyramid exists, offline re-requested → bundle stays
+        out2 = commands.cmd_pyramid(pdf, dpi=150, offline=True)
+        assert (viewer / "viewer_offline.html").exists()
+        assert "already built" in out2.lower()
+
+
+
 def test_imageserve_argv_without_pyramid():
     """`pdfdrill imageserve` returns a clear 'run pyramid first' message when the
     doc has no <drill>/viewer/manifest.json — never launches a server."""

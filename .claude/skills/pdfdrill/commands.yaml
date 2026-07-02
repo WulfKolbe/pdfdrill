@@ -1431,6 +1431,12 @@ commands:
     flag: --force
     type: flag
     help: rebuild even if a pyramid exists
+  - name: offline
+    flag: --offline
+    type: flag
+    help: also write the server-free bundle (viewer_offline.html + vendored
+      OpenSeadragon — opens via file://, no server/network); on an existing
+      pyramid it just adds the bundle
 - name: imageserve
   section: Introspection (fast, no extraction)
   summary: 'Serve the doc''s local pyramid as a MathPix-free image source: a drop-in

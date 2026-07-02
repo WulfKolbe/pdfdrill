@@ -1724,13 +1724,40 @@ def cmd_selftest(target: Path, full: bool = False) -> str:
     return head + "\n" + "\n".join(lines)
 
 
-def cmd_pyramid(pdf: Path, dpi: int = 600, force: bool = False) -> str:
+def _write_offline_bundle(viewer: Path, title: str) -> str:
+    """Add the server-free deep-zoom bundle (viewer_offline.html + vendored
+    OpenSeadragon) to a built pyramid dir. Returns a prose fragment ('' when the
+    writer is unavailable — degrade, never raise)."""
+    import importlib.util
+    ov = Path(__file__).resolve().parents[2] / "tools" / "imageserver" / "offline_viewer.py"
+    if not ov.exists():
+        return " (offline writer not found — tools/imageserver/offline_viewer.py)"
+    try:
+        spec = importlib.util.spec_from_file_location("offline_viewer", ov)
+        mod = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(mod)
+        dest = mod.write_offline_bundle(viewer, title=title)
+        return (f" Offline bundle: {dest.name} (open via file:// — no server, "
+                f"no network; copy the viewer/ folder to share).")
+    except SystemExit as e:
+        return f" (offline bundle not written: {e})"
+    except Exception as e:                               # noqa: BLE001
+        return f" (offline bundle failed: {e})"
+
+
+def cmd_pyramid(pdf: Path, dpi: int = 600, force: bool = False,
+                offline: bool = False) -> str:
     """Build a local 600-DPI Deep-Zoom (DZI) pyramid for the doc — the
     MathPix-free image source. Renders pages with Ghostscript (the gs-only
     rasterizer) and tiles them with pyvips into `<drill>/viewer/` (tiles/ +
     manifest.json + viewer.html). The pyramid then backs BOTH `pdfdrill
     imageserve` (the cdn.mathpix.com crop drop-in) and the deep-zoom viewer.
-    Needs ghostscript + pyvips/libvips (`pip install 'pdfdrill[imageserver]'`)."""
+    Needs ghostscript + pyvips/libvips (`pip install 'pdfdrill[imageserver]'`).
+
+    `--offline` additionally writes the SERVER-FREE bundle into viewer/
+    (viewer_offline.html + vendored OpenSeadragon — opens via file://, no
+    server, no network); on an already-built pyramid it just adds the bundle,
+    no rebuild."""
     import shutil
     from . import pyramid as _pyr
 
@@ -1741,9 +1768,10 @@ def cmd_pyramid(pdf: Path, dpi: int = 600, force: bool = False) -> str:
         return f"Pyramid not built — {msg}"
     if (viewer / "manifest.json").exists() and not force:
         man = json.loads((viewer / "manifest.json").read_text(encoding="utf-8"))
+        extra = _write_offline_bundle(viewer, pdf.stem) if offline else ""
         return (f"Pyramid already built: {len(man)} page(s) at "
                 f"{viewer.relative_to(sc.pdf_path.parent)}/ (--force to rebuild). "
-                f"Serve it with `pdfdrill imageserve {pdf.name}`.")
+                f"Serve it with `pdfdrill imageserve {pdf.name}`.{extra}")
     try:
         res = _pyr.build_pyramid(pdf, viewer, dpi=dpi)
     except Exception as e:                                   # noqa: BLE001
@@ -1755,13 +1783,14 @@ def cmd_pyramid(pdf: Path, dpi: int = 600, force: bool = False) -> str:
             shutil.copy(vh, viewer / "viewer.html")
         except OSError:
             pass
+    extra = _write_offline_bundle(viewer, pdf.stem) if offline else ""
     sc.set_evidence("pyramid", {"dpi": res["dpi"], "pages": res["pages"],
                                 "tiles": str((viewer / "tiles").relative_to(sc.pdf_path.parent))})
     sc.save()
     return (f"Built a {res['dpi']}-DPI DZI pyramid: {res['pages']} page(s) → "
             f"{viewer.relative_to(sc.pdf_path.parent)}/ (tiles + manifest.json + "
             f"viewer.html). Serve the local cdn + deep-zoom viewer with "
-            f"`pdfdrill imageserve {pdf.name}`.")
+            f"`pdfdrill imageserve {pdf.name}`.{extra}")
 
 
 def _imageserve_argv(pdf: Path, sc: "Sidecar", port: int, dpi: int | None):

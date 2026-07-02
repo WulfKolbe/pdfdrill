@@ -651,12 +651,14 @@ def _do_stex(args):
 
 
 def _do_pyramid(args):
-    """pdfdrill pyramid <pdf> [--dpi 600] [--force]"""
+    """pdfdrill pyramid <pdf> [--dpi 600] [--force] [--offline]"""
     from .commands import cmd_pyramid
     dpi, args = _opt(args, "--dpi")
     force = "--force" in args
-    pdf_args = [a for a in args if a != "--force"]
-    return cmd_pyramid(_pdf(pdf_args), dpi=int(dpi) if dpi else 600, force=force)
+    offline = "--offline" in args
+    pdf_args = [a for a in args if a not in ("--force", "--offline")]
+    return cmd_pyramid(_pdf(pdf_args), dpi=int(dpi) if dpi else 600, force=force,
+                       offline=offline)
 
 
 def _do_imageserve(args):

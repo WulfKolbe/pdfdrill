@@ -21,15 +21,23 @@ The crop math lives in `src/pdfdrill/eqcrop.py` (vendored, Pillow-only): a `.dzi
 pyramid's full-resolution level is the 600-DPI render, and `Pyramid.crop(x0,y0,
 x1,y1)` assembles a rectangle from only the tiles it overlaps (RAM-flat).
 
-## Run (standalone)
+## Run
+
 ```bash
-# build a 600-DPI pyramid for a doc (or use `pdfdrill pyramid <pdf>`)
-python3 tools/imageserver/build_pyramids.py --pdf paper.pdf --out ./viewer --dpi 600
+# THE sanctioned build path — Ghostscript render (the gs-only rasterizer):
+pdfdrill pyramid paper.pdf [--dpi 600] [--offline]
+#   --offline also writes viewer_offline.html (server-free, see below);
+#   on an already-built pyramid it just adds the bundle, no rebuild.
+
 # serve it as the local cdn + viewer
-python3 tools/imageserver/mathpix_server.py --root ./viewer --tiles ./viewer/tiles \
-        --lines ./paper.pdf.drill/paper.lines.json --pyramid-dpi 600 --port 8000
+python3 tools/imageserver/mathpix_server.py --root ./paper.pdf.drill/viewer \
+        --tiles ./paper.pdf.drill/viewer/tiles \
+        --lines ./paper.lines.json --pyramid-dpi 600 --port 8000
 # -> http://localhost:8000/viewer.html  and  /cropped/<id>.jpg?top_left_x=…
 ```
+
+(`build_pyramids.py --pdf … [--offline]` still works but renders with pdftoppm —
+it is the UPSTREAM REFERENCE only; pdfdrill's own path is `pdfdrill pyramid`.)
 
 Deps: Pillow (crops) + `pyvips` & `libvips-tools` (build only) — the
 `pdfdrill[imageserver]` extra. Integration plan + drillui (bun) wiring:
@@ -42,10 +50,10 @@ manifest/`.dzi`, all blocked over `file://` and in a sandbox). For a **no-server
 deep-zoom viewer over the SAME pyramid:
 
 ```bash
-python3 build_pyramids.py --pdf paper.pdf --out ./viewer --dpi 600 --offline
-# or, on an already-built pyramid:
+pdfdrill pyramid paper.pdf --offline            # the gs path, bundle included
+# or, on any already-built pyramid dir:
 python3 offline_viewer.py --out ./viewer --title paper
-# -> ./viewer/viewer_offline.html  (double-click it; no server, no network)
+# -> viewer_offline.html next to the tiles (double-click; no server, no network)
 ```
 
 `offline_viewer.py` writes `viewer_offline.html` and copies the **vendored**
