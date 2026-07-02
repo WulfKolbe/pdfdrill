@@ -103,15 +103,21 @@ def measurement_records(doc) -> list[dict]:
                 continue
             measure = re.sub(r"\s+", " ", mv.group(1).strip().lower())
 
-            # split the marks: condition ratios vs measured quantities
+            # split the marks: condition ratios vs measured quantities. The
+            # witness component (A3) is UNIONED as we go — the product-space
+            # fold ⊞ = (op, ∪): the sentence's paragraph + every bound FO node
+            # (measured AND condition), via the named WitnessUnion accumulator.
+            from .aggregate import WitnessUnion
             conditions: dict[str, float] = {}
             measured: list[tuple[Any, dict]] = []       # (formula, quant record)
+            witness_sets = [frozenset({para.id})]
             for m in marks:
                 fo = fo_map.get(int(m.group(1)))
                 quants = (fo.props.get("quant") or []) if fo is not None else []
                 if not quants:
                     continue
                 q = quants[0]
+                witness_sets.append(frozenset(q.get("witness") or [fo.id]))
                 lead = sent[:m.start()].rstrip()
                 key = _COND_KEY.search(lead[-30:]) if lead else None
                 if q.get("kind") == "ratio" and key:
@@ -121,6 +127,7 @@ def measurement_records(doc) -> list[dict]:
                     conditions[kname] = frac if frac is not None else q["value"]
                 else:
                     measured.append((fo, q))
+            witness = sorted(WitnessUnion().fold(witness_sets))
 
             if not measured:
                 continue
@@ -138,6 +145,7 @@ def measurement_records(doc) -> list[dict]:
                     "conditions": dict(conditions),
                     "sentence_span": [s_start, s_end],
                     "para_id": para.id,
+                    "witness": witness,
                 })
     return records
 

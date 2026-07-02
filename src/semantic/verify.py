@@ -54,16 +54,22 @@ def _combine(terms: list, op: str) -> Optional[float]:
 
 def verify_derivation(qrec: dict, tol_abs: float = 1,
                       tol_rel: Optional[float] = None) -> dict:
-    """Recompute a derivation quantity record. ok=None when uncheckable."""
+    """Recompute a derivation quantity record. ok=None when uncheckable.
+
+    A3: the output tuple carries the record's WITNESS component through —
+    `witness` = the contributing span/node set the record arrived with
+    (product-space discipline: the verifier looks NOTHING up; the value came
+    already carrying the spans that produced it)."""
+    witness = sorted((qrec or {}).get("witness") or [])
     if (qrec or {}).get("kind") != "derivation":
         return {"ok": None, "computed": None, "stated": None,
-                "detail": "not a derivation record"}
+                "detail": "not a derivation record", "witness": witness}
     payload = qrec.get("payload") or {}
     terms, op, rhs = payload.get("lhs_terms"), payload.get("op"), payload.get("rhs")
     computed = _combine(list(terms or ()), op or "")
     if computed is None or rhs is None:
         return {"ok": None, "computed": computed, "stated": rhs,
-                "detail": "malformed derivation payload"}
+                "detail": "malformed derivation payload", "witness": witness}
     stated = float(rhs)
 
     rel = tol_rel if tol_rel is not None else (_APPROX_REL if qrec.get("approx") else None)
@@ -78,7 +84,8 @@ def verify_derivation(qrec: dict, tol_abs: float = 1,
         tol_note = f"±{tol:g} abs"
     return {"ok": bool(ok), "computed": computed, "stated": stated,
             "detail": (f"computed {_fmt(computed)} vs stated {_fmt(stated)} "
-                       f"({tol_note})" + ("" if ok else " — REFUTED"))}
+                       f"({tol_note})" + ("" if ok else " — REFUTED")),
+            "witness": witness}
 
 
 register_fn(FnSpec(

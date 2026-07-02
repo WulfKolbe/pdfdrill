@@ -234,6 +234,10 @@ def quantity_records(doc) -> list[dict]:
             recs = parse_text_quantities(text) if isinstance(text, str) else []
         for r in recs:
             r["obj_id"] = o.id
+            # A3: the witness component — every value carries its source node
+            # STRUCTURALLY (the product-space discipline: downstream folds
+            # union these instead of looking spans up after the fact).
+            r.setdefault("witness", [o.id])
             records.append(r)
     return records
 
