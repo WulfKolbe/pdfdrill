@@ -59,6 +59,44 @@ def test_project_stex_emits_module_decls_defs_refs():
     assert r"\symref{cnn}{CNN}" in tex                                    # the use side
 
 
+def test_synonyms_list_from_aliases():
+    """S5.1: (a) an acronym's expansion is its alias (Schwartz-Hearst pair);
+    (b) >1 distinct name/alias Evidence values on one CONCEPT = synonyms. Each
+    alias emits ONE glossaries-native `see=` entry pointing at the main key."""
+    from semantic.evidence import Evidence
+    from semantic.entity import EntityType
+    g = _demo_graph()
+    # route (b): attach a second name to the psi symbol concept
+    psi = next(e for e in g.entities.values()
+               if e.type == EntityType.CONCEPT and e.properties().get("name") == "psi")
+    psi.evidence.append(Evidence("demo", "alias", "wavefunction symbol", "concepts"))
+
+    tex = stex.project_latex(g, "demo")
+    # route (a): the CNN expansion becomes a see= synonym entry, exactly once
+    assert tex.count("see={cnn}") == 1
+    assert r"description={synonym}" in tex
+    assert "Convolutional Neural Network" in tex
+    # route (b): the psi alias points at the psi key, exactly once
+    assert tex.count("see={psi}") == 1
+    assert "wavefunction symbol" in tex
+    # the synonyms print as their own list
+    assert "title={Synonyms}" in tex
+
+
+def test_stex_alias_becomes_symref_variant_note():
+    """In the sTeX form an alias is a \\symref variant note on the SAME
+    \\symdecl — one symbol, many surface forms."""
+    from semantic.evidence import Evidence
+    from semantic.entity import EntityType
+    g = _demo_graph()
+    psi = next(e for e in g.entities.values()
+               if e.type == EntityType.CONCEPT and e.properties().get("name") == "psi")
+    psi.evidence.append(Evidence("demo", "alias", "wavefunction symbol", "concepts"))
+    tex = stex.project_stex(g, "demo")
+    assert tex.count(r"\symdecl*{psi}") == 1            # ONE symbol
+    assert r"\symref{psi}{wavefunction symbol}" in tex  # the variant surface form
+
+
 def _have(*tools):
     return all(shutil.which(t) for t in tools)
 
