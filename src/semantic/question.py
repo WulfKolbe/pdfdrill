@@ -134,5 +134,16 @@ for _q in [
              emits_entities=frozenset({_E.KITEM}),
              emits_relations=frozenset({_R.DERIVED_FROM}),
              stratum=5),
+    # quantitative layer (S4.2)
+    Question("quantity", "SO.QUANT.EXTRACT: typed quantities (number/ratio/"
+             "money/count/named_metric/derivation) from formulas + prose.",
+             emits_entities=frozenset({_E.QUANTITY})),
+    Question("measurement", "SO.MEAS.BIND: bind a quantity to the concept it "
+             "measures, with the measure verb + conditions.",
+             emits_entities=frozenset({_E.QUANTITY, _E.CONCEPT}),
+             emits_relations=frozenset({_R.MEASURES, _R.UNDER_CONDITION})),
+    Question("arith", "VER/PHY verification: recompute derivations + physical "
+             "constraints, attaching verifies/refutes evidence to quantities.",
+             emits_entities=frozenset({_E.QUANTITY})),
 ]:
     register(_q)

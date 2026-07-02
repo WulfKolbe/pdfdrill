@@ -1210,7 +1210,19 @@ def cmd_semantic(pdf: Path, store: str | None = None, force: bool = False) -> st
     # (ordering / content-identity / dual-positioned occurrences) onto the SAME
     # graph. Additive; runs alongside the commercial ingest above.
     from semantic.build import ingest_docmodel
-    sci_counts = ingest_docmodel(g, r, doc, key)
+    # Quantities + measurements (S4.2): when the model objects carry the
+    # quantity/measurement pass layers (props['quant']/props['meas'] from
+    # `pdfdrill enhance`), collect and pass them — the papers path; the
+    # commercial invoice path above is untouched.
+    _quant_records, _meas_records = [], []
+    for _o in doc.objects.values():
+        for _q in (_o.props.get("quant") or []):
+            _quant_records.append({**_q, "obj_id": _o.id})
+        for _m in (_o.props.get("meas") or []):
+            _meas_records.append({**_m, "para_id": _o.id})
+    sci_counts = ingest_docmodel(g, r, doc, key,
+                                 quant_records=_quant_records,
+                                 meas_records=_meas_records)
     sc.set_evidence("semantic_scientific", sci_counts)
 
     # The compiler gate: type-check + consistency over the graph.

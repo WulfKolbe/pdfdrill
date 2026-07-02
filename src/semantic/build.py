@@ -132,7 +132,8 @@ def ingest_document(graph: SemanticGraph, resolver: IdentityResolver, *,
 # ---------------------------------------------------------------------------
 
 def ingest_docmodel(graph: SemanticGraph, resolver: IdentityResolver, doc,
-                    bibkey: str, source: Optional[str] = None) -> dict:
+                    bibkey: str, source: Optional[str] = None,
+                    quant_records=(), meas_records=()) -> dict:
     """Map a docmodel `Document` into the semantic graph:
 
       * the chapter/section CONTAINS tree, ordered by L1 (`ordering`),
@@ -346,6 +347,65 @@ def ingest_docmodel(graph: SemanticGraph, resolver: IdentityResolver, doc,
                                           path=path, doc_ord=next_ord(), produced_by="concepts")
                 counts["occurrences"] += 1
         counts["concepts"] += 1
+
+    # --- Quantities + measurements (S4.2): the L6 quantity sublayer projected
+    # into the graph. Each quantity record becomes a QUANTITY entity (subtype =
+    # the kind) with grounded evidence {node: obj_id, page, layer:'quant'};
+    # each measurement a MEASURES edge from its (resolved) concept, with the
+    # conditions in the edge grounding. Optional kwargs, default () — the
+    # non-breaking style of every prior extension of this signature. ---------
+    counts["quantities"] = 0
+    counts["measurements"] = 0
+    quantity_entity: dict[tuple, object] = {}    # (obj_id, idx) -> entity
+
+    def _quant_key(rec) -> str:
+        from . import units as _units
+        v, unit = rec.get("value"), rec.get("unit")
+        canon = _units.convert(v, unit or "", "") if unit else None
+        return f"quant|{canon if canon is not None else v}|{unit or ''}|{rec.get('obj_id','')}"
+
+    for i, rec in enumerate(quant_records or ()):
+        oid = rec.get("obj_id", "")
+        h = content_identity.content_hash(_quant_key(rec))
+        srcobj = objs.get(oid)
+        page = srcobj.props.get("page") if srcobj is not None else None
+        grounding = {"node": oid, "layer": "quant"}
+        if page is not None:
+            grounding["page"] = int(page)
+        ev = [Evidence(source, "content_hash", h, "quantity", confidence=1.0,
+                       grounding=dict(grounding)),
+              Evidence(source, "value", str(rec.get("value")), "quantity",
+                       grounding=dict(grounding))]
+        if rec.get("unit"):
+            ev.append(Evidence(source, "unit", str(rec["unit"]), "quantity",
+                               grounding=dict(grounding)))
+        e = resolver.resolve(EntityType.QUANTITY, keys=[("content_hash", h)],
+                             evidence=ev)
+        if not e.subtype:
+            e.subtype = rec.get("kind", "")
+            counts["quantities"] += 1            # minted (found-not-minted skips)
+        # remember by (obj_id, per-object idx) for the measurement join
+        idx = sum(1 for r2 in (quant_records or ())[:i] if r2.get("obj_id") == oid)
+        quantity_entity[(oid, idx)] = e
+
+    for m in meas_records or ():
+        qref = m.get("quantity_ref") or {}
+        q = quantity_entity.get((qref.get("obj_id"), qref.get("idx", 0)))
+        if q is None:
+            continue
+        cname = m.get("concept")
+        subj = (resolve_content(EntityType.CONCEPT, "measured-concept",
+                                f"concept|{cname}", name=cname)
+                if cname else root)
+        grounding = {"layer": "measurement", "ord": next_ord()}
+        if m.get("conditions"):
+            grounding["conditions"] = dict(m["conditions"])
+        if m.get("measure"):
+            grounding["measure"] = m["measure"]
+        if not graph.has_relation(subj.id, RelationType.MEASURES, q.id):
+            graph.relate_once(subj.id, RelationType.MEASURES, q.id,
+                              produced_by="measurement", grounding=grounding)
+            counts["measurements"] += 1
 
     _trans.record_batch(graph, "ingest_docmodel", _snap, source_ids=[root.id])
     return counts
