@@ -22,15 +22,35 @@ identical regardless of the order documents were ingested.
 """
 from __future__ import annotations
 
+from dataclasses import dataclass
+from typing import Callable
+
 from .relation import RelationType
 
 
-def belief_min(parent_beliefs: list[float], own_confidence: float) -> float:
+@dataclass(frozen=True)
+class Semiring:
+    """The (⊕, ⊗) parameterization of belief propagation (A2, 2606.28429v1):
+    `combine` folds the parents' beliefs (⊕), `scale` applies the node's own
+    confidence (⊗). Weakest-link IS the (min, ×) instantiation — belief.py was
+    an unlabeled semiring evaluation over the DERIVED_FROM DAG all along; the
+    monotone law is what licenses an alternative semiring (both min and × are
+    monotone on [0,1]) without breaking downstream threshold behavior."""
+    combine: Callable[[list], float]
+    scale: Callable[[float, float], float]
+
+
+BELIEF_SEMIRING = Semiring(combine=min, scale=lambda a, b: a * b)
+
+
+def belief_min(parent_beliefs: list[float], own_confidence: float,
+               semiring: Semiring = BELIEF_SEMIRING) -> float:
     """Weakest-link: the min of the parents' beliefs scaled by own confidence,
-    or own confidence alone when there are no parents."""
+    or own confidence alone when there are no parents — evaluated through the
+    (min, ×) semiring (behavior identical; the semiring is now swappable)."""
     if not parent_beliefs:
         return own_confidence
-    return min(parent_beliefs) * own_confidence
+    return semiring.scale(semiring.combine(parent_beliefs), own_confidence)
 
 
 def own_confidence(entity) -> float:

@@ -152,6 +152,49 @@ def test_kitems_accepted_rule_is_the_named_pipeline_golden():
     assert golden[k2.id] == "accepted"
 
 
+def test_belief_min_is_a_semiring_evaluation_golden():
+    """A2 golden refactor (ii): belief_min == the (min, ×) semiring evaluation
+    by construction; numbers identical to the historical operator on the
+    test_belief fixture shapes (leaf 1.0 / mid 0.9 / top 0.72)."""
+    from semantic import belief
+    # the parameterization exists and defaults to (min, ×)
+    sr = belief.BELIEF_SEMIRING
+    assert sr.combine([0.9, 0.8]) == 0.8
+    assert abs(sr.scale(0.8, 0.9) - 0.72) < 1e-12
+    # golden numbers (the test_belief fixture arithmetic)
+    assert belief.belief_min([], 1.0) == 1.0                  # leaf
+    assert belief.belief_min([1.0], 0.9) == 0.9               # mid
+    assert abs(belief.belief_min([0.9], 0.8) - 0.72) < 1e-12  # top
+    # a different (monotone) semiring slots in without touching callers
+    alt = belief.Semiring(combine=lambda xs: sorted(xs)[0],
+                          scale=lambda a, b: a * b)
+    assert belief.belief_min([0.9, 0.5], 0.8, semiring=alt) == 0.4
+
+
+def test_rulebook_hybrid_support_column_display_only():
+    """The hybrid support-strength column (r_(2) + α·surplus over span
+    confidences) appears in the rulebook line — display only, never the status."""
+    from semantic.graph import SemanticGraph
+    from semantic.identity import IdentityResolver
+    from semantic import kitems, rulebook
+    g = SemanticGraph(); r = IdentityResolver(g)
+    kitems.emit_kitem(g, r, "a corroborated statement of record", kind="claim",
+                      stratum=4,
+                      spans=[{"bibkey": "A", "node": "p1", "range": "",
+                              "role": "asserts"},
+                             {"bibkey": "B", "node": "p2", "range": "",
+                              "role": "asserts"},
+                             {"bibkey": "C", "node": "p3", "range": "",
+                              "role": "asserts"}],
+                      produced_by="claims_v1")
+    md = rulebook.project_rulebook(g, "X")
+    line = next(l for l in md.splitlines() if "corroborated" in l)
+    assert "support≈" in line                     # the display column
+    assert "[→k:" in line                         # the anchor stays
+    # the status itself is still the lattice's (accepted → no marker suffix)
+    assert "(proposed" not in line and "(supported" not in line
+
+
 if __name__ == "__main__":
     tests = [v for k, v in list(globals().items()) if k.startswith("test_")]
     failed = []
