@@ -17,7 +17,6 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
-pix2tex = ["pillow>=10.0", "pix2tex>=0.1.2"]
 nlp = ["stanza>=1.10"]
 # Canonical math layer (the `mathlayer` package): LaTeX→SymPy→multi-backend.
 math = ["sympy>=1.12", "latex2sympy2_extended>=1.11"]

@@ -74,8 +74,6 @@ Each command returns **prose**, not JSON. Quote it back to the user directly.
 | `pdfdrill dests <pdf>` | Named destinations: theorem/equation/section anchors |
 | `pdfdrill fonts_layer <pdf>` | Structured per-font records (parsed `pdffonts`) |
 | `pdfdrill images <pdf>` | Image rectangles + metadata (pdfplumber + `pdfimages -list`) |
-| `pdfdrill pix2tex <pdf>` | OCR rasterized equations via pix2tex (auto candidates) |
-| `pdfdrill pix2tex <pdf> --page N --rect x0,y0,x1,y1` | Force OCR a specific crop |
 | `pdfdrill fonts <pdf>` | One sentence: font count, math font detection |
 | `pdfdrill abstract <pdf>` | Abstract paragraph verbatim, or "not found" |
 | `pdfdrill toc <pdf>` | Bulleted section list, or "not found" |
@@ -369,7 +367,7 @@ LaTeX/TikZ/chemfig — *more than OCR*) and **`bibfetch`** (a truncated referenc
 a correct BibTeX by *web search*). When there is **no `OPENAI_API_KEY` /
 `PERPLEXITY_API_KEY`** and **no `claude` binary** — i.e. you are in the Claude.ai
 code sandbox — pdfdrill **cannot call a model itself**. It does NOT fall back to
-tesseract/pix2tex: those are OCR, they cannot consume a prompt and cannot recover
+tesseract: it is OCR, it cannot consume a prompt and cannot recover
 LaTeX/TikZ structure or search the web. **Instead, pdfdrill defers the task to
 YOU — the Claude agent running it. You ARE the model.**
 
@@ -384,7 +382,7 @@ The protocol (a deferred file handshake):
 3. For EACH request, **do the task yourself with your own abilities**:
    - `kind=vision` → **VIEW the image** at `image_path` directly (you can see
      it) and answer the prompt's JSON schema with compilable LaTeX/TikZ. **Do
-     NOT run tesseract/pix2tex/pdftotext or any OCR tool** — OCR is the wrong
+     NOT run tesseract/pdftotext or any OCR tool** — OCR is the wrong
      tool and a wrong answer; the whole point is the structure OCR can't get.
    - `kind=bibtex`/`links` → **WEB-SEARCH** for the real publication and emit the
      BibTeX / URLs. Do not fabricate.
@@ -423,7 +421,6 @@ _Generated from `commands.yaml` by skillsync. Edit the manifest, not this sectio
 | `pdfdrill dests <pdf>` | Named destinations: theorems, equations, sections |
 | `pdfdrill fonts_layer <pdf>` | Structured per-font records (pdffonts) |
 | `pdfdrill images <pdf>` | Image rectangles + metadata (pdfplumber + pdfimages -list) |
-| `pdfdrill pix2tex <pdf> [--page PAGE] [--rect RECT] [--rerun]` | Run pix2tex on candidate rects (auto from images_layer) |
 | `pdfdrill tsv <pdf> [--ocr]` | Word-level bounding boxes (pdftotext -tsv; --ocr forces tesseract) |
 | `pdfdrill render <pdf> [--force]` | Render the built markdown to PDF (pandoc + lualatex) |
 | `pdfdrill mathpix <pdf> [--force]` | Download MathPix OCR (lines.json, md, tex.zip); --force re-uploads _(network)_ |

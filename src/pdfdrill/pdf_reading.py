@@ -131,7 +131,7 @@ def rasterize(pdf: Path, out_dir: Path, *, pages: Optional[list[int]] = None,
 def render_page(pdf: Path, page: int, out_png: Path, *,
                 dpi: int = RASTER_MIN_DPI) -> Path:
     """Render ONE page to an exact PNG path via Ghostscript (>= 400 DPI). For
-    callers that need a specific filename (image-locate, pix2tex crops)."""
+    callers that need a specific filename (image-locate, snip/vision crops)."""
     out_png = Path(out_png)
     out_png.parent.mkdir(parents=True, exist_ok=True)
     gs = _require_gs()

@@ -251,27 +251,6 @@ commands:
     required: true
     help: PDF path, https URL, or bare arXiv id
   typed: true
-- name: pix2tex
-  section: Introspection (fast, no extraction)
-  summary: Run pix2tex on candidate rects (auto from images_layer)
-  offline_ok: true
-  positionals:
-  - name: pdf
-    type: pdf
-    required: true
-    help: PDF path, https URL, or bare arXiv id
-  flags:
-  - name: page
-    type: int
-    flag: --page
-  - name: rect
-    type: rect
-    flag: --rect
-    help: x0,y0,x1,y1
-  - name: rerun
-    type: flag
-    flag: --rerun
-  typed: true
 - name: tsv
   section: Introspection (fast, no extraction)
   summary: Word-level bounding boxes (pdftotext -tsv; --ocr forces tesseract)

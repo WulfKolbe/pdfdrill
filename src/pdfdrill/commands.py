@@ -38,7 +38,6 @@ URLS_KNOWN = "URLS_KNOWN"
 DESTS_KNOWN = "DESTS_KNOWN"
 FONTS_LAYER_KNOWN = "FONTS_LAYER_KNOWN"
 IMAGES_LAYER_KNOWN = "IMAGES_LAYER_KNOWN"
-PIX2TEX_RAN = "PIX2TEX_RAN"
 TSV_KNOWN = "TSV_KNOWN"
 TSV_SOURCE = "TSV_SOURCE"  # evidence key: "pdftotext" or "tesseract"
 MATHPIX_KNOWN = "MATHPIX_KNOWN"
@@ -6803,10 +6802,6 @@ def cmd_status(pdf: Path) -> str:
         cand = sum(1 for i in imgs if i.get("candidate_pix2latex"))
         parts.append(f"  images_layer ({len(imgs)} images, "
                      f"{cand} pix2latex candidates)")
-    if PIX2TEX_RAN in facts:
-        results = sc.pix2tex_results or []
-        ok = sum(1 for r in results if "error" not in r)
-        parts.append(f"  pix2tex results ({ok} crops OCR'd to LaTeX)")
     if TSV_KNOWN in facts:
         words = sc.tsv_layer or []
         source = sc.get_evidence(TSV_SOURCE, "?")
@@ -7682,185 +7677,6 @@ def _format_images_layer(images: list) -> str:
             )
     if len(images) > shown:
         lines.append(f"  ... and {len(images) - shown} more")
-    return "\n".join(lines)
-
-
-# ---------------------------------------------------------------------------
-# pix2tex (image → LaTeX) — visual math OCR for rasterized equations
-# ---------------------------------------------------------------------------
-
-def cmd_pix2tex(
-    pdf: Path,
-    page: int | None = None,
-    rect: tuple[float, float, float, float] | None = None,
-    rerun: bool = False,
-) -> str:
-    """Run pix2tex on rasterized equations.
-
-    Three modes:
-      * `page` and `rect` given → OCR exactly that crop.
-      * neither given          → OCR every pix2latex candidate from the
-                                  images_layer (auto-chains `images`).
-      * `page` only            → OCR every candidate on that page.
-    """
-    from .pix2tex_runner import process_rect
-
-    sc = Sidecar(pdf)
-
-    # Make sure we know page geometry. images_layer auto-chains size.
-    if not sc.has(SIZE_KNOWN):
-        cmd_size(pdf)
-        sc = Sidecar(pdf)
-    if rect is None and not sc.has(IMAGES_LAYER_KNOWN):
-        cmd_images(pdf)
-        sc = Sidecar(pdf)
-
-    page_geometry = _page_geometry_table(pdf, sc)
-
-    # Build the request list.
-    requests = _pix2tex_requests(sc, page, rect)
-    if not requests:
-        if rect or page:
-            return f"No candidate rect for page={page} rect={rect} in this PDF."
-        return ("No rasterized-equation candidates found in the images_layer. "
-                "Either the PDF uses native math fonts, or rasterized equations "
-                "are larger than the candidate threshold; you can force OCR with "
-                "`pdfdrill pix2tex <pdf> --page N --rect x0,y0,x1,y1`.")
-
-    blob_dir = sc.blob_dir / "pix2tex"
-    # Skip already-run requests unless rerun=True.
-    done_keys = {
-        (r["page"], tuple(r["rect"]))
-        for r in (sc.pix2tex_results or [])
-    }
-    new_results: list[dict] = []
-    skipped = 0
-    t0 = time.monotonic()
-    for req in requests:
-        key = (req["page"], tuple(req["rect"]))
-        if not rerun and key in done_keys:
-            skipped += 1
-            continue
-        try:
-            geom = page_geometry.get(req["page"]) or (612.0, 792.0)
-            res = process_rect(
-                pdf=pdf,
-                page=req["page"],
-                rect_pts=tuple(req["rect"]),
-                page_width_pt=geom[0],
-                page_height_pt=geom[1],
-                out_dir=blob_dir,
-            )
-            res["source"] = req.get("source", "explicit")
-            new_results.append(res)
-            sc.append_pix2tex_result(res)
-            sc.save()
-        except Exception as exc:
-            new_results.append({
-                "page": req["page"],
-                "rect": req["rect"],
-                "error": str(exc),
-                "source": req.get("source", "explicit"),
-            })
-
-    elapsed = time.monotonic() - t0
-    sc.add_fact(PIX2TEX_RAN)
-    prev = ",".join(sorted(sc.facts - {PIX2TEX_RAN})) or "INIT"
-    sc.log_transition("pix2tex", prev, PIX2TEX_RAN, cost_ms=elapsed * 1000,
-                      detail=f"{len(new_results)} new, {skipped} cached")
-    sc.save()
-    return _format_pix2tex(new_results, skipped, sc.pix2tex_results or [])
-
-
-# ---------------------------------------------------------------------------
-# Helpers for cmd_pix2tex
-# ---------------------------------------------------------------------------
-
-def _pix2tex_requests(
-    sc: Sidecar,
-    page: int | None,
-    rect: tuple[float, float, float, float] | None,
-) -> list[dict]:
-    """Resolve the call signature into a list of {page, rect, source}."""
-    if rect is not None:
-        if page is None:
-            return []
-        return [{"page": page, "rect": list(rect), "source": "explicit"}]
-    images = sc.images_layer or []
-    candidates = [
-        r for r in images
-        if r.get("candidate_pix2latex") and r.get("x0") is not None
-    ]
-    if page is not None:
-        candidates = [c for c in candidates if c["page"] == page]
-    return [
-        {
-            "page": c["page"],
-            "rect": [c["x0"], c["y0"], c["x1"], c["y1"]],
-            "source": "candidate",
-        }
-        for c in candidates
-    ]
-
-
-def _page_geometry_table(pdf: Path, sc: Sidecar) -> dict[int, tuple[float, float]]:
-    """Return {page_number: (width_pt, height_pt)}.
-
-    Prefers the cached pdfinfo struct (single Page-size string for the
-    whole document); falls back to pdfplumber for per-page sizes if the
-    document has heterogeneous pages.
-    """
-    page_size_str = ""
-    if sc.pdfinfo and sc.pdfinfo.get("page_size"):
-        page_size_str = sc.pdfinfo["page_size"]
-    elif sc.get_evidence("page_size"):
-        page_size_str = sc.get_evidence("page_size", "")
-
-    import re
-    m = re.match(r"\s*([\d.]+)\s*x\s*([\d.]+)\s*pts", page_size_str)
-    n_pages = sc.page_count or 0
-    if m and n_pages:
-        w, h = float(m.group(1)), float(m.group(2))
-        return {p: (w, h) for p in range(1, n_pages + 1)}
-
-    # Fallback: ask pdfplumber.
-    import pdfplumber
-    out: dict[int, tuple[float, float]] = {}
-    with pdfplumber.open(pdf) as pdf_obj:
-        for page in pdf_obj.pages:
-            out[page.page_number] = (float(page.width), float(page.height))
-    return out
-
-
-def _format_pix2tex(
-    new_results: list[dict],
-    skipped: int,
-    all_results: list[dict],
-) -> str:
-    if not new_results and not all_results:
-        return "No pix2tex results."
-    lines: list[str] = []
-    if new_results:
-        lines.append(
-            f"pix2tex ran on {len(new_results)} new crop(s); {skipped} skipped (cached)."
-        )
-    else:
-        lines.append(f"All {len(all_results)} candidate(s) were already cached.")
-
-    show = new_results if new_results else all_results
-    for r in show:
-        if "error" in r:
-            lines.append(f"  p.{r['page']}  ⚠ error: {r['error']}")
-            continue
-        rect = r.get("rect", [])
-        rect_str = f"[{rect[0]:.0f},{rect[1]:.0f},{rect[2]:.0f},{rect[3]:.0f}]" if len(rect) == 4 else "?"
-        timing = ""
-        if r.get("ocr_ms") is not None:
-            timing = f" (render {r['render_ms']:.0f}ms + OCR {r['ocr_ms']:.0f}ms)"
-        lines.append(f"  p.{r['page']}  rect {rect_str} {r.get('source', '?')}{timing}")
-        lines.append(f"      $ {r.get('latex', '')} $")
-        if r.get("crop_path"):
-            lines.append(f"      crop: {r['crop_path']}")
     return "\n".join(lines)
 
 

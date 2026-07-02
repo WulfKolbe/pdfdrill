@@ -412,7 +412,7 @@ def pix2latex_candidate_rects(
     images_layer: list[dict[str, Any]],
 ) -> list[dict[str, Any]]:
     """Return the image records flagged as pix2latex candidates with their
-    rectangles, ready to be handed off to MathPix / pix2tex.
+    rectangles, ready to be handed off to MathPix / a vision model (`snip --gemma`).
     """
     return [
         {

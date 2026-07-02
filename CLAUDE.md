@@ -12,7 +12,7 @@ It combines:
 
 1. **`src/pdfdrill/`** — the low-level PDF drill-down toolkit (from *CSPIRY*).
    A flat CLI that returns prose, persists state in a sidecar next to each PDF,
-   and wraps the heavy tools (poppler, pdfplumber, pix2tex). This is the entry
+   and wraps the heavy tools (poppler, pdfplumber). This is the entry
    point the Claude.ai web chatbot drives directly, exposed as the `pdfdrill`
    SKILL.
 2. **`src/docmodel/`** — the **unified document-object model** (the extended
@@ -100,7 +100,7 @@ are skipped (no upload). Verified on `data/` (2312.11532 → full model incl. 24
 author-year cites, 2 algorithms; the 2605 copy lacking a lines.json skipped).
 
 The pdfdrill commands (`size`, `pdfinfo`, `urls`, `dests`, `fonts`,
-`fonts_layer`, `images`, `pix2tex`, `abstract`, `toc`, `md`, `page`, `fetch`,
+`fonts_layer`, `images`, `abstract`, `toc`, `md`, `page`, `fetch`,
 `plan`, `drill`, `status`, `tsv`, `render`, `nlp`, `ocr`, `vision`,
 `embedimages`, `bibsource`, `translate`, `elements`, `rasterize`,
 `attachments`, `formfields`, `extractimages`, `tables`, `doctor`) are documented in
@@ -293,9 +293,9 @@ five commands close the remaining gaps:
     (single page), which render with **`gs`** at a hard **`RASTER_MIN_DPI=400`**
     floor — **no pdftoppm/fitz fallback** (gs absent → a clear "install
     ghostscript" RuntimeError), so the downstream layers (OCR, vision, GNN
-    layout, image-locate) all get consistent high-res input. The 6 former direct
+    layout, image-locate) all get consistent high-res input. The former direct
     `pdftoppm` callers (`ocr_lines`, `layout_elements`, `text_layers`,
-    `pdfimg_locate`, `pix2tex_runner`, + the `rasterize`/`visionocr`/`remath`/
+    `pdfimg_locate`, + the `rasterize`/`visionocr`/`remath`/
     `vision`/`qr` helper users) now all go through it. Measured OCR/vision
     fidelity (scored vs the text layer): **gs-400 94.9%** (best 98.3%) ≫ fitz-300
     82.0% ≫ fitz-180 73.8%; ONLY gs read umlauts ("Geschäftsführer"). Files keep
@@ -1748,7 +1748,7 @@ once — passes never touch the sidecar/CLI.
   `pdfdrill mathpix` command (port of the old `mtestzx.ts` upload/poll/download
   flow, creds from `MATHPIX_APP_ID`/`MATHPIX_APP_KEY` env vars); ingest MathPix
   `lines.json` and pdfdrill's own extraction (pdfplumber chars, detected-math
-  LaTeX, pix2tex) as competing provenances region-matched to each equation;
+  LaTeX, a vision model) as competing provenances region-matched to each equation;
   emit the **three-way comparison HTML table** (LaTeX | KaTeX render | MathPix
   CDN image) as a `docops` projector.
 - **Phase 2 — Scoring layer**: per-expression quality metrics turning the
@@ -2262,8 +2262,8 @@ hosted chat-LLM, but pdfdrill is *almost always run by a Claude agent* — under
 Claude Code CLI or in the Claude.ai sandbox. So when no API key is present,
 route the sub-task to **that Claude**, handed pdfdrill's OWN prompts
 (`DEFAULT_PROMPT`/`GRAPH_TIKZ_PROMPT`/chem prompt, `bibtex_prompt`/`links_prompt`)
-— the prompt IS the carried knowledge. tesseract/pix2tex are NOT fallbacks here
-(they can't consume a prompt; full-page OCR already degrades to tesseract).
+— the prompt IS the carried knowledge. tesseract is NOT a fallback here
+(it can't consume a prompt; full-page OCR already degrades to tesseract).
 - **One task contract, two transports** chosen by `detect_runtime()` (CLI wins):
   **CLI** → synchronous `claude -p <prompt> --output-format json --allowedTools
   Read` (vision) / `"WebSearch WebFetch"` (bibtex), parsing the `.result`
@@ -2382,9 +2382,9 @@ Competing-provenance OCR for equation crops:
   self-constructed `cdn.mathpix.com` crop). Returns `latex_styled` / `data[]`
   LaTeX plus per-line `confidence` (a ready-made score signal).
   `python -m pdfdrill.mathpix_snip <image|url>`; tests in `tests/test_snip.py`.
-- **`pix2tex` is intentionally NOT used** in the comparison pipeline (PyTorch
-  dependency, untested in the claude.ai web sandbox). The other competing
-  provenance is the LLM itself, prompted on an equation crop.
+- **Local OCR models (e.g. pix2tex) are intentionally NOT used** — retired in
+  favour of vision models. The competing provenance is an LLM prompted on an
+  equation crop: MathPix Snip, GPT-4o `vision`, or Gemma-4 (`snip --gemma`).
 
 The "competing tools" substrate is in place:
 

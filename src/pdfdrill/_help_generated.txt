@@ -24,7 +24,6 @@ Introspection (fast, no extraction):
   pdfdrill dests <pdf>                        Named destinations: theorems, equations, sections
   pdfdrill fonts_layer <pdf>                  Structured per-font records (pdffonts)
   pdfdrill images <pdf>                       Image rectangles + metadata (pdfplumber + pdfimages -list)
-  pdfdrill pix2tex <pdf> [--page PAGE] [--rect RECT] [--rerun] Run pix2tex on candidate rects (auto from images_layer)
   pdfdrill tsv <pdf> [--ocr]                  Word-level bounding boxes (pdftotext -tsv; --ocr forces tesseract)
   pdfdrill render <pdf> [--force]             Render the built markdown to PDF (pandoc + lualatex)
   pdfdrill mathpix <pdf> [--force]            Download MathPix OCR (lines.json, md, tex.zip); --force re-uploads

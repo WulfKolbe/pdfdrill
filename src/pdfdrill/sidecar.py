@@ -45,7 +45,6 @@ class Sidecar:
                 "dests": None,
                 "fonts_layer": None,
                 "images_layer": None,
-                "pix2tex_results": None,
                 "tsv_layer": None,
                 "layers": {},
                 "transitions": [],
@@ -135,18 +134,6 @@ class Sidecar:
 
     def set_images_layer(self, images: list):
         self._data["images_layer"] = images
-
-    @property
-    def pix2tex_results(self) -> list | None:
-        return self._data.get("pix2tex_results")
-
-    def set_pix2tex_results(self, results: list):
-        self._data["pix2tex_results"] = results
-
-    def append_pix2tex_result(self, result: dict):
-        existing = self._data.setdefault("pix2tex_results", []) or []
-        existing.append(result)
-        self._data["pix2tex_results"] = existing
 
     @property
     def tsv_layer(self) -> list | None:

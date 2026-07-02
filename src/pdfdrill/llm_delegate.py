@@ -556,7 +556,7 @@ def _instruction_block(tasks: list[LLMTask], llm_dir: Path) -> str:
         f"agent running pdfdrill ({n_vis} vision, {n_bib} bibliographic). pdfdrill",
         "has no key and CANNOT call a model — so YOU ARE THE MODEL for these tasks.",
         "",
-        "*** DO NOT use tesseract / pix2tex / pdftotext / any OCR or image-to-text",
+        "*** DO NOT use tesseract / pdftotext / any OCR or image-to-text",
         "    tool to answer these. ***  These tasks exist precisely BECAUSE OCR",
         "    cannot do them: vision must recover LaTeX / TikZ / commutative-diagram /",
         "    chemfig STRUCTURE from the crop (use your OWN sight), and bibtex/links",

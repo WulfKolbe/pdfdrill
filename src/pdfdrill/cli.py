@@ -956,34 +956,6 @@ def _do_ingest(args):
     return cmd_ingest(_pdf(pos[:1]), pos[1], provider=provider, force=force)
 
 
-def _do_pix2tex(args):
-    """pdfdrill pix2tex <pdf> [--page N] [--rect x0,y0,x1,y1] [--rerun]"""
-    from .commands import cmd_pix2tex
-    pdf_args: list[str] = []
-    page: int | None = None
-    rect: tuple[float, float, float, float] | None = None
-    rerun = False
-    i = 0
-    while i < len(args):
-        if args[i] == "--page" and i + 1 < len(args):
-            page = int(args[i + 1])
-            i += 2
-        elif args[i] == "--rect" and i + 1 < len(args):
-            parts = args[i + 1].split(",")
-            if len(parts) != 4:
-                raise ValueError("--rect expects x0,y0,x1,y1")
-            rect = (float(parts[0]), float(parts[1]),
-                    float(parts[2]), float(parts[3]))
-            i += 2
-        elif args[i] == "--rerun":
-            rerun = True
-            i += 1
-        else:
-            pdf_args.append(args[i])
-            i += 1
-    return cmd_pix2tex(_pdf(pdf_args), page=page, rect=rect, rerun=rerun)
-
-
 def _do_md(args):
     from .commands import cmd_md
     pages = None
@@ -1161,8 +1133,6 @@ Introspection (fast, no extraction):
   pdfdrill dests <pdf>         Named destinations: theorems, equations, sections
   pdfdrill fonts_layer <pdf>   Structured per-font records (pdffonts)
   pdfdrill images <pdf>        Image rectangles + metadata (pdfplumber + pdfimages -list)
-  pdfdrill pix2tex <pdf>       Run pix2tex on candidate rects (auto from images_layer)
-  pdfdrill pix2tex <pdf> --page N --rect x0,y0,x1,y1   Explicit crop OCR
   pdfdrill tsv <pdf>           Word-level bounding boxes (pdftotext -tsv; --ocr forces tesseract)
   pdfdrill render <pdf>        Render the built markdown to PDF (pandoc + lualatex)
   pdfdrill rasterize <pdf>     Rasterize page(s) to PNG/JPEG for visual inspection (pdftoppm) → sidecar; --pages N|N-M|all --dpi 150. Read the images to see charts/equations/layout
@@ -1341,7 +1311,6 @@ HANDLERS = {
         "dests": _do_dests,
         "fonts_layer": _do_fonts_layer,
         "images": _do_images,
-        "pix2tex": _do_pix2tex,
         "tsv": _do_tsv,
         "render": _do_render,
         "mathpix": _do_mathpix,
