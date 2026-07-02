@@ -190,6 +190,35 @@ def test_project_stex_compiles_with_lualatex():
         assert (Path(d) / "doc.pdf").exists(), "lualatex did not produce the sTeX PDF"
 
 
+def test_synonyms_and_quantities_lists_compile_with_lualatex():
+    """S5.4: the compile smoke now covers a document with POPULATED synonyms +
+    quantities lists (same env gating as the existing compile tests)."""
+    if not (_have("lualatex", "makeglossaries", "makeindex")
+            and subprocess.run(["kpsewhich", "glossaries-extra.sty"],
+                               capture_output=True).stdout.strip()):
+        print("SKIP (lualatex/glossaries not installed)"); return
+    from semantic.evidence import Evidence
+    from semantic.entity import EntityType
+    g = _measured_graph()
+    # populate the synonyms list too: alias the measured concept
+    kbc = next(e for e in g.entities.values()
+               if e.type == EntityType.CONCEPT
+               and e.properties().get("name") == "KBC Potential")
+    kbc.subtype = "term"                    # surface it in the glossary lists
+    kbc.evidence.append(Evidence("QD", "alias", "knowledge base completion "
+                                 "potential", "concepts"))
+    tex = stex.project_latex(g, "QD")
+    assert "type=quantities" in tex and "see={" in tex      # both lists populated
+    with tempfile.TemporaryDirectory() as d:
+        (Path(d) / "doc.tex").write_text(tex)
+        run = lambda *c: subprocess.run(c, cwd=d, capture_output=True, timeout=120)
+        run("lualatex", "-interaction=nonstopmode", "-halt-on-error", "doc.tex")
+        run("makeglossaries", "doc"); run("makeindex", "doc.idx")
+        run("lualatex", "-interaction=nonstopmode", "doc.tex")
+        run("lualatex", "-interaction=nonstopmode", "doc.tex")
+        assert (Path(d) / "doc.pdf").exists(), "lualatex did not produce doc.pdf"
+
+
 if __name__ == "__main__":
     tests = [v for k, v in list(globals().items()) if k.startswith("test_")]
     failed = []
