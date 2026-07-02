@@ -136,6 +136,34 @@ class SciKGTeXProjector(BaseProjector):
                        key=lambda o: o.props.get("flow_index") or 0)
         return paras[0].props.get("text", "") if paras else ""
 
+    def _measurements(self, doc):
+        """The measurement-pass layer as contribution records (S5.3):
+        [{name, value, unit, conditions, verified}] — value resolved through
+        the quantity_ref into the FO's props['quant']; verification recomputed
+        with the pure VER.EQ.RECOMPUTE (offline, deterministic)."""
+        try:
+            from semantic.verify import verify_derivation
+        except Exception:                       # semantic absent → regex path
+            return []
+        out = []
+        for o in doc.objects.values():
+            for m in (o.props.get("meas") or []):
+                qref = m.get("quantity_ref") or {}
+                fo = doc.objects.get(qref.get("obj_id") or "")
+                quants = (fo.props.get("quant") or []) if fo is not None else []
+                idx = qref.get("idx", 0)
+                q = quants[idx] if idx < len(quants) else None
+                if q is None:
+                    continue
+                verified = False
+                if q.get("kind") == "derivation" and q.get("payload"):
+                    verified = verify_derivation(q)["ok"] is True
+                out.append({"name": m.get("measure") or m.get("concept") or "",
+                            "value": q.get("value"), "unit": q.get("unit") or "",
+                            "conditions": m.get("conditions") or {},
+                            "verified": verified})
+        return out
+
     def _dois(self, doc):
         out = []
         for o in doc.objects.values():
@@ -192,11 +220,30 @@ class SciKGTeXProjector(BaseProjector):
                     break
 
         # --- numeric/statistical facts -> typed contributions (invisible) ---
-        for name, rx in _FACTS:
-            m = rx.search(full_text)
-            if m:
-                ann.append(rf"\contribution*{{{name}}}{{{_esc(m.group(1))}}}")
+        # S5.3: when the objects carry props['meas'] (the measurement pass),
+        # the MODEL LAYER is the source — canonical values, conditions as
+        # additional contributions, verification as an internal comment — and
+        # the _FACTS regex re-grep is SKIPPED. Un-enhanced docs keep the regex
+        # path byte-identical (the regression fixture).
+        meas_recs = self._measurements(doc)
+        if meas_recs:
+            for m in meas_recs:
+                name = m["name"] or "quantity"
+                val = str(m["value"]) + ((" " + m["unit"]) if m["unit"] else "")
+                line = rf"\contribution*{{{_esc(name)}}}{{{_esc(val)}}}"
+                if m["verified"]:
+                    line += "  % [verified]"
+                ann.append(line)
                 self.bump("fact")
+                for ck, cv in sorted(m["conditions"].items()):
+                    ann.append(rf"\contribution*{{{_esc(str(ck))}}}{{{_esc(str(cv))}}}")
+                    self.bump("fact")
+        else:
+            for name, rx in _FACTS:
+                m = rx.search(full_text)
+                if m:
+                    ann.append(rf"\contribution*{{{name}}}{{{_esc(m.group(1))}}}")
+                    self.bump("fact")
 
         # --- bib DOIs -> entity-link URIs; ONE \uri per cites annotation so each
         # becomes its own RDF node (multiple \uri in one annotation collapse). ---

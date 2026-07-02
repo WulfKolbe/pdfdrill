@@ -158,6 +158,39 @@ def test_scikgtex_compiles_and_embeds_orkg_xmp():
         assert "liability" in xmp.lower()
 
 
+def test_meas_layer_replaces_facts_regexes():
+    """S5.3: when the objects carry props['meas'] (the measurement pass), the
+    contributions come from the MODEL LAYER — canonical value, conditions as
+    additional contributions, [verified] as an internal comment — and the
+    _FACTS regex path is SKIPPED."""
+    doc = _demo_doc()
+    # the enhanced layer: a measured, verifiable derivation + a condition
+    doc.add(DocObject(type="Formula", id="q1", props={
+        "latex": "d", "flow_index": 6, "page": 9,
+        "quant": [{"kind": "derivation", "value": 6769133, "unit": None,
+                   "dimension": None, "raw": "d",
+                   "payload": {"lhs_terms": [7871085, 0.86], "op": "mul",
+                               "rhs": 6769133}}]}))
+    doc.objects["p2"].props["meas"] = [{
+        "concept": "KBC Potential", "concept_source": "section",
+        "measure": "could add",
+        "quantity_ref": {"obj_id": "q1", "idx": 0},
+        "conditions": {"accuracy": 0.82}, "sentence_span": [0, 20]}]
+    tex = _project(doc)
+    assert r"\contribution*{could add}{6769133}" in tex
+    assert r"\contribution*{accuracy}{0.82}" in tex        # the condition
+    assert "% [verified]" in tex                            # comment, not command
+    # the regex path is skipped: the prose "accuracy of 95.3%" does NOT mint
+    assert r"\contribution*{accuracy}{95.3\%}" not in tex
+
+
+def test_unenhanced_doc_output_unchanged_regression():
+    """No props['meas'] anywhere → the _FACTS regex path runs exactly as
+    before (byte-identical output is the acceptance criterion)."""
+    tex = _project(_demo_doc())
+    assert r"\contribution*{accuracy}{95.3\%}" in tex     # the classic path
+
+
 if __name__ == "__main__":
     tests = [v for k, v in list(globals().items()) if k.startswith("test_")]
     failed = []
