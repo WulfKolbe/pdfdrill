@@ -774,6 +774,20 @@ def _do_quantities(args):
     return cmd_quantities(_drilled(args))
 
 
+def _do_ask(args):
+    """pdfdrill ask <pdf|md> "<question>" [--precision P] [--json] [--k N]"""
+    from .commands import cmd_ask
+    precision, args = _opt(args, "--precision")
+    kk, args = _opt(args, "--k")
+    json_out = "--json" in args
+    rest = [a for a in args if a != "--json"]
+    if len(rest) < 2:
+        raise ValueError('usage: pdfdrill ask <pdf|md> "<question>"')
+    return cmd_ask(_drilled(rest[:-1]), rest[-1],
+                   precision=float(precision) if precision else None,
+                   json_out=json_out, k=int(kk) if kk else 8)
+
+
 def _do_mathir(args):
     """pdfdrill mathir <pdf|md>  — canonical math (SymPy) into FO/EQ props['math']"""
     from .commands import cmd_mathir
@@ -1374,6 +1388,7 @@ HANDLERS = {
         "llmtext": _do_llmtext,
         "mathcheck": _do_mathcheck,
         "quantities": _do_quantities,
+        "ask": _do_ask,
         "mathir": _do_mathir,
         "enhance": _do_enhance,
         "conclusion": _do_conclusion,

@@ -3171,6 +3171,143 @@ def cmd_retrieve(pdf: Path, question: str, k: int = 8, as_json: bool = False) ->
     return "\n".join(lines)
 
 
+def cmd_ask(pdf: Path, question: str, precision: float | None = None,
+            json_out: bool = False, k: int = 8) -> str:
+    """Gated, grounded answering (S6.2 + the A4 readout discipline): retrieve
+    the top-k units, collect the ANSWER PARTS grounded in them, and compose
+    each part as a PRODUCT TUPLE (value, witnesses, count, calibrated) that
+    collapses ONLY at the final rendering:
+
+      * the grounded/derived/proposed label is a READOUT over the tuple —
+        `derived` = a VER-checked derivation (recomputed here, offline),
+        `grounded` = span-verified (witnesses flowed through structurally),
+        `proposed` = neither (retrieved prose context);
+      * `--precision p` gates: the calibrated component through Threshold(p)
+        when calibration tallies exist (S6.3), else the span-status gate —
+        `proposed` parts are suppressed AND the report says what was withheld
+        and why (the abstention protocol);
+      * no grounded/derived part at all = the bottom of the status space: an
+        explicit no-grounded-answer, ZERO paragraphs quoted.
+
+    The proof block (witness ids, recompute details, conditions) follows the
+    answer; the turn persists via the chatlog (answer kitem + transcript)."""
+    from . import retrieve as R
+    from semantic.verify import verify_derivation
+
+    sc = Sidecar(pdf)
+    model_path = _model_path(sc)
+    if not model_path.exists():
+        return f"No model for {pdf.name} — run `pdfdrill model`/`markdown` first."
+    g = _fresh_docgraph(pdf, sc, model_path)
+    nodes = list(g)
+    by_id = {getattr(o, "id", ""): o for o in nodes}
+    hits = R.retrieve(question, nodes, k=k)
+    # Measurement units are SHORT (a handful of tokens), so summed-IDF ranking
+    # systematically favors long paragraphs over them. ask's whole point is the
+    # quantitative layer, so consult it at greater depth: any measurement unit
+    # that shares terms with the question joins the candidate parts (dedup by
+    # id; the honest abstention below still fires when nothing matches at all).
+    deep = R.retrieve(question, nodes, k=max(k, 48))
+    seen_ids = {h["id"] for h in hits}
+    hits += [h for h in deep if "#m" in h["id"] and h["id"] not in seen_ids]
+
+    # --- collect the answer parts (product tuples; nothing collapses yet) ---
+    parts: list[dict] = []
+    for h in hits:
+        hid = h["id"]
+        if "#m" in hid:                          # a Measurement unit
+            oid, _, mi = hid.partition("#m")
+            o = by_id.get(oid)
+            meas = (o.props.get("meas") or []) if o is not None else []
+            try:
+                m = meas[int(mi)]
+            except (ValueError, IndexError):
+                continue
+            qref = m.get("quantity_ref") or {}
+            fo = by_id.get(qref.get("obj_id") or "")
+            quants = (fo.props.get("quant") or []) if fo is not None else []
+            idx = qref.get("idx", 0)
+            q = quants[idx] if idx < len(quants) else {}
+            v = verify_derivation(q) if q.get("kind") == "derivation" else \
+                {"ok": None, "detail": "", "witness": sorted(q.get("witness") or [])}
+            witnesses = sorted(set(m.get("witness") or []) | set(v.get("witness") or []))
+            label = ("derived" if v["ok"] is True
+                     else "grounded" if witnesses else "proposed")
+            if v["ok"] is False:
+                label = "proposed"               # a refuted derivation never answers
+            parts.append({
+                "id": hid, "label": label,
+                "value": f"{m.get('concept') or ''}: {m.get('measure') or ''} "
+                         f"{q.get('value', '')}"
+                         f"{(' ' + q['unit']) if q.get('unit') else ''}".strip(),
+                "witnesses": witnesses, "count": len(witnesses),
+                "calibrated": None,              # S6.3 fills from CAL tallies
+                "conditions": m.get("conditions") or {},
+                "detail": v.get("detail", ""),
+            })
+        else:                                    # retrieved prose = proposed
+            parts.append({"id": hid, "label": "proposed",
+                          "value": h["text"][:160], "witnesses": [],
+                          "count": 0, "calibrated": None, "conditions": {},
+                          "detail": ""})
+
+    answering = [p for p in parts if p["label"] in ("derived", "grounded")]
+    proposed = [p for p in parts if p["label"] == "proposed"]
+
+    if json_out:
+        return json.dumps({"question": question, "parts": parts,
+                           "precision": precision}, ensure_ascii=False)
+
+    # --- abstention: bottom of the status space, quote NOTHING --------------
+    if not answering:
+        return (f"ask {pdf.name}: no grounded answer for {question!r} — "
+                f"{len(proposed)} retrieved unit(s) are merely proposed "
+                f"(un-span-verified prose), and quoting them would present "
+                f"retrieval as knowledge. Try `pdfdrill retrieve` for raw "
+                f"context, or enhance + semantic to grow the grounded layer.")
+
+    # --- the precision gate (A4): a READOUT at render time — Threshold(p)
+    # over the calibrated component when a tally exists (S6.3), else the
+    # span-status gate (an uncalibrated proposed part never clears). ---------
+    withheld = 0
+    if precision is not None:
+        from semantic.aggregate import Threshold
+        gate = Threshold(precision)
+        gated = []
+        for p in proposed:
+            est = p["calibrated"]
+            if est is not None and gate(est):
+                gated.append(p)
+            else:
+                withheld += 1
+        proposed = gated
+
+    lines = [f"ask {pdf.name}: {question}"]
+    for p in answering:
+        cond = ", ".join(f"{k2}={v2}" for k2, v2 in sorted(p["conditions"].items()))
+        lines.append(f"  [{p['label']}] {p['value']}"
+                     + (f" (under {cond})" if cond else ""))
+    for p in proposed:
+        lines.append(f"  [proposed] {p['value']}")
+    if withheld:
+        lines.append(f"  ({withheld} proposed part(s) WITHHELD at "
+                     f"--precision {precision}: not span-verified and no "
+                     f"calibration tally clears the gate)")
+    lines.append("")
+    lines.append("PROOF")
+    for p in answering:
+        lines.append(f"  {p['id']}: witnesses {', '.join(p['witnesses']) or '—'}"
+                     + (f"; {p['detail']}" if p["detail"] else ""))
+
+    answer_text = "; ".join(p["value"] for p in answering)
+    try:
+        cmd_chatlog(pdf, question, answer_text,
+                    units=",".join(p["id"].split("#")[0] for p in answering))
+    except Exception:                            # persistence must never kill the answer
+        pass
+    return "\n".join(lines)
+
+
 def cmd_chatlog(pdf: Path, question: str, answer: str,
                 units: str = "", model: str = "") -> str:
     """Store one Q&A turn in pdfdrill's structures: append it to the sidecar
