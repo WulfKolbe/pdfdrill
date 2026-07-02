@@ -48,7 +48,7 @@ Introspection (fast, no extraction):
   pdfdrill tables <pdf> [--pages PAGES]       Extract tables KEYLESS offline (pdfplumber extract_tables) → tables.json + tables.md; --pages N-M
   pdfdrill model <pdf> [--bibkey BIBKEY]      Build unified docmodel from lines.json (auto-chains mathpix, falls back to tesseract ocr if no MathPix); --bibkey KEY sets the tiddler prefix (persisted)
   pdfdrill compare <pdf>                      LaTeX | KaTeX | MathPix-image comparison HTML (auto-chains model)
-  pdfdrill snip <pdf> [--image IMAGE] [--page PAGE] [--rect RECT] [--limit LIMIT] [--force] OCR each equation crop via MathPix Snip (/v3/text) → competing column; --limit N
+  pdfdrill snip <pdf> [--image IMAGE] [--page PAGE] [--rect RECT] [--limit LIMIT] [--force] [--gemma] [--provider PROVIDER] OCR each equation/table crop → competing column. Default MathPix Snip (/v3/text); --gemma routes it through the Gemma-4 vision model on Novita.ai (cheap image→LaTeX tables, needs NOVITA_API_KEY). --limit N
   pdfdrill candidates <pdf> [--provider PROVIDER] [--limit LIMIT] [--out OUT] Export equation crops as a manifest for an LLM to read; --provider P --limit N
   pdfdrill ingest <pdf> <json> [--provider PROVIDER] [--force] Attach externally-supplied {eq_id,latex} readings as a competing provenance (grows a compare column)
   pdfdrill vision <pdf> [--limit LIMIT] [--force] GPT-4o vision reads every MathPix CDN crop (incl. table-cell images) → math/TikZ/gnuplot/table as the `openai` provenance; --limit N (needs OPENAI_API_KEY)

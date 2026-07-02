@@ -675,7 +675,9 @@ commands:
   - model
 - name: snip
   section: Introspection (fast, no extraction)
-  summary: OCR each equation crop via MathPix Snip (/v3/text) → competing column; --limit N
+  summary: 'OCR each equation/table crop → competing column. Default MathPix Snip
+    (/v3/text); --gemma routes it through the Gemma-4 vision model on Novita.ai (cheap
+    image→LaTeX tables, needs NOVITA_API_KEY). --limit N'
   network: true
   max_concurrency: 1
   positionals:
@@ -701,6 +703,14 @@ commands:
   - name: force
     type: flag
     flag: --force
+  - name: gemma
+    type: flag
+    flag: --gemma
+    help: use the Gemma-4 vision model (Novita.ai) instead of MathPix
+  - name: provider
+    type: str
+    flag: --provider
+    help: mathpix (default) | gemma
   typed: true
 - name: candidates
   section: Introspection (fast, no extraction)

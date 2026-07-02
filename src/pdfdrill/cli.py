@@ -467,21 +467,28 @@ def _do_compare(args):
 
 
 def _do_snip(args):
-    """pdfdrill snip <pdf> [--limit N] [--force]
+    """pdfdrill snip <pdf> [--limit N] [--force] [--gemma|--provider mathpix|gemma]
     pdfdrill snip <pdf> --image <path|url>            (OCR any special image)
-    pdfdrill snip <pdf> --page N --rect x0,y0,x1,y1   (deliver+OCR a region crop)"""
+    pdfdrill snip <pdf> --page N --rect x0,y0,x1,y1   (deliver+OCR a region crop)
+
+    --gemma routes the OCR through the Gemma-4 vision model (Novita.ai) instead of
+    MathPix — the cheap image→LaTeX table route (needs NOVITA_API_KEY)."""
     from .commands import cmd_snip
     image, args = _opt(args, "--image")
     page, args = _opt(args, "--page")
     rect_s, args = _opt(args, "--rect")
     ppi, args = _opt(args, "--ppi")
     limit, args = _opt(args, "--limit")
+    provider, args = _opt(args, "--provider")
+    if "--gemma" in args:
+        provider = "gemma"
     rect = tuple(float(x) for x in rect_s.split(",")) if rect_s else None
-    pdf_args = [a for a in args if a != "--force"]
+    pdf_args = [a for a in args if a not in ("--force", "--gemma")]
     return cmd_snip(_pdf(pdf_args), limit=int(limit) if limit else None,
                     force="--force" in args, image=image,
                     page=int(page) if page else None, rect=rect,
-                    ppi=int(ppi) if ppi else 200)
+                    ppi=int(ppi) if ppi else 200,
+                    provider=provider or "mathpix")
 
 
 def _do_nlp(args):

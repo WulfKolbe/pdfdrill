@@ -3871,8 +3871,9 @@ def _deliver_region_crop(pdf: Path, sc: "Sidecar", page: int,
 
 def cmd_snip(pdf: Path, limit: int | None = None, force: bool = False,
              image: str | None = None, page: int | None = None,
-             rect: tuple | None = None, ppi: int = 200) -> str:
-    """OCR image crops via MathPix Snip (/v3/text).
+             rect: tuple | None = None, ppi: int = 200,
+             provider: str = "mathpix") -> str:
+    """OCR image crops via MathPix Snip (/v3/text) — or Gemma-4 (`--gemma`).
 
     Three modes — the state machine should deliver ANY special image, not just
     equations:
@@ -3881,12 +3882,24 @@ def cmd_snip(pdf: Path, limit: int | None = None, force: bool = False,
         PNG (Read it to view), and OCR it. The crop is delivered even when OCR is
         unavailable (no key / blocked) — deliver what we can.
       * neither → the default: OCR every equation's CDN crop as a competing
-        'snip' provenance attached to the model (auto-chains `model`; idempotent
-        per equation unless --force; `--limit N` caps requests).
+        'snip'/'gemma' provenance attached to the model (auto-chains `model`;
+        idempotent per equation unless --force; `--limit N` caps requests).
+
+    `provider`: "mathpix" (default) → MathPix Snip; "gemma" (`--gemma`) → the
+    Gemma-4 vision model on Novita.ai (cheap, keyless-of-MathPix; the table
+    route — image→LaTeX via `gemma_client`). Both return the same record shape,
+    attached with `provenance=<provider>` so `compare` grows a column for it.
     """
     from docmodel.core import Document, Realization, Region
-    from .mathpix_snip import snip_result
     from .net import NetworkBlocked
+
+    provider = (provider or "mathpix").lower()
+    if provider == "gemma":
+        from .gemma_client import snip_result
+        prov_name = "gemma"
+    else:
+        from .mathpix_snip import snip_result
+        prov_name = "snip"
 
     sc = Sidecar(pdf)
 
@@ -3944,7 +3957,7 @@ def cmd_snip(pdf: Path, limit: int | None = None, force: bool = False,
            if o.type == "Equation" and o.props.get("cdn_url")]
     todo = []
     for e in eqs:
-        has_snip = any(r.role == "latex_candidate" and r.provenance == "snip"
+        has_snip = any(r.role == "latex_candidate" and r.provenance == prov_name
                        for r in e.realizations)
         if has_snip and not force:
             continue
@@ -3966,13 +3979,13 @@ def cmd_snip(pdf: Path, limit: int | None = None, force: bool = False,
             continue
         if force:
             e.realizations = [r for r in e.realizations
-                              if not (r.role == "latex_candidate" and r.provenance == "snip")]
+                              if not (r.role == "latex_candidate" and r.provenance == prov_name)]
         region = None
         lines = res.get("lines") or []
         if lines and lines[0].get("cnt"):
             region = Region.from_cnt(lines[0]["cnt"], page=e.props.get("page"))
         e.add_realization(Realization(
-            stream="snip", role="latex_candidate", provenance="snip",
+            stream=prov_name, role="latex_candidate", provenance=prov_name,
             score=res.get("confidence"),
             props={"latex": res.get("latex", ""), "text": res.get("text", ""),
                    "confidence": res.get("confidence")},
@@ -3997,7 +4010,8 @@ def cmd_snip(pdf: Path, limit: int | None = None, force: bool = False,
     )
     sc.save()
 
-    msg = f"Snipped {done} equation crop(s) via MathPix /v3/text"
+    _via = "the Gemma-4 vision model (Novita.ai)" if prov_name == "gemma" else "MathPix /v3/text"
+    msg = f"Snipped {done} equation crop(s) via {_via}"
     if errors:
         msg += f" ({errors} failed)"
     if avg is not None:
