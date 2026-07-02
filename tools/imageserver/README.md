@@ -34,3 +34,26 @@ python3 tools/imageserver/mathpix_server.py --root ./viewer --tiles ./viewer/til
 Deps: Pillow (crops) + `pyvips` & `libvips-tools` (build only) — the
 `pdfdrill[imageserver]` extra. Integration plan + drillui (bun) wiring:
 `docs/superpowers/specs/2026-06-30-local-image-server-dzi.md`.
+
+## Server-free deep zoom (`viewer_offline.html`)
+
+`viewer.html` needs the server (OpenSeadragon from a CDN + `fetch()` of the
+manifest/`.dzi`, all blocked over `file://` and in a sandbox). For a **no-server**
+deep-zoom viewer over the SAME pyramid:
+
+```bash
+python3 build_pyramids.py --pdf paper.pdf --out ./viewer --dpi 600 --offline
+# or, on an already-built pyramid:
+python3 offline_viewer.py --out ./viewer --title paper
+# -> ./viewer/viewer_offline.html  (double-click it; no server, no network)
+```
+
+`offline_viewer.py` writes `viewer_offline.html` and copies the **vendored**
+`vendor/openseadragon.min.js` into the bundle. It removes every network dependency:
+OpenSeadragon is local, the manifest is inlined as a JS literal, and each page's DZI
+descriptor is passed to OSD as an inline object (parsed from the real `.dzi`) so no
+`.dzi` is XHR-fetched — tiles then load as `<img>` from relative paths, which works
+over `file://`. OSD's PNG-asset nav buttons are disabled; a custom toolbar drives it.
+Copy the whole `viewer/` folder anywhere and it still opens. The region-crop server
+(`mathpix_server.py`) is unchanged and still needed only for the `cdn.mathpix.com`
+crop URLs.
