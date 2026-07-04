@@ -51,9 +51,17 @@ class CitationPass(EnhancementPass):
     """Link in-text Citations to References. When the model has Citations but NO
     References yet (the LaTeX-source case), discover the bib the source NAMES and
     build THIS paper's bibliography (the cited subset of a shared .bib) first —
-    the bibsource discovery, reused here so `enhance` does it automatically."""
+    the bibsource discovery, reused here so `enhance` does it automatically.
+
+    GENRE-GATED (the Axe-Fx-manual fix): on a confident @manual certificate
+    (doc.meta['genre'] from the genre pass) this pass reports n/a — bracketed
+    `[VOL]`-style tokens in a manual are a controlled vocabulary (concepts),
+    not citations. The gate reads the INFERRED certificate, never a flag; a
+    low-confidence verdict keeps the citation reading alive."""
     name = "citation"
-    requires = ()
+    requires = ("genre",)          # ordering only; absent-from-pool → ignored
+
+    _NON_CITING = ("manual",)      # entry types whose brackets aren't citations
 
     def applies(self, ctx: PassContext) -> bool:
         return _has_type(ctx.doc, ("Citation",))
@@ -72,7 +80,17 @@ class CitationPass(EnhancementPass):
 
     def run(self, ctx: PassContext) -> PassResult:
         from pdfdrill import bibliography
+        from semantic.genre import is_confident
         doc = ctx.doc
+
+        genre = (getattr(doc, "meta", {}) or {}).get("genre") or {}
+        for et in self._NON_CITING:
+            if is_confident(genre, et):
+                return PassResult(
+                    self.name, "n/a",
+                    summary=f"genre @{et} (confidence "
+                            f"{genre.get('confidence', 0):.2f}) — bracketed "
+                            f"tokens are concept codes, not citations")
 
         if not _has_type(doc, ("Reference",)):
             src = self._source_dir(ctx)
@@ -226,8 +244,9 @@ for _p in (FrontmatterPass(), MathPass(), CitationPass(), ConceptsPass(),
            AbstractPass(), TocPass(), IndexPass(), SummaryPass()):
     register_pass(_p)
 
-# quantity (S1.3) + measurement (S2.1) live in their own modules; importing
-# registers them in dependency order before summary (measurement requires
-# quantity+concepts; summary's deps are unchanged).
+# quantity (S1.3) + measurement (S2.1) + genre live in their own modules;
+# importing registers them (genre runs before citation via requires; summary's
+# deps are unchanged).
 from . import quantity as _quantity   # noqa: E402,F401
 from . import measurement as _measurement   # noqa: E402,F401
+from . import genre as _genre   # noqa: E402,F401

@@ -1447,7 +1447,7 @@ def cmd_fontid(pdf: Path, pages: str | None = None, limit: int = 12,
     page_list = pdf_reading.parse_pages(pages, n_pages)
     # Font is sampled, not exhaustive: cap to the first few pages when none asked
     # (so a 175-page scan doesn't rasterize all of it just to read a font), and
-    # never ask for a page past the document (pdftoppm errors on an out-of-range page).
+    # never ask for a page past the document (gs errors on an out-of-range page).
     if pages is None:
         page_list = (page_list or list(range(1, (n_pages or 3) + 1)))[:3]
     if n_pages:
@@ -1596,7 +1596,7 @@ def cmd_qr(pdf: Path, dpi: int = 300, pages: str | None = None,
     A GiroCode/EPC QR encodes the creditor name, IBAN, amount and payment
     reference (often the issuer the OCR text omits, and an independent check on
     the extracted IBAN/reference). Data Matrix franking/routing marks are
-    captured too. Rasterizes with pdftoppm, decodes with zxing-cpp. Findings land
+    captured too. Rasterizes with Ghostscript, decodes with zxing-cpp. Findings land
     in the sidecar (`qr_codes`).
     """
     from . import qrscan, pdf_reading
@@ -7035,12 +7035,25 @@ def _model_status_lines(sc: "Sidecar") -> list[str]:
     except Exception:                                          # noqa: BLE001
         return []
     lines: list[str] = []
+    lines += _format_genre(g.meta.get("genre") or {})
     if sc.has(BIBLIOGRAPHY_BUILT):
         cites = sc.get_evidence("bibliography_cites", 0) or 0
         lines += _format_bibliography_state(
             [r.props for r in g.of_type("Reference")], cites)
     lines += _format_environments(g.meta.get("environments") or {})
     return lines
+
+
+def _format_genre(genre: dict) -> list[str]:
+    """The one-line genre certificate for `status` (pure): entrytype +
+    confidence + the top evidence — so a mis-classification is visible at a
+    glance. Silent when the genre pass has not run."""
+    if not genre or not genre.get("entrytype"):
+        return []
+    ev = "; ".join(genre.get("evidence", [])[:3])
+    return [f"  genre: @{genre['entrytype']} "
+            f"(confidence {genre.get('confidence', 0):.2f}"
+            + (f"; {ev}" if ev else "") + ")"]
 
 
 def cmd_status(pdf: Path) -> str:
