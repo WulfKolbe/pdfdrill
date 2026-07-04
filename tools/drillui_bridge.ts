@@ -200,16 +200,32 @@ const PDFDRILL_BIN = join(REPO_ROOT, "pdfdrill");   // the repo's PYTHONPATH wra
 let imgProc: ReturnType<typeof Bun.spawn> | null = null;
 let imgReady: Promise<number | null> | null = null;
 
-/** The launch doc's absolute path IF it has a built pyramid (<doc>.drill/viewer/
+// The ACTIVE doc the viewer routes serve. Starts as the launch doc, and — the
+// "add rischextra.pdf, pyramid, viewer: file not found" fix — SWITCHES when the
+// user `add`s a doc in the terminal, so the pyramid/viewer of the doc you are
+// actually working on is the one the bridge serves.
+let activeDoc = doc;
+
+/** The ACTIVE doc's absolute path IF it has a built pyramid (<doc>.drill/viewer/
  *  manifest.json), else null (URL/arXiv-id docs and un-pyramided docs included). */
 function docWithPyramid(): string | null {
-  if (!doc) return null;
+  if (!activeDoc) return null;
   try {
-    const abs = resolve(doc.replace(/^~(?=$|\/)/, homedir()));
+    const abs = resolve(activeDoc.replace(/^~(?=$|\/)/, homedir()));
     if (!existsSync(abs)) return null;               // URL / arXiv id / missing
     const mani = join(dirname(abs), basename(abs) + ".drill", "viewer", "manifest.json");
     return existsSync(mani) ? abs : null;
   } catch { return null; }
+}
+
+/** Switch the active doc (the terminal's `add`). Kills a sidecar bound to the
+ *  previous doc so the next /cropped respawns it for the new one. */
+function setActiveDoc(rawPath: string): void {
+  if (/^https?:\/\//i.test(rawPath)) return;         // URLs resolve via pdfdrill later
+  const next = rawPath.replace(/^~(?=$|\/)/, homedir());
+  if (next === activeDoc) return;
+  activeDoc = next;
+  if (imgProc) { try { imgProc.kill(); } catch {} }  // sidecar was for the old doc
 }
 
 /** Spawn `pdfdrill imageserve` once (foreground child the bridge owns), wait for
@@ -244,7 +260,9 @@ async function ensureImageServer(): Promise<number | null> {
 // serves the static viewer DIRECTLY (no sidecar to spawn = the viewer always
 // works), and we proxy only /cropped to the lazily-spawned imageserve.
 const IMG_STATIC = (p: string) =>
-  p.startsWith("/tiles/") || p === "/viewer.html" || p === "/manifest.json";
+  p.startsWith("/tiles/") || p === "/viewer.html" || p === "/manifest.json" ||
+  p === "/viewer_offline.html" || p === "/openseadragon.min.js";  // the offline bundle
+                                                                  // + its local OSD
 
 /** The launch doc's <doc>.drill/viewer/ dir, if a pyramid was built. */
 function viewerDir(): string | null {
@@ -260,7 +278,8 @@ async function serveViewerStatic(url: URL): Promise<Response> {
   const vd = viewerDir();
   if (!vd)
     return Response.json(
-      { error: `no local pyramid for this doc — run \`pdfdrill pyramid ${doc}\` first` },
+      { error: `no local pyramid for ${activeDoc || doc || "the doc"} — run ` +
+               `\`pdfdrill pyramid\` (or type \`pyramid\` in the terminal) first` },
       { status: 404 });
   // Always serve the CURRENT package viewer.html (the per-doc copy can be stale
   // from an older `pyramid` build); manifest.json + tiles/* come from the pyramid.
@@ -292,7 +311,8 @@ async function proxyImage(req: Request, url: URL): Promise<Response> {
   const imgPort = await ensureImageServer();
   if (imgPort == null)
     return Response.json(
-      { error: `no local pyramid for this doc — run \`pdfdrill pyramid ${doc}\` first` },
+      { error: `no local pyramid for ${activeDoc || doc || "the doc"} — run ` +
+               `\`pdfdrill pyramid\` first` },
       { status: 404 });
   const target = `http://127.0.0.1:${imgPort}${url.pathname}${url.search}`;
   try {
@@ -506,7 +526,16 @@ const server = Bun.serve<{ sess: Session | null }>({
         // `add <doc>` from an arbitrary dir → register that dir so its PDF +
         // .drill artifacts are servable (mirrors the ~ expansion drillui_chat does).
         const m = msg.data.match(/^\s*add\s+(\S+)/);
-        if (m) registerDocDir(m[1]);
+        if (m) {
+          registerDocDir(m[1]);                          // its .drill artifacts servable
+          setActiveDoc(m[1]);                            // viewer routes follow the add
+          // announce the viewer for the NEW doc: an existing pyramid gets its
+          // Outputs-panel link right away (open:false — no surprise tab); a
+          // missing one re-arms so the next `pyramid` run announces + opens.
+          const has = docWithPyramid() !== null;
+          sess.viewerAnnounced = has;
+          if (has) send(ws, { type: "viewer", url: "/viewer.html", open: false });
+        }
         sess.lastInput = msg.data;                       // remember the verb (detect `pyramid`)
         // feed one line to the REPL; the trailing newline makes input() return
         sess.proc.stdin.write(msg.data + "\n");

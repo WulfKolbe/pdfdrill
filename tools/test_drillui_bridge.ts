@@ -288,5 +288,71 @@ try { proc2.kill(); } catch {}
   }
 }
 
+// --- viewer routes FOLLOW `add` (the "add + pyramid -> file not found" fix) ----
+// A bridge launched with doc A; the user `add`s doc B (which has a pyramid);
+// /viewer.html, /manifest.json AND the offline bundle must then serve from B.
+const PORT6 = 8804;
+{
+  const { mkdirSync, writeFileSync, rmSync } = await import("node:fs");
+  const { basename, dirname } = await import("node:path");
+  const os = await import("node:os");
+  const tmp = await import("node:fs/promises").then(f => f.mkdtemp(join(os.tmpdir(), "adddoc-")));
+  const docB = join(tmp, "b.pdf");
+  writeFileSync(docB, "%PDF-1.4");
+  const vd = join(tmp, "b.pdf.drill", "viewer");
+  mkdirSync(join(vd, "tiles"), { recursive: true });
+  writeFileSync(join(vd, "manifest.json"),
+    JSON.stringify([{ page: 1, dzi: "tiles/page01.dzi", width: 10, height: 10, levels: 1 }]));
+  writeFileSync(join(vd, "tiles", "page01.dzi"), '<?xml version="1.0"?><Image/>');
+  writeFileSync(join(vd, "viewer_offline.html"), "<!doctype html>OFFLINE-B");
+  writeFileSync(join(vd, "openseadragon.min.js"), "//osd");
+
+  const proc6 = Bun.spawn({
+    cmd: ["bun", BRIDGE, doc, "--port", String(PORT6), "--no-open"],   // launch doc = A
+    cwd: resolve(HERE, ".."), stdout: "ignore", stderr: "ignore", env: { ...process.env },
+  });
+  const b6 = `http://localhost:${PORT6}`;
+  let up6 = false;
+  for (let i = 0; i < 60; i++) {
+    try { if ((await fetch(b6 + "/")).ok) { up6 = true; break; } } catch {}
+    await sleep(250);
+  }
+  if (up6) {
+    // before the add: launch doc A has no pyramid -> 404
+    const pre = await fetch(b6 + "/manifest.json");
+    ok("before add: viewer routes 404 (launch doc has no pyramid)", pre.status === 404);
+
+    // `add` doc B over the WS, wait for the prompt round-trip
+    const ws6 = new WebSocket(`ws://localhost:${PORT6}/ws`);
+    await new Promise<void>((done) => {
+      const timer = setTimeout(done, 30000);
+      let r6 = 0, sent = false;
+      ws6.onmessage = (ev) => {
+        const m = JSON.parse(String(ev.data));
+        if (m.type === "ready") {
+          r6++;
+          if (r6 === 1 && !sent) { sent = true; ws6.send(JSON.stringify({ type: "input", data: `add ${docB}` })); }
+          else if (r6 >= 2) { clearTimeout(timer); try { ws6.close(); } catch {} done(); }
+        }
+      };
+      ws6.onerror = () => { clearTimeout(timer); done(); };
+    });
+
+    const mf = await fetch(b6 + "/manifest.json");
+    ok("after add: /manifest.json serves the ADDED doc's pyramid",
+       mf.status === 200 && (await mf.json())[0].dzi === "tiles/page01.dzi");
+    const off = await fetch(b6 + "/viewer_offline.html");
+    ok("after add: the offline bundle serves through the bridge",
+       off.status === 200 && (await off.text()).includes("OFFLINE-B"));
+    const osd = await fetch(b6 + "/openseadragon.min.js");
+    ok("after add: the vendored OSD serves through the bridge", osd.status === 200);
+  } else {
+    ok("before add: viewer routes 404 (launch doc has no pyramid)", false, "bridge6 did not come up");
+  }
+  try { proc6.kill(); } catch {}
+  try { rmSync(tmp, { recursive: true, force: true }); } catch {}
+}
+
 console.log(fails ? `\n${fails} FAILURE(S)` : "\nAll bridge checks passed.");
+
 process.exit(fails ? 1 : 0);
