@@ -628,10 +628,20 @@ const server = Bun.serve<{ sess: Session | null }>({
       if (msg.type === "input" && typeof msg.data === "string") {
         // `add <doc>` from an arbitrary dir → register that dir so its PDF +
         // .drill artifacts are servable (mirrors the ~ expansion drillui_chat does).
-        const m = msg.data.match(/^\s*add\s+(\S+)/);
+        // `add` paths may contain BLANKS/parens ("The Everything Kids … (z-lib
+        // .org).pdf"): take the REST OF THE LINE, strip shell-style quotes, and
+        // prefer the whole rest when it names an existing file; otherwise fall
+        // back to the first token (the multi-doc `add a.pdf b.pdf` form).
+        const m = msg.data.match(/^\s*add\s+(.+?)\s*$/);
         if (m) {
-          registerDocDir(m[1]);                          // its .drill artifacts servable
-          setActiveDoc(m[1]);                            // viewer routes follow the add
+          let target = m[1].replace(/^(["'])(.*)\1$/, "$2");   // unquote
+          const whole = resolve(target.replace(/^~(?=$|\/)/, homedir()));
+          if (!existsSync(whole)) {
+            const first = m[1].match(/^(["'])(.+?)\1|^(\S+)/);
+            target = first ? (first[2] ?? first[3] ?? target) : target;
+          }
+          registerDocDir(target);                        // its .drill artifacts servable
+          setActiveDoc(target);                          // viewer routes follow the add
           // announce the viewer for the NEW doc: an existing pyramid gets its
           // Outputs-panel link right away (open:false — no surprise tab); a
           // missing one re-arms so the next `pyramid` run announces + opens.

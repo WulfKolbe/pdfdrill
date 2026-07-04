@@ -258,12 +258,29 @@ def do_add(base, env, newdoc: str, docs: list, combined: str | None,
 
 
 def _expand_add_spec(spec: str) -> list:
-    """`add` arguments → a flat list of doc tokens. Space-separated tokens are
-    taken literally; a `@file` token is expanded to the file's lines (one path/
-    URL/arxiv-id per line; blank lines and `#` comments skipped). So
-    `add a.pdf b.pdf @more.txt` adds a.pdf, b.pdf, and everything in more.txt."""
+    """`add` arguments → a flat list of doc tokens.
+
+    Filenames with BLANKS and special characters ("The Everything Kids Giant
+    Book of Jokes, … (z-lib.org).pdf") are handled two ways:
+      * quote the path shell-style (`add "…​.pdf"` / `add '…​.pdf'`) — tokens
+        are split with shlex, so a quoted path is ONE token;
+      * or paste it UNQUOTED: when the whole argument line names an existing
+        file, it is taken as ONE path (a real filename beats tokenization).
+    Otherwise space-separated tokens are taken literally; a `@file` token is
+    expanded to the file's lines (one path/URL/arxiv-id per line; blank lines
+    and `#` comments skipped). So `add a.pdf b.pdf @more.txt` adds a.pdf,
+    b.pdf, and everything in more.txt."""
+    import shlex
+    # the whole line as one existing file wins (unquoted spaces, parens, …)
+    whole = os.path.expanduser(spec.strip())
+    if os.path.isfile(whole):
+        return [spec.strip()]
+    try:
+        tokens = shlex.split(spec)
+    except ValueError:                                   # unbalanced quote etc.
+        tokens = spec.split()
     out: list = []
-    for tok in spec.split():
+    for tok in tokens:
         if tok.startswith("@"):
             path = os.path.expanduser(tok[1:])
             try:
@@ -347,6 +364,8 @@ def _repl_help(cmds: dict) -> str:
         f"  ({n} pdfdrill commands available; a leading '!' also forces command mode)\n"
         "Meta-commands:\n"
         "  add <pdf|url|id> [more…]   add one or many docs (space-separated)\n"
+        "  add \"name with blanks.pdf\"  quote a path with spaces/parens — or paste it\n"
+        "                            unquoted: an existing file wins over splitting\n"
         "  add @list.txt             add every path/URL/id listed in a file (one per line)\n"
         "  (with several docs loaded, a pdfdrill command runs on EVERY document)\n"
         "  help, :help, ?    show this help\n"

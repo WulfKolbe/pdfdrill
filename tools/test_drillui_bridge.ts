@@ -297,9 +297,11 @@ const PORT6 = 8804;
   const { basename, dirname } = await import("node:path");
   const os = await import("node:os");
   const tmp = await import("node:fs/promises").then(f => f.mkdtemp(join(os.tmpdir(), "adddoc-")));
-  const docB = join(tmp, "b.pdf");
+  const NASTY = "The Everything Kids Giant Book of Jokes, Riddles and " +
+    "Brain Teasers (Dahl, Wagner and Weintraub.) (z-lib.org).pdf";
+  const docB = join(tmp, NASTY);
   writeFileSync(docB, "%PDF-1.4");
-  const vd = join(tmp, "b.pdf.drill", "viewer");
+  const vd = join(tmp, NASTY + ".drill", "viewer");
   mkdirSync(join(vd, "tiles"), { recursive: true });
   writeFileSync(join(vd, "manifest.json"),
     JSON.stringify([{ page: 1, dzi: "tiles/page01.dzi", width: 10, height: 10, levels: 1 }]));
@@ -331,7 +333,7 @@ const PORT6 = 8804;
         const m = JSON.parse(String(ev.data));
         if (m.type === "ready") {
           r6++;
-          if (r6 === 1 && !sent) { sent = true; ws6.send(JSON.stringify({ type: "input", data: `add ${docB}` })); }
+          if (r6 === 1 && !sent) { sent = true; ws6.send(JSON.stringify({ type: "input", data: `add "${docB}"` })); }
           else if (r6 >= 2) { clearTimeout(timer); try { ws6.close(); } catch {} done(); }
         }
       };
