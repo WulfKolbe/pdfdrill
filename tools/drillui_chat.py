@@ -187,14 +187,28 @@ def _command_argv(cmds: dict, doc: str, cmd: str, rest: list[str]) -> list[str]:
     return [cmd] + rest                       # doctor/skill/folder/… : no doc
 
 
+# Heavy commands need FAR more than the 180s default: a 211-page manual's
+# 600-DPI pyramid build, whole-doc OCR, MathPix uploads etc. run for many
+# minutes — the old flat timeout KILLED them mid-build (partial tiles, no
+# manifest, a dead viewer). Per-command floors, in seconds:
+_HEAVY_TIMEOUT = {
+    "pyramid": 3600, "ocr": 1800, "mathpix": 1800, "model": 900,
+    "folder": 3600, "remath": 3600, "visionocr": 3600, "translate": 1800,
+    "svg": 1800, "vision": 1800, "bibfetch": 900, "rasterize": 900,
+    "elements": 900, "continuity": 1800, "enhance": 900,
+}
+
+
 def run_command(base, env, cmds: dict, doc: str, line: str, timeout: float) -> str:
     """Run `<cmd> [args]` (with or without a leading '!') as a pdfdrill subcommand
-    on the open doc."""
+    on the open doc. Heavy commands get their _HEAVY_TIMEOUT floor so a long
+    pyramid/OCR build is never killed by the interactive default."""
     parts = line.lstrip("!").split()
     if not parts:
         return "usage: <pdfdrill-subcommand> [args]   e.g. status, mathpix, model"
+    eff = max(timeout, _HEAVY_TIMEOUT.get(parts[0], 0))
     return _run(base + _command_argv(cmds, doc, parts[0], parts[1:]), env,
-                timeout=timeout)
+                timeout=eff)
 
 
 def do_add(base, env, newdoc: str, docs: list, combined: str | None,

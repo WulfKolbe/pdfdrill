@@ -51,34 +51,112 @@ def _manifest_entry(page: int, name: str, w: int, h: int) -> dict:
             "height": int(h), "levels": math.ceil(math.log2(max(w, h, 1))) + 1}
 
 
+def _page_count(pdf: Path) -> Optional[int]:
+    """Total pages via pypdf (a core dep); None if unreadable."""
+    try:
+        from pypdf import PdfReader
+        return len(PdfReader(str(pdf)).pages)
+    except Exception:
+        return None
+
+
+def _dzsave_page(img_path: Path, tiles_dir: Path, name: str, *,
+                 tile_size: int = 254, overlap: int = 1,
+                 quality: int = 88) -> tuple[int, int]:
+    """Tile ONE rendered page image to `<tiles_dir>/<name>.dzi` + `_files/`.
+    Returns (width, height). Factored out so tests can observe the per-page
+    streaming discipline."""
+    import pyvips
+    img = pyvips.Image.new_from_file(str(img_path), access="sequential")
+    img.dzsave(str(tiles_dir / name), layout="dz",
+               suffix=f".jpg[Q={quality}]", tile_size=tile_size, overlap=overlap)
+    return img.width, img.height
+
+
 def build_pyramid(pdf: Path, out_dir: Path, *, dpi: int = 600,
                   tile_size: int = 254, overlap: int = 1, quality: int = 88,
                   pages: Optional[list[int]] = None) -> dict:
-    """Render the PDF with gs at `dpi` and dzsave each page to a DZI pyramid under
-    `<out_dir>/tiles/`, writing `<out_dir>/manifest.json`. Returns
-    {pages, dpi, tiles_dir, manifest}. Raises RuntimeError if gs/pyvips absent."""
+    """Render + tile the PDF ONE PAGE AT A TIME (render with gs at `dpi` →
+    dzsave → delete the page PNG) into `<out_dir>/tiles/`, writing
+    `<out_dir>/manifest.json` at the end. Streaming keeps temp disk flat at
+    ~one page — a 211-page manual at 600 DPI would otherwise stage many GB of
+    PNGs before tiling even starts. During the build a `build.json` progress
+    marker {done, total, dpi} lets a watcher (the drillui waiting page) show
+    progress; it is removed on completion. Returns {pages, dpi, tiles_dir,
+    manifest}. Raises RuntimeError if gs/pyvips absent."""
     ok, msg = tools_available()
     if not ok:
         raise RuntimeError(msg)
-    import pyvips
     from . import pdf_reading
 
     out_dir = Path(out_dir)
+    # build LOCK: a FRESH build.json means another build is running — refuse
+    # instead of racing it (two concurrent builds wipe each other's temp render:
+    # the "pyvips unable to open page-0049.png" / "list index out of range"
+    # clash). A stale marker (dead build, >120s untouched) does not block.
+    progress = out_dir / "build.json"
+    if progress.exists():
+        import time as _time
+        try:
+            age = _time.time() - progress.stat().st_mtime
+            if age < 120:
+                p = json.loads(progress.read_text(encoding="utf-8"))
+                raise RuntimeError(
+                    f"a pyramid build is already in progress "
+                    f"({p.get('done', '?')}/{p.get('total', '?')} pages tiled) — "
+                    f"wait for it; progress: {progress}")
+        except (OSError, ValueError):
+            pass                                     # unreadable marker → treat as stale
+
     tiles_dir = out_dir / "tiles"
     tiles_dir.mkdir(parents=True, exist_ok=True)
+    progress.write_text(json.dumps({"done": 0, "total": 0, "dpi": dpi}),
+                        encoding="utf-8")           # claim the lock immediately
     raster_dir = out_dir / "_render"
-    pngs = pdf_reading.rasterize(pdf, raster_dir, pages=pages, dpi=dpi)  # gs >=400
-    if not pngs:
-        raise RuntimeError("pyramid: no pages rendered")
+    shutil.rmtree(raster_dir, ignore_errors=True)   # clear a killed build's leftovers
+
     manifest = []
-    for i, png in enumerate(pngs, 1):
-        name = f"page{i:02d}"
-        img = pyvips.Image.new_from_file(str(png), access="sequential")
-        img.dzsave(str(tiles_dir / name), layout="dz",
-                   suffix=f".jpg[Q={quality}]", tile_size=tile_size, overlap=overlap)
-        manifest.append(_manifest_entry(i, name, img.width, img.height))
-    (out_dir / "manifest.json").write_text(
-        json.dumps(manifest, indent=2), encoding="utf-8")
-    shutil.rmtree(raster_dir, ignore_errors=True)            # keep only the tiles
+    try:                                             # lock claimed: everything below
+        page_list = pages if pages else None         # runs under the finally-release
+        if page_list is None:
+            n = _page_count(pdf)
+            if n:
+                page_list = list(range(1, n + 1))
+        if page_list is None:                        # unreadable count: render all,
+            pngs = pdf_reading.rasterize(pdf, raster_dir, pages=None, dpi=dpi)
+            page_list = [int(p.stem.split("-")[1]) for p in pngs]
+            prerendered = {int(p.stem.split("-")[1]): p for p in pngs}
+        else:
+            prerendered = None
+        total = len(page_list)
+        for i, pageno in enumerate(page_list, 1):
+            progress.write_text(json.dumps(
+                {"done": i - 1, "total": total, "dpi": dpi}), encoding="utf-8")
+            if prerendered is not None:
+                png = prerendered[pageno]
+            else:                                    # stream: render just this page
+                rendered = pdf_reading.rasterize(pdf, raster_dir, pages=[pageno],
+                                                 dpi=dpi)
+                if not rendered:
+                    raise RuntimeError(
+                        f"gs produced no image for page {pageno} of {pdf.name} "
+                        f"— the PDF may be damaged, or another process removed "
+                        f"the temp render (concurrent build?)")
+                png = rendered[0]
+            name = f"page{i:02d}"
+            w, h = _dzsave_page(png, tiles_dir, name, tile_size=tile_size,
+                                overlap=overlap, quality=quality)
+            manifest.append(_manifest_entry(i, name, w, h))
+            try:
+                png.unlink()                         # flat disk: drop the page PNG
+            except OSError:
+                pass
+        if not manifest:
+            raise RuntimeError("pyramid: no pages rendered")
+        (out_dir / "manifest.json").write_text(
+            json.dumps(manifest, indent=2), encoding="utf-8")
+    finally:
+        progress.unlink(missing_ok=True)
+        shutil.rmtree(raster_dir, ignore_errors=True)        # keep only the tiles
     return {"pages": len(manifest), "dpi": dpi,
             "tiles_dir": str(tiles_dir), "manifest": manifest}

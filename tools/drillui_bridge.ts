@@ -228,6 +228,97 @@ function setActiveDoc(rawPath: string): void {
   if (imgProc) { try { imgProc.kill(); } catch {} }  // sidecar was for the old doc
 }
 
+// ---- auto-build: the state machine reacting to the missing pyramid ----------
+// Opening /viewer.html for a doc WITHOUT a pyramid used to dead-end in a JSON
+// 404. Now the bridge STARTS `pdfdrill pyramid --offline` itself (once per doc,
+// no timeout — a 211-page 600-DPI build takes many minutes) and serves a live
+// progress page that polls /pyramid-status and reloads into the real viewer
+// when the manifest lands. build.json ({done,total}) is the builder's marker.
+let pyramidBuildDoc: string | null = null;
+let pyramidBuildProc: ReturnType<typeof Bun.spawn> | null = null;
+
+function activeDocAbs(): string | null {
+  if (!activeDoc || /^https?:\/\//i.test(activeDoc)) return null;
+  const abs = resolve(activeDoc.replace(/^~(?=$|\/)/, homedir()));
+  return existsSync(abs) ? abs : null;
+}
+
+function activeViewerDirAbs(): string | null {
+  const abs = activeDocAbs();
+  return abs ? join(dirname(abs), basename(abs) + ".drill", "viewer") : null;
+}
+
+function ensurePyramidBuild(): void {
+  const abs = activeDocAbs();
+  if (!abs || docWithPyramid()) return;             // nothing to build / already there
+  if (pyramidBuildProc && pyramidBuildDoc === abs) return;   // one build per doc
+  // a build from a previous bridge (orphan) keeps its build.json fresh — if the
+  // marker was touched in the last 2 minutes, someone is building; don't clash.
+  const vd = activeViewerDirAbs();
+  if (vd && existsSync(join(vd, "build.json"))) {
+    try {
+      const age = Date.now() - Bun.file(join(vd, "build.json")).lastModified;
+      if (age < 120_000) return;
+    } catch { /* stat race — proceed */ }
+  }
+  const env: Record<string, string> = { ...process.env as any };
+  env.PYTHONPATH = [src ? resolve(src) : join(REPO_ROOT, "src"), env.PYTHONPATH]
+    .filter(Boolean).join(":");
+  console.error(`  auto-building pyramid for ${abs} (pdfdrill pyramid --offline)`);
+  pyramidBuildDoc = abs;
+  pyramidBuildProc = Bun.spawn({
+    cmd: [PDFDRILL_BIN, "pyramid", abs, "--offline"],
+    env, stdout: "ignore", stderr: "ignore",
+  });
+  pyramidBuildProc.exited.then(() => { pyramidBuildProc = null; });
+}
+
+function pyramidStatus(): Response {
+  const vd = activeViewerDirAbs();
+  const ready = docWithPyramid() !== null;
+  let progress: any = null;
+  if (!ready && vd && existsSync(join(vd, "build.json"))) {
+    try { progress = JSON.parse(readFileSync(join(vd, "build.json"), "utf8")); }
+    catch { /* mid-write */ }
+  }
+  return Response.json({ ready, building: pyramidBuildProc !== null,
+                         doc: activeDoc || null, progress },
+                       { headers: { "cache-control": "no-store" } });
+}
+
+const WAIT_HTML = (docName: string) => `<!doctype html><html><head><meta charset="utf-8">
+<title>Building pyramid — ${docName}</title><style>
+:root{color-scheme:dark}body{margin:0;height:100vh;display:flex;align-items:center;justify-content:center;
+background:#0d0f12;color:#e6e9ee;font:15px/1.5 ui-sans-serif,system-ui,sans-serif}
+.card{max-width:520px;padding:28px 32px;background:#16191f;border:1px solid #262b33;border-radius:12px}
+h1{font-size:17px;margin:0 0 8px}p{color:#8a93a0;margin:8px 0}
+.bar{height:8px;background:#1e232b;border-radius:5px;overflow:hidden;margin:14px 0}
+.bar div{height:100%;width:0;background:#6ea8fe;transition:width .8s}
+code{background:#1e232b;border-radius:4px;padding:1px 6px}</style></head><body>
+<div class="card"><h1>Building the 600-DPI pyramid…</h1>
+<p><code>${docName}</code> has no deep-zoom pyramid yet — pdfdrill is building it
+now (one page at a time; large documents take a few minutes).</p>
+<div class="bar"><div id="b"></div></div><p id="s">starting…</p></div>
+<script>
+async function poll(){
+  try{
+    const r = await fetch("/pyramid-status", {cache:"no-store"});
+    const j = await r.json();
+    if (j.ready) { location.reload(); return; }
+    const p = j.progress;
+    if (p && p.total) {
+      document.getElementById("b").style.width = Math.round(100*p.done/p.total)+"%";
+      document.getElementById("s").textContent = "page "+p.done+" / "+p.total+" tiled";
+    } else if (!j.building) {
+      document.getElementById("s").textContent =
+        "no build running — type 'pyramid' in the drillui terminal, then keep this page open";
+    }
+  }catch(e){}
+  setTimeout(poll, 2000);
+}
+poll();
+</script></body></html>`;
+
 /** Spawn `pdfdrill imageserve` once (foreground child the bridge owns), wait for
  *  /healthz, and return its port. null when the doc has no pyramid. */
 async function ensureImageServer(): Promise<number | null> {
@@ -276,11 +367,22 @@ const PKG_VIEWER_HTML = join(REPO_ROOT, "tools", "imageserver", "viewer.html");
 
 async function serveViewerStatic(url: URL): Promise<Response> {
   const vd = viewerDir();
-  if (!vd)
+  if (!vd) {
+    // /viewer.html without a pyramid: START THE BUILD (state machine) and
+    // serve the live progress page — never a dead JSON end. Other static
+    // routes keep 404ing until the manifest lands (the page polls status).
+    if (url.pathname === "/viewer.html" || url.pathname === "/viewer_offline.html") {
+      ensurePyramidBuild();
+      const name = activeDoc ? basename(activeDoc) : (doc || "no document");
+      return new Response(WAIT_HTML(name), { headers: {
+        "content-type": "text/html; charset=utf-8", "cache-control": "no-store",
+      } });
+    }
     return Response.json(
       { error: `no local pyramid for ${activeDoc || doc || "the doc"} — run ` +
                `\`pdfdrill pyramid\` (or type \`pyramid\` in the terminal) first` },
       { status: 404 });
+  }
   // Always serve the CURRENT package viewer.html (the per-doc copy can be stale
   // from an older `pyramid` build); manifest.json + tiles/* come from the pyramid.
   if (url.pathname === "/viewer.html" && existsSync(PKG_VIEWER_HTML)) {
@@ -440,6 +542,7 @@ const server = Bun.serve<{ sess: Session | null }>({
     // local deep-zoom viewer: bun serves the static tiles/manifest/viewer.html
     // directly (no sidecar needed — this is what makes the viewer just work), and
     // only /cropped/* (the cdn.mathpix.com replacement) goes to the Python sidecar.
+    if (url.pathname === "/pyramid-status") return pyramidStatus();
     if (url.pathname.startsWith("/cropped/")) return proxyImage(req, url);
     if (IMG_STATIC(url.pathname)) return serveViewerStatic(url);
 

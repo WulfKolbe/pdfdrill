@@ -353,6 +353,59 @@ const PORT6 = 8804;
   try { rmSync(tmp, { recursive: true, force: true }); } catch {}
 }
 
+// --- no-pyramid /viewer.html: progress page + auto-build, never a dead JSON ----
+// The Axe-manual case: opening the viewer before/while the pyramid exists must
+// serve a live progress page (200 text/html polling /pyramid-status), and flip
+// to the real viewer once manifest.json lands.
+const PORT7 = 8805;
+{
+  const { mkdirSync, writeFileSync, rmSync } = await import("node:fs");
+  const { basename, dirname } = await import("node:path");
+  const os = await import("node:os");
+  const tmp7 = await import("node:fs/promises").then(f => f.mkdtemp(join(os.tmpdir(), "waitpg-")));
+  const docC = join(tmp7, "c.pdf");
+  writeFileSync(docC, "%PDF-1.4");                  // a stub: the auto-build fails fast, harmless
+  const proc7 = Bun.spawn({
+    cmd: ["bun", BRIDGE, docC, "--port", String(PORT7), "--no-open"],
+    cwd: resolve(HERE, ".."), stdout: "ignore", stderr: "ignore", env: { ...process.env },
+  });
+  const b7 = `http://localhost:${PORT7}`;
+  let up7 = false;
+  for (let i = 0; i < 60; i++) {
+    try { if ((await fetch(b7 + "/")).ok) { up7 = true; break; } } catch {}
+    await sleep(250);
+  }
+  if (up7) {
+    const wait = await fetch(b7 + "/viewer.html");
+    const waitBody = await wait.text();
+    ok("no pyramid: /viewer.html serves the PROGRESS page (200 html, not JSON)",
+       wait.status === 200 && (wait.headers.get("content-type") || "").includes("text/html")
+       && waitBody.includes("/pyramid-status"));
+    const st = await fetch(b7 + "/pyramid-status");
+    const stJson = await st.json();
+    ok("/pyramid-status reports not-ready", st.status === 200 && stJson.ready === false);
+
+    // the manifest lands (simulating the build finishing) -> real viewer serves
+    const vd7 = join(tmp7, "c.pdf.drill", "viewer");
+    mkdirSync(join(vd7, "tiles"), { recursive: true });
+    writeFileSync(join(vd7, "manifest.json"),
+      JSON.stringify([{ page: 1, dzi: "tiles/page01.dzi", width: 10, height: 10, levels: 1 }]));
+    const st2 = await fetch(b7 + "/pyramid-status");
+    ok("/pyramid-status flips to ready", (await st2.json()).ready === true);
+    const real = await fetch(b7 + "/viewer.html");
+    const realBody = await real.text();
+    ok("after the build: /viewer.html serves the REAL viewer",
+       real.status === 200 && realBody.includes("manifest.json")
+       && !realBody.includes("/pyramid-status"));
+  } else {
+    ok("no pyramid: /viewer.html serves the PROGRESS page (200 html, not JSON)",
+       false, "bridge7 did not come up");
+  }
+  try { proc7.kill(); } catch {}
+  try { rmSync(tmp7, { recursive: true, force: true }); } catch {}
+}
+
 console.log(fails ? `\n${fails} FAILURE(S)` : "\nAll bridge checks passed.");
+
 
 process.exit(fails ? 1 : 0);
