@@ -12,6 +12,9 @@ points at the offline routes; genuine HTTP statuses from the host (401 auth,
 """
 from __future__ import annotations
 
+import base64
+import netrc
+import os
 import re
 import socket
 import urllib.error
@@ -53,6 +56,56 @@ _UA = ("Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 "
        "(KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36")
 
 
+def _netrc_auth(host: str):
+    """(login, password) for `host` from ~/.netrc (or $NETRC), or None. Never
+    raises — a missing/malformed .netrc simply yields no credentials."""
+    try:
+        path = os.environ.get("NETRC")
+        rc = netrc.netrc(path) if path else netrc.netrc()
+    except (FileNotFoundError, netrc.NetrcParseError, OSError):
+        return None
+    auth = rc.authenticators(host)
+    if not auth:
+        return None
+    login, _account, password = auth
+    if login and password is not None:
+        return (login, password)
+    return None
+
+
+def _credentials_for(host: str):
+    """The (user, password) to authenticate `host` with, or None. Precedence:
+    a matching .netrc entry first (the standard host-keyed store), then env
+    PDFDRILL_HTTP_USER/PDFDRILL_HTTP_PASSWORD — the env pair applies only to
+    PDFDRILL_HTTP_AUTH_HOST when that is set, else to any host (single-host
+    setup). Credentials are NEVER read from a committed file."""
+    nrc = _netrc_auth(host)
+    if nrc:
+        return nrc
+    user = os.environ.get("PDFDRILL_HTTP_USER")
+    pw = os.environ.get("PDFDRILL_HTTP_PASSWORD")
+    if not user or pw is None:
+        return None
+    scope = os.environ.get("PDFDRILL_HTTP_AUTH_HOST")
+    if scope and scope.strip().lower() != (host or "").strip().lower():
+        return None
+    return (user, pw)
+
+
+def apply_credentials(req: urllib.request.Request, host: str | None = None):
+    """Attach an HTTP Basic `Authorization` header to `req` when credentials
+    for its host are configured (see `_credentials_for`). An Authorization
+    header already on the Request is left untouched. Returns the same Request."""
+    if req.has_header("Authorization"):
+        return req
+    host = host or _host(req)
+    cred = _credentials_for(host)
+    if cred:
+        token = base64.b64encode(f"{cred[0]}:{cred[1]}".encode()).decode()
+        req.add_header("Authorization", "Basic " + token)
+    return req
+
+
 def urlopen(req, timeout: float | None = None, *, host: str | None = None):
     """`urllib.request.urlopen` that raises `NetworkBlocked` (friendly message)
     on a connection-level failure or an egress-proxy block, and otherwise
@@ -67,6 +120,7 @@ def urlopen(req, timeout: float | None = None, *, host: str | None = None):
         req = urllib.request.Request(req, headers={"User-Agent": _UA})
     elif isinstance(req, urllib.request.Request) and not req.has_header("User-agent"):
         req.add_header("User-Agent", _UA)
+    apply_credentials(req, host)               # HTTP Basic for an auth-walled host
     try:
         if timeout is None:
             return urllib.request.urlopen(req)
