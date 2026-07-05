@@ -2230,10 +2230,12 @@ def cmd_model(pdf: Path, force: bool = False, bibkey: str | None = None) -> str:
         1 for o in objects
         if o["type"] == "Equation" and o.get("props", {}).get("cdn_url")
     )
+    lines_source = _lines_json_source(lines_path) or "mathpix"
 
     sc.set_evidence("model_path", str(model_path.relative_to(sc.pdf_path.parent)))
     sc.set_evidence("model_object_counts", by_type)
     sc.set_evidence("model_equations_with_cdn", eq_with_cdn)
+    sc.set_evidence("model_source", lines_source)
     prev = ",".join(sorted(sc.facts - {MODEL_BUILT})) or "INIT"
     sc.add_fact(MODEL_BUILT)
     sc.log_transition(
@@ -2306,16 +2308,31 @@ def _overlay_appendix_from_source(sc: "Sidecar", model_path: Path) -> int:
 def _format_model(sc: Sidecar) -> str:
     counts = sc.get_evidence("model_object_counts", {}) or {}
     eq_cdn = sc.get_evidence("model_equations_with_cdn", 0)
+    source = sc.get_evidence("model_source", "mathpix")
     total = sum(counts.values())
     top = ", ".join(f"{n} {t}" for t, n in sorted(
         counts.items(), key=lambda kv: -kv[1]) if t in (
         "Equation", "Formula", "Paragraph", "Section", "Table", "Picture"))
     key = sc.get_evidence("bibkey") or ""
+    # Source-aware image line: MathPix regions are CDN pixel crops; a pdfminer
+    # (DRILLPDFse) model locates equations in OUR coordinate system (PDF points)
+    # and crops them from OUR local pyramid — never a MathPix CDN claim.
+    if source == "mathpix":
+        img_line = f"{eq_cdn} equations carry a MathPix CDN image. "
+        nxt = "Next: pdfdrill compare <pdf> → LaTeX | KaTeX | image table."
+    elif eq_cdn:
+        img_line = (f"{eq_cdn} equations are located in OUR coordinate system "
+                    f"(PDF points, source={source!r}); high-res crops come from "
+                    f"the local pyramid. ")
+        nxt = "Next: pdfdrill pyramid <pdf> → build the deep-zoom images, then compare/inspect."
+    else:
+        img_line = f"source={source!r}. "
+        nxt = "Next: pdfdrill compare <pdf> → LaTeX | KaTeX | image table."
     return (
         f"Built unified model: {total} objects ({top}). "
-        f"{eq_cdn} equations carry a MathPix CDN image. "
+        f"{img_line}"
         f"bibkey={key!r}. Stored at {sc.get_evidence('model_path')}.\n"
-        f"Next: pdfdrill compare <pdf> → LaTeX | KaTeX | image table."
+        f"{nxt}"
         + _bibkey_hint(key)
     )
 

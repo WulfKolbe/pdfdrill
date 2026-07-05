@@ -27,7 +27,7 @@ import re
 from ._captions import extract_figure_caption, parse_caption
 from ..base_module import BaseModule
 from ..core import Document, DocObject, Realization
-from ..mathpix import crop_url
+from ..mathpix import crop_url, image_ref
 
 
 _FENCE = ("```", "~~~")
@@ -113,7 +113,8 @@ class DiagramProcessor(BaseModule):
                 "kind": kind,           # 'Picture' / 'Sketch' / 'Figure' / ... / None
                 "refnum": refnum,
                 # A code listing is not an image: no CDN crop.
-                "cdn_url": "" if is_code else crop_url(item["image_id"], item["region"]),
+                "cdn_url": "" if is_code else image_ref(
+                    item["image_id"], item["region"], doc.meta.get("source", "mathpix")),
                 "bibkey": self.bibkey,
             },
         )

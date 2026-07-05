@@ -17,7 +17,8 @@ _REGION_KEYS = ("height", "width", "top_left_y", "top_left_x")
 
 
 def crop_url(image_id: Optional[str], region: Optional[dict]) -> str:
-    """Build the MathPix cropped-image CDN URL, or '' if id/region is missing."""
+    """Build the MathPix cropped-image CDN URL, or '' if id/region is missing.
+    The region keys are page-image PIXELS at MathPix's render DPI."""
     if not image_id or not region:
         return ""
     return (
@@ -25,6 +26,43 @@ def crop_url(image_id: Optional[str], region: Optional[dict]) -> str:
         f"?height={region.get('height')}&width={region.get('width')}"
         f"&top_left_y={region.get('top_left_y')}&top_left_x={region.get('top_left_x')}"
     )
+
+
+# OUR local pyramid crop route (served by tools/imageserver/mathpix_server.py,
+# proxied by the drillui bridge). `units=pt` tells the server the region is in
+# PDF POINTS (top-left, y-down) — our coordinate system — so it scales by
+# pyramid_dpi/72, NOT by MathPix's pixel DPI. Relative so it resolves against
+# whatever local host serves the pyramid.
+_LOCAL_CROP_PREFIX = "/cropped/"
+
+
+def local_crop_url(image_id: Optional[str], region: Optional[dict],
+                   ext: str = "png") -> str:
+    """Build OUR pyramid crop URL for a region in PDF POINTS, or '' if missing.
+    Carries `units=pt` so no coordinate-system mixing can occur downstream."""
+    if not image_id or not region:
+        return ""
+    return (
+        f"{_LOCAL_CROP_PREFIX}{image_id}.{ext}"
+        f"?height={region.get('height')}&width={region.get('width')}"
+        f"&top_left_y={region.get('top_left_y')}&top_left_x={region.get('top_left_x')}"
+        f"&units=pt"
+    )
+
+
+def image_ref(image_id: Optional[str], region: Optional[dict],
+              source: str = "mathpix") -> str:
+    """Source-aware crop reference. `mathpix` → the CDN pixel URL; any other
+    source (pdfminer/DRILLPDFse, …) → OUR local pyramid URL in PDF points. The
+    two coordinate systems never mix — the source alone selects one."""
+    if (source or "mathpix").lower() == "mathpix":
+        return crop_url(image_id, region)
+    return local_crop_url(image_id, region)
+
+
+def is_local_crop(url: Optional[str]) -> bool:
+    """True for one of OUR local pyramid crop URLs (`/cropped/…?…&units=pt`)."""
+    return bool(url) and url.startswith(_LOCAL_CROP_PREFIX) and "units=pt" in url
 
 
 def page_url(image_id_or_crop_url: Optional[str]) -> str:

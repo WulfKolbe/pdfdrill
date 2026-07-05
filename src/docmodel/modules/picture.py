@@ -40,7 +40,7 @@ from typing import Any, Optional
 from ._captions import extract_figure_caption, parse_caption
 from ..base_module import BaseModule
 from ..core import Document, DocObject, Realization
-from ..mathpix import crop_url, region_from_url
+from ..mathpix import crop_url, image_ref, region_from_url
 
 
 # Markdown image link (the only image-URL form we trust).
@@ -59,6 +59,7 @@ class PictureProcessor(BaseModule):
             return []
         stream = doc.stream(self.LINES_STREAM)
         by_id = self.build_line_index(doc)
+        source = doc.meta.get("source", "mathpix")
         items: list[dict[str, Any]] = []
 
         for anchor in stream.anchors:
@@ -67,13 +68,13 @@ class PictureProcessor(BaseModule):
             if ltype in _SKIP_TYPES:
                 continue
             if ltype == "figure":
-                items.extend(self._from_figure_line(anchor, payload, by_id))
+                items.extend(self._from_figure_line(anchor, payload, by_id, source))
             else:
                 items.extend(self._from_inline(anchor, payload))
         return items
 
     @staticmethod
-    def _from_figure_line(anchor, payload, by_id) -> list[dict[str, Any]]:
+    def _from_figure_line(anchor, payload, by_id, source="mathpix") -> list[dict[str, Any]]:
         text = payload.get("text_display") or payload.get("text") or ""
         # Caption from a child of type='caption', else from a \caption{} in the
         # line's own figure-env text.
@@ -88,7 +89,7 @@ class PictureProcessor(BaseModule):
         # Markdown link only: the page image + rectangle from this line's own
         # region (NOT the \includegraphics target).
         region = payload.get("region") or {}
-        url = crop_url(payload.get("_image_id"), region)
+        url = image_ref(payload.get("_image_id"), region, source)
         if not url:
             return []
         return [{

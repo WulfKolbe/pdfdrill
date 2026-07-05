@@ -22,7 +22,7 @@ from typing import Any, Optional
 
 from ..base_module import BaseModule
 from ..core import Document, DocObject, Realization, Range, Alignment
-from ..mathpix import crop_url
+from ..mathpix import crop_url, image_ref
 
 
 _OUT_DOLLAR = re.compile(r"^\$\$([\s\S]*)\$\$$")
@@ -149,7 +149,10 @@ class EquationProcessor(BaseModule):
                 "page": item["page"],
                 "image_id": item["image_id"],
                 "region": item["region"],
-                "cdn_url": crop_url(item["image_id"], item["region"]),
+                # source-aware crop: MathPix pixels via cdn.mathpix.com, or OUR
+                # local pyramid in PDF points (pdfminer/DRILLPDFse) — never mixed.
+                "cdn_url": image_ref(item["image_id"], item["region"],
+                                     doc.meta.get("source", "mathpix")),
                 "bibkey": self.bibkey,
             },
         )

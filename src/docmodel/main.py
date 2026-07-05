@@ -46,6 +46,12 @@ def run(
     doc = Document()
     doc.meta["bibkey"] = bibkey
     doc.meta["source_path"] = lines_path
+    # The producer of this lines.json (mathpix / tesseract / pdfminer / …). It
+    # selects the IMAGE-CROP coordinate system downstream: MathPix regions are
+    # page-image PIXELS served from cdn.mathpix.com; a pdfminer lines.json (our
+    # DRILLPDFse route) carries regions in PDF POINTS served from OUR local
+    # pyramid. No mixing — each source stays in its own coordinate system.
+    doc.meta["source"] = lines_json.get("source") or "mathpix"
     ingest_lines_json(doc, lines_json)
     print(
         f"[main] ingested {len(doc.stream('mathpix_lines'))} lines "

@@ -212,8 +212,14 @@ class Server:
             raise ValueError("no rectangle: need top_left_x/top_left_y/width/height "
                              "or a lines.json region for this image_id")
 
-        # --- scale MathPix px -> pyramid px ---
-        if page in self.index.dims:
+        # --- scale coords -> pyramid px ---
+        # OUR coordinate system: `units=pt` means the rect is in PDF POINTS
+        # (top-left, y-down — pdfminer / DRILLPDFse). Points -> pyramid px is
+        # exactly pyramid_dpi/72; the MathPix pixel path is never consulted, so
+        # the two systems don't mix.
+        if qs.get("units", [""])[0] == "pt":
+            sx = sy = self.pyramid_dpi / 72.0
+        elif page in self.index.dims:
             mw, mh = self.index.dims[page]
             sx, sy = pyr.W / mw, pyr.H / mh
         elif self.mathpix_dpi:
