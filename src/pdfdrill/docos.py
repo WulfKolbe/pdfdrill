@@ -34,7 +34,10 @@ def state_path() -> Path:
     if env:
         return Path(env).expanduser()
     from . import config
-    return config.config_path().parent / "docos.json"
+    # config_path() is None when no config file exists yet — fall back to the
+    # DEFAULT config dir (the sandbox `docos`-with-no-config crash).
+    cfg = config.config_path() or config.DEFAULT_PATH
+    return cfg.parent / "docos.json"
 
 
 @dataclass

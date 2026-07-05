@@ -19,6 +19,17 @@ def _mkfiles(d, names):
         (Path(d) / n).write_bytes(b"%PDF-1.4" if n.endswith(".pdf") else b"x")
 
 
+def test_state_path_when_no_config_file(monkeypatch):
+    """Sandbox crash: `pdfdrill docos` died with 'NoneType has no attribute
+    parent' when no config file exists — config.config_path() is None. state_path
+    must fall back to the default config dir, not crash."""
+    monkeypatch.delenv("PDFDRILL_DOCOS_STATE", raising=False)
+    from pdfdrill import config
+    monkeypatch.setattr(config, "config_path", lambda: None)
+    p = docos.state_path()                      # must not raise
+    assert p.name == "docos.json"
+
+
 def test_cd_and_add_glob():
     with tempfile.TemporaryDirectory() as d:
         _mkfiles(d, ["a.pdf", "b.pdf", "notes.txt"])

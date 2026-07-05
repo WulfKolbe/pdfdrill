@@ -191,10 +191,69 @@ def _format_mathpix(result: dict, files_meta: list[dict]) -> str:
 # Unified model + comparison
 # ---------------------------------------------------------------------------
 
+def _display_path(path: Path, base: Path) -> Path:
+    """`path` shown relative to `base` when possible, else `path` unchanged.
+    Never raises — Sidecar absolutizes pdf_path while a relative CLI arg leaves
+    the base as '.', which would make `Path.relative_to` throw ValueError."""
+    try:
+        return path.relative_to(base)
+    except (ValueError, TypeError):
+        return path
+
+
 def _lines_json_path(pdf: Path) -> Path:
     """Path MathPix lines.json would occupy next to the PDF."""
     base = pdf.name[:-4] if pdf.name.lower().endswith(".pdf") else pdf.name
     return pdf.parent / f"{base}.lines.json"
+
+
+# Keyless, TEXT-only build sources (no LaTeX/math typing): tesseract OCR and the
+# pdfplumber born-digital text layer. The math-bearing gate treats both alike.
+_KEYLESS_TEXTONLY_SOURCES = ("tesseract", "pdfplumber-chars")
+
+
+def _is_keyless_textonly_source(source: str) -> bool:
+    return source in _KEYLESS_TEXTONLY_SOURCES
+
+
+def _pdfplumber_char_dump(pdf: Path) -> dict:
+    """Extract a pdfplumber CHARACTER dump (PDF bottom-left origin) — the input
+    `chars_to_lines` expects. Thin wrapper so it can be monkeypatched in tests."""
+    import pdfplumber
+    pages = []
+    with pdfplumber.open(str(pdf)) as doc:
+        for i, page in enumerate(doc.pages, 1):
+            pages.append({
+                "page_number": i,
+                "width": float(page.width),
+                "height": float(page.height),
+                "chars": [{"x0": float(c["x0"]), "x1": float(c["x1"]),
+                           "y0": float(c["y0"]), "y1": float(c["y1"]),
+                           "text": c.get("text", "")} for c in page.chars],
+            })
+    return {"source": "pdfplumber-chars", "total_pages": len(pages), "pages": pages}
+
+
+def _write_born_digital_lines(pdf: Path) -> bool:
+    """Born-digital TEXT-LAYER route: read the PDF's own text layer with
+    pdfplumber and write a MathPix-shape `<stem>.lines.json` (source
+    `pdfplumber-chars`). FREE and fast — no MathPix, no OCR. Returns False when
+    there is effectively no text layer (a scan → let OCR handle it) or pdfplumber
+    fails, so the caller falls through to tesseract. This is what `route`'s
+    "born-digital → text-layer (free)" promise resolves to inside `model`."""
+    from . import chars_to_lines
+    try:
+        data = _pdfplumber_char_dump(pdf)
+    except Exception:                                # noqa: BLE001
+        return False
+    if sum(len(p.get("chars", [])) for p in data.get("pages", [])) < 20:
+        return False                                 # no real text layer → OCR
+    try:
+        lines = chars_to_lines.chars_to_lines_json(data)
+        _lines_json_path(pdf).write_text(json.dumps(lines), encoding="utf-8")
+    except Exception:                                # noqa: BLE001
+        return False
+    return True
 
 
 def _model_path(sc: Sidecar) -> Path:
@@ -2200,15 +2259,19 @@ def cmd_model(pdf: Path, force: bool = False, bibkey: str | None = None) -> str:
             built = _build_arxiv_source_model(pdf, sc, key, model_path)
             if built:
                 return built
-            from .ocr_lines import tools_available
-            if tools_available()[0]:
-                cmd_ocr(pdf)
-                sc = Sidecar(pdf)
+            # Born-digital TEXT-LAYER route (pdfplumber chars → lines.json):
+            # FREE and fast, what `route` promises. Only tesseract-OCR a genuine
+            # SCAN (no text layer → _write_born_digital_lines returns False).
+            if not _write_born_digital_lines(pdf):
+                from .ocr_lines import tools_available
+                if tools_available()[0]:
+                    cmd_ocr(pdf)
+            sc = Sidecar(pdf)
     if not lines_path.exists():
-        return (f"No lines.json for {pdf.name}: MathPix is unavailable (no "
-                f"creds, or its host is blocked in this sandbox) and tesseract "
-                f"OCR is not installed. Provide a lines.json, set MathPix creds, "
-                f"or install poppler-utils + tesseract-ocr and run "
+        return (f"No lines.json for {pdf.name}: it has no born-digital text layer "
+                f"(a scan), MathPix is unavailable (no creds / blocked host), and "
+                f"tesseract OCR is not installed. Provide a lines.json, set MathPix "
+                f"creds, or install ghostscript + tesseract-ocr and run "
                 f"`pdfdrill ocr {pdf.name}`.")
 
     sc.blob_dir.mkdir(parents=True, exist_ok=True)
@@ -2248,16 +2311,19 @@ def cmd_model(pdf: Path, force: bool = False, bibkey: str | None = None) -> str:
     # a doc that clearly carries math is a FAILURE, not a result. Don't present it
     # as complete — flag NEEDS_VISION_OCR and instruct the keyless delegation
     # route (visionocr). The MathPix path and non-math docs are untouched.
-    if by_type.get("Equation", 0) == 0 and _lines_json_source(lines_path) == "tesseract":
+    if by_type.get("Equation", 0) == 0 and _is_keyless_textonly_source(_lines_json_source(lines_path)):
         from . import mathqc, llm_delegate as _D
         bearing, reason = mathqc.is_math_bearing(pdf, sc)
         if bearing:
             sc.add_fact(NEEDS_VISION_OCR)
             sc.save()
             n_para = by_type.get("Paragraph", 0)
+            src = _lines_json_source(lines_path)
+            how = ("the born-digital text layer (pdfplumber)"
+                   if src == "pdfplumber-chars" else "tesseract OCR")
             base = (f"{pdf.name} is math-bearing ({reason}) but was built from "
-                    f"tesseract OCR with no MathPix key — tesseract cannot type "
-                    f"equations, so this model has {n_para} Paragraph and 0 "
+                    f"{how} with no MathPix key — that route captures prose, not "
+                    f"typed equations, so this model has {n_para} Paragraph and 0 "
                     f"Equation. ")
             rt = _D.detect_runtime()
             if rt is _D.Runtime.NONE:
@@ -4066,7 +4132,7 @@ def cmd_svg(target: Path, limit: int | None = None, force: bool = False) -> str:
             f"({total_svg} now have an SVG). SVGs stored on the model "
             f"(props['svg']); `pdfdrill report {target.name}` embeds them inline."
             + (f" The exact compiled .tex (+ latex .log for any failure) is in "
-               f"{debug_dir.relative_to(target.parent) if sc is not None else debug_dir}/ "
+               f"{_display_path(debug_dir, sc.pdf_path.parent) if sc is not None else debug_dir}/ "
                f"— open in a LaTeX editor (Gummi) to debug." if todo else "")
             + (f" Re-run with --force to retry the {errors} that failed." if errors else ""))
 

@@ -662,8 +662,9 @@ commands:
   typed: true
 - name: model
   section: Introspection (fast, no extraction)
-  summary: Build unified docmodel from lines.json (auto-chains mathpix, falls back to tesseract ocr if
-    no MathPix); --bibkey KEY sets the tiddler prefix (persisted)
+  summary: 'Build unified docmodel from lines.json. No lines.json → MathPix (if key) → arXiv LaTeX
+    source (arXiv) → born-digital text layer (pdfplumber, FREE/fast) → tesseract OCR (scans only).
+    --bibkey KEY sets the tiddler prefix (persisted)'
   offline_ok: true
   positionals:
   - name: pdf

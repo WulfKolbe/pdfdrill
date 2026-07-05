@@ -47,7 +47,7 @@ Introspection (fast, no extraction):
   pdfdrill formfields <pdf>                   Read interactive AcroForm field values (pypdf get_fields): name/value/type/options. For government/Formulare PDFs
   pdfdrill extractimages <pdf> [--pages PAGES] [--all-formats] Extract embedded raster image BYTES to files (pdfimages); tiny masks/decorative <1KB filtered
   pdfdrill tables <pdf> [--pages PAGES]       Extract tables KEYLESS offline (pdfplumber extract_tables) → tables.json + tables.md; --pages N-M
-  pdfdrill model <pdf> [--bibkey BIBKEY]      Build unified docmodel from lines.json (auto-chains mathpix, falls back to tesseract ocr if no MathPix); --bibkey KEY sets the tiddler prefix (persisted)
+  pdfdrill model <pdf> [--bibkey BIBKEY]      Build unified docmodel from lines.json. No lines.json → MathPix (if key) → arXiv LaTeX source (arXiv) → born-digital text layer (pdfplumber, FREE/fast) → tesseract OCR (scans only). --bibkey KEY sets the tiddler prefix (persisted)
   pdfdrill compare <pdf>                      LaTeX | KaTeX | MathPix-image comparison HTML (auto-chains model)
   pdfdrill snip <pdf> [--image IMAGE] [--page PAGE] [--rect RECT] [--limit LIMIT] [--force] [--gemma] [--provider PROVIDER] OCR each equation/table crop → competing column. THE STATE MACHINE picks the provider (vision_router: MathPix when keyed — native promptless OCR — else the cheap Gemma-4 vision route on Novita); --gemma/--provider remain explicit overrides. --limit N
   pdfdrill candidates <pdf> [--provider PROVIDER] [--limit LIMIT] [--out OUT] Export equation crops as a manifest for an LLM to read; --provider P --limit N
