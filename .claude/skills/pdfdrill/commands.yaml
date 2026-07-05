@@ -58,6 +58,23 @@ commands:
     required: true
     help: PDF path, https URL, or bare arXiv id
   typed: true
+- name: ls
+  section: Introspection (fast, no extraction)
+  summary: 'Shallow-scan a FOLDER: run pdfinfo (size) on every PDF, store it in each file''s sidecar,
+    and report a compact table led by the PRODUCER (the triage signal). The cheapest rung over a
+    whole directory; size is cached so re-running is fast. --images adds the pdfimages count.'
+  offline_ok: true
+  positionals:
+  - name: dir
+    type: str
+    required: false
+    help: folder to scan (default the current directory)
+  flags:
+  - name: images
+    type: flag
+    flag: --images
+    help: add the pdfimages -list count column
+  typed: true
 - name: route
   section: Introspection (fast, no extraction)
   summary: 'Auto-pick the OCR lane and (with --run) EXECUTE it: born-digital → pdfminer/text-layer

@@ -415,6 +415,10 @@ def _repl_help(cmds: dict) -> str:
         "  artifacts (list every drill file as a clickable Outputs link)  …\n"
         f"  ({n} pdfdrill commands available; a leading '!' also forces command mode)\n"
         "Meta-commands:\n"
+        "  pwd                       show the working directory\n"
+        "  cd <dir>                  change the working directory (for ls / relative add)\n"
+        "  ls [--images]             shallow-scan the folder: pdfinfo every PDF →\n"
+        "                            sidecar, table led by PRODUCER (the triage signal)\n"
         "  add <pdf|url|id> [more…]   add one or many docs (space-separated)\n"
         "  add \"name with blanks.pdf\"  quote a path with spaces/parens — or paste it\n"
         "                            unquoted: an existing file wins over splitting\n"
@@ -542,6 +546,10 @@ def main() -> int:
     target = args.doc                       # retrieval target (doc / combined store / None)
     combined = None                         # the combined-store path once >1 doc
     store_dir = query_download_dir(base, env, args.timeout)   # stable home for the session store
+    # Working directory for `ls` and relative `add` (Unix-shell style). Starts at
+    # the launch doc's folder, else the session store dir, else the process cwd.
+    cwd = (os.path.dirname(os.path.abspath(args.doc)) if args.doc
+           else (store_dir or os.getcwd()))
     while True:
         try:
             line = input("\n? ").strip()
@@ -558,8 +566,32 @@ def main() -> int:
         if line in (":commands", ":cmds", "commands"):
             print("  ".join(sorted(cmds)) or "(command list unavailable)")
             continue
-        # add <doc>: drill it and merge into the live context (multi-document).
+        # Unix-shell navigation for the shallow driller: pwd / cd / ls.
         parts = line.split(None, 1)
+        verb = parts[0].lstrip(":").lower()
+        if verb == "pwd":
+            print(f"  {cwd}")
+            continue
+        if verb == "cd":
+            arg = parts[1].strip().strip('"\'') if len(parts) > 1 else "~"
+            newcwd = os.path.abspath(os.path.join(
+                cwd, os.path.expandvars(os.path.expanduser(arg))))
+            if os.path.isdir(newcwd):
+                cwd = newcwd
+                print(f"  {cwd}")
+            else:
+                print(f"  no such directory: {newcwd}", file=sys.stderr)
+            continue
+        if verb == "ls":
+            # shallow-drill the cwd: pdfdrill ls <cwd> (pdfinfo → sidecar, producer)
+            extra = ["--images"] if len(parts) > 1 and "--images" in parts[1] else []
+            try:
+                print(_run(base + ["ls", cwd, *extra], env,
+                           timeout=max(args.timeout, 300.0)))
+            except Exception as e:                          # noqa: BLE001
+                print(f"  ls failed: {e}", file=sys.stderr)
+            continue
+        # add <doc>: drill it and merge into the live context (multi-document).
         if parts[0].lstrip(":").lower() == "add":
             spec = parts[1].strip() if len(parts) > 1 else ""
             if not spec:
@@ -569,6 +601,12 @@ def main() -> int:
             if not newdocs:
                 print("  nothing to add.")
                 continue
+            # resolve a RELATIVE local path against the shell's cwd (so `cd data`
+            # then `add paper.pdf` works); URLs / arxiv ids / absolute paths pass
+            # through untouched.
+            newdocs = [d if (d.startswith(("http://", "https://")) or os.path.isabs(
+                       os.path.expanduser(d)) or not os.path.exists(os.path.join(cwd, d)))
+                       else os.path.join(cwd, d) for d in newdocs]
             target, combined = do_add_many(base, env, newdocs, docs, combined,
                                            args.timeout, store_dir)
             continue

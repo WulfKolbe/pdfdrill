@@ -6708,6 +6708,83 @@ def _execute_lane(pdf: Path, d) -> str:
     return head + "unclassified — run `pdfdrill size` first."
 
 
+def _pdfimages_count(pdf: Path, sc: "Sidecar") -> int:
+    """Number of embedded raster images (`pdfimages -list` rows), cached in the
+    sidecar. Returns -1 when pdfimages is unavailable."""
+    cached = sc.get_evidence("image_count")
+    if cached is not None:
+        return cached
+    try:
+        out = subprocess.run(["pdfimages", "-list", str(pdf)],
+                             capture_output=True, text=True, timeout=60)
+        rows = out.stdout.strip().splitlines()
+        n = max(0, len(rows) - 2)          # minus 2 header rows
+    except Exception:                        # noqa: BLE001
+        n = -1
+    sc.set_evidence("image_count", n)
+    sc.save()
+    return n
+
+
+def _format_ls(rows: list, images: bool) -> str:
+    """Compact shallow-scan table, led by the PRODUCER (the triage signal)."""
+    if not rows:
+        return "No PDFs."
+    hdr = f"{'file':<40} {'pages':>5} {'MB':>6}  {'text?':<7} producer"
+    if images:
+        hdr = (f"{'file':<40} {'pages':>5} {'MB':>6}  {'text?':<7} {'imgs':>5}  "
+               f"producer")
+    lines = [hdr, "-" * len(hdr)]
+    for r in rows:
+        tl = r.get("text")
+        text = "text" if tl else ("NO text/scan" if tl is False else "?")
+        prod = (r.get("producer") or "—")[:48]
+        cols = (f"{r['name'][:40]:<40} {r.get('pages', 0):>5} "
+                f"{r.get('mb', 0):>6.1f}  {text:<7} ")
+        if images:
+            n = r.get("images")
+            cols += f"{('—' if n in (None, -1) else n):>5}  "
+        lines.append(cols + prod)
+    return "\n".join(lines)
+
+
+def cmd_ls(directory: Path, images: bool = False) -> str:
+    """Shallow-scan a folder: run pdfinfo (`size`) on every PDF, store it in each
+    file's sidecar, and report a compact table led by the PRODUCER.
+
+    The shallowest drill rung — the cheapest useful pass over a whole directory
+    before deciding which files deserve a deeper drill. `size` is cached, so
+    re-running `ls` is fast. `--images` adds the `pdfimages -list` count.
+    """
+    d = Path(directory)
+    if not d.is_dir():
+        return f"Not a directory: {d}"
+    pdfs = sorted(p for p in d.glob("*.pdf") if p.is_file())
+    if not pdfs:
+        return f"No PDFs in {d}."
+    rows = []
+    for pdf in pdfs:
+        try:
+            cmd_size(pdf)                    # idempotent: pdfinfo → sidecar
+        except Exception:                    # noqa: BLE001
+            pass
+        sc = Sidecar(pdf)
+        row = {
+            "name": pdf.name,
+            "pages": sc.get_evidence("pages", 0),
+            "mb": (sc.file_size or pdf.stat().st_size) / 1_000_000,
+            "text": sc.get_evidence("text_layer"),
+            "producer": sc.get_evidence("producer", ""),
+        }
+        if images:
+            row["images"] = _pdfimages_count(pdf, sc)
+        rows.append(row)
+    n_scan = sum(1 for r in rows if r["text"] is False)
+    head = (f"{len(pdfs)} PDF(s) in {d} — {n_scan} scanned (need OCR), "
+            f"{len(pdfs) - n_scan} with a text layer.\n")
+    return head + _format_ls(rows, images)
+
+
 def cmd_route(pdf: Path, run: bool = False) -> str:
     """Pick the OCR-lane automatically and, with --run, EXECUTE it.
 

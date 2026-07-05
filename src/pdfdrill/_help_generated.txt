@@ -13,6 +13,7 @@ Introspection (fast, no extraction):
   pdfdrill config [--init] [--json] [--download-dir] Show / init the config FILE (not CLI flags): where URL/arXiv downloads + each doc's .drill folder land (default ~/Downloads). --init writes ~/.config/pdfdrill/config.json; --json; --download-dir
   pdfdrill artifacts <pdf> [--all]            List the openable files in the doc's drill folder (report.html, the extracted <bibkey>.md, tiddlers/semantic/llm *.json/*.txt, SVGs) with paths — clickable in the drillui Outputs panel. Giant model JSON hidden unless --all. (`status` also lists them.)
   pdfdrill size <pdf>                         File size, page count, producer
+  pdfdrill ls <dir> [--images]                Shallow-scan a FOLDER: run pdfinfo (size) on every PDF, store it in each file's sidecar, and report a compact table led by the PRODUCER (the triage signal). The cheapest rung over a whole directory; size is cached so re-running is fast. --images adds the pdfimages count.
   pdfdrill route <pdf> [--run]                Auto-pick the OCR lane and (with --run) EXECUTE it: born-digital → pdfminer/text-layer (free); scanned & ≤20 pages → Gemma 4 (5-parallel); scanned & larger → MathPix (large books). Auto-chains size. Without --run reports the decision; with --run runs the chosen lane (paid/keyed lanes degrade gracefully when creds are absent).
   pdfdrill abstract <pdf>                     Abstract from first pages
   pdfdrill toc <pdf>                          Table of contents

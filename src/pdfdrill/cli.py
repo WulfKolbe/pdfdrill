@@ -163,6 +163,15 @@ def _do_route(args):
     return cmd_route(_pdf(pdf_args), run="--run" in args)
 
 
+def _do_ls(args):
+    """pdfdrill ls <dir> [--images] — shallow-scan a folder (pdfinfo → sidecar)."""
+    from .commands import cmd_ls
+    from pathlib import Path
+    rest = [a for a in args if a != "--images"]
+    directory = Path(rest[0]).expanduser() if rest else Path.cwd()
+    return cmd_ls(directory, images="--images" in args)
+
+
 def _do_abstract(args):
     from .commands import cmd_abstract
     return cmd_abstract(_pdf(args))
@@ -1347,6 +1356,7 @@ HANDLERS = {
         "artifacts": _do_artifacts,
         "size": _do_size,
         "route": _do_route,
+        "ls": _do_ls,
         "abstract": _do_abstract,
         "toc": _do_toc,
         "fonts": _do_fonts,
