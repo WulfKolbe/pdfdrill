@@ -96,6 +96,13 @@ def _pdf(args: list[str]) -> Path:
         return p
     p = Path(arg)
     if not p.exists():
+        # a path pasted from a rendered page / chat widget may carry a trailing
+        # NBSP/zero-width char, an NFD-decomposed accent, or percent-encoding —
+        # resolve those battle-proven variants before giving up ("first not
+        # found, then found" on a clean retype).
+        fixed = sources.existing_local_path(arg)
+        if fixed is not None:
+            return fixed
         raise FileNotFoundError(f"Not found: {p}")
     return p
 

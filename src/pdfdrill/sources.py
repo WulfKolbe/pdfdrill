@@ -21,11 +21,65 @@ from __future__ import annotations
 
 import re
 import shutil
+import unicodedata
 from pathlib import Path
 from typing import Optional
-from urllib.parse import urlparse
+from urllib.parse import unquote, urlparse
 
 from . import net
+
+# Invisible/whitespace codepoints a paste from a rendered page or a chat widget
+# can silently append to a filename (a trailing NBSP, zero-width space, BOM, or
+# bidi mark), making Path.exists() fail on the first try and succeed on a clean
+# retype — the "first not found, then found" symptom.
+_INVISIBLE = "".join(chr(c) for c in (
+    0x09, 0x0A, 0x0D, 0x20, 0xA0, 0x200B, 0x200C, 0x200D, 0x200E, 0x200F,
+    0x202A, 0x202B, 0x202C, 0x202D, 0x202E, 0x2060, 0xFEFF))
+
+
+def _path_variants(arg: str):
+    """Yield plausible on-disk spellings of a pasted local path, most-literal
+    first: as-is, trimmed of invisible/whitespace junk, Unicode NFC/NFD
+    normalized (macOS pastes decomposed accents; Linux disks are usually NFC),
+    and percent-decoded (a copied URL fragment: %20 -> space, %c3%bc -> umlaut).
+    Battle-proven stdlib only (unicodedata + urllib.parse.unquote)."""
+    seen: set = set()
+
+    def emit(s: str):
+        if s and s not in seen:
+            seen.add(s)
+            return True
+        return False
+
+    bases = [arg, arg.strip().strip(_INVISIBLE)]
+    for b in list(bases):
+        if "%" in b:
+            bases.append(unquote(b))
+            bases.append(unquote(b).strip().strip(_INVISIBLE))
+    out = []
+    for b in bases:
+        for form in (b, unicodedata.normalize("NFC", b),
+                     unicodedata.normalize("NFD", b)):
+            if emit(form):
+                out.append(form)
+    return out
+
+
+def existing_local_path(arg: str) -> Optional[Path]:
+    """Return the real Path for a pasted LOCAL path — trying invisible-char
+    trimming, Unicode NFC/NFD normalization, and percent-decoding — or None when
+    nothing on disk matches (never invents a file). URLs / bare ids yield None.
+    This is what makes `pdfdrill <cmd> "<pasted name>"` robust to copy artifacts."""
+    if is_url(arg):
+        return None
+    for cand in _path_variants(arg):
+        try:
+            p = Path(cand).expanduser()
+        except (ValueError, OSError):
+            continue
+        if p.exists():
+            return p
+    return None
 
 # host substring (after stripping a leading www.) → source kind
 KNOWN_HOSTS = {
@@ -169,7 +223,9 @@ def download_arxiv_source(arxiv_id: str, dest_dir: Path) -> Path:
 
 
 def _safe_filename(url: str) -> str:
-    name = Path(urlparse(url).path).name or "download"
+    # percent-decode first so "The%20C%2B%2B.pdf" → "The C++.pdf" → a readable,
+    # filesystem-safe "The_C___.pdf" rather than "The_20C_2B_2B.pdf".
+    name = Path(urlparse(unquote(url)).path).name or "download"
     if not name.lower().endswith(".pdf"):
         name += ".pdf"
     return re.sub(r"[^\w.\-]", "_", name)
@@ -217,9 +273,11 @@ def resolve_input(arg: str, dest_dir: Optional[Path] = None) -> dict:
         # expand `~`/`~user` ($HOME shorthand) so `~/x.pdf` resolves like the
         # absolute path; harmless on a bare arXiv id (no leading ~).
         arg = str(Path(arg).expanduser())
-        # a real local file always wins (even if it is named like an arXiv id)
-        if Path(arg).exists():
-            return {"path": Path(arg), "source": None, "arxiv_id": None}
+        # a real local file always wins (even if it is named like an arXiv id) —
+        # resolving paste artifacts (invisible chars / NFD accents / %-encoding)
+        local = Path(arg) if Path(arg).exists() else existing_local_path(arg)
+        if local is not None:
+            return {"path": local, "source": None, "arxiv_id": None}
         # otherwise a BARE arXiv id is downloaded as arXiv (the skill gotcha fix)
         arxiv_id = bare_arxiv_id(arg)
         if arxiv_id:

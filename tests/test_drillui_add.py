@@ -52,25 +52,27 @@ def test_quoted_path_plus_more_docs():
     assert out == [NASTY, "other.pdf"]
 
 
-def test_suggest_path_repairs_case_and_char_typos():
-    """The Axe case: 'DownLoads/axe-fx-2/Axe-Fx-II-0wners-Manual.pdf' (capital L
-    + zero-for-O) must repair to the real Downloads/.../Axe-Fx-II-Owners-Manual.pdf."""
+def test_existing_local_resolves_paste_artifacts():
+    """DETERMINISTIC normalization only (no fuzzy guessing): a trailing NBSP and
+    a percent-encoded name resolve to the real file; a genuinely-absent path and
+    a URL yield None (never a different filename)."""
     with tempfile.TemporaryDirectory() as d:
-        real = Path(d) / "Downloads" / "axe-fx-2" / "Axe-Fx-II-Owners-Manual.pdf"
-        real.parent.mkdir(parents=True)
+        real = Path(d) / "Übungsbuch für Dummies.pdf"
         real.write_bytes(b"%PDF-1.4")
-        typo = str(Path(d) / "DownLoads" / "axe-fx-2" / "Axe-Fx-II-0wners-Manual.pdf")
-        fixed = dc._suggest_path(typo)
-        assert fixed is not None and Path(fixed) == real, fixed
+        assert dc._existing_local(str(real) + chr(0xA0)) == str(real)   # trailing NBSP
+        enc = str(Path(d)) + "/%C3%9Cbungsbuch%20f%C3%BCr%20Dummies.pdf"
+        assert dc._existing_local(enc) == str(real)                     # %-encoded
+        assert dc._existing_local(str(Path(d) / "nope.pdf")) is None    # absent
+        assert dc._existing_local("https://example.com/x.pdf") is None  # URL
 
 
-def test_suggest_path_none_when_exists_or_absent():
+def test_repair_local_doc_passes_through_correct_and_missing():
     with tempfile.TemporaryDirectory() as d:
         p = Path(d) / "real.pdf"
         p.write_bytes(b"%PDF-1.4")
-        assert dc._suggest_path(str(p)) is None            # exact hit → no suggestion
-        # nothing remotely close → None (never invents a file)
-        assert dc._suggest_path(str(Path(d) / "totally_unrelated_zzzzz.pdf")) is None
+        assert dc._repair_local_doc(str(p)) == str(p)      # exact hit unchanged
+        miss = str(Path(d) / "definitely-not-here.pdf")
+        assert dc._repair_local_doc(miss) == miss          # absent → unchanged
 
 
 if __name__ == "__main__":

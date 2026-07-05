@@ -296,47 +296,50 @@ def _expand_add_spec(spec: str) -> list:
     return out
 
 
-def _suggest_path(path: str) -> str | None:
-    """Repair a mistyped LOCAL path segment by segment: at each level, if the
-    exact segment is absent, take a case-insensitive match (`DownLoads`→
-    `Downloads`) else the closest fuzzy match (`Axe-Fx-II-0wners-Manual.pdf`→
-    `…-Owners-Manual.pdf`, difflib cutoff 0.7). Returns the repaired path when it
-    exists and differs from the input, else None (never invents a file). A URL /
-    bare id has no separator to walk, so it yields None."""
-    import difflib
-    p = os.path.expandvars(os.path.expanduser(path))
-    if os.path.exists(p) or p.startswith(("http://", "https://")):
+# Invisible/whitespace codepoints a paste from a rendered page or chat widget
+# can silently append (trailing NBSP, zero-width space, BOM, bidi marks) — the
+# "first not found, then found" symptom. Mirrors sources._INVISIBLE, but drillui
+# never imports pdfdrill (subprocess-only), so it carries its own copy.
+_INVISIBLE = "".join(chr(c) for c in (
+    0x09, 0x0A, 0x0D, 0x20, 0xA0, 0x200B, 0x200C, 0x200D, 0x200E, 0x200F,
+    0x202A, 0x202B, 0x202C, 0x202D, 0x202E, 0x2060, 0xFEFF))
+
+
+def _existing_local(path: str) -> str | None:
+    """The real on-disk path for a pasted LOCAL path, resolving DETERMINISTIC
+    paste artifacts only — invisible/whitespace trimming, Unicode NFC/NFD
+    normalization, and percent-decoding (%20→space, %c3%bc→umlaut). Returns None
+    when nothing matches (never guesses a different filename). URLs yield None."""
+    import unicodedata
+    import urllib.parse
+    if path.startswith(("http://", "https://")):
         return None
-    cur = os.sep if os.path.isabs(p) else "."
-    segs = [s for s in p.split(os.sep) if s]
-    for seg in segs:
-        cand = os.path.join(cur, seg)
-        if os.path.exists(cand):
-            cur = cand
-            continue
-        try:
-            entries = os.listdir(cur)
-        except OSError:
-            return None
-        low = {e.lower(): e for e in entries}
-        match = low.get(seg.lower())
-        if match is None:
-            close = difflib.get_close_matches(seg, entries, n=1, cutoff=0.7)
-            match = close[0] if close else None
-        if match is None:
-            return None
-        cur = os.path.join(cur, match)
-    if os.path.exists(cur) and os.path.abspath(cur) != os.path.abspath(p):
-        return cur
+    bases = [path, path.strip().strip(_INVISIBLE)]
+    for b in list(bases):
+        if "%" in b:
+            bases.append(urllib.parse.unquote(b).strip().strip(_INVISIBLE))
+    seen = set()
+    for b in bases:
+        for form in (b, unicodedata.normalize("NFC", b),
+                     unicodedata.normalize("NFD", b)):
+            if form in seen:
+                continue
+            seen.add(form)
+            p = os.path.expandvars(os.path.expanduser(form))
+            if os.path.exists(p):
+                return p
     return None
 
 
 def _repair_local_doc(newdoc: str) -> str:
-    """If `newdoc` is a missing local path with a close on-disk match, print the
-    correction and return the repaired path; otherwise return it unchanged."""
-    fixed = _suggest_path(newdoc)
-    if fixed:
-        print(f"  no file at {newdoc}\n  → using {fixed} (closest match).")
+    """If `newdoc` is a missing local path whose paste-normalized form exists,
+    print the correction and return that real path; otherwise return it
+    unchanged (a URL/bare id / genuinely-absent path passes through)."""
+    if os.path.exists(os.path.expandvars(os.path.expanduser(newdoc))):
+        return newdoc
+    fixed = _existing_local(newdoc)
+    if fixed and os.path.abspath(fixed) != os.path.abspath(newdoc):
+        print(f"  (normalized a pasted path → {fixed})")
         return fixed
     return newdoc
 
