@@ -64,7 +64,8 @@ def is_math_bearing(pdf, sc) -> "tuple[bool, str]":
     result. Returns (True, reason) when ANY signal fires, reusing existing layers
     with no new heavy deps:
 
-      - math fonts in the font layer (CMEX/CMMI/CMSY/MSAM/MSBM/Symbol/…);
+      - math fonts in the font layer (CMEX/CMMI/CMSY/MSAM/MSBM/MTExtra/…; the
+        ubiquitous Adobe "Symbol" font is NOT counted — too many false positives);
       - an `equation.*` named destination (pdfinfo -dests);
       - display math ($$ / \\[) recorded by a prior `md` layer (cached only);
       - right-margin equation-number tokens from a prior `geometry` pass (cached).

@@ -33,8 +33,13 @@ from typing import Any
 # pdffonts parsing
 # ---------------------------------------------------------------------------
 
+# RELIABLE math-font hints. NOTE: bare "symbol" is deliberately NOT here — the
+# Adobe Symbol font is ubiquitous in ordinary Word/Office docs (bullets, arrows,
+# ™, stray Greek) and false-positived non-math manuals as math-bearing. The real
+# MathType / Word Equation Editor companion is "MT Extra" (mtextra), which IS a
+# reliable signal, so it's included instead.
 _MATH_FONT_HINTS = (
-    "math", "msbm", "msam", "eufm", "cmsy", "cmmi", "cmex", "symbol",
+    "math", "msbm", "msam", "eufm", "cmsy", "cmmi", "cmex", "mtextra", "mt-extra",
     "mt2mi", "mt2sy", "newpxmi", "pxsy", "stixmath", "rsfs", "mathpi",
 )
 
