@@ -697,6 +697,30 @@ def cmd_pageside(pdf: Path) -> str:
               "({:.0f} ms).".format((time.monotonic() - t0) * 1000))
 
 
+def _born_digital_scan_guard(pdf: Path, cmd: str) -> "str | None":
+    """Scan-triage commands (continuity/ordered/autosegment) OCR every page to
+    segment a SCANNED multi-document bundle. On a BORN-DIGITAL doc (a text layer)
+    that's semantically wrong and slow (a 200-page OCR that times out). Returns a
+    clear skip message when the doc is born-digital, else None. Uses the cached
+    text-layer signal; probes cheaply if `size` never ran."""
+    sc = Sidecar(pdf)
+    tl = sc.get_evidence("text_layer")
+    if tl is None:
+        try:
+            tl, _, _ = _probe_text_layer(pdf)
+        except Exception:                            # noqa: BLE001
+            tl = None
+    if tl:
+        return (f"`{cmd}` is a SCAN-triage command — per-page OCR to segment a "
+                f"SCANNED multi-document bundle. {pdf.name} is BORN-DIGITAL (it "
+                f"has a text layer), so scan-artifact segmentation doesn't apply "
+                f"and would needlessly OCR every page. Use `pdfdrill model` + "
+                f"`booktoc`/`toc`/`llmtext` for its structure. (These triage "
+                f"commands are for scanned bundles like a shuffled stack of "
+                f"letters.)")
+    return None
+
+
 def cmd_continuity(pdf: Path, force: bool = False, ppi: int = 250,
                    lang: str = "deu+eng") -> str:
     """Recover page-continuity markers from the page MARGINS via full-page OCR.
@@ -710,6 +734,10 @@ def cmd_continuity(pdf: Path, force: bool = False, ppi: int = 250,
     `control_no`) — see `pdfdrill status`. Reuses the `ocr`/`geometry` plumbing;
     never routes through the MathPix crop. Cached in the sidecar.
     """
+    if not force:
+        guard = _born_digital_scan_guard(pdf, "continuity")
+        if guard:
+            return guard
     sc = Sidecar(pdf)
     data, err = _load_or_build_continuity(pdf, sc, force=force, ppi=ppi, lang=lang)
     if err:
@@ -1436,6 +1464,9 @@ def cmd_ordered(pdf: Path, threshold: float = 0.5) -> str:
     BibTeX-projectable. For a SHUFFLED bundle use `pdfdrill segment`, or let
     `pdfdrill autosegment` pick.
     """
+    guard = _born_digital_scan_guard(pdf, "ordered")
+    if guard:
+        return guard
     sc = Sidecar(pdf)
     try:
         page_text = _per_page_ocr_text(pdf, sc)
@@ -1449,6 +1480,9 @@ def cmd_autosegment(pdf: Path, threshold: float = 0.5) -> str:
     signature grouping. Decides from whether each document's pages form a
     contiguous run (ordered) or interleave (shuffled), then runs the right one.
     """
+    guard = _born_digital_scan_guard(pdf, "autosegment")
+    if guard:
+        return guard
     from . import continuity_scorer as csr
 
     sc = Sidecar(pdf)
