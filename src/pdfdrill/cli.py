@@ -157,6 +157,11 @@ def _do_size(args):
     return cmd_size(_pdf(args))
 
 
+def _do_route(args):
+    from .commands import cmd_route
+    return cmd_route(_pdf(args))
+
+
 def _do_abstract(args):
     from .commands import cmd_abstract
     return cmd_abstract(_pdf(args))
@@ -1340,6 +1345,7 @@ HANDLERS = {
         "config": _do_config,
         "artifacts": _do_artifacts,
         "size": _do_size,
+        "route": _do_route,
         "abstract": _do_abstract,
         "toc": _do_toc,
         "fonts": _do_fonts,

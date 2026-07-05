@@ -6652,14 +6652,49 @@ def cmd_size(pdf: Path) -> str:
     return _format_size(sc)
 
 
+def cmd_route(pdf: Path) -> str:
+    """Report the automatic OCR-lane decision for this PDF (read-only).
+
+    The state machine classifies the document from the cheap `size` signals and
+    picks the extraction lane — born-digital → pdfminer/text-layer (free);
+    scanned & ≤20 pages → Gemma 4 (5-parallel); scanned & larger → MathPix (the
+    only viable OCR for large books) — and names the exact command that runs it.
+    Auto-chains `size`. Does NOT execute a paid/keyed lane; it reports so you
+    never hand-pick the route per document.
+    """
+    from . import ocr_router as _r
+    sc = Sidecar(pdf)
+    if not sc.has(SIZE_KNOWN):
+        cmd_size(pdf)                      # cheap; fills text_layer/needs_ocr/pages
+        sc = Sidecar(pdf)
+    d = _r.route_for_sidecar(sc)
+    sc.set_evidence("ocr_route", {"lane": d.lane, "cost": d.cost, "reason": d.reason})
+    sc.save()
+    return _r.format_decision(d, pdf.name)
+
+
+# Pages to sample when page 1 is text-poor (a cover-page figure). A born-digital
+# book/paper has a near-empty page 1 but real text within the first few pages.
+_TEXT_SAMPLE_PAGES = 5
+
+
+def _text_layer_from_counts(first_page_chars: int, sampled_chars: int) -> bool:
+    """Pure text-layer decision. Born-digital iff page 1 has real characters OR
+    the first few pages do (a cover-page FIGURE leaves page 1 text-poor while the
+    document still has a text layer). A scan is near-zero across all pages, so the
+    16-char floor over several pages tolerates a stray watermark without flipping."""
+    return first_page_chars >= 4 or sampled_chars >= 16
+
+
 def _probe_text_layer(pdf: Path) -> tuple[bool, int, int]:
     """Cheap scan detector. Returns (has_text_layer, n_fonts, first_page_chars).
 
-    A born-digital PDF has embedded fonts AND extractable text; a scan has
-    neither (just a page-image). We check both because some PDFs carry fonts
-    only for headers/stamps yet are otherwise images, and some carry an OCR
-    text layer with no listed fonts — requiring real characters on page 1 is
-    the robust signal, fonts the corroborator."""
+    A born-digital PDF has extractable text; a scan has none (just a page-image).
+    We sample the FIRST FEW pages, not page 1 alone, because a cover-page figure
+    (common in books/arXiv papers) leaves page 1 text-poor even though the doc is
+    born-digital. Fonts corroborate but don't decide (a stray stamp font on an
+    image PDF must not flip it to has-text). first_page_chars is still reported
+    (page 1) for the size summary."""
     n_fonts = 0
     try:
         fout = subprocess.run(["pdffonts", str(pdf)], capture_output=True,
@@ -6668,17 +6703,21 @@ def _probe_text_layer(pdf: Path) -> tuple[bool, int, int]:
         n_fonts = max(0, len(rows) - 2)  # minus the 2 header rows
     except Exception:
         pass
-    n_chars = 0
-    try:
-        tout = subprocess.run(["pdftotext", "-l", "1", str(pdf), "-"],
-                              capture_output=True, text=True, timeout=60)
-        n_chars = len("".join(tout.stdout.split()))
-    except Exception:
-        pass
-    # Text layer iff page 1 yields real characters (a handful, to ignore stray
-    # artifacts). Fonts alone don't prove extractable text.
-    has_text = n_chars >= 4
-    return has_text, n_fonts, n_chars
+
+    def _chars(last_page: int) -> int:
+        try:
+            tout = subprocess.run(
+                ["pdftotext", "-l", str(last_page), str(pdf), "-"],
+                capture_output=True, text=True, timeout=60)
+            return len("".join(tout.stdout.split()))
+        except Exception:
+            return 0
+
+    first_page_chars = _chars(1)
+    # Only pay the extra multi-page extraction when page 1 is text-poor.
+    sampled = first_page_chars if first_page_chars >= 4 else _chars(_TEXT_SAMPLE_PAGES)
+    has_text = _text_layer_from_counts(first_page_chars, sampled)
+    return has_text, n_fonts, first_page_chars
 
 
 def _format_size(sc: Sidecar) -> str:

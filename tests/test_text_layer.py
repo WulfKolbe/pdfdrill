@@ -16,16 +16,21 @@ class _Run:
     def __init__(self, stdout): self.stdout = stdout
 
 
-def _patch(monkeypatch, *, fonts_rows: int, page1_text: str):
-    """Fake pdffonts (header + N rows) and pdftotext (page-1 text)."""
+def _patch(monkeypatch, *, fonts_rows: int, page1_text: str,
+           sampled_text: str = None):
+    """Fake pdffonts (header + N rows) and pdftotext. `pdftotext -l 1` returns
+    page1_text; `pdftotext -l N` (N>1, the multi-page sample) returns
+    sampled_text (defaults to page1_text)."""
     header = "name type enc emb sub uni id\n---- ---- --- --- --- --- --\n"
     fonts_out = header + "".join(f"F{i} Type1 x y z w {i}\n" for i in range(fonts_rows))
+    sampled = page1_text if sampled_text is None else sampled_text
 
     def fake_run(cmd, **kw):
         if cmd[0] == "pdffonts":
             return _Run(fonts_out)
         if cmd[0] == "pdftotext":
-            return _Run(page1_text)
+            last = cmd[cmd.index("-l") + 1] if "-l" in cmd else "1"
+            return _Run(page1_text if last == "1" else sampled)
         return _Run("")
     monkeypatch.setattr(commands.subprocess, "run", fake_run)
 
@@ -44,9 +49,28 @@ def test_born_digital_has_text(monkeypatch):
 
 def test_image_pdf_with_stray_stamp_font_still_needs_ocr(monkeypatch):
     # a scan that carries 1 font (a stamp) but no extractable text -> still OCR
-    _patch(monkeypatch, fonts_rows=1, page1_text="   ")
+    _patch(monkeypatch, fonts_rows=1, page1_text="   ", sampled_text="  ")
     has, nf, nc = commands._probe_text_layer(Path("stamped_scan.pdf"))
     assert has is False and nf == 1 and nc == 0
+
+
+def test_born_digital_with_cover_page_figure_is_text(monkeypatch):
+    """A born-digital book/paper whose PAGE 1 is a cover FIGURE (near-zero text)
+    but whose next pages are full of text — the real 2211.10804 / C++ / python-
+    handbook case the page-1-only probe misclassified as a scan."""
+    _patch(monkeypatch, fonts_rows=41, page1_text="1",
+           sampled_text="Abstract We introduce a method ... " * 20)
+    has, nf, nc = commands._probe_text_layer(Path("coverfig.pdf"))
+    assert has is True and nf == 41
+    assert nc == 1                       # first_page_chars still reports page 1
+
+
+def test_text_layer_decision_pure():
+    f = commands._text_layer_from_counts
+    assert f(47, 47) is True             # text on page 1
+    assert f(1, 800) is True             # cover figure, text within first pages
+    assert f(1, 2) is False              # scan: near-zero everywhere
+    assert f(0, 0) is False
 
 
 def test_format_size_messages():

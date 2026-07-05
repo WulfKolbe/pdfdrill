@@ -410,6 +410,7 @@ _Generated from `commands.yaml` by skillsync. Edit the manifest, not this sectio
 | `pdfdrill config [--init] [--json] [--download-dir]` | Show / init the config FILE (not CLI flags): where URL/arXiv downloads + each doc's .drill folder land (default ~/Downloads). --init writes ~/.config/pdfdrill/config.json; --json; --download-dir |
 | `pdfdrill artifacts <pdf> [--all]` | List the openable files in the doc's drill folder (report.html, the extracted <bibkey>.md, tiddlers/semantic/llm *.json/*.txt, SVGs) with paths — clickable in the drillui Outputs panel. Giant model JSON hidden unless --all. (`status` also lists them.) |
 | `pdfdrill size <pdf>` | File size, page count, producer |
+| `pdfdrill route <pdf>` | Report the automatic OCR-lane decision (read-only): born-digital → pdfminer/text-layer (free); scanned & ≤20 pages → Gemma 4 (5-parallel); scanned & larger → MathPix (large books). Auto-chains size; names the exact command that runs the chosen lane. |
 | `pdfdrill abstract <pdf>` | Abstract from first pages |
 | `pdfdrill toc <pdf>` | Table of contents |
 | `pdfdrill fonts <pdf>` | Font analysis, math font detection |

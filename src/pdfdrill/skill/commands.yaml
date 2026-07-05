@@ -58,6 +58,20 @@ commands:
     required: true
     help: PDF path, https URL, or bare arXiv id
   typed: true
+- name: route
+  section: Introspection (fast, no extraction)
+  summary: 'Report the automatic OCR-lane decision (read-only): born-digital → pdfminer/text-layer
+    (free); scanned & ≤20 pages → Gemma 4 (5-parallel); scanned & larger → MathPix (large books).
+    Auto-chains size; names the exact command that runs the chosen lane.'
+  offline_ok: true
+  positionals:
+  - name: pdf
+    type: pdf
+    required: true
+    help: PDF path, https URL, or bare arXiv id
+  typed: true
+  requires:
+  - size
 - name: abstract
   section: Introspection (fast, no extraction)
   summary: Abstract from first pages

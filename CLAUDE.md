@@ -161,15 +161,31 @@ rendered text is all there is — and always run against the real PDF, not a
 Claude.ai-uploaded Markdown rendering (which drops the annotation layer).
 
 **Scan / OCR-mandatory detection.** `pdfdrill size` determines the text layer
-at level 0 via `_probe_text_layer`: a born-digital PDF has extractable text on
-page 1 (`pdftotext -l 1`) AND fonts; a scan has neither. Page-1 char count is
-the authoritative signal (fonts only corroborate — a stray stamp font on an
-image PDF won't flip it to "has text"). `size` sets `text_layer`/`needs_ocr`/
-`font_count`/`first_page_chars` and says "NO text layer — scanned, OCR
-required" for scans; `cmd_fonts` no longer downgrades that determination.
-Verified on `~/Downloads/scans/scan_20260527_204203.pdf` (pdf-lib image, 0
-fonts, 0 chars → needs_ocr=True) vs a born-digital paper (32 fonts, 1436
-page-1 chars → text_layer=True). Tests: `tests/test_text_layer.py`.
+at level 0 via `_probe_text_layer`: a born-digital PDF has extractable text; a
+scan has none (just a page-image). The signal is **sampled over the first few
+pages** (`_TEXT_SAMPLE_PAGES=5`), NOT page 1 alone — a born-digital book/paper
+whose **page 1 is a cover FIGURE** has ~0 chars on page 1 yet is fully
+born-digital (found by the OCR router on arXiv 2211.10804 / Stroustrup C++ /
+python-handbook: page 1 = 0 chars but the first 5 pages carry thousands). Pure
+decision `_text_layer_from_counts(first_page_chars, sampled_chars)`: text iff
+page 1 has ≥4 chars OR the first 5 pages have ≥16 (the 16-floor tolerates a
+stray watermark on a scan). Fonts corroborate but don't decide (a stamp font on
+an image PDF won't flip it). `size` sets `text_layer`/`needs_ocr`/`font_count`/
+`first_page_chars` (page 1, reported) and says "NO text layer — scanned, OCR
+required" for scans. Tests: `tests/test_text_layer.py`
+(`test_born_digital_with_cover_page_figure_is_text`, the pure decision).
+
+**Automatic OCR-lane router (`pdfdrill route`, `src/pdfdrill/ocr_router.py`).**
+The state machine picks the extraction lane from the `size` signals and REPORTS
+it — nothing silent: **born-digital → pdfminer/text-layer** (free, exact; a text
+layer beats any page count, so a 2000-page born-digital book still goes here);
+**scanned & ≤20 pages → Gemma 4** (Novita, ~50s/page, 5-parallel adaptive);
+**scanned & >20 pages (or unknown) → MathPix** (the only viable OCR for large
+books). `choose_route(...)` is PURE; `pdfdrill route <pdf>` auto-chains `size`,
+reports the decision + the exact command per lane, and does NOT execute a
+paid/keyed lane. Verified on the sensorcloud corpus: born-digital papers/books →
+pdfminer; the scanned Audi Gutachten (26pp) + Gödel (79pp) → MathPix. Tests:
+`tests/test_ocr_router.py` (8, incl. the ≤20 cutoff + unknown-page default).
 
 ## Tests
 
