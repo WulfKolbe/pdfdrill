@@ -116,6 +116,16 @@ def urlopen(req, timeout: float | None = None, *, host: str | None = None):
     download.
     """
     host = host or _host(req)
+    # Offline switch: PDFDRILL_OFFLINE=1 refuses ALL outbound network up front, so
+    # every paid/keyed route (mathpix upload, vision, bibfetch, translate, URL/
+    # arXiv downloads) degrades gracefully with NO spend — regardless of any
+    # env- OR file-based credentials. Used by the test harness's keyless mode.
+    if os.environ.get("PDFDRILL_OFFLINE"):
+        raise NetworkBlocked(
+            f"Offline mode (PDFDRILL_OFFLINE=1): outbound network to {host} is "
+            f"disabled, so no paid/keyed route runs. Unset PDFDRILL_OFFLINE to "
+            f"allow network. Offline routes (model from lines.json, ocr, "
+            f"latexbook, report, …) need no network.")
     if isinstance(req, str):
         req = urllib.request.Request(req, headers={"User-Agent": _UA})
     elif isinstance(req, urllib.request.Request) and not req.has_header("User-agent"):
