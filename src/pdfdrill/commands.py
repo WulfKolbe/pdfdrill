@@ -6652,15 +6652,74 @@ def cmd_size(pdf: Path) -> str:
     return _format_size(sc)
 
 
-def cmd_route(pdf: Path) -> str:
-    """Report the automatic OCR-lane decision for this PDF (read-only).
+def _drillpdfse_dir() -> Path:
+    """Where DRILLPDFse (the pdfminer.six lines.json producer) lives: env
+    DRILLPDFSE_DIR, else ~/DRILLPDFse."""
+    import os
+    return Path(os.environ.get("DRILLPDFSE_DIR") or
+                os.path.expanduser("~/DRILLPDFse"))
+
+
+def _run_born_digital(pdf: Path) -> str:
+    """Execute the born-digital lane: run DRILLPDFse's pdfminer extractor to
+    write the sibling `<stem>.lines.json` (real math in OUR coordinate system),
+    then build the model from it. Falls back to pdfdrill's own `model` build when
+    DRILLPDFse is absent or fails. FREE — no key, no network."""
+    import sys as _sys
+    note = ""
+    lj = _lines_json_path(pdf)
+    script = _drillpdfse_dir() / "lines_json.py"
+    if script.exists() and not (lj.exists() and lj.stat().st_size > 0):
+        try:
+            r = subprocess.run([_sys.executable, str(script), str(pdf)],
+                               cwd=str(script.parent), capture_output=True,
+                               text=True, timeout=900)
+            if lj.exists() and lj.stat().st_size > 0:
+                note = "pdfminer (DRILLPDFse) → lines.json; "
+            else:
+                note = ("(DRILLPDFse produced no lines.json — "
+                        f"{(r.stderr or r.stdout).strip()[:120]}; using pdfdrill's "
+                        "own build) ")
+        except Exception as e:                      # noqa: BLE001
+            note = f"(DRILLPDFse failed: {e}; using pdfdrill's own build) "
+    elif not script.exists():
+        note = ("(DRILLPDFse not found at "
+                f"{_drillpdfse_dir()} — using pdfdrill's own build; set "
+                "$DRILLPDFSE_DIR for the pdfminer math route) ")
+    return note + cmd_model(pdf)
+
+
+def _execute_lane(pdf: Path, d) -> str:
+    """Run the chosen OCR lane and return the executor's output. Paid/keyed lanes
+    degrade gracefully (their commands return a clear message when creds/keys are
+    absent — no spend, no crash)."""
+    from . import ocr_router as _r
+    label = _r._LANE_LABEL.get(d.lane, d.lane)
+    head = f"Route → {label} [{d.cost}] — running…\n"
+    if d.lane == "born_digital":
+        return head + _run_born_digital(pdf)
+    if d.lane == "gemma":
+        # keyless per-page LLM OCR; vision_router routes the pages to Gemma when
+        # NOVITA_API_KEY is set, else to the running agent. Degrades gracefully.
+        return head + cmd_visionocr(pdf)
+    if d.lane == "mathpix":
+        m = cmd_mathpix(pdf, force=True)            # graceful when no creds
+        return head + m + "\n" + cmd_model(pdf)
+    return head + "unclassified — run `pdfdrill size` first."
+
+
+def cmd_route(pdf: Path, run: bool = False) -> str:
+    """Pick the OCR-lane automatically and, with --run, EXECUTE it.
 
     The state machine classifies the document from the cheap `size` signals and
-    picks the extraction lane — born-digital → pdfminer/text-layer (free);
+    picks the extraction lane — born-digital → pdfminer/text-layer (FREE);
     scanned & ≤20 pages → Gemma 4 (5-parallel); scanned & larger → MathPix (the
-    only viable OCR for large books) — and names the exact command that runs it.
-    Auto-chains `size`. Does NOT execute a paid/keyed lane; it reports so you
-    never hand-pick the route per document.
+    only viable OCR for large books). Auto-chains `size`.
+
+    Without `--run` it reports the decision (and the command per lane) so you
+    never hand-pick per document. With `--run` it runs the chosen lane: the free
+    born-digital lane always; the paid/keyed lanes degrade gracefully to a clear
+    message when their creds/key are absent (no accidental spend).
     """
     from . import ocr_router as _r
     sc = Sidecar(pdf)
@@ -6670,7 +6729,9 @@ def cmd_route(pdf: Path) -> str:
     d = _r.route_for_sidecar(sc)
     sc.set_evidence("ocr_route", {"lane": d.lane, "cost": d.cost, "reason": d.reason})
     sc.save()
-    return _r.format_decision(d, pdf.name)
+    if not run:
+        return _r.format_decision(d, pdf.name) + "\n  (add --run to execute this lane now)"
+    return _r.format_decision(d, pdf.name) + "\n" + _execute_lane(pdf, d)
 
 
 # Pages to sample when page 1 is text-poor (a cover-page figure). A born-digital

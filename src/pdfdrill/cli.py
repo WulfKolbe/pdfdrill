@@ -159,7 +159,8 @@ def _do_size(args):
 
 def _do_route(args):
     from .commands import cmd_route
-    return cmd_route(_pdf(args))
+    pdf_args = [a for a in args if a != "--run"]
+    return cmd_route(_pdf(pdf_args), run="--run" in args)
 
 
 def _do_abstract(args):
