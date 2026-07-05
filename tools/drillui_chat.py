@@ -195,7 +195,7 @@ _HEAVY_TIMEOUT = {
     "pyramid": 3600, "ocr": 1800, "mathpix": 1800, "model": 900,
     "folder": 3600, "remath": 3600, "visionocr": 3600, "translate": 1800,
     "svg": 1800, "vision": 1800, "bibfetch": 900, "rasterize": 900,
-    "elements": 900, "continuity": 1800, "enhance": 900,
+    "elements": 900, "continuity": 1800, "enhance": 900, "inspect": 1800,
 }
 
 

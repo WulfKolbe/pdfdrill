@@ -4118,6 +4118,90 @@ def cmd_report(pdf: Path, force: bool = False, embed: bool = False,
     return msg
 
 
+def _inspect_pages_dir(pdf: Path, sc: "Sidecar", pages: str | None,
+                       src_dpi: int) -> tuple[Path | None, int]:
+    """Rasterize page(s) into <drill>/inspect/pages as p{N}.png (the naming
+    docinspect reads), reusing any already present. Returns (dir, src_dpi) or
+    (None, src_dpi) when Ghostscript is unavailable — the inspector then renders
+    boxes-only (still a working tree/inspector). Never raises."""
+    import os
+    from . import pdf_reading
+    out = sc.blob_dir / "inspect" / "pages"
+    out.mkdir(parents=True, exist_ok=True)
+    page_list = pdf_reading.parse_pages(pages, getattr(sc, "page_count", None) or None)
+    try:
+        imgs = pdf_reading.rasterize(pdf, out, pages=page_list, dpi=src_dpi)
+    except RuntimeError:
+        return None, src_dpi                       # gs missing → boxes-only
+    # rasterize writes page-<NNNN>.png; docinspect wants p{N}.png — hardlink
+    # (no extra bytes; copy fallback across filesystems).
+    import re as _re
+    for img in imgs:
+        m = _re.search(r"page-(\d+)\.png$", img.name)
+        if not m:
+            continue
+        target = out / f"p{int(m.group(1))}.png"
+        if target.exists():
+            continue
+        try:
+            os.link(img, target)
+        except OSError:
+            import shutil as _sh
+            _sh.copyfile(img, target)
+    return out, src_dpi
+
+
+def cmd_inspect(pdf: Path, pages: str | None = None, embed: bool = True,
+                dpi: int = 120, src_dpi: int = 400, images: bool = True,
+                force: bool = False) -> str:
+    """Build a DevTools-style docmodel inspector HTML (`<bibkey>.inspect.html`).
+
+    A second lens on the same model the OpenSeadragon viewer shows: every
+    DocObject is drawn as a hover/click box on the rendered page AND as a row in
+    a DOM-like ELEMENTS tree, with an INSPECTOR pane for the selected element
+    (type / page / region / LaTeX-via-KaTeX / props / realizations / alignments)
+    and a reading-order REFLOW tab. Self-contained by default (`--embed` inlines
+    downscaled page JPEGs — offline, no server). `--no-images` (or absent gs)
+    renders boxes-only. Auto-chains `model`. Clickable in drillui's Outputs.
+    """
+    from . import docinspect
+
+    sc = Sidecar(pdf)
+    model_path = _model_path(sc)
+    if _stale_or_absent(sc, model_path, _lines_json_path(pdf)):
+        cmd_model(pdf)
+        sc = Sidecar(pdf)
+        model_path = _model_path(sc)
+    if not model_path.exists():
+        return f"No model for {pdf.name} (run `pdfdrill model` first)."
+
+    pages_dir = None
+    if images and embed:
+        pages_dir, src_dpi = _inspect_pages_dir(pdf, sc, pages, src_dpi)
+
+    with open(model_path, "r", encoding="utf-8") as f:
+        bibkey = (json.load(f).get("meta", {}) or {}).get("bibkey") or pdf.stem
+    tiddlers = sc.blob_dir / f"{bibkey}.tiddlers.json"
+    sc.blob_dir.mkdir(parents=True, exist_ok=True)
+    out_path = sc.blob_dir / f"{bibkey}.inspect.html"
+    try:
+        html_doc, n_pages, n_el, mode = docinspect.build_from_paths(
+            str(model_path), out=str(out_path),
+            tiddlers=str(tiddlers) if tiddlers.exists() else None,
+            pages_dir=str(pages_dir) if pages_dir else None,
+            embed=embed, embed_dpi=dpi, src_dpi=src_dpi, title=bibkey)
+    except Exception as e:                          # noqa: BLE001
+        return f"inspect failed for {pdf.name}: {e}"
+
+    sc.set_evidence("inspect_path", str(out_path.relative_to(sc.pdf_path.parent)))
+    sc.save()
+    rel = out_path.relative_to(sc.pdf_path.parent)
+    note = "" if mode != "embed" or pages_dir else " (boxes-only — no page images)"
+    return (f"Docmodel inspector: {n_el} elements over {n_pages} page(s){note}. "
+            f"Open {rel} in a browser (hover the tree to highlight boxes; click "
+            f"an element for its full record).")
+
+
 def _deliver_region_crop(pdf: Path, sc: "Sidecar", page: int,
                          rect: tuple, ppi: int = 200) -> Path:
     """Rasterize `page` and crop the pixel `rect` (x0,y0,x1,y1 at `ppi`), saving

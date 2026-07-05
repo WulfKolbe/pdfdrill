@@ -1071,6 +1071,34 @@ commands:
   typed: true
   requires:
   - model
+- name: inspect
+  section: Introspection (fast, no extraction)
+  summary: 'DevTools-style docmodel inspector HTML (<bibkey>.inspect.html): every DocObject as a
+    hover/click box on the rendered page AND a DOM-like ELEMENTS tree + INSPECTOR pane (region/LaTeX/
+    props/realizations/alignments) + reading-order REFLOW. Self-contained (embeds downscaled pages);
+    --no-images = boxes-only; --dpi N inlined-page DPI (default 120)'
+  offline_ok: true
+  positionals:
+  - name: pdf
+    type: pdf
+    required: true
+    help: PDF path, https URL, or bare arXiv id
+  flags:
+  - name: pages
+    type: str
+    flag: --pages
+    help: N|N-M|all (default all)
+  - name: dpi
+    type: str
+    flag: --dpi
+    help: inlined-page DPI (default 120)
+  - name: no-images
+    type: flag
+    flag: --no-images
+    help: boxes-only, skip page rasterization
+  typed: true
+  requires:
+  - model
 - name: folder
   section: Introspection (fast, no extraction)
   summary: Build the full structure for every PDF in <dir> from existing

@@ -374,6 +374,17 @@ def _do_rasterize(args):
                          fmt=fmt or "png", force="--force" in args)
 
 
+def _do_inspect(args):
+    """pdfdrill inspect <pdf> [--pages N|N-M|all] [--dpi 120] [--no-images] [--force]"""
+    from .commands import cmd_inspect
+    pages, args = _opt(args, "--pages")
+    dpi, args = _opt(args, "--dpi")
+    flags = ("--no-images", "--force")
+    pdf_args = [a for a in args if a not in flags]
+    return cmd_inspect(_pdf(pdf_args), pages=pages, dpi=int(dpi) if dpi else 120,
+                       images="--no-images" not in args, force="--force" in args)
+
+
 def _do_attachments(args):
     """pdfdrill attachments <pdf> [--extract]"""
     from .commands import cmd_attachments
@@ -1159,7 +1170,7 @@ Introspection (fast, no extraction):
   pdfdrill images <pdf>        Image rectangles + metadata (pdfplumber + pdfimages -list)
   pdfdrill tsv <pdf>           Word-level bounding boxes (pdftotext -tsv; --ocr forces tesseract)
   pdfdrill render <pdf>        Render the built markdown to PDF (pandoc + lualatex)
-  pdfdrill rasterize <pdf>     Rasterize page(s) to PNG/JPEG for visual inspection (pdftoppm) → sidecar; --pages N|N-M|all --dpi 150. Read the images to see charts/equations/layout
+  pdfdrill rasterize <pdf>     Rasterize page(s) to PNG/JPEG for visual inspection (Ghostscript, the only rasterizer) → sidecar; --pages N|N-M|all --dpi. Read the images to see charts/equations/layout
   pdfdrill attachments <pdf>   List embedded file attachments (pdfdetach + pypdf); --extract saves them to the sidecar. Surfaces embedded spreadsheets/data invisible to text/MathPix
   pdfdrill formfields <pdf>    Read interactive AcroForm field values (pypdf get_fields): name/value/type/options. For government/Formulare PDFs
   pdfdrill extractimages <pdf> Extract embedded raster image BYTES to files (pdfimages -png); --pages N-M --all-formats. Vector charts excluded (use rasterize)
@@ -1383,6 +1394,7 @@ HANDLERS = {
         "bibfetch": _do_bibfetch,
         "citedrill": _do_citedrill,
         "report": _do_report,
+        "inspect": _do_inspect,
         "folder": _do_folder,
         "latex": _do_latex,
         "latexbook": _do_latexbook,
