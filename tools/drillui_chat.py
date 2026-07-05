@@ -221,6 +221,7 @@ def do_add(base, env, newdoc: str, docs: list, combined: str | None,
     # never saw this path — `~/Scans/x.pdf` is still a literal tilde here and
     # would not resolve. (URLs / arxiv ids contain neither ~ nor $, so untouched.)
     newdoc = os.path.expandvars(os.path.expanduser(newdoc))
+    newdoc = _repair_local_doc(newdoc)                     # typo/case correction
     if newdoc in docs:
         print(f"  {newdoc} is already in the context ({len(docs)} doc(s)).")
         return (combined or (docs[0] if docs else None)), combined
@@ -295,11 +296,59 @@ def _expand_add_spec(spec: str) -> list:
     return out
 
 
+def _suggest_path(path: str) -> str | None:
+    """Repair a mistyped LOCAL path segment by segment: at each level, if the
+    exact segment is absent, take a case-insensitive match (`DownLoads`→
+    `Downloads`) else the closest fuzzy match (`Axe-Fx-II-0wners-Manual.pdf`→
+    `…-Owners-Manual.pdf`, difflib cutoff 0.7). Returns the repaired path when it
+    exists and differs from the input, else None (never invents a file). A URL /
+    bare id has no separator to walk, so it yields None."""
+    import difflib
+    p = os.path.expandvars(os.path.expanduser(path))
+    if os.path.exists(p) or p.startswith(("http://", "https://")):
+        return None
+    cur = os.sep if os.path.isabs(p) else "."
+    segs = [s for s in p.split(os.sep) if s]
+    for seg in segs:
+        cand = os.path.join(cur, seg)
+        if os.path.exists(cand):
+            cur = cand
+            continue
+        try:
+            entries = os.listdir(cur)
+        except OSError:
+            return None
+        low = {e.lower(): e for e in entries}
+        match = low.get(seg.lower())
+        if match is None:
+            close = difflib.get_close_matches(seg, entries, n=1, cutoff=0.7)
+            match = close[0] if close else None
+        if match is None:
+            return None
+        cur = os.path.join(cur, match)
+    if os.path.exists(cur) and os.path.abspath(cur) != os.path.abspath(p):
+        return cur
+    return None
+
+
+def _repair_local_doc(newdoc: str) -> str:
+    """If `newdoc` is a missing local path with a close on-disk match, print the
+    correction and return the repaired path; otherwise return it unchanged."""
+    fixed = _suggest_path(newdoc)
+    if fixed:
+        print(f"  no file at {newdoc}\n  → using {fixed} (closest match).")
+        return fixed
+    return newdoc
+
+
 def do_add_many(base, env, newdocs: list, docs: list, combined,
                 timeout: float, store_dir: str = ""):
     """Add MANY documents in one pass: append the new ones, drill all (model is
     idempotent — only the undrilled build), combine ONCE. The list/`@file` form
     of `add`; avoids the per-doc re-combine an add-loop would cause."""
+    newdocs = [_repair_local_doc(os.path.expandvars(os.path.expanduser(d)))
+               if os.sep in d or d.endswith((".pdf", ".md")) else d
+               for d in newdocs]
     fresh = [d for d in newdocs if d not in docs]
     if not fresh:
         print(f"  all {len(newdocs)} already in the context ({len(docs)} docs).")

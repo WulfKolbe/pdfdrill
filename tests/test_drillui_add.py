@@ -52,6 +52,27 @@ def test_quoted_path_plus_more_docs():
     assert out == [NASTY, "other.pdf"]
 
 
+def test_suggest_path_repairs_case_and_char_typos():
+    """The Axe case: 'DownLoads/axe-fx-2/Axe-Fx-II-0wners-Manual.pdf' (capital L
+    + zero-for-O) must repair to the real Downloads/.../Axe-Fx-II-Owners-Manual.pdf."""
+    with tempfile.TemporaryDirectory() as d:
+        real = Path(d) / "Downloads" / "axe-fx-2" / "Axe-Fx-II-Owners-Manual.pdf"
+        real.parent.mkdir(parents=True)
+        real.write_bytes(b"%PDF-1.4")
+        typo = str(Path(d) / "DownLoads" / "axe-fx-2" / "Axe-Fx-II-0wners-Manual.pdf")
+        fixed = dc._suggest_path(typo)
+        assert fixed is not None and Path(fixed) == real, fixed
+
+
+def test_suggest_path_none_when_exists_or_absent():
+    with tempfile.TemporaryDirectory() as d:
+        p = Path(d) / "real.pdf"
+        p.write_bytes(b"%PDF-1.4")
+        assert dc._suggest_path(str(p)) is None            # exact hit → no suggestion
+        # nothing remotely close → None (never invents a file)
+        assert dc._suggest_path(str(Path(d) / "totally_unrelated_zzzzz.pdf")) is None
+
+
 if __name__ == "__main__":
     tests = [v for k, v in list(globals().items()) if k.startswith("test_")]
     failed = []
