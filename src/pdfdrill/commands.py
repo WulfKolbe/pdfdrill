@@ -8003,8 +8003,13 @@ def _augment_bibtex(bib: dict, pdf: Path, sc: "Sidecar") -> str:
                 bib["title"] = meta["title"]
             if meta.get("authors"):
                 bib["author"] = " and ".join(meta["authors"])
+            # The canonical arXiv @misc form: eprint / archivePrefix / primaryClass.
+            bib["entry_type"] = "misc"
             bib["arxiv_id"] = aid
-            bib["entry_type"] = "article"
+            bib["eprint"] = aid
+            bib["archive_prefix"] = "arXiv"
+            bib["primary_class"] = meta.get("primary_category", "") or bib.get("primary_class", "")
+            bib["publisher"] = ""            # never the pdfTeX producer for an arXiv paper
             bib["url"] = sources.arxiv_urls(aid).get("abs", bib.get("url", ""))
             if not bib.get("year"):
                 bib["year"] = _arxiv_year(aid)

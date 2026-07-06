@@ -196,7 +196,13 @@ def derive_bibtex(info: dict[str, Any]) -> dict[str, Any]:
         "arxiv_id": arxiv_id,
         "url": custom.get("URL", "") or custom.get("arXivID", "") or "",
         "license": custom.get("License", ""),
-        "publisher": info.get("producer", ""),
+        # NEVER the PDF Producer (pdfTeX/Word/…) — that's a TOOL, not a publisher.
+        # Only a real Publisher custom field, if present (rare from pdfinfo).
+        "publisher": custom.get("Publisher", ""),
+        # arXiv @misc form (filled by _augment_bibtex when the input is arXiv).
+        "eprint": "",
+        "archive_prefix": "",
+        "primary_class": "",
     }
     return bib
 
@@ -219,11 +225,21 @@ def bibtex_to_string(bib: dict[str, Any]) -> str:
     if not bib:
         return ""
     lines = [f"@{bib['entry_type']}{{{bib['citekey']},"]
-    field_order = ("title", "author", "year", "pages", "doi", "arxiv_id", "url", "license", "publisher")
-    for key in field_order:
+    # BibTeX field name per record key. The arXiv @misc form uses the canonical
+    # eprint / archivePrefix / primaryClass (NOT the non-standard raw arxiv_id,
+    # which is only emitted as a fallback when there's no eprint).
+    fields = [("title", "title"), ("author", "author"), ("year", "year"),
+              ("pages", "pages"), ("doi", "doi"),
+              ("eprint", "eprint"), ("archive_prefix", "archivePrefix"),
+              ("primary_class", "primaryClass"),
+              ("url", "url"), ("license", "license"), ("publisher", "publisher")]
+    if not bib.get("eprint"):
+        fields.insert(5, ("arxiv_id", "arxiv_id"))     # fallback only
+    width = max(len(bt) for _, bt in fields)
+    for key, bt in fields:
         val = bib.get(key)
         if val:
-            lines.append(f"  {key:9s} = {{{val}}},")
+            lines.append(f"  {bt:{width}s} = {{{val}}},")
     if lines[-1].endswith(","):
         lines[-1] = lines[-1].rstrip(",")
     lines.append("}")

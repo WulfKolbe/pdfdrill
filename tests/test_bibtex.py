@@ -44,10 +44,12 @@ def test_augment_from_arxiv_metadata(monkeypatch):
         assert note == ""                                  # no warning — it's real now
         assert bib["title"].startswith("ElasticHash")
         assert bib["author"] == "Nikolaus Korfhage and Markus Mühling and Bernd Freisleben"
-        assert bib["entry_type"] == "article"
+        assert bib["entry_type"] == "misc"                 # canonical arXiv @misc form
         assert bib["year"] == "2023"
         assert bib["citekey"] == "korfhage2023"            # NOT unknown2023
         assert bib["arxiv_id"] == "2305.04710v1"
+        assert bib["eprint"] == "2305.04710v1"             # eprint/archivePrefix present
+        assert bib["archive_prefix"] == "arXiv"
 
 
 def test_placeholder_warns_when_no_source(monkeypatch):
