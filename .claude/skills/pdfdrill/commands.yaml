@@ -1262,11 +1262,13 @@ commands:
   - model
 - name: ask
   section: Introspection (fast, no extraction)
-  summary: 'Gated grounded answering: retrieve top-k units, compose answer parts labeled
-    grounded (span-verified) / derived (VER-recomputed) / proposed (mere retrieval);
+  summary: 'STRICT grounded answering (verified-only mode): retrieve top-k units, compose answer parts
+    labeled grounded (span-verified) / derived (VER-recomputed) / proposed (mere retrieval);
     --precision P withholds proposed parts (and says so); no grounded part → explicit
-    no-grounded-answer, zero paragraphs quoted. Proof block with witness ids + recompute
-    details; the turn persists via chatlog'
+    no-grounded-answer, zero paragraphs quoted. On a fresh model it usually WITHHOLDS (nothing is
+    span-verified yet) — for practical question-answering use `retrieve` (grounded context) + synthesis
+    as the primary path; `ask` is the strict verified-only mode. Proof block with witness ids +
+    recompute details; the turn persists via chatlog'
   offline_ok: true
   positionals:
   - name: pdf
@@ -1379,8 +1381,10 @@ commands:
     type: str
 - name: classify
   section: Other
-  summary: Subject-classify the drilled doc against the vocabnet vocabularies (MSC discipline rollup +
-    PhySH/GND/STW), persisted in the sidecar
+  summary: 'Subject-classify the drilled doc against the vocabnet vocabularies (MSC discipline rollup +
+    PhySH/GND/STW), persisted in the sidecar. PREREQUISITE: at least one compiled vocab in
+    vocab/compiled/ (not shipped) — build with `python3 -m vocabnet.sources build msc` first; without
+    one it reports the build step and does nothing.'
   offline_ok: true
   typed: true
   requires:

@@ -200,6 +200,29 @@ def concept_records(doc) -> list[dict]:
 _ALLCAPS = re.compile(r"\b[A-Z][A-Z0-9]{1,5}\b")
 _ROMAN = re.compile(r"^[IVXLCDM]+$")
 
+# pdfdrill's own TiddlyWiki transclusion/template token names (the `XXX` in
+# `{{id||XXX}}` and the `_XXX0001` object-id infixes). These leak into the prose
+# stream and must NEVER be read as paper acronyms (the CIT/FO/LTX gap-report
+# ballast). Keep in sync with the projector template set.
+_MARKUP_TOKENS = frozenset({
+    "FO", "FOX", "CIT", "LTX", "FREF", "PIC", "DIA", "FN", "TAB", "THM",
+    "PROOF", "TPL", "EQ", "PARA", "REF", "EQBLOCK", "H", "TOC", "AD", "BM",
+    "KI", "SEC",
+})
+# A transclusion span `{{ anything || TPL }}` (also matches a bare `||TPL`).
+_TRANSCLUSION = re.compile(r"\{\{[^{}]*\}\}|\|\|[A-Z]+")
+
+
+def _is_markup_token(tok: str) -> bool:
+    """True for a pdfdrill template/markup token (not a real acronym)."""
+    return tok in _MARKUP_TOKENS
+
+
+def _strip_markup(text: str) -> str:
+    """Remove pdfdrill transclusion tokens (`{{id||FO}}`) so the acronym pass
+    sees prose, not markup."""
+    return _TRANSCLUSION.sub(" ", text)
+
 
 def undefined_concept_uses(doc) -> list[dict]:
     """Acronym-like tokens USED in prose but never expanded (no Schwartz-Hearst
@@ -213,9 +236,10 @@ def undefined_concept_uses(doc) -> list[dict]:
     defined = {r["name"] for r in concept_records(doc)}
     hits: dict[str, list[dict]] = {}
     for b in blocks:
-        for m in _ALLCAPS.finditer(b["text"]):
+        clean = _strip_markup(b["text"])          # drop {{id||FO}} transclusions
+        for m in _ALLCAPS.finditer(clean):
             tok = m.group(0)
-            if tok in defined or _ROMAN.match(tok):
+            if tok in defined or _ROMAN.match(tok) or _is_markup_token(tok):
                 continue
             hits.setdefault(tok, []).append(
                 {"page": b["page"], "section_id": b["section_id"]})
