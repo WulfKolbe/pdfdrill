@@ -60,17 +60,36 @@ def load_model(model_path):
     return Document.from_dict(json.loads(plain.read_text(encoding="utf-8")))
 
 
+def _atomic_write(path: Path, text: str) -> None:
+    """Write `text` to `path` atomically: to a temp file in the same directory,
+    then os.replace (atomic on POSIX). A process killed mid-write (e.g. a huge
+    model hitting a timeout) then leaves EITHER the old file or nothing — never a
+    truncated JSON that poisons every later read. The temp is cleaned on failure."""
+    path = Path(path)
+    path.parent.mkdir(parents=True, exist_ok=True)
+    tmp = path.with_name(f"{path.name}.tmp-{os.getpid()}")
+    try:
+        tmp.write_text(text, encoding="utf-8")
+        os.replace(tmp, path)                      # atomic rename
+    finally:
+        if tmp.exists():
+            try:
+                tmp.unlink()
+            except OSError:
+                pass
+
+
 def save_model(model_path, doc, *, packed: bool = True) -> None:
-    """Write the canonical model + (by default) the packed sidecar in sync."""
+    """Write the canonical model + (by default) the packed sidecar in sync.
+    Both writes are ATOMIC so a killed process never leaves a truncated JSON."""
     plain = Path(model_path)
     plain.parent.mkdir(parents=True, exist_ok=True)
     data = doc.to_dict()
-    plain.write_text(json.dumps(data, indent=2, ensure_ascii=False), encoding="utf-8")
+    _atomic_write(plain, json.dumps(data, indent=2, ensure_ascii=False))
     sidecar = packed_path(plain)
     if packed:
         try:
-            sidecar.write_text(
-                json.dumps(docpack.pack(data), ensure_ascii=False), encoding="utf-8")
+            _atomic_write(sidecar, json.dumps(docpack.pack(data), ensure_ascii=False))
         except Exception:
             if sidecar.exists():                   # never leave a stale sidecar
                 sidecar.unlink()

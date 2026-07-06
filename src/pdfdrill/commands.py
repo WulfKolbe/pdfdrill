@@ -259,7 +259,8 @@ def _write_born_digital_lines(pdf: Path) -> bool:
         return False                                 # no real text layer → OCR
     try:
         lines = chars_to_lines.chars_to_lines_json(data)
-        _lines_json_path(pdf).write_text(json.dumps(lines), encoding="utf-8")
+        from . import model_io
+        model_io._atomic_write(_lines_json_path(pdf), json.dumps(lines))
     except Exception:                                # noqa: BLE001
         return False
     return True
