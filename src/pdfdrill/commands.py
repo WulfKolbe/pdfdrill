@@ -7698,9 +7698,15 @@ def cmd_md(pdf: Path, pages: str | None = None) -> str:
 
     t0 = time.monotonic()
 
-    # Ensure chars.json exists
+    # Ensure a COMPLETE chars.json exists — regenerate a truncated one (a killed
+    # write on a huge born-digital book left a partial dump that poisoned md).
     chars_path = pdf.with_suffix(".chars.json")
-    if not chars_path.exists():
+    if not _json_file_looks_complete(chars_path):
+        if chars_path.exists():
+            try:
+                chars_path.unlink()
+            except OSError:
+                pass
         _extract_pdfplumber_chars(pdf, pages)
 
     # Run the layer pipeline
@@ -7809,12 +7815,41 @@ def _extract_pdfplumber_chars(pdf: Path, pages: str | None = None):
             return float(obj)
         raise TypeError(f"Not serializable: {type(obj)}")
 
+    # ATOMIC write: a 1000-page book's .chars.json is 600-800 MB; a non-atomic
+    # dump killed mid-write (e.g. a timeout) left a truncated file that poisoned
+    # every later md/drill. Dump to a temp then os.replace so it's all-or-nothing.
+    import os as _os
     chars_path = pdf.with_suffix(".chars.json")
-    with open(chars_path, "w", encoding="utf-8") as f:
-        json_mod.dump(
-            {"source": pdf.name, "total_pages": len(pages_data), "pages": pages_data},
-            f, default=default, ensure_ascii=False,
-        )
+    tmp = chars_path.with_name(f"{chars_path.name}.tmp-{_os.getpid()}")
+    try:
+        with open(tmp, "w", encoding="utf-8") as f:
+            json_mod.dump(
+                {"source": pdf.name, "total_pages": len(pages_data), "pages": pages_data},
+                f, default=default, ensure_ascii=False,
+            )
+        _os.replace(tmp, chars_path)
+    finally:
+        if tmp.exists():
+            try:
+                tmp.unlink()
+            except OSError:
+                pass
+
+
+def _json_file_looks_complete(path: Path) -> bool:
+    """Cheap completeness check for a large JSON dump WITHOUT parsing it: a
+    complete object ends with `}` (a truncated write ends mid-content). Reads
+    only the tail — parsing an 800 MB file is exactly the cost we're avoiding."""
+    try:
+        size = path.stat().st_size
+    except OSError:
+        return False
+    if size == 0:
+        return False
+    with open(path, "rb") as f:
+        f.seek(max(0, size - 64))
+        tail = f.read().rstrip()
+    return tail.endswith(b"}")
 
 
 def cmd_page(pdf: Path, page_num: int) -> str:
