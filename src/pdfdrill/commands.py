@@ -191,6 +191,15 @@ def _format_mathpix(result: dict, files_meta: list[dict]) -> str:
 # Unified model + comparison
 # ---------------------------------------------------------------------------
 
+def _missing_tool_msg(tool: str, pkg: str) -> str:
+    """Clear, actionable message for a missing system tool — never the raw
+    `[Errno 2] No such file or directory: <tool>` a bare FileNotFoundError gives."""
+    return (f"`{tool}` is not installed — it's a prerequisite. Install it: "
+            f"`sudo apt-get install {pkg}` (Debian/Ubuntu), `sudo dnf install "
+            f"{pkg}` (Fedora), or your distro's package. Run `pdfdrill doctor` "
+            f"to check every prerequisite.")
+
+
 def _display_path(path: Path, base: Path) -> Path:
     """`path` shown relative to `base` when possible, else `path` unchanged.
     Never raises — Sidecar absolutizes pdf_path while a relative CLI arg leaves
@@ -6717,9 +6726,12 @@ def cmd_size(pdf: Path) -> str:
         return _format_size(sc)
 
     t0 = time.monotonic()
-    out = subprocess.run(
-        ["pdfinfo", str(pdf)], capture_output=True, text=True, timeout=30,
-    )
+    try:
+        out = subprocess.run(
+            ["pdfinfo", str(pdf)], capture_output=True, text=True, timeout=30,
+        )
+    except FileNotFoundError:
+        return _missing_tool_msg("pdfinfo", "poppler-utils")
     info = {}
     for line in out.stdout.splitlines():
         if ":" in line:
@@ -7889,7 +7901,10 @@ def cmd_pdfinfo(pdf: Path) -> str:
         return _format_pdfinfo(sc.pdfinfo)
 
     t0 = time.monotonic()
-    info = fetch_pdfinfo_struct(pdf)
+    try:
+        info = fetch_pdfinfo_struct(pdf)
+    except FileNotFoundError:
+        return _missing_tool_msg("pdfinfo", "poppler-utils")
     sc.set_pdfinfo(info)
     sc.add_fact(PDFINFO_KNOWN)
 
