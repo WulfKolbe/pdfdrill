@@ -16,8 +16,39 @@ stay unit-testable in isolation (no Stanza needed for the pure functions).
 """
 from __future__ import annotations
 
+import os
 import re
 from typing import Any
+
+# GPU-hiding env vars, checked by torch AT IMPORT time. Setting them empty makes
+# a CUDA *or* ROCm/HIP torch build CPU-only.
+_GPU_HIDE_VARS = ("CUDA_VISIBLE_DEVICES", "HIP_VISIBLE_DEVICES",
+                  "ROCR_VISIBLE_DEVICES")
+
+
+def _hide_gpu_from_torch() -> bool:
+    """Force CPU by hiding every GPU from torch BEFORE it is imported (Stanza
+    pulls torch). WHY THIS MATTERS: on an AMD-APU / integrated-GPU machine the
+    GPU a ROCm torch build would grab is the SAME one driving X11 — a Stanza GPU
+    allocation there can crash the whole display to a black screen (observed on
+    Solus/Beelink Ryzen). CPU-only is the safe default; set PDFDRILL_NLP_GPU=1 to
+    opt back in on a box with a dedicated compute GPU. Returns True when CPU was
+    forced. MUST run before `import stanza`."""
+    if os.environ.get("PDFDRILL_NLP_GPU"):
+        return False
+    for v in _GPU_HIDE_VARS:
+        os.environ[v] = ""
+    return True
+
+
+def _pipeline_kwargs(lang: str, processors, cpu: bool) -> dict:
+    """stanza.Pipeline kwargs; pins device to CPU when cpu is True (defensive —
+    the env hiding already makes torch CPU-only)."""
+    kw = dict(lang=lang, processors=processors, download_method=None,
+              verbose=False)
+    if cpu:
+        kw["device"] = "cpu"
+    return kw
 
 # Object types carrying prose worth annotating, mapped to the `props` field
 # that holds their text. Text lives in different fields per type: Paragraph and
@@ -138,6 +169,9 @@ class StanzaAnnotator:
     @property
     def pipeline(self):
         if self._pipeline is None:
+            # Hide the GPU from torch BEFORE `import stanza` pulls it — CPU-only
+            # by default so Stanza can never crash the X11-driving iGPU.
+            cpu = _hide_gpu_from_torch()
             try:
                 import stanza
             except ImportError as exc:
@@ -145,13 +179,15 @@ class StanzaAnnotator:
                     "Stanza is not installed. Install the optional extra: "
                     "pip install 'pdfdrill[nlp]'"
                 ) from exc
+            kwargs = _pipeline_kwargs(self.lang, self.processors, cpu)
             try:
-                self._pipeline = stanza.Pipeline(
-                    lang=self.lang,
-                    processors=self.processors,
-                    download_method=None,
-                    verbose=False,
-                )
+                try:
+                    self._pipeline = stanza.Pipeline(**kwargs)
+                except TypeError:            # older stanza: no `device` kwarg
+                    kwargs.pop("device", None)
+                    if cpu:
+                        kwargs["use_gpu"] = False
+                    self._pipeline = stanza.Pipeline(**kwargs)
             except Exception as exc:
                 raise StanzaUnavailable(
                     f"Could not load Stanza '{self.lang}' model ({exc}). Run: "
