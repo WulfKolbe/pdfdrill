@@ -7700,7 +7700,7 @@ def cmd_md(pdf: Path, pages: str | None = None) -> str:
 
     # Ensure a COMPLETE chars.json exists — regenerate a truncated one (a killed
     # write on a huge born-digital book left a partial dump that poisoned md).
-    chars_path = pdf.with_suffix(".chars.json")
+    chars_path = _chars_json_path(pdf)                 # in the .drill/ sidecar folder
     if not _json_file_looks_complete(chars_path):
         if chars_path.exists():
             try:
@@ -7819,7 +7819,8 @@ def _extract_pdfplumber_chars(pdf: Path, pages: str | None = None):
     # dump killed mid-write (e.g. a timeout) left a truncated file that poisoned
     # every later md/drill. Dump to a temp then os.replace so it's all-or-nothing.
     import os as _os
-    chars_path = pdf.with_suffix(".chars.json")
+    chars_path = _chars_json_path(pdf)                 # .drill/ sidecar folder
+    chars_path.parent.mkdir(parents=True, exist_ok=True)
     tmp = chars_path.with_name(f"{chars_path.name}.tmp-{_os.getpid()}")
     try:
         with open(tmp, "w", encoding="utf-8") as f:
@@ -7834,6 +7835,23 @@ def _extract_pdfplumber_chars(pdf: Path, pages: str | None = None):
                 tmp.unlink()
             except OSError:
                 pass
+
+
+def _chars_json_path(pdf: Path) -> Path:
+    """The pdfplumber char dump's location: inside the `.drill/` sidecar folder,
+    NOT next to the PDF (the 600-800 MB dumps cluttered the working directory). A
+    legacy dump beside the PDF is migrated into `.drill/` on first access."""
+    import os as _os
+    drill = pdf.parent / f"{pdf.name}.drill"
+    new = drill / "chars.json"
+    legacy = pdf.with_suffix(".chars.json")
+    if legacy.exists() and not new.exists():
+        drill.mkdir(parents=True, exist_ok=True)
+        try:
+            _os.replace(legacy, new)                  # atomic move into the sidecar
+        except OSError:
+            pass
+    return new
 
 
 def _json_file_looks_complete(path: Path) -> bool:

@@ -54,11 +54,17 @@ def _has_upload(ctx: DocumentContext) -> bool:
 def _has_local_path(ctx: DocumentContext) -> bool:
     return ctx.local_path is not None and Path(ctx.local_path).exists()
 
+def _chars_json_for(ctx: DocumentContext):
+    """The doc's chars.json in the .drill/ sidecar (migrating a legacy dump)."""
+    if not ctx.local_path:
+        return None
+    from .commands import _chars_json_path
+    return _chars_json_path(Path(ctx.local_path))
+
+
 def _has_chars_json(ctx: DocumentContext) -> bool:
-    if ctx.local_path:
-        chars = Path(ctx.local_path).with_suffix(".chars.json")
-        return chars.exists()
-    return False
+    chars = _chars_json_for(ctx)
+    return bool(chars and chars.exists())
 
 def _has_graphemes(ctx: DocumentContext) -> bool:
     return len(ctx.graphemes) > 0
@@ -112,9 +118,7 @@ class IngestCharsNode:
         return _has_chars_json(ctx) or _has_local_path(ctx)
 
     def run(self, ctx: DocumentContext) -> DocumentContext:
-        chars_path = None
-        if ctx.local_path:
-            chars_path = Path(ctx.local_path).with_suffix(".chars.json")
+        chars_path = _chars_json_for(ctx)
         if not chars_path or not chars_path.exists():
             ctx.log("plumber_extract", "no .chars.json found")
             return ctx
