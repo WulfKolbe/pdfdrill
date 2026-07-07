@@ -128,3 +128,39 @@ def test_inspect_no_meta_pages_derives_from_objects():
         assert "<html" in html.lower()              # no crash
         assert '"p1"' in html and '"f1"' in html    # elements still present
         assert n_pages == 1                          # derived page 1 from the objects
+
+
+# --- P4a: the inspect HTML GENERATOR (build_inspector_html) — was untested -----
+def test_generator_embeds_elements_bbox_latex():
+    """The client payload must carry each element by id/type/bbox + the formula
+    LaTeX (what the tree, inspector and KaTeX reflow read)."""
+    html = docinspect.build_inspector_html(_model(), pages={}, title="T")
+    assert "f1" in html and "Formula" in html and "x^2" in html
+    assert "p1" in html and "Hello world" in html      # paragraph reaches the client
+    assert "pages_meta" in html                         # page geometry embedded
+    assert "bbox" in html
+
+
+def test_generator_crop_uses_region_faithfully_no_padding():
+    """Regression guard for the char-leak investigation: the client crop draws the
+    EXACT bbox — no additive padding/rounding that would leak neighbouring glyphs.
+    (The leak is region-side/DRILLPDFse, NOT the generator — keep it that way.)"""
+    html = docinspect.build_inspector_html(_model(), pages={}, title="T")
+    assert "cropFromPage" in html
+    assert "drawImage(im, b.x*sx,b.y*sy,b.w*sx,b.h*sy" in html   # faithful rect
+    assert "b.x*sx+" not in html and "+pad" not in html          # no additive leak
+
+
+def test_generator_reflow_and_tree_scaffolding():
+    html = docinspect.build_inspector_html(_model(), pages={}, title="Demo Doc")
+    assert "reflow" in html.lower()                    # the reading-order reflow tab
+    assert "Demo Doc" in html                          # title threaded through
+    assert "<html" in html.lower() and "</html>" in html.lower()
+
+
+def test_generator_geometryless_model_still_renders():
+    m = _model()
+    del m["meta"]["pages"]                             # the LaTeX-source species
+    html = docinspect.build_inspector_html(m, pages={}, title="T")
+    assert "<html" in html.lower()
+    assert "f1" in html and "p1" in html               # elements still in the payload
