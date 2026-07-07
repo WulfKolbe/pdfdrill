@@ -1316,6 +1316,16 @@ def _do_retrieve(args):
                         as_json=as_json)
 
 
+def _do_reconcile(args):
+    """pdfdrill reconcile <pdf> [--mathpix LINES.json] [--adopt-all] — dual-route:
+    keep pdfminer structure+geometry, correct math with MathPix (region-matched)."""
+    from .commands import cmd_reconcile
+    mathpix, args = _opt(args, "--mathpix")
+    adopt_all = "--adopt-all" in args
+    args = [a for a in args if a != "--adopt-all"]
+    return cmd_reconcile(_pdf(args), mathpix=mathpix, adopt_all=adopt_all)
+
+
 def _do_context(args):
     """pdfdrill context <pdf> ["query"] [--type T,T] [--concept X] [--section S]
     [--k N] [--max-tokens N] [--aspect A] [--out FILE] — project the docmodel into
@@ -1471,6 +1481,7 @@ HANDLERS = {
         "steps": _do_steps,
         "retrieve": _do_retrieve,
         "context": _do_context,
+        "reconcile": _do_reconcile,
         "combine": _do_combine,
         "chatlog": _do_chatlog,
         "remath": _do_remath,

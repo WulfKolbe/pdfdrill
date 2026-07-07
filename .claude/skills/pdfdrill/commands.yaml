@@ -1629,6 +1629,31 @@ commands:
     flag: --force
     type: flag
   typed: true
+- name: reconcile
+  section: Planning & automation
+  summary: 'Dual-route reconciliation (parallel MathPix + pdfminer.six): keep the pdfminer model''s
+    STRUCTURE (citations/figrefs/transclusions/front-matter) + GEOMETRY (self-contained inspect), correct
+    its garbled MATH with MathPix''s clean LaTeX, region-matched (per-aspect best-of). Runs the math-garble
+    QC always; adopts MathPix when a `--mathpix LINES.json` source is present (else reports the garble +
+    next step). Geometry never touched; original kept as latex_pdfminer.'
+  offline_ok: true
+  requires:
+  - model
+  positionals:
+  - name: pdf
+    type: pdf
+    required: true
+    help: PDF path, https URL, or bare arXiv id
+  flags:
+  - name: mathpix
+    flag: --mathpix
+    type: str
+    help: a MathPix lines.json to reconcile against
+  - name: adopt-all
+    flag: --adopt-all
+    type: flag
+    help: adopt MathPix on ALL matched eqs, not just garbled
+  typed: true
 - name: context
   section: Planning & automation
   summary: 'Project the docmodel into an LLM CONTEXT (deterministic structural RAG): select typed objects

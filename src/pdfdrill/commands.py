@@ -3335,6 +3335,88 @@ def cmd_retrieve(pdf: Path, question: str, k: int = 8, as_json: bool = False) ->
     return "\n".join(lines)
 
 
+def _model_equations(doc) -> "tuple[list, dict]":
+    """(equations, pages) from a Document/DocGraph: each equation {id,page,region,
+    latex}; pages maps page → (width,height) from meta['pages']."""
+    eqs = []
+    for o in getattr(doc, "objects", {}).values() if hasattr(doc, "objects") else doc:
+        if getattr(o, "type", "") in ("Equation", "Formula"):
+            p = getattr(o, "props", {})
+            eqs.append({"id": getattr(o, "id", ""), "page": p.get("page"),
+                        "region": p.get("region") or {}, "latex": p.get("latex") or ""})
+    pages = {}
+    for pm in (doc.meta.get("pages") if hasattr(doc, "meta") else []) or []:
+        pages[pm.get("page")] = (pm.get("page_width"), pm.get("page_height"))
+    return eqs, pages
+
+
+def _lines_json_equations(lines: dict) -> "tuple[list, dict]":
+    """(equations, pages) from a MathPix-shape lines.json."""
+    eqs, pages = [], {}
+    for pg in lines.get("pages", []):
+        n = pg.get("page")
+        pages[n] = (pg.get("page_width"), pg.get("page_height"))
+        for ln in pg.get("lines", []):
+            if ln.get("type") in ("math", "equation"):
+                tx = (ln.get("text") or "").strip().strip("$").strip()
+                eqs.append({"page": n, "region": ln.get("region") or {}, "latex": tx})
+    return eqs, pages
+
+
+def cmd_reconcile(pdf: Path, mathpix: str | None = None, adopt_all: bool = False) -> str:
+    """Dual-route reconciliation: keep the pdfminer model's STRUCTURE + GEOMETRY,
+    correct its garbled MATH with MathPix's clean LaTeX, region-matched. Runs the
+    P3 math-garble QC always; when a MathPix lines.json is available (`--mathpix
+    PATH`, else `<stem>.mathpix.lines.json`) it adopts the clean math onto the
+    region-matched equations (geometry untouched; original kept as latex_pdfminer).
+    Without a MathPix source it reports the garble + the sanctioned next step."""
+    from . import reconcile as RC, model_io
+    sc = Sidecar(pdf)
+    model_path = _model_path(sc)
+    if _stale_or_absent(sc, model_path, _lines_json_path(pdf)):
+        cmd_model(pdf)
+        sc = Sidecar(pdf)
+        model_path = _model_path(sc)
+    if not model_path.exists():
+        return f"No model for {pdf.name} — run `pdfdrill model` first."
+
+    doc = model_io.load_model(model_path)
+    pm_eqs, pm_pages = _model_equations(doc)
+    n_garbled = sum(1 for e in pm_eqs if RC.math_qc(e["latex"])["garbled"])
+
+    # locate a MathPix lines.json (distinct from the pdfminer one)
+    mp_path = Path(mathpix) if mathpix else pdf.with_suffix(".mathpix.lines.json")
+    if not mp_path.exists():
+        tip = (f"\nTo correct them, get clean math from MathPix and reconcile: "
+               f"`pdfdrill mathpix {pdf.name} --force` saving a MathPix lines.json, "
+               f"then `pdfdrill reconcile {pdf.name} --mathpix <that.lines.json>`. "
+               f"(MathPix is the paid route; the garble itself is a DRILLPDFse "
+               f"extraction bug — the QC above lists concrete cases.)") if n_garbled else ""
+        return (f"reconcile {pdf.name}: {len(pm_eqs)} equations, {n_garbled} flagged "
+                f"GARBLED by the QC (char-spacing / truncation) — no MathPix source "
+                f"found to correct them.{tip}")
+
+    with open(mp_path, "r", encoding="utf-8") as f:
+        mp_eqs, mp_pages = _lines_json_equations(json.load(f))
+    adoptions = RC.plan_adoptions(pm_eqs, mp_eqs, pm_pages, mp_pages)
+    by_id = {a["pm_id"]: a for a in adoptions}
+    n_adopted = 0
+    for o in doc.objects.values():
+        a = by_id.get(getattr(o, "id", ""))
+        if a and a["mathpix_latex"] and (adopt_all or a["was_garbled"]):
+            o.props.setdefault("latex_pdfminer", o.props.get("latex", ""))
+            o.props["latex"] = a["mathpix_latex"]
+            o.props["math_provenance"] = "mathpix"
+            n_adopted += 1
+    if n_adopted:
+        model_io.save_model(model_path, doc)
+    return (f"reconcile {pdf.name}: matched {len(adoptions)}/{len(pm_eqs)} equations "
+            f"to MathPix by region; adopted MathPix clean LaTeX on {n_adopted} "
+            f"(garbled) equation(s), keeping pdfminer geometry + structure. "
+            f"{n_garbled} were flagged garbled. Re-run `tiddlers`/`report`/`inspect` "
+            f"for the corrected math with the original structure intact.")
+
+
 def cmd_context(pdf: Path, query: str = "", *, types: str | None = None,
                 concept: str | None = None, section: str | None = None,
                 k: int | None = None, max_tokens: int | None = None,
