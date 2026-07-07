@@ -110,3 +110,21 @@ if __name__ == "__main__":
     if failed:
         print(f"\n{len(failed)} of {len(tests)} failed"); sys.exit(1)
     print(f"\nAll {len(tests)} tests passed.")
+
+
+def test_inspect_no_meta_pages_derives_from_objects():
+    """Sandbox root cause: the LaTeX-source model species has NO meta['pages'],
+    so docinspect crashed with KeyError('pages') and `inspect` returned the
+    cryptic 'inspect failed: pages' that made the agent improvise. It must derive
+    the page list from the objects' page props instead."""
+    import json as _j, tempfile as _t
+    from pathlib import Path as _P
+    m = _model()
+    del m["meta"]["pages"]                          # the latex-source species
+    with _t.TemporaryDirectory() as d:
+        mp = _P(d) / "model.docmodel.json"
+        mp.write_text(_j.dumps(m))
+        html, n_pages, n_el, mode = docinspect.build_from_paths(str(mp), embed=True)
+        assert "<html" in html.lower()              # no crash
+        assert '"p1"' in html and '"f1"' in html    # elements still present
+        assert n_pages == 1                          # derived page 1 from the objects

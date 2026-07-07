@@ -262,14 +262,26 @@ def collect_elements(model: dict, sidx: dict) -> tuple[list[dict], list[dict]]:
         rec["n_align"] = align_by_obj.get(rec["id"], 0)
 
     pages_meta = []
-    for pm in model["meta"]["pages"]:
-        pages_meta.append(
-            {
+    meta_pages = model["meta"].get("pages")
+    if meta_pages:
+        for pm in meta_pages:
+            pages_meta.append({
                 "page": pm.get("page"),
                 "pt_w": _int(pm.get("page_width")),
                 "pt_h": _int(pm.get("page_height")),
-            }
-        )
+            })
+    else:
+        # No meta['pages'] — a LaTeX-source / non-rasterized model SPECIES (which
+        # carries no page geometry). Derive the page list from the objects' page
+        # props so the ELEMENTS tree + REFLOW still work (boxes-only: there's no
+        # page geometry to draw against). Prevents the KeyError('pages') that made
+        # `inspect` return a cryptic failure and the agent improvise.
+        seen: dict = {}
+        for e in elements:
+            pg = e.get("page")
+            if pg is not None and pg not in seen:
+                seen[pg] = {"page": pg, "pt_w": None, "pt_h": None}
+        pages_meta = [seen[p] for p in sorted(seen, key=lambda x: (x is None, x))]
     return elements, pages_meta
 
 

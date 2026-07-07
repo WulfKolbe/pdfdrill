@@ -2343,6 +2343,14 @@ def cmd_model(pdf: Path, force: bool = False, bibkey: str | None = None) -> str:
     sc.set_evidence("model_object_counts", by_type)
     sc.set_evidence("model_equations_with_cdn", eq_with_cdn)
     sc.set_evidence("model_source", lines_source)
+    # CAPABILITIES, not just MODEL_BUILT: `model` yields incompatible SPECIES —
+    # geometry (page boxes) for `inspect`/`locate`, math (typed equations) for
+    # `report`/`compare`. Record what THIS species can support so commands +
+    # `status` can be honest instead of trusting the single MODEL_BUILT fact.
+    has_geometry = bool((out.get("meta") or {}).get("pages"))
+    has_math = by_type.get("Equation", 0) > 0 or by_type.get("Formula", 0) > 0
+    sc.set_evidence("model_caps", {"geometry": has_geometry, "math": has_math,
+                                   "source": lines_source})
     prev = ",".join(sorted(sc.facts - {MODEL_BUILT})) or "INIT"
     sc.add_fact(MODEL_BUILT)
     sc.log_transition(
@@ -4362,6 +4370,21 @@ def cmd_inspect(pdf: Path, pages: str | None = None, embed: bool = True,
     sc.set_evidence("inspect_path", str(out_path.relative_to(sc.pdf_path.parent)))
     sc.save()
     rel = out_path.relative_to(sc.pdf_path.parent)
+    # A model SPECIES with no page geometry (LaTeX-source / tesseract-prose) has
+    # 0 derivable pages: the ELEMENTS tree + REFLOW work, but nothing can be boxed
+    # on a page image. Say so plainly and name the sanctioned path to a geometry-
+    # bearing model — don't leave the caller to improvise (the F8 anti-pattern).
+    if n_pages == 0:
+        aid = _arxiv_id_for(pdf, sc)
+        return (f"Docmodel inspector: {n_el} elements, but this model has NO page "
+                f"geometry (built from LaTeX source / prose OCR), so the ELEMENT "
+                f"TREE + REFLOW work in {rel} but elements can't be boxed on the "
+                f"pages. `inspect`'s page-box view needs a GEOMETRY-bearing model. "
+                f"To get one: `pdfdrill mathpix {pdf.name} --force` (paid, best "
+                f"boxes), or keyless `pdfdrill ocr {pdf.name}` then `pdfdrill model "
+                f"{pdf.name} --force` then `pdfdrill inspect {pdf.name}`"
+                + ("" if not aid else " (arXiv: `latex` gives math but no geometry"
+                   " — use ocr/mathpix for boxes)") + ".")
     note = "" if mode != "embed" or pages_dir else " (boxes-only — no page images)"
     return (f"Docmodel inspector: {n_el} elements over {n_pages} page(s){note}. "
             f"Open {rel} in a browser (hover the tree to highlight boxes; click "
