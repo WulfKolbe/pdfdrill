@@ -1316,6 +1316,28 @@ def _do_retrieve(args):
                         as_json=as_json)
 
 
+def _do_context(args):
+    """pdfdrill context <pdf> ["query"] [--type T,T] [--concept X] [--section S]
+    [--k N] [--max-tokens N] [--aspect A] [--out FILE] — project the docmodel into
+    an LLM context (structural RAG)."""
+    from .commands import cmd_context
+    types, args = _opt(args, "--type")
+    concept, args = _opt(args, "--concept")
+    section, args = _opt(args, "--section")
+    k, args = _opt(args, "--k")
+    max_tokens, args = _opt(args, "--max-tokens")
+    aspect, args = _opt(args, "--aspect")
+    out, args = _opt(args, "--out")
+    if not args:
+        raise ValueError('usage: pdfdrill context <pdf> ["query"] [--type …] '
+                         '[--concept …] [--section …] [--max-tokens N] [--out F]')
+    query = args[1] if len(args) > 1 else ""
+    return cmd_context(_drilled(args[:1]), query, types=types, concept=concept,
+                       section=section, k=int(k) if k else None,
+                       max_tokens=int(max_tokens) if max_tokens else None,
+                       aspect=aspect or "structural", out=out)
+
+
 def _do_combine(args):
     """pdfdrill combine <doc> <doc> [...] --out FILE [--force] — merge several
     drilled docs into one combined store for multi-document chat/retrieve."""
@@ -1448,6 +1470,7 @@ HANDLERS = {
         "skill": _do_skill,
         "steps": _do_steps,
         "retrieve": _do_retrieve,
+        "context": _do_context,
         "combine": _do_combine,
         "chatlog": _do_chatlog,
         "remath": _do_remath,

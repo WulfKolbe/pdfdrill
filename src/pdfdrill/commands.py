@@ -3327,6 +3327,45 @@ def cmd_retrieve(pdf: Path, question: str, k: int = 8, as_json: bool = False) ->
     return "\n".join(lines)
 
 
+def cmd_context(pdf: Path, query: str = "", *, types: str | None = None,
+                concept: str | None = None, section: str | None = None,
+                k: int | None = None, max_tokens: int | None = None,
+                aspect: str = "structural", out: str | None = None) -> str:
+    """Project a query into an LLM CONTEXT: select typed docmodel objects (by
+    free-text + --type/--concept/--section filters), rank (structural/IDF now;
+    pluggable per-aspect embedding rankers later), and render Markdown blocks with
+    metadata + object ids under a --max-tokens budget. The deterministic,
+    structural RAG retriever — the LLM sees a projection, never the whole doc.
+    Fast DocGraph read path; also accepts a combined store."""
+    from . import projection as P, model_io
+    type_list = [t for t in (types or "").split(",") if t.strip()] or None
+
+    combo = _load_combined_store(pdf)
+    if combo is not None:
+        nodes, meta = combo
+        title = str(meta.get("title") or Path(pdf).stem)
+    else:
+        sc = Sidecar(pdf)
+        model_path = _model_path(sc)
+        if _stale_or_absent(sc, model_path, _lines_json_path(pdf)):
+            cmd_model(pdf)
+            sc = Sidecar(pdf)
+            model_path = _model_path(sc)
+        if not model_path.exists():
+            return f"No model for {pdf.name} — run `pdfdrill model`/`markdown` first."
+        g = _fresh_docgraph(pdf, sc, model_path)
+        nodes = list(g)
+        title = str(g.meta.get("title") or sc.get_evidence("arxiv_title") or pdf.stem)
+
+    md = P.project_context(nodes, query, types=type_list, concept=concept,
+                           section=section, k=k, max_tokens=max_tokens,
+                           aspect=aspect, title=title)
+    if out:
+        Path(out).write_text(md, encoding="utf-8")
+        return f"Context projection → {out} ({len(md)} chars). {md.splitlines()[-1]}"
+    return md
+
+
 def cmd_ask(pdf: Path, question: str, precision: float | None = None,
             json_out: bool = False, k: int = 8) -> str:
     """Gated, grounded answering (S6.2 + the A4 readout discipline): retrieve

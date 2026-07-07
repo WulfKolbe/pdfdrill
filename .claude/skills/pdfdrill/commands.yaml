@@ -1629,6 +1629,54 @@ commands:
     flag: --force
     type: flag
   typed: true
+- name: context
+  section: Planning & automation
+  summary: 'Project the docmodel into an LLM CONTEXT (deterministic structural RAG): select typed objects
+    by free-text query + --type/--concept/--section, rank (structural/IDF now; pluggable per-aspect
+    embedding rankers later), render Markdown blocks with metadata + object ids under --max-tokens N.
+    The LLM sees a projection, never the whole doc or a filename. Also accepts a combined store.'
+  offline_ok: true
+  requires:
+  - model
+  positionals:
+  - name: pdf
+    type: pdf
+    required: true
+    help: PDF/Markdown drilled-doc path, URL, or arXiv id
+  - name: query
+    type: str
+    required: false
+    help: free-text query (optional; flow order without it)
+  flags:
+  - name: type
+    flag: --type
+    type: str
+    help: comma list — definition,formula,theorem,figure,table,reference,concept
+  - name: concept
+    flag: --concept
+    type: str
+    help: a named concept + its occurrences
+  - name: section
+    flag: --section
+    type: str
+    help: restrict to a section number/caption
+  - name: k
+    flag: --k
+    type: int
+    help: cap the number of units
+  - name: max-tokens
+    flag: --max-tokens
+    type: int
+    help: token budget for the projected context
+  - name: aspect
+    flag: --aspect
+    type: str
+    help: ranker aspect (default structural; math/citation later)
+  - name: out
+    flag: --out
+    type: str
+    help: write Markdown to FILE
+  typed: true
 - name: retrieve
   section: Planning & automation
   summary: 'Transform a question into grounded context: top-k relevant drilled units (the chat-proxy enrichment

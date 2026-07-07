@@ -514,6 +514,7 @@ _Generated from `commands.yaml` by skillsync. Edit the manifest, not this sectio
 | `pdfdrill drill <pdf> [--full]` | Full auto-drill |
 | `pdfdrill steps <cmd> <pdf>` | Show the prerequisite chain for a command (what's done, what --ensure would run) |
 | `pdfdrill combine <docs> [--out OUT] [--force]` | Merge several drilled docs into ONE combined store (--out FILE) for MULTI-DOCUMENT chat/retrieve; pools prose/math/concepts, ids namespaced <bibkey>:<id>. Each input must be drilled (model) first |
+| `pdfdrill context <pdf> <query> [--type TYPE] [--concept CONCEPT] [--section SECTION] [--k K] [--max-tokens MAX-TOKENS] [--aspect ASPECT] [--out OUT]` | Project the docmodel into an LLM CONTEXT (deterministic structural RAG): select typed objects by free-text query + --type/--concept/--section, rank (structural/IDF now; pluggable per-aspect embedding rankers later), render Markdown blocks with metadata + object ids under --max-tokens N. The LLM sees a projection, never the whole doc or a filename. Also accepts a combined store. |
 | `pdfdrill retrieve <pdf> <question> [--k K] [--json]` | Transform a question into grounded context: top-k relevant drilled units (the chat-proxy enrichment / future-SKILL seed). Also accepts a COMBINED store (multi-document) |
 | `pdfdrill chatlog <pdf> [--question QUESTION] [--answer ANSWER] [--units UNITS] [--model MODEL] [--verdict VERDICT]` | Store one Q&A turn: append the transcript + emit the answer as a kitem in the semantic graph (provenance qid=ask) |
 
