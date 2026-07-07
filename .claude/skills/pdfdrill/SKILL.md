@@ -356,6 +356,28 @@ move. pdfdrill almost always has a better, deterministic route — use it:
   hand-roll a pseudo-`lines.json` by linearising equations (that yields flattened,
   unusable LaTeX — see `pdfdrill mathcheck`); let `visionocr` keep the structure.
 
+  **ESCAPE LADDER — when a delegated page image is hard to read (do NOT drift to
+  `texsrc/` or hallucinate LaTeX; that is finding F8, cheating).** The sanctioned
+  moves, in order:
+  1. **Crop tighter, same image** — `pdfdrill snip <pdf> --page N --rect
+     x0,y0,x1,y1 [--ppi 300]` delivers a higher-resolution crop of the SAME region
+     to Read again. Repeat per hard equation. (`snip` delivers the crop even if OCR
+     is unavailable.)
+  2. **Ingest what you COULD read** — write the equations you managed as a JSON
+     array of `{page,number,latex,kind}` and fold them in: `pdfdrill visionocr
+     <pdf> --ingest partial.json`. Partial is fine; it keeps real structure.
+  3. **Report the rest as PENDING** — the unread pages remain queued as eq_ocr
+     requests in `<pdf>.drill/llm/`. Say so plainly ("N eq_ocr requests pending")
+     and STOP. A later `pdfdrill visionocr` re-run under Claude Code — or with a
+     MathPix/Novita key — completes them, and `inspect`/`report` regenerate with
+     full math. A partial, honestly-pending result beats an invented one.
+
+  Likewise, if `pdfdrill inspect` reports the model has NO page geometry (a
+  LaTeX-source / prose species), do NOT improvise boxes — follow the message: get
+  a geometry-bearing model via `mathpix --force` or `ocr` → `model --force` →
+  `inspect`. `model` records `model_caps` (geometry/math/source) so the species is
+  never guessed.
+
 So "no LLM call happened" is usually CORRECT: a gold/visual route applied. Only
 `bibfetch` (truncated printed refs, no key) and `vision` (MathPix crops, no key)
 actually trigger the delegation handshake below.
