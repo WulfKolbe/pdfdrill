@@ -135,3 +135,69 @@ if __name__ == "__main__":
         except Exception as e: failed.append(name); print(f"ERROR {name}: {e!r}")
     if failed: print(f"\n{len(failed)} failed"); sys.exit(1)
     print(f"\nAll {len(tests)} passed.")
+
+
+# --- semantic → OKF (commercial knowledge units) -------------------------------
+def _graph():
+    return {
+        "entities": {
+            "company:1": {"id": "company:1", "type": "company", "subtype": "authority",
+                          "properties": {"name": "Gemeinde Kürten", "city": "Kürten"},
+                          "evidence": []},
+            "bank_account:1": {"id": "bank_account:1", "type": "bank_account",
+                               "subtype": "",
+                               "properties": {"iban": "DE89370400440532013000",
+                                              "bic": "COKSDE33XXX"}, "evidence": []},
+            "document:1": {"id": "document:1", "type": "document", "subtype": "invoice",
+                           "properties": {"title": "Wasserabrechnung 2025",
+                                          "kassenzeichen": "0106.104791.001"},
+                           "evidence": []},
+        },
+        "relations": [   # real graph shape: subject_id / object_id
+            {"subject_id": "bank_account:1", "predicate": "belongs_to",
+             "object_id": "company:1"},
+            {"subject_id": "document:1", "predicate": "issued_by",
+             "object_id": "company:1"},
+        ],
+    }
+
+
+def test_semantic_okf_conformance_and_folders():
+    b = X.semantic_to_okf(_graph(), "wb", "T")
+    for path, content in b.items():
+        assert _fm(content).get("type"), f"{path}: missing type"
+    assert "companies/company-1.md" in b            # snake→plural folder, id sanitized
+    assert "bank_accounts/bank_account-1.md" in b
+    assert "documents/document-1.md" in b
+    assert "index.md" in b
+
+
+def test_semantic_okf_entity_type_title_resource():
+    b = X.semantic_to_okf(_graph(), "wb", "T")
+    acc = b["bank_accounts/bank_account-1.md"]
+    m = _fm(acc)
+    assert m["type"] == "BankAccount"                # snake_case → CamelCase OKF type
+    assert m["title"] == "DE89370400440532013000"    # iban is the account's name
+    assert m["resource"] == "iban:DE89370400440532013000"   # strong-key URI
+    assert m.get("bic") == "COKSDE33XXX"             # properties preserved
+    co = _fm(b["companies/company-1.md"])
+    assert co["type"] == "Company" and co["title"] == "Gemeinde Kürten"
+
+
+def test_semantic_okf_relations_as_markdown_links():
+    b = X.semantic_to_okf(_graph(), "wb", "T")
+    acc = b["bank_accounts/bank_account-1.md"]
+    # outgoing relation → relative markdown link to the object entity
+    assert "belongs_to" in acc and "(../companies/company-1.md)" in acc
+    assert "<$" not in acc                            # no TiddlyWiki widgets
+    # the company shows the incoming relations (referenced by)
+    co = b["companies/company-1.md"]
+    assert "bank_accounts/bank_account-1.md" in co or "documents/document-1.md" in co
+
+
+def test_semantic_okf_index_lists_entities_by_type():
+    b = X.semantic_to_okf(_graph(), "wb", {"title": "Wasserabrechnung"}, "T") \
+        if False else X.semantic_to_okf(_graph(), "wb", "T")
+    idx = b["index.md"]
+    assert _fm(idx)["type"] == "Document"
+    assert "(./companies/company-1.md)" in idx        # relative from root index

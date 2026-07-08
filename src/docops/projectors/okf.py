@@ -256,6 +256,143 @@ def tiddlers_to_okf(tiddlers: list, bibkey: str, meta: dict,
     return bundle
 
 
+# --- semantic graph → OKF (commercial knowledge units) ------------------------
+# OKF's own examples are commercial units (BigQuery Table, API Endpoint); a
+# semantic graph of Company/BankAccount/Person/Document + typed relations maps onto
+# OKF directly — each ENTITY is a knowledge unit, each RELATION a cross-link.
+_STRONG_KEY_URI = ("iban", "vat", "bic", "email", "tax_id", "doi", "isbn")
+_ENT_TITLE_KEYS = ("name", "title", "full_name", "iban", "sender", "doc_id")
+
+
+def _ent_okf_type(snake: str) -> str:
+    """Entity type snake_case → OKF CamelCase (`bank_account` → `BankAccount`)."""
+    return "".join(w.capitalize() for w in (snake or "entity").split("_")) or "Entity"
+
+
+def _ent_dir(snake: str) -> str:
+    """Entity type → a plural folder (`company` → `companies`)."""
+    s = snake or "entity"
+    return s[:-1] + "ies" if s.endswith("y") else s + "s"
+
+
+def _ent_props(e: dict) -> dict:
+    return e.get("properties") or {}
+
+
+def _ent_title(e: dict) -> str:
+    p = _ent_props(e)
+    for k in _ENT_TITLE_KEYS:
+        if p.get(k):
+            return str(p[k])
+    return e.get("id", "entity")
+
+
+def _ent_resource(e: dict, bibkey: str) -> str:
+    """A real-world URI when a strong key IS the entity's identity (`iban:DE…` for a
+    BankAccount, `vat:…` for a Company), else a pdfdrill handle. A Document's identity
+    is the document, never a BIC/IBAN it merely mentions — so it keeps the handle."""
+    p = _ent_props(e)
+    if e.get("type") != "document":
+        for k in _STRONG_KEY_URI:
+            if p.get(k):
+                return f"{k}:{p[k]}"
+    return f"pdfdrill:{bibkey}/{e.get('id', '')}"
+
+
+def _entity_okf(e: dict, bibkey: str, timestamp: str, id_to_path: dict,
+                id_to_title: dict, rels: list) -> str:
+    typ = _ent_okf_type(e.get("type", "entity"))
+    eid = e.get("id", "")
+    props = _ent_props(e)
+    from_path = id_to_path[eid]
+    fm: "OrderedDict" = OrderedDict()
+    fm["type"] = typ
+    fm["title"] = _ent_title(e)
+    fm["description"] = _ent_title(e) if props.get("name") or props.get("title") \
+        else f"{typ} {eid}"
+    fm["resource"] = _ent_resource(e, bibkey)
+    tags = [e.get("type", "entity")]
+    if e.get("subtype"):
+        tags.append(e["subtype"])
+    if bibkey:
+        tags.append(bibkey)
+    fm["tags"] = tags
+    fm["timestamp"] = timestamp
+    for k, v in props.items():                        # preserve derived properties
+        if v not in (None, "") and k not in ("name", "title"):
+            fm[k] = v
+    out = [_fm_block(fm), "", f"# {_ent_title(e)}", ""]
+    if props:
+        out.append("## Properties")
+        out += [f"- {k}: {v}" for k, v in props.items() if v not in (None, "")]
+        out.append("")
+    def _subj(r):
+        return r.get("subject_id") or r.get("subject")
+
+    def _obj(r):
+        return r.get("object_id") or r.get("object")
+
+    outgoing = [r for r in rels if _subj(r) == eid]
+    incoming = [r for r in rels if _obj(r) == eid]
+    if outgoing:
+        out.append("## Relations")
+        for r in outgoing:
+            o = _obj(r)
+            out.append(f"- {r.get('predicate')} → "
+                       f"[{id_to_title.get(o, o)}]({_link_path(o, id_to_path, from_path)})")
+        out.append("")
+    if incoming:
+        out.append("## Referenced by")
+        for r in incoming:
+            s = _subj(r)
+            out.append(f"- [{id_to_title.get(s, s)}]({_link_path(s, id_to_path, from_path)})"
+                       f" {r.get('predicate')} →")
+        out.append("")
+    return "\n".join(out) + "\n"
+
+
+def _semantic_index(entities: list, bibkey: str, meta: dict, timestamp: str,
+                    id_to_path: dict, id_to_title: dict) -> str:
+    fm: "OrderedDict" = OrderedDict()
+    fm["type"] = "Document"
+    title = (meta.get("title") if isinstance(meta, dict) else None) or f"{bibkey} — entities"
+    fm["title"] = title
+    fm["description"] = "Semantic entity graph (commercial knowledge units)."
+    fm["tags"] = [bibkey] if bibkey else []
+    fm["timestamp"] = timestamp
+    out = [_fm_block(fm), "", f"# {title}", ""]
+    groups: "OrderedDict" = OrderedDict()
+    for e in entities:
+        groups.setdefault(_ent_okf_type(e.get("type", "entity")), []).append(e)
+    for typ, items in groups.items():
+        out.append(f"## {typ} ({len(items)})")
+        for e in items:
+            eid = e.get("id")
+            out.append(f"- [{id_to_title.get(eid, eid)}]"
+                       f"({_link_path(eid, id_to_path, 'index.md')})")
+        out.append("")
+    return "\n".join(out)
+
+
+def semantic_to_okf(graph: dict, bibkey: str, timestamp: str) -> "dict[str, str]":
+    """A semantic graph (entities + relations) → an OKF bundle: one file per ENTITY
+    (type = the entity kind, per-type folder, strong-key `resource`, relations as
+    relative Markdown cross-links) + a reserved index.md grouping by type."""
+    ents = graph.get("entities") or {}
+    entities = list(ents.values()) if isinstance(ents, dict) else list(ents)
+    rels = graph.get("relations") or []
+    id_to_path = {e["id"]: f"{_ent_dir(e.get('type', 'entity'))}/"
+                           f"{e['id'].replace(':', '-')}.md" for e in entities}
+    id_to_title = {e["id"]: _ent_title(e) for e in entities}
+    bundle: "dict[str, str]" = {}
+    for e in entities:
+        bundle[id_to_path[e["id"]]] = _entity_okf(e, bibkey, timestamp,
+                                                  id_to_path, id_to_title, rels)
+    bundle["index.md"] = _semantic_index(entities, bibkey, {}, timestamp,
+                                         id_to_path, id_to_title)
+    return bundle
+
+
 class OKFProjector(BaseProjector):
     """Projects a Document into an OKF bundle (dict path→content) by re-serializing
     the TiddlyWiki tiddler list."""

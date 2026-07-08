@@ -541,9 +541,10 @@ def _list_artifacts(sc: "Sidecar", all_files: bool = False) -> "list[Path]":
         files += [p for p in svgdir.glob("*.svg")]
     # OKF bundles live in okf/<bibkey>/; surface each bundle's index.md entry point
     # (the whole bundle is reachable from it via relative links) so drillui lists it.
-    okfdir = d / "okf"
-    if okfdir.is_dir():
-        files += [p for p in okfdir.glob("*/index.md") if p.is_file()]
+    for okfsub in ("okf", "okf-semantic"):
+        okfdir = d / okfsub
+        if okfdir.is_dir():
+            files += [p for p in okfdir.glob("*/index.md") if p.is_file()]
     if not all_files:
         files = [p for p in files if p.name not in _HEAVY_INTERNAL
                  and p.stat().st_size <= _HEAVY_BYTES]
@@ -3422,50 +3423,73 @@ def cmd_reconcile(pdf: Path, mathpix: str | None = None, adopt_all: bool = False
             f"for the corrected math with the original structure intact.")
 
 
-def cmd_okf(pdf: Path, out: str | None = None, bibkey: str | None = None) -> str:
-    """Project the docmodel into an OKF (Open Knowledge Format) bundle: one
-    Markdown-with-YAML-frontmatter file per knowledge unit (required `type`) +
-    a reserved `index.md`, cross-linked by `[label](./unit.md)` markdown links.
-    OKF is the tiddler bundle re-serialized; the `.md` files open in drillui like
-    any markdown. Written to `<drill>/okf/<bibkey>/` (or `--out DIR`)."""
+def cmd_okf(pdf: Path, out: str | None = None, bibkey: str | None = None,
+            semantic: bool = False) -> str:
+    """Project into an OKF (Open Knowledge Format) bundle: one Markdown-with-YAML-
+    frontmatter file per knowledge unit (required `type`) + a reserved `index.md`,
+    cross-linked by relative Markdown links; the `.md` files open in drillui like
+    any markdown. Written to `<drill>/okf/<bibkey>/` (or `--out DIR`).
+
+    Default projects the DOCMODEL (paragraphs/equations/sections/…). `--semantic`
+    instead projects the SEMANTIC GRAPH — one file per ENTITY (Company / BankAccount
+    / Person / Document / …), relations as cross-links — the commercial-doc form
+    that matches OKF's own examples (auto-builds the graph via `semantic`)."""
     from docmodel.core import Document
     from docops.base import OperatorConfig
-    from docops.projectors.okf import OKFProjector
+    from docops.projectors.okf import OKFProjector, semantic_to_okf
 
     sc = Sidecar(pdf)
-    model_path = _model_path(sc)
-    if _stale_or_absent(sc, model_path, _lines_json_path(pdf)):
-        cmd_model(pdf, bibkey=bibkey)
-        sc = Sidecar(pdf)
+    key = (bibkey or sc.get_evidence("bibkey") or pdf.stem).strip()
+
+    if semantic:
+        from datetime import datetime, timezone
+        graph_path = sc.pdf_path.parent / f"{pdf.name}.drill" / f"{key}.semantic.json"
+        if not graph_path.exists():
+            cmd_semantic(pdf)
+            sc = Sidecar(pdf)
+            key = (bibkey or sc.get_evidence("bibkey") or pdf.stem).strip()
+            graph_path = sc.pdf_path.parent / f"{pdf.name}.drill" / f"{key}.semantic.json"
+        if not graph_path.exists():
+            return f"No semantic graph for {pdf.name} — run `pdfdrill semantic` first."
+        with open(graph_path, "r", encoding="utf-8") as f:
+            graph = json.load(f)
+        ts = datetime.now(timezone.utc).replace(microsecond=0).isoformat()
+        bundle = semantic_to_okf(graph, key, ts)
+    else:
         model_path = _model_path(sc)
-    if not model_path.exists():
-        return f"No model for {pdf.name} — run `pdfdrill model` first."
-
-    with open(model_path, "r", encoding="utf-8") as f:
-        doc = Document.from_dict(json.load(f))
-    key = (bibkey or sc.get_evidence("bibkey") or doc.meta.get("bibkey")
-           or pdf.stem).strip()
-    if bibkey:
-        doc.meta["bibkey"] = key
-
-    proj = OKFProjector(OperatorConfig(op="projector", classname="OKFProjector",
-                                       params={}))
-    bundle = proj.project(doc)
+        if _stale_or_absent(sc, model_path, _lines_json_path(pdf)):
+            cmd_model(pdf, bibkey=bibkey)
+            sc = Sidecar(pdf)
+            model_path = _model_path(sc)
+        if not model_path.exists():
+            return f"No model for {pdf.name} — run `pdfdrill model` first."
+        with open(model_path, "r", encoding="utf-8") as f:
+            doc = Document.from_dict(json.load(f))
+        key = (bibkey or sc.get_evidence("bibkey") or doc.meta.get("bibkey")
+               or pdf.stem).strip()
+        if bibkey:
+            doc.meta["bibkey"] = key
+        proj = OKFProjector(OperatorConfig(op="projector", classname="OKFProjector",
+                                           params={}))
+        bundle = proj.project(doc)
+    sub = "okf-semantic" if semantic else "okf"
     out_dir = Path(out) if out else (sc.pdf_path.parent / f"{pdf.name}.drill"
-                                     / "okf" / key)
+                                     / sub / key)
     out_dir.mkdir(parents=True, exist_ok=True)
     for rel, content in bundle.items():
         fp = out_dir / rel
         fp.parent.mkdir(parents=True, exist_ok=True)   # per-type subfolders
         fp.write_text(content, encoding="utf-8")
     rel_dir = _display_path(out_dir, sc.pdf_path.parent)
-    sc.set_evidence("okf_path", str(rel_dir))
+    sc.set_evidence("okf_semantic_path" if semantic else "okf_path", str(rel_dir))
     sc.save()
     ndir = len({r.split('/')[0] for r in bundle if '/' in r})
+    kind = ("entity graph (Company/BankAccount/Person/…)" if semantic
+            else "docmodel (equations/ sections/ references/ …)")
     return (f"OKF bundle for {pdf.name}: {len(bundle)} files in {ndir} per-type "
-            f"folders (equations/ sections/ references/ …) + index.md → {rel_dir}/. "
-            f"Each is Markdown-with-frontmatter (`type` per unit), cross-linked by "
-            f"relative Markdown links; open {rel_dir}/index.md in drillui.")
+            f"folders — {kind} + index.md → {rel_dir}/. Each is Markdown-with-"
+            f"frontmatter (`type` per unit), cross-linked by relative Markdown "
+            f"links; open {rel_dir}/index.md in drillui.")
 
 
 def cmd_context(pdf: Path, query: str = "", *, types: str | None = None,

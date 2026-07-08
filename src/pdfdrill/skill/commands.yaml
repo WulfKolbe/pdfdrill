@@ -1677,6 +1677,10 @@ commands:
     flag: --bibkey
     type: str
     help: tiddler/title prefix + bundle folder name
+  - name: semantic
+    flag: --semantic
+    type: flag
+    help: project the SEMANTIC GRAPH (entities/relations) not the docmodel — the commercial-doc form
   typed: true
 - name: context
   section: Planning & automation

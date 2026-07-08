@@ -1332,7 +1332,9 @@ def _do_okf(args):
     from .commands import cmd_okf
     out, args = _opt(args, "--out")
     bibkey, args = _opt(args, "--bibkey")
-    return cmd_okf(_drilled(args[:1]), out=out, bibkey=bibkey)
+    semantic = "--semantic" in args
+    args = [a for a in args if a != "--semantic"]
+    return cmd_okf(_drilled(args[:1]), out=out, bibkey=bibkey, semantic=semantic)
 
 
 def _do_context(args):
