@@ -521,6 +521,7 @@ _Generated from `commands.yaml` by skillsync. Edit the manifest, not this sectio
 |---|---|
 | `pdfdrill md <pdf> [--pages PAGES]` | Full Markdown with math transclusions |
 | `pdfdrill page <pdf> <n>` | Single page text extraction |
+| `pdfdrill okf <pdf> [--out OUT] [--bibkey BIBKEY]` | Project the docmodel into an OKF (Open Knowledge Format) BUNDLE: one Markdown-with-YAML-frontmatter file per knowledge unit (required `type`) + a reserved index.md, cross-linked by [label](./unit.md) markdown links. OKF is the tiddler bundle re-serialized; the .md files open in drillui like any markdown. Written to <drill>/okf/<bibkey>/ (or --out DIR). |
 
 ### Query
 

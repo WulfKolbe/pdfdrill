@@ -1326,6 +1326,15 @@ def _do_reconcile(args):
     return cmd_reconcile(_pdf(args), mathpix=mathpix, adopt_all=adopt_all)
 
 
+def _do_okf(args):
+    """pdfdrill okf <pdf> [--out DIR] [--bibkey K] — project the docmodel into an
+    OKF (Open Knowledge Format) bundle (Markdown-with-frontmatter, one file/unit)."""
+    from .commands import cmd_okf
+    out, args = _opt(args, "--out")
+    bibkey, args = _opt(args, "--bibkey")
+    return cmd_okf(_drilled(args[:1]), out=out, bibkey=bibkey)
+
+
 def _do_context(args):
     """pdfdrill context <pdf> ["query"] [--type T,T] [--concept X] [--section S]
     [--k N] [--max-tokens N] [--aspect A] [--out FILE] — project the docmodel into
@@ -1480,6 +1489,7 @@ HANDLERS = {
         "skill": _do_skill,
         "steps": _do_steps,
         "retrieve": _do_retrieve,
+        "okf": _do_okf,
         "context": _do_context,
         "reconcile": _do_reconcile,
         "combine": _do_combine,

@@ -1654,6 +1654,30 @@ commands:
     type: flag
     help: adopt MathPix on ALL matched eqs, not just garbled
   typed: true
+- name: okf
+  section: Extraction
+  summary: 'Project the docmodel into an OKF (Open Knowledge Format) BUNDLE: one Markdown-with-YAML-frontmatter
+    file per knowledge unit (required `type`) + a reserved index.md, cross-linked by [label](./unit.md)
+    markdown links. OKF is the tiddler bundle re-serialized; the .md files open in drillui like any
+    markdown. Written to <drill>/okf/<bibkey>/ (or --out DIR).'
+  offline_ok: true
+  requires:
+  - model
+  positionals:
+  - name: pdf
+    type: pdf
+    required: true
+    help: PDF/Markdown drilled-doc path, URL, or arXiv id
+  flags:
+  - name: out
+    flag: --out
+    type: str
+    help: write the bundle to DIR (default <drill>/okf/<bibkey>/)
+  - name: bibkey
+    flag: --bibkey
+    type: str
+    help: tiddler/title prefix + bundle folder name
+  typed: true
 - name: context
   section: Planning & automation
   summary: 'Project the docmodel into an LLM CONTEXT (deterministic structural RAG): select typed objects
