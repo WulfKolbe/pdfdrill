@@ -369,7 +369,12 @@ const app = {
   defaultWsUrl(){
     if (location.protocol === "file:") return "ws://localhost:8787/ws";
     const proto = location.protocol === "https:" ? "wss" : "ws";
-    return `${proto}://${location.host}/ws`;
+    // Path-AWARE: keep any reverse-proxy prefix in the page path (CoCalc serves
+    // drillui under /<project>/server/8787/), so the WS URL resolves through the
+    // same proxy. Strip the page filename, keep its directory, append "ws".
+    // localhost "/" → "/ws"; CoCalc "/p/server/8787/" → "/p/server/8787/ws".
+    const base = location.pathname.replace(/[^/]*$/, "");
+    return `${proto}://${location.host}${base}ws`;
   },
 
   banner(){
@@ -398,11 +403,15 @@ const app = {
   /* ---- bridge protocol ---- */
   connect(url){
     if (this.ws){ try{ this.ws.close(); }catch(e){} }
-    // HTTP origin of the bridge, for serving artifacts (ws→http, drop /ws path)
+    // HTTP base of the bridge, for serving artifacts (ws→http). Drop ONLY the
+    // trailing "/ws" endpoint segment and KEEP any reverse-proxy prefix, so
+    // `${httpBase}/artifact` resolves through the same proxy as the page (fixes
+    // CoCalc artifact/viewer 404s). localhost "/ws"→"" ; CoCalc
+    // "/p/server/8787/ws"→"/p/server/8787".
     try{
       const u = new URL(url);
       u.protocol = u.protocol === "wss:" ? "https:" : "http:";
-      u.pathname = ""; u.search = ""; u.hash = "";
+      u.pathname = u.pathname.replace(/\/ws$/, ""); u.search = ""; u.hash = "";
       this.httpBase = u.toString().replace(/\/$/, "");
     }catch(e){ this.httpBase = ""; }
     this.setConn("down","connecting…");

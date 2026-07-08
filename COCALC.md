@@ -6,10 +6,9 @@ toolchain, `bun`, and `uv`. On CoCalc you *do* have `pip install`, `sudo
 apt-get`, and write access to `~/.local/bin` and `~/.bun`, which is everything
 the setup needs.
 
-There is also one CoCalc-specific wrinkle: the drillui page is reached through
-CoCalc's **reverse proxy** on a path like `/<PROJECT_ID>/server/8787/`, and the
-WebSocket URL the page guesses by default (`wss://<host>/ws`) drops that path —
-so you paste the correct connection string once. Details below.
+The drillui page is reached through CoCalc's **reverse proxy** on a path like
+`/<PROJECT_ID>/server/8787/`; drillui now derives its WebSocket + artifact URLs
+from that page path, so it connects through the proxy automatically. Details below.
 
 ## 1. One-time setup
 
@@ -77,31 +76,20 @@ Example (yours will differ):
 https://host-dab25958-64df-4bea-803b-77319d7839f6-cocalc-prod.cocalc.ai/40721fd4-8da4-42b2-8319-1d714e6fd1ae/server/8787
 ```
 
-## 4. The connection string (the one manual step)
+## 4. Connecting — automatic now
 
-When the page loads it may show **"Bridge not reachable"**, because its default
-WebSocket guess (`wss://<host>/ws`) omits the CoCalc proxy path. Paste the
-correct URL into the terminal's **Connect** box:
+drillui derives its WebSocket URL (and its artifact/viewer HTTP base) from the
+**page's own path**, so behind CoCalc's proxy it connects to
+`wss://<HOST>/<PROJECT_ID>/server/8787/ws` automatically — no manual step. Open the
+page (§3) and the terminal banner should appear.
+
+**Fallback** — if it still shows **"Bridge not reachable"** (e.g. an unusual proxy
+layout), paste the WebSocket URL into the terminal's **Connect** box. It's the
+drillui page's own URL with `https`→`wss` and `ws` appended after the trailing slash:
 
 ```
 wss://<HOST>/<PROJECT_ID>/server/8787/ws
 ```
-
-Example:
-
-```
-wss://host-dab25958-64df-4bea-803b-77319d7839f6-cocalc-prod.cocalc.ai/40721fd4-8da4-42b2-8319-1d714e6fd1ae/server/8787/ws
-```
-
-**Easiest way to build it:** take the drillui page's own URL, change `https` →
-`wss`, and make sure it ends with `/server/8787/ws` (i.e. append `ws` after the
-trailing slash). Same host, same `<PROJECT_ID>`, same port — only the scheme and
-the `/ws` suffix differ.
-
-> This manual paste is only needed because drillui currently derives its
-> WebSocket URL from the host alone. The Connect box accepts any URL, so the
-> paste is a reliable workaround; a path-aware default (deriving the URL from
-> `location.pathname`) would remove this step entirely.
 
 ## Troubleshooting
 
@@ -112,7 +100,7 @@ the `/ws` suffix differ.
   both the page URL and the `wss://…/server/N/ws` string.
 - **Missing system tool** (poppler / dvisvgm / ghostscript / tesseract) —
   re-run `pdfdrill doctor`; it prints the exact `apt-get` line to fix each.
-- **Artifacts/viewer links 404 in the browser** — the served `/artifact` and
-  deep-zoom viewer links are derived from the host without the proxy path, the
-  same limitation as the WebSocket URL; open the report/artifact from the
-  `*.drill/` folder in the CoCalc file browser instead.
+- **Artifacts/viewer links 404 in the browser** — these are now derived through
+  the proxy path (same fix as the WebSocket URL), so they should resolve. If a link
+  still 404s, open the report/artifact from the `*.drill/` folder in the CoCalc file
+  browser instead.
