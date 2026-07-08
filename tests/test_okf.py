@@ -3,10 +3,11 @@ OKF projection (docops.projectors.okf) — the docmodel → Open Knowledge Forma
 bundle. OKF = one Markdown-with-YAML-frontmatter file per knowledge unit; the ONE
 conformance rule is a non-empty `type` in every non-reserved file's frontmatter.
 
-OKF allows a FOLDER structure ("files at any directory level") and bundle-absolute
-links `[t](/tables/x.md)`, so units are organised into per-type subfolders and ALL
-cross-references (transclusions AND TiddlyWiki `<$link>`/`<$image>` widgets) are
-emitted as Markdown links — never TiddlyWiki syntax. Pure over a tiddler list.
+Layout (cleanups): per-type SUBFOLDERS with formulas folded into equations/ and the
+Abstract flattened to the root; the Toc folds INTO index.md (no toc/ file); the
+redundant bibkey-root Document tiddler is dropped (index.md is the sole Document
+root). All cross-references (transclusions AND `<$link>`/`<$image>` widgets) are
+RELATIVE Markdown links. Pure over a tiddler list.
 """
 import sys
 from pathlib import Path
@@ -19,6 +20,10 @@ from docops.projectors import okf as X
 
 def _tiddlers():
     return [
+        {"title": "D", "type": "text/markdown", "tags": "document",
+         "text": "root landing"},                      # bibkey root → dropped
+        {"title": "D_ABS01", "type": "text/markdown", "tags": "abstract",
+         "text": "The abstract.", "caption": "Abstract"},
         {"title": "D_FO0001", "type": "text/markdown", "tags": "formula",
          "latex": "x^2", "text": "$x^2$", "caption": "x^2"},
         {"title": "D_PARA_0001", "type": "text/markdown", "tags": "paragraph",
@@ -50,14 +55,30 @@ def test_conformance_nonempty_type_in_every_file():
         assert _fm(content).get("type"), f"{path}: missing non-empty type"
 
 
-def test_folder_structure_by_type():
+def test_folder_structure_and_flattening():
     bundle = X.tiddlers_to_okf(_tiddlers(), "D", {}, "T")
-    assert "formulas/D_FO0001.md" in bundle
+    assert "equations/D_FO0001.md" in bundle           # #1 formulas folded into equations/
+    assert not any(p.startswith("formulas/") for p in bundle)
     assert "sections/D_H1.md" in bundle
     assert "references/D_REF_smith.md" in bundle
     assert "tables/D_TB0001.md" in bundle
-    assert "figures/D_PIC0001.md" in bundle           # Picture → figures/
-    assert "index.md" in bundle                        # reserved, at the root
+    assert "figures/D_PIC0001.md" in bundle
+    assert "D_ABS01.md" in bundle                       # #3 abstract flattened to root
+    assert "index.md" in bundle
+
+
+def test_toc_folds_into_index_no_toc_folder():
+    bundle = X.tiddlers_to_okf(_tiddlers(), "D", {}, "T")
+    assert not any(p.startswith("toc/") for p in bundle)   # #2 no toc/ file
+    idx = bundle["index.md"]
+    assert "[Introduction](./sections/D_H1.md)" in idx     # the TOC lives in index.md
+
+
+def test_root_document_tiddler_dropped():
+    bundle = X.tiddlers_to_okf(_tiddlers(), "D", {}, "T")   # #5
+    assert "documents/D.md" not in bundle and "D.md" not in bundle
+    docs = [p for p, c in bundle.items() if _fm(c).get("type") == "Document"]
+    assert docs == ["index.md"]                            # index.md is the sole Document
 
 
 def test_template_tiddlers_skipped():
@@ -65,34 +86,24 @@ def test_template_tiddlers_skipped():
     assert not any("tpl" in p.lower() or "$:" in p for p in bundle)
 
 
-def test_type_from_kind_and_resource_and_body():
-    bundle = X.tiddlers_to_okf(_tiddlers(), "D", {}, "T")
-    fo = bundle["formulas/D_FO0001.md"]
+def test_type_resource_and_body():
+    fo = X.tiddlers_to_okf(_tiddlers(), "D", {}, "T")["equations/D_FO0001.md"]
     m = _fm(fo)
-    assert m["type"] == "Formula"
+    assert m["type"] == "Formula"                          # type stays Formula (folder merged)
     assert m["resource"] == "pdfdrill:D/D_FO0001"
     assert "D" in (m.get("tags") or [])
     assert "x^2" in fo and "$" in fo
 
 
 def test_transclusion_rewritten_to_relative_link():
-    bundle = X.tiddlers_to_okf(_tiddlers(), "D", {}, "T")
-    para = bundle["paragraphs/D_PARA_0001.md"]
-    assert "(../formulas/D_FO0001.md)" in para         # RELATIVE cross-folder link
+    para = X.tiddlers_to_okf(_tiddlers(), "D", {}, "T")["paragraphs/D_PARA_0001.md"]
+    assert "(../equations/D_FO0001.md)" in para           # relative, into equations/
     assert "{{" not in para and "||" not in para
 
 
-def test_tiddlywiki_link_widget_becomes_markdown():
-    bundle = X.tiddlers_to_okf(_tiddlers(), "D", {}, "T")
-    toc = bundle["toc/D_TOC.md"]
-    assert "[Introduction](../sections/D_H1.md)" in toc  # <$link> → relative md link
-    assert "<$link" not in toc and "</$link>" not in toc
-
-
 def test_image_widget_becomes_markdown():
-    bundle = X.tiddlers_to_okf(_tiddlers(), "D", {}, "T")
-    pic = bundle["figures/D_PIC0001.md"]
-    assert "![](cdn://x.png)" in pic                    # <$image> → markdown image
+    pic = X.tiddlers_to_okf(_tiddlers(), "D", {}, "T")["figures/D_PIC0001.md"]
+    assert "![](cdn://x.png)" in pic
     assert "<$image" not in pic
 
 
@@ -108,12 +119,11 @@ def test_table_and_reference_headings():
     assert "# Citations" in bundle["references/D_REF_smith.md"]
 
 
-def test_index_md_is_document_with_folder_links():
-    bundle = X.tiddlers_to_okf(_tiddlers(), "D", {"title": "Demo",
-                               "num_pages": 3}, "T")
-    idx = bundle["index.md"]
+def test_index_md_is_document_with_relative_links():
+    idx = X.tiddlers_to_okf(_tiddlers(), "D", {"title": "Demo", "num_pages": 3},
+                            "T")["index.md"]
     assert _fm(idx)["type"] == "Document"
-    assert "(./formulas/D_FO0001.md)" in idx           # relative from the root index
+    assert "(./equations/D_FO0001.md)" in idx             # relative from root, merged folder
 
 
 if __name__ == "__main__":

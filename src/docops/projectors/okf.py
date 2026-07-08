@@ -31,11 +31,11 @@ _LABELS = {"FO": "formula", "FREF": "formula", "EQ": "equation", "EQBLOCK": "equ
 # OKF allows files "at any directory level" — organise units into per-type folders
 # so the bundle isn't one flat pile. OKF type → folder name (irregulars mapped; the
 # default pluralises the lowercased type).
-_TYPE_DIR = {"Formula": "formulas", "Equation": "equations", "Paragraph": "paragraphs",
+_TYPE_DIR = {"Formula": "equations", "Equation": "equations", "Paragraph": "paragraphs",
              "Section": "sections", "Reference": "references", "Citation": "citations",
              "Table": "tables", "Picture": "figures", "Diagram": "figures",
              "Footnote": "footnotes", "Page": "pages", "Concept": "concepts",
-             "Abstract": "abstract", "Toc": "toc", "Sidenote": "sidenotes",
+             "Abstract": "", "Sidenote": "sidenotes",
              "Listitem": "lists", "Algorithm": "algorithms", "Theorem": "theorems",
              "Proof": "proofs", "Kitem": "kitems"}
 
@@ -50,6 +50,13 @@ _ANY_WIDGET_RE = re.compile(r'</?\$[a-zA-Z]+[^>]*>')
 
 def _type_dir(typ: str) -> str:
     return _TYPE_DIR.get(typ, (typ or "unit").lower() + "s")
+
+
+def _unit_path(t: dict) -> str:
+    """The bundle-relative path for a unit — `<folder>/<title>.md`, or a flat
+    `<title>.md` at the root when its type maps to no folder (e.g. Abstract)."""
+    d = _type_dir(_okf_type(t))
+    return f"{d}/{t['title']}.md" if d else f"{t['title']}.md"
 
 
 def _link_path(target: str, title_to_path: dict, from_path: str) -> str:
@@ -196,8 +203,8 @@ def _okf_file(t: dict, bibkey: str, timestamp: str, title_to_path: dict) -> str:
     return _fm_block(fm) + "\n\n" + _okf_body(t, typ, title_to_path, from_path) + "\n"
 
 
-def _index_md(units: list, bibkey: str, meta: dict, timestamp: str,
-              title_to_path: dict) -> str:
+def _index_md(units: list, toc_units: list, bibkey: str, meta: dict,
+              timestamp: str, title_to_path: dict) -> str:
     fm: "OrderedDict" = OrderedDict()
     fm["type"] = "Document"
     fm["title"] = meta.get("title") or bibkey
@@ -207,6 +214,12 @@ def _index_md(units: list, bibkey: str, meta: dict, timestamp: str,
     if meta.get("num_pages"):
         fm["pages"] = meta["num_pages"]
     out = [_fm_block(fm), "", f"# {meta.get('title') or bibkey}", ""]
+    # The document's own TOC (page-numbered section list) folded in, links resolved
+    # from the root index.md.
+    for tt in toc_units:
+        toc = _to_markdown(tt.get("text") or "", tt, title_to_path, "index.md").strip()
+        if toc:
+            out += ["## Contents", "", toc, ""]
     groups: "OrderedDict" = OrderedDict()
     for t in units:
         groups.setdefault(_okf_type(t), []).append(t)
@@ -224,16 +237,22 @@ def tiddlers_to_okf(tiddlers: list, bibkey: str, meta: dict,
     """The pure core: a tiddler list → an OKF bundle {relative_path: content}.
     One `<title>.md` per non-template tiddler + a reserved `index.md`."""
     units = [t for t in tiddlers if not _is_template(t) and t.get("title")]
-    # Per-type folder layout + a title→path map, so cross-links resolve to the
-    # right subfolder as bundle-absolute OKF links (`/formulas/D_FO0001.md`).
-    title_to_path = {t["title"]: f"{_type_dir(_okf_type(t))}/{t['title']}.md"
-                     for t in units}
+    # The Toc unit folds INTO index.md (no toc/ file); the bibkey-root Document
+    # tiddler (title == bibkey) is dropped — index.md is the sole Document root.
+    toc_units = [t for t in units if _okf_type(t) == "Toc"]
+    units = [t for t in units
+             if _okf_type(t) != "Toc" and t["title"] != bibkey]
+    # Per-type folder layout (Abstract flat at root) + a title→path map, so every
+    # cross-link resolves to the right file as a RELATIVE OKF link.
+    title_to_path = {t["title"]: _unit_path(t) for t in units}
     bundle: "dict[str, str]" = {}
     for t in units:
-        bundle[title_to_path[t["title"]]] = _okf_file(t, bibkey, timestamp,
-                                                      title_to_path)
-    bundle["index.md"] = _index_md(units, bibkey, meta or {}, timestamp,
-                                   title_to_path)
+        path = title_to_path[t["title"]]
+        if path in _RESERVED:                     # a root-level unit must not clobber index/log
+            path = title_to_path[t["title"]] = f"{t['title']}_.md"
+        bundle[path] = _okf_file(t, bibkey, timestamp, title_to_path)
+    bundle["index.md"] = _index_md(units, toc_units, bibkey, meta or {},
+                                   timestamp, title_to_path)
     return bundle
 
 
