@@ -27,6 +27,49 @@ _LABELS = {"FO": "formula", "FREF": "formula", "EQ": "equation", "EQBLOCK": "equ
            "PIC": "picture", "DIA": "diagram", "CIT": "citation", "FN": "footnote",
            "PROOF": "proof", "TPL": "unit"}
 
+# OKF allows files "at any directory level" — organise units into per-type folders
+# so the bundle isn't one flat pile. OKF type → folder name (irregulars mapped; the
+# default pluralises the lowercased type).
+_TYPE_DIR = {"Formula": "formulas", "Equation": "equations", "Paragraph": "paragraphs",
+             "Section": "sections", "Reference": "references", "Citation": "citations",
+             "Table": "tables", "Picture": "figures", "Diagram": "figures",
+             "Footnote": "footnotes", "Page": "pages", "Concept": "concepts",
+             "Abstract": "abstract", "Toc": "toc", "Sidenote": "sidenotes",
+             "Listitem": "lists", "Algorithm": "algorithms", "Theorem": "theorems",
+             "Proof": "proofs", "Kitem": "kitems"}
+
+# TiddlyWiki WIDGETS that leak from the tiddler bodies — converted to Markdown so an
+# OKF bundle is pure Markdown (no `<$link>`/`<$image>`/`<$latex>` syntax).
+_LINK_RE = re.compile(r'<\$link\s+to="([^"]*)"\s*>(.*?)</\$link>', re.S)
+_LINK_SELF_RE = re.compile(r'<\$link\s+to="([^"]*)"\s*/>')
+_IMAGE_RE = re.compile(r'<\$image\s+source="([^"]*)"[^>]*?/?>')
+_LATEX_RE = re.compile(r'<\$latex[^>]*>(.*?)</\$latex>', re.S)
+_ANY_WIDGET_RE = re.compile(r'</?\$[a-zA-Z]+[^>]*>')
+
+
+def _type_dir(typ: str) -> str:
+    return _TYPE_DIR.get(typ, (typ or "unit").lower() + "s")
+
+
+def _link_path(target: str, title_to_path: dict) -> str:
+    """Bundle-ABSOLUTE OKF link to a unit by title (`/formulas/D_FO0001.md`), or a
+    tolerated relative dead link when the target isn't in the bundle."""
+    p = title_to_path.get(target)
+    return "/" + p if p else f"./{target}.md"
+
+
+def _widgets_to_markdown(text: str, title_to_path: dict) -> str:
+    """Convert every TiddlyWiki widget to Markdown: `<$link to="X">L</$link>` →
+    `[L](/path)`, `<$image source="U">` → `![](U)`, `<$latex>B</$latex>` → `$B$`;
+    strip any leftover widget tag so no `<$…>` survives."""
+    text = _LINK_RE.sub(
+        lambda m: f"[{m.group(2).strip()}]({_link_path(m.group(1), title_to_path)})", text)
+    text = _LINK_SELF_RE.sub(
+        lambda m: f"[{m.group(1)}]({_link_path(m.group(1), title_to_path)})", text)
+    text = _IMAGE_RE.sub(lambda m: f"![]({m.group(1)})", text)
+    text = _LATEX_RE.sub(lambda m: f"${m.group(1).strip()}$", text)
+    return _ANY_WIDGET_RE.sub("", text)
+
 
 # --- YAML frontmatter (precise, so a URI's scheme-colon stays unquoted) ---------
 def _scalar(s: Any) -> str:
@@ -72,10 +115,11 @@ def _first_sentence(text: str, limit: int = 160) -> str:
     return s[:limit]
 
 
-def _rewrite_transclusions(text: str, t: dict, as_link: bool = True) -> str:
-    """`{{title||TPL}}` → `[label](./title.md)` (or the bare `label` when
-    `as_link=False`, for a frontmatter description); `{{!!field}}` → the tiddler's
-    own field value (so a section's `! {{!!caption}}` inlines its caption)."""
+def _rewrite_transclusions(text: str, t: dict, title_to_path: dict,
+                           as_link: bool = True) -> str:
+    """`{{title||TPL}}` → `[label](/folder/title.md)` (bundle-absolute; or the bare
+    `label` when `as_link=False`, for a frontmatter description); `{{!!field}}` →
+    the tiddler's own field value (a section's `! {{!!caption}}` inlines caption)."""
     def repl(m: "re.Match") -> str:
         body = m.group(1).strip()
         if body.startswith("!!"):
@@ -83,8 +127,19 @@ def _rewrite_transclusions(text: str, t: dict, as_link: bool = True) -> str:
         target = body.split("||")[0].strip()
         tpl = body.split("||")[1].strip() if "||" in body else ""
         label = _LABELS.get(tpl, tpl.lower()) or target
-        return f"[{label}](./{target}.md)" if as_link else label
+        return f"[{label}]({_link_path(target, title_to_path)})" if as_link else label
     return _TRANSCLUDE_RE.sub(repl, text or "")
+
+
+def _to_markdown(text: str, t: dict, title_to_path: dict) -> str:
+    """Full body conversion: transclusions + TiddlyWiki widgets → Markdown."""
+    return _widgets_to_markdown(
+        _rewrite_transclusions(text or "", t, title_to_path), title_to_path)
+
+
+def _strip_md_links(s: str) -> str:
+    s = re.sub(r"!\[[^\]]*\]\([^)]*\)", "", s)          # images → gone
+    return re.sub(r"\[([^\]]*)\]\([^)]*\)", r"\1", s)   # links → their label
 
 
 # extra tiddler fields worth preserving as OKF custom keys (OKF: preserve unknowns)
@@ -92,8 +147,8 @@ _KEEP_FIELDS = ("refnum", "page", "section_number", "level", "citekey", "year",
                 "entry_type", "equation_number", "kind", "language")
 
 
-def _okf_body(t: dict, typ: str) -> str:
-    text = _rewrite_transclusions(t.get("text") or "", t)
+def _okf_body(t: dict, typ: str, title_to_path: dict) -> str:
+    text = _to_markdown(t.get("text") or "", t, title_to_path)
     latex = (t.get("latex") or "").strip()
     if typ in ("Formula", "Equation") and latex:
         display = bool(t.get("displayMode")) or typ == "Equation"
@@ -109,12 +164,12 @@ def _okf_body(t: dict, typ: str) -> str:
     return text
 
 
-def _okf_file(t: dict, bibkey: str, timestamp: str) -> str:
+def _okf_file(t: dict, bibkey: str, timestamp: str, title_to_path: dict) -> str:
     typ = _okf_type(t)
     title = t.get("caption") or t.get("title") or ""
     latex = (t.get("latex") or "").strip()
-    desc = t.get("caption") or (latex or _first_sentence(
-        _rewrite_transclusions(t.get("text") or "", t, as_link=False)))
+    desc = t.get("caption") or (latex or _first_sentence(_strip_md_links(
+        _to_markdown(t.get("text") or "", t, title_to_path))))
     tags = [x for x in (t.get("tags") or "").split()]
     if bibkey and bibkey not in tags:
         tags.append(bibkey)
@@ -130,10 +185,11 @@ def _okf_file(t: dict, bibkey: str, timestamp: str) -> str:
     for k in _KEEP_FIELDS:                        # preserve extra fields
         if t.get(k) not in (None, ""):
             fm[k] = t[k]
-    return _fm_block(fm) + "\n\n" + _okf_body(t, typ) + "\n"
+    return _fm_block(fm) + "\n\n" + _okf_body(t, typ, title_to_path) + "\n"
 
 
-def _index_md(units: list, bibkey: str, meta: dict, timestamp: str) -> str:
+def _index_md(units: list, bibkey: str, meta: dict, timestamp: str,
+              title_to_path: dict) -> str:
     fm: "OrderedDict" = OrderedDict()
     fm["type"] = "Document"
     fm["title"] = meta.get("title") or bibkey
@@ -150,7 +206,7 @@ def _index_md(units: list, bibkey: str, meta: dict, timestamp: str) -> str:
         out.append(f"## {typ} ({len(items)})")
         for t in items[:500]:
             cap = str(t.get("caption") or t.get("title") or "")[:80].replace("\n", " ")
-            out.append(f"- [{cap or t.get('title')}](./{t.get('title')}.md)")
+            out.append(f"- [{cap or t.get('title')}]({_link_path(t.get('title'), title_to_path)})")
         out.append("")
     return "\n".join(out)
 
@@ -160,13 +216,16 @@ def tiddlers_to_okf(tiddlers: list, bibkey: str, meta: dict,
     """The pure core: a tiddler list → an OKF bundle {relative_path: content}.
     One `<title>.md` per non-template tiddler + a reserved `index.md`."""
     units = [t for t in tiddlers if not _is_template(t) and t.get("title")]
+    # Per-type folder layout + a title→path map, so cross-links resolve to the
+    # right subfolder as bundle-absolute OKF links (`/formulas/D_FO0001.md`).
+    title_to_path = {t["title"]: f"{_type_dir(_okf_type(t))}/{t['title']}.md"
+                     for t in units}
     bundle: "dict[str, str]" = {}
     for t in units:
-        fname = f"{t['title']}.md"
-        if fname in _RESERVED:                    # never clobber a reserved name
-            fname = f"{t['title']}_.md"
-        bundle[fname] = _okf_file(t, bibkey, timestamp)
-    bundle["index.md"] = _index_md(units, bibkey, meta or {}, timestamp)
+        bundle[title_to_path[t["title"]]] = _okf_file(t, bibkey, timestamp,
+                                                      title_to_path)
+    bundle["index.md"] = _index_md(units, bibkey, meta or {}, timestamp,
+                                   title_to_path)
     return bundle
 
 

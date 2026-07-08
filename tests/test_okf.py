@@ -2,8 +2,11 @@
 OKF projection (docops.projectors.okf) — the docmodel → Open Knowledge Format
 bundle. OKF = one Markdown-with-YAML-frontmatter file per knowledge unit; the ONE
 conformance rule is a non-empty `type` in every non-reserved file's frontmatter.
-Pure over a synthetic tiddler list (the OKF core re-serializes the tiddler bundle
-the TiddlyWiki projector already builds).
+
+OKF allows a FOLDER structure ("files at any directory level") and bundle-absolute
+links `[t](/tables/x.md)`, so units are organised into per-type subfolders and ALL
+cross-references (transclusions AND TiddlyWiki `<$link>`/`<$image>` widgets) are
+emitted as Markdown links — never TiddlyWiki syntax. Pure over a tiddler list.
 """
 import sys
 from pathlib import Path
@@ -20,6 +23,12 @@ def _tiddlers():
          "latex": "x^2", "text": "$x^2$", "caption": "x^2"},
         {"title": "D_PARA_0001", "type": "text/markdown", "tags": "paragraph",
          "text": "See {{D_FO0001||FO}} for the square.", "page": 2},
+        {"title": "D_H1", "type": "text/markdown", "tags": "section",
+         "caption": "Intro", "section_number": "1", "text": "# Intro"},
+        {"title": "D_TOC", "type": "text/markdown", "tags": "toc",
+         "text": '- 1 <$link to="D_H1">Introduction</$link> — p. 1'},
+        {"title": "D_PIC0001", "type": "text/markdown", "tags": "picture",
+         "text": '<$image source="cdn://x.png" width="100">', "caption": "Fig 1"},
         {"title": "D_REF_smith", "type": "text/markdown", "tags": "reference bibentry",
          "citekey": "smith2020", "text": "J. Smith. A paper. 2020.", "year": "2020"},
         {"title": "D_TB0001", "type": "text/markdown", "tags": "table",
@@ -30,18 +39,25 @@ def _tiddlers():
 
 
 def _fm(content):
-    """Parse the leading YAML frontmatter block of an OKF file."""
     assert content.startswith("---\n")
-    block = content.split("---\n", 2)[1]
-    return yaml.safe_load(block)
+    return yaml.safe_load(content.split("---\n", 2)[1])
 
 
 def test_conformance_nonempty_type_in_every_file():
     bundle = X.tiddlers_to_okf(_tiddlers(), "D", {"title": "Demo"},
                                "2026-07-08T00:00:00Z")
     for path, content in bundle.items():
-        meta = _fm(content)
-        assert meta.get("type"), f"{path}: missing non-empty type"   # the OKF rule
+        assert _fm(content).get("type"), f"{path}: missing non-empty type"
+
+
+def test_folder_structure_by_type():
+    bundle = X.tiddlers_to_okf(_tiddlers(), "D", {}, "T")
+    assert "formulas/D_FO0001.md" in bundle
+    assert "sections/D_H1.md" in bundle
+    assert "references/D_REF_smith.md" in bundle
+    assert "tables/D_TB0001.md" in bundle
+    assert "figures/D_PIC0001.md" in bundle           # Picture → figures/
+    assert "index.md" in bundle                        # reserved, at the root
 
 
 def test_template_tiddlers_skipped():
@@ -51,41 +67,53 @@ def test_template_tiddlers_skipped():
 
 def test_type_from_kind_and_resource_and_body():
     bundle = X.tiddlers_to_okf(_tiddlers(), "D", {}, "T")
-    fo = bundle["D_FO0001.md"]
+    fo = bundle["formulas/D_FO0001.md"]
     m = _fm(fo)
     assert m["type"] == "Formula"
     assert m["resource"] == "pdfdrill:D/D_FO0001"
-    assert "D" in (m.get("tags") or [])                # bibkey tag present
-    assert "x^2" in fo and "$" in fo                   # renderable math body
+    assert "D" in (m.get("tags") or [])
+    assert "x^2" in fo and "$" in fo
 
 
-def test_transclusion_rewritten_to_okf_link():
+def test_transclusion_rewritten_to_bundle_absolute_link():
     bundle = X.tiddlers_to_okf(_tiddlers(), "D", {}, "T")
-    para = bundle["D_PARA_0001.md"]
-    assert "(./D_FO0001.md)" in para                   # OKF relative link
-    assert "{{" not in para and "||" not in para       # no raw transclusion left
+    para = bundle["paragraphs/D_PARA_0001.md"]
+    assert "(/formulas/D_FO0001.md)" in para           # bundle-absolute markdown link
+    assert "{{" not in para and "||" not in para
 
 
-def test_table_under_schema_heading():
+def test_tiddlywiki_link_widget_becomes_markdown():
     bundle = X.tiddlers_to_okf(_tiddlers(), "D", {}, "T")
-    tb = bundle["D_TB0001.md"]
-    assert "# Schema" in tb and "| a | b |" in tb
+    toc = bundle["toc/D_TOC.md"]
+    assert "[Introduction](/sections/D_H1.md)" in toc  # <$link> → markdown link
+    assert "<$link" not in toc and "</$link>" not in toc
 
 
-def test_reference_under_citations():
+def test_image_widget_becomes_markdown():
     bundle = X.tiddlers_to_okf(_tiddlers(), "D", {}, "T")
-    ref = bundle["D_REF_smith.md"]
-    assert _fm(ref)["type"] == "Reference"
-    assert "# Citations" in ref
+    pic = bundle["figures/D_PIC0001.md"]
+    assert "![](cdn://x.png)" in pic                    # <$image> → markdown image
+    assert "<$image" not in pic
 
 
-def test_index_md_is_document_with_links():
+def test_no_tiddlywiki_widgets_anywhere():
+    bundle = X.tiddlers_to_okf(_tiddlers(), "D", {"title": "Demo"}, "T")
+    for path, content in bundle.items():
+        assert "<$" not in content, f"{path}: TiddlyWiki widget leaked"
+
+
+def test_table_and_reference_headings():
+    bundle = X.tiddlers_to_okf(_tiddlers(), "D", {}, "T")
+    assert "# Schema" in bundle["tables/D_TB0001.md"]
+    assert "# Citations" in bundle["references/D_REF_smith.md"]
+
+
+def test_index_md_is_document_with_folder_links():
     bundle = X.tiddlers_to_okf(_tiddlers(), "D", {"title": "Demo",
                                "num_pages": 3}, "T")
-    assert "index.md" in bundle
     idx = bundle["index.md"]
     assert _fm(idx)["type"] == "Document"
-    assert "(./D_FO0001.md)" in idx or "D_FO0001" in idx   # links the units
+    assert "(/formulas/D_FO0001.md)" in idx            # bundle-absolute folder link
 
 
 if __name__ == "__main__":

@@ -3455,13 +3455,17 @@ def cmd_okf(pdf: Path, out: str | None = None, bibkey: str | None = None) -> str
                                      / "okf" / key)
     out_dir.mkdir(parents=True, exist_ok=True)
     for rel, content in bundle.items():
-        (out_dir / rel).write_text(content, encoding="utf-8")
+        fp = out_dir / rel
+        fp.parent.mkdir(parents=True, exist_ok=True)   # per-type subfolders
+        fp.write_text(content, encoding="utf-8")
     rel_dir = _display_path(out_dir, sc.pdf_path.parent)
     sc.set_evidence("okf_path", str(rel_dir))
     sc.save()
-    return (f"OKF bundle for {pdf.name}: {len(bundle)} files (incl. index.md) → "
-            f"{rel_dir}/. Each is Markdown-with-frontmatter (`type` per unit), "
-            f"cross-linked by relative links; open {rel_dir}/index.md in drillui.")
+    ndir = len({r.split('/')[0] for r in bundle if '/' in r})
+    return (f"OKF bundle for {pdf.name}: {len(bundle)} files in {ndir} per-type "
+            f"folders (formulas/ sections/ references/ …) + index.md → {rel_dir}/. "
+            f"Each is Markdown-with-frontmatter (`type` per unit), cross-linked by "
+            f"bundle-absolute Markdown links; open {rel_dir}/index.md in drillui.")
 
 
 def cmd_context(pdf: Path, query: str = "", *, types: str | None = None,
