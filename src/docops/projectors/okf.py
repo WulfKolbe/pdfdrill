@@ -14,6 +14,7 @@ in drillui's Outputs and render in its markdown view like any other `.md`.
 """
 from __future__ import annotations
 
+import posixpath
 import re
 from collections import OrderedDict
 from typing import Any
@@ -51,21 +52,25 @@ def _type_dir(typ: str) -> str:
     return _TYPE_DIR.get(typ, (typ or "unit").lower() + "s")
 
 
-def _link_path(target: str, title_to_path: dict) -> str:
-    """Bundle-ABSOLUTE OKF link to a unit by title (`/formulas/D_FO0001.md`), or a
+def _link_path(target: str, title_to_path: dict, from_path: str) -> str:
+    """RELATIVE OKF link from the source file `from_path` to the target unit by
+    title (`../formulas/D_FO0001.md`, `./formulas/…` from the root index), or a
     tolerated relative dead link when the target isn't in the bundle."""
     p = title_to_path.get(target)
-    return "/" + p if p else f"./{target}.md"
+    if not p:
+        return f"./{target}.md"
+    rel = posixpath.relpath(p, posixpath.dirname(from_path) or ".")
+    return rel if rel.startswith(".") else "./" + rel
 
 
-def _widgets_to_markdown(text: str, title_to_path: dict) -> str:
+def _widgets_to_markdown(text: str, title_to_path: dict, from_path: str) -> str:
     """Convert every TiddlyWiki widget to Markdown: `<$link to="X">L</$link>` →
-    `[L](/path)`, `<$image source="U">` → `![](U)`, `<$latex>B</$latex>` → `$B$`;
-    strip any leftover widget tag so no `<$…>` survives."""
+    `[L](rel/path)`, `<$image source="U">` → `![](U)`, `<$latex>B</$latex>` →
+    `$B$`; strip any leftover widget tag so no `<$…>` survives."""
     text = _LINK_RE.sub(
-        lambda m: f"[{m.group(2).strip()}]({_link_path(m.group(1), title_to_path)})", text)
+        lambda m: f"[{m.group(2).strip()}]({_link_path(m.group(1), title_to_path, from_path)})", text)
     text = _LINK_SELF_RE.sub(
-        lambda m: f"[{m.group(1)}]({_link_path(m.group(1), title_to_path)})", text)
+        lambda m: f"[{m.group(1)}]({_link_path(m.group(1), title_to_path, from_path)})", text)
     text = _IMAGE_RE.sub(lambda m: f"![]({m.group(1)})", text)
     text = _LATEX_RE.sub(lambda m: f"${m.group(1).strip()}$", text)
     return _ANY_WIDGET_RE.sub("", text)
@@ -115,9 +120,9 @@ def _first_sentence(text: str, limit: int = 160) -> str:
     return s[:limit]
 
 
-def _rewrite_transclusions(text: str, t: dict, title_to_path: dict,
+def _rewrite_transclusions(text: str, t: dict, title_to_path: dict, from_path: str,
                            as_link: bool = True) -> str:
-    """`{{title||TPL}}` → `[label](/folder/title.md)` (bundle-absolute; or the bare
+    """`{{title||TPL}}` → `[label](rel/folder/title.md)` (relative; or the bare
     `label` when `as_link=False`, for a frontmatter description); `{{!!field}}` →
     the tiddler's own field value (a section's `! {{!!caption}}` inlines caption)."""
     def repl(m: "re.Match") -> str:
@@ -127,14 +132,16 @@ def _rewrite_transclusions(text: str, t: dict, title_to_path: dict,
         target = body.split("||")[0].strip()
         tpl = body.split("||")[1].strip() if "||" in body else ""
         label = _LABELS.get(tpl, tpl.lower()) or target
-        return f"[{label}]({_link_path(target, title_to_path)})" if as_link else label
+        return (f"[{label}]({_link_path(target, title_to_path, from_path)})"
+                if as_link else label)
     return _TRANSCLUDE_RE.sub(repl, text or "")
 
 
-def _to_markdown(text: str, t: dict, title_to_path: dict) -> str:
+def _to_markdown(text: str, t: dict, title_to_path: dict, from_path: str) -> str:
     """Full body conversion: transclusions + TiddlyWiki widgets → Markdown."""
     return _widgets_to_markdown(
-        _rewrite_transclusions(text or "", t, title_to_path), title_to_path)
+        _rewrite_transclusions(text or "", t, title_to_path, from_path),
+        title_to_path, from_path)
 
 
 def _strip_md_links(s: str) -> str:
@@ -147,8 +154,8 @@ _KEEP_FIELDS = ("refnum", "page", "section_number", "level", "citekey", "year",
                 "entry_type", "equation_number", "kind", "language")
 
 
-def _okf_body(t: dict, typ: str, title_to_path: dict) -> str:
-    text = _to_markdown(t.get("text") or "", t, title_to_path)
+def _okf_body(t: dict, typ: str, title_to_path: dict, from_path: str) -> str:
+    text = _to_markdown(t.get("text") or "", t, title_to_path, from_path)
     latex = (t.get("latex") or "").strip()
     if typ in ("Formula", "Equation") and latex:
         display = bool(t.get("displayMode")) or typ == "Equation"
@@ -166,10 +173,11 @@ def _okf_body(t: dict, typ: str, title_to_path: dict) -> str:
 
 def _okf_file(t: dict, bibkey: str, timestamp: str, title_to_path: dict) -> str:
     typ = _okf_type(t)
+    from_path = title_to_path[t["title"]]
     title = t.get("caption") or t.get("title") or ""
     latex = (t.get("latex") or "").strip()
     desc = t.get("caption") or (latex or _first_sentence(_strip_md_links(
-        _to_markdown(t.get("text") or "", t, title_to_path))))
+        _to_markdown(t.get("text") or "", t, title_to_path, from_path))))
     tags = [x for x in (t.get("tags") or "").split()]
     if bibkey and bibkey not in tags:
         tags.append(bibkey)
@@ -185,7 +193,7 @@ def _okf_file(t: dict, bibkey: str, timestamp: str, title_to_path: dict) -> str:
     for k in _KEEP_FIELDS:                        # preserve extra fields
         if t.get(k) not in (None, ""):
             fm[k] = t[k]
-    return _fm_block(fm) + "\n\n" + _okf_body(t, typ, title_to_path) + "\n"
+    return _fm_block(fm) + "\n\n" + _okf_body(t, typ, title_to_path, from_path) + "\n"
 
 
 def _index_md(units: list, bibkey: str, meta: dict, timestamp: str,
@@ -206,7 +214,7 @@ def _index_md(units: list, bibkey: str, meta: dict, timestamp: str,
         out.append(f"## {typ} ({len(items)})")
         for t in items[:500]:
             cap = str(t.get("caption") or t.get("title") or "")[:80].replace("\n", " ")
-            out.append(f"- [{cap or t.get('title')}]({_link_path(t.get('title'), title_to_path)})")
+            out.append(f"- [{cap or t.get('title')}]({_link_path(t.get('title'), title_to_path, 'index.md')})")
         out.append("")
     return "\n".join(out)
 

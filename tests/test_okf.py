@@ -75,17 +75,17 @@ def test_type_from_kind_and_resource_and_body():
     assert "x^2" in fo and "$" in fo
 
 
-def test_transclusion_rewritten_to_bundle_absolute_link():
+def test_transclusion_rewritten_to_relative_link():
     bundle = X.tiddlers_to_okf(_tiddlers(), "D", {}, "T")
     para = bundle["paragraphs/D_PARA_0001.md"]
-    assert "(/formulas/D_FO0001.md)" in para           # bundle-absolute markdown link
+    assert "(../formulas/D_FO0001.md)" in para         # RELATIVE cross-folder link
     assert "{{" not in para and "||" not in para
 
 
 def test_tiddlywiki_link_widget_becomes_markdown():
     bundle = X.tiddlers_to_okf(_tiddlers(), "D", {}, "T")
     toc = bundle["toc/D_TOC.md"]
-    assert "[Introduction](/sections/D_H1.md)" in toc  # <$link> → markdown link
+    assert "[Introduction](../sections/D_H1.md)" in toc  # <$link> → relative md link
     assert "<$link" not in toc and "</$link>" not in toc
 
 
@@ -113,7 +113,7 @@ def test_index_md_is_document_with_folder_links():
                                "num_pages": 3}, "T")
     idx = bundle["index.md"]
     assert _fm(idx)["type"] == "Document"
-    assert "(/formulas/D_FO0001.md)" in idx            # bundle-absolute folder link
+    assert "(./formulas/D_FO0001.md)" in idx           # relative from the root index
 
 
 if __name__ == "__main__":

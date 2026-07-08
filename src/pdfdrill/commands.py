@@ -3465,7 +3465,7 @@ def cmd_okf(pdf: Path, out: str | None = None, bibkey: str | None = None) -> str
     return (f"OKF bundle for {pdf.name}: {len(bundle)} files in {ndir} per-type "
             f"folders (formulas/ sections/ references/ …) + index.md → {rel_dir}/. "
             f"Each is Markdown-with-frontmatter (`type` per unit), cross-linked by "
-            f"bundle-absolute Markdown links; open {rel_dir}/index.md in drillui.")
+            f"relative Markdown links; open {rel_dir}/index.md in drillui.")
 
 
 def cmd_context(pdf: Path, query: str = "", *, types: str | None = None,
