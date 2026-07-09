@@ -246,6 +246,7 @@ The whole offline path (`folder`, `model`, `compare`, `report`, `tiddlers`,
 |-----|---------|--------|
 | `MATHPIX_APP_ID` / `MATHPIX_APP_KEY` | `mathpix`, `model` (OCR → `lines.json`), `snip` | <https://mathpix.com/> → Console → API Keys |
 | `OPENAI_API_KEY` | `vision` (GPT-4o reads CDN crops MathPix left as images → math/TikZ/table) | <https://platform.openai.com/api-keys> |
+| `NOVITA_API_KEY` | `snip --gemma` / `route` (Gemma-4 vision OCR of scanned ≤20-page docs → LaTeX/tables; `GEMMA_MODEL`/`NOVITA_BASE_URL` override) | <https://novita.ai/> → Settings → Key Management |
 | `DEEPL_API_KEY` | `translate` (DeepL-translate prose tiddlers) | <https://www.deepl.com/your-account/keys> (free keys end in `:fx`) |
 | `PERPLEXITY_API_KEY` | `bibfetch` (online BibTeX enrichment) | <https://www.perplexity.ai/> → Settings → API |
 
