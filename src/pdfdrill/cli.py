@@ -21,6 +21,29 @@ import sys
 from pathlib import Path
 
 
+def _reassemble_spaced_path(rest: list) -> list:
+    """The shell splits an UNQUOTED filename with spaces into several args. If a
+    leading run of non-flag args joins (with spaces) into an existing local file,
+    collapse that run into ONE arg so the handler sees the whole path. The LONGEST
+    existing prefix wins, so a trailing positional (e.g. a page number) survives.
+    No-op when args[0] is a flag/URL or already resolves (a correctly-quoted path)."""
+    if not rest or rest[0].startswith("-"):
+        return rest
+    from . import sources
+    if sources.is_url(rest[0]) or Path(rest[0]).expanduser().exists():
+        return rest
+    run = 0
+    for a in rest:
+        if a.startswith("-"):
+            break
+        run += 1
+    for k in range(run, 1, -1):                     # longest join first (needs ≥2)
+        joined = " ".join(rest[:k])
+        if Path(joined).expanduser().exists():
+            return [joined] + rest[k:]
+    return rest
+
+
 def main():
     args = sys.argv[1:]
 
@@ -31,6 +54,9 @@ def main():
     cmd = args[0]
     rest = args[1:]
 
+    # Recover an unquoted filename the shell split on its spaces (e.g.
+    # `distill My Great Paper.pdf` → the handler sees one path arg).
+    rest = _reassemble_spaced_path(rest)
 
     if cmd not in HANDLERS:
         # Backward compat: if first arg is a file/dir, treat as "run"
