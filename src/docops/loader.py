@@ -29,6 +29,7 @@ DEFAULT_REGISTRY: dict[str, str] = {
     "FormulaReportProjector": "docops.projectors.formula_report",
     "SciKGTeXProjector":    "docops.projectors.scikgtex",
     "LLMTextProjector":     "docops.projectors.llm_text",
+    "DistillReaderProjector": "docops.projectors.distill_reader",
 }
 
 
