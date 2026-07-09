@@ -131,6 +131,13 @@ figcaption{{font:13.5px/1.5 var(--sans);color:var(--muted);
 figcaption .fig-num{{font-weight:700;color:var(--ink)}}
 pre.table,pre.code{{font:12px/1.45 var(--mono);background:var(--wash);
   padding:12px;overflow-x:auto;border-radius:4px;text-align:left}}
+/* span-aware tables (props.cells) — theme-native, no invert needed */
+figure table{{border-collapse:collapse;margin:0 auto;font:13px/1.4 var(--sans);
+  max-width:100%;overflow-x:auto;display:inline-block}}
+figure caption{{caption-side:bottom;font:13.5px/1.5 var(--sans);
+  color:var(--muted);padding-top:6px}}
+figure th,figure td{{border:1px solid var(--line);padding:4px 9px;text-align:left}}
+figure thead th,figure th{{background:var(--chip);font-weight:700;color:var(--ink)}}
 a.fig-ref{{white-space:nowrap}}
 
 /* citations + footnotes — d-cite / d-footnote style hover popovers */
@@ -278,6 +285,19 @@ class DistillReaderProjector(BaseProjector):
         out.append(html.escape(text[pos:]))
         return "".join(out)
 
+    def _cells_html(self, props: dict) -> str:
+        """Render a span-aware table (props['cells'] + n_rows/n_cols/columns) as a
+        real <table> with rowspan/colspan — reuses the pdfdrill tables.html
+        renderer. Lazy import keeps the projector independent of pdfdrill at load."""
+        try:
+            from pdfdrill.table_structure import to_html as _tbl
+            return _tbl(props["cells"], int(props.get("n_rows") or 0),
+                        int(props.get("n_cols") or 0),
+                        columns=props.get("columns"),
+                        header_rows=int(props.get("header_rows") or 1))
+        except Exception:                              # any import/shape issue → drop cleanly
+            return ""
+
     def _crop(self, obj: DocObject, css: str) -> str:
         cdn = obj.props.get("cdn_url") or ""
         if not cdn:
@@ -390,6 +410,12 @@ class DistillReaderProjector(BaseProjector):
                     inner = (f'<pre class="code"><code>'
                              f'{html.escape(obj.props.get("code") or "")}</code></pre>')
                     cap = cap or f"code listing{(' (' + lang + ')') if lang else ''}"
+                elif obj.props.get("cells"):
+                    # span-aware structured table → a real, theme-native <table>
+                    # (the pdfdrill tables.html renderer); best for a reading view.
+                    inner = self._cells_html(obj.props)
+                    if not inner:
+                        continue
                 elif svg:
                     # `--currentcolor` SVGs carry `currentColor` → theme-native
                     # (class cc, inherits ink); legacy black SVGs get inverted.
@@ -400,6 +426,9 @@ class DistillReaderProjector(BaseProjector):
                 elif obj.props.get("latex_code"):
                     inner = (f'<pre class="table"><code>'
                              f'{html.escape(obj.props["latex_code"])}</code></pre>')
+                elif obj.props.get("raw_text"):
+                    # MathPix linearised table text — show it rather than dropping.
+                    inner = f'<pre class="table">{html.escape(obj.props["raw_text"])}</pre>'
                 else:
                     continue
                 fignum += 1

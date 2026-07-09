@@ -124,6 +124,33 @@ def test_svg_tables_legible_on_dark():
     assert 'class="svg"' in html                      # the legacy one
 
 
+def test_table_with_span_aware_cells_renders_html_table():
+    """A Table's structure lives in props['cells'] (row/col/spans) — distill must
+    render a real <table> from it, not drop it because it lacks svg/latex_code."""
+    d = Document(); d.meta["bibkey"] = "D"
+    d.add(DocObject(type="Paragraph", id="p", props={"text": "T", "flow_index": 1}))
+    d.add(DocObject(type="Table", id="t1", props={
+        "caption": "Results",
+        "cells": [{"row": 0, "col": 0, "row_span": 1, "col_span": 2, "text": "Header"},
+                  {"row": 1, "col": 0, "row_span": 1, "col_span": 1, "text": "a"},
+                  {"row": 1, "col": 1, "row_span": 1, "col_span": 1, "text": "b"}],
+        "n_rows": 2, "n_cols": 2, "columns": ["A", "B"], "header_rows": 1,
+        "flow_index": 2}))
+    html, _ = _project(d)
+    assert "<table" in html and 'colspan="2"' in html   # real table with the span
+    assert "Header" in html and ">a<" in html and ">b<" in html
+
+
+def test_table_raw_text_fallback_not_dropped():
+    """A Table with only MathPix raw_text (no cells) is shown, not continue-dropped."""
+    d = Document(); d.meta["bibkey"] = "D"
+    d.add(DocObject(type="Paragraph", id="p", props={"text": "T", "flow_index": 1}))
+    d.add(DocObject(type="Table", id="t1", props={
+        "raw_text": "LDA\nPLDA\nETM", "caption": "raw", "flow_index": 2}))
+    html, _ = _project(d)
+    assert "LDA" in html and "<figure" in html           # shown, not dropped
+
+
 def test_graceful_on_empty_and_null_latex():
     d = Document(); d.meta["bibkey"] = "E"
     d.add(DocObject(type="Paragraph", id="p", props={"text": "Title", "flow_index": 1}))
