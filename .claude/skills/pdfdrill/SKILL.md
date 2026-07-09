@@ -521,6 +521,7 @@ _Generated from `commands.yaml` by skillsync. Edit the manifest, not this sectio
 |---|---|
 | `pdfdrill md <pdf> [--pages PAGES]` | Full Markdown with math transclusions |
 | `pdfdrill page <pdf> <n>` | Single page text extraction |
+| `pdfdrill distill <pdf> [--embed]` | A distill-structured single-file reading view (<bibkey>.distill.html): the Anthropic/Distill v2 article skeleton (named-column grid, runtime TOC, LATE-BOUND ?? figure/eq refs, hover cite/footnote popovers) rebuilt from the docmodel — self-contained, no template JS, KaTeX from data-latex. Auto-chains model; --embed inlines CDN crops. Citation popovers need bibliography/bibsource first (else graceful). |
 | `pdfdrill okf <pdf> [--out OUT] [--bibkey BIBKEY] [--semantic]` | Project the docmodel into an OKF (Open Knowledge Format) BUNDLE: one Markdown-with-YAML-frontmatter file per knowledge unit (required `type`) + a reserved index.md, cross-linked by [label](./unit.md) markdown links. OKF is the tiddler bundle re-serialized; the .md files open in drillui like any markdown. Written to <drill>/okf/<bibkey>/ (or --out DIR). |
 
 ### Query

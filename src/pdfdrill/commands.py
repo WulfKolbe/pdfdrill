@@ -4385,6 +4385,46 @@ def cmd_svg(target: Path, limit: int | None = None, force: bool = False) -> str:
             + (f" Re-run with --force to retry the {errors} that failed." if errors else ""))
 
 
+def cmd_distill(pdf: Path, embed: bool = False) -> str:
+    """Emit a distill-structured single-file reading view (`<bibkey>.distill.html`).
+
+    The document skeleton of an Anthropic/Distill v2 article (named-column grid,
+    runtime TOC, late-bound `??` figure/eq references, hover cite/footnote
+    popovers), rebuilt from the docmodel — self-contained, no template JS, KaTeX
+    from the house data-latex pattern. `--embed` base64-inlines every CDN crop.
+    Auto-chains `model`. Citation popovers light up when `bibliography`/`bibsource`
+    has run (else the `[n]` chips render without bodies — graceful)."""
+    from docmodel.core import Document
+    from docops.base import OperatorConfig
+    from docops.projectors.distill_reader import DistillReaderProjector
+
+    sc = Sidecar(pdf)
+    model_path = _model_path(sc)
+    if _stale_or_absent(sc, model_path, _lines_json_path(pdf)):
+        cmd_model(pdf)
+        sc = Sidecar(pdf)
+        model_path = _model_path(sc)
+    if not model_path.exists():
+        return f"No model for {pdf.name} (run `pdfdrill model` first)."
+
+    with open(model_path, "r", encoding="utf-8") as f:
+        doc = Document.from_dict(json.load(f))
+    proj = DistillReaderProjector(OperatorConfig(
+        op="projector", classname="DistillReaderProjector", params={"embed": embed}))
+    result = proj.project(doc)
+    bibkey = doc.meta.get("bibkey") or pdf.stem
+    sc.blob_dir.mkdir(parents=True, exist_ok=True)
+    out_path = sc.blob_dir / f"{bibkey}.distill.html"
+    out_path.write_text(result, encoding="utf-8")
+    sc.set_evidence("distill_path", str(out_path.relative_to(sc.pdf_path.parent)))
+    sc.save()
+    rel = out_path.relative_to(sc.pdf_path.parent)
+    blocks = proj.counters.get("blocks", 0)
+    return (f"Distill reading view: {blocks} blocks ({len(result) // 1024} KB, "
+            f"self-contained) — named-column layout, runtime TOC, late-bound figure "
+            f"refs, hover citations. Open {rel} in a browser.")
+
+
 def cmd_report(pdf: Path, force: bool = False, embed: bool = False,
                scale: float = 1.0) -> str:
     """Emit a full inline+display math report (formula-report.html).

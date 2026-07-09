@@ -668,6 +668,13 @@ def _do_report(args):
                       scale=float(scale) if scale else 1.0)
 
 
+def _do_distill(args):
+    """pdfdrill distill <pdf> [--embed] — a distill-structured single-file reading view."""
+    from .commands import cmd_distill
+    pdf_args = [a for a in args if a != "--embed"]
+    return cmd_distill(_drilled(pdf_args[:1]), embed="--embed" in args)
+
+
 def _do_scikgtex(args):
     """pdfdrill scikgtex <pdf> [--compile]"""
     from .commands import cmd_scikgtex
@@ -1461,6 +1468,7 @@ HANDLERS = {
         "bibfetch": _do_bibfetch,
         "citedrill": _do_citedrill,
         "report": _do_report,
+        "distill": _do_distill,
         "inspect": _do_inspect,
         "folder": _do_folder,
         "latex": _do_latex,

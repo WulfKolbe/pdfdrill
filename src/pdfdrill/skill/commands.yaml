@@ -1087,6 +1087,26 @@ commands:
     flag: --limit
     type: int
   - *id001
+- name: distill
+  section: Extraction
+  summary: 'A distill-structured single-file reading view (<bibkey>.distill.html): the Anthropic/Distill v2
+    article skeleton (named-column grid, runtime TOC, LATE-BOUND ?? figure/eq refs, hover cite/footnote
+    popovers) rebuilt from the docmodel — self-contained, no template JS, KaTeX from data-latex. Auto-chains
+    model; --embed inlines CDN crops. Citation popovers need bibliography/bibsource first (else graceful).'
+  offline_ok: true
+  requires:
+  - model
+  positionals:
+  - name: pdf
+    type: pdf
+    required: true
+    help: PDF/Markdown drilled-doc path, URL, or arXiv id
+  flags:
+  - name: embed
+    flag: --embed
+    type: flag
+    help: base64-inline every CDN crop (self-contained images)
+  typed: true
 - name: report
   section: Introspection (fast, no extraction)
   summary: Full inline+display math report (formula-report.html). --scale N scales each KaTeX render to
