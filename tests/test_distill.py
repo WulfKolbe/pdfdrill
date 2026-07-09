@@ -107,6 +107,23 @@ def test_hard_dark_default():
     assert "@media (prefers-color-scheme" not in html  # not system-gated
 
 
+def test_svg_tables_legible_on_dark():
+    """dvisvgm bakes BLACK into an SVG → invisible on the dark page. A legacy
+    (black) SVG is inverted for dark; a `--currentcolor` SVG is marked `cc` so it
+    inherits the theme ink instead (never double-inverted)."""
+    d = Document(); d.meta["bibkey"] = "D"
+    d.add(DocObject(type="Paragraph", id="p", props={"text": "T", "flow_index": 1}))
+    d.add(DocObject(type="Diagram", id="d1", props={
+        "caption": "legacy", "svg": "<svg><path fill='#000'/></svg>", "flow_index": 2}))
+    d.add(DocObject(type="Diagram", id="d2", props={
+        "caption": "themed", "svg": "<svg><path fill='currentColor'/></svg>",
+        "flow_index": 3}))
+    html, _ = _project(d)
+    assert "filter:invert" in html                    # legacy SVGs inverted for dark
+    assert 'class="svg cc"' in html                   # the currentColor one, not inverted
+    assert 'class="svg"' in html                      # the legacy one
+
+
 def test_graceful_on_empty_and_null_latex():
     d = Document(); d.meta["bibkey"] = "E"
     d.add(DocObject(type="Paragraph", id="p", props={"text": "Title", "flow_index": 1}))

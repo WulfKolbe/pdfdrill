@@ -121,6 +121,11 @@ nav.toc a.l3{{padding-left:18px;color:var(--muted)}}
 figure{{margin:1.6em 0;text-align:center}}
 figure img{{max-width:100%;border:1px solid var(--line);background:var(--figbg)}}
 figure .svg svg{{max-width:100%;height:auto}}
+/* dvisvgm bakes BLACK into an SVG (invisible on the dark page). A legacy SVG is
+   inverted for dark (hue-rotate keeps any colours roughly right); a dvisvgm
+   `--currentcolor` SVG is marked .cc and instead inherits the theme ink. */
+figure .svg:not(.cc) svg{{filter:invert(1) hue-rotate(180deg)}}
+figure .svg.cc{{color:var(--ink)}}
 figcaption{{font:13.5px/1.5 var(--sans);color:var(--muted);
   margin-top:8px;text-align:left}}
 figcaption .fig-num{{font-weight:700;color:var(--ink)}}
@@ -386,7 +391,10 @@ class DistillReaderProjector(BaseProjector):
                              f'{html.escape(obj.props.get("code") or "")}</code></pre>')
                     cap = cap or f"code listing{(' (' + lang + ')') if lang else ''}"
                 elif svg:
-                    inner = f'<div class="svg">{svg}</div>'
+                    # `--currentcolor` SVGs carry `currentColor` → theme-native
+                    # (class cc, inherits ink); legacy black SVGs get inverted.
+                    cc = " cc" if "currentcolor" in svg.lower() else ""
+                    inner = f'<div class="svg{cc}">{svg}</div>'
                 elif obj.props.get("cdn_url"):
                     inner = self._crop(obj, "")
                 elif obj.props.get("latex_code"):

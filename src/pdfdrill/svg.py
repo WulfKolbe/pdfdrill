@@ -205,7 +205,11 @@ def compile_to_svg(latex_code: str, preamble: str | None = None,
                     "src": src, "log": log}
         try:
             rs = subprocess.run(
-                ["dvisvgm", "-n", "--exact-bbox", base + ".dvi", "-o", base + ".svg"],
+                # -n = --no-fonts (paths, not font refs); --currentcolor makes the
+                # baked black follow `currentColor`, so the SVG inherits the page's
+                # text colour (legible on a dark theme; explicit colours kept).
+                ["dvisvgm", "-n", "--currentcolor", "--exact-bbox",
+                 base + ".dvi", "-o", base + ".svg"],
                 cwd=d, capture_output=True, encoding="utf-8", errors="replace",
                 timeout=timeout)
         except subprocess.TimeoutExpired:
