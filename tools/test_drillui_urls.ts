@@ -74,5 +74,42 @@ ok("html: httpBase strips only /ws (keeps prefix)",
    html.includes("u.pathname.replace(/\\/ws$/") &&
    !html.includes('u.pathname = ""'));
 
+// --- scanArtifacts: capture a SPACED artifact path + dedup the truncated tail ---
+// Mirrors drillui_term.html::scanArtifacts (kept in sync by the source guard below).
+function scanArtifacts(text: string): string[] {
+  const EXT = "(html|svg|pdf|md|json|txt|tex)";
+  const set = new Map<string, boolean>();
+  const add = (path: string) => {
+    if (/^https?:/i.test(path)) return;
+    if (set.has(path)) return;
+    for (const have of set.keys())
+      if (have.endsWith("/" + path) || have.endsWith(" " + path)) return;
+    set.set(path, true);
+  };
+  let m: RegExpExecArray | null;
+  const bracket = new RegExp("\\bOpen\\s+(.+?\\." + EXT + ")\\s+in\\b", "gi");
+  while ((m = bracket.exec(text)) !== null) add(m[1]);
+  const re = new RegExp("(?<![\\w/])((?:[\\w.+~@%-]+\\/)*[\\w.+~@%-]+\\." + EXT + ")\\b", "gi");
+  while ((m = re.exec(text)) !== null) add(m[1]);
+  return [...set.keys()];
+}
+
+const spaced = "Distill reading view: 1378 blocks. Open Verbalizable Representations " +
+  "Form a Global Workspace in Language Models.pdf.drill/" +
+  "Verbalizable_Representations_Form_a_Global_Workspace_in_Language_Models.distill.html in a browser.";
+const got = scanArtifacts(spaced);
+ok("spaced artifact path captured whole",
+   got.includes("Verbalizable Representations Form a Global Workspace in Language Models.pdf.drill/" +
+     "Verbalizable_Representations_Form_a_Global_Workspace_in_Language_Models.distill.html"));
+ok("truncated tail NOT added as a second artifact",
+   !got.some(p => p.startsWith("Models.pdf.drill/")));
+ok("normal no-space path still captured",
+   scanArtifacts("Open data/x.pdf.drill/report.html in a browser.")
+     .includes("data/x.pdf.drill/report.html"));
+
+const htmlSrc = readFileSync(join(HERE, "drillui_term.html"), "utf8");
+ok("html: scanArtifacts uses the Open…in bracket capture",
+   htmlSrc.includes('"\\\\bOpen\\\\s+(.+?\\\\." + EXT'));
+
 console.log(fails ? `\n${fails} FAILED` : "\nAll passed.");
 process.exit(fails ? 1 : 0);

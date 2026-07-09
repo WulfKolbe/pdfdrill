@@ -210,6 +210,17 @@ def _display_path(path: Path, base: Path) -> Path:
         return path
 
 
+def _safe_bibkey(bibkey: str) -> str:
+    """A filesystem/URL-safe bibkey for ARTIFACT FILENAMES. A bibkey from a spaced
+    filename stem ("Great Paper") made `Great Paper.distill.html`, whose spaces
+    break URLs + drillui's whitespace-splitting path scanner (→ 404). Replace every
+    run of non-`[A-Za-z0-9._-]` with `_`; a clean id (`2004.05631v1`) is unchanged.
+    Never empty."""
+    import re as _re
+    s = _re.sub(r"[^A-Za-z0-9._-]+", "_", (bibkey or "").strip()).strip("_.")
+    return s or "doc"
+
+
 def _lines_json_path(pdf: Path) -> Path:
     """Path MathPix lines.json would occupy next to the PDF."""
     base = pdf.name[:-4] if pdf.name.lower().endswith(".pdf") else pdf.name
@@ -3474,7 +3485,7 @@ def cmd_okf(pdf: Path, out: str | None = None, bibkey: str | None = None,
         bundle = proj.project(doc)
     sub = "okf-semantic" if semantic else "okf"
     out_dir = Path(out) if out else (sc.pdf_path.parent / f"{pdf.name}.drill"
-                                     / sub / key)
+                                     / sub / _safe_bibkey(key))
     out_dir.mkdir(parents=True, exist_ok=True)
     for rel, content in bundle.items():
         fp = out_dir / rel
@@ -4412,7 +4423,7 @@ def cmd_distill(pdf: Path, embed: bool = False) -> str:
     proj = DistillReaderProjector(OperatorConfig(
         op="projector", classname="DistillReaderProjector", params={"embed": embed}))
     result = proj.project(doc)
-    bibkey = doc.meta.get("bibkey") or pdf.stem
+    bibkey = _safe_bibkey(doc.meta.get("bibkey") or pdf.stem)
     sc.blob_dir.mkdir(parents=True, exist_ok=True)
     out_path = sc.blob_dir / f"{bibkey}.distill.html"
     out_path.write_text(result, encoding="utf-8")

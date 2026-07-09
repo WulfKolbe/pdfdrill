@@ -635,18 +635,28 @@ const app = {
 
   /* ---- artifacts: turn pdfdrill's *.html/*.svg/*.pdf/*.md/*.json/… mentions into links ---- */
   scanArtifacts(text){
-    // match path-like tokens ending in an openable extension; skip remote URLs
-    const re = /(?<![\w/])((?:[\w.+~@%-]+\/)*[\w.+~@%-]+\.(html|svg|pdf|md|json|txt|tex))\b/gi;
     let m, added = false;
-    while ((m = re.exec(text)) !== null){
-      const path = m[1];
-      if (/^https?:/i.test(path)) continue;
-      if (this._isInternalArtifact(path)) continue;   // hide internal model/state JSON
-      if (!this.artifacts.has(path)){
-        this.artifacts.set(path, { path, ext: m[2].toLowerCase() });
-        added = true;
-      }
-    }
+    const EXT = "(html|svg|pdf|md|json|txt|tex)";
+    const add = (path, ext) => {
+      if (/^https?:/i.test(path)) return;
+      if (this._isInternalArtifact(path)) return;      // hide internal model/state JSON
+      if (this.artifacts.has(path)) return;
+      // skip a whitespace-TRUNCATED tail of a fuller path we already captured
+      // (e.g. "Models.pdf.drill/x.html" vs "My Great Models.pdf.drill/x.html")
+      for (const have of this.artifacts.keys())
+        if (have.endsWith("/" + path) || have.endsWith(" " + path)) return;
+      this.artifacts.set(path, { path, ext: ext.toLowerCase() });
+      added = true;
+    };
+    // 1. the FULL path (may contain spaces — drill dirs are named after the PDF)
+    //    reported as `Open <path> in a browser|drillui`. The token regex below
+    //    can't span spaces, so this bracket capture is what handles spaced names.
+    const bracket = new RegExp("\\bOpen\\s+(.+?\\." + EXT + ")\\s+in\\b", "gi");
+    while ((m = bracket.exec(text)) !== null) add(m[1], m[2]);
+    // 2. bare path-like tokens (no spaces) anywhere in the prose
+    const re = new RegExp(
+      "(?<![\\w/])((?:[\\w.+~@%-]+\\/)*[\\w.+~@%-]+\\." + EXT + ")\\b", "gi");
+    while ((m = re.exec(text)) !== null) add(m[1], m[2]);
     if (added) this.renderArtifacts();
   },
 
