@@ -35,12 +35,15 @@ The ONLY exception: the user explicitly tells you to bypass pdfdrill.
    │                 #   records model_caps = {geometry, math, source}
    ├─ report / compare / mathir / mathcheck   # need MATH
    ├─ inspect / locate                        # need GEOMETRY
-   ├─ tiddlers / md / llmtext / context       # projections (codegen)
+   ├─ md / llmtext / context / tiddlers        # text projections (codegen)
+   ├─ okf [--semantic] / distill               # bundle + distill-HTML reading views
+   ├─ scikgtex / stex / lean                   # LaTeX / sTeX / Lean 4 targets
    ├─ reconcile                               # dual-route: fix pdfminer math w/ MathPix
    └─ semantic / gaps / classify / ask / retrieve
 ```
 
-**Allowed:** `pdf → size → route → model → {report|inspect|tiddlers|context|…}`.
+**Allowed:** `pdf → size → route → model → {report|compare|inspect|tiddlers|md|
+llmtext|context|okf|distill|scikgtex|stex|lean}` (all codegen off the one model).
 **Forbidden:** `pdf → inspect` (no model yet), or `inspect` on a model with no
 geometry — see below.
 

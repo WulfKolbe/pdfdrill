@@ -48,6 +48,28 @@ pdfdrill abstract   2312.11532                                  # goal + method
 pdfdrill bibtex     2312.11532                                  # a @misc/@article record
 ```
 
+## Project it (one model → many outputs)
+
+Build the model once, then project it any way you need — all codegen off the same
+docmodel:
+
+```bash
+pdfdrill md       2312.11532     # LLM-compact Markdown (<bibkey>.md)
+pdfdrill llmtext  2312.11532     # flat one-unit-per-block LLM dump (.llm.txt)
+pdfdrill tiddlers 2312.11532     # TiddlyWiki tiddler array (.tiddlers.json)
+pdfdrill okf      2312.11532     # Open Knowledge Format bundle (okf/<bibkey>/*.md)
+pdfdrill okf      invoice.pdf --semantic   # …or the entity graph (Company/BankAccount/…)
+pdfdrill distill  2312.11532     # distill-structured reading view (.distill.html, dark)
+pdfdrill report   2312.11532     # formula report — LaTeX | KaTeX | image
+pdfdrill compare  2312.11532     # comparison across competing OCR provenances
+pdfdrill inspect  2312.11532     # DevTools-style docmodel inspector (.inspect.html)
+pdfdrill scikgtex 2312.11532     # SciKGTeX LaTeX → PDF with ORKG metadata
+pdfdrill stex     2312.11532     # enriched / sTeX LaTeX (acronyms, symbols, index)
+pdfdrill lean     2312.11532     # Lean 4 export of theorems
+```
+
+See the full table (outputs + what each is) in [README.md#projections](README.md#projections--one-docmodel-many-outputs).
+
 ## Next
 
 - Genre recipes: `examples/` (arxiv, book, slides, invoice, equations).

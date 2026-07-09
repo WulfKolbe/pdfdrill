@@ -86,6 +86,31 @@ Without the installed console script, run as a module:
 PYTHONPATH=src python3 -m pdfdrill <command> <pdf> [args]
 ```
 
+## Projections — one docmodel, many outputs
+
+The unified docmodel is the canonical IR; every projection is **codegen** from it
+(build the model once with `pdfdrill model`, then project). Each is a single
+command that writes into the doc's `.drill/` sidecar:
+
+| Command | Output | What it is |
+|---|---|---|
+| `pdfdrill md <pdf>` | `<bibkey>.md` | LLM-compact Markdown with materialized math transclusions (bi-layer source+translation after `translate`) |
+| `pdfdrill llmtext <pdf>` | `<bibkey>.llm.txt` | Flat LLM dump — one unit per block, tiddler-titled, document order |
+| `pdfdrill context <pdf> "q" [--type …]` | stdout / `--out` | **Deterministic structural RAG**: select typed objects by query/`--type`/`--section`/`--concept`, ranked, with a token budget |
+| `pdfdrill tiddlers <pdf>` | `<bibkey>.tiddlers.json` | TiddlyWiki tiddler array (bibkey-prefixed titles; `<$latex>`/transclusions/SVG) |
+| `pdfdrill okf <pdf> [--semantic]` | `okf/<bibkey>/*.md` | **Open Knowledge Format** bundle — one Markdown-with-frontmatter file per unit in per-type folders, relative links; `--semantic` projects the entity graph (Company/BankAccount/…) instead |
+| `pdfdrill distill <pdf>` | `<bibkey>.distill.html` | **Distill-structured** single-file reading view (named-column grid, runtime TOC, late-bound `??` figure refs, hover citations, hard-dark, KaTeX) |
+| `pdfdrill report <pdf>` | `formula-report.html` | Inline+display formula report (LaTeX \| KaTeX \| MathPix image) |
+| `pdfdrill compare <pdf>` | `compare.html` | LaTeX \| KaTeX \| image comparison **across competing provenances** (MathPix/snip/vision/tex) + scores |
+| `pdfdrill inspect <pdf>` | `<bibkey>.inspect.html` | DevTools-style docmodel inspector — every object a hover/click box, self-contained via the pdfminer route |
+| `pdfdrill scikgtex <pdf> [--compile]` | `<bibkey>.scikg.tex` | SciKGTeX-annotated LaTeX → compiled PDF carries **ORKG** contribution metadata as XMP/RDF |
+| `pdfdrill stex <pdf> [--stex]` | `<bibkey>.glossaries.tex` / `.stex.tex` | Enriched LaTeX / **sTeX** — acronyms, glossary, table-of-symbols, index from the named-concept layer |
+| `pdfdrill lean <pdf>` | `<bibkey>.lean` | **Lean 4** export of theorems (LLM-generated Lean stored per Theorem, then projected) |
+
+HTML projections accept `--embed` to base64-inline every CDN crop (fully
+self-contained); the `.distill.html`, `.inspect.html`, `report.html` and the
+`okf/` bundle all open directly in drillui's Outputs panel.
+
 ### The killer case
 
 `pdfdrill links` reads the PDF **annotation layer**, so it finds hyperlinks
