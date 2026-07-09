@@ -47,26 +47,18 @@ _HEAD = """<!DOCTYPE html>
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@{kv}/dist/katex.min.css">
 <script defer src="https://cdn.jsdelivr.net/npm/katex@{kv}/dist/katex.min.js"></script>
 <style>
+/* HARD DARK by default, regardless of the system setting. `color-scheme:dark`
+   tells the UA + DarkReader it's already dark, so DarkReader leaves it alone. */
 :root{{
-  color-scheme:light dark;
-  --ink:#1a1a1a; --muted:#666; --faint:#999; --line:rgba(0,0,0,.1);
-  --accent:#0f6c8c; --wash:hsla(40,30%,30%,.035);
-  --bg:#fff; --card:#fff; --chip:#f2f1ec; --figbg:#fff;
+  color-scheme:dark;
+  --ink:#e6e6e6; --muted:#a2a8ae; --faint:#70757b;
+  --line:rgba(255,255,255,.14); --accent:#5ab0d0; --wash:hsla(210,25%,80%,.05);
+  --bg:#16181d; --card:#22252b; --chip:#2a2e35;
+  /* figures/crops keep a light card so black-ink MathPix crops stay legible */
+  --figbg:#f4f4f4;
   --serif:Georgia,'Times New Roman',serif;
   --sans:-apple-system,system-ui,'Segoe UI',sans-serif;
   --mono:ui-monospace,Menlo,Consolas,monospace;
-}}
-/* follow the system theme (dark background / DarkReader): override the colour
-   variables — declaring color-scheme above stops DarkReader force-inverting. */
-@media (prefers-color-scheme: dark){{
-  :root{{
-    --ink:#e6e6e6; --muted:#a2a8ae; --faint:#70757b;
-    --line:rgba(255,255,255,.14); --accent:#5ab0d0;
-    --wash:hsla(210,25%,80%,.05);
-    --bg:#16181d; --card:#22252b; --chip:#2a2e35;
-    /* figures/crops stay on a light card so black-ink MathPix crops read */
-    --figbg:#f4f4f4;
-  }}
 }}
 *{{box-sizing:border-box}} html{{scroll-behavior:smooth}}
 body{{margin:0;background:var(--bg);color:var(--ink);

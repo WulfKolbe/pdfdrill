@@ -94,14 +94,17 @@ def test_internal_hrefs_resolve_except_figref():
         assert m.group(1) in ids, f"dangling href #{m.group(1)}"
 
 
-def test_theme_aware_follows_system_dark():
-    """The page must follow the system theme (dark bg / DarkReader), not stay
-    white: declare color-scheme and carry a prefers-color-scheme dark override."""
+def test_hard_dark_default():
+    """Hard dark by default, regardless of the system setting: `color-scheme:dark`
+    (so DarkReader leaves it alone) and the dark background is the :root DEFAULT,
+    not gated behind a prefers-color-scheme media query."""
     html, _ = _project(_doc())
-    assert "color-scheme" in html                     # tells the UA + DarkReader
-    assert "@media (prefers-color-scheme: dark)" in html
-    # backgrounds come from variables (overridable), not a hardcoded body #fff
+    assert "color-scheme:dark" in html
+    root = html.split("</style>")[0].split(":root{", 1)[1].split("}", 1)[0]
+    assert "--bg:#16181d" in root                     # dark bg is the default
+    assert "--ink:#e6e6e6" in root                    # light ink is the default
     assert "background:var(--bg)" in html
+    assert "@media (prefers-color-scheme" not in html  # not system-gated
 
 
 def test_graceful_on_empty_and_null_latex():
