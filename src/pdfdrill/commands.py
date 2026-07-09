@@ -452,7 +452,8 @@ def cmd_doctor() -> str:
     lines.append("")
     lines.append("API keys (env / .env; only needed for the named routes):")
     for var, route in [("MATHPIX_APP_ID", "mathpix/model"), ("MATHPIX_APP_KEY", "mathpix/snip"),
-                       ("OPENAI_API_KEY", "vision"), ("PERPLEXITY_API_KEY", "bibfetch")]:
+                       ("OPENAI_API_KEY", "vision"), ("NOVITA_API_KEY", "snip --gemma / route (Gemma-4)"),
+                       ("PERPLEXITY_API_KEY", "bibfetch"), ("DEEPL_API_KEY", "translate")]:
         lines.append(f"  [{'set ' if get(var) else 'unset'}] {var:<18} — {route}")
 
     # Math-OCR routes — which path types equations, given what's available.
