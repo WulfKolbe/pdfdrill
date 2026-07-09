@@ -48,14 +48,28 @@ _HEAD = """<!DOCTYPE html>
 <script defer src="https://cdn.jsdelivr.net/npm/katex@{kv}/dist/katex.min.js"></script>
 <style>
 :root{{
+  color-scheme:light dark;
   --ink:#1a1a1a; --muted:#666; --faint:#999; --line:rgba(0,0,0,.1);
   --accent:#0f6c8c; --wash:hsla(40,30%,30%,.035);
+  --bg:#fff; --card:#fff; --chip:#f2f1ec; --figbg:#fff;
   --serif:Georgia,'Times New Roman',serif;
   --sans:-apple-system,system-ui,'Segoe UI',sans-serif;
   --mono:ui-monospace,Menlo,Consolas,monospace;
 }}
+/* follow the system theme (dark background / DarkReader): override the colour
+   variables — declaring color-scheme above stops DarkReader force-inverting. */
+@media (prefers-color-scheme: dark){{
+  :root{{
+    --ink:#e6e6e6; --muted:#a2a8ae; --faint:#70757b;
+    --line:rgba(255,255,255,.14); --accent:#5ab0d0;
+    --wash:hsla(210,25%,80%,.05);
+    --bg:#16181d; --card:#22252b; --chip:#2a2e35;
+    /* figures/crops stay on a light card so black-ink MathPix crops read */
+    --figbg:#f4f4f4;
+  }}
+}}
 *{{box-sizing:border-box}} html{{scroll-behavior:smooth}}
-body{{margin:0;background:#fff;color:var(--ink);
+body{{margin:0;background:var(--bg);color:var(--ink);
   font:17px/1.65 var(--serif);-webkit-font-smoothing:antialiased}}
 a{{color:var(--accent);text-decoration:none}} a:hover{{text-decoration:underline}}
 
@@ -106,14 +120,14 @@ nav.toc a.l3{{padding-left:18px;color:var(--muted)}}
 .eqblock .eqmath{{flex:1;text-align:center;overflow-x:auto;padding:2px 0}}
 .eqblock .eqnum{{flex:none;font:14px var(--sans);color:var(--muted)}}
 .prov{{display:inline-block;font:10px/1 var(--mono);color:var(--faint);
-  background:#f2f1ec;border:1px solid var(--line);border-radius:999px;
+  background:var(--chip);border:1px solid var(--line);border-radius:999px;
   padding:3px 8px}}
 .eqcrop{{text-align:center;margin:0 0 12px}}
 .eqcrop img{{max-width:70%;border:1px solid var(--line)}}
 
 /* figures — data-fignum + fig-ref late binding, per the source page */
 figure{{margin:1.6em 0;text-align:center}}
-figure img{{max-width:100%;border:1px solid var(--line);background:#fff}}
+figure img{{max-width:100%;border:1px solid var(--line);background:var(--figbg)}}
 figure .svg svg{{max-width:100%;height:auto}}
 figcaption{{font:13.5px/1.5 var(--sans);color:var(--muted);
   margin-top:8px;text-align:left}}
@@ -127,7 +141,7 @@ a.fig-ref{{white-space:nowrap}}
   color:var(--accent);cursor:pointer;vertical-align:super}}
 .cite .pop,.fnref .pop{{visibility:hidden;opacity:0;transition:opacity .12s;
   position:absolute;bottom:1.6em;left:-40px;z-index:9;width:340px;
-  background:#fff;border:1px solid var(--line);border-radius:5px;
+  background:var(--card);border:1px solid var(--line);border-radius:5px;
   box-shadow:0 6px 24px rgba(0,0,0,.14);padding:10px 13px;
   font:12.5px/1.5 var(--sans);color:var(--ink);text-align:left;
   vertical-align:baseline}}
@@ -136,7 +150,7 @@ ol.refs,ol.fns{{font:13.5px/1.6 var(--sans);color:var(--muted)}}
 ol.refs li,ol.fns li{{margin:.4em 0}}
 
 ul{{margin:.6em 0 .6em 1.4em;padding:0}}
-.tok{{font:11px/1 var(--mono);color:var(--muted);background:#f2f1ec;
+.tok{{font:11px/1 var(--mono);color:var(--muted);background:var(--chip);
   border:1px solid var(--line);border-radius:3px;padding:1px 5px}}
 
 /* tiddler-title margin label on hover (house convention) */

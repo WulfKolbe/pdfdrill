@@ -94,6 +94,16 @@ def test_internal_hrefs_resolve_except_figref():
         assert m.group(1) in ids, f"dangling href #{m.group(1)}"
 
 
+def test_theme_aware_follows_system_dark():
+    """The page must follow the system theme (dark bg / DarkReader), not stay
+    white: declare color-scheme and carry a prefers-color-scheme dark override."""
+    html, _ = _project(_doc())
+    assert "color-scheme" in html                     # tells the UA + DarkReader
+    assert "@media (prefers-color-scheme: dark)" in html
+    # backgrounds come from variables (overridable), not a hardcoded body #fff
+    assert "background:var(--bg)" in html
+
+
 def test_graceful_on_empty_and_null_latex():
     d = Document(); d.meta["bibkey"] = "E"
     d.add(DocObject(type="Paragraph", id="p", props={"text": "Title", "flow_index": 1}))
