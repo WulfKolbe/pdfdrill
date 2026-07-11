@@ -685,3 +685,26 @@ if __name__ == "__main__":
         print(f"\n{len(failed)} of {len(tests)} failed")
         sys.exit(1)
     print(f"\nAll {len(tests)} tests passed.")
+
+
+def test_table_tiddler_carries_region_coords():
+    """Table tiddlers must carry top_left_x/y/width/height (like Equations) so the
+    external enrich step can match a TAB tiddler to its lines.json region WITHOUT
+    content matching. Requires the Table object to carry props['region']."""
+    from docmodel.core import Document, DocObject
+    from docops.base import OperatorConfig
+    from docops.projectors.tiddlywiki import TiddlyWikiProjector
+    import json as _j
+    doc = Document(); doc.meta["bibkey"] = "D"
+    doc.add(DocObject(type="Table", id="t1", props={
+        "page": 7, "raw_text": "a\tb", "caption": "Results",
+        "region": {"top_left_x": 481, "top_left_y": 1263, "width": 617, "height": 211}}))
+    proj = TiddlyWikiProjector(OperatorConfig(
+        op="projector", classname="TiddlyWikiProjector", params={}))
+    tabs = [t for t in _j.loads(proj.project(doc))
+            if "table" in (t.get("tags") or "").split()]
+    assert tabs, "no table tiddler emitted"
+    t = tabs[0]
+    assert t.get("top_left_x") == "481" and t.get("top_left_y") == "1263"
+    assert t.get("width") == "617" and t.get("height") == "211"
+    assert t.get("page") == "007"                    # page carried, not '000'

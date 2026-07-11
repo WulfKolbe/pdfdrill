@@ -676,6 +676,13 @@ class TiddlyWikiProjector(BaseProjector):
                 t["latex_original"] = tab.props["latex_original"]
             if svg_field:
                 t["svg_tiddler"] = svg_field
+            for k in ("caption", "kind", "refnum"):
+                if tab.props.get(k):
+                    t[k] = tab.props[k]
+            # Carry the region geometry (top_left_x/y/width/height) onto the TAB
+            # tiddler, like Equation tiddlers — so downstream tools match a table
+            # to its lines.json region by COORDS, not by content.
+            self._copy_region(t, tab.props)
             out.append(t)
 
         # LtxCommand — a leaked LaTeX formatting command, PRESERVED + tagged but

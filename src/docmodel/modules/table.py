@@ -46,6 +46,9 @@ class TableProcessor(BaseModule):
                 "page": payload.get("_page"),
                 "line_id": payload.get("id"),
                 "children": children,
+                # The table's own MathPix region (top_left_x/y/width/height) — so
+                # the Table object is region-addressable like an Equation.
+                "region": payload.get("region"),
                 "raw_text": "\n".join(c["text"] for c in children if c["text"]),
             })
         return items
@@ -82,6 +85,8 @@ class TableProcessor(BaseModule):
             "raw_text": item["raw_text"],
             "bibkey": self.bibkey,
         }
+        if item.get("region"):
+            props["region"] = item["region"]          # region-addressable table
         # Span-aware cell structure: a value lives once at its anchor slot and
         # covers a range (cell_row/cell_column/cell_row_span/cell_col_span come
         # straight from MathPix). columns = flattened, linefeed-free header
