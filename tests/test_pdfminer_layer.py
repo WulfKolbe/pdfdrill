@@ -102,6 +102,29 @@ def test_attach_page_emphasis_to_page_objects():
     assert pm.attach_page_emphasis(doc, spans) == 1
 
 
+def test_fuse_emphasis_assigns_runs_to_overlapping_paragraph():
+    """Each emphasis run is assigned to the same-page paragraph it overlaps most
+    (both in page fractions). A run over no paragraph is left unassigned."""
+    paras = [
+        {"id": "p1", "page": 1, "frac": (0.1, 0.10, 0.9, 0.20)},   # top band
+        {"id": "p2", "page": 1, "frac": (0.1, 0.30, 0.9, 0.45)},   # mid band
+    ]
+    runs = [
+        {"page": 1, "frac": (0.12, 0.11, 0.30, 0.13), "text": "Bold Head",
+         "kind": "bold+larger", "font": "CMBX12", "size": 12.0},   # in p1
+        {"page": 1, "frac": (0.15, 0.32, 0.28, 0.34), "text": "term",
+         "kind": "italic", "font": "CMTI10", "size": 10.0},        # in p2
+        {"page": 1, "frac": (0.15, 0.80, 0.28, 0.82), "text": "footer",
+         "kind": "smaller", "font": "CMR8", "size": 8.0},          # over nothing
+        {"page": 2, "frac": (0.15, 0.11, 0.28, 0.13), "text": "other",
+         "kind": "bold", "font": "CMBX10", "size": 10.0},          # wrong page
+    ]
+    fused = pm.fuse_emphasis(paras, runs)
+    assert [r["text"] for r in fused["p1"]] == ["Bold Head"]
+    assert [r["text"] for r in fused["p2"]] == ["term"]
+    assert "footer" not in {r["text"] for rs in fused.values() for r in rs}
+
+
 if __name__ == "__main__":
     tests = [v for k, v in list(globals().items()) if k.startswith("test_")]
     failed = []

@@ -5398,6 +5398,69 @@ def cmd_merge(pdf: Path, tex: str | None = None) -> str:
             f"Run `pdfdrill inspect {pdf.name}` to see the corrected partitioning.")
 
 
+def _fuse_emphasis_onto_paragraphs(model_dict: dict, doc, spans: list, pdf_dims: dict):
+    """Fuse pdfminer emphasis runs onto the MERGED MathPix paragraphs by
+    page-fraction overlap (the two coordinate systems — MathPix pixels vs PDF
+    points — are each normalised to [0,1], never mixed raw). Writes
+    `props['emphasis']` onto each matched Paragraph in `doc`. Returns the count.
+    """
+    from . import docinspect as DI
+    from . import reconcile as RC
+    from . import pdfminer_layer as PM
+
+    sidx = DI.build_stream_index(model_dict)
+    mp_dims = {o["props"].get("page_number"): (o["props"].get("page_width"),
+                                               o["props"].get("page_height"))
+               for o in model_dict.get("objects", []) if o["type"] == "Page"}
+    paragraphs = []
+    for o in model_dict.get("objects", []):
+        if o["type"] != "Paragraph":
+            continue
+        page, box, _ = DI.object_geometry(o, sidx)
+        dims = mp_dims.get(page)
+        if page is None or not box or not dims or None in dims:
+            continue
+        frac = RC.to_page_fraction(
+            {"top_left_x": box["x"], "top_left_y": box["y"],
+             "width": box["w"], "height": box["h"]}, dims[0], dims[1])
+        if frac:
+            paragraphs.append({"id": o["id"], "page": page, "frac": frac})
+
+    # Only INLINE emphasis fuses onto a paragraph: bold/italic body-size key terms
+    # (defined terms, emphasis). Headings (bold+LARGER) are structural → Sections;
+    # size-only runs (footnotes/captions) stay page-level. Keeps paragraph emphasis
+    # meaningful for an LLM instead of dumping every deviating glyph.
+    import re as _re
+    run_items = []
+    for s in spans:
+        kind = s["kind"]
+        if "larger" in kind or ("bold" not in kind and "italic" not in kind):
+            continue
+        # word gate: a real emphasized WORD, not a single math variable / symbol /
+        # number — needs >=3 Latin letters (drops C / α / "1.1" / punctuation).
+        if len(_re.sub(r"[^A-Za-zÀ-ÿ]", "", (s["text"] or ""))) < 3:
+            continue
+        dims = pdf_dims.get(int(s["page"]))
+        if not dims:
+            continue
+        frac = RC.to_page_fraction(s["region"], dims[0], dims[1])
+        if frac:
+            run_items.append({"page": int(s["page"]), "frac": frac,
+                              "text": (s["text"] or "").strip(), "kind": kind,
+                              "font": s["font"], "size": s["size"]})
+
+    fused = PM.fuse_emphasis(paragraphs, run_items)
+    n = 0
+    for p in doc.objects_of_type("Paragraph"):
+        p.props.pop("emphasis", None)          # idempotent: clear stale first
+        e = fused.get(p.id)
+        if e:
+            p.props["emphasis"] = [{k: r[k] for k in ("text", "kind", "font", "size")}
+                                   for r in e]
+            n += 1
+    return n
+
+
 def cmd_fontspans(pdf: Path, pages: str | None = None) -> str:
     """The pdfminer LEG — recover the local formatting MathPix flattens.
 
@@ -5449,16 +5512,21 @@ def cmd_fontspans(pdf: Path, pages: str | None = None) -> str:
     out_path.parent.mkdir(parents=True, exist_ok=True)
     out_path.write_text(json.dumps(out, indent=1, ensure_ascii=False), encoding="utf-8")
 
-    # attach the per-page emphasis onto the model's Page objects (if a model exists)
-    attached = 0
+    # enrich the model (if one exists): per-page emphasis onto Page objects, and
+    # per-PARAGRAPH fusion by page-fraction overlap onto the merged paragraphs.
+    attached = fused_paras = 0
     model_path = _model_path(sc)
     if model_path.exists():
         try:
+            with open(model_path, "r", encoding="utf-8") as f:
+                model_dict = json.load(f)
             doc = load_model(model_path)
             attached = PM.attach_page_emphasis(doc, spans)
+            pdf_dims = PM.page_dims(str(sc.pdf_path), pages=pages)
+            fused_paras = _fuse_emphasis_onto_paragraphs(model_dict, doc, spans, pdf_dims)
             save_model(model_path, doc)
         except Exception:
-            attached = 0
+            attached = fused_paras = 0
 
     rel = _display_path(out_path, sc.pdf_path.parent)
     sc.set_evidence("fontspans_path", str(rel))
@@ -5484,8 +5552,10 @@ def cmd_fontspans(pdf: Path, pages: str | None = None) -> str:
         f"  key terms (bold/italic): {len(emph)}  e.g. {_ex(emph)}",
         f"  small (footnotes/captions): {len(small)}",
         f"Wrote {rel}"
-        + (f"; attached font_emphasis onto {attached} Page object(s)." if attached
-           else "."),
+        + (f"; attached font_emphasis onto {attached} Page object(s)" if attached
+           else "")
+        + (f"; fused emphasis onto {fused_paras} Paragraph object(s) by "
+           f"page-fraction overlap." if fused_paras else "."),
     ]
     return "\n".join(lines)
 

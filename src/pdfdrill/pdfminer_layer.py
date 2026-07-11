@@ -194,6 +194,55 @@ def dominant_style(chars: list[dict]) -> dict:
     return {"font": font, "size": size}
 
 
+def page_dims(pdf_path: str, pages=None) -> dict:
+    """{page_no (1-based): (width_pt, height_pt)} for the PDF's pages — the
+    denominators that normalise pdfminer regions to page fractions. {} if
+    pdfminer.six is absent."""
+    if not available():
+        return {}
+    from pdfminer.high_level import extract_pages
+    want = _page_range(pages, None)
+    out: dict[int, tuple] = {}
+    for idx, layout in enumerate(extract_pages(pdf_path)):
+        if want is not None and idx not in want:
+            continue
+        out[idx + 1] = (round(layout.width, 2), round(layout.height, 2))
+    return out
+
+
+def _overlap(a, b) -> float:
+    """Intersection area of two (x0,y0,x1,y1) fraction boxes (0 if disjoint)."""
+    ix = max(0.0, min(a[2], b[2]) - max(a[0], b[0]))
+    iy = max(0.0, min(a[3], b[3]) - max(a[1], b[1]))
+    return ix * iy
+
+
+def fuse_emphasis(paragraphs: list[dict], runs: list[dict]) -> dict:
+    """Assign each emphasis run to the same-page paragraph it overlaps MOST (all
+    boxes in page fractions). A run overlapping no paragraph is left unassigned
+    (it stays page-level only). Returns {paragraph_id: [run, ...]} preserving the
+    runs' input (reading) order.
+
+    `paragraphs`: [{id, page, frac:(x0,y0,x1,y1)}]; `runs`: [{page, frac, ...}].
+    """
+    out: dict[str, list[dict]] = {}
+    by_page: dict[int, list[dict]] = {}
+    for p in paragraphs:
+        if p.get("frac"):
+            by_page.setdefault(int(p["page"]), []).append(p)
+    for r in runs:
+        if not r.get("frac"):
+            continue
+        best, best_ov = None, 0.0
+        for p in by_page.get(int(r["page"]), ()):
+            ov = _overlap(r["frac"], p["frac"])
+            if ov > best_ov:
+                best_ov, best = ov, p
+        if best is not None and best_ov > 0:
+            out.setdefault(best["id"], []).append(r)
+    return out
+
+
 def attach_page_emphasis(doc, spans: list[dict]) -> int:
     """Attach the classified emphasis runs to each model `Page` (matched by
     `page_number`) as `props['font_emphasis']` — the headings / key-terms /
