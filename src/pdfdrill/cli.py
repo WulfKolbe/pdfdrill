@@ -1378,6 +1378,16 @@ def _do_okf(args):
     return cmd_okf(_drilled(args[:1]), out=out, bibkey=bibkey, semantic=semantic)
 
 
+def _do_fontspans(args):
+    """pdfdrill fontspans <pdf> [--pages P] — the pdfminer leg: recover the local
+    formatting MathPix flattens (bold headings, bold/italic key terms, small
+    footnotes) from the born-digital glyph layer; writes <bibkey>.fontspans.json
+    and attaches per-page emphasis onto Page objects."""
+    from .commands import cmd_fontspans
+    pages, args = _opt(args, "--pages")
+    return cmd_fontspans(_pdf(args), pages=pages)
+
+
 def _do_merge(args):
     """pdfdrill merge <pdf> [--tex PATH] — merge gold LaTeX prose onto the MathPix
     layout: MathPix fixes paragraph boundaries+regions, LaTeX supplies the text
@@ -1546,6 +1556,7 @@ HANDLERS = {
         "occurrences": _do_occurrences,
         "context": _do_context,
         "merge": _do_merge,
+        "fontspans": _do_fontspans,
         "reconcile": _do_reconcile,
         "combine": _do_combine,
         "chatlog": _do_chatlog,

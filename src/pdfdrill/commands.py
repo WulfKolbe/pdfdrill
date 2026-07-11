@@ -5398,6 +5398,98 @@ def cmd_merge(pdf: Path, tex: str | None = None) -> str:
             f"Run `pdfdrill inspect {pdf.name}` to see the corrected partitioning.")
 
 
+def cmd_fontspans(pdf: Path, pages: str | None = None) -> str:
+    """The pdfminer LEG — recover the local formatting MathPix flattens.
+
+    MathPix returns clean text but drops every local typography decision. The
+    born-digital text layer, read glyph-by-glyph via pdfminer.six (`fontname`,
+    `size`, the CTM `matrix`, colour), still carries it. This classifies each
+    font-run against the body font and reports the **font/size changes** — bold
+    headings, bold/italic key terms, small-font footnotes/captions — writing
+    `<bibkey>.fontspans.json` and attaching the per-page emphasis onto each model
+    `Page` (`props['font_emphasis']`). Born-digital only (a scan has no text
+    layer → run `pdfdrill rasterize`/`ocr`). pdfminer.six required.
+    """
+    from .model_io import load_model, save_model
+    from . import pdfminer_layer as PM
+
+    if not PM.available():
+        return ("pdfminer.six is not installed — the font-span leg needs it "
+                "(`pip install pdfminer.six`).")
+    sc = Sidecar(pdf)
+    # born-digital gate: a scan has no glyph layer to read
+    recs = PM.char_records(str(sc.pdf_path), pages=pages)
+    if not recs:
+        return (f"{pdf.name}: no born-digital text layer (pdfminer found 0 glyphs"
+                f"{' on the requested pages' if pages else ''}). This is a scan — "
+                f"`pdfdrill rasterize`/`ocr` for the visual/OCR route; font runs "
+                f"need vector text.")
+    body = PM.dominant_style(recs)
+    runs = PM.font_runs(recs)
+    spans = PM.emphasis_spans(runs, body)
+
+    # by-kind rollup for the summary
+    from collections import Counter
+    kinds = Counter(s["kind"] for s in spans)
+    headings = [s for s in spans if "larger" in s["kind"] and s.get("bold")]
+    emph = [s for s in spans if s["kind"] in ("bold", "italic", "bold+italic")]
+    small = [s for s in spans if "smaller" in s["kind"]]
+
+    bibkey = sc.get_evidence("bibkey") or pdf.stem
+    out = {
+        "body": body,
+        "counts": {"glyphs": len(recs), "runs": len(runs),
+                   "emphasis": len(spans), "by_kind": dict(kinds)},
+        "spans": [{"page": s["page"], "text": s["text"].strip(), "kind": s["kind"],
+                   "font": s["font"], "size": s["size"], "color": s.get("color"),
+                   "region": s["region"]}
+                  for s in spans if (s["text"] or "").strip()],
+    }
+    out_path = sc.blob_dir / f"{_safe_bibkey(str(bibkey))}.fontspans.json"
+    out_path.parent.mkdir(parents=True, exist_ok=True)
+    out_path.write_text(json.dumps(out, indent=1, ensure_ascii=False), encoding="utf-8")
+
+    # attach the per-page emphasis onto the model's Page objects (if a model exists)
+    attached = 0
+    model_path = _model_path(sc)
+    if model_path.exists():
+        try:
+            doc = load_model(model_path)
+            attached = PM.attach_page_emphasis(doc, spans)
+            save_model(model_path, doc)
+        except Exception:
+            attached = 0
+
+    rel = _display_path(out_path, sc.pdf_path.parent)
+    sc.set_evidence("fontspans_path", str(rel))
+    sc.set_evidence("fontspans_body_font", body.get("font"))
+    sc.set_evidence("fontspans_emphasis", len(spans))
+    sc.save()
+
+    def _ex(items, k=4):
+        seen, out_ex = set(), []
+        for s in items:
+            t = (s["text"] or "").strip()
+            if len(t) >= 3 and t.lower() not in seen:
+                out_ex.append(f"“{t[:40]}”"); seen.add(t.lower())
+            if len(out_ex) >= k:
+                break
+        return ", ".join(out_ex) or "—"
+
+    lines = [
+        f"Font-span analysis of {pdf.name} ({len(recs)} glyphs, {len(runs)} runs) "
+        f"— pdfminer recovers the local formatting MathPix flattens.",
+        f"Body font: {body.get('font')} @ {body.get('size')}pt.",
+        f"  headings (bold+larger): {len(headings)}  e.g. {_ex(headings)}",
+        f"  key terms (bold/italic): {len(emph)}  e.g. {_ex(emph)}",
+        f"  small (footnotes/captions): {len(small)}",
+        f"Wrote {rel}"
+        + (f"; attached font_emphasis onto {attached} Page object(s)." if attached
+           else "."),
+    ]
+    return "\n".join(lines)
+
+
 def ingest_source_graphics(doc, body: str, macros: dict, bibkey: str,
                            force: bool = False) -> int:
     """Create Diagram/Table DocObjects from the LaTeX source's TikZ/tables

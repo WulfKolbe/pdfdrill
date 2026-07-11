@@ -1202,6 +1202,24 @@ commands:
     flag: --tex
     help: author .tex/.tgz (else local sibling or arXiv e-print)
   typed: true
+- name: fontspans
+  section: Introspection (fast, no extraction)
+  summary: 'The pdfminer LEG: recover the local formatting MathPix flattens (bold headings, bold/italic key
+    terms, small footnotes/captions) from the born-digital glyph layer via pdfminer.six (fontname/size/CTM/
+    colour). Writes <bibkey>.fontspans.json + attaches per-page emphasis onto each model Page
+    (props.font_emphasis). Born-digital only.'
+  offline_ok: true
+  positionals:
+  - name: pdf
+    type: pdf
+    required: true
+    help: PDF path, https URL, or bare arXiv id
+  flags:
+  - name: pages
+    flag: --pages
+    type: str
+    help: page selector N | N-M | all (default all)
+  typed: true
 - name: latexbook
   section: Introspection (fast, no extraction)
   summary: 'One-shot source-only pipeline from a .tex book: model + TikZ/table SVGs + KaTeX report (no
