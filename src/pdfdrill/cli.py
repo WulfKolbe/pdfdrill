@@ -1378,6 +1378,15 @@ def _do_okf(args):
     return cmd_okf(_drilled(args[:1]), out=out, bibkey=bibkey, semantic=semantic)
 
 
+def _do_merge(args):
+    """pdfdrill merge <pdf> [--tex PATH] — merge gold LaTeX prose onto the MathPix
+    layout: MathPix fixes paragraph boundaries+regions, LaTeX supplies the text
+    (LaTeX always wins; OCR kept as text_source)."""
+    from .commands import cmd_merge
+    tex, args = _opt(args, "--tex")
+    return cmd_merge(_pdf(args), tex=tex)
+
+
 def _do_context(args):
     """pdfdrill context <pdf> ["query"] [--type T,T] [--concept X] [--section S]
     [--k N] [--max-tokens N] [--aspect A] [--out FILE] — project the docmodel into
@@ -1536,6 +1545,7 @@ HANDLERS = {
         "okf": _do_okf,
         "occurrences": _do_occurrences,
         "context": _do_context,
+        "merge": _do_merge,
         "reconcile": _do_reconcile,
         "combine": _do_combine,
         "chatlog": _do_chatlog,

@@ -1182,6 +1182,26 @@ commands:
     flag: --tex
     help: author .tex/.tgz
   typed: true
+- name: merge
+  section: Introspection (fast, no extraction)
+  summary: 'Merge gold LaTeX prose onto the MathPix layout: MathPix Paragraphs fix the boundaries + regions,
+    the author LaTeX supplies the text (LaTeX always wins; MathPix OCR kept as text_source). Fixes coarse
+    source-build paragraphs (one 3000-char block MathPix splits into 3-4) without losing geometry. Needs a
+    MathPix model + a LaTeX source.'
+  offline_ok: true
+  requires:
+  - model
+  positionals:
+  - name: pdf
+    type: pdf
+    required: true
+    help: PDF path, https URL, or bare arXiv id
+  flags:
+  - name: tex
+    type: path
+    flag: --tex
+    help: author .tex/.tgz (else local sibling or arXiv e-print)
+  typed: true
 - name: latexbook
   section: Introspection (fast, no extraction)
   summary: 'One-shot source-only pipeline from a .tex book: model + TikZ/table SVGs + KaTeX report (no

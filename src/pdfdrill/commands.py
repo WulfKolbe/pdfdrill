@@ -5302,6 +5302,102 @@ def cmd_latex(pdf: Path, tex: str | None = None, force: bool = False) -> str:
             f"Run `pdfdrill compare {pdf.name}` to see the tex column.")
 
 
+def _locate_latex_source(pdf: Path, sc: "Sidecar", tex: str | None):
+    """Find the LaTeX source for `pdf` (explicit --tex, a local .tex/.tex.zip/
+    .tgz/.tar.gz sibling, else the arXiv e-print). Returns (path, err_message):
+    exactly one is non-None."""
+    src = Path(tex) if tex else None
+    if src is None:
+        for ext in (".tex", ".tex.zip", ".tgz", ".tar.gz"):
+            cand = pdf.parent / f"{pdf.stem}{ext}"
+            if cand.exists():
+                src = cand
+                break
+    if src is None:
+        aid = _arxiv_id_for(pdf, sc)
+        if aid:
+            try:
+                from . import sources
+                src = sources.download_arxiv_source(aid, pdf.parent)
+            except Exception as e:
+                return None, (f"arXiv source download failed for arXiv:{aid}: {e} "
+                              f"(pass --tex <path> if you have the .tex/.tgz locally).")
+    if src is None or not src.exists():
+        return None, (f"No LaTeX source found for {pdf.name} "
+                      f"(looked for {pdf.stem}.tex / .tex.zip / .tgz / .tar.gz). "
+                      f"Run `pdfdrill mathpix {pdf.name}` (downloads the MathPix "
+                      f"{pdf.stem}.tex.zip), or pass --tex <path>.")
+    return src, None
+
+
+def cmd_merge(pdf: Path, tex: str | None = None) -> str:
+    """Three-source prose merge — **LaTeX content onto MathPix geometry**.
+
+    The MathPix model is the LAYOUT truth: its Paragraph objects fix the paragraph
+    boundaries + each one's `region`. The author's gold LaTeX prose is the CONTENT
+    truth: it is re-partitioned across those boundaries by word-alignment, and each
+    paragraph's `text` is REPLACED by its aligned LaTeX span (LaTeX always wins),
+    the MathPix `region` kept, the original OCR preserved under `text_source`.
+
+    Fixes the source-build's coarse paragraphs (a 3000-char LaTeX block that
+    MathPix visually splits into 3-4) WITHOUT losing MathPix geometry, and lifts
+    OCR errors out of the prose. A MathPix paragraph with no LaTeX counterpart
+    (a caption OCR'd as prose) is left untouched. Requires a MathPix model
+    (paragraphs+regions) AND a LaTeX source. Auto-chains `model`.
+    """
+    from .model_io import load_model, save_model
+    from . import merge_latex as ML
+    from . import latex_source as ls
+
+    sc = Sidecar(pdf)
+    model_path = _model_path(sc)
+    if _stale_or_absent(sc, model_path, _lines_json_path(pdf)):
+        cmd_model(pdf)
+        sc = Sidecar(pdf)
+        model_path = _model_path(sc)
+    if not model_path.exists():
+        return f"No model for {pdf.name} — run `pdfdrill model` first."
+
+    doc = load_model(model_path)
+    if doc.meta.get("source") != "mathpix":
+        return (f"{pdf.name}: merge needs a MathPix model as the layout skeleton "
+                f"(this model's source is {doc.meta.get('source')!r}). Build the "
+                f"MathPix model first: `pdfdrill mathpix {pdf.name} --force` then "
+                f"`pdfdrill model {pdf.name}`.")
+    paras = doc.objects_of_type("Paragraph")
+    # MathPix stores paragraph geometry in the `mathpix_lines` realizations (line
+    # regions), not props["region"]; the merge leaves realizations untouched, so
+    # `inspect` still derives each paragraph's bbox from them. Count what's located.
+    located = [p for p in paras
+               if p.props.get("page") is not None or p.realizations]
+    if not paras:
+        return f"{pdf.name}: the MathPix model has no Paragraph objects to merge onto."
+
+    src, err = _locate_latex_source(pdf, sc, tex)
+    if err:
+        return err
+    full, _main = ls.read_source(str(src))
+    if not full:
+        return f"Could not read LaTeX source from {src.name}."
+    _pre, body = ls.split_preamble(full)
+    gold = ML.latex_prose_from_body(body)
+    if not gold.strip():
+        return f"{src.name}: no extractable prose (all math/floats?)."
+
+    changed = ML.merge_latex_prose(doc, gold)
+    save_model(model_path, doc)
+
+    sc.set_evidence("merge_latex_source", src.name)
+    sc.set_evidence("merge_paragraphs_changed", changed)
+    sc.save()
+    return (f"Merged LaTeX prose from {src.name} onto {len(paras)} MathPix "
+            f"paragraph(s) ({len(located)} located; geometry preserved via the "
+            f"mathpix_lines realizations, inspect derives each bbox from them): "
+            f"{changed} paragraph(s) got gold text (LaTeX-wins; MathPix boundaries "
+            f"kept, OCR saved as `text_source`). Unmatched captions left as-is. "
+            f"Run `pdfdrill inspect {pdf.name}` to see the corrected partitioning.")
+
+
 def ingest_source_graphics(doc, body: str, macros: dict, bibkey: str,
                            force: bool = False) -> int:
     """Create Diagram/Table DocObjects from the LaTeX source's TikZ/tables
