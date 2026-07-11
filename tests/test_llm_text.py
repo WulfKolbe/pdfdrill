@@ -95,3 +95,31 @@ if __name__ == "__main__":
     if failed:
         print(f"\n{len(failed)} of {len(tests)} failed"); sys.exit(1)
     print(f"\nAll {len(tests)} tests passed.")
+
+
+def test_llmtext_includes_sections_and_figures_and_code_algorithm():
+    """llm.txt must carry the STRUCTURE an LLM references: Section headings (incl.
+    promoted appendix sections), figure/table captions, and a code-subtype Diagram's
+    code (a MathPix 'Algorithm 1' box) — not only Paragraph/Equation/Formula."""
+    import types as _t
+    from docops.projectors.llm_text import build_llm_text
+
+    def _o(t, **props):
+        return _t.SimpleNamespace(type=t, id=props.get("id", t), props=props)
+
+    objs = [
+        _o("Section", id="s1", caption="Dataset Split Details", refnum="A",
+           is_appendix=True, flow_index=1),
+        _o("Paragraph", id="p1", text="Some prose here.", flow_index=2),
+        _o("Diagram", id="d1", subtype="code", language="text", flow_index=3,
+           code="Algorithm 1 Incremental construction of a user memory pyramid.\n"
+                "Require: sessions S\nInitialize store C"),
+        _o("Picture", id="fig1", caption="Figure 3 | Latency stats.",
+           cdn_url="https://cdn.mathpix.com/x.png", flow_index=4),
+    ]
+    out = build_llm_text(objs, {"bibkey": "D"})
+    assert "Dataset Split Details" in out                 # section heading present
+    assert "Algorithm 1 Incremental construction of a user memory pyramid." in out
+    assert "Require: sessions S" in out                   # the algorithm code body
+    assert "Figure 3 | Latency stats." in out             # figure caption
+    assert "https://cdn.mathpix.com/x.png" in out         # image reference for the LLM

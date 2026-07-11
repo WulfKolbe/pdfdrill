@@ -49,17 +49,48 @@ def build_llm_text(objects, meta, *, delimiter: str = "%%%%",
     canonical loader produce byte-identical output."""
     objs = list(objects)
     bib = (meta or {}).get("bibkey", "DOC")
-    flow = lambda o: o.props.get("flow_index") or 0
+
+    def flow(o):                                     # flow_index may be str ("190")
+        try:
+            return float(o.props.get("flow_index") or 0)
+        except (TypeError, ValueError):
+            return 0.0
+
     title: dict[str, str] = {}
     for fmt, typ in (("{b}_PARA_{i:04d}", "Paragraph"),
-                     ("{b}_EQ{i:04d}", "Equation"), ("{b}_FO{i:04d}", "Formula")):
+                     ("{b}_EQ{i:04d}", "Equation"), ("{b}_FO{i:04d}", "Formula"),
+                     ("{b}_H{i}", "Section"), ("{b}_DIA_{i:04d}", "Diagram"),
+                     ("{b}_PIC_{i:04d}", "Picture"), ("{b}_TAB_{i:03d}", "Table")):
         for i, o in enumerate(sorted((x for x in objs if x.type == typ), key=flow), 1):
             title[o.id] = fmt.format(b=bib, i=i)
 
     units: list[tuple[float, str, str]] = []
     for o in objs:
-        fi = o.props.get("flow_index") or 0
-        if o.type == "Paragraph":
+        fi = flow(o)
+        if o.type == "Section":
+            cap = (o.props.get("caption") or o.props.get("title") or "").strip()
+            if not cap:
+                continue
+            refnum = str(o.props.get("refnum") or "").strip()
+            units.append((fi, title[o.id], f"# {(refnum + ' ' + cap).strip()}"))
+        elif o.type in ("Diagram", "Picture", "Table"):
+            # figures/tables/algorithms are referenceable: caption + the readable
+            # body (a code-subtype Diagram is a MathPix 'Algorithm N' box).
+            cap = (o.props.get("caption") or "").strip()
+            body = ""
+            if o.props.get("subtype") == "code" and o.props.get("code"):
+                lang = o.props.get("language") or ""
+                body = f"```{lang}\n{str(o.props['code']).strip()}\n```"
+            elif str(o.props.get("latex_code") or "").strip():
+                body = str(o.props["latex_code"]).strip()
+            elif str(o.props.get("raw_text") or "").strip():
+                body = str(o.props["raw_text"]).strip()
+            elif o.props.get("cdn_url"):
+                body = f"[image: {o.props['cdn_url']}]"
+            content = "\n".join(x for x in (cap, body) if x)
+            if content:
+                units.append((fi, title[o.id], content))
+        elif o.type == "Paragraph":
             text = (o.props.get("text") or "").strip()
             if not text:
                 continue
