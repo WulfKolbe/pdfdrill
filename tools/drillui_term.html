@@ -653,6 +653,13 @@ const app = {
     //    can't span spaces, so this bracket capture is what handles spaced names.
     const bracket = new RegExp("\\bOpen\\s+(.+?\\." + EXT + ")\\s+in\\b", "gi");
     while ((m = bracket.exec(text)) !== null) add(m[1], m[2]);
+    // 1b. any `.drill/…` artifact path after a lead-in (→ / -> / wrote / stored /
+    //     to), spaces and all — anchored on `.drill/` so ".md" in the dir name
+    //     can't truncate it. Covers commands that don't use the `Open … in` form.
+    const drill = new RegExp(
+      "(?:->|→|to|wrote(?:\\s+to)?|stored(?:\\s+(?:at|in))?)\\s+" +
+      "([^\\n]*?\\.drill\\/[^\\n]*?\\." + EXT + ")(?=[\\s.,;)]|$)", "gi");
+    while ((m = drill.exec(text)) !== null) add(m[1], m[2]);
     // 2. bare path-like tokens (no spaces) anywhere in the prose
     const re = new RegExp(
       "(?<![\\w/])((?:[\\w.+~@%-]+\\/)*[\\w.+~@%-]+\\." + EXT + ")\\b", "gi");

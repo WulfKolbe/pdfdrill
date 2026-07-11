@@ -89,6 +89,10 @@ function scanArtifacts(text: string): string[] {
   let m: RegExpExecArray | null;
   const bracket = new RegExp("\\bOpen\\s+(.+?\\." + EXT + ")\\s+in\\b", "gi");
   while ((m = bracket.exec(text)) !== null) add(m[1]);
+  const drill = new RegExp(
+    "(?:->|→|to|wrote(?:\\s+to)?|stored(?:\\s+(?:at|in))?)\\s+" +
+    "([^\\n]*?\\.drill\\/[^\\n]*?\\." + EXT + ")(?=[\\s.,;)]|$)", "gi");
+  while ((m = drill.exec(text)) !== null) add(m[1]);
   const re = new RegExp("(?<![\\w/])((?:[\\w.+~@%-]+\\/)*[\\w.+~@%-]+\\." + EXT + ")\\b", "gi");
   while ((m = re.exec(text)) !== null) add(m[1]);
   return [...set.keys()];
@@ -106,6 +110,18 @@ ok("truncated tail NOT added as a second artifact",
 ok("normal no-space path still captured",
    scanArtifacts("Open data/x.pdf.drill/report.html in a browser.")
      .includes("data/x.pdf.drill/report.html"));
+// `→ <spaced path>.` (llmtext-style, no "Open … in") — captured whole via .drill/
+const arrow = scanArtifacts(
+  "LLM text dump: 262 units, delimiter %%%%. -> Burkhard Heim 2-compressed.pdf.drill/" +
+  "Burkhard Heim 2-compressed.llm.txt.");
+ok("arrow-reported spaced .drill/ path captured whole",
+   arrow.includes("Burkhard Heim 2-compressed.pdf.drill/Burkhard Heim 2-compressed.llm.txt"));
+ok("no truncated tail from the arrow path",
+   !arrow.some(p => p.startsWith("2-compressed.pdf.drill/")));
+// the ".md" in a .md.drill dir must NOT truncate a .json artifact
+ok("`.md` in the drill dir does not truncate",
+   scanArtifacts("wrote to my summary.md.drill/my summary.tables.json")
+     .includes("my summary.md.drill/my summary.tables.json"));
 
 const htmlSrc = readFileSync(join(HERE, "drillui_term.html"), "utf8");
 ok("html: scanArtifacts uses the Open…in bracket capture",

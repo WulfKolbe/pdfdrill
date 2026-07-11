@@ -2928,8 +2928,8 @@ def cmd_llmtext(pdf: Path, delimiter: str = "%%%%", split: bool = True) -> str:
     n_eq = len(g.type_index.get("Equation", [])) + len(g.type_index.get("Formula", []))
     return (f"LLM text dump: {n_units} unit(s) from {n_para} paragraph(s) + "
             f"{n_eq} formula(s) (paragraphs split on double line breaks, "
-            f"empty formulas skipped), delimiter '{delimiter}' -> "
-            f"{out_path.relative_to(sc.pdf_path.parent)}.")
+            f"empty formulas skipped), delimiter '{delimiter}'. "
+            f"Open {out_path.relative_to(sc.pdf_path.parent)} in a browser.")
 
 
 def cmd_enhance(pdf: Path, only: str | None = None, skip: str | None = None) -> str:
