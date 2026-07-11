@@ -210,6 +210,33 @@ def _display_path(path: Path, base: Path) -> Path:
         return path
 
 
+def _unrendered_graphics_note(objects) -> str:
+    """Guard against a STALE tiddlers.json: warn when the model has table/diagram
+    graphics with LaTeX source (`latex_code`) but no rendered `svg` yet — the exact
+    state that leaves those tiddlers empty (svg run after tiddlers were written).
+    Counts ONLY genuine graphics (`svg.is_latex_graphic` — the same predicate `svg`
+    uses), so a code listing or a non-graphic body that `svg` correctly skips is
+    never flagged (no false 'run svg' when svg already ran)."""
+    try:
+        from .svg import is_latex_graphic
+    except Exception:                                  # svg module unavailable
+        is_latex_graphic = lambda s: bool(s)           # noqa: E731
+    n = 0
+    for o in objects:
+        if getattr(o, "type", "") not in ("Diagram", "Table"):
+            continue
+        p = getattr(o, "props", {})
+        code = p.get("latex_code")
+        if code and not p.get("svg") and p.get("subtype") != "code" \
+                and is_latex_graphic(code):
+            n += 1
+    if not n:
+        return ""
+    return (f" NOTE: {n} table/diagram(s) carry LaTeX source but no rendered SVG yet "
+            f"— run `pdfdrill svg <pdf>` then `pdfdrill tiddlers <pdf> --force` so they "
+            f"render inline (otherwise those tiddlers are empty).")
+
+
 def _safe_bibkey(bibkey: str) -> str:
     """A filesystem/URL-safe bibkey for ARTIFACT FILENAMES. A bibkey from a spaced
     filename stem ("Great Paper") made `Great Paper.distill.html`, whose spaces
@@ -5411,10 +5438,11 @@ def cmd_tiddlers(pdf: Path, force: bool = False, embed: bool = False,
     else:
         integ_note = (f" Integrity OK: {integ['transclusions']} transclusions, "
                       f"0 dangling, 0 orphan.")
+    guard = _unrendered_graphics_note(doc.objects.values())
     return (f"Wrote {count} TiddlyWiki tiddlers to {rel}. Import into TiddlyWiki; "
             f"diagram SVGs render via {{{{!!svg_tiddler}}}} "
             f"({'inline' if embed_svg else 'external _canonical_uri'}).{svg_note}"
-            f"{integ_note}")
+            f"{integ_note}{guard}")
 
 
 # Tag -> the tiddler field whose prose gets translated. Math/code/image/toc
