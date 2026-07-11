@@ -5264,21 +5264,61 @@ def ingest_source_graphics(doc, body: str, macros: dict, bibkey: str,
         doc.objects = {k: v for k, v in doc.objects.items()
                        if not (v.type in ("Diagram", "Table")
                                and v.props.get("added_by") == "latex")}
+        for o in doc.objects.values():            # un-overlay MathPix tables
+            if o.type == "Table" and o.props.pop("latex_overlaid", None):
+                for k in ("latex_code", "latex_original", "env"):
+                    o.props.pop(k, None)
     existing = {o.props.get("latex_original", "").strip()
                 for o in doc.objects.values() if o.type in ("Diagram", "Table")}
+    # MathPix-detected tables (region, no source latex yet) a source tabular can
+    # OVERLAY onto — so one Table carries BOTH region + latex_code (the equation
+    # pattern), never a duplicate. Content-matched once each here (SequenceMatcher
+    # against MathPix's own `\begin{tabular}` line text, like the enrich step), so
+    # downstream tools address a table by its region, not by content.
+    from difflib import SequenceMatcher
+    _norm = lambda s: " ".join((s or "").split())    # noqa: E731
+    mp_tables = [o for o in doc.objects.values()
+                 if o.type == "Table" and o.props.get("region")
+                 and o.props.get("added_by") != "latex"
+                 and not o.props.get("latex_code")]
+    used_mp: set = set()
     base_fi = max((o.props.get("flow_index", 0) for o in doc.objects.values()),
                   default=0)
     added = 0
     for gi, g in enumerate(ls.extract_graphics(body), 1):
         if g["code"].strip() in existing:
             continue
+        expanded = ls.expand_macros(g["code"], macros)
+        if g["kind"] == "Table":
+            src = _norm(g["code"])
+            best, best_r = None, 0.55              # ratio threshold (latex↔latex)
+            for o in mp_tables:
+                if o.id in used_mp:
+                    continue
+                cand = _norm(o.props.get("mathpix_text") or o.props.get("raw_text"))
+                if not cand:
+                    continue
+                r = SequenceMatcher(None, src, cand).ratio()
+                if r > best_r:
+                    best, best_r = o, r
+            if best is not None:                   # overlay, keep region/page
+                best.props["latex_code"] = expanded
+                best.props["latex_original"] = g["code"]
+                best.props["env"] = g["env"]
+                if g.get("caption"):
+                    best.props.setdefault("caption", g["caption"])
+                best.props["latex_overlaid"] = True
+                used_mp.add(best.id)
+                added += 1
+                continue
         doc.add(DocObject(type=g["kind"], props={
-            "latex_code": ls.expand_macros(g["code"], macros),
+            "latex_code": expanded,
             "latex_original": g["code"], "caption": g.get("caption", ""),
             "env": g["env"], "flow_index": base_fi + gi,
             "bibkey": bibkey, "added_by": "latex"}))
         added += 1
     return added
+
 
 
 def _list_type(markers: list[str]) -> str:

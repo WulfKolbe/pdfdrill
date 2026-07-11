@@ -49,6 +49,9 @@ class TableProcessor(BaseModule):
                 # The table's own MathPix region (top_left_x/y/width/height) — so
                 # the Table object is region-addressable like an Equation.
                 "region": payload.get("region"),
+                # MathPix's own linearised table LaTeX (`\begin{tabular}…`) — the
+                # matchable form a source tabular overlays onto (SequenceMatcher).
+                "mathpix_text": payload.get("text"),
                 "raw_text": "\n".join(c["text"] for c in children if c["text"]),
             })
         return items
@@ -87,6 +90,8 @@ class TableProcessor(BaseModule):
         }
         if item.get("region"):
             props["region"] = item["region"]          # region-addressable table
+        if item.get("mathpix_text"):
+            props["mathpix_text"] = item["mathpix_text"]   # for source-overlay match
         # Span-aware cell structure: a value lives once at its anchor slot and
         # covers a range (cell_row/cell_column/cell_row_span/cell_col_span come
         # straight from MathPix). columns = flattened, linefeed-free header

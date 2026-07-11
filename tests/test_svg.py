@@ -403,3 +403,39 @@ if __name__ == "__main__":
     if failed:
         print(f"\n{len(failed)} failed out of {len(tests)}"); sys.exit(1)
     print(f"\nAll {len(tests)} tests passed.")
+
+
+def test_source_table_overlays_onto_mathpix_table():
+    """A source \\begin{tabular} whose content matches a MathPix-detected Table
+    OVERLAYS its latex_code onto that table (which keeps its region + page) — the
+    equation pattern — instead of creating a duplicate. So one TAB tiddler carries
+    BOTH region and latex_code, and the enrich step needs no content matching."""
+    from pdfdrill import commands
+    from docmodel.core import Document, DocObject
+    doc = Document(); doc.meta["bibkey"] = "D"
+    doc.add(DocObject(type="Table", id="mt1", props={
+        "page": 7, "raw_text": "alpha beta\ngamma delta\nepsilon zeta",
+        "region": {"top_left_x": 10, "top_left_y": 20, "width": 100, "height": 50}}))
+    body = (r"text \begin{tabular}{ll} alpha & beta \\ gamma & delta \\ "
+            r"epsilon & zeta \end{tabular} more")
+    commands.ingest_source_graphics(doc, body, {}, "D")
+    tables = [o for o in doc.objects.values() if o.type == "Table"]
+    assert len(tables) == 1, f"expected overlay (1 table), got {len(tables)}"
+    mt = tables[0]
+    assert "tabular" in (mt.props.get("latex_code") or "")   # source latex overlaid
+    assert mt.props.get("region") and mt.props.get("page") == 7   # region + page kept
+    assert mt.props.get("latex_overlaid") is True
+
+
+def test_source_table_no_match_creates_new():
+    from pdfdrill import commands
+    from docmodel.core import Document, DocObject
+    doc = Document(); doc.meta["bibkey"] = "D"
+    doc.add(DocObject(type="Table", id="mt1", props={
+        "raw_text": "totally unrelated words xyzzy plugh",
+        "region": {"top_left_x": 1, "top_left_y": 1, "width": 1, "height": 1}}))
+    body = r"\begin{tabular}{ll} alpha & beta \\ gamma & delta \end{tabular}"
+    commands.ingest_source_graphics(doc, body, {}, "D")
+    tables = [o for o in doc.objects.values() if o.type == "Table"]
+    assert len(tables) == 2                                   # no match → new table
+    assert any(o.props.get("added_by") == "latex" for o in tables)
