@@ -1359,6 +1359,14 @@ def _do_reconcile(args):
     return cmd_reconcile(_pdf(args), mathpix=mathpix, adopt_all=adopt_all)
 
 
+def _do_occurrences(args):
+    """pdfdrill occurrences <pdf> [--type Equation,Table,…] — per-element region
+    list (page+bbox+title) for external image-enrichment tools."""
+    from .commands import cmd_occurrences
+    types, args = _opt(args, "--type")
+    return cmd_occurrences(_drilled(args[:1]), types=types)
+
+
 def _do_okf(args):
     """pdfdrill okf <pdf> [--out DIR] [--bibkey K] — project the docmodel into an
     OKF (Open Knowledge Format) bundle (Markdown-with-frontmatter, one file/unit)."""
@@ -1526,6 +1534,7 @@ HANDLERS = {
         "steps": _do_steps,
         "retrieve": _do_retrieve,
         "okf": _do_okf,
+        "occurrences": _do_occurrences,
         "context": _do_context,
         "reconcile": _do_reconcile,
         "combine": _do_combine,

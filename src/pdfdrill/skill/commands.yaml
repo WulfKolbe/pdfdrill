@@ -1674,6 +1674,26 @@ commands:
     type: flag
     help: adopt MathPix on ALL matched eqs, not just garbled
   typed: true
+- name: occurrences
+  section: Query
+  summary: 'Emit <bibkey>.occurrences.json — a per-element region list (page + top_left_x/y/width/height +
+    tiddler title) for the optional EXTERNAL image-enrichment tools (locate an element on the rendered page
+    by region, no content matching). Region-bearing types only: Equation by default, --type adds Table/
+    Picture/Diagram. Inline Formula excluded (deduped, no per-object region).'
+  offline_ok: true
+  requires:
+  - model
+  positionals:
+  - name: pdf
+    type: pdf
+    required: true
+    help: PDF/Markdown drilled-doc path, URL, or arXiv id
+  flags:
+  - name: type
+    flag: --type
+    type: str
+    help: comma list of region types (default Equation; Table/Picture/Diagram)
+  typed: true
 - name: okf
   section: Extraction
   summary: 'Project the docmodel into an OKF (Open Knowledge Format) BUNDLE: one Markdown-with-YAML-frontmatter

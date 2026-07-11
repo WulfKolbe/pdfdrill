@@ -529,6 +529,7 @@ _Generated from `commands.yaml` by skillsync. Edit the manifest, not this sectio
 | Command | Returns |
 |---|---|
 | `pdfdrill fetch <pdf> <layer> [--section SECTION]` | Retrieve stored Markdown |
+| `pdfdrill occurrences <pdf> [--type TYPE]` | Emit <bibkey>.occurrences.json — a per-element region list (page + top_left_x/y/width/height + tiddler title) for the optional EXTERNAL image-enrichment tools (locate an element on the rendered page by region, no content matching). Region-bearing types only: Equation by default, --type adds Table/ Picture/Diagram. Inline Formula excluded (deduped, no per-object region). |
 
 ### Planning & automation
 

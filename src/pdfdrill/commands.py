@@ -3462,6 +3462,42 @@ def cmd_reconcile(pdf: Path, mathpix: str | None = None, adopt_all: bool = False
             f"for the corrected math with the original structure intact.")
 
 
+def cmd_occurrences(pdf: Path, types: str | None = None) -> str:
+    """Emit `<bibkey>.occurrences.json` — a clean per-element region list (page +
+    bbox + tiddler title) for the optional external IMAGE-ENRICHMENT tools (locate
+    an element on the rendered page by region, no content matching). Region-bearing
+    types only: Equation by default, `--type` adds Table/Picture/Diagram. Inline
+    Formula is excluded (deduped, no per-object region; the pdfminer.six CTM chain
+    is the future source). Fast DocGraph read path."""
+    from . import occurrences as OC
+    sc = Sidecar(pdf)
+    model_path = _model_path(sc)
+    if _stale_or_absent(sc, model_path, _lines_json_path(pdf)):
+        cmd_model(pdf)
+        sc = Sidecar(pdf)
+        model_path = _model_path(sc)
+    if not model_path.exists():
+        return f"No model for {pdf.name} — run `pdfdrill model` first."
+    g = _fresh_docgraph(pdf, sc, model_path)
+    bibkey = g.meta.get("bibkey") or sc.get_evidence("bibkey") or pdf.stem
+    wanted = tuple(t.strip().capitalize() for t in (types or "Equation").split(",")
+                   if t.strip()) or ("Equation",)
+    recs = OC.occurrence_records(list(g), str(bibkey), types=wanted)
+    out_path = sc.blob_dir / f"{_safe_bibkey(str(bibkey))}.occurrences.json"
+    out_path.parent.mkdir(parents=True, exist_ok=True)
+    out_path.write_text(json.dumps(recs, indent=1, ensure_ascii=False), encoding="utf-8")
+    rel = _display_path(out_path, sc.pdf_path.parent)
+    sc.set_evidence("occurrences_path", str(rel))
+    sc.save()
+    by_t: dict = {}
+    for r in recs:
+        by_t[r["type"]] = by_t.get(r["type"], 0) + 1
+    breakdown = ", ".join(f"{n} {t.lower()}" for t, n in by_t.items()) or "none"
+    return (f"Occurrences: {len(recs)} region record(s) ({breakdown}) with page + "
+            f"top_left_x/y/width/height + title. Open {rel} in a browser. The image-"
+            f"enrichment tool contract — locate each on the page by its region.")
+
+
 def cmd_okf(pdf: Path, out: str | None = None, bibkey: str | None = None,
             semantic: bool = False) -> str:
     """Project into an OKF (Open Knowledge Format) bundle: one Markdown-with-YAML-
