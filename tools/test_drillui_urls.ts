@@ -111,5 +111,29 @@ const htmlSrc = readFileSync(join(HERE, "drillui_term.html"), "utf8");
 ok("html: scanArtifacts uses the Open…in bracket capture",
    htmlSrc.includes('"\\\\bOpen\\\\s+(.+?\\\\." + EXT'));
 
+// --- bridge: recover an UNQUOTED doc path the shell split on spaces/umlauts ----
+import { existsSync, mkdtempSync, writeFileSync, rmSync } from "node:fs";
+import { tmpdir } from "node:os";
+function reassemble(doc: string, passthrough: string[]) {
+  if (doc && !doc.startsWith("http") && !existsSync(doc) && passthrough.length) {
+    const words = [doc, ...passthrough];
+    for (let n = words.length; n >= 2; n--) {
+      const j = words.slice(0, n).join(" ");
+      if (existsSync(j)) return { doc: j, rest: passthrough.slice(n - 1) };
+    }
+  }
+  return { doc, rest: passthrough };
+}
+const _d = mkdtempSync(join(tmpdir(), "du-"));
+const _f = join(_d, "Burkhard Heim Einführung.pdf");   // spaces + umlaut
+writeFileSync(_f, "%PDF");
+const _split = _f.split(" ");
+const _r = reassemble(_split[0], _split.slice(1));
+ok("bridge recovers an unquoted spaced+umlaut doc", _r.doc === _f && _r.rest.length === 0);
+ok("bridge no-op on a quoted (existing) doc", reassemble(_f, ["--port", "9000"]).doc === _f);
+rmSync(_d, { recursive: true });
+ok("bridge.ts contains the reassembly",
+   readFileSync(join(HERE, "drillui_bridge.ts"), "utf8").includes("passthrough.splice(0, n - 1)"));
+
 console.log(fails ? `\n${fails} FAILED` : "\nAll passed.");
 process.exit(fails ? 1 : 0);

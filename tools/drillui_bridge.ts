@@ -58,6 +58,19 @@ for (let i = 0; i < argv.length; i++) {
   else passthrough.push(a);
 }
 
+// Recover an UNQUOTED doc path the shell split on its spaces (e.g. a title with
+// blanks/umlauts): if `doc` isn't a real file but doc + the leading passthrough
+// words join into an existing one, use the LONGEST existing join and drop those
+// words from passthrough. No-op for a quoted path (doc already exists) or a
+// URL/arXiv id.
+if (doc && !doc.startsWith("http") && !existsSync(doc) && passthrough.length) {
+  const words = [doc, ...passthrough];
+  for (let n = words.length; n >= 2; n--) {
+    const joined = words.slice(0, n).join(" ");
+    if (existsSync(joined)) { doc = joined; passthrough.splice(0, n - 1); break; }
+  }
+}
+
 if (argv.includes("-h") || argv.includes("--help")) {
   console.error(
     "usage: bun drillui_bridge.ts [doc] [flags]      (see tools/DRILLUI.md)\n" +
