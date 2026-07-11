@@ -265,10 +265,23 @@ def attach_page_emphasis(doc, spans: list[dict]) -> int:
     return n
 
 
-def emphasis_spans(runs: list[dict], body: dict) -> list[dict]:
-    """Runs whose style DEVIATES from the body font — the local formatting
-    MathPix drops. Each is tagged `kind`: bold / italic / mono / smaller /
-    larger (or combined, e.g. 'bold+larger'). Whitespace-only runs are ignored."""
+_DEFAULT_COLORS = {"black", "g0.0", "g0", "rgb0.0,0.0,0.0", "rgb0,0,0", ""}
+
+
+def dominant_color(chars: list[dict]) -> str:
+    """The body text colour — the colour of the most glyphs (usually black)."""
+    from collections import Counter
+    tally = Counter(c.get("color") or "black" for c in chars
+                    if (c.get("text") or "").strip())
+    return tally.most_common(1)[0][0] if tally else "black"
+
+
+def emphasis_spans(runs: list[dict], body: dict, body_color: str | None = None) -> list[dict]:
+    """Runs whose style DEVIATES from the body — the local formatting MathPix
+    drops. Tagged `kind`: bold / italic / mono / smaller / larger / colored (or
+    combined, e.g. 'bold+larger'). A colour that differs from the body colour and
+    isn't a default black independently flags a run ('colored' — a red term, a
+    link). Whitespace-only runs are ignored."""
     bsize = body.get("size")
     out: list[dict] = []
     for r in runs:
@@ -286,6 +299,54 @@ def emphasis_spans(runs: list[dict], body: dict) -> list[dict]:
                 tags.append("larger")
             elif r["size"] < bsize - 0.5:
                 tags.append("smaller")
+        col = r.get("color")
+        if body_color and col and col != body_color \
+                and col not in _DEFAULT_COLORS:
+            tags.append("colored")
         if tags:
             out.append({**r, "kind": "+".join(tags)})
     return out
+
+
+# ── heading cross-check (three-source structure agreement) ──────────────────
+def _norm_heading(text: str) -> str:
+    """Letters-only lowercase — so '2 Formal Concepts' == 'Formal Concepts' and a
+    numbered/lettered caption matches its visual heading."""
+    return re.sub(r"[^a-zà-ÿ]", "", (text or "").lower())
+
+
+def heading_crosscheck(sections: list[dict], heading_runs: list[dict]) -> dict:
+    """Cross-check pdfminer bold+larger runs (visual headings) against the model's
+    Sections (MathPix/LaTeX structure). Returns:
+      * confirmed — {section_id, text, font, size, region, page} where a Section's
+        caption matches a visual heading (three-source agreement)
+      * missed    — visual heading runs with NO matching Section (repair
+        candidates: a heading MathPix flattened, e.g. 'A. Dataset Split Details')
+    Matching is letters-only, so a numbered caption matches its heading.
+    """
+    sec_norm = []
+    for s in sections:
+        n = _norm_heading(s.get("caption") or s.get("title") or "")
+        if n:
+            sec_norm.append((n, s))
+    confirmed, missed = [], []
+    used = set()
+    for r in heading_runs:
+        rn = _norm_heading(r.get("text") or "")
+        if not rn:
+            continue
+        hit = None
+        for n, s in sec_norm:
+            if s["id"] in used:
+                continue
+            if n == rn or (len(rn) >= 4 and (rn in n or n in rn)):
+                hit = s
+                break
+        if hit is not None:
+            used.add(hit["id"])
+            confirmed.append({"section_id": hit["id"], "text": r.get("text"),
+                              "font": r.get("font"), "size": r.get("size"),
+                              "region": r.get("region"), "page": r.get("page")})
+        else:
+            missed.append(r)
+    return {"confirmed": confirmed, "missed": missed}

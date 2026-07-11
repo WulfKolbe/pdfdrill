@@ -5434,7 +5434,7 @@ def _fuse_emphasis_onto_paragraphs(model_dict: dict, doc, spans: list, pdf_dims:
     run_items = []
     for s in spans:
         kind = s["kind"]
-        if "larger" in kind or ("bold" not in kind and "italic" not in kind):
+        if "larger" in kind or not any(t in kind for t in ("bold", "italic", "colored")):
             continue
         # word gate: a real emphasized WORD, not a single math variable / symbol /
         # number — needs >=3 Latin letters (drops C / α / "1.1" / punctuation).
@@ -5488,8 +5488,9 @@ def cmd_fontspans(pdf: Path, pages: str | None = None) -> str:
                 f"`pdfdrill rasterize`/`ocr` for the visual/OCR route; font runs "
                 f"need vector text.")
     body = PM.dominant_style(recs)
+    body_color = PM.dominant_color(recs)
     runs = PM.font_runs(recs)
-    spans = PM.emphasis_spans(runs, body)
+    spans = PM.emphasis_spans(runs, body, body_color=body_color)
 
     # by-kind rollup for the summary
     from collections import Counter
@@ -5497,10 +5498,11 @@ def cmd_fontspans(pdf: Path, pages: str | None = None) -> str:
     headings = [s for s in spans if "larger" in s["kind"] and s.get("bold")]
     emph = [s for s in spans if s["kind"] in ("bold", "italic", "bold+italic")]
     small = [s for s in spans if "smaller" in s["kind"]]
+    colored = [s for s in spans if "colored" in s["kind"]]
 
     bibkey = sc.get_evidence("bibkey") or pdf.stem
     out = {
-        "body": body,
+        "body": body, "body_color": body_color,
         "counts": {"glyphs": len(recs), "runs": len(runs),
                    "emphasis": len(spans), "by_kind": dict(kinds)},
         "spans": [{"page": s["page"], "text": s["text"].strip(), "kind": s["kind"],
@@ -5512,9 +5514,10 @@ def cmd_fontspans(pdf: Path, pages: str | None = None) -> str:
     out_path.parent.mkdir(parents=True, exist_ok=True)
     out_path.write_text(json.dumps(out, indent=1, ensure_ascii=False), encoding="utf-8")
 
-    # enrich the model (if one exists): per-page emphasis onto Page objects, and
-    # per-PARAGRAPH fusion by page-fraction overlap onto the merged paragraphs.
-    attached = fused_paras = 0
+    # enrich the model (if one exists): per-page emphasis onto Page objects,
+    # per-PARAGRAPH fusion by overlap, and the heading cross-check vs Sections.
+    attached = fused_paras = confirmed_h = 0
+    missed_h: list = []
     model_path = _model_path(sc)
     if model_path.exists():
         try:
@@ -5524,9 +5527,25 @@ def cmd_fontspans(pdf: Path, pages: str | None = None) -> str:
             attached = PM.attach_page_emphasis(doc, spans)
             pdf_dims = PM.page_dims(str(sc.pdf_path), pages=pages)
             fused_paras = _fuse_emphasis_onto_paragraphs(model_dict, doc, spans, pdf_dims)
+            # heading cross-check: visual bold+larger runs vs the model Sections.
+            # A match CONFIRMS the Section (three-source agreement); a visual
+            # heading with no Section is a repair candidate (reported, not forced).
+            sections = [{"id": o.id,
+                         "caption": o.props.get("caption") or o.props.get("title")}
+                        for o in doc.objects_of_type("Section")]
+            hx = PM.heading_crosscheck(sections, headings)
+            secmap = {o.id: o for o in doc.objects_of_type("Section")}
+            for c in hx["confirmed"]:
+                s = secmap.get(c["section_id"])
+                if s:
+                    s.props["visual_confirmed"] = True
+                    s.props["visual_font"] = c["font"]
+                    s.props["visual_size"] = c["size"]
+            confirmed_h, missed_h = len(hx["confirmed"]), hx["missed"]
             save_model(model_path, doc)
         except Exception:
-            attached = fused_paras = 0
+            attached = fused_paras = confirmed_h = 0
+            missed_h = []
 
     rel = _display_path(out_path, sc.pdf_path.parent)
     sc.set_evidence("fontspans_path", str(rel))
@@ -5547,16 +5566,22 @@ def cmd_fontspans(pdf: Path, pages: str | None = None) -> str:
     lines = [
         f"Font-span analysis of {pdf.name} ({len(recs)} glyphs, {len(runs)} runs) "
         f"— pdfminer recovers the local formatting MathPix flattens.",
-        f"Body font: {body.get('font')} @ {body.get('size')}pt.",
+        f"Body font: {body.get('font')} @ {body.get('size')}pt, colour {body_color}.",
         f"  headings (bold+larger): {len(headings)}  e.g. {_ex(headings)}",
         f"  key terms (bold/italic): {len(emph)}  e.g. {_ex(emph)}",
+        f"  coloured runs: {len(colored)}  e.g. {_ex(colored)}",
         f"  small (footnotes/captions): {len(small)}",
-        f"Wrote {rel}"
-        + (f"; attached font_emphasis onto {attached} Page object(s)" if attached
-           else "")
-        + (f"; fused emphasis onto {fused_paras} Paragraph object(s) by "
-           f"page-fraction overlap." if fused_paras else "."),
     ]
+    if model_path.exists():
+        lines.append(
+            f"Heading cross-check vs Sections: {confirmed_h} confirmed (three-source "
+            f"agreement), {len(missed_h)} visual heading(s) with NO Section"
+            + (f" — repair candidates: {_ex(missed_h)}" if missed_h else "") + ".")
+    lines.append(
+        f"Wrote {rel}"
+        + (f"; font_emphasis onto {attached} Page(s)" if attached else "")
+        + (f"; fused emphasis onto {fused_paras} Paragraph(s)" if fused_paras else "")
+        + ".")
     return "\n".join(lines)
 
 

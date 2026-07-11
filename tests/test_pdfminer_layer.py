@@ -125,6 +125,44 @@ def test_fuse_emphasis_assigns_runs_to_overlapping_paragraph():
     assert "footer" not in {r["text"] for rs in fused.values() for r in rs}
 
 
+def test_dominant_color_and_colored_emphasis():
+    """A run whose colour deviates from the body (a red highlighted term, a blue
+    link) is flagged 'colored' independently of bold/italic — MathPix drops it."""
+    chars = [_char("x", "CMR10", 10.0, color="g0.0") for _ in range(30)]
+    chars += [_char("R", "CMR10", 10.0, color="rgb1.0,0.0,0.0") for _ in range(3)]
+    assert pm.dominant_color(chars) == "g0.0"
+    runs = [
+        {"text": "normal", "font": "CMR10", "size": 10.0, "bold": False,
+         "italic": False, "mono": False, "color": "g0.0"},
+        {"text": "highlighted", "font": "CMR10", "size": 10.0, "bold": False,
+         "italic": False, "mono": False, "color": "rgb1.0,0.0,0.0"},
+    ]
+    spans = pm.emphasis_spans(runs, {"font": "CMR10", "size": 10.0},
+                              body_color="g0.0")
+    assert len(spans) == 1
+    assert spans[0]["text"] == "highlighted" and spans[0]["kind"] == "colored"
+    assert spans[0]["color"] == "rgb1.0,0.0,0.0"
+
+
+def test_heading_crosscheck_confirms_matches_and_flags_missed():
+    """pdfminer bold+larger runs cross-checked against the model Sections:
+    a caption match is CONFIRMED (three-source agreement); a visual heading with
+    no Section is MISSED (a repair candidate — the 'A. Dataset Split' case)."""
+    sections = [{"id": "s1", "caption": "Introduction"},
+                {"id": "s2", "caption": "2 Formal Concepts"}]
+    heading_runs = [
+        {"text": "Introduction", "page": 1, "font": "CMBX12", "size": 12.0,
+         "region": {"top_left_x": 1}},
+        {"text": "Formal Concepts", "page": 1, "font": "CMBX12", "size": 12.0,
+         "region": {"top_left_x": 2}},
+        {"text": "Dataset Split Details", "page": 5, "font": "CMBX12",
+         "size": 12.0, "region": {"top_left_x": 3}},
+    ]
+    res = pm.heading_crosscheck(sections, heading_runs)
+    assert {c["section_id"] for c in res["confirmed"]} == {"s1", "s2"}
+    assert [m["text"] for m in res["missed"]] == ["Dataset Split Details"]
+
+
 if __name__ == "__main__":
     tests = [v for k, v in list(globals().items()) if k.startswith("test_")]
     failed = []

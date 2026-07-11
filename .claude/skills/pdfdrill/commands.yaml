@@ -1204,10 +1204,12 @@ commands:
   typed: true
 - name: fontspans
   section: Introspection (fast, no extraction)
-  summary: 'The pdfminer LEG: recover the local formatting MathPix flattens (bold headings, bold/italic key
-    terms, small footnotes/captions) from the born-digital glyph layer via pdfminer.six (fontname/size/CTM/
-    colour). Writes <bibkey>.fontspans.json + attaches per-page emphasis onto each model Page
-    (props.font_emphasis). Born-digital only.'
+  summary: 'The pdfminer LEG: recover the local formatting MathPix flattens — bold headings, bold/italic key
+    terms, COLOURED runs (red/blue link text), small footnotes/captions — from the born-digital glyph layer
+    via pdfminer.six (fontname/size/CTM/colour). Writes <bibkey>.fontspans.json, attaches per-page emphasis
+    onto Page objects + fuses inline emphasis onto the merged Paragraphs by page-fraction overlap, and
+    cross-checks visual bold+larger headings against the model Sections (confirms matches; flags missed
+    headings as repair candidates). Born-digital only.'
   offline_ok: true
   positionals:
   - name: pdf
