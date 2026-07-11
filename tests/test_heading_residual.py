@@ -15,32 +15,64 @@ from docmodel.core import Document, DocObject
 from pdfdrill import heading_cleanup as hc
 
 
-def test_strip_unnumbered_section_residual():
+def test_heading_plus_prose_splits_into_section_and_prose_only_paragraph():
+    """A heading merged with prose: the heading becomes a SECTION and the paragraph
+    keeps ONLY the prose (so the inspect box stops at the frame, and an LLM doesn't
+    read the heading as body)."""
     doc = Document(); doc.meta["bibkey"] = "T"
     doc.add(DocObject(type="Paragraph", id="p1", props={
         "text": "\\section*{ALL RIGHTS RESERVED} \n\nA dissertation submitted.",
         "flow_index": 1}))
-    n = hc.clean_heading_residuals(doc)
-    assert n == 1
+    hc.clean_heading_residuals(doc)
     p = doc.objects["p1"].props
-    assert p["text"].startswith("ALL RIGHTS RESERVED")
-    assert "\\section" not in p["text"]
-    assert "A dissertation submitted." in p["text"]        # body preserved
-    assert p["kind"] == "section" and p["refnum"] == ""
-    assert p["heading_residual_cleaned"] is True
+    assert p["text"] == "A dissertation submitted."         # prose ONLY, title gone
+    assert "\\section" not in p["text"] and "ALL RIGHTS RESERVED" not in p["text"]
+    # a Section was promoted for the heading
+    secs = [o for o in doc.objects.values() if o.type == "Section"]
+    assert any((s.props.get("caption") or "").strip() == "ALL RIGHTS RESERVED"
+               and s.props["kind"] == "section" for s in secs)
 
 
-def test_numbered_subsection_sets_refnum():
+def test_heading_only_paragraph_becomes_a_section():
+    """A paragraph that is JUST a heading (the appendix case 'A. Dataset Split
+    Details') becomes a Section and the empty paragraph is dropped."""
+    doc = Document(); doc.meta["bibkey"] = "T"
+    doc.add(DocObject(type="Paragraph", id="p1", props={
+        "text": "\\section*{A. Dataset Split Details}", "flow_index": 5,
+        "page": 16}))
+    hc.clean_heading_residuals(doc)
+    assert "p1" not in doc.objects                          # heading-only para dropped
+    secs = [o for o in doc.objects.values() if o.type == "Section"]
+    s = next(s for s in secs if "Dataset Split Details" in (s.props.get("caption") or ""))
+    assert s.props["refnum"] == "A" and s.props["is_appendix"] is True   # appendix letter
+    assert s.props["page"] == 16
+
+
+def test_numbered_subsection_promotes_with_refnum():
     doc = Document(); doc.meta["bibkey"] = "T"
     doc.add(DocObject(type="Paragraph", id="p1", props={
         "text": "\\subsection{2.3 Cellular Sheaves}\n\nWe define a sheaf.",
         "flow_index": 1}))
     hc.clean_heading_residuals(doc)
-    p = doc.objects["p1"].props
-    assert p["kind"] == "subsection"
-    assert p["refnum"] == "2.3"
-    assert p["text"].startswith("Cellular Sheaves")        # number lifted out
-    assert "2.3" not in p["text"].split("\n")[0]
+    assert doc.objects["p1"].props["text"] == "We define a sheaf."   # prose only
+    s = next(o for o in doc.objects.values() if o.type == "Section")
+    assert s.props["kind"] == "subsection" and s.props["refnum"] == "2.3"
+
+
+def test_no_duplicate_section_when_one_exists():
+    """If a Section already exists for the heading, strip the paragraph but do NOT
+    promote a duplicate (the tcolorbox case: Section + heading-in-paragraph)."""
+    doc = Document(); doc.meta["bibkey"] = "T"
+    doc.add(DocObject(type="Section", id="s1", props={
+        "caption": "Topic Track Writing Prompt", "kind": "section", "flow_index": 4}))
+    doc.add(DocObject(type="Paragraph", id="p1", props={
+        "text": "\\section*{Topic Track Writing Prompt}\n\nYou are a writer.",
+        "flow_index": 5}))
+    hc.clean_heading_residuals(doc)
+    assert doc.objects["p1"].props["text"] == "You are a writer."
+    secs = [o for o in doc.objects.values() if o.type == "Section"
+            and (o.props.get("caption") or "") == "Topic Track Writing Prompt"]
+    assert len(secs) == 1                                   # no duplicate
 
 
 def test_non_heading_paragraph_untouched():
@@ -62,15 +94,14 @@ def test_idempotent():
 
 
 def test_leading_brace_wrapped_residual():
-    # MathPix sometimes wraps the command: "{\section*{CONCLUSION}."
+    # MathPix sometimes wraps the command: "{\section*{Annotation}."
     doc = Document(); doc.meta["bibkey"] = "T"
     doc.add(DocObject(type="Paragraph", id="p1", props={
         "text": "{\\section*{Annotation}.\n\nThe paper studies X.", "flow_index": 1}))
     assert hc.clean_heading_residuals(doc) == 1
-    p = doc.objects["p1"].props
-    assert p["text"].startswith("Annotation")
-    assert "\\section" not in p["text"]
-    assert p["kind"] == "section"
+    assert doc.objects["p1"].props["text"] == "The paper studies X."   # prose only
+    assert any(o.type == "Section" and o.props.get("caption") == "Annotation"
+               for o in doc.objects.values())
 
 
 def test_heading_only_paragraph():
@@ -78,8 +109,9 @@ def test_heading_only_paragraph():
     doc.add(DocObject(type="Paragraph", id="p1", props={
         "text": "\\section*{Acknowledgments}", "flow_index": 1}))
     hc.clean_heading_residuals(doc)
-    assert doc.objects["p1"].props["text"] == "Acknowledgments"
-    assert doc.objects["p1"].props["kind"] == "section"
+    assert "p1" not in doc.objects                     # heading-only → dropped
+    assert any(o.type == "Section" and o.props.get("caption") == "Acknowledgments"
+               for o in doc.objects.values())
 
 
 def test_extract_standalone_footnotetext_paragraph():
