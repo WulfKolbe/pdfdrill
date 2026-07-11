@@ -2374,6 +2374,21 @@ def cmd_model(pdf: Path, force: bool = False, bibkey: str | None = None) -> str:
     )
     sc.set_evidence("bibkey", key)
 
+    # Auto-strip MathPix HEADING RESIDUALS + lift footnotes at build time, so no
+    # Paragraph carries a leaked `\section*{}` (which overflowed the inspect box,
+    # duplicated the Section, and never reached llmtext). Idempotent + offline; a
+    # source model (headings already blanked) is a no-op. Materialization stays
+    # projection-time (`pdfdrill clean`).
+    try:
+        from docmodel.core import Document as _Doc
+        from . import heading_cleanup as _hc
+        _doc = _Doc.from_dict(out)
+        if _hc.clean_heading_residuals(_doc) + _hc.extract_footnote_paragraphs(_doc):
+            save_model(model_path, _doc)
+            out = _doc.to_dict()
+    except Exception:                                  # cleanup is best-effort
+        pass
+
     objects = out.get("objects", [])
     by_type: dict[str, int] = {}
     for o in objects:
