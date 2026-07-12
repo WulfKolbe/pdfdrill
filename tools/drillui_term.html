@@ -371,9 +371,17 @@ const app = {
     const proto = location.protocol === "https:" ? "wss" : "ws";
     // Path-AWARE: keep any reverse-proxy prefix in the page path (CoCalc serves
     // drillui under /<project>/server/8787/), so the WS URL resolves through the
-    // same proxy. Strip the page filename, keep its directory, append "ws".
-    // localhost "/" → "/ws"; CoCalc "/p/server/8787/" → "/p/server/8787/ws".
-    const base = location.pathname.replace(/[^/]*$/, "");
+    // same proxy. Three shapes, distinguished so the port segment is never lost:
+    //   directory (trailing "/")          "/p/server/8787/"           → +"ws"
+    //   page FILE (has an extension)       "/p/server/8787/index.html" → strip, +"ws"
+    //   dir served WITHOUT the slash       "/p/server/8787"            → +"/ws"
+    // The last case is the CoCalc default that the old strip-last-segment logic
+    // broke (it deleted "8787", yielding "/p/server/ws").
+    const p = location.pathname;
+    let base;
+    if (p.endsWith("/")) base = p;
+    else if (/\.[a-z0-9]+$/i.test(p.split("/").pop() || "")) base = p.replace(/[^/]*$/, "");
+    else base = p + "/";
     return `${proto}://${location.host}${base}ws`;
   },
 

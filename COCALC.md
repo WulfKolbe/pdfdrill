@@ -81,7 +81,10 @@ https://host-dab25958-64df-4bea-803b-77319d7839f6-cocalc-prod.cocalc.ai/40721fd4
 drillui derives its WebSocket URL (and its artifact/viewer HTTP base) from the
 **page's own path**, so behind CoCalc's proxy it connects to
 `wss://<HOST>/<PROJECT_ID>/server/8787/ws` automatically — no manual step. Open the
-page (§3) and the terminal banner should appear.
+page (§3) and the terminal banner should appear. The derivation works whether or
+not CoCalc gives the page URL a trailing slash (`…/server/8787` **and**
+`…/server/8787/` both resolve to the same `…/server/8787/ws`) — a no-trailing-slash
+page URL used to drop the `8787` port segment; fixed 2026-07-12.
 
 **Fallback** — if it still shows **"Bridge not reachable"** (e.g. an unusual proxy
 layout), paste the WebSocket URL into the terminal's **Connect** box. It's the
