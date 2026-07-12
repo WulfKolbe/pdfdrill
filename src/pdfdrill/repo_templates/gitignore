@@ -1,0 +1,5 @@
+node_modules/
+$__StoryList.tid
+.env
+*.token
+.git-credentials

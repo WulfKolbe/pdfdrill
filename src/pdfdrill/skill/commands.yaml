@@ -1222,6 +1222,27 @@ commands:
     type: str
     help: page selector N | N-M | all (default all)
   typed: true
+- name: repoinit
+  section: Extraction
+  summary: 'Scaffold a GitHub-repo TiddlyWiki document-set layout (tiddlywiki.info with katex+markdown,
+    package.json, .gitignore, .nojekyll, pdfdrill-repo.json, tiddlers/, files/). Offline; the standalone
+    index.html is built later by `npx tiddlywiki . --output . --build index`.'
+  offline_ok: true
+  positionals:
+  - name: dir
+    type: str
+    required: true
+    help: target repo directory
+  flags:
+  - name: username
+    flag: --username
+    type: str
+    help: GitHub username (for the Pages URL + navigator)
+  - name: title
+    flag: --title
+    type: str
+    help: human title of the document set
+  typed: true
 - name: latexbook
   section: Introspection (fast, no extraction)
   summary: 'One-shot source-only pipeline from a .tex book: model + TikZ/table SVGs + KaTeX report (no

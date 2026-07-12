@@ -1,0 +1,21 @@
+{
+	"description": "pdfdrill document-set wiki",
+	"plugins": [
+		"tiddlywiki/katex",
+		"tiddlywiki/markdown",
+		"tiddlywiki/tiddlyweb",
+		"tiddlywiki/filesystem"
+	],
+	"themes": [
+		"tiddlywiki/vanilla",
+		"tiddlywiki/snowwhite"
+	],
+	"build": {
+		"index": [
+			"--render",
+			"$:/core/save/all",
+			"index.html",
+			"text/plain"
+		]
+	}
+}

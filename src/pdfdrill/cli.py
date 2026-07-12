@@ -1388,6 +1388,26 @@ def _do_fontspans(args):
     return cmd_fontspans(_pdf(args), pages=pages)
 
 
+def _do_repoinit(args):
+    """pdfdrill repoinit <dir> [--username U] [--title T] — scaffold a GitHub-repo
+    TiddlyWiki document-set layout (tiddlywiki.info, package.json, .gitignore,
+    .nojekyll, pdfdrill-repo.json, tiddlers/, files/)."""
+    from .repo_publish import cmd_repoinit
+    username, args = _opt(args, "--username")
+    title, args = _opt(args, "--title")
+    return cmd_repoinit(args[0], username=username, title=title)
+
+
+def _do_publish(args):
+    """pdfdrill publish <dir> <pdf>… [--username U] [--title T] — export each
+    drilled doc's tiddlers into <dir>/tiddlers/<bibkey>/, copy PDFs into
+    <dir>/files/, refresh the Documents landing + pdfdrill-repo.json. Auto-scaffolds."""
+    from .repo_publish import cmd_publish
+    username, args = _opt(args, "--username")
+    title, args = _opt(args, "--title")
+    return cmd_publish(args[0], args[1:], username=username, title=title)
+
+
 def _do_merge(args):
     """pdfdrill merge <pdf> [--tex PATH] — merge gold LaTeX prose onto the MathPix
     layout: MathPix fixes paragraph boundaries+regions, LaTeX supplies the text
@@ -1557,6 +1577,7 @@ HANDLERS = {
         "context": _do_context,
         "merge": _do_merge,
         "fontspans": _do_fontspans,
+        "repoinit": _do_repoinit,
         "reconcile": _do_reconcile,
         "combine": _do_combine,
         "chatlog": _do_chatlog,
