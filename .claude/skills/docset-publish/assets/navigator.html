@@ -1,0 +1,185 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Root index.html Navigator</title>
+  <style>
+    :root {
+      color-scheme: light dark;
+      --bg: #f6f7f9;
+      --surface: #ffffff;
+      --text: #1f2328;
+      --muted: #59636e;
+      --border: #d0d7de;
+      --accent: #0969da;
+      --ok: #1a7f37;
+      --shadow: 0 8px 30px rgba(0,0,0,0.06);
+    }
+    @media (prefers-color-scheme: dark) {
+      :root {
+        --bg: #0d1117;
+        --surface: #161b22;
+        --text: #e6edf3;
+        --muted: #9da7b3;
+        --border: #30363d;
+        --accent: #58a6ff;
+        --ok: #3fb950;
+        --shadow: none;
+      }
+    }
+    * { box-sizing: border-box; }
+    body { margin: 0; font: 16px/1.5 system-ui, sans-serif; background: var(--bg); color: var(--text); }
+    main { max-width: 920px; margin: 0 auto; padding: 24px; }
+    .panel { background: var(--surface); border: 1px solid var(--border); border-radius: 14px; padding: 20px; margin-bottom: 18px; box-shadow: var(--shadow); }
+    h1,h2,h3 { margin: 0 0 10px; }
+    p { margin: 0 0 10px; color: var(--muted); }
+    button { border: 1px solid var(--border); background: var(--accent); color: #fff; padding: 10px 14px; border-radius: 10px; cursor: pointer; font: inherit; }
+    input { width: 100%; margin-top: 12px; border: 1px solid var(--border); border-radius: 10px; padding: 10px 12px; background: transparent; color: var(--text); font: inherit; }
+    .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px,1fr)); gap: 14px; }
+    .repo { border: 1px solid var(--border); border-radius: 12px; padding: 14px; background: var(--surface); }
+    a { color: var(--accent); text-decoration: none; }
+    a:hover { text-decoration: underline; }
+    .status { font-size: 14px; color: var(--muted); }
+    .tag { display: inline-block; padding: 2px 8px; border: 1px solid var(--border); border-radius: 999px; font-size: 12px; color: var(--muted); margin-right: 6px; }
+    code { background: rgba(127,127,127,.12); padding: 2px 6px; border-radius: 6px; }
+  </style>
+</head>
+<body>
+  <main>
+    <section class="panel">
+      <h1>Root index.html Navigator</h1>
+      <p>Checks for a root-level <code>index.html</code> (or any file you set) in each public repository.</p>
+      <input id="token" type="password" placeholder="GitHub personal access token (optional)">
+      <p style="font-size:0.9em;">Without a token you have 60 requests/hour; with a token you get 5,000. <a href="https://github.com/settings/tokens" target="_blank">Create a classic token</a></p>
+      <button id="scanBtn">Scan now</button>
+      <input id="filter" type="search" placeholder="Filter by repository name">
+      <p id="status" class="status">Ready.</p>
+    </section>
+
+    <section class="panel">
+      <h2>Repositories with root index.html</h2>
+      <div id="results" class="grid"></div>
+    </section>
+  </main>
+
+  <script>
+    const username = 'WulfKolbe';   // set to your GitHub username
+    const rootPath = 'index.html';  // file to look for in each repo root
+    const statusEl = document.getElementById('status');
+    const resultsEl = document.getElementById('results');
+    const filterEl = document.getElementById('filter');
+    const scanBtn = document.getElementById('scanBtn');
+    const tokenEl = document.getElementById('token');
+    let allResults = [];
+
+    function setStatus(text) { statusEl.textContent = text; }
+
+    function getHeaders() {
+      const headers = { 'Accept': 'application/vnd.github+json' };
+      const token = tokenEl.value.trim();
+      if (token) headers['Authorization'] = `Bearer ${token}`;
+      return headers;
+    }
+
+    async function ghJson(url) {
+      const res = await fetch(url, { headers: getHeaders() });
+      if (!res.ok) throw new Error(`GitHub API error ${res.status}`);
+      return res.json();
+    }
+
+    async function listRepos(user) {
+      let page = 1;
+      const repos = [];
+      while (true) {
+        const url = `https://api.github.com/users/${encodeURIComponent(user)}/repos?per_page=100&page=${page}&sort=updated`;
+        try {
+          const batch = await ghJson(url);
+          repos.push(...batch);
+          if (batch.length < 100) break;
+          page += 1;
+        } catch (err) {
+          console.warn(`Repo listing stopped: ${err.message}`);
+          break;
+        }
+      }
+      return repos.filter(r => !r.fork && !r.archived && !r.name.toLowerCase().endsWith('.github.io'));
+    }
+
+    async function hasRootIndex(owner, repo, branch) {
+      const url = `https://api.github.com/repos/${encodeURIComponent(owner)}/${encodeURIComponent(repo)}/contents/${rootPath}?ref=${encodeURIComponent(branch)}`;
+      try {
+        const res = await fetch(url, { headers: getHeaders() });
+        if (!res.ok) {
+          console.warn(`${repo}: status ${res.status}`);
+          return false;
+        }
+        return true;
+      } catch (err) {
+        console.warn(`${repo}: network error: ${err.message}`);
+        return false;
+      }
+    }
+
+    function pagesUrl(user, repo) {
+      if (repo.toLowerCase() === `${user.toLowerCase()}.github.io`) return `https://${user}.github.io/`;
+      return `https://${user}.github.io/${repo}/`;
+    }
+
+    function render(items) {
+      if (!items.length) {
+        resultsEl.innerHTML = '<div class="repo"><p>No repositories with root index.html found.</p></div>';
+        return;
+      }
+      resultsEl.innerHTML = items.map(repo => `
+        <article class="repo">
+          <h3><a href="${repo.html_url}" target="_blank">${repo.name}</a></h3>
+          <div>
+            <span class="tag">root ${rootPath}</span>
+            <span class="tag">branch: ${repo.default_branch}</span>
+          </div>
+          <p>${repo.description || 'No description.'}</p>
+          <p><a href="${pagesUrl(username, repo.name)}" target="_blank">GitHub Pages URL</a></p>
+        </article>
+      `).join('');
+    }
+
+    function applyFilter() {
+      const q = filterEl.value.trim().toLowerCase();
+      render(q ? allResults.filter(r => r.name.toLowerCase().includes(q)) : allResults);
+    }
+
+    async function scan() {
+      scanBtn.disabled = true;
+      resultsEl.innerHTML = '';
+      setStatus('Loading repositories…');
+      try {
+        const repos = await listRepos(username);
+        if (repos.length === 0) {
+          setStatus('No public repos found (maybe rate limited – try adding a token).');
+          scanBtn.disabled = false;
+          return;
+        }
+        const found = [];
+        for (let i = 0; i < repos.length; i++) {
+          const repo = repos[i];
+          setStatus(`Checking ${i + 1}/${repos.length}: ${repo.name}`);
+          if (await hasRootIndex(username, repo.name, repo.default_branch)) {
+            found.push(repo);
+          }
+        }
+        allResults = found.sort((a, b) => a.name.localeCompare(b.name));
+        render(allResults);
+        setStatus(`Done. Found ${allResults.length} repositories with ${rootPath}.`);
+      } catch (err) {
+        setStatus(`Unexpected error: ${err.message}`);
+      } finally {
+        scanBtn.disabled = false;
+      }
+    }
+
+    filterEl.addEventListener('input', applyFilter);
+    scanBtn.addEventListener('click', scan);
+  </script>
+</body>
+</html>
