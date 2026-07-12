@@ -39,8 +39,14 @@ The ONLY exception: the user explicitly tells you to bypass pdfdrill.
    ├─ okf [--semantic] / distill               # bundle + distill-HTML reading views
    ├─ scikgtex / stex / lean                   # LaTeX / sTeX / Lean 4 targets
    ├─ reconcile                               # dual-route: fix pdfminer math w/ MathPix
+   ├─ repoinit + publish                       # package the set as a GitHub-repo TiddlyWiki
    └─ semantic / gaps / classify / ask / retrieve
 ```
+
+- **Publish to GitHub Pages:** `pdfdrill repoinit` + `pdfdrill publish` build the
+  repo folder (tiddlers/ + files/ + tiddlywiki.info); the `docset-publish` SKILL
+  does build→tar in the Claude.ai sandbox (tar-only — the user pushes from their
+  own machine, no sandbox credentials).
 
 **Allowed:** `pdf → size → route → model → {report|compare|inspect|tiddlers|md|
 llmtext|context|okf|distill|scikgtex|stex|lean}` (all codegen off the one model).

@@ -129,6 +129,23 @@ the tiddler file is rewritten in place — `text` carries the translation,
 `text_source` the original. Math/code/image objects are untouched; re-runs are
 idempotent. Needs `DEEPL_API_KEY` (see **API keys** below).
 
+## Publish a document set to GitHub Pages
+
+Turn a drilled set into a standalone TiddlyWiki served from github.io:
+
+    pdfdrill repoinit <repo> --username <you> --title "My Set"
+    pdfdrill tiddlers <pdf>          # per document (produces <bibkey>.tiddlers.json)
+    pdfdrill publish <repo> <pdf> …  # export tiddlers -> tiddlers/, PDFs -> files/
+    cd <repo> && npm i tiddlywiki && npx tiddlywiki . --output . --build index
+    git init && git add -A && git commit -m "my set"
+    gh repo create <repo> --public --source=. --push       # from your own machine
+    gh api -X POST repos/<you>/<repo>/pages -f 'source[branch]=main' -f 'source[path]=/'
+
+Live at `https://<you>.github.io/<repo>/`. In the Claude.ai sandbox the
+`docset-publish` SKILL runs build → tar; you push from your own machine (no
+credential ever enters the sandbox). A one-time navigator on `<you>.github.io`
+auto-lists every doc-set repo.
+
 ## Feature extraction (`src/features/`)
 
 `src/features/` is a small **additive** layer of **source-agnostic** extractors:
