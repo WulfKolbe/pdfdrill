@@ -81,6 +81,15 @@ if (up) {
   const strav = await fetch(sbase + "/" + encodeURIComponent("..") + "/../etc/passwd");
   ok("static server refuses path traversal", strav.status === 403 || strav.status === 404);
 
+  // 2d) BARE BASENAME resolution: `pdfdrill tables` prints "tables.html" (no
+  //     <doc>.drill/ prefix), but the file lives in the doc's .drill sidecar.
+  //     safeResolve must find it one level deep — on both routes. (tables.html
+  //     exists in data/1906.02691.pdf.drill/.)
+  const bn = await fetch(base + "/artifact?path=" + encodeURIComponent("tables.html"));
+  ok("GET /artifact resolves a bare basename via *.drill/ fallback", bn.ok);
+  const sbn = await fetch(sbase + "/tables.html");
+  ok("static server resolves a bare basename via *.drill/ fallback", sbn.ok);
+
   // 2c) local image-server proxy: with no built pyramid for the doc, an image
   //     route (/cropped, /tiles, /viewer.html, /manifest.json) degrades to a
   //     clear 404 JSON ("run `pdfdrill pyramid`") and never spawns a server.

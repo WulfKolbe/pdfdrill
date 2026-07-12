@@ -18,7 +18,7 @@
 
 import { dirname, join, resolve, normalize, sep, extname, basename } from "node:path";
 import { fileURLToPath } from "node:url";
-import { existsSync, readFileSync } from "node:fs";
+import { existsSync, readFileSync, readdirSync } from "node:fs";
 import { homedir } from "node:os";
 
 // ---- arg parsing -----------------------------------------------------------
@@ -202,6 +202,23 @@ function safeResolve(p: string): string | null {
     if (!abs) continue;
     if (firstValid === null) firstValid = abs;
     if (existsSync(abs)) return abs;               // existing match wins
+  }
+  // pdfdrill prints SOME artifact names as a bare basename (e.g. `tables` →
+  // "tables.json + tables.md + tables.html") though the files live inside the
+  // doc's <doc>.drill/ sidecar, which is not itself a root. So for a bare
+  // basename, look one level deep in each root's *.drill/ folders. Fixes the
+  // Outputs links for those commands on BOTH the /artifact route and the static
+  // server (and on localhost, where they were 404ing too).
+  if (!p.includes("/")) {
+    for (const root of ART_ROOTS) {
+      let entries: string[];
+      try { entries = readdirSync(root); } catch { continue; }
+      for (const entry of entries) {
+        if (!entry.endsWith(".drill")) continue;
+        const cand = join(root, entry, p);
+        if (cand.startsWith(root + sep) && existsSync(cand)) return cand;
+      }
+    }
   }
   return firstValid;                               // none exist → first valid (will 404)
 }
@@ -684,28 +701,34 @@ const server = Bun.serve<{ sess: Session | null }>({
 // Dedicated static file server (the CoCalc artifact route). Serves the SAME
 // files as /artifact — resolved via safeResolve under ART_ROOTS — but by plain
 // path URL (`GET /<path>`), so a reverse proxy that drops the `?path=` query on
-// the WS port still delivers artifacts on its own proxied port. If the port is
-// taken, we degrade to 0 (the client then falls back to /artifact?path=).
+// the WS port still delivers artifacts on its own proxied port. The client is
+// told the ACTUAL bound port (via `hello.staticPort`) and builds links against it.
+const staticFetch = async (req: Request) => {
+  const url = new URL(req.url);
+  const rel = decodeURIComponent(url.pathname.replace(/^\/+/, ""));
+  if (!rel) return new Response("drillui static server", {
+    headers: { "content-type": "text/plain" } });
+  const abs = safeResolve(rel);
+  if (!abs) return new Response("forbidden path", { status: 403 });
+  const f = Bun.file(abs);
+  if (!(await f.exists())) return new Response("not found", { status: 404 });
+  const ct = MIME[extname(abs).toLowerCase()] ?? "application/octet-stream";
+  return new Response(f, { headers: { "content-type": ct } });
+};
+// A leftover process on the default port (e.g. a manual `python -m http.server
+// 10000`, or a previous bridge) must NOT disable the feature — try a small range
+// and report whichever port actually bound. Only if none bind do we degrade to 0.
 let staticServer: ReturnType<typeof Bun.serve> | null = null;
-try {
-  staticServer = Bun.serve({
-    port: staticPort,
-    hostname: "0.0.0.0",
-    async fetch(req) {
-      const url = new URL(req.url);
-      const rel = decodeURIComponent(url.pathname.replace(/^\/+/, ""));
-      if (!rel) return new Response("drillui static server", {
-        headers: { "content-type": "text/plain" } });
-      const abs = safeResolve(rel);
-      if (!abs) return new Response("forbidden path", { status: 403 });
-      const f = Bun.file(abs);
-      if (!(await f.exists())) return new Response("not found", { status: 404 });
-      const ct = MIME[extname(abs).toLowerCase()] ?? "application/octet-stream";
-      return new Response(f, { headers: { "content-type": ct } });
-    },
-  });
-} catch (e) {
-  console.error(`drillui static server could not bind :${staticPort} (${e}); `
+const staticWanted = staticPort;
+for (let p = staticWanted; p < staticWanted + 10; p++) {
+  try {
+    staticServer = Bun.serve({ port: p, hostname: "0.0.0.0", fetch: staticFetch });
+    staticPort = p;
+    break;
+  } catch { /* port busy — try the next */ }
+}
+if (!staticServer) {
+  console.error(`drillui static server could not bind :${staticWanted}-${staticWanted + 9}; `
     + `artifact links fall back to the /artifact route`);
   staticPort = 0;
 }
