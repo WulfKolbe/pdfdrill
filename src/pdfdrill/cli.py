@@ -1578,6 +1578,7 @@ HANDLERS = {
         "merge": _do_merge,
         "fontspans": _do_fontspans,
         "repoinit": _do_repoinit,
+        "publish": _do_publish,
         "reconcile": _do_reconcile,
         "combine": _do_combine,
         "chatlog": _do_chatlog,

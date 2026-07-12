@@ -1243,6 +1243,34 @@ commands:
     type: str
     help: human title of the document set
   typed: true
+- name: publish
+  section: Extraction
+  summary: 'Fill a document-set repo from drilled PDFs: export each doc''s tiddlers into tiddlers/<bibkey>/
+    (shared template tiddlers deduped across the set), copy PDFs + tiddlers.json into files/, refresh the
+    Documents landing tiddler + pdfdrill-repo.json. Auto-scaffolds via repoinit. Offline; build index.html
+    afterwards with `npx tiddlywiki . --output . --build index`.'
+  offline_ok: true
+  requires:
+  - tiddlers
+  positionals:
+  - name: dir
+    type: str
+    required: true
+    help: target repo directory (auto-scaffolded if new)
+  - name: pdfs
+    type: str
+    required: false
+    help: one or more drilled PDF paths
+  flags:
+  - name: username
+    flag: --username
+    type: str
+    help: GitHub username
+  - name: title
+    flag: --title
+    type: str
+    help: document-set title
+  typed: true
 - name: latexbook
   section: Introspection (fast, no extraction)
   summary: 'One-shot source-only pipeline from a .tex book: model + TikZ/table SVGs + KaTeX report (no
