@@ -47,6 +47,8 @@
     font-family:var(--mono); font-size:12px; padding:4px 10px; border-radius:999px;
     border:1px solid var(--line); color:var(--dim); display:inline-flex; align-items:center; gap:7px;
   }
+  .chip.loc{ cursor:default; }
+  .chip.loc .loc-glyph{ color:var(--yellow); }
   .dot{ width:8px; height:8px; border-radius:50%; background:var(--faint); }
   .chip[data-state="ready"] .dot{ background:var(--green); box-shadow:0 0 8px var(--green); }
   .chip[data-state="busy"]  .dot{ background:var(--yellow); animation:pulse 1s infinite; }
@@ -165,6 +167,7 @@
   <header>
     <span class="brand"><span class="glyph">▚</span> drillui<span class="sub">ask the document</span></span>
     <span class="spacer"></span>
+    <span class="chip loc" id="loc" title=""><span class="loc-glyph">⌂</span><span id="loc-label">—</span></span>
     <span class="chip" id="conn" data-state="down"><span class="dot"></span><span id="conn-label">offline</span></span>
   </header>
 
@@ -357,6 +360,7 @@ const app = {
     new ResizeObserver(()=>{ try{ fit.fit(); }catch(e){} }).observe(document.getElementById("term-wrap"));
 
     this.banner();
+    this.setLocation();
     this.connect(this.defaultWsUrl());
 
     document.getElementById("ws-connect").onclick = ()=>{
@@ -364,6 +368,32 @@ const app = {
       if (u) this.connect(u);
     };
     document.getElementById("ws-url").value = this.defaultWsUrl();
+  },
+
+  locationInfo(){
+    // Where is drillui running? A short label for the headline + the full host
+    // as a tooltip, so localhost vs CoCalc vs a hosted sandbox is obvious at a glance.
+    const l = location;
+    if (l.protocol === "file:") return { label:"local file", host:"file://" + l.pathname };
+    const h = l.hostname, port = l.port ? ":" + l.port : "";
+    if (h === "localhost" || h === "127.0.0.1" || h === "::1")
+      return { label:"localhost" + port, host:l.host };
+    if (/cocalc\.ai$/i.test(h)){
+      // CoCalc proxy path is /<project-id>/server/<port>/… — show the short id.
+      const seg = l.pathname.split("/").filter(Boolean)[0] || "";
+      const proj = seg && /^[0-9a-f-]{8,}$/i.test(seg) ? seg.slice(0, 8) : "";
+      return { label:"CoCalc" + (proj ? " · " + proj : ""), host:l.host };
+    }
+    if (/(?:^|\.)claude\.ai$|anthropic/i.test(h)) return { label:"Claude.ai", host:l.host };
+    return { label:h + port, host:l.host };
+  },
+
+  setLocation(){
+    const info = this.locationInfo();
+    const label = document.getElementById("loc-label");
+    const chip = document.getElementById("loc");
+    if (label) label.textContent = info.label;
+    if (chip) chip.title = info.host + "  ·  " + location.href;
   },
 
   defaultWsUrl(){
