@@ -387,9 +387,13 @@ def build_inspector_html(
     title: str = "docinspect",
     image_mode: str = "embed",
     katex_inline: Optional[dict] = None,
+    page_filter: Optional[set] = None,
 ) -> str:
     sidx = build_stream_index(model)
     elements, pages_meta = collect_elements(model, sidx)
+    if page_filter is not None:                       # --pages: keep only the range
+        elements = [e for e in elements if e.get("page") in page_filter]
+        pages_meta = [p for p in pages_meta if p.get("page") in page_filter]
     meta = model["meta"]
 
     payload = {
@@ -960,6 +964,7 @@ def build_from_paths(
     src_dpi: int = 600,
     title: Optional[str] = None,
     katex_dir: Optional[str] = None,
+    page_filter: Optional[set] = None,
 ) -> tuple[str, int, int, str]:
     """Reusable core behind the CLI and `pdfdrill inspect`: load the model,
     resolve the image source, and return (html, n_pages, n_elements, mode).
@@ -967,7 +972,9 @@ def build_from_paths(
     sibling viewer/pages → falls back to `embed` with missing PNGs (boxes-only,
     the tree/inspector still work), so it never hard-fails on a headless model."""
     model = load_json(model_path)
-    _, pages_meta = collect_elements(model, build_stream_index(model))
+    all_elements, pages_meta = collect_elements(model, build_stream_index(model))
+    if page_filter is not None:                       # --pages: restrict pages_meta
+        pages_meta = [p for p in pages_meta if p.get("page") in page_filter]
 
     if image_base:
         mode = "image-base"
@@ -994,11 +1001,15 @@ def build_from_paths(
 
     ttl = title or model["meta"].get("bibkey", "docinspect")
     html_doc = build_inspector_html(model, pages=pages, title=ttl, image_mode=mode,
-                                    katex_inline=katex_inline)
+                                    katex_inline=katex_inline, page_filter=page_filter)
     if out:
         with open(out, "w", encoding="utf-8") as fh:
             fh.write(html_doc)
-    n_el = sum(1 for o in model["objects"] if o["type"] != "Page")
+    if page_filter is not None:
+        n_el = sum(1 for e in all_elements
+                   if e.get("page") in page_filter and e.get("type") != "Page")
+    else:
+        n_el = sum(1 for o in model["objects"] if o["type"] != "Page")
     return html_doc, len(pages), n_el, mode
 
 

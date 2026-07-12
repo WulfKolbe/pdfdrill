@@ -4639,6 +4639,14 @@ def cmd_inspect(pdf: Path, pages: str | None = None, embed: bool = True,
     pages_dir = None
     if images and embed:
         pages_dir, src_dpi = _inspect_pages_dir(pdf, sc, pages, src_dpi)
+    # --pages restricts the whole inspector (elements + embedded page images), not
+    # just which pages get rasterized — else a big doc always emits the full (14 MB)
+    # HTML that chokes a reverse-proxy/drillui load.
+    page_filter = None
+    if pages and str(pages).lower() != "all":
+        from . import pdf_reading
+        pl = pdf_reading.parse_pages(pages, getattr(sc, "page_count", None) or None)
+        page_filter = set(pl) if pl else None
 
     with open(model_path, "r", encoding="utf-8") as f:
         bibkey = (json.load(f).get("meta", {}) or {}).get("bibkey") or pdf.stem
@@ -4650,7 +4658,8 @@ def cmd_inspect(pdf: Path, pages: str | None = None, embed: bool = True,
             str(model_path), out=str(out_path),
             tiddlers=str(tiddlers) if tiddlers.exists() else None,
             pages_dir=str(pages_dir) if pages_dir else None,
-            embed=embed, embed_dpi=dpi, src_dpi=src_dpi, title=bibkey)
+            embed=embed, embed_dpi=dpi, src_dpi=src_dpi, title=bibkey,
+            page_filter=page_filter)
     except Exception as e:                          # noqa: BLE001
         return f"inspect failed for {pdf.name}: {e}"
 

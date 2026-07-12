@@ -130,6 +130,39 @@ def test_inspect_no_meta_pages_derives_from_objects():
         assert n_pages == 1                          # derived page 1 from the objects
 
 
+def test_page_filter_restricts_elements_and_pages():
+    """`inspect --pages` must shrink the WHOLE inspector (elements + embedded page
+    images), not just which pages get rasterized — else a big doc always emits the
+    full (14 MB) HTML that chokes a reverse-proxy/drillui load."""
+    import json as _j, tempfile as _t
+    from pathlib import Path as _P
+    m = _model()
+    # add a second page + an element on it
+    m["meta"]["pages"].append({"page": 2, "page_width": 1000, "page_height": 1400})
+    m["meta"]["num_pages"] = 2
+    m["streams"]["mathpix_lines"]["anchors"].append("a_p2")
+    m["streams"]["mathpix_lines"]["payload"]["a_p2"] = {
+        "region": {"top_left_x": 50, "top_left_y": 50, "width": 400, "height": 40},
+        "text": "Second page para.", "_page": 2}
+    m["objects"] += [
+        {"id": "pg2", "type": "Page", "props": {"page": 2}, "realizations": []},
+        {"id": "p2only", "type": "Paragraph",
+         "props": {"text": "Second page para.", "page": 2, "flow_index": 3},
+         "realizations": [{"stream": "mathpix_lines", "start": "a_p2", "end": "a_p2"}]},
+    ]
+    with _t.TemporaryDirectory() as d:
+        mp = _P(d) / "model.docmodel.json"
+        mp.write_text(_j.dumps(m))
+        # no filter → both pages, both elements
+        _h, n_pages_all, n_el_all, _m = docinspect.build_from_paths(str(mp), embed=True)
+        assert n_pages_all == 2 and '"p2only"' in _h
+        # filter to page 1 → page 2 element dropped, only 1 page
+        html, n_pages, n_el, _m = docinspect.build_from_paths(
+            str(mp), embed=True, page_filter={1})
+        assert n_pages == 1 and n_el < n_el_all
+        assert '"p1"' in html and '"p2only"' not in html
+
+
 # --- P4a: the inspect HTML GENERATOR (build_inspector_html) — was untested -----
 def test_generator_embeds_elements_bbox_latex():
     """The client payload must carry each element by id/type/bbox + the formula
