@@ -15,6 +15,7 @@ import { fileURLToPath } from "node:url";
 
 const doc = process.argv[2] ?? "data/1906.02691.pdf";
 const PORT = 8799;
+const SPORT = 10799;   // static-file server port (CoCalc artifact route)
 const HERE = dirname(fileURLToPath(import.meta.url));
 const BRIDGE = join(HERE, "drillui_bridge.ts");
 
@@ -27,7 +28,7 @@ const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
 // --- spawn the bridge (host-open disabled so POST /open must 403) ------------
 const proc = Bun.spawn({
-  cmd: ["bun", BRIDGE, doc, "--port", String(PORT), "--no-open"],
+  cmd: ["bun", BRIDGE, doc, "--port", String(PORT), "--static-port", String(SPORT), "--no-open"],
   cwd: resolve(HERE, ".."),
   stdout: "pipe", stderr: "pipe",
   env: { ...process.env },
@@ -68,6 +69,17 @@ if (up) {
   const docRel = `${stem}.drill/model.docmodel.json`;
   const dr = await fetch(base + "/artifact?path=" + encodeURIComponent(docRel));
   ok("GET /artifact resolves a DOC-relative path (report-404 fix)", dr.ok, docRel);
+
+  // 2c) the STATIC file server (CoCalc route): the SAME files served by a plain
+  //     PATH URL on a separate port, so a proxy that drops the ?path= query still
+  //     delivers artifacts. Uses safeResolve, so traversal is refused there too.
+  const sbase = `http://localhost:${SPORT}`;
+  const sr = await fetch(sbase + "/tools/drillui_bridge.ts");
+  ok("static server serves a file by PATH (CoCalc route)", sr.ok);
+  const sdr = await fetch(sbase + "/" + docRel);
+  ok("static server resolves a DOC-relative path", sdr.ok, docRel);
+  const strav = await fetch(sbase + "/" + encodeURIComponent("..") + "/../etc/passwd");
+  ok("static server refuses path traversal", strav.status === 403 || strav.status === 404);
 
   // 2c) local image-server proxy: with no built pyramid for the doc, an image
   //     route (/cropped, /tiles, /viewer.html, /manifest.json) degrades to a

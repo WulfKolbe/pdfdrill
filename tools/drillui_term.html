@@ -332,7 +332,7 @@ const app = {
   state:"down",          // down | ready | busy
   session:{ doc:"—", model:"—", k:"—", store:true },
   turnNo:0, pendingQ:null, turnBuf:"", turnErr:false,
-  httpBase:"", hostOpen:false, artifacts:new Map(),
+  httpBase:"", staticPort:0, hostOpen:false, artifacts:new Map(),
 
   init(){
     const term = new Terminal({
@@ -394,6 +394,21 @@ const app = {
     const chip = document.getElementById("loc");
     if (label) label.textContent = info.label;
     if (chip) chip.title = info.host + "  ·  " + location.href;
+  },
+
+  artifactUrl(path){
+    // Build a link to a bridge artifact FILE. On localhost the bridge's own
+    // `/artifact?path=` query route works. Behind a reverse proxy that mangles
+    // query strings (CoCalc: `.../server/8787/artifact?path=x` fails), we instead
+    // hit the bridge's dedicated STATIC server on its own proxied port —
+    // `.../server/<staticPort>/<path>` — which is a plain path URL the proxy
+    // forwards cleanly. The page path `…/server/<bridgePort>/` is the tell.
+    const m = location.pathname.match(/^(.*\/server\/)\d+(?:\/|$)/);
+    if (m && this.staticPort){
+      return location.origin + m[1] + this.staticPort + "/"
+        + String(path).replace(/^\/+/, "").split("/").map(encodeURIComponent).join("/");
+    }
+    return `${this.httpBase}/artifact?path=${encodeURIComponent(path)}`;
   },
 
   defaultWsUrl(){
@@ -482,6 +497,7 @@ const app = {
         sd.textContent = this.session.store ? "on" : "off";
         sd.className = this.session.store ? "ok" : "off";
         this.hostOpen = msg.hostOpen === true;   // bridge can launch the system browser
+        this.staticPort = msg.staticPort || 0;   // bridge's static file server port (CoCalc route)
         if (msg.viewer){                          // local MathPix-free deep-zoom image source
           this.artifacts.set("__viewer__", { isUrl:true, url:(this.httpBase||"")+msg.viewer,
             label:"deep-zoom viewer (local pyramid)", ext:"view" });
@@ -574,7 +590,7 @@ const app = {
         this.term.writeln(C.red("  no bridge connection — can only open http(s) URLs right now"));
         return;
       }
-      url = `${this.httpBase}/artifact?path=${encodeURIComponent(arg)}`;
+      url = this.artifactUrl(arg);
     }
     // ALWAYS register a one-click entry in the Outputs panel first, so there is
     // a real-click fallback even if the auto-open is blocked by the browser.
@@ -613,7 +629,7 @@ const app = {
         return;
       }
     }catch(e){ /* fall through to the in-page tab */ }
-    this.openExternal(body.url || `${this.httpBase}/artifact?path=${encodeURIComponent(body.path)}`);
+    this.openExternal(body.url || this.artifactUrl(body.path));
     this.term.writeln(C.green("  opening ") + C.fg(label)
       + C.faint("  ↗ new tab — or click it in the Outputs panel →"));
   },
@@ -723,7 +739,7 @@ const app = {
       // an entry is either a FILE {path, ext} (served via the bridge) or a URL
       // {url, label, ext, isUrl} (opened directly). host-open applies to files.
       const isUrl = a.isUrl === true;
-      const url = isUrl ? a.url : `${this.httpBase}/artifact?path=${encodeURIComponent(a.path)}`;
+      const url = isUrl ? a.url : this.artifactUrl(a.path);
       const name = isUrl ? a.label : a.path.split("/").pop();
       const title = isUrl ? a.url : a.path;
       const row = document.createElement("div");

@@ -94,6 +94,25 @@ drillui page's own URL with `https`→`wss` and `ws` appended after the trailing
 wss://<HOST>/<PROJECT_ID>/server/8787/ws
 ```
 
+## 5. Artifact links (Outputs panel) — the static server
+
+The Outputs-panel links (report.html, tables.html, *.md, …) do **not** go through
+the bridge's `/artifact?path=…` route on CoCalc: the proxy drops the `?path=`
+query string, so those links 404. The bridge therefore also runs a **dedicated
+static file server** on port **10000** (change with `--static-port N`, or
+`DRILLUI_STATIC_PORT`), which CoCalc proxies at `…/server/10000/`. drillui builds
+artifact links as plain PATH URLs against it:
+
+```
+https://<HOST>/<PROJECT_ID>/server/10000/<doc>.pdf.drill/tables.html
+```
+
+It serves exactly the files `/artifact` would (same `safeResolve` under the same
+roots, same path-traversal refusal), so no file becomes newly reachable — only
+the URL shape changes. On localhost the original `/artifact?path=` route is still
+used (it works there). If port 10000 is taken the bridge degrades to `/artifact`
+and logs it. Nothing to configure — open the doc, click an Outputs link.
+
 ## Troubleshooting
 
 - **`bun: command not found`** — new shell not opened yet:

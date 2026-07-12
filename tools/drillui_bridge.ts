@@ -10,7 +10,7 @@
  * turn to read a line (the browser owns the visible prompt).
  *
  *   bun drillui_bridge.ts <doc> [--src src] [--model NAME] [--k N]
- *                                [--no-store] [--port 8787]
+ *                                [--no-store] [--port 8787] [--static-port 10000]
  *                                [-- <extra args passed straight to drillui_chat>]
  *
  * Stdlib + Bun only. Serves the sibling drillui_term.html at http://localhost:<port>/.
@@ -35,6 +35,10 @@ let model: string | null = null;
 let k = 8;
 let store = true;
 let port = 8787;
+// A dedicated STATIC file server on its own port. A reverse proxy (CoCalc) that
+// mangles the `?path=` query string on the WS port still forwards plain path URLs
+// on a separate proxied port cleanly — so artifact links route through here.
+let staticPort = parseInt(process.env.DRILLUI_STATIC_PORT ?? "10000", 10);
 let artifactsRoot = REPO_ROOT;       // default; --artifacts overrides
 let opener: string | null = null;    // host browser launcher; null → auto/none
 let chatPath: string | null = null;  // explicit path to drillui_chat.py
@@ -49,6 +53,7 @@ for (let i = 0; i < argv.length; i++) {
   else if (a === "--k") k = parseInt(argv[++i], 10);
   else if (a === "--no-store") store = false;
   else if (a === "--port") port = parseInt(argv[++i], 10);
+  else if (a === "--static-port") staticPort = parseInt(argv[++i], 10);
   else if (a === "--artifacts") artifactsRoot = argv[++i];
   else if (a === "--opener") opener = argv[++i];          // e.g. firefox, xdg-open
   else if (a === "--no-open") opener = "";                // disable host-open
@@ -79,7 +84,7 @@ if (argv.includes("-h") || argv.includes("--help")) {
     "         terminal (the doc is optional now that `add` exists).\n" +
     "  Zero config from the repo: `bun tools/drillui_bridge.ts data/paper.pdf`\n" +
     "  finds drillui_chat.py as its sibling and pdfdrill in ../src.\n" +
-    "  flags: [--port N] [--model NAME] [--k N] [--no-store] [--python BIN]\n" +
+    "  flags: [--port N] [--static-port N] [--model NAME] [--k N] [--no-store] [--python BIN]\n" +
     "         [--chat PATH] [--src DIR] [--artifacts DIR]\n" +
     "         [--opener firefox|xdg-open|...] [--no-open]");
   process.exit(0);
@@ -626,6 +631,7 @@ const server = Bun.serve<{ sess: Session | null }>({
         k,
         store,
         hostOpen: OPENER !== null,
+        staticPort,                                        // static-file server port (CoCalc artifact route)
         viewer: docWithPyramid() ? "/viewer.html" : null,  // local deep-zoom image source
       });
       // if the doc already had a pyramid, the hello above carried the link — don't
@@ -675,7 +681,37 @@ const server = Bun.serve<{ sess: Session | null }>({
   },
 });
 
+// Dedicated static file server (the CoCalc artifact route). Serves the SAME
+// files as /artifact — resolved via safeResolve under ART_ROOTS — but by plain
+// path URL (`GET /<path>`), so a reverse proxy that drops the `?path=` query on
+// the WS port still delivers artifacts on its own proxied port. If the port is
+// taken, we degrade to 0 (the client then falls back to /artifact?path=).
+let staticServer: ReturnType<typeof Bun.serve> | null = null;
+try {
+  staticServer = Bun.serve({
+    port: staticPort,
+    hostname: "0.0.0.0",
+    async fetch(req) {
+      const url = new URL(req.url);
+      const rel = decodeURIComponent(url.pathname.replace(/^\/+/, ""));
+      if (!rel) return new Response("drillui static server", {
+        headers: { "content-type": "text/plain" } });
+      const abs = safeResolve(rel);
+      if (!abs) return new Response("forbidden path", { status: 403 });
+      const f = Bun.file(abs);
+      if (!(await f.exists())) return new Response("not found", { status: 404 });
+      const ct = MIME[extname(abs).toLowerCase()] ?? "application/octet-stream";
+      return new Response(f, { headers: { "content-type": ct } });
+    },
+  });
+} catch (e) {
+  console.error(`drillui static server could not bind :${staticPort} (${e}); `
+    + `artifact links fall back to the /artifact route`);
+  staticPort = 0;
+}
+
 console.error(`drillui bridge → http://localhost:${server.port}/`);
+if (staticServer) console.error(`  static artifacts → http://localhost:${staticServer.port}/ (CoCalc route)`);
 console.error(`  chat: ${pythonBin} ${CHAT_SCRIPT}`);
 console.error(`  doc=${doc}  model=${model ?? "default"}  k=${k}  store=${store}`);
 console.error(`  cwd / artifacts root: ${ART_ROOT}`);
