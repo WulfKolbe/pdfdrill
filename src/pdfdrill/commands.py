@@ -317,8 +317,14 @@ def _stale_or_absent(sc: "Sidecar", model_path: Path, lines_path: Path) -> bool:
     if not sc.has(MODEL_BUILT) or not model_path.exists():
         return True
     try:
-        return (lines_path.exists()
-                and lines_path.stat().st_mtime > model_path.stat().st_mtime)
+        if (lines_path.exists()
+                and lines_path.stat().st_mtime > model_path.stat().st_mtime):
+            return True
+        # source→mathpix trap (see cmd_model): a geometry-less SOURCE model with a
+        # MathPix lines.json present must rebuild — else inspect/locate stay
+        # box-less on the source model though a geometry-bearing lines.json exists.
+        caps = sc.get_evidence("model_caps") or {}
+        return bool(lines_path.exists() and caps.get("geometry") is False)
     except OSError:
         return False
 
@@ -2329,6 +2335,17 @@ def cmd_model(pdf: Path, force: bool = False, bibkey: str | None = None) -> str:
     # shadow the better OCR (the AOK 'Kürten'→'Kirten' bug).
     stale = (lines_path.exists() and model_path.exists()
              and lines_path.stat().st_mtime > model_path.stat().st_mtime)
+    # Self-heal the source→mathpix ordering trap: on arXiv, `add` builds a
+    # geometry-less LaTeX-SOURCE model (fast, gold math) when no lines.json exists
+    # yet. If the user then runs `mathpix` (creating a lines.json WITH page
+    # geometry), the model must upgrade to it — else `inspect`/`locate` stay
+    # box-less on a source model even though a geometry-bearing lines.json is right
+    # there. So: a present lines.json + a current model that reports no geometry
+    # ⇒ rebuild. (No lines.json ⇒ this never fires; the source model is kept.)
+    if lines_path.exists() and model_path.exists() and not stale:
+        caps = sc.get_evidence("model_caps") or {}
+        if caps.get("geometry") is False:
+            stale = True
     if sc.has(MODEL_BUILT) and model_path.exists() and not force and not stale:
         return _format_model(sc)
 
