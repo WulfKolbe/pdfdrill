@@ -245,3 +245,23 @@ if __name__ == "__main__":
         print(f"\n{len(failed)} failed out of {len(tests)}")
         sys.exit(1)
     print(f"\nAll {len(tests)} tests passed.")
+
+
+def test_main_tex_from_readme_toplevel():
+    """arXiv's 00README.json names the toplevel .tex authoritatively — used as the
+    primary signal (the main file can have ANY name)."""
+    import json, tempfile, os
+    from pathlib import Path
+    from pdfdrill import latex_source as ls
+    with tempfile.TemporaryDirectory() as d:
+        dp = Path(d)
+        (dp / "weird_9f2.tex").write_text("\\documentclass{art}\n\\begin{document}x\\end{document}")
+        (dp / "helper.tex").write_text("\\newcommand{\\y}{}")
+        (dp / "00README.json").write_text(json.dumps({
+            "sources": [{"usage": "toplevel", "filename": "weird_9f2.tex"},
+                        {"usage": "ignore", "filename": "helper.tex"}]}))
+        got = ls.main_tex_from_readme(str(dp))
+        assert got is not None and os.path.basename(got) == "weird_9f2.tex"
+        # absent → None (caller falls back to find_main_tex)
+        (dp / "00README.json").unlink()
+        assert ls.main_tex_from_readme(str(dp)) is None

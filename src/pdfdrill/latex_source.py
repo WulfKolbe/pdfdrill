@@ -77,6 +77,28 @@ def expand_inputs(main_path: str, base_dir: str, _depth: int = 0,
     return re.sub(r"\\(?:input|include)\s*\{([^}]+)\}", repl, text)
 
 
+def main_tex_from_readme(src_dir: str) -> str | None:
+    """arXiv's `00README.json` names the toplevel .tex AUTHORITATIVELY
+    (`{"sources":[{"usage":"toplevel","filename":"X.tex"}]}`) — the main file can
+    have ANY name, so this is the most robust signal. Returns the ABSOLUTE path to
+    that file if the README exists and the file is present, else None (→ the caller
+    falls back to `find_main_tex`'s `\\documentclass` heuristic)."""
+    import glob
+    import json
+    for readme in glob.glob(os.path.join(str(src_dir), "**", "00README.json"),
+                            recursive=True):
+        try:
+            data = json.loads(open(readme, encoding="utf-8").read())
+        except Exception:
+            continue
+        for s in data.get("sources", []):
+            if s.get("usage") == "toplevel" and s.get("filename"):
+                cand = os.path.join(os.path.dirname(readme), s["filename"])
+                if os.path.exists(cand):
+                    return cand
+    return None
+
+
 def find_main_tex(paths: dict[str, str]) -> str | None:
     """Pick the main .tex (the one with \\documentclass, else \\begin{document})."""
     cls = [n for n, t in paths.items() if "\\documentclass" in t]
@@ -111,6 +133,10 @@ def read_source(path: str) -> tuple[str, str]:
                         fp = os.path.join(root, f)
                         rel = os.path.relpath(fp, d)
                         contents[rel] = open(fp, encoding="utf-8", errors="replace").read()
+            readme_main = main_tex_from_readme(d)   # arXiv 00README wins (any name)
+            if readme_main:
+                return (expand_inputs(readme_main, os.path.dirname(readme_main)),
+                        os.path.relpath(readme_main, d))
             main = find_main_tex(contents)
             if not main:
                 return "", ""
@@ -130,6 +156,10 @@ def read_source(path: str) -> tuple[str, str]:
                         fp = os.path.join(root, f)
                         contents[os.path.relpath(fp, d)] = open(
                             fp, encoding="utf-8", errors="replace").read()
+            readme_main = main_tex_from_readme(d)   # arXiv 00README wins (any name)
+            if readme_main:
+                return (expand_inputs(readme_main, os.path.dirname(readme_main)),
+                        os.path.relpath(readme_main, d))
             main = find_main_tex(contents)
             if not main:
                 return "", ""

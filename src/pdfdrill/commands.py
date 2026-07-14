@@ -2270,16 +2270,20 @@ def _build_arxiv_source_model(pdf: Path, sc: "Sidecar", key: str,
             with _tarfile.open(str(src)) as tf:
                 tf.extractall(texsrc, filter="data")
             source_dir = str(texsrc)
-            # find_main_tex inspects CONTENT for \documentclass — pass the REAL
-            # text, not "" (empty content made it pick the alphabetically-first
-            # file, e.g. Conclusion.tex, truncating multi-file \input papers).
-            paths = {}
-            for p in texsrc.rglob("*.tex"):
-                try:
-                    paths[str(p)] = p.read_text(errors="replace")
-                except Exception:
-                    paths[str(p)] = ""
-            main = ls.find_main_tex(paths)
+            # arXiv's 00README.json names the toplevel .tex authoritatively (the
+            # main file can have ANY name); use it first. Else find_main_tex
+            # inspects CONTENT for \documentclass — pass the REAL text, not "" (empty
+            # content made it pick the alphabetically-first file, e.g. Conclusion.tex,
+            # truncating multi-file \input papers).
+            main = ls.main_tex_from_readme(str(texsrc))
+            if not main:
+                paths = {}
+                for p in texsrc.rglob("*.tex"):
+                    try:
+                        paths[str(p)] = p.read_text(errors="replace")
+                    except Exception:
+                        paths[str(p)] = ""
+                main = ls.find_main_tex(paths)
             if main:
                 build_target = main
         doc = ls.build_source_model(build_target, bibkey=key)
