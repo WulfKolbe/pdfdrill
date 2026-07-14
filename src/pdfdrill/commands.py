@@ -308,23 +308,42 @@ def _model_path(sc: Sidecar) -> Path:
     return sc.blob_dir / "model.docmodel.json"
 
 
+def _legacy_stale() -> bool:
+    """Env opt-out (`PDFDRILL_LEGACY_STALE=1`) that keeps the pure-mtime staleness
+    trigger during the transition to content-hash proofs (Phase D)."""
+    import os
+    return os.environ.get("PDFDRILL_LEGACY_STALE", "").lower() in ("1", "true", "yes")
+
+
 def _stale_or_absent(sc: "Sidecar", model_path: Path, lines_path: Path) -> bool:
-    """True if the model must be (re)built before a projector/read can trust it:
-    it's missing, OR the lines.json is NEWER than the model (e.g. MathPix/OCR/a
-    hand-built lines.json was written AFTER the last build, so the model is stale
-    and silently missing that content — the 2305.04710 'no formulas' bug). When
-    True the caller's `cmd_model(pdf)` rebuilds (cmd_model itself detects stale)."""
+    """True if the model must be (re)built before a projector/read can trust it.
+
+    Missing model → always stale. Otherwise, when the model carries a content-hash
+    PROOF (Phase B) and we're not in legacy mode, staleness is decided by the proof
+    — the model is stale iff its recorded inputs no longer hash-match (principled,
+    and it does NOT rebuild merely because an unchanged lines.json was re-touched,
+    unlike the old mtime trigger). A model without a proof (legacy build) or
+    `PDFDRILL_LEGACY_STALE=1` falls back to the mtime heuristic (lines.json newer
+    than the model — the 2305.04710 'no formulas' bug)."""
     if not sc.has(MODEL_BUILT) or not model_path.exists():
         return True
     try:
+        caps = sc.get_evidence("model_caps") or {}
+        source_trap = bool(lines_path.exists() and caps.get("geometry") is False)
+        proof = None if _legacy_stale() else sc.capabilities.get(MODEL_BUILT)
+        if proof is not None:
+            from . import proofs
+            if not proofs.verify(proof):     # recorded inputs changed → stale
+                return True
+            return source_trap               # proof valid → ignore mtime
+        # legacy / no-proof: mtime heuristic
         if (lines_path.exists()
                 and lines_path.stat().st_mtime > model_path.stat().st_mtime):
             return True
         # source→mathpix trap (see cmd_model): a geometry-less SOURCE model with a
         # MathPix lines.json present must rebuild — else inspect/locate stay
         # box-less on the source model though a geometry-bearing lines.json exists.
-        caps = sc.get_evidence("model_caps") or {}
-        return bool(lines_path.exists() and caps.get("geometry") is False)
+        return source_trap
     except OSError:
         return False
 
