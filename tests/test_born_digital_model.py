@@ -112,3 +112,54 @@ def test_cmd_model_prefers_born_digital_over_arxiv_source(monkeypatch, tmp_path)
     C.cmd_model(pdf)
     assert "born_digital" in called          # the pdfplumber route was used
     assert "arxiv_source" not in called      # source is NOT the born-digital base
+
+
+def test_cmd_model_auto_merges_latex_for_arxiv_born_digital(monkeypatch, tmp_path):
+    """The merge is AUTOMATIC: a born-digital arXiv doc (pdfminer geometry) also
+    gets the e-print's gold LaTeX overlaid — pdfdrill extracts AND merges."""
+    import json
+    from pdfdrill import commands as C
+    from docmodel.core import Document, DocObject
+    pdf = tmp_path / "2502.20855v2.pdf"; pdf.write_bytes(b"%PDF-1.4")
+    called = []
+    monkeypatch.setattr(C, "cmd_mathpix", lambda p: None)
+    monkeypatch.setattr(C, "_build_arxiv_source_model", lambda *a, **k: None)
+    monkeypatch.setattr(C, "_arxiv_id_for", lambda p, sc: "2502.20855v2")
+    monkeypatch.setattr(C, "cmd_latex", lambda p: called.append("latex"))
+
+    def bd(p):
+        C._lines_json_path(p).write_text('{"source":"pdfplumber-chars"}')
+        return True
+    monkeypatch.setattr(C, "_write_born_digital_lines", bd)
+
+    def fake_run(**k):
+        doc = Document(); doc.meta["bibkey"] = k.get("bibkey", "x")
+        doc.add(DocObject(type="Page", props={"page": 1})); doc.meta["pages"] = [{"page": 1}]
+        d = doc.to_dict(); json.dump(d, open(k["out_path"], "w")); return d
+    monkeypatch.setattr("docmodel.main.run", fake_run)
+
+    C.cmd_model(pdf)
+    assert "latex" in called            # gold LaTeX auto-overlaid onto the pdfminer base
+
+
+def test_cmd_model_no_latex_merge_for_non_arxiv(monkeypatch, tmp_path):
+    """A non-arXiv born-digital doc has no e-print — pdfminer only, no merge call."""
+    import json
+    from pdfdrill import commands as C
+    from docmodel.core import Document, DocObject
+    pdf = tmp_path / "local.pdf"; pdf.write_bytes(b"%PDF-1.4")
+    called = []
+    monkeypatch.setattr(C, "cmd_mathpix", lambda p: None)
+    monkeypatch.setattr(C, "_arxiv_id_for", lambda p, sc: None)   # not arXiv
+    monkeypatch.setattr(C, "cmd_latex", lambda p: called.append("latex"))
+    monkeypatch.setattr(C, "_write_born_digital_lines",
+                        lambda p: (C._lines_json_path(p).write_text('{"source":"pdfplumber-chars"}'), True)[1])
+
+    def fake_run(**k):
+        doc = Document(); doc.meta["bibkey"] = "x"
+        doc.add(DocObject(type="Page", props={"page": 1})); doc.meta["pages"] = [{"page": 1}]
+        d = doc.to_dict(); json.dump(d, open(k["out_path"], "w")); return d
+    monkeypatch.setattr("docmodel.main.run", fake_run)
+
+    C.cmd_model(pdf)
+    assert "latex" not in called        # no e-print → no merge

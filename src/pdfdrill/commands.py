@@ -2438,6 +2438,32 @@ def cmd_model(pdf: Path, force: bool = False, bibkey: str | None = None) -> str:
     )
     sc.save()
 
+    # AUTO-MERGE — pdfdrill's whole purpose is to extract AND merge sources. When
+    # the model was built from the born-digital pdfminer text stream (page
+    # geometry) and the doc is arXiv, OVERLAY the e-print's gold LaTeX (equations +
+    # TikZ/tables) so the DEFAULT model carries BOTH: geometry (pdfminer) AND gold
+    # math (LaTeX) — not one or the other. Runs AFTER MODEL_BUILT is set so the
+    # nested cmd_latex won't recurse into cmd_model. Downloads the e-print once
+    # (cached); graceful when the source is blocked/absent; non-arXiv is a no-op.
+    if (lines_source == "pdfplumber-chars" and _arxiv_id_for(pdf, sc)
+            and not sc.has(LATEX_INGESTED)):
+        try:
+            cmd_latex(pdf)                          # overlay gold equations + graphics
+            sc = Sidecar(pdf)
+            with open(model_path, "r", encoding="utf-8") as _f:
+                out = json.load(_f)                 # reload the MERGED model
+            objects = out.get("objects", [])
+            by_type = {}
+            for o in objects:
+                by_type[o["type"]] = by_type.get(o["type"], 0) + 1
+            has_math = by_type.get("Equation", 0) > 0 or by_type.get("Formula", 0) > 0
+            sc.set_evidence("model_object_counts", by_type)
+            sc.set_evidence("model_caps", {"geometry": has_geometry, "math": has_math,
+                                           "source": lines_source, "merged": "latex"})
+            sc.save()
+        except (Exception, SystemExit):             # source blocked/absent → pdfminer only
+            pass
+
     # MATH-BEARING GATE: a tesseract (keyless) build that produced 0 Equations on
     # a doc that clearly carries math is a FAILURE, not a result. Don't present it
     # as complete — flag NEEDS_VISION_OCR and instruct the keyless delegation
