@@ -75,12 +75,17 @@ def parse_tsv(tsv_text: str) -> tuple[list[dict], dict[int, tuple[float, float]]
 
 
 def group_lines(words: list[dict]) -> list[dict]:
-    """Group words into text lines by (page, block, line)."""
+    """Group words into text lines by (page, block, line), emitted in READING
+    order — sorted by that (page, block, line) key, NOT by geometric y. The
+    producers assign the key in reading order (chars_to_lines: a per-page
+    column-aware line index; tesseract TSV: block/par/line), so a two-column page
+    reads left column top-to-bottom then right column, instead of interleaving the
+    columns the way a y-sort does."""
     g: dict[tuple, list[dict]] = defaultdict(list)
     for w in words:
         g[(w["page"], w["block"], w["line"])].append(w)
     lines: list[dict] = []
-    for (page, _b, _l), ws in g.items():
+    for (page, _b, _l), ws in sorted(g.items()):
         ws.sort(key=lambda w: w["x0"])
         lines.append({
             "page": page,
@@ -90,7 +95,6 @@ def group_lines(words: list[dict]) -> list[dict]:
             "y1": max(w["y1"] for w in ws),
             "text": " ".join(w["text"] for w in ws),
         })
-    lines.sort(key=lambda l: (l["page"], l["y0"], l["x0"]))
     return lines
 
 
