@@ -15,6 +15,23 @@ commands:
     the apt-get fix line'
   offline_ok: true
   typed: true
+- name: preflight
+  section: Introspection (fast, no extraction)
+  summary: 'MANDATORY first step. Prints the critical usage rules + an env check; build/extract commands
+    are hard-blocked until you attest you read the SKILL via `preflight --ack <TOKEN>` (the token is the
+    SKILL''s last line). Read-only commands stay open. Automation may set PDFDRILL_NO_PREFLIGHT=1.'
+  offline_ok: true
+  positionals:
+  - name: token
+    type: str
+    required: false
+    help: 'the DRILL-… attestation token from the SKILL''s last line (or use --ack)'
+  flags:
+  - name: ack
+    flag: --ack
+    type: flag
+    help: acknowledge the attestation token → unlock build/extract commands
+  typed: true
 - name: config
   section: Introspection (fast, no extraction)
   summary: 'Show / init / set the config FILE (not CLI flags): download_dir (where URL/arXiv downloads

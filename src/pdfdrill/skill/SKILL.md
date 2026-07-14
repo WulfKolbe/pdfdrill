@@ -17,6 +17,36 @@ A PDF drill-down toolkit that starts shallow, returns prose, and remembers
 what it already knows. The LLM uses small commands; pdfdrill manages the
 state machine and the heavy tools underneath.
 
+## ⛔ MANDATORY PREFLIGHT — do this before ANY build/extract command
+
+pdfdrill's output reads as authoritative, so using it **without** the rules
+below silently produces WRONG results (bad extraction route, duplicated
+equations, a directory treated as a PDF). To make that impossible, build/extract
+commands (`model`, `mathpix`, `latex`, `tiddlers`, `semantic`, `make`, …) are
+**HARD-BLOCKED** until you attest that you read this SKILL:
+
+1. Run **`pdfdrill preflight`** (it prints the critical rules + checks the env).
+2. Read this SKILL **to its very last line** — it ends with an attestation token
+   `DRILL-xxxxxxxx` (a checksum of this file: if you can quote it, you read it all).
+3. Run **`pdfdrill preflight --ack DRILL-xxxxxxxx`** with that exact token.
+
+Only then do build/extract commands run. Read-only commands (`size`, `pdfinfo`,
+`doctor`, `status`, `config`, `steps`, `plan`) stay open so you can bootstrap.
+Trusted automation/CI may set `PDFDRILL_NO_PREFLIGHT=1` to skip the gate.
+
+**The distilled rules the token attests you have read:**
+1. Pass an identifier (path / https URL / bare arXiv id) as `<pdf>`; pdfdrill
+   downloads + resolves it. NEVER `curl`/`wget`/`tar`/`unzip` a PDF or e-print.
+2. Start shallow (`size`, `pdfinfo`, `links`, `abstract`) before a model; escalate
+   only when the question needs it.
+3. A built model can be a different SPECIES (geometry vs math). Trust `status`,
+   not the bare `MODEL_BUILT` fact.
+4. Never present a 0-equation model of a math paper as complete — the math was
+   dropped; run `mathpix`/`visionocr`.
+5. One command per step; let pdfdrill manage prerequisites (`--ensure`, `steps`).
+6. Read the files pdfdrill writes (`llmtext`, `report`, `tables`) from the drill
+   folder; do not re-extract by hand.
+
 ## READ FIRST — input & who decides (do not work around pdfdrill)
 
 **You pass an identifier; pdfdrill does the acquisition.** Every command's
@@ -429,6 +459,7 @@ _Generated from `commands.yaml` by skillsync. Edit the manifest, not this sectio
 | Command | Returns |
 |---|---|
 | `pdfdrill doctor` | Requirement check: system tools (poppler/tesseract/LaTeX+dvisvgm), Python deps, API keys + the apt-get fix line |
+| `pdfdrill preflight <token> [--ack]` | MANDATORY first step. Prints the critical usage rules + an env check; build/extract commands are hard-blocked until you attest you read the SKILL via `preflight --ack <TOKEN>` (the token is the SKILL's last line). Read-only commands stay open. Automation may set PDFDRILL_NO_PREFLIGHT=1. |
 | `pdfdrill config [--init] [--json] [--download-dir] [--library-root]` | Show / init / set the config FILE (not CLI flags): download_dir (where URL/arXiv downloads land) + library_root (the git folder holding one self-contained folder per drilled doc). --init; --json; --download-dir [DIR]; --library-root DIR |
 | `pdfdrill relocate <paths> [--apply] [--library]` | Migrate legacy scattered drills into the self-contained library layout: <library>/<stem>/ holding the PDF + every X.* sibling + the flattened X.pdf.drill/ blobs (X.pdf.drill.json → X.drill.json). Dry-run by default; --apply moves. Collision-safe + idempotent. |
 | `pdfdrill artifacts <pdf> [--all]` | List the openable files in the doc's drill folder (report.html, the extracted <bibkey>.md, tiddlers/semantic/llm *.json/*.txt, SVGs) with paths — clickable in the drillui Outputs panel. Giant model JSON hidden unless --all. (`status` also lists them.) |
@@ -566,3 +597,8 @@ _Generated from `commands.yaml` by skillsync. Edit the manifest, not this sectio
 | `pdfdrill visionocr <pdf> [--ingest INGEST] [--dpi DPI] [--pages PAGES] [--force]` | Keyless agent-delegated EQUATION OCR: rasterize each page → the running Claude reads the math → fold {page,number,latex,kind} records into the lines.json as real Equation nodes (number paired by geometry). The keyless math route when tesseract built a doc prose-only (NEEDS_VISION_OCR) |
 
 <!-- COMMANDS:END -->
+
+<!-- PREFLIGHT-TOKEN:BEGIN -->
+Attestation token — the LAST line of this SKILL. If you can read this, you read the whole file. Run `pdfdrill preflight --ack DRILL-1c8ce836` before any build/extract command.
+DRILL-1c8ce836
+<!-- PREFLIGHT-TOKEN:END -->

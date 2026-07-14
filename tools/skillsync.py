@@ -139,8 +139,14 @@ def cmd_render_skill(repo: Path) -> int:
         text = re.sub(re.escape(BEGIN) + r".*?" + re.escape(END), region, text, flags=re.S)
     else:
         text = text.rstrip() + "\n\n" + region + "\n"
+    # The preflight ATTESTATION TOKEN must be the LAST line: a checksum of the whole
+    # SKILL body, so an LLM that read to the end can prove it (the hard-stop gate).
+    import sys as _sys
+    _sys.path.insert(0, str((repo / "src").resolve()))
+    from pdfdrill import preflight as _pf
+    text = _pf.render_token_block(text)
     skill.write_text(text)
-    print(f"synced {skill}  ({len(man['commands'])} commands between markers)")
+    print(f"synced {skill}  ({len(man['commands'])} commands + preflight token)")
     return 0
 
 

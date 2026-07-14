@@ -68,6 +68,18 @@ def main():
             print(f"Unknown command: {cmd}. Run `pdfdrill help` for usage.", file=sys.stderr)
             return 1
 
+    # PREFLIGHT HARD STOP: a build/extract command is refused until the LLM has
+    # attested it read the SKILL (`pdfdrill preflight --ack <TOKEN>`), so it can't
+    # silently produce trusted-but-wrong output from a half-read SKILL. Read-only
+    # bootstrap commands stay open. Bypass with PDFDRILL_NO_PREFLIGHT=1.
+    try:
+        from . import preflight
+        if preflight.blocks(cmd):
+            print(preflight.gate_message(cmd), file=sys.stderr)
+            return 2
+    except Exception:
+        pass                                # a broken gate must never brick the CLI
+
     # --ensure: auto-insert the missing OFFLINE prerequisite steps (model /
     # bibliography) before running the target — the state machine reacting to a
     # skipped step. The target's own handler still runs normally afterwards.
@@ -164,6 +176,47 @@ def _do_artifacts(args):
     all_files = "--all" in args
     rest = [a for a in args if a != "--all"]
     return cmd_artifacts(_drilled(rest), all_files=all_files)
+
+
+def _do_preflight(args):
+    """pdfdrill preflight [--ack <TOKEN>] — the mandatory first step. No arg:
+    print the critical rules + how to attest. `--ack <TOKEN>`: acknowledge that
+    you read the whole SKILL (the token is its LAST line) → unlocks build/extract
+    commands for this session."""
+    from . import preflight as pf
+    # accept `--ack TOKEN`, `--ack=TOKEN`, or a bare DRILL-… token positional
+    token = None
+    for i, a in enumerate(args):
+        if a == "--ack" and i + 1 < len(args):
+            token = args[i + 1]
+        elif a.startswith("--ack="):
+            token = a.split("=", 1)[1]
+        elif a.startswith("DRILL-"):
+            token = a
+    if token:
+        if pf.attest(token):
+            return ("✓ preflight attested — build/extract commands unlocked for "
+                    "this session (24h). You confirmed you read the SKILL.")
+        return ("✗ preflight NOT attested: wrong token. The token is the LAST "
+                "line of SKILL.md — read the whole file, then run "
+                "`pdfdrill preflight --ack <TOKEN>` with that exact value.\n"
+                f"(expected form: {pf.expected_token()[:6]}…)")
+    lines = [pf.rules_card(), ""]
+    # a quick env sanity line (full check: `pdfdrill doctor`)
+    import importlib.util as _u
+    miss = [m for m in ("pdfminer", "pdfplumber", "pydantic")
+            if _u.find_spec(m) is None]
+    lines.append("env: " + ("all core Python deps present"
+                            if not miss else f"MISSING core deps: {', '.join(miss)} "
+                            f"— run `pdfdrill doctor` / `bash bootstrap.sh`"))
+    lines += [
+        "",
+        "TO PROCEED: read SKILL.md to its LAST line to get the attestation token,",
+        "then run:  pdfdrill preflight --ack <TOKEN>",
+        "Build/extract commands (model, mathpix, latex, tiddlers, …) are BLOCKED",
+        "until you do. Read-only commands (size, pdfinfo, doctor, status) are open.",
+    ]
+    return "\n".join(lines)
 
 
 def _do_config(args):
@@ -1600,6 +1653,7 @@ def _do_chatlog(args):
 HANDLERS = {
         "doctor": _do_doctor,
         "config": _do_config,
+        "preflight": _do_preflight,
         "make": _do_make,
         "relocate": _do_relocate,
         "artifacts": _do_artifacts,

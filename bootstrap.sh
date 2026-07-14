@@ -19,7 +19,8 @@ cd "$ROOT"
 
 # ---- Python deps --------------------------------------------------------
 pip install --quiet --break-system-packages -r requirements.txt 2>/dev/null \
-  || pip install --quiet --break-system-packages "pdfplumber>=0.11" "pydantic>=2.0" \
+  || pip install --quiet --break-system-packages \
+       "pdfminer.six>=20221105" "pdfplumber>=0.11" "pydantic>=2.0" "pypdf>=4.0" \
   || true
 
 # ---- System deps (apt-get, best-effort) ---------------------------------
