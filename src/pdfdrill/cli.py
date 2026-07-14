@@ -17,6 +17,7 @@ Usage:
 
 from __future__ import annotations
 
+import os
 import sys
 from pathlib import Path
 
@@ -88,7 +89,13 @@ def main():
             print(result)
         return 0
     except Exception as e:
-        print(f"Error: {e}", file=sys.stderr)
+        # Name the exception TYPE (a bare "No such file …" hides that it's a
+        # FileNotFoundError from deep in a handler); PDFDRILL_DEBUG=1 prints the
+        # full traceback so the exact failing file/line is visible.
+        print(f"Error [{type(e).__name__}]: {e}", file=sys.stderr)
+        if os.environ.get("PDFDRILL_DEBUG"):
+            import traceback
+            traceback.print_exc()
         return 1
 
 
