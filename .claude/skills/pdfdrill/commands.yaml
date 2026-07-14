@@ -1256,10 +1256,11 @@ commands:
   typed: true
 - name: merge
   section: Introspection (fast, no extraction)
-  summary: 'Merge gold LaTeX prose onto the MathPix layout: MathPix Paragraphs fix the boundaries + regions,
-    the author LaTeX supplies the text (LaTeX always wins; MathPix OCR kept as text_source). Fixes coarse
-    source-build paragraphs (one 3000-char block MathPix splits into 3-4) without losing geometry. Needs a
-    MathPix model + a LaTeX source.'
+  summary: 'Merge gold LaTeX prose onto a layout skeleton (MathPix OR born-digital pdfminer/pdfplumber OR
+    tesseract): the model''s Paragraphs fix the boundaries + regions, the author LaTeX supplies the text
+    (LaTeX always wins; original kept as text_source). On a born-digital 2-column paper this DROPS the
+    column interleaving + arXiv margin watermark from the prose. Refuses a source-built model (already
+    gold). Needs a model + a LaTeX source.'
   offline_ok: true
   requires:
   - model

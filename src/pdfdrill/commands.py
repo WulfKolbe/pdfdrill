@@ -2591,6 +2591,15 @@ def cmd_model(pdf: Path, force: bool = False, bibkey: str | None = None) -> str:
             and _arxiv_id_for(pdf, sc) and not sc.has(LATEX_INGESTED)):
         try:
             cmd_latex(pdf)                          # overlay gold equations + graphics
+            # AND merge the gold LaTeX PROSE onto the born-digital paragraphs — the
+            # char-layer prose is garbled by two-column interleaving + the arXiv
+            # margin watermark; the gold text replaces it (LaTeX-wins, original
+            # saved as text_source), so the model's prose is clean by default. This
+            # is "extract AND merge several sources" automatically. Best-effort.
+            try:
+                cmd_merge(pdf)
+            except (Exception, SystemExit):
+                pass
             sc = Sidecar(pdf)
             with open(model_path, "r", encoding="utf-8") as _f:
                 out = json.load(_f)                 # reload the MERGED model
@@ -5562,11 +5571,20 @@ def cmd_merge(pdf: Path, tex: str | None = None) -> str:
         return f"No model for {pdf.name} — run `pdfdrill model` first."
 
     doc = load_model(model_path)
-    if doc.meta.get("source") != "mathpix":
-        return (f"{pdf.name}: merge needs a MathPix model as the layout skeleton "
-                f"(this model's source is {doc.meta.get('source')!r}). Build the "
-                f"MathPix model first: `pdfdrill mathpix {pdf.name} --force` then "
-                f"`pdfdrill model {pdf.name}`.")
+    # The merge needs a LAYOUT skeleton (Paragraph objects with geometry) whose
+    # prose is imperfect — MathPix OCR, or a born-digital pdfminer/pdfplumber char
+    # layer (garbled by two-column interleaving + the arXiv margin watermark), or
+    # tesseract OCR. It does NOT apply to a source-BUILT model, whose prose already
+    # IS the gold LaTeX (there's nothing to correct).
+    source = doc.meta.get("source")
+    if source == "latex":
+        return (f"{pdf.name}: this model was built FROM the LaTeX source, so its "
+                f"prose is already the gold text — nothing to merge onto. (merge "
+                f"corrects an OCR/pdfminer layout skeleton with the gold prose.)")
+    _SRC_LABEL = {"mathpix": "MathPix", "pdfminer-chars": "born-digital (pdfminer)",
+                  "pdfplumber-chars": "born-digital (pdfplumber)",
+                  "tesseract": "tesseract OCR", "visionocr": "vision OCR"}
+    skel = _SRC_LABEL.get(source, source or "the")
     paras = doc.objects_of_type("Paragraph")
     # MathPix stores paragraph geometry in the `mathpix_lines` realizations (line
     # regions), not props["region"]; the merge leaves realizations untouched, so
@@ -5574,7 +5592,7 @@ def cmd_merge(pdf: Path, tex: str | None = None) -> str:
     located = [p for p in paras
                if p.props.get("page") is not None or p.realizations]
     if not paras:
-        return f"{pdf.name}: the MathPix model has no Paragraph objects to merge onto."
+        return f"{pdf.name}: the {skel} model has no Paragraph objects to merge onto."
 
     src, err = _locate_latex_source(pdf, sc, tex)
     if err:
@@ -5593,11 +5611,14 @@ def cmd_merge(pdf: Path, tex: str | None = None) -> str:
     sc.set_evidence("merge_latex_source", src.name)
     sc.set_evidence("merge_paragraphs_changed", changed)
     sc.save()
-    return (f"Merged LaTeX prose from {src.name} onto {len(paras)} MathPix "
-            f"paragraph(s) ({len(located)} located; geometry preserved via the "
-            f"mathpix_lines realizations, inspect derives each bbox from them): "
-            f"{changed} paragraph(s) got gold text (LaTeX-wins; MathPix boundaries "
-            f"kept, OCR saved as `text_source`). Unmatched captions left as-is. "
+    watermark = (" This drops the two-column interleaving + arXiv margin watermark "
+                 "from the prose (the gold text replaces the char-layer text)."
+                 if source in ("pdfminer-chars", "pdfplumber-chars") else "")
+    return (f"Merged LaTeX prose from {src.name} onto {len(paras)} {skel} "
+            f"paragraph(s) ({len(located)} located; geometry/regions preserved — "
+            f"the merge only replaces `text`): {changed} paragraph(s) got gold text "
+            f"(LaTeX-wins; boundaries kept, original saved as `text_source`)."
+            f"{watermark} Unmatched captions left as-is. "
             f"Run `pdfdrill inspect {pdf.name}` to see the corrected partitioning.")
 
 

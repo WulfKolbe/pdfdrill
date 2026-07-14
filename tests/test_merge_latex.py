@@ -23,6 +23,29 @@ def _para(pid, text, region, flow):
         "text": text, "region": region, "flow_index": flow})
 
 
+def test_merges_onto_pdfminer_garble_dropping_watermark():
+    """The gold-LaTeX-prose merge on a BORN-DIGITAL (pdfminer) skeleton: a
+    two-column paper's paragraph carries the arXiv margin watermark ("0") + column
+    interleaving. The merge replaces it with clean gold LaTeX — the watermark and
+    the garble are DROPPED (they came from the char layer, the gold does not)."""
+    doc = Document(); doc.meta["bibkey"] = "T"; doc.meta["source"] = "pdfminer-chars"
+    # a pdfminer paragraph: leading watermark glyph "0" + interleaved right-column
+    # words spliced into the left-column prose (the exact failure the user saw)
+    doc.add(_para("p1",
+                  "0 This paper introduces a novel approach and diffusion-based "
+                  "generation, there is for topic modeling", None, 1))
+    gold = ("This paper introduces a novel approach for topic modeling utilizing "
+            "latent codebooks from Vector-Quantized Variational Auto-Encoder.")
+    n = ml.merge_latex_prose(doc, gold)
+    assert n == 1
+    txt = doc.objects["p1"].props["text"]
+    assert txt == gold                                   # clean gold, in reading order
+    assert not txt.split()[0] == "0"                     # watermark dropped
+    assert "diffusion-based" not in txt                  # interleaved garble dropped
+    assert doc.objects["p1"].props["text_source"].startswith("0 This")  # original saved
+    assert doc.objects["p1"].props["merged_from"] == "latex"
+
+
 def test_gold_prose_repartitioned_at_mathpix_boundaries():
     """MathPix says 3 short (OCR-garbled) paragraphs; the gold LaTeX is one blob.
     After merge there are still 3 paragraphs, each carrying its aligned CLEAN gold
@@ -96,6 +119,50 @@ def test_latex_prose_from_body_strips_structure_and_markup():
     assert "a=b" not in prose                                     # display math dropped
     assert "\\cite" not in prose and "\\label" not in prose
     assert "\\(x>0\\)" in prose                                   # inline math kept
+
+
+def _pdfminer_model(pdf, source="pdfminer-chars"):
+    """A minimal built model with the given meta source + a garbled Paragraph."""
+    import json
+    from pdfdrill import commands as C
+    from pdfdrill.sidecar import Sidecar
+    d = Document(); d.meta["bibkey"] = "paper"; d.meta["source"] = source
+    d.add(_para("p1", "0 The quiok brown fox jumps", None, 1))
+    sc = Sidecar(pdf); sc.blob_dir.mkdir(parents=True, exist_ok=True)
+    mp = C._model_path(sc)
+    with open(mp, "w", encoding="utf-8") as f:
+        json.dump(d.to_dict(), f)
+    sc.add_fact(C.MODEL_BUILT); sc.save()
+    return mp
+
+
+def test_cmd_merge_accepts_pdfminer_model(tmp_path):
+    """The gate is relaxed: a born-digital pdfminer model IS a valid merge
+    skeleton (its prose is garbled). A local .tex supplies the gold prose."""
+    from pdfdrill import commands as C
+    pdf = tmp_path / "paper.pdf"; pdf.write_bytes(b"%PDF-1.4")
+    tex = tmp_path / "paper.tex"
+    tex.write_text("\\documentclass{article}\\begin{document}\n"
+                   "The quick brown fox jumps over the lazy dog.\n"
+                   "\\end{document}\n")
+    _pdfminer_model(pdf)
+    out = C.cmd_merge(pdf, tex=str(tex))
+    assert "born-digital (pdfminer)" in out and "got gold text" in out
+    from pdfdrill.model_io import load_model
+    doc = load_model(C._model_path(C.Sidecar(pdf)))
+    p = next(iter(doc.objects_of_type("Paragraph")))
+    assert p.props["text"].startswith("The quick brown fox")   # gold, watermark gone
+    assert p.props.get("text_source", "").startswith("0 The quiok")
+
+
+def test_cmd_merge_refuses_source_built_model(tmp_path):
+    """A model built FROM LaTeX already has gold prose — refuse (nothing to fix)."""
+    from pdfdrill import commands as C
+    pdf = tmp_path / "paper.pdf"; pdf.write_bytes(b"%PDF-1.4")
+    tex = tmp_path / "paper.tex"; tex.write_text("x")
+    _pdfminer_model(pdf, source="latex")
+    out = C.cmd_merge(pdf, tex=str(tex))
+    assert "already the gold text" in out
 
 
 if __name__ == "__main__":
