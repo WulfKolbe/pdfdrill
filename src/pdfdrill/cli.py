@@ -192,6 +192,64 @@ def _do_config(args):
     return cmd_config("show")
 
 
+def _do_make(args):
+    """pdfdrill make <pdf> --goal <capability> — PLAN the ordered commands to
+    establish the goal (clobber-checked), then EXECUTE them, recording proofs and
+    stopping at the first failure. A refused plan runs nothing."""
+    goal = None
+    rest = []
+    i = 0
+    while i < len(args):
+        a = args[i]
+        if a == "--goal" and i + 1 < len(args):
+            goal = args[i + 1]; i += 2; continue
+        if a.startswith("--goal="):
+            goal = a.split("=", 1)[1]; i += 1; continue
+        rest.append(a); i += 1
+    if not goal and len(rest) >= 2:
+        goal = rest.pop()                       # `make <pdf> <goal>` form
+    if not goal:
+        return "usage: pdfdrill make <pdf> --goal <capability>   (e.g. SEMANTIC_BUILT)"
+    pdf = _pdf(rest[:1])
+    from .sidecar import Sidecar
+    from . import capability_planner as cp
+    sc = Sidecar(pdf)
+    held = frozenset(sc.facts)
+    invalid = frozenset(f for f in held if not sc.capability_valid(f))
+
+    def run(cmd):
+        handler = HANDLERS.get(cmd)
+        if handler is None:
+            return False, f"no handler for '{cmd}'"
+        try:
+            out = handler([str(pdf)])
+            first = (out or "").strip().splitlines()[0] if out else "ok"
+            return True, first
+        except Exception as e:                  # noqa: BLE001
+            return False, f"{type(e).__name__}: {e}"
+
+    result = cp.make(goal, run, held=held, invalid=invalid)
+    if isinstance(result, cp.ClobberRefused):
+        return str(result)
+    plan = result.get("plan", [])
+    if not plan:
+        return f"{goal}: already satisfied — nothing to do."
+    lines = [f"make {goal} → plan: {' → '.join(plan)}", ""]
+    for cmd in plan:
+        if cmd in result["executed"]:
+            lines.append(f"  ✓ {cmd}: {result['results'].get(cmd, 'ok')}")
+        elif cmd == result["failed"]:
+            lines.append(f"  ✗ {cmd}: {result['results'].get(cmd, 'failed')}")
+        else:
+            lines.append(f"  · {cmd}: (skipped — prior step failed)")
+    if result["failed"]:
+        lines.append(f"\nStopped at `{result['failed']}`. Fix and re-run "
+                     f"`pdfdrill make {pdf.name} --goal {goal}`.")
+    else:
+        lines.append(f"\nDone: {goal} established.")
+    return "\n".join(lines)
+
+
 def _do_relocate(args):
     """pdfdrill relocate <pdf|dir> … [--apply] [--library DIR] — migrate legacy
     scattered drills into the self-contained library layout. Dry-run by default."""
@@ -1542,6 +1600,7 @@ def _do_chatlog(args):
 HANDLERS = {
         "doctor": _do_doctor,
         "config": _do_config,
+        "make": _do_make,
         "relocate": _do_relocate,
         "artifacts": _do_artifacts,
         "size": _do_size,

@@ -141,6 +141,33 @@ def plan(goal: str, held=frozenset(), invalid=frozenset()):
     return order
 
 
+def execute(order: list[str], run) -> dict:
+    """Run each command in `order` via `run(cmd) -> (ok: bool, detail: str)`,
+    stopping at the FIRST failure and reporting the plan position (partial,
+    honestly-pending). Returns {executed, failed, results}."""
+    executed: list[str] = []
+    results: dict[str, str] = {}
+    for cmd in order:
+        ok, detail = run(cmd)
+        results[cmd] = detail
+        if not ok:
+            return {"executed": executed, "failed": cmd, "results": results}
+        executed.append(cmd)
+    return {"executed": executed, "failed": None, "results": results}
+
+
+def make(goal: str, run, held=frozenset(), invalid=frozenset()):
+    """Plan toward `goal` then execute it. Returns a ClobberRefused (nothing run),
+    or the execute() report dict (with `plan` added). A refused plan never touches
+    the pipeline — the clobber guard sits before any side effect."""
+    result = plan(goal, held=held, invalid=invalid)
+    if isinstance(result, ClobberRefused):
+        return result
+    report = execute(result, run)
+    report["plan"] = result
+    return report
+
+
 def describe(goal: str, held=frozenset(), invalid=frozenset()) -> str:
     """Human-readable plan / refusal for `pdfdrill plan`."""
     try:

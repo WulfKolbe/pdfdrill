@@ -236,6 +236,27 @@ commands:
     type: flag
     help: 'capability goal (fact/alias/command, e.g. SEMANTIC_BUILT or ModelAvailable) → capability planner'
   typed: true
+- name: make
+  section: Planning & automation
+  summary: 'Establish a capability GOAL: plan the ordered commands (clobber-checked against what the doc
+    already holds), then execute them — recording proofs, stopping at the first failure. A plan that would
+    rebuild the model and destroy a held enrichment is REFUSED and nothing runs.'
+  offline_ok: true
+  positionals:
+  - name: pdf
+    type: pdf
+    required: true
+    help: PDF path, https URL, or bare arXiv id
+  - name: goal
+    type: str
+    required: false
+    help: 'capability goal (fact/alias/command, e.g. SEMANTIC_BUILT); or pass --goal'
+  flags:
+  - name: goal
+    flag: --goal
+    type: flag
+    help: capability goal to establish
+  typed: true
 - name: drill
   section: Planning & automation
   summary: Full auto-drill

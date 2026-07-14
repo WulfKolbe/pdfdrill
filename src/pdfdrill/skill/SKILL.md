@@ -541,6 +541,7 @@ _Generated from `commands.yaml` by skillsync. Edit the manifest, not this sectio
 | Command | Returns |
 |---|---|
 | `pdfdrill plan <pdf> <question> [--goal]` | Show what steps are needed to answer a question — or, with --goal <capability>, the ordered commands to establish that capability, clobber-checked against what the doc already holds (refuses a plan that would rebuild the model and silently destroy a held enrichment like LATEX_INGESTED). |
+| `pdfdrill make <pdf> <goal> [--goal]` | Establish a capability GOAL: plan the ordered commands (clobber-checked against what the doc already holds), then execute them — recording proofs, stopping at the first failure. A plan that would rebuild the model and destroy a held enrichment is REFUSED and nothing runs. |
 | `pdfdrill drill <pdf> [--full]` | Full auto-drill |
 | `pdfdrill steps <cmd> <pdf>` | Show the prerequisite chain for a command (what's done, what --ensure would run) |
 | `pdfdrill combine <docs> [--out OUT] [--force]` | Merge several drilled docs into ONE combined store (--out FILE) for MULTI-DOCUMENT chat/retrieve; pools prose/math/concepts, ids namespaced <bibkey>:<id>. Each input must be drilled (model) first |
