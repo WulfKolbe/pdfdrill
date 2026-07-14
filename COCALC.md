@@ -122,6 +122,12 @@ and logs it. Nothing to configure — open the doc, click an Outputs link.
   both the page URL and the `wss://…/server/N/ws` string.
 - **Missing system tool** (poppler / dvisvgm / ghostscript / tesseract) —
   re-run `pdfdrill doctor`; it prints the exact `apt-get` line to fix each.
+- **`pdfdrill pyramid` won't start** (`imageserve` / the deep-zoom viewer) — it
+  needs **pyvips**, which `bootstrap.sh` does NOT install. `pyvips[binary]` bundles
+  libvips (no apt, no root). `cocalc-setup.sh` step 5/5 installs it; to (re)run just
+  that step:
+
+      bash tools/imageserver/install.sh      # == pip install 'pdfdrill[imageserver]'
 - **Artifacts/viewer links 404 in the browser** — these are now derived through
   the proxy path (same fix as the WebSocket URL), so they should resolve. If a link
   still 404s, open the report/artifact from the `*.drill/` folder in the CoCalc file

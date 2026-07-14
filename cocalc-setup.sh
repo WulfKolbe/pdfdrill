@@ -73,10 +73,18 @@ if command -v uv >/dev/null 2>&1; then echo "  uv $(uv --version)"; else
 fi
 
 echo
-echo "== 4/4  Shared Python + system deps (bootstrap.sh) =="
+echo "== 4/5  Shared Python + system deps (bootstrap.sh) =="
 # bootstrap.sh installs the Python deps via pip and the remaining apt packages
 # (ghostscript, tesseract, libvips), then runs `pdfdrill doctor`.
 bash "$ROOT/bootstrap.sh"
+echo
+
+echo "== 5/5  Deep-zoom image server for pdfdrill pyramid (pyvips, no root) =="
+# `pdfdrill pyramid`/`imageserve` need pyvips (DZI tiling) — NOT installed by
+# bootstrap.sh. pyvips[binary] bundles libvips, so no apt/root. Repeat anytime:
+#   bash tools/imageserver/install.sh
+bash "$ROOT/tools/imageserver/install.sh" \
+  || echo "  (imageserver install failed — re-run: bash tools/imageserver/install.sh)"
 
 echo
 echo "──────────────────────────────────────────────────────────────────────"
