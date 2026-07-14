@@ -710,13 +710,17 @@ const app = {
     // 1b. any `.drill/…` artifact path after a lead-in (→ / -> / wrote / stored /
     //     to), spaces and all — anchored on `.drill/` so ".md" in the dir name
     //     can't truncate it. Covers commands that don't use the `Open … in` form.
+    // `(?!\\.[a-z])` = the matched extension must be the LAST one — so a
+    //   MULTI-extension name like `2502.20855v2.tex.zip` (MathPix) is NOT
+    //   truncated to `…tex` (a dead link to a file that doesn't exist), and
+    //   `x.md.meta` doesn't become `x.md`. The `.zip` itself isn't an artifact.
     const drill = new RegExp(
       "(?:->|→|to|wrote(?:\\s+to)?|stored(?:\\s+(?:at|in))?)\\s+" +
-      "([^\\n]*?\\.drill\\/[^\\n]*?\\." + EXT + ")(?=[\\s.,;)]|$)", "gi");
+      "([^\\n]*?\\.drill\\/[^\\n]*?\\." + EXT + ")(?!\\.[a-z])(?=[\\s.,;)]|$)", "gi");
     while ((m = drill.exec(text)) !== null) add(m[1], m[2]);
     // 2. bare path-like tokens (no spaces) anywhere in the prose
     const re = new RegExp(
-      "(?<![\\w/])((?:[\\w.+~@%-]+\\/)*[\\w.+~@%-]+\\." + EXT + ")\\b", "gi");
+      "(?<![\\w/])((?:[\\w.+~@%-]+\\/)*[\\w.+~@%-]+\\." + EXT + ")\\b(?!\\.[a-z])", "gi");
     while ((m = re.exec(text)) !== null) add(m[1], m[2]);
     if (added) this.renderArtifacts();
   },
