@@ -217,7 +217,9 @@ commands:
   typed: true
 - name: plan
   section: Planning & automation
-  summary: Show what steps are needed
+  summary: 'Show what steps are needed to answer a question — or, with --goal <capability>, the ordered
+    commands to establish that capability, clobber-checked against what the doc already holds (refuses a
+    plan that would rebuild the model and silently destroy a held enrichment like LATEX_INGESTED).'
   offline_ok: true
   positionals:
   - name: pdf
@@ -226,8 +228,13 @@ commands:
     help: PDF path, https URL, or bare arXiv id
   - name: question
     type: str
-    required: true
-    help: natural-language question
+    required: false
+    help: natural-language question (omit when using --goal)
+  flags:
+  - name: goal
+    flag: --goal
+    type: flag
+    help: 'capability goal (fact/alias/command, e.g. SEMANTIC_BUILT or ModelAvailable) → capability planner'
   typed: true
 - name: drill
   section: Planning & automation

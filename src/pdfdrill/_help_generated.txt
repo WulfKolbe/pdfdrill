@@ -112,7 +112,7 @@ Query:
   pdfdrill occurrences <pdf> [--type TYPE]    Emit <bibkey>.occurrences.json — a per-element region list (page + top_left_x/y/width/height + tiddler title) for the optional EXTERNAL image-enrichment tools (locate an element on the rendered page by region, no content matching). Region-bearing types only: Equation by default, --type adds Table/ Picture/Diagram. Inline Formula excluded (deduped, no per-object region).
 
 Planning & automation:
-  pdfdrill plan <pdf> <question>              Show what steps are needed
+  pdfdrill plan <pdf> <question> [--goal]     Show what steps are needed to answer a question — or, with --goal <capability>, the ordered commands to establish that capability, clobber-checked against what the doc already holds (refuses a plan that would rebuild the model and silently destroy a held enrichment like LATEX_INGESTED).
   pdfdrill drill <pdf> [--full]               Full auto-drill
   pdfdrill steps <cmd> <pdf>                  Show the prerequisite chain for a command (what's done, what --ensure would run)
   pdfdrill combine <docs> [--out OUT] [--force] Merge several drilled docs into ONE combined store (--out FILE) for MULTI-DOCUMENT chat/retrieve; pools prose/math/concepts, ids namespaced <bibkey>:<id>. Each input must be drilled (model) first

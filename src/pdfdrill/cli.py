@@ -1129,7 +1129,30 @@ def _do_fetch(args):
 
 
 def _do_plan(args):
-    """Show what pdfdrill would do to answer a question."""
+    """Show what pdfdrill would do to answer a question — or, with `--goal
+    <capability>`, the CAPABILITY-planner path: the ordered commands to establish
+    that goal, clobber-checked against what the doc already holds (refuses a plan
+    that would rebuild the model and silently destroy a held enrichment)."""
+    # Capability-goal mode (Phase C): `pdfdrill plan <pdf> --goal SEMANTIC_BUILT`.
+    goal = None
+    rest = []
+    i = 0
+    while i < len(args):
+        a = args[i]
+        if a == "--goal" and i + 1 < len(args):
+            goal = args[i + 1]; i += 2; continue
+        if a.startswith("--goal="):
+            goal = a.split("=", 1)[1]; i += 1; continue
+        rest.append(a); i += 1
+    if goal:
+        pdf = _pdf(rest[:1])
+        from .sidecar import Sidecar
+        from . import capability_planner as cp
+        sc = Sidecar(pdf)
+        held = frozenset(sc.facts)
+        invalid = frozenset(f for f in held if not sc.capability_valid(f))
+        return cp.describe(goal, held=held, invalid=invalid)
+
     pdf = _pdf(args[:1])
     question = " ".join(args[1:]) if len(args) > 1 else ""
 

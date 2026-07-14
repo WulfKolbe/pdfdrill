@@ -34,6 +34,12 @@ _COMMANDS_PY = Path(__file__).with_name("commands.py")
 # model-derived enrichment fact.
 MODEL_BUILDERS = ("model", "markdown", "latexbook")
 
+# Conditional / negative "gate" facts a command may set that are NOT capabilities
+# you can plan toward or treat as prerequisites (NEEDS_VISION_OCR flags a gap;
+# *_ABSENT record a negative probe result). They must be excluded when deciding
+# whether a required command is satisfied.
+GATE_FACTS = frozenset({"NEEDS_VISION_OCR", "ABSTRACT_ABSENT", "TOC_ABSENT"})
+
 # The A-mode enrichment facts a docmodel rebuild invalidates. Everything here is
 # a fact set by a command that operates ON the model (or writes a model-derived
 # artifact); rebuilding the model from lines.json discards all of it. NOT listed:
@@ -118,6 +124,13 @@ def all_facts() -> set[str]:
 def produces() -> dict[str, list[str]]:
     """{command: [facts it add_fact()s]} — AST-derived, code-synced."""
     return dict(_parse()[1])
+
+
+def capability_facts(command: str) -> list[str]:
+    """The planner-meaningful facts a command establishes — its produced facts
+    minus the conditional GATE_FACTS (a required command counts as satisfied when
+    these are held, not its NEEDS_VISION_OCR-style side signals)."""
+    return [f for f in _parse()[1].get(command, []) if f not in GATE_FACTS]
 
 
 def _removes() -> dict[str, list[str]]:
