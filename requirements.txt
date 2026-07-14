@@ -8,7 +8,8 @@
 #     Debian/Ubuntu: apt-get install poppler-utils  Fedora: dnf install poppler-utils
 #     Solus: eopkg install poppler                  macOS: brew install poppler
 
-pdfplumber>=0.11      # anchor-text URL layer, char geometry, image rects
+pdfminer.six>=20221105  # born-digital text layer (model char dump), font-span leg
+pdfplumber>=0.11      # tables, image rects, anchor-text URL layer
 pydantic>=2.0         # DocumentContext state-machine carrier (md / drill / page engine path)
 pypdf>=4.0            # form-field reading + document-level attachment fallback (pdfdrill formfields/attachments)
 

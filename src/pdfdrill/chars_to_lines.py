@@ -72,11 +72,13 @@ def _page_words(page: dict[str, Any]) -> list[dict[str, Any]]:
 
 
 def chars_to_lines_json(data: dict[str, Any]) -> dict[str, Any]:
-    """pdfplumber char dump → MathPix-compatible lines.json dict."""
+    """Born-digital char dump → MathPix-compatible lines.json dict. The dump's own
+    `source` label is preserved (pdfminer-chars / pdfplumber-chars)."""
     words: list[dict] = []
     dims: dict[int, tuple[float, float]] = {}
     for page in data.get("pages", []):
         pg = page.get("page_number")
         dims[pg] = (float(page.get("width") or 0), float(page.get("height") or 0))
         words.extend(_page_words(page))
-    return ocr_lines.lines_json_from_words(words, dims, source="pdfplumber-chars")
+    return ocr_lines.lines_json_from_words(
+        words, dims, source=data.get("source", "pdfplumber-chars"))

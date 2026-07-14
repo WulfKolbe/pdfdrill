@@ -36,6 +36,30 @@ def test_write_born_digital_lines_from_text_layer(monkeypatch):
         assert data["pages"] and data["pages"][0]["lines"]
 
 
+def test_born_digital_dump_prefers_pdfminer(monkeypatch):
+    """pdfminer.six is the born-digital engine now (it replaced pdfplumber). When
+    available, `_born_digital_char_dump` uses it; pdfplumber is only the fallback."""
+    with tempfile.TemporaryDirectory() as d:
+        pdf = Path(d) / "x.pdf"; pdf.write_bytes(b"%PDF-1.4")
+        miner = {"source": "pdfminer-chars", "total_pages": 1,
+                 "pages": [{"page_number": 1, "width": 612, "height": 792,
+                            "chars": [{"x0": 1, "x1": 2, "y0": 700, "y1": 712,
+                                       "text": "a"}]}]}
+        monkeypatch.setattr(C, "_pdfminer_char_dump", lambda p: miner)
+        monkeypatch.setattr(C, "_pdfplumber_char_dump",
+                            lambda p: (_ for _ in ()).throw(AssertionError("pdfplumber used")))
+        assert C._born_digital_char_dump(pdf)["source"] == "pdfminer-chars"
+
+
+def test_born_digital_dump_falls_back_to_pdfplumber(monkeypatch):
+    with tempfile.TemporaryDirectory() as d:
+        pdf = Path(d) / "x.pdf"; pdf.write_bytes(b"%PDF-1.4")
+        monkeypatch.setattr(C, "_pdfminer_char_dump",
+                            lambda p: (_ for _ in ()).throw(RuntimeError("no pdfminer")))
+        monkeypatch.setattr(C, "_pdfplumber_char_dump", lambda p: _dump(5))
+        assert C._born_digital_char_dump(pdf)["source"] == "pdfplumber-chars"
+
+
 def test_write_born_digital_lines_false_when_no_text_layer(monkeypatch):
     """A scan (pdfplumber finds ~no chars) → False, so cmd_model falls to OCR."""
     with tempfile.TemporaryDirectory() as d:

@@ -77,7 +77,7 @@ def existing_local_path(arg: str) -> Optional[Path]:
             p = Path(cand).expanduser()
         except (ValueError, OSError):
             continue
-        if p.exists():
+        if p.is_file():                      # a PDF/md input is a FILE, never a dir
             return p
     return None
 
@@ -283,9 +283,14 @@ def resolve_input(arg: str, dest_dir: Optional[Path] = None) -> dict:
         # expand `~`/`~user` ($HOME shorthand) so `~/x.pdf` resolves like the
         # absolute path; harmless on a bare arXiv id (no leading ~).
         arg = str(Path(arg).expanduser())
-        # a real local file always wins (even if it is named like an arXiv id) —
-        # resolving paste artifacts (invisible chars / NFD accents / %-encoding)
-        local = Path(arg) if Path(arg).exists() else existing_local_path(arg)
+        # a real local FILE always wins (even if it is named like an arXiv id) —
+        # resolving paste artifacts (invisible chars / NFD accents / %-encoding).
+        # MUST be a file, not a directory: the self-contained doc folder is named
+        # after the bare id (`2509.26251v2/`), so `Path("2509.26251v2").exists()`
+        # would match that FOLDER and hand `size` a directory to stat (the bogus
+        # "0-page scan, needs_ocr" bug). is_file() lets the bare-id branch below
+        # resolve to `<folder>/<id>.pdf` instead.
+        local = Path(arg) if Path(arg).is_file() else existing_local_path(arg)
         if local is not None:
             return {"path": local, "source": None, "arxiv_id": None}
         # otherwise a BARE arXiv id is downloaded as arXiv (the skill gotcha fix)

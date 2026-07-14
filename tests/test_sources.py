@@ -150,6 +150,33 @@ def test_url_download_registry_logs_and_survives_collisions(monkeypatch):
         assert c1["path"] == c2["path"]                    # same content → one file
 
 
+def test_bare_id_not_hijacked_by_same_named_doc_folder(monkeypatch):
+    """Regression: the self-contained doc folder is named after the bare arXiv id
+    (`2509.26251v2/`). A bare-id resolve must NOT return that DIRECTORY (which
+    `size` then stat'ed as a bogus 0-page scan); it must resolve to the PDF INSIDE
+    the folder (reusing it, or downloading)."""
+    import tempfile
+    sample = b"%PDF-1.4 test"
+
+    def fake_download(url, dest):
+        Path(dest).write_bytes(sample)
+        return Path(dest)
+    monkeypatch.setattr(S, "download", fake_download)
+    with tempfile.TemporaryDirectory() as d:
+        dd = Path(d)
+        # first resolve creates the doc folder <dd>/2509.26251v2/2509.26251v2.pdf
+        out1 = S.resolve_input("2509.26251v2", dest_dir=dd)
+        assert out1["path"].is_file() and out1["path"].name == "2509.26251v2.pdf"
+        assert out1["path"].parent.name == "2509.26251v2"
+        # re-resolve from a cwd that CONTAINS the id-named folder: it must not be
+        # mistaken for a local file — still resolves to the PDF inside it
+        monkeypatch.chdir(dd)
+        out2 = S.resolve_input("2509.26251v2", dest_dir=dd)
+        assert out2["path"].is_file()                 # not the directory
+        assert out2["path"] == out1["path"]
+        assert out2["source"] == "arxiv"
+
+
 def test_resolve_local_path_wins_over_arxiv_shape(monkeypatch):
     # an existing local file named like an id is used as-is, never downloaded
     import tempfile

@@ -256,16 +256,44 @@ def _lines_json_path(pdf: Path) -> Path:
 
 # Keyless, TEXT-only build sources (no LaTeX/math typing): tesseract OCR and the
 # pdfplumber born-digital text layer. The math-bearing gate treats both alike.
-_KEYLESS_TEXTONLY_SOURCES = ("tesseract", "pdfplumber-chars")
+_KEYLESS_TEXTONLY_SOURCES = ("tesseract", "pdfminer-chars", "pdfplumber-chars")
 
 
 def _is_keyless_textonly_source(source: str) -> bool:
     return source in _KEYLESS_TEXTONLY_SOURCES
 
 
+def _pdfminer_char_dump(pdf: Path) -> dict:
+    """Extract a born-digital CHARACTER dump with **pdfminer.six** in the shape
+    `chars_to_lines` expects (PDF bottom-left origin, chars grouped per page).
+    pdfminer.six is the born-digital engine (it replaced pdfplumber here — richer
+    font/emphasis, and the one engine the font-span leg already uses). Raises when
+    pdfminer.six is absent so the caller can fall back."""
+    from . import pdfminer_layer as PM
+    if not PM.available():
+        raise RuntimeError("pdfminer.six not installed")
+    recs = PM.char_records(str(pdf))                 # top-left origin: top/bottom
+    dims = PM.page_dims(str(pdf))                     # {pg: (w, h)}
+    by_page: dict[int, list[dict]] = {}
+    for c in recs:
+        by_page.setdefault(c["page"], []).append(c)
+    pages = []
+    for pg in sorted(dims):
+        w, h = dims[pg]
+        chars = [{"x0": float(c["x0"]), "x1": float(c["x1"]),
+                  # top-left top/bottom → bottom-left y0/y1 (chars_to_lines re-flips)
+                  "y0": float(h) - float(c["bottom"]),
+                  "y1": float(h) - float(c["top"]),
+                  "text": c.get("text", "")} for c in by_page.get(pg, [])]
+        pages.append({"page_number": pg, "width": float(w), "height": float(h),
+                      "chars": chars})
+    return {"source": "pdfminer-chars", "total_pages": len(pages), "pages": pages}
+
+
 def _pdfplumber_char_dump(pdf: Path) -> dict:
-    """Extract a pdfplumber CHARACTER dump (PDF bottom-left origin) — the input
-    `chars_to_lines` expects. Thin wrapper so it can be monkeypatched in tests."""
+    """FALLBACK born-digital CHARACTER dump via pdfplumber (used only when
+    pdfminer.six is unavailable). Thin wrapper so it can be monkeypatched in
+    tests."""
     import pdfplumber
     pages = []
     with pdfplumber.open(str(pdf)) as doc:
@@ -281,16 +309,26 @@ def _pdfplumber_char_dump(pdf: Path) -> dict:
     return {"source": "pdfplumber-chars", "total_pages": len(pages), "pages": pages}
 
 
+def _born_digital_char_dump(pdf: Path) -> dict:
+    """The born-digital char dump: **pdfminer.six** first (the engine that replaced
+    pdfplumber), pdfplumber only as a fallback when pdfminer.six is absent."""
+    try:
+        return _pdfminer_char_dump(pdf)
+    except Exception:                                # noqa: BLE001 (absent / parse)
+        return _pdfplumber_char_dump(pdf)
+
+
 def _write_born_digital_lines(pdf: Path) -> bool:
     """Born-digital TEXT-LAYER route: read the PDF's own text layer with
-    pdfplumber and write a MathPix-shape `<stem>.lines.json` (source
-    `pdfplumber-chars`). FREE and fast — no MathPix, no OCR. Returns False when
-    there is effectively no text layer (a scan → let OCR handle it) or pdfplumber
-    fails, so the caller falls through to tesseract. This is what `route`'s
-    "born-digital → text-layer (free)" promise resolves to inside `model`."""
+    **pdfminer.six** (pdfplumber fallback) and write a MathPix-shape
+    `<stem>.lines.json` (source `pdfminer-chars`/`pdfplumber-chars`). FREE and
+    fast — no MathPix, no OCR. Returns False when there is effectively no text
+    layer (a scan → let OCR handle it) or extraction fails, so the caller falls
+    through to tesseract. This is what `route`'s "born-digital → text-layer (free)"
+    promise resolves to inside `model`."""
     from . import chars_to_lines
     try:
-        data = _pdfplumber_char_dump(pdf)
+        data = _born_digital_char_dump(pdf)
     except Exception:                                # noqa: BLE001
         return False
     if sum(len(p.get("chars", [])) for p in data.get("pages", [])) < 20:
@@ -484,7 +522,9 @@ def cmd_doctor() -> str:
 
     lines.append("")
     lines.append("Python deps:")
-    for mod, note in [("pdfplumber", "core"), ("pydantic", "core (md/drill path)"),
+    for mod, note in [("pdfminer", "core: born-digital text layer (model)"),
+                      ("pdfplumber", "core: tables / image rects / URL anchors"),
+                      ("pydantic", "core (md/drill path)"),
                       ("pypdf", "core (formfields/attachments)"),
                       ("numpy", "optional [layout] extra — pdfdrill elements GNN"),
                       ("stanza", "optional [nlp] extra — pdfdrill nlp")]:
@@ -2547,8 +2587,8 @@ def cmd_model(pdf: Path, force: bool = False, bibkey: str | None = None) -> str:
     # math (LaTeX) — not one or the other. Runs AFTER MODEL_BUILT is set so the
     # nested cmd_latex won't recurse into cmd_model. Downloads the e-print once
     # (cached); graceful when the source is blocked/absent; non-arXiv is a no-op.
-    if (lines_source == "pdfplumber-chars" and _arxiv_id_for(pdf, sc)
-            and not sc.has(LATEX_INGESTED)):
+    if (lines_source in ("pdfminer-chars", "pdfplumber-chars")
+            and _arxiv_id_for(pdf, sc) and not sc.has(LATEX_INGESTED)):
         try:
             cmd_latex(pdf)                          # overlay gold equations + graphics
             sc = Sidecar(pdf)
@@ -2578,8 +2618,8 @@ def cmd_model(pdf: Path, force: bool = False, bibkey: str | None = None) -> str:
             sc.save()
             n_para = by_type.get("Paragraph", 0)
             src = _lines_json_source(lines_path)
-            how = ("the born-digital text layer (pdfplumber)"
-                   if src == "pdfplumber-chars" else "tesseract OCR")
+            how = ("the born-digital text layer (pdfminer.six)"
+                   if src in ("pdfminer-chars", "pdfplumber-chars") else "tesseract OCR")
             base = (f"{pdf.name} is math-bearing ({reason}) but was built from "
                     f"{how} with no MathPix key — that route captures prose, not "
                     f"typed equations, so this model has {n_para} Paragraph and 0 "
@@ -5394,8 +5434,15 @@ def cmd_latex(pdf: Path, tex: str | None = None, force: bool = False) -> str:
     # document's equations — create them as first-class Equation objects so
     # `report`/`compare`/tiddlers render them. (Skipped when a real MathPix
     # scaffold exists, to avoid duplicating its equations.)
+    # IDEMPOTENCY: if a prior `latex` run already CREATED gold equations (they
+    # carry added_by="latex"), do NOT create them again — else running latex
+    # twice (e.g. cmd_model's auto-overlay, then an explicit `pdfdrill latex`)
+    # doubles every equation (the EQ0001–14 + EQ0015–28 byte-identical duplicate
+    # bug). `--force` drops the prior latex equations above, so it re-creates.
+    already_created = any(o.type == "Equation" and o.props.get("added_by") == "latex"
+                          for o in doc.objects.values())
     created = 0
-    if scaffold == 0 and src_eqs:
+    if scaffold == 0 and src_eqs and not already_created:
         from docmodel.core import DocObject
         base_fi = max((o.props.get("flow_index", 0) for o in doc.objects.values()),
                       default=0)
