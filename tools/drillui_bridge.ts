@@ -205,19 +205,28 @@ function safeResolve(p: string): string | null {
     if (firstValid === null) firstValid = abs;
     if (existsSync(abs)) return abs;               // existing match wins
   }
-  // pdfdrill prints SOME artifact names as a bare basename (e.g. `tables` →
-  // "tables.json + tables.md + tables.html") though the files live inside the
-  // doc's <doc>.drill/ sidecar, which is not itself a root. So for a bare
-  // basename, look one level deep in each root's *.drill/ folders. Fixes the
-  // Outputs links for those commands on BOTH the /artifact route and the static
-  // server (and on localhost, where they were 404ing too).
+  // pdfdrill prints MANY artifact names as a bare basename because a doc's
+  // artifacts live inside its own folder, not a root:
+  //   * legacy layout:         <doc>.pdf.drill/<bibkey>.md
+  //   * self-contained layout: <library>/<stem>/<stem>.md   (folder = the stem,
+  //     so `relative_to(pdf.parent)` collapses to just `<stem>.md` — no folder).
+  // So for a bare basename, look ONE level deep in each root's sub-DIRECTORIES,
+  // covering BOTH `<name>.drill/` and the self-contained `<stem>/` folder. Prefer
+  // a folder whose name PREFIXES the file (`2509.26251v2/` for `2509.26251v2.md`),
+  // then legacy `.drill/`, then any other — so a bibkey-prefixed artifact resolves
+  // to its own doc folder. Fixes the Markdown/report/tables links on both the
+  // /artifact route and the static server, local and behind the CoCalc proxy.
   if (!p.includes("/")) {
     for (const root of ART_ROOTS) {
-      let entries: string[];
-      try { entries = readdirSync(root); } catch { continue; }
-      for (const entry of entries) {
-        if (!entry.endsWith(".drill")) continue;
-        const cand = join(root, entry, p);
+      let dirs: string[];
+      try {
+        dirs = readdirSync(root, { withFileTypes: true })
+          .filter((e) => e.isDirectory()).map((e) => e.name);
+      } catch { continue; }
+      const rank = (n: string) => (p.startsWith(n) ? 0 : n.endsWith(".drill") ? 1 : 2);
+      dirs.sort((a, b) => rank(a) - rank(b));
+      for (const name of dirs) {
+        const cand = join(root, name, p);
         if (cand.startsWith(root + sep) && existsSync(cand)) return cand;
       }
     }

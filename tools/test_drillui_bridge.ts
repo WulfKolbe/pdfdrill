@@ -12,6 +12,7 @@
  */
 import { resolve, dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
+import { mkdirSync, writeFileSync, rmSync } from "node:fs";
 
 const doc = process.argv[2] ?? "data/1906.02691.pdf";
 const PORT = 8799;
@@ -90,6 +91,22 @@ if (up) {
   ok("GET /artifact resolves a bare basename via *.drill/ fallback", bn.ok);
   const sbn = await fetch(sbase + "/tables.html");
   ok("static server resolves a bare basename via *.drill/ fallback", sbn.ok);
+
+  // 2f) SELF-CONTAINED doc folder: the new library layout puts a doc's artifacts
+  //     in `<library>/<stem>/<stem>.md` (folder named after the stem, NO `.drill`
+  //     suffix), so `md` reports a BARE `<stem>.md`. safeResolve must find it in
+  //     the `<stem>/` folder too — the Markdown-link-wrong-but-file-exists bug.
+  const scDir = resolve(HERE, "..", "data", "sc_probe");
+  try {
+    mkdirSync(scDir, { recursive: true });
+    writeFileSync(join(scDir, "sc_probe.md"), "# probe\n");
+    const scr = await fetch(base + "/artifact?path=" + encodeURIComponent("sc_probe.md"));
+    ok("GET /artifact resolves a bare name in a self-contained <stem>/ folder", scr.ok);
+    const sscr = await fetch(sbase + "/sc_probe.md");
+    ok("static server resolves a bare name in a self-contained <stem>/ folder", sscr.ok);
+  } finally {
+    rmSync(scDir, { recursive: true, force: true });
+  }
 
   // 2e) `edit <file>` → POST /edit opens a source file in the host editor (here
   //     `--editor true`, a harmless stand-in). Same root-safety as /open.
