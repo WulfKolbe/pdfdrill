@@ -126,13 +126,15 @@ def test_url_download_registry_logs_and_survives_collisions(monkeypatch):
         a = S.resolve_input("https://host1.example/papers/fulltext.pdf", dest_dir=dd)
         b = S.resolve_input("https://host2.example/x/fulltext.pdf", dest_dir=dd)
         assert a["path"].name == "fulltext.pdf"            # first keeps the clean name
+        assert a["path"].parent.name == "fulltext"         # in its own doc folder
         assert b["path"].name.startswith("fulltext-") and b["path"].name.endswith(".pdf")
         assert a["path"].read_bytes() != b["path"].read_bytes()
-        # the registry logs both: complete URL → filename + hash + algo
+        # the registry logs both: complete URL → (library-relative) filename + hash
         reg = DR.load(dd)
         assert set(reg) == {"https://host1.example/papers/fulltext.pdf",
                             "https://host2.example/x/fulltext.pdf"}
-        assert reg["https://host2.example/x/fulltext.pdf"]["filename"] == b["path"].name
+        # filename is now library-relative (<stem>/<file>) → resolves to the path
+        assert dd / reg["https://host2.example/x/fulltext.pdf"]["filename"] == b["path"]
         assert reg["https://host1.example/papers/fulltext.pdf"]["hash"]
         assert reg["https://host1.example/papers/fulltext.pdf"]["algo"] in ("blake3", "sha256")
         # re-resolving each URL is a registry cache hit — no new download

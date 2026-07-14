@@ -75,6 +75,22 @@ def download_dir() -> Path:
     return dl if dl.is_dir() else Path.cwd()
 
 
+def library_root() -> Path:
+    """The git repo that holds one self-contained folder per drilled doc (the
+    LIBRARY). `add`/downloads place a doc at `<library_root>/<stem>/<stem>.pdf`.
+    Config `library_root`, else the `download_dir` (so the existing location just
+    BECOMES the root)."""
+    d = get("library_root")
+    if d:
+        p = Path(str(d)).expanduser()
+        try:
+            p.mkdir(parents=True, exist_ok=True)
+        except OSError:
+            pass
+        return p
+    return download_dir()
+
+
 def scratch_dir() -> Path:
     """Scratch parent for transient work (latex→dvisvgm compiles, .tgz extraction)
     — a hidden `.pdfdrill-tmp/` UNDER the download dir, NOT `/tmp`. So everything
@@ -87,6 +103,28 @@ def scratch_dir() -> Path:
     except OSError:
         import tempfile
         return Path(tempfile.gettempdir())
+
+
+def set_key(key: str, value: str) -> Path:
+    """Persist a single key into the active config file (creating the canonical
+    ~/.config/pdfdrill/config.json when none exists), then refresh the cache.
+    Returns the file path written."""
+    env = os.environ.get("PDFDRILL_CONFIG")
+    p = Path(env).expanduser() if env else (config_path() or DEFAULT_PATH)
+    p.parent.mkdir(parents=True, exist_ok=True)
+    data: dict = {}
+    if p.is_file():
+        try:
+            loaded = json.loads(p.read_text(encoding="utf-8"))
+            if isinstance(loaded, dict):
+                data = loaded
+        except (OSError, json.JSONDecodeError):
+            data = {}
+    data.pop("_path", None)
+    data[key] = str(Path(value).expanduser())
+    p.write_text(json.dumps(data, indent=2) + "\n", encoding="utf-8")
+    load(refresh=True)
+    return p
 
 
 def write_default(path: "Path | None" = None) -> Path:

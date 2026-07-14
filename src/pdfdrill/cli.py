@@ -167,16 +167,52 @@ def _do_artifacts(args):
 
 
 def _do_config(args):
-    """pdfdrill config [--init|--json|--download-dir] — show/init the config file
-    (where downloads + .drill folders go; default ~/Downloads)."""
+    """pdfdrill config [--init|--json|--download-dir [DIR]|--library-root DIR]
+    — show/init/set the config file (downloads land in download_dir; each drilled
+    doc gets a self-contained folder under library_root)."""
     from .commands import cmd_config
+
+    def _val_after(flag):
+        if flag in args:
+            i = args.index(flag)
+            if i + 1 < len(args) and not args[i + 1].startswith("-"):
+                return args[i + 1]
+        return None
+
     if "--init" in args:
         return cmd_config("init")
     if "--json" in args:
         return cmd_config("json")
+    if "--library-root" in args:
+        v = _val_after("--library-root")
+        return cmd_config("set-library-root", v) if v else cmd_config("library-dir")
     if "--download-dir" in args:
-        return cmd_config("download-dir")
+        v = _val_after("--download-dir")
+        return cmd_config("set-download-dir", v) if v else cmd_config("download-dir")
     return cmd_config("show")
+
+
+def _do_relocate(args):
+    """pdfdrill relocate <pdf|dir> … [--apply] [--library DIR] — migrate legacy
+    scattered drills into the self-contained library layout. Dry-run by default."""
+    from .commands import cmd_relocate
+
+    apply = "--apply" in args
+    library = None
+    rest = []
+    i = 0
+    args = [a for a in args if a != "--apply"]
+    while i < len(args):
+        if args[i] == "--library" and i + 1 < len(args):
+            library = args[i + 1]
+            i += 2
+            continue
+        rest.append(args[i])
+        i += 1
+    if not rest:
+        from . import config as cfg
+        rest = [str(cfg.library_root())]      # default: scan the library root itself
+    return cmd_relocate(rest, library=library, apply=apply)
 
 
 def _do_doctor(args):
@@ -1483,6 +1519,7 @@ def _do_chatlog(args):
 HANDLERS = {
         "doctor": _do_doctor,
         "config": _do_config,
+        "relocate": _do_relocate,
         "artifacts": _do_artifacts,
         "size": _do_size,
         "route": _do_route,

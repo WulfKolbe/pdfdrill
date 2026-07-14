@@ -257,17 +257,27 @@ def _place_download(base: Path, tmp: Path, digest: str, reg: dict) -> Path:
     return hashed
 
 
+def _doc_dest(root: Path, filename: str) -> Path:
+    """Place a DOWNLOAD in its self-contained doc folder: `root/<stem>/<filename>`
+    (the library layout — the PDF lives inside its own folder next to its
+    artifacts). Creates the folder."""
+    folder = root / Path(filename).stem
+    folder.mkdir(parents=True, exist_ok=True)
+    return folder / filename
+
+
 def resolve_input(arg: str, dest_dir: Optional[Path] = None) -> dict:
     """Resolve a command argument to a local PDF path.
 
     Returns {"path": Path, "source": kind|None, "arxiv_id": id|None}. A local
-    file passes through unchanged (no network). A known-host URL is downloaded
-    once (cached): arXiv → the PDF at `<id>.pdf`; any other http(s) URL → the
-    file at a sanitized name. Idempotent: an existing non-empty target is reused.
+    file passes through unchanged (no network, not moved). A known-host URL is
+    downloaded once (cached) into its own self-contained doc folder:
+    arXiv → `<library>/<id>/<id>.pdf`; any other http(s) URL →
+    `<library>/<stem>/<file>`. Idempotent: an existing non-empty target is reused.
     """
     if dest_dir is None:
         from . import config as _cfg
-        dest_dir = _cfg.download_dir()      # config download_dir, else ~/Downloads
+        dest_dir = _cfg.library_root()      # config library_root, else download_dir
     dest_dir = Path(dest_dir)
     if not is_url(arg):
         # expand `~`/`~user` ($HOME shorthand) so `~/x.pdf` resolves like the
@@ -281,7 +291,7 @@ def resolve_input(arg: str, dest_dir: Optional[Path] = None) -> dict:
         # otherwise a BARE arXiv id is downloaded as arXiv (the skill gotcha fix)
         arxiv_id = bare_arxiv_id(arg)
         if arxiv_id:
-            dest = dest_dir / f"{arxiv_id.replace('/', '_')}.pdf"
+            dest = _doc_dest(dest_dir, f"{arxiv_id.replace('/', '_')}.pdf")
             if not (dest.exists() and dest.stat().st_size > 0):
                 download(arxiv_urls(arxiv_id)["pdf"], dest)
             return {"path": dest, "source": "arxiv", "arxiv_id": arxiv_id}
@@ -295,7 +305,7 @@ def resolve_input(arg: str, dest_dir: Optional[Path] = None) -> dict:
             raise ValueError(
                 f"{arg!r} is an arXiv URL but carries no valid id "
                 f"(expected e.g. 2604.17042 or math/0309136). Check the id.")
-        dest = dest_dir / f"{arxiv_id.replace('/', '_')}.pdf"
+        dest = _doc_dest(dest_dir, f"{arxiv_id.replace('/', '_')}.pdf")
         if not (dest.exists() and dest.stat().st_size > 0):
             download(arxiv_urls(arxiv_id)["pdf"], dest)
         return {"path": dest, "source": "arxiv", "arxiv_id": arxiv_id}
@@ -311,11 +321,13 @@ def resolve_input(arg: str, dest_dir: Optional[Path] = None) -> dict:
         p = dest_dir / hit["filename"]
         if p.exists() and p.stat().st_size > 0:
             return {"path": p, "source": "url", "arxiv_id": None}
-    base = dest_dir / _safe_filename(arg)
-    tmp = dest_dir / f"{base.stem}.download-tmp{base.suffix}"
+    base = _doc_dest(dest_dir, _safe_filename(arg))   # <library>/<stem>/<file>
+    tmp = base.parent / f"{base.stem}.download-tmp{base.suffix}"
     download(arg, tmp)
     digest, algo = _dl.hash_file(tmp)
     final = _place_download(base, tmp, digest, reg)
-    _dl.record(dest_dir, arg, final.name, digest, algo,
+    # registry filename is relative to the library root (e.g. "<stem>/<file>") so
+    # the lookup `dest_dir / hit["filename"]` resolves inside the doc folder.
+    _dl.record(dest_dir, arg, str(final.relative_to(dest_dir)), digest, algo,
                final.stat().st_size if final.exists() else 0)
     return {"path": final, "source": "url", "arxiv_id": None}

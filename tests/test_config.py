@@ -42,10 +42,11 @@ def test_resolve_input_defaults_to_config_download_dir(monkeypatch):
             return Path(dest)
         monkeypatch.setattr(S, "download", fake_download)
 
-        # no dest_dir → must use the configured download dir
+        # no dest_dir → must use the configured download dir, in a per-doc folder
         info = S.resolve_input("2305.04710")
         assert info["arxiv_id"] == "2305.04710"
-        assert Path(info["path"]).parent == dl          # landed in the config dir
+        assert Path(info["path"]).parent == dl / "2305.04710"   # self-contained folder
+        assert Path(info["path"]).parent.parent == dl           # under the config dir
         assert calls["n"] == 1
 
         # DRILL-ONCE: a second resolve reuses the cached file, no re-download
@@ -72,6 +73,30 @@ def test_scratch_dir_under_download_dir_not_system_tmp(monkeypatch):
         sd = cfg.scratch_dir()
         assert sd == (d / "dl" / ".pdfdrill-tmp")   # under the download dir…
         assert sd.is_dir()                           # …created on demand
+    cfg.load(refresh=True)
+
+
+def test_library_root_defaults_to_download_dir(monkeypatch):
+    with tempfile.TemporaryDirectory() as d:
+        d = Path(d)
+        cfgfile = d / "config.json"
+        cfgfile.write_text(json.dumps({"download_dir": str(d / "dl")}))
+        monkeypatch.setenv("PDFDRILL_CONFIG", str(cfgfile))
+        cfg.load(refresh=True)
+        assert cfg.library_root() == (d / "dl")     # falls back to download_dir
+    cfg.load(refresh=True)
+
+
+def test_set_key_honors_env_config_and_persists(monkeypatch):
+    with tempfile.TemporaryDirectory() as d:
+        d = Path(d)
+        cfgfile = d / "config.json"                  # does NOT exist yet
+        monkeypatch.setenv("PDFDRILL_CONFIG", str(cfgfile))
+        cfg.load(refresh=True)
+        written = cfg.set_key("library_root", str(d / "lib"))
+        assert written == cfgfile                    # wrote to the env path, not ~/.config
+        assert cfg.library_root() == (d / "lib")     # cache refreshed, value live
+        assert json.loads(cfgfile.read_text())["library_root"] == str(d / "lib")
     cfg.load(refresh=True)
 
 

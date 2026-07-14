@@ -532,19 +532,28 @@ def cmd_doctor() -> str:
     return "\n".join(lines)
 
 
-def cmd_config(action: str = "show") -> str:
-    """Show / init the pdfdrill config FILE (where downloads + `.drill` folders go).
+def cmd_config(action: str = "show", value: str | None = None) -> str:
+    """Show / init / set the pdfdrill config FILE.
 
-    `pdfdrill config`            → show the active config file + resolved locations
-    `pdfdrill config --init`     → write a starter ~/.config/pdfdrill/config.json
-    `pdfdrill config --json`     → machine-readable
-    `pdfdrill config --download-dir` → just the resolved download dir (for tooling)
+    `pdfdrill config`                 → show the active config file + locations
+    `pdfdrill config --init`          → write a starter config
+    `pdfdrill config --json`          → machine-readable
+    `pdfdrill config --download-dir [DIR]` → get (no arg) or SET the download dir
+    `pdfdrill config --library-root DIR`   → SET the library root (relocate target)
     """
     from . import config as cfg
+    if action == "set-download-dir":
+        written = cfg.set_key("download_dir", value or ".")
+        return f"Set download_dir = {cfg.download_dir()}  ({written})"
+    if action == "set-library-root":
+        written = cfg.set_key("library_root", value or ".")
+        return f"Set library_root = {cfg.library_root()}  ({written})"
     p = cfg.config_path()
     dl = cfg.download_dir()
     if action == "download-dir":
         return str(dl)
+    if action == "library-dir":
+        return str(cfg.library_root())
     if action == "init":
         written = cfg.write_default()
         cfg.load(refresh=True)
@@ -558,10 +567,71 @@ def cmd_config(action: str = "show") -> str:
         "pdfdrill config",
         f"  config file   : {p if p else '(none — using defaults; run `pdfdrill config --init`)'}",
         f"  download_dir  : {dl}",
-        "                  ↑ URL/arXiv downloads AND each doc's `<name>.drill` "
-        "sidecar (model, report.html, *.md, *.json …) land HERE.",
+        "                  ↑ URL/arXiv downloads land HERE (in a per-doc folder).",
+        f"  library_root  : {cfg.library_root()}",
+        "                  ↑ one self-contained folder per drilled doc "
+        "(<stem>/<stem>.pdf + model, report.html, *.md …). `pdfdrill relocate` "
+        "migrates legacy scattered drills into it.",
         f"  drillui store : {dl / '.drillui_session.docpack'}  (multi-doc `add`)",
     ])
+
+
+def cmd_relocate(paths, library=None, apply=False) -> str:
+    """Migrate legacy scattered drills into the self-contained library layout —
+    `<library>/<stem>/` holding the PDF + every `X.*` sibling + the flattened
+    `X.pdf.drill/` blobs, with `X.pdf.drill.json` renamed `X.drill.json`.
+
+    `paths` may be individual PDFs and/or directories (scanned recursively for
+    legacy PDFs). Dry-run by default — prints the plan; pass `apply=True` to move.
+    Collision-safe (never overwrites) and idempotent (already-migrated docs are
+    skipped). See docs/superpowers/specs/2026-07-14-self-contained-doc-folders.md.
+    """
+    from . import config as cfg
+    from . import relocate as R
+    lib = Path(library).expanduser() if library else cfg.library_root()
+
+    pdfs: list[Path] = []
+    for raw in (paths or []):
+        p = Path(raw).expanduser()
+        if p.is_dir():
+            pdfs.extend(R.find_docs(p))
+        elif p.suffix.lower() == ".pdf" and p.exists():
+            if p.resolve().parent.name != p.stem:      # skip already-migrated
+                pdfs.append(p.resolve())
+    # de-dup preserving order
+    seen: set = set()
+    pdfs = [p for p in pdfs if not (p in seen or seen.add(p))]
+
+    if not pdfs:
+        return (f"No legacy scattered drills to relocate (library: {lib}).\n"
+                "A doc is 'migrated' when it lives at <library>/<stem>/<stem>.pdf.")
+
+    lines = [f"{'RELOCATE' if apply else 'PLAN (dry-run — pass --apply to move)'} "
+             f"→ library: {lib}", ""]
+    tot_moved = tot_skipped = 0
+    for pdf in pdfs:
+        plan = R.plan_relocation(pdf, lib)
+        if not plan:
+            continue
+        target = lib / pdf.stem
+        lines.append(f"• {pdf.name}  →  {target}/  ({len(plan)} items)")
+        if apply:
+            moved, skipped = R.apply_relocation(pdf, lib)
+            tot_moved += moved
+            tot_skipped += skipped
+            note = f"    moved {moved}" + (f", skipped {skipped} (already present)"
+                                           if skipped else "")
+            lines.append(note)
+    lines.append("")
+    if apply:
+        lines.append(f"Done: {len(pdfs)} doc(s), {tot_moved} files moved"
+                     + (f", {tot_skipped} skipped." if tot_skipped else "."))
+        lines.append("Tip: set `library_root` in your config so new downloads land "
+                     "here too — `pdfdrill config --library-root <dir>`.")
+    else:
+        lines.append(f"{len(pdfs)} doc(s) would be relocated. "
+                     "Re-run with `--apply` to move them.")
+    return "\n".join(lines)
 
 
 _ARTIFACT_EXTS = (".html", ".htm", ".json", ".md", ".svg", ".pdf", ".txt",

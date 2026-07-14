@@ -17,8 +17,9 @@ commands:
   typed: true
 - name: config
   section: Introspection (fast, no extraction)
-  summary: 'Show / init the config FILE (not CLI flags): where URL/arXiv downloads + each doc''s .drill
-    folder land (default ~/Downloads). --init writes ~/.config/pdfdrill/config.json; --json; --download-dir'
+  summary: 'Show / init / set the config FILE (not CLI flags): download_dir (where URL/arXiv downloads
+    land) + library_root (the git folder holding one self-contained folder per drilled doc). --init;
+    --json; --download-dir [DIR]; --library-root DIR'
   offline_ok: true
   flags:
   - name: init
@@ -30,6 +31,32 @@ commands:
   - name: download_dir
     flag: --download-dir
     type: flag
+    help: show (no value) or SET the download dir
+  - name: library_root
+    flag: --library-root
+    type: flag
+    help: show (no value) or SET the library root (relocate target)
+  typed: true
+- name: relocate
+  section: Introspection (fast, no extraction)
+  summary: 'Migrate legacy scattered drills into the self-contained library layout: <library>/<stem>/
+    holding the PDF + every X.* sibling + the flattened X.pdf.drill/ blobs (X.pdf.drill.json → X.drill.json).
+    Dry-run by default; --apply moves. Collision-safe + idempotent.'
+  offline_ok: true
+  positionals:
+  - name: paths
+    type: str
+    required: false
+    help: PDF(s) and/or dir(s) to scan for legacy drills (default the library root)
+  flags:
+  - name: apply
+    flag: --apply
+    type: flag
+    help: perform the moves (default dry-run)
+  - name: library
+    flag: --library
+    type: flag
+    help: target library root (default config library_root)
   typed: true
 - name: artifacts
   section: Introspection (fast, no extraction)

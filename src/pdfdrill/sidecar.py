@@ -25,8 +25,21 @@ class Sidecar:
 
     def __init__(self, pdf_path: str | Path):
         self.pdf_path = Path(pdf_path).resolve()
-        self.json_path = self.pdf_path.parent / f"{self.pdf_path.name}.drill.json"
-        self.blob_dir = self.pdf_path.parent / f"{self.pdf_path.name}.drill"
+        parent = self.pdf_path.parent
+        legacy = parent / f"{self.pdf_path.name}.drill"
+        # SELF-CONTAINED doc folder: the folder is named after its PDF, so the PDF
+        # lives INSIDE its own drill folder — blob_dir IS the folder, all artifacts
+        # (PDF, lines.json, model, tiddlers, …) sit together. This is the library
+        # layout (`add`/downloads create it; `pdfdrill relocate` migrates into it).
+        # A legacy `<name>.pdf.drill/` sibling still works (back-compat); an ad-hoc
+        # PDF whose parent isn't named after it gets a sibling `.drill` as before.
+        # See docs/superpowers/specs/2026-07-14-self-contained-doc-folders.md.
+        if parent.name == self.pdf_path.stem and not legacy.exists():
+            self.blob_dir = parent
+            self.json_path = parent / f"{self.pdf_path.stem}.drill.json"
+        else:
+            self.blob_dir = legacy
+            self.json_path = parent / f"{self.pdf_path.name}.drill.json"
         self._data: dict[str, Any] = {}
         self._load()
 

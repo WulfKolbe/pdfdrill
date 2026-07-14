@@ -10,7 +10,8 @@ decides if/when to use the LaTeX source.
 
 Introspection (fast, no extraction):
   pdfdrill doctor                             Requirement check: system tools (poppler/tesseract/LaTeX+dvisvgm), Python deps, API keys + the apt-get fix line
-  pdfdrill config [--init] [--json] [--download-dir] Show / init the config FILE (not CLI flags): where URL/arXiv downloads + each doc's .drill folder land (default ~/Downloads). --init writes ~/.config/pdfdrill/config.json; --json; --download-dir
+  pdfdrill config [--init] [--json] [--download-dir] [--library-root] Show / init / set the config FILE (not CLI flags): download_dir (where URL/arXiv downloads land) + library_root (the git folder holding one self-contained folder per drilled doc). --init; --json; --download-dir [DIR]; --library-root DIR
+  pdfdrill relocate <paths> [--apply] [--library] Migrate legacy scattered drills into the self-contained library layout: <library>/<stem>/ holding the PDF + every X.* sibling + the flattened X.pdf.drill/ blobs (X.pdf.drill.json → X.drill.json). Dry-run by default; --apply moves. Collision-safe + idempotent.
   pdfdrill artifacts <pdf> [--all]            List the openable files in the doc's drill folder (report.html, the extracted <bibkey>.md, tiddlers/semantic/llm *.json/*.txt, SVGs) with paths — clickable in the drillui Outputs panel. Giant model JSON hidden unless --all. (`status` also lists them.)
   pdfdrill size <pdf>                         File size, page count, producer
   pdfdrill ls <dir> [--images]                Shallow-scan a FOLDER: run pdfinfo (size) on every PDF, store it in each file's sidecar, and report a compact table led by the PRODUCER (the triage signal). The cheapest rung over a whole directory; size is cached so re-running is fast. --images adds the pdfimages count.
