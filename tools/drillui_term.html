@@ -256,8 +256,12 @@ class LineEditor {
     this.prompt = "";
     this.active = false;
     this.resolve = null;
-    this.history = [];
-    this.hist = 0;          // index into history (== length means "current")
+    // Command history PERSISTS across reloads/sessions (localStorage), so a
+    // fresh page load still has your history — unlike the old in-memory array
+    // that was empty after every reload (the "no history locally" report: a
+    // freshly-reloaded tab vs a long-open one).
+    this.history = this._loadHist();
+    this.hist = this.history.length;   // index into history (== length means "current")
     this.el.addEventListener("keydown", (e) => this._key(e));
     // a click anywhere in the terminal focuses the input (so typing just works)
     this.term.element && this.term.element.addEventListener("mousedown", () => {
@@ -277,6 +281,9 @@ class LineEditor {
 
   _atEnd(){ const n = this.el.value.length; try { this.el.setSelectionRange(n, n); } catch(e){} }
 
+  _loadHist(){ try { const h = JSON.parse(localStorage.getItem("drillui.history")||"[]"); return Array.isArray(h) ? h : []; } catch(e){ return []; } }
+  _saveHist(){ try { localStorage.setItem("drillui.history", JSON.stringify(this.history.slice(-500))); } catch(e){} }
+
   _resolveWith(value){
     this.active = false;
     const r = this.resolve; this.resolve = null;
@@ -290,7 +297,7 @@ class LineEditor {
       const v = this.el.value;
       // echo to the scrollback so the transcript shows what was typed
       this.term.write("\r\n" + this.prompt + v + "\r\n");
-      if (v.trim() && this.history[this.history.length-1] !== v) this.history.push(v);
+      if (v.trim() && this.history[this.history.length-1] !== v){ this.history.push(v); this._saveHist(); }
       this.hist = this.history.length;
       this.el.value = "";
       this._resolveWith(v);
