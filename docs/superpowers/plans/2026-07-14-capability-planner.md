@@ -179,6 +179,42 @@ acting.
 - **`--ensure` back-compat** — must keep passing throughout; it is the current
   users' entry point and only becomes a cost-constrained special case in E.
 
+## 4a. Delivery status (2026-07-14)
+
+Implemented, tested, and pushed (commits after the plan):
+
+- **Phase 0 — DONE.** Deleted `transitions.py` + `metrics.py` and the dead
+  branching `Engine`/`Transition`/`always`/`Metric`; only `SequentialEngine`
+  remains. drillui now RESUMES its persisted `.drillui_session.docpack` at startup
+  (`existing_session_store`/`session_members`; `--fresh` opts out) — the "state
+  persisted but not loaded" fix. Tests: `test_dead_engine_removed`, `test_drillui_resume`.
+- **Phase A — DONE.** `capgraph.py`: `produces()` AST-derived from `add_fact`
+  (code-synced, no YAML duplication); `destroys()` authors the model-rebuild
+  clobber. Closure guaranteed by `test_capgraph` (no phantom clobber,
+  well-formedness, requires-closure). `GATE_FACTS` excludes NEEDS_VISION_OCR-style
+  signals.
+- **Phase B — DONE.** `proofs.py` (content-hash proofs, blake3/sha256) +
+  `Sidecar.mark`/`capability_valid`; `model` (both build paths) and `latex`
+  migrated; `capgraph.proof_emitting()` census. Tests: `test_proofs`.
+- **Phase C — DONE.** `capability_planner.py`: `plan(goal, held, invalid)` +
+  `clobber_check` + `ClobberRefused`; `pdfdrill plan <pdf> --goal <cap>`.
+  **The acceptance gate passes** (semantic goal + held LaTeX + stale model →
+  refusal), verified live through the CLI. Tests: `test_capability_planner`.
+- **Phase D — DONE.** `_stale_or_absent` is proof-aware (content-hash, not mtime;
+  `PDFDRILL_LEGACY_STALE=1` fallback); invalid capabilities feed the planner.
+  Tests: `test_stale_proof`.
+- **Phase E — core DONE.** `execute()`/`make()` + `pdfdrill make <pdf> --goal
+  <cap>` (plan → execute → record proofs → stop-on-failure; refused plan runs
+  nothing). Verified live. Tests: `test_make`.
+
+Full suite: **1077 green.**
+
+**Remaining (optional extensions, not blocking the DoD):** E.2 forward/shallow
+`drill --need <goal>` (repeat depth-1-cheapest until ranks satisfied) and E.3
+set-level capabilities (`SetCombined`/`RepoPublished` keyed by `members_hash`),
+plus the deferred save/restore (single-writer-layers) refactor and ranked
+capability families.
+
 ## 5. Definition of done
 
 The design's acceptance test (C.2) passes: a backward plan toward a semantic
