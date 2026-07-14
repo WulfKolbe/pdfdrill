@@ -2318,13 +2318,95 @@ def cmd_extractimages(pdf: Path, pages: str | None = None,
             f"`rasterize` for those):\n" + body)
 
 
-def cmd_tables(pdf: Path, pages: str | None = None) -> str:
-    """Extract tables with pdfplumber — keyless, offline, no MathPix/vision key.
+def _prose_table(t: dict) -> bool:
+    """True if a pdfplumber 'table' is really two-column body PROSE mis-detected
+    as a table — its cells are long sentence fragments, not tabular values. On a
+    born-digital two-column paper the text strategy splits the columns into fake
+    cells; a real data table has short cells (numbers, labels)."""
+    cells = t.get("cells") or []
+    texts = [(c.get("text") or "").strip() for c in cells]
+    texts = [x for x in texts if x]
+    if len(texts) < 3:
+        return False
+    prosey = sum(1 for x in texts if len(x.split()) >= 6)
+    return prosey >= 0.5 * len(texts)
 
-    The no-key table path: pdfplumber's geometry-based `extract_tables()` per
-    page. Writes the tables (rows) to the sidecar (`tables.json`) + a markdown
-    rendering, and returns a preview. For garbled results, rasterize the page
-    and read it visually instead.
+
+def _latex_table_rows(latex: str) -> list[list[str]]:
+    """Best-effort tabular → rows of cell text (split on `\\\\`, cells on `&`,
+    strip rules + font/command wrappers). Good enough for a QA view of a gold
+    table; `pdfdrill svg` renders it faithfully."""
+    import re
+    m = re.search(r"\\begin\{(?:tabular\*?|tabularx|array)\}\s*(?:\[[^\]]*\])?\s*"
+                  r"\{[^}]*\}(.*?)\\end\{(?:tabular\*?|tabularx|array)\}", latex, re.S)
+    body = m.group(1) if m else latex
+    # drop booktabs/plain rules and spacing commands
+    body = re.sub(r"\\(?:top|mid|bottom)rule|\\hline|\\cmidrule(?:\([^)]*\))?"
+                  r"(?:\[[^\]]*\])?\{[^}]*\}|\\addlinespace(?:\[[^\]]*\])?", " ", body)
+
+    def _cell(c: str) -> str:
+        c = re.sub(r"\\multicolumn\{\d+\}\{[^}]*\}\{(.*?)\}", r"\1", c)
+        c = re.sub(r"\\multirow\{[^}]*\}\{[^}]*\}\{(.*?)\}", r"\1", c)
+        c = re.sub(r"\\text(?:bf|it|tt|rm|sf)\{(.*?)\}", r"\1", c)
+        c = re.sub(r"\\[a-zA-Z]+\*?", "", c)          # remaining commands
+        return c.replace("{", "").replace("}", "").replace("\\&", "&").strip()
+
+    rows: list[list[str]] = []
+    for raw in re.split(r"\\\\", body):
+        if not raw.strip():
+            continue
+        cells = [_cell(c) for c in raw.split("&")]
+        if any(cells):
+            rows.append(cells)
+    return rows
+
+
+def _gold_table_dicts(doc) -> list[dict]:
+    """The model's REAL Table objects rendered into the pdf_reading table shape, so
+    `tables_to_html`/`_markdown` render THEM — the paper's actual tables — instead
+    of pdfplumber's two-column-prose garbage. Handles both sources: MathPix/span-
+    aware `cells` are used directly; a gold-LaTeX `latex_code` table is parsed into
+    cells."""
+    out: list[dict] = []
+    tabs = sorted(doc.objects_of_type("Table"),
+                  key=lambda o: float(o.props.get("flow_index") or 0))
+    for o in tabs:
+        p = o.props
+        caption = p.get("caption") or p.get("refnum") or ""
+        cells = p.get("cells")
+        if cells:                                    # MathPix / span-aware: use as-is
+            n_cols = p.get("n_cols") or (max((c.get("col", 0) + c.get("col_span", 1)
+                                              for c in cells), default=0))
+            out.append({
+                "page": p.get("page"), "index": len(out), "rows": p.get("rows") or [],
+                "n_rows": p.get("n_rows") or 0, "n_cols": n_cols, "cells": cells,
+                "columns": p.get("columns") or [], "header_rows": p.get("header_rows", 1),
+                "strategy": "model", "caption": caption})
+            continue
+        latex = p.get("latex_code") or p.get("latex_original")
+        if not latex:
+            continue
+        rows = _latex_table_rows(latex)
+        if not rows:
+            continue
+        n_cols = max(len(r) for r in rows)
+        built = [{"row": r, "col": c, "row_span": 1, "col_span": 1, "text": val}
+                 for r, row in enumerate(rows) for c, val in enumerate(row) if val]
+        out.append({
+            "page": p.get("page"), "index": len(out),
+            "rows": rows, "n_rows": len(rows), "n_cols": n_cols,
+            "cells": built, "columns": rows[0] if rows else [],
+            "header_rows": 1, "strategy": "latex-gold", "caption": caption})
+    return out
+
+
+def cmd_tables(pdf: Path, pages: str | None = None) -> str:
+    """Tables from the model's gold LaTeX (if built) + keyless pdfplumber.
+
+    On a born-digital paper whose model carries gold LaTeX tables (arXiv source),
+    those are the AUTHORITATIVE tables. pdfplumber is the keyless fallback — but on
+    a two-column page it mis-reads the columns of body prose as a table, so those
+    prose-as-table results are dropped. Writes `tables.json`/`.md`/`.html`.
     """
     from . import pdf_reading
 
@@ -2337,40 +2419,71 @@ def cmd_tables(pdf: Path, pages: str | None = None) -> str:
     note = None
     if err and err.startswith("skipped"):     # informational, not an error
         note, err = err, None
-    if err and not tables:
+
+    # Drop the two-column-prose-as-table garbage pdfplumber produces on a
+    # multi-column paper (long sentence-fragment cells, not tabular values).
+    n_raw = len(tables)
+    tables = [t for t in tables if not _prose_table(t)]
+    dropped = n_raw - len(tables)
+
+    # Prefer the model's GOLD LaTeX tables (arXiv source) — the paper's real
+    # tables — rendered ahead of any surviving pdfplumber tables.
+    gold: list[dict] = []
+    model_path = _model_path(sc)
+    if model_path.exists():
+        try:
+            from .model_io import load_model
+            gold = _gold_table_dicts(load_model(model_path))
+        except Exception:                      # best-effort; pdfplumber stands alone
+            gold = []
+    # Gold model tables are authoritative — when present, they ARE the paper's
+    # tables, so pdfplumber's keyless guesses are suppressed entirely (they only
+    # add noise/duplicates). pdfplumber is used only when the model has none.
+    all_tables = gold if gold else tables
+
+    if err and not all_tables:
         return f"pdfdrill tables: {err}"
 
     out_dir = sc.blob_dir
     out_dir.mkdir(parents=True, exist_ok=True)
     (out_dir / "tables.json").write_text(
-        json.dumps(tables, ensure_ascii=False, indent=2), encoding="utf-8")
-    md = pdf_reading.tables_to_markdown(tables)
-    (out_dir / "tables.md").write_text(md, encoding="utf-8")
+        json.dumps(all_tables, ensure_ascii=False, indent=2), encoding="utf-8")
+    (out_dir / "tables.md").write_text(
+        pdf_reading.tables_to_markdown(all_tables), encoding="utf-8")
     # The QA projection: real <table>s with rowspan/colspan (a spanned header
     # renders as the range it covers, not as '' placeholders).
     (out_dir / "tables.html").write_text(
-        pdf_reading.tables_to_html(tables), encoding="utf-8")
+        pdf_reading.tables_to_html(all_tables), encoding="utf-8")
 
-    sc.set_evidence("tables_count", len(tables))
+    sc.set_evidence("tables_count", len(all_tables))
+    sc.set_evidence("tables_gold", len(gold))
     sc.set_evidence("tables_path", str((out_dir / "tables.json")
                                        .relative_to(sc.pdf_path.parent)))
     prev = ",".join(sorted(sc.facts - {TABLES_KNOWN})) or "INIT"
     sc.add_fact(TABLES_KNOWN)
     sc.log_transition("tables", prev, TABLES_KNOWN,
                       cost_ms=(time.monotonic() - t0) * 1000,
-                      detail=f"{len(tables)} table(s)")
+                      detail=f"{len(gold)} gold + {len(tables)} pdfplumber")
     sc.save()
-    if not tables:
-        return (f"No tables found by pdfplumber in {pdf.name}"
+    drop_note = (f" Dropped {dropped} two-column-prose false table(s)."
+                 if dropped else "")
+    if not all_tables:
+        return (f"No tables found in {pdf.name}"
                 + (f" (pages {pages})" if page_list else "")
-                + (f" ({note})" if note else "")
-                + ". If a table is present but garbled, rasterize the page.")
-    pages_with = sorted({t["page"] for t in tables})
-    preview = pdf_reading.tables_to_markdown(tables[:2])
-    return (f"Extracted {len(tables)} table(s) across page(s) {pages_with} "
-            f"→ tables.json + tables.md + tables.html (span-aware; open the "
-            f"html for QA — headers render with their covered range)"
-            + (f". Note: {note}" if note else "") + f". Preview:\n\n"
+                + (f" ({note})" if note else "") + "." + drop_note
+                + " If a table is present but garbled, rasterize the page.")
+    if gold:
+        src = (f"{len(gold)} table(s) from the model's real tables "
+               f"(pdfplumber's {len(tables)} keyless guess(es) suppressed as noise)")
+        extra = (" These are the paper's actual tables; run `pdfdrill svg` to "
+                 "render the gold LaTeX exactly.")
+    else:
+        src = f"{len(tables)} pdfplumber table(s)"
+        extra = ""
+    preview = pdf_reading.tables_to_markdown(all_tables[:2])
+    return (f"Extracted {src} → tables.json + tables.md + tables.html "
+            f"(open the html for QA)." + extra
+            + drop_note + (f" Note: {note}." if note else "") + "\n\nPreview:\n\n"
             + preview)
 
 
