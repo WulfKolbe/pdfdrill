@@ -32,16 +32,18 @@ def _have_pyvips() -> bool:
 def tools_available() -> tuple[bool, str]:
     """(ok, message). Needs Ghostscript (render) + pyvips/libvips (dzsave)."""
     from . import pdf_reading
-    missing = []
-    if pdf_reading.gs_binary() is None:
-        missing.append("ghostscript")
-    if not _have_pyvips():
-        missing.append("pyvips (system libvips-tools)")
-    if missing:
-        return False, (
-            f"pyramid build needs {' and '.join(missing)}. Install: "
-            f"`apt-get install ghostscript libvips-tools && pip install "
-            f"'pdfdrill[imageserver]'`.")
+    gs_missing = pdf_reading.gs_binary() is None
+    pyvips_missing = not _have_pyvips()
+    if gs_missing or pyvips_missing:
+        parts = []
+        if pyvips_missing:
+            # pyvips is a PIP package (pyvips[binary] bundles libvips — no apt/root);
+            # point at the one named installer, never `apt-get` / the wrong name.
+            parts.append("pyvips — run:  bash tools/imageserver/install.sh   "
+                         "(= pip install 'pdfdrill[imageserver]')")
+        if gs_missing:
+            parts.append("Ghostscript — run:  sudo apt-get install -y ghostscript")
+        return False, "pyramid build needs " + "; ".join(parts) + "."
     return True, ""
 
 
