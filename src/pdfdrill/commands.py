@@ -2374,7 +2374,12 @@ def _build_arxiv_source_model(pdf: Path, sc: "Sidecar", key: str,
     sc.set_evidence("model_equations_with_cdn", 0)
     sc.set_evidence("model_source", "latex")
     prev = ",".join(sorted(sc.facts - {MODEL_BUILT})) or "INIT"
-    sc.add_fact(MODEL_BUILT)
+    # Proof: this model was built from the arXiv LaTeX source (not lines.json).
+    # Hash the source dir's main.tex when findable; provenance records the lane
+    # (Phase B — content-hash staleness over the source build is a refinement).
+    src_inputs = [Path(source_dir) / "main.tex"] if source_dir else []
+    sc.mark(MODEL_BUILT, produced_by="model", inputs=src_inputs,
+            params={"bibkey": key}, provenance="latex-source")
     sc.log_transition("model", prev, MODEL_BUILT,
                       detail=f"{len(objs)} objects from arXiv LaTeX source")
     sc.save()
@@ -2505,7 +2510,11 @@ def cmd_model(pdf: Path, force: bool = False, bibkey: str | None = None) -> str:
     sc.set_evidence("model_caps", {"geometry": has_geometry, "math": has_math,
                                    "source": lines_source})
     prev = ",".join(sorted(sc.facts - {MODEL_BUILT})) or "INIT"
-    sc.add_fact(MODEL_BUILT)
+    # Record a proof object (content-hash of the lines.json this model was built
+    # from + the bibkey) alongside the fact — so validity is later decidable by
+    # re-hashing instead of trusting mtime (Phase B, the mtime-trigger fix).
+    sc.mark(MODEL_BUILT, produced_by="model", inputs=[lines_path],
+            params={"bibkey": key}, provenance=lines_source)
     sc.log_transition(
         "model", prev, MODEL_BUILT, cost_ms=(time.monotonic() - t0) * 1000,
         detail=f"{len(objects)} objects, {eq_with_cdn} eq w/ cdn",
@@ -5407,7 +5416,9 @@ def cmd_latex(pdf: Path, tex: str | None = None, force: bool = False) -> str:
     sc.set_evidence("latex_created", created)
     sc.set_evidence("latex_graphics", n_graphics)
     prev = ",".join(sorted(sc.facts - {LATEX_INGESTED})) or "INIT"
-    sc.add_fact(LATEX_INGESTED)
+    # Proof: the gold LaTeX source this enrichment was ingested from (Phase B).
+    sc.mark(LATEX_INGESTED, produced_by="latex", inputs=[src],
+            params={"created": created, "attached": attached})
     sc.log_transition("latex", prev, LATEX_INGESTED,
                       detail=f"{attached}/{len(src_eqs)} eqs matched, {created} created, "
                              f"{n_graphics} graphics, {len(macros)} macros")

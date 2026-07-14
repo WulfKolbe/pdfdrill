@@ -92,6 +92,37 @@ class Sidecar:
     def has(self, fact: str) -> bool:
         return fact in self.facts
 
+    # -- Capabilities (facts + provenance proof objects) --
+
+    @property
+    def capabilities(self) -> dict:
+        """{fact: proof-object}. A parallel, additive store written by `mark()`
+        next to the plain fact list; old readers (facts) stay authoritative."""
+        return self._data.setdefault("capabilities", {})
+
+    def mark(self, fact: str, produced_by: str, inputs=None,
+             params: dict | None = None, **proof_kw):
+        """Set `fact` (like `add_fact`) AND record a proof object capturing the
+        content-hashes of `inputs` + a params hash, so the capability's validity
+        can later be checked by re-hashing (replacing the mtime trigger). The
+        fact remains the authoritative signal; the proof is additive."""
+        from . import proofs
+        self.add_fact(fact)
+        self._data.setdefault("capabilities", {})[fact] = proofs.make_proof(
+            produced_by, inputs=inputs, params=params, **proof_kw)
+
+    def capability_valid(self, fact: str) -> bool:
+        """True if `fact` is held AND its proof (if any) still verifies. A fact
+        held without a proof is trusted (legacy add_fact) — proofs only ever make
+        a stale capability FALSE, never invent one."""
+        if fact not in self.facts:
+            return False
+        proof = self.capabilities.get(fact)
+        if not proof:
+            return True
+        from . import proofs
+        return proofs.verify(proof)
+
     # -- Evidence --
 
     @property

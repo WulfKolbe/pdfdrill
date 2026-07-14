@@ -83,7 +83,9 @@ def _parse() -> tuple[dict[str, str], dict[str, list[str]], dict[str, list[str]]
                     f = _fact(c.args[0])
                     if not f:
                         continue
-                    if c.func.attr == "add_fact":
+                    # `mark(fact, …)` sets the fact AND records a proof, so it is
+                    # a producer exactly like `add_fact(fact)`.
+                    if c.func.attr in ("add_fact", "mark"):
                         a.add(f)
                     elif c.func.attr in ("remove_fact", "discard"):
                         r.add(f)
@@ -120,6 +122,22 @@ def produces() -> dict[str, list[str]]:
 
 def _removes() -> dict[str, list[str]]:
     return dict(_parse()[2])
+
+
+@functools.lru_cache(maxsize=1)
+def proof_emitting() -> frozenset[str]:
+    """Commands whose handler calls `sc.mark(...)` — i.e. records a proof object,
+    not just `add_fact`. The census that keeps Phase-B proof adoption VISIBLE: as
+    more producers migrate, this set grows (and the census test tracks it)."""
+    tree = ast.parse(_COMMANDS_PY.read_text(encoding="utf-8"))
+    out: set[str] = set()
+    for n in ast.walk(tree):
+        if isinstance(n, ast.FunctionDef) and n.name.startswith("cmd_"):
+            for c in ast.walk(n):
+                if (isinstance(c, ast.Call) and isinstance(c.func, ast.Attribute)
+                        and c.func.attr == "mark" and c.args):
+                    out.add(n.name[4:])
+    return frozenset(out)
 
 
 def destroys(command: str) -> list[str]:
