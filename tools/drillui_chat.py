@@ -199,6 +199,37 @@ _HEAVY_TIMEOUT = {
 }
 
 
+SESSION_STORE_NAME = ".drillui_session.docpack"
+
+
+def existing_session_store(store_dir: str) -> "str | None":
+    """The previously-persisted multi-doc session store in `store_dir`, if it
+    exists and is non-empty — so a fresh launch RESUMES the last context instead
+    of ignoring the file it wrote (the 'state persisted but not loaded' bug).
+    Returns the path string, or None."""
+    if not store_dir:
+        return None
+    p = Path(store_dir) / SESSION_STORE_NAME
+    try:
+        if p.is_file() and p.stat().st_size > 0:
+            return str(p)
+    except OSError:
+        pass
+    return None
+
+
+def session_members(store_path: str) -> list:
+    """The member document paths recorded in a combined session store
+    (`meta.sources`), for restoring the `docs` list on resume. [] on any error."""
+    try:
+        data = json.loads(Path(store_path).read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return []
+    meta = data.get("meta") if isinstance(data, dict) else None
+    src = meta.get("sources") if isinstance(meta, dict) else None
+    return [str(s) for s in src] if isinstance(src, list) else []
+
+
 def run_command(base, env, cmds: dict, doc: str, line: str, timeout: float) -> str:
     """Run `<cmd> [args]` (with or without a leading '!') as a pdfdrill subcommand
     on the open doc. Heavy commands get their _HEAVY_TIMEOUT floor so a long
@@ -244,8 +275,8 @@ def do_add(base, env, newdoc: str, docs: list, combined: str | None,
     if len(drilled) == 1:                                 # one usable doc — no merge
         print(f"  context: {drilled[0]} (1 document) — ask away.")
         return drilled[0], None
-    base_store = (Path(store_dir) / ".drillui_session.docpack") if store_dir \
-        else Path(".drillui_session.docpack")
+    base_store = (Path(store_dir) / SESSION_STORE_NAME) if store_dir \
+        else Path(SESSION_STORE_NAME)
     out = combined or str(base_store)
     try:
         msg = _run(base + ["combine", *drilled, "--out", out, "--force"], env,
@@ -374,8 +405,8 @@ def do_add_many(base, env, newdocs: list, docs: list, combined,
     if len(drilled) == 1:
         print(f"  context: {drilled[0]} (1 document) — ask away.")
         return drilled[0], None
-    base_store = (Path(store_dir) / ".drillui_session.docpack") if store_dir \
-        else Path(".drillui_session.docpack")
+    base_store = (Path(store_dir) / SESSION_STORE_NAME) if store_dir \
+        else Path(SESSION_STORE_NAME)
     out = combined or str(base_store)
     try:
         msg = _run(base + ["combine", *drilled, "--out", out, "--force"], env,
@@ -487,6 +518,8 @@ def main() -> int:
     ap.add_argument("--pdfdrill", help="override the pdfdrill invocation (space-separated)")
     ap.add_argument("--timeout", type=float, default=180.0, help="per-call timeout s (default 180)")
     ap.add_argument("--no-store", action="store_true", help="don't write the transcript/kitem")
+    ap.add_argument("--fresh", action="store_true",
+                    help="start empty; do NOT resume the persisted session store")
     args = ap.parse_args()
 
     # A one-shot question needs a document; the interactive REPL does NOT — you
@@ -546,6 +579,17 @@ def main() -> int:
     target = args.doc                       # retrieval target (doc / combined store / None)
     combined = None                         # the combined-store path once >1 doc
     store_dir = query_download_dir(base, env, args.timeout)   # stable home for the session store
+    # RESUME the persisted multi-doc context: a prior session wrote a combined
+    # store but a fresh launch used to ignore it ("state persisted but not loaded").
+    # With no explicit <doc> and not --fresh, adopt it as the live target.
+    if args.doc is None and not args.fresh:
+        resumed = existing_session_store(store_dir)
+        if resumed:
+            target = combined = resumed
+            docs = session_members(resumed) or docs
+            n = len(docs) or "?"
+            print(f"  ⟳ resumed session store ({n} document(s)): {resumed}")
+            print("     `--fresh` to start empty instead.")
     # Working directory for `ls` and relative `add` (Unix-shell style). Starts at
     # the launch doc's folder, else the session store dir, else the process cwd.
     cwd = (os.path.dirname(os.path.abspath(args.doc)) if args.doc

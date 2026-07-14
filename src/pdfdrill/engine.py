@@ -1,23 +1,22 @@
-"""Engine — state-machine-driven pipeline with declarative transitions.
+"""Engine — the linear node pipeline behind the `md`/`drill` engine path.
 
-The engine drives Nodes over a DocumentContext using a transition table.
-Each tick: find first matching transition from current state, run target
-node, update state, log, persist.
+`SequentialEngine` runs a flat list of `Node`s in order over a `DocumentContext`.
 
-Two modes:
-  tick(ctx)              run one transition
-  run(ctx)               run to terminal state
-  plan(ctx)              dry-run, show path
+Historical note: this module used to also carry a branching state-machine
+(`Engine` + declarative `Transition` edges, driven by `transitions.py`) and a
+`Metric` layer (`metrics.py`). Both were dead — imported by nothing — and were
+removed in Phase 0 of the capability-planner work (see
+docs/superpowers/plans/2026-07-14-capability-planner.md). The capability planner
+(`capability_planner.py`) is now the single "graph traversal" story; the runtime
+pipeline is strictly the linear engine below.
 """
 
 from __future__ import annotations
 
 import time
 from abc import ABC, abstractmethod
-from dataclasses import dataclass
-from typing import Callable, Optional
 
-from .context import DocumentContext, STATE_ANSWER
+from .context import DocumentContext
 
 
 # ---------------------------------------------------------------------------
@@ -37,113 +36,7 @@ class Node(ABC):
 
 
 # ---------------------------------------------------------------------------
-# Transition — declarative edge in the state graph
-# ---------------------------------------------------------------------------
-
-@dataclass
-class Transition:
-    from_state: str
-    to_state: str
-    node: Node
-    guard: Callable[[DocumentContext], bool] = lambda _: True
-    label: str = ""
-
-
-def always(_: DocumentContext) -> bool:
-    return True
-
-
-# ---------------------------------------------------------------------------
-# Metric
-# ---------------------------------------------------------------------------
-
-class Metric(ABC):
-    name: str
-
-    @abstractmethod
-    def compute(self, ctx: DocumentContext) -> float:
-        ...
-
-
-# ---------------------------------------------------------------------------
-# Engine
-# ---------------------------------------------------------------------------
-
-class Engine:
-    def __init__(
-        self,
-        transitions: list[Transition],
-        metrics: Optional[list[Metric]] = None,
-        verbose: bool = False,
-    ):
-        self.transitions = transitions
-        self.metrics = metrics or []
-        self.verbose = verbose
-
-    def _find_transition(self, ctx: DocumentContext) -> Optional[Transition]:
-        """Find the first transition whose from_state matches and guard passes."""
-        for t in self.transitions:
-            if t.from_state == ctx.state and t.guard(ctx):
-                return t
-        return None
-
-    def tick(self, ctx: DocumentContext) -> tuple[DocumentContext, bool]:
-        """Run one state transition. Returns (ctx, is_terminal)."""
-        t = self._find_transition(ctx)
-        if t is None:
-            if self.verbose:
-                print(f"[engine] no transition from state={ctx.state}", flush=True)
-            return ctx, True
-
-        node = t.node
-        if self.verbose:
-            label = t.label or node.name
-            print(f"[{ctx.state} → {t.to_state}] {label}...", flush=True)
-
-        t0 = time.monotonic()
-        ctx = node.run(ctx)
-        elapsed = time.monotonic() - t0
-
-        ctx.state = t.to_state
-        ctx.log(node.name, detail=t.label, cost_ms=round(elapsed * 1000, 1))
-
-        if self.verbose:
-            print(f"  done in {elapsed:.2f}s  state={ctx.state}", flush=True)
-
-        return ctx, ctx.state == STATE_ANSWER
-
-    def run(self, ctx: DocumentContext) -> DocumentContext:
-        """Run transitions until terminal state or no transition found."""
-        steps = 0
-        while ctx.state != STATE_ANSWER and steps < 50:
-            ctx, done = self.tick(ctx)
-            steps += 1
-            if done:
-                break
-        return ctx
-
-    def plan(self, ctx: DocumentContext) -> list[dict]:
-        """Dry-run: walk the graph with guards only, return planned path."""
-        path = []
-        test_ctx = ctx.model_copy(deep=True)
-        steps = 0
-        while test_ctx.state != STATE_ANSWER and steps < 50:
-            t = self._find_transition(test_ctx)
-            if t is None:
-                break
-            path.append({
-                "from": t.from_state,
-                "to": t.to_state,
-                "node": t.node.name,
-                "label": t.label,
-            })
-            test_ctx.state = t.to_state
-            steps += 1
-        return path
-
-
-# ---------------------------------------------------------------------------
-# Legacy: simple sequential pipeline (for backward compat with existing nodes)
+# SequentialEngine — flat, in-order pipeline (the only engine that runs)
 # ---------------------------------------------------------------------------
 
 class SequentialEngine:
