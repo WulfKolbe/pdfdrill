@@ -141,22 +141,29 @@ const DOC_DIR = (() => {
 // The pdfdrill download dir (config `download_dir`, default ~/Downloads) is where
 // drilled docs + their `.drill` artifacts (report.html / *.md / *.json …) live, so
 // serve from there too — else links to ~/Downloads/<doc>.drill/* would 404.
-const DOWNLOAD_DIR = (() => {
+// Both `library_root` (the self-contained doc folders `<stem>/<stem>.pdf`) AND
+// `download_dir` from the pdfdrill config — a doc's artifacts live under one of
+// them, and pdfdrill now reports FOLDER-QUALIFIED paths (`<stem>/<file>`) that
+// resolve directly under the library/download root.
+const CONFIG_DIRS = (() => {
   const cands = [process.env.PDFDRILL_CONFIG,
                  join(homedir(), ".config", "pdfdrill", "config.json"),
                  join(homedir(), ".pdfdrill.json")].filter(Boolean) as string[];
   for (const c of cands) {
     try {
       const d = JSON.parse(readFileSync(c, "utf8"));
-      if (d && d.download_dir)
-        return resolve(String(d.download_dir).replace(/^~(?=$|\/)/, homedir()));
+      const dirs: string[] = [];
+      for (const key of ["library_root", "download_dir"]) {
+        if (d && d[key]) dirs.push(resolve(String(d[key]).replace(/^~(?=$|\/)/, homedir())));
+      }
+      if (dirs.length) return dirs;              // first config with a dir wins
     } catch { /* not present / not json */ }
   }
   const dl = join(homedir(), "Downloads");
-  return existsSync(dl) ? dl : null;
+  return existsSync(dl) ? [dl] : [];
 })();
 const ART_ROOTS = [...new Set(
-  [ART_ROOT, DOC_DIR, DOWNLOAD_DIR].filter(Boolean) as string[])];
+  [ART_ROOT, DOC_DIR, ...CONFIG_DIRS].filter(Boolean) as string[])];
 
 // `add <doc>` can bring in a doc from ANY directory (e.g. ~/Scans/x.pdf). Its
 // PDF + `.drill` artifacts then live outside cwd / the launch-doc dir / the

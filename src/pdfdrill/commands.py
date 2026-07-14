@@ -726,6 +726,20 @@ def _list_artifacts(sc: "Sidecar", all_files: bool = False) -> "list[Path]":
     return files
 
 
+def _artref(sc: "Sidecar", p: Path) -> str:
+    """A browser-facing artifact reference RELATIVE TO THE LIBRARY ROOT
+    (`blob_dir.parent`) so it carries the DOC FOLDER — `<stem>/<file>` in the
+    self-contained layout, `<name>.pdf.drill/<file>` in the legacy one. A bare
+    `<file>` (what `relative_to(pdf.parent)` collapses to when the folder IS the
+    doc folder) is ambiguous for the drillui bridge: a generic name like
+    `tables.html` then matches the WRONG doc folder (the "found but empty" bug),
+    and a prefixed name can 404. Falls back to the basename if p escapes the root."""
+    try:
+        return str(p.relative_to(sc.blob_dir.parent))
+    except ValueError:
+        return p.name
+
+
 def cmd_artifacts(pdf: Path, all_files: bool = False) -> str:
     """List the openable files in this doc's drill folder (report.html, the
     extracted `<bibkey>.md`, tiddlers/semantic/llm `*.json`/`*.txt`, SVGs) with
@@ -736,13 +750,13 @@ def cmd_artifacts(pdf: Path, all_files: bool = False) -> str:
     if not sc.blob_dir.exists():
         return (f"No drill folder yet for {pdf.name} — run `pdfdrill model` / "
                 f"`md` / `report` / `tiddlers` first.")
-    rel_dir = sc.blob_dir.relative_to(sc.pdf_path.parent)
+    rel_dir = _artref(sc, sc.blob_dir)
     files = _list_artifacts(sc, all_files=all_files)
     if not files:
         return f"No openable artifacts in {rel_dir}/ yet (run md/report/tiddlers/…)."
     lines = [f"{len(files)} artifact(s) in {rel_dir}/ — click to open in a tab:"]
     for p in files:
-        lines.append(f"  {p.relative_to(sc.pdf_path.parent)}  "
+        lines.append(f"  {_artref(sc, p)}  "
                      f"({p.stat().st_size / 1024:.0f} KB)")
     if not all_files and any((sc.blob_dir / n).exists() for n in _HEAVY_INTERNAL):
         lines.append("  (the raw model JSON is hidden — `pdfdrill artifacts "
@@ -2481,8 +2495,9 @@ def cmd_tables(pdf: Path, pages: str | None = None) -> str:
         src = f"{len(tables)} pdfplumber table(s)"
         extra = ""
     preview = pdf_reading.tables_to_markdown(all_tables[:2])
-    return (f"Extracted {src} → tables.json + tables.md + tables.html "
-            f"(open the html for QA)." + extra
+    html_ref = _artref(sc, out_dir / "tables.html")
+    return (f"Extracted {src} → {html_ref} (+ tables.json/.md; open the html "
+            f"for QA)." + extra
             + drop_note + (f" Note: {note}." if note else "") + "\n\nPreview:\n\n"
             + preview)
 
@@ -2869,7 +2884,7 @@ def cmd_compare(pdf: Path, force: bool = False, embed: bool = False) -> str:
         detail=f"{rows} rows",
     )
     sc.save()
-    rel = out_path.relative_to(sc.pdf_path.parent)
+    rel = _artref(sc, out_path)
     return (
         f"Comparison table: {rows} expressions (LaTeX | KaTeX | MathPix image). "
         f"Open {rel} in a browser."
@@ -3253,7 +3268,7 @@ def cmd_llmtext(pdf: Path, delimiter: str = "%%%%", split: bool = True) -> str:
     return (f"LLM text dump: {n_units} unit(s) from {n_para} paragraph(s) + "
             f"{n_eq} formula(s) (paragraphs split on double line breaks, "
             f"empty formulas skipped), delimiter '{delimiter}'. "
-            f"Open {out_path.relative_to(sc.pdf_path.parent)} in a browser.")
+            f"Open {_artref(sc, out_path)} in a browser.")
 
 
 def cmd_enhance(pdf: Path, only: str | None = None, skip: str | None = None) -> str:
@@ -4206,7 +4221,7 @@ def cmd_remath(pdf: Path, pages: "list[int] | None" = None, force: bool = False)
     out_md.write_text(f"# {key}\n\n" + "\n\n".join(parts) + "\n", encoding="utf-8")
     return (f"Re-math: rebuilt {len(parts)} page(s) of MathPix-quality Markdown"
             + (f" ({gave} page(s) the model declined, skipped)" if gave else "")
-            + f" → {out_md.relative_to(sc.pdf_path.parent)}. Now build the model "
+            + f" → {_artref(sc, out_md)}. Now build the model "
             f"WITH LaTeX transclusions: `pdfdrill markdown {out_md} --bibkey {key}`.\n"
             + _MATHPIX_TIP)
 
@@ -4817,7 +4832,7 @@ def cmd_distill(pdf: Path, embed: bool = False) -> str:
     out_path.write_text(result, encoding="utf-8")
     sc.set_evidence("distill_path", str(out_path.relative_to(sc.pdf_path.parent)))
     sc.save()
-    rel = out_path.relative_to(sc.pdf_path.parent)
+    rel = _artref(sc, out_path)
     blocks = proj.counters.get("blocks", 0)
     return (f"Distill reading view: {blocks} blocks ({len(result) // 1024} KB, "
             f"self-contained) — named-column layout, runtime TOC, late-bound figure "
@@ -4864,7 +4879,7 @@ def cmd_report(pdf: Path, force: bool = False, embed: bool = False,
     sc.add_fact(REPORT_BUILT)
     sc.log_transition("report", prev, REPORT_BUILT, detail=f"{inline} inline, {eqs} equations")
     sc.save()
-    rel = out_path.relative_to(sc.pdf_path.parent)
+    rel = _artref(sc, out_path)
     msg = (f"Formula report: {inline} inline formulas + {eqs} display equations "
            f"(LaTeX | KaTeX | image). Open {rel} in a browser.")
     # If the report is EMPTY of math, don't leave the user guessing — say WHY and
@@ -4974,7 +4989,7 @@ def cmd_inspect(pdf: Path, pages: str | None = None, embed: bool = True,
 
     sc.set_evidence("inspect_path", str(out_path.relative_to(sc.pdf_path.parent)))
     sc.save()
-    rel = out_path.relative_to(sc.pdf_path.parent)
+    rel = _artref(sc, out_path)
     # A LaTeX-source model has no page geometry, so nothing can be boxed. Keep it
     # SHORT and point at the one fix (rebuild with the born-digital / MathPix route,
     # which now carries geometry) — no wall of text.
@@ -6131,7 +6146,7 @@ def cmd_tiddlers(pdf: Path, force: bool = False, embed: bool = False,
         detail=f"{count} tiddlers, svg={'inline' if embed_svg else 'external'}",
     )
     sc.save()
-    rel = out_path.relative_to(sc.pdf_path.parent)
+    rel = _artref(sc, out_path)
     # Referential-integrity guard: every transclusion target/template must exist
     # and no synthetic FOX may be orphaned (created but never referenced) — the
     # "double bug" class. Report it so it can't hide.
@@ -7077,7 +7092,7 @@ def cmd_escalate(pdf: Path, limit: int | None = None) -> str:
     sc.set_evidence("escalation_count", len(flagged))
     sc.add_fact(ESCALATION_OPEN)
     sc.save()
-    rel = out_path.relative_to(sc.pdf_path.parent)
+    rel = _artref(sc, out_path)
     return (
         f"Escalated {len(flagged)} flagged equation(s) → {rel}. Provide LLM "
         f"readings (look at each `cdn_url`), then:\n"
@@ -7287,7 +7302,7 @@ def cmd_candidates(pdf: Path, provider: str = "llm",
         json.dump(manifest, f, indent=2, ensure_ascii=False)
 
     try:
-        rel = out_path.relative_to(sc.pdf_path.parent)
+        rel = _artref(sc, out_path)
     except ValueError:
         rel = out_path
     return (
@@ -8557,7 +8572,7 @@ def _write_named_md(pdf: Path, sc: "Sidecar", md_text: str) -> str:
         sc.blob_dir.mkdir(parents=True, exist_ok=True)
         p = sc.blob_dir / f"{key}.md"
         p.write_text(md_text or "", encoding="utf-8")
-        return (f"\n→ Markdown file: {p.relative_to(sc.pdf_path.parent)}  "
+        return (f"\n→ Markdown file: {_artref(sc, p)}  "
                 f"(open it directly; clickable in the drillui Outputs panel).")
     except Exception:                                      # noqa: BLE001
         return ""
