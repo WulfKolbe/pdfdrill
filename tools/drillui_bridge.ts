@@ -41,6 +41,7 @@ let port = 8787;
 let staticPort = parseInt(process.env.DRILLUI_STATIC_PORT ?? "10000", 10);
 let artifactsRoot = REPO_ROOT;       // default; --artifacts overrides
 let opener: string | null = null;    // host browser launcher; null → auto/none
+let editorCmd: string | null = null; // source-file editor; null → auto (CoCalc `open` / gummi)
 let chatPath: string | null = null;  // explicit path to drillui_chat.py
 let pythonBin = process.env.DRILLUI_PYTHON ?? "python3";
 const passthrough: string[] = [];
@@ -57,6 +58,7 @@ for (let i = 0; i < argv.length; i++) {
   else if (a === "--artifacts") artifactsRoot = argv[++i];
   else if (a === "--opener") opener = argv[++i];          // e.g. firefox, xdg-open
   else if (a === "--no-open") opener = "";                // disable host-open
+  else if (a === "--editor") editorCmd = argv[++i];       // e.g. gummi, "code -r"
   else if (a === "--chat") chatPath = argv[++i];          // path to drillui_chat.py
   else if (a === "--python") pythonBin = argv[++i];       // interpreter (e.g. a venv python)
   else if (!doc && !a.startsWith("-")) doc = a;
@@ -488,6 +490,19 @@ function resolveOpener(): string[] | null {
 }
 const OPENER = resolveOpener();
 
+// The SOURCE-file editor (the `edit <file>` verb): open a .tex/.bib/.md in a
+// real editor/IDE instead of viewing raw text in a browser tab. Resolution:
+//   explicit --editor > CoCalc's `open` (opens in the project's LaTeX IDE) >
+//   `gummi` (a fast local LaTeX IDE) > the browser opener as a last resort.
+function resolveEditor(): string[] | null {
+  if (editorCmd === "") return null;
+  if (editorCmd) return editorCmd.split(" ");
+  if (process.env.COCALC_PROJECT_ID && Bun.which("open")) return ["open"];
+  if (Bun.which("gummi")) return ["gummi"];
+  return OPENER;                                   // fall back to xdg-open/open
+}
+const EDITOR = resolveEditor();
+
 // ---- per-connection session ------------------------------------------------
 type Session = {
   proc: ReturnType<typeof Bun.spawn>;
@@ -626,6 +641,22 @@ const server = Bun.serve<{ sess: Session | null }>({
       }
     }
 
+    // open a source FILE in the host EDITOR/IDE (`edit <file>`): CoCalc's `open`
+    // → the project's LaTeX IDE, or `gummi` locally. Same root-safety as /open.
+    if (url.pathname === "/edit" && req.method === "POST") {
+      if (!EDITOR) return new Response("editor-open disabled", { status: 403 });
+      let body: any; try { body = await req.json(); } catch { return new Response("bad json", { status: 400 }); }
+      const abs = safeResolve(String(body?.path || ""));
+      if (!abs) return new Response("forbidden path", { status: 403 });
+      if (!(await Bun.file(abs).exists())) return new Response("not found", { status: 404 });
+      try {
+        Bun.spawn({ cmd: [...EDITOR, abs], stdout: "ignore", stderr: "ignore" });
+        return Response.json({ ok: true, editor: EDITOR[0] });
+      } catch (e) {
+        return new Response("editor-open failed: " + String(e), { status: 500 });
+      }
+    }
+
     // serve the terminal page (default route). no-store: we iterate on this file
     // a lot — a stale cached copy is a real source of "it doesn't work" (old JS).
     const file = Bun.file(HTML_PATH);
@@ -648,6 +679,7 @@ const server = Bun.serve<{ sess: Session | null }>({
         k,
         store,
         hostOpen: OPENER !== null,
+        editor: EDITOR ? EDITOR.join(" ") : null,          // `edit <file>` opener (gummi / CoCalc open)
         staticPort,                                        // static-file server port (CoCalc artifact route)
         viewer: docWithPyramid() ? "/viewer.html" : null,  // local deep-zoom image source
       });
@@ -739,6 +771,7 @@ console.error(`  chat: ${pythonBin} ${CHAT_SCRIPT}`);
 console.error(`  doc=${doc}  model=${model ?? "default"}  k=${k}  store=${store}`);
 console.error(`  cwd / artifacts root: ${ART_ROOT}`);
 console.error(`  host-open: ${OPENER ? OPENER.join(" ") : "disabled"}`);
+console.error(`  editor (edit <file>): ${EDITOR ? EDITOR.join(" ") : "disabled"}`);
 console.error(`  image server: ${docWithPyramid()
   ? `lazy /cropped,/tiles,/viewer.html → pdfdrill imageserve :${IMG_PORT}`
   : "no local pyramid (run `pdfdrill pyramid <doc>` to enable /viewer.html)"}`);

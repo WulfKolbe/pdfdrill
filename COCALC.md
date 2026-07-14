@@ -113,6 +113,20 @@ the URL shape changes. On localhost the original `/artifact?path=` route is stil
 used (it works there). If port 10000 is taken the bridge degrades to `/artifact`
 and logs it. Nothing to configure — open the doc, click an Outputs link.
 
+## 6. Editing source files — `edit <file>` (opens in the CoCalc IDE)
+
+Viewing a `.tex`/`.bib` as raw text in a browser tab is useless; the drillui
+`edit` verb instead opens it in a real editor. Type in the terminal:
+
+    edit 2502.20855v2.pdf.drill/texsrc/main.tex
+
+The bridge runs the host editor on the absolute path. It auto-picks:
+**CoCalc's `open`** (→ the project's full LaTeX IDE) when `$COCALC_PROJECT_ID` is
+set; **`gummi`** (a fast local LaTeX IDE) when running the bridge on your own
+machine; else the browser opener. Override with `--editor <cmd>` (e.g.
+`bun run tools/drillui_bridge.ts --editor "code -r"`). Same path-safety as the
+artifact routes (files under the served roots only).
+
 ## Troubleshooting
 
 - **`bun: command not found`** — new shell not opened yet:

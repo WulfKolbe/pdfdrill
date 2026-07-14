@@ -332,7 +332,7 @@ const app = {
   state:"down",          // down | ready | busy
   session:{ doc:"—", model:"—", k:"—", store:true },
   turnNo:0, pendingQ:null, turnBuf:"", turnErr:false,
-  httpBase:"", staticPort:0, hostOpen:false, artifacts:new Map(),
+  httpBase:"", staticPort:0, hostOpen:false, editorName:"", artifacts:new Map(),
 
   init(){
     const term = new Terminal({
@@ -497,6 +497,7 @@ const app = {
         sd.textContent = this.session.store ? "on" : "off";
         sd.className = this.session.store ? "ok" : "off";
         this.hostOpen = msg.hostOpen === true;   // bridge can launch the system browser
+        this.editorName = msg.editor || "";      // `edit <file>` opener (gummi / CoCalc open)
         this.staticPort = msg.staticPort || 0;   // bridge's static file server port (CoCalc route)
         if (msg.viewer){                          // local MathPix-free deep-zoom image source
           this.artifacts.set("__viewer__", { isUrl:true, url:(this.httpBase||"")+msg.viewer,
@@ -572,8 +573,32 @@ const app = {
     const cmd = (sp < 0 ? q : q.slice(0, sp)).toLowerCase();
     const arg = sp < 0 ? "" : q.slice(sp + 1).trim();
     if (cmd === "open" || cmd === "openurl" || cmd === "url"){ this.localOpen(arg); return true; }
+    if (cmd === "edit"){ this.localEdit(arg); return true; }
     if (cmd === "lhelp"){ this.localHelp(); return true; }
     return false;
+  },
+
+  async localEdit(arg){
+    // Open a SOURCE file (main.tex, .bib, .md …) in the host editor/IDE — CoCalc's
+    // `open` (the project's LaTeX IDE) or `gummi` locally — NOT a raw browser tab.
+    if (!arg){
+      this.term.writeln(C.faint("  usage: edit <path>   (opens the file in "
+        + (this.editorName || "the host editor") + ")"));
+      return;
+    }
+    if (!this.httpBase){ this.term.writeln(C.red("  no bridge connection")); return; }
+    if (!this.editorName){
+      this.term.writeln(C.faint("  no host editor — falling back to a browser view"));
+      this.localOpen(arg); return;
+    }
+    try{
+      const r = await fetch(`${this.httpBase}/edit`, {
+        method:"POST", headers:{"content-type":"application/json"},
+        body: JSON.stringify({ path: arg }) });
+      if (r.ok){ const b = await r.json().catch(()=>({}));
+        this.term.writeln(C.green(`  editing ${arg}`) + C.faint(` in ${b.editor||this.editorName}`)); }
+      else this.term.writeln(C.red(`  edit failed: ${await r.text()}`));
+    }catch(e){ this.term.writeln(C.red(`  edit failed: ${e}`)); }
   },
 
   localOpen(arg){
@@ -650,6 +675,8 @@ const app = {
   localHelp(){
     this.term.writeln(C.orange("  local commands") + C.faint(" (this window, not the LLM):"));
     this.term.writeln("    " + C.fg("open <url|file>") + C.faint("   open a URL or pdfdrill output file in a new window"));
+    this.term.writeln("    " + C.fg("edit <file>") + C.faint("      open a source file (main.tex, .bib …) in "
+      + (this.editorName || "the host editor/IDE")));
     this.term.writeln("    " + C.fg("^L") + C.faint("                clear the screen"));
     this.term.writeln(C.faint("  everything else → drillui_chat.py: a pdfdrill command "
       + "(status, size, model, report, …) runs on the doc; anything else is a question."));

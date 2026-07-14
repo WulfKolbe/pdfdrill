@@ -28,7 +28,8 @@ const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
 // --- spawn the bridge (host-open disabled so POST /open must 403) ------------
 const proc = Bun.spawn({
-  cmd: ["bun", BRIDGE, doc, "--port", String(PORT), "--static-port", String(SPORT), "--no-open"],
+  cmd: ["bun", BRIDGE, doc, "--port", String(PORT), "--static-port", String(SPORT),
+        "--no-open", "--editor", "true"],
   cwd: resolve(HERE, ".."),
   stdout: "pipe", stderr: "pipe",
   env: { ...process.env },
@@ -89,6 +90,17 @@ if (up) {
   ok("GET /artifact resolves a bare basename via *.drill/ fallback", bn.ok);
   const sbn = await fetch(sbase + "/tables.html");
   ok("static server resolves a bare basename via *.drill/ fallback", sbn.ok);
+
+  // 2e) `edit <file>` → POST /edit opens a source file in the host editor (here
+  //     `--editor true`, a harmless stand-in). Same root-safety as /open.
+  const ed = await fetch(base + "/edit", {
+    method: "POST", headers: { "content-type": "application/json" },
+    body: JSON.stringify({ path: "tools/drillui_bridge.ts" }) });
+  ok("POST /edit opens a file under root (editor configured)", ed.ok);
+  const edt = await fetch(base + "/edit", {
+    method: "POST", headers: { "content-type": "application/json" },
+    body: JSON.stringify({ path: "../../etc/passwd" }) });
+  ok("POST /edit refuses path traversal", edt.status === 403 || edt.status === 404);
 
   // 2c) local image-server proxy: with no built pyramid for the doc, an image
   //     route (/cropped, /tiles, /viewer.html, /manifest.json) degrades to a
