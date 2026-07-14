@@ -5177,26 +5177,31 @@ def cmd_latex(pdf: Path, tex: str | None = None, force: bool = False) -> str:
     if not model_path.exists():
         return f"No model for {pdf.name} (run `pdfdrill model` first)."
 
-    # Locate the source: explicit --tex, else <stem>.tex, the MathPix
-    # <stem>.tex.zip (clean LaTeX the `mathpix` command downloads), or an arXiv
-    # <stem>.tgz / .tar.gz.
+    # Locate the source. For an arXiv doc PREFER the author's GOLD e-print
+    # (.tgz, local or downloaded) over the MathPix <stem>.tex.zip — the .tex.zip
+    # is MathPix's OWN reconstruction (redundant with the mathpix column), while
+    # the e-print is the author's real LaTeX. Order: explicit --tex > arXiv e-print
+    # > local <stem>.tex > MathPix <stem>.tex.zip.
     src = Path(tex) if tex else None
+    aid = None if tex else _arxiv_id_for(pdf, sc)
+    if src is None and aid:
+        for ext in (".tgz", ".tar.gz"):
+            cand = pdf.parent / f"{pdf.stem}{ext}"
+            if cand.exists():
+                src = cand
+                break
+        if src is None:
+            try:
+                from . import sources
+                src = sources.download_arxiv_source(aid, pdf.parent)
+            except Exception:
+                src = None                       # fall through to a local .tex/.tex.zip
     if src is None:
         for ext in (".tex", ".tex.zip", ".tgz", ".tar.gz"):
             cand = pdf.parent / f"{pdf.stem}{ext}"
             if cand.exists():
                 src = cand
                 break
-    # arXiv: download the e-print .tgz (the free gold LaTeX) if no local source.
-    if src is None:
-        aid = _arxiv_id_for(pdf, sc)
-        if aid:
-            try:
-                from . import sources
-                src = sources.download_arxiv_source(aid, pdf.parent)
-            except Exception as e:
-                return (f"arXiv source download failed for arXiv:{aid}: {e}\n"
-                        f"(pass --tex <path> if you have the .tex/.tgz locally).")
     if src is None or not src.exists():
         return (f"No LaTeX source found for {pdf.name} "
                 f"(looked for {pdf.stem}.tex / .tex.zip / .tgz / .tar.gz). "
