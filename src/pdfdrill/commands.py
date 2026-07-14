@@ -2350,25 +2350,27 @@ def cmd_model(pdf: Path, force: bool = False, bibkey: str | None = None) -> str:
         return _format_model(sc)
 
     if not lines_path.exists():
-        # Prefer MathPix (gives LaTeX + CDN crops). On ANY failure — no creds,
-        # network blocked in the sandbox, or a graceful message returned — fall
-        # back to the tesseract OCR path whenever no lines.json materialized, so
-        # the toolkit still runs end-to-end (plain text, no math fidelity).
+        # 1) MathPix if a key is present (best: page geometry + LaTeX + CDN crops).
+        #    Skips for arXiv unless --force; a no-key / blocked host just returns
+        #    without a lines.json, so we fall through to the free routes below.
         try:
             cmd_mathpix(pdf)
-        except Exception:
-            pass
+        except (Exception, SystemExit):     # missing creds raise SystemExit — must
+            pass                            # still fall through to the free routes
         sc = Sidecar(pdf)
         if not lines_path.exists():
-            # arXiv: build from the FREE LaTeX e-print — FAST and gold — instead
-            # of slow keyless tesseract OCR (the right route when working locally).
-            built = _build_arxiv_source_model(pdf, sc, key, model_path)
-            if built:
-                return built
-            # Born-digital TEXT-LAYER route (pdfplumber chars → lines.json):
-            # FREE and fast, what `route` promises. Only tesseract-OCR a genuine
-            # SCAN (no text layer → _write_born_digital_lines returns False).
+            # 2) BORN-DIGITAL default (the no-OCR route): read the PDF's OWN text
+            #    stream with pdfplumber (chars → lines.json WITH page geometry) —
+            #    free, fast, no key. This is what `route` promises and what lets
+            #    inspect/locate work without MathPix. The arXiv gold LaTeX math is a
+            #    `latex` OVERLAY on top, NOT the base — the source model has no page
+            #    geometry, so it can never be boxed (the 'inspect box-less' report).
             if not _write_born_digital_lines(pdf):
+                # 3) No text layer → a genuine SCAN. arXiv gold e-print if cached
+                #    (content, no geometry), else tesseract OCR.
+                built = _build_arxiv_source_model(pdf, sc, key, model_path)
+                if built:
+                    return built
                 from .ocr_lines import tools_available
                 if tools_available()[0]:
                     cmd_ocr(pdf)
@@ -4683,21 +4685,14 @@ def cmd_inspect(pdf: Path, pages: str | None = None, embed: bool = True,
     sc.set_evidence("inspect_path", str(out_path.relative_to(sc.pdf_path.parent)))
     sc.save()
     rel = out_path.relative_to(sc.pdf_path.parent)
-    # A model SPECIES with no page geometry (LaTeX-source / tesseract-prose) has
-    # 0 derivable pages: the ELEMENTS tree + REFLOW work, but nothing can be boxed
-    # on a page image. Say so plainly and name the sanctioned path to a geometry-
-    # bearing model — don't leave the caller to improvise (the F8 anti-pattern).
+    # A LaTeX-source model has no page geometry, so nothing can be boxed. Keep it
+    # SHORT and point at the one fix (rebuild with the born-digital / MathPix route,
+    # which now carries geometry) — no wall of text.
     if n_pages == 0:
-        aid = _arxiv_id_for(pdf, sc)
-        return (f"Docmodel inspector: {n_el} elements, but this model has NO page "
-                f"geometry (built from LaTeX source / prose OCR), so the ELEMENT "
-                f"TREE + REFLOW work in {rel} but elements can't be boxed on the "
-                f"pages. `inspect`'s page-box view needs a GEOMETRY-bearing model. "
-                f"To get one: `pdfdrill mathpix {pdf.name} --force` (paid, best "
-                f"boxes), or keyless `pdfdrill ocr {pdf.name}` then `pdfdrill model "
-                f"{pdf.name} --force` then `pdfdrill inspect {pdf.name}`"
-                + ("" if not aid else " (arXiv: `latex` gives math but no geometry"
-                   " — use ocr/mathpix for boxes)") + ".")
+        return (f"{pdf.name}: this model was built from LaTeX source (no page "
+                f"geometry), so the page-box view is empty — the element tree is "
+                f"in {rel}. For boxes, rebuild with geometry: `pdfdrill model "
+                f"{pdf.name} --force`.")
     note = "" if mode != "embed" or pages_dir else " (boxes-only — no page images)"
     return (f"Docmodel inspector: {n_el} elements over {n_pages} page(s){note}. "
             f"Open {rel} in a browser (hover the tree to highlight boxes; click "
