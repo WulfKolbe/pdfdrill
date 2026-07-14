@@ -29,6 +29,24 @@ def test_existing_session_store_ignores_empty_and_missing(tmp_path):
     assert dc.existing_session_store("") is None                  # no dir → None
 
 
+def test_clear_session_store_removes_only_derived_store(tmp_path):
+    """reset/clear drops the context by deleting the regenerable session store —
+    never the source documents."""
+    store = tmp_path / dc.SESSION_STORE_NAME
+    store.write_text('{"is_combined": true}')
+    src_pdf = tmp_path / "paper.pdf"; src_pdf.write_bytes(b"%PDF-1.4")
+    src_model = tmp_path / "paper.pdf.drill"; src_model.mkdir()
+    (src_model / "model.docmodel.json").write_text("{}")
+
+    removed = dc.clear_session_store(str(tmp_path))
+    assert removed == [str(store)]
+    assert not store.exists()                    # derived store gone
+    assert src_pdf.exists()                      # source PDF untouched
+    assert (src_model / "model.docmodel.json").exists()   # its model untouched
+    # idempotent: clearing again with nothing to remove is a no-op
+    assert dc.clear_session_store(str(tmp_path)) == []
+
+
 def test_session_members_reads_sources(tmp_path):
     store = tmp_path / dc.SESSION_STORE_NAME
     store.write_text(json.dumps({"is_combined": True,

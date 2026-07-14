@@ -221,6 +221,22 @@ def existing_session_store(store_dir: str) -> "str | None":
     return None
 
 
+def clear_session_store(store_dir: str) -> list:
+    """Remove the DERIVED combined session store so the context starts empty. Only
+    the `.drillui_session.docpack` (a regenerable merge pdfdrill wrote) is deleted —
+    the source PDFs/models are NEVER touched. Returns the removed paths."""
+    removed = []
+    base = (Path(store_dir) / SESSION_STORE_NAME) if store_dir \
+        else Path(SESSION_STORE_NAME)
+    try:
+        if base.exists():
+            base.unlink()
+            removed.append(str(base))
+    except OSError:
+        pass
+    return removed
+
+
 def session_members(store_path: str) -> list:
     """The member document paths recorded in a combined session store
     (`meta.sources`), for restoring the `docs` list on resume. [] on any error."""
@@ -458,6 +474,9 @@ def _repl_help(cmds: dict) -> str:
         "                            unquoted: an existing file wins over splitting\n"
         "  add @list.txt             add every path/URL/id listed in a file (one per line)\n"
         "  (with several docs loaded, a pdfdrill command runs on EVERY document)\n"
+        "  session [show]            show the current context (loaded documents)\n"
+        "  reset / clear / refresh   drop ALL docs from the context (files kept on disk;\n"
+        "                            only the regenerable session store is removed) — ^L clears the screen\n"
         "  help, :help, ?    show this help\n"
         "  commands          list every pdfdrill command name\n"
         "  quit / exit / q   quit the REPL (also stop, bye, or Ctrl-D)\n"
@@ -637,6 +656,27 @@ def main() -> int:
                            timeout=max(args.timeout, 300.0)))
             except Exception as e:                          # noqa: BLE001
                 print(f"  ls failed: {e}", file=sys.stderr)
+            continue
+        # session control: reset / clear / refresh (drop ALL docs from the context,
+        # files untouched) and `session [show]` (report the current context).
+        sub = parts[1].strip().lower() if len(parts) > 1 else ""
+        if verb in ("reset", "clear", "refresh") or (verb == "session" and sub in
+                                                     ("reset", "clear", "refresh")):
+            n = len(docs)
+            docs, target, combined = [], None, None
+            removed = clear_session_store(store_dir)
+            print(f"  session cleared — {n} document(s) removed from context "
+                  f"(files on disk untouched).")
+            if removed:
+                print(f"  removed session store: {removed[0]}")
+            print("  `add <pdf|url|arxiv-id>` to build a new context.")
+            continue
+        if verb == "session" and sub in ("", "show", "status", "ls"):
+            print(f"  context: {len(docs)} document(s)"
+                  + (f" — target {target}" if target else " (empty)"))
+            for dpath in docs:
+                print(f"    • {dpath}")
+            print("  reset | clear | refresh  → drop all docs (files kept).")
             continue
         # add <doc>: drill it and merge into the live context (multi-document).
         if parts[0].lstrip(":").lower() == "add":
