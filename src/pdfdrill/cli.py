@@ -648,23 +648,31 @@ def _do_continuity(args):
 
 
 def _do_ocr(args):
-    """pdfdrill ocr <pdf> [--lang eng] [--ppi 300] [--force]"""
+    """pdfdrill ocr <pdf> [--lang eng] [--ppi 400] [--min-conf 5] [--no-typing]
+    [--force] — enriched tesseract OCR → typed lines.json in PDF points."""
     from .commands import cmd_ocr
     pdf_args: list[str] = []
     lang = "eng"
-    ppi = 300
+    ppi = 300                      # floored to the module's >=400 DPI gs minimum
     force = False
+    min_conf = None
+    typing = True
     i = 0
     while i < len(args):
         if args[i] == "--lang" and i + 1 < len(args):
             lang = args[i + 1]; i += 2
         elif args[i] == "--ppi" and i + 1 < len(args):
             ppi = int(args[i + 1]); i += 2
+        elif args[i] == "--min-conf" and i + 1 < len(args):
+            min_conf = float(args[i + 1]); i += 2
+        elif args[i] == "--no-typing":
+            typing = False; i += 1
         elif args[i] == "--force":
             force = True; i += 1
         else:
             pdf_args.append(args[i]); i += 1
-    return cmd_ocr(_pdf(pdf_args), lang=lang, ppi=ppi, force=force)
+    return cmd_ocr(_pdf(pdf_args), lang=lang, ppi=ppi, force=force,
+                   min_conf=min_conf, typing=typing)
 
 
 def _opt(args, name):

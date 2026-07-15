@@ -768,15 +768,27 @@ def cmd_artifacts(pdf: Path, all_files: bool = False) -> str:
     return "\n".join(lines)
 
 
-def cmd_ocr(pdf: Path, lang: str = "eng", ppi: int = 300, force: bool = False) -> str:
-    """Build a MathPix-compatible `<pdf>.lines.json` via tesseract OCR.
+def cmd_ocr(pdf: Path, lang: str = "eng", ppi: int = 300, force: bool = False,
+            min_conf: float | None = None, typing: bool = True) -> str:
+    """Build a MathPix-compatible `<pdf>.lines.json` via tesseract OCR (enriched).
 
-    The MathPix-free OCR input path: render each page, OCR with tesseract, group
-    word boxes into text lines, and write a `lines.json` of the shape
+    The MathPix-free OCR input path: render each page with Ghostscript (>=400 DPI
+    floor), OCR with tesseract, and write a `lines.json` of the shape
     `pdfdrill model` ingests — so the whole toolkit runs without a MathPix key.
-    Plain text only (no LaTeX / no equation typing / no CDN crops): the math
-    comparison columns stay empty on this path. Use `--lang eng+equ` for math
-    glyphs or `eng+deu` for German.
+
+    The lines are TYPED MathPix-compatibly (section_header / table / equation /
+    diagram / page_info), carry per-line `conf` + `words` + block/par/line, and
+    their regions are PDF POINTS (`ocr.units="pt"`, `image_id="tesseract-p{N}"`),
+    so `/cropped/…&units=pt` local-pyramid crops work on the keyless path.
+    Second passes add Greek re-OCR of equation regions, a pdftotext text-layer
+    merge, and barcodes.
+
+    HONEST LIMIT: an equation line gets a correct REGION but its TEXT is garbled
+    (tesseract cannot read math) — there is no LaTeX on this route. Use
+    `pdfdrill visionocr` / `mathpix` for the math itself; the regions are what
+    let those crop it. `--lang eng+deu` for German (the module also
+    auto-corrects the language order); `--min-conf` tunes the noise filter;
+    `--no-typing` falls back to untyped text lines.
     """
     from . import ocr_lines
 
@@ -800,24 +812,50 @@ def cmd_ocr(pdf: Path, lang: str = "eng", ppi: int = 300, force: bool = False) -
     t0 = time.monotonic()
     out_dir = sc.blob_dir / "ocr"
     sc.blob_dir.mkdir(parents=True, exist_ok=True)
-    lj = ocr_lines.build_lines_json(pdf, out_dir, ppi=ppi, lang=lang)
+    kw: dict = {"ppi": ppi, "lang": lang, "typing": typing}
+    if min_conf is not None:
+        kw["min_conf"] = float(min_conf)
+    lj = ocr_lines.build_lines_json(pdf, out_dir, **kw)
     lines_path.write_text(json.dumps(lj, ensure_ascii=False), encoding="utf-8")
 
     n_pages = len(lj["pages"])
     n_lines = sum(len(p["lines"]) for p in lj["pages"])
+    meta = lj.get("ocr") or {}
+    counts = meta.get("type_counts") or {}
+    lang_eff = meta.get("lang_effective") or lang
     sc.set_evidence("ocr_lang", lang)
+    sc.set_evidence("ocr_lang_effective", lang_eff)
     sc.set_evidence("ocr_pages", n_pages)
     sc.set_evidence("ocr_lines", n_lines)
+    sc.set_evidence("ocr_units", meta.get("units"))
+    sc.set_evidence("ocr_render_dpi", meta.get("render_dpi"))
+    sc.set_evidence("ocr_type_counts", counts)
+    if meta.get("warnings"):
+        sc.set_evidence("ocr_warnings", meta["warnings"])
     prev = ",".join(sorted(sc.facts - {OCR_BUILT})) or "INIT"
     sc.add_fact(OCR_BUILT)
     sc.log_transition("ocr", prev, OCR_BUILT, cost_ms=(time.monotonic() - t0) * 1000,
-                      detail=f"{n_pages} pages, {n_lines} lines, lang={lang}")
+                      detail=f"{n_pages} pages, {n_lines} lines, lang={lang_eff}")
     sc.save()
+
+    typed = ", ".join(f"{k}={v}" for k, v in counts.items()
+                      if v and k not in ("absorbed_lines",)) or "none"
+    lang_note = (f" (auto-corrected from '{lang}')" if lang_eff != lang else "")
+    warn = ("  ⚠ " + "; ".join(meta["warnings"][:2])) if meta.get("warnings") else ""
+    eq = counts.get("equation", 0)
+    math_note = (
+        f" {eq} equation region(s) typed — their TEXT is garbled (tesseract can't "
+        f"read math); run `pdfdrill visionocr {pdf.name}` or `mathpix` for the "
+        f"LaTeX (the regions are what let those crop it)." if eq else
+        " No equation regions found — if this doc has math, the LaTeX routes are "
+        "`visionocr` / `mathpix`.")
     return (
-        f"Tesseract OCR ({lang}): {n_lines} text line(s) across {n_pages} page(s) "
-        f"→ {lines_path.name} (MathPix-compatible). Build the structure with "
-        f"`pdfdrill model {pdf.name}`. Note: plain text only — no LaTeX/equation "
-        f"typing/CDN crops (math comparison is MathPix-only)."
+        f"Tesseract OCR ({lang_eff}{lang_note}): {n_lines} line(s) across "
+        f"{n_pages} page(s) at {meta.get('render_dpi', '?')} DPI → "
+        f"{lines_path.name} (MathPix-compatible; regions in "
+        f"{meta.get('units', '?')}, crops via /cropped/…&units=pt).\n"
+        f"  typed: {typed}\n"
+        f"  Build the structure with `pdfdrill model {pdf.name}`.{math_note}{warn}"
     )
 
 
