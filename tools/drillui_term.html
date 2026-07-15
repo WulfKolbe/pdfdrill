@@ -263,10 +263,36 @@ class LineEditor {
     this.history = this._loadHist();
     this.hist = this.history.length;   // index into history (== length means "current")
     this.el.addEventListener("keydown", (e) => this._key(e));
-    // a click anywhere in the terminal focuses the input (so typing just works)
-    this.term.element && this.term.element.addEventListener("mousedown", () => {
-      setTimeout(() => { if (this.active) this.el.focus(); }, 0);
-    });
+    // A plain click focuses the input (so typing just works) — but SELECTING text
+    // must NOT: the old `mousedown → focus` stole focus mid-drag and broke
+    // select-and-copy. So on mouseUP: if the terminal has a selection, COPY it to
+    // the clipboard (copy-on-select, standard terminal behaviour) and leave focus
+    // alone; otherwise focus the input.
+    if (this.term.element){
+      this.term.element.addEventListener("mouseup", () => {
+        if (this.term.hasSelection && this.term.hasSelection()){
+          this._copy(this.term.getSelection());
+          return;                              // selecting → don't steal focus
+        }
+        setTimeout(() => { if (this.active) this.el.focus(); }, 0);
+      });
+    }
+  }
+
+  _copy(text){
+    if (!text) return;
+    try {
+      if (navigator.clipboard && navigator.clipboard.writeText){
+        navigator.clipboard.writeText(text); return;
+      }
+    } catch(e){}
+    // fallback for non-secure contexts (plain http, not localhost)
+    try {
+      const ta = document.createElement("textarea");
+      ta.value = text; ta.style.position = "fixed"; ta.style.opacity = "0";
+      document.body.appendChild(ta); ta.select();
+      document.execCommand("copy"); document.body.removeChild(ta);
+    } catch(e){}
   }
 
   read(prompt){
@@ -310,6 +336,15 @@ class LineEditor {
       else { this.hist = this.history.length; this.el.value = ""; }
       this._atEnd();
     } else if (e.ctrlKey && (e.key === "c" || e.key === "C")){
+      // Ctrl-C COPIES when there's a selection, ABORTS only when there isn't.
+      // input has its own selection → let the browser copy it natively.
+      if (this.el.selectionStart !== this.el.selectionEnd) return;
+      // terminal output has a selection → copy it (don't abort the line).
+      if (this.term.hasSelection && this.term.hasSelection()){
+        this._copy(this.term.getSelection());
+        e.preventDefault();
+        return;
+      }
       e.preventDefault();
       this.term.write("^C\r\n");
       this.el.value = "";
@@ -440,6 +475,7 @@ const app = {
   banner(){
     this.term.writeln(C.orange("  ▚ drillui ") + C.faint("· ask-the-document terminal"));
     this.term.writeln(C.faint("  bash-style editing — ↑/↓ history, ⌥←/→ word, ^A/^E, ^U/^K/^W, ^L clear"));
+    this.term.writeln(C.faint("  select output to copy it (also ^C when text is selected); paste as usual"));
     this.term.writeln(C.faint("  ") + C.fg("open <url|file>") + C.faint(" opens a window here · ")
       + C.fg("status/size/model/…") + C.faint(" run pdfdrill · text → question · ")
       + C.fg("lhelp") + C.faint(" for local cmds"));
