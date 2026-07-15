@@ -115,13 +115,18 @@ class Range:
 @dataclass(frozen=True)
 class Region:
     """
-    A rectangle on a page, in MathPix image-pixel coordinates by default.
+    A rectangle on a page, in the UNIT OF ITS SOURCE's lines.json.
 
     Stored in MathPix-native fields (`top_left_x/y`, `width`, `height`) so it
     maps 1:1 to both the rectangle in lines.json and the query parameters of a
-    self-constructed cropped-image CDN URL (see docmodel.mathpix.crop_url).
-    `space` records the coordinate system, so regions from other sources
-    (e.g. a Snip `cnt` polygon, or PDF points) stay distinguishable.
+    cropped-image URL. The unit follows the source, and the two never mix:
+      * `mathpix`  → image PIXELS  → cdn.mathpix.com crop (docmodel.mathpix.crop_url)
+      * every other source (`tesseract` enriched, `pdfminer`, …) → PDF POINTS
+        (top-left, y-down) → OUR local pyramid crop (`/cropped/…&units=pt`)
+    `docmodel.mathpix.image_ref` selects on the source alone. Ratios against the
+    page's own `page_width/page_height` (same unit) are therefore unit-agnostic.
+    `space` records the coordinate system for regions from other shapes (e.g. a
+    Snip `cnt` polygon).
     """
     page: Optional[int] = None
     top_left_x: Optional[float] = None
