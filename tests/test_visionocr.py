@@ -113,6 +113,38 @@ def test_model_gate_sets_needs_vision_on_math_doc(monkeypatch):
         assert "visionocr" in out and "0 Equation" in out
 
 
+def _equation_line(lid, text, y):
+    """An ENRICHED-tesseract equation line: correct region, GARBLED text (tesseract
+    cannot read math) — no LaTeX anywhere."""
+    return {"id": lid, "type": "equation", "text": text, "text_display": text,
+            "region": {"top_left_x": 100.0, "top_left_y": y, "width": 600.0,
+                       "height": 24.0}}
+
+
+def test_model_gate_fires_when_equations_are_ocr_garble(monkeypatch):
+    """REGRESSION guard for the enriched OCR module. The old gate keyed on
+    "0 Equations ⇒ math missing". The enriched tesseract path DOES emit equation
+    lines — right region, GARBLED text, never LaTeX — so those garbled equations
+    silently satisfied the gate and a math doc was presented as COMPLETE. The gate
+    must key on missing real LaTeX: a keyless text-only source cannot produce
+    LaTeX; only a gold-source overlay (added_by="latex") or MathPix can."""
+    monkeypatch.setenv("PDFDRILL_DELEGATE", "sandbox")
+    monkeypatch.setattr(mathqc, "is_math_bearing",
+                        lambda pdf, sc: (True, "math fonts: cmsy, cmex"))
+    with tempfile.TemporaryDirectory() as d:
+        pdf = Path(d) / "math_garble.pdf"; pdf.write_bytes(b"%PDF-1.4")
+        commands._lines_json_path(pdf).write_text(json.dumps(_tesseract_lines([
+            _page(1, [_equation_line("e0", "Ih=glly <7 =3k EUR = < | =] (4)", 300.0),
+                      _text_line("l0", "Some prose.", 200.0)]),
+        ])), encoding="utf-8")
+        out = cmd_model(pdf)
+        sc = Sidecar(pdf)
+        # equation OBJECTS exist, but they carry no usable math → still a failure
+        assert sc.has(NEEDS_VISION_OCR), (
+            "garbled OCR equations must NOT satisfy the math gate")
+        assert "visionocr" in out
+
+
 def test_model_gate_warns_when_no_agent(monkeypatch):
     monkeypatch.setenv("PDFDRILL_DELEGATE", "none")
     monkeypatch.setattr(mathqc, "is_math_bearing",

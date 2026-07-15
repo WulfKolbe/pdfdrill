@@ -263,6 +263,31 @@ def _is_keyless_textonly_source(source: str) -> bool:
     return source in _KEYLESS_TEXTONLY_SOURCES
 
 
+def _has_usable_math(objects: list, source: str) -> bool:
+    """True if the model carries math that is actually USABLE (real LaTeX).
+
+    A keyless TEXT-only source cannot produce LaTeX **by construction**: tesseract
+    reads glyphs, pdfminer reads the text layer. The enriched tesseract module
+    still emits typed `equation` lines — with a CORRECT region but GARBLED text —
+    and the EquationProcessor stores that text in `latex`. So neither an Equation
+    COUNT nor a non-empty `latex` proves the math was captured; on those sources
+    only a gold-source overlay (`added_by="latex"`, from `pdfdrill latex`) or a
+    keyed route (MathPix/visionocr) supplies real LaTeX.
+
+    Non-keyless sources (MathPix) are trusted as before.
+    """
+    keyless = _is_keyless_textonly_source(source)
+    for o in objects:
+        if o.get("type") != "Equation":
+            continue
+        props = o.get("props") or {}
+        if not str(props.get("latex") or "").strip():
+            continue
+        if not keyless or props.get("added_by") == "latex":
+            return True
+    return False
+
+
 def _pdfminer_char_dump(pdf: Path) -> dict:
     """Extract a born-digital CHARACTER dump with **pdfminer.six** in the shape
     `chars_to_lines` expects (PDF bottom-left origin, chars grouped per page).
@@ -2807,24 +2832,36 @@ def cmd_model(pdf: Path, force: bool = False, bibkey: str | None = None) -> str:
         except (Exception, SystemExit):             # source blocked/absent → pdfminer only
             pass
 
-    # MATH-BEARING GATE: a tesseract (keyless) build that produced 0 Equations on
-    # a doc that clearly carries math is a FAILURE, not a result. Don't present it
-    # as complete — flag NEEDS_VISION_OCR and instruct the keyless delegation
-    # route (visionocr). The MathPix path and non-math docs are untouched.
-    if by_type.get("Equation", 0) == 0 and _is_keyless_textonly_source(_lines_json_source(lines_path)):
+    # MATH-BEARING GATE: a keyless build that captured NO USABLE MATH on a doc that
+    # clearly carries math is a FAILURE, not a result. Don't present it as complete
+    # — flag NEEDS_VISION_OCR and instruct the keyless delegation route
+    # (visionocr). The MathPix path and non-math docs are untouched.
+    #
+    # It keys on MISSING LaTeX, not on "0 Equations": the enriched tesseract module
+    # DOES emit equation lines (correct region, GARBLED text — it cannot read math),
+    # and an Equation's `latex` prop is then just that OCR text
+    # ("Ih=glly <7 =3k € = < | =] (4)"). A count- or empty-latex-based gate is
+    # satisfied by that garbage and silently passes a broken math doc.
+    if (not _has_usable_math(objects, _lines_json_source(lines_path))
+            and _is_keyless_textonly_source(_lines_json_source(lines_path))):
         from . import mathqc, llm_delegate as _D
         bearing, reason = mathqc.is_math_bearing(pdf, sc)
         if bearing:
             sc.add_fact(NEEDS_VISION_OCR)
             sc.save()
             n_para = by_type.get("Paragraph", 0)
+            n_eq = by_type.get("Equation", 0)
             src = _lines_json_source(lines_path)
             how = ("the born-digital text layer (pdfminer.six)"
                    if src in ("pdfminer-chars", "pdfplumber-chars") else "tesseract OCR")
+            # Be precise about WHY it failed: 0 equations, or equations whose
+            # "LaTeX" is really the route's garbled OCR/plain text.
+            got = (f"{n_para} Paragraph and 0 Equation" if not n_eq else
+                   f"{n_para} Paragraph and {n_eq} Equation region(s) whose LaTeX "
+                   f"is just this route's TEXT (garbled math), not real LaTeX")
             base = (f"{pdf.name} is math-bearing ({reason}) but was built from "
                     f"{how} with no MathPix key — that route captures prose, not "
-                    f"typed equations, so this model has {n_para} Paragraph and 0 "
-                    f"Equation. ")
+                    f"typed equations, so this model has {got}. ")
             rt = _D.detect_runtime()
             if rt is _D.Runtime.NONE:
                 return base + (
