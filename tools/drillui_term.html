@@ -476,6 +476,7 @@ const app = {
     this.term.writeln(C.orange("  ▚ drillui ") + C.faint("· ask-the-document terminal"));
     this.term.writeln(C.faint("  bash-style editing — ↑/↓ history, ⌥←/→ word, ^A/^E, ^U/^K/^W, ^L clear"));
     this.term.writeln(C.faint("  select output to copy it (also ^C when text is selected); paste as usual"));
+    this.term.writeln(C.faint("  can't copy? type ") + C.fg("log") + C.faint(" — opens the full transcript (errors included) in a copyable tab"));
     this.term.writeln(C.faint("  ") + C.fg("open <url|file>") + C.faint(" opens a window here · ")
       + C.fg("status/size/model/…") + C.faint(" run pdfdrill · text → question · ")
       + C.fg("lhelp") + C.faint(" for local cmds"));
@@ -618,6 +619,15 @@ const app = {
     if (cmd === "open" || cmd === "openurl" || cmd === "url"){ this.localOpen(arg); return true; }
     if (cmd === "edit"){ this.localEdit(arg); return true; }
     if (cmd === "lhelp"){ this.localHelp(); return true; }
+    // `log` opens the full session transcript (stdout+stderr, incl. errors) as a
+    // plain-text browser tab — always copyable, even if in-terminal copy fails.
+    if (cmd === "log" || cmd === "errors"){
+      const u = (this.httpBase || "") + "/log";
+      try { window.open(u, "_blank"); } catch(e){}
+      this.term.writeln(C.faint("  opened the session transcript → " + u
+        + "  (select + copy there)"));
+      return true;
+    }
     return false;
   },
 
@@ -720,6 +730,8 @@ const app = {
     this.term.writeln("    " + C.fg("open <url|file>") + C.faint("   open a URL or pdfdrill output file in a new window"));
     this.term.writeln("    " + C.fg("edit <file>") + C.faint("      open a source file (main.tex, .bib …) in "
       + (this.editorName || "the host editor/IDE")));
+    this.term.writeln("    " + C.fg("log") + C.faint("              open the full session transcript (stdout+stderr, "
+      + "errors) in a copyable tab"));
     this.term.writeln("    " + C.fg("^L") + C.faint("                clear the screen"));
     this.term.writeln(C.faint("  everything else → drillui_chat.py: a pdfdrill command "
       + "(status, size, model, report, …) runs on the doc; anything else is a question."));

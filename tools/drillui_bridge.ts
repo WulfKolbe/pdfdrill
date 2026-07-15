@@ -18,8 +18,18 @@
 
 import { dirname, join, resolve, normalize, sep, extname, basename } from "node:path";
 import { fileURLToPath } from "node:url";
-import { existsSync, readFileSync, readdirSync } from "node:fs";
-import { homedir } from "node:os";
+import { existsSync, readFileSync, readdirSync, appendFileSync, writeFileSync } from "node:fs";
+import { homedir, tmpdir } from "node:os";
+
+// Session TRANSCRIPT log: every line the terminal shows (stdout + stderr, ANSI
+// stripped) is also appended here, so errors are always COPYABLE — open it in a
+// plain browser tab via the `/log` route (or the `log` command) where select/copy
+// just works, even if the in-terminal copy misbehaves.
+const LOG_PATH = join(tmpdir(), "drillui-session.log");
+try { writeFileSync(LOG_PATH, ""); } catch { /* fresh log per bridge launch */ }
+function logAppend(text: string): void {
+  try { appendFileSync(LOG_PATH, text.replace(/\x1b\[[0-9;]*m/g, "")); } catch { /* best effort */ }
+}
 
 // ---- arg parsing -----------------------------------------------------------
 // Self-locate the repo root from THIS file (tools/drillui_bridge.ts → repo),
@@ -570,10 +580,13 @@ function spawnSession(ws: any): Session {
     }
     send(ws, { type: "ready" });
   };
+  logAppend(`\n===== drillui session ${new Date().toISOString()} =====\n`);
   (async () => {
     const dec = new TextDecoder();
     for await (const chunk of proc.stdout as ReadableStream<Uint8Array>) {
-      sess.out += dec.decode(chunk, { stream: true });
+      const s = dec.decode(chunk, { stream: true });
+      sess.out += s;
+      logAppend(s);                                                   // → copyable transcript
       if (flushTimer) { clearTimeout(flushTimer); flushTimer = null; }  // new output cancels pending flush
       if (sess.out.endsWith(PROMPT_TAIL)) flushTimer = setTimeout(flush, QUIET_MS);
     }
@@ -584,7 +597,7 @@ function spawnSession(ws: any): Session {
     const dec = new TextDecoder();
     for await (const chunk of proc.stderr as ReadableStream<Uint8Array>) {
       const s = dec.decode(chunk, { stream: true });
-      if (s) send(ws, { type: "output", stream: "stderr", data: "\x1b[38;2;251;73;52m" + s + "\x1b[0m" });
+      if (s) { logAppend(s); send(ws, { type: "output", stream: "stderr", data: "\x1b[38;2;251;73;52m" + s + "\x1b[0m" }); }
     }
   })().catch(() => {});
 
@@ -613,6 +626,17 @@ const server = Bun.serve<{ sess: Session | null }>({
     if (url.pathname === "/pyramid-status") return pyramidStatus();
     if (url.pathname.startsWith("/cropped/")) return proxyImage(req, url);
     if (IMG_STATIC(url.pathname)) return serveViewerStatic(url);
+
+    // the session TRANSCRIPT (stdout+stderr) as plain text — always copyable in a
+    // normal browser tab (the fallback when in-terminal copy misbehaves).
+    if (url.pathname === "/log") {
+      const body = existsSync(LOG_PATH) ? readFileSync(LOG_PATH, "utf8")
+                                        : "(no session output yet)";
+      return new Response(body, { headers: {
+        "content-type": "text/plain; charset=utf-8",
+        "cache-control": "no-store",
+      } });
+    }
 
     // serve a pdfdrill output file (under ART_ROOT only)
     if (url.pathname === "/artifact") {
