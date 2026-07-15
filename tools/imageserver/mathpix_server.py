@@ -380,7 +380,17 @@ def main():
 
     Handler.server_logic = Server(args, index)
     ThreadingHTTPServer.allow_reuse_address = True       # restart without TIME_WAIT block
-    httpd = ThreadingHTTPServer((args.host, args.port), Handler)
+    try:
+        httpd = ThreadingHTTPServer((args.host, args.port), Handler)
+    except OSError as e:                                 # port already bound (EADDRINUSE)
+        import errno
+        if e.errno in (errno.EADDRINUSE, errno.EADDRNOTAVAIL):
+            print(f"port {args.port} is already in use — an image server is very "
+                  f"likely already running there (the drillui bridge starts one on "
+                  f"demand). Nothing to do: open http://{args.host}:{args.port}/"
+                  f"viewer.html, or pass a different --port.", flush=True)
+            return                                       # clean exit, not a traceback
+        raise
     print(f"serving viewer + MathPix resolver on http://{args.host}:{args.port}")
     print(f"  viewer:   http://{args.host}:{args.port}/viewer.html")
     print(f"  resolver: http://{args.host}:{args.port}/cropped/<image_id>.jpg?top_left_x=..&top_left_y=..&width=..&height=..")

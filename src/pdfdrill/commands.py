@@ -2127,6 +2127,19 @@ def cmd_imageserve(pdf: Path, port: int = 8000, dpi: int | None = None,
     argv, url, err = _imageserve_argv(pdf, sc, port, dpi)
     if err:
         return err
+    # ALREADY SERVING? The drillui bridge spawns an image server on this port on
+    # demand, so a manual `imageserve` used to race into an "address already in
+    # use" crash (a blocking foreground server also froze the REPL). If something
+    # is already answering, just point at it — don't try to bind again.
+    import socket as _socket
+    try:
+        with _socket.create_connection(("127.0.0.1", port), timeout=0.3):
+            return (f"Image server is already running → {url}  — open "
+                    f"{url}/viewer.html to view the pyramid. (The drillui bridge "
+                    f"manages one on demand; nothing to start. Use --port for a "
+                    f"second one.)")
+    except OSError:
+        pass                                             # nothing there → start it
     # refresh the served viewer.html from the package so an OLD pyramid build never
     # serves a stale viewer (the deep-zoom UI is decoupled from the tiles)
     pkg_viewer = Path(__file__).resolve().parents[2] / "tools" / "imageserver" / "viewer.html"
@@ -2135,6 +2148,15 @@ def cmd_imageserve(pdf: Path, port: int = 8000, dpi: int | None = None,
             shutil.copy(pkg_viewer, sc.blob_dir / "viewer" / "viewer.html")
         except OSError:
             pass
+    # A blocking foreground server only makes sense with a TTY (Ctrl-C to stop). A
+    # non-interactive caller (the drillui REPL subprocess, a pipe) would FREEZE, so
+    # background it automatically there.
+    if not background:
+        try:
+            if not sys.stdin.isatty():
+                background = True
+        except (OSError, ValueError):
+            background = True
     if background:
         # detached on purpose (meant to outlive this shell) → NO --die-with-parent
         subprocess.Popen(argv, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,

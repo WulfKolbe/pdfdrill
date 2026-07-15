@@ -202,6 +202,26 @@ def test_offline_bundle_is_server_free():
         assert (viewer / p["url"] / f"{lvl}/0_0.jpg").exists(), "full-res tile missing at descriptor Url"
 
 
+def test_imageserve_probe_reports_existing_server_no_crash(monkeypatch):
+    """`imageserve` when a server is ALREADY on the port (the bridge spawns one on
+    demand) must NOT race into an 'address already in use' crash — it probes and
+    reports the running server instead of trying to bind."""
+    import tempfile, socket, threading, http.server
+    from pdfdrill import commands as C
+    srv = http.server.HTTPServer(("127.0.0.1", 0), http.server.BaseHTTPRequestHandler)
+    port = srv.server_address[1]
+    threading.Thread(target=srv.serve_forever, daemon=True).start()
+    try:
+        d = Path(tempfile.mkdtemp()); pdf = d / "x.pdf"; pdf.write_bytes(b"%PDF-1.4")
+        monkeypatch.setattr(C, "_imageserve_argv",
+                            lambda pdf, sc, port, dpi: (["true"],
+                                                        f"http://127.0.0.1:{port}", None))
+        out = C.cmd_imageserve(pdf, port=port)
+        assert "already running" in out and str(port) in out
+    finally:
+        srv.shutdown()
+
+
 if __name__ == "__main__":
     tests = [v for k, v in list(globals().items()) if k.startswith("test_")]
     failed = []
