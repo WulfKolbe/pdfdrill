@@ -9,6 +9,10 @@ when:
   - The page changes.
   - We enter or exit a LaTeX `abstract` environment (those lines belong to
     the Abstract DocObject, not to running prose).
+  - The line's tesseract layout group (block_num, par_num) changes — the
+    enriched keyless OCR path preserves the TSV hierarchy per line, which is
+    the paragraph signal MathPix lines don't need (they carry no par_num, so
+    their grouping is unaffected).
 
 The Paragraph DocObject's surface realization spans the line anchors of the
 first to the last contributing line, so all of the original OCR per-line
@@ -108,6 +112,11 @@ class ParagraphProcessor(BaseModule):
                 flush()
                 continue
 
+            group = (payload.get("block_num"), payload.get("par_num"))
+            if (current is not None and group != (None, None)
+                    and group != current.get("group")):
+                flush()
+
             if current is None:
                 current = {
                     "page": page,
@@ -117,6 +126,7 @@ class ParagraphProcessor(BaseModule):
                     "text": text,
                     "from_line_index": payload.get("_line_index"),
                     "to_line_index": payload.get("_line_index"),
+                    "group": group,
                 }
             else:
                 current["end_anchor"] = anchor
