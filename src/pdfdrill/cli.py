@@ -120,6 +120,11 @@ def _pdf(args: list[str]) -> Path:
     # resolves exactly like `/home/me/x.pdf`. A no-op on URLs / bare arXiv ids.
     if not sources.is_url(arg):
         arg = str(Path(arg).expanduser())
+        # REOPEN by FOLDER: a self-contained doc folder (`<stem>/`) → the PDF
+        # inside it, so `pdfdrill <cmd> <stem>/` works like the full path.
+        folder_pdf = sources.pdf_in_folder(Path(arg))
+        if folder_pdf is not None:
+            return folder_pdf
     # work directly on an https URL from a known host, OR a bare arXiv id — but
     # never shadow a real local file (checked first inside resolve_input).
     if (sources.is_url(arg) or sources.bare_arxiv_id(arg)) and not Path(arg).exists():

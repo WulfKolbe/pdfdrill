@@ -469,7 +469,8 @@ def _repl_help(cmds: dict) -> str:
         "  cd <dir>                  change the working directory (for ls / relative add)\n"
         "  ls [--images]             shallow-scan the folder: pdfinfo every PDF →\n"
         "                            sidecar, table led by PRODUCER (the triage signal)\n"
-        "  add <pdf|url|id> [more…]   add one or many docs (space-separated)\n"
+        "  add <pdf|folder|url|id> […]  add one or many docs; a FOLDER reopens an\n"
+        "                            already-drilled doc (`add 2607.07388/` or its path)\n"
         "  add \"name with blanks.pdf\"  quote a path with spaces/parens — or paste it\n"
         "                            unquoted: an existing file wins over splitting\n"
         "  add @list.txt             add every path/URL/id listed in a file (one per line)\n"
@@ -682,7 +683,8 @@ def main() -> int:
         if parts[0].lstrip(":").lower() == "add":
             spec = parts[1].strip() if len(parts) > 1 else ""
             if not spec:
-                print("  usage: add <pdf|url|arxiv-id> [more…]   OR   add @list.txt")
+                print("  usage: add <pdf|folder|url|arxiv-id> [more…]   OR   add @list.txt"
+                      "\n         (a FOLDER reopens an already-drilled doc)")
                 continue
             newdocs = _expand_add_spec(spec)
             if not newdocs:

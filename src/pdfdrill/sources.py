@@ -266,6 +266,25 @@ def _doc_dest(root: Path, filename: str) -> Path:
     return folder / filename
 
 
+def pdf_in_folder(folder: Path) -> "Path | None":
+    """The PDF inside a self-contained doc FOLDER: `<folder>/<folder-name>.pdf`
+    preferred (the library layout), else the sole `*.pdf` if there is exactly one.
+    None if `folder` isn't a directory or has no unambiguous PDF. This is what
+    lets you REOPEN a drilled doc by its folder — `pdfdrill md <stem>/` (or the
+    bare `<stem>`) instead of the full `<stem>/<stem>.pdf`."""
+    try:
+        if not folder.is_dir():
+            return None
+    except OSError:
+        return None
+    folder = folder.absolute()                    # a relative arg → absolute path
+    named = folder / f"{folder.name}.pdf"
+    if named.is_file():
+        return named
+    pdfs = sorted(folder.glob("*.pdf"))
+    return pdfs[0] if len(pdfs) == 1 else None
+
+
 def resolve_input(arg: str, dest_dir: Optional[Path] = None) -> dict:
     """Resolve a command argument to a local PDF path.
 
@@ -293,6 +312,17 @@ def resolve_input(arg: str, dest_dir: Optional[Path] = None) -> dict:
         local = Path(arg) if Path(arg).is_file() else existing_local_path(arg)
         if local is not None:
             return {"path": local, "source": None, "arxiv_id": None}
+        # REOPEN by FOLDER: a directory path (`<stem>/`, or `<library>/<stem>/`) →
+        # the PDF inside it. This is how you re-open an already-drilled doc in the
+        # self-contained layout without typing the full `<stem>/<stem>.pdf`.
+        folder = pdf_in_folder(Path(arg))
+        if folder is None:
+            # a BARE name matching a library doc folder (`<library>/<arg>/<arg>.pdf`)
+            # → reopen it, BEFORE treating the name as an arXiv id to re-download.
+            folder = pdf_in_folder(dest_dir / arg)
+        if folder is not None:
+            return {"path": folder, "source": None,
+                    "arxiv_id": bare_arxiv_id(folder.stem)}
         # otherwise a BARE arXiv id is downloaded as arXiv (the skill gotcha fix)
         arxiv_id = bare_arxiv_id(arg)
         if arxiv_id:

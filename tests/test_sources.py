@@ -172,9 +172,33 @@ def test_bare_id_not_hijacked_by_same_named_doc_folder(monkeypatch):
         # mistaken for a local file — still resolves to the PDF inside it
         monkeypatch.chdir(dd)
         out2 = S.resolve_input("2509.26251v2", dest_dir=dd)
-        assert out2["path"].is_file()                 # not the directory
+        assert out2["path"].is_file()                 # the PDF inside, not the dir
         assert out2["path"] == out1["path"]
-        assert out2["source"] == "arxiv"
+        # the existing folder is REOPENED (source None), never re-downloaded; the
+        # arXiv id is still recognised from the stem for the free downstream routes
+        assert out2["arxiv_id"] == "2509.26251v2"
+
+
+def test_reopen_by_folder(monkeypatch):
+    """Reopen a drilled doc by its self-contained FOLDER (path or bare name in the
+    library) instead of the full `<stem>/<stem>.pdf` — and never re-download it."""
+    import tempfile
+    monkeypatch.setattr(S, "download", lambda *a, **k: (_ for _ in ()).throw(
+        AssertionError("must not download an existing folder")))
+    with tempfile.TemporaryDirectory() as d:
+        lib = Path(d)
+        folder = lib / "2607.07388"; folder.mkdir()
+        pdf = folder / "2607.07388.pdf"; pdf.write_bytes(b"%PDF-1.4")
+        # (a) a directory PATH → the PDF inside
+        out = S.resolve_input(str(folder), dest_dir=lib)
+        assert out["path"] == pdf and out["arxiv_id"] == "2607.07388"
+        # (b) a BARE name matching a library folder → reopen (not re-download)
+        out2 = S.resolve_input("2607.07388", dest_dir=lib)
+        assert out2["path"] == pdf and out2["source"] is None
+        # a folder with a single differently-named PDF also resolves
+        f2 = lib / "paper"; f2.mkdir()
+        p2 = f2 / "whatever.pdf"; p2.write_bytes(b"%PDF-1.4")
+        assert S.resolve_input(str(f2), dest_dir=lib)["path"] == p2
 
 
 def test_resolve_local_path_wins_over_arxiv_shape(monkeypatch):
