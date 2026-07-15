@@ -720,8 +720,12 @@ def _list_artifacts(sc: "Sidecar", all_files: bool = False) -> "list[Path]":
         if okfdir.is_dir():
             files += [p for p in okfdir.glob("*/index.md") if p.is_file()]
     if not all_files:
-        files = [p for p in files if p.name not in _HEAVY_INTERNAL
-                 and p.stat().st_size <= _HEAVY_BYTES]
+        # The heavy-size cut hides the giant model JSON — but NEVER the doc's own
+        # PDF (which lives in the folder in the self-contained layout and is meant
+        # to be opened/viewed, however large). Exempt PDFs from the size filter.
+        files = [p for p in files
+                 if p.name not in _HEAVY_INTERNAL
+                 and (p.suffix.lower() == ".pdf" or p.stat().st_size <= _HEAVY_BYTES)]
     files.sort(key=lambda p: (p.suffix.lower(), p.name))
     return files
 
@@ -3857,12 +3861,12 @@ def cmd_okf(pdf: Path, out: str | None = None, bibkey: str | None = None,
 
     if semantic:
         from datetime import datetime, timezone
-        graph_path = sc.pdf_path.parent / f"{pdf.name}.drill" / f"{key}.semantic.json"
+        graph_path = sc.blob_dir / f"{key}.semantic.json"
         if not graph_path.exists():
             cmd_semantic(pdf)
             sc = Sidecar(pdf)
             key = (bibkey or sc.get_evidence("bibkey") or pdf.stem).strip()
-            graph_path = sc.pdf_path.parent / f"{pdf.name}.drill" / f"{key}.semantic.json"
+            graph_path = sc.blob_dir / f"{key}.semantic.json"
         if not graph_path.exists():
             return f"No semantic graph for {pdf.name} — run `pdfdrill semantic` first."
         with open(graph_path, "r", encoding="utf-8") as f:
@@ -3887,8 +3891,7 @@ def cmd_okf(pdf: Path, out: str | None = None, bibkey: str | None = None,
                                            params={}))
         bundle = proj.project(doc)
     sub = "okf-semantic" if semantic else "okf"
-    out_dir = Path(out) if out else (sc.pdf_path.parent / f"{pdf.name}.drill"
-                                     / sub / _safe_bibkey(key))
+    out_dir = Path(out) if out else (sc.blob_dir / sub / _safe_bibkey(key))
     out_dir.mkdir(parents=True, exist_ok=True)
     for rel, content in bundle.items():
         fp = out_dir / rel
@@ -8867,7 +8870,8 @@ def _chars_json_path(pdf: Path) -> Path:
     NOT next to the PDF (the 600-800 MB dumps cluttered the working directory). A
     legacy dump beside the PDF is migrated into `.drill/` on first access."""
     import os as _os
-    drill = pdf.parent / f"{pdf.name}.drill"
+    from .sidecar import blob_dir_for
+    drill = blob_dir_for(Path(pdf).resolve())[0]     # layout-aware, never hardcoded legacy
     new = drill / "chars.json"
     legacy = pdf.with_suffix(".chars.json")
     if legacy.exists() and not new.exists():

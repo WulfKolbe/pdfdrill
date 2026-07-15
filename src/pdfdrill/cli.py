@@ -123,6 +123,15 @@ def _pdf(args: list[str]) -> Path:
         # REOPEN by FOLDER: a self-contained doc folder (`<stem>/`) → the PDF
         # inside it, so `pdfdrill <cmd> <stem>/` works like the full path.
         folder_pdf = sources.pdf_in_folder(Path(arg))
+        if folder_pdf is None and not Path(arg).exists():
+            # a BARE name (arxiv-shaped OR not, e.g. `Zwiebeln`) → the library doc
+            # folder `<library>/<name>/<name>.pdf`. This is how a non-arXiv doc is
+            # reopened by name (the arxiv-id branch below only fires for id-shapes).
+            try:
+                from . import config as cfg
+                folder_pdf = sources.pdf_in_folder(cfg.library_root() / arg)
+            except Exception:                       # noqa: BLE001
+                folder_pdf = None
         if folder_pdf is not None:
             return folder_pdf
     # work directly on an https URL from a known host, OR a bare arXiv id — but

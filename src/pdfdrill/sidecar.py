@@ -20,26 +20,40 @@ from typing import Any, Optional
 VERSION = "0.4.0"
 
 
+def blob_dir_for(pdf_path: str | Path) -> tuple[Path, Path]:
+    """(blob_dir, json_path) for a PDF, resolving the storage LAYOUT once so every
+    caller agrees. SELF-CONTAINED when the PDF sits in a folder named after it
+    (`<stem>/<stem>.pdf`) — the library layout, blob_dir IS the folder. LEGACY
+    (`<name>.pdf.drill/`) otherwise.
+
+    A self-contained doc stays self-contained even if a stray `<name>.pdf.drill/`
+    exists inside its folder: a self-contained sidecar (`<stem>.drill.json`) ALWAYS
+    wins, and absent any legacy artifact a `<stem>/<stem>.pdf` is self-contained.
+    Only a genuine pre-self-contained doc (a legacy `.drill/` or `.drill.json` AND
+    no self-contained sidecar) falls back to legacy. This stops a hardcoded legacy
+    path (an old code bug) from flipping a self-contained doc's whole layout."""
+    p = Path(pdf_path)
+    parent = p.parent
+    self_json = parent / f"{p.stem}.drill.json"
+    legacy_json = parent / f"{p.name}.drill.json"
+    legacy_dir = parent / f"{p.name}.drill"
+    if parent.name == p.stem and (
+            self_json.exists() or not (legacy_json.exists() or legacy_dir.exists())):
+        return parent, self_json
+    return legacy_dir, legacy_json
+
+
 class Sidecar:
     """Read/write the drill.json sidecar for a PDF file."""
 
     def __init__(self, pdf_path: str | Path):
         self.pdf_path = Path(pdf_path).resolve()
-        parent = self.pdf_path.parent
-        legacy = parent / f"{self.pdf_path.name}.drill"
-        # SELF-CONTAINED doc folder: the folder is named after its PDF, so the PDF
-        # lives INSIDE its own drill folder — blob_dir IS the folder, all artifacts
-        # (PDF, lines.json, model, tiddlers, …) sit together. This is the library
-        # layout (`add`/downloads create it; `pdfdrill relocate` migrates into it).
-        # A legacy `<name>.pdf.drill/` sibling still works (back-compat); an ad-hoc
-        # PDF whose parent isn't named after it gets a sibling `.drill` as before.
+        # SELF-CONTAINED doc folder (`<stem>/<stem>.pdf`): blob_dir IS the folder,
+        # all artifacts sit together (the library layout). Legacy
+        # `<name>.pdf.drill/` otherwise. `blob_dir_for` resolves it robustly so a
+        # stray hardcoded legacy dir can't flip a self-contained doc.
         # See docs/superpowers/specs/2026-07-14-self-contained-doc-folders.md.
-        if parent.name == self.pdf_path.stem and not legacy.exists():
-            self.blob_dir = parent
-            self.json_path = parent / f"{self.pdf_path.stem}.drill.json"
-        else:
-            self.blob_dir = legacy
-            self.json_path = parent / f"{self.pdf_path.name}.drill.json"
+        self.blob_dir, self.json_path = blob_dir_for(self.pdf_path)
         self._data: dict[str, Any] = {}
         self._load()
 

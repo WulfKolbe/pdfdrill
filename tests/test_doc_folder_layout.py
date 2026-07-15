@@ -48,6 +48,31 @@ def test_ad_hoc_pdf_gets_sibling_drill(tmp_path):
     assert sc.json_path == d / "random.pdf.drill.json"
 
 
+def test_stray_legacy_dir_does_not_flip_self_contained(tmp_path):
+    """A self-contained doc with a SELF sidecar (`<stem>.drill.json`) stays
+    self-contained even if a stray `<name>.pdf.drill/` appears inside its folder
+    (an old hardcoded-legacy-path bug created one → the whole doc flipped to
+    legacy and `md`/artifacts split into `<name>.pdf.drill/`)."""
+    folder = tmp_path / "Zwiebeln"; folder.mkdir()
+    pdf = folder / "Zwiebeln.pdf"; pdf.write_bytes(b"%PDF-1.4")
+    Sidecar(pdf).save()                                     # writes Zwiebeln.drill.json
+    (folder / "Zwiebeln.pdf.drill").mkdir()                 # a stray legacy dir
+    sc = Sidecar(pdf)
+    assert sc.blob_dir == folder                            # NOT flipped to legacy
+    assert sc.json_path == folder / "Zwiebeln.drill.json"
+
+
+def test_genuine_pre_selfcontained_legacy_wins(tmp_path):
+    """A doc at `<stem>/<stem>.pdf` drilled BEFORE self-contained folders (a legacy
+    `.drill.json`/`.drill/` and NO self sidecar) keeps using the legacy store."""
+    folder = tmp_path / "old"; folder.mkdir()
+    pdf = folder / "old.pdf"; pdf.write_bytes(b"%PDF-1.4")
+    (folder / "old.pdf.drill").mkdir()
+    (folder / "old.pdf.drill.json").write_text("{}")
+    sc = Sidecar(pdf)
+    assert sc.blob_dir == folder / "old.pdf.drill"
+
+
 if __name__ == "__main__":
     import pytest
     raise SystemExit(pytest.main([__file__, "-q"]))
