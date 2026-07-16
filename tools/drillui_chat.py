@@ -30,6 +30,7 @@ from __future__ import annotations
 
 import argparse
 import atexit
+import datetime as dt
 import difflib
 import json
 import os
@@ -308,6 +309,116 @@ def do_add(base, env, newdoc: str, docs: list, combined: str | None,
     return out, out
 
 
+# ── scan: acquire paper from the ADF (SCANDRILL drives the scanner) ──────────
+#
+# pdfdrill does not scan. SCANDRILL (~/SCANDRILL) already drives scanimage with a
+# fixed rig (ADF duplex @300dpi), measures + applies deskew, retains raw/, and
+# records blank pages instead of deleting them. `scan` is just the two-command
+# chain adf -> assemble, whose PDF goes into the context via do_add.
+
+_DEFAULT_SCANDRILL = Path.home() / "SCANDRILL"
+
+
+def scandrill_home() -> "str | None":
+    """Where SCANDRILL lives: $SCANDRILL_HOME, else ~/SCANDRILL. None if absent.
+
+    It is a separate checkout (not a pdfdrill dep and not on PATH), so we locate
+    it rather than import it — absence is a message, never a traceback."""
+    for cand in (os.environ.get("SCANDRILL_HOME"), _DEFAULT_SCANDRILL):
+        if not cand:
+            continue
+        p = Path(os.path.expanduser(str(cand)))
+        if (p / "scandrill" / "cli.py").is_file():
+            return str(p)
+    return None
+
+
+def scandrill_env(env: dict, home: str) -> dict:
+    """`env` + SCANDRILL on PYTHONPATH (it is importable, not installed)."""
+    out = dict(env)
+    prior = out.get("PYTHONPATH", "")
+    out["PYTHONPATH"] = f"{home}{os.pathsep}{prior}" if prior else home
+    return out
+
+
+def scan_job_name(now: "dt.datetime | None" = None) -> str:
+    """A job names an ACQUISITION EVENT — one stack through the feeder — which
+    genuinely IS identified by when it happened, so a timestamp is right here.
+
+    It is NOT the document prefix. One ADF stack is usually several documents, so
+    a per-document `sender-date-type` bibkey can only be derived downstream, after
+    segmentation knows who sent what."""
+    return (now or dt.datetime.now()).strftime("scan-%Y%m%d-%H%M")
+
+
+def scan_commands(home: str, job: str, out_dir, *, simplex: bool = False) -> list:
+    """The SCANDRILL chain for ONE live acquisition. PURE — builds argv, runs
+    nothing.
+
+    NEVER emits `--ocr`. An OCR text layer makes pdfdrill's `route` read the scan
+    as born-digital and send it down the pdfminer lane instead of the vision lane
+    (SCANDRILL brief section 3). The searchable underlay is a HUMAN deliverable
+    and is produced separately — never on the path that feeds pdfdrill."""
+    out_dir = Path(out_dir)
+    manifest = out_dir / f"{job}.ingest.json"
+    job_dir = out_dir / f"{job}.job"
+    # `adf` scans into <job>.job/raw/ and records page paths REL_TO that raw dir,
+    # so assemble must resolve against raw/ — NOT the job dir (which would send it
+    # hunting for proc/… instead of raw/proc/… and fail "kept page images
+    # missing"). The brief's known-good line passes `--job-dir <raw_dir>` too.
+    raw_dir = job_dir / "raw"
+    pdf = out_dir / f"{job}.pdf"
+    sc = [sys.executable, "-m", "scandrill.cli"]
+    adf = sc + ["adf", "--job", job, "--job-dir", str(job_dir),
+                "-o", str(manifest)]
+    if simplex:
+        adf.append("--simplex")
+    assemble = sc + ["assemble", str(manifest), "-o", str(pdf),
+                     "--job-dir", str(raw_dir)]
+    return [adf, assemble]
+
+
+def do_scan(base, env, spec: str, docs: list, combined: "str | None",
+            timeout: float, store_dir: str = "") -> tuple:
+    """Scan the ADF and add the resulting PDF to the chat context.
+
+    Returns (retrieval target, combined-store path) like do_add. Any failure
+    leaves the context untouched."""
+    home = scandrill_home()
+    if not home:
+        print("  scan needs SCANDRILL (it drives the scanner; pdfdrill does not).\n"
+              "  Install/checkout to ~/SCANDRILL or set $SCANDRILL_HOME.",
+              file=sys.stderr)
+        return (combined or (docs[0] if docs else None)), combined
+
+    simplex = "--simplex" in spec.split()
+    job = next((t for t in spec.split() if not t.startswith("-")), "") \
+        or scan_job_name()
+    out_dir = Path(store_dir) if store_dir else Path.cwd()
+    out_dir.mkdir(parents=True, exist_ok=True)
+    senv = scandrill_env(env, home)
+
+    print(f"  scanning the ADF as {job} … (duplex, 300dpi, deskew on, raw kept)")
+    for argv in scan_commands(home, job, out_dir, simplex=simplex):
+        step = argv[3]                                  # 'adf' | 'assemble'
+        try:
+            msg = _run(argv, senv, timeout=max(timeout, 1800.0))
+        except Exception as e:                          # noqa: BLE001
+            print(f"  scan failed at `{step}`: {e}", file=sys.stderr)
+            print("  context unchanged.", file=sys.stderr)
+            return (combined or (docs[0] if docs else None)), combined
+        for line in str(msg).splitlines():
+            if line.strip():
+                print(f"  {line.strip()}")
+
+    pdf = out_dir / f"{job}.pdf"
+    if not pdf.exists():
+        print(f"  scan produced no PDF at {pdf}", file=sys.stderr)
+        return (combined or (docs[0] if docs else None)), combined
+    return do_add(base, env, str(pdf), docs, combined, timeout,
+                  store_dir=store_dir)
+
+
 def _expand_add_spec(spec: str) -> list:
     """`add` arguments → a flat list of doc tokens.
 
@@ -474,6 +585,8 @@ def _repl_help(cmds: dict) -> str:
         "  add \"name with blanks.pdf\"  quote a path with spaces/parens — or paste it\n"
         "                            unquoted: an existing file wins over splitting\n"
         "  add @list.txt             add every path/URL/id listed in a file (one per line)\n"
+        "  scan [job] [--simplex]    feed the ADF: scan (duplex 300dpi, deskew, raw\n"
+        "                            kept) → lossless PDF → add it. Needs SCANDRILL.\n"
         "  (with several docs loaded, a pdfdrill command runs on EVERY document)\n"
         "  session [show]            show the current context (loaded documents)\n"
         "  reset / clear / refresh   drop ALL docs from the context (files kept on disk;\n"
@@ -593,7 +706,8 @@ def main() -> int:
             print(f"  ⚠ not drilled yet ({why})")
             print(f"     questions need a model first — build one here by typing:  {builder}")
     else:
-        print("  No document yet — `add <pdf|url|arxiv-id>` to bring one in.")
+        print("  No document yet — `add <pdf|url|arxiv-id>` to bring one in, "
+              "or `scan` to feed the ADF.")
     print("  Type a question, a pdfdrill command (status, size, model, …), or "
           "`add <pdf|url|id>`.")
     print("  Quit: quit / exit / q (or Ctrl-D).  Help: :help")
@@ -699,9 +813,17 @@ def main() -> int:
             target, combined = do_add_many(base, env, newdocs, docs, combined,
                                            args.timeout, store_dir)
             continue
-        # Nothing in context yet → everything but `add`/meta needs a document.
+        # scan: pull paper through the ADF and add the PDF. Like `add`, it CREATES
+        # the document, so it must run before the "no document yet" guard.
+        if parts[0].lstrip(":").lower() == "scan":
+            spec = parts[1].strip() if len(parts) > 1 else ""
+            target, combined = do_scan(base, env, spec, docs, combined,
+                                       args.timeout, store_dir)
+            continue
+        # Nothing in context yet → everything but `add`/`scan`/meta needs a document.
         if target is None:
-            print("  no document yet — `add <pdf|url|arxiv-id>` to bring one in.")
+            print("  no document yet — `add <pdf|url|arxiv-id>` or `scan` "
+                  "(feed the ADF) to bring one in.")
             continue
         # A pdfdrill command — forced with '!' or recognised by name — runs on the
         # CURRENT target. Everything else is a question.

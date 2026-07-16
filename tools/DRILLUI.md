@@ -57,6 +57,28 @@ The document is **optional** — start empty and bring documents in with `add`.
 - `add @list.txt` — every path/URL/arXiv-id listed in a file (one per line, `#`
   comments and blank lines skipped) — for the hundreds-of-URLs case.
 
+### `scan` — bring in PAPER (needs SCANDRILL)
+
+`scan [job] [--simplex]` acquires a stack from the scanner's ADF and adds the
+resulting PDF, so paper enters the context exactly like a file does. pdfdrill
+does not drive the scanner: [SCANDRILL](../../SCANDRILL) does (fixed rig — ADF
+duplex @300dpi; deskew measured and applied; `raw/` retained; blank pages
+recorded, never deleted). `scan` is the two-command chain `adf` → `assemble`,
+then `add`.
+
+- Located via `$SCANDRILL_HOME`, else `~/SCANDRILL`; absent → a message, not a
+  traceback.
+- `job` names the ACQUISITION EVENT and defaults to a timestamp
+  (`scan-20260716-1430`) — correct here, because one stack through the feeder
+  really is identified by when it happened. It is **not** the document prefix:
+  one stack is usually several documents, so the per-document
+  `sender-date-type` bibkey is derived later, after segmentation.
+- **No OCR text layer is ever added on this path.** An underlay would make
+  pdfdrill's `route` read the scan as born-digital and send it to pdfminer
+  instead of the vision lane. The searchable underlay is a *human* deliverable
+  and is produced separately. Verified: a live 3-page ADF scan routes
+  `scanned → Gemma 4`.
+
 The first `add` becomes the context; each further `add` merges in. **With more
 than one document loaded, a pdfdrill command runs on EVERY loaded document**
 (e.g. `tiddlers` fans out over all of them, printing a `=== name ===` header per
