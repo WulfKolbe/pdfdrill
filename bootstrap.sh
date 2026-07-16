@@ -40,6 +40,9 @@ if command -v apt-get >/dev/null 2>&1; then
   if ! command -v tesseract >/dev/null 2>&1; then
     PKGS+=(tesseract-ocr tesseract-ocr-eng tesseract-ocr-deu tesseract-ocr-equ)
   fi
+  # SANE — the scanner ADF acquisition route (`pdfdrill scan`). Optional: only a
+  # box with a scanner needs it; every other route is unaffected without it.
+  command -v scanimage >/dev/null 2>&1 || PKGS+=(sane-utils)
   # LaTeX DVI toolchain + dvisvgm — needed for the TikZ/table SVG route.
   # If either `latex` or `dvisvgm` is missing, install the whole support set
   # (a present `latex` alone isn't enough — TikZ needs texlive-pictures, the

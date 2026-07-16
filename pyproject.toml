@@ -18,11 +18,15 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
-# Scan acquisition (`pdfdrill scan`): SCANDRILL drives the scanner (ADF duplex
-# @300dpi, deskew, raw/ retained, blanks recorded) and owns the lossless
-# image→PDF projection; pdfdrill imports it as a library. Not on PyPI yet — from
-# a checkout: `pip install -e ~/SCANDRILL`. Absent → `scan` degrades to a hint.
-scan = ["scandrill>=0.0.1"]
+# Scan acquisition (`pdfdrill scan`) — the VENDORED rig at pdfdrill.scandrill
+# (absorbed from the SCANDRILL project). These are its deps, now ours; the SANE
+# tools (`scanimage`) are a system package, see bootstrap.sh / doctor. Absent →
+# `scan` degrades to a hint, every other route is unaffected.
+scan = [
+    "img2pdf>=0.5",     # lossless image → PDF (JPEG /DCTDecode verbatim, no re-encode)
+    "pikepdf>=8",       # /Lang, page labels, metadata — no pixel touch
+    "Pillow>=10",       # page dimensions + blank-mean measurement
+]
 nlp = ["stanza>=1.10"]
 # Canonical math layer (the `mathlayer` package): LaTeX→SymPy→multi-backend.
 math = ["sympy>=1.12", "latex2sympy2_extended>=1.11"]
@@ -108,4 +112,8 @@ include = ["pdfdrill*", "docmodel*", "docops*", "features*", "semantic*", "vocab
 # the bundled font-category table (offline; built by tools/build_font_categories.py),
 # the skillsync-generated --help body, and the complete bundled SKILL folder
 # (commands.yaml manifest + SKILL.md) so `pdfdrill skill` works from an installed wheel.
-pdfdrill = ["font_categories.json", "_help_generated.txt", "skill/*"]
+pdfdrill = ["font_categories.json", "_help_generated.txt", "skill/*",
+            # the vendored acquisition rig's config — it documents the fixed rig
+            # (ADF Duplex @300dpi, deskew on) and must travel WITH the package,
+            # since there is no project root to search upward to once installed.
+            "scandrill/scandrill.toml"]

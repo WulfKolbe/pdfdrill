@@ -1,12 +1,12 @@
 """
 Scan acquisition — paper in the feeder becomes a drillable PDF.
 
-pdfdrill does not drive the scanner; SCANDRILL does, and pdfdrill drives SCANDRILL
-as a **library** (import, not subprocess): no argv to mis-spell, no PYTHONPATH to
-export, no shell. SCANDRILL owns the fixed rig — ADF duplex @300dpi, skew measured
-then applied, ``raw/`` retained, blank sides RECORDED (never deleted) — and the
-lossless projection (``img2pdf``: JPEG ``/DCTDecode`` verbatim, PNG
-``/FlateDecode``; assembly never resamples).
+This is the thin driver; the acquisition stack itself is VENDORED at
+:mod:`pdfdrill.scandrill` (from the SCANDRILL project, absorbed so pdfdrill owns
+every integration detail and no code lives outside this repo). It provides the
+fixed rig — ADF duplex @300dpi, skew measured then applied, ``raw/`` retained,
+blank sides RECORDED (never deleted) — and the lossless projection (``img2pdf``:
+JPEG ``/DCTDecode`` verbatim, PNG ``/FlateDecode``; assembly never resamples).
 
 Two invariants live here because breaking either fails silently:
 
@@ -21,9 +21,9 @@ Two invariants live here because breaking either fails silently:
    assemble hunt for ``proc/raw_1_deskewed.png`` instead of
    ``raw/proc/raw_1_deskewed.png`` and die "kept page images missing".)
 
-SCANDRILL is an OPTIONAL dependency (``pip install 'pdfdrill[scan]'`` or
-``pip install -e ~/SCANDRILL``); absent, every entry point degrades to a clear
-message. Layout under ``out_dir``::
+The acquisition deps are the OPTIONAL ``[scan]`` extra (img2pdf / pikepdf /
+Pillow) plus ``scanimage`` (sane-utils); absent, every entry point degrades to a
+clear message and no other route is affected. Layout under ``out_dir``::
 
     <job>.job/raw/          raw sides, retained
     <job>.job/raw/proc/     deskewed copies
@@ -38,8 +38,8 @@ from pathlib import Path
 from types import SimpleNamespace
 
 INSTALL_HINT = (
-    "scan needs SCANDRILL (it drives the scanner; pdfdrill does not).\n"
-    "  pip install -e ~/SCANDRILL     # or: pip install 'pdfdrill[scan]'")
+    "scan needs the acquisition deps (img2pdf / pikepdf / Pillow) and the SANE\n"
+    "  tools: pip install 'pdfdrill[scan]'  +  apt-get install sane-utils")
 
 
 class ScanUnavailable(RuntimeError):
@@ -66,18 +66,21 @@ class ScanResult:
 
 
 def _scandrill() -> SimpleNamespace:
-    """The scandrill modules we use. Isolated + lazy so absence is catchable and
-    tests can inject fakes without a scanner."""
-    from scandrill import assemble as assemble_mod
-    from scandrill import config as config_mod
-    from scandrill import manifest as manifest_mod
-    from scandrill.producers import adf as adf_mod
+    """The scandrill modules we use — VENDORED at `pdfdrill.scandrill`, so
+    pdfdrill owns the acquisition code outright (no external checkout, nothing
+    outside git). Lazy + isolated: the third-party imports (img2pdf/pikepdf/
+    Pillow) only load when someone actually scans, and tests inject fakes here
+    instead of needing a scanner."""
+    from .scandrill import assemble as assemble_mod
+    from .scandrill import config as config_mod
+    from .scandrill import manifest as manifest_mod
+    from .scandrill.producers import adf as adf_mod
     return SimpleNamespace(adf=adf_mod, assemble=assemble_mod,
                            manifest=manifest_mod, config=config_mod)
 
 
 def available() -> bool:
-    """True when SCANDRILL can be imported."""
+    """True when the acquisition stack can load (its deps are the [scan] extra)."""
     try:
         _scandrill()
     except Exception:                                     # noqa: BLE001

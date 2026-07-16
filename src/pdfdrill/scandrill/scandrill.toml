@@ -1,0 +1,62 @@
+# SCANDRILL job configuration — the fixed rig.
+#
+# Scanner options are not probed or negotiated: ADF Duplex at 300 dpi, always.
+# Every value below is also the built-in default (scandrill/config.py); this file
+# exists so the constants have one visible home and can be overridden per job
+# without touching code.
+
+[scandrill]
+
+# ---- scanner (fixed) --------------------------------------------------------
+# device: leave unset to resolve at runtime. NEVER hardcode `airscan:eN:` — the
+# eN is a discovery-order index that drifts (scanp.sh says e1, scand.py says e0,
+# e0 is what enumerates today). Set only to pin a specific unit.
+# device = "airscan:e0:HP OfficeJet Pro 8730 [FAED2B]"
+source     = "ADF Duplex"
+resolution = 300
+mode       = "Color"
+
+# A4 crop in mm (scanp.sh: -l 0 -t 0 -x 210 -y 290)
+geom_l_mm = 0.0
+geom_t_mm = 0.0
+geom_x_mm = 210.0
+geom_y_mm = 290.0
+
+# ---- blank detection --------------------------------------------------------
+# Raster prefilter (scanp.sh): grayscale mean of the shaved page.
+blank_threshold = 0.999
+shave_px        = 40
+# Topological check (scand.py): total blob ink area. Catches what the mean misses
+# (faint pencil page / gray-cast scan) — see docs/TOPOLOGY-VS-RASTER.md.
+empty_min_ink_area = 2000
+empty_border_px    = 24
+
+# ---- skew -------------------------------------------------------------------
+binarize_threshold = 200    # scand.py: dark < 200 = ink
+max_skew_deg       = 8.0    # corrections beyond this are refused, not trusted
+min_skew_deg       = 0.2    # below this: don't rotate (rotation is lossy)
+min_rule_px        = 150    # @300 dpi
+min_area           = 500
+blob_conf_floor    = 0.35   # below this, the Hough fallback is consulted
+fuse_min_conf      = 0.15
+fuse_agree_tol_deg = 0.5
+
+# ADF convention (pylepto "Project Decisions — user-set, do not revisit"):
+# measure FRONT pages only; the back takes the NEGATED front angle, because backs
+# are too sparsely filled to measure reliably. The back is measured only as a
+# fallback, when the front yielded no usable angle (blank/sparse front).
+measure_backs = false
+# Half-empty guard: enough ink to keep the page, too little to trust an angle.
+# Below this the calculation is SKIPPED (never guessed) and fusion supplies it.
+skew_min_ink_area = 20000
+# blobcc is pure-Python; a full 300 dpi A4 side is ~8.5 MPx. The skew pass runs
+# on a downscaled copy (angle is scale-invariant); 0 disables.
+skew_max_px = 1500000
+
+# ---- output -----------------------------------------------------------------
+lang = "de-DE"
+# ADF scans are ALWAYS skewed, so deskew always runs. Rotation resamples every
+# pixel (not lossless) — so raw/ is retained untouched and the angle is recorded,
+# keeping the correction auditable and re-derivable from the originals.
+apply_deskew = true
+deskew_dir   = "proc"       # deskewed copies land here; raw/ is never modified

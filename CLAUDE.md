@@ -1757,6 +1757,70 @@ once — passes never touch the sidecar/CLI.
   `booktoc`'s page map), the `\index` pass, and summaries. Tests:
   `tests/test_passes.py` (6).
 
+## Scan acquisition — SCANDRILL absorbed (`pdfdrill scan`, 2026-07-16)
+
+Paper enters the toolchain as a first-class input. The SCANDRILL project was
+**vendored into `src/pdfdrill/scandrill/`** (14 modules, 2586 lines, its 122
+tests kept verbatim in `tests/scandrill/`) so pdfdrill owns every integration
+detail and no code lives outside git. `src/pdfdrill/scan.py` is the thin driver;
+`pdfdrill scan [job] [--from-dir D] [--out-dir D] [--simplex] [--no-deskew]
+[--json]` takes **no `<pdf>`** — it CREATES one. Optional `[scan]` extra
+(img2pdf + pikepdf + Pillow) + `scanimage`; absent → a hint, never a traceback.
+
+- **The rig is fixed** (`scandrill/scandrill.toml`, shipped as package-data since
+  an installed package has no project root to search upward to): ADF duplex
+  @300dpi. **Nothing is destroyed** — `raw/` is retained and blank sides are
+  RECORDED (`removed_blank`), never deleted, so page removals stay accountable.
+  **Rotation (deskew) is the only pixel-touching step** and it is recorded.
+  Assembly never resamples (`img2pdf`: JPEG `/DCTDecode` verbatim, PNG
+  `/FlateDecode`). **The PDF is a PROJECTION of `<job>.ingest.json`** — anything
+  not re-derivable from the manifest doesn't belong in assembly.
+- **NO OCR text layer is ever added on this path.** An underlay would make
+  `route` read the scan as born-digital and pick pdfminer over the vision lane —
+  i.e. "extract" a scan from a text layer that is itself OCR output. Calling
+  `assemble()` as a library makes the guard STRUCTURAL: its `ocr=False` default
+  is never overridden and there is no `--ocr` string to leak. The searchable
+  underlay is a HUMAN deliverable, produced separately. Verified on a live ADF
+  acquisition: 4 sides → 1 blank recorded → 3 pages → `route` reports
+  `scanned → Gemma 4`.
+- **`assemble(job_dir=...)` must be the RAW dir**, because
+  `ingest_raw_dir(rel_to=raw_dir)` records page paths relative to `raw/`. Passing
+  the job dir sends assemble hunting for `proc/raw_1_deskewed.png` instead of
+  `raw/proc/…` ("kept page images missing"). Found by a live scan, not by unit
+  tests — a unit test can assert a flag is present but not that it points
+  somewhere real.
+- **Job name vs document prefix (the naming model).** A job names an ACQUISITION
+  EVENT — one stack through the feeder — which genuinely IS identified by when it
+  happened, so `scan-YYYYmmdd-HHMM` is CORRECT there. It is **not** the document
+  prefix: one ADF stack is usually several documents (`autosegment`), so the
+  per-document `sender-date-type` bibkey (e.g. `aok-rheinland-20260712-mahnung`,
+  `-<hash4>` on collision) is derived DOWNSTREAM once segmentation knows the
+  sender/date/type, then **frozen** in the sidecar — a content-derived key that
+  silently re-derives on re-OCR would rename tiddlers underneath the user. The
+  old scripts conflated the two because they had no segmentation. *(Promotion via
+  `relocate`: not built yet.)*
+- **Bug found + fixed during the port:** `raw_batch_files()` delegated to
+  `iter_images()`, which **rglobs** — so a re-ingest (`--from-dir` on an
+  already-deskewed batch, or a retry) matched our own `raw/proc/raw_1_deskewed.png`
+  against `raw_*.png` and counted it as a fresh SIDE: pages double-counted (a real
+  4-side batch reported 6) AND an already-rotated image was rotated a second time
+  (`raw_1_deskewed_deskewed.png` — unrecorded pixel damage, breaking the
+  rotation-is-recorded rule). The raw batch is FLAT by definition, so only
+  top-level matches count; `iter_images` still recurses for `add_folder`.
+- **drillui `scan`** is thin: run `pdfdrill scan --json`, hand the PDF to the
+  existing `do_add` (it CREATES the document, so it dispatches before the "no
+  document yet" guard and works from an empty context; the job spec is parsed with
+  `shlex`, so a name with blanks survives). Tests: `tests/test_scan.py` (9),
+  `tests/test_drillui_scan.py` (6), `tests/scandrill/` (122 vendored — note the
+  `__init__.py`: both suites have a `test_config.py`, and pytest names modules by
+  BASENAME without it, so collection dies on "import file mismatch").
+- **Still open** (the absorbed brief's items): BlobTracker (`~/BlobTracker` →
+  glyph coordinates for undecoded glyphs); the `route` born-digital misread when
+  an OCR layer IS present (it infers born-digital from the mere presence of a text
+  layer, so a third-party-OCR'd scan misroutes — an invisible-text `Tr 3` probe is
+  the source-independent fix); the drillui drop zone (`POST /job/<job>/pages`,
+  thumbnails, re-order); sender-date-type prefix promotion.
+
 ## Roadmap (decomposed — each phase gets its own spec + plan)
 
 - **Phase 1 — Unified model + capture** *(in progress)*: extend `docmodel`

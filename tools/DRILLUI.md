@@ -63,10 +63,10 @@ The document is **optional** — start empty and bring documents in with `add`.
 resulting PDF, so paper enters the context exactly like a file does.
 
 drillui owns none of this: it runs **`pdfdrill scan --json`** and hands the PDF
-to `add`. pdfdrill owns the integration and drives SCANDRILL as a *library*
-(`pip install -e ~/SCANDRILL`, the `[scan]` extra), which owns the rig — ADF
-duplex @300dpi, deskew measured then applied, `raw/` retained, blank sides
-recorded rather than deleted. So `scan` also works as a plain CLI command:
+to `add`. pdfdrill owns the acquisition outright — the rig lives vendored at
+`src/pdfdrill/scandrill/` (ADF duplex @300dpi, deskew measured then applied,
+`raw/` retained, blank sides recorded rather than deleted). Needs the `[scan]`
+extra + `scanimage`. So `scan` also works as a plain CLI command:
 `pdfdrill scan [job] [--from-dir D] [--out-dir D] [--simplex] [--no-deskew]`.
 
 - `job` names the ACQUISITION EVENT and defaults to a timestamp

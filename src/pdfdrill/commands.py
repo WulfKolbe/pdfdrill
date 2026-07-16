@@ -523,6 +523,7 @@ def cmd_doctor() -> str:
         ("pdflatex", "texlive-latex-base", "SVG / latex expansion"),
         ("dvips", "texlive-binaries", "DVI toolchain"),
         ("dvisvgm", "dvisvgm", "DVI -> SVG (pdfdrill svg, latexbook)"),
+        ("scanimage", "sane-utils", "scanner ADF acquisition (pdfdrill scan)"),
     ]
     lines = ["pdfdrill requirement check", "=" * 27, "", "System tools:"]
     missing_pkgs: list[str] = []
@@ -553,8 +554,10 @@ def cmd_doctor() -> str:
                       ("pypdf", "core (formfields/attachments)"),
                       ("numpy", "optional [layout] extra — pdfdrill elements GNN"),
                       ("stanza", "optional [nlp] extra — pdfdrill nlp"),
-                      ("scandrill", "optional [scan] extra — pdfdrill scan "
-                                    "(drives the scanner ADF)")]:
+                      ("img2pdf", "optional [scan] extra — pdfdrill scan "
+                                  "(lossless image→PDF)"),
+                      ("pikepdf", "optional [scan] extra — pdfdrill scan "
+                                  "(PDF metadata, no pixel touch)")]:
         ok = importlib.util.find_spec(mod) is not None
         lines.append(f"  [{'OK ' if ok else 'MISSING'}] {mod:<10} — {note}")
     # libpostal: a find_spec on `postal` isn't enough (the C-extension needs

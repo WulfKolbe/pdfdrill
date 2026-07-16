@@ -1525,9 +1525,9 @@ commands:
   - model
 - name: scan
   section: Other
-  summary: 'Acquire paper from the scanner ADF and assemble its lossless PDF (needs SCANDRILL, which
-    drives the rig: ADF duplex @300dpi, deskew measured+applied, raw/ retained, blank sides RECORDED
-    not deleted). Takes no <pdf> — it CREATES one. The job name defaults to a timestamp because it
+  summary: 'Acquire paper from the scanner ADF and assemble its lossless PDF (needs the [scan] extra
+    + scanimage; the rig is fixed: ADF duplex @300dpi, deskew measured+applied, raw/ retained, blank
+    sides RECORDED not deleted). Takes no <pdf> — it CREATES one. The job name defaults to a timestamp because it
     names an acquisition EVENT; the per-document sender-date-type prefix is derived later, after
     segmentation (one stack is usually several documents). NO OCR layer is added: that would make
     `route` read the scan as born-digital and pick pdfminer over the vision lane.'
