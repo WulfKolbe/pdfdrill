@@ -300,6 +300,42 @@ function setActiveDoc(rawPath: string): void {
   if (imgProc) { try { imgProc.kill(); } catch {} }  // sidecar was for the old doc
 }
 
+// The REPL prints `context: <path> (1 document) — ask away.` whenever a doc
+// becomes current — for `scan` (a NEW timestamped PDF) just as for `add`. The
+// bridge's input regex only catches `add …` lines, so a `scan` used to leave
+// activeDoc / registerDocDir / the viewer stuck on the PREVIOUS doc: the viewer
+// showed the LAST scan while the new scan's PDF 404'd. Reading the doc from the
+// REPL's OWN output covers both verbs and any future one uniformly.
+const _CONTEXT_RE = /(?:^|\n)\s*context:\s+(.+?)\s+\(\d+ document/g;
+
+function noteReplContext(sess: Session, ws: any, text: string): void {
+  // Only the `scan` verb needs this: it mints a NEW timestamped PDF the bridge's
+  // input regex (which matches `add …` only) never sees, so activeDoc / the
+  // viewer stay stuck on the previous doc. `add` already registers + activates
+  // its target directly, so leave that path untouched (re-driving it from this
+  // output just churns the sidecar and breaks the pyramid the add set up).
+  if (!/^\s*scan\b/.test(sess.lastInput || "")) return;
+  let m: RegExpExecArray | null, last: string | null = null;
+  _CONTEXT_RE.lastIndex = 0;
+  while ((m = _CONTEXT_RE.exec(text)) !== null) last = m[1].trim();
+  if (!last || /^https?:\/\//i.test(last)) return;
+  const next = last.replace(/^~(?=$|\/)/, homedir());
+  // Compare RESOLVED paths, not raw strings: the `add` handler already set
+  // activeDoc from the add ARG (which may be relative or ~-prefixed), while the
+  // REPL prints the ABSOLUTE path here — same file, different spelling. Switching
+  // on that would kill the just-built sidecar and churn the pyramid the add just
+  // set up. Only act when it is a genuinely DIFFERENT doc (the `scan` case).
+  const nextAbs = resolve(next);
+  const curAbs = activeDoc && !/^https?:\/\//i.test(activeDoc)
+    ? resolve(activeDoc.replace(/^~(?=$|\/)/, homedir())) : null;
+  if (nextAbs === curAbs) return;
+  registerDocDir(next);                              // serve the new doc's artifacts
+  setActiveDoc(next);                                // viewer/PDF routes follow it
+  const has = docWithPyramid() !== null;             // re-point the viewer at it
+  sess.viewerAnnounced = has;
+  if (has) send(ws, { type: "viewer", url: "/viewer.html", open: false });
+}
+
 // ---- auto-build: the state machine reacting to the missing pyramid ----------
 // Opening /viewer.html for a doc WITHOUT a pyramid used to dead-end in a JSON
 // 404. Now the bridge STARTS `pdfdrill pyramid --offline` itself (once per doc,
@@ -594,6 +630,7 @@ function spawnSession(ws: any): Session {
       const s = dec.decode(chunk, { stream: true });
       sess.out += s;
       logAppend(s);                                                   // → copyable transcript
+      noteReplContext(sess, ws, sess.out);          // follow `scan`/`add` to the new doc
       if (flushTimer) { clearTimeout(flushTimer); flushTimer = null; }  // new output cancels pending flush
       if (sess.out.endsWith(PROMPT_TAIL)) flushTimer = setTimeout(flush, QUIET_MS);
     }
