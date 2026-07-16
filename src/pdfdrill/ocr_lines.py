@@ -1414,77 +1414,73 @@ def text_layer_pass(doc: dict, pdf: Path) -> int:
     return done
 
 
-def _zbar_scan(png: Path) -> list[dict]:
-    """QR + 1D symbols on one image via zbarimg: [{symbology, data}]."""
-    res = subprocess.run(["zbarimg", "-q", str(png)],
-                         capture_output=True, text=True, timeout=60)
-    out = []
-    for line in res.stdout.splitlines():
-        if ":" in line:
-            sym, data = line.split(":", 1)
-            out.append({"symbology": sym, "data": data})
-    return out
-
-
-# pylibdmtx helper (Solus ships libdmtx but no dmtx-utils CLI). Runs in a
-# subprocess so this module stays import-free; emits top-left px coords
-# (libdmtx's rect.top is measured from the BOTTOM — flipped here).
-_DMTX_HELPER = """\
+# ONE decode engine: zxing-cpp — the same one pdfdrill's `qr` command uses, so a
+# symbol decodes identically whether it is found here (lines.json, standalone) or
+# there (sidecar). It replaces the old zbarimg (QR/1D) + pylibdmtx (DataMatrix)
+# pair: zxing-cpp reads QR, DataMatrix, Aztec, PDF417 and the 1D families in ONE
+# library — AND reports each symbol's POSITION, which the zbar/dmtx CLIs do not,
+# so barcodes now carry a `region` like every other object.
+#
+# Runs in a subprocess so this module stays import-free (stdlib-only), the same
+# pattern the pylibdmtx helper used. Position is the symbol's 4 corner points →
+# reduced to a top-left px rectangle (already the image frame's convention, no
+# flip needed, unlike libdmtx's bottom-origin rect).
+_ZXING_HELPER = """\
 import json, sys
+import zxingcpp
 from PIL import Image
-from pylibdmtx.pylibdmtx import decode
-img = Image.open(sys.argv[1]).convert("L")
+img = Image.open(sys.argv[1])
 out = []
-for s in decode(img, timeout=int(sys.argv[2])):
-    r = s.rect
-    out.append({"data": s.data.decode("utf-8", "replace"),
-                "left": r.left, "top": img.height - r.top - r.height,
-                "width": r.width, "height": r.height})
+for r in zxingcpp.read_barcodes(img):
+    p = r.position
+    xs = [p.top_left.x, p.top_right.x, p.bottom_right.x, p.bottom_left.x]
+    ys = [p.top_left.y, p.top_right.y, p.bottom_right.y, p.bottom_left.y]
+    out.append({"symbology": str(r.format), "data": r.text,
+                "left": min(xs), "top": min(ys),
+                "width": max(xs) - min(xs), "height": max(ys) - min(ys)})
 print(json.dumps(out))
 """
 
 
-def _dmtx_available() -> bool:
-    if shutil.which("dmtxread"):
-        return True
+def _zxing_available() -> bool:
+    """True when the zxing-cpp engine (+ PIL, its image input) can be run."""
     import importlib.util
-    return (importlib.util.find_spec("pylibdmtx") is not None
+    return (importlib.util.find_spec("zxingcpp") is not None
             and importlib.util.find_spec("PIL") is not None)
 
 
-def _dmtx_scan(png: Path, ms_timeout: int = 1500) -> list[dict]:
-    """DataMatrix symbols (Deutsche Post franking etc.): dmtxread CLI when
-    present, else pylibdmtx over the system libdmtx (with px rectangles)."""
-    if shutil.which("dmtxread"):
-        res = subprocess.run(["dmtxread", "-n", f"-m{ms_timeout}", str(png)],
-                             capture_output=True, text=True, timeout=60)
-        return [{"symbology": "DataMatrix", "data": line}
-                for line in res.stdout.splitlines() if line.strip()]
-    res = subprocess.run(
-        [sys.executable, "-c", _DMTX_HELPER, str(png), str(ms_timeout)],
-        capture_output=True, text=True, timeout=90)
+def _zxing_scan(png: Path, timeout: int = 90) -> list[dict]:
+    """Every symbol on one image via zxing-cpp: [{symbology, data, rect_px}].
+    Empty list on any failure (never fatal)."""
+    res = subprocess.run([sys.executable, "-c", _ZXING_HELPER, str(png)],
+                         capture_output=True, text=True, timeout=timeout)
     if res.returncode != 0:
         return []
-    return [{"symbology": "DataMatrix", "data": s["data"],
+    try:
+        found = json.loads(res.stdout)
+    except (ValueError, TypeError):
+        return []
+    return [{"symbology": s["symbology"], "data": s["data"],
              "rect_px": {"left": s["left"], "top": s["top"],
                          "width": s["width"], "height": s["height"]}}
-            for s in json.loads(res.stdout)]
+            for s in found]
 
 
 def barcode_pass(doc: dict, pdf: Path, work_dir: Path, *, dpi: int = 300,
                  pngs: list[Path] | None = None) -> int:
-    """Detect + decode barcodes per page: QR/1D (zbarimg), DataMatrix
-    (dmtxread). Page dicts gain `barcodes: [{symbology, data}]` — the
-    region slot is deliberately left to image-side tools (zbar/dmtx CLIs
-    decode but do not report coordinates). Never fatal; skips per missing
-    tool. Reuses the build's page PNGs when given, else renders."""
+    """Detect + decode every barcode per page with zxing-cpp — QR, DataMatrix
+    (Deutsche Post franking), Aztec, PDF417 and the 1D families in ONE engine,
+    the same one pdfdrill's `qr` command uses, so a symbol decodes identically
+    either way. Page dicts gain `barcodes: [{symbology, data, region}]`; zxing
+    reports each symbol's POSITION, so the region is filled in PDF points (the
+    old zbar/dmtx CLIs could not). Never fatal; skips when the engine is absent.
+    Reuses the build's page PNGs when given, else renders."""
     meta = doc.setdefault("ocr", {})
     warnings = meta.setdefault("warnings", [])
-    have_zbar = shutil.which("zbarimg") is not None
-    have_dmtx = _dmtx_available()
-    if not (have_zbar or have_dmtx):
-        warnings.append("barcode pass skipped: neither zbarimg nor "
-                        "dmtxread on PATH")
+    have_zxing = _zxing_available()
+    if not have_zxing:
+        warnings.append("barcode pass skipped: zxing-cpp not installed "
+                        "(pip install 'pdfdrill[qr]')")
         return 0
     if pngs is None:
         work_dir.mkdir(parents=True, exist_ok=True)
@@ -1497,10 +1493,7 @@ def barcode_pass(doc: dict, pdf: Path, work_dir: Path, *, dpi: int = 300,
             continue
         found: list[dict] = []
         try:
-            if have_zbar:
-                found.extend(_zbar_scan(png))
-            if have_dmtx:
-                found.extend(_dmtx_scan(png))
+            found.extend(_zxing_scan(png))
         except Exception as e:
             warnings.append(f"barcode pass p{page['page']}: {e}")
             continue
@@ -1515,7 +1508,7 @@ def barcode_pass(doc: dict, pdf: Path, work_dir: Path, *, dpi: int = 300,
                                    "height": round(r["height"] * f, 2)}
             page["barcodes"] = found
             total += len(found)
-    if total or have_zbar or have_dmtx:
+    if total or have_zxing:
         meta.setdefault("type_counts", {})["barcodes"] = total
     return total
 
@@ -1540,7 +1533,7 @@ def main(argv: list[str] | None = None) -> int:
                     help="skip merging an embedded text layer as "
                          "text_layer_text")
     ap.add_argument("--no-barcodes", action="store_true",
-                    help="skip QR/DataMatrix detection (zbarimg/dmtxread)")
+                    help="skip QR/DataMatrix/1D detection (zxing-cpp)")
     a = ap.parse_args(argv)
     with tempfile.TemporaryDirectory(prefix="ocrlines-") as td:
         doc = build_lines_json(a.pdf, Path(td), ppi=a.ppi, lang=a.lang,
