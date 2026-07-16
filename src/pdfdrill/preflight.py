@@ -176,8 +176,9 @@ CRITICAL_RULES = [
     "escalate only when the question needs it.",
     "A built model may be a DIFFERENT species (geometry vs math). Trust `status`, "
     "not the bare MODEL_BUILT fact.",
-    "Never present a 0-equation model of a math paper as complete — it means the "
-    "math was dropped (run mathpix/visionocr).",
+    "Never present a math paper as complete without REAL LaTeX: the keyless OCR "
+    "route emits equation REGIONS with garbled text, so an equation count proves "
+    "nothing (model flags NEEDS_VISION_OCR → run mathpix/visionocr).",
     "One command per step; let pdfdrill manage prerequisites (`--ensure`, `steps`).",
     "Read outputs pdfdrill writes (llmtext, report, tables) from the drill folder; "
     "do not re-extract by hand.",

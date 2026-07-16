@@ -408,8 +408,12 @@ commands:
   typed: true
 - name: ocr
   section: Introspection (fast, no extraction)
-  summary: 'MathPix-free OCR: tesseract → MathPix-compatible lines.json (--lang eng+equ, --ppi N). Plain
-    text only (no LaTeX/CDN)'
+  summary: 'MathPix-free OCR for COMMERCIAL documents (scans/letters/tables/forms): Ghostscript (>=400 DPI)
+    → tesseract → a MathPix-compatible lines.json. Lines are TYPED (section_header/table/equation/diagram),
+    carry per-line conf + words, and their regions are PDF POINTS (units=pt) so local /cropped/ pyramid
+    crops work keylessly. Language autocorrection, OSD auto-upright, text-layer merge (as a SEPARATE
+    text_layer_text channel), barcodes. NO LaTeX: an equation gets a correct REGION but GARBLED text —
+    math papers want mathpix/visionocr. Refuses to overwrite a MathPix lines.json without --force.'
   offline_ok: true
   positionals:
   - name: pdf
@@ -421,9 +425,19 @@ commands:
     type: str
     flag: --lang
     default: eng+equ
+    help: 'tesseract langs (eng+deu for German); the module auto-corrects the order'
   - name: ppi
     type: int
     flag: --ppi
+    help: render DPI; floored at the >=400 gs minimum (a 300-DPI scan is only upsampled)
+  - name: min_conf
+    type: float
+    flag: --min-conf
+    help: 'drop words below this tesseract confidence (default 5.0 = noise floor)'
+  - name: no_typing
+    flag: --no-typing
+    type: flag
+    help: disable line typing — emit untyped "text" lines (legacy shape)
   typed: true
 - name: continuity
   section: Introspection (fast, no extraction)

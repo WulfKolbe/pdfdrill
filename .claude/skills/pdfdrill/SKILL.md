@@ -41,8 +41,10 @@ Trusted automation/CI may set `PDFDRILL_NO_PREFLIGHT=1` to skip the gate.
    only when the question needs it.
 3. A built model can be a different SPECIES (geometry vs math). Trust `status`,
    not the bare `MODEL_BUILT` fact.
-4. Never present a 0-equation model of a math paper as complete — the math was
-   dropped; run `mathpix`/`visionocr`.
+4. Never present a math paper as complete without REAL LaTeX. The keyless OCR
+   route emits equation *regions* whose text is GARBLED (it cannot read math), so
+   an equation COUNT proves nothing; `model` flags `NEEDS_VISION_OCR` — run
+   `mathpix`/`visionocr`.
 5. One command per step; let pdfdrill manage prerequisites (`--ensure`, `steps`).
 6. Read the files pdfdrill writes (`llmtext`, `report`, `tables`) from the drill
    folder; do not re-extract by hand.
@@ -152,7 +154,7 @@ LaTeX | KaTeX | image table, optionally with competing readings:
 
 | Command | Returns |
 |---|---|
-| `pdfdrill ocr <pdf> [--lang eng] [--ppi 300]` | **MathPix-free OCR input.** Render pages → tesseract → a MathPix-compatible `<pdf>.lines.json` (so the whole toolkit runs without a key). Reuses the TSV word-geometry + line-grouping already in `geometry.py`. **Plain text only** — no LaTeX, no equation/figure typing, no CDN crops (math fidelity stays MathPix-only). `--lang eng+equ` for math glyphs, `eng+deu` for German. Refuses to overwrite a MathPix `lines.json` without `--force`. |
+| `pdfdrill ocr <pdf> [--lang eng+deu] [--min-conf N] [--no-typing]` | **MathPix-free OCR input — aimed at COMMERCIAL documents** (scans, letters, tables, form fields). Ghostscript (≥400 DPI) → tesseract → a MathPix-compatible `<pdf>.lines.json`, so the toolkit runs keyless. Lines are **TYPED** (`section_header`/`table`/`equation`/`diagram`/`page_info`), carry per-line `conf` + `words` + block/par/line, and their regions are **PDF POINTS** (`ocr.units="pt"`, `image_id="tesseract-p{N}"`) → local `/cropped/…&units=pt` pyramid crops work keylessly. Also: language autocorrection, OSD auto-upright, Greek re-OCR of equation regions, a text-layer merge, barcodes. **NO LaTeX** — an equation gets a correct *region* but **garbled text** (tesseract can't read math), so a math paper wants `mathpix`/`visionocr` (`model` flags this as `NEEDS_VISION_OCR`). `--lang eng+deu` for German; `--min-conf` tunes the noise floor; `--no-typing` for the legacy untyped shape. Refuses to overwrite a MathPix `lines.json` without `--force`. |
 | `pdfdrill model <pdf>` | Build the unified docmodel from `lines.json` (auto-chains `mathpix`; **falls back to `ocr` (tesseract)** when MathPix is unavailable, so it runs keyless) |
 | `pdfdrill snip <pdf> [--limit N]` | OCR each equation crop via MathPix Snip → `snip` column (LaTeX + confidence) |
 | `pdfdrill candidates <pdf> [--provider llm]` | Export a manifest of equation crops (`eq_id` + `cdn_url` + MathPix LaTeX) for an LLM to read |
@@ -379,10 +381,13 @@ move. pdfdrill almost always has a better, deterministic route — use it:
 
   **DECISION RULE:** *math-bearing PDF + no MathPix key + agent runtime ⇒
   `visionocr` (rasterize → read → ingest), NOT the tesseract model.*
-  **ANTI-PATTERN:** *Never report a math paper's model as complete after a
-  tesseract fallback that produced 0 equations.* A 0-equation model on a
-  math-bearing doc is a FAILURE signal, not a result — `pdfdrill model` now
-  detects this, sets `NEEDS_VISION_OCR`, and tells you to run `visionocr`. Do not
+  **ANTI-PATTERN:** *Never report a math paper's model as complete after a keyless
+  fallback that captured no real LaTeX.* Note the enriched OCR route DOES emit
+  equation objects — correct region, GARBLED text (`Ih=glly <7 =3k € = < | =] (4)`),
+  and that text lands in `latex` — so a non-zero equation COUNT is not evidence of
+  captured math. A keyless text-only source cannot produce LaTeX by construction;
+  only a gold overlay (`latex`) or a keyed route (MathPix/`visionocr`) can.
+  `pdfdrill model` detects this, sets `NEEDS_VISION_OCR`, and tells you. Do not
   hand-roll a pseudo-`lines.json` by linearising equations (that yields flattened,
   unusable LaTeX — see `pdfdrill mathcheck`); let `visionocr` keep the structure.
 
@@ -480,7 +485,7 @@ _Generated from `commands.yaml` by skillsync. Edit the manifest, not this sectio
 | `pdfdrill tsv <pdf> [--ocr]` | Word-level bounding boxes (pdftotext -tsv; --ocr forces tesseract) |
 | `pdfdrill render <pdf> [--force]` | Render the built markdown to PDF (pandoc + lualatex) |
 | `pdfdrill mathpix <pdf> [--force]` | Download MathPix OCR (lines.json, md, tex.zip); --force re-uploads _(network)_ |
-| `pdfdrill ocr <pdf> [--lang LANG] [--ppi PPI]` | MathPix-free OCR: tesseract → MathPix-compatible lines.json (--lang eng+equ, --ppi N). Plain text only (no LaTeX/CDN) |
+| `pdfdrill ocr <pdf> [--lang LANG] [--ppi PPI] [--min-conf MIN_CONF] [--no-typing]` | MathPix-free OCR for COMMERCIAL documents (scans/letters/tables/forms): Ghostscript (>=400 DPI) → tesseract → a MathPix-compatible lines.json. Lines are TYPED (section_header/table/equation/diagram), carry per-line conf + words, and their regions are PDF POINTS (units=pt) so local /cropped/ pyramid crops work keylessly. Language autocorrection, OSD auto-upright, text-layer merge (as a SEPARATE text_layer_text channel), barcodes. NO LaTeX: an equation gets a correct REGION but GARBLED text — math papers want mathpix/visionocr. Refuses to overwrite a MathPix lines.json without --force. |
 | `pdfdrill continuity <pdf> [--lang LANG] [--ppi PPI] [--force]` | Full-page OCR of the MARGINS → page-sequence markers (Seite N von M / Fortsetzung) MathPix's content crop drops; attaches seq to Page objects |
 | `pdfdrill pageside <pdf>` | Classify each page recto/verso (book left/right) from page-number parity+position + side-note column asymmetry + sequence alternation; attaches page_side to model Pages (column roles flip with the side) |
 | `pdfdrill entities <pdf> [--force]` | Commercial entities per page: IBAN (mod-97 validated + BLZ/Konto/bank), BIC, German address, Steuer-/Kassen-/Aktenzeichen. Zero external tools |
@@ -599,6 +604,6 @@ _Generated from `commands.yaml` by skillsync. Edit the manifest, not this sectio
 <!-- COMMANDS:END -->
 
 <!-- PREFLIGHT-TOKEN:BEGIN -->
-Attestation token — the LAST line of this SKILL. If you can read this, you read the whole file. Run `pdfdrill preflight --ack DRILL-ba78c697` before any build/extract command.
-DRILL-ba78c697
+Attestation token — the LAST line of this SKILL. If you can read this, you read the whole file. Run `pdfdrill preflight --ack DRILL-665bb1d6` before any build/extract command.
+DRILL-665bb1d6
 <!-- PREFLIGHT-TOKEN:END -->
