@@ -66,6 +66,36 @@ def test_existing_local_resolves_paste_artifacts():
         assert dc._existing_local("https://example.com/x.pdf") is None  # URL
 
 
+def test_bare_stem_resolves_to_the_pdf_file():
+    """`add scan-20260716-1132` (no extension) must find `scan-20260716-1132.pdf`.
+
+    `pdfdrill scan` writes a FLAT `<job>.pdf`, not a self-contained `<job>/` folder,
+    so the folder-reopen ergonomics don't cover it — and typing the bare stem gave
+    `Not found`, leaving the context unchanged. Appending .pdf/.md is deterministic
+    (a real file exists at exactly that path), never a fuzzy guess."""
+    with tempfile.TemporaryDirectory() as d:
+        pdf = Path(d) / "scan-20260716-1132.pdf"
+        pdf.write_bytes(b"%PDF-1.4")
+        stem = str(Path(d) / "scan-20260716-1132")
+        assert dc._existing_local(stem) == str(pdf)
+        assert dc._repair_local_doc(stem) == str(pdf)
+
+
+def test_bare_stem_prefers_exact_match_over_appended_extension():
+    """If both `name` (a real path) and `name.pdf` exist, the exact match wins —
+    the .pdf append is only a fallback for when the bare path does NOT exist."""
+    with tempfile.TemporaryDirectory() as d:
+        exact = Path(d) / "doc"          # a real file literally named 'doc'
+        exact.write_bytes(b"%PDF-1.4")
+        (Path(d) / "doc.pdf").write_bytes(b"%PDF-1.4")
+        assert dc._existing_local(str(exact)) == str(exact)
+
+
+def test_bare_stem_absent_both_ways_is_none():
+    with tempfile.TemporaryDirectory() as d:
+        assert dc._existing_local(str(Path(d) / "ghost")) is None
+
+
 def test_repair_local_doc_passes_through_correct_and_missing():
     with tempfile.TemporaryDirectory() as d:
         p = Path(d) / "real.pdf"

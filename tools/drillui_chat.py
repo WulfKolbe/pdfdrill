@@ -409,6 +409,17 @@ def _existing_local(path: str) -> str | None:
             p = os.path.expandvars(os.path.expanduser(form))
             if os.path.exists(p):
                 return p
+    # Last resort — a bare stem naming a flat document file. `pdfdrill scan`
+    # writes `<job>.pdf` (not a self-contained `<job>/` folder), so `add <job>`
+    # would otherwise fail "Not found". Only AFTER every exact form above missed,
+    # and only when appending a known doc extension hits a real file — still
+    # deterministic, never a fuzzy match among alternatives.
+    for b in bases:
+        p = os.path.expandvars(os.path.expanduser(b))
+        if not os.path.splitext(p)[1]:                       # no extension typed
+            for ext in (".pdf", ".md"):
+                if os.path.isfile(p + ext):
+                    return p + ext
     return None
 
 
