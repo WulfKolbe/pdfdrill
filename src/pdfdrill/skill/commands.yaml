@@ -1523,6 +1523,51 @@ commands:
   typed: true
   requires:
   - model
+- name: scan
+  section: Other
+  summary: 'Acquire paper from the scanner ADF and assemble its lossless PDF (needs SCANDRILL, which
+    drives the rig: ADF duplex @300dpi, deskew measured+applied, raw/ retained, blank sides RECORDED
+    not deleted). Takes no <pdf> — it CREATES one. The job name defaults to a timestamp because it
+    names an acquisition EVENT; the per-document sender-date-type prefix is derived later, after
+    segmentation (one stack is usually several documents). NO OCR layer is added: that would make
+    `route` read the scan as born-digital and pick pdfminer over the vision lane.'
+  offline_ok: true
+  requires: []
+  positionals:
+  - name: job
+    type: str
+    required: false
+    help: 'name for this acquisition (default: scan-YYYYmmdd-HHMM)'
+  flags:
+  - name: out_dir
+    flag: --out-dir
+    type: path
+    help: 'where the PDF/manifest land (default: the configured library root)'
+  - name: from_dir
+    flag: --from-dir
+    type: path
+    help: re-ingest an existing raw_*.png batch instead of scanning (scanner untouched)
+  - name: device
+    flag: --device
+    type: str
+    help: 'explicit SANE device (default: resolved at runtime; never hardcode eN)'
+  - name: title
+    flag: --title
+    type: str
+    help: document title stamped into the PDF metadata
+  - name: simplex
+    flag: --simplex
+    type: flag
+    help: 'one side per sheet (default: duplex)'
+  - name: no_deskew
+    flag: --no-deskew
+    type: flag
+    help: measure but do not rotate (deskew is ON by default)
+  - name: json
+    flag: --json
+    type: flag
+    help: machine-readable result (job/pdf/manifest/sides/kept/blanks) for tooling
+  typed: true
 - name: docos
   section: Other
   summary: 'docOS document-set shell (L0 selector): run one command against the persisted working set —

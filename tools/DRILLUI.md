@@ -57,17 +57,18 @@ The document is **optional** — start empty and bring documents in with `add`.
 - `add @list.txt` — every path/URL/arXiv-id listed in a file (one per line, `#`
   comments and blank lines skipped) — for the hundreds-of-URLs case.
 
-### `scan` — bring in PAPER (needs SCANDRILL)
+### `scan` — bring in PAPER
 
 `scan [job] [--simplex]` acquires a stack from the scanner's ADF and adds the
-resulting PDF, so paper enters the context exactly like a file does. pdfdrill
-does not drive the scanner: [SCANDRILL](../../SCANDRILL) does (fixed rig — ADF
-duplex @300dpi; deskew measured and applied; `raw/` retained; blank pages
-recorded, never deleted). `scan` is the two-command chain `adf` → `assemble`,
-then `add`.
+resulting PDF, so paper enters the context exactly like a file does.
 
-- Located via `$SCANDRILL_HOME`, else `~/SCANDRILL`; absent → a message, not a
-  traceback.
+drillui owns none of this: it runs **`pdfdrill scan --json`** and hands the PDF
+to `add`. pdfdrill owns the integration and drives SCANDRILL as a *library*
+(`pip install -e ~/SCANDRILL`, the `[scan]` extra), which owns the rig — ADF
+duplex @300dpi, deskew measured then applied, `raw/` retained, blank sides
+recorded rather than deleted. So `scan` also works as a plain CLI command:
+`pdfdrill scan [job] [--from-dir D] [--out-dir D] [--simplex] [--no-deskew]`.
+
 - `job` names the ACQUISITION EVENT and defaults to a timestamp
   (`scan-20260716-1430`) — correct here, because one stack through the feeder
   really is identified by when it happened. It is **not** the document prefix:
@@ -76,8 +77,8 @@ then `add`.
 - **No OCR text layer is ever added on this path.** An underlay would make
   pdfdrill's `route` read the scan as born-digital and send it to pdfminer
   instead of the vision lane. The searchable underlay is a *human* deliverable
-  and is produced separately. Verified: a live 3-page ADF scan routes
-  `scanned → Gemma 4`.
+  and is produced separately. Verified on a live ADF scan: 4 sides → 1 blank
+  recorded → 3 pages assembled lossless → `route` reports `scanned → Gemma 4`.
 
 The first `add` becomes the context; each further `add` merges in. **With more
 than one document loaded, a pdfdrill command runs on EVERY loaded document**

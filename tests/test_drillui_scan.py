@@ -1,25 +1,17 @@
 """
-drillui `scan` — acquire paper from the ADF and drop it straight into the chat
-context.
+drillui `scan` — the THIN half.
 
-pdfdrill does NOT learn to scan: SCANDRILL already drives `scanimage` (ADF duplex
-@300dpi, deskew measured+applied, raw/ retained). `scan` is the two-command chain
-`adf` -> `assemble`, whose PDF is then handed to the existing `do_add`.
+All acquisition detail lives in pdfdrill (`pdfdrill scan` → tests/test_scan.py,
+which drives SCANDRILL as a library). drillui only: runs that command, reads its
+--json result, and hands the PDF to the existing do_add. So there is no scanner
+logic, no SCANDRILL path, and no argv-building here — that separation IS the
+thing worth testing.
 
-Two rules are LOCKED here because breaking either is silent, not loud:
-
-* **No `--ocr`.** An OCR text layer makes pdfdrill's `route` read the scan as
-  born-digital and send it to pdfminer instead of the vision lane (SCANDRILL
-  brief section 3, "add --ocr only for humans"). The underlay is a HUMAN
-  deliverable and is added separately -- never on the path feeding pdfdrill.
-* **The job name is a TIMESTAMP, and that is correct.** A job names an
-  ACQUISITION EVENT (one stack through the feeder), which really is identified by
-  when it happened. It is NOT the document prefix: one ADF stack is typically
-  several documents, so the per-document `sender-date-type` bibkey can only be
-  derived after segmentation, downstream.
+Like `add`, `scan` CREATES the document, so it must dispatch before the "no
+document yet" guard and work from an empty context.
 """
-import datetime as dt
 import importlib.util
+import json
 import sys
 from pathlib import Path
 
@@ -32,112 +24,83 @@ dc = importlib.util.module_from_spec(_spec)
 _spec.loader.exec_module(dc)
 
 
-def test_job_name_is_a_timestamped_acquisition_event():
-    """Correct use of a timestamp: it names WHEN paper went through the feeder."""
-    name = dc.scan_job_name(dt.datetime(2026, 7, 16, 14, 30))
-    assert name == "scan-20260716-1430"
+def _ok(pdf, **over):
+    d = {"job": "scan-20260716-1430", "pdf": str(pdf), "manifest": "m.json",
+         "raw_dir": "r", "sides": 4, "kept": 3, "blanks": 1, "deskewed": 3,
+         "device": "airscan:e0:TEST"}
+    d.update(over)
+    return json.dumps(d)
 
 
-def test_chain_is_adf_then_assemble_and_never_passes_ocr(tmp_path):
-    """The brief's section 3 guard, structural: --ocr cannot appear on this path."""
-    cmds = dc.scan_commands("/home/u/SCANDRILL", "scan-20260716-1430", tmp_path)
-    assert len(cmds) == 2, cmds
-    adf, assemble = cmds
-
-    assert adf[:4] == [sys.executable, "-m", "scandrill.cli", "adf"]
-    assert "--job" in adf and "scan-20260716-1430" in adf
-    # A LIVE acquisition: --from-dir would ingest an existing batch instead.
-    assert "--from-dir" not in adf
-
-    assert assemble[:4] == [sys.executable, "-m", "scandrill.cli", "assemble"]
-    assert str(tmp_path / "scan-20260716-1430.pdf") in assemble
-
-    for c in cmds:
-        assert "--ocr" not in c, f"--ocr must never reach pdfdrill's route: {c}"
-
-
-def test_assemble_job_dir_is_the_RAW_dir_not_the_job_dir(tmp_path):
-    """Found by a live scan, not by unit tests: `adf` writes sides to
-    <job>.job/raw/ and records manifest paths REL_TO that raw dir, so `assemble`
-    must resolve against raw/ — the brief's known-good line passes `--job-dir
-    <raw_dir>` for exactly this reason. Passing <job>.job/ makes assemble look for
-    proc/raw_1_deskewed.png instead of raw/proc/raw_1_deskewed.png and die with
-    'kept page images missing'."""
-    adf, assemble = dc.scan_commands("/home/u/SCANDRILL", "j", tmp_path)
-    raw = str(tmp_path / "j.job" / "raw")
-
-    assert assemble[assemble.index("--job-dir") + 1] == raw
-    # adf still owns the job dir itself (raw/ is created underneath it).
-    assert adf[adf.index("--job-dir") + 1] == str(tmp_path / "j.job")
-
-
-def test_chain_keeps_deskew_and_never_deletes(tmp_path):
-    """SCANDRILL's rules 2+3: deskew is ON by default, nothing is destroyed."""
-    adf, _ = dc.scan_commands("/home/u/SCANDRILL", "j", tmp_path)
-    assert "--no-skew" not in adf and "--no-deskew" not in adf
-
-
-def test_simplex_is_passed_through(tmp_path):
-    adf, _ = dc.scan_commands("/home/u/SCANDRILL", "j", tmp_path, simplex=True)
-    assert "--simplex" in adf
-
-
-def test_scandrill_env_puts_the_package_on_pythonpath():
-    """scandrill is NOT on PATH; it is importable from its checkout."""
-    env = dc.scandrill_env({"PATH": "/usr/bin"}, "/home/u/SCANDRILL")
-    assert env["PYTHONPATH"].startswith("/home/u/SCANDRILL")
-    assert env["PATH"] == "/usr/bin"          # inherited, not clobbered
-
-
-def test_scandrill_home_prefers_env_then_default(tmp_path, monkeypatch):
-    home = tmp_path / "SC"
-    (home / "scandrill").mkdir(parents=True)
-    (home / "scandrill" / "cli.py").write_text("")
-    monkeypatch.setenv("SCANDRILL_HOME", str(home))
-    assert dc.scandrill_home() == str(home)
-
-    monkeypatch.delenv("SCANDRILL_HOME")
-    monkeypatch.setattr(dc, "_DEFAULT_SCANDRILL", home)
-    assert dc.scandrill_home() == str(home)
-
-
-def test_scandrill_home_is_none_when_absent(tmp_path, monkeypatch):
-    """Absent -> a clear message, never a traceback."""
-    monkeypatch.delenv("SCANDRILL_HOME", raising=False)
-    monkeypatch.setattr(dc, "_DEFAULT_SCANDRILL", tmp_path / "nope")
-    assert dc.scandrill_home() is None
-
-
-def test_do_scan_hands_the_assembled_pdf_to_add(tmp_path, monkeypatch):
-    """End of the chain: the PDF enters the chat context via the existing add."""
-    ran: list = []
+def test_scan_delegates_to_pdfdrill_and_adds_the_pdf(tmp_path, monkeypatch):
     pdf = tmp_path / "scan-20260716-1430.pdf"
-
-    def fake_run(argv, env, timeout=180.0):
-        ran.append(argv)
-        pdf.write_bytes(b"%PDF-1.4")          # assemble produces the projection
-        return "ok"
-
+    seen: list = []
     added: list = []
 
-    def fake_add(base, env, newdoc, docs, combined, timeout, store_dir=""):
-        added.append(newdoc)
-        return newdoc, None
+    def fake_run(argv, env, timeout=180.0):
+        seen.append(argv)
+        return _ok(pdf)
 
     monkeypatch.setattr(dc, "_run", fake_run)
-    monkeypatch.setattr(dc, "do_add", fake_add)
-    monkeypatch.setattr(dc, "scandrill_home", lambda: "/home/u/SCANDRILL")
-    monkeypatch.setattr(dc, "scan_job_name",
-                        lambda now=None: "scan-20260716-1430")
+    monkeypatch.setattr(dc, "do_add",
+                        lambda base, env, doc, docs, comb, t, store_dir="":
+                        (added.append(doc), (doc, None))[1])
 
-    target, combined = dc.do_scan([], {}, "", [], None, 60.0, str(tmp_path))
-    assert len(ran) == 2, "adf then assemble"
-    assert added == [str(pdf)]
-    assert target == str(pdf)
+    target, _ = dc.do_scan(["pdfdrill"], {}, "", [], None, 60.0, str(tmp_path))
+
+    assert len(seen) == 1, "one pdfdrill call — drillui builds no scanner chain"
+    argv = seen[0]
+    assert argv[:2] == ["pdfdrill", "scan"] and "--json" in argv
+    assert argv[argv.index("--out-dir") + 1] == str(tmp_path)
+    assert added == [str(pdf)] and target == str(pdf)
 
 
-def test_do_scan_without_scandrill_is_graceful(tmp_path, monkeypatch):
-    monkeypatch.setattr(dc, "scandrill_home", lambda: None)
+def test_scan_passes_job_and_flags_through(tmp_path, monkeypatch):
+    seen: list = []
+    monkeypatch.setattr(dc, "_run",
+                        lambda a, e, timeout=180.0: (seen.append(a),
+                                                     _ok(tmp_path / "x.pdf"))[1])
+    monkeypatch.setattr(dc, "do_add",
+                        lambda *a, **k: (str(tmp_path / "x.pdf"), None))
+    dc.do_scan(["pdfdrill"], {}, "mahnungen --simplex", [], None, 60.0,
+               str(tmp_path))
+    assert "mahnungen" in seen[0] and "--simplex" in seen[0]
+
+
+def test_quoted_job_name_is_one_token(tmp_path, monkeypatch):
+    """shlex, not .split() — a job name with blanks stays one argument."""
+    seen: list = []
+    monkeypatch.setattr(dc, "_run",
+                        lambda a, e, timeout=180.0: (seen.append(a),
+                                                     _ok(tmp_path / "x.pdf"))[1])
+    monkeypatch.setattr(dc, "do_add",
+                        lambda *a, **k: (str(tmp_path / "x.pdf"), None))
+    dc.do_scan(["pdfdrill"], {}, '"AOK Mahnung"', [], None, 60.0, str(tmp_path))
+    assert "AOK Mahnung" in seen[0]
+
+
+def test_scan_failure_leaves_the_context_unchanged(tmp_path, monkeypatch):
+    """cmd_scan returns PROSE (e.g. the SCANDRILL install hint) on failure."""
+    monkeypatch.setattr(dc, "_run", lambda *a, **k: "scan needs SCANDRILL …")
     docs: list = []
-    target, combined = dc.do_scan([], {}, "", docs, None, 60.0, str(tmp_path))
-    assert target is None and docs == []       # context unchanged, no raise
+    target, combined = dc.do_scan(["pdfdrill"], {}, "", docs, None, 60.0,
+                                  str(tmp_path))
+    assert docs == [] and target is None and combined is None
+
+
+def test_scan_subprocess_error_is_not_fatal(tmp_path, monkeypatch):
+    def boom(*a, **k):
+        raise OSError("scanner asleep")
+    monkeypatch.setattr(dc, "_run", boom)
+    docs: list = []
+    target, _ = dc.do_scan(["pdfdrill"], {}, "", docs, None, 60.0, str(tmp_path))
+    assert target is None and docs == []
+
+
+def test_scan_is_offered_in_help_and_needs_no_document():
+    """It CREATES the document, so it must be reachable from an empty context."""
+    assert "scan" in dc._repl_help({})
+    src = (REPO / "tools" / "drillui_chat.py").read_text()
+    scan_at = src.index('lstrip(":").lower() == "scan"')
+    guard_at = src.index("No document yet")
+    assert scan_at < guard_at or "or `scan`" in src

@@ -552,7 +552,9 @@ def cmd_doctor() -> str:
                       ("pydantic", "core (md/drill path)"),
                       ("pypdf", "core (formfields/attachments)"),
                       ("numpy", "optional [layout] extra — pdfdrill elements GNN"),
-                      ("stanza", "optional [nlp] extra — pdfdrill nlp")]:
+                      ("stanza", "optional [nlp] extra — pdfdrill nlp"),
+                      ("scandrill", "optional [scan] extra — pdfdrill scan "
+                                    "(drives the scanner ADF)")]:
         ok = importlib.util.find_spec(mod) is not None
         lines.append(f"  [{'OK ' if ok else 'MISSING'}] {mod:<10} — {note}")
     # libpostal: a find_spec on `postal` isn't enough (the C-extension needs
@@ -3404,6 +3406,56 @@ def cmd_enhance(pdf: Path, only: str | None = None, skip: str | None = None) -> 
     for r in results:
         lines.append(f"  {icon.get(r.status, '?')} {r.name:11s} {r.summary}")
     return "\n".join(lines)
+
+
+def cmd_scan(job=None, *, out_dir=None, simplex=False, from_dir=None,
+             device=None, title=None, deskew=True, as_json=False) -> str:
+    """Acquire paper from the scanner's ADF and assemble its lossless PDF.
+
+    pdfdrill drives SCANDRILL as a library — SCANDRILL owns the rig (ADF duplex
+    @300dpi, deskew measured+applied, raw/ retained, blank sides recorded rather
+    than deleted) and the lossless projection; pdfdrill owns the integration.
+
+    NO OCR text layer is added: that would make `route` read the scan as
+    born-digital and send it to pdfminer instead of the vision lane. The
+    searchable underlay is a human deliverable, produced separately.
+    """
+    import json as _json
+
+    from . import config as cfg
+    from . import scan as scan_mod
+
+    out_dir = Path(out_dir) if out_dir else cfg.library_root()
+    steps: list[str] = []
+    try:
+        res = scan_mod.scan(job, out_dir, simplex=simplex, from_dir=from_dir,
+                            device=device, title=title, deskew=deskew,
+                            on_progress=steps.append)
+    except scan_mod.ScanUnavailable as exc:
+        return str(exc)
+    except Exception as exc:                               # noqa: BLE001
+        return (f"scan failed: {type(exc).__name__}: {exc}\n"
+                f"  `pdfdrill doctor` checks the tools; a scanner that is asleep "
+                f"or busy often just needs a retry.")
+
+    if as_json:
+        return _json.dumps({"job": res.job, "pdf": str(res.pdf),
+                            "manifest": str(res.manifest),
+                            "raw_dir": str(res.raw_dir), "sides": res.sides,
+                            "kept": res.kept, "blanks": res.blanks,
+                            "deskewed": res.deskewed, "device": res.device})
+
+    out = [f"scan {res.job}: {res.summary} → {res.pdf}"]
+    out += [f"  {s}" for s in steps]
+    if res.blanks:
+        out.append(f"  {res.blanks} blank side(s) recorded in the manifest "
+                   f"(not deleted) — page removals stay accountable.")
+    out.append(f"  raw sides kept in {res.raw_dir} (deskew is the only "
+               f"pixel-touching step, and it is recorded)")
+    out.append(f"  the PDF is a projection of {res.manifest.name} — no OCR layer "
+               f"was added, so `route` sees a scan and picks the vision lane.")
+    out.append(f"  Next: pdfdrill route {res.pdf.name}   (then drill it)")
+    return "\n".join(out)
 
 
 def cmd_docos(line: str = "") -> str:

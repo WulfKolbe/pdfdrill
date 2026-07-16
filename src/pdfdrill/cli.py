@@ -1040,6 +1040,22 @@ def _do_mathir(args):
     return cmd_mathir(_drilled(args))
 
 
+def _do_scan(args):
+    """pdfdrill scan [job] [--simplex] [--from-dir D] [--no-deskew] [--out-dir D]
+       [--device D] [--title T] [--json]  — acquire paper from the scanner ADF"""
+    from .commands import cmd_scan
+    # Strip every `--flag VALUE` FIRST: otherwise `scan --out-dir /tmp` would read
+    # the value `/tmp` as the positional job name (it has no leading dash).
+    out_dir, args = _opt(args, "--out-dir")
+    from_dir, args = _opt(args, "--from-dir")
+    device, args = _opt(args, "--device")
+    title, args = _opt(args, "--title")
+    job = next((a for a in args if not a.startswith("-")), None)
+    return cmd_scan(job, out_dir=out_dir, simplex="--simplex" in args,
+                    from_dir=from_dir, device=device, title=title,
+                    deskew="--no-deskew" not in args, as_json="--json" in args)
+
+
 def _do_docos(args):
     """pdfdrill docos [<command line>]  — the document-set shell (L0 selector)"""
     from .commands import cmd_docos
@@ -1760,6 +1776,7 @@ HANDLERS = {
         "enhance": _do_enhance,
         "conclusion": _do_conclusion,
         "docos": _do_docos,
+        "scan": _do_scan,
         "visionocr": _do_visionocr,
         "classify": _do_classify,
         "clean": _do_clean,
