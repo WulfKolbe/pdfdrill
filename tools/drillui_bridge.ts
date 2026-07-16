@@ -156,21 +156,28 @@ const DOC_DIR = (() => {
 // them, and pdfdrill now reports FOLDER-QUALIFIED paths (`<stem>/<file>`) that
 // resolve directly under the library/download root.
 const CONFIG_DIRS = (() => {
+  const dirs: string[] = [];
   const cands = [process.env.PDFDRILL_CONFIG,
                  join(homedir(), ".config", "pdfdrill", "config.json"),
                  join(homedir(), ".pdfdrill.json")].filter(Boolean) as string[];
   for (const c of cands) {
     try {
       const d = JSON.parse(readFileSync(c, "utf8"));
-      const dirs: string[] = [];
       for (const key of ["library_root", "download_dir"]) {
         if (d && d[key]) dirs.push(resolve(String(d[key]).replace(/^~(?=$|\/)/, homedir())));
       }
-      if (dirs.length) return dirs;              // first config with a dir wins
+      if (dirs.length) break;                    // first config with a dir wins
     } catch { /* not present / not json */ }
   }
+  // ALWAYS also serve the default download location, even when the config file
+  // set only `library_root`. pdfdrill's `download_dir` DEFAULTS to ~/Downloads
+  // when the file doesn't set it — and `pdfdrill scan` / URL downloads write
+  // THERE, not under library_root. The old code returned early on library_root
+  // and never added ~/Downloads, so every scanned-doc artifact link 404'd
+  // ("file not found for all files" after a scan). Deduped by the ART_ROOTS Set.
   const dl = join(homedir(), "Downloads");
-  return existsSync(dl) ? [dl] : [];
+  if (existsSync(dl)) dirs.push(dl);
+  return dirs;
 })();
 const ART_ROOTS = [...new Set(
   [ART_ROOT, DOC_DIR, ...CONFIG_DIRS].filter(Boolean) as string[])];
