@@ -331,6 +331,80 @@ def measure_skew(
     return measured
 
 
+def decide_orientation(
+    readings: list[tuple[int | None, float | None]],
+) -> tuple[int, int, int]:
+    """Document-level orientation vote over per-page OSD readings.
+
+    `readings` is one `(rotate_deg, confidence)` per page — `(None, None)` for a
+    blank/undetected side. Returns `(deg, agree, total)`: the cardinal rotation
+    (0/90/180/270) to apply to the WHOLE document, how many pages voted for it,
+    and how many pages had a usable reading.
+
+    The signal is CROSS-PAGE AGREEMENT, not any one page's confidence: an ADF
+    stack is fed as a unit, so a misfeed rotates every page the same way, and OSD
+    confidence on a sparse office page is low even when the reading is right (the
+    reported case: three pages unanimous at 180°, confidence 8–14). A non-zero
+    rotation wins only with a STRICT majority of the usable pages; a split vote
+    stays upright (0) — a wrong flip is worse than none, and raw/ keeps the
+    original either way."""
+    votes: dict[int, int] = {}
+    total = 0
+    for deg, _conf in readings:
+        if deg is None:
+            continue
+        d = int(deg) % 360
+        total += 1
+        votes[d] = votes.get(d, 0) + 1
+    if not total:
+        return 0, 0, 0
+    best = max(votes, key=lambda d: votes[d])
+    agree = votes[best]
+    if best == 0 or agree * 2 <= total:            # need a STRICT majority to rotate
+        return 0, votes.get(0, 0), total
+    return best, agree, total
+
+
+def measure_orientation(
+    pages: list[Page],
+    *,
+    job_dir: str | Path,
+    cfg: Config | None = None,
+    tools: Tools | None = None,
+) -> int:
+    """Measure page orientation by OSD and record the DOC-level decision.
+
+    Mirrors `measure_skew`: nothing is rotated here. Each non-blank page is run
+    through tesseract OSD; `decide_orientation` votes across them, and the single
+    document rotation (0/90/180/270) is stamped on every kept page's `extra`
+    (`orientation_deg` + its own `osd_deg`/`osd_conf` + the `orientation_votes`
+    tally). `apply_deskew` folds it into the rotation it already performs.
+
+    Returns the number of pages that produced a usable OSD reading (0 when
+    tesseract is absent — orientation then stays 0 and only fine deskew runs)."""
+    cfg = cfg or DEFAULT_CONFIG
+    tools = tools or DEFAULT_TOOLS
+    base = Path(job_dir)
+
+    per_page: list[tuple[Page, tuple[int | None, float | None]]] = []
+    for page in pages:
+        if page.status == REMOVED_BLANK:
+            continue
+        src = Path(page.src)
+        if not src.is_absolute():
+            src = base / src
+        reading = tools.detect_orientation(src) or (None, None)
+        per_page.append((page, reading))
+
+    deg, agree, total = decide_orientation([r for _p, r in per_page])
+    for page, (osd_deg, osd_conf) in per_page:
+        page.extra["osd_deg"] = osd_deg
+        page.extra["osd_conf"] = osd_conf
+        page.extra["orientation_deg"] = deg
+        page.extra["orientation_votes"] = f"{agree}/{total}"
+    return total
+
+
 def apply_deskew(
     pages: list[Page],
     *,
@@ -364,15 +438,26 @@ def apply_deskew(
     for page in pages:
         if page.status == REMOVED_BLANK:
             continue
-        angle = page.skew_deg
-        if angle is None:
-            page.extra["deskew"] = "no angle"
-            continue
-        if abs(angle) < cfg.min_skew_deg:
-            page.extra["deskew"] = f"below {cfg.min_skew_deg}° floor, not rotated"
-            continue
-        if abs(angle) > cfg.max_skew_deg:
-            page.extra["deskew"] = f"exceeds {cfg.max_skew_deg}° limit, not rotated"
+        # Orientation (cardinal 0/90/180/270, doc-level from measure_orientation)
+        # is NOT a skew angle — it always applies. Only the fine SKEW component is
+        # gated by the "don't bother" floor / the max-angle limit; the two are
+        # then summed and applied in ONE rotation (one resample, not two).
+        orient = int(page.extra.get("orientation_deg") or 0) % 360
+        skew = page.skew_deg
+        skew_use = 0.0
+        if skew is None:
+            skew_note = "no skew angle"
+        elif abs(skew) < cfg.min_skew_deg:
+            skew_note = f"skew below {cfg.min_skew_deg}° floor"
+        elif abs(skew) > cfg.max_skew_deg:
+            skew_note = f"skew exceeds {cfg.max_skew_deg}° limit"
+        else:
+            skew_use = skew
+            skew_note = f"deskew {skew:+.2f}°"
+
+        total = orient + skew_use
+        if total == 0:
+            page.extra["deskew"] = f"{skew_note}, not rotated"
             continue
 
         src = Path(page.src)
@@ -380,12 +465,14 @@ def apply_deskew(
             src = base / src
         out_dir.mkdir(parents=True, exist_ok=True)
         dst = out_dir / f"{src.stem}_deskewed.png"
-        if not tools.rotate_image(src, dst, angle):
+        if not tools.rotate_image(src, dst, total):
             page.extra["deskew"] = "rotate failed"
             continue
 
         page.extra["raw_src"] = page.src
-        page.extra["deskew"] = f"rotated {angle:+.2f}°"
+        if orient:
+            page.extra["orientation_applied"] = orient
+        page.extra["deskew"] = (f"oriented {orient}° + " if orient else "") + skew_note
         try:
             page.src = str(dst.relative_to(base))
         except ValueError:

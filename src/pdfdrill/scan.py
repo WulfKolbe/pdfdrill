@@ -58,6 +58,7 @@ class ScanResult:
     blanks: int         # recorded blank sides — NOT deleted
     deskewed: int
     device: str = ""
+    orientation: int = 0   # cardinal rotation applied to the whole doc (0/90/180/270)
 
     @property
     def summary(self) -> str:
@@ -149,8 +150,22 @@ def scan(job: "str | None" = None, out_dir: "str | Path | None" = None, *,
                               f"(was the feeder empty?)")
 
     n_deskew = 0
+    orientation = 0
     if deskew:
         s.adf.measure_skew(pages, job_dir=raw_dir, cfg=cfg)
+        # Orientation: a whole stack fed upside-down (or sideways) reads as a
+        # cardinal 90/180/270 rotation. OSD votes across pages (robust to a single
+        # page's low confidence) and records ONE doc-level rotation; apply_deskew
+        # folds it into the deskew so both happen in a single resample.
+        try:
+            n_osd = s.adf.measure_orientation(pages, job_dir=raw_dir, cfg=cfg)
+            orientation = next((int(p.extra.get("orientation_deg") or 0)
+                                for p in pages if p.extra.get("orientation_deg")), 0)
+            if orientation:
+                say(f"orientation: {orientation}° (OSD voted across {n_osd} page(s)) "
+                    f"— folded into deskew")
+        except Exception as exc:                          # noqa: BLE001
+            say(f"orientation: skipped ({type(exc).__name__})")
         if getattr(cfg, "apply_deskew", True):
             # Rotation is the ONLY pixel-touching step, it is recorded, and raw/
             # is kept — so the original is always recoverable.
@@ -168,4 +183,4 @@ def scan(job: "str | None" = None, out_dir: "str | Path | None" = None, *,
     say(f"assembled {kept} page(s) → {pdf}")
     return ScanResult(job=job, pdf=pdf, manifest=manifest_path, raw_dir=raw_dir,
                       sides=len(pages), kept=kept, blanks=len(pages) - kept,
-                      deskewed=n_deskew, device=dev)
+                      deskewed=n_deskew, device=dev, orientation=orientation)

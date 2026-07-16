@@ -449,3 +449,135 @@ def test_raw_batch_files_ignores_the_deskew_output_dir(tmp_path):
     assert [f.name for f in files] == ["raw_1.png", "raw_2.png",
                                        "raw_3.png", "raw_4.png"]
     assert not any("proc" in f.parts for f in files)
+
+
+# ── orientation (cardinal 90/180/270) — doc-level OSD vote ────────────────────
+
+def test_decide_orientation_unanimous_180():
+    """The reported case: a whole stack fed upside down. All non-blank pages read
+    180°, so the doc rotates 180 even though per-page OSD confidence is LOW —
+    agreement across pages is the robust signal, not one page's confidence."""
+    readings = [(180, 11.5), (180, 8.0), (180, 14.5), (None, None)]  # last = blank
+    deg, agree, total = adf.decide_orientation(readings)
+    assert deg == 180 and agree == 3 and total == 3
+
+
+def test_decide_orientation_upright_is_zero():
+    readings = [(0, 12.0), (0, 9.0), (0, 6.0)]
+    deg, agree, total = adf.decide_orientation(readings)
+    assert deg == 0
+
+
+def test_decide_orientation_no_majority_keeps_upright():
+    """A split vote (no cardinal wins > half) must NOT rotate — a wrong flip is
+    worse than leaving it, since raw/ orientation is recoverable anyway."""
+    readings = [(180, 10.0), (0, 10.0), (90, 10.0)]     # 3-way tie
+    deg, _agree, _total = adf.decide_orientation(readings)
+    assert deg == 0
+
+
+def test_decide_orientation_bare_majority_wins():
+    readings = [(180, 9.0), (180, 8.0), (0, 20.0)]      # 2 of 3 agree on 180
+    deg, agree, total = adf.decide_orientation(readings)
+    assert deg == 180 and agree == 2 and total == 3
+
+
+def test_decide_orientation_empty_is_zero():
+    assert adf.decide_orientation([]) == (0, 0, 0)
+    assert adf.decide_orientation([(None, None)]) == (0, 0, 0)
+
+
+def test_measure_orientation_records_doc_decision(tmp_path):
+    """OSD each non-blank page, vote, and stamp the DOC-level orientation on every
+    kept page (blanks don't vote and aren't stamped). No pixels touched here —
+    measure only, mirroring measure_skew."""
+    from pdfdrill.scandrill.manifest import Page
+
+    class FakeTools:
+        def __init__(self, table): self.table = table
+        def detect_orientation(self, image, timeout=30.0):
+            return self.table.get(Path(image).name)
+
+    pages = [Page(seq=1, src="raw_1.png"),
+             Page(seq=2, src="raw_2.png"),
+             Page(seq=3, src="raw_3.png"),
+             Page(seq=4, src="raw_4.png", status=REMOVED_BLANK)]
+    for p in (pages[0], pages[1], pages[2]):
+        (tmp_path / p.src).write_bytes(b"x")
+    tools = FakeTools({"raw_1.png": (180, 11.0), "raw_2.png": (180, 8.0),
+                       "raw_3.png": (180, 14.0)})   # raw_4 blank → not queried
+    total = adf.measure_orientation(pages, job_dir=tmp_path, tools=tools)
+    assert total == 3
+    for p in pages[:3]:
+        assert p.extra["orientation_deg"] == 180
+        assert p.extra["orientation_votes"] == "3/3"
+    assert "orientation_deg" not in pages[3].extra           # blank untouched
+
+
+def test_measure_orientation_split_stays_upright(tmp_path):
+    from pdfdrill.scandrill.manifest import Page
+
+    class FakeTools:
+        def detect_orientation(self, image, timeout=30.0):
+            return {"a.png": (180, 10.0), "b.png": (0, 10.0),
+                    "c.png": (90, 10.0)}.get(Path(image).name)
+
+    pages = [Page(seq=i, src=f"{c}.png") for i, c in enumerate("abc", 1)]
+    for p in pages:
+        (tmp_path / p.src).write_bytes(b"x")
+    adf.measure_orientation(pages, job_dir=tmp_path, tools=FakeTools())
+    assert all(p.extra["orientation_deg"] == 0 for p in pages)   # no majority
+
+
+class _CapTools:
+    """Captures the angle apply_deskew asks rotate_image for (no real pixels)."""
+    def __init__(self): self.angles = []
+    def rotate_image(self, src, dst, angle, **k):
+        self.angles.append(round(float(angle), 3)); Path(dst).write_bytes(b"x")
+        return True
+
+
+def _kept_page(tmp_path, *, skew=None, orient=None):
+    from pdfdrill.scandrill.manifest import Page
+    (tmp_path / "raw_1.png").write_bytes(b"x")
+    p = Page(seq=1, src="raw_1.png")
+    p.skew_deg = skew
+    if orient is not None:
+        p.extra["orientation_deg"] = orient
+    return p
+
+
+def test_apply_deskew_orientation_bypasses_the_skew_floor(tmp_path):
+    """A 180° misfeed with NO usable skew must still be rotated — orientation is a
+    cardinal correction, not a skew angle, so the min-skew 'don't bother' floor
+    does not gate it."""
+    t = _CapTools()
+    p = _kept_page(tmp_path, skew=None, orient=180)
+    n = adf.apply_deskew([p], job_dir=tmp_path, tools=t)
+    assert n == 1 and t.angles == [180.0]
+    assert p.extra["orientation_applied"] == 180 and p.skew_applied is True
+
+
+def test_apply_deskew_folds_orientation_and_fine_skew_into_one_rotation(tmp_path):
+    """One resample, not two: the cardinal flip and the sub-degree deskew are
+    summed and applied together."""
+    t = _CapTools()
+    p = _kept_page(tmp_path, skew=3.0, orient=180)
+    adf.apply_deskew([p], job_dir=tmp_path, tools=t)
+    assert t.angles == [183.0]
+
+
+def test_apply_deskew_below_floor_skew_still_dropped_when_upright(tmp_path):
+    """Existing behavior unchanged: upright page, sub-floor skew → no rotation."""
+    t = _CapTools()
+    p = _kept_page(tmp_path, skew=0.05, orient=0)
+    n = adf.apply_deskew([p], job_dir=tmp_path, tools=t)
+    assert n == 0 and t.angles == []
+
+
+def test_apply_deskew_plain_skew_unchanged_without_orientation(tmp_path):
+    """No orientation recorded at all (old models) → pure deskew, as before."""
+    t = _CapTools()
+    p = _kept_page(tmp_path, skew=3.0, orient=None)
+    adf.apply_deskew([p], job_dir=tmp_path, tools=t)
+    assert t.angles == [3.0]

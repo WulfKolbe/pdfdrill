@@ -3446,10 +3446,14 @@ def cmd_scan(job=None, *, out_dir=None, simplex=False, from_dir=None,
                             "manifest": str(res.manifest),
                             "raw_dir": str(res.raw_dir), "sides": res.sides,
                             "kept": res.kept, "blanks": res.blanks,
-                            "deskewed": res.deskewed, "device": res.device})
+                            "deskewed": res.deskewed, "device": res.device,
+                            "orientation": res.orientation})
 
     out = [f"scan {res.job}: {res.summary} → {res.pdf}"]
     out += [f"  {s}" for s in steps]
+    if res.orientation:
+        out.append(f"  the stack was fed {res.orientation}°-rotated — all pages "
+                   f"turned upright (recorded, raw kept)")
     if res.blanks:
         out.append(f"  {res.blanks} blank side(s) recorded in the manifest "
                    f"(not deleted) — page removals stay accountable.")
