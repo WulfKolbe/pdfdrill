@@ -805,9 +805,16 @@ const app = {
       "(?:->|→|to|wrote(?:\\s+to)?|stored(?:\\s+(?:at|in))?)\\s+" +
       "([^\\n:]*?\\.drill\\/[^\\n:]*?\\." + EXT + ")(?!\\.[a-z])(?=[\\s.,;)]|$)", "gi");
     while ((m = drill.exec(text)) !== null) add(m[1], m[2]);
-    // 2. bare path-like tokens (no spaces) anywhere in the prose
+    // 2. path-like tokens (no spaces) anywhere in the prose. REQUIRE a directory
+    //    component (the `/)+` — at least one slash): pdfdrill's own artifacts are
+    //    always folder-qualified (`<stem>/tables.html`, `<pdf>.drill/report.html`
+    //    via _artref), whereas a BARE `foo.md` in the prose is almost always a
+    //    filename from the DOCUMENT'S content — e.g. a paper about markdown-file
+    //    agent workflows mentions `script-draft.md`, `research-output.md`,
+    //    `CONTEXT.md`. Capturing those made dead /artifact links that 404. A real
+    //    bare-filename artifact doesn't exist (everything routes through _artref).
     const re = new RegExp(
-      "(?<![\\w/])((?:[\\w.+~@%-]+\\/)*[\\w.+~@%-]+\\." + EXT + ")\\b(?!\\.[a-z])", "gi");
+      "(?<![\\w/])((?:[\\w.+~@%-]+\\/)+[\\w.+~@%-]+\\." + EXT + ")\\b(?!\\.[a-z])", "gi");
     while ((m = re.exec(text)) !== null) add(m[1], m[2]);
     if (added) this.renderArtifacts();
   },
