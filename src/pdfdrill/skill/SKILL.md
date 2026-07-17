@@ -528,7 +528,7 @@ _Generated from `commands.yaml` by skillsync. Edit the manifest, not this sectio
 | `pdfdrill report <pdf> [--scale SCALE] [--embed]` | Full inline+display math report (formula-report.html). --scale N scales each KaTeX render to the CDN image height (1.0=same, 2.0=200%); --embed |
 | `pdfdrill inspect <pdf> [--pages PAGES] [--dpi DPI] [--no-images]` | DevTools-style docmodel inspector HTML (<bibkey>.inspect.html): every DocObject as a hover/click box on the rendered page AND a DOM-like ELEMENTS tree + INSPECTOR pane (region/LaTeX/ props/realizations/alignments) + reading-order REFLOW. Self-contained (embeds downscaled pages); --no-images = boxes-only; --dpi N inlined-page DPI (default 120) |
 | `pdfdrill folder <dir>` | Build the full structure for every PDF in <dir> from existing |
-| `pdfdrill latex <pdf> [--tex TEX]` | Ingest author .tex/.tgz as a `tex` provenance (original+expanded LaTeX); --tex <path> |
+| `pdfdrill injectlatex <pdf> [--tex TEX]` | INJECT the author's LaTeX source (.tex/.tgz, arXiv e-print auto-downloaded) as a competing `tex` provenance on each matched equation (original+expanded LaTeX). INPUT direction (was `latex`); for LaTeX OUTPUT use `latex`. --tex <path> |
 | `pdfdrill merge <pdf> [--tex TEX]` | Merge gold LaTeX prose onto a layout skeleton (MathPix OR born-digital pdfminer/pdfplumber OR tesseract): the model's Paragraphs fix the boundaries + regions, the author LaTeX supplies the text (LaTeX always wins; original kept as text_source). On a born-digital 2-column paper this DROPS the column interleaving + arXiv margin watermark from the prose. Refuses a source-built model (already gold). Needs a model + a LaTeX source. |
 | `pdfdrill fontspans <pdf> [--pages PAGES]` | The pdfminer LEG: recover the local formatting MathPix flattens — bold headings, bold/italic key terms, COLOURED runs (red/blue link text), small footnotes/captions — from the born-digital glyph layer via pdfminer.six (fontname/size/CTM/colour). Writes <bibkey>.fontspans.json, attaches per-page emphasis onto Page objects + fuses inline emphasis onto the merged Paragraphs by page-fraction overlap, and cross-checks visual bold+larger headings against the model Sections (confirms matches; flags missed headings as repair candidates). Born-digital only. |
 | `pdfdrill latexbook <tex> [--no-svg]` | One-shot source-only pipeline from a .tex book: model + TikZ/table SVGs + KaTeX report (no PDF, no MathPix) |
@@ -595,6 +595,12 @@ _Generated from `commands.yaml` by skillsync. Edit the manifest, not this sectio
 | `pdfdrill docos <command>` | docOS document-set shell (L0 selector): run one command against the persisted working set — cd <path>, add <glob>, remove <glob>, clear, save-set/load-set/sets, show — and print the compact level-gated state UI. No args → show current state. (L1+ materialization wired in later steps.) |
 | `pdfdrill classify <pdf> [--k K]` | Subject-classify the drilled doc against the vocabnet vocabularies (MSC discipline rollup + PhySH/GND/STW), persisted in the sidecar. PREREQUISITE: at least one compiled vocab in vocab/compiled/ (not shipped) — build with `python3 -m vocabnet.sources build msc` first; without one it reports the build step and does nothing. |
 
+### Projection / export
+
+| Command | Returns |
+|---|---|
+| `pdfdrill latex <pdf> [--force]` | PROJECT the drilled model to a compilable <bibkey>.tex (the LaTeX analog of `md`): sections, prose, display equations, tables. Prefers MathPix's own LaTeX (<stem>.tex.zip) when present, else projects the model. OUTPUT direction — for the AUTHOR's source use `injectlatex`; for enriched LaTeX (glossary/index, ORKG) use `stex`/`scikgtex`. |
+
 ### OCR / model pipeline
 
 | Command | Returns |
@@ -605,6 +611,6 @@ _Generated from `commands.yaml` by skillsync. Edit the manifest, not this sectio
 <!-- COMMANDS:END -->
 
 <!-- PREFLIGHT-TOKEN:BEGIN -->
-Attestation token — the LAST line of this SKILL. If you can read this, you read the whole file. Run `pdfdrill preflight --ack DRILL-cdad8e16` before any build/extract command.
-DRILL-cdad8e16
+Attestation token — the LAST line of this SKILL. If you can read this, you read the whole file. Run `pdfdrill preflight --ack DRILL-24b612b1` before any build/extract command.
+DRILL-24b612b1
 <!-- PREFLIGHT-TOKEN:END -->

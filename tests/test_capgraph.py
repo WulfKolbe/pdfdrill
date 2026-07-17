@@ -17,7 +17,7 @@ from pdfdrill import capgraph as CG
 def test_produces_is_ast_derived_from_add_fact():
     p = CG.produces()
     assert p["model"] == ["MODEL_BUILT", "NEEDS_VISION_OCR"] or "MODEL_BUILT" in p["model"]
-    assert p["latex"] == ["LATEX_INGESTED"]
+    assert p["injectlatex"] == ["LATEX_INGESTED"]
     assert p["geometry"] == ["GEOMETRY_FUSED"]
     assert p["semantic"] == ["SEMANTIC_BUILT"]
     assert p["size"] == ["SIZE_KNOWN"]
@@ -42,7 +42,7 @@ def test_model_rebuild_destroys_latex_ingested():
 
 def test_remove_fact_destroys_are_included():
     # latex/visionocr explicitly remove_fact(NEEDS_VISION_OCR) — an upgrade
-    assert "NEEDS_VISION_OCR" in CG.destroys("latex")
+    assert "NEEDS_VISION_OCR" in CG.destroys("injectlatex")
     assert "NEEDS_VISION_OCR" in CG.destroys("visionocr")
     # a read-only command destroys nothing
     assert CG.destroys("status") == []
@@ -53,7 +53,7 @@ def test_no_phantom_clobber_every_destroyed_fact_is_produced():
     must be PRODUCED by some command — otherwise the planner reasons about a
     fact that can never be established (a manifest typo)."""
     produced = {f for facts in CG.produces().values() for f in facts}
-    for cmd in CG.MODEL_BUILDERS + ("latex", "visionocr"):
+    for cmd in CG.MODEL_BUILDERS + ("injectlatex", "visionocr"):
         for f in CG.destroys(cmd):
             assert f in produced, f"{cmd} destroys {f} which no command produces"
 

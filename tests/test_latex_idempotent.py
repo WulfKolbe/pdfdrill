@@ -56,11 +56,11 @@ def test_latex_create_is_idempotent_no_duplicate_equations():
         tex = Path(d) / "paper.tex"; tex.write_text(_TEX)
         model_path = _keyless_model_with_no_equations(pdf)
 
-        C.cmd_latex(pdf, tex=str(tex))
+        C.cmd_injectlatex(pdf, tex=str(tex))
         first = _eq_count(model_path)
         assert first == 2, f"expected 2 created equations, got {first}"
 
-        C.cmd_latex(pdf, tex=str(tex))            # run AGAIN — must not duplicate
+        C.cmd_injectlatex(pdf, tex=str(tex))            # run AGAIN — must not duplicate
         second = _eq_count(model_path)
         assert second == 2, f"re-run duplicated equations: {second} (expected 2)"
 
@@ -70,8 +70,8 @@ def test_latex_force_recreates_not_duplicates():
         pdf = Path(d) / "paper.pdf"; pdf.write_bytes(b"%PDF-1.4")
         tex = Path(d) / "paper.tex"; tex.write_text(_TEX)
         model_path = _keyless_model_with_no_equations(pdf)
-        C.cmd_latex(pdf, tex=str(tex))
-        C.cmd_latex(pdf, tex=str(tex), force=True)   # force drops then re-creates
+        C.cmd_injectlatex(pdf, tex=str(tex))
+        C.cmd_injectlatex(pdf, tex=str(tex), force=True)   # force drops then re-creates
         assert _eq_count(model_path) == 2
 
 

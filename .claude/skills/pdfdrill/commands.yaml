@@ -1254,8 +1254,30 @@ commands:
     help: directory of PDFs (offline batch)
   typed: true
 - name: latex
+  section: Projection / export
+  summary: 'PROJECT the drilled model to a compilable <bibkey>.tex (the LaTeX analog of `md`): sections,
+    prose, display equations, tables. Prefers MathPix''s own LaTeX (<stem>.tex.zip) when present, else
+    projects the model. OUTPUT direction — for the AUTHOR''s source use `injectlatex`; for enriched LaTeX
+    (glossary/index, ORKG) use `stex`/`scikgtex`.'
+  offline_ok: true
+  requires:
+  - model
+  positionals:
+  - name: pdf
+    type: pdf
+    required: true
+    help: PDF path, https URL, or bare arXiv id
+  flags:
+  - name: force
+    type: flag
+    flag: --force
+    help: re-project even if <bibkey>.tex already exists
+  typed: true
+- name: injectlatex
   section: Introspection (fast, no extraction)
-  summary: Ingest author .tex/.tgz as a `tex` provenance (original+expanded LaTeX); --tex <path>
+  summary: 'INJECT the author''s LaTeX source (.tex/.tgz, arXiv e-print auto-downloaded) as a competing
+    `tex` provenance on each matched equation (original+expanded LaTeX). INPUT direction (was `latex`);
+    for LaTeX OUTPUT use `latex`. --tex <path>'
   offline_ok: true
   positionals:
   - name: pdf

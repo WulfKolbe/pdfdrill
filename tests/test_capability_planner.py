@@ -65,7 +65,7 @@ def test_clobber_check_refuses_bare_rebuild_of_held_enrichment():
 
 def test_clobber_check_allows_rebuild_when_enrichment_reestablished_after():
     # latex re-runs AFTER the model rebuild → the destroyed fact is restored → OK
-    assert CP.clobber_check(["model", "latex"],
+    assert CP.clobber_check(["model", "injectlatex"],
                             held=frozenset({"LATEX_INGESTED"})) is None
 
 

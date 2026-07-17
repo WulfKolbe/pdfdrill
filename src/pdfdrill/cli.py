@@ -1149,8 +1149,16 @@ def _do_latexbook(args):
 
 
 def _do_latex(args):
-    """pdfdrill latex <pdf> [--tex <path>] [--force]"""
+    """pdfdrill latex <pdf> [--force]  — PROJECT the model to <bibkey>.tex"""
     from .commands import cmd_latex
+    pdf_args = [a for a in args if a != "--force"]
+    return cmd_latex(_pdf(pdf_args), force="--force" in args)
+
+
+def _do_injectlatex(args):
+    """pdfdrill injectlatex <pdf> [--tex <path>] [--force]  — pull the author's
+    LaTeX source IN as gold `tex` provenance (the old `latex` behavior)."""
+    from .commands import cmd_injectlatex
     pdf_args: list[str] = []
     tex = None
     force = False
@@ -1162,7 +1170,7 @@ def _do_latex(args):
             force = True; i += 1
         else:
             pdf_args.append(args[i]); i += 1
-    return cmd_latex(_pdf(pdf_args), tex=tex, force=force)
+    return cmd_injectlatex(_pdf(pdf_args), tex=tex, force=force)
 
 
 def _do_folder(args):
@@ -1768,6 +1776,7 @@ HANDLERS = {
         "inspect": _do_inspect,
         "folder": _do_folder,
         "latex": _do_latex,
+        "injectlatex": _do_injectlatex,
         "latexbook": _do_latexbook,
         "markdown": _do_markdown,
         "identifiers": _do_identifiers,

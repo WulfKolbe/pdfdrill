@@ -65,7 +65,7 @@ def test_proof_coverage_census_key_producers_migrated():
     `model` and `latex` are migrated in Phase B; the set grows as more follow."""
     from pdfdrill import capgraph as CG
     emitting = CG.proof_emitting()
-    assert {"model", "latex"} <= emitting, (
+    assert {"model", "injectlatex"} <= emitting, (
         f"key producers not proof-backed; proof-emitting = {sorted(emitting)}")
 
 

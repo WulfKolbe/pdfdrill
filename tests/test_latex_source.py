@@ -91,7 +91,7 @@ def test_cmd_latex_attaches_tex_provenance_end_to_end():
     import json, tempfile, os
     from docmodel.core import Document, DocObject, Realization
     from pdfdrill.sidecar import Sidecar
-    from pdfdrill.commands import cmd_latex, MODEL_BUILT
+    from pdfdrill.commands import cmd_injectlatex, MODEL_BUILT
 
     with tempfile.TemporaryDirectory() as d:
         pdf = Path(d) / "p.pdf"
@@ -110,7 +110,7 @@ def test_cmd_latex_attaches_tex_provenance_end_to_end():
         tex.write_text(r"\documentclass{article}\begin{document}"
                        r"\begin{equation} E = mc^2 \end{equation}\end{document}")
 
-        msg = cmd_latex(pdf, tex=str(tex))
+        msg = cmd_injectlatex(pdf, tex=str(tex))
         assert "Attached 1" in msg
         m = json.loads((sc.blob_dir / "model.docmodel.json").read_text())
         eq = m["objects"][0]

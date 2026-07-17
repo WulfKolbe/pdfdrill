@@ -117,7 +117,7 @@ def cmd_mathpix(pdf: Path, force: bool = False) -> str:
         if aid:
             return (f"MathPix skipped — {pdf.name} is arXiv:{aid}, and the author's "
                     f"LaTeX source is FREE.\n"
-                    f"  • equations (gold): `pdfdrill latex {pdf.name}` auto-downloads "
+                    f"  • equations (gold): `pdfdrill injectlatex {pdf.name}` auto-downloads "
                     f"the e-print .tgz\n"
                     f"  • abstract (free):  `pdfdrill abstract {pdf.name}` reads the abs "
                     f"page\n"
@@ -271,7 +271,7 @@ def _has_usable_math(objects: list, source: str) -> bool:
     still emits typed `equation` lines — with a CORRECT region but GARBLED text —
     and the EquationProcessor stores that text in `latex`. So neither an Equation
     COUNT nor a non-empty `latex` proves the math was captured; on those sources
-    only a gold-source overlay (`added_by="latex"`, from `pdfdrill latex`) or a
+    only a gold-source overlay (`added_by="latex"`, from `pdfdrill injectlatex`) or a
     keyed route (MathPix/visionocr) supplies real LaTeX.
 
     Non-keyless sources (MathPix) are trusted as before.
@@ -2812,7 +2812,7 @@ def cmd_model(pdf: Path, force: bool = False, bibkey: str | None = None) -> str:
     if (lines_source in ("pdfminer-chars", "pdfplumber-chars")
             and _arxiv_id_for(pdf, sc) and not sc.has(LATEX_INGESTED)):
         try:
-            cmd_latex(pdf)                          # overlay gold equations + graphics
+            cmd_injectlatex(pdf)                    # overlay gold equations + graphics
             # AND merge the gold LaTeX PROSE onto the born-digital paragraphs — the
             # char-layer prose is garbled by two-column interleaving + the arXiv
             # margin watermark; the gold text replaces it (LaTeX-wins, original
@@ -3001,7 +3001,7 @@ def cmd_bibsource(pdf: Path, bib_path: str | None = None,
                   bbl_path: str | None = None, force: bool = False) -> str:
     """Ingest the author's GOLD bibliography (`.bbl` + `.bib`) into the model.
 
-    This is the bibliography analogue of `pdfdrill latex` (author .tex as gold
+    This is the bibliography analogue of `pdfdrill injectlatex` (author .tex as gold
     equations): rather than reconstructing references from OCR (heuristic) or
     the web (Perplexity `bibfetch`), it reads the author's compiled `.bbl`
     (alpha label ↔ citekey ↔ printed entry) and `.bib` (structured fields), then
@@ -5052,7 +5052,7 @@ def cmd_report(pdf: Path, force: bool = False, embed: bool = False,
             aid = _arxiv_id_for(pdf, sc)
             routes = []
             if aid:
-                routes.append(f"`pdfdrill latex {pdf.name}` (FREE: the author's gold "
+                routes.append(f"`pdfdrill injectlatex {pdf.name}` (FREE: the author's gold "
                               f"arXiv equations → real Equation objects)")
             routes.append(f"`pdfdrill visionocr {pdf.name}` (keyless: an LLM reads each page)")
             routes.append(f"`pdfdrill mathpix {pdf.name} --force` (paid MathPix)")
@@ -5586,7 +5586,69 @@ def _format_algorithms(doc) -> str:
     )
 
 
-def cmd_latex(pdf: Path, tex: str | None = None, force: bool = False) -> str:
+def cmd_latex(pdf: Path, force: bool = False) -> str:
+    """PROJECT the drilled document to a compilable `<bibkey>.tex` — the LaTeX
+    analog of `md` (which projects Markdown). OUTPUT direction.
+
+    Two sources, best-fidelity first:
+      1. If MathPix produced `<stem>.tex.zip` (its own LaTeX of the doc — always
+         the case after `md`/`mathpix` on a scan/OCR doc), serve THAT: extract its
+         main `.tex`. This is real, high-fidelity LaTeX MathPix already rendered.
+      2. Otherwise project the model with `LaTeXProjector` (sections / prose /
+         display equations / tables) — works for any drilled doc.
+
+    Distinct from `injectlatex`, which pulls the AUTHOR's `.tex` source IN as gold
+    provenance (input). For enriched LaTeX (glossary/index, ORKG metadata) use
+    `stex` / `scikgtex`.
+    """
+    from .sidecar import Sidecar
+    sc = Sidecar(pdf)
+    key = resolve_bibkey(pdf, None, sc)
+    out = sc.blob_dir / f"{key}.tex"
+    if out.exists() and not force:
+        return (f"LaTeX already projected → {_artref(sc, out)} "
+                f"({out.stat().st_size // 1024 or 1} KB). Re-project with `--force`.")
+
+    # 1) MathPix's own LaTeX of the doc, when present (highest fidelity).
+    texzip = pdf.parent / f"{pdf.stem}.tex.zip"
+    if texzip.exists():
+        try:
+            from . import latex_source
+            body, _main = latex_source.read_source(str(texzip))
+        except Exception:                                 # noqa: BLE001
+            body = ""
+        if body.strip():
+            sc.blob_dir.mkdir(parents=True, exist_ok=True)
+            out.write_text(body, encoding="utf-8")
+            return (f"Projected LaTeX from MathPix's rendering "
+                    f"({len(body.split())} words) → {_artref(sc, out)}  "
+                    f"(compilable .tex; clickable in the drillui Outputs panel). "
+                    f"To pull the AUTHOR's source instead, use `injectlatex`.")
+
+    # 2) Project the model (build it if stale/absent, like the other projectors).
+    model_path = _model_path(sc)
+    if _stale_or_absent(sc, model_path, _lines_json_path(pdf)):
+        cmd_model(pdf)
+        model_path = _model_path(sc)
+    doc = load_model(model_path) if model_path.exists() else None
+    if doc is None:
+        return ("No model to project. Build one first (`pdfdrill model`), then "
+                "re-run `pdfdrill latex`.")
+    from docops.base import OperatorConfig
+    from docops.projectors.latex import LaTeXProjector
+    tex = LaTeXProjector(
+        OperatorConfig(op="projector", classname="LaTeXProjector")).project(doc)
+    sc.blob_dir.mkdir(parents=True, exist_ok=True)
+    out.write_text(tex, encoding="utf-8")
+    n_eq = doc.objects_of_type("Equation")
+    n_eq = len(n_eq)
+    return (f"Projected LaTeX from the model ({len(tex.split())} words, {n_eq} "
+            f"display equation(s)) → {_artref(sc, out)}  (compilable .tex; "
+            f"clickable in the drillui Outputs panel). For the AUTHOR's gold "
+            f"source use `injectlatex`; for enriched LaTeX use `stex`/`scikgtex`.")
+
+
+def cmd_injectlatex(pdf: Path, tex: str | None = None, force: bool = False) -> str:
     """Ingest the author's LaTeX source (.tex or arXiv .tgz) as a competing
     `tex` provenance on each matched equation.
 

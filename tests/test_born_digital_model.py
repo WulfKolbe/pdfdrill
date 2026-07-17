@@ -149,7 +149,7 @@ def test_cmd_model_auto_merges_latex_for_arxiv_born_digital(monkeypatch, tmp_pat
     monkeypatch.setattr(C, "cmd_mathpix", lambda p: None)
     monkeypatch.setattr(C, "_build_arxiv_source_model", lambda *a, **k: None)
     monkeypatch.setattr(C, "_arxiv_id_for", lambda p, sc: "2502.20855v2")
-    monkeypatch.setattr(C, "cmd_latex", lambda p: called.append("latex"))
+    monkeypatch.setattr(C, "cmd_injectlatex", lambda p: called.append("latex"))
 
     def bd(p):
         C._lines_json_path(p).write_text('{"source":"pdfplumber-chars"}')
@@ -175,7 +175,7 @@ def test_cmd_model_no_latex_merge_for_non_arxiv(monkeypatch, tmp_path):
     called = []
     monkeypatch.setattr(C, "cmd_mathpix", lambda p: None)
     monkeypatch.setattr(C, "_arxiv_id_for", lambda p, sc: None)   # not arXiv
-    monkeypatch.setattr(C, "cmd_latex", lambda p: called.append("latex"))
+    monkeypatch.setattr(C, "cmd_injectlatex", lambda p: called.append("latex"))
     monkeypatch.setattr(C, "_write_born_digital_lines",
                         lambda p: (C._lines_json_path(p).write_text('{"source":"pdfplumber-chars"}'), True)[1])
 
