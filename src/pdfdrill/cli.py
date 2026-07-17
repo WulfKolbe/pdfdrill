@@ -1149,10 +1149,11 @@ def _do_latexbook(args):
 
 
 def _do_latex(args):
-    """pdfdrill latex <pdf> [--force]  — PROJECT the model to <bibkey>.tex"""
+    """pdfdrill latex <pdf> [--force] [--compile]  — build a compilable LaTeX env"""
     from .commands import cmd_latex
-    pdf_args = [a for a in args if a != "--force"]
-    return cmd_latex(_pdf(pdf_args), force="--force" in args)
+    pdf_args = [a for a in args if a not in ("--force", "--compile")]
+    return cmd_latex(_pdf(pdf_args), force="--force" in args,
+                     compile="--compile" in args)
 
 
 def _do_injectlatex(args):

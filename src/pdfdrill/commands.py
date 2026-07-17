@@ -5586,66 +5586,151 @@ def _format_algorithms(doc) -> str:
     )
 
 
-def cmd_latex(pdf: Path, force: bool = False) -> str:
-    """PROJECT the drilled document to a compilable `<bibkey>.tex` — the LaTeX
-    analog of `md` (which projects Markdown). OUTPUT direction.
+def _unpack_archive_env(archive: Path, env_dir: Path) -> "Path | None":
+    """Unpack a `.tex.zip` / `.tgz` / `.tar.gz` into `env_dir` as a self-contained,
+    COMPILABLE environment — the `.tex` AND its sibling assets (MathPix's tex.zip
+    ships LOCAL jpgs that `\\includegraphics` references; the arXiv e-print ships
+    figures + `.sty`). A single top-level wrapper dir (MathPix's UUID folder) is
+    flattened so the main `.tex` and its images sit together at `env_dir/`.
 
-    Two sources, best-fidelity first:
-      1. If MathPix produced `<stem>.tex.zip` (its own LaTeX of the doc — always
-         the case after `md`/`mathpix` on a scan/OCR doc), serve THAT: extract its
-         main `.tex`. This is real, high-fidelity LaTeX MathPix already rendered.
-      2. Otherwise project the model with `LaTeXProjector` (sections / prose /
-         display equations / tables) — works for any drilled doc.
+    Returns the main `.tex` path inside `env_dir`, or None if none found."""
+    import shutil
+    import tarfile
+    import zipfile
+    from . import latex_source
 
-    Distinct from `injectlatex`, which pulls the AUTHOR's `.tex` source IN as gold
-    provenance (input). For enriched LaTeX (glossary/index, ORKG metadata) use
-    `stex` / `scikgtex`.
+    if env_dir.exists():
+        shutil.rmtree(env_dir, ignore_errors=True)
+    env_dir.mkdir(parents=True, exist_ok=True)
+    try:
+        if zipfile.is_zipfile(archive):
+            with zipfile.ZipFile(archive) as zf:
+                zf.extractall(env_dir)
+        else:
+            with tarfile.open(archive) as tf:
+                tf.extractall(env_dir)
+    except Exception:                                     # noqa: BLE001
+        return None
+
+    # flatten a lone wrapper directory (…​/<uuid>/<uuid>.tex → <uuid>.tex)
+    entries = [p for p in env_dir.iterdir() if not p.name.startswith(".")]
+    if len(entries) == 1 and entries[0].is_dir():
+        inner = entries[0]
+        for child in inner.iterdir():
+            shutil.move(str(child), str(env_dir / child.name))
+        inner.rmdir()
+
+    texs = sorted(env_dir.rglob("*.tex"))
+    if not texs:
+        return None
+    # prefer the main file the source resolver would pick
+    try:
+        contents = {str(t.relative_to(env_dir)): t.read_text(
+            encoding="utf-8", errors="replace") for t in texs}
+        main = latex_source.find_main_tex(contents)
+        if main:
+            return env_dir / main
+    except Exception:                                     # noqa: BLE001
+        pass
+    return texs[0]
+
+
+def _xelatex_compile(main_tex: Path) -> "tuple[bool, str]":
+    """Compile `main_tex` with **xelatex** (Unicode-native — MathPix LaTeX emits
+    raw `≥ ✓ → ℃` that pdflatex/inputenc cannot map). Returns (ok, note)."""
+    import shutil
+    import subprocess
+    if not shutil.which("xelatex"):
+        return False, "xelatex not on PATH (install texlive-xetex)"
+    try:
+        subprocess.run(["xelatex", "-interaction=nonstopmode", "-halt-on-error",
+                        main_tex.name], cwd=str(main_tex.parent),
+                       capture_output=True, timeout=180)
+    except Exception as exc:                              # noqa: BLE001
+        return False, f"xelatex failed: {type(exc).__name__}"
+    pdf_out = main_tex.with_suffix(".pdf")
+    return (pdf_out.exists(), "" if pdf_out.exists()
+            else "xelatex produced no PDF (see the .log in the env dir)")
+
+
+def cmd_latex(pdf: Path, force: bool = False, compile: bool = False) -> str:
+    """PROJECT the drilled document to a self-contained, COMPILABLE LaTeX
+    ENVIRONMENT folder — the LaTeX analog of `md`. OUTPUT direction.
+
+    Writes to `<drill>/latex/`, best-fidelity first:
+      1. MathPix's own `<stem>.tex.zip` — UNPACKED into the folder (the `.tex`
+         PLUS its local jpgs, which `\\includegraphics` needs). Real MathPix LaTeX.
+      2. the arXiv e-print `.tgz` if present — UNPACKED (figures + `.sty`).
+      3. otherwise the model projected by `LaTeXProjector` (sections/prose/eqs).
+
+    Reports the ENV FOLDER path + the main `.tex`. **Compile with `xelatex`**, not
+    pdflatex: MathPix emits raw Unicode (`≥ ✓ → ℃`) that inputenc/pdflatex reject.
+    `--compile` runs xelatex here and reports the produced PDF.
+
+    Distinct from `injectlatex` (pull the AUTHOR's source IN). For enriched LaTeX
+    (glossary/index, ORKG) use `stex` / `scikgtex`.
     """
     from .sidecar import Sidecar
     sc = Sidecar(pdf)
     key = resolve_bibkey(pdf, None, sc)
-    out = sc.blob_dir / f"{key}.tex"
-    if out.exists() and not force:
-        return (f"LaTeX already projected → {_artref(sc, out)} "
-                f"({out.stat().st_size // 1024 or 1} KB). Re-project with `--force`.")
+    env_dir = sc.blob_dir / "latex"
+    main_tex: "Path | None" = None
+    origin = ""
 
-    # 1) MathPix's own LaTeX of the doc, when present (highest fidelity).
-    texzip = pdf.parent / f"{pdf.stem}.tex.zip"
-    if texzip.exists():
-        try:
-            from . import latex_source
-            body, _main = latex_source.read_source(str(texzip))
-        except Exception:                                 # noqa: BLE001
-            body = ""
-        if body.strip():
-            sc.blob_dir.mkdir(parents=True, exist_ok=True)
-            out.write_text(body, encoding="utf-8")
-            return (f"Projected LaTeX from MathPix's rendering "
-                    f"({len(body.split())} words) → {_artref(sc, out)}  "
-                    f"(compilable .tex; clickable in the drillui Outputs panel). "
-                    f"To pull the AUTHOR's source instead, use `injectlatex`.")
+    if env_dir.exists() and any(env_dir.rglob("*.tex")) and not force:
+        main_tex = next(iter(sorted(env_dir.rglob("*.tex"))), None)
+        origin = "existing"
+    else:
+        # 1) MathPix tex.zip  2) arXiv e-print tgz  → UNPACK into the env folder
+        for cand, label in ((pdf.parent / f"{pdf.stem}.tex.zip", "MathPix's rendering"),
+                            (pdf.parent / f"{pdf.stem}.tgz", "the arXiv e-print"),
+                            (pdf.parent / f"{key}.tex.zip", "MathPix's rendering"),
+                            (pdf.parent / f"{key}.tgz", "the arXiv e-print")):
+            if cand.exists():
+                main_tex = _unpack_archive_env(cand, env_dir)
+                if main_tex:
+                    origin = label
+                    break
+        # 3) else project the model into the env folder
+        if main_tex is None:
+            model_path = _model_path(sc)
+            if _stale_or_absent(sc, model_path, _lines_json_path(pdf)):
+                cmd_model(pdf)
+                model_path = _model_path(sc)
+            doc = load_model(model_path) if model_path.exists() else None
+            if doc is None:
+                return ("No LaTeX source (no tex.zip / e-print) and no model to "
+                        "project. Build one (`pdfdrill model`), then re-run.")
+            from docops.base import OperatorConfig
+            from docops.projectors.latex import LaTeXProjector
+            tex = LaTeXProjector(
+                OperatorConfig(op="projector", classname="LaTeXProjector")).project(doc)
+            env_dir.mkdir(parents=True, exist_ok=True)
+            main_tex = env_dir / f"{key}.tex"
+            main_tex.write_text(tex, encoding="utf-8")
+            origin = "the model"
 
-    # 2) Project the model (build it if stale/absent, like the other projectors).
-    model_path = _model_path(sc)
-    if _stale_or_absent(sc, model_path, _lines_json_path(pdf)):
-        cmd_model(pdf)
-        model_path = _model_path(sc)
-    doc = load_model(model_path) if model_path.exists() else None
-    if doc is None:
-        return ("No model to project. Build one first (`pdfdrill model`), then "
-                "re-run `pdfdrill latex`.")
-    from docops.base import OperatorConfig
-    from docops.projectors.latex import LaTeXProjector
-    tex = LaTeXProjector(
-        OperatorConfig(op="projector", classname="LaTeXProjector")).project(doc)
-    sc.blob_dir.mkdir(parents=True, exist_ok=True)
-    out.write_text(tex, encoding="utf-8")
-    n_eq = doc.objects_of_type("Equation")
-    n_eq = len(n_eq)
-    return (f"Projected LaTeX from the model ({len(tex.split())} words, {n_eq} "
-            f"display equation(s)) → {_artref(sc, out)}  (compilable .tex; "
-            f"clickable in the drillui Outputs panel). For the AUTHOR's gold "
-            f"source use `injectlatex`; for enriched LaTeX use `stex`/`scikgtex`.")
+    if main_tex is None or not main_tex.exists():
+        return (f"Could not produce a LaTeX environment for {pdf.name} "
+                f"(archive unpacked but no .tex found).")
+
+    n_img = sum(1 for _ in env_dir.rglob("*.jpg")) + sum(1 for _ in env_dir.rglob("*.png"))
+    lines = [
+        f"LaTeX environment from {origin} → {_artref(sc, env_dir)}/  "
+        f"(unpacked, self-contained).",
+        f"  main file : {_artref(sc, main_tex)}"
+        + (f"   (+{n_img} local image(s))" if n_img else ""),
+        f"  compile   : cd {_artref(sc, env_dir)} && xelatex {main_tex.name}",
+        f"  NOTE: use xelatex (or lualatex), NOT pdflatex — MathPix LaTeX emits "
+        f"raw Unicode (≥ ✓ → ℃) that inputenc/pdflatex reject.",
+    ]
+    if compile:
+        ok, note = _xelatex_compile(main_tex)
+        pdf_out = main_tex.with_suffix(".pdf")
+        lines.append(f"  compiled  : {'✓ ' + _artref(sc, pdf_out) if ok else '✗ ' + note}")
+    lines.append("  (`injectlatex` pulls the AUTHOR's source in; `stex`/`scikgtex` "
+                 "for enriched LaTeX.)")
+    return "\n".join(lines)
 
 
 def cmd_injectlatex(pdf: Path, tex: str | None = None, force: bool = False) -> str:
