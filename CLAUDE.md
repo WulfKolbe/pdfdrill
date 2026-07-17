@@ -2110,9 +2110,16 @@ Driven by drillui usage feedback (downloads landing in cwd/`/tmp`; re-drilling;
   REUSED (resolve_input reuses the cached PDF; `model`/etc skip when built) —
   "drill once, never again". (`/tmp/tmp*` are temp render dirs from killed runs;
   `vocn*` is not pdfdrill.) Tests: `tests/test_config.py`.
-- **`pdfdrill md` now writes a findable, named file** `<bibkey>.md` in the drill
-  folder (alongside the `md.md` blob that `fetch` reads) and **reports its path**
-  in every return (`_write_named_md`) — no `fetch`/`find` needed.
+- **`pdfdrill md` writes ONE canonical markdown file** `<bibkey>.md` in the drill
+  folder and **reports its path** in every return — no `fetch`/`find` needed.
+  Single-file since the 2026-07-16 consolidation: `md` used to write the SAME
+  markdown twice — an internal `md.md` blob AND a byte-identical `<bibkey>.md`
+  copy. Now `<bibkey>.md` is the sole source; every reader (`fetch`/`toc`/
+  `abstract`/`render`) goes through `_read_md(pdf, sc)`, which reads `<bibkey>.md`
+  and falls back to the legacy `md.md` blob for folders drilled before the change.
+  `_write_md` is the one writer (file + `md` layer + MD_BUILT); `_md_note` builds
+  the findable-path note; `_ensure_named_md` migrates a legacy folder on re-serve.
+  Tests: `tests/test_md_single_file.py`.
 - **`md` PREFERS the MathPix `<stem>.md` when it exists (2026-06-29).** `cmd_md`
   only served MathPix on a `needs_ocr` (scanned) doc; a born-digital doc always
   took the text-layer ENGINE path even when the user had run `mathpix`. On an old

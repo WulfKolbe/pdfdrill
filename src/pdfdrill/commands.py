@@ -8273,7 +8273,7 @@ def cmd_toc(pdf: Path) -> str:
     toc: list[dict] = []
 
     if have_md:
-        md_blob = sc.read_blob("md.md") or ""
+        md_blob = _read_md(pdf, sc) or ""
         toc = _extract_toc_from_markdown(md_blob)
         actual_scope = "markdown"
     else:
@@ -8437,7 +8437,7 @@ def cmd_abstract(pdf: Path) -> str:
     method_used = None
 
     if have_md:
-        md_blob = sc.read_blob("md.md") or ""
+        md_blob = _read_md(pdf, sc) or ""
         abstract = _extract_abstract_from_markdown(md_blob)
         if abstract:
             method_used = "markdown-heading"
@@ -8721,20 +8721,65 @@ def cmd_status(pdf: Path) -> str:
 # Extraction commands
 # ---------------------------------------------------------------------------
 
-def _write_named_md(pdf: Path, sc: "Sidecar", md_text: str) -> str:
-    """Write a clearly-named, FINDABLE copy of the extracted markdown
-    (`<bibkey>.md` in the drill folder) and return a note naming its path — so
-    `md` output is discoverable on disk AND clickable in the drillui Outputs
-    panel (no `fetch`, no `find` needed). The `md.md` blob stays for `fetch`."""
+def _md_filename(pdf: Path, sc: "Sidecar") -> str:
+    """The doc's ONE markdown file name: `<bibkey>.md` (findable / clickable)."""
     try:
-        key = resolve_bibkey(pdf, None, sc)
-        sc.blob_dir.mkdir(parents=True, exist_ok=True)
-        p = sc.blob_dir / f"{key}.md"
-        p.write_text(md_text or "", encoding="utf-8")
+        return f"{resolve_bibkey(pdf, None, sc)}.md"
+    except Exception:                                      # noqa: BLE001
+        return f"{pdf.stem}.md"
+
+
+def _read_md(pdf: Path, sc: "Sidecar") -> "str | None":
+    """The doc's markdown. Canonical `<bibkey>.md`, falling back to the legacy
+    `md.md` blob so folders drilled before the single-file consolidation still
+    read. None when neither exists."""
+    try:
+        named = sc.read_blob(_md_filename(pdf, sc))
+    except Exception:                                      # noqa: BLE001
+        named = None
+    return named if named is not None else sc.read_blob("md.md")
+
+
+def _md_note(pdf: Path, sc: "Sidecar") -> str:
+    """The findable-path note for the doc's `<bibkey>.md` (already on disk)."""
+    try:
+        p = sc.blob_dir / _md_filename(pdf, sc)
         return (f"\n→ Markdown file: {_artref(sc, p)}  "
                 f"(open it directly; clickable in the drillui Outputs panel).")
     except Exception:                                      # noqa: BLE001
         return ""
+
+
+def _ensure_named_md(pdf: Path, sc: "Sidecar", md_text: str) -> str:
+    """Make sure `<bibkey>.md` exists (migrating a legacy `md.md`-only folder on
+    re-serve) and return its findable-path note — WITHOUT touching the layer or
+    facts (the caller owns those)."""
+    try:
+        p = sc.blob_dir / _md_filename(pdf, sc)
+        if not p.exists():
+            sc.blob_dir.mkdir(parents=True, exist_ok=True)
+            p.write_text(md_text or "", encoding="utf-8")
+    except Exception:                                      # noqa: BLE001
+        pass
+    return _md_note(pdf, sc)
+
+
+def _write_md(pdf: Path, sc: "Sidecar", md_text: str, *, source: str) -> str:
+    """Write the doc's markdown to the SINGLE canonical `<bibkey>.md`, point the
+    `md` layer at it, mark MD_BUILT, save, and return the findable-path note.
+
+    This is the one writer — it replaces the former duplicate pair (an internal
+    `md.md` blob PLUS a byte-identical `<bibkey>.md` copy). `<bibkey>.md` is both
+    the findable/clickable file and what every reader (`fetch`/`toc`/`abstract`/
+    `render`) reads via `_read_md`."""
+    name = _md_filename(pdf, sc)
+    sc.write_blob(name, md_text or "")
+    sc.set_layer("md", {"blob": name, "words": len((md_text or "").split()),
+                        "source": source,
+                        "built_at": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())})
+    sc.add_fact(MD_BUILT)
+    sc.save()
+    return _md_note(pdf, sc)
 
 
 def _serve_mathpix_md(pdf: Path, sc: "Sidecar", *, scanned: bool = True) -> str | None:
@@ -8745,19 +8790,13 @@ def _serve_mathpix_md(pdf: Path, sc: "Sidecar", *, scanned: bool = True) -> str 
     if not (mathpix_md.exists() and mathpix_md.stat().st_size > 0):
         return None
     md_text = mathpix_md.read_text(encoding="utf-8")
-    sc.write_blob("md.md", md_text)
-    sc.set_layer("md", {"blob": "md.md", "words": len(md_text.split()),
-                        "source": "mathpix",
-                        "built_at": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())})
-    sc.add_fact(MD_BUILT)
-    sc.save()
     why = ("scanned (no text layer)" if scanned
            else "born-digital, but the MathPix markdown you generated is preferred "
                 "over the text-layer extraction")
     return (f"Markdown from MathPix{' OCR' if scanned else ''} "
             f"({len(md_text.split())} words) — {pdf.name} is {why}, served from "
             f"{mathpix_md.name}. Use `pdfdrill fetch {pdf.name} md` to retrieve."
-            + _write_named_md(pdf, sc, md_text))
+            + _write_md(pdf, sc, md_text, source="mathpix"))
 
 
 def _is_latex_source_model(model_path: Path) -> bool:
@@ -8805,15 +8844,10 @@ def _md_from_latex_source(pdf: Path, sc: "Sidecar") -> "str | None":
         return None
     md = _tr.render(md, "typed_gloss", _lk)
 
-    sc.write_blob("md.md", md)
-    sc.set_layer("md", {"blob": "md.md", "words": len(md.split()), "source": "latex",
-                        "built_at": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())})
-    sc.add_fact(MD_BUILT)
-    sc.save()
     return (f"Markdown from the author's LaTeX source ({len(md.split())} words) — "
             f"no OCR/text-layer, so NO line-break hyphenation, an isolated "
             f"`## Abstract`, and the bibliography are included."
-            + _write_named_md(pdf, sc, md))
+            + _write_md(pdf, sc, md, source="latex"))
 
 
 def cmd_md(pdf: Path, pages: str | None = None) -> str:
@@ -8872,13 +8906,13 @@ def cmd_md(pdf: Path, pages: str | None = None) -> str:
 
     if sc.has(MD_BUILT) and pages is None:
         md_meta = sc.get_layer("md") or {}
-        blob = sc.read_blob("md.md")
+        blob = _read_md(pdf, sc)
         if blob:
             words = len(blob.split())
             return (f"Markdown already extracted ({words} words across "
                     f"{sc.page_count} pages). Stored as layer `md`.\n\nUse "
                     f"`pdfdrill fetch {pdf.name} md` to retrieve."
-                    + _write_named_md(pdf, sc, blob))
+                    + _ensure_named_md(pdf, sc, blob))
 
     t0 = time.monotonic()
 
@@ -8920,9 +8954,10 @@ def cmd_md(pdf: Path, pages: str | None = None) -> str:
     md_text = MarkdownProjector().project(ctx)
     elapsed = time.monotonic() - t0
 
-    # Save
+    # Save — the ONE canonical <bibkey>.md (no separate md.md blob).
     sc = Sidecar(pdf)
-    blob_path = sc.write_blob("md.md", md_text)
+    _md_name = _md_filename(pdf, sc)
+    sc.write_blob(_md_name, md_text)
     ir_json = ctx.to_json()
     sc.write_blob("ir.json", ir_json)
 
@@ -8932,7 +8967,7 @@ def cmd_md(pdf: Path, pages: str | None = None) -> str:
     refs = sum(1 for s in ctx.L3 if s.kind in ("citation", "eq_number", "struct_ref"))
 
     sc.set_layer("md", {
-        "blob": blob_path,
+        "blob": _md_name,
         "words": words,
         "math_inline": math_i,
         "math_display": math_d,
@@ -8954,7 +8989,7 @@ def cmd_md(pdf: Path, pages: str | None = None) -> str:
                f"{refs} references. Stored as layer `md`.")
     if suppressed:
         summary += "\n\nSuperseded earlier absents using the markdown: " + ", ".join(suppressed)
-    summary += _write_named_md(pdf, sc, md_text)
+    summary += _md_note(pdf, sc)
     return summary
 
 
@@ -9089,7 +9124,7 @@ def cmd_fetch(pdf: Path, what: str, **kwargs) -> str:
     sc = Sidecar(pdf)
 
     if what == "md":
-        blob = sc.read_blob("md.md")
+        blob = _read_md(pdf, sc)
         if blob:
             section = kwargs.get("section")
             if section:
@@ -9743,7 +9778,7 @@ def cmd_render(pdf: Path, force: bool = False) -> str:
     if not sc.has(MD_BUILT):
         cmd_md(pdf)
         sc = Sidecar(pdf)
-    if not sc.read_blob("md.md"):
+    if not _read_md(pdf, sc):
         return "Markdown not available — `pdfdrill md` failed."
 
     out_dir = sc.blob_dir / "render"
@@ -9756,7 +9791,10 @@ def cmd_render(pdf: Path, force: bool = False) -> str:
     if not shutil.which("pandoc") or not shutil.which("lualatex"):
         return "render requires `pandoc` and `lualatex` on PATH."
 
-    md_path = sc.blob_dir / "md.md"
+    # the canonical <bibkey>.md, falling back to a legacy md.md for old folders
+    md_path = sc.blob_dir / _md_filename(pdf, sc)
+    if not md_path.exists():
+        md_path = sc.blob_dir / "md.md"
     out_dir.mkdir(parents=True, exist_ok=True)
     tex_path = out_dir / "rendered.tex"
     header_path = out_dir / "header.tex"
