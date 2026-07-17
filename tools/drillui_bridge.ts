@@ -187,8 +187,20 @@ const ART_ROOTS = [...new Set(
 // download dir, so /artifact + /open would refuse them (the link is dead and the
 // PDF won't open). Register the doc's own directory — expanding a leading ~ —
 // so those files become servable. ART_ROOTS is a const array but we push to it.
+// A file:// URI (browser / file manager) is a local file — decode it to a path
+// (empty or localhost host = local; percent-decoded). Returns the input
+// unchanged when it is not a local file URI.
+function fileUriToPath(s: string): string {
+  if (!/^file:/i.test(s.trim())) return s;
+  try {
+    const u = new URL(s.trim());
+    if (u.hostname && u.hostname.toLowerCase() !== "localhost") return s;
+    return decodeURIComponent(u.pathname);
+  } catch { return s; }
+}
+
 function registerDocDir(rawPath: string): void {
-  const p = rawPath.replace(/^~(?=$|\/)/, homedir());
+  const p = fileUriToPath(rawPath).replace(/^~(?=$|\/)/, homedir());
   if (/^https?:\/\//i.test(p)) return;            // a URL, not a local file
   try {
     const dir = dirname(resolve(p));
@@ -789,10 +801,11 @@ const server = Bun.serve<{ sess: Session | null }>({
         const m = msg.data.match(/^\s*add\s+(.+?)\s*$/);
         if (m) {
           let target = m[1].replace(/^(["'])(.*)\1$/, "$2");   // unquote
+          target = fileUriToPath(target);                // file:// URI → local path
           const whole = resolve(target.replace(/^~(?=$|\/)/, homedir()));
           if (!existsSync(whole)) {
             const first = m[1].match(/^(["'])(.+?)\1|^(\S+)/);
-            target = first ? (first[2] ?? first[3] ?? target) : target;
+            target = fileUriToPath(first ? (first[2] ?? first[3] ?? target) : target);
           }
           registerDocDir(target);                        // its .drill artifacts servable
           setActiveDoc(target);                          // viewer routes follow the add

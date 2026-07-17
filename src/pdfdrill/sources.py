@@ -92,6 +92,28 @@ def is_url(s: str) -> bool:
     return isinstance(s, str) and bool(re.match(r"https?://", s.strip(), re.I))
 
 
+def file_uri_to_path(s: str) -> Optional[str]:
+    """A `file://` URI → its local filesystem path (RFC 8089), else None.
+
+    A `file://` link IS a local file wearing a URI scheme — a browser / file
+    manager hands it out with that prefix and percent-encoding (`A%20B.pdf`).
+    Empty or `localhost` host is local (decoded, so downstream sees a plain
+    path); a real remote host is NOT a local path and returns None. Anything not
+    a file URI returns None so callers pass it through untouched."""
+    from urllib.request import url2pathname
+    if not isinstance(s, str):
+        return None
+    s = s.strip()
+    if not s.lower().startswith("file:"):
+        return None
+    parts = urlparse(s)
+    if parts.scheme.lower() != "file":
+        return None
+    if parts.netloc and parts.netloc.lower() != "localhost":
+        return None
+    return url2pathname(parts.path)
+
+
 def host_of(s: str) -> str:
     return urlparse(s).netloc.lower()
 
@@ -298,6 +320,11 @@ def resolve_input(arg: str, dest_dir: Optional[Path] = None) -> dict:
         from . import config as _cfg
         dest_dir = _cfg.library_root()      # config library_root, else download_dir
     dest_dir = Path(dest_dir)
+    # A file:// URI is a local file — decode it to a path so the local branch
+    # below handles it (no download, not moved), like any other local path.
+    _file = file_uri_to_path(arg)
+    if _file is not None:
+        arg = _file
     if not is_url(arg):
         # expand `~`/`~user` ($HOME shorthand) so `~/x.pdf` resolves like the
         # absolute path; harmless on a bare arXiv id (no leading ~).

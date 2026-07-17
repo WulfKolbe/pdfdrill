@@ -235,3 +235,32 @@ if __name__ == "__main__":
                test_resolve_local_path_wins_over_arxiv_shape]:
         fn(_MP()); print("PASS", fn.__name__)
     print("\nAll tests passed.")
+
+
+def test_file_uri_to_path():
+    """RFC 8089 file:// URIs → local paths (empty or localhost host = local),
+    percent-decoded. A non-file arg or a remote host yields None."""
+    assert S.file_uri_to_path("file:///home/w/x.pdf") == "/home/w/x.pdf"
+    assert S.file_uri_to_path("file://localhost/home/w/x.pdf") == "/home/w/x.pdf"
+    # spaces / umlauts percent-encoded (the common real-filename case)
+    assert S.file_uri_to_path("file:///home/w/A%20B.pdf") == "/home/w/A B.pdf"
+    assert S.file_uri_to_path("file:///home/w/%C3%9Cbung.pdf") == "/home/w/Übung.pdf"
+    # not a file URI → None (pass through untouched)
+    assert S.file_uri_to_path("https://arxiv.org/abs/2501.00001") is None
+    assert S.file_uri_to_path("/home/w/x.pdf") is None
+    assert S.file_uri_to_path("2501.00001") is None
+    # a remote file host is NOT a local path
+    assert S.file_uri_to_path("file://otherhost/x.pdf") is None
+
+
+def test_resolve_input_accepts_file_uri(monkeypatch):
+    """`resolve_input` decodes a file:// URI to the local file and passes it
+    through unchanged (no download, not moved) — same as a plain path."""
+    import tempfile
+    with tempfile.TemporaryDirectory() as d:
+        real = Path(d) / "QMiner Data Analytics.pdf"     # blanks → %20 in the URI
+        real.write_bytes(b"%PDF-1.4")
+        uri = "file://" + str(real).replace(" ", "%20")
+        out = S.resolve_input(uri, dest_dir=Path(d))
+        assert out["path"] == real and out["source"] is None
+        assert out["path"].exists()

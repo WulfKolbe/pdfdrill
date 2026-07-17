@@ -105,6 +105,19 @@ def test_repair_local_doc_passes_through_correct_and_missing():
         assert dc._repair_local_doc(miss) == miss          # absent → unchanged
 
 
+def test_file_uri_resolves_to_local_path():
+    """`add file:///…​.pdf` (browser/file-manager syntax) → the real local file,
+    percent-decoded; a remote file host and a missing file yield None."""
+    with tempfile.TemporaryDirectory() as d:
+        p = Path(d) / "QMiner Data Analytics.pdf"      # blanks → %20 in the URI
+        p.write_bytes(b"%PDF-1.4")
+        uri = "file://" + str(p).replace(" ", "%20")
+        assert dc._existing_local(uri) == str(p)
+        assert dc._repair_local_doc(uri) == str(p)
+        assert dc._existing_local("file://host/x.pdf") is None      # remote host
+        assert dc._existing_local(f"file://{d}/ghost.pdf") is None  # absent
+
+
 if __name__ == "__main__":
     tests = [v for k, v in list(globals().items()) if k.startswith("test_")]
     failed = []

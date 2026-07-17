@@ -116,6 +116,11 @@ def _pdf(args: list[str]) -> Path:
         raise ValueError("No PDF file specified.")
     arg = args[0]
     from . import sources
+    # a file:// URI (from a browser / file manager) is a local file — decode it
+    # to a plain path first, so the local-path handling below just works.
+    _file = sources.file_uri_to_path(arg)
+    if _file is not None:
+        arg = _file
     # expand `~` / `~user` for local paths ($HOME shorthand) — so `~/x.pdf`
     # resolves exactly like `/home/me/x.pdf`. A no-op on URLs / bare arXiv ids.
     if not sources.is_url(arg):

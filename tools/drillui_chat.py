@@ -393,7 +393,18 @@ def _existing_local(path: str) -> str | None:
     when nothing matches (never guesses a different filename). URLs yield None."""
     import unicodedata
     import urllib.parse
+    from urllib.request import url2pathname
     if path.startswith(("http://", "https://")):
+        return None
+    # A file:// URI is a local file wearing a URI scheme (browser / file manager
+    # give it out that way, percent-encoded). Decode it so it resolves like a
+    # plain path — dedup, dir registration, and serving all key off the real path.
+    if path.strip().lower().startswith("file:"):
+        parts = urllib.parse.urlparse(path.strip())
+        if parts.scheme.lower() == "file" and (
+                not parts.netloc or parts.netloc.lower() == "localhost"):
+            fp = url2pathname(parts.path)
+            return fp if os.path.exists(fp) else None
         return None
     bases = [path, path.strip().strip(_INVISIBLE)]
     for b in list(bases):
