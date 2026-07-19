@@ -111,3 +111,45 @@ def test_stages_are_dumpable(tmp_path):
     import json
     ti = json.loads((tmp_path / "00-formula-index.json").read_text())
     assert ti["DOC_FO0001"] == 1
+
+
+# ── stage 1b: rewrite in-text [N] → \cite{citekey} ───────────────────────────
+
+def _doc_with_numeric_citations():
+    d = Document(); d.meta["bibkey"] = "DOC"
+    d.add(DocObject(type="Reference", props={"number": 1, "citekey": "Bahr2002",
+                                             "author": "Bahr", "year": "2002"}))
+    d.add(DocObject(type="Reference", props={"number": 11, "citekey": "Nelson1965",
+                                             "author": "Nelson", "year": "1965"}))
+    d.add(DocObject(type="Reference", props={"number": 12, "citekey": "Kolbe2007",
+                                             "author": "Kolbe", "year": "2007"}))
+    return d
+
+
+def test_reference_map_number_to_citekey():
+    d = _doc_with_numeric_citations()
+    assert LP.reference_map(d) == {1: "Bahr2002", 11: "Nelson1965", 12: "Kolbe2007"}
+
+
+def test_resolve_citations_single_and_grouped():
+    m = {11: "Nelson1965", 12: "Kolbe2007"}
+    assert LP.resolve_citations("see [12]) here", m) == "see \\cite{Kolbe2007}) here"
+    assert LP.resolve_citations("online at [11].", m) == "online at \\cite{Nelson1965}."
+    assert LP.resolve_citations("both [11, 12]", m) == "both \\cite{Nelson1965,Kolbe2007}"
+
+
+def test_resolve_citations_range_expands():
+    m = {11: "a", 12: "b", 13: "c"}
+    assert LP.resolve_citations("refs [11-13]", m) == "refs \\cite{a,b,c}"
+
+
+def test_non_reference_bracket_left_raw():
+    """A [N] whose number is NOT a reference (an index/interval) stays raw."""
+    m = {11: "Nelson1965"}
+    assert LP.resolve_citations("array [99] and [0,1]", m) == "array [99] and [0,1]"
+
+
+def test_bibitem_uses_reference_citekey():
+    d = _doc_with_numeric_citations()
+    bib = LP.bibliography_block(d)
+    assert "\\bibitem{Nelson1965}" in bib and "\\bibitem{Kolbe2007}" in bib

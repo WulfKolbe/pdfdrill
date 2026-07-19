@@ -120,12 +120,79 @@ def resolve_headings(line: str) -> str:
 
 # ── stage 1: citations (\cite map) ───────────────────────────────────────────
 
+def reference_map(doc: Document) -> dict[int, str]:
+    """`{reference number: citekey}` — rewrites a numeric in-text `[N]` to the
+    matching `\\cite{<citekey>}` (and the same citekey the bibliography `\\bibitem`
+    uses, so they resolve)."""
+    m: dict[int, str] = {}
+    for o in doc.objects.values():
+        if o.type != "Reference":
+            continue
+        num, key = o.props.get("number"), o.props.get("citekey")
+        if num is not None and key:
+            try:
+                m[int(num)] = str(key)
+            except (TypeError, ValueError):
+                pass
+    return m
+
+
+_CITE_BRACKET = re.compile(r"\[(\d+(?:\s*[,\-–]\s*\d+)*)\]")
+
+
+def _expand_bracket_numbers(inner: str) -> "list[int] | None":
+    """`"11"` → [11]; `"11, 12"` → [11,12]; `"11-13"` → [11,12,13]. None if it
+    isn't a clean numeric citation group."""
+    nums: list[int] = []
+    for part in re.split(r"\s*,\s*", inner.strip()):
+        rng = re.fullmatch(r"(\d+)\s*[\-–]\s*(\d+)", part)
+        if rng:
+            a, b = int(rng.group(1)), int(rng.group(2))
+            if b < a or b - a > 50:
+                return None
+            nums.extend(range(a, b + 1))
+        elif part.isdigit():
+            nums.append(int(part))
+        else:
+            return None
+    return nums
+
+
+def resolve_citations(text: str, ref_map: dict[int, str]) -> str:
+    """Rewrite a numeric in-text `[N]` / `[N, M]` / `[N-M]` to
+    `\\cite{key,...}` using the reference map. A bracket whose numbers are NOT all
+    references (an array index, an interval `[0,1]`) is left RAW — never a broken
+    `\\cite`."""
+    if not ref_map:
+        return text
+
+    def sub(m: re.Match) -> str:
+        nums = _expand_bracket_numbers(m.group(1))
+        if not nums or any(n not in ref_map for n in nums):
+            return m.group(0)                    # not a citation — leave raw
+        return "\\cite{" + ",".join(ref_map[n] for n in nums) + "}"
+    return _CITE_BRACKET.sub(sub, text)
+
+
 def citation_keys(doc: Document) -> list[str]:
-    """The in-text citation keys, in flow order — one per Citation object."""
+    """The in-text citation keys, in flow order — resolved to the REFERENCE
+    citekey when the Citation is numeric (so the dump matches the `\\cite` output),
+    else the Citation's own key."""
+    ref_map = reference_map(doc)
     cites = [o for o in doc.objects.values() if o.type == "Citation"]
     cites.sort(key=lambda o: o.props.get("flow_index", 0))
-    return [str(o.props.get("citekey") or "").strip()
-            for o in cites if o.props.get("citekey")]
+    out: list[str] = []
+    for o in cites:
+        key = str(o.props.get("citekey") or "").strip()
+        num = o.props.get("number")
+        if num is not None:
+            try:
+                key = ref_map.get(int(num), key)
+            except (TypeError, ValueError):
+                pass
+        if key:
+            out.append(key)
+    return out
 
 
 # ── stage 2: bibliography (\bibitem / thebibliography) ───────────────────────

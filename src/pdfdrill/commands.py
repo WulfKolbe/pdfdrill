@@ -5640,6 +5640,20 @@ def cmd_latex(pdf: Path, force: bool = False, compile: bool = False,
         return ("No docmodel to project. Build one first (`pdfdrill model`), "
                 "then re-run `pdfdrill latex`.")
 
+    # Auto-run the (offline-safe) bibliography enrichment when the doc HAS a
+    # References section but no Reference objects yet — so `[N]` in-text refs
+    # become `\cite` and a bibliography is emitted, without a manual step.
+    _has_refs = any(o.type == "Reference" for o in doc.objects.values())
+    _has_ref_section = any(
+        o.type == "Section" and "ref" in str(o.props.get("caption", "")).lower()
+        for o in doc.objects.values())
+    if not _has_refs and _has_ref_section:
+        try:
+            cmd_bibliography(pdf)
+            doc = load_model(_model_path(sc))
+        except Exception:                                 # noqa: BLE001
+            pass
+
     from docops.base import OperatorConfig
     from docops.projectors.latex import LaTeXProjector
     from docops.projectors import latex_pipeline as _pipe

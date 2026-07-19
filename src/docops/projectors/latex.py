@@ -56,6 +56,9 @@ class LaTeXProjector(BaseProjector):
         self._order, self._title_index = _pipe.formula_array(doc)
         self._formula_preamble = _pipe.formula_preamble(
             self._order, f"{key}.formulas.dat")
+        # STAGE 1b: numeric in-text [N] → \cite{citekey} (the bibliography-linked
+        # reference map). Left raw when a bracket isn't a reference.
+        self._ref_map = _pipe.reference_map(doc)
         # a document-specific preamble captured by `injectlatex` wins (macros the
         # equations need); else a sane default. It may be stored as a plain string
         # OR as a dict ({"expanded"/"standalone": …}); coerce to a usable string.
@@ -103,6 +106,7 @@ class LaTeXProjector(BaseProjector):
         heading mid-paragraph still converts."""
         ti = getattr(self, "_title_index", {})
         text = _pipe.resolve_transclusions(text, ti)
+        text = _pipe.resolve_citations(text, getattr(self, "_ref_map", {}))
         return "\n".join(_pipe.resolve_headings(ln) for ln in text.split("\n"))
 
     def _render(self, obj) -> str:
