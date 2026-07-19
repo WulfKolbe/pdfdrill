@@ -120,6 +120,24 @@ def resolve_headings(line: str) -> str:
 
 # ── stage 1: citations (\cite map) ───────────────────────────────────────────
 
+def reference_section_ids(doc: Document) -> set[str]:
+    """Ids of every References/Bibliography Section AND the objects under it (its
+    printed `[1] …` list). The projector skips these — the `thebibliography` block
+    built from Reference objects replaces them, so the list is not duplicated and
+    its reference LABELS `[1]` are never mangled into `\\cite`."""
+    ref_secs = {
+        o.id for o in doc.objects.values()
+        if o.type == "Section"
+        and re.search(r"\b(references|bibliography|literatur|literaturverzeichnis)\b",
+                      str(o.props.get("caption", "")), re.I)
+    }
+    ids = set(ref_secs)
+    for o in doc.objects.values():
+        if o.props.get("parent_section") in ref_secs:
+            ids.add(o.id)
+    return ids
+
+
 def reference_map(doc: Document) -> dict[int, str]:
     """`{reference number: citekey}` — rewrites a numeric in-text `[N]` to the
     matching `\\cite{<citekey>}` (and the same citekey the bibliography `\\bibitem`

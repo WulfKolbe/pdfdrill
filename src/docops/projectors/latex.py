@@ -59,6 +59,11 @@ class LaTeXProjector(BaseProjector):
         # STAGE 1b: numeric in-text [N] → \cite{citekey} (the bibliography-linked
         # reference map). Left raw when a bracket isn't a reference.
         self._ref_map = _pipe.reference_map(doc)
+        # The References SECTION and its printed-list content ("[1] M. Bahr, …")
+        # are REPLACED by the `thebibliography` block — skip them, or they'd (a)
+        # duplicate the bibliography and (b) get their reference LABELS `[1]`
+        # mangled into `\cite` by the citation rewrite.
+        self._skip_ids = _pipe.reference_section_ids(doc) if self._ref_map else set()
         # a document-specific preamble captured by `injectlatex` wins (macros the
         # equations need); else a sane default. It may be stored as a plain string
         # OR as a dict ({"expanded"/"standalone": …}); coerce to a usable string.
@@ -84,6 +89,8 @@ class LaTeXProjector(BaseProjector):
         out.append("")
 
         for obj in flow_ordered_content(doc):
+            if obj.id in self._skip_ids:              # References section → thebibliography
+                continue
             block = self._render(obj)
             if block:
                 out.append(block)

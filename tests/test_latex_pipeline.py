@@ -153,3 +153,20 @@ def test_bibitem_uses_reference_citekey():
     d = _doc_with_numeric_citations()
     bib = LP.bibliography_block(d)
     assert "\\bibitem{Nelson1965}" in bib and "\\bibitem{Kolbe2007}" in bib
+
+
+def test_reference_section_ids_covers_section_and_its_content():
+    """The References section + everything under it (the printed [1] M. Bahr …
+    list) — so the projector skips them (thebibliography replaces them, and the
+    `[1]` labels don't get mangled into \\cite)."""
+    d = Document(); d.meta["bibkey"] = "DOC"
+    sec = DocObject(type="Section", id="SEC_REF", props={"caption": "References"})
+    d.add(sec)
+    d.add(DocObject(type="Paragraph", id="P_REF1", props={
+        "text": "[1] M. Bahr, …", "parent_section": "SEC_REF"}))
+    d.add(DocObject(type="Section", id="SEC_INTRO", props={"caption": "Introduction"}))
+    d.add(DocObject(type="Paragraph", id="P_BODY", props={
+        "text": "body", "parent_section": "SEC_INTRO"}))
+    ids = LP.reference_section_ids(d)
+    assert "SEC_REF" in ids and "P_REF1" in ids       # the section + its list
+    assert "SEC_INTRO" not in ids and "P_BODY" not in ids   # real body untouched
