@@ -1684,6 +1684,43 @@ SymPy is merely the first backend and the canonical anchor (its `srepr`).
   map; optional chaining of latex2sympy's own `normalize_latex`. Tests:
   `tests/test_mathlayer.py` (13).
 
+## LaTeX PROJECTION vs INJECTION — `latex` / `injectlatex` (2026-07-19)
+
+Two opposite directions, split into two commands (was one confusing `latex`):
+
+- **`pdfdrill latex <pdf> [--compile] [--dump-stages]` — PROJECT the docmodel to
+  LaTeX.** The LaTeX analog of `md` (which projects Markdown), a `docops`
+  Projector over the unified `Document`. **The SOURCE that built the model
+  (MathPix / arXiv LaTeX / tesseract / a custom `textscan` lines.json) is
+  IRRELEVANT** — the docmodel is the canonical IR, so `latex` reads objects, never
+  a tex.zip/tgz. `src/docops/projectors/latex.py` (`LaTeXProjector`) + the
+  inspectable `src/docops/projectors/latex_pipeline.py`. Writes
+  `<drill>/latex/<bibkey>.tex` (+ a `.bib` from References carrying BibTeX).
+  - **Transclusion via a readarray ARRAY** (the user's `filecontents`+`readarray`
+    concept, compile-checked): every distinct formula LaTeX goes ONCE into a
+    `<bibkey>.formulas.dat` (one per line, deduped by content), loaded via
+    `readarray` into `\MathExpr`, and each `{{<bibkey>_FO0001||FO}}` marker in the
+    prose becomes `\Expr{<index>}` — real transclusion (define once, reference by
+    index), NOT inline `$…$` expansion. `formula_array`/`formula_preamble`/
+    `resolve_transclusions` in the pipeline.
+  - **Stages 1–2:** in-text `\cite` keys from Citation objects; a
+    `thebibliography`/`\bibitem` block from Reference objects. `resolve_headings`
+    turns a leaked `## X` into `\section{X}` (the "Markdown with a LaTeX header"
+    fix). **Compile with XELATEX** (not pdflatex — the model can carry raw Unicode
+    `≥ ✓ → ℃` that inputenc/pdflatex reject); `--compile` runs it.
+  - **Inspectable** (`--dump-stages` → `<drill>/latex/stages/`): `00-formulas.dat`
+    (the array), `00-formula-index.json` (title→index), `01-citations.json`,
+    `02-bibliography.bib`. Each a file you can open + test — the textscan-style
+    inspectability.
+  - **Open (next increment):** stage 3 glossary/acronym/index (reuse
+    `semantic.stex`); the in-text `\cite` REWRITE for a doc whose text has `[3]`
+    rather than a `{{…||CIT}}` marker.
+  Tests: `tests/test_latex_projector.py`, `tests/test_latex_pipeline.py`.
+- **`pdfdrill injectlatex <pdf> [--tex P]` — INJECT a source INTO the model**
+  (`cmd_injectlatex`, was `latex`). Pull the AUTHOR's / MathPix `.tex`/`.tgz`
+  (arXiv e-print auto-downloaded) in as gold `tex` provenance on each matched
+  equation. INPUT direction; the projection reads whatever it leaves in the model.
+
 ## LaTeX-source citations + cited-subset bibliography (`\cite{}` → Citation, 2026)
 
 The LaTeX-source builder now extracts in-text citations, and `bibsource` builds
@@ -2746,7 +2783,7 @@ Gold bibliography ingest from the author's `.bbl`/`.bib`
 (`bibliography.parse_bbl`/`ingest_bbl`/`link_citations_by_label`,
 `pdfdrill bibsource`):
 
-- The bibliography analogue of `pdfdrill latex` (author .tex as gold equations).
+- The bibliography analogue of `pdfdrill injectlatex` (author .tex as gold equations).
   When the arXiv e-print is on hand, **`pdfdrill bibsource <pdf> --bbl X.bbl
   --bib X.bib`** ingests the author's compiled bibliography instead of
   reconstructing it from OCR (heuristic) or the web (Perplexity): the `.bbl`
@@ -2904,10 +2941,10 @@ latexbook book.tex` → **59 algorithms, 816 steps, max nesting depth 4**, all 5
 numbered floats. Tests: `tests/test_latex_algorithms.py` (5 — step/depth parse,
 float caption/label/number, standalone, ordering, build_source_model wiring).
 
-LaTeX-source upper layer (`src/pdfdrill/latex_source.py`, `pdfdrill latex`):
+LaTeX-source INJECTION layer (`src/pdfdrill/latex_source.py`, `pdfdrill injectlatex`):
 
 - For arXiv we usually have both the PDF (→ MathPix `lines.json`) and the
-  author's LaTeX (e-print `.tgz`). `pdfdrill latex <pdf> [--tex P]` reads the
+  author's LaTeX (e-print `.tgz`). `pdfdrill injectlatex <pdf> [--tex P]` reads the
   `.tex`/`.tgz` (inlining `\input`/`\include`, stripping comments), splits the
   preamble, parses macros (`\newcommand`/`\renewcommand`/`\def`/
   `\DeclareMathOperator`), extracts display equations, and attaches each to the
@@ -2965,8 +3002,8 @@ Degrades gracefully when latex/dvisvgm are absent (`tools_available()`).
 Verified on the graphbook: **18/18** graphics rendered (7 TikZ + 11 tables, 0
 failures).
 
-**Source graphics reach `svg` via `pdfdrill latex` (arXiv fix).** For an arXiv
-paper whose model is built by OCR (MathPix skipped), `pdfdrill latex` used to
+**Source graphics reach `svg` via `pdfdrill injectlatex` (arXiv fix).** For an arXiv
+paper whose model is built by OCR (MathPix skipped), `pdfdrill injectlatex` used to
 ingest only equations — so `svg` saw **0 graphic objects** even when the paper is
 full of diagrams. `commands.ingest_source_graphics` now also lifts the source's
 TikZ/tables (notably **`tikzcd` commutative diagrams**) into Diagram/Table objects

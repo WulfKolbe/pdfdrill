@@ -75,8 +75,8 @@ Every command's `<pdf>` argument is, interchangeably, a **local file path**, an
 **https URL from a known host**, or a **bare arXiv id** (`pdfdrill model
 2510.11170v2`) — downloaded once, cached. **pdfdrill does the acquisition and
 decides if/when to use the LaTeX source**: for an arXiv input the abstract and
-the author LaTeX come from the **free** routes (`latex`/`model` auto-download the
-e-print `.tgz` and ingest the gold equations, keyless, no MathPix). Pass the
+the author LaTeX come from the **free** routes (`injectlatex`/`model` auto-download
+the e-print `.tgz` and ingest the gold equations, keyless, no MathPix). Pass the
 URL/id/path and let pdfdrill fetch it — **never `curl`/`wget`/`tar` a PDF or
 e-print yourself, and never hand-process a `.tex`/`.tgz`**.
 
@@ -103,6 +103,8 @@ command that writes into the doc's `.drill/` sidecar:
 | `pdfdrill report <pdf>` | `formula-report.html` | Inline+display formula report (LaTeX \| KaTeX \| MathPix image) |
 | `pdfdrill compare <pdf>` | `compare.html` | LaTeX \| KaTeX \| image comparison **across competing provenances** (MathPix/snip/vision/tex) + scores |
 | `pdfdrill inspect <pdf>` | `<bibkey>.inspect.html` | DevTools-style docmodel inspector — every object a hover/click box, self-contained via the pdfminer route |
+| `pdfdrill latex <pdf> [--compile] [--dump-stages]` | `latex/<bibkey>.tex` | **PROJECT the docmodel to compilable LaTeX** — the LaTeX analog of `md`. Reads the unified Document, so the SOURCE that built it (MathPix / arXiv / tesseract / **textscan**) is irrelevant. Transclusion via a **readarray** formula array (`{{id\|\|FO}}` → `\Expr{i}`), `\cite`, bibliography from References. Compile with **xelatex** (`--compile`); `--dump-stages` writes the inspectable generation stages |
+| `pdfdrill injectlatex <pdf> [--tex P]` | model provenance | **INJECT** an author/MathPix LaTeX source (`.tex`/`.tgz`, arXiv e-print auto-downloaded) INTO the model as gold `tex` provenance (was `latex`; the INPUT direction) |
 | `pdfdrill scikgtex <pdf> [--compile]` | `<bibkey>.scikg.tex` | SciKGTeX-annotated LaTeX → compiled PDF carries **ORKG** contribution metadata as XMP/RDF |
 | `pdfdrill stex <pdf> [--stex]` | `<bibkey>.glossaries.tex` / `.stex.tex` | Enriched LaTeX / **sTeX** — acronyms, glossary, table-of-symbols, index from the named-concept layer |
 | `pdfdrill lean <pdf>` | `<bibkey>.lean` | **Lean 4** export of theorems (LLM-generated Lean stored per Theorem, then projected) |
