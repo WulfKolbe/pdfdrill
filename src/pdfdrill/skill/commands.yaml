@@ -1283,6 +1283,30 @@ commands:
     flag: --dump-stages
     help: 'write the inspectable generation stages (transclusion lookup / citations / bibliography) to <drill>/latex/stages/'
   typed: true
+- name: beamer
+  section: Projection / export
+  summary: 'PROJECT the docmodel to a LaTeX **beamer** slide deck (<drill>/latex/<bibkey>.beamer.tex) —
+    one frame per Section (allowframebreaks so long content auto-continues), a title + outline + References
+    frame. Same source-agnostic docmodel projection as `latex` (transclusions, cite commands, lists all
+    resolve), a deck instead of an article. Compile with XELATEX; --compile runs it.'
+  offline_ok: true
+  requires:
+  - model
+  positionals:
+  - name: pdf
+    type: pdf
+    required: true
+    help: PDF path, https URL, or bare arXiv id
+  flags:
+  - name: force
+    type: flag
+    flag: --force
+    help: re-project even if the deck exists
+  - name: compile
+    type: flag
+    flag: --compile
+    help: compile the deck with xelatex and report the produced PDF
+  typed: true
 - name: injectlatex
   section: Introspection (fast, no extraction)
   summary: 'INJECT the author''s LaTeX source (.tex/.tgz, arXiv e-print auto-downloaded) as a competing

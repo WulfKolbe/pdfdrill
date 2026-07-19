@@ -48,29 +48,8 @@ class LaTeXProjector(BaseProjector):
 
     def project(self, doc: Document) -> str:
         meta = doc.meta
-        # STAGE 0: the transclusion ARRAY (filecontents + readarray). Every
-        # distinct formula goes ONCE into a `.dat`; each `{{id||FO}}` marker in the
-        # prose becomes `\Expr{<index>}` (define once, reference by index) — real
-        # transclusion, not "Markdown with a LaTeX header".
-        key = str(meta.get("bibkey") or "DOC")
-        self._order, self._title_index = _pipe.formula_array(doc)
-        self._formula_preamble = _pipe.formula_preamble(
-            self._order, f"{key}.formulas.dat")
-        # STAGE 1b: numeric in-text [N] → \cite{citekey} (the bibliography-linked
-        # reference map). Left raw when a bracket isn't a reference.
-        self._ref_map = _pipe.reference_map(doc)
-        # The References SECTION and its printed-list content ("[1] M. Bahr, …")
-        # are REPLACED by the `thebibliography` block — skip them, or they'd (a)
-        # duplicate the bibliography and (b) get their reference LABELS `[1]`
-        # mangled into `\cite` by the citation rewrite.
-        self._skip_ids = _pipe.reference_section_ids(doc) if self._ref_map else set()
-        # a document-specific preamble captured by `injectlatex` wins (macros the
-        # equations need); else a sane default. It may be stored as a plain string
-        # OR as a dict ({"expanded"/"standalone": …}); coerce to a usable string.
-        pre = meta.get("latex_preamble")
-        if isinstance(pre, dict):
-            pre = pre.get("expanded") or pre.get("standalone") or pre.get("preamble")
-        preamble = pre if isinstance(pre, str) and pre.strip() else _DEFAULT_PREAMBLE
+        self._prepare(doc)
+        preamble = self._doc_preamble(meta)
         out: list[str] = [preamble.rstrip(), ""]
         if self._formula_preamble:                # the formula ARRAY (readarray)
             out += ["% formula transclusion array (filecontents + readarray):",
@@ -89,12 +68,48 @@ class LaTeXProjector(BaseProjector):
         out.append("")
 
         items = [o for o in flow_ordered_content(doc) if o.id not in self._skip_ids]
+        out += self._render_flow(items)
+
+        # STAGE 2: bibliography — printed `\bibitem`s from the model's References.
+        bib = _pipe.bibliography_block(doc)
+        if bib:
+            out.append(bib)
+            out.append("")
+
+        out.append("\\end{document}")
+        return "\n".join(out).rstrip() + "\n"
+
+    # ── shared setup + rendering (reused by the beamer projector) ────────────
+
+    def _prepare(self, doc: Document) -> None:
+        """Set up the pipeline state used by the content renderers: the
+        transclusion ARRAY (`{{id||FO}}`→`\\Expr{i}`), the citation reference map
+        (`[N]`→`\\cite`), and the References-section skip set."""
+        key = str(doc.meta.get("bibkey") or "DOC")
+        self._order, self._title_index = _pipe.formula_array(doc)
+        self._formula_preamble = _pipe.formula_preamble(
+            self._order, f"{key}.formulas.dat")
+        self._ref_map = _pipe.reference_map(doc)
+        self._skip_ids = _pipe.reference_section_ids(doc) if self._ref_map else set()
+
+    def _doc_preamble(self, meta) -> str:
+        """A document-specific preamble captured by `injectlatex` (macros the
+        equations need) wins; else a sane default. May be a plain string OR a dict
+        ({"expanded"/"standalone": …}); coerce to a usable string."""
+        pre = meta.get("latex_preamble")
+        if isinstance(pre, dict):
+            pre = pre.get("expanded") or pre.get("standalone") or pre.get("preamble")
+        return pre if isinstance(pre, str) and pre.strip() else _DEFAULT_PREAMBLE
+
+    def _render_flow(self, items) -> list[str]:
+        """Render a flat list of objects to LaTeX blocks, grouping consecutive
+        ListItems into one `itemize` (bare `\\item` is invalid). Returns blocks
+        (each followed by a blank line)."""
+        out: list[str] = []
         i = 0
         while i < len(items):
             obj = items[i]
             if obj.type == "ListItem":
-                # a RUN of consecutive ListItems → ONE itemize (bare \item is
-                # invalid LaTeX); each keeps its original marker as the label.
                 run = []
                 while i < len(items) and items[i].type == "ListItem":
                     run.append(items[i]); i += 1
@@ -106,17 +121,7 @@ class LaTeXProjector(BaseProjector):
                 out.append(block)
                 out.append("")
             i += 1
-
-        # STAGE 2: bibliography — printed `\bibitem`s from the model's References
-        # (a real `.bib` for entries carrying BibTeX is emitted alongside by the
-        # pipeline's dump; \bibliography wiring lands with stage 3).
-        bib = _pipe.bibliography_block(doc)
-        if bib:
-            out.append(bib)
-            out.append("")
-
-        out.append("\\end{document}")
-        return "\n".join(out).rstrip() + "\n"
+        return out
 
     def _render_list(self, run) -> str:
         """A run of ListItems → one `itemize`; each item keeps its source marker

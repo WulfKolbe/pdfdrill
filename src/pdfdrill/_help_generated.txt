@@ -131,6 +131,7 @@ Other:
 
 Projection / export:
   pdfdrill latex <pdf> [--force] [--compile] [--dump-stages] PROJECT the docmodel to LaTeX (<drill>/latex/<bibkey>.tex) — the LaTeX analog of `md`; reads the unified Document, so the SOURCE that built it (MathPix/arXiv/tesseract/textscan) is IRRELEVANT. Resolves transclusion markers ({{id||FO}}→$..$ by array lookup), emits cite commands, builds the bibliography from References (+ a .bib). Compile with XELATEX (not pdflatex — the model can carry raw Unicode ≥ ✓ → ℃); --compile runs it, --dump-stages writes the inspectable stages. OUTPUT direction — for a source use `injectlatex`; for enriched LaTeX (glossary/index, ORKG) use `stex`/`scikgtex`.
+  pdfdrill beamer <pdf> [--force] [--compile] PROJECT the docmodel to a LaTeX **beamer** slide deck (<drill>/latex/<bibkey>.beamer.tex) — one frame per Section (allowframebreaks so long content auto-continues), a title + outline + References frame. Same source-agnostic docmodel projection as `latex` (transclusions, cite commands, lists all resolve), a deck instead of an article. Compile with XELATEX; --compile runs it.
 
 OCR / model pipeline:
   pdfdrill remath <pdf> [--pages PAGES] [--force] Keyless MathPix replacement: rebuild MathPix-quality Markdown (LaTeX math) from rendered pages via Claude delegation, so transclusion works without a MathPix key

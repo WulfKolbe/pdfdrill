@@ -1158,6 +1158,14 @@ def _do_latex(args):
                      dump_stages="--dump-stages" in args)
 
 
+def _do_beamer(args):
+    """pdfdrill beamer <pdf> [--force] [--compile]  — project to a beamer deck"""
+    from .commands import cmd_beamer
+    pdf_args = [a for a in args if a not in ("--force", "--compile")]
+    return cmd_beamer(_pdf(pdf_args), force="--force" in args,
+                      compile="--compile" in args)
+
+
 def _do_injectlatex(args):
     """pdfdrill injectlatex <pdf> [--tex <path>] [--force]  — pull the author's
     LaTeX source IN as gold `tex` provenance (the old `latex` behavior)."""
@@ -1779,6 +1787,7 @@ HANDLERS = {
         "inspect": _do_inspect,
         "folder": _do_folder,
         "latex": _do_latex,
+        "beamer": _do_beamer,
         "injectlatex": _do_injectlatex,
         "latexbook": _do_latexbook,
         "markdown": _do_markdown,

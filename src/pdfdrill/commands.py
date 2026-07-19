@@ -5695,6 +5695,58 @@ def cmd_latex(pdf: Path, force: bool = False, compile: bool = False,
     return "\n".join(lines)
 
 
+def cmd_beamer(pdf: Path, force: bool = False, compile: bool = False) -> str:
+    """PROJECT the docmodel to a LaTeX **beamer** slide deck — one frame per
+    Section (`allowframebreaks`), a title + outline + References frame. Same
+    docmodel projection as `latex` (source-agnostic; transclusions, `\\cite`,
+    lists all resolve), a slide deck instead of an article. Compile with xelatex.
+    """
+    from .sidecar import Sidecar
+    sc = Sidecar(pdf)
+    key = resolve_bibkey(pdf, None, sc)
+    env_dir = sc.blob_dir / "latex"
+
+    model_path = _model_path(sc)
+    if _stale_or_absent(sc, model_path, _lines_json_path(pdf)):
+        cmd_model(pdf)
+        model_path = _model_path(sc)
+    doc = load_model(model_path) if model_path.exists() else None
+    if doc is None:
+        return ("No docmodel to project. Build one first (`pdfdrill model`), "
+                "then re-run `pdfdrill beamer`.")
+    # auto-run the offline-safe bibliography enrichment (same as `latex`)
+    if not any(o.type == "Reference" for o in doc.objects.values()) and any(
+            o.type == "Section" and "ref" in str(o.props.get("caption", "")).lower()
+            for o in doc.objects.values()):
+        try:
+            cmd_bibliography(pdf)
+            doc = load_model(_model_path(sc))
+        except Exception:                                 # noqa: BLE001
+            pass
+
+    from docops.base import OperatorConfig
+    from docops.projectors.beamer import BeamerProjector
+    tex = BeamerProjector(
+        OperatorConfig(op="projector", classname="BeamerProjector")).project(doc)
+    env_dir.mkdir(parents=True, exist_ok=True)
+    out = env_dir / f"{key}.beamer.tex"
+    out.write_text(tex, encoding="utf-8")
+
+    n_frames = tex.count("\\begin{frame}")
+    lines = [
+        f"Projected the docmodel to a beamer deck ({n_frames} frame(s)).",
+        f"  wrote {_artref(sc, out)}",
+        f"  compile : cd {_artref(sc, env_dir)} && xelatex {out.name}",
+        f"  NOTE: use xelatex (or lualatex) — the model can carry raw Unicode "
+        f"beamer+pdflatex would reject.",
+    ]
+    if compile:
+        ok, note = _xelatex_compile(out)
+        pdf_out = out.with_suffix(".pdf")
+        lines.append(f"  compiled: {'✓ ' + _artref(sc, pdf_out) if ok else '✗ ' + note}")
+    return "\n".join(lines)
+
+
 def cmd_injectlatex(pdf: Path, tex: str | None = None, force: bool = False) -> str:
     """Ingest the author's LaTeX source (.tex or arXiv .tgz) as a competing
     `tex` provenance on each matched equation.
