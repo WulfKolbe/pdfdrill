@@ -5658,9 +5658,13 @@ def cmd_latex(pdf: Path, force: bool = False, compile: bool = False,
 
     n_eq = len(doc.objects_of_type("Equation")) + len(doc.objects_of_type("Formula"))
     n_ref = len(doc.objects_of_type("Reference"))
+    # NOTE: the .tex path must IMMEDIATELY follow a lead-in ("→"/"wrote") with no
+    # word between, or drillui's artifact scanner captures the intervening text as
+    # part of the path ("LaTeX → …​.tex" → 404). So no "→ LaTeX → <path>".
     lines = [
-        f"Projected the docmodel → LaTeX → {_artref(sc, main_tex)}  "
+        f"Projected the docmodel to LaTeX "
         f"({len(tex.split())} words, {n_eq} math object(s), {n_ref} reference(s)).",
+        f"  wrote {_artref(sc, main_tex)}",
         f"  compile : cd {_artref(sc, env_dir)} && xelatex {main_tex.name}",
         f"  NOTE: use xelatex (or lualatex), NOT pdflatex — the model can carry "
         f"raw Unicode (≥ ✓ → ℃) that inputenc/pdflatex reject.",

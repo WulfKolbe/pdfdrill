@@ -796,14 +796,16 @@ const app = {
     //   MULTI-extension name like `2502.20855v2.tex.zip` (MathPix) is NOT
     //   truncated to `…tex` (a dead link to a file that doesn't exist), and
     //   `x.md.meta` doesn't become `x.md`. The `.zip` itself isn't an artifact.
-    // `[^\\n:]` (not `[^\\n]`) so a DESCRIPTION before the path — e.g.
-    //   "→ Markdown file: X.drill/X.md" — is NOT swallowed into the link (the ":"
-    //   ends the prose word); the clean bare-token pass (2, below) then captures
-    //   the real path. A local .drill path never contains a colon; spaced PDF
-    //   names still work (no colon).
+    // `[^\\n:→]` — exclude the newline, the `:` and an ARROW from the captured
+    //   path. `:` so a DESCRIPTION ("→ Markdown file: X.drill/X.md") isn't
+    //   swallowed; `→` so a prose arrow between the lead-in and the path
+    //   ("docmodel → LaTeX → X.drill/X.tex") can't be captured as part of the
+    //   path (the "LaTeX → …​.tex" 404) — the engine then re-anchors on the LAST
+    //   → before the real path. A local .drill path never contains `:`/`→`;
+    //   spaced PDF names still work (they contain neither).
     const drill = new RegExp(
       "(?:->|→|to|wrote(?:\\s+to)?|stored(?:\\s+(?:at|in))?)\\s+" +
-      "([^\\n:]*?\\.drill\\/[^\\n:]*?\\." + EXT + ")(?!\\.[a-z])(?=[\\s.,;)]|$)", "gi");
+      "([^\\n:→]*?\\.drill\\/[^\\n:→]*?\\." + EXT + ")(?!\\.[a-z])(?=[\\s.,;)]|$)", "gi");
     while ((m = drill.exec(text)) !== null) add(m[1], m[2]);
     // 2. path-like tokens (no spaces) anywhere in the prose. REQUIRE a directory
     //    component (the `/)+` — at least one slash): pdfdrill's own artifacts are
