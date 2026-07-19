@@ -599,7 +599,7 @@ _Generated from `commands.yaml` by skillsync. Edit the manifest, not this sectio
 
 | Command | Returns |
 |---|---|
-| `pdfdrill latex <pdf> [--force] [--compile]` | PROJECT to a self-contained COMPILABLE LaTeX environment folder (<drill>/latex/) — the LaTeX analog of `md`. UNPACKS MathPix's <stem>.tex.zip (.tex + LOCAL jpgs) or the arXiv e-print .tgz (figures + .sty), else projects the model. Reports the folder path + main .tex. Compile with XELATEX (not pdflatex — MathPix emits raw Unicode ≥ ✓ → ℃); --compile runs it. OUTPUT direction — for the AUTHOR's source use `injectlatex`; for enriched LaTeX (glossary/index, ORKG) use `stex`/`scikgtex`. |
+| `pdfdrill latex <pdf> [--force] [--compile] [--dump-stages]` | PROJECT to a self-contained COMPILABLE LaTeX environment folder (<drill>/latex/) — the LaTeX analog of `md`. UNPACKS MathPix's <stem>.tex.zip (.tex + LOCAL jpgs) or the arXiv e-print .tgz (figures + .sty), else projects the model. Reports the folder path + main .tex. Compile with XELATEX (not pdflatex — MathPix emits raw Unicode ≥ ✓ → ℃); --compile runs it. OUTPUT direction — for the AUTHOR's source use `injectlatex`; for enriched LaTeX (glossary/index, ORKG) use `stex`/`scikgtex`. |
 
 ### OCR / model pipeline
 
@@ -611,6 +611,6 @@ _Generated from `commands.yaml` by skillsync. Edit the manifest, not this sectio
 <!-- COMMANDS:END -->
 
 <!-- PREFLIGHT-TOKEN:BEGIN -->
-Attestation token — the LAST line of this SKILL. If you can read this, you read the whole file. Run `pdfdrill preflight --ack DRILL-744ce904` before any build/extract command.
-DRILL-744ce904
+Attestation token — the LAST line of this SKILL. If you can read this, you read the whole file. Run `pdfdrill preflight --ack DRILL-7df00f01` before any build/extract command.
+DRILL-7df00f01
 <!-- PREFLIGHT-TOKEN:END -->

@@ -17,6 +17,7 @@ from __future__ import annotations
 from docmodel.core import Document
 from ..base import BaseProjector
 from .common import flow_ordered_content, equation_label
+from . import latex_pipeline as _pipe
 
 # level → sectioning command (1-indexed; clamped)
 _SECTION_CMDS = ["section", "section", "subsection", "subsubsection",
@@ -47,6 +48,10 @@ class LaTeXProjector(BaseProjector):
 
     def project(self, doc: Document) -> str:
         meta = doc.meta
+        # STAGE 0: the transclusion array — every `{{id||FO}}` marker in the
+        # prose resolves to the formula's `$…​$` by lookup, so a MathPix/scan
+        # doc's body is real LaTeX, not "Markdown with a LaTeX header".
+        self._lut = _pipe.transclusion_lookup(doc)
         # a document-specific preamble captured by `injectlatex` wins (macros the
         # equations need); else a sane default. It may be stored as a plain string
         # OR as a dict ({"expanded"/"standalone": …}); coerce to a usable string.
@@ -74,8 +79,24 @@ class LaTeXProjector(BaseProjector):
                 out.append(block)
                 out.append("")
 
+        # STAGE 2: bibliography — printed `\bibitem`s from the model's References
+        # (a real `.bib` for entries carrying BibTeX is emitted alongside by the
+        # pipeline's dump; \bibliography wiring lands with stage 3).
+        bib = _pipe.bibliography_block(doc)
+        if bib:
+            out.append(bib)
+            out.append("")
+
         out.append("\\end{document}")
         return "\n".join(out).rstrip() + "\n"
+
+    def _prose(self, text: str) -> str:
+        """Resolve a prose block to LaTeX: transclusion markers → `$…​$` (array
+        lookup), leaked Markdown headings → `\\section`. Line-wise so a heading
+        mid-paragraph still converts."""
+        lut = getattr(self, "_lut", {})
+        text = _pipe.resolve_transclusions(text, lut)
+        return "\n".join(_pipe.resolve_headings(ln) for ln in text.split("\n"))
 
     def _render(self, obj) -> str:
         t, p = obj.type, obj.props
@@ -89,8 +110,8 @@ class LaTeXProjector(BaseProjector):
             label = p.get("label")
             return s + (f"\n\\label{{{label}}}" if label else "")
         if t in ("Paragraph", "Abstract"):
-            text = (p.get("text") or "").strip()
-            if not text:
+            text = self._prose((p.get("text") or "").strip())
+            if not text.strip():
                 return ""
             if t == "Abstract":
                 return f"\\begin{{abstract}}\n{text}\n\\end{{abstract}}"

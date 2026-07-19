@@ -1,0 +1,157 @@
+r"""
+LaTeXPipeline — the inspectable model→LaTeX generator.
+
+Where `LaTeXProjector` (latex.py) is a single opaque text-dump, this is a PIPELINE
+of pure, inspectable STAGES — each returns plain data you can dump to a file and
+test independently (the textscan-style inspectability). `pdfdrill latex
+--dump-stages` writes them next to the assembled `.tex`:
+
+    00-transclusions.json   {marker-id → LaTeX}      (array lookup)
+    01-citations.json       [citekey, …]             (\cite map)
+    02-bibliography.bib      thebibliography / .bib   (\bibitem)
+    03-glossary.tex          \newacronym/\printindex  (next increment)
+
+The stages fix the "Markdown with a LaTeX header" problem: a MathPix/scan doc's
+paragraph text carries `{{<bibkey>_FO0001||FO}}` transclusion markers + Markdown
+headings; the body resolver turns each marker into the formula's `$…$` (by array
+lookup) and each heading into `\section`, so the body is real LaTeX.
+
+Status: stages 0 (transclusion), 1 (citation), 2 (bibliography) are wired.
+Stage 3 (glossary/acronym/index) reuses `semantic.stex` and lands next.
+"""
+from __future__ import annotations
+
+import json
+import re
+from pathlib import Path
+
+from docmodel.core import Document
+
+# a transclusion marker: {{<title>||<TPL>}} where TPL ∈ FO/FREF/FN/PIC/DIA/CIT…
+_MARKER = re.compile(r"\{\{([^|{}]+?)\|\|([A-Z]+)\}\}")
+# a Markdown / leaked heading at line start
+_MD_HEADING = re.compile(r"^\s{0,3}(#{1,6})\s+(.*)$")
+_TEX_SECTION = re.compile(r"^\\(sub)*section\*?\{")
+
+
+# ── stage 0: transclusion lookup (array lookup id → LaTeX) ───────────────────
+
+def transclusion_lookup(doc: Document) -> dict[str, str]:
+    """Map every Formula/Equation object's TITLE (`<bibkey>_FO<NNNN>` /
+    `_EQ<NNNN>`) to its LaTeX. This is the array the body resolver looks each
+    `{{id||FO}}` marker up in."""
+    lut: dict[str, str] = {}
+    for obj in doc.objects.values():
+        if obj.type not in ("Formula", "Equation"):
+            continue
+        latex = (obj.props.get("latex") or "").strip()
+        if latex:
+            lut[obj.id] = latex
+    return lut
+
+
+def resolve_transclusions(text: str, lut: dict[str, str]) -> str:
+    """Replace `{{id||FO}}` / `{{id||FREF}}` markers with the looked-up LaTeX
+    wrapped as inline math (`$…$`). An unknown id degrades to a readable
+    placeholder — NEVER left as raw `{{…}}` (invalid LaTeX)."""
+    def sub(m: re.Match) -> str:
+        title, tpl = m.group(1), m.group(2)
+        latex = lut.get(title)
+        if latex is None:
+            return f"(?{title})"                      # unknown — readable, no braces
+        if tpl in ("FO", "FREF"):
+            return f"${latex}$"
+        return latex
+    return _MARKER.sub(sub, text)
+
+
+def resolve_headings(line: str) -> str:
+    """A Markdown `## X` (or a leaked heading) → `\\section{X}` at the right depth.
+    Non-heading text passes through; an existing `\\section{…}` is left alone."""
+    if _TEX_SECTION.match(line.strip()):
+        return line
+    m = _MD_HEADING.match(line)
+    if not m:
+        return line
+    depth = len(m.group(1))
+    cmd = {1: "section", 2: "section", 3: "subsection",
+           4: "subsubsection", 5: "paragraph", 6: "subparagraph"}[depth]
+    return f"\\{cmd}{{{m.group(2).strip()}}}"
+
+
+# ── stage 1: citations (\cite map) ───────────────────────────────────────────
+
+def citation_keys(doc: Document) -> list[str]:
+    """The in-text citation keys, in flow order — one per Citation object."""
+    cites = [o for o in doc.objects.values() if o.type == "Citation"]
+    cites.sort(key=lambda o: o.props.get("flow_index", 0))
+    return [str(o.props.get("citekey") or "").strip()
+            for o in cites if o.props.get("citekey")]
+
+
+# ── stage 2: bibliography (\bibitem / thebibliography) ───────────────────────
+
+def _bibitem(ref) -> str:
+    p = ref.props
+    key = str(p.get("citekey") or "ref").strip()
+    if p.get("bibtex"):                              # a real BibTeX record present
+        return ""                                    # → collected into a .bib instead
+    author = str(p.get("author") or "").strip()
+    year = str(p.get("year") or "").strip()
+    title = str(p.get("titlefield") or p.get("title") or "").strip()
+    body = " ".join(x for x in (author, f"({year})" if year else "", title) if x) \
+        or str(p.get("raw_text") or "").strip() or key
+    return f"\\bibitem{{{key}}} {body}"
+
+
+def bibliography_block(doc: Document) -> str:
+    """A `thebibliography` environment from the model's Reference objects (empty
+    string when there are none). References carrying full `bibtex` are emitted to
+    a `.bib` by `bib_database` instead; here we render the printed entries."""
+    refs = [o for o in doc.objects.values() if o.type == "Reference"]
+    refs.sort(key=lambda o: str(o.props.get("citekey") or ""))
+    items = [b for b in (_bibitem(r) for r in refs) if b]
+    if not items:
+        return ""
+    widest = max((str(r.props.get("citekey") or "") for r in refs), key=len, default="9")
+    return ("\\begin{thebibliography}{%s}\n" % widest
+            + "\n".join(items) + "\n\\end{thebibliography}")
+
+
+def bib_database(doc: Document) -> str:
+    """The `.bib` file: every Reference that carries a full `bibtex` record."""
+    out = []
+    for o in doc.objects.values():
+        if o.type == "Reference" and o.props.get("bibtex"):
+            out.append(str(o.props["bibtex"]).strip())
+    return "\n\n".join(out)
+
+
+# ── driver: run + dump the stages ────────────────────────────────────────────
+
+def run_stages(doc: Document) -> dict:
+    """Every stage's inspectable data, keyed by dump-filename stem."""
+    return {
+        "00-transclusions": transclusion_lookup(doc),
+        "01-citations": citation_keys(doc),
+        "02-bibliography": bibliography_block(doc),
+        "02-bib-database": bib_database(doc),
+    }
+
+
+def dump_stages(stages: dict, out_dir: Path) -> list[Path]:
+    """Write each stage to an inspectable file (`.json` for data, `.bib`/`.tex`
+    for text). Returns the written paths."""
+    out_dir = Path(out_dir)
+    out_dir.mkdir(parents=True, exist_ok=True)
+    written: list[Path] = []
+    for name, data in stages.items():
+        if isinstance(data, (dict, list)):
+            p = out_dir / f"{name}.json"
+            p.write_text(json.dumps(data, indent=2, ensure_ascii=False), encoding="utf-8")
+        else:
+            ext = ".bib" if "bib" in name else ".tex"
+            p = out_dir / f"{name}{ext}"
+            p.write_text(str(data), encoding="utf-8")
+        written.append(p)
+    return written

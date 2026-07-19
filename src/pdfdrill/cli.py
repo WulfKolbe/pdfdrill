@@ -1149,11 +1149,13 @@ def _do_latexbook(args):
 
 
 def _do_latex(args):
-    """pdfdrill latex <pdf> [--force] [--compile]  — build a compilable LaTeX env"""
+    """pdfdrill latex <pdf> [--force] [--compile] [--dump-stages]"""
     from .commands import cmd_latex
-    pdf_args = [a for a in args if a not in ("--force", "--compile")]
+    flags = ("--force", "--compile", "--dump-stages")
+    pdf_args = [a for a in args if a not in flags]
     return cmd_latex(_pdf(pdf_args), force="--force" in args,
-                     compile="--compile" in args)
+                     compile="--compile" in args,
+                     dump_stages="--dump-stages" in args)
 
 
 def _do_injectlatex(args):

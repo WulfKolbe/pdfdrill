@@ -1277,6 +1277,10 @@ commands:
     type: flag
     flag: --compile
     help: compile the environment with xelatex and report the produced PDF
+  - name: dump_stages
+    type: flag
+    flag: --dump-stages
+    help: 'write the inspectable generation stages (transclusion lookup / citations / bibliography) to <drill>/latex/stages/'
   typed: true
 - name: injectlatex
   section: Introspection (fast, no extraction)

@@ -5653,7 +5653,8 @@ def _xelatex_compile(main_tex: Path) -> "tuple[bool, str]":
             else "xelatex produced no PDF (see the .log in the env dir)")
 
 
-def cmd_latex(pdf: Path, force: bool = False, compile: bool = False) -> str:
+def cmd_latex(pdf: Path, force: bool = False, compile: bool = False,
+              dump_stages: bool = False) -> str:
     """PROJECT the drilled document to a self-contained, COMPILABLE LaTeX
     ENVIRONMENT folder — the LaTeX analog of `md`. OUTPUT direction.
 
@@ -5703,11 +5704,18 @@ def cmd_latex(pdf: Path, force: bool = False, compile: bool = False) -> str:
                         "project. Build one (`pdfdrill model`), then re-run.")
             from docops.base import OperatorConfig
             from docops.projectors.latex import LaTeXProjector
+            from docops.projectors import latex_pipeline as _pipe
             tex = LaTeXProjector(
                 OperatorConfig(op="projector", classname="LaTeXProjector")).project(doc)
             env_dir.mkdir(parents=True, exist_ok=True)
             main_tex = env_dir / f"{key}.tex"
             main_tex.write_text(tex, encoding="utf-8")
+            # the inspectable stages (transclusion lookup / citations / bib)
+            _bib_db = _pipe.bib_database(doc)
+            if _bib_db.strip():
+                (env_dir / f"{key}.bib").write_text(_bib_db, encoding="utf-8")
+            if dump_stages:
+                _pipe.dump_stages(_pipe.run_stages(doc), env_dir / "stages")
             origin = "the model"
 
     if main_tex is None or not main_tex.exists():
