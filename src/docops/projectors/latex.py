@@ -88,13 +88,24 @@ class LaTeXProjector(BaseProjector):
             out.append("\\maketitle")
         out.append("")
 
-        for obj in flow_ordered_content(doc):
-            if obj.id in self._skip_ids:              # References section → thebibliography
+        items = [o for o in flow_ordered_content(doc) if o.id not in self._skip_ids]
+        i = 0
+        while i < len(items):
+            obj = items[i]
+            if obj.type == "ListItem":
+                # a RUN of consecutive ListItems → ONE itemize (bare \item is
+                # invalid LaTeX); each keeps its original marker as the label.
+                run = []
+                while i < len(items) and items[i].type == "ListItem":
+                    run.append(items[i]); i += 1
+                out.append(self._render_list(run))
+                out.append("")
                 continue
             block = self._render(obj)
             if block:
                 out.append(block)
                 out.append("")
+            i += 1
 
         # STAGE 2: bibliography — printed `\bibitem`s from the model's References
         # (a real `.bib` for entries carrying BibTeX is emitted alongside by the
@@ -106,6 +117,19 @@ class LaTeXProjector(BaseProjector):
 
         out.append("\\end{document}")
         return "\n".join(out).rstrip() + "\n"
+
+    def _render_list(self, run) -> str:
+        """A run of ListItems → one `itemize`; each item keeps its source marker
+        as the `[label]` (braced so a bracket in the marker is safe), and its
+        content passes through `_prose` (transclusions / citations resolve)."""
+        lines = ["\\begin{itemize}"]
+        for it in run:
+            content = self._prose(str(it.props.get("content") or "").strip())
+            marker = str(it.props.get("marker") or "").strip()
+            label = f"[{{{marker}}}]" if marker else ""
+            lines.append(f"  \\item{label} {content}".rstrip())
+        lines.append("\\end{itemize}")
+        return "\n".join(lines)
 
     def _prose(self, text: str) -> str:
         """Resolve a prose block to LaTeX: transclusion markers → `\\Expr{<index>}`
@@ -157,7 +181,8 @@ class LaTeXProjector(BaseProjector):
             cap = _escape_text(str(p.get("caption") or "").strip())
             return f"% figure p{p.get('page')}" + (f": {cap}" if cap else "")
         if t == "ListItem":
-            return f"\\item {_escape_text(str(p.get('content') or ''))}"
+            # a lone ListItem (not part of a run) — still needs an environment
+            return self._render_list([obj])
         if t == "Footnote":
             return f"\\footnotetext{{{_escape_text(str(p.get('content') or ''))}}}"
         return ""

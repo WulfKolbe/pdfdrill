@@ -89,3 +89,25 @@ def test_dict_preamble_is_coerced_not_crashed():
     d.add(DocObject(type="Paragraph", props={"text": "hi", "flow_index": 0}))
     tex = _proj().project(d)
     assert "\\documentclass{article}" in tex and "\\begin{document}" in tex
+
+
+def test_consecutive_list_items_wrapped_in_one_itemize():
+    """Bare \\item is invalid LaTeX — a run of ListItems must sit inside ONE
+    itemize, each preserving its original marker as the label."""
+    d = Document(); d.meta["bibkey"] = "x"
+    d.add(DocObject(type="ListItem", props={"marker": "1.", "content": "First", "flow_index": 0}))
+    d.add(DocObject(type="ListItem", props={"marker": "*", "content": "Second", "flow_index": 1}))
+    tex = _proj().project(d)
+    assert tex.count("\\begin{itemize}") == 1 and tex.count("\\end{itemize}") == 1
+    assert "\\item[{1.}] First" in tex and "\\item[{*}] Second" in tex
+    # no bare \item outside the environment
+    assert tex.index("\\begin{itemize}") < tex.index("\\item[{1.}]") < tex.index("\\end{itemize}")
+
+
+def test_two_list_runs_split_by_a_paragraph_are_two_environments():
+    d = Document(); d.meta["bibkey"] = "x"
+    d.add(DocObject(type="ListItem", props={"marker": "-", "content": "A", "flow_index": 0}))
+    d.add(DocObject(type="Paragraph", props={"text": "between", "flow_index": 1}))
+    d.add(DocObject(type="ListItem", props={"marker": "-", "content": "B", "flow_index": 2}))
+    tex = _proj().project(d)
+    assert tex.count("\\begin{itemize}") == 2
