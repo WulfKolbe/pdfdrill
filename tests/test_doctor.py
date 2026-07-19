@@ -20,7 +20,7 @@ def test_doctor_all_present(monkeypatch):
 
 def test_doctor_missing_latex_svg_expands_support_set(monkeypatch):
     # Everything present except latex + dvisvgm (the SVG route).
-    present = {"pdftotext", "pdfimages", "pdftoppm", "pdfinfo", "tesseract",
+    present = {"pdftotext", "pdfimages", "gs", "pdfinfo", "tesseract",
                "pdflatex", "dvips"}
     monkeypatch.setattr(shutil, "which", lambda t: ("/usr/bin/" + t) if t in present else None)
     out = cmd_doctor()

@@ -2,7 +2,7 @@
 Tests for the MathPix-free tesseract OCR input path (pdfdrill.ocr_lines +
 cmd_ocr).
 
-The subprocess part (pdftoppm + tesseract) isn't exercised here; instead the
+The subprocess part (Ghostscript + tesseract) isn't exercised here; instead the
 pure assembler `lines_json_from_words` is fed synthetic parsed-TSV words, and
 the result is run through the real docmodel converter to prove it is
 MathPix-compatible. cmd_ocr's guards (refuse to clobber a MathPix lines.json,

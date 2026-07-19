@@ -7,7 +7,7 @@ pdfdrill.tsv_gcn GNN). Three concerns, all without rendering a real PDF:
   3. the model path end-to-end: a tiny model trained on synthetic pages emits
      content-addressed address + BOM-line tiddlers (projection embeddings).
 
-OCR (pdftoppm/tesseract) is stubbed out — we feed tsv_gcn its TSV directly.
+OCR (Ghostscript/tesseract) is stubbed out — we feed tsv_gcn its TSV directly.
 """
 import json
 import sys

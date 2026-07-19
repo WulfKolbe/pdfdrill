@@ -26,8 +26,8 @@ def _blank_pdf(path: Path):
 
 
 def test_deliver_region_crop_writes_a_png():
-    if shutil.which("pdftoppm") is None:
-        print("SKIP (no pdftoppm)"); return
+    if shutil.which("gs") is None:
+        print("SKIP (no ghostscript)"); return
     from pdfdrill.commands import _deliver_region_crop, Sidecar
     with tempfile.TemporaryDirectory() as d:
         pdf = Path(d) / "x.pdf"; _blank_pdf(pdf)
@@ -48,8 +48,8 @@ def test_cmd_snip_image_mode_ocrs_any_image(monkeypatch):
 
 
 def test_cmd_snip_region_delivers_crop_even_if_ocr_fails(monkeypatch):
-    if shutil.which("pdftoppm") is None:
-        print("SKIP (no pdftoppm)"); return
+    if shutil.which("gs") is None:
+        print("SKIP (no ghostscript)"); return
     from pdfdrill import commands
     import pdfdrill.mathpix_snip as ms
 

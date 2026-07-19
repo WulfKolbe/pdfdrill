@@ -37,7 +37,7 @@ def test_parse_page_md_giveup_and_markdown():
 
 
 def test_remath_sandbox_roundtrip(monkeypatch):
-    # No real PDF/pdftoppm: fake the rasterizer to two page PNGs, force sandbox.
+    # No real PDF/gs: fake the rasterizer to two page PNGs, force sandbox.
     monkeypatch.setattr(llm_delegate, "detect_runtime", lambda: llm_delegate.Runtime.SANDBOX)
     with tempfile.TemporaryDirectory() as d:
         pdf = Path(d) / "paper.pdf"; pdf.write_bytes(b"%PDF-1.4")
