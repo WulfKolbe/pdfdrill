@@ -5654,7 +5654,7 @@ def cmd_latex(pdf: Path, force: bool = False, compile: bool = False,
     if bib_db.strip():
         (env_dir / f"{key}.bib").write_text(bib_db, encoding="utf-8")
     if dump_stages:
-        _pipe.dump_stages(_pipe.run_stages(doc), env_dir / "stages")
+        _pipe.dump_stages(_pipe.run_stages(doc, key), env_dir / "stages")
 
     n_eq = len(doc.objects_of_type("Equation")) + len(doc.objects_of_type("Formula"))
     n_ref = len(doc.objects_of_type("Reference"))

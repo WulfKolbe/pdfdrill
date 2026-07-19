@@ -48,10 +48,14 @@ class LaTeXProjector(BaseProjector):
 
     def project(self, doc: Document) -> str:
         meta = doc.meta
-        # STAGE 0: the transclusion array — every `{{id||FO}}` marker in the
-        # prose resolves to the formula's `$…​$` by lookup, so a MathPix/scan
-        # doc's body is real LaTeX, not "Markdown with a LaTeX header".
-        self._lut = _pipe.transclusion_lookup(doc)
+        # STAGE 0: the transclusion ARRAY (filecontents + readarray). Every
+        # distinct formula goes ONCE into a `.dat`; each `{{id||FO}}` marker in the
+        # prose becomes `\Expr{<index>}` (define once, reference by index) — real
+        # transclusion, not "Markdown with a LaTeX header".
+        key = str(meta.get("bibkey") or "DOC")
+        self._order, self._title_index = _pipe.formula_array(doc)
+        self._formula_preamble = _pipe.formula_preamble(
+            self._order, f"{key}.formulas.dat")
         # a document-specific preamble captured by `injectlatex` wins (macros the
         # equations need); else a sane default. It may be stored as a plain string
         # OR as a dict ({"expanded"/"standalone": …}); coerce to a usable string.
@@ -60,6 +64,9 @@ class LaTeXProjector(BaseProjector):
             pre = pre.get("expanded") or pre.get("standalone") or pre.get("preamble")
         preamble = pre if isinstance(pre, str) and pre.strip() else _DEFAULT_PREAMBLE
         out: list[str] = [preamble.rstrip(), ""]
+        if self._formula_preamble:                # the formula ARRAY (readarray)
+            out += ["% formula transclusion array (filecontents + readarray):",
+                    self._formula_preamble, ""]
 
         title = meta.get("title")
         authors = meta.get("authors") or []
@@ -91,11 +98,11 @@ class LaTeXProjector(BaseProjector):
         return "\n".join(out).rstrip() + "\n"
 
     def _prose(self, text: str) -> str:
-        """Resolve a prose block to LaTeX: transclusion markers → `$…​$` (array
-        lookup), leaked Markdown headings → `\\section`. Line-wise so a heading
-        mid-paragraph still converts."""
-        lut = getattr(self, "_lut", {})
-        text = _pipe.resolve_transclusions(text, lut)
+        """Resolve a prose block to LaTeX: transclusion markers → `\\Expr{<index>}`
+        (readarray lookup), leaked Markdown headings → `\\section`. Line-wise so a
+        heading mid-paragraph still converts."""
+        ti = getattr(self, "_title_index", {})
+        text = _pipe.resolve_transclusions(text, ti)
         return "\n".join(_pipe.resolve_headings(ln) for ln in text.split("\n"))
 
     def _render(self, obj) -> str:

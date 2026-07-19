@@ -34,34 +34,73 @@ _MD_HEADING = re.compile(r"^\s{0,3}(#{1,6})\s+(.*)$")
 _TEX_SECTION = re.compile(r"^\\(sub)*section\*?\{")
 
 
-# ── stage 0: transclusion lookup (array lookup id → LaTeX) ───────────────────
+# ── stage 0: transclusion as a readarray ARRAY (filecontents + readarray) ────
+#
+# The formula LaTeX goes ONCE into a `.dat` array (one entry per line); each
+# `{{<bibkey>_FO0001||FO}}` marker becomes `\Expr{<index>}`. This is real
+# transclusion (define once, reference by index), not inline expansion — the
+# user's filecontents+readarray idiom. Deduped by content so identical math
+# shares one slot.
 
-def transclusion_lookup(doc: Document) -> dict[str, str]:
-    """Map every Formula/Equation object's TITLE (`<bibkey>_FO<NNNN>` /
-    `_EQ<NNNN>`) to its LaTeX. This is the array the body resolver looks each
-    `{{id||FO}}` marker up in."""
-    lut: dict[str, str] = {}
-    for obj in doc.objects.values():
-        if obj.type not in ("Formula", "Equation"):
+def _flatten(latex: str) -> str:
+    """readarray splits entries on `\\par`, so each formula must be a SINGLE line —
+    collapse internal whitespace/newlines to one space."""
+    return re.sub(r"\s+", " ", latex.strip())
+
+
+def formula_array(doc: Document) -> tuple[list[str], dict[str, int]]:
+    """Return `(ordered distinct formula LaTeX, {object-title: 1-based index})`.
+
+    Ordered by object title so the array is stable across builds; deduped by
+    (flattened) content so an expression used many times shares ONE array slot.
+    The index map is what the body resolver rewrites each `{{id||FO}}` into."""
+    order: list[str] = []
+    by_content: dict[str, int] = {}          # flattened latex → 1-based index
+    title_index: dict[str, int] = {}
+    objs = [o for o in doc.objects.values() if o.type in ("Formula", "Equation")]
+    objs.sort(key=lambda o: o.id)
+    for obj in objs:
+        latex = _flatten(obj.props.get("latex") or "")
+        if not latex:
             continue
-        latex = (obj.props.get("latex") or "").strip()
-        if latex:
-            lut[obj.id] = latex
-    return lut
+        idx = by_content.get(latex)
+        if idx is None:
+            order.append(latex)
+            idx = len(order)                 # 1-based
+            by_content[latex] = idx
+        title_index[obj.id] = idx
+    return order, title_index
 
 
-def resolve_transclusions(text: str, lut: dict[str, str]) -> str:
-    """Replace `{{id||FO}}` / `{{id||FREF}}` markers with the looked-up LaTeX
-    wrapped as inline math (`$…$`). An unknown id degrades to a readable
-    placeholder — NEVER left as raw `{{…}}` (invalid LaTeX)."""
+def formula_preamble(order: list[str], dat_name: str) -> str:
+    """The preamble block: write the formula array to `<dat_name>` via
+    `filecontents*`, load it with `readarray`, and define `\\Expr{<index>}`."""
+    if not order:
+        return ""
+    body = "\n".join(order)
+    return (
+        "\\usepackage{filecontents}\n"
+        f"\\begin{{filecontents*}}{{{dat_name}}}\n{body}\n\\end{{filecontents*}}\n"
+        "\\usepackage{readarray}\n"
+        "\\readarraysepchar{\\par}\n"
+        f"\\readdef{{{dat_name}}}{{\\MathData}}\n"
+        "\\readarray{\\MathData}{\\MathExpr}[-,\\nrows]\n"
+        "\\newcommand{\\Expr}[1]{\\ensuremath{\\MathExpr[#1]}}"
+    )
+
+
+def resolve_transclusions(text: str, title_index: dict[str, int]) -> str:
+    """Rewrite each `{{id||FO}}` / `{{id||FREF}}` marker to `\\Expr{<index>}`
+    (array lookup — `\\Expr` is `\\ensuremath`-wrapped, so it works in text). An
+    unknown id degrades to a readable placeholder, never raw `{{…}}`."""
     def sub(m: re.Match) -> str:
         title, tpl = m.group(1), m.group(2)
-        latex = lut.get(title)
-        if latex is None:
+        idx = title_index.get(title)
+        if idx is None:
             return f"(?{title})"                      # unknown — readable, no braces
         if tpl in ("FO", "FREF"):
-            return f"${latex}$"
-        return latex
+            return f"\\Expr{{{idx}}}"
+        return f"\\Expr{{{idx}}}"
     return _MARKER.sub(sub, text)
 
 
@@ -129,10 +168,14 @@ def bib_database(doc: Document) -> str:
 
 # ── driver: run + dump the stages ────────────────────────────────────────────
 
-def run_stages(doc: Document) -> dict:
-    """Every stage's inspectable data, keyed by dump-filename stem."""
+def run_stages(doc: Document, bibkey: str = "DOC") -> dict:
+    """Every stage's inspectable data, keyed by dump-filename stem. Stage 0 is the
+    readarray formula array — the `.dat` (one formula per line) AND the
+    `{title: index}` map — plus the citation list and the bibliography."""
+    order, title_index = formula_array(doc)
     return {
-        "00-transclusions": transclusion_lookup(doc),
+        "00-formulas.dat": "\n".join(order),          # the readarray data file
+        "00-formula-index": title_index,               # title → 1-based index
         "01-citations": citation_keys(doc),
         "02-bibliography": bibliography_block(doc),
         "02-bib-database": bib_database(doc),
@@ -140,8 +183,8 @@ def run_stages(doc: Document) -> dict:
 
 
 def dump_stages(stages: dict, out_dir: Path) -> list[Path]:
-    """Write each stage to an inspectable file (`.json` for data, `.bib`/`.tex`
-    for text). Returns the written paths."""
+    """Write each stage to an inspectable file (`.json` for data maps, `.dat`/
+    `.bib`/`.tex` for text). Returns the written paths."""
     out_dir = Path(out_dir)
     out_dir.mkdir(parents=True, exist_ok=True)
     written: list[Path] = []
@@ -150,8 +193,8 @@ def dump_stages(stages: dict, out_dir: Path) -> list[Path]:
             p = out_dir / f"{name}.json"
             p.write_text(json.dumps(data, indent=2, ensure_ascii=False), encoding="utf-8")
         else:
-            ext = ".bib" if "bib" in name else ".tex"
-            p = out_dir / f"{name}{ext}"
+            p = out_dir / (name if "." in name else f"{name}.bib" if "bib" in name
+                           else f"{name}.tex")
             p.write_text(str(data), encoding="utf-8")
         written.append(p)
     return written
