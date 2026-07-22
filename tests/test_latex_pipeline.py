@@ -261,6 +261,25 @@ def test_clean_prose_normalizes_ligatures():
     assert LP.clean_prose("eﬀective ﬂow") == "effective flow"
 
 
+def test_clean_prose_strips_leaked_structural_commands():
+    """A LaTeX-source build can ingest a `\\maketitle` (or `\\begin{document}`,
+    `\\tableofcontents`, `\\newpage`) line as a body Paragraph. The projection
+    owns that scaffolding, so a bare copy in the body is stripped — a lone
+    `\\maketitle` with no `\\title` in the preamble is otherwise fatal."""
+    for cmd in ("\\maketitle", "\\tableofcontents", "\\begin{document}",
+                "\\end{document}", "\\newpage", "\\clearpage",
+                "\\pagestyle{empty}", "\\appendix"):
+        assert LP.clean_prose(cmd).strip() == "", cmd
+    assert "keep" in LP.clean_prose("keep\n\\maketitle\ntext") and \
+        "\\maketitle" not in LP.clean_prose("keep\n\\maketitle\ntext")
+
+
+def test_leaked_title_recovers_a_title_from_prose():
+    assert LP.leaked_title("\\title{A Real Title}") == "A Real Title"
+    assert LP.leaked_title("no title here") is None
+    assert LP.leaked_title("\\title{}") is None
+
+
 def test_glossary_block_renders_acronyms():
     """Acronyms → a single-pass `description` list (Acronyms section), specials
     escaped. Empty records → empty string."""

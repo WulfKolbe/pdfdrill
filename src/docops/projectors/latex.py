@@ -60,7 +60,7 @@ class LaTeXProjector(BaseProjector):
             out += ["% formula transclusion array (filecontents + readarray):",
                     self._formula_preamble, ""]
 
-        title = meta.get("title")
+        title = meta.get("title") or self._leaked_title(doc)
         authors = meta.get("authors") or []
         if title:
             out.append(f"\\title{{{_escape_text(str(title))}}}")
@@ -111,6 +111,17 @@ class LaTeXProjector(BaseProjector):
                               if r.get("name") and r.get("expansion")]
         except Exception:                                 # noqa: BLE001
             self._acronyms = []
+
+    def _leaked_title(self, doc) -> str | None:
+        """When the model carries no `meta['title']` (common on a LaTeX-source
+        build), recover a `\\title{…}` the builder left in body prose, so the
+        projection gets a real `\\title` instead of a `\\maketitle` with none."""
+        for obj in doc.objects.values():
+            if obj.type in ("Paragraph", "Abstract"):
+                t = _pipe.leaked_title(str(obj.props.get("text") or ""))
+                if t:
+                    return t
+        return None
 
     def _doc_preamble(self, meta) -> str:
         """A document-specific preamble captured by `injectlatex` (macros the

@@ -188,12 +188,35 @@ _LIG_RE = re.compile("|".join(_LIGATURES))
 # `\bibliographystyle{s}` would try to load a missing .bib.
 _LEAKED_CMD = re.compile(r"\\bibliography(?:style)?\s*\{[^}]*\}")
 
+# Document-STRUCTURE / frontmatter commands that leak from a LaTeX source into
+# body prose (the source builder can ingest a `\maketitle` line as a Paragraph).
+# The projection OWNS this scaffolding (`\maketitle` only when a title exists,
+# its own `\begin{document}`, its own bibliography), so a stray copy in the body
+# is at best noise and at worst fatal (`\maketitle` with no `\title` → error).
+# `\title{…}`/`\author{…}` are captured by the projector first (see
+# `leaked_title`), then stripped here.
+_STRUCT_CMD = re.compile(
+    r"\\(?:maketitle|tableofcontents|begin\s*\{document\}|end\s*\{document\}"
+    r"|appendix|newpage|clearpage|cleardoublepage|pagebreak|nopagebreak"
+    r"|pagestyle\s*\{[^}]*\}|thispagestyle\s*\{[^}]*\}"
+    r"|title|author|date|institute|affiliation)\s*(?:\{[^}]*\})?"
+)
+# a leaked `\title{…}` — captured so a title-less model still gets one.
+_TITLE_CMD = re.compile(r"\\title\s*\{([^}]*)\}")
+
+
+def leaked_title(text: str) -> str | None:
+    """A `\\title{…}` the source builder left in body prose (title-less model)."""
+    m = _TITLE_CMD.search(text or "")
+    return m.group(1).strip() if m and m.group(1).strip() else None
+
 
 def clean_prose(text: str) -> str:
     """Normalise prose before it is emitted: expand ligatures and strip leaked
     source-LaTeX bibliography commands (the projection owns the bibliography)."""
     text = _LIG_RE.sub(lambda m: _LIGATURES[m.group(0)], text)
     text = _LEAKED_CMD.sub("", text)
+    text = _STRUCT_CMD.sub("", text)          # leaked \maketitle/\begin{document}/…
     return text
 
 

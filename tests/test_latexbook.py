@@ -64,6 +64,37 @@ def test_build_source_model_expands_style_macros():
         assert doc.meta["source_counts"]["macros"] >= 2
 
 
+def test_build_source_model_captures_title_and_author():
+    """The 2105.00377 bug: the builder ingested `\\maketitle` as body prose but
+    never captured `\\title`, so the projection dragged a bare `\\maketitle` into
+    the body ('No \\title given'). The document `\\title`/`\\author` must land in
+    meta (author = the NAMES line, affiliation tail dropped)."""
+    with tempfile.TemporaryDirectory() as dd:
+        tex = Path(dd) / "main.tex"
+        tex.write_text(
+            "\\documentclass{article}\n"
+            "\\title{MathBERT: A Model\\thanks{grant}}\n"
+            "\\author{Shuai Peng, Ke Yuan \\\\ Peking University}\n"
+            "\\begin{document}\n\\maketitle\n"
+            "\\section{Intro}\nBody text.\n\\end{document}\n", encoding="utf-8")
+        doc = ls.build_source_model(str(tex), bibkey="K")
+        assert doc.meta.get("title") == "MathBERT: A Model"     # \thanks stripped
+        assert doc.meta.get("authors") == ["Shuai Peng, Ke Yuan"]  # tail dropped
+
+
+def test_build_source_model_ignores_titleformat_as_title():
+    """`\\titleformat{…}` must not be mistaken for the document `\\title`."""
+    with tempfile.TemporaryDirectory() as dd:
+        tex = Path(dd) / "main.tex"
+        tex.write_text(
+            "\\documentclass{article}\n"
+            "\\titleformat{\\section}{\\bf}{}{}{}\n"
+            "\\title{The Actual Title}\n"
+            "\\begin{document}\n\\maketitle\n\\end{document}\n", encoding="utf-8")
+        doc = ls.build_source_model(str(tex), bibkey="K")
+        assert doc.meta.get("title") == "The Actual Title"
+
+
 def test_build_source_model_dedupes_repeated_inline_formula():
     r"""The 2110.11150 bug: the symbol $f$ used 20 times became 20 separate FO
     tiddlers. Identical inline-formula content must map to ONE Formula object /

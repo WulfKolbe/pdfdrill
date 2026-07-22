@@ -56,6 +56,49 @@ def _balanced(text: str, open_idx: int) -> str:
     return "".join(out)
 
 
+def _brace_arg_after(text: str, cmd: str) -> str | None:
+    """The brace-balanced argument of the first `cmd` (e.g. `\\title`), or None.
+    Skips a `\\title*`/optional `[..]` by scanning to the first `{`."""
+    i = text.find(cmd)
+    while i != -1:
+        j = i + len(cmd)
+        # a longer command sharing the prefix (\titleformat) is not \title
+        if j < len(text) and (text[j].isalpha()):
+            i = text.find(cmd, i + 1)
+            continue
+        # skip a `*` and one optional `[..]` before the mandatory `{`
+        while j < len(text) and text[j] in " *\t":
+            j += 1
+        if j < len(text) and text[j] == "[":
+            k = text.find("]", j)
+            j = k + 1 if k != -1 else j
+        while j < len(text) and text[j] in " \t\n":
+            j += 1
+        if j < len(text) and text[j] == "{":
+            return _balanced(text, j)[1:-1]
+        i = text.find(cmd, i + 1)
+    return None
+
+
+# control words dropped from a title/author arg. The `(?![a-zA-Z])` word-boundary
+# stops `\affil` swallowing the front of `\affiliations` (→ a stray "iations").
+_FRONT_STRIP = re.compile(
+    r"\\(?:thanks|footnote|footnotemark|inst|orcid|email|affiliations?|affil"
+    r"|IEEEauthorblock[AN]|IEEEauthorrefmark|corref|correfauthor|address"
+    r"|institute|institution)(?![a-zA-Z])\s*(?:\[[^\]]*\])?(?:\{[^}]*\})?")
+
+
+def _clean_frontmatter(s: str) -> str:
+    """Reduce a `\\title`/`\\author` argument to plain text: drop `\\thanks{…}`,
+    `\\\\` line breaks, font wrappers; collapse whitespace."""
+    s = _FRONT_STRIP.sub("", s)
+    s = re.sub(r"\\(?:textbf|textit|textrm|texttt|emph|mbox|text)\s*\{([^}]*)\}",
+               r"\1", s)
+    s = s.replace("\\\\", " ").replace("~", " ")
+    s = re.sub(r"\s+", " ", s).strip()
+    return s
+
+
 def expand_inputs(main_path: str, base_dir: str, _depth: int = 0,
                   _seen: set | None = None, max_depth: int = 12) -> str:
     """Inline \\input/\\include recursively; strip comments. Returns full text."""
@@ -1208,6 +1251,24 @@ def build_source_model(tex_path: str, bibkey: str = "DOC") -> "object":
     doc.meta["source_path"] = f"{main} (LaTeX source, no OCR)"
     doc.meta["latex_preamble"] = {"main": main, "num_macros": len(macros),
                                   "standalone": standalone_preamble(pre)}
+
+    # Capture the document `\title{…}` / `\author{…}` into meta (frontmatter),
+    # so the projection emits a real `\title`+`\maketitle` instead of dragging a
+    # bare `\maketitle` into the body (fatal: "No \title given"). Search the full
+    # source — `\title` may sit in the preamble OR just after `\begin{document}`.
+    _title = _brace_arg_after(full, "\\title")
+    if _title:
+        doc.meta["title"] = _clean_frontmatter(_title)
+    _author = _brace_arg_after(full, "\\author")
+    if _author:
+        # arXiv author blocks inline affiliations/emails after a `\\` line break;
+        # the NAMES are the first line — keep it, drop the institution tail.
+        head = re.split(r"\\\\", _author, maxsplit=1)[0]
+        auth = _clean_frontmatter(head)
+        # split on \and (multi-author); keep as a list for the projector
+        parts = [a.strip() for a in re.split(r"\\and\b", auth) if a.strip()]
+        if parts:
+            doc.meta["authors"] = parts
 
     # Environment census + theorem/proof extraction (theorem-like blocks become
     # Theorem objects with a label \ref can resolve; proofs pair to them). Needs
