@@ -285,17 +285,28 @@ def citation_keys(doc: Document) -> list[str]:
 
 # ── stage 2: bibliography (\bibitem / thebibliography) ───────────────────────
 
+def _bib_escape(s: str) -> str:
+    """Escape the specials that appear in a bibliography entry (author/title).
+    Conservative — leaves `$ { } \\` for accents / math the BibTeX carries."""
+    for a, b in (("&", "\\&"), ("%", "\\%"), ("#", "\\#"), ("_", "\\_"),
+                 ("~", "\\textasciitilde{}")):
+        s = s.replace(a, b)
+    return s
+
+
 def _bibitem(ref) -> str:
+    """A `\\bibitem` for one Reference. ALWAYS emitted (even for a ref carrying full
+    `bibtex`): a `.bib` needs a 2-pass bibtex compile, so the self-contained
+    `thebibliography` is the default. Formatted from the structured
+    author/year/title (from bibsource / the heuristic parse), else raw_text."""
     p = ref.props
     key = str(p.get("citekey") or "ref").strip()
-    if p.get("bibtex"):                              # a real BibTeX record present
-        return ""                                    # → collected into a .bib instead
     author = str(p.get("author") or "").strip()
     year = str(p.get("year") or "").strip()
-    title = str(p.get("titlefield") or p.get("title") or "").strip()
+    title = str(p.get("title") or p.get("titlefield") or "").strip()
     body = " ".join(x for x in (author, f"({year})" if year else "", title) if x) \
         or str(p.get("raw_text") or "").strip() or key
-    return f"\\bibitem{{{key}}} {body}"
+    return f"\\bibitem{{{key}}} {_bib_escape(body)}"
 
 
 def bibliography_block(doc: Document) -> str:

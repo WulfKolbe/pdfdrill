@@ -228,3 +228,19 @@ def test_plain_inline_formula_untouched_by_inline_safe():
                     props={"latex": "x^2 + y^2", "flow_index": 1}))
     order, _ = LP.formula_array(d)
     assert order[0] == "x^2 + y^2"
+
+
+def test_bibitem_emitted_even_with_bibtex_field():
+    """A Reference from bibsource carries full `bibtex` AND structured
+    author/year/title. It must still get a `\\bibitem` in thebibliography (a .bib
+    needs a 2-pass bibtex compile that --compile doesn't do), formatted from the
+    structured fields, specials escaped."""
+    d = Document(); d.meta["bibkey"] = "DOC"
+    d.add(DocObject(type="Reference", props={
+        "citekey": "scholl2001objects", "author": "Scholl, Brian J", "year": "2001",
+        "title": "Objects & attention: the state_of_the art",
+        "bibtex": "@article{scholl2001objects, title={Objects}}"}))
+    bib = LP.bibliography_block(d)
+    assert "\\bibitem{scholl2001objects}" in bib
+    assert "Scholl, Brian J" in bib and "(2001)" in bib
+    assert "\\&" in bib and "\\_" in bib             # specials escaped

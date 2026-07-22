@@ -5604,6 +5604,34 @@ def _xelatex_compile(main_tex: Path) -> "tuple[bool, str]":
             else "xelatex produced no PDF (see the .log in the env dir)")
 
 
+def _auto_bibliography(pdf: Path, sc, doc):
+    """Populate References when a projection needs them and there are none yet —
+    both offline-safe: the AUTHOR's gold `.bbl`/`.bib` from the arXiv e-print
+    (`bibsource`) preferred, else the heuristic References-section parse
+    (`bibliography`). Returns the (possibly reloaded) doc."""
+    if any(o.type == "Reference" for o in doc.objects.values()):
+        return doc
+    # 1) arXiv e-print: the author's own bibliography is the gold source
+    eprint = (pdf.parent / f"{pdf.stem}.tgz").exists() or \
+        (pdf.parent / "texsrc").exists() or \
+        (sc.blob_dir / "texsrc").exists()
+    if eprint:
+        try:
+            cmd_bibsource(pdf)
+            return load_model(_model_path(sc))
+        except Exception:                                 # noqa: BLE001
+            pass
+    # 2) else the heuristic parse of a References section
+    if any(o.type == "Section" and "ref" in str(o.props.get("caption", "")).lower()
+           for o in doc.objects.values()):
+        try:
+            cmd_bibliography(pdf)
+            return load_model(_model_path(sc))
+        except Exception:                                 # noqa: BLE001
+            pass
+    return doc
+
+
 def cmd_latex(pdf: Path, force: bool = False, compile: bool = False,
               dump_stages: bool = False) -> str:
     """PROJECT the drilled document to a self-contained, COMPILABLE LaTeX
@@ -5640,19 +5668,7 @@ def cmd_latex(pdf: Path, force: bool = False, compile: bool = False,
         return ("No docmodel to project. Build one first (`pdfdrill model`), "
                 "then re-run `pdfdrill latex`.")
 
-    # Auto-run the (offline-safe) bibliography enrichment when the doc HAS a
-    # References section but no Reference objects yet — so `[N]` in-text refs
-    # become `\cite` and a bibliography is emitted, without a manual step.
-    _has_refs = any(o.type == "Reference" for o in doc.objects.values())
-    _has_ref_section = any(
-        o.type == "Section" and "ref" in str(o.props.get("caption", "")).lower()
-        for o in doc.objects.values())
-    if not _has_refs and _has_ref_section:
-        try:
-            cmd_bibliography(pdf)
-            doc = load_model(_model_path(sc))
-        except Exception:                                 # noqa: BLE001
-            pass
+    doc = _auto_bibliography(pdf, sc, doc)
 
     from docops.base import OperatorConfig
     from docops.projectors.latex import LaTeXProjector
@@ -5714,15 +5730,7 @@ def cmd_beamer(pdf: Path, force: bool = False, compile: bool = False) -> str:
     if doc is None:
         return ("No docmodel to project. Build one first (`pdfdrill model`), "
                 "then re-run `pdfdrill beamer`.")
-    # auto-run the offline-safe bibliography enrichment (same as `latex`)
-    if not any(o.type == "Reference" for o in doc.objects.values()) and any(
-            o.type == "Section" and "ref" in str(o.props.get("caption", "")).lower()
-            for o in doc.objects.values()):
-        try:
-            cmd_bibliography(pdf)
-            doc = load_model(_model_path(sc))
-        except Exception:                                 # noqa: BLE001
-            pass
+    doc = _auto_bibliography(pdf, sc, doc)               # bibsource (arXiv) or heuristic
 
     from docops.base import OperatorConfig
     from docops.projectors.beamer import BeamerProjector
