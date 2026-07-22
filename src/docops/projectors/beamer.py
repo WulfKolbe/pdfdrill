@@ -92,9 +92,18 @@ class BeamerProjector(LaTeXProjector):
         cap = _escape_text(str(section.props.get("caption") or "").strip()) \
             if section is not None else ""
         out: list[str] = []
-        # a top-level section drives the TOC/navigation
-        if section is not None and int(section.props.get("level", 1)) <= 1 and cap:
-            out.append(f"\\section{{{cap}}}")
+        # drive the outline/navigation. Anchor to the SHALLOWEST level (like the
+        # article projection + fractal TOC): the model's top sections are often
+        # level 2 (no level-1), so a bare `level<=1` check emitted NO `\section`
+        # and left `\tableofcontents` empty. The shifted top → `\section`, its
+        # children → `\subsection` (so the Outline nests + numbers 1, 1.1, 2, …).
+        if section is not None and cap:
+            lvl = int(section.props.get("level", 1) or 1) \
+                - getattr(self, "_level_shift", 0)
+            if lvl <= 1:
+                out.append(f"\\section{{{cap}}}")
+            elif lvl == 2:
+                out.append(f"\\subsection{{{cap}}}")
         body = self._render_flow(content)
         if not any(b.strip() for b in body):
             body = ["  \\ " if not cap else ""]     # avoid an empty frame error

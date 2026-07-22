@@ -70,6 +70,20 @@ def test_output_extension():
     assert _proj().output_extension() == ".tex"
 
 
+def test_level2_top_sections_still_drive_outline_via_anchoring():
+    """A deck whose top sections are level 2 (no level-1) must still populate the
+    `\\tableofcontents` outline: the shallowest → `\\section`, its children →
+    `\\subsection`. Before anchoring, `level<=1` matched nothing → empty outline."""
+    d = Document(); d.meta["bibkey"] = "x"
+    d.add(DocObject(type="Section", props={"level": 2, "caption": "Introduction", "flow_index": 0}))
+    d.add(DocObject(type="Section", props={"level": 2, "caption": "Background", "flow_index": 1}))
+    d.add(DocObject(type="Section", props={"level": 3, "caption": "Prior Work", "flow_index": 2}))
+    tex = _proj().project(d)
+    assert "\\section{Introduction}" in tex and "\\section{Background}" in tex
+    assert "\\subsection{Prior Work}" in tex          # level 3 → subsection under its section
+    assert "\\subsection{Introduction}" not in tex
+
+
 def test_content_before_first_section_gets_a_frame():
     d = Document(); d.meta["bibkey"] = "x"
     d.add(DocObject(type="Paragraph", props={"text": "orphan intro", "flow_index": 0}))
