@@ -142,14 +142,21 @@ def _safe_title(t: str) -> str:
 
 
 def formula_preamble(order: list[str], dat_name: str) -> str:
-    """The preamble block: write the formula array to `<dat_name>` via
-    `filecontents*`, load it with `readarray`, and define `\\Expr{<index>}`."""
+    """The preamble block: write the formula array to `<dat_name>` via the
+    `filecontents*` ENVIRONMENT, load it with `readarray`, and define
+    `\\Expr{<index>}`.
+
+    The `filecontents` PACKAGE is obsolete — the environment is in the LaTeX
+    kernel (2019+), and loading the package prints an "obsolete" warning — so we
+    do not `\\usepackage{filecontents}`. `[overwrite]` regenerates the `.dat`
+    every run (the kernel default refuses to overwrite an existing file → a
+    stale array survives an edit)."""
     if not order:
         return ""
     body = "\n".join(order)
     return (
-        "\\usepackage{filecontents}\n"
-        f"\\begin{{filecontents*}}{{{dat_name}}}\n{body}\n\\end{{filecontents*}}\n"
+        f"\\begin{{filecontents*}}[overwrite]{{{dat_name}}}\n{body}\n"
+        "\\end{filecontents*}\n"
         "\\usepackage{readarray}\n"
         "\\readarraysepchar{\\par}\n"
         f"\\readdef{{{dat_name}}}{{\\MathData}}\n"
@@ -350,12 +357,53 @@ def citation_keys(doc: Document) -> list[str]:
 # ── stage 2: bibliography (\bibitem / thebibliography) ───────────────────────
 
 def _bib_escape(s: str) -> str:
-    """Escape the specials that appear in a bibliography entry (author/title).
-    Conservative — leaves `$ { } \\` for accents / math the BibTeX carries."""
-    for a, b in (("&", "\\&"), ("%", "\\%"), ("#", "\\#"), ("_", "\\_"),
-                 ("~", "\\textasciitilde{}")):
-        s = s.replace(a, b)
+    """Escape the specials in a bibliography/glossary entry (author/title). IDEMPOTENT:
+    only an UNescaped special is escaped (`(?<!\\)`), so an entry that already
+    carries `\\&`/`\\_` from the source `.bbl` is not double-escaped into `\\\\&`.
+    Leaves `$ { } \\` for accents / math the BibTeX carries."""
+    s = re.sub(r"(?<!\\)&", r"\\&", s)
+    s = re.sub(r"(?<!\\)%", r"\\%", s)
+    s = re.sub(r"(?<!\\)#", r"\\#", s)
+    s = re.sub(r"(?<!\\)_", r"\\_", s)
+    s = re.sub(r"(?<!\\)~", r"\\textasciitilde{}", s)
     return s
+
+
+def _balance_braces(s: str) -> str:
+    """Make `s` brace-balanced: drop a stray `}`, append `}` for each unmatched
+    `{`. Escaped braces (`\\{` / `\\}`) are literals, not grouping."""
+    depth, out, i, n = 0, [], 0, len(s)
+    while i < n:
+        c = s[i]
+        if c == "\\" and i + 1 < n and s[i + 1] in "{}":
+            out.append(s[i:i + 2]); i += 2; continue
+        if c == "{":
+            depth += 1
+        elif c == "}":
+            if depth == 0:
+                i += 1; continue                  # drop a stray closer
+            depth -= 1
+        out.append(c); i += 1
+    return "".join(out) + "}" * depth
+
+
+# a TRUNCATED accent (`Van Merri{\` ← `{\"e}`, `Manning {\{`, `Rockt{\`): a `{\`
+# whose control word is missing (followed by a space/brace/punctuation/EOF).
+_BROKEN_ACCENT = re.compile(r"\{\\(?=[\s{}(),.;:]|$)")
+
+
+def _sanitize_bib_body(s: str) -> str:
+    """Make a heuristic/OCR bibliography body COMPILE-SAFE, from the RAW body.
+    Such a body can carry a truncated accent that leaves an unbalanced brace
+    (`Van Merri{\\ (2014)`), OCR forced line breaks (`\\\\`), or an unescaped `&` —
+    all fatal in `thebibliography`. Order matters: collapse the `\\\\` breaks and
+    drop the broken accent FIRST, THEN escape specials (so a collapsed `\\\\&`
+    becomes ` &` → `\\&`, never a bare `&`), then balance braces."""
+    s = s.replace("\\\\", " ")                    # OCR forced line breaks first
+    s = _BROKEN_ACCENT.sub("", s)                 # truncated `{\` accent → drop
+    s = _bib_escape(s)                            # escape unescaped &/%/#/_/~
+    s = re.sub(r"[ \t]{2,}", " ", s).strip()
+    return _balance_braces(s)
 
 
 def _bibitem(ref) -> str:
@@ -370,7 +418,7 @@ def _bibitem(ref) -> str:
     title = str(p.get("title") or p.get("titlefield") or "").strip()
     body = " ".join(x for x in (author, f"({year})" if year else "", title) if x) \
         or str(p.get("raw_text") or "").strip() or key
-    return f"\\bibitem{{{key}}} {_bib_escape(body)}"
+    return f"\\bibitem{{{key}}} {_sanitize_bib_body(body)}"
 
 
 def bibliography_block(doc: Document) -> str:
@@ -382,7 +430,9 @@ def bibliography_block(doc: Document) -> str:
     items = [b for b in (_bibitem(r) for r in refs) if b]
     if not items:
         return ""
-    widest = max((str(r.props.get("citekey") or "") for r in refs), key=len, default="9")
+    # `\bibitem` here carries NO optional [label], so labels are auto-NUMBERED
+    # ([1]…[N]); the width arg must be the widest NUMBER, not a long citekey.
+    widest = "9" * len(str(len(items)))
     return ("\\begin{thebibliography}{%s}\n" % widest
             + "\n".join(items) + "\n\\end{thebibliography}")
 

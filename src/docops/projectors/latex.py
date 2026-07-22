@@ -27,8 +27,9 @@ _SECTION_CMDS = ["section", "section", "subsection", "subsubsection",
 
 _DEFAULT_PREAMBLE = (
     "\\documentclass[11pt]{article}\n"
-    "\\usepackage[utf8]{inputenc}\n"
-    "\\usepackage[T1]{fontenc}\n"
+    # Compiled with XELATEX (see cmd_latex): it is natively UTF-8, so NO
+    # inputenc/fontenc — `\\usepackage[utf8]{inputenc}` actively CLASHES with
+    # xelatex and the model can carry raw Unicode inputenc/pdflatex would reject.
     # amsmath/symb/fonts + bm (\bm), mathtools, xcolor/url (leaked commands),
     # booktabs/multirow (tables) — the packages a projected paper commonly needs.
     "\\usepackage{amsmath,amssymb,amsfonts,mathtools,bm}\n"

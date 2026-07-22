@@ -49,7 +49,7 @@ def test_duplicate_content_shares_one_slot():
 def test_preamble_is_filecontents_plus_readarray():
     order, _ = LP.formula_array(_doc_with_transclusions())
     pre = LP.formula_preamble(order, "DOC.formulas.dat")
-    assert "\\begin{filecontents*}{DOC.formulas.dat}" in pre
+    assert "\\begin{filecontents*}[overwrite]{DOC.formulas.dat}" in pre
     assert "\\end{filecontents*}" in pre
     assert "\\usepackage{readarray}" in pre
     assert "\\readarraysepchar{\\par}" in pre
@@ -278,6 +278,51 @@ def test_leaked_title_recovers_a_title_from_prose():
     assert LP.leaked_title("\\title{A Real Title}") == "A Real Title"
     assert LP.leaked_title("no title here") is None
     assert LP.leaked_title("\\title{}") is None
+
+
+def test_formula_preamble_drops_obsolete_filecontents_package():
+    """The `filecontents` PACKAGE is obsolete (the env is in the kernel), and the
+    default env refuses to overwrite a stale `.dat` — so no `\\usepackage{
+    filecontents}` and the env carries `[overwrite]`."""
+    pre = LP.formula_preamble(["a", "b"], "X.formulas.dat")
+    assert "\\usepackage{filecontents}" not in pre
+    assert "\\begin{filecontents*}[overwrite]{X.formulas.dat}" in pre
+    assert "\\usepackage{readarray}" in pre
+
+
+def test_bib_escape_is_idempotent_no_double_escape():
+    """An entry already carrying `\\&`/`\\_` from the source .bbl must not become
+    `\\\\&` (which our `\\\\`-collapse would then turn into a bare `&`)."""
+    assert LP._bib_escape("Speech \\& language") == "Speech \\& language"
+    assert LP._bib_escape("a & b") == "a \\& b"
+    assert LP._bib_escape(LP._bib_escape("a & b")) == "a \\& b"
+
+
+def _braces_balanced(s: str) -> bool:
+    return LP._balance_braces(s) == s
+
+
+def test_sanitize_bib_body_makes_broken_entries_compile_safe():
+    """The real 2002.08155 breakages: truncated accents leaving unbalanced braces,
+    OCR `\\\\` breaks, an unescaped `&`. Each must come out brace-balanced with no
+    bare `&`."""
+    import re as _re
+    cases = {
+        "Cho and Van Merri{\\ (2014) Learning": "Van Merri (2014)",
+        "Manning (2020) {\\{": "Manning (2020) {}",
+        "Rockt{\\ (2019) Language Models": "Rockt (2019)",
+    }
+    for raw, expect_sub in cases.items():
+        out = LP._sanitize_bib_body(raw)
+        assert _braces_balanced(out), out
+        assert expect_sub in out, (raw, out)
+    # \L accent (letter after {\) is kept and closed
+    out = LP._sanitize_bib_body("Kaiser, {\\L (2017) Attention")
+    assert "{\\L" in out and _braces_balanced(out)
+    # a bare `&` and an OCR `\\&` both end escaped, never bare
+    for raw in ("Speech & lang", "Speech \\\\& lang"):
+        out = LP._sanitize_bib_body(raw)
+        assert not _re.search(r"(?<!\\)&", out), (raw, out)
 
 
 def test_glossary_block_renders_acronyms():
