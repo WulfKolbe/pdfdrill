@@ -100,6 +100,13 @@ class LaTeXProjector(BaseProjector):
         transclusion ARRAY (`{{id||FO}}`→`\\Expr{i}`), the citation reference map
         (`[N]`→`\\cite`), and the References-section skip set."""
         key = str(doc.meta.get("bibkey") or "DOC")
+        # Anchor the SHALLOWEST section to `\section` (level 1), exactly like the
+        # fractal-index TOC. A paper whose top sections are level 2 (no `\section`
+        # in the model) would otherwise render `\subsection{Introduction}` →
+        # numbered 0.1; the shift makes it `\section{Introduction}` → 1.
+        levels = [int(o.props.get("level", 1) or 1)
+                  for o in doc.objects.values() if o.type == "Section"]
+        self._level_shift = (min(levels) - 1) if levels else 0
         self._order, self._title_index = _pipe.formula_array(doc)
         self._formula_preamble = _pipe.formula_preamble(
             self._order, f"{key}.formulas.dat")
@@ -198,8 +205,8 @@ class LaTeXProjector(BaseProjector):
     def _render(self, obj) -> str:
         t, p = obj.type, obj.props
         if t == "Section":
-            cmd = _SECTION_CMDS[max(1, min(len(_SECTION_CMDS) - 1,
-                                           int(p.get("level", 1))))]
+            lvl = int(p.get("level", 1) or 1) - getattr(self, "_level_shift", 0)
+            cmd = _SECTION_CMDS[max(1, min(len(_SECTION_CMDS) - 1, lvl))]
             cap = _escape_text(str(p.get("caption") or "").strip())
             if not cap:
                 return ""

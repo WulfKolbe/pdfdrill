@@ -57,6 +57,21 @@ def test_sections_paragraphs_equations():
     assert "\\label{eq:emc}" in tex
 
 
+def test_shallowest_section_anchors_to_section_not_subsection():
+    """A paper whose top sections are level 2 (no level-1 in the model) must
+    render its shallowest sections as `\\section` — else `\\subsection{Introduction}`
+    numbers as 0.1. Anchors like the fractal-index TOC; hierarchy preserved."""
+    d = Document()
+    d.meta["bibkey"] = "x"
+    d.add(DocObject(type="Section", props={"level": 2, "caption": "Introduction", "flow_index": 0}))
+    d.add(DocObject(type="Section", props={"level": 3, "caption": "Background", "flow_index": 1}))
+    d.add(DocObject(type="Section", props={"level": 2, "caption": "Method", "flow_index": 2}))
+    tex = _proj().project(d)
+    assert "\\section{Introduction}" in tex and "\\section{Method}" in tex   # level 2 → section
+    assert "\\subsection{Background}" in tex                                  # level 3 → subsection
+    assert "\\subsection{Introduction}" not in tex
+
+
 def test_section_caption_with_hash_is_single_escaped():
     """A section like 'Code Summarization on C#' must escape `#` ONCE — the old
     non-idempotent escape doubled an already-escaped `C\\#` into `C\\\\#` (a line
@@ -87,12 +102,16 @@ def test_prose_citep_and_percent_and_table_citep_normalized():
 
 
 def test_section_depth_maps_to_subsection():
+    # a level-2 section RELATIVE to a level-1 top section → \subsection
+    # (min-level anchoring: shift is 0 when a level-1 section is present).
     d = Document()
     d.meta["bibkey"] = "x"
     d.add(DocObject(type="Section", props={
-        "level": 2, "caption": "Details", "flow_index": 0}))
+        "level": 1, "caption": "Top", "flow_index": 0}))
+    d.add(DocObject(type="Section", props={
+        "level": 2, "caption": "Details", "flow_index": 1}))
     tex = _proj().project(d)
-    assert "\\subsection{Details}" in tex
+    assert "\\section{Top}" in tex and "\\subsection{Details}" in tex
 
 
 def test_output_extension_is_tex():
