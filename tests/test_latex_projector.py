@@ -111,3 +111,25 @@ def test_two_list_runs_split_by_a_paragraph_are_two_environments():
     d.add(DocObject(type="ListItem", props={"marker": "-", "content": "B", "flow_index": 2}))
     tex = _proj().project(d)
     assert tex.count("\\begin{itemize}") == 2
+
+
+def test_standalone_preamble_rejected_for_full_document():
+    """A model's latex_preamble can be a `standalone` class (used to CROP figures
+    in the SVG step). standalone typesets in a box → `\\section` errors 'Not
+    allowed in LR mode'. The full-document projection must NOT use it."""
+    d = Document(); d.meta["bibkey"] = "x"
+    d.meta["latex_preamble"] = ("\\documentclass[border=2pt,class=report]{standalone}\n"
+                                "\\usepackage{tikz}\n\\usepackage{amsmath}")
+    d.add(DocObject(type="Section", props={"level": 1, "caption": "Intro", "flow_index": 0}))
+    tex = _proj().project(d)
+    assert "{standalone}" not in tex
+    assert "\\documentclass" in tex and "article" in tex     # a real doc class
+    assert "\\section{Intro}" in tex
+
+
+def test_normal_article_preamble_is_kept():
+    d = Document(); d.meta["bibkey"] = "x"
+    d.meta["latex_preamble"] = "\\documentclass{article}\n\\usepackage{mymacros}"
+    d.add(DocObject(type="Paragraph", props={"text": "hi", "flow_index": 0}))
+    tex = _proj().project(d)
+    assert "\\usepackage{mymacros}" in tex          # author preamble kept

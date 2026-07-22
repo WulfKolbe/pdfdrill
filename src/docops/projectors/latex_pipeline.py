@@ -73,11 +73,31 @@ def sanitize_math(latex: str) -> str:
     return _MATH_UNICODE_RE.sub(lambda m: _MATH_UNICODE[m.group(0)], latex)
 
 
+# DISPLAY-only math environments — invalid inside inline math (`\ensuremath`,
+# which is what `\Expr` uses). A Formula carrying one is really a display equation
+# mis-classified; strip the env + alignment so `\Expr{i}` compiles (cramped but
+# valid) instead of erroring "Not allowed in LR mode".
+_DISPLAY_ENV = re.compile(
+    r"\\(?:begin|end)\{(?:aligned|split|gathered|gather\*?|align\*?|cases|"
+    r"array|equation\*?|multline\*?|eqnarray\*?)\}(?:\{[^}]*\})?")
+
+
+def _inline_safe(latex: str) -> str:
+    """Make a formula safe for INLINE math: strip display-only environments and
+    the alignment markers (`\\\\` line breaks, `&`) that error in LR mode."""
+    if "\\begin{" not in latex and "\\\\" not in latex and "&" not in latex:
+        return latex                                 # plain inline — untouched
+    latex = _DISPLAY_ENV.sub(" ", latex)
+    latex = latex.replace("\\\\", " \\; ").replace("&", " ")
+    return re.sub(r"\s+", " ", latex).strip()
+
+
 def _flatten(latex: str) -> str:
     """readarray splits entries on `\\par`, so each formula must be a SINGLE line —
-    collapse internal whitespace/newlines to one space — and any Unicode math
-    operator is normalised to a LaTeX macro (`sanitize_math`)."""
-    return sanitize_math(re.sub(r"\s+", " ", latex.strip()))
+    collapse internal whitespace/newlines to one space, normalise Unicode math
+    operators (`sanitize_math`), and make display-math inline-safe (`_inline_safe`)
+    so `\\Expr{i}` (inline `\\ensuremath`) never hits 'Not allowed in LR mode'."""
+    return _inline_safe(sanitize_math(re.sub(r"\s+", " ", latex.strip())))
 
 
 def formula_array(doc: Document) -> tuple[list[str], dict[str, int]]:
@@ -134,6 +154,24 @@ def resolve_transclusions(text: str, title_index: dict[str, int]) -> str:
             return f"\\Expr{{{idx}}}"
         return f"\\Expr{{{idx}}}"
     return _MARKER.sub(sub, text)
+
+
+def balance_math(text: str) -> str:
+    """Contain a runaway: extraction sometimes drops a closing `\\)` or `$`, and an
+    unclosed inline-math span then swallows everything up to the next `\\section`
+    ('Not allowed in LR mode'). Balance the delimiters PER BLOCK — append the
+    missing `\\)` / `$` — so a malformed span stays inside its own paragraph."""
+    opens = len(re.findall(r"\\\(", text))
+    closes = len(re.findall(r"\\\)", text))
+    if opens > closes:
+        text = text + "\\)" * (opens - closes)
+    elif closes > opens:
+        text = "\\(" * (closes - opens) + text
+    # `$` inline math: an odd count is unbalanced (ignore `\$` escaped dollars)
+    dollars = len(re.findall(r"(?<!\\)\$", text))
+    if dollars % 2:
+        text = text + "$"
+    return text
 
 
 def resolve_headings(line: str) -> str:

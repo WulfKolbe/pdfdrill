@@ -14,6 +14,8 @@ enriched LaTeX (acronyms/glossary/index, ORKG metadata) see `stex` / `scikgtex`.
 """
 from __future__ import annotations
 
+import re
+
 from docmodel.core import Document
 from ..base import BaseProjector
 from .common import flow_ordered_content, equation_label
@@ -95,11 +97,19 @@ class LaTeXProjector(BaseProjector):
     def _doc_preamble(self, meta) -> str:
         """A document-specific preamble captured by `injectlatex` (macros the
         equations need) wins; else a sane default. May be a plain string OR a dict
-        ({"expanded"/"standalone": …}); coerce to a usable string."""
+        ({"expanded"/"standalone": …}); coerce to a usable string.
+
+        A `standalone` preamble is REJECTED: it typesets the body in a box (LR
+        mode) for CROPPING figures in the SVG step, so `\\section` errors 'Not
+        allowed in LR mode' in a full document. Fall back to the article default."""
         pre = meta.get("latex_preamble")
         if isinstance(pre, dict):
             pre = pre.get("expanded") or pre.get("standalone") or pre.get("preamble")
-        return pre if isinstance(pre, str) and pre.strip() else _DEFAULT_PREAMBLE
+        if not (isinstance(pre, str) and pre.strip()):
+            return _DEFAULT_PREAMBLE
+        if re.search(r"\\documentclass\s*(\[[^\]]*\])?\s*\{\s*standalone\s*\}", pre):
+            return _DEFAULT_PREAMBLE                 # figure-crop preamble → not a document
+        return pre
 
     def _render_flow(self, items) -> list[str]:
         """Render a flat list of objects to LaTeX blocks, grouping consecutive
@@ -143,6 +153,9 @@ class LaTeXProjector(BaseProjector):
         ti = getattr(self, "_title_index", {})
         text = _pipe.resolve_transclusions(text, ti)
         text = _pipe.resolve_citations(text, getattr(self, "_ref_map", {}))
+        # contain any runaway inline math (a dropped `\)`/`$`) to THIS block, so
+        # it can't swallow the next \section ("Not allowed in LR mode").
+        text = _pipe.balance_math(text)
         return "\n".join(_pipe.resolve_headings(ln) for ln in text.split("\n"))
 
     def _render(self, obj) -> str:

@@ -189,3 +189,42 @@ def test_math_unicode_normalized_in_formula_array():
 
 def test_sanitize_math_leaves_normal_latex_untouched():
     assert LP.sanitize_math("\\frac{a}{b} - c") == "\\frac{a}{b} - c"
+
+
+def test_balance_math_contains_a_runaway_inline_math():
+    """Extraction can drop a closing `\\)` / `$`. Left as-is the unclosed inline
+    math runs away into the next section ('Not allowed in LR mode'). Balance it
+    PER BLOCK so the damage is contained."""
+    # missing \)
+    assert LP.balance_math("see \\(a+b and more") == "see \\(a+b and more\\)"
+    # 2 open, 1 close → append one \)
+    assert LP.balance_math("\\(x\\) then \\(y").endswith("\\)")
+    assert LP.balance_math("\\(x\\) then \\(y").count("\\)") == 2
+    # odd $ → append one $
+    out = LP.balance_math("inline $z math")
+    assert out.count("$") == 2 and out.endswith("$")
+    # already balanced → untouched
+    assert LP.balance_math("\\(a\\) and $b$") == "\\(a\\) and $b$"
+
+
+def test_display_formula_made_inline_safe_in_array():
+    """A Formula whose latex is a DISPLAY construct (aligned/split, `\\\\`, `&`)
+    can't be `\\ensuremath`'d inline via `\\Expr` — 'Not allowed in LR mode'. The
+    array entry strips the display env + alignment so it compiles inline."""
+    d = Document(); d.meta["bibkey"] = "DOC"
+    d.add(DocObject(type="Formula", id="DOC_FO0001", props={
+        "latex": "\\begin{aligned} a &= b \\\\ c &= d \\end{aligned}",
+        "flow_index": 1}))
+    order, _ = LP.formula_array(d)
+    assert "aligned" not in order[0]        # display env stripped
+    assert "&" not in order[0]              # alignment removed
+    assert "\\\\" not in order[0]           # line breaks removed
+    assert "a" in order[0] and "b" in order[0] and "d" in order[0]   # content kept
+
+
+def test_plain_inline_formula_untouched_by_inline_safe():
+    d = Document(); d.meta["bibkey"] = "DOC"
+    d.add(DocObject(type="Formula", id="DOC_FO0001",
+                    props={"latex": "x^2 + y^2", "flow_index": 1}))
+    order, _ = LP.formula_array(d)
+    assert order[0] == "x^2 + y^2"
