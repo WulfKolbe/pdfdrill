@@ -164,14 +164,14 @@ class LaTeXProjector(BaseProjector):
                 return f"\\begin{{abstract}}\n{text}\n\\end{{abstract}}"
             return text
         if t == "Equation":
-            latex = (p.get("latex") or "").strip()
+            latex = _pipe.sanitize_math((p.get("latex") or "").strip())
             if not latex:                                 # CDN-crop-only — nothing to typeset
                 return ""
             label = p.get("label") or equation_label(obj)
             lab = f"\n\\label{{{label}}}" if label else ""
             return f"\\begin{{equation}}\n{latex}{lab}\n\\end{{equation}}"
         if t == "Formula":
-            latex = (p.get("latex") or "").strip()
+            latex = _pipe.sanitize_math((p.get("latex") or "").strip())
             return f"${latex}$" if latex else ""
         if t == "Table":
             code = (p.get("latex_code") or "").strip()

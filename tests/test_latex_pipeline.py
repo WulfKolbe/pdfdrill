@@ -170,3 +170,22 @@ def test_reference_section_ids_covers_section_and_its_content():
     ids = LP.reference_section_ids(d)
     assert "SEC_REF" in ids and "P_REF1" in ids       # the section + its list
     assert "SEC_INTRO" not in ids and "P_BODY" not in ids   # real body untouched
+
+
+def test_math_unicode_normalized_in_formula_array():
+    """MathPix/OCR emit a Unicode minus U+2212 (and ×, ≤, ≥ …) INSIDE formula
+    LaTeX. In math mode xelatex can't render those without unicode-math, so they
+    must map to LaTeX macros / ASCII in the .dat array."""
+    d = Document(); d.meta["bibkey"] = "DOC"
+    d.add(DocObject(type="Formula", id="DOC_FO0001",
+                    props={"latex": "a − b", "flow_index": 1}))     # U+2212
+    d.add(DocObject(type="Formula", id="DOC_FO0002",
+                    props={"latex": "x × y ≤ z", "flow_index": 2}))  # × ≤
+    order, _ = LP.formula_array(d)
+    assert "−" not in order[0] and order[0] == "a - b"
+    assert "\\times" in order[1] and "\\leq" in order[1]
+    assert "×" not in order[1] and "≤" not in order[1]
+
+
+def test_sanitize_math_leaves_normal_latex_untouched():
+    assert LP.sanitize_math("\\frac{a}{b} - c") == "\\frac{a}{b} - c"

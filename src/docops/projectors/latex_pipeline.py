@@ -42,10 +42,42 @@ _TEX_SECTION = re.compile(r"^\\(sub)*section\*?\{")
 # user's filecontents+readarray idiom. Deduped by content so identical math
 # shares one slot.
 
+# MathPix / OCR emit Unicode math operators INSIDE the LaTeX. In math mode these
+# are NOT rendered by xelatex/pdflatex without unicode-math — the classic one is
+# U+2212 (a "minus" that isn't ASCII `-`). Map them to LaTeX macros / ASCII.
+_MATH_UNICODE = {
+    "−": "-", "–": "-", "—": "-", "×": "\\times ",
+    "÷": "\\div ", "±": "\\pm ", "∓": "\\mp ",
+    "≤": "\\leq ", "≥": "\\geq ", "≠": "\\neq ",
+    "≈": "\\approx ", "≡": "\\equiv ", "∞": "\\infty ",
+    "∑": "\\sum ", "∏": "\\prod ", "∫": "\\int ",
+    "√": "\\sqrt ", "∂": "\\partial ", "∇": "\\nabla ",
+    "∈": "\\in ", "∉": "\\notin ", "⊂": "\\subset ",
+    "⊆": "\\subseteq ", "∪": "\\cup ", "∩": "\\cap ",
+    "→": "\\to ", "⇒": "\\Rightarrow ", "⇔": "\\Leftrightarrow ",
+    "∀": "\\forall ", "∃": "\\exists ", "·": "\\cdot ",
+    "…": "\\dots ", "°": "^{\\circ}",
+    "α": "\\alpha ", "β": "\\beta ", "γ": "\\gamma ",
+    "δ": "\\delta ", "ε": "\\epsilon ", "λ": "\\lambda ",
+    "μ": "\\mu ", "π": "\\pi ", "σ": "\\sigma ",
+    "φ": "\\phi ", "ω": "\\omega ", "Δ": "\\Delta ",
+    "Σ": "\\Sigma ", "Ω": "\\Omega ",
+}
+_MATH_UNICODE_RE = re.compile("|".join(re.escape(k) for k in _MATH_UNICODE))
+
+
+def sanitize_math(latex: str) -> str:
+    """Replace Unicode math operators (U+2212 minus, ×, ≤, Greek, …) with their
+    LaTeX macros, so the formula compiles in math mode without `unicode-math`.
+    Plain LaTeX is untouched."""
+    return _MATH_UNICODE_RE.sub(lambda m: _MATH_UNICODE[m.group(0)], latex)
+
+
 def _flatten(latex: str) -> str:
     """readarray splits entries on `\\par`, so each formula must be a SINGLE line —
-    collapse internal whitespace/newlines to one space."""
-    return re.sub(r"\s+", " ", latex.strip())
+    collapse internal whitespace/newlines to one space — and any Unicode math
+    operator is normalised to a LaTeX macro (`sanitize_math`)."""
+    return sanitize_math(re.sub(r"\s+", " ", latex.strip()))
 
 
 def formula_array(doc: Document) -> tuple[list[str], dict[str, int]]:
