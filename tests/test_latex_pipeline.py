@@ -244,3 +244,30 @@ def test_bibitem_emitted_even_with_bibtex_field():
     assert "\\bibitem{scholl2001objects}" in bib
     assert "Scholl, Brian J" in bib and "(2001)" in bib
     assert "\\&" in bib and "\\_" in bib             # specials escaped
+
+
+def test_clean_prose_strips_leaked_bibliography_commands():
+    """Source `\\bibliography{emnlp2020}` / `\\bibliographystyle{acl_natbib}`
+    leaked into prose try to load a missing .bib — the thebibliography replaces
+    them, so strip them."""
+    t = "thanks.\n\\bibliography{emnlp2020}\n\\bibliographystyle{acl_natbib}\nmore"
+    out = LP.clean_prose(t)
+    assert "\\bibliography{" not in out and "\\bibliographystyle{" not in out
+    assert "thanks." in out and "more" in out
+
+
+def test_clean_prose_normalizes_ligatures():
+    assert LP.clean_prose("the ﬁrst conﬁguration") == "the first configuration"
+    assert LP.clean_prose("eﬀective ﬂow") == "effective flow"
+
+
+def test_glossary_block_renders_acronyms():
+    """Acronyms → a single-pass `description` list (Acronyms section), specials
+    escaped. Empty records → empty string."""
+    recs = [("NLP", "natural language processing"), ("R&D", "research & dev")]
+    out = LP.glossary_block(recs)
+    assert "\\section*{Acronyms}" in out
+    assert "\\begin{description}" in out and "\\end{description}" in out
+    assert "\\item[NLP] natural language processing" in out
+    assert "\\&" in out                              # specials escaped
+    assert LP.glossary_block([]) == ""

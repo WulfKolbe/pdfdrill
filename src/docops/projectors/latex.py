@@ -29,7 +29,10 @@ _DEFAULT_PREAMBLE = (
     "\\documentclass[11pt]{article}\n"
     "\\usepackage[utf8]{inputenc}\n"
     "\\usepackage[T1]{fontenc}\n"
-    "\\usepackage{amsmath,amssymb,graphicx,booktabs,hyperref}\n"
+    # amsmath/symb/fonts + bm (\bm), mathtools, xcolor/url (leaked commands),
+    # booktabs/multirow (tables) — the packages a projected paper commonly needs.
+    "\\usepackage{amsmath,amssymb,amsfonts,mathtools,bm}\n"
+    "\\usepackage{graphicx,booktabs,multirow,xcolor,url,hyperref}\n"
 )
 
 
@@ -69,6 +72,11 @@ class LaTeXProjector(BaseProjector):
             out.append("\\maketitle")
         out.append("")
 
+        # STAGE 3: the Acronyms list (front matter)
+        gloss = _pipe.glossary_block(self._acronyms)
+        if gloss:
+            out += [gloss, ""]
+
         items = [o for o in flow_ordered_content(doc) if o.id not in self._skip_ids]
         out += self._render_flow(items)
 
@@ -93,6 +101,16 @@ class LaTeXProjector(BaseProjector):
             self._order, f"{key}.formulas.dat")
         self._ref_map = _pipe.reference_map(doc)
         self._skip_ids = _pipe.reference_section_ids(doc) if self._ref_map else set()
+        # STAGE 3: acronyms / glossary from the named-concept layer (lazy — the
+        # `semantic` package; degrade to none if unavailable).
+        self._acronyms: list = []
+        try:
+            from semantic import concepts as _concepts
+            self._acronyms = [(r.get("name"), r.get("expansion"))
+                              for r in _concepts.concept_records(doc)
+                              if r.get("name") and r.get("expansion")]
+        except Exception:                                 # noqa: BLE001
+            self._acronyms = []
 
     def _doc_preamble(self, meta) -> str:
         """A document-specific preamble captured by `injectlatex` (macros the
@@ -151,6 +169,7 @@ class LaTeXProjector(BaseProjector):
         (readarray lookup), leaked Markdown headings → `\\section`. Line-wise so a
         heading mid-paragraph still converts."""
         ti = getattr(self, "_title_index", {})
+        text = _pipe.clean_prose(text)                # ligatures + leaked \bibliography
         text = _pipe.resolve_transclusions(text, ti)
         text = _pipe.resolve_citations(text, getattr(self, "_ref_map", {}))
         # contain any runaway inline math (a dropped `\)`/`$`) to THIS block, so

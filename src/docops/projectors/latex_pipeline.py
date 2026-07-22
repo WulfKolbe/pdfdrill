@@ -156,6 +156,25 @@ def resolve_transclusions(text: str, title_index: dict[str, int]) -> str:
     return _MARKER.sub(sub, text)
 
 
+# Ligatures the PDF text layer emits as single codepoints — decompose so the
+# font doesn't have to carry them (and word search / spell works).
+_LIGATURES = {"ﬁ": "fi", "ﬂ": "fl", "ﬀ": "ff", "ﬃ": "ffi", "ﬄ": "ffl",
+              "ﬅ": "ft", "ﬆ": "st"}
+_LIG_RE = re.compile("|".join(_LIGATURES))
+# Source LaTeX commands that leak into prose but must NOT survive projection: a
+# bibliography is emitted as a `thebibliography` block, so a `\bibliography{db}` /
+# `\bibliographystyle{s}` would try to load a missing .bib.
+_LEAKED_CMD = re.compile(r"\\bibliography(?:style)?\s*\{[^}]*\}")
+
+
+def clean_prose(text: str) -> str:
+    """Normalise prose before it is emitted: expand ligatures and strip leaked
+    source-LaTeX bibliography commands (the projection owns the bibliography)."""
+    text = _LIG_RE.sub(lambda m: _LIGATURES[m.group(0)], text)
+    text = _LEAKED_CMD.sub("", text)
+    return text
+
+
 def balance_math(text: str) -> str:
     """Contain a runaway: extraction sometimes drops a closing `\\)` or `$`, and an
     unclosed inline-math span then swallows everything up to the next `\\section`
@@ -364,3 +383,20 @@ def dump_stages(stages: dict, out_dir: Path) -> list[Path]:
             p.write_text(str(data), encoding="utf-8")
         written.append(p)
     return written
+
+
+# ── stage 3: acronyms / glossary (from the named-concept layer) ──────────────
+
+def glossary_block(records) -> str:
+    """An `Acronyms` section as a `description` list (single-pass — no
+    `makeglossaries`). `records` is `[(name, expansion), …]` from the concept
+    layer; empty → empty string."""
+    items = [(str(n).strip(), str(e).strip()) for n, e in records
+             if str(n).strip() and str(e).strip()]
+    if not items:
+        return ""
+    lines = ["\\section*{Acronyms}", "\\begin{description}"]
+    for name, exp in items:
+        lines.append(f"  \\item[{_bib_escape(name)}] {_bib_escape(exp)}")
+    lines.append("\\end{description}")
+    return "\n".join(lines)
