@@ -106,11 +106,15 @@ def formula_array(doc: Document) -> tuple[list[str], dict[str, int]]:
     Ordered by object title so the array is stable across builds; deduped by
     (flattened) content so an expression used many times shares ONE array slot.
     The index map is what the body resolver rewrites each `{{id||FO}}` into."""
+    bibkey = str(doc.meta.get("bibkey") or "DOC")
     order: list[str] = []
     by_content: dict[str, int] = {}          # flattened latex → 1-based index
     title_index: dict[str, int] = {}
+    # FLOW order (not obj.id) so the `<bibkey>_FO<NNNN>` numbering matches the
+    # source builder's, which numbers by first appearance in the text.
     objs = [o for o in doc.objects.values() if o.type in ("Formula", "Equation")]
-    objs.sort(key=lambda o: o.id)
+    objs.sort(key=lambda o: (o.props.get("flow_index", 0), o.id))
+    fo_no = eq_no = 0
     for obj in objs:
         latex = _flatten(obj.props.get("latex") or "")
         if not latex:
@@ -118,10 +122,23 @@ def formula_array(doc: Document) -> tuple[list[str], dict[str, int]]:
         idx = by_content.get(latex)
         if idx is None:
             order.append(latex)
-            idx = len(order)                 # 1-based
+            idx = len(order)                 # 1-based array position
             by_content[latex] = idx
-        title_index[obj.id] = idx
+        title_index[obj.id] = idx            # markers keyed by the object id
+        # AND by the transclusion TITLE the source builder / tiddler projector
+        # uses (`<bibkey>_FO<NNNN>` / `_EQ<NNNN>`, per-type, by first appearance).
+        if obj.type == "Formula":
+            fo_no += 1
+            title_index[_safe_title(f"{bibkey}_FO{fo_no:04d}")] = idx
+        else:
+            eq_no += 1
+            title_index[_safe_title(f"{bibkey}_EQ{eq_no:04d}")] = idx
     return order, title_index
+
+
+def _safe_title(t: str) -> str:
+    """Match the source builder's title sanitisation (`[^A-Za-z0-9_\\-.]`→`_`)."""
+    return re.sub(r"[^A-Za-z0-9_\-.]", "_", t)
 
 
 def formula_preamble(order: list[str], dat_name: str) -> str:
@@ -147,11 +164,16 @@ def resolve_transclusions(text: str, title_index: dict[str, int]) -> str:
     unknown id degrades to a readable placeholder, never raw `{{…}}`."""
     def sub(m: re.Match) -> str:
         title, tpl = m.group(1), m.group(2)
+        if tpl == "CIT":
+            # a citation transclusion `{{<bibkey>_REF_<citekey>||CIT}}` — the
+            # citekey is the tail; emit `\cite{<citekey>}` (matches the \bibitem).
+            for sep in ("_REF_", "_CIT_", "_BIB_"):
+                if sep in title:
+                    return f"\\cite{{{title.split(sep, 1)[-1]}}}"
+            return f"\\cite{{{title}}}"
         idx = title_index.get(title)
         if idx is None:
             return f"(?{title})"                      # unknown — readable, no braces
-        if tpl in ("FO", "FREF"):
-            return f"\\Expr{{{idx}}}"
         return f"\\Expr{{{idx}}}"
     return _MARKER.sub(sub, text)
 

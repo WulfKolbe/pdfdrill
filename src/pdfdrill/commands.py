@@ -5604,6 +5604,31 @@ def _xelatex_compile(main_tex: Path) -> "tuple[bool, str]":
             else "xelatex produced no PDF (see the .log in the env dir)")
 
 
+def _prefer_arxiv_source(pdf: Path, sc, key: str, doc, model_path: Path):
+    """When the model was built from the (flawed) PDF text layer but the arXiv
+    LaTeX SOURCE is available, REBUILD from the author's `.tex` — clean columns,
+    real `\\cite`, proper structure. "If you have LaTeX from arXiv, improve it,
+    don't ignore it." Rebuilds + persists the source model (better for every
+    command), then returns the reloaded doc. No source / not arXiv → unchanged."""
+    src = str(doc.meta.get("source") or "")
+    if "latex" in src or "source" in src:           # already source-built
+        return doc
+    if not _arxiv_id_for(pdf, sc):                  # not an arXiv doc
+        return doc
+    try:
+        built = _build_arxiv_source_model(pdf, sc, key, model_path)
+    except Exception:                                 # noqa: BLE001
+        built = None
+    if built and model_path.exists():
+        reloaded = load_model(model_path)
+        if reloaded is not None and any(reloaded.objects.values()):
+            if not str(reloaded.meta.get("source") or ""):
+                reloaded.meta["source"] = "latex-source"   # so we don't rebuild again
+                save_model(model_path, reloaded)
+            return reloaded
+    return doc
+
+
 def _auto_bibliography(pdf: Path, sc, doc):
     """Populate References when a projection needs them and there are none yet —
     both offline-safe: the AUTHOR's gold `.bbl`/`.bib` from the arXiv e-print
@@ -5668,6 +5693,7 @@ def cmd_latex(pdf: Path, force: bool = False, compile: bool = False,
         return ("No docmodel to project. Build one first (`pdfdrill model`), "
                 "then re-run `pdfdrill latex`.")
 
+    doc = _prefer_arxiv_source(pdf, sc, key, doc, model_path)   # arXiv .tex → improve it
     doc = _auto_bibliography(pdf, sc, doc)
 
     from docops.base import OperatorConfig
@@ -5730,6 +5756,7 @@ def cmd_beamer(pdf: Path, force: bool = False, compile: bool = False) -> str:
     if doc is None:
         return ("No docmodel to project. Build one first (`pdfdrill model`), "
                 "then re-run `pdfdrill beamer`.")
+    doc = _prefer_arxiv_source(pdf, sc, key, doc, model_path)   # arXiv .tex → improve it
     doc = _auto_bibliography(pdf, sc, doc)               # bibsource (arXiv) or heuristic
 
     from docops.base import OperatorConfig

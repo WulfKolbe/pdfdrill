@@ -271,3 +271,13 @@ def test_glossary_block_renders_acronyms():
     assert "\\item[NLP] natural language processing" in out
     assert "\\&" in out                              # specials escaped
     assert LP.glossary_block([]) == ""
+
+
+def test_cit_marker_becomes_cite():
+    """A source-built model transcludes citations as `{{<bibkey>_REF_<citekey>||CIT}}`
+    — resolve to `\\cite{<citekey>}` (the `\\bibitem` uses the same citekey)."""
+    out = LP.resolve_transclusions(
+        "ELMo {{2002.08155_REF_peters2018deep||CIT}}, GPT {{2002.08155_REF_radford||CIT}}",
+        {})
+    assert out == "ELMo \\cite{peters2018deep}, GPT \\cite{radford}"
+    assert "{{" not in out and "(?" not in out       # not left as unknown
