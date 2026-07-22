@@ -280,6 +280,26 @@ def test_leaked_title_recovers_a_title_from_prose():
     assert LP.leaked_title("\\title{}") is None
 
 
+def test_normalize_cite_commands_maps_natbib_to_cite():
+    """`\\citep`/`\\citet`/`\\parencite`/… are undefined (no natbib) — normalise to
+    `\\cite`, dropping optional [pre]/[post] args, keeping the keys."""
+    assert LP.normalize_cite_commands("see \\citep{koehn2007moses}") == "see \\cite{koehn2007moses}"
+    assert LP.normalize_cite_commands("\\citet[p.5]{a,b}") == "\\cite{a,b}"
+    assert LP.normalize_cite_commands("\\parencite{x} \\autocite{y}") == "\\cite{x} \\cite{y}"
+    assert LP.normalize_cite_commands("\\cite{plain}") == "\\cite{plain}"   # unchanged
+
+
+def test_escape_prose_specials_escapes_text_not_math():
+    """A bare `%` comments the line; `C#`/`R&D` error. Escape them in text, but
+    leave a math span (`$…$`) — subscripts / `&` alignment — untouched. Idempotent."""
+    assert LP.escape_prose_specials("15% of tokens") == "15\\% of tokens"
+    assert LP.escape_prose_specials("a C# snippet") == "a C\\# snippet"
+    assert LP.escape_prose_specials("R&D program") == "R\\&D program"
+    assert LP.escape_prose_specials("already C\\# ok") == "already C\\# ok"   # idempotent
+    # math span protected: the `&`/`_` inside $…$ must survive
+    assert LP.escape_prose_specials("see $x_i & y$ here") == "see $x_i & y$ here"
+
+
 def test_formula_preamble_drops_obsolete_filecontents_package():
     """The `filecontents` PACKAGE is obsolete (the env is in the kernel), and the
     default env refuses to overwrite a stale `.dat` — so no `\\usepackage{

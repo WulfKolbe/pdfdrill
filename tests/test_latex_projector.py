@@ -57,6 +57,35 @@ def test_sections_paragraphs_equations():
     assert "\\label{eq:emc}" in tex
 
 
+def test_section_caption_with_hash_is_single_escaped():
+    """A section like 'Code Summarization on C#' must escape `#` ONCE — the old
+    non-idempotent escape doubled an already-escaped `C\\#` into `C\\\\#` (a line
+    break + bare `#`, fatal)."""
+    d = Document()
+    d.meta["bibkey"] = "x"
+    d.add(DocObject(type="Section", props={
+        "level": 3, "caption": "Code Summarization on C\\#", "flow_index": 0}))
+    tex = _proj().project(d)
+    assert "C\\#}" in tex and "C\\\\#" not in tex
+
+
+def test_prose_citep_and_percent_and_table_citep_normalized():
+    d = Document()
+    d.meta["bibkey"] = "x"
+    d.add(DocObject(type="Paragraph", props={
+        "text": "Following \\citep{devlin2018bert}, 15% of tokens for C# code.",
+        "flow_index": 0}))
+    d.add(DocObject(type="Table", props={
+        "latex_code": "\\begin{tabular}{lc}\nMOSES \\citep{koehn2007moses} & 11.57 \\\\\n\\end{tabular}",
+        "flow_index": 1}))
+    tex = _proj().project(d)
+    assert "\\cite{devlin2018bert}" in tex and "\\citep" not in tex   # prose + table
+    assert "15\\% of tokens" in tex and "C\\# code" in tex            # escaped
+    assert "\\citep{koehn2007moses}" not in tex                       # table normalised
+    assert "11.57 \\\\" in tex                                        # table `&`/`\\` intact
+    assert "MOSES \\cite{koehn2007moses} & 11.57" in tex
+
+
 def test_section_depth_maps_to_subsection():
     d = Document()
     d.meta["bibkey"] = "x"

@@ -218,12 +218,49 @@ def leaked_title(text: str) -> str | None:
     return m.group(1).strip() if m and m.group(1).strip() else None
 
 
+# every natbib / biblatex cite variant → plain `\cite` (the projection's
+# bibliography is a numeric `thebibliography`, and the default preamble does NOT
+# load natbib, so `\citep`/`\citet`/`\parencite`/… would be UNDEFINED). Optional
+# `[pre]`/`[post]` args are dropped; the `{keys}` are kept.
+_CITE_CMD = re.compile(
+    r"\\(?:[Cc]ite(?:t|p|al[tp]|author|year(?:par)?|num)?|parencite|textcite"
+    r"|autocite|smartcite|footcite|supercite)\*?\s*(?:\[[^\]]*\]){0,2}\s*(\{[^}]*\})")
+
+
+def normalize_cite_commands(text: str) -> str:
+    """Rewrite `\\citep[..]{k}` / `\\citet{k}` / `\\parencite{k}` / … → `\\cite{k}`."""
+    return _CITE_CMD.sub(lambda m: "\\cite" + m.group(1), text)
+
+
+# inline math spans to PROTECT from prose-special escaping (subscripts, `&`
+# alignment inside `$…$` must survive).
+_MATH_SPAN = re.compile(r"(\$\$.*?\$\$|\\\[.*?\\\]|\$[^$]*\$|\\\(.*?\\\))", re.DOTALL)
+
+
+def escape_prose_specials(text: str) -> str:
+    """Escape `#`, `%`, `&` in the NON-math parts of prose — each is illegal in
+    text mode and never needed literally here (a bare `%` comments the rest of the
+    line; `C#` / `R&D` error). IDEMPOTENT (`(?<!\\\\)`), and math spans (`$…$`,
+    `\\(…\\)`) are left untouched so subscripts / alignment survive. `_ ^ { } $ \\`
+    are deliberately NOT escaped (they carry the model's inline LaTeX)."""
+    parts = _MATH_SPAN.split(text)
+    for i in range(0, len(parts), 2):             # even indices = non-math text
+        seg = parts[i]
+        seg = re.sub(r"(?<!\\)#", r"\\#", seg)
+        seg = re.sub(r"(?<!\\)%", r"\\%", seg)
+        seg = re.sub(r"(?<!\\)&", r"\\&", seg)
+        parts[i] = seg
+    return "".join(parts)
+
+
 def clean_prose(text: str) -> str:
-    """Normalise prose before it is emitted: expand ligatures and strip leaked
-    source-LaTeX bibliography commands (the projection owns the bibliography)."""
+    """Normalise prose before it is emitted: expand ligatures, strip leaked
+    source-LaTeX bibliography / structure commands (the projection owns those),
+    and normalise natbib/biblatex cite commands to `\\cite`."""
     text = _LIG_RE.sub(lambda m: _LIGATURES[m.group(0)], text)
     text = _LEAKED_CMD.sub("", text)
     text = _STRUCT_CMD.sub("", text)          # leaked \maketitle/\begin{document}/…
+    text = normalize_cite_commands(text)      # \citep/\citet/… → \cite
     return text
 
 

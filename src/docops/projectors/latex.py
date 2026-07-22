@@ -38,12 +38,15 @@ _DEFAULT_PREAMBLE = (
 
 
 def _escape_text(s: str) -> str:
-    """Escape the LaTeX specials that appear in PROSE. Deliberately conservative:
-    `$`, `\\`, `{`, `}`, `^` are left alone so inline math / already-LaTeX spans
-    the model carries survive (the model's prose keeps `$…$` inline math)."""
-    for a, b in (("&", "\\&"), ("%", "\\%"), ("#", "\\#"), ("_", "\\_"),
-                 ("~", "\\textasciitilde{}")):
-        s = s.replace(a, b)
+    """Escape the LaTeX specials in a caption/title/author. IDEMPOTENT (`(?<!\\\\)`):
+    an already-escaped `C\\#` from the source is NOT doubled into `C\\\\#` (which is
+    a line break + a bare `#` → error). `$`, `\\`, `{`, `}`, `^` are left alone so
+    inline math / already-LaTeX spans the model carries survive."""
+    s = re.sub(r"(?<!\\)&", r"\\&", s)
+    s = re.sub(r"(?<!\\)%", r"\\%", s)
+    s = re.sub(r"(?<!\\)#", r"\\#", s)
+    s = re.sub(r"(?<!\\)_", r"\\_", s)
+    s = re.sub(r"(?<!\\)~", r"\\textasciitilde{}", s)
     return s
 
 
@@ -187,7 +190,10 @@ class LaTeXProjector(BaseProjector):
         # contain any runaway inline math (a dropped `\)`/`$`) to THIS block, so
         # it can't swallow the next \section ("Not allowed in LR mode").
         text = _pipe.balance_math(text)
-        return "\n".join(_pipe.resolve_headings(ln) for ln in text.split("\n"))
+        # headings FIRST (so a leaked `## X` still matches — escaping `#` would
+        # break it), THEN escape prose specials (`#`/`%`/`&` outside math).
+        lines = (_pipe.resolve_headings(ln) for ln in text.split("\n"))
+        return "\n".join(_pipe.escape_prose_specials(ln) for ln in lines)
 
     def _render(self, obj) -> str:
         t, p = obj.type, obj.props
@@ -220,7 +226,9 @@ class LaTeXProjector(BaseProjector):
         if t == "Table":
             code = (p.get("latex_code") or "").strip()
             if code:
-                return code
+                # a tabular can carry `\citep{…}` (undefined here) — normalise to
+                # `\cite`; keep the table's own `&`/`\\` untouched.
+                return _pipe.normalize_cite_commands(code)
             raw = (p.get("raw_text") or "").strip()
             return f"% table p{p.get('page')}\n\\begin{{verbatim}}\n{raw}\n\\end{{verbatim}}" if raw else ""
         if t in ("Picture", "Diagram"):
