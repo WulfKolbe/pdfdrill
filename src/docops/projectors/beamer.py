@@ -35,7 +35,19 @@ class BeamerProjector(LaTeXProjector):
     def project(self, doc: Document) -> str:
         meta = doc.meta
         self._prepare(doc)                        # transclusion array / cite map / skips
-        out: list[str] = [_BEAMER_PREAMBLE, ""]
+
+        # content frames first (so the preamble knows which graphics packages the
+        # frames need); orphan content before the first Section gets its own frame.
+        items = [o for o in flow_ordered_content(doc) if o.id not in self._skip_ids]
+        frames: list[str] = []
+        for section, content in self._group_by_section(items):
+            frames += self._frame(section, content)
+
+        out: list[str] = [_BEAMER_PREAMBLE]
+        gfx = _pipe.graphics_preamble(doc, "\n".join(frames))
+        if gfx:
+            out += ["% graphics setup (tikz/pgfplots) carried from the source:", gfx]
+        out.append("")
         if self._formula_preamble:                # the readarray formula array
             out += ["% formula transclusion array (filecontents + readarray):",
                     self._formula_preamble, ""]
@@ -56,11 +68,7 @@ class BeamerProjector(LaTeXProjector):
         # outline frame
         out += ["\\begin{frame}{Outline}", "  \\tableofcontents", "\\end{frame}", ""]
 
-        # content frames: one per Section (allowframebreaks); orphan content
-        # before the first Section gets its own frame so nothing sits loose.
-        items = [o for o in flow_ordered_content(doc) if o.id not in self._skip_ids]
-        for section, content in self._group_by_section(items):
-            out += self._frame(section, content)
+        out += frames
 
         # References frame (the bibliography lives on its own slide)
         bib = _pipe.bibliography_block(doc)

@@ -526,6 +526,96 @@ def bib_database(doc: Document) -> str:
     return "\n\n".join(out)
 
 
+# ── graphics preamble (tikz / pgfplots / listings setup) ─────────────────────
+
+def _balanced_block(text: str, cmd: str) -> list[str]:
+    """Every `\\cmd` in `text` with ALL its consecutive `{ … }` / `[ … ]` argument
+    groups (brace-balanced, may span lines / nest). Captures multi-arg commands
+    whole: `\\definecolor{name}{HTML}{4A7C9B}` (3 groups), `\\usetikzlibrary{…}`
+    (1), `\\pgfplotsset{…}`."""
+    out, i, tok, n = [], 0, "\\" + cmd, len(text)
+    while True:
+        j = text.find(tok, i)
+        if j == -1:
+            return out
+        k = j + len(tok)
+        if k < n and text[k].isalpha():           # \pgfplotssetfoo ≠ \pgfplotsset
+            i = k; continue
+        # consume every consecutive {…}/[…] group (skipping intra-whitespace)
+        while True:
+            m = k
+            while m < n and text[m] in " \t\n":
+                m += 1
+            if m >= n or text[m] not in "{[":
+                break
+            close = "}" if text[m] == "{" else "]"
+            openc = text[m]
+            depth = 0
+            while m < n:
+                if text[m] == openc:
+                    depth += 1
+                elif text[m] == close:
+                    depth -= 1
+                    if depth == 0:
+                        m += 1; break
+                m += 1
+            k = m
+        if k > j + len(tok):                      # at least one arg group captured
+            out.append(text[j:k])
+        i = k if k > j else j + len(tok)
+
+
+def graphics_preamble(doc, body: str) -> str:
+    """Setup lines the PROJECTED body needs but the default article preamble
+    lacks — pulled from the source model's captured `standalone` preamble
+    (`doc.meta['latex_preamble']['standalone']`, curated by the source builder to
+    keep exactly tikz/pgfplots/definecolor/…). A projected paper whose Diagram/
+    Table `latex_code` holds a `tikzpicture` / `\\addplot` / `lstlisting` would
+    otherwise error 'Environment tikzpicture undefined' / '\\addplot undefined'.
+
+    Only the setup the body ACTUALLY uses is injected (packages gated on the body;
+    `\\definecolor`/`\\usetikzlibrary`/`\\pgfplotsset`/`\\tikzset`/`\\lstset` always
+    carried when a tikz/pgfplots/listings need is present, since a diagram may
+    reference a named colour/library/style)."""
+    pre = getattr(doc, "meta", {}).get("latex_preamble")
+    sa = pre.get("standalone", "") if isinstance(pre, dict) else ""
+    if not sa:
+        return ""
+    needs_tikz = "\\begin{tikzpicture}" in body or "\\tikz" in body
+    needs_pgf = "\\addplot" in body or "\\begin{axis}" in body \
+        or "\\begin{semilogxaxis}" in body or "\\begin{loglogaxis}" in body
+    needs_lst = "\\begin{lstlisting}" in body or "\\lstinline" in body
+    if not (needs_tikz or needs_pgf or needs_lst):
+        return ""
+
+    lines: list[str] = []
+    seen: set[str] = set()
+
+    def add(s: str) -> None:
+        s = s.strip()
+        if s and s not in seen:
+            seen.add(s); lines.append(s)
+
+    # package loads (gated by need; pgfplots pulls tikz in)
+    if needs_tikz or needs_pgf:
+        add("\\usepackage{tikz}")
+    if needs_pgf:
+        add("\\usepackage{pgfplots}")
+    if needs_lst:
+        add("\\usepackage{listings}")
+    # setup blocks from the source preamble (only when a graphics need exists)
+    if needs_tikz or needs_pgf:
+        for cmd in ("usetikzlibrary", "pgfplotsset", "tikzset", "definecolor",
+                    "tikzstyle"):
+            for blk in _balanced_block(sa, cmd):
+                add(" ".join(blk.split()))         # collapse multi-line to one
+    if needs_lst:
+        for cmd in ("lstset", "lstdefinestyle", "definecolor"):
+            for blk in _balanced_block(sa, cmd):
+                add(" ".join(blk.split()))
+    return "\n".join(lines)
+
+
 # ── driver: run + dump the stages ────────────────────────────────────────────
 
 def run_stages(doc: Document, bibkey: str = "DOC") -> dict:

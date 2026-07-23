@@ -322,6 +322,33 @@ def test_escape_prose_specials_escapes_text_not_math():
     assert LP.escape_prose_specials("see $x_i & y$ here") == "see $x_i & y$ here"
 
 
+def test_graphics_preamble_carries_tikz_pgfplots_setup_when_body_needs_it():
+    """A projected paper whose Diagram/Table `latex_code` holds a `tikzpicture` /
+    `\\addplot` must get tikz/pgfplots + the source's `\\usetikzlibrary`/
+    `\\pgfplotsset`/`\\definecolor` (3-arg, captured WHOLE) — else the article
+    default preamble errors 'Environment tikzpicture undefined'."""
+    class _D:
+        meta = {"latex_preamble": {"standalone":
+            "\\usepackage{tikz}\n\\usepackage{pgfplots}\n"
+            "\\pgfplotsset{compat=1.18}\n"
+            "\\usetikzlibrary{shapes.geometric, arrows.meta}\n"
+            "\\definecolor{layerstructural}{HTML}{4A7C9B}\n"}}
+    body = "\\begin{tikzpicture}\n\\node ... \\addplot ...\n\\end{tikzpicture}"
+    pre = LP.graphics_preamble(_D(), body)
+    assert "\\usepackage{tikz}" in pre and "\\usepackage{pgfplots}" in pre
+    assert "\\usetikzlibrary{shapes.geometric, arrows.meta}" in pre
+    assert "\\pgfplotsset{compat=1.18}" in pre
+    assert "\\definecolor{layerstructural}{HTML}{4A7C9B}" in pre     # all 3 args, not truncated
+    # a body with NO graphics need pulls nothing
+    assert LP.graphics_preamble(_D(), "plain prose only") == ""
+
+
+def test_balanced_block_captures_all_consecutive_arg_groups():
+    sa = "\\definecolor{c}{HTML}{4A7C9B}\n\\usetikzlibrary{a, b}\n\\pgfplotsset{compat=1.18}"
+    assert LP._balanced_block(sa, "definecolor") == ["\\definecolor{c}{HTML}{4A7C9B}"]
+    assert LP._balanced_block(sa, "usetikzlibrary") == ["\\usetikzlibrary{a, b}"]
+
+
 def test_formula_preamble_drops_obsolete_filecontents_package():
     """The `filecontents` PACKAGE is obsolete (the env is in the kernel), and the
     default env refuses to overwrite a stale `.dat` — so no `\\usepackage{

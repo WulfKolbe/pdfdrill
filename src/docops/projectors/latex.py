@@ -58,8 +58,21 @@ class LaTeXProjector(BaseProjector):
     def project(self, doc: Document) -> str:
         meta = doc.meta
         self._prepare(doc)
+
+        # Render the BODY first: it decides which graphics packages the preamble
+        # must load (a Diagram's `tikzpicture` / `\addplot` in a table).
+        items = [o for o in flow_ordered_content(doc) if o.id not in self._skip_ids]
+        body_blocks = self._render_flow(items)
+        body_text = "\n".join(body_blocks)
+
         preamble = self._doc_preamble(meta)
-        out: list[str] = [preamble.rstrip(), ""]
+        out: list[str] = [preamble.rstrip()]
+        # graphics setup (tikz/pgfplots/definecolor/…) the body needs but the
+        # default preamble lacks — pulled from the source's captured preamble.
+        gfx = _pipe.graphics_preamble(doc, body_text)
+        if gfx:
+            out += ["% graphics setup (tikz/pgfplots) carried from the source:", gfx]
+        out.append("")
         if self._formula_preamble:                # the formula ARRAY (readarray)
             out += ["% formula transclusion array (filecontents + readarray):",
                     self._formula_preamble, ""]
@@ -81,8 +94,7 @@ class LaTeXProjector(BaseProjector):
         if gloss:
             out += [gloss, ""]
 
-        items = [o for o in flow_ordered_content(doc) if o.id not in self._skip_ids]
-        out += self._render_flow(items)
+        out += body_blocks
 
         # STAGE 2: bibliography — printed `\bibitem`s from the model's References.
         bib = _pipe.bibliography_block(doc)
