@@ -70,6 +70,17 @@ def test_output_extension():
     assert _proj().output_extension() == ".tex"
 
 
+def test_abstract_rendered_as_block_not_abstract_env():
+    """Beamer has NO `abstract` environment (the inherited article renderer emits
+    `\\begin{abstract}` → 'Environment abstract undefined'). An Abstract must
+    render as a `block` frame content instead."""
+    d = Document(); d.meta["bibkey"] = "x"
+    d.add(DocObject(type="Abstract", props={"text": "We propose a framework.", "flow_index": 0}))
+    tex = _proj().project(d)
+    assert "\\begin{abstract}" not in tex
+    assert "\\begin{block}{Abstract}" in tex and "We propose a framework." in tex
+
+
 def test_level2_top_sections_still_drive_outline_via_anchoring():
     """A deck whose top sections are level 2 (no level-1) must still populate the
     `\\tableofcontents` outline: the shallowest → `\\section`, its children →

@@ -71,6 +71,17 @@ class BeamerProjector(LaTeXProjector):
         out.append("\\end{document}")
         return "\n".join(out).rstrip() + "\n"
 
+    def _render(self, obj):
+        """Beamer has NO `abstract` environment (the inherited article renderer
+        emits `\\begin{abstract}` → 'Environment abstract undefined'). Render an
+        Abstract as a plain `block`; everything else uses the shared renderer."""
+        if obj.type == "Abstract":
+            text = self._prose(str(obj.props.get("text") or "").strip())
+            if not text.strip():
+                return ""
+            return "\\begin{block}{Abstract}\n%s\n\\end{block}" % text
+        return super()._render(obj)
+
     # ── frame assembly ───────────────────────────────────────────────────────
 
     def _group_by_section(self, items):

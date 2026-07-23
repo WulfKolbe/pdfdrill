@@ -82,6 +82,21 @@ def test_build_source_model_captures_title_and_author():
         assert doc.meta.get("authors") == ["Shuai Peng, Ke Yuan"]  # tail dropped
 
 
+def test_clean_frontmatter_unwraps_nocasechange_and_size():
+    """Real 2602.14075 breakage: `\\title{{\\large\\NoCaseChange{X}}}` /
+    `\\author{\\NoCaseChange{A, B}}`. `\\NoCaseChange` (textcase) is undefined in
+    the default preamble, so it must be UNWRAPPED; a fully-enclosing `{\\large …}`
+    group dropped; result brace-balanced."""
+    from pdfdrill.latex_source import _clean_frontmatter
+    assert _clean_frontmatter(r"{\large\NoCaseChange{Similarity Algebra: A Framework}}") \
+        == "Similarity Algebra: A Framework"
+    assert _clean_frontmatter(r"\NoCaseChange{Benyamin Ghojogh, Golbahar Amanpour}") \
+        == "Benyamin Ghojogh, Golbahar Amanpour"
+    # unbalanced input is balanced (would break the emitted \author{…})
+    out = _clean_frontmatter(r"\NoCaseChange{Name")
+    assert out.count("{") == out.count("}")
+
+
 def test_build_source_model_ignores_titleformat_as_title():
     """`\\titleformat{…}` must not be mistaken for the document `\\title`."""
     with tempfile.TemporaryDirectory() as dd:

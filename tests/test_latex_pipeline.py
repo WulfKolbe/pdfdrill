@@ -280,6 +280,28 @@ def test_leaked_title_recovers_a_title_from_prose():
     assert LP.leaked_title("\\title{}") is None
 
 
+def test_sanitize_math_guards_leading_bracket():
+    """A Lie bracket / commutator `[X,Y]=…` at formula start reads as an optional
+    argument (amsmath 'Bracket group … at formula start') — prefix `{}`."""
+    assert LP.sanitize_math("[X, Y] = 0").startswith("{}[")
+    assert LP.sanitize_math("  [A,B]") == "{}  [A,B]"                      # guards past leading ws
+    assert LP.sanitize_math("[A,B]") == "{}[A,B]"
+    assert LP.sanitize_math("x = y") == "x = y"                            # no bracket → untouched
+
+
+def test_clean_prose_strips_nested_brace_title_no_orphan():
+    """`\\title{{\\large\\NoCaseChange{X}}}` leaked into prose must be removed WHOLE
+    (nested braces) — the old `\\{[^}]*\\}` left a `}}` orphan that errored."""
+    t = "before \\title{{\\large\\NoCaseChange{Similarity Algebra}}} after"
+    out = LP.clean_prose(t)
+    assert "\\title" not in out and "}}" not in out
+    assert "before" in out and "after" in out
+    # \author with nested braces + a following affiliation group
+    t2 = "\\author{\\NoCaseChange{Ada, Alan}\\\\ Somewhere Univ.} rest"
+    out2 = LP.clean_prose(t2)
+    assert "\\author" not in out2 and "NoCaseChange" not in out2 and "rest" in out2
+
+
 def test_normalize_cite_commands_maps_natbib_to_cite():
     """`\\citep`/`\\citet`/`\\parencite`/… are undefined (no natbib) — normalise to
     `\\cite`, dropping optional [pre]/[post] args, keeping the keys."""

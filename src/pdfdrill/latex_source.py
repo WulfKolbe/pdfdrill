@@ -88,14 +88,62 @@ _FRONT_STRIP = re.compile(
     r"|institute|institution)(?![a-zA-Z])\s*(?:\[[^\]]*\])?(?:\{[^}]*\})?")
 
 
+# font-SIZE / case wrappers that carry text but must be UNWRAPPED (kept content,
+# dropped command): `\large`/`\Large`/… take no braces; `\NoCaseChange{…}`/
+# `\textbf{…}`/… wrap a group. `\NoCaseChange` (textcase) is undefined in the
+# default preamble, so a surviving `\NoCaseChange{…}` errors.
+_FRONT_SIZE = re.compile(
+    r"\\(?:tiny|scriptsize|footnotesize|small|normalsize|large|Large|LARGE"
+    r"|huge|Huge|bfseries|itshape|rmfamily|sffamily|ttfamily|upshape|mdseries)"
+    r"(?![a-zA-Z])")
+_FRONT_WRAP = re.compile(
+    r"\\(?:NoCaseChange|MakeUppercase|MakeLowercase|textbf|textit|textrm|texttt"
+    r"|textsc|textsf|textnormal|emph|mbox|text|uppercase|lowercase)\s*\{")
+
+
+def _unwrap_group(s: str, open_idx: int) -> tuple[str, int]:
+    """Given `s[open_idx]=='{'`, return (inner-text, index-after-close)."""
+    depth = 0
+    for i in range(open_idx, len(s)):
+        if s[i] == "{":
+            depth += 1
+        elif s[i] == "}":
+            depth -= 1
+            if depth == 0:
+                return s[open_idx + 1:i], i + 1
+    return s[open_idx + 1:], len(s)               # unbalanced → to EOF
+
+
 def _clean_frontmatter(s: str) -> str:
     """Reduce a `\\title`/`\\author` argument to plain text: drop `\\thanks{…}`,
-    `\\\\` line breaks, font wrappers; collapse whitespace."""
+    `\\\\` line breaks, size commands, UNWRAP case/font wrappers
+    (`\\NoCaseChange{X}`→`X`), collapse whitespace, and BALANCE braces (an
+    unbalanced arg would break the emitted `\\title{…}`/`\\author{…}`)."""
     s = _FRONT_STRIP.sub("", s)
-    s = re.sub(r"\\(?:textbf|textit|textrm|texttt|emph|mbox|text)\s*\{([^}]*)\}",
-               r"\1", s)
+    s = _FRONT_SIZE.sub("", s)
+    # unwrap `\wrap{ … }` repeatedly until none remain (handles nesting)
+    for _ in range(6):
+        m = _FRONT_WRAP.search(s)
+        if not m:
+            break
+        inner, end = _unwrap_group(s, m.end() - 1)
+        s = s[:m.start()] + inner + s[end:]
     s = s.replace("\\\\", " ").replace("~", " ")
     s = re.sub(r"\s+", " ", s).strip()
+    # balance braces: drop a stray `}`, append `}` for each unmatched `{`
+    depth, out = 0, []
+    for c in s:
+        if c == "{":
+            depth += 1
+        elif c == "}":
+            if depth == 0:
+                continue
+            depth -= 1
+        out.append(c)
+    s = ("".join(out) + "}" * depth).strip()
+    # unwrap a single fully-enclosing group (leftover of a `{\large …}` scope)
+    while len(s) >= 2 and s[0] == "{" and _unwrap_group(s, 0) == (s[1:-1], len(s)):
+        s = s[1:-1].strip()
     return s
 
 

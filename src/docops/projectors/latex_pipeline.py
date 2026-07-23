@@ -69,8 +69,14 @@ _MATH_UNICODE_RE = re.compile("|".join(re.escape(k) for k in _MATH_UNICODE))
 def sanitize_math(latex: str) -> str:
     """Replace Unicode math operators (U+2212 minus, ×, ≤, Greek, …) with their
     LaTeX macros, so the formula compiles in math mode without `unicode-math`.
-    Plain LaTeX is untouched."""
-    return _MATH_UNICODE_RE.sub(lambda m: _MATH_UNICODE[m.group(0)], latex)
+    Plain LaTeX is untouched. A formula that STARTS with `[` (a Lie bracket /
+    commutator `[X,Y]=…`) is prefixed with `{}` so amsmath doesn't read the
+    bracket as a misplaced optional argument ("Bracket group … at formula
+    start!")."""
+    latex = _MATH_UNICODE_RE.sub(lambda m: _MATH_UNICODE[m.group(0)], latex)
+    if latex.lstrip().startswith("["):
+        latex = "{}" + latex
+    return latex
 
 
 # DISPLAY-only math environments — invalid inside inline math (`\ensuremath`,
@@ -205,11 +211,46 @@ _LEAKED_CMD = re.compile(r"\\bibliography(?:style)?\s*\{[^}]*\}")
 _STRUCT_CMD = re.compile(
     r"\\(?:maketitle|tableofcontents|begin\s*\{document\}|end\s*\{document\}"
     r"|appendix|newpage|clearpage|cleardoublepage|pagebreak|nopagebreak"
-    r"|pagestyle\s*\{[^}]*\}|thispagestyle\s*\{[^}]*\}"
-    r"|title|author|date|institute|affiliation)\s*(?:\{[^}]*\})?"
+    r"|pagestyle\s*\{[^}]*\}|thispagestyle\s*\{[^}]*\})"
 )
+# frontmatter commands whose ARGUMENT can carry NESTED braces
+# (`\title{{\large\NoCaseChange{…}}}`) — a plain `\{[^}]*\}` strips only to the
+# FIRST `}` and leaves a `}}` orphan in the prose. Removed brace-balanced instead.
+_BALANCED_STRIP_CMDS = ("title", "author", "date", "institute", "institution",
+                        "affiliation", "affil", "thanks")
 # a leaked `\title{…}` — captured so a title-less model still gets one.
 _TITLE_CMD = re.compile(r"\\title\s*\{([^}]*)\}")
+
+
+def _strip_balanced_command(text: str, cmd: str) -> str:
+    """Remove every `\\<cmd>{ … }` from `text`, honouring NESTED braces (so
+    `\\title{{\\large X{y}}}` is removed whole, not up to the first `}`)."""
+    out, i, n, tok = [], 0, len(text), "\\" + cmd
+    while i < n:
+        j = text.find(tok, i)
+        if j == -1:
+            out.append(text[i:]); break
+        # not a longer command sharing the prefix (\titleformat vs \title)
+        k = j + len(tok)
+        if k < n and text[k].isalpha():
+            out.append(text[i:k]); i = k; continue
+        out.append(text[i:j])
+        while k < n and text[k] in " \t":
+            k += 1
+        if k < n and text[k] == "{":              # brace-balanced arg → drop it
+            depth = 0
+            while k < n:
+                if text[k] == "{":
+                    depth += 1
+                elif text[k] == "}":
+                    depth -= 1
+                    if depth == 0:
+                        k += 1; break
+                k += 1
+            i = k                                 # arg consumed
+        else:
+            i = k                                 # no arg — drop the bare command
+    return "".join(out)
 
 
 def leaked_title(text: str) -> str | None:
@@ -259,6 +300,8 @@ def clean_prose(text: str) -> str:
     and normalise natbib/biblatex cite commands to `\\cite`."""
     text = _LIG_RE.sub(lambda m: _LIGATURES[m.group(0)], text)
     text = _LEAKED_CMD.sub("", text)
+    for _cmd in _BALANCED_STRIP_CMDS:         # \title{{…}}/\author{…} (nested braces)
+        text = _strip_balanced_command(text, _cmd)
     text = _STRUCT_CMD.sub("", text)          # leaked \maketitle/\begin{document}/…
     text = normalize_cite_commands(text)      # \citep/\citet/… → \cite
     return text
