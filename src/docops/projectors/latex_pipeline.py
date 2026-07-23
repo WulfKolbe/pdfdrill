@@ -66,14 +66,42 @@ _MATH_UNICODE = {
 _MATH_UNICODE_RE = re.compile("|".join(re.escape(k) for k in _MATH_UNICODE))
 
 
+# text-mode structure that leaks INTO a math body from an enclosing environment
+# (MathPix/extraction captures `\end{itemize}` after the equation) — illegal in
+# math mode. Also `\item`, list/float begins+ends.
+_LEAKED_MATH_ENV = re.compile(
+    r"\\(?:begin|end)\s*\{(?:itemize|enumerate|description|list|quote|quotation"
+    r"|center|flushleft|flushright|verbatim|abstract|figure|table|proof|minipage"
+    r"|thebibliography)\*?\}"
+    r"|\\item\b(?:\s*\[[^\]]*\])?")
+
+
+def _strip_math_delimiters(latex: str) -> str:
+    """Remove a WRAPPING math delimiter (`\\[…\\]`, `\\(…\\)`, `$$…$$`, `$…$`) —
+    an Equation body carrying its own `\\[…\\]` would nest display math inside
+    `\\begin{equation}` ('Bad math environment delimiter'). Only strips when the
+    WHOLE (trimmed) string is one wrapped span, so `$a$ and $b$` is left alone."""
+    s = latex.strip()
+    if s.startswith("$$") and s.endswith("$$") and len(s) >= 4:
+        return s[2:-2].strip()
+    for op, cl in (("\\[", "\\]"), ("\\(", "\\)")):
+        if s.startswith(op) and s.endswith(cl) and len(s) >= len(op) + len(cl):
+            return s[len(op):-len(cl)].strip()
+    if len(s) >= 2 and s.startswith("$") and s.endswith("$") and s.count("$") == 2:
+        return s[1:-1].strip()
+    return s
+
+
 def sanitize_math(latex: str) -> str:
-    """Replace Unicode math operators (U+2212 minus, ×, ≤, Greek, …) with their
-    LaTeX macros, so the formula compiles in math mode without `unicode-math`.
-    Plain LaTeX is untouched. A formula that STARTS with `[` (a Lie bracket /
-    commutator `[X,Y]=…`) is prefixed with `{}` so amsmath doesn't read the
-    bracket as a misplaced optional argument ("Bracket group … at formula
-    start!")."""
+    """Make a formula body compile in math mode: replace Unicode math operators
+    (U+2212 minus, ×, ≤, Greek, …) with their LaTeX macros, DROP text-mode
+    structure that leaked in (`\\end{itemize}`, `\\item`), and STRIP a wrapping
+    math delimiter (`\\[…\\]`). A formula that then STARTS with `[` (a Lie bracket
+    `[X,Y]=…`) is prefixed with `{}` so amsmath doesn't read the bracket as a
+    misplaced optional argument ('Bracket group … at formula start!')."""
     latex = _MATH_UNICODE_RE.sub(lambda m: _MATH_UNICODE[m.group(0)], latex)
+    latex = _LEAKED_MATH_ENV.sub(" ", latex)      # drop leaked list/float envs
+    latex = _strip_math_delimiters(latex)         # unwrap \[…\] / $…$ / …
     if latex.lstrip().startswith("["):
         latex = "{}" + latex
     return latex

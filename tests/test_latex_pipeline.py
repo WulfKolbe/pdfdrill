@@ -280,11 +280,26 @@ def test_leaked_title_recovers_a_title_from_prose():
     assert LP.leaked_title("\\title{}") is None
 
 
+def test_sanitize_math_strips_wrapper_and_leaked_list_envs():
+    """An Equation body carrying its own `\\[…\\]` (nested display) plus leaked
+    `\\end{itemize}` from an enclosing list is fatal inside `\\begin{equation}`.
+    Strip the wrapping delimiter and the leaked text-mode envs."""
+    bad = r"\[ \emptyset \subsetneq a \uparrow b \] \end{itemize} \end{itemize}"
+    out = LP.sanitize_math(bad)
+    assert "\\[" not in out and "\\]" not in out and "itemize" not in out
+    assert "\\emptyset \\subsetneq a \\uparrow b" in out
+    # a genuine two-span prose fragment is NOT unwrapped
+    assert LP.sanitize_math("$a$ and $b$") == "$a$ and $b$"
+    # a real aligned body is preserved (\\ kept)
+    assert "\\begin{aligned}" in LP.sanitize_math(r"\begin{aligned} a &= b \\ c &= d \end{aligned}")
+    assert LP.sanitize_math(r"\( x + y \)") == "x + y"        # \(…\) unwrapped
+
+
 def test_sanitize_math_guards_leading_bracket():
     """A Lie bracket / commutator `[X,Y]=…` at formula start reads as an optional
     argument (amsmath 'Bracket group … at formula start') — prefix `{}`."""
     assert LP.sanitize_math("[X, Y] = 0").startswith("{}[")
-    assert LP.sanitize_math("  [A,B]") == "{}  [A,B]"                      # guards past leading ws
+    assert LP.sanitize_math("  [A,B]") == "{}[A,B]"                        # ws trimmed, still guarded
     assert LP.sanitize_math("[A,B]") == "{}[A,B]"
     assert LP.sanitize_math("x = y") == "x = y"                            # no bracket → untouched
 
