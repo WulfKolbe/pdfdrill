@@ -57,6 +57,25 @@ def test_sections_paragraphs_equations():
     assert "\\label{eq:emc}" in tex
 
 
+def test_display_equation_is_transcluded_via_eqexpr():
+    """A display Equation renders as `\\begin{equation}\\EqExpr{i}…\\end{equation}`
+    — transcluded from the readarray array, consistent with inline `\\Expr{i}`
+    formulas (not the raw LaTeX inline)."""
+    d = Document(); d.meta["bibkey"] = "x"
+    d.add(DocObject(type="Equation", props={
+        "latex": "\\begin{aligned} a &= b \\\\ c &= d \\end{aligned}",
+        "label": "eq:main", "flow_index": 0}))
+    tex = _proj().project(d)
+    assert "\\newcommand{\\EqExpr}" in tex                # macro defined
+    assert "\\begin{equation}" in tex
+    import re
+    m = re.search(r"\\begin\{equation\}(.*?)\\end\{equation\}", tex, re.DOTALL)
+    assert m and "\\EqExpr{" in m.group(1)               # transcluded, not raw
+    assert "\\label{eq:main}" in m.group(1)              # label kept
+    # the array carries the display body
+    assert "\\begin{aligned}" in tex
+
+
 def test_shallowest_section_anchors_to_section_not_subsection():
     """A paper whose top sections are level 2 (no level-1 in the model) must
     render its shallowest sections as `\\section` — else `\\subsection{Introduction}`

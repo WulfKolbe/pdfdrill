@@ -337,6 +337,36 @@ def test_escape_prose_specials_escapes_text_not_math():
     assert LP.escape_prose_specials("see $x_i & y$ here") == "see $x_i & y$ here"
 
 
+def test_flatten_display_preserves_aligned_and_linebreaks():
+    """A display Equation array entry keeps `\\\\`/`aligned` (unlike inline
+    `_flatten`), collapsed to ONE physical line for readarray."""
+    out = LP._flatten_display("\\begin{aligned} a &= b \\\\ c &= d \\end{aligned}")
+    assert "\\begin{aligned}" in out and "\\\\" in out and "\n" not in out
+    # inline flatten, by contrast, strips the display env
+    assert "\\begin{aligned}" not in LP._flatten("\\begin{aligned} a \\\\ b \\end{aligned}")
+
+
+def test_formula_preamble_defines_both_expr_and_eqexpr():
+    """The array serves inline formulas (`\\Expr`, ensuremath) AND display
+    equations (`\\EqExpr`, bare — used inside an equation environment)."""
+    pre = LP.formula_preamble(["a", "b"], "X.dat")
+    assert "\\newcommand{\\Expr}[1]{\\ensuremath{\\MathExpr[#1]}}" in pre
+    assert "\\newcommand{\\EqExpr}[1]{\\MathExpr[#1]}" in pre
+
+
+def test_equation_object_stored_display_preserving_in_array():
+    """A display Equation lands in the transclusion array keyed by its object id,
+    keeping its structure — so the projector can render `\\EqExpr{i}`."""
+    from docmodel.core import Document, DocObject
+    d = Document(); d.meta["bibkey"] = "K"
+    d.add(DocObject(type="Equation", props={
+        "latex": "\\begin{aligned} x &= y \\\\ p &= q \\end{aligned}", "flow_index": 0}))
+    order, ti = LP.formula_array(d)
+    eq = [o for o in d.objects.values() if o.type == "Equation"][0]
+    assert eq.id in ti
+    assert "\\begin{aligned}" in order[ti[eq.id] - 1]     # display structure kept
+
+
 def test_graphics_preamble_carries_tikz_pgfplots_setup_when_body_needs_it():
     """A projected paper whose Diagram/Table `latex_code` holds a `tikzpicture` /
     `\\addplot` must get tikz/pgfplots + the source's `\\usetikzlibrary`/

@@ -238,7 +238,12 @@ class LaTeXProjector(BaseProjector):
                 return ""
             label = p.get("label") or equation_label(obj)
             lab = f"\n\\label{{{label}}}" if label else ""
-            return f"\\begin{{equation}}\n{latex}{lab}\n\\end{{equation}}"
+            # TRANSCLUDE from the readarray array (`\EqExpr{i}`) — consistent with
+            # inline `\Expr{i}` formulas; the array entry keeps display structure.
+            # Fall back to the inline latex if this object isn't indexed.
+            idx = getattr(self, "_title_index", {}).get(obj.id)
+            body = f"\\EqExpr{{{idx}}}" if idx else latex
+            return f"\\begin{{equation}}\n{body}{lab}\n\\end{{equation}}"
         if t == "Formula":
             latex = _pipe.sanitize_math((p.get("latex") or "").strip())
             return f"${latex}$" if latex else ""

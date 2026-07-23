@@ -134,6 +134,17 @@ def _flatten(latex: str) -> str:
     return _inline_safe(sanitize_math(re.sub(r"\s+", " ", latex.strip())))
 
 
+def _flatten_display(latex: str) -> str:
+    """A DISPLAY equation → ONE physical line for the readarray array, PRESERVING
+    its display structure (`\\\\` line breaks, `aligned`/`cases`) — unlike
+    `_flatten`, which inline-flattens. Only real whitespace/newlines are collapsed
+    to single spaces (so the entry stays one array line); `\\\\` stays two chars,
+    not a newline, so it survives. Used for `\\EqExpr{i}` inside `\\begin{equation}`
+    (which already provides display math, so no `\\ensuremath`)."""
+    s = sanitize_math(re.sub(r"\s+", " ", latex.strip()))
+    return re.sub(r"(?:\\\\\s*)+$", "", s).strip()          # drop a trailing \\
+
+
 def formula_array(doc: Document) -> tuple[list[str], dict[str, int]]:
     """Return `(ordered distinct formula LaTeX, {object-title: 1-based index})`.
 
@@ -150,7 +161,12 @@ def formula_array(doc: Document) -> tuple[list[str], dict[str, int]]:
     objs.sort(key=lambda o: (o.props.get("flow_index", 0), o.id))
     fo_no = eq_no = 0
     for obj in objs:
-        latex = _flatten(obj.props.get("latex") or "")
+        # a display Equation is stored display-preserving (\\ / aligned kept) so
+        # it transcludes via `\EqExpr{i}`; an inline Formula is inline-flattened.
+        if obj.type == "Equation":
+            latex = _flatten_display(obj.props.get("latex") or "")
+        else:
+            latex = _flatten(obj.props.get("latex") or "")
         if not latex:
             continue
         idx = by_content.get(latex)
@@ -177,8 +193,11 @@ def _safe_title(t: str) -> str:
 
 def formula_preamble(order: list[str], dat_name: str) -> str:
     """The preamble block: write the formula array to `<dat_name>` via the
-    `filecontents*` ENVIRONMENT, load it with `readarray`, and define
-    `\\Expr{<index>}`.
+    `filecontents*` ENVIRONMENT, load it with `readarray`, and define BOTH
+    transclusion macros — `\\Expr{<i>}` (INLINE, `\\ensuremath`, for a `$…$`
+    formula in prose) and `\\EqExpr{<i>}` (DISPLAY, bare, for use inside
+    `\\begin{equation}…\\end{equation}`, which already provides math mode). So an
+    inline formula AND a display equation both transclude from the SAME array.
 
     The `filecontents` PACKAGE is obsolete — the environment is in the LaTeX
     kernel (2019+), and loading the package prints an "obsolete" warning — so we
@@ -195,7 +214,8 @@ def formula_preamble(order: list[str], dat_name: str) -> str:
         "\\readarraysepchar{\\par}\n"
         f"\\readdef{{{dat_name}}}{{\\MathData}}\n"
         "\\readarray{\\MathData}{\\MathExpr}[-,\\nrows]\n"
-        "\\newcommand{\\Expr}[1]{\\ensuremath{\\MathExpr[#1]}}"
+        "\\newcommand{\\Expr}[1]{\\ensuremath{\\MathExpr[#1]}}\n"
+        "\\newcommand{\\EqExpr}[1]{\\MathExpr[#1]}"
     )
 
 
