@@ -22,7 +22,7 @@
 import { dirname, join, resolve, normalize, sep, extname, basename } from "node:path";
 import { fileURLToPath } from "node:url";
 import { existsSync, readFileSync, readdirSync, appendFileSync, writeFileSync } from "node:fs";
-import { homedir, tmpdir, networkInterfaces } from "node:os";
+import { homedir, tmpdir, networkInterfaces, hostname } from "node:os";
 
 // Session TRANSCRIPT log: every line the terminal shows (stdout + stderr, ANSI
 // stripped) is also appended here, so errors are always COPYABLE — open it in a
@@ -891,8 +891,15 @@ console.error(`drillui bridge → http://localhost:${server.port}/`);
 // On 0.0.0.0 the UI is reachable from the LAN — print the address to actually
 // type on another machine (localhost there points at that machine, not this one).
 if (host === "0.0.0.0" || host === "::") {
+  // The HOSTNAME first — that is what you actually type (`beelink:8787`), and
+  // it is what a home router (FritzBox & co) resolves for other devices. The
+  // raw IPs follow as the fallback when name resolution isn't set up.
+  const hn = hostname();
+  if (hn && hn !== "localhost") {
+    console.error(`  on your network → http://${hn}:${server.port}/`);
+  }
   for (const ip of lanAddresses()) {
-    console.error(`  on your network → http://${ip}:${server.port}/`);
+    console.error(`                  → http://${ip}:${server.port}/`);
   }
 }
 if (staticServer) console.error(`  static artifacts → http://localhost:${staticServer.port}/ (CoCalc route)`);
