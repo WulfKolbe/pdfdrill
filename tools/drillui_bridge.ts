@@ -11,15 +11,18 @@
  *
  *   bun drillui_bridge.ts <doc> [--src src] [--model NAME] [--k N]
  *                                [--no-store] [--port 8787] [--static-port 10000]
+ *                                [--host 0.0.0.0]
  *                                [-- <extra args passed straight to drillui_chat>]
  *
  * Stdlib + Bun only. Serves the sibling drillui_term.html at http://localhost:<port>/.
+ * Binds 0.0.0.0 by default, so the UI is reachable from any machine on the LAN
+ * (the startup log prints the address to use); `--host 127.0.0.1` keeps it local.
  */
 
 import { dirname, join, resolve, normalize, sep, extname, basename } from "node:path";
 import { fileURLToPath } from "node:url";
 import { existsSync, readFileSync, readdirSync, appendFileSync, writeFileSync } from "node:fs";
-import { homedir, tmpdir } from "node:os";
+import { homedir, tmpdir, networkInterfaces } from "node:os";
 
 // Session TRANSCRIPT log: every line the terminal shows (stdout + stderr, ANSI
 // stripped) is also appended here, so errors are always COPYABLE — open it in a
@@ -45,6 +48,12 @@ let model: string | null = null;
 let k = 8;
 let store = true;
 let port = 8787;
+// Bind address. Default 0.0.0.0 so the UI is reachable from any machine on the
+// LAN (the static artifact server already binds 0.0.0.0 — this makes the main
+// WS/UI port match). `--host 127.0.0.1` restricts it back to this machine.
+// NOTE: on 0.0.0.0 anyone who can reach the port gets the UI, the artifact file
+// routes and the LLM — fine on a trusted home LAN, not on an untrusted network.
+let host = process.env.DRILLUI_HOST ?? "0.0.0.0";
 // A dedicated STATIC file server on its own port. A reverse proxy (CoCalc) that
 // mangles the `?path=` query string on the WS port still forwards plain path URLs
 // on a separate proxied port cleanly — so artifact links route through here.
@@ -64,6 +73,7 @@ for (let i = 0; i < argv.length; i++) {
   else if (a === "--k") k = parseInt(argv[++i], 10);
   else if (a === "--no-store") store = false;
   else if (a === "--port") port = parseInt(argv[++i], 10);
+  else if (a === "--host") host = argv[++i];              // 0.0.0.0 (default) | 127.0.0.1
   else if (a === "--static-port") staticPort = parseInt(argv[++i], 10);
   else if (a === "--artifacts") artifactsRoot = argv[++i];
   else if (a === "--opener") opener = argv[++i];          // e.g. firefox, xdg-open
@@ -96,7 +106,7 @@ if (argv.includes("-h") || argv.includes("--help")) {
     "         terminal (the doc is optional now that `add` exists).\n" +
     "  Zero config from the repo: `bun tools/drillui_bridge.ts data/paper.pdf`\n" +
     "  finds drillui_chat.py as its sibling and pdfdrill in ../src.\n" +
-    "  flags: [--port N] [--static-port N] [--model NAME] [--k N] [--no-store] [--python BIN]\n" +
+    "  flags: [--port N] [--host ADDR] [--static-port N] [--model NAME] [--k N] [--no-store] [--python BIN]\n" +
     "         [--chat PATH] [--src DIR] [--artifacts DIR]\n" +
     "         [--opener firefox|xdg-open|...] [--no-open]");
   process.exit(0);
@@ -666,9 +676,22 @@ function spawnSession(ws: any): Session {
   return sess;
 }
 
+/** This machine's non-loopback IPv4 addresses — what to type on another device
+ *  when the bridge binds 0.0.0.0 (`localhost` there would be that device). */
+function lanAddresses(): string[] {
+  const out: string[] = [];
+  for (const addrs of Object.values(networkInterfaces())) {
+    for (const a of addrs ?? []) {
+      if (a.family === "IPv4" && !a.internal) out.push(a.address);
+    }
+  }
+  return out;
+}
+
 // ---- server ----------------------------------------------------------------
 const server = Bun.serve<{ sess: Session | null }>({
   port,
+  hostname: host,
   async fetch(req, server) {
     const url = new URL(req.url);
     if (url.pathname === "/ws") {
@@ -853,7 +876,7 @@ let staticServer: ReturnType<typeof Bun.serve> | null = null;
 const staticWanted = staticPort;
 for (let p = staticWanted; p < staticWanted + 10; p++) {
   try {
-    staticServer = Bun.serve({ port: p, hostname: "0.0.0.0", fetch: staticFetch });
+    staticServer = Bun.serve({ port: p, hostname: host, fetch: staticFetch });
     staticPort = p;
     break;
   } catch { /* port busy — try the next */ }
@@ -865,6 +888,13 @@ if (!staticServer) {
 }
 
 console.error(`drillui bridge → http://localhost:${server.port}/`);
+// On 0.0.0.0 the UI is reachable from the LAN — print the address to actually
+// type on another machine (localhost there points at that machine, not this one).
+if (host === "0.0.0.0" || host === "::") {
+  for (const ip of lanAddresses()) {
+    console.error(`  on your network → http://${ip}:${server.port}/`);
+  }
+}
 if (staticServer) console.error(`  static artifacts → http://localhost:${staticServer.port}/ (CoCalc route)`);
 console.error(`  chat: ${pythonBin} ${CHAT_SCRIPT}`);
 console.error(`  doc=${doc}  model=${model ?? "default"}  k=${k}  store=${store}`);

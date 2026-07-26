@@ -13,6 +13,7 @@
 import { resolve, dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { mkdirSync, writeFileSync, rmSync } from "node:fs";
+import { networkInterfaces } from "node:os";
 
 const doc = process.argv[2] ?? "data/1906.02691.pdf";
 const PORT = 8799;
@@ -455,6 +456,57 @@ const PORT7 = 8805;
   }
   try { proc7.kill(); } catch {}
   try { rmSync(tmp7, { recursive: true, force: true }); } catch {}
+}
+
+// --- 8) LAN binding: default 0.0.0.0, --host restricts -----------------------
+// The bridge must be reachable from other machines on the network (bind
+// 0.0.0.0) and must ADVERTISE the address to use there, since `localhost` on
+// another device points at that device. `--host 127.0.0.1` restricts it back.
+{
+  const lanIp = (() => {
+    for (const addrs of Object.values(networkInterfaces())) {
+      for (const a of addrs ?? []) if (a.family === "IPv4" && !a.internal) return a.address;
+    }
+    return null;
+  })();
+
+  // 8a) DEFAULT: reachable on the LAN ip, and the log names it
+  const p8 = Bun.spawn({
+    cmd: ["bun", BRIDGE, "--port", "8801", "--static-port", "10801", "--no-open"],
+    cwd: resolve(HERE, ".."), stdout: "pipe", stderr: "pipe", env: { ...process.env },
+  });
+  let up8 = false;
+  for (let i = 0; i < 60; i++) {
+    try { if ((await fetch("http://127.0.0.1:8801/")).ok) { up8 = true; break; } } catch {}
+    await sleep(250);
+  }
+  ok("default bridge is up", up8);
+  if (up8 && lanIp) {
+    let lanOk = false;
+    try { lanOk = (await fetch(`http://${lanIp}:8801/`)).ok; } catch {}
+    ok("default binds 0.0.0.0 — reachable on the LAN ip", lanOk, lanIp);
+  }
+  try { p8.kill(); } catch {}
+  await sleep(400);
+
+  // 8b) --host 127.0.0.1: local only, LAN ip must be REFUSED
+  const p9 = Bun.spawn({
+    cmd: ["bun", BRIDGE, "--port", "8802", "--static-port", "10802",
+          "--host", "127.0.0.1", "--no-open"],
+    cwd: resolve(HERE, ".."), stdout: "pipe", stderr: "pipe", env: { ...process.env },
+  });
+  let up9 = false;
+  for (let i = 0; i < 60; i++) {
+    try { if ((await fetch("http://127.0.0.1:8802/")).ok) { up9 = true; break; } } catch {}
+    await sleep(250);
+  }
+  ok("--host 127.0.0.1 bridge is up on localhost", up9);
+  if (up9 && lanIp) {
+    let refused = false;
+    try { await fetch(`http://${lanIp}:8802/`); } catch { refused = true; }
+    ok("--host 127.0.0.1 is NOT reachable on the LAN ip", refused, lanIp);
+  }
+  try { p9.kill(); } catch {}
 }
 
 console.log(fails ? `\n${fails} FAILURE(S)` : "\nAll bridge checks passed.");

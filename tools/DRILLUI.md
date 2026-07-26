@@ -89,9 +89,26 @@ drillui never fetches a PDF or LaTeX itself.)
 
 That's all: the bridge finds `drillui_chat.py` as its sibling, `python3` runs
 it, and `drillui_chat.py` finds `pdfdrill` in `../src`. Flags only if you need
-them: `--port N`, `--model NAME`, `--k N`, `--no-store`, `--python BIN`,
-`--chat PATH` (only if the .py is elsewhere), `--opener firefox|xdg-open` /
-`--no-open`.
+them: `--port N`, `--host ADDR`, `--model NAME`, `--k N`, `--no-store`,
+`--python BIN`, `--chat PATH` (only if the .py is elsewhere),
+`--opener firefox|xdg-open` / `--no-open`.
+
+### Reaching drillui from another machine
+
+The bridge binds **`0.0.0.0`** by default, so the UI is reachable from any device
+on your network. The startup log prints the exact address to type there —
+`localhost` on another machine points at *that* machine, not this one:
+
+```
+drillui bridge → http://localhost:8787/
+  on your network → http://192.168.178.67:8787/     ← use this on your phone/laptop
+```
+
+`--host 127.0.0.1` (or `DRILLUI_HOST=127.0.0.1`) restricts it back to this
+machine. Worth knowing before you expose it: on `0.0.0.0` anyone who can reach
+the port gets the terminal, the artifact file routes and the LLM — there is no
+authentication. Fine on a trusted home LAN; use `--host 127.0.0.1` (plus an SSH
+tunnel) on anything you don't control.
 
 The document must already be drilled (`pdfdrill model <doc>`). If it isn't, the
 REPL says so on connect and tells you to type `model` to build it.
