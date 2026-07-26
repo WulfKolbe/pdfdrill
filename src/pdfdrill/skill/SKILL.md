@@ -478,7 +478,7 @@ _Generated from `commands.yaml` by skillsync. Edit the manifest, not this sectio
 | `pdfdrill pdfinfo <pdf>` | Full PdfInfo struct (title/author/dates/flags) |
 | `pdfdrill bibtex <pdf>` | Derived BibTeX record from embedded PDF metadata, AUGMENTED by the free arXiv abs-page metadata (title/authors) + the drilled title; warns when still a placeholder (run abstract/model first) |
 | `pdfdrill urls <pdf>` | URL annotations with anchor text (heavier; pdfplumber) |
-| `pdfdrill links <pdf>` | FAST external URLs via pdfinfo -url (~50ms); flags code/data hosts |
+| `pdfdrill links <pdf>` | FAST external URLs via pdfinfo -url (~50ms); flags code/data hosts; falls back to harvesting URLs from the page TEXT when the PDF has no annotation layer |
 | `pdfdrill dests <pdf>` | Named destinations: theorems, equations, sections |
 | `pdfdrill fonts_layer <pdf>` | Structured per-font records (pdffonts) |
 | `pdfdrill images <pdf>` | Image rectangles + metadata (pdfplumber + pdfimages -list) |
@@ -612,6 +612,6 @@ _Generated from `commands.yaml` by skillsync. Edit the manifest, not this sectio
 <!-- COMMANDS:END -->
 
 <!-- PREFLIGHT-TOKEN:BEGIN -->
-Attestation token — the LAST line of this SKILL. If you can read this, you read the whole file. Run `pdfdrill preflight --ack DRILL-f17fe4db` before any build/extract command.
-DRILL-f17fe4db
+Attestation token — the LAST line of this SKILL. If you can read this, you read the whole file. Run `pdfdrill preflight --ack DRILL-21adab42` before any build/extract command.
+DRILL-21adab42
 <!-- PREFLIGHT-TOKEN:END -->

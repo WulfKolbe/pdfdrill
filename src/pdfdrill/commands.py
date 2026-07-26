@@ -8065,6 +8065,12 @@ def cmd_links(pdf: Path) -> str:
             seen.add(l["url"])
             links.append(l)
 
+    # FALLBACK: no annotation layer at all (an old PowerPoint/Distiller export, a
+    # scan, LaTeX without hyperref) — the URLs are visible TEXT on the page. Read
+    # them from the text layer so they aren't silently missed. Marked kind="text".
+    if not links:
+        links = _text_layer_links(pdf)
+
     sc.set_evidence("links", links)
     prev = ",".join(sorted(sc.facts - {LINKS_KNOWN})) or "INIT"
     sc.add_fact(LINKS_KNOWN)
@@ -8076,10 +8082,29 @@ def cmd_links(pdf: Path) -> str:
     return _format_links(links)
 
 
+def _text_layer_links(pdf: Path) -> list[dict]:
+    """URLs harvested from the page TEXT (used when the PDF has no annotation
+    layer). `pdftotext -layout` per page, then the pure helpers in `links_layer`
+    (wrapped-URL join + extraction). Returns [] when pdftotext is unavailable."""
+    from . import links_layer
+    try:
+        out = subprocess.run(["pdftotext", "-layout", str(pdf), "-"],
+                             capture_output=True, text=True, timeout=120)
+    except (OSError, subprocess.SubprocessError):
+        return []
+    if out.returncode != 0 or not out.stdout:
+        return []
+    pages = out.stdout.split("\f")            # pdftotext separates pages with \f
+    return links_layer.text_layer_links(pages)
+
+
 def _format_links(links: list[dict] | None) -> str:
     if not links:
-        return ("No external URL annotations found. (Use `pdfdrill urls` for "
-                "anchor-text-level analysis of internal/visible links.)")
+        return ("No URLs found — neither link annotations nor URLs in the page "
+                "text. (Use `pdfdrill urls` for anchor-text-level analysis; if "
+                "the PDF is a scan, run `pdfdrill ocr` first so there is text.)")
+    # provenance: annotation links are clickable; text-layer ones are visible text
+    from_text = [l for l in links if l.get("kind") == "text"]
     code = [l for l in links if _is_code_host(l["url"])]
     lines: list[str] = []
     if code:
@@ -8087,11 +8112,21 @@ def _format_links(links: list[dict] | None) -> str:
         for l in code:
             lines.append(f"  p.{l['page']}  {l['url']}")
         lines.append("")
-    lines.append(f"All external URL annotations ({len(links)}):")
+    if from_text and len(from_text) == len(links):
+        lines.append(f"All URLs ({len(links)}) — from the page TEXT, not the "
+                     f"annotation layer:")
+    else:
+        lines.append(f"All external URL annotations ({len(links)}):")
     for l in links[:40]:
         lines.append(f"  p.{l['page']}  {l['url']}")
     if len(links) > 40:
         lines.append(f"  ... and {len(links) - 40} more")
+    if from_text and len(from_text) == len(links):
+        lines.append("")
+        lines.append("NOTE: this PDF has NO link annotations (an older "
+                     "PowerPoint/Distiller export, a scan, or LaTeX without "
+                     "hyperref), so these URLs are visible text — readable, but "
+                     "not clickable in the PDF.")
     return "\n".join(lines)
 
 
@@ -9626,7 +9661,9 @@ def _format_urls(links: list | None) -> str:
     if links is None:
         return "URLs not yet extracted."
     if not links:
-        return "No link annotations found in the document."
+        return ("No link annotations found in the document. (Anchor text needs "
+                "an annotation layer; this PDF has none. Run `pdfdrill links` — "
+                "it falls back to harvesting URLs from the page TEXT.)")
     from .links_layer import summarize_links
     counts = summarize_links(links)
     parts = [f"{n} {k}" for k, n in counts.items()]

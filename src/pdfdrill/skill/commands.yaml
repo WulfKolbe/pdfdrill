@@ -322,7 +322,8 @@ commands:
   typed: true
 - name: links
   section: Introspection (fast, no extraction)
-  summary: FAST external URLs via pdfinfo -url (~50ms); flags code/data hosts
+  summary: FAST external URLs via pdfinfo -url (~50ms); flags code/data hosts; falls
+    back to harvesting URLs from the page TEXT when the PDF has no annotation layer
   offline_ok: true
   positionals:
   - name: pdf

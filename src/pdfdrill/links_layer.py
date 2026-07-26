@@ -28,6 +28,84 @@ from typing import Any
 
 
 # ---------------------------------------------------------------------------
+# Text-layer URLs (no annotation layer at all)
+# ---------------------------------------------------------------------------
+#
+# A PDF exported by an older toolchain (PowerPoint -> Acrobat Distiller, LaTeX
+# without hyperref, a scan+OCR) can carry ZERO link annotations — no /URI, no
+# /Annots — while the pages visibly show URLs as ordinary TEXT. `links`/`urls`
+# read the annotation layer, so they correctly report nothing and the URLs are
+# invisible to them. These pure helpers recover them from the text layer, the
+# mirror image of the annotation-only "killer case" (a link with no visible
+# text): here there is visible text with no link.
+
+# http(s)/ftp/www URLs; stops at whitespace and bracket/quote delimiters.
+_TEXT_URL = re.compile(r"(?:https?://|ftp://|www\.)[^\s<>\"')\]}]+", re.I)
+# A URL cut by the renderer's line wrap continues on the next line. TWO cases,
+# deliberately narrow — an over-join invents a URL that never existed
+# (`http://www.bootstrap.org/` + a book title -> `.../Netizens`):
+#   HYPHEN cut  `http://www-` : mid-token, always a wrap (a URL does not end `-`).
+#   SLASH cut   `…/very/long/`: ambiguous — a site-root URL legitimately ends `/`.
+#     Joined ONLY when the next line looks like a PATH continuation: starts
+#     lowercase/digit and its first token carries a `.` or `/`. A capitalised
+#     prose word ("Netizens:", "Collective") therefore never glues on.
+_WRAP_CUT_HYPHEN = re.compile(
+    r"((?:https?://|ftp://|www\.)[^\s<>\"')\]}]*-)[ \t]*\n[ \t]*(?=[^\s<>\"')\]}])",
+    re.I)
+# NOTE: case-SENSITIVE overall (the `[a-z0-9]` lookahead is the whole guard —
+# under re.I it would match "Netizens" too); only the scheme is case-insensitive.
+_WRAP_CUT_SLASH = re.compile(
+    r"((?i:https?://|ftp://|www\.)[^\s<>\"')\]}]*/)[ \t]*\n[ \t]*"
+    r"(?=[a-z0-9_~%\-]*[./][^\s<>\"')\]}]*)")
+
+
+def join_wrapped_urls(text: str) -> str:
+    """Re-join URLs the PDF wrapped across a line break.
+
+    A hyphen cut (`http://www-` + `sul.stanford.edu/...`) is always joined. A
+    slash cut is joined only when the next line is a path-like continuation, so a
+    complete site-root URL (`http://www.bootstrap.org/`) never absorbs the
+    following prose. A line that merely ENDS with a URL is left alone.
+    """
+    prev = None
+    out = text or ""
+    while out != prev:                       # a URL can wrap more than once
+        prev = out
+        out = _WRAP_CUT_HYPHEN.sub(r"\1", out)
+        out = _WRAP_CUT_SLASH.sub(r"\1", out)
+    return out
+
+
+def urls_from_text(text: str) -> list[tuple[str, int]]:
+    """Every URL in `text` as `(url, offset)`, trailing sentence punctuation
+    stripped (`http://x.org/a.html.` -> `http://x.org/a.html`)."""
+    out: list[tuple[str, int]] = []
+    for m in _TEXT_URL.finditer(text or ""):
+        url = m.group(0).rstrip(".,;:!?")
+        if url:
+            out.append((url, m.start()))
+    return out
+
+
+def text_layer_links(pages: list[str]) -> list[dict[str, Any]]:
+    """Harvest URLs from per-page TEXT (one string per page, 1-based pages).
+
+    Returns annotation-shaped records — `{"page", "url", "kind": "text"}` — so a
+    caller can format them exactly like annotation links; `kind="text"` keeps the
+    provenance honest (visible text, NOT a clickable annotation). Wrapped URLs
+    are joined first; the result is deduped keeping the earliest page.
+    """
+    seen: set[str] = set()
+    out: list[dict[str, Any]] = []
+    for i, page_text in enumerate(pages or [], start=1):
+        for url, _off in urls_from_text(join_wrapped_urls(page_text or "")):
+            if url not in seen:
+                seen.add(url)
+                out.append({"page": i, "url": url, "kind": "text"})
+    return out
+
+
+# ---------------------------------------------------------------------------
 # Core extraction
 # ---------------------------------------------------------------------------
 

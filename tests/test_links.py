@@ -41,7 +41,18 @@ def test_format_links_surfaces_code_first():
 
 
 def test_format_links_empty():
-    assert "No external URL annotations" in _format_links([])
+    # empty now means BOTH routes came up dry (annotations AND the text layer),
+    # since cmd_links falls back to harvesting URLs from the page text.
+    out = _format_links([])
+    assert "No URLs found" in out and "page text" in out
+
+
+def test_format_links_marks_text_layer_provenance():
+    """URLs harvested from the page text are reported as such — they are visible
+    text, NOT clickable annotations."""
+    out = _format_links([{"page": 22, "url": "http://x.org/", "kind": "text"}])
+    assert "from the page TEXT" in out and "NO link annotations" in out
+    assert "http://x.org/" in out
 
 
 if __name__ == "__main__":
