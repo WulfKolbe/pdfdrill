@@ -1,6 +1,6 @@
 # pdfdrill
 
-[![Open in GitHub Codespaces](https://github.com/codespaces/badge.svg)](https://codespaces.new/WulfKolbe/drillspace)
+[![Open in GitHub Codespaces](https://github.com/codespaces/badge.svg)](https://codespaces.new/WulfKolbe/drillspace?quickstart=1)
 
 **Token-economical drill-down extraction + PDF→LaTeX OCR quality control.**
 
