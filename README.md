@@ -1,8 +1,21 @@
 # pdfdrill
 
+[![Open in GitHub Codespaces](https://github.com/codespaces/badge.svg)](https://codespaces.new/WulfKolbe/pdfdrill)
+
 **Token-economical drill-down extraction + PDF→LaTeX OCR quality control.**
 
 🔗 **Project page:** <https://pdfdrill.github.io>
+
+The badge opens **this repo** in a container with the full toolchain already
+provisioned — see [`.devcontainer/`](.devcontainer/README.md). It is a
+development environment: the preflight gate is live, and no sample PDFs are
+bundled. A cold start is slow (provisioning installs ~4 GB of TeXLive) and a
+codespace spends your GitHub account's free-tier core-hours and storage.
+
+**Just want to try pdfdrill on a PDF?** Use
+[**drillspace**](https://github.com/WulfKolbe/drillspace) instead — the same
+container with sample papers in the tree and the gate switched off, so the
+first command returns a result.
 
 `pdfdrill` is a flat CLI that returns prose, persists state in a sidecar next
 to each PDF, and wraps the heavy tools (poppler, pdfplumber) so an LLM can
