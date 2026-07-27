@@ -110,6 +110,45 @@ the port gets the terminal, the artifact file routes and the LLM — there is no
 authentication. Fine on a trusted home LAN; use `--host 127.0.0.1` (plus an SSH
 tunnel) on anything you don't control.
 
+**Firewall.** Binding is not enough — the port must also be *allowed*:
+`sudo ufw allow 8787` and `sudo ufw allow 10000` (the bridge and its static
+artifact server). Both directions matter: outgoing on the server, incoming on
+the client.
+
+### Where is the client? (this decides what "open a file" can mean)
+
+The bridge and the browser are not always on the same machine, and **everything
+file-related depends on which**. The bridge detects it from the connection's
+source address and adapts:
+
+| | browser **on the server** (localhost, or `beelink:8787` typed on beelink) | browser on **another device** (laptop/phone) |
+|---|---|---|
+| `/artifact`, static links | work | work — this is the only route that does |
+| `open <file>` | host browser opens on your screen | opens in **your** browser via `http://…` |
+| host-open (`/open`) | available | **disabled** — it would open a window on the *server* |
+| `edit <file>` (gummi) | available | **disabled** — the editor would launch on the *server* |
+| a local path / `file://` | resolves | meaningless — it addresses **your** disk, not the server's |
+
+Ask the bridge directly:
+
+```bash
+curl -s http://beelink:8787/whoami | python3 -m json.tool
+```
+
+```json
+{ "clientIp": "192.168.178.42", "local": false,
+  "serverHostname": "beelink", "serverAddresses": ["192.168.178.67"],
+  "hostOpen": false, "editor": null,
+  "artifactBase": "http://beelink:8787/artifact?path=",
+  "note": "different machine: use http:// artifact URLs — host-open/edit would act on the server, …" }
+```
+
+The terminal shows the same fact: the location chip reads `beelink:8787 · remote`
+or `· same machine`, and a remote session prints one notice on connect. A remote
+client is never *told* host-open/edit exist, so it falls back to opening the
+artifact URL in its own browser — instead of silently doing nothing because the
+window appeared on the server.
+
 The document must already be drilled (`pdfdrill model <doc>`). If it isn't, the
 REPL says so on connect and tells you to type `model` to build it.
 

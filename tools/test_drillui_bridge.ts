@@ -170,6 +170,22 @@ if (up) {
      outputAfterCmd.slice(0, 80).replace(/\s+/g, " "));
 }
 
+// --- 7b) /whoami: where is the client relative to the bridge? ----------------
+// Everything file-related depends on this. From THIS machine the answer must be
+// local=true (so host-open/edit stay available); the REMOTE branch is unit
+// tested in test_drillui_net.ts, since we cannot originate from another host.
+if (up) {
+  const w = await fetch(base + "/whoami");
+  const wj: any = await w.json().catch(() => ({}));
+  ok("/whoami reports the client as local (same machine)",
+     w.status === 200 && wj.local === true, `ip=${wj.clientIp}`);
+  ok("/whoami names the server + its addresses",
+     typeof wj.serverHostname === "string" && Array.isArray(wj.serverAddresses));
+  ok("/whoami hands back a reachable artifact base (hostname, not localhost)",
+     typeof wj.artifactBase === "string"
+     && wj.artifactBase.includes(wj.serverHostname), wj.artifactBase);
+}
+
 try { proc.kill(); } catch {}
 
 // --- viewer auto-open: a `pyramid` run that makes <doc>.drill/viewer/manifest.json

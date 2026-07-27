@@ -375,6 +375,7 @@ const app = {
   session:{ doc:"—", model:"—", k:"—", store:true },
   turnNo:0, pendingQ:null, turnBuf:"", turnErr:false,
   httpBase:"", staticPort:0, hostOpen:false, editorName:"", artifacts:new Map(),
+  clientLocal:null,   // null = not yet known; set from the bridge's hello
 
   init(){
     const term = new Terminal({
@@ -434,8 +435,22 @@ const app = {
     const info = this.locationInfo();
     const label = document.getElementById("loc-label");
     const chip = document.getElementById("loc");
-    if (label) label.textContent = info.label;
-    if (chip) chip.title = info.host + "  ·  " + location.href;
+    // WHERE AM I relative to the bridge? Everything file-related depends on it:
+    // on a REMOTE browser the server's screen/filesystem are not the user's, so
+    // host-open + the host editor are off and only HTTP artifact URLs work.
+    // `clientLocal` comes from the bridge's hello (socket source address).
+    const where = this.clientLocal === false ? " · remote"
+                : this.clientLocal === true  ? " · same machine" : "";
+    if (label) label.textContent = info.label + where;
+    if (chip) chip.title = info.host + "  ·  " + location.href
+      + (this.clientLocal === false
+          ? "\nYour browser is on a DIFFERENT machine than the bridge: files open"
+            + " as http:// artifact links; host-open/edit are disabled (they would"
+            + " act on the server)."
+          : this.clientLocal === true
+          ? "\nYour browser and the bridge are on the SAME machine: host-open and"
+            + " the host editor act on this screen."
+          : "");
   },
 
   artifactUrl(path){
@@ -543,6 +558,19 @@ const app = {
         this.hostOpen = msg.hostOpen === true;   // bridge can launch the system browser
         this.editorName = msg.editor || "";      // `edit <file>` opener (gummi / CoCalc open)
         this.staticPort = msg.staticPort || 0;   // bridge's static file server port (CoCalc route)
+        // WHERE the browser is relative to the bridge (socket source address).
+        // The bridge already withholds hostOpen/editor when we're remote; this
+        // drives the visible chip + the one-line notice, so the difference is
+        // never silent (the "I clicked and nothing happened" case).
+        if (typeof msg.clientLocal === "boolean"){
+          this.clientLocal = msg.clientLocal;
+          this.setLocation();
+          if (!msg.clientLocal){
+            this.term.writeln(C.faint("  browser is on a DIFFERENT machine than the bridge"
+              + (msg.clientIp ? " (you: " + msg.clientIp + ")" : "")
+              + " — files open as http:// links; host-open/edit are off."));
+          }
+        }
         if (msg.viewer){                          // local MathPix-free deep-zoom image source
           this.artifacts.set("__viewer__", { isUrl:true, url:(this.httpBase||"")+msg.viewer,
             label:"deep-zoom viewer (local pyramid)", ext:"view" });

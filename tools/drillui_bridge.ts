@@ -22,7 +22,8 @@
 import { dirname, join, resolve, normalize, sep, extname, basename } from "node:path";
 import { fileURLToPath } from "node:url";
 import { existsSync, readFileSync, readdirSync, appendFileSync, writeFileSync } from "node:fs";
-import { homedir, tmpdir, networkInterfaces, hostname } from "node:os";
+import { homedir, tmpdir, hostname } from "node:os";
+import { lanAddresses, isLocalClient as isLocalClientOf } from "./drillui_net.ts";
 
 // Session TRANSCRIPT log: every line the terminal shows (stdout + stderr, ANSI
 // stripped) is also appended here, so errors are always COPYABLE — open it in a
@@ -676,26 +677,29 @@ function spawnSession(ws: any): Session {
   return sess;
 }
 
-/** This machine's non-loopback IPv4 addresses — what to type on another device
- *  when the bridge binds 0.0.0.0 (`localhost` there would be that device). */
-function lanAddresses(): string[] {
-  const out: string[] = [];
-  for (const addrs of Object.values(networkInterfaces())) {
-    for (const a of addrs ?? []) {
-      if (a.family === "IPv4" && !a.internal) out.push(a.address);
-    }
-  }
-  return out;
+// WHERE IS THE CLIENT? — the classifier lives in drillui_net.ts (side-effect
+// free, so the REMOTE branch is unit-testable; it cannot be exercised by
+// connecting from this machine, where every source address is our own).
+const OWN_ADDRESSES = new Set<string>(lanAddresses());
+const isLocalClient = (ip: string | null | undefined) => isLocalClientOf(ip, OWN_ADDRESSES);
+
+/** The peer address of a request, or null when Bun can't report it. */
+function peerIp(server: { requestIP?: (r: Request) => { address?: string } | null },
+                req: Request): string | null {
+  try { return server.requestIP?.(req)?.address ?? null; } catch { return null; }
 }
 
 // ---- server ----------------------------------------------------------------
-const server = Bun.serve<{ sess: Session | null }>({
+const server = Bun.serve<{ sess: Session | null; local: boolean; ip: string | null }>({
   port,
   hostname: host,
   async fetch(req, server) {
     const url = new URL(req.url);
     if (url.pathname === "/ws") {
-      if (server.upgrade(req, { data: { sess: null } })) return;
+      // Capture WHERE the client is at upgrade time — the socket's source
+      // address is the only reliable signal, and it is unavailable later.
+      const ip = peerIp(server, req);
+      if (server.upgrade(req, { data: { sess: null, local: isLocalClient(ip), ip } })) return;
       return new Response("expected websocket", { status: 426 });
     }
 
@@ -734,9 +738,38 @@ const server = Bun.serve<{ sess: Session | null }>({
       } });
     }
 
+    // WHERE IS THE CLIENT? — the answer, curlable, for debugging file/URL cases.
+    // `local` decides whether host-open / the host editor mean anything, and
+    // whether a local path can be handed to the browser at all.
+    if (url.pathname === "/whoami") {
+      const ip = peerIp(server, req);
+      const local = isLocalClient(ip);
+      return Response.json({
+        clientIp: ip,
+        local,
+        serverHostname: hostname(),
+        serverAddresses: [...OWN_ADDRESSES],
+        // what the client may use, given where it is
+        hostOpen: OPENER !== null && local,
+        editor: (EDITOR && local) ? EDITOR.join(" ") : null,
+        artifactBase: `http://${hostname()}:${port}/artifact?path=`,
+        staticBase: staticPort ? `http://${hostname()}:${staticPort}/` : null,
+        note: local
+          ? "same machine: host-open/edit act on your screen; local paths resolve"
+          : "different machine: use http:// artifact URLs — host-open/edit would "
+            + "act on the server, and a file:// path would address YOUR disk",
+      });
+    }
+
     // open a file in the user's own browser on the host machine
     if (url.pathname === "/open" && req.method === "POST") {
       if (!OPENER) return new Response("host-open disabled", { status: 403 });
+      // A REMOTE client asking us to "open" spawns a browser on the SERVER's
+      // screen — invisible to them. Refuse and say so; the client then opens the
+      // artifact URL in its OWN browser, which is what it actually wanted.
+      if (!isLocalClient(peerIp(server, req)))
+        return new Response("host-open is server-side; your browser is on another "
+          + "machine — open the artifact URL directly instead", { status: 409 });
       let body: any; try { body = await req.json(); } catch { return new Response("bad json", { status: 400 }); }
       // Open a URL in the host's browser (xdg-open/open/…). This is the reliable
       // path for `open <url>` typed in the terminal: no popup blocker, no lost
@@ -766,6 +799,11 @@ const server = Bun.serve<{ sess: Session | null }>({
     // → the project's LaTeX IDE, or `gummi` locally. Same root-safety as /open.
     if (url.pathname === "/edit" && req.method === "POST") {
       if (!EDITOR) return new Response("editor-open disabled", { status: 403 });
+      // Same as /open: the editor would launch on the SERVER's desktop.
+      if (!isLocalClient(peerIp(server, req)))
+        return new Response("the editor runs on the server; your browser is on "
+          + "another machine — use `open <file>` to view it over HTTP instead",
+          { status: 409 });
       let body: any; try { body = await req.json(); } catch { return new Response("bad json", { status: 400 }); }
       const abs = safeResolve(String(body?.path || ""));
       if (!abs) return new Response("forbidden path", { status: 403 });
@@ -799,8 +837,14 @@ const server = Bun.serve<{ sess: Session | null }>({
         model: model ?? "default",
         k,
         store,
-        hostOpen: OPENER !== null,
-        editor: EDITOR ? EDITOR.join(" ") : null,          // `edit <file>` opener (gummi / CoCalc open)
+        // WHERE the client is (see isLocalClient): a REMOTE browser must not be
+        // told host-open / the host editor are available — acting on them opens
+        // a window on the SERVER that the user never sees. Reported as false so
+        // the client falls back to its OWN browser via plain HTTP artifact URLs.
+        clientLocal: ws.data.local,
+        clientIp: ws.data.ip,
+        hostOpen: OPENER !== null && ws.data.local,
+        editor: (EDITOR && ws.data.local) ? EDITOR.join(" ") : null,  // gummi / CoCalc open
         staticPort,                                        // static-file server port (CoCalc artifact route)
         viewer: docWithPyramid() ? "/viewer.html" : null,  // local deep-zoom image source
       });
