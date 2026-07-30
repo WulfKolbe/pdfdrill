@@ -206,9 +206,18 @@ def find_main_tex(paths: dict[str, str]) -> str | None:
 def read_source(path: str) -> tuple[str, str]:
     """Load LaTeX source from a .tex file or an arXiv .tgz/.tar.gz.
 
-    Returns (full_text_with_inputs_inlined, main_filename). For a tarball the
-    members are extracted to a temp dir so \\input resolves.
+    Returns (full_text_with_inputs_inlined, main_filename), or ("", "") when the
+    file is not LaTeX source at all.
+
+    A paper with no submitted source makes `https://arxiv.org/e-print/<id>`
+    serve the PDF, which lands as `<id>.tgz`. It is neither a tar nor a gzip, so
+    it used to reach the plain-text fallback and the raw PDF bytes were parsed
+    as LaTeX -- yielding a fabricated "equation" scraped out of a FlateDecode
+    stream. Silent nonsense is worse than no source, so a non-source payload is
+    rejected here and callers report the truth: no LaTeX available.
     """
+    if not _is_probably_text(path):
+        return "", ""
     if path.endswith((".tex",)):
         base = os.path.dirname(os.path.abspath(path))
         return expand_inputs(path, base), os.path.basename(path)
@@ -269,6 +278,32 @@ def read_source(path: str) -> tuple[str, str]:
 
     # plain text fallback
     return strip_comments(open(path, encoding="utf-8", errors="replace").read()), os.path.basename(path)
+
+
+#: magic numbers that are definitively NOT LaTeX source, however the file is
+#: named. `%PDF` is the one arXiv actually serves for a source-less paper.
+_NOT_SOURCE_MAGIC = (b"%PDF", b"\x89PNG", b"\xff\xd8\xff", b"GIF8", b"BM")
+
+
+def _is_probably_text(path: str) -> bool:
+    """Reject binaries before they are parsed as LaTeX.
+
+    Archives are exempt: a real .tgz/.zip is binary at the front and is handled
+    by its own branch. This guard is only about payloads that reach the
+    plain-text fallback.
+    """
+    try:
+        with open(path, "rb") as fh:
+            head = fh.read(4096)
+    except OSError:
+        return False
+    if not head:
+        return False
+    if head.startswith(_NOT_SOURCE_MAGIC):
+        return False
+    if head[:2] in (b"\x1f\x8b", b"PK"):        # gzip / zip: own branches
+        return True
+    return b"\x00" not in head                  # NULs never appear in .tex
 
 
 def _is_gzip(path: str) -> bool:

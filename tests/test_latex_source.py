@@ -186,3 +186,42 @@ def test_read_source_still_prefers_tar_over_gzip_branch():
         full, name = ls.read_source(p)
 
     assert "mc^2" in full and name == "main.tex"
+
+
+def test_read_source_rejects_a_pdf_served_as_eprint():
+    """A paper with no submitted source makes arXiv's /e-print/<id> serve the
+    PDF, which lands as <id>.tgz. It is neither tar nor gzip, so it reached the
+    plain-text fallback and the raw PDF bytes were parsed as LaTeX -- one real
+    file yielded a fabricated "equation" scraped out of a FlateDecode stream."""
+    import os
+    import tempfile
+
+    pdf_bytes = (b"%PDF-1.4\n2 0 obj\n<< /Length 1 0 R /Filter /FlateDecode >>\n"
+                 b"stream\n\x78\xda\xad\x5b\x59\x00\x93\x12\x7e\xfd\nendstream\n")
+    with tempfile.TemporaryDirectory() as d:
+        p = os.path.join(d, "0705.4638.tgz")
+        with open(p, "wb") as fh:
+            fh.write(pdf_bytes)
+        text, name = ls.read_source(p)
+
+    assert text == "" and name == "", "PDF bytes must never be parsed as LaTeX"
+    assert not ls.extract_display_equations(text)
+
+
+def test_read_source_rejects_binary_but_keeps_utf8_tex():
+    """NUL bytes never occur in .tex; accented UTF-8 must still pass."""
+    import os
+    import tempfile
+
+    with tempfile.TemporaryDirectory() as d:
+        binary = os.path.join(d, "junk.tex")
+        with open(binary, "wb") as fh:
+            fh.write(b"\\begin{document}\x00\x00binary\\end{document}")
+        assert ls.read_source(binary) == ("", "")
+
+        good = os.path.join(d, "ok.tex")
+        with open(good, "w", encoding="utf-8") as fh:
+            fh.write(r"\begin{document}Grüße \[ x=1 \]\end{document}")
+        text, name = ls.read_source(good)
+        assert "Grüße" in text and name == "ok.tex"
+        assert len(ls.extract_display_equations(text)) == 1
