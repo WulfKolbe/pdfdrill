@@ -747,6 +747,29 @@ commands:
     type: pages
     flag: --pages
   typed: true
+- name: eqblobs
+  section: Introspection (fast, no extraction)
+  summary: 'KEYLESS page geometry: display-math REGIONS + per-page details (skew, body column,
+    line count, columns) via connected-component blobs. Pure geometry — no OCR, no network, no
+    key; it reports WHERE ink sits, never what it says. --fuse attaches regions to model Equation
+    objects that have none (a source-built arXiv model carries gold LaTeX but no page geometry)'
+  offline_ok: true
+  positionals:
+  - name: pdf
+    type: pdf
+    required: true
+    help: PDF path, https URL, or bare arXiv id
+  flags:
+  - name: pages
+    type: pages
+    flag: --pages
+  - name: dpi
+    type: int
+    flag: --dpi
+  - name: fuse
+    type: flag
+    flag: --fuse
+  typed: true
 - name: model
   section: Introspection (fast, no extraction)
   summary: 'Build unified docmodel from lines.json. No lines.json → MathPix (if key) → arXiv LaTeX

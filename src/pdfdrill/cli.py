@@ -629,6 +629,16 @@ def _do_extractimages(args):
                              force="--force" in args)
 
 
+def _do_eqblobs(args):
+    """pdfdrill eqblobs <pdf> [--pages N|N-M] [--dpi N] [--fuse]"""
+    from .commands import cmd_eqblobs
+    pages, args = _opt(args, "--pages")
+    dpi, args = _opt(args, "--dpi")
+    fuse = "--fuse" in args
+    args = [a for a in args if a != "--fuse"]
+    return cmd_eqblobs(_pdf(args), pages=pages, dpi=int(dpi or 300), fuse=fuse)
+
+
 def _do_tables(args):
     """pdfdrill tables <pdf> [--pages N|N-M]"""
     from .commands import cmd_tables
@@ -1759,6 +1769,7 @@ HANDLERS = {
         "formfields": _do_formfields,
         "extractimages": _do_extractimages,
         "tables": _do_tables,
+        "eqblobs": _do_eqblobs,
         "model": _do_model,
         "compare": _do_compare,
         "snip": _do_snip,

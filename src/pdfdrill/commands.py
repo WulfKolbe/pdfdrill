@@ -2508,6 +2508,95 @@ def _gold_table_dicts(doc) -> list[dict]:
     return out
 
 
+def cmd_eqblobs(pdf: Path, pages: str | None = None, dpi: int = 300,
+                fuse: bool = False) -> str:
+    """Keyless page geometry: display-equation REGIONS + per-page details.
+
+    A pure geometry pass -- no OCR, no network, no key. It reports where ink
+    sits, never what it says. `--fuse` attaches the regions to model Equation
+    objects that have none (an arXiv/source-built model carries gold LaTeX but
+    no page geometry), and never overwrites a region that already exists.
+    """
+    from . import eqblobs as _eb
+    from . import pdf_reading as _pr
+
+    sc = Sidecar(pdf)
+    # page_count is 0 until `size` runs; coerce to None so parse_pages does not
+    # clamp every requested page away (same trap as cmd_tables).
+    total = int((sc.evidence or {}).get("pages") or 0)
+    if pages:
+        want = _pr.parse_pages(pages, total or None)
+    elif total:
+        want = list(range(1, total + 1))
+    else:
+        cmd_size(pdf)
+        sc = Sidecar(pdf)
+        total = int((sc.evidence or {}).get("pages") or 0)
+        want = list(range(1, (total or 1) + 1))
+    if not want:
+        return f"eqblobs: no pages selected (document has {total})."
+
+    geos = _eb.analyse_pdf(Path(pdf), want, sc.blob_dir, dpi=dpi)
+    sc.set_layer("eqblobs", {"dpi": dpi, "pages": [g.as_dict() for g in geos]})
+    sc.add_fact("EQBLOBS_KNOWN")
+    sc.save()
+
+    n_eq = sum(len(g.equations) for g in geos)
+    skews = [g.skew_deg for g in geos]
+    cols = {g.columns for g in geos}
+    fused = 0
+    if fuse:
+        fused = _fuse_eqblob_regions(pdf, geos)
+    msg = (f"eqblobs: {len(geos)} page(s) at {dpi} DPI -> {n_eq} display-math "
+           f"region(s); median skew {sorted(skews)[len(skews)//2]:+.3f} deg, "
+           f"{'/'.join(str(c) for c in sorted(cols))}-column.")
+    if fuse:
+        msg += f" Fused regions onto {fused} Equation object(s) that had none."
+    else:
+        msg += " Re-run with --fuse to attach them to region-less Equations."
+    return msg
+
+
+def _fuse_eqblob_regions(pdf: Path, geos) -> int:
+    """Attach blob regions to Equation objects lacking geometry, in order.
+
+    Deliberately positional within a page: the blob pass cannot read, so it
+    cannot match by content. Equations on a page are numbered top-to-bottom in
+    both representations, so the nth region on page P is the nth equation on
+    page P. Anything already carrying a region is left alone.
+    """
+    from docmodel.core import Document
+
+    sc = Sidecar(pdf)
+    model_path = _model_path(sc)
+    if not model_path.exists():
+        return 0
+    with open(model_path, "r", encoding="utf-8") as f:
+        doc = Document.from_dict(json.load(f))
+    by_page: dict[int, list] = {}
+    for g in geos:
+        by_page[g.page] = sorted(g.equations, key=lambda e: e.y0)
+    fused = 0
+    seen: dict[int, int] = {}
+    for obj in doc.objects_of_type("Equation"):
+        page = (obj.props or {}).get("page")
+        if not page or page not in by_page:
+            continue
+        if (obj.props or {}).get("region"):
+            continue
+        i = seen.get(page, 0)
+        if i >= len(by_page[page]):
+            continue
+        seen[page] = i + 1
+        obj.props["region"] = by_page[page][i].as_dict()
+        obj.props["region_source"] = "eqblobs"
+        fused += 1
+    if fused:
+        from .model_io import save_model
+        save_model(model_path, doc)
+    return fused
+
+
 def cmd_tables(pdf: Path, pages: str | None = None) -> str:
     """Tables from the model's gold LaTeX (if built) + keyless pdfplumber.
 
