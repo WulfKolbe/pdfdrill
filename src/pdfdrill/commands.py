@@ -343,6 +343,22 @@ def _born_digital_char_dump(pdf: Path) -> dict:
         return _pdfplumber_char_dump(pdf)
 
 
+def _has_born_digital_text(pdf: Path) -> bool:
+    """Cheap check: does the PDF carry a REAL text layer of its own? Used to
+    decide whether an existing tesseract lines.json is an unnecessary downgrade.
+    Conservative — any doubt (tool missing, parse error) answers False, so we
+    never discard OCR output we cannot replace."""
+    try:
+        out = subprocess.run(["pdftotext", "-l", "5", str(pdf), "-"],
+                             capture_output=True, text=True, timeout=60)
+    except (OSError, subprocess.SubprocessError):
+        return False
+    if out.returncode != 0:
+        return False
+    # the same floor `size`'s text-layer probe uses for the first pages
+    return len((out.stdout or "").strip()) >= 16
+
+
 def _write_born_digital_lines(pdf: Path) -> bool:
     """Born-digital TEXT-LAYER route: read the PDF's own text layer with
     **pdfminer.six** (pdfplumber fallback) and write a MathPix-shape
@@ -2776,6 +2792,7 @@ def cmd_model(pdf: Path, force: bool = False, bibkey: str | None = None) -> str:
     model_path = _model_path(sc)
     key = resolve_bibkey(pdf, bibkey, sc)
     lines_path = _lines_json_path(pdf)
+    upgraded_from_ocr = False
     # A new explicit --bibkey forces a rebuild so titles/meta pick it up.
     if bibkey and key != sc.get_evidence("bibkey"):
         force = True
@@ -2797,6 +2814,23 @@ def cmd_model(pdf: Path, force: bool = False, bibkey: str | None = None) -> str:
             stale = True
     if sc.has(MODEL_BUILT) and model_path.exists() and not force and not stale:
         return _format_model(sc)
+
+    # A lines.json from a WEAKER source must not shadow a better one forever. The
+    # whole acquisition chain below is gated on "no lines.json yet", so a doc that
+    # was once OCR'd (tesseract) stayed on OCR text for good — even though it has
+    # a perfect born-digital text layer and `route` reports
+    # "born-digital -> pdfminer/text-layer [free]". Found on arXiv 1012.3259
+    # (OpenOffice.org 3.2): 537 tesseract lines standing in for a 27k-char text
+    # layer. On --force, drop a tesseract lines.json when the PDF really does have
+    # a text layer, so the free/exact route is re-acquired. MathPix output is
+    # never discarded (it is the richest source).
+    if force and lines_path.exists() and _lines_json_source(lines_path) == "tesseract":
+        if _has_born_digital_text(pdf):
+            try:
+                lines_path.unlink()
+                upgraded_from_ocr = True
+            except OSError:
+                pass
 
     if not lines_path.exists():
         # 1) MathPix if a key is present (best: page geometry + LaTeX + CDN crops).
@@ -2871,6 +2905,11 @@ def cmd_model(pdf: Path, force: bool = False, bibkey: str | None = None) -> str:
     sc.set_evidence("model_object_counts", by_type)
     sc.set_evidence("model_equations_with_cdn", eq_with_cdn)
     sc.set_evidence("model_source", lines_source)
+    # `_format_model` only receives the sidecar, so hand it these two facts here
+    # (where lines_path is in scope): whether --force upgraded OCR → text layer,
+    # and any private-use glyphs left unmapped in the built text.
+    sc.set_evidence("lines_upgraded_from_ocr", bool(upgraded_from_ocr))
+    sc.set_evidence("pua_note", _model_pua_note(lines_path))
     # CAPABILITIES, not just MODEL_BUILT: `model` yields incompatible SPECIES —
     # geometry (page boxes) for `inspect`/`locate`, math (typed equations) for
     # `report`/`compare`. Record what THIS species can support so commands +
@@ -3025,13 +3064,43 @@ def _format_model(sc: Sidecar) -> str:
     else:
         img_line = f"source={source!r}. "
         nxt = "Next: pdfdrill compare <pdf> → LaTeX | KaTeX | image table."
+    # Say so when --force replaced OCR text with the PDF's own (exact, free) text
+    # layer, and surface any private-use glyphs left unmapped (see text_normalize).
+    upgrade_note = ""
+    if sc.get_evidence("lines_upgraded_from_ocr"):
+        upgrade_note = ("\nUPGRADED: a stale tesseract lines.json was replaced by the "
+                        "PDF's own text layer (free + exact; OCR was standing in for a "
+                        "real text layer).")
+    pua_note = str(sc.get_evidence("pua_note") or "")
     return (
         f"Built unified model: {total} objects ({top}). "
         f"{img_line}"
-        f"bibkey={key!r}. Stored at {sc.get_evidence('model_path')}.\n"
+        f"bibkey={key!r}. Stored at {sc.get_evidence('model_path')}."
+        f"{upgrade_note}{pua_note}\n"
         f"{nxt}"
         + _bibkey_hint(key)
     )
+
+
+def _model_pua_note(lines_path: Path) -> str:
+    """Surface PRIVATE-USE glyphs still present in the built text. The verified
+    ones are already normalised (`text_normalize`); anything left is a
+    font-private codepoint with no known plain-text equivalent, which would
+    otherwise degrade search/embeddings invisibly."""
+    try:
+        from collections import Counter
+        from .text_normalize import PUA_START, PUA_END, pua_report
+        data = json.loads(lines_path.read_text(encoding="utf-8", errors="replace"))
+    except Exception:                                # noqa: BLE001
+        return ""
+    left: Counter = Counter()
+    for page in (data.get("pages") or []):
+        for ln in (page.get("lines") or []):
+            for ch in str(ln.get("text") or ""):
+                if PUA_START <= ord(ch) <= PUA_END:
+                    left[ord(ch)] += 1
+    rep = pua_report(left)
+    return ("\nNOTE: " + rep) if rep else ""
 
 
 def cmd_compare(pdf: Path, force: bool = False, embed: bool = False) -> str:

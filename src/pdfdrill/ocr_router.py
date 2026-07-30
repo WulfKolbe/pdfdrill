@@ -41,8 +41,8 @@ def choose_route(*, text_layer: Optional[bool], needs_ocr: Optional[bool],
         return RouteDecision(
             lane="born_digital",
             reason=f"born-digital (has a text layer, {pc or '?'} pages)",
-            command="pdfdrill model  (text-layer extraction; DRILLPDFse pdfminer "
-                    "recovers the math as gold)",
+            command="pdfdrill model  (text-layer extraction via pdfminer — free "
+                    "and exact; no OCR)",
             cost="free")
     # Not classified yet (size never ran).
     if not needs_ocr and text_layer is None:

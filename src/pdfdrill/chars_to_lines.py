@@ -27,6 +27,13 @@ import statistics
 from typing import Any
 
 from . import ocr_lines
+from .text_normalize import normalize_pua
+
+
+def _norm_pua(s: str) -> str:
+    """Map the VERIFIED private-use glyphs to plain text; unknown PUA is kept
+    verbatim (never guessed) — `pdfdrill model` reports what was left."""
+    return normalize_pua(s)[0]
 
 
 def _column_split(items: list[dict], page_width: float) -> "float | None":
@@ -89,7 +96,12 @@ def _emit_words(line: list[dict], pg, li: int, out: list[dict]) -> None:
             "page": pg, "block": 0, "line": li,
             "x0": min(c["x0"] for c in cur), "x1": max(c["x1"] for c in cur),
             "y0": min(c["top"] for c in cur), "y1": max(c["bottom"] for c in cur),
-            "text": "".join(c["t"] for c in cur).strip(),
+            # A PDF's own text layer can map glyphs into the Unicode PRIVATE USE
+            # AREA via /ToUnicode (OpenOffice's OpenSymbol does this for stretchy
+            # math delimiters). Those codepoints extract "correctly" but are
+            # font-private noise downstream — normalise the verified ones HERE,
+            # the single seam where born-digital text becomes a line.
+            "text": _norm_pua("".join(c["t"] for c in cur).strip()),
         })
 
     prev_x1 = None
