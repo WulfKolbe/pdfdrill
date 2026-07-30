@@ -135,3 +135,54 @@ if __name__ == "__main__":
         print(f"\n{len(failed)} failed out of {len(tests)}")
         sys.exit(1)
     print(f"\nAll {len(tests)} tests passed.")
+
+
+def test_read_source_gzipped_bare_tex():
+    """arXiv serves a SINGLE-FILE submission as gzip(paper.tex), not
+    gzip(tar(...)). `is_tarfile` is False for it, so before this was handled the
+    plain-text fallback read the compressed bytes as LaTeX and every caller saw
+    "0 display equations, 0 preamble macros" from a source that had both."""
+    import gzip
+    import os
+    import tempfile
+
+    src = (r"\documentclass{article}"
+           r"\newcommand{\R}{\mathbb{R}}"
+           r"\begin{document}"
+           r"\[ x \in \R \]"
+           r"\end{document}")
+    with tempfile.TemporaryDirectory() as d:
+        p = os.path.join(d, "1234.5678.tgz")
+        # the stored member name must differ from the file on disk, which is
+        # exactly how arXiv ships these
+        with open(p, "wb") as raw:
+            with gzip.GzipFile(filename="1234.5678.tex", mode="wb",
+                               fileobj=raw) as fh:
+                fh.write(src.encode())
+        full, name = ls.read_source(p)
+
+    assert r"\in" in full, "compressed bytes were read as text"
+    assert name == "1234.5678.tex", "original name comes from the gzip header"
+    pre, body = ls.split_preamble(full)
+    assert "R" in ls.extract_macros(pre)
+    assert len(ls.extract_display_equations(body)) == 1
+
+
+def test_read_source_still_prefers_tar_over_gzip_branch():
+    """A real .tgz (gzip of a tar) must keep taking the tarball path."""
+    import io
+    import os
+    import tarfile
+    import tempfile
+
+    with tempfile.TemporaryDirectory() as d:
+        p = os.path.join(d, "multi.tgz")
+        payload = (r"\documentclass{article}\begin{document}"
+                   r"\begin{equation} E = mc^2 \end{equation}\end{document}").encode()
+        with tarfile.open(p, "w:gz") as tf:
+            ti = tarfile.TarInfo("main.tex")
+            ti.size = len(payload)
+            tf.addfile(ti, io.BytesIO(payload))
+        full, name = ls.read_source(p)
+
+    assert "mc^2" in full and name == "main.tex"

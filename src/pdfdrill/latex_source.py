@@ -19,6 +19,7 @@ later step.
 """
 from __future__ import annotations
 
+import gzip
 import os
 import re
 import tarfile
@@ -256,8 +257,47 @@ def read_source(path: str) -> tuple[str, str]:
                 return "", ""
             return expand_inputs(os.path.join(d, main),
                                  os.path.dirname(os.path.join(d, main))), main
+    # A single-file arXiv submission is served as gzip(paper.tex) -- NOT
+    # gzip(tar(...)) -- so `is_tarfile` is False and the plain-text fallback
+    # below would read the compressed bytes as if they were LaTeX, silently
+    # yielding "0 display equations, 0 preamble macros" from a source that has
+    # both. The gzip header usually carries the original filename; use it.
+    if _is_gzip(path):
+        with gzip.open(path, "rb") as fh:
+            text = fh.read().decode("utf-8", errors="replace")
+        return strip_comments(text), _gzip_member_name(path) or os.path.basename(path)
+
     # plain text fallback
     return strip_comments(open(path, encoding="utf-8", errors="replace").read()), os.path.basename(path)
+
+
+def _is_gzip(path: str) -> bool:
+    try:
+        with open(path, "rb") as fh:
+            return fh.read(2) == b"\x1f\x8b"
+    except OSError:
+        return False
+
+
+def _gzip_member_name(path: str) -> str:
+    """Original filename from the gzip header (FNAME flag), or ""."""
+    try:
+        with open(path, "rb") as fh:
+            magic, method, flags = fh.read(2), fh.read(1), fh.read(1)
+            if magic != b"\x1f\x8b" or not flags:
+                return ""
+            if not flags[0] & 0x08:                 # FNAME not present
+                return ""
+            fh.read(6)                              # mtime(4) + xfl(1) + os(1)
+            if flags[0] & 0x04:                     # FEXTRA precedes FNAME
+                xlen = int.from_bytes(fh.read(2), "little")
+                fh.read(xlen)
+            name = bytearray()
+            while (b := fh.read(1)) not in (b"", b"\x00"):
+                name += b
+            return name.decode("latin-1", errors="replace")
+    except OSError:
+        return ""
 
 
 # ---------------------------------------------------------------------------
