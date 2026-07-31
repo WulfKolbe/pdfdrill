@@ -4007,7 +4007,10 @@ def cmd_combine(out: Path, pdfs: "list[Path]", force: bool = False) -> str:
             objects.append({"type": o.type, "id": f"{bk}:{o.id}", "props": props})
             n += 1
         used.append((bk, n))
-        srcs.append({"bibkey": bk, "path": str(pdf)})    # so per-doc commands can fan out
+        # Record the human TITLE too: a session listing must not be a wall of
+        # bibkeys/stems, and re-deriving it later means re-loading every model.
+        srcs.append({"bibkey": bk, "path": str(pdf),
+                     "title": doc_title(pdf, sc)})       # per-doc commands fan out on this
     if not used:
         return ("combine: none of the inputs has a built model — run `pdfdrill "
                 f"model` first. Missing: {', '.join(missing) or '(none given)'}.")
@@ -4025,6 +4028,77 @@ def cmd_combine(out: Path, pdfs: "list[Path]", force: bool = False) -> str:
     return (f"Combined {len(used)} document(s) → {len(objects)} units in {out.name} "
             f"[{parts}].{warn} Chat over all: `pdfdrill retrieve {out.name} \"…\"` "
             f"or `bun tools/drillui_bridge.ts {out.name}`.")
+
+
+def doc_title(pdf: Path, sc: "Sidecar | None" = None) -> str:
+    """The best human TITLE for a document, cheapest source first.
+
+    A multi-document session is unusable without this: bibkeys and file stems
+    (`1012.3259`, `576-659-1-PB`) say nothing about what a paper IS. Order:
+    the model's own meta (captured from the title line / LaTeX `\\title`), the
+    cached arXiv abs-page title, then the filename stem as a last resort — never
+    empty, so a listing always has something to show.
+    """
+    from . import model_io as _mio          # module-level only exposes load/save_model
+    sc = sc or Sidecar(pdf)
+    try:
+        mp = _model_path(sc)
+        if mp.exists():
+            g = _mio.load_docgraph(mp)
+            t = str((getattr(g, "meta", {}) or {}).get("title") or "").strip()
+            if t:
+                return t
+    except Exception:                                # noqa: BLE001
+        pass
+    return str(sc.get_evidence("arxiv_title") or "").strip() or Path(pdf).stem
+
+
+def _store_sources(pdf: Path) -> list[dict] | None:
+    """The member records of a combined session store, or None for a plain doc."""
+    combo = _load_combined_store(pdf)
+    if combo is None:
+        return None
+    return list((combo[1] or {}).get("sources") or [])
+
+
+def cmd_docs(pdf: Path, titles_only: bool = False) -> str:
+    """List the documents in a session (or describe a single one) — ONE LINE each.
+
+    The compact counterpart to `bibtex`: with a dozen papers in context you want
+    to see WHAT is loaded, not full records. Reads the combined store's member
+    list and resolves each title (`doc_title`), falling back to the bibkey.
+    """
+    srcs = _store_sources(pdf)
+    if srcs is None:                                  # a single document
+        sc = Sidecar(pdf)
+        t = doc_title(pdf, sc)
+        return t if titles_only else f"{resolve_bibkey(pdf, None, sc)}  {t}"
+
+    if not srcs:
+        return "No documents in this session store."
+    lines: list[str] = []
+    untitled = 0
+    for s in srcs:
+        bk = str(s.get("bibkey") or "?")
+        p = Path(str(s.get("path") or ""))
+        # Always re-resolve when the stored title is missing OR is just the id:
+        # a later `abstract` caches the real title, and the store may predate it.
+        t = str(s.get("title") or "").strip()
+        if (not t or t == bk) and p.exists():
+            t = doc_title(p)
+        t = t or bk
+        if t == bk:
+            untitled += 1
+        lines.append(t if titles_only else f"  {bk:<22} {t}")
+    if titles_only:
+        return "\n".join(lines)
+    tail = "\n(`bibtex` for full records, `abstract` for the abstracts.)"
+    if untitled:
+        # Say WHY an id is showing instead of a title, and how to fix it.
+        tail = (f"\n{untitled} document(s) show their id because no title was "
+                f"captured — run `abstract` on them (free for arXiv: it reads the "
+                f"abs page and caches the title)." + tail)
+    return (f"{len(srcs)} document(s) in this session:\n" + "\n".join(lines) + tail)
 
 
 def _load_combined_store(path: Path):
@@ -8831,6 +8905,42 @@ def _can_supersede(prev_scope: str | None, new_scope: str) -> bool:
 
 
 def cmd_abstract(pdf: Path) -> str:
+    """Extract the abstract — TITLED, and fanned out over a multi-doc session.
+
+    An abstract with no title is unusable in a session with several papers, so
+    every result is prefixed with the document's title + bibkey. A combined
+    store is expanded member by member."""
+    srcs = _store_sources(pdf)
+    if srcs is not None:
+        if not srcs:
+            return "No documents in this session store."
+        out: list[str] = [f"Abstracts for {len(srcs)} document(s) in this session:"]
+        for sdoc in srcs:
+            p = Path(str(sdoc.get("path") or ""))
+            bk = str(sdoc.get("bibkey") or p.stem)
+            if not p.exists():
+                out.append(f"\n## {sdoc.get('title') or bk}\n[{bk}]\n"
+                           f"  (source file not found — cannot read the abstract)")
+                continue
+            try:
+                out.append("\n" + cmd_abstract(p).strip())
+            except Exception as e:                   # noqa: BLE001
+                out.append(f"\n## {sdoc.get('title') or bk}\n[{bk}]\n  (failed: {e})")
+        return "\n".join(out)
+    # body FIRST: the arXiv route caches the paper's title as a side effect, so
+    # computing the header afterwards means the very first call already shows it
+    # (not the bare id, with the real title only appearing on a second run).
+    body = _abstract_body(pdf)
+    return _title_prefix(pdf) + body
+
+
+def _title_prefix(pdf: Path) -> str:
+    """`## <title>` + `[<bibkey>]` header for an abstract."""
+    sc = Sidecar(pdf)
+    return f"## {doc_title(pdf, sc)}\n[{resolve_bibkey(pdf, None, sc)}]\n"
+
+
+def _abstract_body(pdf: Path) -> str:
     """Extract the abstract.
 
     Cheap path: pdftotext on the first two pages with regex match.

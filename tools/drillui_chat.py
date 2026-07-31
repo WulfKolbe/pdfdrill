@@ -731,8 +731,23 @@ def main() -> int:
         if verb == "session" and sub in ("", "show", "status", "ls"):
             print(f"  context: {len(docs)} document(s)"
                   + (f" — target {target}" if target else " (empty)"))
-            for dpath in docs:
-                print(f"    • {dpath}")
+            # TITLES, not just paths: with a dozen papers loaded, `1012.3259.pdf`
+            # says nothing about what the paper IS. `pdfdrill docs` resolves each
+            # title from the combined store; fall back to paths if it can't.
+            listed = False
+            if combined:
+                try:
+                    r = subprocess.run(base + ["docs", str(combined)], env=env,
+                                       capture_output=True, text=True, timeout=120)
+                    if r.returncode == 0 and r.stdout.strip():
+                        for ln in r.stdout.rstrip().splitlines():
+                            print("  " + ln)
+                        listed = True
+                except Exception:
+                    pass
+            if not listed:
+                for dpath in docs:
+                    print(f"    • {dpath}")
             print("  reset | clear | refresh  → drop all docs (files kept).")
             continue
         # add <doc>: drill it and merge into the live context (multi-document).

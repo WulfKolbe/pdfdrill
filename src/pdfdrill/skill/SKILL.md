@@ -554,6 +554,7 @@ _Generated from `commands.yaml` by skillsync. Edit the manifest, not this sectio
 | `pdfdrill lean <pdf> [--limit LIMIT] [--force] [--emit-only]` | Export theorems to Lean 4: STORE LLM-generated Lean per Theorem (props/tiddler lean4 field, like bibfetch) then PROJECT <bibkey>.lean from the stored code (sorry-stub if ungenerated). Needs theorem envs from a LaTeX-source build _(network)_ |
 | `pdfdrill scikgtex <pdf> [--compile]` | Project to SciKGTeX-annotated LaTeX → compiled PDF carries ORKG contribution metadata (title/authors/field + research-problem/method/result roles + numeric facts + bib-DOI links) as XMP/RDF. --compile (lualatex + vendored scikgtex) |
 | `pdfdrill skill [--emit EMIT] [--json] [--check]` | Emit/serve the bundled SKILL folder (--emit DIR \| --json \| --check) |
+| `pdfdrill docs <pdf> [--titles]` | ONE LINE per document in a session (title + bibkey) — the compact counterpart to bibtex; on a single doc, its title |
 
 ### Extraction
 
@@ -613,6 +614,6 @@ _Generated from `commands.yaml` by skillsync. Edit the manifest, not this sectio
 <!-- COMMANDS:END -->
 
 <!-- PREFLIGHT-TOKEN:BEGIN -->
-Attestation token — the LAST line of this SKILL. If you can read this, you read the whole file. Run `pdfdrill preflight --ack DRILL-e6787906` before any build/extract command.
-DRILL-e6787906
+Attestation token — the LAST line of this SKILL. If you can read this, you read the whole file. Run `pdfdrill preflight --ack DRILL-9db4c340` before any build/extract command.
+DRILL-9db4c340
 <!-- PREFLIGHT-TOKEN:END -->

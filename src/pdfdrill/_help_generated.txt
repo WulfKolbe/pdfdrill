@@ -100,6 +100,7 @@ Introspection (fast, no extraction):
   pdfdrill lean <pdf> [--limit LIMIT] [--force] [--emit-only] Export theorems to Lean 4: STORE LLM-generated Lean per Theorem (props/tiddler lean4 field, like bibfetch) then PROJECT <bibkey>.lean from the stored code (sorry-stub if ungenerated). Needs theorem envs from a LaTeX-source build
   pdfdrill scikgtex <pdf> [--compile]         Project to SciKGTeX-annotated LaTeX → compiled PDF carries ORKG contribution metadata (title/authors/field + research-problem/method/result roles + numeric facts + bib-DOI links) as XMP/RDF. --compile (lualatex + vendored scikgtex)
   pdfdrill skill [--emit EMIT] [--json] [--check] Emit/serve the bundled SKILL folder (--emit DIR | --json | --check)
+  pdfdrill docs <pdf> [--titles]              ONE LINE per document in a session (title + bibkey) — the compact counterpart to bibtex; on a single doc, its title
 
 Extraction:
   pdfdrill md <pdf> [--pages PAGES]           Full Markdown with math transclusions

@@ -1931,6 +1931,22 @@ commands:
     type: pdf
     required: true
   typed: true
+- name: docs
+  section: Introspection (fast, no extraction)
+  summary: ONE LINE per document in a session (title + bibkey) — the compact counterpart
+    to bibtex; on a single doc, its title
+  offline_ok: true
+  positionals:
+  - name: pdf
+    type: pdf
+    required: true
+    help: combined session store, PDF path, https URL, or bare arXiv id
+  flags:
+  - name: titles
+    flag: --titles
+    type: flag
+    help: print only the titles, one per line
+  typed: true
 - name: combine
   section: Planning & automation
   summary: 'Merge several drilled docs into ONE combined store (--out FILE) for MULTI-DOCUMENT chat/retrieve;

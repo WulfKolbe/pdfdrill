@@ -386,6 +386,12 @@ def _do_fonts(args):
     return cmd_fonts(_pdf(args))
 
 
+def _do_docs(args):
+    """`docs` — one line per document in a session (title + bibkey)."""
+    from .commands import cmd_docs
+    return cmd_docs(_pdf(args), titles_only="--titles" in args)
+
+
 def _do_status(args):
     from .commands import cmd_status
     return cmd_status(_pdf(args))
@@ -1735,6 +1741,7 @@ HANDLERS = {
         "abstract": _do_abstract,
         "toc": _do_toc,
         "fonts": _do_fonts,
+        "docs": _do_docs,
         "status": _do_status,
         "md": _do_md,
         "page": _do_page,
