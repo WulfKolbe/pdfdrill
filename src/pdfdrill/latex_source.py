@@ -390,6 +390,17 @@ def extract_macros(preamble: str) -> dict[str, dict]:
         macros.setdefault(m.group(1),
                           {"nargs": nargs, "default": None, "body": body})
 
+    # \newmathalphabet*\got{euf}{m}{n} -- a math ALPHABET, not a macro. It has
+    # no body to inline, so expansion can never remove it; `{\got g}` survived
+    # every pass and the speech engine read "backslash got g". It is a
+    # group-scoped declaration and needs MAPPING, not expansion. Recorded here
+    # with body=None so `_apply_once` skips it and the font pass picks it up.
+    for m in re.finditer(
+            r"\\newmathalphabet\*?\s*\{?\\([A-Za-z]+)\}?\s*\{([A-Za-z]+)\}", preamble):
+        macros[m.group(1)] = {"nargs": 0, "default": None, "body": None,
+                              "alphabet": _ALPHABET_FOR_FONT.get(
+                                  m.group(2).lower(), "\\mathrm")}
+
     return macros
 
 
@@ -449,6 +460,8 @@ def _apply_once(text: str, name: str, mac: dict) -> tuple[str, bool]:
     """Expand all calls of one macro once. Returns (text, changed)."""
     nargs = mac["nargs"]
     body = mac["body"]
+    if body is None:            # an alphabet declaration: mapped, not inlined
+        return text, False
     pat = re.compile(r"\\" + re.escape(name) + r"(?![A-Za-z])")
     out, changed, i = [], False, 0
     for m in pat.finditer(text):
@@ -484,8 +497,75 @@ def _apply_once(text: str, name: str, mac: dict) -> tuple[str, bool]:
     return "".join(out), changed
 
 
+#: Which standard math alphabet a `\newmathalphabet` font family means.
+_ALPHABET_FOR_FONT = {
+    "euf": "\\mathfrak", "eufm": "\\mathfrak",      # Euler Fraktur
+    "eus": "\\mathscr", "eusm": "\\mathscr",        # Euler Script
+    "msb": "\\mathbb", "bbm": "\\mathbb", "bbold": "\\mathbb",
+    "cmr": "\\mathrm", "cmbx": "\\mathbf", "cmti": "\\mathit",
+    "cmss": "\\mathsf", "cmtt": "\\mathtt",
+}
+
+#: Plain-TeX / LaTeX 2.09 font switches. These are DECLARATIONS scoped to the
+#: enclosing group -- `{\bf x}`, not `\bf{x}` -- so they cannot be expanded like
+#: a macro and latex2mathml does not know them. Rewriting the group to the
+#: modern command keeps the meaning the author wrote.
+_FONT_SWITCHES = {
+    "rm": "\\mathrm", "bf": "\\mathbf", "it": "\\mathit",
+    "sf": "\\mathsf", "tt": "\\mathtt", "cal": "\\mathcal",
+    "sl": "\\mathit", "sc": "\\mathrm", "mit": "\\mathit",
+    "frak": "\\mathfrak", "goth": "\\mathfrak",
+}
+
+#: Switches that carry no content at all: they change weight, not meaning.
+_DROPPED_SWITCHES = ("boldmath", "unboldmath", "displaystyle", "textstyle",
+                     "scriptstyle", "scriptscriptstyle")
+
+#: Box commands whose argument is prose, not math.
+_BOX_TO_TEXT = ("mbox", "hbox", "fbox")
+
+
+def normalize_font_switches(text: str, macros: Optional[dict] = None) -> str:
+    """Rewrite group-scoped font declarations into their modern commands.
+
+    Expansion cannot touch these: `{\\bf x}` is a declaration scoped to the
+    brace group, and `\\got` from `\\newmathalphabet` has no body to inline at
+    all. They therefore survived every expansion pass and reached the speech
+    engine verbatim, which read them aloud -- "backslash got g times A". On
+    hep-th/9411188 that was 23 of 34 equations.
+
+    `{\\bf x}` becomes `\\mathbf{x}`, `\\mbox{y}` becomes `\\text{y}`, and
+    `\\boldmath` is dropped because it changes weight, not content.
+    """
+    table = dict(_FONT_SWITCHES)
+    for name, mac in (macros or {}).items():
+        if mac.get("alphabet"):
+            table[name] = mac["alphabet"]
+
+    for box in _BOX_TO_TEXT:
+        text = re.sub(r"\\" + box + r"\s*(?=\{)", "\\\\text", text)
+    for sw in _DROPPED_SWITCHES:
+        text = re.sub(r"\\" + sw + r"(?![A-Za-z])\s*", "", text)
+
+    # `{\bf body}` -> `\mathbf{body}`, innermost first so nesting resolves.
+    pat = re.compile(r"\{\s*\\(" + "|".join(sorted(table, key=len, reverse=True))
+                     + r")(?![A-Za-z])\s*")
+    for _ in range(8):
+        m = pat.search(text)
+        if not m:
+            break
+        group = _balanced(text, m.start())          # includes the outer braces
+        if not group.endswith("}"):
+            break
+        body = group[m.end() - m.start():-1]
+        text = text[:m.start()] + table[m.group(1)] + "{" + body + "}" + \
+            text[m.start() + len(group):]
+    return text
+
+
 def expand_macros(fragment: str, macros: dict[str, dict], max_iter: int = 8) -> str:
-    """Inline preamble macros into a fragment by bounded fixpoint."""
+    """Inline preamble macros into a fragment by bounded fixpoint, then map the
+    font/alphabet declarations expansion cannot reach."""
     text = fragment
     for _ in range(max_iter):
         changed = False
@@ -494,7 +574,7 @@ def expand_macros(fragment: str, macros: dict[str, dict], max_iter: int = 8) -> 
             changed = changed or ch
         if not changed:
             break
-    return text
+    return normalize_font_switches(text, macros)
 
 
 # Packages that fight `standalone`'s content-cropping (fixed page geometry, page

@@ -241,8 +241,10 @@ def test_def_with_parameter_text_is_extracted_and_expanded():
     assert m["eps"]["nargs"] == 0            # the zero-arg form still works
     assert m["pair"]["nargs"] == 1
 
+    # the `{\rm ad}` inside the macro body is mapped by the font pass that runs
+    # after expansion, so the result is modern LaTeX throughout
     out = ls.expand_macros(r"\ad{e_i}{1-a_{ij}}e_j=0", m)
-    assert out == r"({\rm ad}\,e_i)^{1-a_{ij}}e_j=0", out
+    assert out == r"(\mathrm{ad}\,e_i)^{1-a_{ij}}e_j=0", out
     assert "\\ad" not in out
 
 
@@ -252,3 +254,30 @@ def test_delimited_def_is_left_alone_not_misparsed():
     m = ls.extract_macros(r"\def\foo#1,#2{#1+#2}" "\n" r"\def\ok#1{[#1]}")
     assert "ok" in m
     assert "foo" not in m, "a delimited def must not be taken as undelimited"
+
+
+def test_font_switches_and_alphabets_are_mapped_not_expanded():
+    """A group-scoped declaration has no body to inline, so expansion could
+    never remove it: `{\\got g}` survived every pass and the speech engine read
+    "backslash got g". 23 of 34 equations in hep-th/9411188 spoke a backslash
+    for this reason. Mapping is the fix, not expansion."""
+    pre = r"\newmathalphabet*\got{euf}{m}{n}"
+    m = ls.extract_macros(pre)
+    assert m["got"]["body"] is None, "an alphabet has no body to inline"
+    assert m["got"]["alphabet"] == "\\mathfrak"
+
+    out = ls.expand_macros(r"{\got g}(A) = {\got n}_+ \oplus {\got h}", m)
+    assert out == r"\mathfrak{g}(A) = \mathfrak{n}_+ \oplus \mathfrak{h}", out
+    assert "\\got" not in out
+
+
+def test_old_font_switches_boxes_and_weight_only_switches():
+    out = ls.expand_macros(r"{\bf x} + \mbox{ where } \boldmath{\rm y}", {})
+    assert out == r"\mathbf{x} + \text{ where } \mathrm{y}", out
+
+    # nested groups resolve innermost-first
+    nested = ls.expand_macros(r"{\bf a {\rm b} c}", {})
+    assert nested == r"\mathbf{a \mathrm{b} c}", nested
+
+    # a switch that is not a font declaration must be untouched
+    assert ls.expand_macros(r"\alpha + {\beta}", {}) == r"\alpha + {\beta}"
