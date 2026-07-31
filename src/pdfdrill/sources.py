@@ -234,14 +234,68 @@ def download(url: str, dest: Path) -> Path:
     return dest
 
 
+class NoLatexSource(RuntimeError):
+    """arXiv has no LaTeX source for this id — the e-print endpoint served the
+    PDF itself (a PDF-only submission)."""
+
+
+def looks_like_pdf_bytes(head: bytes) -> bool:
+    """True when the payload is a PDF (magic `%PDF`, allowing leading junk)."""
+    return b"%PDF" in (head or b"")[:1024]
+
+
+def looks_like_source_archive(head: bytes) -> bool:
+    """True for something that can plausibly be an arXiv e-print: a gzip/tar
+    stream, or a bare (uncompressed) LaTeX file. Explicitly False for a PDF."""
+    h = head or b""
+    if looks_like_pdf_bytes(h):
+        return False
+    if h[:2] == b"\x1f\x8b":                      # gzip (.tar.gz / gzipped .tex)
+        return True
+    if h[257:262] == b"ustar":                    # plain tar
+        return True
+    # a bare .tex submission (arXiv serves it uncompressed for single files)
+    probe = h[:2048].lstrip()
+    return probe.startswith(b"\\") or probe.startswith(b"%")
+
+
 def download_arxiv_source(arxiv_id: str, dest_dir: Path) -> Path:
-    """Download the arXiv e-print source tarball to `<dest_dir>/<id>.tgz`
-    (the endpoint the abs-page download button hides). Idempotent."""
+    """Download the arXiv e-print source to `<dest_dir>/<id>.tgz` (the endpoint
+    the abs-page download button hides). Idempotent.
+
+    Not every arXiv submission HAS LaTeX: for a PDF-only submission the e-print
+    endpoint serves the PDF itself. That used to be written straight to
+    `<id>.tgz` — a PDF wearing a tarball name, which then failed to unpack far
+    downstream with a confusing error. Sniff the payload and raise
+    `NoLatexSource` instead, leaving no bogus tarball behind.
+    """
     safe = arxiv_id.replace("/", "_")
     dest = Path(dest_dir) / f"{safe}.tgz"
     if dest.exists() and dest.stat().st_size > 0:
-        return dest
-    return download(arxiv_urls(arxiv_id)["eprint"], dest)
+        # a tarball cached by an older build may itself be a mislabelled PDF
+        if looks_like_pdf_bytes(dest.read_bytes()[:1024]):
+            try:
+                dest.unlink()
+            except OSError:
+                pass
+        else:
+            return dest
+    out = download(arxiv_urls(arxiv_id)["eprint"], dest)
+    try:
+        head = Path(out).read_bytes()[:4096]
+    except OSError:
+        return out
+    if not looks_like_source_archive(head):
+        try:
+            Path(out).unlink()
+        except OSError:
+            pass
+        what = "the PDF itself" if looks_like_pdf_bytes(head) else "a non-archive payload"
+        raise NoLatexSource(
+            f"arXiv has no LaTeX source for {arxiv_id}: the e-print endpoint "
+            f"served {what} (a PDF-only submission). Use the PDF routes "
+            f"(`pdfdrill model` / `mathpix`) — there is no .tex to ingest.")
+    return out
 
 
 def _safe_filename(url: str) -> str:

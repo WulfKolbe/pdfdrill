@@ -343,6 +343,42 @@ def _born_digital_char_dump(pdf: Path) -> dict:
         return _pdfplumber_char_dump(pdf)
 
 
+def _pdf_producer(pdf: Path) -> str:
+    """The PDF's Producer — the cheapest routing signal there is (pdfinfo, no
+    parsing). Read from the sidecar when `size` already ran, else asked directly
+    so the policy applies even on a first, cold call."""
+    sc = Sidecar(pdf)
+    prod = str(sc.get_evidence("producer") or "").strip()
+    if prod:
+        return prod
+    try:
+        out = subprocess.run(["pdfinfo", str(pdf)], capture_output=True,
+                             text=True, timeout=30)
+    except (OSError, subprocess.SubprocessError):
+        return ""
+    for line in (out.stdout or "").splitlines():
+        if line.startswith("Producer:"):
+            return line.split(":", 1)[1].strip()
+    return ""
+
+
+def _pdfminer_declined(pdf: Path) -> bool:
+    """True when the producer policy forbids the pdfminer/born-digital lane for
+    this file (see `producer_policy`). Records the reason in the sidecar so the
+    skip is visible rather than a silent fall-through."""
+    from .producer_policy import avoid_pdfminer, policy_note
+    prod = _pdf_producer(pdf)
+    if not avoid_pdfminer(prod):
+        return False
+    try:
+        sc = Sidecar(pdf)
+        sc.set_evidence("lane_policy", policy_note(prod))
+        sc.save()
+    except Exception:                                # noqa: BLE001
+        pass
+    return True
+
+
 def _has_born_digital_text(pdf: Path) -> bool:
     """Cheap check: does the PDF carry a REAL text layer of its own? Used to
     decide whether an existing tesseract lines.json is an unnecessary downgrade.
@@ -368,6 +404,12 @@ def _write_born_digital_lines(pdf: Path) -> bool:
     through to tesseract. This is what `route`'s "born-digital → text-layer (free)"
     promise resolves to inside `model`."""
     from . import chars_to_lines
+    # PRODUCER POLICY (the cheapest signal — pdfinfo — decides the lane BEFORE
+    # any parsing). Some writers emit font subsets this lane mishandles;
+    # declining is correct, and the caller then falls through to the lanes that
+    # do work (MathPix / tesseract). Never silent: the reason is recorded.
+    if _pdfminer_declined(pdf):
+        return False
     try:
         data = _born_digital_char_dump(pdf)
     except Exception:                                # noqa: BLE001
@@ -2793,6 +2835,7 @@ def cmd_model(pdf: Path, force: bool = False, bibkey: str | None = None) -> str:
     key = resolve_bibkey(pdf, bibkey, sc)
     lines_path = _lines_json_path(pdf)
     upgraded_from_ocr = False
+    relaned = False
     # A new explicit --bibkey forces a rebuild so titles/meta pick it up.
     if bibkey and key != sc.get_evidence("bibkey"):
         force = True
@@ -2824,11 +2867,22 @@ def cmd_model(pdf: Path, force: bool = False, bibkey: str | None = None) -> str:
     # layer. On --force, drop a tesseract lines.json when the PDF really does have
     # a text layer, so the free/exact route is re-acquired. MathPix output is
     # never discarded (it is the richest source).
-    if force and lines_path.exists() and _lines_json_source(lines_path) == "tesseract":
-        if _has_born_digital_text(pdf):
+    # ...and a lines.json produced by a lane the PRODUCER POLICY forbids is just
+    # as wrong, in the other direction. On --force, drop whichever is stale:
+    if force and lines_path.exists():
+        src_now = str(_lines_json_source(lines_path) or "")
+        declined = _pdfminer_declined(pdf)
+        drop = wrong_lane = False
+        if declined and src_now.startswith(("pdfminer", "pdfplumber")):
+            drop = wrong_lane = True             # built by a lane we now decline
+        elif (not declined and src_now == "tesseract"
+              and _has_born_digital_text(pdf)):
+            drop = True                          # OCR standing in for a text layer
+        if drop:
             try:
                 lines_path.unlink()
-                upgraded_from_ocr = True
+                upgraded_from_ocr = not wrong_lane
+                relaned = wrong_lane
             except OSError:
                 pass
 
@@ -3072,6 +3126,9 @@ def _format_model(sc: Sidecar) -> str:
                         "PDF's own text layer (free + exact; OCR was standing in for a "
                         "real text layer).")
     pua_note = str(sc.get_evidence("pua_note") or "")
+    lane = str(sc.get_evidence("lane_policy") or "")
+    if lane:
+        pua_note = "\nLANE: " + lane + pua_note
     return (
         f"Built unified model: {total} objects ({top}). "
         f"{img_line}"
@@ -8492,9 +8549,16 @@ def cmd_route(pdf: Path, run: bool = False) -> str:
     d = _r.route_for_sidecar(sc)
     sc.set_evidence("ocr_route", {"lane": d.lane, "cost": d.cost, "reason": d.reason})
     sc.save()
+    # The PRODUCER (pdfinfo — already fetched by `size` above) can veto a lane.
+    # Report it with the decision, so "born-digital" never silently means
+    # "pdfminer" for a producer we decline that lane for.
+    from .producer_policy import policy_note as _policy_note
+    veto = _policy_note(str(sc.get_evidence("producer") or ""))
+    tail = ("\n  POLICY: " + veto) if veto else ""
     if not run:
-        return _r.format_decision(d, pdf.name) + "\n  (add --run to execute this lane now)"
-    return _r.format_decision(d, pdf.name) + "\n" + _execute_lane(pdf, d)
+        return (_r.format_decision(d, pdf.name) + tail
+                + "\n  (add --run to execute this lane now)")
+    return _r.format_decision(d, pdf.name) + tail + "\n" + _execute_lane(pdf, d)
 
 
 # Pages to sample when page 1 is text-poor (a cover-page figure). A born-digital
