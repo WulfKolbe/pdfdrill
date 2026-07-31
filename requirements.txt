@@ -12,6 +12,7 @@ pdfminer.six>=20221105  # born-digital text layer (model char dump), font-span l
 pdfplumber>=0.11      # tables, image rects, anchor-text URL layer
 pydantic>=2.0         # DocumentContext state-machine carrier (md / drill / page engine path)
 pypdf>=4.0            # form-field reading + document-level attachment fallback (pdfdrill formfields/attachments)
+PyYAML>=6.0           # commands.yaml manifest: skill/planner/capgraph/font_classify all import yaml
 
 # Optional NLP enhancement (docops StanzaNlpMutator). Heavy + needs a one-time
 # model download, so it lives in the [nlp] extra rather than the core path:

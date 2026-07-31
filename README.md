@@ -1,8 +1,15 @@
 # pdfdrill
 
+[![Open in GitHub Codespaces](https://github.com/codespaces/badge.svg)](https://codespaces.new/WulfKolbe/drillspace?quickstart=1)
+
 **Token-economical drill-down extraction + PDF→LaTeX OCR quality control.**
 
 🔗 **Project page:** <https://pdfdrill.github.io>
+
+The badge opens [**drillspace**](https://github.com/WulfKolbe/drillspace) — a
+codespace where drillui comes up in your browser on a drilled sample paper.
+Two clicks, nothing to install. To hack on pdfdrill itself, open *this* repo in
+a container instead ([`.devcontainer/`](.devcontainer/README.md)).
 
 `pdfdrill` is a flat CLI that returns prose, persists state in a sidecar next
 to each PDF, and wraps the heavy tools (poppler, pdfplumber) so an LLM can

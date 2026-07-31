@@ -1,0 +1,49 @@
+{
+  "name": "pdfdrill",
+  "image": "mcr.microsoft.com/devcontainers/base:ubuntu-24.04",
+
+  "onCreateCommand": "bash .devcontainer/onCreate.sh",
+  "waitFor": "onCreateCommand",
+
+  "hostRequirements": {
+    "storage": "32gb"
+  },
+
+  "remoteUser": "vscode",
+
+  "remoteEnv": {
+    "PATH": "/home/vscode/.bun/bin:/home/vscode/.local/bin:${containerEnv:PATH}",
+    "PYTHONPATH": "${containerWorkspaceFolder}/src",
+    "BUN_INSTALL": "/home/vscode/.bun"
+  },
+
+  "forwardPorts": [8787, 8080, 10000],
+
+  "portsAttributes": {
+    "8787": {
+      "label": "drillui (ask-the-document terminal)",
+      "onAutoForward": "notify"
+    },
+    "8080": {
+      "label": "TiddlyWiki (bun)",
+      "onAutoForward": "silent"
+    },
+    "10000": {
+      "label": "drillui artifacts (static)",
+      "onAutoForward": "silent"
+    }
+  },
+
+  "customizations": {
+    "vscode": {
+      "extensions": [
+        "ms-python.python",
+        "oven.bun-vscode",
+        "James-Yu.latex-workshop"
+      ],
+      "settings": {
+        "terminal.integrated.defaultProfile.linux": "bash"
+      }
+    }
+  }
+}
