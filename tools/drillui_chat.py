@@ -784,17 +784,38 @@ def main() -> int:
             continue
         # A pdfdrill command — forced with '!' or recognised by name — runs on the
         # CURRENT target. Everything else is a question.
+        # `?…` forces the LLM path — the escape hatch for a genuine ONE-WORD
+        # question, which is otherwise treated as a mistyped command (below).
+        forced_question = line.startswith("?")
+        if forced_question:
+            line = line[1:].lstrip()
+            if not line:
+                print("  usage: ?<question>   (forces the LLM instead of a command)")
+                continue
         first = line.lstrip("!").split(maxsplit=1)[0] if line.lstrip("!") else ""
-        is_cmd = line.startswith("!") or first in cmds
+        is_cmd = (not forced_question) and (line.startswith("!") or first in cmds)
         # Typo / singular tolerance: a lone word that closely matches a command
         # (e.g. `tiddler` → `tiddlers`) runs the command instead of being sent to
         # the LLM as a question (which wastes a slow call and answers nothing).
-        if not is_cmd and len(line.split()) == 1 and first:
+        if not is_cmd and not forced_question and len(line.split()) == 1 and first:
             near = difflib.get_close_matches(first.lower(), list(cmds), n=1, cutoff=0.8)
             if near:
                 print(f"  (no command `{first}` — running closest match `{near[0]}`)")
                 line = first = near[0]
                 is_cmd = True
+            else:
+                # A single WORD that is not a command and matches nothing is a
+                # TYPO, not a question — answering it costs a multi-second LLM
+                # round trip and returns "no units cited". Reject it instantly
+                # and locally. (A real one-word question still works: prefix `?`
+                # or add a second word.)
+                sugg = difflib.get_close_matches(first.lower(), list(cmds), n=3,
+                                                 cutoff=0.5)
+                print(f"  no command `{first}`."
+                      + (f" Did you mean: {', '.join(sugg)}?" if sugg else "")
+                      + "\n  `:commands` lists them all · `?<word>` asks it as a"
+                        " question instead.")
+                continue
         if is_cmd:
             # Multi-document: a pdfdrill command runs on EVERY loaded document
             # (fan-out). The combined store is a RETRIEVAL artifact, not a PDF, so

@@ -10,6 +10,10 @@
      self-contained re-implementation of its bash-like behaviour against v5's
      term.onData(). Credit: Ioannis Charalampidis, "Local echo & xterm.js". -->
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@xterm/xterm@5.5.0/css/xterm.min.css" />
+<!-- Stamped by the bridge with the content hash of THIS file; compared against
+     the `hello` payload so a tab left open across a bridge restart reloads
+     itself instead of silently running stale JS. Literal when opened directly. -->
+<script>window.__DRILLUI_UI_VERSION = "__DRILLUI_UI_VERSION__";</script>
 <script src="https://cdn.jsdelivr.net/npm/@xterm/xterm@5.5.0/lib/xterm.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@xterm/addon-fit@0.10.0/lib/addon-fit.min.js"></script>
 
@@ -562,6 +566,24 @@ const app = {
         // The bridge already withholds hostOpen/editor when we're remote; this
         // drives the visible chip + the one-line notice, so the difference is
         // never silent (the "I clicked and nothing happened" case).
+        // STALE TAB GUARD. `no-store` stops HTTP caching, but a tab that was
+        // already open when the bridge restarted keeps running its OLD JS and
+        // reconnects — commands then mis-route and it looks like "nothing
+        // works". The bridge stamps the page it serves; on a mismatch reload
+        // ONCE (a sessionStorage latch, so a genuine loop can't develop).
+        if (msg.uiVersion && window.__DRILLUI_UI_VERSION
+            && msg.uiVersion !== window.__DRILLUI_UI_VERSION){
+          if (!sessionStorage.getItem("drillui-reloaded-for")){
+            sessionStorage.setItem("drillui-reloaded-for", msg.uiVersion);
+            this.term.writeln(C.faint("  the bridge serves a newer UI — reloading…"));
+            setTimeout(()=>location.reload(), 250);
+            return;
+          }
+          this.term.writeln(C.red("  UI VERSION MISMATCH — this tab is running an "
+            + "older drillui than the bridge. Reload the page (Ctrl-Shift-R)."));
+        } else {
+          sessionStorage.removeItem("drillui-reloaded-for");   // versions agree
+        }
         if (typeof msg.clientLocal === "boolean"){
           this.clientLocal = msg.clientLocal;
           this.setLocation();

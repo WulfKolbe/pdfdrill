@@ -147,6 +147,24 @@ function buildCmd(): string[] {
 
 const HTML_PATH = join(dirname(fileURLToPath(import.meta.url)), "drillui_term.html");
 
+// UI VERSION — content hash of the page we serve. Sent in `hello` so an
+// already-open tab running OLDER JS detects the mismatch and reloads itself.
+// Computed EAGERLY at startup: a stale tab reconnects WITHOUT re-fetching the
+// page, so a lazily-computed value would still be null exactly when it matters.
+let _uiVer: string | null = null;
+async function uiVersion(): Promise<string> {
+  if (_uiVer) return _uiVer;
+  try {
+    const h = new Bun.CryptoHasher("sha256");
+    h.update(await Bun.file(HTML_PATH).arrayBuffer());
+    _uiVer = h.digest("hex").slice(0, 12);
+  } catch {
+    _uiVer = "unknown";
+  }
+  return _uiVer;
+}
+await uiVersion();          // before any WS can connect
+
 // ---- artifact serving ------------------------------------------------------
 // pdfdrill prints artifact paths RELATIVE TO THE DOCUMENT'S folder (e.g.
 // "1906.02691.pdf.drill/formula-report.html" for a doc in data/), but the
@@ -820,7 +838,15 @@ const server = Bun.serve<{ sess: Session | null; local: boolean; ip: string | nu
     // a lot — a stale cached copy is a real source of "it doesn't work" (old JS).
     const file = Bun.file(HTML_PATH);
     if (await file.exists()) {
-      return new Response(file, { headers: {
+      // Stamp the served page with the UI VERSION. `no-store` stops HTTP
+      // caching but does NOT touch an ALREADY-OPEN tab: after a bridge restart
+      // that tab still runs its old JS and happily reconnects, which looks like
+      // "the old view with wrong behaviour" (commands silently mis-routed).
+      // The client compares this stamp against the one in `hello` and reloads
+      // itself once on mismatch.
+      const html = (await file.text()).replace(
+        "__DRILLUI_UI_VERSION__", await uiVersion());
+      return new Response(html, { headers: {
         "content-type": "text/html; charset=utf-8",
         "cache-control": "no-store, must-revalidate",
       } });
@@ -843,6 +869,7 @@ const server = Bun.serve<{ sess: Session | null; local: boolean; ip: string | nu
         // the client falls back to its OWN browser via plain HTTP artifact URLs.
         clientLocal: ws.data.local,
         clientIp: ws.data.ip,
+        uiVersion: _uiVer,          // page the bridge serves; stale tabs reload
         hostOpen: OPENER !== null && ws.data.local,
         editor: (EDITOR && ws.data.local) ? EDITOR.join(" ") : null,  // gummi / CoCalc open
         staticPort,                                        // static-file server port (CoCalc artifact route)
