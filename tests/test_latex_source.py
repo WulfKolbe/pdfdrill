@@ -225,3 +225,30 @@ def test_read_source_rejects_binary_but_keeps_utf8_tex():
         text, name = ls.read_source(good)
         assert "Grüße" in text and name == "ok.tex"
         assert len(ls.extract_display_equations(text)) == 1
+
+
+def test_def_with_parameter_text_is_extracted_and_expanded():
+    """`\\def\\name#1#2{...}` was missed: the pattern demanded `{` straight
+    after the name. The macro then survived into what the pipeline called
+    EXPANDED LaTeX, reached the tiddler `latex` field, and the speech engine
+    read it aloud as "backslash ad". hep-th/9411188 defines 155 macros this
+    way; extraction went 124 -> 146 when this was fixed."""
+    pre = (r"\def\ad#1#2{({\rm ad}\,#1)^{#2}}"
+           r"\def\eps{\varepsilon}"
+           r"\def\pair#1{[#1]}")
+    m = ls.extract_macros(pre)
+    assert m["ad"]["nargs"] == 2 and m["ad"]["body"] == r"({\rm ad}\,#1)^{#2}"
+    assert m["eps"]["nargs"] == 0            # the zero-arg form still works
+    assert m["pair"]["nargs"] == 1
+
+    out = ls.expand_macros(r"\ad{e_i}{1-a_{ij}}e_j=0", m)
+    assert out == r"({\rm ad}\,e_i)^{1-a_{ij}}e_j=0", out
+    assert "\\ad" not in out
+
+
+def test_delimited_def_is_left_alone_not_misparsed():
+    """TeX allows a delimited parameter text (`\\def\\foo#1,#2{...}`), which
+    simple argument grabbing cannot expand. Skipping beats mis-parsing."""
+    m = ls.extract_macros(r"\def\foo#1,#2{#1+#2}" "\n" r"\def\ok#1{[#1]}")
+    assert "ok" in m
+    assert "foo" not in m, "a delimited def must not be taken as undelimited"

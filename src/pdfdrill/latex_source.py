@@ -371,10 +371,24 @@ def extract_macros(preamble: str) -> dict[str, dict]:
         body = _balanced(preamble, m.end() - 1)[1:-1]
         macros[m.group(1)] = {"nargs": 0, "default": None, "body": f"\\operatorname{{{body}}}"}
 
-    # \def\name{body}
-    for m in re.finditer(r"\\def\s*\\([A-Za-z]+)\s*\{", preamble):
+    # \def\name{body}  and  \def\name#1#2{body}
+    #
+    # The parameter-text form used to be missed: the pattern demanded `{`
+    # straight after the name, so `\def\ad#1#2{({\rm ad}\,#1)^{#2}}` never
+    # matched. \ad then survived into what the pipeline called EXPANDED LaTeX,
+    # reached the tiddler's `latex` field, and the speech engine read it aloud
+    # as "backslash ad". hep-th/9411188 defines 155 macros this way.
+    #
+    # Only undelimited parameters (#1#2#3...) are taken. TeX also allows a
+    # delimited parameter text (`\def\foo#1,#2{...}`), which cannot be expanded
+    # by simple argument grabbing; those stop matching at the delimiter and are
+    # left alone rather than mis-parsed.
+    for m in re.finditer(r"\\def\s*\\([A-Za-z]+)((?:\s*#\d)*)\s*\{", preamble):
+        nargs = max((int(d) for d in re.findall(r"#(\d)", m.group(2))),
+                    default=0)
         body = _balanced(preamble, m.end() - 1)[1:-1]
-        macros.setdefault(m.group(1), {"nargs": 0, "default": None, "body": body})
+        macros.setdefault(m.group(1),
+                          {"nargs": nargs, "default": None, "body": body})
 
     return macros
 
