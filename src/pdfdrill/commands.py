@@ -4101,6 +4101,158 @@ def cmd_docs(pdf: Path, titles_only: bool = False) -> str:
     return (f"{len(srcs)} document(s) in this session:\n" + "\n".join(lines) + tail)
 
 
+_TEX_CMD_RE = re.compile(r"\\([A-Za-z]+)")
+
+
+def _texsrc_dir(doc, pdf: Path | None = None) -> Path | None:
+    """The cached e-print source directory, or None.
+
+    `meta['latex_source_dir']` is an ABSOLUTE path recorded when the source was
+    downloaded, so it rots when the library is reorganised (models still point
+    at the old `~/Downloads/<stem>.pdf.drill/texsrc`). Fall back to the doc's
+    CURRENT drill folder before giving up.
+    """
+    cand: list[Path] = []
+    stored = str((getattr(doc, "meta", {}) or {}).get("latex_source_dir") or "").strip()
+    if stored:
+        cand.append(Path(stored))
+    if pdf is not None:
+        sc = Sidecar(pdf)
+        cand += [sc.blob_dir / "texsrc", Path(pdf).parent / "texsrc",
+                 Path(pdf).with_suffix(".pdf.drill") / "texsrc"]
+    for c in cand:
+        if c.is_dir():
+            return c
+    return None
+
+
+def _document_macro_names(doc, pdf: Path | None = None) -> set[str] | None:
+    """The macro names THIS document defines (`\\newcommand`/`\\def`/…), or None
+    when they can't be determined.
+
+    Re-derived from the cached e-print source (`meta['latex_source_dir']`),
+    because the model stores only `num_macros`, not the table. Knowing them is
+    what makes "unresolved macro" a FACT rather than a guess: a name the
+    document itself defined, still present in the EXPANDED latex, provably
+    escaped expansion. Everything else is only an unknown control sequence.
+    """
+    d = _texsrc_dir(doc, pdf)
+    if d is None:
+        return None
+    src_dir = str(d)
+    try:
+        from . import latex_source as ls
+        names: set[str] = set()
+        # Every .tex/.sty in the cached e-print: a macro may be defined in the
+        # main preamble OR in a bundled style file, and we want the union.
+        for p in (sorted(Path(src_dir).rglob("*.tex"))[:40]
+                  + sorted(Path(src_dir).rglob("*.sty"))[:20]):
+            text = p.read_text(encoding="utf-8", errors="replace")
+            pre = ls.split_preamble(text)[0] or text
+            names |= set((ls.collect_macros(pre, src_dir) or {}).keys())
+        return names or None
+    except Exception:                            # noqa: BLE001
+        return None
+
+
+def cmd_formulas(pdf: Path, out: str | None = None, plain: bool = False) -> str:
+    """Project every Formula/Equation for an EXTERNAL math pipeline (de-macro,
+    a Speech Rule Engine, …).
+
+    Emits, in flow order and as JSON: the object `id`, its
+    `{{<bibkey>_FOnnnn||FO}}` transclusion placeholder (numbered by the SAME
+    helper the TiddlyWiki projector uses, so the reference resolves), the
+    macro-EXPANDED `latex`, the author's `latex_original`, the control sequences
+    the expression still contains, and — when the source is available — which of
+    those are macros this document DEFINED and expansion failed to resolve.
+
+    `spoken` is emitted as null on every unit: the reserved slot for a rendered
+    speech string, so a consumer can round-trip its output back onto the object
+    instead of maintaining a parallel store.
+    """
+    from docops.projectors.tiddlywiki import math_titles
+
+    sc = Sidecar(pdf)
+    model_path = _model_path(sc)
+    if _stale_or_absent(sc, model_path, _lines_json_path(pdf)):
+        cmd_model(pdf)
+        sc = Sidecar(pdf)
+        model_path = _model_path(sc)
+    if not model_path.exists():
+        return f"No model for {pdf.name} — run `pdfdrill model` first."
+    doc = load_model(model_path)
+    key = resolve_bibkey(pdf, None, sc)
+    titles = math_titles(doc, key)
+    defined = _document_macro_names(doc, pdf)
+
+    objs = [o for o in doc.objects.values() if o.type in ("Formula", "Equation")]
+    objs.sort(key=lambda o: (o.props.get("flow_index", 10**9), o.id))
+    units: list[dict] = []
+    for o in objs:
+        p = o.props
+        latex = str(p.get("latex") or "")
+        original = str(p.get("latex_original") or "")
+        cmds = sorted(set(_TEX_CMD_RE.findall(latex)))
+        unresolved = sorted(c for c in cmds if defined and c in defined)
+        title = titles.get(o.id, "")
+        units.append({
+            "id": o.id,
+            "type": o.type,
+            "flow_index": p.get("flow_index"),
+            "title": title,
+            "placeholder": ("{{%s||%s}}" % (title, "EQ" if o.type == "Equation"
+                                            else "FO")) if title else "",
+            "latex": latex,
+            # only when it actually differs — an equal copy is noise
+            "latex_original": original if original and original != latex else None,
+            "commands": ["\\" + c for c in cmds],
+            "macros_unresolved": ["\\" + c for c in unresolved],
+            "page": p.get("page"),
+            "refnum": p.get("refnum") or p.get("equation_number"),
+            "label": p.get("label"),
+            "display": bool(p.get("display", o.type == "Equation")),
+            "spoken": None,          # reserved: write an SRE rendering back here
+        })
+
+    payload = {
+        "version": 1,
+        "bibkey": key,
+        "source": str((getattr(doc, "meta", {}) or {}).get("source") or ""),
+        "counts": {"total": len(units),
+                   "equations": sum(1 for u in units if u["type"] == "Equation"),
+                   "formulas": sum(1 for u in units if u["type"] == "Formula"),
+                   "with_original": sum(1 for u in units if u["latex_original"]),
+                   "with_unresolved": sum(1 for u in units if u["macros_unresolved"])},
+        # Say plainly whether "unresolved" could be decided at all, so a consumer
+        # never reads an empty list as "nothing unresolved".
+        "macro_table": ("document-source" if defined is not None else "unavailable"),
+        "macro_table_note": (
+            "macros_unresolved lists control sequences this document DEFINES that "
+            "survived expansion" if defined is not None else
+            "no LaTeX source cached — macros_unresolved is empty because it could "
+            "not be determined, NOT because everything resolved; `commands` still "
+            "lists every control sequence present"),
+        "units": units,
+    }
+    text = json.dumps(payload, ensure_ascii=False, indent=2)
+    if plain:                                    # one `latex` per line, nothing else
+        text = "\n".join(u["latex"] for u in units if u["latex"])
+    dest = Path(out) if out else (sc.blob_dir / f"{key}.formulas.json")
+    if not plain or out:
+        dest.parent.mkdir(parents=True, exist_ok=True)
+        dest.write_text(text, encoding="utf-8")
+    if plain and not out:
+        return text
+    c = payload["counts"]
+    unres = (f", {c['with_unresolved']} with unresolved macros"
+             if defined is not None else "")
+    return (f"Math projection: {c['total']} unit(s) "
+            f"({c['equations']} equation, {c['formulas']} formula; "
+            f"{c['with_original']} carry a distinct latex_original{unres}). "
+            f"macro table: {payload['macro_table']}. "
+            f"wrote {_artref(sc, dest)}")
+
+
 def _load_combined_store(path: Path):
     """If `path` is a combined store (from `pdfdrill combine`), return (nodes,
     meta) where nodes expose .type/.id/.props for retrieve; else None."""

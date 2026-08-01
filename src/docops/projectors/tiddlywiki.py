@@ -53,6 +53,28 @@ def _sanitize_title(t: str) -> str:
 _TRANSCLUDE_RE = re.compile(r"\{\{([^{}]+?)\}\}")
 
 
+def math_titles(doc, bibkey: str) -> dict:
+    """`{object_id: "<bibkey>_FO0007" | "<bibkey>_EQ0003"}` for every math object.
+
+    THE authoritative numbering for the `{{…||FO}}` transclusion placeholders:
+    flow order, counted per TYPE, 1-based, zero-padded to 4. The TiddlyWiki
+    projector uses this, and so must anything that hands those placeholders to
+    an external consumer — a second implementation would silently drift and
+    emit references that resolve to the wrong formula.
+    """
+    def _flow(objs):
+        # 10**9 (not 0) for a missing flow_index — MUST match the projector's
+        # `_sort_by_flow`, i.e. un-flowed objects sort LAST. Defaulting to 0
+        # would put them first and shift every subsequent number.
+        return sorted(objs, key=lambda o: o.props.get("flow_index", 10**9))
+    out: dict = {}
+    for i, e in enumerate(_flow(doc.objects_of_type("Equation"))):
+        out[e.id] = f"{bibkey}_EQ{i+1:04d}"
+    for i, f in enumerate(_flow(doc.objects_of_type("Formula"))):
+        out[f.id] = f"{bibkey}_FO{i+1:04d}"
+    return out
+
+
 def tiddler_integrity(tiddlers: list[dict]) -> dict:
     """Referential-integrity audit of a tiddler array — guards the FOX class of
     bug (a synthetic formula created but never referenced, or a transclusion
@@ -375,10 +397,10 @@ class TiddlyWikiProjector(BaseProjector):
             title[p.id] = f"{bibkey}_PARA_{i+1:04d}"
         for i, s in enumerate(inv["sections"]):
             title[s.id] = f"{bibkey}_H{i+1}"
-        for i, e in enumerate(inv["equations"]):
-            title[e.id] = f"{bibkey}_EQ{i+1:04d}"
-        for i, f in enumerate(inv["formulas"]):
-            title[f.id] = f"{bibkey}_FO{i+1:04d}"
+        # EQ/FO titles come from the shared helper, so any other consumer
+        # (e.g. `pdfdrill formulas`, which emits the `{{id||FO}}` placeholders
+        # for an external SRE/de-macro pipeline) numbers them IDENTICALLY.
+        title.update(math_titles(doc, bibkey))
         for i, p in enumerate(inv["pictures"]):
             title[p.id] = f"{bibkey}_PIC_{i+1:04d}"
         for i, d in enumerate(inv["diagrams"]):

@@ -386,6 +386,14 @@ def _do_fonts(args):
     return cmd_fonts(_pdf(args))
 
 
+def _do_formulas(args):
+    """`formulas` — math projection (latex + latex_original + placeholders) for
+    an external de-macro / SRE pipeline."""
+    from .commands import cmd_formulas
+    out, args = _opt(args, "--out")          # _opt returns (value, remaining)
+    return cmd_formulas(_pdf(args), out=out, plain="--plain" in args)
+
+
 def _do_docs(args):
     """`docs` — one line per document in a session (title + bibkey)."""
     from .commands import cmd_docs
@@ -1742,6 +1750,7 @@ HANDLERS = {
         "toc": _do_toc,
         "fonts": _do_fonts,
         "docs": _do_docs,
+        "formulas": _do_formulas,
         "status": _do_status,
         "md": _do_md,
         "page": _do_page,
