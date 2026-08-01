@@ -401,7 +401,8 @@ def _do_spoken(args):
     out, args = _opt(args, "--out")
     fb, args = _opt(args, "--fallback")
     return cmd_spoken(_pdf(args), out=out, as_json="--json" in args,
-                      fallback=(fb or "latex"))
+                      fallback=(fb or "latex"),
+                      to_stdout="--print" in args)
 
 
 def _do_expandmath(args):

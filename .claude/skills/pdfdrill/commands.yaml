@@ -1984,6 +1984,10 @@ commands:
     flag: --fallback
     type: str
     help: 'what stands in for a missing spoken form: latex (default) | mark | drop'
+  - name: print
+    flag: --print
+    type: flag
+    help: dump the whole text to the terminal instead of writing a file
   typed: true
 - name: expandmath
   section: Analysis (needs a built model)

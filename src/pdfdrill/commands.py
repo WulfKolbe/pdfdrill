@@ -4294,6 +4294,10 @@ def cmd_formulas(pdf: Path, out: str | None = None, plain: bool = False) -> str:
 
 
 _MARKER_RE = re.compile(r"\{\{([^}|]+)\|\|(FO|EQ|FREF)\}\}")
+# raw inline math as a MathPix model keeps it: `\(…\)` or `$…$` (non-greedy,
+# `$$` excluded so a display block is not eaten a character at a time).
+_INLINE_MATH_RE = re.compile(r"\\\((.+?)\\\)|(?<!\$)\$(?!\$)([^$]+?)\$(?!\$)",
+                             re.DOTALL)
 
 
 def sre_engine_dir() -> Path | None:
@@ -4405,7 +4409,7 @@ def cmd_speak(pdf: Path, limit: int | None = None, force: bool = False,
 
 
 def cmd_spoken(pdf: Path, out: str | None = None, as_json: bool = False,
-               fallback: str = "latex") -> str:
+               fallback: str = "latex", to_stdout: bool = False) -> str:
     """The prose with math replaced by its SPOKEN form — the text an LLM is fed.
 
     This is the end of the chain: `expandmath` stores macro-free LaTeX, the
@@ -4457,6 +4461,34 @@ def cmd_spoken(pdf: Path, out: str | None = None, as_json: bool = False,
             return f"⟨no spoken: {title}⟩"
         return "⟨" + str(o.props.get("latex") or title) + "⟩"
 
+    # Math reaches the prose in TWO shapes and both must be handled:
+    #   {{K_FO0001||FO}}   a transclusion marker (source-built / after `clean`)
+    #   \(\Phi_{local}\)   raw inline math (the usual MathPix model)
+    # Only the first was substituted, so on a MathPix document every formula was
+    # left as LaTeX and the projection looked like it had done nothing.
+    by_latex: dict[str, str] = {}
+    for o in doc.objects.values():
+        if o.type in ("Formula", "Equation"):
+            say = str(o.props.get("spoken") or "").strip()
+            for k in (o.props.get("latex"), o.props.get("latex_original")):
+                k = " ".join(str(k or "").split())
+                if k and say:
+                    by_latex.setdefault(k, say)
+
+    def _render_inline(m):
+        nonlocal subst, missing
+        body = " ".join((m.group(1) or m.group(2) or "").split())
+        say = by_latex.get(body)
+        if say:
+            subst += 1
+            return say
+        missing += 1
+        if fallback == "drop":
+            return ""
+        if fallback == "mark":
+            return f"⟨no spoken: {body[:40]}⟩"
+        return "⟨" + body + "⟩"
+
     prose = [o for o in doc.objects.values()
              if o.type in ("Paragraph", "Abstract", "ListItem", "Section")]
     prose.sort(key=lambda o: (o.props.get("flow_index", 10**9), o.id))
@@ -4469,7 +4501,8 @@ def cmd_spoken(pdf: Path, out: str | None = None, as_json: bool = False,
         blocks.append({"id": o.id, "type": o.type,
                        "flow_index": o.props.get("flow_index"),
                        "section": o.props.get("parent_section"),
-                       "text": _MARKER_RE.sub(_render, raw)})
+                       "text": _INLINE_MATH_RE.sub(
+                           _render_inline, _MARKER_RE.sub(_render, raw))})
 
     if as_json:
         payload = {"version": 1, "bibkey": key,
@@ -4484,21 +4517,32 @@ def cmd_spoken(pdf: Path, out: str | None = None, as_json: bool = False,
     else:
         text = "\n\n".join(b["text"] for b in blocks)
 
-    if out:
-        Path(out).parent.mkdir(parents=True, exist_ok=True)
-        Path(out).write_text(text, encoding="utf-8")
-        note = ""
-        if missing:
-            note = (f"\n  {missing} formula(s) have NO spoken form yet "
-                    f"(shown as ⟨…⟩ via fallback={fallback!r}) — run the speech "
-                    f"engine and write `spoken` onto those objects.")
-        if unresolved:
-            note += (f"\n  {len(unresolved)} marker(s) reference no object: "
-                     f"{', '.join(unresolved[:5])} — a real defect in the text.")
-        return (f"Spoken-text projection: {len(blocks)} block(s), "
-                f"{subst} spoken substitution(s), {missing} missing.{note}"
-                f"\n  wrote {_artref(sc, Path(out))}")
-    return text
+    if to_stdout and not out:
+        return text                              # explicit: dump it raw
+
+    # DEFAULT: write a file and report it, like every other projection here.
+    # A whole document's prose is tens of thousands of characters — printing it
+    # scrolls the answer off the screen in a terminal/UI and is unreadable, which
+    # is exactly what happened. The file is also what drillui turns into a
+    # clickable Output.
+    dest = Path(out) if out else (sc.blob_dir / f"{key}.spoken.txt")
+    dest.parent.mkdir(parents=True, exist_ok=True)
+    dest.write_text(text, encoding="utf-8")
+    note = ""
+    if missing:
+        note = (f"\n  {missing} formula(s) have NO spoken form yet "
+                f"(shown as ⟨…⟩ via fallback={fallback!r}) — run `pdfdrill "
+                f"speak {pdf.name}` to render them.")
+    if unresolved:
+        note += (f"\n  {len(unresolved)} marker(s) reference no object: "
+                 f"{', '.join(unresolved[:5])} — a real defect in the text.")
+    preview = " ".join(text.split())[:300]
+    return (f"Spoken-text projection: {len(blocks)} block(s), "
+            f"{subst} spoken substitution(s), {missing} missing, "
+            f"{len(text)} chars.{note}"
+            f"\n  wrote {_artref(sc, dest)}"
+            f"\n  preview: {preview}…"
+            f"\n  (`--print` dumps the whole text to the terminal instead.)")
 
 
 def cmd_expandmath(pdf: Path, force: bool = False) -> str:

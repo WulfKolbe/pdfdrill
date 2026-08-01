@@ -753,6 +753,11 @@ const server = Bun.serve<{ sess: Session | null; local: boolean; ip: string | nu
       return new Response(f, { headers: {
         "content-type": ct,
         "content-disposition": `inline; filename="${fname}"`,
+        // NEVER cache an artifact: pdfdrill REGENERATES these in place (re-run
+        // `spoken` after `speak` and the file changes underneath the same URL).
+        // Without this the browser happily serves the previous version and the
+        // work looks like it did nothing.
+        "cache-control": "no-store, must-revalidate",
       } });
     }
 
@@ -938,7 +943,8 @@ const staticFetch = async (req: Request) => {
   const f = Bun.file(abs);
   if (!(await f.exists())) return new Response("not found", { status: 404 });
   const ct = MIME[extname(abs).toLowerCase()] ?? "application/octet-stream";
-  return new Response(f, { headers: { "content-type": ct } });
+  return new Response(f, { headers: { "content-type": ct,
+    "cache-control": "no-store, must-revalidate" } });   // regenerated in place
 };
 // A leftover process on the default port (e.g. a manual `python -m http.server
 // 10000`, or a previous bridge) must NOT disable the feature — try a small range
