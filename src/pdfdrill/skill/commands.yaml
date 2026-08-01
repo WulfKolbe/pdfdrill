@@ -1933,6 +1933,32 @@ commands:
     type: pdf
     required: true
   typed: true
+- name: spoken
+  section: Analysis (needs a built model)
+  summary: the LLM INPUT text — prose in flow order with each math marker replaced by
+    its spoken form; formulas with no spoken yet are shown visibly, not dropped
+  offline_ok: true
+  requires:
+  - model
+  positionals:
+  - name: pdf
+    type: pdf
+    required: true
+    help: PDF path, https URL, or bare arXiv id
+  flags:
+  - name: out
+    flag: --out
+    type: str
+    help: write to this file instead of printing
+  - name: json
+    flag: --json
+    type: flag
+    help: structured blocks with ids/section/counts instead of plain text
+  - name: fallback
+    flag: --fallback
+    type: str
+    help: 'what stands in for a missing spoken form: latex (default) | mark | drop'
+  typed: true
 - name: expandmath
   section: Analysis (needs a built model)
   summary: persist fully macro-expanded LaTeX into the docmodel — stores latex (expanded),

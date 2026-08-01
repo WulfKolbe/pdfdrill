@@ -4276,6 +4276,106 @@ def cmd_formulas(pdf: Path, out: str | None = None, plain: bool = False) -> str:
             f"wrote {_artref(sc, dest)}")
 
 
+_MARKER_RE = re.compile(r"\{\{([^}|]+)\|\|(FO|EQ|FREF)\}\}")
+
+
+def cmd_spoken(pdf: Path, out: str | None = None, as_json: bool = False,
+               fallback: str = "latex") -> str:
+    """The prose with math replaced by its SPOKEN form — the text an LLM is fed.
+
+    This is the end of the chain: `expandmath` stores macro-free LaTeX, the
+    speech engine renders it, and this substitutes each `{{…||FO}}` marker in the
+    paragraph text with that rendering. The result is exactly the input a
+    downstream consumer hands the model, so it can be READ and diffed against
+    that consumer's own JSON instead of being inferred.
+
+    Where a formula has no `spoken` yet, the gap is made VISIBLE rather than
+    silently dropped — an unspoken formula is a hole in the LLM's input, and
+    seeing which ones are missing is the point. `fallback` chooses what stands in:
+      latex  the expanded LaTeX in ⟨…⟩ (default — readable, obviously not speech)
+      mark   a bare ⟨no spoken: TITLE⟩ marker
+      drop   nothing at all (what a naive consumer effectively does)
+    """
+    from docops.projectors.tiddlywiki import math_titles
+
+    sc = Sidecar(pdf)
+    model_path = _model_path(sc)
+    if _stale_or_absent(sc, model_path, _lines_json_path(pdf)):
+        cmd_model(pdf)
+        sc = Sidecar(pdf)
+        model_path = _model_path(sc)
+    if not model_path.exists():
+        return f"No model for {pdf.name} — run `pdfdrill model` first."
+    doc = load_model(model_path)
+    key = resolve_bibkey(pdf, None, sc)
+    by_title = {t: doc.objects[i] for i, t in math_titles(doc, key).items()
+                if i in doc.objects}
+
+    subst = missing = 0
+    unresolved: list[str] = []
+
+    def _render(m):
+        nonlocal subst, missing
+        title = m.group(1).strip()
+        o = by_title.get(title)
+        spoken = str((o.props.get("spoken") if o else "") or "").strip()
+        if spoken:
+            subst += 1
+            return spoken
+        missing += 1
+        if o is None:
+            unresolved.append(title)
+            return f"⟨unknown formula: {title}⟩"
+        if fallback == "drop":
+            return ""
+        if fallback == "mark":
+            return f"⟨no spoken: {title}⟩"
+        return "⟨" + str(o.props.get("latex") or title) + "⟩"
+
+    prose = [o for o in doc.objects.values()
+             if o.type in ("Paragraph", "Abstract", "ListItem", "Section")]
+    prose.sort(key=lambda o: (o.props.get("flow_index", 10**9), o.id))
+    blocks: list[dict] = []
+    for o in prose:
+        raw = str(o.props.get("text") or o.props.get("content")
+                  or o.props.get("caption") or "")
+        if not raw.strip():
+            continue
+        blocks.append({"id": o.id, "type": o.type,
+                       "flow_index": o.props.get("flow_index"),
+                       "section": o.props.get("parent_section"),
+                       "text": _MARKER_RE.sub(_render, raw)})
+
+    if as_json:
+        payload = {"version": 1, "bibkey": key,
+                   "purpose": "LLM input text: prose with math replaced by its "
+                              "spoken form",
+                   "fallback": fallback,
+                   "counts": {"blocks": len(blocks), "spoken_substituted": subst,
+                              "missing_spoken": missing,
+                              "unknown_markers": len(unresolved)},
+                   "blocks": blocks}
+        text = json.dumps(payload, ensure_ascii=False, indent=2)
+    else:
+        text = "\n\n".join(b["text"] for b in blocks)
+
+    if out:
+        Path(out).parent.mkdir(parents=True, exist_ok=True)
+        Path(out).write_text(text, encoding="utf-8")
+        note = ""
+        if missing:
+            note = (f"\n  {missing} formula(s) have NO spoken form yet "
+                    f"(shown as ⟨…⟩ via fallback={fallback!r}) — run the speech "
+                    f"engine and write `spoken` onto those objects.")
+        if unresolved:
+            note += (f"\n  {len(unresolved)} marker(s) reference no object: "
+                     f"{', '.join(unresolved[:5])} — a real defect in the text.")
+        return (f"Spoken-text projection: {len(blocks)} block(s), "
+                f"{subst} spoken substitution(s), {missing} missing.{note}"
+                f"\n  wrote {_artref(sc, Path(out))}")
+    return text
+
+
 def cmd_expandmath(pdf: Path, force: bool = False) -> str:
     """PERSIST the fully macro-expanded LaTeX of every Formula/Equation.
 

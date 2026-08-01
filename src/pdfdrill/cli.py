@@ -386,6 +386,15 @@ def _do_fonts(args):
     return cmd_fonts(_pdf(args))
 
 
+def _do_spoken(args):
+    """`spoken` — prose with math replaced by its spoken form (the LLM input)."""
+    from .commands import cmd_spoken
+    out, args = _opt(args, "--out")
+    fb, args = _opt(args, "--fallback")
+    return cmd_spoken(_pdf(args), out=out, as_json="--json" in args,
+                      fallback=(fb or "latex"))
+
+
 def _do_expandmath(args):
     """`expandmath` — persist fully macro-expanded LaTeX into the docmodel."""
     from .commands import cmd_expandmath
@@ -1766,6 +1775,7 @@ HANDLERS = {
         "docs": _do_docs,
         "formulas": _do_formulas,
         "expandmath": _do_expandmath,
+        "spoken": _do_spoken,
         "sre": _do_sre,
         "status": _do_status,
         "md": _do_md,
