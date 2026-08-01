@@ -157,3 +157,42 @@ def test_speak_flags_a_rendering_that_still_says_backslash(tmp_path, monkeypatch
     o = [x for x in out.objects.values() if x.type == "Formula"][0]
     assert o.props["spoken_suspect"] is True
     assert "spoken_suspect" in msg and "wrong INPUT" in msg
+
+
+# --- token boundary + unrenderable-macro substitution ------------------------
+
+def test_unwrapping_must_not_glue_onto_a_control_word():
+    """Reported by conceptdrill: `\\mid\\ensuremath{M}` came out as `\\midM` —
+    a control sequence that was NEVER defined, so a perfectly speakable `\\mid`
+    became "backslash midM". Unwrapping must preserve the token boundary."""
+    from pdfdrill.commands import clean_for_speech as c
+    assert c(r"\mid\ensuremath{M}") == r"\mid{}M"
+    assert "midM" not in c(r"L(\ensuremath{D}\mid\ensuremath{M})")
+    # no boundary needed when what precedes is not a control word
+    assert c(r"a\ensuremath{b}") == "ab"
+
+
+def test_known_unrenderable_macros_become_speakable_notation():
+    """latex2mathml lacks these, so the engine spells them out. Each maps to
+    STANDARD notation — never to invented words."""
+    from pdfdrill.commands import clean_for_speech as c
+    assert r"\perp" in c(r"\independenT")          # ⫫ independence
+    assert r"\lfloor" in c(r"\floor{x}")
+    assert r"\equiv" in c(r"\triple")
+    assert r"\ell" in c(r"\l")
+
+
+def test_mathpalette_keeps_the_symbol_drops_the_sizing_arg():
+    """`\\mathpalette{\\draw}{style}`: the first argument is the thing, the
+    second only says how big. The real leak was this whole construct."""
+    from pdfdrill.commands import clean_for_speech as c
+    out = c(r"X \protect\mathpalette{\protect\independenT}{\perp} N")
+    assert "mathpalette" not in out and r"\perp" in out
+    assert out.startswith("X") and out.rstrip().endswith("N")
+
+
+def test_an_unknown_macro_is_left_alone_not_guessed():
+    """Anything not in the (small, evidence-driven) table must survive intact —
+    the object stays flagged rather than having a meaning invented for it."""
+    from pdfdrill.commands import clean_for_speech as c
+    assert c(r"\unknownMacro{x}") == r"\unknownMacro{x}"

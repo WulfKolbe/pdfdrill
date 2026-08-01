@@ -4343,7 +4343,8 @@ def clean_for_speech(latex: str) -> str:
             m = _SPEECH_UNWRAP.search(s, i)
             if not m:
                 out.append(s[i:]); break
-            out.append(s[i:m.start()])
+            head = s[i:m.start()]
+            out.append(head)
             depth, j = 1, m.end()
             while j < len(s) and depth:
                 if s[j] == "{":
@@ -4351,12 +4352,74 @@ def clean_for_speech(latex: str) -> str:
                 elif s[j] == "}":
                     depth -= 1
                 j += 1
-            out.append(s[m.end(): j - 1 if depth == 0 else j])
+            inner = s[m.end(): j - 1 if depth == 0 else j]
+            # Keep the TOKEN BOUNDARY. `\mid\ensuremath{M}` must not become
+            # `\midM` — that invents a control sequence which was never defined,
+            # turning a speakable `\mid` into "backslash midM". If what precedes
+            # ends with a control word and the content starts with a letter, an
+            # empty group separates them the way LaTeX itself would.
+            if (re.search(r"\\[A-Za-z]+$", "".join(out))
+                    and inner[:1].isalpha()):
+                out.append("{}")
+            out.append(inner)
             i = j
         s = "".join(out)
         if s == prev:
             break
+    # last: rewrite known-unrenderable commands to speakable notation
+    s = speechable_macro_subs(s)
     return re.sub(r"\s{2,}", " ", s).strip()
+
+
+# Control sequences the engine cannot render, mapped to LaTeX it CAN. Two kinds:
+#
+#   standard commands latex2mathml simply lacks (`\floor`, `\l`, `\triple`)
+#   notation idioms whose meaning is conventional, not author-private
+#     (`\independenT` is the ⫫ independence relation — the name varies by paper
+#      but the notation does not)
+#
+# Kept SMALL and evidence-driven: each entry is here because it was observed
+# leaking into real speech, and each maps to notation, never to invented words.
+_SPEECH_MACRO_TEX: dict[str, str] = {
+    "independenT": r"\perp\!\!\!\perp",   # ⫫ statistical independence
+    "indep": r"\perp\!\!\!\perp",
+    "floor": r"\lfloor",
+    "ceil": r"\lceil",
+    "triple": r"\equiv",                  # ≡ (triple bar)
+    "l": r"\ell",                         # \l is Polish ł; ℓ is the maths intent
+    "midM": r"\mid M",                    # residue of the old gluing bug
+}
+_SPEECH_MACRO_RE = re.compile(
+    r"\\(" + "|".join(sorted(_SPEECH_MACRO_TEX, key=len, reverse=True))
+    + r")(?![a-zA-Z])")
+
+
+# `\mathpalette{\draw}{style}` is TeX plumbing for size-aware drawing: the FIRST
+# argument is the thing, the second only says how big. Keep the first, drop the
+# rest — otherwise the whole construct is unrenderable even once the inner macro
+# has been substituted.
+_MATHPALETTE_RE = re.compile(r"\\mathpalette\s*\{([^{}]*(?:\{[^{}]*\}[^{}]*)*)\}\s*\{[^{}]*\}")
+
+
+def speechable_macro_subs(latex: str) -> str:
+    """Rewrite known-unrenderable control sequences to equivalent LaTeX.
+
+    An unknown macro reaching the engine is read out as its letters
+    ("backslash independenT"), which is wrong INPUT for an LLM. Where the
+    notation has a conventional meaning we can substitute the standard symbol
+    and get real speech instead. Anything NOT in the table is left alone — the
+    object stays flagged `spoken_suspect` rather than being guessed at.
+    """
+    if not latex or "\\" not in latex:
+        return latex
+    out = _SPEECH_MACRO_RE.sub(
+        lambda m: _SPEECH_MACRO_TEX[m.group(1)] + " ", latex)
+    for _ in range(3):
+        nxt = _MATHPALETTE_RE.sub(lambda m: m.group(1), out)
+        if nxt == out:
+            break
+        out = nxt
+    return out
 
 
 def sre_engine_dir() -> Path | None:
