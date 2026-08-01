@@ -4300,6 +4300,65 @@ _INLINE_MATH_RE = re.compile(r"\\\((.+?)\\\)|(?<!\$)\$(?!\$)([^$]+?)\$(?!\$)",
                              re.DOTALL)
 
 
+# Typesetting NO-OPS: they carry no meaning a listener could want, latex2mathml
+# does not know them, and the engine then reads them out letter by letter
+# ("backslash xspace"). Measured on the conceptdrill corpus: of 694 spoken texts
+# containing a literal backslash, 578 were `\xspace` alone — 83% of the noise is
+# one spacing macro that should never have reached the engine.
+_SPEECH_NOOP = re.compile(
+    r"\\(?:xspace|protect|allowbreak|linebreak|nolinebreak|noindent|relax"
+    r"|displaystyle|textstyle|scriptstyle|scriptscriptstyle|bigskip|medskip"
+    r"|smallskip|newpage|clearpage|hfill|hrulefill|dotfill|,|;|:|!|/)"
+    r"(?![a-zA-Z])")
+# `\vspace{1em}` / `\hspace*{2pt}` / `\the\foo` — no-ops WITH an argument.
+_SPEECH_NOOP_ARG = re.compile(
+    r"\\(?:vspace|hspace|vskip|hskip|kern|the|label|index|phantom|vphantom"
+    r"|hphantom)\*?\s*(?:\{[^{}]*\}|[-\d.]+\s*[a-z]{2}|\\[A-Za-z]+)?")
+# Text/font WRAPPERS: the content matters, the wrapper does not.
+_SPEECH_UNWRAP = re.compile(
+    r"\\(?:ensuremath|textsc|textit|textbf|textrm|texttt|textnormal|emph"
+    r"|mbox|hbox|revision)\s*\{")
+
+
+def clean_for_speech(latex: str) -> str:
+    """Strip what a speech engine must never read aloud.
+
+    latex2mathml has no macro table and no notion of typesetting: an unknown
+    control sequence survives into the MathML and the engine spells it out. A
+    spacing macro therefore becomes the words "backslash xspace" in the middle of
+    a sentence handed to an LLM. Removing the no-ops and unwrapping the font
+    wrappers is pure gain — nothing meaningful is lost, because none of them
+    denote mathematics.
+    """
+    if not latex or "\\" not in latex:
+        return latex
+    s = latex
+    for _ in range(4):                            # wrappers can nest
+        prev = s
+        s = _SPEECH_NOOP_ARG.sub(" ", s)
+        s = _SPEECH_NOOP.sub(" ", s)
+        # unwrap `\cmd{...}` -> `...` (brace-matched, one level per pass)
+        out, i = [], 0
+        while True:
+            m = _SPEECH_UNWRAP.search(s, i)
+            if not m:
+                out.append(s[i:]); break
+            out.append(s[i:m.start()])
+            depth, j = 1, m.end()
+            while j < len(s) and depth:
+                if s[j] == "{":
+                    depth += 1
+                elif s[j] == "}":
+                    depth -= 1
+                j += 1
+            out.append(s[m.end(): j - 1 if depth == 0 else j])
+            i = j
+        s = "".join(out)
+        if s == prev:
+            break
+    return re.sub(r"\s{2,}", " ", s).strip()
+
+
 def sre_engine_dir() -> Path | None:
     """Where the npm speech-rule-engine lives, or None.
 
@@ -4367,7 +4426,7 @@ def cmd_speak(pdf: Path, limit: int | None = None, force: bool = False,
                 f"carry `spoken` (use --force to re-render). "
                 f"See it with `pdfdrill spoken {pdf.name}`.")
 
-    done = failed = 0
+    done = failed = suspect = 0
     unresolved = 0
     errors: list[str] = []
     try:
@@ -4377,8 +4436,12 @@ def cmd_speak(pdf: Path, limit: int | None = None, force: bool = False,
                 latex = str(o.props.get("latex") or "")
                 if o.props.get("macros_unresolved"):
                     unresolved += 1          # will be mis-spoken; still rendered
+                # Strip typesetting no-ops FIRST: the engine has no macro table
+                # and reads an unknown control sequence out loud
+                # ("backslash xspace") straight into the LLM's input.
+                speech_tex = clean_for_speech(latex)
                 try:
-                    say = (speaker.speak_math(latex) or "").strip()
+                    say = (speaker.speak_math(speech_tex) or "").strip()
                 except Exception as e:       # noqa: BLE001
                     failed += 1
                     if len(errors) < 3:
@@ -4387,6 +4450,14 @@ def cmd_speak(pdf: Path, limit: int | None = None, force: bool = False,
                 if say:
                     o.props["spoken"] = say
                     o.props["spoken_by"] = f"la2speech/{domain}"
+                    # QC: a literal "backslash" in the speech means something
+                    # reached the engine that it could not render. Recorded on
+                    # the object so the residue is COUNTABLE, not just visible.
+                    if "backslash" in say.lower():
+                        o.props["spoken_suspect"] = True
+                        suspect += 1
+                    else:
+                        o.props.pop("spoken_suspect", None)
                     done += 1
                 else:
                     failed += 1
@@ -4397,6 +4468,11 @@ def cmd_speak(pdf: Path, limit: int | None = None, force: bool = False,
     save_model(model_path, doc)
     sc.save()
     note = ""
+    if suspect:
+        note += (f"\n  {suspect} rendering(s) still contain a literal "
+                 f"\"backslash\" (`spoken_suspect`) — the engine met a control "
+                 f"sequence it cannot render; those texts are wrong INPUT for an "
+                 f"LLM, not merely ugly.")
     if unresolved:
         note += (f"\n  {unresolved} object(s) still carry `macros_unresolved` — "
                  f"the engine has no macro table, so those are spoken as their "

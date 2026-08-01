@@ -56,7 +56,7 @@ class _FakeBackend:
     def __exit__(self, *a): return False
 
 
-def _run(tmp_path, monkeypatch, doc, **kw):
+def _run(tmp_path, monkeypatch, doc, speaker=None, **kw):
     pdf = tmp_path / "K.pdf"; pdf.write_bytes(b"%PDF-1.4\n")
     mp = tmp_path / "m.json"; mp.write_text("{}")
     saved = {}
@@ -67,7 +67,8 @@ def _run(tmp_path, monkeypatch, doc, **kw):
     monkeypatch.setattr(C, "save_model", lambda path, d: saved.setdefault("d", d))
     import pdfdrill.la2speech as la
     monkeypatch.setattr(la, "SRESpeechBackend", _FakeBackend, raising=False)
-    monkeypatch.setattr(la, "LatexSpeaker", _FakeSpeaker, raising=False)
+    monkeypatch.setattr(la, "LatexSpeaker", speaker or _FakeSpeaker,
+                        raising=False)
     return C.cmd_speak(pdf, **kw), saved.get("d")
 
 
@@ -104,3 +105,55 @@ def test_missing_engine_gives_an_actionable_message(tmp_path, monkeypatch):
     msg = C.cmd_speak(pdf)
     assert "No speech-rule-engine found" in msg
     assert "setup.sh" in msg and "PDFDRILL_SRE_DIR" in msg
+
+
+# --- speech-noise stripping (the conceptdrill "backslash" report) -------------
+
+def test_typesetting_noops_never_reach_the_engine():
+    """latex2mathml has no macro table, so an unknown control sequence survives
+    into the MathML and the engine SPELLS IT OUT — `\\xspace` becomes the words
+    "backslash xspace" inside text handed to an LLM. Measured on the reported
+    corpus: 578 of 694 offending texts were `\\xspace` alone."""
+    from pdfdrill.commands import clean_for_speech as c
+    assert c(r"A\xspace B") == "A B"
+    assert "\\protect" not in c(r"\protect\independenT{X}{Y}")
+    assert c(r"x\vspace{1em}y") == "x y"
+    assert c(r"a \, b") == "a b"
+    for noop in (r"\allowbreak", r"\relax", r"\displaystyle", r"\noindent"):
+        # a separator is required: `\allowbreaky` is a DIFFERENT macro, and the
+        # `(?![a-zA-Z])` guard must not strip a prefix of a longer name.
+        assert "\\" not in c(f"x{noop} y")
+        assert "\\allowbreaky" in c(r"x\allowbreaky")      # guard holds
+
+
+def test_font_wrappers_are_unwrapped_content_kept():
+    from pdfdrill.commands import clean_for_speech as c
+    assert c(r"\ensuremath{\mathbb{D}}") == r"\mathbb{D}"
+    assert c(r"\textsc{Name} x") == "Name x"
+    assert c(r"\textbf{\textit{deep}}") == "deep"          # nested
+
+
+def test_real_mathematics_is_untouched():
+    """The cleaner must not damage the maths — it only removes typesetting."""
+    from pdfdrill.commands import clean_for_speech as c
+    for keep in (r"\int_0^\infty e^{-x^2}\,dx", r"\frac{a}{b}",
+                 r"\sum_{i=1}^n x_i", r"w_+,w_- \in \mathbb{R}"):
+        out = c(keep)
+        for tok in ("\\int", "\\frac", "\\sum", "\\in", "\\mathbb"):
+            if tok in keep:
+                assert tok in out, f"{tok} lost from {keep}"
+    assert c("") == "" and c("plain") == "plain"
+
+
+def test_speak_flags_a_rendering_that_still_says_backslash(tmp_path, monkeypatch):
+    """A literal "backslash" in the speech means the engine met something it
+    cannot render — that text is wrong INPUT for an LLM, so it is recorded on
+    the object (`spoken_suspect`) and counted, not merely left visible."""
+    class _Say:
+        def __init__(self, *a, **k): self.errors = []
+        def speak_math(self, tex): return "backslash independenT of x"
+    msg, out = _run(tmp_path, monkeypatch, _doc(r"\independenT{X}{Y}"),
+                    speaker=_Say)
+    o = [x for x in out.objects.values() if x.type == "Formula"][0]
+    assert o.props["spoken_suspect"] is True
+    assert "spoken_suspect" in msg and "wrong INPUT" in msg

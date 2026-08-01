@@ -73,13 +73,16 @@ def main() -> int:
     ap.add_argument("--lib", default=str(Path.home() / "pdfdrill-library"))
     ap.add_argument("--limit", type=int, default=0, help="only N documents")
     ap.add_argument("--dry-run", action="store_true")
+    ap.add_argument("--respeak", action="store_true",
+                    help="re-render EVERY formula (after a speech-cleaning "
+                         "change), not only the ones still missing")
     a = ap.parse_args()
 
     models = sorted(Path(a.lib).rglob("model.docmodel.json"))
     work = []
     for m in models:
         total, spoken = math_state(m)
-        if total and spoken < total:
+        if total and (a.respeak or spoken < total):
             work.append((m, total, spoken))
     work.sort(key=lambda t: t[1] - t[2])                 # cheapest first: early wins
     if a.limit:
@@ -103,14 +106,15 @@ def main() -> int:
         # expandmath first: the engine has no macro table, so an unexpanded
         # macro would be spoken as its letters. Failure here is not fatal.
         run(["expandmath", str(doc)], timeout=900)
-        good, msg = run(["speak", str(doc)], timeout=3600)
+        good, msg = run(["speak", str(doc)] + (["--force"] if a.respeak else []),
+                        timeout=3600)
         after_total, after_spoken = math_state(m)
         gained = after_spoken - spoken
         done_formulas += max(gained, 0)
         if good and after_spoken >= after_total:
             ok += 1
             tag = "OK   "
-        elif gained > 0:
+        elif gained > 0 or (a.respeak and after_spoken):
             ok += 1
             tag = "PART "
         else:
