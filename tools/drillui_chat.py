@@ -49,7 +49,10 @@ _QUIT = {"quit", "exit", "stop", "q", "bye", "qui", ":quit", ":exit", ":stop",
          ":q", ":bye"}
 
 # pdfdrill commands that understand a COMBINED store (everything else needs a
-# single PDF and would produce nonsense on the .docpack).
+# single PDF and would produce nonsense on the .docpack). FALLBACK ONLY —
+# `load_commands` replaces this from `commands.yaml` (`accepts_combined: true`),
+# the single source of truth. Keeping the authoritative list here is what let it
+# drift behind pdfdrill's actual capabilities.
 _COMBINED_OK = {"bibtex"}
 
 
@@ -174,9 +177,22 @@ def load_commands(base, env, timeout: float) -> dict:
     obj = _extract_json(out)
     cmds = (obj or {}).get("commands") or []
     table = {}
+    combined_ok = set()
     for c in cmds:
         pos = c.get("positionals") or []
         table[c["name"]] = (pos[0].get("type") if pos else None)
+        # Which commands understand a COMBINED session store is a per-command
+        # FACT and therefore belongs in commands.yaml, not in a set maintained
+        # here: a hand-kept copy silently rots the moment pdfdrill gains a
+        # capability (it did — `abstract`/`docs` became session-aware while this
+        # still said only `bibtex`, so drillui fanned out per-doc and never used
+        # them). Read it from the manifest; `_COMBINED_OK` is only a fallback
+        # for an older pdfdrill that doesn't report the field.
+        if c.get("accepts_combined"):
+            combined_ok.add(c["name"])
+    if combined_ok:
+        _COMBINED_OK.clear()
+        _COMBINED_OK.update(combined_ok)
     return table
 
 
@@ -676,9 +692,16 @@ def main() -> int:
     while True:
         try:
             line = input("\n? ").strip()
-        except (EOFError, KeyboardInterrupt):
+        except EOFError:                              # Ctrl-D ends the session
             print()
             break
+        except KeyboardInterrupt:
+            # Ctrl-C CLEARS THE LINE, like every real shell — it must not end
+            # the session. Killing a REPL that holds the drilled context (and,
+            # through the bridge, the browser's whole session) because a
+            # half-typed line was abandoned is the wrong default.
+            print("  (^C — line cleared; Ctrl-D or `quit` to exit)")
+            continue
         if not line:                                  # blank → ignore, don't quit
             continue
         if line.lower() in _QUIT:                     # quit/exit/stop/q/:q/… all work
@@ -794,6 +817,20 @@ def main() -> int:
                 continue
         first = line.lstrip("!").split(maxsplit=1)[0] if line.lstrip("!") else ""
         is_cmd = (not forced_question) and (line.startswith("!") or first in cmds)
+        # PREFIX resolution, before any fuzzy matching: `sta` → `status`,
+        # `tidd` → `tiddlers`. Unambiguous prefixes are what makes a 117-command
+        # shell usable without tab completion; an AMBIGUOUS one lists the
+        # candidates instead of guessing (`bib` → bibfetch/bibliography/…).
+        if not is_cmd and not forced_question and first and not line.startswith("!"):
+            pre = sorted(c for c in cmds if c.startswith(first.lower()))
+            if len(pre) == 1:
+                print(f"  (`{first}` → `{pre[0]}`)")
+                line = pre[0] + line[len(first):]
+                first, is_cmd = pre[0], True
+            elif len(pre) > 1 and len(line.split()) == 1:
+                print(f"  `{first}` is ambiguous: {', '.join(pre[:8])}"
+                      + (" …" if len(pre) > 8 else ""))
+                continue
         # Typo / singular tolerance: a lone word that closely matches a command
         # (e.g. `tiddler` → `tiddlers`) runs the command instead of being sent to
         # the LLM as a question (which wastes a slow call and answers nothing).

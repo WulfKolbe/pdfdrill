@@ -140,6 +140,7 @@ commands:
   requires:
   - size
 - name: abstract
+  accepts_combined: true
   section: Introspection (fast, no extraction)
   summary: Abstract from first pages
   offline_ok: true
@@ -300,6 +301,7 @@ commands:
     help: PDF path, https URL, or bare arXiv id
   typed: true
 - name: bibtex
+  accepts_combined: true
   section: Introspection (fast, no extraction)
   summary: 'Derived BibTeX record from embedded PDF metadata, AUGMENTED by the free arXiv abs-page
     metadata (title/authors) + the drilled title; warns when still a placeholder (run abstract/model first)'
@@ -1932,6 +1934,7 @@ commands:
     required: true
   typed: true
 - name: docs
+  accepts_combined: true
   section: Introspection (fast, no extraction)
   summary: ONE LINE per document in a session (title + bibkey) — the compact counterpart
     to bibtex; on a single doc, its title
@@ -2040,6 +2043,7 @@ commands:
     help: project the SEMANTIC GRAPH (entities/relations) not the docmodel — the commercial-doc form
   typed: true
 - name: context
+  accepts_combined: true
   section: Planning & automation
   summary: 'Project the docmodel into an LLM CONTEXT (deterministic structural RAG): select typed objects
     by free-text query + --type/--concept/--section, rank (structural/IDF now; pluggable per-aspect
@@ -2088,6 +2092,7 @@ commands:
     help: write Markdown to FILE
   typed: true
 - name: retrieve
+  accepts_combined: true
   section: Planning & automation
   summary: 'Transform a question into grounded context: top-k relevant drilled units (the chat-proxy enrichment
     / future-SKILL seed). Also accepts a COMBINED store (multi-document)'
