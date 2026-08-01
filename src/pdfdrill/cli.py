@@ -386,6 +386,12 @@ def _do_fonts(args):
     return cmd_fonts(_pdf(args))
 
 
+def _do_expandmath(args):
+    """`expandmath` — persist fully macro-expanded LaTeX into the docmodel."""
+    from .commands import cmd_expandmath
+    return cmd_expandmath(_pdf(args), force="--force" in args)
+
+
 def _do_sre(args):
     """`sre` — latex2mml-ready spoken-math projection (macro-free latex_sre)."""
     from .commands import cmd_sre
@@ -1759,6 +1765,7 @@ HANDLERS = {
         "fonts": _do_fonts,
         "docs": _do_docs,
         "formulas": _do_formulas,
+        "expandmath": _do_expandmath,
         "sre": _do_sre,
         "status": _do_status,
         "md": _do_md,

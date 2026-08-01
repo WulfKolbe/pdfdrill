@@ -1933,6 +1933,24 @@ commands:
     type: pdf
     required: true
   typed: true
+- name: expandmath
+  section: Analysis (needs a built model)
+  summary: persist fully macro-expanded LaTeX into the docmodel — stores latex (expanded),
+    latex_original (author source) and macros_unresolved on every Formula/Equation; idempotent
+  offline_ok: true
+  requires:
+  - model
+  positionals:
+  - name: pdf
+    type: pdf
+    required: true
+    help: PDF path, https URL, or bare arXiv id
+  flags:
+  - name: force
+    flag: --force
+    type: flag
+    help: re-expand objects already marked expanded
+  typed: true
 - name: sre
   section: Analysis (needs a built model)
   summary: spoken-math projection for latex2mml → MathML → speech-rule-engine — emits

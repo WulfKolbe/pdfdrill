@@ -4273,6 +4273,77 @@ def cmd_formulas(pdf: Path, out: str | None = None, plain: bool = False) -> str:
             f"wrote {_artref(sc, dest)}")
 
 
+def cmd_expandmath(pdf: Path, force: bool = False) -> str:
+    """PERSIST the fully macro-expanded LaTeX of every Formula/Equation.
+
+    The docmodel already keeps `latex_original` (the author's source) on every
+    math object, and `latex` carries the drill's expansion. But a macro the
+    build could not reach stayed in `latex`, and the last-mile pass that fixes
+    it lived only inside the `sre` projection — recomputed each time and never
+    stored. This writes it into the model, so the expanded form is a durable
+    property rather than a side effect of one command.
+
+    Stores per object: `latex` = fully expanded, `latex_original` = untouched
+    author source, plus `macros_unresolved` and `latex_expanded_by` provenance.
+    IDEMPOTENT — a second run expands nothing further.
+    """
+    from . import latex_source as ls
+
+    sc = Sidecar(pdf)
+    model_path = _model_path(sc)
+    if _stale_or_absent(sc, model_path, _lines_json_path(pdf)):
+        cmd_model(pdf)
+        sc = Sidecar(pdf)
+        model_path = _model_path(sc)
+    if not model_path.exists():
+        return f"No model for {pdf.name} — run `pdfdrill model` first."
+    doc = load_model(model_path)
+    macros = _document_macros(doc, pdf)
+    if not macros:
+        return (f"No LaTeX macro table for {pdf.name} — nothing to expand "
+                f"(the cached e-print source is missing; run `pdfdrill "
+                f"injectlatex {pdf.name}` to fetch it). `latex_original` and "
+                f"`latex` are already stored on every math object.")
+    names = set(macros)
+
+    changed = blocked = seen = 0
+    for o in doc.objects.values():
+        if o.type not in ("Formula", "Equation"):
+            continue
+        latex = str(o.props.get("latex") or "")
+        if not latex:
+            continue
+        seen += 1
+        if o.props.get("latex_expanded_by") and not force:
+            continue                              # already done — idempotent
+        # NEVER lose the author's form: only fill it if the build didn't.
+        o.props.setdefault("latex_original", latex)
+        try:
+            full = ls.expand_macros(latex, macros)
+        except Exception:                         # noqa: BLE001
+            continue
+        left = sorted(set(_TEX_CMD_RE.findall(full)) & names)
+        if full != latex:
+            o.props["latex"] = full
+            changed += 1
+        o.props["macros_unresolved"] = ["\\" + m for m in left]
+        o.props["latex_expanded_by"] = "pdfdrill.expandmath"
+        if left:
+            blocked += 1
+
+    save_model(model_path, doc)
+    sc.save()
+    note = ""
+    if blocked:
+        note = (f"\n  {blocked} object(s) still carry a document macro "
+                f"(`macros_unresolved`) — expansion could not match them; they "
+                f"would be mis-spoken by a tool that does not expand.")
+    return (f"Expanded math persisted in the docmodel: {seen} math object(s), "
+            f"{changed} rewritten, {len(names)} macro(s) in the table. "
+            f"Each carries `latex` (expanded), `latex_original` (author source) "
+            f"and `macros_unresolved`.{note}")
+
+
 def cmd_sre(pdf: Path, out: str | None = None, plain: bool = False,
             safe_only: bool = False) -> str:
     """Projection for the SPOKEN-MATH toolchain (latex2mml → MathML → Speech
@@ -4316,7 +4387,11 @@ def cmd_sre(pdf: Path, out: str | None = None, plain: bool = False,
         if not latex:
             continue                             # nothing to speak
         sre_tex = latex
-        if macros:
+        # `expandmath` may already have PERSISTED the fully expanded form — then
+        # `latex` is it and re-expanding is a no-op. Otherwise do the last-mile
+        # pass here so the projection is correct even without that step.
+        stored = bool(p.get("latex_expanded_by"))
+        if macros and not stored:
             try:                                 # last-mile expansion for latex2mml
                 sre_tex = ls.expand_macros(latex, macros)
             except Exception:                    # noqa: BLE001
