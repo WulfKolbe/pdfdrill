@@ -4141,7 +4141,10 @@ def _document_macros(doc, pdf: Path | None = None) -> dict | None:
             text = p.read_text(encoding="utf-8", errors="replace")
             pre = ls.split_preamble(text)[0] or text
             table.update(ls.collect_macros(pre, str(d)) or {})
-        return table or None
+        # An EMPTY dict is a real, different answer from None: the source is
+        # here and defines no macros, so the LaTeX is already final. Collapsing
+        # the two sent users to re-run `injectlatex` they had already run.
+        return table
     except Exception:                            # noqa: BLE001
         return None
 
@@ -4299,12 +4302,17 @@ def cmd_expandmath(pdf: Path, force: bool = False) -> str:
         return f"No model for {pdf.name} — run `pdfdrill model` first."
     doc = load_model(model_path)
     macros = _document_macros(doc, pdf)
-    if not macros:
-        return (f"No LaTeX macro table for {pdf.name} — nothing to expand "
-                f"(the cached e-print source is missing; run `pdfdrill "
-                f"injectlatex {pdf.name}` to fetch it). `latex_original` and "
-                f"`latex` are already stored on every math object.")
+    if macros is None:
+        # No source at all — we cannot know whether macros remain.
+        return (f"No LaTeX source cached for {pdf.name}, so no macro table — "
+                f"run `pdfdrill injectlatex {pdf.name}` first (it fetches the "
+                f"arXiv e-print / MathPix .tex). `latex_original` and `latex` "
+                f"are already stored on every math object; without a table we "
+                f"cannot say whether any macro is left unexpanded.")
     names = set(macros)
+    # A source that defines NO macros means the LaTeX is already final — that is
+    # SUCCESS, not a refusal. Mark the objects so `sre` trusts them, and say so.
+    no_macros = not names
 
     changed = blocked = seen = 0
     for o in doc.objects.values():
@@ -4333,6 +4341,12 @@ def cmd_expandmath(pdf: Path, force: bool = False) -> str:
 
     save_model(model_path, doc)
     sc.save()
+    if no_macros:
+        return (f"Nothing to expand for {pdf.name}: the LaTeX source defines NO "
+                f"macros, so the stored `latex` is already the final, fully "
+                f"expanded form on all {seen} math object(s) — marked as such. "
+                f"See it with `pdfdrill sre {pdf.name} --plain` (macro-free, one "
+                f"per line) or `pdfdrill formulas {pdf.name}` (full JSON).")
     note = ""
     if blocked:
         note = (f"\n  {blocked} object(s) still carry a document macro "
@@ -4341,7 +4355,9 @@ def cmd_expandmath(pdf: Path, force: bool = False) -> str:
     return (f"Expanded math persisted in the docmodel: {seen} math object(s), "
             f"{changed} rewritten, {len(names)} macro(s) in the table. "
             f"Each carries `latex` (expanded), `latex_original` (author source) "
-            f"and `macros_unresolved`.{note}")
+            f"and `macros_unresolved`.{note}"
+            f"\n  See it: `pdfdrill sre {pdf.name} --plain` (macro-free LaTeX, "
+            f"one per line) or `pdfdrill formulas {pdf.name}` (full JSON).")
 
 
 def cmd_sre(pdf: Path, out: str | None = None, plain: bool = False,

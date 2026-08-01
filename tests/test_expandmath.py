@@ -94,5 +94,33 @@ def test_records_unresolved_macros_on_the_object(tmp_path, monkeypatch):
 def test_no_macro_table_is_reported_not_silently_skipped(tmp_path, monkeypatch):
     doc = _doc((r"\res(a)", r"\res(a)"))
     msg, out = _run(tmp_path, monkeypatch, doc, None)
-    assert "No LaTeX macro table" in msg and "injectlatex" in msg
+    assert "No LaTeX source cached" in msg and "injectlatex" in msg
     assert out is None                            # nothing saved
+
+
+def test_no_source_and_no_macros_are_DIFFERENT_answers(tmp_path, monkeypatch):
+    """The reported confusion: a source that defines ZERO macros was reported
+    as 'source missing, run injectlatex' — sending the user to re-run a step
+    they had already done. `None` (no source) and `{}` (source, no macros) must
+    give different messages, and the second is SUCCESS."""
+    doc_a = _doc((r"x", r"x"))
+    msg_none, saved_none = _run(tmp_path, monkeypatch, doc_a, None)
+    assert "No LaTeX source cached" in msg_none and "injectlatex" in msg_none
+    assert saved_none is None                      # nothing written
+
+    doc_b = _doc((r"x", r"x"))
+    msg_empty, saved_empty = _run(tmp_path, monkeypatch, doc_b, {})
+    assert "injectlatex" not in msg_empty          # do NOT send them round again
+    assert "defines NO macros" in msg_empty and "already the final" in msg_empty
+    assert saved_empty is not None                 # it IS persisted
+    assert _math(saved_empty)[0].props["latex_expanded_by"] == "pdfdrill.expandmath"
+
+
+def test_output_says_how_to_SEE_the_expanded_latex(tmp_path, monkeypatch):
+    """expandmath persists; it does not print the LaTeX. Every outcome must
+    name the command that shows it, or the result feels invisible."""
+    macros = ls.collect_macros(r"\newcommand{\dom}{\mathbb{D}}", ".")
+    msg, _ = _run(tmp_path, monkeypatch, _doc((r"x \in \dom", None)), macros)
+    assert "sre" in msg and "--plain" in msg
+    msg2, _ = _run(tmp_path, monkeypatch, _doc((r"x", None)), {})
+    assert "sre" in msg2 and "--plain" in msg2
