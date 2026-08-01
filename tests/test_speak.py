@@ -118,7 +118,8 @@ def test_typesetting_noops_never_reach_the_engine():
     assert c(r"A\xspace B") == "A B"
     assert "\\protect" not in c(r"\protect\independenT{X}{Y}")
     assert c(r"x\vspace{1em}y") == "x y"
-    assert c(r"a \, b") == "a b"
+    # symbol spacings are left to the engine, which renders them correctly
+    assert c(r"\int_0^1 x\,dx") == r"\int_0^1 x\,dx"
     for noop in (r"\allowbreak", r"\relax", r"\displaystyle", r"\noindent"):
         # a separator is required: `\allowbreaky` is a DIFFERENT macro, and the
         # `(?![a-zA-Z])` guard must not strip a prefix of a longer name.

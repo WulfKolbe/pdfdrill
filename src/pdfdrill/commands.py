@@ -4306,9 +4306,16 @@ _INLINE_MATH_RE = re.compile(r"\\\((.+?)\\\)|(?<!\$)\$(?!\$)([^$]+?)\$(?!\$)",
 # containing a literal backslash, 578 were `\xspace` alone — 83% of the noise is
 # one spacing macro that should never have reached the engine.
 _SPEECH_NOOP = re.compile(
-    r"\\(?:xspace|protect|allowbreak|linebreak|nolinebreak|noindent|relax"
+    # TeX CONTROL FLOW and low-level plumbing: never mathematics, and the engine
+    # reads each one out ("backslash ifmmode"). Same class as the spacing no-ops.
+    r"\\(?:ifmmode|ifthenelse|ifdim|ifnum|ifx|else|fi|cr|noalign|omit"
+    r"|expandafter|noexpand|makeatletter|makeatother|leavevmode|unskip"
+    r"|xspace|protect|allowbreak|linebreak|nolinebreak|noindent|relax"
     r"|displaystyle|textstyle|scriptstyle|scriptscriptstyle|bigskip|medskip"
-    r"|smallskip|newpage|clearpage|hfill|hrulefill|dotfill|,|;|:|!|/)"
+    # NB: the symbol spacings (\, \; \! \:) are NOT listed — the engine renders
+    # them correctly on its own, and listing them made the strip inconsistent
+    # (the `(?![a-zA-Z])` guard fires for `\,dx` but not for `\, b`).
+    r"|smallskip|newpage|clearpage|hfill|hrulefill|dotfill)"
     r"(?![a-zA-Z])")
 # `\vspace{1em}` / `\hspace*{2pt}` / `\the\foo` — no-ops WITH an argument.
 _SPEECH_NOOP_ARG = re.compile(
