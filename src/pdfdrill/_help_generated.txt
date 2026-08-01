@@ -136,6 +136,7 @@ Projection / export:
   pdfdrill beamer <pdf> [--force] [--compile] PROJECT the docmodel to a LaTeX **beamer** slide deck (<drill>/latex/<bibkey>.beamer.tex) — one frame per Section (allowframebreaks so long content auto-continues), a title + outline + References frame. Same source-agnostic docmodel projection as `latex` (transclusions, cite commands, lists all resolve), a deck instead of an article. Compile with XELATEX; --compile runs it.
 
 Analysis (needs a built model):
+  pdfdrill sre <pdf> [--out OUT] [--plain] [--safe-only] spoken-math projection for latex2mml → MathML → speech-rule-engine — emits macro-free latex_sre per formula (latex2mml expands nothing) and flags units whose unresolved macros would be mis-spoken
   pdfdrill formulas <pdf> [--out OUT] [--plain] math projection for an external de-macro / SRE pipeline — every Formula/Equation in flow order with id, transclusion placeholder, expanded latex, latex_original, its control sequences and the document-defined macros expansion left unresolved
 
 OCR / model pipeline:

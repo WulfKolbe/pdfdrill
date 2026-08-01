@@ -4126,6 +4126,26 @@ def _texsrc_dir(doc, pdf: Path | None = None) -> Path | None:
     return None
 
 
+def _document_macros(doc, pdf: Path | None = None) -> dict | None:
+    """The document's macro TABLE (`{name: {...}}`) from the cached e-print, or
+    None. Same source as `_document_macro_names`, but keeps the bodies so they
+    can actually be expanded (`latex_source.expand_macros`)."""
+    d = _texsrc_dir(doc, pdf)
+    if d is None:
+        return None
+    try:
+        from . import latex_source as ls
+        table: dict = {}
+        for p in (sorted(Path(d).rglob("*.tex"))[:40]
+                  + sorted(Path(d).rglob("*.sty"))[:20]):
+            text = p.read_text(encoding="utf-8", errors="replace")
+            pre = ls.split_preamble(text)[0] or text
+            table.update(ls.collect_macros(pre, str(d)) or {})
+        return table or None
+    except Exception:                            # noqa: BLE001
+        return None
+
+
 def _document_macro_names(doc, pdf: Path | None = None) -> set[str] | None:
     """The macro names THIS document defines (`\\newcommand`/`\\def`/…), or None
     when they can't be determined.
@@ -4251,6 +4271,123 @@ def cmd_formulas(pdf: Path, out: str | None = None, plain: bool = False) -> str:
             f"{c['with_original']} carry a distinct latex_original{unres}). "
             f"macro table: {payload['macro_table']}. "
             f"wrote {_artref(sc, dest)}")
+
+
+def cmd_sre(pdf: Path, out: str | None = None, plain: bool = False,
+            safe_only: bool = False) -> str:
+    """Projection for the SPOKEN-MATH toolchain (latex2mml → MathML → Speech
+    Rule Engine).
+
+    Distinct from `formulas`, which reports what the drill holds. This one is
+    built around a hard constraint of the consumer: **latex2mml expands
+    nothing**. A macro that reaches it is not an error there — it is silently
+    mis-spoken (`\\res(a)` becomes "res a"). So this projection's job is to hand
+    over LaTeX that is already macro-free, and to say exactly which expressions
+    it could not make safe rather than letting them through.
+
+    Per unit it emits `latex_sre` — the drill's expanded `latex` put through one
+    more bounded-fixpoint pass with the document's own macro table — plus
+    `blockers` (macros the document defines that STILL survive) and `safe`.
+    `spoken` is the reserved slot to write the engine's rendering back into.
+    """
+    from docops.projectors.tiddlywiki import math_titles
+    from . import latex_source as ls
+
+    sc = Sidecar(pdf)
+    model_path = _model_path(sc)
+    if _stale_or_absent(sc, model_path, _lines_json_path(pdf)):
+        cmd_model(pdf)
+        sc = Sidecar(pdf)
+        model_path = _model_path(sc)
+    if not model_path.exists():
+        return f"No model for {pdf.name} — run `pdfdrill model` first."
+    doc = load_model(model_path)
+    key = resolve_bibkey(pdf, None, sc)
+    titles = math_titles(doc, key)
+    macros = _document_macros(doc, pdf)
+    names = set(macros or {})
+
+    objs = [o for o in doc.objects.values() if o.type in ("Formula", "Equation")]
+    objs.sort(key=lambda o: (o.props.get("flow_index", 10**9), o.id))
+    units: list[dict] = []
+    for o in objs:
+        p = o.props
+        latex = str(p.get("latex") or "")
+        if not latex:
+            continue                             # nothing to speak
+        sre_tex = latex
+        if macros:
+            try:                                 # last-mile expansion for latex2mml
+                sre_tex = ls.expand_macros(latex, macros)
+            except Exception:                    # noqa: BLE001
+                sre_tex = latex
+        present = set(_TEX_CMD_RE.findall(sre_tex))
+        blockers = sorted(present & names)
+        title = titles.get(o.id, "")
+        units.append({
+            "id": o.id,
+            "type": o.type,
+            "flow_index": p.get("flow_index"),
+            "title": title,
+            "placeholder": ("{{%s||%s}}" % (title, "EQ" if o.type == "Equation"
+                                            else "FO")) if title else "",
+            "latex_sre": sre_tex,                # <- FEED THIS to latex2mml
+            "latex": latex if latex != sre_tex else None,   # pre-pass form, if changed
+            "expanded_here": latex != sre_tex,
+            "blockers": ["\\" + b for b in blockers],
+            "safe": not blockers,
+            "display": bool(p.get("display", o.type == "Equation")),
+            "refnum": p.get("refnum") or p.get("equation_number"),
+            "page": p.get("page"),
+            "spoken": None,      # reserved: write the SRE rendering back here
+        })
+
+    if safe_only:
+        units = [u for u in units if u["safe"]]
+    n_safe = sum(1 for u in units if u["safe"])
+    n_exp = sum(1 for u in units if u["expanded_here"])
+    payload = {
+        "version": 1,
+        "bibkey": key,
+        "target": "latex2mml → MathML → speech-rule-engine",
+        "feed_field": "latex_sre",
+        "contract": (
+            "latex2mml performs NO macro expansion, so only units with "
+            "safe=true are known macro-free. A unit with blockers WILL be "
+            "mis-spoken (an unexpanded \\name is read as its letters) — resolve "
+            "or exclude it rather than letting it through."),
+        "macro_table": ("document-source" if macros else "unavailable"),
+        "macro_table_note": (
+            f"{len(names)} document-defined macro(s); `blockers` are those still "
+            f"present after expansion" if macros else
+            "no LaTeX source cached — NO expansion pass ran and `blockers` is "
+            "empty because it could not be determined, NOT because the LaTeX is "
+            "macro-free. Treat safe=true as UNVERIFIED here."),
+        "counts": {"total": len(units), "safe": n_safe,
+                   "blocked": len(units) - n_safe, "expanded_here": n_exp},
+        "units": units,
+    }
+    text = json.dumps(payload, ensure_ascii=False, indent=2)
+    if plain:                                    # latex2mml-ready, one per line
+        text = "\n".join(u["latex_sre"] for u in units)
+    dest = Path(out) if out else (sc.blob_dir / f"{key}.sre.json")
+    if not plain or out:
+        dest.parent.mkdir(parents=True, exist_ok=True)
+        dest.write_text(text, encoding="utf-8")
+    if plain and not out:
+        return text
+    c = payload["counts"]
+    warn = ""
+    if not macros:
+        warn = ("  WARNING: no macro table — safe=true is UNVERIFIED; cache the "
+                "LaTeX source (`pdfdrill injectlatex`) for a real check.\n")
+    elif c["blocked"]:
+        warn = (f"  {c['blocked']} unit(s) still carry document macros and would be "
+                f"MIS-SPOKEN by latex2mml — see `blockers` (`--safe-only` drops them).\n")
+    return (f"SRE projection: {c['total']} unit(s), {c['safe']} safe to feed "
+            f"latex2mml, {c['expanded_here']} expanded by this pass. "
+            f"macro table: {payload['macro_table']}.\n{warn}"
+            f"  feed the `latex_sre` field. wrote {_artref(sc, dest)}")
 
 
 def _load_combined_store(path: Path):

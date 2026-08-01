@@ -1933,6 +1933,33 @@ commands:
     type: pdf
     required: true
   typed: true
+- name: sre
+  section: Analysis (needs a built model)
+  summary: spoken-math projection for latex2mml → MathML → speech-rule-engine — emits
+    macro-free latex_sre per formula (latex2mml expands nothing) and flags units whose
+    unresolved macros would be mis-spoken
+  offline_ok: true
+  requires:
+  - model
+  positionals:
+  - name: pdf
+    type: pdf
+    required: true
+    help: PDF path, https URL, or bare arXiv id
+  flags:
+  - name: out
+    flag: --out
+    type: str
+    help: write the JSON here instead of the drill folder
+  - name: plain
+    flag: --plain
+    type: flag
+    help: print only latex_sre, one per line (latex2mml-ready)
+  - name: safe-only
+    flag: --safe-only
+    type: flag
+    help: drop units that still carry unresolved macros
+  typed: true
 - name: formulas
   section: Analysis (needs a built model)
   summary: math projection for an external de-macro / SRE pipeline — every Formula/Equation

@@ -386,6 +386,14 @@ def _do_fonts(args):
     return cmd_fonts(_pdf(args))
 
 
+def _do_sre(args):
+    """`sre` — latex2mml-ready spoken-math projection (macro-free latex_sre)."""
+    from .commands import cmd_sre
+    out, args = _opt(args, "--out")
+    return cmd_sre(_pdf(args), out=out, plain="--plain" in args,
+                   safe_only="--safe-only" in args)
+
+
 def _do_formulas(args):
     """`formulas` — math projection (latex + latex_original + placeholders) for
     an external de-macro / SRE pipeline."""
@@ -1751,6 +1759,7 @@ HANDLERS = {
         "fonts": _do_fonts,
         "docs": _do_docs,
         "formulas": _do_formulas,
+        "sre": _do_sre,
         "status": _do_status,
         "md": _do_md,
         "page": _do_page,
