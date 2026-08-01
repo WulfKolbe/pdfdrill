@@ -604,6 +604,23 @@ def cmd_doctor() -> str:
                 if not r["present"] and r["pkg"] not in missing_pkgs:
                     missing_pkgs.append(r["pkg"])
 
+    # Speech route (`speak`): the Python half is vendored, the ENGINE is npm
+    # speech-rule-engine and has to be installed — report it like any other
+    # external tool so a missing engine is discoverable before it is needed.
+    lines.append("")
+    lines.append("Speech route (`speak` → `spoken`):")
+    _sre = sre_engine_dir()
+    lines.append(f"  [{'OK ' if _sre else 'MISSING'}] speech-rule-engine — "
+                 + (str(_sre) if _sre else
+                    "run src/pdfdrill/la2speech/setup.sh (needs node), or set "
+                    "PDFDRILL_SRE_DIR"))
+    for _m in ("latex2mathml", "pylatexenc"):
+        try:
+            __import__(_m)
+            lines.append(f"  [OK ] {_m:<18} — la2speech dependency")
+        except ImportError:
+            lines.append(f"  [MISSING] {_m:<14} — pip install 'pdfdrill[speech]'")
+
     lines.append("")
     lines.append("Python deps:")
     for mod, note in [("pdfminer", "core: born-digital text layer (model)"),
@@ -4277,6 +4294,114 @@ def cmd_formulas(pdf: Path, out: str | None = None, plain: bool = False) -> str:
 
 
 _MARKER_RE = re.compile(r"\{\{([^}|]+)\|\|(FO|EQ|FREF)\}\}")
+
+
+def sre_engine_dir() -> Path | None:
+    """Where the npm speech-rule-engine lives, or None.
+
+    The Python half of la2speech is vendored; the ENGINE is 9.6 MB of JavaScript
+    and belongs in an install step, like poppler or tesseract. Looked up in the
+    order a user would expect: an explicit env var, next to the vendored package,
+    then the standalone project it came from.
+    """
+    import os
+    here = Path(__file__).resolve().parent / "la2speech"
+    for c in (os.environ.get("PDFDRILL_SRE_DIR"), here / "sre",
+              Path.home() / "la2speech" / "sre"):
+        if c and Path(c).is_dir():
+            return Path(c)
+    return None
+
+
+def cmd_speak(pdf: Path, limit: int | None = None, force: bool = False,
+              domain: str = "clearspeak") -> str:
+    """Render every Formula/Equation to SPEECH and store it as `spoken`.
+
+    Closes the chain: `expandmath` leaves macro-free LaTeX on each object, this
+    hands it to the vendored la2speech (latex2mathml → MathML → speech-rule-
+    engine) and writes the rendering back, so `pdfdrill spoken` can substitute it
+    into the prose. Idempotent — an object that already has `spoken` is skipped
+    unless `--force`.
+
+    Feeds the EXPANDED `latex`, never `latex_original`: latex2mathml has no macro
+    table, so an unexpanded macro reaches the engine verbatim and is spoken as
+    its letters. Objects still carrying `macros_unresolved` are reported.
+    """
+    sre_dir = sre_engine_dir()
+    if sre_dir is None:
+        return ("No speech-rule-engine found. Install it once:\n"
+                f"  bash {Path(__file__).resolve().parent / 'la2speech' / 'setup.sh'}\n"
+                "or point PDFDRILL_SRE_DIR at an existing `sre` directory. "
+                "(The Python side ships with pdfdrill; the engine is npm "
+                "`speech-rule-engine` and needs node.)")
+    try:
+        from .la2speech import SRESpeechBackend, LatexSpeaker
+    except ImportError as e:                     # noqa: BLE001
+        return (f"la2speech is unavailable: {e}. It needs `latex2mathml` and "
+                f"`pylatexenc` (pip install 'pdfdrill[speech]').")
+
+    sc = Sidecar(pdf)
+    model_path = _model_path(sc)
+    if _stale_or_absent(sc, model_path, _lines_json_path(pdf)):
+        cmd_model(pdf)
+        sc = Sidecar(pdf)
+        model_path = _model_path(sc)
+    if not model_path.exists():
+        return f"No model for {pdf.name} — run `pdfdrill model` first."
+    doc = load_model(model_path)
+
+    todo = [o for o in doc.objects.values()
+            if o.type in ("Formula", "Equation") and str(o.props.get("latex") or "")
+            and (force or not str(o.props.get("spoken") or "").strip())]
+    todo.sort(key=lambda o: (o.props.get("flow_index", 10**9), o.id))
+    if limit:
+        todo = todo[:limit]
+    if not todo:
+        n = sum(1 for o in doc.objects.values()
+                if o.type in ("Formula", "Equation") and o.props.get("spoken"))
+        return (f"Nothing to speak for {pdf.name}: {n} math object(s) already "
+                f"carry `spoken` (use --force to re-render). "
+                f"See it with `pdfdrill spoken {pdf.name}`.")
+
+    done = failed = 0
+    unresolved = 0
+    errors: list[str] = []
+    try:
+        with SRESpeechBackend(str(sre_dir), domain=domain) as be:
+            speaker = LatexSpeaker(be)
+            for o in todo:
+                latex = str(o.props.get("latex") or "")
+                if o.props.get("macros_unresolved"):
+                    unresolved += 1          # will be mis-spoken; still rendered
+                try:
+                    say = (speaker.speak_math(latex) or "").strip()
+                except Exception as e:       # noqa: BLE001
+                    failed += 1
+                    if len(errors) < 3:
+                        errors.append(f"{latex[:40]}… → {e}")
+                    continue
+                if say:
+                    o.props["spoken"] = say
+                    o.props["spoken_by"] = f"la2speech/{domain}"
+                    done += 1
+                else:
+                    failed += 1
+    except Exception as e:                       # noqa: BLE001
+        return (f"speech engine failed to start ({e}). Check node and the `sre` "
+                f"directory at {sre_dir}.")
+
+    save_model(model_path, doc)
+    sc.save()
+    note = ""
+    if unresolved:
+        note += (f"\n  {unresolved} object(s) still carry `macros_unresolved` — "
+                 f"the engine has no macro table, so those are spoken as their "
+                 f"letters. Run `pdfdrill expandmath {pdf.name}` first.")
+    if failed:
+        note += f"\n  {failed} failed" + (f": {'; '.join(errors)}" if errors else "")
+    return (f"Spoken math stored: {done} of {len(todo)} rendered with "
+            f"la2speech/{domain}.{note}"
+            f"\n  Read the LLM input: `pdfdrill spoken {pdf.name}`")
 
 
 def cmd_spoken(pdf: Path, out: str | None = None, as_json: bool = False,

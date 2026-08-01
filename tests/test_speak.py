@@ -1,0 +1,106 @@
+"""
+`pdfdrill speak` — la2speech integration: math → speech, stored as `spoken`.
+
+The Python half of la2speech is VENDORED (src/pdfdrill/la2speech). The speech
+ENGINE is npm speech-rule-engine — 9.6 MB of JavaScript that belongs in an
+install step, so it is looked up, not shipped.
+"""
+import sys
+from pathlib import Path
+
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "src"))
+
+from docmodel.core import Document, DocObject
+from pdfdrill import commands as C
+
+
+def test_vendored_package_exposes_the_api_speak_uses():
+    """Import must work from INSIDE the package (the intra-package rewiring),
+    not only from the original project directory."""
+    from pdfdrill.la2speech import (SRESpeechBackend, LatexSpeaker,
+                                    normalize_whitespace)
+    assert all(callable(x) or isinstance(x, type)
+               for x in (SRESpeechBackend, LatexSpeaker, normalize_whitespace))
+
+
+def test_engine_lookup_order(tmp_path, monkeypatch):
+    monkeypatch.delenv("PDFDRILL_SRE_DIR", raising=False)
+    fake = tmp_path / "sre"; fake.mkdir()
+    monkeypatch.setenv("PDFDRILL_SRE_DIR", str(fake))
+    assert C.sre_engine_dir() == fake
+    monkeypatch.setenv("PDFDRILL_SRE_DIR", str(tmp_path / "nope"))
+    got = C.sre_engine_dir()                    # falls through to the real ones
+    assert got is None or got.is_dir()
+
+
+def _doc(*latex, spoken=None, unresolved=None):
+    d = Document(); d.meta["bibkey"] = "K"
+    for i, x in enumerate(latex):
+        p = {"latex": x, "flow_index": i + 1}
+        if spoken:
+            p["spoken"] = spoken
+        if unresolved:
+            p["macros_unresolved"] = unresolved
+        d.add(DocObject(type="Formula", props=p))
+    return d
+
+
+class _FakeSpeaker:
+    def __init__(self, *a, **k): self.errors = []
+    def speak_math(self, tex): return f"SPOKEN<{tex}>"
+
+
+class _FakeBackend:
+    def __init__(self, *a, **k): pass
+    def __enter__(self): return self
+    def __exit__(self, *a): return False
+
+
+def _run(tmp_path, monkeypatch, doc, **kw):
+    pdf = tmp_path / "K.pdf"; pdf.write_bytes(b"%PDF-1.4\n")
+    mp = tmp_path / "m.json"; mp.write_text("{}")
+    saved = {}
+    monkeypatch.setattr(C, "sre_engine_dir", lambda: tmp_path)
+    monkeypatch.setattr(C, "load_model", lambda p: doc)
+    monkeypatch.setattr(C, "_stale_or_absent", lambda *a, **k: False)
+    monkeypatch.setattr(C, "_model_path", lambda sc: mp)
+    monkeypatch.setattr(C, "save_model", lambda path, d: saved.setdefault("d", d))
+    import pdfdrill.la2speech as la
+    monkeypatch.setattr(la, "SRESpeechBackend", _FakeBackend, raising=False)
+    monkeypatch.setattr(la, "LatexSpeaker", _FakeSpeaker, raising=False)
+    return C.cmd_speak(pdf, **kw), saved.get("d")
+
+
+def test_stores_spoken_on_the_object(tmp_path, monkeypatch):
+    msg, out = _run(tmp_path, monkeypatch, _doc("f(x)"))
+    o = [x for x in out.objects.values() if x.type == "Formula"][0]
+    assert o.props["spoken"] == "SPOKEN<f(x)>"
+    assert o.props["spoken_by"].startswith("la2speech/")
+    assert "1 of 1 rendered" in msg
+    assert "pdfdrill spoken" in msg              # tells you how to read it
+
+
+def test_is_idempotent_unless_forced(tmp_path, monkeypatch):
+    msg, out = _run(tmp_path, monkeypatch, _doc("f(x)", spoken="already said"))
+    assert out is None and "Nothing to speak" in msg and "already carry" in msg
+    msg2, out2 = _run(tmp_path, monkeypatch,
+                      _doc("f(x)", spoken="already said"), force=True)
+    assert out2 is not None
+    o = [x for x in out2.objects.values() if x.type == "Formula"][0]
+    assert o.props["spoken"] == "SPOKEN<f(x)>"
+
+
+def test_unresolved_macros_are_warned_about(tmp_path, monkeypatch):
+    """The engine has NO macro table, so an unexpanded macro is spoken as its
+    letters — the user must be told to run expandmath, not left guessing."""
+    msg, _ = _run(tmp_path, monkeypatch,
+                  _doc(r"\res(a)", unresolved=["\\res"]))
+    assert "macros_unresolved" in msg and "expandmath" in msg
+
+
+def test_missing_engine_gives_an_actionable_message(tmp_path, monkeypatch):
+    monkeypatch.setattr(C, "sre_engine_dir", lambda: None)
+    pdf = tmp_path / "K.pdf"; pdf.write_bytes(b"%PDF-1.4\n")
+    msg = C.cmd_speak(pdf)
+    assert "No speech-rule-engine found" in msg
+    assert "setup.sh" in msg and "PDFDRILL_SRE_DIR" in msg

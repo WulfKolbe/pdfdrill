@@ -386,6 +386,15 @@ def _do_fonts(args):
     return cmd_fonts(_pdf(args))
 
 
+def _do_speak(args):
+    """`speak` — render math to speech via la2speech and store it as `spoken`."""
+    from .commands import cmd_speak
+    lim, args = _opt(args, "--limit")
+    dom, args = _opt(args, "--domain")
+    return cmd_speak(_pdf(args), limit=int(lim) if lim else None,
+                     force="--force" in args, domain=(dom or "clearspeak"))
+
+
 def _do_spoken(args):
     """`spoken` — prose with math replaced by its spoken form (the LLM input)."""
     from .commands import cmd_spoken
@@ -1775,6 +1784,7 @@ HANDLERS = {
         "docs": _do_docs,
         "formulas": _do_formulas,
         "expandmath": _do_expandmath,
+        "speak": _do_speak,
         "spoken": _do_spoken,
         "sre": _do_sre,
         "status": _do_status,

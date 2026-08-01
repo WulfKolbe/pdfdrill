@@ -1933,6 +1933,32 @@ commands:
     type: pdf
     required: true
   typed: true
+- name: speak
+  section: Analysis (needs a built model)
+  summary: render every formula to SPEECH with the vendored la2speech (MathML → speech-rule-engine)
+    and store it as `spoken` on the object; feeds the EXPANDED latex, idempotent
+  offline_ok: true
+  requires:
+  - model
+  positionals:
+  - name: pdf
+    type: pdf
+    required: true
+    help: PDF path, https URL, or bare arXiv id
+  flags:
+  - name: limit
+    flag: --limit
+    type: int
+    help: only render the first N formulas
+  - name: force
+    flag: --force
+    type: flag
+    help: re-render objects that already carry `spoken`
+  - name: domain
+    flag: --domain
+    type: str
+    help: 'speech rule domain: clearspeak (default) | mathspeak'
+  typed: true
 - name: spoken
   section: Analysis (needs a built model)
   summary: the LLM INPUT text — prose in flow order with each math marker replaced by
