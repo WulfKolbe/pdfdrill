@@ -4373,6 +4373,7 @@ def clean_for_speech(latex: str) -> str:
         s = "".join(out)
         if s == prev:
             break
+    s = repair_bare_text(s)          # PROVISIONAL — see repair_bare_text
     # last: rewrite known-unrenderable commands to speakable notation
     s = speechable_macro_subs(s)
     return re.sub(r"\s{2,}", " ", s).strip()
@@ -4406,6 +4407,40 @@ _SPEECH_MACRO_RE = re.compile(
 # rest — otherwise the whole construct is unrenderable even once the inner macro
 # has been substituted.
 _MATHPALETTE_RE = re.compile(r"\\mathpalette\s*\{([^{}]*(?:\{[^{}]*\}[^{}]*)*)\}\s*\{[^{}]*\}")
+
+
+# ---- PROVISIONAL (remove once extraction stops emitting it) -----------------
+# Observed 347x in the library: `\text\mathrm{{Iso}}` — a `\text` with NO
+# argument, immediately followed by a font command that has one. It is malformed
+# LaTeX arriving from extraction, not a macro: the speech engine reads
+# "backslash mathrm" and KaTeX raises Undefined control sequence on the same
+# string. Dropping the argument-less `\text` leaves `\mathrm{{Iso}}`, which both
+# render correctly.
+#
+# REMOVE THIS when the extraction stage no longer produces a bare `\text` before
+# a font command — `grep -c '\\text\\\\' ` over the corpus is the check. It
+# repairs a symptom; the defect is upstream.
+_BARE_TEXT_BEFORE_FONT = re.compile(
+    r"\\text(?=\\(?:math(?:rm|sf|tt|bf|it|cal|bb|frak)|operatorname)\b)")
+
+
+# The same artifact doubles the braces: `\mathrm{{Iso}}`. The inner group makes
+# the engine treat each letter separately ("normal I seconds normal o" — it even
+# reads `s` as "seconds"), so collapse it when the doubled group is the WHOLE
+# argument. `\mathrm{{a}{b}}` is left alone: there the grouping is meaningful.
+_DOUBLED_FONT_ARG = re.compile(
+    r"(\\(?:math(?:rm|sf|tt|bf|it|cal|bb|frak)|operatorname|text)\s*)"
+    r"\{\{([^{}]*)\}\}")
+
+
+def repair_bare_text(latex: str) -> str:
+    """PROVISIONAL: drop a `\\text` that has no argument of its own because a
+    font command directly follows it, and collapse the doubled braces the same
+    extraction defect produces (see the note above)."""
+    if not latex:
+        return latex
+    s = _BARE_TEXT_BEFORE_FONT.sub("", latex)
+    return _DOUBLED_FONT_ARG.sub(lambda m: f"{m.group(1)}{{{m.group(2)}}}", s)
 
 
 def speechable_macro_subs(latex: str) -> str:

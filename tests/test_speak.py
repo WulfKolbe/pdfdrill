@@ -197,3 +197,17 @@ def test_an_unknown_macro_is_left_alone_not_guessed():
     the object stays flagged rather than having a meaning invented for it."""
     from pdfdrill.commands import clean_for_speech as c
     assert c(r"\unknownMacro{x}") == r"\unknownMacro{x}"
+
+
+def test_provisional_bare_text_repair():
+    """PROVISIONAL (remove when extraction stops emitting it): `\\text\\mathrm{{Iso}}`
+    — a `\\text` with no argument plus doubled braces — is malformed LaTeX from
+    the extraction stage. It makes the engine say "backslash mathrm I s o" and
+    makes KaTeX raise Undefined control sequence on the same string."""
+    from pdfdrill.commands import repair_bare_text as r
+    assert r(r"\alpha \in \text\mathrm{{Iso}}") == r"\alpha \in \mathrm{Iso}"
+    assert r(r"\text\mathsf{{X}}") == r"\mathsf{X}"
+    # valid LaTeX must be untouched
+    assert r(r"\text{normal} and \mathrm{ok}") == r"\text{normal} and \mathrm{ok}"
+    # a doubled group that is NOT the whole argument carries real grouping
+    assert r(r"\mathrm{{a}{b}}") == r"\mathrm{{a}{b}}"
