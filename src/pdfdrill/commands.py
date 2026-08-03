@@ -343,6 +343,37 @@ def _born_digital_char_dump(pdf: Path) -> dict:
         return _pdfplumber_char_dump(pdf)
 
 
+def apply_document_structure(doc) -> dict:
+    """Run the structure post-pass (procOrder 999) on a LaTeX-SOURCE model.
+
+    `build_source_model` constructs the Document DIRECTLY — it never goes
+    through `docmodel.main`, so the module pipeline, and with it
+    `DocumentStructureProcessor`, never ran on it. The visible consequence:
+    Sections with NO children, no `section_number`, and no Document root. The
+    TiddlyWiki `_section_body` iterates `section.children`, so it emitted an
+    empty body and every `||TAB`/`||PIC`/`||DIA`/`||LI` transclusion silently
+    vanished — only `CIT`/`FO` survived, because those are produced by inline
+    string substitution that never touches the object tree.
+
+    Neither the processor nor the emitter was ever modified; the source route
+    simply bypassed the pass. Idempotent — `children` is de-duplicated.
+    """
+    try:
+        from docmodel.modules.document_structure import DocumentStructureProcessor
+    except ImportError:                              # noqa: BLE001
+        return {"sections": 0, "children": 0}
+    secs = [o for o in doc.objects.values() if o.type == "Section"]
+    if not secs:
+        return {"sections": 0, "children": 0}
+    DocumentStructureProcessor({}, str(doc.meta.get("bibkey") or "DOC")
+                               ).process_objects(doc)
+    secs = [o for o in doc.objects.values() if o.type == "Section"]
+    return {"sections": len(secs),
+            "children": sum(len(s.children or []) for s in secs),
+            "numbered": sum(1 for s in secs if s.props.get("section_number")),
+            "roots": sum(1 for o in doc.objects.values() if o.type == "Document")}
+
+
 def merge_page_geometry(doc, lines_path: Path) -> dict:
     """Give a LaTeX-SOURCE model the page geometry it structurally cannot have.
 
@@ -2992,15 +3023,23 @@ def cmd_model(pdf: Path, force: bool = False, bibkey: str | None = None) -> str:
                 if built:
                     try:
                         merged = load_model(model_path)
+                        # The source builder bypasses docmodel.main, so the
+                        # structure post-pass never ran: run it here or every
+                        # ||TAB/||PIC/||DIA/||LI transclusion is lost.
+                        st = apply_document_structure(merged)
                         stats = merge_page_geometry(merged, _lines_json_path(pdf))
+                        stats.update(st)
                         save_model(model_path, merged)
                         sc = Sidecar(pdf)
                         sc.set_evidence("merged_geometry", stats)
                         sc.save()
-                        built += (f"\nMERGED page geometry from the text layer: "
-                                  f"{stats['pages']} Page object(s), {stats['placed']} "
-                                  f"object(s) placed on a page — structure from the "
-                                  f"LaTeX source, geometry from pdfminer.")
+                        built += (f"\nMERGED: {stats['pages']} Page object(s), "
+                                  f"{stats['placed']} object(s) placed on a page; "
+                                  f"structure post-pass linked "
+                                  f"{stats.get('children', 0)} child(ren) under "
+                                  f"{stats.get('sections', 0)} section(s) "
+                                  f"(needed for ||TAB/||PIC/||DIA/||LI "
+                                  f"transclusions).")
                     except Exception:            # noqa: BLE001
                         pass                     # source model still stands
                     return built
