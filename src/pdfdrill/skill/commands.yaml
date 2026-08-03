@@ -1988,6 +1988,14 @@ commands:
     flag: --print
     type: flag
     help: dump the whole text to the terminal instead of writing a file
+  - name: footnotes
+    flag: --footnotes
+    type: str
+    help: 'footnote handling: hint (default, "(see footnote)") | drop | keep'
+  - name: cites
+    flag: --cites
+    type: str
+    help: 'citation markers: number (default, [1] [2] …) | key | drop'
   typed: true
 - name: expandmath
   section: Analysis (needs a built model)

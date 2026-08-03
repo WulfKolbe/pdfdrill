@@ -609,7 +609,7 @@ _Generated from `commands.yaml` by skillsync. Edit the manifest, not this sectio
 | Command | Returns |
 |---|---|
 | `pdfdrill speak <pdf> [--limit LIMIT] [--force] [--domain DOMAIN]` | render every formula to SPEECH with the vendored la2speech (MathML → speech-rule-engine) and store it as `spoken` on the object; feeds the EXPANDED latex, idempotent |
-| `pdfdrill spoken <pdf> [--out OUT] [--json] [--fallback FALLBACK] [--print]` | the LLM INPUT text — prose in flow order with each math marker replaced by its spoken form; formulas with no spoken yet are shown visibly, not dropped |
+| `pdfdrill spoken <pdf> [--out OUT] [--json] [--fallback FALLBACK] [--print] [--footnotes FOOTNOTES] [--cites CITES]` | the LLM INPUT text — prose in flow order with each math marker replaced by its spoken form; formulas with no spoken yet are shown visibly, not dropped |
 | `pdfdrill expandmath <pdf> [--force]` | persist fully macro-expanded LaTeX into the docmodel — stores latex (expanded), latex_original (author source) and macros_unresolved on every Formula/Equation; idempotent |
 | `pdfdrill sre <pdf> [--out OUT] [--plain] [--safe-only]` | spoken-math projection for latex2mml → MathML → speech-rule-engine — emits macro-free latex_sre per formula (latex2mml expands nothing) and flags units whose unresolved macros would be mis-spoken |
 | `pdfdrill formulas <pdf> [--out OUT] [--plain]` | math projection for an external de-macro / SRE pipeline — every Formula/Equation in flow order with id, transclusion placeholder, expanded latex, latex_original, its control sequences and the document-defined macros expansion left unresolved |
@@ -624,6 +624,6 @@ _Generated from `commands.yaml` by skillsync. Edit the manifest, not this sectio
 <!-- COMMANDS:END -->
 
 <!-- PREFLIGHT-TOKEN:BEGIN -->
-Attestation token — the LAST line of this SKILL. If you can read this, you read the whole file. Run `pdfdrill preflight --ack DRILL-3a5e6e28` before any build/extract command.
-DRILL-3a5e6e28
+Attestation token — the LAST line of this SKILL. If you can read this, you read the whole file. Run `pdfdrill preflight --ack DRILL-17685121` before any build/extract command.
+DRILL-17685121
 <!-- PREFLIGHT-TOKEN:END -->

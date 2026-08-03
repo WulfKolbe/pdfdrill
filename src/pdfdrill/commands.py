@@ -4294,6 +4294,38 @@ def cmd_formulas(pdf: Path, out: str | None = None, plain: bool = False) -> str:
 
 
 _MARKER_RE = re.compile(r"\{\{([^}|]+)\|\|(FO|EQ|FREF)\}\}")
+# `{{<bibkey>_REF_logitslens||CIT}}` — a citation transclusion. The opaque key is
+# noise to an LLM; a running number is what a reader expects.
+_CIT_RE = re.compile(r"\{\{([^}|]+)\|\|CIT\}\}")
+# `\footnote{...}` / `\footnotetext{...}`, brace-matched by the helper below.
+_FOOTNOTE_RE = re.compile(r"\\footnote(?:text)?\s*\{")
+# SRE renders an ellipsis as "dot dot dot", which reads as noise mid-sentence.
+_DOTS_RE = re.compile(r"\bdot dot dot\b", re.I)
+
+
+def _strip_footnotes(text: str, mode: str) -> str:
+    """Replace `\\footnote{…}` (brace-matched, so a nested `\\href{}{}` inside it
+    goes too). A footnote is an aside: the long URL-in-URL form is pure noise in
+    LLM input, but silently deleting content is also a choice — hence `mode`."""
+    if mode == "keep" or "\\footnote" not in text:
+        return text
+    out, i = [], 0
+    while True:
+        m = _FOOTNOTE_RE.search(text, i)
+        if not m:
+            out.append(text[i:]); break
+        out.append(text[i:m.start()])
+        depth, j = 1, m.end()
+        while j < len(text) and depth:
+            if text[j] == "{":
+                depth += 1
+            elif text[j] == "}":
+                depth -= 1
+            j += 1
+        if mode == "hint":
+            out.append(" (see footnote)")
+        i = j
+    return re.sub(r"\s{2,}", " ", "".join(out))
 # raw inline math as a MathPix model keeps it: `\(…\)` or `$…$` (non-greedy,
 # `$$` excluded so a display block is not eaten a character at a time).
 _INLINE_MATH_RE = re.compile(r"\\\((.+?)\\\)|(?<!\$)\$(?!\$)([^$]+?)\$(?!\$)",
@@ -4590,7 +4622,8 @@ def cmd_speak(pdf: Path, limit: int | None = None, force: bool = False,
 
 
 def cmd_spoken(pdf: Path, out: str | None = None, as_json: bool = False,
-               fallback: str = "latex", to_stdout: bool = False) -> str:
+               fallback: str = "latex", to_stdout: bool = False,
+               footnotes: str = "hint", cites: str = "number") -> str:
     """The prose with math replaced by its SPOKEN form — the text an LLM is fed.
 
     This is the end of the chain: `expandmath` stores macro-free LaTeX, the
@@ -4670,6 +4703,22 @@ def cmd_spoken(pdf: Path, out: str | None = None, as_json: bool = False,
             return f"⟨no spoken: {body[:40]}⟩"
         return "⟨" + body + "⟩"
 
+    # CITATIONS: a running number in first-appearance order. `_REF_logitslens`
+    # is an internal key; an LLM (and a reader) expects `[12]`. The mapping is
+    # reported alongside so a number can still be resolved back to its key.
+    cite_no: dict[str, int] = {}
+
+    def _render_cite(m):
+        key = m.group(1).strip()
+        short = key.split("_REF_", 1)[-1] if "_REF_" in key else key
+        if cites == "key":
+            return f"[{short}]"
+        if cites == "drop":
+            return ""
+        if short not in cite_no:
+            cite_no[short] = len(cite_no) + 1
+        return f"[{cite_no[short]}]"
+
     prose = [o for o in doc.objects.values()
              if o.type in ("Paragraph", "Abstract", "ListItem", "Section")]
     prose.sort(key=lambda o: (o.props.get("flow_index", 10**9), o.id))
@@ -4679,11 +4728,14 @@ def cmd_spoken(pdf: Path, out: str | None = None, as_json: bool = False,
                   or o.props.get("caption") or "")
         if not raw.strip():
             continue
+        txt = _INLINE_MATH_RE.sub(_render_inline, _MARKER_RE.sub(_render, raw))
+        txt = _CIT_RE.sub(_render_cite, txt)      # opaque key -> [n]
+        txt = _strip_footnotes(txt, footnotes)
+        txt = _DOTS_RE.sub("and so on", txt)      # SRE's ellipsis reading
         blocks.append({"id": o.id, "type": o.type,
                        "flow_index": o.props.get("flow_index"),
                        "section": o.props.get("parent_section"),
-                       "text": _INLINE_MATH_RE.sub(
-                           _render_inline, _MARKER_RE.sub(_render, raw))})
+                       "text": txt})
 
     if as_json:
         payload = {"version": 1, "bibkey": key,
@@ -4693,6 +4745,7 @@ def cmd_spoken(pdf: Path, out: str | None = None, as_json: bool = False,
                    "counts": {"blocks": len(blocks), "spoken_substituted": subst,
                               "missing_spoken": missing,
                               "unknown_markers": len(unresolved)},
+                   "citations": {v: k for k, v in cite_no.items()},
                    "blocks": blocks}
         text = json.dumps(payload, ensure_ascii=False, indent=2)
     else:

@@ -130,3 +130,65 @@ def test_default_writes_a_file_instead_of_flooding_the_terminal(tmp_path, monkey
     assert "wrote" in msg and "preview:" in msg
     assert "--print" in msg                      # the escape hatch is advertised
     assert (tmp_path / "s.txt").read_text().strip() == "Let f of x denote it."
+
+
+# --- LLM-input hygiene: citations, footnotes, ellipsis -----------------------
+
+def _doc_prose(text):
+    d = Document(); d.meta["bibkey"] = "K"
+    d.add(DocObject(type="Paragraph", props={"text": text, "flow_index": 1}))
+    return d
+
+
+def test_citation_markers_become_running_numbers(tmp_path, monkeypatch):
+    """`{{2209.00445v3_REF_logitslens||CIT}}` is an internal key — noise to an
+    LLM. First-appearance numbering is what a reader expects, and repeats keep
+    their number."""
+    d = _doc_prose("see {{K_REF_alpha||CIT}} and {{K_REF_beta||CIT}} "
+                   "and again {{K_REF_alpha||CIT}}")
+    out = _run(tmp_path, monkeypatch, d, to_stdout=True)
+    assert out.strip() == "see [1] and [2] and again [1]"
+    assert "||CIT" not in out
+
+
+def test_citation_map_is_reported_so_a_number_resolves_back(tmp_path, monkeypatch):
+    p = json.loads(_run(tmp_path, monkeypatch,
+                        _doc_prose("x {{K_REF_logitslens||CIT}}"),
+                        as_json=True, to_stdout=True))
+    assert p["citations"] == {"1": "logitslens"} or p["citations"] == {1: "logitslens"}
+
+
+def test_citation_modes(tmp_path, monkeypatch):
+    d = _doc_prose("see {{K_REF_alpha||CIT}}.")
+    assert "[alpha]" in _run(tmp_path, monkeypatch, d, cites="key", to_stdout=True)
+    assert "see ." in _run(tmp_path, monkeypatch, d, cites="drop", to_stdout=True)
+
+
+def test_footnote_with_nested_href_is_collapsed(tmp_path, monkeypatch):
+    """The reported case: `\\footnote{\\href{URL}{URL}}` twice over. Brace
+    matching must take the nested `\\href` with it."""
+    d = _doc_prose(r"The code is available online\footnote{\href{https://x/y}"
+                   r"{https://x/y}}\footnote{Accepted at EMNLP 2023}.")
+    out = _run(tmp_path, monkeypatch, d, to_stdout=True)
+    assert "https://" not in out and "\\footnote" not in out
+    assert out.strip() == "The code is available online (see footnote) (see footnote)."
+
+
+def test_footnote_modes(tmp_path, monkeypatch):
+    d = _doc_prose(r"text\footnote{aside}.")
+    assert _run(tmp_path, monkeypatch, d, footnotes="drop",
+                to_stdout=True).strip() == "text."
+    assert "aside" in _run(tmp_path, monkeypatch, d, footnotes="keep",
+                           to_stdout=True)
+
+
+def test_ellipsis_reads_as_words_not_dot_dot_dot(tmp_path, monkeypatch):
+    """SRE renders `\\dots` as "dot dot dot", which is noise mid-sentence."""
+    d = Document(); d.meta["bibkey"] = "K"
+    d.add(DocObject(type="Formula", props={
+        "latex": r"x_1, \dots, x_n", "spoken": "x sub 1, dot dot dot, x sub n",
+        "flow_index": 1}))
+    d.add(DocObject(type="Paragraph", props={
+        "text": "for {{K_FO0001||FO}} we have", "flow_index": 2}))
+    out = _run(tmp_path, monkeypatch, d, to_stdout=True)
+    assert "dot dot dot" not in out and "and so on" in out

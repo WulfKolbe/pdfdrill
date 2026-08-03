@@ -400,9 +400,12 @@ def _do_spoken(args):
     from .commands import cmd_spoken
     out, args = _opt(args, "--out")
     fb, args = _opt(args, "--fallback")
+    fn, args = _opt(args, "--footnotes")
+    ct, args = _opt(args, "--cites")
     return cmd_spoken(_pdf(args), out=out, as_json="--json" in args,
                       fallback=(fb or "latex"),
-                      to_stdout="--print" in args)
+                      to_stdout="--print" in args,
+                      footnotes=(fn or "hint"), cites=(ct or "number"))
 
 
 def _do_expandmath(args):
