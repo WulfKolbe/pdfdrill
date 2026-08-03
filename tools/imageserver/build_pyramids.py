@@ -5,13 +5,22 @@ build_pyramids.py — render a PDF to per-page Deep Zoom (DZI) pyramids.
 The deepest pyramid level is the full render, so a 600-DPI build gives a
 600-DPI full-resolution level that eqcrop.py reads from.
 
-Requires: poppler (pdftoppm) and libvips/pyvips.
-  apt-get install poppler-utils libvips-tools && pip install pyvips pillow
+Rendering is **Ghostscript only** (pdfdrill's `pdf_reading.rasterize`, >=400 DPI):
+gs is the single sanctioned rasterizer — poppler/pdftoppm is not used anywhere,
+its OCR/vision fidelity was measurably worse (see pdf_reading.RASTER_MIN_DPI).
+
+Requires: Ghostscript (gs) and libvips/pyvips.
+  apt-get install ghostscript libvips-tools && pip install pyvips pillow
 
 Usage:
   python3 build_pyramids.py --pdf paper.pdf --out ./viewer --dpi 600
 """
-import argparse, glob, json, math, os, shutil, subprocess, sys, tempfile
+import argparse, json, math, os, sys, tempfile
+from pathlib import Path
+
+# gs-only rasterizer, shared with the rest of pdfdrill.
+sys.path.insert(0, str(Path(__file__).resolve().parents[2] / "src"))
+from pdfdrill import pdf_reading
 
 def main():
     ap = argparse.ArgumentParser(description=__doc__,
@@ -31,17 +40,15 @@ def main():
         import pyvips
     except ImportError:
         sys.exit("pyvips not installed:  pip install pyvips  (and apt install libvips-tools)")
-    if not shutil.which("pdftoppm"):
-        sys.exit("pdftoppm not found:  apt-get install poppler-utils")
+    if pdf_reading.gs_binary() is None:
+        sys.exit("Ghostscript (gs) not found:  apt-get install ghostscript")
 
     tiles_dir = os.path.join(args.out, "tiles")
     os.makedirs(tiles_dir, exist_ok=True)
 
     with tempfile.TemporaryDirectory() as tmp:
-        print(f"Rendering {args.pdf} @ {args.dpi} DPI ...")
-        subprocess.run(["pdftoppm", "-png", "-r", str(args.dpi), args.pdf,
-                        os.path.join(tmp, "page")], check=True)
-        pngs = sorted(glob.glob(os.path.join(tmp, "page-*.png")))
+        print(f"Rendering {args.pdf} @ {args.dpi} DPI (Ghostscript) ...")
+        pngs = [str(p) for p in pdf_reading.rasterize(Path(args.pdf), Path(tmp), dpi=args.dpi)]
         if not pngs:
             sys.exit("no pages rendered")
         manifest = []

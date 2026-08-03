@@ -9,7 +9,7 @@
  *
  *   bun tools/test_drillui_net.ts
  */
-import { isLocalClient, lanAddresses } from "./drillui_net.ts";
+import { isLocalClient, lanAddresses, isPrivateOrigin } from "./drillui_net.ts";
 
 let fails = 0;
 const ok = (name: string, cond: boolean, extra = "") => {
@@ -52,6 +52,35 @@ if (real.length) {
   ok("this machine's own ip classifies local with the default set",
      isLocalClient(real[0]), real[0]);
 }
+
+// ---------------------------------------------------------------------------
+// Private-origin rule for CORS on /artifact.
+//
+// Dragging a tiddlers.json from drillui into a TiddlyWiki served on ANOTHER
+// port makes the wiki FETCH the artifact, which is cross-origin. Without a CORS
+// header the browser blocks it, so the one-gesture import of a whole tiddler
+// array only works for drag flavours that carry the bytes directly.
+//
+// Echoing ANY Origin would let any website the user visits read their drill
+// artifacts from a bridge that binds 0.0.0.0, so the public branch is the one
+// that matters here — same reasoning as the REMOTE branch above.
+// ---------------------------------------------------------------------------
+const owns = new Set(["192.168.178.67"]);
+
+ok("localhost origin is private", isPrivateOrigin("http://localhost:8080", owns));
+ok("loopback origin is private", isPrivateOrigin("http://127.0.0.1:8080", owns));
+ok("bare LAN hostname is private", isPrivateOrigin("http://beelink:8080", owns));
+ok(".local hostname is private", isPrivateOrigin("http://beelink.local:8080", owns));
+ok("our own ip is private", isPrivateOrigin("http://192.168.178.67:8080", owns));
+ok("RFC1918 10/8 is private", isPrivateOrigin("http://10.0.0.4:8080", owns));
+ok("RFC1918 172.16/12 is private", isPrivateOrigin("http://172.16.3.9:8080", owns));
+
+ok("public FQDN is REFUSED", !isPrivateOrigin("https://evil.example.com", owns));
+ok("tiddlywiki.com is REFUSED", !isPrivateOrigin("https://tiddlywiki.com", owns));
+ok("public ip is REFUSED", !isPrivateOrigin("http://8.8.8.8", owns));
+ok("172.32 (outside 172.16/12) is REFUSED", !isPrivateOrigin("http://172.32.0.1", owns));
+ok("empty origin is REFUSED", !isPrivateOrigin("", owns));
+ok("garbage origin is REFUSED", !isPrivateOrigin("not a url", owns));
 
 console.log(fails ? `\n${fails} FAILURE(S)` : "\nAll drillui_net checks passed.");
 process.exit(fails ? 1 : 0);

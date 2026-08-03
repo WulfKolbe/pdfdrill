@@ -51,3 +51,40 @@ export function isLocalClient(
   const set = own instanceof Set ? own : new Set(own);
   return set.has(a);
 }
+
+/** Is `origin` (an HTTP Origin header) on this machine or the local network?
+ *
+ * Used to decide whether /artifact may be read cross-origin. Dragging a
+ * tiddlers.json into a TiddlyWiki served on another port makes the wiki FETCH
+ * the artifact, and without a CORS header the browser blocks it — so the
+ * whole-array import only works for drag flavours that carry the bytes.
+ *
+ * Echoing any Origin would let any website the user happens to visit read their
+ * drill artifacts from a bridge that binds 0.0.0.0, so the allowance is limited
+ * to what the bridge is already for: this host and the LAN. A public FQDN
+ * (a dotted name that is not .local/.lan/.home/.internal, or a public IP) is
+ * refused.
+ */
+export function isPrivateOrigin(
+  origin: string | null | undefined,
+  own: Set<string> | Iterable<string> = lanAddresses(),
+): boolean {
+  if (!origin) return false;
+  let host: string;
+  try {
+    host = new URL(origin).hostname;
+  } catch {
+    return false;
+  }
+  if (!host) return false;
+  const h = host.replace(/^\[|\]$/g, "").replace(/^::ffff:/i, "");
+  if (isLocalClient(h, own)) return true;                 // loopback / our own IPs
+  if (/^10\./.test(h)) return true;                       // RFC1918 10/8
+  if (/^192\.168\./.test(h)) return true;                 // RFC1918 192.168/16
+  if (/^172\.(1[6-9]|2\d|3[01])\./.test(h)) return true;  // RFC1918 172.16/12
+  if (/^169\.254\./.test(h)) return true;                 // link-local
+  if (/^fe80:/i.test(h) || /^f[cd][0-9a-f]{2}:/i.test(h)) return true;  // IPv6 LL/ULA
+  if (/^\d+\.\d+\.\d+\.\d+$/.test(h)) return false;       // any other literal IP = public
+  if (!h.includes(".")) return true;                      // bare LAN hostname (beelink)
+  return /\.(local|lan|home|internal)$/i.test(h);
+}

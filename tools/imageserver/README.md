@@ -12,10 +12,9 @@ Files (vendored from `~/Downloads/imageserver.zip`):
   `/manifest.json`, `/healthz`. Imports the single vendored cropper
   `pdfdrill.eqcrop.Pyramid` (no duplicate copy). Pure stdlib + Pillow.
 - **`viewer.html`** — OpenSeadragon deep-zoom viewer over the DZI tiles.
-- **`build_pyramids.py`** — reference PDF→DZI builder (pdftoppm + pyvips). NOTE:
-  pdfdrill's own `pdfdrill pyramid` (Phase C) builds with **Ghostscript** (the
-  gs-only rasterizer) + pyvips `dzsave`; this file is kept as the upstream
-  reference.
+- **`build_pyramids.py`** — standalone PDF→DZI builder. Renders with **Ghostscript**
+  (via pdfdrill's gs-only `pdf_reading.rasterize`, >=400 DPI) + pyvips `dzsave` —
+  same rasterizer as `pdfdrill pyramid` (Phase C), which is the primary path.
 
 The crop math lives in `src/pdfdrill/eqcrop.py` (vendored, Pillow-only): a `.dzi`
 pyramid's full-resolution level is the 600-DPI render, and `Pyramid.crop(x0,y0,
@@ -36,8 +35,8 @@ python3 tools/imageserver/mathpix_server.py --root ./paper.pdf.drill/viewer \
 # -> http://localhost:8000/viewer.html  and  /cropped/<id>.jpg?top_left_x=…
 ```
 
-(`build_pyramids.py --pdf … [--offline]` still works but renders with pdftoppm —
-it is the UPSTREAM REFERENCE only; pdfdrill's own path is `pdfdrill pyramid`.)
+(`build_pyramids.py --pdf … [--offline]` is the standalone equivalent — it renders
+with the same Ghostscript rasterizer; `pdfdrill pyramid` is the primary path.)
 
 Deps: Pillow (crops) + `pyvips` & `libvips-tools` (build only) — the
 `pdfdrill[imageserver]` extra. Integration plan + drillui (bun) wiring:

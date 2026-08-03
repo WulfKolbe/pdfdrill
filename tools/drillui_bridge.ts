@@ -23,7 +23,8 @@ import { dirname, join, resolve, normalize, sep, extname, basename } from "node:
 import { fileURLToPath } from "node:url";
 import { existsSync, readFileSync, readdirSync, appendFileSync, writeFileSync } from "node:fs";
 import { homedir, tmpdir, hostname } from "node:os";
-import { lanAddresses, isLocalClient as isLocalClientOf } from "./drillui_net.ts";
+import { lanAddresses, isLocalClient as isLocalClientOf,
+         isPrivateOrigin } from "./drillui_net.ts";
 
 // Session TRANSCRIPT log: every line the terminal shows (stdout + stderr, ANSI
 // stripped) is also appended here, so errors are always COPYABLE — open it in a
@@ -750,7 +751,7 @@ const server = Bun.serve<{ sess: Session | null; local: boolean; ip: string | nu
       // not "artifact" (the route). `inline` keeps the in-tab viewer; the browser's
       // own Save uses this name, as does the Outputs `save ⤓` link.
       const fname = (abs.split("/").pop() || "artifact").replace(/["\\\r\n]/g, "");
-      return new Response(f, { headers: {
+      const hdrs: Record<string, string> = {
         "content-type": ct,
         "content-disposition": `inline; filename="${fname}"`,
         // NEVER cache an artifact: pdfdrill REGENERATES these in place (re-run
@@ -758,7 +759,20 @@ const server = Bun.serve<{ sess: Session | null; local: boolean; ip: string | nu
         // Without this the browser happily serves the previous version and the
         // work looks like it did nothing.
         "cache-control": "no-store, must-revalidate",
-      } });
+      };
+      // Dragging a tiddlers.json into a TiddlyWiki served on ANOTHER port makes
+      // the wiki FETCH this URL — cross-origin. Without a CORS header the
+      // browser blocks it, so importing a whole tiddler array in one gesture
+      // works only for drag flavours that happen to carry the bytes. Echo the
+      // Origin, but ONLY for this machine or the LAN: the bridge binds 0.0.0.0,
+      // and a blanket `*` would let any site the user visits read their drill
+      // output.
+      const origin = req.headers.get("origin");
+      if (isPrivateOrigin(origin, OWN_ADDRESSES)) {
+        hdrs["access-control-allow-origin"] = origin!;
+        hdrs["vary"] = "Origin";
+      }
+      return new Response(f, { headers: hdrs });
     }
 
     // WHERE IS THE CLIENT? — the answer, curlable, for debugging file/URL cases.

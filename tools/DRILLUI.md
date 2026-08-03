@@ -201,3 +201,26 @@ Spawns the real bridge against a drilled doc and checks: the page serves, the
 `/artifact` serves under-root files and refuses traversal, `/open` is refused
 when host-open is disabled, and a WebSocket round-trip runs a `status` command
 on the doc and gets output back.
+
+## Split view: drag a tiddlers.json straight into TiddlyWiki
+
+Firefox split view with drillui left and a TiddlyWiki right, then **drag the
+`*.tiddlers.json` link from the Outputs panel into the wiki**: TiddlyWiki reads
+the JSON array and stages every tiddler in one gesture (280 for
+`2209.00445v3` — the whole document model, no import dialog per tiddler).
+
+Two things make it work, both easy to break:
+
+* **`.json` is served as `application/json`** (bridge `MIME` table). A generic
+  `application/octet-stream` makes the wiki treat it as an opaque file.
+* **CORS is echoed for LAN origins.** A wiki on another port is a different
+  ORIGIN, so a link-drag makes it *fetch* this URL; with no
+  `Access-Control-Allow-Origin` the browser blocks that and only the drag
+  flavours that carry the bytes directly still work. `/artifact` echoes the
+  `Origin` when `isPrivateOrigin` says it is this machine or the LAN
+  (`localhost`, RFC1918, a bare hostname such as `beelink`, `*.local`).
+  A public site gets no header — the bridge binds `0.0.0.0`, so a blanket `*`
+  would let any page the user visits read their drill artifacts.
+
+Re-run `pdfdrill tiddlers` after `svg`/`speak`/`lean`, then drag again: the
+artifact is served `no-store`, so the wiki always gets the current version.

@@ -23,7 +23,7 @@
 #   ./claude_capability_test.sh claude-haiku-4-5-20251001
 #
 # Requirements: claude CLI (logged in or ANTHROPIC_API_KEY), python3, pdflatex,
-# pdftoppm, and the pdfdrill repo (run from its root, or set PDFDRILL_SRC).
+# ghostscript (gs), and the pdfdrill repo (run from its root, or set PDFDRILL_SRC).
 # =============================================================================
 set -uo pipefail
 
@@ -81,7 +81,7 @@ C \arrow[r, "k"'] & D
 \end{document}
 TEX
 ( cd "$WORK" && pdflatex -interaction=nonstopmode -halt-on-error cd1.tex >/dev/null 2>&1 \
-  && pdftoppm -png -r 200 cd1.pdf cd1 >/dev/null 2>&1 && mv cd1-1.png cd1.png )
+  && gs -q -dNOPAUSE -dBATCH -dSAFER -sDEVICE=png16m -r200 -sOutputFile=cd1.png cd1.pdf >/dev/null 2>&1 )
 if [ -f "$WORK/cd1.png" ]; then
   VRES="$(claude_result "Read the image file at $WORK/cd1.png and analyse it.
 
@@ -122,7 +122,7 @@ PY
     ok "emitted diagram code COMPILES with pdflatex"
   else no "emitted diagram code does not compile (model knows the shape but not valid LaTeX)"; fi
 else
-  no "could not render the test fixture (need pdflatex + tikz-cd + pdftoppm)"
+  no "could not render the test fixture (need pdflatex + tikz-cd + ghostscript)"
 fi
 
 # -----------------------------------------------------------------------------
