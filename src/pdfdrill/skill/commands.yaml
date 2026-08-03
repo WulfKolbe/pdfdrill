@@ -958,6 +958,7 @@ commands:
   typed: true
   flags:
   - *id001
+  done_when: model:geometry
 - name: tiddlers
   section: Introspection (fast, no extraction)
   summary: Emit a TiddlyWiki JSON tiddler array (latex/displayMode/canonical_uri/width/height) for quick
@@ -1279,6 +1280,7 @@ commands:
   typed: true
   requires:
   - model
+  - geometry
 - name: folder
   section: Introspection (fast, no extraction)
   summary: Build the full structure for every PDF in <dir> from existing

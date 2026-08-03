@@ -561,6 +561,10 @@ def merge_page_geometry(doc, lines_path: Path) -> dict:
         return {"pages": 0, "placed": 0}
 
     pages = data.get("pages") or []
+    # Re-running must not accumulate Page objects (upgrade_object_regions calls
+    # this on an already-merged model).
+    _existing_pages = {(o.props or {}).get("page_number")
+                       for o in doc.objects.values() if o.type == "Page"}
     page_text: list[str] = []
     page_lines: list[list[dict]] = []
     # Char offset -> line index, so a text match maps back to the LINES it hit
@@ -578,10 +582,12 @@ def merge_page_geometry(doc, lines_path: Path) -> dict:
                 pos += len(t) + 1
         page_text.append(" ".join(parts))
         page_spans.append(spans)
-        doc.add(DocObject(type="Page", props={
-            "page_number": pg.get("page"),
-            "page_width": pg.get("page_width"), "page_height": pg.get("page_height"),
-            "added_by": "merge_page_geometry"}))
+        if pg.get("page") not in _existing_pages:
+            doc.add(DocObject(type="Page", props={
+                "page_number": pg.get("page"),
+                "page_width": pg.get("page_width"),
+                "page_height": pg.get("page_height"),
+                "added_by": "merge_page_geometry"}))
 
     def _find(text: str):
         """(1-based page, char offset) where this object's opening words sit."""
@@ -596,7 +602,10 @@ def merge_page_geometry(doc, lines_path: Path) -> dict:
 
     placed = regions = 0
     for o in doc.objects.values():
-        if o.type in ("Page",) or o.props.get("page"):
+        # Skip on REGION, not on page: an object placed by an earlier merge that
+        # stored no rectangle is exactly what the upgrade exists to fix, and
+        # skipping it on `page` made that upgrade a no-op.
+        if o.type == "Page" or o.props.get("region"):
             continue
         src = str(o.props.get("text") or o.props.get("content")
                   or o.props.get("caption") or "")
@@ -619,6 +628,20 @@ def merge_page_geometry(doc, lines_path: Path) -> dict:
             o.props["region"] = box
             regions += 1
     return {"pages": len(pages), "placed": placed, "regions": regions}
+
+
+def upgrade_object_regions(doc, lines_path: Path) -> int:
+    """Attach regions to objects that have none. Returns how many were added.
+
+    The in-place upgrade behind `geometry`: a model whose lane produced no object
+    geometry gets it from a lines.json that has it, instead of leaving `inspect`
+    with nothing to draw. Idempotent — objects already carrying a region are
+    skipped and no duplicate Page objects are created.
+    """
+    before = sum(1 for o in doc.objects.values() if (o.props or {}).get("region"))
+    merge_page_geometry(doc, lines_path)
+    after = sum(1 for o in doc.objects.values() if (o.props or {}).get("region"))
+    return after - before
 
 
 def _norm_probe(text: str) -> str:
@@ -8364,8 +8387,23 @@ def cmd_geometry(pdf: Path, force: bool = False) -> str:
     with open(model_path, "r", encoding="utf-8") as f:
         doc = Document.from_dict(json.load(f))
 
+    # OBJECT-level geometry: the line fusion below is a different layer, and a
+    # model whose lane produced no object regions still leaves `inspect` with
+    # nothing to draw. Attaching them is what this command is named for, so do it
+    # here rather than requiring a full rebuild. Idempotent.
+    upgraded = 0
+    lp = _lines_json_path(pdf)
+    if lp.exists():
+        upgraded = upgrade_object_regions(doc, lp)
+        if upgraded:
+            save_model(model_path, doc)
+
     if "pdf_lines" in doc.streams and not force:
-        return _format_geometry(sc)
+        out = _format_geometry(sc)
+        if upgraded:
+            out += (f"\nAttached a region to {upgraded} object(s) that had none "
+                    f"(so `inspect` can box them).")
+        return out
     if force:
         clear_geometry(doc)
 

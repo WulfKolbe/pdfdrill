@@ -89,11 +89,11 @@ def main():
             from . import planner
             pdf_arg = next((a for a in rest if not a.startswith("-")), None)
             if pdf_arg is not None:
-                ran = planner.ensure(cmd, Path(pdf_arg), HANDLERS, pdf_arg)
-                if ran:
-                    print(f"[ensure] ran missing prerequisite(s): {', '.join(ran)}")
+                # Silent: the prerequisites are how the target gets built, not
+                # something the caller asked to read about.
+                planner.ensure(cmd, Path(pdf_arg), HANDLERS, pdf_arg)
         except Exception as e:
-            print(f"[ensure] skipped ({e})", file=sys.stderr)
+            print(f"[ensure] skipped ({e})", file=sys.stderr)   # stderr only
 
     try:
         result = HANDLERS[cmd](rest)
