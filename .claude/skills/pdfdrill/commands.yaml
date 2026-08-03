@@ -988,6 +988,7 @@ commands:
   typed: true
   requires:
   - model
+  - bibliography
 - name: translate
   section: Introspection (fast, no extraction)
   summary: 'DeepL-translate the document IN PLACE (--to EN-US --from RU): writes the changed tiddler file
@@ -1147,7 +1148,7 @@ commands:
   typed: true
   requires:
   - model
-  done_when: fact:BIBLIOGRAPHY_BUILT
+  done_when: model:citations_resolved
   flags:
   - *id001
 - name: bibsource

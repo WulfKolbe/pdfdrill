@@ -79,6 +79,8 @@ def detect(spec: str, sc, pdf: Path, model_path: Path) -> bool:
         return model_path.exists()
     if spec == "model:geometry":
         return _model_has_regions(model_path)
+    if spec == "model:citations_resolved":
+        return _citations_resolved(model_path)
     if spec == "lines":
         base = pdf.name[:-4] if pdf.name.lower().endswith(".pdf") else pdf.name
         return (pdf.parent / f"{base}.lines.json").exists()
@@ -102,6 +104,36 @@ def _model_has_regions(model_path: Path) -> bool:
         return False
     it = objs.values() if isinstance(objs, dict) else objs
     return any((o.get("props") or {}).get("region") for o in it)
+
+
+def _citations_resolved(model_path: Path) -> bool:
+    """Does the model have the References its Citations point at?
+
+    True when there is nothing to resolve (no Citations) or at least one
+    Reference exists. Deliberately reads the MODEL rather than a sidecar fact:
+    the fact records that `bibliography` once ran, but the References it
+    produced live in the model, and rebuilding the model discards them while the
+    fact stays set — so the machine believed the bibliography existed while
+    every citation rendered as a placeholder stub.
+    """
+    import json
+    if not model_path.exists():
+        return False
+    try:
+        with open(model_path, "r", encoding="utf-8") as f:
+            objs = json.load(f).get("objects") or []
+    except (OSError, json.JSONDecodeError):
+        return False
+    it = list(objs.values()) if isinstance(objs, dict) else objs
+    has_cit = has_ref = False
+    for o in it:
+        t = o.get("type")
+        if t == "Citation":
+            has_cit = True
+        elif t == "Reference":
+            has_ref = True
+            break                       # one is enough to call it resolved
+    return has_ref or not has_cit
 
 
 def satisfied_set(done: dict[str, str], sc, pdf: Path, model_path: Path) -> set[str]:
