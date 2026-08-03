@@ -2901,6 +2901,14 @@ def _build_arxiv_source_model(pdf: Path, sc: "Sidecar", key: str,
     objs = list(doc.objects.values())
     if not objs:
         return None
+    # THE ORIGIN. `build_source_model` never goes through `docmodel.main`, so the
+    # structure post-pass (procOrder 999) does not run and Sections keep NO
+    # children — `_section_body` then iterates an empty list and every
+    # ||TAB/||PARA/||LI/||PIC transclusion is silently lost. Applying it at the
+    # single place a source model is created covers EVERY caller (`model`,
+    # `latex`, `beamer`, the scan fallback); doing it in one caller left 133
+    # models in the library still flat.
+    apply_document_structure(doc)
     model_io.save_model(model_path, doc)
     by_type: dict[str, int] = {}
     for o in objs:
