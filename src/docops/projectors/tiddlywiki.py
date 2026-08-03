@@ -124,6 +124,25 @@ _TIKZ = re.compile(r"\\begin\{(?:tikzpicture|tikzcd|circuitikz)\}|\\tikz\b"
                    r"|\\(?:draw|node|tikzset|usetikzlibrary)\b")
 
 
+
+def reference_title(bibkey: str, citekey: str, index: int) -> str:
+    """Title of a Reference (bibliography entry) tiddler."""
+    from pdfdrill.citekeys import citation_title
+    return citation_title(bibkey, citekey, index + 1)
+
+
+def citation_placeholder_title(bibkey: str, citekey: str) -> str:
+    """Title of the stand-in tiddler for a citekey with no Reference behind it.
+
+    Deliberately the SAME name the Reference would get: the marker baked into
+    the prose points there, so the placeholder is what makes the link resolve
+    until `bibsource`/`bibliography` supplies the real entry, which then simply
+    takes the same title.
+    """
+    from pdfdrill.citekeys import citation_title
+    return citation_title(bibkey, citekey)
+
+
 _REF_CMD = re.compile(
     r"\\(?:eqref|autoref|cref|Cref|cpageref|pageref|nameref|ref)\s*\{([^}]+)\}")
 _CAPTION_FONT = re.compile(
@@ -328,8 +347,10 @@ class TiddlyWikiProjector(BaseProjector):
             if ref_t:
                 cit_title_by_key[ck] = ref_t
             else:
-                safe = re.sub(r"[^A-Za-z0-9_\-]", "_", ck)
-                cit_title_by_key[ck] = cit_placeholders[ck] = f"{bibkey}_{safe}"
+                # SAME title the baked `{{…||CIT}}` marker points at — a
+                # placeholder under a different name can never satisfy it.
+                cit_title_by_key[ck] = cit_placeholders[ck] = \
+                    citation_placeholder_title(bibkey, ck)
         self._cit_placeholders = cit_placeholders
 
         # Inline-picture URL → title (only for pictures that originated
@@ -420,8 +441,8 @@ class TiddlyWikiProjector(BaseProjector):
         for pg in inv["pages"]:
             title[pg.id] = f"{bibkey}_PAGE_{int(pg.props.get('page_number') or 0):03d}"
         for i, ref in enumerate(inv["references"]):
-            ck = re.sub(r"[^A-Za-z0-9]", "", ref.props.get("citekey") or "")
-            title[ref.id] = f"{bibkey}_REF_{ck or (i + 1)}"
+            title[ref.id] = reference_title(bibkey, ref.props.get("citekey") or "",
+                                            i)
         for i, o in enumerate(inv["ltx"]):           # use the title baked at build
             title[o.id] = o.props.get("title") or f"{bibkey}_LTX{i + 1}"
         for i, o in enumerate(inv["theorems"]):

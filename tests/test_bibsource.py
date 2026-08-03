@@ -297,8 +297,11 @@ def test_build_source_model_transcludes_cites_in_prose():
         doc = LS.build_source_model(str(tex), bibkey="x")
         para = next(o for o in doc.objects.values()
                     if o.type == "Paragraph" and "graphs help" in o.props.get("text", ""))
-        # the projector titles References x_REF_<alnum citekey>
-        assert "{{x_REF_DBLPjournalstnnWuPCLZY21||CIT}}" in para.props["text"]
+        # The projector titles References x_REF_<safe citekey>, and `_`/`-` are
+        # KEPT (citekeys.safe_citekey): the key stays recognisable as the
+        # author's `DBLP:journals/tnn/WuPCLZY21` rather than collapsing to
+        # DBLPjournalstnnWuPCLZY21.
+        assert "{{x_REF_DBLP_journals_tnn_WuPCLZY21||CIT}}" in para.props["text"]
         assert "[DBLP" not in para.props["text"]     # NOT the plain-bracket form
 
 

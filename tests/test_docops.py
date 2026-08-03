@@ -459,10 +459,17 @@ def test_tiddlywiki_inlines_citations():
     arr = json.loads(op.project(doc))
     para = next(t for t in arr if "paragraph" in (t.get("tags", "")))
     assert "[Smith2020]" not in para["text"], para["text"]
-    assert "{{T_Smith2020||CIT}}" in para["text"], para["text"]
+    # The placeholder for an unresolved citekey carries the SAME title the
+    # Reference would get, which is what the baked marker points at. It used to
+    # use its own scheme (`T_Smith2020`), so on a document with citations but no
+    # bibliography every citation link dangled.
+    from pdfdrill.citekeys import citation_title
+    assert f"{{{{{citation_title('T', 'Smith2020')}||CIT}}}}" in para["text"], \
+        para["text"]
     # A citation placeholder tiddler must exist.
     titles = {t["title"] for t in arr}
-    assert "T_Smith2020" in titles
+    # The placeholder tiddler is created under the same unified title.
+    assert citation_title("T", "Smith2020") in titles
 
 
 def test_compressed_tiddlers_basic_shape():

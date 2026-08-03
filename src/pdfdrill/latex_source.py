@@ -1410,10 +1410,11 @@ def _transclude_cites(text: str, bibkey: str) -> str:
     (LATW ReferenceScanner behaviour). The target title matches the TiddlyWiki
     projector's Reference titling (`<bibkey>_REF_<alnum citekey>`), so it resolves
     once the bibliography is built (`pdfdrill bibliography`/`bibsource`)."""
+    from .citekeys import citation_title
+
     def repl(m):
         keys = [k.strip() for k in m.group(1).split(",") if k.strip()]
-        return " ".join("{{" + bibkey + "_REF_" + re.sub(r"[^A-Za-z0-9]", "", k)
-                        + "||CIT}}" for k in keys)
+        return " ".join("{{" + citation_title(bibkey, k) + "||CIT}}" for k in keys)
     return _CITE_CMD.sub(repl, text)
 
 
