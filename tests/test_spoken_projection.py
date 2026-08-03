@@ -53,7 +53,8 @@ def test_fallback_modes(tmp_path, monkeypatch):
         tmp_path, monkeypatch, _doc(), fallback="mark", to_stdout=True)
     # `drop` reproduces what a naive consumer effectively does — the math vanishes
     dropped = _run(tmp_path, monkeypatch, _doc(), fallback="drop", to_stdout=True)
-    assert "Let  denote it." in dropped and "f(x)" not in dropped
+    # the gap left by a dropped formula is closed up, not left as a double space
+    assert "Let denote it." in dropped and "f(x)" not in dropped
 
 
 def test_json_reports_the_gap_count(tmp_path, monkeypatch):
@@ -192,3 +193,56 @@ def test_ellipsis_reads_as_words_not_dot_dot_dot(tmp_path, monkeypatch):
         "text": "for {{K_FO0001||FO}} we have", "flow_index": 2}))
     out = _run(tmp_path, monkeypatch, d, to_stdout=True)
     assert "dot dot dot" not in out and "and so on" in out
+
+
+def test_leaked_frontmatter_is_removed(tmp_path, monkeypatch):
+    """`\\maketitle` opened the very first block of the reported document — it is
+    scaffolding, never content."""
+    out = _run(tmp_path, monkeypatch,
+               _doc_prose(r"\maketitle" "\n" "One of the main methods."),
+               to_stdout=True)
+    assert "maketitle" not in out
+    assert out.strip().startswith("One of the main methods")
+
+
+def test_citation_runs_collapse_with_ranges(tmp_path, monkeypatch):
+    """`[7] [22] [23] … [28]` is ONE act of citing; eight brackets in a row is
+    noise. Consecutive numbers become a range, a lone pair stays listed."""
+    from pdfdrill.commands import _collapse_cite_runs as k
+    assert k("body [7] [22] [23] [24] [25] [26] [27] [28] is") == "body [7, 22-28] is"
+    assert k("see [3] [4] end") == "see [3, 4] end"
+    assert k("only [9] here") == "only [9] here"          # single left alone
+
+
+def test_multi_letter_script_is_a_word_not_a_product():
+    """`DMA^{words}` was spoken "raised to the w o r d s power" — in math mode a
+    letter run is a product. At length >= 3 it is a label; `\\text{}` says so."""
+    from pdfdrill.commands import wordy_scripts_to_text as w
+    assert w(r"\textrm{DMA}^{words}") == r"\textrm{DMA}^{\text{words}}"
+    assert w(r"x_{max}") == r"x_{\text{max}}"
+    # short runs really could be a product — left alone
+    assert w(r"x^{ab}") == r"x^{ab}"
+    assert w(r"x^{2n}") == r"x^{2n}"
+
+
+def test_spoken_cite_mode_says_the_reference(tmp_path, monkeypatch):
+    """Brackets are SILENT in TTS. `--cites spoken` says it instead."""
+    out = _run(tmp_path, monkeypatch, _doc_prose("see {{K_REF_alpha||CIT}}."),
+               cites="spoken", to_stdout=True)
+    assert "reference 1" in out and "[" not in out
+
+
+def test_sectioning_is_unwrapped_not_deleted(tmp_path, monkeypatch):
+    """`\\section{Siblings score}` was spoken as "backslash section". The COMMAND
+    is scaffolding but its argument is the heading — unwrap, never delete."""
+    out = _run(tmp_path, monkeypatch,
+               _doc_prose("\\appendix\n\\section{Siblings score}\nThe score is."),
+               to_stdout=True)
+    assert "Siblings score" in out and "The score is." in out
+    assert "\\section" not in out and "\\appendix" not in out
+
+
+def test_prose_markup_is_unwrapped(tmp_path, monkeypatch):
+    out = _run(tmp_path, monkeypatch,
+               _doc_prose(r"this is \emph{clearly} \textbf{true}"), to_stdout=True)
+    assert out.strip() == "this is clearly true"

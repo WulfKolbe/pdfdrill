@@ -4303,6 +4303,80 @@ _FOOTNOTE_RE = re.compile(r"\\footnote(?:text)?\s*\{")
 _DOTS_RE = re.compile(r"\bdot dot dot\b", re.I)
 
 
+# A RUN of citations — `[7] [22] [23] [24]` — is one act of citing, and reads
+# far better collapsed. Consecutive integers become a range.
+# Frontmatter/structure the source leaves in prose — it is scaffolding, never
+# content, and `\maketitle` opened the first block of the reported document.
+_LEAKED_STRUCTURE_RE = re.compile(
+    r"\\(?:maketitle|tableofcontents|newpage|clearpage|appendix|noindent"
+    r"|bibliography(?:style)?\s*\{[^}]*\}|printbibliography)(?![a-zA-Z])")
+
+# SECTIONING left in the prose: the COMMAND is scaffolding but its argument is
+# the heading itself, so unwrap rather than delete — `\section{Siblings score}`
+# must leave "Siblings score", not nothing and not "backslash section".
+_SECTIONING_RE = re.compile(
+    r"\\(?:sub){0,2}section\*?\s*(?:\[[^\]]*\])?\s*\{([^{}]*)\}"
+    r"|\\(?:chapter|part|paragraph|subparagraph)\*?\s*\{([^{}]*)\}")
+
+
+# Text/font wrappers in PROSE: the content is the sentence, the wrapper is
+# markup. (`clean_for_speech` does the same for math; prose needs it too.)
+_PROSE_WRAP_RE = re.compile(
+    r"\\(?:emph|textbf|textit|textrm|texttt|textsc|textsf|textnormal|underline"
+    r"|mbox|text)\s*\{([^{}]*)\}")
+
+
+def _unwrap_prose_markup(text: str) -> str:
+    r"""`\emph{clearly}` -> `clearly`; repeated for shallow nesting."""
+    for _ in range(3):
+        nxt = _PROSE_WRAP_RE.sub(lambda m: m.group(1), text)
+        if nxt == text:
+            break
+        text = nxt
+    return text
+
+
+def _unwrap_sectioning(text: str) -> str:
+    r"""`\section{Siblings score}` -> `Siblings score`."""
+    return _SECTIONING_RE.sub(lambda m: (m.group(1) or m.group(2) or "").strip(),
+                              text)
+
+
+_CITE_RUN_RE = re.compile(r"\[(\d+)\](?:\s*\[(?:\d+)\])+")
+
+
+def _collapse_cite_runs(text: str) -> str:
+    """`[7] [22] [23] [24] [25]` -> `[7, 22-25]`."""
+    def sub(m):
+        nums = sorted({int(x) for x in re.findall(r"\[(\d+)\]", m.group(0))})
+        parts, i = [], 0
+        while i < len(nums):
+            j = i
+            while j + 1 < len(nums) and nums[j + 1] == nums[j] + 1:
+                j += 1
+            parts.append(str(nums[i]) if j - i < 2
+                         else f"{nums[i]}-{nums[j]}")
+            if j - i == 1:
+                parts.append(str(nums[j]))
+            i = j + 1
+        return "[" + ", ".join(parts) + "]"
+    return _CITE_RUN_RE.sub(sub, text)
+
+
+# A multi-letter ALPHABETIC sub/superscript is a label, not a product of
+# variables: `DMA^{words}` is "DMA words", but in math mode the engine spells it
+# out ("raised to the w o r d s power"). `\text{}` restores the intent. Single
+# letters and anything containing an operator are left alone — `x^{ab}` really
+# could be a product, but `^{words}` at length >= 3 is not.
+_WORDY_SCRIPT_RE = re.compile(r"([_^])\{([A-Za-z]{3,})\}")
+
+
+def wordy_scripts_to_text(latex: str) -> str:
+    """Wrap a multi-letter alphabetic sub/superscript in `\\text{}`."""
+    return _WORDY_SCRIPT_RE.sub(lambda m: f"{m.group(1)}{{\\text{{{m.group(2)}}}}}",
+                                latex) if latex else latex
+
+
 def _strip_footnotes(text: str, mode: str) -> str:
     """Replace `\\footnote{…}` (brace-matched, so a nested `\\href{}{}` inside it
     goes too). A footnote is an aside: the long URL-in-URL form is pure noise in
@@ -4406,6 +4480,7 @@ def clean_for_speech(latex: str) -> str:
         if s == prev:
             break
     s = repair_bare_text(s)          # PROVISIONAL — see repair_bare_text
+    s = wordy_scripts_to_text(s)     # DMA^{words} -> DMA^{\text{words}}
     # last: rewrite known-unrenderable commands to speakable notation
     s = speechable_macro_subs(s)
     return re.sub(r"\s{2,}", " ", s).strip()
@@ -4715,6 +4790,11 @@ def cmd_spoken(pdf: Path, out: str | None = None, as_json: bool = False,
             return f"[{short}]"
         if cites == "drop":
             return ""
+        if cites == "spoken":
+            # brackets are SILENT in TTS; say it instead
+            if short not in cite_no:
+                cite_no[short] = len(cite_no) + 1
+            return f"reference {cite_no[short]}"
         if short not in cite_no:
             cite_no[short] = len(cite_no) + 1
         return f"[{cite_no[short]}]"
@@ -4732,6 +4812,13 @@ def cmd_spoken(pdf: Path, out: str | None = None, as_json: bool = False,
         txt = _CIT_RE.sub(_render_cite, txt)      # opaque key -> [n]
         txt = _strip_footnotes(txt, footnotes)
         txt = _DOTS_RE.sub("and so on", txt)      # SRE's ellipsis reading
+        # frontmatter/structure commands the source left in the prose
+        # (`\maketitle` opened the very first block of the corpus).
+        txt = _unwrap_sectioning(txt)             # \section{X} -> X
+        txt = _unwrap_prose_markup(txt)           # \emph{X} -> X
+        txt = _LEAKED_STRUCTURE_RE.sub("", txt)
+        txt = _collapse_cite_runs(txt)            # [7] [22] [23] -> [7, 22-23]
+        txt = re.sub(r"[ \t]{2,}", " ", txt).strip()
         blocks.append({"id": o.id, "type": o.type,
                        "flow_index": o.props.get("flow_index"),
                        "section": o.props.get("parent_section"),
