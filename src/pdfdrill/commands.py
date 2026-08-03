@@ -343,6 +343,67 @@ def _born_digital_char_dump(pdf: Path) -> dict:
         return _pdfplumber_char_dump(pdf)
 
 
+def merge_page_geometry(doc, lines_path: Path) -> dict:
+    """Give a LaTeX-SOURCE model the page geometry it structurally cannot have.
+
+    The two routes are complementary and were mutually exclusive, which is the
+    whole problem: the born-digital (pdfminer) route yields page geometry but no
+    Formula/Section objects, while the LaTeX-source route yields the full
+    structure but has no page at all — it never saw a rendered page. Building
+    ONE of them always threw the other's contribution away.
+
+    This adds the pdfminer side to a source model:
+      * a `Page` object per page (number + width/height), previously absent, and
+      * a `page` prop on each prose/structural object, resolved by matching its
+        opening text against that page's text.
+
+    Text matching, not coordinates: a source object has no coordinates to match
+    WITH. It is approximate by nature, so an object that cannot be placed is
+    left without a page rather than guessed onto one.
+    """
+    from docmodel.core import DocObject
+    try:
+        data = json.loads(lines_path.read_text(encoding="utf-8", errors="replace"))
+    except (OSError, json.JSONDecodeError):
+        return {"pages": 0, "placed": 0}
+
+    pages = data.get("pages") or []
+    page_text: list[str] = []
+    for pg in pages:
+        txt = " ".join(str(ln.get("text") or "") for ln in (pg.get("lines") or []))
+        page_text.append(re.sub(r"\s+", " ", txt).lower())
+        doc.add(DocObject(type="Page", props={
+            "page_number": pg.get("page"),
+            "page_width": pg.get("page_width"), "page_height": pg.get("page_height"),
+            "added_by": "merge_page_geometry"}))
+
+    def _find(text: str) -> int | None:
+        """The 1-based page whose text contains this object's opening words."""
+        probe = re.sub(r"\s+", " ", re.sub(r"\{\{[^}]*\}\}", " ", text)).strip().lower()
+        probe = re.sub(r"[^a-z0-9 ]+", " ", probe)
+        probe = " ".join(probe.split()[:8])          # 8 words is enough to be unique
+        if len(probe) < 12:
+            return None
+        for i, pt in enumerate(page_text, start=1):
+            if probe in pt:
+                return i
+        return None
+
+    placed = 0
+    for o in doc.objects.values():
+        if o.type in ("Page",) or o.props.get("page"):
+            continue
+        src = str(o.props.get("text") or o.props.get("content")
+                  or o.props.get("caption") or "")
+        if not src.strip():
+            continue
+        pno = _find(src)
+        if pno:
+            o.props["page"] = pno
+            placed += 1
+    return {"pages": len(pages), "placed": placed}
+
+
 def _pdf_producer(pdf: Path) -> str:
     """The PDF's Producer — the cheapest routing signal there is (pdfinfo, no
     parsing). Read from the sidecar when `size` already ran, else asked directly
@@ -2919,7 +2980,31 @@ def cmd_model(pdf: Path, force: bool = False, bibkey: str | None = None) -> str:
             #    inspect/locate work without MathPix. The arXiv gold LaTeX math is a
             #    `latex` OVERLAY on top, NOT the base — the source model has no page
             #    geometry, so it can never be boxed (the 'inspect box-less' report).
-            if not _write_born_digital_lines(pdf):
+            wrote_born_digital = _write_born_digital_lines(pdf)
+            if wrote_born_digital and _arxiv_id_for(pdf, sc):
+                # BOTH, then MERGE. The two routes are complementary, and picking
+                # one always discarded the other's contribution: pdfminer gives
+                # page geometry but NO Formula/Section objects (an audit saw
+                # 0 formulas, 0 sections and 16 paragraphs for 7045 words),
+                # while the LaTeX source gives the full structure but no page.
+                # Build the source model and graft the geometry onto it.
+                built = _build_arxiv_source_model(pdf, sc, key, model_path)
+                if built:
+                    try:
+                        merged = load_model(model_path)
+                        stats = merge_page_geometry(merged, _lines_json_path(pdf))
+                        save_model(model_path, merged)
+                        sc = Sidecar(pdf)
+                        sc.set_evidence("merged_geometry", stats)
+                        sc.save()
+                        built += (f"\nMERGED page geometry from the text layer: "
+                                  f"{stats['pages']} Page object(s), {stats['placed']} "
+                                  f"object(s) placed on a page — structure from the "
+                                  f"LaTeX source, geometry from pdfminer.")
+                    except Exception:            # noqa: BLE001
+                        pass                     # source model still stands
+                    return built
+            if not wrote_born_digital:
                 # 3) No text layer → a genuine SCAN. arXiv gold e-print if cached
                 #    (content, no geometry), else tesseract OCR.
                 built = _build_arxiv_source_model(pdf, sc, key, model_path)
