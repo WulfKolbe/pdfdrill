@@ -58,3 +58,40 @@ def test_all_three_producers_agree():
     assert target == citation_title(bibkey, key), baked
     assert tw.reference_title(bibkey, key, 0) == target
     assert tw.citation_placeholder_title(bibkey, key) == target
+
+
+def test_no_citation_link_dangles_when_the_bibliography_is_missing():
+    """END-TO-END invariant, not a unit agreement check.
+
+    My first tests asserted that the three title producers return equal strings
+    for one key. That is weaker than the property that actually matters, and it
+    would pass even if a fourth producer appeared. This builds the failing
+    document — Citations present, References absent, which is every document
+    before `bibsource` runs — projects it, and asserts the projector's own
+    integrity report finds nothing dangling.
+
+    Against the pre-fix code this fails with 1 dangling CIT target, which is the
+    2209.00445v3 defect (46 of 46) reproduced in the suite.
+    """
+    import json as _json
+    from docmodel.core import Document, DocObject
+    from docops.base import OperatorConfig
+    from docops.projectors.tiddlywiki import TiddlyWikiProjector, tiddler_integrity
+
+    doc = Document()
+    doc.meta["bibkey"] = "K"
+    doc.add(DocObject(type="Section", props={"caption": "Related work",
+                                             "level": 1, "flow_index": 1}))
+    doc.add(DocObject(type="Citation", props={"citekey": "knn_with_lime",
+                                              "flow_index": 2}))
+    doc.add(DocObject(type="Paragraph", props={
+        "text": "As shown in {{K_REF_knn_with_lime||CIT}} this works.",
+        "flow_index": 3}))
+
+    tiddlers = _json.loads(TiddlyWikiProjector(
+        OperatorConfig(op="projector", classname="TiddlyWikiProjector")).project(doc))
+    report = tiddler_integrity(tiddlers)
+    assert not report.get("dangling"), report["dangling"]
+
+    titles = {t["title"] for t in tiddlers}
+    assert "K_REF_knn_with_lime" in titles, sorted(titles)
