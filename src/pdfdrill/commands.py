@@ -4370,6 +4370,21 @@ def _collapse_cite_runs(text: str) -> str:
 # could be a product, but `^{words}` at length >= 3 is not.
 _WORDY_SCRIPT_RE = re.compile(r"([_^])\{([A-Za-z]{3,})\}")
 
+# A MIXED-CASE multi-letter name applied to an argument — `Obj(e)` — is a
+# function, but in math mode it is a product of letters, so the engine says
+# "O b j of e". la2speech protects all-UPPER (>=2) and all-lower (>=3) runs; a
+# mixed-case name like `Obj` falls between those rules, which is the gap here.
+# `\operatorname{}` is the right wrapper, not `\text{}`/`\mathrm{}`: only it
+# keeps the application audible ("Obj of e" vs "Obj e").
+_FUNCNAME_RE = re.compile(r"(?<![\\A-Za-z])([A-Z][A-Za-z]*[a-z][A-Za-z]*)(?=\s*\()")
+
+
+def funcnames_to_operatorname(latex: str) -> str:
+    r"""Wrap a mixed-case multi-letter function name in `\operatorname{}`."""
+    if not latex or "(" not in latex:
+        return latex
+    return _FUNCNAME_RE.sub(lambda m: f"\\operatorname{{{m.group(1)}}}", latex)
+
 
 def wordy_scripts_to_text(latex: str) -> str:
     """Wrap a multi-letter alphabetic sub/superscript in `\\text{}`."""
@@ -4443,8 +4458,12 @@ def clean_for_speech(latex: str) -> str:
     wrappers is pure gain — nothing meaningful is lost, because none of them
     denote mathematics.
     """
-    if not latex or "\\" not in latex:
+    if not latex:
         return latex
+    # NB: no early-out on "no backslash" — `Obj(e)` contains none, yet still
+    # needs the function-name rule below (it read as "O b j of e").
+    if "\\" not in latex:
+        return funcnames_to_operatorname(latex)
     s = latex
     for _ in range(4):                            # wrappers can nest
         prev = s
@@ -4481,6 +4500,7 @@ def clean_for_speech(latex: str) -> str:
             break
     s = repair_bare_text(s)          # PROVISIONAL — see repair_bare_text
     s = wordy_scripts_to_text(s)     # DMA^{words} -> DMA^{\text{words}}
+    s = funcnames_to_operatorname(s) # Obj(e) -> \operatorname{Obj}(e)
     # last: rewrite known-unrenderable commands to speakable notation
     s = speechable_macro_subs(s)
     return re.sub(r"\s{2,}", " ", s).strip()

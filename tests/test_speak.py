@@ -211,3 +211,26 @@ def test_provisional_bare_text_repair():
     assert r(r"\text{normal} and \mathrm{ok}") == r"\text{normal} and \mathrm{ok}"
     # a doubled group that is NOT the whole argument carries real grouping
     assert r(r"\mathrm{{a}{b}}") == r"\mathrm{{a}{b}}"
+
+
+def test_mixed_case_function_name_is_not_spelled_out():
+    """`Obj(e)` was spoken "O b j of e": in math mode a letter run is a product.
+    la2speech protects all-UPPER (>=2) and all-lower (>=3) runs, so a MIXED-case
+    name falls between its rules. `\\operatorname{}` is the right wrapper — it is
+    the only one that keeps the application audible ("Obj of e", where
+    `\\text{}`/`\\mathrm{}` both give "Obj e")."""
+    from pdfdrill.commands import funcnames_to_operatorname as f
+    assert f(r"Obj(e)") == r"\operatorname{Obj}(e)"
+    assert f(r"Let Obj(c) be") == r"Let \operatorname{Obj}(c) be"
+    # leave alone: already a command, a single-letter variable, and the two
+    # shapes la2speech already handles
+    for keep in (r"\sin(x)", r"f(x)", r"X(y)", r"ABC(x)", r"abc(x)"):
+        assert f(keep) == keep, keep
+    assert f(r"\operatorname{Obj}(e)") == r"\operatorname{Obj}(e)"   # idempotent
+
+
+def test_clean_for_speech_reaches_latex_without_a_backslash():
+    """Regression: the "no backslash -> return early" shortcut skipped `Obj(e)`
+    entirely, so the rule above never ran on the very input it targets."""
+    from pdfdrill.commands import clean_for_speech as c
+    assert c(r"Obj(e)") == r"\operatorname{Obj}(e)"
