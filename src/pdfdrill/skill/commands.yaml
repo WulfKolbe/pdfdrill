@@ -102,6 +102,7 @@ commands:
     required: true
     help: PDF path, https URL, or bare arXiv id
   typed: true
+  done_when: fact:SIZE_KNOWN
 - name: ls
   section: Introspection (fast, no extraction)
   summary: 'Shallow-scan a FOLDER: run pdfinfo (size) on every PDF, store it in each file''s sidecar,
@@ -989,6 +990,7 @@ commands:
   requires:
   - model
   - bibliography
+  done_when: artifact:tiddlers
 - name: translate
   section: Introspection (fast, no extraction)
   summary: 'DeepL-translate the document IN PLACE (--to EN-US --from RU): writes the changed tiddler file
@@ -1164,7 +1166,7 @@ commands:
   typed: true
   requires:
   - model
-  done_when: fact:BIBSOURCE_BUILT
+  done_when: model:citations_resolved
   flags:
   - name: bib
     flag: --bib

@@ -65,8 +65,11 @@ def plan(target: str, requires: dict[str, list[str]], satisfied: set[str]) -> li
 
 def detect(spec: str, sc, pdf: Path, model_path: Path) -> bool:
     """Is a prerequisite's `done_when` spec satisfied for this document?
-      model           the docmodel artifact exists
-      model:geometry  …and its objects actually carry regions
+      model                    the docmodel artifact exists
+      model:geometry           …and its objects actually carry regions
+      model:citations_resolved …and it holds the References its Citations need
+      artifact:tiddlers        a tiddler array exists and is not older than the
+                               model it was projected from
       lines           a MathPix lines.json sits next to the PDF
       fact:NAME       the sidecar carries that fact
 
@@ -81,6 +84,8 @@ def detect(spec: str, sc, pdf: Path, model_path: Path) -> bool:
         return _model_has_regions(model_path)
     if spec == "model:citations_resolved":
         return _citations_resolved(model_path)
+    if spec == "artifact:tiddlers":
+        return _tiddlers_current(sc, model_path)
     if spec == "lines":
         base = pdf.name[:-4] if pdf.name.lower().endswith(".pdf") else pdf.name
         return (pdf.parent / f"{base}.lines.json").exists()
@@ -134,6 +139,26 @@ def _citations_resolved(model_path: Path) -> bool:
             has_ref = True
             break                       # one is enough to call it resolved
     return has_ref or not has_cit
+
+
+def _tiddlers_current(sc, model_path: Path) -> bool:
+    """Is there a tiddler array, and is it NEWER than the model?
+
+    An artifact is a projection: it is done only while the thing it was
+    projected FROM has not moved on. Checking mere existence would call a stale
+    array current after every rebuild — the same trap as trusting a fact whose
+    model content has been discarded.
+    """
+    blob = getattr(sc, "blob_dir", None)
+    if not blob or not model_path.exists():
+        return False
+    try:
+        arts = list(Path(blob).glob("*.tiddlers.json"))
+    except OSError:
+        return False
+    if not arts:
+        return False
+    return max(a.stat().st_mtime for a in arts) >= model_path.stat().st_mtime
 
 
 def satisfied_set(done: dict[str, str], sc, pdf: Path, model_path: Path) -> set[str]:
