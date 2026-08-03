@@ -255,12 +255,21 @@ def _do_config(args):
         return cmd_config("init")
     if "--json" in args:
         return cmd_config("json")
-    if "--library-root" in args:
-        v = _val_after("--library-root")
-        return cmd_config("set-library-root", v) if v else cmd_config("library-dir")
-    if "--download-dir" in args:
-        v = _val_after("--download-dir")
-        return cmd_config("set-download-dir", v) if v else cmd_config("download-dir")
+
+    # APPLY EVERY setter given, not just the first. This used to be a chain of
+    # `if … return`, so `config --download-dir X --library-root Y` set only
+    # library_root, exited 0 and printed nothing about the flag it dropped —
+    # silently doing less than asked, which is worse than refusing.
+    out: list[str] = []
+    for flag, setter, query in (
+            ("--download-dir", "set-download-dir", "download-dir"),
+            ("--library-root", "set-library-root", "library-dir")):
+        if flag not in args:
+            continue
+        v = _val_after(flag)
+        out.append(cmd_config(setter, v) if v else cmd_config(query))
+    if out:
+        return "\n".join(out)
     return cmd_config("show")
 
 

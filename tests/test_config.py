@@ -103,3 +103,35 @@ def test_set_key_honors_env_config_and_persists(monkeypatch):
 if __name__ == "__main__":
     import pytest
     raise SystemExit(pytest.main([__file__, "-q"]))
+
+
+def test_config_applies_every_setter_flag_not_just_the_first(tmp_path, monkeypatch):
+    """Audit Finding A: `config --download-dir X --library-root Y` set only
+    library_root, exited 0 and said nothing about the flag it dropped. The
+    handler was a chain of `if … return`, so it acted on exactly one. Silently
+    doing LESS than asked is worse than refusing."""
+    import json as _json
+    from pdfdrill import cli
+    cfg = tmp_path / "c.json"
+    monkeypatch.setenv("PDFDRILL_CONFIG", str(cfg))
+
+    out = cli._do_config(["--download-dir", str(tmp_path / "dl"),
+                          "--library-root", str(tmp_path / "lib")])
+    got = _json.loads(cfg.read_text())
+    assert got.get("download_dir") == str(tmp_path / "dl")
+    assert got.get("library_root") == str(tmp_path / "lib")
+    # BOTH are reported — a silent set is how the bug hid
+    assert "download_dir" in out and "library_root" in out
+
+    # order must not matter
+    cfg.unlink()
+    cli._do_config(["--library-root", str(tmp_path / "l2"),
+                    "--download-dir", str(tmp_path / "d2")])
+    got2 = _json.loads(cfg.read_text())
+    assert got2.get("download_dir") == str(tmp_path / "d2")
+    assert got2.get("library_root") == str(tmp_path / "l2")
+
+    # and a single flag still behaves exactly as before
+    cfg.unlink()
+    cli._do_config(["--download-dir", str(tmp_path / "solo")])
+    assert _json.loads(cfg.read_text()) == {"download_dir": str(tmp_path / "solo")}
