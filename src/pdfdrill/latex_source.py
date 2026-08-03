@@ -1383,7 +1383,14 @@ _PROSE_CLEAN = [
     (re.compile(r"\\(?:textbf|textit|emph|texttt|textsc|textrm|textsf|mathrm)\s*\{([^{}]*)\}"), r"\1"),
     # NB: \cite is NOT bracketed here — it's turned into a {{…||CIT}} transclusion
     # by _transclude_cites BEFORE _clean_prose runs (LATW ReferenceScanner style).
-    (re.compile(r"\\(?:eqref|ref|autoref|cref|Cref)\s*\{[^}]*\}"), "(ref)"),
+    # KEEP THE LABEL. This used to collapse every `\ref{tab:results}` to the
+    # literal "(ref)", discarding which table/figure/equation was meant — 3452
+    # of them across the corpus, and unrecoverable afterwards because the label
+    # was gone from the text. `(tab:results)` is at least resolvable, and it
+    # matches what `caption_to_wikitext` already does for an unknown label.
+    # A LATER pass can turn it into "Table 3"; throwing it away made that
+    # impossible. (`\ref` is a REFERENCE, so the target is the information.)
+    (re.compile(r"\\(?:eqref|ref|autoref|cref|Cref)\s*\{([^}]*)\}"), r"(\1)"),
     (re.compile(r"\\(?:bibliography|bibliographystyle|addbibresource|bibresource"
                 r"|printbibliography|input|include)\s*\{[^}]*\}"), ""),
     (re.compile(r"\\label\s*\{[^}]*\}"), ""),

@@ -70,3 +70,19 @@ def test_inline_transclusion_resolves():
 if __name__ == "__main__":
     import pytest
     raise SystemExit(pytest.main([__file__, "-q"]))
+
+
+def test_ref_keeps_its_label_instead_of_collapsing_to_bare_ref():
+    r"""Regression (origin a3261c0): every `\ref{tab:results}` was replaced by
+    the literal string "(ref)", discarding WHICH table/figure/equation was
+    meant — 3452 of them across the corpus, and unrecoverable afterwards
+    because the label was gone from the text. A reference whose target is
+    deleted is not a reference."""
+    from pdfdrill import latex_source as ls
+    out = ls._clean_prose(
+        r"See Table \ref{tab:results} and Fig.~\ref{fig:arch}, eq.~\eqref{eq:main}.")
+    assert "(ref)" not in out
+    assert "(tab:results)" in out and "(fig:arch)" in out and "(eq:main)" in out
+    # the \ref-family variants all keep their label
+    for cmd in ("ref", "eqref", "autoref", "cref", "Cref"):
+        assert "(x:y)" in ls._clean_prose("\\%s{x:y}" % cmd), cmd
