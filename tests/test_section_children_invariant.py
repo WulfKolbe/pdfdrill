@@ -76,3 +76,77 @@ def test_no_sections_is_not_an_error():
     d = Document(); d.meta["bibkey"] = "K"
     d.add(DocObject(type="Paragraph", props={"text": "x", "flow_index": 1}))
     assert apply_document_structure(d) == {"sections": 0, "children": 0}
+
+
+def test_every_nontextual_type_is_transcluded():
+    """FULL COVERAGE: each non-textual object type must reach the wiki through
+    its own template. This asserts the POSITIVE case for all of them at once —
+    the check the suite never had, and the reason a projector emitting nothing
+    passed for so long."""
+    d = Document(); d.meta["bibkey"] = "K"
+    n = [0]
+
+    def add(t, **p):
+        n[0] += 1
+        p["flow_index"] = n[0]
+        d.add(DocObject(type=t, props=p))
+
+    add("Section", caption="Results", level=1)
+    add("Paragraph", text="Prose.")
+    add("Equation", latex="E=mc^2", refnum="(1)")          # DISPLAY math
+    add("Table", latex_code=r"\begin{tabular}{l}a\end{tabular}", caption="T1")
+    add("Picture", caption="Fig 1", cdn_url="http://x/i.png")
+    add("Diagram", latex_code=r"\begin{tikzpicture}\draw(0,0);\end{tikzpicture}")
+    add("ListItem", marker="-", content="an item")
+    add("Abstract", text="The abstract.")
+    add("Toc", text="Contents")
+    add("Sidenote", content="a side note")
+
+    apply_document_structure(d)
+    ts = json.loads(TiddlyWikiProjector(
+        OperatorConfig(op="projector", classname="TiddlyWikiProjector")).project(d))
+    used = set()
+    for t in ts:
+        used.update(re.findall(r"\|\|([A-Z]+)\}\}", t.get("text") or ""))
+    required = {"PARA", "EQBLOCK", "TAB", "PIC", "DIA", "LI", "ABS", "TOC", "SN"}
+    assert required <= used, f"never emitted: {sorted(required - used)}"
+
+
+def test_inline_formula_is_transcluded_from_paragraph_text():
+    """INLINE math (Formula/FO) reaches the wiki by a DIFFERENT mechanism than
+    the block types: string substitution inside a paragraph's text, not
+    `section.children`. Both mechanisms must work — a flat tree kills the block
+    types while FO keeps working, which is exactly what made the loss invisible.
+    """
+    d = Document(); d.meta["bibkey"] = "K"
+    d.add(DocObject(type="Section", props={"caption": "R", "level": 1,
+                                           "flow_index": 1}))
+    d.add(DocObject(type="Formula", props={"latex": "x^2", "flow_index": 2}))
+    d.add(DocObject(type="Paragraph", props={
+        "text": "Let {{K_FO0001||FO}} be given.", "flow_index": 3}))
+    apply_document_structure(d)
+    ts = json.loads(TiddlyWikiProjector(
+        OperatorConfig(op="projector", classname="TiddlyWikiProjector")).project(d))
+    used = set()
+    for t in ts:
+        used.update(re.findall(r"\|\|([A-Z]+)\}\}", t.get("text") or ""))
+    assert "FO" in used and "PARA" in used
+
+
+def test_no_math_object_is_left_untranscluded():
+    """Every Formula/Equation must be referenced somewhere — an object nothing
+    points at renders nowhere, however correct its own tiddler is."""
+    from docops.projectors.tiddlywiki import math_titles
+    d = Document(); d.meta["bibkey"] = "K"
+    d.add(DocObject(type="Section", props={"caption": "R", "level": 1,
+                                           "flow_index": 1}))
+    d.add(DocObject(type="Formula", props={"latex": "x^2", "flow_index": 2}))
+    d.add(DocObject(type="Equation", props={"latex": "E=mc^2", "flow_index": 3}))
+    d.add(DocObject(type="Paragraph", props={
+        "text": "Let {{K_FO0001||FO}} be given.", "flow_index": 4}))
+    apply_document_structure(d)
+    ts = json.loads(TiddlyWikiProjector(
+        OperatorConfig(op="projector", classname="TiddlyWikiProjector")).project(d))
+    body = " ".join(str(t.get("text") or "") for t in ts)
+    missing = [t for t in math_titles(d, "K").values() if "{{" + t + "||" not in body]
+    assert not missing, f"math objects never transcluded: {missing}"
