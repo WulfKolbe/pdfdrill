@@ -603,7 +603,13 @@ _CONFERENCE_STYLE_RE = re.compile(
 def _drop_from_standalone(name: str) -> bool:
     return name in _STANDALONE_DROP_PKGS or bool(_CONFERENCE_STYLE_RE.match(name))
 
-_DEF_START = re.compile(r"\\(?:re|provide)?newcommand\*?|\\DeclareMathOperator\*?")
+# `\newcolumntype` belongs here too: a `tabular` whose column spec uses a
+# custom type (`P{3cm}`) fails with "Illegal pream-token (P)" if the
+# definition is not carried into the standalone preamble. That single
+# omission accounted for 13 of 14 table-SVG failures on one paper.
+_DEF_START = re.compile(
+    r"\\(?:re|provide)?newcommand\*?|\\DeclareMathOperator\*?"
+    r"|\\newcolumntype")
 
 
 def _collect_macro_defs(preamble: str) -> list[str]:

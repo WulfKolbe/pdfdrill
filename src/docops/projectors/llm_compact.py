@@ -281,7 +281,19 @@ class LLMCompactProjector(BaseProjector):
             is_bullet_or_numbered = marker.isalnum() or marker[:1] in "123456789"
             return f"- {content}" if is_bullet_or_numbered else f"{marker} {content}"
         if t == "Table":
-            return f"_table on p{p.get('page')}_\n```\n{p.get('raw_text', '')}\n```"
+            # GOLD LaTeX first. This used to read `raw_text` ONLY — the pdfminer
+            # text-layer flattening, whose cells are scrambled by line wrap
+            # (`c1 MASS MEDIA ORGANIZATIONS VIRUSES … ASSOCIATED WITH THE`).
+            # On a source-built model the author's `tabular` sits right there in
+            # `latex_code` and was ignored, so `md` emitted a wrong table (or
+            # none) while `llmtext` emitted the correct one from the SAME model.
+            # Silently wrong beats absent only in that it is harder to notice.
+            cap = str(p.get("caption") or "").strip()
+            head = f"_table{' — ' + cap if cap else ''} on p{p.get('page')}_"
+            code = str(p.get("latex_code") or "").strip()
+            if code:
+                return f"{head}\n```latex\n{code}\n```"
+            return f"{head}\n```\n{p.get('raw_text', '')}\n```"
         if t == "Picture":
             cap = p.get("caption") or ""
             label = (cap or f"figure on p{p.get('page')}").strip()

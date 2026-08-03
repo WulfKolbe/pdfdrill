@@ -132,6 +132,13 @@ def _augment_preamble(pre: str, latex_code: str) -> str:
     if (re.search(r"\\(?:top|mid|bottom|cmid)rule\b|\\addlinespace\b", latex_code)
             and "booktabs" not in pre):
         pre += "\\usepackage{booktabs}\n"
+    # `\text` needs amsmath. A snippet can acquire one without the paper having
+    # loaded amsmath explicitly — pdfdrill's own macro expansion rewrites
+    # `\mbox` to `\text` (normalize_font_switches), so the dependency is
+    # sometimes introduced BY US and must be satisfied by us too.
+    if (re.search(r"\\text\s*\{", latex_code)
+            and "amsmath" not in pre and "amstext" not in pre):
+        pre += "\\usepackage{amsmath}\n"
     if re.search(r"\\(?:row|cell|column)color\b", latex_code) and not _xcolor_has_table(pre):
         # Add the `table` option without an option clash, whether xcolor is loaded
         # explicitly or implicitly (tikz loads it): PassOptions before any load.

@@ -439,3 +439,31 @@ def test_source_table_no_match_creates_new():
     tables = [o for o in doc.objects.values() if o.type == "Table"]
     assert len(tables) == 2                                   # no match → new table
     assert any(o.props.get("added_by") == "latex" for o in tables)
+
+
+def test_newcolumntype_is_harvested_into_the_standalone_preamble():
+    r"""Audit finding: 13 of 14 table-SVG failures on one paper were
+    `! Package array Error: Illegal pream-token (P)`. The author defines
+    `\newcolumntype{P}[1]{...}` and a `tabular{P{3cm}}` cannot compile without
+    it, but `_DEF_START` matched only \newcommand/\DeclareMathOperator."""
+    from pdfdrill.latex_source import _collect_macro_defs, standalone_preamble
+    pre = (r"\newcolumntype{P}[1]{>{\raggedright\arraybackslash}p{#1}}" "\n"
+           r"\newcommand{\foo}{bar}")
+    defs = _collect_macro_defs(pre)
+    assert any("newcolumntype" in d for d in defs)
+    assert any("\\foo" in d for d in defs)          # existing behaviour intact
+    assert "newcolumntype" in standalone_preamble(
+        "\\documentclass{article}\n" + pre)
+
+
+def test_amsmath_injected_for_text_in_a_snippet():
+    r"""The other failure: `\text{}` without amsmath. pdfdrill's own expansion
+    rewrites `\mbox` -> `\text`, so it can INTRODUCE this dependency itself and
+    must therefore satisfy it."""
+    from pdfdrill.svg import _augment_preamble
+    pre = "\\documentclass{standalone}\n"
+    assert "amsmath" in _augment_preamble(pre, r"\begin{tabular}{l}\text{CES}\end{tabular}")
+    # not added when unnecessary, and not duplicated when already present
+    assert "amsmath" not in _augment_preamble(pre, r"\begin{tabular}{l}x\end{tabular}")
+    got = _augment_preamble("\\usepackage{amsmath}\n", r"\text{x}")
+    assert got.count("amsmath") == 1

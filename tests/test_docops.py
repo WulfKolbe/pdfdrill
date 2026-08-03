@@ -727,3 +727,32 @@ def test_formula_tiddlers_carry_the_spoken_field():
     spoken = {t["title"]: t.get("spoken") for t in ts if t.get("spoken")}
     assert spoken.get("K_FO0001") == "f of x"
     assert spoken.get("K_EQ0001") == "E equals m c squared"
+
+
+def test_llmcompact_table_prefers_gold_latex_over_textlayer():
+    """Audit finding: `md` emitted 0 tables while `llmtext` emitted all 16 from
+    the SAME model. LLMCompactProjector read `raw_text` ONLY — the pdfminer
+    flattening whose cells are scrambled by line wrap — and never `latex_code`,
+    where a source-built model keeps the author's gold `tabular`."""
+    import json as _json
+    from docmodel.core import Document, DocObject
+    from docops.base import OperatorConfig
+    from docops.projectors.llm_compact import LLMCompactProjector
+    d = Document(); d.meta["bibkey"] = "K"
+    d.add(DocObject(type="Table", props={
+        "latex_code": r"\begin{tabular}{ll}$c_1$ & Mass media\end{tabular}",
+        "raw_text": "c1 MASS MEDIA ORGANIZATIONS VIRUSES",   # the scrambled form
+        "caption": "Cluster labels", "page": 4, "flow_index": 1}))
+    md = LLMCompactProjector(OperatorConfig(
+        op="projector", classname="LLMCompactProjector")).project(d)
+    assert r"\begin{tabular}" in md and "Mass media" in md
+    assert "Cluster labels" in md                     # caption surfaced too
+    assert "c1 MASS MEDIA" not in md                  # scrambled form NOT used
+
+    # a table with no gold LaTeX still falls back to raw_text
+    d2 = Document(); d2.meta["bibkey"] = "K"
+    d2.add(DocObject(type="Table", props={"raw_text": "a b c", "page": 1,
+                                          "flow_index": 1}))
+    md2 = LLMCompactProjector(OperatorConfig(
+        op="projector", classname="LLMCompactProjector")).project(d2)
+    assert "a b c" in md2
