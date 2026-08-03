@@ -288,16 +288,64 @@ def _has_usable_math(objects: list, source: str) -> bool:
     return False
 
 
+def _font_glyph_names(pdf: Path) -> dict:
+    """{basefont-suffix: {code: glyphname}} from every font's /Differences.
+
+    The names TeX uses (`parenrightBig`, `vextenddouble`) are absent from the
+    Adobe Glyph List, which is the whole reason pdfminer falls back to `(cid:N)`
+    — the information is in the PDF, just under names no standard table knows.
+    Returns {} on any failure: an unresolved `(cid:N)` is a visible defect, a
+    guessed glyph is a silent corruption.
+    """
+    try:
+        from pypdf import PdfReader
+    except Exception:                                # noqa: BLE001
+        return {}
+    out: dict[str, dict[int, str]] = {}
+    try:
+        for page in PdfReader(str(pdf)).pages:
+            try:
+                fonts = page["/Resources"]["/Font"]
+            except Exception:                        # noqa: BLE001
+                continue
+            for key in fonts:
+                try:
+                    f = fonts[key].get_object()
+                    base = str(f.get("/BaseFont", "")).split("+")[-1]
+                    if not base or base in out:
+                        continue
+                    enc = f.get("/Encoding")
+                    enc = enc.get_object() if hasattr(enc, "get_object") else enc
+                    diff = enc.get("/Differences") if isinstance(enc, dict) else None
+                    if not diff:
+                        continue
+                    m, code = {}, 0
+                    for item in diff:
+                        if isinstance(item, int):
+                            code = item
+                        else:
+                            m[code] = str(item)
+                            code += 1
+                    out[base] = m
+                except Exception:                    # noqa: BLE001
+                    continue
+    except Exception:                                # noqa: BLE001
+        return {}
+    return out
+
+
+
 def _pdfminer_char_dump(pdf: Path) -> dict:
     """Extract a born-digital CHARACTER dump with **pdfminer.six** in the shape
     `chars_to_lines` expects (PDF bottom-left origin, chars grouped per page).
     pdfminer.six is the born-digital engine (it replaced pdfplumber here — richer
     font/emphasis, and the one engine the font-span leg already uses). Raises when
     pdfminer.six is absent so the caller can fall back."""
-    from . import pdfminer_layer as PM
+    from . import cid_glyphs as _cid, pdfminer_layer as PM
     if not PM.available():
         raise RuntimeError("pdfminer.six not installed")
     recs = PM.char_records(str(pdf))                 # top-left origin: top/bottom
+    glyphs = _font_glyph_names(pdf)                  # per-font /Differences names
     dims = PM.page_dims(str(pdf))                     # {pg: (w, h)}
     by_page: dict[int, list[dict]] = {}
     for c in recs:
@@ -309,10 +357,30 @@ def _pdfminer_char_dump(pdf: Path) -> dict:
                   # top-left top/bottom → bottom-left y0/y1 (chars_to_lines re-flips)
                   "y0": float(h) - float(c["bottom"]),
                   "y1": float(h) - float(c["top"]),
-                  "text": c.get("text", "")} for c in by_page.get(pg, [])]
+                  # (cid:N) is pdfminer saying "this font gave me no Unicode" —
+                  # and that is almost always a MATH font, so the unresolved code
+                  # lands straight on the mathematics. Resolve at this seam, the
+                  # one place every born-digital char passes through.
+                  "text": _resolve_glyph(c, glyphs, _cid),
+                  # The font MUST travel with the glyph: `chars_to_lines` decides
+                  # what is math from it, so dropping it here made the one route
+                  # that can see mathematics blind to it.
+                  "fontname": c.get("font", "")}
+                 for c in by_page.get(pg, [])]
         pages.append({"page_number": pg, "width": float(w), "height": float(h),
                       "chars": chars})
     return {"source": "pdfminer-chars", "total_pages": len(pages), "pages": pages}
+
+
+def _resolve_glyph(c: dict, glyphs: dict, _cid) -> str:
+    """Resolve one glyph's `(cid:N)`: the font's OWN names first (general), the
+    curated per-font table second (fonts that ship no /Differences)."""
+    text = c.get("text", "")
+    if "(cid:" not in text:
+        return text
+    font = c.get("font", "")
+    by_name = _cid.resolve_cid_by_name(text, glyphs.get(font.split("+")[-1], {}))
+    return _cid.resolve_cid(by_name, font)
 
 
 def _pdfplumber_char_dump(pdf: Path) -> dict:
@@ -10321,8 +10389,15 @@ def _format_math_capture(n_formula: int, n_equation: int, source: str,
         return []
     why = f" ({reason})" if reason else ""
     keyless = _is_keyless_textonly_source(source)
-    how = ("that route reads the text layer / glyphs, so it cannot type math "
-           "at all" if keyless else f"the {source} route returned none")
+    if keyless:
+        how = ("that route reads the text layer / glyphs, so it cannot type math "
+               "at all")
+    elif source:
+        how = f"the {source} route returned none"
+    else:
+        # No lines.json at all — naming an empty source produced "the  route
+        # returned none", a blank where the explanation should be.
+        how = "no extraction route has produced a lines.json yet"
     return [f"  math: NO math captured, but this document IS math-bearing{why}"
             f" — {how}.",
             "        recover: `pdfdrill injectlatex` (arXiv LaTeX, free) / "

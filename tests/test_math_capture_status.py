@@ -45,3 +45,15 @@ def test_keyed_source_with_zero_math_still_flagged():
     """MathPix returning no math on a math paper is also a failure worth saying."""
     out = _format_math_capture(0, 0, "mathpix", math_bearing=True, reason="eq dests")
     assert out and ("0 math" in " ".join(out) or "NO math" in " ".join(out))
+
+
+def test_message_never_has_an_empty_route_name():
+    """Reported by the auditor: with no lines.json the source is "", so the line
+    read "the  route returned none" — a blank where the route name belongs and a
+    double space. A status line that is meant to explain a failure has to name
+    the thing that failed."""
+    out = _format_math_capture(0, 0, "", math_bearing=True, reason="math fonts")
+    body = " ".join(l.strip() for l in out)          # leading indent is by design
+    assert "  " not in body, f"double space inside the message: {body!r}"
+    assert "the  route" not in body
+    assert "lines.json" in body, "must say what is actually missing"
