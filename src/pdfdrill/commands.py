@@ -8042,6 +8042,24 @@ def _externalize_svg_tiddlers(tiddlers: list, svg_dir: Path, uri_prefix: str) ->
     return n
 
 
+def stale_tiddler_siblings(blob_dir, model_path: Path, current: Path) -> list:
+    """Other `*.tiddlers.json` in the drill folder that predate the model.
+
+    A document can carry several arrays; each is a projection of the model, and
+    an old one imported beside a current one puts two naming schemes into the
+    same wiki — titles from one file, transclusion targets from the other. The
+    array we just wrote is excluded.
+    """
+    try:
+        arts = sorted(Path(blob_dir).glob("*.tiddlers.json"))
+        mt = model_path.stat().st_mtime
+    except OSError:
+        return []
+    return [a for a in arts
+            if a != Path(current) and a.stat().st_mtime < mt]
+
+
+
 def cmd_tiddlers(pdf: Path, force: bool = False, embed: bool = False,
                  bibkey: str | None = None, embed_svg: bool = True) -> str:
     """Emit a TiddlyWiki JSON tiddler array from the unified model.
@@ -8152,10 +8170,22 @@ def cmd_tiddlers(pdf: Path, force: bool = False, embed: bool = False,
         integ_note = (f" Integrity OK: {integ['transclusions']} transclusions, "
                       f"0 dangling, 0 orphan.")
     guard = _unrendered_graphics_note(doc.objects.values())
+    # A sibling array older than the model carries the titles of a PREVIOUS
+    # export. Imported beside this one it puts two naming schemes in the same
+    # wiki — titles from one file, transclusion targets from the other — and the
+    # breakage reads as if this export were wrong.
+    stale = stale_tiddler_siblings(sc.blob_dir, model_path, out_path)
+    stale_note = ""
+    if stale:
+        stale_note = (f" ⚠ {len(stale)} OLDER tiddler array(s) in this folder "
+                      f"({', '.join(p.name for p in stale[:3])}"
+                      f"{', …' if len(stale) > 3 else ''}) predate the model and "
+                      f"hold the previous titles — do NOT import them alongside "
+                      f"this one; regenerate or move them aside.")
     return (f"Wrote {count} TiddlyWiki tiddlers to {rel}. Import into TiddlyWiki; "
             f"diagram SVGs render via {{{{!!svg_tiddler}}}} "
             f"({'inline' if embed_svg else 'external _canonical_uri'}).{svg_note}"
-            f"{integ_note}{guard}")
+            f"{integ_note}{guard}{stale_note}")
 
 
 # Tag -> the tiddler field whose prose gets translated. Math/code/image/toc

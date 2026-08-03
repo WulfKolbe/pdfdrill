@@ -16,6 +16,7 @@ Two rules, learned one failure at a time:
                           or a rebuild leaves a stale array looking current
 """
 import json
+import os
 import sys
 import time
 from pathlib import Path
@@ -82,3 +83,60 @@ def test_tiddlers_artifact_detector(tmp_path):
     time.sleep(0.01)
     model.write_text(model.read_text())
     assert planner.detect("artifact:tiddlers", sc, pdf, model) is False
+
+
+def test_one_fresh_artifact_does_not_mask_a_stale_sibling(tmp_path):
+    """A document has SEVERAL tiddler arrays — the main one and `*.spoken.*`.
+
+    `_tiddlers_current` took the MAX mtime across them, so regenerating one made
+    the whole set look current while a sibling stayed stale. Observed on
+    2209.00445v3: the main array was rebuilt with the corrected citation titles
+    while `2209.00445v3.spoken.tiddlers.json` sat four days old with the old
+    ones — and importing both into one wiki mixes the two naming schemes.
+
+    Checking "an artifact is fresh" instead of "every artifact is fresh" is the
+    same presence-vs-adequacy mistake one level down.
+    """
+    model = _model(tmp_path)
+    blob = tmp_path / "blob2"
+    blob.mkdir()
+    sc = _SC(blob=blob)
+    pdf = tmp_path / "d.pdf"
+
+    stale = blob / "k.spoken.tiddlers.json"
+    stale.write_text("[]")
+    os.utime(stale, (1, 1))                       # far older than the model
+    fresh = blob / "k.tiddlers.json"
+    fresh.write_text("[]")
+
+    assert planner.detect("artifact:tiddlers", sc, pdf, model) is False, \
+        "a stale sibling must keep the set from counting as done"
+
+    os.utime(stale, None)                         # bring it up to date
+    assert planner.detect("artifact:tiddlers", sc, pdf, model) is True
+
+
+def test_stale_sibling_arrays_are_named(tmp_path):
+    """A stale array must be REPORTED, not merely counted as not-done.
+
+    223 documents carry a `*.spoken.tiddlers.json` that no command in the repo
+    produces — an unmaintained leftover. It holds the old citation titles, and
+    importing it beside the current array puts two naming schemes in one wiki:
+    the titles come from one file, the markers from the other, and the links
+    break in a way that looks like the current export is wrong.
+    """
+    from pdfdrill.commands import stale_tiddler_siblings
+
+    blob = tmp_path / "b"
+    blob.mkdir()
+    model = _model(tmp_path)
+    cur = blob / "k.tiddlers.json"
+    cur.write_text("[]")
+    old = blob / "k.spoken.tiddlers.json"
+    old.write_text("[]")
+    os.utime(old, (1, 1))
+
+    stale = stale_tiddler_siblings(blob, model, cur)
+    assert [p.name for p in stale] == ["k.spoken.tiddlers.json"]
+    # the file just written is never reported against itself
+    assert cur not in stale

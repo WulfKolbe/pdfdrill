@@ -158,7 +158,11 @@ def _tiddlers_current(sc, model_path: Path) -> bool:
         return False
     if not arts:
         return False
-    return max(a.stat().st_mtime for a in arts) >= model_path.stat().st_mtime
+    # MIN, not max: a document has several arrays (the main one and `*.spoken.*`)
+    # and EVERY one is a projection of this model. Taking the newest let a
+    # freshly rebuilt main array mask a sibling left days behind, so the two
+    # carried different citation titles into the same wiki.
+    return min(a.stat().st_mtime for a in arts) >= model_path.stat().st_mtime
 
 
 def satisfied_set(done: dict[str, str], sc, pdf: Path, model_path: Path) -> set[str]:
