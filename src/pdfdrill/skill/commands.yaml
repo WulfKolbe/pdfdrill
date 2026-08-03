@@ -169,6 +169,11 @@ commands:
     type: pdf
     required: true
     help: PDF path, https URL, or bare arXiv id
+  flags:
+  - name: force
+    flag: --force
+    type: flag
+    help: re-run pdffonts, discarding the cached font layers
   typed: true
 - name: status
   section: Introspection (fast, no extraction)
@@ -352,6 +357,11 @@ commands:
     type: pdf
     required: true
     help: PDF path, https URL, or bare arXiv id
+  flags:
+  - name: force
+    flag: --force
+    type: flag
+    help: re-run pdffonts, discarding the cached font layers
   typed: true
 - name: images
   section: Introspection (fast, no extraction)

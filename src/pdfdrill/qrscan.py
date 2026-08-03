@@ -8,14 +8,13 @@ payment reference — often supplying the issuer the text layer omits and
 corroborating the extracted IBAN/reference. So QR/barcodes join continuity
 numbers and out-of-column control keys as first-class margin confirmation.
 
-Engine: zxing-cpp (`import zxingcpp`). Pages are rasterized with the existing
-pdftoppm path (no new system dep). Both degrade gracefully when absent.
+Engine: zxing-cpp (`import zxingcpp`). Pages are rasterized with Ghostscript
+(the shared gs-only `pdf_reading.rasterize`). Both degrade gracefully when absent.
 """
 from __future__ import annotations
 
 import base64
 import re
-import shutil
 from pathlib import Path
 from typing import Any, Optional
 
@@ -25,8 +24,9 @@ def tools_available() -> tuple[bool, str]:
     if importlib.util.find_spec("zxingcpp") is None:
         return False, ("QR/barcode scanning needs zxing-cpp. Install the [qr] "
                        "extra: `pip install 'pdfdrill[qr]'` (zxing-cpp).")
-    if shutil.which("pdftoppm") is None:
-        return False, "QR scanning needs pdftoppm (poppler-utils) to rasterize pages."
+    from . import pdf_reading
+    if pdf_reading.gs_binary() is None:
+        return False, "QR scanning needs Ghostscript (gs) to rasterize pages."
     return True, ""
 
 
@@ -85,7 +85,7 @@ def _result_to_dict(r: Any, page: int) -> dict[str, Any]:
 
 
 # ---------------------------------------------------------------------------
-# Scanning (rasterize via pdftoppm, decode with zxing-cpp)
+# Scanning (rasterize via Ghostscript, decode with zxing-cpp)
 # ---------------------------------------------------------------------------
 
 def _formats(formats: Optional[str]):
@@ -103,7 +103,7 @@ def _scan_pil(img, fmts) -> list:
 def scan_pdf(pdf: Path, out_dir: Path, *, dpi: int = 300,
              pages: Optional[list[int]] = None, formats: Optional[str] = None
              ) -> list[dict[str, Any]]:
-    """Rasterize page(s) (pdftoppm) and decode every QR/barcode. Returns findings
+    """Rasterize page(s) (Ghostscript) and decode every QR/barcode. Returns findings
     {format, content, bbox, page, epc?, content_base64?}."""
     from . import pdf_reading
     from PIL import Image

@@ -392,7 +392,7 @@ def _do_toc(args):
 
 def _do_fonts(args):
     from .commands import cmd_fonts
-    return cmd_fonts(_pdf(args))
+    return cmd_fonts(_pdf(args), force="--force" in args)
 
 
 def _do_speak(args):
@@ -477,7 +477,7 @@ def _do_dests(args):
 
 def _do_fonts_layer(args):
     from .commands import cmd_fonts_layer
-    return cmd_fonts_layer(_pdf(args))
+    return cmd_fonts_layer(_pdf(args), force="--force" in args)
 
 
 def _do_images(args):

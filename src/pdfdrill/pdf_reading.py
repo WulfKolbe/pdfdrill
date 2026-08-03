@@ -6,7 +6,7 @@ attachments/images, form-field + table JSON), not in an LLM context window.
 The skill's tools, each wrapped here so a `pdfdrill` command can drive it and
 return prose pointing at the written files:
 
-  * rasterize a page → PNG          (`pdftoppm`)            — visual inspection
+  * rasterize a page → PNG          (`gs`, the only rasterizer) — visual inspection
   * list / extract attachments      (`pdfdetach` + pypdf)   — embedded files
   * read interactive form fields    (pypdf)                 — AcroForm values
   * extract embedded raster images  (`pdfimages`)           — image bytes to disk
@@ -69,7 +69,7 @@ def filter_real_images(files: list[Path], min_bytes: int = 1024) -> tuple[list[P
 
 
 # ---------------------------------------------------------------------------
-# 1. Rasterize pages (pdftoppm)  → PNG files for visual inspection
+# 1. Rasterize pages (Ghostscript) → PNG files for visual inspection
 # ---------------------------------------------------------------------------
 
 # Ghostscript is the ONLY rasterizer (no pdftoppm/fitz fallback): the downstream

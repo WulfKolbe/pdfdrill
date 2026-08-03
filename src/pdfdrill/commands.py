@@ -9827,12 +9827,30 @@ def _format_size(sc: Sidecar) -> str:
     return ", ".join(parts) + "."
 
 
-def cmd_fonts(pdf: Path) -> str:
+def _invalidate_font_caches(sc) -> None:
+    """Drop BOTH font caches so the next read re-runs pdffonts.
+
+    `fonts` and `fonts_layer` are two views of the same pdffonts output, cached
+    independently. The structured layer carries the `is_math` flags that
+    `is_math_bearing` reads, so a change to the font CLASSIFIER never reaches a
+    document analysed before it unless that layer is dropped too — clearing one
+    and leaving the other is the same staleness one step later.
+    """
+    for fact in (FONTS_KNOWN, FONTS_LAYER_KNOWN):
+        sc.remove_fact(fact)
+    sc.save()
+
+
+def cmd_fonts(pdf: Path, force: bool = False) -> str:
     """Run pdffonts. Return sentence summary of fonts."""
     sc = Sidecar(pdf)
 
     if not sc.has(SIZE_KNOWN):
         cmd_size(pdf)
+        sc = Sidecar(pdf)
+
+    if force:
+        _invalidate_font_caches(sc)
         sc = Sidecar(pdf)
 
     if sc.has(FONTS_KNOWN):
@@ -11252,11 +11270,14 @@ def _format_dests(dests: list | None) -> str:
 # pdffonts + pdfimages-derived layers
 # ---------------------------------------------------------------------------
 
-def cmd_fonts_layer(pdf: Path) -> str:
+def cmd_fonts_layer(pdf: Path, force: bool = False) -> str:
     """Build the structured fonts_layer via pdffonts."""
     from .font_image_layers import fetch_fonts, summarize_fonts
 
     sc = Sidecar(pdf)
+    if force:
+        _invalidate_font_caches(sc)
+        sc = Sidecar(pdf)
     if sc.has(FONTS_LAYER_KNOWN):
         return _format_fonts_layer(sc.fonts_layer or [])
 

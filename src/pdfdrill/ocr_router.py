@@ -31,11 +31,49 @@ class RouteDecision:
     cost: str        # free | keyed | paid | none
 
 
+# A scan is one full-page image per page. Below this share of the page area an
+# image is a figure, not a page scan.
+_PAGE_IMAGE_COVER = 0.85
+# …and it has to hold for most pages: a book with a full-page cover plate or two
+# is not a scanned book.
+_SCAN_PAGE_SHARE = 0.8
+
+
+def is_scanned_page_images(images, page_count, page_w, page_h) -> bool:
+    """True if the document looks like a SCAN from its image geometry alone.
+
+    Source-independent, and deliberately not a text test: a scan that someone
+    already ran OCR over HAS a text layer — made of that OCR — so presence of
+    text cannot distinguish "born-digital" from "scan with an OCR underlay".
+    Page geometry can: a scan carries one image covering essentially the whole
+    page, on essentially every page.
+
+    `images` are dicts with `page`, `w_pt`, `h_pt` (points).
+    """
+    if not images or not page_count or page_w <= 0 or page_h <= 0:
+        return False
+    page_area = page_w * page_h
+    covered = {img.get("page") for img in images
+               if (float(img.get("w_pt") or 0) * float(img.get("h_pt") or 0))
+               >= _PAGE_IMAGE_COVER * page_area}
+    return len(covered) >= _SCAN_PAGE_SHARE * page_count
+
+
 def choose_route(*, text_layer: Optional[bool], needs_ocr: Optional[bool],
-                 page_count: Optional[int], gemma_max: int = GEMMA_MAX_PAGES
-                 ) -> RouteDecision:
-    """Pick the OCR/extraction lane from the `size` signals. Pure."""
+                 page_count: Optional[int], gemma_max: int = GEMMA_MAX_PAGES,
+                 scanned_images: Optional[bool] = None) -> RouteDecision:
+    """Pick the OCR/extraction lane from the `size` signals. Pure.
+
+    `scanned_images` (from `is_scanned_page_images`) overrides a text layer that
+    is really an OCR underlay on a scan — otherwise the free text-layer lane is
+    offered for a document whose "text" is somebody else's OCR output, described
+    as "free and exact". Omitted → previous behaviour, unchanged.
+    """
     pc = page_count or 0
+    # A text layer sitting on full-page scans is an OCR UNDERLAY, not a born-digital
+    # text layer: extracting it re-serves that OCR (and never recovers math).
+    if text_layer and scanned_images:
+        needs_ocr, text_layer = True, False
     # A real text layer wins outright — free, exact, no OCR (any size).
     if text_layer:
         return RouteDecision(
@@ -95,10 +133,51 @@ def format_decision(d: RouteDecision, name: str) -> str:
             f"  Next: {d.command}")
 
 
+def scanned_images_for(pdf, page_count) -> "Optional[bool]":
+    """Ask `pdfimages -list` whether this document is one full-page image per page.
+
+    Cheap and offline (poppler). Returns None when the tool or a page size is
+    unavailable, so the caller falls back to the previous text-layer decision
+    rather than guessing.
+    """
+    try:
+        from .font_image_layers import fetch_pdfimages_list
+        from pathlib import Path as _P
+        from .pdfinfo_layers import fetch_pdfinfo_struct
+        info = fetch_pdfinfo_struct(_P(pdf)) or {}
+        pw, ph = _page_size_pt(info)
+        if not (pw and ph):
+            return None
+        imgs = []
+        for r in fetch_pdfimages_list(pdf) or []:
+            xppi = float(r.get("x_ppi") or 0) or 72.0
+            yppi = float(r.get("y_ppi") or 0) or 72.0
+            imgs.append({"page": r.get("page"),
+                         "w_pt": float(r.get("width_px") or 0) / xppi * 72.0,
+                         "h_pt": float(r.get("height_px") or 0) / yppi * 72.0})
+        return is_scanned_page_images(imgs, page_count, pw, ph)
+    except Exception:                                        # noqa: BLE001
+        return None
+
+
+def _page_size_pt(info: dict) -> "tuple[float, float]":
+    """Page width/height in points from a pdfinfo dict ('612 x 792 pts')."""
+    import re
+    m = re.search(r"([\d.]+)\s*x\s*([\d.]+)\s*pts",
+                  str(info.get("page_size") or info.get("Page size") or ""))
+    return (float(m.group(1)), float(m.group(2))) if m else (0.0, 0.0)
+
+
 def route_for_sidecar(sc) -> RouteDecision:
     """Build a decision from a Sidecar's `size` evidence (text_layer / needs_ocr /
     page_count). Works before `size` too (fields absent → unknown)."""
+    pages = sc.get_evidence("pages", 0)
+    text_layer = sc.get_evidence("text_layer")
+    # Only worth asking when a text layer claims the free lane — that is the one
+    # decision an OCR underlay can silently corrupt.
+    scanned = scanned_images_for(sc.pdf_path, pages) if text_layer else None
     return choose_route(
-        text_layer=sc.get_evidence("text_layer"),
+        text_layer=text_layer,
         needs_ocr=sc.get_evidence("needs_ocr"),
-        page_count=sc.get_evidence("pages", 0))
+        page_count=pages,
+        scanned_images=scanned)

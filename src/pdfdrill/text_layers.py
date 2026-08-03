@@ -96,7 +96,7 @@ def fetch_tesseract_tsv(
     ppi: int = 300,
     lang: str = "eng",
 ) -> list[dict[str, Any]]:
-    """Render each page to PNG via pdftoppm and OCR with tesseract.
+    """Render each page to PNG via Ghostscript (>=400 DPI) and OCR with tesseract.
 
     Produces the same per-word record shape as pdftotext -tsv, so
     downstream consumers don't need to know which tool ran.
@@ -131,7 +131,7 @@ def fetch_tesseract_tsv(
 
 
 def _page_num_from_filename(name: str) -> int:
-    # pdftoppm names: page-NN.png or page-NNN.png
+    # gs rasterizer names: page-0001.png (any zero-padding; digits are parsed out)
     digits = "".join(c for c in name if c.isdigit())
     return int(digits) if digits else 0
 

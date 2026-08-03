@@ -38,14 +38,16 @@ def numpy_available() -> bool:
 
 def tools_available() -> tuple[bool, str]:
     """Return (ok, message). The element layer needs NumPy (the GNN) plus
-    pdftoppm + tesseract (to produce the TSV word boxes)."""
+    Ghostscript + tesseract (gs renders the pages, tesseract makes the TSV word boxes)."""
     if not numpy_available():
         return False, ("the layout-element GNN needs NumPy. Install it with "
                        "`pip install 'pdfdrill[layout]'` (numpy + blake3).")
-    missing = [t for t in ("pdftoppm", "tesseract") if shutil.which(t) is None]
+    from . import pdf_reading
+    missing = (["ghostscript"] if pdf_reading.gs_binary() is None else []) + \
+              (["tesseract"] if shutil.which("tesseract") is None else [])
     if missing:
         return False, (f"layout-element OCR needs {' and '.join(missing)} on "
-                       f"PATH. Install poppler-utils and tesseract-ocr "
+                       f"PATH. Install ghostscript and tesseract-ocr "
                        f"(plus a language pack, e.g. tesseract-ocr-deu).")
     return True, ""
 
@@ -71,7 +73,7 @@ def _patch_page_column(tsv: str, page_num: int) -> list[str]:
 
 def build_combined_tsv(pdf: Path, out_dir: Path, *, ppi: int = 300,
                        lang: str = "deu+eng") -> str:
-    """Render each page (pdftoppm) and OCR it (tesseract `tsv`), returning ONE
+    """Render each page (Ghostscript) and OCR it (tesseract `tsv`), returning ONE
     combined TSV string whose `page_num` column carries the real page number.
     Reuses the same render+tesseract invocation as the `ocr` path; here we keep
     the raw TSV (the GNN consumes word geometry directly) rather than grouping

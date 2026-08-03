@@ -850,7 +850,7 @@ def main(argv=None) -> int:
     ap.add_argument("--mathpix-figures", action="store_true",
                     help="find figures isolated by MathPix inside full-page rasters (needs --lines-json)")
     ap.add_argument("--extract-mathpix-figures", default=None, metavar="DIR",
-                    help="also crop those figures from a pdftoppm render into DIR (needs --lines-json)")
+                    help="also crop those figures from a Ghostscript render into DIR (needs --lines-json)")
     ap.add_argument("--all-pages-figures", action="store_true",
                     help="consider MathPix figures on every page, not only scan-like pages")
     ap.add_argument("--json", default=None, help="write full result JSON to this path")
