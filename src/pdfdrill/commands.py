@@ -442,6 +442,100 @@ def apply_document_structure(doc) -> dict:
             "roots": sum(1 for o in doc.objects.values() if o.type == "Document")}
 
 
+# Keyless, geometry-only lines.json sources. None of them carries structure or
+# real math, so on a doc whose gold LaTeX is available they are the merge's
+# INPUT, never a substitute for it.
+_MERGEABLE_LINES_SOURCES = ("pdfminer", "pdfplumber", "tesseract")
+
+
+def _is_mathpix_lines(lines_path: Path) -> bool:
+    """True for a MathPix lines.json — it has no `source` key of its own (the
+    keyless routes stamp one) and carries MathPix-only line types."""
+    if not lines_path.exists():
+        return False
+    src = _lines_json_source(lines_path)
+    if src:
+        return False
+    try:
+        data = json.loads(lines_path.read_text(encoding="utf-8", errors="replace"))
+    except (OSError, json.JSONDecodeError):
+        return False
+    for pg in (data.get("pages") or [])[:3]:
+        for ln in (pg.get("lines") or []):
+            if ln.get("type") in ("math", "equation_number", "simple_cell",
+                                  "page_info", "table_spanning_cell"):
+                return True
+    return False
+
+
+
+def _try_merged_build(pdf: Path, sc, key: str, model_path: Path,
+                      lines_path: Path) -> "str | None":
+    """Build BOTH routes and merge: structure from the gold LaTeX source, page
+    geometry from the born-digital text layer. Returns the report, or None when
+    the merge is not possible (no text layer / no source), leaving the caller's
+    other routes untouched.
+
+    The two routes are complementary and choosing one always discarded the
+    other: pdfminer gives page geometry but no Formula/Section objects, the
+    LaTeX source gives the full structure but has never seen a rendered page.
+    """
+    if not (lines_path.exists() or _write_born_digital_lines(pdf)):
+        return None                              # no text layer → caller's OCR path
+    built = _build_arxiv_source_model(pdf, sc, key, model_path)
+    if not built:
+        return None
+    try:
+        merged = load_model(model_path)
+        # The source builder bypasses docmodel.main, so the structure post-pass
+        # never ran: run it here or every ||TAB/||PIC/||DIA/||LI transclusion is
+        # lost.
+        st = apply_document_structure(merged)
+        stats = merge_page_geometry(merged, _lines_json_path(pdf))
+        stats.update(st)
+        save_model(model_path, merged)
+        sc2 = Sidecar(pdf)
+        sc2.set_evidence("merged_geometry", stats)
+        sc2.save()
+        built += (f"\nMERGED: {stats['pages']} Page object(s), "
+                  f"{stats['placed']} object(s) placed on a page "
+                  f"({stats.get('regions', 0)} with a rectangle, so `inspect` can "
+                  f"box them); structure post-pass linked {stats.get('children', 0)} "
+                  f"child(ren) under {stats.get('sections', 0)} section(s) "
+                  f"(needed for ||TAB/||PIC/||DIA/||LI transclusions).")
+    except Exception:                            # noqa: BLE001
+        pass                                     # source model still stands
+    return built
+
+
+
+def prefers_merged_route(*, lines_exists: bool, lines_source: str,
+                         is_arxiv: bool, mathpix: bool = False) -> bool:
+    """Should `model` build BOTH routes and merge them? Pure decision.
+
+    The rule is about what each route can CONTRIBUTE, not about which files
+    happen to be on disk:
+
+      * MathPix lines carry structure, geometry and real math — nothing to add.
+      * Otherwise, if the gold LaTeX source is available and the existing lines
+        are a keyless geometry-only route (or absent), merge: structure from the
+        source, page geometry from the lines.
+
+    The previous condition was `not lines_path.exists()`, so the merge was
+    skipped as soon as its OWN output existed — every rebuild silently produced
+    a structureless model.
+    """
+    if mathpix:
+        return False
+    if not is_arxiv:
+        return False
+    if not lines_exists:
+        return True
+    src = (lines_source or "").lower()
+    return src.startswith(_MERGEABLE_LINES_SOURCES)
+
+
+
 def merge_page_geometry(doc, lines_path: Path) -> dict:
     """Give a LaTeX-SOURCE model the page geometry it structurally cannot have.
 
@@ -468,27 +562,39 @@ def merge_page_geometry(doc, lines_path: Path) -> dict:
 
     pages = data.get("pages") or []
     page_text: list[str] = []
+    page_lines: list[list[dict]] = []
+    # Char offset -> line index, so a text match maps back to the LINES it hit
+    # (and therefore to their regions) instead of only to a page number.
+    page_spans: list[list[tuple[int, int, int]]] = []
     for pg in pages:
-        txt = " ".join(str(ln.get("text") or "") for ln in (pg.get("lines") or []))
-        page_text.append(re.sub(r"\s+", " ", txt).lower())
+        lines = list(pg.get("lines") or [])
+        page_lines.append(lines)
+        parts, spans, pos = [], [], 0
+        for li, ln in enumerate(lines):
+            t = _norm_probe(str(ln.get("text") or ""))
+            if t:
+                spans.append((pos, pos + len(t), li))
+                parts.append(t)
+                pos += len(t) + 1
+        page_text.append(" ".join(parts))
+        page_spans.append(spans)
         doc.add(DocObject(type="Page", props={
             "page_number": pg.get("page"),
             "page_width": pg.get("page_width"), "page_height": pg.get("page_height"),
             "added_by": "merge_page_geometry"}))
 
-    def _find(text: str) -> int | None:
-        """The 1-based page whose text contains this object's opening words."""
-        probe = re.sub(r"\s+", " ", re.sub(r"\{\{[^}]*\}\}", " ", text)).strip().lower()
-        probe = re.sub(r"[^a-z0-9 ]+", " ", probe)
-        probe = " ".join(probe.split()[:8])          # 8 words is enough to be unique
+    def _find(text: str):
+        """(1-based page, char offset) where this object's opening words sit."""
+        probe = " ".join(_norm_probe(re.sub(r"\{\{[^}]*\}\}", " ", text)).split()[:8])
         if len(probe) < 12:
-            return None
+            return None, None
         for i, pt in enumerate(page_text, start=1):
-            if probe in pt:
-                return i
-        return None
+            at = pt.find(probe)
+            if at >= 0:
+                return i, at
+        return None, None
 
-    placed = 0
+    placed = regions = 0
     for o in doc.objects.values():
         if o.type in ("Page",) or o.props.get("page"):
             continue
@@ -496,11 +602,47 @@ def merge_page_geometry(doc, lines_path: Path) -> dict:
                   or o.props.get("caption") or "")
         if not src.strip():
             continue
-        pno = _find(src)
-        if pno:
-            o.props["page"] = pno
-            placed += 1
-    return {"pages": len(pages), "placed": placed}
+        pno, at = _find(src)
+        if not pno:
+            continue
+        o.props["page"] = pno
+        placed += 1
+        # The object runs from the match for as many characters as it has text,
+        # so the lines it covers are those overlapping [at, at+len). Their union
+        # is its rectangle. Approximate by nature — same as the page match — but
+        # derived from real geometry, never invented.
+        end = at + len(_norm_probe(re.sub(r"\{\{[^}]*\}\}", " ", src)))
+        hit = [page_lines[pno - 1][li] for (a, b, li) in page_spans[pno - 1]
+               if a < end and b > at]
+        box = _union_region(hit)
+        if box:
+            o.props["region"] = box
+            regions += 1
+    return {"pages": len(pages), "placed": placed, "regions": regions}
+
+
+def _norm_probe(text: str) -> str:
+    """Lowercase alphanumeric-and-space form used for text matching."""
+    return re.sub(r"\s+", " ", re.sub(r"[^a-z0-9 ]+", " ", text.lower())).strip()
+
+
+def _union_region(lines: list) -> dict | None:
+    """Bounding box over the given lines' regions (MathPix top-left shape)."""
+    boxes = []
+    for ln in lines:
+        r = ln.get("region") or {}
+        try:
+            x, y = float(r["top_left_x"]), float(r["top_left_y"])
+            w, h = float(r["width"]), float(r["height"])
+        except (KeyError, TypeError, ValueError):
+            continue
+        boxes.append((x, y, x + w, y + h))
+    if not boxes:
+        return None
+    x0 = min(b[0] for b in boxes); y0 = min(b[1] for b in boxes)
+    x1 = max(b[2] for b in boxes); y1 = max(b[3] for b in boxes)
+    return {"top_left_x": round(x0, 2), "top_left_y": round(y0, 2),
+            "width": round(x1 - x0, 2), "height": round(y1 - y0, 2)}
 
 
 def _pdf_producer(pdf: Path) -> str:
@@ -3071,6 +3213,19 @@ def cmd_model(pdf: Path, force: bool = False, bibkey: str | None = None) -> str:
             except OSError:
                 pass
 
+    # The merge is chosen on CAPABILITY, before the "is there a lines.json?"
+    # gate: nesting it under that gate meant it was skipped as soon as its OWN
+    # geometry output existed, so every rebuild silently produced a structureless
+    # model (287 objects -> 48 on 2209.00445v3).
+    if prefers_merged_route(lines_exists=lines_path.exists(),
+                            lines_source=_lines_json_source(lines_path)
+                            if lines_path.exists() else "",
+                            is_arxiv=bool(_arxiv_id_for(pdf, sc)),
+                            mathpix=_is_mathpix_lines(lines_path)):
+        merged_out = _try_merged_build(pdf, sc, key, model_path, lines_path)
+        if merged_out:
+            return merged_out
+
     if not lines_path.exists():
         # 1) MathPix if a key is present (best: page geometry + LaTeX + CDN crops).
         #    Skips for arXiv unless --force; a no-key / blocked host just returns
@@ -3082,42 +3237,17 @@ def cmd_model(pdf: Path, force: bool = False, bibkey: str | None = None) -> str:
         sc = Sidecar(pdf)
         if not lines_path.exists():
             # 2) BORN-DIGITAL default (the no-OCR route): read the PDF's OWN text
-            #    stream with pdfplumber (chars → lines.json WITH page geometry) —
+            #    stream with pdfminer (chars → lines.json WITH page geometry) —
             #    free, fast, no key. This is what `route` promises and what lets
-            #    inspect/locate work without MathPix. The arXiv gold LaTeX math is a
-            #    `latex` OVERLAY on top, NOT the base — the source model has no page
-            #    geometry, so it can never be boxed (the 'inspect box-less' report).
+            #    inspect/locate work without MathPix. The merged (LaTeX+geometry)
+            #    route already ran above when this document could support it; a
+            #    doc with no gold source reaches here and takes this lane.
             wrote_born_digital = _write_born_digital_lines(pdf)
+            # MathPix may now have appeared (a key), or the source may only have
+            # become reachable once the text layer existed — retry the merge.
             if wrote_born_digital and _arxiv_id_for(pdf, sc):
-                # BOTH, then MERGE. The two routes are complementary, and picking
-                # one always discarded the other's contribution: pdfminer gives
-                # page geometry but NO Formula/Section objects (an audit saw
-                # 0 formulas, 0 sections and 16 paragraphs for 7045 words),
-                # while the LaTeX source gives the full structure but no page.
-                # Build the source model and graft the geometry onto it.
-                built = _build_arxiv_source_model(pdf, sc, key, model_path)
+                built = _try_merged_build(pdf, sc, key, model_path, lines_path)
                 if built:
-                    try:
-                        merged = load_model(model_path)
-                        # The source builder bypasses docmodel.main, so the
-                        # structure post-pass never ran: run it here or every
-                        # ||TAB/||PIC/||DIA/||LI transclusion is lost.
-                        st = apply_document_structure(merged)
-                        stats = merge_page_geometry(merged, _lines_json_path(pdf))
-                        stats.update(st)
-                        save_model(model_path, merged)
-                        sc = Sidecar(pdf)
-                        sc.set_evidence("merged_geometry", stats)
-                        sc.save()
-                        built += (f"\nMERGED: {stats['pages']} Page object(s), "
-                                  f"{stats['placed']} object(s) placed on a page; "
-                                  f"structure post-pass linked "
-                                  f"{stats.get('children', 0)} child(ren) under "
-                                  f"{stats.get('sections', 0)} section(s) "
-                                  f"(needed for ||TAB/||PIC/||DIA/||LI "
-                                  f"transclusions).")
-                    except Exception:            # noqa: BLE001
-                        pass                     # source model still stands
                     return built
             if not wrote_born_digital:
                 # 3) No text layer → a genuine SCAN. arXiv gold e-print if cached

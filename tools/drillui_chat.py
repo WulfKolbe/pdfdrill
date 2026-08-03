@@ -200,10 +200,24 @@ def _command_argv(cmds: dict, doc: str, cmd: str, rest: list[str]) -> list[str]:
     """Build the pdfdrill argv for a subcommand, auto-inserting the OPEN doc as
     the first positional when the command takes one — so the user never repeats
     the filename. `pdf` positionals always get the doc; `markdown` gets it only
-    when the doc is a .md; dir/no-positional commands get the user's args as-is."""
+    when the doc is a .md; dir/no-positional commands get the user's args as-is.
+
+    `--ensure` is added to every doc command. pdfdrill's prerequisite state
+    machine (commands.yaml `requires:`/`done_when:` + planner.resolve) already
+    knows the full chain behind each command, but it only ran when the caller
+    passed that flag — which nothing here did, so the machine was inert and a
+    command whose prerequisites were missing simply reported that they were
+    missing. Typing a command IS the request to reach that state, so the chain
+    runs. Only offline steps are ever auto-inserted (enforced by
+    tests/test_planner.py::test_offline_safe_only), so this cannot start a paid
+    or network step on its own.
+    """
     ptype = cmds.get(cmd)
     if ptype == "pdf" or (cmd == "markdown" and doc.lower().endswith(".md")):
-        return [cmd, doc] + rest
+        argv = [cmd, doc] + rest
+        if "--ensure" not in argv:
+            argv.append("--ensure")
+        return argv
     return [cmd] + rest                       # doctor/skill/folder/… : no doc
 
 

@@ -42,7 +42,10 @@ def _doc():
 def test_merge_adds_pages_and_places_objects(tmp_path):
     d = _doc()
     stats = merge_page_geometry(d, _lines(tmp_path))
-    assert stats == {"pages": 2, "placed": 2}
+    assert stats["pages"] == 2 and stats["placed"] == 2
+    # `regions` was added when the merge started keeping the matched lines'
+    # boxes; assert the fields that matter, not the exact dict shape.
+    assert "regions" in stats
     pages = [o for o in d.objects.values() if o.type == "Page"]
     assert len(pages) == 2
     assert {p.props["page_number"] for p in pages} == {1, 2}
