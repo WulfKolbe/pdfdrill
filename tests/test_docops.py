@@ -708,3 +708,22 @@ def test_table_tiddler_carries_region_coords():
     assert t.get("top_left_x") == "481" and t.get("top_left_y") == "1263"
     assert t.get("width") == "617" and t.get("height") == "211"
     assert t.get("page") == "007"                    # page carried, not '000'
+
+
+def test_formula_tiddlers_carry_the_spoken_field():
+    """A consumer reading TIDDLERS (an audit chat, a screen reader) must find
+    the speech next to the formula it describes, without opening the model."""
+    import json as _json
+    from docmodel.core import Document, DocObject
+    from docops.base import OperatorConfig
+    from docops.projectors.tiddlywiki import TiddlyWikiProjector
+    d = Document(); d.meta["bibkey"] = "K"
+    d.add(DocObject(type="Formula", props={
+        "latex": "f(x)", "spoken": "f of x", "flow_index": 1}))
+    d.add(DocObject(type="Equation", props={
+        "latex": "E=mc^2", "spoken": "E equals m c squared", "flow_index": 2}))
+    ts = _json.loads(TiddlyWikiProjector(
+        OperatorConfig(op="projector", classname="TiddlyWikiProjector")).project(d))
+    spoken = {t["title"]: t.get("spoken") for t in ts if t.get("spoken")}
+    assert spoken.get("K_FO0001") == "f of x"
+    assert spoken.get("K_EQ0001") == "E equals m c squared"

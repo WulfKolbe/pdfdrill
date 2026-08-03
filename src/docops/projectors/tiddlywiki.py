@@ -579,6 +579,11 @@ class TiddlyWikiProjector(BaseProjector):
             # the expanded `latex` that <$latex>/KaTeX actually renders.
             if f.props.get("latex_original"):
                 t["latex_original"] = f.props["latex_original"]
+            # The SPEECH rendering belongs in the wiki next to the formula it
+            # describes — a consumer reading tiddlers (an audit, a screen
+            # reader) should not have to open the model to find it.
+            if f.props.get("spoken"):
+                t["spoken"] = f.props["spoken"]
             out.append(t)
 
         # Equations
@@ -592,6 +597,8 @@ class TiddlyWikiProjector(BaseProjector):
             t["latex"] = e.props.get("latex", "")
             if e.props.get("latex_original"):
                 t["latex_original"] = e.props["latex_original"]   # verbatim macro source
+            if e.props.get("spoken"):
+                t["spoken"] = e.props["spoken"]
             t["displayMode"] = "true"   # display equations render in display mode
             t["refnum"] = e.props.get("refnum") or ""
             # Displayed reference "(N)" for the ||FREF transclusion.
