@@ -27,7 +27,27 @@ import statistics
 from typing import Any
 
 from . import ocr_lines
+from .font_image_layers import _classify_font_family
 from .text_normalize import normalize_pua
+
+
+def font_flags(fontname: str) -> tuple[bool, bool]:
+    """(is_math, is_italic) for one font name — the two glyph classes an
+    equation is built from. `_classify_font_family` never reports both, so the
+    counts never double-count a glyph."""
+    _b, m, _bd, it = _classify_font_family(fontname or "")
+    return m, it
+
+
+def is_math_font(fontname: str) -> bool:
+    """True if `fontname` is a MATH font (CM*/AMS/OpenSymbol/MT Extra/…).
+
+    Shares the single classifier used by the font layer, so the math-font list
+    is defined in exactly one place — a second copy here would drift, and a font
+    recognised by `pdfdrill fonts` but not by the chars route (or the reverse)
+    is precisely how math goes missing without anyone noticing.
+    """
+    return _classify_font_family(fontname or "")[1]
 
 
 def _norm_pua(s: str) -> str:
@@ -102,6 +122,13 @@ def _emit_words(line: list[dict], pg, li: int, out: list[dict]) -> None:
             # font-private noise downstream — normalise the verified ones HERE,
             # the single seam where born-digital text becomes a line.
             "text": _norm_pua("".join(c["t"] for c in cur).strip()),
+            # Carry the math-font share through to the line assembler. pdfminer
+            # knows the font of every glyph, so it CAN see mathematics — dropping
+            # that here was why the born-digital route reported zero formulas on
+            # papers full of them.
+            "math_chars": sum(1 for c in cur if c["mi"][0]),
+            "italic_chars": sum(1 for c in cur if c["mi"][1]),
+            "n_chars": len(cur),
         })
 
     prev_x1 = None
@@ -124,7 +151,8 @@ def _page_words(page: dict[str, Any]) -> list[dict[str, Any]]:
     # to top-left origin (y down): top = ph - y1, bottom = ph - y0
     items = [{"x0": float(c["x0"]), "x1": float(c["x1"]),
               "top": ph - float(c["y1"]), "bottom": ph - float(c["y0"]),
-              "t": c["text"]} for c in chars]
+              "t": c["text"], "mi": font_flags(c.get("fontname") or "")}
+             for c in chars]
     heights = [i["bottom"] - i["top"] for i in items if i["bottom"] > i["top"]]
     tol = (statistics.median(heights) * 0.6) if heights else 3.0
     items.sort(key=lambda i: (round(i["top"] / max(tol, 0.1)), i["x0"]))
@@ -156,14 +184,60 @@ def _page_words(page: dict[str, Any]) -> list[dict[str, Any]]:
     return [w for w in words if w["text"]]
 
 
+# A line is display math when this share of its glyphs comes from a math font.
+# High on purpose: a sentence carrying one ™, bullet or stray Greek from a
+# symbol font must stay prose. A real equation is nearly all math glyphs.
+# An equation line is built from two glyph classes, and WHICH one dominates
+# depends on the producer:
+#   TeX        - variables AND operators are math fonts (CMMI/CMSY) -> math share
+#                alone is already ~1.0
+#   OpenOffice - operators are OpenSymbol but variables are Times-*Italic*, so the
+#                math share of a real equation is only ~0.4 and a math-only
+#                threshold silently classifies every formula as prose.
+# Measured on 1012.3259 (OpenOffice Writer): "At=An*e*sin2pi*fn*tpn" is 40% math
+# + 40% italic. So the test is math+italic share, gated on at least two actual
+# math glyphs -- an italic phrase in running prose carries none and is unaffected.
+_MATH_LINE_SHARE = 0.6
+_MATH_LINE_MIN = 2          # a single lone symbol is never an equation
+
+
+def _type_math_lines(lines_json: dict[str, Any]) -> int:
+    """Retype math-font-dominated lines from `text` to `math` (in place).
+
+    Returns how many lines were retyped. This is the seam where the born-digital
+    route stops discarding what pdfminer already told it: EquationProcessor and
+    FormulaProcessor key on the line TYPE, so a correctly-read equation left
+    labelled `text` produces no math object at all.
+    """
+    n = 0
+    for page in lines_json.get("pages", []):
+        for line in page.get("lines", []):
+            if line.get("type") != "text":
+                continue
+            tot = line.pop("n_chars", 0) or 0
+            mth = line.pop("math_chars", 0) or 0
+            ita = line.pop("italic_chars", 0) or 0
+            if (tot and mth >= _MATH_LINE_MIN
+                    and (mth + ita) / tot >= _MATH_LINE_SHARE):
+                line["type"] = "math"
+                n += 1
+    return n
+
+
 def chars_to_lines_json(data: dict[str, Any]) -> dict[str, Any]:
     """Born-digital char dump → MathPix-compatible lines.json dict. The dump's own
-    `source` label is preserved (pdfminer-chars / pdfplumber-chars)."""
+    `source` label is preserved (pdfminer-chars / pdfplumber-chars).
+
+    Math-font-dominated lines are typed `math` (see `_type_math_lines`) so the
+    docmodel's equation/formula processors can build real objects from them.
+    """
     words: list[dict] = []
     dims: dict[int, tuple[float, float]] = {}
     for page in data.get("pages", []):
         pg = page.get("page_number")
         dims[pg] = (float(page.get("width") or 0), float(page.get("height") or 0))
         words.extend(_page_words(page))
-    return ocr_lines.lines_json_from_words(
+    out = ocr_lines.lines_json_from_words(
         words, dims, source=data.get("source", "pdfplumber-chars"))
+    out["math_lines_typed"] = _type_math_lines(out)
+    return out

@@ -10281,6 +10281,52 @@ def _format_environments(env: dict) -> list[str]:
     return lines
 
 
+def _format_math_capture(n_formula: int, n_equation: int, source: str,
+                         math_bearing: bool, reason: str) -> list[str]:
+    """The math-capture line for `status` (pure).
+
+    Recomputed on every READ from the model's own object counts — deliberately
+    NOT from the NEEDS_VISION_OCR fact. That fact is only ever written while
+    `model` runs, so a model built before the gate existed (or by a route that
+    skips it) reports a clean status with every formula missing, forever. An
+    auditor reading the artifact cannot tell the difference between "this paper
+    has no math" and "we lost all of it" — the silent-partial-success shape.
+
+    Silent when the document is not math-bearing: a prose paper with no math is
+    a correct result, not a finding, and noise there trains people to ignore the
+    line that matters.
+    """
+    n = n_formula + n_equation
+    if n:
+        return [f"  math: {n_formula} formula(s), {n_equation} equation(s) captured"]
+    if not math_bearing:
+        return []
+    why = f" ({reason})" if reason else ""
+    keyless = _is_keyless_textonly_source(source)
+    how = ("that route reads the text layer / glyphs, so it cannot type math "
+           "at all" if keyless else f"the {source} route returned none")
+    return [f"  math: NO math captured, but this document IS math-bearing{why}"
+            f" — {how}.",
+            "        recover: `pdfdrill injectlatex` (arXiv LaTeX, free) / "
+            "`pdfdrill visionocr` (keyless, delegated) / `pdfdrill mathpix --force`"]
+
+
+def _math_capture_status(sc: "Sidecar", pdf: Path, g) -> list[str]:
+    """Live math-capture check for `status` — counts off the loaded graph."""
+    try:
+        from . import mathqc
+        bearing, reason = mathqc.is_math_bearing(pdf, sc)
+    except Exception:                                          # noqa: BLE001
+        return []
+    try:
+        n_fo = len(list(g.of_type("Formula")))
+        n_eq = len(list(g.of_type("Equation")))
+    except Exception:                                          # noqa: BLE001
+        return []
+    return _format_math_capture(n_fo, n_eq, _lines_json_source(_lines_json_path(pdf)),
+                                bearing, reason)
+
+
 def _model_status_lines(sc: "Sidecar") -> list[str]:
     """Bibliography + LaTeX-environment status — one DocGraph load (no rebuild)."""
     model_path = _model_path(sc)
@@ -10301,6 +10347,7 @@ def _model_status_lines(sc: "Sidecar") -> list[str]:
         lines += _format_bibliography_state(
             [r.props for r in g.of_type("Reference")], cites)
     lines += _format_environments(g.meta.get("environments") or {})
+    lines += _math_capture_status(sc, sc.pdf_path, g)
     return lines
 
 

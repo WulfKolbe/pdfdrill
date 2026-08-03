@@ -231,6 +231,14 @@ def _group_lines(words: list[dict]) -> list[dict]:
             "y1": max(w["y1"] for w in ws),
             "text": " ".join(w["text"] for w in ws),
         })
+        # Per-glyph font counts, when the caller supplied them (the born-digital
+        # chars route does; tesseract has no font layer and does not). Added ONLY
+        # when present, so the tesseract output stays byte-identical to its
+        # compat oracle.
+        if any("n_chars" in w for w in ws):
+            lines[-1]["n_chars"] = sum(w.get("n_chars", 0) for w in ws)
+            lines[-1]["math_chars"] = sum(w.get("math_chars", 0) for w in ws)
+            lines[-1]["italic_chars"] = sum(w.get("italic_chars", 0) for w in ws)
     return lines
 
 
@@ -263,6 +271,10 @@ def lines_json_from_words(
                 "height": round(y1 - y0, 2),
             },
         })
+        if "n_chars" in ln:                 # chars route only; popped downstream
+            by_page[pg][-1]["n_chars"] = ln["n_chars"]
+            by_page[pg][-1]["math_chars"] = ln["math_chars"]
+            by_page[pg][-1]["italic_chars"] = ln["italic_chars"]
 
     try:  # optional pdfdrill-side margin tagging; absent standalone
         from semantic.geometry_columns import tag_out_of_column

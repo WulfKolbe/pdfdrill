@@ -41,6 +41,14 @@ from typing import Any
 _MATH_FONT_HINTS = (
     "math", "msbm", "msam", "eufm", "cmsy", "cmmi", "cmex", "mtextra", "mt-extra",
     "mt2mi", "mt2sy", "newpxmi", "pxsy", "stixmath", "rsfs", "mathpi",
+    # OpenSymbol is the OpenOffice/LibreOffice *Math* font — the OOo analogue of
+    # CMSY/CMEX, carrying ∑ ∫ ⋅ − and the stretchy delimiters. It is specific to
+    # formula content (unlike the bare Adobe "Symbol" font excluded above, which
+    # a text document loads for ™ and stray Greek), so it is a reliable signal.
+    # Without it every OpenOffice-authored math paper reads as prose: the
+    # math-bearing gate never fires and a build that captured 0 formulas is
+    # reported as a clean success.
+    "opensymbol",
 )
 
 
