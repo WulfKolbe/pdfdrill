@@ -572,6 +572,55 @@ const PORT7 = 8805;
   }
 }
 
+
+/* ── doc-relative artifact inside a SUBFOLDER of a root ──────────────────────
+ * pdfdrill reports most artifacts relative to the DOCUMENT's own directory
+ * ("confidence3.pdf.drill/confidence3.md"), and documents often live in a
+ * subfolder of a served root (~/Downloads/Pistoia2005/…). Resolving against the
+ * root gives ~/Downloads/confidence3.pdf.drill/… — absent — so /artifact 404'd
+ * and the browser SAVED the 404 body as the file. The one-level-deep search
+ * existed but was limited to BARE basenames, so any path with a slash failed.
+ *
+ * The bridge is launched with a doc in the ROOT here, so the subfolder is NOT
+ * registered as a doc dir — only the deep search can find it.
+ */
+{
+  const PORT8 = 10898;
+  const os8 = await import("node:os");
+  const root8 = await import("node:fs/promises")
+    .then(f => f.mkdtemp(join(os8.tmpdir(), "subfolder-")));
+  const launch = join(root8, "launch.pdf");
+  writeFileSync(launch, "%PDF-1.4\n");
+  const sub = join(root8, "Pistoia2005");
+  mkdirSync(join(sub, "confidence3.pdf.drill"), { recursive: true });
+  writeFileSync(join(sub, "confidence3.pdf"), "%PDF-1.4\n");
+  writeFileSync(join(sub, "confidence3.pdf.drill", "confidence3.md"),
+                "# the real markdown\n");
+
+  const proc8 = Bun.spawn({
+    cmd: ["bun", BRIDGE, launch, "--port", String(PORT8), "--no-open"],
+    stdout: "pipe", stderr: "pipe",
+  });
+  await Bun.sleep(1200);
+  const base8 = `http://127.0.0.1:${PORT8}`;
+  try {
+    const rel = "confidence3.pdf.drill/confidence3.md";
+    const r = await fetch(base8 + "/artifact?path=" + encodeURIComponent(rel));
+    ok("doc-relative path inside a subfolder is served", r.ok, `HTTP ${r.status}`);
+    if (r.ok) {
+      const body = await r.text();
+      ok("…and the body is the FILE, not a 404 message",
+         body.includes("the real markdown"), body.slice(0, 40));
+    }
+    const esc = await fetch(base8 + "/artifact?path=" +
+                            encodeURIComponent("../../../etc/passwd"));
+    ok("…and traversal is still refused", esc.status === 403, `HTTP ${esc.status}`);
+  } finally {
+    proc8.kill();
+    rmSync(root8, { recursive: true, force: true });
+  }
+}
+
 console.log(fails ? `\n${fails} FAILURE(S)` : "\nAll bridge checks passed.");
 
 

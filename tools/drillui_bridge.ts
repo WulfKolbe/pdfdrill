@@ -241,9 +241,14 @@ function registerDocDir(rawPath: string): void {
   if (/^https?:\/\//i.test(p)) return;            // a URL, not a local file
   try {
     const dir = dirname(resolve(p));
-    if (dir && !ART_ROOTS.includes(dir)) {
-      ART_ROOTS.push(dir);
-      console.error(`  + serving added-doc dir: ${dir}`);
+    // …and its PARENT, for the same reason the launch document registers one:
+    // artifacts are reported relative to the library root in the self-contained
+    // layout. Without it an ADDED doc behaved differently from the launch doc.
+    for (const d of [dir, dir ? dirname(dir) : null]) {
+      if (d && d !== sep && !ART_ROOTS.includes(d)) {
+        ART_ROOTS.push(d);
+        console.error(`  + serving added-doc dir: ${d}`);
+      }
     }
   } catch { /* ignore */ }
 }
@@ -291,6 +296,27 @@ function safeResolve(p: string): string | null {
   // then legacy `.drill/`, then any other — so a bibkey-prefixed artifact resolves
   // to its own doc folder. Fixes the Markdown/report/tables links on both the
   // /artifact route and the static server, local and behind the CoCalc proxy.
+  // The SAME one-level-deep search is needed for a RELATIVE path that carries a
+  // folder. pdfdrill reports most artifacts relative to the DOCUMENT's own
+  // directory ("confidence3.pdf.drill/confidence3.md"), and a document often
+  // lives in a SUBFOLDER of a root (~/Downloads/Pistoia2005/…). Resolving
+  // against the root then yields ~/Downloads/confidence3.pdf.drill/… — absent —
+  // and /artifact 404s, so the browser saves the 404 body as the file. Only the
+  // bare-basename case was covered, so anything with a slash 404'd unless the
+  // document's own directory happened to be registered.
+  if (p.includes("/")) {
+    for (const root of ART_ROOTS) {
+      let dirs: string[];
+      try {
+        dirs = readdirSync(root, { withFileTypes: true })
+          .filter((e) => e.isDirectory()).map((e) => e.name);
+      } catch { continue; }
+      for (const name of dirs) {
+        const cand = join(root, name, p);
+        if (cand.startsWith(root + sep) && existsSync(cand)) return cand;
+      }
+    }
+  }
   if (!p.includes("/")) {
     for (const root of ART_ROOTS) {
       let dirs: string[];
