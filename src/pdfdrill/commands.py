@@ -735,6 +735,25 @@ def _write_born_digital_lines(pdf: Path) -> bool:
     # do work (MathPix / tesseract). Never silent: the reason is recorded.
     if _pdfminer_declined(pdf):
         return False
+    # STREAM when pdfminer is available: one page live instead of the whole
+    # document (see _stream_born_digital_lines). Falls back to the whole-document
+    # dumper only when streaming is unavailable — pdfplumber, or an old layer.
+    streamed = None
+    try:
+        streamed = _stream_born_digital_lines(pdf)
+    except Exception:                                # noqa: BLE001
+        streamed = None
+    if streamed is not None:
+        n_lines = sum(len(pg.get("lines") or []) for pg in streamed.get("pages", []))
+        if n_lines < 2:
+            return False                             # no real text layer → OCR
+        try:
+            from . import model_io
+            model_io._atomic_write(_lines_json_path(pdf), json.dumps(streamed))
+        except Exception:                            # noqa: BLE001
+            return False
+        return True
+
     try:
         data = _born_digital_char_dump(pdf)
     except Exception:                                # noqa: BLE001
@@ -748,6 +767,35 @@ def _write_born_digital_lines(pdf: Path) -> bool:
     except Exception:                                # noqa: BLE001
         return False
     return True
+
+
+def _stream_born_digital_lines(pdf: Path) -> "dict | None":
+    """Build the lines.json a page at a time via pdfminer, or None if it can't.
+
+    The whole-document path holds three live copies of every glyph (the record
+    list, the per-page dicts, and `chars_to_lines`' own items). Measured at
+    ~1.7 KB per glyph, a multi-thousand-page manual reaches tens of GB — the
+    batch rebuild was seen holding 54 GB. Streaming keeps one page live.
+    """
+    from . import chars_to_lines, pdfminer_layer as PM
+    if not PM.available() or not hasattr(PM, "iter_page_records"):
+        return None
+
+    def pages():
+        for pno, w, h, recs in PM.iter_page_records(str(pdf)):
+            yield {"page_number": pno, "width": float(w), "height": float(h),
+                   # top-left top/bottom -> bottom-left y0/y1 (chars_to_lines
+                   # re-flips), with the font carried and (cid:N) resolved at
+                   # this seam exactly as the whole-document dumper does.
+                   "chars": [{"x0": float(c["x0"]), "x1": float(c["x1"]),
+                              "y0": float(h) - float(c["bottom"]),
+                              "y1": float(h) - float(c["top"]),
+                              "text": _resolve_glyph(c, _glyphs, _cid),
+                              "fontname": c.get("font", "")} for c in recs]}
+
+    from . import cid_glyphs as _cid
+    _glyphs = _font_glyph_names(pdf)
+    return chars_to_lines.lines_json_streaming(pages(), source="pdfminer-chars")
 
 
 def _model_path(sc: Sidecar) -> Path:

@@ -241,3 +241,33 @@ def chars_to_lines_json(data: dict[str, Any]) -> dict[str, Any]:
         words, dims, source=data.get("source", "pdfplumber-chars"))
     out["math_lines_typed"] = _type_math_lines(out)
     return out
+
+def lines_json_streaming(page_iter, *, source: str = "pdfplumber-chars") -> dict:
+    """Char dump -> lines.json, processing ONE page at a time.
+
+    `chars_to_lines_json` needs every page's glyphs in memory at once, and the
+    caller has already materialised them all: on a 491-page book that is 2.2 GB
+    for 1.3M glyphs (~1.7 KB each), and the library holds a 6216-page manual.
+
+    Nothing here needs the whole document. Columns, words and lines are all
+    decided WITHIN a page, and `lines_json_from_words` groups by (page, block,
+    line) — so a page can be converted and its glyphs dropped before the next is
+    read. Peak memory becomes one page instead of a book.
+
+    Output is byte-identical to `chars_to_lines_json` (asserted in
+    tests/test_chars_streaming.py); this is the same computation, ordered
+    differently.
+    """
+    pages_out: list = []
+    typed = 0
+    for page in page_iter:
+        pg = page.get("page_number")
+        dims = {pg: (float(page.get("width") or 0), float(page.get("height") or 0))}
+        one = ocr_lines.lines_json_from_words(_page_words(page), dims, source=source)
+        typed += _type_math_lines(one)
+        pages_out.extend(one.get("pages") or [])
+        del page                                  # release this page's glyphs
+    # Exactly the keys `chars_to_lines_json` emits — an extra field here would
+    # make the two routes distinguishable downstream, which is the one thing a
+    # memory optimisation must not do.
+    return {"source": source, "pages": pages_out, "math_lines_typed": typed}

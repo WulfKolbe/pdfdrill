@@ -130,6 +130,90 @@ def char_records(pdf_path: str, pages=None) -> list[dict]:
     return recs
 
 
+# pdfminer RETAINS roughly 7 MB per page behind `extract_pages` — measured
+# 50 pages 384 MB, 150 -> 1129, 300 -> 2162, 491 -> 3316, i.e. linear in pages
+# PROCESSED, not in pages live. On the 6216-page manual in a real library that
+# projects to ~43 GB, which is what a batch rebuild was seen holding.
+#
+# Reopening the document every N pages drops those caches. Same 491 pages:
+# 3316 MB -> 796 MB, and now bounded by the chunk rather than the book.
+_PAGE_CHUNK = 100
+
+
+def _iter_layouts_chunked(extract_pages, pdf_path: str, chunk: int = _PAGE_CHUNK):
+    """Yield (absolute 0-based page index, layout), reopening every `chunk` pages.
+
+    The absolute index matters: `extract_pages(page_numbers=…)` restarts its own
+    enumeration at 0 for each call, so numbering pages from the chunk-local
+    index would label page 101 as page 1 — and every downstream region, line id
+    and page reference would point at the wrong page.
+    """
+    import gc
+    start = 0
+    while True:
+        got = 0
+        for local, layout in enumerate(
+                extract_pages(pdf_path, page_numbers=range(start, start + chunk))):
+            got += 1
+            yield start + local, layout
+        gc.collect()                      # release this chunk's document caches
+        if got < chunk:
+            return
+        start += chunk
+
+
+def iter_page_records(pdf_path: str):
+    """Yield (page_no, page_w, page_h, [glyph records]) ONE PAGE AT A TIME.
+
+    `char_records` returns every glyph of the document in one list: 1.3M glyphs
+    of a 491-page book measured at 2.2 GB (~1.7 KB each), and the callers then
+    copy them again. On the multi-thousand-page manuals in a real library that
+    reaches tens of GB.
+
+    `extract_pages` is already a generator, so nothing forced the whole document
+    into memory except collecting it. Yielding per page lets the caller convert
+    and release each one; peak becomes a single page.
+    """
+    if not available():
+        return
+    import gc
+    from pdfminer.high_level import extract_pages
+    from pdfminer.layout import LTChar, LTTextContainer, LTTextLine
+
+    for idx, layout in _iter_layouts_chunked(extract_pages, pdf_path):
+        page_h = layout.height
+        recs: list[dict] = []
+
+        def walk_line(line):
+            for ch in line:
+                if not isinstance(ch, LTChar):
+                    continue
+                t = ch.get_text()
+                if t == "":
+                    continue
+                font = getattr(ch, "fontname", "") or ""
+                recs.append({
+                    "page": idx + 1, "text": t, "font": font,
+                    "size": round(float(getattr(ch, "size", 0.0)), 2),
+                    "color": _color_str(getattr(ch, "graphicstate", None)),
+                    "x0": round(ch.x0, 2), "x1": round(ch.x1, 2),
+                    "top": round(page_h - ch.y1, 2),
+                    "bottom": round(page_h - ch.y0, 2),
+                    **font_style(font),
+                })
+
+        def walk(obj):
+            if isinstance(obj, LTTextLine):
+                walk_line(obj)
+            elif isinstance(obj, LTTextContainer):
+                for child in obj:
+                    walk(child)
+
+        for element in layout:
+            walk(element)
+        yield idx + 1, layout.width, page_h, recs
+
+
 # ── run grouping + emphasis ─────────────────────────────────────────────────
 _STYLE_KEYS = ("page", "font", "size", "bold", "italic", "mono", "color")
 
