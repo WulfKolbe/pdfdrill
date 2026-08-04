@@ -160,6 +160,17 @@ def _stream_multipart(out_path, options_json: str, file_path: str,
 # ---------------------------------------------------------------------------
 
 def upload_pdf(file_path: str, log: Callable[[str], None] = print) -> str:
+    # Credentials FIRST. Without them this used to log "Uploading <path>..." and
+    # then stream the whole PDF into a temporary multipart body before the POST
+    # was rejected — a full copy of every document, for a request that could
+    # never be made, while printing a line that reads like a paid upload in
+    # progress. On a keyless batch over thousands of books that is both alarming
+    # and expensive in I/O.
+    app_id, app_key = _creds()
+    if not (app_id and app_key):
+        raise RuntimeError(
+            "MathPix credentials are not set (MATHPIX_APP_ID / MATHPIX_APP_KEY) "
+            "— no upload attempted; the caller falls back to the free routes.")
     log(f"Uploading {file_path}...")
     boundary = uuid.uuid4().hex
     tf = tempfile.NamedTemporaryFile(prefix="mxupload_", suffix=".bin", delete=False)
