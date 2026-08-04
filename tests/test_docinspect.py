@@ -221,10 +221,10 @@ def test_right_click_opens_a_menu_on_every_hooked_node():
 
 def test_menu_entries_are_type_aware():
     html = _html()
-    body = html[html.index("function copyActions"):][:1400]
+    body = html[html.index("function copyActions"):][:2200]
     assert "Copy math (LaTeX)" in body and "e.latex" in body
     assert "Copy table (LaTeX)" in body and "latex_code" in body
-    assert "Copy image" in body and "cropBlob" in body
+    assert "Save image (PNG file)" in body and "cropBlob" in body
     assert "Copy text" in body
     assert "Copy rectangle" in body and "Copy ALL rectangles" in body
 
@@ -255,6 +255,75 @@ def test_image_copy_still_degrades_to_a_download_on_plain_http():
     `navigator.clipboard.write` is unavailable and an image cannot go through
     execCommand, so the crop must arrive as a file instead of failing."""
     body = _html()
-    body = body[body.index("function copyImage"):][:700]
-    assert "isSecureContext" in body and "ClipboardItem" in body
-    assert "a.download" in body and "revokeObjectURL" in body
+    ci = body[body.index("function copyImage"):][:500]
+    assert "isSecureContext" in ci and "ClipboardItem" in ci
+    # the fallback is saveBlob, which is where the download lives now
+    assert "saveBlob" in ci
+    sb = body[body.index("function saveBlob"):][:400]
+    assert "a.download" in sb and "revokeObjectURL" in sb
+
+
+def test_image_actions_only_on_real_images():
+    """Every element has a rectangle; only a picture has an IMAGE.
+
+    Offering "copy image" on a paragraph produced a crop of some prose — not an
+    image of anything — and buried the action that matters under one that never
+    does. The entry is gated on the type, not on having a box.
+    """
+    body = _html()
+    body = body[body.index("function copyActions"):][:1800]
+    assert "_IMAGEY_TYPES.has(e.type)" in body, \
+        "image entries must be gated on the type, not on having a rectangle"
+
+
+def test_a_png_file_is_offered_before_a_clipboard_bitmap():
+    """A web page CANNOT put a file on the clipboard.
+
+    The Async Clipboard API carries image/png as bitmap DATA — there is no file
+    flavour — so pasting yields pixels, never a .png. A download is the only way
+    to hand over an actual file, so it must lead; the bitmap copy is offered
+    only where the API exists at all (a secure context).
+    """
+    body = _html()
+    acts = body[body.index("function copyActions"):][:1800]
+    i_save = acts.index("Save image (PNG file)")
+    i_copy = acts.find("Copy image (bitmap)")
+    assert i_copy == -1 or i_save < i_copy, "the file action must come first"
+    assert "isSecureContext" in acts, \
+        "the bitmap entry must not be shown where the API cannot work"
+
+
+def test_saved_image_has_a_recognisable_filename():
+    """`obj_d93357848b3b.png` in a download folder is unusable."""
+    body = _html()
+    fn = body[body.index("function imageName"):][:500]
+    assert "DATA.bibkey" in fn and "e.page" in fn and "e.type" in fn
+
+
+def test_save_and_copy_are_separate_paths():
+    body = _html()
+    assert "function saveBlob" in body
+    sb = body[body.index("function saveBlob"):][:400]
+    assert "a.download" in sb and "revokeObjectURL" in sb
+
+
+def test_a_picture_leads_with_its_image_not_its_caption():
+    """Ctrl+C runs the FIRST entry, so on a figure it must copy the figure.
+
+    The caption came first, which meant pointing at a diagram and pressing
+    Ctrl+C copied the words underneath it instead of the thing being pointed at.
+    """
+    body = _html()
+    acts = body[body.index("function copyActions"):][:2400]
+    # Locate the picture branch itself rather than counting characters — an
+    # earlier `} else {` elsewhere in the function made an index comparison
+    # match the wrong block.
+    start = acts.index("_IMAGEY_TYPES.has(e.type)")
+    branch = acts[start:]
+    end = branch.index("} else {")
+    picture, prose = branch[:end], branch[end:]
+
+    assert picture.index("Save image (PNG file)") < picture.index("Copy caption"), \
+        "the image action must precede the caption for a picture"
+    assert "Copy text" not in picture, "prose must not be offered on a picture"
+    assert "Copy text" in prose, "…and must still be offered on everything else"

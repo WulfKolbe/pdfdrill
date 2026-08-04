@@ -800,18 +800,31 @@ function elementContent(e){               /* -> Promise<{kind, text|blob, name}>
   return Promise.resolve({kind: "text", text: txt});
 }
 
+function imageName(e){
+  /* <bibkey>-p<page>-<type><refnum>.png — recognisable in a download folder,
+   * unlike an opaque object id. */
+  const key = (DATA.bibkey || "doc").replace(/[^A-Za-z0-9_.-]+/g, "_");
+  const num = (e.refnum ? String(e.refnum).replace(/[^A-Za-z0-9]+/g, "") : "");
+  return key + "-p" + (e.page == null ? "x" : e.page) + "-" +
+         e.type.toLowerCase() + (num ? "-" + num : "") + ".png";
+}
+
+function saveBlob(blob, name){
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(blob);
+  a.download = name;
+  document.body.appendChild(a); a.click(); document.body.removeChild(a);
+  setTimeout(() => URL.revokeObjectURL(a.href), 5000);
+  return "saved " + name;
+}
+
 function copyImage(blob, name){
   if (window.isSecureContext && navigator.clipboard && window.ClipboardItem) {
     return navigator.clipboard
       .write([new ClipboardItem({"image/png": blob})])
       .then(() => "image copied");
   }
-  const a = document.createElement("a");            /* plain HTTP: hand over a file */
-  a.href = URL.createObjectURL(blob);
-  a.download = name;
-  document.body.appendChild(a); a.click(); document.body.removeChild(a);
-  setTimeout(() => URL.revokeObjectURL(a.href), 5000);
-  return Promise.resolve("image downloaded");
+  return saveBlob(blob, name);        /* no clipboard image off a secure context */
 }
 
 function copyElementContent(e, btn){
@@ -848,12 +861,28 @@ function copyActions(e){
     const tx = e.raw_text || e.preview || "";
     if (tx.trim()) acts.push({label: "Copy text", run: () => copyText(tx)});
   }
-  const txt = e.text || e.caption || pr.text || "";
-  if (txt.trim() && e.type !== "Table")
-    acts.push({label: "Copy text", run: () => copyText(txt)});
-  if (e.bbox || regionOf(e))
-    acts.push({label: "Copy image", run: () => cropBlob(e)
-                 .then(b => copyImage(b, (e.id || "crop") + ".png"))});
+  /* A PICTURE leads with its image. Every element has a rectangle, but only a
+   * picture has an IMAGE — and on a figure the caption came first, so Ctrl+C
+   * copied the caption instead of the thing the user was pointing at. The
+   * caption stays available, named for what it is. */
+  if (_IMAGEY_TYPES.has(e.type) && (e.bbox || regionOf(e))) {
+    const name = imageName(e);
+    /* FILE first: a web page cannot put a file on the clipboard. The Async
+     * Clipboard API carries image/png as bitmap DATA only — there is no file
+     * flavour — so pasting yields pixels, never a .png. A download is the only
+     * way to hand over an actual file, so it leads. */
+    acts.push({label: "Save image (PNG file)",
+               run: () => cropBlob(e).then(b => saveBlob(b, name))});
+    if (window.isSecureContext && navigator.clipboard && window.ClipboardItem)
+      acts.push({label: "Copy image (bitmap)",
+                 run: () => cropBlob(e).then(b => copyImage(b, name))});
+    const cap = e.caption || pr.caption || "";
+    if (cap.trim()) acts.push({label: "Copy caption", run: () => copyText(cap)});
+  } else {
+    const txt = e.text || e.caption || pr.text || "";
+    if (txt.trim() && e.type !== "Table")
+      acts.push({label: "Copy text", run: () => copyText(txt)});
+  }
   acts.push({label: "Copy rectangle", run: () => copyText(JSON.stringify(
     {id: e.id, type: e.type, page: e.page, ...(e.bbox || {})}))});
   acts.push({label: "Copy ALL rectangles", run: () =>
