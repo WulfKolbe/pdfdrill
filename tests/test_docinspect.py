@@ -327,3 +327,29 @@ def test_a_picture_leads_with_its_image_not_its_caption():
         "the image action must precede the caption for a picture"
     assert "Copy text" not in picture, "prose must not be offered on a picture"
     assert "Copy text" in prose, "…and must still be offered on everything else"
+
+
+def test_a_page_offers_its_image_not_just_coordinates():
+    """Ctrl+C on a page returned {"type":"Page","x":243,...} — coordinates for
+    something the user was pointing at as a picture. A page's content IS the
+    rendered bitmap, so it belongs with the image types."""
+    body = _html()
+    types = body[body.index("const _IMAGEY_TYPES"):][:300]
+    assert '"Page"' in types
+
+
+def test_smaller_boxes_are_painted_last_so_clicks_hit_them():
+    """A later sibling paints on top. A page-sized box appended after a figure
+    covered it and swallowed the click, which is how a click on a diagram
+    selected the Page instead."""
+    body = _html()
+    rp = body[body.index("function renderPage"):][:1200]
+    assert ".sort(" in rp and "bbox.w*b.bbox.h" in rp.replace(" ", ""), rp[:400]
+
+
+def test_button_era_helpers_are_gone():
+    """`elementContent`/`copyElementContent` served the removed buttons; leaving
+    them invites a future caller to use a code path nothing exercises."""
+    body = _html()
+    assert "function elementContent" not in body
+    assert "function copyElementContent" not in body

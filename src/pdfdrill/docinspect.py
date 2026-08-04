@@ -762,7 +762,12 @@ function cropFromPage(el0, imgEl){          // client-side figure crop from the 
  * secure context — which drillui's http://<host>:<port> is not. So on plain
  * HTTP an image DOWNLOADS instead of silently failing: you still get the file.
  */
-const _IMAGEY_TYPES = new Set(["Picture", "Diagram", "Chart", "EmbeddedImage"]);
+/* Types whose CONTENT is a picture. `Page` belongs here: its content is the
+ * rendered page bitmap, so Ctrl+C on a page should hand over that image — it
+ * previously fell through to "Copy rectangle" and returned coordinates for
+ * something the user was pointing at as a picture. */
+const _IMAGEY_TYPES = new Set(["Picture", "Diagram", "Chart", "EmbeddedImage",
+                               "Page"]);
 
 function cropBlob(e){                     /* page bitmap -> PNG blob of the bbox */
   return new Promise((resolve, reject) => {
@@ -785,20 +790,6 @@ function cropBlob(e){                     /* page bitmap -> PNG blob of the bbox
   });
 }
 
-function elementContent(e){               /* -> Promise<{kind, text|blob, name}> */
-  const pr = e.props || {};
-  if ((e.type === "Formula" || e.type === "Equation") && (e.latex || "").trim())
-    return Promise.resolve({kind: "text", text: e.latex});
-  if (e.type === "Table") {
-    const lx = (pr.latex_code || "").trim();
-    return Promise.resolve({kind: "text", text: lx || e.raw_text || e.preview || ""});
-  }
-  if (_IMAGEY_TYPES.has(e.type))
-    return cropBlob(e).then(bl => ({kind: "image", blob: bl,
-                                    name: (e.id || "crop") + ".png"}));
-  const txt = e.text || e.caption || pr.text || e.preview || "";
-  return Promise.resolve({kind: "text", text: txt});
-}
 
 function imageName(e){
   /* <bibkey>-p<page>-<type><refnum>.png — recognisable in a download folder,
@@ -827,17 +818,6 @@ function copyImage(blob, name){
   return saveBlob(blob, name);        /* no clipboard image off a secure context */
 }
 
-function copyElementContent(e, btn){
-  const original = "copy \u29C9";
-  const say = m => { btn.textContent = m;
-                     setTimeout(() => { btn.textContent = original; }, 1800); };
-  if (!e) { say("nothing selected"); return; }
-  elementContent(e).then(c => {
-    if (c.kind === "image") return copyImage(c.blob, c.name);
-    if (!c.text || !c.text.trim()) return "empty";
-    return Promise.resolve(copyToClipboard(c.text)).then(() => "copied");
-  }).then(say).catch(() => say("copy failed"));
-}
 
 
 /* ---- Copy actions: right-click and Ctrl-C, no toolbar buttons ------------ *
@@ -987,7 +967,15 @@ function renderPage(){
   const img=el('img'); img.src=g.src; stage.appendChild(img);
   const ov=el('div','overlay'); stage.appendChild(ov);
   const W=g.ptW, H=g.ptH;
-  EL.filter(e=>e.page===curPage && e.bbox).forEach(e=>{
+  /* Largest FIRST: a later sibling paints on top, so a page-sized box appended
+   * after a figure covered it and swallowed every click — selecting the Page
+   * when the user was pointing at the picture inside it. Ordering by area
+   * descending puts the smallest, most specific box on top, which is what a
+   * click should hit. */
+  EL.filter(e=>e.page===curPage && e.bbox)
+    .slice()
+    .sort((a,b)=>(b.bbox.w*b.bbox.h)-(a.bbox.w*a.bbox.h))
+    .forEach(e=>{
     const d=el('div','box'); d.dataset.cat=IMAGE_CATS.has(e.type)?'image':'text';
     const b=e.bbox;
     d.style.left=(100*b.x/W)+'%'; d.style.top=(100*b.y/H)+'%';
