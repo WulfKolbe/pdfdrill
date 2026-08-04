@@ -197,3 +197,32 @@ def test_generator_geometryless_model_still_renders():
     html = docinspect.build_inspector_html(m, pages={}, title="T")
     assert "<html" in html.lower()
     assert "f1" in html and "p1" in html               # elements still in the payload
+
+
+def test_copy_rectangles_button_and_non_secure_fallback():
+    """A "copy all rectangles" control that also works over plain HTTP.
+
+    drillui serves this page from `http://<host>:8787`, which is NOT a secure
+    context, so `navigator.clipboard` is undefined there — the whole feature
+    would be dead exactly where it is used. The execCommand fallback is the path
+    that actually runs; the async API is the bonus for https/localhost.
+    """
+    html = docinspect.build_inspector_html(_model(), pages={}, title="demo")
+
+    assert 'id="copyRects"' in html, "no copy control in the toolbar"
+    assert "execCommand" in html, \
+        "no fallback — clipboard would be dead over plain http, which is how " \
+        "drillui serves this page"
+    assert "isSecureContext" in html, "must not call the async API blindly"
+    # the payload the button copies is built from the elements' own boxes
+    assert "function rectRows" in html
+
+
+def test_every_boxed_element_is_in_the_copy_payload():
+    """The control says ALL rectangles, so it must not inherit the page filter
+    or the current selection."""
+    html = docinspect.build_inspector_html(_model(), pages={}, title="demo")
+    body = html[html.index("function rectRows"):][:600]
+    assert "DATA.elements" in body, body[:200]
+    assert "filter" in body and "bbox" in body      # only elements that HAVE a box
+    assert "pageSel" not in body, "must not be limited to the visible page"

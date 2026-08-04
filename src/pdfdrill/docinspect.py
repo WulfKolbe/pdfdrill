@@ -592,6 +592,10 @@ button{font:inherit;color:inherit;background:none;border:0;cursor:pointer}
     <button data-v="page" class="on">Page</button>
     <button data-v="reflow">Reflow</button>
   </div>
+  <button class="inspectbtn" id="copyRects"
+          title="Copy every element rectangle (all pages) as JSON">
+    <span>&#8862;</span><span>Copy rects</span>
+  </button>
   <div class="tool">Page
     <select id="pageSel"></select>
   </div>
@@ -617,6 +621,67 @@ button{font:inherit;color:inherit;background:none;border:0;cursor:pointer}
 __KATEX_SCRIPT__
 <script>
 const DATA = __DATA__;
+
+/* ---- Copy every element rectangle -------------------------------------- *
+ * ALL pages and every boxed element, independent of the page selector and of
+ * what is currently selected — the button says "all".
+ *
+ * The clipboard needs two paths. drillui serves this file from
+ * http://<host>:<port>, which is NOT a secure context, so navigator.clipboard
+ * is undefined there and the async API alone would leave the button dead
+ * exactly where it is used. execCommand('copy') on a temporary textarea still
+ * works on a plain-HTTP page, so it is the fallback, not an afterthought.
+ */
+function rectRows(){
+  return DATA.elements.filter(e => e && e.bbox).map(e => ({
+    id: e.id, type: e.type, page: e.page,
+    x: e.bbox.x, y: e.bbox.y, w: e.bbox.w, h: e.bbox.h,
+    label: e.label || ""
+  }));
+}
+
+function copyToClipboard(text){
+  if (navigator.clipboard && window.isSecureContext) {
+    return navigator.clipboard.writeText(text).catch(() => legacyCopy(text));
+  }
+  return Promise.resolve(legacyCopy(text) ? undefined : Promise.reject());
+}
+
+function legacyCopy(text){
+  const ta = document.createElement("textarea");
+  ta.value = text;
+  ta.setAttribute("readonly", "");
+  ta.style.position = "fixed";
+  ta.style.top = "-1000px";
+  ta.style.opacity = "0";
+  document.body.appendChild(ta);
+  ta.select();
+  ta.setSelectionRange(0, ta.value.length);   /* iOS needs the explicit range */
+  let ok = false;
+  try { ok = document.execCommand("copy"); } catch (e) { ok = false; }
+  document.body.removeChild(ta);
+  return ok;
+}
+
+(function(){
+  const btn = document.getElementById("copyRects");
+  if (!btn) return;
+  const label = btn.lastElementChild;
+  const original = label.textContent;
+  btn.addEventListener("click", function(){
+    const rows = rectRows();
+    const say = (msg) => {
+      label.textContent = msg;
+      setTimeout(() => { label.textContent = original; }, 1800);
+    };
+    if (!rows.length) { say("no rects"); return; }
+    const text = JSON.stringify(rows, null, 1);
+    Promise.resolve(copyToClipboard(text))
+      .then(() => say(rows.length + " copied"))
+      .catch(() => say("copy failed"));
+  });
+})();
+
 const IMG = {}; DATA.pages && Object.entries(DATA.pages).forEach(([k,v])=>IMG[k]=v);
 const PMETA = {}; DATA.pages_meta.forEach(p=>PMETA[p.page]=p);
 const EL = DATA.elements;
