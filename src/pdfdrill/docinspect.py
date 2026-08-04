@@ -535,6 +535,14 @@ button{font:inherit;color:inherit;background:none;border:0;cursor:pointer}
 .filterbar input{width:100%;background:var(--panel2);border:1px solid var(--line);
   border-radius:6px;color:var(--ink);padding:5px 8px;font:12px var(--mono)}
 .node{user-select:none}
+.ctxmenu{position:fixed;z-index:9999;min-width:190px;padding:4px;border-radius:8px;
+  background:var(--panel);border:1px solid var(--line);box-shadow:0 8px 24px #0008;font-size:12px}
+.ctxmenu button{display:block;width:100%;text-align:left;padding:6px 10px;border:0;border-radius:5px;
+  background:none;color:var(--fg);cursor:pointer;font:inherit}
+.ctxmenu button:hover{background:var(--panel2)}
+.ctxmenu .sep{height:1px;margin:4px 2px;background:var(--line)}
+.ctxmenu .hint{padding:3px 10px 5px;color:var(--dim);font-size:11px}
+
 .row{display:flex;align-items:center;gap:6px;padding:2px 10px 2px 0;cursor:pointer;
   white-space:nowrap;overflow:hidden}
 .row:hover{background:var(--panel2)}
@@ -592,10 +600,6 @@ button{font:inherit;color:inherit;background:none;border:0;cursor:pointer}
     <button data-v="page" class="on">Page</button>
     <button data-v="reflow">Reflow</button>
   </div>
-  <button class="inspectbtn" id="copyRects"
-          title="Copy every element rectangle (all pages) as JSON">
-    <span>&#8862;</span><span>Copy rects</span>
-  </button>
   <div class="tool">Page
     <select id="pageSel"></select>
   </div>
@@ -611,8 +615,6 @@ button{font:inherit;color:inherit;background:none;border:0;cursor:pointer}
     <div class="inspector">
       <div class="insphead"><span class="badge" id="ihBadge">—</span>
         <span class="t" id="ihTitle">Inspector</span>
-        <button class="jump" id="copyContent" style="display:none"
-                title="Copy this element's CONTENT: LaTeX for math, text for prose, the image for a figure">copy ⧉</button>
         <button class="jump" id="jumpBtn" style="display:none">reveal ▸</button>
       </div>
       <div class="inspbody" id="inspBody"><div class="empty">Select an element to inspect it.</div></div>
@@ -665,24 +667,7 @@ function legacyCopy(text){
   return ok;
 }
 
-(function(){
-  const btn = document.getElementById("copyRects");
-  if (!btn) return;
-  const label = btn.lastElementChild;
-  const original = label.textContent;
-  btn.addEventListener("click", function(){
-    const rows = rectRows();
-    const say = (msg) => {
-      label.textContent = msg;
-      setTimeout(() => { label.textContent = original; }, 1800);
-    };
-    if (!rows.length) { say("no rects"); return; }
-    const text = JSON.stringify(rows, null, 1);
-    Promise.resolve(copyToClipboard(text))
-      .then(() => say(rows.length + " copied"))
-      .catch(() => say("copy failed"));
-  });
-})();
+
 
 const IMG = {}; DATA.pages && Object.entries(DATA.pages).forEach(([k,v])=>IMG[k]=v);
 const PMETA = {}; DATA.pages_meta.forEach(p=>PMETA[p.page]=p);
@@ -724,6 +709,8 @@ function attachHooks(node, e){
   node.addEventListener('mouseenter',()=>emit('hover',e.id,true));
   node.addEventListener('mouseleave',()=>emit('hover',e.id,false));
   node.addEventListener('click',ev=>{ev.stopPropagation();emit('select',e.id);});
+  node.addEventListener('contextmenu',ev=>{ ev.preventDefault(); ev.stopPropagation();
+    emit('select',e.id); openMenu(e, ev.clientX, ev.clientY); });
   (NODES[e.id]=NODES[e.id]||[]).push(node);
   if(e.id===selId) node.classList.add('sel');
   return node;
@@ -838,6 +825,88 @@ function copyElementContent(e, btn){
     return Promise.resolve(copyToClipboard(c.text)).then(() => "copied");
   }).then(say).catch(() => say("copy failed"));
 }
+
+
+/* ---- Copy actions: right-click and Ctrl-C, no toolbar buttons ------------ *
+ * Native habits rather than chrome: right-click an element (on the page or in
+ * the tree) for the copies that make sense for ITS type, and Ctrl-C copies the
+ * selected element's primary content. The first menu entry IS what Ctrl-C does,
+ * so the two never disagree.
+ *
+ * Ctrl-C yields to a real text selection: if the user has highlighted prose,
+ * copying that is what they meant, and hijacking it would break the browser
+ * behaviour this is meant to match.
+ */
+function copyActions(e){
+  const pr = e.props || {};
+  const acts = [];
+  if ((e.type === "Formula" || e.type === "Equation") && (e.latex || "").trim())
+    acts.push({label: "Copy math (LaTeX)", run: () => copyText(e.latex)});
+  if (e.type === "Table") {
+    const lx = (pr.latex_code || "").trim();
+    if (lx) acts.push({label: "Copy table (LaTeX)", run: () => copyText(lx)});
+    const tx = e.raw_text || e.preview || "";
+    if (tx.trim()) acts.push({label: "Copy text", run: () => copyText(tx)});
+  }
+  const txt = e.text || e.caption || pr.text || "";
+  if (txt.trim() && e.type !== "Table")
+    acts.push({label: "Copy text", run: () => copyText(txt)});
+  if (e.bbox || regionOf(e))
+    acts.push({label: "Copy image", run: () => cropBlob(e)
+                 .then(b => copyImage(b, (e.id || "crop") + ".png"))});
+  acts.push({label: "Copy rectangle", run: () => copyText(JSON.stringify(
+    {id: e.id, type: e.type, page: e.page, ...(e.bbox || {})}))});
+  acts.push({label: "Copy ALL rectangles", run: () =>
+    copyText(JSON.stringify(rectRows(), null, 1))});
+  return acts;
+}
+
+function copyText(t){ return Promise.resolve(copyToClipboard(t)).then(() => "copied"); }
+
+let _menu = null;
+function closeMenu(){ if (_menu) { _menu.remove(); _menu = null; } }
+
+function openMenu(e, x, y){
+  closeMenu();
+  const acts = copyActions(e);
+  const m = document.createElement("div");
+  m.className = "ctxmenu";
+  const hint = document.createElement("div");
+  hint.className = "hint";
+  hint.textContent = e.type + " · Ctrl+C = " + acts[0].label.replace("Copy ", "");
+  m.appendChild(hint);
+  acts.forEach((a, i) => {
+    if (i === acts.length - 2) {
+      const sep = document.createElement("div"); sep.className = "sep"; m.appendChild(sep);
+    }
+    const b = document.createElement("button");
+    b.textContent = a.label;
+    b.onclick = () => { closeMenu(); Promise.resolve(a.run()).catch(() => {}); };
+    m.appendChild(b);
+  });
+  document.body.appendChild(m);
+  /* keep it on screen */
+  const r = m.getBoundingClientRect();
+  m.style.left = Math.min(x, window.innerWidth - r.width - 6) + "px";
+  m.style.top = Math.min(y, window.innerHeight - r.height - 6) + "px";
+  _menu = m;
+}
+
+document.addEventListener("click", closeMenu);
+document.addEventListener("scroll", closeMenu, true);
+window.addEventListener("blur", closeMenu);
+document.addEventListener("keydown", ev => {
+  if (ev.key === "Escape") { closeMenu(); return; }
+  const isCopy = (ev.ctrlKey || ev.metaKey) && (ev.key === "c" || ev.key === "C");
+  if (!isCopy) return;
+  const sel = window.getSelection && window.getSelection().toString();
+  if (sel && sel.trim()) return;          /* a real text selection wins */
+  const e = selId ? byId[selId] : null;
+  if (!e) return;
+  ev.preventDefault();
+  const acts = copyActions(e);
+  if (acts.length) Promise.resolve(acts[0].run()).catch(() => {});
+});
 
 function regionOf(e){ const r=(e.props||{}).region; if(!r)return null;
   return {x:+r.top_left_x,y:+r.top_left_y,w:+r.width,h:+r.height}; }
@@ -1026,8 +1095,6 @@ window.docinspect = {
 function renderInspector(e){
   const badge=document.getElementById('ihBadge'); badge.textContent=e.type; badge.className='badge b-'+e.type;
   document.getElementById('ihTitle').textContent=e.label||e.type;
-  const cb=document.getElementById('copyContent');
-  if(cb){ cb.style.display=''; cb.onclick=()=>copyElementContent(e, cb); }
   const jb=document.getElementById('jumpBtn'); jb.style.display='';
   jb.onclick=()=>{ if(curView!=='page') setView('page'); curPage=e.page; syncPageSel(); refreshStage(); setTimeout(()=>select(e.id),0); };
   const b=e.bbox, pm=PMETA[e.page]||{}, g=pageScale(e.page);

@@ -199,61 +199,62 @@ def test_generator_geometryless_model_still_renders():
     assert "f1" in html and "p1" in html               # elements still in the payload
 
 
-def test_copy_rectangles_button_and_non_secure_fallback():
-    """A "copy all rectangles" control that also works over plain HTTP.
-
-    drillui serves this page from `http://<host>:8787`, which is NOT a secure
-    context, so `navigator.clipboard` is undefined there — the whole feature
-    would be dead exactly where it is used. The execCommand fallback is the path
-    that actually runs; the async API is the bonus for https/localhost.
-    """
-    html = docinspect.build_inspector_html(_model(), pages={}, title="demo")
-
-    assert 'id="copyRects"' in html, "no copy control in the toolbar"
-    assert "execCommand" in html, \
-        "no fallback — clipboard would be dead over plain http, which is how " \
-        "drillui serves this page"
-    assert "isSecureContext" in html, "must not call the async API blindly"
-    # the payload the button copies is built from the elements' own boxes
-    assert "function rectRows" in html
+def _html():
+    return docinspect.build_inspector_html(_model(), pages={}, title="demo")
 
 
-def test_every_boxed_element_is_in_the_copy_payload():
-    """The control says ALL rectangles, so it must not inherit the page filter
-    or the current selection."""
-    html = docinspect.build_inspector_html(_model(), pages={}, title="demo")
-    body = html[html.index("function rectRows"):][:600]
-    assert "DATA.elements" in body, body[:200]
-    assert "filter" in body and "bbox" in body      # only elements that HAVE a box
-    assert "pageSel" not in body, "must not be limited to the visible page"
+def test_no_copy_buttons_in_the_chrome():
+    """Copying is a native habit — right-click and Ctrl+C — not extra buttons."""
+    html = _html()
+    assert 'id="copyRects"' not in html
+    assert 'id="copyContent"' not in html
 
 
-def test_copy_content_is_type_aware():
-    """The rectangle is rarely what you want — the thing inside it is, and what
-    that IS depends on the type. Math must yield LaTeX, a figure the image, a
-    table its source, prose its text."""
-    html = docinspect.build_inspector_html(_model(), pages={}, title="demo")
-    assert 'id="copyContent"' in html
-    body = html[html.index("function elementContent"):][:900]
-    assert "e.latex" in body, "math must copy as LaTeX"
-    assert "latex_code" in body and "raw_text" in body, "table source before cell text"
-    assert "cropBlob" in body, "a figure must copy as the image"
-    assert "e.text" in body, "prose must copy as text"
+def test_right_click_opens_a_menu_on_every_hooked_node():
+    """`attachHooks` is where a page box and a tree row both get their handlers,
+    so hooking there means the menu works from either place."""
+    html = _html()
+    hooks = html[html.index("function attachHooks"):][:600]
+    assert "contextmenu" in hooks and "openMenu(e" in hooks
+    assert "preventDefault" in hooks, "the browser menu must be suppressed"
 
 
-def test_image_copy_degrades_to_a_download_on_plain_http():
-    """`navigator.clipboard.write` needs a secure context, which drillui's
-    http://<host>:<port> is not, and an image cannot go through execCommand. So
-    the fallback hands over the FILE rather than failing silently."""
-    html = docinspect.build_inspector_html(_model(), pages={}, title="demo")
-    body = html[html.index("function copyImage"):][:700]
+def test_menu_entries_are_type_aware():
+    html = _html()
+    body = html[html.index("function copyActions"):][:1400]
+    assert "Copy math (LaTeX)" in body and "e.latex" in body
+    assert "Copy table (LaTeX)" in body and "latex_code" in body
+    assert "Copy image" in body and "cropBlob" in body
+    assert "Copy text" in body
+    assert "Copy rectangle" in body and "Copy ALL rectangles" in body
+
+
+def test_ctrl_c_copies_the_selected_element():
+    html = _html()
+    body = html[html.index('document.addEventListener("keydown"'):][:900]
+    assert "ctrlKey" in body and "metaKey" in body
+    assert "selId" in body and "byId" in body
+    assert "acts[0]" in body, "Ctrl+C must run the SAME action the menu lists first"
+
+
+def test_ctrl_c_yields_to_a_real_text_selection():
+    """Hijacking Ctrl+C while prose is highlighted would break exactly the
+    browser behaviour this is meant to match."""
+    body = _html()
+    body = body[body.index('document.addEventListener("keydown"'):][:900]
+    assert "getSelection" in body
+    # the guard must BAIL OUT (return) right after reading the selection —
+    # `split("getSelection")[1]` would only span the 11 characters between the
+    # two occurrences of the name, which is why it must be sliced by index.
+    after = body[body.rindex("getSelection"):][:160]
+    assert "return;" in after, after
+
+
+def test_image_copy_still_degrades_to_a_download_on_plain_http():
+    """drillui serves over http://<host>:<port>, which is not a secure context:
+    `navigator.clipboard.write` is unavailable and an image cannot go through
+    execCommand, so the crop must arrive as a file instead of failing."""
+    body = _html()
+    body = body[body.index("function copyImage"):][:700]
     assert "isSecureContext" in body and "ClipboardItem" in body
-    assert "a.download" in body, "no download fallback — dead over plain http"
-    assert "revokeObjectURL" in body, "object URL leaked"
-
-
-def test_copy_button_is_bound_to_the_rendered_element():
-    """No hidden global selection state: the inspector passes the element it is
-    rendering, so the button cannot act on a stale one."""
-    html = docinspect.build_inspector_html(_model(), pages={}, title="demo")
-    assert "copyElementContent(e, cb)" in html
+    assert "a.download" in body and "revokeObjectURL" in body
