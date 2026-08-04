@@ -226,3 +226,34 @@ def test_every_boxed_element_is_in_the_copy_payload():
     assert "DATA.elements" in body, body[:200]
     assert "filter" in body and "bbox" in body      # only elements that HAVE a box
     assert "pageSel" not in body, "must not be limited to the visible page"
+
+
+def test_copy_content_is_type_aware():
+    """The rectangle is rarely what you want — the thing inside it is, and what
+    that IS depends on the type. Math must yield LaTeX, a figure the image, a
+    table its source, prose its text."""
+    html = docinspect.build_inspector_html(_model(), pages={}, title="demo")
+    assert 'id="copyContent"' in html
+    body = html[html.index("function elementContent"):][:900]
+    assert "e.latex" in body, "math must copy as LaTeX"
+    assert "latex_code" in body and "raw_text" in body, "table source before cell text"
+    assert "cropBlob" in body, "a figure must copy as the image"
+    assert "e.text" in body, "prose must copy as text"
+
+
+def test_image_copy_degrades_to_a_download_on_plain_http():
+    """`navigator.clipboard.write` needs a secure context, which drillui's
+    http://<host>:<port> is not, and an image cannot go through execCommand. So
+    the fallback hands over the FILE rather than failing silently."""
+    html = docinspect.build_inspector_html(_model(), pages={}, title="demo")
+    body = html[html.index("function copyImage"):][:700]
+    assert "isSecureContext" in body and "ClipboardItem" in body
+    assert "a.download" in body, "no download fallback — dead over plain http"
+    assert "revokeObjectURL" in body, "object URL leaked"
+
+
+def test_copy_button_is_bound_to_the_rendered_element():
+    """No hidden global selection state: the inspector passes the element it is
+    rendering, so the button cannot act on a stale one."""
+    html = docinspect.build_inspector_html(_model(), pages={}, title="demo")
+    assert "copyElementContent(e, cb)" in html

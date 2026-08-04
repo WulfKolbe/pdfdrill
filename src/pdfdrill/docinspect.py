@@ -611,6 +611,8 @@ button{font:inherit;color:inherit;background:none;border:0;cursor:pointer}
     <div class="inspector">
       <div class="insphead"><span class="badge" id="ihBadge">—</span>
         <span class="t" id="ihTitle">Inspector</span>
+        <button class="jump" id="copyContent" style="display:none"
+                title="Copy this element's CONTENT: LaTeX for math, text for prose, the image for a figure">copy ⧉</button>
         <button class="jump" id="jumpBtn" style="display:none">reveal ▸</button>
       </div>
       <div class="inspbody" id="inspBody"><div class="empty">Select an element to inspect it.</div></div>
@@ -759,6 +761,84 @@ function cropFromPage(el0, imgEl){          // client-side figure crop from the 
     imgEl.src=c.toDataURL('image/png'); };
   im.src=g.src;
 }
+
+/* ---- Copy the CONTENT of the selected element -------------------------- *
+ * The rectangle is rarely what you want; the thing inside it is. What "the
+ * thing" IS depends on the type, so the button resolves it rather than making
+ * the reader translate:
+ *     Formula / Equation  -> its LaTeX
+ *     Table               -> the LaTeX source if we have it, else the cell text
+ *     Picture / Diagram   -> the IMAGE, cropped from the page bitmap
+ *     everything else     -> its text (or caption)
+ *
+ * Images cannot go through execCommand, and `navigator.clipboard.write` needs a
+ * secure context — which drillui's http://<host>:<port> is not. So on plain
+ * HTTP an image DOWNLOADS instead of silently failing: you still get the file.
+ */
+const _IMAGEY_TYPES = new Set(["Picture", "Diagram", "Chart", "EmbeddedImage"]);
+
+function cropBlob(e){                     /* page bitmap -> PNG blob of the bbox */
+  return new Promise((resolve, reject) => {
+    const g = pageScale(e.page);
+    const b = e.bbox || regionOf(e);
+    if (!g.src || !b) { reject(new Error("no page image")); return; }
+    const im = new Image();
+    im.onerror = () => reject(new Error("page image failed to load"));
+    im.onload = () => {
+      const sx = im.naturalWidth / g.ptW, sy = im.naturalHeight / g.ptH;
+      const c = document.createElement("canvas");
+      c.width = Math.max(1, Math.round(b.w * sx));
+      c.height = Math.max(1, Math.round(b.h * sy));
+      c.getContext("2d").drawImage(im, b.x * sx, b.y * sy, b.w * sx, b.h * sy,
+                                   0, 0, c.width, c.height);
+      c.toBlob(bl => bl ? resolve(bl) : reject(new Error("canvas encode failed")),
+               "image/png");
+    };
+    im.src = g.src;
+  });
+}
+
+function elementContent(e){               /* -> Promise<{kind, text|blob, name}> */
+  const pr = e.props || {};
+  if ((e.type === "Formula" || e.type === "Equation") && (e.latex || "").trim())
+    return Promise.resolve({kind: "text", text: e.latex});
+  if (e.type === "Table") {
+    const lx = (pr.latex_code || "").trim();
+    return Promise.resolve({kind: "text", text: lx || e.raw_text || e.preview || ""});
+  }
+  if (_IMAGEY_TYPES.has(e.type))
+    return cropBlob(e).then(bl => ({kind: "image", blob: bl,
+                                    name: (e.id || "crop") + ".png"}));
+  const txt = e.text || e.caption || pr.text || e.preview || "";
+  return Promise.resolve({kind: "text", text: txt});
+}
+
+function copyImage(blob, name){
+  if (window.isSecureContext && navigator.clipboard && window.ClipboardItem) {
+    return navigator.clipboard
+      .write([new ClipboardItem({"image/png": blob})])
+      .then(() => "image copied");
+  }
+  const a = document.createElement("a");            /* plain HTTP: hand over a file */
+  a.href = URL.createObjectURL(blob);
+  a.download = name;
+  document.body.appendChild(a); a.click(); document.body.removeChild(a);
+  setTimeout(() => URL.revokeObjectURL(a.href), 5000);
+  return Promise.resolve("image downloaded");
+}
+
+function copyElementContent(e, btn){
+  const original = "copy \u29C9";
+  const say = m => { btn.textContent = m;
+                     setTimeout(() => { btn.textContent = original; }, 1800); };
+  if (!e) { say("nothing selected"); return; }
+  elementContent(e).then(c => {
+    if (c.kind === "image") return copyImage(c.blob, c.name);
+    if (!c.text || !c.text.trim()) return "empty";
+    return Promise.resolve(copyToClipboard(c.text)).then(() => "copied");
+  }).then(say).catch(() => say("copy failed"));
+}
+
 function regionOf(e){ const r=(e.props||{}).region; if(!r)return null;
   return {x:+r.top_left_x,y:+r.top_left_y,w:+r.width,h:+r.height}; }
 
@@ -946,6 +1026,8 @@ window.docinspect = {
 function renderInspector(e){
   const badge=document.getElementById('ihBadge'); badge.textContent=e.type; badge.className='badge b-'+e.type;
   document.getElementById('ihTitle').textContent=e.label||e.type;
+  const cb=document.getElementById('copyContent');
+  if(cb){ cb.style.display=''; cb.onclick=()=>copyElementContent(e, cb); }
   const jb=document.getElementById('jumpBtn'); jb.style.display='';
   jb.onclick=()=>{ if(curView!=='page') setView('page'); curPage=e.page; syncPageSel(); refreshStage(); setTimeout(()=>select(e.id),0); };
   const b=e.bbox, pm=PMETA[e.page]||{}, g=pageScale(e.page);
