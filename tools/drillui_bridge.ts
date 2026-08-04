@@ -209,8 +209,15 @@ const CONFIG_DIRS = (() => {
   if (existsSync(dl)) dirs.push(dl);
   return dirs;
 })();
+// The doc's PARENT too — the library root. In the self-contained layout a
+// document lives at <library>/<stem>/<stem>.pdf and pdfdrill reports artifact
+// paths relative to that ROOT ("2209.00445v3/2209.00445v3.inspect.html"), not to
+// the document's own folder. With only DOC_DIR registered that resolves to
+// <library>/<stem>/<stem>/… — which does not exist, so /artifact 404s and the
+// browser SAVES the 404 body as the file ("file not found" inside the .html).
+const DOC_PARENT = DOC_DIR ? dirname(DOC_DIR) : null;
 const ART_ROOTS = [...new Set(
-  [ART_ROOT, DOC_DIR, ...CONFIG_DIRS].filter(Boolean) as string[])];
+  [ART_ROOT, DOC_DIR, DOC_PARENT, ...CONFIG_DIRS].filter(Boolean) as string[])];
 
 // `add <doc>` can bring in a doc from ANY directory (e.g. ~/Scans/x.pdf). Its
 // PDF + `.drill` artifacts then live outside cwd / the launch-doc dir / the

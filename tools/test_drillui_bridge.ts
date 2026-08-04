@@ -65,6 +65,7 @@ if (up) {
   const bad = await fetch(base + "/artifact?path=" + encodeURIComponent("../../etc/passwd"));
   ok("GET /artifact refuses path traversal", bad.status === 403);
 
+
   // 2b) DOC-RELATIVE artifact: pdfdrill prints paths relative to the DOC's
   //     folder (e.g. "1906.02691.pdf.drill/model.docmodel.json" for a doc in
   //     data/), not the bridge cwd. This must still resolve (the report-404 bug).
@@ -525,7 +526,54 @@ const PORT7 = 8805;
   try { p9.kill(); } catch {}
 }
 
+/* ── library-root-relative artifact paths ────────────────────────────────────
+ * In the self-contained layout a document lives at <library>/<stem>/<stem>.pdf
+ * and pdfdrill reports its artifacts relative to that ROOT
+ * ("2209.00445v3/2209.00445v3.inspect.html"), not to the document's own folder.
+ * With only the document's directory registered, that resolved to
+ * <library>/<stem>/<stem>/… — which does not exist — so /artifact 404'd and the
+ * browser SAVED THE 404 BODY as the file: an .inspect.html reading "not found".
+ */
+{
+  const PORT7 = 10897;
+  const os7 = await import("node:os");
+  const lib = await import("node:fs/promises")
+    .then(f => f.mkdtemp(join(os7.tmpdir(), "libroot-")));
+  const stem = "2209.00445v3";
+  mkdirSync(join(lib, stem), { recursive: true });
+  const docPath = join(lib, stem, stem + ".pdf");
+  writeFileSync(docPath, "%PDF-1.4\n%fake\n");
+  writeFileSync(join(lib, stem, stem + ".inspect.html"),
+                "<!doctype html>\n<title>inspector</title>\n");
+
+  const proc7 = Bun.spawn({
+    cmd: ["bun", BRIDGE, docPath, "--port", String(PORT7), "--no-open"],
+    stdout: "pipe", stderr: "pipe",
+  });
+  await Bun.sleep(1200);
+  const base7 = `http://127.0.0.1:${PORT7}`;
+  try {
+    const rel = `${stem}/${stem}.inspect.html`;
+    const r = await fetch(base7 + "/artifact?path=" + encodeURIComponent(rel));
+    ok("library-root-relative artifact is served", r.ok,
+       r.ok ? rel : `HTTP ${r.status}`);
+    if (r.ok) {
+      const body = await r.text();
+      ok("…and the body is the FILE, not a 404 message",
+         body.includes("<title>inspector</title>"), body.slice(0, 40));
+    }
+    const esc = await fetch(base7 + "/artifact?path=" +
+                            encodeURIComponent("../../../etc/passwd"));
+    ok("…and traversal above the library is still refused", esc.status === 403,
+       `HTTP ${esc.status}`);
+  } finally {
+    proc7.kill();
+    rmSync(lib, { recursive: true, force: true });
+  }
+}
+
 console.log(fails ? `\n${fails} FAILURE(S)` : "\nAll bridge checks passed.");
 
 
 process.exit(fails ? 1 : 0);
+
