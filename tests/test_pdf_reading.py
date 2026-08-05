@@ -199,7 +199,11 @@ def test_rasterize_uses_ghostscript_at_400_floor():
         assert cmd[0] == "/usr/bin/gs"
         assert "-r400" in cmd                                # floored
         assert "-sDEVICE=png16m" in cmd
-        assert any("page-0001.png" in str(c) for c in cmd)   # actual-page naming
+        # Actual-page naming is a guarantee about the FILES, not about the gs
+        # argv: pages are rendered in parallel SHARDS into a temp directory and
+        # moved to their true page numbers afterwards, because gs restarts its
+        # `%d` counter at 1 per invocation and parallel shards sharing one
+        # output template overwrite each other.
         assert imgs and imgs[0].name == "page-0001.png"
     finally:
         pr.shutil.which, pr.subprocess.run = owhich, orun

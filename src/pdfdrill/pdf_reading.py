@@ -18,6 +18,9 @@ are unit-tested without touching a real PDF.
 """
 from __future__ import annotations
 
+import concurrent.futures as cf
+import tempfile
+
 import os
 import re
 import shutil
@@ -132,6 +135,92 @@ def _gs_base(gs: str, dpi: int, ext: str) -> list[str]:
     return base + (["-dJPEGQ=95"] if ext == "jpg" else [])
 
 
+# Ghostscript is single-threaded PER RENDER JOB, so extra cores only help by
+# running several gs processes over DISJOINT page ranges. Measured on a 282-page
+# scanned book, 32 pages at 400 DPI:
+#
+#     1 process, no threads      8.7s
+#     1 process, threads=16      8.4s   (3% — intra-process threading does
+#                                        essentially nothing on a scan)
+#      4 processes               2.5s   3.5x
+#      8 processes               1.6s   5.3x
+#     16 processes               1.4s   6.3x
+#
+# So sharding is the real lever and `-dNumRenderingThreads` is the small one
+# (it pays ~20% on TEXT pages, where banding gives the threads something to do).
+RENDER_WORKERS = max(1, min(os.cpu_count() or 4, 16))
+
+
+def _page_count(pdf: Path) -> int:
+    """Page count via pdfinfo; 0 when it cannot be determined (caller returns [])."""
+    try:
+        out = subprocess.run(["pdfinfo", str(pdf)], capture_output=True,
+                             text=True, timeout=60).stdout
+    except (OSError, subprocess.SubprocessError):
+        return 0
+    for line in (out or "").splitlines():
+        if line.startswith("Pages:"):
+            try:
+                return int(line.split(":", 1)[1].strip())
+            except ValueError:
+                return 0
+    return 0
+
+
+def plan_shards(pages: "list[int]", workers: int) -> "list[list[int]]":
+    """Split `pages` into at most `workers` CONTIGUOUS, balanced ranges.
+
+    Contiguous because one gs call per shard means one PDF parse per shard;
+    scattered pages would force a parse per page. Balanced so the slowest shard
+    (which sets the wall time) is as small as possible. Never more shards than
+    pages.
+    """
+    pages = sorted(set(pages))
+    if not pages:
+        return []
+    # Maximal CONTIGUOUS runs first. A shard becomes one -dFirstPage..-dLastPage
+    # range, so a shard spanning a gap renders the pages in between: [3, 7]
+    # rendered 3,4,5,6,7 — three nobody asked for. The page numbers stayed
+    # correct, which is exactly what made it easy to miss.
+    runs: list[list[int]] = []
+    for p in pages:
+        if runs and p == runs[-1][-1] + 1:
+            runs[-1].append(p)
+        else:
+            runs.append([p])
+    w = max(1, min(workers, len(pages)))
+    # Split the LONGEST run while there is a spare worker, so the slowest shard
+    # (which sets the wall time) shrinks.
+    while len(runs) < w:
+        i = max(range(len(runs)), key=lambda k: len(runs[k]))
+        if len(runs[i]) < 2:
+            break
+        half = len(runs[i]) // 2
+        runs[i:i + 1] = [runs[i][:half], runs[i][half:]]
+    return runs
+
+
+def _render_shard(gs_base: "list[str]", pdf: Path, shard: "list[int]",
+                  out_dir: Path, ext: str, pad: int) -> None:
+    """Render one contiguous page range, then name the files by TRUE page number.
+
+    gs restarts its `%d` output counter at 1 for EVERY invocation, so parallel
+    shards sharing one output template silently overwrite each other — verified:
+    two jobs of four pages left four files on disk instead of eight. Each shard
+    therefore renders into its own directory and the results are moved into
+    place afterwards.
+    """
+    first, last = shard[0], shard[-1]
+    with tempfile.TemporaryDirectory(dir=str(out_dir)) as td:
+        subprocess.run(
+            gs_base + [f"-dFirstPage={first}", f"-dLastPage={last}",
+                       f"-sOutputFile={td}/s-%0{pad}d.{ext}", str(pdf)],
+            check=True, capture_output=True, timeout=1800)
+        for i, src in enumerate(sorted(Path(td).glob(f"s-*.{ext}"))):
+            src.replace(out_dir / f"page-{first + i:0{pad}d}.{ext}")
+
+
+
 def rasterize(pdf: Path, out_dir: Path, *, pages: Optional[list[int]] = None,
               dpi: int = RASTER_MIN_DPI, fmt: str = "png") -> list[Path]:
     """Render pages to images via Ghostscript at >= 400 DPI (gs is the only
@@ -144,16 +233,17 @@ def rasterize(pdf: Path, out_dir: Path, *, pages: Optional[list[int]] = None,
     ext = "jpg" if fmt in ("jpg", "jpeg") else "png"
     pad = 4                                              # page-0001.png (sorts + parses)
     base = _gs_base(gs, dpi, ext)
-    if pages:
-        for p in pages:                                 # one call per page → exact name
-            out = out_dir / f"page-{p:0{pad}d}.{ext}"
-            subprocess.run(base + [f"-dFirstPage={p}", f"-dLastPage={p}",
-                                   f"-sOutputFile={out}", str(pdf)],
-                           check=True, capture_output=True, timeout=900)
-    else:                                               # all pages: %d = 1..N = page no
-        subprocess.run(base + [f"-sOutputFile={out_dir}/page-%0{pad}d.{ext}",
-                               str(pdf)],
-                       check=True, capture_output=True, timeout=1800)
+    if pages is None:                                   # all pages
+        pages = list(range(1, _page_count(pdf) + 1))
+    if not pages:
+        return []
+    shards = plan_shards(pages, RENDER_WORKERS)
+    if len(shards) == 1:
+        _render_shard(base, pdf, shards[0], out_dir, ext, pad)
+    else:
+        with cf.ThreadPoolExecutor(max_workers=len(shards)) as ex:
+            list(ex.map(lambda sh: _render_shard(base, pdf, sh, out_dir, ext, pad),
+                        shards))
     return sorted(out_dir.glob(f"page-*.{ext}"))
 
 

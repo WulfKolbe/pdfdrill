@@ -39,7 +39,36 @@ text extraction dominate, and BOTH scale with the page count you ask for.
 4. **Reuse.** `inspect` is idempotent: with the model and geometry current it
    only re-renders. `--force` re-renders everything and is rarely what you want.
 
-## Ghostscript: threads need banding
+## Ghostscript: parallelise by PAGE RANGE, not by threads
+
+gs is single-threaded per render job, so on a scan the cores only get used by
+running several gs processes over DISJOINT page ranges. Measured on a 282-page
+scanned book, 32 pages at 400 DPI:
+
+```
+1 process, no threads      8.7s
+1 process, threads=16      8.4s   (3% — threading does nothing here)
+ 4 processes               2.5s   3.5x
+ 8 processes               1.6s   5.3x
+16 processes               1.4s   6.3x
+```
+
+`rasterize` shards the requested pages across `RENDER_WORKERS` processes
+(`plan_shards`), which took a real 32-page render from 8.7 s to 2.2 s.
+
+**The trap:** gs restarts its `%d` output counter at 1 for EVERY invocation, so
+parallel ranges sharing one `-sOutputFile=out/%03d.png` template overwrite each
+other — verified: two jobs of four pages left FOUR files instead of eight, with
+no error. Each shard therefore renders into its own directory and the files are
+moved to their true page numbers afterwards.
+
+**Second trap:** a shard becomes one `-dFirstPage..-dLastPage` range, so a shard
+spanning a gap renders the pages in between. Requesting 3, 7, 11 across two
+workers produced six files; the page numbers were correct, which is what made it
+easy to miss. `plan_shards` splits on contiguous runs first and only then
+balances.
+
+## Ghostscript: threads need banding (the smaller lever)
 
 gs is the only rasterizer (`RASTER_MIN_DPI = 400`) and sits on the critical path
 of inspect, OCR, vision and eqblobs. `-dNumRenderingThreads` alone does almost
