@@ -58,8 +58,22 @@ class Sidecar:
         self._load()
 
     def _load(self):
+        # A CORRUPT sidecar must not make the document unopenable. This is a
+        # cache of derived state, so the recoverable answer is to start empty and
+        # rebuild — refusing means every command fails, including the ones that
+        # would have repaired it, because they all construct a Sidecar first.
+        # 18 zero-byte `.drill.json` files existed in one library, left by batch
+        # runs killed mid-write.
+        raw = None
         if self.json_path.exists():
-            self._data = json.loads(self.json_path.read_text(encoding="utf-8"))
+            try:
+                raw = json.loads(self.json_path.read_text(encoding="utf-8"))
+                if not isinstance(raw, dict):
+                    raw = None
+            except (json.JSONDecodeError, OSError, UnicodeDecodeError):
+                raw = None
+        if raw is not None:
+            self._data = raw
         else:
             self._data = {
                 "pdf": str(self.pdf_path.name),
