@@ -18,6 +18,7 @@ are unit-tested without touching a real PDF.
 """
 from __future__ import annotations
 
+import os
 import re
 import shutil
 import subprocess
@@ -96,10 +97,38 @@ def _require_gs() -> str:
     return gs
 
 
+# Ghostscript rendering parallelism. `-dNumRenderingThreads` only takes effect
+# when gs renders the page in BANDS — by default the whole page fits one band and
+# the threads have nothing to divide. Measured, 6 pages at 400 DPI:
+#
+#   default (one band, no threads)        3.44s
+#   -dNumRenderingThreads=8 alone         3.17s   (~8%, near noise)
+#   banded (-dMaxBitmap=8M) + threads=8   2.76s   (20%)
+#   banded alone                          3.45s   (nothing)
+#
+# So they are a PAIR; either alone is close to pointless. gs sits on the critical
+# path of every raster route (inspect, OCR, vision, eqblobs), and the invocation
+# used to be duplicated across three call sites with none of them threaded.
+RENDER_THREADS = max(8, min(os.cpu_count() or 8, 16))
+_BAND_BITMAP = 8_000_000          # force banding so the threads have work
+
+
+def gs_render_args() -> list[str]:
+    """The shared gs RENDERING flags — threads + banding, nothing else.
+
+    Deliberately carries no device, resolution, page range or output path: those
+    belong to the call site, and a helper that set them would silently override
+    a caller's choice.
+    """
+    return [f"-dMaxBitmap={_BAND_BITMAP}",
+            f"-dNumRenderingThreads={RENDER_THREADS}"]
+
+
+
 def _gs_base(gs: str, dpi: int, ext: str) -> list[str]:
     device = "jpeg" if ext == "jpg" else "png16m"
-    base = [gs, "-q", "-dNOPAUSE", "-dBATCH", "-dSAFER", f"-sDEVICE={device}",
-            f"-r{max(int(dpi), RASTER_MIN_DPI)}"]
+    base = [gs, "-q", "-dNOPAUSE", "-dBATCH", "-dSAFER", *gs_render_args(),
+            f"-sDEVICE={device}", f"-r{max(int(dpi), RASTER_MIN_DPI)}"]
     return base + (["-dJPEGQ=95"] if ext == "jpg" else [])
 
 

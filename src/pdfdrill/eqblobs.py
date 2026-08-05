@@ -97,6 +97,16 @@ class PageGeometry:
 # rasterisation
 # ---------------------------------------------------------------------------
 
+
+def _gs_threads() -> list[str]:
+    """Shared gs threading/banding flags (see pdf_reading.gs_render_args)."""
+    try:
+        from .pdf_reading import gs_render_args
+        return gs_render_args()
+    except Exception:                            # noqa: BLE001
+        return []
+
+
 def _render_pgm(pdf: Path, page: int, out: Path, dpi: int) -> Path:
     """One page → 8-bit greyscale PGM, which is what blobcc reads natively.
 
@@ -105,8 +115,8 @@ def _render_pgm(pdf: Path, page: int, out: Path, dpi: int) -> Path:
     """
     out.parent.mkdir(parents=True, exist_ok=True)
     subprocess.run(
-        ["gs", "-q", "-dNOPAUSE", "-dBATCH", "-dSAFER", "-sDEVICE=pgmraw",
-         f"-r{int(dpi)}", f"-dFirstPage={page}", f"-dLastPage={page}",
+        ["gs", "-q", "-dNOPAUSE", "-dBATCH", "-dSAFER", *_gs_threads(),
+         "-sDEVICE=pgmraw", f"-r{int(dpi)}", f"-dFirstPage={page}", f"-dLastPage={page}",
          f"-sOutputFile={out}", str(pdf)],
         check=True, capture_output=True, timeout=300)
     return out

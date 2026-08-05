@@ -935,6 +935,15 @@ def _page_num_from_png(png: Path) -> int:
     return int(digits) if digits else 0
 
 
+def _render_args() -> list[str]:
+    """Shared gs threading/banding flags (see pdf_reading.gs_render_args)."""
+    try:
+        from .pdf_reading import gs_render_args
+        return gs_render_args()
+    except Exception:                            # noqa: BLE001
+        return []
+
+
 def _rasterize(pdf: Path, out_dir: Path, ppi: int) -> list[Path]:
     """Render all pages to page-%04d.png via Ghostscript at max(ppi, 400) DPI
     (pdfdrill's RASTER_MIN_DPI floor). The only rasterizer; raises without gs."""
@@ -944,8 +953,8 @@ def _rasterize(pdf: Path, out_dir: Path, ppi: int) -> list[Path]:
     if gs is None:
         raise RuntimeError("ghostscript not found on PATH")
     subprocess.run(
-        [gs, "-q", "-dNOPAUSE", "-dBATCH", "-dSAFER", "-sDEVICE=png16m",
-         f"-r{max(int(ppi), RASTER_MIN_DPI)}",
+        [gs, "-q", "-dNOPAUSE", "-dBATCH", "-dSAFER", *_render_args(),
+         "-sDEVICE=png16m", f"-r{max(int(ppi), RASTER_MIN_DPI)}",
          f"-sOutputFile={out_dir}/page-%04d.png", str(pdf)],
         check=True, capture_output=True, timeout=RASTER_TIMEOUT)
     return sorted(out_dir.glob("page-*.png"))
