@@ -18,6 +18,8 @@ from __future__ import annotations
 
 import argparse
 import json
+
+from pdfdrill import jsonio as _jsonio
 import os
 import sys
 from typing import Any
@@ -81,7 +83,7 @@ def run(
     # ----- Step 7: serialize -----
     out = doc.to_dict()
     with open(out_path, "w", encoding="utf-8") as f:
-        json.dump(out, f, indent=2, ensure_ascii=False)
+        _jsonio.dump(out, f, indent=2)   # utf-8-safe (non-UTF-8 filenames)
     print(f"[main] wrote {out_path}", file=sys.stderr)
     return out
 

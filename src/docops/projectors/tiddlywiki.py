@@ -379,7 +379,8 @@ class TiddlyWikiProjector(BaseProjector):
             fn_by_refnum, cit_title_by_key, inline_url_to_title, subs_by_line,
         )
         self.bump("tiddlers_emitted", len(out))
-        return json.dumps(out, indent=2, ensure_ascii=False)
+        from pdfdrill import jsonio as _jsonio
+        return _jsonio.dumps(out, indent=2)
 
     # ----- phase 1: inventory + stable titles -----
 

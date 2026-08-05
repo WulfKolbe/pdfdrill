@@ -16,6 +16,7 @@ import subprocess
 import time
 from pathlib import Path
 
+from . import jsonio as _jsonio
 from .sidecar import Sidecar
 from .model_io import load_model, save_model
 
@@ -881,10 +882,32 @@ def resolve_bibkey(pdf: Path, explicit: str | None = None,
     id `2004.05631v1`) is kept as-is; the caller can warn when it's junky.
     """
     if explicit:
-        return explicit.strip()
+        return _clean_name(explicit.strip())
     sc = sc or Sidecar(pdf)
     stored = sc.get_evidence("bibkey")
-    return stored or pdf.stem
+    return _clean_name(stored or pdf.stem)
+
+
+def _clean_name(name: str) -> str:
+    """A name safe to WRITE. Surrogate escapes become "?".
+
+    A filename that is not valid UTF-8 arrives surrogate-escaped
+    ("Alg\\udce8bre"), and utf-8 cannot encode a lone surrogate. The bibkey is
+    written into the model, the tiddler titles and every artifact name, so one
+    such stem fails all of them — pdfdrill has 78 `ensure_ascii=False` dump
+    sites and patching each would be whack-a-mole. The surrogate enters once,
+    here, so it is cleaned once, here.
+
+    The filesystem PATH is untouched: I/O keeps using the real bytes, and only
+    the recorded name is sanitised.
+    """
+    if not name:
+        return name
+    try:
+        name.encode("utf-8")
+        return name
+    except UnicodeEncodeError:
+        return name.encode("utf-8", "replace").decode("utf-8")
 
 
 def _bibkey_hint(bibkey: str) -> str:
@@ -1294,7 +1317,7 @@ def cmd_ocr(pdf: Path, lang: str = "eng", ppi: int = 300, force: bool = False,
     if min_conf is not None:
         kw["min_conf"] = float(min_conf)
     lj = ocr_lines.build_lines_json(pdf, out_dir, **kw)
-    lines_path.write_text(json.dumps(lj, ensure_ascii=False), encoding="utf-8")
+    lines_path.write_text(_jsonio.dumps(lj), encoding="utf-8")
 
     n_pages = len(lj["pages"])
     n_lines = sum(len(p["lines"]) for p in lj["pages"])
@@ -1730,7 +1753,7 @@ def cmd_elements(pdf: Path, force: bool = False, model: str | None = None,
 
     tiddlers = res["tiddlers"]
     out_path = sc.blob_dir / f"{key}.elements.tiddlers.json"
-    out_path.write_text(json.dumps(tiddlers, ensure_ascii=False, indent=2),
+    out_path.write_text(_jsonio.dumps(tiddlers, indent=2),
                         encoding="utf-8")
 
     # Layout layer in the sidecar: a compact, prose-addressable summary.
@@ -2043,7 +2066,7 @@ def cmd_semantic(pdf: Path, store: str | None = None, force: bool = False) -> st
     graph_out = g.to_dict()
     graph_out["validity"] = result.validity
     graph_out["warnings"] = result.to_dict()["warnings"]
-    blob = json.dumps(graph_out, ensure_ascii=False, indent=2)
+    blob = _jsonio.dumps(graph_out, indent=2)
     sem_path.write_text(blob, encoding="utf-8")
     if store_path:
         store_path.write_text(blob, encoding="utf-8")
@@ -3092,7 +3115,7 @@ def cmd_tables(pdf: Path, pages: str | None = None) -> str:
     out_dir = sc.blob_dir
     out_dir.mkdir(parents=True, exist_ok=True)
     (out_dir / "tables.json").write_text(
-        json.dumps(all_tables, ensure_ascii=False, indent=2), encoding="utf-8")
+        _jsonio.dumps(all_tables, indent=2), encoding="utf-8")
     (out_dir / "tables.md").write_text(
         pdf_reading.tables_to_markdown(all_tables), encoding="utf-8")
     # The QA projection: real <table>s with rowspan/colspan (a spanned header
@@ -3722,7 +3745,7 @@ def cmd_bibsource(pdf: Path, bib_path: str | None = None,
         n_cits = sum(1 for o in doc.objects.values() if o.type == "Citation")
 
     with open(model_path, "w", encoding="utf-8") as f:
-        json.dump(doc.to_dict(), f, indent=2, ensure_ascii=False)
+        _jsonio.dump(doc.to_dict(), f, indent=2)
 
     sc.set_evidence("bibsource_references", n_refs)
     sc.set_evidence("bibsource_enriched", enriched)
@@ -3756,7 +3779,7 @@ def _load_bib_sidecar(pdf: Path, bib_path: Path) -> dict:
         doc = Document.from_dict(json.load(f))
     res = load_bibtex_file(doc, bib_path.read_text(encoding="utf-8"))
     with open(model_path, "w", encoding="utf-8") as f:
-        json.dump(doc.to_dict(), f, indent=2, ensure_ascii=False)
+        _jsonio.dump(doc.to_dict(), f, indent=2)
     sc.set_evidence("bibtex_file_entries", res["attached"])
     sc.save()
     return res
@@ -3866,7 +3889,7 @@ def cmd_rulebook(pdf: Path, force: bool = False) -> str:
 
     res = fixpoint.run_fixpoint(g, r, [(4, claims.make_claims_pass(doc, key))])
     sem_path.parent.mkdir(parents=True, exist_ok=True)
-    sem_path.write_text(json.dumps(g.to_dict(), indent=2, ensure_ascii=False),
+    sem_path.write_text(_jsonio.dumps(g.to_dict(), indent=2),
                         encoding="utf-8")
 
     md = _rulebook.project_rulebook(g, key)
@@ -3874,7 +3897,7 @@ def cmd_rulebook(pdf: Path, force: bool = False) -> str:
     rb_path.write_text(md, encoding="utf-8")
     tids = kitems.kitem_tiddlers(g, key)
     (sc.blob_dir / f"{key}.kitems.tiddlers.json").write_text(
-        json.dumps(tids, ensure_ascii=False, indent=1), encoding="utf-8")
+        _jsonio.dumps(tids, indent=1), encoding="utf-8")
 
     ks = kitems.all_kitems(g)
     by_status: dict[str, int] = {}
@@ -4675,7 +4698,7 @@ def cmd_formulas(pdf: Path, out: str | None = None, plain: bool = False) -> str:
             "lists every control sequence present"),
         "units": units,
     }
-    text = json.dumps(payload, ensure_ascii=False, indent=2)
+    text = _jsonio.dumps(payload, indent=2)
     if plain:                                    # one `latex` per line, nothing else
         text = "\n".join(u["latex"] for u in units if u["latex"])
     dest = Path(out) if out else (sc.blob_dir / f"{key}.formulas.json")
@@ -5255,7 +5278,7 @@ def cmd_spoken(pdf: Path, out: str | None = None, as_json: bool = False,
                               "unknown_markers": len(unresolved)},
                    "citations": {v: k for k, v in cite_no.items()},
                    "blocks": blocks}
-        text = json.dumps(payload, ensure_ascii=False, indent=2)
+        text = _jsonio.dumps(payload, indent=2)
     else:
         text = "\n\n".join(b["text"] for b in blocks)
 
@@ -5469,7 +5492,7 @@ def cmd_sre(pdf: Path, out: str | None = None, plain: bool = False,
                    "blocked": len(units) - n_safe, "expanded_here": n_exp},
         "units": units,
     }
-    text = json.dumps(payload, ensure_ascii=False, indent=2)
+    text = _jsonio.dumps(payload, indent=2)
     if plain:                                    # latex2mml-ready, one per line
         text = "\n".join(u["latex_sre"] for u in units)
     dest = Path(out) if out else (sc.blob_dir / f"{key}.sre.json")
@@ -5664,7 +5687,7 @@ def cmd_occurrences(pdf: Path, types: str | None = None) -> str:
     recs = OC.occurrence_records(list(g), str(bibkey), types=wanted)
     out_path = sc.blob_dir / f"{_safe_bibkey(str(bibkey))}.occurrences.json"
     out_path.parent.mkdir(parents=True, exist_ok=True)
-    out_path.write_text(json.dumps(recs, indent=1, ensure_ascii=False), encoding="utf-8")
+    out_path.write_text(_jsonio.dumps(recs, indent=1), encoding="utf-8")
     rel = _display_path(out_path, sc.pdf_path.parent)
     sc.set_evidence("occurrences_path", str(rel))
     sc.save()
@@ -5888,8 +5911,8 @@ def cmd_ask(pdf: Path, question: str, precision: float | None = None,
     proposed = [p for p in parts if p["label"] == "proposed"]
 
     if json_out:
-        return json.dumps({"question": question, "parts": parts,
-                           "precision": precision}, ensure_ascii=False)
+        return _jsonio.dumps({"question": question, "parts": parts,
+                           "precision": precision})
 
     # --- abstention: bottom of the status space, quote NOTHING --------------
     if not answering:
@@ -5970,7 +5993,7 @@ def cmd_chatlog(pdf: Path, question: str, answer: str,
     if verdict:
         turn["verdict"] = verdict
     with open(sc.blob_dir / "chat.jsonl", "a", encoding="utf-8") as f:
-        f.write(json.dumps(turn, ensure_ascii=False) + "\n")
+        f.write(_jsonio.dumps(turn) + "\n")
 
     # 2) answer kitem in the semantic graph (load-or-create), provenance-stamped
     sem_path = sc.blob_dir / f"{key}.semantic.json"
@@ -6132,7 +6155,7 @@ def _fold_eq_records_into_lines_json(lines_path: Path, records: list,
                 })
     # mark provenance so a re-fold is allowed and a later `ocr` won't clobber blind
     lj["source"] = "visionocr"
-    lines_path.write_text(json.dumps(lj, ensure_ascii=False), encoding="utf-8")
+    lines_path.write_text(_jsonio.dumps(lj), encoding="utf-8")
     return n_eq, n_num
 
 
@@ -6243,7 +6266,7 @@ def cmd_visionocr(pdf: Path, ingest: str | None = None, dpi: int = 200,
         pairs.append((pn, t))
         tasks.append(t)
     (sc.blob_dir / "visionocr_manifest.json").write_text(
-        json.dumps({"pages": manifest}, ensure_ascii=False, indent=2),
+        _jsonio.dumps({"pages": manifest}, indent=2),
         encoding="utf-8")
 
     try:
@@ -6617,7 +6640,7 @@ def cmd_svg(target: Path, limit: int | None = None, force: bool = False) -> str:
             errors += 1
 
     with open(model_path, "w", encoding="utf-8") as f:
-        json.dump(doc.to_dict(), f, indent=2, ensure_ascii=False)
+        _jsonio.dump(doc.to_dict(), f, indent=2)
 
     if sc is not None:
         sc.set_evidence("svg_rendered", done)
@@ -6998,7 +7021,7 @@ def cmd_snip(pdf: Path, limit: int | None = None, force: bool = False,
             confs.append(res["confidence"])
 
     with open(model_path, "w", encoding="utf-8") as f:
-        json.dump(doc.to_dict(), f, indent=2, ensure_ascii=False)
+        _jsonio.dump(doc.to_dict(), f, indent=2)
 
     avg = sum(confs) / len(confs) if confs else None
     total = (sc.get_evidence("snip_count", 0) or 0) + done
@@ -7134,7 +7157,7 @@ def cmd_lists(pdf: Path, force: bool = False) -> str:
     materialize(roots, None)
 
     with open(model_path, "w", encoding="utf-8") as f:
-        json.dump(doc.to_dict(), f, indent=2, ensure_ascii=False)
+        _jsonio.dump(doc.to_dict(), f, indent=2)
 
     depth = max_depth(roots)
     n_items = len(items)
@@ -7231,7 +7254,7 @@ def cmd_algorithms(pdf: Path, force: bool = False) -> str:
             steps_total += 1
 
     with open(model_path, "w", encoding="utf-8") as f:
-        json.dump(doc.to_dict(), f, indent=2, ensure_ascii=False)
+        _jsonio.dump(doc.to_dict(), f, indent=2)
 
     depth = algorithm_max_depth(algos)
     sc.set_evidence("algorithms_created", created)
@@ -7641,7 +7664,7 @@ def cmd_injectlatex(pdf: Path, tex: str | None = None, force: bool = False) -> s
         doc, body, macros, doc.meta.get("bibkey", "DOC"), force)
 
     with open(model_path, "w", encoding="utf-8") as f:
-        json.dump(doc.to_dict(), f, indent=2, ensure_ascii=False)
+        _jsonio.dump(doc.to_dict(), f, indent=2)
 
     # If we created equations, clear the keyless math-missing flag — the gold
     # source filled the gap.
@@ -7899,7 +7922,7 @@ def cmd_fontspans(pdf: Path, pages: str | None = None) -> str:
     }
     out_path = sc.blob_dir / f"{_safe_bibkey(str(bibkey))}.fontspans.json"
     out_path.parent.mkdir(parents=True, exist_ok=True)
-    out_path.write_text(json.dumps(out, indent=1, ensure_ascii=False), encoding="utf-8")
+    out_path.write_text(_jsonio.dumps(out, indent=1), encoding="utf-8")
 
     # enrich the model (if one exists): per-page emphasis onto Page objects,
     # per-PARAGRAPH fusion by overlap, and the heading cross-check vs Sections.
@@ -8159,7 +8182,7 @@ def cmd_tiddlers(pdf: Path, force: bool = False, embed: bool = False,
     if doc.meta.get("bibkey") != key:
         doc.meta["bibkey"] = key
         with open(model_path, "w", encoding="utf-8") as f:
-            json.dump(doc.to_dict(), f, indent=2, ensure_ascii=False)
+            _jsonio.dump(doc.to_dict(), f, indent=2)
     if sc.get_evidence("bibkey") != key:
         sc.set_evidence("bibkey", key)
 
@@ -8181,7 +8204,7 @@ def cmd_tiddlers(pdf: Path, force: bool = False, embed: bool = False,
         tiddlers = json.loads(result)
         svg_dir = sc.blob_dir / "svg"
         n_ext = _externalize_svg_tiddlers(tiddlers, svg_dir, "svg")
-        result = json.dumps(tiddlers, ensure_ascii=False, indent=1)
+        result = _jsonio.dumps(tiddlers, indent=1)
         if n_ext:
             rel_dir = svg_dir.relative_to(sc.pdf_path.parent)
             svg_note = (f" {n_ext} diagram SVG(s) written to {rel_dir}/ and referenced "
@@ -8340,7 +8363,7 @@ def _translate_tiddler_file_inplace(path: Path, batch_fn, target_lang: str,
             t["tags"] = " ".join(sorted(tags))
             t["translated_lang"] = target_lang.upper()
             changed += 1
-    path.write_text(json.dumps(tiddlers, ensure_ascii=False, indent=1),
+    path.write_text(_jsonio.dumps(tiddlers, indent=1),
                     encoding="utf-8")
     return changed
 
@@ -8491,7 +8514,7 @@ def cmd_geometry(pdf: Path, force: bool = False) -> str:
     stats = fuse(doc, lines, page_dims)
 
     with open(model_path, "w", encoding="utf-8") as f:
-        json.dump(doc.to_dict(), f, indent=2, ensure_ascii=False)
+        _jsonio.dump(doc.to_dict(), f, indent=2)
 
     sc.set_evidence("geometry_pdf_lines", stats["pdf_lines"])
     sc.set_evidence("geometry_matched", stats["matched"])
@@ -8595,7 +8618,7 @@ def cmd_bibliography(pdf: Path, force: bool = False) -> str:
         cites = link_citations(doc)
 
     with open(model_path, "w", encoding="utf-8") as f:
-        json.dump(doc.to_dict(), f, indent=2, ensure_ascii=False)
+        _jsonio.dump(doc.to_dict(), f, indent=2)
 
     sc.set_evidence("bibliography_entries", n)
     sc.set_evidence("bibliography_with_year", with_year)
@@ -8679,7 +8702,7 @@ def cmd_bibfetch(pdf: Path, limit: int | None = None, force: bool = False) -> st
             done += 1
 
     with open(model_path, "w", encoding="utf-8") as f:
-        json.dump(doc.to_dict(), f, indent=2, ensure_ascii=False)
+        _jsonio.dump(doc.to_dict(), f, indent=2)
 
     total = (sc.get_evidence("bibfetch_done", 0) or 0) + done
     sc.set_evidence("bibfetch_done", total)
@@ -8749,7 +8772,7 @@ def _bibfetch_via_delegate(pdf: Path, doc, todo, sc, model_path, runtime) -> str
             errors += 1
 
     with open(model_path, "w", encoding="utf-8") as f:
-        json.dump(doc.to_dict(), f, indent=2, ensure_ascii=False)
+        _jsonio.dump(doc.to_dict(), f, indent=2)
     total = (sc.get_evidence("bibfetch_done", 0) or 0) + done
     sc.set_evidence("bibfetch_done", total)
     prev = ",".join(sorted(sc.facts - {BIBFETCH_DONE})) or "INIT"
@@ -8829,7 +8852,7 @@ def cmd_citedrill(pdf: Path, limit: int | None = None, force: bool = False) -> s
         cited_dir.mkdir(parents=True, exist_ok=True)
         jpath = cited_dir / f"{p.get('citekey','ref')}.pdf.json"
         with open(jpath, "w", encoding="utf-8") as f:
-            json.dump(record, f, indent=2, ensure_ascii=False)
+            _jsonio.dump(record, f, indent=2)
         p.update(cdr.reference_fields(record, str(jpath.relative_to(sc.blob_dir))))
         st = record["drill_status"]
         fetched += st == "fetched"
@@ -8838,7 +8861,7 @@ def cmd_citedrill(pdf: Path, limit: int | None = None, force: bool = False) -> s
         blocked += st == "blocked"
 
     with open(model_path, "w", encoding="utf-8") as f:
-        json.dump(doc.to_dict(), f, indent=2, ensure_ascii=False)
+        _jsonio.dump(doc.to_dict(), f, indent=2)
     sc.set_evidence("citedrill", {"fetched": fetched, "links_only": links_only,
                                   "no_links": no_links, "blocked": blocked,
                                   "processed": len(todo)})
@@ -8916,7 +8939,7 @@ def cmd_eqnums(pdf: Path, force: bool = False) -> str:
     stats = fuse_equation_numbers(doc)
 
     with open(model_path, "w", encoding="utf-8") as f:
-        json.dump(doc.to_dict(), f, indent=2, ensure_ascii=False)
+        _jsonio.dump(doc.to_dict(), f, indent=2)
 
     sc.set_evidence("eqnums_from_mathpix", stats["from_mathpix"])
     sc.set_evidence("eqnums_recovered", stats["recovered"])
@@ -8976,7 +8999,7 @@ def cmd_score(pdf: Path, force: bool = False) -> str:
             agreements.append(s["mean_agreement"])
 
     with open(model_path, "w", encoding="utf-8") as f:
-        json.dump(doc.to_dict(), f, indent=2, ensure_ascii=False)
+        _jsonio.dump(doc.to_dict(), f, indent=2)
 
     mean_ag = round(sum(agreements) / len(agreements), 3) if agreements else None
     sc.set_evidence("scored_equations", scored)
@@ -9078,7 +9101,7 @@ def cmd_nlp(pdf: Path, limit: int | None = None, pages: int | None = None,
                     sample.append(e["text"])
 
     with open(model_path, "w", encoding="utf-8") as f:
-        json.dump(doc.to_dict(), f, indent=2, ensure_ascii=False)
+        _jsonio.dump(doc.to_dict(), f, indent=2)
 
     sc.set_evidence("nlp_objects_annotated", annotated)
     sc.set_evidence("nlp_sentences", sentences)
@@ -9165,7 +9188,7 @@ def cmd_escalate(pdf: Path, limit: int | None = None) -> str:
                 "instructions": _ESCALATE_PROMPT, "equations": flagged}
     sc.blob_dir.mkdir(parents=True, exist_ok=True)
     out_path = sc.blob_dir / "escalate.llm.json"
-    out_path.write_text(json.dumps(manifest, indent=2, ensure_ascii=False),
+    out_path.write_text(_jsonio.dumps(manifest, indent=2),
                         encoding="utf-8")
 
     sc.set_evidence("escalation", snapshot)
@@ -9283,7 +9306,7 @@ def cmd_annotate(pdf: Path, force: bool = False) -> str:
     code = sum(1 for r in records if _is_code_host(r.get("uri") or ""))
 
     with open(model_path, "w", encoding="utf-8") as f:
-        json.dump(doc.to_dict(), f, indent=2, ensure_ascii=False)
+        _jsonio.dump(doc.to_dict(), f, indent=2)
 
     sc.set_evidence("annotation_links", len(created))
     sc.set_evidence("annotation_code_links", code)
@@ -9379,7 +9402,7 @@ def cmd_candidates(pdf: Path, provider: str = "llm",
     out_path = Path(out) if out else (sc.blob_dir / f"candidates.{provider}.json")
     out_path.parent.mkdir(parents=True, exist_ok=True)
     with open(out_path, "w", encoding="utf-8") as f:
-        json.dump(manifest, f, indent=2, ensure_ascii=False)
+        _jsonio.dump(manifest, f, indent=2)
 
     try:
         rel = _artref(sc, out_path)
@@ -9444,7 +9467,7 @@ def cmd_ingest(pdf: Path, candidates_path: str, provider: str = "llm",
         attached += 1
 
     with open(model_path, "w", encoding="utf-8") as f:
-        json.dump(doc.to_dict(), f, indent=2, ensure_ascii=False)
+        _jsonio.dump(doc.to_dict(), f, indent=2)
 
     fact = f"CANDIDATES_{provider.upper()}"
     sc.set_evidence(f"candidates_{provider}_count",
@@ -9658,7 +9681,7 @@ def cmd_vision(pdf: Path, limit: int | None = None, force: bool = False) -> str:
         by_sel[selector or "?"] += 1
 
     with open(model_path, "w", encoding="utf-8") as f:
-        json.dump(doc.to_dict(), f, indent=2, ensure_ascii=False)
+        _jsonio.dump(doc.to_dict(), f, indent=2)
 
     sc.set_evidence("vision_crops_total", len(targets))
     sc.set_evidence("vision_processed",
@@ -9721,7 +9744,7 @@ def cmd_embedimages(pdf: Path, force: bool = False) -> str:
     stats = image_model.attach_embedded_images(
         doc, image_layer, page_dims, bibkey=doc.meta.get("bibkey", pdf.stem))
     with open(model_path, "w", encoding="utf-8") as f:
-        json.dump(doc.to_dict(), f, indent=2, ensure_ascii=False)
+        _jsonio.dump(doc.to_dict(), f, indent=2)
 
     sc.set_evidence("embedded_images", stats["created"])
     sc.set_evidence("embedded_images_fused", stats["fused"])
@@ -12142,7 +12165,7 @@ def cmd_llm(pdf: Path, action: str = "status") -> str:
     pend = D.pending_requests(sc.blob_dir)
 
     if action == "show":
-        return json.dumps(pend, ensure_ascii=False, indent=2)
+        return _jsonio.dumps(pend, indent=2)
 
     # status (default)
     rt = D.detect_runtime()
@@ -12283,7 +12306,7 @@ def _vision_via_delegate(pdf: Path, doc, todo, targets, sc, model_path,
         by_sel[selector or "?"] += 1
 
     with open(model_path, "w", encoding="utf-8") as f:
-        json.dump(doc.to_dict(), f, indent=2, ensure_ascii=False)
+        _jsonio.dump(doc.to_dict(), f, indent=2)
     sc.set_evidence("vision_crops_total", len(targets))
     sc.set_evidence("vision_processed",
                     (sc.get_evidence("vision_processed", 0) or 0) + processed)

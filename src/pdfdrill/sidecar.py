@@ -93,10 +93,20 @@ class Sidecar:
 
     def save(self):
         self._data["pdfdrill_version"] = VERSION
-        self.json_path.write_text(
-            json.dumps(self._data, indent=2, ensure_ascii=False, default=str),
-            encoding="utf-8",
-        )
+        payload = json.dumps(self._data, indent=2, ensure_ascii=False, default=str)
+        try:
+            self.json_path.write_text(payload, encoding="utf-8")
+        except UnicodeEncodeError:
+            # A filename that is not valid UTF-8 arrives surrogate-escaped
+            # ("Alg\\udce8bre"), and utf-8 cannot encode a lone surrogate — so the
+            # SAVE failed and with it every command on that document. 18 such
+            # folders existed in one library. `ensure_ascii=True` escapes the
+            # surrogate to plain ASCII, which round-trips back through
+            # json.loads, so the exact name survives. Fallback only: ordinary
+            # sidecars keep their unescaped umlauts.
+            self.json_path.write_text(
+                json.dumps(self._data, indent=2, ensure_ascii=True, default=str),
+                encoding="utf-8")
 
     # -- Facts (cumulative state) --
 

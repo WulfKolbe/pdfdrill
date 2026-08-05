@@ -23,6 +23,8 @@ from __future__ import annotations
 
 import argparse
 import json
+
+from pdfdrill import jsonio as _jsonio
 import os
 import sys
 from typing import Optional
@@ -44,7 +46,7 @@ def load_document(path: str) -> Document:
 
 def save_document(doc: Document, path: str) -> None:
     with open(path, "w", encoding="utf-8") as f:
-        json.dump(doc.to_dict(), f, indent=2, ensure_ascii=False)
+        _jsonio.dump(doc.to_dict(), f, indent=2)
 
 
 def run(
