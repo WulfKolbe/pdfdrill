@@ -353,3 +353,29 @@ def test_button_era_helpers_are_gone():
     body = _html()
     assert "function elementContent" not in body
     assert "function copyElementContent" not in body
+
+
+def test_elements_without_a_page_are_still_listed():
+    """The tree grouped ONLY by page, so any element with `page: null` was
+    silently dropped from it.
+
+    On arXiv 2604.11744 that was 101 of 131 elements — 28 Equations, 23 Formulas,
+    28 Paragraphs — because a LaTeX-source model carries no page geometry until
+    `geometry` attaches it. The inspector looked empty while the model was
+    perfectly healthy, so re-running `mathpix --force`, `injectlatex` and
+    `inspect` could not possibly help: the data was never the problem.
+
+    They have no box to draw, but their CONTENT is exactly what the inspector is
+    for — selecting one must still show its record and copy its LaTeX.
+    """
+    html = _html()
+    tree = html[html.index("function buildTree"):][:2600]
+    assert "e.page == null" in tree or "e.page===null" in tree or "unplaced" in tree, \
+        "no branch for page-less elements — they vanish from the tree"
+
+
+def test_the_unplaced_group_is_labelled_not_disguised_as_a_page():
+    html = _html()
+    tree = html[html.index("function buildTree"):][:2600]
+    assert "no page" in tree.lower(), \
+        "an element with no page must not be shown as belonging to one"

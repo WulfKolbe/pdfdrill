@@ -1076,6 +1076,38 @@ function buildTree(filter){
     pnode.appendChild(prow); pnode.appendChild(cont); host.appendChild(pnode);
     PAGE_NODE[pn]={setOpen}; setOpen(eagerAll);
   });
+
+  /* Elements with NO page. The tree used to group ONLY by page, so anything
+   * whose `page` is null vanished from it — on a LaTeX-source model, which has
+   * no page geometry until `geometry` attaches it, that is most of the document
+   * (101 of 131 on arXiv 2604.11744: 28 Equations, 23 Formulas, 28 Paragraphs).
+   * The inspector looked empty while the model was perfectly healthy.
+   *
+   * They have no box to draw, but their CONTENT is what the inspector is for,
+   * so they get their own group — labelled as unplaced rather than filed under
+   * a page they do not belong to. */
+  const loose=EL.filter(e=>e.page==null && e.type!=='Page' &&
+    (!f || e.type.toLowerCase().includes(f) || (e.label||'').toLowerCase().includes(f)));
+  if(loose.length){
+    const pnode=el('div','node'); const prow=el('div','row');
+    prow.innerHTML='<span class="tw"></span><span class="badge">no page</span>'+
+      '<span class="lbl lblmono">'+loose.length+' el · not placed on a page</span>';
+    const cont=el('div'); cont.style.paddingLeft='16px';
+    let built=false;
+    function buildLoose(){ if(built)return; built=true;
+      loose.sort((a,b)=>(a.flow??1e9)-(b.flow??1e9)).forEach(e=>{
+        const r=el('div','row'); const mono=e.type==='Formula'?' lblmono':'';
+        r.innerHTML='<span class="tw"></span><span class="badge b-'+e.type+'">'+e.type.slice(0,4)+'</span>'+
+          '<span class="lbl'+mono+'">'+esc(e.label||'')+'</span>';
+        attachHooks(r,e); cont.appendChild(r); }); }
+    const tw=prow.querySelector('.tw'); let open=false;
+    function setOpen(o){ open=o; if(open) buildLoose(); cont.style.display=open?'':'none';
+                         tw.textContent=open?'▾':'▸'; }
+    tw.addEventListener('click',ev=>{ev.stopPropagation(); setOpen(!open);});
+    prow.addEventListener('click',ev=>{ev.stopPropagation(); setOpen(!open);});
+    pnode.appendChild(prow); pnode.appendChild(cont); host.appendChild(pnode);
+    setOpen(eagerAll);
+  }
 }
 function revealInTree(id){ const e=byId[id]; if(!e||e.page==null)return; const p=PAGE_NODE[e.page]; if(p)p.setOpen(true); }
 
