@@ -620,6 +620,7 @@ def _collect_macro_defs(preamble: str) -> list[str]:
     failure)."""
     n = len(preamble)
     out: list[str] = []
+    spans: list[tuple[int, int]] = []      # captured definitions, to skip nesting
 
     def skip_ws(i: int) -> int:
         while i < n and preamble[i] in " \t\r\n":
@@ -656,13 +657,25 @@ def _collect_macro_defs(preamble: str) -> list[str]:
         if i < n and preamble[i] == "{":
             i += len(_balanced(preamble, i))
         out.append(preamble[m.start():i])
+        spans.append((m.start(), i))
 
     for m in re.finditer(r"\\def\\[A-Za-z@]+", preamble):
+        # A `\def` INSIDE another definition's body is part of that body, not a
+        # definition of its own. Emitting it separately lifts it out of the
+        # context that binds its parameters:
+        #     \def\lst@OpLiteratekey#1\@nil@{... \def\lst@opliterate{#1}}
+        # also yielded `\def\lst@opliterate{#1}`, and `#1` with no parameter
+        # text is "! Illegal parameter number" — which failed all 9 graphics of
+        # a thesis whose preamble patches the listings package.
+        if any(a <= m.start() < b for a, b in spans):
+            continue
         i = m.end()
         while i < n and preamble[i] != "{":      # skip delimiter/param text (#1…)
             i += 1
         if i < n and preamble[i] == "{":
-            out.append(preamble[m.start():i + len(_balanced(preamble, i))])
+            end = i + len(_balanced(preamble, i))
+            out.append(preamble[m.start():end])
+            spans.append((m.start(), end))
     return out
 
 
