@@ -141,3 +141,38 @@ if __name__ == "__main__":
         finally:
             mp.undo()
     print(f"\nAll {len(fns)} tests passed.")
+
+
+def test_translate_is_not_fooled_by_a_materialised_source_field():
+    """`_source` is written by TWO different passes, and translate read it as
+    "already translated".
+
+    `clean`/`materialize_transclusions` stores a paragraph's pre-transclusion
+    original under `text_source`. `translate` stores the pre-TRANSLATION original
+    under the same key, and skips any object that already has it. So on a
+    cleaned document translate silently skipped every materialised paragraph:
+    on a real 42-page German thesis only 74 of 175 fields were translated and
+    95 of 105 long paragraphs stayed German, while the command reported success.
+
+    `--force` is the escape hatch (it re-translates FROM `<field>_source`), but
+    the skip must not treat materialisation as translation.
+    """
+    from pdfdrill.commands import translate_model_prose
+    from docmodel.core import Document, DocObject
+
+    doc = Document()
+    doc.add(DocObject(type="Paragraph", props={
+        "text": "Der Verfasser erklaert dies.",
+        "text_source": "Der Verfasser erklaert dies.",      # materialised, NOT translated
+    }))
+    calls = []
+
+    def fake_batch(texts, target, source=None):
+        calls.append(list(texts))
+        return [f"EN::{t}" for t in texts]
+
+    translate_model_prose(doc, fake_batch, "EN-US", source_lang="DE", force=True)
+    para = next(iter(doc.objects.values()))
+    assert calls, "nothing was sent to the translator"
+    assert para.props["text"].startswith("EN::"), para.props["text"]
+    assert para.props["text_source"] == "Der Verfasser erklaert dies."
