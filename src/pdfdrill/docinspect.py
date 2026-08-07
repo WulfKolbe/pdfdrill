@@ -1436,9 +1436,9 @@ function onSelect(id){
   document.querySelectorAll('.sel').forEach(n=>{ if((n.dataset.objId)!==id) n.classList.remove('sel'); });
   nodesOf(id).forEach(n=>n.classList.add('sel'));
   const ns=nodesOf(id);
-  const box=ns.find(n=>n.classList.contains('box')); if(box) box.scrollIntoView({block:'center',inline:'center'});
-  const rn=ns.find(n=>n.classList.contains('reflow-el')); if(rn && curView==='reflow') rn.scrollIntoView({block:'center'});
-  const row=ns.find(n=>n.classList.contains('row')); if(row) row.scrollIntoView({block:'nearest'});
+  const box=ns.find(n=>n.classList.contains('box')); if(box) scrollStageTo(box);
+  const rn=ns.find(n=>n.classList.contains('reflow-el')); if(rn && curView==='reflow') scrollStageTo(rn);
+  const row=ns.find(n=>n.classList.contains('row')); if(row) scrollTreeTo(row);
   renderInspector(e);
 }
 
@@ -1505,8 +1505,20 @@ function gotoPage(pn){
   const i = CHUNKS.findIndex(c => c.p0 != null && pn >= c.p0 && pn <= c.p1);
   if (i < 0){ refreshStage(); return; }        // no chunk for it: fall back
   hydrateChunk(i);
-  CHUNKS[i].node.scrollIntoView({block: 'start'});
+  scrollStageTo(CHUNKS[i].node);
 }
+
+/* Scroll the STAGE, never the document. `scrollIntoView` walks every scrollable
+ * ancestor, so on a page whose body can scroll it carried the fixed topbar —
+ * the view switch, the page selector, the language flag — off the top of the
+ * window: "after changing the page the outer frame vanishes". Adjusting the
+ * container's own scrollTop cannot move anything outside it. */
+function scrollWithin(wrap, node){
+  if (!wrap || !node || !node.getBoundingClientRect || !wrap.getBoundingClientRect) return;
+  wrap.scrollTop += node.getBoundingClientRect().top - wrap.getBoundingClientRect().top;
+}
+function scrollStageTo(node){ scrollWithin(document.getElementById('stagewrap'), node); }
+function scrollTreeTo(node){ scrollWithin(document.getElementById('tree'), node); }
 
 /* ---------- init ---------- */
 function init(){

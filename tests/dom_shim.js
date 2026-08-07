@@ -30,6 +30,8 @@ class _ShimNode {
     this.value = ""; this.title = ""; this.src = "";
     this.isConnected = false;
     this.offsetHeight = 20;
+    this.scrollTop = 0; this.offsetTop = 0;
+    this._top = 0;                       // viewport y, set by tests
   }
   get className(){ return [...this.classList._s].join(" "); }
   set className(v){ this.classList._s = new Set(String(v).split(/\s+/).filter(Boolean)); }
@@ -66,6 +68,13 @@ class _ShimNode {
   dispatch(ev, arg){ (this._listeners[ev] || []).forEach(f => f(arg || {target: this,
     preventDefault(){}, stopPropagation(){}})); }
   scrollIntoView(){ this._scrolledIntoView = true; }
+  /* Enough of a box model to tell "scrolled the stage" from "scrolled the
+   * document": the reported bug is that the second one carried the topbar
+   * off-screen, and a shim without geometry cannot see the difference. */
+  getBoundingClientRect(){
+    return {top: this._top, left: 0, bottom: this._top + this.offsetHeight,
+            right: 0, width: 0, height: this.offsetHeight};
+  }
   querySelector(sel){ return this.querySelectorAll(sel)[0] || null; }
   querySelectorAll(sel){
     const out = [];

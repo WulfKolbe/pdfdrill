@@ -89,8 +89,11 @@ def _bilingual_model():
     }
 
 
+# NOT `init()`: the emitted script already calls it. Calling it again registers
+# every handler twice, so one `change` event fired gotoPage twice and the stage
+# scrolled by double the distance — a harness artifact that would happily hide a
+# real double-fire.
 _READ = """
-  init();
   function seen(){ return document.getElementById('stagewrap').allText()
                  + "\\n" + document.getElementById('tree').allText(); }
 """
@@ -270,7 +273,8 @@ def test_the_page_selector_reaches_other_pages_in_the_reflow_view():
       const i = CHUNKS.findIndex(c => c.p0 !== null && 2 >= c.p0 && 2 <= c.p1);
       OUT.found = i >= 0;
       OUT.hydrated = i >= 0 ? !!CHUNKS[i].hydrated : false;
-      OUT.scrolled = i >= 0 ? !!CHUNKS[i].node._scrolledIntoView : false;
+      OUT.scrolled = document.getElementById('stagewrap').scrollTop !== 0
+                     || (i >= 0 && CHUNKS[i].node._top === 0);
       OUT.text_present = seen().includes("Second page body");
     """)
     assert out == {"view": "reflow", "curPage": 2, "found": True,
@@ -398,3 +402,35 @@ def test_a_link_is_still_a_first_class_element_elsewhere():
       OUT.has_renderer = !!rendererFor('Link');
     """)
     assert out == {"in_data": True, "has_renderer": True}
+
+
+def test_paging_scrolls_the_stage_and_never_the_document():
+    """Reported as "after changing the page the outer frame vanishes":
+    `scrollIntoView` walks EVERY scrollable ancestor, so it took the fixed
+    topbar — view switch, page selector, language flag — off the top of the
+    window. Only the stage container's own scrollTop may move."""
+    out = _boot(_two_page_model(), body=_READ + """
+      const wrap = document.getElementById('stagewrap');
+      wrap._top = 50;
+      // the reflow is already rendered at load, so the chunks have their nodes;
+      // calling buildChunks() here would rebuild the array without them.
+      const i = CHUNKS.findIndex(c => c.p0 !== null && 2 >= c.p0 && 2 <= c.p1);
+      CHUNKS[i].node._top = 800;
+      const sel = document.getElementById('pageSel');
+      sel.value = 2; sel.dispatch('change');
+      OUT.stage_scrolled = wrap.scrollTop;
+      OUT.touched_document = !!CHUNKS[i].node._scrolledIntoView;
+    """)
+    assert out == {"stage_scrolled": 750, "touched_document": False}
+
+
+def test_selecting_an_element_also_scrolls_only_the_stage():
+    out = _boot(_two_page_model(), body=_READ + """
+      setView('reflow');
+      const wrap = document.getElementById('stagewrap');
+      wrap._top = 10;
+      select('p9');
+      OUT.any_node_used_scrollIntoView =
+        (NODES['p9'] || []).some(n => n._scrolledIntoView);
+    """)
+    assert out == {"any_node_used_scrollIntoView": False}
