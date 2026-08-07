@@ -1,0 +1,4236 @@
+{
+ "source": "pdfminer",
+ "pages": [
+  {
+   "page": 1,
+   "image_id": "pdfminer-p0",
+   "page_width": 612.0,
+   "page_height": 792.0,
+   "languages_detected": [],
+   "lines": [
+    {
+     "type": "text",
+     "text": "ElasticHash: Semantic Image Similarity Search",
+     "region": {
+      "top_left_x": 140.0,
+      "top_left_y": 114.36,
+      "width": 335.4,
+      "height": 14.3
+     },
+     "children_ids": []
+    },
+    {
+     "type": "text",
+     "text": "by Deep Hashing with Elasticsearch",
+     "region": {
+      "top_left_x": 180.5,
+      "top_left_y": 132.26,
+      "width": 254.4,
+      "height": 14.3
+     },
+     "children_ids": []
+    },
+    {
+     "type": "text",
+     "text": "Nikolaus Korfhage, Markus Mu¨hling, and Bernd Freisleben",
+     "region": {
+      "top_left_x": 178.9,
+      "top_left_y": 170.5,
+      "width": 257.6,
+      "height": 10.0
+     },
+     "children_ids": []
+    },
+    {
+     "type": "text",
+     "text": "Department of Mathematics and Computer Science,",
+     "region": {
+      "top_left_x": 202.6,
+      "top_left_y": 192.2,
+      "width": 210.2,
+      "height": 9.0
+     },
+     "children_ids": []
+    },
+    {
+     "type": "rotated_text",
+     "text": "arXiv:2305.04710v1[cs.CV]8May2023",
+     "region": {
+      "top_left_x": 32.0,
+      "top_left_y": 199.5,
+      "width": 20.0,
+      "height": 355.5
+     },
+     "children_ids": [],
+     "angle": 90.0,
+     "positions": [
+      {
+       "char": "a",
+       "x": 32.0,
+       "y": 555.0,
+       "angle": 90.0
+      },
+      {
+       "char": "r",
+       "x": 32.0,
+       "y": 546.1,
+       "angle": 90.0
+      },
+      {
+       "char": "X",
+       "x": 32.0,
+       "y": 539.5,
+       "angle": 90.0
+      },
+      {
+       "char": "i",
+       "x": 32.0,
+       "y": 525.0,
+       "angle": 90.0
+      },
+      {
+       "char": "v",
+       "x": 32.0,
+       "y": 519.5,
+       "angle": 90.0
+      },
+      {
+       "char": ":",
+       "x": 32.0,
+       "y": 509.5,
+       "angle": 90.0
+      },
+      {
+       "char": "2",
+       "x": 32.0,
+       "y": 503.9,
+       "angle": 90.0
+      },
+      {
+       "char": "3",
+       "x": 32.0,
+       "y": 493.9,
+       "angle": 90.0
+      },
+      {
+       "char": "0",
+       "x": 32.0,
+       "y": 483.9,
+       "angle": 90.0
+      },
+      {
+       "char": "5",
+       "x": 32.0,
+       "y": 473.9,
+       "angle": 90.0
+      },
+      {
+       "char": ".",
+       "x": 32.0,
+       "y": 463.9,
+       "angle": 90.0
+      },
+      {
+       "char": "0",
+       "x": 32.0,
+       "y": 458.9,
+       "angle": 90.0
+      },
+      {
+       "char": "4",
+       "x": 32.0,
+       "y": 448.9,
+       "angle": 90.0
+      },
+      {
+       "char": "7",
+       "x": 32.0,
+       "y": 438.9,
+       "angle": 90.0
+      },
+      {
+       "char": "1",
+       "x": 32.0,
+       "y": 428.9,
+       "angle": 90.0
+      },
+      {
+       "char": "0",
+       "x": 32.0,
+       "y": 418.9,
+       "angle": 90.0
+      },
+      {
+       "char": "v",
+       "x": 32.0,
+       "y": 408.9,
+       "angle": 90.0
+      },
+      {
+       "char": "1",
+       "x": 32.0,
+       "y": 398.9,
+       "angle": 90.0
+      },
+      {
+       "char": "[",
+       "x": 32.0,
+       "y": 378.9,
+       "angle": 90.0
+      },
+      {
+       "char": "c",
+       "x": 32.0,
+       "y": 372.2,
+       "angle": 90.0
+      },
+      {
+       "char": "s",
+       "x": 32.0,
+       "y": 363.4,
+       "angle": 90.0
+      },
+      {
+       "char": ".",
+       "x": 32.0,
+       "y": 355.6,
+       "angle": 90.0
+      },
+      {
+       "char": "C",
+       "x": 32.0,
+       "y": 350.6,
+       "angle": 90.0
+      },
+      {
+       "char": "V",
+       "x": 32.0,
+       "y": 337.2,
+       "angle": 90.0
+      },
+      {
+       "char": "]",
+       "x": 32.0,
+       "y": 322.8,
+       "angle": 90.0
+      },
+      {
+       "char": "8",
+       "x": 32.0,
+       "y": 306.1,
+       "angle": 90.0
+      },
+      {
+       "char": "M",
+       "x": 32.0,
+       "y": 291.1,
+       "angle": 90.0
+      },
+      {
+       "char": "a",
+       "x": 32.0,
+       "y": 273.4,
+       "angle": 90.0
+      },
+      {
+       "char": "y",
+       "x": 32.0,
+       "y": 264.5,
+       "angle": 90.0
+      },
+      {
+       "char": "2",
+       "x": 32.0,
+       "y": 249.5,
+       "angle": 90.0
+      },
+      {
+       "char": "0",
+       "x": 32.0,
+       "y": 239.5,
+       "angle": 90.0
+      },
+      {
+       "char": "2",
+       "x": 32.0,
+       "y": 229.5,
+       "angle": 90.0
+      },
+      {
+       "char": "3",
+       "x": 32.0,
+       "y": 219.5,
+       "angle": 90.0
+      }
+     ]
+    },
+    {
+     "type": "text",
+     "text": "University of Marburg, Marburg, Germany",
+     "region": {
+      "top_left_x": 221.0,
+      "top_left_y": 203.2,
+      "width": 173.3,
+      "height": 9.0
+     },
+     "children_ids": []
+    },
+    {
+     "type": "text",
+     "text": "$\\{$korfhage,muehling,freisleb$\\}$@informatik.uni-marburg.de",
+     "region": {
+      "top_left_x": 180.7,
+      "top_left_y": 214.1,
+      "width": 254.0,
+      "height": 9.0
+     },
+     "children_ids": []
+    },
+    {
+     "type": "text",
+     "text": "Abstract. We present ElasticHash, a novel approach for high-quality,",
+     "region": {
+      "top_left_x": 163.1,
+      "top_left_y": 256.2,
+      "width": 289.1,
+      "height": 9.0
+     },
+     "children_ids": []
+    },
+    {
+     "type": "text",
+     "text": "efficient, and large-scale semantic image similarity search. It is based on a deep hashing model to learn hash codes for fine-grained image similarity search in natural images and a two-stage method for efficiently searching binary hash codes using Elasticsearch (ES). In the first stage, a coarse search based on short hash codes is performed using multi-index hashing and ES terms lookup of neighboring hash codes. In the second stage, the list of results is re-ranked by computing the Hamming distance on long hash codes. We evaluate the retrieval performance of ElasticHash for more than 120,000 query images on about 6.9 million database images of the OpenImages data set. The results show that our approach achieves high-quality retrieval results and low search latencies.",
+     "region": {
+      "top_left_x": 163.1,
+      "top_left_y": 267.2,
+      "width": 289.1,
+      "height": 118.6
+     },
+     "children_ids": []
+    },
+    {
+     "type": "equation",
+     "text": "$$\nK e y w o r d s:d e e p h a s h i n g \\cdot s i m i l a r i t y s e a r c h \\cdot E l a s t i c s e a r c h\n$$",
+     "region": {
+      "top_left_x": 163.1,
+      "top_left_y": 398.8,
+      "width": 241.3,
+      "height": 9.0
+     },
+     "children_ids": []
+    },
+    {
+     "type": "text",
+     "text": "1 Introduction",
+     "region": {
+      "top_left_x": 134.8,
+      "top_left_y": 430.9,
+      "width": 94.1,
+      "height": 12.0
+     },
+     "children_ids": []
+    },
+    {
+     "type": "text",
+     "text": "Query-by-content approaches based on feature representations that are learned",
+     "region": {
+      "top_left_x": 134.8,
+      "top_left_y": 457.2,
+      "width": 345.8,
+      "height": 10.0
+     },
+     "children_ids": []
+    },
+    {
+     "type": "text",
+     "text": "by deep convolutional neural networks (CNNs) have greatly increased the perfor-",
+     "region": {
+      "top_left_x": 134.8,
+      "top_left_y": 469.2,
+      "width": 345.8,
+      "height": 10.0
+     },
+     "children_ids": []
+    },
+    {
+     "type": "text",
+     "text": "mance of content-based image retrieval systems. However, state-of-the-art meth-",
+     "region": {
+      "top_left_x": 134.8,
+      "top_left_y": 481.1,
+      "width": 345.8,
+      "height": 10.0
+     },
+     "children_ids": []
+    },
+    {
+     "type": "text",
+     "text": "ods in the field of semantic image similarity search suffer from shallow network",
+     "region": {
+      "top_left_x": 134.8,
+      "top_left_y": 493.1,
+      "width": 345.8,
+      "height": 10.0
+     },
+     "children_ids": []
+    },
+    {
+     "type": "text",
+     "text": "architectures and small data sets with few image classes in the training as well",
+     "region": {
+      "top_left_x": 134.8,
+      "top_left_y": 505.0,
+      "width": 345.8,
+      "height": 10.0
+     },
+     "children_ids": []
+    },
+    {
+     "type": "text",
+     "text": "as in the evaluation phases. Few image classes in the training phase lead to poor",
+     "region": {
+      "top_left_x": 134.8,
+      "top_left_y": 517.0,
+      "width": 345.8,
+      "height": 10.0
+     },
+     "children_ids": []
+    },
+    {
+     "type": "text",
+     "text": "generalizability to query images with unknown content in the evaluation phase,",
+     "region": {
+      "top_left_x": 134.8,
+      "top_left_y": 528.9,
+      "width": 345.8,
+      "height": 10.0
+     },
+     "children_ids": []
+    },
+    {
+     "type": "text",
+     "text": "i.e., a more fine-grained modeling of the image content is required. Thus, high",
+     "region": {
+      "top_left_x": 134.8,
+      "top_left_y": 540.9,
+      "width": 345.8,
+      "height": 10.0
+     },
+     "children_ids": []
+    },
+    {
+     "type": "text",
+     "text": "accuracy for arbitrary search queries, fast response times, and scalability to mil-",
+     "region": {
+      "top_left_x": 134.8,
+      "top_left_y": 552.9,
+      "width": 345.8,
+      "height": 10.0
+     },
+     "children_ids": []
+    },
+    {
+     "type": "text",
+     "text": "lions of images are necessary to meet many users’ needs both in scientific and",
+     "region": {
+      "top_left_x": 134.8,
+      "top_left_y": 564.8,
+      "width": 345.8,
+      "height": 10.0
+     },
+     "children_ids": []
+    },
+    {
+     "type": "text",
+     "text": "commercial applications.",
+     "region": {
+      "top_left_x": 134.8,
+      "top_left_y": 576.8,
+      "width": 107.4,
+      "height": 10.0
+     },
+     "children_ids": []
+    },
+    {
+     "type": "text",
+     "text": "In this paper, we present ElasticHash, a high-quality, efficient, and scalable",
+     "region": {
+      "top_left_x": 149.7,
+      "top_left_y": 588.9,
+      "width": 330.9,
+      "height": 10.0
+     },
+     "children_ids": []
+    },
+    {
+     "type": "text",
+     "text": "approach for semantic image similarity search based on the most popular en-",
+     "region": {
+      "top_left_x": 134.8,
+      "top_left_y": 600.8,
+      "width": 345.8,
+      "height": 10.0
+     },
+     "children_ids": []
+    },
+    {
+     "type": "text",
+     "text": "terprise full-text search and analytics engine Elasticsearch1 (ES). ES processes",
+     "region": {
+      "top_left_x": 134.8,
+      "top_left_y": 612.8,
+      "width": 345.8,
+      "height": 10.0
+     },
+     "children_ids": []
+    },
+    {
+     "type": "text",
+     "text": "queries very fast due to inverted indices based on Lucene2, scales to hundreds",
+     "region": {
+      "top_left_x": 134.8,
+      "top_left_y": 624.8,
+      "width": 345.8,
+      "height": 10.0
+     },
+     "children_ids": []
+    },
+    {
+     "type": "text",
+     "text": "1https://www.elastic.co",
+     "region": {
+      "top_left_x": 137.5,
+      "top_left_y": 641.0,
+      "width": 110.8,
+      "height": 9.0
+     },
+     "children_ids": []
+    },
+    {
+     "type": "text",
+     "text": "2https://lucene.apache.org",
+     "region": {
+      "top_left_x": 137.5,
+      "top_left_y": 651.9,
+      "width": 124.9,
+      "height": 9.0
+     },
+     "children_ids": []
+    }
+   ]
+  },
+  {
+   "page": 2,
+   "image_id": "pdfminer-p1",
+   "page_width": 612.0,
+   "page_height": 792.0,
+   "languages_detected": [],
+   "lines": [
+    {
+     "type": "text",
+     "text": "of servers, provides load balancing, and supports availability and reliability. Ap-",
+     "region": {
+      "top_left_x": 134.8,
+      "top_left_y": 117.8,
+      "width": 345.8,
+      "height": 10.0
+     },
+     "children_ids": []
+    },
+    {
+     "type": "text",
+     "text": "parently, the properties of ES are not only desirable for full-text search, but also",
+     "region": {
+      "top_left_x": 134.8,
+      "top_left_y": 129.8,
+      "width": 345.8,
+      "height": 10.0
+     },
+     "children_ids": []
+    },
+    {
+     "type": "text",
+     "text": "for semantic image similarity search. Furthermore, integrating image similarity",
+     "region": {
+      "top_left_x": 134.8,
+      "top_left_y": 141.7,
+      "width": 345.8,
+      "height": 10.0
+     },
+     "children_ids": []
+    },
+    {
+     "type": "text",
+     "text": "search into ES allows multi-modal queries, e.g., combining text and images in a",
+     "region": {
+      "top_left_x": 134.8,
+      "top_left_y": 153.7,
+      "width": 345.8,
+      "height": 10.0
+     },
+     "children_ids": []
+    },
+    {
+     "type": "text",
+     "text": "single query. The contributions of the paper are as follows:",
+     "region": {
+      "top_left_x": 134.8,
+      "top_left_y": 165.6,
+      "width": 256.0,
+      "height": 10.0
+     },
+     "children_ids": []
+    },
+    {
+     "type": "text",
+     "text": "– We present ElasticHash, a novel two-stage approach for semantic image sim-",
+     "region": {
+      "top_left_x": 141.0,
+      "top_left_y": 185.3,
+      "width": 339.6,
+      "height": 10.0
+     },
+     "children_ids": []
+    },
+    {
+     "type": "text",
+     "text": "ilarity search based on multi-index hashing and integrate it via terms lookup queries into ES.",
+     "region": {
+      "top_left_x": 151.7,
+      "top_left_y": 197.3,
+      "width": 328.9,
+      "height": 21.9
+     },
+     "children_ids": []
+    },
+    {
+     "type": "text",
+     "text": "– We present experimental results to show that ElasticHash achieves fast re-",
+     "region": {
+      "top_left_x": 141.0,
+      "top_left_y": 221.1,
+      "width": 339.6,
+      "height": 10.0
+     },
+     "children_ids": []
+    },
+    {
+     "type": "text",
+     "text": "sponse times and high-quality retrieval results at the same time by leveraging the benefits of short hash codes (better search times) and long hash codes (higher retrieval quality). To the best of our knowledge, we provide the first evaluation of image similarity search for more than 120,000 query images on about 6.9 million database images of the OpenImages data set.",
+     "region": {
+      "top_left_x": 151.7,
+      "top_left_y": 233.1,
+      "width": 328.9,
+      "height": 57.8
+     },
+     "children_ids": []
+    },
+    {
+     "type": "text",
+     "text": "– We make our deep image similarity search model, the corresponding ES",
+     "region": {
+      "top_left_x": 141.0,
+      "top_left_y": 292.8,
+      "width": 339.6,
+      "height": 10.0
+     },
+     "children_ids": []
+    },
+    {
+     "type": "text",
+     "text": "indices, and a demo application available at http://github.com/umr-ds/ ElasticHash.",
+     "region": {
+      "top_left_x": 151.7,
+      "top_left_y": 304.8,
+      "width": 328.9,
+      "height": 21.9
+     },
+     "children_ids": []
+    },
+    {
+     "type": "text",
+     "text": "The paper is organized as follows. In Section 2, we discuss related work.",
+     "region": {
+      "top_left_x": 149.7,
+      "top_left_y": 336.5,
+      "width": 330.9,
+      "height": 10.0
+     },
+     "children_ids": []
+    },
+    {
+     "type": "text",
+     "text": "Section 3 presents ElasticHash. In Section 4, we evaluate ElasticHash on the",
+     "region": {
+      "top_left_x": 134.8,
+      "top_left_y": 348.4,
+      "width": 345.8,
+      "height": 10.0
+     },
+     "children_ids": []
+    },
+    {
+     "type": "text",
+     "text": "OpenImages data set in terms of search latency and retrieval quality. Section 5",
+     "region": {
+      "top_left_x": 134.8,
+      "top_left_y": 360.4,
+      "width": 345.8,
+      "height": 10.0
+     },
+     "children_ids": []
+    },
+    {
+     "type": "text",
+     "text": "concludes the paper and outlines areas for future work.",
+     "region": {
+      "top_left_x": 134.8,
+      "top_left_y": 372.4,
+      "width": 240.8,
+      "height": 10.0
+     },
+     "children_ids": []
+    },
+    {
+     "type": "text",
+     "text": "2 Related Work",
+     "region": {
+      "top_left_x": 134.8,
+      "top_left_y": 402.5,
+      "width": 102.0,
+      "height": 12.0
+     },
+     "children_ids": []
+    },
+    {
+     "type": "text",
+     "text": "Deep learning, in particular deep CNNs, led to strong improvements in content-",
+     "region": {
+      "top_left_x": 134.8,
+      "top_left_y": 427.8,
+      "width": 345.8,
+      "height": 10.0
+     },
+     "children_ids": []
+    },
+    {
+     "type": "text",
+     "text": "based image similarity search. With increasing sizes of the underlying image",
+     "region": {
+      "top_left_x": 134.8,
+      "top_left_y": 439.7,
+      "width": 345.8,
+      "height": 10.0
+     },
+     "children_ids": []
+    },
+    {
+     "type": "text",
+     "text": "databases, the need for an efficient similarity search strategy arises. Since high-",
+     "region": {
+      "top_left_x": 134.8,
+      "top_left_y": 451.7,
+      "width": 345.8,
+      "height": 10.0
+     },
+     "children_ids": []
+    },
+    {
+     "type": "text",
+     "text": "dimensional CNN features are not suitable to efficiently search in very large",
+     "region": {
+      "top_left_x": 134.8,
+      "top_left_y": 463.6,
+      "width": 345.8,
+      "height": 10.0
+     },
+     "children_ids": []
+    },
+    {
+     "type": "text",
+     "text": "databases, large-scale image similarity search systems focus on binary image",
+     "region": {
+      "top_left_x": 134.8,
+      "top_left_y": 475.6,
+      "width": 345.8,
+      "height": 10.0
+     },
+     "children_ids": []
+    },
+    {
+     "type": "text",
+     "text": "codes for quantization or compact representations and fast comparisons rather",
+     "region": {
+      "top_left_x": 134.8,
+      "top_left_y": 487.6,
+      "width": 345.8,
+      "height": 10.0
+     },
+     "children_ids": []
+    },
+    {
+     "type": "text",
+     "text": "than full CNN features.",
+     "region": {
+      "top_left_x": 134.8,
+      "top_left_y": 499.5,
+      "width": 103.0,
+      "height": 10.0
+     },
+     "children_ids": []
+    },
+    {
+     "type": "text",
+     "text": "Recently, several deep hashing methods were introduced [25,6,23,21,2,15,4].",
+     "region": {
+      "top_left_x": 149.7,
+      "top_left_y": 511.5,
+      "width": 330.9,
+      "height": 10.0
+     },
+     "children_ids": []
+    },
+    {
+     "type": "text",
+     "text": "Many of them employ pairwise or triplet losses. While these methods often",
+     "region": {
+      "top_left_x": 134.8,
+      "top_left_y": 523.4,
+      "width": 345.8,
+      "height": 10.0
+     },
+     "children_ids": []
+    },
+    {
+     "type": "text",
+     "text": "achieve state-of-the-art performance on their test data sets, they are not neces-",
+     "region": {
+      "top_left_x": 134.8,
+      "top_left_y": 535.4,
+      "width": 345.8,
+      "height": 10.0
+     },
+     "children_ids": []
+    },
+    {
+     "type": "text",
+     "text": "sarily suitable for very large data sets and fine-grained image similarity search",
+     "region": {
+      "top_left_x": 134.8,
+      "top_left_y": 547.3,
+      "width": 345.8,
+      "height": 10.0
+     },
+     "children_ids": []
+    },
+    {
+     "type": "text",
+     "text": "based on thousands of classes. Existing deep hashing methods are often trained",
+     "region": {
+      "top_left_x": 134.8,
+      "top_left_y": 559.3,
+      "width": 345.8,
+      "height": 10.0
+     },
+     "children_ids": []
+    },
+    {
+     "type": "text",
+     "text": "using small CNNs that usually cannot capture the granularity of very large image",
+     "region": {
+      "top_left_x": 134.8,
+      "top_left_y": 571.2,
+      "width": 345.8,
+      "height": 10.0
+     },
+     "children_ids": []
+    },
+    {
+     "type": "text",
+     "text": "data sets. Often, CNN models like AlexNet [12] are used as their backbones, and",
+     "region": {
+      "top_left_x": 134.8,
+      "top_left_y": 583.2,
+      "width": 345.8,
+      "height": 10.0
+     },
+     "children_ids": []
+    },
+    {
+     "type": "text",
+     "text": "they are usually evaluated on a small number of image classes [22,4,6,25] (e.g.,",
+     "region": {
+      "top_left_x": 134.8,
+      "top_left_y": 595.2,
+      "width": 345.8,
+      "height": 10.0
+     },
+     "children_ids": []
+    },
+    {
+     "type": "text",
+     "text": "a sample of 100 ImageNet categories [4], about 80 object categories in COCO",
+     "region": {
+      "top_left_x": 134.8,
+      "top_left_y": 607.1,
+      "width": 345.8,
+      "height": 10.0
+     },
+     "children_ids": []
+    },
+    {
+     "type": "text",
+     "text": "[14], NUS-WIDE [5] with 81 concepts, or even only 10 classes as in MNIST or",
+     "region": {
+      "top_left_x": 134.8,
+      "top_left_y": 619.1,
+      "width": 345.8,
+      "height": 10.0
+     },
+     "children_ids": []
+    },
+    {
+     "type": "text",
+     "text": "CIFAR). Additionally, the image dimensions in CIFAR and MNIST are very",
+     "region": {
+      "top_left_x": 134.8,
+      "top_left_y": 631.0,
+      "width": 345.8,
+      "height": 10.0
+     },
+     "children_ids": []
+    },
+    {
+     "type": "text",
+     "text": "small (32x32 and 28x28, respectively) and thus not sufficient for image similar-",
+     "region": {
+      "top_left_x": 134.8,
+      "top_left_y": 643.0,
+      "width": 345.8,
+      "height": 10.0
+     },
+     "children_ids": []
+    },
+    {
+     "type": "text",
+     "text": "ity search in real-world applications. Many approaches are trained on relatively",
+     "region": {
+      "top_left_x": 134.8,
+      "top_left_y": 654.9,
+      "width": 345.8,
+      "height": 10.0
+     },
+     "children_ids": []
+    }
+   ]
+  },
+  {
+   "page": 3,
+   "image_id": "pdfminer-p2",
+   "page_width": 612.0,
+   "page_height": 792.0,
+   "languages_detected": [],
+   "lines": [
+    {
+     "type": "text",
+     "text": "small training data sets (e.g., 10,000 - 50,000 images [3,4,15]). In addition, there",
+     "region": {
+      "top_left_x": 134.8,
+      "top_left_y": 117.8,
+      "width": 345.8,
+      "height": 10.0
+     },
+     "children_ids": []
+    },
+    {
+     "type": "text",
+     "text": "are no standardized benchmark data sets, and each publication uses different",
+     "region": {
+      "top_left_x": 134.8,
+      "top_left_y": 129.8,
+      "width": 345.8,
+      "height": 10.0
+     },
+     "children_ids": []
+    },
+    {
+     "type": "text",
+     "text": "splits of training, query, and database images, which further complicates a com-",
+     "region": {
+      "top_left_x": 134.8,
+      "top_left_y": 141.7,
+      "width": 345.8,
+      "height": 10.0
+     },
+     "children_ids": []
+    },
+    {
+     "type": "text",
+     "text": "parison of the methods. Furthermore, training from scratch can be prohibitively",
+     "region": {
+      "top_left_x": 134.8,
+      "top_left_y": 153.7,
+      "width": 345.8,
+      "height": 10.0
+     },
+     "children_ids": []
+    },
+    {
+     "type": "text",
+     "text": "expensive for large data sets. We observed that for large data sets with a high",
+     "region": {
+      "top_left_x": 134.8,
+      "top_left_y": 165.6,
+      "width": 345.8,
+      "height": 10.0
+     },
+     "children_ids": []
+    },
+    {
+     "type": "text",
+     "text": "number of image classes, a transfer learning approach that combines triplet loss",
+     "region": {
+      "top_left_x": 134.8,
+      "top_left_y": 177.6,
+      "width": 345.8,
+      "height": 10.0
+     },
+     "children_ids": []
+    },
+    {
+     "type": "text",
+     "text": "and classification loss leads to good retrieval results. To the best of our knowl-",
+     "region": {
+      "top_left_x": 134.8,
+      "top_left_y": 189.5,
+      "width": 345.8,
+      "height": 10.0
+     },
+     "children_ids": []
+    },
+    {
+     "type": "text",
+     "text": "edge, ElasticHash is the first work that presents a deep hashing model trained",
+     "region": {
+      "top_left_x": 134.8,
+      "top_left_y": 201.5,
+      "width": 345.8,
+      "height": 10.0
+     },
+     "children_ids": []
+    },
+    {
+     "type": "text",
+     "text": "and evaluated on a sufficiently large number of image classes.",
+     "region": {
+      "top_left_x": 134.8,
+      "top_left_y": 213.4,
+      "width": 267.8,
+      "height": 10.0
+     },
+     "children_ids": []
+    },
+    {
+     "type": "text",
+     "text": "The currently best performing approaches for learning to hash image repre-",
+     "region": {
+      "top_left_x": 149.7,
+      "top_left_y": 226.6,
+      "width": 330.9,
+      "height": 10.0
+     },
+     "children_ids": []
+    },
+    {
+     "type": "text",
+     "text": "sentations belong either to product quantization (PQ) methods [8,9] and meth-",
+     "region": {
+      "top_left_x": 134.8,
+      "top_left_y": 238.6,
+      "width": 345.8,
+      "height": 10.0
+     },
+     "children_ids": []
+    },
+    {
+     "type": "text",
+     "text": "ods based on deep hashing (DH) [23,6]. Amato et al. [1] present PQ approaches",
+     "region": {
+      "top_left_x": 134.8,
+      "top_left_y": 250.6,
+      "width": 345.8,
+      "height": 10.0
+     },
+     "children_ids": []
+    },
+    {
+     "type": "text",
+     "text": "that transform neural network features into text formats suitable for being in-",
+     "region": {
+      "top_left_x": 134.8,
+      "top_left_y": 262.5,
+      "width": 345.8,
+      "height": 10.0
+     },
+     "children_ids": []
+    },
+    {
+     "type": "text",
+     "text": "dexed in ES. However, this approach cannot match the retrieval performance of",
+     "region": {
+      "top_left_x": 134.8,
+      "top_left_y": 274.5,
+      "width": 345.8,
+      "height": 10.0
+     },
+     "children_ids": []
+    },
+    {
+     "type": "text",
+     "text": "FAISS [9]. Therefore, we focus on deep hashing that in combination with multi-",
+     "region": {
+      "top_left_x": 134.8,
+      "top_left_y": 286.4,
+      "width": 345.8,
+      "height": 10.0
+     },
+     "children_ids": []
+    },
+    {
+     "type": "text",
+     "text": "index hashing (MIH) [17] can circumvent exhaustive search in Hamming space",
+     "region": {
+      "top_left_x": 134.8,
+      "top_left_y": 298.4,
+      "width": 345.8,
+      "height": 10.0
+     },
+     "children_ids": []
+    },
+    {
+     "type": "text",
+     "text": "and achieve low search latency while maintaining high retrieval quality.",
+     "region": {
+      "top_left_x": 134.8,
+      "top_left_y": 310.3,
+      "width": 311.2,
+      "height": 10.0
+     },
+     "children_ids": []
+    },
+    {
+     "type": "text",
+     "text": "ElasticHash is related to other image similarity search methods integrated",
+     "region": {
+      "top_left_x": 149.7,
+      "top_left_y": 323.6,
+      "width": 330.9,
+      "height": 10.0
+     },
+     "children_ids": []
+    },
+    {
+     "type": "text",
+     "text": "into ES. For example, FENSHSES [16] integrates MIH into ES and has a search",
+     "region": {
+      "top_left_x": 134.8,
+      "top_left_y": 335.5,
+      "width": 345.8,
+      "height": 10.0
+     },
+     "children_ids": []
+    },
+    {
+     "type": "text",
+     "text": "latency comparable to FAISS. The method works efficiently for small radii of the",
+     "region": {
+      "top_left_x": 134.8,
+      "top_left_y": 347.5,
+      "width": 345.8,
+      "height": 10.0
+     },
+     "children_ids": []
+    },
+    {
+     "type": "text",
+     "text": "Hamming ball and relatively small data sets (500,000 images). Small hamming",
+     "region": {
+      "top_left_x": 134.8,
+      "top_left_y": 359.4,
+      "width": 345.8,
+      "height": 10.0
+     },
+     "children_ids": []
+    },
+    {
+     "type": "text",
+     "text": "radii, however, often produce too few neighbors for a query [17]. MIH like FEN-",
+     "region": {
+      "top_left_x": 134.8,
+      "top_left_y": 371.4,
+      "width": 345.8,
+      "height": 10.0
+     },
+     "children_ids": []
+    },
+    {
+     "type": "text",
+     "text": "SHSES is thus not suitable for our scenario of large-scale image retrieval in ES",
+     "region": {
+      "top_left_x": 134.8,
+      "top_left_y": 383.3,
+      "width": 345.8,
+      "height": 10.0
+     },
+     "children_ids": []
+    },
+    {
+     "type": "text",
+     "text": "with long binary codes (256 bits), where we require sub-second search latency",
+     "region": {
+      "top_left_x": 134.8,
+      "top_left_y": 395.3,
+      "width": 345.8,
+      "height": 10.0
+     },
+     "children_ids": []
+    },
+    {
+     "type": "text",
+     "text": "on a data set of about 7 million images. Furthermore, we solve the shortcomings",
+     "region": {
+      "top_left_x": 134.8,
+      "top_left_y": 407.2,
+      "width": 345.8,
+      "height": 10.0
+     },
+     "children_ids": []
+    },
+    {
+     "type": "text",
+     "text": "of FENSHSES using only a subset of bits rather than the whole hash codes to",
+     "region": {
+      "top_left_x": 134.8,
+      "top_left_y": 419.2,
+      "width": 345.8,
+      "height": 10.0
+     },
+     "children_ids": []
+    },
+    {
+     "type": "text",
+     "text": "perform our MIH-based coarse search. While other works extend ES for image",
+     "region": {
+      "top_left_x": 134.8,
+      "top_left_y": 431.1,
+      "width": 345.8,
+      "height": 10.0
+     },
+     "children_ids": []
+    },
+    {
+     "type": "text",
+     "text": "similarity search by modifying the Lucene library [7], our approach is seamlessly",
+     "region": {
+      "top_left_x": 134.8,
+      "top_left_y": 443.1,
+      "width": 345.8,
+      "height": 10.0
+     },
+     "children_ids": []
+    },
+    {
+     "type": "text",
+     "text": "integrated into ES without modifying its code base.",
+     "region": {
+      "top_left_x": 134.8,
+      "top_left_y": 455.1,
+      "width": 225.5,
+      "height": 10.0
+     },
+     "children_ids": []
+    },
+    {
+     "type": "text",
+     "text": "ElasticHash consists of several components as shown in Figure 1: a deep hashing",
+     "region": {
+      "top_left_x": 134.8,
+      "top_left_y": 523.4,
+      "width": 345.8,
+      "height": 10.0
+     },
+     "children_ids": []
+    },
+    {
+     "type": "text",
+     "text": "component, an ES cluster, and a retrieval component. The deep hashing compo-",
+     "region": {
+      "top_left_x": 134.8,
+      "top_left_y": 535.4,
+      "width": 345.8,
+      "height": 10.0
+     },
+     "children_ids": []
+    },
+    {
+     "type": "text",
+     "text": "nent is realized as a web service using Tensorflow Serving where the integrated",
+     "region": {
+      "top_left_x": 134.8,
+      "top_left_y": 547.3,
+      "width": 345.8,
+      "height": 10.0
+     },
+     "children_ids": []
+    },
+    {
+     "type": "text",
+     "text": "deep hashing model is applied to images and the corresponding binary codes are",
+     "region": {
+      "top_left_x": 134.8,
+      "top_left_y": 559.3,
+      "width": 345.8,
+      "height": 10.0
+     },
+     "children_ids": []
+    },
+    {
+     "type": "text",
+     "text": "returned. In the first phase, the binary codes are extracted from the database",
+     "region": {
+      "top_left_x": 134.8,
+      "top_left_y": 571.2,
+      "width": 345.8,
+      "height": 10.0
+     },
+     "children_ids": []
+    },
+    {
+     "type": "text",
+     "text": "images in the indexing phase using the deep hashing component and stored into",
+     "region": {
+      "top_left_x": 134.8,
+      "top_left_y": 583.2,
+      "width": 345.8,
+      "height": 10.0
+     },
+     "children_ids": []
+    },
+    {
+     "type": "text",
+     "text": "the ES cluster. After initially building the index, the retrieval component han-",
+     "region": {
+      "top_left_x": 134.8,
+      "top_left_y": 595.2,
+      "width": 345.8,
+      "height": 10.0
+     },
+     "children_ids": []
+    },
+    {
+     "type": "text",
+     "text": "dles incoming query images and visualizes the retrieval results. For this purpose,",
+     "region": {
+      "top_left_x": 134.8,
+      "top_left_y": 607.1,
+      "width": 345.8,
+      "height": 10.0
+     },
+     "children_ids": []
+    },
+    {
+     "type": "text",
+     "text": "the binary codes are extracted from the query images using the web service, the",
+     "region": {
+      "top_left_x": 134.8,
+      "top_left_y": 619.1,
+      "width": 345.8,
+      "height": 10.0
+     },
+     "children_ids": []
+    },
+    {
+     "type": "text",
+     "text": "corresponding ES queries are assembled and sent to the ES cluster that returns",
+     "region": {
+      "top_left_x": 134.8,
+      "top_left_y": 631.0,
+      "width": 345.8,
+      "height": 10.0
+     },
+     "children_ids": []
+    },
+    {
+     "type": "text",
+     "text": "the final list of similar images. The entire similarity search system can be easily",
+     "region": {
+      "top_left_x": 134.8,
+      "top_left_y": 643.0,
+      "width": 345.8,
+      "height": 10.0
+     },
+     "children_ids": []
+    },
+    {
+     "type": "text",
+     "text": "deployed for production via Docker.",
+     "region": {
+      "top_left_x": 134.8,
+      "top_left_y": 654.9,
+      "width": 156.5,
+      "height": 10.0
+     },
+     "children_ids": []
+    }
+   ]
+  },
+  {
+   "page": 4,
+   "image_id": "pdfminer-p3",
+   "page_width": 612.0,
+   "page_height": 792.0,
+   "languages_detected": [],
+   "lines": [
+    {
+     "type": "text",
+     "text": "Fig.1. Overview of the workflows for image similarity search in ES.",
+     "region": {
+      "top_left_x": 170.3,
+      "top_left_y": 238.7,
+      "width": 274.8,
+      "height": 9.0
+     },
+     "children_ids": []
+    },
+    {
+     "type": "text",
+     "text": "The deep hashing model is described in more detail in Section 3.1, including",
+     "region": {
+      "top_left_x": 149.7,
+      "top_left_y": 271.0,
+      "width": 330.9,
+      "height": 10.0
+     },
+     "children_ids": []
+    },
+    {
+     "type": "text",
+     "text": "the training strategy and network architecture. In Section 3.2, the ES integration",
+     "region": {
+      "top_left_x": 134.8,
+      "top_left_y": 283.0,
+      "width": 345.8,
+      "height": 10.0
+     },
+     "children_ids": []
+    },
+    {
+     "type": "text",
+     "text": "is presented.",
+     "region": {
+      "top_left_x": 134.8,
+      "top_left_y": 294.9,
+      "width": 54.1,
+      "height": 10.0
+     },
+     "children_ids": []
+    },
+    {
+     "type": "text",
+     "text": "3.1 Deep Hashing Model",
+     "region": {
+      "top_left_x": 134.8,
+      "top_left_y": 323.6,
+      "width": 131.8,
+      "height": 10.0
+     },
+     "children_ids": []
+    },
+    {
+     "type": "text",
+     "text": "We now describe our deep hashing model and how it is used to extract both",
+     "region": {
+      "top_left_x": 134.8,
+      "top_left_y": 342.3,
+      "width": 345.8,
+      "height": 10.0
+     },
+     "children_ids": []
+    },
+    {
+     "type": "text",
+     "text": "short and long hash codes.",
+     "region": {
+      "top_left_x": 134.8,
+      "top_left_y": 354.2,
+      "width": 116.1,
+      "height": 10.0
+     },
+     "children_ids": []
+    },
+    {
+     "type": "text",
+     "text": "The model training consists of two phases that both use ADAM as the op-",
+     "region": {
+      "top_left_x": 149.7,
+      "top_left_y": 366.2,
+      "width": 330.9,
+      "height": 10.0
+     },
+     "children_ids": []
+    },
+    {
+     "type": "text",
+     "text": "timization method. First, an ImageNet-pretrained EfficientNetB3 [19] model is",
+     "region": {
+      "top_left_x": 134.8,
+      "top_left_y": 378.1,
+      "width": 345.8,
+      "height": 10.0
+     },
+     "children_ids": []
+    },
+    {
+     "type": "text",
+     "text": "trained on a data set with a larger number of classes in order to obtain a more",
+     "region": {
+      "top_left_x": 134.8,
+      "top_left_y": 390.1,
+      "width": 345.8,
+      "height": 10.0
+     },
+     "children_ids": []
+    },
+    {
+     "type": "text",
+     "text": "fine-grained embedding. In contrast to the original ImageNet dataset, it contains",
+     "region": {
+      "top_left_x": 134.8,
+      "top_left_y": 402.1,
+      "width": 345.8,
+      "height": 10.0
+     },
+     "children_ids": []
+    },
+    {
+     "type": "text",
+     "text": "all ImageNet classes with more than 1000 training images and all classes of the",
+     "region": {
+      "top_left_x": 134.8,
+      "top_left_y": 414.0,
+      "width": 345.8,
+      "height": 10.0
+     },
+     "children_ids": []
+    },
+    {
+     "type": "text",
+     "text": "Places2 [24] data set, which results in a total number of classes of 5,390. The",
+     "region": {
+      "top_left_x": 134.8,
+      "top_left_y": 426.0,
+      "width": 345.8,
+      "height": 10.0
+     },
+     "children_ids": []
+    },
+    {
+     "type": "text",
+     "text": "model is trained with cross-entropy loss on a Softmax output. After two epochs",
+     "region": {
+      "top_left_x": 134.8,
+      "top_left_y": 437.9,
+      "width": 345.8,
+      "height": 10.0
+     },
+     "children_ids": []
+    },
+    {
+     "type": "text",
+     "text": "of training the final layer with a learning rate of 0.01, all layers are trained for",
+     "region": {
+      "top_left_x": 134.8,
+      "top_left_y": 449.9,
+      "width": 345.8,
+      "height": 10.0
+     },
+     "children_ids": []
+    },
+    {
+     "type": "text",
+     "text": "another 16 epochs with a learning rate of 0.0001.",
+     "region": {
+      "top_left_x": 134.8,
+      "top_left_y": 461.8,
+      "width": 213.7,
+      "height": 10.0
+     },
+     "children_ids": []
+    },
+    {
+     "type": "text",
+     "text": "In the second phase, the classification model’s weights are used to initialize",
+     "region": {
+      "top_left_x": 149.7,
+      "top_left_y": 473.8,
+      "width": 330.9,
+      "height": 10.0
+     },
+     "children_ids": []
+    },
+    {
+     "type": "text",
+     "text": "the deep hashing model. This model includes an additional 256-bit coding layer",
+     "region": {
+      "top_left_x": 134.8,
+      "top_left_y": 485.8,
+      "width": 345.8,
+      "height": 10.0
+     },
+     "children_ids": []
+    },
+    {
+     "type": "text",
+     "text": "before the class output layer with $tanh$activation and 256 outputs. This model",
+     "region": {
+      "top_left_x": 134.8,
+      "top_left_y": 497.7,
+      "width": 345.8,
+      "height": 10.0
+     },
+     "children_ids": []
+    },
+    {
+     "type": "text",
+     "text": "is trained for 5 epochs with a learning rate of 0.0001. It is trained on the same",
+     "region": {
+      "top_left_x": 134.8,
+      "top_left_y": 509.7,
+      "width": 345.8,
+      "height": 10.0
+     },
+     "children_ids": []
+    },
+    {
+     "type": "text",
+     "text": "data set as before, however, by combining cross-entropy loss on the output and",
+     "region": {
+      "top_left_x": 134.8,
+      "top_left_y": 521.6,
+      "width": 345.8,
+      "height": 10.0
+     },
+     "children_ids": []
+    },
+    {
+     "type": "text",
+     "text": "hard triplet loss [18] on the coding layer.",
+     "region": {
+      "top_left_x": 134.8,
+      "top_left_y": 533.6,
+      "width": 177.8,
+      "height": 10.0
+     },
+     "children_ids": []
+    },
+    {
+     "type": "text",
+     "text": "With the classification loss",
+     "region": {
+      "top_left_x": 149.7,
+      "top_left_y": 545.5,
+      "width": 116.7,
+      "height": 10.0
+     },
+     "children_ids": []
+    },
+    {
+     "type": "equation",
+     "text": "$$\ns \\mathcal{L}_{c}=\\sum_{i=1}^{K}y_{i}l o g p_{i}\n$$",
+     "region": {
+      "top_left_x": 271.2,
+      "top_left_y": 560.7,
+      "width": 209.4,
+      "height": 34.2
+     },
+     "children_ids": []
+    },
+    {
+     "type": "text",
+     "text": "for $K$classes with labels $yi$and predictions $pi,$ and the triplet loss",
+     "region": {
+      "top_left_x": 134.8,
+      "top_left_y": 602.2,
+      "width": 289.0,
+      "height": 10.0
+     },
+     "children_ids": []
+    },
+    {
+     "type": "equation",
+     "text": "$$\n\\mathcal{L}_{t}=m a x(d(a,p)-d(a,n)+\\gamma,0)\n$$",
+     "region": {
+      "top_left_x": 234.3,
+      "top_left_y": 622.6,
+      "width": 246.3,
+      "height": 10.0
+     },
+     "children_ids": []
+    },
+    {
+     "type": "text",
+     "text": "for Euclidean distance $d$between the 256-dimensional output of the coding layer",
+     "region": {
+      "top_left_x": 134.8,
+      "top_left_y": 643.0,
+      "width": 345.8,
+      "height": 10.0
+     },
+     "children_ids": []
+    },
+    {
+     "type": "text",
+     "text": "for anchor image $a$and positive example $p$and between $a$and a negative example",
+     "region": {
+      "top_left_x": 134.8,
+      "top_left_y": 654.9,
+      "width": 345.8,
+      "height": 10.0
+     },
+     "children_ids": []
+    },
+    {
+     "type": "text",
+     "text": "",
+     "region": {
+      "top_left_x": 134.76,
+      "top_left_y": 115.83,
+      "width": 345.84,
+      "height": 109.15000000000002
+     },
+     "cdn_url": null,
+     "children_ids": []
+    }
+   ]
+  },
+  {
+   "page": 5,
+   "image_id": "pdfminer-p4",
+   "page_width": 612.0,
+   "page_height": 792.0,
+   "languages_detected": [],
+   "lines": [
+    {
+     "type": "text",
+     "text": "$n,$ respectively, the combined loss function is given by:",
+     "region": {
+      "top_left_x": 134.8,
+      "top_left_y": 117.8,
+      "width": 237.3,
+      "height": 10.0
+     },
+     "children_ids": []
+    },
+    {
+     "type": "equation",
+     "text": "$$\n\\mathcal{L}=\\alpha \\mathcal{L}_{\\rfloor}+\\beta \\mathcal{L}_{\\sqcup},\n$$",
+     "region": {
+      "top_left_x": 272.0,
+      "top_left_y": 139.7,
+      "width": 208.6,
+      "height": 10.0
+     },
+     "children_ids": []
+    },
+    {
+     "type": "text",
+     "text": "where we set margin $\\gamma=$ 2 and weights $\\alpha=$ 1 and $\\beta=$ 5. We first sample a batch",
+     "region": {
+      "top_left_x": 134.8,
+      "top_left_y": 161.6,
+      "width": 345.8,
+      "height": 10.0
+     },
+     "children_ids": []
+    },
+    {
+     "type": "text",
+     "text": "of size $b=$ 128 images from a uniform distribution of the classes. This batch is",
+     "region": {
+      "top_left_x": 134.8,
+      "top_left_y": 173.5,
+      "width": 345.8,
+      "height": 10.0
+     },
+     "children_ids": []
+    },
+    {
+     "type": "text",
+     "text": "used for both computing the classification loss and generating $b$hard triplets.",
+     "region": {
+      "top_left_x": 134.8,
+      "top_left_y": 185.5,
+      "width": 345.8,
+      "height": 10.0
+     },
+     "children_ids": []
+    },
+    {
+     "type": "text",
+     "text": "To make the similarity search more robust, we used heavy data augmentation",
+     "region": {
+      "top_left_x": 134.8,
+      "top_left_y": 197.5,
+      "width": 345.8,
+      "height": 10.0
+     },
+     "children_ids": []
+    },
+    {
+     "type": "text",
+     "text": "in both phases, which in addition to standard augmentation methods includes",
+     "region": {
+      "top_left_x": 134.8,
+      "top_left_y": 209.4,
+      "width": 345.8,
+      "height": 10.0
+     },
+     "children_ids": []
+    },
+    {
+     "type": "text",
+     "text": "inducing JPEG compression artifacts. After training, the model generates 256-bit",
+     "region": {
+      "top_left_x": 134.8,
+      "top_left_y": 221.4,
+      "width": 345.8,
+      "height": 10.0
+     },
+     "children_ids": []
+    },
+    {
+     "type": "text",
+     "text": "codes. These codes can be decomposed into four 64-bit codes for fast computation",
+     "region": {
+      "top_left_x": 134.8,
+      "top_left_y": 233.3,
+      "width": 345.8,
+      "height": 10.0
+     },
+     "children_ids": []
+    },
+    {
+     "type": "text",
+     "text": "of Hamming distance on long integers. However, using codes of this length on a",
+     "region": {
+      "top_left_x": 134.8,
+      "top_left_y": 245.3,
+      "width": 345.8,
+      "height": 10.0
+     },
+     "children_ids": []
+    },
+    {
+     "type": "text",
+     "text": "corpus of about 10 million images is too expensive, even when using multi-index",
+     "region": {
+      "top_left_x": 134.8,
+      "top_left_y": 257.2,
+      "width": 345.8,
+      "height": 10.0
+     },
+     "children_ids": []
+    },
+    {
+     "type": "text",
+     "text": "hashing. We therefore extracted 64-bit codes from the original 256-bit codes to",
+     "region": {
+      "top_left_x": 134.8,
+      "top_left_y": 269.2,
+      "width": 345.8,
+      "height": 10.0
+     },
+     "children_ids": []
+    },
+    {
+     "type": "text",
+     "text": "perform the filtering on shorter codes and thus smaller Hamming ball radii. To",
+     "region": {
+      "top_left_x": 134.8,
+      "top_left_y": 281.1,
+      "width": 345.8,
+      "height": 10.0
+     },
+     "children_ids": []
+    },
+    {
+     "type": "text",
+     "text": "extract the 64 most important bits from the 256-bit codes, we first partition the",
+     "region": {
+      "top_left_x": 134.8,
+      "top_left_y": 293.1,
+      "width": 345.8,
+      "height": 10.0
+     },
+     "children_ids": []
+    },
+    {
+     "type": "text",
+     "text": "256-bit codes into four partitions by applying the Kernighan-Lin algorithm [10]",
+     "region": {
+      "top_left_x": 134.8,
+      "top_left_y": 305.1,
+      "width": 345.8,
+      "height": 10.0
+     },
+     "children_ids": []
+    },
+    {
+     "type": "text",
+     "text": "on the bit correlations. From each of the four decorrelated partitions, we then",
+     "region": {
+      "top_left_x": 134.8,
+      "top_left_y": 317.0,
+      "width": 345.8,
+      "height": 10.0
+     },
+     "children_ids": []
+    },
+    {
+     "type": "text",
+     "text": "take the first 16 bits to compose 64-bit codes.",
+     "region": {
+      "top_left_x": 134.8,
+      "top_left_y": 329.0,
+      "width": 199.5,
+      "height": 10.0
+     },
+     "children_ids": []
+    },
+    {
+     "type": "text",
+     "text": "3.2 Integration into ES",
+     "region": {
+      "top_left_x": 134.8,
+      "top_left_y": 358.8,
+      "width": 122.8,
+      "height": 10.0
+     },
+     "children_ids": []
+    },
+    {
+     "type": "text",
+     "text": "Before describing our image similarity search integration into ES, we will shortly",
+     "region": {
+      "top_left_x": 134.8,
+      "top_left_y": 378.8,
+      "width": 345.8,
+      "height": 10.0
+     },
+     "children_ids": []
+    },
+    {
+     "type": "text",
+     "text": "review MIH in Hamming space [17]. The idea of MIH is based on the following",
+     "region": {
+      "top_left_x": 134.8,
+      "top_left_y": 390.7,
+      "width": 345.8,
+      "height": 10.0
+     },
+     "children_ids": []
+    },
+    {
+     "type": "text",
+     "text": "observation: for two binary codes $h=(h^{1},...,h^{m})$ and $g=(g^{1},...,g^{m})$ where",
+     "region": {
+      "top_left_x": 134.8,
+      "top_left_y": 402.7,
+      "width": 345.8,
+      "height": 10.0
+     },
+     "children_ids": []
+    },
+    {
+     "type": "text",
+     "text": "$m$is the number of partitions, $h^{k}$and $g^{k}$are the $k^{th}$subcodes and $H$is the",
+     "region": {
+      "top_left_x": 134.8,
+      "top_left_y": 414.6,
+      "width": 345.8,
+      "height": 10.0
+     },
+     "children_ids": []
+    },
+    {
+     "type": "text",
+     "text": "Hamming norm, the following proposition holds:",
+     "region": {
+      "top_left_x": 134.8,
+      "top_left_y": 426.6,
+      "width": 211.6,
+      "height": 10.0
+     },
+     "children_ids": []
+    },
+    {
+     "type": "equation",
+     "text": "$$\n\\lfloor r \\rfloor\n$$",
+     "region": {
+      "top_left_x": 401.1,
+      "top_left_y": 439.9,
+      "width": 21.6,
+      "height": 10.0
+     },
+     "children_ids": []
+    },
+    {
+     "type": "equation",
+     "text": "$$\n\\|h-g \\|_{H}\\leq r \\Rightarrow \\exists k \\in \\{1,...,m \\}h^{k}-g^{k}_{H}\\leq \\lfloor \\frac{r}{m}\\rfloor\n$$",
+     "region": {
+      "top_left_x": 194.3,
+      "top_left_y": 446.8,
+      "width": 286.3,
+      "height": 20.9
+     },
+     "children_ids": []
+    },
+    {
+     "type": "text",
+     "text": "For the case of 64-bit codes that are decomposed into $m=$ 4 subcodes, this",
+     "region": {
+      "top_left_x": 149.7,
+      "top_left_y": 475.6,
+      "width": 330.9,
+      "height": 10.0
+     },
+     "children_ids": []
+    },
+    {
+     "type": "text",
+     "text": "means that a code is in a Hamming radius $r<12$ if at least one of the subcodes",
+     "region": {
+      "top_left_x": 134.8,
+      "top_left_y": 487.6,
+      "width": 345.8,
+      "height": 10.0
+     },
+     "children_ids": []
+    },
+    {
+     "type": "text",
+     "text": "has a distance of $d \\leq \\lfloor\\frac{r}{m}\\rfloor=$ 2 from the query subcode. The performance of MIH",
+     "region": {
+      "top_left_x": 134.8,
+      "top_left_y": 499.5,
+      "width": 345.8,
+      "height": 10.0
+     },
+     "children_ids": []
+    },
+    {
+     "type": "text",
+     "text": "can be increased if the subcodes are maximally independent of each other [20],",
+     "region": {
+      "top_left_x": 134.8,
+      "top_left_y": 511.5,
+      "width": 345.8,
+      "height": 10.0
+     },
+     "children_ids": []
+    },
+    {
+     "type": "text",
+     "text": "especially for shorter codes [16]. Thus, after training a deep hashing model, the",
+     "region": {
+      "top_left_x": 134.8,
+      "top_left_y": 523.4,
+      "width": 345.8,
+      "height": 10.0
+     },
+     "children_ids": []
+    },
+    {
+     "type": "text",
+     "text": "bit positions should be permutated accordingly.",
+     "region": {
+      "top_left_x": 134.8,
+      "top_left_y": 535.4,
+      "width": 207.8,
+      "height": 10.0
+     },
+     "children_ids": []
+    },
+    {
+     "type": "text",
+     "text": "The ES index used for retrieval contains four short codes (f 0 - f 3) and",
+     "region": {
+      "top_left_x": 149.7,
+      "top_left_y": 547.3,
+      "width": 330.9,
+      "height": 10.0
+     },
+     "children_ids": []
+    },
+    {
+     "type": "text",
+     "text": "four long subcodes (r 0 - r 3) for each image. The short codes are used for MIH",
+     "region": {
+      "top_left_x": 134.8,
+      "top_left_y": 559.3,
+      "width": 345.8,
+      "height": 10.0
+     },
+     "children_ids": []
+    },
+    {
+     "type": "text",
+     "text": "and efficiently utilize the reverse index structure of ES and are thus separated",
+     "region": {
+      "top_left_x": 134.8,
+      "top_left_y": 571.2,
+      "width": 345.8,
+      "height": 10.0
+     },
+     "children_ids": []
+    },
+    {
+     "type": "text",
+     "text": "into four subcodes of type ”keyword”. The long codes are also separated into four",
+     "region": {
+      "top_left_x": 134.8,
+      "top_left_y": 583.2,
+      "width": 345.8,
+      "height": 10.0
+     },
+     "children_ids": []
+    },
+    {
+     "type": "text",
+     "text": "subcodes in order to allow fast computation of Hamming distances for values of",
+     "region": {
+      "top_left_x": 134.8,
+      "top_left_y": 595.2,
+      "width": 345.8,
+      "height": 10.0
+     },
+     "children_ids": []
+    },
+    {
+     "type": "text",
+     "text": "type long.",
+     "region": {
+      "top_left_x": 134.8,
+      "top_left_y": 607.1,
+      "width": 43.4,
+      "height": 10.0
+     },
+     "children_ids": []
+    },
+    {
+     "type": "text",
+     "text": "An additional index is used for fast lookup of neighboring subcodes within the",
+     "region": {
+      "top_left_x": 149.7,
+      "top_left_y": 619.1,
+      "width": 330.9,
+      "height": 10.0
+     },
+     "children_ids": []
+    },
+    {
+     "type": "text",
+     "text": "retrieval query. The neighbors index does not change once it has been created and",
+     "region": {
+      "top_left_x": 134.8,
+      "top_left_y": 631.0,
+      "width": 345.8,
+      "height": 10.0
+     },
+     "children_ids": []
+    },
+    {
+     "type": "text",
+     "text": "merely serves as an auxiliary index for term queries. It requires pre-computing all",
+     "region": {
+      "top_left_x": 134.8,
+      "top_left_y": 643.0,
+      "width": 345.8,
+      "height": 10.0
+     },
+     "children_ids": []
+    },
+    {
+     "type": "text",
+     "text": "nearest neighbors for all possible 16-bit subcodes. Thus, the index of neighbors",
+     "region": {
+      "top_left_x": 134.8,
+      "top_left_y": 654.9,
+      "width": 345.8,
+      "height": 10.0
+     },
+     "children_ids": []
+    }
+   ]
+  },
+  {
+   "page": 6,
+   "image_id": "pdfminer-p5",
+   "page_width": 612.0,
+   "page_height": 792.0,
+   "languages_detected": [],
+   "lines": [
+    {
+     "type": "text",
+     "text": "contains 216 documents. The document id corresponds to the unsigned integer",
+     "region": {
+      "top_left_x": 134.8,
+      "top_left_y": 117.8,
+      "width": 345.8,
+      "height": 10.0
+     },
+     "children_ids": []
+    },
+    {
+     "type": "text",
+     "text": "representation of a 16-bit subcode and can therefore accessed within a term",
+     "region": {
+      "top_left_x": 134.8,
+      "top_left_y": 129.8,
+      "width": 345.8,
+      "height": 10.0
+     },
+     "children_ids": []
+    },
+    {
+     "type": "text",
+     "text": "query. It contains a single field ”nbs” that is assigned to a list of all neighboring",
+     "region": {
+      "top_left_x": 134.8,
+      "top_left_y": 141.7,
+      "width": 345.8,
+      "height": 10.0
+     },
+     "children_ids": []
+    },
+    {
+     "type": "text",
+     "text": "16-bit codes within a Hamming radius of $d$of the corresponding query subcode.",
+     "region": {
+      "top_left_x": 134.8,
+      "top_left_y": 153.7,
+      "width": 345.8,
+      "height": 10.0
+     },
+     "children_ids": []
+    },
+    {
+     "type": "text",
+     "text": "Since this index basically works as a lookup table, it could also be realized",
+     "region": {
+      "top_left_x": 134.8,
+      "top_left_y": 165.6,
+      "width": 345.8,
+      "height": 10.0
+     },
+     "children_ids": []
+    },
+    {
+     "type": "text",
+     "text": "somewhere else, i.e., not as an ES index. However, integrating the lookup table",
+     "region": {
+      "top_left_x": 134.8,
+      "top_left_y": 177.6,
+      "width": 345.8,
+      "height": 10.0
+     },
+     "children_ids": []
+    },
+    {
+     "type": "text",
+     "text": "this way eliminates the need for external code and enables fast deployment of",
+     "region": {
+      "top_left_x": 134.8,
+      "top_left_y": 189.5,
+      "width": 345.8,
+      "height": 10.0
+     },
+     "children_ids": []
+    },
+    {
+     "type": "text",
+     "text": "the whole system. All documents representing all possible 16-bit subcodes are",
+     "region": {
+      "top_left_x": 134.8,
+      "top_left_y": 201.5,
+      "width": 345.8,
+      "height": 10.0
+     },
+     "children_ids": []
+    },
+    {
+     "type": "text",
+     "text": "inserted according to the query in Listing 1.1.",
+     "region": {
+      "top_left_x": 134.8,
+      "top_left_y": 213.4,
+      "width": 200.1,
+      "height": 10.0
+     },
+     "children_ids": []
+    },
+    {
+     "type": "text",
+     "text": "POST /nbs-d2/_doc/<16 bit subcode>",
+     "region": {
+      "top_left_x": 135.4,
+      "top_left_y": 232.1,
+      "width": 150.2,
+      "height": 7.0
+     },
+     "children_ids": []
+    },
+    {
+     "type": "text",
+     "text": "$\\{$\"nbs\" : [ <d2 neighbors of 16 bit subcode> ] $\\}$",
+     "region": {
+      "top_left_x": 134.9,
+      "top_left_y": 240.1,
+      "width": 217.5,
+      "height": 7.0
+     },
+     "children_ids": []
+    },
+    {
+     "type": "text",
+     "text": "Listing 1.1. Query for adding an entry to neighbor lookup index.",
+     "region": {
+      "top_left_x": 173.8,
+      "top_left_y": 255.0,
+      "width": 267.7,
+      "height": 9.0
+     },
+     "children_ids": []
+    },
+    {
+     "type": "text",
+     "text": "In this stage, MIH is realized by querying the additional index of neighbors",
+     "region": {
+      "top_left_x": 149.7,
+      "top_left_y": 275.8,
+      "width": 330.9,
+      "height": 10.0
+     },
+     "children_ids": []
+    },
+    {
+     "type": "text",
+     "text": "for fast neighbor lookup. Even with MIH, using the full code length of the deep",
+     "region": {
+      "top_left_x": 134.8,
+      "top_left_y": 287.7,
+      "width": 345.8,
+      "height": 10.0
+     },
+     "children_ids": []
+    },
+    {
+     "type": "text",
+     "text": "hashing model trained for 256-bit codes is too expensive for larger databases. We",
+     "region": {
+      "top_left_x": 134.8,
+      "top_left_y": 299.7,
+      "width": 345.8,
+      "height": 10.0
+     },
+     "children_ids": []
+    },
+    {
+     "type": "text",
+     "text": "therefore limit the code length for the filtering stage to 64-bit codes. To obtain a",
+     "region": {
+      "top_left_x": 134.8,
+      "top_left_y": 311.6,
+      "width": 345.8,
+      "height": 10.0
+     },
+     "children_ids": []
+    },
+    {
+     "type": "text",
+     "text": "sufficiently large set of candidate hash codes in the first stage, we need to search",
+     "region": {
+      "top_left_x": 134.8,
+      "top_left_y": 323.6,
+      "width": 345.8,
+      "height": 10.0
+     },
+     "children_ids": []
+    },
+    {
+     "type": "text",
+     "text": "within a Hamming ball with a correspondingly large radius. We set $d=$ 2, which",
+     "region": {
+      "top_left_x": 134.8,
+      "top_left_y": 335.6,
+      "width": 345.8,
+      "height": 10.0
+     },
+     "children_ids": []
+    },
+    {
+     "type": "text",
+     "text": "will return at least all codes within $r=$ 11 of a 64-bit code. In our setting with",
+     "region": {
+      "top_left_x": 134.8,
+      "top_left_y": 347.5,
+      "width": 345.8,
+      "height": 10.0
+     },
+     "children_ids": []
+    },
+    {
+     "type": "text",
+     "text": "$d=$ 2, this results in 137 neighbors per subcode, i.e., 548 neighbors in total.",
+     "region": {
+      "top_left_x": 134.8,
+      "top_left_y": 359.5,
+      "width": 330.8,
+      "height": 10.0
+     },
+     "children_ids": []
+    },
+    {
+     "type": "text",
+     "text": "In ES, we realize MIH by using a terms lookup. It fetches the field values of an",
+     "region": {
+      "top_left_x": 149.7,
+      "top_left_y": 371.6,
+      "width": 330.9,
+      "height": 10.0
+     },
+     "children_ids": []
+    },
+    {
+     "type": "text",
+     "text": "existing document and then uses these values as search terms (see Listing 1.1).",
+     "region": {
+      "top_left_x": 134.8,
+      "top_left_y": 383.5,
+      "width": 345.8,
+      "height": 10.0
+     },
+     "children_ids": []
+    },
+    {
+     "type": "text",
+     "text": "In contrast to putting all neighbors into the query, using a dedicated index for",
+     "region": {
+      "top_left_x": 134.8,
+      "top_left_y": 395.5,
+      "width": 345.8,
+      "height": 10.0
+     },
+     "children_ids": []
+    },
+    {
+     "type": "text",
+     "text": "subcode neighbors has the advantage that the retrieval of neighboring subcodes",
+     "region": {
+      "top_left_x": 134.8,
+      "top_left_y": 407.4,
+      "width": 345.8,
+      "height": 10.0
+     },
+     "children_ids": []
+    },
+    {
+     "type": "text",
+     "text": "is carried out within ES. Thus, the query load is small, and no external handling",
+     "region": {
+      "top_left_x": 134.8,
+      "top_left_y": 419.4,
+      "width": 345.8,
+      "height": 10.0
+     },
+     "children_ids": []
+    },
+    {
+     "type": "text",
+     "text": "of neighbor lookup is necessary.",
+     "region": {
+      "top_left_x": 134.8,
+      "top_left_y": 431.4,
+      "width": 137.7,
+      "height": 10.0
+     },
+     "children_ids": []
+    },
+    {
+     "type": "text",
+     "text": "In the second stage, all codes obtained by MIH are re-ranked according to",
+     "region": {
+      "top_left_x": 149.7,
+      "top_left_y": 443.5,
+      "width": 330.9,
+      "height": 10.0
+     },
+     "children_ids": []
+    },
+    {
+     "type": "text",
+     "text": "their Hamming distance to the long code. To compute the Hamming distance of",
+     "region": {
+      "top_left_x": 134.8,
+      "top_left_y": 455.4,
+      "width": 345.8,
+      "height": 10.0
+     },
+     "children_ids": []
+    },
+    {
+     "type": "text",
+     "text": "the 256-bit code, the Painless Script in Listing 1.2 is applied to each of the four",
+     "region": {
+      "top_left_x": 134.8,
+      "top_left_y": 467.4,
+      "width": 345.8,
+      "height": 10.0
+     },
+     "children_ids": []
+    },
+    {
+     "type": "text",
+     "text": "subcodes.",
+     "region": {
+      "top_left_x": 134.8,
+      "top_left_y": 479.3,
+      "width": 41.6,
+      "height": 10.0
+     },
+     "children_ids": []
+    },
+    {
+     "type": "text",
+     "text": "POST _scripts/hd64",
+     "region": {
+      "top_left_x": 135.4,
+      "top_left_y": 498.0,
+      "width": 79.0,
+      "height": 7.0
+     },
+     "children_ids": []
+    },
+    {
+     "type": "text",
+     "text": "$\\{$\"script\": $\\{$\"lang\": \"painless\",",
+     "region": {
+      "top_left_x": 134.9,
+      "top_left_y": 506.0,
+      "width": 146.2,
+      "height": 7.0
+     },
+     "children_ids": []
+    },
+    {
+     "type": "text",
+     "text": "\"source\": 64-Long.bitCount(params.subcode\\textasciicircum{}doc[params.field].value) $\\}\\}$",
+     "region": {
+      "top_left_x": 144.0,
+      "top_left_y": 514.0,
+      "width": 310.7,
+      "height": 7.0
+     },
+     "children_ids": []
+    },
+    {
+     "type": "text",
+     "text": "Listing 1.2. Query for adding a Painless Script.",
+     "region": {
+      "top_left_x": 209.3,
+      "top_left_y": 528.9,
+      "width": 196.8,
+      "height": 9.0
+     },
+     "children_ids": []
+    },
+    {
+     "type": "text",
+     "text": "The query in Listing 1.3 combines the MIH step as a filter with a term query",
+     "region": {
+      "top_left_x": 149.7,
+      "top_left_y": 549.7,
+      "width": 330.9,
+      "height": 10.0
+     },
+     "children_ids": []
+    },
+    {
+     "type": "text",
+     "text": "and the re-ranking step as an application of the painless script from Listing 1.2",
+     "region": {
+      "top_left_x": 134.8,
+      "top_left_y": 561.6,
+      "width": 345.8,
+      "height": 10.0
+     },
+     "children_ids": []
+    },
+    {
+     "type": "text",
+     "text": "on the filtered retrieval list.",
+     "region": {
+      "top_left_x": 134.8,
+      "top_left_y": 573.6,
+      "width": 119.9,
+      "height": 10.0
+     },
+     "children_ids": []
+    },
+    {
+     "type": "text",
+     "text": "4 Experimental Evaluation",
+     "region": {
+      "top_left_x": 134.8,
+      "top_left_y": 604.7,
+      "width": 166.3,
+      "height": 12.0
+     },
+     "children_ids": []
+    },
+    {
+     "type": "text",
+     "text": "To determine the search latency and retrieval quality of ElasticHash, we evaluate",
+     "region": {
+      "top_left_x": 134.8,
+      "top_left_y": 631.0,
+      "width": 345.8,
+      "height": 10.0
+     },
+     "children_ids": []
+    },
+    {
+     "type": "text",
+     "text": "three settings for using the binary hash codes generated by our deep hashing",
+     "region": {
+      "top_left_x": 134.8,
+      "top_left_y": 643.0,
+      "width": 345.8,
+      "height": 10.0
+     },
+     "children_ids": []
+    },
+    {
+     "type": "text",
+     "text": "model for large-scale image retrieval in ES: (1) short codes, i.e., 64 bits for both",
+     "region": {
+      "top_left_x": 134.8,
+      "top_left_y": 654.9,
+      "width": 345.8,
+      "height": 10.0
+     },
+     "children_ids": []
+    }
+   ]
+  },
+  {
+   "page": 7,
+   "image_id": "pdfminer-p6",
+   "page_width": 612.0,
+   "page_height": 792.0,
+   "languages_detected": [],
+   "lines": [
+    {
+     "type": "text",
+     "text": "GET /es-retrieval/_search",
+     "region": {
+      "top_left_x": 135.3,
+      "top_left_y": 121.6,
+      "width": 110.0,
+      "height": 7.0
+     },
+     "children_ids": []
+    },
+    {
+     "type": "text",
+     "text": "$\\{$\"query\": $\\{$",
+     "region": {
+      "top_left_x": 134.9,
+      "top_left_y": 129.6,
+      "width": 53.0,
+      "height": 7.0
+     },
+     "children_ids": []
+    },
+    {
+     "type": "text",
+     "text": "\"function\\_score\": $\\{$",
+     "region": {
+      "top_left_x": 135.1,
+      "top_left_y": 137.5,
+      "width": 84.0,
+      "height": 7.0
+     },
+     "children_ids": []
+    },
+    {
+     "type": "text",
+     "text": "\"boost_mode\": \"sum\", \"score_mode\": \"sum\",",
+     "region": {
+      "top_left_x": 139.6,
+      "top_left_y": 145.5,
+      "width": 186.0,
+      "height": 7.0
+     },
+     "children_ids": []
+    },
+    {
+     "type": "text",
+     "text": "\"functions\": [ ..., $\\{$",
+     "region": {
+      "top_left_x": 139.6,
+      "top_left_y": 153.5,
+      "width": 92.8,
+      "height": 7.0
+     },
+     "children_ids": []
+    },
+    {
+     "type": "text",
+     "text": "\"script\\_score\": $\\{$",
+     "region": {
+      "top_left_x": 144.0,
+      "top_left_y": 161.4,
+      "width": 75.1,
+      "height": 7.0
+     },
+     "children_ids": []
+    },
+    {
+     "type": "text",
+     "text": "\"script\": $\\{$\"id\": \"hd64\",",
+     "region": {
+      "top_left_x": 148.5,
+      "top_left_y": 169.4,
+      "width": 110.4,
+      "height": 7.0
+     },
+     "children_ids": []
+    },
+    {
+     "type": "text",
+     "text": "\"params\": $\\{$",
+     "region": {
+      "top_left_x": 152.9,
+      "top_left_y": 177.4,
+      "width": 48.4,
+      "height": 7.0
+     },
+     "children_ids": []
+    },
+    {
+     "type": "text",
+     "text": "\"field\": \"r_<i>\",",
+     "region": {
+      "top_left_x": 157.4,
+      "top_left_y": 185.4,
+      "width": 74.8,
+      "height": 7.0
+     },
+     "children_ids": []
+    },
+    {
+     "type": "text",
+     "text": "\"subcode\": <64 bit subcode for re-ranking> $\\}\\}\\},$ \"weight\": 1 $\\},$ ... ],",
+     "region": {
+      "top_left_x": 157.4,
+      "top_left_y": 193.3,
+      "width": 319.3,
+      "height": 7.0
+     },
+     "children_ids": []
+    },
+    {
+     "type": "text",
+     "text": "\"query\": $\\{$",
+     "region": {
+      "top_left_x": 135.1,
+      "top_left_y": 201.3,
+      "width": 43.9,
+      "height": 7.0
+     },
+     "children_ids": []
+    },
+    {
+     "type": "text",
+     "text": "\"constant\\_score\": $\\{$",
+     "region": {
+      "top_left_x": 144.0,
+      "top_left_y": 209.3,
+      "width": 83.9,
+      "height": 7.0
+     },
+     "children_ids": []
+    },
+    {
+     "type": "text",
+     "text": "\"boost\": 0.",
+     "region": {
+      "top_left_x": 148.5,
+      "top_left_y": 217.2,
+      "width": 48.1,
+      "height": 7.0
+     },
+     "children_ids": []
+    },
+    {
+     "type": "text",
+     "text": "\"filter\": $\\{$",
+     "region": {
+      "top_left_x": 148.5,
+      "top_left_y": 225.2,
+      "width": 48.3,
+      "height": 7.0
+     },
+     "children_ids": []
+    },
+    {
+     "type": "text",
+     "text": "\"bool\": $\\{$",
+     "region": {
+      "top_left_x": 152.9,
+      "top_left_y": 233.2,
+      "width": 39.5,
+      "height": 7.0
+     },
+     "children_ids": []
+    },
+    {
+     "type": "text",
+     "text": "\"minimum_should_match\": 1,",
+     "region": {
+      "top_left_x": 157.4,
+      "top_left_y": 241.2,
+      "width": 114.8,
+      "height": 7.0
+     },
+     "children_ids": []
+    },
+    {
+     "type": "text",
+     "text": "\"should\": [ ..., $\\{$",
+     "region": {
+      "top_left_x": 157.4,
+      "top_left_y": 249.1,
+      "width": 79.4,
+      "height": 7.0
+     },
+     "children_ids": []
+    },
+    {
+     "type": "text",
+     "text": "\"terms\": $\\{$",
+     "region": {
+      "top_left_x": 161.8,
+      "top_left_y": 257.1,
+      "width": 43.9,
+      "height": 7.0
+     },
+     "children_ids": []
+    },
+    {
+     "type": "text",
+     "text": "\"f\\_<j>\": $\\{$",
+     "region": {
+      "top_left_x": 166.3,
+      "top_left_y": 265.0,
+      "width": 43.9,
+      "height": 7.0
+     },
+     "children_ids": []
+    },
+    {
+     "type": "text",
+     "text": "\"id\": \"<16 bit subcode for lookup >\",",
+     "region": {
+      "top_left_x": 170.7,
+      "top_left_y": 273.0,
+      "width": 159.3,
+      "height": 7.0
+     },
+     "children_ids": []
+    },
+    {
+     "type": "text",
+     "text": "\"index\": \"nbs-d2\",",
+     "region": {
+      "top_left_x": 170.7,
+      "top_left_y": 281.0,
+      "width": 79.3,
+      "height": 7.0
+     },
+     "children_ids": []
+    },
+    {
+     "type": "text",
+     "text": "\"path\": \"nbs\" $\\}\\}\\},$ ... ] $\\}\\}\\}\\},\\}\\}\\}$",
+     "region": {
+      "top_left_x": 170.7,
+      "top_left_y": 289.0,
+      "width": 181.7,
+      "height": 7.0
+     },
+     "children_ids": []
+    },
+    {
+     "type": "text",
+     "text": "Listing 1.3. Query for performing two-stage similarity search.",
+     "region": {
+      "top_left_x": 180.9,
+      "top_left_y": 303.7,
+      "width": 253.6,
+      "height": 9.0
+     },
+     "children_ids": []
+    },
+    {
+     "type": "text",
+     "text": "filtering and re-ranking, (2) long codes, i.e., 256 bits for both filtering and re-",
+     "region": {
+      "top_left_x": 134.8,
+      "top_left_y": 346.6,
+      "width": 345.8,
+      "height": 10.0
+     },
+     "children_ids": []
+    },
+    {
+     "type": "text",
+     "text": "ranking, and (3) ElasticHash, i.e., 64 bits for filtering, 256 bits for re-ranking.",
+     "region": {
+      "top_left_x": 134.8,
+      "top_left_y": 358.6,
+      "width": 345.8,
+      "height": 10.0
+     },
+     "children_ids": []
+    },
+    {
+     "type": "text",
+     "text": "Settings (1) and (2) are similar to the MIH integration of Mu et al. [16].",
+     "region": {
+      "top_left_x": 134.8,
+      "top_left_y": 370.5,
+      "width": 315.6,
+      "height": 10.0
+     },
+     "children_ids": []
+    },
+    {
+     "type": "text",
+     "text": "To evaluate our approach, we use OpenImages [13], which is currently the",
+     "region": {
+      "top_left_x": 149.7,
+      "top_left_y": 382.6,
+      "width": 330.9,
+      "height": 10.0
+     },
+     "children_ids": []
+    },
+    {
+     "type": "text",
+     "text": "largest annotated image data set publicly available. It contains multi-label anno-",
+     "region": {
+      "top_left_x": 134.8,
+      "top_left_y": 394.6,
+      "width": 345.8,
+      "height": 10.0
+     },
+     "children_ids": []
+    },
+    {
+     "type": "text",
+     "text": "tations for 9.2 million Flickr images with 19,794 different labels and is partitioned",
+     "region": {
+      "top_left_x": 134.8,
+      "top_left_y": 406.6,
+      "width": 345.8,
+      "height": 10.0
+     },
+     "children_ids": []
+    },
+    {
+     "type": "text",
+     "text": "into training, validation, and test data set. On the average, there are 2.4 positive",
+     "region": {
+      "top_left_x": 134.8,
+      "top_left_y": 418.5,
+      "width": 345.8,
+      "height": 10.0
+     },
+     "children_ids": []
+    },
+    {
+     "type": "text",
+     "text": "labels for the training split, while the validation and test splits have 8.8. As our",
+     "region": {
+      "top_left_x": 134.8,
+      "top_left_y": 430.5,
+      "width": 345.8,
+      "height": 10.0
+     },
+     "children_ids": []
+    },
+    {
+     "type": "text",
+     "text": "database images we use all training images being available when downloading",
+     "region": {
+      "top_left_x": 134.8,
+      "top_left_y": 442.4,
+      "width": 345.8,
+      "height": 10.0
+     },
+     "children_ids": []
+    },
+    {
+     "type": "text",
+     "text": "the data set, i.e., 6,942,071 images in total. To evaluate the retrieval quality,",
+     "region": {
+      "top_left_x": 134.8,
+      "top_left_y": 454.4,
+      "width": 345.8,
+      "height": 10.0
+     },
+     "children_ids": []
+    },
+    {
+     "type": "text",
+     "text": "we use all downloaded images from the OpenImages test and validation set as",
+     "region": {
+      "top_left_x": 134.8,
+      "top_left_y": 466.3,
+      "width": 345.8,
+      "height": 10.0
+     },
+     "children_ids": []
+    },
+    {
+     "type": "text",
+     "text": "query images (121,588 images in total). From these images, we draw a sample",
+     "region": {
+      "top_left_x": 134.8,
+      "top_left_y": 478.3,
+      "width": 345.8,
+      "height": 10.0
+     },
+     "children_ids": []
+    },
+    {
+     "type": "text",
+     "text": "of 10,000 images to measure the search latencies for the three different settings.",
+     "region": {
+      "top_left_x": 134.8,
+      "top_left_y": 490.2,
+      "width": 345.8,
+      "height": 10.0
+     },
+     "children_ids": []
+    },
+    {
+     "type": "text",
+     "text": "The quality of the retrieval lists is evaluated using the average precision (AP)",
+     "region": {
+      "top_left_x": 149.7,
+      "top_left_y": 502.4,
+      "width": 330.9,
+      "height": 10.0
+     },
+     "children_ids": []
+    },
+    {
+     "type": "text",
+     "text": "score, which is the most commonly used quality measure in image retrieval. The",
+     "region": {
+      "top_left_x": 134.8,
+      "top_left_y": 514.3,
+      "width": 345.8,
+      "height": 10.0
+     },
+     "children_ids": []
+    },
+    {
+     "type": "text",
+     "text": "AP score is calculated from the list of retrieved images as follows:",
+     "region": {
+      "top_left_x": 134.8,
+      "top_left_y": 526.3,
+      "width": 287.0,
+      "height": 10.0
+     },
+     "children_ids": []
+    },
+    {
+     "type": "equation",
+     "text": "$$\nA P A s P c o(r \\rho e)i=s c \\frac{a l c u 1 l a t e d}{\\mid R \\cap \\rho^{N}\\mid}\\sum_{k=1}^{N}f r o m \\frac{R t \\cap h e \\rho l_{k}i s}{k}t \\psi o(i f_{k}r)e,t w r i i e t h v e d \\psi i m(i a_{k}g)e=s a \\\\{s f 1 0 o l l o i f w o t i s h_{k}:e \\in r w R i s e\n$$",
+     "region": {
+      "top_left_x": 148.7,
+      "top_left_y": 539.5,
+      "width": 331.9,
+      "height": 40.5
+     },
+     "children_ids": []
+    },
+    {
+     "type": "text",
+     "text": "where $N$is the length of the ranked image list, $\\rho^{k}=\\{i1,i2,...,ik\\}$is the ranked",
+     "region": {
+      "top_left_x": 134.8,
+      "top_left_y": 595.2,
+      "width": 345.8,
+      "height": 10.0
+     },
+     "children_ids": []
+    },
+    {
+     "type": "text",
+     "text": "image list up to rank $k,R$is the set of relevant documents, $R \\cap \\rho^{k}$is the",
+     "region": {
+      "top_left_x": 134.8,
+      "top_left_y": 607.1,
+      "width": 345.8,
+      "height": 10.0
+     },
+     "children_ids": []
+    },
+    {
+     "type": "text",
+     "text": "number of relevant images in the top$-k$of $\\rho$and $\\psi(ik)$ is the relevance function.",
+     "region": {
+      "top_left_x": 134.8,
+      "top_left_y": 619.1,
+      "width": 345.8,
+      "height": 10.0
+     },
+     "children_ids": []
+    },
+    {
+     "type": "text",
+     "text": "We consider an image as relevant, if it has at least one label in common with",
+     "region": {
+      "top_left_x": 134.8,
+      "top_left_y": 631.0,
+      "width": 345.8,
+      "height": 10.0
+     },
+     "children_ids": []
+    },
+    {
+     "type": "text",
+     "text": "the query image. To evaluate the overall performance, the mean AP score is",
+     "region": {
+      "top_left_x": 134.8,
+      "top_left_y": 643.0,
+      "width": 345.8,
+      "height": 10.0
+     },
+     "children_ids": []
+    },
+    {
+     "type": "text",
+     "text": "calculated by taking the mean value of the AP scores over all queries.",
+     "region": {
+      "top_left_x": 134.8,
+      "top_left_y": 654.9,
+      "width": 304.2,
+      "height": 10.0
+     },
+     "children_ids": []
+    }
+   ]
+  },
+  {
+   "page": 8,
+   "image_id": "pdfminer-p7",
+   "page_width": 612.0,
+   "page_height": 792.0,
+   "languages_detected": [],
+   "lines": [
+    {
+     "type": "text",
+     "text": "Fig.2. Top-10 retrieval results for (a) short codes, (b) long codes, and (c) ElasticHash",
+     "region": {
+      "top_left_x": 134.8,
+      "top_left_y": 230.6,
+      "width": 345.8,
+      "height": 9.0
+     },
+     "children_ids": []
+    },
+    {
+     "type": "text",
+     "text": "for the same query image (first on the left); green: relevant result; red: irrelevant result.",
+     "region": {
+      "top_left_x": 134.8,
+      "top_left_y": 241.6,
+      "width": 345.8,
+      "height": 9.0
+     },
+     "children_ids": []
+    },
+    {
+     "type": "text",
+     "text": "4.1 Results",
+     "region": {
+      "top_left_x": 134.8,
+      "top_left_y": 276.8,
+      "width": 63.0,
+      "height": 10.0
+     },
+     "children_ids": []
+    },
+    {
+     "type": "text",
+     "text": "We first evaluate the search latency for the queries. Next, we compare the re-",
+     "region": {
+      "top_left_x": 134.8,
+      "top_left_y": 299.6,
+      "width": 345.8,
+      "height": 10.0
+     },
+     "children_ids": []
+    },
+    {
+     "type": "text",
+     "text": "trieval quality in terms of AP. The experiments were performed on a system",
+     "region": {
+      "top_left_x": 134.8,
+      "top_left_y": 311.6,
+      "width": 345.8,
+      "height": 10.0
+     },
+     "children_ids": []
+    },
+    {
+     "type": "text",
+     "text": "with an Intel Core i7-4771 CPU @ 3.50GHz and 32 GB RAM.",
+     "region": {
+      "top_left_x": 134.8,
+      "top_left_y": 323.6,
+      "width": 272.0,
+      "height": 10.0
+     },
+     "children_ids": []
+    },
+    {
+     "type": "text",
+     "text": "Table 1. Retrieval quality in terms of mean AP for different thresholds of $k$on 121,588",
+     "region": {
+      "top_left_x": 134.8,
+      "top_left_y": 354.4,
+      "width": 345.8,
+      "height": 9.0
+     },
+     "children_ids": []
+    },
+    {
+     "type": "text",
+     "text": "query images.",
+     "region": {
+      "top_left_x": 134.8,
+      "top_left_y": 365.4,
+      "width": 55.3,
+      "height": 9.0
+     },
+     "children_ids": []
+    },
+    {
+     "type": "text",
+     "text": "top $k 10$ 25 50 100 250 500 1000",
+     "region": {
+      "top_left_x": 224.4,
+      "top_left_y": 386.1,
+      "width": 189.9,
+      "height": 9.0
+     },
+     "children_ids": []
+    },
+    {
+     "type": "text",
+     "text": "short 87.94 86.08 84.44 82.54 79.41 76.44 72.86",
+     "region": {
+      "top_left_x": 225.3,
+      "top_left_y": 399.5,
+      "width": 189.0,
+      "height": 9.0
+     },
+     "children_ids": []
+    },
+    {
+     "type": "text",
+     "text": "long 95.35 94.72 94.23 93.71 92.90 92.09 90.95",
+     "region": {
+      "top_left_x": 229.0,
+      "top_left_y": 410.9,
+      "width": 185.3,
+      "height": 9.0
+     },
+     "children_ids": []
+    },
+    {
+     "type": "text",
+     "text": "ElasticHash 95.21 94.48 93.90 93.22 92.02 90.61 88.42",
+     "region": {
+      "top_left_x": 198.0,
+      "top_left_y": 422.2,
+      "width": 216.3,
+      "height": 9.0
+     },
+     "children_ids": []
+    },
+    {
+     "type": "text",
+     "text": "Table 2. Search latencies for ES queries (ms) with standard deviation for different",
+     "region": {
+      "top_left_x": 134.8,
+      "top_left_y": 479.7,
+      "width": 345.8,
+      "height": 9.0
+     },
+     "children_ids": []
+    },
+    {
+     "type": "text",
+     "text": "thresholds of $k$on 10,000 query images.",
+     "region": {
+      "top_left_x": 134.8,
+      "top_left_y": 490.7,
+      "width": 159.6,
+      "height": 9.0
+     },
+     "children_ids": []
+    },
+    {
+     "type": "text",
+     "text": "top $k 10$ 25 50 100 250 500 1000",
+     "region": {
+      "top_left_x": 177.7,
+      "top_left_y": 511.4,
+      "width": 256.9,
+      "height": 9.0
+     },
+     "children_ids": []
+    },
+    {
+     "type": "equation",
+     "text": "$$\n\\frac{1 0 \\quad 2 5 \\quad 5 0 \\quad 1 0 0 \\quad 2 5 0 \\quad 5 0 0 1 0 0 0}{\\overline{\\frac{\\sigma \\mu 2 3 4..7 0 9 4 2 3 4..9 6 8 5 2 4 4..4 7 5 0 2 5 4..5 7 8 2 2 8 4..3 8 8 6 3 3 5..0 2 9 0 4 2 6..2 0 0 7}{\\frac{\\sigma \\mu 1 1 1 1 6..8 5 3 0 1 1 1 6 1..5 5 8 8 1 1 1 1 6..9 7 9 2 1 1 1 3 6..0 5 5 4 1 1 1 6 7..7 0 7 4 1 2 1 1 7..9 1 8 3 1 3 1 2 7..6 9 0 9}{h \\sigma \\mu 3 6 7..8 1 2 0 3 6 7..7 9 5 6 3 7 7..2 8 8 1 3 8 7..1 8 7 9 4 0 7..8 9 8 3 4 5 8..7 1 3 2 5 5 8..2 6 3 4}}}}\n$$",
+     "region": {
+      "top_left_x": 230.3,
+      "top_left_y": 524.8,
+      "width": 204.3,
+      "height": 64.6
+     },
+     "children_ids": []
+    },
+    {
+     "type": "text",
+     "text": "short long",
+     "region": {
+      "top_left_x": 177.7,
+      "top_left_y": 530.3,
+      "width": 20.5,
+      "height": 31.3
+     },
+     "children_ids": []
+    },
+    {
+     "type": "text",
+     "text": "Table 1 shows that for a $k$up to 250 there is no notable decrease in retrieval",
+     "region": {
+      "top_left_x": 149.7,
+      "top_left_y": 619.1,
+      "width": 330.9,
+      "height": 10.0
+     },
+     "children_ids": []
+    },
+    {
+     "type": "text",
+     "text": "quality when employing ElasticHash rather than using the long codes for both",
+     "region": {
+      "top_left_x": 134.8,
+      "top_left_y": 631.0,
+      "width": 345.8,
+      "height": 10.0
+     },
+     "children_ids": []
+    },
+    {
+     "type": "text",
+     "text": "stages. Figure 2 shows examples of the top-10 retrieval results for the three set-",
+     "region": {
+      "top_left_x": 134.8,
+      "top_left_y": 643.0,
+      "width": 345.8,
+      "height": 10.0
+     },
+     "children_ids": []
+    },
+    {
+     "type": "text",
+     "text": "tings. It is evident that the retrieval quality of ElasticHash is similar to using",
+     "region": {
+      "top_left_x": 134.8,
+      "top_left_y": 654.9,
+      "width": 345.8,
+      "height": 10.0
+     },
+     "children_ids": []
+    },
+    {
+     "type": "text",
+     "text": "",
+     "region": {
+      "top_left_x": 134.76,
+      "top_left_y": 115.83,
+      "width": 345.84,
+      "height": 101.06999999999998
+     },
+     "cdn_url": null,
+     "children_ids": []
+    }
+   ]
+  },
+  {
+   "page": 9,
+   "image_id": "pdfminer-p8",
+   "page_width": 612.0,
+   "page_height": 792.0,
+   "languages_detected": [],
+   "lines": [
+    {
+     "type": "text",
+     "text": "long codes, and both are superior to using short codes. On the other hand, Ta-",
+     "region": {
+      "top_left_x": 134.8,
+      "top_left_y": 117.8,
+      "width": 345.8,
+      "height": 10.0
+     },
+     "children_ids": []
+    },
+    {
+     "type": "text",
+     "text": "ble 2 indicates that the average retrieval time only slightly increases compared",
+     "region": {
+      "top_left_x": 134.8,
+      "top_left_y": 129.8,
+      "width": 345.8,
+      "height": 10.0
+     },
+     "children_ids": []
+    },
+    {
+     "type": "text",
+     "text": "to using short codes for both stages. This suggests that ElasticHash is a good",
+     "region": {
+      "top_left_x": 134.8,
+      "top_left_y": 141.7,
+      "width": 345.8,
+      "height": 10.0
+     },
+     "children_ids": []
+    },
+    {
+     "type": "text",
+     "text": "trade-off between retrieval quality and search latency. Although our deep hash-",
+     "region": {
+      "top_left_x": 134.8,
+      "top_left_y": 153.7,
+      "width": 345.8,
+      "height": 10.0
+     },
+     "children_ids": []
+    },
+    {
+     "type": "text",
+     "text": "ing model was trained on 5,390 classes, but almost 20,000 classes occur in the",
+     "region": {
+      "top_left_x": 134.8,
+      "top_left_y": 165.6,
+      "width": 345.8,
+      "height": 10.0
+     },
+     "children_ids": []
+    },
+    {
+     "type": "text",
+     "text": "validation data set, high AP values are achieved for ElasticHash.",
+     "region": {
+      "top_left_x": 134.8,
+      "top_left_y": 177.6,
+      "width": 282.4,
+      "height": 10.0
+     },
+     "children_ids": []
+    },
+    {
+     "type": "text",
+     "text": "5 Conclusion",
+     "region": {
+      "top_left_x": 134.8,
+      "top_left_y": 209.9,
+      "width": 84.5,
+      "height": 12.0
+     },
+     "children_ids": []
+    },
+    {
+     "type": "text",
+     "text": "We presented ElasticHash, a novel two-stage approach for semantic image simi-",
+     "region": {
+      "top_left_x": 134.8,
+      "top_left_y": 237.5,
+      "width": 345.8,
+      "height": 10.0
+     },
+     "children_ids": []
+    },
+    {
+     "type": "text",
+     "text": "larity search based on deep multi-index hashing and integrated via terms lookup",
+     "region": {
+      "top_left_x": 134.8,
+      "top_left_y": 249.5,
+      "width": 345.8,
+      "height": 10.0
+     },
+     "children_ids": []
+    },
+    {
+     "type": "text",
+     "text": "queries into ES. Our experimental results on a large image data set demon-",
+     "region": {
+      "top_left_x": 134.8,
+      "top_left_y": 261.5,
+      "width": 345.8,
+      "height": 10.0
+     },
+     "children_ids": []
+    },
+    {
+     "type": "text",
+     "text": "strated that we achieve low search latencies and high-quality retrieval results",
+     "region": {
+      "top_left_x": 134.8,
+      "top_left_y": 273.4,
+      "width": 345.8,
+      "height": 10.0
+     },
+     "children_ids": []
+    },
+    {
+     "type": "text",
+     "text": "at the same time by leveraging the benefits of short hash codes (better search",
+     "region": {
+      "top_left_x": 134.8,
+      "top_left_y": 285.4,
+      "width": 345.8,
+      "height": 10.0
+     },
+     "children_ids": []
+    },
+    {
+     "type": "text",
+     "text": "times) and long hash codes (higher retrieval quality).",
+     "region": {
+      "top_left_x": 134.8,
+      "top_left_y": 297.3,
+      "width": 231.8,
+      "height": 10.0
+     },
+     "children_ids": []
+    },
+    {
+     "type": "text",
+     "text": "There are several areas for future work. For example, it would be interest-",
+     "region": {
+      "top_left_x": 149.7,
+      "top_left_y": 309.7,
+      "width": 330.9,
+      "height": 10.0
+     },
+     "children_ids": []
+    },
+    {
+     "type": "text",
+     "text": "ing to investigate how many classes are necessary to obtain a high degree of",
+     "region": {
+      "top_left_x": 134.8,
+      "top_left_y": 321.7,
+      "width": 345.8,
+      "height": 10.0
+     },
+     "children_ids": []
+    },
+    {
+     "type": "text",
+     "text": "generalizability. Furthermore, our loss function could be adapted to multi-label",
+     "region": {
+      "top_left_x": 134.8,
+      "top_left_y": 333.6,
+      "width": 345.8,
+      "height": 10.0
+     },
+     "children_ids": []
+    },
+    {
+     "type": "text",
+     "text": "image data. Finally, we plan to extend our approach to achieve intentional image",
+     "region": {
+      "top_left_x": 134.8,
+      "top_left_y": 345.6,
+      "width": 345.8,
+      "height": 10.0
+     },
+     "children_ids": []
+    },
+    {
+     "type": "text",
+     "text": "similarity search [11] using ES.",
+     "region": {
+      "top_left_x": 134.8,
+      "top_left_y": 357.5,
+      "width": 134.6,
+      "height": 10.0
+     },
+     "children_ids": []
+    },
+    {
+     "type": "text",
+     "text": "6 Acknowledgements",
+     "region": {
+      "top_left_x": 134.8,
+      "top_left_y": 389.9,
+      "width": 131.7,
+      "height": 12.0
+     },
+     "children_ids": []
+    },
+    {
+     "type": "text",
+     "text": "This work is financially supported by the German Research Foundation (DFG",
+     "region": {
+      "top_left_x": 134.8,
+      "top_left_y": 417.5,
+      "width": 345.8,
+      "height": 10.0
+     },
+     "children_ids": []
+    },
+    {
+     "type": "text",
+     "text": "project number 388420599) and HMWK (LOEWE research cluster Nature 4.0).",
+     "region": {
+      "top_left_x": 134.8,
+      "top_left_y": 429.5,
+      "width": 345.8,
+      "height": 10.0
+     },
+     "children_ids": []
+    },
+    {
+     "type": "text",
+     "text": "References",
+     "region": {
+      "top_left_x": 134.8,
+      "top_left_y": 461.8,
+      "width": 62.9,
+      "height": 12.0
+     },
+     "children_ids": []
+    },
+    {
+     "type": "text",
+     "text": "1. Amato, G., Bolettieri, P., Carrara, F., Falchi, F., Gennaro, C.: Large-scale image",
+     "region": {
+      "top_left_x": 139.4,
+      "top_left_y": 489.2,
+      "width": 341.2,
+      "height": 9.0
+     },
+     "children_ids": []
+    },
+    {
+     "type": "text",
+     "text": "retrieval with Elasticsearch. In: The 41st International ACM SIGIR Conference on Research and Development in Information Retrieval. p. 925–928 (2018)",
+     "region": {
+      "top_left_x": 151.5,
+      "top_left_y": 500.2,
+      "width": 329.1,
+      "height": 20.0
+     },
+     "children_ids": []
+    },
+    {
+     "type": "text",
+     "text": "2. Cao, Y., Qi, H., Zhou, W., Kato, J., Li, K., Liu, X., Gui, J.: Binary hashing for",
+     "region": {
+      "top_left_x": 139.4,
+      "top_left_y": 522.5,
+      "width": 341.2,
+      "height": 9.0
+     },
+     "children_ids": []
+    },
+    {
+     "type": "text",
+     "text": "approximate nearest neighbor search on big data: A survey. IEEE Access 6, 2039– 2054 (2017)",
+     "region": {
+      "top_left_x": 151.5,
+      "top_left_y": 533.5,
+      "width": 329.1,
+      "height": 20.0
+     },
+     "children_ids": []
+    },
+    {
+     "type": "text",
+     "text": "3. Cao, Z., Long, M., Wang, J., Yu, P.S.: Hashnet: Deep learning to hash by contin-",
+     "region": {
+      "top_left_x": 139.4,
+      "top_left_y": 555.8,
+      "width": 341.2,
+      "height": 9.0
+     },
+     "children_ids": []
+    },
+    {
+     "type": "text",
+     "text": "uation. In: Proc. IEEE Int. Conf. on Computer Vision. pp. 5608–5617 (2017)",
+     "region": {
+      "top_left_x": 151.5,
+      "top_left_y": 566.8,
+      "width": 310.6,
+      "height": 9.0
+     },
+     "children_ids": []
+    },
+    {
+     "type": "text",
+     "text": "4. Cao, Z., Sun, Z., Long, M., Wang, J., Yu, P.S.: Deep priority hashing. In: Proc. of",
+     "region": {
+      "top_left_x": 139.4,
+      "top_left_y": 578.2,
+      "width": 341.2,
+      "height": 9.0
+     },
+     "children_ids": []
+    },
+    {
+     "type": "text",
+     "text": "the 26th ACM Int. Conference on Multimedia. pp. 1653–1661 (2018)",
+     "region": {
+      "top_left_x": 151.5,
+      "top_left_y": 589.1,
+      "width": 277.3,
+      "height": 9.0
+     },
+     "children_ids": []
+    },
+    {
+     "type": "text",
+     "text": "5. Chua, T.S., Tang, J., Hong, R., Li, H., Luo, Z., Zheng, Y.: NUS-WIDE: a real-",
+     "region": {
+      "top_left_x": 139.4,
+      "top_left_y": 600.5,
+      "width": 341.2,
+      "height": 9.0
+     },
+     "children_ids": []
+    },
+    {
+     "type": "text",
+     "text": "world web image database from national university of singapore. In: Proceedings of the ACM International Conference on Image and Video Retrieval. pp. 1–9 (2009)",
+     "region": {
+      "top_left_x": 151.5,
+      "top_left_y": 611.5,
+      "width": 329.1,
+      "height": 19.9
+     },
+     "children_ids": []
+    },
+    {
+     "type": "text",
+     "text": "6. Erin Liong, V., Lu, J., Wang, G., Moulin, P., Zhou, J.: Deep hashing for compact",
+     "region": {
+      "top_left_x": 139.4,
+      "top_left_y": 633.8,
+      "width": 341.2,
+      "height": 9.0
+     },
+     "children_ids": []
+    },
+    {
+     "type": "text",
+     "text": "binary codes learning. In: Proceedings of the IEEE Conference on Computer Vision and Pattern Recognition. pp. 2475–2483 (2015)",
+     "region": {
+      "top_left_x": 151.5,
+      "top_left_y": 644.8,
+      "width": 329.1,
+      "height": 19.9
+     },
+     "children_ids": []
+    }
+   ]
+  },
+  {
+   "page": 10,
+   "image_id": "pdfminer-p9",
+   "page_width": 612.0,
+   "page_height": 792.0,
+   "languages_detected": [],
+   "lines": [
+    {
+     "type": "text",
+     "text": "7. Gennaro, C., Amato, G., Bolettieri, P., Savino, P.: An approach to content-based",
+     "region": {
+      "top_left_x": 139.4,
+      "top_left_y": 118.6,
+      "width": 341.2,
+      "height": 9.0
+     },
+     "children_ids": []
+    },
+    {
+     "type": "text",
+     "text": "image retrieval based on the Lucene search engine library. In: Proc. 14th Eur. Conf.",
+     "region": {
+      "top_left_x": 151.5,
+      "top_left_y": 129.6,
+      "width": 329.1,
+      "height": 9.0
+     },
+     "children_ids": []
+    },
+    {
+     "type": "text",
+     "text": "on Research and Advanced Technology for Digital Libraries. pp. 55–66 (2010)",
+     "region": {
+      "top_left_x": 151.5,
+      "top_left_y": 140.5,
+      "width": 313.9,
+      "height": 9.0
+     },
+     "children_ids": []
+    },
+    {
+     "type": "text",
+     "text": "8. Jegou, H., Douze, M., Schmid, C.: Product quantization for nearest neighbor",
+     "region": {
+      "top_left_x": 139.4,
+      "top_left_y": 151.5,
+      "width": 341.2,
+      "height": 9.0
+     },
+     "children_ids": []
+    },
+    {
+     "type": "text",
+     "text": "search. IEEE Trans. on Pattern Analysis and Machine Intell. 33(1), 117–128 (2010)",
+     "region": {
+      "top_left_x": 151.5,
+      "top_left_y": 162.4,
+      "width": 329.1,
+      "height": 9.0
+     },
+     "children_ids": []
+    },
+    {
+     "type": "text",
+     "text": "9. Johnson, J., Douze, M., J´egou, H.: Billion-scale similarity search with GPUs. IEEE",
+     "region": {
+      "top_left_x": 139.4,
+      "top_left_y": 173.4,
+      "width": 341.2,
+      "height": 9.0
+     },
+     "children_ids": []
+    },
+    {
+     "type": "text",
+     "text": "Transactions on Big Data (2019)",
+     "region": {
+      "top_left_x": 151.5,
+      "top_left_y": 184.3,
+      "width": 132.2,
+      "height": 9.0
+     },
+     "children_ids": []
+    },
+    {
+     "type": "text",
+     "text": "10. Kernighan, B.W., Lin, S.: An efficient heuristic procedure for partitioning graphs.",
+     "region": {
+      "top_left_x": 134.8,
+      "top_left_y": 195.3,
+      "width": 345.8,
+      "height": 9.0
+     },
+     "children_ids": []
+    },
+    {
+     "type": "text",
+     "text": "The Bell System Technical Journal 49(2), 291–307 (1970)",
+     "region": {
+      "top_left_x": 151.5,
+      "top_left_y": 206.3,
+      "width": 233.2,
+      "height": 9.0
+     },
+     "children_ids": []
+    },
+    {
+     "type": "text",
+     "text": "11. Korfhage, N., Mu¨hling, M., Freisleben, B.: Intentional image similarity search. In:",
+     "region": {
+      "top_left_x": 134.8,
+      "top_left_y": 217.2,
+      "width": 345.8,
+      "height": 9.0
+     },
+     "children_ids": []
+    },
+    {
+     "type": "text",
+     "text": "IAPR Workshop on Artificial Neural Networks in Pattern Recognition. pp. 23–35.",
+     "region": {
+      "top_left_x": 151.5,
+      "top_left_y": 228.2,
+      "width": 329.1,
+      "height": 9.0
+     },
+     "children_ids": []
+    },
+    {
+     "type": "text",
+     "text": "Springer (2020)",
+     "region": {
+      "top_left_x": 151.5,
+      "top_left_y": 239.2,
+      "width": 62.5,
+      "height": 9.0
+     },
+     "children_ids": []
+    },
+    {
+     "type": "text",
+     "text": "12. Krizhevsky, A., Sutskever, I., Hinton, G.E.: Imagenet classification with deep con-",
+     "region": {
+      "top_left_x": 134.8,
+      "top_left_y": 250.1,
+      "width": 345.8,
+      "height": 9.0
+     },
+     "children_ids": []
+    },
+    {
+     "type": "text",
+     "text": "volutional neural networks. Advances in Neural Information Processing Systems 25, 1097–1105 (2012)",
+     "region": {
+      "top_left_x": 151.5,
+      "top_left_y": 261.1,
+      "width": 329.1,
+      "height": 19.9
+     },
+     "children_ids": []
+    },
+    {
+     "type": "text",
+     "text": "13. Kuznetsova, A., Rom, H., Alldrin, N., Uijlings, J., Krasin, I., Pont-Tuset, J., Ka-",
+     "region": {
+      "top_left_x": 134.8,
+      "top_left_y": 283.0,
+      "width": 345.8,
+      "height": 9.0
+     },
+     "children_ids": []
+    },
+    {
+     "type": "text",
+     "text": "mali, S., Popov, S., Malloci, M., Kolesnikov, A., et al.: The open images dataset v4. International Journal of Computer Vision pp. 1–26 (2020)",
+     "region": {
+      "top_left_x": 151.5,
+      "top_left_y": 293.9,
+      "width": 329.1,
+      "height": 20.0
+     },
+     "children_ids": []
+    },
+    {
+     "type": "text",
+     "text": "14. Lin, T.Y., Maire, M., Belongie, S., Hays, J., Perona, P., Ramanan, D., Doll´ar,",
+     "region": {
+      "top_left_x": 134.8,
+      "top_left_y": 315.9,
+      "width": 345.8,
+      "height": 9.0
+     },
+     "children_ids": []
+    },
+    {
+     "type": "text",
+     "text": "P., Zitnick, C.L.: Microsoft COCO: Common objects in context. In: European Conference on Computer Vision. pp. 740–755. Springer (2014)",
+     "region": {
+      "top_left_x": 151.5,
+      "top_left_y": 326.8,
+      "width": 329.1,
+      "height": 20.0
+     },
+     "children_ids": []
+    },
+    {
+     "type": "text",
+     "text": "15. Liu, H., Wang, R., Shan, S., Chen, X.: Deep supervised hashing for fast image",
+     "region": {
+      "top_left_x": 134.8,
+      "top_left_y": 348.7,
+      "width": 345.8,
+      "height": 9.0
+     },
+     "children_ids": []
+    },
+    {
+     "type": "text",
+     "text": "retrieval. In: Proceedings of the IEEE Conference on Computer Vision and Pattern Recognition. pp. 2064–2072 (2016)",
+     "region": {
+      "top_left_x": 151.5,
+      "top_left_y": 359.7,
+      "width": 329.1,
+      "height": 20.0
+     },
+     "children_ids": []
+    },
+    {
+     "type": "text",
+     "text": "16. Mu, C.M., Zhao, J.R., Yang, G., Yang, B., Yan, Z.J.: Fast and exact nearest neigh-",
+     "region": {
+      "top_left_x": 134.8,
+      "top_left_y": 381.6,
+      "width": 345.8,
+      "height": 9.0
+     },
+     "children_ids": []
+    },
+    {
+     "type": "text",
+     "text": "bor search in hamming space on full-text search engines. In: International Conference on Similarity Search and Applications. pp. 49–56. Springer (2019)",
+     "region": {
+      "top_left_x": 151.5,
+      "top_left_y": 392.6,
+      "width": 329.1,
+      "height": 19.9
+     },
+     "children_ids": []
+    },
+    {
+     "type": "text",
+     "text": "17. Norouzi, M., Punjani, A., Fleet, D.J.: Fast search in hamming space with multi-",
+     "region": {
+      "top_left_x": 134.8,
+      "top_left_y": 414.5,
+      "width": 345.8,
+      "height": 9.0
+     },
+     "children_ids": []
+    },
+    {
+     "type": "text",
+     "text": "index hashing. In: 2012 IEEE Conference on Computer Vision and Pattern Recognition (CVPR). pp. 3108–3115. IEEE (2012)",
+     "region": {
+      "top_left_x": 151.5,
+      "top_left_y": 425.4,
+      "width": 329.1,
+      "height": 20.0
+     },
+     "children_ids": []
+    },
+    {
+     "type": "text",
+     "text": "18. Schroff, F., Kalenichenko, D., Philbin, J.: Facenet: A unified embedding for face",
+     "region": {
+      "top_left_x": 134.8,
+      "top_left_y": 447.4,
+      "width": 345.8,
+      "height": 9.0
+     },
+     "children_ids": []
+    },
+    {
+     "type": "text",
+     "text": "recognition and clustering. In: Proceedings of the IEEE Conference on Computer Vision and Pattern Recognition. pp. 815–823 (2015)",
+     "region": {
+      "top_left_x": 151.5,
+      "top_left_y": 458.3,
+      "width": 329.1,
+      "height": 20.0
+     },
+     "children_ids": []
+    },
+    {
+     "type": "text",
+     "text": "19. Tan, M., Le, Q.: Efficientnet: Rethinking model scaling for convolutional neural",
+     "region": {
+      "top_left_x": 134.8,
+      "top_left_y": 480.2,
+      "width": 345.8,
+      "height": 9.0
+     },
+     "children_ids": []
+    },
+    {
+     "type": "text",
+     "text": "networks. In: International Conference on Machine Learning. pp. 6105–6114 (2019)",
+     "region": {
+      "top_left_x": 151.5,
+      "top_left_y": 491.2,
+      "width": 329.1,
+      "height": 9.0
+     },
+     "children_ids": []
+    },
+    {
+     "type": "text",
+     "text": "20. Wan, J., Tang, S., Zhang, Y., Huang, L., Li, J.: Data driven multi-index hashing.",
+     "region": {
+      "top_left_x": 134.8,
+      "top_left_y": 502.2,
+      "width": 345.8,
+      "height": 9.0
+     },
+     "children_ids": []
+    },
+    {
+     "type": "text",
+     "text": "In: 2013 IEEE International Conference on Image Processing. pp. 2670–2673 (2013)",
+     "region": {
+      "top_left_x": 151.5,
+      "top_left_y": 513.1,
+      "width": 329.1,
+      "height": 9.0
+     },
+     "children_ids": []
+    },
+    {
+     "type": "text",
+     "text": "21. Wang, J., Zhang, T., Song, J., Sebe, N., Shen, H.T.: A survey on learning to hash.",
+     "region": {
+      "top_left_x": 134.8,
+      "top_left_y": 524.1,
+      "width": 345.8,
+      "height": 9.0
+     },
+     "children_ids": []
+    },
+    {
+     "type": "text",
+     "text": "IEEE Trans. on Pattern Analysis and Machine Intelligence 40(4), 769–790 (2018)",
+     "region": {
+      "top_left_x": 151.5,
+      "top_left_y": 535.0,
+      "width": 329.1,
+      "height": 9.0
+     },
+     "children_ids": []
+    },
+    {
+     "type": "text",
+     "text": "22. Wang, J., Kumar, S., Chang, S.F.: Semi-supervised hashing for large-scale search.",
+     "region": {
+      "top_left_x": 134.8,
+      "top_left_y": 546.0,
+      "width": 345.8,
+      "height": 9.0
+     },
+     "children_ids": []
+    },
+    {
+     "type": "text",
+     "text": "IEEE Trans. on Pattern Analysis and Machine Intell. 34(12), 2393–2406 (2012)",
+     "region": {
+      "top_left_x": 151.5,
+      "top_left_y": 557.0,
+      "width": 321.3,
+      "height": 9.0
+     },
+     "children_ids": []
+    },
+    {
+     "type": "text",
+     "text": "23. Wang, J., Liu, W., Kumar, S., Chang, S.F.: Learning to hash for indexing big data",
+     "region": {
+      "top_left_x": 134.8,
+      "top_left_y": 567.9,
+      "width": 345.8,
+      "height": 9.0
+     },
+     "children_ids": []
+    },
+    {
+     "type": "text",
+     "text": "- a survey. Proceedings of the IEEE 104(1), 34–57 (2015)",
+     "region": {
+      "top_left_x": 151.5,
+      "top_left_y": 578.9,
+      "width": 232.4,
+      "height": 9.0
+     },
+     "children_ids": []
+    },
+    {
+     "type": "text",
+     "text": "24. Zhou, B., Lapedriza, A., Khosla, A., Oliva, A., Torralba, A.: Places: A 10 million",
+     "region": {
+      "top_left_x": 134.8,
+      "top_left_y": 589.8,
+      "width": 345.8,
+      "height": 9.0
+     },
+     "children_ids": []
+    },
+    {
+     "type": "text",
+     "text": "image database for scene recognition. IEEE Transactions on Pattern Analysis and Machine Intelligence 40(6), 1452–1464 (2017)",
+     "region": {
+      "top_left_x": 151.5,
+      "top_left_y": 600.8,
+      "width": 329.1,
+      "height": 19.9
+     },
+     "children_ids": []
+    },
+    {
+     "type": "text",
+     "text": "25. Zhu, H., Long, M., Wang, J., Cao, Y.: Deep hashing network for efficient similarity",
+     "region": {
+      "top_left_x": 134.8,
+      "top_left_y": 622.7,
+      "width": 345.8,
+      "height": 9.0
+     },
+     "children_ids": []
+    },
+    {
+     "type": "text",
+     "text": "retrieval. In: Proc. of the AAAI Conf. on Artificial Intelligence. vol. 30 (2016)",
+     "region": {
+      "top_left_x": 151.5,
+      "top_left_y": 633.7,
+      "width": 313.6,
+      "height": 9.0
+     },
+     "children_ids": []
+    }
+   ]
+  }
+ ]
+}

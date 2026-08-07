@@ -108,3 +108,18 @@ def test_a_shard_that_renders_nothing_reports_the_gs_output(tmp_path, monkeypatc
         pdf_reading._render_shard(["gs"], tmp_path / "x.pdf", [1],
                                   tmp_path / "out", "png", 4)
     assert "Page drawing error" in str(ei.value)
+
+
+@pytest.mark.skipif(not _HAVE_GS, reason="ghostscript not installed")
+def test_a_relative_pdf_path_still_resolves(tmp_path, monkeypatch):
+    """gs now runs with `cwd` set to a temp directory so it never parses a
+    caller path. A RELATIVE input path — what a caller working inside the drill
+    folder passes — then resolved against that temp dir instead of the caller's
+    cwd, and gs failed with 'file not found' on a PDF sitting right there."""
+    pdf = _pdf(tmp_path, pages=2)
+    monkeypatch.chdir(tmp_path)
+    imgs = pdf_reading.rasterize(Path("src.pdf"), Path("out"), pages=[1], dpi=400)
+    assert [p.name for p in imgs] == ["page-0001.png"]
+
+    got = pdf_reading.render_page(Path("src.pdf"), 2, Path("out/one.png"), dpi=400)
+    assert got.exists() and got.stat().st_size > 0

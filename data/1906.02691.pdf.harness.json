@@ -1,0 +1,554 @@
+[
+  {
+    "cmd": "doctor",
+    "status": "ok",
+    "rc": 0,
+    "t": 1.47,
+    "summary": "pdfdrill requirement check",
+    "stderr_tail": ""
+  },
+  {
+    "cmd": "config",
+    "status": "ok",
+    "rc": 0,
+    "t": 0.05,
+    "summary": "{\"config_path\": null, \"download_dir\": \"/home/wkolbe/Downloads\"}",
+    "stderr_tail": ""
+  },
+  {
+    "cmd": "size",
+    "status": "ok",
+    "rc": 0,
+    "t": 0.08,
+    "summary": "89-page PDF, 2.0 MB, 442.205 x 663.307 pts, produced by pdfTeX-1.40.17, has a text layer, not encrypted.",
+    "stderr_tail": ""
+  },
+  {
+    "cmd": "route",
+    "status": "ok",
+    "rc": 0,
+    "t": 0.1,
+    "summary": "1906.02691.pdf: born-digital \u2192 pdfminer/text-layer [free] \u2014 born-digital (has a text layer, 89 pages).",
+    "stderr_tail": ""
+  },
+  {
+    "cmd": "pdfinfo",
+    "status": "ok",
+    "rc": 0,
+    "t": 0.08,
+    "summary": "89 pages, PDF 1.5, 1,987,821 bytes",
+    "stderr_tail": ""
+  },
+  {
+    "cmd": "bibtex",
+    "status": "ok",
+    "rc": 0,
+    "t": 0.08,
+    "summary": "Derived BibTeX record:",
+    "stderr_tail": ""
+  },
+  {
+    "cmd": "fonts",
+    "status": "ok",
+    "rc": 0,
+    "t": 0.08,
+    "summary": "Uses 27 font families. including math fonts (CMSY10, LMMathItalic10, LMMathSymbols6, CMSY6). pdfplumber extraction will detect math expressions.",
+    "stderr_tail": ""
+  },
+  {
+    "cmd": "fonts_layer",
+    "status": "ok",
+    "rc": 0,
+    "t": 0.33,
+    "summary": "Found 68 font records across 27 families.",
+    "stderr_tail": ""
+  },
+  {
+    "cmd": "abstract",
+    "status": "ok",
+    "rc": 0,
+    "t": 0.08,
+    "summary": "Abstract (via arxiv-abs-page):",
+    "stderr_tail": ""
+  },
+  {
+    "cmd": "toc",
+    "status": "ok",
+    "rc": 0,
+    "t": 0.08,
+    "summary": "Table of contents (4 sections):",
+    "stderr_tail": ""
+  },
+  {
+    "cmd": "booktoc",
+    "status": "skip",
+    "rc": 0,
+    "t": 0.66,
+    "summary": "Book TOC: 39 entrie(s), printed\u2192PDF offset +3 (from 37 title\u2194section matches, 100% agree); 37 page-exact, 2 estimated \u2192 1906.02691.pdf.drill/1906.0269",
+    "stderr_tail": ""
+  },
+  {
+    "cmd": "links",
+    "status": "ok",
+    "rc": 0,
+    "t": 0.09,
+    "summary": "No external URL annotations found. (Use `pdfdrill urls` for anchor-text-level analysis of internal/visible links.)",
+    "stderr_tail": ""
+  },
+  {
+    "cmd": "urls",
+    "status": "ok",
+    "rc": 0,
+    "t": 2.81,
+    "summary": "Found 329 link annotations (329 internal):",
+    "stderr_tail": ""
+  },
+  {
+    "cmd": "dests",
+    "status": "ok",
+    "rc": 0,
+    "t": 0.08,
+    "summary": "Found 484 named destinations across 8 kinds:",
+    "stderr_tail": ""
+  },
+  {
+    "cmd": "images",
+    "status": "ok",
+    "rc": 0,
+    "t": 4.29,
+    "summary": "Found 91 embedded image(s) across 9 page(s).",
+    "stderr_tail": ""
+  },
+  {
+    "cmd": "tsv",
+    "status": "ok",
+    "rc": 0,
+    "t": 0.57,
+    "summary": "Extracted 23511 words with bounding boxes across 89 page(s) via pdftotext.",
+    "stderr_tail": ""
+  },
+  {
+    "cmd": "identifiers",
+    "status": "ok",
+    "rc": 0,
+    "t": 0.83,
+    "summary": "Front matter (PDF pages 1\u20133 via booktoc offset): identifiers \u2014 DOI 10.1561/XXXXXXXXX. ALL-CAPS NE candidate(s): none. Authors: 0/2 confirmed on the ti",
+    "stderr_tail": ""
+  },
+  {
+    "cmd": "attachments",
+    "status": "skip",
+    "rc": 0,
+    "t": 0.23,
+    "summary": "No embedded file attachments in 1906.02691.pdf (checked via pdfdetach). Note: rich-media (3D/video) annotations may not appear here.",
+    "stderr_tail": ""
+  },
+  {
+    "cmd": "formfields",
+    "status": "skip",
+    "rc": 0,
+    "t": 0.32,
+    "summary": "No interactive form fields in 1906.02691.pdf (no AcroForm). If it's a flat/scanned form, rasterize the page and read it visually instead.",
+    "stderr_tail": ""
+  },
+  {
+    "cmd": "extractimages",
+    "status": "skip",
+    "rc": 0,
+    "t": 0.24,
+    "summary": "No raster images extracted from 1906.02691.pdf (6 tiny/empty filtered). Vector charts won't appear here \u2014 rasterize the page with `pdfdrill rasterize`",
+    "stderr_tail": ""
+  },
+  {
+    "cmd": "tables",
+    "status": "skip",
+    "rc": 0,
+    "t": 0.43,
+    "summary": "No tables found by pdfplumber in 1906.02691.pdf (pages 1). If a table is present but garbled, rasterize the page.",
+    "stderr_tail": ""
+  },
+  {
+    "cmd": "locate_pre",
+    "status": "ok",
+    "rc": 0,
+    "t": 4.93,
+    "summary": "Located 91 embedded image(s) across 89 page(s): 0 full-page, 0 recurring template(s), 91 matched to a MathPix region. Canonical coords (pt, top-left, ",
+    "stderr_tail": ""
+  },
+  {
+    "cmd": "md",
+    "status": "ok",
+    "rc": 0,
+    "t": 1.84,
+    "summary": "Markdown from the author's LaTeX source (24428 words) \u2014 no OCR/text-layer, so NO line-break hyphenation, an isolated `## Abstract`, and the bibliograp",
+    "stderr_tail": ""
+  },
+  {
+    "cmd": "page1",
+    "status": "ok",
+    "rc": 0,
+    "t": 0.21,
+    "summary": "Page 1 of 89 (94 words, 28 lines):",
+    "stderr_tail": ""
+  },
+  {
+    "cmd": "fetch_md",
+    "status": "ok",
+    "rc": 0,
+    "t": 0.12,
+    "summary": "---",
+    "stderr_tail": ""
+  },
+  {
+    "cmd": "rasterize",
+    "status": "ok",
+    "rc": 0,
+    "t": 0.48,
+    "summary": "Rasterized 1 page image(s) (pages 1, 100 DPI, png) \u2192 rasterize/. Read these files to inspect the pages visually (~1,600 tokens each at 150 DPI):",
+    "stderr_tail": ""
+  },
+  {
+    "cmd": "plan",
+    "status": "ok",
+    "rc": 0,
+    "t": 0.14,
+    "summary": "Plan for 1906.02691.pdf:",
+    "stderr_tail": ""
+  },
+  {
+    "cmd": "steps_report",
+    "status": "ok",
+    "rc": 0,
+    "t": 0.26,
+    "summary": "`report` for 1906.02691.pdf: prerequisites satisfied (bibliography, model) \u2014 runs directly.",
+    "stderr_tail": ""
+  },
+  {
+    "cmd": "gaps",
+    "status": "ok",
+    "rc": 0,
+    "t": 1.47,
+    "summary": "144 gap(s): 11 acronym_undefined, 118 citation_unmatched, 2 claim_unsupported, 13 symbol_undefined",
+    "stderr_tail": ""
+  },
+  {
+    "cmd": "model",
+    "status": "ok",
+    "rc": 0,
+    "t": 0.18,
+    "summary": "Built unified model: 938 objects (444 Formula, 260 Paragraph, 92 Equation, 65 Section, 3 Table). source='latex'. bibkey='1906.02691'. Stored at _t.doc",
+    "stderr_tail": ""
+  },
+  {
+    "cmd": "geometry",
+    "status": "ok",
+    "rc": 0,
+    "t": 3.07,
+    "summary": "Geometry fused: 1725 pdftotext lines lifted into `pdf_lines`; 2874 MathPix lines now carry layout (indentation/margins), mean text-match 0.532. Block ",
+    "stderr_tail": ""
+  },
+  {
+    "cmd": "eqnums",
+    "status": "ok",
+    "rc": 0,
+    "t": 1.98,
+    "summary": "Equation numbers: 90 from MathPix + 0 recovered from margin geometry. Each equation now carries equation_number ('(N)') for ||FO/||FREF transclusion. ",
+    "stderr_tail": ""
+  },
+  {
+    "cmd": "lists",
+    "status": "ok",
+    "rc": 0,
+    "t": 2.08,
+    "summary": "Reconstructed 26 nested List(s) from 30 list items (max nesting depth 2). List objects carry list_type (itemize/enumerate) and indent_norm; ListItems ",
+    "stderr_tail": ""
+  },
+  {
+    "cmd": "algorithms",
+    "status": "ok",
+    "rc": 0,
+    "t": 2.0,
+    "summary": "2 Algorithm block(s) with 40 steps (max indent depth 3) \u2014 Stochastic optimization of the ELBO. Since noise, Pseudo-code of an approximate posterior wi",
+    "stderr_tail": ""
+  },
+  {
+    "cmd": "annotate",
+    "status": "ok",
+    "rc": 0,
+    "t": 2.0,
+    "summary": "Promoted 329 hyperlink annotation(s) into the model as Link nodes. Each carries uri/kind/anchor_text/context + a Region (rect). Graph: 93 page xrefs.",
+    "stderr_tail": ""
+  },
+  {
+    "cmd": "embedimages",
+    "status": "ok",
+    "rc": 0,
+    "t": 6.53,
+    "summary": "Embedded images: 91 pdfimages/pdfplumber image(s) lifted into the model as EmbeddedImage nodes (Region in PDF points + pixel size/encoding/colour/ppi)",
+    "stderr_tail": ""
+  },
+  {
+    "cmd": "bibliography",
+    "status": "ok",
+    "rc": 0,
+    "t": 1.09,
+    "summary": "Parsed 1 bibliography entries (1 with a year) into Reference nodes (citekey + author + year + original text; heuristic). 118 in-text citations detecte",
+    "stderr_tail": ""
+  },
+  {
+    "cmd": "compare",
+    "status": "ok",
+    "rc": 0,
+    "t": 1.15,
+    "summary": "Comparison table: 92 expressions (LaTeX | KaTeX | MathPix image). Open 1906.02691.pdf.drill/compare.html in a browser.",
+    "stderr_tail": ""
+  },
+  {
+    "cmd": "report",
+    "status": "ok",
+    "rc": 0,
+    "t": 1.16,
+    "summary": "Formula report: 280 inline formulas + 92 display equations (LaTeX | KaTeX | image). Open 1906.02691.pdf.drill/formula-report.html in a browser.",
+    "stderr_tail": ""
+  },
+  {
+    "cmd": "report_embed",
+    "status": "ok",
+    "rc": 0,
+    "t": 34.63,
+    "summary": "Formula report: 280 inline formulas + 92 display equations (LaTeX | KaTeX | image). Open 1906.02691.pdf.drill/formula-report.html in a browser.",
+    "stderr_tail": ""
+  },
+  {
+    "cmd": "tiddlers",
+    "status": "ok",
+    "rc": 0,
+    "t": 1.17,
+    "summary": "Wrote 974 TiddlyWiki tiddlers to 1906.02691.pdf.drill/1906.02691.tiddlers.json. Import into TiddlyWiki; diagram SVGs render via {{!!svg_tiddler}} (inl",
+    "stderr_tail": ""
+  },
+  {
+    "cmd": "inspect",
+    "status": "ok",
+    "rc": 0,
+    "t": 1.8,
+    "summary": "Docmodel inspector: 1452 elements over 89 page(s). Open 1906.02691.pdf.drill/1906.02691.inspect.html in a browser (hover the tree to highlight boxes; ",
+    "stderr_tail": ""
+  },
+  {
+    "cmd": "llmtext",
+    "status": "ok",
+    "rc": 0,
+    "t": 0.91,
+    "summary": "LLM text dump: 798 unit(s) from 259 paragraph(s) + 372 formula(s) (paragraphs split on double line breaks, empty formulas skipped), delimiter '%%%%' -",
+    "stderr_tail": ""
+  },
+  {
+    "cmd": "clean",
+    "status": "ok",
+    "rc": 0,
+    "t": 1.77,
+    "summary": "Cleaned: 2 footnote(s) lifted into Footnote objects, 0 leading LaTeX sectioning command(s) stripped (title + kind/refnum), 208 paragraph(s) materializ",
+    "stderr_tail": ""
+  },
+  {
+    "cmd": "enhance",
+    "status": "ok",
+    "rc": 0,
+    "t": 6.18,
+    "summary": "Enhancement pipeline on 1906.02691.pdf (8 ran, 5 changed the model):",
+    "stderr_tail": ""
+  },
+  {
+    "cmd": "quantities",
+    "status": "ok",
+    "rc": 0,
+    "t": 0.33,
+    "summary": "quantities 1906.02691.pdf: 11 quantities (number:7, ratio:4), 3 measurement(s).",
+    "stderr_tail": ""
+  },
+  {
+    "cmd": "conclusion",
+    "status": "ok",
+    "rc": 0,
+    "t": 0.29,
+    "summary": "Conclusion of 1906.02691.pdf \u2014 section \u201cConclusion\u201d:",
+    "stderr_tail": ""
+  },
+  {
+    "cmd": "mathcheck",
+    "status": "ok",
+    "rc": 0,
+    "t": 0.28,
+    "summary": "mathcheck 1906.02691.pdf: 372 formula(s), 0 flattened \u2014 the LaTeX carries 2-D structure (subscripts/superscripts). Clean.",
+    "stderr_tail": ""
+  },
+  {
+    "cmd": "score",
+    "status": "ok",
+    "rc": 0,
+    "t": 2.05,
+    "summary": "Scored 92 equations; mean cross-provenance agreement 0.943; 2 flagged for review (low agreement or low snip confidence). Run `pdfdrill compare 1906.02",
+    "stderr_tail": ""
+  },
+  {
+    "cmd": "locate",
+    "status": "ok",
+    "rc": 0,
+    "t": 5.04,
+    "summary": "Located 91 embedded image(s) across 89 page(s): 0 full-page, 0 recurring template(s), 91 matched to a MathPix region. Canonical coords (pt, top-left, ",
+    "stderr_tail": ""
+  },
+  {
+    "cmd": "semantic",
+    "status": "ok",
+    "rc": 0,
+    "t": 1.63,
+    "summary": "SEMANTIC GRAPH 1906.02691 \u00b7 validity=invalid \u00b7 lang=en \u00b7 1 doc(s) \u00b7 537 entities \u00b7 657 relations",
+    "stderr_tail": ""
+  },
+  {
+    "cmd": "concepts_gaps2",
+    "status": "ok",
+    "rc": 0,
+    "t": 1.59,
+    "summary": "148 gap(s): 14 acronym_undefined, 118 citation_unmatched, 3 claim_unsupported, 13 symbol_undefined",
+    "stderr_tail": ""
+  },
+  {
+    "cmd": "rulebook",
+    "status": "ok",
+    "rc": 0,
+    "t": 1.22,
+    "summary": "Fixpoint: 10 round(s), 13 new kitem(s) (13 total: 2 accepted, 11 supported). Rulebook -> 1906.02691.pdf.drill/rulebook.md (13 kitem tiddler(s)). Drill",
+    "stderr_tail": ""
+  },
+  {
+    "cmd": "retrieve",
+    "status": "ok",
+    "rc": 0,
+    "t": 0.92,
+    "summary": "Top 8 unit(s) for the question (cite these ids):",
+    "stderr_tail": ""
+  },
+  {
+    "cmd": "ask",
+    "status": "ok",
+    "rc": 0,
+    "t": 0.97,
+    "summary": "ask 1906.02691.pdf: no grounded answer for 'What is the model size?' \u2014 8 retrieved unit(s) are merely proposed (un-span-verified prose), and quoting t",
+    "stderr_tail": ""
+  },
+  {
+    "cmd": "classify",
+    "status": "ok",
+    "rc": 0,
+    "t": 4.33,
+    "summary": "Subject classification of 1906.02691.pdf (schemes present: msc, physh; absent: gnd, stw):",
+    "stderr_tail": ""
+  },
+  {
+    "cmd": "candidates",
+    "status": "ok",
+    "rc": 0,
+    "t": 1.11,
+    "summary": "Wrote 92 'llm' candidate slots to 1906.02691.pdf.drill/candidates.llm.json. Have the reader fill each entry's \"latex\" (look at \"cdn_url\"), then: pdfdr",
+    "stderr_tail": ""
+  },
+  {
+    "cmd": "mathir",
+    "status": "ok",
+    "rc": 0,
+    "t": 5.85,
+    "summary": "Canonical math layer written to props['math'] for 372 FO/EQ in 1906.02691.pdf: 161 parsed (43%), 28 relations, 211 unparsed.",
+    "stderr_tail": ""
+  },
+  {
+    "cmd": "stex",
+    "status": "ok",
+    "rc": 0,
+    "t": 0.2,
+    "summary": "Projected the semantic graph to enhanced LaTeX (acronyms/glossary/Table of Symbols/index): 30 named concepts \u2192 1906.02691.pdf.drill/1906.02691.glossar",
+    "stderr_tail": ""
+  },
+  {
+    "cmd": "scikgtex",
+    "status": "ok",
+    "rc": 0,
+    "t": 1.05,
+    "summary": "Projected to SciKGTeX/ORKG-annotated LaTeX \u2192 1906.02691.pdf.drill/1906.02691.scikg.tex (14 contribution role(s), 3 numeric fact(s), 1 DOI link(s), 8 M",
+    "stderr_tail": ""
+  },
+  {
+    "cmd": "svg",
+    "status": "ok",
+    "rc": 0,
+    "t": 2.07,
+    "summary": "Rendered 0 new TikZ/table SVG(s), 2 skipped (not a LaTeX graphic, e.g. code listing) of 6 graphic object(s) (0 now have an SVG). SVGs stored on the mo",
+    "stderr_tail": ""
+  },
+  {
+    "cmd": "nlp",
+    "status": "skip",
+    "rc": 0,
+    "t": 1.11,
+    "summary": "NLP skipped: Stanza (or its English model) is not available. Install the optional extra and download the model once:",
+    "stderr_tail": ""
+  },
+  {
+    "cmd": "artifacts",
+    "status": "ok",
+    "rc": 0,
+    "t": 0.16,
+    "summary": "20 artifact(s) in 1906.02691.pdf.drill/ \u2014 click to open in a tab:",
+    "stderr_tail": ""
+  },
+  {
+    "cmd": "status",
+    "status": "ok",
+    "rc": 0,
+    "t": 0.88,
+    "summary": "For 1906.02691.pdf I have:",
+    "stderr_tail": ""
+  },
+  {
+    "cmd": "mathpix_KEYLESS",
+    "status": "ok",
+    "rc": 0,
+    "t": 0.23,
+    "summary": "Already present MathPix OCR outputs:",
+    "stderr_tail": ""
+  },
+  {
+    "cmd": "vision_KEYLESS",
+    "status": "ok",
+    "rc": 0,
+    "t": 2.47,
+    "summary": "OpenAI vision: read 0 CDN crop(s) (none), 1 error(s); 113 total crops in the model. Attached as the 'openai' provenance (selector + LaTeX/TikZ/table).",
+    "stderr_tail": ""
+  },
+  {
+    "cmd": "bibfetch_KEYLESS",
+    "status": "ok",
+    "rc": 0,
+    "t": 2.08,
+    "summary": "Enriched 0 reference(s) with full BibTeX via Perplexity SONAR. Rebuild `pdfdrill tiddlers 1906.02691.pdf` \u2014 Reference tiddlers now carry bibtex + cita",
+    "stderr_tail": ""
+  },
+  {
+    "cmd": "translate_KEYLESS",
+    "status": "ok",
+    "rc": 0,
+    "t": 9.89,
+    "summary": "Translated to EN-US via DeepL (in place; original kept under <field>_source).",
+    "stderr_tail": ""
+  },
+  {
+    "cmd": "llm_runtime",
+    "status": "skip",
+    "rc": 0,
+    "t": 0.07,
+    "summary": "llm-delegation runtime: cli",
+    "stderr_tail": ""
+  }
+]

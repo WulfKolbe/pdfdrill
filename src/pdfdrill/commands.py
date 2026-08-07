@@ -7535,11 +7535,21 @@ def cmd_injectlatex(pdf: Path, tex: str | None = None, force: bool = False) -> s
             if cand.exists():
                 src = cand
                 break
+    if src is None:
+        # A path an earlier `--tex` already taught us. A thesis keeps its sources
+        # in the author's tree, not beside the PDF, and without this the flag has
+        # to be re-typed on every run — or the author's LaTeX is silently dropped
+        # and the document falls back to MathPix rasters.
+        src = remembered_latex_source(pdf, sc)
+        if src is not None and not src.exists():
+            return (f"The LaTeX source recorded for {pdf.name} is no longer "
+                    f"there: {src}. Pass --tex <path> with its new location.")
     if src is None or not src.exists():
         return (f"No LaTeX source found for {pdf.name} "
                 f"(looked for {pdf.stem}.tex / .tex.zip / .tgz / .tar.gz). "
                 f"Run `pdfdrill mathpix {pdf.name}` first (it downloads the MathPix "
                 f"{pdf.stem}.tex.zip), or pass --tex <path>.")
+    remember_latex_source(sc, src)
 
     full, main = ls.read_source(str(src))
     if not full:
@@ -7700,17 +7710,78 @@ def cmd_injectlatex(pdf: Path, tex: str | None = None, force: bool = False) -> s
             f"Run `pdfdrill compare {pdf.name}` to see the tex column.")
 
 
+def remember_latex_source(sc: "Sidecar", src: Path) -> None:
+    """Record where the LaTeX source was found, so the next run needs no --tex.
+    Remembering is a convenience: a sidecar that will not take it must never
+    fail the ingest that just succeeded."""
+    try:
+        sc.set_evidence("latex_source_path", str(Path(src).resolve()))
+    except Exception:
+        pass
+
+
+def remembered_latex_source(pdf: Path, sc: "Sidecar") -> Path | None:
+    """The source path an earlier run was told about, or None.
+
+    Two places, because the sidecar key is new: the sidecar first, then the
+    model meta (`latex_source_dir` + the preamble's `main` filename), which
+    every already-ingested document in the library carries. Without the second
+    lookup the fix would only help documents ingested from today on.
+    """
+    try:
+        rec = sc.get_evidence("latex_source_path")
+    except Exception:
+        rec = None
+    if rec:
+        return Path(str(rec))
+    try:
+        model_path = sc.blob_dir / "model.docmodel.json"
+        if not model_path.exists():
+            return None
+        with open(model_path, "r", encoding="utf-8") as fh:
+            meta = (json.load(fh).get("meta") or {})
+    except Exception:
+        return None
+    d = meta.get("latex_source_dir")
+    if not d:
+        return None
+    main = ((meta.get("latex_preamble") or {}).get("main")
+            if isinstance(meta.get("latex_preamble"), dict) else None)
+    if main:
+        return Path(d) / str(main)
+    cands = sorted(Path(d).glob("*.tex")) if Path(d).is_dir() else []
+    return cands[0] if cands else None
+
+
 def _locate_latex_source(pdf: Path, sc: "Sidecar", tex: str | None):
     """Find the LaTeX source for `pdf` (explicit --tex, a local .tex/.tex.zip/
-    .tgz/.tar.gz sibling, else the arXiv e-print). Returns (path, err_message):
-    exactly one is non-None."""
+    .tgz/.tar.gz sibling, a REMEMBERED path from an earlier --tex, else the
+    arXiv e-print). Returns (path, err_message): exactly one is non-None.
+
+    The remembered path exists because a thesis usually keeps its sources in the
+    author's working tree, not beside the PDF. Passing `--tex` once used to buy
+    exactly one run: the next `injectlatex`/`svg` reported "No LaTeX source
+    found" and quietly fell back to MathPix rasters, on a document whose author
+    LaTeX pdfdrill had already read.
+    """
     src = Path(tex) if tex else None
+    if src is not None and src.exists():
+        remember_latex_source(sc, src)
+    remembered = None
     if src is None:
         for ext in (".tex", ".tex.zip", ".tgz", ".tar.gz"):
             cand = pdf.parent / f"{pdf.stem}{ext}"
             if cand.exists():
                 src = cand
                 break
+    if src is None:
+        remembered = remembered_latex_source(pdf, sc)
+        if remembered is not None:
+            if remembered.exists():
+                return remembered, None
+            return None, (f"The LaTeX source recorded for {pdf.name} is no longer "
+                          f"there: {remembered}. Pass --tex <path> with its new "
+                          f"location.")
     if src is None:
         aid = _arxiv_id_for(pdf, sc)
         if aid:

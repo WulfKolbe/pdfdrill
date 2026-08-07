@@ -220,10 +220,14 @@ def _render_shard(gs_base: "list[str]", pdf: Path, shard: "list[int]",
     """
     first, last = shard[0], shard[-1]
     out_dir.mkdir(parents=True, exist_ok=True)
+    # ABSOLUTE input: gs runs with cwd set to the temp dir (see above), so a
+    # relative pdf path — which is what a caller working inside the drill folder
+    # passes — would no longer resolve.
+    src_pdf = str(Path(pdf).resolve())
     with tempfile.TemporaryDirectory(dir=str(out_dir)) as td:
         proc = subprocess.run(
             gs_base + [f"-dFirstPage={first}", f"-dLastPage={last}",
-                       f"-sOutputFile=s-%0{pad}d.{ext}", str(pdf)],
+                       f"-sOutputFile=s-%0{pad}d.{ext}", src_pdf],
             check=True, capture_output=True, timeout=1800, cwd=td)
         made = sorted(Path(td).glob(f"s-*.{ext}"))
         if not made:
@@ -278,7 +282,7 @@ def render_page(pdf: Path, page: int, out_png: Path, *,
     with tempfile.TemporaryDirectory(dir=str(out_png.parent)) as td:
         proc = subprocess.run(
             _gs_base(gs, dpi, "png") + [f"-dFirstPage={page}",
-            f"-dLastPage={page}", "-sOutputFile=s.png", str(pdf)],
+            f"-dLastPage={page}", "-sOutputFile=s.png", str(Path(pdf).resolve())],
             check=True, capture_output=True, timeout=300, cwd=td)
         src = Path(td) / "s.png"
         if not src.exists():

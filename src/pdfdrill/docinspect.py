@@ -118,6 +118,23 @@ def flag_for(code: str) -> str:
     return _FLAGS.get(c.split("-", 1)[0], _GLOBE)
 
 
+def svg_inline(svg: Any) -> str:
+    """A dvisvgm output reduced to its root `<svg>` element, ready for innerHTML.
+
+    dvisvgm emits a full XML document — declaration, DOCTYPE, a generator
+    comment — and none of that is markup a browser renders inside an element:
+    it lands as literal text above the figure. Anything that is not an SVG at
+    all yields "" rather than half-markup.
+    """
+    if not isinstance(svg, str):
+        return ""
+    i = svg.find("<svg")
+    if i < 0:
+        return ""
+    j = svg.rfind("</svg>")
+    return svg[i:j + 6] if j > i else svg[i:]
+
+
 def element_translations(props: dict) -> dict[str, str]:
     """rec-key -> the ORIGINAL-language string, for each prose field the
     translator replaced in place. `{}` for a monolingual object.
@@ -371,6 +388,15 @@ def collect_elements(model: dict, sidx: dict) -> tuple[list[dict], list[dict]]:
         # a trimmed props dump for the inspector (skip flow bookkeeping)
         skip = {"prev_in_flow", "next_in_flow", "flow_index"}
         rec["props"] = {k: v for k, v in pr.items() if k not in skip}
+        # A locally rendered SVG (latex_code → dvisvgm, via `pdfdrill svg`) is a
+        # better representation than the MathPix raster crop of the same figure.
+        # Normalise here so the client has nothing to parse, and flag it with a
+        # boolean rather than a second copy — a 55-diagram paper would otherwise
+        # ship every SVG twice.
+        inline = svg_inline(pr.get("svg"))
+        if inline:
+            rec["props"]["svg"] = inline
+            rec["has_svg"] = True
         rec["preview"] = preview[:400]
         alt = element_translations(pr)
         if alt:                       # absent on a monolingual element
@@ -716,6 +742,11 @@ button{font:inherit;color:inherit;background:none;border:0;cursor:pointer}
 /* The flag carries the meaning, so give it room: emoji render small at the
    surrounding 11px control size and two flags must stay tellable apart. */
 .langtool select{font-size:15px;line-height:1.1;padding:1px 4px}
+/* A dvisvgm figure is vector: let it scale to the column and stay on white,
+   because dvisvgm draws in black with a transparent background. */
+.svgfig{background:#fff;border:1px solid var(--line);border-radius:4px;padding:6px;
+  max-width:100%;overflow:auto}
+.svgfig svg{max-width:100%;height:auto;display:block;margin:0 auto}
 .hint{padding:6px 12px;color:var(--faint);font-size:11px;border-top:1px solid var(--line)}
 </style>
 </head>
@@ -1133,18 +1164,36 @@ register({ type:'Formula',        // inline or block math per its display flag
   detail(e){ let h=eqBlock(e.latex)+latexSrc(e.latex)+kv('display',e.display?'block':'inline');
     if(e.cdn_url)h+=sec('mathpix crop')+cropTag(); return h; } });
 
+/* A rendered SVG is the AUTHOR's figure recompiled from its own LaTeX; the
+ * crop is a photograph of it. Prefer the vector whenever `pdfdrill svg` has
+ * produced one — the inspector used to ignore the field entirely and show the
+ * MathPix raster even for figures that had been rendered. */
+function svgNode(e){
+  if(!e.has_svg) return null;
+  const src=(e.props||{}).svg; if(!src) return null;
+  const box=el('div','svgfig'); box.innerHTML=src; return box;
+}
+
 register({ type:['Picture','Diagram','Chart'],
-  render(e){ const fig=el('figure'); const img=el('img');
-    if(DATA.image_mode==='embed') cropFromPage(e,img); else if(e.cdn_url) img.src=e.cdn_url; fig.appendChild(img);
+  render(e){ const fig=el('figure'); const vec=svgNode(e);
+    if(vec){ fig.appendChild(vec); }
+    else { const img=el('img');
+      if(DATA.image_mode==='embed') cropFromPage(e,img); else if(e.cdn_url) img.src=e.cdn_url;
+      fig.appendChild(img); }
     const cap=L(e,'caption');
     if(cap){ const c=el('figcaption'); c.textContent=(e.refnum?('Figure '+e.refnum+'. '):'')+cap; fig.appendChild(c);} return fig; },
   detail(e){ let h=''; const cap=L(e,'caption'); if(cap)h+=sec('caption')+txt(cap);
     if(e.refnum!=null)h+=kv('figure',e.refnum); if(e.image_id)h+=kv('image_id',e.image_id);
+    if(e.has_svg){ h+=kv('rendered','SVG (latex → dvisvgm)')
+                 + sec('rendered svg')+'<div class="svgfig">'+((e.props||{}).svg||'')+'</div>'; }
     h+=sec('crop')+cropTag(); if(e.cdn_url)h+='<div class="latexsrc" style="margin-top:6px">'+esc(e.cdn_url)+'</div>'; return h; } });
 
 register({ type:'Table',
-  render(e){ const n=el('pre','table'); n.textContent=L(e,'raw_text')||e.preview||''; return n; },
-  detail(e){ return sec('raw text')+txt(L(e,'raw_text')||e.preview); } });
+  render(e){ const vec=svgNode(e); if(vec) return vec;
+    const n=el('pre','table'); n.textContent=L(e,'raw_text')||e.preview||''; return n; },
+  detail(e){ let h=''; if(e.has_svg) h+=kv('rendered','SVG (latex → dvisvgm)')
+      + sec('rendered svg')+'<div class="svgfig">'+((e.props||{}).svg||'')+'</div>';
+    return h+sec('raw text')+txt(L(e,'raw_text')||e.preview); } });
 
 /* ---------- STAGE: page view (boxes are hooked elements too) ---------- */
 function renderPage(){
