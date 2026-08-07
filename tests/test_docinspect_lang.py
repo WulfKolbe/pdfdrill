@@ -152,3 +152,55 @@ def test_build_from_paths_still_works_on_a_translated_model():
         mp.write_text(json.dumps(m), encoding="utf-8")
         doc, _pages, n_el, _mode = docinspect.build_from_paths(str(mp), embed=True)
         assert n_el == 1 and 'id="langSel"' in doc
+
+
+# --------------------------------------------------------------------------
+# the tree label must be the same prose the renderers show
+# --------------------------------------------------------------------------
+
+def test_a_paragraph_label_comes_from_its_text_not_the_source_stream():
+    """`preview` is the raw SOURCE stream. On a translated document that is the
+    ORIGINAL language, so the tree label stayed German in both modes — the
+    selector visibly did nothing, because `label` and `alt.text` were the same
+    language. The label has to be the prose the renderer shows."""
+    m = _model([{"id": "p1", "type": "Paragraph", "realizations": [], "props": {
+        "page": 1, "text": "Correlation in the Hubbard Model",
+        "text_source": "Korrelation im Hubbard Modell"}}])
+    els, _ = docinspect.collect_elements(m, docinspect.build_stream_index(m))
+    p = [e for e in els if e["id"] == "p1"][0]
+    assert p["label"].startswith("Correlation in the Hubbard Model")
+    assert p["alt"]["text"] == "Korrelation im Hubbard Modell"
+    assert p["label"] != p["alt"]["text"]      # the two modes must differ
+
+
+def test_a_footnote_label_uses_its_content():
+    m = _model([{"id": "f1", "type": "Footnote", "realizations": [],
+                 "props": {"page": 1, "content": "A translated footnote."}}])
+    els, _ = docinspect.collect_elements(m, docinspect.build_stream_index(m))
+    assert [e for e in els if e["id"] == "f1"][0]["label"] == "A translated footnote."
+
+
+def test_a_label_is_one_line():
+    """A tree row is one line — embedded newlines from the prose break it."""
+    m = _model([{"id": "p1", "type": "Paragraph", "realizations": [],
+                 "props": {"page": 1, "text": "First line.\n\nSecond   line."}}])
+    els, _ = docinspect.collect_elements(m, docinspect.build_stream_index(m))
+    lab = [e for e in els if e["id"] == "p1"][0]["label"]
+    assert "\n" not in lab and "  " not in lab
+    assert lab.startswith("First line. Second line.")
+
+
+def test_an_untranslated_paragraph_still_labels_from_the_stream():
+    """A model with no props text (a source-built skeleton) must keep working."""
+    m = {"meta": {"bibkey": "d", "num_pages": 1,
+                  "pages": [{"page": 1, "page_width": 100, "page_height": 100}]},
+         "streams": {"mathpix_lines": {"anchors": ["a"], "payload": {
+             "a": {"text": "Only in the stream.", "_page": 1,
+                   "region": {"top_left_x": 1, "top_left_y": 1,
+                              "width": 10, "height": 5}}}}},
+         "objects": [{"id": "p1", "type": "Paragraph", "props": {"page": 1},
+                      "realizations": [{"stream": "mathpix_lines",
+                                        "start": "a", "end": "a"}]}],
+         "alignments": []}
+    els, _ = docinspect.collect_elements(m, docinspect.build_stream_index(m))
+    assert [e for e in els if e["id"] == "p1"][0]["label"] == "Only in the stream."

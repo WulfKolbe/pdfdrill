@@ -46,7 +46,8 @@ def _run(js_body: str, *, languages, elements=(), saved=None, bibkey="demo") -> 
         const DATA = %s;
         const EL = DATA.elements, byId = {}; EL.forEach(e => byId[e.id] = e);
         const IMAGE_CATS = new Set(["Picture","Diagram","Chart"]);
-        let selId = null, curPage = 1;
+        let selId = null, curPage = 1, curView = 'page';
+        function setView(v){ curView = v; }
         const _store = %s;
         globalThis.localStorage = {
           getItem: k => (k in _store ? _store[k] : null),
@@ -175,3 +176,39 @@ def test_labels_follow_the_selected_language():
     """, languages=_DE_EN, elements=[fig])
     assert out["tr"] == "Fig 3 — Lattice"
     assert out["or"] == "Fig 3 — Gitter"          # refnum kept, caption switched
+
+
+def test_choosing_a_language_moves_to_the_view_that_can_show_it():
+    """The PAGE view is a picture of the printed original — no prose to
+    re-render — so the first language change was invisible and read as a dead
+    control. It now lands on Reflow, which is where the text lives."""
+    out = _run("""
+        curView = 'page';
+        setLang('original');
+        OUT.view = curView;
+        OUT.role = curRole;
+    """, languages=_DE_EN, elements=[_PARA])
+    assert out == {"view": "reflow", "role": "original"}
+
+
+def test_switching_language_while_already_reading_does_not_move_the_view():
+    out = _run("curView='reflow'; setLang('original'); OUT.view=curView;",
+               languages=_DE_EN, elements=[_PARA])
+    assert out["view"] == "reflow"
+
+
+def test_a_monolingual_document_is_never_yanked_to_another_view():
+    out = _run("curView='page'; setLang('original'); OUT.view=curView;",
+               languages=[], elements=[_PARA])
+    assert out["view"] == "page"
+
+
+def test_an_original_label_is_one_line():
+    """A tree row is one line; the Python side collapses whitespace for the
+    translated label, so the original must match or rows jump on switching."""
+    para = {"id": "p3", "type": "Paragraph", "page": 1, "label": "First line. Second line.",
+            "text": "First line.\n\nSecond line.",
+            "alt": {"text": "Erste Zeile.\n\n  Zweite   Zeile."}}
+    out = _run("setLang('original'); OUT.lab = labelOf(byId.p3);",
+               languages=_DE_EN, elements=[para])
+    assert out["lab"] == "Erste Zeile. Zweite Zeile."

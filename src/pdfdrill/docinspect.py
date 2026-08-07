@@ -330,7 +330,12 @@ def _short_label(obj: dict, preview: str) -> str:
         return "table"
     if t == "Abstract":
         return "Abstract"
-    return preview[:60] or t.lower()
+    # The object's OWN prose, not the source-stream preview. `preview` is the
+    # immutable source, which on a translated document is the ORIGINAL language:
+    # labelling from it left the tree in German in both modes, so the language
+    # selector visibly did nothing even though it was working.
+    body = pr.get("text") or pr.get("content") or preview or ""
+    return " ".join(str(body).split())[:60] or t.lower()
 
 
 def collect_elements(model: dict, sidx: dict) -> tuple[list[dict], list[dict]]:
@@ -875,20 +880,28 @@ function L(e, key){
   return (e && e[key] != null) ? e[key] : '';
 }
 
+function oneLine(s, n){ return String(s == null ? '' : s).split(/\s+/)
+  .filter(Boolean).join(' ').slice(0, n); }
+
 function labelOf(e){
   if (!isOriginal() || !e || !e.alt) return e.label || '';
   if (IMAGE_CATS.has(e.type) && e.alt.caption != null){
     const head = e.refnum ? ('Fig ' + e.refnum) : e.type;
-    return head + ' — ' + String(e.alt.caption).slice(0, 48);
+    return head + ' — ' + oneLine(e.alt.caption, 48);
   }
   const alt = e.alt.caption != null ? e.alt.caption : e.alt.text;
-  return alt != null ? String(alt).slice(0, 60) : (e.label || '');
+  return alt != null ? oneLine(alt, 60) : (e.label || '');
 }
 
+/* The PAGE view is a bitmap of the printed original with boxes drawn over it —
+ * there is no prose in it to re-render, so a language change cannot show there
+ * at all. Choosing a language and seeing nothing happen reads as a broken
+ * control, so the choice takes us to the one view that can honour it. */
 function setLang(role){
   curRole = role;
   try { localStorage.setItem(LANG_KEY, role); } catch (_) {}
-  refreshStage();
+  if (curView === 'page' && LANGS.length > 1) setView('reflow');
+  else refreshStage();
   buildTree((document.getElementById('filter')||{}).value || '');
   if (selId && byId[selId]) renderInspector(byId[selId]);
 }
