@@ -358,3 +358,43 @@ def test_a_display_equation_still_renders_after_its_paragraph():
       OUT.has_display = t.includes("E = mc^2");
     """)
     assert out["has_display"] is True
+
+
+def _link_model():
+    m = _bilingual_model()
+    for i in range(3):                       # TOC hyperlinks, annotation layer
+        m["objects"].append({
+            "id": f"l{i}", "type": "Link", "flow_index": 100 + i,
+            "props": {"page": 2, "flow_index": 100 + i,
+                      "uri": "https://example.org/x", "anchor_text": "see"},
+            "realizations": []})
+    m["objects"].append({
+        "id": "pz", "type": "Paragraph", "flow_index": 99,
+        "props": {"page": 40, "flow_index": 99, "text": "Last body paragraph."},
+        "realizations": []})
+    return m
+
+
+def test_link_annotations_do_not_become_blocks_in_the_reading_flow():
+    """A Link is an annotation, not content. Thirty-four of them, all carrying
+    the contents page, were appended after the last page of the document and
+    produced a "page 2" block at the end of a 42-page reflow."""
+    out = _boot(_link_model(), body=_READ + """
+      buildChunks();
+      OUT.link_chunks = CHUNKS.filter(c => c.els.some(e => e.type === 'Link')).length;
+      let prev = null, back = 0;
+      CHUNKS.forEach(c => { if (prev !== null && c.p0 != null && c.p0 < prev) back++;
+                            if (c.p1 != null) prev = c.p1; });
+      OUT.backwards = back;
+      OUT.last_label = chunkLabel(CHUNKS[CHUNKS.length - 1]);
+    """)
+    assert out == {"link_chunks": 0, "backwards": 0, "last_label": "page 40"}
+
+
+def test_a_link_is_still_a_first_class_element_elsewhere():
+    """Excluded from the READING flow only — it keeps its tree row and record."""
+    out = _boot(_link_model(), body=_READ + """
+      OUT.in_data = EL.some(e => e.type === 'Link');
+      OUT.has_renderer = !!rendererFor('Link');
+    """)
+    assert out == {"in_data": True, "has_renderer": True}

@@ -3986,16 +3986,19 @@ def cmd_clean(pdf: Path) -> str:
     nh = heading_cleanup.clean_heading_residuals(doc)
     mt = heading_cleanup.materialize_transclusions(doc)
     fm = heading_cleanup.clean_frontmatter(doc)
-    if fn or nh or mt or fm:
+    sp = heading_cleanup.repair_section_pages(doc)
+    if fn or nh or mt or fm or sp:
         save_model(model_path, doc)
     return (f"Cleaned: {fn} footnote(s) lifted into Footnote objects, {nh} leading "
             f"LaTeX sectioning command(s) stripped (title + kind/refnum), {mt} "
             f"paragraph(s) materialized with transclusion tokens ({{{{||FO}}}}/"
             f"{{{{||FN}}}}) so semantic/llmtext read transcluded text, {fm} "
             f"object(s) with front-matter commands unwrapped "
-            f"(\\title{{..}}/\\author{{..}}/\\maketitle - markup, not prose). "
+            f"(\\title{{..}}/\\author{{..}}/\\maketitle - markup, not prose), {sp} "
+            f"section(s) moved to the page their content starts on (they had the "
+            f"table-of-contents page). "
             + ("Re-run tiddlers/report/semantic/llmtext to refresh."
-               if (fn or nh or mt or fm) else "Nothing to clean.")) 
+               if (fn or nh or mt or fm or sp) else "Nothing to clean.")) 
 
 
 def cmd_llmtext(pdf: Path, delimiter: str = "%%%%", split: bool = True) -> str:

@@ -331,3 +331,69 @@ def clean_frontmatter(doc) -> int:
         if touched:
             changed += 1
     return changed
+
+
+# ---------------------------------------------------------------------------
+# Section pages
+# ---------------------------------------------------------------------------
+
+# A heading may legitimately print at the foot of the page before its body, so
+# only a gap LARGER than this counts as wrong.
+_SECTION_PAGE_SLACK = 1
+
+
+def repair_section_pages(doc) -> int:
+    """Give each Section the page its CONTENT starts on, where the two disagree
+    by more than a page. Returns the number repaired.
+
+    MathPix reads the printed table of contents as a run of headings, so Section
+    objects take their page from the TOC page — 35 of 38 in one thesis claimed
+    page 2 while their content ran from page 6 to 40. That shows up as page
+    labels marching 5, 2, 6, 2, 7 down a reflow, but it also breaks `booktoc`
+    (which derives the front-matter offset from the section pages), the
+    inspector's page boxes, and any answer to "which page is section X on".
+
+    The original is preserved under `page_before_repair`, so the change is
+    auditable and a wrong repair is recoverable.
+    """
+    first_page: dict = {}
+    for obj in doc.objects.values():
+        sid = obj.props.get("parent_section")
+        page = obj.props.get("page")
+        if not sid or not isinstance(page, int) or obj.type == "Section":
+            continue
+        flow = obj.props.get("flow_index") or 0
+        cur = first_page.get(sid)
+        if cur is None or flow < cur[0]:
+            first_page[sid] = (flow, page)
+
+    # Fall back to the next placed content in READING ORDER for a section that
+    # owns no children — two in the thesis had none and stayed on the contents
+    # page. Ownership still wins where it exists: proximity is the weaker signal.
+    placed = sorted(
+        ((o.props.get("flow_index") or 0), o.props.get("page"))
+        for o in doc.objects.values()
+        if o.type not in ("Section", "Link")
+        and isinstance(o.props.get("page"), int)
+        and o.props.get("flow_index") is not None)
+
+    n = 0
+    for sec in doc.objects_of_type("Section"):
+        hit = first_page.get(getattr(sec, "id", None))
+        if hit:
+            content_page = hit[1]
+        else:
+            sf = sec.props.get("flow_index")
+            nxt = [p for f, p in placed if sf is not None and f > sf]
+            if not nxt:
+                continue                   # nothing after it — leave it alone
+            content_page = nxt[0]
+        page = sec.props.get("page")
+        if not isinstance(page, int):
+            continue
+        if abs(page - content_page) <= _SECTION_PAGE_SLACK:
+            continue                       # a heading at the foot of the page
+        sec.props.setdefault("page_before_repair", page)
+        sec.props["page"] = content_page
+        n += 1
+    return n

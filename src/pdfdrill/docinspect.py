@@ -1303,9 +1303,16 @@ function renderPage(){
 const MAX_CHUNK=40, KEEP=6;          // elements per chunk; hydrated window each side
 let CHUNKS=[], CHUNK_OF={}, RIO=null, visChunks=new Set();
 
+/* Types that are NOT blocks of the reading flow. A Link is an annotation over
+ * the text, not a paragraph of it: the 34 hyperlinks of a printed contents page
+ * all carry page 2, sat after the last element of the document, and produced a
+ * "page 2" block at the end of a 42-page reflow. They keep their tree row, page
+ * box and inspector record — only the reading flow excludes them. */
+const REFLOW_SKIP = new Set(['Link']);
+
 function buildChunks(){
   CHUNKS=[]; CHUNK_OF={};
-  const flow=EL.filter(e=>e.flow!=null).sort((a,b)=>a.flow-b.flow);
+  const flow=EL.filter(e=>e.flow!=null && !REFLOW_SKIP.has(e.type)).sort((a,b)=>a.flow-b.flow);
   let cur=null;
   flow.forEach(e=>{
     const pageBreak = cur && e.page!=null && e.page!==cur.p1;   // break at page boundary
