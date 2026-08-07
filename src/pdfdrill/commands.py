@@ -6649,6 +6649,15 @@ def cmd_svg(target: Path, limit: int | None = None, force: bool = False) -> str:
         _jsonio.dump(doc.to_dict(), f, indent=2)
 
     if sc is not None:
+        # `svg_rendered` is this run's DELTA, so a no-op re-run legitimately
+        # writes 0 — and used to be the only record, which meant re-running
+        # `svg` destroyed the evidence that anything had ever rendered. The
+        # sidecar is a QC input, so it also carries the STATE: how many graphic
+        # objects hold an SVG right now, re-derived from the model each time and
+        # therefore idempotent. (External drillcheck audit, finding #3.)
+        present = sum(1 for o in doc.objects.values()
+                      if (o.props.get("svg") or "").strip())
+        sc.set_evidence("svg_present", present)
         sc.set_evidence("svg_rendered", done)
         sc.set_evidence("svg_errors", errors)
         sc.set_evidence("svg_skipped", skipped)
@@ -8208,6 +8217,25 @@ def stale_tiddler_siblings(blob_dir, model_path: Path, current: Path) -> list:
 
 
 
+def _tiddler_translation_warning(claims_translated, lang, tiddlers) -> str:
+    """Warn when a TRANSLATED document has just been projected monolingual.
+
+    The projector rebuilds prose from the immutable SOURCE stream by offset, so
+    it emits the original language; `translate` compensates by translating the
+    projected file afterwards. A later `tiddlers` run throws that away silently —
+    the wiki reverts to the source language while the model still holds the
+    translation. Returns "" when there is nothing to say."""
+    if not claims_translated or not tiddlers:
+        return ""
+    if any(k.endswith("_source") and t.get(k) for t in tiddlers for k in t):
+        return ""                                    # the source layer survived
+    return ("\n  WARNING: this document is translated (" + str(lang or "?") +
+            ") but the projected tiddlers carry no `_source` layer — the "
+            "projector rebuilds prose from the immutable source stream, so the "
+            "wiki has reverted to the ORIGINAL language. Re-run `pdfdrill "
+            "translate` to restore it (the model still holds both languages).")
+
+
 def cmd_tiddlers(pdf: Path, force: bool = False, embed: bool = False,
                  bibkey: str | None = None, embed_svg: bool = True) -> str:
     """Emit a TiddlyWiki JSON tiddler array from the unified model.
@@ -8330,10 +8358,13 @@ def cmd_tiddlers(pdf: Path, force: bool = False, embed: bool = False,
                       f"{', …' if len(stale) > 3 else ''}) predate the model and "
                       f"hold the previous titles — do NOT import them alongside "
                       f"this one; regenerate or move them aside.")
+    trans_note = _tiddler_translation_warning(
+        TRANSLATED in sc.facts, sc.get_evidence("translated_lang"),
+        json.loads(result))
     return (f"Wrote {count} TiddlyWiki tiddlers to {rel}. Import into TiddlyWiki; "
             f"diagram SVGs render via {{{{!!svg_tiddler}}}} "
             f"({'inline' if embed_svg else 'external _canonical_uri'}).{svg_note}"
-            f"{integ_note}{guard}{stale_note}")
+            f"{integ_note}{guard}{stale_note}{trans_note}")
 
 
 # Tag -> the tiddler field whose prose gets translated. Math/code/image/toc

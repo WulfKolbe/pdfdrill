@@ -186,7 +186,11 @@ class FormulaReportProjector(BaseProjector):
                 label = " ".join(x for x in (g.props.get("kind"), g.props.get("refnum")) if x)
                 cap_body = g.props.get("caption") or ""
                 cap = html.escape((f"{label}: " if label else "") + cap_body) if (label or cap_body) else ""
-                svg = g.props.get("svg")
+                # Namespace the dvisvgm ids: this page inlines EVERY graphic,
+                # and dvisvgm restarts its glyph names at g0-1 per file.
+                from pdfdrill.svg_ids import inline_body, safe_token
+                svg = inline_body(g.props.get("svg"),
+                                  safe_token(getattr(g, "id", ""))) or None
                 if g.props.get("subtype") == "code":
                     # A source-code listing — show it verbatim, never an SVG/image.
                     lang = g.props.get("language") or ""

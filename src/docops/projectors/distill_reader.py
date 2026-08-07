@@ -404,7 +404,11 @@ class DistillReaderProjector(BaseProjector):
 
             elif t in ("Diagram", "Picture", "Table"):
                 cap = (obj.props.get("caption") or "").strip()
-                svg = obj.props.get("svg")
+                # Namespace the dvisvgm ids: this page inlines EVERY graphic,
+                # and dvisvgm restarts its glyph names at g0-1 per file.
+                from pdfdrill.svg_ids import inline_body, safe_token
+                svg = inline_body(obj.props.get("svg"),
+                                  safe_token(getattr(obj, "id", ""))) or None
                 if obj.props.get("subtype") == "code":
                     lang = obj.props.get("language") or ""
                     inner = (f'<pre class="code"><code>'

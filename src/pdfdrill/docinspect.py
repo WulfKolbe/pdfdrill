@@ -118,21 +118,22 @@ def flag_for(code: str) -> str:
     return _FLAGS.get(c.split("-", 1)[0], _GLOBE)
 
 
-def svg_inline(svg: Any) -> str:
+def svg_inline(svg: Any, token: "str | None" = None) -> str:
     """A dvisvgm output reduced to its root `<svg>` element, ready for innerHTML.
 
     dvisvgm emits a full XML document — declaration, DOCTYPE, a generator
     comment — and none of that is markup a browser renders inside an element:
     it lands as literal text above the figure. Anything that is not an SVG at
     all yields "" rather than half-markup.
+
+    `token` namespaces the internal ids. dvisvgm numbers its glyph paths per
+    FILE, so every figure restarts at g0-1; inlined into one page the second
+    figure's `<use href="#g0-48">` resolved to the FIRST figure's glyph and the
+    figure rendered with the wrong letters — 33% of the glyph references on
+    kolbe2018hubbard. See `pdfdrill.svg_ids`.
     """
-    if not isinstance(svg, str):
-        return ""
-    i = svg.find("<svg")
-    if i < 0:
-        return ""
-    j = svg.rfind("</svg>")
-    return svg[i:j + 6] if j > i else svg[i:]
+    from .svg_ids import inline_body
+    return inline_body(svg, token)
 
 
 def element_translations(props: dict) -> dict[str, str]:
@@ -404,7 +405,8 @@ def collect_elements(model: dict, sidx: dict) -> tuple[list[dict], list[dict]]:
         # Normalise here so the client has nothing to parse, and flag it with a
         # boolean rather than a second copy — a 55-diagram paper would otherwise
         # ship every SVG twice.
-        inline = svg_inline(pr.get("svg"))
+        from .svg_ids import safe_token
+        inline = svg_inline(pr.get("svg"), safe_token(obj["id"]))
         if inline:
             rec["props"]["svg"] = inline
             rec["has_svg"] = True

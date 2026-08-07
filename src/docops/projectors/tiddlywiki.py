@@ -302,6 +302,12 @@ _BLOCK_TYPES_IN_SECTION = {
 }
 
 
+def _svg_token(obj) -> str:
+    """A per-object id prefix, so each figure's dvisvgm ids are its own."""
+    from pdfdrill.svg_ids import safe_token
+    return safe_token(getattr(obj, "id", "") or "")
+
+
 class TiddlyWikiProjector(BaseProjector):
 
     def output_extension(self) -> str:
@@ -679,7 +685,7 @@ class TiddlyWikiProjector(BaseProjector):
             # field + the <$image> widget. The LaTeX source stays in the
             # `latex_code` FIELD — NEVER in the text; and the <$image> widget is
             # emitted ONLY when canonical_uri is actually set (no dead reference).
-            svg_field = self._svg_inline(d.props.get("svg"))
+            svg_field = self._svg_inline(d.props.get("svg"), _svg_token(d))
             if svg_field:
                 body = "{{!!svg_tiddler}}"
             elif d.props.get("cdn_url"):
@@ -707,7 +713,7 @@ class TiddlyWikiProjector(BaseProjector):
         # Tables — same route as diagrams (svg_tiddler field / MathPix image
         # widget / a MathPix table's raw_text as a last resort; never latex in text).
         for tab in inv["tables"]:
-            svg_field = self._svg_inline(tab.props.get("svg"))
+            svg_field = self._svg_inline(tab.props.get("svg"), _svg_token(tab))
             if svg_field:
                 body = "{{!!svg_tiddler}}"
             elif tab.props.get("cdn_url"):
@@ -1233,7 +1239,7 @@ class TiddlyWikiProjector(BaseProjector):
         }
 
     @staticmethod
-    def _svg_inline(svg: str | None) -> str | None:
+    def _svg_inline(svg: str | None, token: str | None = None) -> str | None:
         """The rendered SVG ready for a TiddlyWiki field, displayed by simple
         transclusion `{{!!svg_tiddler}}`. The `<?xml…?>`/`<!DOCTYPE…>` prolog is
         stripped so the bare `<svg>…</svg>` renders inline as wikitext HTML.
@@ -1241,9 +1247,11 @@ class TiddlyWikiProjector(BaseProjector):
         if not svg or not svg.strip():
             return None
         # cut everything before the root <svg> (XML decl, DOCTYPE, dvisvgm
-        # comment) so the field is pure, inline-renderable SVG.
-        i = svg.find("<svg")
-        return (svg[i:] if i >= 0 else svg).strip()
+        # comment) so the field is pure, inline-renderable SVG, and namespace
+        # the ids: dvisvgm restarts its glyph names at g0-1 per file, so two
+        # figures rendered on one wiki page steal each other's glyphs.
+        from pdfdrill.svg_ids import inline_body
+        return inline_body(svg, token).strip() or None
 
     @staticmethod
     def _templates(bibkey: str) -> list[dict]:
