@@ -64,6 +64,124 @@ _TEXTY = {"Abstract", "Paragraph", "ListItem", "Footnote", "Sidenote", "Caption"
 _IMAGEY = {"Picture", "Diagram", "Chart"}
 
 
+# ---------------------------------------------------------------------------
+# Bilingual documents
+# ---------------------------------------------------------------------------
+#
+# `pdfdrill translate` replaces prose IN PLACE and keeps the original under
+# `<field>_source`, so a translated model carries both languages on every prose
+# object and the inspector can offer either. The props name is not always the
+# rec key the renderers read (a Footnote's prose lives in `content` but renders
+# from `text`), so the map is explicit.
+_ALT_FIELDS = {"text": "text", "caption": "caption",
+               "content": "text", "raw_text": "raw_text"}
+
+# code -> flag. Regional variants first (DeepL speaks EN-US / PT-BR), then the
+# bare language. A language we have no flag for still gets a GLOBE, never an
+# empty string — a blank option in a selector reads as a broken widget.
+_FLAGS = {
+    "en-us": "\U0001F1FA\U0001F1F8", "en-gb": "\U0001F1EC\U0001F1E7",
+    "pt-br": "\U0001F1E7\U0001F1F7", "pt-pt": "\U0001F1F5\U0001F1F9",
+    "zh-hans": "\U0001F1E8\U0001F1F3", "zh-hant": "\U0001F1F9\U0001F1FC",
+    "en": "\U0001F1EC\U0001F1E7", "de": "\U0001F1E9\U0001F1EA",
+    "fr": "\U0001F1EB\U0001F1F7", "es": "\U0001F1EA\U0001F1F8",
+    "it": "\U0001F1EE\U0001F1F9", "nl": "\U0001F1F3\U0001F1F1",
+    "pt": "\U0001F1F5\U0001F1F9", "ru": "\U0001F1F7\U0001F1FA",
+    "uk": "\U0001F1FA\U0001F1E6", "pl": "\U0001F1F5\U0001F1F1",
+    "cs": "\U0001F1E8\U0001F1FF", "sk": "\U0001F1F8\U0001F1F0",
+    "sl": "\U0001F1F8\U0001F1EE", "hu": "\U0001F1ED\U0001F1FA",
+    "ro": "\U0001F1F7\U0001F1F4", "bg": "\U0001F1E7\U0001F1EC",
+    "el": "\U0001F1EC\U0001F1F7", "tr": "\U0001F1F9\U0001F1F7",
+    "sv": "\U0001F1F8\U0001F1EA", "da": "\U0001F1E9\U0001F1F0",
+    "nb": "\U0001F1F3\U0001F1F4", "no": "\U0001F1F3\U0001F1F4",
+    "fi": "\U0001F1EB\U0001F1EE", "et": "\U0001F1EA\U0001F1EA",
+    "lv": "\U0001F1F1\U0001F1FB", "lt": "\U0001F1F1\U0001F1F9",
+    "ja": "\U0001F1EF\U0001F1F5", "ko": "\U0001F1F0\U0001F1F7",
+    "zh": "\U0001F1E8\U0001F1F3", "ar": "\U0001F1F8\U0001F1E6",
+    "he": "\U0001F1EE\U0001F1F1", "hi": "\U0001F1EE\U0001F1F3",
+    "id": "\U0001F1EE\U0001F1E9",
+}
+_GLOBE = "\U0001F310"
+
+# Enough prose to detect on. The detector's stopword fallback is weak on a
+# handful of words, and a whole book is wasted work.
+_LANG_SAMPLE_CHARS = 4000
+
+
+def flag_for(code: str) -> str:
+    """Flag emoji for a language code. Emoji, not an image file: the inspector
+    is a SINGLE self-contained HTML (it is opened from disk, from drillui, and
+    embedded as an artifact), and a referenced flag PNG would 404 in all three."""
+    c = (code or "").strip().lower().replace("_", "-")
+    if c in _FLAGS:
+        return _FLAGS[c]
+    return _FLAGS.get(c.split("-", 1)[0], _GLOBE)
+
+
+def element_translations(props: dict) -> dict[str, str]:
+    """rec-key -> the ORIGINAL-language string, for each prose field the
+    translator replaced in place. `{}` for a monolingual object.
+
+    An IDENTICAL twin is not a translation: transclusion materialisation also
+    writes `text_source`, and treating that as a second language would put a
+    language switch on every materialised paragraph in the library.
+    """
+    out: dict[str, str] = {}
+    for field, key in _ALT_FIELDS.items():
+        src = props.get(field + "_source")
+        cur = props.get(field)
+        if not isinstance(src, str) or not src.strip():
+            continue
+        if not isinstance(cur, str) or cur == src:
+            continue
+        out[key] = src
+    return out
+
+
+def _detect_lang(text: str) -> str:
+    """ISO code for `text`, or "und". Uses the features package's multi-engine
+    detector (which has a pure-Python stopword fallback, so this works with no
+    optional deps installed and no network)."""
+    try:
+        from features.extract_language import language_of
+        return language_of(text) or "und"
+    except Exception:
+        return "und"
+
+
+def document_languages(model: dict, *, detect=None) -> list[dict]:
+    """The document's languages, translated first — or `[]` when it is
+    monolingual (and the selector must not appear at all).
+
+    Detection is a LABEL, not the gate: the two languages demonstrably exist
+    the moment an object carries a differing `_source` twin, so an undetectable
+    sample degrades to a neutral flag rather than dropping the switch.
+    """
+    detect = detect or _detect_lang
+    now_parts: list[str] = []
+    was_parts: list[str] = []
+    for obj in model.get("objects", []):
+        pr = obj.get("props") or {}
+        for field, _key in _ALT_FIELDS.items():
+            src = pr.get(field + "_source")
+            cur = pr.get(field)
+            if (isinstance(src, str) and src.strip()
+                    and isinstance(cur, str) and cur != src):
+                if sum(map(len, now_parts)) < _LANG_SAMPLE_CHARS:
+                    now_parts.append(cur)
+                    was_parts.append(src)
+    if not now_parts:
+        return []
+    now = detect("\n".join(now_parts)) or "und"
+    was = detect("\n".join(was_parts)) or "und"
+    return [
+        {"code": now, "role": "translated", "flag": flag_for(now),
+         "label": now.upper() if now != "und" else "translated"},
+        {"code": was, "role": "original", "flag": flag_for(was),
+         "label": was.upper() if was != "und" else "original"},
+    ]
+
+
 def load_json(path: str) -> Any:
     with open(path, "r", encoding="utf-8") as fh:
         return json.load(fh)
@@ -237,7 +355,12 @@ def collect_elements(model: dict, sidx: dict) -> tuple[list[dict], list[dict]]:
         if obj["type"] == "Abstract":
             rec["text"] = pr.get("text", preview)
         if obj["type"] in _TEXTY and obj["type"] != "Abstract":
-            rec["text"] = pr.get("text", preview)
+            # A Footnote/ListItem keeps its prose in `content`, not `text`.
+            # Falling straight through to `preview` served the raw SOURCE
+            # stream, so on a translated document these elements rendered the
+            # untranslated original while paragraphs beside them rendered the
+            # translation — the same document in two languages at once.
+            rec["text"] = pr.get("text") or pr.get("content") or preview
         if obj["type"] in _IMAGEY:
             rec["caption"] = pr.get("caption", "")
             rec["refnum"] = pr.get("refnum")
@@ -249,6 +372,9 @@ def collect_elements(model: dict, sidx: dict) -> tuple[list[dict], list[dict]]:
         skip = {"prev_in_flow", "next_in_flow", "flow_index"}
         rec["props"] = {k: v for k, v in pr.items() if k not in skip}
         rec["preview"] = preview[:400]
+        alt = element_translations(pr)
+        if alt:                       # absent on a monolingual element
+            rec["alt"] = alt
         elements.append(rec)
 
     # alignments touching each object (cross-stream provenance links)
@@ -404,6 +530,8 @@ def build_inspector_html(
         "pages_meta": pages_meta,
         "pages": {str(k): v for k, v in pages.items()},
         "elements": elements,
+        # [] on a monolingual document — the client hides the selector entirely.
+        "languages": document_languages(model),
     }
     data_json = json.dumps(payload).replace("</", "<\\/")
 
@@ -585,6 +713,9 @@ button{font:inherit;color:inherit;background:none;border:0;cursor:pointer}
 .txtprev{color:var(--dim);white-space:pre-wrap;max-height:160px;overflow:auto;
   border-left:2px solid var(--line);padding-left:8px}
 .jump{margin-left:auto;font-size:11px;color:var(--accent)}
+/* The flag carries the meaning, so give it room: emoji render small at the
+   surrounding 11px control size and two flags must stay tellable apart. */
+.langtool select{font-size:15px;line-height:1.1;padding:1px 4px}
 .hint{padding:6px 12px;color:var(--faint);font-size:11px;border-top:1px solid var(--line)}
 </style>
 </head>
@@ -600,7 +731,10 @@ button{font:inherit;color:inherit;background:none;border:0;cursor:pointer}
     <button data-v="page" class="on">Page</button>
     <button data-v="reflow">Reflow</button>
   </div>
-  <div class="tool">Page
+  <div class="tool langtool" id="langTool" style="display:none">
+    <select id="langSel" title="Show this document in"></select>
+  </div>
+  <div class="tool" id="pageTool">Page
     <select id="pageSel"></select>
   </div>
 </div>
@@ -677,6 +811,56 @@ const IMAGE_CATS = new Set(["Picture","Diagram","Chart"]);
 let curPage = (DATA.pages_meta[0]||{}).page || 1;
 let curView = "page";
 let selId = null, inspectMode=false;
+
+/* ---------- language ------------------------------------------------------
+ * A translated model holds BOTH languages: the translation in the prose field
+ * and the original in its `_source` twin, which `collect_elements` hands over
+ * as `e.alt`. DATA.languages is [translated, original] — or [] for the
+ * monolingual documents, where the selector never appears at all.
+ *
+ * The choice is DOCUMENT state, not page state: it lives in a module variable
+ * (so paging, switching Page/Reflow, filtering and re-rendering all keep it)
+ * and in localStorage keyed by bibkey (so reopening the file keeps it too).
+ * Having to re-pick the language on every page turn is exactly what this
+ * avoids.
+ *
+ * Stored value is the ROLE, not the code or an index — two languages can
+ * detect to the same code ("und" twice on unrecognised prose), and a role
+ * still says what it means when read out of localStorage by hand. */
+const LANGS = DATA.languages || [];
+const LANG_KEY = 'docinspect.lang.' + (DATA.bibkey || DATA.title || '');
+let curRole = 'translated';
+if (LANGS.length > 1) {
+  try { const s = localStorage.getItem(LANG_KEY);
+        if (s === 'original' || s === 'translated') curRole = s; } catch (_) {}
+}
+function isOriginal(){ return LANGS.length > 1 && curRole === 'original'; }
+
+/* The one accessor every renderer reads prose through. Falls back to the
+ * translated value whenever this element has no twin for that field, so a
+ * partly-translated document degrades per element instead of blanking. */
+function L(e, key){
+  if (isOriginal() && e && e.alt && e.alt[key] != null) return e.alt[key];
+  return (e && e[key] != null) ? e[key] : '';
+}
+
+function labelOf(e){
+  if (!isOriginal() || !e || !e.alt) return e.label || '';
+  if (IMAGE_CATS.has(e.type) && e.alt.caption != null){
+    const head = e.refnum ? ('Fig ' + e.refnum) : e.type;
+    return head + ' — ' + String(e.alt.caption).slice(0, 48);
+  }
+  const alt = e.alt.caption != null ? e.alt.caption : e.alt.text;
+  return alt != null ? String(alt).slice(0, 60) : (e.label || '');
+}
+
+function setLang(role){
+  curRole = role;
+  try { localStorage.setItem(LANG_KEY, role); } catch (_) {}
+  refreshStage();
+  buildTree((document.getElementById('filter')||{}).value || '');
+  if (selId && byId[selId]) renderInspector(byId[selId]);
+}
 
 /* ---------- KaTeX helper ---------- */
 function renderMath(tex, display, into){
@@ -838,7 +1022,7 @@ function copyActions(e){
   if (e.type === "Table") {
     const lx = (pr.latex_code || "").trim();
     if (lx) acts.push({label: "Copy table (LaTeX)", run: () => copyText(lx)});
-    const tx = e.raw_text || e.preview || "";
+    const tx = L(e, "raw_text") || e.preview || "";
     if (tx.trim()) acts.push({label: "Copy text", run: () => copyText(tx)});
   }
   /* A PICTURE leads with its image. Every element has a rectangle, but only a
@@ -856,10 +1040,12 @@ function copyActions(e){
     if (window.isSecureContext && navigator.clipboard && window.ClipboardItem)
       acts.push({label: "Copy image (bitmap)",
                  run: () => cropBlob(e).then(b => copyImage(b, name))});
-    const cap = e.caption || pr.caption || "";
+    /* Copy what is ON SCREEN: with the original selected, copying the
+     * translation instead would hand over text the user cannot see. */
+    const cap = L(e, "caption") || pr.caption || "";
     if (cap.trim()) acts.push({label: "Copy caption", run: () => copyText(cap)});
   } else {
-    const txt = e.text || e.caption || pr.text || "";
+    const txt = L(e, "text") || L(e, "caption") || pr.text || "";
     if (txt.trim() && e.type !== "Table")
       acts.push({label: "Copy text", run: () => copyText(txt)});
   }
@@ -922,17 +1108,17 @@ function regionOf(e){ const r=(e.props||{}).region; if(!r)return null;
 
 // ---- base: Paragraph / ListItem / Footnote / Sidenote / generic prose ----
 register({ type:'*',
-  render(e){ const n=el(e.type==='Paragraph'?'p':'div'); n.textContent=e.text||e.preview||''; return n; },
-  detail(e){ return sec('text')+txt(e.text||e.preview); } });
+  render(e){ const n=el(e.type==='Paragraph'?'p':'div'); n.textContent=L(e,'text')||e.preview||''; return n; },
+  detail(e){ return sec('text')+txt(L(e,'text')||e.preview); } });
 
 register({ type:'Section',
-  render(e){ const lv=Math.min(3,Math.max(1,e.level||1)); const n=el(lv===1?'h2':'h3'); n.textContent=e.caption||e.label; return n; },
-  detail(e){ return kv('level',e.level)+sec('caption')+txt(e.caption); } });
+  render(e){ const lv=Math.min(3,Math.max(1,e.level||1)); const n=el(lv===1?'h2':'h3'); n.textContent=L(e,'caption')||labelOf(e); return n; },
+  detail(e){ return kv('level',e.level)+sec('caption')+txt(L(e,'caption')); } });
 
 register({ type:'Abstract',
   render(e){ const n=el('div','abstract'); n.appendChild(el('b')).textContent='Abstract';
-    n.appendChild(document.createTextNode(e.text||e.preview||'')); return n; },
-  detail(e){ return sec('text')+txt(e.text||e.preview); } });
+    n.appendChild(document.createTextNode(L(e,'text')||e.preview||'')); return n; },
+  detail(e){ return sec('text')+txt(L(e,'text')||e.preview); } });
 
 register({ type:'Equation',       // numbered display equation (arXiv-style)
   render(e){ const n=el('div','eqblock numbered'); const m=el('div','eqmath'); renderMath(e.latex||'',true,m); n.appendChild(m);
@@ -950,14 +1136,15 @@ register({ type:'Formula',        // inline or block math per its display flag
 register({ type:['Picture','Diagram','Chart'],
   render(e){ const fig=el('figure'); const img=el('img');
     if(DATA.image_mode==='embed') cropFromPage(e,img); else if(e.cdn_url) img.src=e.cdn_url; fig.appendChild(img);
-    if(e.caption){ const c=el('figcaption'); c.textContent=(e.refnum?('Figure '+e.refnum+'. '):'')+e.caption; fig.appendChild(c);} return fig; },
-  detail(e){ let h=''; if(e.caption)h+=sec('caption')+txt(e.caption);
+    const cap=L(e,'caption');
+    if(cap){ const c=el('figcaption'); c.textContent=(e.refnum?('Figure '+e.refnum+'. '):'')+cap; fig.appendChild(c);} return fig; },
+  detail(e){ let h=''; const cap=L(e,'caption'); if(cap)h+=sec('caption')+txt(cap);
     if(e.refnum!=null)h+=kv('figure',e.refnum); if(e.image_id)h+=kv('image_id',e.image_id);
     h+=sec('crop')+cropTag(); if(e.cdn_url)h+='<div class="latexsrc" style="margin-top:6px">'+esc(e.cdn_url)+'</div>'; return h; } });
 
 register({ type:'Table',
-  render(e){ const n=el('pre','table'); n.textContent=e.raw_text||e.preview||''; return n; },
-  detail(e){ return sec('raw text')+txt(e.raw_text||e.preview); } });
+  render(e){ const n=el('pre','table'); n.textContent=L(e,'raw_text')||e.preview||''; return n; },
+  detail(e){ return sec('raw text')+txt(L(e,'raw_text')||e.preview); } });
 
 /* ---------- STAGE: page view (boxes are hooked elements too) ---------- */
 function renderPage(){
@@ -1056,7 +1243,7 @@ function buildTree(filter){
   const eagerAll = DATA.num_pages<=TREE_EAGER || !!f;
   DATA.pages_meta.map(p=>p.page).forEach(pn=>{
     const kids=EL.filter(e=>e.page===pn && e.type!=='Page' &&
-      (!f || e.type.toLowerCase().includes(f) || (e.label||'').toLowerCase().includes(f)));
+      (!f || e.type.toLowerCase().includes(f) || labelOf(e).toLowerCase().includes(f)));
     if(f && kids.length===0) return;
     const pnode=el('div','node'); const prow=el('div','row');
     prow.innerHTML='<span class="tw"></span><span class="badge b-Page">Page</span>'+
@@ -1067,7 +1254,7 @@ function buildTree(filter){
       kids.sort((a,b)=>(a.flow??1e9)-(b.flow??1e9)).forEach(e=>{
         const r=el('div','row'); const mono=e.type==='Formula'?' lblmono':'';
         r.innerHTML='<span class="tw"></span><span class="badge b-'+e.type+'">'+e.type.slice(0,4)+'</span>'+
-          '<span class="lbl'+mono+'">'+esc(e.label||'')+'</span>';
+          '<span class="lbl'+mono+'">'+esc(labelOf(e))+'</span>';
         attachHooks(r,e); cont.appendChild(r); }); }
     const tw=prow.querySelector('.tw'); let open=false;
     function setOpen(o){ open=o; if(open) buildKids(); cont.style.display=open?'':'none'; tw.textContent=open?'▾':'▸'; }
@@ -1087,7 +1274,7 @@ function buildTree(filter){
    * so they get their own group — labelled as unplaced rather than filed under
    * a page they do not belong to. */
   const loose=EL.filter(e=>e.page==null && e.type!=='Page' &&
-    (!f || e.type.toLowerCase().includes(f) || (e.label||'').toLowerCase().includes(f)));
+    (!f || e.type.toLowerCase().includes(f) || labelOf(e).toLowerCase().includes(f)));
   if(loose.length){
     const pnode=el('div','node'); const prow=el('div','row');
     prow.innerHTML='<span class="tw"></span><span class="badge">no page</span>'+
@@ -1098,7 +1285,7 @@ function buildTree(filter){
       loose.sort((a,b)=>(a.flow??1e9)-(b.flow??1e9)).forEach(e=>{
         const r=el('div','row'); const mono=e.type==='Formula'?' lblmono':'';
         r.innerHTML='<span class="tw"></span><span class="badge b-'+e.type+'">'+e.type.slice(0,4)+'</span>'+
-          '<span class="lbl'+mono+'">'+esc(e.label||'')+'</span>';
+          '<span class="lbl'+mono+'">'+esc(labelOf(e))+'</span>';
         attachHooks(r,e); cont.appendChild(r); }); }
     const tw=prow.querySelector('.tw'); let open=false;
     function setOpen(o){ open=o; if(open) buildLoose(); cont.style.display=open?'':'none';
@@ -1143,7 +1330,7 @@ window.docinspect = {
 /* ---------- INSPECTOR (detail delegated to the type's module) ---------- */
 function renderInspector(e){
   const badge=document.getElementById('ihBadge'); badge.textContent=e.type; badge.className='badge b-'+e.type;
-  document.getElementById('ihTitle').textContent=e.label||e.type;
+  document.getElementById('ihTitle').textContent=labelOf(e)||e.type;
   const jb=document.getElementById('jumpBtn'); jb.style.display='';
   jb.onclick=()=>{ if(curView!=='page') setView('page'); curPage=e.page; syncPageSel(); refreshStage(); setTimeout(()=>select(e.id),0); };
   const b=e.bbox, pm=PMETA[e.page]||{}, g=pageScale(e.page);
@@ -1169,7 +1356,7 @@ function provenance(e){
 /* ---------- view / page controls ---------- */
 function setView(v){ curView=v;
   document.querySelectorAll('#viewSeg button').forEach(b=>b.classList.toggle('on',b.dataset.v===v));
-  document.querySelector('.tool').style.opacity = v==='page'?1:.4;
+  document.getElementById('pageTool').style.opacity = v==='page'?1:.4;
   refreshStage();
 }
 function refreshStage(){
@@ -1188,6 +1375,18 @@ function init(){
   DATA.pages_meta.forEach(p=>{const o=document.createElement('option');o.value=p.page;o.textContent='p'+p.page;sel.appendChild(o);});
   sel.value=curPage;
   sel.addEventListener('change',()=>{curPage=+sel.value;refreshStage();});
+  /* Language: only when the document HAS a second one. Its handler never
+   * touches curPage, and nothing on the page path touches curRole — that
+   * separation is what keeps the choice across page turns. */
+  if(LANGS.length>1){
+    const lt=document.getElementById('langTool'), ls=document.getElementById('langSel');
+    LANGS.forEach(l=>{ const o=document.createElement('option');
+      o.value=l.role; o.textContent=l.flag+' '+l.label;
+      o.title=(l.role==='original'?'original':'translation')+' · '+l.code;
+      ls.appendChild(o); });
+    ls.value=curRole; lt.style.display='';
+    ls.addEventListener('change',()=>setLang(ls.value));
+  }
   document.querySelectorAll('#viewSeg button').forEach(b=>b.addEventListener('click',()=>setView(b.dataset.v)));
   document.getElementById('filter').addEventListener('input',ev=>buildTree(ev.target.value));
   document.getElementById('inspectToggle').addEventListener('click',function(){
