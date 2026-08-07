@@ -84,6 +84,8 @@ def detect(spec: str, sc, pdf: Path, model_path: Path) -> bool:
         return _model_has_regions(model_path)
     if spec == "model:citations_resolved":
         return _citations_resolved(model_path)
+    if spec == "model:translated":
+        return _model_has_translation(model_path)
     if spec == "artifact:tiddlers":
         return _tiddlers_current(sc, model_path)
     if spec == "lines":
@@ -109,6 +111,32 @@ def _model_has_regions(model_path: Path) -> bool:
         return False
     it = objs.values() if isinstance(objs, dict) else objs
     return any((o.get("props") or {}).get("region") for o in it)
+
+
+def _model_has_translation(model_path: Path) -> bool:
+    """Does the model still carry translated prose (a `<field>_source` twin)?
+
+    `translate` writes into the MODEL; `model --force` rebuilds it from
+    lines.json, which never held the translation. The TRANSLATED fact and
+    `translated_lang` survive in the sidecar, so the document keeps REPORTING as
+    translated while showing a single language. Asked of the model, not the
+    fact.
+    """
+    import json
+    if not model_path.exists():
+        return False
+    try:
+        with open(model_path, "r", encoding="utf-8") as f:
+            objs = json.load(f).get("objects") or []
+    except (OSError, json.JSONDecodeError):
+        return False
+    it = list(objs.values()) if isinstance(objs, dict) else objs
+    for o in it:
+        pr = o.get("props") or {}
+        for k in pr:
+            if k.endswith("_source") and k[:-7] in pr:
+                return True
+    return False
 
 
 def _citations_resolved(model_path: Path) -> bool:

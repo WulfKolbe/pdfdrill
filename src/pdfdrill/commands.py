@@ -10636,6 +10636,29 @@ def _format_environments(env: dict) -> list[str]:
     return lines
 
 
+def _format_translation_state(claims_translated: bool, has_translation: bool,
+                              lang: str, source_lang: str) -> list[str]:
+    """The translation line for `status` (pure).
+
+    Silent unless the sidecar CLAIMS a translation. When it claims one and the
+    model no longer carries it, say so loudly: `translate` writes into the model
+    and `model --force` rebuilds from lines.json, which never held the
+    translation, so the text is gone while the fact remains. A document that
+    reports "translated" and shows one language is the failure to name.
+    """
+    if not claims_translated:
+        return []
+    pair = f"{source_lang or '?'} \u2192 {lang or '?'}"
+    if has_translation:
+        return [f"  translation: {pair} present in the model"]
+    return [f"  translation: {pair} was produced but is NOT in the model "
+            f"— a model rebuild discards it (translate writes into the model, "
+            f"lines.json never held it).",
+            "        re-run `pdfdrill translate` to restore it (uses the DeepL "
+            "API, so it is not auto-inserted)"]
+
+
+
 def _format_math_capture(n_formula: int, n_equation: int, source: str,
                          math_bearing: bool, reason: str) -> list[str]:
     """The math-capture line for `status` (pure).
@@ -10710,6 +10733,15 @@ def _model_status_lines(sc: "Sidecar") -> list[str]:
             [r.props for r in g.of_type("Reference")], cites)
     lines += _format_environments(g.meta.get("environments") or {})
     lines += _math_capture_status(sc, sc.pdf_path, g)
+    try:
+        from . import planner as _pl
+        lines += _format_translation_state(
+            sc.has(TRANSLATED),
+            _pl._model_has_translation(model_path),
+            str(sc.get_evidence("translated_lang") or ""),
+            str(sc.get_evidence("language") or ""))
+    except Exception:                                          # noqa: BLE001
+        pass
     return lines
 
 
