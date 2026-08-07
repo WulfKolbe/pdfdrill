@@ -1162,9 +1162,31 @@ document.addEventListener("keydown", ev => {
 function regionOf(e){ const r=(e.props||{}).region; if(!r)return null;
   return {x:+r.top_left_x,y:+r.top_left_y,w:+r.width,h:+r.height}; }
 
+/* Prose carries its own inline math as LaTeX source (`\(x\)` / `$x$`), because
+ * that is what the model stores. Setting it as textContent displayed the source
+ * to the reader — a sentence reading "Here, \(\pi \in S_{n}\) is the
+ * permutation" — while every other formula on the page was typeset. Split the
+ * text and hand the math to the same renderer. */
+const _INLINE_MATH = /\\\((.+?)\\\)|\$([^$]+)\$/g;
+function fillProse(node, text){
+  const s = String(text == null ? '' : text);
+  let last = 0, m;
+  _INLINE_MATH.lastIndex = 0;
+  while ((m = _INLINE_MATH.exec(s)) !== null){
+    if (m.index > last) node.appendChild(document.createTextNode(s.slice(last, m.index)));
+    const span = el('span');
+    renderMath(m[1] != null ? m[1] : m[2], false, span);
+    node.appendChild(span);
+    last = m.index + m[0].length;
+  }
+  if (last < s.length) node.appendChild(document.createTextNode(s.slice(last)));
+  return node;
+}
+
 // ---- base: Paragraph / ListItem / Footnote / Sidenote / generic prose ----
 register({ type:'*',
-  render(e){ const n=el(e.type==='Paragraph'?'p':'div'); n.textContent=L(e,'text')||e.preview||''; return n; },
+  render(e){ const n=el(e.type==='Paragraph'?'p':'div');
+    return fillProse(n, L(e,'text')||e.preview||''); },
   detail(e){ return sec('text')+txt(L(e,'text')||e.preview); } });
 
 register({ type:'Section',
@@ -1173,7 +1195,7 @@ register({ type:'Section',
 
 register({ type:'Abstract',
   render(e){ const n=el('div','abstract'); n.appendChild(el('b')).textContent='Abstract';
-    n.appendChild(document.createTextNode(L(e,'text')||e.preview||'')); return n; },
+    return fillProse(n, L(e,'text')||e.preview||''); },
   detail(e){ return sec('text')+txt(L(e,'text')||e.preview); } });
 
 register({ type:'Equation',       // numbered display equation (arXiv-style)
@@ -1184,8 +1206,12 @@ register({ type:'Equation',       // numbered display equation (arXiv-style)
     if(e.cdn_url)h+=sec('mathpix crop')+cropTag()+'<div class="latexsrc" style="margin-top:6px">'+esc(e.cdn_url)+'</div>'; return h; } });
 
 register({ type:'Formula',        // inline or block math per its display flag
-  render(e){ if(e.display){ const n=el('div','eqblock'); renderMath(e.latex||'',true,n); return n; }
-    const s=el('span'); renderMath(e.latex||'',false,s); s.style.margin='0 3px'; return s; },
+  /* An INLINE formula is a constituent of its paragraph, which now renders it in
+   * place — emitting it again as a flow node of its own put a run of duplicate
+   * fragments between a sentence and the display equation it introduces. It is
+   * still a first-class element everywhere else: tree row, page box, inspector. */
+  render(e){ if(!e.display) return null;
+    const n=el('div','eqblock'); renderMath(e.latex||'',true,n); return n; },
   detail(e){ let h=eqBlock(e.latex)+latexSrc(e.latex)+kv('display',e.display?'block':'inline');
     if(e.cdn_url)h+=sec('mathpix crop')+cropTag(); return h; } });
 

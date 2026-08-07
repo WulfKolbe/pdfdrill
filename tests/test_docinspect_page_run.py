@@ -299,3 +299,62 @@ def test_the_page_control_is_not_dimmed_when_it_still_works():
       OUT.op_page = String(document.getElementById('pageTool').style.opacity || '1');
     """)
     assert out == {"op_reflow": "1", "op_page": "1"}
+
+
+def _inline_math_model():
+    m = _bilingual_model()
+    st = m["streams"]["mathpix_lines"]
+    st["anchors"].append("c1")
+    st["payload"]["c1"] = {"text": "Here pi is the permutation.", "_page": 1,
+                           "region": {"top_left_x": 10, "top_left_y": 200,
+                                      "width": 900, "height": 40}}
+    m["objects"] += [
+        {"id": "p7", "type": "Paragraph", "flow_index": 7,
+         "props": {"page": 1, "flow_index": 7,
+                   "text": "Here, \\(\\pi \\in S_{n}\\) is the permutation, and "
+                           "\\(\\operatorname{sign}(\\pi)=1\\) for even ones."},
+         "realizations": [{"stream": "mathpix_lines", "start": "c1", "end": "c1"}]},
+        {"id": "f7", "type": "Formula", "flow_index": 8,
+         "props": {"page": 1, "flow_index": 8, "latex": "\\pi \\in S_{n}",
+                   "display": False}, "realizations": []},
+        {"id": "f8", "type": "Formula", "flow_index": 9,
+         "props": {"page": 1, "flow_index": 9, "latex": "E = mc^2",
+                   "display": True}, "realizations": []},
+    ]
+    return m
+
+
+def test_inline_math_in_a_paragraph_is_rendered_not_shown_as_latex():
+    """The generic renderer set textContent, so a sentence displayed its own
+    source: "Here, \\(\\pi \\in S_{n}\\) is the permutation". Math has to go
+    through the math renderer like every other formula on the page."""
+    out = _boot(_inline_math_model(), body=_READ + """
+      const p = EL.find(e=>e.id==='p7');
+      const n = rendererFor(p.type).render(p);
+      OUT.math_nodes = n.querySelectorAll('.katex-missing').length;   // no katex in the shim
+      const t = n.allText();
+      OUT.prose_kept = t.includes("is the permutation") && t.includes("for even ones");
+      OUT.delims_gone = !t.includes("\\\\(") && !t.includes("\\\\)");
+    """)
+    assert out == {"math_nodes": 2, "prose_kept": True, "delims_gone": True}
+
+
+def test_an_inline_formula_is_not_repeated_as_its_own_block():
+    """Inline Formula objects are CONSTITUENTS of their paragraph — the
+    paragraph already shows them. Rendering each one again put six duplicate
+    fragments between a sentence and the display equation it introduces."""
+    out = _boot(_inline_math_model(), body=_READ + """
+      const inline = EL.find(e=>e.id==='f7'), block = EL.find(e=>e.id==='f8');
+      OUT.inline = rendererFor(inline.type).render(inline) === null;
+      OUT.block = rendererFor(block.type).render(block) !== null;
+    """)
+    assert out == {"inline": True, "block": True}
+
+
+def test_a_display_equation_still_renders_after_its_paragraph():
+    out = _boot(_inline_math_model(), body=_READ + """
+      setView('reflow');
+      const t = seen();
+      OUT.has_display = t.includes("E = mc^2");
+    """)
+    assert out["has_display"] is True
