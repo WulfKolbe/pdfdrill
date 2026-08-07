@@ -1354,7 +1354,7 @@ function buildTree(filter){
     const tw=prow.querySelector('.tw'); let open=false;
     function setOpen(o){ open=o; if(open) buildKids(); cont.style.display=open?'':'none'; tw.textContent=open?'▾':'▸'; }
     tw.addEventListener('click',ev=>{ev.stopPropagation(); setOpen(!open);});
-    prow.addEventListener('click',()=>{curPage=pn;syncPageSel();refreshStage();});
+    prow.addEventListener('click',()=>{gotoPage(pn);syncPageSel();});
     pnode.appendChild(prow); pnode.appendChild(cont); host.appendChild(pnode);
     PAGE_NODE[pn]={setOpen}; setOpen(eagerAll);
   });
@@ -1451,7 +1451,6 @@ function provenance(e){
 /* ---------- view / page controls ---------- */
 function setView(v){ curView=v;
   document.querySelectorAll('#viewSeg button').forEach(b=>b.classList.toggle('on',b.dataset.v===v));
-  document.getElementById('pageTool').style.opacity = v==='page'?1:.4;
   refreshStage();
 }
 function refreshStage(){
@@ -1461,6 +1460,21 @@ function refreshStage(){
 }
 function syncPageSel(){ document.getElementById('pageSel').value=curPage; }
 
+/* Choosing a page must reach that page in WHICHEVER view is open. The reflow is
+ * one continuous document, so there is nothing to re-render for a page change —
+ * the page selector drove only the page-image view, and once a bilingual
+ * document started opening on Reflow the rest of the document became
+ * unreachable from the control that exists to reach it. Here it scrolls. */
+function gotoPage(pn){
+  curPage = pn;
+  if (curView === 'page'){ refreshStage(); return; }
+  if (!CHUNKS.length) refreshStage();
+  const i = CHUNKS.findIndex(c => c.p0 != null && pn >= c.p0 && pn <= c.p1);
+  if (i < 0){ refreshStage(); return; }        // no chunk for it: fall back
+  hydrateChunk(i);
+  CHUNKS[i].node.scrollIntoView({block: 'start'});
+}
+
 /* ---------- init ---------- */
 function init(){
   document.getElementById('cb-key').textContent=DATA.bibkey||DATA.title;
@@ -1469,7 +1483,7 @@ function init(){
   const sel=document.getElementById('pageSel');
   DATA.pages_meta.forEach(p=>{const o=document.createElement('option');o.value=p.page;o.textContent='p'+p.page;sel.appendChild(o);});
   sel.value=curPage;
-  sel.addEventListener('change',()=>{curPage=+sel.value;refreshStage();});
+  sel.addEventListener('change',()=>gotoPage(+sel.value));
   /* Language: only when the document HAS a second one. Its handler never
    * touches curPage, and nothing on the page path touches curRole — that
    * separation is what keeps the choice across page turns. */

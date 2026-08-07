@@ -239,3 +239,63 @@ def test_the_first_render_matches_the_view_it_says_it_is_in():
       OUT.shows_prose = seen().includes("Correlation in the Hubbard Model");
     """)
     assert out == {"view": "reflow", "shows_prose": True}
+
+
+def _two_page_model():
+    m = _bilingual_model()
+    m["meta"]["num_pages"] = 2
+    m["meta"]["pages"].append({"page": 2, "page_width": 1000, "page_height": 1400})
+    st = m["streams"]["mathpix_lines"]
+    st["anchors"].append("b1")
+    st["payload"]["b1"] = {"text": "Zweite Seite", "_page": 2,
+                           "region": {"top_left_x": 10, "top_left_y": 10,
+                                      "width": 900, "height": 40}}
+    m["objects"].append({
+        "id": "p9", "type": "Paragraph", "flow_index": 9,
+        "props": {"page": 2, "flow_index": 9, "text": "Second page body",
+                  "text_source": "Zweite Seite"},
+        "realizations": [{"stream": "mathpix_lines", "start": "b1", "end": "b1"}]})
+    return m
+
+
+def test_the_page_selector_reaches_other_pages_in_the_reflow_view():
+    """A bilingual document now opens on Reflow, where the reflow is continuous
+    and the page selector used to drive only the page-image view — so choosing
+    a page did nothing and the rest of the document was unreachable."""
+    out = _boot(_two_page_model(), body=_READ + """
+      OUT.view = curView;
+      const sel = document.getElementById('pageSel');
+      sel.value = 2; sel.dispatch('change');
+      OUT.curPage = curPage;
+      const i = CHUNKS.findIndex(c => c.p0 !== null && 2 >= c.p0 && 2 <= c.p1);
+      OUT.found = i >= 0;
+      OUT.hydrated = i >= 0 ? !!CHUNKS[i].hydrated : false;
+      OUT.scrolled = i >= 0 ? !!CHUNKS[i].node._scrolledIntoView : false;
+      OUT.text_present = seen().includes("Second page body");
+    """)
+    assert out == {"view": "reflow", "curPage": 2, "found": True,
+                   "hydrated": True, "scrolled": True, "text_present": True}
+
+
+def test_the_page_selector_still_switches_pages_in_the_page_view():
+    out = _boot(_two_page_model(), body=_READ + """
+      setView('page');
+      const sel = document.getElementById('pageSel');
+      sel.value = 2; sel.dispatch('change');
+      OUT.curPage = curPage;
+      OUT.view = curView;
+      OUT.stage = document.getElementById('stagewrap').children.map(c=>c.className).join(",");
+    """)
+    assert out["curPage"] == 2 and out["view"] == "page"
+    assert "stage" in out["stage"]
+
+
+def test_the_page_control_is_not_dimmed_when_it_still_works():
+    """It was greyed out off the page view to say "inactive there" — now it
+    works in both, so dimming it tells the reader the opposite of the truth."""
+    out = _boot(_two_page_model(), body=_READ + """
+      OUT.op_reflow = String(document.getElementById('pageTool').style.opacity || '1');
+      setView('page');
+      OUT.op_page = String(document.getElementById('pageTool').style.opacity || '1');
+    """)
+    assert out == {"op_reflow": "1", "op_page": "1"}

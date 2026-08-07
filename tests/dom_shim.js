@@ -65,7 +65,7 @@ class _ShimNode {
   addEventListener(ev, fn){ (this._listeners[ev] = this._listeners[ev] || []).push(fn); }
   dispatch(ev, arg){ (this._listeners[ev] || []).forEach(f => f(arg || {target: this,
     preventDefault(){}, stopPropagation(){}})); }
-  scrollIntoView(){}
+  scrollIntoView(){ this._scrolledIntoView = true; }
   querySelector(sel){ return this.querySelectorAll(sel)[0] || null; }
   querySelectorAll(sel){
     const out = [];
