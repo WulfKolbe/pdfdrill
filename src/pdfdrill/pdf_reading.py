@@ -209,14 +209,31 @@ def _render_shard(gs_base: "list[str]", pdf: Path, shard: "list[int]",
     two jobs of four pages left four files on disk instead of eight. Each shard
     therefore renders into its own directory and the results are moved into
     place afterwards.
+
+    The output template is RELATIVE and gs runs with `cwd` set to that directory,
+    so the only `%` gs ever parses is our own `%0Nd`. An absolute template put the
+    caller's path through gs's format scanner, and a document downloaded by URL
+    keeps its percent-escapes in the folder name (`%E2%80%8B…`): gs consumed them
+    as specifiers, wrote no file, reported "Page drawing error" on stdout and
+    exited **0** — a clean exit with an empty directory, which every caller read
+    as "this document has no pages".
     """
     first, last = shard[0], shard[-1]
+    out_dir.mkdir(parents=True, exist_ok=True)
     with tempfile.TemporaryDirectory(dir=str(out_dir)) as td:
-        subprocess.run(
+        proc = subprocess.run(
             gs_base + [f"-dFirstPage={first}", f"-dLastPage={last}",
-                       f"-sOutputFile={td}/s-%0{pad}d.{ext}", str(pdf)],
-            check=True, capture_output=True, timeout=1800)
-        for i, src in enumerate(sorted(Path(td).glob(f"s-*.{ext}"))):
+                       f"-sOutputFile=s-%0{pad}d.{ext}", str(pdf)],
+            check=True, capture_output=True, timeout=1800, cwd=td)
+        made = sorted(Path(td).glob(f"s-*.{ext}"))
+        if not made:
+            # Exit 0 is not evidence of output. gs explains itself on stdout.
+            detail = (proc.stdout or b"").decode("utf-8", "replace").strip()[:400]
+            raise RuntimeError(
+                f"Ghostscript produced no image for pages {first}-{last} of "
+                f"{pdf.name} (exit {proc.returncode})"
+                + (f": {detail}" if detail else ""))
+        for i, src in enumerate(made):
             src.replace(out_dir / f"page-{first + i:0{pad}d}.{ext}")
 
 
@@ -250,13 +267,26 @@ def rasterize(pdf: Path, out_dir: Path, *, pages: Optional[list[int]] = None,
 def render_page(pdf: Path, page: int, out_png: Path, *,
                 dpi: int = RASTER_MIN_DPI) -> Path:
     """Render ONE page to an exact PNG path via Ghostscript (>= 400 DPI). For
-    callers that need a specific filename (image-locate, snip/vision crops)."""
+    callers that need a specific filename (image-locate, snip/vision crops).
+
+    Goes through a relative template in a temp dir for the same reason as
+    `_render_shard`: a caller path containing `%` is parsed by gs as a format
+    specifier and silently yields no file (see that docstring)."""
     out_png = Path(out_png)
     out_png.parent.mkdir(parents=True, exist_ok=True)
     gs = _require_gs()
-    subprocess.run(_gs_base(gs, dpi, "png") + [f"-dFirstPage={page}",
-                   f"-dLastPage={page}", f"-sOutputFile={out_png}", str(pdf)],
-                   check=True, capture_output=True, timeout=300)
+    with tempfile.TemporaryDirectory(dir=str(out_png.parent)) as td:
+        proc = subprocess.run(
+            _gs_base(gs, dpi, "png") + [f"-dFirstPage={page}",
+            f"-dLastPage={page}", "-sOutputFile=s.png", str(pdf)],
+            check=True, capture_output=True, timeout=300, cwd=td)
+        src = Path(td) / "s.png"
+        if not src.exists():
+            detail = (proc.stdout or b"").decode("utf-8", "replace").strip()[:400]
+            raise RuntimeError(
+                f"Ghostscript produced no image for page {page} of {pdf.name} "
+                f"(exit {proc.returncode})" + (f": {detail}" if detail else ""))
+        src.replace(out_png)
     return out_png
 
 

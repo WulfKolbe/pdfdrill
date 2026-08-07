@@ -183,7 +183,9 @@ def test_rasterize_uses_ghostscript_at_400_floor():
         for c in cmd:
             if isinstance(c, str) and c.startswith("-sOutputFile="):
                 of = c.split("=", 1)[1]
-                Path(of.replace("%04d", "0001")).write_bytes(b"\x89PNG")
+                # honour cwd like a real subprocess: the output template is
+                # RELATIVE so gs never parses a caller path with `%` in it.
+                Path(k.get("cwd") or ".", of.replace("%04d", "0001")).write_bytes(b"\x89PNG")
         class _R:
             returncode = 0; stdout = b""; stderr = b""
         return _R()
