@@ -330,6 +330,12 @@ def _short_label(obj: dict, preview: str) -> str:
         return "table"
     if t == "Abstract":
         return "Abstract"
+    if t == "Toc":
+        # NOT its first stored entry: those are the raw OCR lines of the printed
+        # contents page, i.e. the untranslated original, which then showed as
+        # German inside an English reading. A structural affordance, like the
+        # "table" label above.
+        return "contents"
     # The object's OWN prose, not the source-stream preview. `preview` is the
     # immutable source, which on a translated document is the ORIGINAL language:
     # labelling from it left the tree in German in both modes, so the language
@@ -752,6 +758,8 @@ button{font:inherit;color:inherit;background:none;border:0;cursor:pointer}
 .svgfig{background:#fff;border:1px solid var(--line);border-radius:4px;padding:6px;
   max-width:100%;overflow:auto}
 .svgfig svg{max-width:100%;height:auto;display:block;margin:0 auto}
+.reflow .toc ul{list-style:none;padding-left:0;margin:4px 0}
+.reflow .toc li{padding:1px 0;font:13px/1.5 var(--sans);cursor:pointer}
 .hint{padding:6px 12px;color:var(--faint);font-size:11px;border-top:1px solid var(--line)}
 </style>
 </head>
@@ -1200,6 +1208,27 @@ register({ type:['Picture','Diagram','Chart'],
     if(e.has_svg){ h+=kv('rendered','SVG (latex → dvisvgm)')
                  + sec('rendered svg')+'<div class="svgfig">'+((e.props||{}).svg||'')+'</div>'; }
     h+=sec('crop')+cropTag(); if(e.cdn_url)h+='<div class="latexsrc" style="margin-top:6px">'+esc(e.cdn_url)+'</div>'; return h; } });
+
+/* The TOC is DERIVED, not authored: its stored entries are the raw OCR strings
+ * of the printed contents page (German, and MathPix-triplicated), so rendering
+ * them left a wholly untranslated block in the middle of an English reading.
+ * Building it from the Section objects — which ARE translated — makes it switch
+ * language for free and keeps it consistent with the headings it points at. */
+register({ type:'Toc',
+  render(e){
+    const secs=EL.filter(x=>x.type==='Section'&&x.flow!=null).sort((a,b)=>a.flow-b.flow);
+    if(!secs.length) return null;                      // nothing to derive it from
+    const n=el('div','toc'); const ul=el('ul');
+    secs.forEach(s=>{ const cap=L(s,'caption'); if(!cap) return;
+      const li=el('li'); const lv=Math.min(4,Math.max(1,s.level||1));
+      li.style.marginLeft=((lv-1)*14)+'px';
+      li.textContent=(s.props&&s.props.section_number?s.props.section_number+'  ':'')+cap;
+      attachHooks(li,s); ul.appendChild(li); });
+    n.appendChild(ul); return n; },
+  detail(e){ const n=(e.props&&e.props.entries||[]).length;
+    return kv('derived from','the document sections')+kv('stored entries',n)
+         + sec('note')+txt('The printed contents page is kept as raw entries; the '
+         + 'list is rendered from the sections so it follows the selected language.'); } });
 
 register({ type:'Table',
   render(e){ const vec=svgNode(e); if(vec) return vec;

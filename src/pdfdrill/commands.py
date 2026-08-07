@@ -8347,12 +8347,19 @@ def _translate_field_for(tiddler: dict) -> Optional[str]:
     return None
 
 
-# DocObject type -> the prose prop translated in the MODEL. Math/code/image/
-# table objects are absent (their content is not natural-language prose).
+# DocObject type -> the prose prop translated in the MODEL.
+#
+# A figure's CONTENT is not prose; its CAPTION is, and grouping the two left an
+# English view of a German thesis reading "Figure 1.1. Darstellung einer
+# Heisenberg-Kette …" between translated paragraphs, plus a wholly German table
+# of contents. Only the caption is sent — never latex_code, cdn_url, or a
+# table's cell data, which are not language.
 _TRANSLATE_MODEL_FIELD = {
-    "Paragraph": "text", "Abstract": "text",
+    "Paragraph": "text", "Abstract": "text", "Toc": "text",
     "Footnote": "content", "Sidenote": "content", "ListItem": "content",
     "Section": "caption",
+    "Picture": "caption", "Diagram": "caption", "Chart": "caption",
+    "Figure": "caption", "Table": "caption",
 }
 
 
