@@ -853,7 +853,11 @@ const EL = DATA.elements;
 const byId = {}; EL.forEach(e=>byId[e.id]=e);
 const IMAGE_CATS = new Set(["Picture","Diagram","Chart"]);
 let curPage = (DATA.pages_meta[0]||{}).page || 1;
-let curView = "page";
+/* A bilingual document opens on REFLOW. The page view is a bitmap of the
+ * printed original, so on load it shows the source language while the selector
+ * says the translation — read, correctly, as the selector lying. Monolingual
+ * documents are unaffected and still open on the page. */
+let curView = (DATA.languages && DATA.languages.length > 1) ? "reflow" : "page";
 let selId = null, inspectMode=false;
 
 /* ---------- language ------------------------------------------------------
@@ -1491,7 +1495,11 @@ function init(){
   window.addEventListener('mousemove',e=>{ if(!drag)return;
     const w=Math.min(window.innerWidth*0.6,Math.max(300,window.innerWidth-e.clientX));
     side.style.width=w+'px'; });
-  buildTree(''); renderPage();
+  buildTree('');
+  // setView, not renderPage: the initial view is a variable now (a bilingual
+  // document opens on reflow), and a hard-coded first render left curView and
+  // the stage disagreeing until the first interaction.
+  setView(curView);
 }
 DATA.__SUB__="__SUBTITLE__";
 init();

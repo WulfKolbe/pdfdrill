@@ -205,3 +205,37 @@ def test_a_toc_with_no_sections_renders_nothing_rather_than_raw_ocr():
       OUT.leaked = seen().includes("..... 1");
     """)
     assert out["leaked"] is False
+
+
+def test_a_bilingual_document_opens_where_the_translation_is_visible():
+    """Reported as "the page starts with flag showing EN while the text is DE":
+    the page view is a bitmap of the printed original, so on load it showed the
+    source language under a selector that said otherwise."""
+    out = _boot(_bilingual_model(), body=_READ + """
+      OUT.view = curView;
+      OUT.role = curRole;
+      OUT.english = seen().includes("Correlation in the Hubbard Model");
+      OUT.german  = seen().includes("Korrelation im Hubbard Modell");
+    """)
+    assert out == {"view": "reflow", "role": "translated",
+                   "english": True, "german": False}
+
+
+def test_a_monolingual_document_still_opens_on_the_page():
+    m = _bilingual_model()
+    for o in m["objects"]:
+        o["props"].pop("text_source", None)
+        o["props"].pop("caption_source", None)
+    out = _boot(m, body=_READ + "OUT.view = curView;")
+    assert out == {"view": "page"}
+
+
+def test_the_first_render_matches_the_view_it_says_it_is_in():
+    """`init()` ended with a hard-coded renderPage(), so a bilingual document
+    reported curView='reflow' while the stage held the page boxes — the state
+    and the screen disagreed until the reader touched something."""
+    out = _boot(_bilingual_model(), body=_READ + """
+      OUT.view = curView;
+      OUT.shows_prose = seen().includes("Correlation in the Hubbard Model");
+    """)
+    assert out == {"view": "reflow", "shows_prose": True}

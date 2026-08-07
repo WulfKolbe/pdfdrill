@@ -113,23 +113,47 @@ def materialize_transclusions(doc) -> int:
     Run AFTER `extract_footnote_paragraphs` so footnote markers resolve to
     `{{||FN}}`. The original text is preserved under `text_source` on first
     materialization. Returns the count of paragraphs changed."""
-    import json
-    from docops.projectors.tiddlywiki import TiddlyWikiProjector
-    from docops.base import OperatorConfig
-
     bib = doc.meta.get("bibkey", "DOC")
-    tids = json.loads(TiddlyWikiProjector(
-        OperatorConfig(op="projector", classname="TiddlyWikiProjector")).project(doc))
-    by_title = {t["title"]: t.get("text", "") for t in tids}
+    by_title = _projected_paragraphs(doc)
     flow = lambda o: o.props.get("flow_index") or 0
     n = 0
     for i, p in enumerate(sorted(doc.objects_of_type("Paragraph"), key=flow), 1):
+        # The projector builds from the IMMUTABLE SOURCE stream, i.e. the
+        # document's ORIGINAL language. Writing that over a translation puts the
+        # original back AND — via setdefault — leaves text_source equal to text,
+        # so the paragraph still looks translated to anything that merely checks
+        # the twin exists. A twin that DIFFERS is the evidence; its presence is
+        # not. This destroyed 23 translated paragraphs before it was caught.
+        if is_translated(p, "text"):
+            continue
         new = (by_title.get(f"{bib}_PARA_{i:04d}") or "").strip()
         if new and new != (p.props.get("text") or "").strip():
             p.props.setdefault("text_source", p.props.get("text", ""))
             p.props["text"] = new
             n += 1
     return n
+
+
+def is_translated(obj, field: str) -> bool:
+    """True when `field` carries a translation — a `<field>_source` twin whose
+    text DIFFERS. Materialization writes an identical twin, so mere presence
+    proves nothing."""
+    props = getattr(obj, "props", {}) or {}
+    src = props.get(field + "_source")
+    cur = props.get(field)
+    return (isinstance(src, str) and isinstance(cur, str)
+            and bool(src.strip()) and src != cur)
+
+
+def _projected_paragraphs(doc) -> dict:
+    """title -> transcluded text, from the TiddlyWiki projector. Split out so a
+    test can supply the projection without building a whole Document."""
+    import json
+    from docops.projectors.tiddlywiki import TiddlyWikiProjector
+    from docops.base import OperatorConfig
+    tids = json.loads(TiddlyWikiProjector(
+        OperatorConfig(op="projector", classname="TiddlyWikiProjector")).project(doc))
+    return {t["title"]: t.get("text", "") for t in tids}
 
 
 _LEAD_ALPHA = re.compile(r"^([A-Z])[.)]\s+")     # appendix letter "A. ", "B) "
@@ -219,3 +243,91 @@ def clean_heading_residuals(doc, promote: bool = True) -> int:
             o.props["title"] = o.props["caption"]
             o.props["is_appendix"] = True
     return n
+
+
+# ---------------------------------------------------------------------------
+# Front-matter LaTeX commands in prose
+# ---------------------------------------------------------------------------
+#
+# A merged model keeps the author's title-page LaTeX verbatim, so a Paragraph's
+# text can literally be `\title{ … }`. The braced ARGUMENT is the prose; the
+# command is markup nobody meant to read, and every projector was showing it.
+
+# Commands whose braced argument IS the text.
+_UNWRAP = ("title", "author", "date", "institute", "institution",
+           "affiliation", "subtitle", "thanks")
+_UNWRAP_RE = re.compile(r"\\(" + "|".join(_UNWRAP) + r")\s*\{")
+
+# Layout-only commands that carry no text at all.
+_DROP_RE = re.compile(
+    r"\\(?:maketitle|newpage|clearpage|cleardoublepage|noindent|hfill|hrule"
+    r"|bigskip|medskip|smallskip|centering|raggedright|tableofcontents)\b"
+    r"|\\(?:vspace|hspace|vskip|hskip)\*?\s*\{[^{}]*\}"
+    r"|\\(?:vspace|hspace)\*?\s*[-\d.]+\s*(?:cm|mm|pt|em|ex|in)\b")
+
+_BREAK_RE = re.compile(r"\\\\\s*(?:\[[^\]]*\])?")     # \\ and \\[2ex]
+
+
+def unwrap_frontmatter_commands(text: str) -> str:
+    """`\\title{X}` -> `X`, `\\\\` -> a line break, layout commands -> nothing.
+
+    An UNBALANCED command is left exactly as it is: half-unwrapping would drop
+    the closing brace and silently truncate the text, and a visible `\\title{`
+    is better than prose that quietly lost its tail.
+    """
+    if not isinstance(text, str) or "\\" not in text:
+        return text if isinstance(text, str) else ""
+    out = text
+    while True:
+        m = _UNWRAP_RE.search(out)
+        if not m:
+            break
+        end = _balanced(out, m.end() - 1)      # index JUST PAST the closing brace
+        if end < 0:
+            break                                     # unbalanced — leave it
+        inner = out[m.end():end - 1].strip()
+        out = out[:m.start()] + inner + out[end:]
+    out = _DROP_RE.sub("", out)
+    out = _BREAK_RE.sub("\n", out)
+    # collapse the whitespace the removals leave behind, keeping paragraph breaks
+    out = re.sub(r"[ \t]+", " ", out)
+    out = re.sub(r" *\n[ \t]*", "\n", out)
+    out = re.sub(r"\n{3,}", "\n\n", out)
+    return out.strip()
+
+
+_FRONTMATTER_FIELDS = ("text", "content", "caption")
+# The prose types, plus the caption-bearing figure/table types — the same set
+# `translate` covers, so a caption is cleaned in whichever language it is in.
+# Formula/Equation/Link/Page are deliberately outside: their strings are the
+# content, not markup wrapped around it.
+_FRONTMATTER_TYPES = {"Paragraph", "Abstract", "Section", "ListItem",
+                      "Footnote", "Sidenote", "Caption", "Toc",
+                      "Picture", "Diagram", "Chart", "Figure", "Table"}
+
+
+def clean_frontmatter(doc) -> int:
+    """Unwrap front-matter commands in every prose object, IN PLACE.
+
+    Both the field and its `<field>_source` twin: a bilingual document that came
+    out clean in one language and marked up in the other would make the language
+    switch look like it changed the content. Idempotent; math/image objects are
+    never touched (their LaTeX is the content, not markup around it).
+    """
+    changed = 0
+    for obj in doc.objects.values():
+        if obj.type not in _FRONTMATTER_TYPES:
+            continue
+        touched = False
+        for field in _FRONTMATTER_FIELDS:
+            for key in (field, field + "_source"):
+                val = obj.props.get(key)
+                if not isinstance(val, str) or "\\" not in val:
+                    continue
+                new = unwrap_frontmatter_commands(val)
+                if new != val:
+                    obj.props[key] = new
+                    touched = True
+        if touched:
+            changed += 1
+    return changed
