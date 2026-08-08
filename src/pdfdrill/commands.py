@@ -8531,6 +8531,11 @@ def cmd_translate(pdf: Path, target_lang: str = "EN-US",
     # Persist the translated model in place (only if it changed), then re-project.
     if changed:
         doc.meta["translated_lang"] = target_lang.upper()
+        if source_lang:
+            # The command was TOLD both languages. Recording only the target
+            # left the source to be guessed later by a detector that cannot
+            # return a region (PT vs PT-BR) and can be wrong outright.
+            doc.meta["source_lang"] = source_lang.upper()
         save_model(model_path, doc)
 
     # Regenerate the tiddler file from the model, then translate it IN PLACE.
@@ -8558,6 +8563,8 @@ def cmd_translate(pdf: Path, target_lang: str = "EN-US",
     md_path.write_text(md_text, encoding="utf-8")
 
     sc.set_evidence("translated_lang", target_lang.upper())
+    if source_lang:
+        sc.set_evidence("source_lang", source_lang.upper())
     sc.set_evidence("translated_count", changed)
     prev = ",".join(sorted(sc.facts - {TRANSLATED})) or "INIT"
     sc.add_fact(TRANSLATED)

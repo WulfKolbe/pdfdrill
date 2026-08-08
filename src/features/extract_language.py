@@ -34,17 +34,40 @@ _STOP = {
            "si", "del", "della", "sono", "come", "anche"},
     "nl": {"de", "het", "een", "en", "van", "is", "dat", "op", "te", "niet",
            "met", "zijn", "voor", "aan", "ook", "wij", "uw"},
+    # Portuguese shares most function words with Spanish (de/que/e/no/por/con),
+    # so this set leans on what DIFFERS — the ão/õe forms, `uma`, `dos/das`,
+    # `pelo`, `mais`, `já`. Without it a Portuguese document was reported as
+    # Spanish, and the inspector renders the detected code as a FLAG.
+    "pt": {"não", "são", "uma", "com", "dos", "das", "para", "por", "mais",
+           "como", "também", "ser", "está", "pelo", "pela", "já", "mas", "ao",
+           "seu", "sua", "isso", "então", "muito", "conteúdo", "além"},
 }
 
 _TOK = re.compile(r"[a-zà-ÿ]+", re.I)
 _lingua = None
 
 
+_WORD_LANGS: dict = {}
+for _lang, _sw in _STOP.items():
+    for _w in _sw:
+        _WORD_LANGS[_w] = _WORD_LANGS.get(_w, 0) + 1
+
+
+def _word_weight(word: str) -> float:
+    """1 / (number of languages claiming this function word)."""
+    return 1.0 / _WORD_LANGS.get(word, 1)
+
+
 def _heuristic(text: str) -> dict:
     toks = [t.lower() for t in _TOK.findall(text or "")]
     if not toks:
         return {"lang": "und", "confidence": 0.0, "engine": "heuristic"}
-    scores = {lang: sum(1 for t in toks if t in sw) / len(toks) for lang, sw in _STOP.items()}
+    # Weight each hit by how DISTINCTIVE it is. The sets overlap by construction
+    # (`de` is in fr/es/it/nl/pt), so counting every hit as one made a language
+    # win on its shared words alone — Portuguese text scored as Spanish at 0.32,
+    # a near-tie decided by noise. A word claimed by k languages contributes 1/k.
+    scores = {lang: sum(_word_weight(t) for t in toks if t in sw) / len(toks)
+              for lang, sw in _STOP.items()}
     best = max(scores, key=scores.get)
     hit = scores[best]
     if hit < 0.02:                                  # essentially no function words matched

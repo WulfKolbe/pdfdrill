@@ -190,8 +190,15 @@ def document_languages(model: dict, *, detect=None) -> list[dict]:
                     was_parts.append(src)
     if not now_parts:
         return []
-    now = detect("\n".join(now_parts)) or "und"
-    was = detect("\n".join(was_parts)) or "und"
+    # `translate --from EN --to PT-BR` STATES both languages, and records them.
+    # Detecting them afterwards guesses at a fact already on file — and guesses
+    # wrongly, since a detector returns a bare language and cannot tell PT-BR
+    # from PT. Detection is the fallback for the undeclared half only (`--from`
+    # is optional; DeepL can auto-detect the source).
+    meta = model.get("meta") or {}
+    rec_now, rec_was = meta.get("translated_lang"), meta.get("source_lang")
+    now = str(rec_now) if rec_now else (detect("\n".join(now_parts)) or "und")
+    was = str(rec_was) if rec_was else (detect("\n".join(was_parts)) or "und")
     return [
         {"code": now, "role": "translated", "flag": flag_for(now),
          "label": now.upper() if now != "und" else "translated"},
