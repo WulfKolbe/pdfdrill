@@ -9102,8 +9102,11 @@ def cmd_eqnums(pdf: Path, force: bool = False) -> str:
 
     stats = fuse_equation_numbers(doc)
 
-    with open(model_path, "w", encoding="utf-8") as f:
-        _jsonio.dump(doc.to_dict(), f, indent=2)
+    # `save_model`, not a raw open(..., "w"): the raw form truncates the file
+    # BEFORE serialising, so any failure while writing leaves a zero-byte model
+    # and the previous one is gone. Observed exactly that during this work.
+    from .model_io import save_model as _save_model
+    _save_model(model_path, doc)
 
     sc.set_evidence("eqnums_from_mathpix", stats["from_mathpix"])
     sc.set_evidence("eqnums_recovered", stats["recovered"])

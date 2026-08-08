@@ -60,6 +60,10 @@ def fuse_equation_numbers(doc, tol: float = 0.03) -> dict:
                     (a, p.get("y_norm"), m.group(1), t))
 
     pages = {p["page"]: p for p in doc.meta.get("pages", [])}
+    # `refnum_anchor` is stored as an anchor ID (a string); a Range wants the
+    # Anchor OBJECT, so resolve once here rather than at every use.
+    _ml = doc.streams.get("mathpix_lines")
+    _anchor_by_id = {a.id: a for a in (_ml.anchors if _ml is not None else [])}
     from_mathpix = recovered = 0
     for o in doc.objects.values():
         if o.type != "Equation":
@@ -67,6 +71,24 @@ def fuse_equation_numbers(doc, tol: float = 0.03) -> dict:
         rn = (o.props.get("refnum") or "").strip()
         if rn:
             o.props["equation_number"] = display_number(rn)
+            # Record WHERE the string came from. `equation_number` is a
+            # destructively-rewritten copy of stream text, and this branch —
+            # 58 of 61 equations on one thesis — left nothing pointing at the
+            # span, so a bad rewrite could be neither detected nor undone. The
+            # geometry branch below always did this; only this one did not.
+            na = _anchor_by_id.get(o.props.get("refnum_anchor"))
+            if na is not None:
+                sr = next((r for r in o.realizations
+                           if r.stream == "mathpix_lines" and r.start is not None), None)
+                if sr is not None:
+                    # Same shape as the geometry branch below: the equation's own
+                    # span on the left, the span the number was read from on the
+                    # right, so the derived string is always traceable back.
+                    doc.add_alignment(Alignment(
+                        kind="equation_number",
+                        left=Range("mathpix_lines", sr.start, sr.end),
+                        right=Range("mathpix_lines", na, na),
+                        props={"number": rn, "provenance": "mathpix"}))
             from_mathpix += 1
             continue
 

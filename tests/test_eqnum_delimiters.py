@@ -86,9 +86,10 @@ def test_a_number_already_paired_is_not_served_again_by_the_fallback():
     ])
     ep = EP.__new__(EP)
     paired = ep._match_equation_numbers(anchors, stream)
-    assert sorted(paired.values()) == ["2.4", "2.5"], paired
+    # the pairing now reports (number, source_anchor) so provenance survives
+    assert sorted(n for n, _a in paired.values()) == ["2.4", "2.5"], paired
 
-    used = set(paired.values())
+    used = {n for n, _a in paired.values()}
     third = anchors.index("a4")
     assert EP._refnum_near(anchors, stream, third, used=used) == "", \
         "the fallback re-served a number the geometric pass had already used"

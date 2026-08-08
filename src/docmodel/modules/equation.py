@@ -101,9 +101,12 @@ class EquationProcessor(BaseModule):
             payload = stream.payload[anchor]
             if payload.get("type") not in self.EQ_TYPES:
                 continue
-            refnum = (refnum_by_anchor.get(anchor)
-                      or self._refnum_near(anchors, stream, i,
-                                           used=set(refnum_by_anchor.values())))
+            paired = refnum_by_anchor.get(anchor)
+            refnum, refnum_anchor = paired if paired else ("", None)
+            if not refnum:
+                refnum = self._refnum_near(
+                    anchors, stream, i,
+                    used={n for n, _a in refnum_by_anchor.values()})
             latex_raw = payload.get("text_display") or payload.get("text") or ""
             items.append({
                 "anchor": anchor,
@@ -111,6 +114,7 @@ class EquationProcessor(BaseModule):
                 "image_id": payload.get("_image_id"),
                 "region": payload.get("region"),
                 "refnum": refnum,
+                "refnum_anchor": refnum_anchor,
                 "latex_raw": latex_raw,
                 "latex": _normalize_latex(latex_raw),
             })
@@ -119,7 +123,13 @@ class EquationProcessor(BaseModule):
     def _match_equation_numbers(self, anchors, stream) -> dict:
         """Pair each math/equation line with the same-page `equation_number`
         line whose region y-center is closest (greedy nearest-pair, each number
-        used once). Returns {equation_anchor: "N"}."""
+        used once). Returns {equation_anchor: ("N", number_anchor)}.
+
+        The number's ANCHOR travels with it so a consumer can point an Alignment
+        at the span the string was derived from. Returning the bare string made
+        the rewritten value the only record of the input — which is precisely
+        why a bad rewrite could not be detected or recovered.
+        """
         def y_center(p):
             r = p.get("region") or {}
             top = r.get("top_left_y")
@@ -138,20 +148,25 @@ class EquationProcessor(BaseModule):
             elif p.get("type") == "equation_number":
                 t = normalize_equation_number(p.get("text") or p.get("text_display"))
                 if t:
-                    nums_by_page.setdefault(pg, []).append((yc, t))
+                    # the anchor's ID (a string): props are serialised to JSON,
+                    # and an Anchor object round-trips as its repr, which then
+                    # matches nothing.
+                    nums_by_page.setdefault(pg, []).append(
+                        (yc, t, getattr(a, "id", a)))
 
         out: dict = {}
         for pg, eqs in eqs_by_page.items():
             nums = nums_by_page.get(pg, [])
             pairs = sorted(
-                ((abs(ey - ny), ea, ny, nt) for (ey, ea) in eqs for (ny, nt) in nums),
+                ((abs(ey - ny), ea, ny, nt, na)
+                 for (ey, ea) in eqs for (ny, nt, na) in nums),
                 key=lambda t: t[0],
             )
             used_num: set = set()
-            for _d, ea, ny, nt in pairs:
+            for _d, ea, ny, nt, na in pairs:
                 if ea in out or ny in used_num:
                     continue
-                out[ea] = nt
+                out[ea] = (nt, na)
                 used_num.add(ny)
         return out
 
@@ -187,6 +202,7 @@ class EquationProcessor(BaseModule):
             type="Equation",
             props={
                 "refnum": item["refnum"],
+                "refnum_anchor": item.get("refnum_anchor"),
                 "latex": item["latex"],          # convenient copy
                 "latex_raw": item["latex_raw"],
                 "page": item["page"],
