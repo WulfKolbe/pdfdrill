@@ -48,6 +48,38 @@ def _normalize_latex(raw: str) -> str:
     return s
 
 
+_MATH_WRAP = (("\\(", "\\)"), ("\\[", "\\]"), ("$$", "$$"), ("$", "$"))
+
+
+def normalize_equation_number(raw) -> str:
+    """The printed equation number, without its wrapping.
+
+    MathPix emits the number bare — `(2.4)` — or wrapped in inline-math
+    delimiters — `\\((2.5)\\)`. Stripping paren CHARACTERS turned the second
+    into `\\2.5\\`, which `eqnums` then re-wrapped as `(\\2.5\\)`: a number
+    with a backslash in it, matching nothing downstream. Remove the DELIMITER
+    PAIR first, then the parens.
+    """
+    t = (raw or "").strip()
+    if not t:
+        return ""
+    changed = True
+    while changed:                       # `\(($x$)\)` style nesting
+        changed = False
+        for open_, close in _MATH_WRAP:
+            # >=, not >: `\(\)` is an EMPTY wrapper and must collapse to "",
+            # not leave its own backslashes behind as if they were a number.
+            if len(t) >= len(open_) + len(close) and t.startswith(open_) and t.endswith(close):
+                t = t[len(open_):-len(close)].strip()
+                changed = True
+    t = re.sub(r"[()]", "", t).strip()
+    # An equation number never contains a backslash, so any left here is damage,
+    # not content: models built before this fix hold `\\2.5\\` in `refnum`
+    # (the old code deleted the parens and kept the delimiters' backslashes).
+    # Stripping them repairs those in place, without a rebuild.
+    return t.replace("\\", "").strip()
+
+
 class EquationProcessor(BaseModule):
     EQ_TYPES = {"equation", "math"}
 
@@ -69,7 +101,9 @@ class EquationProcessor(BaseModule):
             payload = stream.payload[anchor]
             if payload.get("type") not in self.EQ_TYPES:
                 continue
-            refnum = refnum_by_anchor.get(anchor) or self._refnum_near(anchors, stream, i)
+            refnum = (refnum_by_anchor.get(anchor)
+                      or self._refnum_near(anchors, stream, i,
+                                           used=set(refnum_by_anchor.values())))
             latex_raw = payload.get("text_display") or payload.get("text") or ""
             items.append({
                 "anchor": anchor,
@@ -102,7 +136,7 @@ class EquationProcessor(BaseModule):
             if p.get("type") in self.EQ_TYPES:
                 eqs_by_page.setdefault(pg, []).append((yc, a))
             elif p.get("type") == "equation_number":
-                t = re.sub(r"[()]", "", (p.get("text") or p.get("text_display") or "").strip()).strip()
+                t = normalize_equation_number(p.get("text") or p.get("text_display"))
                 if t:
                     nums_by_page.setdefault(pg, []).append((yc, t))
 
@@ -122,14 +156,23 @@ class EquationProcessor(BaseModule):
         return out
 
     @staticmethod
-    def _refnum_near(anchors, stream, i: int) -> str:
+    def _refnum_near(anchors, stream, i: int, used: "set | None" = None) -> str:
+        """Positional fallback: the nearest `equation_number` in a ±3 stream
+        window, for an equation the geometric pass could not place.
+
+        `used` is the set of numbers the geometric pass already assigned, and
+        skipping them is the whole point: the two algorithms had no shared
+        bookkeeping, so on a page with 3 equations and 2 numbers this handed
+        (2.5) to a THIRD equation that already belonged to another — two
+        equations printing the same number and the next one printing none.
+        """
+        used = used if used is not None else set()
         lo, hi = max(0, i - 3), min(len(anchors), i + 4)
         for j in range(lo, hi):
             p = stream.payload[anchors[j]]
             if p.get("type") == "equation_number":
-                t = (p.get("text") or p.get("text_display") or "").strip()
-                t = re.sub(r"[()]", "", t).strip()
-                if t:
+                t = normalize_equation_number(p.get("text") or p.get("text_display"))
+                if t and t not in used:
                     return t
         return ""
 

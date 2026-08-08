@@ -3237,7 +3237,27 @@ def _build_arxiv_source_model(pdf: Path, sc: "Sidecar", key: str,
                                 "paid OCR/CDN route.)")
 
 
-def cmd_model(pdf: Path, force: bool = False, bibkey: str | None = None) -> str:
+def model_rebuild_blocked(translated: bool, lang, allow: bool) -> str:
+    """Why a rebuild must not proceed, or "" when it may.
+
+    The model is rebuilt from `lines.json`, which never held the translation, so
+    a rebuild reverts every translated field to the source language. Three times
+    during one week of work that destroyed the same document's translation, each
+    time recovered only because a backup happened to exist.
+    """
+    if not translated or allow:
+        return ""
+    return (f"Refusing to rebuild: this document is translated ({lang or '?'}) and the "
+            f"model is rebuilt from lines.json, which does not hold the translation "
+            f"— every translated field would revert to the source language.\n"
+            f"  • to repair numbering/geometry without a rebuild, run the specific "
+            f"step (`eqnums`, `geometry`, `clean`), which mutate the model in place\n"
+            f"  • to rebuild anyway, pass --force-discard-translation; you will need "
+            f"to run `pdfdrill translate` again afterwards (a paid DeepL call)")
+
+
+def cmd_model(pdf: Path, force: bool = False, bibkey: str | None = None,
+              force_discard_translation: bool = False) -> str:
     """Build the unified docmodel Document from MathPix lines.json.
 
     Auto-chains `mathpix` if the lines.json isn't there yet. Writes the
@@ -3252,6 +3272,11 @@ def cmd_model(pdf: Path, force: bool = False, bibkey: str | None = None) -> str:
     from docmodel.main import run as build_model, DEFAULT_CONFIG_PATH
 
     sc = Sidecar(pdf)
+    blocked = model_rebuild_blocked(
+        TRANSLATED in sc.facts, sc.get_evidence("translated_lang"),
+        force_discard_translation)
+    if blocked and force:
+        return blocked
     model_path = _model_path(sc)
     key = resolve_bibkey(pdf, bibkey, sc)
     lines_path = _lines_json_path(pdf)
@@ -7500,6 +7525,22 @@ def cmd_beamer(pdf: Path, force: bool = False, compile: bool = False) -> str:
     return "\n".join(lines)
 
 
+def promote_equation_label(obj, src_eq: dict) -> bool:
+    """Copy the author's `\\label{}` onto the object's OWN props.
+
+    `injectlatex` stored it on a Realization, and every consumer reads
+    `obj.props` — so 15 real labels on one thesis were present in the file and
+    reachable by nobody. Named `eq_label` because `Reference.props["label"]` is
+    already the bibliographic alpha label, a different thing. Never overwrites:
+    an anchor other objects may reference must not silently repoint.
+    """
+    lab = (src_eq or {}).get("label")
+    if not lab or obj.props.get("eq_label"):
+        return False
+    obj.props["eq_label"] = str(lab)
+    return True
+
+
 def cmd_injectlatex(pdf: Path, tex: str | None = None, force: bool = False) -> str:
     """Ingest the author's LaTeX source (.tex or arXiv .tgz) as a competing
     `tex` provenance on each matched equation.
@@ -7644,6 +7685,7 @@ def cmd_injectlatex(pdf: Path, tex: str | None = None, force: bool = False) -> s
                 props={"latex": expanded, "latex_original": original,
                        "env": se["env"], "label": se.get("label"),
                        "numbered": se.get("numbered"), "match_sim": round(best_sim, 3)}))
+            promote_equation_label(best, se)      # onto props, where consumers read
             attached += 1
         else:
             unmatched += 1

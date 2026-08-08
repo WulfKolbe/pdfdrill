@@ -23,6 +23,20 @@ import re
 _EQNUM_RE = re.compile(r"^\(?(\d+(?:\.\d+)?[a-z]?)\)?$")
 
 
+def display_number(refnum) -> str:
+    """`refnum` -> the printed form `(N)`, normalising whatever wrapping it has.
+
+    `refnum` is written at model-build time; this only wraps it for display, and
+    blind wrapping reproduced `(\\2.5\\)` from a model built before the
+    delimiter fix. Normalising here means a stale model is repaired by `eqnums`
+    alone — without a full rebuild, which on a translated document destroys the
+    translation.
+    """
+    from docmodel.modules.equation import normalize_equation_number
+    n = normalize_equation_number(refnum)
+    return f"({n})" if n else ""
+
+
 def _as_display(raw_text: str, number: str) -> str:
     raw = raw_text.strip()
     return raw if raw.startswith("(") and raw.endswith(")") else f"({number})"
@@ -52,7 +66,7 @@ def fuse_equation_numbers(doc, tol: float = 0.03) -> dict:
             continue
         rn = (o.props.get("refnum") or "").strip()
         if rn:
-            o.props["equation_number"] = rn if rn.startswith("(") else f"({rn})"
+            o.props["equation_number"] = display_number(rn)
             from_mathpix += 1
             continue
 
