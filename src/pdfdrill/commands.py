@@ -3769,8 +3769,7 @@ def cmd_bibsource(pdf: Path, bib_path: str | None = None,
         linked = link_citations(doc)
         n_cits = sum(1 for o in doc.objects.values() if o.type == "Citation")
 
-    with open(model_path, "w", encoding="utf-8") as f:
-        _jsonio.dump(doc.to_dict(), f, indent=2)
+    save_model(model_path, doc)
 
     sc.set_evidence("bibsource_references", n_refs)
     sc.set_evidence("bibsource_enriched", enriched)
@@ -3803,8 +3802,7 @@ def _load_bib_sidecar(pdf: Path, bib_path: Path) -> dict:
     with open(model_path, "r", encoding="utf-8") as f:
         doc = Document.from_dict(json.load(f))
     res = load_bibtex_file(doc, bib_path.read_text(encoding="utf-8"))
-    with open(model_path, "w", encoding="utf-8") as f:
-        _jsonio.dump(doc.to_dict(), f, indent=2)
+    save_model(model_path, doc)
     sc.set_evidence("bibtex_file_entries", res["attached"])
     sc.save()
     return res
@@ -6670,8 +6668,7 @@ def cmd_svg(target: Path, limit: int | None = None, force: bool = False) -> str:
             o.props["svg_error"] = res["error"]
             errors += 1
 
-    with open(model_path, "w", encoding="utf-8") as f:
-        _jsonio.dump(doc.to_dict(), f, indent=2)
+    save_model(model_path, doc)
 
     if sc is not None:
         # `svg_rendered` is this run's DELTA, so a no-op re-run legitimately
@@ -7060,8 +7057,7 @@ def cmd_snip(pdf: Path, limit: int | None = None, force: bool = False,
         if res.get("confidence") is not None:
             confs.append(res["confidence"])
 
-    with open(model_path, "w", encoding="utf-8") as f:
-        _jsonio.dump(doc.to_dict(), f, indent=2)
+    save_model(model_path, doc)
 
     avg = sum(confs) / len(confs) if confs else None
     total = (sc.get_evidence("snip_count", 0) or 0) + done
@@ -7196,8 +7192,7 @@ def cmd_lists(pdf: Path, force: bool = False) -> str:
 
     materialize(roots, None)
 
-    with open(model_path, "w", encoding="utf-8") as f:
-        _jsonio.dump(doc.to_dict(), f, indent=2)
+    save_model(model_path, doc)
 
     depth = max_depth(roots)
     n_items = len(items)
@@ -7293,8 +7288,7 @@ def cmd_algorithms(pdf: Path, force: bool = False) -> str:
             alg.children.append(st.id)
             steps_total += 1
 
-    with open(model_path, "w", encoding="utf-8") as f:
-        _jsonio.dump(doc.to_dict(), f, indent=2)
+    save_model(model_path, doc)
 
     depth = algorithm_max_depth(algos)
     sc.set_evidence("algorithms_created", created)
@@ -7730,8 +7724,7 @@ def cmd_injectlatex(pdf: Path, tex: str | None = None, force: bool = False) -> s
     n_graphics = ingest_source_graphics(
         doc, body, macros, doc.meta.get("bibkey", "DOC"), force)
 
-    with open(model_path, "w", encoding="utf-8") as f:
-        _jsonio.dump(doc.to_dict(), f, indent=2)
+    save_model(model_path, doc)
 
     # If we created equations, clear the keyless math-missing flag — the gold
     # source filled the gap.
@@ -8328,8 +8321,7 @@ def cmd_tiddlers(pdf: Path, force: bool = False, embed: bool = False,
     # later `report`/`compare` (which read doc.meta['bibkey']) reuse it too.
     if doc.meta.get("bibkey") != key:
         doc.meta["bibkey"] = key
-        with open(model_path, "w", encoding="utf-8") as f:
-            _jsonio.dump(doc.to_dict(), f, indent=2)
+        save_model(model_path, doc)
     if sc.get_evidence("bibkey") != key:
         sc.set_evidence("bibkey", key)
 
@@ -8677,8 +8669,7 @@ def cmd_geometry(pdf: Path, force: bool = False) -> str:
     lines = group_lines(words)
     stats = fuse(doc, lines, page_dims)
 
-    with open(model_path, "w", encoding="utf-8") as f:
-        _jsonio.dump(doc.to_dict(), f, indent=2)
+    save_model(model_path, doc)
 
     sc.set_evidence("geometry_pdf_lines", stats["pdf_lines"])
     sc.set_evidence("geometry_matched", stats["matched"])
@@ -8781,8 +8772,7 @@ def cmd_bibliography(pdf: Path, force: bool = False) -> str:
         authyear = detect_author_year_citations(doc, exclude_anchors=ref_anchors)
         cites = link_citations(doc)
 
-    with open(model_path, "w", encoding="utf-8") as f:
-        _jsonio.dump(doc.to_dict(), f, indent=2)
+    save_model(model_path, doc)
 
     sc.set_evidence("bibliography_entries", n)
     sc.set_evidence("bibliography_with_year", with_year)
@@ -8865,8 +8855,7 @@ def cmd_bibfetch(pdf: Path, limit: int | None = None, force: bool = False) -> st
                     r.props[k] = res["fields"][k]
             done += 1
 
-    with open(model_path, "w", encoding="utf-8") as f:
-        _jsonio.dump(doc.to_dict(), f, indent=2)
+    save_model(model_path, doc)
 
     total = (sc.get_evidence("bibfetch_done", 0) or 0) + done
     sc.set_evidence("bibfetch_done", total)
@@ -8935,8 +8924,7 @@ def _bibfetch_via_delegate(pdf: Path, doc, todo, sc, model_path, runtime) -> str
         else:
             errors += 1
 
-    with open(model_path, "w", encoding="utf-8") as f:
-        _jsonio.dump(doc.to_dict(), f, indent=2)
+    save_model(model_path, doc)
     total = (sc.get_evidence("bibfetch_done", 0) or 0) + done
     sc.set_evidence("bibfetch_done", total)
     prev = ",".join(sorted(sc.facts - {BIBFETCH_DONE})) or "INIT"
@@ -9024,8 +9012,7 @@ def cmd_citedrill(pdf: Path, limit: int | None = None, force: bool = False) -> s
         no_links += st == "no_links"
         blocked += st == "blocked"
 
-    with open(model_path, "w", encoding="utf-8") as f:
-        _jsonio.dump(doc.to_dict(), f, indent=2)
+    save_model(model_path, doc)
     sc.set_evidence("citedrill", {"fetched": fetched, "links_only": links_only,
                                   "no_links": no_links, "blocked": blocked,
                                   "processed": len(todo)})
@@ -9165,8 +9152,7 @@ def cmd_score(pdf: Path, force: bool = False) -> str:
         if s["mean_agreement"] is not None:
             agreements.append(s["mean_agreement"])
 
-    with open(model_path, "w", encoding="utf-8") as f:
-        _jsonio.dump(doc.to_dict(), f, indent=2)
+    save_model(model_path, doc)
 
     mean_ag = round(sum(agreements) / len(agreements), 3) if agreements else None
     sc.set_evidence("scored_equations", scored)
@@ -9267,8 +9253,7 @@ def cmd_nlp(pdf: Path, limit: int | None = None, pages: int | None = None,
                 if len(sample) < 6 and e["text"] not in sample:
                     sample.append(e["text"])
 
-    with open(model_path, "w", encoding="utf-8") as f:
-        _jsonio.dump(doc.to_dict(), f, indent=2)
+    save_model(model_path, doc)
 
     sc.set_evidence("nlp_objects_annotated", annotated)
     sc.set_evidence("nlp_sentences", sentences)
@@ -9472,8 +9457,7 @@ def cmd_annotate(pdf: Path, force: bool = False) -> str:
     xref = link_xref_alignments(doc, created)
     code = sum(1 for r in records if _is_code_host(r.get("uri") or ""))
 
-    with open(model_path, "w", encoding="utf-8") as f:
-        _jsonio.dump(doc.to_dict(), f, indent=2)
+    save_model(model_path, doc)
 
     sc.set_evidence("annotation_links", len(created))
     sc.set_evidence("annotation_code_links", code)
@@ -9633,8 +9617,7 @@ def cmd_ingest(pdf: Path, candidates_path: str, provider: str = "llm",
         ))
         attached += 1
 
-    with open(model_path, "w", encoding="utf-8") as f:
-        _jsonio.dump(doc.to_dict(), f, indent=2)
+    save_model(model_path, doc)
 
     fact = f"CANDIDATES_{provider.upper()}"
     sc.set_evidence(f"candidates_{provider}_count",
@@ -9847,8 +9830,7 @@ def cmd_vision(pdf: Path, limit: int | None = None, force: bool = False) -> str:
         processed += 1
         by_sel[selector or "?"] += 1
 
-    with open(model_path, "w", encoding="utf-8") as f:
-        _jsonio.dump(doc.to_dict(), f, indent=2)
+    save_model(model_path, doc)
 
     sc.set_evidence("vision_crops_total", len(targets))
     sc.set_evidence("vision_processed",
@@ -9910,8 +9892,7 @@ def cmd_embedimages(pdf: Path, force: bool = False) -> str:
         doc = Document.from_dict(json.load(f))
     stats = image_model.attach_embedded_images(
         doc, image_layer, page_dims, bibkey=doc.meta.get("bibkey", pdf.stem))
-    with open(model_path, "w", encoding="utf-8") as f:
-        _jsonio.dump(doc.to_dict(), f, indent=2)
+    save_model(model_path, doc)
 
     sc.set_evidence("embedded_images", stats["created"])
     sc.set_evidence("embedded_images_fused", stats["fused"])
@@ -12504,8 +12485,7 @@ def _vision_via_delegate(pdf: Path, doc, todo, targets, sc, model_path,
         processed += 1
         by_sel[selector or "?"] += 1
 
-    with open(model_path, "w", encoding="utf-8") as f:
-        _jsonio.dump(doc.to_dict(), f, indent=2)
+    save_model(model_path, doc)
     sc.set_evidence("vision_crops_total", len(targets))
     sc.set_evidence("vision_processed",
                     (sc.get_evidence("vision_processed", 0) or 0) + processed)
