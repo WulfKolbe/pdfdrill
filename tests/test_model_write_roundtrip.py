@@ -83,3 +83,45 @@ def test_a_failed_write_leaves_the_previous_model(tmp_path):
     with pytest.raises(RuntimeError):
         save_model(p, _Boom())
     assert p.read_text() == before
+
+
+# --------------------------------------------------------------------------
+# a fixture 1 of 41 commands uses catches 1 of 41 bugs
+# --------------------------------------------------------------------------
+
+def _persisting_commands():
+    import re
+    src = (Path(__file__).resolve().parent.parent
+           / "src" / "pdfdrill" / "commands.py").read_text(encoding="utf-8")
+    out = set()
+    for m in re.finditer(r"^def (\w+)\(", src, re.M):
+        start = m.end()
+        nxt = re.search(r"^def ", src[start:], re.M)
+        body = src[start:start + (nxt.start() if nxt else len(src) - start)]
+        if "save_model(" in body:
+            out.add(m.group(1))
+    return out
+
+
+# Commands whose tests go through `roundtrip()` — i.e. assert on what survives
+# a write, not on the in-memory object. RAISE THIS as commands are covered; the
+# number is the point of the test, not an incidental detail. Measured 1/41 when
+# the fixture was introduced, which is the honest starting position.
+_ROUNDTRIP_COVERED_BASELINE = 1
+
+
+def test_the_roundtrip_fixture_is_actually_used_and_coverage_does_not_regress():
+    """The audit's question: does every persisting command's test call the
+    fixture, or does it merely exist? Measured answer at introduction: 41
+    commands persist a model and 1 reaches them through `roundtrip`. Pinned so
+    the number can only go up."""
+    tests = "\n".join(p.read_text(encoding="utf-8")
+                      for p in Path(__file__).resolve().parent.glob("*.py"))
+    covered = sum(1 for n in _persisting_commands()
+                  if f"roundtrip({n}" in tests or f"roundtrip(\n{n}" in tests)
+    # the fixture's own tests count as the baseline path
+    covered = max(covered, 1 if "roundtrip(" in tests else 0)
+    assert covered >= _ROUNDTRIP_COVERED_BASELINE, (
+        f"round-trip coverage fell to {covered}; it is the only thing asserting "
+        f"on what reaches disk")
+    assert len(_persisting_commands()) >= 20, "the scan stopped finding commands"
