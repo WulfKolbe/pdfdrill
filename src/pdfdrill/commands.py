@@ -6825,9 +6825,16 @@ def _inspect_pages_dir(pdf: Path, sc: "Sidecar", pages: str | None,
         if not m:
             continue
         target = out / f"p{int(m.group(1))}.png"
-        if target.exists():
-            continue
+        # ALWAYS re-point the alias at the file just rendered. Skipping when the
+        # target existed froze it at whatever DPI was used first: a re-render
+        # updated `page-<NNNN>.png` and left `p{N}.png` behind, so the inspector
+        # — which reads `p{N}.png` — showed an old render of the page while a
+        # current one sat beside it, silently. The hardlink cannot hold the two
+        # together either, because `rasterize` finalises with a rename onto a
+        # new inode, unlinking the pair after the first re-render.
         try:
+            if target.exists():
+                target.unlink()
             os.link(img, target)
         except OSError:
             import shutil as _sh
