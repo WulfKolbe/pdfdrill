@@ -5,3 +5,17 @@ T4 gold-set population and parse rate
   .lg round-trip preserved: 2994/2994 (100.0%)
   single-expression (no environment): 1908 (64% of parsed)
   contains an environment -> Unresolved: 1086
+
+Scoring protocol (per the inkdrill audit): report BOTH rows, do not pick one.
+  row 1  floor on the single-expression subset (n=1908 of 2994 parsed, 64%)
+         -- the floor's floor; makes M2.2's per-relation scores interpretable
+  row 2  floor over all gold equations, environments held out as Unresolved
+         -- the honest denominator; 36% unresolved IS the state on this corpus
+
+Environments are NOT split into rows to enlarge the denominator: an align
+block's rows are related by its alignment points, and splitting discards real
+structure to improve a number.
+
+LgEval is INVOKED, not vendored: gitlab.com/dprl/lgeval pinned at 9831a3c
+(HEAD c94f6dd imports lgeval.msg_debug, which the repo does not ship).
+See tools/lgeval_env.sh.
