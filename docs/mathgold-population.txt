@@ -1,0 +1,7 @@
+T4 gold-set population and parse rate
+  population : 21240 author-LaTeX equations over 388 documents
+  sample     : 3000, uniform, random.seed(0)
+  parsed     : 2994 (99.8%)   raised: 6
+  .lg round-trip preserved: 2994/2994 (100.0%)
+  single-expression (no environment): 1908 (64% of parsed)
+  contains an environment -> Unresolved: 1086
