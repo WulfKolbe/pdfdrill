@@ -114,3 +114,16 @@ def test_svg_and_expandmath_declare_no_fact():
     assert LD.LAYERS["svg"]["fact"] is None
     assert LD.LAYERS["expandmath"]["fact"] is None
     assert LD.LAYERS["expandmath"]["evidence"] == ()
+
+
+def test_the_coverage_gap_is_written_down_beside_the_decision():
+    """Nine layers are uncovered and one is excluded by decision. Without the
+    distinction recorded, the next reader sees a ten-item gap where there are
+    nine — and may 'fix' the one that is deliberate."""
+    doc = LD.__doc__ or ""
+    assert "EXCLUDED BY DECISION" in doc and "quant" in doc
+    for layer in ("annotate", "eqnums", "lists", "algorithms", "semantic",
+                  "elements", "scikgtex", "stex", "lean"):
+        assert layer in doc, layer
+    assert set(LD.LAYERS) == {"bibliography", "geometry", "tiddlers", "compare",
+                              "svg", "expandmath"}

@@ -10,10 +10,22 @@ artifact). The rule they encode is the one already in
 `planner._tiddlers_current`: an artifact is done only while the thing it was
 projected FROM has not moved on.
 
-NOT here, deliberately: `quant`. `cmd_quantities` is a pure report — it reads
-the model, prints a tally, writes no artifact and records no fact. It has no
-state, so it cannot be stale and there is nothing to detect. A detector for it
-would invent a status for something that has none.
+COVERAGE, so the next reader sees nine gaps and one decision rather than ten
+gaps. Six layers are covered: bibliography, geometry, tiddlers, compare, svg,
+expandmath.
+
+EXCLUDED BY DECISION — not missing:
+  quant   `cmd_quantities` is a pure REPORT. It reads the model, prints a
+          tally, writes no artifact and records no fact. It has no state, so it
+          cannot be stale and there is nothing to retract; a detector would
+          invent a status for something that has none. `present("quant", …)`
+          raises, and a test pins that so it cannot be added absent-mindedly.
+
+NOT YET COVERED — nine layers that also write a fact a rebuild outlives, i.e.
+the same defect this module fixes, still open for each of them:
+  annotate, eqnums, lists, algorithms, semantic, elements, scikgtex, stex, lean
+Adding one is: a detector here, an entry in LAYERS, and a before/after test
+against a real model in both states.
 """
 from __future__ import annotations
 
