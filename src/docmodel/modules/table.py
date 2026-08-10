@@ -78,6 +78,7 @@ class TableProcessor(BaseModule):
             for key in _CELL_COORD_KEYS:
                 if key in child:
                     entry[key] = child[key]
+            entry["line"] = child          # so `ink.*` can be carried onto the cell
             out.append(entry)
         return out
 
@@ -116,9 +117,15 @@ class TableProcessor(BaseModule):
         # Children: rows and cells, as separate DocObjects nested under the Table.
         for child in item["children"]:
             sub_type = "TableRow" if child["type"] in _ROW_TYPES else "TableCell"
+            # `ink.*` measurements ride on the LINE and would die here: the
+            # stream keeps every field of a line, but object construction
+            # copies only the props it names. Namespaced keys are carried
+            # through so an inkdrill-produced lines.json reaches the model.
+            from pdfdrill.ink_crosscheck import ink_props
             sub = DocObject(
                 type=sub_type,
-                props={"text": child["text"], "bibkey": self.bibkey},
+                props={"text": child["text"], "bibkey": self.bibkey,
+                       **ink_props(child.get("line"))},
             )
             if child["anchor"] is not None:
                 sub.add_realization(Realization(
