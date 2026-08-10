@@ -3214,6 +3214,15 @@ def _build_arxiv_source_model(pdf: Path, sc: "Sidecar", key: str,
     # models in the library still flat.
     apply_document_structure(doc)
     model_io.save_model(model_path, doc)
+    # This path RETURNS EARLY from cmd_model, so it needs its own retraction:
+    # patching only the main site left the arXiv-source rebuild — the default
+    # for an arXiv document — dropping every derived layer with its facts and
+    # counters intact, which is the bug this is fixing.
+    try:
+        from . import layer_detect as _ld
+        _ld.retract_absent_layers(doc, sc, sc.blob_dir, model_path)
+    except Exception:
+        pass                            # bookkeeping must not fail a build
     by_type: dict[str, int] = {}
     for o in objs:
         by_type[o.type] = by_type.get(o.type, 0) + 1
@@ -3444,6 +3453,19 @@ def cmd_model(pdf: Path, force: bool = False, bibkey: str | None = None,
     # re-hashing instead of trusting mtime (Phase B, the mtime-trigger fix).
     sc.mark(MODEL_BUILT, produced_by="model", inputs=[lines_path],
             params={"bibkey": key}, provenance=lines_source)
+    # RETRACT what the rebuild destroyed. A rebuild discards every derived
+    # layer, and the facts asserting them used to survive — the planner reads
+    # facts, so a layer was believed done and never rebuilt while `status`
+    # reported nothing. Retract, do not re-derive: rebuilding here would make
+    # `model` silently expensive and could re-run a paid step.
+    from . import layer_detect as _ld
+    from .model_io import load_model as _load_model
+    _retracted: list[str] = []
+    try:
+        _retracted = _ld.retract_absent_layers(
+            _load_model(model_path), sc, sc.blob_dir, model_path)
+    except Exception:
+        _retracted = []                     # never let bookkeeping fail a build
     sc.log_transition(
         "model", prev, MODEL_BUILT, cost_ms=(time.monotonic() - t0) * 1000,
         detail=f"{len(objects)} objects, {eq_with_cdn} eq w/ cdn",
@@ -10912,6 +10934,29 @@ def _format_genre(genre: dict) -> list[str]:
             + (f"; {ev}" if ev else "") + ")"]
 
 
+def _retracted_status_lines(pdf: Path, sc: "Sidecar") -> list[str]:
+    """Name the layers a rebuild dropped, and the command that rebuilds each.
+
+    Before this, `model --force` discarded every derived layer and `status`
+    said nothing — the facts asserting them survived, so there was nothing to
+    report. Now the facts are retracted, which means status must say what went
+    or the loss becomes invisible in the other direction.
+    """
+    from . import layer_detect as _ld
+    from .model_io import load_model as _load_model
+    model_path = _model_path(sc)
+    if not model_path.exists():
+        return []
+    try:
+        gone = _ld.still_retracted(sc, _load_model(model_path),
+                                   sc.blob_dir, model_path)
+    except Exception:
+        return []
+    if not gone:
+        return []
+    return [f"  dropped by the last model rebuild: {_ld.rebuild_hint(gone)}"]
+
+
 def cmd_status(pdf: Path) -> str:
     """Report what is already known, no subprocess."""
     sc = Sidecar(pdf)
@@ -10931,6 +10976,7 @@ def cmd_status(pdf: Path) -> str:
         parts.append(f"  BibTeX record ({bib.get('citekey','?')}, "
                      f"entry type: {bib.get('entry_type','?')})")
     parts.extend(_model_status_lines(sc))
+    parts.extend(_retracted_status_lines(pdf, sc))
     if URLS_KNOWN in facts:
         links = sc.urls or []
         n_url = sum(1 for r in links if r.get("kind") == "url")

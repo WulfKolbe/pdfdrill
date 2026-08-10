@@ -172,25 +172,16 @@ def _citations_resolved(model_path: Path) -> bool:
 def _tiddlers_current(sc, model_path: Path) -> bool:
     """Is there a tiddler array, and is it NEWER than the model?
 
-    An artifact is a projection: it is done only while the thing it was
-    projected FROM has not moved on. Checking mere existence would call a stale
-    array current after every rebuild — the same trap as trusting a fact whose
-    model content has been discarded.
+    Delegates to `layer_detect.has_tiddlers`, which is the same rule used by
+    the rebuild-time retraction. Two implementations of "is this projection
+    current" is how they drift apart, and there were already two staleness
+    notions in commands.py before this.
     """
+    from .layer_detect import has_tiddlers
     blob = getattr(sc, "blob_dir", None)
-    if not blob or not model_path.exists():
+    if not blob:
         return False
-    try:
-        arts = list(Path(blob).glob("*.tiddlers.json"))
-    except OSError:
-        return False
-    if not arts:
-        return False
-    # MIN, not max: a document has several arrays (the main one and `*.spoken.*`)
-    # and EVERY one is a projection of this model. Taking the newest let a
-    # freshly rebuilt main array mask a sibling left days behind, so the two
-    # carried different citation titles into the same wiki.
-    return min(a.stat().st_mtime for a in arts) >= model_path.stat().st_mtime
+    return has_tiddlers(Path(blob), Path(model_path))
 
 
 def satisfied_set(done: dict[str, str], sc, pdf: Path, model_path: Path) -> set[str]:
