@@ -127,14 +127,9 @@ def cmd_mathpix(pdf: Path, force: bool = False) -> str:
                     f"Pass --force to use MathPix anyway.")
     if force or not cached:
         size = pdf.stat().st_size if pdf.exists() else 0
-        pages = None
-        try:
-            info = subprocess.run(["pdfinfo", str(pdf)], capture_output=True,
-                                  text=True, timeout=30)
-            m = re.search(r"Pages:\s*(\d+)", info.stdout)
-            pages = int(m.group(1)) if m else None
-        except Exception:
-            pass
+        from . import probes
+        probes.ensure(pdf, sc)             # acquisition ran this; older docs
+        pages = probes.page_count(sc)
         ok, level, msg = upload_preflight(size, pages)
         if not ok:
             return (f"MathPix upload skipped — {msg}\n(Built-in fallback: `pdfdrill "
@@ -677,15 +672,9 @@ def _pdf_producer(pdf: Path) -> str:
     prod = str(sc.get_evidence("producer") or "").strip()
     if prod:
         return prod
-    try:
-        out = subprocess.run(["pdfinfo", str(pdf)], capture_output=True,
-                             text=True, timeout=30)
-    except (OSError, subprocess.SubprocessError):
-        return ""
-    for line in (out.stdout or "").splitlines():
-        if line.startswith("Producer:"):
-            return line.split(":", 1)[1].strip()
-    return ""
+    from . import probes
+    probes.ensure(pdf, sc)                 # acquisition ran this; older docs
+    return (probes.producer(sc) or "").strip()
 
 
 def _pdfminer_declined(pdf: Path) -> bool:
@@ -1454,7 +1443,7 @@ def _born_digital_scan_guard(pdf: Path, cmd: str) -> "str | None":
     tl = sc.get_evidence("text_layer")
     if tl is None:
         try:
-            tl, _, _ = _probe_text_layer(pdf)
+            tl, _, _ = _probe_text_layer(pdf, sc)
         except Exception:                            # noqa: BLE001
             tl = None
     if tl:
@@ -2277,13 +2266,9 @@ def cmd_fontid(pdf: Path, pages: str | None = None, limit: int = 12,
     out_dir = sc.blob_dir / "fontid"
     n_pages = getattr(sc, "page_count", None) or None
     if not n_pages:
-        try:
-            info = subprocess.run(["pdfinfo", str(pdf)], capture_output=True,
-                                  text=True, timeout=30)
-            m = re.search(r"Pages:\s*(\d+)", info.stdout)
-            n_pages = int(m.group(1)) if m else None
-        except Exception:
-            n_pages = None
+        from . import probes
+        probes.ensure(pdf, sc)             # acquisition ran this; older docs
+        n_pages = probes.page_count(sc)
     page_list = pdf_reading.parse_pages(pages, n_pages)
     # Font is sampled, not exhaustive: cap to the first few pages when none asked
     # (so a 175-page scan doesn't rasterize all of it just to read a font), and
@@ -10067,19 +10052,13 @@ def cmd_size(pdf: Path) -> str:
         return _format_size(sc)
 
     t0 = time.monotonic()
-    try:
-        out = subprocess.run(
-            ["pdfinfo", str(pdf)], capture_output=True, text=True, timeout=30,
-        )
-    except FileNotFoundError:
+    from . import probes
+    probes.ensure(pdf, sc)                 # acquisition ran this; older docs
+    info = probes.pdfinfo_fields(sc)
+    if info is None:
         return _missing_tool_msg("pdfinfo", "poppler-utils")
-    info = {}
-    for line in out.stdout.splitlines():
-        if ":" in line:
-            k, _, v = line.partition(":")
-            info[k.strip()] = v.strip()
 
-    sc.set_evidence("pages", int(info.get("Pages", "0")))
+    sc.set_evidence("pages", int(info.get("Pages", "0") or 0))
     sc.set_evidence("bytes", pdf.stat().st_size)
     sc.set_evidence("page_size", info.get("Page size", ""))
     sc.set_evidence("producer", info.get("Producer", ""))
@@ -10090,7 +10069,7 @@ def cmd_size(pdf: Path) -> str:
     # Determine the text layer NOW (the key level-0 signal): a scanned PDF has
     # no extractable text and no fonts -> OCR is mandatory. Two cheap probes:
     # the first page's extractable chars (pdftotext -l 1) and the font count.
-    has_text, n_fonts, n_chars = _probe_text_layer(pdf)
+    has_text, n_fonts, n_chars = _probe_text_layer(pdf, sc)
     sc.set_evidence("text_layer", has_text)
     sc.set_evidence("font_count", n_fonts)
     sc.set_evidence("first_page_chars", n_chars)
@@ -10167,13 +10146,11 @@ def _pdfimages_count(pdf: Path, sc: "Sidecar") -> int:
     cached = sc.get_evidence("image_count")
     if cached is not None:
         return cached
-    try:
-        out = subprocess.run(["pdfimages", "-list", str(pdf)],
-                             capture_output=True, text=True, timeout=60)
-        rows = out.stdout.strip().splitlines()
-        n = max(0, len(rows) - 2)          # minus 2 header rows
-    except Exception:                        # noqa: BLE001
-        n = -1
+    from . import probes
+    probes.ensure(pdf, sc)                 # acquisition ran this; older docs
+    n = probes.image_count(sc)
+    if n is None:
+        n = -1                             # pdfimages unavailable (not "none")
     sc.set_evidence("image_count", n)
     sc.save()
     return n
@@ -10284,7 +10261,7 @@ def _text_layer_from_counts(first_page_chars: int, sampled_chars: int) -> bool:
     return first_page_chars >= 4 or sampled_chars >= 16
 
 
-def _probe_text_layer(pdf: Path) -> tuple[bool, int, int]:
+def _probe_text_layer(pdf: Path, sc: "Sidecar | None" = None) -> tuple[bool, int, int]:
     """Cheap scan detector. Returns (has_text_layer, n_fonts, first_page_chars).
 
     A born-digital PDF has extractable text; a scan has none (just a page-image).
@@ -10302,7 +10279,14 @@ def _probe_text_layer(pdf: Path) -> tuple[bool, int, int]:
     except Exception:
         pass
 
+    # The stored page text answers this without re-extracting: it is already
+    # per page, so "the first N pages" is a slice rather than a second run.
+    from . import probes
+    stored = probes.page_texts(sc) if sc is not None else None
+
     def _chars(last_page: int) -> int:
+        if stored is not None:
+            return len("".join("".join(stored[:last_page]).split()))
         try:
             tout = subprocess.run(
                 ["pdftotext", "-l", str(last_page), str(pdf), "-"],

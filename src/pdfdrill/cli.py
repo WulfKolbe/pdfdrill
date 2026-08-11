@@ -111,6 +111,28 @@ def main():
         return 1
 
 
+def _probe_on_acquire(p: Path) -> Path:
+    """Run the three cheap probes the first time we resolve a PDF.
+
+    Measured at 420 ms for the whole document (pdfinfo 11, `pdfimages -list`
+    198, pdftotext 212), which is less than the cost of deciding whether to run
+    them — and every later consumer then reads the sidecar instead of shelling
+    out again. Once per document: `probes.ensure` is a sidecar read afterwards.
+
+    Only PDFs. `markdown`/`latexbook` resolve .md/.tex through here too, and
+    probing those would store a failed pdfinfo AND mark them probed, so nothing
+    would ever look again.
+    """
+    try:
+        if p.suffix.lower() == ".pdf" and p.is_file():
+            from . import probes
+            from .sidecar import Sidecar
+            probes.ensure(p, Sidecar(p))
+    except Exception:                       # noqa: BLE001
+        pass                                # a probe never blocks a command
+    return p
+
+
 def _pdf(args: list[str]) -> Path:
     if not args:
         raise ValueError("No PDF file specified.")
@@ -138,7 +160,7 @@ def _pdf(args: list[str]) -> Path:
             except Exception:                       # noqa: BLE001
                 folder_pdf = None
         if folder_pdf is not None:
-            return folder_pdf
+            return _probe_on_acquire(folder_pdf)
     # work directly on an https URL from a known host, OR a bare arXiv id — but
     # never shadow a real local file (checked first inside resolve_input).
     if (sources.is_url(arg) or sources.bare_arxiv_id(arg)) and not Path(arg).exists():
@@ -157,7 +179,7 @@ def _pdf(args: list[str]) -> Path:
                 sc.save()
             except Exception:
                 pass
-        return p
+        return _probe_on_acquire(p)
     p = Path(arg)
     if not p.exists():
         # a path pasted from a rendered page / chat widget may carry a trailing
@@ -166,9 +188,9 @@ def _pdf(args: list[str]) -> Path:
         # found, then found" on a clean retype).
         fixed = sources.existing_local_path(arg)
         if fixed is not None:
-            return fixed
+            return _probe_on_acquire(fixed)
         raise FileNotFoundError(f"Not found: {p}")
-    return p
+    return _probe_on_acquire(p)
 
 
 def _drilled(args: list[str]) -> Path:
