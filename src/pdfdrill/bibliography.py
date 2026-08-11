@@ -46,7 +46,14 @@ _YEAR = re.compile(r"\b(?:19|20)\d{2}[a-z]?\b")
 # An entry typically ends with "..., 2023." or a page range "13-22."
 _ENTRY_END = re.compile(r"(?:(?:19|20)\d{2}[a-z]?|\d{1,4}\s*[-–]\s*\d{1,4})\.?\s*$")
 # A numbered-bibliography entry starts with "[N] " or "N. " / "N) ".
-_REF_START = re.compile(r"^\s*(?:\[\d{1,3}\]|\d{1,3}[.)])\s+\S")
+# A printed entry marker: [5] / [5]. / [5]) / 5. / 5) followed by the entry.
+# The period after a bracketed number is the point: `[5]. Author` is a common
+# publisher style, and demanding whitespace straight after `[N]` made every
+# such entry invisible as a START — so it was glued onto its predecessor and
+# only entries that happened to END in a year were ever separated. Measured on
+# a real 10-reference paper: 5 entries recovered, 5 swallowed.
+# `\d{1,3}` (not more) keeps a bracketed YEAR from reading as a marker.
+_REF_START = re.compile(r"^\s*(?:\[\d{1,3}\][.)]?|\d{1,3}[.)])\s+\S")
 
 
 def _author_block(text: str) -> str:
@@ -93,6 +100,9 @@ def parse_bibliography(doc) -> list[dict]:
         p = mp.payload[a]
         if p.get("type") == "section_header":
             break                          # next section ends the bibliography
+        if p.get("type") == "page_info":
+            continue                       # the printed page number is not a
+                                           # reference (it became an entry "68")
         t = (p.get("text") or p.get("text_display") or "").strip()
         if t:
             body.append((a, t))

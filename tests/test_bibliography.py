@@ -251,3 +251,75 @@ if __name__ == "__main__":
         print(f"\n{len(failed)} failed out of {len(tests)}")
         sys.exit(1)
     print(f"\nAll {len(tests)} tests passed.")
+
+
+# --------------------------------------------------- numbered "[N]." entries
+def test_a_bracketed_marker_followed_by_a_period_starts_an_entry():
+    """`[5]. Author, "Title"` is a common publisher style. _REF_START demanded
+    whitespace immediately after `[N]`, so the period defeated it and every
+    such entry was glued onto its predecessor — on a real 10-reference paper
+    (10.53759/aist/978-9914-9946-1-2_12) entries 5-10 collapsed into one.
+    """
+    from pdfdrill.bibliography import _REF_START
+    for line in ('[5]. R. Manmatha and J. Rothfeder, "A scale space approach"',
+                 '[10]. J. Pradeep, "Diagonal based feature extraction"',
+                 '[5] R. Manmatha, "A scale space approach"',       # no period
+                 '[5]) R. Manmatha, "A scale space approach"',
+                 '5. R. Manmatha, "A scale space approach"',
+                 '5) R. Manmatha, "A scale space approach"'):
+        assert _REF_START.match(line), line
+
+
+def test_a_bracketed_number_that_is_not_a_marker_does_not_start_an_entry():
+    """An in-text citation or a bare number must not be read as a new entry."""
+    from pdfdrill.bibliography import _REF_START
+    for line in ("as shown in [5] the method converges",
+                 "[5]",                       # a marker with no entry after it
+                 "[2005]. something",         # a year, not a reference number
+                 "68"):
+        assert not _REF_START.match(line), line
+
+
+def _stream_doc(lines):
+    """A Document with just the mathpix_lines stream these parsers read."""
+    import sys
+    from pathlib import Path
+    sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "src"))
+    from docmodel.core import Document
+    doc = Document(meta={})
+    st = doc.ensure_stream("mathpix_lines")
+    for typ, text in lines:
+        st.append(type=typ, text=text)
+    return doc
+
+
+def test_every_numbered_entry_is_parsed_not_just_the_ones_ending_in_a_year():
+    from pdfdrill.bibliography import parse_bibliography
+
+    doc = _stream_doc([
+        ("section_header", "References"),
+        ("text", '[1]. Durai and Saro, "Image pressure", vol. 17, pp: 60-64, 2006.'),
+        ("text", '[2]. Manmatha and Rothfeder, "A scale space approach for'),
+        ("text", 'naturally sectioning words from documents."'),
+        ("text", '[3]. Fuller, Farsaie and Dumoulin, "Handwritten Character'),
+        ("text", 'Recognition," doi: 10.21236/ada238294.'),
+        ("text", '[4]. Breuel, "Handwritten character recognition using neural nets"'),
+    ])
+    got = parse_bibliography(doc)
+    assert [e["number"] for e in got] == [1, 2, 3, 4]
+    assert "scale space" in got[1]["raw_text"]
+    assert "ada238294" in got[2]["raw_text"]     # the continuation line stayed
+
+
+def test_a_page_number_line_is_not_a_reference():
+    """MathPix emits the printed page number as its own `page_info` line. It
+    was landing in the bibliography as an entry whose whole text was "68"."""
+    from pdfdrill.bibliography import parse_bibliography
+
+    doc = _stream_doc([
+        ("section_header", "References"),
+        ("text", '[1]. Durai and Saro, "Image pressure", pp: 60-64, 2006.'),
+        ("page_info", "68"),
+    ])
+    got = parse_bibliography(doc)
+    assert [e["number"] for e in got] == [1]
