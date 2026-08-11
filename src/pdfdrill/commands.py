@@ -11921,6 +11921,15 @@ def _format_images_layer(images: list) -> str:
     if not images:
         return "No embedded images found in the document."
 
+    # PLACEMENTS are not distinct XObjects: one logo drawn on 109 pages was
+    # reported as 109 images. And resolution belongs to the PLACEMENT — the
+    # same object is 200 ppi on one page and 551 on the next, because the CTM
+    # differs — so the count that decides whether image drilling should read
+    # the render or the extracted bytes is per placement, not per document.
+    from .image_reuse import format_summary as _fmt_reuse, summarize as _sum_reuse
+    from .pdf_reading import RASTER_MIN_DPI as _RENDER_DPI
+    _reuse_lines = _fmt_reuse(_sum_reuse(images, render_dpi=float(_RENDER_DPI)))
+
     by_page: dict[int, list] = {}
     encodings: dict[str, int] = {}
     candidates: list[dict] = []
@@ -11972,6 +11981,7 @@ def _format_images_layer(images: list) -> str:
             )
     if len(images) > shown:
         lines.append(f"  ... and {len(images) - shown} more")
+    lines.extend(_reuse_lines)
     return "\n".join(lines)
 
 
