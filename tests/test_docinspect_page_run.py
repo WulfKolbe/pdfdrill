@@ -10,6 +10,7 @@ the selector the way a reader does, and asserts on the text that ends up in the
 document. If the tree says German while the selector says English, this fails.
 """
 import json
+import os
 import re
 import shutil
 import subprocess
@@ -48,7 +49,17 @@ def _boot(model: dict, *, body: str) -> dict:
                       "const OUT = {};",
                       body,
                       'console.log("@@" + JSON.stringify(OUT));'])
-    p = subprocess.run(["node", "-e", prog], capture_output=True, text=True)
+    # a FILE, not `node -e`: a 4,000-component payload exceeds ARG_MAX and the
+    # run dies with "Argument list too long" before any assertion is reached.
+    import tempfile
+    with tempfile.NamedTemporaryFile("w", suffix=".js", delete=False,
+                                     encoding="utf-8") as fh:
+        fh.write(prog)
+        prog_path = fh.name
+    try:
+        p = subprocess.run(["node", prog_path], capture_output=True, text=True)
+    finally:
+        os.unlink(prog_path)
     assert p.returncode == 0, p.stderr[-3000:]
     line = [l for l in p.stdout.splitlines() if l.startswith("@@")][-1]
     return json.loads(line[2:])
@@ -434,3 +445,83 @@ def test_selecting_an_element_also_scrolls_only_the_stage():
         (NODES['p9'] || []).some(n => n._scrolledIntoView);
     """)
     assert out == {"any_node_used_scrollIntoView": False}
+
+
+# --------------------------------------------------------------------------
+# P4 — inkdrill scale: thousands of blobs, tens of structural objects
+# --------------------------------------------------------------------------
+
+def _inkscale_model(n_blobs=4000, n_struct=40, n_susp=30):
+    """A page at the measured scale: 3,390-4,105 components, 33-154 structural."""
+    m = {"meta": {"bibkey": "ink", "num_pages": 1,
+                  "pages": [{"page": 1, "page_width": 1000, "page_height": 1400}]},
+         "streams": {}, "objects": [], "alignments": []}
+    for i in range(n_struct):
+        m["objects"].append({
+            "id": f"s{i}", "type": "Table", "flow_index": i, "realizations": [],
+            "props": {"page": 1, "flow_index": i, "raw_text": f"table {i}",
+                      "region": {"top_left_x": 10, "top_left_y": 10 + i,
+                                 "width": 100, "height": 20}}})
+    for i in range(n_blobs):
+        pr = {"page": 1, "ink.kind": "glyph" if i % 3 else "rule",
+              "region": {"top_left_x": i % 900, "top_left_y": (i * 7) % 1300,
+                         "width": 4, "height": 6}}
+        if i < n_susp:
+            pr["ink.classification"] = "rejected"
+        m["objects"].append({"id": f"b{i}", "type": "Blob",
+                             "realizations": [], "props": pr})
+    return m
+
+
+def test_a_four_thousand_component_page_keeps_tens_of_dom_nodes():
+    """The rendering claim: structure keeps the DOM, the thousands do not."""
+    out = _boot(_inkscale_model(), body=_READ + """
+      OUT.dom = EL.length;
+      OUT.blobs = BLOBS.n;
+      OUT.visible_default = visibleBlobCount();
+    """)
+    assert out["dom"] == 40, out
+    assert out["blobs"] == 4000
+    # default view is suspicious-only, and glyphs are off: tens, not thousands
+    assert 0 < out["visible_default"] <= 60, out["visible_default"]
+
+
+def test_turning_off_suspicious_only_reveals_the_rest():
+    out = _boot(_inkscale_model(), body=_READ + """
+      OUT.before = visibleBlobCount();
+      suspOnly = false;
+      OUT.after = visibleBlobCount();
+    """)
+    assert out["after"] > out["before"] * 10
+
+
+def test_glyphs_are_off_by_default_and_toggle_on():
+    out = _boot(_inkscale_model(), body=_READ + """
+      suspOnly = false;
+      OUT.without = visibleBlobCount();
+      CAT_ON.add('glyph');
+      OUT.with_glyphs = visibleBlobCount();
+    """)
+    assert out["with_glyphs"] > out["without"]
+
+
+def test_the_hit_index_finds_a_blob_where_one_was_drawn():
+    """Hit-testing is what replaces per-blob DOM events."""
+    out = _boot(_inkscale_model(), body=_READ + """
+      suspOnly = false; CAT_ON.add('glyph');
+      buildHitIndex(1, 1);
+      const i = 5;
+      OUT.hit = blobAt(BLOBS.x[i] + 1, BLOBS.y[i] + 1, 1, 1);
+      OUT.miss = blobAt(9999, 9999, 1, 1);
+    """)
+    assert out["hit"] >= 0
+    assert out["miss"] == -1
+
+
+def test_a_document_with_no_blobs_hides_the_ink_controls():
+    """3,300 existing documents have no inkdrill data and must be unchanged."""
+    out = _boot(_bilingual_model(), body=_READ + """
+      OUT.blobs = BLOBS.n;
+      OUT.hidden = document.getElementById('inkTool').style.display;
+    """)
+    assert out == {"blobs": 0, "hidden": "none"}

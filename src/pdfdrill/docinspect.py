@@ -352,13 +352,14 @@ def _short_label(obj: dict, preview: str) -> str:
     return " ".join(str(body).split())[:60] or t.lower()
 
 
-def collect_elements(model: dict, sidx: dict) -> tuple[list[dict], list[dict]]:
+def collect_elements(model: dict, sidx: dict, *, with_blobs: bool = False):
     """Return (elements, pages_meta). Elements are the client records."""
     id_index = {o["id"]: o for o in model["objects"]}
     ro = reading_order(model["objects"])
     flow_rank = {o["id"]: i for i, o in enumerate(ro)}
 
     elements: list[dict] = []
+    blobs: list[dict] = []
     for obj in model["objects"]:
         if obj["type"] in ("Document", "Reference", "Citation"):
             continue
@@ -421,7 +422,20 @@ def collect_elements(model: dict, sidx: dict) -> tuple[list[dict], list[dict]]:
         alt = element_translations(pr)
         if alt:                       # absent on a monolingual element
             rec["alt"] = alt
-        elements.append(rec)
+        # inkdrill scale: a page has thousands of components and tens of
+        # structural objects. Tag every element so the client can toggle by
+        # category and default to the suspicious ones, and route the bulk into
+        # the flat blob layer instead of a DOM node each.
+        from .ink_view import category as _cat, is_structure as _struct, suspicions as _susp
+        rec["cat"] = _cat(obj["type"], pr)
+        _s = _susp(pr, has_region=bbox is not None)
+        if _s:
+            rec["susp"] = _s
+        if _struct(obj["type"], pr):
+            elements.append(rec)
+        else:
+            blobs.append({"id": rec["id"], "cat": rec["cat"], "bbox": bbox,
+                          "suspicions": _s})
 
     # alignments touching each object (cross-stream provenance links)
     align_by_obj: dict[str, int] = {}
@@ -454,7 +468,10 @@ def collect_elements(model: dict, sidx: dict) -> tuple[list[dict], list[dict]]:
             if pg is not None and pg not in seen:
                 seen[pg] = {"page": pg, "pt_w": None, "pt_h": None}
         pages_meta = [seen[p] for p in sorted(seen, key=lambda x: (x is None, x))]
-    return elements, pages_meta
+    # Opt-in third value: 12 call sites expect the pair, and widening the
+    # contract for all of them to serve one caller is how a refactor breaks
+    # things it never needed to touch.
+    return (elements, pages_meta, blobs) if with_blobs else (elements, pages_meta)
 
 
 # ---------------------------------------------------------------------------
@@ -552,6 +569,9 @@ def vendor_katex(katex_dir: str) -> Optional[dict]:
     return {"css": css, "js": js}
 
 
+from .ink_view import blob_arrays as _blob_arrays, DEFAULT_OFF as _DEFAULT_OFF
+
+
 def build_inspector_html(
     model: dict,
     *,
@@ -562,9 +582,11 @@ def build_inspector_html(
     page_filter: Optional[set] = None,
 ) -> str:
     sidx = build_stream_index(model)
-    elements, pages_meta = collect_elements(model, sidx)
+    elements, pages_meta, blobs = collect_elements(model, sidx, with_blobs=True)
     if page_filter is not None:                       # --pages: keep only the range
         elements = [e for e in elements if e.get("page") in page_filter]
+        blobs = [b for b in blobs if (b.get("bbox") or {}).get("page") in page_filter
+                 or True]                             # blobs carry no page; kept
         pages_meta = [p for p in pages_meta if p.get("page") in page_filter]
     meta = model["meta"]
 
@@ -578,6 +600,9 @@ def build_inspector_html(
         "elements": elements,
         # [] on a monolingual document — the client hides the selector entirely.
         "languages": document_languages(model),
+        # The blob layer: one flat typed array, one canvas, no DOM node each.
+        "blobs": _blob_arrays(blobs),
+        "cat_default_off": list(_DEFAULT_OFF),
     }
     data_json = json.dumps(payload).replace("</", "<\\/")
 
@@ -762,6 +787,12 @@ button{font:inherit;color:inherit;background:none;border:0;cursor:pointer}
 /* The flag carries the meaning, so give it room: emoji render small at the
    surrounding 11px control size and two flags must stay tellable apart. */
 .langtool select{font-size:15px;line-height:1.1;padding:1px 4px}
+.inktool label{font-size:11px;margin-right:8px;cursor:pointer}
+.inktool .cat{font-size:11px;margin-right:6px;opacity:.55;cursor:pointer;
+  border-bottom:2px solid transparent}
+.inktool .cat.on{opacity:1;border-bottom-color:var(--accent)}
+.inkcount{font-size:11px;color:var(--faint);margin-left:4px}
+#blobCanvas{position:absolute;inset:0;pointer-events:none}
 /* A dvisvgm figure is vector: let it scale to the column and stay on white,
    because dvisvgm draws in black with a transparent background. */
 .svgfig{background:#fff;border:1px solid var(--line);border-radius:4px;padding:6px;
@@ -783,6 +814,12 @@ button{font:inherit;color:inherit;background:none;border:0;cursor:pointer}
   <div class="seg" id="viewSeg">
     <button data-v="page" class="on">Page</button>
     <button data-v="reflow">Reflow</button>
+  </div>
+  <div class="tool inktool" id="inkTool" style="display:none">
+    <label title="Only elements with a measured QC signal — the default"><input
+      type="checkbox" id="suspOnly" checked> suspicious only</label>
+    <span id="catToggles"></span>
+    <span class="inkcount" id="inkCount"></span>
   </div>
   <div class="tool langtool" id="langTool" style="display:none">
     <select id="langSel" title="Show this document in"></select>
@@ -1276,6 +1313,72 @@ register({ type:'Table',
       + sec('rendered svg')+'<div class="svgfig">'+((e.props||{}).svg||'')+'</div>';
     return h+sec('raw text')+txt(L(e,'raw_text')||e.preview); } });
 
+/* ---------- BLOB LAYER: thousands of components, one canvas ---------------
+ * A DOM node each is a rendering problem at 4,000 components, and a page
+ * uniformly covered in rectangles shows nothing. So the blobs are drawn once
+ * from flat typed arrays and hit-tested through a coarse grid — the structure
+ * layer keeps its DOM and its right-panel linkage, which is what a reader
+ * actually inspects. */
+const BLOBS = (function(){
+  const b = DATA.blobs || {n:0, categories:[]};
+  const n = b.n || 0;
+  return {n, x:Float32Array.from(b.x||[]), y:Float32Array.from(b.y||[]),
+          w:Float32Array.from(b.w||[]), h:Float32Array.from(b.h||[]),
+          cat:Uint8Array.from(b.cat||[]), susp:Uint8Array.from(b.susp||[]),
+          id:b.id||[], categories:b.categories||[]};
+})();
+const CAT_ON = new Set(BLOBS.categories.filter(
+  c => !(DATA.cat_default_off||[]).includes(c)));
+let suspOnly = true;
+
+function blobVisible(i){
+  if (suspOnly && !BLOBS.susp[i]) return false;
+  return CAT_ON.has(BLOBS.categories[BLOBS.cat[i]]);
+}
+function visibleBlobCount(){
+  let k = 0; for (let i = 0; i < BLOBS.n; i++) if (blobVisible(i)) k++; return k;
+}
+
+/* A coarse uniform grid, not a quadtree: build is O(n) and a page's blobs are
+ * roughly uniform, so the constant beats the structure. */
+const HIT = {cell: 24, map: new Map()};
+function buildHitIndex(sx, sy){
+  HIT.map.clear();
+  for (let i = 0; i < BLOBS.n; i++){
+    if (!blobVisible(i)) continue;
+    const gx = Math.floor(BLOBS.x[i]*sx/HIT.cell), gy = Math.floor(BLOBS.y[i]*sy/HIT.cell);
+    const k = gx + "," + gy;
+    let a = HIT.map.get(k); if (!a){ a = []; HIT.map.set(k, a); }
+    a.push(i);
+  }
+}
+function blobAt(px, py, sx, sy){
+  const k = Math.floor(px/HIT.cell) + "," + Math.floor(py/HIT.cell);
+  for (const i of (HIT.map.get(k) || [])){
+    const x = BLOBS.x[i]*sx, y = BLOBS.y[i]*sy;
+    if (px >= x && px <= x + BLOBS.w[i]*sx && py >= y && py <= y + BLOBS.h[i]*sy)
+      return i;
+  }
+  return -1;
+}
+
+function drawBlobs(canvas, sx, sy){
+  if (!BLOBS.n || !canvas.getContext) return 0;
+  const g = canvas.getContext("2d");
+  if (!g) return 0;
+  g.clearRect(0, 0, canvas.width, canvas.height);
+  let drawn = 0;
+  g.lineWidth = 1;
+  for (let i = 0; i < BLOBS.n; i++){
+    if (!blobVisible(i)) continue;
+    g.strokeStyle = BLOBS.susp[i] ? "rgba(200,40,40,.9)" : "rgba(60,120,220,.45)";
+    g.strokeRect(BLOBS.x[i]*sx, BLOBS.y[i]*sy, BLOBS.w[i]*sx, BLOBS.h[i]*sy);
+    drawn++;
+  }
+  buildHitIndex(sx, sy);
+  return drawn;
+}
+
 /* ---------- STAGE: page view (boxes are hooked elements too) ---------- */
 function renderPage(){
   const wrap=document.getElementById('stagewrap'); wrap.innerHTML='';
@@ -1500,6 +1603,10 @@ function refreshStage(){
   for(const id in NODES){ NODES[id]=NODES[id].filter(n=>!n.classList.contains('box')&&!n.classList.contains('reflow-el')); }
   curView==='page'?renderPage():renderReflow();
 }
+function updateInkCount(){
+  const el0 = document.getElementById('inkCount');
+  if (el0) el0.textContent = visibleBlobCount() + ' / ' + BLOBS.n + ' components';
+}
 function syncPageSel(){ document.getElementById('pageSel').value=curPage; }
 
 /* Choosing a page must reach that page in WHICHEVER view is open. The reflow is
@@ -1552,6 +1659,27 @@ function init(){
   }
   document.querySelectorAll('#viewSeg button').forEach(b=>b.addEventListener('click',()=>setView(b.dataset.v)));
   document.getElementById('filter').addEventListener('input',ev=>buildTree(ev.target.value));
+  if (BLOBS.n){
+    const tool = document.getElementById('inkTool');
+    const host = document.getElementById('catToggles');
+    tool.style.display = '';
+    BLOBS.categories.forEach(c => {
+      const el0 = document.createElement('span');
+      el0.className = 'cat' + (CAT_ON.has(c) ? ' on' : '');
+      el0.textContent = c;
+      el0.addEventListener('click', () => {
+        CAT_ON.has(c) ? CAT_ON.delete(c) : CAT_ON.add(c);
+        el0.className = 'cat' + (CAT_ON.has(c) ? ' on' : '');
+        refreshStage(); updateInkCount();
+      });
+      host.appendChild(el0);
+    });
+    const so = document.getElementById('suspOnly');
+    so.addEventListener('change', () => {
+      suspOnly = !!so.checked; refreshStage(); updateInkCount();
+    });
+    updateInkCount();
+  }
   document.getElementById('inspectToggle').addEventListener('click',function(){
     inspectMode=!inspectMode; this.classList.toggle('on',inspectMode);
     document.getElementById('stagewrap').style.cursor=inspectMode?'crosshair':'';
