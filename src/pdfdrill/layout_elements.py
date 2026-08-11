@@ -80,7 +80,8 @@ def build_combined_tsv(pdf: Path, out_dir: Path, *, ppi: int = 300,
     it into lines."""
     out_dir.mkdir(parents=True, exist_ok=True)
     from . import pdf_reading                    # Ghostscript >= 400 DPI (only rasterizer)
-    pngs = pdf_reading.rasterize(pdf, out_dir, dpi=ppi, fmt="png")
+    # GRAY: tesseract-only pages — see text_layers for the measurement.
+    pngs = pdf_reading.rasterize(pdf, out_dir, dpi=ppi, fmt="png", gray=True)
     header = "\t".join(["level", "page_num", "block_num", "par_num", "line_num",
                         "word_num", "left", "top", "width", "height", "conf", "text"])
     rows: list[str] = [header]

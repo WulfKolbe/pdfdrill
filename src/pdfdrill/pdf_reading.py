@@ -128,8 +128,26 @@ def gs_render_args() -> list[str]:
 
 
 
-def _gs_base(gs: str, dpi: int, ext: str) -> list[str]:
-    device = "jpeg" if ext == "jpg" else "png16m"
+# What the page is FOR decides the device. Measured, 8 pages at 400 DPI of the
+# 110-page handbook — render, then read into numpy:
+#
+#     device     render     read    total   MB/8pp
+#     png16m      2362m     875m    3236m      2.9
+#     pnggray     1060m     260m    1319m      1.7
+#     pgmraw       323m      89m     413m    118.0
+#
+# 7.8x from png16m to pgmraw, and half of it is not the encoder: dropping RGB
+# for grayscale is 2.5x on its own, and analysis never wanted colour. The other
+# half is the PNG round trip, which only earns its keep if someone looks at the
+# file. The price is the last column — 14.75 MB/page — so raw output must be
+# streamed (see `stream_pages`), never written a document at a time.
+_DEVICE = {"jpg": "jpeg", "png": "png16m", "pgm": "pgmraw"}
+
+
+def _gs_base(gs: str, dpi: int, ext: str, *, gray: bool = False) -> list[str]:
+    device = _DEVICE.get(ext, "png16m")
+    if gray and device == "png16m":
+        device = "pnggray"
     base = [gs, "-q", "-dNOPAUSE", "-dBATCH", "-dSAFER", *gs_render_args(),
             f"-sDEVICE={device}", f"-r{max(int(dpi), RASTER_MIN_DPI)}"]
     return base + (["-dJPEGQ=95"] if ext == "jpg" else [])
@@ -243,17 +261,23 @@ def _render_shard(gs_base: "list[str]", pdf: Path, shard: "list[int]",
 
 
 def rasterize(pdf: Path, out_dir: Path, *, pages: Optional[list[int]] = None,
-              dpi: int = RASTER_MIN_DPI, fmt: str = "png") -> list[Path]:
+              dpi: int = RASTER_MIN_DPI, fmt: str = "png",
+              gray: bool = False) -> list[Path]:
     """Render pages to images via Ghostscript at >= 400 DPI (gs is the only
     rasterizer — see RASTER_MIN_DPI). `pages=None` → all pages. Files are named
     page-<N>.<ext> (N = actual page number) so callers can parse the page.
     Returns the written image paths (sorted). `dpi` is floored to 400; raises if
-    gs is absent."""
+    gs is absent.
+
+    `fmt="pgm"` renders raw grayscale (no encoder) for a consumer that only
+    turns the page into numbers — 7.8x faster to produce and read, but 14.75
+    MB/page, so prefer `stream_pages` over rasterizing a whole document raw.
+    `gray=True` keeps PNG but drops colour (2.5x, half the bytes)."""
     out_dir.mkdir(parents=True, exist_ok=True)
     gs = _require_gs()
-    ext = "jpg" if fmt in ("jpg", "jpeg") else "png"
+    ext = {"jpg": "jpg", "jpeg": "jpg", "pgm": "pgm"}.get(fmt, "png")
     pad = 4                                              # page-0001.png (sorts + parses)
-    base = _gs_base(gs, dpi, ext)
+    base = _gs_base(gs, dpi, ext, gray=gray)
     if pages is None:                                   # all pages
         pages = list(range(1, _page_count(pdf) + 1))
     if not pages:
@@ -266,6 +290,54 @@ def rasterize(pdf: Path, out_dir: Path, *, pages: Optional[list[int]] = None,
             list(ex.map(lambda sh: _render_shard(base, pdf, sh, out_dir, ext, pad),
                         shards))
     return sorted(out_dir.glob(f"page-*.{ext}"))
+
+
+# One block of raw pages at 400 DPI: 16 x 14.75 MB = 236 MB peak. Small enough
+# for any machine that runs gs, large enough that gs parses the PDF once per 16
+# pages rather than once per page.
+STREAM_BLOCK = 16
+
+
+def stream_pages(pdf: Path, pages: "list[int]", *, dpi: int = RASTER_MIN_DPI,
+                 fmt: str = "pgm", block: int = STREAM_BLOCK):
+    """Yield `(page_number, path)` for each page, deleting each after the
+    consumer moves on. Peak disk is one block, not the document.
+
+    This is the shape raw output requires: a pgmraw page is 14.75 MB at 400
+    DPI, so rasterizing the corpus's largest document (11232 pages) whole would
+    be 165 GB. Rendering in blocks keeps gs's per-call PDF parse amortised
+    while bounding what is on disk at any moment.
+
+    The scratch directory is removed when the generator finishes OR is closed,
+    so a caller that breaks out early — found its QR code on page 2 of 900 —
+    leaves nothing behind.
+    """
+    pages = [int(p) for p in pages]
+    if not pages:
+        return
+    td = tempfile.mkdtemp(prefix="pdfdrill-stream-")
+    try:
+        for i in range(0, len(pages), max(1, int(block))):
+            chunk = pages[i:i + max(1, int(block))]
+            made = rasterize(Path(pdf), Path(td), pages=chunk, dpi=dpi, fmt=fmt)
+            by_page = {}
+            for f in made:
+                m = re.search(r"page-(\d+)\.", Path(f).name)
+                if m:
+                    by_page[int(m.group(1))] = Path(f)
+            for n in chunk:
+                f = by_page.get(n)
+                if f is None:
+                    continue                   # gs skipped it; the caller sees a gap
+                try:
+                    yield n, f
+                finally:
+                    try:
+                        f.unlink()
+                    except OSError:
+                        pass
+    finally:
+        shutil.rmtree(td, ignore_errors=True)
 
 
 def render_page(pdf: Path, page: int, out_png: Path, *,

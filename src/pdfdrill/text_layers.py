@@ -110,7 +110,10 @@ def fetch_tesseract_tsv(
     out_dir.mkdir(parents=True, exist_ok=True)
     # Render all pages via Ghostscript >= 400 DPI (the only rasterizer).
     from . import pdf_reading
-    page_pngs = pdf_reading.rasterize(pdf, out_dir, dpi=ppi, fmt="png")
+    # GRAY: these pages only ever reach tesseract. Scored against the text
+    # layer on four documents, pnggray is within 0.2 points of png16m every
+    # time, for 2.1-2.5x less render and read time.
+    page_pngs = pdf_reading.rasterize(pdf, out_dir, dpi=ppi, fmt="png", gray=True)
 
     all_words: list[dict[str, Any]] = []
     for png in page_pngs:

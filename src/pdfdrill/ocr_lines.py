@@ -20,6 +20,8 @@ from collections import defaultdict
 from pathlib import Path
 from typing import Any
 
+from . import pdf_reading
+
 RASTER_MIN_DPI = 400    # pdfdrill floors gs rendering to 400 DPI (pdf_reading.py)
 OCR_TIMEOUT = 300       # seconds per page (tesseract)
 RASTER_TIMEOUT = 1800   # seconds per document (ghostscript)
@@ -945,19 +947,21 @@ def _render_args() -> list[str]:
 
 
 def _rasterize(pdf: Path, out_dir: Path, ppi: int) -> list[Path]:
-    """Render all pages to page-%04d.png via Ghostscript at max(ppi, 400) DPI
-    (pdfdrill's RASTER_MIN_DPI floor). The only rasterizer; raises without gs."""
+    """Render all pages to page-%04d.png via the ONE rasterizer
+    (`pdf_reading.rasterize`, Ghostscript at max(ppi, 400) DPI).
+
+    This used to be a second, private gs invocation that rendered the whole
+    document in a single call — so OCR was the one raster route that never got
+    sharding, which is worth 6.3x on 32 pages (measured in pdf_reading), and it
+    drifted from the shared invocation as that gained flags.
+
+    GRAYSCALE, because OCR does not read colour. Scored against the born-digital
+    text layer on pages 8-15 of the Infineon handbook: png16m 91.29%, pnggray
+    91.14% — no fidelity cost — for 2.5x less render and read time and half the
+    bytes.
+    """
     out_dir.mkdir(parents=True, exist_ok=True)
-    gs = next((t for t in ("gs", "gswin64c", "gswin32c") if shutil.which(t)),
-              None)
-    if gs is None:
-        raise RuntimeError("ghostscript not found on PATH")
-    subprocess.run(
-        [gs, "-q", "-dNOPAUSE", "-dBATCH", "-dSAFER", *_render_args(),
-         "-sDEVICE=png16m", f"-r{max(int(ppi), RASTER_MIN_DPI)}",
-         f"-sOutputFile={out_dir}/page-%04d.png", str(pdf)],
-        check=True, capture_output=True, timeout=RASTER_TIMEOUT)
-    return sorted(out_dir.glob("page-*.png"))
+    return pdf_reading.rasterize(pdf, out_dir, dpi=ppi, fmt="png", gray=True)
 
 
 OSD_MIN_CONF = 2.0           # tesseract --psm 0 orientation confidence floor
