@@ -19,3 +19,25 @@ structure to improve a number.
 LgEval is INVOKED, not vendored: gitlab.com/dprl/lgeval pinned at 9831a3c
 (HEAD c94f6dd imports lgeval.msg_debug, which the repo does not ship).
 See tools/lgeval_env.sh.
+
+--------------------------------------------------------------------------
+Gold-plus-geometry: the population for the WHOLE scoring chain (P1/P2/P3)
+measured 2026-08-11 over 3276 models, two definitions written out:
+
+  GOLD      an Equation carrying a Realization with provenance == "tex"
+            (injectlatex overlaying the author's e-print LaTeX)
+  GEOMETRY  props["region"] AND props["page"] both present
+
+  A  provenance == "tex"            87 equations,  59 with geometry,  2 docs
+  B  source-built (latex_original/env)  21218 equations,   0 with geometry
+  C  latex_original on a MathPix model      1 equation   (ambiguous)
+
+The 21,218 in B are NOT MathPix-derived — only ONE equation corpus-wide is
+ambiguous in that way. They are genuine author LaTeX from .tex; they simply
+carry no page geometry, because a source-built model has none until
+`geometry`/`merge` attaches it. So the 21,240 figure was not inflated by
+provenance confusion. It is real gold STRUCTURE with zero gold PLACEMENT.
+
+CONSEQUENCE: the scoring population is 59 equations over 2 documents —
+"tens", the third outcome. The floor's population is not the parser's
+population and must never be quoted as n=1908.
