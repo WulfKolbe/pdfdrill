@@ -1,16 +1,21 @@
-"""The three cheap probes, run unconditionally at acquisition.
+"""The four cheap probes, run unconditionally at acquisition.
 
-Measured on a 110-page A4 handbook: pdfinfo 11 ms, `pdfimages -list` 198 ms,
-pdftotext 212 ms — 420 ms for all three, over the WHOLE document. That is
+Measured on a 110-page A4 handbook: pdfinfo 11 ms, pdffonts 71 ms,
+`pdfimages -list` 198 ms, pdftotext 212 ms — under half a second for all four,
+over the WHOLE document. That is
 cheaper than deciding whether to run them, so they are not behind a user
 request and every later consumer reads the sidecar instead of re-running.
 
-That 420 ms is a 110-PAGE fact. Across the real corpus (6634 PDFs) pdftotext
-and `pdfimages -list` each cost about 2 ms per page, so on the largest document
+pdffonts is the fourth because `size` — the most-run command — needs the font
+count to decide the text layer, and `fonts`/`fonts_layer` need the listing.
+
+That half second is a 110-PAGE fact. Across the real corpus (6634 PDFs)
+pdftotext and `pdfimages -list` each cost about 2 ms per page and pdffonts
+about 1 ms per page (9.5 s on the 11232-page book), so on the largest document
 (1511.08771, 11232 pages) the pair costs 80 SECONDS and produces 36 MB of text
 and 899k image rows. pdfinfo does not scale that way — 30 ms on the same file —
 and it reports the page count, so it runs first and decides. Above
-PROBE_PAGE_LIMIT pages the two linear probes are DEFERRED, which is recorded
+PROBE_PAGE_LIMIT pages the three linear probes are DEFERRED, which is recorded
 and is distinct from both "failed" and "never asked".
 
 `pdfimages -list` is NOT superseded by the pdfminer route. They answer
@@ -38,10 +43,11 @@ from typing import Any, Optional
 
 FORM_FEED = "\f"
 
-PROBE_VERSION = 2
+PROBE_VERSION = 3
 
-# ~2 ms/page each for pdftotext and `pdfimages -list`, so this cap is a budget
-# of about one second of probing. Above it they are deferred, not skipped.
+# ~2 ms/page each for pdftotext and `pdfimages -list` and ~1 ms/page for
+# pdffonts, so this cap is a budget of a bit over a second of probing. Above it
+# they are deferred, not skipped.
 PROBE_PAGE_LIMIT = int(os.environ.get("PDFDRILL_PROBE_PAGE_LIMIT") or 250)
 
 # Bulk probe output lives BESIDE the sidecar, not in it: the sidecar is read by
@@ -49,6 +55,7 @@ PROBE_PAGE_LIMIT = int(os.environ.get("PDFDRILL_PROBE_PAGE_LIMIT") or 250)
 # saves. Same argument that keeps `pdftotext -bbox-layout` out of the set.
 PAGE_TEXT_FILE = "probe-page-text.json"
 IMAGES_LIST_FILE = "probe-pdfimages-list.txt"
+FONTS_LIST_FILE = "probe-pdffonts.txt"
 
 
 def split_pages(text: str) -> list[str]:
@@ -111,16 +118,19 @@ def probe_document(pdf: Path, page_limit: "int | None" = -1) -> dict[str, Any]:
 
     deferred: list[str] = []
     if limit is not None and pages is not None and pages > limit:
-        deferred = ["page_text", "pdfimages_list"]
+        deferred = ["page_text", "pdfimages_list", "pdffonts"]
         images_raw = None
         text_raw = None
+        fonts_raw = None
     else:
+        fonts_raw = _run(["pdffonts", str(pdf)])
         images_raw = _run(["pdfimages", "-list", str(pdf)])
         text_raw = _run(["pdftotext", str(pdf), "-"])
     pages_text = split_pages(text_raw) if text_raw is not None else None
     return {
         "pdfinfo": fields,
         "pdfimages_list_raw": images_raw,
+        "pdffonts_raw": fonts_raw,
         "page_text": pages_text,
         "page_count_text": len(pages_text) if pages_text is not None else None,
         "deferred": deferred,
@@ -161,11 +171,23 @@ def store(sc: Any, probe: dict) -> None:
         sc.set_evidence("pdfinfo_fields", probe["pdfinfo"])
 
     if probe.get("page_text") is not None:
-        sc.set_evidence("page_count_text", probe["page_count_text"])
+        sc.set_evidence("page_count_text",
+                        probe.get("page_count_text") or len(probe["page_text"]))
         f = _blob(sc, PAGE_TEXT_FILE)
         if f is not None:
             try:
                 f.write_text(json.dumps(probe["page_text"]), encoding="utf-8")
+            except OSError:
+                pass
+
+    if probe.get("pdffonts_raw") is not None:
+        raw = probe["pdffonts_raw"]
+        rows = raw.strip().splitlines()
+        sc.set_evidence("font_count", max(0, len(rows) - 2))    # two header rows
+        f = _blob(sc, FONTS_LIST_FILE)
+        if f is not None:
+            try:
+                f.write_text(raw, encoding="utf-8")
             except OSError:
                 pass
 
@@ -241,9 +263,28 @@ def image_count(sc: Any) -> Optional[int]:
     return v if isinstance(v, int) else None
 
 
+def font_count(sc: Any) -> Optional[int]:
+    """Distinct fonts per pdffonts. None when unprobed or deferred; 0 when the
+    listing is empty — a scan, which is exactly what the caller wants to know."""
+    try:
+        v = sc.get_evidence("font_count")
+    except Exception:                       # noqa: BLE001
+        return None
+    return v if isinstance(v, int) else None
+
+
+def pdffonts_list(sc: Any) -> Optional[str]:
+    """The stored `pdffonts` output, loaded from beside the sidecar."""
+    return _read_blob(sc, FONTS_LIST_FILE)
+
+
 def pdfimages_list(sc: Any) -> Optional[str]:
     """The stored `pdfimages -list` output, loaded from beside the sidecar."""
-    f = _blob(sc, IMAGES_LIST_FILE)
+    return _read_blob(sc, IMAGES_LIST_FILE)
+
+
+def _read_blob(sc: Any, name: str) -> Optional[str]:
+    f = _blob(sc, name)
     if f is None or not f.exists():
         return None
     try:

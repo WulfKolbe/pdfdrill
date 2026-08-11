@@ -291,7 +291,7 @@ def test_a_huge_document_still_gets_pdfinfo_but_defers_the_linear_probes(monkeyp
     assert seen == ["pdfinfo"]                       # the linear ones never ran
     assert p["pdfinfo"]["Pages"] == "11232"
     assert p["page_text"] is None
-    assert p["deferred"] == ["page_text", "pdfimages_list"]
+    assert p["deferred"] == ["page_text", "pdfimages_list", "pdffonts"]
 
 
 def test_deferred_is_not_the_same_as_failed(monkeypatch, tmp_path):
@@ -301,7 +301,8 @@ def test_deferred_is_not_the_same_as_failed(monkeypatch, tmp_path):
                         "Pages: 11232\n" if cmd[0] == "pdfinfo" else "x")
     sc = _SC(blob_dir=tmp_path)
     probes.store(sc, probes.probe_document(Path("big.pdf")))
-    assert sc.get_evidence("probe_deferred") == ["page_text", "pdfimages_list"]
+    assert sc.get_evidence("probe_deferred") == ["page_text", "pdfimages_list",
+                                                 "pdffonts"]
     assert probes.page_count(sc) == 11232
     assert probes.image_count(sc) is None
 
@@ -315,7 +316,7 @@ def test_a_document_under_the_cap_is_probed_in_full(monkeypatch):
 
     monkeypatch.setattr(probes, "_run", fake_run)
     p = probes.probe_document(Path("ok.pdf"))
-    assert seen == ["pdfinfo", "pdfimages", "pdftotext"]
+    assert seen == ["pdfinfo", "pdffonts", "pdfimages", "pdftotext"]
     assert p["page_text"] == ["a", "b"] and p["deferred"] == []
 
 
@@ -342,3 +343,61 @@ def test_bulk_probe_output_is_not_stored_in_the_always_read_sidecar(tmp_path):
     assert sc.get_evidence("image_count") == 2
     assert probes.page_text(sc, 2) == "two"            # ... and the bulk loads
     assert probes.pdfimages_list(sc).startswith("h\n")
+
+
+# --------------------------------------------------------- pdffonts, the fourth
+# Measured 71 ms on the 110-page handbook — the same class as the other three,
+# and `size` (the most-run command) plus `fonts`/`fonts_layer` all want it. It
+# scales with pages like the other two (~1 ms/page: 9.5 s on the 11232-page
+# book), so it defers with them rather than on its own schedule.
+
+def test_pdffonts_runs_with_the_others_under_the_cap(monkeypatch):
+    seen = []
+
+    def fake_run(cmd, timeout=120.0):
+        seen.append(cmd[0])
+        return "Pages: 110\n" if cmd[0] == "pdfinfo" else "name type\n---\nCMR10 Type1\n"
+
+    monkeypatch.setattr(probes, "_run", fake_run)
+    p = probes.probe_document(Path("ok.pdf"))
+    assert "pdffonts" in seen
+    assert p["pdffonts_raw"].startswith("name type")
+
+
+def test_pdffonts_defers_with_the_other_linear_probes(monkeypatch):
+    monkeypatch.setattr(probes, "_run", lambda cmd, timeout=120.0:
+                        "Pages: 11232\n" if cmd[0] == "pdfinfo" else "x")
+    p = probes.probe_document(Path("big.pdf"))
+    assert p["pdffonts_raw"] is None
+    assert p["deferred"] == ["page_text", "pdfimages_list", "pdffonts"]
+
+
+def test_font_count_is_a_cheap_inline_fact_and_the_listing_is_not(tmp_path):
+    sc = _SC(blob_dir=tmp_path)
+    probes.store(sc, {"probe_version": probes.PROBE_VERSION, "deferred": [],
+                      "pdffonts_raw": "name  type\n----  ----\nCMR10 Type1\n"
+                                      "CMMI10 Type1\n"})
+    assert sc.get_evidence("font_count") == 2
+    assert "CMR10" not in "".join(str(v) for v in sc.evidence.values())
+    assert probes.pdffonts_list(sc).startswith("name")
+
+
+def test_font_count_distinguishes_no_fonts_from_no_pdffonts(tmp_path):
+    sc = _SC(blob_dir=tmp_path)
+    probes.store(sc, {"probe_version": probes.PROBE_VERSION, "deferred": [],
+                      "pdffonts_raw": "name type\n---------\n"})
+    assert probes.font_count(sc) == 0          # a scan: measured zero
+    assert probes.font_count(_SC()) is None    # never probed
+
+
+@pytest.mark.skipif(not shutil.which("pdffonts"), reason="poppler not installed")
+def test_the_text_layer_probe_takes_its_font_count_from_the_probe(tmp_path, monkeypatch):
+    from pdfdrill import commands
+
+    sc = _SC(blob_dir=tmp_path)
+    probes.store(sc, {"probe_version": probes.PROBE_VERSION, "deferred": [],
+                      "page_text": ["words here"],
+                      "pdffonts_raw": "n t\n---\nCMR10 Type1\n"})
+    monkeypatch.setattr(commands.subprocess, "run", _explode)
+    has_text, n_fonts, _first = commands._probe_text_layer(tmp_path / "x.pdf", sc)
+    assert (has_text, n_fonts) == (True, 1)

@@ -10270,18 +10270,19 @@ def _probe_text_layer(pdf: Path, sc: "Sidecar | None" = None) -> tuple[bool, int
     born-digital. Fonts corroborate but don't decide (a stray stamp font on an
     image PDF must not flip it to has-text). first_page_chars is still reported
     (page 1) for the size summary."""
-    n_fonts = 0
-    try:
-        fout = subprocess.run(["pdffonts", str(pdf)], capture_output=True,
-                              text=True, timeout=30)
-        rows = fout.stdout.strip().splitlines()
-        n_fonts = max(0, len(rows) - 2)  # minus the 2 header rows
-    except Exception:
-        pass
+    from . import probes
+    n_fonts = probes.font_count(sc) if sc is not None else None
+    if n_fonts is None:
+        try:
+            fout = subprocess.run(["pdffonts", str(pdf)], capture_output=True,
+                                  text=True, timeout=30)
+            rows = fout.stdout.strip().splitlines()
+            n_fonts = max(0, len(rows) - 2)  # minus the 2 header rows
+        except Exception:
+            n_fonts = 0
 
     # The stored page text answers this without re-extracting: it is already
     # per page, so "the first N pages" is a slice rather than a second run.
-    from . import probes
     stored = probes.page_texts(sc) if sc is not None else None
 
     def _chars(last_page: int) -> int:
@@ -10355,12 +10356,16 @@ def cmd_fonts(pdf: Path, force: bool = False) -> str:
         return _format_fonts(sc)
 
     t0 = time.monotonic()
-    out = subprocess.run(
-        ["pdffonts", str(pdf)], capture_output=True, text=True, timeout=60,
-    )
+    from . import probes
+    probes.ensure(pdf, sc)                 # acquisition ran this; older docs
+    listing = probes.pdffonts_list(sc)
+    if listing is None:                    # deferred (huge doc) or no probe
+        listing = subprocess.run(
+            ["pdffonts", str(pdf)], capture_output=True, text=True, timeout=60,
+        ).stdout
 
     fonts = []
-    lines = out.stdout.strip().splitlines()
+    lines = listing.strip().splitlines()
     for line in lines[2:]:
         parts = line.split()
         if parts:
