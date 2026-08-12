@@ -24,18 +24,37 @@ from ..base_module import BaseModule
 from ..core import Document, DocObject, Realization
 
 
+# How far into a document a title page can sit. A paper puts its title on page
+# 1; a book puts a half-title and a series page in front of it (WDorg4: title
+# page = 3). Bounded, because past the front matter a "title" line is a chapter.
+_FRONT_PAGES = 5
+
+# The empty-typed-title fallback is deliberately narrow: a title page carries a
+# few short lines, so these caps keep a text-heavy page from becoming a title.
+_TITLE_FALLBACK_MAX_LINES = 6
+_TITLE_FALLBACK_MAX_CHARS = 200
+
+
 def _extract_title(lines_json: dict) -> str:
-    """Best-effort document title from the leading `type:"title"` line(s) on the
-    first page(s). MathPix often nests the title text in child lines (the parent
-    title line's own `text` is empty), so resolve `children_ids`. Returns "" when
-    there is no title line (e.g. the keyless tesseract path emits only `text`)."""
-    for page in lines_json.get("pages", [])[:2]:
+    """Best-effort document title from the leading `type:"title"` line(s) of the
+    front matter.
+
+    MathPix often nests the title text in child lines (the parent title line's
+    own `text` is empty), so resolve `children_ids`. When the typed title line
+    is empty AND has no children — a scanned book whose title is set in a
+    display face — the title text is the other short text lines on that same
+    page, which is where it visibly is. Returns "" when there is no title line
+    at all (e.g. the keyless tesseract path emits only `text`).
+    """
+    for page in lines_json.get("pages", [])[:_FRONT_PAGES]:
         lines = page.get("lines", [])
         by_id = {l.get("id"): l for l in lines if l.get("id")}
         parts: list[str] = []
+        saw_title_line = False
         for l in lines:
             if l.get("type") != "title":
                 continue
+            saw_title_line = True
             txt = (l.get("text") or "").strip()
             if not txt and l.get("children_ids"):
                 txt = " ".join((by_id.get(cid, {}).get("text") or "")
@@ -45,7 +64,70 @@ def _extract_title(lines_json: dict) -> str:
                 parts.append(txt)
         if parts:
             return " ".join(parts).strip()
+        if saw_title_line:
+            t = _title_from_page_body(lines)
+            if t:
+                return t
     return ""
+
+
+def _title_from_page_body(lines: list) -> str:
+    """The title-page body: plain text lines, stopping at the first `page_info`
+    (the publisher/imprint line sits below the title and is not part of it)."""
+    parts: list[str] = []
+    for l in lines:
+        typ = l.get("type")
+        if typ == "page_info":
+            break                              # publisher / imprint line
+        if typ != "text":
+            continue                           # authors, title, anything typed
+        txt = " ".join((l.get("text") or "").split())
+        if txt:
+            parts.append(txt)
+    if not parts or len(parts) > _TITLE_FALLBACK_MAX_LINES:
+        return ""
+    out = " ".join(parts).strip()
+    return out if len(out) <= _TITLE_FALLBACK_MAX_CHARS else ""
+
+
+def _extract_authors(lines_json: dict) -> str:
+    """The front matter's `authors`-typed line, verbatim.
+
+    MathPix types it and nothing read it, so every scanned book came out
+    authorless — `bibtex` reported `@misc{unknown}` for a book whose own title
+    page names both authors.
+    """
+    for page in lines_json.get("pages", [])[:_FRONT_PAGES]:
+        for l in page.get("lines", []):
+            if l.get("type") != "authors":
+                continue
+            txt = " ".join((l.get("text") or "").split())
+            if txt:
+                return txt
+    return ""
+
+
+# `© 1996 by ...` / `Copyright (c) 2004 ...` — the year a book states about
+# itself on its imprint page. A bare year in prose is NOT this: without the
+# copyright marker a front-matter sentence like "written between 1975 and 1980"
+# would supply the record's year.
+_COPYRIGHT_YEAR = re.compile(
+    r"(?:©|\(c\)|\bcopyright\b)[^0-9]{0,20}((?:19|20)\d{2})", re.I)
+
+
+def _extract_pub_year(lines_json: dict) -> str:
+    """The publication year from the front matter's copyright line.
+
+    The EARLIEST such year wins: a reprint page lists the reprint alongside the
+    original, and the work's year is the first one.
+    """
+    years: list[str] = []
+    for page in lines_json.get("pages", [])[:_FRONT_PAGES]:
+        for l in page.get("lines", []):
+            m = _COPYRIGHT_YEAR.search(" ".join((l.get("text") or "").split()))
+            if m:
+                years.append(m.group(1))
+    return min(years) if years else ""
 
 
 def ingest_lines_json(doc: Document, lines_json: dict) -> None:
@@ -82,6 +164,14 @@ def ingest_lines_json(doc: Document, lines_json: dict) -> None:
         t = _extract_title(lines_json)
         if t:
             doc.meta["title"] = t
+    if not doc.meta.get("authors"):
+        a = _extract_authors(lines_json)
+        if a:
+            doc.meta["authors"] = a
+    if not doc.meta.get("year"):
+        y = _extract_pub_year(lines_json)
+        if y:
+            doc.meta["year"] = y
 
 
 class PageProcessor(BaseModule):

@@ -207,6 +207,20 @@ def derive_bibtex(info: dict[str, Any]) -> dict[str, Any]:
     return bib
 
 
+# German umlauts and the sharp s have conventional two-letter forms; every other
+# accent decomposes to its base letter. Dropping them outright turned Dröscher
+# into `drscher` — a key no reader would type and no .bib would match.
+_TRANSLIT = {"ä": "ae", "ö": "oe", "ü": "ue", "ß": "ss",
+             "Ä": "ae", "Ö": "oe", "Ü": "ue"}
+
+
+def _ascii_fold(s: str) -> str:
+    import unicodedata
+    out = "".join(_TRANSLIT.get(ch, ch) for ch in s)
+    out = unicodedata.normalize("NFKD", out)
+    return "".join(c for c in out if not unicodedata.combining(c))
+
+
 def _make_citekey(author: str, year: str, title: str) -> str:
     """Make a simple citekey: FirstAuthorLastNameYEAR."""
     first = ""
@@ -214,9 +228,10 @@ def _make_citekey(author: str, year: str, title: str) -> str:
         first_author = author.split(";")[0].split(",")[0].split(" and ")[0].strip()
         parts = first_author.split()
         if parts:
-            first = re.sub(r"[^A-Za-z]", "", parts[-1]).lower()
+            first = re.sub(r"[^A-Za-z]", "", _ascii_fold(parts[-1])).lower()
     if not first and title:
-        first = re.sub(r"[^A-Za-z]", "", title.split()[0]).lower() if title.split() else ""
+        first = (re.sub(r"[^A-Za-z]", "", _ascii_fold(title.split()[0])).lower()
+                 if title.split() else "")
     return f"{first or 'unknown'}{year or ''}"
 
 
@@ -232,7 +247,8 @@ def bibtex_to_string(bib: dict[str, Any]) -> str:
               ("pages", "pages"), ("doi", "doi"),
               ("eprint", "eprint"), ("archive_prefix", "archivePrefix"),
               ("primary_class", "primaryClass"),
-              ("url", "url"), ("license", "license"), ("publisher", "publisher")]
+              ("url", "url"), ("license", "license"), ("publisher", "publisher"),
+              ("isbn", "isbn"), ("address", "address")]
     if not bib.get("eprint"):
         fields.insert(5, ("arxiv_id", "arxiv_id"))     # fallback only
     width = max(len(bt) for _, bt in fields)

@@ -479,7 +479,7 @@ def _do_pdfinfo(args):
 
 def _do_bibtex(args):
     from .commands import cmd_bibtex
-    return cmd_bibtex(_pdf(args))
+    return cmd_bibtex(_pdf(args), force="--force" in args)
 
 
 def _do_urls(args):

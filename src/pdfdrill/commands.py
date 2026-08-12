@@ -11576,6 +11576,33 @@ def _arxiv_year(aid: str) -> str:
     return "20" + m.group(1) if m else ""
 
 
+def _authors_to_bibtex(authors) -> str:
+    """A printed byline -> BibTeX `A and B`. A title page separates names with
+    `/`, `;`, `,` or the local word for `and`; BibTeX wants ` and `."""
+    if isinstance(authors, (list, tuple)):
+        names = [str(a).strip() for a in authors]
+    else:
+        names = re.split(r"\s*(?:/|;|\band\b|\bund\b|&)\s*", str(authors))
+    names = [" ".join(n.split()) for n in names if n and n.strip()]
+    return " and ".join(names)
+
+
+def _isbn_from_sidecar(sc: "Sidecar") -> str:
+    """The checksum-validated ISBN `pdfdrill identifiers` already stored."""
+    try:
+        ids = ((sc.get_evidence("identifiers") or {}).get("ids")) or []
+    except Exception:                            # noqa: BLE001
+        return ""
+    for rec in ids:
+        # `type`, the key cmd_identifiers writes (Feature.type). A test fixture
+        # that guessed `kind` passed while the real sidecar matched nothing.
+        if isinstance(rec, dict) and str(rec.get("type", "")).upper().startswith("ISBN"):
+            v = str(rec.get("value") or "").strip()
+            if v:
+                return v
+    return ""
+
+
 def _augment_bibtex(bib: dict, pdf: Path, sc: "Sidecar") -> str:
     """Fill a pdfinfo-derived record from richer, FREE sources — the fix for an
     arXiv input giving `@misc{unknown2023}` (the embedded PDF metadata is empty,
@@ -11619,17 +11646,62 @@ def _augment_bibtex(bib: dict, pdf: Path, sc: "Sidecar") -> str:
             if not bib.get("year"):
                 bib["year"] = _arxiv_year(aid)
 
-    # Secondary (offline): the document title captured into the model meta.
-    if not (bib.get("title") or "").strip():
+    # Secondary (offline): the document's OWN front matter, drilled.
+    # A scanned book has no embedded metadata and no arXiv id, but its title
+    # page names the title and the authors and its imprint page carries the
+    # ISBN — which `identifiers` has already checksum-validated. That was the
+    # `@misc{unknown, pages = {174}}` report.
+    if not ((bib.get("title") or "").strip() and (bib.get("author") or "").strip()):
         mp = _model_path(sc)
         if mp.exists():
             try:
                 from . import model_io
-                t = (model_io.load_docgraph(mp).meta or {}).get("title")
-                if t:
-                    bib["title"] = t
-            except Exception:
+                meta = model_io.load_docgraph(mp).meta or {}
+            except Exception:                    # noqa: BLE001
+                meta = {}
+            if not (bib.get("title") or "").strip() and meta.get("title"):
+                bib["title"] = meta["title"]
+            if not (bib.get("author") or "").strip() and meta.get("authors"):
+                bib["author"] = _authors_to_bibtex(meta["authors"])
+            if not (bib.get("year") or "").strip() and meta.get("year"):
+                bib["year"] = meta["year"]
+
+    # ... and straight from the lines.json when the MODEL predates the capture.
+    # The alternative is `model --force`, which rebuilds References from scratch
+    # and so discards the bibliography and its bibfetch enrichment — on WDorg4,
+    # 21 references and a paid API pass. The lines.json is immutable and right
+    # there, so an already-drilled document needs no rebuild to gain a record.
+    if not ((bib.get("title") or "").strip() and (bib.get("author") or "").strip()):
+        lj = _lines_json_path(pdf)
+        if lj.exists():
+            try:
+                from docmodel.modules.page import (_extract_title,
+                                                    _extract_authors,
+                                                    _extract_pub_year)
+                data = json.loads(lj.read_text(encoding="utf-8"))
+                if not (bib.get("year") or "").strip():
+                    y = _extract_pub_year(data)
+                    if y:
+                        bib["year"] = y
+                if not (bib.get("title") or "").strip():
+                    t = _extract_title(data)
+                    if t:
+                        bib["title"] = t
+                if not (bib.get("author") or "").strip():
+                    a = _extract_authors(data)
+                    if a:
+                        bib["author"] = _authors_to_bibtex(a)
+            except Exception:                    # noqa: BLE001
                 pass
+
+    # An ISBN identifies a BOOK — but only when we actually have a record to
+    # attach it to, and never over the arXiv path, which owns entry_type.
+    if not aid:
+        isbn = _isbn_from_sidecar(sc)
+        if isbn and ((bib.get("title") or "").strip()
+                     or (bib.get("author") or "").strip()):
+            bib["isbn"] = isbn
+            bib["entry_type"] = "book"
 
     bib["citekey"] = _make_citekey(bib.get("author", ""), bib.get("year", ""),
                                    bib.get("title", ""))
@@ -11642,7 +11714,7 @@ def _augment_bibtex(bib: dict, pdf: Path, sc: "Sidecar") -> str:
     return ""
 
 
-def cmd_bibtex(pdf: Path) -> str:
+def cmd_bibtex(pdf: Path, force: bool = False) -> str:
     """Derive a BibTeX record — from the embedded PDF metadata, AUGMENTED by the
     free arXiv abs-page metadata (title/authors) and the drilled title when the
     embedded metadata is empty (otherwise an arXiv PDF yields `@misc{unknown2023}`
@@ -11672,7 +11744,10 @@ def cmd_bibtex(pdf: Path) -> str:
         cmd_pdfinfo(pdf)
         sc = Sidecar(pdf)
     # Trust the cache only if it's a REAL record — never re-serve a placeholder.
-    if sc.has(BIBTEX_KNOWN) and not _is_placeholder_bib(sc.bibtex):
+    # `force` because the cache gate only asks "is it a placeholder": a record
+    # that has a title but is missing a field a NEWER source can supply looks
+    # finished and never refreshes.
+    if sc.has(BIBTEX_KNOWN) and not force and not _is_placeholder_bib(sc.bibtex):
         return _format_bibtex(sc.bibtex)
 
     t0 = time.monotonic()

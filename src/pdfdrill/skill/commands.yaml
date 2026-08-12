@@ -310,13 +310,21 @@ commands:
   accepts_combined: true
   section: Introspection (fast, no extraction)
   summary: 'Derived BibTeX record from embedded PDF metadata, AUGMENTED by the free arXiv abs-page
-    metadata (title/authors) + the drilled title; warns when still a placeholder (run abstract/model first)'
+    metadata (title/authors) and — for a scanned book with no embedded metadata — the drilled
+    front matter (title page title/authors + the checksum-validated ISBN from `identifiers`,
+    which makes it @book); warns when still a placeholder (run abstract/model first). --force
+    re-derives a cached record'
   offline_ok: true
   positionals:
   - name: pdf
     type: pdf
     required: true
     help: PDF path, https URL, or bare arXiv id
+  flags:
+  - name: force
+    flag: --force
+    type: flag
+    help: re-derive even when a non-placeholder record is cached
   typed: true
 - name: urls
   section: Introspection (fast, no extraction)
