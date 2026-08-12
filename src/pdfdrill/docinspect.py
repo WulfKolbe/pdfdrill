@@ -310,7 +310,7 @@ def reading_order(objects: list[dict]) -> list[dict]:
             return (0, fi, 0)
         return (1, pr.get("page") or 0, 0)
 
-    flow = [o for o in objects if o["type"] not in ("Page", "Document", "Reference", "Citation")]
+    flow = [o for o in objects if o["type"] not in ("Page", "Document", "Citation")]
     return sorted(flow, key=key)
 
 
@@ -361,7 +361,13 @@ def collect_elements(model: dict, sidx: dict, *, with_blobs: bool = False):
     elements: list[dict] = []
     blobs: list[dict] = []
     for obj in model["objects"]:
-        if obj["type"] in ("Document", "Reference", "Citation"):
+        # Document has no place on a page. A REFERENCE does — add_reference_objects
+        # gives each one a surface realization spanning its printed lines, so a
+        # box is derivable (WDorg4 #1 -> page 169, 1200x72). It was excluded with
+        # Document out of habit, which left an enriched 21-entry bibliography
+        # invisible in the inspector while it sat in the model and the tiddlers.
+        # Citation is still out: 148 more boxes on that book is its own decision.
+        if obj["type"] in ("Document", "Citation"):
             continue
         page, bbox, preview = object_geometry(obj, sidx)
         pr = obj.get("props", {})
@@ -780,6 +786,7 @@ button{font:inherit;color:inherit;background:none;border:0;cursor:pointer}
   margin:6px 0;overflow-x:auto;color:#eee}
 .latexsrc{font-family:var(--mono);font-size:11px;color:var(--accent);background:#0c0f13;
   border:1px solid var(--line);border-radius:6px;padding:8px;white-space:pre-wrap;word-break:break-word}
+.refentry{white-space:pre-wrap;padding-left:22px;text-indent:-22px;line-height:1.45}
 .cropimg{max-width:100%;border:1px solid var(--line);border-radius:4px;background:#fff;margin-top:6px}
 .txtprev{color:var(--dim);white-space:pre-wrap;max-height:160px;overflow:auto;
   border-left:2px solid var(--line);padding-left:8px}
@@ -1290,6 +1297,36 @@ register({ type:['Picture','Diagram','Chart'],
  * them left a wholly untranslated block in the middle of an English reading.
  * Building it from the Section objects — which ARE translated — makes it switch
  * language for free and keeps it consistent with the headings it points at. */
+/* A REFERENCE renders as the entry a reader would see, with its BibTeX record
+ * beneath — the same split the Formula module uses for the KaTeX render and
+ * the LaTeX source. `bibtex` is present once `pdfdrill bibfetch` or a gold
+ * `bibsource` has run; before that the printed text is all there is, and
+ * saying so is better than an empty pane. */
+register({ type:'Reference',
+  render(e){
+    const n=el('div','refentry');
+    const p=e.props||{};
+    const num=p.number!=null?'['+p.number+'] ':'';
+    n.textContent=num+(p.raw_text||e.preview||'');
+    return n; },
+  detail(e){
+    const p=e.props||{};
+    let h='';
+    if(p.citekey) h+=kv('citekey',p.citekey);
+    if(p.entry_type) h+=kv('type','@'+p.entry_type);
+    if(p.author) h+=kv('author',p.author);
+    if(p.year) h+=kv('year',p.year);
+    if(p.number!=null) h+=kv('number',p.number);
+    if(p.ref_source) h+=kv('source',p.ref_source);
+    if(p.bibfetched) h+=kv('note','web-enriched (verify against the source)');
+    const bt=(p.bibtex||'').trim();
+    h+= bt ? sec('bibtex')+'<div class="latexsrc">'+esc(bt)+'</div>'
+           : sec('bibtex')+txt('none yet — run `pdfdrill bibfetch`, or '
+                               +'`pdfdrill bibsource` when the author’s '
+                               +'.bbl/.bib is available');
+    h+=sec('printed')+txt(p.raw_text||e.preview||'');
+    return h; } });
+
 register({ type:'Toc',
   render(e){
     const secs=EL.filter(x=>x.type==='Section'&&x.flow!=null).sort((a,b)=>a.flow-b.flow);
@@ -1586,7 +1623,11 @@ function provenance(e){
   (e.realizations||[]).forEach(r=>{ h+='<span class="chip">'+esc(r.stream)+(r.role?(' · '+r.role):'')+'</span>'; });
   h+='</div>';
   if(e.n_align) h+=sec('alignments')+'<div><span class="chip">'+e.n_align+' cross-stream links</span></div>';
-  const shown=new Set(['page','region','latex','display','caption','refnum','cdn_url','url','image_id','raw_text','text','level','bibkey']);
+  /* Props a type renderer has already presented. Without the bibliography
+   * keys here a Reference showed its record TWICE — once as the formatted
+   * block, once squashed onto a single key/value line by this generic dump. */
+  const shown=new Set(['page','region','latex','display','caption','refnum','cdn_url','url','image_id','raw_text','text','level','bibkey',
+                       'bibtex','citekey','author','year','number','ref_source','entry_type','bibfetched']);
   const extra=Object.entries(e.props||{}).filter(([k,v])=>!shown.has(k)&&v!=null&&v!==''&&typeof v!=='object');
   if(extra.length){ h+=sec('props'); extra.forEach(([k,v])=>{ h+=kv(k,v); }); }
   return h;
