@@ -261,3 +261,56 @@ def test_a_citekey_keeps_a_transliterated_umlaut():
     assert _make_citekey("Walter Dröscher and Burkhard Heim", "1996", "") == "droescher1996"
     assert _make_citekey("Émile Borel", "1921", "") == "borel1921"
     assert _make_citekey("Kingma and Welling", "2013", "") == "kingma2013"
+
+
+def test_the_publisher_and_place_reach_the_record(monkeypatch, tmp_path):
+    import json
+    from pdfdrill import commands
+
+    pdf = tmp_path / "WDorg4.pdf"
+    (tmp_path / "WDorg4.lines.json").write_text(json.dumps({"pages": [
+        {"page": 3, "lines": [
+            {"type": "authors", "text": "Walter Dröscher / Burkhard Heim"},
+            {"type": "title", "text": ""},
+            {"type": "text", "text": "Strukturen der physikalischen Welt"}]},
+        {"page": 4, "lines": [
+            {"type": "text", "text": "© 1996 by Andreas Resch Verlag, Innsbruck"}]},
+    ]}), encoding="utf-8")
+
+    class _G:
+        meta = {}
+
+    mp = tmp_path / "model.docmodel.json"
+    mp.write_text("{}")
+    monkeypatch.setattr(commands, "_model_path", lambda sc: mp)
+    from pdfdrill import model_io
+    monkeypatch.setattr(model_io, "load_docgraph", lambda p: _G())
+
+    bib = {"entry_type": "misc"}
+    commands._augment_bibtex(bib, pdf, _SCFM())
+    assert bib["publisher"] == "Andreas Resch Verlag"
+    assert bib["address"] == "Innsbruck"
+    assert bib["year"] == "1996"
+
+
+def test_an_arxiv_paper_gets_no_publisher_from_a_stray_imprint(monkeypatch, tmp_path):
+    """The arXiv path clears `publisher` on purpose — a preprint has none, and
+    the PDF Producer is a tool. Front-matter filling must not undo that."""
+    import json
+    from pdfdrill import commands
+
+    pdf = tmp_path / "2312.11532.pdf"
+    (tmp_path / "2312.11532.lines.json").write_text(json.dumps({"pages": [
+        {"page": 1, "lines": [
+            {"type": "text", "text": "© 2024 by Some Conference, New York"}]},
+    ]}), encoding="utf-8")
+    monkeypatch.setattr(commands, "_model_path", lambda sc: tmp_path / "none.json")
+
+    # arxiv gave a title but no authors, so the front-matter block DOES run —
+    # otherwise the guard is never reached and the test proves nothing.
+    bib = {"entry_type": "misc"}
+    commands._augment_bibtex(bib, pdf, _SCFM(
+        {"source_arxiv_id": "2312.11532", "arxiv_title": "T",
+         "arxiv_authors": []}))
+    assert bib["publisher"] == ""
+    assert "address" not in bib

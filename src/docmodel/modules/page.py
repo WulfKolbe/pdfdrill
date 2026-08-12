@@ -130,6 +130,43 @@ def _extract_pub_year(lines_json: dict) -> str:
     return min(years) if years else ""
 
 
+# The imprint line names the publisher: `© 1996 by Andreas Resch Verlag,
+# Innsbruck`. Deliberately NOT the PDF Producer — that is a tool (pdfTeX,
+# Word, a scanner driver), which is why derive_bibtex already refuses it.
+_IMPRINT = re.compile(
+    r"(?:©|\(c\)|\bcopyright\b)\s*(?:19|20)\d{2}\s*(?:by|bei)?\s*(.+)", re.I)
+
+# A place is a short trailing element. Longer than this and the comma was
+# separating a clause, not a city, so the whole thing stays in the name.
+_PLACE_MAX_WORDS = 4
+_TRAILING_YEAR = re.compile(r"[\s,]*(?:19|20)\d{2}\.?$")
+
+
+def _extract_publisher(lines_json: dict) -> tuple:
+    """(publisher, address) from the front matter's copyright line, or ("", "").
+
+    The last comma separates the two — but only when what follows reads like a
+    place. `Some Press, all rights reserved worldwide ...` is one name followed
+    by a clause, not a publisher in a city.
+    """
+    for page in lines_json.get("pages", [])[:_FRONT_PAGES]:
+        for l in page.get("lines", []):
+            m = _IMPRINT.search(" ".join((l.get("text") or "").split()))
+            if not m:
+                continue
+            rest = _TRAILING_YEAR.sub("", m.group(1).strip()).strip(" .,")
+            if not rest:
+                continue
+            publisher, address = rest, ""
+            if "," in rest:
+                head, _, tail = rest.rpartition(",")
+                tail = _TRAILING_YEAR.sub("", tail.strip()).strip(" .")
+                if head.strip() and 0 < len(tail.split()) <= _PLACE_MAX_WORDS:
+                    publisher, address = head.strip(), tail
+            return publisher, address
+    return "", ""
+
+
 def ingest_lines_json(doc: Document, lines_json: dict) -> None:
     """
     Populate the `mathpix_lines` stream and store page-level metadata on
@@ -172,6 +209,12 @@ def ingest_lines_json(doc: Document, lines_json: dict) -> None:
         y = _extract_pub_year(lines_json)
         if y:
             doc.meta["year"] = y
+    if not doc.meta.get("publisher"):
+        pub, addr = _extract_publisher(lines_json)
+        if pub:
+            doc.meta["publisher"] = pub
+        if addr:
+            doc.meta["address"] = addr
 
 
 class PageProcessor(BaseModule):

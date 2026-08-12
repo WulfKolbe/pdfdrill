@@ -11665,6 +11665,13 @@ def _augment_bibtex(bib: dict, pdf: Path, sc: "Sidecar") -> str:
                 bib["author"] = _authors_to_bibtex(meta["authors"])
             if not (bib.get("year") or "").strip() and meta.get("year"):
                 bib["year"] = meta["year"]
+            # A preprint has no publisher and the arXiv path clears the field on
+            # purpose, so front-matter filling must not put one back.
+            if not aid:
+                if not (bib.get("publisher") or "").strip() and meta.get("publisher"):
+                    bib["publisher"] = meta["publisher"]
+                if not (bib.get("address") or "").strip() and meta.get("address"):
+                    bib["address"] = meta["address"]
 
     # ... and straight from the lines.json when the MODEL predates the capture.
     # The alternative is `model --force`, which rebuilds References from scratch
@@ -11677,12 +11684,19 @@ def _augment_bibtex(bib: dict, pdf: Path, sc: "Sidecar") -> str:
             try:
                 from docmodel.modules.page import (_extract_title,
                                                     _extract_authors,
-                                                    _extract_pub_year)
+                                                    _extract_pub_year,
+                                                    _extract_publisher)
                 data = json.loads(lj.read_text(encoding="utf-8"))
                 if not (bib.get("year") or "").strip():
                     y = _extract_pub_year(data)
                     if y:
                         bib["year"] = y
+                if not aid and not (bib.get("publisher") or "").strip():
+                    pub, addr = _extract_publisher(data)
+                    if pub:
+                        bib["publisher"] = pub
+                    if addr and not (bib.get("address") or "").strip():
+                        bib["address"] = addr
                 if not (bib.get("title") or "").strip():
                     t = _extract_title(data)
                     if t:

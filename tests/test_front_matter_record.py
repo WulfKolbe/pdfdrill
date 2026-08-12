@@ -126,3 +126,61 @@ def test_the_earliest_copyright_year_wins_over_a_later_reprint_line():
     doc = _lines([[{"type": "text", "text": "© 1996 by Andreas Resch Verlag"},
                    {"type": "text", "text": "© 2004 second printing"}]])
     assert _extract_pub_year(doc) == "1996"
+
+
+# --------------------------------------------------- publisher and its place
+from docmodel.modules.page import _extract_publisher
+
+
+def test_the_copyright_line_names_the_publisher_and_the_place():
+    """`© 1996 by Andreas Resch Verlag, Innsbruck` — the rights holder is the
+    publisher and the trailing element is where it sits. The PDF Producer is
+    never this: that is a tool (pdfTeX, Word), which is why derive_bibtex
+    refuses to use it."""
+    doc = _lines([[{"type": "text", "text": "Alle Rechte vorbehalten."},
+                   {"type": "text", "text": "© 1996 by Andreas Resch Verlag, Innsbruck"},
+                   {"type": "text", "text": "Printed in Austria"}]])
+    assert _extract_publisher(doc) == ("Andreas Resch Verlag", "Innsbruck")
+
+
+def test_the_english_form_without_by():
+    doc = _lines([[{"type": "text", "text":
+                    "Copyright (c) 2004 Springer-Verlag, Berlin Heidelberg"}]])
+    assert _extract_publisher(doc) == ("Springer-Verlag", "Berlin Heidelberg")
+
+
+def test_a_publisher_with_no_place_is_still_a_publisher():
+    doc = _lines([[{"type": "text", "text": "© 2020 The Authors"}]])
+    assert _extract_publisher(doc) == ("The Authors", "")
+
+
+def test_a_trailing_year_is_not_part_of_the_place():
+    """`Gesamtherstellung: Andreas Resch Verlag, Innsbruck 1996` — the same
+    line shape, with the year repeated at the end."""
+    doc = _lines([[{"type": "text", "text":
+                    "© 1996 by Andreas Resch Verlag, Innsbruck 1996"}]])
+    assert _extract_publisher(doc) == ("Andreas Resch Verlag", "Innsbruck")
+
+
+def test_a_trailing_year_with_no_place_is_stripped_from_the_name():
+    """`© 2020 The Authors 2020` — with no comma there is no address branch to
+    strip the year, so the name itself must not end in a date."""
+    doc = _lines([[{"type": "text", "text": "© 2020 The Authors 2020"}]])
+    assert _extract_publisher(doc) == ("The Authors", "")
+
+
+def test_a_place_that_is_a_sentence_is_not_a_place():
+    """Only a short trailing element is a city; anything longer belongs to the
+    publisher name, or is prose that happened to follow a comma."""
+    doc = _lines([[{"type": "text", "text":
+                    "© 2001 Some Press, all rights reserved worldwide by the "
+                    "holder of the copyright"}]])
+    pub, addr = _extract_publisher(doc)
+    assert addr == ""
+    assert pub.startswith("Some Press")
+
+
+def test_no_copyright_line_means_no_publisher():
+    doc = _lines([[{"type": "text", "text": "RESCH VERLAG INNSBRUCK 1996"},
+                   {"type": "text", "text": "Printed in Austria"}]])
+    assert _extract_publisher(doc) == ("", "")
