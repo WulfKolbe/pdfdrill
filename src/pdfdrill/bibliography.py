@@ -86,12 +86,32 @@ def parse_bibliography(doc) -> list[dict]:
     anchors = mp.anchors
 
     # Prefer the LAST matching heading (a paper may say "References" in its text
-    # body before the actual section; the real list is the final one).
-    start = None
+    # body before the actual section; the real list is the final one) — but only
+    # among lines that CAN be a heading.
+    #
+    # A book prints the section title on every page of the section and MathPix
+    # emits that as `page_info`. Such a running header is later than the real
+    # heading BY CONSTRUCTION, so last-wins picked it every time and discarded
+    # every entry before it: on a 174-page scanned book with 21 printed
+    # references, exactly one survived. The table-of-contents rows name the
+    # section too. Neither is where a bibliography begins.
+    #
+    # A real `section_header` wins outright when there is one; otherwise fall
+    # back to any other line, because not every source types its headings.
+    typed = None
+    untyped = None
     for i, a in enumerate(anchors):
-        t = (mp.payload[a].get("text") or "").strip()
-        if _is_ref_heading(t):
-            start = i + 1
+        p = mp.payload[a]
+        typ = p.get("type") or ""
+        if typ == "page_info" or typ.startswith("table_of_contents"):
+            continue
+        if not _is_ref_heading((p.get("text") or "").strip()):
+            continue
+        if typ == "section_header":
+            typed = i + 1
+        else:
+            untyped = i + 1
+    start = typed if typed is not None else untyped
     if start is None:
         return []
 
@@ -100,9 +120,12 @@ def parse_bibliography(doc) -> list[dict]:
         p = mp.payload[a]
         if p.get("type") == "section_header":
             break                          # next section ends the bibliography
-        if p.get("type") == "page_info":
-            continue                       # the printed page number is not a
-                                           # reference (it became an entry "68")
+        typ = p.get("type") or ""
+        if typ == "page_info" or typ.startswith("table_of_contents"):
+            continue                       # a printed page number / running
+                                           # header / TOC row is not a reference
+                                           # (one became an entry whose whole
+                                           # text was "68")
         t = (p.get("text") or p.get("text_display") or "").strip()
         if t:
             body.append((a, t))

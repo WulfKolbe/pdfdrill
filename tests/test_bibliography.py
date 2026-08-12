@@ -323,3 +323,92 @@ def test_a_page_number_line_is_not_a_reference():
     ])
     got = parse_bibliography(doc)
     assert [e["number"] for e in got] == [1]
+
+
+def test_a_running_page_header_is_not_the_bibliography_heading():
+    """A book prints the section title on every page of the section, and
+    MathPix emits that as a `page_info` line. The heading scan kept the LAST
+    match, so the running header on the SECOND page of the list always won and
+    everything before it was discarded.
+
+    Measured on a real 174-page scanned book (WDorg4, Literaturverzeichnis
+    pp169-170): 21 entries printed, ONE parsed — the heading matched at the
+    section_header on p169 AND at the running header on p170, and the second
+    one took the start marker past entries [1]-[20]. A running header is later
+    than the real heading BY CONSTRUCTION, so this is not bad luck.
+    """
+    from pdfdrill.bibliography import parse_bibliography
+
+    doc = _stream_doc([
+        ("section_header", "LITERATURVERZEICHNIS"),
+        ("text", "[1] B. HEIM: Elementarstrukturen der Materie. Innsbruck: Resch, 1989"),
+        ("text", "[2] D. KLAUA: Allgemeine Mengenlehre. Berlin: Akademie-Verlag, 1964"),
+        ("page_info", "160"),
+        ("page_info", "Literaturverzeichnis"),          # the running header
+        ("text", "[3] A. D. KRISCH: Die Rolle des Spins. Spektrum; (1987) 10, 116-129"),
+    ])
+    got = parse_bibliography(doc)
+    assert [e["number"] for e in got] == [1, 2, 3]
+
+
+def test_a_table_of_contents_row_is_not_the_bibliography_heading():
+    """The TOC names every section, so it matches too. It comes EARLIER than
+    the real heading, so last-wins hid this one — until a document whose real
+    heading is untyped puts the TOC row last."""
+    from pdfdrill.bibliography import parse_bibliography
+
+    doc = _stream_doc([
+        ("table_of_contents_item", "Literaturverzeichnis"),
+        ("text", "some body prose that is not a reference at all"),
+        ("section_header", "LITERATURVERZEICHNIS"),
+        ("text", "[1] B. HEIM: Elementarstrukturen der Materie. Innsbruck: Resch, 1989"),
+    ])
+    got = parse_bibliography(doc)
+    assert [e["number"] for e in got] == [1]
+    assert "some body prose" not in got[0]["raw_text"]
+
+
+def test_an_untyped_heading_still_starts_the_bibliography():
+    """Not every source types its headings — the fallback must survive."""
+    from pdfdrill.bibliography import parse_bibliography
+
+    doc = _stream_doc([
+        ("text", "References"),
+        ("text", "[1] B. HEIM: Elementarstrukturen der Materie. Innsbruck: Resch, 1989"),
+    ])
+    assert [e["number"] for e in parse_bibliography(doc)] == [1]
+
+
+def test_a_running_header_loses_even_when_no_heading_is_typed():
+    """The section_header preference alone is not enough: a source that types
+    nothing (plain text lines, or tesseract output) still has running headers,
+    and there the fallback is what picks the start. Skipping page_info and TOC
+    rows has to hold on its own — without this the mutant that re-admits them
+    passes every other test in this file."""
+    from pdfdrill.bibliography import parse_bibliography
+
+    doc = _stream_doc([
+        ("text", "References"),                        # the real heading, untyped
+        ("text", "[1] B. HEIM: Elementarstrukturen der Materie. Resch, 1989"),
+        ("page_info", "160"),
+        ("page_info", "References"),                   # running header, page 2
+        ("text", "[2] D. KLAUA: Allgemeine Mengenlehre. Akademie-Verlag, 1964"),
+    ])
+    assert [e["number"] for e in parse_bibliography(doc)] == [1, 2]
+
+
+def test_a_back_matter_toc_row_loses_to_the_real_heading():
+    """Many German books print the Inhaltsverzeichnis at the BACK, so a TOC row
+    naming the bibliography can come AFTER it — and then last-wins would start
+    the list past its own end. The TOC row must also stay out of the entry body,
+    or it becomes a reference in its own right."""
+    from pdfdrill.bibliography import parse_bibliography
+
+    doc = _stream_doc([
+        ("text", "Literaturverzeichnis"),              # the real heading, untyped
+        ("text", "[1] B. HEIM: Elementarstrukturen der Materie. Resch, 1989"),
+        ("table_of_contents_container", ""),
+        ("table_of_contents_item", "Literaturverzeichnis"),     # back-matter TOC
+        ("table_of_contents_number", "169"),
+    ])
+    assert [e["number"] for e in parse_bibliography(doc)] == [1]
