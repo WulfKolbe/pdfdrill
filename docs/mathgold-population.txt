@@ -41,3 +41,32 @@ provenance confusion. It is real gold STRUCTURE with zero gold PLACEMENT.
 CONSEQUENCE: the scoring population is 59 equations over 2 documents —
 "tens", the third outcome. The floor's population is not the parser's
 population and must never be quoted as n=1908.
+
+--------------------------------------------------------------------------
+RECONCILIATION — two numbers in this repo, both right, different questions
+--------------------------------------------------------------------------
+Commit 79331bf records 21,240 and commit 13368a6 records 59. Re-measured
+independently across the library; both hold, and the difference is STRUCTURE
+versus PLACEMENT.
+
+  A  provenance == "tex"              87 equations, 59 with region+page, 2 docs
+  B  source-built latex_original/env  21,230 equations, 0 with region+page, 389 docs
+
+A is gold structure AND placement: an `injectlatex` overlay attaches the
+author's LaTeX to an equation that already has a page and a rectangle.
+B is gold structure ONLY: a source-built model is built from .tex and carries
+no page geometry until `geometry`/`merge` attaches it.
+
+Which denominator applies depends on what is being scored:
+
+  T4 (1) latex -> SLT          use B (21,230). Parsing needs no geometry;
+  T4 (2) SLT <-> .lg round-trip     this is the corpus the 99.8% parse rate
+                                    and the lossless round-trip were measured on.
+  T4 (3) the floor             use A-with-geometry (59, over kolbe2018hubbard
+                                    and 2510.11170v2). The floor scores pdfminer
+                                    CHARACTERS AND POSITIONS, so an equation
+                                    with no rectangle cannot be scored at all.
+
+So the floor is anecdotal at n=59 and must be reported as such. Enlarging it
+is not a mathgold task: it means attaching geometry to source-built models,
+which moves B into A.
