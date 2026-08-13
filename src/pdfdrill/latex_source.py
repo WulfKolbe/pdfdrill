@@ -191,11 +191,51 @@ def main_tex_from_readme(src_dir: str) -> str | None:
     return None
 
 
+# Names a submission conventionally gives its wrapper, best first. Only used to
+# break a tie on include count, never to outrank content.
+_MAIN_NAMES = ("main.tex", "ms.tex", "paper.tex", "manuscript.tex", "article.tex")
+
+_INCLUDE_RE = re.compile(r"\\(?:input|include)\s*\{\s*([^}]+?)\s*\}")
+
+
+def _includes_present(text: str, paths: dict[str, str]) -> int:
+    """How many OTHER files of this archive the file pulls in.
+
+    That is what a main file does. Counting only includes that RESOLVE keeps a
+    stray template — which \\inputs names not in the submission — from
+    outvoting the real wrapper.
+    """
+    have = {n for n in paths}
+    have |= {n[:-4] for n in paths if n.endswith(".tex")}
+    have |= {n.rsplit("/", 1)[-1] for n in list(have)}
+    n = 0
+    for m in _INCLUDE_RE.finditer(text or ""):
+        ref = m.group(1).strip()
+        base = ref.rsplit("/", 1)[-1]
+        if ref in have or base in have or f"{ref}.tex" in have or f"{base}.tex" in have:
+            n += 1
+    return n
+
+
 def find_main_tex(paths: dict[str, str]) -> str | None:
-    """Pick the main .tex (the one with \\documentclass, else \\begin{document})."""
+    """Pick the main .tex: the file that PULLS IN the document.
+
+    Length is the wrong proxy and was the bug. arXiv 2408.11646 ships a
+    Foundations & Trends monograph whose `main.tex` is a thin wrapper around
+    nine chapters, alongside `FnTarticle.tex` — the class DOCUMENTATION
+    example, self-contained and therefore longer. Picking the longest built the
+    model from the class documentation: a 12 KB "paper" about how to use the
+    LaTeX class, with no error anywhere.
+    """
     cls = [n for n, t in paths.items() if "\\documentclass" in t]
     if cls:
-        return max(cls, key=lambda n: len(paths[n]))
+        def rank(n: str):
+            inc = _includes_present(paths[n], paths)
+            base = n.rsplit("/", 1)[-1].lower()
+            conventional = (len(_MAIN_NAMES) - _MAIN_NAMES.index(base)
+                            if base in _MAIN_NAMES else 0)
+            return (inc, conventional, len(paths[n]))
+        return max(cls, key=rank)
     doc = [n for n, t in paths.items() if "\\begin{document}" in t]
     if doc:
         return max(doc, key=lambda n: len(paths[n]))
