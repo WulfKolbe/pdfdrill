@@ -59,3 +59,16 @@ dist/
 /vocab/compiled/
 /vocab/sources/*/*
 !/vocab/sources/*/STUB.md
+
+# Drill artifacts anywhere, not just under /data/. 76 MB of them were tracked at
+# the repo ROOT (1802.08153.*, 2305.04710v1.*) because the existing rules were
+# /data/-anchored. They are scratch from working on a document in the checkout,
+# never fixtures — the tests that mention those ids build their own temp PDFs.
+*.lines.json
+*.chars.json
+*.docmodel.json
+*.docpack.json
+*.tiddlers.json
+/*.pdf
+/*.tgz
+/*.tex.zip
