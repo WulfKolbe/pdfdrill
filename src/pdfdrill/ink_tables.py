@@ -36,6 +36,7 @@ from __future__ import annotations
 from typing import Any, Optional, Sequence
 
 from .ink_crosscheck import GRID_DISAGREE, ONLY_IN_MODEL, crosscheck_tables
+from .ink_rules import rank_rules
 from .table_structure import cells_from_mathpix
 
 _CELL_TYPES = ("simple_cell", "complex_cell", "table_spanning_cell")
@@ -81,6 +82,11 @@ def tables_of(ink_lines: dict, page: int) -> list[dict]:
                 "holes": ink.get("holes"),
                 "ink_rows": ink.get("rows"),
                 "ink_columns": ink.get("columns"),
+                # Phase 4: rank the rules of THIS table. Scoping matters — the
+                # same ranking over a diagram's rules names UI bars inside a
+                # screenshot `toprule`, which is mechanically consistent and
+                # about a thing that is not a table.
+                "rules": rank_rules(ink.get("rules") or []),
             })
     return out
 

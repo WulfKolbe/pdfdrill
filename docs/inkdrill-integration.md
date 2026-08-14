@@ -302,7 +302,71 @@ workflow silently discarded every earlier page; and the grid was keyed to a
 synthetic `table#i` that matched no region, so it never reached the row it
 belonged to (now matched by geometry, IoU ≥ 0.3).
 
-## Phase 4–5 — not started
+---
+
+## Phase 4 — rule weights · BUILT, and the earlier "no rules anywhere" was wrong
+
+`src/pdfdrill/ink_rules.py`, `tests/test_ink_rules.py` (9 tests), wired into
+`inktables` scoped to a table.
+
+**Correction first.** I previously reported `ink.rules` empty everywhere. That
+was measured on p8, p9, h1 and inf19 and over-generalised: **2409.18839 page 11
+carries 45 real rules**, on 5 `diagram`, 7 `glyph` and 2 `table` carriers. Rules
+ARE emitted — when they fall inside an emitted object.
+
+**What is still blocked is the booktabs case, and it is now proven rather than
+inferred.** A compiled booktabs table (`\toprule`, 2×`\midrule`,
+`\bottomrule`) run through inkdrill emits **0 lines**, and with `--glyphs`
+**65 glyphs and 0 rules** — the rules are components (pdfplumber sees all four)
+but `is_rule` filters them out of the glyph path and no object exists to attach
+them to. So Phase 4's own target case cannot reach pdfdrill today.
+
+### The classifier
+
+inkdrill emits `width_pt` and never a name, because the call needs table
+context. The absolute width runs ~12% high (rasteriser coverage) and the ratio
+is unstable under quantisation (1.50 / 1.33 / 1.67 / 1.40 / 1.67 against a
+nominal 1.60), so **the ordering decides, never the value**. A test inflates
+every width by 12% and asserts not one name moves.
+
+Ground truth, a compiled booktabs table read with pdfplumber:
+
+```
+y 125.20   0.7970 pt   class 1  ->  \toprule
+y 142.31   0.4980 pt   class 0  ->  \midrule
+y 171.22   0.4980 pt   class 0  ->  \midrule
+y 188.33   0.7970 pt   class 1  ->  \bottomrule      ratio 1.60
+```
+
+Position **confirms** the weight rather than being overruled by it: a heavy
+interior rule is a group separator, and naming it `toprule` would move it to
+the top of the reconstructed table.
+
+Rule 5 throughout — where the evidence does not separate, nothing is named and
+the reason travels. Over the 45 real rules on page 11, **33 are unnamed**:
+
+| reason | n |
+|---|---|
+| one weight class | 20 |
+| vertical rule (a `\|` separator, not booktabs) | 5 |
+| too few rules to rank | 5 |
+| heaviest class but not at an edge | 3 |
+
+A table ruled entirely with `\hline` has one weight class and therefore **no
+weight evidence at all**; naming its first rule `toprule` on position alone
+would be a guess wearing a measurement's clothes.
+
+**Scoping matters and is why this is wired into `inktables`, not run per
+carrier.** Applied to a diagram's rules the same ranking names UI bars inside a
+screenshot `toprule` — mechanically consistent, and about a thing that is not a
+table. Table-scoped, page 11's two table carriers report honestly: `1 measured,
+none named (vertical rule)` and `2 measured, none named (too few; vertical)`.
+
+**Not done:** the LaTeX round trip. `svg.py` still injects `booktabs` on
+sight of `\toprule` without knowing which rule was drawn; nothing consumes
+`rules[].kind` yet.
+
+## Phase 5 — not started
 
 3 table structure from ink · 4 rule weights · 5 the two-layer `inspect`
 surface. Phase 5 gates the visibility of 1–4 and has no inkdrill dependency.

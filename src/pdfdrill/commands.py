@@ -4244,6 +4244,16 @@ def cmd_inktables(pdf: Path, ink_json: Path, page: "int | None" = None) -> str:
             findings = IT.crosscheck(model_t, ink_t)
             stored[str(pg)] = {"ink": ink_t, "findings": findings}
             holes = [t.get("holes") for t in ink_t if t.get("holes") is not None]
+            for t_ in ink_t:
+                named = [r for r in (t_.get("rules") or [])
+                         if r.get("kind") and r["kind"] != "unknown"]
+                if named:
+                    out.append("      rules: " + ", ".join(
+                        f"{r['kind']} {r['width_pt']:.3f} pt" for r in named))
+                elif t_.get("rules"):
+                    why = {r.get("reason") for r in t_["rules"] if r.get("reason")}
+                    out.append(f"      rules: {len(t_['rules'])} measured, none named "
+                               f"({'; '.join(sorted(why))})")
             out.append(f"  page {pg}: {len(model_t)} model table(s) vs "
                        f"{len(ink_t)} ink table(s)"
                        + (f"; holes {holes}" if holes else "; no hole lattice"))
