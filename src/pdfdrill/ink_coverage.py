@@ -83,7 +83,8 @@ def mathpix_regions_pt(regions: Iterable[dict],
 
 
 def ink_boxes(ink_lines: dict, page: int,
-              kinds: Sequence[str] = ("glyph",)) -> list[tuple[Any, Rect, int]]:
+              kinds: Sequence[str] = ("glyph",),
+              with_holes: bool = False) -> list[tuple]:
     """One inkdrill page's components as `(id, rect_pt, area)`.
 
     Refuses a file that does not declare points: the units travel with the data
@@ -103,8 +104,14 @@ def ink_boxes(ink_lines: dict, page: int,
             if line.get("type") not in kinds:
                 continue
             ink = line.get("ink") or {}
-            out.append((ink.get("region_id"), rect_of(line["region"]),
-                        int(ink.get("area") or 0)))
+            rec_ = (ink.get("region_id"), rect_of(line["region"]),
+                    int(ink.get("area") or 0))
+            if with_holes:
+                # inkdrill measures holes per component; the tree SUMMARISES
+                # them, so they travel rather than being recomputed from pixels
+                # we do not have.
+                rec_ = rec_ + (int(ink.get("holes") or 0),)
+            out.append(rec_)
     return out
 
 

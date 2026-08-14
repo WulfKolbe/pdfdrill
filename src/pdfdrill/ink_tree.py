@@ -58,6 +58,34 @@ def _intersects(a: Rect, b: Rect) -> bool:
     return a[0] <= b[2] and a[2] >= b[0] and a[1] <= b[3] and a[3] >= b[1]
 
 
+def blob_summary(nodes: Sequence[dict]) -> dict:
+    """A region's ink as a COUNT and a SHAPE, not a list of extents.
+
+    `2x4 pt, 4x7 pt, 4x7 pt` tells a reader nothing, folded or not. What is
+    useful at the parent level is `80 blobs, median 4x7 pt, 2 holes` — the
+    individual extents matter only when inspecting ONE blob, which is a level
+    further down and nothing asks for it yet.
+
+    `holes` comes straight from inkdrill (`ink.holes` per component), so this
+    is a projection of data already measured, never a new measurement.
+    """
+    if not nodes:
+        return {"n": 0, "median_w": 0, "median_h": 0, "max_w": 0, "max_h": 0,
+                "holes": 0, "area": 0}
+
+    def med(xs):
+        s = sorted(xs)
+        return s[len(s) // 2]
+
+    ws = [round(float(n["rect"][2]) - float(n["rect"][0]), 1) for n in nodes]
+    hs = [round(float(n["rect"][3]) - float(n["rect"][1]), 1) for n in nodes]
+    return {"n": len(nodes),
+            "median_w": med(ws), "median_h": med(hs),
+            "max_w": max(ws), "max_h": max(hs),
+            "holes": sum(int(n.get("holes") or 0) for n in nodes),
+            "area": sum(int(n.get("area") or 0) for n in nodes)}
+
+
 def build_tree(boxes: Sequence[tuple[Any, Rect, int]],
                regions: Sequence[tuple[Any, Rect, str]]) -> dict:
     """Attach each blob to its deepest containing region.
@@ -79,7 +107,9 @@ def build_tree(boxes: Sequence[tuple[Any, Rect, int]],
     children: dict[Any, list] = {rid: [] for rid, _r, _t in regs}
     by_parent_type: dict[str, int] = {}
 
-    for bid, rect, area in items:
+    for item in items:
+        bid, rect, area = item[0], item[1], item[2]
+        holes = item[3] if len(item) > 3 else 0
         holding = [(rid, rrect) for rid, rrect, _t in regs
                    if _contains(rrect, rect)]
         if not holding:
@@ -99,12 +129,20 @@ def build_tree(boxes: Sequence[tuple[Any, Rect, int]],
         parent = deepest[0]
         typ = rtype.get(parent, "")
         nodes.append({"id": bid, "parent": parent, "parent_type": typ,
-                      "rect": list(rect), "area": int(area)})
+                      "rect": list(rect), "area": int(area),
+                      "holes": int(holes or 0)})
         children[parent].append(bid)
         by_parent_type[typ] = by_parent_type.get(typ, 0) + 1
 
+    summaries = {rid: blob_summary([n for n in nodes if n["parent"] == rid])
+                 for rid in children}
+    # the region's own rectangle, so a consumer can match a table to its region
+    # by geometry instead of by a synthetic id that matches nothing
+    region_rects = {rid: list(rect) for rid, rect, _t in regs}
     return {
         "components": len(items),
+        "summaries": summaries,
+        "region_rects": region_rects,
         "regions": len(regs),
         "nodes": nodes,
         "children": children,

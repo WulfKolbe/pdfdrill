@@ -152,6 +152,35 @@ def test_slot_diff_reports_no_difference_when_both_cover_the_same_slots():
     assert diff["same_grid_population_differs"] is False
 
 
+def test_grid_metrics_reports_column_widths_and_row_heights():
+    """The alternating row heights ARE the rows whose text wraps to two lines —
+    discarded by a cell-text extractor and needed by a round trip."""
+    cells = [{"row": 0, "col": 0, "row_span": 1, "col_span": 1,
+              "region": {"top_left_x": 0, "top_left_y": 0,
+                         "width": 45.0, "height": 37.8}},
+             {"row": 0, "col": 1, "row_span": 1, "col_span": 1,
+              "region": {"top_left_x": 45, "top_left_y": 0,
+                         "width": 42.7, "height": 37.8}},
+             {"row": 1, "col": 0, "row_span": 1, "col_span": 1,
+              "region": {"top_left_x": 0, "top_left_y": 37.8,
+                         "width": 45.0, "height": 23.8}}]
+    m = ink_tables.grid_metrics(cells)
+    assert m["col_widths"] == [45.0, 42.7]
+    assert m["row_heights"] == [37.8, 23.8]
+
+
+def test_a_spanning_cell_is_not_used_as_a_column_width():
+    """A cell covering three columns would otherwise report the span as one
+    column's width, and every downstream number would inherit it."""
+    cells = [{"row": 0, "col": 0, "row_span": 1, "col_span": 3,
+              "region": {"top_left_x": 0, "top_left_y": 0,
+                         "width": 300.0, "height": 20.0}},
+             {"row": 1, "col": 0, "row_span": 1, "col_span": 1,
+              "region": {"top_left_x": 0, "top_left_y": 20,
+                         "width": 100.0, "height": 20.0}}]
+    assert ink_tables.grid_metrics(cells)["col_widths"] == [100.0]
+
+
 def test_hole_count_travels_so_the_discriminator_is_visible():
     """52 versus 0 is the whole decision; it must be in the report, not
     recomputed by a reader."""

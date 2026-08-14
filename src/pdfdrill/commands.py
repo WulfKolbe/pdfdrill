@@ -4158,7 +4158,11 @@ def cmd_inktree(pdf: Path, ink_json: Path, page: "int | None" = None) -> str:
             + (f"\n      largest region: {deep[0][1]} with {deep[0][0]} children"
                if deep and deep[0][0] else ""))
 
-    sc.set_evidence("ink_tree", stored)
+    # Accumulate: running `--page 8` and then `--page 11` used to leave only
+    # page 11, so a per-page workflow silently discarded every earlier page.
+    merged = dict(sc.get_evidence("ink_tree") or {})
+    merged.update(stored)
+    sc.set_evidence("ink_tree", merged)
     sc.save()
     return ("Merged ink tree (inkdrill blobs under MathPix regions):\n"
             + "\n".join(out)
@@ -4281,7 +4285,9 @@ def cmd_inktables(pdf: Path, ink_json: Path, page: "int | None" = None) -> str:
                 for w in (f.get("warnings") or [])[:2]:
                     out.append(f"        warn: {w}")
 
-    sc.set_evidence("ink_tables", stored)
+    merged = dict(sc.get_evidence("ink_tables") or {})
+    merged.update(stored)
+    sc.set_evidence("ink_tables", merged)
     sc.save()
     return ("Table structure, ink vs model:\n" + "\n".join(out)
             + "\n  A ruled table's HOLES are its cells; booktabs draws disjoint "
@@ -7194,7 +7200,8 @@ def cmd_inspect(pdf: Path, pages: str | None = None, embed: bool = True,
             # (not {}) when it has not, so the panel is ABSENT rather than
             # empty — "no ink found" and "inkdrill never ran" are different
             # statements and must not render the same.
-            ink_tree=sc.get_evidence("ink_tree") or None)
+            ink_tree=sc.get_evidence("ink_tree") or None,
+            ink_tables=sc.get_evidence("ink_tables") or None)
     except Exception as e:                          # noqa: BLE001
         return f"inspect failed for {pdf.name}: {e}"
 

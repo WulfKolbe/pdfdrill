@@ -239,6 +239,69 @@ disagreeing. The discriminator is one number and it travels into the report:
 collinear rule grouping, which is blocked on the same emit gap as Phase 1 —
 the rules never leave inkdrill.
 
+---
+
+## The inspector surface, after three UI fixes
+
+**1. The panel opens on the page being viewed.** It opened on the first page
+that carried ink, so a reader on page 11 was shown page 8's 101 regions and had
+to touch the selector to see the 5 that belong to the page in front of them.
+`gotoPage` is now wrapped, because clicking an element or jumping to a page
+moves `curPage` without the selector ever firing.
+
+**2. A collapsed row carries a count and a SHAPE, not extents.**
+`2×4 pt, 4×7 pt, 4×7 pt` says nothing folded or unfolded. inkdrill already
+emits `holes` and `area` per component, so the summary is a projection of data
+we have:
+
+```
+▸ figure_label  61 blobs, median 5×5.2 pt   figure_label#108
+▸ diagram  11551 blobs, median 0.4×0.7 pt   diagram#0
+```
+
+Expanding gives one summary block, not one row per blob:
+`11551 blobs · median 0.4×0.7 pt · largest 132.7×532.6 pt · 0 holes · 1439395 px ink`.
+
+Because the extents are no longer rendered, they are no longer **shipped**: the
+per-blob rectangle arrays left the payload and the 4-page inspector went from
+**2380 KB to 1067 KB**. Individual extents belong to a third level, which
+nothing asks for yet; when it is wanted they come back behind a fetch rather
+than in every page load.
+
+**3. A table region renders its grid.** `inktables` had already resolved 13×4
+with the column widths, and the panel was showing anonymous rectangles.
+
+```
+table  0 blobs · grid 13×4   table#40
+    grid 13 rows × 4 cols  (52 holes)
+    column widths pt  45.0 / 42.7 / 99.5 / 278.3
+    row heights pt    37.8 / 23.8 / 38.0 / 23.9 / 23.9 / 23.9 / 37.8 / 23.8 ...
+```
+
+The table shows `0 blobs` because its glyphs attach to the deeper `simple_cell`
+regions — the deepest-parent rule working as intended, and the grid is what
+that row is for.
+
+### The standing test — 2409.18839 page 11
+
+A document about document extraction, containing pictures of documents. Nothing
+else in the corpus puts this much under one region, so it stays the collapse
+test.
+
+| page | blobs | rows shown | blob rows on open |
+|---|---|---|---|
+| 8 | 3357 | 101 | 0 |
+| 9 | 2337 | 125 | 0 |
+| **11** | **11708** | **5** | **0** |
+
+No filter, no canvas, no virtualization — the default depth is 1.
+
+Two defects found while measuring this: running `inktree --page 8` then
+`--page 11` **replaced** the stored tree instead of merging, so a per-page
+workflow silently discarded every earlier page; and the grid was keyed to a
+synthetic `table#i` that matched no region, so it never reached the row it
+belonged to (now matched by geometry, IoU ≥ 0.3).
+
 ## Phase 4–5 — not started
 
 3 table structure from ink · 4 rule weights · 5 the two-layer `inspect`

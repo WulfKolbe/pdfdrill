@@ -579,7 +579,8 @@ from .ink_view import blob_arrays as _blob_arrays, DEFAULT_OFF as _DEFAULT_OFF
 
 
 def _ink_payload(ink_tree: Optional[dict],
-                 page_filter: Optional[set]) -> Optional[dict]:
+                 page_filter: Optional[set],
+                 ink_tables: Optional[dict] = None) -> Optional[dict]:
     """The merged ink tree in the compact shape the panel renders (B4).
 
     `region_list` is one row per REGION — that is what opens by default, tens
@@ -599,29 +600,67 @@ def _ink_payload(ink_tree: Optional[dict],
         if "region_list" in tree:                      # already compact
             out[str(pg)] = tree
             continue
-        rects = {n["id"]: n.get("rect") for n in tree.get("nodes", [])}
         rr = tree.get("residual_rects") or {}
         children = tree.get("children", {})
+        summaries = tree.get("summaries") or {}
         rtype = {n["parent"]: n.get("parent_type", "")
                  for n in tree.get("nodes", [])}
-        region_list, kids = [], {}
+        region_list = []
         for rid, ids in children.items():
             region_list.append([rid, rtype.get(rid, str(rid).split("#")[0]),
-                                len(ids), None])
-            kids[rid] = [rects.get(i) for i in ids if rects.get(i)]
+                                len(ids), summaries.get(rid)])
         # biggest first: the region worth opening is the one hiding the most
         region_list.sort(key=lambda r: (-r[2], str(r[0])))
         out[str(pg)] = {
             "components": tree.get("components", 0),
             "regions": tree.get("regions", len(region_list)),
             "region_list": region_list,
-            "kids": kids,
+            # NO per-blob rectangles. `2x4 pt, 4x7 pt, 4x7 pt` says nothing at
+            # this level, and shipping 11,708 of them to render 5 rows is the
+            # cost the tree exists to remove. The individual extents belong to
+            # a third level, which nothing asks for yet.
+            "region_rects": tree.get("region_rects") or {},
             "residuals": {k: [] for k in ("orphan", "straddler", "tie")}
             | {k: [rr[str(i)] for i in v if str(i) in rr]
                for k, v in (tree.get("residuals") or {}).items()},
             "residual_counts": {k: len(v)
                                 for k, v in (tree.get("residuals") or {}).items()},
         }
+    # `inktables` already resolved the grid: 13x4 with its column widths. A
+    # table region that expands to 52 anonymous rectangles throws that away and
+    # makes the reader rebuild it by eye.
+    for pg, rec in (ink_tables or {}).items():
+        if str(pg) not in out:
+            continue
+        from .ink_tables import grid_metrics
+        rects = out[str(pg)].get("region_rects") or {}
+        tbls = {}
+        for t_ in (rec.get("ink") or []):
+            # Match the ink table to its REGION by geometry. A synthetic
+            # `table#i` id matches no region in the tree, so the grid never
+            # reached the row it belongs to.
+            reg = t_.get("region") or {}
+            if not reg or not rects:
+                continue
+            x0 = float(reg["top_left_x"]); y0 = float(reg["top_left_y"])
+            box = (x0, y0, x0 + float(reg["width"]), y0 + float(reg["height"]))
+            best, best_iou = None, 0.0
+            for rid, r in rects.items():
+                ix = max(0.0, min(box[2], r[2]) - max(box[0], r[0]))
+                iy = max(0.0, min(box[3], r[3]) - max(box[1], r[1]))
+                inter = ix * iy
+                union = ((box[2]-box[0])*(box[3]-box[1])
+                         + (r[2]-r[0])*(r[3]-r[1]) - inter)
+                iou = inter / union if union > 0 else 0.0
+                if iou > best_iou:
+                    best, best_iou = rid, iou
+            if best is None or best_iou < 0.3:
+                continue
+            tbls[best] = {"region_id": best, "n_rows": t_.get("n_rows"),
+                          "n_cols": t_.get("n_cols"), "holes": t_.get("holes"),
+                          **grid_metrics(t_.get("cells") or [])}
+        if tbls:
+            out[str(pg)]["tables"] = list(tbls.values())
     return out or None
 
 
@@ -634,6 +673,7 @@ def build_inspector_html(
     katex_inline: Optional[dict] = None,
     page_filter: Optional[set] = None,
     ink_tree: Optional[dict] = None,
+    ink_tables: Optional[dict] = None,
 ) -> str:
     sidx = build_stream_index(model)
     elements, pages_meta, blobs = collect_elements(model, sidx, with_blobs=True)
@@ -659,7 +699,7 @@ def build_inspector_html(
         # B4: the merged ink tree, if `pdfdrill inktree` has run. Absent (not
         # empty) when it has not — an empty panel reads as "no ink found" when
         # the truth is "inkdrill never ran", and those are different statements.
-        "ink": _ink_payload(ink_tree, page_filter),
+        "ink": _ink_payload(ink_tree, page_filter, ink_tables),
         "cat_default_off": list(_DEFAULT_OFF),
     }
     data_json = json.dumps(payload).replace("</", "<\\/")
@@ -1801,6 +1841,13 @@ DATA.__SUB__="__SUBTITLE__";
  * The residuals sit ABOVE the regions and are never behind a click: the tree
  * is the product, the residuals are the audit, and a straddler nobody opens is
  * a straddler nobody looks at. */
+function inkArea(b){ return Math.max(0, b[2]-b[0]) * Math.max(0, b[3]-b[1]); }
+function inkMedian(xs){
+  if (!xs.length) return 0;
+  const s = xs.slice().sort((a, b) => a - b);
+  return s[Math.floor(s.length / 2)];
+}
+
 function inkRender(){
   const ink = DATA.ink;
   if (!ink) return;                       // inkdrill never ran — no panel at all
@@ -1811,14 +1858,18 @@ function inkRender(){
   panel.setAttribute('id', 'inkPanel');
   mount.appendChild(panel);
 
-  const pages = Object.keys(ink).sort((a, b) => (+a) - (+b));
   const draw = () => {
     panel.innerHTML = '';
-    const pg = String(inkPage);
+    /* The page the READER is on, resolved at draw time. Opening on the first
+     * page that happens to carry ink showed a reader on page 11 the 101
+     * regions of page 8, and they had to touch the selector to see the 5 that
+     * belong to the page in front of them. */
+    const pg = String(typeof curPage !== 'undefined' ? curPage : inkFallback);
     const t = ink[pg];
     const head = document.createElement('h4');
     head.textContent = t
-      ? 'Ink  ' + t.components + ' blobs · ' + (t.region_list || []).length + ' regions'
+      ? 'Ink  page ' + pg + '  ' + t.components + ' blobs · '
+        + (t.region_list || []).length + ' regions'
       : 'Ink  (no ink merged for page ' + pg + ')';
     panel.appendChild(head);
     if (!t) return;
@@ -1839,12 +1890,27 @@ function inkRender(){
       panel.appendChild(row);
     });
 
+    const byRegion = {};
+    (t.tables || []).forEach(tb => { byRegion[tb.region_id] = tb; });
+
     (t.region_list || []).forEach(r => {
-      const [rid, rtype, n] = r;
+      const [rid, rtype, n, s] = r;
       const row = document.createElement('div');
       row.className = 'inkregion';
       row.dataset.rid = rid;
-      row.textContent = (n ? '▸ ' : '  ') + rtype + '  ' + n + '   ' + rid;
+      /* A collapsed row has to be worth reading on its own. `2x4 pt, 4x7 pt,
+       * 4x7 pt` says nothing folded or unfolded; a COUNT and a SHAPE do —
+       * `footnote#99 — 80 blobs, median 4×7 pt, 2 holes`. inkdrill measured
+       * the holes per component, so this is a projection, not a new number. */
+      let summary = rtype + '  ' + n + ' blobs';
+      if (s && s.n){
+        summary += ', median ' + s.median_w + '×' + s.median_h + ' pt';
+        if (s.holes) summary += ', ' + s.holes + ' holes';
+      }
+      const tb = byRegion[rid];
+      if (tb) summary += ' · grid ' + tb.n_rows + '×' + tb.n_cols;
+      row.textContent = (n ? '▸ ' : '  ') + summary + '   ' + rid;
+
       const kidbox = document.createElement('div');
       kidbox.className = 'inkkids';
       row.addEventListener('click', () => {
@@ -1852,25 +1918,41 @@ function inkRender(){
           while (kidbox.children.length) kidbox.removeChild(kidbox.children[0]);
           return;
         }
-        const kids = (t.kids || {})[rid] || [];
-        kids.forEach((b, i) => {
-          const k = document.createElement('div');
-          k.className = 'inkkid';
-          k.textContent = '· ' + Math.round(b[2] - b[0]) + '×'
-                            + Math.round(b[3] - b[1]) + ' pt';
-          kidbox.appendChild(k);
-        });
+        if (tb){
+          /* `inktables` already resolved 13x4 with the column widths. Showing
+           * 52 anonymous rectangles instead throws that away and makes the
+           * reader rebuild the grid by eye. */
+          const g = document.createElement('div');
+          g.className = 'inkgrid';
+          g.textContent = 'grid ' + tb.n_rows + ' rows × ' + tb.n_cols
+            + ' cols' + (tb.holes != null ? '  (' + tb.holes + ' holes)' : '')
+            + (tb.col_widths && tb.col_widths.length ? '\ncolumn widths pt  '
+                + tb.col_widths.map(w => w.toFixed(1)).join(' / ') : '')
+            + (tb.row_heights && tb.row_heights.length ? '\nrow heights pt    '
+                + tb.row_heights.map(h => h.toFixed(1)).join(' / ') : '');
+          kidbox.appendChild(g);
+          return;
+        }
+        if (!s || !s.n) return;
+        const d = document.createElement('div');
+        d.className = 'inksummary';
+        d.textContent = s.n + ' blobs   median ' + s.median_w + '×' + s.median_h
+          + ' pt   largest ' + s.max_w + '×' + s.max_h + ' pt'
+          + '\n' + s.holes + ' holes   ' + s.area + ' px ink';
+        kidbox.appendChild(d);
       });
       panel.appendChild(row);
       panel.appendChild(kidbox);
     });
   };
-  let inkPage = +pages[0];
+  const inkFallback = +Object.keys(ink).sort((a, b) => (+a) - (+b))[0];
+  /* Redraw on every page change, not only on the selector's own event:
+   * clicking an element or jumping to a page moves curPage without the
+   * selector firing, and the panel would keep showing the page before. */
+  const _goto = gotoPage;
+  gotoPage = function(pn){ _goto(pn); draw(); };
   const sel = document.getElementById('pageSel');
-  if (sel) sel.addEventListener('change', () => {
-    const v = +sel.value;
-    if (ink[String(v)]) { inkPage = v; draw(); }
-  });
+  if (sel) sel.addEventListener('change', draw);
   draw();
 }
 
@@ -1900,6 +1982,7 @@ def build_from_paths(
     katex_dir: Optional[str] = None,
     page_filter: Optional[set] = None,
     ink_tree: Optional[dict] = None,
+    ink_tables: Optional[dict] = None,
 ) -> tuple[str, int, int, str]:
     """Reusable core behind the CLI and `pdfdrill inspect`: load the model,
     resolve the image source, and return (html, n_pages, n_elements, mode).
@@ -1937,7 +2020,7 @@ def build_from_paths(
     ttl = title or model["meta"].get("bibkey", "docinspect")
     html_doc = build_inspector_html(model, pages=pages, title=ttl, image_mode=mode,
                                     katex_inline=katex_inline, page_filter=page_filter,
-                                    ink_tree=ink_tree)
+                                    ink_tree=ink_tree, ink_tables=ink_tables)
     if out:
         with open(out, "w", encoding="utf-8") as fh:
             fh.write(html_doc)

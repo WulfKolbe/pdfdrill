@@ -85,6 +85,31 @@ def tables_of(ink_lines: dict, page: int) -> list[dict]:
     return out
 
 
+def grid_metrics(cells: Sequence[dict]) -> dict:
+    """Column widths and row heights, in points, from the cell rectangles.
+
+    This is the part a cell-text extractor discards and a LaTeX round trip
+    needs: on Infineon p19 the row heights alternate 37.8 / 23.8 and the
+    alternation IS the rows whose text wraps to two lines.
+
+    One representative cell per column and per row — a spanning cell would
+    report the span's width as a column's, so cells with a span > 1 are not
+    used as representatives.
+    """
+    cols: dict[int, float] = {}
+    rows: dict[int, float] = {}
+    for c in cells:
+        reg = c.get("region") or {}
+        if not reg:
+            continue
+        if int(c.get("col_span") or 1) == 1:
+            cols.setdefault(int(c["col"]), round(float(reg["width"]), 1))
+        if int(c.get("row_span") or 1) == 1:
+            rows.setdefault(int(c["row"]), round(float(reg["height"]), 1))
+    return {"col_widths": [cols[k] for k in sorted(cols)],
+            "row_heights": [rows[k] for k in sorted(rows)]}
+
+
 def page_has_lattice(ink_lines: dict, page: int) -> bool:
     """Did the hole lattice apply on this page at all?
 

@@ -132,6 +132,30 @@ def test_a_region_with_no_children_is_still_listed():
     assert tree["children"]["a#0"] == [1]
 
 
+def test_a_region_summary_is_a_count_and_a_SHAPE_not_a_list_of_extents():
+    r"""`2x4 pt, 4x7 pt, 4x7 pt` tells a reader nothing, folded or not.
+
+    What is useful at the parent level is `80 blobs, median 4x7 pt, 2 holes`;
+    the individual extents matter only when inspecting ONE blob, which is the
+    third level down. inkdrill already emits `holes` and `area` per component,
+    so the summary is a projection of data we have, not a new measurement.
+    """
+    from pdfdrill.ink_tree import blob_summary
+    nodes = [{"rect": [0, 0, 4, 7], "area": 20, "holes": 1},
+             {"rect": [0, 0, 4, 7], "area": 22, "holes": 1},
+             {"rect": [0, 0, 2, 4], "area": 6, "holes": 0}]
+    s = blob_summary(nodes)
+    assert s["n"] == 3
+    assert (s["median_w"], s["median_h"]) == (4, 7)
+    assert s["holes"] == 2
+    assert s["max_w"] == 4
+
+
+def test_an_empty_region_summarises_to_zero_without_dividing_by_anything():
+    from pdfdrill.ink_tree import blob_summary
+    assert blob_summary([])["n"] == 0
+
+
 def test_the_tree_does_not_depend_on_input_order():
     regions = [_r("a#0", 0, 0, 10, 10), _r("b#1", 5, 0, 15, 10)]
     boxes = [_b(1, 1, 1, 2, 2), _b(2, 100, 100, 101, 101), _b(3, 6, 1, 7, 2)]
