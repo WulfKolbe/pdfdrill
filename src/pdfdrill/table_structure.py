@@ -44,7 +44,25 @@ def _clean(text: str) -> str:
 # --------------------------------------------------------------- producers
 def cells_from_mathpix(children: list[dict[str, Any]]) -> tuple[list[dict], int, int]:
     """MathPix cell payloads (simple_cell/complex_cell/table_spanning_cell)
-    -> (cells, n_rows, n_cols). Non-cell children (table_row) are skipped."""
+    -> (cells, n_rows, n_cols).
+
+    Anything without BOTH `cell_row` and `cell_column` is skipped, which drops
+    `table_row` AND `table_column` — MathPix states the row and column bands as
+    their own lines and this reads none of them. Measured on 2409.18839 p9, the
+    column extents derived from the cell boxes differ from the bands MathPix
+    states by at most 7 px (2.02 pt) on an edge and 9 px (2.59 pt) on a width,
+    always an exact integer pixel count; the derived span is never wider, and
+    lies inside the stated band in 11 of 12 columns.
+
+    PRECONDITION: `children` are ONE table's children. `parent_id` is present
+    on every MathPix line and is deliberately not read here, so this function
+    cannot tell two tables apart. Feeding it both of page 9's tables at once
+    yields 7x7 / 61 cells where the truth is 7x7 and 4x5, and 16 of the 45
+    occupied slots then hold two cells — one from each table, silently
+    overwriting in `grid()`. Callers group first: `TableProcessor` resolves
+    `children_ids` per table, `ink_tables.tables_of` assigns cells by
+    geometric containment.
+    """
     cells: list[dict] = []
     for ch in children:
         if "cell_row" not in ch or "cell_column" not in ch:

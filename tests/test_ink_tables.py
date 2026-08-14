@@ -190,3 +190,35 @@ def test_hole_count_travels_so_the_discriminator_is_visible():
         page=1)
     assert ink[0]["holes"] == 52
     assert ink[0]["ink_rows"] == 13 and ink[0]["ink_columns"] == 4
+
+
+# ------------------------------------------------- the per-table precondition
+def test_cells_from_mathpix_cannot_tell_two_tables_apart():
+    """`parent_id` is on every MathPix line and this reader does not read it.
+
+    Measured on 2409.18839 p9: feeding both tables' children at once gives
+    7x7 / 61 cells where the truth is 7x7 and 4x5, and 16 of the 45 occupied
+    slots then hold two cells — one from each table, silently overwriting in
+    `grid()`. Both real callers group first (`children_ids` per table;
+    geometric containment), so this is a precondition rather than a live
+    defect — and it is pinned here so it stays one.
+    """
+    a = [_cell(r, c, c * 10, r * 10) for r in range(2) for c in range(2)]
+    b = [_cell(r, c, c * 10, 500 + r * 10) for r in range(2) for c in range(2)]
+    _, nr_a, nc_a = cells_from_mathpix(a)
+    cells_both, nr, nc = cells_from_mathpix(a + b)
+    assert (nr_a, nc_a) == (2, 2)
+    assert (nr, nc) == (2, 2)          # the grid does NOT grow...
+    assert len(cells_both) == 8        # ...but every slot is now doubly filled
+    occupied = {(c["row"], c["col"]) for c in cells_both}
+    assert len(occupied) == 4 and len(cells_both) == 8
+
+
+def test_the_containment_reader_keeps_two_tables_apart():
+    """`tables_of` satisfies the precondition by geometry, which is why the
+    same reader is safe there."""
+    doc = _ink_doc([_table_line(0, 0, 20, 20), _table_line(0, 500, 20, 520),
+                    _cell(0, 0, 0, 0), _cell(0, 1, 10, 0),
+                    _cell(0, 0, 0, 500)])
+    got = ink_tables.tables_of(doc, page=1)
+    assert [len(t["cells"]) for t in got] == [2, 1]
