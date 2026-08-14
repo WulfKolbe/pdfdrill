@@ -1,4 +1,53 @@
+==========================================================================
+THE FLOOR (T4 deliverable 3) -- MEASURED 2026-08-14
+==========================================================================
+`tools/mathgold_floor.py` over the 59 gold equations with geometry, scored
+by LgEval at the pinned 9831a3c.  The floor reads the characters inside the
+equation's rectangle in reading order and joins them left to right: no
+scripts, no fractions, no structure.
+
+  single (n=39)  symbols 0.580 recall / 0.591 precision   relations 0.309
+  all    (n=59)  symbols 0.571 recall / 0.347 precision   relations 0.308
+  expressions fully correct: 0 of 59.
+  gold nodes with no ink (typeface selectors): 48
+
+Both rows reported, neither is the headline.  "single" excludes the 20
+equations carrying an environment; in "all" those are one Unresolved node
+each, which is why its precision falls -- the floor still emits every
+character of an aligned block that the gold declines to model.
+
+Three conditions the numbers are conditional on, each stated in
+`src/mathgold/floor.py` where it is made:
+  - the LaTeX->codepoint vocabulary, measured from pdfplumber output, with
+    unmapped commands left unmapped and COUNTED (\sum x16, \dots x6,
+    \dfrac x5, \coloneq x4 ... -- \sum is a genuine text-layer failure: the
+    big operator comes out as PUA/cid, never as U+2211)
+  - the gold/floor primitive correspondence, established by sequence
+    alignment; LgEval has none a priori
+  - unmatched nodes KEPT so LgEval scores them ABSENT, never dropped
+
+n=59 is anecdotal and must be reported as such.  Enlarging it is not a
+mathgold task: it means attaching geometry to source-built models.
+
+--------------------------------------------------------------------------
 T4 gold-set population and parse rate
+
+RE-MEASURED 2026-08-14 over the WHOLE corpus, not a sample, after three
+parser fixes (spacing transparency; an unbraced script argument is one atom;
+typeface selectors transparent).  Superseding numbers first:
+
+  models scanned      3285
+  documents with eqs  393
+  equations           21334        <- every one, no sampling
+  parsed              21290 (99.79%)   raised 44   (was 76 before the third fix)
+  .lg round-trip      21290/21290 (100.00%)
+
+  remaining failures: 23 "script argument is empty", 11 lex failures on a
+  bare `\`, 11 genuinely unbalanced braces.  All are malformed or
+  macro-dependent source, not a modelled construct.
+
+The original sampled measurement, kept because it is what the earlier
+commits cite:
   population : 21240 author-LaTeX equations over 388 documents
   sample     : 3000, uniform, random.seed(0)
   parsed     : 2994 (99.8%)   raised: 6
