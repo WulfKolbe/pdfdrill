@@ -1797,6 +1797,29 @@ commands:
     flag: --page
     type: int
     help: audit only this page; default every page the ink file carries
+- name: inktree
+  section: Introspection (fast, no extraction)
+  summary: Merge inkdrill ink blobs under the MathPix regions that contain them - flat nodes with parent
+    + parent_type, plus the three residual classes (orphan / straddler / tie) that audit the result
+  offline_ok: true
+  positionals:
+  - name: pdf
+    type: pdf
+    required: true
+    help: PDF path, https URL, or bare arXiv id
+  typed: true
+  requires:
+  - model
+  flags:
+  - name: ink
+    flag: --ink
+    type: str
+    help: 'inkdrill lines.json (REQUIRED; produce with: python3 -m inkdrill <page.png> --glyphs --page-number
+      N -o page.ink.lines.json)'
+  - name: page
+    flag: --page
+    type: int
+    help: merge only this page; default every page the ink file carries
 - name: rulebook
   section: Introspection (fast, no extraction)
   summary: 'Claims/definitions -> kitems (fixpoint, evidence spans) -> rulebook.md: one supported/accepted

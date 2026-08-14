@@ -4077,6 +4077,97 @@ def cmd_inkcoverage(pdf: Path, ink_json: Path, page: "int | None" = None) -> str
               "structure omits and a LaTeX round trip needs.")
 
 
+def _ink_page_inputs(pdf: Path, ink: dict, page: int, keep_containers: bool):
+    """(boxes, regions) for one page, in ONE space. Shared by the audit and
+    the tree so a disagreement between them can never be a conversion."""
+    from . import ink_coverage as IC
+
+    lines = json.loads(_lines_json_path(pdf).read_text(encoding="utf-8"))
+    rec = next((r for r in lines.get("pages", []) if r.get("page") == page), None)
+    if rec is None:
+        return None, None
+    mp = [ln for ln in rec.get("lines", []) if ln.get("region")]
+    if not keep_containers:
+        mp = [ln for ln in mp if ln.get("type") not in IC.CONTAINER_TYPES]
+    import pdfplumber
+    with pdfplumber.open(str(pdf)) as doc:
+        ppage = doc.pages[page - 1]
+        pt = (ppage.width, ppage.height)
+    px = (rec.get("page_width"), rec.get("page_height"))
+    regs = IC.mathpix_regions_pt([ln["region"] for ln in mp], px, pt,
+                                 ids=[f"{ln.get('type')}#{i}"
+                                      for i, ln in enumerate(mp)])
+    regs = [(rid, rect, rid.split("#")[0]) for rid, rect in regs]
+    return IC.ink_boxes(ink, page=page), regs
+
+
+def cmd_inktree(pdf: Path, ink_json: Path, page: "int | None" = None) -> str:
+    """Merge inkdrill's ink under the MathPix regions that contain it (B1-B3).
+
+    Each blob attaches to its DEEPEST containing region, as a FLAT list with a
+    `parent` reference — physical nesting does not survive a round trip, a
+    parent reference does. Each node carries `parent_type`, so "which of these
+    are body text" is one field rather than a walk.
+
+    The tree is the product; the three RESIDUALS are the audit and none is
+    dropped: `orphan` (no region — on a page MathPix partly misses, these are
+    the finding), `straddler` (crosses a boundary, so no correct parent EXISTS
+    and none is invented — forcing one hides a clipped integral sign), and
+    `tie` (two containing regions at the same depth, recorded with its
+    candidates rather than settled by a coin toss). Counts reconcile to the
+    component total.
+
+    Container regions are KEPT here — nesting is what supplies the depth —
+    where `inkcoverage` drops them. Same inputs, opposite treatment, because
+    they answer different questions. Stores `ink_tree` in the sidecar.
+    """
+    from . import ink_tree as IT
+
+    sc = Sidecar(pdf)
+    try:
+        ink = json.loads(Path(ink_json).read_text(encoding="utf-8"))
+    except Exception as e:
+        return f"pdfdrill inktree: cannot read {ink_json}: {e}"
+    if not _lines_json_path(pdf).exists():
+        return ("pdfdrill inktree: no MathPix lines.json — there are no regions "
+                "to merge under. Run `pdfdrill model` first.")
+
+    want = [page] if page else [r.get("page") for r in ink.get("pages", [])
+                                if r.get("page")]
+    out, stored = [], {}
+    for pg in want:
+        try:
+            boxes, regs = _ink_page_inputs(pdf, ink, pg, keep_containers=True)
+        except ValueError as e:
+            return f"pdfdrill inktree: {e}"
+        if boxes is None:
+            out.append(f"  page {pg}: no MathPix page record — skipped")
+            continue
+        tree = IT.build_tree(boxes, regs)
+        stored[str(pg)] = tree
+        c = tree["counts"]
+        top = sorted(tree["by_parent_type"].items(), key=lambda kv: -kv[1])[:4]
+        deep = sorted(((len(v), k) for k, v in tree["children"].items()),
+                      reverse=True)[:1]
+        out.append(
+            f"  page {pg}: {tree['components']} blobs under {tree['regions']} "
+            f"regions — attached {c['attached']}, orphan {c['orphan']}, "
+            f"straddler {c['straddler']}, tie {c['tie']}"
+            + (f"\n      by parent: "
+               + ", ".join(f"{k} {n}" for k, n in top) if top else "")
+            + (f"\n      largest region: {deep[0][1]} with {deep[0][0]} children"
+               if deep and deep[0][0] else ""))
+
+    sc.set_evidence("ink_tree", stored)
+    sc.save()
+    return ("Merged ink tree (inkdrill blobs under MathPix regions):\n"
+            + "\n".join(out)
+            + "\n  Flat nodes with `parent` + `parent_type` in the sidecar "
+              "(ink_tree). A straddler is deliberately UNPARENTED: it is "
+              "evidence the region boundary is wrong, and assigning it would "
+              "destroy that evidence. A tie carries its candidate regions.")
+
+
 def cmd_clean(pdf: Path) -> str:
     """Clean MathPix LaTeX residuals from the model so semantic analysis sees
     plain text. Today: leading `\\section*{Title}` commands that MathPix merged
@@ -6976,7 +7067,12 @@ def cmd_inspect(pdf: Path, pages: str | None = None, embed: bool = True,
             tiddlers=str(tiddlers) if tiddlers.exists() else None,
             pages_dir=str(pages_dir) if pages_dir else None,
             embed=embed, embed_dpi=dpi, src_dpi=src_dpi, title=bibkey,
-            page_filter=page_filter)
+            page_filter=page_filter,
+            # B4: the merged ink tree, when `pdfdrill inktree` has run. None
+            # (not {}) when it has not, so the panel is ABSENT rather than
+            # empty — "no ink found" and "inkdrill never ran" are different
+            # statements and must not render the same.
+            ink_tree=sc.get_evidence("ink_tree") or None)
     except Exception as e:                          # noqa: BLE001
         return f"inspect failed for {pdf.name}: {e}"
 

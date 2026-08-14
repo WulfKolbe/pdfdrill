@@ -547,6 +547,7 @@ _Generated from `commands.yaml` by skillsync. Edit the manifest, not this sectio
 | `pdfdrill clean <pdf>` | Strip MathPix LaTeX residuals from the model: a leading section* command merged into a paragraph -> the title alone + kind/refnum fields (so semantic analysis sees plain text) |
 | `pdfdrill locate <pdf>` | Locate embedded images on their pages (canonical pt/top-left coords + normalized [0,1] + PDF object number), detect full-page/template images, and COMPARE to MathPix regions (IoU) incl. MathPix-only figures |
 | `pdfdrill inkcoverage <pdf> [--ink INK] [--page PAGE]` | Classify inkdrill ink components against this document's MathPix regions - inside / MISSED (content MathPix did not report, e.g. the rules that draw a table) / straddling / overlapping / empty region, with member ids per page |
+| `pdfdrill inktree <pdf> [--ink INK] [--page PAGE]` | Merge inkdrill ink blobs under the MathPix regions that contain them - flat nodes with parent + parent_type, plus the three residual classes (orphan / straddler / tie) that audit the result |
 | `pdfdrill rulebook <pdf> [--force]` | Claims/definitions -> kitems (fixpoint, evidence spans) -> rulebook.md: one supported/accepted statement per line with a [->k:hash] drill-down anchor + kitem tiddlers |
 | `pdfdrill svg <pdf> [--limit LIMIT] [--force]` | Render TikZ diagrams + tables to SVG via latex->dvisvgm (KaTeX can't); embeds in the report |
 | `pdfdrill stex <pdf> [--stex] [--compile]` | Project the semantic graph to enriched LaTeX: acronyms/glossary/Table-of-Symbols/index (--compile runs lualatex), or sTeX smodule/symdecl/symref (--stex). Needs `semantic` first |
@@ -625,6 +626,6 @@ _Generated from `commands.yaml` by skillsync. Edit the manifest, not this sectio
 <!-- COMMANDS:END -->
 
 <!-- PREFLIGHT-TOKEN:BEGIN -->
-Attestation token — the LAST line of this SKILL. If you can read this, you read the whole file. Run `pdfdrill preflight --ack DRILL-4671d51b` before any build/extract command.
-DRILL-4671d51b
+Attestation token — the LAST line of this SKILL. If you can read this, you read the whole file. Run `pdfdrill preflight --ack DRILL-1d787472` before any build/extract command.
+DRILL-1d787472
 <!-- PREFLIGHT-TOKEN:END -->

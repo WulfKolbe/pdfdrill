@@ -115,6 +115,63 @@ work — rasterize each `diagram` region, run inkdrill on it, and attach the
 result as `ink.*` children so the region stays opaque to consumers that want
 it opaque.
 
+---
+
+## B1–B4 — the merged tree, its residuals, and the collapsed inspector
+
+`pdfdrill inktree <pdf> --ink <lines.json> [--page N]`
+(`src/pdfdrill/ink_tree.py`, `tests/test_ink_tree.py`, 9 tests).
+
+**B1.** Each blob attaches to its **deepest** containing region, as a FLAT list
+with a `parent` reference — physical nesting does not survive a round trip, a
+parent reference does. Each node carries `parent_type`, so "which of these are
+body text" is one field.
+
+**Container regions are KEPT here** and dropped by `inkcoverage`. Same two
+inputs, opposite treatment, because they answer different questions: coverage
+measures how much of the page MathPix saw (nesting would double-count), the
+tree needs the nesting to have a depth at all.
+
+**B2.** Three residual classes, none droppable, and the counts reconcile to the
+component total (asserted, not assumed). A **straddler is never given a
+parent** — a blob crossing a boundary is evidence the *boundary* is wrong, and
+assigning it destroys exactly that evidence. A **tie** carries its candidate
+regions rather than being settled by whichever the sort put first.
+
+### Measured
+
+| | 2409.18839 p8 | 2510.11170v2 p1 |
+|---|---|---|
+| blobs / regions | 3357 / 101 | 3668 / 72 |
+| attached | 3355 | 3668 |
+| orphan / straddler / tie | 0 / 1 / 1 | 0 / 0 / 0 |
+| reconciles | ✓ | ✓ |
+| by parent | **text 2736**, simple_cell 386, figure_label 102, footnote 80 | text 2720, **diagram 911**, page_info 37 |
+
+`text 2736` is your number exactly. The single tie is a real one: a blob
+contained by both `table_column#6` and `table_row#10`, neither inside the
+other — no deepest exists, so none is invented.
+
+**B3** falls out of B1 with nothing extra: `diagram#52` carries **911
+children** while remaining one opaque region to any consumer that reads
+regions. Orphans are 0 on both pages *because* the rules never leave inkdrill —
+when that emit gap closes, the 35 rules should appear here as orphans.
+
+**B4.** `pdfdrill inspect` renders the tree when `inktree` has run: region rows
+by default, children only on expand, residuals always visible above them.
+Verified on the real page by booting the shipped script against the DOM shim —
+**101 region rows, 0 blob rows on open, 92 after expanding one**, with
+`straddler 1 / tie 1` shown without a click. The panel is **absent**, not
+empty, when no ink was merged: "no ink found" and "inkdrill never ran" must not
+render the same.
+
+One defect found by that check and fixed: the residual line counted the
+rectangle array, so a tree stored before rects were recorded displayed
+`straddler 0` for a page that has one — a zero meaning "unknown", which is the
+failure the audit exists to catch. The count now comes from `residual_counts`.
+
+The canvas layer was not needed and was not built.
+
 ## Phase 3–5 — not started
 
 3 table structure from ink · 4 rule weights · 5 the two-layer `inspect`

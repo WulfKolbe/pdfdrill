@@ -157,7 +157,20 @@ function _shimMkDoc(bodyHtml){
                       n.children.forEach(index); })(body);
   return {
     body,
-    getElementById: (id) => _SHIM_REG[id] || null,
+    /* The registry is built once at parse time, so a node CREATED by the page
+     * and given an id was invisible here while a real browser finds it —
+     * `inkPanel` is built by inkRender(), and the panel tests died on null
+     * before asserting anything. Fall back to a live walk, which is what the
+     * DOM does. */
+    getElementById(id){
+      if (_SHIM_REG[id] && _SHIM_REG[id].isConnected !== false) return _SHIM_REG[id];
+      let found = null;
+      const walk = (n) => { if (found) return;
+        if (n.attributes && n.attributes.id === id) { found = n; return; }
+        n.children.forEach(walk); };
+      walk(body);
+      return found || _SHIM_REG[id] || null;
+    },
     createElement: (t) => new _ShimNode(t),
     createDocumentFragment: () => new _ShimNode("#fragment"),
     createTextNode: (t) => { const n = new _ShimNode("#text"); n._text = String(t); return n; },

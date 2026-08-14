@@ -578,6 +578,53 @@ def vendor_katex(katex_dir: str) -> Optional[dict]:
 from .ink_view import blob_arrays as _blob_arrays, DEFAULT_OFF as _DEFAULT_OFF
 
 
+def _ink_payload(ink_tree: Optional[dict],
+                 page_filter: Optional[set]) -> Optional[dict]:
+    """The merged ink tree in the compact shape the panel renders (B4).
+
+    `region_list` is one row per REGION — that is what opens by default, tens
+    of rows on a page with thousands of blobs. `kids` holds the rectangles,
+    rendered only on expand: they must be IN the payload (there is no server to
+    ask) but must not be in the DOM until asked for.
+
+    Accepts either the sidecar's stored `ink_tree` (nodes + children) or the
+    already-compact shape, so a caller does not have to know which it holds.
+    """
+    if not ink_tree:
+        return None
+    out: dict[str, Any] = {}
+    for pg, tree in ink_tree.items():
+        if page_filter is not None and _int(pg) not in page_filter:
+            continue
+        if "region_list" in tree:                      # already compact
+            out[str(pg)] = tree
+            continue
+        rects = {n["id"]: n.get("rect") for n in tree.get("nodes", [])}
+        rr = tree.get("residual_rects") or {}
+        children = tree.get("children", {})
+        rtype = {n["parent"]: n.get("parent_type", "")
+                 for n in tree.get("nodes", [])}
+        region_list, kids = [], {}
+        for rid, ids in children.items():
+            region_list.append([rid, rtype.get(rid, str(rid).split("#")[0]),
+                                len(ids), None])
+            kids[rid] = [rects.get(i) for i in ids if rects.get(i)]
+        # biggest first: the region worth opening is the one hiding the most
+        region_list.sort(key=lambda r: (-r[2], str(r[0])))
+        out[str(pg)] = {
+            "components": tree.get("components", 0),
+            "regions": tree.get("regions", len(region_list)),
+            "region_list": region_list,
+            "kids": kids,
+            "residuals": {k: [] for k in ("orphan", "straddler", "tie")}
+            | {k: [rr[str(i)] for i in v if str(i) in rr]
+               for k, v in (tree.get("residuals") or {}).items()},
+            "residual_counts": {k: len(v)
+                                for k, v in (tree.get("residuals") or {}).items()},
+        }
+    return out or None
+
+
 def build_inspector_html(
     model: dict,
     *,
@@ -586,6 +633,7 @@ def build_inspector_html(
     image_mode: str = "embed",
     katex_inline: Optional[dict] = None,
     page_filter: Optional[set] = None,
+    ink_tree: Optional[dict] = None,
 ) -> str:
     sidx = build_stream_index(model)
     elements, pages_meta, blobs = collect_elements(model, sidx, with_blobs=True)
@@ -608,6 +656,10 @@ def build_inspector_html(
         "languages": document_languages(model),
         # The blob layer: one flat typed array, one canvas, no DOM node each.
         "blobs": _blob_arrays(blobs),
+        # B4: the merged ink tree, if `pdfdrill inktree` has run. Absent (not
+        # empty) when it has not — an empty panel reads as "no ink found" when
+        # the truth is "inkdrill never ran", and those are different statements.
+        "ink": _ink_payload(ink_tree, page_filter),
         "cat_default_off": list(_DEFAULT_OFF),
     }
     data_json = json.dumps(payload).replace("</", "<\\/")
@@ -843,6 +895,7 @@ button{font:inherit;color:inherit;background:none;border:0;cursor:pointer}
     <h4>Elements <span class="count" id="elCount"></span></h4>
     <div class="filterbar"><input id="filter" placeholder="filter by type or text…"></div>
     <div class="treewrap" id="tree"></div>
+    <div id="inkMount"></div>
     <div class="inspector">
       <div class="insphead"><span class="badge" id="ihBadge">—</span>
         <span class="t" id="ihTitle">Inspector</span>
@@ -1739,7 +1792,90 @@ function init(){
   setView(curView);
 }
 DATA.__SUB__="__SUBTITLE__";
+/* ---- B4: the merged ink tree -------------------------------------------- *
+ * A page carries thousands of ink components and tens of MathPix regions, so
+ * the REGION is the row and the blobs are what a row opens. Rendering a node
+ * per blob is what made this panel impossible before the tree existed; the
+ * counts come from the payload, and `kids` is only touched on a click.
+ *
+ * The residuals sit ABOVE the regions and are never behind a click: the tree
+ * is the product, the residuals are the audit, and a straddler nobody opens is
+ * a straddler nobody looks at. */
+function inkRender(){
+  const ink = DATA.ink;
+  if (!ink) return;                       // inkdrill never ran — no panel at all
+  const mount = document.getElementById('inkMount');
+  if (!mount) return;
+  const panel = document.createElement('div');
+  panel.className = 'treewrap';
+  panel.setAttribute('id', 'inkPanel');
+  mount.appendChild(panel);
+
+  const pages = Object.keys(ink).sort((a, b) => (+a) - (+b));
+  const draw = () => {
+    panel.innerHTML = '';
+    const pg = String(inkPage);
+    const t = ink[pg];
+    const head = document.createElement('h4');
+    head.textContent = t
+      ? 'Ink  ' + t.components + ' blobs · ' + (t.region_list || []).length + ' regions'
+      : 'Ink  (no ink merged for page ' + pg + ')';
+    panel.appendChild(head);
+    if (!t) return;
+
+    const res = t.residuals || {};
+    /* The COUNT comes from residual_counts, never from the rect array: a tree
+     * built before rects were recorded has the ids but no rectangles, and
+     * counting the rects reported "straddler 0" for a page that has one. A
+     * zero meaning "unknown" is the exact failure this audit exists to catch. */
+    const rc = t.residual_counts || {};
+    ['orphan', 'straddler', 'tie'].forEach(k => {
+      const n = (k in rc) ? rc[k] : (res[k] || []).length;
+      const row = document.createElement('div');
+      row.className = 'inkresidual ' + k;
+      /* Zero is reported too. "orphan 0" is a measurement; a missing line is
+       * indistinguishable from a class that was never computed. */
+      row.textContent = k + '  ' + n;
+      panel.appendChild(row);
+    });
+
+    (t.region_list || []).forEach(r => {
+      const [rid, rtype, n] = r;
+      const row = document.createElement('div');
+      row.className = 'inkregion';
+      row.dataset.rid = rid;
+      row.textContent = (n ? '▸ ' : '  ') + rtype + '  ' + n + '   ' + rid;
+      const kidbox = document.createElement('div');
+      kidbox.className = 'inkkids';
+      row.addEventListener('click', () => {
+        if (kidbox.children.length) {          // collapse: drop the DOM again
+          while (kidbox.children.length) kidbox.removeChild(kidbox.children[0]);
+          return;
+        }
+        const kids = (t.kids || {})[rid] || [];
+        kids.forEach((b, i) => {
+          const k = document.createElement('div');
+          k.className = 'inkkid';
+          k.textContent = '· ' + Math.round(b[2] - b[0]) + '×'
+                            + Math.round(b[3] - b[1]) + ' pt';
+          kidbox.appendChild(k);
+        });
+      });
+      panel.appendChild(row);
+      panel.appendChild(kidbox);
+    });
+  };
+  let inkPage = +pages[0];
+  const sel = document.getElementById('pageSel');
+  if (sel) sel.addEventListener('change', () => {
+    const v = +sel.value;
+    if (ink[String(v)]) { inkPage = v; draw(); }
+  });
+  draw();
+}
+
 init();
+inkRender();
 </script>
 </body>
 </html>
@@ -1763,6 +1899,7 @@ def build_from_paths(
     title: Optional[str] = None,
     katex_dir: Optional[str] = None,
     page_filter: Optional[set] = None,
+    ink_tree: Optional[dict] = None,
 ) -> tuple[str, int, int, str]:
     """Reusable core behind the CLI and `pdfdrill inspect`: load the model,
     resolve the image source, and return (html, n_pages, n_elements, mode).
@@ -1799,7 +1936,8 @@ def build_from_paths(
 
     ttl = title or model["meta"].get("bibkey", "docinspect")
     html_doc = build_inspector_html(model, pages=pages, title=ttl, image_mode=mode,
-                                    katex_inline=katex_inline, page_filter=page_filter)
+                                    katex_inline=katex_inline, page_filter=page_filter,
+                                    ink_tree=ink_tree)
     if out:
         with open(out, "w", encoding="utf-8") as fh:
             fh.write(html_doc)

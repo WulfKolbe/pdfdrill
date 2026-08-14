@@ -1070,6 +1070,19 @@ def _do_inkcoverage(args):
     return cmd_inkcoverage(_pdf(rest), _P(ink), int(page) if page else None)
 
 
+def _do_inktree(args):
+    """pdfdrill inktree <pdf> --ink <inkdrill.lines.json> [--page N]"""
+    from .commands import cmd_inktree
+    ink, rest = _opt(list(args), "--ink")
+    page, rest = _opt(rest, "--page")
+    if not ink:
+        return ("pdfdrill inktree: --ink <inkdrill lines.json> is required. "
+                "Produce one with: python3 -m inkdrill <page.png> --glyphs "
+                "--page-number N -o page.ink.lines.json")
+    from pathlib import Path as _P
+    return cmd_inktree(_pdf(rest), _P(ink), int(page) if page else None)
+
+
 def _do_clean(args):
     """pdfdrill clean <pdf|md>"""
     from .commands import cmd_clean
@@ -1918,6 +1931,7 @@ HANDLERS = {
         "classify": _do_classify,
         "clean": _do_clean,
         "inkcoverage": _do_inkcoverage,
+        "inktree": _do_inktree,
         "locate": _do_locate,
         "rulebook": _do_rulebook,
         "svg": _do_svg,
