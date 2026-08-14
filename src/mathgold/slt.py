@@ -83,9 +83,23 @@ _TOKEN = re.compile(r"""
 # `\sum\limits_{i}` is a base with a subscript; treating `\limits` as a term
 # left the `_` with no base and raised on 18 of 3000 real gold equations.
 # Dropped at LEX time so they are never terms at all.
+#
+# The horizontal spacers belong to the same class for the same reason:
+# `c\;\!\!^\dagger` (a creation operator with the dagger tucked in) ended the
+# base's run at the first `\;` and left the `^` with nothing to attach to.
+# That construct alone accounted for 4 of the 59 scorable gold equations.
+# `\hspace`/`\vspace` are deliberately NOT here — they take an argument, and
+# dropping the command would leave `{1cm}` behind as symbols either way.
 _TRANSPARENT = {r"\limits", r"\nolimits", r"\displaystyle", r"\textstyle",
                 r"\scriptstyle", r"\scriptscriptstyle", r"\left", r"\right",
-                r"\bigl", r"\bigr", r"\Bigl", r"\Bigr", r"\biggl", r"\biggr"}
+                r"\bigl", r"\bigr", r"\Bigl", r"\Bigr", r"\biggl", r"\biggr",
+                r"\,", r"\;", r"\:", r"\!", r"\ ", r"\quad", r"\qquad",
+                r"\thinspace", r"\medspace", r"\thickspace", r"\negthinspace",
+                # Typeface selectors: they put no ink on the page either, and
+                # as TERMS they returned nothing, so `x^\mathrm{i}` raised
+                # "script argument is empty" — 55 of 21,334 corpus equations.
+                r"\mathrm", r"\mathit", r"\mathsf", r"\mathtt", r"\bf", r"\rm",
+                r"\it", r"\operatorname"}
 
 
 def _lex(src: str) -> list[tuple[str, str]]:
@@ -166,7 +180,13 @@ class _Parser:
         return first, last
 
     def _group(self) -> tuple[Optional[str], Optional[str]]:
-        """`{...}` or a single term — the argument of a script or a command."""
+        """`{...}` or a single ATOM — the argument of a script or a command.
+
+        Unbraced, the argument is one atom and takes no script of its own:
+        `x^a_b` is x with both scripts, not x sup (a sub b). Letting it parse a
+        full term let it swallow the following `_` and silently built the tree
+        one level too deep. Braces still nest: `x^{a_b}` really is nested.
+        """
         t = self._peek()
         if t is None:
             raise ValueError("expression ends where an argument was required")
@@ -175,9 +195,9 @@ class _Parser:
             head, tail = self._sequence(stop_on_close=True)
             self._next()                            # consume '}'
             return head, tail
-        return self._term()
+        return self._term(scripts=False)
 
-    def _term(self) -> tuple[Optional[str], Optional[str]]:
+    def _term(self, scripts: bool = True) -> tuple[Optional[str], Optional[str]]:
         kind, text = self._next()
 
         if kind == "open":
@@ -233,7 +253,7 @@ class _Parser:
             base_head = base_tail = self._node(text)
 
         # scripts attach to the BASE, and both attach to the same base
-        while True:
+        while scripts:
             t = self._peek()
             if t is None or t[0] not in ("sup", "sub"):
                 break

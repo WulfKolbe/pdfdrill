@@ -160,6 +160,44 @@ def test_a_transparent_modifier_does_not_separate_a_base_from_its_scripts():
     assert labels(slt) == [r"\sum", "i", "n"]   # `\` sorts before letters
 
 
+def test_spacing_does_not_separate_a_base_from_its_scripts():
+    r"""`c\;\!\!^\dagger` is a creation operator with the dagger tucked in.
+
+    Same defect as `\limits`, same class of cause: spacing carries no ink, so
+    treating it as a TERM ended the base's run and left the `^` with nothing to
+    attach to. Four of the 59 scorable gold equations raised on exactly this —
+    every one of them this construct.
+    """
+    slt = parse_latex_slt(r"c\;\!\!^\dagger_{i}")
+    assert labels(slt) == [r"\dagger", "c", "i"]
+    assert rels(slt) == sorted([("c", r"\dagger", SUP), ("c", "i", SUB)])
+
+
+def test_a_font_wrapper_is_transparent_and_can_carry_a_script_argument():
+    r"""`\dfrac{\mathrm{i}}{\hbar}` — `\mathrm` selects a typeface and puts no
+    ink of its own on the page.
+
+    Treated as a TERM it returned nothing, so `x^\mathrm{i}` raised "script
+    argument is empty": 55 of 21,334 corpus equations, the largest remaining
+    failure class after the spacing fix, and the same defect a third time — a
+    no-ink command standing where a symbol was required.
+    """
+    assert labels(parse_latex_slt(r"x^\mathrm{i}")) == ["i", "x"]
+    assert rels(parse_latex_slt(r"x^\mathrm{i}")) == [("x", "i", SUP)]
+    assert labels(parse_latex_slt(r"\mathrm{ab}")) == ["a", "b"]
+
+
+def test_an_unbraced_script_argument_is_one_atom_and_takes_no_script_of_its_own():
+    r"""`x^a_b` is x with BOTH scripts — not x sup (a sub b).
+
+    An unbraced script argument is a single atom in LaTeX; parsing it as a full
+    term let it swallow the following `_`, silently rebuilding the tree one
+    level too deep. Braces still mean what they say: `x^{a_b}` really is nested.
+    """
+    assert rels(parse_latex_slt("x^a_b")) == sorted([("x", "a", SUP), ("x", "b", SUB)])
+    assert rels(parse_latex_slt("x^{a_b}")) == sorted([("x", "a", SUP), ("a", "b", SUB)])
+
+
 def test_delimiter_sizing_is_transparent_but_the_delimiter_is_ink():
     slt = parse_latex_slt(r"\left( a \right)")
     assert labels(slt) == ["(", ")", "a"]
