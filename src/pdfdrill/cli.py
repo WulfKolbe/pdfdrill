@@ -1057,6 +1057,19 @@ def _do_locate(args):
     return cmd_locate(_pdf(args))
 
 
+def _do_inkcoverage(args):
+    """pdfdrill inkcoverage <pdf> --ink <inkdrill.lines.json> [--page N]"""
+    from .commands import cmd_inkcoverage
+    ink, rest = _opt(list(args), "--ink")
+    page, rest = _opt(rest, "--page")
+    if not ink:
+        return ("pdfdrill inkcoverage: --ink <inkdrill lines.json> is required. "
+                "Produce one with: python3 -m inkdrill <page.png> --glyphs "
+                "--page-number N -o page.ink.lines.json")
+    from pathlib import Path as _P
+    return cmd_inkcoverage(_pdf(rest), _P(ink), int(page) if page else None)
+
+
 def _do_clean(args):
     """pdfdrill clean <pdf|md>"""
     from .commands import cmd_clean
@@ -1904,6 +1917,7 @@ HANDLERS = {
         "visionocr": _do_visionocr,
         "classify": _do_classify,
         "clean": _do_clean,
+        "inkcoverage": _do_inkcoverage,
         "locate": _do_locate,
         "rulebook": _do_rulebook,
         "svg": _do_svg,

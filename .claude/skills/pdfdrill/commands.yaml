@@ -1773,6 +1773,30 @@ commands:
   typed: true
   requires:
   - model
+- name: inkcoverage
+  section: Introspection (fast, no extraction)
+  summary: Classify inkdrill ink components against this document's MathPix regions - inside / MISSED (content
+    MathPix did not report, e.g. the rules that draw a table) / straddling / overlapping / empty region,
+    with member ids per page
+  offline_ok: true
+  positionals:
+  - name: pdf
+    type: pdf
+    required: true
+    help: PDF path, https URL, or bare arXiv id
+  typed: true
+  requires:
+  - model
+  flags:
+  - name: ink
+    flag: --ink
+    type: str
+    help: 'inkdrill lines.json (REQUIRED; produce with: python3 -m inkdrill <page.png> --glyphs --page-number
+      N -o page.ink.lines.json). pdfdrill consumes inkdrill output, it never imports inkdrill'
+  - name: page
+    flag: --page
+    type: int
+    help: audit only this page; default every page the ink file carries
 - name: rulebook
   section: Introspection (fast, no extraction)
   summary: 'Claims/definitions -> kitems (fixpoint, evidence spans) -> rulebook.md: one supported/accepted

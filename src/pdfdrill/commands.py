@@ -3997,6 +3997,86 @@ def cmd_locate(pdf: Path) -> str:
               "image = 'nothing to do'; a MathPix-only figure -> rasterize+crop.")
 
 
+def cmd_inkcoverage(pdf: Path, ink_json: Path, page: "int | None" = None) -> str:
+    """Classify inkdrill's ink components against the MathPix regions already
+    in this document — what MathPix did not report, and where.
+
+    MathPix reports what it FOUND; ink reports what is THERE. Reads an inkdrill
+    `lines.json` (pdfdrill consumes it; it never imports inkdrill) and reports,
+    per page, the four ink classes plus regions with no ink, with the MEMBER ids
+    of the residual classes — the per-page spread is the finding and the
+    aggregate buries it. Stores `ink_coverage` in the sidecar.
+
+    CONTAINER regions (`table`/`table_row`/`table_column`) are excluded: they
+    nest around their own cells, so every cell's ink falls inside two regions
+    and lands in `overlapping`, which describes the nesting rather than the
+    page. On 2409.18839 p8 that is the difference between 36.25% and 47.78%
+    `inside`.
+    """
+    from . import ink_coverage as IC
+
+    sc = Sidecar(pdf)
+    try:
+        ink = json.loads(Path(ink_json).read_text(encoding="utf-8"))
+    except Exception as e:
+        return f"pdfdrill inkcoverage: cannot read {ink_json}: {e}"
+
+    lines_path = _lines_json_path(pdf)
+    if not lines_path.exists():
+        return ("pdfdrill inkcoverage: no MathPix lines.json for this document — "
+                "there are no regions to audit against. Run `pdfdrill model` first.")
+    lines = json.loads(lines_path.read_text(encoding="utf-8"))
+    px = {p["page"]: (p.get("page_width"), p.get("page_height"))
+          for p in lines.get("pages", [])}
+
+    try:
+        import pdfplumber
+    except ImportError:
+        return "pdfdrill inkcoverage: pdfplumber is required for the page size"
+
+    ink_pages = [rec.get("page") for rec in ink.get("pages", [])]
+    want = [page] if page else [p for p in ink_pages if p]
+    out, report = [], {}
+    with pdfplumber.open(str(pdf)) as doc:
+        for pg in want:
+            if pg not in px or pg > len(doc.pages):
+                out.append(f"  page {pg}: no MathPix page record — skipped")
+                continue
+            ppage = doc.pages[pg - 1]
+            mp = [ln for ln in
+                  next((r for r in lines["pages"] if r["page"] == pg), {}).get("lines", [])
+                  if ln.get("region")]
+            leaf = [ln for ln in mp if ln.get("type") not in IC.CONTAINER_TYPES]
+            regs = IC.mathpix_regions_pt(
+                [ln["region"] for ln in leaf], px[pg],
+                (ppage.width, ppage.height),
+                ids=[f"{ln.get('type')}#{i}" for i, ln in enumerate(leaf)])
+            try:
+                boxes = IC.ink_boxes(ink, page=pg)
+            except ValueError as e:
+                return f"pdfdrill inkcoverage: {e}"
+            rep = IC.classify(boxes, regs, min_area=4)
+            rep["containers_dropped"] = len(mp) - len(leaf)
+            report[str(pg)] = rep
+            c = rep["counts"]
+            out.append(
+                f"  page {pg}: {rep['boxes']} ink components vs {rep['regions']} "
+                f"regions ({rep['containers_dropped']} containers dropped) — "
+                f"inside {c[IC.INSIDE]} ({rep['fractions'][IC.INSIDE] * 100:.2f}%), "
+                f"MISSED {c[IC.MISSED]}, straddling {c[IC.STRADDLE]}, "
+                f"overlapping {c[IC.OVERLAPPING]}, empty regions {c[IC.EMPTY_REGION]}")
+
+    sc.set_evidence("ink_coverage", report)
+    sc.save()
+    return ("Ink coverage audit (MathPix regions vs inkdrill components):\n"
+            + "\n".join(out)
+            + "\n  Read the per-page spread, not the mean: the residual classes "
+              "(MISSED, straddling) carry member ids in the sidecar "
+              "(ink_coverage). MISSED ink is content MathPix did not report — on "
+              "a ruled table that is the rules themselves, which the logical "
+              "structure omits and a LaTeX round trip needs.")
+
+
 def cmd_clean(pdf: Path) -> str:
     """Clean MathPix LaTeX residuals from the model so semantic analysis sees
     plain text. Today: leading `\\section*{Title}` commands that MathPix merged

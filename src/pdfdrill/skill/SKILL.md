@@ -546,6 +546,7 @@ _Generated from `commands.yaml` by skillsync. Edit the manifest, not this sectio
 | `pdfdrill enhance <pdf> [--only ONLY] [--skip SKIP]` | Run the uniform enhancement PASS PIPELINE over the model IR — an ordered, dependency-aware sequence of idempotent passes (frontmatter/math/citation/concepts/abstract/toc/index/summary). Loads the Document once, runs the passes, persists once. Projectors consume the enriched model. |
 | `pdfdrill clean <pdf>` | Strip MathPix LaTeX residuals from the model: a leading section* command merged into a paragraph -> the title alone + kind/refnum fields (so semantic analysis sees plain text) |
 | `pdfdrill locate <pdf>` | Locate embedded images on their pages (canonical pt/top-left coords + normalized [0,1] + PDF object number), detect full-page/template images, and COMPARE to MathPix regions (IoU) incl. MathPix-only figures |
+| `pdfdrill inkcoverage <pdf> [--ink INK] [--page PAGE]` | Classify inkdrill ink components against this document's MathPix regions - inside / MISSED (content MathPix did not report, e.g. the rules that draw a table) / straddling / overlapping / empty region, with member ids per page |
 | `pdfdrill rulebook <pdf> [--force]` | Claims/definitions -> kitems (fixpoint, evidence spans) -> rulebook.md: one supported/accepted statement per line with a [->k:hash] drill-down anchor + kitem tiddlers |
 | `pdfdrill svg <pdf> [--limit LIMIT] [--force]` | Render TikZ diagrams + tables to SVG via latex->dvisvgm (KaTeX can't); embeds in the report |
 | `pdfdrill stex <pdf> [--stex] [--compile]` | Project the semantic graph to enriched LaTeX: acronyms/glossary/Table-of-Symbols/index (--compile runs lualatex), or sTeX smodule/symdecl/symref (--stex). Needs `semantic` first |
@@ -624,6 +625,6 @@ _Generated from `commands.yaml` by skillsync. Edit the manifest, not this sectio
 <!-- COMMANDS:END -->
 
 <!-- PREFLIGHT-TOKEN:BEGIN -->
-Attestation token — the LAST line of this SKILL. If you can read this, you read the whole file. Run `pdfdrill preflight --ack DRILL-01dcbf53` before any build/extract command.
-DRILL-01dcbf53
+Attestation token — the LAST line of this SKILL. If you can read this, you read the whole file. Run `pdfdrill preflight --ack DRILL-4671d51b` before any build/extract command.
+DRILL-4671d51b
 <!-- PREFLIGHT-TOKEN:END -->
