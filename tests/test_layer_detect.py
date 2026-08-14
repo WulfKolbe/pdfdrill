@@ -11,11 +11,14 @@ arXiv 1706.03762, built and force-rebuilt on this machine.
 The regions row is why `has_geometry` does not look at regions: they SURVIVE
 the rebuild, because the merged born-digital build sets them itself.
 """
+import gzip
 import json
+import os
 import os
 import sys
 import time
 from pathlib import Path
+from typing import Optional
 
 import pytest
 
@@ -23,14 +26,38 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "src"))
 
 from pdfdrill import layer_detect as LD
 
-_FIX = Path("/tmp/claude-1000/-home-wkolbe-MX-PDFDRILL/7baec1d2-e80a-4a6c-adcf-bc7e26fc094e/scratchpad")
-_BEFORE, _AFTER = _FIX / "model_BEFORE.json", _FIX / "model_AFTER.json"
-_have_fixtures = _BEFORE.exists() and _AFTER.exists()
+# Committed, gzipped, 128 KB for the pair. They previously lived only in a
+# scratchpad path containing a SESSION ID, so they were absent in every new
+# session and these tests skipped for five of them — a skip that was never a
+# pass. The estimate that kept them out ("~15 MB") was never measured; the real
+# figure is 103 KB + 25 KB.
+_REPO_FIX = Path(__file__).resolve().parent / "fixtures" / "layer_detect"
+# A scratchpad copy still wins when present, so a regenerated pair can be tried
+# without touching the repo.
+_SCRATCH = Path(os.environ.get(
+    "PDFDRILL_LAYER_FIXTURES",
+    "/tmp/claude-1000/-home-wkolbe-MX-PDFDRILL/"
+    "7baec1d2-e80a-4a6c-adcf-bc7e26fc094e/scratchpad"))
+
+
+def _fixture(name: str) -> Optional[Path]:
+    plain = _SCRATCH / f"{name}.json"
+    if plain.exists():
+        return plain
+    gz = _REPO_FIX / f"{name}.json.gz"
+    return gz if gz.exists() else None
+
+
+_BEFORE, _AFTER = _fixture("model_BEFORE"), _fixture("model_AFTER")
+_have_fixtures = _BEFORE is not None and _AFTER is not None
 needs_fixtures = pytest.mark.skipif(
     not _have_fixtures, reason="1706.03762 before/after models not on this machine")
 
 
 def _load(p):
+    if str(p).endswith(".gz"):
+        with gzip.open(p, "rt", encoding="utf-8") as fh:
+            return json.load(fh)
     return json.load(open(p, encoding="utf-8"))
 
 

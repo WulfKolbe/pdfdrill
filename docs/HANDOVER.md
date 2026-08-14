@@ -131,23 +131,24 @@ loss. A parallel session landed `bc76c36` for this; reconcile before redoing it.
 
 ---
 
-## 4. Known skips — 5, same cause
+## 4. Known skips — none
 
-    tests/test_layer_detect.py  (5)  "1706.03762 before/after models not on this machine"
+The suite runs **1974 passed, 0 skipped**.
 
-The fixture path is a hardcoded absolute scratchpad path CONTAINING A SESSION ID,
-so these re-skip in every new session by construction. That is why they have
-survived four sessions.
+`tests/test_layer_detect.py` skipped for five sessions because its 1706.03762
+before/after fixtures lived only in a scratchpad path CONTAINING A SESSION ID.
+They are now committed, gzipped, at `tests/fixtures/layer_detect/` — 103 KB +
+25 KB. The estimate that kept them out ("~15 MB") was never measured.
 
-To generate: build 1706.03762, run geometry/bibliography/tiddlers/svg, snapshot
-the model as `model_BEFORE.json`; `model --force`; snapshot as `model_AFTER.json`.
-Both go where `tests/test_layer_detect.py:_FIX` points.
+A scratchpad copy still wins when present, and `PDFDRILL_LAYER_FIXTURES` points
+at one, so a regenerated pair can be tried without touching the repo. Verified
+by running the suite with that variable set to a nonexistent path: still 1974
+passed, 0 skipped.
 
-**Decision taken:** left skipping rather than generate fixtures that could not be
-verified in the remaining budget. **Rejected:** committing ~15 MB of model JSON.
-**What changes it:** a fresh session — the reproduction is ~4 commands.
-
----
+To regenerate: build 1706.03762, run geometry/bibliography/expandmath/svg/tiddlers,
+copy the model as `model_BEFORE.json`; `model --force`; copy as `model_AFTER.json`.
+The AFTER state must keep 65 objects carrying a region — that is the case the
+geometry detector must not be fooled by.
 
 ## 5. Assumptions still unverified
 
