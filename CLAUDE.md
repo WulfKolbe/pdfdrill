@@ -2,6 +2,14 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
+## Handover — read this first in a new session
+
+`docs/HANDOVER.md` carries the measured state of play: what is open with its
+acceptance criteria, the environment facts that are not obvious (the LgEval
+commit pin, which dictionaries are actually installed, how `resume.sh` behaves),
+the working rules that were each learned by a defect, and the assumptions still
+unverified. It is written for a session with no history here.
+
 ## What this repo is
 
 **PDFDRILL** is the merge of two predecessor projects into one toolchain whose
