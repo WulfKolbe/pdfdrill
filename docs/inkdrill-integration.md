@@ -172,7 +172,74 @@ failure the audit exists to catch. The count now comes from `residual_counts`.
 
 The canvas layer was not needed and was not built.
 
-## Phase 3–5 — not started
+---
+
+## Phase 3 — table structure from ink · BUILT
+
+`pdfdrill inktables <pdf> --ink <lines.json> [--page N]`
+(`src/pdfdrill/ink_tables.py`, `tests/test_ink_tables.py`, 9 tests).
+
+The module is glue and deliberately thin. inkdrill's `simple_cell` lines carry
+`cell_row`/`cell_column`/spans on purpose, so they go through the **existing**
+`table_structure.cells_from_mathpix` unchanged; the verdicts come from the
+**existing** `ink_crosscheck.crosscheck_tables` and the warnings from the
+**existing** `table_structure.check`. No third `cells_from_*`, and a test
+asserts the reuse rather than trusting it — two readers would make a scoring
+difference indistinguishable from a format difference.
+
+The one thing this module must get right alone is the coordinate space: the
+docmodel holds MathPix pixels, inkdrill declares points, and comparing them raw
+gives IoU 0 for a table both tools found — a units bug wearing the costume of a
+finding.
+
+### Connected grid — Infineon p19
+
+inkdrill emits **52 `simple_cell` + 1 `table`**, `ink.holes = 52, rows 13,
+columns 4`. The existing reader takes them unchanged:
+
+```
+cells_from_mathpix -> 52 cells, 13 rows x 4 cols
+column widths pt    45.0 / 42.7 / 99.5 / 278.3
+row heights pt      37.8 / 23.8 / 38.0 / 23.9 / 23.9 / 23.9 / 37.8 / 23.8 ...
+```
+
+The alternation is the rows whose text wraps to two lines.
+
+The adjudication is more interesting than "disagreement":
+
+```
+page 19: 2 model table(s) vs 1 ink table(s); holes [52]
+    only in model  6x4 (24 cells)
+    same grid 13x4, cell population differs: model 44 vs ink 52   iou 0.996
+      slots only the ink has (8): (1,1) (1,3) (2,1) (6,1) (7,1) (8,1) (8,3) (12,1)
+```
+
+Both tools say **13×4 over the same rectangle** (IoU 0.996). MathPix emits 44
+cells, **all of which have text**; the 8 it omits are exactly the **empty**
+slots. inkdrill covers all 52 because a hole is a hole. So the two are
+**complementary, not contradictory** — MathPix supplies the text for 44, the
+ink supplies the 8 empties, and a LaTeX round trip needs all 52 because an
+empty cell is still an `&`.
+
+Printing that as a grid disagreement would read as a defect in one tool, so
+`slot_diff` names the slots and the report separates "same grid, different
+population" from a real row/column difference.
+
+### Disjoint rules — 2409.18839 p8
+
+```
+page 8: 2 model table(s) vs 0 ink table(s); no hole lattice
+    only in model  4x2 (8 cells)   — no hole lattice on this page
+    only in model  12x2 (24 cells) — no hole lattice on this page
+```
+
+`no_lattice` says inkdrill was **silent**, which is not the same as inkdrill
+disagreeing. The discriminator is one number and it travels into the report:
+52 holes versus 0 is not a marginal call. Recovering these cells needs
+collinear rule grouping, which is blocked on the same emit gap as Phase 1 —
+the rules never leave inkdrill.
+
+## Phase 4–5 — not started
 
 3 table structure from ink · 4 rule weights · 5 the two-layer `inspect`
 surface. Phase 5 gates the visibility of 1–4 and has no inkdrill dependency.

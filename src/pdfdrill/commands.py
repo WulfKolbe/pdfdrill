@@ -4168,6 +4168,128 @@ def cmd_inktree(pdf: Path, ink_json: Path, page: "int | None" = None) -> str:
               "destroy that evidence. A tie carries its candidate regions.")
 
 
+def _model_tables_for_page(pdf: Path, sc: "Sidecar", page: int) -> list[dict]:
+    """The document's own tables on one page, in the shape the cross-check
+    takes. Reads the MODEL (Table objects), not `tables.json`, so a table found
+    by MathPix and one found by pdfplumber are both in scope."""
+    model_path = _model_path(sc)
+    if not model_path.exists():
+        return []
+    g = _fresh_docgraph(pdf, sc, model_path)
+    out = []
+    for node in g.of_type("Table"):
+        pr = node.props
+        if pr.get("page") != page or not pr.get("region"):
+            continue
+        cells = pr.get("cells") or []
+        out.append({"region": pr["region"], "cells": cells,
+                    "n_rows": pr.get("n_rows") or 0,
+                    "n_cols": pr.get("n_cols") or 0})
+    return out
+
+
+def cmd_inktables(pdf: Path, ink_json: Path, page: "int | None" = None) -> str:
+    """Adjudicate table structure between the document's tables and the ink.
+
+    A ruled table is ONE ink component whose HOLES are its cells: 52 holes =
+    13 rows x 4 columns, with column widths and row heights to 0.1 pt — and the
+    alternating row heights ARE the rows whose text wraps to two lines, which a
+    cell-text extractor discards and a round trip needs.
+
+    A booktabs table draws DISJOINT rules: no frame, no holes, so the hole
+    lattice finds nothing. The discriminator is one number — does the largest
+    component have holes — and it travels into the report rather than being
+    recomputed. A model table on a page with no lattice at all is flagged
+    `no_lattice`: inkdrill said nothing there, which is not the same as
+    inkdrill disagreeing.
+
+    inkdrill's `simple_cell` lines go through the EXISTING MathPix cell reader
+    and the verdicts through the EXISTING cross-checker, so a disagreement is
+    about the page and never about which parser ran. Stores `ink_tables`.
+    """
+    from . import ink_tables as IT
+
+    sc = Sidecar(pdf)
+    try:
+        ink = json.loads(Path(ink_json).read_text(encoding="utf-8"))
+    except Exception as e:
+        return f"pdfdrill inktables: cannot read {ink_json}: {e}"
+
+    lines_path = _lines_json_path(pdf)
+    px_of = {}
+    if lines_path.exists():
+        lj = json.loads(lines_path.read_text(encoding="utf-8"))
+        px_of = {r["page"]: (r.get("page_width"), r.get("page_height"))
+                 for r in lj.get("pages", [])}
+
+    try:
+        import pdfplumber
+    except ImportError:
+        return "pdfdrill inktables: pdfplumber is required for the page size"
+
+    want = [page] if page else [r.get("page") for r in ink.get("pages", [])
+                                if r.get("page")]
+    out, stored = [], {}
+    with pdfplumber.open(str(pdf)) as doc:
+        for pg in want:
+            ink_t = IT.tables_of(ink, page=pg)
+            model_t = _model_tables_for_page(pdf, sc, pg)
+            if pg in px_of and pg <= len(doc.pages):
+                p = doc.pages[pg - 1]
+                model_t = IT.model_tables_pt(model_t, px_of[pg], (p.width, p.height))
+            findings = IT.crosscheck(model_t, ink_t)
+            stored[str(pg)] = {"ink": ink_t, "findings": findings}
+            holes = [t.get("holes") for t in ink_t if t.get("holes") is not None]
+            out.append(f"  page {pg}: {len(model_t)} model table(s) vs "
+                       f"{len(ink_t)} ink table(s)"
+                       + (f"; holes {holes}" if holes else "; no hole lattice"))
+            for f in findings:
+                v, m, k = f["verdict"], f.get("model"), f.get("ink")
+                g = (lambda d: f"{d['n_rows']}x{d['n_cols']} ({d['cells']} cells)"
+                     ) if m or k else None
+                if v == "agree":
+                    out.append(f"      agree  {g(m)}  iou {f['iou']}")
+                elif v == "grid_disagreement":
+                    same_grid = (m["n_rows"], m["n_cols"]) == (k["n_rows"], k["n_cols"])
+                    if same_grid:
+                        # Same rows x cols, different cell POPULATION. On the
+                        # measured page the slots MathPix omits are exactly the
+                        # empty ones — complementary, not contradictory — so it
+                        # must not print like a grid disagreement.
+                        d = f.get("slots") or {}
+                        miss = d.get("model_missing") or []
+                        out.append(
+                            f"      same grid {m['n_rows']}x{m['n_cols']}, cell "
+                            f"population differs: model {m['cells']} vs ink "
+                            f"{k['cells']}  iou {f['iou']}")
+                        if miss:
+                            out.append(f"        slots only the ink has "
+                                       f"({len(miss)}): {miss[:8]}"
+                                       + ("  — a hole is a cell whether or not "
+                                          "it holds text; a round trip needs it"
+                                          if len(miss) else ""))
+                    else:
+                        out.append(f"      DISAGREE  model {g(m)} vs ink {g(k)}"
+                                   f"  iou {f['iou']}")
+                elif v == "only_in_model":
+                    out.append(f"      only in model  {g(m)}"
+                               + ("  — no hole lattice on this page "
+                                  "(disjoint rules; ink said nothing)"
+                                  if f.get("no_lattice") else ""))
+                else:
+                    out.append(f"      only in ink  {g(k)}")
+                for w in (f.get("warnings") or [])[:2]:
+                    out.append(f"        warn: {w}")
+
+    sc.set_evidence("ink_tables", stored)
+    sc.save()
+    return ("Table structure, ink vs model:\n" + "\n".join(out)
+            + "\n  A ruled table's HOLES are its cells; booktabs draws disjoint "
+              "rules and has none, so `no_lattice` means ink was SILENT, not "
+              "that it disagreed. Cells read by the existing MathPix reader and "
+              "judged by the existing cross-checker (sidecar: ink_tables).")
+
+
 def cmd_clean(pdf: Path) -> str:
     """Clean MathPix LaTeX residuals from the model so semantic analysis sees
     plain text. Today: leading `\\section*{Title}` commands that MathPix merged

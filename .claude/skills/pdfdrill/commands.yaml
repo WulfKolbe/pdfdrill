@@ -1820,6 +1820,30 @@ commands:
     flag: --page
     type: int
     help: merge only this page; default every page the ink file carries
+- name: inktables
+  section: Introspection (fast, no extraction)
+  summary: Adjudicate table structure between the model's tables and the ink - a ruled table's HOLES are
+    its cells (52 holes = 13x4), booktabs has none, and the hole count travels so the discriminator is
+    visible
+  offline_ok: true
+  positionals:
+  - name: pdf
+    type: pdf
+    required: true
+    help: PDF path, https URL, or bare arXiv id
+  typed: true
+  requires:
+  - model
+  flags:
+  - name: ink
+    flag: --ink
+    type: str
+    help: 'inkdrill lines.json (REQUIRED; produce with: python3 -m inkdrill <page.png> --page-number N
+      -o page.ink.lines.json)'
+  - name: page
+    flag: --page
+    type: int
+    help: adjudicate only this page; default every page the ink file carries
 - name: rulebook
   section: Introspection (fast, no extraction)
   summary: 'Claims/definitions -> kitems (fixpoint, evidence spans) -> rulebook.md: one supported/accepted
