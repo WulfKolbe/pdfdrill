@@ -4250,7 +4250,7 @@ def cmd_inktables(pdf: Path, ink_json: Path, page: "int | None" = None) -> str:
             # the ink side. The MODEL's rectangle claims them — pdfdrill is the
             # only place that holds both.
             free = IC_page_rules(ink, pg)
-            model_t = IT.attach_rules(model_t, free)
+            model_t = IT.attach_rules(model_t, free, IT.render_dpi_of(ink))
             findings = IT.crosscheck(model_t, ink_t)
             stored[str(pg)] = {"ink": ink_t, "findings": findings}
             holes = [t.get("holes") for t in ink_t if t.get("holes") is not None]
@@ -4260,6 +4260,12 @@ def cmd_inktables(pdf: Path, ink_json: Path, page: "int | None" = None) -> str:
                 if named:
                     out.append("      rules: " + ", ".join(
                         f"{r['kind']} {r['width_pt']:.3f} pt" for r in named))
+                    sep = named[0].get("separation") or {}
+                    if sep.get("margin_px") is not None:
+                        out.append(f"        weight separation "
+                                   f"{sep['margin_pt']:.3f} pt = "
+                                   f"{sep['margin_px']:.1f} px"
+                                   + ("  ⚠ " + sep["advice"] if sep.get("advice") else ""))
                 elif t_.get("rules"):
                     why = {r.get("reason") for r in t_["rules"] if r.get("reason")}
                     out.append(f"      rules: {len(t_['rules'])} measured, none named "

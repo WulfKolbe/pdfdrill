@@ -51,12 +51,52 @@ def test_a_real_booktabs_table_names_its_four_rules():
 
 
 def test_the_ordering_decides_not_the_absolute_value():
-    """The absolute width runs ~12% high and the ratio wanders between 1.33 and
-    1.67 under pixel quantisation. Scaling every rule by 1.12 must not change a
-    single name — if it does, the classifier is reading the wrong signal."""
-    inflated = [dict(r, width_pt=r["width_pt"] * 1.12) for r in _BOOKTABS]
-    assert [g["kind"] for g in rank_rules(inflated)] == \
-           [g["kind"] for g in rank_rules(_BOOKTABS)]
+    """The absolute width is never trustworthy and does not become trustworthy
+    at higher resolution. Measured on this fixture against pdflatex's truth:
+    +24.2% at 400 dpi, +5.4% at 600, +12.9% at 800, +5.4% at 1200 — it does not
+    shrink with resolution because it is QUANTISATION, not a bias. The measured
+    width is the true width rounded up to a whole pixel, so the error oscillates
+    with how the two happen to line up.
+
+    Inflating every rule must therefore never move a name, and the guard is set
+    at the worst inflation measured (+25%), not the nominal +12%.
+    """
+    for factor in (1.12, 1.25):
+        inflated = [dict(r, width_pt=r["width_pt"] * factor) for r in _BOOKTABS]
+        assert [g["kind"] for g in rank_rules(inflated)] == \
+               [g["kind"] for g in rank_rules(_BOOKTABS)], factor
+
+
+def test_the_separation_margin_is_reported_in_pixels_at_the_render_dpi():
+    """THE MARGIN IS RESOLUTION-DEPENDENT, NOT A CONSTANT. Measured on the
+    compiled fixture: 1.0 px at 400 dpi, 2.0 at 600, 4.0 at 800, 5.0 at 1200.
+
+    A margin of one pixel means one pixel of extra noise flips a `\\toprule`
+    into a `\\midrule`, so the margin has to reach a reader rather than being a
+    property the classifier keeps to itself.
+    """
+    got = rank_rules(_BOOKTABS, render_dpi=400)
+    sep = got[0]["separation"]
+    assert round(sep["margin_pt"], 3) == 0.299        # 0.797 - 0.498
+    assert round(sep["margin_px"], 1) == 1.7
+    assert sep["thin"] is True                        # under 2 px
+
+
+def test_a_thin_margin_names_the_remedy_rather_than_only_the_number():
+    got = rank_rules(_BOOKTABS, render_dpi=400)
+    assert "800" in got[0]["separation"]["advice"]
+
+
+def test_the_same_rules_at_800_dpi_are_not_flagged_thin():
+    got = rank_rules(_BOOKTABS, render_dpi=800)
+    assert got[0]["separation"]["thin"] is False
+
+
+def test_no_render_dpi_reports_the_margin_in_points_and_claims_no_pixels():
+    """A file that does not declare its resolution cannot be given a pixel
+    margin, and inventing one would be a measurement nobody made."""
+    sep = rank_rules(_BOOKTABS)[0]["separation"]
+    assert sep["margin_px"] is None and sep["thin"] is None
 
 
 def test_an_unstable_ratio_still_names_the_same_rules():

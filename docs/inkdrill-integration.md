@@ -381,6 +381,39 @@ unused — a rule spanning under 90% of the table's widest rule is partial.
 Measured spans are 0.28 / 0.30 / 0.24 against 1.00 for every full-width rule,
 so nothing sits near the boundary.
 
+### The separation margin is resolution-dependent, not a constant
+
+Compiled fixture, margin between the lightest heavy rule and the heaviest
+light one:
+
+| dpi | margin pt | margin px | heavy-rule error vs pdflatex |
+|---|---|---|---|
+| 400 | 0.180 | **1.0** | +24.2% |
+| 600 | 0.240 | 2.0 | +5.4% |
+| 800 | 0.360 | **4.0** | +12.9% |
+| 1200 | 0.300 | 5.0 | +5.4% |
+
+At 400 dpi the two IDENTICAL `\midrule`s of that table measured 0.54 and 0.72
+— 33% apart. At 800 they both measure 0.54.
+
+**If the classification matters, render the rule measurement at 800 dpi even
+when everything else runs at 400.** It is one extra rasterisation, and only of
+pages that have tables. `rank_rules` reports the margin in pixels at the file's
+own declared `render_dpi` and says so when it is under 2 px, so a reader knows
+which pages are worth re-rendering rather than doing all of them.
+
+Validated on the real page — 2409.18839 p9 at 800 dpi:
+
+```
+400 dpi   toprule 1.080 … separation 0.360 pt = 2.0 px   ⚠ re-render at 800
+800 dpi   toprule 0.990 … separation 0.360 pt = 4.0 px   (no warning)
+          second table                        = 5.0 px
+```
+
+Same five names at both resolutions; the margin doubles. The absolute value
+still is not trustworthy at 800 (+9.8% on the heavy rules of that page), which
+is why the ordering-only rule stays regardless of resolution.
+
 ### How noisy the measurement actually is
 
 On the compiled fixture, inkdrill's `width_pt` against pdflatex's truth:
@@ -393,10 +426,14 @@ On the compiled fixture, inkdrill's `width_pt` against pdflatex's truth:
 | `\bottomrule` | 0.7970 | 1.0800 | +35.5% |
 
 The two IDENTICAL `\midrule`s measured **33% apart**. The classification is
-still right because only the ORDER is used — min(heavy) 0.90 > max(light) 0.72
-— but the margin is **0.18 pt, exactly one pixel at 400 dpi**, against the
-plan's claimed 2 px. On this fixture the separation is half what the plan
-states.
+still right because only the ORDER is used.
+
+The error does NOT shrink with resolution — +24.2% at 400, +5.4% at 600,
++12.9% at 800, +5.4% at 1200 — because it is QUANTISATION, not a bias: the
+measured width is the true width rounded up to a whole pixel, so the error
+oscillates with how the two happen to line up. There is no factor to correct
+for, which is the argument for ordering-only. The inflation guard is set at
++25%, the worst measured, rather than the nominal +12%.
 
 ### The classifier
 

@@ -56,6 +56,19 @@ def _inside(outer: dict, inner: dict, pad: float = 1.0) -> bool:
             and ix1 <= ox1 + pad and iy1 <= oy1 + pad)
 
 
+def render_dpi_of(ink_lines: dict) -> "float | None":
+    """The resolution the ink was measured at, from the file's own header.
+
+    The separation margin between rule weights is resolution-dependent — one
+    pixel at 400 dpi, four at 800 — so a margin reported without its dpi is not
+    interpretable. Never guessed: absent header, absent margin.
+    """
+    try:
+        return float((ink_lines.get("ocr") or {}).get("render_dpi"))
+    except (TypeError, ValueError):
+        return None
+
+
 def tables_of(ink_lines: dict, page: int) -> list[dict]:
     """inkdrill's tables on one page, cells read by the MathPix reader.
 
@@ -68,6 +81,7 @@ def tables_of(ink_lines: dict, page: int) -> list[dict]:
     # inside its own rectangle; without this a table's rules are exactly the
     # ones it does not have.
     free = page_rules(ink_lines, page)
+    dpi = render_dpi_of(ink_lines)
     for rec in ink_lines.get("pages", []):
         if rec.get("page") != page:
             continue
@@ -93,7 +107,7 @@ def tables_of(ink_lines: dict, page: int) -> list[dict]:
                 # screenshot `toprule`, which is mechanically consistent and
                 # about a thing that is not a table.
                 "rules": rank_rules(list(ink.get("rules") or [])
-                                    + _rules_inside(t["region"], free)),
+                                    + _rules_inside(t["region"], free), dpi),
             })
     return out
 
@@ -109,7 +123,8 @@ def _rules_inside(region: dict, rules: Sequence[dict], pad: float = 1.0) -> list
     return out
 
 
-def attach_rules(tables: Sequence[dict], rules: Sequence[dict]) -> list[dict]:
+def attach_rules(tables: Sequence[dict], rules: Sequence[dict],
+                 render_dpi: "float | None" = None) -> list[dict]:
     """Give each table the rules inside its rectangle, ranked.
 
     THE JOIN THAT MAKES PHASE 4 WORK ON A REAL PAPER. A booktabs page emits no
@@ -124,7 +139,7 @@ def attach_rules(tables: Sequence[dict], rules: Sequence[dict]) -> list[dict]:
     for t in tables:
         conv = dict(t)
         reg = t.get("region")
-        conv["rules"] = rank_rules(_rules_inside(reg, rules)) if reg else []
+        conv["rules"] = rank_rules(_rules_inside(reg, rules), render_dpi) if reg else []
         out.append(conv)
     return out
 
