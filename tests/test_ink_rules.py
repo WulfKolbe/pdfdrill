@@ -31,7 +31,8 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "src"))
 
-from pdfdrill.ink_rules import BOTTOMRULE, MIDRULE, TOPRULE, UNKNOWN, rank_rules  # noqa: E402
+from pdfdrill.ink_rules import (  # noqa: E402
+    BOTTOMRULE, CMIDRULE, MIDRULE, TOPRULE, UNKNOWN, rank_rules)
 
 
 def _r(width_pt, y, orient="h", x0=148.7, x1=285.9):
@@ -86,6 +87,30 @@ def test_a_heavy_rule_in_the_middle_is_not_called_a_toprule():
     got = rank_rules(rules)
     assert got[1]["kind"] == UNKNOWN
     assert "not at an edge" in got[1]["reason"]
+
+
+def test_a_partial_width_interior_rule_is_a_cmidrule_not_a_midrule():
+    r"""Ground truth, 2409.18839 p9 table 1: `\toprule` 0.9017 pt over 346.4 pt,
+    then TWO rules of 0.3006 pt spanning only 95.6 pt, then a full-width
+    `\midrule` 0.5006 pt, then `\bottomrule`.
+
+    The short ones are `\cmidrule{i-j}`, and calling them `\midrule` draws a
+    line across the whole table in the reconstruction. The evidence is the
+    LENGTH, which was sitting in the record unused.
+    """
+    rules = [_r(0.9017, 185.26, x0=100, x1=446.4),
+             _r(0.3006, 201.55, x0=120, x1=215.6),
+             _r(0.5006, 217.65, x0=100, x1=446.4),
+             _r(0.9017, 277.92, x0=100, x1=446.4)]
+    got = rank_rules(rules)
+    assert [g["kind"] for g in got] == [TOPRULE, CMIDRULE, MIDRULE, BOTTOMRULE]
+    assert round(got[1]["span"], 2) == 0.28        # 95.6 / 346.4
+
+
+def test_a_full_width_interior_rule_stays_a_midrule():
+    rules = [_r(0.9, 100.0, x0=100, x1=400), _r(0.5, 150.0, x0=100, x1=400),
+             _r(0.9, 200.0, x0=100, x1=400)]
+    assert [g["kind"] for g in rank_rules(rules)] == [TOPRULE, MIDRULE, BOTTOMRULE]
 
 
 def test_vertical_rules_are_not_booktabs_rules():

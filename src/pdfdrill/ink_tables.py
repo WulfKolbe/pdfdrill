@@ -35,6 +35,7 @@ from __future__ import annotations
 
 from typing import Any, Optional, Sequence
 
+from .ink_coverage import page_rules
 from .ink_crosscheck import GRID_DISAGREE, ONLY_IN_MODEL, crosscheck_tables
 from .ink_rules import rank_rules
 from .table_structure import cells_from_mathpix
@@ -62,6 +63,11 @@ def tables_of(ink_lines: dict, page: int) -> list[dict]:
     one page merge into a single grid whose row count is the sum of theirs.
     """
     out: list[dict] = []
+    # A booktabs table emits no object, so ALL of its rules live on the page
+    # record with no owner. A table claims the page-level rules that fall
+    # inside its own rectangle; without this a table's rules are exactly the
+    # ones it does not have.
+    free = page_rules(ink_lines, page)
     for rec in ink_lines.get("pages", []):
         if rec.get("page") != page:
             continue
@@ -86,8 +92,40 @@ def tables_of(ink_lines: dict, page: int) -> list[dict]:
                 # same ranking over a diagram's rules names UI bars inside a
                 # screenshot `toprule`, which is mechanically consistent and
                 # about a thing that is not a table.
-                "rules": rank_rules(ink.get("rules") or []),
+                "rules": rank_rules(list(ink.get("rules") or [])
+                                    + _rules_inside(t["region"], free)),
             })
+    return out
+
+
+def _rules_inside(region: dict, rules: Sequence[dict], pad: float = 1.0) -> list[dict]:
+    """Page-level rules whose box lies inside this table's rectangle."""
+    x0, y0, x1, y1 = _rect(region)
+    out = []
+    for r in rules:
+        if (float(r["x0"]) >= x0 - pad and float(r["y0"]) >= y0 - pad
+                and float(r["x1"]) <= x1 + pad and float(r["y1"]) <= y1 + pad):
+            out.append(dict(r))
+    return out
+
+
+def attach_rules(tables: Sequence[dict], rules: Sequence[dict]) -> list[dict]:
+    """Give each table the rules inside its rectangle, ranked.
+
+    THE JOIN THAT MAKES PHASE 4 WORK ON A REAL PAPER. A booktabs page emits no
+    ink table, so nothing on the ink side can hold its rules — but MathPix
+    knows where the table is and the rules sit on the page record with no
+    owner. pdfdrill holds both sides, so the model's rectangle claims them.
+
+    Without this, `inktables` answers `no_lattice` on exactly the pages whose
+    rules Phase 4 exists to name.
+    """
+    out = []
+    for t in tables:
+        conv = dict(t)
+        reg = t.get("region")
+        conv["rules"] = rank_rules(_rules_inside(reg, rules)) if reg else []
+        out.append(conv)
     return out
 
 

@@ -44,6 +44,7 @@ from typing import Any, Sequence
 TOPRULE = "toprule"
 MIDRULE = "midrule"
 BOTTOMRULE = "bottomrule"
+CMIDRULE = "cmidrule"
 UNKNOWN = "unknown"
 
 # Two widths belong to the same class when they differ by less than this
@@ -53,6 +54,13 @@ UNKNOWN = "unknown"
 # tuned threshold, and the tests inflate every width by 12% to prove the names
 # do not move.
 _SAME_CLASS = 0.20
+
+# A horizontal rule spanning less than this fraction of the table's widest rule
+# is partial — a `\cmidrule{i-j}`, not a `\midrule`. Measured on 2409.18839
+# p9: the two cmidrules span 95.6 pt of a 346.4 pt table (0.28) and 93.1/73.8
+# of 306.8 (0.30 / 0.24), while every full-width rule is exactly 1.00. There is
+# no evidence anywhere near the boundary, so the value is not tuned.
+_FULL_SPAN = 0.90
 
 
 def _classes(widths: Sequence[float]) -> list[int]:
@@ -96,6 +104,13 @@ def rank_rules(rules: Sequence[dict]) -> list[dict]:
             r["reason"] = "too few rules to rank"
         return out
 
+    # span relative to the widest rule of THIS table — the discriminator
+    # between `\midrule` (full width) and `\cmidrule` (a range of columns)
+    lengths = [float(r["x1"]) - float(r["x0"]) for r in horiz]
+    widest = max(lengths) or 1.0
+    for r, ln in zip(horiz, lengths):
+        r["span"] = ln / widest
+
     widths = [float(r["width_pt"]) for r in horiz]
     cls = _classes(widths)
     for r, c in zip(horiz, cls):
@@ -111,7 +126,9 @@ def rank_rules(rules: Sequence[dict]) -> list[dict]:
     first, last = horiz[0], horiz[-1]
     for i, r in enumerate(horiz):
         if r["weight_class"] < heavy:
-            r["kind"] = MIDRULE
+            # A partial-width interior rule is a `\cmidrule`; calling it a
+            # `\midrule` draws a line across the whole table.
+            r["kind"] = MIDRULE if r["span"] >= _FULL_SPAN else CMIDRULE
             continue
         if r is first:
             r["kind"] = TOPRULE

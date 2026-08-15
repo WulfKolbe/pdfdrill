@@ -84,7 +84,8 @@ def mathpix_regions_pt(regions: Iterable[dict],
 
 def ink_boxes(ink_lines: dict, page: int,
               kinds: Sequence[str] = ("glyph",),
-              with_holes: bool = False) -> list[tuple]:
+              with_holes: bool = False,
+              include_rules: bool = False) -> list[tuple]:
     """One inkdrill page's components as `(id, rect_pt, area)`.
 
     Refuses a file that does not declare points: the units travel with the data
@@ -112,6 +113,58 @@ def ink_boxes(ink_lines: dict, page: int,
                 # we do not have.
                 rec_ = rec_ + (int(ink.get("holes") or 0),)
             out.append(rec_)
+    if include_rules:
+        for rid, rect, area, holes in rule_boxes(all_rules(ink_lines, page)):
+            out.append((rid, rect, area, holes) if with_holes
+                       else (rid, rect, area))
+    return out
+
+
+def page_rules(ink_lines: dict, page: int) -> list[dict]:
+    r"""Rules belonging to no emitted object, from `page["ink"]["rules"]`.
+
+    THE CONTRACT GAP THIS CLOSES. inkdrill carries a rule on the line it falls
+    inside, and a rule that falls inside nothing on the PAGE record. Reading
+    only the per-line arrays therefore sees every rule except the ones with no
+    owner — and on a booktabs page that is ALL of them, because booktabs emits
+    no object for a rule to attach to.
+
+    It is what let me report "the rules never leave inkdrill" from a `lines`
+    count of 0 while the page record of the file I had just generated held all
+    four. Absence is read out of the file or it is not established.
+    """
+    for rec in ink_lines.get("pages", []):
+        if rec.get("page") == page:
+            return list((rec.get("ink") or {}).get("rules") or [])
+    return []
+
+
+def all_rules(ink_lines: dict, page: int) -> list[dict]:
+    """Every rule on a page — page-level and per-line — each tagged with the
+    kind of line carrying it, so a consumer can scope by carrier without
+    walking the file again."""
+    out = [dict(r, carrier="page") for r in page_rules(ink_lines, page)]
+    for rec in ink_lines.get("pages", []):
+        if rec.get("page") != page:
+            continue
+        for line in rec.get("lines", []):
+            for r in ((line.get("ink") or {}).get("rules") or []):
+                out.append(dict(r, carrier=line.get("type") or "line"))
+    return out
+
+
+def rule_boxes(rules: Sequence[dict]) -> list[tuple]:
+    """Rules as `(id, rect, area, holes)`, the shape the classifier takes.
+
+    A rule IS ink, and until it is a box `inkcoverage` cannot classify it — the
+    table rules MathPix omits stay invisible, which was Phase 1's headline.
+    """
+    out = []
+    for i, r in enumerate(rules):
+        x0, y0 = float(r["x0"]), float(r["y0"])
+        x1, y1 = float(r["x1"]), float(r["y1"])
+        area = int(max(0.0, x1 - x0) * max(0.0, y1 - y0) * 100)
+        out.append((f"rule#{i}", (x0, y0, x1, y1), area, 0))
     return out
 
 

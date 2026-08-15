@@ -152,6 +152,42 @@ def test_slot_diff_reports_no_difference_when_both_cover_the_same_slots():
     assert diff["same_grid_population_differs"] is False
 
 
+def test_a_model_table_claims_the_page_level_rules_inside_it():
+    r"""The join that makes Phase 4 work on a real paper.
+
+    A booktabs page emits NO ink table, so there is nothing on the ink side to
+    hang the rules on — but MathPix knows where the table is, and the rules sit
+    on the page record with no owner. pdfdrill holds both, so the model's
+    rectangle claims them and they are ranked against it.
+
+    Without this, `inktables` reports `no_lattice` on exactly the pages whose
+    rules Phase 4 exists to name.
+    """
+    model = [{"n_rows": 4, "n_cols": 2, "cells": [],
+              "region": {"top_left_x": 100.0, "top_left_y": 120.0,
+                         "width": 400.0, "height": 130.0}}]
+    rules = [{"width_pt": 1.08, "orient": "h", "x0": 118.6, "y0": 135.0,
+              "x1": 497.9, "y1": 136.1},
+             {"width_pt": 0.72, "orient": "h", "x0": 118.6, "y0": 203.0,
+              "x1": 497.9, "y1": 203.8},
+             {"width_pt": 1.08, "orient": "h", "x0": 118.6, "y0": 241.6,
+              "x1": 497.9, "y1": 242.6},
+             {"width_pt": 0.72, "orient": "h", "x0": 118.6, "y0": 900.0,
+              "x1": 497.9, "y1": 900.8}]          # far below: another table
+    got = ink_tables.attach_rules(model, rules)
+    kinds = [r["kind"] for r in got[0]["rules"]]
+    assert kinds == ["toprule", "midrule", "bottomrule"]
+    assert len(got[0]["rules"]) == 3, "the rule outside the rectangle is not claimed"
+
+
+def test_attach_rules_leaves_a_table_with_no_rules_reporting_none():
+    model = [{"n_rows": 2, "n_cols": 2, "cells": [],
+              "region": {"top_left_x": 0.0, "top_left_y": 0.0,
+                         "width": 10.0, "height": 10.0}}]
+    got = ink_tables.attach_rules(model, [])
+    assert got[0]["rules"] == []
+
+
 def test_grid_metrics_reports_column_widths_and_row_heights():
     """The alternating row heights ARE the rows whose text wraps to two lines —
     discarded by a cell-text extractor and needed by a round trip."""

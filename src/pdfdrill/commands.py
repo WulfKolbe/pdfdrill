@@ -4052,7 +4052,7 @@ def cmd_inkcoverage(pdf: Path, ink_json: Path, page: "int | None" = None) -> str
                 (ppage.width, ppage.height),
                 ids=[f"{ln.get('type')}#{i}" for i, ln in enumerate(leaf)])
             try:
-                boxes = IC.ink_boxes(ink, page=pg)
+                boxes = IC.ink_boxes(ink, page=pg, include_rules=True)
             except ValueError as e:
                 return f"pdfdrill inkcoverage: {e}"
             rep = IC.classify(boxes, regs, min_area=4)
@@ -4192,6 +4192,11 @@ def _model_tables_for_page(pdf: Path, sc: "Sidecar", page: int) -> list[dict]:
     return out
 
 
+def IC_page_rules(ink: dict, page: int) -> list:
+    from .ink_coverage import page_rules
+    return page_rules(ink, page)
+
+
 def cmd_inktables(pdf: Path, ink_json: Path, page: "int | None" = None) -> str:
     """Adjudicate table structure between the document's tables and the ink.
 
@@ -4241,10 +4246,15 @@ def cmd_inktables(pdf: Path, ink_json: Path, page: "int | None" = None) -> str:
             if pg in px_of and pg <= len(doc.pages):
                 p = doc.pages[pg - 1]
                 model_t = IT.model_tables_pt(model_t, px_of[pg], (p.width, p.height))
+            # A booktabs page emits no ink table, so its rules have no owner on
+            # the ink side. The MODEL's rectangle claims them — pdfdrill is the
+            # only place that holds both.
+            free = IC_page_rules(ink, pg)
+            model_t = IT.attach_rules(model_t, free)
             findings = IT.crosscheck(model_t, ink_t)
             stored[str(pg)] = {"ink": ink_t, "findings": findings}
             holes = [t.get("holes") for t in ink_t if t.get("holes") is not None]
-            for t_ in ink_t:
+            for t_ in list(ink_t) + list(model_t):
                 named = [r for r in (t_.get("rules") or [])
                          if r.get("kind") and r["kind"] != "unknown"]
                 if named:

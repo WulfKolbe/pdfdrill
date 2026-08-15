@@ -27,8 +27,10 @@ from pdfdrill.ink_coverage import (  # noqa: E402
     OVERLAPPING,
     STRADDLE,
     classify,
+    all_rules,
     ink_boxes,
     mathpix_regions_pt,
+    page_rules,
     rect_of,
 )
 
@@ -127,6 +129,51 @@ def test_ink_boxes_reads_glyph_lines_of_one_page_and_carries_the_ink_area():
     got = ink_boxes(ink, page=8)
     assert got == [(3, (10.0, 20.0, 30.0, 50.0), 44),
                    (4, (0.0, 0.0, 2.0, 2.0), 3)]
+
+
+def test_page_level_rules_are_read_and_not_only_the_per_line_arrays():
+    r"""THE CONTRACT GAP. A rule belonging to no emitted object is carried at
+    `page["ink"]["rules"]`, and a rule inside one is carried on that line. A
+    consumer reading only the per-line arrays sees the second and misses the
+    first — which on a booktabs page is ALL of them, because booktabs emits no
+    object for a rule to attach to.
+
+    This is what made me report "the rules never leave inkdrill" from a `lines`
+    count of 0 while the page record of the file I had just generated held all
+    four. Absence has to be read out of the file, not inferred from one key.
+    """
+    ink = {"ocr": {"units": "pt"},
+           "pages": [{"page": 1, "lines": [
+               {"type": "table", "region": _reg(0, 0, 100, 100),
+                "ink": {"region_id": 1, "rules": [
+                    {"width_pt": 0.7, "orient": "h",
+                     "x0": 1, "y0": 2, "x1": 99, "y1": 2.7}]}}],
+               "ink": {"rules": [
+                   {"width_pt": 1.08, "orient": "h",
+                    "x0": 118.6, "y0": 135.0, "x1": 497.9, "y1": 136.1}]}}]}
+    assert len(page_rules(ink, page=1)) == 1
+    both = all_rules(ink, page=1)
+    assert len(both) == 2
+    assert {r["carrier"] for r in both} == {"page", "table"}
+
+
+def test_a_page_with_no_ink_key_at_all_yields_no_rules_rather_than_raising():
+    ink = {"ocr": {"units": "pt"}, "pages": [{"page": 1, "lines": []}]}
+    assert page_rules(ink, page=1) == [] and all_rules(ink, page=1) == []
+
+
+def test_rules_can_be_folded_into_the_boxes_so_coverage_can_see_them():
+    """A rule is ink. Until it is a box, `inkcoverage` cannot classify it, and
+    the table rules MathPix omits stay invisible — which was Phase 1's entire
+    headline."""
+    ink = {"ocr": {"units": "pt"},
+           "pages": [{"page": 1, "lines": [], "ink": {"rules": [
+               {"width_pt": 1.08, "orient": "h",
+                "x0": 118.6, "y0": 135.0, "x1": 497.9, "y1": 136.1}]}}]}
+    assert ink_boxes(ink, page=1) == []
+    got = ink_boxes(ink, page=1, include_rules=True)
+    assert len(got) == 1
+    assert got[0][1] == (118.6, 135.0, 497.9, 136.1)
 
 
 def test_ink_boxes_refuses_a_file_that_does_not_declare_points():

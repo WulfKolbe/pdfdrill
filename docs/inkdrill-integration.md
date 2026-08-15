@@ -13,7 +13,34 @@ between the two tools indistinguishable from a difference of definition.
 
 ---
 
-## Phase 1 — coverage audit · BUILT, and it found a blocker
+## The contract gap — `page["ink"]["rules"]`
+
+**Read this before the phase notes below; it corrects two of them.**
+
+inkdrill carries a rule on the line it falls inside, and a rule that falls
+inside NOTHING on the **page record**, at `page["ink"]["rules"]`. That key was
+not in the interface contract, so this consumer read only the per-line arrays
+and saw every rule except the ones with no owner — which on a booktabs page is
+**all of them**, because booktabs emits no object for a rule to attach to.
+
+That is a contract gap, and the fix on this side is one key:
+`ink_coverage.page_rules` / `all_rules`, folded into `ink_boxes` via
+`include_rules=True`, and claimed by a table's rectangle in `ink_tables`.
+
+**The defect on my side was smaller and worse.** I ran a compiled booktabs
+fixture through inkdrill, saw `lines 0`, and reported "the rules never leave
+inkdrill" — while the page record of the file I had just generated held all
+four. Absence has to be read out of the file, not inferred from one key being
+empty. Both `docs` statements below that said Phase 1 and Phase 4 were blocked
+were wrong for that reason and are corrected in place.
+
+(inkdrill's side, per the same audit: say `page["ink"]["rules"]` in reports
+rather than `free_rules` — the internal name sent this consumer looking for a
+key that does not exist.)
+
+---
+
+## Phase 1 — coverage audit · BUILT
 
 `pdfdrill inkcoverage <pdf> --ink <inkdrill.lines.json> [--page N]`
 (`src/pdfdrill/ink_coverage.py`, `tests/test_ink_coverage.py`, 10 tests).
@@ -53,10 +80,27 @@ Pipeline: `gs -r400 -sDEVICE=png16m` → `python3 -m inkdrill p8.png --glyphs
 | straddling | 1 | 2 |
 | region with no ink | 0 | 0 |
 
-47.78% inside reproduces the plan's 47.4%. **The missed count does not: the
-plan expects 35, and the pipeline can produce at most 2.**
+47.78% inside reproduces the plan's 47.4%. The missed count did not — see
+below; that was the contract gap, not the page.
 
-### The blocker — the 35 rules never leave inkdrill
+### RESOLVED — the 35 rules were on the page record
+
+*Superseded. Kept because the reasoning below is what a `lines`-only reading
+looks like from the inside, and it was wrong.*
+
+With `page["ink"]["rules"]` read, page 8 reports exactly the plan's number:
+
+```
+page 8: 3246 ink components vs 79 regions — inside 48.55%, MISSED 35,
+        straddling 2, overlapping 1633, empty regions 0
+```
+
+**MISSED 35, of which 33 are rules** — `379.3 × 1.08 pt` at the top,
+`379.3 × 0.72` interior, `388.4 × 0.72` (the footnote separator), plus the
+vertical separators. 379.3 pt = 2107 px at 400 dpi, matching the plan to the
+pixel.
+
+### What the lines-only reading concluded (wrong)
 
 The plan's headline finding is that the 35 missed components on this page are
 every table rule plus the footnote separator. They are real: `pdfplumber`
@@ -82,11 +126,8 @@ the finding it was written around. The plan's 35 must have come from
 `coverage.check` run **inside** inkdrill against raw `sweep` components, which
 is a different input from the emitted `lines.json`.
 
-**What would unblock it (inkdrill side, one of):** emit a `rule` line when a
-rule belongs to no emitted object; or attach `ink.rules[]` to the page record
-in that case. Either makes the rules addressable without changing the
-consumer — `ink_coverage.ink_boxes` takes a `kinds` argument and would need
-one more name.
+The second guess was right and the rules were already at
+`page["ink"]["rules"]`. What was missing was a consumer that read it.
 
 ---
 
@@ -304,7 +345,7 @@ belonged to (now matched by geometry, IoU ≥ 0.3).
 
 ---
 
-## Phase 4 — rule weights · BUILT, and the earlier "no rules anywhere" was wrong
+## Phase 4 — rule weights · BUILT and WORKING ON REAL PAPERS
 
 `src/pdfdrill/ink_rules.py`, `tests/test_ink_rules.py` (9 tests), wired into
 `inktables` scoped to a table.
@@ -314,12 +355,48 @@ was measured on p8, p9, h1 and inf19 and over-generalised: **2409.18839 page 11
 carries 45 real rules**, on 5 `diagram`, 7 `glyph` and 2 `table` carriers. Rules
 ARE emitted — when they fall inside an emitted object.
 
-**What is still blocked is the booktabs case, and it is now proven rather than
-inferred.** A compiled booktabs table (`\toprule`, 2×`\midrule`,
-`\bottomrule`) run through inkdrill emits **0 lines**, and with `--glyphs`
-**65 glyphs and 0 rules** — the rules are components (pdfplumber sees all four)
-but `is_rule` filters them out of the glyph path and no object exists to attach
-them to. So Phase 4's own target case cannot reach pdfdrill today.
+**The booktabs case is NOT blocked.** I reported it was, having run a compiled
+booktabs fixture, seen `lines 0`, and not opened the page record — which held
+all four rules. With `page["ink"]["rules"]` read, and the MODEL's table
+rectangle claiming the rules inside it (`ink_tables.attach_rules` — a booktabs
+page emits no ink table, so only pdfdrill holds both halves), Phase 4 runs on
+real papers.
+
+### Verified against ground truth — 2409.18839 page 9
+
+Both tables, from ink alone:
+
+```
+toprule 1.080 pt, cmidrule 0.540, cmidrule 0.540, midrule 0.720, bottomrule 1.080
+```
+
+pdfplumber's vector rules for the same table: `\toprule` 0.9017 pt over
+346.4 pt, **two rules of 0.3006 pt spanning only 95.6 pt** (`\cmidrule`), a
+full-width `\midrule` 0.5006, `\bottomrule` 0.9017. **Five of five correct.**
+
+The `\cmidrule` distinction came out of this comparison: the first version
+called all three interior rules `\midrule`, which draws a line across the
+whole table. The discriminator is the LENGTH, and it was sitting in the record
+unused — a rule spanning under 90% of the table's widest rule is partial.
+Measured spans are 0.28 / 0.30 / 0.24 against 1.00 for every full-width rule,
+so nothing sits near the boundary.
+
+### How noisy the measurement actually is
+
+On the compiled fixture, inkdrill's `width_pt` against pdflatex's truth:
+
+| rule | true | measured | |
+|---|---|---|---|
+| `\toprule` | 0.7970 | 0.9000 | +12.9% |
+| `\midrule` | 0.4980 | 0.5400 | +8.4% |
+| `\midrule` | 0.4980 | **0.7200** | **+44.6%** |
+| `\bottomrule` | 0.7970 | 1.0800 | +35.5% |
+
+The two IDENTICAL `\midrule`s measured **33% apart**. The classification is
+still right because only the ORDER is used — min(heavy) 0.90 > max(light) 0.72
+— but the margin is **0.18 pt, exactly one pixel at 400 dpi**, against the
+plan's claimed 2 px. On this fixture the separation is half what the plan
+states.
 
 ### The classifier
 
