@@ -86,13 +86,19 @@ def entry_for(folder: Path, root: Path):
             title = info["title"]
 
     abstract = re.sub(r"\s+", " ", abstract).strip()[:ABSTRACT_CAP]
+
+    def _clean(s: str) -> str:
+        # Non-UTF-8 filesystem names arrive as surrogates and cannot be
+        # written back out as UTF-8 — replace, never crash the whole index.
+        return s.encode("utf-8", "replace").decode("utf-8")
+
     return {
-        "n": folder.name,
-        "t": re.sub(r"\s+", " ", title).strip(),
-        "a": abstract,
-        "au": authors[:300],
-        "y": year,
-        "p": str(pdf.relative_to(root)),
+        "n": _clean(folder.name),
+        "t": _clean(re.sub(r"\s+", " ", title).strip()),
+        "a": _clean(abstract),
+        "au": _clean(authors[:300]),
+        "y": _clean(year),
+        "p": _clean(str(pdf.relative_to(root))),
     }
 
 
