@@ -41,25 +41,41 @@ def first_pages(tiddlers: list[dict], bibkey: str) -> dict[str, str]:
 
 
 def rows_for(tiddlers, bibkey):
-    fo, eq, tab = [], [], []
+    fo, eq, tab, dia = [], [], [], []
     fpage = first_pages(tiddlers, bibkey)
     for t in tiddlers:
         title = t.get("title", "")
-        m = re.match(re.escape(bibkey) + r"_(FOX?|EQ|TAB)", title)
+        m = re.match(re.escape(bibkey) + r"_(FOX?|EQ|TAB|DIA|PIC)", title)
         if not m:
             continue
         kind = m.group(1)
         latex = t.get("latex") or t.get("latex_code") or ""
         page = t.get("page") or fpage.get(title, "")
+        dims = t.get("width", ""), t.get("height", "")
         if kind in ("FO", "FOX"):
             fo.append((title, latex, page))
         elif kind == "EQ":
             eq.append((title, latex, page, t.get("equation_number", ""),
                        t.get("width", "")))
-        else:
-            dims = t.get("width", ""), t.get("height", "")
+        elif kind == "TAB":
             tab.append((title, latex, page, dims))
-    return fo, eq, tab
+        else:
+            dia.append((title, latex, page, dims))
+    return fo, eq, tab, dia
+
+
+def texzip_images(texzip_dir: Path):
+    """Map (page:int, height, width) and page -> image path from a MathPix
+    tex.zip expansion (images named <id>-<page>_<h>_<w>_<y>_<x>.jpg)."""
+    by_key, by_page = {}, {}
+    for img in sorted(texzip_dir.rglob("*.jpg")) +                sorted(texzip_dir.rglob("*.png")):
+        m = re.search(r"-(\d+)_(\d+)_(\d+)_\d+_\d+\.\w+$", img.name)
+        if not m:
+            continue
+        page, h, w = (int(x) for x in m.groups())
+        by_key[(page, h, w)] = img
+        by_page.setdefault(page, img)
+    return by_key, by_page
 
 
 def jpg_width(path: Path):
@@ -204,6 +220,11 @@ def main() -> None:
                          "adds a Scan-image column to equations and tables")
     ap.add_argument("--paper", choices=("a4", "a3"), default="a4")
     ap.add_argument("--landscape", action="store_true")
+    ap.add_argument("--texzip", default=None,
+                    help="expanded MathPix tex.zip directory; its images/ "
+                         "(the regions MathPix could NOT OCR) fill the "
+                         "'Unrecovered image regions' section locally, "
+                         "no CDN download")
     ap.add_argument("--px2mm", type=float, default=None,
                     help="mm per MathPix page pixel: pdf_page_width_pt * "
                          "0.3528 / lines.json page_width_px. Sets each scan "
@@ -213,7 +234,7 @@ def main() -> None:
     path = Path(args.tiddlers)
     tiddlers = json.loads(path.read_text())
     bibkey = path.name.replace(".tiddlers.json", "")
-    fo, eq, tab = rows_for(tiddlers, bibkey)
+    fo, eq, tab, dia = rows_for(tiddlers, bibkey)
     dest = Path(args.out) if args.out else path.parent / "report.tex"
     crops = Path(args.crops).resolve() if args.crops else None
     out_dir = dest.resolve().parent
@@ -242,8 +263,9 @@ def main() -> None:
 
     out = [PREAMBLE % {"geom": geom}]
     out.append("\\section*{%s — formula report}\n"
-               "%d inline formulas, %d display equations, %d tables.\n"
-               % (esc_text(bibkey), len(fo), len(eq), len(tab)))
+               "%d inline formulas, %d display equations, %d tables, "
+               "%d unrecovered image regions.\n"
+               % (esc_text(bibkey), len(fo), len(eq), len(tab), len(dia)))
     out.append(table_open("Display equations", eq_widths))
     for title, latex, page, num, wpx in eq:
         img = crop_cell(crops, out_dir, title, px_width=wpx,
@@ -275,6 +297,59 @@ def main() -> None:
                             px_width=dims[0], px2mm=args.px2mm, col_mm=tim)
             out.append("\\ident{%s} & %s & %s & %s \\\\ \\hline\n"
                        % (esc_text(title), esc_text(str(page)), body, img))
+        out.append("\\end{longtable}\n")
+
+    if dia:
+        zkey, zpage = ({}, {})
+        if args.texzip:
+            zkey, zpage = texzip_images(Path(args.texzip))
+        span = usable - 12 - 20 - 7
+        dimg = round(span * 0.55)
+        dnote = span - dimg
+        out.append(
+            "\\section*{Unrecovered image regions — TikZ / table / "
+            "failed-math candidates}\n"
+            "Regions MathPix left as images (no LaTeX). Reconstruct with "
+            "\\texttt{pdfdrill vision} (LLM classify + transcribe to "
+            "TikZ/tabular/math); verify an LLM result against the real ink "
+            "with inkdrill.\n"
+            "\\begin{longtable}{|p{20mm}|p{7mm}|p{%smm}|p{%smm}|}\n"
+            "\\hline\n\\textbf{Identifier} & \\textbf{Page} & "
+            "\\textbf{Image} & \\textbf{Source} \\\\\n"
+            "\\hline\\endhead\n" % (dimg, dnote))
+        for title, latex, page, dims in dia:
+            img_path = None
+            try:
+                key = (int(page), int(dims[1]), int(dims[0]))
+                img_path = zkey.get(key) or zpage.get(int(page))
+            except (TypeError, ValueError):
+                pass
+            if img_path is None and crops:
+                cand = crops / f"{title}.jpg"
+                img_path = cand if cand.is_file() else None
+            if img_path is not None:
+                w_mm = None
+                if args.px2mm:
+                    real = jpg_width(img_path) or dims[0]
+                    try:
+                        w_mm = min(float(real) * args.px2mm, dimg)
+                    except (TypeError, ValueError):
+                        pass
+                size = ("width=%.1fmm" % w_mm) if w_mm else                     "width=\\linewidth"
+                try:
+                    rel = img_path.resolve().relative_to(out_dir)
+                except ValueError:
+                    rel = img_path
+                cell = "\\includegraphics[%s]{%s}" % (
+                    size, str(rel).replace("\\", "/"))
+                srcnote = "tex.zip (local)" if zkey or zpage else "crops"
+            else:
+                cell = "\\emph{(image not on disk — pass --texzip or "
+                cell += "download the CDN crop)}"
+                srcnote = "CDN only"
+            out.append("\\ident{%s} & %s & %s & %s \\\\ \\hline\n"
+                       % (esc_text(title), esc_text(str(page)), cell,
+                          srcnote))
         out.append("\\end{longtable}\n")
 
     out.append("\\end{document}\n")

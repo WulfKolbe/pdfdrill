@@ -132,6 +132,21 @@ hand-made `ink.rules[]` is no longer needed (inkdrill emits them).
 Gotcha kept: `table_lines` takes a region **id**, not a `Region` — pass
 `regs[0].id`.
 
+### bh2 (2nd Heim book) report + the vision/inkdrill loop (2026-08-17)
+
+`~/pdfdrill-library/bh2/`: MathPix gave md + tex.zip + lines.json (400pp,
+12,266 lines). `tools/make_report_tex.py` generates the LaTeX formula report
+(report.tex/pdf: A3 landscape, boxed, pixel-exact scan crops via `--px2mm`,
+columns Identifier|Page|Source|Rendered|Image). **The tex.zip's `images/` are
+exactly the regions MathPix could NOT OCR** — for bh2 exactly ONE (p400,
+1078×1019px), consistent across zip/md/model (`bh2_DIA_0001`, empty
+latex_code). `--texzip <dir>` feeds them into the report's "Unrecovered image
+regions" section locally (no CDN). The reconstruction route for such regions
+is **`pdfdrill vision`** (the GPT-4o large-prompt command; keyless → delegates
+to the running agent), and an LLM's returned LaTeX can now be **verified
+against the real ink with inkdrill** (compile the LaTeX, compare ink) — the
+loop is noted but not yet automated.
+
 ### Retraction task — at U0, contract table written, U1 not started
 
 `pdfdrill model --force` drops derived layers without retracting facts/evidence
