@@ -94,14 +94,14 @@ def table_open(caption: str, with_image: bool = False) -> str:
     if with_image:
         return (
             "\\section*{%s}\n" % caption +
-            "\\begin{longtable}{@{}p{24mm}p{42mm}p{42mm}p{48mm}p{8mm}@{}}\n"
-            "\\textbf{Identifier} & \\textbf{LaTeX source} & "
+            "\\begin{longtable}{|p{24mm}|p{40mm}|p{40mm}|p{46mm}|p{8mm}|}\n"
+            "\\hline\n\\textbf{Identifier} & \\textbf{LaTeX source} & "
             "\\textbf{Rendered} & \\textbf{Scan image} & "
             "\\textbf{Page} \\\\\n\\hline\\endhead\n")
     return (
         "\\section*{%s}\n" % caption +
-        "\\begin{longtable}{@{}p{34mm}p{62mm}p{62mm}p{10mm}@{}}\n"
-        "\\textbf{Identifier} & \\textbf{LaTeX source} & "
+        "\\begin{longtable}{|p{32mm}|p{60mm}|p{60mm}|p{10mm}|}\n"
+        "\\hline\n\\textbf{Identifier} & \\textbf{LaTeX source} & "
         "\\textbf{Rendered} & \\textbf{Page} \\\\\n\\hline\\endhead\n")
 
 
@@ -149,9 +149,9 @@ def row(title, latex, page, extra="", image=None) -> str:
     math = ("$\\displaystyle %s$" % safe) if safe \
         else ("\\emph{(not rendered)}" if latex else "---")
     if image is not None:
-        return "%s & %s & %s & %s & %s \\\\\n" % (
+        return "%s & %s & %s & %s & %s \\\\ \\hline\n" % (
             ident, src, math, image, esc_text(str(page)))
-    return "%s & %s & %s & %s \\\\\n" % (ident, src, math, esc_text(str(page)))
+    return "%s & %s & %s & %s \\\\ \\hline\n" % (ident, src, math, esc_text(str(page)))
 
 
 def main() -> None:
@@ -187,7 +187,7 @@ def main() -> None:
 
     if tab:
         out.append("\\section*{Tables}\n\\begin{longtable}"
-                   "{@{}p{30mm}p{64mm}p{64mm}p{8mm}@{}}\n"
+                   "{|p{28mm}|p{62mm}|p{62mm}|p{8mm}|}\n\\hline\n"
                    "\\textbf{Identifier} & \\textbf{Content (LaTeX source"
                    " if any)} & \\textbf{Scan image} & "
                    "\\textbf{Page} \\\\\n\\hline\\endhead\n")
@@ -196,7 +196,7 @@ def main() -> None:
                     ) if latex else ("(no LaTeX source; %s\\,$\\times$\\,%s px"
                                      " region — see tables.html)" % dims)
             img = crop_cell(crops, out_dir, title)
-            out.append("\\ident{%s} & %s & %s & %s \\\\\n"
+            out.append("\\ident{%s} & %s & %s & %s \\\\ \\hline\n"
                        % (esc_text(title), body, img, esc_text(str(page))))
         out.append("\\end{longtable}\n")
 
