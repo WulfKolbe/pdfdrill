@@ -62,6 +62,16 @@ def rows_for(tiddlers, bibkey):
     return fo, eq, tab
 
 
+def jpg_width(path: Path):
+    """Actual pixel width of the (possibly trimmed) crop; None without PIL."""
+    try:
+        from PIL import Image
+        with Image.open(path) as im:
+            return im.size[0]
+    except Exception:
+        return None
+
+
 def crop_cell(crops_dir: Path | None, out_dir: Path, title: str,
               px_width="", px2mm=None, col_mm=None) -> str:
     """An \\includegraphics cell for the tiddler's downloaded CDN crop.
@@ -82,7 +92,8 @@ def crop_cell(crops_dir: Path | None, out_dir: Path, title: str,
     size = "width=\\linewidth"
     if px2mm:
         try:
-            w_mm = float(px_width) * px2mm
+            real = jpg_width(img)
+            w_mm = float(real if real else px_width) * px2mm
             if col_mm and w_mm > col_mm:
                 w_mm = col_mm
             size = "width=%.1fmm" % w_mm
@@ -215,6 +226,19 @@ def main() -> None:
     eq_widths = col_widths(usable, with_image=bool(crops))
     fo_widths = col_widths(usable, with_image=False)
     img_col = eq_widths[4] if crops else None
+    if crops and args.px2mm:
+        # the widest actual crop decides the image column; freed mm -> Rendered
+        widest = 0.0
+        for title, _lx, _pg, _num, wpx in eq:
+            f = crops / f"{title}.jpg"
+            if f.is_file():
+                w = jpg_width(f) or (float(wpx) if wpx else 0)
+                widest = max(widest, float(w) * args.px2mm)
+        if widest and widest + 2 < eq_widths[4]:
+            freed = eq_widths[4] - (round(widest) + 2)
+            eq_widths = (eq_widths[0], eq_widths[1], eq_widths[2],
+                         eq_widths[3] + freed, round(widest) + 2)
+            img_col = eq_widths[4]
 
     out = [PREAMBLE % {"geom": geom}]
     out.append("\\section*{%s — formula report}\n"
