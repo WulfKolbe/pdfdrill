@@ -112,12 +112,12 @@ def col_widths(usable_mm: float, with_image: bool):
     """(ident, page, src, rendered[, image]) widths in mm for the usable span.
     ~12mm of the span is left for inter-column rules/padding."""
     span = usable_mm - 12
-    ident, page = 26, 9
+    ident, page = 20, 7
     rest = span - ident - page
     if with_image:
-        src = rend = round(rest * 0.30)
-        img = round(rest - 2 * src)
-        return ident, page, src, rend, img
+        src = round(rest * 0.29)
+        rend = round(rest * 0.31)
+        return ident, page, src, rend, rest - src - rend
     src = round(rest / 2)
     return ident, page, src, rest - src
 
