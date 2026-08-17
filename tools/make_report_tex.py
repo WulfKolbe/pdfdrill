@@ -82,11 +82,49 @@ def table_open(caption: str) -> str:
         "\\textbf{Rendered} & \\textbf{Page} \\\\\n\\hline\\endhead\n")
 
 
+def renderable(latex: str) -> str:
+    """Return latex safe to put inside $...$, or "" when it is not.
+
+    One malformed snippet (bh2_EQ0147 carried a stray \\end{itemize}) hung
+    xelatex for 10 minutes inside a longtable cell — every snippet is
+    validated here and demoted to source-only when it cannot render.
+    """
+    lx = re.sub(r"\s+", " ", latex).strip()
+    # display delimiters: strip a leading \[ / trailing \]; reject mid-string
+    lx = re.sub(r"^\\\[\s*", "", lx)
+    lx = re.sub(r"\s*\\\]$", "", lx)
+    if r"\[" in lx or r"\]" in lx or "$" in lx:
+        return ""
+    if re.sub(r"\\%", "", lx).count("%"):
+        return ""
+    # brace balance, with \\ and escaped \{ \} removed first
+    stripped = re.sub(r"\\[{}]", "", lx.replace("\\\\", ""))
+    depth = 0
+    for c in stripped:
+        if c == "{":
+            depth += 1
+        elif c == "}":
+            depth -= 1
+            if depth < 0:
+                return ""
+    if depth != 0:
+        return ""
+    if len(re.findall(r"\\left(?![a-zA-Z])", lx)) != \
+       len(re.findall(r"\\right(?![a-zA-Z])", lx)):
+        return ""
+    if sorted(re.findall(r"\\begin\{(\w+\*?)\}", lx)) != \
+       sorted(re.findall(r"\\end\{(\w+\*?)\}", lx)):
+        return ""
+    return lx
+
+
 def row(title, latex, page, extra="") -> str:
     ident = "\\ident{%s}%s" % (esc_text(title),
                                (" %s" % esc_text(extra)) if extra else "")
     src = "{\\ttfamily\\footnotesize %s}" % esc_text(latex) if latex else "---"
-    math = "$\\displaystyle %s$" % latex if latex else "---"
+    safe = renderable(latex) if latex else ""
+    math = ("$\\displaystyle %s$" % safe) if safe \
+        else ("\\emph{(not rendered)}" if latex else "---")
     return "%s & %s & %s & %s \\\\\n" % (ident, src, math, esc_text(str(page)))
 
 
