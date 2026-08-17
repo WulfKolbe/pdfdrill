@@ -957,6 +957,18 @@ def _do_bibsource(args):
     return cmd_bibsource(_pdf(pdf_args), bib_path=bib, bbl_path=bbl, force=force)
 
 
+def _do_reporttex(args):
+    """pdfdrill reporttex <pdf> [--paper a4|a3] [--portrait] [--compile] [--no-images]"""
+    from .commands import cmd_reporttex
+    paper, args = _opt(args, "--paper")
+    pdf_args = [a for a in args if a not in ("--compile", "--no-images",
+                                             "--portrait")]
+    return cmd_reporttex(_pdf(pdf_args), paper=paper or "a3",
+                         landscape="--portrait" not in args,
+                         compile_pdf="--compile" in args,
+                         images="--no-images" not in args)
+
+
 def _do_report(args):
     """pdfdrill report <pdf> [--force] [--embed] [--scale 1.0]"""
     from .commands import cmd_report
@@ -1920,6 +1932,7 @@ HANDLERS = {
         "bibfetch": _do_bibfetch,
         "citedrill": _do_citedrill,
         "report": _do_report,
+        "reporttex": _do_reporttex,
         "distill": _do_distill,
         "inspect": _do_inspect,
         "folder": _do_folder,

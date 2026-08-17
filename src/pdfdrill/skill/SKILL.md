@@ -526,6 +526,7 @@ _Generated from `commands.yaml` by skillsync. Edit the manifest, not this sectio
 | `pdfdrill bibliography <pdf> [--force]` | Parse the References section into Reference nodes (citekey/author/year/text) |
 | `pdfdrill bibsource <pdf> [--bib BIB] [--bbl BBL] [--force]` | Ingest the author's GOLD bibliography (--bbl file.bbl + --bib file.bib): alpha label↔citekey↔fields, links in-text citations by label. No API. |
 | `pdfdrill bibfetch <pdf> [--limit LIMIT] [--force]` | Enrich References with full BibTeX via Perplexity SONAR; --limit N (needs PERPLEXITY_API_KEY) _(network)_ |
+| `pdfdrill reporttex <pdf> [--paper PAPER] [--portrait] [--compile] [--no-images]` | LaTeX formula report (report.tex): one boxed longtable row per EQ/FO/TAB — identifier, page, escaped source, rendered math, and the MathPix scan crop at pixel-exact original size (px2mm derived from pdfinfo + lines.json); the tex.zip unrecovered image regions (TikZ/table/failed-math candidates) close the report. --compile runs the xelatex fixpoint (malformed OCR rows demoted to source-only, never failing the document). |
 | `pdfdrill report <pdf> [--scale SCALE] [--embed]` | Full inline+display math report (formula-report.html). --scale N scales each KaTeX render to the CDN image height (1.0=same, 2.0=200%); --embed |
 | `pdfdrill inspect <pdf> [--pages PAGES] [--dpi DPI] [--no-images]` | DevTools-style docmodel inspector HTML (<bibkey>.inspect.html): every DocObject as a hover/click box on the rendered page AND a DOM-like ELEMENTS tree + INSPECTOR pane (region/LaTeX/ props/realizations/alignments) + reading-order REFLOW. Self-contained (embeds downscaled pages); --no-images = boxes-only; --dpi N inlined-page DPI (default 120) |
 | `pdfdrill folder <dir>` | Build the full structure for every PDF in <dir> from existing |
@@ -627,6 +628,6 @@ _Generated from `commands.yaml` by skillsync. Edit the manifest, not this sectio
 <!-- COMMANDS:END -->
 
 <!-- PREFLIGHT-TOKEN:BEGIN -->
-Attestation token — the LAST line of this SKILL. If you can read this, you read the whole file. Run `pdfdrill preflight --ack DRILL-a4409937` before any build/extract command.
-DRILL-a4409937
+Attestation token — the LAST line of this SKILL. If you can read this, you read the whole file. Run `pdfdrill preflight --ack DRILL-c6f5421f` before any build/extract command.
+DRILL-c6f5421f
 <!-- PREFLIGHT-TOKEN:END -->

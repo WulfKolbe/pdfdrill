@@ -7911,24 +7911,31 @@ def cmd_injectlatex(pdf: Path, tex: str | None = None, force: bool = False) -> s
     # the e-print is the author's real LaTeX. Order: explicit --tex > arXiv e-print
     # > local <stem>.tex > MathPix <stem>.tex.zip.
     src = Path(tex) if tex else None
+    src_kind = "explicit (--tex)" if tex else None
     aid = None if tex else _arxiv_id_for(pdf, sc)
     if src is None and aid:
         for ext in (".tgz", ".tar.gz"):
             cand = pdf.parent / f"{pdf.stem}{ext}"
             if cand.exists():
                 src = cand
+                src_kind = "arxiv-eprint (author .tgz)"
                 break
         if src is None:
             try:
                 from . import sources
                 src = sources.download_arxiv_source(aid, pdf.parent)
+                src_kind = "arxiv-eprint (author .tgz, downloaded)"
             except Exception:
                 src = None                       # fall through to a local .tex/.tex.zip
     if src is None:
+        _KIND = {".tex": "local (author .tex)",
+                 ".tex.zip": "mathpix (.tex.zip — MathPix's own reconstruction)",
+                 ".tgz": "local (.tgz)", ".tar.gz": "local (.tar.gz)"}
         for ext in (".tex", ".tex.zip", ".tgz", ".tar.gz"):
             cand = pdf.parent / f"{pdf.stem}{ext}"
             if cand.exists():
                 src = cand
+                src_kind = _KIND[ext]
                 break
     if src is None:
         # A path an earlier `--tex` already taught us. A thesis keeps its sources
@@ -7936,6 +7943,7 @@ def cmd_injectlatex(pdf: Path, tex: str | None = None, force: bool = False) -> s
         # to be re-typed on every run — or the author's LaTeX is silently dropped
         # and the document falls back to MathPix rasters.
         src = remembered_latex_source(pdf, sc)
+        src_kind = "remembered (earlier --tex)"
         if src is not None and not src.exists():
             return (f"The LaTeX source recorded for {pdf.name} is no longer "
                     f"there: {src}. Pass --tex <path> with its new location.")
@@ -7945,6 +7953,12 @@ def cmd_injectlatex(pdf: Path, tex: str | None = None, force: bool = False) -> s
                 f"Run `pdfdrill mathpix {pdf.name}` first (it downloads the MathPix "
                 f"{pdf.stem}.tex.zip), or pass --tex <path>.")
     remember_latex_source(sc, src)
+    # A5: three sources with silent precedence was a provenance gap — record
+    # WHICH kind won, and say it in the report.
+    try:
+        sc.set_evidence("latex_source_kind", src_kind or "unknown")
+    except Exception:
+        pass
 
     full, main = ls.read_source(str(src))
     if not full:
@@ -8093,12 +8107,14 @@ def cmd_injectlatex(pdf: Path, tex: str | None = None, force: bool = False) -> s
            f"`pdfdrill svg {pdf.name}` to render them to SVG." if n_graphics else "")
     if created:
         # the keyless case: gold equations became first-class objects
-        return (f"Ingested LaTeX source {src.name}: {len(src_eqs)} display equations, "
+        return (f"Ingested LaTeX source {src.name} "
+                f"[{src_kind or 'unknown'}]: {len(src_eqs)} display equations, "
                 f"{len(macros)} preamble macros. The base model had no equation "
                 f"slots (keyless OCR), so CREATED {created} Equation object(s) from "
                 f"the author's gold LaTeX.{gfx} Run `pdfdrill report {pdf.name}` — "
                 f"the equations now render.")
-    return (f"Ingested LaTeX source {src.name}: {len(src_eqs)} display equations, "
+    return (f"Ingested LaTeX source {src.name} "
+            f"[{src_kind or 'unknown'}]: {len(src_eqs)} display equations, "
             f"{len(macros)} preamble macros. Attached {attached} as `tex` "
             f"provenance to MathPix equations ({unmatched} source eqs unmatched). "
             f"Kept original+expanded LaTeX; preamble stored for the SVG step.{gfx} "
@@ -12973,3 +12989,62 @@ def _vision_via_delegate(pdf: Path, doc, todo, targets, sc, model_path,
             f"{f', {fetch_errors} unfetchable' if fetch_errors else ''}. "
             f"Attached as the 'openai' provenance{adopt_s} "
             f"Run `pdfdrill compare {pdf.name}` to see the column.")
+
+
+def cmd_reporttex(pdf: Path, paper: str = "a3", landscape: bool = True,
+                  compile_pdf: bool = False, images: bool = True) -> str:
+    """LaTeX formula report (report.tex): every EQ/FO/TAB identifier with
+    page, escaped source, rendered math, and the MathPix scan crop at its
+    exact original physical size; the tex.zip's unrecovered image regions
+    (the TikZ/table/failed-math candidates) as a final section."""
+    from . import report_tex as rt
+    sc = Sidecar(pdf)
+    rel = sc.get_evidence("tiddlers_path")
+    tid = (pdf.parent / rel) if rel else None
+    if tid is None or not tid.is_file():
+        cand = pdf.parent / f"{pdf.stem}.tiddlers.json"
+        tid = cand if cand.is_file() else None
+    if tid is None:
+        out = cmd_tiddlers(pdf)                    # idempotent auto-chain
+        rel = sc.get_evidence("tiddlers_path")
+        tid = (pdf.parent / rel) if rel else None
+        if tid is None or not tid.is_file():
+            return (f"No tiddler array for {pdf.name} and `tiddlers` did not "
+                    f"produce one:\n{out}")
+    px2mm = rt.auto_px2mm(pdf)
+    crops = None
+    crop_note = "images: off (--no-images)"
+    if images:
+        crops = pdf.parent / "report-crops"
+        import json as _json
+        tiddlers = _json.loads(tid.read_text())
+        ok, cached, failed = rt.download_crops(tiddlers, crops)
+        crop_note = f"crops: {ok} fetched, {cached} cached, {failed} failed"
+        if not any(crops.glob("*.jpg")):
+            crops = None                           # nothing usable → no column
+    texzip = rt.find_texzip(pdf)
+    r = rt.build_report(tid, crops=crops, texzip=texzip, paper=paper,
+                        landscape=landscape, px2mm=px2mm)
+    sc.set_evidence("reporttex_path",
+                    str(Path(r["out"]).relative_to(pdf.parent)))
+    lines = [f"Wrote {r['out']} — {r['equations']} display equations, "
+             f"{r['formulas']} inline formulas, {r['tables']} tables, "
+             f"{r['unrecovered']} unrecovered image region(s) "
+             f"({'tex.zip local' if texzip else 'no tex.zip found'}).",
+             f"Layout: {paper}{' landscape' if landscape else ''}; "
+             f"px2mm={'%.5f (pixel-exact scan images)' % px2mm if px2mm else 'n/a (images fill the column)'}; "
+             + crop_note + "."]
+    if compile_pdf:
+        res = rt.compile_fixpoint(Path(r["out"]))
+        if res is None:
+            lines.append("xelatex not installed — report.tex written, "
+                         "not compiled.")
+        else:
+            pages, errors, demoted = res
+            lines.append(f"Compiled report.pdf: {pages} pages, {errors} "
+                         f"error(s), {demoted} malformed row(s) demoted "
+                         f"to source-only.")
+    else:
+        lines.append("Compile with `pdfdrill reporttex <pdf> --compile` "
+                     "(xelatex, two passes + error-row demotion).")
+    return "\n".join(lines)

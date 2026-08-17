@@ -1241,6 +1241,39 @@ commands:
     type: flag
     help: base64-inline every CDN crop (self-contained images)
   typed: true
+- name: reporttex
+  section: Introspection (fast, no extraction)
+  summary: 'LaTeX formula report (report.tex): one boxed longtable row per EQ/FO/TAB — identifier, page,
+    escaped source, rendered math, and the MathPix scan crop at pixel-exact original size (px2mm derived
+    from pdfinfo + lines.json); the tex.zip unrecovered image regions (TikZ/table/failed-math candidates)
+    close the report. --compile runs the xelatex fixpoint (malformed OCR rows demoted to source-only,
+    never failing the document).'
+  offline_ok: true
+  requires:
+  - tiddlers
+  positionals:
+  - name: pdf
+    type: pdf
+    required: true
+    help: PDF path, https URL, or bare arXiv id
+  flags:
+  - name: paper
+    flag: --paper
+    type: str
+    help: a4 or a3 (default a3)
+  - name: portrait
+    flag: --portrait
+    type: flag
+    help: portrait instead of the default landscape
+  - name: compile
+    flag: --compile
+    type: flag
+    help: compile report.pdf with xelatex (error-row demotion fixpoint)
+  - name: no_images
+    flag: --no-images
+    type: flag
+    help: skip the CDN crop download / scan-image column
+  typed: true
 - name: report
   section: Introspection (fast, no extraction)
   summary: Full inline+display math report (formula-report.html). --scale N scales each KaTeX render to

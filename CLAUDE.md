@@ -113,6 +113,11 @@ tests failing against correct source (HANDOVER rule 4).
 - **Verify pushes**: after any push claim, `git ls-remote origin` — commits
   must never exist only locally or in a scratch worktree (2026-08-16 incident,
   HANDOVER header).
+- **A new capability is a layer in the manifest, not a new verb — and not a
+  tool.** Code that lands in `tools/` is invisible to the planner, `status`,
+  and `--ensure`; register it in `commands.yaml` with `requires:`/`done_when:`
+  so the layer graph can reach it (audit A4, 2026-08-17; `reporttex` is the
+  worked example — it started in `tools/` and had to be promoted).
 
 ## Where the details live
 
