@@ -952,6 +952,16 @@ def _do_bibsource(args):
     return cmd_bibsource(_pdf(pdf_args), bib_path=bib, bbl_path=bbl, force=force)
 
 
+def _do_modeldiff(args):
+    """pdfdrill modeldiff <old.docmodel.json> <new.docmodel.json>"""
+    from .commands import cmd_modeldiff
+    from pathlib import Path as _P
+    paths = [a for a in args if not a.startswith("--")]
+    if len(paths) != 2:
+        return "usage: pdfdrill modeldiff <old.docmodel.json> <new.docmodel.json>"
+    return cmd_modeldiff(_P(paths[0]), _P(paths[1]))
+
+
 def _do_tailsplit(args):
     """pdfdrill tailsplit <pdf>"""
     from .commands import cmd_tailsplit
@@ -1935,6 +1945,7 @@ HANDLERS = {
         "report": _do_report,
         "reporttex": _do_reporttex,
         "tailsplit": _do_tailsplit,
+        "modeldiff": _do_modeldiff,
         "distill": _do_distill,
         "inspect": _do_inspect,
         "folder": _do_folder,

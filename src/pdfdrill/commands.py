@@ -7400,7 +7400,8 @@ def cmd_snip(pdf: Path, limit: int | None = None, force: bool = False,
             stream=prov_name, role="latex_candidate", provenance=prov_name,
             score=res.get("confidence"),
             props={"latex": res.get("latex", ""), "text": res.get("text", ""),
-                   "confidence": res.get("confidence")},
+                   "confidence": res.get("confidence"),
+                   "edit_source": _edit_source(sc, e.props.get("cdn_url"))},
             region=region,
         ))
         done += 1
@@ -8042,7 +8043,8 @@ def cmd_injectlatex(pdf: Path, tex: str | None = None, force: bool = False) -> s
                 score=round(best_sim, 3),
                 props={"latex": expanded, "latex_original": original,
                        "env": se["env"], "label": se.get("label"),
-                       "numbered": se.get("numbered"), "match_sim": round(best_sim, 3)}))
+                       "numbered": se.get("numbered"), "match_sim": round(best_sim, 3),
+                       "edit_source": _edit_source(sc)}))
             promote_equation_label(best, se)      # onto props, where consumers read
             attached += 1
         else:
@@ -9979,7 +9981,8 @@ def cmd_ingest(pdf: Path, candidates_path: str, provider: str = "llm",
         obj.add_realization(Realization(
             stream=provider, role="latex_candidate", provenance=provider,
             score=it.get("confidence") if it.get("confidence") is not None else it.get("score"),
-            props={"latex": latex},
+            props={"latex": latex,
+                   "edit_source": _edit_source(sc, it.get("cdn_url"))},
         ))
         attached += 1
 
@@ -10181,7 +10184,8 @@ def cmd_vision(pdf: Path, limit: int | None = None, force: bool = False) -> str:
             stream="openai", role="latex_candidate", provenance="openai",
             props={"url": url, "selector": selector, "latex": code,
                    "gnuplot": res.get("gnuplot", ""),
-                   "csv_data": res.get("csv_data", "")},
+                   "csv_data": res.get("csv_data", ""),
+                   "edit_source": _edit_source(sc, url)},
         ))
         # Chemistry bridge to the existing TikZ/table SVG route: a Diagram crop
         # that MathPix left as an image has latex_code="" — adopt the chemfig /
@@ -12967,7 +12971,8 @@ def _vision_via_delegate(pdf: Path, doc, todo, targets, sc, model_path,
             props={"url": url, "selector": selector, "latex": code,
                    "gnuplot": res.get("gnuplot", ""),
                    "csv_data": res.get("csv_data", ""),
-                   "delegated": runtime.value},
+                   "delegated": runtime.value,
+                   "edit_source": _edit_source(sc, url)},
         ))
         if (selector in ("chemical_structure", "chemical_equation") and code
                 and o.type in ("Diagram", "Table")
@@ -13055,6 +13060,22 @@ def cmd_reporttex(pdf: Path, paper: str = "a3", landscape: bool = True,
     return "\n".join(lines)
 
 
+def _edit_source(sc: "Sidecar", url: str | None = None) -> dict:
+    """P9: the provenance stamp for every realization a RE-RUN writes — the
+    CDN URL it read, a per-document run index, and the timestamp. An edit
+    without one is what `modeldiff` flags as UNEVIDENCED."""
+    import datetime
+    n = sc.get_evidence("edit_runs")
+    n = (int(n) if n else 0) + 1
+    sc.set_evidence("edit_runs", n)
+    stamp = {"run": n,
+             "at": datetime.datetime.now(datetime.timezone.utc
+                                         ).isoformat(timespec="seconds")}
+    if url:
+        stamp["cdn_url"] = url
+    return stamp
+
+
 def cmd_tailsplit(pdf: Path) -> str:
     """P7: split a math region carrying a PROSE tail into two objects — the
     expression keeps <id> (tail stripped from its latex, original kept under
@@ -13110,3 +13131,93 @@ def cmd_tailsplit(pdf: Path) -> str:
             f"<id>.tail prose){', ' + str(skipped) + ' already split' if skipped else ''}. "
             + ("Re-project (`tiddlers`/`reporttex`) to see the cleaned math."
                if split else "Nothing to do — no prose tails detected."))
+
+
+def cmd_modeldiff(old_path: Path, new_path: Path, limit: int = 40) -> str:
+    """P8: field-level diff of two model JSON files. Per changed object: the
+    changed fields with old and new values, the EVIDENCE PATH backing the new
+    value (edit_source / a <field>_source twin / a realization carrying the
+    value), and the source tag. Changed objects with NO evidence path land in
+    UNEVIDENCED and are counted separately — an edit nobody signed."""
+    import json as _json
+
+    def _objects(p: Path) -> dict:
+        d = _json.loads(Path(p).read_text(encoding="utf-8"))
+        objs = d.get("objects", d if isinstance(d, list) else [])
+        return {o["id"]: o for o in objs}
+
+    def _short(v) -> str:
+        t = _json.dumps(v, ensure_ascii=False) if not isinstance(v, str) else v
+        return (t[:57] + "…") if len(t) > 58 else t
+
+    def _evidence_for(obj: dict, field: str, new_val):
+        """(evidence_path, source_tag) or (None, tag)."""
+        props = obj.get("props") or {}
+        tag = props.get("added_by") or ""
+        for i, r in enumerate(obj.get("realizations") or []):
+            rp = r.get("props") or {}
+            es = rp.get("edit_source")
+            if es and rp.get(field) == new_val:
+                return (f"realizations[{i}].edit_source(run {es.get('run')}"
+                        f" @ {es.get('at', '?')})",
+                        r.get("provenance") or tag)
+            if rp.get(field) == new_val:
+                return (f"realizations[{i}].provenance="
+                        f"{r.get('provenance', '?')}",
+                        r.get("provenance") or tag)
+        if f"{field}_source" in props or f"{field}_pretail" in props:
+            twin = (f"{field}_source" if f"{field}_source" in props
+                    else f"{field}_pretail")
+            return f"props.{twin}", tag or "in-place edit (original kept)"
+        return None, tag
+
+    old_o, new_o = _objects(old_path), _objects(new_path)
+    added = [i for i in new_o if i not in old_o]
+    removed = [i for i in old_o if i not in new_o]
+    changed_lines, unevidenced = [], []
+    for oid in old_o:
+        if oid not in new_o:
+            continue
+        op, np = old_o[oid].get("props") or {}, new_o[oid].get("props") or {}
+        fields = [k for k in set(op) | set(np)
+                  if op.get(k) != np.get(k) and k != "edit_source"]
+        if not fields:
+            continue
+        entry_lines = []
+        has_evidence = False
+        for f in sorted(fields):
+            path, tag = _evidence_for(new_o[oid], f, np.get(f))
+            if path:
+                has_evidence = True
+            entry_lines.append(
+                f"    {f}: {_short(op.get(f))} → {_short(np.get(f))}"
+                + (f"  [{path}; source={tag or '?'}]" if path
+                   else (f"  [source={tag}]" if tag else "")))
+            if tag and not path:
+                has_evidence = has_evidence or bool(tag)
+        head = f"  {oid} ({new_o[oid].get('type', '?')})"
+        block = [head] + entry_lines
+        (changed_lines if has_evidence else unevidenced).append(block)
+
+    out = [f"modeldiff {Path(old_path).name} → {Path(new_path).name}: "
+           f"{len(changed_lines) + len(unevidenced)} changed, "
+           f"{len(added)} added, {len(removed)} removed, "
+           f"{len(unevidenced)} UNEVIDENCED."]
+    for title, blocks in (("CHANGED (evidenced)", changed_lines),
+                          ("UNEVIDENCED — edits nobody signed", unevidenced)):
+        if not blocks:
+            continue
+        out.append(f"\n{title}:")
+        for b in blocks[:limit]:
+            out.extend(b)
+        if len(blocks) > limit:
+            out.append(f"  … {len(blocks) - limit} more")
+    if added:
+        out.append("\nADDED: " + ", ".join(
+            f"{i} ({new_o[i].get('type', '?')})" for i in added[:limit])
+            + (f" … +{len(added) - limit}" if len(added) > limit else ""))
+    if removed:
+        out.append("REMOVED: " + ", ".join(
+            f"{i} ({old_o[i].get('type', '?')})" for i in removed[:limit])
+            + (f" … +{len(removed) - limit}" if len(removed) > limit else ""))
+    return "\n".join(out)

@@ -1239,6 +1239,23 @@ commands:
     type: flag
     help: base64-inline every CDN crop (self-contained images)
   typed: true
+- name: modeldiff
+  section: Introspection (fast, no extraction)
+  summary: 'P8: field-level diff of two model JSON files — per changed object the changed fields with old
+    and new values, the evidence path backing the new value (edit_source stamp / a <field>_source twin /
+    the realization carrying it) and the source tag; changed objects with NO evidence path are listed
+    under UNEVIDENCED and counted separately. Added/removed objects listed.'
+  offline_ok: true
+  positionals:
+  - name: old
+    type: str
+    required: true
+    help: the OLD model.docmodel.json
+  - name: new
+    type: str
+    required: true
+    help: the NEW model.docmodel.json
+  typed: true
 - name: tailsplit
   section: Introspection (fast, no extraction)
   summary: 'P7: split math regions carrying a PROSE tail (MathPix keeps the sentence fragment inside the

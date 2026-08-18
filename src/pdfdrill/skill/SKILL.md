@@ -526,6 +526,7 @@ _Generated from `commands.yaml` by skillsync. Edit the manifest, not this sectio
 | `pdfdrill bibliography <pdf> [--force]` | Parse the References section into Reference nodes (citekey/author/year/text) |
 | `pdfdrill bibsource <pdf> [--bib BIB] [--bbl BBL] [--force]` | Ingest the author's GOLD bibliography (--bbl file.bbl + --bib file.bib): alpha label↔citekey↔fields, links in-text citations by label. No API. |
 | `pdfdrill bibfetch <pdf> [--limit LIMIT] [--force]` | Enrich References with full BibTeX via Perplexity SONAR; --limit N (needs PERPLEXITY_API_KEY) _(network)_ |
+| `pdfdrill modeldiff <old> <new>` | P8: field-level diff of two model JSON files — per changed object the changed fields with old and new values, the evidence path backing the new value (edit_source stamp / a <field>_source twin / the realization carrying it) and the source tag; changed objects with NO evidence path are listed under UNEVIDENCED and counted separately. Added/removed objects listed. |
 | `pdfdrill tailsplit <pdf>` | P7: split math regions carrying a PROSE tail (MathPix keeps the sentence fragment inside the math region, e.g. mathrm(nach Addition) … mathrm(was im Ver-)) into <id> (expression, tail stripped, original kept as latex_pretail) + <id>.tail (MathTail prose object). Idempotent. Census 2026-08-18: 36 EQ across bh2/BH1org/WDorg4, 0 inline formulas. |
 | `pdfdrill reporttex <pdf> [--paper PAPER] [--portrait] [--compile] [--no-images]` | LaTeX formula report (report.tex): one boxed longtable row per EQ/FO/TAB — identifier, page, escaped source, rendered math, and the MathPix scan crop at pixel-exact original size (px2mm derived from pdfinfo + lines.json); the tex.zip unrecovered image regions (TikZ/table/failed-math candidates) close the report. --compile runs the xelatex fixpoint (malformed OCR rows demoted to source-only, never failing the document). |
 | `pdfdrill report <pdf> [--scale SCALE] [--embed]` | Full inline+display math report (formula-report.html). --scale N scales each KaTeX render to the CDN image height (1.0=same, 2.0=200%); --embed |
@@ -629,6 +630,6 @@ _Generated from `commands.yaml` by skillsync. Edit the manifest, not this sectio
 <!-- COMMANDS:END -->
 
 <!-- PREFLIGHT-TOKEN:BEGIN -->
-Attestation token — the LAST line of this SKILL. If you can read this, you read the whole file. Run `pdfdrill preflight --ack DRILL-e9864828` before any build/extract command.
-DRILL-e9864828
+Attestation token — the LAST line of this SKILL. If you can read this, you read the whole file. Run `pdfdrill preflight --ack DRILL-aca7a9bc` before any build/extract command.
+DRILL-aca7a9bc
 <!-- PREFLIGHT-TOKEN:END -->
