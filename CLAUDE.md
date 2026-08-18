@@ -81,9 +81,10 @@ tests failing against correct source (HANDOVER rule 4).
 - **Cheapest sufficient command first.** `size`/`pdfinfo`/`links`/`dests`
   before any heavy pass. `links` reads the annotation layer and finds URLs with
   no visible anchor text that every text/OCR route drops (the "killer case").
-- **arXiv is free.** MathPix upload is SKIPPED by default for arXiv inputs;
-  `model` builds from the e-print LaTeX source (fast, keyless). The
-  MathPix-rich path is `mathpix <id> --force` → `model` → …
+- **arXiv is free.** `model` builds from the e-print LaTeX source (fast,
+  keyless). `mathpix` runs when asked — a named command is an instruction —
+  and appends a one-line free-route note after the work. The MathPix-rich
+  path is `mathpix <id>` → `model` → …
 - **Ghostscript at ≥400 dpi is the ONLY rasterizer** (`pdf_reading.rasterize`/
   `render_page`); no pdftoppm/fitz fallback. For table-rule measurements use
   800 dpi (HANDOVER §3 T2).
@@ -100,7 +101,7 @@ tests failing against correct source (HANDOVER rule 4).
   `_stale_or_absent`/`_fresh_docgraph`.
 - **Keyless math**: tesseract cannot type equations; a 0-equation model on a
   math-bearing doc sets `NEEDS_VISION_OCR` and the fix is `pdfdrill latex`
-  (arXiv gold, free) / `visionocr` (LLM delegation) / `mathpix --force` (paid).
+  (arXiv gold, free) / `visionocr` (LLM delegation) / `mathpix` (paid).
 - **LLM delegation** (`llm_delegate`): no API key → route sub-tasks to the
   running Claude (CLI `claude -p`, or sandbox file handshake); image tasks are
   BATCHED (≤10/call) to amortize the ~180K-token harness tax.

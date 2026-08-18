@@ -73,14 +73,21 @@ def test_lines_json_feeds_the_docmodel():
     assert any("Hello world" in (p.props.get("text") or "") for p in paras)
 
 
-def test_cmd_ocr_refuses_to_clobber_mathpix():
+def test_cmd_ocr_backs_up_mathpix_instead_of_refusing(monkeypatch):
+    """The named command executes (2026-08-18); the PAID MathPix lines.json is
+    backed up first, never destroyed and never a reason to refuse."""
+    monkeypatch.setattr(ocr_lines, "tools_available",
+                        lambda: (False, "no tesseract here"))
     with tempfile.TemporaryDirectory() as d:
         pdf = Path(d) / "doc.pdf"
         pdf.write_bytes(b"%PDF-1.4\n")
         # A MathPix-style lines.json (no "source" key) next to it.
         (Path(d) / "doc.lines.json").write_text(json.dumps({"pages": []}))
         out = cmd_ocr(pdf)
-        assert "Refusing to overwrite" in out
+        assert "Refusing" not in out
+        bak = Path(d) / "doc.lines.mathpix.bak.json"
+        assert bak.exists(), "backup must exist BEFORE any overwrite"
+        assert json.loads(bak.read_text()) == {"pages": []}
 
 
 def test_cmd_ocr_graceful_when_tools_missing(monkeypatch):
@@ -100,7 +107,7 @@ if __name__ == "__main__":
             for o, n, v in reversed(self._u): setattr(o, n, v)
             self._u = []
     fns = [test_lines_json_from_words_shape, test_blank_page_still_listed,
-           test_lines_json_feeds_the_docmodel, test_cmd_ocr_refuses_to_clobber_mathpix]
+           test_lines_json_feeds_the_docmodel, test_cmd_ocr_backs_up_mathpix_instead_of_refusing]
     for fn in fns:
         fn(); print(f"PASS {fn.__name__}")
     mp = _MP()

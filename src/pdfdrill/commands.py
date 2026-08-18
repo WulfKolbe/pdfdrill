@@ -90,12 +90,14 @@ _CODE_HOSTS = (
 # MathPix OCR download
 # ---------------------------------------------------------------------------
 
-def cmd_mathpix(pdf: Path, force: bool = False) -> str:
+def cmd_mathpix(pdf: Path) -> str:
     """Download MathPix OCR outputs (lines.json, md, tex.zip) next to the PDF.
 
-    Idempotent: if the outputs already exist next to the PDF (and --force is
-    not given), no upload happens, so re-runs cost no MathPix credits. The
-    pdf_id and the downloaded files are recorded in the sidecar.
+    Runs when asked — a named command is an instruction, not a proposal. For an
+    arXiv document a ONE-LINE note about the free author-LaTeX route is
+    appended AFTER the work, never instead of it. Idempotent: outputs already
+    on disk cost no new MathPix credits (delete them to re-OCR). The pdf_id
+    and the downloaded files are recorded in the sidecar.
 
     MathPix `lines.json` is the format the comparison pipeline needs: it pairs
     each recognized expression's LaTeX with the CDN image MathPix rendered.
@@ -110,22 +112,7 @@ def cmd_mathpix(pdf: Path, force: bool = False) -> str:
     # than OOM on the encode or POST a doomed 463 MB body; warn on large inputs.
     warn = ""
     cached = all(Path(p).exists() for p in expected_outputs(str(pdf)).values())
-    # arXiv: don't spend a MathPix credit by default — the author's LaTeX source
-    # is the FREE gold form. Skip the upload and point at the free routes; `model`
-    # then builds page structure with keyless tesseract. `--force` uses MathPix.
-    if not force and not cached:
-        aid = _arxiv_id_for(pdf, sc)
-        if aid:
-            return (f"MathPix skipped — {pdf.name} is arXiv:{aid}, and the author's "
-                    f"LaTeX source is FREE.\n"
-                    f"  • equations (gold): `pdfdrill injectlatex {pdf.name}` auto-downloads "
-                    f"the e-print .tgz\n"
-                    f"  • abstract (free):  `pdfdrill abstract {pdf.name}` reads the abs "
-                    f"page\n"
-                    f"  • page structure:   `pdfdrill model {pdf.name}` falls back to "
-                    f"keyless tesseract OCR\n"
-                    f"Pass --force to use MathPix anyway.")
-    if force or not cached:
+    if not cached:
         size = pdf.stat().st_size if pdf.exists() else 0
         from . import probes
         probes.ensure(pdf, sc)             # acquisition ran this; older docs
@@ -139,7 +126,7 @@ def cmd_mathpix(pdf: Path, force: bool = False) -> str:
 
     t0 = time.monotonic()
     try:
-        result = fetch_mathpix(str(pdf), force=force)
+        result = fetch_mathpix(str(pdf), force=False)
     except NetworkBlocked as e:
         return str(e)
     except Exception as e:        # 413 too-large / API error / oversize → degrade to OCR
@@ -166,7 +153,13 @@ def cmd_mathpix(pdf: Path, force: bool = False) -> str:
         cost_ms=(time.monotonic() - t0) * 1000, detail=result["status"],
     )
     sc.save()
-    return warn + _format_mathpix(result, files_meta)
+    note = ""
+    aid = _arxiv_id_for(pdf, sc)
+    if aid:
+        note = (f"\nNote: arXiv:{aid} also has the FREE author-LaTeX route "
+                f"(`pdfdrill injectlatex` for gold equations, `abstract` for "
+                f"the abs page) — cheaper next time.")
+    return warn + _format_mathpix(result, files_meta) + note
 
 
 def _format_mathpix(result: dict, files_meta: list[dict]) -> str:
@@ -1284,16 +1277,22 @@ def cmd_ocr(pdf: Path, lang: str = "eng", ppi: int = 300, force: bool = False,
 
     sc = Sidecar(pdf)
     lines_path = _lines_json_path(pdf)
-    if lines_path.exists() and not force:
+    overwrite_note = ""
+    if lines_path.exists():
         try:
             existing = json.loads(lines_path.read_text(encoding="utf-8"))
         except (json.JSONDecodeError, OSError):
             existing = {}
-        src = existing.get("source")
-        if src != "tesseract":
-            return (f"{lines_path.name} already exists (looks like a MathPix "
-                    f"lines.json). Refusing to overwrite — pass --force to "
-                    f"replace it with tesseract OCR.")
+        if existing.get("source") != "tesseract":
+            # The named command executes; the PAID MathPix output is backed up
+            # first, not destroyed (guard became a note, never a refusal).
+            bak = lines_path.with_suffix(".mathpix.bak.json")
+            if not bak.exists():
+                bak.write_bytes(lines_path.read_bytes())
+            overwrite_note = (f"\nNote: the existing MathPix {lines_path.name} "
+                              f"was backed up to {bak.name} before being "
+                              f"replaced by tesseract OCR — copy it back to "
+                              f"restore the MathPix layer.")
 
     ok, msg = ocr_lines.tools_available()
     if not ok:
@@ -1346,6 +1345,7 @@ def cmd_ocr(pdf: Path, lang: str = "eng", ppi: int = 300, force: bool = False,
         f"{meta.get('units', '?')}, crops via /cropped/…&units=pt).\n"
         f"  typed: {typed}\n"
         f"  Build the structure with `pdfdrill model {pdf.name}`.{math_note}{warn}"
+        f"{overwrite_note}"
     )
 
 
@@ -4817,8 +4817,11 @@ def cmd_combine(out: Path, pdfs: "list[Path]", force: bool = False) -> str:
         return ("combine: none of the inputs has a built model — run `pdfdrill "
                 f"model` first. Missing: {', '.join(missing) or '(none given)'}.")
     out = Path(out)
-    if out.exists() and not force:
-        return f"combine: {out.name} exists — pass --force to overwrite."
+    combine_note = ""
+    if out.exists():
+        # The user named the output; overwriting it IS the instruction. A
+        # combined store is rebuilt losslessly from the member models.
+        combine_note = f" (replaced the previous {out.name})"
     meta = {"title": f"Combined: {', '.join(bk for bk, _ in used)}",
             "bibkey": out.stem, "combined_docs": [bk for bk, _ in used],
             "num_docs": len(used), "sources": srcs}
@@ -4827,9 +4830,9 @@ def cmd_combine(out: Path, pdfs: "list[Path]", force: bool = False) -> str:
         ensure_ascii=False), encoding="utf-8")
     parts = ", ".join(f"{bk} ({n})" for bk, n in used)
     warn = (f" Skipped (no model): {', '.join(missing)}." if missing else "")
-    return (f"Combined {len(used)} document(s) → {len(objects)} units in {out.name} "
-            f"[{parts}].{warn} Chat over all: `pdfdrill retrieve {out.name} \"…\"` "
-            f"or `bun tools/drillui_bridge.ts {out.name}`.")
+    return (f"Combined {len(used)} document(s) → {len(objects)} units in {out.name}"
+            f"{combine_note} [{parts}].{warn} Chat over all: `pdfdrill retrieve "
+            f"{out.name} \"…\"` or `bun tools/drillui_bridge.ts {out.name}`.")
 
 
 def doc_title(pdf: Path, sc: "Sidecar | None" = None) -> str:
@@ -6466,12 +6469,14 @@ def _fold_eq_records_into_lines_json(lines_path: Path, records: list,
     laid out top-to-bottom at synthetic y positions (when none is supplied) and
     each `equation_number` is placed at its equation's `top_left_y` so
     `EquationProcessor` pairs them by page+y. Returns (n_equations, n_numbers).
-    Refuses to clobber a non-tesseract (MathPix) lines.json without `force`."""
+    A non-tesseract (MathPix) lines.json is BACKED UP first (guard became a
+    note, never a refusal): the named command executes, the paid layer stays
+    recoverable as <name>.mathpix.bak.json."""
     lj = json.loads(lines_path.read_text(encoding="utf-8"))
-    if lj.get("source") not in ("tesseract", "visionocr") and not force:
-        raise ValueError(
-            f"{lines_path.name} is a {lj.get('source')!r} lines.json — refusing "
-            f"to fold equations into it without --force.")
+    if lj.get("source") not in ("tesseract", "visionocr"):
+        bak = lines_path.with_suffix(".mathpix.bak.json")
+        if not bak.exists():
+            bak.write_bytes(lines_path.read_bytes())
     pages_by_no = {p.get("page"): p for p in lj.get("pages", [])}
     by_page: dict = {}
     for r in records:

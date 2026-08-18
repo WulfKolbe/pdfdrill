@@ -22,13 +22,28 @@ def _arxiv_pdf(d: Path) -> Path:
     return p
 
 
-def test_cmd_mathpix_skips_for_arxiv():
-    from pdfdrill import commands
+def test_cmd_mathpix_runs_for_arxiv_and_notes_the_free_route(monkeypatch):
+    """A named command is an instruction, not a proposal (2026-08-18): mathpix
+    RUNS on an arXiv doc, and the free-route tip is ONE line AFTER the work."""
+    from pdfdrill import commands, mathpix_client
+    called = {}
+
+    def fake_fetch(path, force=False):
+        called["path"] = path
+        lines = Path(path).with_suffix(".lines.json")
+        lines.write_text("{}")
+        return {"pdf_id": "test-id", "status": "completed",
+                "files": {"lines.json": str(lines)}}
+
+    monkeypatch.setattr(mathpix_client, "fetch_mathpix", fake_fetch)
+    monkeypatch.setattr(mathpix_client, "upload_preflight",
+                        lambda size, pages: (True, "ok", ""))
     with tempfile.TemporaryDirectory() as dd:
         pdf = _arxiv_pdf(Path(dd))
         out = commands.cmd_mathpix(pdf)
-    assert "skipped" in out.lower() and "arXiv:2510.11170v2" in out
-    assert "FREE" in out and "--force" in out
+    assert called, "mathpix did not run — the named command was declined"
+    assert "Note:" in out and "FREE" in out       # tip after the work
+    assert "--force" not in out                    # the flag is retired
 
 
 def test_cmd_abstract_uses_free_arxiv_route(monkeypatch):

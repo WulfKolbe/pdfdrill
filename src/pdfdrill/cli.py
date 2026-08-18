@@ -532,16 +532,11 @@ def _do_render(args):
 
 
 def _do_mathpix(args):
-    """pdfdrill mathpix <pdf> [--force]"""
+    """pdfdrill mathpix <pdf>  (runs when asked; --force retired — delete the
+    downloaded outputs to re-OCR; a stray --force is accepted and ignored)"""
     from .commands import cmd_mathpix
-    pdf_args: list[str] = []
-    force = False
-    for a in args:
-        if a == "--force":
-            force = True
-        else:
-            pdf_args.append(a)
-    return cmd_mathpix(_pdf(pdf_args), force=force)
+    pdf_args = [a for a in args if a != "--force"]
+    return cmd_mathpix(_pdf(pdf_args))
 
 
 def _do_embedimages(args):

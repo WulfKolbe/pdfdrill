@@ -4,7 +4,7 @@ Input: <pdf> may be a local path OR an https URL from a known host. arXiv URLs/i
 (https://arxiv.org/abs/<id>, /pdf/<id>, or a bare 2510.11170v2) download the PDF
 once (cached) and unlock the FREE routes — `abstract` reads the abs page and
 `latex` downloads the e-print .tgz (gold equations), so MathPix is skipped by
-default (use `mathpix --force` to override). NEVER curl/wget/tar a PDF or e-print
+default. NEVER curl/wget/tar a PDF or e-print
 yourself, and never hand-process .tex/.tgz — pass the URL/id/path; pdfdrill
 decides if/when to use the LaTeX source.
 
@@ -30,8 +30,8 @@ Introspection (fast, no extraction):
   pdfdrill images <pdf>                       Image rectangles + metadata (pdfplumber + pdfimages -list)
   pdfdrill tsv <pdf> [--ocr]                  Word-level bounding boxes (pdftotext -tsv; --ocr forces tesseract)
   pdfdrill render <pdf> [--force]             Render the built markdown to PDF (pandoc + lualatex)
-  pdfdrill mathpix <pdf> [--force]            Download MathPix OCR (lines.json, md, tex.zip); --force re-uploads
-  pdfdrill ocr <pdf> [--lang LANG] [--ppi PPI] [--min-conf MIN_CONF] [--no-typing] MathPix-free OCR for COMMERCIAL documents (scans/letters/tables/forms): Ghostscript (>=400 DPI) → tesseract → a MathPix-compatible lines.json. Lines are TYPED (section_header/table/equation/diagram), carry per-line conf + words, and their regions are PDF POINTS (units=pt) so local /cropped/ pyramid crops work keylessly. Language autocorrection, OSD auto-upright, text-layer merge (as a SEPARATE text_layer_text channel), barcodes. NO LaTeX: an equation gets a correct REGION but GARBLED text — math papers want mathpix/visionocr. Refuses to overwrite a MathPix lines.json without --force.
+  pdfdrill mathpix <pdf>                      MathPix OCR the PDF (lines.json + md + tex.zip next to it). Runs when asked — for an arXiv doc a one-line free-route note follows the work. Outputs on disk are reused (delete them to re-OCR).
+  pdfdrill ocr <pdf> [--lang LANG] [--ppi PPI] [--min-conf MIN_CONF] [--no-typing] MathPix-free OCR for COMMERCIAL documents (scans/letters/tables/forms): Ghostscript (>=400 DPI) → tesseract → a MathPix-compatible lines.json. Lines are TYPED (section_header/table/equation/diagram), carry per-line conf + words, and their regions are PDF POINTS (units=pt) so local /cropped/ pyramid crops work keylessly. Language autocorrection, OSD auto-upright, text-layer merge (as a SEPARATE text_layer_text channel), barcodes. NO LaTeX: an equation gets a correct REGION but GARBLED text — math papers want mathpix/visionocr. A MathPix lines.json is backed up to <name>.lines.mathpix.bak.json before being replaced (executes, never refuses).
   pdfdrill continuity <pdf> [--lang LANG] [--ppi PPI] [--force] Full-page OCR of the MARGINS → page-sequence markers (Seite N von M / Fortsetzung) MathPix's content crop drops; attaches seq to Page objects
   pdfdrill pageside <pdf>                     Classify each page recto/verso (book left/right) from page-number parity+position + side-note column asymmetry + sequence alternation; attaches page_side to model Pages (column roles flip with the side)
   pdfdrill entities <pdf> [--force]           Commercial entities per page: IBAN (mod-97 validated + BLZ/Konto/bank), BIC, German address, Steuer-/Kassen-/Aktenzeichen. Zero external tools
