@@ -147,6 +147,17 @@ to the running agent), and an LLM's returned LaTeX can now be **verified
 against the real ink with inkdrill** (compile the LaTeX, compare ink) — the
 loop is noted but not yet automated.
 
+### BH3FR is the FORMULA REGISTER — the cross-book identity anchor (2026-08-18)
+
+`~/pdfdrill-library/BH3FR/` (149pp, 324 numbered equations + 217 inline
+formulas, MathPix'd) is a REGISTER: per the user, every formula of BH1org and
+bh2 should be findable in it, and it is to serve as the SOURCE OF SYNONYMS AND
+ACRONYMS for all the Heim books. That makes it the natural anchor for
+cross-book formula identity: match each BH1org/bh2 equation against the
+register (normalize_latex similarity / L2 content-hash), and the register's
+entry number becomes the canonical cross-book id. NOT built yet — the reports
+exist (`reporttex` on all four books), the matching layer does not.
+
 ### Retraction task — at U0, contract table written, U1 not started
 
 `pdfdrill model --force` drops derived layers without retracting facts/evidence

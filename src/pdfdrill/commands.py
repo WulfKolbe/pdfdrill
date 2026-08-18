@@ -13016,9 +13016,13 @@ def cmd_reporttex(pdf: Path, paper: str = "a3", landscape: bool = True,
         tid = cand if cand.is_file() else None
     if tid is None:
         out = cmd_tiddlers(pdf)                    # idempotent auto-chain
-        rel = sc.get_evidence("tiddlers_path")
+        sc = Sidecar(pdf)          # cmd_tiddlers saved its OWN sidecar — the
+        rel = sc.get_evidence("tiddlers_path")     # in-memory one is stale
         tid = (pdf.parent / rel) if rel else None
         if tid is None or not tid.is_file():
+            cand = pdf.parent / f"{pdf.stem}.tiddlers.json"
+            tid = cand if cand.is_file() else None
+        if tid is None:
             return (f"No tiddler array for {pdf.name} and `tiddlers` did not "
                     f"produce one:\n{out}")
     px2mm = rt.auto_px2mm(pdf)
