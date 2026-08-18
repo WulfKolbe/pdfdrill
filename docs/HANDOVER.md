@@ -153,10 +153,15 @@ loop is noted but not yet automated.
 formulas, MathPix'd) is a REGISTER: per the user, every formula of BH1org and
 bh2 should be findable in it, and it is to serve as the SOURCE OF SYNONYMS AND
 ACRONYMS for all the Heim books. That makes it the natural anchor for
-cross-book formula identity: match each BH1org/bh2 equation against the
-register (normalize_latex similarity / L2 content-hash), and the register's
-entry number becomes the canonical cross-book id. NOT built yet — the reports
-exist (`reporttex` on all four books), the matching layer does not.
+cross-book formula identity. BUILT as P10 `pdfdrill crossref` (2026-08-18):
+ONE index over (bibkey, kind, id, signature, evidence); formula signatures are
+the SLT .lg form (mathgold.slt — canonicalizes latex spelling), opaque to the
+index; ranking = exact match else line-Jaccard. Store
+~/pdfdrill-library/crossref.json holds 13,433 signatures (4 books, 99.86%
+parse rate). MEASURED: 70% of bh2's and 62% of BH1org's display equations
+resolve into the register (228/136 exact); the unmatched remainder is the OCR-
+divergence QC list (crossref-map-bh2-BH3FR.txt). Synonym/acronym extraction
+FROM the register is the open follow-up.
 
 ### Retraction task — at U0, contract table written, U1 not started
 

@@ -13225,3 +13225,80 @@ def cmd_modeldiff(old_path: Path, new_path: Path, limit: int = 40) -> str:
             f"{i} ({old_o[i].get('type', '?')})" for i in removed[:limit])
             + (f" … +{len(removed) - limit}" if len(removed) > limit else ""))
     return "\n".join(out)
+
+
+def cmd_crossref(pdf: Path | None = None, store: str | None = None,
+                 query: str | None = None, map_pair: str | None = None,
+                 kind: str = "formula", k: int = 10) -> str:
+    """P10: ONE index over (bibkey, kind, id, signature, evidence).
+
+    crossref <pdf>            index the book's formulas (SLT signatures)
+    crossref --query LATEX    ranked matches across all bibkeys
+    crossref --map A,B        formula mapping between two books
+    """
+    from . import crossref as xr
+    store_path = Path(store) if store else xr.DEFAULT_STORE
+
+    if map_pair:
+        a, _, b = map_pair.partition(",")
+        if not b:
+            return "crossref --map wants two bibkeys: --map A,B"
+        entries = xr.load_store(store_path)
+        r = xr.map_books(entries, a.strip(), b.strip())
+        lines = [f"crossref map {r['src']} → {r['dst']} "
+                 f"({store_path.name}): {r['total']} formulas — "
+                 f"{len(r['exact'])} exact, {len(r['near'])} near (≥0.8), "
+                 f"{r['unmatched']} unmatched."]
+        for label, pairs in (("EXACT", r["exact"]), ("NEAR", r["near"])):
+            for e, m, score in pairs[:15 if label == "EXACT" else 10]:
+                ev, mev = e.get("evidence", {}), m.get("evidence", {})
+                lines.append(
+                    f"  {e['id']} p{ev.get('page', '?')} "
+                    f"{ev.get('equation_number', '')} → {m['id']} "
+                    f"p{mev.get('page', '?')} {mev.get('equation_number', '')}"
+                    f"  [{score:.2f}]  {ev.get('latex', '')[:40]}")
+            extra = len(pairs) - (15 if label == "EXACT" else 10)
+            if extra > 0:
+                lines.append(f"  … {extra} more {label.lower()} pairs")
+        return "\n".join(lines)
+
+    if query:
+        sig = xr.formula_signature(query) if kind == "formula" else query
+        if sig is None:
+            return ("crossref: the latex did not parse to an SLT signature "
+                    "(mathgold.slt) — pass a raw signature or simpler latex.")
+        entries = xr.load_store(store_path)
+        top = xr.rank(entries, sig, kind=kind, k=k)
+        if not top:
+            return f"crossref: no matches in {store_path.name}."
+        lines = [f"crossref query ({len(entries)} entries in "
+                 f"{store_path.name}):"]
+        for score, e in top:
+            ev = e.get("evidence", {})
+            lines.append(f"  [{score:.2f}] {e['bibkey']} {e['id']} "
+                         f"p{ev.get('page', '?')} "
+                         f"{ev.get('equation_number', '')}  "
+                         f"{ev.get('latex', '')[:50]}")
+        return "\n".join(lines)
+
+    if pdf is None:
+        return ("usage: crossref <pdf> | --query LATEX | --map A,B "
+                "[--store FILE]")
+    sc = Sidecar(pdf)
+    rel = sc.get_evidence("tiddlers_path")
+    tid = (pdf.parent / rel) if rel else None
+    if tid is None or not tid.is_file():
+        cand = pdf.parent / f"{pdf.stem}.tiddlers.json"
+        tid = cand if cand.is_file() else None
+    if tid is None:
+        return (f"No tiddler array for {pdf.name} — run `pdfdrill tiddlers "
+                f"{pdf.name}` first (crossref indexes the projected "
+                f"formulas).")
+    bibkey = tid.name.replace(".tiddlers.json", "")
+    entries, unparsed = xr.entries_from_tiddlers(tid, bibkey)
+    total = xr.add_entries(store_path, entries, bibkey, kind="formula")
+    return (f"crossref: indexed {len(entries)} formula signature(s) for "
+            f"{bibkey} ({unparsed} latex unparsed by mathgold.slt — skipped, "
+            f"never guessed). Store {store_path} now holds {total} entries.\n"
+            f"Query: `pdfdrill crossref --query '<latex>'`; map two books: "
+            f"`pdfdrill crossref --map {bibkey},<other>`.")

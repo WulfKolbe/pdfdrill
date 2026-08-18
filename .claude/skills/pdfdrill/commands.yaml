@@ -1239,6 +1239,37 @@ commands:
     type: flag
     help: base64-inline every CDN crop (self-contained images)
   typed: true
+- name: crossref
+  section: Introspection (fast, no extraction)
+  summary: 'P10: ONE index over (bibkey, kind, id, signature, evidence). Signatures are supplied per kind
+    and OPAQUE to the index — formulas use the SLT .lg form (mathgold.slt), which canonicalizes latex
+    spelling variants. With <pdf>: index the book''s EQ/FO formulas. --query LATEX: ranked matches across
+    all bibkeys (exact=1.0, else line-Jaccard). --map A,B: the formula mapping between two books
+    (exact/near/unmatched buckets) — built for the Heim corpus against the BH3FR formula REGISTER.'
+  offline_ok: true
+  positionals:
+  - name: pdf
+    type: pdf
+    required: false
+    help: PDF whose formulas to index (omit for --query/--map)
+  flags:
+  - name: store
+    flag: --store
+    type: str
+    help: index file (default ~/pdfdrill-library/crossref.json)
+  - name: query
+    flag: --query
+    type: str
+    help: latex to look up across all bibkeys
+  - name: map
+    flag: --map
+    type: str
+    help: 'two bibkeys A,B — map every A formula onto its best B match'
+  - name: k
+    flag: --k
+    type: str
+    help: results to show for --query (default 10)
+  typed: true
 - name: modeldiff
   section: Introspection (fast, no extraction)
   summary: 'P8: field-level diff of two model JSON files — per changed object the changed fields with old

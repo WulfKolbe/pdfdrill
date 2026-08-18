@@ -952,6 +952,19 @@ def _do_bibsource(args):
     return cmd_bibsource(_pdf(pdf_args), bib_path=bib, bbl_path=bbl, force=force)
 
 
+def _do_crossref(args):
+    """pdfdrill crossref [<pdf>] [--store F] [--query LATEX] [--map A,B] [--k N]"""
+    from .commands import cmd_crossref
+    store, args = _opt(args, "--store")
+    query, args = _opt(args, "--query")
+    map_pair, args = _opt(args, "--map")
+    kk, args = _opt(args, "--k")
+    pdf_args = [a for a in args if not a.startswith("--")]
+    pdf = _pdf(pdf_args) if pdf_args else None
+    return cmd_crossref(pdf, store=store, query=query, map_pair=map_pair,
+                        k=int(kk) if kk else 10)
+
+
 def _do_modeldiff(args):
     """pdfdrill modeldiff <old.docmodel.json> <new.docmodel.json>"""
     from .commands import cmd_modeldiff
@@ -1946,6 +1959,7 @@ HANDLERS = {
         "reporttex": _do_reporttex,
         "tailsplit": _do_tailsplit,
         "modeldiff": _do_modeldiff,
+        "crossref": _do_crossref,
         "distill": _do_distill,
         "inspect": _do_inspect,
         "folder": _do_folder,
