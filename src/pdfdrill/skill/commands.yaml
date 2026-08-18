@@ -418,6 +418,7 @@ commands:
     — for an arXiv doc a one-line free-route note follows the work. Outputs on disk are
     reused (delete them to re-OCR).'
   network: true
+  done_when: lines:mathpix
   max_concurrency: 1
   positionals:
   - name: pdf
@@ -1239,6 +1240,22 @@ commands:
     type: flag
     help: base64-inline every CDN crop (self-contained images)
   typed: true
+- name: cdncrops
+  section: Introspection (fast, no extraction)
+  summary: 'The CDN-crop LAYER: fetch every EQ/TAB tiddler''s MathPix scan crop into report-crops/
+    (left-trimmed, cached) — declared as a reporttex dependency so steps/--ensure can see it. A
+    keyless model (no CDN uris) is trivially satisfied; real crops need `mathpix` first.'
+  network: true
+  requires:
+  - mathpix
+  - tiddlers
+  done_when: artifact:cdncrops
+  positionals:
+  - name: pdf
+    type: pdf
+    required: true
+    help: PDF path, https URL, or bare arXiv id
+  typed: true
 - name: crossref
   section: Introspection (fast, no extraction)
   summary: 'P10: ONE index over (bibkey, kind, id, signature, evidence). Signatures are supplied per kind
@@ -1311,6 +1328,10 @@ commands:
     never failing the document).'
   offline_ok: true
   requires:
+  - model
+  - geometry
+  - injectlatex
+  - cdncrops
   - tiddlers
   positionals:
   - name: pdf
@@ -1386,6 +1407,7 @@ commands:
   requires:
   - model
   - geometry
+  - mathpix
 - name: folder
   section: Introspection (fast, no extraction)
   summary: Build the full structure for every PDF in <dir> from existing
@@ -1451,6 +1473,9 @@ commands:
     help: compile the deck with xelatex and report the produced PDF
   typed: true
 - name: injectlatex
+  requires:
+  - mathpix
+  done_when: fact:LATEX_INGESTED
   section: Introspection (fast, no extraction)
   summary: 'INJECT the author''s LaTeX source (.tex/.tgz, arXiv e-print auto-downloaded) as a competing
     `tex` provenance on each matched equation (original+expanded LaTeX). INPUT direction (was `latex`);

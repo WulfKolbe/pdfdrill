@@ -93,7 +93,57 @@ def detect(spec: str, sc, pdf: Path, model_path: Path) -> bool:
         return (pdf.parent / f"{base}.lines.json").exists()
     if spec.startswith("fact:"):
         return sc.has(spec[5:])
+    if spec == "lines:mathpix":
+        # genuine MathPix geometry: lines.json exists, post-dates the PDF,
+        # and IS MathPix (keyless routes stamp a `source` key; MathPix none)
+        base = pdf.name[:-4] if pdf.name.lower().endswith(".pdf") else pdf.name
+        lp = pdf.parent / f"{base}.lines.json"
+        if not lp.exists() or not pdf.exists():
+            return False
+        if lp.stat().st_mtime < pdf.stat().st_mtime:
+            return False
+        from .commands import _is_mathpix_lines
+        return _is_mathpix_lines(lp)
+    if spec == "artifact:cdncrops":
+        return _cdncrops_done(sc, pdf)
     return False
+
+
+def _cdncrops_done(sc, pdf: Path) -> bool:
+    """Every EQ tiddler with a CDN canonical_uri has its crop on disk. A
+    document whose math carries no CDN crops (keyless routes) is trivially
+    satisfied — there is nothing to fetch."""
+    import json as _json
+    rel = None
+    try:
+        rel = sc.get_evidence("tiddlers_path")
+    except Exception:
+        pass
+    tid = (pdf.parent / rel) if rel else (pdf.parent / f"{pdf.stem}.tiddlers.json")
+    if not tid.is_file():
+        return False
+    try:
+        tiddlers = _json.loads(tid.read_text(encoding="utf-8",
+                                             errors="replace"))
+    except Exception:
+        return False
+    crops = pdf.parent / "report-crops"
+    need = [t["title"] for t in tiddlers
+            if "_EQ" in t.get("title", "")
+            and str(t.get("canonical_uri", "")).startswith("http")]
+    if not need:
+        return True
+    return all((crops / f"{t}.jpg").is_file()
+               and (crops / f"{t}.jpg").stat().st_size > 500 for t in need)
+
+
+def network_commands(manifest: dict) -> set:
+    """Commands the manifest marks network/paid — DECLARED as dependencies,
+    NEVER auto-run: `ensure` names them instead (a dependency that is not in
+    the manifest is not a dependency, it is a hope — but a paid step that
+    auto-runs is a bill nobody signed)."""
+    return {c["name"] for c in manifest.get("commands", [])
+            if c.get("network")}
 
 
 def _model_has_regions(model_path: Path) -> bool:
@@ -208,10 +258,14 @@ def describe(target: str, pdf: Path) -> str:
     if not prereqs:
         return (f"`{target}` for {pdf.name}: prerequisites satisfied "
                 f"({', '.join(sorted(sat)) or 'none required'}) — runs directly.")
+    paid = network_commands(load_manifest())
+    def _tag(c):
+        return f"{c} (paid — run `pdfdrill {c}` yourself)" if c in paid else c
     return (f"`{target}` for {pdf.name} would run, in order:\n  "
             + " → ".join(f"{s}" for s in steps)
-            + f"\n  (missing prerequisites auto-inserted by --ensure: "
-            f"{', '.join(prereqs)}; already done: {', '.join(sorted(sat)) or 'none'})")
+            + f"\n  (missing prerequisites: {', '.join(_tag(c) for c in prereqs)}; "
+            f"--ensure auto-runs the offline ones and NAMES the paid ones; "
+            f"already done: {', '.join(sorted(sat)) or 'none'})")
 
 
 def ensure(target: str, pdf: Path, handlers: dict, pdf_arg: str,
@@ -226,8 +280,14 @@ def ensure(target: str, pdf: Path, handlers: dict, pdf_arg: str,
     debugging a chain (`pdfdrill steps` shows the plan without running it).
     """
     steps, _ = resolve_steps(target, pdf)
-    ran = []
+    paid = network_commands(load_manifest())
+    ran, blocked = [], []
     for step in steps[:-1]:                   # everything except the target
+        if step in paid:
+            blocked.append(
+                f"{target} requires {step} — run `pdfdrill {step} "
+                f"{pdf.name}` (network/paid; never auto-run)")
+            continue
         fn = handlers.get(step)
         if fn is None:
             continue
@@ -235,4 +295,6 @@ def ensure(target: str, pdf: Path, handlers: dict, pdf_arg: str,
         if out and not quiet:
             print(out)
         ran.append(step)
+    for msg in blocked:
+        print(f"[ensure] {msg}", file=__import__("sys").stderr)
     return ran

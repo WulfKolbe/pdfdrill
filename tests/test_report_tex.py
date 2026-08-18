@@ -24,8 +24,9 @@ def test_reporttex_is_a_registered_command_with_manifest_entry():
          ".claude/skills/pdfdrill/commands.yaml").read_text())
     cmds = man["commands"] if isinstance(man, dict) else man
     entry = next(c for c in cmds if c["name"] == "reporttex")
-    assert entry.get("requires") == ["tiddlers"], \
-        "reporttex must declare its dependency for the planner"
+    assert entry.get("requires") == ["model", "geometry", "injectlatex",
+                                     "cdncrops", "tiddlers"], \
+        "reporttex must declare EVERYTHING it reads, not what it calls"
 
 
 def test_renderable_rejects_the_snippet_that_hung_xelatex():

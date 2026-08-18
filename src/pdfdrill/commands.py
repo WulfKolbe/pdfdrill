@@ -13302,3 +13302,37 @@ def cmd_crossref(pdf: Path | None = None, store: str | None = None,
             f"never guessed). Store {store_path} now holds {total} entries.\n"
             f"Query: `pdfdrill crossref --query '<latex>'`; map two books: "
             f"`pdfdrill crossref --map {bibkey},<other>`.")
+
+
+def cmd_cdncrops(pdf: Path) -> str:
+    """The CDN-crop LAYER: fetch every EQ/TAB tiddler's MathPix crop into
+    report-crops/ (left-trimmed, cached). Declared as a reporttex dependency
+    in the manifest so `steps`/`--ensure` can SEE it — a dependency that is
+    not in the manifest is not a dependency, it is a hope."""
+    from . import report_tex as rt
+    import json as _json
+    sc = Sidecar(pdf)
+    rel = sc.get_evidence("tiddlers_path")
+    tid = (pdf.parent / rel) if rel else None
+    if tid is None or not tid.is_file():
+        cand = pdf.parent / f"{pdf.stem}.tiddlers.json"
+        tid = cand if cand.is_file() else None
+    if tid is None:
+        return (f"No tiddler array for {pdf.name} — run `pdfdrill tiddlers "
+                f"{pdf.name}` first (cdncrops fetches the projected math "
+                f"objects' crops).")
+    tiddlers = _json.loads(tid.read_text(encoding="utf-8", errors="replace"))
+    crops = pdf.parent / "report-crops"
+    ok, cached, failed = rt.download_crops(tiddlers, crops)
+    n_cdn = sum(1 for t in tiddlers if "_EQ" in t.get("title", "")
+                and str(t.get("canonical_uri", "")).startswith("http"))
+    if n_cdn == 0:
+        return (f"cdncrops: {pdf.name} has no CDN-bearing math objects "
+                f"(keyless/source-built model) — nothing to fetch. For real "
+                f"scan crops run `pdfdrill mathpix {pdf.name}` first "
+                f"(network/paid), then rebuild the model.")
+    if failed == 0:
+        sc.add_fact("CDN_CROPS_BUILT")
+        sc.save()
+    return (f"cdncrops: {ok} fetched, {cached} cached, {failed} failed of "
+            f"{n_cdn} CDN math crops → {crops}/")

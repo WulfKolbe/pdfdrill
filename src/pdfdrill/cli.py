@@ -952,6 +952,12 @@ def _do_bibsource(args):
     return cmd_bibsource(_pdf(pdf_args), bib_path=bib, bbl_path=bbl, force=force)
 
 
+def _do_cdncrops(args):
+    """pdfdrill cdncrops <pdf>"""
+    from .commands import cmd_cdncrops
+    return cmd_cdncrops(_pdf(args))
+
+
 def _do_crossref(args):
     """pdfdrill crossref [<pdf>] [--store F] [--query LATEX] [--map A,B] [--k N]"""
     from .commands import cmd_crossref
@@ -1960,6 +1966,7 @@ HANDLERS = {
         "tailsplit": _do_tailsplit,
         "modeldiff": _do_modeldiff,
         "crossref": _do_crossref,
+        "cdncrops": _do_cdncrops,
         "distill": _do_distill,
         "inspect": _do_inspect,
         "folder": _do_folder,

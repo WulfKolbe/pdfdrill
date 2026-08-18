@@ -119,6 +119,14 @@ tests failing against correct source (HANDOVER rule 4).
   and `--ensure`; register it in `commands.yaml` with `requires:`/`done_when:`
   so the layer graph can reach it (audit A4, 2026-08-17; `reporttex` is the
   worked example — it started in `tools/` and had to be promoted).
+- **A layer's `requires` names everything it READS, not everything it calls.**
+  `reporttex` never calls `mathpix` — it reads the model mathpix populates;
+  that indirection is how dependencies stay undeclared and get rediscovered by
+  a user with a broken output (empty math columns, 2026-08-18). A dependency
+  that is not in the manifest is not a dependency, it is a hope. Paid/network
+  layers (`network: true`) are DECLARED in chains but never auto-run —
+  `--ensure` runs the offline ones and names the paid ones with the exact
+  command that satisfies them (`planner.network_commands`).
 
 ## Where the details live
 

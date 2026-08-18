@@ -75,13 +75,34 @@ def test_detect_done_specs(tmp_path=None):
     assert planner.detect("fact:BIBLIOGRAPHY_BUILT", sc, pdf, model_path)
 
 
-def test_offline_safe_only():
-    # the declared graph must never require a paid/network step as a prereq
+def test_paid_steps_are_declared_but_never_auto_run():
+    """The invariant EVOLVED (2026-08-18): a dependency that is not in the
+    manifest is not a dependency, it is a hope — so paid/network steps ARE
+    declared in requires chains (reporttex reads what mathpix populates).
+    ensure() must NEVER run them: it names them on stderr instead."""
     man = planner.load_manifest()
     req, _ = planner.load_graph(man)
-    paid = {"mathpix", "bibfetch", "vision", "translate", "snip", "scikgtex"}
-    for cmd, deps in req.items():
-        assert not (set(deps) & paid), f"{cmd} requires a paid/network step {set(deps) & paid}"
+    paid = planner.network_commands(man)
+    assert "mathpix" in paid and "cdncrops" in paid
+    # the chains the audit demanded are actually declared
+    assert "mathpix" in req.get("inspect", [])
+    assert {"injectlatex", "cdncrops", "tiddlers"} <= set(req.get("reporttex", []))
+    # ensure() skips paid steps and reports them, never calls their handler
+    import io, contextlib, tempfile
+    from pathlib import Path as _P
+    called = []
+    handlers = {name: (lambda n: lambda a: called.append(n) or "")(name)
+                for name in ("model", "geometry", "tiddlers", "mathpix",
+                             "cdncrops", "injectlatex", "bibliography")}
+    with tempfile.TemporaryDirectory() as d:
+        pdf = _P(d) / "doc.pdf"
+        pdf.write_bytes(b"%PDF-1.4\n")
+        err = io.StringIO()
+        with contextlib.redirect_stderr(err):
+            planner.ensure("reporttex", pdf, handlers, str(pdf))
+    assert "mathpix" not in called and "cdncrops" not in called
+    assert "mathpix" in err.getvalue() and "pdfdrill mathpix" in err.getvalue()
+    assert "model" in called                     # offline prereqs still run
 
 
 if __name__ == "__main__":

@@ -526,6 +526,7 @@ _Generated from `commands.yaml` by skillsync. Edit the manifest, not this sectio
 | `pdfdrill bibliography <pdf> [--force]` | Parse the References section into Reference nodes (citekey/author/year/text) |
 | `pdfdrill bibsource <pdf> [--bib BIB] [--bbl BBL] [--force]` | Ingest the author's GOLD bibliography (--bbl file.bbl + --bib file.bib): alpha label↔citekey↔fields, links in-text citations by label. No API. |
 | `pdfdrill bibfetch <pdf> [--limit LIMIT] [--force]` | Enrich References with full BibTeX via Perplexity SONAR; --limit N (needs PERPLEXITY_API_KEY) _(network)_ |
+| `pdfdrill cdncrops <pdf>` | The CDN-crop LAYER: fetch every EQ/TAB tiddler's MathPix scan crop into report-crops/ (left-trimmed, cached) — declared as a reporttex dependency so steps/--ensure can see it. A keyless model (no CDN uris) is trivially satisfied; real crops need `mathpix` first. _(network)_ |
 | `pdfdrill crossref <pdf> [--store STORE] [--query QUERY] [--map MAP] [--k K]` | P10: ONE index over (bibkey, kind, id, signature, evidence). Signatures are supplied per kind and OPAQUE to the index — formulas use the SLT .lg form (mathgold.slt), which canonicalizes latex spelling variants. With <pdf>: index the book's EQ/FO formulas. --query LATEX: ranked matches across all bibkeys (exact=1.0, else line-Jaccard). --map A,B: the formula mapping between two books (exact/near/unmatched buckets) — built for the Heim corpus against the BH3FR formula REGISTER. |
 | `pdfdrill modeldiff <old> <new>` | P8: field-level diff of two model JSON files — per changed object the changed fields with old and new values, the evidence path backing the new value (edit_source stamp / a <field>_source twin / the realization carrying it) and the source tag; changed objects with NO evidence path are listed under UNEVIDENCED and counted separately. Added/removed objects listed. |
 | `pdfdrill tailsplit <pdf>` | P7: split math regions carrying a PROSE tail (MathPix keeps the sentence fragment inside the math region, e.g. mathrm(nach Addition) … mathrm(was im Ver-)) into <id> (expression, tail stripped, original kept as latex_pretail) + <id>.tail (MathTail prose object). Idempotent. Census 2026-08-18: 36 EQ across bh2/BH1org/WDorg4, 0 inline formulas. |
@@ -631,6 +632,6 @@ _Generated from `commands.yaml` by skillsync. Edit the manifest, not this sectio
 <!-- COMMANDS:END -->
 
 <!-- PREFLIGHT-TOKEN:BEGIN -->
-Attestation token — the LAST line of this SKILL. If you can read this, you read the whole file. Run `pdfdrill preflight --ack DRILL-ab09c439` before any build/extract command.
-DRILL-ab09c439
+Attestation token — the LAST line of this SKILL. If you can read this, you read the whole file. Run `pdfdrill preflight --ack DRILL-98c9e6ed` before any build/extract command.
+DRILL-98c9e6ed
 <!-- PREFLIGHT-TOKEN:END -->
