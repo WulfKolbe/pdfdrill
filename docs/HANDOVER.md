@@ -163,6 +163,23 @@ resolve into the register (228/136 exact); the unmatched remainder is the OCR-
 divergence QC list (crossref-map-bh2-BH3FR.txt). Synonym/acronym extraction
 FROM the register is the open follow-up.
 
+### P13 corpus — 50 arXiv docs on MathPix geometry (2026-08-18, complete)
+
+All 50 P13 documents (list: ~/pdfdrill-library/P13-final-reports.txt) hold
+genuine MathPix lines.json (paid batch, 24 min, 0 API failures; old
+pdfminer/tesseract geometry preserved as *.lines.pdfminer.bak.json), rebuilt
+models (model --force; the mathpix route), and content-verified report.pdf
+files with pixel-exact equation crops — the inkdrill input set. Outlier
+1511.08771 (379K objects, 91,450 inline formulas, 13,754 unrecovered regions)
+needed its own long-cap pipeline; 809-page report, 1 residual error.
+
+Two defects this batch taught, now fixed with tests: (1) MUTATING commands
+(eqnums) lack the stale-guard and re-save a stale model with a fresh mtime —
+batches must run `model --force` first; the general stale-guard for mutating
+commands is an OPEN follow-up. (2) A batch freshness check on MTIMES called
+the broken outputs fresh — 29 impostors; verification must read CONTENT
+(cdn equations in the model + crops on disk). Rule 6 applies to batches.
+
 ### Retraction task — at U0, contract table written, U1 not started
 
 `pdfdrill model --force` drops derived layers without retracting facts/evidence
