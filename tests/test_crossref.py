@@ -67,3 +67,35 @@ def test_map_books_buckets_exact_near_unmatched():
     assert len(r["exact"]) == 1 and r["exact"][0][1]["id"] == "REG_1"
     assert len(r["near"]) == 1 and r["near"][0][1]["id"] == "REG_2"
     assert r["unmatched"] == 1
+
+
+def test_slt_edit_distance_semantics():
+    """P11: distance 1-2 reads as divergent OCR, large as a different formula;
+    a layout flip (sub vs sup) costs on the relation side."""
+    from pdfdrill.crossref import slt_edit_distance
+    a = formula_signature(r"\tau > 0")
+    assert slt_edit_distance(a, formula_signature(r"\tau > 1")) == 1
+    assert slt_edit_distance(a, a) == 0
+    assert slt_edit_distance(
+        formula_signature(r"x_2"), formula_signature(r"x^2")) == 1
+    assert slt_edit_distance(
+        a, formula_signature(r"\int_0^1 f(x)\,dx")) > 5
+
+
+def test_slt_tokens_survive_unresolved_none_ids():
+    """A register signature carried an Unresolved 'none' node id — the token
+    extractor must not crash on it (live failure, 2026-08-18)."""
+    from pdfdrill.crossref import slt_tokens
+    labels, rels = slt_tokens(
+        "N, n0, x, 1.0\nN, none, ?, 1.0\nE, none, n0, Right, 1.0")
+    assert "x" in labels and rels == ["Right"]
+
+
+def test_nearest_by_distance_prunes_to_the_true_minimum():
+    from pdfdrill.crossref import nearest_by_distance
+    cands = [{"id": c, "signature": formula_signature(l)}
+             for c, l in (("far", r"\int_a^b g(t)dt"),
+                          ("close", r"\tau > 1"),
+                          ("exact", r"\tau > 0"))]
+    d, best = nearest_by_distance(cands, formula_signature(r"\tau > 0"))
+    assert d == 0 and best["id"] == "exact"

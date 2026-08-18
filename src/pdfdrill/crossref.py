@@ -157,3 +157,73 @@ def map_books(entries: list[dict], src_bibkey: str, dst_bibkey: str,
             none += 1
     return {"src": src_bibkey, "dst": dst_bibkey, "total": len(src),
             "exact": exact, "near": near, "unmatched": none}
+
+
+# --------------------------------------------------------------------------- #
+#  P11/P12 — SLT edit distance (beyond equality)
+# --------------------------------------------------------------------------- #
+def slt_tokens(sig: str) -> tuple[list, list]:
+    """(node labels in id order, edge relations in (src,dst) order) from an
+    .lg signature. The two sequences are the SLT linearized: labels carry the
+    SYMBOLS, relations the LAYOUT."""
+    def _nid(t: str) -> int:
+        digits = "".join(c for c in t if c.isdigit())
+        return int(digits) if digits else -1     # 'none' (Unresolved) -> -1
+
+    nodes, edges = [], []
+    for line in sig.splitlines():
+        parts = [p.strip() for p in line.split(",")]
+        if len(parts) >= 4 and parts[0] == "N":
+            nodes.append((_nid(parts[1]), ",".join(parts[2:-1])))
+        elif len(parts) >= 5 and parts[0] == "E":
+            edges.append((_nid(parts[1]), _nid(parts[2]), parts[3]))
+    nodes.sort()
+    edges.sort()
+    return [l for _i, l in nodes], [r for _s, _d, r in edges]
+
+
+def _lev(a: list, b: list, bound: int | None = None) -> int:
+    """Levenshtein over token lists; early-exits past `bound`."""
+    if a == b:
+        return 0
+    if bound is not None and abs(len(a) - len(b)) >= bound:
+        return bound
+    prev = list(range(len(b) + 1))
+    for i, x in enumerate(a, 1):
+        cur = [i]
+        row_min = i
+        for j, y in enumerate(b, 1):
+            c = min(prev[j] + 1, cur[j - 1] + 1, prev[j - 1] + (x != y))
+            cur.append(c)
+            row_min = min(row_min, c)
+        if bound is not None and row_min >= bound:
+            return bound
+        prev = cur
+    return prev[-1]
+
+
+def slt_edit_distance(sig_a: str, sig_b: str,
+                      bound: int | None = None) -> int:
+    """Symbol edits + layout edits: Levenshtein over node labels plus
+    Levenshtein over edge relations. Distance 1-2 reads as divergent OCR;
+    large distance as a genuinely different formula."""
+    la, ra = slt_tokens(sig_a)
+    lb, rb = slt_tokens(sig_b)
+    d = _lev(la, lb, bound)
+    if bound is not None and d >= bound:
+        return d
+    return d + _lev(ra, rb, None if bound is None else bound - d)
+
+
+def nearest_by_distance(candidates: list[dict], signature: str
+                        ) -> tuple[int, dict] | None:
+    """The minimum-SLT-edit-distance candidate (bound-pruned scan)."""
+    best_d, best = None, None
+    for e in candidates:
+        d = slt_edit_distance(signature, e.get("signature") or "",
+                              bound=best_d)
+        if best_d is None or d < best_d:
+            best_d, best = d, e
+            if best_d == 0:
+                break
+    return (best_d, best) if best is not None else None
