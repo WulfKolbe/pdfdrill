@@ -170,6 +170,11 @@ def renderable(latex: str) -> str:
     validated here and demoted to source-only when it cannot render.
     """
     lx = re.sub(r"\s+", " ", latex).strip()
+    # plain-TeX multiline macros carry \cr internally — inside a longtable
+    # cell they throw "Misplaced \cr" recovery loops the row-demotion pass
+    # never reaches (live hang: 0902.0431 EQ0035, \displaylines)
+    if re.search(r"\\(displaylines|eqalign(no)?|halign|cr)(?![a-zA-Z])", lx):
+        return ""
     # display delimiters: strip a leading \[ / trailing \]; reject mid-string
     lx = re.sub(r"^\\\[\s*", "", lx)
     lx = re.sub(r"\s*\\\]$", "", lx)
@@ -194,6 +199,19 @@ def renderable(latex: str) -> str:
         return ""
     if sorted(re.findall(r"\\begin\{(\w+\*?)\}", lx)) != \
        sorted(re.findall(r"\\end\{(\w+\*?)\}", lx)):
+        return ""
+    # bare align markers (& or \\) OUTSIDE any environment are longtable
+    # tab marks -> "misplaced tab mark" error-recovery loop (live hang on
+    # 0902.0431 EQ0035). Strip env bodies, then any surviving marker kills
+    # the render.
+    stripped_env = lx
+    for _ in range(6):
+        reduced = re.sub(r"\\begin\{(\w+\*?)\}.*?\\end\{\1\}", " ",
+                         stripped_env, flags=re.S)
+        if reduced == stripped_env:
+            break
+        stripped_env = reduced
+    if "&" in stripped_env.replace(r"\&", "") or "\\\\" in stripped_env:
         return ""
     return lx
 

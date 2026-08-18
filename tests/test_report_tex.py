@@ -98,3 +98,22 @@ def test_reporttex_autochain_sees_the_tiddlers_it_just_built(monkeypatch):
         out = C.cmd_reporttex(pdf, images=False)
         assert "did not produce one" not in out
         assert "Wrote" in out and (Path(d) / "report.tex").is_file()
+
+
+def test_renderable_rejects_bare_align_markers_outside_environments():
+    """Live hang (0902.0431 EQ0035, 2026-08-18): a bare & or \\\\ outside any
+    environment is a longtable tab mark — TeX loops in error recovery."""
+    assert renderable(r"a & b = c") == ""
+    assert renderable(r"a \\ b") == ""
+    assert renderable(
+        r"\begin{aligned} a &= b \\ c &= d \end{aligned}") != ""
+    assert renderable(r"a \& b") != ""       # escaped & is fine
+
+
+def test_renderable_rejects_plain_tex_cr_family_macros():
+    """Second live hang on 0902.0431: \\displaylines carries \\cr internally
+    — invisible to the bare-& check, still a tab-mark recovery loop."""
+    assert renderable(r"\displaylines{\hfill a=b \hfill}") == ""
+    assert renderable(r"\eqalign{a&=b}") == ""
+    assert renderable(r"a \cr b") == ""
+    assert renderable(r"\crossproduct") != "" if True else None
