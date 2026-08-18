@@ -13053,3 +13053,60 @@ def cmd_reporttex(pdf: Path, paper: str = "a3", landscape: bool = True,
         lines.append("Compile with `pdfdrill reporttex <pdf> --compile` "
                      "(xelatex, two passes + error-row demotion).")
     return "\n".join(lines)
+
+
+def cmd_tailsplit(pdf: Path) -> str:
+    """P7: split a math region carrying a PROSE tail into two objects — the
+    expression keeps <id> (tail stripped from its latex, original kept under
+    latex_pretail), the text becomes a sibling <id>.tail MathTail object.
+    Census first (2026-08-18): 36 equations across bh2/BH1org/WDorg4, 0
+    inline formulas — a contained cleanup, not the main work."""
+    from .mathqc import text_tail, _collapse_letters
+    from docmodel.core import DocObject
+    model_path = _model_path(Sidecar(pdf))
+    if not model_path.exists():
+        return f"No model for {pdf.name} (run `pdfdrill model` first)."
+    doc = load_model(model_path)
+    split = skipped = 0
+    for o in list(doc.objects.values()):
+        if o.type not in ("Equation", "Formula"):
+            continue
+        tail_id = f"{o.id}.tail"
+        if tail_id in doc.objects or "latex_pretail" in o.props:
+            skipped += 1
+            continue
+        lx = o.props.get("latex") or ""
+        lead, trail = text_tail(lx)
+        if not lead and not trail:
+            continue
+        rest = lx.strip()
+        frags = []
+        if lead:
+            frags.append(("lead", lead))
+            rest = rest[len(lead):].lstrip()
+        if trail:
+            frags.append(("trail", trail))
+            rest = rest[: len(rest) - len(trail)].rstrip()
+        import re as _re
+        text = " … ".join(
+            _collapse_letters(" ".join(_re.findall(
+                r"\\(?:mathrm|text|textrm|mbox)\s*\{([^{}]*)\}", f)))
+            for _pos, f in frags)
+        tail = DocObject(type="MathTail", id=tail_id, props={
+            "text": text,
+            "latex_fragment": " ".join(f for _pos, f in frags),
+            "position": "+".join(p for p, _f in frags),
+            "source_object": o.id, "page": o.props.get("page"),
+            "bibkey": o.props.get("bibkey"), "added_by": "tailsplit"})
+        for r in o.realizations:              # share provenance with the source
+            tail.add_realization(r)
+        doc.add(tail)
+        o.props["latex_pretail"] = lx
+        o.props["latex"] = rest
+        split += 1
+    if split:
+        save_model(model_path, doc)
+    return (f"tailsplit: {split} math region(s) split (<id> expression + "
+            f"<id>.tail prose){', ' + str(skipped) + ' already split' if skipped else ''}. "
+            + ("Re-project (`tiddlers`/`reporttex`) to see the cleaned math."
+               if split else "Nothing to do — no prose tails detected."))

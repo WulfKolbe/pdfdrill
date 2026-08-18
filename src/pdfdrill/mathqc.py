@@ -148,3 +148,84 @@ def audit_formulas(nodes: Iterable, *, max_samples: int = 12) -> dict:
         "ratio": (len(flagged) / total) if total else 0.0,
         "samples": samples,
     }
+
+
+# --------------------------------------------------------------------------- #
+#  P7 — text tails inside math regions (2026-08-18).
+#  MathPix often keeps the sentence fragment AROUND a display equation inside
+#  the math region: "\mathrm{n a c h\;A d d i t i o n}\; <math> \mathrm{w a s
+#  ~i m~V e r-}". The prose is not math; `tailsplit` moves it to a sibling
+#  <id>.tail object. Pure detector here; census + split in commands.
+# --------------------------------------------------------------------------- #
+_TEXT_GROUP = re.compile(r"\s*(?:\\[;,:!]|~|\\quad|\\qquad)*\s*"
+                         r"\\(?:mathrm|text|textrm|mbox)\s*(?=\{)")
+_NOT_PROSE = {"const", "konst", "d", "e", "i", "mod", "min", "max", "det",
+              "tr", "sp", "im", "re", "grad", "div", "rot"}
+
+
+def _collapse_letters(txt: str) -> str:
+    r"""MathPix spaces every letter ('n a c h' -> 'nach'); \; and ~ are word
+    gaps. Collapse to readable words."""
+    txt = re.sub(r"\\[;,:!]|~", "  ", txt)
+    parts = []
+    for chunk in re.split(r"\s{2,}", txt.strip()):
+        toks = chunk.split()
+        if toks and all(len(t) == 1 for t in toks):
+            parts.append("".join(toks))
+        else:
+            parts.append(re.sub(r"(?<=\b\w) (?=\w\b)", "", chunk))
+    return " ".join(p for p in parts if p)
+
+
+def _is_prose(txt: str) -> bool:
+    words = re.findall(r"[A-Za-zäöüÄÖÜß-]{2,}", _collapse_letters(txt))
+    words = [w for w in words if w.lower().strip("-") not in _NOT_PROSE]
+    if not words:
+        return False
+    return len(words) >= 2 or len(words[0]) >= 4
+
+
+def _take_text_groups(s: str):
+    """Consume leading \\mathrm/\\text{...} groups; -> (joined content, rest)."""
+    content, i = [], 0
+    while True:
+        m = _TEXT_GROUP.match(s, i)
+        if not m:
+            break
+        j = m.end()
+        depth, k = 0, j
+        while k < len(s):
+            if s[k] == "{":
+                depth += 1
+            elif s[k] == "}":
+                depth -= 1
+                if depth == 0:
+                    break
+            k += 1
+        if depth != 0:
+            break
+        content.append(s[j + 1:k])
+        i = k + 1
+    return " ".join(content), s[i:].lstrip()
+
+
+def text_tail(latex: str):
+    """(lead, trail) prose fragments of a math latex, or (None, None).
+
+    lead/trail are the RAW latex substrings (so the caller can strip them
+    exactly); prose-ness is judged on the collapsed text."""
+    s = (latex or "").strip()
+    lead = trail = None
+    content, rest = _take_text_groups(s)
+    if content and _is_prose(content):
+        lead = s[:len(s) - len(rest)].rstrip()
+    m = re.search(r"((?:\\(?:mathrm|text|textrm|mbox)\s*\{[^{}]*\}"
+                  r"|[\s.,;:]|\\[;,:!]|~|\\quad|\\qquad)+)$", s)
+    if m and len(m.group(1).strip()) > 3:
+        groups = re.findall(r"\\(?:mathrm|text|textrm|mbox)\s*\{([^{}]*)\}",
+                            m.group(1))
+        if groups and _is_prose(" ".join(groups)):
+            trail = m.group(1).strip()
+            if lead and s.index(trail, len(lead)) < len(lead):
+                trail = None
+    return lead, trail

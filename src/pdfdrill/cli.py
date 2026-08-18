@@ -952,6 +952,12 @@ def _do_bibsource(args):
     return cmd_bibsource(_pdf(pdf_args), bib_path=bib, bbl_path=bbl, force=force)
 
 
+def _do_tailsplit(args):
+    """pdfdrill tailsplit <pdf>"""
+    from .commands import cmd_tailsplit
+    return cmd_tailsplit(_pdf(args))
+
+
 def _do_reporttex(args):
     """pdfdrill reporttex <pdf> [--paper a4|a3] [--portrait] [--compile] [--no-images]"""
     from .commands import cmd_reporttex
@@ -1928,6 +1934,7 @@ HANDLERS = {
         "citedrill": _do_citedrill,
         "report": _do_report,
         "reporttex": _do_reporttex,
+        "tailsplit": _do_tailsplit,
         "distill": _do_distill,
         "inspect": _do_inspect,
         "folder": _do_folder,
