@@ -204,6 +204,15 @@ Keep these separate in any roll-up; conflating them hides the fix route:
 Cross-session source: inkdrill-0d, 2026-08-19. The inkdrill harness writes
 per-doc `report.compare.tsv` into each library folder when its run completes.
 
+**Cross-session verification contract (2026-08-19, mutual):** regenerated
+reports are never handed to the inkdrill session without a local pass of THEIR
+probe first (reproduce it from ~/inkdrill: pngio.auto_mask +
+__main__._table_cells at r150, expect 5 columns on the equations pages); they
+never report a generator defect without first ruling out instrument fault.
+This ended a three-round ping-pong whose three real mechanisms are in commit
+bdbd5a2 (overfull padding reserve, mixed-section pages, version-suffixed
+identifiers overprinting the Page column).
+
 ### Retraction task — at U0, contract table written, U1 not started
 
 `pdfdrill model --force` drops derived layers without retracting facts/evidence
