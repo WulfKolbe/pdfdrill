@@ -62,6 +62,12 @@ Each of these cost real time or real data in this project.
    Preference that changes what gets built → ask.
 10. **When deciding without the user:** take the reversible option and record
     the decision, the rejected alternative, and what would change your mind.
+11. **A masked success reads exactly like a masked failure.** A summary
+    regex that missed singular 'Output written (1 page)' reported a good
+    compile as '0 pages' (2026-08-19); the inkdrill session was bitten twice
+    by exit-code-masking pipes. Any success/failure summarizer must be tested
+    on BOTH a real success and a real failure — a parser that can only see
+    one of them sees neither.
 
 ---
 
