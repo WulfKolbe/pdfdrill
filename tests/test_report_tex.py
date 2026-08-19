@@ -72,9 +72,10 @@ def test_build_report_writes_all_sections(tmp_path):
     assert r == {"equations": 1, "formulas": 1, "tables": 1,
                  "unrecovered": 1, "out": tmp_path / "report.tex"}
     assert "a3paper,landscape" in tex
-    assert "k\\_EQ0001" in tex and "(1)" in tex
+    # identifiers carry break opportunities after . and _ (P16 mechanism 3)
+    assert "k\\_\\allowbreak{}EQ0001" in tex and "(1)" in tex
     # formula first-occurrence page came from the transcluding paragraph
-    assert "k\\_FO0001} & 002" in tex
+    assert "k\\_\\allowbreak{}FO0001} & 002" in tex
     assert "Unrecovered image regions" in tex
     assert "pdfdrill vision" in tex and "inkdrill" in tex
 
