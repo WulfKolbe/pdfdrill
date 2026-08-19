@@ -13385,6 +13385,10 @@ def cmd_standalone(pdf: Path, only_id: str | None = None) -> str:
         tex.write_text(
             "\\documentclass[border=3pt]{standalone}\n"
             "\\usepackage{amsmath}\n\\usepackage{amssymb}\n"
+            # mathrsfs (\mathscr) + stmaryrd (\llbracket): absent, they cost
+            # 31 FALSE findings on the P13 corpus — a finding must mean the
+            # FORMULA is broken, not the preamble
+            "\\usepackage{mathrsfs}\n\\usepackage{stmaryrd}\n"
             "\\begin{document}\n"
             "$\\displaystyle " + latex.strip() + "$\n"
             "\\end{document}\n", encoding="utf-8")
