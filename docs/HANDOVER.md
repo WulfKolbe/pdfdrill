@@ -180,6 +180,21 @@ commands is an OPEN follow-up. (2) A batch freshness check on MTIMES called
 the broken outputs fresh — 29 impostors; verification must read CONTENT
 (cdn equations in the model + crops on disk). Rule 6 applies to batches.
 
+### bh2 defect roll-up — two instruments, DISTINCT defect classes (2026-08-19)
+
+Keep these separate in any roll-up; conflating them hides the fix route:
+- **Will not compile alone** (P14 `standalone`, this session): bh2_EQ0147
+  (stray \end{itemize}), bh2_EQ0167 (\left/\right nesting) — malformed
+  LaTeX; fix = re-OCR/escalate the region.
+- **No conversion at all** (inkdrill compare, peer session): bh2_EQ0082,
+  bh2_EQ0123 — MathPix produced no LaTeX; fix = vision route.
+- **Wrong conversion** (inkdrill compare, peer session): bh2_EQ0105,
+  bh2_EQ0131, bh2_EQ0273 — compiles fine, renders the WRONG math; only
+  ink-vs-render comparison catches these (the class the P11 SLT distance
+  cannot see when the register also lacks the formula).
+Cross-session source: inkdrill-0d, 2026-08-19. The inkdrill harness writes
+per-doc `report.compare.tsv` into each library folder when its run completes.
+
 ### Retraction task — at U0, contract table written, U1 not started
 
 `pdfdrill model --force` drops derived layers without retracting facts/evidence
