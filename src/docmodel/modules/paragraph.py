@@ -43,6 +43,14 @@ _BREAK_TYPES = {
 # Lines that may contribute to a paragraph.
 _PROSE_TYPES = {"text", "title", "quote"}
 
+# A figure/table caption that MathPix types as plain `text` (its figure_label
+# lines are often EMPTY): same column, same font, CONTINUOUS line numbering —
+# the only separators are this lexical pattern and the vertical gap after the
+# caption (1206.0238 p3: caption + next paragraph merged into one unit).
+_CAPTION_START = re.compile(
+    r"^(?:Figure|Fig\.?|Table|Tab\.?|Abbildung|Abb\.?|Tafel|Bild)"
+    r"\s*\.?\s*\d+(?:\.\d+)*\s*[.:]", re.I)
+
 _ABSTRACT_BEGIN = re.compile(r"\\begin\{abstract\}|\\section\*\{[Aa][Bb][Ss][Tt][Rr][Aa][Cc][Tt]\}")
 _ABSTRACT_END = re.compile(r"\\end\{abstract\}")
 
@@ -113,9 +121,27 @@ class ParagraphProcessor(BaseModule):
                 continue
 
             group = (payload.get("block_num"), payload.get("par_num"))
-            if (current is not None and group != (None, None)
-                    and group != current.get("group")):
-                flush()
+            region = payload.get("region") or {}
+            y, h = region.get("top_left_y"), region.get("height")
+            if current is not None:
+                if group != (None, None) and group != current.get("group"):
+                    flush()
+                elif (_CAPTION_START.match(stripped)
+                        and current.get("kind") != "caption"):
+                    # a caption starts its OWN paragraph, never rides the tail
+                    # of the previous one
+                    flush()
+                elif (current.get("kind") == "caption" and y is not None
+                        and current.get("_last_y") is not None):
+                    # the caption ends at the first oversized vertical gap —
+                    # applied ONLY inside captions so general paragraphing
+                    # keeps its existing behavior
+                    gap = y - current["_last_y"]
+                    pitches = current.get("_pitches") or []
+                    ref = sum(pitches) / len(pitches) if pitches else None
+                    if ((ref and gap > 1.6 * ref)
+                            or (ref is None and h and gap > 1.8 * h)):
+                        flush()
 
             if current is None:
                 current = {
@@ -127,8 +153,16 @@ class ParagraphProcessor(BaseModule):
                     "from_line_index": payload.get("_line_index"),
                     "to_line_index": payload.get("_line_index"),
                     "group": group,
+                    "kind": ("caption" if _CAPTION_START.match(stripped)
+                             else "prose"),
+                    "_last_y": y,
+                    "_pitches": [],
                 }
             else:
+                if y is not None and current.get("_last_y") is not None:
+                    current["_pitches"].append(y - current["_last_y"])
+                if y is not None:
+                    current["_last_y"] = y
                 current["end_anchor"] = anchor
                 current["lines"].append((anchor, text, payload))
                 current["text"] += " " + text
@@ -143,6 +177,7 @@ class ParagraphProcessor(BaseModule):
             type="Paragraph",
             props={
                 "paragraph_index": paragraph_no,
+                "kind": item.get("kind", "prose"),
                 "page": item["page"],
                 "from_line_index": item["from_line_index"],
                 "to_line_index": item["to_line_index"],
