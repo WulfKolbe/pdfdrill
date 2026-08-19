@@ -348,7 +348,7 @@ def compile_fixpoint(tex_path: Path, max_iter: int = 6):
                        cwd=d, capture_output=True, timeout=1800)
         text = log.read_text(errors="replace") if log.is_file() else ""
         nerr = len(_re.findall(r"^!", text, _re.M))
-        m = _re.search(r"Output written on .*\((\d+) pages", text)
+        m = _re.search(r"Output written on .*\((\d+) pages?", text)
         pages = int(m.group(1)) if m else 0
         if nerr == 0:
             break
@@ -372,7 +372,7 @@ def compile_fixpoint(tex_path: Path, max_iter: int = 6):
                    cwd=d, capture_output=True, timeout=1800)
     text = log.read_text(errors="replace") if log.is_file() else ""
     nerr = len(_re.findall(r"^!", text, _re.M))
-    m = _re.search(r"Output written on .*\((\d+) pages", text)
+    m = _re.search(r"Output written on .*\((\d+) pages?", text)
     pages = int(m.group(1)) if m else pages
     return pages, nerr, len(demoted)
 
