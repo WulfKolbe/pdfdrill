@@ -184,8 +184,11 @@ the broken outputs fresh — 29 impostors; verification must read CONTENT
 
 Keep these separate in any roll-up; conflating them hides the fix route:
 - **Will not compile alone** (P14 `standalone`, this session): bh2_EQ0147
-  (stray \end{itemize}), bh2_EQ0167 (\left/\right nesting) — malformed
-  LaTeX; fix = re-OCR/escalate the region.
+  (stray \end{itemize}), bh2_EQ0167 (\left/\right nesting),
+  BH1org_OCR_EQ0021 (bad math environment delimiter) — malformed LaTeX;
+  fix = re-OCR/escalate the region. Corpus renders: bh2 340/342,
+  BH1org 238/239, BH3FR 323/323 (the register compiles CLEAN alone),
+  WDorg4 78/78 — PNGs in <blob_dir>/standalone/.
 - **No conversion at all** (inkdrill compare, peer session): bh2_EQ0082,
   bh2_EQ0123 — MathPix produced no LaTeX; fix = vision route.
 - **Wrong conversion** (inkdrill compare, peer session): bh2_EQ0105,
