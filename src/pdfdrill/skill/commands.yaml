@@ -1240,6 +1240,26 @@ commands:
     type: flag
     help: base64-inline every CDN crop (self-contained images)
   typed: true
+- name: standalone
+  section: Introspection (fast, no extraction)
+  summary: 'P14: compile each display equation''s LaTeX as its OWN standalone document and rasterize to
+    PNG (ghostscript 400dpi) — one file per formula named by its identifier, in blob_dir/standalone/
+    beside svg/. Already-rendered ids are skipped (--id re-renders one). Compile failures are reported
+    WITH their identifiers — a formula that will not compile alone is already a finding.'
+  offline_ok: true
+  requires:
+  - tiddlers
+  positionals:
+  - name: pdf
+    type: pdf
+    required: true
+    help: PDF path, https URL, or bare arXiv id
+  flags:
+  - name: id
+    flag: --id
+    type: str
+    help: render only this identifier (re-renders even if present)
+  typed: true
 - name: cdncrops
   section: Introspection (fast, no extraction)
   summary: 'The CDN-crop LAYER: fetch every EQ/TAB tiddler''s MathPix scan crop into report-crops/

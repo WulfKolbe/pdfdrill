@@ -13336,3 +13336,109 @@ def cmd_cdncrops(pdf: Path) -> str:
         sc.save()
     return (f"cdncrops: {ok} fetched, {cached} cached, {failed} failed of "
             f"{n_cdn} CDN math crops → {crops}/")
+
+
+def cmd_standalone(pdf: Path, only_id: str | None = None) -> str:
+    """P14: compile each display equation's LaTeX as its OWN standalone
+    document and rasterize to PNG (ghostscript, 400 dpi) — one file per
+    formula, named by its identifier, in blob_dir/standalone/ beside svg/.
+    Already-rendered identifiers are skipped (--id re-renders that one).
+    Compile failures are REPORTED with their identifiers — a formula that
+    will not compile alone is already a finding."""
+    import concurrent.futures as _cf
+    import shutil as _shutil
+    import subprocess as _sp
+
+    if _shutil.which("xelatex") is None:
+        return "standalone: xelatex not installed (bootstrap.sh installs it)."
+    sc = Sidecar(pdf)
+    rel = sc.get_evidence("tiddlers_path")
+    tid = (pdf.parent / rel) if rel else None
+    if tid is None or not tid.is_file():
+        cand = pdf.parent / f"{pdf.stem}.tiddlers.json"
+        tid = cand if cand.is_file() else None
+    if tid is None:
+        return (f"No tiddler array for {pdf.name} — run `pdfdrill tiddlers "
+                f"{pdf.name}` first (standalone renders the projected "
+                f"equations).")
+    tiddlers = json.loads(tid.read_text(encoding="utf-8", errors="replace"))
+    eqs = [(t["title"], t.get("latex") or "") for t in tiddlers
+           if "_EQ" in t.get("title", "") and (t.get("latex") or "").strip()]
+    if only_id:
+        eqs = [(i, lx) for i, lx in eqs if i == only_id]
+        if not eqs:
+            return f"standalone: no display equation with id {only_id!r}."
+    out_dir = sc.blob_dir / "standalone"
+    out_dir.mkdir(parents=True, exist_ok=True)
+
+    todo, skipped = [], 0
+    for ident, latex in eqs:
+        png = out_dir / f"{ident}.png"
+        if png.is_file() and not only_id:
+            skipped += 1
+            continue
+        todo.append((ident, latex))
+
+    def _one(item):
+        ident, latex = item
+        tex = out_dir / f"{ident}.tex"
+        tex.write_text(
+            "\\documentclass[border=3pt]{standalone}\n"
+            "\\usepackage{amsmath}\n\\usepackage{amssymb}\n"
+            "\\begin{document}\n"
+            "$\\displaystyle " + latex.strip() + "$\n"
+            "\\end{document}\n", encoding="utf-8")
+        try:
+            p = _sp.run(["xelatex", "-interaction=nonstopmode",
+                         "-halt-on-error", tex.name],
+                        cwd=out_dir, capture_output=True, text=True,
+                        timeout=60)
+        except _sp.TimeoutExpired:
+            return ident, "timeout (error-recovery loop)"
+        pdf_out = tex.with_suffix(".pdf")
+        if p.returncode != 0 or not pdf_out.is_file():
+            log = tex.with_suffix(".log")
+            err = ""
+            if log.is_file():
+                for line in log.read_text(errors="replace").splitlines():
+                    if line.startswith("!"):
+                        err = line[:100]
+                        break
+            return ident, err or f"xelatex rc={p.returncode}"
+        g = _sp.run(["gs", "-q", "-dNOPAUSE", "-dBATCH", "-sDEVICE=png16m",
+                     "-r400", f"-sOutputFile={ident}.png", pdf_out.name],
+                    cwd=out_dir, capture_output=True, timeout=60)
+        for junk in (tex, pdf_out, tex.with_suffix(".log"),
+                     tex.with_suffix(".aux")):
+            junk.unlink(missing_ok=True)
+        if g.returncode != 0 or not (out_dir / f"{ident}.png").is_file():
+            return ident, "ghostscript rasterization failed"
+        return ident, None
+
+    failures = []
+    rendered = 0
+    with _cf.ThreadPoolExecutor(max_workers=4) as ex:
+        for ident, err in ex.map(_one, todo):
+            if err is None:
+                rendered += 1
+            else:
+                failures.append((ident, err))
+    if failures:
+        (out_dir / "_failures.txt").write_text(
+            "\n".join(f"{i}\t{e}" for i, e in failures) + "\n",
+            encoding="utf-8")
+    sc.set_evidence("standalone_rendered",
+                    len(list(out_dir.glob("*.png"))))
+    sc.set_evidence("standalone_failed", len(failures))
+    lines = [f"standalone: {rendered} equation(s) rendered to {out_dir}/ "
+             f"({skipped} already rendered, skipped)."]
+    if failures:
+        lines.append(f"{len(failures)} FAILED to compile alone — each is a "
+                     f"finding (full list: standalone/_failures.txt):")
+        for ident, err in failures[:12]:
+            lines.append(f"  {ident}: {err}")
+        if len(failures) > 12:
+            lines.append(f"  … {len(failures) - 12} more")
+    else:
+        lines.append("0 compile failures.")
+    return "\n".join(lines)

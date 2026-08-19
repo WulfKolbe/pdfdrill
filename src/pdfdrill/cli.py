@@ -952,6 +952,13 @@ def _do_bibsource(args):
     return cmd_bibsource(_pdf(pdf_args), bib_path=bib, bbl_path=bbl, force=force)
 
 
+def _do_standalone(args):
+    """pdfdrill standalone <pdf> [--id ID]"""
+    from .commands import cmd_standalone
+    only_id, args = _opt(args, "--id")
+    return cmd_standalone(_pdf(args), only_id=only_id)
+
+
 def _do_cdncrops(args):
     """pdfdrill cdncrops <pdf>"""
     from .commands import cmd_cdncrops
@@ -1967,6 +1974,7 @@ HANDLERS = {
         "modeldiff": _do_modeldiff,
         "crossref": _do_crossref,
         "cdncrops": _do_cdncrops,
+        "standalone": _do_standalone,
         "distill": _do_distill,
         "inspect": _do_inspect,
         "folder": _do_folder,

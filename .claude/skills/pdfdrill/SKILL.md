@@ -526,6 +526,7 @@ _Generated from `commands.yaml` by skillsync. Edit the manifest, not this sectio
 | `pdfdrill bibliography <pdf> [--force]` | Parse the References section into Reference nodes (citekey/author/year/text) |
 | `pdfdrill bibsource <pdf> [--bib BIB] [--bbl BBL] [--force]` | Ingest the author's GOLD bibliography (--bbl file.bbl + --bib file.bib): alpha label↔citekey↔fields, links in-text citations by label. No API. |
 | `pdfdrill bibfetch <pdf> [--limit LIMIT] [--force]` | Enrich References with full BibTeX via Perplexity SONAR; --limit N (needs PERPLEXITY_API_KEY) _(network)_ |
+| `pdfdrill standalone <pdf> [--id ID]` | P14: compile each display equation's LaTeX as its OWN standalone document and rasterize to PNG (ghostscript 400dpi) — one file per formula named by its identifier, in blob_dir/standalone/ beside svg/. Already-rendered ids are skipped (--id re-renders one). Compile failures are reported WITH their identifiers — a formula that will not compile alone is already a finding. |
 | `pdfdrill cdncrops <pdf>` | The CDN-crop LAYER: fetch every EQ/TAB tiddler's MathPix scan crop into report-crops/ (left-trimmed, cached) — declared as a reporttex dependency so steps/--ensure can see it. A keyless model (no CDN uris) is trivially satisfied; real crops need `mathpix` first. _(network)_ |
 | `pdfdrill crossref <pdf> [--store STORE] [--query QUERY] [--map MAP] [--k K]` | P10: ONE index over (bibkey, kind, id, signature, evidence). Signatures are supplied per kind and OPAQUE to the index — formulas use the SLT .lg form (mathgold.slt), which canonicalizes latex spelling variants. With <pdf>: index the book's EQ/FO formulas. --query LATEX: ranked matches across all bibkeys (exact=1.0, else line-Jaccard). --map A,B: the formula mapping between two books (exact/near/unmatched buckets) — built for the Heim corpus against the BH3FR formula REGISTER. |
 | `pdfdrill modeldiff <old> <new>` | P8: field-level diff of two model JSON files — per changed object the changed fields with old and new values, the evidence path backing the new value (edit_source stamp / a <field>_source twin / the realization carrying it) and the source tag; changed objects with NO evidence path are listed under UNEVIDENCED and counted separately. Added/removed objects listed. |
@@ -632,6 +633,6 @@ _Generated from `commands.yaml` by skillsync. Edit the manifest, not this sectio
 <!-- COMMANDS:END -->
 
 <!-- PREFLIGHT-TOKEN:BEGIN -->
-Attestation token — the LAST line of this SKILL. If you can read this, you read the whole file. Run `pdfdrill preflight --ack DRILL-98c9e6ed` before any build/extract command.
-DRILL-98c9e6ed
+Attestation token — the LAST line of this SKILL. If you can read this, you read the whole file. Run `pdfdrill preflight --ack DRILL-100cb37c` before any build/extract command.
+DRILL-100cb37c
 <!-- PREFLIGHT-TOKEN:END -->
