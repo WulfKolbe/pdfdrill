@@ -65,3 +65,36 @@ def test_cmd_tailsplit_splits_and_is_idempotent():
 
         out2 = cmd_tailsplit(pdf)
         assert "0 math region(s) split" in out2 and "already split" in out2
+
+
+def test_spoken_single_formula_selector():
+    """'Show me the spoken formula number 2' had no command (user, 2026-08-19):
+    spoken --n N / --id ID prints ONE formula's latex + spoken form."""
+    from docmodel.core import Document, DocObject
+    from pdfdrill.model_io import save_model
+    from pdfdrill.commands import cmd_spoken, _model_path
+    from pdfdrill.sidecar import Sidecar
+
+    with tempfile.TemporaryDirectory() as d:
+        pdf = Path(d) / "doc.pdf"
+        pdf.write_bytes(b"%PDF-1.4\n")
+        lj = Path(d) / "doc.lines.json"
+        lj.write_text('{"pages": []}')
+        import os
+        past = lj.stat().st_mtime - 100
+        os.utime(lj, (past, past))       # model must be strictly newer
+        doc = Document()
+        doc.add(DocObject(type="Equation", props={
+            "latex": "a=b", "spoken": "a equals b", "page": "001"}))
+        doc.add(DocObject(type="Equation", props={
+            "latex": r"\mu=0", "spoken": "mu equals zero", "page": "002"}))
+        sc = Sidecar(pdf)
+        mp = _model_path(sc)
+        mp.parent.mkdir(parents=True, exist_ok=True)
+        save_model(mp, doc)
+        sc.add_fact("MODEL_BUILT")       # the stale predicate reads the fact
+        sc.save()
+        out = cmd_spoken(pdf, pick="2")
+        assert "mu equals zero" in out and r"\mu=0" in out
+        out2 = cmd_spoken(pdf, pick="99")
+        assert "no formula matches" in out2 and "2 display equation" in out2

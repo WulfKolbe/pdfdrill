@@ -5499,14 +5499,19 @@ def cmd_speak(pdf: Path, limit: int | None = None, force: bool = False,
                  f"letters. Run `pdfdrill expandmath {pdf.name}` first.")
     if failed:
         note += f"\n  {failed} failed" + (f": {'; '.join(errors)}" if errors else "")
+    if done:
+        sc.add_fact("SPOKEN_BUILT")
+        sc.save()
     return (f"Spoken math stored: {done} of {len(todo)} rendered with "
             f"la2speech/{domain}.{note}"
-            f"\n  Read the LLM input: `pdfdrill spoken {pdf.name}`")
+            f"\n  Read the LLM input: `pdfdrill spoken {pdf.name}` "
+            f"(one formula: `--n 2` or `--id <title>`)")
 
 
 def cmd_spoken(pdf: Path, out: str | None = None, as_json: bool = False,
                fallback: str = "latex", to_stdout: bool = False,
-               footnotes: str = "hint", cites: str = "number") -> str:
+               footnotes: str = "hint", cites: str = "number",
+               pick: str | None = None) -> str:
     """The prose with math replaced by its SPOKEN form — the text an LLM is fed.
 
     This is the end of the chain: `expandmath` stores macro-free LaTeX, the
@@ -5536,6 +5541,38 @@ def cmd_spoken(pdf: Path, out: str | None = None, as_json: bool = False,
     key = resolve_bibkey(pdf, None, sc)
     by_title = {t: doc.objects[i] for i, t in math_titles(doc, key).items()
                 if i in doc.objects}
+
+    if pick:
+        # ONE formula's spoken form, addressable by number or id — "show me
+        # the spoken formula number 2" had no answer before (2026-08-19).
+        cand = None
+        eqs = [o for o in doc.objects.values() if o.type == "Equation"]
+        if pick.isdigit():
+            n = int(pick)
+            by_ref = [o for o in eqs
+                      if str(o.props.get("refnum", "")).strip("() .") == pick]
+            cand = by_ref[0] if by_ref else (
+                eqs[n - 1] if 1 <= n <= len(eqs) else None)
+        if cand is None:
+            for t, o in by_title.items():
+                if pick in (t, o.id):
+                    cand = o
+                    break
+        if cand is None:
+            return (f"spoken: no formula matches {pick!r} — the document has "
+                    f"{len(eqs)} display equation(s) (pick 1..{len(eqs)}, a "
+                    f"printed number, or a math tiddler title/object id).")
+        title = next((t for t, o in by_title.items() if o.id == cand.id),
+                     cand.id)
+        spoken = str(cand.props.get("spoken") or "").strip()
+        refnum = str(cand.props.get("refnum") or "").strip()
+        lines = [f"{title}" + (f"  ({refnum})" if refnum else "")
+                 + f"  [page {cand.props.get('page', '?')}]",
+                 f"  latex:  {cand.props.get('latex', '')}",
+                 (f"  spoken: {spoken}" if spoken else
+                  "  spoken: (none yet — run `pdfdrill speak "
+                  f"{pdf.name}` first)")]
+        return "\n".join(lines)
 
     subst = missing = 0
     unresolved: list[str] = []

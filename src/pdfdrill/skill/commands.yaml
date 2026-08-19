@@ -2173,6 +2173,7 @@ commands:
   offline_ok: true
   requires:
   - model
+  done_when: fact:SPOKEN_BUILT
   positionals:
   - name: pdf
     type: pdf
@@ -2198,13 +2199,21 @@ commands:
     its spoken form; formulas with no spoken yet are shown visibly, not dropped
   offline_ok: true
   requires:
-  - model
+  - speak
   positionals:
   - name: pdf
     type: pdf
     required: true
     help: PDF path, https URL, or bare arXiv id
   flags:
+  - name: n
+    flag: --n
+    type: str
+    help: 'show ONE formula''s spoken form: Nth display equation or printed number'
+  - name: id
+    flag: --id
+    type: str
+    help: show ONE formula by math tiddler title or object id
   - name: out
     flag: --out
     type: str

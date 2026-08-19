@@ -433,10 +433,14 @@ def _do_spoken(args):
     fb, args = _opt(args, "--fallback")
     fn, args = _opt(args, "--footnotes")
     ct, args = _opt(args, "--cites")
+    pick, args = _opt(args, "--n")
+    if pick is None:
+        pick, args = _opt(args, "--id")
     return cmd_spoken(_pdf(args), out=out, as_json="--json" in args,
                       fallback=(fb or "latex"),
                       to_stdout="--print" in args,
-                      footnotes=(fn or "hint"), cites=(ct or "number"))
+                      footnotes=(fn or "hint"), cites=(ct or "number"),
+                      pick=pick)
 
 
 def _do_expandmath(args):
