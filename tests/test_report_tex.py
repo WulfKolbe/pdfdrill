@@ -148,3 +148,16 @@ def test_source_column_never_breaks_after_a_backslash():
     out = esc_text(r"\mathcal{D} g \mathrm{e}")
     assert r"\textbackslash{}\allowbreak{}" not in out     # never after
     assert r"\allowbreak{}\textbackslash{}" in out         # always before
+
+
+def test_source_column_has_no_leading_penalty():
+    r"""\allowbreak is \penalty0; at the START of a p{} cell TeX breaks there
+    and the cell gets an EMPTY first line. Measured cost when it slipped in:
+    WDorg4 83 pages vs 60 (+38%), corpus 941 -> 1,080 (inkdrill, 2026-08-20)."""
+    from pdfdrill.report_tex import esc_text
+    out = esc_text(r"\begin{aligned} a &= b \end{aligned}")
+    assert not out.startswith(r"\allowbreak{}")
+    assert out.startswith(r"\textbackslash{}")
+    # interior breaks are still there, still before the backslash
+    assert r"\allowbreak{}\textbackslash{}" in out
+    assert r"\textbackslash{}\allowbreak{}" not in out

@@ -30,7 +30,15 @@ def esc_text(s: str) -> str:
     # that is broken LaTeX which compiles to the literal letters "mathrme"
     # (user 2026-08-19, 0711.0273). Breaking before keeps every copied line
     # starting with its command intact.
-    return out.replace(r"\textbackslash{}", r"\allowbreak{}\textbackslash{}")
+    out = out.replace(r"\textbackslash{}", r"\allowbreak{}\textbackslash{}")
+    # ...but NEVER a leading one: \allowbreak is \penalty0, and at the very
+    # start of a p{} cell TeX happily breaks there, giving an EMPTY first
+    # line in every cell whose latex begins with a backslash. Measured on
+    # WDorg4: 83 pages with the leading penalty vs 60 without (+38%; the
+    # corpus grew 941->1080 pages before this was found).
+    if out.startswith(r"\allowbreak{}"):
+        out = out[len(r"\allowbreak{}"):]
+    return out
 
 
 def first_pages(tiddlers: list[dict], bibkey: str) -> dict[str, str]:
