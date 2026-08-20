@@ -1,0 +1,136 @@
+024 - math objects whose latex ends with , ; . or : (before any closing brace)
+==============================================================================
+
+COUNTS
+------------------------------------------------------------------------------
+   matching the rule as specified : 2163  of 35079 math objects
+      display equations           : 2117 of 5320   (39.8%)
+      inline formulas             : 46 of 29759   (0.15%)
+      by mark                     : '.' 1429, ',' 690, ':' 23, ';' 21
+
+   THE SPLIT THAT MAKES THE NUMBER ACTIONABLE
+       2113  punctuation at TOP LEVEL - genuinely trailing, the prose
+             sentence's mark swept into the math region
+         50  punctuation INSIDE a brace group - reached only because the
+             rule strips closing braces, so it looks past the group boundary
+
+   Scanned: 4 books + the 49-document P13 corpus, EQ/FO latex values.
+
+WHAT THE TWO CLASSES ARE
+------------------------------------------------------------------------------
+   TOP LEVEL (2,113) is one defect, and the EQ/FO split is its signature:
+   2 in 5 display equations carry it, 1 in 650 inline formulas do. That is
+   exactly what a swept-up sentence mark looks like - an inline formula sits
+   mid-clause, a display equation sits at the end of one. Full stops lead
+   commas 1429 to 690.
+
+   INSIDE A BRACE GROUP (50) is mostly the P7 TEXT-TAIL case wearing a
+   different hat: '\\text { überwunden werden muß. }' - German prose carried
+   inside the math region, its full stop at brace depth 1. A few are real
+   notation instead ('\\mathrm{R}_{6}^{*,}' - the comma belongs to the
+   superscript). Both are false positives for 'trailing punctuation', so the
+   number to act on is 2,113, not 2,163.
+
+COUNTED / NOT COUNTED
+------------------------------------------------------------------------------
+   counted     last non-space character is , ; . or : , allowing closing
+               braces after it ('...\\right),'  '...\\end{array}.')
+   NOT counted '\\right.' / '\\left.' - a trailing dot there is LaTeX syntax
+               for an invisible delimiter. Without that exclusion every
+               one-sided delimiter in the corpus would be a false hit.
+
+PER BOOK
+------------------------------------------------------------------------------
+   book              EQ hit    EQ   rate  FO hit     FO   top  inner
+   bh2                   22   342   6.4%       2   4871    19      5
+   BH1org_OCR            27   239  11.3%       2   5008    25      4
+   BH3FR                  6   323   1.9%       0    217     5      1
+   WDorg4                 7    78   9.0%      12   2374    10      9
+   corpus (49 docs)    2055  4338  47.4%      30  17289  2054     31
+
+FIVE EXAMPLES PER BOOK (identifier, mark, tail of the value)
+------------------------------------------------------------------------------
+-- bh2  (24 objects; '.' 14, ',' 8, ':' 2)
+   bh2_FO2487               ':'  ...':::(+1)_{d}-(1)-(-6)_{d}-(2)-(+2)_{d}:::'
+   bh2_FO2488               ':'  ...':::(-6)_{d}-(3)-(+7)_{d}:::'
+   bh2_EQ0003               '.'  ...'c{1}{\\alpha_{q}}\\left(\\frac{\\mu}{m_{q}}\\right)^{4} .'
+   bh2_EQ0010               '.'  ...'h=8 c^{3} \\frac{\\eta^{3}}{\\underline{\\varepsilon}} .'
+   bh2_EQ0011               ','  ...'ac{\\eta^{3}}{\\varepsilon}}{\\underline{\\varepsilon}},'
+
+-- BH1org_OCR  (29 objects; '.' 18, ',' 11)
+   BH1org_OCR_FO0305        '.'  ...'R_{. k m p}^{i .}'
+   BH1org_OCR_FO1444        '.'  ...'} \\check{\\partial} u_{j}, \\mathrm{~d} . \\mathrm{h} .'
+   BH1org_OCR_EQ0023        '.'  ...'c t, \\quad x_{5}=i \\varepsilon, \\quad x_{6}=i \\eta .'
+   BH1org_OCR_EQ0026        '.'  ...'\\sum_{k=1}^{6} \\cos ^{2} \\alpha_{k}=1 .'
+   BH1org_OCR_EQ0028        '.'  ...'\\varphi(v)-\\varphi(u)=\\pi / 2 .'
+
+-- BH3FR  (6 objects; ',' 4, '.' 2)
+   BH3FR_EQ0001             '.'  ...'\\times S U(2) \\times U(1) \\subset S U(5) \\text {. }'
+   BH3FR_EQ0047             ','  ...'\\\\ -i & -3 i & -9 i & 9 & 3 & 0 \\end{array}\\right|,'
+   BH3FR_EQ0050             ','  ...'^{6}, \\quad x^{\\underline{k}}=C^{\\underline{k}} ; n,'
+   BH3FR_EQ0062             '.'  ...', \\quad c_{k l}^{(i)} b_{i}^{(k l)}=2 \\lambda(k l) .'
+   BH3FR_EQ0133             ','  ...'-\\binom{\\kappa \\lambda}{\\mu_{\\nu}+}_{(-) m}^{(1,6)},'
+
+-- WDorg4  (19 objects; ',' 10, '.' 8, ':' 1)
+   WDorg4_FO0465            ','  ...'\\mathrm{R}_{6}^{*,}'
+   WDorg4_FO0471            ','  ...'thrm{g}}_{\\mathrm{m}}\\right) \\in \\mathrm{R}_{6}^{*,}'
+   WDorg4_FO0473            ','  ...'} \\cup \\mathrm{R}_{4}^{* \\prime}=\\mathrm{R}_{6}^{*,}'
+   WDorg4_FO0501            ','  ...'{12}^{*}=\\mathrm{R}_{6}^{*} \\cup \\mathrm{R}_{6}^{*,}'
+   WDorg4_FO0504            ','  ...'ne{\\mathrm{g}}_{\\mathrm{r}} \\in \\mathrm{R}_{12}^{*,}'
+
+PER-DOCUMENT
+------------------------------------------------------------------------------
+   document          EQ hit     EQ  FO hit      FO
+   bh2                   22    342       2    4871   (book)
+   BH1org_OCR            27    239       2    5008   (book)
+   BH3FR                  6    323       0     217   (book)
+   WDorg4                 7     78      12    2374   (book)
+   0707.2676             20     30       0      60
+   0707.4470             40     62       0     213
+   0711.0273             12     14       0      77
+   0802.3344              7     21       0     103
+   0803.2924             13     23       0      94
+   0806.1585             53    243       0     783
+   0902.0431            671   1215       2    3170
+   0903.2087              0     87       0     158
+   0905.0767              0      5       0     187
+   0905.2720             31     38       0     426
+   0911.3722              8     24       0     281
+   0911.5175             10     15       0     103
+   0911.5175v2           10     15       0     103
+   0912.0721             20     28       0     119
+   1006.4908              0     51       0     145
+   1012.3259              0      5       0      75
+   1101.4542              1     86       1     731
+   1103.2338v5           10     10       0      97
+   1110.0240              0     12       0     128
+   1205.3463v2          126    248       0    1415
+   1205.5935v1          174    479       0    1012
+   1209.3845v2           45     71       0     219
+   1211.3375             14     23       0     228
+   1304.0071v3            1     13       0      76
+   1306.1660             48    118       0     392
+   1306.1660v1           48    118       0     393
+   1310.4843              6      7       1     270
+   1404.2443             14     28       0     237
+   1406.3411              5     10       0      92
+   1407.4737             34     53       0     394
+   1407.7814             44    103       1     491
+   1408.0838             11     32       0     227
+   1410.3916              4     13       0     100
+   1410.6675              4      5       0      18
+   1411.5002            142    317       0    1000
+   1412.8390             28     42       0     181
+   1501.00696             9     11       0     176
+   1502.02973            50     82       5     209
+   1503.00301            25     34      12     233
+   1506.0005v1            0      1       0      37
+   1507.08039             0      8       0     177
+   1510.06699           182    279       0    1063
+   1511.00652            46     78       1     723
+   1602.04650            12     25       0     171
+   1602.06844            17     22       7     167
+   1602.07462             3      3       0     218
+   1603.00260             4      7       0      37
+   1603.04246v2          53    120       0     189
+   1604.04795             0      4       0      91
