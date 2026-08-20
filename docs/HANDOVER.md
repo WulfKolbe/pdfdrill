@@ -263,7 +263,7 @@ implemented (`pdfdrill trailingpunct`, commit 14cb02d) and NO library
 document has been mutated. Agreed sequence, resumable after a reset:
 
     1. inkdrill's in-flight compare exits, distribution reported
-    2. pdfdrill migrates the FOUR BOOKS only (52 marks: bh2 17+2,
+    2. pdfdrill migrates the FOUR BOOKS only (59 marks: bh2 17+2,
        BH1org_OCR 24+1, BH3FR 5+0, WDorg4 6+4) + re-project + regenerate
     3. inkdrill verifies per-cell component counts UNCHANGED on bh2
     4. only then the 49-document corpus (2,054 marks)
