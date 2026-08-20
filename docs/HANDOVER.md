@@ -244,6 +244,27 @@ This ended a three-round ping-pong whose three real mechanisms are in commit
 bdbd5a2 (overfull padding reserve, mixed-section pages, version-suffixed
 identifiers overprinting the Page column).
 
+### trailing_punct — the separation, and the ORDER it must be done in (2026-08-20)
+
+**Design (user).** The TiddlyWiki arrangement is the model: the character
+lives in the `text` field and the `<$latex>` widget holds only mathematics.
+`trailing_punct` in the docmodel is that same separation made portable — the
+math object's `latex` holds mathematics only, the swept-up sentence mark moves
+to `trailing_punct`, and **the compare function sees NEITHER side's copy**
+(not the LaTeX side's, not the ink/scan side's): pure math is compared to pure
+math.
+
+**Scale (out/024.txt).** 2,113 objects carry a genuine top-level trailing mark
+— 39.8% of all display equations, against 0.15% of inline formulas. So this is
+not a rounding-error cleanup; it touches two of every five display equations.
+
+**ORDER, and why it is not negotiable.** 028 runs BEFORE anything is stripped;
+025 (the LaTeX-side move) waits for it. Strip the LaTeX side while the ink side
+still carries the character and the two sides disagree on ~2,113 equations for
+that whole run — the compare output is then not "mostly right", it is
+UNUSABLE, and unusable in a way that looks like a real finding storm. Nothing
+strips until 028 is confirmed complete.
+
 ### Retraction task — at U0, contract table written, U1 not started
 
 `pdfdrill model --force` drops derived layers without retracting facts/evidence
