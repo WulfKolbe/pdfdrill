@@ -599,6 +599,9 @@ class TiddlyWikiProjector(BaseProjector):
                 f"formula {_bibtag(bibkey)}",
             )
             t["latex"] = f.props.get("latex", "")
+            # 025: the character lives in the TEXT FIELD beside the
+            # widget — the widget holds only mathematics
+            t["trailing_punct"] = f.props.get("trailing_punct", "")
             t["displayMode"] = "true" if f.props.get("display") else "false"
             # caption = the LaTeX, so the (otherwise opaque) tiddler is
             # self-describing in any listing / for an LLM resolving transclusions.
@@ -623,6 +626,9 @@ class TiddlyWikiProjector(BaseProjector):
             )
             t["kind"] = "Equation"
             t["latex"] = e.props.get("latex", "")
+            # 025: the character lives in the TEXT FIELD beside the
+            # widget — the widget holds only mathematics
+            t["trailing_punct"] = e.props.get("trailing_punct", "")
             if e.props.get("latex_original"):
                 t["latex_original"] = e.props["latex_original"]   # verbatim macro source
             if e.props.get("spoken"):

@@ -519,7 +519,7 @@ def build_report(tiddlers_path: Path, out: Path | None = None,
     img_col = eq_widths[4] if crops else None
     if crops and px2mm:
         widest = 0.0
-        for title, _lx, _pg, _num, wpx in eq:
+        for title, _lx, _pg, _num, wpx, _pt in eq:
             f = crops / f"{title}.jpg"
             if f.is_file():
                 w = jpg_width(f) or (float(wpx) if wpx else 0)

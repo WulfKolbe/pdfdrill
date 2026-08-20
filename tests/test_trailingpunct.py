@@ -88,3 +88,30 @@ def test_report_sets_the_mark_beside_the_math_not_inside_it(tmp_path):
     tex = (tmp_path / "report.tex").read_text()
     # the math cell renders the mathematics, then the character as text
     assert r"\FitMath{$\displaystyle E = m c^{2}$}," in tex
+
+
+def test_build_report_with_crops_consumes_every_row_field(tmp_path):
+    """Coverage hole that let a real failure through: the widest-crop loop
+    only runs when crops AND px2mm are given, so the 5-vs-6 tuple mismatch
+    introduced with trailing_punct passed every test and then failed on all
+    four books at migration time."""
+    from pdfdrill.report_tex import build_report
+    crops = tmp_path / "crops"
+    crops.mkdir()
+    # a minimal but real JPEG so jpg_width() has something to read
+    try:
+        from PIL import Image
+        Image.new("RGB", (120, 30), "white").save(crops / "k_EQ0001.jpg")
+    except Exception:
+        (crops / "k_EQ0001.jpg").write_bytes(b"\xff\xd8\xff\xdb" + b"\x00" * 600)
+    tp = tmp_path / "k.tiddlers.json"
+    tp.write_text(json.dumps([
+        {"title": "k_EQ0001", "latex": "E = m c^{2}", "trailing_punct": ",",
+         "page": "003", "equation_number": "(1)", "width": "120"},
+        {"title": "k_FO0001", "latex": "x_{5}", "trailing_punct": "."},
+    ]))
+    r = build_report(tp, crops=crops, paper="a3", landscape=True, px2mm=0.1)
+    assert r["equations"] == 1 and r["formulas"] == 1
+    tex = (tmp_path / "report.tex").read_text()
+    assert r"\FitMath{$\displaystyle E = m c^{2}$}," in tex
+    assert r"\FitMath{$\displaystyle x_{5}$}." in tex
