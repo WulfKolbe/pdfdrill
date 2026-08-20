@@ -115,3 +115,24 @@ def test_build_report_with_crops_consumes_every_row_field(tmp_path):
     tex = (tmp_path / "report.tex").read_text()
     assert r"\FitMath{$\displaystyle E = m c^{2}$}," in tex
     assert r"\FitMath{$\displaystyle x_{5}$}." in tex
+
+
+def test_demoted_row_keeps_parity_because_neither_side_shows_the_mark():
+    """The branch bh2 could not exercise (inkdrill, 2026-08-20): a row whose
+    LaTeX will not typeset falls back to '(not rendered)', so there is no
+    math box for the mark to sit after. Parity still holds — BEFORE the
+    migration the mark was inside a latex value that never rendered either,
+    so both sides show exactly '(not rendered)' and no mark."""
+    from pdfdrill.report_tex import row
+    bad = r"\[ x \] \end{itemize}"          # renderable() rejects this
+    cell = lambda r: r.split("&")[3].strip()
+    pre = row("id", bad + ",", "007")        # unmigrated: mark inside latex
+    post = row("id", bad, "007", punct=",")  # migrated: mark separated out
+    assert cell(pre) == cell(post) == r"\emph{(not rendered)} \\ \hline"
+    assert "," not in cell(post)             # no orphan mark after the text
+
+    # and a trailing mark never decides whether a value renders, so the
+    # migration cannot move a row between the rendered and demoted classes
+    from pdfdrill.report_tex import renderable
+    for v in (r"x = y", r"\frac{a}{b}", bad, r"a & b"):
+        assert bool(renderable(v)) == bool(renderable(v + ","))

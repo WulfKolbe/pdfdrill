@@ -161,3 +161,17 @@ def test_source_column_has_no_leading_penalty():
     # interior breaks are still there, still before the backslash
     assert r"\allowbreak{}\textbackslash{}" in out
     assert r"\textbackslash{}\allowbreak{}" not in out
+
+
+def test_error_counter_ignores_content_lines_that_start_with_bang():
+    r"""A TeX error line is '! <message>'; a line starting '!}' is CONTENT
+    echoed inside an Underfull-hbox report. Counting bare '^!' reported a
+    phantom error on 1407.7814 after the trailing_punct migration — a false
+    FAILURE, the mirror of handover rule 11's masked success."""
+    import re
+    log = ("Underfull \\hbox (badness 10000) in paragraph at lines 48--48\n"
+           "!} \n"
+           " []\n"
+           "! Undefined control sequence.\n")
+    assert len(re.findall(r"^!", log, re.M)) == 2      # the old, wrong count
+    assert len(re.findall(r"^! ", log, re.M)) == 1     # the real error only
