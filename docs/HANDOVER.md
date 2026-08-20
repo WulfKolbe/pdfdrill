@@ -301,6 +301,19 @@ page boundary now fits before it. Harmless for ink comparison — a row is the
 same row, one page earlier — but any PAGE-INDEXED artifact built against a
 pre-migration report is off by one for those rows.
 
+**VERIFIED END TO END (2026-08-20).** Consumer re-ran the 50-document
+compare against the migrated corpus: 4,335 rows over 49 of 49 documents,
+IDENTICAL row and document counts to pre-migration. Class movement, on a
+4,335-row population: clean +4, noise -8, weak +1, stable +5, component -2,
+findings 1,095 -> 1,099 (25.4%). Largest class delta 0.4%; the component
+channel their findings are ranked on moved 2 rows of 283. The 20 rows that
+changed class are the reflow residue already characterised — rows that moved
+a page rasterise marginally differently and nudge across a noise boundary —
+not an ink effect. Evidence: the pre/post pair of compare runs, plus the
+per-cell A/Bs on bh2 (10,432/10,434 identical) and 0902.0431 (8,796 cells,
+0 one-sided, 51 differing, none above the component noise ceiling).
+Their findings file: results/compare-P13-arxiv-reports-<stamp>.tsv.
+
 **Atomicity is not required** — `normalize_latex` drops a trailing mark, so
 a separated value and an unseparated one compare EQUAL. A reset mid-migration
 cannot produce a divergence storm; the corpus may sit half-migrated
