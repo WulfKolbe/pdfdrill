@@ -68,6 +68,19 @@ Each of these cost real time or real data in this project.
     by exit-code-masking pipes. Any success/failure summarizer must be tested
     on BOTH a real success and a real failure — a parser that can only see
     one of them sees neither.
+12. **An unexplained delta is a FINDING, not an observation.** A generator
+    change grew the corpus 941 -> 1,080 pages (+15%) with identical equation
+    counts; both sessions filed it as "benign, indices shifted" instead of
+    asking why 15% and not 1%. It was a real defect (a `\penalty0` at the
+    start of a `p{}` cell is TAKEN, giving every backslash-initial cell an
+    empty first line). Ask the magnitude question: a number nobody can derive
+    is a bug nobody has found yet.
+13. **Verify layout cost, not only correctness.** `f7d5568` was accepted on
+    "equations render + probe passes" and shipped a +38% page regression.
+    Generator acceptance now measures page count before/after on a fixed
+    document alongside the column probe. A cost you never measured is a cost
+    your consumer measures for you.
+
 
 ---
 
