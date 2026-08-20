@@ -229,3 +229,41 @@ def text_tail(latex: str):
             if lead and s.index(trail, len(lead)) < len(lead):
                 trail = None
     return lead, trail
+
+
+# --------------------------------------------------------------------------- #
+#  020/021/022 — a backslash severed from its command name (2026-08-20).
+#  '\<whitespace>mathrm{e}' is a backslash that lost its command name: LaTeX
+#  reads the gap as a control space and typesets the literal letters
+#  "mathrme". A run of EVEN length (\\, \\\\) is a real row break and is
+#  never touched. ONE detector, shared by the normaliser and the validator.
+# --------------------------------------------------------------------------- #
+_SEVERED_RUN = re.compile(r"(\\+)(\s+)([A-Za-z])")
+
+
+def severed_backslashes(value: str, newline_only: bool = False) -> int:
+    """How many LONE backslashes in `value` are severed from their command."""
+    n = 0
+    for m in _SEVERED_RUN.finditer(value or ""):
+        if len(m.group(1)) % 2 == 0:          # \\ : a legitimate row break
+            continue
+        if newline_only and not ("\n" in m.group(2) or "\r" in m.group(2)):
+            continue
+        n += 1
+    return n
+
+
+def join_severed_backslashes(value: str) -> "tuple[str, int]":
+    """(normalised, n_joined) — join each lone backslash to the command name
+    it was severed from. ONLY the severing whitespace is removed; every other
+    space, newline and control space in the value is left exactly as it was."""
+    n = 0
+
+    def _fix(m):
+        nonlocal n
+        if len(m.group(1)) % 2 == 0:
+            return m.group(0)                 # row break: untouched
+        n += 1
+        return m.group(1) + m.group(3)        # drop the severing gap only
+
+    return _SEVERED_RUN.sub(_fix, value or ""), n

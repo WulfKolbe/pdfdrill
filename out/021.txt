@@ -1,0 +1,96 @@
+021 - normalise LaTeX values whose backslash was severed from its command
+==============================================================================
+
+NUMBER CHANGED: 0
+
+PREREQUISITE  out/020.txt reports 0 affected values in 87,332 raw MathPix
+              text values and 35,079 projected latex values. 021 was run
+              anyway rather than skipped on that basis: a normaliser that
+              has never executed is not known to work, and the run is the
+              measurement that confirms 020's zero from the write side.
+
+RUN
+------------------------------------------------------------------------------
+   documents processed : 53  (4 books + the 49-document P13 corpus)
+   latex values scanned: 40417
+   values changed      : 0
+   errors              : 0
+   models written      : 0 (the command saves only when it changes something,
+                            so no model mtime moved and nothing downstream
+                            went stale)
+
+WHAT THE NORMALISER DOES (built, tested, registered as `pdfdrill latexnorm`)
+------------------------------------------------------------------------------
+   joins a LONE backslash to the command name it was severed from:
+        '\\mathcal{D} g \\<newline>mathrm{e}^{i S},'
+     -> '\\mathcal{D} g \\mathrm{e}^{i S},'
+   ONLY the severing gap is removed. Every other space, newline and control
+   space in the value is left byte-identical, and a run of two backslashes
+   (a real row break, 'a \\\\ text') is never touched.
+
+   Each change would keep the original as <field>_presevered and carry an
+   edit_source stamp (P9: run index + UTC timestamp), so `pdfdrill modeldiff`
+   reports the edit as EVIDENCED rather than listing it under UNEVIDENCED.
+   Zero changes means zero stamps were written.
+
+   Tests: tests/test_latexnorm.py (3) — detector parity on \\ runs, the
+   join touching only the severing gap, and the command's stamp +
+   original-preserved + idempotence contract, all on a synthetic corrupted
+   document since the corpus contains no real instance.
+
+PER-DOCUMENT (all zero)
+------------------------------------------------------------------------------
+   document           scanned  changed
+   bh2                   5557        0
+   BH1org_OCR            5486        0
+   BH3FR                  863        0
+   WDorg4                2529        0
+   0707.2676              120        0
+   0707.4470              338        0
+   0711.0273              105        0
+   0802.3344              145        0
+   0803.2924              140        0
+   0806.1585             1269        0
+   0902.0431             5600        0
+   0903.2087              332        0
+   0905.0767              197        0
+   0905.2720              502        0
+   0911.3722              329        0
+   0911.5175              133        0
+   0911.5175v2            133        0
+   0912.0721              175        0
+   1006.4908              247        0
+   1012.3259               85        0
+   1101.4542              903        0
+   1103.2338v5            117        0
+   1110.0240              152        0
+   1205.3463v2           1911        0
+   1205.5935v1           1970        0
+   1209.3845v2            361        0
+   1211.3375              277        0
+   1304.0071v3            103        0
+   1306.1660              628        0
+   1306.1660v1            629        0
+   1310.4843              286        0
+   1404.2443              293        0
+   1406.3411              113        0
+   1407.4737              500        0
+   1407.7814              697        0
+   1408.0838              291        0
+   1410.3916              127        0
+   1410.6675               28        0
+   1411.5002             1634        0
+   1412.8390              265        0
+   1501.00696             201        0
+   1502.02973             373        0
+   1503.00301             301        0
+   1506.0005v1             39        0
+   1507.08039             193        0
+   1510.06699            1620        0
+   1511.00652             879        0
+   1602.04650             222        0
+   1602.06844             215        0
+   1602.07462             224        0
+   1603.00260              51        0
+   1603.04246v2           429        0
+   1604.04795             100        0

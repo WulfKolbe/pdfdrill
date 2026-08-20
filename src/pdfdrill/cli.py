@@ -992,6 +992,12 @@ def _do_modeldiff(args):
     return cmd_modeldiff(_P(paths[0]), _P(paths[1]))
 
 
+def _do_latexnorm(args):
+    """pdfdrill latexnorm <pdf>"""
+    from .commands import cmd_latexnorm
+    return cmd_latexnorm(_pdf(args))
+
+
 def _do_tailsplit(args):
     """pdfdrill tailsplit <pdf>"""
     from .commands import cmd_tailsplit
@@ -1975,6 +1981,7 @@ HANDLERS = {
         "report": _do_report,
         "reporttex": _do_reporttex,
         "tailsplit": _do_tailsplit,
+        "latexnorm": _do_latexnorm,
         "modeldiff": _do_modeldiff,
         "crossref": _do_crossref,
         "cdncrops": _do_cdncrops,

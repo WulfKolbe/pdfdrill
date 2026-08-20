@@ -9998,11 +9998,27 @@ def cmd_ingest(pdf: Path, candidates_path: str, provider: str = "llm",
     with open(model_path, "r", encoding="utf-8") as f:
         doc = Document.from_dict(json.load(f))
 
-    attached = skipped = 0
+    from .mathqc import severed_backslashes
+    attached = skipped = rejected = 0
+    rejects: list[str] = []
     for it in items:
         eq_id = it.get("eq_id") or it.get("id")
         latex = (it.get("latex") or "").strip()
         if not eq_id or not latex:
+            continue
+        # 022: REJECT a backslash severed from its command name. LaTeX reads
+        # the gap as a control space and typesets the literal letters
+        # ("\<ws>mathrm{e}" -> "mathrme"), so the value is wrong INPUT, not
+        # merely ugly — and an ingest path takes untrusted LLM/vision output.
+        # Runs of \\ are real row breaks and are never rejected.
+        n_sev = severed_backslashes(latex)
+        if n_sev:
+            rejected += 1
+            if len(rejects) < 10:
+                import re as _re
+                m = _re.search(r"(\\+)(\s+)([A-Za-z])", latex)
+                rejects.append(f"{eq_id}: {latex[max(0, m.start()-20):m.start()+30]!r}"
+                               if m else str(eq_id))
             continue
         obj = doc.objects.get(eq_id)
         if obj is None:
@@ -10035,6 +10051,17 @@ def cmd_ingest(pdf: Path, candidates_path: str, provider: str = "llm",
     msg = f"Ingested {attached} '{provider}' candidate(s)"
     if skipped:
         msg += f" ({skipped} already present; use --force to replace)"
+    if rejected:
+        sc.set_evidence(f"ingest_{provider}_rejected", rejected)
+        sc.save()
+        msg += (f"\nREJECTED {rejected} value(s): a backslash severed from its "
+                f"command name (LaTeX reads the gap as a control space and "
+                f"typesets the literal letters). Fix the source or run "
+                f"`pdfdrill latexnorm` on an already-stored value:")
+        for r in rejects:
+            msg += f"\n  {r}"
+        if rejected > len(rejects):
+            msg += f"\n  … {rejected - len(rejects)} more"
     msg += f". Run `pdfdrill compare {pdf.name}` to see the {provider} column."
     return msg
 
@@ -13483,3 +13510,40 @@ def cmd_standalone(pdf: Path, only_id: str | None = None) -> str:
     else:
         lines.append("0 compile failures.")
     return "\n".join(lines)
+
+
+def cmd_latexnorm(pdf: Path) -> str:
+    """021: join every LONE backslash that was severed from its command name
+    ('\\<newline>mathrm{e}' -> '\\mathrm{e}'), leaving all other whitespace
+    exactly as it was. Runs of \\\\ are real row breaks and are never touched.
+    Each changed object keeps its original under `latex_presevered` and gets
+    an `edit_source` stamp (P9), so `modeldiff` shows the edit as evidenced."""
+    from .mathqc import join_severed_backslashes, severed_backslashes
+    sc = Sidecar(pdf)
+    model_path = _model_path(sc)
+    if not model_path.exists():
+        return f"No model for {pdf.name} (run `pdfdrill model` first)."
+    doc = load_model(model_path)
+    changed = joined = scanned = 0
+    for o in doc.objects.values():
+        for field in ("latex", "latex_raw", "latex_code"):
+            v = o.props.get(field)
+            if not isinstance(v, str) or not v:
+                continue
+            scanned += 1
+            if not severed_backslashes(v):
+                continue
+            new, n = join_severed_backslashes(v)
+            if n and new != v:
+                o.props.setdefault(f"{field}_presevered", v)
+                o.props[field] = new
+                o.props["edit_source"] = _edit_source(sc)
+                joined += n
+                changed += 1
+    if changed:
+        save_model(model_path, doc)
+        sc.save()
+    return (f"latexnorm: {changed} value(s) changed ({joined} backslash(es) "
+            f"rejoined) of {scanned} scanned in {pdf.name}."
+            + ("" if changed else
+               "  Nothing to normalise — no value carries the pattern."))

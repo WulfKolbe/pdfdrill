@@ -1,0 +1,90 @@
+020 - MathPix LaTeX values with a backslash severed from its command name
+==============================================================================
+
+PATTERN   a LONE backslash, then whitespace, then a letter
+          (runs of \\ are excluded: those are legitimate row breaks)
+SCANNED   4 books + the 49-document P13 corpus; both the raw MathPix
+          lines.json text values and the projected EQ/FO latex values
+
+SCANNER VALIDATED before use (a zero from an unproven query is worthless):
+   user's pasted string '\\mathcal{D} g \\<newline>mathrm{e}...'  -> DETECTED
+   legitimate row break 'a \\\\ text'                            -> ignored
+   control space        'a \\ x'                                -> any-ws only
+
+RESULT
+------------------------------------------------------------------------------
+   COUNT with a NEWLINE after the backslash : 0
+   COUNT with any whitespace                : 0
+   values scanned: 87332 raw MathPix text + 35079 projected latex
+
+   Not one occurrence exists in the stored data, in any book or corpus
+   document. No identifiers can be listed because there are none: the
+   five-examples-per-book request has an empty answer everywhere.
+
+WHERE THE REPORTED CORRUPTION ACTUALLY COMES FROM
+------------------------------------------------------------------------------
+   The '\\' + newline + 'mathrm{...}' the user pasted was produced by
+   COPYING TEXT OUT OF report.pdf, not by MathPix. The LaTeX-source
+   column wrapped, and the generator placed its break opportunity AFTER
+   the backslash, so a wrapped line ended with a naked backslash and the
+   next began 'mathrm{...}'. Fixed in commits f7d5568 + cffd6ed (break
+   BEFORE the backslash, and no leading penalty). MathPix's own output
+   for that equation (0711.0273) is correct, and so are the model and
+   tiddler values.
+
+PER-DOCUMENT COUNTS (all zero; listed so the population is explicit)
+------------------------------------------------------------------------------
+   document          latexvals  newline   any-ws
+   bh2                    5213        0        0   (book)
+   BH1org_OCR             5247        0        0   (book)
+   BH3FR                   540        0        0   (book)
+   WDorg4                 2452        0        0   (book)
+   0707.2676                90        0        0
+   0707.4470               275        0        0
+   0711.0273                91        0        0
+   0802.3344               124        0        0
+   0803.2924               117        0        0
+   0806.1585              1026        0        0
+   0902.0431              4385        0        0
+   0903.2087               245        0        0
+   0905.0767               192        0        0
+   0905.2720               464        0        0
+   0911.3722               305        0        0
+   0911.5175               118        0        0
+   0911.5175v2             118        0        0
+   0912.0721               147        0        0
+   1006.4908               196        0        0
+   1012.3259                80        0        0
+   1101.4542               817        0        0
+   1103.2338v5             107        0        0
+   1110.0240               140        0        0
+   1205.3463v2            1663        0        0
+   1205.5935v1            1491        0        0
+   1209.3845v2             290        0        0
+   1211.3375               251        0        0
+   1304.0071v3              89        0        0
+   1306.1660               510        0        0
+   1306.1660v1             511        0        0
+   1310.4843               277        0        0
+   1404.2443               265        0        0
+   1406.3411               102        0        0
+   1407.4737               447        0        0
+   1407.7814               594        0        0
+   1408.0838               259        0        0
+   1410.3916               113        0        0
+   1410.6675                23        0        0
+   1411.5002              1317        0        0
+   1412.8390               223        0        0
+   1501.00696              187        0        0
+   1502.02973              291        0        0
+   1503.00301              267        0        0
+   1506.0005v1              38        0        0
+   1507.08039              185        0        0
+   1510.06699             1342        0        0
+   1511.00652              801        0        0
+   1602.04650              196        0        0
+   1602.06844              189        0        0
+   1602.07462              221        0        0
+   1603.00260               44        0        0
+   1603.04246v2            309        0        0
+   1604.04795               95        0        0

@@ -1,0 +1,46 @@
+022 - ingest-path validator: reject a backslash severed from its command
+==============================================================================
+
+REJECTION COUNT ON ONE BOOK (bh2): 0
+   342 real display-equation values offered through the ingest path,
+   342 accepted, 0 rejected.
+
+NEGATIVE CONTROL (a zero from an unproven validator proves nothing)
+------------------------------------------------------------------------------
+   Same book, same path, with exactly 7 values corrupted the way a wrapped
+   copy-paste corrupts them ('\\sqrt' -> '\\<newline>sqrt'):
+        corrupted 7  ->  rejected 7, ingested 335   PASS
+   So the validator fires on this book's own data when the pattern is
+   present, and the 0 above is a measured absence, not a silent pass.
+
+WHAT IS REJECTED
+------------------------------------------------------------------------------
+   A LONE backslash followed by whitespace and then a letter. LaTeX reads
+   the gap as a control space and typesets the command name as literal
+   letters ('\\<ws>mathrm{e}' renders as 'mathrme'), so the value is wrong
+   INPUT, not merely ugly — and the ingest path takes untrusted LLM and
+   vision output, which is exactly where such a value can enter.
+
+   NOT rejected: a run of two backslashes ('a \\\\ text'). That is a real
+   row break and appears in most multi-line equations; rejecting it would
+   reject the corpus. This is a deliberate narrowing of the literal request
+   'any backslash followed by whitespace before a letter', and it is the
+   only narrowing made. A control space before a letter ('a \\ x') IS
+   rejected as asked, though the corpus contains no instance.
+
+BEHAVIOUR ON REJECTION
+------------------------------------------------------------------------------
+   The value is never stored: no realization is attached, so a corrupted
+   candidate cannot reach the model, the reports or the compare. The
+   command names each rejected identifier with the offending fragment,
+   records `ingest_<provider>_rejected` in the sidecar, and points at
+   `pdfdrill latexnorm` for values already stored. Accepted candidates in
+   the same batch are ingested normally — one bad value costs its own row,
+   never the batch.
+
+   Implementation: src/pdfdrill/commands.py::cmd_ingest, using the single
+   shared detector mathqc.severed_backslashes() that 020 counted with and
+   021 normalises with — one definition of the pattern, three uses.
+   Tests: tests/test_latexnorm.py::test_ingest_rejects_severed_backslashes
+   _and_counts_them (bad value rejected and named, row break ingested,
+   sidecar count recorded).

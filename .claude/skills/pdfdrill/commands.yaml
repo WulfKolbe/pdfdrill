@@ -1324,6 +1324,21 @@ commands:
     required: true
     help: the NEW model.docmodel.json
   typed: true
+- name: latexnorm
+  section: Introspection (fast, no extraction)
+  summary: '021: join every LONE backslash severed from its command name (a backslash, whitespace, then
+    a letter — LaTeX reads the gap as a control space and typesets the literal letters). Only the
+    severing gap is removed; all other whitespace is untouched and runs of two backslashes (real row
+    breaks) are never changed. Keeps the original as <field>_presevered and stamps edit_source.'
+  offline_ok: true
+  requires:
+  - model
+  positionals:
+  - name: pdf
+    type: pdf
+    required: true
+    help: PDF path, https URL, or bare arXiv id
+  typed: true
 - name: tailsplit
   section: Introspection (fast, no extraction)
   summary: 'P7: split math regions carrying a PROSE tail (MathPix keeps the sentence fragment inside the
