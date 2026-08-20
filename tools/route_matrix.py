@@ -70,7 +70,15 @@ def matrix(pdf: Path) -> str:
 
 
 if __name__ == "__main__":
-    for arg in sys.argv[1:]:
+    import argparse
+    from harness_limit import add_limit, apply_limit, announce
+    _ap = argparse.ArgumentParser(description="route matrix per PDF")
+    _ap.add_argument("pdfs", nargs="+")
+    add_limit(_ap, "PDFs")                       # 032: required, 0 = all
+    _args = _ap.parse_args()
+    _targets = apply_limit(_args.pdfs, _args.limit)
+    announce("route_matrix", _targets)
+    for arg in _targets:
         pdf = Path(arg)
         md = matrix(pdf)
         out = pdf.parent / f"{pdf.stem}.route-matrix.md"

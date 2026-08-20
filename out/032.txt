@@ -1,0 +1,73 @@
+032 - --limit N made required in every harness from out/031.txt
+==============================================================================
+
+NAMES CHANGED (all six from 031)
+------------------------------------------------------------------------------
+   harness                  --limit before   --limit now   announcement
+   ---------------------    --------------   -----------   ----------------
+   corpus_pages.py          OPTIONAL         REQUIRED      already printed
+                            (default None)                 documents+pages;
+                                                           kept
+   drillbatch.py            ABSENT           REQUIRED      added
+   make_libraryindex.py     ABSENT           REQUIRED      added
+   mathgold_floor.py        ABSENT           REQUIRED      added
+   route_matrix.py          ABSENT           REQUIRED      added
+   speak_library.py         OPTIONAL         REQUIRED      added
+                            (default 0)
+
+   6 harnesses changed. 0 remain able to start unbounded work from a bare
+   invocation.
+
+   New shared module: tools/harness_limit.py — add_limit / apply_limit /
+   announce. One definition of the bound and one of the announcement, so the
+   six cannot drift apart in how they bound or what they report.
+
+SEMANTICS CHOSEN, AND WHY
+------------------------------------------------------------------------------
+   --limit is REQUIRED and 0 MEANS ALL. The unbounded run stays reachable but
+   has to be asked for in words. Removing it entirely would have made the
+   full-corpus pass impossible; leaving it optional is what created the
+   problem, since two harnesses advertised a limit whose default disabled it
+   — worse than no flag at all, because it reads like a bound and is not one.
+
+THE ANNOUNCEMENT
+------------------------------------------------------------------------------
+   Printed to stderr before the first document is touched, e.g.
+
+       [make_libraryindex] planned: 2 document(s), 596 page(s)
+       plan:   2 documents, 6 pages at 400 DPI          (corpus_pages, kept)
+
+   Page counts come from the cheapest local source that knows: sidecar
+   evidence, then lines.json, then pdfinfo. A document whose page count is
+   NOT knowable locally — a drillbatch URL that has not been fetched yet — is
+   reported as unknown rather than guessed:
+
+       [drillbatch] planned: 12 document(s), 0 page(s)
+                    (+12 document(s) whose page count is not knowable locally yet)
+
+   A plan that invents its own size is worse than one that admits what it
+   cannot see.
+
+ONE PLACEMENT NOTE, STATED RATHER THAN HIDDEN
+------------------------------------------------------------------------------
+   In speak_library.py the announcement comes after the library SCAN that
+   decides which documents need speech and orders them cheapest-first. On a
+   3,363-document library that scan takes minutes, so the plan line is not
+   instant there. Moving it earlier would have meant limiting before the
+   sort, which silently changes which documents a bounded run selects — a
+   worse trade than a late line. The scan predates this change.
+
+VERIFICATION
+------------------------------------------------------------------------------
+   All six refuse a bare invocation and name --limit in the refusal
+   (subprocess-checked, not inspected).
+   Page counting checked against the real library layout: 0711.0273 -> 22,
+   bh2 -> 400, WDorg4 -> 174, announced together as 596.
+   Tests: tests/test_harness_limit.py (3) — the required flag and 0=all,
+   every harness refusing unbounded work, and announce reporting documents,
+   pages and what it cannot know.
+
+   One defect found while testing my own helper: announce() had
+   `stream=sys.stderr` as a DEFAULT ARGUMENT, which binds the original stream
+   at import time and ignores any later redirection. Invisible in production,
+   and it made the announcement untestable. Now resolved at call time.

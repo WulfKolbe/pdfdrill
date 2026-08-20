@@ -80,6 +80,8 @@ def run_lgeval(out_lg: Path, gold_lg: Path) -> dict:
 def main() -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("models", nargs="+")
+    from harness_limit import add_limit
+    add_limit(ap, "models")                  # 032: required, 0 = all
     ap.add_argument("--out", default="floor-lg")
     ap.add_argument("--no-score", action="store_true",
                     help="emit the .lg pairs but do not invoke LgEval")
@@ -92,6 +94,9 @@ def main() -> int:
               f"see tools/lgeval_env.sh", file=sys.stderr)
         return 2
 
+    from harness_limit import apply_limit, announce
+    args.models = apply_limit(args.models, args.limit)
+    announce('mathgold_floor', args.models)
     outdir = Path(args.out)
     outdir.mkdir(parents=True, exist_ok=True)
     import pdfplumber

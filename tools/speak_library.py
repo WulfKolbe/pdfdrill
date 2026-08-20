@@ -71,7 +71,8 @@ def run(cmd: list[str], timeout: int) -> tuple[bool, str]:
 def main() -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("--lib", default=str(Path.home() / "pdfdrill-library"))
-    ap.add_argument("--limit", type=int, default=0, help="only N documents")
+    from harness_limit import add_limit
+    add_limit(ap)                            # 032: required, 0 = all
     ap.add_argument("--dry-run", action="store_true")
     ap.add_argument("--respeak", action="store_true",
                     help="re-render EVERY formula (after a speech-cleaning "
@@ -87,6 +88,8 @@ def main() -> int:
     work.sort(key=lambda t: t[1] - t[2])                 # cheapest first: early wins
     if a.limit:
         work = work[:a.limit]
+    from harness_limit import announce
+    announce("speak_library", [m for m, _t, _s in work])
 
     print(f"{len(models)} model(s); {len(work)} need speech "
           f"({sum(t - s for _, t, s in work)} formulas)", flush=True)

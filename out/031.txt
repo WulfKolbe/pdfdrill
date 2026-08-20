@@ -1,0 +1,59 @@
+031 - harnesses in tools/ that can iterate more than one document
+==============================================================================
+
+DEFINITION USED
+   "harness that can iterate more than one document" = a tools/ entry point
+   whose single invocation can process an unbounded number of DOCUMENTS
+   (PDFs, models, or library folders). Scripts that iterate files which are
+   not documents (source files, skill files, tiles) are excluded and listed
+   below with the reason, so the population is explicit rather than implied.
+
+THE TABLE
+------------------------------------------------------------------------------
+   harness                     iterates                       --limit
+   ------------------------    ---------------------------    ------------
+   corpus_pages.py             library documents needing      OPTIONAL
+                               work                           (default None
+                                                              = all)
+   drillbatch.py               urls/ids/paths (nargs="*")     ABSENT
+                               plus --urls FILE
+   make_libraryindex.py        every folder under the         ABSENT
+                               library (3,363 today)
+   mathgold_floor.py           models (nargs="+")             ABSENT
+   route_matrix.py             every argv entry, one PDF      ABSENT
+                               each
+   speak_library.py            library documents              OPTIONAL
+                                                              (default 0
+                                                              = all)
+
+   SUMMARY   6 multi-document harnesses
+             0 require --limit
+             2 accept it and default to UNBOUNDED (corpus_pages, speak_library)
+             4 have no --limit at all
+
+   So today every one of the six will process the entire corpus if invoked
+   with no bound, and two of them advertise a limit whose default disables it.
+
+EXCLUDED, WITH THE REASON
+------------------------------------------------------------------------------
+   drillui_chat.py         doc is nargs="?" - exactly one document; its
+                           glob calls list that document's artifacts
+   tiddlers_to_md.py       one tiddlers_json positional
+   drill_full.sh           DOC="${1:?...}" - one document per invocation
+   imageserver/
+     build_pyramids.py     --pdf is required and singular
+     mathpix_server.py     a server, not a harness
+   skillsync.py            iterates skill FILES in a directory, not documents
+   make_fileindex.py       iterates git-tracked source files, not documents
+   claude_capability_test.sh   iterates prompts under test, not documents
+   drillui_bridge.ts /     one document per bridge; the .ts test files
+   drillui_net.ts /        iterate URLs and fixtures, not documents
+   test_drillui_*.ts
+
+METHOD
+------------------------------------------------------------------------------
+   Every file in tools/ and tools/imageserver/ was read for its argument
+   surface (argparse add_argument, sys.argv loops, shell positionals) and for
+   iteration over documents (glob/rglob/iterdir/listdir, nargs="*"/"+", argv
+   loops). 27 entries in tools/ plus 4 in tools/imageserver/ were considered;
+   the 6 above qualify.

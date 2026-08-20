@@ -323,6 +323,8 @@ def main():
     ap = argparse.ArgumentParser(description="Batch shallow-first PDF drill.")
     ap.add_argument("urls", nargs="*", help="URLs / arXiv ids / pdf paths ('-' to read stdin)")
     ap.add_argument("--urls", dest="urlfile", help="file with one URL per line")
+    from harness_limit import add_limit
+    add_limit(ap)                            # 032: required, 0 = all
     ap.add_argument("--profile", choices=list(LADDER), default="shallow")
     ap.add_argument("--out-dir", default=".")
     ap.add_argument("--cache", default=None, help="pdf cache dir (default <out-dir>/_pdfcache)")
@@ -342,6 +344,13 @@ def main():
     if args.urlfile:
         tokens += [ln.strip() for ln in Path(args.urlfile).read_text().splitlines() if ln.strip()]
     tokens = [t for t in tokens if t and not t.startswith("#")]
+    # 032: bound the run, then say what it is before starting it. A token
+    # that has not been fetched yet has no locally knowable page count, and
+    # announce() reports that as unknown rather than inventing a number.
+    from harness_limit import apply_limit, announce
+    tokens = apply_limit(tokens, args.limit)
+    if tokens:
+        announce("drillbatch", tokens)
     if not tokens:
         ap.error("no URLs given (positional, --urls FILE, or stdin '-')")
 

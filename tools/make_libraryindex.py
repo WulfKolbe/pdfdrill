@@ -197,9 +197,18 @@ render(DOCS);
 
 
 def main() -> None:
-    root = Path(sys.argv[1] if len(sys.argv) > 1
-                else "~/pdfdrill-library").expanduser().resolve()
-    folders = sorted(p for p in root.iterdir() if p.is_dir())
+    import argparse
+    from harness_limit import add_limit, apply_limit, announce
+    ap = argparse.ArgumentParser(description=__doc__)
+    ap.add_argument("root", nargs="?", default="~/pdfdrill-library")
+    add_limit(ap)                                # 032: required, 0 = all
+    args = ap.parse_args()
+    root = Path(args.root).expanduser().resolve()
+    folders = apply_limit(sorted(p for p in root.iterdir() if p.is_dir()),
+                          args.limit)
+    # page counts are cheap here (sidecar/lines.json), and the whole library
+    # is 3,363 folders — the operator should see that number before it starts
+    announce("make_libraryindex", folders)
     entries = []
     t0 = time.time()
     for i, folder in enumerate(folders, 1):

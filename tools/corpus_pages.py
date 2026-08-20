@@ -264,7 +264,8 @@ def main(argv=None) -> int:
     ap.add_argument("--per-doc", type=int, default=3, help="pages sampled per document")
     ap.add_argument("--dpi", type=int, default=400, help="render DPI (gs floor is 400)")
     ap.add_argument("--jobs", type=int, default=min(8, (os.cpu_count() or 4)))
-    ap.add_argument("--limit", type=int, help="only the first N documents needing work")
+    from harness_limit import add_limit
+    add_limit(ap, "documents needing work")   # 032: required, 0 = all
     ap.add_argument("--dry-run", action="store_true")
     ap.add_argument("--stats", action="store_true", help="report the corpus and exit")
     ap.add_argument("--manifest", type=Path, help=f"default <library>/{MANIFEST_NAME}")
@@ -279,7 +280,8 @@ def main(argv=None) -> int:
         print(_fmt_stats(corpus_stats(root)))
         return 0
 
-    plan, skipped = plan_library(root, per_doc=args.per_doc, limit=args.limit,
+    plan, skipped = plan_library(root, per_doc=args.per_doc,
+                                 limit=(args.limit or None),
                                  with_skipped=True)
     n_pages = sum(len(p.pages) for p in plan)
     print(f"before: {_fmt_stats(corpus_stats(root))}")
