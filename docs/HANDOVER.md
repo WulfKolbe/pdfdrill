@@ -81,6 +81,14 @@ Each of these cost real time or real data in this project.
     document alongside the column probe. A cost you never measured is a cost
     your consumer measures for you.
 
+14. **Re-measure a symptom against the CURRENT artifact before diagnosing
+    it.** A "117 rows vs 23 equations" symptom was diagnosed by both sessions
+    — mechanism proposed, code read, fix designed — before anyone re-ran it;
+    the number came from a build three regenerations old and the symptom no
+    longer existed (the same document now reads 19 rows vs 23). In a pipeline
+    that regenerates, an observation is evidence about the artifact it was
+    taken from, not about today's. Diagnosing stale evidence produces
+    confident, wrong fixes.
 
 ---
 
