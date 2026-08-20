@@ -207,8 +207,18 @@ per-doc `report.compare.tsv` into each library folder when its run completes.
 **Cross-session verification contract (2026-08-19, mutual):** regenerated
 reports are never handed to the inkdrill session without a local pass of THEIR
 probe first (reproduce it from ~/inkdrill: pngio.auto_mask +
-__main__._table_cells at r150, expect 5 columns on the equations pages); they
-never report a generator defect without first ruling out instrument fault.
+__main__._table_cells, expect 5 columns on the equations pages); they never
+report a generator defect without first ruling out instrument fault.
+
+**Probe at >= 200 dpi.** inkdrill measured (2026-08-20, 0802.3344) that a scan
+crop sits ~0.9mm below its rule at EVERY dpi — the "touching" seen in a viewer
+is downsampling — but below 200 dpi cells stop being holes topologically (3
+merge at 72/96, 1 at 150, none at 200+). Measured consequence for OUR probe:
+the COLUMN-COUNT check is dpi-insensitive (bh2/BH3FR/WDorg4/BH1org all give an
+identical lattice at 96/150/200/300, because median-span filling repairs a
+fragmented slot), so past acceptance verdicts at r150 stand — but per-CELL
+measurements below 200 dpi report merges that do not exist at working
+resolution. Run acceptance at 300.
 This ended a three-round ping-pong whose three real mechanisms are in commit
 bdbd5a2 (overfull padding reserve, mixed-section pages, version-suffixed
 identifiers overprinting the Page column).
