@@ -89,6 +89,19 @@ Each of these cost real time or real data in this project.
     that regenerates, an observation is evidence about the artifact it was
     taken from, not about today's. Diagnosing stale evidence produces
     confident, wrong fixes.
+15. **A prediction about CONTENT is not a prediction about PIXELS.** I
+    predicted "0 differing Rendered cells" from the fact that the emitted
+    LaTeX is identical for a migrated row. Falsified: 34 differed, because 6
+    rows had reflowed one page earlier and therefore rasterised at a
+    different sub-pixel offset. The content claim was right and the cell
+    claim was wrong, and they are not the same claim. State which layer a
+    prediction is about, or it cannot be scored.
+16. **An unchanged input column is a free control — keep one.** The consumer's
+    diff showed 6 SCAN cells differing, and the scan column is an untouched
+    JPEG that no migration of mine can reach. That is what separated "the ink
+    changed" from "the row moved"; without it both hypotheses fit the 34
+    Rendered cells equally. Nobody designed it as a control — it was there
+    because the report happens to carry the source beside the derivative.
 
 ---
 
