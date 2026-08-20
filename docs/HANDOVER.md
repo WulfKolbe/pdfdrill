@@ -258,6 +258,26 @@ math.
 — 39.8% of all display equations, against 0.15% of inline formulas. So this is
 not a rounding-error cleanup; it touches two of every five display equations.
 
+**MIGRATION PROTOCOL (agreed with inkdrill, 2026-08-20).** 025 is
+implemented (`pdfdrill trailingpunct`, commit 14cb02d) and NO library
+document has been mutated. Agreed sequence, resumable after a reset:
+
+    1. inkdrill's in-flight compare exits, distribution reported
+    2. pdfdrill migrates the FOUR BOOKS only (52 marks: bh2 17+2,
+       BH1org_OCR 24+1, BH3FR 5+0, WDorg4 6+4) + re-project + regenerate
+    3. inkdrill verifies per-cell component counts UNCHANGED on bh2
+    4. only then the 49-document corpus (2,054 marks)
+
+Step 3 is the gate: the report sets the mark AFTER the math box
+(`\FitMath{$...$},`) precisely so the ink of both columns is unchanged,
+which lets the consumer attribute any delta to the migration rather than
+to a layout change. If the books show a per-cell delta, STOP.
+
+**Atomicity is not required** — `normalize_latex` drops a trailing mark, so
+a separated value and an unseparated one compare EQUAL. A reset mid-migration
+cannot produce a divergence storm; the corpus may sit half-migrated
+indefinitely without harm.
+
 **ORDER, and why it is not negotiable.** 028 runs BEFORE anything is stripped;
 025 (the LaTeX-side move) waits for it. Strip the LaTeX side while the ink side
 still carries the character and the two sides disagree on ~2,113 equations for
