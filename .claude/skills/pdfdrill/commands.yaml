@@ -1324,6 +1324,21 @@ commands:
     required: true
     help: the NEW model.docmodel.json
   typed: true
+- name: trailingpunct
+  section: Introspection (fast, no extraction)
+  summary: '025: move a TOP-LEVEL trailing sentence mark (, ; . :) out of each math object''s latex into
+    a trailing_punct field — the TiddlyWiki separation made portable: the character lives beside the
+    math (projections re-emit it outside the widget), latex holds mathematics only, and comparison
+    sees neither side''s copy. Keeps latex_prepunct, stamps edit_source, idempotent.'
+  offline_ok: true
+  requires:
+  - model
+  positionals:
+  - name: pdf
+    type: pdf
+    required: true
+    help: PDF path, https URL, or bare arXiv id
+  typed: true
 - name: latexnorm
   section: Introspection (fast, no extraction)
   summary: '021: join every LONE backslash severed from its command name (a backslash, whitespace, then

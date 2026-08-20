@@ -67,10 +67,10 @@ def rows_for(tiddlers, bibkey):
         page = t.get("page") or fpage.get(title, "")
         dims = t.get("width", ""), t.get("height", "")
         if kind in ("FO", "FOX"):
-            fo.append((title, latex, page))
+            fo.append((title, latex, page, t.get("trailing_punct", "")))
         elif kind == "EQ":
             eq.append((title, latex, page, t.get("equation_number", ""),
-                       t.get("width", "")))
+                       t.get("width", ""), t.get("trailing_punct", "")))
         elif kind == "TAB":
             tab.append((title, latex, page, dims))
         else:
@@ -287,7 +287,7 @@ def breakable_ident(title: str) -> str:
     return re.sub(r"(\.|\\_)", r"\1\\allowbreak{}", esc_text(title))
 
 
-def row(title, latex, page, extra="", image=None) -> str:
+def row(title, latex, page, extra="", image=None, punct="") -> str:
     # identifier and equation number are machine keys, not reading
     # matter: at \tiny they stop crowding the 20mm column (and stop
     # overprinting the Page column, inkdrill P16's fourth pass).
@@ -296,7 +296,11 @@ def row(title, latex, page, extra="", image=None) -> str:
                                if extra else "")
     src = "{\\ttfamily\\footnotesize %s}" % esc_text(latex) if latex else "---"
     safe = renderable(latex) if latex else ""
-    math = ("\\FitMath{$\\displaystyle %s$}" % safe) if safe \
+    # 025: the mark is set BESIDE the math, never inside it — the same
+    # separation the TiddlyWiki text field makes, so the rendered cell still
+    # looks like the scan while `latex` holds mathematics only.
+    tail = esc_text(punct) if punct else ""
+    math = ("\\FitMath{$\\displaystyle %s$}%s" % (safe, tail)) if safe \
         else ("\\emph{(not rendered)}" if latex else "---")
     if image is not None:
         return "%s & %s & %s & %s & %s \\\\ \\hline\n" % (
@@ -533,10 +537,11 @@ def build_report(tiddlers_path: Path, out: Path | None = None,
                      % (esc_text(bibkey), len(fo), len(eq), len(tab),
                         len(dia)))
     out_parts.append(table_open("Display equations", eq_widths))
-    for title, latex, page, num, wpx in eq:
+    for title, latex, page, num, wpx, punct in eq:
         img = crop_cell(crops, out_dir, title, px_width=wpx,
                         px2mm=px2mm, col_mm=img_col) if crops else None
-        out_parts.append(row(title, latex, page, extra=num, image=img))
+        out_parts.append(row(title, latex, page, extra=num, image=img,
+                             punct=punct))
     out_parts.append("\\end{longtable}\n")
 
     # every section starts on a FRESH page: a page mixing the 5-column
@@ -545,8 +550,8 @@ def build_report(tiddlers_path: Path, out: Path | None = None,
     out_parts.append("\\clearpage\n")
     out_parts.append(table_open("Inline formulas (first occurrence)",
                                 fo_widths))
-    for title, latex, page in fo:
-        out_parts.append(row(title, latex, page))
+    for title, latex, page, punct in fo:
+        out_parts.append(row(title, latex, page, punct=punct))
     out_parts.append("\\end{longtable}\n")
 
     if tab:

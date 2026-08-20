@@ -267,3 +267,57 @@ def join_severed_backslashes(value: str) -> "tuple[str, int]":
         return m.group(1) + m.group(3)        # drop the severing gap only
 
     return _SEVERED_RUN.sub(_fix, value or ""), n
+
+
+# --------------------------------------------------------------------------- #
+#  025 — trailing sentence punctuation is NOT mathematics (2026-08-20).
+#  The TiddlyWiki arrangement is the model: the character lives in the text
+#  field and the <$latex> widget holds only mathematics. `trailing_punct` is
+#  that separation made portable — the mark leaves `latex`, the projections
+#  re-emit it OUTSIDE the math, and the comparison sees neither side's copy.
+# --------------------------------------------------------------------------- #
+_TRAIL_PUNCT = re.compile(r"([,;.:])\s*$")
+_ONESIDED = re.compile(r"\\(?:right|left)\s*\.\s*$")
+
+
+def _brace_depth_at(v: str, idx: int) -> int:
+    d = i = 0
+    while i < idx:
+        c = v[i]
+        if c == "\\" and i + 1 < len(v):
+            i += 2
+            continue
+        if c == "{":
+            d += 1
+        elif c == "}":
+            d -= 1
+        i += 1
+    return d
+
+
+def split_trailing_punct(latex: str) -> "tuple[str, str]":
+    """(mathematics, mark) — lift a TOP-LEVEL trailing sentence mark out of a
+    math value. ('x = y,' -> ('x = y', ','))
+
+    Deliberately stricter than the 024 census, which allowed closing braces
+    after the mark and so reached INSIDE groups: all 50 of those hits were
+    `\\text{... .}` prose tails or notation like `^{*,}`, and neither is
+    trailing punctuation. Here the mark must be literally last at brace depth
+    0, and `\\right.` / `\\left.` are left alone — that dot is an invisible
+    delimiter, not a full stop.
+    """
+    v = (latex or "").rstrip()
+    if not v or _ONESIDED.search(v):
+        return latex or "", ""
+    m = _TRAIL_PUNCT.search(v)
+    if not m or _brace_depth_at(v, m.start(1)) != 0:
+        return latex or "", ""
+    return v[:m.start(1)].rstrip(), m.group(1)
+
+
+def strip_trailing_punct_for_compare(latex: str) -> str:
+    """The comparison's view: mathematics with any trailing mark removed, so
+    a value that has been separated and one that has not still compare equal.
+    The compare sees NEITHER side's copy — not the LaTeX side's, not the ink
+    side's — so a half-migrated corpus never reads as a finding storm."""
+    return split_trailing_punct(latex)[0]

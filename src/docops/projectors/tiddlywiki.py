@@ -595,7 +595,7 @@ class TiddlyWikiProjector(BaseProjector):
         for f in inv["formulas"]:
             t = self._t(
                 title[f.id],
-                "<$latex text={{!!latex}} displayMode={{!!displayMode}} />",
+                "<$latex text={{!!latex}} displayMode={{!!displayMode}} />{{!!trailing_punct}}",
                 f"formula {_bibtag(bibkey)}",
             )
             t["latex"] = f.props.get("latex", "")
@@ -618,7 +618,7 @@ class TiddlyWikiProjector(BaseProjector):
         for e in inv["equations"]:
             t = self._t(
                 title[e.id],
-                "<$latex text={{!!latex}} displayMode=true />",
+                "<$latex text={{!!latex}} displayMode=true />{{!!trailing_punct}}",
                 f"equation {_bibtag(bibkey)}",
             )
             t["kind"] = "Equation"

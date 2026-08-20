@@ -32,6 +32,11 @@ def normalize_latex(s: str) -> str:
         if s.startswith(left) and s.endswith(right) and len(s) >= len(left) + len(right):
             s = s[len(left):-len(right)]
             break
+    # 025: a trailing sentence mark is not mathematics. Dropping it here means
+    # a separated value and an unseparated one still compare EQUAL, so a
+    # half-migrated corpus never reads as a finding storm.
+    from .mathqc import strip_trailing_punct_for_compare
+    s = strip_trailing_punct_for_compare(s)
     s = _OPNAME.sub(r"\1", s)
     s = _MATHRM.sub(r"\1", s)
     s = s.replace("\\left", "").replace("\\right", "")

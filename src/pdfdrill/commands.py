@@ -13547,3 +13547,52 @@ def cmd_latexnorm(pdf: Path) -> str:
             f"rejoined) of {scanned} scanned in {pdf.name}."
             + ("" if changed else
                "  Nothing to normalise — no value carries the pattern."))
+
+
+def cmd_trailingpunct(pdf: Path) -> str:
+    """025: move a TOP-LEVEL trailing sentence mark out of each math object's
+    `latex` and into `trailing_punct` — the TiddlyWiki separation made
+    portable: the character lives beside the math, the math value holds
+    mathematics only, and the comparison sees neither side's copy.
+
+    The original stays as `latex_prepunct` and each change carries an
+    `edit_source` stamp, so `modeldiff` reports it as evidenced. Idempotent."""
+    from .mathqc import split_trailing_punct
+    sc = Sidecar(pdf)
+    model_path = _model_path(sc)
+    if not model_path.exists():
+        return f"No model for {pdf.name} (run `pdfdrill model` first)."
+    doc = load_model(model_path)
+    moved = scanned = 0
+    marks: dict[str, int] = {}
+    for o in doc.objects.values():
+        if o.type not in ("Equation", "Formula"):
+            continue
+        v = o.props.get("latex")
+        if not isinstance(v, str) or not v:
+            continue
+        scanned += 1
+        if o.props.get("trailing_punct"):
+            continue                       # already separated
+        math, mark = split_trailing_punct(v)
+        if not mark:
+            continue
+        o.props["latex_prepunct"] = v
+        o.props["latex"] = math
+        o.props["trailing_punct"] = mark
+        o.props["edit_source"] = _edit_source(sc)
+        marks[mark] = marks.get(mark, 0) + 1
+        moved += 1
+    if moved:
+        save_model(model_path, doc)
+        sc.set_evidence("trailing_punct_moved",
+                        (sc.get_evidence("trailing_punct_moved", 0) or 0) + moved)
+        sc.save()
+    detail = ", ".join(f"{k!r} {v}" for k, v in
+                       sorted(marks.items(), key=lambda x: -x[1]))
+    return (f"trailingpunct: {moved} mark(s) moved out of latex into "
+            f"trailing_punct of {scanned} math object(s) in {pdf.name}"
+            + (f" ({detail})." if detail else ".")
+            + ("\n  Re-project (`tiddlers`/`reporttex`) so the character is "
+               "emitted beside the math instead of inside it." if moved else
+               "  Nothing to separate."))
