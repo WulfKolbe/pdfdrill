@@ -273,6 +273,21 @@ Step 3 is the gate: the report sets the mark AFTER the math box
 which lets the consumer attribute any delta to the migration rather than
 to a layout change. If the books show a per-cell delta, STOP.
 
+**COMPLETE (2026-08-20, commit a0ff8a9).** 2,113 marks separated — 59 in the
+books, 2,054 across the 49 corpus documents — exactly the dry-run prediction.
+Corpus 942 pages against the 941/942 baseline. Consumer verified per-cell
+parity on bh2: 10,432 of 10,434 cells identical, the 2 explained (colons in a
+LaTeX-source column the compare never reads).
+
+MEASURED CAVEAT — "no layout cost" is true at page-count level and NOT at
+row-placement level. On 0902.0431 (673 marks) 6 of 4,386 rows sit one page
+EARLIER after the migration (all delta -1; zero rows appear or disappear on
+either side; bh2's 19 marks shifted nothing). Removing the mark from inside
+the math box makes a cell marginally shorter, so a row that sat just past a
+page boundary now fits before it. Harmless for ink comparison — a row is the
+same row, one page earlier — but any PAGE-INDEXED artifact built against a
+pre-migration report is off by one for those rows.
+
 **Atomicity is not required** — `normalize_latex` drops a trailing mark, so
 a separated value and an unseparated one compare EQUAL. A reset mid-migration
 cannot produce a divergence storm; the corpus may sit half-migrated
