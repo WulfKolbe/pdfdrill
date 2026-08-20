@@ -24,8 +24,13 @@ _ESC = {"\\": r"\textbackslash{}", "{": r"\{", "}": r"\}", "$": r"\$",
 
 def esc_text(s: str) -> str:
     out = "".join(_ESC.get(c, c) for c in s)
-    # break opportunities in long token runs (the column must wrap)
-    return out.replace(r"\textbackslash{}", r"\textbackslash{}\allowbreak{}")
+    # Break opportunities in long token runs (the column must wrap) — BEFORE
+    # the backslash, never after it. After it, a wrapped line ended with a
+    # naked `\` and the next began `mathrm{e}^{...}`; copied out of the PDF
+    # that is broken LaTeX which compiles to the literal letters "mathrme"
+    # (user 2026-08-19, 0711.0273). Breaking before keeps every copied line
+    # starting with its command intact.
+    return out.replace(r"\textbackslash{}", r"\allowbreak{}\textbackslash{}")
 
 
 def first_pages(tiddlers: list[dict], bibkey: str) -> dict[str, str]:
@@ -175,6 +180,44 @@ def table_open(caption: str, widths) -> str:
         " \\\\\n\\hline\\endhead\n")
 
 
+def has_bare_align_marker(lx: str) -> bool:
+    r"""True if a `&` or `\\` sits at BRACE DEPTH 0 — where a longtable's
+    alignment scanner sees it and ends the cell (or the row).
+
+    Braces SHIELD both: `\substack{a \\ b}` is a macro ARGUMENT, not an
+    environment, and compiles happily inside a cell — measured with a probe
+    longtable, 0 errors. The old check was brace-blind and demoted every
+    equation with multi-line text under an integral to "(not rendered)"
+    (0711.0273: 3 of 14 equations, user 2026-08-19).
+    """
+    i, depth, n = 0, 0, len(lx)
+    while i < n:
+        c = lx[i]
+        if c == "\\":
+            nxt = lx[i + 1] if i + 1 < n else ""
+            if nxt == "\\":                      # the \\ token itself
+                if depth == 0:
+                    return True
+                i += 2
+                continue
+            if nxt.isalpha():                    # control word: \substack, …
+                j = i + 1
+                while j < n and lx[j].isalpha():
+                    j += 1
+                i = j
+                continue
+            i += 2                               # escaped char: \{ \} \& \_ …
+            continue
+        if c == "{":
+            depth += 1
+        elif c == "}":
+            depth -= 1
+        elif c == "&" and depth == 0:
+            return True
+        i += 1
+    return False
+
+
 def renderable(latex: str) -> str:
     """Return latex safe to put inside $...$, or "" when it is not.
 
@@ -213,10 +256,9 @@ def renderable(latex: str) -> str:
     if sorted(re.findall(r"\\begin\{(\w+\*?)\}", lx)) != \
        sorted(re.findall(r"\\end\{(\w+\*?)\}", lx)):
         return ""
-    # bare align markers (& or \\) OUTSIDE any environment are longtable
-    # tab marks -> "misplaced tab mark" error-recovery loop (live hang on
-    # 0902.0431 EQ0035). Strip env bodies, then any surviving marker kills
-    # the render.
+    # bare align markers (& or \\) at BRACE DEPTH 0 are longtable tab marks
+    # -> "misplaced tab mark" error-recovery loop (live hang on 0902.0431
+    # EQ0035). Environments handle their own; braces SHIELD the rest.
     stripped_env = lx
     for _ in range(6):
         reduced = re.sub(r"\\begin\{(\w+\*?)\}.*?\\end\{\1\}", " ",
@@ -224,7 +266,7 @@ def renderable(latex: str) -> str:
         if reduced == stripped_env:
             break
         stripped_env = reduced
-    if "&" in stripped_env.replace(r"\&", "") or "\\\\" in stripped_env:
+    if has_bare_align_marker(stripped_env):
         return ""
     return lx
 
@@ -293,6 +335,10 @@ def download_crops(tiddlers: list[dict], dest: Path, trim: bool = True):
             continue
         f = dest / f"{title}.jpg"
         if f.is_file() and f.stat().st_size > 500:
+            # a cached crop still gets the top margin: _pad_top pads to
+            # a target, so it is a no-op on one that already has it
+            if trim:
+                _pad_top(f)
             cached += 1
             continue
         try:
@@ -300,6 +346,7 @@ def download_crops(tiddlers: list[dict], dest: Path, trim: bool = True):
                 f.write_bytes(r.read())
             if trim:
                 _trim_left(f)
+                _pad_top(f)
             ok += 1
         except NetworkBlocked:
             failed += 1
@@ -328,6 +375,44 @@ def _trim_left(img_path: Path, margin: int = 4, thresh: int = 235) -> None:
         cut = max(0, left - margin)
         if cut:
             im.crop((cut, 0, w, h)).save(img_path, quality=92)
+    except Exception:
+        pass
+
+
+def _pad_top(img_path: Path, margin: int = 2, thresh: int = 235) -> None:
+    """Ensure `margin` white rows above the crop's ink.
+
+    A crop whose ink starts in row 0 sits flush against the row rule
+    above it: visually cramped, and at raster dpi the ink BRIDGES the
+    rule and merges the lattice holes -- the same failure the 4mm
+    horizontal clearance in `crop_cell` exists for, in the other
+    axis. Measured over the corpus before this was written: 350 of
+    5,882 crops (6.0%) had ink in row 0, and 649 more within the top
+    three rows.
+
+    Idempotent: it pads to a TARGET (at least `margin` white rows),
+    never by a fixed amount, so re-running adds nothing.
+    """
+    try:
+        from PIL import Image
+    except Exception:
+        return
+    try:
+        im = Image.open(img_path)
+        g = im.convert("L")
+        w, h = g.size
+        px = g.load()
+        white = 0
+        for y in range(min(h, margin + 1)):
+            if any(px[x, y] < thresh for x in range(0, w, 2)):
+                break
+            white += 1
+        need = margin - white
+        if need <= 0:
+            return
+        out = Image.new(im.mode, (w, h + need), "white")
+        out.paste(im, (0, need))
+        out.save(img_path, quality=92)
     except Exception:
         pass
 

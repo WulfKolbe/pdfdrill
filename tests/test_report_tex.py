@@ -119,3 +119,32 @@ def test_renderable_rejects_plain_tex_cr_family_macros():
     assert renderable(r"\eqalign{a&=b}") == ""
     assert renderable(r"a \cr b") == ""
     assert renderable(r"\crossproduct") != "" if True else None
+
+
+def test_braces_shield_align_markers_from_the_longtable_scanner():
+    r"""User 2026-08-19 (0711.0273): \substack{a \\ b} is a macro ARGUMENT,
+    not an environment — braces shield the \\ from the alignment scanner, so
+    it compiles inside a cell (verified with a probe longtable, 0 errors).
+    The brace-blind guard demoted every 'multi-line text under an integral'
+    equation to (not rendered): 3 of that document's 14 equations."""
+    from pdfdrill.report_tex import has_bare_align_marker
+    real = (r"Z\left(G_{N}, \Lambda\right)=\int_{\substack{\text { spacetime }"
+            r" \\ \text { geometries } g \in \mathcal{G}}} \mathcal{D} g "
+            r"\mathrm{e}^{i S^{\mathrm{EH}}[g]},")
+    assert renderable(real)                       # renders again
+    assert not has_bare_align_marker(r"\substack{a \\ b}")
+    assert not has_bare_align_marker(r"\text{x} \& y")     # escaped &
+    assert has_bare_align_marker(r"a & b")                 # depth 0: real
+    assert has_bare_align_marker(r"a \\ b")
+    assert has_bare_align_marker(r"\frac{p}{q} \\[2pt] r")
+
+
+def test_source_column_never_breaks_after_a_backslash():
+    r"""The break opportunity goes BEFORE the backslash. After it, a wrapped
+    line ended with a naked `\` and the next started `mathrm{e}...`; copied
+    out of the PDF that compiles to the literal letters "mathrme" — the
+    defect the user pasted (0711.0273)."""
+    from pdfdrill.report_tex import esc_text
+    out = esc_text(r"\mathcal{D} g \mathrm{e}")
+    assert r"\textbackslash{}\allowbreak{}" not in out     # never after
+    assert r"\allowbreak{}\textbackslash{}" in out         # always before
