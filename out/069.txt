@@ -1,0 +1,124 @@
+069 - the 725 re-ranked by the symbol half, top 10 inspected
+==============================================================================
+
+RANKING
+------------------------------------------------------------------------------
+   key = |delta components| + |delta holes|, descending; ties by ink.
+   The layout features (stacked, centred, offset) are ignored entirely.
+
+VERDICT ON THE TEN
+------------------------------------------------------------------------------
+  #  identifier              sym  comp  hole   verdict
+  1  1211.3375_EQ0015        187  -177   -10   ARTIFACT   shaded box (068)
+  2  1211.3375_EQ0016        161  -156    -5   ARTIFACT   shaded box (068)
+  3  1211.3375_EQ0011        114  -111    -3   ARTIFACT   shaded box (068)
+  4  0902.0431_EQ1175         38    -3   +35   TYPOGRAPHY
+  5  0902.0431_EQ0582         29    -1   +28   TYPOGRAPHY
+  6  0902.0431_EQ0223         27    -1   +26   TYPOGRAPHY
+  7  0902.0431_EQ0905         25   -17    -8   CONTENT ERROR  (region)
+  8  0902.0431_EQ1190         25    -3   +22   TYPOGRAPHY
+  9  0911.3722_EQ0019         24   -17    -7   CONTENT ERROR  (dropped math)
+ 10  0902.0431_EQ0222         22    -2   +20   TYPOGRAPHY
+
+     3 artifact, 5 typography, 2 content errors.
+
+ONE LINE EACH
+------------------------------------------------------------------------------
+ 1-3  1211.3375 EQ0015 / EQ0016 / EQ0011 - the three shaded-box crops. 068's
+      detector, which reads only the background histogram and never sees the
+      ink, flags exactly these three and clears that document's other five.
+
+ 4  0902.0431_EQ1175 - both columns identical; the page pairs its left-column
+    entries against the right-column equations at a different vertical pitch,
+    and the render resolves letter counters (gothic g, 0, 2, a, b) that fill
+    in at the scan's lower resolution: +35 holes.
+
+ 5  0902.0431_EQ0582 - identical 6x6 determinant; \left( inflation, the
+    trailing period absent from the render, +28 holes from the same counter
+    resolution.
+
+ 6  0902.0431_EQ0223 - identical 3x3; \left( inflation and \bar where the
+    page prints the wider \overline.
+
+ 7  0902.0431_EQ0905 - REGION ERROR. The equation is D(g(\gamma Y))D^*, but
+    the crop region runs on into the following prose and includes the words
+    "is real diagonal." The LaTeX is right; the region MathPix assigned to
+    it is not, so the scan carries 17 components the render cannot.
+
+ 8  0902.0431_EQ1190 - identical three-line derivation; the two commas and
+    the closing period are absent from the render, which is the deliberate
+    trailing_punct separation (025) showing up as ink.
+
+ 9  0911.3722_EQ0019 - CONTENT ERROR, and the clearest one in either pass.
+    The page reads
+        Pack_{<omega}-complete => Pack_n-complete => Pack_2-complete
+          => pack_2-complete.
+    MathPix emits the four terms with ALL THREE => dropped, the leading
+    "Pack" of the first term lost, and the trailing "-complete." gone. A
+    chain of implications is rendered as a list of unrelated phrases: the
+    mathematical claim is destroyed, and confidence is 0.916.
+
+10  0902.0431_EQ0222 - identical; \left( inflation, \bar vs \overline, and
+    the trailing period again.
+
+AGAINST 067
+------------------------------------------------------------------------------
+   067's ranking (confidence, ties by total ink):  0 defects in 10.
+   069's ranking (symbol half only):               2 defects in 10.
+
+   A real improvement, and a modest one. The symbol half does what 067
+   predicted - it demotes delimiter sizing and line spacing, which move only
+   the layout features - but half the top ten is still typography, because
+   two effects survive into the symbol half:
+
+     RESOLUTION.  The render is ~1.6x the scan's linear size, so counters in
+                  g, 0, 2, a, b that merge on the page are open holes in the
+                  render. This shows as holes +20..+35 with components
+                  barely moving.
+     PUNCTUATION. The render omits the trailing comma or period, by design
+                  (025 moved it to its own field), so every punctuated
+                  display equation carries a small permanent symbol delta.
+
+THE SIGN PATTERN, WHICH SEPARATES THEM CLEANLY
+------------------------------------------------------------------------------
+   Among the ten, the two content errors are the only unshaded rows where
+   BOTH deltas are negative and the component delta is large:
+
+     typography    components  -1 .. -3     holes  +20 .. +35
+     content       components  -17          holes   -7, -8
+     artifact      components  -111 .. -177 holes   -3 .. -10
+
+   The sign is the discriminator, and it has a plain meaning: holes POSITIVE
+   means the render resolved more detail than the scan (a rendering
+   difference), while components NEGATIVE and large means the scan carries
+   marks the render has none for - MathPix dropped something, or the region
+   caught something that is not the equation.
+
+   Shading produces the same sign pattern at much larger magnitude, which is
+   why 068's detector has to run first rather than the sign being used alone.
+
+A LEAD, EXPLICITLY NOT A RESULT
+------------------------------------------------------------------------------
+   Of the 722 unshaded hits, 128 have both deltas negative; 11 of those have
+   a symbol half >= 15. Two of the 11 are the confirmed defects above. The
+   other nine are UNINSPECTED:
+
+     1510.06699_EQ0220  p41   comp  -1 hole -20   conf 0.979
+     0902.0431_EQ0253   p41   comp -15 hole  -4   conf 0.969
+     1602.04650_EQ0024  p25   comp -16 hole  -3   conf 0.916
+     0902.0431_EQ0459   p75   comp -15 hole  -3   conf 0.908
+     1511.00652_EQ0020  p14   comp  -3 hole -13   conf 1.000
+     0911.3722_EQ0021   p7    comp -10 hole  -5   conf 0.952
+     1306.1660_EQ0060   p6    comp  -8 hole  -7   conf 0.999
+     1306.1660v1_EQ0060 p6    comp  -8 hole  -7   conf 0.998
+     1404.2443_EQ0028   p13   comp -10 hole  -5   conf 0.986
+
+   Two things worth noting without inspecting them. 0911.3722_EQ0021 is on
+   the same page as the confirmed EQ0019, so the dropped-arrow defect may
+   not be isolated. And 1306.1660 / 1306.1660v1 are the same paper twice in
+   the corpus; their EQ0060 rows carry identical component and hole deltas,
+   which is a free consistency check on the measurement - the same input
+   measured twice gave the same answer.
+
+   Nine rows is a small enough set to inspect by eye, which is what would
+   turn this lead into a result. It is not one yet.
