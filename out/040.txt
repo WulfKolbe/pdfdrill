@@ -1,0 +1,89 @@
+040 - MathPix LaTeX vs the author's, by SLT edit distance
+==============================================================================
+
+COUNT AT ZERO
+------------------------------------------------------------------------------
+   810 of 1745 paired display equations are STRUCTURALLY IDENTICAL to the
+   author's LaTeX (46.4%). Distance 0 means the Symbol Layout Trees
+   match exactly — same symbols, same spatial relations — not that the
+   strings match, so it survives spelling differences like x_{5} vs x_5.
+
+DISTRIBUTION
+------------------------------------------------------------------------------
+    distance  equations   share
+           0        810   46.4%
+         1-2        239   13.7%
+         3-5        234   13.4%
+        6-10        221   12.7%
+       11-20        111    6.4%
+       21-50         71    4.1%
+         >50         59    3.4%
+
+   median 1   mean 7.2   max 261
+   p50 1  p75 6  p90 14  p95 29  p99 125
+   within 2 edits: 1049 (60.1%)
+
+POPULATION - READ THIS BEFORE QUOTING THE 46%
+------------------------------------------------------------------------------
+   20 arXiv papers, each with BOTH a cached author e-print and MathPix
+   already run. Of those, 1,745 display equations carry both readings and
+   parse to an SLT; also present and NOT in the denominator:
+      803  equations with only one reading (no author match attached)
+      162  pairs where one side does not parse to an SLT - counted, never
+           guessed at
+
+   THE PAIRING IS NOT INDEPENDENT OF THE ANSWER. `injectlatex` attaches an
+   author equation to a MathPix one only when a normalised-string
+   similarity reaches 0.55 (commands.py:8077). So every pair measured here
+   already agreed enough to be matched, and the 803 unpaired equations are
+   exactly where the two readings agreed LEAST. The 46.4% is therefore
+   'given that MathPix and the author were matchable at all, they agree
+   exactly 46% of the time' - an upper bound on agreement over all
+   equations, not an estimate of it. Against the full 2,548 equations with
+   any reading, the zero count is 810 (31.8%), which is the
+   pessimistic bound. The true figure lies between the two.
+
+   Trailing sentence punctuation is stripped from BOTH sides before
+   comparison (025), so the 2,113-mark migration cannot show up here as a
+   one-node difference on 40% of rows.
+
+ONE DOCUMENT REJECTED FROM THE TWENTY
+------------------------------------------------------------------------------
+   1012.3259 was dropped and 1205.5935v1 substituted. Its injectlatex
+   resolved to the MathPix .tex.zip rather than an author e-print (it has
+   no .tgz; its texsrc came from that zip), so 'the author's LaTeX' would
+   have been MathPix's own reconstruction and the comparison would have
+   measured MathPix against itself. The A5 `latex_source_kind` field is
+   what made that visible rather than silent - the run reported
+   'mathpix (.tex.zip - MathPix's own reconstruction)' where the other 19
+   reported 'arxiv-eprint (author .tgz)'.
+
+PER DOCUMENT
+------------------------------------------------------------------------------
+   document        pairs   zero   zero%  median   max
+   0902.0431         646    243   37.6%       1   261
+   1205.5935v1       376    207   55.1%       0   121
+   0806.1585         235    124   52.8%       0    73
+   1205.3463v2        96     42   43.8%       2   156
+   1101.4542          84     50   59.5%       0    91
+   0707.4470          53     22   41.5%       1    34
+   0903.2087          44      5   11.4%       8    60
+   0905.2720          38     11   28.9%       2    13
+   0803.2924          23     16   69.6%       0     8
+   0911.3722          23      6   26.1%       3    43
+   0912.0721          23      7   30.4%       1     6
+   0802.3344          17     14   82.4%       0     1
+   1006.4908          17     10   58.8%       0    18
+   0711.0273          14      8   57.1%       0    19
+   0911.5175          14     12   85.7%       0    79
+   0911.5175v2        14     12   85.7%       0    79
+   1110.0240          12     10   83.3%       0     4
+   1103.2338v5        10      5   50.0%       1    15
+   0905.0767           5      5  100.0%       0     0
+   0707.2676           1      1  100.0%       0     0
+
+   The spread is the interesting part: 0803.2924 and 0911.5175 agree
+   exactly on 70-86% of their equations, 0903.2087 on 11%. Per-document
+   agreement is a document property - typography, macro density, how much
+   the author's source diverges from what is printed - not a constant
+   OCR error rate.
