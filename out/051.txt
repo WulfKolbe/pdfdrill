@@ -64,3 +64,40 @@ CONFIDENCE, FOR COMPLETENESS
 ------------------------------------------------------------------------------------
    All 9 rows are high-confidence: 1.00, 1.00, 0.98, 1.00, 0.91, 0.96, 0.38, 1.00, 1.00.
    Consistent with out/048 - confidence flags none of them.
+
+====================================================================================
+ADDENDUM - THE RENDER-VS-SCAN FLOOR, MEASURED UNCONDITIONED
+====================================================================================
+
+   The nine rows above were selected on ink distance > 6, so they are a
+   TRUNCATED TAIL, not a distribution. The ink side made that point and it
+   is correct: my 'median 11' was an over-estimate by exactly the same
+   mechanism I criticised in out/040 (a sample conditioned on a correlate of
+   the outcome). Re-measured properly, over EVERY SLT-zero equation in the
+   20 documents that carry author LaTeX, unconditioned on ink distance:
+
+   n = 808   (810 SLT-zero rows; 2 demoted, excluded and labelled)
+   Content is identical by construction - MathPix's LaTeX equals the
+   author's structurally - so every one of these distances is measurement,
+   not disagreement.
+
+      min 0   p50 2   p75 5   p90 12   p95 22   p99 39   max 75   mean 4.6
+
+      above  6 :  158  (19.6%)
+      above 11 :   92  (11.4%)
+      above 20 :   45  ( 5.6%)
+
+   BOTH earlier numbers were wrong, in opposite directions:
+      a floor of 6 falsely flags 19.6% of content-identical rows - about
+      one in five, which is a large false-positive rate for the class the
+      findings are ranked on;
+      my 'median 11' was three times the true median of 2. The tail is long
+      (p99 = 39, max 75) but the body is tight.
+
+   p95 = 22 is the defensible render-vs-scan floor on this evidence.
+   It sits close to the max of my truncated sample, which is coincidence
+   rather than corroboration - the sample could not have produced it.
+
+   Data: out/051-floor.tsv (identifier, slt, ink, demoted), handed to the
+   ink side to re-flag against. Demoted rows are LABELLED rather than
+   dropped, so the exclusion can be checked instead of trusted.
