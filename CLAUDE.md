@@ -8,7 +8,9 @@ by default.
 
 ## Read first, every new session
 
-**`docs/HANDOVER.md`** — the measured state of play: open work with acceptance
+**`docs/HANDOVER.md`** — one page: working surface, the measured constants with
+their populations, open items, failure classes. The 18 rules learned by defect
+and the environment facts live in **`docs/HANDOVER-RULES.md`**. Open work with acceptance
 criteria, non-obvious environment facts (LgEval pin, dictionaries, `resume.sh`),
 working rules each learned by a defect, and unverified assumptions.
 
@@ -62,7 +64,7 @@ PYTHONDONTWRITEBYTECODE=1 python3 -m pytest tests/ -q -p no:cacheprovider
 ```
 
 `PYTHONDONTWRITEBYTECODE=1` is not optional — stale `.pyc` files have produced
-tests failing against correct source (HANDOVER rule 4).
+tests failing against correct source (HANDOVER-RULES rule 4).
 
 ## Command surface — single source of truth
 
@@ -87,7 +89,7 @@ tests failing against correct source (HANDOVER rule 4).
   path is `mathpix <id>` → `model` → …
 - **Ghostscript at ≥400 dpi is the ONLY rasterizer** (`pdf_reading.rasterize`/
   `render_page`); no pdftoppm/fitz fallback. For table-rule measurements use
-  800 dpi (HANDOVER §3 T2).
+  800 dpi (HANDOVER-RULES §3 T2).
 - **Scan acquisition never adds an OCR text layer** (it would misroute `route`
   to the born-digital lane). Scanned & ≤20pp → Gemma vision; >20pp → MathPix;
   text layer present → pdfminer.
@@ -113,7 +115,7 @@ tests failing against correct source (HANDOVER rule 4).
   except `STUB.md`; all of `vocab/compiled/`).
 - **Verify pushes**: after any push claim, `git ls-remote origin` — commits
   must never exist only locally or in a scratch worktree (2026-08-16 incident,
-  HANDOVER header).
+  HANDOVER-RULES header).
 - **A new capability is a layer in the manifest, not a new verb — and not a
   tool.** Code that lands in `tools/` is invisible to the planner, `status`,
   and `--ensure`; register it in `commands.yaml` with `requires:`/`done_when:`
@@ -132,7 +134,8 @@ tests failing against correct source (HANDOVER rule 4).
 
 | Topic | Doc |
 |---|---|
-| State of play, open work, env facts | `docs/HANDOVER.md` |
+| State of play, constants, open work | `docs/HANDOVER.md` |
+| Rules learned by defect, env facts | `docs/HANDOVER-RULES.md` |
 | Full per-feature guidance (historic CLAUDE.md) | `docs/CLAUDE-FULL.md` |
 | Layer semantics L0–L8 | `docs/layers/` |
 | Per-command reference | `.claude/skills/pdfdrill/SKILL.md` (generated) |
