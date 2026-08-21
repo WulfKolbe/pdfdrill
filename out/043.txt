@@ -1,0 +1,72 @@
+043 - MathPix confidence for every math line in bh2
+==============================================================================
+
+   math lines           : 344
+   carrying confidence  : 342
+   WITHOUT a confidence : 2  (reported, not dropped - they are not zeros)
+
+COUNT BELOW 0.1
+------------------------------------------------------------------------------
+   18 of 342 math lines  (5.3%)
+   of which below 0.01: 8
+
+DISTRIBUTION
+------------------------------------------------------------------------------
+         band  lines   share
+       = 1.00     88   25.7%
+    0.90-1.00     88   25.7%
+    0.70-0.90     50   14.6%
+    0.50-0.70     36   10.5%
+    0.30-0.50     26    7.6%
+    0.10-0.30     36   10.5%
+    0.01-0.10     10    2.9%
+       < 0.01      8    2.3%
+
+   min 0.0009   median 0.9271   mean 0.7456   max 1.0000
+   p1 0.001  p5 0.085  p10 0.186  p25 0.534  p50 0.927  p75 1.000  p90 1.000
+
+   The mean sits far below the median (0.746 vs 0.927) because the
+   distribution is bimodal, not merely skewed: half the lines are at or
+   above 0.93 and a quarter sit below 0.53. MathPix is either confident or
+   quite unsure; it is rarely in between.
+
+   A separate field `confidence_rate` also exists and is NOT the same
+   quantity - median 0.9995, min 0.9402. It never drops low, so a reader
+   who picks the wrong field will conclude the OCR is uniformly excellent.
+
+PER-PAGE MEDIAN
+------------------------------------------------------------------------------
+   pages carrying math   : 199
+   median of the medians : 0.860
+   range                 : 0.002 - 1.000
+   pages whose median is below 0.5 : 42
+   pages whose median is below 0.1 : 6
+
+   lowest-median pages:
+      page  109  median 0.002  (1 math line(s))
+      page   95  median 0.028  (1 math line(s))
+      page  179  median 0.070  (1 math line(s))
+      page  113  median 0.074  (3 math line(s))
+      page  126  median 0.081  (1 math line(s))
+      page  106  median 0.097  (2 math line(s))
+      page  104  median 0.110  (1 math line(s))
+      page   94  median 0.129  (1 math line(s))
+
+   Low confidence clusters by PAGE rather than scattering: the worst pages
+   are whole regions of the book the OCR struggled with, which is where a
+   re-read would pay, rather than isolated lines to fix one by one.
+
+CROSS-CHECK: DOES CONFIDENCE PREDICT THE DEFECTS WE FIND BY OTHER MEANS?
+------------------------------------------------------------------------------
+   Every equation was matched to its math line by (page, rectangle) - 344
+   of 344, no guesses. Against the two equations that independently FAIL TO
+   COMPILE as standalone documents (task P14):
+
+      bh2_EQ0167   confidence 0.0011   the very bottom of the corpus
+      bh2_EQ0147   confidence 0.9941   higher than 63% of all math lines
+
+   So confidence catches one and misses the other completely. EQ0147 is the
+   snippet that carried a stray \end{itemize} and once hung xelatex for ten
+   minutes - MathPix was 99.4% sure of it. Confidence is a useful triage
+   signal and NOT a substitute for compiling the equation: the two disagree
+   on half the known-bad cases in this book.
