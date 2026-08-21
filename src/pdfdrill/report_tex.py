@@ -356,10 +356,18 @@ def stale_pdf_for(tex: Path) -> Path | None:
     claims to render.
     """
     pdf = Path(tex).with_suffix(".pdf")
+    # is_file(), not exists(): a DIRECTORY named report.pdf has an mtime, and
+    # an old one would otherwise be reported stale and send the reader to
+    # --compile, which then fails on it. A directory is not an out-of-date
+    # report; it is not a report. (Consumer's guard, which reached for
+    # is_file() to ask "is there a report to measure", excluded this by
+    # accident — the phrasing of the question happened to exclude the case.)
+    if not pdf.is_file():
+        return None            # absent .pdf is not stale, it is simply absent
     try:
         return pdf if pdf.stat().st_mtime < Path(tex).stat().st_mtime else None
     except OSError:
-        return None            # absent .pdf is not stale, it is simply absent
+        return None
 
 
 def auto_px2mm(pdf: Path) -> float | None:

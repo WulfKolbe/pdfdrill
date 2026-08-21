@@ -53,3 +53,29 @@ def test_recent_pdf_can_still_be_stale(tmp_path):
     now = time.time()
     tex, pdf = _pair(tmp_path, now, now - 2)
     assert stale_pdf_for(tex) == pdf
+
+
+def test_a_directory_named_report_pdf_is_not_a_stale_report(tmp_path):
+    """An OLD directory named report.pdf must not be reported stale: the
+    message would send a reader to --compile, which then fails on it. A
+    directory is not an out-of-date report, it is not a report."""
+    import os
+    tex = tmp_path / "report.tex"
+    tex.write_text("x")
+    (tmp_path / "report.pdf").mkdir()
+    os.utime(tmp_path / "report.pdf", (1000, 1000))
+    os.utime(tex, (2000, 2000))
+    assert stale_pdf_for(tex) is None
+
+
+def test_the_stale_message_names_the_command_that_fixes_it():
+    """A message that reports a problem without a route out decays into
+    noise. This holds the fix in the text rather than in the author's
+    intention at the time of writing."""
+    import inspect
+
+    from pdfdrill import commands
+    src = inspect.getsource(commands.cmd_reporttex)
+    i = src.index("STALE:")
+    msg = src[i:i + 700]
+    assert "--compile" in msg, msg[:300]
