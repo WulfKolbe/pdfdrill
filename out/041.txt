@@ -1,0 +1,196 @@
+041 - display equations where MathPix and the author's LaTeX DIFFER
+==============================================================================================
+
+   nonzero-distance equations : 935   (of 1,745 pairs in out/040.txt; 810 are identical)
+   listed below               : first 30, in corpus reading order
+
+   'd' is the SLT edit distance: symbol edits + layout edits between the two
+   Symbol Layout Trees, after trailing sentence punctuation is stripped from
+   BOTH sides. Order is document order, not distance order, so this is a
+   sample of what disagreement looks like rather than a worst-case list.
+
+HOW MUCH OF THIS IS COSMETIC - MEASURED, BECAUSE THE FIRST EXAMPLE MISLEADS
+----------------------------------------------------------------------------------------------
+   Entry 1 below differs only in SPACING: MathPix writes \mathrm{~d} where
+   the author writes \mathrm{d}, three times, and the two render identically.
+   That invited the conclusion that the distance is mostly typographic, so I
+   measured it: neutralising every spacing-only token (\mathrm{~x}, '\text {',
+   \quad, \, \; \!) collapses only 12 of the 935 to distance 0 - 1.3%.
+   The zero rate moves 46.4% -> 47.1%. So the eye-catching first case is
+   ATYPICAL: 923 of 935 differences survive spacing normalisation and are
+   substantive (median 5, p90 27).
+
+   Named classes counted across all 935, so the list below can be read
+   against them rather than case by case:
+       55  ( 5.9%)  MathPix wraps the equation in \begin{aligned}, the
+                     author does not - a STRUCTURE difference, and the SLT
+                     charges layout edits for it
+       13  ( 1.4%)  the author's \mathcal read as \mathscr (entries 5-8
+                     below): two script alphabets that look alike in print,
+                     a real glyph-class misreading rather than a typo
+       12  ( 1.3%)  spacing only, as above
+        1            an author \mathbb lost
+   The remainder are one-off: symbol substitutions, missing sub/superscripts,
+   and cases where the author's source says something the printed page does
+   not (labels, \nonumber), which OCR cannot recover by construction.
+
+THE FIRST 30
+==============================================================================================
+ 1. 0707.4470_EQ0002   page 6   d=6  [spacing only]
+     author: \oint _C \mathbf{E} \cdot \mathrm{d} \mathbf{l} = -\frac{\mathrm{d}}{\mathrm{d}t} \int
+             _S \mathbf{B} \cdot \mathrm{d} \mathbf{A},
+     mathpix:\oint_{C} \mathbf{E} \cdot \mathrm{~d} \mathbf{l}=-\frac{\mathrm{d}}{\mathrm{~d} t}
+             \int_{S} \mathbf{B} \cdot \mathrm{~d} \mathbf{A}
+
+ 2. 0707.4470_EQ0003   page 6   d=6  [spacing only]
+     author: \oint _C \mathbf{H} \cdot \mathrm{d} \mathbf{l} = \frac{\mathrm{d}}{\mathrm{d}t} \int _S
+             \mathbf{D} \cdot \mathrm{d} \mathbf{A},
+     mathpix:\oint_{C} \mathbf{H} \cdot \mathrm{~d} \mathbf{l}=\frac{\mathrm{d}}{\mathrm{~d} t}
+             \int_{S} \mathbf{D} \cdot \mathrm{~d} \mathbf{A}
+
+ 3. 0707.4470_EQ0005   page 6   d=2  [spacing only]
+     author: F = E \wedge \mathrm{d} t + B.
+     mathpix:F=E \wedge \mathrm{~d} t+B
+
+ 4. 0707.4470_EQ0006   page 7   d=2  [spacing only]
+     author: G = *F = H \wedge \mathrm{d} t - D ,
+     mathpix:G=* F=H \wedge \mathrm{~d} t-D
+
+ 5. 0707.4470_EQ0007   page 7   d=3
+     author: \mathcal{J} = J \wedge \mathrm{d} t - \rho .
+     mathpix:\mathscr{J}=J \wedge \mathrm{~d} t-\rho
+
+ 6. 0707.4470_EQ0008   page 7   d=6
+     author: \mathcal{L} = - \frac{1}{2} \mathrm{d} A \wedge *\mathrm{d} A + A \wedge \mathcal{J} ,
+     mathpix:\mathscr{L}=-\frac{1}{2} \mathrm{~d} A \wedge * \mathrm{~d} A+A \wedge \mathscr{J}
+
+ 7. 0707.4470_EQ0009   page 7   d=1
+     author: S[A] = \int _X \mathcal{L}.
+     mathpix:S[A]=\int_{X} \mathscr{L}
+
+ 8. 0707.4470_EQ0011   page 7 2.1   d=3
+     author: \mathrm{d} {*\mathrm{d} A} = \mathcal{J} .
+     mathpix:\mathrm{d} * \mathrm{~d} A=\mathscr{J}
+
+ 9. 0707.4470_EQ0015   page 8 2.7   d=1
+     author: S[A,F,G] = \int _X \left[ - \frac{1}{2} F \wedge *F + A \wedge \mathcal{J} + \left( F -
+             \mathrm{d} A \right) \wedge G \right] .
+     mathpix:S[A, F, G]=\int_{X}\left[-\frac{1}{2} F \wedge * F+A \wedge \mathscr{J}+(F-\mathrm{d} A)
+             \wedge G\right]
+
+10. 0707.4470_EQ0017   page 8 2.2   d=1
+     author: \mathrm{d} G = \mathcal{J} , \qquad G = *F, \qquad F = \mathrm{d} A .
+     mathpix:\mathrm{d} G=\mathscr{J}, \quad G=* F, \quad F=\mathrm{d} A
+
+11. 0707.4470_EQ0022   page 13   d=4
+     author: \frac{1}{\left\lvert *\sigma \right\rvert } \left\langle *\alpha, * \sigma \right\rangle
+             = \kappa (\sigma ) \frac{1}{\left\lvert \sigma \right\rvert } \left\langle \alpha ,
+             \sigma \right\rangle,
+     mathpix:\frac{1}{|* \sigma|}\langle * \alpha, * \sigma\rangle=\kappa(\sigma)
+             \frac{1}{|\sigma|}\langle\alpha, \sigma\rangle
+
+12. 0707.4470_EQ0027   page 18   d=3
+     author: \mathrm{d} F = 0, \qquad \mathrm{d} G = \mathcal{J} ,
+     mathpix:\mathrm{d} F=0, \quad \mathrm{~d} G=\mathscr{J}
+
+13. 0707.4470_EQ0038   page 21   d=2  [spacing only]
+     author: F = E \wedge \mathrm{d} t + B.
+     mathpix:F=E \wedge \mathrm{~d} t+B
+
+14. 0707.4470_EQ0041   page 23   d=8
+     author: \Theta _\sigma = \left\{ t ^0 _\sigma < \cdots < t ^{ N _\sigma } _\sigma \right\}.
+     mathpix:\Theta_{\sigma}=\left\{t_{\sigma}^{0}<\cdots<t_{\sigma}^{N_{\sigma}}\right\}
+
+15. 0707.4470_EQ0042   page 23   d=8
+     author: \Theta _e = \bigcup _{ \sigma \ni e } \Theta _\sigma = \left\{ t ^0 _e \leq \cdots \leq
+             t ^{ N _e } _e \right\}.
+     mathpix:\Theta_{e}=\bigcup_{\sigma \ni e} \Theta_{\sigma}=\left\{t_{e}^{0} \leq \cdots \leq
+             t_{e}^{N_{e}}\right\}
+
+16. 0707.4470_EQ0043   page 23   d=8
+     author: \Theta _{e} ^\prime = \left\{ t ^{1/2} _e \leq \cdots \leq t ^{ N _e - 1/2 } _e
+             \right\},
+     mathpix:\Theta_{e}^{\prime}=\left\{t_{e}^{1 / 2} \leq \cdots \leq t_{e}^{N_{e}-1 / 2}\right\}
+
+17. 0707.4470_EQ0045   page 24 4.3   d=30
+     author: \frac{ B^{n+1}_\sigma - B ^n_\sigma }{ t^{n+1}_\sigma - t^n_\sigma } = - \mathrm{d} _1
+             \sum \left\{ E^{m+1/2}_e : t^n_\sigma < t^{m+1/2}_e < t^{n+1}_\sigma \right\} .
+     mathpix:\frac{B_{\sigma}^{n+1}-B_{\sigma}^{n}}{t_{\sigma}^{n+1}-t_{\sigma}^{n}}=-\mathrm{d}_{1}
+             \sum\left\{E_{e}^{m+1 / 2}: t_{\sigma}^{n}<t_{e}^{m+1 / 2}<t_{\sigma}^{n+1}\right\}
+
+18. 0707.4470_EQ0046   page 24 4.4   d=34
+     author: \frac{ D ^{ m + 1/2 }_e - D ^{ m - 1/2 }_e }{ t^{m+1/2}_e - t^{m-1/2}_e } = \mathrm{d}
+             _1 ^T \left( H ^n_\sigma \, \mathbb{1}_{ \left\{t^n_\sigma = t^m_e \right\}} \right) - J
+             ^m _e ,
+     mathpix:\frac{D_{e}^{m+1 / 2}-D_{e}^{m-1 / 2}}{t_{e}^{m+1 / 2}-t_{e}^{m-1 /
+             2}}=\mathrm{d}_{1}^{T}\left(H_{\sigma}^{n}
+             \nVdash\left\{t_{\sigma}^{n}=t_{e}^{m}\right\}\right)-J_{e}^{m}
+
+19. 0707.4470_EQ0047   page 29   d=6
+     author: \mathcal{L} _d = -\frac{1}{2} \mathrm{d} A \wedge *\mathrm{d} A + A \wedge \mathcal{J} ,
+     mathpix:\mathscr{L}_{d}=-\frac{1}{2} \mathrm{~d} A \wedge * \mathrm{~d} A+A \wedge \mathscr{J}
+
+20. 0707.4470_EQ0048   page 29   d=1
+     author: S _d [A] = \left\langle \mathcal{L} _d , K \right\rangle .
+     mathpix:S_{d}[A]=\left\langle\mathscr{L}_{d}, K\right\rangle
+
+21. 0707.4470_EQ0049   page 29   d=6
+     author: \mathbf{d} S _d [A] \cdot \alpha = \left\langle - \mathrm{d} \alpha \wedge *\mathrm{d} A
+             + \alpha \wedge \mathcal{J} , K \right\rangle = \left\langle \alpha \wedge \left( -
+             \mathrm{d} {*\mathrm{d} A} + \mathcal{J} \right) , K \right\rangle .
+     mathpix:\mathbf{d} S_{d}[A] \cdot \alpha=\langle-\mathrm{d} \alpha \wedge * \mathrm{~d} A+\alpha
+             \wedge \mathscr{J}, K\rangle=\langle\alpha \wedge(-\mathrm{d} * \mathrm{~d}
+             A+\mathscr{J}), K\rangle
+
+22. 0707.4470_EQ0050   page 30   d=3
+     author: \mathbf{d} S _d [A] \cdot \alpha = \left\langle \alpha \wedge \left( - \mathrm{d}
+             {*\mathrm{d} A } + \mathcal{J} \right) , K \right\rangle + \left\langle \alpha \wedge *d
+             A, \partial K \right\rangle .
+     mathpix:\mathbf{d} S_{d}[A] \cdot \alpha=\langle\alpha \wedge(-\mathrm{d} * \mathrm{~d}
+             A+\mathscr{J}), K\rangle+\langle\alpha \wedge * d A, \partial K\rangle
+
+23. 0707.4470_EQ0051   page 30 5.1   d=2  [spacing only]
+     author: \mathbf{d} S _d (A) \cdot \alpha = \left\langle \alpha \wedge *\mathrm{d} A,\partial K
+             \right\rangle
+     mathpix:\mathbf{d} S_{d}(A) \cdot \alpha=\langle\alpha \wedge * \mathrm{~d} A, \partial K\rangle
+
+24. 0707.4470_EQ0052   page 30   d=3
+     author: \theta _{ \mathcal{L} _d } \cdot \alpha = \alpha \wedge *\mathrm{d} A.
+     mathpix:\theta_{\mathscr{L}_{d}} \cdot \alpha=\alpha \wedge * \mathrm{~d} A
+
+25. 0707.4470_EQ0054   page 30 5.2   d=1
+     author: \left\langle \omega _{ \mathcal{L} _d } \cdot \alpha \cdot \beta , \partial K
+             \right\rangle = 0
+     mathpix:\left\langle\omega_{\mathscr{L}_{d}} \cdot \alpha \cdot \beta, \partial K\right\rangle=0
+
+26. 0707.4470_EQ0055   page 31   d=6  [spacing only]
+     author: A = A _x \;\mathrm{d}x + A _y \;\mathrm{d}y + A _z \;\mathrm{d}z .
+     mathpix:A=A_{x} \mathrm{~d} x+A_{y} \mathrm{~d} y+A_{z} \mathrm{~d} z
+
+27. 0707.4470_EQ0056   page 32   d=31
+     author: \begin{aligned} \mathrm{d} _t A = E \wedge \mathrm{d} t, && \mathrm{d} _s A = B.
+             \end{aligned}
+     mathpix:\mathrm{d}_{t} A=E \wedge \mathrm{~d} t, \quad \mathrm{~d}_{s} A=B
+
+28. 0707.4470_EQ0059   page 32   d=1
+     author: \mathbf{d} S [A] \cdot \alpha = \left. \int _{\Sigma} \alpha \wedge {D} \,\right\rvert
+             _{t _0 } ^{ t _f } ,
+     mathpix:\mathbf{d} S[A] \cdot \alpha=\left.\int_{\Sigma} \alpha \wedge D\right|_{t_{0}} ^{t_{f}}
+
+29. 0707.4470_EQ0060   page 32   d=4
+     author: \mathbf{d} S [A] \cdot \mathrm{d} _s f = \left. \int _\Sigma \mathrm{d} _s f \wedge {D}
+             \,\right\rvert _{t _0 } ^{ t _f } = - \left. \int _\Sigma f \wedge \mathrm{d} _s {D}
+             \,\right\rvert _{t _0 } ^{ t _f }
+     mathpix:\mathbf{d} S[A] \cdot \mathrm{d}_{s} f=\left.\int_{\Sigma} \mathrm{d}_{s} f \wedge
+             D\right|_{t_{0}} ^{t_{f}}=-\left.\int_{\Sigma} f \wedge \mathrm{~d}_{s} D\right|_{t_{0}}
+             ^{t_{f}}
+
+30. 0707.4470_EQ0061   page 32   d=11
+     author: \mathbf{d} S [A] \cdot \mathrm{d} _s f = \int _X \mathrm{d} _s f \wedge J \wedge
+             \mathrm{d} t = - \int _X f \wedge \mathrm{d} _s J \wedge \mathrm{d} t = - \int _X f
+             \wedge \mathrm{d} _t \rho = - \left. \int _\Sigma f \wedge \rho \,\right\rvert _{ t _0 }
+             ^{ t _f } .
+     mathpix:\mathbf{d} S[A] \cdot \mathrm{d}_{s} f=\int_{X} \mathrm{~d}_{s} f \wedge J \wedge
+             \mathrm{~d} t=-\int_{X} f \wedge \mathrm{~d}_{s} J \wedge \mathrm{~d} t=-\int_{X} f
+             \wedge \mathrm{~d}_{t} \rho=-\left.\int_{\Sigma} f \wedge \rho\right|_{t_{0}} ^{t_{f}}
+
