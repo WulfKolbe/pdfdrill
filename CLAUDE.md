@@ -8,11 +8,13 @@ by default.
 
 ## Read first, every new session
 
-**`docs/HANDOVER.md`** — one page: working surface, the measured constants with
-their populations, open items, failure classes. The 18 rules learned by defect
-and the environment facts live in **`docs/HANDOVER-RULES.md`**. Open work with acceptance
-criteria, non-obvious environment facts (LgEval pin, dictionaries, `resume.sh`),
-working rules each learned by a defect, and unverified assumptions.
+**`docs/HANDOVER.md`** — one page: the working surface, the measured constants
+each with the population it came from, open items, and the failure classes that
+cost time here.
+
+**`docs/HANDOVER-RULES.md`** — the 18 working rules each learned by a defect,
+the non-obvious environment facts (LgEval pin, dictionaries, `resume.sh`), and
+the unverified assumptions.
 
 ## What this repo is
 
