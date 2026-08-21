@@ -1,0 +1,103 @@
+067 - the top 10 of out/066.txt, inspected by eye
+==============================================================================
+
+METHOD
+------------------------------------------------------------------------------
+   For each row the MathPix standalone render and the scan crop were stacked
+   into one image and read side by side at full size. Nothing here is
+   inferred from the numbers; the numbers are quoted after the fact.
+
+THE TEN, ONE LINE EACH
+------------------------------------------------------------------------------
+ 1  1006.4908_EQ0030   ink 251  conf 1.0000
+    All 14 Gamma_k rows identical symbol for symbol; the page pads after each
+    "=" so the right-hand sides align in a column, the render sets them
+    flush - 124 stacked and 114 centred relations differ, 2 components do.
+
+ 2  1211.3375_EQ0015   ink 213  conf 1.0000
+    Identical; the scan crop has a GREY SHADED BACKGROUND which fragments
+    under the 200 threshold and hands the scan 177 components the render has
+    no counterpart for - an instrument artifact, not an OCR error.
+
+ 3  0902.0431_EQ0074   ink 131  conf 1.0000
+    Identical; MathPix emits \left( \right) where the page uses fixed-size
+    parentheses, so every delimiter in the 8-entry table grows vertically -
+    63 stacked, 61 centred, 1 component.
+
+ 4  0902.0431_EQ1087   ink 114  conf 1.0000
+    Identical; the page sets the column-vector entries with display \dfrac,
+    the render with inline-height \frac, so fraction heights and the row
+    pitch of the whole block differ.
+
+ 5  0902.0431_EQ0921   ink  98  conf 1.0000
+    Identical 20-entry table; \left( inflation again, plus \bar where the
+    page prints the wider \overline - 48 stacked, 48 centred, 2 components.
+
+ 6  1404.2443_EQ0009   ink  69  conf 1.0000
+    Identical; the page separates its three columns with wide gaps and the
+    render packs them tight. Column spacing alone - 3 components.
+
+ 7  1411.5002_EQ0068   ink  69  conf 1.0000
+    Identical; the render sets the five "symbol : name" lines as a widely
+    leaded aligned block, the page has them as a compact list.
+
+ 8  0902.0431_EQ0736   ink  67  conf 1.0000
+    Identical; \frac against the page's \dfrac inside a nested
+    \left( ... \right), so the entire nest is taller in the render.
+
+ 9  0902.0431_EQ0670   ink  64  conf 1.0000
+    Identical 4x4 matrix and result vector; \frac vs \dfrac again, compounded
+    by taller auto-sized delimiters around both.
+
+10  0902.0431_EQ0980   ink  64  conf 1.0000
+    Identical; \left[ \right] where the page prints plain brackets, and an
+    upright \Phi where the page has italic.
+
+WHAT THE TEN SAY
+------------------------------------------------------------------------------
+   NOT ONE of the ten is a content error. Every symbol, index, sign and
+   subscript matches the page. Nine are typography - delimiter auto-sizing,
+   \frac against \dfrac, line and column spacing - and the tenth is a grey
+   background defeating the mask.
+
+   That is a finding about the RANKING, not a failure of the list. Sorting
+   725 rows by confidence and breaking ties by ink puts the largest pixel
+   disagreements on top, and the largest pixel disagreements in a
+   confidently-read corpus are typographic. A tall \left( changes many more
+   pixels than a wrong digit does.
+
+   For contrast: 0902.0431_EQ0516, which out/063 proved has 19 of 48 array
+   cells wrong or missing, scores ink 18. It sits far down this same list,
+   below every one of these ten.
+
+THE SEPARATION THAT DOES WORK
+------------------------------------------------------------------------------
+   The five-tuple splits cleanly in two:
+
+     symbol features  components, holes   - how many marks, with what shape
+     layout features  stacked, centred, offset - where they sit
+
+   A typographic difference moves the layout features and leaves the symbol
+   features alone. A misread symbol moves the symbol features. EQ0516's
+   delta is components 12, holes 6, stacked 0, centred 0, offset 0 - pure
+   symbol. These ten are the mirror image.
+
+   Over all 725 hits:
+
+       458  (63%)  layout-dominated   |stk|+|ctr|+|off| > |comp|+|holes|
+       267  (37%)  symbol-dominated
+
+   and 9 of the top 10 are layout-dominated. Ranking the same 725 rows by
+   the SYMBOL half instead of by total L1 would put content candidates on
+   top. That is a one-line change to the sort key, and it is the obvious
+   next experiment rather than something to assert here - the eight rows it
+   promotes have not been inspected, and three of them are 1211.3375, the
+   grey-background document, so the artifact would ride up with them.
+
+CAVEAT WORTH CARRYING
+------------------------------------------------------------------------------
+   Shaded backgrounds break the mask. 1211.3375 puts its displayed equations
+   in grey boxes, and all three of its high-ink rows are that. Before the
+   symbol half is used as a content filter it needs a background test,
+   otherwise one document's styling will dominate the top of the list for a
+   reason that has nothing to do with mathematics.
