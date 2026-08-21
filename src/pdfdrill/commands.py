@@ -13140,6 +13140,19 @@ def cmd_reporttex(pdf: Path, paper: str = "a3", landscape: bool = True,
                          f"error(s), {demoted} malformed row(s) demoted "
                          f"to source-only.")
     else:
+        # A .tex written beside an OLDER .pdf is a stale artifact that passes
+        # every check anyone runs: it exists, its page count is plausible, and
+        # its mtime is recent relative to the corpus. 064 left 0902.0431 in
+        # exactly that state and two sessions measured the superseded PDF for
+        # half a day before the mtimes were compared against each other rather
+        # than against the clock. Say it here, where it is created.
+        stale = rt.stale_pdf_for(Path(r["out"]))
+        if stale is not None:
+            lines.append(
+                f"STALE: {stale.name} is now OLDER than the report.tex just "
+                f"written and no longer matches it. Anything reading it — a "
+                f"viewer, a compare harness, another session — is reading the "
+                f"previous build. Re-run with --compile.")
         lines.append("Compile with `pdfdrill reporttex <pdf> --compile` "
                      "(xelatex, two passes + error-row demotion).")
     return "\n".join(lines)

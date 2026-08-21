@@ -347,6 +347,21 @@ def row(title, latex, page, extra="", image=None, punct="", conf="") -> str:
         ident, esc_text(str(page)), src, math)
 
 
+def stale_pdf_for(tex: Path) -> Path | None:
+    """The sibling .pdf when it is older than `tex`, else None.
+
+    Compares the derived file against ITS SOURCE, not against the clock. A
+    report.pdf can be minutes old and still be the wrong build; freshness
+    relative to the corpus says nothing about whether it matches the .tex it
+    claims to render.
+    """
+    pdf = Path(tex).with_suffix(".pdf")
+    try:
+        return pdf if pdf.stat().st_mtime < Path(tex).stat().st_mtime else None
+    except OSError:
+        return None            # absent .pdf is not stale, it is simply absent
+
+
 def auto_px2mm(pdf: Path) -> float | None:
     """mm per MathPix page pixel, from the PDF's page width (pdfinfo) and the
     lines.json first-page pixel width. None when either is unavailable."""

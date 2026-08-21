@@ -10,7 +10,7 @@ the way of the state of play.
 **PDFDRILL** — quality control of PDF→LaTeX OCR. `src/pdfdrill/` (flat CLI,
 `.drill/` sidecar), `src/docmodel/` (typed `Document`), `src/docops/`
 (mutators + projectors). **133 commands** in `.claude/skills/pdfdrill/commands.yaml`,
-matching `cli.HANDLERS` exactly. **2,104 tests** (`PYTHONDONTWRITEBYTECODE=1
+matching `cli.HANDLERS` exactly. **2,109 tests** (`PYTHONDONTWRITEBYTECODE=1
 python3 -m pytest tests/ -q -p no:cacheprovider` — the env var is not optional).
 
 Branch `eqblobs-and-gzip-tex`; `main`/`master` are behind it. Corpus is 49 arXiv
@@ -60,11 +60,15 @@ no e-print, so it reaches the ~99% of documents where no comparison is possible.
    `src/pdfdrill/nodes/`.
 7. **Consumer's findings file is one regeneration stale** — the 42 rows 058
    recovered are not in it. Their cadence, not ours.
-8. **`reporttex` writes the .tex and does not compile.** 064 regenerated
-   `0902.0431`'s report and left the PDF an hour older than its source, so
-   both sessions read a 230-page artifact whose .tex implied 231. Repaired,
-   and 1 of 49 was affected — but nothing detects it. A `--compile`-less run
-   should either say the PDF is now stale or refuse to leave it that way.
+8. **What in 064's tiddlers regeneration costs `0902.0431` a page** is not
+   isolated. The generator is excluded by measurement (`a0ff8a9` and HEAD both
+   give 231 from the current tiddlers); the remaining variable is the tiddlers
+   themselves. Nothing depends on the answer — the consumer retired the figure
+   that did — so this is a real experiment, not a check.
+
+   *(The staleness that caused it is fixed on both sides: `reporttex` now says
+   STALE when it leaves a PDF older than the .tex it just wrote, and the
+   consumer's `reportcompare.py` refuses such a report outright.)*
 
 ## Known failure classes — what actually costs time here
 
