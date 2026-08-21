@@ -1,0 +1,102 @@
+055 - every transformation of ~ in LaTeX values, on the ingest and projection paths
+==============================================================================
+
+WHY ~ MATTERS HERE
+   In LaTeX `~` is a non-breaking space. MathPix emits it INSIDE macro
+   arguments — `\mathrm{~d}` where an author writes `\mathrm{d}` — so it is a
+   token that appears on one side of a comparison and not the other while
+   rendering identically. Whether a path preserves, strips or escapes it
+   therefore decides whether a difference is real or manufactured.
+
+THE HEADLINE
+   NO path transforms ~ inside a math value. It is preserved verbatim from
+   MathPix's lines.json, through the model, into every projection. Every
+   transformation found is on PROSE, captions or bibliography text, or is a
+   comparison-time normalisation that never touches what is stored.
+
+   The one defect is not a transformation but a DISAGREEMENT: the two
+   comparison normalisers apply opposite rules to the same character.
+
+INGEST PATH
+------------------------------------------------------------------------------
+   src/docmodel/modules/equation.py, formula.py, and the rest of the build
+      NO RULE. Searched for replace/sub on ~ across every docmodel module;
+      there is none, so the MathPix string reaches props["latex"] verbatim.
+
+   src/pdfdrill/latex_source.py:132   in _clean_frontmatter
+      RULE  s.replace("~", " ")
+      SCOPE title/author frontmatter only. Not math.
+
+   src/pdfdrill/latex_source.py:1214  in _clean_step_text
+      RULE  s.replace("~", " ")
+      SCOPE algorithm pseudocode step text. Its own docstring states "Math is
+            left verbatim", and it is applied to step prose, not equations.
+
+   src/pdfdrill/latex_source.py:1456  in _PROSE_CLEAN
+      RULE  (re.compile(r"~"), " ")
+      SCOPE prose paragraphs. Not math.
+
+   src/pdfdrill/commands.py::cmd_ingest
+      NO RULE. The 022 validator rejects a backslash severed from its command
+      name but does not touch ~; an ingested value keeps it.
+
+PROJECTION PATH
+------------------------------------------------------------------------------
+   src/pdfdrill/report_tex.py:22     _ESC, used by esc_text()
+      RULE  "~" -> "\textasciitilde{}"
+      SCOPE the LaTeX SOURCE column, where the value is displayed AS TEXT,
+            and identifiers. The Rendered column passes the math through
+            unescaped inside $...$, so the rendered equation still sees a
+            real ~. Correct: the two columns need opposite treatments.
+
+   src/docops/projectors/tiddlywiki.py:165
+      RULE  caption.replace("~", " ")
+      SCOPE figure/table captions. The <$latex> widget's value is untouched.
+
+   src/docops/projectors/latex.py:49         (prose escaper)
+   src/docops/projectors/latex_pipeline.py:496 (bibliography escaper)
+      RULE  re.sub(r"(?<!\\)~", r"\textasciitilde{}", s)
+      SCOPE prose and .bbl entries. Both docstrings state that math spans are
+            deliberately left alone.
+
+   src/docops/projectors/scikgtex.py:92
+      RULE  .replace("~", " ")
+      SCOPE ORKG metadata strings.
+
+   src/semantic/stex.py:37
+      RULE  .replace("~", r"\textasciitilde{}")
+      SCOPE glossary/acronym text.
+
+   src/pdfdrill/bibliography.py:562
+      RULE  t.replace("~", " ")
+      SCOPE bibliography entry text.
+
+COMPARISON PATH - AND THE DEFECT
+------------------------------------------------------------------------------
+   src/pdfdrill/scoring.py:21  _SPACING = ("\,", "\;", "\!", "\:", "\ ", "~")
+      RULE  normalize_latex() DELETES ~ before comparing.
+
+   src/pdfdrill/crossref.py::formula_signature -> mathgold.parse_latex_slt
+      RULE  ~ becomes its own SLT NODE and is compared.
+
+   Measured on `\mathrm{~d} x` against `\mathrm{d} x`:
+
+      scoring.normalize_latex   ->  'dx' vs 'dx'   equal, similarity 1.0
+      crossref SLT distance     ->  2              nodes ['~','d','x'] vs ['d','x']
+
+   So the same pair of values is IDENTICAL to one comparator and two edits
+   apart to the other. Neither rule is wrong on its own — a similarity score
+   for matching wants spacing gone, and a layout tree may legitimately carry
+   spacing — but they are used together: injectlatex PAIRS equations with
+   normalize_latex (>= 0.55) and out/040 then SCORES those pairs with the SLT
+   distance. A pair can therefore be matched on the understanding that ~ is
+   irrelevant and then charged for it.
+
+   Scale, from out/041: 20 of 935 differing pairs involve a ~ that renders
+   identically, and neutralising spacing-only tokens collapses 12 of them to
+   distance 0. Small, but it is a systematic bias against MathPix, since ~
+   inside \mathrm{} is a MathPix habit the authors do not share.
+
+   NOT FIXED HERE — this task asked for the inventory, and choosing which
+   rule wins changes published numbers (out/040, out/041, out/052). The
+   choice should be made deliberately, not as a side effect of an audit.
