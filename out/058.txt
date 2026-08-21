@@ -1,0 +1,63 @@
+058 - corpus reports regenerated with the fixed preamble
+==============================================================================
+
+DEMOTED-ROW COUNT, BEFORE AND AFTER
+------------------------------------------------------------------------------
+      before   93 rows across 12 documents
+      after    51 rows across 10 documents
+      RECOVERED 42 rows of real mathematics that now render
+
+   49 of 49 documents regenerated and compiled, 0 errors, 2 minutes.
+   Total pages 942 — identical to the pre-regeneration baseline, so the
+   recovered equations cost no layout.
+
+PER DOCUMENT
+------------------------------------------------------------------------------
+   document        before  after   
+   0707.4470           31      0   -31
+   0902.0431           31     31   unchanged
+   1407.7814           13      4   -9
+   1205.3463v2          4      4   unchanged
+   1205.5935v1          3      3   unchanged
+   1411.5002            3      3   unchanged
+   1502.02973           2      2   unchanged
+   1510.06699           2      0   -2
+   0911.3722            1      1   unchanged
+   1006.4908            1      1   unchanged
+   1209.3845v2          1      1   unchanged
+   1407.4737            1      1   unchanged
+
+   0707.4470 goes to zero: all 31 of its demotions were \mathscr, the case
+   out/056 traced. 1407.7814 loses 9 of 13 and 1510.06699 both of its two.
+   0902.0431's 31 are unchanged, and correctly so — those are the nested
+   \[ \] values the validator rejects before TeX ever sees them, which no
+   preamble can fix.
+
+TWO COUNTERS, TWO MEANINGS - STATED BECAUSE THEY DISAGREE
+------------------------------------------------------------------------------
+   The command's own summary line reports 5 demoted for the whole corpus;
+   counting '(not rendered)' in the regenerated report.tex files gives 51.
+   Both are right and they measure different things:
+
+        5  demoted by the COMPILE FIXPOINT — the row reached TeX, TeX
+           errored, the row was replaced and the document recompiled
+       46  rejected by renderable() at GENERATION time — the value never
+           reached TeX at all, so no compile counter can see it
+       51  total rows showing '(not rendered)' to a reader
+
+   A reader of the summary line alone would conclude the corpus has 5
+   unrenderable equations. It has 51. The generation-time rejections are
+   the larger half and the silent one.
+
+WHAT REMAINS
+------------------------------------------------------------------------------
+   51 rows still demoted, and out/056 classifies them: the bulk are values
+   carrying a nested \[ or \] — MathPix wrapping a display delimiter inside
+   an already-display value — plus a handful of genuine LaTeX defects
+   (\noalign, a missing $, an unmatched \right). Those are OCR defects in
+   the source, not report defects, and they belong to the vision/inkdrill
+   repair loop rather than to the generator.
+
+   The consumer's compare should be re-run: every report.pdf mtime moved,
+   and 42 rows that read as the placeholder string now carry real ink.
+   Their demoted-row exclusion list shrinks accordingly.
