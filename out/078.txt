@@ -109,3 +109,89 @@ DOCUMENTS WITH ANY HIT
    1602.04650     e-print=Y  author=['algorithm']  mathpix=['lstlisting']
    1602.06844     e-print=Y  author=['algorithm']  mathpix=['lstlisting']
    1604.04795     e-print=Y  author=['algorithm']  mathpix=['lstlisting']
+
+
+==============================================================================
+THE SAME QUESTION OVER THE WHOLE LIBRARY - AND IT CORRECTS TWO CLAIMS ABOVE
+==============================================================================
+
+Everything above is the 49-document P13 corpus. The library holds 3,348
+document folders and 3,407 PDFs. Asked at that scale the answer changes, and
+one of the sentences above is simply wrong.
+
+WHAT EACH DETECTOR CAN SEE
+------------------------------------------------------------------------------
+   author e-print (.tgz/.tar.gz)     488 documents
+   MathPix .tex.zip                  235
+   MathPix lines.json              3,297
+   at least one archive               653
+   PDFs with none of the three         ~110
+
+   Coverage is the limit here, not effort. 2,644 of the 3,297 documents with a
+   lines.json have no archive of either kind, so for them the only detector is
+   the weakest one.
+
+RESULTS BY DETECTOR
+------------------------------------------------------------------------------
+                    author e-print   MathPix tex.zip   MathPix lines.json
+                        (n=488)          (n=235)            (n=3,297)
+    lstlisting             41               13                 12
+    minted                  4                0                  0
+    verbatim               26               67                  6
+    algorithm              97                0                  0
+    ----------------------------------------------------------------
+    any of the four       147               79                 18
+
+CORRECTION 1 - "THE AUTHORS NEVER EMIT lstlisting" IS FALSE
+------------------------------------------------------------------------------
+   The per-environment table above reports 0 author lstlisting and I wrote
+   that authors never emit it. That was true of 49 documents and is false of
+   488: 41 authors open lstlisting and 4 open minted.
+
+   The corpus is a mathematics-heavy sample. It contains almost no papers that
+   typeset source code, so "0 of 49" measured the sample, not LaTeX practice.
+   The wording above generalised from it and should not have.
+
+CORRECTION 2 - THE MAPPING IS NOT 8 OF 8
+------------------------------------------------------------------------------
+   Above: all 8 author-algorithm documents come back as lstlisting, "8 of 8,
+   no exceptions". At library scale there are 15 documents with an algorithm
+   environment AND both sources:
+
+       11  ->  lstlisting
+        4  ->  verbatim        (1906.02691, 2510.11170v2, 2605.12061v1,
+                                2607.05794)
+        0  ->  algorithm
+
+   So MathPix renders an algorithm float as EITHER a code block or a verbatim
+   block. "8 of 8" was 8 documents all landing on the more common of two
+   branches; the second branch existed and the sample had none of it.
+
+WHAT SURVIVED THE WIDER POPULATION
+------------------------------------------------------------------------------
+   MathPix never emits the algorithm environment. 0 of 235 tex.zip documents,
+   0 of 3,297 lines.json documents, against 97 authors who use it. That is the
+   claim worth keeping, and it is now measured on a population 5x and 67x
+   larger rather than on 49 documents.
+
+   Also intact: 0 author-only rows among documents with both sources. MathPix
+   marks code-like content wherever an author did; it disagrees about the
+   NAME, never about the presence.
+
+A NOTE ON THE lines.json DETECTOR
+------------------------------------------------------------------------------
+   18 hits over 3,297 documents, against 79 over 235 for tex.zip on the same
+   kind of content. lines.json is much weaker: the verbatim wrapping happens
+   when MathPix assembles a .tex, not in the per-line JSON. Its coverage is
+   13x wider and its sensitivity is far lower, so its 18 is a floor and not an
+   estimate. Do not read it as "18 documents in the library contain code".
+
+METHOD NOTE - A ZERO I ALMOST BELIEVED
+------------------------------------------------------------------------------
+   The first library-wide scan returned 0 for all four environments in 0.042
+   seconds over a nominal 4.8 GB. `grep -r` does not descend from this
+   directory in this environment — find sees 3,297 files there and grep -r
+   sees 0 — and I had 2>/dev/null on the command, so the reason was
+   suppressed and the empty result read as data. Re-run by feeding an explicit
+   file list through xargs: 9 seconds, real hits. A zero that arrives too fast
+   is a symptom.
