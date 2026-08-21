@@ -25,7 +25,13 @@ from typing import Any, Optional
 RIGHT, SUP, SUB, ABOVE, BELOW, INSIDE = "Right", "Sup", "Sub", "Above", "Below", "Inside"
 
 # Spacing: real LaTeX, no ink. Never symbols.
-_SPACING = {r"\,", r"\;", r"\:", r"\!", r"\quad", r"\qquad", r"\ ", r"\thinspace",
+_SPACING = {"~",                       # 057: a non-breaking space puts no ink
+                                       # on the page; scoring.py:21 has always
+                                       # treated it as spacing and the SLT did
+                                       # not, so `\mathrm{~d}` scored 2 edits
+                                       # against `\mathrm{d}` while the two
+                                       # comparators disagreed (out/055.txt)
+            r"\,", r"\;", r"\:", r"\!", r"\quad", r"\qquad", r"\ ", r"\thinspace",
             r"\medspace", r"\thickspace", r"\hspace", r"\vspace", r"\displaystyle",
             r"\textstyle", r"\scriptstyle", r"\left", r"\right", r"\limits",
             r"\nolimits", r"\mathrm", r"\mathit", r"\bf", r"\rm"}
@@ -113,6 +119,8 @@ def _lex(src: str) -> list[tuple[str, str]]:
         if kind == "space":
             continue
         if kind == "cmd" and m.group() in _TRANSPARENT:
+            continue
+        if m.group() == "~":               # 057: spacing, whatever kind it lexes as
             continue
         out.append((kind, m.group()))
     return out

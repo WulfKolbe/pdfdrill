@@ -1,0 +1,55 @@
+057 - ~ added to the SLT spacing set; 040 re-run on the same 20 documents
+==============================================================================
+
+DISTANCE-ZERO COUNT, BEFORE AND AFTER
+------------------------------------------------------------------------------
+      before   485 of 1,328   (36.5%)
+      after    497 of 1328   (37.4%)
+      change   +12 equations became exact structural matches
+
+      median   3 -> 2        mean 7.7 -> 7.6
+      p90      16 -> 16       max 176 -> 176
+
+   Comparable pairs are unchanged at 1,328 (417 degenerate pairs still
+   excluded), so the whole difference is rows moving DOWN in distance, none
+   entering or leaving the population.
+
+WHAT CHANGED IN THE CODE
+------------------------------------------------------------------------------
+   src/mathgold/slt.py:28   _SPACING gains "~"
+   src/mathgold/slt.py:116  the lexer drops a bare ~ whatever kind it lexes
+                            as — membership in _SPACING alone was not enough,
+                            because ~ is a SYMBOL token and the spacing test
+                            only runs on the 'cmd' branch. Adding it to the
+                            set and stopping there would have looked correct
+                            and changed nothing.
+
+   Verified directly: \mathrm{~d}x against \mathrm{d}x now scores 0 (was 2),
+   scoring.normalize_latex already called them equal, and a genuine
+   difference (a=b vs a=c) still scores 1.
+
+WHY THE EFFECT IS SMALL, AND WHY IT WAS STILL WORTH DOING
+------------------------------------------------------------------------------
+   12 equations of 1,328 is 0.9%, and out/041 predicted exactly that: 12 of
+   its 935 differing pairs collapsed to zero when spacing-only tokens were
+   neutralised. The measurement agreeing with a prediction made from other
+   data is the useful part, not the size.
+
+   The reason to make the change is not the 12 rows. It is that out/055
+   found the two comparators disagreeing about the SAME character while
+   being used in sequence: injectlatex PAIRS equations with
+   normalize_latex (>= 0.55, ~ deleted) and 040 then SCORES those pairs
+   with the SLT (~ counted). A pair could be admitted on the understanding
+   that ~ is irrelevant and then charged for it — a bias that fell entirely
+   on MathPix, since \mathrm{~d} is its habit and not the authors'.
+
+THE HISTORY OF THIS NUMBER, SO IT IS NOT QUOTED WITHOUT ITS CORRECTIONS
+------------------------------------------------------------------------------
+      46.4%   original (out/040) — inflated: multi-line equations reduced to
+              one UNRESOLVED node and compared equal to each other
+      36.5%   degenerate pairs excluded (out/040 correction)
+      37.4%   ~ treated as spacing on both sides (this file)
+
+   Each correction moved the figure by less than the one before it, which
+   is what convergence looks like; it is not evidence that the next
+   correction would be smaller still.
