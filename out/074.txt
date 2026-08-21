@@ -168,3 +168,17 @@ SUMMARY
                               + 36 more from 2026-08-16, out of scope
 
    075 acts on the unread rows above and on nothing else.
+
+==============================================================================
+AMENDMENT (075) - THE OUT-OF-SCOPE CLAIM IN SECTION 3 DID NOT HOLD
+==============================================================================
+   Section 3 says the 36 directories dated 2026-08-16 are out of scope and
+   will not be touched. 075 deleted them: its cutoff constant was
+   1755388800, which is 2025-08-17, a year earlier than intended, so the
+   pre-session filter passed everything.
+
+   They were leaked mkdtemp directories holding one stub file each, about
+   150 KB in total, and the live-handle check - which does not depend on
+   the date filter - cleared all of them first. No reader lost a file. The
+   statement above was still wrong and is corrected here rather than left
+   for a later reader to trip over. See out/075.txt.

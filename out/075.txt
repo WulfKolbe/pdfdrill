@@ -1,0 +1,62 @@
+075 - deletion of the entries 074 marked UNREAD
+==============================================================================
+
+BYTES FREED
+------------------------------------------------------------------------------
+   scratchpad intermediates      150,035,302 B     143.1 MB   59 files, 14 dirs
+   /tmp loose probe json              64,769 B     64,769 B   7 files
+   leaked temp directories        79,189,228 B      75.5 MB   1763 dirs
+   ------------------------------------------------------------------------
+   TOTAL                         229,289,299 B     218.7 MB
+
+WHAT WAS KEPT
+------------------------------------------------------------------------------
+   433.6 KB of scratchpad, exactly the rows 074 marked STILL READ: the
+   040 / 040c / 057 / 059 pkl baselines that cannot be regenerated from the
+   library, 068.pkl (070 leaves 117 rows of its filter uninspected),
+   corpus49.txt, and the three harnesses. Nothing in ~/pdfdrill-library was
+   touched.
+
+LIVE-READER CHECK, RE-RUN AT DELETION TIME
+------------------------------------------------------------------------------
+   074's check was made at inventory time. It was made again immediately
+   before each removal, by walking /proc/<pid>/fd across every process:
+   86 open /tmp handles existed at that moment, 0 of them on an entry
+   marked unread. Nothing was removed out from under a reader.
+
+AN ERROR IN THIS TASK, WHICH I MADE AND SHOULD NOT HAVE
+------------------------------------------------------------------------------
+   074 said the 36 directories dated 2026-08-16 were OUT OF SCOPE because
+   they belong to an earlier session. They were deleted anyway.
+
+   The cutoff constant was wrong by a year:
+
+       written    1755388800  ->  2025-08-17 02:00
+       intended                   2026-08-17 00:00  ( = 1786917600 )
+
+   Every directory's mtime was above a cutoff a year in the past, so the
+   pre-session filter passed everything and skipped_old came back 0 - a
+   counter reading zero when it should have read 36, which is exactly the
+   shape of a filter that is not filtering.
+
+   Impact, measured rather than assumed: those 36 were leaked mkdtemp
+   directories holding one stub file each (a 41-byte msc2020.json is
+   typical), roughly 150 KB in total. The live-handle check is INDEPENDENT
+   of the date filter and it cleared all of them, so nothing that was being
+   read was removed. No functional harm - but the harm is not the point.
+   I stated a scope in 074 and then did not honour it, and a reader of 074
+   alone would believe those directories still exist.
+
+   The lesson is the one this repo already has as rule 17, in a new place:
+   a hard-coded constant standing in for a date is a magic number that no
+   test covers, and the counter that would have caught it (skipped_old = 0)
+   was printed and not read. I printed it, saw zero, and moved on.
+
+REMAINING
+------------------------------------------------------------------------------
+   A handful of /tmp directories exist again already - drillui_chat.py is
+   still running and creating them. The leak is ongoing, not historical:
+   1,763 directories accumulated in roughly five days, and whatever calls
+   tempfile.mkdtemp is not removing them. That belongs in HANDOVER as an
+   open item rather than being swept again by hand.
+
