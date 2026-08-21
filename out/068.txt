@@ -1,0 +1,85 @@
+068 - a shaded-background test, not an exclusion by name
+==============================================================================
+
+ANSWER
+------------------------------------------------------------------------------
+   8 of the 725 come from a document with shaded equation boxes.
+   3 of the 725 are themselves shaded crops.
+
+   Both numbers are the same document, 1211.3375, and it is the ONLY one:
+   all 4,342 corpus crops were scanned, and exactly 3 are shaded.
+
+     1211.3375    3 of its 23 crops shaded (13%)
+     the other 48 documents   0
+
+WHICH WAS BUILT, AND WHY
+------------------------------------------------------------------------------
+   The task offered either. A detector was built, because excluding one
+   document by name only postpones the problem - the next shaded document
+   arrives as the same surprise, and nothing in the pipeline would announce
+   it. A test fires on any document, including ones not yet drilled.
+
+   src/pdfdrill/shading.py, five tests.
+
+THE TEST
+------------------------------------------------------------------------------
+   Share of pixels that are MID-GREY - luminance in [150, 245], neither
+   paper (>245) nor ink (<150). auto_mask thresholds at 200, so a box
+   interior in that band is exactly what fragments and hands the scan
+   components the render has no counterpart for.
+
+   The threshold was measured, not chosen:
+
+       shaded crops        0.884 .. 0.942
+       every other crop    0.000 .. 0.225   (highest: 1304.0071v3)
+       cut at              0.500
+
+   The two populations are separated by a factor of four with nothing at all
+   in between. The cut sits in a void, not at the edge of either - so it is
+   not sensitive to where exactly it is placed, which is the only kind of
+   threshold worth trusting.
+
+   It fires per CROP, not per document, and that distinction carries weight
+   here: five of 1211.3375's eight hits are NOT shaded and score 6, 7, 7, 8
+   and 8 ink, while its three shaded ones score 128, 181 and 213. Excluding
+   the document wholesale would have discarded five sound measurements to
+   remove three bad ones.
+
+CORROBORATION THE DETECTOR WAS NOT TUNED FOR
+------------------------------------------------------------------------------
+   The detector reads only the background histogram. It never sees the ink
+   distance. Yet the three crops it flags are precisely the three largest
+   ink values in that document, and its five clean crops are precisely the
+   five smallest:
+
+       EQ0015   ink 213   midgrey 0.942   SHADED
+       EQ0016   ink 181   midgrey 0.911   SHADED
+       EQ0011   ink 128   midgrey 0.884   SHADED
+       EQ0019   ink   8   midgrey 0.081   clean
+       EQ0022   ink   8   midgrey 0.042   clean
+       EQ0002   ink   7   midgrey 0.055   clean
+       EQ0014   ink   7   midgrey 0.060   clean
+       EQ0021   ink   6   midgrey 0.057   clean
+
+   A clean split at 128 vs 8, from a measurement that had no access to the
+   quantity it split.
+
+EFFECT ON THE SYMBOL-HALF EXPERIMENT
+------------------------------------------------------------------------------
+   067 flagged that three of the eight rows the symbol half would promote
+   are 1211.3375's. All three are now identified as shaded and can be
+   labelled artifact rather than removed by document name - 1211.3375's
+   other five rows stay in the experiment, where they belong.
+
+   The remaining 722 hits carry no shading. Whatever the symbol half
+   surfaces among them is not this artifact, which is what makes 069's
+   ranking readable.
+
+WHAT THIS DOES NOT COVER
+------------------------------------------------------------------------------
+   One artifact, one corpus. A halftone or a scanned photographic
+   background would also land in the mid-grey band and would be flagged the
+   same way, correctly. A coloured box converted to a near-white grey, or a
+   very light tint above 245, would NOT be caught - the detector would call
+   it clean, and it would be. Nothing here claims to find every way a crop
+   can mislead the mask; it finds this one, with a stated margin.
