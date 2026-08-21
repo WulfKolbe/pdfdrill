@@ -1,0 +1,94 @@
+076 - docs/ audit: last update, and whether the claims still hold
+==============================================================================
+
+METHOD
+------------------------------------------------------------------------------
+   43 files under docs/, dated by their last commit. Claims were checked
+   against the code by resolving every src/ path they name and by
+   re-measuring every count that this session could re-measure. Where a
+   claim could not be checked cheaply it is marked UNVERIFIED rather than
+   passed.
+
+   This is an audit. Nothing below was fixed.
+
+SUPERSEDED NUMBERS - 3
+------------------------------------------------------------------------------
+ 1  CLAUDE.md:69     "commands.yaml is the SSOT (125 typed commands)"
+    Ground truth today: 133 in commands.yaml AND 133 in cli.HANDLERS. The
+    two agree with each other and disagree with the doc, so the SSOT is
+    healthy and only the prose is stale. CLAUDE.md is loaded into every
+    session, which makes this the most-read wrong number in the repo.
+
+ 2  docs/HANDOVER.md:63   "...defects passed 1745 tests"
+    Ground truth today: 2104 collected. The sentence is making a point
+    about masked success that does not depend on the figure, but the
+    figure is quoted as current.
+
+ 3  docs/CLAUDE-FULL.md:119 "~80 commands" and :2422 "81 commands in sync"
+    Both wrong against 133 - but this file is the ARCHIVED CLAUDE.md, kept
+    verbatim as history, and its header says so. Listed for completeness;
+    correcting it would damage the record rather than improve it.
+
+STALE PATHS - 4 modules, in the layer docs
+------------------------------------------------------------------------------
+   These name a file that is not where the doc says. All four moved into
+   src/pdfdrill/nodes/ and still exist:
+
+     docs/layers/L2-glyph.md          src/pdfdrill/tokenizer.py
+     docs/layers/L2-glyph.md          src/pdfdrill/ingest_pdfplumber.py
+     docs/layers/L3-text-lines.md     src/pdfdrill/lines_paragraphs.py
+     docs/layers/L4-layout-regions.md src/pdfdrill/emphasis_detector.py
+
+   The layer docs are canonical per CLAUDE.md, so a reader following L2 to
+   the tokenizer finds nothing. Dated 2026-06-11 and 2026-07-02.
+
+PATHS THAT RESOLVE NOWHERE - 2, both in proposal documents
+------------------------------------------------------------------------------
+     src/pdfdrill/blobtrack.py   docs/scandrill/{TOPOLOGY-VS-RASTER,
+                                 PROMPT-FOR-PDFDRILL,SCANDRILL-CLAUDE}.md
+     src/pdfdrill/branding.py    docs/CR-branding-variable.md
+
+   Neither exists anywhere in src/. Both files are PROPOSALS - scandrill
+   documents dated 2026-07-16 describing work to be done, and a change
+   request from 2026-06-04. A proposal naming a module that was never
+   built is not a stale claim; it is an unbuilt proposal. Flagged so that
+   nobody reads them as descriptions of the current tree.
+
+CURRENT BUT INCOMPLETE - docs/HANDOVER.md
+------------------------------------------------------------------------------
+   Last updated today, 18 rules, and its rules are accurate. But it was
+   written before tasks 059-075 and carries none of their constants: the
+   SLT distance-zero figure, the demoted-row count, the ink noise floor,
+   the shading threshold, the confidence threshold. A reader of HANDOVER
+   alone today would not know what any of this session's numbers are or
+   what population each came from. 077 addresses exactly this.
+
+VERIFIED CURRENT - no action
+------------------------------------------------------------------------------
+   docs/inkdrill-integration.md (2026-08-15) - carries no floor or SLT
+     figure at all; its numbers are table-rule measurements in points,
+     which this session did not touch.
+   docs/layers/{L0,L1,L5,L6,L7,L8,README,TOWER}.md - every src/ path they
+     name resolves.
+   docs/FAST-PATH-INSPECT.md, docs/TRANSCLUSION.md - paths resolve.
+   docs/superpowers/{plans,specs}/* - dated design documents, all with
+     their date in the filename, none asserting a present-tense count.
+
+UNVERIFIED - stated rather than passed
+------------------------------------------------------------------------------
+   docs/mathgold-population.txt (2026-08-14) reports the LgEval floor over
+   "the 59 gold equations with geometry" and a population of "21240
+   author-LaTeX equations over 388 documents". Re-measuring either would
+   mean re-running tools/mathgold_floor.py against the pinned LgEval
+   9831a3c, which this audit did not do. The file states its own
+   measurement date and calls n=59 anecdotal in its own text, which is the
+   right form for a measurement record - but this audit did not confirm
+   the numbers still hold.
+
+SUMMARY
+------------------------------------------------------------------------------
+   43 files.  3 superseded numbers (1 of them in the always-loaded
+   CLAUDE.md, 1 in an archive that should keep it).  4 stale module paths
+   in canonical layer docs.  2 unbuilt modules named in proposals.  1 file
+   accurate but missing this session's constants.  1 file unverified and
+   labelled so.  The rest resolve.
