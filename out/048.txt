@@ -1,0 +1,86 @@
+048 - three-way table: SLT flagged x ink flagged x confidence flagged
+==============================================================================
+
+THE THREE SIGNALS, AND WHAT EACH ONE IS
+------------------------------------------------------------------------------
+   SLT flagged   the SLT edit distance between MathPix's LaTeX and the
+                 AUTHOR'S is > 0 (out/041). Text against text; never ink.
+   ink flagged   the ink distance between the report's Rendered cell and
+                 its Scan cell exceeds 6, the measured p95 of the same 208
+                 expressions through two rasterizers (inkdrill out/042).
+                 Render against scan; never text.
+   conf flagged  MathPix's own confidence for that math line is < 0.1
+                 (the threshold used in out/043).
+
+   They are three different questions and the table is worth building
+   precisely because they need not agree.
+
+TABLE A - THE 041/042 JOIN AS ASKED (30 rows)
+------------------------------------------------------------------------------
+    SLT   ink  conf   count   
+   ------------------------------
+   FLAG  FLAG  FLAG       0
+   FLAG  FLAG    -       14
+   FLAG    -   FLAG       0
+   FLAG    -     -       16
+     -   FLAG  FLAG       0
+     -   FLAG    -        0
+     -     -   FLAG       0
+     -     -     -        0
+               total     30
+
+   FOUR CELLS ARE EMPTY BY CONSTRUCTION, not by measurement. Every row in
+   out/041.txt was selected FOR having nonzero SLT distance, so 'SLT = -'
+   cannot occur in this population. A table over this join can only ever
+   populate its top half, which is why table B follows.
+
+TABLE B - EVERY 0707.4470 EQUATION CARRYING ALL THREE SIGNALS (53)
+------------------------------------------------------------------------------
+    SLT   ink  conf   count   
+   ------------------------------
+   FLAG  FLAG  FLAG       0
+   FLAG  FLAG    -       14
+   FLAG    -   FLAG       0
+   FLAG    -     -       17
+     -   FLAG  FLAG       0
+     -   FLAG    -        9
+     -     -   FLAG       0
+     -     -     -       13
+               total     53
+
+   Population: 62 equations in the document; 53 carry all three signals.
+   Dropped: 9 with no author match (no SLT distance computable). None were
+   missing confidence, none missing from the ink compare.
+
+WHAT THE TABLE SAYS
+------------------------------------------------------------------------------
+   1. CONFIDENCE FLAGS NOTHING HERE - all four 'conf = FLAG' cells are 0.
+      This is not a threshold artefact: the lowest confidence in the whole
+      document is 0.3825, so no threshold at or below 0.38 flags anything,
+      and the median confidence is 1.0000 among the SLT-FLAGGED equations
+      and 1.0000 among the SLT-clean ones. Confidence does not
+      separate the equations MathPix got structurally wrong from the ones
+      it got right. It carries no information about correctness on this
+      document, at any cut point.
+
+      This extends out/043's finding rather than repeating it: there,
+      confidence missed one of bh2's two compile failures (0.9941). Here it
+      misses every disagreement in a 53-equation document.
+
+   2. SLT AND INK DISAGREE ON HALF THE DOCUMENT.
+      both flag         14
+      SLT only          17
+      ink only           9
+      neither           13
+      They agree on 27 of 53 rows and disagree on 26.
+
+      That is the expected shape, not a fault: 'SLT only' is a text-side
+      difference that renders identically (a \mathcal read as \mathscr, an
+      \begin{aligned} the author did not write), and 'ink only' is a
+      rendering difference in an equation whose LaTeX matches the author's
+      exactly - a font or spacing effect on the page, invisible to a source
+      comparison. Neither signal is a substitute for the other, and 26 rows
+      would be missed by whichever one you picked alone.
+
+   3. USED TOGETHER, the three signals flag 40 of 53 equations, and
+      confidence contributes none of them.
