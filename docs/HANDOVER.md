@@ -111,6 +111,30 @@ Each of these cost real time or real data in this project.
     changed" from "the row moved"; without it both hypotheses fit the 34
     Rendered cells equally. Nobody designed it as a control — it was there
     because the report happens to carry the source beside the derivative.
+17. **A pattern verified on a sample that lacks the disambiguating case cannot
+    fail.** Three identifier regexes broke this way in two days, each correct
+    on the case it was written against: 056's missed `~\eqnum{...}` (23 rows
+    misparsed); 058's `\ident\{[^}]*\}` truncated at the brace of
+    `\allowbreak{}`, which `breakable_ident` inserts after every dot, and
+    bucketed all 93 demoted rows as "other" — it looked right only on
+    `1511.08771`, the one document whose identifiers carry no dot-break; the
+    consumer's first parser read ZERO identifiers when `\allowbreak{}` first
+    appeared inside the braces. This is the fixture rule the project already
+    runs on, applied to instruments: a sample that does not contain the class
+    the pattern discriminates against cannot detect a pattern that ignores it.
+    Two defences, both cheap: match to a stable anchor rather than a brace
+    class (the consumer's `[^&\n]*?EQ\d+` passes `\allowbreak{}` and
+    `\eqnum{}` through untouched), and check the residue bucket — 93 rows in
+    "other" is a broken pattern announcing itself.
+18. **Two subtractions of equal size are not a chain.** Reconciling my 93
+    demoted rows against the consumer's 72 and 51: the three Heim books total
+    21 rows and `1511.08771` alone totals 21, so `93-21=72` and `72-21=51`
+    are both true for unrelated reasons and neither implies the other. Their
+    route never included the Heim books, so it was clean; only my
+    cross-check contained the coincidence. Arithmetic that lands on the
+    other side's number is not corroboration — the populations have to match
+    term by term. Same shape as the `(page,row)` key: a consistent-looking
+    result produced by two mechanisms nobody had separated.
 
 ---
 

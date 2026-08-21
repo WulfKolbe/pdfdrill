@@ -99,3 +99,21 @@ CONCENTRATION - A PROPERTY OF ONE DOCUMENT, NOT A CORPUS RATE
    and only the second is actionable. Any downstream claim about the
    remaining demotion rate should carry the document name, or exclude
    0902.0431 and say so.
+
+CORRECTION TO THE ADDENDUM ABOVE
+------------------------------------------------------------------------------
+   I wrote that no P13-arxiv-reports.txt exists. It does:
+
+      ~/pdfdrill-library/P13-arxiv-reports.txt   6257 bytes, 50 entries
+      line 48: 1511.08771 ... pages=9110 fo=259555 -> .../report.pdf
+
+   It lives beside the corpus it describes, not in either repo, which is why
+   a repo-tree search found nothing. The consumer parses that roster; its
+   exclusion of 1511.08771 is applied at use and is durable. My inference
+   that the scan globbed library folders was wrong.
+
+   The roster therefore lists 50 documents and the corpus runs 49. Whether
+   1511.08771 should leave the roster or keep being filtered at each use is
+   the user's call, not something either session should change unilaterally
+   — both sides read this file, and a silent edit would diverge the two
+   populations exactly where we just finished reconciling them.
