@@ -1,0 +1,99 @@
+056 - the demoted identifiers, grouped by the error that demoted them
+================================================================================
+
+POPULATION
+--------------------------------------------------------------------------------
+   114 demoted rows across the 49-document corpus and the 4 books
+      76 display equations
+      38 inline formulas
+   A demoted row is one whose Rendered cell reads '(not rendered)'. The
+   consumer counted 92 over the corpus alone; the extra rows here are the
+   four books, which they do not compare.
+
+ERROR HISTOGRAM
+--------------------------------------------------------------------------------
+      48  Undefined control sequence - mathrsfs/stmaryrd macro, absent from the report preamble
+      41  nested display delimiter \[ or \] inside the value
+      25  no defect found in the value (demoted in full-document context)
+
+THE LARGEST GROUP IS OUR OWN PREAMBLE, AND IT IS FIXED
+--------------------------------------------------------------------------------
+   48 rows use \mathscr or \llbracket. The report preamble carried
+   amsmath, amssymb, longtable, array and graphicx - but NOT mathrsfs or
+   stmaryrd, which the STANDALONE renderer has carried since task 022. So
+   these equations render perfectly on their own and throw 'Undefined
+   control sequence' inside the report, which is exactly why they took so
+   long to explain: every isolated reproduction succeeded.
+
+   Verified end to end on 0707.4470, whose 31 demotions were ALL of this
+   kind: its first compile pass logs 39 'Undefined control sequence'
+   errors, every one a \mathscr. Adding the two packages:
+
+       before   13 pages, 31 rows demoted
+       after    13 pages,  0 rows demoted
+
+   Fixed in src/pdfdrill/report_tex.py; the corpus reports still carry the
+   old demotions until they are regenerated, which is the consumer's
+   window to schedule, not mine to take.
+
+   Two hypotheses died before this one, both refuted by measurement rather
+   than argument: collateral demotion of a failing row's NEIGHBOURS (59 of
+   60 unexplained rows had no failing row within three), and a cascade from
+   an alignment-class error (0707.4470 has 31 unexplained demotions and
+   zero alignment errors to cascade from).
+
+EXAMPLES - top three per error
+--------------------------------------------------------------------------------
+-- Undefined control sequence - mathrsfs/stmaryrd macro, absent from the report preamble   (48 rows)
+   0707.4470_EQ0007
+      \mathscr{J}=J \wedge \mathrm{~d} t-\rho .
+   0707.4470_EQ0008
+      \mathscr{L}=-\frac{1}{2} \mathrm{~d} A \wedge * \mathrm{~d} A+A \wedge
+      \mathscr{J},
+   0707.4470_EQ0009
+      S[A]=\int_{X} \mathscr{L} .
+
+-- nested display delimiter \[ or \] inside the value   (41 rows)
+   0902.0431_EQ0449
+      \[ \operatorname{dim}_{C}\left(\mathfrak{e}_{6}{ }^{C}\right)=52+26=78 .
+      \] \end{itemize}
+   0902.0431_EQ0467
+      \[ \left(E_{1} \vee E_{1}\right)\left(\begin{array}{ccc} \xi_{1} & x_{3}
+      & \bar{x}_{2} \\ \bar{x}_{3} & \xi_{2} & x_{1} \\ x_{2} & \bar{x}_{1} &
+      \xi_{3} \end{array}\right)=\frac{1}{6}\left(\begin{array}{ccc} 4 \xi_{1}
+      & x_{3} & \bar{x}_{2} \\ \bar{x}_{3} & -2 \xi_{2} & -2 x_{1} \\ x_{2} &
+      -2 \bar{x}_{1} & -2 \xi_{3} \end{array}\right) . \] \end{itemize}
+   0902.0431_EQ0470
+      \[ (A \vee B)^{\prime}=-B \vee A . \] \end{itemize}
+
+-- no defect found in the value (demoted in full-document context)   (25 rows)
+   0902.0431_EQ0037
+      \begin{array}{ll} 1 \rightarrow\left(\begin{array}{lll} 1 & 2 & 3 \\ 1 &
+      2 & 3 \end{array}\right), \quad \kappa
+      \rightarrow\left(\begin{array}{lll} 1 & 2 & 3 \\ 2 & 1 & 3
+      \end{array}\right), \quad \pi \rightarrow\left(\begin{array}{lll} 1 & 2
+      & 3 \\ 3 & 2 & 1 \end{array}\right), \\ \nu
+      \rightarrow\left(\begin{array}{lll} 1 & 2 & 3 \\ 2 & 3 & 1
+   0902.0431_EQ0689
+      \left\{\begin{array}{ll} \alpha P \times \alpha P=0, & P \in
+      \mathfrak{M}^{C} \\ \{\alpha P, \alpha Q\}=\{P, Q\}, & P, Q \in
+      \mathfrak{P}^{C} \end{array} \quad\right
+   0902.0431_EQ0696
+      \begin{array}{cc} \Phi_{-3}=\left(\begin{array}{cccc} 0 & 0 & 0 & 0 \\ 0
+      & 0 & 0 & 0 \\ 0 & 0 & 0 & 0 \\ 0 & 0 & \kappa & 0 \end{array}\right), &
+      \Phi_{3}=\left(\begin{array}{cccc} 0 & 0 & 0 & 0 \\ 0 & 0 & 0 & 0 \\ 0 &
+      0 & 0 & \lambda \\ 0 & 0 & 0 & 0 \end{array}\right), \\
+      \Phi_{-2}=\left(\begin{array}{cccc} 0 & 0 & C & 0 \\ 0 & 0 & 0 & 0 \\ 0
+      & 0 & 0 & 0 \\ 0 & d & 0 & 0 \end{array}\right), & \P
+
+ON THE 25 WITH NO DEFECT IN THE VALUE
+--------------------------------------------------------------------------------
+   These carry no nested delimiter, no brace or \left/\right imbalance, no
+   package-dependent macro, and they compile both standalone and in a
+   single-row longtable. They were demoted in the full document and I could
+   not reproduce why. Since the fixpoint demotes by TeX's reported line
+   number, the most likely remaining explanation is a report-wide condition
+   (a resource limit, or an error whose reported line lands elsewhere), but
+   I have not demonstrated it and will not assert it. Regenerating the
+   corpus with the preamble fixed is the cheapest next measurement: if these
+   25 survive it, they are a separate defect worth its own task.

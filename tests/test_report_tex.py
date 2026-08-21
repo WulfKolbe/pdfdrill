@@ -175,3 +175,19 @@ def test_error_counter_ignores_content_lines_that_start_with_bang():
            "! Undefined control sequence.\n")
     assert len(re.findall(r"^!", log, re.M)) == 2      # the old, wrong count
     assert len(re.findall(r"^! ", log, re.M)) == 1     # the real error only
+
+
+def test_report_preamble_carries_the_same_packages_as_the_standalone_renderer():
+    r"""48 demoted rows were \mathscr and \llbracket: the report preamble had
+    amsmath/amssymb but not mathrsfs/stmaryrd, which the standalone renderer
+    has carried since task 022. The equations rendered perfectly alone and
+    threw 'Undefined control sequence' inside the report, so every isolated
+    reproduction succeeded and the cause hid for three hypotheses.
+    0707.4470: 31 rows demoted before, 0 after."""
+    from pdfdrill.report_tex import PREAMBLE
+    import inspect
+    from pdfdrill import commands
+    standalone_src = inspect.getsource(commands.cmd_standalone)
+    for pkg in ("mathrsfs", "stmaryrd", "amsmath", "amssymb"):
+        assert pkg in PREAMBLE, f"report preamble is missing {pkg}"
+        assert pkg in standalone_src, f"standalone renderer is missing {pkg}"
