@@ -30,6 +30,7 @@ looks like the same one.
 | Render≠scan at high confidence | 725 (21.4%) | 3,392 equations with ink≥6, confidence≥0.9, not demoted |
 | Confidence flag | 19 (0.4%) | 4,338 of 4,342 equations carry a value; threshold 0.1; median exactly 1.000, p05 0.515 |
 | Shading detector | ≥0.50 mid-grey | shaded crops 0.884–0.942, all others ≤0.225; 3 of 4,342 crops, all `1211.3375` |
+| trailing_punct A/B parity | 2 differing of 10,434 cells | `bh2` PRE vs POST, last two report columns; PRE reconstructed from `latex_prepunct` after the original build was deleted and it reproduced the first run cell for cell |
 | Sign-filter precision | 7 of 11 | unshaded, both symbol deltas negative, symbol half ≥15 → 7 content / 2 artifact / 2 typography |
 
 `confidence_rate` is **not** a usable flag: it never drops below 0.9306
@@ -66,9 +67,16 @@ no e-print, so it reaches the ~99% of documents where no comparison is possible.
   identifier regexes in two days, each verified against a sample that lacked
   the disambiguating case (`~\eqnum{}`, `\allowbreak{}`). Check the residue
   bucket: 93 rows landing in "other" is a broken pattern announcing itself.
-- **Comparing equal without comparing.** `parse_latex_slt` collapsed
-  `\begin{aligned}` to one `UNRESOLVED` node, so unrelated equations scored
-  distance 0. Cost a retracted floor and 44.5% of a result.
+- **A comparison that structurally cannot show a difference, returning the
+  answer you hoped for.** `parse_latex_slt` collapsed `\begin{aligned}` to one
+  `UNRESOLVED` node, so unrelated equations scored distance 0 — a retracted
+  floor and 44.5% of a result. Same family: rebuilding the trailing_punct A/B
+  pair by re-projecting would have produced two IDENTICAL builds, because
+  `latex_prepunct` lives in the docmodel and never reaches the tiddlers
+  `reporttex` reads; the diff would have reported 0 differing cells and looked
+  like a pass. The consumer could not have told that apart from a real one.
+  Reconstruct from the field that actually holds the old state, not from the
+  pipeline that dropped it.
 - **Masked success.** A warning is not an error; a summary counter is not the
   artifact. `reporttex` reports 5 demoted while the .tex files show 51 — the 46
   generation-time rejections no compile counter can see.
@@ -85,3 +93,9 @@ no e-print, so it reaches the ~99% of documents where no comparison is possible.
 - **Declaring a scope and not enforcing it.** 075 deleted 36 directories 074
   had ruled out of scope, because the cutoff constant read 2025 not 2026 and
   the counter that would have caught it printed 0 and went unread.
+
+Three of these — the residue bucket reading 0, the `(page,row)` key, the
+skipped-count reading 0 — are one failure: **trusting a check's summary over
+its data**. The check ran, the aggregate agreed with the expectation, and
+nobody looked at the rows. A zero in a class you have just declared non-empty
+is not a result, it is a symptom.
