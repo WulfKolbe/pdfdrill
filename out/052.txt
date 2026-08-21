@@ -54,3 +54,39 @@ WHAT THE ROWS SAY
    with the author and the printed page still does not match.
 
    Largest contributors: 0902.0431 (243), 1205.5935v1 (207), 1411.5002 (129), 0806.1585 (124), 1510.06699 (102).
+
+================================================================================
+CORRECTION (2026-08-21) - THE FLOOR OF 22 IS RETRACTED; IT IS 7
+================================================================================
+
+   The 'content is identical by construction' claim above was FALSE for
+   nearly half these rows. mathgold's parse_latex_slt collapses a
+   \begin{aligned} block to one UNRESOLVED node, so two unrelated multi-line
+   equations get byte-identical signatures and the SLT distance returns 0
+   without comparing contents. Those rows entered this file as 'SLT-zero'
+   while their contents genuinely differ.
+
+   The file now carries a DEGENERATE column so the split can be applied by
+   whoever reads it rather than trusted from here:
+
+      genuine     n=  826   p50 1   p95 7   max 39
+      degenerate  n=  662   p50 6   p95 29   max 243
+
+   The render-vs-scan floor on rows whose content ACTUALLY agrees is
+   p95 = 7, not 22. The consumer's original floor of 6 was right to
+   within one unit; my '24.5% false positives' was my own metric's defect
+   measured back at me. Re-flagging on 22 would have dropped roughly 640
+   real findings out of their channel - hiding defects, which is worse than
+   the false positives I was warning about.
+
+   Verified from the other side by an independent route (testing each row's
+   latex for a multi-line environment rather than using my signatures):
+   45.4% degenerate against my 44.5%, genuine p95 7 both ways.
+
+   WHY EVERY CHECK PASSED ANYWAY, which is the part worth keeping: the 22
+   survived a doubled sample, held across 42 documents, and agreed within
+   one unit with an independently written render route. All true, and none
+   of it helped - every check was downstream of the same broken selection
+   rule. A control group is only as good as the rule that built it, and
+   'content is identical' was an assumption inherited from the metric
+   rather than a property anyone verified.

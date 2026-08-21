@@ -87,3 +87,44 @@ PER DOCUMENT
    agreement is a document property - typography, macro density, how much
    the author's source diverges from what is printed - not a constant
    OCR error rate.
+
+==============================================================================
+CORRECTION (2026-08-21) - THE 46.4% WAS INFLATED BY A BROKEN SIGNATURE
+==============================================================================
+
+   mathgold's parse_latex_slt collapses a \begin{aligned} (or array) block
+   to ONE node labelled UNRESOLVED_aligned. Two unrelated multi-line
+   equations therefore produce byte-identical signatures, and the edit
+   distance returns 0 without ever comparing their contents.
+
+   Worked example, 1408.0838_EQ0011: MathPix's latex (1,176 chars, five
+   \sum) and the author's (1,328 chars, eight \sum) both reduce to that one
+   node and scored a perfect match. MathPix had dropped three summations
+   and a whole line - plainly visible in the crop against the render.
+
+   RECOMPUTED with degenerate pairs excluded:
+      comparable pairs        1328
+      excluded as degenerate  417   (an aligned/array block on either side)
+      distance ZERO           485   (36.5%)
+
+      The headline moves 46.4% -> 36.5%. Ten points of the original
+      figure were multi-line equations agreeing with themselves.
+
+      median 3 (was 1)   mean 7.7   p75 7   p90 16   p95 28   max 176
+
+              0:   485  36.5%
+            1-2:   177  13.3%
+            3-5:   233  17.5%
+           6-10:   218  16.4%
+          11-20:   109   8.2%
+            >20:   106   8.0%
+
+   THE POPULATION CAVEAT ABOVE STILL APPLIES ON TOP OF THIS: pairs exist
+   only where injectlatex matched at similarity >= 0.55, so 36.5% remains
+   an upper bound on agreement over all equations, not an estimate of it.
+
+   Multi-line equations are now EXCLUDED rather than scored, because the
+   SLT layer cannot compare them - not because they agree. Scoring them
+   needs an SLT that descends into an aligned block, which mathgold does
+   not do today. That is the honest state: 417 of 1,745 pairs in this
+   corpus are currently unmeasurable by this metric.
