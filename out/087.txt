@@ -1,0 +1,79 @@
+087 - body signatures: do listings have an identity without captions?
+==============================================================================
+
+THE ANSWER IS NO, AND IN TWO SEPARATE WAYS
+------------------------------------------------------------------------------
+   listings                                    426
+     with a signature at all                   105  (25%)
+     signature EMPTY - define nothing top-level 321  (75%)
+
+   Among the 105 that have one, within their own document:
+     unique       48  (46%)
+     colliding    57  (54%)   in 12 groups
+
+   So 48 of 426 listings — 11% — have a unique content-derived identity
+   within their document. The interface idea does not survive this as
+   stated, and needs refining before anything depends on it.
+
+FAILURE 1 - 75% DEFINE NOTHING AT THE TOP LEVEL
+------------------------------------------------------------------------------
+   The larger failure by far, and it is not a parser gap. Most listings in
+   papers are FRAGMENTS: a shell transcript, a config blob, three lines of
+   a loop body, a JSON payload, a prompt. There is no definition in them to
+   name because the author was showing an excerpt, not a unit of code.
+
+   Concentrated in the papers with the most listings:
+     2009.11564                      36
+     arXiv_2009.11564                36
+     2404.04837v3                    33
+     2407.11418v1                    28
+     2604.22294                      25
+     1804.10694v5                    23
+
+   An empty signature must NEVER be used as a key. Two listings that define
+   nothing are not the same listing, and treating them as equal is the
+   UNKNOWN==UNKNOWN defect (HANDOVER-RULES rule 5) in a new costume — the
+   one that cost this project a retracted noise floor. A test pins it.
+
+FAILURE 2 - THE COLLISIONS ARE MEANINGFUL, WHICH IS WORSE
+------------------------------------------------------------------------------
+   54% of the signatures that exist collide within their own document, and
+   the collisions are not accidents:
+
+     2310.02304v3                 x15  ['improve_algorithm']
+     2307.13528v2                 x6   ['truncate_number']
+     2307.13528v2                 x6   ['monotonic']
+     2307.13528v2                 x6   ['fizz_buzz']
+     2408.08435v1                 x5   ['forward']
+     2310.02304v3                 x4   ['utility']
+     2310.02304v3                 x4   ['algorithm']
+     2307.07924v4                 x3   ['GUI']
+
+   2310.02304v3 defines improve_algorithm 15 times. 2307.13528v2 defines
+   truncate_number, monotonic and fizz_buzz 6 times each. These are papers
+   that show SUCCESSIVE VERSIONS of the same function — the exact case the
+   git-revision question is about.
+
+   So the signature does the opposite of what was hoped: where revisions
+   exist it identifies the FUNCTION and cannot distinguish the REVISIONS,
+   which is precisely where distinguishing them matters. A key that
+   collides hardest on the case it was meant to serve is not a key.
+
+WHAT THIS LEAVES
+------------------------------------------------------------------------------
+   out/084 found 227 listings with neither language nor caption.
+   22 of them have a signature. The other 205 have no identity by
+   any route this session has built: no type, no name, no label, no
+   derivable content key.
+
+   What every listing does have is position — source_file plus source_line,
+   set on every one of the 426 objects. It is stable within a revision of
+   the paper and changes when the paper is edited, which is the correct
+   behaviour for a location and the wrong behaviour for an identity.
+
+   If a stable identity is needed the honest candidates are: a hash of the
+   body (distinguishes revisions, but any whitespace edit is a new object),
+   or signature PLUS ordinal within the document (improve_algorithm #7),
+   which is what a reader of 2310.02304v3 actually uses. Neither is built
+   here and neither should be chosen from this file alone — the point of
+   087 was to test the proposed key, and it fails.

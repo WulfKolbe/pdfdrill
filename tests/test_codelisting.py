@@ -96,3 +96,26 @@ def test_tiddler_caption_falls_back_when_the_author_gave_none():
     t = code_listing_tiddlers([Listing(body="x", source_file="s/m.tex",
                                        source_line=42)], "kb")[0]
     assert t["caption"] == "s/m.tex:42"
+
+
+def test_signature_finds_top_level_definitions_per_language():
+    from docmodel.codelisting import signature
+    assert signature("function BraKet(a,b)\n    return 1\nend") == ("BraKet",)
+    assert signature("def f(x):\n    def inner(y):\n        pass\n") == ("f",)
+    assert signature("class A:\n    def m(self): pass\n") == ("A",)
+    assert signature("int add(int a, int b) {\n return a+b;\n}\n") == ("add",)
+    assert signature("run() {\n echo hi\n}\n") == ("run",)
+
+
+def test_signature_ignores_control_keywords_that_look_like_calls():
+    """A C-shaped pattern captures `if (x) {` as a function named 'if'."""
+    from docmodel.codelisting import signature
+    assert "if" not in signature("void f() {\n}\nif (x) {\n}\n")
+
+
+def test_signature_is_empty_for_a_fragment_and_empty_is_not_an_identity():
+    """Two listings that define nothing are not 'the same listing'. Treating
+    an empty signature as a key is the UNKNOWN==UNKNOWN defect (rule 5)."""
+    from docmodel.codelisting import signature
+    assert signature("x = 1\nprint(x)\n") == ()
+    assert signature("") == ()

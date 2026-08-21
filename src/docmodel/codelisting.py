@@ -189,3 +189,47 @@ def to_docobjects(listings, bibkey: str = ""):
     """`Listing`s -> `DocObject`s of type CodeListing, in order."""
     from docmodel.core import DocObject
     return [DocObject(type="CodeListing", props=l.props(bibkey)) for l in listings]
+
+
+#: 087 — top-level definition names, by the shapes the corpus actually uses
+#: (out/084: Python 84, JuliaMin 34, C 25, Julia 21, ASPlang 13, bash 3,
+#: json 3, C++ 2, SQL 2, Java 1). Anchored at column 0: a nested `def` is not
+#: a top-level definition, and indentation is the only marker most of these
+#: languages give.
+_DEFS = [
+    re.compile(r"^(?:async\s+)?def\s+([A-Za-z_]\w*)", re.M),            # Python
+    re.compile(r"^class\s+([A-Za-z_]\w*)", re.M),                       # Python/Java
+    re.compile(r"^function\s+([A-Za-z_][\w!]*)", re.M),                 # Julia/JS/bash
+    re.compile(r"^(?:mutable\s+)?struct\s+([A-Za-z_]\w*)", re.M),       # Julia
+    re.compile(r"^macro\s+([A-Za-z_]\w*)", re.M),                       # Julia
+    re.compile(r"^([A-Za-z_]\w*)\s*\([^)]*\)\s*=(?!=)", re.M),          # Julia one-line
+    re.compile(r"^([A-Za-z_]\w*)\s*\(\)\s*\{", re.M),                   # bash f() {
+    re.compile(r"^(?:[A-Za-z_][\w:*<>,\s]*?[\s*&])([A-Za-z_]\w*)\s*\("  # C/C++/Java
+               r"[^;]*\)\s*(?:const\s*)?\{", re.M),
+    re.compile(r"^(?:CREATE|create)\s+(?:TABLE|FUNCTION|PROCEDURE|VIEW|"
+               r"table|function|procedure|view)\s+`?([A-Za-z_]\w*)", re.M),  # SQL
+]
+#: keywords a C-shaped pattern would otherwise capture as a function name
+_NOTNAME = {"if", "for", "while", "switch", "return", "else", "do", "catch",
+            "try", "sizeof", "elif", "with", "match", "case"}
+
+
+def signature(body: str) -> tuple[str, ...]:
+    """Sorted unique top-level definition names in a listing body.
+
+    The identity a listing has when it declares no language and no caption —
+    out/084 found that is 53% of them. Derived from content, so it survives
+    the absence of every piece of metadata.
+
+    Empty when the body defines nothing at the top level: a fragment, a shell
+    transcript, a data blob. An empty signature is NOT an identity and callers
+    must not treat two empty ones as equal — that is the rule-5 defect
+    (`"UNKNOWN" == "UNKNOWN"`) in a new costume.
+    """
+    names: set[str] = set()
+    for pat in _DEFS:
+        for m in pat.finditer(body or ""):
+            n = m.group(1)
+            if n and n.lower() not in _NOTNAME:
+                names.add(n)
+    return tuple(sorted(names))

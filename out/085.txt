@@ -1,0 +1,57 @@
+085 - \lstset{language=...} as a global default for the 238 undeclared listings
+==============================================================================
+
+COVERAGE
+------------------------------------------------------------------------------
+   listings declaring no language                        238
+     in a document that sets a default anywhere          119
+       ONE candidate language  -> resolved                37
+       MORE THAN ONE candidate -> ambiguous               82
+     no default anywhere in the document                 119
+
+   37 of 238 undeclared listings (16%) gain a language this way.
+
+THE AMBIGUITY IS THE FINDING
+------------------------------------------------------------------------------
+   82 of the 119 covered listings have more than one \lstset
+   language that could apply to them. \lstset is a DECLARATION with
+   document order semantics: it applies from where it appears until the
+   next one, and papers that show several languages re-issue it repeatedly.
+   Resolving those correctly needs the last \lstset before the listing in
+   the flattened input order — not the file order this measurement has,
+   because \input and \include mean file order is not document order.
+
+   Examples of documents with competing defaults:
+     1609.04938v1                 ['[LaTeX]TeX', 'html']
+     2009.11564                   ['HTML', 'Java']
+     2310.10631v3                 ['isabelle', 'lean']
+     arXiv_2009.11564             ['HTML', 'Java']
+
+SO THE HONEST ANSWER
+------------------------------------------------------------------------------
+   A global default rescues 37 listings unambiguously.
+   It is PRESENT for 119 but under-determined for 82 of them.
+   119 listings have no default at all.
+
+   Combining with 084: of the 227 listings with neither language nor
+   caption, 35 would gain an unambiguous language from an \lstset,
+   leaving 192 with no declared type and no name by any route.
+
+DOCUMENTS SUPPLYING A DEFAULT
+------------------------------------------------------------------------------
+   1609.04938v1                   ['[LaTeX]TeX', 'html']
+   1808.07302                     ['ASPLang']
+   1904.00084                     ['Maxima']
+   1906.03304                     ['C']
+   2002.05993                     ['Java']
+   2002.05993_OCR                 ['Java']
+   2009.11564                     ['HTML', 'Java']
+   2103.02280                     ['Python']
+   2211.06384                     ['Java']
+   2310.10631v3                   ['isabelle', 'lean']
+   2407.03203                     ['lean']
+   2412.04984v1                   ['Python']
+   2603.10087                     ['C++']
+   2603.15617                     ['Python']
+   arXiv_2009.11564               ['HTML', 'Java']
+   hubbard-ed                     ['julia']

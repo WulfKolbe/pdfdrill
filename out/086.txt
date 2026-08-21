@@ -1,0 +1,80 @@
+086 - Algorithm: a second object type, and the larger population
+==============================================================================
+
+OBJECTS CREATED
+------------------------------------------------------------------------------
+   207 Algorithm objects across 95 of 97 documents
+   207 floated (an algorithm float), 0 bare pseudocode bodies
+   1,715 pseudocode statements, 5,440 source lines
+
+   Against out/079's 426 CodeListings from 41 documents. Pseudocode is the
+   wider population by DOCUMENT (97 vs 41) and the smaller by OBJECT
+   (207 vs 426): papers that show pseudocode show a couple of algorithms,
+   papers that show code show many listings.
+
+WHY IT IS NOT A CodeListing
+------------------------------------------------------------------------------
+   A listing is source someone can run. An algorithm float is a typeset
+   description of a procedure: numbered lines, keywords in a maths font,
+   \State and \For macros rather than statements, and cross-references into
+   the prose. The body is verbatim in both cases and means different things.
+
+   The object records `steps` — the count of \State/\For/\If/... macros —
+   because a pseudocode line is a macro call, so counting text lines
+   measures the author's line breaks rather than the procedure. 1,715 steps
+   against 5,440 lines across the corpus.
+
+STRUCTURE FOUND
+------------------------------------------------------------------------------
+   environments, by document count:
+     algorithm         95
+
+   captioned   196 of 207  (95%)
+   labelled    191 of 207  (92%)
+
+   The contrast with listings is sharp and useful. out/084 found 53% of
+   CodeListings carry neither language nor caption. Algorithms are
+   captioned far more often, because the float exists to be captioned and
+   referred to as 'Algorithm 3' from the text. Pseudocode arrives with an
+   identity; source code usually does not.
+
+NESTING - THE DEFECT THIS WOULD HAVE HAD
+------------------------------------------------------------------------------
+   A float that wraps an algorithmic body yields ONE object. The naive
+   reading — parse every environment name in the list — emits two for the
+   same procedure and would have inflated this count substantially, since
+   the float-wrapping-body shape is the standard idiom. A test pins it, and
+   a second test pins that a NESTED float does not end at the first
+   \end{algorithm}.
+
+LARGEST
+------------------------------------------------------------------------------
+   2503.21383                          12 algorithms,   72 steps
+   1707.08872                          10 algorithms,  132 steps
+   preprints202505.0818.v1              7 algorithms,    0 steps
+   1501.00696                           6 algorithms,   50 steps
+   1602.06844                           6 algorithms,   16 steps
+   1907.03740                           6 algorithms,    0 steps
+   2209.07250                           6 algorithms,  118 steps
+   2211.06384                           6 algorithms,   12 steps
+
+DOCUMENTS FLAGGED BUT YIELDING NOTHING
+------------------------------------------------------------------------------
+   2 of 97
+     1211.3375
+     2501.06699
+
+   078 flagged these on a plain \begin{algorithm} match anywhere in the
+   tarball, including .sty and .cls files, which this parser skips —
+   a style file defines the environment, it does not contain an
+   instance. The same asymmetry out/079 recorded for 2501.06699.
+
+POPULATION LIMIT
+------------------------------------------------------------------------------
+   "0 bare pseudocode bodies" is an artefact of the population, not a finding.
+   The 97 documents were selected by out/078 on a \begin{algorithm} match, so
+   every document here has a float by construction and a paper using only
+   \begin{algorithmic} with no float around it was never in the list. The
+   parser handles that shape and a test covers it; the corpus scan simply
+   could not have found one. Measuring how common bare bodies are needs a
+   fresh sweep of all 488 e-prints keyed on algorithmic, which this did not do.

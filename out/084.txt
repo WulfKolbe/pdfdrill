@@ -1,0 +1,55 @@
+084 - language= across the 426 listings
+==============================================================================
+
+DECLARED OR NOT
+------------------------------------------------------------------------------
+   declares a language     188  (44%)
+   declares none           238  (56%)
+   total                   426
+
+DISTRIBUTION, AS THE AUTHORS SPELLED IT
+------------------------------------------------------------------------------
+   Python             83
+   JuliaMin           34
+   C                  25
+   Julia              21
+   ASPlang            13
+   bash                3
+   json                3
+   C++                 2
+   SQL                 2
+   Java                1
+   python              1
+
+   Case-folded, Python 83 + python 1 = 84. JuliaMin and Julia are two
+   different lstlisting language definitions, not a spelling difference —
+   JuliaMin is a minimal dialect defined in a local style file — so they
+   are NOT merged here. Folding case is safe; folding names is not.
+
+THE IDENTITY MATRIX
+------------------------------------------------------------------------------
+                    caption      no caption
+   language             43           145
+   no language          11           227
+
+   227 of 426 listings (53%) have NEITHER.
+   Of those 227, 0 carry a label.
+
+   So for 53% of the corpus's listings there is no declared type, no
+   human-readable name, and no cross-reference key. The object exists and
+   says nothing about itself. Everything such a listing can be identified
+   by has to be derived — from its position (source_file:source_line, which
+   every object has) or from its content (087).
+
+   This is not a long tail. It is the majority case, and it is
+   concentrated:
+     2009.11564                      36
+     arXiv_2009.11564                36
+     2604.22294                      23
+     2407.03203                      16
+     2505.02322v1                    16
+     2505.02322v2                    16
+
+   2009.11564 and arXiv_2009.11564 are the same paper stored twice, so the
+   top of that list is 36 listings counted in two places. The concentration
+   is real but one document contributes to it twice.
