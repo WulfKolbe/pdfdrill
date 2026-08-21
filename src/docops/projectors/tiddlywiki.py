@@ -641,6 +641,14 @@ class TiddlyWikiProjector(BaseProjector):
                 eqn = f"({e.props['refnum']})"
             t["equation_number"] = eqn or ""
             t["page"] = self._p3(e.props.get("page"))
+            # 064: MathPix's own doubt travels with the equation so any
+            # projection can consult it. Only `confidence` is usable as a
+            # flag — `confidence_rate` is a per-token mean that never drops
+            # below ~0.93 even on a badly misread line (out/064).
+            if e.props.get("confidence") is not None:
+                t["confidence"] = "%.6f" % float(e.props["confidence"])
+            if e.props.get("confidence_rate") is not None:
+                t["confidence_rate"] = "%.6f" % float(e.props["confidence_rate"])
             if e.props.get("cdn_url"):
                 t["canonical_uri"] = self._uri(e.props["cdn_url"])
             self._copy_region(t, e.props)

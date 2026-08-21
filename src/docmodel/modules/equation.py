@@ -117,6 +117,13 @@ class EquationProcessor(BaseModule):
                 "refnum_anchor": refnum_anchor,
                 "latex_raw": latex_raw,
                 "latex": _normalize_latex(latex_raw),
+                # MathPix's own doubt about this line. It was in the payload
+                # all along and was being dropped here, so nothing downstream
+                # could consult it: 0902.0431_EQ0516 reads at confidence 0.041
+                # with 19 of 48 array cells wrong or missing, and the report
+                # showed it as a clean equation (out/063).
+                "confidence": payload.get("confidence"),
+                "confidence_rate": payload.get("confidence_rate"),
             })
         return items
 
@@ -208,6 +215,8 @@ class EquationProcessor(BaseModule):
                 "page": item["page"],
                 "image_id": item["image_id"],
                 "region": item["region"],
+                "confidence": item.get("confidence"),
+                "confidence_rate": item.get("confidence_rate"),
                 # source-aware crop: MathPix pixels via cdn.mathpix.com, or OUR
                 # local pyramid in PDF points (pdfminer/DRILLPDFse) — never mixed.
                 "cdn_url": image_ref(item["image_id"], item["region"],

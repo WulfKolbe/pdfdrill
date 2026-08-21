@@ -1,0 +1,125 @@
+064 - the report now consults MathPix confidence
+==============================================================================
+
+ANSWER
+------------------------------------------------------------------------------
+   19 equations flag at a threshold of 0.1.
+   Population: 4,338 of 4,342 corpus equations carry a confidence
+   value (99.9%); 49 documents. That is 0.4% of the corpus.
+
+THE PREMISE WAS OFF BY ONE STEP - MEASURED BEFORE BUILDING
+------------------------------------------------------------------------------
+   The task says confidence is already in the model and never read. It was
+   never STORED. Across three sample documents, 0 of 1,806 equations had a
+   props['confidence'] at all. The value reaches the line stream (page.py
+   shallow-copies the whole MathPix line) and is dropped where the Equation
+   object is built - equation.py listed the props it wanted and confidence
+   was not among them.
+
+   So this is three changes, not one:
+     docmodel/modules/equation.py   keep confidence + confidence_rate
+     docops/projectors/tiddlywiki.py  carry them onto the equation tiddler
+     pdfdrill/report_tex.py         conf_flag() + \lowconf in the report
+
+   Existing models were BACKFILLED from lines.json rather than re-ingested:
+   re-ingesting would discard the edit_source and trailing_punct migrations
+   those models carry. Match key is (page, region), the same key out/063
+   used by hand. 4,342/4,342 equations matched - 100.0%, no fuzzy fallback
+   and none needed. 4 matched lines carry a null confidence.
+
+DISTRIBUTION
+------------------------------------------------------------------------------
+   min 0.0020   p05 0.515   median 1.000   mean 0.919   max 1.000
+
+     below 0.05     14    0.32%
+     below 0.1      19    0.44%
+     below 0.2      35    0.81%
+     below 0.5     178    4.10%
+
+   The distribution is extremely top-heavy: the median is exactly 1.000 and
+   95% of equations sit above 0.515. 0.1 is therefore not an arbitrary cut -
+   it isolates a thin, genuinely anomalous tail rather than slicing a
+   continuum.
+
+THE 19
+------------------------------------------------------------------------------
+   document        object              conf     rate
+   0902.0431      obj_1212ef3c4f79  0.0020  0.9759
+   0902.0431      obj_6fe05bd5be8d  0.0021  0.9933
+   0902.0431      obj_c2123d49c70f  0.0179  0.9929
+   1510.06699     obj_77c206d44c45  0.0191  0.9306
+   0903.2087      obj_07ffc801939c  0.0198  0.9963
+   0902.0431      obj_63782c70c9be  0.0213  0.9916
+   0902.0431      obj_5336026b3b22  0.0224  0.9801
+   1503.00301     obj_6c8656ccc58f  0.0239  0.9669
+   0902.0431      obj_cdbeb0bb9ed5  0.0264  0.9972
+   0711.0273      obj_fd5069016e60  0.0340  0.9797
+   0902.0431      obj_93f7b8f1e3c8  0.0355  0.9844
+   0902.0431      obj_b9c027400b4a  0.0364  0.9825
+   0902.0431      obj_7b788285038f  0.0405  0.9921
+   1407.4737      obj_e088b4b4aa16  0.0411  0.9921
+   1408.0838      obj_a5761fe5b502  0.0732  0.9871
+   0902.0431      obj_33caa5db87fe  0.0818  0.9902
+   0902.0431      obj_9337b83acb3c  0.0926  0.9901
+   0902.0431      obj_b941f64a0efa  0.0955  0.9893
+   0903.2087      obj_2d10fd8f1f6a  0.0961  0.9911
+
+   by document: 0902.0431 12, 0903.2087 2, 1510.06699 1, 1503.00301 1, 0711.0273 1, 1407.4737 1, 1408.0838 1
+
+   0902.0431 supplies 12 of the 19. The same document holds 31 of the 51
+   remaining demoted rows (058) and 487 of the 1,328 SLT pairs (059). Three
+   independent instruments concentrate on it.
+
+CORROBORATION - THE FLAG FINDS THE ROW 063 PROVED WRONG
+------------------------------------------------------------------------------
+   obj_7b788285038f is 0902.0431_EQ0516, at 0.0405. out/063 established by
+   rendering the author's LaTeX that this row has 19 of its 48 array cells
+   wrong or missing, and that its ink distance is 18 against a floor of 6.
+   The flag was not tuned to catch it; the threshold came from the task.
+
+   Stronger: its two neighbours EQ0515 and EQ0517 are the two LOWEST
+   confidence values in the entire document, 0.0020 and 0.0021. Those are
+   exactly the three page-85 rows that 063 found have no author reading in
+   the model. Three separate symptoms - no author text, lowest confidence,
+   proven wrong content - on the same three consecutive rows.
+
+WHAT confidence_rate IS NOT
+------------------------------------------------------------------------------
+   confidence_rate never drops below 0.9306 anywhere in the corpus; its
+   median is 1.0000 and NOTHING would flag at 0.1. It is a per-token mean,
+   so a line can be badly misread and still score high on it - EQ0516 reads
+   0.9921 while being 60% wrong. Only `confidence` is usable as a flag, and
+   a threshold applied to the wrong one of the two would silently flag
+   nothing forever while looking like a working check.
+
+HOW IT SHOWS, AND WHY THERE
+------------------------------------------------------------------------------
+   \lowconf{0.041} renders as a bold [conf 0.041] in the IDENTIFIER column.
+   That column already holds machine keys, so the Source, Rendered and Scan
+   cells stay byte-identical - the consumer's per-column ink probe keeps
+   working and an unchanged column stays a free control (rule 16). A test
+   asserts the row remainder after the first & is identical with and
+   without the flag.
+
+   The flag is ADVISORY: the row still renders. A doubted reading is still
+   the best reading available, and suppressing it would make a masked
+   failure look like a clean report (rule 11).
+
+   conf_flag() returns '' for an absent or unparseable value. Absence of a
+   reading is not evidence of a good one, and it must never render as
+   confident.
+
+VERIFIED END TO END
+------------------------------------------------------------------------------
+   0902.0431 re-projected and its report regenerated: 12 equations below
+   0.1 in the model, 12 tiddlers carrying the field below 0.1, 12 \lowconf
+   marks in report.tex, EQ0516 among them reading \lowconf{0.041}.
+
+   (A first count said 13. grep -c counts LINES, and the preamble's
+   \newcommand{\lowconf} definition is one. The three counts agree at 12.)
+
+   2,090 existing tests pass; 3 added - the threshold boundary and absent
+   values, the identifier-column containment, and the eq tuple's arity
+   against every unpack site in build_report. That last one exists because
+   this tuple grew once before and broke reporttex on all four books while
+   the suite stayed green.

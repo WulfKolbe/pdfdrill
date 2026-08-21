@@ -191,3 +191,49 @@ def test_report_preamble_carries_the_same_packages_as_the_standalone_renderer():
     for pkg in ("mathrsfs", "stmaryrd", "amsmath", "amssymb"):
         assert pkg in PREAMBLE, f"report preamble is missing {pkg}"
         assert pkg in standalone_src, f"standalone renderer is missing {pkg}"
+
+
+def test_confidence_flag_only_below_the_threshold():
+    """064: the flag fires strictly below CONF_THRESHOLD, and never on an
+    absent or unparseable value — a missing reading must not read as a
+    confident one."""
+    from pdfdrill.report_tex import CONF_THRESHOLD, conf_flag
+    assert conf_flag("0.0405") == "\\lowconf{0.041}"
+    assert conf_flag(CONF_THRESHOLD - 0.001).startswith("\\lowconf")
+    assert conf_flag(CONF_THRESHOLD) == ""        # strict <, boundary excluded
+    assert conf_flag("0.9") == ""
+    for absent in ("", None, "abc", object()):
+        assert conf_flag(absent) == "", absent
+
+
+def test_confidence_flag_lands_in_the_identifier_column_only():
+    """The mark goes in the ident column. Source/Rendered/Scan must stay
+    byte-identical or the consumer's per-column ink probe moves for a reason
+    that has nothing to do with the mathematics (HANDOVER rule 16)."""
+    from pdfdrill.report_tex import row
+    lo = row("K_EQ1", "a+b", "12", conf="0.02")
+    hi = row("K_EQ1", "a+b", "12", conf="0.99")
+    assert "\\lowconf{0.020}" in lo and "\\lowconf" not in hi
+    # everything after the first & is the untouched remainder of the row
+    assert lo.split("&", 1)[1] == hi.split("&", 1)[1]
+
+
+def test_rows_for_equation_tuple_arity_matches_every_unpack_site():
+    """The eq tuple grew from 6 to 7 fields. Last time it grew, reporttex
+    broke on all four books while the tests still passed, because nothing
+    exercised the unpack. This asserts the arity the builder actually emits
+    and that build_report consumes it."""
+    import inspect
+
+    from pdfdrill import report_tex
+    tids = [{"title": "K_EQ1", "latex": "a+b", "page": "3",
+             "equation_number": "(1)", "width": "100",
+             "trailing_punct": ".", "confidence": "0.02"}]
+    _fo, eq, _tab, _dia = report_tex.rows_for(tids, "K")
+    assert len(eq) == 1 and len(eq[0]) == 7, eq
+    assert eq[0][6] == "0.02"
+    src = inspect.getsource(report_tex.build_report)
+    for line in src.splitlines():
+        if line.strip().endswith("in eq:"):
+            names = line.split("for", 1)[1].split(" in ")[0]
+            assert len([n for n in names.split(",") if n.strip()]) == 7, line
