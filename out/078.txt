@@ -1,0 +1,111 @@
+078 - lstlisting / minted / verbatim / algorithm across the corpus
+==============================================================================
+
+THE FOUR-WAY TABLE
+------------------------------------------------------------------------------
+Detector: \begin{X} and \begin{X*} for X in lstlisting, minted, verbatim,
+algorithm, over every .tex/.sty/.cls in the AUTHOR e-print.
+
+                          e-print available    no e-print      total
+    environment present           8                 0             8
+    none of the four             40                 1            41
+    total                        48                 1            49
+
+READ THE SECOND COLUMN BEFORE USING THIS TABLE
+------------------------------------------------------------------------------
+   It has ONE document in it: 1012.3259, the only corpus document without
+   an e-print. Its zero is not a measurement — with no author source there
+   is nothing for this detector to read, so that cell could not have come
+   out any other way.
+
+   A 48/1 split does not support a comparison. The table is reported as
+   asked and the column is degenerate; any claim of the form 'documents
+   without an e-print are less likely to contain code environments' is
+   unsupported by it.
+
+THE SAME TABLE FROM A DETECTOR THAT EXISTS FOR BOTH COLUMNS
+------------------------------------------------------------------------------
+All 49 have a MathPix tex.zip, so this detector can at least see the second
+column. It is NOT the author's source — its .tex is named for the image_id
+and it is MathPix's own reconstruction (out/065) — and it is read here only
+as a detector, never as gold.
+
+                          e-print available    no e-print      total
+    environment present          10                 0            10
+    none of the four             38                 1            39
+    total                        48                 1            49
+
+   1012.3259 is empty here too, and this time that IS a measurement:
+   MathPix read the document and emitted none of the four.
+
+PER ENVIRONMENT - THE TWO SOURCES DISAGREE SYSTEMATICALLY
+------------------------------------------------------------------------------
+                  author e-print     MathPix tex.zip
+    lstlisting           0                 9
+    minted               0                 0
+    verbatim             0                 2
+    algorithm            8                 0
+
+   MathPix never emits algorithm and the authors never emit lstlisting.
+   All 8 documents whose author source opens the algorithm environment come
+   back from MathPix as lstlisting — 8 of 8, no exceptions.
+
+   An algorithm float is a structured object: numbered lines, keywords, a
+   caption, a float position. lstlisting is a verbatim code block. The
+   content survives the conversion and the structure does not.
+
+   Consequence for anything comparing the two sides: an algorithm in the
+   author source will NEVER match by environment name. A comparison keyed
+   on the environment would report 100% disagreement on all 8 and would be
+   measuring the mapping rather than the OCR.
+
+AGREEMENT
+------------------------------------------------------------------------------
+    both sources             8
+    author only              0
+    MathPix only             2
+    neither                 39
+
+   The 2 MathPix-only rows are NOT false positives. Both were opened:
+
+     0707.4470  the author opens the algorithmic environment, not
+                algorithm. The document contains an algorithm block; the
+                four names asked for do not cover the one it uses.
+     0903.2087  the author loads listings and calls lstset but opens no
+                lstlisting environment. MathPix's verbatim holds real
+                computer-algebra input (poly:= c^{a} + c^{a}_{b} x^{b} ...),
+                so it found code the author expressed some other way.
+
+   There are 0 author-only rows: MathPix missed none of the four.
+
+WHAT THIS SAYS ABOUT THE DETECTOR ITSELF
+------------------------------------------------------------------------------
+   0707.4470 is the boundary case worth carrying. Asking for four literal
+   environment names finds documents that use those names — not documents
+   that contain code or algorithms. algorithmic, algorithm2e, algpseudocode,
+   fancyvrb's Verbatim and lstinputlisting all express the same thing under
+   other spellings, and the package loads show they are in use here:
+
+     algorithm        loaded by 6 document(s)
+     algpseudocode    loaded by 5 document(s)
+     algorithmic      loaded by 4 document(s)
+     verbatim         loaded by 4 document(s)
+     algorithm2e      loaded by 3 document(s)
+     listings         loaded by 1 document(s)
+
+   Counting package loads instead of environment names gives
+   14 documents rather than 8. Neither number is wrong; they
+   answer different questions, and this file answers the one that was asked.
+
+DOCUMENTS WITH ANY HIT
+------------------------------------------------------------------------------
+   0707.4470      e-print=Y  author=-  mathpix=['lstlisting']
+   0903.2087      e-print=Y  author=-  mathpix=['verbatim']
+   1211.3375      e-print=Y  author=['algorithm']  mathpix=['lstlisting']
+   1310.4843      e-print=Y  author=['algorithm']  mathpix=['lstlisting']
+   1406.3411      e-print=Y  author=['algorithm']  mathpix=['lstlisting']
+   1410.3916      e-print=Y  author=['algorithm']  mathpix=['lstlisting', 'verbatim']
+   1501.00696     e-print=Y  author=['algorithm']  mathpix=['lstlisting']
+   1602.04650     e-print=Y  author=['algorithm']  mathpix=['lstlisting']
+   1602.06844     e-print=Y  author=['algorithm']  mathpix=['lstlisting']
+   1604.04795     e-print=Y  author=['algorithm']  mathpix=['lstlisting']
