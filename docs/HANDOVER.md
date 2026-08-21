@@ -60,6 +60,11 @@ no e-print, so it reaches the ~99% of documents where no comparison is possible.
    `src/pdfdrill/nodes/`.
 7. **Consumer's findings file is one regeneration stale** — the 42 rows 058
    recovered are not in it. Their cadence, not ours.
+8. **`reporttex` writes the .tex and does not compile.** 064 regenerated
+   `0902.0431`'s report and left the PDF an hour older than its source, so
+   both sessions read a 230-page artifact whose .tex implied 231. Repaired,
+   and 1 of 49 was affected — but nothing detects it. A `--compile`-less run
+   should either say the PDF is now stale or refuse to leave it that way.
 
 ## Known failure classes — what actually costs time here
 
@@ -77,6 +82,11 @@ no e-print, so it reaches the ~99% of documents where no comparison is possible.
   like a pass. The consumer could not have told that apart from a real one.
   Reconstruct from the field that actually holds the old state, not from the
   pipeline that dropped it.
+- **An artifact stale against its own source.** A `.tex` regenerated without
+  `--compile` leaves a `.pdf` that still looks current by every check anyone
+  runs — page count, mtime freshness relative to the corpus, presence on disk.
+  Two sessions measured it for half a day. Compare the derived file's mtime
+  against the source's, not against the clock.
 - **Masked success.** A warning is not an error; a summary counter is not the
   artifact. `reporttex` reports 5 demoted while the .tex files show 51 — the 46
   generation-time rejections no compile counter can see.
