@@ -1,0 +1,132 @@
+063 - 0902.0431_EQ0516, every requested reading
+==============================================================================
+
+THE SIX FIELDS ASKED FOR
+------------------------------------------------------------------------------
+   object            obj_7b788285038f, page 85
+   region            top_left (803, 878), 604 x 652
+   image_id          1deb350a-8d75-4da5-b1ec-153e0bfd7145-085
+
+   SLT distance      NOT COMPARABLE - no number exists (see below)
+   ink distance      18   (MathPix render vs scan crop; floor 6)
+   demoted           NO - the row renders and is presented as good
+   confidence        0.04052622993546683
+   confidence_rate   0.9920962372715249
+
+MATHPIX'S LATEX
+------------------------------------------------------------------------------
+\begin{aligned} & \lambda_{0}+\frac{1}{2}\left(\mu_{2}-\mu_{3}\right)=1 \quad 1 \quad 1 \quad 1 \quad a \quad 0 \\ & \lambda_{1}+\frac{1}{2}\left(\mu_{2}-\mu_{3}\right)=0 \quad 1 \quad 1 \quad 1 \quad a \\ & \lambda_{2}+\frac{1}{2}\left(\mu_{2}-\mu_{3}\right)=0 \quad 0 \quad 1 \quad 1 \\ & \lambda_{3}+\frac{1}{2}\left(\mu_{2}-\mu_{3}\right)=0 \quad 0 \quad 0 \\ & \lambda_{0}-\frac{1}{2}\left(\mu_{2}-\mu_{3}\right)=1 \quad 1 \quad 1 \quad 1 \quad 0 \\ & \lambda_{1}-\frac{1}{2}\left(\mu_{2}-\mu_{3}\right)=0 \quad 1 \quad 1 \quad 1 \quad 0 \\ & \lambda_{2}-\frac{1}{2}\left(\mu_{2}-\mu_{3}\right)=0 \quad 0 \quad 1 \quad 1 \\ & \lambda_{3}-\frac{1}{2}\left(\mu_{2}-\mu_{3}\right)=0 \quad 0 \quad 0 \quad 0 \end{aligned}
+
+THE AUTHOR'S LATEX
+------------------------------------------------------------------------------
+   NOT IN THE MODEL. Recovered by hand from the e-print for this task; the
+   docmodel holds no tex-provenance realization for this object.
+
+$$\begin{array}{llllllllll}
+\lambda_0 + \dfrac{1}{2}(\mu_2 - \mu_3) \!\!\! &=& \!\!\! 1 & 1 & 1 & 1 & 0 & 0 \vspace{1mm}\\
+\lambda_1 + \dfrac{1}{2}(\mu_2 - \mu_3) \!\!\! &=& \!\!\! 0 & 1 & 1 & 1 & 0 & 0 \vspace{1mm}\\
+\lambda_2 + \dfrac{1}{2}(\mu_2 - \mu_3) \!\!\! &=& \!\!\! 0 & 0 & 1 & 1 & 0 & 0 \vspace{1mm}\\
+\lambda_3 + \dfrac{1}{2}(\mu_2 - \mu_3) \!\!\! &=& \!\!\! 0 & 0 & 0 & 1 & 0 & 0 \end{array}$$
+\vspace{-1mm}
+$$\begin{array}{llllllllllll}
+\lambda_0 - \dfrac{1}{2}(\mu_2 - \mu_3) \!\!\! &=& \!\!\! 1 & 1 & 1 & 0 & 1 & 1 \vspace{1mm}\\
+\lambda_1 - \dfrac{1}{2}(\mu_2 - \mu_3) \!\!\! &=& \!\!\! 0 & 1 & 1 & 0 & 1 & 1 \vspace{1mm}\\
+\lambda_2 - \dfrac{1}{2}(\mu_2 - \mu_3) \!\!\! &=& \!\!\! 0 & 0 & 1 & 0 & 1 & 1 \vspace{1mm}\\
+\lambda_3 - \dfrac{1}{2}(\mu_2 - \mu_3) \!\!\! &=& \!\!\! 0 & 0 & 0 & 0 & 1 & 1
+\end{array}$$
+
+WHY THERE IS NO SLT DISTANCE, AND IT IS TWO FAILURES NOT ONE
+------------------------------------------------------------------------------
+   1. NO AUTHOR READING IN THE MODEL. EQ0516 has three realizations, all
+      with provenance '' - two empty, one a CDN url. 648 of this document's
+      1,219 equations do carry a tex realization, and EQ0514 and EQ0518
+      either side of it do; EQ0515, EQ0516 and EQ0517 on page 85 do not.
+      So the row never entered 040/057/059's 1,328 comparable pairs. It is
+      one of the 803 skipped as "only one reading present".
+
+   2. THE SIGNATURE IS DEGENERATE ANYWAY. MathPix wraps the whole thing in
+      \begin{aligned}, which parse_latex_slt collapses to a single
+      UNRESOLVED_aligned node. formula_signature returns None. Even with an
+      author reading present this row would have been dropped into the 579
+      degenerate class rather than compared.
+
+   Both failures are silent and neither is visible in the report.
+
+WHAT THE AUTHOR ACTUALLY WROTE, AND WHAT MATHPIX READ
+------------------------------------------------------------------------------
+   The author has TWO separate display arrays, a + block and a - block, each
+   4 rows x 6 numeric columns. MathPix merged them into ONE aligned
+   environment of 8 rows and lost the column structure - \quad in place of
+   the alignment tabs, so nothing marks where a column ends.
+
+    row  author                  mathpix                 verdict
+     1   [1, 1, 1, 1, 0, 0]      [1, 1, 1, 1, 'a', 0]    wrong@5
+     2   [0, 1, 1, 1, 0, 0]      [0, 1, 1, 1, 'a']       wrong@5  truncated -1
+     3   [0, 0, 1, 1, 0, 0]      [0, 0, 1, 1]            truncated -2
+     4   [0, 0, 0, 1, 0, 0]      [0, 0, 0]               truncated -3
+     5   [1, 1, 1, 0, 1, 1]      [1, 1, 1, 1, 0]         wrong@4,5 truncated -1
+     6   [0, 1, 1, 0, 1, 1]      [0, 1, 1, 1, 0]         wrong@4,5 truncated -1
+     7   [0, 0, 1, 0, 1, 1]      [0, 0, 1, 1]            wrong@4  truncated -2
+     8   [0, 0, 0, 0, 1, 1]      [0, 0, 0, 0]            truncated -2
+
+   48 numeric cells in the author's arrays. MathPix emits 36, of which 29
+   are right: 7 wrong, 12 missing outright. Cell accuracy 60%.
+
+   Two distinct failure modes, not one:
+     TRUNCATION - every row loses its trailing zeros or ones. 12 cells gone.
+     MISREADING - a printed 0 read as the letter 'a', twice; and the whole
+       - block's columns 4 and 5 read as if they were the + block's.
+
+   The row is a root/coefficient table. Truncating trailing zeros changes
+   which roots are claimed to exist, so this is a content error and not a
+   formatting one.
+
+RENDERING THE AUTHOR'S LATEX AGAINST THE SCAN
+------------------------------------------------------------------------------
+   Both arrays rendered in one standalone, same preamble the project's
+   renderer uses (amsmath, amssymb, mathrsfs, stmaryrd), xelatex, gs at
+   400 dpi, measured with the consumer's five-tuple.
+
+     source                 size          comp  hole  stk  ctr  off
+     scan crop           598 x  652        168    26   31   31    0
+     MathPix rendered    953 x 1077        156    20   31   31    0
+     AUTHOR rendered    1078 x 1016        167    26   30   30    0
+
+     MathPix vs scan   comp 12  hole 6  stk 0  ctr 0  off 0   L1 = 18
+     AUTHOR  vs scan   comp  1  hole 0  stk 1  ctr 1  off 0   L1 =  3
+
+   Against a noise floor of 6: the author's LaTeX is at 3, comfortably
+   inside it. MathPix's is at 18, three times it.
+
+   This is a clean positive control for the ink metric. The instrument was
+   never told which of the two sources was the true one, and it put the
+   author's render inside the floor and MathPix's well outside - on an
+   equation where the SLT could say nothing at all and the report showed
+   no defect.
+
+THE ONE THING THAT NEARLY WENT WRONG HERE
+------------------------------------------------------------------------------
+   0902.0431.tex.zip is NOT the author's source. Its only .tex is named
+   1deb350a-8d75-4da5-b1ec-153e0bfd7145.tex - the MathPix image_id - and
+   line 4651 of it is character-for-character MathPix's own output,
+   including the 'a' that should be a 0.
+
+   Rendering that as "the author's LaTeX" would have produced a near-zero
+   distance and a confident, false conclusion that MathPix matched the
+   page. The author's e-print is the OTHER file, 0902.0431.tgz, which is
+   not a tar at all but a single gzipped SpEcxp.tex.
+
+   Anything in this repo that reaches for "the tex source" of a MathPix
+   document needs to know which of those two files it has.
+
+WHAT THIS ROW SAYS ABOUT THE THREE INSTRUMENTS
+------------------------------------------------------------------------------
+     confidence 0.041   FLAGGED it. The lowest-confidence class, and right.
+     ink 18 vs floor 6  FLAGGED it, without an author reading of any kind.
+     SLT                SILENT. No author text in the model, and a
+                        degenerate signature even if there had been.
+     the report         SILENT. Not demoted; the row renders and looks fine.
+
+   A reader of report.pdf sees a clean equation. A reader of the SLT
+   corpus never sees this row at all. Only confidence and ink dissent, and
+   confidence is already in the model - it is simply not consulted.
