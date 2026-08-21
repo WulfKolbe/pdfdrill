@@ -1,0 +1,56 @@
+052 - every SLT-zero row in the corpus, unconditioned on ink distance
+================================================================================
+
+FILE
+--------------------------------------------------------------------------------
+   out/052-slt-zero.tsv
+   columns: identifier, slt, ink, demoted
+     identifier  <bibkey>_EQnnnn, the projector's own numbering
+     slt         SLT edit distance, MathPix's LaTeX vs the AUTHOR'S - 0 on
+                 every row here, by selection
+     ink         L1 over inkdrill's five-tuple between the STANDALONE render
+                 of that equation (400 dpi) and its MathPix scan crop
+     demoted     yes if the report renders that row as '(not rendered)'.
+                 LABELLED, not dropped, so the exclusion can be checked
+
+ROW COUNT
+--------------------------------------------------------------------------------
+   1490 rows
+      2 demoted (labelled)
+      1488 usable
+      42 documents contribute rows
+
+POPULATION - WHY 42 DOCUMENTS AND NOT 49
+--------------------------------------------------------------------------------
+   The corpus is 49 documents. An SLT distance needs the AUTHOR'S LaTeX,
+   so `injectlatex` was run over all of them first, and:
+      48  resolved to a genuine author e-print (arxiv .tgz)
+       1  1012.3259 resolved to the MathPix .tex.zip instead - MathPix's own
+          reconstruction, so its 'author' side would BE MathPix and every
+          row would be a manufactured SLT-zero. EXCLUDED, as in out/040.
+      42  of the 48 actually contribute rows; the other 6 matched no
+          equations at the 0.55 similarity threshold, so they have no
+          SLT-zero rows to emit rather than being dropped for cause.
+
+WHAT THE ROWS SAY
+--------------------------------------------------------------------------------
+   Content is identical by construction on every row, so each ink distance
+   is the metric's own noise for render-vs-scan, never a disagreement.
+
+      min 0   p50 2   p75 6   p90 14   p95 22   p99 43   max 243   mean 5.7
+      above  6 :  364  (24.5%)
+      above 22 :   69  (4.6%)
+
+   p95 = 22, UNCHANGED from the 808-row sample in out/051.txt even though
+   the population nearly doubled (808 -> 1,488) and 22 new documents joined.
+   An estimate that does not move when the sample doubles is worth more than
+   the same estimate from one pass, so the floor of 22 now rests on
+   stability rather than on a single measurement.
+
+   The median stays at 2 and the tail lengthens (max 243 against 75
+   before): the body is tight, and a handful of equations disagree with
+   their own scan far beyond anything a rasterizer can explain. Those are
+   worth looking at individually - they are the rows where content agrees
+   with the author and the printed page still does not match.
+
+   Largest contributors: 0902.0431 (243), 1205.5935v1 (207), 1411.5002 (129), 0806.1585 (124), 1510.06699 (102).
