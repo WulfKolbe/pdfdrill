@@ -1,0 +1,67 @@
+083 - MathPix's verbatim: its own rendering, or the author's environment?
+==============================================================================
+
+THE SPLIT
+------------------------------------------------------------------------------
+   tex.zip documents containing \begin{verbatim}      67
+
+     ATTRIBUTABLE - an author e-print exists to compare   10
+       author also opens verbatim  -> author's           2
+       author does NOT             -> MathPix's own      8
+
+     NOT ATTRIBUTABLE - no e-print at all                 57
+
+READ THE THIRD ROW FIRST
+------------------------------------------------------------------------------
+   57 of the 67 cannot be attributed at all. Without an author source
+   there is nothing to compare the MathPix output against, so no method
+   reaches them — they are neither 'MathPix's own' nor 'the author's', they
+   are unknown, and counting them as either would be inventing the answer.
+
+   The split is therefore measured on 10 documents, 15% of the population
+   the question asks about. That is the honest denominator.
+
+WHAT THE ATTRIBUTABLE 10 SHOW
+------------------------------------------------------------------------------
+   8 of 10 are MathPix's own — it emitted verbatim where the author
+   opened no verbatim environment. What those authors had instead:
+
+     algorithm                4
+     none of the four         3
+     lstlisting               1
+     verbatim                 1
+     algorithm, verbatim      1
+
+   The dominant case is algorithm. Combined with out/078's finding that
+   MathPix never emits the algorithm environment — 0 of 235 tex.zip and 0
+   of 3,297 lines.json against 97 authors who use it — this says MathPix
+   renders a pseudocode float as EITHER lstlisting or verbatim. out/078
+   measured that branch directly: of 15 author-algorithm documents with
+   both sources, 11 became lstlisting and 4 became verbatim.
+
+   So MathPix's verbatim is largely NOT a code environment at all. It is
+   its fallback container for a structured float it cannot reproduce.
+
+WHY THIS MATTERS FOR THE INGEST
+------------------------------------------------------------------------------
+   A CodeListing built from MathPix verbatim would frequently contain
+   pseudocode, not source. On the attributable evidence that is the
+   majority case, not an edge: 5 of the 10 attributable documents have an
+   author algorithm environment behind MathPix's verbatim.
+
+   This is the same reason out/079 refuses to parse algorithm into
+   CodeListing from the author side. The rule holds on both sides of the
+   pipeline: pseudocode is a different object, and a container that happens
+   to hold monospaced text is not evidence of what is in it.
+
+LIMIT OF THE METHOD
+------------------------------------------------------------------------------
+   'Author also opens verbatim' is a document-level test, not a
+   region-level one. A document where the author uses verbatim ONCE and
+   MathPix emits it five times counts as 'author's' here, and 4 of those 5
+   may still be MathPix's own. Attributing occurrence by occurrence needs
+   position matching between the two sources, which this does not do.
+
+   The direction of that error is knowable though: it can only
+   UNDERSTATE how much of the verbatim is MathPix's own. The 8-of-10
+   figure is a floor.

@@ -1,0 +1,47 @@
+081 - \lstinputlisting: listings whose body is in another file
+==============================================================================
+
+COUNT
+------------------------------------------------------------------------------
+   2 of the 41 lstlisting documents use \lstinputlisting
+   7 references in total, against 419 inline bodies
+   1.6% of all listings
+
+   So the inline form dominates overwhelmingly. Resolving external files is
+   worth doing for completeness, not for volume.
+
+THE REFERENCES
+------------------------------------------------------------------------------
+   1906.03304             harness.tex                        lang=C       
+      from iot.tex:332   ->  harness.tex
+   1906.03304             primeSimple.tex                    lang=Java    
+      from iot.tex:445   ->  primeSimple.tex
+   1906.03304             gcc-default-harness.tex            lang=bash    
+      from iot.tex:1030   ->  gcc-default-harness.tex
+   1906.03304             gcc-flags-harness.tex              lang=bash    
+      from iot.tex:1032   ->  gcc-flags-harness.tex
+   2603.15617             sections/solution-code2.tex        lang=-       
+      from sections/appendix.tex:181   ->  sections/solution-code2.tex
+   2603.15617             sections/solution-code1.tex        lang=-       
+      from sections/appendix.tex:399   ->  sections/solution-code1.tex
+   2603.15617             sections/solution_code3.tex        lang=-       
+      from sections/appendix.tex:409   ->  sections/solution_code3.tex
+
+RESOLUTION AGAINST THE TARBALL
+------------------------------------------------------------------------------
+   resolved   7 of 7
+   missing    0
+
+   Every reference resolves to a member of its own tarball.
+
+HOW THEY WOULD BE RESOLVED
+------------------------------------------------------------------------------
+   Matching is by exact member name, then by suffix, then by basename. The
+   suffix and basename steps are needed because \lstinputlisting paths are
+   relative to the MAIN FILE's directory, not the tarball root, and a paper
+   whose main.tex sits in a subdirectory writes paths that never match a
+   member name literally.
+
+   Basename matching is the loosest step and can collide when two
+   directories hold the same filename. It is used last and, on this
+   population, is never reached: every hit above matched on name or suffix.

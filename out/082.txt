@@ -1,0 +1,94 @@
+082 - CodeListing projected to TiddlyWiki
+==============================================================================
+
+TIDDLERS WRITTEN
+------------------------------------------------------------------------------
+   21 tiddlers for hubbard-ed
+   /home/wkolbe/pdfdrill-library/hubbard-ed/hubbard-ed.listings.tiddlers.json
+   19,263 bytes
+
+SHAPE
+------------------------------------------------------------------------------
+   title       <bibkey>_LST<nnnn>, matching the _EQ/_FO/_TAB family so the
+               existing index and report tooling finds them by one pattern
+   text        the listing body, VERBATIM
+   type        text/plain
+   tags        listing <bibkey>
+   fields      language, caption, label, bibkey, source_file, source_line,
+               lines, kind=CodeListing, external_path when present
+
+   type/text-plain is not cosmetic. TiddlyWiki renders text/markdown by
+   running the markdown parser: four-space indents become code blocks
+   inside code blocks, underscores become emphasis, backticks nest. A
+   listing stored as markdown is no longer the listing.
+
+   The projection deliberately does NOT go through TiddlyWikiProjector._t,
+   which applies _to_markdown and stamps text/markdown. Reusing it would
+   have been the obvious economy and would have silently rewritten every
+   body. A test pins this with a body containing underscores, backticks and
+   indentation.
+
+VERIFICATION
+------------------------------------------------------------------------------
+   [PASS] body byte-identical to the source   21 of 21
+   [PASS] every tiddler is text/plain          21 of 21
+   [PASS] titles unique                         21 of 21
+   [PASS] every tiddler has a caption           21 of 21
+   [PASS] language field carried                21 of 21
+
+FIRST TIDDLER, IN FULL
+------------------------------------------------------------------------------
+   title        hubbard-ed_LST0001
+   type         text/plain
+   tags         listing [[hubbard-ed]]
+   bibkey       hubbard-ed
+   kind         CodeListing
+   language     Julia
+   caption      fermion_state_generator
+   label        lst:fermion_state_generator
+   source_file  sections/method.tex
+   source_line  7
+   lines        9
+   text:
+     |function fermion_state_generator(N)
+     |    x=collect(1:N)
+     |    states=[]
+     |        for j in 0:4^N-1
+     |             stat=copy(digits!(x,j,4))
+     |            push!(states,stat)
+     |        end
+     |    return (states)
+
+ALL 21
+------------------------------------------------------------------------------
+   hubbard-ed_LST0001     fermion_state_generator            9 lines
+   hubbard-ed_LST0002     BraKet                             7 lines
+   hubbard-ed_LST0003     CupDagger                         15 lines
+   hubbard-ed_LST0004     Cup                               15 lines
+   hubbard-ed_LST0005     CdownDagger                       15 lines
+   hubbard-ed_LST0006     Cdown                             16 lines
+   hubbard-ed_LST0007     Nup                                3 lines
+   hubbard-ed_LST0008     Ndown                              3 lines
+   hubbard-ed_LST0009     DownUpIUpDownJ                     3 lines
+   hubbard-ed_LST0010     UpDownIDownUpJ                     3 lines
+   hubbard-ed_LST0011     SpinZ                             11 lines
+   hubbard-ed_LST0012     EntartungGesamtesSpektrum         17 lines
+   hubbard-ed_LST0013     Entartung                          4 lines
+   hubbard-ed_LST0014     EntartungGrundzustand             10 lines
+   hubbard-ed_LST0015     KopplungIkleinerJ                 11 lines
+   hubbard-ed_LST0016     KopllungsMatrix1DKette            14 lines
+   hubbard-ed_LST0017     KomutatorUpDown                   12 lines
+   hubbard-ed_LST0018     EnergieSpektrum                   12 lines
+   hubbard-ed_LST0019     HamiltonOnsiteEnergy              17 lines
+   hubbard-ed_LST0020     HamiltonHopping                   23 lines
+   hubbard-ed_LST0021     HamiltonInteraction              172 lines
+
+NOT YET WIRED
+------------------------------------------------------------------------------
+   These are written to a SEPARATE file, not merged into the document's
+   main tiddlers.json. Merging means the CodeListing objects have to live
+   in the docmodel, which means an ingest step that runs at model-build
+   time and a manifest layer with requires/done_when - out/079 built the
+   parser and the object, not the pipeline stage. Registering it in
+   commands.yaml is the next piece, and doing it here would have put code
+   in tools/-equivalent limbo, invisible to the planner (audit A4).

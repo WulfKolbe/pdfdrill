@@ -1,0 +1,79 @@
+079 - lstlisting -> CodeListing docmodel objects
+==============================================================================
+
+OBJECTS CREATED
+------------------------------------------------------------------------------
+   426 CodeListing objects across 41 documents
+   419 inline bodies, 7 \lstinputlisting references (081 resolves those)
+   8,196 lines of source captured verbatim
+
+   Population: the 41 documents out/078 found opening lstlisting in an
+   author e-print, plus hubbard-ed, the test paper added for 080.
+
+PROPS PER OBJECT
+------------------------------------------------------------------------------
+   language      as declared in the option, verbatim ('Python' and 'python'
+                 are NOT merged - the author's spelling is the datum)
+   caption       formatting stripped: \texttt{BraKet} -> BraKet
+   caption_raw   the option exactly as written, kept beside it
+   label         e.g. lst:BraKet
+   body          VERBATIM between the delimiters
+   source_file   path inside the tarball
+   source_line   1-based line of the \begin
+   lines         body line count
+   external_path present only for \lstinputlisting
+
+   The body is never normalised. For source code the indentation IS the
+   content, so a whitespace-trimming pass of the kind the math path applies
+   would destroy the object it claims to capture. A test pins this with a
+   body containing a blank line and four-space indents.
+
+WHAT THE CORPUS ACTUALLY LOOKS LIKE
+------------------------------------------------------------------------------
+   captioned   54 of 426
+   labelled    48 of 426
+
+   Most listings in the wild carry NEITHER. 21 of the 54 captions and 21 of
+   the 48 labels are hubbard-ed alone - the test paper is far better
+   annotated than the corpus it is meant to represent. Anything downstream
+   that keys on caption or label will find nothing for ~87% of real
+   listings and must fall back to source_file + source_line, which every
+   object has.
+
+   languages declared, by document count:
+     Python 7, C 2, bash 2, ASPlang 1, Java 1, python 1, json 1, JuliaMin 1, C++ 1, SQL 1, Julia 1
+
+   Note Python 7 and python 1, C 2 and C++ 1: the option is free text and
+   the case is the author's. Normalising it here would discard evidence; a
+   consumer that wants a canonical language should map it and say so.
+
+LARGEST
+------------------------------------------------------------------------------
+   2009.11564                             36 listings,   130 lines
+   2404.04837v3                           36 listings,   250 lines
+   arXiv_2009.11564                       36 listings,   130 lines
+   2310.02304v3                           34 listings,  1287 lines
+   2407.11418v1                           29 listings,   138 lines
+   1804.10694v5                           25 listings,   307 lines
+   2604.22294                             25 listings,  2189 lines
+   2307.13528v2                           23 listings,   254 lines
+
+THE ONE DOCUMENT THAT PRODUCED NOTHING
+------------------------------------------------------------------------------
+   2501.06699 was flagged by 078 and yields 0 objects. Its only lstlisting
+   is inside drmacros.sty. Style files are skipped deliberately: a .sty
+   DEFINES listing setups and its \begin{lstlisting} is part of a macro
+   definition, not a listing in the document. Counting it would have
+   produced a CodeListing whose body is style-file plumbing.
+
+   So 078's 41 and this file's 41-with-content differ by one document in
+   each direction and coincidentally agree in total. The populations are
+   not the same set.
+
+NOT HANDLED, DELIBERATELY
+------------------------------------------------------------------------------
+   algorithm / algorithm2e / algorithmic / algpseudocode. out/078 measured
+   97 documents using them, more than twice the lstlisting population. A
+   pseudocode float is a different object with different semantics, and
+   putting it in a CodeListing would amount to calling pseudocode source
+   code. It needs its own type.

@@ -53,6 +53,48 @@ def _sanitize_title(t: str) -> str:
 _TRANSCLUDE_RE = re.compile(r"\{\{([^{}]+?)\}\}")
 
 
+def code_listing_tiddlers(listings, bibkey: str) -> list[dict]:
+    """082 — one tiddler per CodeListing, body verbatim.
+
+    Deliberately NOT built through TiddlyWikiProjector._t: that factory runs
+    `_to_markdown` over the text and stamps `text/markdown`. Source code put
+    through a markdown converter is silently rewritten — indentation becomes
+    block quoting, underscores become emphasis, backticks nest — so a listing
+    projected that way is no longer the listing. The body is copied byte for
+    byte and the type is text/plain.
+
+    Title is <bibkey>_LST<nnnn>, matching the _EQ/_FO/_TAB family so the
+    existing report and index tooling can find them by the same pattern.
+    """
+    from datetime import datetime, timezone
+    now = datetime.now(timezone.utc).strftime("%Y%m%d%H%M%S000")
+    out = []
+    for i, l in enumerate(listings, 1):
+        props = l.props(bibkey) if hasattr(l, "props") else dict(l)
+        t = {
+            "title": f"{bibkey}_LST{i:04d}",
+            "text": props.get("body", ""),      # VERBATIM, never converted
+            "type": "text/plain",
+            "tags": f"listing [[{bibkey}]]",
+            "created": now,
+            "modified": now,
+            "bibkey": bibkey,
+            "kind": "CodeListing",
+        }
+        for k in ("language", "caption", "label", "source_file", "source_line",
+                  "lines", "external_path"):
+            v = props.get(k)
+            if v not in (None, "", 0):
+                t[k] = str(v)
+        # caption is what a reader sees in a listing index; fall back to the
+        # label, then to the file:line that every object has (out/079: only
+        # 13% of real listings carry a caption at all)
+        t["caption"] = (props.get("caption") or props.get("label")
+                        or f'{props.get("source_file","")}:{props.get("source_line","")}')
+        out.append(t)
+    return out
+
+
 def math_titles(doc, bibkey: str) -> dict:
     """`{object_id: "<bibkey>_FO0007" | "<bibkey>_EQ0003"}` for every math object.
 

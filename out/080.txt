@@ -1,0 +1,66 @@
+080 - the parser against hubbard-ed.tgz, which has a known answer
+==============================================================================
+
+   Exact Diagonalisation of the One-Dimensional Hubbard Model, W. Kolbe.
+   13pp, listings/jlcode.sty (the Julia lstlisting style), 21 blocks in
+   sections/method.tex.
+
+THE THREE ASSERTIONS
+------------------------------------------------------------------------------
+   [PASS] 21 objects                       -> 21
+   [PASS] captions match the function names -> 21 of 21 exact
+   [PASS] every label is lst:*              -> 21 of 21
+
+MISMATCHES
+------------------------------------------------------------------------------
+   None. All 21 captions equal the name of the function their body
+   defines, and all 21 labels are lst:<same name>.
+
+PER LISTING
+------------------------------------------------------------------------------
+     # caption                          label                                lang   lines
+     1 fermion_state_generator          lst:fermion_state_generator          Julia     9
+     2 BraKet                           lst:BraKet                           Julia     7
+     3 CupDagger                        lst:CupDagger                        Julia    15
+     4 Cup                              lst:Cup                              Julia    15
+     5 CdownDagger                      lst:CdownDagger                      Julia    15
+     6 Cdown                            lst:Cdown                            Julia    16
+     7 Nup                              lst:Nup                              Julia     3
+     8 Ndown                            lst:Ndown                            Julia     3
+     9 DownUpIUpDownJ                   lst:DownUpIUpDownJ                   Julia     3
+    10 UpDownIDownUpJ                   lst:UpDownIDownUpJ                   Julia     3
+    11 SpinZ                            lst:SpinZ                            Julia    11
+    12 EntartungGesamtesSpektrum        lst:EntartungGesamtesSpektrum        Julia    17
+    13 Entartung                        lst:Entartung                        Julia     4
+    14 EntartungGrundzustand            lst:EntartungGrundzustand            Julia    10
+    15 KopplungIkleinerJ                lst:KopplungIkleinerJ                Julia    11
+    16 KopllungsMatrix1DKette           lst:KopllungsMatrix1DKette           Julia    14
+    17 KomutatorUpDown                  lst:KomutatorUpDown                  Julia    12
+    18 EnergieSpektrum                  lst:EnergieSpektrum                  Julia    12
+    19 HamiltonOnsiteEnergy             lst:HamiltonOnsiteEnergy             Julia    17
+    20 HamiltonHopping                  lst:HamiltonHopping                  Julia    23
+    21 HamiltonInteraction              lst:HamiltonInteraction              Julia   172
+
+CONSISTENCY THE TEST DID NOT ASK FOR
+------------------------------------------------------------------------------
+   caption == label minus 'lst:' : 21 of 21
+   language declared Julia       : 21 of 21
+   source_file                   : ['sections/method.tex']
+   source_line strictly increasing: True
+   total body lines              : 392
+   raw caption form              : '\\texttt{fermion_state_generator}' -> 'fermion_state_generator'
+
+   The captions are wrapped in \texttt{} in the source; the cleaned form is
+   what matches the function name, and caption_raw keeps the original so
+   nothing is lost by the cleaning.
+
+VERDICT
+------------------------------------------------------------------------------
+   ALL THREE ASSERTIONS PASS
+
+   Worth stating what this does and does not establish. hubbard-ed is a
+   BEST CASE: every listing captioned, every one labelled, one language,
+   one source file, captions that are exactly the function names. out/079
+   measured the corpus and found only 54 of 426 listings captioned and 48
+   labelled. A parser that passes here is not thereby validated on the 41
+   real documents - it is validated on the parts this paper exercises.
