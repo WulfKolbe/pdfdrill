@@ -122,3 +122,22 @@ A LEAD, EXPLICITLY NOT A RESULT
 
    Nine rows is a small enough set to inspect by eye, which is what would
    turn this lead into a result. It is not one yet.
+
+==============================================================================
+CORRECTION (070) - THE ARROWS IN EQ0019 WERE NEVER DROPPED
+==============================================================================
+   The verdict on 0911.3722_EQ0019 above says MathPix drops all three "=>".
+   It does not. The stored LaTeX contains all three, as raw U+21D2 inside
+   \text{}, and xelatex cannot set that character:
+
+     Missing character: There is no => (U+21D2) in font [lmroman10-regular]
+
+   The arrows are lost at RENDER time, in our own standalone pipeline, and
+   the warning is not an error so the compile fixpoint never demotes the
+   row. I read the rendered image and charged the OCR for a loss the
+   renderer caused.
+
+   EQ0019 IS still a content error: the leading "Pack" of the first term and
+   the trailing "-complete." are genuinely absent from the LaTeX. The
+   classification in the table stands; the mechanism is truncation at a
+   boundary, not lost operators. See out/070.txt.

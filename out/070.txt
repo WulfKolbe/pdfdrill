@@ -1,0 +1,149 @@
+070 - the 9 uninspected rows, and a correction to 069
+==============================================================================
+
+VERDICTS
+------------------------------------------------------------------------------
+  identifier            comp  hole  conf    verdict
+  1602.04650_EQ0024      -16    -3  0.916   CONTENT ERROR   truncation
+  0911.3722_EQ0021       -10    -5  0.952   CONTENT ERROR   truncation
+  1404.2443_EQ0028       -10    -5  0.986   CONTENT ERROR   dropped term
+  0902.0431_EQ0253       -15    -4  0.969   CONTENT ERROR   region overrun
+  0902.0431_EQ0459       -15    -3  0.908   CONTENT ERROR   region overrun
+  1306.1660_EQ0060        -8    -7  0.999   ARTIFACT        eqnum in crop
+  1306.1660v1_EQ0060      -8    -7  0.998   ARTIFACT        eqnum in crop
+  1510.06699_EQ0220       -1   -20  0.979   TYPOGRAPHY
+  1511.00652_EQ0020       -3   -13  1.000   TYPOGRAPHY
+
+     5 content errors, 2 artifact, 2 typography.
+
+ONE LINE EACH
+------------------------------------------------------------------------------
+  1602.04650_EQ0024   The page ends the expression with a final divisor line
+    /(n_C^2 - 4 gamma n_C + 4 gamma^2). It is absent from the LaTeX, whose
+    tail is \right)\right)\end{aligned}, and the whole value contains only
+    one "/" where the page has two. A 30-line expression silently missing
+    its last denominator.
+
+  0911.3722_EQ0021   The page reads ... => pack_2-complete. The LaTeX ends
+    at \text{ pack }_{2}: the trailing "-complete." is gone.
+
+  1404.2443_EQ0028   The page's first row has FOUR entries, p_0, p_1, p_2,
+    p_3=(0,0). The LaTeX has three - "p_{3}" and "(0,0)" appear nowhere in
+    it. A point dropped from a list of seven.
+
+  0902.0431_EQ0253   LaTeX correct; the crop region runs on and swallows the
+    prose "(Lemma 2.2.4.(2))."
+
+  0902.0431_EQ0459   LaTeX correct; the crop swallows "(Theorem 3.2.2),".
+
+  1306.1660_EQ0060 and 1306.1660v1_EQ0060   The same paper twice in the
+    corpus. LaTeX correct; the crop includes the equation number, which
+    belongs to a separate object and is rightly not in the LaTeX. Both rows
+    carry identical deltas, which is a free consistency check: the same
+    input measured twice returned the same answer.
+
+  1510.06699_EQ0220   Identical; \left\{ \right\} inflation and \frac
+    against the page's \tfrac.
+
+  1511.00652_EQ0020   Identical; \left( inflation, and the trailing ";" and
+    "." absent from the render by the 025 design.
+
+CORRECTION TO 069 - THE ARROWS WERE NEVER DROPPED
+------------------------------------------------------------------------------
+   069 recorded that 0911.3722_EQ0019 "drops ALL THREE =>". That is WRONG,
+   and the error was mine, not MathPix's. The stored LaTeX is
+
+     _{<\omega} \text {-complete => } \text { Pack }_{n} \text {-complete }
+     \text { => } \text { Pack }_{2} \text {-complete } \text { => }
+     \text { pack }_{2}
+
+   All three arrows are present. They are raw U+21D2 characters inside
+   \text{}, and xelatex cannot set them:
+
+     Missing character: There is no => (U+21D2) in font [lmroman10-regular]
+
+   The glyph is dropped at RENDER time, in our own standalone pipeline. I
+   read the rendered image and attributed to the OCR a loss that the
+   renderer caused. 067's discipline - read the picture - is what made the
+   original finding, and it is also what made this mistake: a picture shows
+   what was drawn, not what was read.
+
+   It is a WARNING, not an error, so the compile fixpoint's "^! " regex
+   never sees it and the row is never demoted. The equation renders,
+   silently missing three symbols, and its ink distance is inflated by
+   exactly that.
+
+   What IS a defect in EQ0019 stands: the leading "Pack" of the first term
+   is absent from the LaTeX, and so is the trailing "-complete." Same
+   truncation class as EQ0021. So the corrected verdict is unchanged in
+   kind - both rows are content errors - but the mechanism is truncation at
+   a boundary, not lost operators.
+
+DID THE TWO 0911.3722 ROWS SHARE A DROPPED-ARROW SIGNATURE?
+------------------------------------------------------------------------------
+   No, because there is no dropped-arrow signature to share.
+
+   EQ0019 emits its arrows as raw U+21D2 inside \text{}; EQ0021 emits them
+   as \Rightarrow. Same symbol, same page, two encodings from the same OCR
+   pass - and only the first is unrenderable. EQ0021's arrows appear
+   correctly in its render.
+
+   What the two DO share is truncation: EQ0019 loses "Pack" from the head
+   and "-complete." from the tail, EQ0021 loses "-complete." from the tail.
+   Both are on page 7, both are running-text implication chains rather than
+   display mathematics, and both were read at confidence 0.92-0.95.
+
+HOW WIDE IS THE MISSING-GLYPH DEFECT
+------------------------------------------------------------------------------
+   Measured rather than assumed. Every non-ASCII character in all 4,342
+   corpus equation LaTeX values was collected and compiled through the
+   standalone preamble:
+
+     é       U+00E9   56 equations   renders
+     ⇒       U+21D2    1             MISSING
+     ⿱ ⿻ 一 日 」  CJK/ideographic-description   MISSING
+     र ्     Devanagari                          MISSING
+
+   5 equations corpus-wide carry a character the font cannot set. Four have
+   confidence 0.02 to 0.58 and are CJK or Devanagari hallucinated onto a
+   mathematics page - garbage either way. EQ0019, at 0.916, is the only
+   sound reading affected.
+
+   So the defect is real, silent, and rare: one row in 4,342 is materially
+   misjudged by it. Worth fixing in the renderer (a fallback font, or
+   mapping U+21D2 to \Rightarrow before compiling) and not worth revising
+   any corpus number over.
+
+AN OBSERVATION I DID NOT GO LOOKING FOR
+------------------------------------------------------------------------------
+   1306.1660_EQ0060's crop visibly carries the equation number (63) while
+   the model assigns that object (59). On page 6 the numbers do not increase
+   with vertical position at all:
+
+     y=202  (59)   y=208  (60)   y=593  (61)   y=748  (64)   y=967  (65)
+     y=1216 (66)   y=1414 (67)   y=1929 (68)   y=2131 (70)   y=2338 (71)
+     y=2462 (62)
+
+   (63) and (69) appear nowhere in the model. The nearest-y pairing that
+   assigns these numbers is unreliable on this page. Which of the two
+   readings is right is NOT established here - this is a lead for its own
+   task, not a verdict.
+
+WHAT THE NINE SAY ABOUT THE FILTER
+------------------------------------------------------------------------------
+   The sign pattern proposed at the end of 069 - unshaded, both deltas
+   negative, symbol half >= 15 - held up. Of the 11 rows it selects:
+
+       7  content errors (2 confirmed in 069, 5 here)
+       2  artifact  (equation number inside the crop)
+       2  typography
+
+   64% precision for finding real extraction defects, against 0 in 10 for
+   067's confidence-and-ink ranking and 2 in 10 for 069's symbol-half
+   ranking. The filter is now the useful instrument of the three, and it
+   needs no author LaTeX, no gold, and no e-print.
+
+   Its two false positives are one cause, not two: a crop framed to include
+   the equation number. That is detectable the same way shading was - the
+   number is a separate DocObject with its own region - so the next
+   refinement is mechanical rather than a matter of judgement.
