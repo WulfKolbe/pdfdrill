@@ -1,0 +1,110 @@
+065 - source provenance is asserted before any author comparison
+==============================================================================
+
+ANSWER
+------------------------------------------------------------------------------
+   ALL 20 of the 20 documents would be refused.
+
+   Every one carries a <stem>.tex.zip whose only .tex is named by that
+   document's own MathPix image_id. Comparing against any of them compares
+   MathPix with itself.
+
+   20 of 20 also carry the author's e-print .tgz, and NONE of those is
+   misclassified - so the check has a positive class of 20 and a negative
+   control of 20, with no false positive on a real e-print.
+
+WHAT WAS ACTUALLY USED - THE DAMAGE IS POTENTIAL, NOT REALISED
+------------------------------------------------------------------------------
+   'Would be refused' is not 'was wrong'. The sidecar records which source
+   won for each document, and for all 20 it is:
+
+       20  arxiv-eprint (author .tgz)
+
+   cmd_injectlatex already PREFERRED the e-print, and that preference held
+   everywhere in this population. No existing comparison in 040/057/059 is
+   contaminated. What was missing is a floor under the preference: the
+   selection chain FALLS BACK to the .tex.zip when no e-print is present,
+   so a document whose source was never fetched would silently acquire
+   MathPix output as its gold reference and every downstream comparison
+   would read as agreement.
+
+   That is the failure this closes. It is a guard on the fallback, not a
+   repair of past results, and saying otherwise would overstate it.
+
+THE TEST IS IDENTITY, NOT SHAPE
+------------------------------------------------------------------------------
+   mathpix  a .tex whose stem is one of THIS document's image_ids, read
+            from its lines.json. Identity - not inference. Refused.
+   suspect  a .tex named by a bare UUID that is not an image_id of this
+            document. REPORTED, never refused: rejecting on shape alone
+            would reject an author who happens to name a file that way.
+   author   nothing indicates MathPix authorship. That is absence of
+            evidence, and the code says so rather than promising gold.
+
+   The .tgz files above are accepted under that third heading. A gzipped
+   single .tex exposes no member name to test, so 'author' there means
+   'nothing incriminating', not 'verified as the author's'.
+
+PER DOCUMENT
+------------------------------------------------------------------------------
+   document        tex.zip     tgz
+   0707.2676      mathpix     author
+   0707.4470      mathpix     author
+   0711.0273      mathpix     author
+   0802.3344      mathpix     author
+   0803.2924      mathpix     author
+   0806.1585      mathpix     author
+   0902.0431      mathpix     author
+   0903.2087      mathpix     author
+   0905.0767      mathpix     author
+   0905.2720      mathpix     author
+   0911.3722      mathpix     author
+   0911.5175      mathpix     author
+   0911.5175v2    mathpix     author
+   0912.0721      mathpix     author
+   1006.4908      mathpix     author
+   1101.4542      mathpix     author
+   1103.2338v5    mathpix     author
+   1110.0240      mathpix     author
+   1205.3463v2    mathpix     author
+   1205.5935v1    mathpix     author
+
+WHERE IT FIRES
+------------------------------------------------------------------------------
+   In cmd_injectlatex, AFTER the source is chosen and before it is read -
+   so it covers every route to a source: the preference chain, a path
+   remembered from an earlier --tex, and an explicit --tex on this run. A
+   check that only guarded the fallback would miss an operator pointing
+   --tex straight at the .tex.zip, which is the easiest way to make this
+   mistake by hand.
+
+   The refusal is a typed MathPixSourceRefused carrying path, reason and
+   remedy, in the shape net.NetworkBlocked uses: named and specific, never
+   a stack trace. The CLI turns it into one sentence naming the file, why
+   it was rejected, and the exact alternative to fetch.
+
+   Accepting also records what was checked - sidecar evidence
+   `latex_source_checked` - so a later reader can see WHICH test passed
+   rather than only that something did.
+
+LIVE
+------------------------------------------------------------------------------
+   0902.0431.tex.zip -> REFUSED: its .tex is named
+     1deb350a-8d75-4da5-b1ec-153e0bfd7145.tex, which is this document's
+     MathPix image_id.
+   0902.0431.tgz     -> accepted.
+
+   2,099 tests pass (6 added): identity refusal, e-print acceptance, a
+   foreign UUID staying 'suspect', a missing lines.json being unable to
+   manufacture a verdict, and a bare .tex named by an image_id refused
+   too - the zip is the common carrier, not the defining property.
+
+WHY THIS EXISTS
+------------------------------------------------------------------------------
+   out/063. Reaching for '0902.0431's tex source' returned the .tex.zip,
+   whose line 4651 reproduces MathPix's output character for character,
+   including a printed 0 misread as the letter 'a'. Rendering it as the
+   author's LaTeX would have given a near-zero distance and a confident,
+   false conclusion that MathPix matched the page. The real e-print was
+   the other file - and it is not even a tar, but a single gzipped
+   SpEcxp.tex.

@@ -7995,6 +7995,23 @@ def cmd_injectlatex(pdf: Path, tex: str | None = None, force: bool = False) -> s
                 f"(looked for {pdf.stem}.tex / .tex.zip / .tgz / .tar.gz). "
                 f"Run `pdfdrill mathpix {pdf.name}` first (it downloads the MathPix "
                 f"{pdf.stem}.tex.zip), or pass --tex <path>.")
+    # 065: whatever chose it — the preference chain above, a remembered path,
+    # or an explicit --tex — it must not be MathPix's own reconstruction.
+    # Comparing a MathPix reading against MathPix's tex.zip compares MathPix
+    # with itself and reads as perfect agreement (out/063).
+    from .author_source import MathPixSourceRefused, assert_author_source
+    try:
+        checked = assert_author_source(src, _lines_json_path(pdf))
+    except MathPixSourceRefused as e:
+        eprint = ", ".join(f"{pdf.stem}{x}" for x in (".tgz", ".tar.gz"))
+        return (f"Refusing to ingest {src.name} as the author's LaTeX — {e.reason}. "
+                f"Comparing against it would compare MathPix with itself. "
+                f"Fetch the author's e-print ({eprint}) or pass "
+                f"--tex <path> pointing at the real source.")
+    try:
+        sc.set_evidence("latex_source_checked", checked)
+    except Exception:
+        pass
     remember_latex_source(sc, src)
     # A5: three sources with silent precedence was a provenance gap — record
     # WHICH kind won, and say it in the report.
