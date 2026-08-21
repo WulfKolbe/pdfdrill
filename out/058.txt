@@ -61,3 +61,41 @@ WHAT REMAINS
    The consumer's compare should be re-run: every report.pdf mtime moved,
    and 42 rows that read as the placeholder string now carry real ink.
    Their demoted-row exclusion list shrinks accordingly.
+
+ADDENDUM - THREE NUMBERS FOR THE SAME QUANTITY, AND WHICH POPULATION EACH IS
+------------------------------------------------------------------------------
+   Reconciled against the consumer's independent scan; every figure below is
+   reproduced on both sides. They differ only by population, and stating the
+   population is the whole point:
+
+      93  all report.tex in the library, all row kinds, 14 documents
+      72  arXiv only (drops the 3 Heim books: BH1org_OCR 11, bh2 9, BH3FR 1)
+      51  arXiv, dropping 1511.08771 (21 rows) - the 058 corpus, 10 documents
+      49  the same, EQ rows only - the consumer's operative exclusion set
+
+   The 2-row gap between 51 and 49 is one FO row each in 1205.5935v1 and
+   1411.5002. The consumer's compare consumes EQ rows only, so 49 is the
+   number that governs their measurement; 51 is the number a reader of a
+   report.pdf would count.
+
+   Coincidence worth naming so nobody builds on it: the three Heim books
+   total 21 rows and 1511.08771 alone totals 21 rows. Two subtractions of
+   the same size for unrelated reasons. 93-21=72 and 72-21=51 both hold and
+   neither implies the other.
+
+   Counting these rows needs the brace-aware identifier pattern
+   \\ident\{([^}]*(?:\}[^}]*)*?)\} - breakable_ident inserts \allowbreak{}
+   after each dot, so a plain [^}]* truncates every identifier at the first
+   brace and classifies all 93 rows as "other". That is out/056's identifier
+   regex defect a second time, from a different cause.
+
+CONCENTRATION - A PROPERTY OF ONE DOCUMENT, NOT A CORPUS RATE
+------------------------------------------------------------------------------
+   0902.0431 supplies 31 of the 51 remaining rows: 61% of all row kinds,
+   63% of the 49 EQ rows. Every one is the nested \[ \] validator class.
+
+   So "the corpus has a 51-row residue" and "one document has a 31-row
+   defect and the other nine have 20 between them" describe the same data,
+   and only the second is actionable. Any downstream claim about the
+   remaining demotion rate should carry the document name, or exclude
+   0902.0431 and say so.
