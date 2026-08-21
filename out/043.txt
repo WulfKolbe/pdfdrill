@@ -52,9 +52,20 @@ PER-PAGE MEDIAN
       page  104  median 0.110  (1 math line(s))
       page   94  median 0.129  (1 math line(s))
 
-   Low confidence clusters by PAGE rather than scattering: the worst pages
-   are whole regions of the book the OCR struggled with, which is where a
-   re-read would pay, rather than isolated lines to fix one by one.
+   READ THE LINE COUNTS BESIDE THOSE MEDIANS. Six of the eight worst pages
+   carry a SINGLE math line, so their "median" is that one line and says
+   nothing about the page. 117 of the 199 pages have exactly one math line.
+   I first wrote that low confidence "clusters by page", using this list as
+   the evidence; the list cannot support that claim and the sentence was
+   wrong.
+
+   Tested properly instead, on the 31 pages carrying three or more math
+   lines: mean within-page variance is 0.036 against 0.074 for the same
+   values randomly reshuffled across pages (sd 0.009) - more than four
+   standard deviations, so lines on a page ARE more alike in confidence
+   than chance. But only 1 of those 31 pages has every line below 0.5. So
+   the effect is real and modest: neighbouring equations tend to be read
+   about equally well, which is not the same as whole regions failing.
 
 CROSS-CHECK: DOES CONFIDENCE PREDICT THE DEFECTS WE FIND BY OTHER MEANS?
 ------------------------------------------------------------------------------
