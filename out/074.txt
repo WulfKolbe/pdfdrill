@@ -1,0 +1,170 @@
+074 - files written outside the repo this session
+==============================================================================
+
+NOTHING IS DELETED HERE. Every entry carries a readership verdict; 075 acts
+on the ones marked UNREAD and only those.
+
+Checked for live readers first: no project process holds any of these open.
+Reading /proc/<pid>/fd across every process of this user shows only Chrome and
+Chromium holding /tmp paths, and those are not ours. Two live readers DO
+exist and both are outside this list: drillui_chat.py (4h uptime, cwd in the
+repo, no /tmp handles) and an evince window holding
+~/pdfdrill-library/0902.0431/report.pdf.
+
+1. SCRATCHPAD - 143.5 MB total
+------------------------------------------------------------------------------
+   433.6 KB still read, 143.1 MB unread.
+
+   STILL READ - keep
+       306.1 KB  068.pkl
+                 the 725 hits enriched with shading; 070 leaves 117 rows of its filter uninspected
+        46.9 KB  040.pkl
+                 named in out/059.txt as the population source for the 040/057/059 control
+        36.2 KB  059.pkl
+                 output of the documented control, named in out/059.txt
+        30.5 KB  040c.pkl
+                 the pre-057 baseline; out/059.txt's 29-moved-rows claim is checked against it
+         4.6 KB  ink_scan.py
+                 regenerates the 066 measurement from the library
+         3.5 KB  conf_backfill.py
+                 the 064 model backfill; rerun if models are rebuilt
+         2.6 KB  057.pkl
+                 the 057 baseline; out/059.txt asserts elementwise identity against it
+         2.6 KB  rerun040.py
+                 named in out/059.txt as the reproduction path
+          520 B  corpus49.txt
+                 the 49-document list; input to rerun040.py, ink_scan.py, conf_backfill.py
+
+   UNREAD - nothing references these; regenerable from the library
+        73.0 MB  ab_0902.0431/
+        26.2 MB  ab_bh2/
+        16.6 MB  r1310_p1.pgm
+        14.0 MB  breaktest/
+         4.0 MB  056re/
+         1.8 MB  report-old.tex
+       975.2 KB  cmp/
+       924.2 KB  cmp3/
+       905.0 KB  cmp2/
+       755.2 KB  src063/
+       593.7 KB  author.tex
+       388.7 KB  diapage.png
+       299.6 KB  041.pkl
+       296.3 KB  066.pkl
+       283.7 KB  051/
+       275.4 KB  band.png
+       177.4 KB  bh1.png
+       162.9 KB  064.pkl
+       160.9 KB  wd4.png
+       149.5 KB  fix0711.png
+       135.7 KB  reorder.png
+       135.0 KB  a3page.png
+       130.0 KB  bh3.png
+       111.3 KB  043.pkl
+       110.7 KB  fitted.png
+       108.0 KB  wider.png
+        90.0 KB  fitcheck1.png
+        79.3 KB  eqpage.png
+        77.5 KB  boxed.png
+        76.3 KB  band_crop.png
+        44.4 KB  fitcheck.png
+        41.1 KB  fopage.png
+        30.5 KB  056rows.pkl
+        29.4 KB  a063/
+        28.7 KB  056.pkl
+        26.2 KB  g070/
+        18.2 KB  024.pkl
+        16.5 KB  056cell/
+        11.4 KB  substack_probe.pdf
+         7.8 KB  069_top10.pkl
+         6.9 KB  066_top10.pkl
+         6.9 KB  substack_probe.log
+         6.8 KB  043b.pkl
+         5.9 KB  070.pkl
+         4.2 KB  p13_rebuild.py
+         4.1 KB  056_dem.json
+         3.6 KB  floor_scan.py
+         3.4 KB  p13_mathpix.py
+         3.2 KB  048.pkl
+         2.9 KB  p13_batch.py
+         2.7 KB  __pycache__/
+         1.8 KB  fix_report.py
+         1.6 KB  shade.py
+         1.5 KB  migrate_punct.py
+         1.4 KB  ab_build.py
+         1.3 KB  068_corpus.pkl
+         1.2 KB  058_after.json
+         1.1 KB  021run.txt
+          996 B  024b.pkl
+          817 B  058_before.json
+          659 B  065.pkl
+          654 B  floor_docs_all.json
+          520 B  p14_ids.txt
+          478 B  nonascii.txt
+          436 B  rest_kinds.json
+          399 B  rest_docs.json
+          388 B  substack_probe.tex
+          268 B  floor_docs.json
+          180 B  051_ids.json
+          108 B  substack_probe.aux
+          107 B  022.txt
+           30 B  probe3.txt
+            0 B  eprint/
+
+2. /tmp LOOSE FILES - this session (2026-08-17)
+------------------------------------------------------------------------------
+     1,176 B  cfg-720.json
+    19,914 B  e12.json
+       283 B  p30.json
+     1,186 B  s180.json
+     2,739 B  s246.json
+     2,718 B  s249b.json
+    36,753 B  s249.json
+   ---------
+    64,769 B  total    UNREAD - probe output from 08-17, superseded by out/
+
+3. LEAKED TEMP DIRECTORIES - tempfile.mkdtemp never cleaned up
+------------------------------------------------------------------------------
+   1,512  /tmp/tmp*          77,496,052 B
+     198  /tmp/vocabnet_*        80,025 B
+      33  /tmp/gn_*              17,952 B
+   -----                     ------------
+   1,743 directories         77,594,029 B
+
+   Each holds one or two tiny files - a 41-byte msc2020.json is typical.
+   These are vocabnet/pdfdrill temp dirs whose creator exited without
+   removing them. No process holds any of them open.
+
+   36 of the 1,743 are dated 2026-08-16, BEFORE this session. They are
+   listed for completeness and are OUT OF SCOPE for 075: this session did
+   not create them, and deleting another session's files on a machine that
+   runs for two months is the mistake this pair of tasks exists to avoid.
+
+   UNREAD, this session's 1,707: 77,5xx,xxx B (exact figure recomputed in 075)
+
+4. WRITTEN INTO ~/pdfdrill-library - 739 MB, ALL STILL READ
+------------------------------------------------------------------------------
+   Outside the repo, but this is the corpus, not scratch. Listed so the
+   accounting is complete and so nobody mistakes it for cache.
+
+     344.5 MB   49  model.docmodel.json   confidence backfilled (064)
+     138.4 MB   49  model.docpack.json    packed sidecars, rewritten with them
+     113.5 MB  196  report.*              regenerated (058) + 0902.0431 (064)
+       3.5 MB    1  0902.0431.tiddlers.json  reprojected for the conf field
+     139.3 MB  611  other                 crops, standalone renders, logs
+     -------
+     739.2 MB  906 files
+
+   READ by: every projector and harness in the repo, out/059's control,
+   068's shading scan, and an evince window open on one of the PDFs right
+   now. None of this is a deletion candidate under any circumstances.
+
+SUMMARY
+------------------------------------------------------------------------------
+   still read      433.6 KB  scratchpad state + harnesses
+                   739.2 MB  library corpus (never a candidate)
+   unread          143.1 MB  scratchpad intermediates
+                    64,769 B  /tmp loose probe output
+                     77.6 MB  1,707 leaked temp dirs (this session)
+                              + 36 more from 2026-08-16, out of scope
+
+   075 acts on the unread rows above and on nothing else.
