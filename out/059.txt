@@ -1,0 +1,95 @@
+059 - 040 re-run on the regenerated corpus
+==============================================================================
+
+HEADLINE - THE NUMBERS DID NOT MOVE, AND THAT IS THE RESULT
+------------------------------------------------------------------------------
+
+                      057      059     delta
+   distance-zero      497      497         0
+   comparable pairs  1328     1328         0
+   share            37.4%    37.4%         -
+
+   Not merely equal in aggregate: the two runs agree ROW BY ROW. All
+   1,328 distances compare identical elementwise, so the match cannot be
+   offsetting movements that happen to cancel in the total.
+
+WHY THIS IS A CONTROL AND NOT A MEASUREMENT
+------------------------------------------------------------------------------
+   040/057 compare two LaTeX strings held in the MODEL: MathPix's `latex`
+   prop against the author's tex-provenance realization. 058 regenerated
+   report.tex and report.pdf FROM the model, with mathrsfs and stmaryrd
+   added to the preamble.
+
+   Nothing on that path writes back to the model, so the prediction before
+   running was 497/1,328 unchanged. A delta would not have been a better
+   OCR score — it would have been evidence that report generation mutates
+   its own input, which is a defect anywhere it happens. The run is
+   therefore a negative control on 058, and it passes.
+
+   This also bounds what 058 bought. 42 demoted rows now render, which is
+   a change to what a READER sees. It is not a change to what MathPix
+   produced, and no SLT number should be expected to reflect it. Anyone
+   quoting 058's recovery as an accuracy improvement would be wrong.
+
+POPULATION
+------------------------------------------------------------------------------
+   Taken from 040.pkl's bibkeys rather than re-derived, so the denominator
+   is provably the same 20 documents and not a re-selection that happens
+   to be the same size.
+
+      20 documents, 0 missing a model
+      1,328 comparable pairs
+      803 equations skipped - only one of the two readings present
+      579 skipped - degenerate signature, never compared (the rule-5 class)
+
+DISTRIBUTION, UNCHANGED FROM 057
+------------------------------------------------------------------------------
+    distance  equations   share
+           0       497   37.4%
+         1-2       186   14.0%
+         3-5       226   17.0%
+        6-10       209   15.7%
+       11-20       104    7.8%
+       21-50        67    5.0%
+         >50        39    2.9%
+
+   median 2   mean 7.6   max 176
+   within 2 edits: 683 (51.4%)
+
+THE ONLY ROWS THAT MOVED SINCE 040c, AND 057 IS WHY
+------------------------------------------------------------------------------
+   Against 040c (the corrected 040, before the `~` fix), 29 rows differ.
+   All 29 are 057's tilde change and they live in three documents:
+
+      0707.4470 17   0905.2720 5   1101.4542 7
+
+      12 of them reach distance zero - exactly the 485 -> 497 gain
+      141 edits removed in total across the 29 rows
+
+   Every row outside those three documents is byte-identical across 040c,
+   057 and 059. The tilde fix is narrow and its footprint is fully
+   accounted for.
+
+PER DOCUMENT, TOP 8 BY PAIR COUNT
+------------------------------------------------------------------------------
+   document          zero/pairs   share
+   0902.0431         148/487    30.4%
+   0806.1585         123/232    53.0%
+   1205.5935v1        50/213    23.5%
+   1205.3463v2        39/92     42.4%
+   0707.4470          19/42     45.2%
+   1101.4542          20/40     50.0%
+   0903.2087           2/39      5.1%
+   0905.2720          11/38     28.9%
+
+   0902.0431 supplies 487 of the 1,328 pairs - 37% of the whole
+   measurement from one document, at a below-average 30.4% zero rate. The
+   same document holds 31 of 058's 51 remaining demoted rows. A corpus
+   figure quoted without it is a different number; it should be named.
+
+REPRODUCING THIS
+------------------------------------------------------------------------------
+   The 040/057 harnesses ran inline and were not kept. This one is a file:
+   scratchpad/rerun040.py, population read from 040.pkl, result to
+   059.pkl. Re-running it after any future model-touching change repeats
+   the control for free.
