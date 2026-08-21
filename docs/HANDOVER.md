@@ -47,7 +47,16 @@ Each of these cost real time or real data in this project.
    after every write, too.
 5. **Never return a plausible default for an unknown.** Raise or return an
    explicit unresolved marker (`mathgold.slt.Unresolved`) — never a sentinel
-   string (`"UNKNOWN" == "UNKNOWN"`).
+   string (`"UNKNOWN" == "UNKNOWN"`). **Re-learned the hard way 2026-08-21:**
+   `parse_latex_slt` collapses `\begin{aligned}` to ONE node labelled
+   `UNRESOLVED_aligned`, so two unrelated multi-line equations produced
+   byte-identical signatures and `slt_edit_distance` returned 0 without
+   comparing contents. 662 of 1,488 corpus rows (44.5%) called "structurally
+   identical" were this, and it moved a measured noise floor from 7 to 22 —
+   a number handed to another session that would have hidden real findings.
+   `crossref.formula_signature` now returns None for a degenerate signature;
+   a signature that cannot distinguish two expressions must never reach a
+   comparison. Writing the rule down does not inoculate you against it.
 6. **Presence is not adequacy.** Four bugs shaped as "a fact/file/output/twin
    exists"; each needed a detector that reads the actual store.
 7. **Verify the written file, not the object in memory.** Two "in-memory right,

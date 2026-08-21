@@ -99,3 +99,25 @@ def test_nearest_by_distance_prunes_to_the_true_minimum():
                           ("exact", r"\tau > 0"))]
     d, best = nearest_by_distance(cands, formula_signature(r"\tau > 0"))
     assert d == 0 and best["id"] == "exact"
+
+
+def test_a_degenerate_signature_never_compares_equal():
+    r"""Handover rule 5, in the SLT layer: mathgold collapses
+    \begin{aligned} to ONE node labelled UNRESOLVED_aligned, so two unrelated
+    multi-line equations produced byte-identical signatures and
+    slt_edit_distance called them 0 without comparing contents. Measured
+    damage before the fix: 662 of 1,488 'structurally identical' corpus rows
+    (44.5%) were this, and it moved a measured noise floor from 7 to 22."""
+    from pdfdrill.crossref import formula_signature, is_degenerate_signature
+    a = r"\begin{aligned} a &= b \\ c &= d \end{aligned}"
+    b = r"\begin{aligned} x &= y + z + w \\ p &= 0 \end{aligned}"
+    # the raw signatures ARE identical — that is the trap
+    ra = formula_signature(a, allow_degenerate=True)
+    rb = formula_signature(b, allow_degenerate=True)
+    assert ra == rb and is_degenerate_signature(ra)
+    # so the guarded call refuses to produce one
+    assert formula_signature(a) is None
+    assert formula_signature(b) is None
+    # ordinary expressions are unaffected
+    assert formula_signature(r"x_{5}+\alpha") is not None
+    assert not is_degenerate_signature(formula_signature(r"x_{5}+\alpha"))

@@ -60,16 +60,44 @@ def add_entries(path: Path, entries: list[dict], bibkey: str,
 # --------------------------------------------------------------------------- #
 #  Signatures (per kind; the index never looks inside)
 # --------------------------------------------------------------------------- #
-def formula_signature(latex: str) -> str | None:
-    """SLT .lg signature for a formula/equation latex, or None (unparsed)."""
+def is_degenerate_signature(sig: str | None) -> bool:
+    """True when the signature carries no structure — a single UNRESOLVED
+    node standing in for a whole subtree the SLT parser could not read
+    (`\\begin{aligned}` and friends).
+
+    This matters because such signatures are IDENTICAL to each other: two
+    unrelated multi-line equations both reduce to one `UNRESOLVED_aligned`
+    node, so an equality test calls them the same and an edit distance
+    calls them 0 without ever comparing their contents. That is handover
+    rule 5 — "UNKNOWN == UNKNOWN makes two unidentified things equal" —
+    and it silently inflated a corpus agreement measurement by 44.5%.
+    """
+    if not sig:
+        return True
+    nodes = [l for l in sig.splitlines() if l.startswith("N,")]
+    return len(nodes) <= 1 and any("UNRESOLVED" in n for n in nodes)
+
+
+def formula_signature(latex: str, *, allow_degenerate: bool = False
+                      ) -> str | None:
+    """SLT .lg signature for a formula/equation latex, or None.
+
+    None when the latex does not parse AND when the parse degenerates to a
+    single UNRESOLVED node: a signature that cannot distinguish two
+    different expressions must never be handed to a comparison. Pass
+    `allow_degenerate=True` only to inspect the degenerate case itself.
+    """
     try:
         from mathgold.slt import parse_latex_slt, slt_to_lg
         lg = slt_to_lg(parse_latex_slt(latex))
         # drop the comment header — it is presentation, not identity
-        return "\n".join(l for l in lg.splitlines()
+        sig = "\n".join(l for l in lg.splitlines()
                          if l and not l.startswith("#"))
     except Exception:
         return None
+    if not allow_degenerate and is_degenerate_signature(sig):
+        return None
+    return sig
 
 
 def _sig_lines(sig: str) -> frozenset:
