@@ -1,0 +1,66 @@
+051 - the 9 ink-only rows: is the difference MathPix's reading, or our rendering?
+====================================================================================
+
+METHOD
+------------------------------------------------------------------------------------
+   The 9 rows of Table B where the SLT distance is ZERO (MathPix's LaTeX
+   matches the AUTHOR'S structurally) but the ink distance exceeds 6.
+   For each I rendered the AUTHOR'S LaTeX as a standalone document at
+   400 dpi and measured it against the same scan crop, using inkdrill's own
+   five-tuple (components, holes, stacked, centred, offset), L1.
+
+THE SPLIT, AT THE FLOOR OF 6
+------------------------------------------------------------------------------------
+   identifier               report cell author render   verdict
+   0707.4470_EQ0001                  23            17   persists
+   0707.4470_EQ0010                  84            12   persists
+   0707.4470_EQ0012                   9            11   persists
+   0707.4470_EQ0013                   7             5   COLLAPSED - our rendering
+   0707.4470_EQ0016                 100            12   persists
+   0707.4470_EQ0023                   8             9   persists
+   0707.4470_EQ0025                  22            20   persists
+   0707.4470_EQ0040                   9            10   persists
+   0707.4470_EQ0057                  85             2   COLLAPSED - our rendering
+
+   collapsed: 2      persists: 7
+
+BUT THE SPLIT IS THE LEAST INTERESTING RESULT HERE
+------------------------------------------------------------------------------------
+   These 9 rows are a CONTROL GROUP and I did not appreciate that until the
+   numbers were in front of me. Their SLT distance is zero by selection, so
+   MathPix, the author and (barring a revised paper) the printed page all
+   carry the SAME expression. Whatever ink distance remains cannot be a
+   content difference; it is the measurement's own noise for comparing a
+   LaTeX RENDER against a SCAN.
+
+   Those 9 distances are: [2, 5, 9, 10, 11, 12, 12, 17, 20]
+   median 11, max 20.
+
+   So render-vs-scan noise on identical content runs to 20 here, not 6.
+   The floor of 6 is the p95 of the same render through two RASTERIZERS -
+   it bounds ghostscript-vs-poppler, and nothing else. Comparing a Computer
+   Modern render against a scan of a journal's typesetting adds a different
+   typeface, different hinting and scan noise on top of that, none of which
+   the rasterizer control can see. Applied to render-vs-scan, a floor of 6
+   is roughly three times too tight, and 7 of these 9 'persists' verdicts
+   are most likely the floor being wrong rather than the page differing.
+
+WHAT I COULD NOT REPRODUCE, STATED AS AN OPEN QUESTION
+------------------------------------------------------------------------------------
+   Three rows fell enormously: EQ0057 85 -> 2, EQ0016 100 -> 12,
+   EQ0010 84 -> 12. The same content measured from the REPORT CELL is
+   wildly further from the scan than the same content measured standalone.
+   I tried to reproduce the large values from the content and could not:
+      shrink-to-fit  (\FitMath at 75% / 55% / 40%) -> d = 7, 4, 5
+      resolution     (60 - 278 px tall)            -> d = 1 - 16
+   component count stayed 63 throughout both sweeps. So the large
+   report-cell distances are not a property of the LaTeX at any scale or
+   resolution I can produce, which points at how the cell is isolated from
+   the report page rather than at what it contains. That is a question for
+   the ink side, offered as evidence rather than as a diagnosis of code I
+   did not write.
+
+CONFIDENCE, FOR COMPLETENESS
+------------------------------------------------------------------------------------
+   All 9 rows are high-confidence: 1.00, 1.00, 0.98, 1.00, 0.91, 0.96, 0.38, 1.00, 1.00.
+   Consistent with out/048 - confidence flags none of them.
