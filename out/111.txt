@@ -1,0 +1,73 @@
+111 - the trial set: low-confidence crops with baselines
+==============================================================================
+
+NINETEEN, NOT TWENTY
+------------------------------------------------------------------------------
+   You asked for 20 equation crops below confidence 0.1. There are 19 in
+   the corpus, and that is the whole population, not a sampling limit -
+   out/064 measured exactly 19 of 4,338 equations below that threshold.
+
+   A twentieth requires relaxing the cut. out/064's distribution:
+     < 0.05    14
+     < 0.10    19      <- this set
+     < 0.20    35
+     < 0.50   178
+
+   I did not relax it. Padding a threshold-defined set with a row that
+   fails the threshold would make the trial's own population a fiction,
+   and every per-variant number computed on it would inherit that.
+
+SPREAD: 7 DOCUMENTS (asked for at least three)
+------------------------------------------------------------------------------
+   0902.0431         12
+   0903.2087          2
+   1510.06699         1
+   1503.00301         1
+   0711.0273          1
+   1407.4737          1
+   1408.0838          1
+
+   0902.0431 supplies 12 of 19. That concentration is a property of the
+   corpus, not of the selection: it is the same document that holds 31 of
+   058's demoted rows and 487 of 059's SLT pairs. A per-variant median
+   computed here is dominated by one document and should be read that way.
+
+THE SET, WITH BASELINES
+------------------------------------------------------------------------------
+    # identifier                page   conf     ink   comp   hole
+    1 0902.0431_EQ0515           85  0.0020     232    -77    -15
+    2 0902.0431_EQ0517           85  0.0021      74    -43    -11
+    3 0902.0431_EQ1026          171  0.0179      77    -23     -2
+    4 1510.06699_EQ0241          47  0.0191      12     +2     -3
+    5 0903.2087_EQ0065           21  0.0198      27     -3     -2
+    6 0902.0431_EQ0518           86  0.0213      10     -6     -4
+    7 0902.0431_EQ1032          173  0.0224     846   -522    -34
+    8 1503.00301_EQ0010           6  0.0239       9     +3     +0
+    9 0902.0431_EQ1033          174  0.0264     565    -41     +0
+   10 0711.0273_EQ0003            6  0.0340      16     +1     -1
+   11 0902.0431_EQ1031          173  0.0355       8     -5     -3
+   12 0902.0431_EQ0761          127  0.0364     834   -511    -41
+   13 0902.0431_EQ0516           85  0.0405      18    -12     -6
+   14 1407.4737_EQ0039           17  0.0411      37    -30     +1
+   15 1408.0838_EQ0026           11  0.0732      43    -13    -12
+   16 0902.0431_EQ0425           70  0.0818      27     +0    -12
+   17 0902.0431_EQ1059          180  0.0926      14     -1     -1
+   18 0902.0431_EQ0757          126  0.0955       8     -4     -4
+   19 0903.2087_EQ0041           13  0.0961      26     +1     +5
+
+   ink  = L1 over the five-tuple, MathPix's current LaTeX rendered
+          standalone at 400 dpi against the scan crop
+   comp = components(render) - components(scan)
+   hole = holes(render) - holes(scan)
+
+BASELINE SHAPE
+------------------------------------------------------------------------------
+   ink   min 8   median 27   max 846
+   above the 6-7 noise floor: 19 of 19
+   component delta negative : 14 of 19
+
+   These are the rows where MathPix itself reported the least confidence,
+   so a variant that improves them is improving the cases the OCR already
+   flagged - which is the easiest population to improve on and the one
+   least representative of the corpus. Worth stating before 113's numbers
+   are read as a general result.

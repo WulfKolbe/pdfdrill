@@ -1,0 +1,75 @@
+112 - four prompt variants, as data
+==============================================================================
+
+WHY AS DATA
+------------------------------------------------------------------------------
+   A prompt that lives in code is edited between runs and the runs stop being
+   comparable. These four are literal strings, quoted here in full, and 113
+   loads them from this definition. Any change to a variant is a new variant
+   with a new letter, not an edit to an existing one.
+
+VARIANT A - bare
+------------------------------------------------------------------------------
+Generate LaTeX from this image.
+
+VARIANT B - bare + notation hint
+------------------------------------------------------------------------------
+Generate LaTeX from this image.
+
+A bold italic S carrying an upper and a lower limit is a discrete integral
+operator, not a summation sign and not the letter S. Transcribe it as
+\mathbf{S}_{lower}^{upper} and do not substitute \sum for it.
+
+VARIANT C - bare + MathPix's current reading
+------------------------------------------------------------------------------
+Generate LaTeX from this image.
+
+An existing OCR pass produced the following LaTeX for this image. It may be
+correct, partially correct, or wrong. Use it as a reference, not as an answer:
+
+{mathpix_latex}
+
+VARIANT D - notation hint + MathPix's reading + output schema
+------------------------------------------------------------------------------
+Generate LaTeX from this image.
+
+A bold italic S carrying an upper and a lower limit is a discrete integral
+operator, not a summation sign and not the letter S. Transcribe it as
+\mathbf{S}_{lower}^{upper} and do not substitute \sum for it.
+
+An existing OCR pass produced the following LaTeX for this image. It may be
+correct, partially correct, or wrong. Use it as a reference, not as an answer:
+
+{mathpix_latex}
+
+Reply with JSON only, no prose and no code fence, in exactly this shape:
+
+{"latex": "<the LaTeX body only, no \\documentclass and no document
+environment>", "confidence": <number between 0 and 1>, "notes": "<what you
+were unsure about, or an empty string>"}
+
+THE ONE SUBSTITUTION
+------------------------------------------------------------------------------
+   {mathpix_latex} is replaced with the current `latex` prop of the row under
+   test. It appears in C and D only. A and B receive no prior reading, so the
+   A-to-C and B-to-D differences isolate exactly one thing: whether showing
+   the model the existing OCR helps or anchors it.
+
+WHAT THE DESIGN IS FOR
+------------------------------------------------------------------------------
+   A -> B     does a notation instruction alone change the transcription
+   A -> C     does the prior reading help, or anchor the model to its errors
+   C -> D     does adding the hint and a schema help on top of the prior
+   B -> D     the two aids together against the hint alone
+
+   The pairs are what carry information; a single variant's median improvement
+   says little on its own.
+
+ONE OBSERVED BEHAVIOUR THAT MOTIVATES D'S SCHEMA
+------------------------------------------------------------------------------
+   out/110's bare call returned a COMPLETE DOCUMENT - \documentclass,
+   \usepackage lines, \begin{document} - around the transcription. That is a
+   reasonable reading of "generate LaTeX" and it is useless to a pipeline that
+   substitutes one row's body. D's schema exists to test whether asking for a
+   body in JSON removes that, and the cost of the schema is that it may
+   suppress content the freer prompts produce. 113 measures both.

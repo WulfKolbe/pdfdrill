@@ -1,0 +1,61 @@
+110 - gemma_client against minimax/minimax-m3
+==============================================================================
+
+CONFIRMED. ONE CROP, ROUND TRIP 6.45 s.
+------------------------------------------------------------------------------
+   model      minimax/minimax-m3        (GEMMA_MODEL)
+   base_url   https://api.novita.ai/v3/openai   (NOVITA_BASE_URL)
+   crop       0902.0431_EQ0515.jpg, 52,843 bytes
+   reply      672 chars raw, 659 after fence stripping
+
+   Both overrides took effect: gemma_client._model() and ._base_url() report
+   the env values, not the DEFAULT_MODEL google/gemma-4-26b-a4b-it.
+
+RETURNED LATEX
+------------------------------------------------------------------------------
+   \documentclass{article}
+   \usepackage{amsmath}
+   \usepackage{amssymb}
+
+   \begin{document}
+
+   \begin{align*}
+   \lambda_0 - \lambda_1 &= 1\ 0\ 0\ 0\ 0\ 0 & \lambda_0 + \lambda_1 &= 1\ 2\ 2\ 1\ 1\ 1 \\
+   \lambda_0 - \lambda_2 &= 1\ 1\ 0\ 0\ 0\ 0 & \lambda_0 + \lambda_2 &= 1\ 1\ 2\ 1\ 1\ 1 \\
+   \lambda_0 - \lambda_3 &= 1\ 1\ 1\ 0\ 0\ 0 & \lambda_0 + \lambda_3 &= 1\ 1\ 1\ 1\ 1\ 1 \\
+   \lambda_1 - \lambda_2 &= 0\ 1\ 0\ 0\ 0\ 0 & \lambda_1 + \lambda_2 &= 0\ 1\ 2\ 1\ 1\ 1 \\
+   \lambda_1 - \lambda_3 &= 0\ 1\ 1\ 0\ 0\ 0 & \lambda_1 + \lambda_3 &= 0\ 1\ 1\ 1\ 1\ 1 \\
+   \lambda_2 - \lambda_3 &= 0\ 0\ 1\ 0\ 0\ 0 & \lambda_2 + \lambda_3 &= 0\ 0\ 1\ 1\ 1\ 1
+   \end{align*}
+
+   \end{document}
+
+THE PART WORTH NOTICING
+------------------------------------------------------------------------------
+   This is the SAME TABLE as the EQ0515 proposal in example.json, which
+   out/106 measured at ink 11 against the scan - down from 232 for MathPix's
+   current reading, with the component delta going from -77 to -1.
+
+   Two independent routes now produce the same 6x6 difference/sum table for a
+   row MathPix read at confidence 0.0020, and an instrument that saw neither
+   of them agrees with both to one component. That is three-way agreement on a
+   row the OCR itself flagged as its least certain in the document.
+
+   It is not proof: both routes are vision models and may share a failure
+   mode, and basis is still "inferred" with no author source behind it. But it
+   is a good deal more than one model's opinion.
+
+ONE BEHAVIOUR THAT SHAPES 112
+------------------------------------------------------------------------------
+   The bare prompt returned a COMPLETE DOCUMENT - \documentclass, \usepackage
+   lines, \begin{document}. That is a fair reading of "generate LaTeX" and it
+   is unusable to a pipeline that substitutes one row's body, so 113's harness
+   strips the wrapper and 112's variant D tests whether a JSON schema removes
+   the need to.
+
+CALL SHAPE, since it cost a moment to get right
+------------------------------------------------------------------------------
+   analyze_image(path, *, prompt=..., model=..., timeout=...) - the prompt is
+   KEYWORD-only. Passing it positionally raises TypeError before any network
+   call, which is the right failure: a mis-shaped call must not reach a paid
+   endpoint.

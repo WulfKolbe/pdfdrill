@@ -1,0 +1,66 @@
+113a - failure counts, both scorings, and B split by the S notation
+==============================================================================
+
+PER VARIANT, BOTH SCORINGS
+------------------------------------------------------------------------------
+   variant   n  failed  compiled   median over    median over ALL
+                                    compiled      (failures = baseline)
+   A        19       5        14          +146                 +4
+   B        19       1        18          +196               +185
+   C        19       4        15            -8                 -4
+   D        19       4        15            -6                 -2
+
+THE TWO MEDIANS DISAGREE BY MORE THAN THE VARIANTS DO
+------------------------------------------------------------------------------
+   A moves from +146 to +4 depending only on how a failure is scored.
+   That is a larger swing than the gap between the best and worst variant
+   under either scoring, so the choice of scoring rule is not a detail -
+   it is the headline.
+
+   Neither number is the honest one on its own:
+     over COMPILED replies    - measures quality WHERE the model produced
+       usable LaTeX, and silently rewards a variant that fails often, since
+       its failures are simply absent from the denominator. A prompt that
+       compiled once and improved that row would score best of all.
+     failures scored AT BASELINE - assumes a failed reply costs nothing,
+       i.e. that we fall back to MathPix's reading. That is true of this
+       pipeline and it flatters the failure-prone variants by treating a
+       non-answer as a neutral one.
+
+   Read together: A and B are bad under both. C and D improve under both,
+   and their advantage SHRINKS under the second scoring (-8 -> -4, -6 ->
+   -2) because their gains are diluted by four failures each.
+
+B SPLIT BY WHETHER THE CROP CONTAINS A BOLD OR SCRIPT S
+------------------------------------------------------------------------------
+   contains S    n= 1  compiled= 1  median(compiled)=    +0  median(all)=    +0
+   no S          n=18  compiled=17  median(compiled)=  +207  median(all)=  +196
+
+   THE SPLIT IS 1 AGAINST 18 AND THAT IS THE FINDING.
+
+   Exactly one of the 19 trial crops contains an S in the sense B's hint
+   addresses. A median over one row is that row, not a median, and no
+   comparison between the two groups is supportable.
+
+   So B's +196 is the cost of the hint on crops the hint does not apply
+   to. It was never measured on the population it was written for, and
+   this trial cannot measure it: out/104 found the discrete-integral S in
+   2 expressions across four Heim books, and this set is drawn from the
+   arXiv corpus by confidence, which selects for something else entirely.
+
+   Testing B properly needs a trial set built FROM the notation - the
+   BH1org_OCR page 117 rows and whatever else a bold-S scan turns up -
+   not from a confidence threshold. That is a different set and a
+   different task.
+
+A CAVEAT ON THE DETECTOR
+------------------------------------------------------------------------------
+   'contains an S' was decided from MathPix's OWN latex for the row, which
+   is circular in exactly the cases that matter: if MathPix misread the S
+   as \sum or as something else, the detector does not see it and the crop
+   lands in the 'no S' group. 3 of the 19 contain \sum, which is the
+   substitution B exists to prevent.
+
+   The non-circular detector is the scan image, and reading it is what the
+   model under test is for. So the split is reported as measured and its
+   direction of error is stated: it can only UNDERCOUNT the S group.
