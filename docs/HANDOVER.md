@@ -118,15 +118,18 @@ no e-print, so it reaches the ~99% of documents where no comparison is possible.
   was never wrong at rest; it was READ while half-written. Stop the batch, or
   land the change as one edit.
 
-- **On finding that, check the measurer before measuring the damage.** Scoping
-  that failure produced two wrong numbers in an hour — 268 reports, then 5 —
-  against an actual count of 1. The 268 came from
-  `begin{longtable}{[^}]*}`, where the class stops at the first `}` inside
-  `p{20mm}` so every file reported one column; the 5 came from testing
-  `includegraphics` per FILE for a property that is per TABLE. Both times the
-  instrument was new, unvalidated, and the most likely broken thing in the
-  room. Confirm the shape on the one case you were handed before generalising
-  from it.
+- **A detector built to size a defect must first reproduce the one case whose
+  answer you already know.** Scoping the torn build produced two wrong numbers
+  in an hour — 268 reports, then 5 — against an actual count of 1. The 268
+  came from `begin{longtable}{[^}]*}`, where the class stops at the first `}`
+  inside `p{20mm}` so every file reported one column; the 5 came from testing
+  `includegraphics` per FILE for a property that is per TABLE. Both would have
+  died on contact with `BH1org_OCR`, the single document already in hand,
+  whose table I had just read as five columns and whose answer was known
+  before either detector existed. Note what this rule is NOT: the batch was
+  already stopped when I counted 268, so "artifacts made mid-edit are suspect"
+  explains the torn file and neither wrong number. The mechanism was the brace
+  trap; the reason it reached a conclusion was an unvalidated instrument.
 
 - **A summary line is only as honest as its smallest category.** A forced
   regeneration reported `104 OK / 0 FAIL / 160 SKIP` and read as a clean run.
