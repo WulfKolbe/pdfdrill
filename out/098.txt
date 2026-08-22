@@ -1,0 +1,63 @@
+098 - the 11 rows at component delta <= -10
+==============================================================================
+
+VERDICTS
+------------------------------------------------------------------------------
+  #  identifier              comp  hole   ink   verdict
+  1  1211.3375_EQ0015        -177   -10   213   ARTIFACT    shaded box
+  2  1211.3375_EQ0016        -156    -5   181   ARTIFACT    shaded box
+  3  1211.3375_EQ0011        -111    -3   128   ARTIFACT    shaded box
+  4  0902.0431_EQ0905         -17    -8    29   CONTENT     region overrun
+  5  1602.04650_EQ0024        -16    -3   235   CONTENT     truncated
+  6  0902.0431_EQ0253         -15    -4    19   CONTENT     region overrun
+  7  0902.0431_EQ0459         -15    -3    18   CONTENT     region overrun
+  8  0902.0431_EQ0760         -14    +0   184   TYPOGRAPHY  merged fractions
+  9  1101.4542_EQ0066         -11    -2    15   CONTENT     region overrun
+ 10  0911.3722_EQ0021         -10    -5    15   CONTENT     truncated
+ 11  1404.2443_EQ0028         -10    -5    37   CONTENT     dropped term
+
+     3 artifact, 7 content, 1 typography.
+
+ONE LINE EACH
+------------------------------------------------------------------------------
+ 1-3  1211.3375 - the three shaded-box crops. out/068's detector flags exactly
+      these and clears that document's other five. The grey box fragments
+      under the mask threshold and hands the scan components the render has
+      no counterpart for.
+
+  4   0902.0431_EQ0905 - the crop runs past the equation into the prose "is
+      real diagonal." The LaTeX is right; the region is not.
+  6   0902.0431_EQ0253 - crop swallows "(Lemma 2.2.4.(2))."
+  7   0902.0431_EQ0459 - crop swallows "(Theorem 3.2.2),".
+  9   1101.4542_EQ0066 - crop swallows "(Exercise)". NEW - not previously
+      inspected, and it makes region overrun the single largest class here.
+
+  5   1602.04650_EQ0024 - a 30-line expression whose final divisor line
+      /(n_C^2 - 4 gamma n_C + 4 gamma^2) is absent from the LaTeX.
+ 10   0911.3722_EQ0021 - trailing "-complete." truncated.
+ 11   1404.2443_EQ0028 - p_3=(0,0) dropped from a list of seven points.
+
+  8   0902.0431_EQ0760 - NEW, and the one that refines the rule. All 8 rows
+      and 7 columns match the scan exactly. The render sets its fractions
+      with \frac where the page uses \dfrac, so the numerator and denominator
+      collide and adjacent glyphs MERGE into single components. The render
+      has 14 fewer components than the scan and has lost nothing at all.
+
+THE RULE FROM 069 NEEDS A QUALIFIER
+------------------------------------------------------------------------------
+   out/069 read a large negative component delta as the signature of a
+   content error - the scan carrying marks the render cannot account for.
+   Row 8 is a counterexample: components can also go negative because the
+   render MERGED glyphs that the scan keeps separate.
+
+   The two are distinguishable by the hole column. Missing content removes
+   marks and their counters together, so holes go negative with components
+   (rows 4-7, 9-11 all have holes < 0). Merging joins outlines without
+   destroying counters, so holes stay put (row 8 is exactly 0).
+
+   comp << 0 AND holes < 0   -> something is absent
+   comp << 0 AND holes ~ 0   -> something is touching
+
+   On these 11 that separates 10 from 1 with no overlap. It is the rule
+   out/100 uses to classify the whole set, and row 8 is why it needs two
+   signs rather than one.

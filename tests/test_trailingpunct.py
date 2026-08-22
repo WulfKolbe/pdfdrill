@@ -125,7 +125,11 @@ def test_demoted_row_keeps_parity_because_neither_side_shows_the_mark():
     so both sides show exactly '(not rendered)' and no mark."""
     from pdfdrill.report_tex import row
     bad = r"\[ x \] \end{itemize}"          # renderable() rejects this
-    cell = lambda r: r.split("&")[3].strip()
+    # 099 inserted the Conf. column third, so Source is index 3 and the
+    # Rendered cell this test is about is index 4. Indexing from the END
+    # would survive the next column too, but the row may or may not carry a
+    # Scan image, so the count from the left is the stable one.
+    cell = lambda r: r.split("&")[4].strip()
     pre = row("id", bad + ",", "007")        # unmigrated: mark inside latex
     post = row("id", bad, "007", punct=",")  # migrated: mark separated out
     assert cell(pre) == cell(post) == r"\emph{(not rendered)} \\ \hline"

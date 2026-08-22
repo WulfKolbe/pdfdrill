@@ -85,3 +85,31 @@ STATE OF THE THREE FIXES
                 any of them
    demotions    49 rows excluded, unchanged from out/066
    shading      0 shaded crops among the flagged rows (out/068's detector)
+
+ADDENDUM - THE FLOOR OF 6 IS INHERITED, AND 7 IS WHAT THE DATA SUPPORTS
+------------------------------------------------------------------------------
+   This file uses ink >= 6. That figure is the consumer's RASTERIZER-only
+   p95 - the same expressions through ghostscript and poppler - and I carried
+   it into out/066 without re-deriving it for render-vs-scan, which is a
+   different comparison.
+
+   The render-vs-scan floor was measured on this side's own data:
+   out/052-slt-zero.tsv, whose ink column is exactly this comparison - author
+   LaTeX rendered standalone at 400 dpi against the scan crop - restricted to
+   genuinely content-identical rows:
+
+       n=813 (strict environment filter)   p95 = 7
+       n=826 (including degenerate SLT)    p95 = 8
+
+   Sensitivity, on the same 724 rows:
+
+       floor 6    724 flagged    662 at component delta <= 0   (91%)
+       floor 7    591 flagged    535 at component delta <= 0   (91%)
+
+   133 rows sit at exactly 6. The headline count moves 18%; the shape does
+   not move at all.
+
+   Both figures are recorded rather than one replaced, because the count and
+   the conclusion have different exposures to the choice: quote 591 if the
+   floor matters to what you are claiming, and note that the 91% does not
+   depend on it either way.

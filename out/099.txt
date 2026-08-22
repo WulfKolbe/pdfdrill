@@ -1,0 +1,61 @@
+099 - the confidence column
+==============================================================================
+
+COLUMN SPEC
+------------------------------------------------------------------------------
+   position   third, between Page and LaTeX source
+   header     Conf.
+   width      13mm
+   content    \confcell{<band>}{<value to 3 dp>}
+   renders    a filled square in the band colour, then the number
+   absent     "---", never a colour
+
+   bands      confgreen  RGB(0,128,0)    value >= 0.9
+              confamber  RGB(190,120,0)  0.5 <= value < 0.9
+              confred    RGB(190,0,0)    value < 0.5
+
+   Table is now 6 columns with a scan image, 5 without:
+     Identifier | Page | Conf. | LaTeX source | Rendered | Scan image
+
+ROW ORDER
+------------------------------------------------------------------------------
+   Equation rows are sorted by confidence ASCENDING, so what MathPix is least
+   sure of is at the top of the table where a reader checking a document
+   looks first.
+
+   Rows with NO confidence value sort LAST, not first. Absence is not doubt,
+   and putting unmeasured rows at the head of a list ordered by doubt would
+   assert something about them that is not known.
+
+WHY IT SITS BESIDE THE INK DISTANCE AND IS NOT BLENDED WITH IT
+------------------------------------------------------------------------------
+   They are independent instruments and their disagreement is the useful
+   part. out/063: 0902.0431_EQ0516 reads confidence 0.041 and ink 18 - both
+   objected. out/067: the ten largest ink distances in the corpus are all
+   typography at confidence 1.000 - ink objected, confidence did not. out/064:
+   19 rows flag on confidence at a threshold of 0.1 and most are invisible to
+   ink.
+
+   A combined score would produce one number for all three situations and
+   discard which instrument objected, which is the only thing that tells a
+   reader what to look at.
+
+WHAT THE COLUMN DOES NOT DO
+------------------------------------------------------------------------------
+   It does not gate rendering. A low-confidence row still renders in full;
+   the band marks it, nothing suppresses it. Suppressing a doubted reading
+   would make a masked failure look like a clean report (HANDOVER-RULES
+   rule 11).
+
+   confidence_rate is NOT shown. It never drops below 0.9306 corpus-wide
+   (out/064) and would be a green square on every row - a column that cannot
+   discriminate, taking width from ones that can.
+
+VERIFIED
+------------------------------------------------------------------------------
+   0911.3722 rebuilt: 9 pages, 0 errors, 24 equation rows, bands 1 red
+   (0.448), 1 amber (0.661), 22 green, emitted in ascending order.
+
+   Documents whose tiddlers predate out/064 carry no confidence field and
+   render "---" throughout. That is correct and visible rather than silently
+   green, but it means the column is only populated after a re-projection.

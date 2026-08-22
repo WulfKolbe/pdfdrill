@@ -214,8 +214,10 @@ def test_confidence_flag_lands_in_the_identifier_column_only():
     lo = row("K_EQ1", "a+b", "12", conf="0.02")
     hi = row("K_EQ1", "a+b", "12", conf="0.99")
     assert "\\lowconf{0.020}" in lo and "\\lowconf" not in hi
-    # everything after the first & is the untouched remainder of the row
-    assert lo.split("&", 1)[1] == hi.split("&", 1)[1]
+    # 099 gave confidence its own column, so the Conf. cell now legitimately
+    # differs between the two. What must still be untouched is what the
+    # consumer measures: Source, Rendered and Scan — everything from index 3.
+    assert lo.split("&")[3:] == hi.split("&")[3:]
 
 
 def test_rows_for_equation_tuple_arity_matches_every_unpack_site():
@@ -237,3 +239,39 @@ def test_rows_for_equation_tuple_arity_matches_every_unpack_site():
         if line.strip().endswith("in eq:"):
             names = line.split("for", 1)[1].split(" in ")[0]
             assert len([n for n in names.split(",") if n.strip()]) == 7, line
+
+
+def test_confidence_cell_bands():
+    """099: green >= 0.9, amber 0.5-0.9, red < 0.5, and an absent value is a
+    dash — never a colour. A blank green square would assert a reading that
+    was never taken."""
+    from pdfdrill.report_tex import conf_cell
+    assert "confgreen" in conf_cell("0.95") and "0.950" in conf_cell("0.95")
+    assert "confamber" in conf_cell(0.661)
+    assert "confred" in conf_cell(0.448)
+    assert "confgreen" in conf_cell(0.9)      # boundary belongs to green
+    assert "confamber" in conf_cell(0.5)      # boundary belongs to amber
+    for absent in ("", None, "abc"):
+        assert conf_cell(absent) == "---", absent
+
+
+def test_row_has_the_confidence_column_and_scan_stays_last():
+    """The Conf. column goes third. The consumer reads the LAST TWO columns,
+    so Rendered and Scan must remain the final pair."""
+    from pdfdrill.report_tex import row
+    cells = row("K_EQ1", "a+b", "12", image="IMG", conf="0.42").split("&")
+    assert len(cells) == 6
+    assert "confred" in cells[2]
+    assert "FitMath" in cells[4] and "IMG" in cells[5]
+
+
+def test_col_widths_still_sum_to_the_span():
+    """Adding a column must not overflow the page: the widths plus the
+    tabcolsep reserve have to fit what geometry gives us."""
+    from pdfdrill.report_tex import col_widths
+    for usable in (261, 174):
+        for img in (True, False):
+            w = col_widths(usable, img)
+            assert len(w) == (6 if img else 5)
+            assert sum(w) <= usable, (usable, img, w, sum(w))
+            assert all(x > 0 for x in w)

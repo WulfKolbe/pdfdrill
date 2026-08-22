@@ -1,0 +1,71 @@
+100 - all 724 flagged rows in the status vocabulary
+==============================================================================
+
+DISTRIBUTION
+------------------------------------------------------------------------------
+   status       rows    share   median ink
+   truncated      11     1.5%       37
+   missing       122    16.9%       11
+   merged        161    22.2%       12
+   split          18     2.5%       10
+   wrong         309    42.7%        9
+   displaced     103    14.2%       10
+   noise           0     0.0%        -
+   total         724
+
+THE RULE, WHICH USES BOTH SIGNS
+------------------------------------------------------------------------------
+   delta = render - scan, for components and for holes.
+
+     comp <= -10 and holes <= 0      truncated   a long run is absent
+     comp < 0    and holes < 0       missing     marks and their counters
+                                                 went together
+     comp < 0    and holes >= 0      merged      outlines joined; nothing
+                                                 lost, counters intact
+     comp > 0    and holes > 0       split       one mark became several
+     comp > 0    and holes <= 0      wrong       different marks, not more
+     comp = 0    and holes != 0      wrong       same count, other shapes
+     comp = 0    and holes = 0       displaced   only position differs
+
+   Both signs are needed, and out/098 is why. A large negative component
+   delta alone reads as content loss, but 0902.0431_EQ0760 has -14
+   components with EXACTLY 0 hole change: its \frac fractions collide and
+   merge where the page uses \dfrac. Nothing is missing. Holes are what
+   separates absence from contact.
+
+WHAT THE DISTRIBUTION SAYS
+------------------------------------------------------------------------------
+   'wrong' is the largest class at 309 (43%) and is the weakest
+   label in the vocabulary. It means the two sides carry a similar number
+   of marks with different shapes - which is what a font substitution, a
+   delimiter size change and a genuine misread all look like at this
+   resolution. It needs splitting before it can direct any work.
+
+   'merged' at 161 (22%) is mostly typography and is now
+   separable from content loss for the first time, which is the
+   contribution of this classification.
+
+   'displaced' at 103 (14%) is the pure-layout class: identical
+   mark counts, identical counters, different positions. out/067 found
+   this by eye in ten samples; it is 1 row in 7 across the whole set.
+
+   'truncated' + 'missing' = 133 (18%) is where extraction defects
+   live. out/098 inspected the 11 deepest and confirmed 7 of them as real.
+
+   'noise' is 0 by construction: every row here already exceeds the ink
+   floor, so nothing in the flagged set can be classified as noise. The
+   label is kept in the vocabulary because rows BELOW the floor need it,
+   and an empty class is more honest than dropping the name.
+
+CONCENTRATION
+------------------------------------------------------------------------------
+   truncated  0902.0431 4, 1211.3375 3, 0911.3722 1, 1101.4542 1
+   missing    1603.04246v2 18, 0902.0431 16, 1205.5935v1 13, 1510.06699 13
+   merged     0902.0431 56, 1205.3463v2 17, 1411.5002 16, 1510.06699 12
+
+LIMIT
+------------------------------------------------------------------------------
+   This is a mechanical classification from two signed integers. It has
+   been checked by eye on 11 rows (out/098) and 10 rows (out/067), and
+   agrees with both. It has NOT been validated on the 703 others, and the
+   'wrong' class in particular is a residue rather than a finding.
