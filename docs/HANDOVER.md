@@ -145,6 +145,16 @@ no e-print, so it reaches the ~99% of documents where no comparison is possible.
   explains the torn file and neither wrong number. The mechanism was the brace
   trap; the reason it reached a conclusion was an unvalidated instrument.
 
+- **When joining two sources, take from each only what it alone knows.** The
+  report-row manifest maps report page -> identifiers. Page MEMBERSHIP can
+  only come from the rendered PDF, because only the raster knows where the
+  typesetter broke the table; row ORDER can only come from the `.tex`, because
+  `pdftotext` returns a wide table in an unreliable reading order and put
+  `FO0120` before `FO0111` on one page. Taking both from the PDF looks simpler
+  and produces a scrambled order — the same mislabelling the manifest exists
+  to prevent, arriving by another route. Ask of each source what it is
+  authoritative for, not what it is willing to answer.
+
 - **A summary line is only as honest as its smallest category.** A forced
   regeneration reported `104 OK / 0 FAIL / 160 SKIP` and read as a clean run.
   The skips were a harness bug — `next(iter(d.glob("*.pdf")))` took the first
