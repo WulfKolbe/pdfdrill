@@ -108,8 +108,18 @@ no e-print, so it reaches the ~99% of documents where no comparison is possible.
   had ruled out of scope, because the cutoff constant read 2025 not 2026 and
   the counter that would have caught it printed 0 and went unread.
 
-Three of these — the residue bucket reading 0, the `(page,row)` key, the
-skipped-count reading 0 — are one failure: **trusting a check's summary over
-its data**. The check ran, the aggregate agreed with the expectation, and
-nobody looked at the rows. A zero in a class you have just declared non-empty
-is not a result, it is a symptom.
+- **A summary line is only as honest as its smallest category.** A forced
+  regeneration reported `104 OK / 0 FAIL / 160 SKIP` and read as a clean run.
+  The skips were a harness bug — `next(iter(d.glob("*.pdf")))` took the first
+  filesystem entry and then tested it, so any folder where `report.pdf` sorted
+  first lost its source and was logged "nopdf" with the real PDF present. 163
+  of 167 skips were wrong, and the pass silently did 40% of its job. Exclude by
+  name over a SORTED glob; unsorted globs make the same command measure
+  different files on different machines with nothing in the output to show it.
+
+Four of these — the residue bucket reading 0, the `(page,row)` key, the
+skipped-count reading 0, and `160 SKIP` — are one failure: **trusting a
+check's summary over its data**. The check ran, the aggregate agreed with the
+expectation, and nobody read the rows. A zero in a class you have just
+declared non-empty is not a result, it is a symptom; and a category you do not
+read is one you have declared uninteresting in advance.
