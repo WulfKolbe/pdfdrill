@@ -1,0 +1,83 @@
+104 - the discrete-integral candidate set across the four books
+==============================================================================
+
+COUNT
+------------------------------------------------------------------------------
+   raw matches (a bold/script/plain S carrying both scripts)    5
+     of which the "upper limit" is a DECORATION, not a limit    3
+     genuine upper-and-lower limits                             2
+
+   by document:  BH1org_OCR 3 (2 genuine), WDorg4 2 (0), bh2 1 (0), BH3FR 0
+
+   You asked for ten examples. There are five, and all five are below - the
+   candidate set is smaller than the request assumed, and padding it with
+   near-misses would misrepresent how rare the notation is.
+
+THE FIVE, IN FULL
+------------------------------------------------------------------------------
+ 1  BH1org_OCR_FO1502   p117   \boldsymbol{S}_{a}^{n}    lower a, upper n   GENUINE
+      \phi(n)-\phi(a-1)=\boldsymbol{S}_{a}^{n} \varphi(v) \boldsymbol{\partial} v
+
+    This is the definition itself, on the page, in the OCR: the difference of
+    a function at n and at a-1 equals S from a to n of phi(v) d-partial v.
+    That is a discrete integral stated as one, and it is why the notation
+    table exists.
+
+ 2  BH1org_OCR_EQ0079   p117   \boldsymbol{S}_{a}^{n}    lower a, upper n   GENUINE
+      \boldsymbol{\partial}_{\boldsymbol{a}}^{n} \varphi(v) \boldsymbol{\partial} v
+      = \boldsymbol{S}...
+
+    Same page, same expression - the display equation whose inline form is
+    FO1502. One occurrence of the notation, indexed twice by the model.
+
+ 3  bh2_EQ0050          p57    S_{0}^{\prime}            upper is \prime    DECORATION
+      c^{2}(\delta_{1}E-\delta^{\prime}E-\delta E)=...
+
+ 4  WDorg4_FO0831       p60    \mathrm{S}_{2}^{*}        upper is *         DECORATION
+      \mathrm{S}_{2}^{*}(y_5,y_6) \rightarrow \mathrm{R}_{4}^{*}(...)
+
+ 5  WDorg4_FO0832       p60    \mathrm{S}_{2}^{*}        upper is *         DECORATION
+
+    3, 4 and 5 are S-prime and S-star: a superscript slot holding an
+    ornament, not a limit. They match the shape and mean nothing like it.
+    Counting them would put the candidate set at 5 and the truth at 2.
+
+WHAT I SEARCHED, SO THE ZERO IS NOT MISTAKEN FOR AN ABSENCE
+------------------------------------------------------------------------------
+   S in every wrapper MathPix emits - \mathbf \boldsymbol \pmb \mathscr
+   \mathcal \mathfrak \mathsf \bf \mathrm - and bare S, carrying both scripts
+   in either order.
+
+   Also searched and found NOTHING:
+     S\limits form                              0
+     \underset{lower}{\overset{upper}{S}}       0
+
+   The stacked form is worth naming because an earlier, looser pattern
+   reported 26 of them and they were \underset/\overset around other symbols
+   entirely - the pattern did not require S inside the nest. Corrected, the
+   stacked count is zero: MathPix writes these as ordinary sub/superscripts,
+   never as stacked limits.
+
+   For scale on the same four books: \sum appears in 479 expressions. So the
+   OCR is perfectly willing to emit a summation operator, and does, 479
+   times. It reads this symbol as a lettered S with scripts instead - which
+   is the correct literal reading of the ink and exactly why the meaning has
+   to come from a notation table rather than from the OCR.
+
+WHAT THIS MEANS FOR out/103
+------------------------------------------------------------------------------
+   bh2's table stays empty and that is now a measurement rather than a
+   default: bh2 has one S-with-scripts and it is S-prime.
+
+   BH1org_OCR is the document with the notation, and the entry is ready to be
+   written from its own page 117:
+
+       glyph_context  \boldsymbol{S}_{a}^{n}
+       macro_name     discrete_integral
+       definition     \phi(n)-\phi(a-1)
+       note           p.117, stated in the text as the defining identity
+       examples       BH1org_OCR_EQ0079, BH1org_OCR_FO1502
+
+   Not written. 104 was asked to count and exemplify; committing an editorial
+   definition to a document's notation table is a different act and should be
+   a deliberate one.

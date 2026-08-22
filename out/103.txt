@@ -1,0 +1,74 @@
+103 - the per-document notation table
+==============================================================================
+
+WHY IT IS PER DOCUMENT AND READ, NOT INFERRED
+------------------------------------------------------------------------------
+   A book invents its own symbols. Heim's bold S with two limits is a discrete
+   integral; the identical glyph in another author's paper is a sum. Nothing
+   in the OCR can separate them, and nothing should try: the distinction is
+   editorial knowledge about ONE document. So it lives beside that document,
+   is written by a person, and is loaded rather than guessed.
+
+FILE
+------------------------------------------------------------------------------
+   <stem>.notation.json, beside the PDF.
+   bh2 -> ~/pdfdrill-library/bh2/bh2.notation.json
+
+SCHEMA
+------------------------------------------------------------------------------
+   {
+     "version": 1,
+     "bibkey": "bh2",
+     "entries": [
+       {
+         "glyph_context": "\\mathbf{S}_{a}^{b}",
+         "macro_name":    "discrete_integral",
+         "definition":    "\\sum_{k=a}^{b} f(k)\\,\\Delta k",
+         "note":          "p.42, Heim's own definition; not a summation",
+         "examples":      ["bh2_EQ0107", "bh2_EQ0311"]
+       }
+     ]
+   }
+
+   glyph_context  REQUIRED. What the OCR produced, as a pattern to recognise.
+                  Written in MathPix's own output form, because that is the
+                  string anything downstream will actually be matching.
+   macro_name     REQUIRED. The name this document gives the thing. Unique
+                  within a table.
+   definition     REQUIRED. What it means, LaTeX or prose.
+   note           optional. Provenance - which page, who decided, on what
+                  evidence. A notation table without provenance is an
+                  assertion; with it, it is a citation.
+   examples       optional. Identifiers exhibiting it, so a claim can be
+                  checked against the document rather than believed.
+
+THREE DECISIONS WORTH STATING
+------------------------------------------------------------------------------
+   ABSENT IS NOT EMPTY. load() returns a table with present=False when no file
+   exists and present=True with zero entries when a file exists and declares
+   none. "This document has no special notation" and "nobody has looked" are
+   different facts and a caller must be able to tell them apart.
+
+   A MALFORMED FILE RAISES. Absence never raises; a file that exists and
+   cannot be read does. Treating the second as the first would let a typo
+   silently disable a document's notation with no message anywhere.
+
+   DUPLICATE macro_name RAISES. Two entries claiming one name is an editorial
+   contradiction, and resolving it by last-wins would make the meaning depend
+   on file order.
+
+BH2, AS ASKED - AN EMPTY TABLE
+------------------------------------------------------------------------------
+   {
+    "version": 1,
+    "bibkey": "bh2",
+    "entries": []
+   }
+
+   Written to ~/pdfdrill-library/bh2/bh2.notation.json. It now reads as
+   present=True, 0 entries: bh2 has been looked at and declares no special
+   notation YET. out/104 measures the candidate set that would populate it.
+
+   Nothing consumes the table yet. It is a place to put the answer, built
+   before the answer, so that 104's candidates have somewhere to land that is
+   not a comment in a commit message.
