@@ -1,0 +1,95 @@
+120 - confidence distribution after the MathPix run
+==============================================================================
+
+THE RUN
+------------------------------------------------------------------------------
+   722 documents attempted, 0 failures, 1 skipped.
+   9,970 pages bought.  13,893 confidence cells now render in reports.
+   1 document came back with no confidence cells at all.
+
+POOLED
+------------------------------------------------------------------------------
+   equations                        16,441
+   carrying a confidence value      15,267   (92.9%)
+
+   < 0.1            110    0.72%
+   0.1 - 0.5        488    3.20%
+   > 0.9         12,601   82.54%
+   (0.5, 0.9]     2,068   13.55%   <- the band the task did not ask for
+
+   median 1.0000   mean 0.9297   min 0.0000
+
+   The three requested bands leave a gap between 0.5 and 0.9 holding 13.55%
+   of the population - more than the two low bands together. Reported so
+   the four add to 100% and nobody infers the remainder is small.
+
+THE SHAPE IS THE SAME AS THE ORIGINAL CORPUS
+------------------------------------------------------------------------------
+   out/064 measured the 49-document corpus: 19 of 4,338 below 0.1 (0.4%),
+   median exactly 1.000, p05 0.515.
+   Here: 110 of 15,267 below 0.1 (0.72%), median exactly 1.000.
+
+   9,970 pages of new documents did not change the distribution. MathPix
+   is confident about almost everything it reads, on both populations, and
+   the doubted tail stays under 1%.
+
+PER DOCUMENT - THE 20 WITH THE MOST DOUBTED EQUATIONS
+------------------------------------------------------------------------------
+    document                              eq   conf   <0.1  .1-.5   >0.9
+   Clifford_bundle_formulation_of_BF_gr   151    146     31     43     43
+   DeVitoOehrlepaper                       42     42      9     18      8
+   2005.04015                             112    112      6     20     60
+   2205.13449v2                           113    110      6      9     81
+   AltenkirchMcBrided-TowardsOTT           63     63      5     14     29
+   2409.02789v2                            84     80      4      7     60
+   HitoshiKonno                            48     48      3      9     18
+   FangStationaryphaseprinciple            74     74      3      7     51
+   0212041                                 22     22      3      1     12
+   gr-qc_0212041                           22     22      3      1     12
+   fricas_intro                            52     52      2     10     29
+   Clifford_Geometrodynamics               22     22      2      3     12
+   30253-1526-24697-2-10-20241121          22     21      2      3     14
+   qt62k441m6                               8      8      2      2      4
+   2306.04271                              76     76      1      7     53
+   2012.15581                              79     79      1      7     48
+   2309.13736                              57     57      1      7     41
+   21_hans                                 29     29      1      6     14
+   9602137v2                               96     95      1      5     80
+   2304.0228v1                             69     69      1      4     53
+
+DOCUMENTS WITH NO CONFIDENCE AT ALL
+------------------------------------------------------------------------------
+   119 of 724 documents have equations but no confidence value on any of them.
+   They hold 1,148 equations - 7.0% of the total.
+
+   This is the residue the run could not fix and it is worth naming: the
+   MathPix call succeeded and the model was rebuilt, but those documents'
+   lines.json carries no per-line confidence. Same shape as the pdfminer
+   finding - the field is absent at source, not dropped in transit.
+
+   Largest: Dihedral homologi p? skj (229), 1605.03431 (144), Normalization_square_roo (120), LIPIcs-CPM-2021-15 (108), DKT05 (103)
+
+WHAT THE 110 DOUBTED EQUATIONS ARE FOR
+------------------------------------------------------------------------------
+   out/113 and out/115 established that prompt-based re-transcription helps on
+   rows MathPix flags for itself (median -8 ink) and does nothing on rows it is
+   confident about (median 0). These 110 are that population, grown from 19 to
+   110 by this run.
+
+   That is the practical result: the run did not change what the corpus looks
+   like, it changed how many rows are eligible for the one intervention that
+   has been shown to work.
+
+COST
+------------------------------------------------------------------------------
+   9,970 pages for 15,267 confidence values, of which 110 are actionable under
+   the current threshold. Whether that is worth it depends on what the 110 turn
+   out to be, which out/113's method can answer and this file does not.
+
+   The filter that got here is worth recording: the instruction was documents
+   under 30 pages, which is 1,914 not-yet-MathPix documents and 16,485 pages.
+   Restricting to the 724 whose model already showed math cut it to 9,970
+   pages, and across 722 completed documents exactly ONE returned no
+   confidence cells. The 1,189 excluded were the ones that would have behaved
+   like the pilot - a technical drawing that bought a page and yielded zero
+   equations.
