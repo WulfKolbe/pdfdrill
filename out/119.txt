@@ -1,0 +1,81 @@
+119 - set B's 20 rows, judged by eye: typographic or content
+==============================================================================
+
+THE SPLIT
+------------------------------------------------------------------------------
+   typographic                    18
+   typographic + region overrun    1
+   borderline content              1
+   unambiguous content             0
+
+   Not one of the 20 rows carries a symbol MathPix got wrong.
+
+WHAT THE DISAGREEMENTS ACTUALLY ARE
+------------------------------------------------------------------------------
+   delimiter auto-sizing      13   \left( \right) against fixed-size parens,
+                                   \langle \rangle, \left[ \right]
+   trailing punctuation        8   the mark lives in trailing_punct (025) so
+                                   the render omits it by design
+   accent width                3   \bar against the page's wider \overline
+   fraction style              2   \frac against \dfrac / \tfrac
+   upright vs italic Phi       2   \Phi rendered upright, set italic on the page
+   limit placement             1   \int_a^b beside the sign vs \int\limits
+   index spacing               1   see the borderline row below
+
+   (rows carry more than one, so these do not sum to 20)
+
+THE TWO THAT ARE NOT PURELY TYPOGRAPHIC
+------------------------------------------------------------------------------
+ 16  1510.06699_EQ0188   ink 16, conf 0.987   BORDERLINE
+     Scan: \gamma^{a\,0} and a\phi^{2\,0}\mathcal{R}. Render: \gamma^{a0} and
+     a\phi^{20}\mathcal{R}. MathPix closed the gap between two tensor indices.
+
+     Read one way it is spacing and the meaning survives: a and 0 are still
+     two indices. Read the other way "a0" and "20" are single tokens and a
+     parser downstream cannot recover the split. I count it separately rather
+     than force it, because the judgement depends on who reads the LaTeX next.
+
+     Both sides also carry ".(204)" INSIDE the math - MathPix put the equation
+     number in the latex. That is a genuine defect and it is invisible to the
+     ink, because the scan carries it too.
+
+ 17  1510.06699_EQ0239   ink 6, conf 0.997   TYPOGRAPHY + REGION OVERRUN
+     Content identical, \dfrac against \tfrac. The scan crop additionally
+     carries a trailing ", (" - the opening of an equation number the region
+     caught. Its comp -2 is that fragment, not a transcription error.
+
+WHY THIS MATTERS FOR out/115
+------------------------------------------------------------------------------
+   115 measured variants C and D on these exact 20 rows and got a median of
+   0 with no improvement. This file is why: there was nothing for a better
+   transcription to fix. A vision model cannot make \left( render at a fixed
+   size, cannot restore a trailing comma the pipeline deliberately moved to
+   another field, and cannot widen a \bar into an \overline.
+
+   The null in 115 is not evidence that the model is weak on hard rows. It is
+   evidence that these rows are not transcription problems at all.
+
+AND IT SETS A CEILING ON THE INK METRIC HERE
+------------------------------------------------------------------------------
+   These 20 are a stratified sample of the 724 flagged rows - median ink 10
+   against a population median of 10. If the sample is representative, then
+   the flagged population is overwhelmingly typographic, and out/100's
+   classification agrees from the other side: 43% 'wrong' by mark shape, 22%
+   merged glyphs, 14% pure displacement.
+
+   So "ink >= 6 and confidence >= 0.9" is not a defect detector. It is a
+   RENDERING-DIFFERENCE detector, and on this corpus the rendering differs
+   from the page far more often than the reading does.
+
+   That is a limit of what the standalone-render comparison can find, not a
+   limit of the corpus. Closing it means rendering with the document's own
+   preamble - its delimiter conventions, its \dfrac habits - rather than a
+   generic standalone, which is a different instrument than the one that
+   produced these numbers.
+
+METHOD
+------------------------------------------------------------------------------
+   Each row viewed as a stacked pair, MathPix's render above its scan crop,
+   at full width. Judged on whether every symbol, index, sign and coefficient
+   matches - not on the five-tuple, which is what out/100 does mechanically
+   and which cannot make this call.
