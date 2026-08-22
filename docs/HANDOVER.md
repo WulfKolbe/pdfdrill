@@ -145,6 +145,26 @@ no e-print, so it reaches the ~99% of documents where no comparison is possible.
   explains the torn file and neither wrong number. The mechanism was the brace
   trap; the reason it reached a conclusion was an unvalidated instrument.
 
+- **Anchor a match on the part that cannot break.** Report identifiers wrap:
+  `breakable_ident` inserts `\allowbreak` after every dot and underscore, so
+  `pdftotext` returns the bibkey in fragments with the Page column interleaved
+  between them — `0902.0431_ 173 EQ1032`. Matching the whole identifier
+  recovered 94.7% and the loss was CORRELATED with identifier length, which is
+  a selection rule rather than a coverage figure. `EQ1032` contains no dot and
+  no underscore, so the token never wraps: anchoring on it took coverage to
+  99.66% with the residue scattered instead of concentrated. Both boundary
+  assertions tried on the way — a leading `(?<![A-Za-z0-9])` and a trailing
+  `(?![0-9])` — cut one document from 307 rows to 18 and to 2 per page, because
+  the token is surrounded by interleaved digits on both sides. A guard correct
+  in general and wrong on the population it was built for is its own shape.
+
+- **Verify a repair by what it CHANGED, not only by what it added.** The
+  aggressive matcher added 4,698 located rows and re-mapped 0 to a different
+  page. Coverage says how much was found; re-mappings say whether what was
+  already right survived the change, and a matcher that had begun inventing
+  pairings would surface there as disagreement with its own earlier output. A
+  coverage number cannot detect that failure at all.
+
 - **When joining two sources, take from each only what it alone knows.** The
   report-row manifest maps report page -> identifiers. Page MEMBERSHIP can
   only come from the rendered PDF, because only the raster knows where the
