@@ -70,6 +70,20 @@ no e-print, so it reaches the ~99% of documents where no comparison is possible.
    STALE when it leaves a PDF older than the .tex it just wrote, and the
    consumer's `reportcompare.py` refuses such a report outright.)*
 
+9. **The tail-split separates the text and not the geometry.** `text_tail`
+   moves trailing prose into a `MathTail` object, but the Equation keeps its
+   ORIGINAL region and the MathTail gets `region=None`. So the latex loses the
+   words and the crop still contains them: the scan cell carries ink the
+   render cannot, and the consumer's metric correctly reports a disagreement
+   that our own split created. 22 MathTails across the flagged documents, 100%
+   without a region, 14 of the 724 flagged rows on a page with one. Confirmed
+   by eye on four crops (`0902.0431_EQ0253/0459/0905`, `1101.4542_EQ0066`),
+   all of which show 0% overlap with any other object's region — so it is NOT
+   a crop overrunning a neighbour, which is a separate and larger class (99 of
+   724, mostly Sidenote and Paragraph). Fix is to narrow the Equation's
+   rectangle or give the MathTail the tail's; unfixed because it changes every
+   affected crop under a consumer holding a frozen raster.
+
 ## Known failure classes — what actually costs time here
 
 - **An instrument correct on its sample and wrong on the corpus.** Three
