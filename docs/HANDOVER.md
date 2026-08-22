@@ -175,6 +175,21 @@ no e-print, so it reaches the ~99% of documents where no comparison is possible.
   to prevent, arriving by another route. Ask of each source what it is
   authoritative for, not what it is willing to answer.
 
+- **A pooled ratio and a per-unit paired test can point opposite ways.**
+  out/117 asked whether a scan's missing components sit near rules. Pooled:
+  73 of 425 in a rule zone, 17.2%, against a null of 11.5% — 1.5x enrichment.
+  Paired per row against each row's OWN rule density: 29 rows above their
+  null, 80 below, sign test z = -4.88. The pooled figure was carried by 16
+  rows holding 10% of the deficit and 60% of the near count; a row with one
+  rule and two missing marks scores 1.000 by arithmetic. Pool only when the
+  units are exchangeable, and when they are not, say which test you ran.
+
+- **A ratio whose denominator excludes most of the population is a subgroup,
+  not a rate.** 316 of 426 negative-delta rows had no rule in the cell at all
+  — 74% could not answer the question being asked of them. Reporting 17.2%
+  without that would have been a number about rules over a three-quarters
+  ruleless population. Count and name the units that cannot answer.
+
 - **A summary line is only as honest as its smallest category.** A forced
   regeneration reported `104 OK / 0 FAIL / 160 SKIP` and read as a clean run.
   The skips were a harness bug — `next(iter(d.glob("*.pdf")))` took the first
