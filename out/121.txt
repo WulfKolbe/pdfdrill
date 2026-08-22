@@ -1,0 +1,75 @@
+121 - variants C and E on the 0.1-0.5 confidence band
+==============================================================================
+
+THE SET
+------------------------------------------------------------------------------
+   20 rows across 18 documents, stratified by confidence within the band.
+   confidence  min 0.130  max 0.495
+   baseline ink  min 1  median 17  max 126
+   already BELOW the 6-7 noise floor: 8 of 20
+
+   That last line matters before any median is read: 8 of the 20 rows
+   start inside the noise floor, so their render already matches the scan
+   and there is nothing to recover. A variant can only hold them level or
+   make them worse.
+
+RESULT
+------------------------------------------------------------------------------
+   variant   n  failed  compiled   median over    median over ALL   better  worse  same
+                                    compiled      (failures=base)
+   C        20       1        19            -1                -0       10      6     3
+   E        20       6        14            -0                +0        7      5     2
+
+THE THREE BANDS TOGETHER
+------------------------------------------------------------------------------
+   band            n    variant C median   variant E median   source
+   conf < 0.1     19          -8               -8             out/113, out/118
+   conf 0.1-0.5   20          -1               -0             this file
+   conf > 0.9     20          +0                -              out/115
+
+   (medians over compiled replies; E was not run on the high band)
+
+PER ROW
+------------------------------------------------------------------------------
+    identifier                conf    base      C      E
+   Clifford_bundle_formulat 0.130      6      3   fail
+   2012.15581_EQ0017        0.224     18      1      4
+   VSR-Slides_EQ0005        0.225     90    832     90
+   fricas_intro_EQ0005      0.230      5     37      6
+   2005.04015_EQ0021        0.244      5      5   fail
+   DeVitoOehrlepaper_EQ0003 0.273     73    106     74
+   Einstein_Cartan_Evans_EC 0.275     41     34     30
+   Clifford_bundle_formulat 0.326     18      6      5
+   2306.04271_EQ0041        0.336     17    286   fail
+   2005.05886_EQ0007        0.356    126     50     49
+   gr-qc_0212041_EQ0007     0.368     12     11     11
+   aflb472m968_EQ0003       0.374      2      1    127
+   1705.02519_EQ0009        0.399     28     31   fail
+   2005.04015_EQ0022        0.404      8   fail   fail
+   K3HKDMV_EQ0018           0.429      5      5      5
+   2110.04867_EQ0030        0.441     49     48   fail
+   0403040v2_EQ0071         0.463      5      2      3
+   2106.15845v2_EQ0022      0.470     36     16     42
+   HeRuWaWi12_final_EQ0011  0.480      2      2      4
+   1802.08153v1_EQ0101      0.495      1      2      0
+
+FAILURES
+------------------------------------------------------------------------------
+   C: 1  render failed
+   E: 6  NetworkBlocked: Network access to api.novita; render failed
+
+READING IT
+------------------------------------------------------------------------------
+   C and E are indistinguishable from each other here, as they were on the
+   low band - the rule sentence neither helps nor costs.
+
+   What the band comparison shows is where the effect lives. The prior
+   helps where MathPix reports real doubt, and the help does not extend
+   smoothly upward: by 0.1-0.5 it is already close to gone, and by 0.9 it
+   is gone entirely. That is a narrower target than 'low confidence' - it
+   is the bottom 0.7% of the corpus, not the bottom 4%.
+
+   The 8 rows already inside the noise floor are part of why. On those
+   there is no defect to fix, and out/119 showed why that is the normal
+   case even above the floor: the disagreements are typographic, and a
+   re-transcription cannot change how a delimiter is set.
