@@ -13139,6 +13139,17 @@ def cmd_reporttex(pdf: Path, paper: str = "a3", landscape: bool = True,
             lines.append(f"Compiled report.pdf: {pages} pages, {errors} "
                          f"error(s), {demoted} malformed row(s) demoted "
                          f"to source-only.")
+            # 091: a compile that dropped glyphs produced a PDF that LOOKS
+            # finished and is missing symbols with no visible trace. Say so
+            # loudly; the page count and the exit status cannot show it.
+            lost = rt.glyphs_dropped(Path(r["out"]).with_suffix(".log"))
+            if lost:
+                n, first = lost
+                lines.append(
+                    f"GLYPHS DROPPED: xelatex discarded {n} character(s) and "
+                    f"still wrote a PDF. {first}. The report is missing symbols "
+                    f"with no visible trace — do not measure it. Add the code "
+                    f"point to report_tex._MATH_CMD or a fallback font.")
     else:
         # A .tex written beside an OLDER .pdf is a stale artifact that passes
         # every check anyone runs: it exists, its page count is plausible, and
@@ -13156,6 +13167,21 @@ def cmd_reporttex(pdf: Path, paper: str = "a3", landscape: bool = True,
         lines.append("Compile with `pdfdrill reporttex <pdf> --compile` "
                      "(xelatex, two passes + error-row demotion).")
     return "\n".join(lines)
+
+
+
+def rt_unicode_preamble(latex: str) -> str:
+    """fontspec + newunicodechar lines a standalone render needs for `latex`."""
+    from . import report_tex as rt
+    decls = rt.unicode_decls(latex)
+    if not decls:
+        return ""
+    return ("\\usepackage{fontspec}\n"
+            "\\setmainfont{DejaVu Serif}\n"
+            "\\setmonofont{DejaVu Sans Mono}\n"
+            "\\newfontfamily\\fbmath{Noto Sans Math}\n"
+            "\\newfontfamily\\fbcjk{Noto Sans CJK JP}\n"
+            "\\usepackage{newunicodechar}\n" + decls + "\n")
 
 
 def _edit_source(sc: "Sidecar", url: str | None = None) -> dict:
@@ -13483,7 +13509,13 @@ def cmd_standalone(pdf: Path, only_id: str | None = None) -> str:
             # 31 FALSE findings on the P13 corpus — a finding must mean the
             # FORMULA is broken, not the preamble
             "\\usepackage{mathrsfs}\n\\usepackage{stmaryrd}\n"
-            "\\begin{document}\n"
+            # 092: the same glyph rescue the report preamble carries. Without
+            # it a standalone render silently omits every character the maths
+            # fonts lack, and the ink metric then compares an INCOMPLETE render
+            # against a complete scan — charging the OCR for our renderer's
+            # loss (out/070 did exactly that with three dropped arrows).
+            + rt_unicode_preamble(latex)
+            + "\\begin{document}\n"
             "$\\displaystyle " + latex.strip() + "$\n"
             "\\end{document}\n", encoding="utf-8")
         try:

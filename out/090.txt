@@ -1,0 +1,89 @@
+090 - making the dropped glyphs stop, and why the asked-for mechanism is inert
+==============================================================================
+
+BEFORE AND AFTER, ON THE THREE WORST DOCUMENTS AVAILABLE TO TEST
+------------------------------------------------------------------------------
+   document           before   after
+   1912.12689            508       0
+   1709.10026v3          620       0
+   Chats-8             2,250       0
+
+   Measured by recompiling each and counting BOTH log forms, not the one
+   out/089 matched.
+
+\DeclareUnicodeCharacter DOES NOTHING HERE
+------------------------------------------------------------------------------
+   The task asked for it. It is an inputenc facility: it tells inputenc how to
+   turn a byte sequence into a LaTeX command under pdfLaTeX. These reports
+   compile with xelatex, which reads UTF-8 natively and passes the character
+   straight to the font. Adding the declarations would have changed nothing
+   and the counts would not have moved.
+
+   The evidence is in out/089 and it is unambiguous: 0 occurrences of "not set
+   up for use with LaTeX" — inputenc's own complaint — across 1,702 compiles,
+   against 24,953 "Missing character" warnings, which is the font layer
+   speaking. The engine was never confused about the encoding. It knew exactly
+   which character was wanted and had no glyph for it.
+
+   So the equivalent that DOES work under xelatex was built instead:
+   newunicodechar declarations plus real fonts.
+
+WHAT WAS BUILT
+------------------------------------------------------------------------------
+   \setmainfont{DejaVu Serif}, \setmonofont{DejaVu Sans Mono}
+       The Source column is \ttfamily and carries the OCR's raw Unicode.
+       Latin Modern Mono has none of it. DejaVu Sans Mono covers 208 of the
+       400 code points, measured against the font file with fontTools rather
+       than assumed.
+
+   \newfontfamily\fbmath{Noto Sans Math}, \fbcjk{Noto Sans CJK JP}
+       13 and 24 code points respectively.
+
+   _MATH_CMD, 89 entries
+       Unicode math character -> LaTeX command, emitted as
+       \newunicodechar{s}{\ensuremath{\sigma}}. This is the one that matters:
+       a font substitution cannot be right in both modes, and a command is.
+
+   NFKC folding, 120 code points
+       Mathematical Alphanumeric Symbols and ligature forms fold onto ordinary
+       characters. U+1D465 IS x; mapping it to x loses nothing.
+
+   Visible placeholder, 35 code points
+       Private Use Area and scripts no installed font carries. Rendered as
+       [U+XXXX] in bold. A glyph that vanishes silently is the failure being
+       fixed; an invisible placeholder is the same failure with extra steps.
+
+   Declarations are emitted PER DOCUMENT and only for what that document
+   contains, so a report's preamble records exactly which code points it had
+   to rescue. A clean document carries none.
+
+THREE WRONG ANSWERS ON THE WAY, EACH FOUND BY MEASURING
+------------------------------------------------------------------------------
+ 1 Setting the mono font fixed the Source column and 1912.12689 still dropped
+   94 characters, all U+2032, all in cmmi10. \setmonofont does not reach
+   inside $...$. Fonts alone cannot fix math mode.
+
+ 2 The math-command table was built from out/088's set, which is the
+   characters OUTSIDE math. The characters actually being dropped were mostly
+   inside it. The table covered the wrong population and the count sat at 58.
+
+ 3 The last one is the instructive one. The NFKC branch emitted
+   \newunicodechar{U+1D70E}{s} — folding Mathematical Italic Sigma onto plain
+   sigma — having checked that the mono font covers plain sigma. It does. But
+   the expansion lands inside $...$ where cmmi10 applies and has no sigma, and
+   plain sigma never appears in the document body so it received no
+   declaration of its own. I had written the comment "folding a glyph onto
+   another missing glyph fixes nothing" into the code and then did exactly
+   that, because I checked coverage against the font I had set rather than
+   against the font that would be used. Folds are now resolved TRANSITIVELY:
+   if the NFKC target has a command, the command is emitted.
+
+   508 -> 94 -> 58 -> 0. Each step needed the log read again; none of them
+   would have been caught by the counts alone.
+
+WHAT THIS DOES NOT CLAIM
+------------------------------------------------------------------------------
+   Three documents reached zero. The corpus-wide rebuild is a separate,
+   larger run against 267 affected documents and has not been done here. 091
+   is what makes that safe to leave outstanding: any report that still drops
+   a glyph now says so instead of passing quietly.

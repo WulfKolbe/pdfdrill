@@ -1,0 +1,57 @@
+088 - non-ASCII code points in generated report.tex, outside math mode
+==============================================================================
+
+POPULATION
+------------------------------------------------------------------------------
+   1,702 report.tex scanned (every one in the library).
+
+   Two figures, because the naive scan counts our own template. Excluding
+   the preamble, TeX comments and the generated \section* header:
+
+     distinct code points   400
+     occurrences            58,741
+     rows containing one    28,590
+     documents affected     455 of 1,702  (27%)
+
+   Including them it is 411 code points and 67,366 occurrences —
+   the difference is almost entirely U+2014 in the preamble comments this
+   generator writes. A comment can never reach a font, so counting it
+   inflates the problem with our own prose.
+
+   For contrast, INSIDE math there are 383 distinct and 36,361 occurrences.
+   That set turned out to matter more than this one — see 090.
+
+THE CODE POINTS
+------------------------------------------------------------------------------
+   code   glyph      occurrences   documents
+   U+2014  '—'            20,616     155
+   U+2212  '−'             4,572     209
+   U+00B7  '·'             1,430     100
+   U+21C1  '⇁'             1,046       1
+   U+03B1  'α'               942      73
+   U+2202  '∂'               886      52
+   U+2217  '∗'               801      55
+   U+0305  '̅'               770       4
+   U+200B  '\u200b'          745       2
+   U+2208  '∈'               674     104
+   U+1D465  '𝑥'               672      23
+   U+1D440  '𝑀'               651      13
+   U+00B5  'µ'               632      57
+   U+03B3  'γ'               591      33
+   U+2192  '→'               575      88
+   U+03B2  'β'               523      49
+   U+2032  '′'               513      41
+   U+03C9  'ω'               501      33
+   U+2019  '’'               499      23
+   U+03BD  'ν'               486      29
+   U+03B4  'δ'               473      57
+   U+03C3  'σ'               469      52
+   U+1D44E  '𝑎'               464      25
+   U+00D7  '×'               442      57
+   U+03C0  'π'               423      54
+   U+221A  '√'               417      58
+   ... and 374 more, 17,928 occurrences between them
+
+   The long tail is the interesting part: Greek letters, math operators,
+   Mathematical Alphanumeric Symbols (U+1D400+), combining accents, and a
+   Private Use Area block that is OCR noise with no meaning at all.

@@ -1,0 +1,71 @@
+093 - the Pack row: correct identifier, and where the text was actually lost
+==============================================================================
+
+THE IDENTIFIER
+------------------------------------------------------------------------------
+   0911.37722 does not exist - no such folder in the library. The correct one:
+
+     bibkey        0911.3722
+     identifier    0911.3722_EQ0019
+     object id     obj_9da98a6311e1
+     page          7
+     pdf_id        784f5366-5863-4de5-a72f-88c25833ba32
+     image_id      784f5366-5863-4de5-a72f-88c25833ba32-7
+     line id       fd124d0eae5e438dbeb4d5463291b34e
+     region        top_left (436, 1512), 1336 x 49
+     confidence    0.9164263773751523   (rate 0.9993768117972999)
+     type          math, is_printed true, column 0
+
+     crop  https://cdn.mathpix.com/cropped/784f5366-5863-4de5-a72f-88c25833ba32-7.jpg
+           ?height=49&width=1336&top_left_y=1512&top_left_x=436
+
+THE lines.json TEXT, VERBATIM
+------------------------------------------------------------------------------
+   \[
+   \text { Pack }_{<\omega} \text {-complete Rr } \text { Pack }_{n} \text
+   {-complete } \text { Rr } \text { Pack }_{2} \text {-complete } \text { Rr }
+   \text { pack }_{2} \text {-complete. }
+   \]
+
+   (Rr stands for the literal U+21D2 character in the file; it is written out
+   here so this line survives copying through a terminal that cannot set it.)
+
+MATHPIX DID NOT TRUNCATE THIS. WE DID.
+------------------------------------------------------------------------------
+   This reverses what out/070 concluded. The lines.json text above is
+   COMPLETE: it has the leading "Pack", all three arrows, and the trailing
+   "-complete." The loss happened inside our own ingest, and the model keeps
+   enough intermediate state to see exactly where:
+
+     latex_raw       \[ \text { Pack }_{<\omega} ... \text {-complete. } \]
+                     complete, as received
+
+     latex_pretail   \text { Pack }_{<\omega} ... \text {-complete. }
+                     display delimiters removed, content still complete
+
+     latex           _{<\omega} ... \text { pack }_{2}
+                     leading "\text { Pack }" GONE, trailing
+                     "\text {-complete. }" GONE
+
+   The damage is between latex_pretail and latex - the tail-split step
+   (mathqc.text_tail, task P7). On a line that is entirely prose with
+   subscripts, it strips the leading and trailing \text{} runs as if they were
+   trailing commentary, and here they are the subject of the sentence.
+
+   So the correct statement, replacing out/070's: MathPix read this line
+   correctly at confidence 0.916. Our normalisation removed two thirds of its
+   words, and the report then displayed the mutilated version.
+
+WHAT TO SEND
+------------------------------------------------------------------------------
+   Nothing needs sending to MathPix for this row. The reading is right.
+
+   The bug is ours and it is specific: text_tail must not strip a \text{} run
+   that is bounded by other \text{} runs, or in general must not strip when
+   what remains is not a mathematical expression. The affected class is math
+   lines that are really prose - implication chains, "where X denotes Y" -
+   which is exactly the class 020-022 were about.
+
+   Not fixed here: out/093 was asked to resolve the identifier and produce the
+   line, and the fix belongs with a measurement of how many other rows
+   text_tail truncates the same way.

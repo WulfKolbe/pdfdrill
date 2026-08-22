@@ -1,0 +1,67 @@
+089 - what the compile logs said
+==============================================================================
+
+COUNTS AS ASKED
+------------------------------------------------------------------------------
+   logs read                              1,702
+   documents with at least one warning    267  (16%)
+   'Missing character:' total             24,953
+   'not set up for use with LaTeX'        0
+   distinct glyphs named                  317
+
+THE ZERO IS A FINDING, NOT AN ABSENCE OF ONE
+------------------------------------------------------------------------------
+   'not set up for use with LaTeX' is inputenc's message, and inputenc is
+   a pdfLaTeX facility. These reports compile with xelatex, where the
+   input encoding is never in question and a character either exists in
+   the font or does not. Zero occurrences across 1,702 compiles is direct
+   evidence of the engine — and it is what makes \DeclareUnicodeCharacter
+   the wrong instrument for 090.
+
+WORST DOCUMENTS
+------------------------------------------------------------------------------
+   Chats-8                                   2,250   41 distinct
+   Clifford_bundle_formulation_of_BF_gravit  2,249   35 distinct
+   1-s2.0-S0927650524001130-main             1,032   28 distinct
+   Chats-9                                   1,007   36 distinct
+   axioms-11-000852                            795   52 distinct
+   1709.10026v3                                620   49 distinct
+   Chats-10                                    518   31 distinct
+   1912.12689                                  508   37 distinct
+   Chats-5                                     458   41 distinct
+   qft2_Exercise2-6_solutions                  408   22 distinct
+
+MOST-DROPPED GLYPHS
+------------------------------------------------------------------------------
+   ⇁ U+21C1                1,046
+   α U+03B1                  942
+   ∂ U+2202                  886
+   ̅ U+0305                  770
+   ​ U+200B                  745
+   ∈ U+2208                  674
+   𝑥 U+1D465                 672
+   𝑀 U+1D440                 651
+   γ U+03B3                  591
+   β U+03B2                  523
+   ′ U+2032                  513
+   ω U+03C9                  501
+   ν U+03BD                  486
+   δ U+03B4                  473
+   σ U+03C3                  469
+   𝑎 U+1D44E                 464
+
+CORRECTION - THIS FILE UNDERCOUNTS, AND 091 IS WHY IT WAS FOUND
+------------------------------------------------------------------------------
+   xelatex writes the warning in TWO forms and this scan matched one:
+
+     Missing character: There is no X (U+21D2) in font [lmroman10-regular]
+     Missing character: There is no X ("3C3) in font cmmi10!
+
+   The first is a fontspec-loaded font, the second a traditional TFM font.
+   Every cmmi10 loss — i.e. every character dropped inside $...$, which
+   turned out to be the majority — was invisible to the regex above. The
+   figures in this file are therefore a FLOOR. 1912.12689 reads 508 here
+   and had 72 more that this pattern could not see.
+
+   The guard built in 091 matches both forms, and a test asserts it, so
+   the check cannot pass by being unable to see the failure.

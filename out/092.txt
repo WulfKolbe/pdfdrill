@@ -1,0 +1,55 @@
+092 - the ink compare after 090: how many of the 725 resolve
+==============================================================================
+
+ANSWER: NONE
+------------------------------------------------------------------------------
+   0 of the 725 flagged rows resolve. One improves and stays flagged.
+
+   The premise behind the question was that dropped glyphs had been inflating
+   the ink distances. Measured, they were not - because almost none of the
+   flagged rows contained a character that could be dropped.
+
+WHY THE FIX BARELY TOUCHES THIS SET
+------------------------------------------------------------------------------
+   Of the 725 rows, 11 contain any non-ASCII character at all:
+
+     10 x U+00E9 'e-acute'  - Latin Modern sets it correctly, always did
+      1 x U+21D2 '=>'       - the only genuinely affected row
+
+   So the maximum this fix could ever have resolved is 1 row, and it did not
+   resolve that one either.
+
+   The 725 were flagged for the reasons out/067 and out/069 established:
+   delimiter auto-sizing, \frac against \dfrac, line and column spacing, and a
+   resolution difference that opens letter counters in the render. None of
+   those is a glyph problem, and no font change addresses them.
+
+THE ONE AFFECTED ROW, MEASURED BOTH WAYS
+------------------------------------------------------------------------------
+   0911.3722_EQ0019, standalone render vs its scan crop:
+
+     before   12 characters dropped   ink 24   comp -17  hole -7
+     after     0 characters dropped   ink 21   comp -14  hole -7
+
+   Three arrows returned, three components recovered, and the row is still 21
+   against a noise floor of 6. It does not resolve because its disagreement
+   was never mainly about the arrows: the LaTeX is missing the leading
+   "Pack" and the trailing "-complete." as well, and those are real content -
+   see out/093, which finds where they were lost.
+
+   comp -14 means the scan still carries fourteen components the render has
+   nothing for. That is the truncation, not the typography.
+
+WHAT WAS STILL WORTH FIXING
+------------------------------------------------------------------------------
+   The standalone renderer now carries the same glyph rescue as the report.
+   Before this, a standalone render silently omitted every character the maths
+   fonts lacked, and the ink metric compared an INCOMPLETE render against a
+   complete scan - charging the OCR for our renderer's loss. out/070 did
+   exactly that, recording three dropped arrows as a MathPix defect when the
+   arrows were in the LaTeX all along.
+
+   That error is now impossible for the 89 mapped code points, and 091 makes
+   any new one announce itself. The corpus-wide effect is one row of 725,
+   which is the honest measure of how much it mattered here - and no measure
+   at all of how much it mattered to out/070's conclusion, which it reversed.

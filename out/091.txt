@@ -1,0 +1,57 @@
+091 - a compile that drops glyphs must not pass as a success
+==============================================================================
+
+EXIT BEHAVIOUR
+------------------------------------------------------------------------------
+   After a successful compile, `pdfdrill reporttex <pdf> --compile` reads the
+   log and, if any character was discarded, prints:
+
+     GLYPHS DROPPED: xelatex discarded N character(s) and still wrote a PDF.
+     Missing character: There is no X ("3C3). The report is missing symbols
+     with no visible trace - do not measure it. Add the code point to
+     report_tex._MATH_CMD or a fallback font.
+
+   The line names the count, the first offending character, the consequence,
+   and the exact remedy. A message that reports a problem without a route out
+   decays into noise - the rule the inkdrill session established for its own
+   refusals.
+
+   `report_tex.glyphs_dropped(log)` returns (count, first message) or None.
+   `report_tex.GlyphsDropped` is a typed exception carrying path, count and
+   sample, for callers that want to raise rather than report.
+
+WARN OR REFUSE - AND WHY THIS ONE WARNS
+------------------------------------------------------------------------------
+   It reports loudly; it does not delete the PDF or exit non-zero.
+
+   The asymmetry is the same one settled with the consumer over stale
+   artifacts. On a CONSUMER a bad input silently corrupts a two-hour batch, so
+   refusing costs a re-run and saves the batch. On a PRODUCER the user asked
+   for a report and got one: the PDF is real, most of it is correct, and
+   discarding it because 3 of 40,000 characters are missing would destroy work
+   the user asked for over a defect they may not care about for this document.
+
+   What must not happen is the PDF passing SILENTLY, which is what happened
+   for 1,702 compiles and 24,953 characters before this existed.
+
+   If it proves to scroll past in practice, that is evidence for promoting it
+   to a refusal, and evidence is better than assuming now.
+
+BOTH LOG FORMATS, WHICH IS THE WHOLE POINT
+------------------------------------------------------------------------------
+   xelatex says it two ways:
+
+     Missing character: There is no X (U+21D2) in font [lmroman10-regular]
+     Missing character: There is no X ("3C3) in font cmmi10!
+
+   fontspec-loaded fonts use the first, traditional TFM fonts the second.
+   out/089 matched only the first and therefore could not see a single
+   cmmi10 loss - which was the majority of them, because that is where math
+   mode lives. A guard with one pattern would have reported zero and been
+   believed.
+
+   The regex matches both, plus inputenc's "not set up for use with LaTeX" so
+   the check keeps working if a report is ever built with pdfLaTeX. Five tests
+   pin it, including one asserting a clean log returns None rather than 0:
+   callers branch on truthiness, and 0 would read as "checked and clean"
+   exactly like "no log found".
