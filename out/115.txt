@@ -1,0 +1,87 @@
+115 - variants C and D on the case-B set (ink >= 6, confidence >= 0.9)
+==============================================================================
+
+THE SET
+------------------------------------------------------------------------------
+   20 rows across 10 documents, stratified by ink quintile.
+   ink   min 6  median 10  max 118
+   conf  min 0.919  max 1.000
+
+   Selected by STRATIFIED sampling, not by largest ink. Taking the 20
+   worst rows would have produced a set whose median ink is 75 against a
+   population median of 10, and out/067 showed the largest-ink rows are
+   overwhelmingly typography - delimiter sizing and line spacing, which no
+   prompt can change. That set would have manufactured a negative. This
+   one has median ink 10, matching the population exactly.
+
+   3 shaded crops excluded (out/068's detector); they are instrument
+   artifacts, not readings.
+
+RESULT
+------------------------------------------------------------------------------
+   variant   n  failed  compiled   median over    median over ALL   better  worse  same
+                                    compiled      (failures=base)
+   C        20       0        20            +0                +0        9      6     5
+   D        20       1        19            +0                +0        4      1    14
+
+WHAT IT SAYS, AGAINST 113
+------------------------------------------------------------------------------
+   out/113, low-confidence set (19 rows, conf < 0.1):
+      C  median -8    10 better  4 worse
+      D  median -6    11 better  3 worse
+
+   Here, high-confidence set (20 rows, conf >= 0.9):
+      C  median +0    9 better  6 worse
+      D  median +0    4 better  1 worse
+
+   The same two prompts that improved the rows MathPix doubted do not
+   improve the rows MathPix was sure about. That is the result, and it is
+   the one the design was for: 113 alone could not distinguish 'the prompt
+   helps' from 'the prompt helps where the OCR was already weak'.
+
+PER ROW
+------------------------------------------------------------------------------
+    identifier              conf    base    C      D
+   1502.02973_EQ0076      1.000      6      6      6
+   1411.5002_EQ0050       0.960      6      4      6
+   1510.06699_EQ0239      0.997      6      5      6
+   1205.5935v1_EQ0387     0.998      6      6      6
+   1306.1660v1_EQ0063     0.983      7      1      3
+   1502.02973_EQ0071      0.997      8      8      8
+   0806.1585_EQ0226       0.971      9      9      9
+   1205.5935v1_EQ0091     0.935      7      8      9
+   1205.3463v2_EQ0236     0.959     10      9     10
+   0902.0431_EQ1073       0.940     10     20   fail
+   1205.3463v2_EQ0204     0.999     11     10     11
+   1502.02973_EQ0078      1.000      9      8      9
+   0902.0431_EQ0709       0.993     16    538     16
+   1510.06699_EQ0188      0.987     16      2     16
+   0902.0431_EQ0889       0.919     14     15     12
+   1603.04246v2_EQ0091    0.997     15      5      7
+   1603.04246v2_EQ0073    0.977    118    377    115
+   0902.0431_EQ0691       0.998     42     42     42
+   1603.04246v2_EQ0076    0.999     30     29     30
+   1101.4542_EQ0003       0.999     30    125     30
+
+FAILURES
+------------------------------------------------------------------------------
+   C: 0   
+   D: 1   render failed
+
+   A failure is a reply that did not compile as a standalone body. Scored
+   at baseline in the second median, i.e. as falling back to MathPix's
+   reading, which is what this pipeline actually does.
+
+WHAT THIS DOES NOT SHOW
+------------------------------------------------------------------------------
+   It does not show the prompts are useless. It shows they do not help on
+   rows where MathPix is confident AND the ink already disagrees - which
+   out/067 and out/100 established is mostly typography: 43% of the
+   flagged population is 'wrong' by mark shape, 22% merged glyphs, 14%
+   pure displacement. A different transcription cannot fix a delimiter
+   that is set at a different size.
+
+   The population where they DO help is the one MathPix already flags for
+   itself. That is a narrower and more useful claim than 113 alone
+   supported: use the model where the OCR reports doubt, not as a general
+   second opinion.
