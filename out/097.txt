@@ -1,0 +1,87 @@
+097 - the corpus compare with the tail-split, glyph and demotion fixes in place
+==============================================================================
+
+FLAGGED ROWS
+------------------------------------------------------------------------------
+   before (out/066)   725
+   after              724
+   resolved             1
+   newly flagged        0
+
+   Population unchanged: 3,392 equations measured across 49 documents, with
+   ink >= 6, confidence >= 0.9, and demoted rows excluded (49 of them).
+
+COMPONENT DELTA, THE FIGURE ASKED FOR
+------------------------------------------------------------------------------
+   delta = components(render) - components(scan), over the 724 flagged rows.
+
+     <= 0   662   (91%)        of which   < 0   294
+                                          = 0   368
+      > 0    62   ( 9%)
+
+     min -177   median 0   max +6
+
+     <= -10     11
+     -9 .. -1  283
+      0        368
+      1 ..  9   62
+     >= 10       0
+
+   Half the flagged rows now sit at exactly zero: the render and the scan
+   agree on how many marks there are, and the distance comes entirely from
+   where those marks sit. That is the typography class out/067 identified by
+   eye, and it is now the majority of the flagged set rather than an
+   impression from ten samples.
+
+   The 294 negative rows are the ones worth looking at: the scan carries
+   marks the render cannot account for. 11 of them are 10 or more components
+   short. out/069's inspection of that class found content errors and region
+   overruns, and out/070 confirmed 5 of 9 as real.
+
+ONE ROW RESOLVED, AND WHICH
+------------------------------------------------------------------------------
+   0911.3722_EQ0019, ink 24 with a component delta of -17, is no longer
+   flagged. That is the row out/070 recorded as a MathPix content error and
+   out/093 and out/096 traced to our own pipeline: the renderer could not set
+   U+21D2 and the tail-split had deleted the leading "Pack" and the trailing
+   "-complete." With both repaired it measures ink 1.
+
+   It is one row of 725. The corrections mattered enormously to what that row
+   MEANS and almost not at all to the corpus total, and both statements are
+   worth keeping.
+
+WHY SO FEW MOVED
+------------------------------------------------------------------------------
+   Measured rather than assumed, before running: of the 725, only 11 contain
+   a non-ASCII character at all (10 are e-acute, which always set correctly),
+   and only 2 equations in the corpus were mis-split by the tail rule. The
+   maximum this pass could resolve was small and known in advance.
+
+   The rest were flagged for reasons no glyph or split fix addresses -
+   delimiter auto-sizing, \frac against \dfrac, line and column spacing, and
+   the resolution difference that opens letter counters in the render.
+
+A REGRESSION I INTRODUCED AND THEN REMOVED
+------------------------------------------------------------------------------
+   The first run of this compare returned 723, with 6 rows made WORSE by 1-2
+   units. All were e-acute rows in 1205.3463v2. My 090 fallback wrapped every
+   character the mono font covers in \ifmmode\text{}, which moved e-acute out
+   of the maths font although it had never been in danger. A rescue that
+   touches characters that were never at risk is a regression, and it is now
+   restricted to code points above U+00FF.
+
+   5 rows still read 1 unit higher than in out/066. Their preambles are now
+   empty - no declaration is emitted for them - so nothing about how they are
+   typeset has changed. The movement is re-render variation between two
+   invocations of the same pipeline, which is exactly the quantity the noise
+   floor of 6 was measured to bound. It is reported rather than smoothed over
+   because a difference with no cause is worth naming as such.
+
+STATE OF THE THREE FIXES
+------------------------------------------------------------------------------
+   tail-split   4 wrongly-split values restored in the corpus models from
+                latex_pretail; 2 were equations and reachable by this compare
+   glyphs       14 standalone renders rebuilt; 0 dropped characters remain in
+                any of them
+   demotions    49 rows excluded, unchanged from out/066
+   shading      0 shaded crops among the flagged rows (out/068's detector)

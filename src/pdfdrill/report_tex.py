@@ -1009,7 +1009,12 @@ def unicode_decls(body):
             out.append((c, "\\newunicodechar{%s}{{\\fbcjk %s}}" % (ch, ch)))
         elif c in _NO_FONT:
             out.append((c, "\\newunicodechar{%s}{\\textbf{[U+%04X]}}" % (ch, c)))
-        elif c in _COVERED:
+        elif c in _COVERED and c > 0xFF:
+            # >0xFF only. Latin-1 accented letters already set correctly in
+            # the maths fonts, and wrapping them in \text moves them into a
+            # different face for no reason: doing so nudged six 1205.3463v2
+            # rows 1-2 units WORSE in the ink compare (out/097). A rescue that
+            # touches characters which were never in danger is a regression.
             # covered by the TEXT fonts but not by cmmi10, and most of these
             # occurrences are inside $...$ where the math font applies. \text
             # moves the character out of the math font without changing what
