@@ -1,0 +1,52 @@
+096 - the ink compare on the previously split rows
+==============================================================================
+
+HOW MANY CHANGE CLASS: 3 OF 5 MEASURABLE
+------------------------------------------------------------------------------
+   document        identifier              ink          components      class
+   1304.0071v3     EQ0010            19 ->   1     -13 ->   0     above -> BELOW
+   1502.02973      EQ0019             9 ->   1      -6 ->   0     above -> BELOW
+   0911.3722       EQ0019            21 ->   1     -14 ->   0     above -> BELOW
+   bh2             EQ0046            43 ->   7     -23 ->  +0     above -> above
+   WDorg4          EQ0001            18 ->   7     -10 ->  +1     above -> above
+
+   Class is against the measured noise floor of 6.
+
+   4 of the 9 rows the first (over-broad) rule un-split could not be measured: they are inline formulas
+   (FO), which have no scan crop, so there is nothing to compare a render
+   against. Stated rather than counted as unchanged - an unmeasurable row is
+   not a row that stayed the same.
+
+THE COMPONENT COLUMN IS THE RESULT
+------------------------------------------------------------------------------
+   Every one of the five goes to a component delta of 0 or +1. Before the fix
+   the scan carried 6 to 23 components the render had nothing for; afterwards
+   it carries none.
+
+   That is the signature out/069 identified for a content error - components
+   large and negative, meaning the scan has marks the render cannot account
+   for - and it disappears completely once the truncated words are restored.
+   The rows were flagged because our normaliser had deleted the words, and
+   the ink metric was correctly reporting that the render was missing them.
+
+   The two that stay above the floor go to 7, one unit over, with their
+   components already reconciled. What remains there is layout, not content.
+
+WHAT THIS SETTLES
+------------------------------------------------------------------------------
+   out/070 recorded 0911.3722_EQ0019 as a MathPix content error - "drops all
+   three arrows, the leading Pack and the trailing -complete." Two corrections
+   have now landed on that one row:
+
+     out/093  the arrows were never dropped; our renderer could not set U+21D2
+     out/096  the words were never dropped by MathPix either; text_tail
+              removed them, and restoring them takes the row from ink 21 to 1
+
+   The row is not an OCR defect at all. MathPix read it correctly at
+   confidence 0.916, and every symptom I attributed to the OCR was produced
+   downstream of it - once by the renderer, once by the normaliser.
+
+   That is worth more than the three class changes. A finding that survived
+   two reports and a cross-session hand-off was an artefact of our own
+   pipeline, and the ink metric had been pointing at it correctly the whole
+   time.

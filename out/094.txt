@@ -1,0 +1,80 @@
+094 - the tail-split audit: how often a leading run was removed
+==============================================================================
+
+COUNT
+------------------------------------------------------------------------------
+   split equations carrying latex_pretail   58   across 13 documents
+     a LEADING \text{} run was removed       7   (12%)
+     trailing only                          51
+     both ends                              1
+
+   by document:
+     1502.02973       2
+     0911.3722        2
+     1304.0071v3      1
+     1501.00696       1
+     bh2              1
+
+   The population is small - 58 splits corpus-wide - so 7 is 7 equations,
+   not a rate to extrapolate. What makes them worth the task is that a
+   leading run is not the same KIND of error as a trailing one, and one of
+   the 7 is the row out/093 traced.
+
+WHY A LEADING RUN IS DIFFERENT
+------------------------------------------------------------------------------
+   text_tail exists to strip prose that TRAILS mathematics - 'where n is
+   even', 'for all such x'. That is commentary: the expression is complete
+   without it.
+
+   A run that LEADS is the subject. '\text{Pack}_{<\omega}' is not
+   commentary attached to a subscript; the subscript modifies it. Removing
+   it leaves '_{<\omega}', which is not a smaller expression - it is not
+   an expression.
+
+THE SEVEN, WITH WHAT WAS TAKEN
+------------------------------------------------------------------------------
+1. 1304.0071v3_FO0004  page 1
+   removed lead : '\\mathrm{So} \\mathrm{Cl}'
+   left behind  : '(8)'
+
+2. 1501.00696_FO0094  page 5
+   removed lead : '\\mathrm{BCPC}'
+   left behind  : '_{\\text {max }}'
+
+3. bh2_EQ0046  page 56
+   removed lead : '\\text { welches gegeben ist durch }'
+   left behind  : 'V=-\\left(m-\\delta^{\\prime} m-\\delta m\\right) \\int_{S}^{\\varrho} \\vec{g} d \\vec{r} \\text {. }'
+
+4. 1502.02973_EQ0019  page 9
+   removed lead : '\\text { Save }'
+   left behind  : '\\epsilon^{\\left(k-\\tau\\left(u^{\\prime}, u\\right)\\right)}\\left(u^{\\prime}\\right), \\forall u^{\\prime} '
+
+5. 1502.02973_FO0083  page 9
+   removed lead : '\\text { Save }'
+   left behind  : '\\epsilon^{\\left(k-\\tau\\left(u^{\\prime}, u\\right)\\right)}\\left(u^{\\prime}\\right), \\forall u^{\\prime} '
+
+6. 0911.3722_EQ0019  page 7
+   removed lead : '\\text { Pack }'
+   left behind  : '_{<\\omega} \\text {-complete ⇒ } \\text { Pack }_{n} \\text {-complete } \\text { ⇒ } \\text { Pack }_{2}'
+
+7. 0911.3722_FO0216  page 8
+   removed lead : '\\mathrm{pack}'
+   left behind  : '_{2}'
+
+THREE TRAILING SPLITS FOR CONTRAST - THESE ARE CORRECT
+------------------------------------------------------------------------------
+1. 1205.3463v2 1205.3463v2_EQ0041  page 14
+   removed trail: '\\text { pfsets } .'
+   left behind  : 'X_{\\text {profét }} \\cong \\pi_{1}(X, \\bar{x})-'
+
+2. 0902.0431 0902.0431_EQ0084  page 17
+   removed trail: '\\quad \\text { (Theorem 1.5.1). }'
+   left behind  : '\\mathfrak{g}_{2}=\\mathfrak{s u}(3) \\oplus \\mathfrak{S}'
+
+3. 0902.0431 0902.0431_EQ0086  page 18
+   removed trail: '\\text { (Lemma 1.6.1). }'
+   left behind  : '\\mathfrak{a} \\supset[\\mathfrak{a}, \\mathfrak{S}] \\supset[\\mathfrak{s} \\mathfrak{u}(3), \\ma'
+
+   In each of these the mathematics is intact without the removed run,
+   which is the test 095 makes explicit: strip only where the maths comes
+   FIRST and the prose follows it.

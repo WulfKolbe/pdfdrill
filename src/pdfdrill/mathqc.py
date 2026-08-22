@@ -216,18 +216,37 @@ def text_tail(latex: str):
     exactly); prose-ness is judged on the collapsed text."""
     s = (latex or "").strip()
     lead = trail = None
+    # 095: a leading \text{} run may be commentary ("nach Addition, S=...")
+    # or the SUBJECT of the line ("\text{Pack}_{<\omega}-complete"). The
+    # difference is what is LEFT: an expression, or a dangling modifier.
+    # A remainder that opens with _ or ^ has lost the thing it modifies, so
+    # the run was the subject and must stay (out/093: 0911.3722_EQ0019 lost
+    # two thirds of its words this way). A blanket "trailing runs only"
+    # rule was tried first and regressed the case the feature was built for.
     content, rest = _take_text_groups(s)
-    if content and _is_prose(content):
+    if content and _is_prose(content) and not _DANGLES.match(rest):
         lead = s[:len(s) - len(rest)].rstrip()
+
     m = re.search(r"((?:\\(?:mathrm|text|textrm|mbox)\s*\{[^{}]*\}"
                   r"|[\s.,;:]|\\[;,:!]|~|\\quad|\\qquad)+)$", s)
     if m and len(m.group(1).strip()) > 3:
         groups = re.findall(r"\\(?:mathrm|text|textrm|mbox)\s*\{([^{}]*)\}",
                             m.group(1))
         if groups and _is_prose(" ".join(groups)):
-            trail = m.group(1).strip()
-            if lead and s.index(trail, len(lead)) < len(lead):
-                trail = None
+            # 095: strip only where MATHEMATICS PRECEDES the prose, and the
+            # test is where the line BEGINS. A line that opens with a
+            # \text{} run is a sentence: its trailing run is part of the
+            # sentence, not a comment on an expression.
+            #   x^{2}=y \text{ where n is even }   -> splits, maths first
+            #   \text{Pack}_{<\omega}\text{-complete} -> does not (out/093)
+            # Judged on the OPENING token rather than on what survives after
+            # the \text{} groups are removed: a subscript alone leaves
+            # fragments like "2" or "<" that read as mathematics and are not.
+            # the opening test applies to what is left once a leading run
+            # has been taken: "nach Addition, S=... was im Ver-" opens with
+            # prose but its TAIL still follows mathematics.
+            if not _OPENS_PROSE.match(rest if lead else s):
+                trail = m.group(1).strip()
     return lead, trail
 
 
@@ -238,6 +257,16 @@ def text_tail(latex: str):
 #  "mathrme". A run of EVEN length (\\, \\\\) is a real row break and is
 #  never touched. ONE detector, shared by the normaliser and the validator.
 # --------------------------------------------------------------------------- #
+#: 095 — a remainder opening with a subscript or superscript has lost
+#: what it modified: the run that preceded it was the subject.
+_DANGLES = re.compile(r"\s*[_^]")
+
+
+#: 095 — the line OPENS with a prose run, so it is a sentence, not an
+#: expression carrying a comment.
+_OPENS_PROSE = re.compile(r"\s*\\(?:mathrm|text|textrm|mbox)\s*\{")
+
+
 _SEVERED_RUN = re.compile(r"(\\+)(\s+)([A-Za-z])")
 
 

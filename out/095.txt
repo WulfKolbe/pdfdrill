@@ -1,0 +1,58 @@
+095 - text_tail restricted: trailing commentary, and leading only when
+      what remains is still an expression
+==============================================================================
+
+BEFORE AND AFTER
+------------------------------------------------------------------------------
+                          before   after
+   splits                   58       53
+     leading run taken        7        4
+     trailing run taken      52       49
+   no longer split at all     -        5
+   leading run no longer taken -       3
+
+I DID NOT IMPLEMENT THE RULE AS WRITTEN, AND THIS IS WHY
+------------------------------------------------------------------------------
+   The task said trailing runs only. Implemented literally, that regressed the
+   case the feature was built for. tests/test_tailsplit.py carries the user's
+   own motivating example from P7:
+
+     \mathrm{n a c h\;A d d i t i o n}\; S...=\phi(n_2)-\phi(n_1-1),
+     \;\mathrm{w a s~i m~V e r-}
+
+   "nach Addition" LEADS and is genuine commentary: strip it and a complete
+   equation remains. Two tests failed immediately, and they were right to.
+
+   So the rule is not "leading runs are never commentary" — it is that a
+   leading run may be the SUBJECT, and the difference is what is left behind:
+
+     \mathrm{nach Addition}\; S...=\phi(...)   -> remainder is an equation
+     \text{Pack}_{<\omega} \text{-complete}     -> remainder is _{<\omega}
+
+   A remainder that opens with _ or ^ has lost the thing it modified. That is
+   the test, and it separates the two cases exactly: 3 of the 7 leading
+   removals stop, including out/093's row, and 4 continue.
+
+THE TRAILING RULE, AS ASKED
+------------------------------------------------------------------------------
+   Strip a trailing run only where mathematics precedes the prose — tested on
+   the line's OPENING token, applied to what remains once any leading run has
+   been taken. That last clause matters: the founding example opens with prose
+   and its tail still legitimately follows mathematics.
+
+     x^{2}+y^{2}=z^{2} \text{ where n is even }   splits
+     \text{Pack}_{<\omega} \text{-complete }      does not
+     \mathrm{d}x \text{ with respect to time }    does not
+
+WHY THE OPENING TOKEN AND NOT THE RESIDUE
+------------------------------------------------------------------------------
+   The first attempt tested what SURVIVES when the \text{} groups are removed.
+   It accepted the 093 row and rejected the legitimate one, because
+   `\text{pack}_{2}` leaves "2" and `_{<\omega}` leaves "<". A lone subscript
+   fragment reads as mathematics and is not.
+
+   The opening token is cruder and correct, and it fails safe: when wrong it
+   declines to split, and a value left whole loses only a separation.
+
+   5 tests added; 2,142 pass, including the two that caught the over-broad
+   first rule.
