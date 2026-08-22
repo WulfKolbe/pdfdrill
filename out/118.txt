@@ -1,0 +1,80 @@
+118 - variant E: C's prior plus the defect out/116 located
+==============================================================================
+
+THE HINT, AND WHAT IT DELIBERATELY DOES NOT SAY
+------------------------------------------------------------------------------
+   E = variant C, plus one sentence:
+
+     "A short horizontal bar in this image may be a minus sign, a hyphen
+      or a dash rather than a fraction bar. Write \frac only where there
+      is content both above and below the bar; where there is not,
+      transcribe the bar as the operator or punctuation it is."
+
+   out/116 located rules whose bands are EMPTY on both sides - a component
+   the aspect gate accepted as a rule with no numerator and no denominator,
+   i.e. a dash mistaken for a fraction bar. 3 of 5 on arxiv 1408.0838 p8.
+
+   It found NO missing bars. So E does not mention one. A hint asserting a
+   defect the measurement did not find is the fixture-to-answer move this
+   variant exists to avoid, and it would have been the easy sentence to
+   write - 'watch for fraction bars you may have missed' sounds like a
+   grounded hint and would have been an invented one.
+
+RESULT AGAINST C
+------------------------------------------------------------------------------
+   variant   n  failed  median(compiled)  median(all)  better  worse  same
+   C        19       4                -8           -4      10      4     1
+   E        19       3                -8           -7      13      3     0
+
+   C's baseline was -8. E is -8.
+
+PER ROW, C AGAINST E
+------------------------------------------------------------------------------
+    identifier                base      C      E
+   0902.0431_EQ0515            232     53     11
+   0902.0431_EQ0517             74   fail   fail
+   0902.0431_EQ1026             77     52     52
+   1510.06699_EQ0241            12      4      6
+   0903.2087_EQ0065             27     37   fail
+   0902.0431_EQ0518             10      0      0
+   0902.0431_EQ1032            846    954     66
+   1503.00301_EQ0010             9   fail     11
+   0902.0431_EQ1033            565   fail   fail
+   0711.0273_EQ0003             16     12     12
+   0902.0431_EQ1031              8      0      0
+   0902.0431_EQ0761            834    945    945
+   0902.0431_EQ0516             18      0      0
+   1407.4737_EQ0039             37    503     45
+   1408.0838_EQ0026             43     25     25
+   0902.0431_EQ0425             27     27     26
+   0902.0431_EQ1059             14      8      6
+   0902.0431_EQ0757              8      0      0
+   0903.2087_EQ0041             26   fail     19
+
+READING IT
+------------------------------------------------------------------------------
+   E and C are indistinguishable on the median (-8 both).
+
+   The honest reading is that this is 19 rows and the two medians are
+   close. What it can support: adding the rule sentence did not COST
+   anything, which is not obvious - out/113 showed the notation hint (B)
+   made things substantially worse than the bare prompt, so a hint is not
+   free by default.
+
+   What it cannot support: that the hint fixed spurious fractions. Nobody
+   has counted how many of these 19 crops contain a bar that MathPix
+   turned into a \frac. Without that denominator, an improvement could
+   come from anywhere in the prompt and a null could mean the population
+   had nothing to fix - the same trap out/113a hit with B, where the hint
+   was measured on 18 crops that did not contain the notation.
+
+WHAT WOULD MAKE THIS CONCLUSIVE
+------------------------------------------------------------------------------
+   Count the crops whose MathPix latex contains a \frac whose numerator or
+   denominator is empty or single-character - the signature of out/116's
+   spurious rule - and split E's rows on it. That is the B-split lesson
+   applied before the run instead of after, and it is one measurement.
+
+   out/117 is the other half: it looks for MISSING components near a rule,
+   which is the direction a hint about absent structure could act on. E as
+   written cannot use it, because 116 found the opposite error.
