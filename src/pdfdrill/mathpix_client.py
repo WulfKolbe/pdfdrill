@@ -17,6 +17,7 @@ from __future__ import annotations
 
 import json
 import mimetypes
+import json
 import os
 import shutil
 import sys
@@ -256,6 +257,41 @@ def base_name(pdf_path: str) -> str:
     return pdf_path[:-4] if pdf_path.lower().endswith(".pdf") else pdf_path
 
 
+
+#: Fields MathPix puts on a line and pdfminer does not. A `.lines.json` that
+#: carries none of them was written by another extractor.
+_MATHPIX_LINE_FIELDS = ("confidence", "confidence_rate", "cnt", "is_printed",
+                        "is_handwritten", "font_size")
+
+
+def _is_mathpix_output(ext: str, path: str) -> bool:
+    """Does this file exist AND look like MathPix wrote it?
+
+    Existence alone is not enough. A document can hold a `.lines.json` from a
+    later pdfminer pass beside a MathPix `.tex.zip` and `.md`, and an
+    existence-only guard then reports "already present" and skips forever —
+    which is how 29 documents kept equations with no confidence through a run
+    that was supposed to give them some. Presence is not adequacy
+    (HANDOVER-RULES rule 6).
+
+    Only `.lines.json` is inspected; the other formats have no cheap
+    discriminator and their presence is taken at face value.
+    """
+    if not os.path.exists(path):
+        return False
+    if not path.endswith(".lines.json"):
+        return True
+    try:
+        with open(path, encoding="utf-8", errors="replace") as fh:
+            data = json.load(fh)
+        for page in data.get("pages", [])[:3]:
+            for line in page.get("lines", [])[:40]:
+                if any(k in line for k in _MATHPIX_LINE_FIELDS):
+                    return True
+        return False
+    except Exception:
+        return False            # unreadable: treat as absent, re-fetch
+
 def expected_outputs(
     pdf_path: str, formats: Iterable[str] = DEFAULT_FORMATS
 ) -> dict[str, str]:
@@ -283,9 +319,15 @@ def fetch_mathpix(
     formats = tuple(formats)
     targets = expected_outputs(pdf_path, formats)
 
-    if not force and all(os.path.exists(p) for p in targets.values()):
+    if not force and all(_is_mathpix_output(ext, p)
+                         for ext, p in targets.items()):
         log("All MathPix outputs already present — skipping upload.")
         return {"status": "cached", "pdf_id": None, "files": targets}
+    stale = [p for ext, p in targets.items()
+             if os.path.exists(p) and not _is_mathpix_output(ext, p)]
+    if stale:
+        log("Present but NOT MathPix output, re-fetching: "
+            + ", ".join(os.path.basename(p) for p in stale))
 
     pdf_id = upload_pdf(pdf_path, log=log)
     log(f"Uploaded PDF ID: {pdf_id}")
