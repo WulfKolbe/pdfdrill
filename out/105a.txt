@@ -1,0 +1,60 @@
+105a - row-width validation on the change-request loader
+==============================================================================
+
+WHICH OF THE FOUR FAIL: ONE
+------------------------------------------------------------------------------
+   0902.0431_EQ0515   PASS    6 rows, width 6
+   0902.0431_EQ0516   PASS    5 rows, width 6
+   0902.0431_EQ0526   PASS    4 rows, width 8
+   0902.0431_EQ0517   FAIL   12 rows; widths {6:8, 5:2, 4:1, 2:1}, modal 6
+                             non-uniform at rows 7, 8, 11, 12
+
+   EQ0517's offending rows:
+     row  7   5 entries   ...&= 1\ 1\ 0\ 1\ 0
+     row  8   5 entries   ...&= 0\ 1\ 0\ 1\ 0
+     row 11   4 entries   ...&= 1\ 2\ 3\ 2
+     row 12   2 entries
+
+   Eight rows carry six coefficients and four carry fewer. A coefficient table
+   has one width by construction, so four rows have lost entries somewhere
+   between the scan and the proposal.
+
+WHY THIS CHECK EARNS ITS PLACE
+------------------------------------------------------------------------------
+   A malformed table still COMPILES. LaTeX sets a four-entry row beside a
+   six-entry one without complaint and the result looks like a table; nothing
+   downstream - not the compile, not the ink metric, not a reader who does not
+   already know the width - reports that four coefficients are missing.
+
+   Row-width uniformity is the cheapest structural claim a numeric table makes
+   about itself, and it is checkable before anything renders. That ordering is
+   the point: rendering an invalid proposal produces a plausible artifact and
+   then the question becomes whether the ink agrees, which is a much weaker
+   test than counting.
+
+TWO TABLE FORMS, BOTH CHECKED
+------------------------------------------------------------------------------
+   = 1\ 0\ 1\ 0      a numeric run after a relation, space separated
+   a & 1 & 2 & 3     array cells, & separated
+
+   EQ0515/0516/0517 use the first, EQ0526 the second. A validator handling only
+   one would have passed EQ0526 without looking at it - the failure mode where
+   a check reports success because it cannot see the thing.
+
+WHAT IT DOES NOT DO
+------------------------------------------------------------------------------
+   A proposal with no numeric table passes untouched and reports "no numeric
+   table" rather than a vacuous success. Most change requests are not tables,
+   and a validator that fired on prose would reject the majority of legitimate
+   ones.
+
+   An isolated number in a two-column layout is not a table either: the array
+   branch requires at least two numeric cells AND that nearly all cells in the
+   row are numeric, so `\text{see} & 2 & \text{below}` is ignored. Without that
+   guard the check would reject rows that never claimed uniformity.
+
+   It does not check that the VALUES are right. EQ0515, EQ0516 and EQ0526 pass
+   here and that says only that their rows are the same length - whether the
+   coefficients match the page is 106's question and a different instrument.
+
+   6 tests.

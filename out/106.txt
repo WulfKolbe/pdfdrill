@@ -1,0 +1,66 @@
+106 - two proposals rendered and measured against the scan. NOTHING APPLIED.
+==============================================================================
+
+RESULT
+------------------------------------------------------------------------------
+   identifier          conf      ink          components     holes
+   0902.0431_EQ0515   0.0020   232 ->  11     -77 ->   -1    -15 ->  +0
+   0902.0431_EQ0516   0.0405    18 -> 155     -12 ->  +10     -6 ->  -13
+
+   One proposal is a large repair. The other is a large regression. Both
+   passed 105a's width validator.
+
+EQ0515 - ACCEPT ON THIS EVIDENCE
+------------------------------------------------------------------------------
+   ink 232 -> 11, components -77 -> -1.
+
+   The current reading is missing 77 components the scan carries; the proposal
+   is missing one. Against a noise floor of 6-7 the row goes from twenty times
+   the floor to inside it. The proposal is a 6x6 difference/sum table and the
+   scan agrees with it to one component.
+
+   This is the strongest single before/after either instrument has produced.
+   MathPix read this row at confidence 0.0020 - the lowest value in the whole
+   document - so the OCR said it was unsure and the ink now says what it was
+   unsure about.
+
+EQ0516 - REJECT ON THIS EVIDENCE
+------------------------------------------------------------------------------
+   ink 18 -> 155, components -12 -> +10.
+
+   The current reading is 12 components short of the scan; the proposal is 10
+   components OVER it, and the total distance grows by a factor of eight. The
+   sign of the component delta flips, which means the proposal is not a
+   partially-corrected version of the same content - it is different content.
+
+   out/063 measured this row directly: the page carries two 4x6 arrays, 48
+   numeric cells, of which MathPix gets 29 right. The proposal is 5 rows of 6.
+   Whatever it is transcribing, it is not the 8-row structure the scan shows,
+   and the ink says so without needing to read either.
+
+WHAT THIS PAIR DEMONSTRATES ABOUT THE VALIDATOR
+------------------------------------------------------------------------------
+   Both proposals have uniform row widths. Both are well-formed tables. One is
+   right and one is wrong, and 105a cannot tell them apart, by construction:
+   width uniformity is a claim about SHAPE and says nothing about VALUES.
+
+   That is not a gap in the validator - it is the division of labour. The
+   validator rejects proposals that cannot be right; the ink measures whether
+   a well-formed one IS right. Running them in that order is what makes the
+   second test meaningful, because a malformed proposal renders to a plausible
+   artifact and then the ink comparison is measuring a typesetting accident.
+
+NOT APPLIED
+------------------------------------------------------------------------------
+   Neither proposal was written to the model. Both were rendered standalone at
+   400 dpi with the 090 glyph preamble and compared against the same scan crop
+   the corpus compare uses.
+
+   EQ0515 has the evidence to justify applying it. I have not, because 106
+   said not to, and because applying it changes a crop-adjacent artifact under
+   a consumer whose out/102 numbers are measured on the current corpus.
+
+   basis="inferred" on all four: no author source backs these, they are
+   reconstructions from the scan. That is worth carrying with the accept -
+   the ink agreeing to one component is strong evidence and it is not the
+   same as a document saying so.
