@@ -108,6 +108,26 @@ no e-print, so it reaches the ~99% of documents where no comparison is possible.
   had ruled out of scope, because the cutoff constant read 2025 not 2026 and
   the counter that would have caught it printed 0 and went unread.
 
+- **A batch running against source you are editing produces torn artifacts.**
+  The confidence column landed in three edits — `row()`, then `col_widths`,
+  then `table_open`. Two background batches were invoking `./pdfdrill` per
+  document throughout, so every report generated between the first and second
+  edit got a six-cell row in a five-column table: LaTeX absorbed the surplus
+  cell, the source moved under "Rendered", the crop was drawn outside the
+  table, and the compile fixpoint then demoted 5,247 of 5,248 rows. The code
+  was never wrong at rest; it was READ while half-written. Stop the batch, or
+  land the change as one edit.
+
+- **On finding that, check the measurer before measuring the damage.** Scoping
+  that failure produced two wrong numbers in an hour — 268 reports, then 5 —
+  against an actual count of 1. The 268 came from
+  `begin{longtable}{[^}]*}`, where the class stops at the first `}` inside
+  `p{20mm}` so every file reported one column; the 5 came from testing
+  `includegraphics` per FILE for a property that is per TABLE. Both times the
+  instrument was new, unvalidated, and the most likely broken thing in the
+  room. Confirm the shape on the one case you were handed before generalising
+  from it.
+
 - **A summary line is only as honest as its smallest category.** A forced
   regeneration reported `104 OK / 0 FAIL / 160 SKIP` and read as a clean run.
   The skips were a harness bug — `next(iter(d.glob("*.pdf")))` took the first
