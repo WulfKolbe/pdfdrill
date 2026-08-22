@@ -44,9 +44,20 @@ def test_fetch_mathpix_cached_skips_network():
     with tempfile.TemporaryDirectory() as d:
         pdf = Path(d) / "paper.pdf"
         pdf.write_bytes(b"%PDF-1.7")
-        # Pre-create all expected outputs so the cache path triggers.
+        # Pre-create all expected outputs so the cache path triggers. The
+        # .lines.json must look like MathPix wrote it: the guard verifies the
+        # artifact rather than its existence, because a MathPix .tex.zip can
+        # sit beside a .lines.json a later pdfminer pass overwrote, and an
+        # existence-only check then skips forever (29 documents did).
+        import json as _json
         for ext in mc.DEFAULT_FORMATS:
-            (Path(d) / f"paper.{ext}").write_text("x")
+            f = Path(d) / f"paper.{ext}"
+            if ext == "lines.json":
+                f.write_text(_json.dumps({"pages": [{"lines": [
+                    {"id": "1", "type": "math", "text": "x",
+                     "confidence": 0.9, "is_printed": True}]}]}))
+            else:
+                f.write_text("x")
 
         original = mc.upload_pdf
 
@@ -90,3 +101,35 @@ if __name__ == "__main__":
         print(f"\n{len(failed)} failed out of {len(tests)}")
         sys.exit(1)
     print(f"\nAll {len(tests)} tests passed.")
+
+
+def test_fetch_mathpix_refetches_when_lines_json_is_not_mathpix():
+    """The other half of the cache guard: outputs that exist but were not
+    written by MathPix must NOT count as cached. This is the case that kept
+    29 documents without confidence — a real .tex.zip beside a pdfminer
+    .lines.json, reported "already present" and skipped."""
+    import json as _json
+    with tempfile.TemporaryDirectory() as d:
+        pdf = Path(d) / "paper.pdf"
+        pdf.write_bytes(b"%PDF-1.7")
+        for ext in mc.DEFAULT_FORMATS:
+            f = Path(d) / f"paper.{ext}"
+            if ext == "lines.json":          # pdfminer shape: no MathPix field
+                f.write_text(_json.dumps({"pages": [{"lines": [
+                    {"id": "1", "region": {}, "text": "x",
+                     "text_display": "x", "type": "math"}]}]}))
+            else:
+                f.write_text("x")
+        called = []
+        original_up, original_poll, original_dl = (
+            mc.upload_pdf, mc.poll_pdf_status, mc.download_result)
+        mc.upload_pdf = lambda *a, **k: called.append("upload") or "pid"
+        mc.poll_pdf_status = lambda *a, **k: None
+        mc.download_result = lambda *a, **k: None
+        try:
+            res = mc.fetch_mathpix(str(pdf), force=False, log=lambda m: None)
+        finally:
+            mc.upload_pdf, mc.poll_pdf_status, mc.download_result = (
+                original_up, original_poll, original_dl)
+        assert called == ["upload"], "a pdfminer lines.json must not read as cached"
+        assert res["status"] == "downloaded"
