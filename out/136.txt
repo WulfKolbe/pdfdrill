@@ -1,0 +1,111 @@
+136 — the 78 `slide` values
+===========================
+
+DOCUMENT
+--------
+   preprints202505.0818.v1 — the ONLY document in the corpus carrying a `slide`
+   mismatch. 78 flagged objects of 462 maths objects (16.9%): 58 Equation,
+   20 Formula. 108 `\begin{slide}` occurrences in total across those values.
+
+CONFIDENCE DISTRIBUTION
+-----------------------
+   NONE. 0 of 78 carry a confidence value, and every one has page = None.
+
+   That is not missing data — it is the answer to the question. This model was
+   built from the AUTHOR'S LaTeX SOURCE:
+
+      source_path      : main.tex (LaTeX source, no OCR)
+      latex_source_dir : .../preprints202505.0818.v1/texsrc
+
+   MathPix never touched these values. A confidence distribution cannot be
+   reported because there is no OCR here to be confident about.
+
+CORRECTION TO out/126
+---------------------
+out/126 stated that these 78 were "a SET SYMBOL misread — a state space came
+back as a spurious \begin{slide}", and grouped them with MathPix defects. That
+is wrong. It was inferred from the shape of the LaTeX without checking the
+model's provenance, and the provenance says no OCR was involved.
+
+The itemize half of out/126 is unaffected: those 211 are genuine MathPix
+fragments in OCR-built models. Only the `slide` attribution was wrong.
+
+WHAT IT ACTUALLY IS — OUR MACRO EXPANDER TAKES THE WRONG DEFINITION
+-------------------------------------------------------------------
+The author defines \bS TWICE, in two different files:
+
+   texsrc/_definitions.tex:247      \def\bS{\begin{slide}}
+   texsrc/jin_thesis_macros.tex:32  \def\bS{\mathbb{S}}
+
+and main.tex inputs them in this order:
+
+   main.tex:76   \input{_definitions}
+   main.tex:77   \input{jin_thesis_macros}
+
+TeX semantics are LAST DEFINITION WINS, so in the real document \bS is
+\mathbb{S} — the state space — and the author's PDF is correct. main.tex:183
+says so in prose: "The {state-space} $\bS=\{1,2,\hdots,d\}$ is finite."
+
+src/pdfdrill/latex_source.py:430 collects \def with
+
+   macros.setdefault(m.group(1), {...})
+
+i.e. FIRST definition wins. We therefore expanded 168 uses of \bS with the
+slide shorthand instead of the state space. The author's source is fine; the
+expansion is not.
+
+IS THE SYMBOL READ CORRECTLY ELSEWHERE IN THE DOCUMENT? NO — NOT ONCE
+----------------------------------------------------------------------
+   \begin{slide} in the model : 108
+   \mathbb{S}    in the model :   0
+   \bS unexpanded             :   0
+   \bS in main.tex            : 168
+
+Every occurrence went the same way, and that is diagnostic. An OCR misread is a
+per-instance judgement and would vary — some right, some wrong, with confidence
+tracking the difference. A macro-table error is decided ONCE, at expansion
+time, and applies uniformly. The uniformity is the evidence that this is not a
+reading problem at all.
+
+FIVE FULL EXAMPLES
+------------------
+1. Equation
+   \begin{aligned} \mathsf{P}(X_0=x) &= \mu(x), \quad x\in\begin{slide}. \\
+   \mathsf{P}(X_{t+1} =x' \mid X_t=x) &= A(x,x'), \quad x,x'\in\begin{slide},
+   \quad t=0,1,2\hdots,T-1. \end{aligned}
+      source (main.tex:192-193):
+      \sP(X_0=x) &= \mu(x), \quad x\in\bS. \\
+      \sP(X_{t+1} =x' \mid X_t=x) &= A(x,x'), \quad x,x'\in\bS, ...
+      intended: x \in \mathbb{S}
+
+2. Equation
+   \mathsf{P}(Z_{t+1} = z \mid X_t=x) = C(x,z),\quad z\in\mathbb{O},\;
+   x\in\begin{slide}, \quad t=0,1,2\hdots,T-1.
+      Note \mathbb{O} survives correctly in the SAME expression — only \bS is
+      wrong, because only \bS is doubly defined.
+
+3. Formula   \begin{slide}
+      the bare symbol, from a prose sentence naming the state space
+
+4. Formula   \mathcal{M}(\begin{slide})
+      source: \clM(\bS)   — the measures over the state space
+
+5. Formula   \mathcal{P}(\begin{slide})\subset \mathcal{M}(\begin{slide})
+      source: \clP(\bS)\subset \clM(\bS)   (main.tex:1061 area)
+
+THE FIX, AND WHY IT IS NOT A ONE-LINE CHANGE
+---------------------------------------------
+Changing setdefault to plain assignment makes \def last-wins, which is correct
+for \def against \def. But the collector processes \newcommand and \def in
+SEPARATE passes, so plain assignment would let a \def anywhere in the preamble
+override a \newcommand that came after it in the source — trading one
+order-independence bug for another.
+
+The correct fix is a single pass over all definition forms in SOURCE ORDER,
+last wins, which is what TeX does. That is a real change to collect_macros and
+wants its own task rather than being folded in here.
+
+Scope of the bug beyond this document: any source that redefines a macro. This
+is the only document where it produced a visible artefact, because \begin{slide}
+does not typeset — a redefinition that expands to something plausible would be
+silently wrong instead.

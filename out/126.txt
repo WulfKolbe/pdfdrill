@@ -1,0 +1,104 @@
+126 (revised) — flag the environment mismatch, keep the repair
+==============================================================
+
+0902.0431
+---------
+   flagged objects : 24      all Equation, all `itemize`
+   all 24 still RENDER — the stray-closer repair is untouched.
+
+   sample flag as stored on the object:
+      "env_mismatch": {"unmatched_end": {"itemize": 1},
+                       "unmatched_begin": {},
+                       "trailing": "itemize"}
+
+CORPUS-WIDE
+-----------
+   documents with a model : 1,243
+   maths values examined  : 315,866
+   values flagged         : 289      (0.091%)
+   documents affected     : 93
+
+   by environment            by object type        rendering outcome
+      211  itemize              269  Equation         211  repaired, RENDER
+       78  slide                 20  Formula           78  still unrenderable
+
+   top documents
+       78  preprints202505.0818.v1
+       24  0902.0431
+       18  dmoi4
+       10  fricas_intro
+        9  2602.14075v1
+        7  Grassmann,GeometryandMechanics   (and its ` (1)` duplicate, 7)
+
+TWO DIFFERENT DEFECTS, AND THE SPLIT IS THE FINDING
+---------------------------------------------------
+The balance check was written for one shape and caught two. They are unrelated
+and want opposite treatment.
+
+  itemize — 211 values, every one a TRAILING closer, every one repaired.
+      \[ (A \vee B)^{\prime}=-B \vee A . \] \end{itemize}
+      MathPix returned a fragment of the surrounding prose structure. The
+      mathematics is intact; renderable() drops the closer and the equation
+      typesets. The flag records that the extraction was defective even though
+      the output is now correct.
+
+  slide — 78 values, all in preprints202505.0818.v1, NONE repairable.
+
+      *** CORRECTED BY 136 — READ THAT INSTEAD OF THE PARAGRAPH BELOW ***
+      The explanation given here (a MathPix set-symbol misread) is WRONG. That
+      document's model is built from the AUTHOR'S LaTeX SOURCE, not from OCR:
+      0 of the 78 carry a confidence value and all have page = None. MathPix
+      never touched them. The real cause is OUR macro expander: the author
+      defines \bS twice (\def\bS{\begin{slide}} in _definitions.tex, then
+      \def\bS{\mathbb{S}} in jin_thesis_macros.tex, input second), TeX takes
+      the LAST definition, and latex_source.py:430 takes the FIRST via
+      setdefault. The itemize half of this file is unaffected — those 211 are
+      genuine MathPix fragments in OCR-built models.
+
+      The original paragraph, kept for the record:
+          \mathsf{P}(X_0=x) &= \mu(x), \quad x\in\begin{slide}.
+          \mathsf{P}(Z_{t+1}=z \mid X_t=x) = C(x,z), \quad x\in\begin{slide}
+      `x \in \begin{slide}` is a SET SYMBOL misread. A state space (a
+      blackboard-bold or script letter) came back as a spurious \begin{slide},
+      so the value is not merely malformed — it is WRONG. No repair applies,
+      because there is nothing to strip: the defect is in what was read, not in
+      what was appended.
+
+      These 78 are unmatched OPENERS (`unmatched_begin`), where the itemize
+      class are unmatched CLOSERS. That asymmetry is what separates them, and
+      it falls straight out of counting rather than needing a second detector.
+      It also turned out to separate an OCR defect from a macro-expansion one,
+      which is more than it was built to do.
+
+WHY (b) AND NOT (a)
+-------------------
+Reading (a) — reject on mismatch — would have blanked all 211 itemize values,
+including the 24 in 0902.0431 that render correctly at confidences up to 1.000,
+taking that report back from 7 unrendered equations to 31. It would have
+recorded "MathPix emitted a fragment" by discarding "the mathematics is fine".
+
+The 78 slide values need no help from (a): they are already unrenderable and
+already show as (not rendered). Rejection would have added nothing there and
+cost 211 working equations elsewhere.
+
+WHERE THE FLAG LIVES
+--------------------
+`env_mismatch` on the Equation/Formula object, set at model-build time
+(src/pdfdrill/env_balance.py, called from cmd_model beside the existing
+heading-cleanup pass). Idempotent, and a value that is later corrected LOSES
+the flag rather than keeping a stale one.
+
+It is diagnostic only — nothing gates on it. A value that renders correctly
+after repair is not a rendering problem; it is an input-quality signal about
+the OCR, and it belongs where input quality is read.
+
+The corpus figures above come from applying the same detector to every model on
+disk. The flags themselves are written when a model is next built: 0902.0431
+was rebuilt for this task and carries them now; the other 92 documents will
+carry them on their next `pdfdrill model`.
+
+Counts, not set membership: `array` opened once and closed twice is unbalanced
+even though the name appears on both sides. A set-difference check calls that
+clean, and it is the shape a hand-rolled version gets wrong.
+
+2209 tests pass (8 new).

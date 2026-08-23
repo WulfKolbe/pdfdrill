@@ -1,0 +1,56 @@
+135 — status of 125, 126, 127
+=============================
+
+125  NOT STARTED. No dependency — the data is on disk and it is a measurement,
+     not a build. (Provisional: model Formula objects carry a region on 0 of
+     3,170 in 0902.0431, and lines.json exposes per-child regions only on 187
+     structural containers, so the answer is likely "almost none have their
+     own"; that is the finding to confirm, not an excuse to skip it.)
+
+126  NOT STARTED, and it now CONFLICTS with a change already shipped — see
+     below. Nothing technical blocks it; it needs one decision from you.
+
+127  NOT STARTED. Blocked on which documents count: FIVE Heim candidates carry
+     a model — BH1, BH1org_OCR, bh2, BH3FR, WDorg4 — and the task names four.
+     BH1 and BH1org_OCR look like the same book in two renderings.
+
+126 — THE CONFLICT, BECAUSE IT DECIDES WHAT GETS BUILT
+-------------------------------------------------------
+Measured in 0902.0431 just now:
+
+   values whose \begin{X}/\end{X} counts differ : 24
+   unmatched environment                       : itemize, all 24
+   of those now REPAIRED and rendering         : 24  (all of them)
+
+Those 24 are the same rows as the \end{itemize} fragments the task points at.
+They were fixed on 23 Aug (commit 518c548): MathPix glues a stray closer onto
+display math that ends a list —
+
+   \[ (A \vee B)^{\prime}=-B \vee A . \] \end{itemize}
+
+— and renderable() now drops a TRAILING \end{X} that has no matching \begin{X}.
+That took 0902.0431 from 31 unrendered equations to 7, at confidences up to
+1.000.
+
+126 as written says "reject any value whose counts differ". Implemented
+literally it re-blanks all 24 and undoes that recovery.
+
+The two readings are both defensible and they are not the same task:
+
+   (a) REJECT — treat the fragment as a broken object and refuse to render it.
+       0902.0431 goes back to ~31 unrendered. Correct if the position is that a
+       value carrying prose structure is malformed and must not be presented as
+       mathematics.
+
+   (b) REPORT — keep the repair, and add the count + environment as a REPORTED
+       defect on the object (a flag in the model, a line in the QC output),
+       so the 24 broken objects are visible and countable without blanking
+       equations that render correctly once the stray closer is dropped.
+
+I read the task's own words as (b) — "a defect producing broken objects, and
+cheap to detect" is about DETECTION — but the verb it uses is "reject", which
+is (a). I am not guessing between them, because the difference is 24 equations
+in one document and the same class corpus-wide.
+
+Say (a) or (b) and 126 is short work either way. 125 needs nothing from you;
+127 needs the four names.

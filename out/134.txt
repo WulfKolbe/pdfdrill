@@ -1,0 +1,93 @@
+134 — revert to option (b): the bullet is the mark, the field is the channel
+============================================================================
+
+FIELD COUNT: 4 — equal to the row count. Task 124's gate PASSES.
+
+   body rows in the display table : 4
+   AcroForm fields in the PDF     : 4
+      ink.0902.0431_EQ0515
+      ink.0902.0431_EQ0517
+      ink.0902.0431_EQ1026
+      ink.0902.0431_EQ0518
+   assert_form_fields(pdf, expected=4) -> 4      (raised on the 133 build)
+
+   xelatex exit 0, 0 errors, 6 columns, unchanged.
+
+ONE RENDERED CELL
+-----------------
+   source:
+      \confandink{confred}{0.002}{inkMissed}{0902.0431_EQ0515}
+                  │        │      │           └ #4 field name -> ink.<ident>
+                  │        │      └ #3 residual class colour -> the bullet
+                  │        └ #2 confidence value
+                  └ #1 confidence colour -> the square
+
+   rendered (pdftotext -layout, row 1 of the Conf. + class column):
+
+      ■ 0.002 •   ·
+
+   ■ 0.002   MathPix confidence, its own coloured SQUARE
+   •         residual class, colour only — no class letter, no component
+             delta, no A/B suffix
+   ·         the AcroForm field, showing its compile-time placeholder
+
+WHAT CHANGED FROM 133
+---------------------
+   \confandink now takes 4 arguments: #1 #2 #3 and the id (was #5). Only the
+   CODE argument is gone. \inkfield is called again, \begin{Form} was never
+   removed, and the shapes stay distinct — square for confidence, bullet for
+   residual — so the two scales cannot be read as the same kind of mark.
+
+   The A/B suffix is not coming back: 117 refuted that taxonomy, so a mark
+   asserting it was showing a distinction that is not there.
+
+THE FIELD IS NOT DUPLICATION — VERIFIED, NOT ASSUMED
+-----------------------------------------------------
+The bullet is the compile-time mark; the field is the run-time one. To confirm
+the channel actually works, the built PDF was patched with pypdf exactly as
+fill_ink_fields.py does — NeedAppearances set on the AcroForm dict, values
+written by field name:
+
+   ink.0902.0431_EQ0515 = 'M|-3'
+   ink.0902.0431_EQ0517 = 'S|-1'
+   ink.0902.0431_EQ1026 = 'M|-2'
+   ink.0902.0431_EQ0518 = 'S|-1'
+
+   63,133 bytes, no recompilation.  -> 0902.0431tester-134-filled.pdf
+
+So a fresh inkdrill run updates the report in place. 133's option (a) removed
+that and would have orphaned the script silently — the only reason it did not
+is that 124's gate reported field count 0 against row count 4.
+
+fill_ink_fields.py DOCSTRING — CORRECTED, AND MORE WAS WRONG THAN THE COMMAND
+-----------------------------------------------------------------------------
+   1. The build command. This report needs xelatex: it loads fontspec, and
+      pdflatex aborts with "Fatal Package fontspec Error ... requires either
+      XeTeX or LuaTeX" and writes NO pdf. A pdflatex flow cannot produce the
+      file the script then patches.
+
+   2. The LaTeX line it recommended. The docstring gave
+
+         \pdfcatalog{/NeedAppearances true}
+
+      \pdfcatalog is a pdfTeX PRIMITIVE and is undefined under xelatex —
+      tested: "! Undefined control sequence", build fails. So that line could
+      never have run in this pipeline. The xelatex equivalent, tested and
+      confirmed to set /NeedAppearances true in the built PDF, is
+
+         \special{pdf:put @catalog <</NeedAppearances true>>}
+
+      It is optional anyway: the script already writes /NeedAppearances onto
+      the AcroForm dict, which is what a viewer reads. The tester never used
+      either line.
+
+   Both corrections are in ~/Downloads/fill_ink_fields.py (original backed up
+   to scratchpad/fill_ink_fields.py.bak). No code changed — docstring only.
+
+FILES
+-----
+   ~/Downloads/0902.0431tester-134.tex          rebuilt source
+   ~/Downloads/0902.0431tester-134.pdf          4 rows, 4 fields, 6 columns
+   ~/Downloads/0902.0431tester-134-filled.pdf   after a pypdf fill
+   ~/Downloads/fill_ink_fields.py               docstring corrected
+   the auditor's 0902.0431tester.tex remains untouched.

@@ -1,0 +1,105 @@
+127 — prescripts { }^{...} / {}^{...} across the four Heim books
+===============================================================
+
+COUNTS  (MathPix lines.json, every line — same basis for all five)
+
+   document          pages   lines   { }^   {}^    PRESCRIPT   trailing
+   BH1                 319   10216    587     0          420        167
+   bh2                 400   12266    585     0          476        109
+   BH3FR               149    4037    171     0          120         51
+   WDorg4              174    5407     54     0           17         37
+   ------------------------------------------------------------------
+   FOUR BOOKS                        1397     0         1033        364
+
+   BH1org_OCR (cmp)    319   10217    589     0          420        169
+
+TWO CORRECTIONS THE RAW COUNT NEEDED
+------------------------------------
+1. `{}^` — the tight form — occurs ZERO times. Not in the four books, not in
+   the comparison, not anywhere in the corpus. MathPix always emits the spaced
+   `{ }^`. The task asks for both; one of them does not exist in this data.
+
+2. `{ }^{...}` is NOT always a prescript. It is an empty group carrying a
+   superscript, and that construct has two uses:
+
+       { }^{2} \bar{\kappa}          PRESCRIPT — a left superscript
+       \mathbf{210}{ }^{\prime}      TRAILING  — a prime on the preceding group
+
+   Only the first is what the task means. Classifying by what precedes the
+   occurrence: of 1,397 in the four books, 1,033 are prescripts and 364 are
+   trailing. Reporting 1,397 as "prescripts" would have overstated it by 35%.
+
+   This matters most outside the books — see the clustering answer.
+
+DO THEY CLUSTER? YES — IN HEIM MATERIAL, ONCE PRIMES ARE SEPARATED
+------------------------------------------------------------------
+Corpus-wide (model basis): 532 documents carry `{ }^`, holding 1,803 prescripts
+and 9,890 trailing occurrences. Ranked by PRESCRIPTS:
+
+        prescript  trailing   document
+              257       256   bh2                                    *
+              214       231   Burkhard Heim - Elementarstrukturen der Materie
+              210       289   BH1org_OCR                             (cmp)
+              113        58   BH3FR                                  *
+               98        53   Burkhard Heim - Einführung in ... Elementarstruk
+               96       501   0902.0431
+               89       507   1510.06699
+               80       194   Refractive_index_and_lattice_parameter_prediction
+               28        21   2006.04439
+
+Four of the top five are Heim. The construct is a genuine feature of this
+author's notation, not an artefact spread evenly over the corpus.
+
+The unclassified count would have said the opposite. On the raw pattern the
+top document is 1511.08771 with 5,945 occurrences — half the corpus total —
+which looks like the prescripts living somewhere else entirely. Classified, it
+has 5,944 TRAILING (5,769 of them `\prime`) and exactly ONE prescript. It is a
+representation-theory paper full of primed labels like \mathbf{210}{ }^{\prime},
+and it is not a prescript document at all.
+
+TWO MORE HEIM DOCUMENTS EXIST
+-----------------------------
+"Burkhard Heim - Elementarstrukturen der Materie Einheit..." (214) and
+"Burkhard Heim - Einführung in ... Elementarstrukturen" (98) rank 2nd and 5th.
+They are not among the four named books but carry the same notation, so any
+claim about "the Heim corpus" that stops at four books is missing 312
+prescripts.
+
+BH1 vs BH1org_OCR — THE TWO READINGS AGREE ALMOST EXACTLY
+----------------------------------------------------------
+   BH1          319 pages  10,216 lines  241 math lines  587 occ  420 prescript
+   BH1org_OCR   319 pages  10,217 lines  240 math lines  589 occ  420 prescript
+
+One line apart, one math line apart, two occurrences apart, and IDENTICAL on
+the classified prescript count. On this construct the two renderings of the
+same book are interchangeable.
+
+That is worth setting against out/104, which found the two genuine
+discrete-integral instances in BH1org_OCR and not in BH1. Both can be true:
+the readings diverge on a rare glyph-level judgement (a bold script S with
+limits) while agreeing completely on a common structural one. "The two
+renderings differ" is not a property of the pair — it depends on what is being
+counted, and this measurement is the case where they do not differ at all.
+
+A DEFECT FOUND WHILE MEASURING — BH1's MODEL IS THE WRONG DOCUMENT
+-------------------------------------------------------------------
+~/pdfdrill-library/BH1/ contains TWO documents:
+
+   BH1.lines.json            4 pages, pdfminer, NO maths  <- the model uses this
+   BH1-9add65ca.lines.json   319 pages, MathPix, 241 math lines, 10.8 MB
+
+model.docmodel.json was built from the stub: 4 Pages, 6 ListItems, 4
+Paragraphs, ZERO Equation or Formula objects. So BH1 reads as 0 prescripts on a
+model basis, and the 420 above come from the lines.json directly.
+
+Consequences beyond this task:
+  * BH1's model needs rebuilding from BH1-9add65ca.lines.json.
+  * Today's keyless purge should have deleted that pdfminer model and did not.
+    The scan picked ONE sidecar per directory with sorted(glob)[0], which is
+    BH1-9add65ca.pdf.drill.json — the OTHER document's — so BH1 was classified
+    by its neighbour and skipped. Any per-directory scan in this session
+    inherits that assumption, including the band and confidence counts.
+
+The one-directory-one-document assumption is wrong for at least this directory,
+and it was not visible until a count came back as zero for a book that plainly
+has mathematics.

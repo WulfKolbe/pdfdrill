@@ -1,0 +1,83 @@
+133 — one coloured bullet for the residual class
+================================================
+
+COLUMN COUNT: 6 — unchanged.
+
+   |  Identifier | Page | Conf. + class | LaTeX source | Rendered | Scan image |
+       22mm        7mm       36mm           60mm          60mm       80mm
+
+   All 4 body rows carry 6 cells. xelatex exit 0, 0 errors.
+
+THE COUNT DID NOT CHANGE, AND THE TASK'S PREMISE IS WHY
+-------------------------------------------------------
+The task asks to replace "the Code and ink columns". They were never columns.
+In 0902.0431tester.tex both live INSIDE the third column, as elements of one
+macro:
+
+   \confandink{confred}{0.002}{inkMissed}{M-3A}{0902.0431_EQ0515}
+              └ conf colour  └ conf   └ class  └ CODE   └ form-field name
+
+producing, in one cell:  [conf square + value]  [class square + "M-3A"]  [field]
+
+So the change is within a cell, not to the table, and the column count is 6
+before and after. Reporting "6" without saying that would let the number look
+like a verification of a change that never touched the columns.
+
+WHAT CHANGED
+------------
+   before   ■ 0.002  ■ M-3A  [ink field]
+   after    ■ 0.002  •
+
+   * \inkviz{colour}{code}  ->  \inkbullet{colour}   — colour only, no text
+   * the residual is a BULLET, confidence keeps its SQUARE. Two shapes, so the
+     two scales can never be read as the same kind of mark.
+   * "M-3A" is gone: no class letter, no component delta, no A/B topology.
+   * header "Conf. + ink" -> "Conf. + class"
+   * the short-code legend is replaced by a colour legend.
+
+The delta and the topology are not lost — they stay in inkdrill's JSON, which
+is where a number that has to be read belongs. At 5pt inside a 36mm column
+"M-3A" was not readable anyway.
+
+CONSEQUENCE YOU NEED TO DECIDE ON — THE FORM FIELDS ARE GONE
+------------------------------------------------------------
+   form fields, before : 4   (ink.0902.0431_EQ0515, _EQ0517, _EQ1026, _EQ0518)
+   form fields, after  : 0
+
+Removing the code removed \inkfield, and the fields went with it. Task 124's
+gate caught this immediately:
+
+   demo133: expected 4 AcroForm field(s), found 0 (none).
+     The usual cause is \TextField/\CheckBox outside a \begin{Form}...
+     \end{Form} environment: hyperref emits nothing and does not warn.
+
+That matters beyond the demo: ~/Downloads/fill_ink_fields.py writes residual
+codes INTO those fields by name (ink.<ident>), after pdflatex, with
+NeedAppearances set. With no fields it has nothing to fill, so this change
+orphans that script.
+
+The two are not compatible as written, and the choice is a real one:
+
+   (a) colour-only, as asked. The class must then be known at BUILD time and
+       baked into the .tex. fill_ink_fields.py is retired or repurposed to
+       EMIT the .tex rather than patch the PDF.
+   (b) keep the field, drop only the visible code. The bullet carries the
+       class; the field stays as the machine-readable slot the script fills.
+       One line: restore \inkfield{#5} in \confandink and its 5th argument.
+
+I implemented (a) because that is what the task says, and \begin{Form} is now
+an empty environment that should also be removed if (a) stands.
+
+FILES
+-----
+   ~/Downloads/0902.0431tester-133.tex   rebuilt source
+   ~/Downloads/0902.0431tester-133.pdf   rebuilt demo, 4 rows, 6 columns
+   the auditor's 0902.0431tester.tex is UNTOUCHED; a copy of it is also at
+   scratchpad/0902.0431tester.tex.bak
+
+BUILD NOTE
+----------
+The demo needs xelatex, not pdflatex: it loads fontspec, and pdflatex dies with
+"Fatal Package fontspec Error ... requires either XeTeX or LuaTeX", producing no
+PDF. fill_ink_fields.py's docstring shows a pdflatex-based flow; on this file
+that flow cannot produce the input it then tries to patch.

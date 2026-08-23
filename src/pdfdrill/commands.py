@@ -3505,8 +3505,17 @@ def cmd_model(pdf: Path, force: bool = False, bibkey: str | None = None,
     try:
         from docmodel.core import Document as _Doc
         from . import heading_cleanup as _hc
+        from . import env_balance as _eb
         _doc = _Doc.from_dict(out)
-        if _hc.clean_heading_residuals(_doc) + _hc.extract_footnote_paragraphs(_doc):
+        # 126: flag values whose \begin{X}/\end{X} counts differ. Diagnostic
+        # only — renderable() still REPAIRS the stray trailing closer, so the
+        # equation typesets; the flag records that MathPix emitted a fragment
+        # of the surrounding prose inside a maths value. Recording that by
+        # blanking the equation would trade one fact for the other.
+        _changed = (_hc.clean_heading_residuals(_doc)
+                    + _hc.extract_footnote_paragraphs(_doc)
+                    + _eb.flag_document(_doc))
+        if _changed:
             save_model(model_path, _doc)
             out = _doc.to_dict()
     except Exception:                                  # cleanup is best-effort
