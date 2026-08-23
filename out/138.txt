@@ -1,0 +1,83 @@
+138 — documents redefining the same macro name across inputs
+============================================================
+
+COUNT
+-----
+   LaTeX-source documents scanned    : 445
+   unreadable / skipped              : 2
+   documents with >=1 redefinition   : 62      (13.9%)
+   total redefinitions               : 247
+
+   Definitions are counted after \input inlining, across \newcommand,
+   \renewcommand, \def, \DeclareMathOperator and \newmathalphabet — the same
+   forms extract_macros parses, so the count matches what the expander sees.
+
+TOP TEN BY REDEFINITION COUNT
+-----------------------------
+    redefs  names  document                        most-redefined names
+        78     51  preprints202505.0818.v1         Secx5 Rex4 ddxx4 varblex4 Inovx4 clZx4
+        18     18  2006.14038 (1)                  redx2 bax2 bbx2 bex2 tjx2 bnx2
+        18     18  2006.14038                      redx2 bax2 bbx2 bex2 tjx2 bnx2
+        14     13  2505.21946v1                    arraystretchx3 algorithmicrequirex2 sotax2
+         7      7  1908.11728                      inlinetodox2 missingx2 addrefx2 BHx2 KHx2
+         7      5  2005.05886                      nbx3 inlinecommentx3 todox2 tdx2 boxcommentx2
+         6      6  2503.21383                      widex2 KLx2 cSx2 vwx2 vax2 rvux2
+         6      6  2303.03192                      msunx2 ltsimax2 gtsimax2 yrx2 rx2 etalx2
+         5      5  2405.02732                      taclpaperx2 taclpapersx2 Taclpaperx2
+         5      3  2010.14265                      notex4 argmaxx2 argminx2
+
+   2006.14038 appears twice: the library holds it and a ` (1)` duplicate with
+   byte-identical sources. Counted separately here because they are separate
+   models that each need rebuilding.
+
+"MAY HAVE PRODUCED WRONG EXPANSIONS" — HOW MANY ACTUALLY DID
+-------------------------------------------------------------
+A redefinition is not by itself a wrong expansion. Many are the same body
+written twice (a macro defined identically in two included files), where
+first-wins and last-wins agree.
+
+Both macro tables were built for all 62 documents — the current code and a
+replica of the pre-137 behaviour — and compared body by body:
+
+   documents with a redefinition          62
+   ... where the two tables AGREE         29     identical bodies, harmless
+   ... where the EXPANSION DIFFERS        33     wrong under first-wins
+   macro names affected in total          51
+
+So the exposed population is 33 documents, not 62. Reporting 62 would have
+overstated it by 88%.
+
+   names  document                      affected macros
+       4  preprints202505.0818.v1       qed, eqdef, Lscr, bS
+       4  2303.03192                    msun, yr, r, etal
+       4  2006.14038 (1)                ba, bb, bz, O
+       4  2006.14038                    ba, bb, bz, O
+       3  2503.21383                    vw, va, rvu
+       2  math-ph_0212032               nn, ampw
+       2  hep-th_0001124                beginpicture, next
+       2  2104.13478v2                  rb, rvu
+       2  2104.13478                    rb, rvu
+       1  2607.05794                    rvu
+       1  2607.02234                    rvu
+       1  2606.16905                    rvu
+
+WHY ONLY ONE OF THE 33 WAS EVER VISIBLE
+----------------------------------------
+preprints202505.0818.v1 was found because \begin{slide} does not typeset — it
+produced an unbalanced-environment flag that out/126's balance check caught.
+
+The other 32 expanded to something that renders. `rvu` recurs across five
+documents; `\r` and `\etal` in 2303.03192; `\ba`, `\bb`, `\bz`, `\O` in
+2006.14038. A wrong body that still typesets leaves no error, no warning and no
+flag — it just means the stored LaTeX is not what the author wrote. Those are
+silently wrong and were never going to surface on their own.
+
+That is the argument for fixing the ORDER rather than detecting the symptom:
+the balance check found one document out of 33, and only because that
+particular wrong expansion happened to be malformed.
+
+NOT DONE HERE
+-------------
+All 33 still carry models built under first-wins. `pdfdrill model --force` on
+each picks up the corrected expansion; it is offline and free. Not run as part
+of this task.

@@ -1,0 +1,49 @@
+137 — \def expansion order: last definition wins
+================================================
+
+RESULT ON preprints202505.0818.v1
+---------------------------------
+   slide mismatches remaining : 0        (was 78)
+   \begin{slide} occurrences  : 0        (was 108)
+   \mathbb{S}   occurrences   : 108      (was 0)
+   env mismatches of ANY kind : 0
+
+   Every one of the 108 became the state space the author wrote.
+
+THE FIX
+-------
+`extract_macros` collected each definition form in its own pass — \newcommand,
+then \DeclareMathOperator, then \def (via setdefault, FIRST wins), then
+\newmathalphabet — so precedence was decided by which regex ran rather than by
+the document. Definitions are now gathered with their source POSITION and
+applied in that order, last one wins, which is what TeX does.
+
+Ordering by position is what the fix needs; setdefault -> plain assignment was
+not enough and would have been wrong in the other direction. \def and
+\newcommand are collected in separate passes, so assignment alone would let a
+\def early in the preamble beat a \newcommand written after it. Tests pin all
+four orderings: def/def, def/newcommand, newcommand/def, newcommand/renewcommand.
+
+WHY IT BIT HERE, WHICH THE EARLIER DIAGNOSIS NEARLY MISSED
+-----------------------------------------------------------
+Calling collect_macros on main.tex's raw preamble returns the CORRECT
+\bS = \mathbb{S}: that path recurses into \input files and later files override
+earlier ones. So the collector looked innocent.
+
+build_source_model does not take that path. It calls read_source() first, which
+INLINES every \input, so _definitions.tex and jin_thesis_macros.tex land in one
+preamble string and extract_macros' setdefault decides between them:
+
+   main.tex:76   \input{_definitions}       \def\bS{\begin{slide}}   <- taken
+   main.tex:77   \input{jin_thesis_macros}  \def\bS{\mathbb{S}}      <- correct
+
+Testing the collector without inlining reproduced the wrong answer — the right
+answer, from the wrong code path.
+
+2219 tests pass (10 new).
+
+NOT DONE HERE
+-------------
+The 33 documents identified in out/138 still carry models built with the old
+expansion. They need `pdfdrill model --force` to pick this up. That is offline
+and free, but it is a corpus operation and is not part of this task.

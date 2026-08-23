@@ -394,8 +394,29 @@ def extract_macros(preamble: str) -> dict[str, dict]:
     """Parse macro definitions into {name: {nargs, default, body}}.
 
     Handles \\newcommand / \\renewcommand (with optional [n][default]),
-    \\def\\name{...}, and \\DeclareMathOperator (→ \\operatorname{...})."""
+    \\def\\name{...}, and \\DeclareMathOperator (→ \\operatorname{...}).
+
+    137 — definitions are applied in SOURCE ORDER, last one wins, which is what
+    TeX does. Each form used to be collected in its own pass, and \\def used
+    setdefault (FIRST wins), so order was decided by which regex ran rather than
+    by the document. That is not academic: build_source_model INLINES \\input
+    before parsing, so every included file lands in this one string, and
+    preprints202505.0818.v1 defines \\bS twice —
+
+        _definitions.tex       \\def\\bS{\\begin{slide}}      (inlined first)
+        jin_thesis_macros.tex  \\def\\bS{\\mathbb{S}}        (inlined second)
+
+    TeX takes \\mathbb{S}, the state space, and the author's PDF is correct. We
+    took \\begin{slide} and expanded all 168 uses into a slide-environment
+    fragment.
+
+    Ordering by position also fixes the cross-form case, which a
+    setdefault→assignment change would have left broken in the other direction:
+    a \\def early in the preamble must NOT beat a \\newcommand that comes after
+    it."""
     macros: dict[str, dict] = {}
+    #: (position, name, entry) for every definition, applied in order below
+    _defs: list[tuple[int, str, dict]] = []
 
     # \newcommand{\name}[n][default]{body}  (also the *-form)
     nc = re.compile(r"\\(?:re)?newcommand\*?\s*\{?\\([A-Za-z]+)\}?(?:\[(\d+)\])?(?:\[([^\]]*)\])?\s*\{")
@@ -404,12 +425,15 @@ def extract_macros(preamble: str) -> dict[str, dict]:
         nargs = int(m.group(2)) if m.group(2) else 0
         default = m.group(3)
         body = _balanced(preamble, m.end() - 1)[1:-1]
-        macros[name] = {"nargs": nargs, "default": default, "body": body}
+        _defs.append((m.start(), name,
+                      {"nargs": nargs, "default": default, "body": body}))
 
     # \DeclareMathOperator{\name}{text}  → zero-arg \operatorname{text}
     for m in re.finditer(r"\\DeclareMathOperator\*?\s*\{?\\([A-Za-z]+)\}?\s*\{", preamble):
         body = _balanced(preamble, m.end() - 1)[1:-1]
-        macros[m.group(1)] = {"nargs": 0, "default": None, "body": f"\\operatorname{{{body}}}"}
+        _defs.append((m.start(), m.group(1),
+                      {"nargs": 0, "default": None,
+                       "body": f"\\operatorname{{{body}}}"}))
 
     # \def\name{body}  and  \def\name#1#2{body}
     #
@@ -427,8 +451,8 @@ def extract_macros(preamble: str) -> dict[str, dict]:
         nargs = max((int(d) for d in re.findall(r"#(\d)", m.group(2))),
                     default=0)
         body = _balanced(preamble, m.end() - 1)[1:-1]
-        macros.setdefault(m.group(1),
-                          {"nargs": nargs, "default": None, "body": body})
+        _defs.append((m.start(), m.group(1),
+                      {"nargs": nargs, "default": None, "body": body}))
 
     # \newmathalphabet*\got{euf}{m}{n} -- a math ALPHABET, not a macro. It has
     # no body to inline, so expansion can never remove it; `{\got g}` survived
@@ -437,10 +461,14 @@ def extract_macros(preamble: str) -> dict[str, dict]:
     # with body=None so `_apply_once` skips it and the font pass picks it up.
     for m in re.finditer(
             r"\\newmathalphabet\*?\s*\{?\\([A-Za-z]+)\}?\s*\{([A-Za-z]+)\}", preamble):
-        macros[m.group(1)] = {"nargs": 0, "default": None, "body": None,
-                              "alphabet": _ALPHABET_FOR_FONT.get(
-                                  m.group(2).lower(), "\\mathrm")}
+        _defs.append((m.start(), m.group(1),
+                      {"nargs": 0, "default": None, "body": None,
+                       "alphabet": _ALPHABET_FOR_FONT.get(
+                           m.group(2).lower(), "\\mathrm")}))
 
+    # source order, last wins — TeX semantics
+    for _pos, _name, _entry in sorted(_defs, key=lambda t: t[0]):
+        macros[_name] = _entry
     return macros
 
 
