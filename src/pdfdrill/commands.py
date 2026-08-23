@@ -856,6 +856,83 @@ def _stale_or_absent(sc: "Sidecar", model_path: Path, lines_path: Path) -> bool:
         return False
 
 
+def _tiddlers_path(pdf: Path, sc: "Sidecar") -> Path | None:
+    """Where this PDF's tiddler array is, or None. Pure resolve, no rebuild."""
+    rel = sc.get_evidence("tiddlers_path")
+    tid = (pdf.parent / rel) if rel else None
+    if tid is None or not tid.is_file():
+        cand = pdf.parent / f"{pdf.stem}.tiddlers.json"
+        tid = cand if cand.is_file() else None
+    return tid
+
+
+def _tiddlers_stale(pdf: Path, sc: "Sidecar", tid: Path | None) -> bool:
+    """True when the tiddler array no longer reflects the model.
+
+    Tiddlers are a PROJECTION of the model, so they are stale the moment the
+    model moves under them — `model` rebuilding from a richer lines.json,
+    `injectlatex` attaching a competing `tex` provenance, `clean` materialising.
+
+    Every consumer tested `is_file()` and nothing else, so a present-but-ancient
+    array was served as current: on 20c-cation, `reporttex --compile` read a
+    tiddlers.json from 3 August against a model rebuilt on 23 August and printed
+    "0 display equations" for a document whose model held 4 — a confident,
+    plausible, wrong number with no warning. Presence is not adequacy; this is
+    the same defect class as `_source_model_trap` and `_is_mathpix_output`.
+
+    Note the ORDER of the two tests: a model that is itself stale must rebuild
+    first, because a tiddlers file NEWER than a stale model is still wrong.
+    """
+    if tid is None or not tid.is_file():
+        return True
+    model_path = _model_path(sc)
+    # No model at all is NOT the same as "the tiddlers are behind the model":
+    # with nothing to compare against, a hand-supplied or externally-produced
+    # array is all there is, and rebuilding would try to construct a model from
+    # scratch — on a PDF with no lines.json that reaches tesseract OCR, which is
+    # how the first version of this guard broke test_standalone.
+    if not model_path.exists():
+        return False
+    if _stale_or_absent(sc, model_path, _lines_json_path(pdf)):
+        return True
+    try:
+        return tid.stat().st_mtime < model_path.stat().st_mtime
+    except OSError:
+        return False
+
+
+def _resolve_tiddlers(pdf: Path, sc: "Sidecar", *, rebuild: bool = True,
+                      announce: bool = True):
+    """(tiddlers path | None, refreshed Sidecar, note) — never a stale array.
+
+    `cmd_tiddlers` always re-projects from the model, so re-calling it is
+    idempotent and offline-safe (it auto-chains `model`, itself offline-only).
+    The note is non-empty whenever a rebuild happened, so the refresh appears in
+    the command's own output instead of being silent — a projector that quietly
+    regenerates its input is only marginally better than one that quietly uses
+    the wrong one.
+    """
+    tid = _tiddlers_path(pdf, sc)
+    if not _tiddlers_stale(pdf, sc, tid):
+        return tid, sc, ""
+    had = tid is not None
+    if not rebuild:
+        return tid, sc, ("tiddler array is older than the model" if had else "")
+    cmd_tiddlers(pdf)
+    sc = Sidecar(pdf)                # cmd_tiddlers saved its OWN sidecar
+    tid = _tiddlers_path(pdf, sc)
+    note = "Rebuilt the tiddler array: it was older than the model." if had else ""
+    if note and announce:
+        # to stderr so a consumer with many return paths surfaces the refresh
+        # without threading the note through each one. `reporttex` sets
+        # announce=False and folds it into its own stdout summary instead —
+        # that summary is the output whose equation count was wrong and the one
+        # a harness reads, and printing it in both places said it twice.
+        import sys
+        print(note, file=sys.stderr)
+    return tid, sc, note
+
+
 def _fresh_docgraph(pdf: Path, sc: "Sidecar", model_path: Path):
     """Read-path loader that REBUILDS first if the model is stale (lines.json
     newer), so fast DocGraph commands (llmtext/mathcheck/classify/retrieve/
@@ -2708,7 +2785,8 @@ def cmd_imageserve(pdf: Path, port: int = 8000, dpi: int | None = None,
     # background it automatically there.
     if not background:
         try:
-            if not sys.stdin.isatty():
+            import sys                   # NOT module-level in this file, and the
+            if not sys.stdin.isatty():   # except below cannot catch a NameError
                 background = True
         except (OSError, ValueError):
             background = True
@@ -13119,22 +13197,12 @@ def cmd_reporttex(pdf: Path, paper: str = "a3", landscape: bool = True,
     (the TikZ/table/failed-math candidates) as a final section."""
     from . import report_tex as rt
     sc = Sidecar(pdf)
-    rel = sc.get_evidence("tiddlers_path")
-    tid = (pdf.parent / rel) if rel else None
-    if tid is None or not tid.is_file():
-        cand = pdf.parent / f"{pdf.stem}.tiddlers.json"
-        tid = cand if cand.is_file() else None
+    # absent OR older than the model — the auto-chain used to fire on absence
+    # only, so a rebuilt model was reported through a weeks-old projection.
+    tid, sc, tid_note = _resolve_tiddlers(pdf, sc, announce=False)
     if tid is None:
-        out = cmd_tiddlers(pdf)                    # idempotent auto-chain
-        sc = Sidecar(pdf)          # cmd_tiddlers saved its OWN sidecar — the
-        rel = sc.get_evidence("tiddlers_path")     # in-memory one is stale
-        tid = (pdf.parent / rel) if rel else None
-        if tid is None or not tid.is_file():
-            cand = pdf.parent / f"{pdf.stem}.tiddlers.json"
-            tid = cand if cand.is_file() else None
-        if tid is None:
-            return (f"No tiddler array for {pdf.name} and `tiddlers` did not "
-                    f"produce one:\n{out}")
+        return (f"No tiddler array for {pdf.name} and `tiddlers` did not "
+                f"produce one.")
     px2mm = rt.auto_px2mm(pdf)
     crops = None
     crop_note = "images: off (--no-images)"
@@ -13158,6 +13226,8 @@ def cmd_reporttex(pdf: Path, paper: str = "a3", landscape: bool = True,
              f"Layout: {paper}{' landscape' if landscape else ''}; "
              f"px2mm={'%.5f (pixel-exact scan images)' % px2mm if px2mm else 'n/a (images fill the column)'}; "
              + crop_note + "."]
+    if tid_note:
+        lines.insert(0, tid_note)
     if compile_pdf:
         res = rt.compile_fixpoint(Path(r["out"]))
         if res is None:
@@ -13434,11 +13504,7 @@ def cmd_crossref(pdf: Path | None = None, store: str | None = None,
         return ("usage: crossref <pdf> | --query LATEX | --map A,B "
                 "[--store FILE]")
     sc = Sidecar(pdf)
-    rel = sc.get_evidence("tiddlers_path")
-    tid = (pdf.parent / rel) if rel else None
-    if tid is None or not tid.is_file():
-        cand = pdf.parent / f"{pdf.stem}.tiddlers.json"
-        tid = cand if cand.is_file() else None
+    tid, sc, tid_note = _resolve_tiddlers(pdf, sc)
     if tid is None:
         return (f"No tiddler array for {pdf.name} — run `pdfdrill tiddlers "
                 f"{pdf.name}` first (crossref indexes the projected "
@@ -13461,11 +13527,7 @@ def cmd_cdncrops(pdf: Path) -> str:
     from . import report_tex as rt
     import json as _json
     sc = Sidecar(pdf)
-    rel = sc.get_evidence("tiddlers_path")
-    tid = (pdf.parent / rel) if rel else None
-    if tid is None or not tid.is_file():
-        cand = pdf.parent / f"{pdf.stem}.tiddlers.json"
-        tid = cand if cand.is_file() else None
+    tid, sc, tid_note = _resolve_tiddlers(pdf, sc)
     if tid is None:
         return (f"No tiddler array for {pdf.name} — run `pdfdrill tiddlers "
                 f"{pdf.name}` first (cdncrops fetches the projected math "
@@ -13501,11 +13563,7 @@ def cmd_standalone(pdf: Path, only_id: str | None = None) -> str:
     if _shutil.which("xelatex") is None:
         return "standalone: xelatex not installed (bootstrap.sh installs it)."
     sc = Sidecar(pdf)
-    rel = sc.get_evidence("tiddlers_path")
-    tid = (pdf.parent / rel) if rel else None
-    if tid is None or not tid.is_file():
-        cand = pdf.parent / f"{pdf.stem}.tiddlers.json"
-        tid = cand if cand.is_file() else None
+    tid, sc, tid_note = _resolve_tiddlers(pdf, sc)
     if tid is None:
         return (f"No tiddler array for {pdf.name} — run `pdfdrill tiddlers "
                 f"{pdf.name}` first (standalone renders the projected "
