@@ -792,6 +792,38 @@ def _legacy_stale() -> bool:
     return os.environ.get("PDFDRILL_LEGACY_STALE", "").lower() in ("1", "true", "yes")
 
 
+def _source_model_trap(sc: "Sidecar", lines_path: Path) -> bool:
+    """True when a LaTeX-SOURCE model is shadowing a richer lines.json.
+
+    The source→mathpix ordering trap: on arXiv, `add` builds a geometry-less
+    LaTeX-SOURCE model (fast, gold math) when no lines.json exists yet. If
+    `mathpix` later writes one WITH page geometry, the model must upgrade — else
+    inspect/locate/compare stay box-less and confidence-less though everything
+    they need is on disk.
+
+    Two independent signals, because neither alone is complete:
+
+      * `model_caps.geometry is False` — recorded by cmd_model's own build path.
+      * `model_source == "latex"` + a real MathPix lines.json — the fallback for a
+        model built by `add`, which NEVER writes model_caps. That gap made the
+        first test `None is False` → False, so the trap this function names stayed
+        open on 2604.11744 (28 equations), 2508.19773 (4) and 2501.03145 (7):
+        MathPix lines.json from 6 Aug beside a LaTeX model, every `model` run
+        early-returning the cached one for seventeen days.
+
+    Lives in ONE place because it is consulted from two gates (`cmd_model`'s
+    rebuild decision and `_stale_or_absent`'s projector gate); when it was
+    written out twice, fixing one left the other blind.
+    """
+    if not lines_path.exists():
+        return False
+    caps = sc.get_evidence("model_caps") or {}
+    if caps.get("geometry") is False:
+        return True
+    return (sc.get_evidence("model_source") == "latex"
+            and _is_mathpix_lines(lines_path))
+
+
 def _stale_or_absent(sc: "Sidecar", model_path: Path, lines_path: Path) -> bool:
     """True if the model must be (re)built before a projector/read can trust it.
 
@@ -805,8 +837,7 @@ def _stale_or_absent(sc: "Sidecar", model_path: Path, lines_path: Path) -> bool:
     if not sc.has(MODEL_BUILT) or not model_path.exists():
         return True
     try:
-        caps = sc.get_evidence("model_caps") or {}
-        source_trap = bool(lines_path.exists() and caps.get("geometry") is False)
+        source_trap = _source_model_trap(sc, lines_path)
         proof = None if _legacy_stale() else sc.capabilities.get(MODEL_BUILT)
         if proof is not None:
             from . import proofs
@@ -3292,9 +3323,7 @@ def cmd_model(pdf: Path, force: bool = False, bibkey: str | None = None,
     # there. So: a present lines.json + a current model that reports no geometry
     # ⇒ rebuild. (No lines.json ⇒ this never fires; the source model is kept.)
     if lines_path.exists() and model_path.exists() and not stale:
-        caps = sc.get_evidence("model_caps") or {}
-        if caps.get("geometry") is False:
-            stale = True
+        stale = _source_model_trap(sc, lines_path)
     if sc.has(MODEL_BUILT) and model_path.exists() and not force and not stale:
         return _format_model(sc)
 
