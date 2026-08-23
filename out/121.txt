@@ -1,75 +1,133 @@
-121 - variants C and E on the 0.1-0.5 confidence band
+121 — variants C and E on the 0.1–0.5 confidence band
 ==============================================================================
 
 THE SET
 ------------------------------------------------------------------------------
-   20 rows across 18 documents, stratified by confidence within the band.
-   confidence  min 0.130  max 0.495
-   baseline ink  min 1  median 17  max 126
-   already BELOW the 6-7 noise floor: 8 of 20
+   20 rows across 15 documents, drawn from the 0.1–0.5 band.
+   confidence   min 0.102  max 0.487
+   baseline ink min 0  median 13  max 88
+   already BELOW the 7-unit noise floor: 5 of 20
 
-   That last line matters before any median is read: 8 of the 20 rows
-   start inside the noise floor, so their render already matches the scan
-   and there is nothing to recover. A variant can only hold them level or
-   make them worse.
+   0902.0431 contributes 4 rows by construction — it is 45 of the band's
+   808 equations, the single largest contributor, and was absent from the
+   previous run's sample entirely.
+
+   Baselines were RE-MEASURED, not carried over from the previous run:
+   renderable() changed today (it now repairs a stray \end{itemize} and
+   rejects CJK), so an old baseline would score this renderer against the
+   previous one and read a renderer change as a variant effect.
 
 RESULT
 ------------------------------------------------------------------------------
-   variant   n  failed  compiled   median over    median over ALL   better  worse  same
-                                    compiled      (failures=base)
-   C        20       1        19            -1                -0       10      6     3
-   E        20       6        14            -0                +0        7      5     2
+   variant     n  failed  compiled   median over   median over ALL  better  worse  same
+                                        compiled   (fail=baseline)
+   C          20       0        20            +0                +0       8      6     6
+   E          20       0        20            +0                +0       7      7     6
 
-THE THREE BANDS TOGETHER
-------------------------------------------------------------------------------
-   band            n    variant C median   variant E median   source
-   conf < 0.1     19          -8               -8             out/113, out/118
-   conf 0.1-0.5   20          -1               -0             this file
-   conf > 0.9     20          +0                -              out/115
-
-   (medians over compiled replies; E was not run on the high band)
+   Negative = closer to the scan. 'median over ALL' scores a failed reply at
+   the baseline (delta 0), so a variant cannot look good by failing on its
+   hard rows.
 
 PER ROW
 ------------------------------------------------------------------------------
-    identifier                conf    base      C      E
-   Clifford_bundle_formulat 0.130      6      3   fail
-   2012.15581_EQ0017        0.224     18      1      4
-   VSR-Slides_EQ0005        0.225     90    832     90
-   fricas_intro_EQ0005      0.230      5     37      6
-   2005.04015_EQ0021        0.244      5      5   fail
-   DeVitoOehrlepaper_EQ0003 0.273     73    106     74
-   Einstein_Cartan_Evans_EC 0.275     41     34     30
-   Clifford_bundle_formulat 0.326     18      6      5
-   2306.04271_EQ0041        0.336     17    286   fail
-   2005.05886_EQ0007        0.356    126     50     49
-   gr-qc_0212041_EQ0007     0.368     12     11     11
-   aflb472m968_EQ0003       0.374      2      1    127
-   1705.02519_EQ0009        0.399     28     31   fail
-   2005.04015_EQ0022        0.404      8   fail   fail
-   K3HKDMV_EQ0018           0.429      5      5      5
-   2110.04867_EQ0030        0.441     49     48   fail
-   0403040v2_EQ0071         0.463      5      2      3
-   2106.15845v2_EQ0022      0.470     36     16     42
-   HeRuWaWi12_final_EQ0011  0.480      2      2      4
-   1802.08153v1_EQ0101      0.495      1      2      0
+   identifier                           conf   base      C      E
+   2012.15581_EQ0073                   0.102     15      5      5
+   0902.0431_EQ1117                    0.108     56     21     22
+   3643027_EQ0033                      0.143     25      7      9
+   j.nuclphysb.2018.09.006_EQ0210      0.190      4     14     14
+   1414674613_EQ0100                   0.228     36     18     18
+   2306.13098_EQ0006                   0.260     11     11     11
+   DeVitoOehrlepaper_EQ0027            0.288     88     94     93
+   0902.0431_EQ0206                    0.294      6     10     10
+   j.nuclphysb.2018.09.006_EQ0174      0.320     12     12     12
+   sigma14-072_EQ0015                  0.344     10      4      4
+   0902.0431_EQ0876                    0.358     26     33     37
+   2305.18415_EQ0019                   0.364     40     17     17
+   Clifford_bundle_formulation_of_BF_  0.379     22     21     21
+   3643027_EQ0020                      0.400     15     15     15
+   QCGA2018_EQ0024                     0.429      6      6      6
+   0902.0431_EQ0694                    0.434     11     15     15
+   Clifford_Algebras_in_Symplectic_Ge  0.445      5      7     12
+   sigma12-060_EQ0006                  0.457     20     19    143
+   nai-paper-916_EQ0042                0.470      9      9      9
+   Uebungsblatt6L_sungenQwen_EQ0003    0.487      0      0      0
 
 FAILURES
 ------------------------------------------------------------------------------
-   C: 1  render failed
-   E: 6  NetworkBlocked: Network access to api.novita; render failed
+   none — every call in both columns produced a compiled render.
+
+TRANSPORT — why this run is comparable and the previous one was not
+------------------------------------------------------------------------------
+   The previous 121 run recorded six NetworkBlocked failures in E and then
+   reported 'C and E are indistinguishable' from a column missing a third of
+   its data. A comparison whose two columns have different n is not a
+   comparison.
+
+   This run hit the same class of failure — four consecutive HTTP 429
+   'server overload' replies — and was STOPPED rather than allowed to
+   complete. The runner now retries transient failures with exponential
+   backoff (5s doubling to 80s, 5 attempts), spaces calls at 4s, and resumes
+   from partial results so a retry never re-pays for a scored call.
+
+   The retry predicate itself had to be corrected mid-run: it first covered
+   only HTTP 429 and re-raised everything else, which immediately discarded a
+   NetworkBlocked. The host answered HTTP 200 three times seconds later, so
+   that failure was transient too. It now covers 429/overload/NetworkBlocked/
+   unreachable/connection/timeout/502/503/504, while a genuinely unexpected
+   error still raises rather than being silently retried.
 
 READING IT
 ------------------------------------------------------------------------------
-   C and E are indistinguishable from each other here, as they were on the
-   low band - the rule sentence neither helps nor costs.
+   The pooled median is +0 for both variants, and on its own that says the
+   prior does nothing on this band. Split by whether the row had anything to
+   recover and it says something sharper.
 
-   What the band comparison shows is where the effect lives. The prior
-   helps where MathPix reports real doubt, and the help does not extend
-   smoothly upward: by 0.1-0.5 it is already close to gone, and by 0.9 it
-   is gone entirely. That is a narrower target than 'low confidence' - it
-   is the bottom 0.7% of the corpus, not the bottom 4%.
+   15 rows start ABOVE the 7-unit noise floor — a real disagreement
+   between render and scan:
+        C median -1   better 8  worse 3  same 4
+        E median +0   better 7  worse 4  same 4
 
-   The 8 rows already inside the noise floor are part of why. On those
-   there is no defect to fix, and out/119 showed why that is the normal
-   case even above the floor: the disagreements are typographic, and a
-   re-transcription cannot change how a delimiter is set.
+   5 rows start BELOW it — the render already matches the scan and a
+   variant can only hold level or make it worse:
+        C median +2   better 0  worse 3  same 2
+        E median +4   better 0  worse 3  same 2
+
+   The five biggest recoveries are all in the bottom half of the band:
+        2012.15581_EQ0073   conf 0.102   15 -> 5    (-10)
+        0902.0431_EQ1117    conf 0.108   56 -> 21   (-35)
+        3643027_EQ0033      conf 0.143   25 -> 7    (-18)
+        1414674613_EQ0100   conf 0.228   36 -> 18   (-18)
+        2305.18415_EQ0019   conf 0.364   40 -> 17   (-23)
+
+   Every one had a large baseline. The effect tracks HOW WRONG the render
+   already was, not the confidence value itself — which is the same shape
+   out/113 and out/118 found below 0.1, and it is why the pooled median hides
+   it: half this band had nothing to fix, and those rows drag the median to 0.
+
+C AND E
+-------------------------------------------------------------------------------
+   Identical on 13 of 20 rows. Where they differ, E is worse on 4 and better
+   on 3, and its one large divergence is a REGRESSION: sigma12-060_EQ0006,
+   baseline 20, C 19, E 143 — the rule sentence pushed that row seven times
+   further from the scan than leaving it alone.
+
+   So the 116/117 rule sentence still earns nothing on this band. That is now
+   a clean result rather than yesterday's: both columns have n=20, no
+   failures, and the same 20 rows.
+
+THE THREE BANDS TOGETHER
+------------------------------------------------------------------------------
+   band             n   C median   E median   source
+   conf < 0.1      19         -8         -8   out/113, out/118
+   conf 0.1–0.5    20         +0         +0   this file
+   conf > 0.9      20         +0          —   out/115
+
+WHAT THIS SET CANNOT SEE
+------------------------------------------------------------------------------
+   The band holds 808 equations across 263 documents; 638 are scorable. A row
+   is eligible only if its LaTeX RENDERS and its crop is on disk, because the
+   metric is ink distance between a render and the scan. 12 band rows do not
+   render at all — 0902.0431_EQ1187 among them, the CJK-hallucination case —
+   and no ink comparison can reach them. That class is found by inspecting the
+   VALUE (out/128's validator), not the picture, and no re-run of this trial
+   will surface it.
