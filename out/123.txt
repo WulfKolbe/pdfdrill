@@ -1,0 +1,80 @@
+123 — every 'not rendered' row in 0902.0431, with confidence and reason
+==========================================================================
+4,414 report rows; 4,389 are EQ/FO. 31 carry the (not rendered) marker.
+
+The marker is written by TWO different code paths that leave IDENTICAL
+output (report_tex.py:397 build-time, :637 compile-time), so report.tex
+alone cannot tell them apart. Split by re-running renderable():
+   29  build-time  — renderable() refused the snippet
+    2  compile-time — renderable() passed it, xelatex did not
+    4  further rows carry NO latex and show '---', not the marker
+
+A. BUILD-TIME — renderable() rejection, with the gate that fired
+--------------------------------------------------------------------------
+identifier               conf  gate :: trigger
+0902.0431_EQ0037        0.555  bare align marker at depth 0 :: & or \\ outside an environment
+0902.0431_EQ0449        0.986  display delimiter mid-string :: \]
+0902.0431_EQ0467        1.000  display delimiter mid-string :: \]
+0902.0431_EQ0470        1.000  display delimiter mid-string :: \]
+0902.0431_EQ0475        1.000  display delimiter mid-string :: \]
+0902.0431_EQ0501        1.000  display delimiter mid-string :: \]
+0902.0431_EQ0502        0.516  display delimiter mid-string :: \]
+0902.0431_EQ0577        1.000  display delimiter mid-string :: \]
+0902.0431_EQ0696        0.535  bare align marker at depth 0 :: & or \\ outside an environment
+0902.0431_EQ0714        0.833  display delimiter mid-string :: \]
+0902.0431_EQ0726        0.951  display delimiter mid-string :: \]
+0902.0431_EQ0727        1.000  display delimiter mid-string :: \]
+0902.0431_EQ0730        0.969  display delimiter mid-string :: \]
+0902.0431_EQ0731        1.000  display delimiter mid-string :: \]
+0902.0431_EQ0732        1.000  display delimiter mid-string :: \]
+0902.0431_EQ0735        1.000  display delimiter mid-string :: \]
+0902.0431_EQ0792        1.000  display delimiter mid-string :: \]
+0902.0431_EQ0802        0.338  bare align marker at depth 0 :: & or \\ outside an environment
+0902.0431_EQ0834        0.239  display delimiter mid-string :: \]
+0902.0431_EQ0837        1.000  display delimiter mid-string :: \]
+0902.0431_EQ0922        0.102  bare align marker at depth 0 :: & or \\ outside an environment
+0902.0431_EQ0928        0.992  display delimiter mid-string :: \]
+0902.0431_EQ0938        0.595  display delimiter mid-string :: \]
+0902.0431_EQ0939        0.471  bare align marker at depth 0 :: & or \\ outside an environment
+0902.0431_EQ0982        0.996  display delimiter mid-string :: \]
+0902.0431_EQ0983        0.996  display delimiter mid-string :: \]
+0902.0431_EQ0984        1.000  display delimiter mid-string :: \]
+0902.0431_EQ1071        0.999  display delimiter mid-string :: \]
+0902.0431_EQ1078        0.862  display delimiter mid-string :: \]
+
+     24  display delimiter mid-string
+      5  bare align marker at depth 0
+
+B. COMPILE-TIME — xelatex error, reproduced by recompiling the row
+--------------------------------------------------------------------------
+identifier               conf  error :: log line
+0902.0431_EQ0689        0.914  Missing delimiter (. inserted). :: ... \mathfrak{P}^{C} \end{array} \quad\right$
+0902.0431_EQ1187        0.183  Undefined control sequence. :: ...\ &((\boldsymbol{b} \times ⿻ ⿱ 一 ⿱ 日 一 \zh
+
+C. NO LATEX AT ALL — shown as '---'
+--------------------------------------------------------------------------
+0902.0431_EQ0341          ---  empty latex field on the object
+0902.0431_EQ0758          ---  empty latex field on the object
+0902.0431_EQ0940          ---  empty latex field on the object
+0902.0431_EQ1028          ---  empty latex field on the object
+
+NOTES
+--------------------------------------------------------------------------
+* Confidence does not discriminate. Both compile-time failures carry no
+  confidence value at all, and the build-time refusals span the range — a
+  reader cannot use the confidence column to tell a real failure from a
+  structural rejection.
+* report.log could NOT supply the log lines: compile_fixpoint iterates until
+  the document is clean, so the surviving log has 0 errors and the failing
+  pass is overwritten. Each compile-time row was recompiled to recover its
+  error.
+* The gate reasons come from a re-implementation of renderable()'s checks in
+  order. A twin can drift from what it mirrors, so it was validated first:
+  across all 4,385 rows carrying latex it agreed with renderable() on every
+  one (0 disagreements) before any reason here was reported.
+* CORRECTION recorded for honesty: an earlier pass of this analysis claimed 29
+  of the 31 were 'collateral demotions' of rows that compile cleanly. That was
+  an artifact of the test, not a finding — the test cell was built from
+  renderable(latex), which returns "" for exactly those rows, so it compiled an
+  EMPTY formula and trivially succeeded. Feeding the raw latex instead shows
+  the true split above: 29 never reached xelatex at all.

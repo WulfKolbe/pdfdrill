@@ -1,0 +1,50 @@
+129 — the row to send MathPix
+========================================================================
+ASSUMPTION, stated because it changes the answer: no image came through with
+the request, so "the equation shown here" is read as 0902.0431_EQ1187 — the row
+named in the preceding turn as carrying hallucinated CJK, and the one 128 was
+written for. If a different equation was meant, this file is about the wrong row.
+
+IDENTIFIER   0902.0431_EQ1187
+PAGE         200
+CONFIDENCE   0.182948   (MathPix; band 0.1–0.5)
+128 FLAGS IT YES — ideographic description character U+2FFB (⿻)
+renderable() refuses it
+
+ALL CONTAMINATION IN THE VALUE
+------------------------------------------------------------------------
+   U+2FF1  ⿱   ideographic description character
+   U+2FFB  ⿻   ideographic description character
+   U+4E00  一   CJK ideograph
+   U+65E5  日   CJK ideograph
+   \zh command present: True  (the value contains `\zh20`)
+   [corrected: the first write of this file said False. That was an
+    escaping bug in the REPORTING script — a doubled backslash in the
+    regex literal — not in the validator. report_tex._ZH_CMD matches this
+    row, and cjk_defect() reports the IDC first only because it scans
+    description characters before commands.]
+
+WHY THIS ROW AND NOT ANOTHER
+------------------------------------------------------------------------
+Of 335,043 maths values in the corpus, 26 fail the CJK validator. This one is
+the worst case of the 26 for three reasons that compound:
+
+  * it is a DISPLAY equation, not an inline fragment, so it carries real content
+  * its confidence (0.183) sits in the 0.1–0.5 band — MathPix already doubts it
+  * it was RENDERING. xelatex dropped its glyphs and wrote the PDF anyway, so
+    the report showed a formula that was quietly missing characters.
+
+The last point is what makes it worth a re-run rather than a deletion: the row
+is not junk, it is a real equation with a few characters the OCR could not read
+and described instead of transcribing.
+
+THE VALUE AS STORED
+------------------------------------------------------------------------
+\begin{aligned} &=(\boldsymbol{v}, \boldsymbol{w})(\boldsymbol{a}, *(\boldsymbol{b} \wedge \boldsymbol{x}))-\left(\boldsymbol{a}_{1}, \boldsymbol{w}\right)\left(\boldsymbol{w} \wedge \boldsymbol{a}_{2}, *(\boldsymbol{b} \wedge \boldsymbol{x})\right) \\ &+\left(\boldsymbol{a}_{2}, \boldsymbol{w}\right)\left(\boldsymbol{w} \wedge \boldsymbol{a}_{1}, *(\boldsymbol{b} \wedge \boldsymbol{x})\right)-\frac{3}{5}(*(\boldsymbol{a} \wedge \boldsymbol{b}), \boldsymbol{x})(\boldsymbol{v}, \boldsymbol{w}) \\ &= \frac{2}{5}(*(\boldsymbol{a} \wedge \boldsymbol{b}), \boldsymbol{x})(\boldsymbol{v}, \boldsymbol{w})-\left(\boldsymbol{a}_{1}, \boldsymbol{w}\right)\left(\boldsymbol{b} \wedge \boldsymbol{x} \wedge \boldsymbol{w} \wedge \boldsymbol{a}_{2}, \boldsymbol{e}_{1} \wedge \cdots \wedge \boldsymbol{e}_{5}\right) \\ &+\left(\boldsymbol{a}_{2}, \boldsymbol{w}\right)\left(\boldsymbol{b} \wedge \boldsymbol{x} \wedge \boldsymbol{w} \wedge \boldsymbol{a}_{1}, \boldsymbol{e}_{1} \wedge \cdots \wedge \boldsymbol{e}_{5}\right) \\ &((\boldsymbol{b} \times ⿻ ⿱ 一 ⿱ 日 一 \zh20 \\ &=(\boldsymbol{a} \wedge \boldsymbol{x})) \boldsymbol{v}, \boldsymbol{w}) \\ &=(\boldsymbol{v}, \boldsymbol{w})(*(\boldsymbol{a} \w
+... [1769 chars total]
+
+SCAN CROP (send this to MathPix)
+------------------------------------------------------------------------
+   canonical_uri: https://cdn.mathpix.com/cropped/1deb350a-8d75-4da5-b1ec-153e0bfd7145-200.jpg?height=552&width=995&top_left_y=430&top_left_x=647
+   width x height: 995 x 552
+   top_left: 647 430

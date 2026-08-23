@@ -29,11 +29,23 @@ def test_reporttex_is_a_registered_command_with_manifest_entry():
         "reporttex must declare EVERYTHING it reads, not what it calls"
 
 
-def test_renderable_rejects_the_snippet_that_hung_xelatex():
+def test_renderable_repairs_the_snippet_that_hung_xelatex():
     # bh2_EQ0147: stray \end{itemize} + \[ \] — this one snippet cost a
     # 10-minute hang inside a longtable cell before validation existed.
+    #
+    # It used to be REFUSED outright. It is now REPAIRED: the stray closer is
+    # dropped and the mathematics renders. The hang was caused by the
+    # \end{itemize}, not by the equation, and refusing the row treated the
+    # symptom — 24 of 0902.0431's 31 unrendered rows were this exact shape, at
+    # confidences up to 1.000. The repaired form was compiled inside a real
+    # longtable cell with a 120s ceiling: 0 errors, 1 page, no hang.
+    #
+    # What must still hold is the property this test was written for: the RAW
+    # snippet never reaches xelatex.
     bad = r"\[ \left(s\right)_{1}^{4} . \] \end{itemize}"
-    assert renderable(bad) == ""
+    out = renderable(bad)
+    assert out == r"\left(s\right)_{1}^{4} ."
+    assert r"\end{itemize}" not in out and r"\]" not in out
     assert renderable(r"x_{5}") == "x_{5}"
     # \widehat{\}} is BALANCED (escaped brace), not a defect
     assert renderable(r"\widehat{\}}") == r"\widehat{\}}"

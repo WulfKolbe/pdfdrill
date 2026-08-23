@@ -1,0 +1,106 @@
+128 — CJK / ideographic-description validator, corpus count
+========================================================================
+VALIDATOR  report_tex.cjk_defect(latex) -> reason or ""
+Rejects a maths value containing any of:
+  * U+2FF0–U+2FFB  Ideographic Description Characters
+  * CJK ideographs U+3400–4DBF, 4E00–9FFF, F900–FAFF, and the SIP extensions
+  * a \zh command (word-boundary matched, so \zhang is not a hit)
+Wired into renderable(), so a contaminated value never reaches xelatex.
+
+WHY THESE ARE ALWAYS A DEFECT IN MATHS
+U+2FF0–U+2FFB are not glyphs. They are a notation for DESCRIBING how an unknown
+ideograph is composed — "⿱ 日 一" means "the character with 日 above 一". Their
+presence is MathPix reporting that it could not identify a character and
+emitting the recipe instead. In a formula there is no reading under which that
+is content.
+
+documents with a tiddler array : 1238
+maths values examined          : 335043
+values FAILING the validator   : 26
+
+by kind:
+      14  ideographic description character
+
+BY KIND
+------------------------------------------------------------------------
+      14  ideographic description character
+      12  CJK ideograph
+
+BY DOCUMENT (13 affected)
+------------------------------------------------------------------------
+      6  BH1org_OCR
+      5  Clifford_bundle_formulation_of_BF_gravit
+      2  0902.0431
+      2  2104.05122
+      2  BH3FR
+      2  p1810-miliaraki
+      1  1511.08771
+      1  2109.08655
+      1  latex2-script
+      1  scan_20260530_213608
+      1  scan_20260530_231637
+      1  scan_20260531_114321
+      1  scan_20260531_124851
+
+EVERY FAILING VALUE
+------------------------------------------------------------------------
+identifier                          page      conf  reason
+0902.0431_EQ1032                     173     0.022  ideographic description character U+2FF1 (⿱)
+0902.0431_EQ1187                     200     0.183  ideographic description character U+2FFB (⿻)
+1511.08771_FO27699                     -       ---  CJK ideograph U+5B54 (孔)
+2104.05122_FO0146                      -       ---  ideographic description character U+2FFB (⿻)
+2104.05122_FO0286                      -       ---  ideographic description character U+2FF1 (⿱)
+2109.08655_FO0052                      -       ---  CJK ideograph U+52F9 (勹)
+BH1org_OCR_EQ0151                    178       ---  CJK ideograph U+771F (真)
+BH1org_OCR_FO1482                      -       ---  CJK ideograph U+4F5C (作)
+BH1org_OCR_FO1486                      -       ---  CJK ideograph U+4E92 (互)
+BH1org_OCR_FO1608                      -       ---  ideographic description character U+2FF8 (⿸)
+BH1org_OCR_FO3011                      -       ---  ideographic description character U+2FF1 (⿱)
+BH1org_OCR_FO3500                      -       ---  ideographic description character U+2FF1 (⿱)
+BH3FR_EQ0025                         102       ---  CJK ideograph U+5B50 (子)
+BH3FR_EQ0131                         115       ---  CJK ideograph U+5341 (十)
+Clifford_bundle_formulation_of_BF_   006     0.005  ideographic description character U+2FF9 (⿹)
+Clifford_bundle_formulation_of_BF_   008     0.138  ideographic description character U+2FF9 (⿹)
+Clifford_bundle_formulation_of_BF_   008     0.054  ideographic description character U+2FF1 (⿱)
+Clifford_bundle_formulation_of_BF_   010     0.054  ideographic description character U+2FF9 (⿹)
+Clifford_bundle_formulation_of_BF_   021     0.005  ideographic description character U+2FF1 (⿱)
+latex2-script_EQ0002                 005     0.000  ideographic description character U+2FFB (⿻)
+p1810-miliaraki_FO0158                 -       ---  ideographic description character U+2FF4 (⿴)
+p1810-miliaraki_FO0257                 -       ---  CJK ideograph U+5186 (円)
+scan_20260530_213608_FO0001            -       ---  CJK ideograph U+7C7B (类)
+scan_20260530_231637_FO0001            -       ---  CJK ideograph U+7C7B (类)
+scan_20260531_114321_FO0001            -       ---  CJK ideograph U+5A04 (娄)
+scan_20260531_124851_FO0001            -       ---  CJK ideograph U+6807 (标)
+
+SPECIFICITY — the check that decides whether this validator is safe
+------------------------------------------------------------------------
+A corpus this size (335,043 maths values) contains genuinely Chinese and
+Japanese documents, and rejecting their mathematics would be a worse bug than
+the one being fixed. Three documents carry real CJK PROSE:
+
+    CN208060706U        5,698 prose ideographs   flagged maths values: 0
+    DH2017-abstracts      257 prose ideographs   flagged maths values: 0
+    2409.01704v1          192 prose ideographs   flagged maths values: 0
+
+Zero. CJK appears in their paragraphs, where it belongs, and never inside a
+maths value. So the validator separates the two populations cleanly on this
+corpus, and the 26 hits are contamination rather than content.
+
+The residual risk is a document that legitimately sets an ideograph INSIDE
+mathematics (a Chinese textbook using 甲 as a variable). None exists here; if
+one appears the validator will reject it, and the reason string names the exact
+character so the case is diagnosable rather than mysterious.
+
+EFFECT ON 0902.0431
+------------------------------------------------------------------------
+EQ1032 (page 173, confidence 0.022) carried ⿱ and was RENDERING — xelatex
+dropped the glyph and wrote the PDF anyway. The build said so:
+
+    GLYPHS DROPPED: xelatex discarded 1 character(s) and still wrote a PDF.
+    Missing character: There is no ⿱ (U+2FF1).
+
+After the validator that row is marked (not rendered) instead, and the report
+compiles with zero dropped glyphs. The unrendered count goes 7 -> 8; that is not
+a regression. A row that is visibly absent can be triaged. A row that renders
+with a character silently missing cannot, and would be measured as if it were
+correct.

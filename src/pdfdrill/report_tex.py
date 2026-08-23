@@ -278,6 +278,43 @@ def has_bare_align_marker(lx: str) -> bool:
     return False
 
 
+#: 128 — CJK in a MATHS value is MathPix hallucinating, not content.
+#: U+2FF0–U+2FFB are Ideographic Description Characters: they are not glyphs at
+#: all but a notation for DESCRIBING how an unknown ideograph is composed
+#: ("⿱ 日 一" = the thing with 日 above 一). Their presence means the OCR could
+#: not identify a character and emitted its recipe. 0902.0431_EQ1187 (page 200,
+#: confidence 0.183) carries ⿱ ⿻ 一 日 and \zh, and is the only row in that
+#: document whose glyphs xelatex silently DROPPED — a report that looks finished
+#: and is missing symbols with no visible trace.
+_IDC = range(0x2FF0, 0x2FFC)
+#: Unified ideographs + extensions + compatibility. A maths value has no
+#: business containing any of them.
+_CJK_BLOCKS = ((0x3400, 0x4DBF), (0x4E00, 0x9FFF), (0xF900, 0xFAFF),
+               (0x20000, 0x2A6DF), (0x2A700, 0x2EBEF), (0x2F800, 0x2FA1F))
+_ZH_CMD = re.compile(r"\\zh(?![a-zA-Z])")
+
+
+def cjk_defect(latex: str) -> str:
+    """Why this maths value is CJK-contaminated, or "" if it is clean.
+
+    Reports the FIRST offender with its code point, so a caller can name the
+    character rather than say "contains CJK" — the report row is useless for
+    triage without knowing whether it hit an IDC (OCR gave up) or a real
+    ideograph (OCR read the wrong script).
+    """
+    for ch in latex or "":
+        c = ord(ch)
+        if c in _IDC:
+            return "ideographic description character U+%04X (%s)" % (c, ch)
+    for ch in latex or "":
+        c = ord(ch)
+        if any(lo <= c <= hi for lo, hi in _CJK_BLOCKS):
+            return "CJK ideograph U+%04X (%s)" % (c, ch)
+    if _ZH_CMD.search(latex or ""):
+        return "\\zh command"
+    return ""
+
+
 def renderable(latex: str) -> str:
     """Return latex safe to put inside $...$, or "" when it is not.
 
@@ -286,6 +323,24 @@ def renderable(latex: str) -> str:
     validated here and demoted to source-only when it cannot render.
     """
     lx = re.sub(r"\s+", " ", latex).strip()
+    if cjk_defect(lx):
+        return ""              # 128: hallucinated script never reaches xelatex
+    # MathPix glues a stray environment CLOSER onto the end of display math when
+    # the equation ends a list or theorem: `\[ ... \] \end{itemize}`. The
+    # equation itself is intact — the closer belongs to prose that was cut away.
+    # Left in place it put a \] MID-STRING, so the delimiter gate below refused
+    # 24 of 0902.0431's 31 unrendered rows, at confidences up to 1.000. Drop a
+    # TRAILING \end{X} only when the value carries no matching \begin{X}: an
+    # environment that opens inside the math keeps its own closer.
+    while True:
+        m = re.search(r"\\end\{(\w+\*?)\}\s*$", lx)
+        if not m:
+            break
+        env = re.escape(m.group(1))
+        if len(re.findall(r"\\begin\{%s\}" % env, lx)) >= \
+           len(re.findall(r"\\end\{%s\}" % env, lx)):
+            break                          # balanced — the closer is genuine
+        lx = lx[:m.start()].rstrip()
     # plain-TeX multiline macros carry \cr internally — inside a longtable
     # cell they throw "Misplaced \cr" recovery loops the row-demotion pass
     # never reaches (live hang: 0902.0431 EQ0035, \displaylines)

@@ -124,7 +124,12 @@ def test_demoted_row_keeps_parity_because_neither_side_shows_the_mark():
     migration the mark was inside a latex value that never rendered either,
     so both sides show exactly '(not rendered)' and no mark."""
     from pdfdrill.report_tex import row
-    bad = r"\[ x \] \end{itemize}"          # renderable() rejects this
+    # A value renderable() genuinely refuses. NOT `\[ x \] \end{itemize}`
+    # any more — that shape is now REPAIRED (the stray closer is dropped), so
+    # using it here would silently stop exercising the demoted-row branch this
+    # test exists for. An environment opened and never closed still cannot
+    # typeset, and is the honest specimen.
+    bad = r"\frac{a}{b} \begin{array}{c} 1"
     # 099 inserted the Conf. column third, so Source is index 3 and the
     # Rendered cell this test is about is index 4. Indexing from the END
     # would survive the next column too, but the row may or may not carry a

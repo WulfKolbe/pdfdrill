@@ -1,0 +1,57 @@
+122 — corrections APPLIED to Equation vs Formula objects, book `bh2`
+====================================================================
+Population: 344 Equation, 4,871 Formula objects (model + tiddlers agree;
+all 5,215 report rows parsed).
+
+correction                       Equation   Formula
+---------------------------------------------------
+tail-split                             25         0
+glyph declarations                      1         2
+trailing-punctuation move              17         2
+demoted exclusion  (build-time)         4         3
+                   (compile-time)       0         0
+
+METHOD — and why the first attempt was wrong
+--------------------------------------------
+These four corrections are all applied BEFORE the artefacts I can read, so
+re-running their detectors measures what is still NEEDED, not what was DONE.
+Doing that returned tail-split 0/0 and trailing-punct 0/2, which contradicted
+this repo's own comment that bh2_EQ0147 was demoted. Each count below is taken
+from the artefact the correction WRITES:
+
+  tail-split     `latex_pretail` on the source object + the MathTail sibling
+                 cmd_tailsplit creates. 25 MathTail objects exist, all 25 with
+                 an Equation source. Checks out against the command's own
+                 census ("36 equations across bh2/BH1org/WDorg4, 0 inline
+                 formulas") — bh2 is 25 of that 36.
+  glyph decls    the \newunicodechar lines in the report preamble (5 distinct
+                 code points), counted against the objects carrying them.
+  trailing punct the stored `trailing_punct` tiddler field — the moved
+                 character itself, not a re-split.
+  demotion       TWO mechanisms, deliberately reported apart (see below).
+
+THE TWO DEMOTIONS ARE NOT THE SAME THING
+----------------------------------------
+  build-time    `renderable()` refuses the snippet, so the row is written
+                source-only and never carries a rendered cell at all:
+                  bh2_EQ0082  bh2_EQ0123  bh2_EQ0147  bh2_EQ0167
+                  bh2_FO0015  bh2_FO2112  bh2_FO2407
+  compile-time  `compile_fixpoint` replaces a cell that ERRORED in xelatex
+                with \emph{(not rendered)}. Zero here: the build-time gate
+                caught every bad snippet first, which is the gate working.
+
+Reporting these as one number would have said either "0 demotions" (hiding 7
+excluded rows) or "7 demotions" (implying xelatex failed 7 times, which it did
+not). bh2_EQ0147 is the known case — a stray \end{itemize} that once hung
+xelatex for 10 minutes inside a longtable cell.
+
+WHAT THE SPLIT SAYS
+-------------------
+Corrections land almost entirely on Equations, which are 6.6% of the objects:
+  tail-split                100% Equation  (25 of 25)
+  trailing-punct move        89% Equation  (17 of 19)
+  build-time exclusion       57% Equation  (4 of 7)
+  glyph declarations         33% Equation  (1 of 3)
+Per object that is 7.3% of Equations touched vs 0.1% of Formulas — roughly 70x.
+Display math is where the prose tails, the stray environments and the moved
+punctuation live; an inline $x$ has almost no room to go wrong.
