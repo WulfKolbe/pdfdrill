@@ -1,0 +1,96 @@
+139 — rebuilding the 33 first-wins-affected models
+==================================================
+
+33 rebuilt with `pdfdrill model --force`. 0 failures.
+
+OBJECTS CHANGED PER DOCUMENT
+----------------------------
+   31 of 33 : 0 changed
+    1 of 33 : hep-th_0001124   2 changed
+    1 of 33 : 2502.20855v2   501 reported — a MEASUREMENT ARTIFACT, see below
+
+   Full per-document table: every other row is 0, so it is not reproduced here;
+   the interesting question is why, and it has three separate answers.
+
+WAS ANY PREVIOUSLY-FLAGGED VALUE MOVED?  NO.
+--------------------------------------------
+   env_mismatch flags before -> after: 0 -> 0 on all 33 documents.
+   flagged-and-changed: 0.
+
+   Not because nothing was flagged in principle — preprints202505.0818.v1 held
+   78 — but because task 137 already rebuilt that document and cleared them.
+   By the time 139 ran, its "before" snapshot was the corrected model. No other
+   document in the 33 carried a flag at all.
+
+WHY 31 DOCUMENTS DID NOT CHANGE — THREE DIFFERENT REASONS
+----------------------------------------------------------
+  17 are MathPix models. Their source_path is a lines.json, so `model` rebuilds
+     from OCR output and the preamble macro table is never consulted. The
+     redefinition is real in their .tex, but it cannot reach these models.
+
+  13 are LaTeX-source models where the redefined macro is NEVER USED in the
+     body. Measured directly — uses of the affected macro in the document body:
+
+        2006.14038 / (1)   ba,bb,bz,O              0 uses
+        2503.21383         vw,va,rvu               0 uses
+        2601.07372 / v1    paragraphautorefname    0 uses
+        2104.13478 / v2    rb,rvu                  0 uses
+        2606.16905, 2512.21782v1, 2502.20855,
+        2409.12183v1, 2408.08435v1, 2310.02304v3   rvu, 0 uses each
+
+     A macro defined twice and called zero times cannot produce a wrong
+     expansion. `rvu` is the clearest case: it recurs across many arXiv
+     documents because it comes from a shared template, is redefined there, and
+     is used by none of them.
+
+   1 is preprints202505.0818.v1, already corrected in 137 (158 uses, 78
+     mismatches cleared there).
+
+WHAT THIS SAYS ABOUT out/138's "33"
+------------------------------------
+out/138 reported 33 documents where the macro TABLE differs between first-wins
+and last-wins. That is accurate and it is not the same as 33 documents whose
+OUTPUT was wrong. Applying the second filter — the macro must actually be used,
+and the model must actually be built from the source:
+
+   62  documents redefine a macro name
+   33  where the resulting macro TABLE differs
+    2  where the stored LaTeX actually differed
+        preprints202505.0818.v1   (fixed in 137)
+        hep-th_0001124            (fixed here)
+
+The bug was real and worth fixing — it destroyed 108 values in one document —
+but the corpus damage was two documents, not 33. Reporting 33 as "documents
+that were wrong" would have overstated it by a factor of 16.
+
+hep-th_0001124 — WHAT THE 2 CHANGES ARE
+----------------------------------------
+Both are Equation objects of 7,406 and 7,747 characters: PiCTeX figure-drawing
+blocks captured as display maths (\raisebox{\parbox{...}}). \beginpicture and
+\next are redefined in that preamble, and both now expand from the last
+definition; neither token survives unexpanded in the rebuilt values.
+
+So the correction is genuine but lands on two pseudo-equations that are
+figures, not mathematics. No numbered equation in that document moved.
+
+2502.20855v2 — MY MEASUREMENT WAS WRONG, NOT THE MODEL
+--------------------------------------------------------
+Reported 501 changed. It is an artifact of the comparison key.
+
+I aligned objects by (type, flow_index) because object ids are content-derived,
+so a changed value changes its own id and an id diff would report every edit as
+a delete plus an add. But flow_index is POSITION-derived: this rebuild produced
+1741 -> 1747 objects (+6 non-maths), which renumbered everything after the
+insertion point. The key then compared unrelated objects — the recorded sample
+pairs `\frac{d}{dg(z)} f(g(z))...` against `z, y`.
+
+What can still be said: the maths object COUNT is unchanged at 441, and this is
+a MathPix model whose macro table is not consulted, so a macro-driven change is
+not possible here. What cannot be said is whether any individual value changed:
+the rebuild overwrote the before-model and I did not keep a copy of the values,
+only the aligned digest. That is a gap in how I set the run up, and it is not
+recoverable without rebuilding from a backup that does not exist.
+
+A multiset diff of the LaTeX values would have been immune to both problems —
+it needs neither stable ids nor stable positions — and is what this comparison
+should have used.
