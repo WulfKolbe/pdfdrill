@@ -93,22 +93,57 @@ def main():
                 # something the caller asked to read about.
                 planner.ensure(cmd, Path(pdf_arg), HANDLERS, pdf_arg)
         except Exception as e:
-            print(f"[ensure] skipped ({e})", file=sys.stderr)   # stderr only
+            _emit(f"[ensure] skipped ({e})", sys.stderr)        # stderr only
 
     try:
         result = HANDLERS[cmd](rest)
         if result:
-            print(result)
+            _emit(result)
         return 0
     except Exception as e:
         # Name the exception TYPE (a bare "No such file …" hides that it's a
         # FileNotFoundError from deep in a handler); PDFDRILL_DEBUG=1 prints the
         # full traceback so the exact failing file/line is visible.
-        print(f"Error [{type(e).__name__}]: {e}", file=sys.stderr)
+        _emit(f"Error [{type(e).__name__}]: {e}", sys.stderr)
         if os.environ.get("PDFDRILL_DEBUG"):
             import traceback
             traceback.print_exc()
         return 1
+
+
+def _emit(text: str, stream=None) -> None:
+    """Print `text` even when it carries a non-UTF-8 filename.
+
+    A path whose bytes are not valid UTF-8 (latin-1 accents in a downloaded
+    filename: `Dihedral homologi p\xe5 skjemaer og \xe9tale descent`) reaches
+    Python as surrogate escapes, and printing one to a UTF-8 stdout raises
+    UnicodeEncodeError. That raise happened INSIDE the try around the handler,
+    so the CLI reported `Error [UnicodeEncodeError]` and exited 1 for a command
+    that had already written report.tex and compiled report.pdf — a failure
+    reported after a success, which is worse than either.
+
+    surrogateescape first, so a consumer piping the output back into the shell
+    gets the REAL bytes of the name; `replace` only if the stream refuses.
+    """
+    stream = stream or sys.stdout
+    try:
+        print(text, file=stream)
+        return
+    except UnicodeEncodeError:
+        pass
+    buf = getattr(stream, "buffer", None)
+    enc = getattr(stream, "encoding", None) or "utf-8"
+    for errors in ("surrogateescape", "replace"):
+        try:
+            data = (text + "\n").encode(enc, errors)
+        except UnicodeEncodeError:
+            continue
+        if buf is not None:
+            buf.write(data)
+            buf.flush()
+        else:
+            stream.write(data.decode(enc, "replace"))
+        return
 
 
 def _probe_on_acquire(p: Path) -> Path:
