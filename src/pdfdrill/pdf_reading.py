@@ -407,6 +407,48 @@ _FT_LABEL = {"/Tx": "text", "/Btn": "button/checkbox", "/Ch": "choice/dropdown",
              "/Sig": "signature"}
 
 
+class FormFieldMismatch(RuntimeError):
+    """A compiled PDF carries fewer AcroForm fields than the source declared."""
+
+
+def assert_form_fields(pdf: Path, expected: int, *, context: str = "") -> int:
+    """Build gate: the compiled `pdf` must carry exactly `expected` AcroForm
+    fields. Returns the count; raises FormFieldMismatch otherwise.
+
+    124 — hyperref's \\TextField / \\CheckBox produce NOTHING outside a
+    \\begin{Form}...\\end{Form} environment, and say nothing about it. Measured
+    here on a three-field fixture: dropping the two Form lines leaves pdflatex
+    exiting 0, with 0 errors, writing a 13.8 KB PDF, and `read_form_fields`
+    returning 0 fields and NO error. Both mentions of "form" in the log are
+    incidental (`format=pdflatex`, "Key value format"). Every signal a caller
+    would normally trust reports success.
+
+    So a silent zero is the expected shape of this failure, and it cannot be
+    caught downstream: an empty form is indistinguishable from a document that
+    never had one. The count has to be asserted at BUILD time, against what the
+    source declared, or not at all.
+
+    `expected` is the number of field-producing commands in the source — count
+    them there rather than deriving them from the PDF, which is the artefact
+    under test.
+    """
+    fields, err = read_form_fields(pdf)
+    got = len(fields)
+    if err:
+        raise FormFieldMismatch(
+            f"{context or pdf.name}: cannot read AcroForm fields ({err}); "
+            f"expected {expected}")
+    if got != expected:
+        names = ", ".join(str(f.get("name")) for f in fields) or "none"
+        hint = ("  The usual cause is \\TextField/\\CheckBox outside a "
+                "\\begin{Form}...\\end{Form} environment: hyperref emits "
+                "nothing and does not warn." if got == 0 else "")
+        raise FormFieldMismatch(
+            f"{context or pdf.name}: expected {expected} AcroForm field(s), "
+            f"found {got} ({names}).{hint}")
+    return got
+
+
 def read_form_fields(pdf: Path) -> tuple[list[dict[str, Any]], Optional[str]]:
     """Read interactive AcroForm fields via pypdf. Returns (fields, error). Each
     field: {name, value, type, options}. Empty list + None error = no form."""

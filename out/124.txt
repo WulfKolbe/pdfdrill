@@ -1,0 +1,86 @@
+124 — form-field build gate
+===========================
+
+THE CHECK
+---------
+  src/pdfdrill/pdf_reading.py
+
+    class FormFieldMismatch(RuntimeError)
+
+    assert_form_fields(pdf: Path, expected: int, *, context: str = "") -> int
+        Reads the compiled PDF's AcroForm fields and requires exactly
+        `expected`. Returns the count; raises FormFieldMismatch otherwise.
+        A read error also RAISES — it must not satisfy the gate by returning
+        an empty list.
+
+`expected` is the number of field-producing commands in the SOURCE. It is
+counted there deliberately: deriving it from the PDF would be deriving the
+assertion from the artefact under test.
+
+THE FAILURE IT CATCHES, MEASURED NOT ASSUMED
+--------------------------------------------
+hyperref's \TextField / \CheckBox produce NOTHING outside a
+\begin{Form}...\end{Form} environment. The same three-field document was built
+twice, with and without those two lines:
+
+                                with Form      without Form
+    pdflatex exit code               0              0
+    errors in the log                0              0
+    PDF written                    yes       yes (13,864 bytes)
+    log warning about Form            -              none
+    read_form_fields -> fields        3              0
+    read_form_fields -> error      None           None
+
+Every signal a caller would normally trust reports success. The two matches for
+"form" in the failing log are incidental — `format=pdflatex` and "Key value
+format" — not warnings.
+
+This is why the count must be asserted at build time. Downstream there is
+nothing left to notice: an empty form is indistinguishable from a document that
+never declared one, so a consumer cannot tell a silent loss from an honest
+absence.
+
+THE MESSAGE
+-----------
+    fixture-without-Form: expected 3 AcroForm field(s), found 0 (none).
+      The usual cause is \TextField/\CheckBox outside a
+      \begin{Form}...\end{Form} environment: hyperref emits nothing and does
+      not warn.
+
+The cause hint is attached only on the zero case, which is the shape that
+particular defect takes; a partial shortfall names the fields that DID survive
+instead, since the diagnosis there is different.
+
+TESTS  tests/test_form_field_gate.py (5, skipped without pdflatex)
+------
+  * gate passes on a well-formed 3-field build
+  * gate FIRES when \begin{Form} is missing — asserting first that pdflatex
+    still wrote a PDF and that read_form_fields returned (0 fields, no error),
+    so the test pins the silent-success precondition rather than assuming it
+  * gate fires on a PARTIAL shortfall (2 of 3), so it is not a zero-detector,
+    and passes when told to expect 2
+  * a corrupt PDF RAISES rather than passing with an empty list
+  * the field names, types and checkbox options survive the round trip
+
+SCOPE — what this gate is NOT yet wired into
+--------------------------------------------
+No production report emits form fields today. `reporttex` builds a longtable
+with no \begin{Form}, and the only \TextField in the repository is the fixture
+this test file now creates. So the gate is available and tested, but there is
+no report-with-form-fields build path to attach it to, and the task's "field
+count equals the row count" cannot be asserted against a row count that does
+not exist. When a form-bearing report is added, the call is one line at the end
+of its compile step:
+
+    assert_form_fields(report_pdf, expected=len(rows), context=report_pdf.name)
+
+A SECOND HOLE FOUND WHILE BUILDING THIS
+---------------------------------------
+docs/CLAUDE-FULL.md records the AcroForm round trip as "verified end-to-end ...
+a hyperref \TextField/\CheckBox AcroForm -> 3 fields (city='Köln',
+paid=/Yes options [/Yes,/Off])". The test suite carried only the NEGATIVE case,
+test_read_form_fields_no_form. There was no positive test: read_form_fields
+returning 0 fields for a real form would have been caught by nothing, which is
+the same silent-zero failure one layer up. That round trip is now a test.
+
+2201 tests pass.
