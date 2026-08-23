@@ -41,9 +41,25 @@ def esc_text(s: str) -> str:
     return out
 
 
+#: The TiddlyWiki projector sanitises every tiddler title through
+#: `re.sub(r"[^A-Za-z0-9_\-\.]", "_", t)` (docops/projectors/tiddlywiki.py
+#: `_sanitize_title`), so a bibkey with a space, a parenthesis or a `+` reaches
+#: the tiddler as underscores: `1611.03955 (1)_EQ0001` is stored as
+#: `1611.03955__1__EQ0001`. The report derived its prefix from the FILENAME and
+#: matched the raw form, so it matched nothing and wrote an empty table — 81
+#: documents library-wide, hiding 2,676 equations and 6,132 inline formulas,
+#: every one of them a directory whose name carries a character the projector
+#: rewrites. Kept as a copy rather than an import to avoid dragging the whole
+#: docops/docmodel chain into report generation; `test_report_bibkey_sanitize`
+#: asserts the two definitions agree, so the copy cannot drift.
+def sanitize_title(t: str) -> str:
+    return re.sub(r"[^A-Za-z0-9_\-\.]", "_", t)
+
+
 def first_pages(tiddlers: list[dict], bibkey: str) -> dict[str, str]:
     """title -> page of the first transcluding page-bearing tiddler."""
-    pat = re.compile(r"\{\{(" + re.escape(bibkey) + r"_(?:FOX?_?\w+))\|\|")
+    pat = re.compile(r"\{\{(" + re.escape(sanitize_title(bibkey))
+                     + r"_(?:FOX?_?\w+))\|\|")
     first: dict[str, str] = {}
     for t in tiddlers:
         page, text = t.get("page"), t.get("text", "")
@@ -59,7 +75,8 @@ def rows_for(tiddlers, bibkey):
     fpage = first_pages(tiddlers, bibkey)
     for t in tiddlers:
         title = t.get("title", "")
-        m = re.match(re.escape(bibkey) + r"_(FOX?|EQ|TAB|DIA|PIC)", title)
+        m = re.match(re.escape(sanitize_title(bibkey))
+                     + r"_(FOX?|EQ|TAB|DIA|PIC)", title)
         if not m:
             continue
         kind = m.group(1)
