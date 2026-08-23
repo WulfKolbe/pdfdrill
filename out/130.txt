@@ -1,0 +1,72 @@
+130 — pre-call gate: skip a row whose baseline is already below the noise floor
+===============================================================================
+
+THE GATE
+--------
+   Before spending an LLM call on a row, compute the baseline ink distance
+   between the MathPix render and the scan crop. If it is below the noise
+   floor, skip: the render already matches the scan to within measurement
+   error, so there is no defect to recover and a variant can only hold the
+   row level or make it worse.
+
+   This is not a heuristic. out/121 measured it directly: on rows already
+   below the floor, variant C was better on 0, worse on 3, same on 2 — every
+   single call spent on that group was wasted or harmful.
+
+THE FLOOR
+---------
+   6 = rasterizer p95 (the same image rendered twice)
+   7 = render-vs-scan, measured on 052-slt-zero.tsv
+
+   7 is the right one here because that is the comparison being made. Both
+   are reported below so the choice is visible rather than assumed.
+
+POPULATION MEASURED
+-------------------------------------------------------------------------------
+       <0.1:  125 rows measured   (1 could not be rendered and are excluded)
+    0.1-0.5:  638 rows measured   (0 could not be rendered and are excluded)
+      total:  763
+
+   Scorable = crop on disk AND LaTeX renders. A row that does not render has
+   no ink to compare, so it can be neither gated nor trialled.
+
+HOW MANY WOULD BE SKIPPED
+-------------------------------------------------------------------------------
+       band   rows   floor   skipped      %   kept
+       <0.1    125       6         5   4.0%    120
+       <0.1    125       7         6   4.8%    119
+    0.1-0.5    638       6       152  23.8%    486
+    0.1-0.5    638       7       192  30.1%    446
+
+   pooled    763       6       157  20.6%    606
+   pooled    763       7       198  26.0%    565
+
+BASELINE DISTRIBUTION
+-------------------------------------------------------------------------------
+       <0.1: min    4  p25   16  median   34  p75   65  p95   235  max  1338
+    0.1-0.5: min    0  p25    6  median   13  p75   27  p95    88  max   400
+
+WHAT THE GATE BUYS
+-------------------------------------------------------------------------------
+   At floor 7, 198 of 763 scorable rows (26%) are skipped before any
+   call is made. On a two-variant trial that is 396 calls not spent, and by
+   out/121's measurement those calls could not have helped: the rows they
+   would have gone to were better on 0, worse on 3, same on 2.
+
+   The gate does NOT claim those rows are correct. It claims the render and
+   the scan agree to within the noise of the measurement, so THIS instrument
+   cannot tell them apart and re-transcription cannot be scored on them. A row
+   below the floor may still be wrong in a way ink distance cannot see —
+   out/119 found the disagreements are largely typographic, and out/128 found
+   a class (hallucinated CJK) that never renders at all and so has no ink.
+
+COMPARISON WITH THE FIGURES IN THE TASK
+-------------------------------------------------------------------------------
+   The task names 110 low-confidence and 488 mid-band rows. Those are
+   out/120's counts, and today the same bands hold 147 and 808 — task 132
+   reconciles the difference (92% of it is 181 documents out/120 never
+   measured; the bands themselves did not move).
+
+   Of those, the scorable subsets measured here are 125 and 638: a row needs a
+   crop on disk and LaTeX that renders. So the skip counts above are against
+   the population the gate can actually act on, not against 110/488.

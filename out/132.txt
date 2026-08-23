@@ -1,0 +1,98 @@
+132 — reconciling 110/488 (out/120) against today's counts
+==========================================================
+
+ANSWER
+------
+MORE DOCUMENTS. Not more equations in the same documents, not a band-boundary
+change, and not the scorable denominator.
+
+   <0.1     110 -> 147   of the +37, +35 is documents outside out/120's scope
+   0.1-0.5  488 -> 808   of the +320, +295 is documents outside out/120's scope
+
+330 of the 357 additional equations (92%) come from documents out/120 never
+measured. The bands themselves did not move and the corpus did not become more
+doubtful.
+
+WHY out/120 COULD NOT HAVE COUNTED THEM
+---------------------------------------
+out/120 was not a corpus census. It reported the population of ONE RUN — the
+724 documents that run attempted — and its own text says so ("722 documents
+attempted, 0 failures, 1 skipped"). Today's scan covers every document in the
+library holding a model: 1,243, of which 897 carry equation confidence.
+
+   out/120 scope                                724 documents
+   still present today                          716   (8 deleted, see below)
+   documents with confidence OUTSIDE that scope 181
+
+Those 181 are what changed. They are mostly documents that gained MathPix
+confidence AFTER out/120 was written — yesterday's 29-document no-confidence
+re-run, today's 79 math-font documents, and the ~90 real documents of the
+replacement run before it was stopped.
+
+THE FOUR CANDIDATE CAUSES, TESTED
+---------------------------------
+  more documents          YES — 181 documents, +35 lo and +295 mid.
+                          This is essentially the whole difference.
+
+  more equations in the   MARGINAL — within the same 724 documents:
+  same documents               <0.1     110 -> 112   (+2)
+                               0.1-0.5  488 -> 513   (+25)
+                          Only 29 of 716 documents changed at all. Almost all
+                          of those are documents out/120 ITSELF named as
+                          carrying no confidence — Grassmann,GeometryandMechanics
+                          (0 -> 33 values), 1605.03431 (0 -> 146), DKT05
+                          (0 -> 60), Normalization_square_roots (0 -> 64). They
+                          were the residue out/120 reported as "119 of 724
+                          documents have equations but no confidence"; the
+                          re-run since then filled them in. So this component
+                          is out/120's own open item closing, not drift.
+
+  band-boundary change    NO. Both counts use identical boundaries:
+                          lo = c < 0.1, mid = 0.1 <= c < 0.5, hi = c > 0.9.
+                          Today's figures were produced by re-running out/120's
+                          method on today's models, so the boundaries are the
+                          same code, not merely the same description.
+
+  scorable denominator    NOT A CAUSE of 110 -> 147/808 — neither count filters
+                          on scorability. It is, however, a real third number:
+                          a row is scorable by the ink trial only if its crop is
+                          on disk AND its LaTeX renders, which gives 126 and 638.
+                          That denominator belongs to task 130, not here.
+
+EIGHT DOCUMENTS VANISHED
+------------------------
+8 of out/120's 724 no longer exist. They were removed in today's cleanup — the
+561 scene_* video frames and the keyless-model purge. They contributed nothing
+to either band, so they do not affect the reconciliation, but the scope is no
+longer strictly comparable and saying "the same 724 documents" would be wrong.
+
+A THIRD NUMBER I QUOTED, AND WHY IT WAS LOWER
+---------------------------------------------
+Earlier today I reported 140 and 695 for these bands, against the 147 and 808
+above. Both were mine, measured hours apart, and the difference is not rounding:
+
+   model objects   <0.1 147   0.1-0.5 808
+   tiddler array   <0.1 140   0.1-0.5 695     (-7, -113 = -120)
+
+The tiddler figures came from the projected arrays rather than the models. 52
+documents carry a tiddler array OLDER than its model, and those 52 under-report
+exactly 120 band equations — 1205.5935v1 alone shows 30 in its model and 0 in
+its array. Arrays that are NOT stale under-report zero.
+
+That is the staleness class fixed in commit 123 (`_tiddlers_stale`): the guard
+now rebuilds an array older than its model, but only when a command actually
+touches that document. The arrays on disk stay stale until then, so any scan
+reading them directly still sees the old numbers. The model is the source of
+truth for this question and the tiddler count should not have been quoted as
+if it were equivalent.
+
+WHAT THIS MEANS FOR THE TRIAL POPULATION
+----------------------------------------
+The actionable population grew because more documents were measured, not
+because more equations became doubtful. The doubted fraction is stable:
+
+   out/120   110 + 488 = 598 of 15,267 with confidence   3.9%
+   today     147 + 808 = 955 of 22,915 with confidence   4.2%
+
+Same shape as out/064 found on the original 49-document corpus and as out/120
+found after 9,970 pages. Nothing about the corpus changed; the denominator did.

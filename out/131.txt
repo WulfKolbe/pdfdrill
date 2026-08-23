@@ -1,0 +1,82 @@
+131 — retire variant E
+======================
+
+DECISION
+--------
+Variant E is retired. C remains the working prompt: BASE + the MathPix prior.
+
+E = C plus one sentence, added in 118, describing the single defect out/116
+actually located:
+
+    "A short horizontal bar in this image may be a minus sign, a hyphen or a
+     dash rather than a fraction bar. Write \frac only where there is content
+     both above and below the bar; where there is not, transcribe the bar as
+     the operator or punctuation it is."
+
+THE THREE TRIALS
+----------------
+   trial   band          n   C median   E median   verdict
+   118     conf < 0.1   19      -8         -8      indistinguishable
+   115     conf > 0.9   20      +0         —       E not run
+   121     0.1–0.5      20      +0         +0      indistinguishable
+   121     0.1–0.5      20      +0         +0      re-run, clean columns
+
+(medians over compiled replies; negative = closer to the scan)
+
+E was never measurably better than C on any band. In 118 the two medians were
+identical at -8. In 121 both are +0. The sentence has now been tested on 39
+rows across two bands and has not once moved the median.
+
+WHY THE FIRST 121 DID NOT SETTLE IT
+-----------------------------------
+The first 121 run reported "indistinguishable" from an E column holding 14 of
+20 replies — six calls had died on NetworkBlocked, and the missing third was
+never accounted for. A comparison whose two columns have different n is not a
+comparison, so that run could not retire anything. It was re-run with retry and
+backoff: 40 of 40 calls scored, zero failures, both columns n=20 on the same 20
+rows. Only then was the result usable as evidence.
+
+THE REGRESSION
+--------------
+   sigma12-060_EQ0006   confidence 0.457   baseline ink 20
+        C   19   (-1, unchanged in practice)
+        E  143   (+123)
+
+E pushed that row roughly seven times further from the scan than leaving it
+alone. It is the largest single divergence between the two variants in any
+trial, and it runs the wrong way.
+
+One row is not a population, and this is not a claim that E is reliably harmful
+— across 121's 20 rows E was worse on 4 and better on 3, which is noise. The
+regression matters because of what it is paired with: a variant that has never
+demonstrated a gain has no offsetting benefit to weigh against a tail risk of
+this size. An extra sentence that cannot be shown to help, and can occasionally
+do this, is not worth carrying.
+
+WHY THE SENTENCE WAS REASONABLE AND STILL FAILED
+------------------------------------------------
+118 was deliberately careful about this sentence. out/116 found rules whose
+bands are EMPTY on both sides — a component the aspect gate accepted as a rule
+with no numerator and no denominator, i.e. a dash or minus sign mistaken for a
+fraction bar. It found NO missing bars, so E was written to describe only the
+defect that was measured, not the one that would have been easy to assert
+("watch for fraction bars you may have missed" would have been an invented
+hint).
+
+So the sentence was grounded in a real, located defect and still bought
+nothing. That is the useful result: a prompt addition being TRUE about the
+corpus does not make it USEFUL to the model. The defect E describes is real and
+rare, and telling the model about it did not change what it produced.
+
+WHAT REPLACES IT
+----------------
+Nothing. C is the working variant. The evidence across 113 / 115 / 118 / 121 is
+that the MathPix prior is the whole of the effect, and that the effect tracks
+how wrong the existing render already is rather than the confidence value: the
+five largest recoveries in 121 all had large baselines, and rows already inside
+the noise floor could only be held level or made worse. That is what 130
+addresses — gating on baseline ink before spending a call — not another prompt
+variant.
+
+E remains in the trial harness as a defined variant so these results stay
+reproducible; it is retired from use, not deleted from the record.
