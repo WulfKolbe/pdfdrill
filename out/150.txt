@@ -1,0 +1,42 @@
+150 — bake /AP appearance streams
+=================================
+
+NOT NEEDED — ALREADY DONE, AND VERIFIED
+----------------------------------------
+150 is conditional on 149 showing the fields do not render. They do.
+
+   widgets with a baked /AP stream : 55 of 57
+   the 2 without                   : ink.0902.0431_EQ0952, ink.0902.0431_EQ1010
+                                     — no value, so nothing to draw
+
+fill_ink_fields.py already passes auto_regenerate=True to
+update_page_form_field_values, which is exactly the pypdf mechanism this task
+names. The appearances were built when the fields were filled.
+
+PROOF THE STREAMS DRAW, RATHER THAN MERELY EXIST
+-------------------------------------------------
+An /AP that exists but is empty renders blank and would satisfy a naive
+"has /AP" check. Decoded, one stream is:
+
+   q /Tx BMC q 2 1 19.911 9.457 re W BT /Helv 5.0 Tf 0 0 0 rg
+   5.2605 3.9335 Td (C|+76) Tj
+
+font, colour, position, show-string — the value is drawn into the page.
+
+Two independent cross-checks, neither needing a browser:
+
+   * poppler's pdftotext returns `C|+76` twice on page 1 — once from the 148
+     selectable type, once from the appearance stream. Poppler is reading the
+     glyphs out of the /AP.
+   * flattening the annotations into page content with ghostscript leaves the
+     count unchanged (2 before, 2 after). Nothing was waiting to be generated.
+
+SO NO SEPARATE "PUBLISHED COPY" WAS GENERATED
+----------------------------------------------
+Producing one would have meant writing a second file identical to the first and
+reporting it as a fix. The distinction 150 is drawing — drawn rather than
+requested — is real and matters (a /V-only PDF renders blank in Chrome, which
+ignores /NeedAppearances), but this file is already on the correct side of it.
+
+The published copy for 151 is therefore just ~/pdfdrill-library/0902.0431/
+report.pdf as it stands: 3,780,097 bytes, 57 fields, 55 values, /AP baked.

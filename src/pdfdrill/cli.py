@@ -1053,6 +1053,7 @@ def _do_reporttex(args):
     lo, args = _opt(args, "--min-conf")
     hi, args = _opt(args, "--max-conf")
     types, args = _opt(args, "--types")
+    ink, args = _opt(args, "--ink")
     pdf_args = [a for a in args if a not in ("--compile", "--no-images",
                                              "--portrait", "--form")]
     return cmd_reporttex(_pdf(pdf_args), paper=paper or "a3",
@@ -1061,7 +1062,7 @@ def _do_reporttex(args):
                          images="--no-images" not in args,
                          min_conf=float(lo) if lo is not None else None,
                          max_conf=float(hi) if hi is not None else None,
-                         types=types, form="--form" in args)
+                         types=types, form="--form" in args, ink=ink)
 
 
 def _do_report(args):

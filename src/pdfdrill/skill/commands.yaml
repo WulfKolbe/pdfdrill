@@ -1427,6 +1427,13 @@ commands:
       one AcroForm field ink.<ident> per equation row, which fill_ink_fields.py
       writes inkdrill residual codes into after the build (field count is asserted
       against the row count on compile)'
+  - name: ink
+    flag: --ink
+    type: path
+    help: 'a fill_ink_fields.py --json dump; colours each residual bullet from the
+      MEASURED class and prints the code as selectable text beside the field (the
+      class cannot be known on the first build — inkdrill derives it FROM the
+      finished PDF, so this is the second pass)'
   typed: true
 - name: report
   section: Introspection (fast, no extraction)

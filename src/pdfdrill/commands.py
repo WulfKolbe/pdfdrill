@@ -13201,7 +13201,8 @@ def _vision_via_delegate(pdf: Path, doc, todo, targets, sc, model_path,
 def cmd_reporttex(pdf: Path, paper: str = "a3", landscape: bool = True,
                   compile_pdf: bool = False, images: bool = True,
                   min_conf: float | None = None, max_conf: float | None = None,
-                  types: str | None = None, form: bool = False) -> str:
+                  types: str | None = None, form: bool = False,
+                  ink: str | None = None) -> str:
     """LaTeX formula report (report.tex): every EQ/FO/TAB identifier with
     page, escaped source, rendered math, and the MathPix scan crop at its
     exact original physical size; the tex.zip's unrecovered image regions
@@ -13227,10 +13228,11 @@ def cmd_reporttex(pdf: Path, paper: str = "a3", landscape: bool = True,
             crops = None                           # nothing usable → no column
     texzip = rt.find_texzip(pdf)
     want = rt.parse_types(types)
+    ink_map = rt.load_ink(ink) if ink else None
     r = rt.build_report(tid, crops=crops, texzip=texzip, paper=paper,
                         landscape=landscape, px2mm=px2mm,
                         min_conf=min_conf, max_conf=max_conf, types=want,
-                        form=form)
+                        form=form, ink=ink_map)
     sc.set_evidence("reporttex_path",
                     str(Path(r["out"]).relative_to(pdf.parent)))
     lines = [f"Wrote {r['out']} — {r['equations']} display equations, "

@@ -1,0 +1,74 @@
+146 — why the residual bullet renders white
+===========================================
+
+IT IS NOT "SOME ROWS" — IT IS ALL 57
+-------------------------------------
+   rows in the report                57
+   rows carrying \inkbullet          57
+   distinct colours used              1     inkClean
+   rows with NO residual class       57     every one
+
+   \definecolor{inkClean}{RGB}{160,160,160}
+
+   160/160/160 is a light grey. At \footnotesize, as a $\bullet$ roughly 1.2mm
+   across, on white paper, it is not distinguishable from white — which is why
+   it reads as "some rows are white" rather than "every bullet is faint". The
+   eye registers the ones next to a saturated red or green confidence square
+   as missing, and the rest as absent altogether.
+
+   No row is broken, no colour is undefined, no bullet is missing. Every bullet
+   is the same near-invisible grey.
+
+WHY EVERY ROW HAS NO CLASS
+--------------------------
+   report_tex.residual_colour() returns the constant "inkClean".
+
+   That is not a stub left by accident — it is what 144 decided, and the
+   docstring says so: inkdrill's residual class is measured FROM the finished
+   PDF (rasterise, compare the Rendered and Scan columns, classify), so at the
+   moment the PDF is written the class does not exist yet. The bullet was made
+   neutral rather than coloured from confidence, because colouring it from
+   confidence would look like a residual reading while merely restating the
+   square beside it — and out/145 showed the two disagree.
+
+   The reasoning holds. What 144 failed to do is close the loop afterwards.
+
+THE DATA EXISTS — IT JUST NEVER REACHES THE BULLET
+---------------------------------------------------
+   fill_ink_fields.py has already measured every row and the classes are on
+   disk in report.ink.json:
+
+      component  25
+      weak       19
+      noise       9
+      clean       2
+      ----------------
+      measured   55   (of 57; positions 56-57 are the zip-truncation from 144)
+
+   55 of 57 rows HAVE a residual class. It sits in the AcroForm field as a
+   code (C|+76, W|+2, N|+1, K|+0) and in the JSON as a flag. The bullet — the
+   at-a-glance channel the class was supposed to travel through — is grey on
+   all 57 because nothing writes it back.
+
+   So the report currently carries the residual information in the two places
+   that need a click or a text editor, and not in the one place that was meant
+   to be readable at a glance.
+
+WHAT WOULD FIX IT
+-----------------
+   A second build. fill_ink_fields.py already produces the flag per identifier;
+   feeding that map back into build_report so residual_colour(ident) returns
+   inkMissed / inkStraddle / inkOverlap / inkInside / inkNoise / inkClean turns
+   the bullets on. The natural shape is:
+
+      reporttex --form            -> build, compile, 57 empty fields
+      fill_ink_fields.py          -> measure, write codes, emit ink.json
+      reporttex --form --ink FILE -> rebuild with the bullets coloured
+
+   That is a real change to the build order rather than a colour tweak, and it
+   interacts with the note at the end of 144: any plain `reporttex` rerun
+   overwrites report.pdf and resets the fields to their placeholder, so the
+   coloured build would need the same protection.
+
+   Not implemented here; this task asked why, and the answer is that the class
+   is measured after the only moment it could have been drawn.

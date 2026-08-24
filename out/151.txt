@@ -1,0 +1,72 @@
+151 — published
+===============
+
+URL
+---
+   https://pdfdrill.github.io/reports/
+   https://pdfdrill.github.io/reports/0902.0431/report.pdf
+
+   Both verified live: 200, text/html 2,391 bytes and application/pdf
+   3,780,097 bytes — byte-identical to the local file.
+
+   The index lists document, publish date and row count, as asked:
+
+      Document     Published    Rows   Size    Report
+      0902.0431    2026-08-24     57   3.6 MB  report.pdf
+
+   It also carries a short note on what the two colour channels mean, because
+   a reader arriving at a PDF of coloured squares and bullets with no key has
+   no way to know they are independent instruments — the point out/147 makes.
+
+   report.ink.json is published beside the PDF: the residual measurements in
+   machine-readable form, so the numbers behind the bullets can be checked
+   without parsing the report.
+
+REPO
+----
+   PDFDRILL/PDFDRILL.github.io  (public, master, Pages from /)
+   commit a418eb6
+
+   The org and the Pages site already existed and already hosted comparable
+   artefacts (2004.05631v1.html, 2607.02234.inspect.html), so this is the
+   established practice for this project rather than a new kind of disclosure.
+   Push rights confirmed before writing anything (admin/push true).
+
+A DIAGNOSIS THAT LOOKED LIKE A FAILURE AND WAS NOT
+---------------------------------------------------
+   GET /reports/  ->  404       immediately after the push
+   pages API      ->  "status": "errored", last build 2026-08-06
+
+That reads as "the site is broken and my push made no difference", and it is
+wrong. The Pages API also reports:
+
+   "build_type": "workflow"
+
+The site is deployed by a GitHub Actions workflow, not by the legacy Jekyll
+builder — and the `status`/`builds` fields describe the LEGACY builder, which
+has not run since 6 August and is irrelevant here. The stale "errored" is a
+record of a subsystem no longer in use.
+
+The Actions run for the exact commit confirms it:
+
+   sha a418eb62c15fdb8602b489eb7dab180f73ff7b92   conclusion: success
+
+and both URLs then returned 200. The 404 was the propagation gap between the
+push and the deploy completing, not a broken build.
+
+Had I trusted the API's `status` field I would have reported the publish as
+failed and gone looking for a Jekyll problem that does not exist —
+`.nojekyll` is present, there is no `_config.yml`, and no underscore-prefixed
+files. All three of those checks were clean, which was the first sign the
+Jekyll theory was wrong.
+
+CONTENT NOTE
+------------
+The report reproduces scan crops from arXiv 0902.0431 as verification
+evidence, and the index links the source paper. That is the same class of
+content the site already publishes for other documents.
+
+SCOPE
+-----
+0902.0431 only, as instructed. The index is a table, so adding documents means
+adding rows; nothing about it assumes a single entry.

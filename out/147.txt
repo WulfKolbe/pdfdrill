@@ -1,0 +1,62 @@
+147 — legend for both channels
+==============================
+
+THE LINE, AS EMITTED UNDER EACH TABLE
+-------------------------------------
+{\scriptsize \textbf{Conf.} MathPix confidence:
+  \textcolor{confgreen}{$\blacksquare$}\,$\geq$0.9 \quad
+  \textcolor{confamber}{$\blacksquare$}\,0.5--0.9 \quad
+  \textcolor{confred}{$\blacksquare$}\,$<$0.5 \quad --- no value
+  \\[-0.3ex]
+  \textbf{Residual} render vs scan (inkdrill):
+  \textcolor{inkComponent}{$\bullet$}\,C component \quad
+  \textcolor{inkWeak}{$\bullet$}\,W weak \quad
+  \textcolor{inkStable}{$\bullet$}\,S stable \quad
+  \textcolor{inkNoise}{$\bullet$}\,N noise \quad
+  \textcolor{inkClean}{$\bullet$}\,K clean \quad
+  \textcolor{inkUnmeasured}{$\bullet$}\,not measured}
+
+   Conf. line only when --form is off; both lines when it is on, since the
+   bullet does not exist without it.
+
+WHY BOTH CHANNELS AND NOT ONE
+------------------------------
+The two cells sit side by side and measure different things. out/063 is the
+case that matters: EQ0516 reads confidence 0.041 and ink distance 18 — one
+instrument objecting loudly, the other saying the render matches the scan.
+A reader given a coloured square beside a coloured bullet and no legend will
+read them as one score, which is exactly what keeping them apart was for.
+
+The square is what MathPix thinks of its OWN reading. The bullet is what the
+rendered LaTeX looks like against the scan. Neither predicts the other.
+
+A CORRECTION THE LEGEND FORCED
+------------------------------
+Writing it exposed a mismatch that had been sitting in the code since 144.
+
+The 134 demo defined six residual colours named missed / straddle / overlap /
+inside / noise / clean. fill_ink_fields.py does not produce any of the first
+four. Its FLAG_CODE is:
+
+      clean K   noise N   weak W   stable S   component C
+
+and flag_of() can return exactly those five. So a legend written from the demo
+would have named four classes no row can ever have, and omitted two that occur
+constantly — in 0902.0431, `weak` is 19 of 55 rows and `component` is 25.
+
+The colours are now the real taxonomy:
+
+      inkComponent  220,30,30    C   component-class finding
+      inkWeak       230,150,20   W   weak
+      inkStable      40,90,220   S   stable
+      inkNoise      120,120,120  N   inside the noise band
+      inkClean       40,160,40   K   distance 0
+      inkUnmeasured 190,190,190      no measurement for this row
+
+I also failed to assert the first attempt at this replacement, and it silently
+did not apply — the build then threw four `Undefined color` errors naming
+inkMissed, inkStraddle, inkOverlap, inkInside. That is the same class of
+mistake as the ones this session has been catching elsewhere, and the compile
+caught it only because those colours no longer existed. Had I renamed them
+instead of removing them, a legend describing classes that never occur would
+have compiled cleanly and shipped.

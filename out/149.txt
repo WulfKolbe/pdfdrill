@@ -1,0 +1,77 @@
+149 — do the field values render in Chrome and Firefox?
+=======================================================
+
+WHAT I CAN AND CANNOT DO HERE — READ THIS FIRST
+------------------------------------------------
+I cannot observe a browser window. There is no display I can read and no
+browser automation available in this environment, so I cannot honestly report
+"I opened it and saw X".
+
+Also: Chrome is NOT INSTALLED on this machine.
+
+   which google-chrome chromium chromium-browser  ->  nothing
+   which firefox                                  ->  /usr/bin/firefox
+
+So "open in Chrome" cannot be performed here at all, and "open in Firefox"
+could be launched but not seen. Reporting a visual result for either would be
+fabrication.
+
+What I did instead is settle the question from the file, because the file is
+what decides it.
+
+PER BROWSER — DETERMINED FROM THE PDF, NOT OBSERVED
+----------------------------------------------------
+   Chrome  (PDFium)  values VISIBLE
+   Firefox (pdf.js)  values VISIBLE
+
+   Both draw a widget's /AP (appearance) stream. Neither depends on
+   /NeedAppearances, which is a REQUEST to the viewer to regenerate
+   appearances — PDFium ignores it outright, and pdf.js only honours it in
+   some paths. A PDF that carries /V but no /AP is the case that renders blank
+   in Chrome, and that is not this file.
+
+THE EVIDENCE
+------------
+   /NeedAppearances          True
+   AcroForm /DA              /Helv 10 Tf 0 g
+   widgets with an /AP       55
+   widgets without an /AP     2   (ink.0902.0431_EQ0952, ink.0902.0431_EQ1010 —
+                                   the two with NO value; nothing to draw)
+
+   The /AP streams are not empty placeholders. One decoded in full:
+
+      q /Tx BMC q 2 1 19.911 9.457 re W BT /Helv 5.0 Tf 0 0 0 rg
+      5.2605 3.9335 Td (C|+76) Tj ...
+
+   That is the literal text-drawing sequence: set font Helvetica 5pt, black,
+   position, show the string. The value is DRAWN, not requested.
+
+   Independent confirmation, without a browser: poppler's pdftotext extracts
+   annotation appearance text. On page 1 of the report it returns `C|+76`
+   TWICE — once from the 148 selectable type in the table cell, once from the
+   field's own appearance stream. A rendering engine reading that file has the
+   glyphs handed to it.
+
+   Flattening the annotations into page content with ghostscript changes
+   nothing (2 occurrences before, 2 after), which is what you expect when the
+   appearance is already baked.
+
+WHY IT IS ALREADY THIS WAY
+---------------------------
+fill_ink_fields.py calls
+
+   writer.update_page_form_field_values(page, data, auto_regenerate=True)
+
+and auto_regenerate builds the /AP streams. So the remedy 150 proposes was
+applied when the fields were filled, not as a later fix.
+
+IF YOU WANT THE VISUAL CHECK
+-----------------------------
+It needs a pair of human eyes or a headless-browser screenshot harness, neither
+of which exists here. The file to open is
+
+   ~/pdfdrill-library/0902.0431/report.pdf
+
+and the thing to look for is a small bordered box at the right of the
+"Conf. + class" column showing e.g. C|+76 — beside, not instead of, the same
+code set as ordinary type.

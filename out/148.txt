@@ -1,0 +1,59 @@
+148 — the residual code as selectable text
+==========================================
+
+ONE RENDERED CELL
+-----------------
+Row 1 of 0902.0431's filtered report — the lowest-confidence equation:
+
+   identifier   \ident{0902.\allowbreak{}0431\_\allowbreak{}EQ0515}\lowconf{0.002}
+   page         085
+   Conf.+class  \confcell{confred}{0.002}\hspace{0.6em}%
+                \inkbullet{inkComponent}\,\texttt{\tiny C|+76}\hspace{0.5em}%
+                \inkfield{0902.0431_EQ0515}
+
+   reading left to right:
+
+      ■ 0.002      confidence square, red (below 0.5)
+      •            residual bullet, inkComponent red — a component-class finding
+      C|+76        THE CODE AS TYPE: selectable, copyable, greppable
+      [ C|+76 ]    the AcroForm field ink.0902.0431_EQ0515, same value
+
+WHY THE CODE APPEARS TWICE ON PURPOSE
+--------------------------------------
+A form field's value is an APPEARANCE STREAM. pdftotext does not see it, a
+reader cannot drag-select it, and grep over the PDF does not find it. Verified
+here: before this change `pdftotext` over the whole report returned 0 codes
+while all 55 fields held one.
+
+After the change, `pdftotext -layout report.pdf | grep -oE "[CWSNK]\|[+-][0-9]+"`
+returns 55 — every measured row, as text.
+
+So the two are not redundant, they are different channels:
+
+   type    for a human to read, select, copy, and for any text tool to find
+   field   the UPDATE channel — fill_ink_fields.py rewrites it by name after a
+           fresh inkdrill run, without recompiling the report
+
+Both are produced from the same map, so they cannot disagree at build time.
+They CAN drift afterwards: a re-run of fill_ink_fields.py updates the field and
+not the type. That is the cost of the field being an update channel at all, and
+it is the reason the type carries the build-time value rather than pretending
+to be live.
+
+HOW IT IS BUILT
+---------------
+   pdfdrill reporttex <pdf> --form --ink <fill_ink_fields --json dump>
+
+   The ink map is required for the code (and for the bullet colour — see
+   out/146): the residual class is measured FROM the finished PDF, so the first
+   build has no code to print and prints none. 55 of 57 rows carry one; the two
+   without are positions 56-57, the zip-truncation documented in out/144.
+
+VERIFICATION
+------------
+   bullet colours in the rebuilt report:
+      inkComponent 25   inkWeak 19   inkNoise 9   inkClean 2   inkUnmeasured 2
+   rows with a selectable code : 55
+   codes recoverable by pdftotext: 55
+   AcroForm fields             : 57, of which 55 carry a value
+   compile                     : 26 pages, 0 errors
