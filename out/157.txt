@@ -1,0 +1,63 @@
+157 — does anything re-fill an existing report?
+===============================================
+
+ANSWER: NO. Nothing in the pipeline re-runs fill_ink_fields.py, and every
+report is rebuilt from source.
+
+THE EVIDENCE
+------------
+   * grep over src/, tools/, commands.yaml and .github/ finds fill_ink_fields
+     only in COMMENTS and help strings — six matches, all prose. No code path
+     invokes it.
+   * The script is not in the repository at all. It lives in ~/Downloads,
+     outside version control and outside the manifest.
+   * No command declares the ink measurement as a `requires:` or `done_when:`.
+     The layer graph does not know it exists, so `steps` and `--ensure` can
+     never reach it.
+   * `reporttex` always rebuilds: build_report writes report.tex from the
+     tiddlers and compile_fixpoint runs xelatex over it, producing a fresh
+     report.pdf whose fields hold the compile-time placeholder. It does not
+     read, preserve or re-apply an existing PDF's field values.
+
+WHAT THAT MEANS IN PRACTICE — OBSERVED, NOT INFERRED
+-----------------------------------------------------
+Today the fields were filled twice, and both times a later `reporttex` run
+wiped them back to the placeholder and I re-filled by hand:
+
+   fill -> 55 values
+   reporttex --form --ink (rebuild)  -> 57 fields, 0 values
+   fill -> 55 values
+
+The "update the report without recompiling" path that justified the field in
+134 was never once taken. Every update went through a rebuild, because the
+things worth updating — the bullet colour, the selectable code, the row
+filter — are build-time properties.
+
+SO THE FIELD HAS NO REMAINING PURPOSE
+--------------------------------------
+Since 148 the residual code is already in the cell as selectable text, put
+there by `--ink` at build time from the same map. The field now carries a
+duplicate of that string, and:
+
+   * nothing refreshes it
+   * a rebuild erases it
+   * it is what viewers tint pale cyan, which is the defect reported in 156
+   * it renders a second copy of the code, which is the duplication 155 reports
+
+Under the rule this task sets — "if nothing re-fills, the field has no
+remaining purpose" — 155 becomes REMOVE, not hide.
+
+TWO CONSEQUENCES WORTH STATING BEFORE IT GOES
+----------------------------------------------
+1. fill_ink_fields.py's second half becomes unusable on new reports. Its
+   MEASUREMENT half is still needed — it is what produces the --ink json that
+   colours the bullets and prints the codes — but `fill_form()` raises
+   SystemExit("no AcroForm fields") on a report built without them. The script
+   needs a measure-only mode, which is a change to the auditor's file and not
+   made here.
+
+2. Task 124's form-field gate loses its only real consumer. The gate and its
+   tests stay valid — and it earned its place today by catching the 133
+   regression that silently dropped all four demo fields — but with no
+   form-bearing report in the pipeline it goes back to guarding a capability
+   nothing currently uses.

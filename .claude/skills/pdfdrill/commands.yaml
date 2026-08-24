@@ -1423,10 +1423,10 @@ commands:
   - name: form
     flag: --form
     type: flag
-    help: 'review format: coloured confidence square + coloured residual bullet +
-      one AcroForm field ink.<ident> per equation row, which fill_ink_fields.py
-      writes inkdrill residual codes into after the build (field count is asserted
-      against the row count on compile)'
+    help: 'review format: colour-banded confidence square + residual-class
+      bullet per equation row (with --ink, the residual code as selectable
+      text). No AcroForm field: 157 established that nothing in the pipeline
+      ever re-filled one'
   - name: ink
     flag: --ink
     type: path

@@ -1,0 +1,82 @@
+155 — the AcroForm field: REMOVED, not hidden
+=============================================
+
+WHY REMOVE RATHER THAN HIDE
+---------------------------
+155 asked for the field to be made visually hidden so it "remains the update
+channel without duplicating the display", with the standing condition that if
+157 found nothing re-fills it, 155 becomes remove.
+
+157 found nothing re-fills it. Every reference to fill_ink_fields.py in the
+repository is a comment or a help string; the script is not in version control;
+no command declares the ink measurement as a prerequisite; and reporttex always
+rebuilds report.pdf from source, resetting every field to its placeholder.
+
+Observed rather than inferred: the fields were filled twice today and BOTH
+times a later rebuild wiped them and I re-filled by hand. The "update without
+recompiling" path the field existed for was never once taken.
+
+So it is removed.
+
+ONE RENDERED CELL — AFTER
+-------------------------
+   identifier   \ident{0902.\allowbreak{}0431\_\allowbreak{}EQ0515}\lowconf{0.002}
+   page         085
+   Conf.+class  \confcell{confred}{0.002}\hspace{0.6em}%
+                \inkbullet{inkComponent}\,\texttt{\tiny C|+76}
+
+   ■ 0.002    confidence square, red (< 0.5)
+   •          residual bullet, inkComponent red (component-class finding)
+   C|+76      the code, as selectable type
+
+   Before, the same cell ended with \inkfield{0902.0431_EQ0515} — a 2.4em
+   bordered box repeating C|+76 as a form value.
+
+VERIFIED ON THE REBUILT REPORT
+------------------------------
+   AcroForm fields                 57  ->  0
+   annotation objects in the PDF        0
+   codes recoverable as text            55   (unchanged)
+   compile                              26 pages, 0 errors
+   size                            3,780,097 -> 3,710,576 bytes
+
+   The information content is identical; one duplicate rendering is gone.
+
+WHAT THIS ALSO FIXES
+--------------------
+156 reported the confidence square rendering cyan at 0.018. The mapping was
+never wrong — 0.018 resolves to confred, and a ghostscript raster of pages 1-6
+contains zero cyan pixels. The cyan was the viewer's own highlight tint on the
+form field, drawn on top of the page beside the square. With no widgets left
+in the file, there is nothing for a viewer to tint.
+
+WHAT WENT WITH IT
+-----------------
+   \inkfield          the field macro
+   \begin{Form}       the environment that existed only to hold fields
+   \usepackage{hyperref}   loaded only for TextField
+   \special{pdf:put @catalog <</NeedAppearances true>>}
+                      the request to regenerate appearances
+
+   The report no longer loads hyperref at all.
+
+TWO THINGS DELIBERATELY KEPT
+-----------------------------
+1. pdf_reading.assert_form_fields and its five tests. The gate is correct and
+   it earned its place — it caught the 133 regression that silently dropped
+   every field in the demo. It now guards a capability nothing in the pipeline
+   uses, which is where it started; that is a reason to keep the tests, not to
+   delete the check.
+
+2. The --ink flag and everything downstream of it. The residual data still
+   reaches the report — as the bullet colour and as selectable text — which is
+   what made the field redundant in the first place.
+
+CONSEQUENCE FOR THE AUDITOR'S TOOL
+-----------------------------------
+fill_ink_fields.py's MEASUREMENT half is still needed: it produces the --json
+dump that --ink consumes. Its FILL half now has nothing to write into and will
+raise SystemExit("no AcroForm fields") on a report built by current pdfdrill.
+
+It needs a measure-only mode. That is a change to the auditor's file and is not
+made here.

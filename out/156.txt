@@ -1,0 +1,56 @@
+156 — the confidence square's colour mapping
+============================================
+
+THE MAPPING (report_tex.conf_cell)
+-----------------------------------
+   confidence            band        colour            RGB
+   >= 0.9                confgreen   green             0,128,0
+   0.5 <= v < 0.9        confamber   amber/brown     190,120,0
+   v < 0.5               confred     dark red        190,0,0
+   None / "" / unparsable  ---       no colour at all
+
+   Thresholds are inclusive at the lower edge: exactly 0.9 is green, exactly
+   0.5 is amber. An absent value renders as a dash and never as a colour —
+   no reading is not a good reading, and a blank green square would assert one.
+
+   0.018 therefore resolves to confred. There is no cyan in the mapping, and no
+   fourth band.
+
+0.018 IS NOT RENDERING CYAN — VERIFIED
+---------------------------------------
+   in the source        \confcell{confred}{0.018}
+   colour definition    \definecolor{confred}{RGB}{190,0,0}
+
+   Rasterised with ghostscript at 150 dpi and every saturated pixel sampled
+   across pages 1-6:
+
+      rgb(160,  0,  0)   x 96      confred, anti-aliased
+      rgb(192,  0,  0)   x 29      confred
+      rgb(208, 16, 16)   x  9      inkComponent (the residual bullet)
+
+      cyan-ish pixels (b>150, g>150, r<150):  0
+
+   Not one cyan pixel exists in the rendered page content.
+
+WHAT IS ACTUALLY CYAN
+---------------------
+The AcroForm field. Viewers TINT interactive form fields with their own
+highlight colour — pale blue/cyan in Chrome, Firefox and Acrobat alike — drawn
+on top of the page, which is why it cannot appear in a ghostscript raster of
+the page content.
+
+The field sits in the same "Conf. + class" column as the confidence square:
+
+   ■ 0.018   •  C|+25   [ field ]
+   ^ red             ^ viewer paints this box pale cyan
+
+55 of 57 rows carry one. A column containing a small red square and a larger
+pale-cyan box reads as "the square is cyan" at a glance, especially at
+\footnotesize where the square is about 1mm across and the field is 2.4em wide.
+
+So the defect is real and visible, and it is not in the mapping: nothing is
+mis-banded, and no threshold is wrong. It is the field's viewer highlight
+sitting beside the square it appears to recolour.
+
+That is the same field 155 asks to hide and 157 asks whether anything still
+needs. Removing it removes the cyan.

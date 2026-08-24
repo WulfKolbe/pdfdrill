@@ -13262,17 +13262,11 @@ def cmd_reporttex(pdf: Path, paper: str = "a3", landscape: bool = True,
             lines.append(f"Compiled report.pdf: {pages} pages, {errors} "
                          f"error(s), {demoted} malformed row(s) demoted "
                          f"to source-only.")
-            if form:
-                # 124: \TextField outside \begin{Form} yields ZERO fields and
-                # no warning, so the count is asserted against what was written
-                from .pdf_reading import assert_form_fields, FormFieldMismatch
-                try:
-                    n = assert_form_fields(Path(r["out"]).with_suffix(".pdf"),
-                                           r["equations"], context="reporttex")
-                    lines.append(f"Form: {n} AcroForm field(s) = "
-                                 f"{r['equations']} equation row(s).")
-                except FormFieldMismatch as e:
-                    lines.append(f"FORM GATE FAILED: {e}")
+            # 155 removed the AcroForm field per 157 (nothing ever re-filled
+            # it), so there is no field count to assert here any more. The
+            # gate itself (pdf_reading.assert_form_fields) and its tests stay:
+            # it caught the 133 regression that silently dropped every field,
+            # and it is what any future form-bearing build should use.
             # 091: a compile that dropped glyphs produced a PDF that LOOKS
             # finished and is missing symbols with no visible trace. Say so
             # loudly; the page count and the exit status cannot show it.
