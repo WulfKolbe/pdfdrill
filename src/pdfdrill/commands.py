@@ -13201,7 +13201,7 @@ def _vision_via_delegate(pdf: Path, doc, todo, targets, sc, model_path,
 def cmd_reporttex(pdf: Path, paper: str = "a3", landscape: bool = True,
                   compile_pdf: bool = False, images: bool = True,
                   min_conf: float | None = None, max_conf: float | None = None,
-                  types: str | None = None) -> str:
+                  types: str | None = None, form: bool = False) -> str:
     """LaTeX formula report (report.tex): every EQ/FO/TAB identifier with
     page, escaped source, rendered math, and the MathPix scan crop at its
     exact original physical size; the tex.zip's unrecovered image regions
@@ -13229,7 +13229,8 @@ def cmd_reporttex(pdf: Path, paper: str = "a3", landscape: bool = True,
     want = rt.parse_types(types)
     r = rt.build_report(tid, crops=crops, texzip=texzip, paper=paper,
                         landscape=landscape, px2mm=px2mm,
-                        min_conf=min_conf, max_conf=max_conf, types=want)
+                        min_conf=min_conf, max_conf=max_conf, types=want,
+                        form=form)
     sc.set_evidence("reporttex_path",
                     str(Path(r["out"]).relative_to(pdf.parent)))
     lines = [f"Wrote {r['out']} — {r['equations']} display equations, "
@@ -13259,6 +13260,17 @@ def cmd_reporttex(pdf: Path, paper: str = "a3", landscape: bool = True,
             lines.append(f"Compiled report.pdf: {pages} pages, {errors} "
                          f"error(s), {demoted} malformed row(s) demoted "
                          f"to source-only.")
+            if form:
+                # 124: \TextField outside \begin{Form} yields ZERO fields and
+                # no warning, so the count is asserted against what was written
+                from .pdf_reading import assert_form_fields, FormFieldMismatch
+                try:
+                    n = assert_form_fields(Path(r["out"]).with_suffix(".pdf"),
+                                           r["equations"], context="reporttex")
+                    lines.append(f"Form: {n} AcroForm field(s) = "
+                                 f"{r['equations']} equation row(s).")
+                except FormFieldMismatch as e:
+                    lines.append(f"FORM GATE FAILED: {e}")
             # 091: a compile that dropped glyphs produced a PDF that LOOKS
             # finished and is missing symbols with no visible trace. Say so
             # loudly; the page count and the exit status cannot show it.

@@ -1420,6 +1420,13 @@ commands:
     type: str
     help: 'comma-separated object kinds to include: equation, formula, table, diagram
       (default all)'
+  - name: form
+    flag: --form
+    type: flag
+    help: 'review format: coloured confidence square + coloured residual bullet +
+      one AcroForm field ink.<ident> per equation row, which fill_ink_fields.py
+      writes inkdrill residual codes into after the build (field count is asserted
+      against the row count on compile)'
   typed: true
 - name: report
   section: Introspection (fast, no extraction)

@@ -1,0 +1,95 @@
+144 — 0902.0431 rebuilt in the 134 format, filtered as in 143
+=============================================================
+
+FIELD COUNT AND SIZE
+--------------------
+   rows (equations)          57
+   AcroForm fields           57      <- task 124's gate PASSES on a real report
+   fields carrying a value   55      (2 unfilled, see below)
+
+   report.tex               194,722 bytes   (0.19 MB)
+   report.pdf             3,709,390 bytes   (3.54 MB)
+   filled PDF             3,775,473 bytes     scratchpad/0902-filled.pdf
+   pages                         26
+
+   Against the unfiltered original: 4,414 rows / 30.33 MB -> 57 rows / 3.54 MB.
+
+THE FORMAT
+----------
+   Each equation row's third column is now
+
+      ■ 0.002   •   [field]
+
+   ■ 0.002  MathPix confidence, colour-banded square (green >=0.9, amber
+            0.5-0.9, red <0.5) — unchanged from the standard report
+   •        residual class, colour only. No class letter, no component delta,
+            no A/B suffix; 117 refuted that taxonomy
+   [field]  AcroForm TextField named ink.<ident>
+
+   Built by `reporttex --form`, not by a one-off script: code in tools/ is
+   invisible to the planner and to `--ensure`, so the flag lives in
+   commands.yaml with the rest (skillsync regenerated help + SKILL.md).
+
+   On compile with --form the field count is asserted against the row count and
+   reported: "Form: 57 AcroForm field(s) = 57 equation row(s)." That is the 124
+   gate, firing for the first time on real output rather than a fixture.
+
+   The bullet starts NEUTRAL (inkClean). inkdrill's residual class is not known
+   at build time — it is measured FROM the finished PDF — so colouring the
+   bullet from confidence instead would look like a residual reading while
+   merely restating the square beside it. out/145 showed the two disagree:
+   three unrenderable rows sit above confidence 0.5 and the only compile
+   failure is at 0.914.
+
+fill_ink_fields.py — 55 OF 57 FIELDS FILLED
+--------------------------------------------
+   $ python3 fill_ink_fields.py --report report.pdf --tex report.tex \
+       --form report.pdf --out 0902-filled.pdf --inkdrill ~/inkdrill \
+       --max-pages 26
+
+   It rasterises the report, runs `inkdrill compare` per page, and writes the
+   residual code into ink.<ident> by name. Sample of what landed:
+
+      ink.0902.0431_EQ1211   C|+195     L= 13  R=208   component
+      ink.0902.0431_EQ0558   C|+5       L=201  R=206   component
+      ink.0902.0431_EQ1097   W|+2       L=101  R=103   weak
+      ink.0902.0431_EQ0694   N|+1       L= 48  R= 49   noise
+      ink.0902.0431_EQ1196   K|+0       L= 43  R= 43   clean
+
+   The script reported: unfilled fields:
+      ink.0902.0431_EQ0952
+      ink.0902.0431_EQ1010
+
+WHY TWO ARE EMPTY, AND WHY IT IS NOT A MISALIGNMENT
+-----------------------------------------------------
+inkdrill measured 55 lattice rows for 57 table rows. collect_results pairs the
+two sequences with `zip(idents, recs)`, which stops at the shorter — so the last
+two identifiers get no record.
+
+That could have been much worse than two blank fields. zip pairs by POSITION: if
+the shortfall happened mid-document, every row after it would be paired with the
+NEXT equation's measurement and the whole tail would be silently mislabelled.
+The script warns only in the opposite case (`len(idents) < len(recs)`), so this
+direction passes unremarked.
+
+It did not happen here, and that is checked rather than assumed:
+
+   measured id sequence == tex row order[:55]   ->  True
+   the two unfilled are positions 56 and 57 of 57
+
+So the shortfall is at the END and the 55 written values are correctly paired.
+
+   (My first attempt to verify this used pdftotext to count identifiers per
+   page and was useless: it recovers only 45 of the 57, because the identifier
+   is set \tiny\ttfamily with \allowbreak breaks. The tex-order comparison
+   above is the instrument that can actually answer the question.)
+
+WHAT WOULD FIX IT PROPERLY
+--------------------------
+Pair on the row's own geometry — the lattice row index inkdrill already reports
+— rather than on position in two independently-derived lists. Until then the
+`zip` is safe only while the measurement is complete or short at the tail, and
+nothing in the script checks which.
+
+Not changed here: fill_ink_fields.py is the auditor's file and this task asked
+to run it, not to rewrite it.
