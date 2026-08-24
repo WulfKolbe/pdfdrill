@@ -20,6 +20,63 @@ from typing import Any, Optional
 VERSION = "0.4.0"
 
 
+#: artifact PDFs a scan must never mistake for a document. These are OUTPUTS of
+#: a document that happen to be PDFs and sit beside it: the formula report, the
+#: scikgtex projection, the standalone "Formula Report — <stem>.lines.json.pdf".
+#: Counting them as documents inflates a corpus census and gives them their own
+#: (empty or duplicate) model in any per-document scan.
+_DERIVED_PDFS = {"report.pdf"}
+_DERIVED_SUFFIXES = (".scikg.pdf", ".glossaries.pdf")
+_DERIVED_PREFIXES = ("Formula Report ",)
+
+
+def _is_derived_pdf(pdf: "Path") -> bool:
+    n = pdf.name
+    return (n in _DERIVED_PDFS
+            or n.endswith(_DERIVED_SUFFIXES)
+            or n.startswith(_DERIVED_PREFIXES))
+
+
+def iter_documents(root: "str | Path", *, recursive: bool = True):
+    """Yield (pdf, blob_dir, sidecar_json) for every DOCUMENT under `root`.
+
+    A directory is not a document. `~/pdfdrill-library/BH1/` holds two:
+
+        BH1.pdf            -> blob_dir BH1/                    (self-contained)
+        BH1-9add65ca.pdf   -> blob_dir BH1/BH1-9add65ca.pdf.drill/  (legacy)
+
+    Both have their own sidecar and their own model, and `blob_dir_for` has
+    always resolved them correctly. What went wrong was every ad-hoc scan that
+    walked DIRECTORIES and took `sorted(glob("*.drill.json"))[0]` plus
+    `<dir>/model.docmodel.json`: that reads one document's sidecar against the
+    other's model. In BH1's case it read the 4-page pdfminer stub and reported
+    the 319-page MathPix book as having zero mathematics, and a keyless purge
+    skipped the stub because it had been classified by its neighbour.
+
+    Enumerate documents through this, not directories, and that class of error
+    cannot recur.
+
+    Derived PDFs are excluded (report.pdf), as is anything sitting INSIDE a
+    blob_dir — a rasterised page or an extracted attachment is an artifact of a
+    document, not another document.
+    """
+    root = Path(root)
+    if not root.is_dir():
+        return
+    dirs = [root]
+    if recursive:
+        dirs += [d for d in sorted(root.iterdir()) if d.is_dir()]
+    for d in dirs:
+        for pdf in sorted(d.glob("*.pdf")):
+            if _is_derived_pdf(pdf):
+                continue
+            # inside a legacy blob_dir (`<name>.pdf.drill/`) => an artifact
+            if pdf.parent.name.endswith(".pdf.drill"):
+                continue
+            blob, js = blob_dir_for(pdf)
+            yield pdf, blob, js
+
+
 def blob_dir_for(pdf_path: str | Path) -> tuple[Path, Path]:
     """(blob_dir, json_path) for a PDF, resolving the storage LAYOUT once so every
     caller agrees. SELF-CONTAINED when the PDF sits in a folder named after it

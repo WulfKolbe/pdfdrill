@@ -13199,7 +13199,9 @@ def _vision_via_delegate(pdf: Path, doc, todo, targets, sc, model_path,
 
 
 def cmd_reporttex(pdf: Path, paper: str = "a3", landscape: bool = True,
-                  compile_pdf: bool = False, images: bool = True) -> str:
+                  compile_pdf: bool = False, images: bool = True,
+                  min_conf: float | None = None, max_conf: float | None = None,
+                  types: str | None = None) -> str:
     """LaTeX formula report (report.tex): every EQ/FO/TAB identifier with
     page, escaped source, rendered math, and the MathPix scan crop at its
     exact original physical size; the tex.zip's unrecovered image regions
@@ -13224,8 +13226,10 @@ def cmd_reporttex(pdf: Path, paper: str = "a3", landscape: bool = True,
         if not any(crops.glob("*.jpg")):
             crops = None                           # nothing usable → no column
     texzip = rt.find_texzip(pdf)
+    want = rt.parse_types(types)
     r = rt.build_report(tid, crops=crops, texzip=texzip, paper=paper,
-                        landscape=landscape, px2mm=px2mm)
+                        landscape=landscape, px2mm=px2mm,
+                        min_conf=min_conf, max_conf=max_conf, types=want)
     sc.set_evidence("reporttex_path",
                     str(Path(r["out"]).relative_to(pdf.parent)))
     lines = [f"Wrote {r['out']} — {r['equations']} display equations, "
@@ -13235,6 +13239,14 @@ def cmd_reporttex(pdf: Path, paper: str = "a3", landscape: bool = True,
              f"Layout: {paper}{' landscape' if landscape else ''}; "
              f"px2mm={'%.5f (pixel-exact scan images)' % px2mm if px2mm else 'n/a (images fill the column)'}; "
              + crop_note + "."]
+    if min_conf is not None or max_conf is not None or want:
+        bits = []
+        if want: bits.append("types=" + ",".join(sorted(want)))
+        if min_conf is not None: bits.append(f"conf>={min_conf}")
+        if max_conf is not None: bits.append(f"conf<={max_conf}")
+        lines.insert(0, "FILTERED: " + "; ".join(bits)
+                     + " — a bounded run also drops rows that carry NO "
+                       "confidence value.")
     if tid_note:
         lines.insert(0, tid_note)
     if compile_pdf:

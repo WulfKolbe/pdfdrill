@@ -1,0 +1,65 @@
+143 — --min-conf / --max-conf / --types on reporttex
+====================================================
+
+0902.0431 at `--max-conf 0.5 --types equation`
+-----------------------------------------------
+                        before            after          change
+   rows                  4,414               57          -98.7%
+   report.pdf        30.33 MB          3.53 MB          -88.4%
+   report.tex         2.74 MB          0.18 MB          -93.4%
+   pages                   246               26
+
+   The 57 are every equation MathPix doubts: 12 below 0.1 and 45 in 0.1-0.5.
+   That matches out/130's independent count of 0902.0431's band membership
+   exactly, which is the check that the filter selects what it claims to.
+
+   Confidence range in the output: 0.0020 to 0.4990 — nothing above the bound.
+
+WHY THE PDF SHRANK LESS THAN THE ROW COUNT
+-------------------------------------------
+Rows fell 77x, the PDF only 8.6x. Each surviving row still carries its scan crop
+at pixel-exact original size, and the crops dominate the file: 57 rows still
+embed 57 images. A 98.7% row reduction buys an 88% size reduction, not 98.7%.
+
+Worth knowing before choosing a threshold to hit a size target — the floor is
+set by images per row, not by rows.
+
+FLAGS
+-----
+   --min-conf F   keep rows with MathPix confidence >= F
+   --max-conf F   keep rows with MathPix confidence <= F
+   --types LIST   comma-separated: equation, formula, table, diagram
+
+   Filtering happens in build_report BEFORE any crop is sized, so a filtered
+   report is smaller on disk rather than merely shorter to read.
+
+TWO DECISIONS THAT NEEDED MAKING EXPLICIT
+------------------------------------------
+1. A row with NO confidence value FAILS any bounded filter. Confidence lives on
+   Equation rows only — inline formulas, tables and diagrams carry none — so
+   `--max-conf 0.5` on an unfiltered corpus would otherwise return every
+   formula in the document alongside the doubted equations, which is the
+   opposite of what the flag is for. A bounded run therefore drops FO/TAB/DIA
+   entirely, and the command says so in its output:
+
+      FILTERED: types=equation; conf<=0.5 — a bounded run also drops rows
+      that carry NO confidence value.
+
+   A short report should never be mistakable for a broken one.
+
+2. An unknown `--types` value RAISES rather than being ignored. Silently
+   selecting everything on a typo would produce a full-size report that reads
+   as "the filter matched nothing to remove" — the failure would look like a
+   result.
+
+WIRING
+------
+   commands.yaml is the SSOT: the three flags were added there and
+   `tools/skillsync.py all .` regenerated the help and SKILL.md (133 commands,
+   manifest <-> HANDLERS in sync). Not hand-edited.
+
+   tests/test_report_filters.py — 9 tests, including the bounded/unbounded
+   behaviour of a missing confidence, the typo case, and that the filtered file
+   is genuinely smaller on disk.
+
+2237 tests pass.

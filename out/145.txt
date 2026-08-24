@@ -1,0 +1,81 @@
+145 — 0902.0431's remaining "not rendered" rows
+===============================================
+
+WHERE IT STARTED AND WHERE IT IS
+--------------------------------
+   31  before the stray-closer repair (commit 518c548)
+    7  after it — the 24 `\] \end{itemize}` fragments now render
+    8  after the CJK validator (out/128) caught one row that had been
+       rendering with a silently DROPPED glyph
+
+   The count went UP by one and that is an improvement, not a regression: a row
+   that renders with characters missing is measured as correct, a row marked
+   (not rendered) can be triaged.
+
+   8 markers in a 4,414-row report — 0.18%.
+
+THE 8, WITH CONFIDENCE AND REASON
+---------------------------------
+   identifier              conf   class          reason
+   0902.0431_EQ1032      0.0224   BUILD  CJK     ideographic description char U+2FF1 (⿱)
+   0902.0431_EQ1187      0.1829   BUILD  CJK     ideographic description char U+2FFB (⿻)
+   0902.0431_EQ0922      0.1023   BUILD  align   bare & or \\ at brace depth 0
+   0902.0431_EQ0802      0.3375   BUILD  align   bare & or \\ at brace depth 0
+   0902.0431_EQ0939      0.4708   BUILD  align   bare & or \\ at brace depth 0
+   0902.0431_EQ0696      0.5354   BUILD  align   bare & or \\ at brace depth 0
+   0902.0431_EQ0037      0.5546   BUILD  align   bare & or \\ at brace depth 0
+   0902.0431_EQ0689      0.9140   COMPILE         Missing delimiter (. inserted)
+
+   BUILD   = renderable() refused the value; it never reached xelatex.
+   COMPILE = renderable() passed it and xelatex failed; compile_fixpoint
+             replaced the cell. Both write the SAME marker (report_tex.py:397
+             and :637), so report.tex alone cannot tell them apart — the split
+             above comes from re-running renderable() on each row.
+
+WHAT IS LEFT, AND WHY EACH CLASS RESISTS REPAIR
+------------------------------------------------
+  2  HALLUCINATED SCRIPT (EQ1032, EQ1187)
+     U+2FF0-U+2FFB are Ideographic Description Characters — not glyphs, but a
+     notation for describing how an unknown ideograph is composed. Their
+     presence means MathPix could not identify a character and emitted its
+     recipe. There is nothing to repair: the content is wrong, not malformed.
+     EQ1187 also carries \zh. These are the rows to re-OCR, and out/129 names
+     EQ1187 as the one to send back with its crop.
+
+  5  BARE ALIGN MARKER (EQ0037, EQ0696, EQ0802, EQ0922, EQ0939)
+     A bare `&` or `\\` at brace depth 0 is a longtable TAB MARK. Left in, it
+     throws "misplaced tab mark" and sends xelatex into an error-recovery loop
+     the row-demotion pass never reaches — a live hang, not a failed row.
+     Refusing them is deliberate and correct.
+
+     These are repairable in principle: the value is multi-line mathematics
+     that lost its environment, and wrapping it in \begin{aligned}...\end{aligned}
+     would give the markers a home. That is a real transform on OCR output
+     rather than a cosmetic strip, so it is not folded in here.
+
+     Note the confidences: 0.10 to 0.55, three of them ABOVE 0.5. MathPix is
+     not signalling doubt about these — the defect is structural, and the
+     confidence column does not predict it.
+
+  1  GENUINE COMPILE FAILURE (EQ0689, confidence 0.914)
+     `\left\{\begin{array}{ll} ... \end{array} \quad\right` — a \right with no
+     delimiter after it. Well-formed enough to pass every static gate and still
+     invalid TeX. The highest-confidence row of the eight, which is the useful
+     part: a 0.914 value can still be unrenderable, so the confidence column
+     cannot be used as a rendering predictor.
+
+FOUR MORE ROWS THAT ARE NOT MARKERS
+-----------------------------------
+   EQ0341, EQ0758, EQ0940, EQ1028 carry NO latex at all and show `---` rather
+   than (not rendered). They are counted here because "remaining rows without a
+   rendered cell" is 11, not 8, and the difference is exactly these. An empty
+   value is a different failure from an unrenderable one and the report already
+   distinguishes them.
+
+SUMMARY
+-------
+   was 31 -> now 8 markers (+4 empty-value rows shown as ---)
+   the 24 recovered were a defect in the extraction, not in the mathematics
+   of the 8 that remain: 5 are repairable with an environment wrap
+                         2 need re-OCR (hallucinated script)
+                         1 is malformed TeX at confidence 0.914

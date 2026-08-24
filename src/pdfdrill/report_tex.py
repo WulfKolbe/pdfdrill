@@ -707,17 +707,76 @@ def compile_fixpoint(tex_path: Path, max_iter: int = 6):
     return pages, nerr, len(demoted)
 
 
+#: 143 — the object kinds `--types` can select, and the row list each maps to
+TYPE_NAMES = ("equation", "formula", "table", "diagram")
+
+
+def parse_types(spec: "str | None") -> "set[str] | None":
+    """`--types equation,formula` -> {"equation","formula"}; None means all.
+
+    Unknown names raise rather than being ignored: a typo that silently selected
+    everything would produce a full-size report and look like the filter simply
+    had no matches.
+    """
+    if not spec:
+        return None
+    want = {t.strip().lower() for t in spec.split(",") if t.strip()}
+    bad = want - set(TYPE_NAMES)
+    if bad:
+        raise ValueError("unknown --types %s (known: %s)"
+                         % (", ".join(sorted(bad)), ", ".join(TYPE_NAMES)))
+    return want or None
+
+
+def _conf_ok(conf, lo, hi) -> bool:
+    """Does this row's confidence fall inside [lo, hi]?
+
+    A row with NO confidence value fails whenever a bound is given. It cannot be
+    shown to satisfy the filter, and including it would mean `--max-conf 0.5`
+    returned rows of unknown confidence alongside the doubted ones — which is
+    the opposite of what the flag is for. With no bounds it passes.
+    """
+    if lo is None and hi is None:
+        return True
+    try:
+        c = float(conf)
+    except (TypeError, ValueError):
+        return False
+    if lo is not None and c < lo:
+        return False
+    if hi is not None and c > hi:
+        return False
+    return True
+
+
 def build_report(tiddlers_path: Path, out: Path | None = None,
                  crops: Path | None = None, texzip: Path | None = None,
                  paper: str = "a4", landscape: bool = False,
-                 px2mm: float | None = None) -> dict:
+                 px2mm: float | None = None,
+                 min_conf: float | None = None, max_conf: float | None = None,
+                 types: "set[str] | None" = None) -> dict:
     """Generate report.tex; returns counts {equations, formulas, tables,
-    unrecovered, out}."""
+    unrecovered, out}.
+
+    143 — `min_conf`/`max_conf` bound the MathPix confidence column and `types`
+    selects object kinds. Both narrow the row set before any crop is sized, so a
+    filtered report is smaller on disk as well as shorter.
+    """
     import json
     path = Path(tiddlers_path)
     tiddlers = json.loads(path.read_text())
     bibkey = path.name.replace(".tiddlers.json", "")
     fo, eq, tab, dia = rows_for(tiddlers, bibkey)
+    if types is not None:
+        if "equation" not in types: eq = []
+        if "formula" not in types: fo = []
+        if "table" not in types: tab = []
+        if "diagram" not in types: dia = []
+    if min_conf is not None or max_conf is not None:
+        # confidence lives on EQ rows only (index 6); FO/TAB/DIA carry none, so
+        # a bounded run drops them rather than mixing unknowns in with doubted
+        eq = [r for r in eq if _conf_ok(r[6], min_conf, max_conf)]
+        fo, tab, dia = [], [], []
     dest = Path(out) if out else path.parent / "report.tex"
     crops = Path(crops).resolve() if crops else None
     out_dir = dest.resolve().parent

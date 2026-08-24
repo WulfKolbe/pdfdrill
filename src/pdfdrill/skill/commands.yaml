@@ -1405,6 +1405,21 @@ commands:
     flag: --no-images
     type: flag
     help: skip the CDN crop download / scan-image column
+  - name: min_conf
+    flag: --min-conf
+    type: str
+    help: 'only rows with MathPix confidence >= F (rows with NO confidence are dropped
+      when either bound is given)'
+  - name: max_conf
+    flag: --max-conf
+    type: str
+    help: 'only rows with MathPix confidence <= F (rows with NO confidence are dropped
+      when either bound is given)'
+  - name: types
+    flag: --types
+    type: str
+    help: 'comma-separated object kinds to include: equation, formula, table, diagram
+      (default all)'
   typed: true
 - name: report
   section: Introspection (fast, no extraction)
