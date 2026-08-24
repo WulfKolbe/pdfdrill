@@ -256,7 +256,7 @@ def col_widths(usable_mm: float, with_image: bool):
     return ident, page, conf, src, rest - src
 
 
-def table_open(caption: str, widths) -> str:
+def table_open(caption: str, widths, form: bool = False) -> str:
     cols = "|" + "|".join("p{%smm}" % w for w in widths) + "|"
     heads = {5: ("Identifier", "Page", "Conf.", "LaTeX source", "Rendered"),
              6: ("Identifier", "Page", "Conf.", "LaTeX source", "Rendered",
@@ -265,7 +265,8 @@ def table_open(caption: str, widths) -> str:
         "\\section*{%s}\n" % caption +
         "\\begin{longtable}{%s}\n\\hline\n" % cols +
         " & ".join("\\textbf{%s}" % h for h in heads) +
-        " \\\\\n\\hline\\endhead\n")
+        " \\\\\n\\hline\\endhead\n" +
+        legend_foot(widths, form))
 
 
 def has_bare_align_marker(lx: str) -> bool:
@@ -498,11 +499,34 @@ LEGEND_INK = (r"\textbf{Residual} render vs scan (inkdrill): "
 
 
 def legend(form: bool) -> str:
-    """The legend line(s) under a table. Both channels when --form is on."""
+    """The legend text. Both channels when --form is on.
+
+    `\\newline`, not `\\\\`, between the two lines: this goes inside a
+    \\multicolumn p-column as a longtable footer, where `\\\\` would end the
+    table ROW and split the legend across two rows.
+    """
     out = "{\\scriptsize " + LEGEND_CONF
     if form:
-        out += r" \\[-0.3ex] " + LEGEND_INK
-    return out + "}\n\n"
+        out += r" \newline " + LEGEND_INK
+    return out + "}"
+
+
+def legend_foot(widths, form: bool) -> str:
+    """The legend as \\endfoot AND \\endlastfoot, so it repeats on EVERY page.
+
+    It used to be emitted once after \\end{longtable}, which put it on whichever
+    page the table happened to finish on — page 26 of 26 for 0902.0431. A key
+    that appears only after the last row is not a key for the 25 pages before it.
+
+    Both hooks are needed and they are not interchangeable: \\endfoot is used on
+    every page EXCEPT the last, \\endlastfoot only on the last. Supplying one
+    alone leaves exactly the complementary set of pages bare.
+    """
+    n = len(widths)
+    span = sum(widths) - 4          # inside the column rules and \\tabcolsep
+    cell = "\\multicolumn{%d}{|p{%dmm}|}{%s}" % (n, span, legend(form))
+    return "%s \\\\ \\hline\n\\endfoot\n%s \\\\ \\hline\n\\endlastfoot\n" % (
+        cell, cell)
 
 
 def conf_cell(conf) -> str:
@@ -912,7 +936,7 @@ def build_report(tiddlers_path: Path, out: Path | None = None,
                      "%d unrecovered image regions.\n"
                      % (esc_text(bibkey), len(fo), len(eq), len(tab),
                         len(dia)))
-    out_parts.append(table_open("Display equations", eq_widths))
+    out_parts.append(table_open("Display equations", eq_widths, form))
     # 099: doubted rows first. Sorting by confidence ascending puts what
     # MathPix is least sure of at the top of the table, where a reader
     # checking the document looks first. Rows with no confidence value sort
@@ -926,14 +950,13 @@ def build_report(tiddlers_path: Path, out: Path | None = None,
                              residual=residual_colour(title, ink),
                              code=((ink or {}).get(title) or {}).get("code", "")))
     out_parts.append("\\end{longtable}\n")
-    out_parts.append(legend(form))
 
     # every section starts on a FRESH page: a page mixing the 5-column
     # equations table with the 4-column formulas table defeats per-page
     # column probes (inkdrill P16, the 11 short-equation docs)
     out_parts.append("\\clearpage\n")
     out_parts.append(table_open("Inline formulas (first occurrence)",
-                                fo_widths))
+                                fo_widths, form))
     for title, latex, page, punct in fo:
         out_parts.append(row(title, latex, page, punct=punct))
     out_parts.append("\\end{longtable}\n")

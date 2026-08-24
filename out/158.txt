@@ -1,0 +1,76 @@
+158 — the legend on every page (\endfoot + \endlastfoot)
+========================================================
+
+WHAT WAS WRONG
+--------------
+The legend was emitted AFTER \end{longtable}, so it appeared exactly once — on
+whichever page the table happened to finish on. For 0902.0431 that was page 26
+of 26. A reader on page 7 had a coloured square beside a coloured bullet and no
+key anywhere on the sheet.
+
+WHAT IT IS NOW
+--------------
+The legend is a \multicolumn footer row installed as BOTH hooks:
+
+   <legend row> \\ \hline
+   \endfoot
+   <legend row> \\ \hline
+   \endlastfoot
+
+Both are required and they are not interchangeable: \endfoot is used on every
+page EXCEPT the last, \endlastfoot only on the last. Supplying one alone leaves
+exactly the complementary set of pages bare.
+
+   endhead      2   (equations table, formulas table)
+   endfoot      2
+   endlastfoot  2
+
+One detail that had to change with the move: the two legend lines were joined
+by `\\`, which inside a \multicolumn cell ends the table ROW and would have
+split the legend across two rows. It is now `\newline`, which breaks a line
+inside a p-column.
+
+RESULT: 25 OF 27 PAGES
+----------------------
+   pages carrying the legend : 25
+   pages without             : 13 and 19
+   last page (27)            : YES — \endlastfoot fires correctly
+
+WHY TWO PAGES STILL HAVE NONE
+-----------------------------
+Not a missing hook. Both hooks are in the file and both work; pages 13 and 19
+are pages longtable had no room to place a foot on.
+
+Each holds exactly ONE row:
+
+   page 13   0902.0431_EQ0937   scan crop 1196x1111px -> 122 x 113 mm
+   page 19   0902.0431_EQ0941   scan crop 1220x1144px -> 122 x 114 mm
+
+Those are the two tallest crops in the report; the next largest is 69 mm. And
+the crop is not even the tall part — EQ0937's Rendered cell is a multi-line
+`aligned` block containing two 3x3 arrays and a column vector, set at natural
+size. Header + that row + footer exceeds the 261 mm text height of A3
+landscape, so longtable places the row alone and drops the foot.
+
+The compile log confirms it is a fit problem and not an error: 0 Overfull
+\vbox, no longtable warnings. LaTeX did what it was asked and there was nowhere
+to put the footer.
+
+WHY I HAVE NOT "FIXED" THOSE TWO
+---------------------------------
+The obvious remedy is to cap the crop height so no single row can consume a
+page. That would break something load-bearing: the crops are placed at
+PIXEL-EXACT original size via px2mm derived from pdfinfo and the lines.json,
+which is what makes the Scan column measurable against the Rendered column at
+all. Scaling a crop to fit a footer would silently invalidate the ink
+comparison for that row.
+
+Shrinking the legend would not reliably help either — the shortfall on these
+pages is the height of an entire multi-line equation, not the two lines of the
+key.
+
+So the honest state is: the legend repeats on every page where a footer can be
+placed, which is 25 of 27, and the two exceptions are pages occupied by a
+single row taller than the space a footer needs. If those two matter, the fix
+is to the ROW (split the rendered cell, or drop the crop to a linked thumbnail
+for oversized rows), not to the legend.
