@@ -1,76 +1,94 @@
-158 — the legend on every page (\endfoot + \endlastfoot)
-========================================================
+158 (revised) — four artefacts per document, reachable by URL
+=============================================================
 
-WHAT WAS WRONG
---------------
-The legend was emitted AFTER \end{longtable}, so it appeared exactly once — on
-whichever page the table happened to finish on. For 0902.0431 that was page 26
-of 26. A reader on page 7 had a coloured square beside a coloured bullet and no
-key anywhere on the sheet.
+ONE FULL URL PER FILE TYPE — rph8-g15q
+--------------------------------------
+   report.pdf
+     https://pdfdrill.github.io/reports/rph8-g15q/report.pdf
+     200   application/pdf   1,355,111 B
 
-WHAT IT IS NOW
---------------
-The legend is a \multicolumn footer row installed as BOTH hooks:
+   MathPix markdown, as readable text
+     https://pdfdrill.github.io/reports/rph8-g15q/rph8-g15q.md.txt
+     200   text/plain; charset=utf-8   166,937 B
 
-   <legend row> \\ \hline
-   \endfoot
-   <legend row> \\ \hline
-   \endlastfoot
+   MathPix markdown, canonical name
+     https://pdfdrill.github.io/reports/rph8-g15q/rph8-g15q.md
+     200   text/markdown; charset=utf-8   166,937 B
 
-Both are required and they are not interchangeable: \endfoot is used on every
-page EXCEPT the last, \endlastfoot only on the last. Supplying one alone leaves
-exactly the complementary set of pages bare.
+   inspect view
+     https://pdfdrill.github.io/reports/rph8-g15q/inspect.html
+     200   text/html; charset=utf-8   11,510,041 B
 
-   endhead      2   (equations table, formulas table)
-   endfoot      2
-   endlastfoot  2
+   residual measurements
+     https://pdfdrill.github.io/reports/rph8-g15q/report.ink.json
+     200   application/json; charset=utf-8   27,059 B
 
-One detail that had to change with the move: the two legend lines were joined
-by `\\`, which inside a \multicolumn cell ends the table ROW and would have
-split the legend across two rows. It is now `\newline`, which breaks a line
-inside a p-column.
+THE .md QUESTION — MEASURED, AND THE DUPLICATE IS NEEDED
+---------------------------------------------------------
+The task asked to confirm the markdown is served as readable text. It is not,
+under its own name:
 
-RESULT: 25 OF 27 PAGES
+   rph8-g15q.md       text/markdown; charset=utf-8
+   rph8-g15q.md.txt   text/plain; charset=utf-8
+
+GitHub Pages types by extension and offers text/markdown as a download rather
+than rendering it. There is no way to override the header on Pages — no
+_headers file, no per-path config — so the only options were to rename or to
+duplicate.
+
+Both are published. The canonical <bibkey>.md keeps the name the task asked
+for; the .md.txt is byte-identical and is what the index links, so a reader
+clicking "markdown" gets text in the browser and another chat fetching the URL
+gets text/plain. Confirmed by fetching it: the first line is
+"# Toward structure-preserving quantum encodings".
+
+ALL EIGHT ROWS RESOLVE
 ----------------------
-   pages carrying the legend : 25
-   pages without             : 13 and 19
-   last page (27)            : YES — \endlastfoot fires correctly
+   bibkey                        md.txt  inspect  ink.json
+   0902.0431                       200     200      404   (withdrawn)
+   1605.05775                      200     200      200
+   2106.07890                      200     200      200
+   2501.06662                      200     200      200
+   BradleyGastaldiTerilla2023      200     200      404   (refused)
+   bradley_spring22                200     200      200
+   pdf-dc99cf88                    200     200      200
+   rph8-g15q                       200     200      200
 
-WHY TWO PAGES STILL HAVE NONE
------------------------------
-Not a missing hook. Both hooks are in the file and both work; pages 13 and 19
-are pages longtable had no room to place a foot on.
+   The two 404s are correct: those documents have no valid residual
+   measurement, and their index cells link three artefacts rather than four.
 
-Each holds exactly ONE row:
+A STALE FILE CAUGHT BEFORE IT SHIPPED
+--------------------------------------
+BradleyGastaldiTerilla2023 REFUSED measurement and still had a report.ink.json
+on disk — 8 rows, one all-zero, from the superseded run. The refusal path in
+redo_ink.py `continue`s without writing, which leaves any earlier file in
+place: refusing to write is not the same as removing what is already there.
 
-   page 13   0902.0431_EQ0937   scan crop 1196x1111px -> 122 x 113 mm
-   page 19   0902.0431_EQ0941   scan crop 1220x1144px -> 122 x 114 mm
+Had this task copied "report.ink.json where it exists" without checking, that
+document would have shipped a mispaired residual file under a row that says
+"not measured". Quarantined as .REFUSED with a README, alongside
+0902.0431's .MISPAIRED.
 
-Those are the two tallest crops in the report; the next largest is 69 mm. And
-the crop is not even the tall part — EQ0937's Rendered cell is a multi-line
-`aligned` block containing two 3x3 arrays and a column vector, set at natural
-size. Header + that row + footer exceeds the 261 mm text height of A3
-landscape, so longtable places the row alone and drops the foot.
+WEIGHT
+------
+   reports/ 93 MB, of which inspect.html is 80 MB
+      0902.0431 33 MB, rph8-g15q 11 MB, the rest 4-7 MB each
 
-The compile log confirms it is a fit problem and not an error: 0 Overfull
-\vbox, no longtable warnings. LaTeX did what it was asked and there was nowhere
-to put the footer.
+Each inspect view is one self-contained page — every DocObject as a box over
+the rendered page plus a DOM-like tree — so the 33 MB one will be slow to open.
+Worth deciding whether that document wants an inspect link at all; the task
+asked for it and it is published, but the size is a property of the document,
+not of the format.
 
-WHY I HAVE NOT "FIXED" THOSE TWO
----------------------------------
-The obvious remedy is to cap the crop height so no single row can consume a
-page. That would break something load-bearing: the crops are placed at
-PIXEL-EXACT original size via px2mm derived from pdfinfo and the lines.json,
-which is what makes the Scan column measurable against the Rendered column at
-all. Scaling a crop to fit a footer would silently invalidate the ink
-comparison for that row.
+INDEX
+-----
+Each row's files cell now reads
 
-Shrinking the legend would not reliably help either — the shortfall on these
-pages is the height of an entire multi-line equation, not the two lines of the
-key.
+   report.pdf · markdown · inspect · ink.json
 
-So the honest state is: the legend repeats on every page where a footer can be
-placed, which is 25 of 27, and the two exceptions are pages occupied by a
-single row taller than the space a footer needs. If those two matter, the fix
-is to the ROW (split the rendered cell, or drop the crop to a linked thumbnail
-for oversized rows), not to the legend.
+in the existing markup and separator. Only the eight cells were touched: 8
+insertions, 8 deletions, one file. The restyle, legend, Residual cells and
+prose are unchanged.
+
+Published at ecdf11b, deploy green, content-types above measured from the live
+URLs rather than assumed.
