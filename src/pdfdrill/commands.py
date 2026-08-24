@@ -10,6 +10,8 @@ Every command:
 
 from __future__ import annotations
 
+import contextlib
+import contextvars
 import json
 import re
 import subprocess
@@ -101,7 +103,15 @@ def cmd_mathpix(pdf: Path) -> str:
 
     MathPix `lines.json` is the format the comparison pipeline needs: it pairs
     each recognized expression's LaTeX with the CDN image MathPix rendered.
+
+    159: refuses outright inside `no_paid_steps()`. This is the ONE network
+    boundary the --ensure guarantee depends on, so the check lives here rather
+    than at each of the ~45 places that can reach cmd_model.
     """
+    if paid_blocked():
+        return (f"mathpix NOT run for {pdf.name}: reached from an auto-inserted "
+                f"prerequisite, where paid steps never run. Run it explicitly:\n"
+                f"  pdfdrill mathpix {pdf.name}")
     from .mathpix_client import fetch_mathpix, upload_preflight, expected_outputs
     from .net import NetworkBlocked
 
@@ -781,6 +791,39 @@ def _stream_born_digital_lines(pdf: Path) -> "dict | None":
     return chars_to_lines.lines_json_streaming(pages(), source="pdfminer-chars")
 
 
+# --------------------------------------------------------------------------- #
+#  Paid-step guard (159)
+# --------------------------------------------------------------------------- #
+#: `--ensure` is documented to run the OFFLINE prerequisites and merely NAME the
+#: paid ones. planner.ensure enforces that by refusing any step listed as
+#: `network: true` — but the guarantee leaked one level down: `model` is not a
+#: paid step, and cmd_model calls cmd_mathpix directly when no lines.json exists
+#: ("1) MathPix if a key is present"). So `reporttex --ensure` on a document with
+#: no lines.json reached a paid call through an offline-looking prerequisite.
+#: Observed, not theorised: it bought 32 pages for bradley_spring22 on
+#: 2026-08-24 during a run whose whole point was to avoid spending.
+#:
+#: A parameter would have to thread through ~45 internal cmd_model call sites and
+#: would be wrong at any one of them. This is a process-wide flag instead: set
+#: once around the prerequisite run, checked once at the network boundary, so
+#: every depth of auto-chain beneath it is covered by construction.
+_NO_PAID = contextvars.ContextVar("pdfdrill_no_paid", default=False)
+
+
+@contextlib.contextmanager
+def no_paid_steps():
+    """Within this block, paid/network commands refuse instead of spending."""
+    tok = _NO_PAID.set(True)
+    try:
+        yield
+    finally:
+        _NO_PAID.reset(tok)
+
+
+def paid_blocked() -> bool:
+    return _NO_PAID.get()
+
+
 def _model_path(sc: Sidecar) -> Path:
     return sc.blob_dir / "model.docmodel.json"
 
@@ -918,7 +961,8 @@ def _resolve_tiddlers(pdf: Path, sc: "Sidecar", *, rebuild: bool = True,
     had = tid is not None
     if not rebuild:
         return tid, sc, ("tiddler array is older than the model" if had else "")
-    cmd_tiddlers(pdf)
+    with no_paid_steps():            # 159: an auto-chain must not buy OCR
+        cmd_tiddlers(pdf)
     sc = Sidecar(pdf)                # cmd_tiddlers saved its OWN sidecar
     tid = _tiddlers_path(pdf, sc)
     note = "Rebuilt the tiddler array: it was older than the model." if had else ""
@@ -938,10 +982,14 @@ def _fresh_docgraph(pdf: Path, sc: "Sidecar", model_path: Path):
     newer), so fast DocGraph commands (llmtext/mathcheck/classify/retrieve/
     identifiers/booktoc) never silently serve out-of-date content. Offline-safe:
     cmd_model only auto-runs offline steps. The model must already exist (the
-    caller guards absence)."""
+    caller guards absence).
+
+    159: the rebuild runs inside no_paid_steps(). A READ command silently
+    buying OCR is the same defect as --ensure doing it, one path over."""
     from . import model_io
     if _stale_or_absent(sc, model_path, _lines_json_path(pdf)):
-        cmd_model(pdf)
+        with no_paid_steps():
+            cmd_model(pdf)
     return model_io.load_docgraph(model_path)
 
 

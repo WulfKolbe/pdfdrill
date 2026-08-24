@@ -1,0 +1,93 @@
+159 — --ensure can no longer reach a paid step
+==============================================
+
+THE LEAK
+--------
+`--ensure` is documented to run the OFFLINE prerequisites and merely NAME the
+paid ones, and planner.ensure enforced that by refusing any step marked
+`network: true` in the manifest.
+
+The guarantee leaked one level down. `model` is offline in the manifest, but
+cmd_model calls cmd_mathpix directly when no lines.json exists:
+
+    # 1) MathPix if a key is present (best: page geometry + LaTeX + CDN crops)
+    try:
+        cmd_mathpix(pdf)
+
+So `reporttex --ensure` on a document with no lines.json reached a paid call
+through an offline-looking prerequisite. Not theorised — it bought 32 MathPix
+pages for bradley_spring22 on 2026-08-24, during a run whose stated purpose was
+to avoid spending. I reported that spend as accidental at the time; this is the
+fix.
+
+WHY NOT A PARAMETER
+-------------------
+The obvious fix is `cmd_model(..., allow_paid=False)`. There are ~45 internal
+call sites of cmd_model. A parameter has to be correct at every one of them,
+and a single omission restores the leak silently — the failure mode is a
+charge, not an error.
+
+Instead: ONE flag, set in ONE place, checked at ONE place.
+
+    commands.no_paid_steps()   context manager (contextvars, so nesting and
+                               exceptions restore correctly)
+    commands.paid_blocked()    the query
+    cmd_mathpix                refuses at the NETWORK BOUNDARY
+
+Because the check is at the boundary rather than at the callers, any depth of
+auto-chain beneath the guard is covered by construction. Nothing has to be
+remembered at the 45 sites.
+
+WHERE THE GUARD IS APPLIED
+--------------------------
+   planner.ensure          the whole prerequisite loop
+   _resolve_tiddlers       its cmd_tiddlers auto-chain
+   _fresh_docgraph         its read-path model rebuild
+
+The last two are not `--ensure` and were fixed anyway: `reporttex` without
+--ensure reaches cmd_mathpix via _resolve_tiddlers -> cmd_tiddlers ->
+cmd_model, and a READ command silently buying OCR is the same defect one path
+over. That is scope beyond the literal request and is stated here rather than
+made quietly.
+
+WHAT AN EXPLICIT CALL STILL DOES
+---------------------------------
+Unchanged. `pdfdrill mathpix <pdf>` runs and spends, because a named command is
+an instruction. The guard is only ever set around auto-inserted work.
+
+The refusal names the command that would do it:
+
+   mathpix NOT run for doc.pdf: reached from an auto-inserted prerequisite,
+   where paid steps never run. Run it explicitly:
+     pdfdrill mathpix doc.pdf
+
+VERIFIED END TO END
+-------------------
+A fresh copy of bradley_spring22.pdf (no lines.json), the exact case that
+charged 32 pages:
+
+   $ pdfdrill reporttex probe.pdf --ensure --compile
+   [ensure] reporttex requires mathpix — run `pdfdrill mathpix probe.pdf`
+            (network/paid; never auto-run)
+   [ensure] reporttex requires cdncrops — run `pdfdrill cdncrops probe.pdf`
+            (network/paid; never auto-run)
+   model_source: pdfminer-chars
+
+It fell through to the FREE born-digital route and produced a keyless
+pdfminer lines.json (378 KB). No MathPix artefacts were written; nothing was
+bought. The report it built is poor — 19 compile errors, 9 rows demoted —
+which is the honest consequence of the free route on a maths document, and
+exactly the signal that says "run mathpix if you want this one".
+
+TESTS  tests/test_no_paid_ensure.py (6)
+------
+   * off by default; set inside the block; restored after
+   * restored even when the block RAISES — a failed prerequisite must not
+     leave paid steps disabled for the rest of the process
+   * nesting restores to the outer state
+   * cmd_mathpix refuses without writing anything, and names the explicit
+     command
+   * planner.ensure applies the guard around its own loop, asserted by reading
+     its source — so the fix cannot be silently relocated to a caller
+
+2243 tests pass.

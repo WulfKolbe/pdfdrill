@@ -279,22 +279,30 @@ def ensure(target: str, pdf: Path, handlers: dict, pdf_arg: str,
     buries the result the user actually asked for. Pass `quiet=False` when
     debugging a chain (`pdfdrill steps` shows the plan without running it).
     """
+    from .commands import no_paid_steps
     steps, _ = resolve_steps(target, pdf)
     paid = network_commands(load_manifest())
     ran, blocked = [], []
-    for step in steps[:-1]:                   # everything except the target
-        if step in paid:
-            blocked.append(
-                f"{target} requires {step} — run `pdfdrill {step} "
-                f"{pdf.name}` (network/paid; never auto-run)")
-            continue
-        fn = handlers.get(step)
-        if fn is None:
-            continue
-        out = fn([pdf_arg])
-        if out and not quiet:
-            print(out)
-        ran.append(step)
+    # 159: refusing the paid STEPS is not enough. `model` is offline in the
+    # manifest but calls cmd_mathpix directly when no lines.json exists, so a
+    # paid call was reachable through an offline-looking prerequisite — it
+    # bought 32 pages for bradley_spring22 during a run meant to spend nothing.
+    # The guard wraps the whole prerequisite run, so any depth of auto-chain
+    # beneath it refuses too.
+    with no_paid_steps():
+        for step in steps[:-1]:               # everything except the target
+            if step in paid:
+                blocked.append(
+                    f"{target} requires {step} — run `pdfdrill {step} "
+                    f"{pdf.name}` (network/paid; never auto-run)")
+                continue
+            fn = handlers.get(step)
+            if fn is None:
+                continue
+            out = fn([pdf_arg])
+            if out and not quiet:
+                print(out)
+            ran.append(step)
     for msg in blocked:
         print(f"[ensure] {msg}", file=__import__("sys").stderr)
     return ran
