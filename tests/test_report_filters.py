@@ -87,3 +87,58 @@ def test_filtered_output_is_smaller_on_disk(tmp_path):
 
 if __name__ == "__main__":
     raise SystemExit(pytest.main([__file__, "-q"]))
+
+
+# --------------------------------------------- 180/181 legend + notes ---
+
+def test_legend_always_carries_the_confidence_bands():
+    """181: the bands apply whether or not residuals were measured."""
+    from pdfdrill import report_tex as rt
+    for form in (True, False):
+        assert "MathPix confidence" in rt.legend(form)
+
+
+def test_absent_residual_half_is_NAMED_not_silently_dropped():
+    """A key listing only what is present looks complete."""
+    from pdfdrill import report_tex as rt
+    assert "not shown for this document" in rt.legend(False)
+    assert "not shown for this document" not in rt.legend(True)
+
+
+def test_measured_legend_lists_the_residual_classes():
+    from pdfdrill import report_tex as rt
+    for cls in ("C component", "W weak", "S stable", "N noise", "K clean"):
+        assert cls in rt.legend(True)
+
+
+def test_unpairable_and_not_run_are_DIFFERENT_sentences():
+    """180: the given note asserts a cause. Claiming it for a document nobody
+    measured would state a reason that is not the reason."""
+    from pdfdrill import report_tex as rt
+    a, b = rt.unmeasured_note("unpairable"), rt.unmeasured_note("not_run")
+    assert a != b
+    assert "could not be read reliably enough" in a
+    assert "could not be read reliably enough" not in b
+    assert "no residual measurement has been run" in b.lower()
+
+
+def test_both_notes_say_what_the_reader_HAS():
+    from pdfdrill import report_tex as rt
+    for k in ("unpairable", "not_run"):
+        n = rt.unmeasured_note(k)
+        assert "MathPix confidence is shown" in n
+        assert "residual column is absent" in n
+
+
+def test_note_is_empty_when_residuals_are_present():
+    from pdfdrill import report_tex as rt
+    assert rt.unmeasured_note("") == ""
+
+
+def test_note_carries_no_internal_vocabulary():
+    """Reader-facing: no lattice, no coverage, no inkdrill, no row-pairing."""
+    from pdfdrill import report_tex as rt
+    for k in ("unpairable", "not_run"):
+        low = rt.unmeasured_note(k).lower()
+        for jargon in ("lattice", "coverage", "inkdrill", "enclosure", "0.015"):
+            assert jargon not in low

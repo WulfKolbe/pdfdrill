@@ -505,6 +505,40 @@ LEGEND_INK = (r"\textbf{Residual} render vs scan (inkdrill): "
               r"\textcolor{inkUnmeasured}{$\bullet$}\,not measured")
 
 
+#: 180 — the reader-facing note at the top of an unmeasured report. Reader
+#: facing means it says what the reader has and has not got, in words that do
+#: not require knowing what a lattice is. The technical cause belongs in the
+#: index tooltip, not here.
+UNMEASURED_NOTE = (
+    "Ink comparison not available for this document — the report's own table "
+    "could not be read reliably enough to pair residual measurements with "
+    "equations. MathPix confidence is shown; the residual column is absent.")
+
+#: The SAME sentence would be a false statement about a document nobody has
+#: measured: nothing failed to pair, because nothing was attempted. Asserting a
+#: cause the artefact cannot verify is the defect this whole sequence has been
+#: cataloguing, so the two states get two sentences.
+UNRUN_NOTE = (
+    "Ink comparison not available for this document — no residual measurement "
+    "has been run for it. MathPix confidence is shown; the residual column is "
+    "absent.")
+
+#: 181 — said, not silently omitted. A legend that lists only the confidence
+#: bands looks complete; a reader has no way to know a second column exists
+#: elsewhere and is missing here.
+LEGEND_NO_INK = (r"\textbf{Residual} not shown for this document — no residual "
+                 r"measurements are paired with these rows.")
+
+
+def unmeasured_note(kind: str = "unpairable") -> str:
+    """The top-of-report note. `kind`: 'unpairable' | 'not_run' | '' (none)."""
+    text = {"unpairable": UNMEASURED_NOTE, "not_run": UNRUN_NOTE}.get(kind, "")
+    if not text:
+        return ""
+    return ("\\begin{quote}\\small\\itshape\n%s\\end{quote}\n\\normalsize\n"
+            % esc_text(text))
+
+
 def legend(form: bool) -> str:
     """The legend text. Both channels when --form is on.
 
@@ -513,8 +547,11 @@ def legend(form: bool) -> str:
     table ROW and split the legend across two rows.
     """
     out = "{\\scriptsize " + LEGEND_CONF
-    if form:
-        out += r" \newline " + LEGEND_INK
+    # 181: the confidence bands ALWAYS apply, so the legend is always printed.
+    # When the residual half is absent it is named as absent rather than left
+    # out — the difference between "this report has one column" and "this
+    # report is missing a column" is not visible from an incomplete key.
+    out += r" \newline " + (LEGEND_INK if form else LEGEND_NO_INK)
     return out + "}"
 
 
@@ -889,7 +926,8 @@ def build_report(tiddlers_path: Path, out: Path | None = None,
                  px2mm: float | None = None,
                  min_conf: float | None = None, max_conf: float | None = None,
                  types: "set[str] | None" = None, form: bool = False,
-                 ink: "dict | None" = None, legend_on: bool = True) -> dict:
+                 ink: "dict | None" = None, legend_on: bool = True,
+                 ink_state: str = "") -> dict:
     """Generate report.tex; returns counts {equations, formulas, tables,
     unrecovered, out}.
 
@@ -943,6 +981,10 @@ def build_report(tiddlers_path: Path, out: Path | None = None,
                      "%d unrecovered image regions.\n"
                      % (esc_text(bibkey), len(fo), len(eq), len(tab),
                         len(dia)))
+    # 180: at the TOP, where a reader decides what they are looking at, not in
+    # a footer they reach after reading the table as if it were complete.
+    if not form:
+        out_parts.append(unmeasured_note(ink_state or "not_run"))
     out_parts.append(table_open("Display equations", eq_widths, form, legend_on))
     # 099: doubted rows first. Sorting by confidence ascending puts what
     # MathPix is least sure of at the top of the table, where a reader

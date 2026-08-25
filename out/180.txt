@@ -1,0 +1,73 @@
+180 — a reader-facing note on any unmeasured report
+==============================================================================
+SHIPPED
+At the top of every report built without residual measurements, before the
+table, in the words asked for:
+
+   Ink comparison not available for this document — the report's own table
+   could not be read reliably enough to pair residual measurements with
+   equations. MathPix confidence is shown; the residual column is absent.
+
+It sits directly under the document header, where a reader decides what they
+are looking at — not in a footer they reach after having already read the
+table as though it were complete.
+
+Verified on the rendered PDF rather than the source. Page 1 of 0902.0431's
+report now reads:
+
+   0902.0431 — formula report
+   0 inline formulas, 57 display equations, 0 tables, 0 unrecovered regions.
+   Ink comparison not available for this document — the report's own table
+   could not be read reliably enough to pair residual measurements with
+   equations. MathPix confidence is shown; the residual column is absent.
+
+THE ONE PLACE I DID NOT FOLLOW THE COPY EXACTLY, AND WHY
+------------------------------------------------------------------------------
+The sentence asserts a CAUSE: that the table could not be read reliably enough
+to pair. That is true of 0902.0431 and of BradleyGastaldiTerilla2023. It is
+FALSE of a document nobody has measured — nothing failed to pair there,
+because nothing was attempted, and the note would be telling a reader that a
+measurement was tried and defeated when none was ever run.
+
+That is the defect class this whole sequence has been about: an artefact
+stating a reason it cannot verify. So there are two sentences, and the report
+chooses between them from what is on disk rather than assuming:
+
+   report.ink.json.MISPAIRED / .REFUSED present   -> the note above, verbatim
+   no ink file of any kind                        -> "no residual measurement
+                                                      has been run for it"
+
+Both end identically — "MathPix confidence is shown; the residual column is
+absent" — because that half is what the reader HAS, and it is true either way.
+
+Checked against both real states:
+   0902.0431                    report.ink.json.MISPAIRED  -> unpairable note
+   BradleyGastaldiTerilla2023   report.ink.json.REFUSED    -> unpairable note
+   1206.0238                    no ink file                -> not-run note
+
+NO INTERNAL VOCABULARY ON THE PAGE
+------------------------------------------------------------------------------
+A test asserts the note contains none of: lattice, coverage, inkdrill,
+enclosure, 0.015. A reader does not need to know what a lattice is to
+understand that a column is missing and why it would matter.
+
+THE INDEX TOOLTIP — NOT DONE HERE, AND DELIBERATELY NOT
+------------------------------------------------------------------------------
+The technical reason belongs in the index tooltip, and reports/index.html is
+in pdfdrill.github.io, which another session owns and which now has a deploy
+gate asserting that the index and the artefacts agree. Editing it from here
+without telling them would trip their gate at best and silently contradict
+their table at worst.
+
+I have sent them the exact tooltip text to attach per document, and the fact
+that the on-page note now distinguishes the two states so the tooltip should
+too:
+
+   0902.0431   row coverage 0.015 on report pages 13 and 19 against a floor
+               of 0.5; the row could not be enclosed, so rows are missing and
+               nothing was compared
+   BGT2023     16 lattice rows detected for 8 equations; the pairing is 2:1
+               and undiagnosed
+   penev_A/B   no ink pass has been run
+
+That is theirs to land, in the same commit as any artefact it describes.

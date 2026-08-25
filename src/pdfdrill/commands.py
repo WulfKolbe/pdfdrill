@@ -13308,10 +13308,21 @@ def cmd_reporttex(pdf: Path, paper: str = "a3", landscape: bool = True,
     texzip = rt.find_texzip(pdf)
     want = rt.parse_types(types)
     ink_map = rt.load_ink(ink) if ink else None
+    # 180: which of the two unmeasured states this document is in, decided by
+    # what is on disk rather than assumed. A quarantined ink file means a
+    # measurement WAS attempted and could not be paired; no ink file at all
+    # means nobody has measured it. The note must not claim the first when the
+    # truth is the second.
+    ink_state = ""
+    if not ink:
+        quarantined = any((sc.blob_dir / n).exists() for n in
+                          ("report.ink.json.MISPAIRED", "report.ink.json.REFUSED"))
+        ink_state = "unpairable" if quarantined else "not_run"
     r = rt.build_report(tid, crops=crops, texzip=texzip, paper=paper,
                         landscape=landscape, px2mm=px2mm,
                         min_conf=min_conf, max_conf=max_conf, types=want,
-                        form=form, ink=ink_map, legend_on=legend)
+                        form=form, ink=ink_map, legend_on=legend,
+                        ink_state=ink_state)
     sc.set_evidence("reporttex_path",
                     str(Path(r["out"]).relative_to(pdf.parent)))
     lines = [f"Wrote {r['out']} — {r['equations']} display equations, "

@@ -1,0 +1,51 @@
+181 — the legend prints on every report
+==============================================================================
+SHIPPED
+The confidence bands always apply, so the legend is always printed. Where the
+residual half has nothing to describe, only that half is omitted, and its
+absence is stated:
+
+   measured    Conf. MathPix confidence: ■ ≥0.9  ■ 0.5–0.9  ■ <0.5  --- no value
+               Residual render vs scan (inkdrill): ● C component  ● W weak
+               ● S stable  ● N noise  ● K clean  ● not measured
+
+   unmeasured  Conf. MathPix confidence: ■ ≥0.9  ■ 0.5–0.9  ■ <0.5  --- no value
+               Residual not shown for this document — no residual measurements
+               are paired with these rows.
+
+WHY SAYING IT MATTERS MORE THAN OMITTING IT
+------------------------------------------------------------------------------
+The previous behaviour dropped the residual line silently when there was
+nothing to show. A key that lists only what is present LOOKS COMPLETE. A
+reader with one report in front of them has no way to know that a second
+column exists on other documents in the same collection and is missing from
+this one — the legend reads as "this report has one column", not as "this
+report is missing a column".
+
+Those are different statements and only one of them is true. This is the same
+shape as the seven documents whose legend promised a reading they did not
+carry, inverted: there the key over-claimed, here it under-claimed, and in
+both cases the reader could not tell from the page.
+
+BOTH FOOTER HOOKS ARE PRESERVED
+------------------------------------------------------------------------------
+The legend is emitted as \endfoot AND \endlastfoot, so it repeats on every
+page including the last — 138 established that one alone leaves exactly the
+complementary set of pages bare. Verified on the rebuilt 0902.0431 report:
+2 of each, and the confidence bands appear 5 times across the document.
+
+--no-legend IS UNCHANGED AND STILL NECESSARY
+------------------------------------------------------------------------------
+Worth stating because "print the legend on every report" and "--no-legend"
+look contradictory. They are not: --no-legend exists for the MEASUREMENT pass,
+not for reading. 158 established that the legend's \multicolumn footer is read
+by the ink lattice as a data row with empty Rendered/Scan cells, scoring a
+false "clean" and displacing the last real row on its page. The ink pass
+therefore measures a legend-free build and the reader always gets the legend
+one. No report anyone reads is built without it.
+
+TESTS
+   16 in tests/test_report_filters.py, including: the bands are present for
+   both states; the absent half is NAMED rather than dropped; the two notes
+   are different sentences; and neither note contains lattice, coverage,
+   inkdrill, enclosure or 0.015.
