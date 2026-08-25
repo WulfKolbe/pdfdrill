@@ -1,5 +1,39 @@
 184 — the population an ink-selected pass reaches and confidence cannot
 ==============================================================================
+*** THE SAMPLED FIGURES BELOW ARE RETRACTED. A CLEAN RE-RUN IS IN FLIGHT. ***
+
+Two sampling runs of this script were alive at the same time. They shared one
+work directory and wrote the same {doc}_{oid}.scan.png and .r.png paths, so
+each measured images the other was overwriting. Same seed, same sample, same
+code — and different answers:
+
+                     run 1     run 2 (the one reported below)
+   A measured          106       100
+   A p50                41        39
+   A p90               171       141
+   B measured           55        56
+   B p50                31        72        <-- 2.3x apart
+   B p90                73       295        <-- 4x apart
+   B above 50        21.8%     58.9%
+
+   A/B compile failures   3 / 52   in BOTH runs — identical.
+
+The compile counts agreed because xelatex decides those and does not read the
+shared PNGs. So every number that looked like a consistency check agreed, and
+every number that carried the finding diverged. That is the failure this file
+was written to describe, committed while writing it.
+
+EXHAUSTIVE COUNTS ARE UNAFFECTED and stand: 1,345 documents, 119,940
+equations, 80,594 at confidence >= 0.9, 1,840 failing width/env/CJK. Stage 1
+ran alone and touches no work directory.
+
+RETRACTED PENDING RE-MEASUREMENT: every percentage and every estimate derived
+from the samples — the 51% measurable, the 36% above floor, the ~937 and ~335,
+the clean p50/p90 floor of 39/141, and the 2.7% compile rate behind ~2,148.
+
+The re-run uses a per-run work directory and refuses a second concurrent run
+with an O_EXCL lock rather than trusting isolation.
+
 THE ANSWER
    ~335 equations, and the estimate has two large caveats that change what the
    number means. Both are below.
