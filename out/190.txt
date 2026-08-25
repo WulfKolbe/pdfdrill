@@ -1,0 +1,209 @@
+190 — the five real defects: the list for MathPix
+==============================================================================
+Five equations MathPix read wrongly, surviving every filter in out/187–189.
+All five are at high confidence — three at 1.000 — which is the point: MathPix
+reports no doubt about any of them.
+
+Each entry carries the bibkey, the identifier, the page, the confidence, the
+CDN crop of the scan MathPix itself produced, the LaTeX it emitted, and what
+the equation should read. The crop URL is included so the source image can be
+looked at directly rather than taken on my description.
+
+SUMMARY
+------------------------------------------------------------------------------
+   #  identifier                              page   conf     class
+   1  2103.01507_EQ0383                         88   1.000    CJK ideograph
+   2  Geometrodynamics…_EQ0857                 278   0.925    CJK ideograph
+   3  Introduction to Graph…_EQ0010             33   1.000    letter for digit
+   4  Introduction to Linear…_EQ0219           103   0.940    cells dropped
+   5  Numerical Linear Algebra…_EQ1052         359   0.936    cells merged
+   6  Numerical Linear Algebra…_EQ0722         257   0.954    row break (addendum)
+
+Two classes, and they are not equally serious. The two CJK ideographs are
+VISIBLE — any reader sees a Chinese character in an equation. The other four
+are INVISIBLE: they render as clean, plausible mathematics that is wrong, and
+nothing in the output says so. An `l` in an incidence matrix and a matrix with
+a missing entry both typeset perfectly.
+
+HOW THESE WERE FOUND, so the list can be trusted
+------------------------------------------------------------------------------
+Exhaustive over 1,345 documents and 119,940 equations, of which 80,594 are at
+confidence >= 0.9. Structural checks reduced that to 6 (out/187, out/188), and
+each of the 6 was classified by hand (out/189): 5 real, 1 a false positive of
+my own check. The sixth entry below was found separately, by verifying all 918
+rows the fix had CLEARED against each array's own declared column count.
+
+Confidence is MathPix's own value, taken from lines.json unmodified.
+
+1. A CJK ideograph in place of a symbol
+------------------------------------------------------------------------------
+   bibkey      2103.01507
+   identifier  2103.01507_EQ0383
+   object      obj_47f6742f83ae
+   page        88
+   confidence  1
+   scan crop   https://cdn.mathpix.com/cropped/81ff6df2-2368-4983-80a6-d9be0b85a83d-088.jpg?height=52&width=425&top_left_y=773&top_left_x=849
+
+   LaTeX as MathPix emitted it:
+     \partial^{Q} \text { 久 } \equiv\left(\partial^{Q} X, V, s \mid \partial^
+     {Q} X, G\right) .
+
+   THE DEFECT
+     U+4E45 (久) sits where an operator belongs. It is inside \text{}, so it
+     renders as a Chinese character in the middle of the expression.
+
+   WHAT IT SHOULD READ
+     The symbol on the page. 久 is not a mathematical character and no reading
+     of this equation makes it one.
+
+2. A second CJK ideograph, on an operator
+------------------------------------------------------------------------------
+   bibkey      Geometrodynamics of Gauge Fields On the Geometry of Yang-Mills and Gravitational Gauge Theories (Eckehard W. Mielke) (Z-Library)
+   identifier  Geometrodynamics of Gauge Fields On the Geometry of Yang-Mills and Gravitational Gauge Theories (Eckehard W. Mielke) (Z-Library)_EQ0857
+   object      obj_11c0d82d53bc
+   page        278
+   confidence  0.92533074086532
+   scan crop   https://cdn.mathpix.com/cropped/b173365e-9184-4902-bd66-732270e80db9-278.jpg?height=49&width=278&top_left_y=320&top_left_x=620
+
+   LaTeX as MathPix emitted it:
+     \left.\mathbf{匕}_{n} \mathscr{G}^{A} \cong n\right\rfloor\left(D \underl
+     ine{\tau}^{A}\right),
+
+   THE DEFECT
+     U+5315 (匕), set in \mathbf{}, subscripted by n and applied to a field.
+     The right-hand side is n⌟(Dτ^A) — an interior product.
+
+   WHAT IT SHOULD READ
+     Almost certainly the Lie derivative: \mathcal{L}_{n}\mathscr{G}^{A}.
+     The identity L_n = n⌟D + D(n⌟) is what the line is stating.
+
+3. A letter where a digit belongs
+------------------------------------------------------------------------------
+   bibkey      Introduction to Graph and Hypergraph Theory (Vitaly I. Voloshin) (Z-Library)
+   identifier  Introduction to Graph and Hypergraph Theory (Vitaly I. Voloshin) (Z-Library)_EQ0010
+   object      obj_1cb51413bb30
+   page        33
+   confidence  1
+   scan crop   https://cdn.mathpix.com/cropped/cde1d261-30b2-451d-a9dd-108d5796775a-033.jpg?height=197&width=686&top_left_y=1046&top_left_x=539
+
+   LaTeX as MathPix emitted it:
+     I(G)=\left(\begin{array}{rrrrrr} 1 & 1 & 0 & 0 & 0 & 0 \\ 0 & 0 & 1 & l 
+     & 0 & 0 \\ 0 & 0 & -1 & 0 & 1 & -1 \\ -1 & -1 & 0 & 0 & -1 & 1 \end{arra
+     y}\right) ;
+
+   THE DEFECT
+     Row 2 reads   0 & 0 & 1 & l & 0 & 0
+     The letter l (U+006C) in an incidence matrix whose every other entry is
+     0, 1 or -1. confidence 1.000.
+
+   WHAT IT SHOULD READ
+     0 & 0 & 1 & 1 & 0 & 0   — the digit 1.
+     An incidence matrix of a graph takes values in {0, 1, -1} only.
+
+4. Cells dropped from a row-reduction, and an arrow absorbed
+------------------------------------------------------------------------------
+   bibkey      Introduction to Linear and Matrix Algebra (Nathaniel Johnston) (Z-Library)
+   identifier  Introduction to Linear and Matrix Algebra (Nathaniel Johnston) (Z-Library)_EQ0219
+   object      obj_8be4be0c6b0d
+   page        103
+   confidence  0.9401762978953913
+   scan crop   https://cdn.mathpix.com/cropped/1f25197e-a740-46c8-b942-98e25b3c16c5-103.jpg?height=217&width=869&top_left_y=234&top_left_x=643
+
+   LaTeX as MathPix emitted it:
+     \rightarrow\left[\begin{array}{ccccc} 0 & 2 & -2 & 6 & -3 \\ \hline 0 & 
+     0 & -1 & 1 & -1 \\ 0 & 0 & \uparrow-1 & 1 & 0 \\ 0 & 0 & -2 & 2 & -1 \en
+     d{array}\right] \xrightarrow{\substack{R_{3}-R_{2} \\ R_{4}-2 R_{2}}}\le
+     ft[\begin{array}{ccc|cc} 0 & 2 & -2 & 6 & -3 \\ \hline 0 & 0 & -1 & 1 & 
+     -1 \\ 0 & 0 & 0 & 4 & 0 \\ 0 & 0 & 0 & 1 \\ 0 & 1 \end{array}\right]
+
+   THE DEFECT
+     TWO faults in one equation.
+     (a) first array:  0 & 0 & \uparrow-1 & 1 & 0
+         A pointer annotation from the page has been read INTO a cell.
+     (b) second array declares {ccc|cc} = 5 columns, and its last two rows are
+             0 & 0 & 0 & 1      (4 cells)
+             0 & 1              (2 cells)
+         Entries are missing, not merely misaligned.
+
+   WHAT IT SHOULD READ
+     (a) the cell is -1; the arrow is marginal annotation and not part of the
+         matrix.
+     (b) five entries per row, as the first three rows have.
+
+5. Two cells merged into one
+------------------------------------------------------------------------------
+   bibkey      Numerical Linear Algebra and Matrix Factorizations (Tom Lyche) (Z-Library)
+   identifier  Numerical Linear Algebra and Matrix Factorizations (Tom Lyche) (Z-Library)_EQ1052
+   object      obj_46048cdb37c4
+   page        359
+   confidence  0.9355781078338623
+   scan crop   https://cdn.mathpix.com/cropped/750c5f9d-6269-44fe-81e3-a3e4f5704d07-359.jpg?height=255&width=902&top_left_y=647&top_left_x=312
+
+   LaTeX as MathPix emitted it:
+     \begin{aligned} & \nabla f(x, y)=\left[\begin{array}{c} 2 x-y \\ -x+2 y 
+     \end{array}\right], \quad \nabla^{T} \boldsymbol{g}(x, y)=\left[\begin{a
+     rray}{cc} 2 x-y-x+2 y \\ 1 & -1 \end{array}\right], \\ & \boldsymbol{H} 
+     f(x, y)=\left[\begin{array}{cc} \frac{\partial^{2} f}{\partial x^{2}} & 
+     \frac{\partial^{2} f}{\partial x \partial y} \\ \frac{\partial^{2} f}{\p
+     artial y \partial x} & \frac{\partial^{2} f}{\partial y^{2}} \end{array}
+     \right]=\left[\begin{array}{rr} 2 & -1 \\ -1 & 2 \end{array}\right] . \e
+     …
+
+   THE DEFECT
+     \begin{array}{cc} 2 x-y-x+2 y \\ 1 & -1 \end{array}
+     The array declares 2 columns. Row 1 contains no & at all, so its two
+     entries have been run together into a single expression.
+
+   WHAT IT SHOULD READ
+     2 x-y & -x+2 y
+     The alignment tab between the two components of the gradient is missing.
+6. (ADDENDUM) A row break inside a list of basis vectors
+------------------------------------------------------------------------------
+   bibkey      Numerical Linear Algebra and Matrix Factorizations (Tom Lyche) (Z-Library)
+   identifier  Numerical Linear Algebra and Matrix Factorizations (Tom Lyche) (Z-Library)_EQ0722
+   object      obj_5400640e01d9
+   page        257
+   confidence  0.954057356406679
+   scan crop   https://cdn.mathpix.com/cropped/750c5f9d-6269-44fe-81e3-a3e4f5704d07-257.jpg?height=190&width=912&top_left_y=1915&top_left_x=307
+
+   LaTeX as MathPix emitted it:
+     \boldsymbol{P}_{4}=\left[\begin{array}{lll} \boldsymbol{e}_{1} & \boldsy
+     mbol{e}_{3} & \boldsymbol{e}_{2} \\ \boldsymbol{e}_{4} \end{array}\right
+     ]=\left[\begin{array}{llll} 1 & 0 & 0 & 0 \\ 0 & 0 & 1 & 0 \\ 0 & 1 & 0 
+     & 0 \\ 0 & 0 & 0 & 1 \end{array}\right] \quad \boldsymbol{F}_{4} \boldsy
+     mbol{P}_{4}=\left[\begin{array}{rr|rr} 1 & 1 & 1 & 1 \\ 1 & -1 & -i & i 
+     \\ \hline 1 & 1 & -1 & -1 \\ 1 & -1 & i & -i \end{array}\right],
+
+   THE DEFECT
+     \begin{array}{lll} e_1 & e_3 & e_2 \\ e_4 \end{array}
+     Declares 3 columns; row 2 holds one entry. e_4 was pushed onto a new row.
+     The equation's OWN right-hand side settles it: a 4x4 permutation matrix.
+
+   WHAT IT SHOULD READ
+     \begin{array}{llll} e_1 & e_3 & e_2 & e_4 \end{array}
+     One row of four basis vectors, matching the 4x4 matrix it equals.
+WHAT IS NOT ON THIS LIST, AND WHY
+------------------------------------------------------------------------------
+One survivor was excluded after inspection:
+
+   Lie Groups, Physics and Geometry (Robert Gilmore)_EQ0443   p135  conf 1.000
+   e^{r a^†} e^{δI} e^{l a} = [1 0 0; 0 1 r][1 0 δ; 0 1 0][1 l 0; 0 1 0; 0 0 1]
+
+My confusable-cell check flagged the `l`. It is wrong: r, δ and l are the
+three parameters of the group element, and they appear as matrix entries
+because that is exactly what the identity says. MathPix read it correctly.
+That is a defect in my check, not in their output, and sending it would waste
+their time and cost this list its credibility.
+
+SCOPE — what this list is and is not
+------------------------------------------------------------------------------
+It is every defect that survives the structural checks at confidence >= 0.9.
+It is NOT every defect MathPix made. The checks look for: unbalanced
+environments, non-uniform table widths, CJK characters, and a lone `l` in a
+numeric table. A wrong exponent, a transposed pair of digits, or a misread
+Greek letter passes all four and is invisible here.
+
+out/189 measured the reach of the narrowest of those checks: the letter-for-
+digit class has ONE member corpus-wide that this apparatus can see. Whether it
+has more that the apparatus cannot see is not established, and I would not
+claim otherwise.
