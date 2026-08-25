@@ -1,68 +1,104 @@
-186 — the floor of 7, restated against measurement
+186 — the floor of 7, restated against a POOLED measurement
 ==============================================================================
-*** LIMITATION FOUND AFTER WRITING — READ THIS FIRST ***
+Superseded version below the line. This head is the pooled result the earlier
+draft asked for and did not have: 9 documents, 632 clean conf >= 0.9 rows,
+measured with inkdrill compare on their own report pages. The earlier draft
+measured 0902.0431 alone, which out/066 shows is the corpus outlier.
 
-Every distribution below is measured on 0902.0431 ALONE, and out/066 shows
-that document is the corpus OUTLIER for this exact metric: it supplies 235 of
-the 725 flagged rows across 49 documents — 32% of all hits from one book.
-
-The corpus figure disagrees with mine sharply. out/066 measured 3,392 clean
-conf >= 0.9 rows across 49 documents and found 725 at ink >= 6, i.e. 21.4%.
-So corpus-wide roughly FOUR FIFTHS of clean rows sit BELOW the floor. On
-0902.0431 I measured the opposite: 91.4% ABOVE it.
-
-Both can be true — that is what an outlier is — but it means the conclusion
-below ("the floor never fires, NOISE_COMP_DELTA is the binding gate") is
-established for 0902.0431 and NOT established for the corpus. out/097's
-sensitivity on the 49-document population says the floor DOES bite there:
-floor 6 -> 724 flagged, floor 7 -> 591, a move of 18%.
-
-I generalised from one document, which is the same error as setting a floor on
-one document — the error this file was written to correct. The restatement
-needs the pooled measurement it recommends at the end, and until that lands
-the numbers below should be read as "0902.0431", not "the corpus".
-
-THE HEADLINE: THE FLOOR OF 7 IS NOT THE BINDING GATE. Changing it changes
-NOTHING. The threshold that decides almost every row is NOISE_COMP_DELTA = 2,
-and it is wrong by about a factor of ten.
-
-   conf >= 0.9 rows (n=105), classes under three different distance floors:
-
-      floor  7   K=0  N=4  W=0  S=0  C=101
-      floor 27   K=0  N=4  W=0  S=0  C=101
-      floor 96   K=0  N=4  W=0  S=0  C=101
-
-Identical. `flag_of` tests `comp_delta > 2` BEFORE it tests the distance, so
-101 of 105 rows are classified `component` and never reach the floor at all.
-The floor governs the 4 rows that survive the component test.
-
-FIRST, THE PREMISE — TWO INSTRUMENTS, AND I MEASURED THE RIGHT ONE
+THE FINDING SURVIVES THE CORRECTION. THE MAGNITUDES DO NOT.
 ------------------------------------------------------------------------------
-The task names the distribution p50 39 / p90 141. That is out/184's CROP ink
-distance — my own metric, |Δcomponents| + |Δholes| between a standalone render
-and a scan crop. The floor of 7 does not govern it; the floor of 7 lives in
-`fill_ink_fields.flag_of` and governs inkdrill's ROW-level five-tuple
-(components, holes, stacked, centred, offset) measured from a finished report
-page. Restating one against the other's distribution would be the exact
-category error this thread keeps finding.
+   POOLED, 632 rows          distance  p10 3   p50 17   p90 53   max 407
+                             comp delta        p50 8    p90 25   max 262
 
-So I measured the row metric on its own terms — 0902.0431 rebuilt at
---min-conf 0.9 --no-legend, 20 pages, 105 rows, one page refused by the
-coverage floor:
+   class counts, current settings vs a raised distance floor:
 
-   ROW metric, clean high-confidence rows (n=105)
-      distance        min 2   p10 9   p50 27   p90 96   max 324
-      component delta         p50 13  p90 39   max 131
-      rows at distance exactly 0:  0
+      floor  7, Δcomp 2    K=11  N=101  W=18  S=0  C=502
+      floor 53, Δcomp 2    K=11  N=118  W= 1  S=0  C=502     <- C UNCHANGED
 
-   CROP metric, clean high-confidence rows (n=100, out/184)
-      distance        min 0   p50 39   p90 141  max 638
+Raising the distance floor from 7 to the measured p90 of 53 moves NOT ONE ROW
+out of the component class. `flag_of` tests `comp_delta > 2` before it tests
+the distance, so 502 of 632 rows are decided before the floor is consulted.
 
-The two instruments agree on the thing that matters: a row nobody doubts sits
-at a distance in the tens, not below seven. 8.6% of clean rows fall at or
-below 7 on the row metric; on the crop metric it was 13%. The conclusion is
-the same whichever instrument is used, which is the strongest form this
-argument can take.
+That was the earlier draft's conclusion from one document and it holds on nine.
+What does not hold is the size of it: on 0902.0431 the component class took
+96.2% of clean rows; pooled it takes 79.4%. Bad, but not the near-constant
+function the outlier suggested.
+
+   floor  7, Δcomp 9 (the measured p90)   K=11  N=130  W=429  S=0  C=62
+   floor 53, Δcomp 9                      K=11  N=544  W= 15  S=0  C=62
+
+   population change at Δcomp 9:  C 502 -> 62   (-440 of 632 rows, -70%)
+
+ONE CLAIM FROM THE EARLIER DRAFT IS WITHDRAWN
+------------------------------------------------------------------------------
+I wrote that K (clean) is UNREACHABLE — 0 of 160 rows, and that an exact
+five-way tie cannot occur. Pooled, 11 of 632 rows (1.7%) sit at distance
+exactly 0. K is rare, not impossible, and I generalised an absence from the
+one document least likely to produce it.
+
+S (stable) does survive: 0 of 632 rows are scale-stable, on top of 0 of 160
+before. Across every row I have measured, nothing has ever earned S.
+
+WHERE THE FLOOR ACTUALLY CAME FROM — THE CATEGORY ERROR, LOCATED
+------------------------------------------------------------------------------
+out/066 measured 3,392 clean conf >= 0.9 rows across 49 documents and found
+21.4% at ink >= 6. My pooled figure is 19.9% at or BELOW 6. Those are not the
+same population read two ways; they are opposite.
+
+The reason is that they are two different comparisons wearing one word:
+
+   out/066 / out/052   MathPix's latex rendered STANDALONE at 400 dpi,
+                       against the scan crop of the page region.
+                       This is where 6 and 7 were derived.
+
+   fill_ink_fields     inkdrill compare on a REPORT PAGE at 200 dpi, taking
+                       the Rendered column cell against the Scan column cell
+                       through the row lattice.
+                       This is where 7 is APPLIED.
+
+Different renderer, different resolution, different framing, different
+segmentation. The floor was measured on one pipeline and is used to classify
+another, and the two disagree about four fifths of their rows — which is
+exactly the shape of every other finding this month, arrived at from the
+opposite direction.
+
+THE PER-DOCUMENT SPREAD, WHICH ARGUES AGAINST ANY GLOBAL FLOOR
+------------------------------------------------------------------------------
+   0707.4470       n= 51   p50  3.0   82.4% at or below 7
+   1407.4737       n= 32   p50  7.0   53.1%
+   1205.5935v1     n= 61   p50 14.0   27.9%
+   0806.1585       n=117   p50 16.0   18.8%
+   1411.5002       n= 57   p50 20.0   15.8%
+   0210081         n= 73   p50 20.0    9.6%
+   1205.3463v2     n=104   p50 17.5   10.6%
+   1603.04246v2    n= 67   p50 22.0   11.9%
+   1510.06699      n= 70   p50 30.0   11.4%
+   (0902.0431      n=105   p50 27.0    8.6%   — the outlier, for comparison)
+
+A tenfold spread in the fraction a fixed floor admits, 82.4% to 8.6%. One
+constant cannot serve that, and the document that produced the constant is not
+the document it is hardest on.
+
+WHAT I RECOMMEND, UNCHANGED IN DIRECTION AND NOW BACKED BY 632 ROWS
+------------------------------------------------------------------------------
+   1. The distance floor is not worth arguing about. 7 or 53, it moves no row.
+      Leave it at 7 and stop quoting it as the gate.
+   2. NOISE_COMP_DELTA = 2 is the gate. Its measured p90 on clean rows is 9.
+      Raising it to 9 moves 440 of 632 rows out of `component`.
+   3. Nothing should be changed without the pages session, because six
+      published documents carry these bullets and their deploy gate requires
+      the index and the artefact to move together.
+   4. Remove S from the legend or define it so a row can earn it.
+
+I have still not changed the constants. They are the auditor's, they are
+published, and this measurement — 9 documents, one corpus, one machine — is
+evidence for a conversation, not a licence to re-class someone else's artefact.
+
+==============================================================================
+BELOW: the earlier draft, measured on 0902.0431 alone. Kept because its
+reasoning is sound and its numbers are the outlier's, and because deleting a
+superseded measurement hides how the corrected one was reached.
+==============================================================================
 
 EVERY GATE USING THE FLOOR, AND WHAT IT DOES
 ------------------------------------------------------------------------------
