@@ -1,0 +1,66 @@
+<!-- 183: reader-facing description for pdfdrill.github.io/reports/index.html
+     Written from what the tool does. Drop in above the document table. -->
+<section class="what-this-is">
+  <h2>What the residual column measures</h2>
+
+  <p>
+    Each report pairs MathPix's reading of an equation with the scan it was
+    read from. <strong>inkdrill</strong> typesets that reading, renders it, and
+    compares the render against the scan crop by
+    <strong>connected components</strong> — the separate marks of ink each
+    image contains — and reports the difference between them.
+  </p>
+
+  <p>
+    A code such as <code>C|+4</code> reads: <em>component class, four more
+    marks in the scan than in the render</em>. The letter is the class of
+    difference; the signed number is how many marks the scan has that the
+    render does not (or, when negative, the other way round).
+  </p>
+
+  <table class="legend">
+    <tr><td><code>K</code></td><td>clean — the two images carry the same marks</td></tr>
+    <tr><td><code>N</code></td><td>noise — inside the measured noise band</td></tr>
+    <tr><td><code>W</code></td><td>weak — a difference that does not survive rescaling</td></tr>
+    <tr><td><code>S</code></td><td>stable — a difference that does survive rescaling</td></tr>
+    <tr><td><code>C</code></td><td>component — the mark counts differ beyond the noise band</td></tr>
+  </table>
+
+  <h3>A flag is not an error</h3>
+
+  <p>
+    <strong>A flag on an equation MathPix is confident about is usually a
+    rendering difference, not a reading error.</strong> Twenty flagged rows at
+    high confidence were examined by eye one at a time:
+    <strong>18 of 20 were purely typographic</strong>, one was typographic plus
+    a region overrun, and one was borderline. <em>Not one of the twenty carried
+    a symbol MathPix had got wrong.</em>
+  </p>
+
+  <p>
+    What the twenty actually disagreed about was how the mathematics is
+    <em>set</em>, not what it says: auto-sized delimiters against the page's
+    fixed-size parentheses (13 rows), trailing punctuation that lives in a
+    separate field and is omitted from the render by design (8),
+    <code>\bar</code> against a wider <code>\overline</code> (3),
+    <code>\frac</code> against <code>\dfrac</code> (2), an upright Φ set italic
+    on the page (2), and limits beside the integral sign rather than above it
+    (1).
+  </p>
+
+  <p>
+    So the residual column is best read as <em>“these two images differ, and by
+    how much”</em> — a place to look, not a verdict. It is most useful where the
+    confidence column is <em>also</em> low: a doubted reading that additionally
+    disagrees with its own scan is worth a human eye. A confident reading with a
+    residual flag is, on the evidence above, far more likely to be a
+    typesetting difference than a mistake.
+  </p>
+
+  <p class="caveat">
+    Where a document shows no residual column, the comparison was not available
+    for it — either no measurement has been run, or the report's own table could
+    not be read reliably enough to pair measurements with equations. The
+    confidence column is unaffected and still applies.
+  </p>
+</section>

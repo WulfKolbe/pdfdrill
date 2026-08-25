@@ -1,0 +1,80 @@
+183 — the reader-facing description for reports/index.html
+==============================================================================
+WRITTEN, AND WHERE IT IS
+   out/183/index-description.html — a drop-in <section> for the top of
+   pdfdrill.github.io/reports/index.html, above the document table.
+
+It is not installed. reports/index.html belongs to the pages session, which
+now runs a deploy gate asserting that the index and the artefacts agree;
+editing it from here would either trip that gate or silently contradict their
+table. The markup has been sent to them to land.
+
+WHAT IT SAYS, IN ONE PARAGRAPH
+------------------------------------------------------------------------------
+   Each report pairs MathPix's reading of an equation with the scan it was
+   read from. inkdrill typesets that reading, renders it, and compares the
+   render against the scan crop by CONNECTED COMPONENTS — the separate marks
+   of ink each image contains — and reports the difference between them.
+
+   C|+4 reads: component class, four more marks in the scan than in the
+   render. The letter is the class of difference; the signed number is how
+   many marks the scan has that the render does not.
+
+   K clean · N noise · W weak · S stable · C component
+
+THE CLAIM THE PAGE HAS TO MAKE, AND THE EVIDENCE UNDER IT
+------------------------------------------------------------------------------
+   A flag on an equation MathPix is confident about is usually a RENDERING
+   difference, not a reading error.
+
+That is out/119: twenty flagged rows at high confidence, examined by eye one
+at a time.
+
+   typographic                    18
+   typographic + region overrun    1
+   borderline content              1
+   unambiguous content             0
+
+   Not one of the twenty carried a symbol MathPix had got wrong.
+
+The description names what they actually disagreed about, because "18 of 20
+were typographic" is a number a reader has to take on trust while the list is
+something they can recognise on their own page:
+
+   delimiter auto-sizing   13   \left( \right) vs fixed-size parentheses
+   trailing punctuation     8   lives in a separate field, omitted by design
+   accent width             3   \bar vs the page's wider \overline
+   fraction style           2   \frac vs \dfrac / \tfrac
+   upright vs italic Phi    2
+   limit placement          1   \int_a^b beside the sign vs \int\limits
+
+WHY THE PAGE SAYS "A PLACE TO LOOK, NOT A VERDICT"
+------------------------------------------------------------------------------
+A residual column on a public page invites exactly one misreading — that a
+flagged row is a wrong row — and 18 of 20 says that misreading is wrong most
+of the time. The description therefore states what the number IS (two images
+differ, by this much) rather than what a reader would assume it implies, and
+points at where it earns its keep: a row that is BOTH doubted by MathPix and
+in disagreement with its own scan. A confident row with a flag is, on this
+evidence, far more likely to be typesetting.
+
+That is also the honest reading of the C|+4 sign convention: more marks in the
+scan than the render is what trailing punctuation and wider accents look like.
+The commonest cause of a positive component delta in the measured set is not a
+missing symbol, it is a symbol set differently.
+
+IT ALSO COVERS THE ABSENT CASE
+------------------------------------------------------------------------------
+The final paragraph matches the on-page note added in 180, in the same two
+states, so the index and the report cannot disagree with each other:
+
+   "either no measurement has been run, or the report's own table could not be
+    read reliably enough to pair measurements with equations. The confidence
+    column is unaffected and still applies."
+
+NO INTERNAL VOCABULARY
+------------------------------------------------------------------------------
+The description says "connected components — the separate marks of ink each
+image contains" and never says lattice, enclosure, five-tuple, row coverage or
+median-fill. A reader does not need any of that to understand what was
+compared with what.

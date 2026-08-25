@@ -1,0 +1,134 @@
+182 — one rule, two opposite failures
+==============================================================================
+THE RULE
+inkdrill's lattice defines a table row as a BAND OF ENCLOSED BACKGROUND —
+white space shut in by the rules around it. Rows are found by locating those
+enclosed regions and clustering them by height.
+
+Both failures follow from that one definition, in opposite directions:
+
+   0902.0431   a row that encloses NOTHING     -> no hole -> no row  (missing)
+   BGT2023     a cell that encloses TWICE      -> two holes -> two rows (extra)
+
+Content that fills its row is invisible to it; content that leaves gaps is
+counted twice. In one document real mathematics produces no signal, in the
+other empty paper produces one.
+
+UNDER-DETECTION — 0902.0431, report pages 13 and 19
+------------------------------------------------------------------------------
+   A: lattice 1 rows x 6 cols, row coverage 0.015 of the table region
+   "the detected rows cover less than half the table region, so rows are
+    MISSING. A missing row shifts every row after it onto the wrong equation,
+    which no downstream check can see. Nothing was compared."
+
+Row coverage 0.015 against a floor of 0.5, and against a measured minimum of
+0.892 across the other 24 pages of the same document. The row's content spans
+the region rule to rule, so there is no enclosed background left to find.
+
+This is inkdrill-2f's diagnosis (23eea02) and my re-measure confirms it holds:
+55 of 57 rows now pair EXACTLY, page for page, with the two failures refused by
+name rather than silently shifting every row after them (out/178 handover).
+
+OVER-DETECTION — BradleyGastaldiTerilla2023, report page 1
+------------------------------------------------------------------------------
+Reproduced with the same fixed inkdrill, on a --no-legend build so the 158
+legend-footer defect could not be confused with this one:
+
+   A: table region holes 64, lattice 17 rows x 6 cols, 62 hole-backed,
+      40 median-filled
+
+8 display equations + 1 header = 9 rows expected. 17 found. The structure is
+perfectly regular:
+
+   row  0  all six columns hole-backed   REAL (header)
+   row  1  all six columns hole-backed   REAL
+   row  2  ONLY column 1                 SPURIOUS
+   row  3  all six columns hole-backed   REAL
+   row  4  ONLY column 1                 SPURIOUS
+   … alternating to row 16
+
+   9 real rows, 8 spurious, one spurious after every equation. Exactly 2:1
+   minus the header — which is the "16 rows for 8 equations" originally
+   reported.
+
+EVERY spurious row is backed by column 1 ALONE:
+
+   row  2  column 1 (Page)  components 11  holes 0
+   row  4  column 1 (Page)  components 11  holes 0
+   row  6  column 1 (Page)  components 12  holes 0
+   …all eight identical in kind
+
+Column 1 is the Page column: 89 px wide at 200 dpi, holding a three-digit page
+number about 20 px tall. Measured directly off the raster, it carries 13
+isolated ink bands of ~20 px in a table 2,339 px tall. A short entry in a
+narrow tall cell leaves enclosed background above AND below it — two regions
+where the rule expects one — and the second clusters as a row of its own.
+
+WHY THIS DOCUMENT AND NOT THE OTHER
+------------------------------------------------------------------------------
+The obvious explanation — "narrow column, short entries" — is WRONG, and I
+tested it before believing it. 0902.0431's report has the same 6-column
+layout, the same 89 px Page column, the same short entries, and FEWER rows per
+page. If the mechanism were the column alone it would fail worse there.
+
+It does not fail at all:
+
+   0902.0431 p3:  lattice 3 rows x 6 cols, 18 hole-backed, 0 median-filled
+   BGT2023   p1:  lattice 17 rows x 6 cols, 62 hole-backed, 40 median-filled
+
+The difference is ROW-HEIGHT UNIFORMITY. Measured from the horizontal rules on
+each raster:
+
+   BGT2023 p1   body row bands  159, 81, 389, 282, 88, 84, 80, 81
+                min 80  max 389  median 86   spread 4.9x
+   0902.0431 p3 body row bands  652, 804
+                min 652  max 804  median 728  spread 1.2x
+
+BGT's rows differ by nearly five to one, with a median of 86 px. The
+background left above or below a 20 px page number in an 81 px band is roughly
+30 px — the same ORDER as a real row, so it clusters as one. 0902's rows are
+652–804 px and near-identical; the same leftover background is a fraction of a
+row and is absorbed rather than promoted.
+
+So the two documents do not differ in what the code does. They differ in
+whether a leftover fragment of background is comparable in size to a genuine
+row, and that is decided by how variable the row heights happen to be — which
+is decided by the tallest scan crop on the page.
+
+WHAT I HAVE NOT ESTABLISHED, AND WHOSE IT IS
+------------------------------------------------------------------------------
+I have not read inkdrill's clustering code and I am not going to infer its
+threshold from the outside. The exact rule that promotes a 30 px fragment to a
+row while absorbing a 300 px one is inkdrill-2f's, and the evidence above is
+what they need rather than a guess from me: eight spurious rows, all in column
+1, all with holes 0, alternating perfectly with the real ones, on a page whose
+row heights vary 4.9x against a document that does not fail and varies 1.2x.
+
+A defensible fix from that evidence would be the dual of the coverage floor
+they already added: a row backed by ONE column out of six is not a row. That
+would have caught all eight here without touching the 24 clean pages of
+0902.0431, where every detected row is backed by all six. I am offering that
+as an observation, not landing it in someone else's tool.
+
+A SECOND, INDEPENDENT REASON BGT2023 IS NOT MEASURABLE TODAY
+------------------------------------------------------------------------------
+Its report does not typeset completely:
+
+   GLYPHS DROPPED: xelatex discarded 1 character(s) and still wrote a PDF.
+   Missing character: There is no ⟼ (U+27FC). The report is missing symbols
+   with no visible trace — do not measure it.
+
+Even with a perfect lattice, comparing a render that is silently missing a
+glyph against a scan that has it would score a real difference as a
+transcription error. BGT2023 needs U+27FC added to report_tex._MATH_CMD or a
+fallback font BEFORE any measurement of it means anything.
+
+That is a defect in my code, not inkdrill's, and it is the one of the two I
+can fix. It is not fixed under this task because 182 asked why the lattice
+behaves as it does, and quietly widening the scope is how a report stops
+answering the question it was given.
+
+STATUS
+   0902.0431   unblocked, re-measured, 55/57 exact, 2 refused by name
+   BGT2023     still refused; its report.ink.json remains quarantined as
+               .REFUSED and has not moved.
