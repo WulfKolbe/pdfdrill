@@ -1,0 +1,54 @@
+176 — were 170–174 started at all?
+==============================================================================
+YES. All five were completed, and they are on origin at 1cfa955.
+
+Plainly, since the question is asked plainly: they were not merely started.
+The command exists, it ran end to end on 0902.0431, and the five reports are
+written, committed and pushed.
+
+   out/170.txt   9,460 B    select + propose
+   out/171.txt   3,695 B    validate
+   out/172.txt   4,947 B    measure + accept
+   out/173.txt   3,827 B    record + modeldiff
+   out/174.txt   9,151 B    reporttex --refined, the demonstration
+
+WHAT SHIPPED
+------------------------------------------------------------------------------
+   pdfdrill refine <pdf> [--max-conf F] [--limit N] [--stages ...]
+   pdfdrill reporttex <pdf> --refined     ->  refine.report.tex/.pdf
+
+   src/pdfdrill/refine.py        new, the six stages and the metric
+   134 commands in the manifest, skillsync in sync
+   suite 2,243 -> 2,298 passing (55 new tests)
+
+THE RUN, 0902.0431 --max-conf 0.5 --limit 20
+------------------------------------------------------------------------------
+   20 selected, 1 skipped by the ink gate
+   19 proposed (minimax-m3), 0 failures
+    6 rejected at validate — 3 compile, 2 identical, 1 width uniformity
+   13 measured, 0 unmeasurable
+    4 ACCEPTED, 9 rejected for no improvement
+   median delta −1.5 accepted, 0.0 across all measured
+    4 recorded; modeldiff 4 changed, 0 UNEVIDENCED
+
+WHY THE QUESTION WAS REASONABLE
+------------------------------------------------------------------------------
+Until 1cfa955 there was nothing on origin. Each task ended "Stop." and I
+stopped at the file write, so ten finished reports and a new command sat in an
+unpushed working tree. Anyone looking at the repository would have concluded
+the work had not been started, and would have been right to.
+
+So the honest answer has two halves: the work was done, and the evidence for
+it was not where anyone could see it. The second half was my error and it is
+recorded in out/175 rather than glossed.
+
+ONE RESULT THAT SHOULD NOT BE MISSED IN THE STATUS
+------------------------------------------------------------------------------
+EQ0515 — the row the loop was designed around — was NOT repaired. minimax-m3
+returned 439 characters for 439 and moved the ink 91 → 91. Rejected, delta 0.
+Its neighbour EQ0516 came back as a literal echo of the input.
+
+Grok's 232 → 11 on that row is inkdrill's ROW-level metric; my own re-measure
+puts it at 229 in those units. The acceptance gate refused a worthless
+proposal correctly, and it did not produce the repair. The four acceptances
+must not be read as implying otherwise.

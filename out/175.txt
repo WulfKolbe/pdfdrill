@@ -1,0 +1,62 @@
+175 — working-tree status
+==============================================================================
+WORKING TREE: CLEAN
+`git status --porcelain` returns nothing. There are no uncommitted files, no
+untracked files, and nothing to commit — the task asks me to commit anything
+complete, and there is nothing outstanding to commit.
+
+out/160.txt THROUGH out/164.txt: ALL FIVE EXIST ON DISK, ALL COMMITTED
+------------------------------------------------------------------------------
+   out/160.txt   6,132 B   02cd0d7
+   out/161.txt   3,121 B   02cd0d7
+   out/162.txt   4,185 B   02cd0d7
+   out/163.txt   4,206 B   02cd0d7
+   out/164.txt   6,083 B   02cd0d7
+
+COMMIT HASH
+------------------------------------------------------------------------------
+   02cd0d7   160-164: four answers, one of them a retraction
+   1cfa955   170-174: the refine loop — propose, verify by measurement, record
+
+HEAD is 1cfa955. Verified against the remote rather than trusting the push
+output:
+
+   git ls-remote origin eqblobs-and-gzip-tex  ->  1cfa955f89bd…
+   git rev-parse HEAD                         ->  1cfa955f89bd…
+
+Branch eqblobs-and-gzip-tex on https://github.com/WulfKolbe/pdfdrill.git.
+
+FULL FILE LIST IN THE TWO COMMITS
+------------------------------------------------------------------------------
+02cd0d7 — five files:
+   out/160.txt  out/161.txt  out/162.txt  out/163.txt  out/164.txt
+
+1cfa955 — thirteen files:
+   out/170.txt  out/171.txt  out/172.txt  out/173.txt  out/174.txt
+   src/pdfdrill/refine.py                    (new — the six stages)
+   tests/test_refine.py                      (new — 43 tests)
+   tests/test_report_refined.py              (new — 12 tests)
+   src/pdfdrill/commands.py                  (cmd_refine; reporttex --refined)
+   src/pdfdrill/cli.py                       (_do_refine; --refined; --no-legend)
+   src/pdfdrill/report_tex.py                (build_refined_report + palette)
+   .claude/skills/pdfdrill/commands.yaml     (refine registered)
+   .claude/skills/pdfdrill/SKILL.md          (generated)
+   src/pdfdrill/_help_generated.txt          (generated)
+   src/pdfdrill/skill/*                      (bundled copies)
+
+WHY THIS TASK EXISTS, WHICH IS THE PART WORTH RECORDING
+------------------------------------------------------------------------------
+Everything above was finished before this task was written. What was missing
+was the commit: tasks 160–164 and 170–174 each ended "Stop.", and I stopped
+after writing the file without committing. Ten reports and a new command sat
+in an unpushed working tree, so from the auditor's side the work did not
+exist — which is indistinguishable from not having been done.
+
+That is the same failure class this whole sequence has been cataloguing, in
+the one place I had not thought to look: an artefact that exists but is not
+reachable reads exactly like an artefact that was never produced. "Written to
+out/NNN.txt" was true and useless.
+
+The fix is not a guard, it is a habit: a report is delivered when it is
+pushed, not when it is written. Both commits are now on origin and verified
+there.

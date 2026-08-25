@@ -1,0 +1,118 @@
+177 — what geometry can an inline formula be given?
+==============================================================================
+ANSWER: A PARENT-LINE BOX, AND NOTHING NARROWER. NO FORMULA-SPECIFIC
+GEOMETRY EXISTS, AND NONE CAN BE DERIVED FROM ANY STORED FIELD.
+
+That closes the question rather than leaving it open, which is what was asked.
+
+WHAT IS AVAILABLE, AND FROM WHICH FIELD
+------------------------------------------------------------------------------
+Measured over 150 documents, 108,594 Formula objects:
+
+   Formula.props.region                                    0     (0.0%)
+   a `mathpix_lines` surface realization anchor      107,222    (98.7%)
+   that anchor's line payload has a `region`         107,222    (98.7%)
+   the realization carries `offset` and `length`     107,222    (98.7%)
+
+So the field is:
+
+   doc.stream("mathpix_lines").payload[ realization.start ]["region"]
+
+reached from the Formula's own surface realization. It is a MathPix
+page-image pixel box, in the same coordinate space as an Equation's region,
+and it needs the same per-page scaling to reach a raster (out/170: MathPix
+pages are 250 dpi, `rasterize` floors at 400, and 11 of 305 documents carry
+more than one page_width).
+
+Where geometry fusion has run there is also `_geom.x0_norm / x1_norm / y_norm`
+on the same line — normalised PDF-space coordinates for the LINE. Coverage is
+poor and quality is worse: present on 14,120 of 108,594 (13.0%), of which
+3,413 are `fallback`, and the match similarity has a median of 0.646. It is a
+second reading of the same line box, not a finer one.
+
+WHY THE LINE BOX IS NOT ENOUGH — THE NUMBER THAT DECIDES THIS
+------------------------------------------------------------------------------
+   formulas per parent line:  1 -> 18,571 lines
+                              2 ->  6,506
+                              3 ->  1,791
+                              4 ->    557
+                              5+ ->   1,103
+
+   formulas SHARING a line with at least one other:  88,651  (82.7%)
+
+Four inline formulas in five sit on a line with another one. Giving each of
+them the line's box does not locate them — it gives several different objects
+the same rectangle, which is not geometry, it is a claim that they are in the
+same place. For the 17.3% that are alone on their line, the box is real and
+correct, and that distinction is worth carrying rather than averaging away.
+
+WHY IT CANNOT BE NARROWED
+------------------------------------------------------------------------------
+The realization already knows WHERE in the line the formula sits — `offset`
+and `length` are a character span into the line's text, present on all 98.7%.
+Turning a character offset into an x-range needs per-character advance widths,
+and nothing stores them:
+
+  * MathPix text lines carry exactly these keys, and no word- or
+    character-level geometry among them:
+      cnt, column, confidence, confidence_rate, conversion_output, font_size,
+      id, is_handwritten, is_printed, line, parent_id, region, subtype, text,
+      text_display, type
+
+  * `cnt` is not a rescue. On text lines it is 4 points in 20,774 of 20,774
+    cases — an axis-aligned box, the same information as `region`.
+
+  * `*.lines.pdfminer-chars.bak.json` is named for characters but stores LINE
+    regions: keys id, region, text, text_display, type. No chars.
+
+  * `_geom` carries `x0_norm, x1_norm, y_norm, indent_norm, sim, fallback,
+    pdf_text` — all line-level.
+
+Proportional interpolation across the line is not an option and should not be
+offered as one. Text is not monospaced, and inline mathematics is set in a
+different family with different metrics from the prose around it, so the
+character offset is least proportional exactly where the formula is. It would
+produce a plausible box that is wrong by an unknown amount — the failure this
+corpus keeps producing, manufactured deliberately.
+
+WHAT WOULD ACTUALLY PRODUCE IT, AND WHAT IT WOULD COST
+------------------------------------------------------------------------------
+Per-character boxes DO exist upstream, briefly. `chars_to_lines.py` consumes
+pdfplumber chars with x0/y0/x1/y1 and aggregates them into lines; the chars
+are discarded and never persisted. Recovering formula-level geometry would
+mean keeping them and aligning the MathPix line text to the PDF text layer
+character by character.
+
+Two things make that harder than it sounds, and both are measured:
+
+  1. It is born-digital only. A scanned document has no text layer, and the
+     scanned books are where the inline-formula counts are largest.
+  2. The two texts do not align. `_geom` median similarity is 0.646, and
+     out/162 established that `_geom.pdf_text` is not merely lossy but
+     WORD-SCRAMBLED on affected lines, with C0 control characters where the
+     /ToUnicode map failed. Character-level alignment against that is not a
+     lookup, it is a research problem with a wrong answer available at every
+     step.
+
+An alternative exists and is honest about its cost: render the line, measure
+ink components with inkdrill, and assign the run of components covering the
+formula's character span. That is a real measurement rather than an
+interpolation, but it needs the same alignment to know WHICH components, so it
+moves the problem rather than solving it.
+
+CONCLUSION
+------------------------------------------------------------------------------
+An inline formula can be given its parent line's box, from
+`mathpix_lines.payload[anchor].region`, for 98.7% of them. That box is
+formula-specific for 17.3% and shared for 82.7%.
+
+Nothing in any stored field can narrow it further. The question is closed:
+there is no field to read, and the only routes to a real answer require
+re-extraction plus an alignment that the measured similarity says is not
+reliable.
+
+If a consumer needs inline-formula geometry, the correct move is to record
+what is true — the line box, flagged as shared where it is shared — rather
+than to synthesise a per-formula rectangle. A shared box labelled shared is
+usable. A synthesised box is indistinguishable from a measured one, and this
+is the third task in a row where that distinction was the whole finding.
