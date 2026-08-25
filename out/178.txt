@@ -91,15 +91,35 @@ That distinction matters for what to do next: the gate is not the bottleneck.
 
 ONE THING THE CONTROL EXPOSED ABOUT THE SELECT STAGE
 ------------------------------------------------------------------------------
-EQ0526 carries MathPix confidence 1.0 and is genuinely defective — nine cells
-in an eight-column array is not a subtle error. `--max-conf 0.5` would never
-have selected it, and no confidence threshold would: MathPix reports no doubt
-at all about it.
+CORRECTION, added later. The paragraph that stood here said EQ0526 "carries
+MathPix confidence 1.0 and is genuinely defective — nine cells in an
+eight-column array". That is a MISATTRIBUTION and it is wrong.
 
-The ink gate WOULD have caught it. Its baseline crop ink distance is 38
-against a scan of 21 components, on a row nobody would have looked at. So the
-selector currently filters on the one signal that is blind here, and the
-signal that is not blind is only consulted afterwards.
+The nine-cells-in-eight-columns defect belongs to GROK'S PROPOSAL for EQ0526,
+which is what this task rejected. MathPix's own reading of EQ0526 passes all
+four structural checks — width uniformity, environment balance, CJK, and a
+standalone xelatex compile — verified directly. I read a defect off the
+proposal and wrote it down as a property of the equation.
+
+What IS true of EQ0526, and is the finding worth keeping:
+
+   MathPix confidence   1.0
+   crop ink baseline     38   (scan 21 components / 6 holes,
+                               render 56 components / 9 holes)
+   structural checks     ALL PASS
+
+Its scan crop carries ink across only x 264..795 of 1244 px while the render
+spans 16..1233 — the render puts roughly three times the ink density on the
+page that the scan region contains. Something disagrees badly, at a confidence
+of 1.0, with nothing structurally wrong to find.
+
+The ink gate WOULD have flagged it: baseline 38 on a row nobody would have
+looked at, because `--max-conf 0.5` cannot reach a row MathPix reports no
+doubt about. So the selector filters on the one signal that is blind here, and
+the signal that is not blind is only consulted afterwards.
+
+That point survives the correction above intact — it never depended on the
+equation being structurally malformed, only on it being confidently wrong.
 
 That is a real finding about the design and I am not fixing it under this
 task: selecting by measured ink rather than by reported confidence is a

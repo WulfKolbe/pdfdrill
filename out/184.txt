@@ -1,0 +1,141 @@
+184 — the population an ink-selected pass reaches and confidence cannot
+==============================================================================
+THE ANSWER
+   ~335 equations, and the estimate has two large caveats that change what the
+   number means. Both are below.
+
+   conf >= 0.9 equations, corpus-wide                       80,594   exhaustive
+   ... failing width uniformity / env balance / CJK          1,840   exhaustive
+   ... of those, ink-MEASURABLE at all              (51%)     ~937   sampled
+   ... AND above the measured noise floor           (36%)     ~335   sampled
+
+   separately: compile-only failures, est. 2.7% of 78,753   ~2,148   sampled
+   ... of which ink-measurable                                   0   by construction
+
+Populations: 1,345 documents, 119,940 equations, of which 80,594 (67.2%) carry
+confidence >= 0.9. The two exhaustive lines are counted over every one of them.
+The percentages are from two random samples of 110 each, seed 184, drawn from
+the 78,753 clean and 1,840 failing equations that have a region and non-empty
+LaTeX (i.e. are measurable in principle).
+
+FIRST CAVEAT — COMPILE AND INK ARE MUTUALLY EXCLUSIVE
+------------------------------------------------------------------------------
+The question asks for equations that fail a structural check AND have an ink
+baseline. For the compile check those two conditions cannot both hold.
+
+An ink baseline is the distance between a RENDER of MathPix's reading and the
+scan crop. If the reading does not compile there is no render, so there is no
+baseline. Measured: 52 of the 110 sampled structural failures (47%) do not
+compile, and every one of them is unmeasurable for that reason.
+
+So "fails compile AND ink above the floor" is an empty set, not a small one,
+and the ~2,148 compile-only failures estimated above are reachable by neither
+selector — not by confidence, which reports no doubt, and not by ink, which
+has nothing to measure. They are a third population and they need a third
+detector, which is just "try to compile it": cheap, exhaustive, and not
+currently run anywhere in the pipeline.
+
+SECOND CAVEAT — THE NOISE FLOOR IS NOT 7, AND THIS IS THE REAL FINDING
+------------------------------------------------------------------------------
+I measured the baseline distribution of the CLEAN population before using any
+threshold, and it is nothing like the row-metric's floor:
+
+   conf >= 0.9, passes every structural check, n=100 measured
+      ink d   min 0   p50 39   p75 75   p90 141   p95 166   max 638
+      above 7: 87 of 100
+
+Eighty-seven percent of structurally clean, high-confidence equations sit
+above inkdrill's noise floor of 7. That floor belongs to inkdrill's ROW-level
+five-tuple measured from a finished report page; applying it to my crop ink
+distance would flag seven equations in eight as suspect, and out/119 already
+established what those flags are: 18 of 20 examined by eye were purely
+typographic, 0 of 20 carried a symbol MathPix got wrong.
+
+So the honest floor for this metric is empirical, and I have taken it from the
+clean population itself rather than borrowing one: p90 = 141, the level
+exceeded by one clean equation in ten. Against that floor:
+
+   structural failures above 141   20 of 56 measured   35.7%
+   clean rows above 141            10 of 100           10.0%   (by construction)
+
+The separation is real — 3.6x — but it is a separation between distributions,
+not a clean cut. At any threshold that catches most defects, most of what it
+catches is typography.
+
+WHAT THE TWO POPULATIONS ACTUALLY LOOK LIKE
+------------------------------------------------------------------------------
+                              A: structurally clean    B: structurally failing
+   sampled                            110                      110
+   compile failures                     3   (2.7%)              52  (47.3%)
+   ink-measurable                     100                       56
+   blank reference / no crop            7                        2
+   ink p50                             39                       72
+   ink p90                            141                      295
+   ink max                            638                      522
+
+Failing a structural check raises the median ink baseline from 39 to 72 and
+the p90 from 141 to 295. That is a real signal. It is also, at 47%, far more
+likely to mean "this does not compile" than "this reads wrongly".
+
+EQ0526 IS NOT IN THIS POPULATION, AND MY OWN OUT/178 IS WHY IT LOOKED LIKE IT
+------------------------------------------------------------------------------
+The task names EQ0526 as an example. It is not one, and the error is mine.
+
+out/178 said EQ0526 "carries MathPix confidence 1.0 and is genuinely defective
+— nine cells in an eight-column array". The nine-cells defect belongs to
+GROK'S PROPOSAL for EQ0526, which that task rejected. MathPix's own reading of
+EQ0526 passes all four structural checks, including a clean standalone xelatex
+compile — verified directly. I read a defect off a proposal and recorded it as
+a property of the equation. out/178 is corrected in place.
+
+What is true of EQ0526 is a sharper case than the one I claimed:
+
+   MathPix confidence   1.0
+   structural checks    ALL PASS
+   crop ink baseline    38   (scan 21 components / 6 holes,
+                              render 56 components / 9 holes)
+   its scan crop carries ink across x 264..795 of 1244 px; the render spans
+   16..1233 — three times the ink density of the region it claims to transcribe
+
+So EQ0526 belongs to a FOURTH population: high confidence, structurally clean,
+and in substantial disagreement with its own scan. That is harder for
+confidence selection than a malformed equation, not easier — there is nothing
+to find by reading the LaTeX at all. But at a baseline of 38 it sits below the
+clean p50 of 39, so an ink selector using the measured floor would not reach
+it either.
+
+That is worth stating plainly rather than dressing up: on the evidence I have,
+neither selector reaches EQ0526, and I do not have a threshold that separates
+it from ordinary typographic disagreement.
+
+WHAT THIS SAYS ABOUT ink-SELECTED REFINE
+------------------------------------------------------------------------------
+The claim in out/178 was that an ink-selected pass reaches a population a
+confidence-selected one cannot. That survives, but smaller and differently
+shaped than it looked:
+
+   reachable by ink selection and not by confidence   ~335   (est.)
+   reachable by NEITHER, needing only a compile     ~2,148   (est.)
+
+The larger and cheaper win is not ink selection at all. It is that ~2,148
+equations at confidence >= 0.9 do not compile, nothing in the pipeline
+currently tries to compile them, and finding them costs one xelatex run each
+with no API calls and no rendering comparison.
+
+I am not building that under this task. 184 asked for a count and this is the
+count; proposing a selector is a different decision with a different cost, and
+widening the scope is how a report stops answering the question it was given.
+
+METHOD, SO THE NUMBERS CAN BE CHECKED
+------------------------------------------------------------------------------
+   stage 1  every model, every Equation with confidence >= 0.9, checked against
+            changereq.check_uniform_widths, env_balance.env_defect and
+            report_tex.cjk_defect. Exhaustive: 1,345 documents.
+   stage 2  two samples of 110, seed 184, each measured end to end — scan crop
+            at the page's own MathPix width, standalone xelatex render, two
+            inkdrill runs, crop ink distance. render_latex IS the compile, so
+            the compile rate falls out of the same pass.
+
+   Skips are counted, not dropped: 7 of A and 2 of B could not be measured
+   (6 blank references, 2 no crop, 1 other) and are excluded from the ink
+   percentages rather than treated as zeros.
