@@ -1,0 +1,72 @@
+171 — refine: the validate stage
+==============================================================================
+THE FOUR CHECKS, CHEAPEST FIRST
+------------------------------------------------------------------------------
+   1  width uniformity      changereq.check_uniform_widths
+   2  environment balance   env_balance.env_defect
+   3  CJK                   report_tex.cjk_defect
+   4  standalone compile    xelatex, preview/standalone, --halt-on-error
+
+All four already existed and are reused rather than reimplemented: 105 built
+the width validator, 145 the environment-balance flagger, 128 the CJK/IDC
+validator. Only the compile is new here.
+
+Two further rejections fall out of the same pass and are counted with them:
+an EMPTY reply, and a proposal IDENTICAL to the original. Neither is a defect
+in the maths, but both are proposals that must not proceed — an identical value
+would be "accepted" downstream on a tie and recorded as a change that changes
+nothing.
+
+REJECTION COUNT BY REASON — 0902.0431, 19 proposals
+------------------------------------------------------------------------------
+   passed                                13
+   rejected                               6
+
+      3   standalone compile
+      2   identical to the original
+      1   width uniformity
+      0   environment balance
+      0   CJK
+
+WHY COMPILE IS LAST AND NOT FIRST
+------------------------------------------------------------------------------
+It is the only check that costs a subprocess, but that is the smaller reason.
+The real one is that a malformed table COMPILES. LaTeX will set a row with four
+entries beside one with six and produce a clean page; nothing in the output
+says the transcription lost a cell. Compiling first would pass exactly the
+defect the width check exists to catch, and would do it while looking like a
+successful validation.
+
+So the structural checks run first and a value that fails one never reaches
+xelatex. There is a test asserting that ordering — it hands the validator a
+ragged table together with an unwritable work directory, and requires the
+reason to come back "width uniformity" rather than a compile error.
+
+WHAT THE THREE COMPILE FAILURES WERE
+------------------------------------------------------------------------------
+Not exotic. The model emitted LaTeX that does not stand alone: undefined
+control sequences and an alignment used outside any environment that provides
+one. Those are precisely the values that would otherwise reach the formula
+report and be demoted there — one document-level fixpoint later, with the row
+already in the table.
+
+Catching them here costs one xelatex run per proposal and keeps a broken value
+out of the model entirely, rather than out of one projection of it.
+
+WHAT A REJECTION LOOKS LIKE IN changes.json
+------------------------------------------------------------------------------
+   "status": "rejected",
+   "reason": "width uniformity",
+   "reason_detail": "6 rows; widths {6: 30, 5: 1} (modal 6); non-uniform at row(s) 4"
+
+The reason is the short, countable string; the detail names the offending rows.
+A rejected proposal is KEPT in the file — it is not deleted and not overwritten.
+The refined report shows rejected rows alongside accepted ones for the same
+reason: the question a reader has is what was tried and what happened to it,
+not only what changed. A report showing accepted rows alone would answer a
+different question while looking like it answered this one.
+
+TESTS
+   16 tests cover this stage: one per rejection reason, one asserting the
+   structural-before-compile ordering, and one asserting that a clean value
+   passes with work=None so the three cheap checks stand on their own.

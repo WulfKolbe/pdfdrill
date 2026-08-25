@@ -1,0 +1,174 @@
+170 — refine: the select and propose stages
+==============================================================================
+COMMAND
+  pdfdrill refine <pdf> [--max-conf F] [--limit N] [--stages a,b]
+                        [--model M] [--author A] [--dpi N]
+
+New module `src/pdfdrill/refine.py`; `cmd_refine` in commands.py; handler and
+manifest entry (134 commands, skillsync green). State lives in `changes.json`
+beside the model, so stages run separately and re-run without duplicating work.
+
+RUN — 0902.0431, --max-conf 0.5 --limit 20 --stages select,propose
+------------------------------------------------------------------------------
+   rows selected                        20   (57 exist at conf <= 0.5)
+   skipped by the ink gate               1
+   kept                                 19
+   proposals written                    19   (0 failed)
+
+Every proposal carries, as asked:
+
+   "status": "proposed", "basis": "inferred", "author": "minimax-m3"
+
+plus id, page, confidence, field, the original value, the scan signature and
+the baseline ink distance — so the later stages need nothing but this file.
+
+WHAT THE INK GATE IS, AND WHY IT IS NOT A CONFIDENCE THRESHOLD
+------------------------------------------------------------------------------
+Selection by confidence alone would spend a paid call on rows that are already
+right. MathPix's confidence is its doubt about its own reading; it is not a
+measurement of whether the reading is wrong.
+
+So each candidate is measured as it stands: render the CURRENT LaTeX, crop the
+scan under the object's region, and take the distance between them. A row whose
+render already matches the scan topologically has nothing for a proposal to fix
+and is dropped — asking a model to rewrite a correct value can only make it
+worse.
+
+One row of the 20 was dropped that way (distance 0). That is the gate paying
+for itself: one call not made, and one correct value not put at risk.
+
+A row that cannot be measured is dropped too, WITH its reason, and is counted
+separately from a clean one. An unmeasurable row must never be recorded as a
+clean row — that is the "absence that looks like a result" this sequence keeps
+producing, and here it would have read as "nothing to fix".
+
+A row whose CURRENT value does not compile is kept, not dropped: it is measured
+as absent ink, which is a real baseline of its own and the strongest possible
+case for a proposal.
+
+THE METRIC — NAMED, BECAUSE IT IS OURS
+------------------------------------------------------------------------------
+   crop ink distance = |Δcomponents| + |Δholes|
+
+Both terms are TOPOLOGICAL and therefore scale-free, which matters because a
+standalone render and a 400-dpi page crop are never the same size. Area is
+deliberately excluded: it would report a difference for a CORRECT transcription
+merely set at a different size.
+
+This is NOT inkdrill's residual class. That is a row-level five-tuple measured
+from a finished PDF by inkdrill's own `compare`.
+
+CORRECTION. I first wrote here that this build of inkdrill has no `compare`
+subcommand. That is false, and it was false when I wrote it — `compare` has
+been present since well before this build. I ran the top-level `--help`, saw a
+single-positional parser with no subcommand list, and read its silence as
+absence. A parser that does not advertise subcommands cannot tell you it has
+none; the check could not have shown presence, so it was not evidence. One
+`compare --help` would have settled it.
+
+The decision to define a separate metric stands, but for a different and
+narrower reason, and one that is only visible by running the thing: `compare`
+compares two columns of a RULED TABLE and builds its lattice from ink regions
+with >= 2 holes. Handed a standalone equation render and a scan crop it answers
+"no cells (no ink region with >= 2 holes -- no table on this page)", which is
+correct — there is no table. The row-level metric is a report-page instrument
+and cannot measure a bare crop.
+
+So: right decision, false justification, corrected here rather than quietly.
+
+TWO MEASUREMENT BUGS FOUND BY BUILDING IT
+------------------------------------------------------------------------------
+1. MathPix regions are in ITS page-image pixels — 2125 px for a 612 pt page,
+   i.e. 250 dpi — and `pdf_reading.rasterize` will not go below 400. Cropping
+   with unscaled coordinates lands on the wrong part of the page, and the crop
+   still looks like a plausible piece of a maths page. Every coordinate is now
+   scaled by (raster width / MathPix page width).
+
+2. inkdrill reads ghostscript png16m only. A Pillow greyscale crop is refused
+   at the IHDR, and if that error is swallowed the row reads as "no ink" — a
+   failed measurement wearing the costume of a measured zero. Crops are written
+   RGB, and `--dpi` is passed only when the PNG declares no pHYs (inkdrill
+   REFUSES the flag when it does, and REQUIRES it when it does not).
+
+TWO MORE INPUT ASSERTIONS, ADDED AFTER THE FACT
+------------------------------------------------------------------------------
+Both found by applying one rule to my own code: the input worth asserting is
+the one your OWN upstream guarantees, because that guarantee is what breaks
+silently. Neither changes any count in out/174 — both were latent.
+
+1. PAGE WIDTH IS READ PER PAGE, NOT ONCE.
+   `mathpix_page_widths` returned the FIRST page_width it found and applied it
+   to the whole document. Measured across 305 corpus documents, 11 carry more
+   than one — 020066_1_online has 2066 and 2125 in the same file, 07165428 has
+   2066 and 2067. On those, the crop for a page of the other size is scaled
+   wrong and still looks like a plausible piece of a maths page. It is the same
+   defect as not scaling at all, just rarer, and rarer is worse: it would have
+   been found by a wrong answer rather than by a broken one.
+
+   A page with no recorded width is now ABSENT from the mapping rather than
+   defaulted, so the row is skipped with that reason instead of cropped
+   wrongly. `scan_crop` also refuses before rasterizing — without a width the
+   400-dpi Ghostscript run has no possible outcome but None.
+
+2. A STRANDED OBJECT ID IS NOT "NOTHING TO RECORD".
+   changes.json holds object ids; out/160 established that ids do NOT survive
+   a from-scratch rebuild. A rebuild between accept and record therefore
+   strands every accepted proposal — and the record stage reported
+   "nothing accepted to record", which is an empty success over four accepted,
+   measured, verified proposals.
+
+   Demonstrated rather than asserted, on a copy with the ids corrupted:
+
+     record: 0 of 4 accepted proposal(s) recorded — their objects are not in
+     the model. Object ids do not survive a from-scratch rebuild; re-run
+     `refine --stages select` against the current model.
+       stranded: obj_STALEe0945f, obj_STALEab2cb1, obj_STALEa8e055, …
+
+3. THE FIELD NAMES I READ OUT OF ANOTHER SESSION'S TOOL.
+   The metric parses inkdrill's JSON for `ink.components` and `ink.holes`.
+   inkdrill belongs to a different session. Nobody owns that agreement: it
+   cannot assert it, because it does not know who consumes its output, and it
+   was never asserted here, because it was never produced here.
+
+   If `holes` is renamed, the parse contributes 0 for every glyph. HALF THE
+   METRIC disappears, every distance becomes a confident wrong number, and
+   nothing anywhere errors:
+
+     current schema   {'components': 10, 'holes': 20}
+     holes renamed    {'components': 10, 'holes':  0}   <- silent
+
+   Now asserted on key PRESENCE, which is the distinction that matters: a page
+   of genuinely hole-free glyphs carries "holes": 0, while a renamed field
+   carries no such key. Glyphs present but a key absent raises InkUnavailable
+   naming the missing field and listing the keys actually seen. Verified
+   against live inkdrill output — 495 components, 49 holes, passes.
+
+THE PROPOSER IS A REASONING MODEL, AND THAT IS THE WHOLE COST STORY
+------------------------------------------------------------------------------
+minimax-m3 spends completion tokens thinking before it emits a character.
+Measured on one 672-character root table from this document:
+
+   max_tokens   finish_reason   completion tokens   content
+      4,000        length             4,000         none
+     16,000        length            16,000         none
+     40,000        stop              36,810         680 chars, 243 s
+
+It reasoned 93,495 characters about a 672-character equation. The first two
+rows are why the first attempt reported "3 failed / empty reply": the model had
+not declined, it had run out of budget before speaking. `finish_reason` was the
+only evidence, and the shared chat helper returns the content string alone — so
+the stage now has its own transport that can tell those two apart, and says
+which one happened.
+
+Disabling thinking via chat_template_kwargs={"thinking": false} does NOT work
+on this endpoint: still 8,170 characters of reasoning, still no content.
+
+So the budget is paid (40,000) and the calls overlap four at a time. 19 rows
+took 7m38s wall clock; sequentially that would have been well over an hour.
+
+Each reply is now persisted to changes.json AS IT LANDS. Writing only at the
+end of the stage meant a timeout would discard every reply already bought — a
+paid stage that can run twenty minutes must not be all-or-nothing.
+
+COST
+   19 proposals, 0 failures, ~7.5 minutes, one paid model call per row.

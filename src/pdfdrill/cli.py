@@ -1017,6 +1017,22 @@ def _do_crossref(args):
                         k=int(kk) if kk else 10)
 
 
+def _do_refine(args):
+    """pdfdrill refine <pdf> [--max-conf F] [--limit N] [--stages a,b] [--model M]"""
+    from .commands import cmd_refine
+    mx, args = _opt(args, "--max-conf")
+    lim, args = _opt(args, "--limit")
+    stages, args = _opt(args, "--stages")
+    mdl, args = _opt(args, "--model")
+    dpi, args = _opt(args, "--dpi")
+    author, args = _opt(args, "--author")
+    return cmd_refine(_pdf(args),
+                      max_conf=float(mx) if mx is not None else 0.5,
+                      limit=int(lim) if lim is not None else None,
+                      stages=stages, model=mdl, author=author,
+                      dpi=int(dpi) if dpi is not None else None)
+
+
 def _do_modeldiff(args):
     """pdfdrill modeldiff <old.docmodel.json> <new.docmodel.json>"""
     from .commands import cmd_modeldiff
@@ -1055,14 +1071,17 @@ def _do_reporttex(args):
     types, args = _opt(args, "--types")
     ink, args = _opt(args, "--ink")
     pdf_args = [a for a in args if a not in ("--compile", "--no-images",
-                                             "--portrait", "--form")]
+                                             "--portrait", "--form",
+                                             "--no-legend", "--refined")]
     return cmd_reporttex(_pdf(pdf_args), paper=paper or "a3",
                          landscape="--portrait" not in args,
                          compile_pdf="--compile" in args,
                          images="--no-images" not in args,
                          min_conf=float(lo) if lo is not None else None,
                          max_conf=float(hi) if hi is not None else None,
-                         types=types, form="--form" in args, ink=ink)
+                         types=types, form="--form" in args, ink=ink,
+                         legend="--no-legend" not in args,
+                         refined="--refined" in args)
 
 
 def _do_report(args):
@@ -2033,6 +2052,7 @@ HANDLERS = {
         "latexnorm": _do_latexnorm,
         "trailingpunct": _do_trailingpunct,
         "modeldiff": _do_modeldiff,
+        "refine": _do_refine,
         "crossref": _do_crossref,
         "cdncrops": _do_cdncrops,
         "standalone": _do_standalone,

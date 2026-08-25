@@ -1,0 +1,95 @@
+172 — refine: measure and accept
+==============================================================================
+WHAT THE STAGE DOES
+Render each surviving proposal standalone, crop the scan under the object's
+region, measure both with inkdrill, and accept only when the crop ink distance
+FALLS. A tie is not an acceptance.
+
+RESULT — 0902.0431, 13 proposals surviving validation
+------------------------------------------------------------------------------
+   measured                              13   (0 unmeasurable)
+   accepted                               4
+   rejected — no improvement              9
+
+   median delta, accepted rows        -1.5
+   median delta, all measured rows     0.0
+
+Both medians are given because they answer different questions. -1.5 is how
+much the accepted rows improved. 0.0 is what the stage was up against: the
+median proposal changed the ink distance by nothing at all.
+
+THE FOUR ACCEPTED ROWS
+------------------------------------------------------------------------------
+   object                page   conf     ink before -> after   delta
+   obj_c10501e0945f       70    0.0818        2 ->   0          -2
+   obj_ad5deeab2cb1      153    0.1023      233 -> 232          -1
+   obj_8d934fa8e055      189    0.1075      382 -> 364         -18
+   obj_a805a455f611      125    0.1195      398 -> 397          -1
+
+obj_c10501e0945f reaches 0: the refined render is topologically identical to
+the scan crop. obj_8d934fa8e055 is the substantive one, -18.
+
+Two of the four move by 1. That is honest and it is small — a single component
+either way. I would not defend those two as improvements on their own evidence;
+what defends them is that the metric is directional and they moved the right
+way, and that the alternative rule (require a minimum delta) is a threshold
+nobody has measured. Recording them with their before/after visible is better
+than either accepting them silently or inventing a floor.
+
+THE FULL DISTRIBUTION OF DELTAS
+------------------------------------------------------------------------------
+   -18  -2  -1  -1  |  0  0  0  |  +1  +3  +12  +15  +21  +50
+
+Four fall, three tie, six rise. Six of thirteen proposals from a model that
+passed every structural check would have made the value WORSE, one of them by
+50. That is the number the whole stage exists for.
+
+WHY THIS GATE IS THE POINT OF THE COMMAND
+------------------------------------------------------------------------------
+On the 3-row pilot run all three proposals passed all four structural checks
+and all three were rejected here: the model had shortened 439 -> 206 and
+1566 -> 1220 characters, quietly dropping rows from tables of root
+coefficients, and the ink distance rose (+47, +50, 0).
+
+A validate-only pipeline accepts all three. They are well-formed LaTeX, they
+compile, their tables are uniform, and they are SHORTER and cleaner-looking
+than the originals — which is exactly what a plausible wrong answer looks like.
+The only thing that catches them is rendering the proposal and looking at how
+much ink it puts on the page next to the scan.
+
+That is the difference between "a model said this is better" and "this is
+measurably closer to the document".
+
+UNMEASURABLE ROWS
+   0 here, but they are counted separately and never silently accepted. A row
+   that could not be rendered, or whose crop could not be taken, records a
+   `measure_error` and keeps status "proposed" — it does not become an
+   acceptance by default and does not become a rejection either. It is
+   unfinished, and the file says so.
+
+A BLANK REFERENCE IS NOT A MEASUREMENT
+------------------------------------------------------------------------------
+Added after the pages session found a guard of their own that reported success
+having inspected zero files. The same shape was in this stage, and it was worse
+than useless — it inverted the metric.
+
+A scan crop with no ink components is what EVERY crop bug looks like: a region
+scaled wrong, a crop off the page, a blank strip, an image inkdrill read and
+found nothing in. Measured against it:
+
+   scan blank, original renders 40 glyphs  ->  ink_before = 45
+   scan blank, proposal renders 12 glyphs  ->  ink_after  = 13
+   accepted, delta -32
+
+The gate rewards the proposal for deleting content, and rewards the emptiest
+proposal most. Blank against blank is worse: distance 0, which the ink gate
+reads as "the render already matches the scan" and skips as needing no work.
+
+So zero ink in the REFERENCE is now refused and the row is reported as
+unmeasurable rather than measured, in both the gate and the measure stage.
+
+This changes none of the counts above: all 19 proposals had a measurable scan
+reference, the smallest carrying 98 ink components. The defect was latent here
+and would have surfaced the first time a region was wrong — which is precisely
+the bug I had already fixed once in this build, when unscaled MathPix
+coordinates were cropping the wrong part of the page.

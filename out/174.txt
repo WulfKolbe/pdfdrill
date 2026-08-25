@@ -1,0 +1,174 @@
+174 — reporttex --refined, and the whole flow on 0902.0431
+==============================================================================
+THE FLAG
+  pdfdrill reporttex <pdf> --refined [--compile] [--paper a3] [--portrait]
+
+Builds refine.report.tex — one row per refined object:
+
+   Identifier | Page | Conf. | Ink before | Ink after | Verdict
+
+Read from changes.json, not from the model. That is deliberate: the model holds
+only the ACCEPTED rows, so a report drawn from it would silently answer "what
+changed" while appearing to answer "what was tried". The rejected rows are the
+more informative half.
+
+It needs no tiddlers and no crops, so it short-circuits before the projection
+chain the formula report requires, and compiles in one pass.
+
+THE FOUR COUNTS — --max-conf 0.5 --limit 20, all six stages
+------------------------------------------------------------------------------
+   selected                              20      (57 exist at conf <= 0.5)
+     skipped by the ink gate              1      render already matched the scan
+   proposed                              19      0 failures
+   rejected at validate                   6      3 compile, 2 identical, 1 width
+   measured                              13      0 unmeasurable
+   ACCEPTED                               4
+   rejected — no improvement              9
+   recorded                               4
+
+   median ink delta, accepted         -1.5
+   median ink delta, all measured      0.0
+
+Four counts as asked: 20 selected, 19 proposed, 4 accepted, 15 rejected
+(6 at validate + 9 at accept).
+
+EQ0515 — THE ROW THE LOOP WAS DESIGNED AROUND
+------------------------------------------------------------------------------
+It is in the run, it is in the report, and the loop did NOT repair it.
+
+   0902.0431_EQ0515   obj_dedd3734e03a   page 85   conf 0.0020
+   the worst-confidence equation in the document; the root-coefficient table
+
+   validate   passed all four checks
+   measure    crop ink 91 -> 91
+   accept     REJECTED, "no improvement", delta 0
+
+minimax-m3 returned 439 characters for 439 characters. Not the input verbatim —
+it changed something, or the identical-to-original check would have caught it —
+but nothing that moved a single ink component. The gate did its job and refused
+a proposal that achieved nothing; the proposer is what failed on this row.
+
+For contrast, on the immediately adjacent row:
+
+   0902.0431_EQ0516   conf 0.0405   proposal returned the input VERBATIM,
+                                    rejected at validate as identical
+
+So of the two rows on page 85 that this loop exists for, one proposal was a
+no-op and the other was a literal echo.
+
+GROK'S 232 -> 11 IS A DIFFERENT NUMBER IN A DIFFERENT INSTRUMENT
+------------------------------------------------------------------------------
+The reconstruction that took EQ0515 from 232 to 11 was measured with inkdrill's
+ROW-level five-tuple on a formula-report page. This loop reports 91 -> 91 in
+the CROP ink distance, which is components+holes between a standalone render
+and the scan crop. They are not the same scale and not comparable, and my
+re-measure of the published report puts EQ0515's row-level distance at 229 —
+which is the number in the same units as 232.
+
+So the honest statement is: on the row-level metric this row sits at ~229–232,
+Grok's reconstruction took it to 11, and minimax-m3 under this loop moved it by
+nothing at all. The loop is not the thing that failed here — the acceptance
+gate correctly refused a worthless proposal — but it also did not produce the
+repair, and it would be wrong to let the four acceptances imply otherwise.
+
+ROWS ARE LABELLED BY IDENTIFIER, NOT OBJECT ID
+------------------------------------------------------------------------------
+The first version of this report printed `obj_dedd3734e03a`. Nothing else in
+the corpus is keyed that way — the formula report, the tiddlers, out/128 and
+the auditor's own notes all say `0902.0431_EQ0515` — so the report was
+unsearchable against every other artefact, and the row everyone wanted to find
+was the one nobody could.
+
+Now both are recorded: the object id remains the key in changes.json, because
+it survives a projection change, and the identifier is what the report prints.
+
+The identifier comes from `tiddlywiki.math_titles`, which its own docstring
+calls the authoritative numbering. I first re-derived it here instead, and it
+drifted immediately: I enumerated from 0 where the projector counts from 1, so
+every row was renamed by one place and EQ0515 pointed at its neighbour. The
+delegation is not tidiness, it is the fix.
+
+REPORT SIZE
+------------------------------------------------------------------------------
+   refine.report.tex       7,236 B
+   refine.report.pdf      40,961 B     1 page, A3 landscape, 0 errors
+   changes.json           45,587 B
+
+The state file is larger than the report it produces, which is the right way
+round: it keeps every original, every proposal, every rejection reason and
+every measurement, and the report is a view of it.
+
+THE VERDICT COLUMN HAS ITS OWN COLOURS, AND SAYS SO
+------------------------------------------------------------------------------
+The first version drew verdict bullets in the residual palette — inkComponent
+red for accepted, inkWeak orange for rejected. That was wrong, and it is worth
+recording why rather than just fixing it.
+
+The formula report's legend defines C/W/S/N/K once, for the whole table, in
+terms of inkdrill's row-level five-tuple. A red bullet on a published page
+already MEANS something there. Putting a refine verdict in that colour hands a
+reader a bullet the standing legend defines as something else, with nothing on
+the page to say which instrument produced it. Two numbers, one vocabulary, no
+way to tell them apart — the same shape as a legend promising a reading the
+document does not carry.
+
+So the refined report now defines verdictAccepted / verdictRejected /
+verdictPending, and carries its own legend block naming the metric:
+
+   METRIC — CROP INK DISTANCE. L1 between the standalone render of a value and
+   the scan crop under its region, over components and topological holes. Both
+   scale-free. It FALLS as the render moves toward the scan.
+
+   THIS IS NOT THE RESIDUAL CLASS. The formula report's C/W/S/N/K is
+   inkdrill's row-level five-tuple measured from the finished PDF. Different
+   instrument, different question. The two numbers are not comparable and must
+   not be merged.
+
+THE NAME IS refine.report.*, NOT report.refined.*
+------------------------------------------------------------------------------
+It was report.refined.* until the pages session globbed the folder instead of
+taking my description of it. `report.*` in a document folder sweeps TWELVE
+files, not the two I named: the formula report and its aux/log/out, two TSVs
+belonging to other tools, report-crops, and report.ink.json.MISPAIRED — the
+quarantined file whose entire purpose is that it must never be republished.
+
+Quarantine by rename protects a file from being picked by NAME. It does not
+protect it from a glob. So the refined report was moved out of that namespace
+entirely: a name that cannot collide beats a name that must be remembered.
+The pages side independently added an allowlist at the deploy gate, tested
+against three files that should fail rather than only the happy path.
+
+An unmeasured row prints "---", never 0. 0 is a real distance and means
+identical; an absent measurement must not wear its costume.
+
+WHAT SHIPPED ACROSS 170–174
+------------------------------------------------------------------------------
+   src/pdfdrill/refine.py            new — six stages, the metric, the gate
+   commands.py                       cmd_refine; --refined branch in reporttex
+   cli.py                            _do_refine; --refined on reporttex
+   commands.yaml                     refine registered (134 commands)
+   report_tex.py                     build_refined_report + own palette
+   tests/test_refine.py              30 tests
+   tests/test_report_refined.py      10 tests
+
+   suite: 2,285 passing (was 2,243). skillsync: manifest ↔ HANDLERS in sync.
+
+`refine` is declared `network: true` with requires [model, mathpix], so the
+planner names it in a chain and never auto-runs it — the paid-step rule from
+139 holds.
+
+THE HONEST SUMMARY OF WHAT THIS BUYS
+------------------------------------------------------------------------------
+20 rows in, 4 accepted. One of those is a genuine repair (-18); one reaches an
+exact topological match (2 -> 0); two move by a single component and I would
+not defend them on their own.
+
+The stage's real output is not the 4. It is the 15 refusals — and in particular
+the 6 proposals that passed every structural check and would have made the
+value WORSE, one by 50. Every one of those was well-formed, compiling, uniform
+LaTeX that was SHORTER and tidier than the original, because what the model
+does under uncertainty is drop rows from tables of numbers and produce
+something cleaner than the truth.
+
+A pipeline that validated but did not measure would have accepted them all and
+called it a 19-row improvement.

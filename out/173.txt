@@ -1,0 +1,77 @@
+173 — refine: record, and what modeldiff shows
+==============================================================================
+WHAT RECORD DOES
+An accepted proposal is attached as EVIDENCE, not applied as an overwrite.
+
+   props.latex            unchanged — the original MathPix reading stays
+   props.latex_refined    the accepted value, under its own name
+   a Realization          stream "refined", role "latex_candidate",
+                          provenance "change", carrying verified_by "ink"
+                          and the before/after distances
+
+4 of 4 accepted proposals recorded on 0902.0431.
+
+MODELDIFF FOR ONE ACCEPTED ROW
+------------------------------------------------------------------------------
+   modeldiff 0902.before.docmodel.json → model.docmodel.json:
+     4 changed, 0 added, 0 removed, 0 UNEVIDENCED.
+
+   CHANGED (evidenced):
+     obj_c10501e0945f (Equation)
+       latex_refined: null → \begin{aligned} & A X A^{*} \times A Y A^{*}=A(X …
+         [realizations[3].provenance=change; source=change]
+
+The row is EVIDENCED, and the evidence path names the realization that carries
+the value and the tag that signed it. modeldiff counts unsigned edits
+separately, under "UNEVIDENCED — edits nobody signed"; this run puts 0 there.
+
+THE REALIZATION BEHIND THAT ROW, VERBATIM
+------------------------------------------------------------------------------
+   stream      refined
+   role        latex_candidate
+   provenance  change
+   props       verified_by  "ink"
+               ink_before   2
+               ink_after    0
+               ink_delta    -2
+               basis        "inferred"
+               author       "minimax-m3"
+               at           "2026-08-25T10:34:27Z"
+
+A reader arriving at this object cold can answer, without leaving it: what the
+original said, what the change says, who proposed it, on what basis, what
+instrument verified it, and by how much it improved.
+
+WHY A TWIN FIELD AND NOT AN OVERWRITE
+------------------------------------------------------------------------------
+The requirement was that the original stays, and there is a mechanical reason
+it must: the MathPix reading is the only thing tying this object to a paid
+extraction with a pdf_id and a date. Overwrite it and the provenance chain ends
+at a model's guess, verified or not.
+
+But "the original stays" and "the change is visible" pull against each other in
+a differ that compares props. If nothing in props changes, modeldiff reports
+nothing and the refinement is invisible to the tool built to surface exactly
+this. So the accepted value lands in `latex_refined` — a new field, so the diff
+has something to show — and the realization repeats the value under the SAME
+field name, which is what `_evidence_for` matches on to find the evidence path.
+
+That is why the line above reads `null → …` rather than one value replacing
+another. Nothing was replaced. Something was added, and it is signed.
+
+RECONSTRUCTING THE "BEFORE" MODEL
+------------------------------------------------------------------------------
+I did not snapshot the model before recording, so the before-model above is
+reconstructed by stripping exactly what record adds — 4 twin props and 4
+provenance="change" realizations. That is exact rather than approximate,
+because record_one only ever adds those two things and never modifies anything
+else; a fresh `record` on a stripped copy reproduces the current file.
+
+Stating it because a diff is only as good as its left-hand side, and this
+left-hand side was computed rather than kept.
+
+CONSUMERS
+   `pdfdrill modeldiff` shows it as above. The refined text is addressable at
+   props.latex_refined for any projector that wants to offer it, and no
+   projector picks it up implicitly — a projector that wants the refined
+   reading has to ask for it by name.

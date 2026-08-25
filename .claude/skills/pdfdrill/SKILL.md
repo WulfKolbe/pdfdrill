@@ -533,7 +533,7 @@ _Generated from `commands.yaml` by skillsync. Edit the manifest, not this sectio
 | `pdfdrill trailingpunct <pdf>` | 025: move a TOP-LEVEL trailing sentence mark (, ; . :) out of each math object's latex into a trailing_punct field — the TiddlyWiki separation made portable: the character lives beside the math (projections re-emit it outside the widget), latex holds mathematics only, and comparison sees neither side's copy. Keeps latex_prepunct, stamps edit_source, idempotent. |
 | `pdfdrill latexnorm <pdf>` | 021: join every LONE backslash severed from its command name (a backslash, whitespace, then a letter — LaTeX reads the gap as a control space and typesets the literal letters). Only the severing gap is removed; all other whitespace is untouched and runs of two backslashes (real row breaks) are never changed. Keeps the original as <field>_presevered and stamps edit_source. |
 | `pdfdrill tailsplit <pdf>` | P7: split math regions carrying a PROSE tail (MathPix keeps the sentence fragment inside the math region, e.g. mathrm(nach Addition) … mathrm(was im Ver-)) into <id> (expression, tail stripped, original kept as latex_pretail) + <id>.tail (MathTail prose object). Idempotent. Census 2026-08-18: 36 EQ across bh2/BH1org/WDorg4, 0 inline formulas. |
-| `pdfdrill reporttex <pdf> [--paper PAPER] [--portrait] [--compile] [--no-images] [--min-conf MIN_CONF] [--max-conf MAX_CONF] [--types TYPES] [--form] [--ink INK]` | LaTeX formula report (report.tex): one boxed longtable row per EQ/FO/TAB — identifier, page, escaped source, rendered math, and the MathPix scan crop at pixel-exact original size (px2mm derived from pdfinfo + lines.json); the tex.zip unrecovered image regions (TikZ/table/failed-math candidates) close the report. --compile runs the xelatex fixpoint (malformed OCR rows demoted to source-only, never failing the document). |
+| `pdfdrill reporttex <pdf> [--paper PAPER] [--portrait] [--compile] [--no-images] [--min-conf MIN_CONF] [--max-conf MAX_CONF] [--types TYPES] [--form] [--refined] [--ink INK]` | LaTeX formula report (report.tex): one boxed longtable row per EQ/FO/TAB — identifier, page, escaped source, rendered math, and the MathPix scan crop at pixel-exact original size (px2mm derived from pdfinfo + lines.json); the tex.zip unrecovered image regions (TikZ/table/failed-math candidates) close the report. --compile runs the xelatex fixpoint (malformed OCR rows demoted to source-only, never failing the document). |
 | `pdfdrill report <pdf> [--scale SCALE] [--embed]` | Full inline+display math report (formula-report.html). --scale N scales each KaTeX render to the CDN image height (1.0=same, 2.0=200%); --embed |
 | `pdfdrill inspect <pdf> [--pages PAGES] [--dpi DPI] [--no-images]` | DevTools-style docmodel inspector HTML (<bibkey>.inspect.html): every DocObject as a hover/click box on the rendered page AND a DOM-like ELEMENTS tree + INSPECTOR pane (region/LaTeX/ props/realizations/alignments) + reading-order REFLOW. Self-contained (embeds downscaled pages); --no-images = boxes-only; --dpi N inlined-page DPI (default 120) |
 | `pdfdrill folder <dir>` | Build the full structure for every PDF in <dir> from existing |
@@ -608,6 +608,12 @@ _Generated from `commands.yaml` by skillsync. Edit the manifest, not this sectio
 | `pdfdrill docos <command>` | docOS document-set shell (L0 selector): run one command against the persisted working set — cd <path>, add <glob>, remove <glob>, clear, save-set/load-set/sets, show — and print the compact level-gated state UI. No args → show current state. (L1+ materialization wired in later steps.) |
 | `pdfdrill classify <pdf> [--k K]` | Subject-classify the drilled doc against the vocabnet vocabularies (MSC discipline rollup + PhySH/GND/STW), persisted in the sidecar. PREREQUISITE: at least one compiled vocab in vocab/compiled/ (not shipped) — build with `python3 -m vocabnet.sources build msc` first; without one it reports the build step and does nothing. |
 
+### Enhancement (mutates the model)
+
+| Command | Returns |
+|---|---|
+| `pdfdrill refine <pdf> [--max-conf MAX_CONF] [--limit LIMIT] [--stages STAGES] [--model MODEL] [--author AUTHOR] [--dpi DPI]` | Propose, verify and record corrections to low-confidence maths values. Six stages, each able to stop a proposal: select (low-confidence rows, minus those the ink gate says already match the scan), propose (one re-transcription per row, written to changes.json with status proposed / basis inferred / author), validate (width uniformity, environment balance, CJK, standalone xelatex compile), measure (render the proposal, measure it against the scan crop), accept (keep it only when the ink distance FALLS), record (attach it as a provenance="change" realization carrying verified_by=ink with before/after; the original `latex` is never overwritten). Nothing is applied because a model proposed it. _(network)_ |
+
 ### Projection / export
 
 | Command | Returns |
@@ -635,6 +641,6 @@ _Generated from `commands.yaml` by skillsync. Edit the manifest, not this sectio
 <!-- COMMANDS:END -->
 
 <!-- PREFLIGHT-TOKEN:BEGIN -->
-Attestation token — the LAST line of this SKILL. If you can read this, you read the whole file. Run `pdfdrill preflight --ack DRILL-11f22d60` before any build/extract command.
-DRILL-11f22d60
+Attestation token — the LAST line of this SKILL. If you can read this, you read the whole file. Run `pdfdrill preflight --ack DRILL-a4417144` before any build/extract command.
+DRILL-a4417144
 <!-- PREFLIGHT-TOKEN:END -->

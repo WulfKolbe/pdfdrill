@@ -256,7 +256,8 @@ def col_widths(usable_mm: float, with_image: bool):
     return ident, page, conf, src, rest - src
 
 
-def table_open(caption: str, widths, form: bool = False) -> str:
+def table_open(caption: str, widths, form: bool = False,
+               legend_on: bool = True) -> str:
     cols = "|" + "|".join("p{%smm}" % w for w in widths) + "|"
     heads = {5: ("Identifier", "Page", "Conf.", "LaTeX source", "Rendered"),
              6: ("Identifier", "Page", "Conf.", "LaTeX source", "Rendered",
@@ -266,7 +267,7 @@ def table_open(caption: str, widths, form: bool = False) -> str:
         "\\begin{longtable}{%s}\n\\hline\n" % cols +
         " & ".join("\\textbf{%s}" % h for h in heads) +
         " \\\\\n\\hline\\endhead\n" +
-        legend_foot(widths, form))
+        (legend_foot(widths, form) if legend_on else ""))
 
 
 def has_bare_align_marker(lx: str) -> bool:
@@ -449,7 +450,13 @@ def conf_flag(conf, threshold: float = CONF_THRESHOLD) -> str:
 
 #: inkdrill flag -> bullet colour
 _INK_COLOUR = {"component": "inkComponent", "weak": "inkWeak",
-               "stable": "inkStable", "noise": "inkNoise", "clean": "inkClean"}
+               "stable": "inkStable", "noise": "inkNoise", "clean": "inkClean",
+               # a row whose render AND scan are both empty was not compared.
+               # It is an ABSENT reading, not a clean one — an all-zero
+               # five-tuple pair scores distance 0 and would otherwise take the
+               # best class. Distinct from "no ink.json entry at all", which is
+               # also inkUnmeasured but for a different reason.
+               "absent": "inkUnmeasured"}
 
 
 def residual_colour(ident: str, ink: "dict | None") -> str:
@@ -882,7 +889,7 @@ def build_report(tiddlers_path: Path, out: Path | None = None,
                  px2mm: float | None = None,
                  min_conf: float | None = None, max_conf: float | None = None,
                  types: "set[str] | None" = None, form: bool = False,
-                 ink: "dict | None" = None) -> dict:
+                 ink: "dict | None" = None, legend_on: bool = True) -> dict:
     """Generate report.tex; returns counts {equations, formulas, tables,
     unrecovered, out}.
 
@@ -936,7 +943,7 @@ def build_report(tiddlers_path: Path, out: Path | None = None,
                      "%d unrecovered image regions.\n"
                      % (esc_text(bibkey), len(fo), len(eq), len(tab),
                         len(dia)))
-    out_parts.append(table_open("Display equations", eq_widths, form))
+    out_parts.append(table_open("Display equations", eq_widths, form, legend_on))
     # 099: doubted rows first. Sorting by confidence ascending puts what
     # MathPix is least sure of at the top of the table, where a reader
     # checking the document looks first. Rows with no confidence value sort
@@ -956,7 +963,7 @@ def build_report(tiddlers_path: Path, out: Path | None = None,
     # column probes (inkdrill P16, the 11 short-equation docs)
     out_parts.append("\\clearpage\n")
     out_parts.append(table_open("Inline formulas (first occurrence)",
-                                fo_widths, form))
+                                fo_widths, form, legend_on))
     for title, latex, page, punct in fo:
         out_parts.append(row(title, latex, page, punct=punct))
     out_parts.append("\\end{longtable}\n")
@@ -1315,3 +1322,154 @@ def unicode_decls(body):
             out.append((c, "\\newunicodechar{%s}{\\ifmmode\\text{%s}\\else %s\\fi}"
                         % (ch, ch, ch)))
     return "\n".join(d for _c, d in sorted(out))
+
+
+# ---------------------------------------------------------------------------
+# 174 — the refined report
+# ---------------------------------------------------------------------------
+
+#: Verdict colours are the refined report's OWN, deliberately NOT the residual
+#: palette. The formula report's legend defines C/W/S/N/K once for the whole
+#: table in terms of inkdrill's row-level five-tuple; a refine verdict is a
+#: different instrument answering a different question (did the crop-level
+#: distance fall). Drawing it in `inkComponent` red would put a bullet in front
+#: of a reader that the standing legend defines as something else, and nothing
+#: on the page would say which instrument produced it.
+REFINED_PREAMBLE = r"""
+\definecolor{verdictAccepted}{RGB}{40,160,40}
+\definecolor{verdictRejected}{RGB}{190,60,60}
+\definecolor{verdictPending}{RGB}{120,120,120}
+"""
+
+_VERDICT_COLOUR = {
+    "accepted": "verdictAccepted",
+    "rejected": "verdictRejected",
+    "proposed": "verdictPending",
+    "selected": "verdictPending",
+}
+
+REFINED_WIDTHS = (44, 10, 14, 18, 16, 46)
+
+#: The refined report deliberately does NOT share a prefix with `report.pdf`.
+#: `report.*` in a document folder sweeps twelve files — the formula report and
+#: its aux/log, two TSVs from other tools, and `report.ink.json.MISPAIRED`,
+#: whose entire purpose is that it must never be republished. Quarantine by
+#: rename protects against being picked by NAME; it does not protect against a
+#: glob. A name that cannot collide beats a name that must be remembered.
+REFINED_NAME = "refine.report.tex"
+
+
+def _verdict_of(p: dict) -> tuple[str, str]:
+    """(verdict, detail) for one proposal, in the words changes.json uses."""
+    st = p.get("status", "?")
+    if st == "accepted":
+        return "accepted", "ink fell"
+    if st == "rejected":
+        return "rejected", str(p.get("reason") or "")
+    return st, str(p.get("propose_error") or p.get("measure_error") or "")
+
+
+def refined_rows(changes: dict) -> list[dict]:
+    """One row per refined object, worst confidence first.
+
+    A row is included once it has been PROPOSED — that is the point at which
+    the object has been refined in any sense. A row that was selected and never
+    proposed is excluded: nothing was proposed for it, so there is no
+    before/after to show and a row of dashes would only look like a measurement
+    that came out empty.
+    """
+    out = [p for p in (changes.get("proposals") or [])
+           if p.get("status") in ("proposed", "accepted", "rejected")]
+    out.sort(key=lambda p: (p.get("confidence") if isinstance(
+        p.get("confidence"), (int, float)) else 1.0, p.get("id", "")))
+    return out
+
+
+def _num(v) -> str:
+    return "---" if v is None else str(v)
+
+
+def build_refined_report(changes_path: Path, out: Path | None = None,
+                         paper: str = "a4", landscape: bool = False,
+                         bibkey: str = "") -> dict:
+    """refine.report.tex — conf | ink before | ink after | verdict per row.
+
+    Built from `changes.json` rather than the model, because that is where the
+    before/after measurements live and where a REJECTED row still exists. A
+    report drawn from the model alone would show only the accepted rows and so
+    would silently answer a different question — "what changed" instead of
+    "what was tried, and what happened to it".
+    """
+    import json as _json
+    cp = Path(changes_path)
+    changes = _json.loads(cp.read_text(encoding="utf-8"))
+    bibkey = bibkey or changes.get("bibkey") or cp.parent.name
+    rows = refined_rows(changes)
+    dest = Path(out) if out else cp.parent / REFINED_NAME
+
+    geom = ("%spaper,landscape" % paper) if landscape else "%spaper" % paper
+    parts = [None]
+    parts.append("\\section*{%s — refined rows}\n" % esc_text(bibkey))
+    counts = {}
+    for p in rows:
+        counts[_verdict_of(p)[0]] = counts.get(_verdict_of(p)[0], 0) + 1
+    parts.append(
+        "\\noindent %d refined row(s): %s.\\\\[2mm]\n" % (
+            len(rows),
+            ", ".join(f"{v} {k}" for k, v in sorted(counts.items())) or "none"))
+    parts.append(
+        "\\noindent\\footnotesize\n"
+        "\\textbf{Metric — CROP INK DISTANCE.} L1 between the standalone render "
+        "of a value and the scan crop under its region, over two terms: number "
+        "of ink components, and total topological holes. Both are scale-free, "
+        "so a render and a 400\\,dpi page crop are comparable without being the "
+        "same size. It FALLS as the render moves toward the scan, and a proposal "
+        "is accepted only when it falls.\\\\[1mm]\n"
+        "\\textbf{This is not the Residual class.} The formula report's "
+        "C/W/S/N/K residual is inkdrill's row-level five-tuple measured from the "
+        "finished PDF. This is a different instrument answering a different "
+        "question, with its own colours: "
+        "\\inkbullet{verdictAccepted}\\,accepted \\quad "
+        "\\inkbullet{verdictRejected}\\,rejected \\quad "
+        "\\inkbullet{verdictPending}\\,not yet judged. "
+        "The two numbers are not comparable and must not be merged.\\\\[2mm]\n"
+        "\\normalsize\n")
+
+    cols = "|" + "|".join("p{%smm}" % w for w in REFINED_WIDTHS) + "|"
+    heads = ("Identifier", "Page", "Conf.", "Ink before", "Ink after", "Verdict")
+    parts.append("\\begin{longtable}{%s}\n\\hline\n" % cols)
+    parts.append(" & ".join("\\textbf{%s}" % h for h in heads))
+    parts.append(" \\\\\n\\hline\\endhead\n")
+
+    for p in rows:
+        verdict, detail = _verdict_of(p)
+        conf = p.get("confidence")
+        conf_s = f"{conf:.4f}" if isinstance(conf, (int, float)) else "---"
+        before, after = p.get("ink_before"), p.get("ink_after")
+        arrow = ""
+        if isinstance(before, int) and isinstance(after, int):
+            d = after - before
+            arrow = " (%+d)" % d
+        bullet = _VERDICT_COLOUR.get(verdict, "inkUnmeasured")
+        parts.append(
+            "\\ident{%s} & %s & %s & %s & %s%s & "
+            "\\inkbullet{%s}\\,%s%s \\\\\n\\hline\n" % (
+                esc_text(p.get("identifier") or p.get("id", "")),
+                _num(p.get("page")), conf_s,
+                _num(before), _num(after), esc_text(arrow),
+                bullet, esc_text(verdict),
+                (" \\footnotesize " + esc_text(detail)) if detail else ""))
+    if not rows:
+        parts.append("\\multicolumn{%d}{|l|}{no refined rows} \\\\\n\\hline\n"
+                     % len(REFINED_WIDTHS))
+    parts.append("\\end{longtable}\n")
+    parts.append("\\end{document}\n")
+
+    body = "".join(parts[1:])
+    # FORM_PREAMBLE carries the ink colours and \inkbullet; without
+    # it every bullet is an "Undefined color" error.
+    parts[0] = PREAMBLE % {"form": FORM_PREAMBLE + REFINED_PREAMBLE,
+                           "geom": geom,
+                           "unicode": unicode_decls(body)}
+    dest.write_text("".join(parts), encoding="utf-8")
+    return {"rows": len(rows), "counts": counts, "out": dest}

@@ -13250,13 +13250,44 @@ def cmd_reporttex(pdf: Path, paper: str = "a3", landscape: bool = True,
                   compile_pdf: bool = False, images: bool = True,
                   min_conf: float | None = None, max_conf: float | None = None,
                   types: str | None = None, form: bool = False,
-                  ink: str | None = None) -> str:
+                  ink: str | None = None, legend: bool = True,
+                  refined: bool = False) -> str:
     """LaTeX formula report (report.tex): every EQ/FO/TAB identifier with
     page, escaped source, rendered math, and the MathPix scan crop at its
     exact original physical size; the tex.zip's unrecovered image regions
-    (the TikZ/table/failed-math candidates) as a final section."""
+    (the TikZ/table/failed-math candidates) as a final section.
+
+    `--refined` builds a DIFFERENT report — refine.report.tex, one row per
+    refined object with conf | ink before | ink after | verdict — from
+    changes.json. It needs no tiddlers and no crops, so it is not gated on the
+    projection chain the formula report needs.
+    """
     from . import report_tex as rt
     sc = Sidecar(pdf)
+
+    if refined:
+        from . import refine as _rf
+        cp = _rf.changes_path(sc.blob_dir)
+        if not cp.is_file():
+            return (f"No {cp.name} for {pdf.name} — nothing has been refined. "
+                    f"Run: pdfdrill refine {pdf}")
+        r = rt.build_refined_report(
+            cp, paper=paper, landscape=landscape,
+            bibkey=sc.get_evidence("bibkey") or "")
+        parts = [f"Refined report: {r['rows']} row(s) — "
+                 + (", ".join(f"{v} {k}" for k, v in sorted(r["counts"].items()))
+                    or "none")
+                 + f". Wrote {r['out']}."]
+        if compile_pdf:
+            res = rt.compile_fixpoint(Path(r["out"]))
+            if res is None:
+                parts.append("xelatex not installed — .tex written, not compiled.")
+            else:
+                pages, errors, demoted = res
+                parts.append(f"Compiled {Path(r['out']).with_suffix('.pdf').name}: "
+                             f"{pages} page(s), {errors} error(s).")
+        return "\n".join(parts)
+
     # absent OR older than the model — the auto-chain used to fire on absence
     # only, so a rebuilt model was reported through a weeks-old projection.
     tid, sc, tid_note = _resolve_tiddlers(pdf, sc, announce=False)
@@ -13280,7 +13311,7 @@ def cmd_reporttex(pdf: Path, paper: str = "a3", landscape: bool = True,
     r = rt.build_report(tid, crops=crops, texzip=texzip, paper=paper,
                         landscape=landscape, px2mm=px2mm,
                         min_conf=min_conf, max_conf=max_conf, types=want,
-                        form=form, ink=ink_map)
+                        form=form, ink=ink_map, legend_on=legend)
     sc.set_evidence("reporttex_path",
                     str(Path(r["out"]).relative_to(pdf.parent)))
     lines = [f"Wrote {r['out']} — {r['equations']} display equations, "
@@ -13822,3 +13853,298 @@ def cmd_trailingpunct(pdf: Path) -> str:
             + ("\n  Re-project (`tiddlers`/`reporttex`) so the character is "
                "emitted beside the math instead of inside it." if moved else
                "  Nothing to separate."))
+
+
+# ---------------------------------------------------------------------------
+# 170–174 — refine
+# ---------------------------------------------------------------------------
+
+def cmd_refine(pdf: Path, max_conf: float = 0.5, limit: int | None = None,
+               stages: str | None = None, dpi: int | None = None,
+               model: str | None = None, author: str | None = None) -> str:
+    """Propose, verify and record corrections to low-confidence maths values.
+
+    Six stages, each able to stop a proposal: select, propose, validate,
+    measure, accept, record. State lives in `changes.json` beside the model, so
+    the stages can be run separately and re-run without duplicating work.
+
+    Nothing is applied because a model proposed it. A proposal is recorded only
+    after it has been rendered and MEASURED to sit closer to the scan than the
+    value it would replace.
+    """
+    from . import refine as _rf
+
+    sc = Sidecar(pdf)
+    try:
+        want = _rf.parse_stages(stages)
+    except ValueError as e:
+        return str(e)
+    dpi = int(dpi or _rf.DPI)
+    author = author or _rf.DEFAULT_AUTHOR
+
+    model_path = _model_path(sc)
+    if not model_path.is_file():
+        return (f"No model for {pdf.name}. Build one first: "
+                f"pdfdrill model {pdf}")
+    doc = load_model(model_path)
+    cp = _rf.changes_path(sc.blob_dir)
+    data = _rf.load_changes(cp)
+    data.setdefault("bibkey", doc.meta.get("bibkey") or sc.blob_dir.name)
+    data.setdefault("created", _rf._now())
+    data["max_conf"] = max_conf
+    index = _rf.by_id(data)
+    work = sc.blob_dir / "refine"
+    out: list[str] = []
+
+    # ---------------- select ----------------------------------------------
+    if "select" in want:
+        widths = _rf.mathpix_page_widths(sc.blob_dir)
+        if not widths:
+            return ("No MathPix lines.json beside the model, so regions cannot "
+                    "be scaled to the raster and no crop can be trusted. "
+                    f"Run: pdfdrill mathpix {pdf}")
+        cands = _rf.candidates(doc, max_conf=max_conf, limit=limit)
+        idents = _rf.identifiers(doc, data.get("bibkey") or "")
+        gate = _rf.ink_gate(pdf, doc, cands, work,
+                            page_widths=widths, dpi=dpi)
+        for o in gate.kept:
+            base = gate.baseline.get(o.id, {})
+            rec = index.get(o.id) or {"id": o.id}
+            rec.update({
+                "type": o.type,
+                # what a reader searches for; the object id is what we key on
+                "identifier": idents.get(o.id, ""),
+                "page": (o.props or {}).get("page"),
+                "confidence": (o.props or {}).get("confidence"),
+                "field": "latex",
+                "original": (o.props or {}).get("latex") or "",
+                "ink_scan": base.get("scan"),
+                "ink_before": base.get("distance"),
+                "status": rec.get("status", "selected"),
+                "basis": "inferred",
+                "author": author,
+                "at": _rf._now(),
+            })
+            if base.get("note"):
+                rec["note"] = base["note"]
+            if o.id not in index:
+                data["proposals"].append(rec)
+                index[o.id] = rec
+        skipped = [(o, r) for o, r in gate.skipped]
+        by_reason: dict[str, int] = {}
+        for _o, r in skipped:
+            key = "ink gate" if r.startswith("ink gate") else r.split(":")[0]
+            by_reason[key] = by_reason.get(key, 0) + 1
+        data["select"] = {
+            "examined": len(cands), "kept": len(gate.kept),
+            "skipped": len(skipped), "by_reason": by_reason, "at": _rf._now()}
+        _rf.save_changes(cp, data)
+        out.append(
+            f"select: {len(cands)} row(s) at confidence <= {max_conf}"
+            + (f" (limit {limit})" if limit else "")
+            + f"; {len(gate.kept)} kept, {len(skipped)} skipped by the ink gate"
+            + (" — " + ", ".join(f"{v} {k}" for k, v in sorted(by_reason.items()))
+               if by_reason else ""))
+
+    # ---------------- propose ---------------------------------------------
+    if "propose" in want:
+        todo = [p for p in data["proposals"]
+                if p.get("status") in ("selected",) and not p.get("proposed")]
+        wrote = failed = 0
+        errs: dict[str, int] = {}
+        # Network-bound and slow (a reasoning model spends minutes per row), so
+        # the calls overlap. Results are applied in the ORIGINAL order, not
+        # completion order, so changes.json does not reshuffle between runs.
+        import concurrent.futures as _cf
+        replies: dict[str, tuple] = {}
+        index_by_id = {p["id"]: p for p in data["proposals"]}
+        if todo:
+            with _cf.ThreadPoolExecutor(max_workers=_rf.PROPOSE_WORKERS) as ex:
+                futs = {ex.submit(_rf.propose_one, p.get("original", ""),
+                                  float(p.get("confidence") or 0.0),
+                                  model=model or _rf.NOVITA_MODEL): p["id"]
+                        for p in todo}
+                for f in _cf.as_completed(futs):
+                    oid = futs[f]
+                    try:
+                        replies[oid] = f.result()
+                    except Exception as e:              # noqa: BLE001
+                        replies[oid] = ("", f"{type(e).__name__}: {e}")
+                    # Persist as each reply lands. This stage is PAID and can
+                    # run for twenty minutes; writing only at the end means a
+                    # timeout throws away every reply already bought.
+                    txt_i, err_i = replies[oid]
+                    rec_i = index_by_id.get(oid)
+                    if rec_i is not None and txt_i and not err_i:
+                        rec_i.update({"proposed": txt_i, "status": "proposed",
+                                      "basis": "inferred", "author": author,
+                                      "at": _rf._now()})
+                        rec_i.pop("propose_error", None)
+                    _rf.save_changes(cp, data)
+        for p in todo:
+            txt, err = replies.get(p["id"], ("", "no reply"))
+            if err or not txt:
+                failed += 1
+                key = err or "empty reply"
+                errs[key] = errs.get(key, 0) + 1
+                p["propose_error"] = key
+                continue
+            p.update({"proposed": txt, "status": "proposed",
+                      "basis": "inferred", "author": author,
+                      "at": _rf._now()})
+            p.pop("propose_error", None)
+            wrote += 1
+        data["propose"] = {"written": wrote, "failed": failed,
+                           "errors": errs, "at": _rf._now()}
+        _rf.save_changes(cp, data)
+        out.append(f"propose: {wrote} proposal(s) written to {cp.name} "
+                   f"(status proposed, basis inferred, author {author})"
+                   + (f"; {failed} failed" if failed else ""))
+
+    # ---------------- validate --------------------------------------------
+    if "validate" in want:
+        todo = [p for p in data["proposals"] if p.get("status") == "proposed"]
+        rejected: dict[str, int] = {}
+        passed = 0
+        for p in todo:
+            ok, reason, detail = _rf.validate_one(
+                p.get("proposed", ""), original=p.get("original", ""),
+                work=work / p["id"], dpi=dpi)
+            if ok:
+                passed += 1
+                p["validated"] = True
+                continue
+            p.update({"status": "rejected", "reason": reason,
+                      "reason_detail": detail, "at": _rf._now()})
+            rejected[reason] = rejected.get(reason, 0) + 1
+        data["validate"] = {"passed": passed, "rejected": sum(rejected.values()),
+                            "by_reason": rejected, "at": _rf._now()}
+        _rf.save_changes(cp, data)
+        out.append(
+            f"validate: {passed} passed, {sum(rejected.values())} rejected"
+            + (" — " + ", ".join(f"{v} {k}" for k, v in sorted(rejected.items()))
+               if rejected else ""))
+
+    # ---------------- measure ---------------------------------------------
+    if "measure" in want:
+        widths = _rf.mathpix_page_widths(sc.blob_dir)
+        todo = [p for p in data["proposals"]
+                if p.get("status") == "proposed" and p.get("validated")]
+        done = unmeasured = 0
+        for p in todo:
+            obj = doc.objects.get(p["id"])
+            pr = (obj.props if obj else {}) or {}
+            stem = work / p["id"]
+            crop = stem.with_suffix(".scan.png")
+            if not crop.is_file() and pr.get("region") and pr.get("page"):
+                try:
+                    crop = _rf.scan_crop(pdf, int(pr["page"]), pr["region"], crop,
+                                         page_width=widths.get(int(pr["page"]), 0),
+                                         dpi=dpi)
+                except Exception:                      # noqa: BLE001
+                    crop = None
+            png, err = _rf.render_latex(p["proposed"], stem.with_suffix(".after.png"),
+                                        dpi=dpi)
+            if png is None or not crop:
+                p["measure_error"] = err or "no scan crop"
+                unmeasured += 1
+                continue
+            try:
+                sig_after = _rf.ink_signature(png, dpi=dpi)
+                sig_scan = p.get("ink_scan") or _rf.ink_signature(crop, dpi=dpi)
+            except _rf.InkUnavailable as e:
+                p["measure_error"] = str(e)
+                unmeasured += 1
+                continue
+            if not _rf.measurable(sig_scan):
+                # Measuring against a blank reference inverts the metric and
+                # rewards the emptiest proposal. Unmeasurable, not measured.
+                p["measure_error"] = ("scan crop has no ink — nothing to "
+                                      "measure against")
+                unmeasured += 1
+                continue
+            p["ink_after"] = _rf.ink_distance(sig_scan, sig_after)
+            p["ink_delta"] = p["ink_after"] - (p.get("ink_before") or 0)
+            done += 1
+        data["measure"] = {"measured": done, "unmeasured": unmeasured,
+                           "at": _rf._now()}
+        _rf.save_changes(cp, data)
+        out.append(f"measure: {done} proposal(s) rendered and measured"
+                   + (f"; {unmeasured} could not be measured" if unmeasured else ""))
+
+    # ---------------- accept ----------------------------------------------
+    if "accept" in want:
+        todo = [p for p in data["proposals"]
+                if p.get("status") == "proposed" and p.get("ink_after") is not None]
+        acc = noimp = 0
+        deltas = []
+        for p in todo:
+            before, after = p.get("ink_before"), p.get("ink_after")
+            if after < before:
+                p.update({"status": "accepted", "verified_by": "ink",
+                          "at": _rf._now()})
+                acc += 1
+                deltas.append(after - before)
+            else:
+                p.update({"status": "rejected", "reason": "no improvement",
+                          "reason_detail": f"ink {before} -> {after}",
+                          "at": _rf._now()})
+                noimp += 1
+        med = _median(deltas) if deltas else None
+        data["accept"] = {"accepted": acc, "rejected_no_improvement": noimp,
+                          "median_delta": med, "at": _rf._now()}
+        _rf.save_changes(cp, data)
+        out.append(
+            f"accept: {acc} accepted, {noimp} rejected for no improvement"
+            + (f"; median ink delta {med:+.1f}" if med is not None else ""))
+
+    # ---------------- record ----------------------------------------------
+    if "record" in want:
+        todo = [p for p in data["proposals"]
+                if p.get("status") == "accepted" and not p.get("recorded")]
+        n = 0
+        stranded = []
+        for p in todo:
+            if _rf.record_one(doc, p["id"], p):
+                p["recorded"] = True
+                n += 1
+            else:
+                # The object is gone from the model. Object ids are NOT stable
+                # across a from-scratch rebuild (out/160), so a rebuild between
+                # accept and record strands every proposal. Counting this as
+                # "nothing to record" would report an empty success over four
+                # accepted, measured, verified proposals.
+                stranded.append(p["id"])
+                p["record_error"] = "object not in the model (rebuilt since select?)"
+        if n:
+            save_model(model_path, doc)
+        data["record"] = {"recorded": n, "stranded": len(stranded),
+                          "at": _rf._now()}
+        _rf.save_changes(cp, data)
+        if n:
+            out.append(
+                f"record: {n} accepted proposal(s) attached as provenance=\"change\" "
+                f"realizations carrying verified_by=ink; the original `latex` is "
+                f"unchanged (the refined text is in `{_rf.REFINED_FIELD}`).")
+        elif stranded:
+            out.append(
+                f"record: 0 of {len(stranded)} accepted proposal(s) recorded — "
+                f"their objects are not in the model. Object ids do not survive "
+                f"a from-scratch rebuild; re-run `refine --stages select` "
+                f"against the current model.")
+        else:
+            out.append("record: nothing accepted to record.")
+        if stranded:
+            out.append(f"  stranded: {', '.join(stranded[:5])}"
+                       + (f" … +{len(stranded) - 5}" if len(stranded) > 5 else ""))
+
+    out.append(f"State: {cp}")
+    return "\n".join(out)
+
+
+def _median(xs: list) -> float:
+    s = sorted(xs)
+    n = len(s)
+    if not n:
+        return 0.0
+    return float(s[n // 2]) if n % 2 else (s[n // 2 - 1] + s[n // 2]) / 2.0

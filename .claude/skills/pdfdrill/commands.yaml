@@ -1307,6 +1307,55 @@ commands:
     type: str
     help: results to show for --query (default 10)
   typed: true
+- name: refine
+  section: Enhancement (mutates the model)
+  summary: 'Propose, verify and record corrections to low-confidence maths values.
+    Six stages, each able to stop a proposal: select (low-confidence rows, minus
+    those the ink gate says already match the scan), propose (one re-transcription
+    per row, written to changes.json with status proposed / basis inferred /
+    author), validate (width uniformity, environment balance, CJK, standalone
+    xelatex compile), measure (render the proposal, measure it against the scan
+    crop), accept (keep it only when the ink distance FALLS), record (attach it as
+    a provenance="change" realization carrying verified_by=ink with before/after;
+    the original `latex` is never overwritten). Nothing is applied because a model
+    proposed it.'
+  network: true
+  requires:
+  - model
+  - mathpix
+  positionals:
+  - name: pdf
+    type: pdf
+    required: true
+    help: PDF path, https URL, or bare arXiv id
+  flags:
+  - name: max_conf
+    flag: --max-conf
+    type: float
+    help: only rows at or below this MathPix confidence (default 0.5)
+  - name: limit
+    flag: --limit
+    type: int
+    help: cap the number of rows selected (worst confidence first)
+  - name: stages
+    flag: --stages
+    type: str
+    help: 'comma list of stages to run; default all. An unknown name is refused
+      rather than silently running nothing (e.g. --stages select,propose)'
+  - name: model
+    flag: --model
+    type: str
+    help: proposing model id (default minimax/minimax-m3 on Novita)
+  - name: author
+    flag: --author
+    type: str
+    help: value recorded as `author` on each proposal (default minimax-m3)
+  - name: dpi
+    flag: --dpi
+    type: int
+    help: raster resolution for the render/scan comparison (default 400, the
+      project floor)
+  typed: true
 - name: modeldiff
   section: Introspection (fast, no extraction)
   summary: 'P8: field-level diff of two model JSON files — per changed object the changed fields with old
@@ -1427,6 +1476,15 @@ commands:
       bullet per equation row (with --ink, the residual code as selectable
       text). No AcroForm field: 157 established that nothing in the pipeline
       ever re-filled one'
+  - name: refined
+    flag: --refined
+    type: flag
+    help: 'build refine.report.tex instead (deliberately NOT report.*, which
+      a glob would sweep alongside the published report.pdf): one row per
+      refined object with
+      conf | ink before | ink after | verdict, read from changes.json (needs
+      no tiddlers or crops). Rejected rows are shown too — the question is what
+      was tried and what happened to it, not only what changed'
   - name: ink
     flag: --ink
     type: path
