@@ -1,0 +1,139 @@
+186 — the floor of 7, restated against measurement
+==============================================================================
+THE HEADLINE: THE FLOOR OF 7 IS NOT THE BINDING GATE. Changing it changes
+NOTHING. The threshold that decides almost every row is NOISE_COMP_DELTA = 2,
+and it is wrong by about a factor of ten.
+
+   conf >= 0.9 rows (n=105), classes under three different distance floors:
+
+      floor  7   K=0  N=4  W=0  S=0  C=101
+      floor 27   K=0  N=4  W=0  S=0  C=101
+      floor 96   K=0  N=4  W=0  S=0  C=101
+
+Identical. `flag_of` tests `comp_delta > 2` BEFORE it tests the distance, so
+101 of 105 rows are classified `component` and never reach the floor at all.
+The floor governs the 4 rows that survive the component test.
+
+FIRST, THE PREMISE — TWO INSTRUMENTS, AND I MEASURED THE RIGHT ONE
+------------------------------------------------------------------------------
+The task names the distribution p50 39 / p90 141. That is out/184's CROP ink
+distance — my own metric, |Δcomponents| + |Δholes| between a standalone render
+and a scan crop. The floor of 7 does not govern it; the floor of 7 lives in
+`fill_ink_fields.flag_of` and governs inkdrill's ROW-level five-tuple
+(components, holes, stacked, centred, offset) measured from a finished report
+page. Restating one against the other's distribution would be the exact
+category error this thread keeps finding.
+
+So I measured the row metric on its own terms — 0902.0431 rebuilt at
+--min-conf 0.9 --no-legend, 20 pages, 105 rows, one page refused by the
+coverage floor:
+
+   ROW metric, clean high-confidence rows (n=105)
+      distance        min 2   p10 9   p50 27   p90 96   max 324
+      component delta         p50 13  p90 39   max 131
+      rows at distance exactly 0:  0
+
+   CROP metric, clean high-confidence rows (n=100, out/184)
+      distance        min 0   p50 39   p90 141  max 638
+
+The two instruments agree on the thing that matters: a row nobody doubts sits
+at a distance in the tens, not below seven. 8.6% of clean rows fall at or
+below 7 on the row metric; on the crop metric it was 13%. The conclusion is
+the same whichever instrument is used, which is the strongest form this
+argument can take.
+
+EVERY GATE USING THE FLOOR, AND WHAT IT DOES
+------------------------------------------------------------------------------
+   fill_ink_fields.py:58   NOISE_DISTANCE   = 7
+   fill_ink_fields.py:59   NOISE_COMP_DELTA = 2
+   fill_ink_fields.py:70   flag_of() -> K / N / W / S / C
+   scratchpad remeasure/measure.py:21   the same two constants, copied
+
+   consumers: every report.ink.json; the Residual column of every published
+   report; the C/W/S/N/K legend; 6 of the 10 documents on the site.
+
+There is no floor of 7 anywhere in pdfdrill's own source. `refine` has none —
+it accepts on a strict fall, `after < before`, which needs no threshold.
+
+TWO CLASSES ARE UNREACHABLE
+------------------------------------------------------------------------------
+   K (clean)  requires distance == 0.  Measured: 0 of 105 clean rows,
+                                       0 of 55 doubted rows. 0 of 160.
+   S (stable) requires scale-stability. Measured: 0 of 105, 0 of 55.
+
+The legend on every published report advertises five classes and the data can
+produce three. K and S have never been earned by any row I have measured, and
+K cannot be: two independent rasterisations of the same page differ somewhere,
+so an exact five-way tie does not occur.
+
+That is the same defect as the legend that promised a residual column seven
+documents did not have — a key naming something the artefact cannot contain —
+and it is still there, one level down.
+
+WHICH THRESHOLD CHANGES, AND BY HOW MANY ROWS
+------------------------------------------------------------------------------
+Sweeping NOISE_COMP_DELTA with the distance floor held at the clean p90 (96),
+and asking the only question that matters — does the class SEPARATE doubted
+rows from confident ones:
+
+   Δcomp   C on clean (conf>=0.9)   C on doubted (conf<=0.5)   separation
+      2            96.2%                    100.0%               3.8 pp   <- now
+      5            80.0%                     98.2%              18.2 pp
+      9            64.8%                     96.4%              31.6 pp
+     13            46.7%                     85.5%              38.8 pp
+     20            29.5%                     69.1%              39.6 pp   <- best
+     30            18.1%                     47.3%              29.2 pp
+     39             9.5%                     36.4%              26.8 pp
+     80             2.9%                     20.0%              17.1 pp
+
+At the current setting the component class fires on 96.2% of rows MathPix is
+certain about and 100% of rows it doubts. It does not discriminate: it is very
+nearly a constant function that says "component" and it costs 3.8 points of
+separation for the trouble.
+
+POPULATION CHANGE at the widest separation (Δcomp 20, floor 96):
+
+   conf >= 0.9   (n=105)   C 101 -> 31  (-70)   N 4 -> 73  (+69)   W 0 -> 1
+   conf <= 0.5   (n=55)    C  55 -> 38  (-17)   N 0 -> 17  (+17)   W 0 -> 0
+
+   Read that first line plainly: 70 rows MathPix is certain about would stop
+   being called a component difference, and 69 of them would be called noise —
+   which out/119 already established is what they are, 18 of 20 typographic
+   with not one carrying a symbol MathPix got wrong.
+
+   published: 0902.0431's re-measured 55 rows are currently 55 component /
+   0 of anything else. They would become 38 component, 17 noise. The other
+   five documents carrying a residual column are not re-measured here, so I
+   will not state their movements — that needs the measurement, not a
+   proportion applied to a count.
+
+WHAT I AM NOT DOING, AND WHY
+------------------------------------------------------------------------------
+I am not changing the constants. Three reasons, in order of weight:
+
+1. `fill_ink_fields.py` is not mine. It lives in ~/Downloads and belongs to the
+   auditor's workflow; the constants are documented there as "inkdrill's
+   measured floors (tools/findings.py) — do not invent new ones". Editing
+   another party's calibration on my own evidence is exactly what that comment
+   forbids, and it would be worse here because the numbers ARE published.
+
+2. Changing them re-classes every residual bullet on the live site. Six
+   documents, and the pages session runs a deploy gate that asserts the
+   index's residual bars match the ink.json they describe. A re-class is an
+   index change and an artefact change in the same commit, on their side.
+
+3. My sweep rests on 160 rows from ONE document. The separation optimum at
+   Δcomp 20 is a single number from a single book, and a threshold set on one
+   document is how a floor of 7 came to be applied to a metric it was never
+   measured against.
+
+WHAT I RECOMMEND INSTEAD
+   Measure the row metric on clean high-confidence rows across several
+   documents — the harness is written and takes about four minutes a document
+   — and set NOISE_COMP_DELTA from that pooled distribution. The distance
+   floor can stay at 7 or move to 96; on this evidence it makes no difference
+   to any row, and saying so is more useful than changing it.
+
+   And whatever is chosen, K and S should be removed from the legend or given
+   a definition a row can actually satisfy. A key that lists two classes
+   nothing can earn is not a key, it is a claim.
