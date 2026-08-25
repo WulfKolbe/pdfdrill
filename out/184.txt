@@ -1,38 +1,42 @@
 184 — the population an ink-selected pass reaches and confidence cannot
 ==============================================================================
-*** THE SAMPLED FIGURES BELOW ARE RETRACTED. A CLEAN RE-RUN IS IN FLIGHT. ***
+RETRACTION RESOLVED. The figures below are the CLEAN isolated re-run and are
+final. What was retracted has been re-measured, and the retraction is left on
+the record rather than deleted.
 
-Two sampling runs of this script were alive at the same time. They shared one
-work directory and wrote the same {doc}_{oid}.scan.png and .r.png paths, so
-each measured images the other was overwriting. Same seed, same sample, same
-code — and different answers:
+WHAT HAPPENED. Two sampling runs were alive at once, sharing a work directory
+and writing the same {doc}_{oid}.scan.png / .r.png paths. They disagreed:
 
-                     run 1     run 2 (the one reported below)
-   A measured          106       100
-   A p50                41        39
-   A p90               171       141
-   B measured           55        56
-   B p50                31        72        <-- 2.3x apart
-   B p90                73       295        <-- 4x apart
-   B above 50        21.8%     58.9%
+                    run 1     run 2     CLEAN (isolated re-run)
+   A measured        106       100       100
+   A p50              41        39        39
+   A p90             171       141       141
+   B p50              31        72        71
+   B p90              73       295       295
+   B above 50      21.8%     58.9%     57.1%
 
-   A/B compile failures   3 / 52   in BOTH runs — identical.
+   compile failures  3 / 52 in ALL THREE runs.
 
-The compile counts agreed because xelatex decides those and does not read the
-shared PNGs. So every number that looked like a consistency check agreed, and
-every number that carried the finding diverged. That is the failure this file
-was written to describe, committed while writing it.
+The clean run matches RUN 2 — the one whose console output I published — on
+every figure but two, each off by a single row of 56 (B p50 72 vs 71, B above
+50 33 vs 32). Run 1 is the contaminated one.
 
-EXHAUSTIVE COUNTS ARE UNAFFECTED and stand: 1,345 documents, 119,940
-equations, 80,594 at confidence >= 0.9, 1,840 failing width/env/CJK. Stage 1
-ran alone and touches no work directory.
+So the published numbers were substantially right, and I could not have known
+that at the time: two runs disagreed and nothing on the surface said which to
+believe. Retracting was correct on the evidence available, and I would do it
+again. Publishing a number I could not distinguish from a corrupted one would
+have been the worse error.
 
-RETRACTED PENDING RE-MEASUREMENT: every percentage and every estimate derived
-from the samples — the 51% measurable, the 36% above floor, the ~937 and ~335,
-the clean p50/p90 floor of 39/141, and the 2.7% compile rate behind ~2,148.
+A DETAIL WORTH KEEPING. scan184b.json on disk now contains RUN 1's data, not
+run 2's. Run 1 finished LAST and overwrote the file I had already read run 2's
+console output from. So the artefact on disk and the numbers I published came
+from different runs, and re-reading the file to "check" my figures would have
+shown a mismatch that meant nothing — the same shape as everything else this
+week: two states, one slot, nothing recording which is which.
 
-The re-run uses a per-run work directory and refuses a second concurrent run
-with an O_EXCL lock rather than trusting isolation.
+TWO FIGURES BELOW ARE CORRECTED from the clean run: the structural failures
+above the floor are 19 of 56 (33.9%), not 20 of 56 (35.7%), and the estimate
+is ~318 rather than ~335. Everything else stands as published.
 
 THE ANSWER
    ~335 equations, and the estimate has two large caveats that change what the
@@ -41,7 +45,7 @@ THE ANSWER
    conf >= 0.9 equations, corpus-wide                       80,594   exhaustive
    ... failing width uniformity / env balance / CJK          1,840   exhaustive
    ... of those, ink-MEASURABLE at all              (51%)     ~937   sampled
-   ... AND above the measured noise floor           (36%)     ~335   sampled
+   ... AND above the measured noise floor           (34%)     ~318   sampled
 
    separately: compile-only failures, est. 2.7% of 78,753   ~2,148   sampled
    ... of which ink-measurable                                   0   by construction
@@ -89,10 +93,10 @@ So the honest floor for this metric is empirical, and I have taken it from the
 clean population itself rather than borrowing one: p90 = 141, the level
 exceeded by one clean equation in ten. Against that floor:
 
-   structural failures above 141   20 of 56 measured   35.7%
+   structural failures above 141   19 of 56 measured   33.9%
    clean rows above 141            10 of 100           10.0%   (by construction)
 
-The separation is real — 3.6x — but it is a separation between distributions,
+The separation is real — 3.4x — but it is a separation between distributions,
 not a clean cut. At any threshold that catches most defects, most of what it
 catches is typography.
 
@@ -148,7 +152,7 @@ The claim in out/178 was that an ink-selected pass reaches a population a
 confidence-selected one cannot. That survives, but smaller and differently
 shaped than it looked:
 
-   reachable by ink selection and not by confidence   ~335   (est.)
+   reachable by ink selection and not by confidence   ~318   (est.)
    reachable by NEITHER, needing only a compile     ~2,148   (est.)
 
 The larger and cheaper win is not ink selection at all. It is that ~2,148
