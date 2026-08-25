@@ -1,0 +1,126 @@
+178 — the missing control: does the gate accept a known-good repair?
+==============================================================================
+YES. EQ0515 was accepted, and it reached an EXACT topological match.
+
+   0902.0431_EQ0515   obj_dedd3734e03a   page 85   conf 0.0020
+
+   ink before   91      (MathPix reading)
+   ink after     0      (Grok's reconstruction)
+   delta       -91
+   status      accepted, recorded, verified_by = ink
+
+The gate is not merely willing to accept — the accepted render matches the
+scan crop exactly on both terms of the metric:
+
+   scan crop           156 components, 36 holes
+   MathPix render       80 components, 21 holes   -> distance 91
+   Grok render         156 components, 36 holes   -> distance  0
+
+The two images are DIFFERENT SIZES — 1586x485 for the crop, 1105x504 for the
+render — and still match exactly. That is the scale-free design doing the work
+it was built for, and it is the strongest evidence so far that the metric
+measures the transcription rather than the typesetting.
+
+THE PROPOSAL CAME FROM A REAL CHANGE REQUEST
+------------------------------------------------------------------------------
+~/Downloads/example.json, four proposals, author "grok", basis "inferred",
+dated 2026-08-22 — the shape `changereq.py` was written to load. Injected into
+changes.json and run through the UNMODIFIED loop:
+
+   pdfdrill refine 0902.0431.pdf --stages validate,measure,accept,record
+
+Nothing about the gate was adjusted for this test.
+
+ALL FOUR GROK PROPOSALS, AND WHY THREE DID NOT PASS
+------------------------------------------------------------------------------
+   EQ0515   conf 0.0020   ACCEPTED    ink 91 -> 0    (-91)
+   EQ0516   conf 0.0405   rejected    ink 18 -> 23   no improvement
+   EQ0517   conf 0.0021   rejected    width uniformity
+   EQ0526   conf 1.0      rejected    standalone compile
+
+Every refusal was checked against the source rather than trusted, because the
+task's premise is that a refusal of a known-good repair condemns the gate.
+
+EQ0526 — the array declares eight columns and every row supplies nine:
+
+   \begin{array}{llllllll}
+   \lambda_0 & 2 & 3 & 4 & 6 & 3 & 2 & 6 & 1 \\      <- 9 cells, 8 declared
+
+   xelatex: "Extra alignment tab has been changed to \cr". This does not
+   compile at all. Refusing it is correct.
+
+EQ0517 — twelve rows, of which four carry the wrong number of coefficients:
+
+   row  7: 5     row  8: 5     row 11: 4     row 12: 2      (the other 8: 6)
+   row 12:  ...-\tfrac12(\mu_1-\mu_2) &= 0\ 0
+
+   A positive root of e6 has exactly six coordinates (out/164 established the
+   page's ground truth: 31 rows, six cells each). Rows of 4 and 2 are
+   truncated. Refusing it is correct.
+
+EQ0516 — the only refusal made on MEASUREMENT rather than structure, so it
+deserves the most scrutiny:
+
+   scan crop        168 components, 26 holes
+   MathPix render   156 components, 20 holes   -> 12 + 6  = 18
+   Grok render      178 components, 13 holes   -> 10 + 13 = 23
+
+   Grok's is CLOSER on components and much further on holes. Its proposal
+   carries three rows against a region whose scan holds 168 components; the
+   lost holes are the digits it does not contain. Rejecting it is defensible
+   on the evidence, and it is worth saying plainly that only EQ0515 was ever
+   asserted to be a known-good repair — the other three were not, and the loop
+   agrees with that in three different ways.
+
+WHAT THIS CONTROL ESTABLISHES, AND WHAT IT DOES NOT
+------------------------------------------------------------------------------
+Establishes: the accept stage takes a good repair, and takes it decisively.
+Before this run the loop had 4 acceptances out of 13, all with deltas of
+-1, -1, -2 and -18 — small enough that a sceptical reader could have called
+them noise. A -91 to an exact match is not noise, and it is the first
+demonstration that the instrument can recognise a correct transcription rather
+than merely reject bad ones.
+
+Does NOT establish that the loop can PRODUCE such a repair. Grok's EQ0515 was
+handed to it. minimax-m3, asked for the same row in the same pipeline,
+returned 439 characters for 439 and moved the ink 91 -> 91 (out/174). The
+proposer and the verifier are separate problems, and only the verifier has now
+been shown to work in both directions.
+
+That distinction matters for what to do next: the gate is not the bottleneck.
+
+ONE THING THE CONTROL EXPOSED ABOUT THE SELECT STAGE
+------------------------------------------------------------------------------
+EQ0526 carries MathPix confidence 1.0 and is genuinely defective — nine cells
+in an eight-column array is not a subtle error. `--max-conf 0.5` would never
+have selected it, and no confidence threshold would: MathPix reports no doubt
+at all about it.
+
+The ink gate WOULD have caught it. Its baseline crop ink distance is 38
+against a scan of 21 components, on a row nobody would have looked at. So the
+selector currently filters on the one signal that is blind here, and the
+signal that is not blind is only consulted afterwards.
+
+That is a real finding about the design and I am not fixing it under this
+task: selecting by measured ink rather than by reported confidence is a
+different command with a different cost profile, and it should be decided on
+purpose rather than slipped in.
+
+STATE
+------------------------------------------------------------------------------
+changes.json now holds both runs, separated by `author`, which is what that
+field is for:
+
+   grok         accepted 1   rejected 3
+   minimax-m3   accepted 4   rejected 12
+   20 proposals total
+
+modeldiff over the record: 1 changed, 0 added, 0 removed, 0 UNEVIDENCED —
+`latex_refined: null -> \begin{aligned}…` with
+[realizations[3].provenance=change; source=change]. props.latex still holds
+the MathPix reading.
+
+refine.report.pdf regenerated: 20 rows, 5 accepted, 15 rejected, 1 page.
+
+out/174's counts describe the minimax-m3 run alone and remain correct as
+written; this run adds a fifth acceptance from a different author.
