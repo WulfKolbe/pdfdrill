@@ -1,0 +1,61 @@
+161 — the (204) case: an equation number inside a maths value
+==============================================================================
+FOUND — one occurrence in the corpus.
+
+   bibkey      1510.06699
+   identifier  obj_de54bf1e07b8          (type Equation)
+   page        35
+   refnum      204
+   confidence  0.9868285626871511
+
+WHAT IT LOOKS LIKE
+------------------------------------------------------------------------------
+The number is inside the display-math body, welded to the closing bracket and
+the sentence-final period:
+
+   \begin{array}{r}
+   \mathcal{L}_{\mathrm{M}}=h^{-1}\left[\frac{1}{2} i \bar{\psi} \gamma^{a}{ }^{0}
+     \stackrel{\leftrightarrow}{\mathcal{D}}_{a} \psi-\mu \phi \bar{\psi} \psi
+     +\frac{1}{2} \nu\left({ }^{0} \mathcal{D}_{a}^{\dagger} \phi\right)
+     \left({ }^{0} \mathcal{D}^{\dagger a} \phi\right)-\lambda \phi^{4}\right. \\
+   \left.-a \phi^{2}{ }^{0} \mathcal{R}^{\dagger}\right] .(204)
+   \end{array}                                     ^^^^^^
+                                                   here
+
+It is present in three props of the same object — `latex`, `latex_raw` and
+`equation_number` — and in the source at lines.json pages[34].lines[63].
+
+SOURCE, NOT OURS
+------------------------------------------------------------------------------
+MathPix emitted it this way. The `(204)` is inside the `math`-type line's own
+text in their file; we did not move it there. Confirmed by reading the original
+lines.json directly rather than the model.
+
+THE PART WORTH NOTING
+------------------------------------------------------------------------------
+This equation is NOT unnumbered. `refnum` = 204 and `refnum_anchor` is set, so
+the pairing in equation.py `_match_equation_numbers` succeeded — there is also
+a separate `equation_number` line on that page which it matched. So the number
+is in the model twice: once correctly as the refnum, and once as three
+characters of the equation's own body.
+
+That is why this case matters more than a cosmetic blemish. The refnum is
+right, so nothing downstream flags the equation as defective, while the LaTeX
+that gets rendered, scored and published carries a stray `.(204)` that is not
+mathematics. It renders. It compiles. It is simply wrong, and every check that
+looks at the refnum says the equation is fine.
+
+POPULATION
+------------------------------------------------------------------------------
+Searched every maths value in every lines.json (1,336 documents, 129,506
+equation/math lines) for the literal string `(204)`: exactly one hit, the one
+above.
+
+The looser pattern — any `(\d{1,4}(\.\d+)?)` anywhere inside a maths value —
+matches 4,111 lines, but that population is dominated by legitimate mathematics:
+subscripted indices `w_{(1)}`, `\sigma^{(1)}`, `R_{(1)} \otimes R_{(2)}`,
+derivative orders, and Hopf-algebra Sweedler notation. Those are content, not
+contamination, so the loose count is not a defect count and should not be
+quoted as one. Distinguishing the two reliably needs the position test — the
+number trailing the body after a closing delimiter, as here — not the presence
+test.

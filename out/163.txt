@@ -1,0 +1,86 @@
+163 — the 1206.0238 run: pdf_id, date, and the CJK that is not there
+==============================================================================
+AS ASKED
+------------------------------------------------------------------------------
+   pdf_id      1a2764fe-a656-450f-93f0-68665ad1a04a
+   date        2026-08-19T16:32:07Z          (MathPix conversion, 12.5 s)
+
+Both read from the sidecar 1206.0238.drill.json:
+   evidence.mathpix_pdf_id  = "1a2764fe-a656-450f-93f0-68665ad1a04a"
+   evidence.mathpix_status  = "downloaded"
+   transitions[] node=mathpix ts="2026-08-19T16:32:07Z" detail="downloaded"
+
+Surrounding timeline for that document, same sidecar:
+
+   16:28:46Z  model        137 objects from arXiv LaTeX source
+   16:29:16Z  bibliography 14 entries
+   16:32:07Z  mathpix      downloaded            <- the paid run
+   16:32:12Z  model        236 objects, 2 eq w/ cdn
+   18:28:58Z  model        238 objects, 2 eq w/ cdn
+   18:33:19Z  tiddlers     140 tiddlers
+
+   capabilities.MODEL_BUILT.provenance = "mathpix"
+   input sha256 of the lines.json      = eebf250a3216a0e9…e731175
+   pdfdrill_version                    = 0.4.0
+
+THEY CANNOT REPRODUCE THE CJK BECAUSE THERE IS NONE TO REPRODUCE
+------------------------------------------------------------------------------
+The premise of the task is that our run may predate the current MathPix model
+and so contain CJK their fresh run does not. Before accepting that, I checked
+whether our stored run contains any CJK at all.
+
+It does not.
+
+   1206.0238.lines.json     0 CJK characters
+   model.docmodel.json      0
+   1206.0238.md             0
+   1206.0238.tiddlers.json  0
+   1206.0238.inspect.html   0
+   1206.0238.spoken.txt     0
+
+Scanned over U+2E80–2FFF (incl. the Ideographic Description Characters),
+U+3040–30FF, U+3400–4DBF, U+4E00–9FFF, U+F900–FAFF, U+FF00–FFEF.
+
+The only "CJK" anywhere in the folder is inside .pdf, .tex.zip and .tgz — that
+is compressed binary being read as if it were UTF-8, and it is an artefact of
+my scan, not content. Naming it here so it is not rediscovered as a finding.
+
+THE CONFIDENCE MATCHES THEIRS
+------------------------------------------------------------------------------
+   our stored run, all lines with a confidence   n = 559, min = 0.8267
+   their fresh run                                        min = 0.83
+
+Those are the same document scored the same way. Our run is not an older, worse
+extraction — on the one number both sides have, it agrees to two decimals.
+
+   math-type lines only: n = 2, min = 1.0, both equations.
+
+1206.0238 IS NOT IN OUR CJK CENSUS
+------------------------------------------------------------------------------
+out/128 measured the CJK/IDC validator across the corpus: 1,238 documents with
+a tiddler array, 335,043 maths values examined, 26 failures in 13 documents:
+
+   6  BH1org_OCR                       2  p1810-miliaraki
+   5  Clifford_bundle_formulation…     1  1511.08771
+   2  0902.0431                        1  2109.08655
+   2  2104.05122                       1  latex2-script
+   2  BH3FR                            1  scan_20260530_213608
+                                       1  scan_20260530_231637
+                                       1  scan_20260531_114321
+                                       1  scan_20260531_124851
+
+1206.0238 does not appear, and the string "1206" does not appear anywhere in
+out/128. We have never reported CJK in this document.
+
+CONCLUSION
+------------------------------------------------------------------------------
+There is nothing to explain. The hypothesis on the table — our extraction
+predates the current MathPix model and carries CJK it no longer produces —
+requires our extraction to carry CJK, and it does not. Both sides now agree the
+document is clean, and both sides measure the same minimum confidence.
+
+The question worth putting back to them is where the CJK claim for 1206.0238
+originated, because it did not come from any artefact in our corpus. If it came
+from a formula report, the identifier will name its document, and out/128's
+thirteen are the candidates — 0902.0431 in particular is a document we HAVE
+flagged for CJK twice, and it is the other document in play this week.

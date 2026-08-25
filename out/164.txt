@@ -1,0 +1,118 @@
+164 — A/B: enable_document_layout on 0902.0431 page 85
+==============================================================================
+RESULT
+No effect. Six runs, three each way, produced byte-identical text. Cells
+recovered: 92 of 186 in both arms. Confidence: unchanged.
+
+   run  arm  enable_document_layout  rows  cells  cell%   conf_min   conf_mean
+   ---  ---  ----------------------  ----  -----  -----   --------   ---------
+     1   A            false            19     92  49.5%    0.00193      0.4362
+     2   B            true             19     92  49.5%    0.00193      0.4358
+     3   A            false            19     92  49.5%    0.00193      0.4362
+     4   B            true             19     92  49.5%    0.00193      0.4358
+     5   A            false            19     92  49.5%    0.00193      0.4362
+     6   B            true             19     92  49.5%    0.00193      0.4362
+
+   distinct content hashes across all six runs: 1
+
+Runs were interleaved A,B,A,B,A,B so any drift in the service over the window
+hits both arms equally.
+
+   arm A (control)  cells [92, 92, 92]  conf_mean [0.4362, 0.4362, 0.4362]
+   arm B (layout)   cells [92, 92, 92]  conf_mean [0.4358, 0.4358, 0.4362]
+
+The 0.0004 spread in arm B is not an arm effect: run 6, an arm-B run, returned
+0.4362 — exactly the arm-A value. Confidence is not deterministic run to run
+even when the emitted text is identical to the byte. That variation is smaller
+than the difference the option would have to make to matter, and it appears
+within arm B as well as between arms.
+
+Math-line confidence, the number that actually matters here, is unmoved:
+min 0.00193 in every run, mean 0.0158 (A) vs 0.0150–0.0158 (B).
+
+GROUND TRUTH
+------------------------------------------------------------------------------
+Page 85 is the e6 positive-root table: each row an equation followed by its six
+root coordinates n1..n6.
+
+   rows on the page                31   (12 + 8 + 11; the table runs on to p86)
+   coefficient cells               186  (31 x 6)
+
+Counted from the born-digital text layer with `pdftotext -layout`, every matched
+row having exactly six cells. The page was extracted with `qpdf --pages`, which
+copies the original page objects; a Ghostscript extraction was discarded because
+it re-encodes the page and would have made the input a variable of its own.
+
+WHAT MATHPIX RETURNS, EITHER WAY
+------------------------------------------------------------------------------
+   lines            6   (text 2, math 3, page_info 1)
+   rows recovered  19  of 31
+   cells recovered 92  of 186   (49.5%)
+   rows with all 6 cells  4  of 31
+
+The dominant defect is column merging: the page has two side-by-side blocks,
+and MathPix runs them together into one row, so a left-hand row's coefficients
+are followed by the right-hand row's equation:
+
+   \lambda_{0}-\lambda_{2}=1 \quad 1 \quad 0 \quad 0 \quad 0 \quad
+       \lambda_{0}+\lambda_{1}=1
+
+Six such merges per run, identical in both arms. This is precisely the failure a
+document-layout pass would be expected to fix, and it is unchanged by the flag.
+
+WHETHER THE OPTION WAS HONOURED — THE PART THAT NEEDED CONTROLS
+------------------------------------------------------------------------------
+A null result from an option the server ignored says nothing about the option.
+Three controls, because the first two were not enough:
+
+  1. Invalid value.   {"enable_document_layout": "banana"}      -> HTTP 200
+  2. Nonexistent key. {"totally_bogus_key_xyz_9f": "banana"}    -> HTTP 200
+
+     The endpoint validates nothing. Acceptance is not evidence of anything,
+     and GET /v3/pdf/{id} does not echo the options back — its keys are
+     app_id, conversion_status, group_id, input_file, num_pages,
+     num_pages_completed, pdf_id, percent_done, status, version.
+
+  3. Is options_json read at all? Yes — proved on output, not on status.
+     Our nested conversion_options set the markdown delimiters to $ / $$.
+     The returned .md contains 6 occurrences of "$$" and zero of "\[" or "\(",
+     which are MathPix's defaults. The document we sent was converted under
+     options we supplied.
+
+So options_json reaches the converter and is applied. The top-level key was
+transmitted in a channel demonstrably read, and changed nothing.
+
+One caveat I will not paper over: a fourth attempt, {"alphabets_allowed":
+{"en": false}}, also produced byte-identical output. That option is documented
+for /v3/text and may simply not apply to /v3/pdf. It means I have shown that
+top-level keys in this request are read for some options (control 3, nested) but
+I have not independently shown that a top-level key ever changes /v3/pdf output.
+The honest scope of the result is therefore:
+
+   Adding enable_document_layout to options_json on /v3/pdf-file, as we send it,
+   changes nothing about this page — not the text, not the cells, not the
+   confidence. Whether MathPix supports the option on this endpoint under some
+   other spelling or placement is not settled by these runs, and the API gives
+   no way to ask.
+
+COST
+------------------------------------------------------------------------------
+10 pages: 6 A/B runs + 2 validation controls + 2 positive/baseline controls, all
+single-page. A lock file refuses a second launch by pid rather than re-charging.
+
+pdf_ids
+   A  173bcae2-2131-4ced-8fe1-10bfb9c5641c
+      b6761042-11b8-4851-8d32-61e6b5824fa3
+      fd195361-4545-4a48-a5d5-9b1afe9f8ed7
+   B  5bc0ddf4-f605-4152-91dc-ad6b68ce3e77
+      cd9186ea-9d1d-4bde-9311-71aec65ca0a4
+      60ba512f-27f0-4c8f-88ae-dd96cceee782
+
+A NOTE ON THE INSTRUMENT
+------------------------------------------------------------------------------
+My first cell counter reported 7 cells of 186 in both arms — a real-looking
+result, identical across arms, and wrong. It split rows on "&", and this table
+separates its cells with \quad. The A/B conclusion would have been the same,
+which is exactly why it was worth catching: a broken instrument that happens to
+agree with the right answer still cannot be trusted the next time. The corrected
+count is 92 of 186.

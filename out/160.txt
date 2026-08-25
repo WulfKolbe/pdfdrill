@@ -1,0 +1,122 @@
+160 — children_ids as a route to equation confidence
+==============================================================================
+QUESTION
+Follow children_ids from equation containers to the child math line and read
+the confidence there. How many of the 1,148 previously-unscored equations gain
+a value?
+
+ANSWER
+Zero. Not "few" — zero, and for a structural reason: no equation ever has
+children_ids. The route does not exist.
+
+THE ROUTE DOES NOT EXIST
+------------------------------------------------------------------------------
+Scanned every lines.json in the corpus (1,336 documents).
+
+   equation/math lines examined            129,506
+   ... of those, carrying children_ids            0
+   unscored equation/math lines             29,048
+   ... of those, carrying children_ids            0
+
+children_ids is real, and common — 60,000+ occurrences in a 400-document
+sample — but it belongs exclusively to STRUCTURAL containers:
+
+   complex_cell 24,863   table 7,212   list_item 11,148   figure_label 1,850
+   column 3,677   table_spanning_cell 4,409   footnote 731   section_header 680
+   authors 429   abstract 344   title 232   diagram 357   toc_row 1,078  ...
+
+Not one of those categories is `math` or `equation`. MathPix does not model an
+equation as a container of child lines; an equation is a leaf.
+
+THE REVERSE DIRECTION, ALSO TESTED
+------------------------------------------------------------------------------
+If an equation is not a parent, it might be a CHILD of something scored. Built
+the inverted index (child id -> parent line) and asked it directly:
+
+   unscored equations that are a child of ANY container       34  (of 29,048)
+   ... whose parent carries a confidence                      22
+   parent types: complex_cell 22, list_item 6, column 6
+
+22 of 29,048 is 0.07%, and the value would be the parent's confidence, not the
+equation's. That is not a route, it is a rounding error.
+
+Tested the same question a third way at the object level — model objects have
+their own `children` list — and got 0 of 23,698.
+
+WHAT DOES RECOVER VALUES: 4,573 EQUATIONS
+------------------------------------------------------------------------------
+While testing route B (object -> stream anchor -> line payload) something else
+turned up. For each unscored Equation object I resolved its `mathpix_lines`
+anchor and read the payload sitting at it:
+
+   unscored Equation objects                            23,698   (162 documents)
+   ... with a mathpix_lines anchor                      15,833
+   ... whose OWN payload already carries a confidence    4,573   <-- recoverable
+   ... with no mathpix anchor at all                     7,865   (LaTeX-source
+                                                                  equations; no
+                                                                  MathPix score
+                                                                  exists for them)
+
+4,573 equations have the number sitting in the stream we already store, one
+dereference from the object that reports it missing. Nothing needs fetching.
+
+VERIFIED END TO END, AND A TRAP FOUND ON THE WAY
+------------------------------------------------------------------------------
+1206.0238, two equations, both unscored, both with payload confidence = 1.
+
+   pdfdrill model <pdf>            -> Equation 2, scored 0   (NO CHANGE)
+   pdfdrill model --force <pdf>    -> Equation 2, scored 2   (recovered)
+
+A plain re-run does not recover them. It prints "Built unified model: 238
+objects" and changes nothing — the rebuild guard declines, and the summary line
+it prints is indistinguishable from the summary of a real build. I read that
+line as evidence of a rebuild and concluded the value was unrecoverable; it was
+only when a delete-and-rebuild produced different object ids that the no-op
+became visible. `--force` is required, and the output gives no sign of which
+one you got.
+
+CORRECTING out/120
+------------------------------------------------------------------------------
+out/120 said of this residue:
+
+   "those documents' lines.json carries no per-line confidence. Same shape as
+    the pdfminer finding - the field is absent at source, not dropped in transit."
+
+That is wrong for 4,573 of today's unscored equations: the field is present at
+source, present in the payload we stored, and absent only on the object. It was
+dropped in transit after all.
+
+Three of the five documents out/120 named as worst cases are now fully scored:
+
+   1605.03431                  146 equations, 146 scored
+   DKT05                        60 equations,  60 scored
+   Normalization_square_roots   64 equations,  64 scored
+
+THE 1,148 FIGURE
+------------------------------------------------------------------------------
+I cannot report a gain against that exact population and will not pretend to.
+out/120 measured 119 of 724 documents; the corpus is now 1,336 models, roughly
+tripled by the overnight MathPix batch, and out/120 lists only its five largest
+documents, not the 119. The population no longer exists to be re-measured.
+
+What is measurable today, stated with its own population:
+
+   documents with equations                              1,036
+   equations                                           119,328
+   unscored equations                                   23,698  (19.9%)
+   documents with at least one unscored equation           162
+   documents where EVERY equation is unscored              129  (23,636 eqs)
+
+   recoverable by `model --force`                        4,573  (19.3% of unscored)
+   recoverable via children_ids                              0
+
+Largest fully-unscored documents: Srednicki QFT (2,894), Principles of Model
+Checking (2,149), Ibragimov Tensors (1,868), Debarre Algèbre 1 (1,451),
+qftbook (1,447).
+
+CONCLUSION
+------------------------------------------------------------------------------
+The children_ids hypothesis is dead and cheap to bury: the attribute never
+appears on an equation, in either direction, at either the line or the object
+level. The 4,573 that a forced rebuild would recover is the finding worth
+keeping, and it is free — no API call, no new data.

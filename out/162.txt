@@ -1,0 +1,92 @@
+162 — control characters in the 44 documents: whose are they?
+==============================================================================
+VERDICT
+Ours. The characters are not in MathPix's files. They are in two fields that we
+create, and neither field exists in their lines.json at all.
+
+THE ANSWER AS ASKED
+------------------------------------------------------------------------------
+   bibkey                0707.2676
+
+   path in OUR model     .streams.mathpix_lines.payload.a_7fdb367c9d4a
+                          ._geom.pdf_text
+                         char U+0011 at offset 185
+
+   the SAME line in
+   THEIR lines.json      pages[4].lines[0]
+                         line id 8c4b60fa2d20458699f368becc3ab06a, page 5
+
+   that line's keys      cnt, column, confidence, confidence_rate,
+                         conversion_output, font_size, id, is_handwritten,
+                         is_printed, line, region, text, text_display, type
+
+   `_geom`               absent
+   `pdf_text`            absent
+   .text                 0 control characters
+   .text_display         0 control characters
+
+There is no path in the original file to give you, because the field the
+character lives in is not in the original file. `_geom.pdf_text` is ours: it is
+the PDF text layer we attach to a MathPix line during geometry fusion.
+
+CORPUS-WIDE, THE SAME ANSWER
+------------------------------------------------------------------------------
+Scanned every string value of every lines.json (1,336 documents), C0/C1 minus
+tab/LF/CR:
+
+   control characters in MathPix lines.json          0
+
+Then scanned every string value of every model:
+
+   documents affected                               44      <- matches your 44
+   total occurrences                             2,190
+
+   .streams.pdf_lines.payload.<anchor>.text      1,183
+   .streams.mathpix_lines.payload.<anchor>
+                              ._geom.pdf_text    1,007
+
+   by document, the field where it first appears:
+       42  mathpix_lines.<anchor>._geom.pdf_text
+        2  pdf_lines.<anchor>.text
+
+Both fields are ours. `pdf_lines` is the pdfminer stream; `_geom.pdf_text` is
+the PDF text layer fused onto a MathPix line. MathPix's own `text` and
+`text_display` are clean in every one of the 44.
+
+WHICH CHARACTERS
+------------------------------------------------------------------------------
+The first-hit character per document:
+
+     12  U+0001      5  U+000F      4  U+0011      4  U+0012      4  U+0013
+      3  U+0003      3  U+0010      2  U+001B      2  U+0002      2  U+001A
+      1  U+0014      1  U+0004      1  U+0016
+
+All C0, all in the 0x01–0x1B band, none of them formatting characters anyone
+would type. That distribution is the signature of a PDF font with a broken or
+absent /ToUnicode map: the extractor is handing back raw glyph codes because
+there is nothing to map them to.
+
+A SECOND DEFECT IN THE SAME FIELD
+------------------------------------------------------------------------------
+Worth recording because it was visible the moment the value was read next to
+its MathPix counterpart. The same `_geom.pdf_text` value is also scrambled:
+
+   ours    'le derivative singular 1 terms (r) 2 form. + \x11 dt = \x10 2 dr i +
+            of We points. + 2 on 2α bac'
+   theirs  'The Dirac equation in Blackhole backgrounds has a number of singular'
+
+That is not the same sentence with bad characters in it. The words are out of
+order. So `_geom.pdf_text` on this line is doubly unusable, and the control
+characters are the more visible half of a worse problem — a text layer being
+read in glyph order rather than reading order.
+
+WHAT THIS MEANS
+------------------------------------------------------------------------------
+Nothing needs to be raised with MathPix. The 44 documents are a defect in our
+geometry-fusion and pdfminer paths, and the fix belongs on our side: strip C0/C1
+at the point of extraction, and treat a `_geom.pdf_text` that disagrees this
+badly with the MathPix text as evidence the text layer is unusable for that
+line rather than as a competing reading.
+
+I have not made that change — this task asked where the characters come from,
+and the answer is that they come from us.
