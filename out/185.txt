@@ -1,0 +1,151 @@
+185 — 20 of the 1,840, classified. Is the second selector worth a command?
+==============================================================================
+DECISION: NO. Not on this evidence, and not yet.
+
+19 of the 20 rows are OUR defect, not MathPix's. The population the second
+selector would reach is mostly an artefact of the checks that define it, and
+the correct action is to fix two functions rather than add a command.
+
+THE TWENTY, seed 185, drawn from the 1,840 exhaustively-identified rows
+------------------------------------------------------------------------------
+   #  check   compiles   ink   whose
+   1  env     False      —     ours: MathPix's line carries \end{itemize}
+   2  width   True         0   OURS — false positive
+   3  width   True       150   OURS — false positive
+   4  width   True       145   OURS — false positive
+   5  width   True         0   OURS — false positive
+   6  env     False      —     ours
+   7  env     False      —     ours
+   8  width   True       212   OURS — false positive
+   9  width   True        38   MATHPIX — a real defect
+  10  env     False      —     ours
+  11  env     False      —     ours
+  12  env     False      —     ours
+  13  width   True       216   OURS — false positive
+  14  width   True        38   OURS — false positive
+  15  width   True        29   OURS — false positive
+  16  env     False      —     ours
+  17  width   True        33   OURS — false positive
+  18  width   True        40   OURS — false positive
+  19  width   True       152   OURS — false positive
+  20  width   True        52   OURS — false positive
+
+   environment balance   7   none compile, none measurable
+   width uniformity     13   all compile;  1 real, 12 false positives
+   MathPix's fault       1 of 20   (5%)
+
+1. DOES IT COMPILE? 13 of 20 yes, 7 no — and the 7 are one single defect
+------------------------------------------------------------------------------
+Every one of the seven environment-balance rows has the identical shape:
+
+   \[ …the mathematics… \] \end{itemize}
+   unmatched_end {itemize: 1}, trailing itemize
+   xelatex: LaTeX Error: Bad math environment delimiter.
+
+Checked at source rather than inferred. MathPix's own `math` line reads:
+
+   text_display: '\n\\[\n\\frac{d^{2}u}{d\\phi^{2}}+u=…\n\\]\n\\end{itemize}'
+
+So the token is in MathPix's line, and for a document reconstruction it is
+arguably right — the list does end after that equation. It is wrong only as
+the EQUATION's body, and it is our `_normalize_latex` that lifts the line
+wholesale: it strips the `\[ \]` wrapper and leaves the structural token
+behind. One line of ours, seven of twenty rows.
+
+2. OURS OR MATHPIX'S? NINETEEN OURS, ONE THEIRS
+------------------------------------------------------------------------------
+The one real defect is row 9, and it is a good one:
+
+   I(G) = ( 1 1 0 0 0 0
+            0 0 1 l 0 0     <-- letter 'l' where the digit 1 belongs
+            0 0 -1 0 1 -1
+           -1 -1 0 0 -1 1 )
+
+An incidence matrix of 0s and 1s with an `l` in it. MathPix misread a digit as
+a letter, the width check noticed because `l` is not numeric, and it is
+exactly the kind of error the whole apparatus exists to find.
+
+The other twelve width failures are the validator mis-parsing correct LaTeX,
+in two ways:
+
+   (a) TWO MATRICES, DIFFERENT WIDTHS — rows 2 and 4. `A=(3x3) B=(1x4)` is
+       not a ragged table, it is two tables. The check assumes one width per
+       value, and that assumption is simply false for these.
+
+   (b) A PARSER ARTEFACT — the other ten. `numeric_rows` splits on `\\` and
+       requires each cell to be a bare number. The FIRST segment of an array
+       embedded in a larger expression carries the surrounding LaTeX in its
+       first cell, and the LAST carries the closer:
+
+          seg 1 first cell: '\left[\eta_{ab}\right]\equiv\left(\begin{array}{cccc} 0'
+          seg 2 first cell: '1'
+
+       so a plain 4x4 matrix reports widths [[3],[4],[4],[3]] and is flagged
+       non-uniform at rows 2 and 3. Every array that is not the entire value
+       is mis-counted this way. Rows 3, 5, 8, 13, 14, 15, 17, 18, 19, 20 are
+       all this, and 13 adds a `{ccc|c}` rule the parser also does not model.
+
+3. WOULD AN INK-SELECTED PASS HAVE CAUGHT IT? NO — AND THIS IS THE ANSWER
+------------------------------------------------------------------------------
+   the one real defect (row 9)      ink 38
+   the twelve false positives       ink 0, 0, 29, 33, 38, 40, 52, 145, 150,
+                                        152, 212, 216
+   false positives ranked AT OR ABOVE the real defect:  8 of 12
+
+Ink does not find it. Eight of the twelve rows the width check got WRONG score
+an ink baseline at or above the one row it got RIGHT, and the two highest
+scores in the whole sample — 216 and 212 — are both false positives.
+
+Ink is not useless here: it exonerates rows 2 and 5 at exactly 0, which is a
+correct verdict on two false positives and the right answer for the right
+reason. But an exoneration signal is not a selector. A selector has to RANK,
+and on this sample it ranks the single real defect ninth of thirteen.
+
+And the seven environment-balance rows are invisible to it entirely: they do
+not compile, so there is no render, so there is no ink baseline. 35% of the
+population is unreachable by the proposed selector by construction.
+
+WHAT THIS MEANS FOR THE 1,840
+------------------------------------------------------------------------------
+Extrapolating the sample with its size stated — 20 of 1,840, so these are
+±11 percentage points at 95% and should be read as shape, not precision:
+
+   ~35%  ≈ 640   the \end{itemize} class          one line of ours
+   ~60%  ≈1,100   width false positives            one function of ours
+   ~ 5%  ≈  90   real MathPix defects
+
+Roughly 95% of the population that a second selector would be built to reach
+is manufactured by the two checks that define it. Building a command to search
+that population would be building an instrument to find our own noise, and the
+~90 real defects inside it are not separable by ink.
+
+THE ACTION THIS DECIDES ON
+------------------------------------------------------------------------------
+Not a command. Two fixes, both small, both in code I own:
+
+   1. `_normalize_latex` should strip trailing document-structure tokens
+      (`\end{itemize}` and its kin) when lifting a MathPix line into an
+      equation body. Removes ~640 rows and makes them compile.
+   2. `changereq.numeric_rows` should parse the array environment properly —
+      take the cells BETWEEN \begin{array} and \end{array}, not the raw `\\`
+      split of the whole value — and should not assume one width per value
+      when a value contains more than one array. Removes ~1,100.
+
+After both, the 1,840 should fall to something near 90, and every one of those
+is a candidate worth looking at rather than a queue to be triaged. THEN the
+question of a second selector can be asked again against a population that
+means something.
+
+I have not made those changes under this task. 185 asked whether the selector
+is worth a command; it is not, and the reason is that the population is not
+yet real. Fixing it is a separate decision with its own verification — in
+particular, fixing the width parser will change the 1,840 in out/184, and
+those two numbers must move together or one of them starts lying.
+
+METHOD
+   20 drawn with seed 185 from the exhaustive 1,840. Each rendered standalone
+   (xelatex — the compile answer), each cropped from its own page at that
+   page's MathPix width and measured against its render (the ink answer), and
+   each read by hand against its source LaTeX (the ours-or-theirs answer).
+   The `\end{itemize}` attribution was checked in MathPix's lines.json, not
+   inferred from our model.
