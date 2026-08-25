@@ -1,0 +1,139 @@
+189 — did the fix remove real defects with the false ones?
+==============================================================================
+VERDICT: No. 917 of the 918 cleared rows are correct mathematics, verified by
+a rule that shares no code with the fix. ONE real defect was suppressed, and
+it is named below.
+
+FIRST, A CORRECTION TO THE PREMISE: THE SURVIVORS ARE 6, NOT 20
+------------------------------------------------------------------------------
+20 was an intermediate figure. It was the count after the first version of the
+fix, and reading that version's own output found three more defects in it —
+nested arrays tearing their parent's rows, a leading `\begin{itemize}` I had
+not handled, and a confusable set so wide it fired on the imaginary unit.
+After those, the count is 6. Both numbers are in out/187 and out/188; the 20
+should not be carried forward.
+
+THE SIX SURVIVORS, EACH CLASSIFIED
+------------------------------------------------------------------------------
+ 1. 2103.01507                     conf 1.000   REAL — MathPix
+    \partial^{Q} \text{ 久 } \equiv (\partial^{Q}X, V, s | \partial^{Q}X, G)
+    A CJK ideograph sitting in the middle of an equation. Nothing reads that
+    as mathematics.
+
+ 2. Geometrodynamics of Gauge Fields  conf 0.925   REAL — MathPix
+    \mathbf{匕}_{n}\mathscr{G}^{A} \cong n\rfloor(D\underline{\tau}^{A})
+    Same class: 匕 where an operator belongs.
+
+ 3. Introduction to Graph and Hypergraph Theory  conf 1.000  REAL — MathPix
+    I(G) = ( … 0 & 0 & 1 & l & 0 & 0 … )
+    The letter l in an incidence matrix of 0 and ±1. The out/185 case.
+
+ 4. Introduction to Linear and Matrix Algebra  conf 0.940   REAL — MathPix
+    table 2 rows: [5, 5, 5, 4, 2]
+        0 & 0 & 0 & 1        <- 4 cells in a 5-column matrix
+        0 & 1                <- 2 cells
+    Cells DROPPED during row reduction.
+
+ 5. Lie Groups, Physics and Geometry  conf 1.000   OUR ARTEFACT
+    e^{r a^†} e^{δI} e^{l a} = [1 0 0; 0 1 r][1 0 δ; 0 1 0][1 l 0; …]
+    r, δ and l are the three group PARAMETERS, and they appear as matrix
+    entries because that is what the identity says. The l is correct
+    mathematics and my confusable check is wrong about it.
+
+ 6. Numerical Linear Algebra and Matrix Factorization  conf 0.936  REAL — MathPix
+    \begin{array}{cc} 2x-y-x+2y \\ 1 & -1 \end{array}
+    Two cells MERGED into one: it should read 2x-y & -x+2y. The declared
+    column count is 2 and the first row has 1.
+
+   REAL MathPix defects   5
+   our artefact           1
+
+THE ~90, AND THE NUMBER THAT ACTUALLY MATTERS
+------------------------------------------------------------------------------
+The ~90 was my own extrapolation from ONE observed defect in twenty rows. It
+should never have been quoted as a population. A single hit in 20 carries a
+95% interval of roughly 0.1%–25%, which over 1,840 is 2 to 460 — an interval
+so wide it excludes almost nothing.
+
+So I measured the class directly instead, with a net far wider than the
+shipped check: EVERY lone-letter cell in EVERY table that is ≥80% numeric,
+across all 80,593 equations at confidence ≥ 0.9, plus every cell mixing
+letters and digits.
+
+   tables inspected                     2,478
+   cells that are a lone letter            12
+   cells mixing letters and digits          0
+
+   and every one of the twelve, classified by hand:
+
+      r  x4   a parameter in a Gaussian elimination and in the Heisenberg
+               group element — mathematics
+      t  x3   the time parameter in e^{tJ}, e^{At} — mathematics
+      i  x2   the imaginary unit, in 0 & -i & i & 0 — mathematics
+      l  x2   ONE real (the incidence matrix), ONE a group parameter
+      N  x1   a column HEADER in a σ(N) function table — mathematics
+
+   REAL digit-misreads in the whole corpus at conf ≥ 0.9:   1
+
+So the l-for-1 class has ONE member, not ninety. The extrapolation was high by
+two orders of magnitude, and the honest reading is that it was one observation
+wearing the clothes of an estimate.
+
+COVERAGE — the number the task correctly identified as the one that matters:
+
+   real instances of the class                 1
+   caught by confusable_cells                  1     coverage 100%
+   fired on                                    2     precision  50%
+
+Within its domain the check misses nothing. Its domain is narrow and I will
+state the limits rather than let the 100% stand alone: it looks only at LONE
+letters, only inside tables that are ≥80% bare numbers, and only for `l`. A
+misread digit inside a longer cell would be invisible — the wide net found no
+such cell anywhere, which is evidence but not proof — and a misread digit in
+prose mathematics is outside both checks entirely.
+
+DID THE FIX SUPPRESS REAL DEFECTS? ONE, OUT OF 918
+------------------------------------------------------------------------------
+A sample of twelve cleared rows, all correct, still permits a real-defect rate
+of ~22% at 95%. That is not an answer. So all 918 were checked by an
+INDEPENDENT rule that shares no code with the fix:
+
+   \begin{array}{cccc} DECLARES its column count. A row whose cell count
+   disagrees with the declaration is ragged whatever my parser thinks.
+
+   cleared rows checked                  918
+   arrays inspected                    1,868
+   disagreeing with their own spec         1
+
+The one:
+
+   P_4 = [ \begin{array}{lll} e_1 & e_3 & e_2 \\ e_4 \end{array} ]
+   declares 3 columns; row 2 has 1.
+
+A permutation matrix written as basis vectors, where e_4 was pushed onto a new
+row. It is a REAL defect and my fix no longer catches it — because the cells
+are \boldsymbol{e}_{i}, not bare numbers, so the table is not "numeric" and
+`check_uniform_widths` never measures it. The old rule caught it by accident,
+the same way it caught the l.
+
+   false negatives introduced by the fix:  1 of 918  (0.11%)
+
+CONCLUSION
+------------------------------------------------------------------------------
+1,840 → 6 is honest to within one row. The reduction is not too large: it
+removed 917 false positives and 1 real defect, and the 6 that remain are 5
+genuine MathPix defects and 1 false positive of my own new check.
+
+Two things are now known to be wrong and are NOT fixed here, because 189 asked
+for a classification and I have been told often enough what happens when a
+report quietly widens into a build:
+
+   (a) `confusable_cells` fires on the Lie Groups group parameter. Precision
+       50% on a population of two. A cheap improvement exists — require the
+       letter to appear nowhere else in the equation, which the group
+       parameter fails immediately, appearing in e^{l a}.
+   (b) `check_uniform_widths` measures only numeric tables, so a ragged table
+       of symbols is invisible. The remedy is demonstrated above and it is
+       better than the rule it would extend: compare against the array's OWN
+       declared column count. Across 1,868 arrays it produced exactly one
+       finding, and that finding was real.
