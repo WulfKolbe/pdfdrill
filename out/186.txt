@@ -1,5 +1,27 @@
 186 — the floor of 7, restated against measurement
 ==============================================================================
+*** LIMITATION FOUND AFTER WRITING — READ THIS FIRST ***
+
+Every distribution below is measured on 0902.0431 ALONE, and out/066 shows
+that document is the corpus OUTLIER for this exact metric: it supplies 235 of
+the 725 flagged rows across 49 documents — 32% of all hits from one book.
+
+The corpus figure disagrees with mine sharply. out/066 measured 3,392 clean
+conf >= 0.9 rows across 49 documents and found 725 at ink >= 6, i.e. 21.4%.
+So corpus-wide roughly FOUR FIFTHS of clean rows sit BELOW the floor. On
+0902.0431 I measured the opposite: 91.4% ABOVE it.
+
+Both can be true — that is what an outlier is — but it means the conclusion
+below ("the floor never fires, NOISE_COMP_DELTA is the binding gate") is
+established for 0902.0431 and NOT established for the corpus. out/097's
+sensitivity on the 49-document population says the floor DOES bite there:
+floor 6 -> 724 flagged, floor 7 -> 591, a move of 18%.
+
+I generalised from one document, which is the same error as setting a floor on
+one document — the error this file was written to correct. The restatement
+needs the pooled measurement it recommends at the end, and until that lands
+the numbers below should be read as "0902.0431", not "the corpus".
+
 THE HEADLINE: THE FLOOR OF 7 IS NOT THE BINDING GATE. Changing it changes
 NOTHING. The threshold that decides almost every row is NOISE_COMP_DELTA = 2,
 and it is wrong by about a factor of ten.
