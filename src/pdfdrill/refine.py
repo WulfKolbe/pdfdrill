@@ -571,6 +571,7 @@ def _clean_reply(text: str) -> str:
 
 #: rejection reasons, as they appear in changes.json and in the counts
 R_WIDTH = "width uniformity"
+R_CONFUSE = "digit misread as a letter"
 R_ENV = "environment balance"
 R_CJK = "CJK"
 R_COMPILE = "standalone compile"
@@ -598,6 +599,16 @@ def validate_one(proposed: str, *, original: str = "",
     ok, detail = _cr.check_uniform_widths(proposed)
     if not ok:
         return False, R_WIDTH, detail
+
+    # 187: the signal the old width check caught by accident, now named. A
+    # lone letter inside an otherwise-numeric table is a misread digit.
+    conf = _cr.confusable_cells(proposed)
+    if conf:
+        c = conf[0]
+        return False, R_CONFUSE, (
+            f"table {c['table']} row {c['row']} col {c['col']}: "
+            f"'{c['cell']}' where '{c['likely']}' belongs"
+            + (f" (+{len(conf) - 1} more)" if len(conf) > 1 else ""))
 
     d = _eb.env_defect(proposed)
     if d:

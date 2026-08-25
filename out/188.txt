@@ -1,0 +1,73 @@
+188 — _normalize_latex fixed. 967 environment failures → 0.
+==============================================================================
+THE COUNT
+------------------------------------------------------------------------------
+   environment-balance failures at confidence >= 0.9
+      before   967
+      after      0        all 967 cleared
+
+The task asked how many of "the ~640 itemize instances" clear. The ~640 was my
+own extrapolation in out/185, from 7 of 20 sampled rows — 35%. The true figure
+is 967 of 1,840, which is 52.6%. My 20-row sample landed low, and outside the
++-11 percentage points I stated for it. Worth recording plainly: the estimate
+was wrong in the direction of understating the problem, and the exhaustive
+count is the one to keep.
+
+All 967 clear.
+
+WHAT WAS WRONG
+------------------------------------------------------------------------------
+MathPix closes a list on the line that carries the last equation in it, so its
+`math` line reads
+
+   text_display: '\n\\[\n\\frac{d^{2}u}{d\\phi^{2}}+u=…\n\\]\n\\end{itemize}'
+
+verified in its own lines.json in out/185, not inferred. For a document
+reconstruction that is arguably correct — the list does end there. It is wrong
+only as the EQUATION's body, and this module lifts the line wholesale.
+
+The trailing token cost more than an unbalanced environment. It also DEFEATED
+the delimiter strip, because that regex requires the value to END with `\]`.
+So these equations kept their `\[ … \]` wrapper as well, and every one failed
+to compile with "Bad math environment delimiter" — which is why all seven
+environment failures in the out/185 sample were also compile failures.
+
+THE FIX, AND THE HALF OF IT I MISSED FIRST
+------------------------------------------------------------------------------
+`_strip_trailing_structure` drops a trailing `\end{X}` for a DOCUMENT
+environment (itemize, enumerate, description, proof, theorem, …) when its
+`\begin` is not present in the value. Unmatched only: a value that genuinely
+opens and closes an environment keeps both, because removing a closer whose
+opener is present would corrupt a correct value in order to repair an
+incorrect one.
+
+That left 4 failures, and reading them gave the mirror case:
+
+   \begin{itemize} \item[] \[ C=\gamma T+\alpha T^{3} \]
+
+MathPix also OPENS a list on the line carrying the FIRST equation in it — an
+unmatched BEGIN at the head rather than an unmatched END at the tail. The same
+rule now runs in both directions, with the same unmatched-only condition, and
+strips an `\item[]` between the opener and the mathematics.
+
+With both halves: 967 of 967.
+
+WHAT THIS DOES NOT DO
+------------------------------------------------------------------------------
+It fixes the NORMALISER, so it applies to models built from now on. The 967
+equations already stored still carry the old value; they clear on rebuild.
+
+This measurement did not rebuild them — it applied the new normaliser to each
+stored value and re-tested, which is exactly what a rebuild would store,
+measured without rebuilding 1,345 models. Anyone re-running the corpus scan
+against unrebuilt models will still see 967, and that is not a contradiction:
+it is the difference between the code being fixed and the artefacts being
+rebuilt. Rebuilding is a separate, larger operation and out/160 already
+established that a plain `model` re-run will not do it — `--force` is
+required.
+
+TESTS
+   9 in tests/test_equation_normalize.py: the measured case loses both the
+   closer and the wrapper; several closers all drop; the leading unmatched
+   begin drops; a BALANCED environment is kept in both directions; a maths
+   closer (\end{array}) is not treated as document structure.

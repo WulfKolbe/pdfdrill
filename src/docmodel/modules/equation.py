@@ -33,10 +33,56 @@ _BEGIN_EQ = re.compile(r"\\begin\{equation\}")
 _END_EQ = re.compile(r"\\end\{equation\}")
 
 
+#: Environments that belong to the DOCUMENT, not to a formula. MathPix closes
+#: a list on the line that carries the last equation in it, so its `math` line
+#: reads "\\[ …maths… \\] \\end{itemize}" — verified in its own lines.json, not
+#: inferred. For a document reconstruction that is arguably right; as the
+#: EQUATION's body it is wrong, and this module lifts the line wholesale.
+#:
+#: The cost of leaving it: the trailing token also DEFEATS the wrapper strip
+#: below, because `_OUT_BRACK` requires the value to END with \\]. So the
+#: equation kept its \\[ … \\] delimiters as well, and every one of these
+#: failed to compile with "Bad math environment delimiter".
+_DOC_ENVS = ("itemize", "enumerate", "description", "document", "proof",
+             "remark", "example", "definition", "theorem", "lemma",
+             "corollary", "proposition", "exercise", "quote", "center")
+_TRAILING_END = re.compile(
+    r"\s*\\end\{(" + "|".join(_DOC_ENVS) + r")\}\s*$")
+#: The MIRROR case, which the first version left behind: MathPix also OPENS a
+#: list on the line carrying the first equation in it —
+#:     \\begin{itemize} \\item[] \\[ C=\\gamma T+\\alpha T^{3} \\]
+#: an unmatched BEGIN at the head rather than an unmatched END at the tail.
+#: Four of the corpus's remaining environment failures were exactly this.
+_LEADING_BEGIN = re.compile(
+    r"^\s*\\begin\{(" + "|".join(_DOC_ENVS) + r")\}\s*(?:\\item\s*(?:\[[^]]*\])?\s*)*")
+
+
+def _strip_trailing_structure(s: str) -> str:
+    """Drop trailing \\end{...} tokens whose \\begin is not in this value.
+
+    UNMATCHED only: a value that genuinely opens and closes an environment
+    keeps both. Removing a closer whose opener is present would corrupt a
+    balanced value to fix an unbalanced one.
+    """
+    while True:
+        m = _LEADING_BEGIN.match(s)
+        if m and not re.search(r"\\end\{" + m.group(1) + r"\}", s[m.end():]):
+            s = s[m.end():].lstrip()
+            continue
+        m = _TRAILING_END.search(s)
+        if not m:
+            return s
+        env = m.group(1)
+        head = s[:m.start()]
+        if re.search(r"\\begin\{" + env + r"\}", head):
+            return s                     # balanced here; leave it alone
+        s = head.rstrip()
+
+
 def _normalize_latex(raw: str) -> str:
     if not raw:
         return ""
-    s = raw.strip()
+    s = _strip_trailing_structure(raw.strip())
     for rx in (_OUT_BRACK, _OUT_PAREN, _OUT_DOLLAR, _OUT_INLDOL):
         m = rx.match(s)
         if m:

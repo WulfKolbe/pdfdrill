@@ -1,0 +1,89 @@
+187 — numeric_rows fixed. 919 width failures → 2.
+==============================================================================
+THE COUNT, against the same exhaustive population
+------------------------------------------------------------------------------
+   documents                              1,345
+   equations                            119,940
+   at confidence >= 0.9                  80,594
+
+   width uniformity      OLD  919   ->  NEW    2     918 cleared, 1 new
+   environment balance   OLD  967   ->  NEW    0     (188)
+   CJK                   OLD    2   ->  NEW    2
+   ANY structural check  OLD 1,840  ->  NEW    6
+
+The OLD column is not quoted from the earlier run — it is recomputed here with
+the pre-fix rule reconstructed inline, and it reproduces 1,840 exactly. That
+is what makes the comparison a comparison rather than two numbers from two
+scripts.
+
+WHAT WAS WRONG, AND WHAT REPLACED IT
+------------------------------------------------------------------------------
+1. THE EMBEDDED ARRAY. The old rule split the whole value on `\\` and counted
+   cells that were bare numbers. The first segment of an array inside a larger
+   expression carries the surrounding LaTeX in its first cell:
+
+      seg 1 first cell: '\left[\eta_{ab}\right]\equiv\left(\begin{array}{cccc} 0'
+      seg 2 first cell: '1'
+
+   so a plain 4x4 matrix reported [[3],[4],[4],[3]] and was flagged
+   non-uniform at rows 2 and 3. The fix extracts the BODY of each table
+   environment with a depth-counting scanner and works on that, so there is no
+   surrounding LaTeX left to leak in.
+
+2. TWO MATRICES, ONE VERDICT. `A=(3x3) B=(1x4)` is not a ragged table, it is
+   two tables. Uniformity is now checked WITHIN each table.
+
+3. NESTED ARRAYS (found by reading the fix's own output). An outer {c} column
+   holding an inner {ccc} matrix reported widths {3: 6, 1: 2}, because the
+   inner table's own `\\` split the OUTER's rows. Nested tables are now
+   flattened to a single placeholder cell before the parent is measured; the
+   inner one is measured on its own pass.
+
+THE DETECTION THE FIX WOULD HAVE LOST — AND THIS IS THE IMPORTANT PART
+------------------------------------------------------------------------------
+out/185's one real defect was an incidence matrix reading
+
+      0 & 0 & 1 & l & 0 & 0        <- letter l where the digit 1 belongs
+
+The OLD width check caught it BY ACCIDENT: `l` is not numeric, so the row came
+up one short and looked narrow. Parsing the table properly makes that row six
+cells wide and perfectly uniform — so the fix, on its own, would have silently
+dropped the only true positive in the sample while removing 918 false ones.
+
+That is a worse outcome than the bug. So the signal is now NAMED rather than
+being a side effect of a miscount: `confusable_cells` flags a cell that is a
+lone letter inside a table where >= 80% of cells are bare numbers.
+
+AND ITS FIRST VERSION WAS WRONG TOO. I listed i, I, O, o, S, s, Z, z, B, g as
+confusable with digits, and reading its output killed most of them:
+
+      G^{-1} = 1/2 [ 0 &  1 & 1 &  0 \\
+                     0 & -i & i &  0 \\ ... ]
+
+`i` is the imaginary unit and `I` the identity matrix. The check was inventing
+a new false-positive class to replace the one it removed. It now lists ONE
+character — `l` — because that symbol is written \ell in mathematics, so a
+standalone `l` cell is never legitimate. Corpus-wide it fires twice, and both
+are real:
+
+   Introduction to Graph and Hypergraph Theory   conf 1.000   r2c4  l -> 1
+   Lie Groups, Physics and Geometry              conf 1.000   r1c2  l -> 1
+
+THE SURVIVORS
+------------------------------------------------------------------------------
+   2  width uniformity
+   2  confusable cell (the new signal)
+   2  CJK
+   6  total
+
+Six, from 1,840. Every one is individually inspectable, which is the point:
+the old population was a queue nobody could triage, and this one is a list.
+
+TESTS
+   27 in tests/test_changereq.py, including: the embedded 4x4 passes; two
+   matrices of different widths pass; a genuinely ragged table STILL fails;
+   one ragged table beside a clean one still fails and names table 2; nested
+   arrays do not tear; the l-for-1 case is caught by name; and neither the
+   imaginary unit nor the identity matrix trips the letter check.
+
+   Suite 2,305 -> 2,326.
