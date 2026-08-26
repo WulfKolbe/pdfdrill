@@ -50,6 +50,12 @@ SNIP_RAN = "SNIP_RAN"
 LINKS_KNOWN = "LINKS_KNOWN"
 GEOMETRY_FUSED = "GEOMETRY_FUSED"
 TIDDLERS_BUILT = "TIDDLERS_BUILT"
+#: 234 — reporttex produced an artifact and recorded no fact, so the planner
+#: could not treat it as anyone's prerequisite and `publishready` could not
+#: name the thing it plainly reads. NOT REPORT_BUILT, which already exists
+#: below and belongs to `report` — the prose/markdown report. One fact for
+#: two commands would make either one satisfy a prerequisite on the other.
+REPORTTEX_BUILT = "REPORTTEX_BUILT"
 LISTS_BUILT = "LISTS_BUILT"
 ALGORITHMS_BUILT = "ALGORITHMS_BUILT"
 ANNOTATIONS_BUILT = "ANNOTATIONS_BUILT"
@@ -1523,6 +1529,190 @@ def _load_or_build_continuity(pdf: Path, sc: "Sidecar", force: bool = False,
     sc.set_evidence("continuity", {str(k): v for k, v in data.items()})
     sc.save()
     return data, None
+
+
+#: 234 — the five things that must be true before a report is published.
+#: Written down once, here, because the pages repo's CI already checks the
+#: PUBLISHED state and this checks the state BEFORE handover. Two divergent
+#: definitions of "ready" is how a half-measured document goes up.
+PUBLISH_CHECKS = ("glyphs", "ink", "residuals", "artefacts", "index")
+
+
+def publish_ready(pdf: Path) -> dict:
+    """{ready, checks, fields} — the checklist, evaluated on what is on disk.
+
+    Every check names what it looked at. A check that cannot see its input
+    FAILS rather than passing quietly: out/213 had six reports exit 0 with
+    glyphs silently discarded, and the whole point of a gate is to be harder
+    to satisfy than the thing it guards.
+    """
+    from . import report_tex as rt
+    sc = Sidecar(pdf)
+    d = sc.blob_dir
+    tex, log, rep = d / "report.tex", d / "report.log", d / "report.pdf"
+    ink = d / "report.ink.json"
+    checks: dict[str, tuple[bool, str]] = {}
+
+    # 1 — zero dropped glyphs
+    if not log.is_file():
+        checks["glyphs"] = (False, "no report.log — the report has not been "
+                                   "compiled, so nothing can be said")
+    else:
+        lost = rt.glyphs_dropped(log)
+        checks["glyphs"] = ((lost is None),
+                            "clean" if lost is None else
+                            "%d dropped: %s" % (lost[0], lost[1][:70]))
+
+    # 2 — a residual file that is neither refused nor unpairable
+    # A quarantine OLDER than the measurement beside it is superseded: the
+    # later attempt paired. Only a quarantine that is the MOST RECENT word on
+    # this document still vetoes, because then the last thing that happened
+    # was a failure to pair.
+    quarantined = [n for n in ("report.ink.json.REFUSED",
+                               "report.ink.json.MISPAIRED") if (d / n).is_file()]
+    if ink.is_file():
+        live = [n for n in quarantined
+                if (d / n).stat().st_mtime >= ink.stat().st_mtime]
+        stale = [n for n in quarantined if n not in live]
+        checks["ink"] = (not live,
+                         ("present" if not stale else
+                          "present; %s is older and superseded — delete it"
+                          % stale[0]) if not live
+                         else "present, but %s is NEWER: the last attempt "
+                              "failed to pair" % live[0])
+    else:
+        checks["ink"] = (False, "no report.ink.json — %s" %
+                         (quarantined[0] + " is quarantined" if quarantined
+                          else "no residual measurement has been run"))
+
+    # 3 — the bullets and the full legend actually on the page
+    body = tex.read_text(encoding="utf-8", errors="replace") if tex.is_file() else ""
+    if not body:
+        checks["residuals"] = (False, "no report.tex")
+    else:
+        bullets = body.count("\\inkbullet{")
+        legend = "Residual} render vs scan" in body
+        # 234 — a distribution with NO VARIATION is not a measurement. The five
+        # classes exist to separate cases; a probe returning one class for
+        # every row has separated nothing, and the bullets on the page are then
+        # wrong rather than merely uninformative. All-K is the one honest
+        # uniform answer (every row clean); all-C is 0902.0431's signature,
+        # 55 of 55, with cell distances to 1182 and one pair reading 13
+        # components against 708 — two cells that are not the pair the probe
+        # assumes they are.
+        dist = fields_dist = None
+        if ink.is_file():
+            import json as _j
+            try:
+                rr = _j.loads(ink.read_text(encoding="utf-8")).get("rows", [])
+            except Exception:
+                rr = []
+            dist = {}
+            for r in rr:
+                c = (r.get("code") or "?")[:1]
+                dist[c] = dist.get(c, 0) + 1
+        flat = (dist and len(dist) == 1 and len(rr) > 3
+                and next(iter(dist)) != "K")
+        checks["residuals"] = ((bullets > 0 and legend and not flat),
+                               "%d bullets, legend %s%s" %
+                               (bullets, "present" if legend else "ABSENT",
+                                "" if not flat else
+                                "; but every one of %d rows is class %s — a "
+                                "distribution with no variation is a pairing "
+                                "failure, not a result"
+                                % (len(rr), next(iter(dist)))))
+
+    # 4 — everything that travels with report.pdf
+    md = next((f for f in d.glob("*.md")), None)
+    insp = next((f for f in d.glob("*.inspect.html")), None)
+    missing = [n for n, f in (("report.pdf", rep), ("*.md", md),
+                              ("*.inspect.html", insp),
+                              ("report.ink.json", ink if ink.is_file() else None))
+               if not f or not Path(f).is_file()]
+    checks["artefacts"] = (not missing,
+                           "all four present" if not missing
+                           else "missing " + ", ".join(missing))
+
+    # 5 — the numbers the index row is built from
+    fields = _handover_fields(pdf, sc, body, ink)
+    need = ("pages", "equations")
+    absent = [k for k in need if fields.get(k) in (None, 0)]
+    checks["index"] = (not absent,
+                       "pages=%s equations=%s residual=%s refined=%s"
+                       % (fields.get("pages"), fields.get("equations"),
+                          fields.get("residual") or "none",
+                          fields.get("refined_rows"))
+                       if not absent else "cannot read " + ", ".join(absent))
+
+    return {"ready": all(ok for ok, _ in checks.values()),
+            "checks": checks, "fields": fields}
+
+
+def _handover_fields(pdf: Path, sc, body: str, ink: Path) -> dict:
+    """The one line the pages index copies from, per out/215."""
+    import json as _json
+    import re as _re
+    from . import report_tex as rt
+    d = sc.blob_dir
+    out = {"folder": str(d), "bibkey": d.name,
+           "pdf": pdf.name, "pages": None, "equations": None,
+           "residual": {}, "refined_rows": 0, "refusal": ""}
+    log = d / "report.log"
+    if log.is_file():
+        m = _re.search(r"Output written on .*\((\d+) pages?",
+                       log.read_text(errors="replace"))
+        if m:
+            out["pages"] = int(m.group(1))
+    if body:
+        # NOT a regex over report.tex: \ident{} carries \allowbreak{} inside
+        # it, so `[^}]*` stops at the first brace and never reaches the EQ.
+        # The tiddler array is the row set the report is built from, so ask it.
+        out["refined_rows"] = body.count("[refined:")
+    tid = next((f for f in d.glob("*.tiddlers.json")), None)
+    if tid is not None:
+        try:
+            tids = _json.loads(tid.read_text(encoding="utf-8"))
+            _fo, _eq, _tab, _dia = rt.rows_for(tids, d.name)
+            out["equations"] = len(_eq)
+            out["formulas"] = len(_fo)
+        except Exception as e:
+            out["equations"] = None
+            out["note"] = "tiddler array unreadable: %s" % type(e).__name__
+    if ink.is_file():
+        try:
+            rows = _json.loads(ink.read_text(encoding="utf-8")).get("rows", [])
+        except Exception:
+            rows = []
+        dist: dict[str, int] = {}
+        for r in rows:
+            c = (r.get("code") or "?")[:1]
+            dist[c] = dist.get(c, 0) + 1
+        out["residual"] = dist
+        out["ink_rows"] = len(rows)
+    return out
+
+
+def cmd_publishready(pdf: Path, as_json: bool = False) -> str:
+    """Is this document's report fit to publish? The five-item checklist."""
+    import json as _json
+    r = publish_ready(pdf)
+    if as_json:
+        return _json.dumps({"ready": r["ready"], "fields": r["fields"],
+                            "checks": {k: {"ok": v[0], "detail": v[1]}
+                                       for k, v in r["checks"].items()}},
+                           indent=1)
+    lines = ["%s: %s" % (r["fields"]["bibkey"],
+                         "READY" if r["ready"] else "NOT READY")]
+    for k in PUBLISH_CHECKS:
+        ok, detail = r["checks"][k]
+        lines.append("  [%s] %-10s %s" % ("ok" if ok else "  ", k, detail))
+    f = r["fields"]
+    if r["ready"]:
+        lines.append("  handover: %s | %s | %s pages | %s equations | %s | "
+                     "%d refined"
+                     % (f["folder"], f["bibkey"], f["pages"], f["equations"],
+                        f["residual"] or "no residual", f["refined_rows"]))
+    return "\n".join(lines)
 
 
 def cmd_pageside(pdf: Path) -> str:
@@ -13380,6 +13570,12 @@ def cmd_reporttex(pdf: Path, paper: str = "a3", landscape: bool = True,
                         ink_state=ink_state, prefer_refined=prefer_refined)
     sc.set_evidence("reporttex_path",
                     str(Path(r["out"]).relative_to(pdf.parent)))
+    _prev_rt = ",".join(sorted(sc.facts - {REPORTTEX_BUILT})) or "INIT"
+    sc.add_fact(REPORTTEX_BUILT)
+    sc.log_transition("reporttex", _prev_rt, REPORTTEX_BUILT,
+                      detail="%s equations, %s formulas"
+                             % (r["equations"], r["formulas"]))
+    sc.save()
     lines_prefix = []
     if adopted:
         lines_prefix.append(adopted)

@@ -1,0 +1,136 @@
+234 — the five-item checklist, and an empty ready list
+==============================================================================
+
+214 HAS NOT LANDED. NOTHING IS READY. NOTHING WAS HANDED OVER.
+------------------------------------------------------------------------------
+None of the eleven has a report.ink.json — not one, not quarantined, not
+anywhere. 214 is inkdrill's task (out/224 established the addressing: the
+assigning message begins "inkdrill.") and no residual measurement exists for
+any of these documents. The residual half of 215 is still blocked on exactly
+what it was blocked on.
+
+So this is what 234 could deliver without it: the checklist made executable,
+run over all eleven, with the reason each is not ready — and the ready list,
+which is empty, handed nowhere.
+
+THE ELEVEN
+------------------------------------------------------------------------------
+   doc                                      gly ink res art idx  pages    eq  ref
+   Geometrodynamics (Mielke)                 ok  --  --  --  ok    494  1149   3
+   Graph and Hypergraph Theory               ok  --  --  --  ok    315   266   3
+   Linear and Matrix Algebra                 ok  --  --  --  ok    794  1670   8
+   Numerical Linear Algebra (Lyche)          ok  --  --  --  ok    593  1056   8
+   Lie Groups (Gilmore)                      ok  --  --  --  ok    739  1037   0
+   2010.14265                                ok  --  --  --  ok     11    16   0
+   An Invitation to Applied Category Theory  ok  --  --  --  ok    680   262   0
+   OMDoc 1.2                                 ok  --  --  --  ok     98     6   0
+   Seven Sketches in Composability           ok  --  --  --  ok    679   264   0
+   0707.4470                                 ok  --  --  --  ok     17    62   1
+   Geometric/Algebraic/Topological (QFT)     ok  --  --  --  ok    733  1012   0
+
+   READY: 0 of 11.
+
+Every one fails the same three, and all three are downstream of one absence:
+
+   ink        no report.ink.json — no residual measurement has been run
+   residuals  0 bullets, legend ABSENT   (there is nothing to draw)
+   artefacts  missing report.ink.json
+
+Glyphs and index pass everywhere. Those are out/221 and out/233 respectively:
+zero dropped glyphs across all eleven, and every index number readable
+including the refined-row count. When 214 lands, three checks flip together and
+nothing else has to move.
+
+`pdfdrill publishready <pdf> [--json]` — registered in commands.yaml, not a
+script, so the planner and the pages CLI can both reach it.
+
+WHAT EACH CHECK REFUSES, AND WHY THAT WORDING
+------------------------------------------------------------------------------
+Every check names what it looked at, and **a check that cannot see its input
+FAILS** rather than passing quietly. out/213 had six reports exit 0 with glyphs
+silently discarded; a gate has to be harder to satisfy than the thing it
+guards. A document with no report.log fails `glyphs` with "no report.log — the
+report has not been compiled, so nothing can be said", not with silence.
+
+Two of the five needed a semantics decision rather than a presence test:
+
+**A quarantine older than the measurement beside it is SUPERSEDED.** 0902.0431
+carries report.ink.json.MISPAIRED from 08-24 next to a report.ink.json from
+08-26 that paired. A flat "any quarantine vetoes" rule would call that document
+broken on the strength of a failure that has since been redone. Only a
+quarantine that is the most recent word still vetoes — then the last thing that
+happened was a failure to pair.
+
+**A residual distribution with no variation is a pairing failure, not a
+result.** This is the 0902.0431 answer below, and it is now a check.
+
+0902.0431 — NO, THE TWO-PHASE BUILD DID NOT FIX IT
+------------------------------------------------------------------------------
+Asked: whether the --no-legend two-phase build fixed the lattice
+under-detection, and whether the published ink.json has stale report_page
+values.
+
+**The published ink.json does not exist.** reports/0902.0431/ holds report.pdf,
+the .md and inspect.html and nothing else. There is no published residual to be
+stale. Audited across all ten published reports: no published ink.json anywhere
+has a report_page beyond its own PDF, so that concern holds nowhere. Four
+published reports have no ink.json at all — 0902.0431,
+BradleyGastaldiTerilla2023, penev_A, penev_B — and would not pass this
+checklist today.
+
+**The local measurement is not sound.** 55 rows, and every single one is class
+C:
+
+   flags: {'component': 55}      codes: {'C': 55}
+   EQ1032   L=[13, 6, 0, 0, 0]   R=[708, 27, 233, 163, 70]   distance 1182
+   EQ1033   L=[428, 52, 382, ...] R=[558, 35, 158, ...]      distance  645
+
+A rendered cell holding 13 ink components against a scan cell holding 708 is
+not a transcription difference; it is two cells that are not the pair the probe
+assumes they are. The five residual classes exist to separate cases, and a
+probe returning one class for all 55 rows has separated nothing.
+
+**And it was measured against a report that HAS the legend.** report.tex
+carries 57 \inkbullet and the full legend, and report.ink.json is three seconds
+younger than report.pdf — co-generated from the legend-bearing build. Whatever
+the two-phase --no-legend flow was meant to prevent, this measurement did not
+use it. 0902.0431 must be re-measured before it goes back up, and the check now
+refuses it by name rather than letting the all-C bar onto a page.
+
+TWO THINGS THE MANIFEST WAS MISSING, FOUND BY DECLARING THE DEPENDENCY
+------------------------------------------------------------------------------
+`publishready` reads report.log, report.tex and report.pdf, so it declares
+`requires: reporttex`. Two tests refused that, and both were right:
+
+**reporttex had no done_when.** The planner treated it as never satisfied, so
+it could not be named as anyone's prerequisite — CLAUDE.md's "a dependency that
+is not in the manifest is a hope", from the other side: a producer nobody can
+depend on. It now declares `artifact:report`, which checks both files exist,
+the pdf is not older than the tex, and NEITHER IS EMPTY. The pages repo's CI
+learned the last part the hard way ("the guard checked names, so a zero-byte
+report.pdf passed it").
+
+**reporttex recorded no fact.** It wrote evidence and never called add_fact, so
+the capability graph had nothing to resolve a prereq against. It now records
+REPORTTEX_BUILT with a logged transition.
+
+Not REPORT_BUILT — that constant already exists and belongs to `report`, the
+prose/markdown report. I reused it by accident and caught it on the next grep:
+one fact for two commands would let either satisfy a prerequisite meant for the
+other, silently. Distinct name, distinct fact.
+
+WHAT HAPPENS WHEN 214 LANDS
+------------------------------------------------------------------------------
+Per document: `pdfdrill reporttex <pdf> --prefer-refined --compile` (the ink
+file is adopted automatically since out/195), then `pdfdrill publishready
+<pdf>`. Three checks flip; the handover line prints itself.
+
+Two conditions named for 214 and worth restating where the measurement happens:
+re-measure rather than reuse the 100 stale TSVs, and row counts will move
+because the probe reads the column count per document since out/099 — not
+because the ink changed. The pages CI compares the index's equation count
+against the ink.json row count, so a moved row count that is not carried into
+index.html fails the publish guard by name.
+
+   tests/test_publish_ready.py   12 tests
+   suite 2,410 -> 2,422

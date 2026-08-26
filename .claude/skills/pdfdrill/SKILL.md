@@ -599,6 +599,12 @@ _Generated from `commands.yaml` by skillsync. Edit the manifest, not this sectio
 | `pdfdrill retrieve <pdf> <question> [--k K] [--json]` | Transform a question into grounded context: top-k relevant drilled units (the chat-proxy enrichment / future-SKILL seed). Also accepts a COMBINED store (multi-document) |
 | `pdfdrill chatlog <pdf> [--question QUESTION] [--answer ANSWER] [--units UNITS] [--model MODEL] [--verdict VERDICT]` | Store one Q&A turn: append the transcript + emit the answer as a kitem in the semantic graph (provenance qid=ask) |
 
+### Reporting
+
+| Command | Returns |
+|---|---|
+| `pdfdrill publishready <pdf> [--json AS_JSON]` | Is this document's report fit to publish? The five-item checklist, evaluated on what is on disk: zero dropped glyphs; a report.ink.json that is not superseded by a newer .REFUSED/.MISPAIRED; residual bullets AND the full legend on the page, with a flat single-class distribution refused as a pairing failure rather than a result; report.pdf, the .md, the inspect.html and report.ink.json all present; and the numbers the index row is built from (pages, equations, residual distribution, refined-row count) readable. Every check names what it looked at, and a check that cannot see its input FAILS rather than passing quietly. Prints the handover line for a ready document. |
+
 ### Other
 
 | Command | Returns |
@@ -641,6 +647,6 @@ _Generated from `commands.yaml` by skillsync. Edit the manifest, not this sectio
 <!-- COMMANDS:END -->
 
 <!-- PREFLIGHT-TOKEN:BEGIN -->
-Attestation token — the LAST line of this SKILL. If you can read this, you read the whole file. Run `pdfdrill preflight --ack DRILL-8a3e62e5` before any build/extract command.
-DRILL-8a3e62e5
+Attestation token — the LAST line of this SKILL. If you can read this, you read the whole file. Run `pdfdrill preflight --ack DRILL-a8244272` before any build/extract command.
+DRILL-a8244272
 <!-- PREFLIGHT-TOKEN:END -->

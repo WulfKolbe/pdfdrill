@@ -1035,6 +1035,13 @@ def _do_refine(args):
                       dpi=int(dpi) if dpi is not None else None)
 
 
+def _do_publishready(args):
+    """pdfdrill publishready <pdf> [--json]"""
+    from .commands import cmd_publishready
+    pdf_args = [a for a in args if a != "--json"]
+    return cmd_publishready(_pdf(pdf_args), as_json="--json" in args)
+
+
 def _do_modeldiff(args):
     """pdfdrill modeldiff <old.docmodel.json> <new.docmodel.json>"""
     from .commands import cmd_modeldiff
@@ -2057,6 +2064,7 @@ HANDLERS = {
         "trailingpunct": _do_trailingpunct,
         "modeldiff": _do_modeldiff,
         "refine": _do_refine,
+        "publishready": _do_publishready,
         "crossref": _do_crossref,
         "cdncrops": _do_cdncrops,
         "standalone": _do_standalone,

@@ -70,6 +70,8 @@ def detect(spec: str, sc, pdf: Path, model_path: Path) -> bool:
       model:citations_resolved …and it holds the References its Citations need
       artifact:tiddlers        a tiddler array exists and is not older than the
                                model it was projected from
+      artifact:report          report.tex AND report.pdf exist, the pdf is not
+                               older than the tex, and neither is empty
       lines           a MathPix lines.json sits next to the PDF
       fact:NAME       the sidecar carries that fact
 
@@ -88,6 +90,8 @@ def detect(spec: str, sc, pdf: Path, model_path: Path) -> bool:
         return _model_has_translation(model_path)
     if spec == "artifact:tiddlers":
         return _tiddlers_current(sc, model_path)
+    if spec == "artifact:report":
+        return _report_current(sc)
     if spec == "lines":
         base = pdf.name[:-4] if pdf.name.lower().endswith(".pdf") else pdf.name
         return (pdf.parent / f"{base}.lines.json").exists()
@@ -107,6 +111,26 @@ def detect(spec: str, sc, pdf: Path, model_path: Path) -> bool:
     if spec == "artifact:cdncrops":
         return _cdncrops_done(sc, pdf)
     return False
+
+
+def _report_current(sc) -> bool:
+    """234 — `reporttex` had no done_when at all, so the planner treated it as
+    never satisfied and it could not be named as anyone's prerequisite. It
+    produces report.tex and report.pdf; this is the detector it should have
+    carried.
+
+    A .tex written beside an OLDER .pdf is the stale pair cmd_reporttex already
+    warns about, and a zero-byte pdf passes any name-only check — the pages
+    repo's CI learned that one ("the guard checked names, so a zero-byte
+    report.pdf passed it"), so size is part of the test here too.
+    """
+    tex = sc.blob_dir / "report.tex"
+    pdf_out = sc.blob_dir / "report.pdf"
+    if not (tex.is_file() and pdf_out.is_file()):
+        return False
+    if tex.stat().st_size == 0 or pdf_out.stat().st_size == 0:
+        return False
+    return pdf_out.stat().st_mtime >= tex.stat().st_mtime
 
 
 def _cdncrops_done(sc, pdf: Path) -> bool:

@@ -481,6 +481,30 @@ commands:
     type: int
     default: 250
   - *id001
+- name: publishready
+  section: Reporting
+  summary: 'Is this document''s report fit to publish? The five-item checklist,
+    evaluated on what is on disk: zero dropped glyphs; a report.ink.json that is
+    not superseded by a newer .REFUSED/.MISPAIRED; residual bullets AND the full
+    legend on the page, with a flat single-class distribution refused as a
+    pairing failure rather than a result; report.pdf, the .md, the inspect.html
+    and report.ink.json all present; and the numbers the index row is built from
+    (pages, equations, residual distribution, refined-row count) readable. Every
+    check names what it looked at, and a check that cannot see its input FAILS
+    rather than passing quietly. Prints the handover line for a ready document.'
+  requires:
+  - reporttex
+  positionals:
+  - name: pdf
+    type: pdf
+    required: true
+    help: PDF path, https URL, or bare arXiv id
+  flags:
+  - name: as_json
+    flag: --json
+    type: bool
+    help: machine-readable form for the pages CLI (ready, fields, per-check detail)
+  typed: true
 - name: pageside
   section: Introspection (fast, no extraction)
   summary: Classify each page recto/verso (book left/right) from page-number parity+position + side-note
@@ -1443,6 +1467,7 @@ commands:
   - injectlatex
   - cdncrops
   - tiddlers
+  done_when: artifact:report
   positionals:
   - name: pdf
     type: pdf
