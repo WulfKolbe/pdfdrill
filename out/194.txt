@@ -1,0 +1,48 @@
+194 — rebuilding with the residual data present
+==============================================================================
+ONE document had residual data to rebuild with. The 195 fix made it a plain
+re-run: no flag, no path.
+
+   pdfdrill reporttex 2103.01507.pdf --compile
+
+   residuals: adopted report.ink.json (no --ink needed)
+   Wrote report.tex — 1,545 display equations, 3,996 inline formulas,
+     0 tables, 322 unrecovered image regions
+   Compiled report.pdf: 238 pages, 0 errors, 1 malformed row demoted
+
+FIELD COUNTS AND SIZES
+------------------------------------------------------------------------------
+   residual bullets drawn          1,545      one per display equation
+   legend residual half present        4      occurrences of "C component"
+   unmeasured note present             0      correctly absent
+
+   report.pdf         1,744,427 B    238 pages
+   report.ink.json   27,172,242 B    5,863 measured rows
+   report.tex           ~4.4 MB
+
+The other four documents are unchanged and correct as they stand: no ink file,
+so their reports carry the truthful note from out/180 — "no residual
+measurement has been run for it".
+
+A MISMATCH WORTH NAMING: 5,863 MEASURED, 1,545 DRAWN
+------------------------------------------------------------------------------
+The measurement covers every row of the report — 1,545 display equations AND
+3,996 inline formulas. The residual COLUMN exists only on the display-equation
+table, so 4,318 of the 5,863 measurements are computed, stored, and never
+shown.
+
+That is not wrong, but it is not obvious either. The inline-formula table has
+three columns and no Rendered/Scan pair to compare, so there is nothing for a
+residual to sit beside there. The measurements are kept because they cost
+nothing extra to produce and because a future inline table with a scan column
+would want them.
+
+Worth stating plainly so nobody reads "5,863 rows measured" off the ink file
+and expects 5,863 bullets in the PDF.
+
+WHAT 195 CHANGED HERE, CONCRETELY
+------------------------------------------------------------------------------
+Before it, this rebuild would have produced a 238-page report with no bullets
+and a note saying no measurement had been run, while report.ink.json sat
+beside it holding 5,863 measurements. The command's first line of output now
+says which file it adopted, so the alternative is visible rather than silent.

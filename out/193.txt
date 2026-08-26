@@ -1,0 +1,113 @@
+193 — the residual measurement on the five reports
+==============================================================================
+ONE of five paired. Four refused, each by a named margin. No report.ink.json
+was written for a document whose counts do not reconcile.
+
+PER DOCUMENT
+------------------------------------------------------------------------------
+                                     pp   ident   raw   data  refused  paired
+   2103.01507                       232   5,863  6,095  5,863     0     YES
+   Geometrodynamics (Mielke)        481   2,966  3,437  2,960     4     no
+   Graph and Hypergraph (Voloshin)  296   2,999  3,466  3,171     1     no
+   Linear and Matrix Alg (Johnston) 757   7,131  7,771  7,038    24     no
+   Numerical Lin Alg (Lyche)        570   5,759  6,325  5,756     1     no
+
+   raw = every lattice row including the repeated \endhead header;
+   data = after dropping it. The difference is the page count, as it should be.
+
+RESIDUAL CLASS DISTRIBUTION
+------------------------------------------------------------------------------
+                                    C       N      W      K      S
+   2103.01507                    5,308    278     72    205      0
+   Geometrodynamics              2,255    436     98    171      0
+   Graph and Hypergraph          2,403    359     27    382      0
+   Linear and Matrix Algebra     5,481    803    169    585      0
+   Numerical Linear Algebra      4,897    510     97    252      0
+   TOTAL                        20,344  2,386    463  1,595      0
+
+Two things the totals say, both consistent with out/186:
+
+   * component takes 82% of every row measured. out/186 established that this
+     is NOT the distance floor of 7 doing the work — it is NOISE_COMP_DELTA=2,
+     which decides a row before the floor is consulted.
+   * S (stable) is 0 across 25,000 rows, on top of 0 of 632 in out/186 and 0
+     of 160 before that. Nothing has ever earned it. K, which out/186 had to
+     withdraw a claim about, does occur: 1,595 rows here.
+
+LATTICE REFUSALS: 30 PAGES OF 2,336
+------------------------------------------------------------------------------
+   Geometrodynamics   p477 coverage 0.050   p478 0.496   p479 —   p480 0.366
+   Graph/Hypergraph   p292 coverage 0.649
+   Linear and Matrix  p715 0.064  p718 —  p719 —  p720 0.173  (+20 more)
+   Numerical Lin Alg  p566 —
+
+All are the enclosure failure inkdrill-2f diagnosed: coverage below the 0.5
+floor means the detected rows cover less than half the table region, so rows
+are missing and nothing was compared. The refusals cluster at the END of each
+report — p477-480 of 481, p715-720 of 757, p566 of 570 — which is where the
+tex.zip unrecovered-image section sits, whose rows are tall images rather than
+typeset mathematics.
+
+WHY FOUR REFUSED TO PAIR
+------------------------------------------------------------------------------
+   Geometrodynamics    2,960 rows vs 2,966 identifiers    6 short
+   Numerical Lin Alg   5,756 rows vs 5,759 identifiers    3 short
+   Linear and Matrix   7,038 rows vs 7,131 identifiers   93 short
+   Graph/Hypergraph    3,171 rows vs 2,999 identifiers  172 LONG
+
+The three short ones are short by their refused pages' rows — a refused page
+contributes identifiers but no measurements, so the totals cannot reconcile
+without knowing how many rows each refused page held, which is precisely what
+the refusal says is unknown.
+
+Graph and Hypergraph is the other sign: 172 MORE rows than identifiers, the
+over-detection class out/182 diagnosed on BradleyGastaldiTerilla2023, where a
+short entry in a narrow tall cell encloses background above AND below it and
+the lattice reads one row as two.
+
+THREE ATTEMPTS AT PER-PAGE PAIRING, AND WHY I ABANDONED THEM
+------------------------------------------------------------------------------
+A global count is coarse: it cannot say WHICH pages are sound, and a document
+with four bad pages loses its other 477. So I tried pairing per page, taking
+the identifier count for each page from the rendered PDF's own text.
+
+It failed three times, each time fixing one document and breaking others:
+
+   1. `\ident\{([^&\n]+?)\}` stopped at the first `}`, which belongs to the
+      \allowbreak{} INSIDE the identifier. Every count came out zero.
+   2. Anchoring on the identifier suffix fixed 2103.01507 (198 of 232 pages)
+      and broke the other four, whose long bibkeys are split across lines in
+      the rendered text so the prefix never appears contiguously.
+   3. Counting the suffix `(?:EQ|FO|TAB|DIA)\d{4}` validated exactly against
+      the prefix count on 2103.01507 — and still produced 110 of 232, worse
+      than attempt 2.
+
+Three fixes, three regressions, one of them contradicting a validation I had
+just run. That is the signature of guessing, so I stopped rather than trying a
+fourth.
+
+WORSE: THE ATTEMPT WROTE FILES IT SHOULD NOT HAVE
+------------------------------------------------------------------------------
+The per-page script wrote report.ink.json UNCONDITIONALLY, so all five
+documents briefly carried one — including four with a handful of rows paired
+against page assignments I could not verify:
+
+   2103.01507        1,350 rows from 110 of 232 pages
+   Geometrodynamics  1,125 rows from 213 of 481
+   Graph/Hypergraph      0 rows from   0 of 296
+   Linear and Matrix     6 rows from   2 of 757
+   Numerical Lin Alg     8 rows from   2 of 570
+
+A file with 6 rows and no statement that 731 pages were skipped is worse than
+no file: 195 now makes reporttex ADOPT any report.ink.json it finds, so those
+would have been drawn as residual bullets on the next rebuild. All five were
+deleted and the global-reconciliation run re-made only the one that passes.
+
+The guard did its job at every step — it refused all five when my identifier
+extraction was wrong, and refused four when it was right. What it could not do
+was stop a different script from writing the file anyway.
+
+WHAT EXISTS NOW
+   2103.01507   report.ink.json, 5,863 rows, 0 refusals, counts reconcile.
+   the other 4  no ink file. Their reports carry out/180's note, and it is the
+                truthful one: no residual measurement has been run for them.
