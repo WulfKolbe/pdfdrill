@@ -680,6 +680,139 @@ def validate_one(proposed: str, *, original: str = "",
 # stage 6 — record
 # ---------------------------------------------------------------------------
 
+# ---------------------------------------------------------------------------
+# 230 — the second acceptance route: the author's own e-print
+# ---------------------------------------------------------------------------
+#
+# The ink gate cannot reach every row. An INLINE formula has no region and no
+# crop (out/125), so there is nothing to render a proposal against — and the
+# one row out/229 identified is exactly that shape. What it does have is an
+# arXiv e-print, which is gold.
+#
+# This route is a CHECK, not a flag. A requester says "the author wrote X"; the
+# gate goes to the author's source, finds the site by its surrounding prose, and
+# reads off what is actually there. A proposal is accepted only when the value
+# the SOURCE yields equals the value proposed. Trusting `basis: eprint` would
+# have made the whole loop bypassable by asserting a word.
+
+VERIFIED_INK = "ink"
+VERIFIED_EPRINT = "eprint"
+
+#: math spans in either dialect — MathPix writes \(...\), authors write $...$
+_MATH_SPAN = re.compile(r"\$\$.*?\$\$|\$.*?\$|\\\(.*?\\\)|\\\[.*?\\\]", re.S)
+
+
+def author_eprint(pdf: Path) -> "tuple[str, str]":
+    """(text, filename) of the AUTHOR's e-print, or ("", "").
+
+    ONLY `<stem>.tgz` / `.tar.gz`. Never `<stem>.tex.zip`, which sits in the
+    same directory and is MATHPIX's own LaTeX output — out/229 nearly used it
+    as gold and it agreed with the markdown perfectly, because it IS the
+    markdown. A verification that reads the thing it is verifying confirms
+    anything you like.
+    """
+    from . import latex_source
+    pdf = Path(pdf)
+    for suffix in (".tgz", ".tar.gz"):
+        cand = pdf.with_suffix("") if pdf.suffix == ".pdf" else pdf
+        cand = Path(str(cand) + suffix)
+        if cand.is_file():
+            return latex_source.read_source(str(cand))
+    return "", ""
+
+
+def _ctx_words(s: str, n: int, *, tail: bool) -> list:
+    """The n alphabetic words at one end of `s`, with math spans removed.
+
+    Words only: the author writes `$1$-form` where MathPix writes `1-form`, so
+    digits and punctuation disagree at every site and prove nothing. What both
+    render identically is the prose around the mathematics.
+    """
+    w = re.findall(r"[A-Za-z]+", _MATH_SPAN.sub(" ", s))
+    return w[-n:] if tail else w[:n]
+
+
+def containing_text(doc, obj_id: str) -> str:
+    """The flow text that carries this object's value inline, or "".
+
+    An inline Formula is also written into its paragraph's text, which is where
+    its prose context lives. Nothing else in the model has it.
+    """
+    obj = doc.objects.get(obj_id)
+    if obj is None:
+        return ""
+    latex = (obj.props or {}).get("latex") or ""
+    if not latex:
+        return ""
+    needle = "\\(" + latex + "\\)"
+    for other in doc.objects.values():
+        text = (other.props or {}).get("text") or ""
+        if needle in text:
+            return text
+    return ""
+
+
+def eprint_value(doc, obj_id: str, src: str, *,
+                 before: int = 8, after: int = 5) -> "tuple[str, dict]":
+    """(the author's value at this object's site, evidence). ("", why) on failure.
+
+    Derived, not asserted: locate the object's surrounding prose in the author
+    source and read the math span that sits there.
+    """
+    obj = doc.objects.get(obj_id)
+    if obj is None:
+        return "", {"reason": "object not in the model"}
+    latex = (obj.props or {}).get("latex") or ""
+    para = containing_text(doc, obj_id)
+    if not para:
+        return "", {"reason": "no flow text carries this value inline — "
+                              "cannot locate the site by its prose"}
+    needle = "\\(" + latex + "\\)"
+    i = para.index(needle)
+    bw = _ctx_words(para[:i], before, tail=True)
+    aw = _ctx_words(para[i + len(needle):], after, tail=False)
+    if len(bw) < 3:
+        return "", {"reason": "too little prose before the value to locate it "
+                              "(%d words)" % len(bw)}
+
+    # blank the math out of the source, keeping offsets, so word positions in
+    # the prose stay true and no word inside a formula can match
+    masked = _MATH_SPAN.sub(lambda m: " " * len(m.group(0)), src)
+    toks = [(m.group(0), m.start(), m.end())
+            for m in re.finditer(r"[A-Za-z]+", masked)]
+    seq = [t[0] for t in toks]
+    hits = [k for k in range(len(seq) - len(bw) + 1) if seq[k:k + len(bw)] == bw]
+    if not hits:
+        return "", {"reason": "the prose before this value does not occur in "
+                              "the author source", "context": " ".join(bw)}
+    if len(hits) > 1:
+        # An ambiguous site is a refusal, not a coin toss. Widening the window
+        # would be a fix; guessing would be the defect this loop exists to stop.
+        return "", {"reason": "the prose before this value occurs %d times in "
+                              "the author source — site is ambiguous"
+                              % len(hits), "context": " ".join(bw)}
+    end = toks[hits[0] + len(bw) - 1][2]
+    m = _MATH_SPAN.search(src, end)
+    if not m:
+        return "", {"reason": "no mathematics follows that prose in the author "
+                              "source"}
+    post = _ctx_words(src[m.end():m.end() + 400], len(aw), tail=False)
+    if aw and post[:len(aw)] != aw:
+        return "", {"reason": "the prose AFTER the value disagrees with the "
+                              "author source", "expected": " ".join(aw),
+                    "found": " ".join(post[:len(aw)])}
+    raw = m.group(0)
+    val = re.sub(r"^\$\$?|\$\$?$|^\\\(|\\\)$|^\\\[|\\\]$", "", raw).strip()
+    return val, {"source_span": raw, "context_before": " ".join(bw),
+                 "context_after": " ".join(aw), "occurrences": len(hits)}
+
+
+def same_latex(a: str, b: str) -> bool:
+    """LaTeX equality up to whitespace — `\\mathcal {J}` is `\\mathcal{J}`."""
+    norm = lambda s: re.sub(r"\s+", "", s or "")
+    return norm(a) == norm(b)
+
+
 REFINED_STREAM = "refined"
 REFINED_FIELD = "latex_refined"
 
@@ -697,6 +830,11 @@ def record_one(doc, obj_id: str, prop: dict) -> bool:
     obj = doc.objects.get(obj_id)
     if obj is None:
         return False
+    if not prop.get("verified_by"):
+        raise ValueError(
+            "refusing to record %s: the proposal does not say what verified "
+            "it. A record whose provenance is guessed is worth less than no "
+            "record." % obj_id)
     stream = doc.ensure_stream(REFINED_STREAM)
     anchor = stream.append(**{
         "text": prop["proposed"], "object": obj_id,
@@ -708,10 +846,16 @@ def record_one(doc, obj_id: str, prop: dict) -> bool:
         role="latex_candidate", provenance="change",
         props={
             REFINED_FIELD: prop["proposed"],
-            "verified_by": "ink",
+            # 230: the verification that ACTUALLY happened. This was the
+            # literal string "ink" regardless of how the proposal had been
+            # accepted, so a row verified any other way would have been
+            # recorded as ink-verified — a claim about an instrument that
+            # never ran. record_one refuses a proposal that does not say.
+            "verified_by": prop["verified_by"],
             "ink_before": prop.get("ink_before"),
             "ink_after": prop.get("ink_after"),
             "ink_delta": prop.get("ink_delta"),
+            "evidence": prop.get("evidence"),
             "basis": prop.get("basis", "inferred"),
             "author": prop.get("author", DEFAULT_AUTHOR),
             "at": prop.get("at") or _now(),

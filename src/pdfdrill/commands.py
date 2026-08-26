@@ -13935,7 +13935,8 @@ def cmd_trailingpunct(pdf: Path) -> str:
 
 def cmd_refine(pdf: Path, max_conf: float = 0.5, limit: int | None = None,
                stages: str | None = None, dpi: int | None = None,
-               model: str | None = None, author: str | None = None) -> str:
+               model: str | None = None, author: str | None = None,
+               request: str | None = None) -> str:
     """Propose, verify and record corrections to low-confidence maths values.
 
     Six stages, each able to stop a proposal: select, propose, validate,
@@ -13956,6 +13957,13 @@ def cmd_refine(pdf: Path, max_conf: float = 0.5, limit: int | None = None,
     dpi = int(dpi or _rf.DPI)
     author = author or _rf.DEFAULT_AUTHOR
 
+    # 230 — a change request is now a FLAG, not a hand-edited changes.json.
+    # out/178 injected Grok's proposals by writing the file directly, which
+    # worked and left no path anyone else could use or test.
+    req_path = Path(request) if request else None
+    if req_path is not None and not req_path.is_file():
+        return (f"--request {req_path} does not exist.")
+
     model_path = _model_path(sc)
     if not model_path.is_file():
         return (f"No model for {pdf.name}. Build one first: "
@@ -13969,6 +13977,53 @@ def cmd_refine(pdf: Path, max_conf: float = 0.5, limit: int | None = None,
     index = _rf.by_id(data)
     work = sc.blob_dir / "refine"
     out: list[str] = []
+
+    # ---------------- request ---------------------------------------------
+    # 230. Runs before any stage and regardless of --stages: a request that
+    # arrived is state, like `select`'s rows are state, and the stages then act
+    # on it. `target` is an object id or an identifier (0707.4470_FO0175); ids
+    # are what changes.json keys on, identifiers are what a human has.
+    if req_path is not None:
+        from . import changereq as _cr
+        idents = _rf.identifiers(doc, data.get("bibkey") or "")
+        by_ident = {v: k for k, v in idents.items()}
+        added = bad = 0
+        for prop in _cr.load(req_path):
+            if prop.problems:
+                out.append(f"request: SKIPPED {prop.target} — "
+                           + "; ".join(prop.problems))
+                bad += 1
+                continue
+            oid = prop.target if prop.target in doc.objects else \
+                by_ident.get(prop.target, "")
+            if not oid:
+                out.append(f"request: SKIPPED {prop.target} — no such object "
+                           f"or identifier in this model")
+                bad += 1
+                continue
+            obj = doc.objects[oid]
+            rec = index.get(oid) or {"id": oid}
+            rec.update({
+                "type": obj.type,
+                "identifier": idents.get(oid, ""),
+                "page": (obj.props or {}).get("page"),
+                "confidence": (obj.props or {}).get("confidence"),
+                "field": prop.field_name or "latex",
+                "original": (obj.props or {}).get("latex") or "",
+                "proposed": prop.proposed,
+                "status": "proposed",
+                "basis": prop.basis or "inferred",
+                "author": prop.author or author,
+                "rationale": prop.rationale,
+                "at": prop.at or _rf._now(),
+            })
+            if oid not in index:
+                data["proposals"].append(rec)
+                index[oid] = rec
+            added += 1
+        _rf.save_changes(cp, data)
+        out.append(f"request: {added} proposal(s) from {req_path.name}"
+                   + (f", {bad} skipped" if bad else ""))
 
     # ---------------- select ----------------------------------------------
     if "select" in want:
@@ -14155,6 +14210,50 @@ def cmd_refine(pdf: Path, max_conf: float = 0.5, limit: int | None = None,
 
     # ---------------- accept ----------------------------------------------
     if "accept" in want:
+        # 230 — the e-print route. An inline formula has no region and no crop
+        # (out/125), so the ink gate cannot reach it; what an arXiv paper does
+        # have is the author's own source. This is a CHECK, not a flag: the
+        # gate reads the value out of the author source itself and accepts only
+        # if it equals what was proposed. Trusting `basis: eprint` would let
+        # anyone through by asserting a word.
+        gold = [p for p in data["proposals"]
+                if p.get("status") == "proposed"
+                and p.get("basis") == _rf.VERIFIED_EPRINT]
+        gacc = grej = 0
+        if gold:
+            src, srcname = _rf.author_eprint(pdf)
+            for p in gold:
+                if not src:
+                    p.update({"status": "rejected",
+                              "reason": "no author e-print",
+                              "reason_detail": "no <stem>.tgz beside the PDF "
+                              "(the .tex.zip is MathPix's own output, not gold)",
+                              "at": _rf._now()})
+                    grej += 1
+                    continue
+                val, ev = _rf.eprint_value(doc, p["id"], src)
+                if not val:
+                    p.update({"status": "rejected",
+                              "reason": "e-print check failed",
+                              "reason_detail": ev.get("reason", ""),
+                              "at": _rf._now()})
+                    grej += 1
+                elif _rf.same_latex(val, p["proposed"]):
+                    ev["file"] = srcname
+                    ev["author_value"] = val
+                    p.update({"status": "accepted",
+                              "verified_by": _rf.VERIFIED_EPRINT,
+                              "evidence": ev, "at": _rf._now()})
+                    gacc += 1
+                else:
+                    p.update({"status": "rejected",
+                              "reason": "author source disagrees",
+                              "reason_detail": "%s says %r, proposal says %r"
+                              % (srcname, val, p["proposed"]),
+                              "at": _rf._now()})
+                    grej += 1
+            out.append(f"accept (e-print): {gacc} verified against the author "
+                       f"source, {grej} rejected")
         todo = [p for p in data["proposals"]
                 if p.get("status") == "proposed" and p.get("ink_after") is not None]
         acc = noimp = 0
@@ -14162,7 +14261,8 @@ def cmd_refine(pdf: Path, max_conf: float = 0.5, limit: int | None = None,
         for p in todo:
             before, after = p.get("ink_before"), p.get("ink_after")
             if after < before:
-                p.update({"status": "accepted", "verified_by": "ink",
+                p.update({"status": "accepted",
+                          "verified_by": _rf.VERIFIED_INK,
                           "at": _rf._now()})
                 acc += 1
                 deltas.append(after - before)
@@ -14185,9 +14285,12 @@ def cmd_refine(pdf: Path, max_conf: float = 0.5, limit: int | None = None,
                 if p.get("status") == "accepted" and not p.get("recorded")]
         n = 0
         stranded = []
+        by_verif: dict[str, int] = {}
         for p in todo:
             if _rf.record_one(doc, p["id"], p):
                 p["recorded"] = True
+                v = p.get("verified_by") or "?"
+                by_verif[v] = by_verif.get(v, 0) + 1
                 n += 1
             else:
                 # The object is gone from the model. Object ids are NOT stable
@@ -14203,9 +14306,14 @@ def cmd_refine(pdf: Path, max_conf: float = 0.5, limit: int | None = None,
                           "at": _rf._now()}
         _rf.save_changes(cp, data)
         if n:
+            # 230: name the verification that RAN. This line said
+            # "verified_by=ink" whatever had actually verified the row — the
+            # same defect the realization props carried, one layer up, and the
+            # one place a reader would look to check.
+            how = ", ".join(f"{v} {k}" for k, v in sorted(by_verif.items()))
             out.append(
                 f"record: {n} accepted proposal(s) attached as provenance=\"change\" "
-                f"realizations carrying verified_by=ink; the original `latex` is "
+                f"realizations ({how}); the original `latex` is "
                 f"unchanged (the refined text is in `{_rf.REFINED_FIELD}`).")
         elif stranded:
             out.append(

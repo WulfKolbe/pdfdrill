@@ -612,7 +612,7 @@ _Generated from `commands.yaml` by skillsync. Edit the manifest, not this sectio
 
 | Command | Returns |
 |---|---|
-| `pdfdrill refine <pdf> [--max-conf MAX_CONF] [--limit LIMIT] [--stages STAGES] [--model MODEL] [--author AUTHOR] [--dpi DPI]` | Propose, verify and record corrections to low-confidence maths values. Six stages, each able to stop a proposal: select (low-confidence rows, minus those the ink gate says already match the scan), propose (one re-transcription per row, written to changes.json with status proposed / basis inferred / author), validate (width uniformity, environment balance, CJK, standalone xelatex compile), measure (render the proposal, measure it against the scan crop), accept (keep it only when the ink distance FALLS), record (attach it as a provenance="change" realization carrying verified_by=ink with before/after; the original `latex` is never overwritten). Nothing is applied because a model proposed it. _(network)_ |
+| `pdfdrill refine <pdf> [--max-conf MAX_CONF] [--limit LIMIT] [--stages STAGES] [--model MODEL] [--author AUTHOR] [--dpi DPI] [--request REQUEST]` | Propose, verify and record corrections to low-confidence maths values. Six stages, each able to stop a proposal: select (low-confidence rows, minus those the ink gate says already match the scan), propose (one re-transcription per row, written to changes.json with status proposed / basis inferred / author), validate (width uniformity, environment balance, CJK, standalone xelatex compile), measure (render the proposal, measure it against the scan crop), accept (keep it only when the ink distance FALLS), record (attach it as a provenance="change" realization carrying the verification that actually ran, with before/after; the original `latex` is never overwritten). Nothing is applied because a model proposed it. A second acceptance route exists for rows the ink gate cannot reach (an inline formula has no region and no crop): with basis=eprint the gate reads the value out of the AUTHOR's arXiv e-print at that site, located by its surrounding prose, and accepts only if the source agrees. It is a check, not a flag. _(network)_ |
 
 ### Projection / export
 
@@ -641,6 +641,6 @@ _Generated from `commands.yaml` by skillsync. Edit the manifest, not this sectio
 <!-- COMMANDS:END -->
 
 <!-- PREFLIGHT-TOKEN:BEGIN -->
-Attestation token — the LAST line of this SKILL. If you can read this, you read the whole file. Run `pdfdrill preflight --ack DRILL-a4417144` before any build/extract command.
-DRILL-a4417144
+Attestation token — the LAST line of this SKILL. If you can read this, you read the whole file. Run `pdfdrill preflight --ack DRILL-2d92dd9d` before any build/extract command.
+DRILL-2d92dd9d
 <!-- PREFLIGHT-TOKEN:END -->

@@ -1,0 +1,128 @@
+230 — the \mathcal{J} fix, applied through the refine record stage
+==============================================================================
+
+WHAT LANDED
+------------------------------------------------------------------------------
+   0707.4470_FO0175   obj_0c9487434929   page 29   inline Formula
+
+   props["latex"]          \mathscr{g}      UNCHANGED
+   props["latex_refined"]  \mathcal{J}
+
+   realization  stream=refined  role=latex_candidate  provenance="change"
+     verified_by  eprint
+     basis        eprint
+     author       out/229
+     ink_before / ink_after / ink_delta   null, null, null
+     evidence
+       file             computationalEM.tex
+       author_value     \mathcal{J}
+       source_span      $\mathcal{J}$
+       context_before   "Given a discrete form and dual source form"
+       context_after    "define the discrete Lagrangian form"
+       occurrences      1
+
+The ink fields are null rather than absent or invented. Nothing measured them,
+and out/113's lesson is that an unmeasured number which looks measured is
+worse than a gap.
+
+THE ROUTE IS A CHECK, NOT A FLAG
+------------------------------------------------------------------------------
+The ink gate cannot reach this row: an inline formula has no region and no
+crop (out/125), so there is nothing to render a proposal against. What
+0707.4470 does have is an arXiv e-print.
+
+The obvious implementation — trust `basis: eprint` and record it — would have
+made the whole loop bypassable by asserting a word. Instead the gate goes to
+the author's source itself:
+
+   1. take the object's surrounding PROSE from the flow text that carries it
+      inline (an inline formula is written into its paragraph's text; nothing
+      else in the model has its context);
+   2. strip every math span from both sides and reduce to alphabetic words —
+      the author writes `$1$-form` where MathPix writes `1-form`, so digits and
+      punctuation disagree at every site and prove nothing, while the prose
+      around the mathematics is written identically by both;
+   3. locate that word sequence in the author source. ONE occurrence or the
+      site is refused as ambiguous — a coin toss here is the defect the loop
+      exists to stop;
+   4. read the math span that sits there, and check the prose AFTER it agrees
+      too;
+   5. accept only if the value the source yields equals the value proposed.
+
+For this row the before-context occurs exactly once and the span it points at
+is `$\mathcal{J}$`. The proposal was not believed; it was re-derived.
+
+   accept (e-print): 1 verified against the author source, 0 rejected
+   record: 1 accepted proposal(s) attached as provenance="change"
+           realizations (1 eprint); the original `latex` is unchanged
+
+NEVER THE .tex.zip
+------------------------------------------------------------------------------
+`author_eprint` reads `<stem>.tgz` only. The `<stem>.tex.zip` sitting in the
+same directory is MATHPIX's own LaTeX output — out/229 nearly used it as gold
+and it agreed with the markdown perfectly, because it IS the markdown
+(\mathscr{g} present, counts identical). A verification that reads the thing it
+is verifying confirms anything you like. A test holds this shut.
+
+A BUG THIS TURNED UP: THE RECORD DID NOT SAY WHAT VERIFIED IT
+------------------------------------------------------------------------------
+record_one wrote the literal string
+
+        "verified_by": "ink"
+
+into every realization, whatever had actually accepted the row. With one
+acceptance route that was merely redundant. With two it is a false claim about
+an instrument that never ran — and this row would have been recorded as
+ink-verified with three null ink fields beside it.
+
+It now records `prop["verified_by"]` and REFUSES a proposal that does not carry
+one. A record whose provenance is guessed is worth less than no record. The
+same literal appeared in the stage's own output line — the one place a reader
+would look to check — and now names the verifications that ran.
+
+--request IS NOW A FLAG
+------------------------------------------------------------------------------
+out/178 injected Grok's proposals by writing changes.json directly. It worked
+and left no path anyone else could use or test. `refine --request <file>` takes
+the change-request shape changereq.load already parses, resolves `target` as
+either an object id or an identifier (0707.4470_FO0175), and ingests before any
+stage runs. Registered in commands.yaml with the rest, per audit A4.
+
+THE CONSEQUENCE out/229 CLAIMED IS WRONG, AND I MEASURED IT
+------------------------------------------------------------------------------
+out/229 ended: "Fixing the content takes it to zero too, making all eleven
+measurable and removing the only refusal from the 215 handover list."
+
+It does not. Rebuilt after the record:
+
+   Compiled report.pdf: 17 pages, 0 error(s)
+   GLYPHS DROPPED: xelatex discarded 1 character(s) …
+   report.tex: \mathscr{g} 1,  \mathcal{J} 0
+
+Nothing downstream reads `latex_refined` — not the tiddlers projector, not the
+report, not markdown. Grep of src/ finds exactly one reference outside
+refine.py, and it is the sentence in the log line that names the field. The
+refined value is EVIDENCE, and the original is never overwritten, which is the
+design and is what out/230's own instruction asks for.
+
+So the two requirements are in tension and the tension is real: a repair
+recorded this way cannot change a projection, so 0707.4470 still drops its
+glyph, is still refused for measurement, and is still the one refusal on the
+215 handover list. I asserted otherwise in 229 without checking.
+
+WHAT WOULD CLOSE IT
+------------------------------------------------------------------------------
+A consumer for `latex_refined` — a projector that prefers a recorded, verified
+refinement over the original when one exists, with the choice visible in the
+output rather than silent. That is a layer, not a patch, and it is the gap
+this task exposed: the loop can accept and record repairs that nothing ever
+uses. Twenty-seven acceptances from out/216 are in that state too.
+
+Not built here. 230 says apply the fix through the record mechanism, and the
+record mechanism is exactly the thing that does not touch projections.
+
+   tests/test_refine_eprint.py   11 tests
+   tests/test_refine.py          updated: the proposal it records now says what
+                                 verified it, which is the case the new refusal
+                                 exists for
+   suite 2,382 -> 2,397

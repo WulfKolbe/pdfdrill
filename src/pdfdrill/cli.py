@@ -1018,7 +1018,7 @@ def _do_crossref(args):
 
 
 def _do_refine(args):
-    """pdfdrill refine <pdf> [--max-conf F] [--limit N] [--stages a,b] [--model M]"""
+    """pdfdrill refine <pdf> [--max-conf F] [--limit N] [--stages a,b] [--model M] [--request F]"""
     from .commands import cmd_refine
     mx, args = _opt(args, "--max-conf")
     lim, args = _opt(args, "--limit")
@@ -1026,10 +1026,12 @@ def _do_refine(args):
     mdl, args = _opt(args, "--model")
     dpi, args = _opt(args, "--dpi")
     author, args = _opt(args, "--author")
+    req, args = _opt(args, "--request")
     return cmd_refine(_pdf(args),
                       max_conf=float(mx) if mx is not None else 0.5,
                       limit=int(lim) if lim is not None else None,
                       stages=stages, model=mdl, author=author,
+                      request=req,
                       dpi=int(dpi) if dpi is not None else None)
 
 

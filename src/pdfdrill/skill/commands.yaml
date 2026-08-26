@@ -1316,9 +1316,13 @@ commands:
     author), validate (width uniformity, environment balance, CJK, standalone
     xelatex compile), measure (render the proposal, measure it against the scan
     crop), accept (keep it only when the ink distance FALLS), record (attach it as
-    a provenance="change" realization carrying verified_by=ink with before/after;
-    the original `latex` is never overwritten). Nothing is applied because a model
-    proposed it.'
+    a provenance="change" realization carrying the verification that actually ran,
+    with before/after; the original `latex` is never overwritten). Nothing is
+    applied because a model proposed it. A second acceptance route exists for rows
+    the ink gate cannot reach (an inline formula has no region and no crop): with
+    basis=eprint the gate reads the value out of the AUTHOR''s arXiv e-print at
+    that site, located by its surrounding prose, and accepts only if the source
+    agrees. It is a check, not a flag.'
   network: true
   requires:
   - model
@@ -1355,6 +1359,13 @@ commands:
     type: int
     help: raster resolution for the render/scan comparison (default 400, the
       project floor)
+  - name: request
+    flag: --request
+    type: str
+    help: 'change-request JSON to ingest before the stages run: {proposals:
+      [{target, field, proposed, basis, author, rationale}]}. `target` is an
+      object id or an identifier (0707.4470_FO0175). basis=eprint routes the
+      proposal to the author-source check instead of the ink gate'
   typed: true
 - name: modeldiff
   section: Introspection (fast, no extraction)

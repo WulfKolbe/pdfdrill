@@ -164,8 +164,14 @@ def test_structural_checks_run_before_the_compile():
 
 def test_record_keeps_the_original_and_signs_the_change():
     doc = _doc()
+    # 230: `verified_by` is now REQUIRED. It used to be a literal "ink" written
+    # into the realization whatever had accepted the row, so this proposal —
+    # which never said what verified it — was recorded as ink-verified anyway.
+    # The accept stage sets it; a proposal reaching record_one without it is a
+    # record whose provenance would be guessed, and record_one now refuses.
     prop = {"id": "a", "proposed": "x^{2}", "ink_before": 91, "ink_after": 40,
-            "ink_delta": -51, "basis": "inferred", "author": "minimax-m3"}
+            "ink_delta": -51, "basis": "inferred", "author": "minimax-m3",
+            "verified_by": rf.VERIFIED_INK}
     assert rf.record_one(doc, "a", prop) is True
     obj = doc.objects["a"]
 
