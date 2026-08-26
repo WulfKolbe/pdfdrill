@@ -120,3 +120,26 @@ def test_row_without_an_identifier_falls_back_to_the_object_id(tmp_path):
     """Never a blank cell: an unmapped row must still be locatable."""
     txt = rt.build_refined_report(_write(tmp_path, _changes()))["out"].read_text()
     assert "obj\\_a" in txt
+
+
+def test_a_failed_proposal_still_appears_as_an_attempted_repair(tmp_path):
+    """217: one row per ATTEMPTED repair. A row whose model call failed was
+    still attempted and paid for; omitting it makes the report claim fewer
+    repairs were tried than were."""
+    d = _changes()
+    d["proposals"].append({"id": "obj_e", "identifier": "X_EQ0366", "page": 9,
+                           "confidence": 0.2, "status": "selected",
+                           "ink_before": 62,
+                           "propose_error": "reply empty: used all tokens reasoning"})
+    rows = rt.refined_rows(d)
+    assert any(r["id"] == "obj_e" for r in rows)
+    v, detail = rt._verdict_of([r for r in rows if r["id"] == "obj_e"][0])
+    assert v == "not proposed" and "reply empty" in detail
+
+
+def test_a_row_selected_but_never_attempted_is_still_excluded(tmp_path):
+    """No error means no call was made; a row of dashes would read as a
+    measurement that came out empty."""
+    d = _changes()
+    d["proposals"].append({"id": "obj_f", "status": "selected", "confidence": 0.3})
+    assert not any(r["id"] == "obj_f" for r in rt.refined_rows(d))

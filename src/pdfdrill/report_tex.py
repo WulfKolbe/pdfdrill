@@ -1426,6 +1426,8 @@ REFINED_NAME = "refine.report.tex"
 def _verdict_of(p: dict) -> tuple[str, str]:
     """(verdict, detail) for one proposal, in the words changes.json uses."""
     st = p.get("status", "?")
+    if st == "selected" and p.get("propose_error"):
+        return "not proposed", str(p["propose_error"])[:70]
     if st == "accepted":
         return "accepted", "ink fell"
     if st == "rejected":
@@ -1442,8 +1444,15 @@ def refined_rows(changes: dict) -> list[dict]:
     before/after to show and a row of dashes would only look like a measurement
     that came out empty.
     """
+    # Every ATTEMPTED repair, including the ones that never produced a
+    # proposal. A row whose model call failed was still attempted, and
+    # omitting it would make the report say fewer repairs were tried than
+    # were paid for. It shows with its error as the verdict and dashes for
+    # the measurements it never got, which is different from a measurement
+    # that came out empty.
     out = [p for p in (changes.get("proposals") or [])
-           if p.get("status") in ("proposed", "accepted", "rejected")]
+           if p.get("status") in ("proposed", "accepted", "rejected")
+           or (p.get("status") == "selected" and p.get("propose_error"))]
     out.sort(key=lambda p: (p.get("confidence") if isinstance(
         p.get("confidence"), (int, float)) else 1.0, p.get("id", "")))
     return out

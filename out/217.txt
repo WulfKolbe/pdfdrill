@@ -1,0 +1,91 @@
+217 — the refined report: what was TRIED, not what changed
+==============================================================================
+   Numerical Linear Algebra and Matrix Factorizations (Tom Lyche)
+   refine.report.pdf — 45,763 B, 2 pages, 0 errors
+   19 rows: 8 accepted · 10 rejected · 1 not proposed
+
+Chosen because it has the fullest spread of verdicts — every outcome the loop
+can produce appears at least once, including the one that produces no
+measurement at all.
+
+THE TABLE, IN FULL
+------------------------------------------------------------------------------
+   identifier    conf     before  after  delta   verdict
+   EQ0706      0.0008        24      1    -23    accepted
+   EQ0729      0.0015        90      4    -86    accepted
+   EQ0326      0.1177        53     36    -17    accepted
+   EQ0029      0.1377        10     10      0    rejected — no improvement
+   EQ0630      0.1673       119     71    -48    accepted
+   EQ0371      0.1940         2      2      0    rejected — no improvement
+   EQ0492      0.2318        26      —      —    rejected — standalone compile
+   EQ0010      0.2442        13     17     +4    rejected — no improvement
+   EQ0924      0.2881        50    107    +57    rejected — no improvement
+   EQ0369      0.2980       105      5   -100    accepted
+   EQ0375      0.3050       150      —      —    rejected — identical to original
+   EQ0366      0.3155        62      —      —    NOT PROPOSED — reply empty
+   EQ0579      0.3216       265      4   -261    accepted
+   EQ0335      0.3286        17     63    +46    rejected — no improvement
+   EQ0917      0.3709        55      —      —    rejected — identical to original
+   EQ0547      0.3732         5     11     +6    rejected — no improvement
+   EQ0855      0.3865        74      —      —    rejected — identical to original
+   EQ0670      0.3902       105      6    -99    accepted
+   EQ0763      0.4016        19      9    -10    accepted
+
+WHAT THE REJECTED ROWS SHOW THAT AN ACCEPTANCE-ONLY REPORT COULD NOT
+------------------------------------------------------------------------------
+Three rows got substantially WORSE and are visible as such: EQ0924 at +57,
+EQ0335 at +46, EQ0547 at +6. A report listing the eight acceptances would
+have shown eight repairs averaging -80 and looked like an unambiguous
+success. It is one, but only because a gate stood between the model and the
+model file — and the reader can see that only if the refusals are on the page.
+
+Three more say "identical to the original": the model returned the input
+unchanged, so there was nothing to measure. That is a distinct outcome from
+"measured and no better", and collapsing them would overstate how often the
+proposer engaged with the row at all.
+
+THE ROW THAT PRODUCED NO MEASUREMENT — AND WHY IT IS NOW ON THE PAGE
+------------------------------------------------------------------------------
+   EQ0366   conf 0.3155   before 62   after —   NOT PROPOSED
+            "reply empty: the model used all 40000 tokens reasoning and
+             emitted no content"
+
+Until this task that row was EXCLUDED. out/174 had reasoned that a row
+selected and never proposed has no before/after to show, and a line of dashes
+would read as a measurement that came out empty.
+
+That reasoning was half right and the half it got wrong matters here. A row
+that was never ATTEMPTED should stay out. A row that was attempted, cost a
+paid call, and failed is a different thing: leaving it out makes the report
+claim 18 repairs were tried when 19 were. So the rule is now the narrower one
+— a row appears if it carries a propose_error, and its verdict is the error.
+A row selected and never called still does not appear.
+
+Two tests hold both halves apart.
+
+WHAT THE REPORT SAYS ABOUT ITS OWN INSTRUMENT
+------------------------------------------------------------------------------
+The page carries, above the table:
+
+   METRIC — CROP INK DISTANCE. L1 between the standalone render of a value
+   and the scan crop under its region, over number of ink components and
+   total topological holes. Both scale-free … It FALLS as the render moves
+   toward the scan, and a proposal is accepted only when it falls.
+
+   THIS IS NOT THE RESIDUAL CLASS. The formula report's C/W/S/N/K residual is
+   inkdrill's row-level five-tuple measured from the finished PDF. Different
+   instrument, different question … The two numbers are not comparable and
+   must not be merged.
+
+with its own three colours, deliberately not the residual palette. A reader
+holding both reports has two ink numbers in front of them, and nothing on
+either page should let one be mistaken for the other.
+
+A NOTE ON THE FILENAME
+------------------------------------------------------------------------------
+217 asks for report-refined.pdf; the file is refine.report.pdf. The name was
+changed deliberately: `report.*` in a document folder sweeps twelve files,
+including report.ink.json.MISPAIRED — a quarantined file whose whole purpose
+is that it must never be republished. A refined report named report-refined.*
+would sit in that namespace. The current name shares no prefix with anything
+published, and the pages side has an allowlist that admits files by name.
