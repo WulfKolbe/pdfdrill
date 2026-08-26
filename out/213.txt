@@ -1,0 +1,104 @@
+213 — drill every document from out/212.txt that is not current
+==============================================================================
+   11 documents · 12 steps each · 132 steps · EVERY STEP rc=0
+   3,440 source pages in, 5,154 report pages out, 6,800 display equations,
+   30,495 inline formulas, 337 tables, 6,800 CDN crops (0 failed),
+   0 xelatex compile errors.
+
+Chain, identical for all eleven and run in this order:
+
+   size · links · dests · model · geometry · eqnums · bibliography ·
+   tiddlers · cdncrops · reporttex · inspect · md
+
+PER DOCUMENT
+------------------------------------------------------------------------------
+                                                  src  report   eq  inline tab  crops mal glyphs
+   Geometrodynamics of Gauge Fields (Mielke)      377    494  1149   1794    5   1149   9  20 U+09E7
+   Introduction to Graph and Hypergraph Theory    303    315   266   2555    2    266   0   -
+   Introduction to Linear and Matrix Algebra      492    794  1670   5144   43   1670   8   -
+   Numerical Linear Algebra (Lyche)               376    594  1056   4638    7   1056   0   -
+   Lie Groups, Physics and Geometry (Robert Gilmore) 333 739  1037   3473   38   1037   1   6 U+53E3
+   2010.14265                                      14     11    16    369    0     16  75   -
+   An Invitation to Applied Category Theory       352    680   262   4061   68    262   7   4 U+5B5B
+   OMDoc 1.2 (Kohlhase)                           425     98     6    459  103      6   5   -
+   Seven Sketches in Composability                353    679   264   4029   63    264   7   2 U+5B80
+   0707.4470                                       37     17    62    213    0     62   0   1 'g'
+   Geometric/Algebraic/Topological Methods (QFT)  378    733  1012   3760    8   1012   1   1 U+53E3
+
+   mal = malformed rows demoted to source-only.  crops: 0 failed anywhere.
+
+SIX OF THE ELEVEN REPORTS MUST NOT BE MEASURED — WHICH IS 214's CONSTRAINT
+------------------------------------------------------------------------------
+Six reports carry GLYPHS DROPPED: xelatex discarded a character and STILL
+WROTE A PDF, rc=0. Thirty-four characters lost across the six. The report
+looks complete; the symbol is simply not on the page, with no visible trace.
+
+That is exactly the failure class the ink residual cannot survive. The
+residual compares rendered ink against scanned ink; a glyph missing from the
+render is indistinguishable from a glyph the OCR never emitted. Measuring
+these six would attribute a font gap to the extraction.
+
+   MEASURABLE for 214 (5):  Graph and Hypergraph Theory · Linear and Matrix
+                            Algebra · Numerical Linear Algebra (Lyche) ·
+                            2010.14265 · OMDoc 1.2
+   BLOCKED       (6):       Geometrodynamics · Lie Groups · An Invitation to
+                            ACT · Seven Sketches · 0707.4470 · Geometric
+                            Algebraic and Topological Methods
+
+Note that rc=0 is correct here and should stay that way — the PDF was
+written and is usable for reading. What is not usable is measuring it. The
+distinction lives in the message, not the exit code, which is why 214 has to
+read the log and not just the return values.
+
+0707.4470 — THE ADVICE THE WARNING GIVES IS WRONG FOR THIS ONE
+------------------------------------------------------------------------------
+Five of the six dropped an exotic code point: U+09E7 BENGALI DIGIT ONE,
+U+53E3, U+5B5B, U+5B80 (CJK), U+53E3 again. For those the emitted advice —
+"add the code point to report_tex._MATH_CMD or a fallback font" — is right.
+
+0707.4470 dropped
+
+   Missing character: There is no g ("67).
+
+"67 is TeX's hex notation: 0x67, ASCII lowercase **g**. A plain Latin letter.
+No fallback font is missing 'g'; a font that has been selected for some
+symbol in that document has no 'g' in it, and a letter fell into it. Adding
+'g' to a math-command table would be nonsense. The bug is the font selection,
+not the coverage, and the warning text sends a reader to the wrong place.
+
+Worth fixing in the message: when the dropped code point is below U+0080,
+say so and name the font, because the diagnosis inverts.
+
+2010.14265 — 19.5% OF ROWS DEMOTED, TWO ORDERS OF MAGNITUDE OFF THE FIELD
+------------------------------------------------------------------------------
+   19.48%   75 / 385    2010.14265
+    1.08%    5 / 465    OMDoc 1.2
+    0.31%    9 / 2943   Geometrodynamics
+    0.16%    7 / 4293   Seven Sketches
+    0.16%    7 / 4323   An Invitation to ACT
+    0.12%    8 / 6814   Linear and Matrix Algebra
+    0.02%    1 / 4510   Lie Groups
+    0.02%    1 / 4772   Geometric/Algebraic/Topological
+    0.00%    0 / 2821   Graph and Hypergraph Theory
+    0.00%    0 / 5694   Numerical Linear Algebra
+    0.00%    0 / 275    0707.4470
+
+Every other document is at or below 1.1%. 2010.14265 is at 19.5% — 75 of its
+385 rows are source-only, in a document with no tables at all. It is also the
+smallest document in the set (14 pages), so the rate rests on a small
+denominator, but 75 absolute demotions in 11 report pages is not a small-
+sample artefact. It is one document behaving differently, not a distribution
+with a tail, and it should be looked at before its numbers are pooled with
+the rest.
+
+WHAT IS NOT IN THIS RUN
+------------------------------------------------------------------------------
+No `compare`, and so no residual data in any of the eleven reports — that is
+214's job, and 215 rebuilds with the results present. The reports as built
+carry empty residual columns. Per 195 the adoption is now automatic:
+reporttex picks up report.ink.json from the blob dir with no --ink flag, so
+215 does not need to thread a path.
+
+Nothing here is committed to the library repo. Ten of the eleven are
+Z-Library books or exceed 1 MB; the artefacts (report.pdf, report.tex,
+tiddlers.json, report-crops/) are on the never-commit list and stay local.
