@@ -13332,6 +13332,27 @@ def cmd_reporttex(pdf: Path, paper: str = "a3", landscape: bool = True,
         if default_ink.is_file():
             ink_path = default_ink
             adopted = f"residuals: adopted {default_ink.name} (no --ink needed)"
+    # 221 — REFUSE a residual measured against a report that dropped glyphs.
+    # This is the writer for `report.ink.json.REFUSED`, a state reporttex has
+    # recognised since 180 and nothing has ever produced. The measurement is
+    # not discarded: it is renamed, so the refusal is on disk and reversible
+    # once the report is rebuilt with the missing characters.
+    refused = ""
+    if ink_path is not None:
+        # the log of the PREVIOUS build, beside report.tex — derived the same
+        # way build_report derives its destination, not assumed to be blob_dir
+        ok, why = rt.ink_measurable(Path(tid).parent / "report.log")
+        if not ok:
+            if ink_path.name == "report.ink.json":
+                dest = ink_path.with_name("report.ink.json.REFUSED")
+                ink_path.replace(dest)
+                refused = ("residuals REFUSED: %s Quarantined as %s; rebuild "
+                           "this report, then re-measure." % (why, dest.name))
+            else:
+                refused = ("residuals REFUSED: %s Rebuild this report, then "
+                           "re-measure." % why)
+            ink_path = None
+            adopted = ""          # it was not adopted; it was refused
     ink_map = rt.load_ink(ink_path) if ink_path else None
     # Residual data implies the residual COLUMN. Without this the file is
     # read, the bullets are computed, and nothing is drawn.
@@ -13344,9 +13365,13 @@ def cmd_reporttex(pdf: Path, paper: str = "a3", landscape: bool = True,
     # truth is the second.
     ink_state = ""
     if not ink_map:
-        quarantined = any((sc.blob_dir / n).exists() for n in
-                          ("report.ink.json.MISPAIRED", "report.ink.json.REFUSED"))
-        ink_state = "unpairable" if quarantined else "not_run"
+        if refused or (sc.blob_dir / "report.ink.json.REFUSED").exists():
+            # 221: a refusal is not an absence. Naming it "unpairable" would
+            # blame the report's table for a font that is missing.
+            ink_state = "glyphs_dropped"
+        else:
+            quarantined = (sc.blob_dir / "report.ink.json.MISPAIRED").exists()
+            ink_state = "unpairable" if quarantined else "not_run"
     r = rt.build_report(tid, crops=crops, texzip=texzip, paper=paper,
                         landscape=landscape, px2mm=px2mm,
                         min_conf=min_conf, max_conf=max_conf, types=want,
@@ -13354,10 +13379,11 @@ def cmd_reporttex(pdf: Path, paper: str = "a3", landscape: bool = True,
                         ink_state=ink_state)
     sc.set_evidence("reporttex_path",
                     str(Path(r["out"]).relative_to(pdf.parent)))
+    lines_prefix = []
     if adopted:
-        lines_prefix = [adopted]
-    else:
-        lines_prefix = []
+        lines_prefix.append(adopted)
+    if refused:
+        lines_prefix.append(refused)
     lines = [f"Wrote {r['out']} — {r['equations']} display equations, "
              f"{r['formulas']} inline formulas, {r['tables']} tables, "
              f"{r['unrecovered']} unrecovered image region(s) "
@@ -13401,8 +13427,8 @@ def cmd_reporttex(pdf: Path, paper: str = "a3", landscape: bool = True,
                 lines.append(
                     f"GLYPHS DROPPED: xelatex discarded {n} character(s) and "
                     f"still wrote a PDF. {first}. The report is missing symbols "
-                    f"with no visible trace — do not measure it. Add the code "
-                    f"point to report_tex._MATH_CMD or a fallback font.")
+                    f"with no visible trace — do not measure it. "
+                    f"{rt.glyph_loss_advice(first)}")
     else:
         # A .tex written beside an OLDER .pdf is a stale artifact that passes
         # every check anyone runs: it exists, its page count is plausible, and
