@@ -1,0 +1,107 @@
+207 — could any \mathbb{<digit>} have been transcribing a turnstile?
+==============================================================================
+NO. Not one of the 758. The 199 fix is safe, and this is the check that
+establishes it rather than assuming it.
+
+THE QUESTION, AND WHY IT IS A REAL ONE
+------------------------------------------------------------------------------
+199 changed \mathbb{1} from rendering U+22AE (⊮ "does not force") to rendering
+a blackboard-bold one. That is only an improvement if MathPix meant a
+blackboard one. If instead it had learned that \mathbb{1} PRODUCES ⊮ and used
+it to transcribe an actual turnstile on the page, then those instances were
+CORRECT and the fix silently breaks them.
+
+The task's test is the right one: a document that writes negated turnstiles BY
+NAME has no reason to reach for \mathbb{1} to draw one.
+
+DOCUMENTS USING BOTH FORMS: EXACTLY ONE
+------------------------------------------------------------------------------
+   documents with \mathbb{<digit>}                              44
+   ... also using \nvdash / \nVdash / \nvDash / \nVDash by name  1
+   ... also using \vdash / \Vdash / \vDash / \models by name     1
+
+   Geometrodynamics of Gauge Fields (Mielke)
+      \mathbb{<digit>}   9 occurrences
+      \nVdash            1
+      \nvdash            1
+
+By the task's rule its 9 digit instances are unambiguous errors, and the
+context confirms it beyond argument — they are Dirac gamma matrices:
+
+   \gamma^{0}:=\left(\begin{array}{rr} \mathbb{1} & 0 \\ 0 & -\mathbb{1}
+   \end{array}\right)
+   \gamma_{\alpha}\gamma_{\beta}+\gamma_{\beta}\gamma_{\alpha}=2 o_{\alpha\beta}\mathbb{1}
+   (\gamma^{n+1})^{2}=\mp\mathbb{1}
+   \mathbb{1}_{n}                        (an n x n identity block)
+
+The Clifford relation and a block-diagonal gamma matrix. Nothing there admits
+"does not force".
+
+AND THE TURNSTILE USE IN THAT DOCUMENT IS ITSELF SUSPECT
+------------------------------------------------------------------------------
+Worth recording, because it inverts the evidence rather than supporting it:
+
+   p284   \nvdash^{A}{}_{B} := L^{A}{}_{B} - \frac{1}{n}\delta^{A}_{B} L^{C}{}_{C}
+
+That is a tensor with an upper and a lower index, defined as the traceless part
+of L. A negated turnstile does not take indices and is not a tensor. The
+document also writes \not D^2 on p275, so it is a text full of slashed
+operators — this is far more likely a slashed or barred L that MathPix reached
+for \nvdash to draw.
+
+So the one document that "uses both forms" is not a document that uses
+turnstiles. It is a second instance of the same failure, in the other
+direction: a symbol drawn by a command whose name means something else.
+
+THE OTHER 43: CONTEXT, ALL 758 OCCURRENCES CLASSIFIED
+------------------------------------------------------------------------------
+   identity / unit / all-ones            502
+   indicator (subscript or argument)     148
+   no local evidence either way          108
+   IN A FORCING OR ENTAILMENT CONTEXT      0
+
+Zero. Not one occurrence sits anywhere near \vdash, \models, \Vdash, \vDash, a
+forcing relation, or the words forces/entails/proves.
+
+The 108 with no local syntactic evidence are not ambiguous once read. They are
+dominated by 2002.06055, a category-theory text where \mathbb{1} is the
+MONOIDAL UNIT:
+
+   \mathbb{1} \in \mathrm{C}
+   \theta_{X}: \mathbb{1} \longrightarrow \mathrm{D}(FX, GX)
+   \mathbb{1}^{\mathrm{D}} \xrightarrow{F_{0}} F\mathbb{1}^{\mathrm{C}}
+
+An object of a category, the source of a morphism. A turnstile cannot be
+either.
+
+A CORRECTION TO THE TASK'S FRAMING
+------------------------------------------------------------------------------
+The task asks me to "confirm from context that an indicator function is
+meant". In most cases it is not. The dominant sense is the IDENTITY, by more
+than three to one:
+
+   identity matrix / operator      Dirac gammas, Clifford algebras, V†V = 𝟙
+   monoidal unit                   category theory
+   all-ones vector                 linear programming, Px ≤ 𝟙
+   multiplicative identity         semirings: A ⊕ 𝕆 = A, A ⊗ 𝟙 = A, A𝕀 = A
+   indicator function              148 of 758
+
+The TabulaROSA line is the sharpest: `A ⊕ \mathbb{O} = A`, `A ⊗ \mathbb{1} = A`,
+`A\mathbb{I} = A` — blackboard letter O, blackboard DIGIT one, and blackboard
+letter I, in a single expression, as the additive and multiplicative
+identities of a semiring. The digit is doing work no letter can do there.
+
+That distinction does not change the verdict — every one of these senses wants
+a blackboard-bold digit and none wants a turnstile — but "indicator function"
+would have been the wrong thing to write down, and the fix's justification
+should say identity.
+
+VERDICT
+------------------------------------------------------------------------------
+   turnstile intent found                    0 of 758
+   blackboard-digit intent confirmed       758 of 758
+   documents where both forms coexist        1 of 44, and its digits are
+                                             Dirac gammas
+
+199's preamble change is safe on every occurrence in the corpus. No instance
+was a correct transcription that the fix would break.
