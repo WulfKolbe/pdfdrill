@@ -1303,6 +1303,60 @@ _FB_CJK = frozenset((
     0x300E, 0x3064, 0x30B3, 0x31D2, 0x4E00, 0x4E04, 0x4E05, 0x4E92,
     0x4F5C, 0x516B, 0x5186, 0x5341, 0x5B50, 0x5B54, 0x65E5, 0x771F,
 ))
+#: 223 — the other half of the same measurement: code points DejaVu SERIF has
+#: and DejaVu Sans Mono does not (1,042 of them). With _COVERED (mono) and
+#: _MONO_ONLY_RANGES (mono minus serif), these three decide exactly which of
+#: the two text fonts carries any given character, so a declaration can name
+#: the one that does instead of hoping the ambient font is the right one.
+_MAIN_ONLY_RANGES = (
+    (0x01C4, 0x01CC), (0x01E4, 0x01E5), (0x01F1, 0x01F3), (0x01F7, 0x01F7),
+    (0x01FA, 0x01FB), (0x0222, 0x0223), (0x0242, 0x0242), (0x0246, 0x024B),
+    (0x024E, 0x024F), (0x02BA, 0x02BA), (0x02C2, 0x02C5), (0x02CA, 0x02CB),
+    (0x02EC, 0x02EC), (0x02EF, 0x02F0), (0x02F7, 0x02F7), (0x034F, 0x034F),
+    (0x0360, 0x0360), (0x0370, 0x0373), (0x03CF, 0x03CF), (0x0464, 0x0465),
+    (0x046A, 0x046D), (0x0470, 0x0471), (0x0474, 0x0477), (0x048C, 0x048D),
+    (0x049E, 0x04A1), (0x04A6, 0x04A7), (0x04B4, 0x04B7), (0x0512, 0x0515),
+    (0x10A0, 0x10C5), (0x1D00, 0x1D01), (0x1D03, 0x1D07), (0x1D0A, 0x1D13),
+    (0x1D15, 0x1D15), (0x1D18, 0x1D1C), (0x1D20, 0x1D2B), (0x1D2F, 0x1D2F),
+    (0x1D3D, 0x1D3D), (0x1D5C, 0x1D61), (0x1D66, 0x1D6B), (0x1D7C, 0x1D7F),
+    (0x1DB8, 0x1DB8), (0x1DC4, 0x1DC9), (0x1E14, 0x1E17), (0x1E2E, 0x1E2F),
+    (0x1E4E, 0x1E53), (0x1E64, 0x1E67), (0x1E7A, 0x1E7B), (0x1E9A, 0x1E9A),
+    (0x1E9C, 0x1E9E), (0x1EA2, 0x1EAB), (0x1EAE, 0x1EAF), (0x1EB2, 0x1EB5),
+    (0x1EBA, 0x1EBB), (0x1EBE, 0x1EC5), (0x1EC8, 0x1EC9), (0x1ECE, 0x1ED7),
+    (0x1EDE, 0x1EDF), (0x1EE6, 0x1EE7), (0x1EEC, 0x1EED), (0x1EF6, 0x1EF7),
+    (0x1EFA, 0x1EFB), (0x200B, 0x200F), (0x2024, 0x2025), (0x202A, 0x202E),
+    (0x2038, 0x2038), (0x2042, 0x2042), (0x2044, 0x2044), (0x204C, 0x204F),
+    (0x2051, 0x2053), (0x2057, 0x2057), (0x2060, 0x2064), (0x206A, 0x206F),
+    (0x2103, 0x2103), (0x2109, 0x2109), (0x2127, 0x2127), (0x2132, 0x2132),
+    (0x213C, 0x2147), (0x2149, 0x2149), (0x214B, 0x214B), (0x214E, 0x214E),
+    (0x2152, 0x2152), (0x2160, 0x2185), (0x2214, 0x2214), (0x2224, 0x2226),
+    (0x228C, 0x228C), (0x22A6, 0x22AF), (0x23B7, 0x23B7), (0x27F0, 0x27F4),
+    (0x27F8, 0x297F), (0x2A0C, 0x2A0E), (0x2B00, 0x2B04), (0x2B0E, 0x2B11),
+    (0x2C60, 0x2C61), (0x2C63, 0x2C63), (0x2C67, 0x2C6C), (0x2C71, 0x2C73),
+    (0x2C7B, 0x2C7B), (0x2D00, 0x2D25), (0xA644, 0xA647), (0xA650, 0xA651),
+    (0xA654, 0xA657), (0xA698, 0xA699), (0xA728, 0xA741), (0xA746, 0xA747),
+    (0xA74A, 0xA74B), (0xA74E, 0xA74F), (0xA768, 0xA769), (0xA77B, 0xA77C),
+    (0xA780, 0xA787), (0xA7FA, 0xA7FF), (0xF400, 0xF426), (0xF428, 0xF428),
+    (0xF6D1, 0xF6D1), (0xF6D4, 0xF6D4), (0xFB00, 0xFB00), (0xFB03, 0xFB06),
+    (0xFE00, 0xFE0F), (0x1D434, 0x1D454), (0x1D456, 0x1D467), (0x1D538, 0x1D539),
+    (0x1D53B, 0x1D53E), (0x1D540, 0x1D544), (0x1D546, 0x1D546), (0x1D54A, 0x1D550),
+    (0x1D552, 0x1D559), (0x1D55B, 0x1D56B), (0x1D6A4, 0x1D6A5), (0x1D7D8, 0x1D7E1),
+)
+
+
+def main_has(c: int) -> bool:
+    """Does the MAIN font (DejaVu Serif) carry this code point?
+
+    Both DejaVu faces cover 0x80-0xFF completely — read off the font files,
+    not assumed — so Latin-1 is unconditional.
+    """
+    if c < 0x100:
+        return True
+    if c in _COVERED and not in_ranges(c, _MONO_ONLY_RANGES):
+        return True
+    return in_ranges(c, _MAIN_ONLY_RANGES)
+
+
 #: 221b — code points DejaVu Sans MONO has and DejaVu SERIF does not, measured
 #: from both font files. This exists because the `_COVERED` branch below emits
 #: \ifmmode\text{C}\else C\fi on the strength of _COVERED — which is MONO
@@ -1565,33 +1619,45 @@ def unicode_decls(body):
             out.append((c, _fb(ch, "fbbeng")))
         elif c in _NO_FONT:
             out.append((c, "\\newunicodechar{%s}{\\textbf{[U+%04X]}}" % (ch, c)))
-        elif c in _COVERED and c > 0xFF:
-            # >0xFF only. Latin-1 accented letters already set correctly in
-            # the maths fonts, and wrapping them in \text moves them into a
-            # different face for no reason: doing so nudged six 1205.3463v2
-            # rows 1-2 units WORSE in the ink compare (out/097). A rescue that
-            # touches characters which were never in danger is a regression.
-            # covered by the TEXT fonts but not by cmmi10, and most of these
-            # occurrences are inside $...$ where the math font applies. \text
-            # moves the character out of the math font without changing what
-            # it is; unconditional \ensuremath would break it in text mode.
-            # 221b: \text{} lands in the MAIN font. _COVERED is DejaVu Sans
-            # MONO's coverage, and serif lacks 917 of those code points, so
-            # for that subset the escape has to name the font that was
-            # actually measured. Characters serif does carry are untouched —
-            # changing a glyph that was never in danger is the out/097
-            # regression.
-            if in_ranges(c, _MONO_ONLY_RANGES):
-                # BOTH halves name the font. The text half is bare today and
-                # survives only because every text-mode occurrence in a report
-                # happens to be in the \ttfamily Source column — an assumption
-                # about the layout holding up a font decision, which is the
-                # shape of defect this file keeps recording.
+        else:
+            # 223 — resolve against the font ACTUALLY SELECTED here, and name
+            # it. Three regimes, and none of them touches a site that works:
+            #
+            #   both fonts have it   -> unchanged. \text{} in math lands in
+            #                           serif and the text half stays bare.
+            #   serif only           -> \rmfamily in the text half: a no-op
+            #                           wherever serif is already in force,
+            #                           and a rescue in the \ttfamily Source
+            #                           column, which is the only place it
+            #                           was dropping.
+            #   mono only            -> \ttfamily in both halves (this is 221b
+            #                           unchanged; U+0644 and 916 others).
+            #   neither              -> the visible marker. The fallback
+            #                           families were tried above.
+            #
+            # The `c > 0xFF` guard that used to stand here rested on "Latin-1
+            # accented letters already set correctly in the maths fonts". They
+            # are not: ð (U+00F0) drops in cmmi10 44 times across 3 documents,
+            # and every Latin-1 LETTER in math does the same, because cmmi10
+            # holds no Latin-1 at all. The guard was reasoning about a font
+            # nobody had asked.
+            #
+            # out/097 still holds and is why the first regime exists: a rescue
+            # that touches characters which were never in danger moved six
+            # 1205.3463v2 rows 1-2 units WORSE in the ink compare.
+            mono, main = c in _COVERED, main_has(c)
+            if main and mono:
+                out.append((c, "\\newunicodechar{%s}{\\ifmmode\\text{%s}\\else %s\\fi}"
+                            % (ch, ch, ch)))
+            elif main:
+                out.append((c, "\\newunicodechar{%s}{\\ifmmode\\text{%s}"
+                               "\\else{\\rmfamily %s}\\fi}" % (ch, ch, ch)))
+            elif mono:
                 out.append((c, "\\newunicodechar{%s}{\\ifmmode\\text{\\ttfamily %s}"
                                "\\else{\\ttfamily %s}\\fi}" % (ch, ch, ch)))
             else:
-                out.append((c, "\\newunicodechar{%s}{\\ifmmode\\text{%s}\\else %s\\fi}"
-                            % (ch, ch, ch)))
+                out.append((c, "\\newunicodechar{%s}{\\textbf{[U+%04X]}}"
+                            % (ch, c)))
     return "\n".join(d for _c, d in sorted(out))
 
 

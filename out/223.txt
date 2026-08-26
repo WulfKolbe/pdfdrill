@@ -1,0 +1,162 @@
+223 — check every escape site against the font actually selected there
+==============================================================================
+
+THE ANSWER
+------------------------------------------------------------------------------
+   POPULATION      1,101 corpus reports with a report.tex
+                   27,694 non-ASCII occurrences
+                   (mono 664 · math 172 · main 26,858)
+
+   ON A POINT THE TARGET FONT LACKS      **80 occurrences**
+   DOCUMENTS REACHED                     **12**
+
+Every one of the 80 is a character that receives NO declaration at all, so the
+font in force is whatever the site happens to be set in:
+
+        51   math   -> cmmi10 (49) and DejaVu Serif
+        17   mono   -> DejaVu Sans Mono
+        12   main   -> DejaVu Serif
+
+        44   U+00F0  ð  LATIN SMALL LETTER ETH
+         5   U+27FC  ⟼  LONG RIGHTWARDS ARROW FROM BAR
+         4   U+22EE  ⋮  VERTICAL ELLIPSIS
+         4   U+00DF  ß  LATIN SMALL LETTER SHARP S
+         3   U+0E44  ไ  THAI SARA AI MAIMALAI
+         2 each      ᅵ ᄂ ऋ ॥ ટ ૧ Ჰ   and a Hangul/Georgian/Gujarati tail
+
+        37  BH1org_OCR                8  bh2
+         8  latex2-script             6  2016010446_수학과_최천호
+         5  LaTeX-Math-Symbols        4  30253-1526-24697-2-10-20241121
+         4  Garamon_A_Geometric_...   2  AltenkirchMcBrided-TowardsOTT
+         2  BH3FR                     2  r2
+         1  BradleyGastaldiTerilla2023  1  WDorg4
+
+After the change below: **0 occurrences, 0 documents.**
+
+HOW THE FONT AT A SITE IS DECIDED
+------------------------------------------------------------------------------
+   column 0   \ident{...} = \texttt{\tiny ...}          MONO
+   column 3   {\ttfamily\footnotesize ...}              MONO
+   column 4   \FitMath{$\displaystyle ...$}             MATH — and \text{}
+                                                        inside it lands on
+                                                        MAIN, and a \text{...}
+                                                        SPAN inside the math
+                                                        is text mode again
+   everything else — headings, the legend, the notes, and the punctuation
+   tail that sits OUTSIDE the $...$                     MAIN (serif)
+
+_COVERED is DejaVu Sans Mono. It authorises \ifmmode\text{C}\else C\fi, which
+selects MAIN in math and whatever is ambient in text. So the table consulted
+and the font used are never the same thing except by luck.
+
+THE MEASUREMENT IS A PROBE, NOT A MODEL OF TeX
+------------------------------------------------------------------------------
+A first pass predicted the math outcome from "is it a letter" — letters to
+cmmi10, everything else to serif. Measured against xelatex on the 99 code
+points that actually occur inside $\displaystyle ...$, **it was wrong on 20**:
+TeX does not treat CJK ideographs as letters, and treats combining marks and
+Indic signs differently again.
+
+So there is no model. For every (code point, declaration form, context) triple
+that occurs in the corpus — 415 of them — one line is compiled under that
+declaration in that context and the log is read. The lookup table has no
+inference in it.
+
+VALIDATED AGAINST xelatex's OWN LOGS: **1,082 of 1,101 documents agree
+exactly** (98.3%) on the set of code points dropped, using each report.tex's
+own preamble declarations against that build's own report.log.
+
+The 19 that differ, every one identified:
+
+   16   U+00C5 Å — and it is NOT a character. The log line above each one is
+        "LaTeX Warning: Command \r invalid in math mode". It is `\r{A}`, the
+        ring accent, in math. A character-level scan cannot see a glyph that a
+        COMMAND produces, and no _MATH_CMD entry can intercept it because
+        there is no U+00C5 in the input to intercept.
+
+        **This corrects out/221**, which named Å alongside ð as "the largest
+        single remaining win, 16 documents" reachable by a _MATH_CMD entry.
+        The ð half stands and is fixed here. The Å half was wrong about the
+        mechanism and a _MATH_CMD entry would have done nothing.
+
+    2   U+00A7 in cmr7 and U+30B3 in eufm7 — SCRIPT-SIZE fonts. § sets fine at
+        display size and drops in a superscript, because the font at a site
+        depends on the size too, not only the family. Sub- and superscripts
+        are a fourth context this walk does not model.
+
+    1   U+00DF in bh2, predicted and silent. Unexplained.
+
+A 21-DOCUMENT ERROR THAT LOOKED LIKE A FINDING
+------------------------------------------------------------------------------
+Before the \text{} spans were handled the walk called everything between the
+dollars "math" and reported 194 occurrences over 26 documents. Twenty-one of
+those documents were German lecture notes and every hit was inside
+
+        \quad \text { für alle } k \in \mathbb{N}
+
+— prose inside the equation, in text mode, on a font that has ü. A span-level
+model that does not descend into \text{} is not a model of the font in force,
+which is the only thing this measurement is for. The count went 194 -> 80 and
+the document count 26 -> 12 on that one correction, and it was the logs that
+caught it, not review.
+
+THE CHANGE
+------------------------------------------------------------------------------
+unicode_decls now resolves against the fonts and NAMES the one that has the
+glyph. Three regimes, none of which touches a site that already works:
+
+   both fonts have it   unchanged — \ifmmode\text{C}\else C\fi
+   serif only           \else{\rmfamily C}\fi — a no-op wherever serif is
+                        already in force, a rescue in the \ttfamily Source
+                        column, which is the only place it was dropping
+   mono only            \ttfamily in both halves — this is 221b unchanged
+   neither              the visible [U+XXXX] marker; the fallback families
+                        were tried first
+
+`_MAIN_ONLY_RANGES` — the 1,042 code points serif has and mono does not — is
+the new half. With _COVERED (mono) and _MONO_ONLY_RANGES (mono minus serif) it
+decides exactly which of the two text fonts carries any character.
+
+AND THE `c > 0xFF` GUARD IS GONE. It rested on the comment "Latin-1 accented
+letters already set correctly in the maths fonts". They are not. cmmi10 holds
+no Latin-1 at all, which is why ð drops there 44 times across 3 documents and
+why every Latin-1 letter in math does the same. The guard was reasoning about
+a font nobody had asked.
+
+out/097 is why the first regime exists and is left alone: a rescue that
+touches characters which were never in danger moved six 1205.3463v2 rows 1–2
+units WORSE in the ink compare.
+
+VERIFIED: all ten declared forms compiled in all three contexts — 0 errors,
+0 missing characters. Corpus re-walk: 80 -> 0, 12 documents -> 0.
+
+WHAT IS STILL NOT RESCUED, AND WHY IT IS A MARKER RATHER THAN A GLYPH
+------------------------------------------------------------------------------
+Thai, Hangul, Devanagari, Gujarati and Georgian occurrences now print
+[U+XXXX] rather than vanishing. Noto fonts for all five are installed; the
+preamble declares only \fbcjk, \fbbeng and \fbmath, so the resolver has
+nowhere to send them. Adding families is mechanical — the generator below
+already knows how — but each one is a new unconditional font dependency in
+every report's preamble, and 221 established that an unguarded
+\newfontfamily for a font the machine lacks ABORTS the compile and writes no
+PDF. That is a change to make deliberately, with the guard and a rebuild.
+
+A marker is not a failure of the fallback. It is visible, so the row's residual
+is attributable, and it is the difference between a reader seeing a defect and
+a reader seeing nothing.
+
+REPRODUCIBILITY
+------------------------------------------------------------------------------
+   tools/build_font_ranges.py  --check re-derives all five range constants
+                               from the font files. Run now: all five MATCH,
+                               including the ones 221 pasted in by hand
+                               (_COVERED 260 ranges/3,359 points; _FB_CJK
+                               13/28,687; _FB_BENG 14/96; _MONO_ONLY 122/917;
+                               _MAIN_ONLY 128/1,042).
+   tools/audit_glyph_sites.py  the three passes above, end to end.
+
+Neither is a pipeline layer, so neither is in commands.yaml: they are a
+generator and an audit, in the shape tools/build_font_categories.py already
+set.
+
+   tests/test_glyph_fallback.py  32 tests. Suite 2,376 -> 2,382.

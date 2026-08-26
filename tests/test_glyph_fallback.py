@@ -206,3 +206,80 @@ def test_below_u0080_inverts_the_diagnosis_even_with_no_font_named():
 def test_unparseable_sample_falls_back_to_the_generic_advice():
     a = rt.glyph_loss_advice("something else entirely")
     assert "_MATH_CMD" in a
+
+
+# --- 223: resolve against the font actually selected, per site --------------
+
+def test_main_has_is_measured_not_assumed():
+    """Both DejaVu faces cover 0x80-0xFF completely, read off the font files.
+    Above that the three range sets decide it exactly."""
+    assert rt.main_has(0x00F0) and rt.main_has(0x00C5)      # Latin-1
+    assert rt.main_has(0x27FC)                              # serif has it
+    assert not rt.main_has(0x0644)                          # serif lacks lam
+    assert not rt.main_has(0x0E44)                          # no Thai in serif
+
+
+def test_latin1_letters_are_no_longer_left_undeclared():
+    r"""The `c > 0xFF` guard rested on "Latin-1 accented letters already set
+    correctly in the maths fonts". They are not: cmmi10 holds no Latin-1 at
+    all, and ð drops there 44 times across 3 corpus documents. The guard was
+    reasoning about a font nobody had asked."""
+    for ch in "ðßüéö":
+        d = rt.unicode_decls(ch)
+        assert d, "%r still gets no declaration" % ch
+        assert r"\ifmmode\text{" in d, d
+
+
+def test_serif_only_points_name_the_serif_in_the_text_half():
+    r"""A no-op wherever serif is already in force, and a rescue in the
+    \ttfamily Source column — the only place U+27FC was dropping (5
+    occurrences across 2 documents)."""
+    d = rt.unicode_decls(chr(0x27FC))
+    assert r"\else{\rmfamily" in d, d
+    assert r"\ifmmode\text{" in d, d
+
+
+def test_mono_only_points_are_unchanged_from_221():
+    d = rt.unicode_decls(chr(0x0644))
+    assert d == "\\newunicodechar{\u0644}{\\ifmmode\\text{\\ttfamily \u0644}" \
+                "\\else{\\ttfamily \u0644}\\fi}", d
+
+
+def test_a_point_neither_text_font_has_gets_the_marker_not_silence():
+    """Thai is in no font this preamble declares. Before 223 it got no
+    declaration at all and vanished; a marker is visible."""
+    assert rt.unicode_decls(chr(0x0E44)) == \
+        "\\newunicodechar{\u0e44}{\\textbf{[U+0E44]}}"
+
+
+def test_characters_both_fonts_carry_keep_the_old_form():
+    """out/097: a rescue that touches characters which were never in danger
+    moved six 1205.3463v2 rows 1-2 units WORSE in the ink compare."""
+    d = rt.unicode_decls("—")
+    assert d == "\\newunicodechar{\u2014}{\\ifmmode\\text{\u2014}\\else \u2014\\fi}"
+    assert r"\rmfamily" not in d and r"\ttfamily" not in d
+
+
+def test_every_range_table_is_well_formed():
+    """Sorted, non-overlapping and non-ADJACENT. Adjacency matters: two
+    touching ranges mean the generator did not produce this list and somebody
+    pasted it by hand. tools/build_font_ranges.py --check re-derives all five
+    from the font files."""
+    for name in ("_COVERED_RANGES", "_FB_CJK_RANGES", "_FB_BENG_RANGES",
+                 "_MONO_ONLY_RANGES", "_MAIN_ONLY_RANGES"):
+        rs = getattr(rt, name)
+        assert rs, name
+        for lo, hi in rs:
+            assert lo <= hi, (name, hex(lo), hex(hi))
+        for (a, b), (c, d) in zip(rs, rs[1:]):
+            assert c > b + 1, ("%s: (0x%04X,0x%04X) touches (0x%04X,0x%04X)"
+                               % (name, a, b, c, d))
+
+
+def test_the_three_text_coverage_sets_are_disjoint_as_defined():
+    """_MONO_ONLY is mono minus serif and _MAIN_ONLY is serif minus mono, so
+    nothing can be in both, and _MAIN_ONLY must be disjoint from _COVERED."""
+    for lo, hi in rt._MAIN_ONLY_RANGES:
+        for c in range(lo, min(hi, lo + 40) + 1):
+            assert c not in rt._COVERED, hex(c)
+            assert not rt.in_ranges(c, rt._MONO_ONLY_RANGES), hex(c)
