@@ -1,0 +1,108 @@
+224 — every task with no out/NNN.txt and no commit
+==============================================================================
+Method: all 142 out/*.txt are tracked and committed (git status on out/ is
+empty), so nothing is written-but-uncommitted. The gap is entirely
+assigned-but-never-written. Task numbers were recovered from the session
+transcripts, not from memory.
+
+A. OPEN, MINE, NOT STARTED  (3)
+------------------------------------------------------------------------------
+204  Drill ./graphbook.                                    STILL WANTED
+205  Vision selector with minimax on 10 graphbook figures
+     whose author TikZ is known.                           STILL WANTED
+215  Rebuild each report with residual data present, then
+     write the pages-CLI handover list.                    HALF BLOCKED
+
+B. OPEN, BUT ADDRESSED TO inkdrill — NOT MINE  (3)
+------------------------------------------------------------------------------
+214  "inkdrill. Run the residual measurement on every report from 213."
+116  "inkdrill. Add a rule-context test ..."
+117  "inkdrill. For flagged rows with negative component delta ..."
+     All three are prefixed `inkdrill.` in the assigning message. Their
+     out/NNN.txt belongs in that repo. 214 has not run anywhere: none of the
+     eleven documents from 213 has a report.ink.json, .REFUSED or .MISPAIRED.
+
+C. ALREADY DONE — the belief in 224 is out of date  (3)
+------------------------------------------------------------------------------
+213  out/213.txt, commit 10499132a8e1. 11 documents, 132 steps, every rc=0.
+216  out/216.txt, commit a19479d. Variant C: 82 proposals, 56 measured,
+     27 accepted, median over all measured +0.0, median over accepted -35.
+219  out/219.txt, commit 94d91fa534d0. The Mielke row fails on a hallucinated
+     CJK glyph, not on the \rfloor; 424 contraction operators corpus-wide.
+
+D. NEVER ASSIGNED  (2)
+------------------------------------------------------------------------------
+206  No user message anywhere in any transcript assigns a task 206, and none
+     mentions \mathds, dsfont, Type 3 or Type 1C. The substance is real but it
+     is MY OWN recorded follow-up, written into out/199 — not a task given to
+     me.                                                   RETIRED, MEASURED
+220  No user message anywhere assigns a task 220 or describes a
+     "not-mathematics detector".                           DO NOT DO
+
+206 IS RETIRED BY MEASUREMENT, AND OUT/199 WAS WRONG ABOUT IT
+------------------------------------------------------------------------------
+out/199 recorded that bbm gives a Type 3 bitmap where dsfont's \mathds gives a
+scalable Type 1C, and said "the swap is one token". True about the font
+FORMAT. I never checked whether dsrom10 has the digits. Compiled just now:
+
+    dsfont (dsrom10) carries the digit 1 and NOTHING else — 0,2,3,4,5,6,7,8,9
+    all report "Missing character"
+    bbm (bbm10)      carries 1,2,7,8,9 — 0,3,4,5,6 are missing
+
+Against what the corpus actually contains — 304 occurrences of \mathbb{<digit>}
+across 33 of 1,101 reports, of which 296 are \mathbb{1}:
+
+    under bbm, today :  3 occurrences drop, in 3 documents
+    under dsfont, 206:  8 occurrences would drop, in 6 documents
+
+The swap trades a bitmap glyph for nearly three times as many SILENTLY DROPPED
+ones, and out/221 established that a dropped glyph is exactly what makes a
+report unmeasurable. The Type 3 concern was real; the proposed remedy is worse
+than the disease. Not doing it.
+
+Left behind by that measurement: \mathbb{0} drops silently today, 3
+occurrences in 3 documents, because bbm10 has no zero. Small, real, and
+nobody's task yet — recorded here rather than folded in unasked.
+
+220 — WHY IT SHOULD NOT BE BUILT NOW
+------------------------------------------------------------------------------
+The premise is that some rows the pipeline treats as mathematics are not
+mathematics. Whether that is a REGION-TYPE error (MathPix boxed prose as an
+equation) or a READING error (the region is right, the transcription is not)
+decides what the detector would even look at — geometry and region metadata in
+the first case, the LaTeX string in the second. Nothing measured so far
+separates them. A detector built before that is settled would be tuned on
+whichever class happened to dominate the sample, and out/186 is the standing
+example of what that costs: a constant derived from one document that supplied
+235 of 725 flagged rows, published, then retracted.
+
+What would settle it: take the rows already in hand — the 1,840 structurally-
+failing high-confidence rows from 184, or the 20 classified in 185 — and label
+each as region-error or reading-error. That is a measurement, not a build, and
+it is the prerequisite.
+
+215 — WHAT IS BLOCKED AND WHAT IS NOT
+------------------------------------------------------------------------------
+BLOCKED: "rebuild each report with the residual data present, so bullets,
+legend and fields appear." There is no residual data. 214 is inkdrill's task
+and has not run; no report.ink.json exists for any of the eleven. Rebuilding
+now would produce eleven reports carrying the "no residual measurement has
+been run" note they already carry — a rebuild that changes nothing.
+
+NOT BLOCKED: the pages-CLI handover list. Folder path, bibkey, page count and
+equation count are all on disk. The residual-class column is honestly empty
+and the refusal-reason column now has real content, because out/221 added the
+gate: ten of the eleven documents dropped zero glyphs after the 221 rebuild
+and are measurable; 0707.4470 still drops one (\mathscr{g} in rsfs10, which no
+font can fix) and must be refused.
+
+So 215 is deliverable as the handover list plus an explicit statement of what
+the rebuild is waiting on, which is more use to the pages CLI than eleven
+unchanged PDFs.
+
+ORDER OF WORK
+------------------------------------------------------------------------------
+1. 215 handover list — unblocked, and something else is waiting on it.
+2. 204 graphbook drill — prerequisite for 205.
+3. 205 vision selector on graphbook figures — needs 204, and is a paid call,
+   so it runs because 205 names it and for no other reason.
