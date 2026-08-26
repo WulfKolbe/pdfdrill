@@ -1,0 +1,133 @@
+211 — the 20 turnstile-family arity hits, in full
+==============================================================================
+   20 occurrences · 20 objects · 7 documents
+   4 are display Equations and HAVE a crop; 16 are inline Formulas and do not.
+
+   verdict: 14 misreads, 6 legitimate.
+   Of the 4 with a crop, all 4 are now verified by eye: 2 legitimate, 2 misread.
+
+WITH A CROP — VERIFIED BY LOOKING
+------------------------------------------------------------------------------
+1. Seven Sketches in Composability (Fong & Spivak)   EQ0168  p260  conf 0.967
+   An Invitation to Applied Category Theory          EQ0167  p260  conf 0.881
+   (the same book, present twice in the corpus under two filenames)
+
+      s: S \mid p(s) \vdash q(s) \quad\text{ or }\quad p(s) \vdash_{s: S} q(s)
+      context: "one might write p ≤^S q using the ⊢ symbol, e.g. in one of the
+                following ways:"
+
+   CROP SHOWS:  s : S | p(s) ⊢ q(s)     or     p(s) ⊢_{s:S} q(s).
+
+   LEGITIMATE. A real turnstile with a real subscript — a sequent carrying its
+   context as an annotation, which is standard type theory. The text says it
+   is about the ⊢ symbol, and the page shows exactly what MathPix emitted.
+   This is the detector's TRUE NEGATIVE and the reason 210 refused to call
+   its 614 broad hits defects.
+
+2. Geometric, Algebraic and Topological Methods for QFT   EQ0824  p313  conf 0.289
+
+      … + \frac{1}{8} e^{\phi}\sum_{n}(-1)^{n}(5-n)\nvdash_{n}^{(10)}\mathcal{P}_{n}\epsilon
+
+   CROP SHOWS:  F̸_n^{(10)}  — a Feynman-slashed F, the RR field strength,
+                alongside H̸ and ∂̸ in the same two equations.
+
+   MISREAD. And the same equation contains \not_{n}^{(10)} for the SAME glyph
+   a few terms earlier: one symbol, two different wrong readings, in one
+   expression. Exactly the pattern out/208 found in Mielke, in a different book.
+
+3. Geometrodynamics of Gauge Fields (Mielke)   EQ0873  p284  conf 0.99951
+
+      \nvdash^{A}{ }_{B}:=L^{A}{ }_{B}-\frac{1}{n}\delta_{B}^{A}L^{C}{ }_{C}.
+
+   CROP SHOWS:  Ⱡ^A_B — a slashed L, the trace-free part of L.
+   MISREAD. Documented in out/208; the only hit the SHARP detector finds.
+
+WITHOUT A CROP — INLINE FORMULAS, READ FROM CONTEXT
+------------------------------------------------------------------------------
+4. 2010.14265   ELEVEN occurrences, pages 4–9, all inline
+
+      X \nvdash_{P}\{Y, Z\}                 FO0089  p4
+      Y \nvdash_{P}\{X, Z\}                 FO0090  p4
+      X \nVdash_{P}\{Y, Z\}                 FO0096  p5
+      Y \nVdash_{P}\{X, Z\}                 FO0097  p5
+      \forall S \subseteq V\setminus\{X,Y\}: X \nVdash_{P} Y \mid S    FO0111  p5
+      X \nVdash_{P} Y_{1} \mid S \cup Y_{2}                            FO0115  p5
+      X \nvdash_{P} Y_{2} \mid S \cup Y_{1}                            FO0116  p5
+      X \nVdash_{P} W \mid Z                                           FO0155  p6
+      X \nVdash_{P} Y                                                  FO0178  p7
+      (\exists X \in V': T \nVdash_{P} X \mid S) \vee                   FO0222  p9
+      (\exists X, Z \in V': T \nVdash_{P} X \mid S \cup\{Z\})           FO0223  p9
+
+      context: "we call {X, Y, Z} a minimal unfaithful triple"
+               "we say that X is 1-associated to Y, if …"
+
+   MISREAD, inferred. This is CONDITIONAL INDEPENDENCE — X ⫫̸_P Y | S, the
+   negated double perpendicular of probabilistic graphical models. "Unfaithful
+   triple" and "S ⊆ V \ {X,Y}" are that literature's vocabulary, and a
+   turnstile subscripted by a probability distribution P is not a notion in
+   proof theory.
+
+   The strongest internal evidence is that MathPix uses BOTH \nvdash and
+   \nVdash for what must be one relation, sometimes on adjacent lines
+   (FO0115/FO0116 are the two halves of one condition). An author does not
+   alternate between two symbols mid-definition; an OCR picking by appearance
+   does.
+
+5. 0707.4470   FO0147  p24
+
+      \nVdash_{\left\{t_{\sigma}^{n}=t_{e}^{m}\right\}}
+      context: "where \nVdash_{{t^n_σ = t^m_e}} EQUALS 1 when face σ has
+                t^n_σ = t^m_e for some …"
+
+   MISREAD, and the most interesting of the twenty: the text says it EQUALS 1
+   under a condition. That is an INDICATOR FUNCTION, 𝟙_{condition}.
+
+   out/207 established that \mathbb{1} renders as ⊮ under amssymb, because the
+   AMS blackboard font puts negated turnstiles in its digit slots. Here the
+   confusion runs the other way: MathPix saw a blackboard 𝟙 and wrote a
+   negated turnstile. The same two symbols, mistaken for each other in both
+   directions, in two different documents.
+
+6. OMDoc – An Open Markup Format for Mathematical Documents (Kohlhase)
+   FO0410, FO0416   p309
+
+      \mathcal{D}: \mathcal{H} \vdash_{\mathcal{C}} \mathbf{A}
+      \mathcal{F}^{\mathcal{D}}(\mathcal{D}): \mathcal{F}^{\mathcal{L}}(\mathcal{H})
+          \vdash_{\mathcal{C}'} \mathcal{F}^{\mathcal{L}}(\mathbf{A})
+
+   LEGITIMATE, inferred. A derivation D of A from hypotheses H in calculus C —
+   the turnstile subscripted by the calculus is standard proof theory, and
+   this is a book about formalising mathematics, where a real ⊢ is expected.
+
+7. Seven Sketches FO2745 · An Invitation FO2729   p260
+      p(s) \vdash_{s: S} q(s)
+   LEGITIMATE. The inline twins of the display equations verified at (1).
+
+SUMMARY
+------------------------------------------------------------------------------
+   MISREADS   14   2010.14265 ×11 (⫫̸), 0707.4470 ×1 (𝟙), QFT ×1 (F̸),
+                   Mielke ×1 (Ⱡ)
+   LEGITIMATE  6   Seven Sketches ×2, An Invitation ×2, OMDoc ×2
+
+   with a crop     4   2 legitimate, 2 misread — all four verified by eye
+   without a crop 16   12 misread, 4 legitimate — all inferred from context
+
+Every misread is one symbol drawn by a command that resembles it: a slashed L,
+a slashed F, a blackboard one, a double perpendicular. Not one is a turnstile.
+And in three of the four documents the SAME glyph gets more than one reading —
+\nvdash/Z in Mielke, \nvdash/\not in the QFT volume, \nvdash/\nVdash in
+2010.14265 — which is the signature that separates an OCR guess from an
+author's notation.
+
+A NOTE ON HOW THE CROPS WERE MADE
+------------------------------------------------------------------------------
+Three of the four crops are not in any report-crops directory, so I cropped
+them from the local PDFs. My first attempt put all four in ONE output
+directory, and `scan_crop` rasterizes into `_pages` beside its output — so
+page 260 of Seven Sketches was served as page 313 of the QFT volume, and I
+was looking at a category-theory page while believing it was supergravity.
+
+Caught because the content was obviously wrong for the document. Redone with a
+per-document directory. It is the same contamination as the two concurrent
+runs in out/184: a shared work directory, and an image that looks like a
+perfectly good measurement of something else.
