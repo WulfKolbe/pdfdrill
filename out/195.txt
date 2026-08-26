@@ -1,0 +1,99 @@
+195 — the chain order: reporttex now RE-RUNS and adopts the residuals
+==============================================================================
+WHICH I CHANGED: the second option — reporttex re-runs after the measurement,
+and it now picks the residuals up BY ITSELF. No flag, no path, no human.
+
+The first option is not available, and it is worth saying why rather than
+just choosing: the measurement cannot run before the report, because it
+measures the report. inkdrill compares the Rendered column against the Scan
+column of report.pdf's own pages. There is no report to measure until
+reporttex has built one. The loop is two-phase by construction:
+
+   reporttex --no-legend   ->  report.pdf          (the thing to measure)
+   inkdrill compare        ->  report.ink.json     (the measurement)
+   reporttex               ->  report.pdf          (the thing to read)
+
+THE DEFECT
+------------------------------------------------------------------------------
+   ink_map = rt.load_ink(ink) if ink else None
+
+The residual data was used ONLY when someone typed `--ink <path>`. A
+report.ink.json sitting in the same directory as the model was ignored. So
+phase three of the loop — the rebuild that exists precisely to draw the
+residuals — silently dropped the data it was being re-run for, and every drill
+produced a report without bullets until a human noticed and re-ran it by hand
+with a path.
+
+It was worse than a missing feature. The note added in 180 keyed off the same
+variable, so the rebuilt report stated:
+
+   "Ink comparison not available for this document — no residual measurement
+    has been run for it."
+
+while the measurement sat unread in the same folder. An artefact that exists,
+reported as absent — the defect this month has been about, in the code that
+reports it.
+
+THE FIX
+------------------------------------------------------------------------------
+1. ADOPT. With no --ink, reporttex looks for the document's own
+   `report.ink.json` and uses it. The command says so in its output:
+
+      residuals: adopted report.ink.json (no --ink needed)
+
+2. RESIDUAL DATA IMPLIES THE RESIDUAL COLUMN. `form` gated the column, so
+   without this the file is read, the bullets are computed, and nothing is
+   drawn. Loading residuals now turns the column on. `--form` still forces it
+   for a report with no data.
+
+3. THE NOTE FOLLOWS THE DATA, not the flag. `ink_state` is decided from
+   `ink_map` — what was actually loaded — instead of from whether a flag was
+   typed. A report with residuals can no longer say it has none.
+
+4. AN EXPLICIT --ink TO A MISSING FILE IS AN ERROR, not a silent fallback:
+
+      --ink /nope/missing.json does not exist. Omit --ink to adopt the
+      document's own report.ink.json, or give a path that is there.
+
+   Falling back would build a report saying no measurement was run, for
+   someone who had just supplied one. That is the same defect wearing the
+   opposite sign, and it would have been introduced BY the fix.
+
+VERIFIED END TO END, ON A REAL MEASUREMENT
+------------------------------------------------------------------------------
+0902.0431's re-measured report.ink.json (55 rows, 2 pages refused) placed in
+its folder, then:
+
+   pdfdrill reporttex 0902.0431.pdf --max-conf 0.5 --compile
+
+   -> residuals: adopted report.ink.json (no --ink needed)
+   -> 57 \inkbullet cells drawn      (55 measured + 2 correctly "not measured")
+   -> legend carries the full Residual half, not the "not shown" line
+   -> occurrences of "no residual measurement has been run": 0
+
+No --ink was passed.
+
+WHAT IS NOT CHANGED, DELIBERATELY
+------------------------------------------------------------------------------
+I did not add a pdfdrill command that runs inkdrill, and I did not add a
+`requires:` entry for the residuals. Both were tempting and both are wrong
+here:
+
+   * pdfdrill CONSUMES inkdrill output and never imports it — the division of
+     labour the ink commands already follow. A `requires: [residuals]` naming
+     a layer no pdfdrill command produces would be an unsatisfiable
+     prerequisite, and `--ensure` would offer to run something that does not
+     exist.
+   * The manifest cannot express "run this step twice", which is what the loop
+     needs. Making the SECOND run self-sufficient is the honest way to encode
+     it, and it degrades correctly: a document with no residuals gets the
+     truthful not-run note, exactly as before.
+
+The manifest's --ink help now states the order, so `pdfdrill help reporttex`
+tells a reader what the loop is instead of leaving it in a commit message.
+
+TESTS
+   5 in tests/test_reporttex_ink_adopt.py, including: a missing explicit path
+   RAISES rather than loading empty; the legend names the residual half as
+   absent when there is none; a measured report carries no unmeasured note.
+   Suite 2,326 -> 2,331.

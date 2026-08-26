@@ -1488,7 +1488,12 @@ commands:
   - name: ink
     flag: --ink
     type: path
-    help: 'a fill_ink_fields.py --json dump; colours each residual bullet from the
+    help: 'OVERRIDE the residual source. With no --ink, reporttex ADOPTS the
+      document''s own report.ink.json when one exists, which is what makes the
+      two-phase loop work without a human: the ink pass needs a report to
+      measure, so build the report, measure it, then RE-RUN reporttex and the
+      residuals are picked up automatically. Residual data implies the residual
+      column. Value is a fill_ink_fields.py --json dump; colours each residual bullet from the
       MEASURED class and prints the code as selectable text beside the field (the
       class cannot be known on the first build — inkdrill derives it FROM the
       finished PDF, so this is the second pass)'

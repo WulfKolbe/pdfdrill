@@ -13307,14 +13307,43 @@ def cmd_reporttex(pdf: Path, paper: str = "a3", landscape: bool = True,
             crops = None                           # nothing usable → no column
     texzip = rt.find_texzip(pdf)
     want = rt.parse_types(types)
-    ink_map = rt.load_ink(ink) if ink else None
+    # 195: ADOPT the document's own residual file when one exists.
+    #
+    # This used to read `rt.load_ink(ink) if ink else None`, so a
+    # report.ink.json sitting beside the model was ignored unless someone
+    # typed --ink with its path. The measurement is a two-phase loop by
+    # construction — the ink pass needs a report to measure, so the report
+    # must be built BEFORE the residuals and rebuilt AFTER them — and the
+    # rebuild silently dropped the very data it was being re-run for.
+    #
+    # Worse, the note below then said "no residual measurement has been run
+    # for it" while the measurement sat unread in the same directory: an
+    # artefact that exists, reported as absent.
+    ink_path = Path(ink) if ink else None
+    # An EXPLICIT --ink naming a file that is not there is an error, not a
+    # silent fallback. Ignoring it would build a report saying "no residual
+    # measurement has been run" to someone who just supplied one.
+    if ink_path is not None and not ink_path.is_file():
+        return (f"--ink {ink_path} does not exist. Omit --ink to adopt the "
+                f"document's own report.ink.json, or give a path that is there.")
+    adopted = ""
+    if ink_path is None:
+        default_ink = sc.blob_dir / "report.ink.json"
+        if default_ink.is_file():
+            ink_path = default_ink
+            adopted = f"residuals: adopted {default_ink.name} (no --ink needed)"
+    ink_map = rt.load_ink(ink_path) if ink_path else None
+    # Residual data implies the residual COLUMN. Without this the file is
+    # read, the bullets are computed, and nothing is drawn.
+    if ink_map:
+        form = True
     # 180: which of the two unmeasured states this document is in, decided by
     # what is on disk rather than assumed. A quarantined ink file means a
     # measurement WAS attempted and could not be paired; no ink file at all
     # means nobody has measured it. The note must not claim the first when the
     # truth is the second.
     ink_state = ""
-    if not ink:
+    if not ink_map:
         quarantined = any((sc.blob_dir / n).exists() for n in
                           ("report.ink.json.MISPAIRED", "report.ink.json.REFUSED"))
         ink_state = "unpairable" if quarantined else "not_run"
@@ -13325,6 +13354,10 @@ def cmd_reporttex(pdf: Path, paper: str = "a3", landscape: bool = True,
                         ink_state=ink_state)
     sc.set_evidence("reporttex_path",
                     str(Path(r["out"]).relative_to(pdf.parent)))
+    if adopted:
+        lines_prefix = [adopted]
+    else:
+        lines_prefix = []
     lines = [f"Wrote {r['out']} — {r['equations']} display equations, "
              f"{r['formulas']} inline formulas, {r['tables']} tables, "
              f"{r['unrecovered']} unrecovered image region(s) "
@@ -13340,6 +13373,8 @@ def cmd_reporttex(pdf: Path, paper: str = "a3", landscape: bool = True,
         lines.insert(0, "FILTERED: " + "; ".join(bits)
                      + " — a bounded run also drops rows that carry NO "
                        "confidence value.")
+    for _p in reversed(lines_prefix):
+        lines.insert(0, _p)
     if tid_note:
         lines.insert(0, tid_note)
     if compile_pdf:
