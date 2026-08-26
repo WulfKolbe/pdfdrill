@@ -1,0 +1,108 @@
+197 — semantic then gaps on the five books
+==============================================================================
+Both ran clean on all five. `semantic` builds the evidence graph (~2.5 min a
+book); `gaps` queries it (~4 s). 1,487 gaps total.
+
+PER DOCUMENT
+------------------------------------------------------------------------------
+                                          pp   gaps   symbols  acronyms  multi-form
+   2103.01507                            381    406      28       63          9
+   Geometrodynamics (Mielke)             377    828      34      148         26
+   Graph and Hypergraph (Voloshin)       303     77      17        6          7
+   Linear and Matrix Algebra (Johnston)  492     63      10       14          2
+   Numerical Linear Algebra (Lyche)      376    113      23       30         11
+   TOTAL                               1,929  1,487     112      261         55
+
+   by kind:  citation_unmatched 1,061 · acronym_undefined 261 ·
+             symbol_undefined 112 · claim_unsupported 53
+
+SYMBOL-CONSISTENCY — 55 CASES, AND ONLY 24 ARE SUSPICIOUS
+------------------------------------------------------------------------------
+`gaps` does not answer this. Its `symbol_undefined` rule asks whether a Greek
+letter is DECLARED anywhere; it says nothing about the same letter being
+written three ways in one book. I computed that separately, over each
+document's own equations, grouping every Greek symbol by its accent and font
+wrapper (\bar \hat \tilde \vec \dot \boldsymbol \mathbf \mathcal … versus
+plain). A symbol in two or more forms is a consistency case.
+
+   55 symbols appear in more than one form.
+
+But most are DELIBERATE NOTATION, not inconsistency, and reporting all 55 as
+findings would be wrong. In Geometrodynamics:
+
+   \psi     plain×219, bar×102, hat×16, widehat×8
+
+\bar{\psi} is the Dirac adjoint. It is a different object from \psi and is
+supposed to look different. Likewise \boldsymbol{\epsilon} × 42 against
+\epsilon × 46 in Lyche is vector against scalar.
+
+So I split them on frequency: a non-dominant form seen at most twice against a
+dominant form seen at least fifty times is too rare to be a convention.
+
+   deliberate notation (balanced forms)     31
+   SINGLETON decorations                    24   <- the actionable ones
+
+   2103.01507      \lambda  plain×313 vs hat×1
+                   \pi      plain×142 vs hat×1
+                   \sigma   plain×251 vs tilde×1
+   Geometrodynamics \Gamma  plain×142 vs tilde×1, widehat×1
+                   \Psi     plain×207 vs dot×2, widetilde×2, hat×1
+                   \Omega   plain×336 vs mathcal×1
+   Numerical LA    \alpha   plain×116 vs bar×1
+                   \rho     plain×89  vs bar×1
+
+One \hat{\lambda} among 313 plain λ is either a genuine hat the book uses once,
+or an OCR artefact. That is a question worth a human eye; 313 plain λ and 102
+\bar\psi are not.
+
+THE 112 UNDECLARED SYMBOLS MEAN SOMETHING NARROWER THAN THEY SOUND
+------------------------------------------------------------------------------
+Every one of the 55 multi-form symbols is also in the undeclared list. That is
+not a coincidence and not a finding — it is because none of the five books has
+a notation section the concept extractor recognises, so the declared set is
+empty and EVERY Greek letter in every equation is "undeclared".
+
+So "112 undeclared math symbols" reads as a per-symbol defect count and is
+really five books with no machine-readable notation section. The number is
+correct and the phrasing invites a wrong reading, which is worth saying before
+anyone quotes it.
+
+THE 261 ACRONYMS ARE MOSTLY NOT ACRONYMS
+------------------------------------------------------------------------------
+Classified all 261 rather than sampled:
+
+   initials or 2-letter tokens   122   AA, AC, AF, AG, AH, AJ, CW, DK, IP, VB
+   citation keys                  56   BCF68, BCS10, BGM19, BM12, BMMS86, CJS95
+   candidate REAL acronyms        57   AMS, NSF, ADM, AIP, DNA, ISBN, LU, LDU, CG
+   place / address                14   MA, NJ, RI, CA, TX, USA, WA
+   capitalised English words       8   OF, AND, OK, CO, SO, INPUT, OUTPUT
+   cross-reference labels          4   Q2, R2, S1, V1
+
+At most 57 of 261 (22%) are plausibly acronyms at all, and several of those
+need no expansion in context — LU, LDU and CG are standard in a numerical
+linear algebra text, and ISBN/ISSN come from the copyright page.
+
+The two largest buckets are artefacts of WHERE the rule looks. It runs over the
+whole document, so it sees the bibliography's author initials, the in-text
+citation labels of a book that cites as [BCF68], the pseudocode keywords INPUT
+and OUTPUT, and the publisher's address. My first hypothesis was that these
+cluster in the bibliography; I checked and it is false — only 1% of
+Geometrodynamics' 148 appear solely in the last 15% of pages. They are spread
+through the body because that is where citation labels and pseudocode are.
+
+WHAT I WOULD FIX, AND HAVE NOT
+------------------------------------------------------------------------------
+Not fixed under this task, which asked for a report:
+
+   * exclude citation-key-shaped tokens from acronym_undefined — the model
+     already knows which strings are citations, from the bibliography pass.
+     That alone removes 56 of 261.
+   * exclude single- and two-letter tokens, which are 122 more and are almost
+     never acronyms.
+     Those two rules together take 261 to 83 without touching a real finding.
+   * report symbol consistency as its own kind, with the frequency split, so
+     the 24 singletons surface and the 31 deliberate ones do not.
+
+Together those would take 1,487 gaps to roughly 1,250 and make the acronym and
+symbol columns mean what their names say. citation_unmatched (1,061, 71% of
+all gaps) is untouched by this and is its own question.
