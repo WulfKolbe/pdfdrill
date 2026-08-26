@@ -1,0 +1,107 @@
+231 — does MathPix map \mathcal to \mathscr?
+==============================================================================
+
+NO. IT DOES SO IN 2 DOCUMENTS OF 224.
+------------------------------------------------------------------------------
+   POPULATION   224 corpus documents that have BOTH an author arXiv e-print
+                (<stem>.tgz) and MathPix output, and use a script alphabet in
+                either. 388 documents have both artefacts; 164 use no script
+                alphabet at all and are not evidence either way.
+
+   A. WHOLE-DOCUMENT SWAP        2 documents   83 occurrences   42 rows
+   B. sporadic single symbols    4 documents    8 occurrences    8 rows
+   C. author genuinely uses one  8 documents   MathPix faithful
+   D. preserved                190 documents   author \mathcal 7,978,
+                                               MathPix \mathcal 13,245,
+                                               \mathscr ZERO
+
+Class D settles the question on its own. In 190 documents the author used
+\mathcal and MathPix wrote \mathcal — thirteen thousand times — and emitted no
+\mathscr anywhere. A systematic remap would have turned every one of those into
+\mathscr. The behaviour in out/229 was real and it was a property of ONE
+document, which out/229 reported as such and did not generalise.
+
+A. THE TWO
+------------------------------------------------------------------------------
+   0707.4470    \mathscr 55, \mathcal 0     31 rows
+                author \mathcal{J} 29, {K} 3, {L} 23 = 55
+                MathPix \mathscr{J} 28, {K} 3, {L} 23, {g} 1 = 55
+
+   1808.07302   \mathscr 28, \mathcal 0     11 rows
+                author \mathcal{C} 13, {I} 5, {L} 10 = 28
+                MathPix \mathscr{C} 13, {I} 5, {L} 10 = 28
+
+Letter for letter, and in both cases MathPix emitted **zero** \mathcal in the
+whole document. That is the signature: not a symbol misread, an alphabet
+chosen. `mp_cal == 0` is the criterion used here and it needs no macro
+expansion to be right.
+
+1808.07302 NEARLY DID NOT MAKE THE LIST
+------------------------------------------------------------------------------
+Counted as written, its source has 4 \mathcal against MathPix's 28 — a 7x
+mismatch that reads like "no correspondence". The author defines
+
+    \newcommand{\cC}{\mathcal{C}}   \newcommand{\cI}{\mathcal{I}}
+    \newcommand{\cL}{\mathcal{L}}   \newcommand{\patternspace}{\mathcal{L}}
+
+and writes \cC, \cI, \cL, \patternspace. Expanded: C 13, I 5, L 10 = 28, which
+matches MathPix exactly. Counting a LaTeX source as written rather than as
+expanded turned a clean case into a mismatch, and it would have turned the
+answer from two documents into one.
+
+C. THE BIGGEST APPARENT OFFENDER IS NOT ONE
+------------------------------------------------------------------------------
+2103.01507 shows \mathscr{F} 141 times and looked like the worst case in the
+set — more occurrences than both real ones together. The author defines
+
+    \newcommand{\scrF}{\EuScript F}      \newcommand{\Fuk}{\scrF}
+
+and uses \EuScript 43 times. The symbol IS a script F — the Fukaya category —
+and MathPix rendering it \mathscr{F} is FAITHFUL, not a remap. It also emitted
+\mathcal 4,805 times in the same document, so it plainly did not swap
+alphabets there.
+
+The first pass classified it as a remap because the test for "the author uses a
+script alphabet" looked for \mathscr and mathrsfs and did not know \EuScript.
+That one gap moved 160 occurrences and 106 rows into the defect column — twice
+the size of the real finding. Fixed, and the class-C test now covers
+\EuScript, euscript, mathrsfs and \scr<Letter> macros.
+
+B. WHAT IS LEFT IS FOUR SINGLE SYMBOLS
+------------------------------------------------------------------------------
+   1510.06699  \mathscr{J} x2   beside 1,914 \mathcal
+   2005.04015  \mathscr{C} x3   beside   262 \mathcal
+   2012.15581  \mathscr{S} x2   beside    97 \mathcal
+   2010.14265  \mathscr{H} x1   beside    14 \mathcal
+
+None of these authors uses a script macro of any kind. Each is one symbol read
+into the wrong alphabet in a document where MathPix otherwise used \mathcal
+throughout — an individual misread, not a policy. 8 occurrences, 8 rows.
+
+WHAT THE 42 ROWS COST
+------------------------------------------------------------------------------
+\mathcal is cmsy calligraphic; \mathscr is rsfs10. Different letterforms, both
+present and legible, so nothing in the pipeline flags them: a wrong-but-present
+glyph raises no warning, unlike the dropped one out/221 gates on. The 42 rows
+render in the wrong script face and only this comparison makes them visible.
+
+It is not cosmetic for one instrument. The ink residual compares rendered ink
+against scanned ink over components and holes, and cmsy and rsfs letterforms
+differ in both. Where the scan shows the author's calligraphic glyph and the
+render shows rsfs, the residual charges the difference to the transcription.
+42 rows in 2 documents, both of which have an e-print, which is what makes the
+correct value recoverable.
+
+AND ONE OF THEM DROPS
+------------------------------------------------------------------------------
+0707.4470_FO0175 is the \mathscr{g} of out/229 — the single occurrence where
+the swap also picked the wrong LETTER, and lowercase is where rsfs10 has no
+glyph at all. The alphabet swap is what put it in rsfs; the letter error is
+what made it vanish. Both had to happen.
+
+METHOD NOTE
+------------------------------------------------------------------------------
+The e-print is <stem>.tgz. Never <stem>.tex.zip, which is MathPix's own LaTeX
+output and would agree with the markdown by construction — out/229 nearly used
+it as gold and out/230 put a test on the door. Rows are counted from
+<stem>.tiddlers.json, the object set the report builds from.
