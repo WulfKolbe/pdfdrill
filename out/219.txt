@@ -1,0 +1,164 @@
+219 — the Mielke \left. … \right\rfloor row, and the class it belongs to
+==============================================================================
+
+PART 1 — THE ROW DOES NOT FAIL FOR THE REASON THE QUESTION ASSUMES
+------------------------------------------------------------------------------
+The row is EQ0857, Geometrodynamics of Gauge Fields (Mielke), page 278,
+equation (12.4.4), MathPix confidence **0.925** — a green cell:
+
+   \left.\mathbf{匕}_{n} \mathscr{G}^{A} \cong n\right\rfloor
+                                    \left(D \underline{\tau}^{A}\right),
+
+It is refused by report_tex.renderable(), first gate:
+
+       if cjk_defect(lx):
+           return ""          # 128: hallucinated script never reaches xelatex
+
+**匕 is U+5315**, a CJK ideograph, standing where Mielke writes the Lie
+derivative script letter. MathPix hallucinated a Chinese character; the 128
+rule refuses the whole snippet on sight. The \rfloor has nothing to do with it.
+
+That is not an inference. Three measurements:
+
+   1. the snippet compiled standalone under the report preamble — 0 errors
+   2. the snippet compiled inside a longtable with the report's exact column
+      spec (|p{20mm}|p{7mm}|p{13mm}|p{92mm}|p{104mm}|p{120mm}|) — 0 errors
+   3. the row restored into the full report.tex and compiled whole —
+      **494 pages, 0 errors**
+
+The \left. … \right\rfloor construction renders. It renders WRONG, which is
+part 2, but it renders.
+
+WHILE THERE — THE OTHER TWELVE NON-RENDERING MIELKE ROWS
+------------------------------------------------------------------------------
+Rebuilding report.tex from the tiddlers before any demotion separates the two
+mechanisms cleanly. 13 rows do not render, from two different places:
+
+   FOUR refused at BUILD time by renderable(), never offered to xelatex:
+      EQ0472  p155  CJK 十 (U+5341) in \stackrel{十}{\Omega}
+      EQ0857  p278  CJK 匕 (U+5315)                      <- the row asked about
+      EQ0190  p080  trailing "}" after \] — brace imbalance
+      EQ0453  p151  trailing "}" after \] — brace imbalance
+
+   NINE demoted at COMPILE time, and all nine are the same error:
+      ! Undefined control sequence  ...  \overparen
+      (lines 164, 301, 345, 388, 681, 1699, 1700, 1845, 2834)
+
+**\overparen is simply not defined in the report preamble.** It is not an OCR
+defect at all — MathPix read the wide arc accents correctly and the preamble
+cannot typeset them. One \usepackage (yhmath / mathabx) or one \newcommand
+recovers 9 of this document's 13 unrendered rows. Two of the remaining four
+are a stray closing brace the \end{X} stripper does not cover, and only two
+are genuine OCR hallucination.
+
+PART 2 — \left / \right PAIRED WITH CONTENT, CORPUS-WIDE
+------------------------------------------------------------------------------
+POPULATION: 1,227 documents that have a .md, 1,164,283 math blobs
+(display $$…$$ and inline $…$), scanned in full.
+
+CRITERION. \left…\right nest, so every \right has exactly one \left partner;
+the PAIR carries the meaning, and counting tokens instead would be wrong.
+Flagged: a pair with the null delimiter `.` on one side and a FLOOR or CEILING
+on the other. Mathematics has no half-floor idiom, so a null-paired floor is
+not a fence — it is an operator that MathPix read as the closing half of
+\lfloor…\rfloor and wrapped in \left…\right to make it stretch.
+
+   STRICT CLASS:  424 hits · 315 blobs · **18 documents**
+                  \rfloor 306 · \lfloor 95 · \lceil 23 · \rceil 0
+
+   172  1205.5935v1                        10  BH1
+    67  Quaternion and Clifford FT (Hitzer)  9  BH1org_OCR
+    62  Geometrodynamics (Mielke)            7  main (2)
+    26  inner_2002                           2  Alterman Conference proceedings
+    24  1306.1660                            2  Homotopical QFT (Yau)
+    24  1306.1660v1                          2  WDorg4
+    12  2305.18415                           1  each: 2002.06055 · Heim,
+                                                 Elementarstrukturen · Geometric
+                                                 Algebraic Topological Methods ·
+                                                 NeurIPS-2023-famo ·
+                                                 preprints202111.0359.v2
+
+Every one of the 18 is exterior calculus or geometric (Clifford) algebra, and
+in every one the glyph is the same object: the **contraction / interior
+product**. e_β ⌋ ϑ^α = δ^α_β in Mielke; A_k ⌋ B_s and A_k ⌊ B_s, the right and
+left contractions, in Hitzer, inner_2002 and the 1306.1660 pair. It is one
+mathematical idea, not a scatter of unrelated glitches.
+
+WHAT MAKES IT CERTAIN: THE SAME DOCUMENTS ENCODE IT BOTH WAYS
+------------------------------------------------------------------------------
+In those same 18 documents the same operator is written **bare** — correctly,
+as an ordinary symbol between operands — and **wrapped** in \left/\right:
+
+                bare   wrapped
+                 567       584      49.3% bare / 50.7% wrapped
+
+A coin flip. Same author, same page, same glyph, and MathPix produces two
+incompatible encodings at near-equal rates. The wrapping is therefore not a
+reading of the source; it is instability in the recogniser. (1205.5935v1: 236
+bare vs 222 wrapped. Mielke: 32 vs 95. inner_2002: 58 vs 39.)
+
+THIS IS NOT A COMPILE FAILURE. IT IS A SILENT MIS-RENDER.
+------------------------------------------------------------------------------
+   of the 315 flagged blobs, **314 pass renderable() and render** (100%)
+   the 1 refusal is EQ0857 — and it is refused for CJK, not for the floor
+
+renderable() compares the COUNT of \left against the COUNT of \right. The
+construction is balanced, so it passes; xelatex accepts \rfloor as a delimiter,
+so it compiles. No gate anywhere looks at whether the two halves of a pair are
+partners. 424 operators are on rendered pages right now, sized as fences.
+
+Measured, at \displaystyle, comparing wrapped against bare:
+
+   e_β ⌋ ϑ^α                          width  28.97pt  vs  26.11pt   +11%
+   (∂L/∂(dA)) ⌋ T^β                   height 24.00pt  vs  23.07pt    +4%
+   Σ_{j=1}^{n} (a_j/b_j) ⌋ e_j        height 36.00pt  vs  30.67pt   +17%
+                                      width  46.41pt  vs  41.32pt   +12%
+
+The pattern is the point, not the percentages: **the operator is sized by the
+expression to its left**, and grows without bound as that expression grows. An
+operator whose size depends on its operands is wrong at any magnitude. It also
+becomes a single \mathinner atom, so it loses the spacing an operator gets and
+acquires a grouping the author never wrote.
+
+WHAT WAS DELIBERATELY EXCLUDED, AND WHY THE NUMBER WOULD BE 5× LARGER
+------------------------------------------------------------------------------
+Not flagged: | \| \vert \Vert \uparrow \downarrow \updownarrow \backslash / —
+because two null-paired idioms are correct LaTeX and common:
+
+   \left. X \right|_{a}^{b}      restriction / evaluation bar
+   \left| \psi \right\rangle     ket — the `|` is the legitimate opener
+
+A first pass that asked only "is the partner glyph absent from the blob?"
+returned 4,033 hits, of which **1,816 were \right\rangle** — bra-kets, every
+one correct. That detector would have reported a defect five times its real
+size and pointed the reader at quantum-mechanics notation.
+
+For completeness, the same null-pairing test widened to parens, brackets,
+braces and angles gives **5,922 hits · 4,065 blobs · 413 documents**. That
+number is NOT the answer to this question: a paren is never content, and OCR
+splitting a formula at a line break produces genuine one-sided parens. It is
+recorded only so the strict figure is not mistaken for the whole surface.
+
+TWO NUMBERS THAT DID NOT SURVIVE CHECKING
+------------------------------------------------------------------------------
+The first detector counted delimiters with the regex \\right — which also
+matches **\rightarrow**. It reported 4 Mielke blobs as unbalanced. All four
+were perfectly balanced; the arrows were being counted as fences. Corrected to
+\\right(?![a-zA-Z]), the unbalanced count across all 4,091 Mielke blobs is 0.
+
+The first renderable() check ran against the truncated 230-character examples
+stored in the scan's JSON and reported 19 of 40 refused. Truncated LaTeX is
+unbalanced by construction. Re-run against the full blobs: 1 of 315.
+
+Both were wrong in the direction of making the defect look bigger.
+
+AVAILABLE FIXES, NOT APPLIED HERE
+------------------------------------------------------------------------------
+1. \overparen in the report preamble — recovers 9 of Mielke's 13 unrendered
+   rows, and it is a preamble gap, not an OCR defect.
+2. A pairing check in renderable(), or better a repair: a null-paired floor or
+   ceiling is the contraction operator; unwrap it to the bare glyph. The 567
+   bare occurrences in the same documents are the target form, so the repair
+   has its own ground truth. 424 rows across 18 documents.
+3. The trailing-"}" case (EQ0190, EQ0453): the \end{X} stripper handles a
+   trailing environment closer but not a trailing brace.
