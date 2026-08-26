@@ -1,0 +1,124 @@
+216 — variant C on the newly drilled books
+==============================================================================
+   82 proposals · 56 measured · 27 accepted · 29 no-improvement
+
+   median delta over ALL MEASURED   +0.0     (113's variant C: -8)
+   median delta over ACCEPTED       -35.0
+   better 27 · unchanged 8 · worse 21
+
+THE COMPARABLE NUMBER IS +0.0, NOT -35
+------------------------------------------------------------------------------
+out/113's -8 was explicitly "over COMPILED replies only" — every reply that
+rendered, not only the ones a gate kept. The matching figure here is the
+median over all 56 MEASURED proposals, which is +0.0. The accepted-only
+median of -35 is a different quantity and quoting it against -8 would flatter
+the result by comparing a filtered population with an unfiltered one.
+
+So: 113 got -8 on its population; this run gets +0.0 on its own.
+
+VARIANT C HAD TO BE BUILT, NOT JUST RE-RUN
+------------------------------------------------------------------------------
+The refine loop's propose stage was TEXT-ONLY: it handed the model MathPix's
+LaTeX and asked for a repair, with no image. That is none of 113's four
+variants. C is image PLUS the existing reading, and 113's whole finding is
+that the prior is what matters — from the image alone the median was +146,
+with the reading added it was -8.
+
+propose_one now sends the scan crop the select stage already makes, with a
+variant-C prompt, and keeps the text-only prompt as the fallback. Three tests
+pin the distinction, one of which asserts that a crop-less run must NOT be
+reported as C.
+
+PER DOCUMENT
+------------------------------------------------------------------------------
+   document                            prop  meas  acc   med(meas)  med(acc)
+   Geometrodynamics (Mielke)             20    13    3        +1        -2
+   Graph and Hypergraph (Voloshin)        4     4    3      -4.5        -5
+   Linear and Matrix Algebra (Johnston)  20    13    8       -13     -43.0
+   Numerical Linear Algebra (Lyche)      19    14    8     -13.5     -67.0
+   0902.0431                             19    12    5       +26       -49
+
+Geometrodynamics and 0902.0431 have POSITIVE medians: on those two books the
+model made the typical row slightly or substantially worse. Three of five are
+negative. A single pooled number hides that, and the spread is the finding.
+
+THE PREMISE DOES NOT HOLD FOR THIS POPULATION
+------------------------------------------------------------------------------
+216 reasons that both fixes changed what the baseline measures, since 758 rows
+were being scored against turnstiles. Corpus-wide that is true. For these rows
+it is not:
+
+   rows selected across the four new books        63
+   ... containing \mathbb{<digit>}                 0
+   ... containing a trailing list closer           0
+
+The fixes touch different rows. \mathbb digits live in 44 documents but not in
+these books' worst-confidence equations — Geometrodynamics has 9 in the whole
+book and none is in its 20 lowest-confidence rows. The normaliser fix hits
+list-adjacent equations, which are typically high-confidence.
+
+So whatever changed here, the two fixes did not cause it, and reporting the
+result as though they had would attribute an effect to the wrong cause.
+
+WHICH LEFT THE ATTRIBUTION OPEN, SO I MEASURED IT
+------------------------------------------------------------------------------
+The four new books are also a different sample from the earlier text-only run,
+so neither could the improvement be credited to variant C without isolating
+it. Re-ran 0902.0431 — the same document as out/174, same --max-conf 0.5
+--limit 20 — with the prompt as the only variable:
+
+                        TEXT-ONLY   VARIANT C
+      proposals              16         19
+      measured               11         12
+      accepted                4          5
+      no-improvement          7          7
+      median over measured    0        +26
+      median over accepted -1.5        -49
+      rows made better        4          5
+      rows made worse         5          7
+      acceptance of measured 36%        42%
+
+VARIANT C IS HIGHER VARIANCE, NOT UNIFORMLY BETTER. It produces much larger
+repairs on the rows it fixes — the accepted median moves from -1.5 to -49 —
+and it also makes MORE rows worse, 7 against 5, so the median over everything
+measured goes from 0 to +26.
+
+That is a real trade and it is worth stating in one sentence: showing the
+model the image finds bigger repairs and causes bigger damage, and the
+acceptance gate is what converts that into a net gain. Without the gate this
+prompt would be worse than the one it replaces.
+
+WHY THE POOLED +0.0 IS NOT A FAILURE
+------------------------------------------------------------------------------
+The gate rejects every row that got worse. 29 of 56 measured proposals were
+refused for no improvement, including all 21 that increased the distance. What
+reaches the model is the 27 that fell, with a median of -35.
+
+So the pipeline's output is 27 verified repairs, and +0.0 is the quality of the
+PROPOSER, not of the pipeline. Both numbers belong in the report: one says the
+model is a coin-flip on this population, the other says the gate is what makes
+it useful.
+
+POPULATION WARNING, INHERITED FROM 113
+------------------------------------------------------------------------------
+113 warned that its 19 rows were every corpus equation below confidence 0.1 —
+"a variant that improves them has been shown to improve the easiest available
+population, not the corpus". This run uses confidence <= 0.5, which is broader
+and less extreme, so a smaller median here is expected and does not
+contradict 113.
+
+The two numbers are also on DIFFERENT INSTRUMENTS: 113 measured inkdrill's
+row-level five-tuple on report pages; this measures crop ink distance
+(components + holes) between a standalone render and the scan crop. The
+quantity is the same in sign and meaning — proposed minus original, negative
+is better — but the scales are not comparable, and -8 against +0.0 should be
+read as two directions, not two magnitudes.
+
+COST AND GUARDS
+------------------------------------------------------------------------------
+   82 proposals, ~2-4 min each, four concurrent.
+   validate refused 18 of 82 before any render was spent: 14 standalone
+     compile, 4 identical to the original.
+   the ink gate fired twice with "scan crop has no ink — nothing to measure
+     against" — the blank-reference guard from out/184, refusing to measure
+     against an empty reference rather than scoring the emptiest proposal best.

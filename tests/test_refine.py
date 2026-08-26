@@ -338,3 +338,40 @@ def test_page_with_no_glyphs_does_not_trip_the_schema_check(monkeypatch, tmp_pat
     sig = rf.ink_signature(png)
     assert sig == {"components": 0, "holes": 0}
     assert not rf.measurable(sig)
+
+
+# ------------------------------------------------------- 216: variant C ---
+
+def test_variant_C_prompt_shows_the_existing_reading():
+    """out/113: from the image ALONE the median delta was +146; with the
+    existing reading added it was -8. The prior is the whole difference."""
+    p = rf.PROPOSE_PROMPT_C.format(conf="0.0020", latex="X")
+    assert "THE OCR'S READING" in p
+    assert "AGAINST THE IMAGE" in p
+
+
+def test_the_crop_selects_the_variant_C_prompt(monkeypatch, tmp_path):
+    seen = {}
+
+    def fake(prompt, *, system, model, max_tokens, timeout, crop=None):
+        seen["prompt"], seen["crop"] = prompt, crop
+        return "x^2", "stop", ""
+
+    monkeypatch.setattr(rf, "_novita_chat", fake)
+    png = tmp_path / "c.png"; png.write_bytes(b"\x89PNG\r\n\x1a\n")
+    rf.propose_one("X", 0.1, crop=str(png))
+    assert "AGAINST THE IMAGE" in seen["prompt"] and seen["crop"]
+
+
+def test_without_a_crop_it_is_NOT_variant_C(monkeypatch):
+    """A run with no image is not one of the four variants out/113 measured,
+    and must not be reported as C."""
+    seen = {}
+
+    def fake(prompt, *, system, model, max_tokens, timeout, crop=None):
+        seen["prompt"], seen["crop"] = prompt, crop
+        return "x^2", "stop", ""
+
+    monkeypatch.setattr(rf, "_novita_chat", fake)
+    rf.propose_one("X", 0.1)
+    assert "AGAINST THE IMAGE" not in seen["prompt"] and seen["crop"] is None

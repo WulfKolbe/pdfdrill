@@ -460,6 +460,32 @@ PROPOSE_SYSTEM = (
     "Preserve the mathematical content exactly; fix only transcription damage."
 )
 
+#: VARIANT C (out/113). Four prompt variants were measured on 19 crops:
+#:     A  image alone                     median delta +146
+#:     B  image + notation hint           median delta +196
+#:     C  image + THE EXISTING READING    median delta   -8
+#:     D  C + hint and schema             median delta   -6
+#: Showing the model MathPix's own reading is the only thing that helped;
+#: from the image alone the model produced something FURTHER from the scan
+#: than MathPix's reading was, on the very rows MathPix was least sure of.
+#: So the crop and the prior are sent together, and a run without the crop is
+#: not variant C -- it is a fourth thing nobody measured.
+PROPOSE_PROMPT_C = """The image is a crop of one printed equation from a scanned page.
+
+An OCR service read it as the LaTeX below, with confidence {conf}. That reading
+may be right, or may have lost or merged rows, dropped cells from an aligned
+table, or run two columns of the page together.
+
+Correct it AGAINST THE IMAGE. Rules:
+  - return the LaTeX body only, no $ or \\[ delimiters and no code fence
+  - keep every environment balanced
+  - if it is a table of numbers, every row must have the same number of cells
+  - prefer the existing reading where the image does not contradict it
+
+THE OCR'S READING:
+{latex}
+"""
+
 PROPOSE_PROMPT = """This LaTeX came from OCR of a printed equation and its confidence is {conf}.
 It may have lost or merged rows, dropped cells from an aligned table, or run two
 columns of the page together.
@@ -476,7 +502,7 @@ SOURCE:
 
 
 def _novita_chat(prompt: str, *, system: str, model: str, max_tokens: int,
-                 timeout: float) -> tuple[str, str, str]:
+                 timeout: float, crop=None) -> tuple[str, str, str]:
     """(content, finish_reason, error) from an OpenAI-compatible endpoint.
 
     Its own transport rather than `gemma_client.chat_completion` for one
@@ -496,10 +522,17 @@ def _novita_chat(prompt: str, *, system: str, model: str, max_tokens: int,
         return "", "", "NOVITA_API_KEY is not set"
     base = (get("NOVITA_BASE_URL", "") or get("NOVITA_API_BASE", "")
             or "https://api.novita.ai/v3/openai")
+    content: Any = prompt
+    if crop:
+        import base64
+        b64 = base64.b64encode(Path(crop).read_bytes()).decode()
+        content = [{"type": "text", "text": prompt},
+                   {"type": "image_url",
+                    "image_url": {"url": f"data:image/png;base64,{b64}"}}]
     payload = {
         "model": model,
         "messages": [{"role": "system", "content": system},
-                     {"role": "user", "content": prompt}],
+                     {"role": "user", "content": content}],
         "temperature": 0.2,
         "max_tokens": max_tokens,
     }
@@ -542,13 +575,19 @@ PROPOSE_WORKERS = 4
 
 
 def propose_one(latex: str, conf: float, *, model: str = NOVITA_MODEL,
-                timeout: float = 900.0,
+                timeout: float = 900.0, crop=None,
                 max_tokens: int = PROPOSE_MAX_TOKENS) -> tuple[str, str]:
-    """(proposed_latex, error). Never raises."""
+    """(proposed_latex, error). Never raises.
+
+    With `crop`, this is VARIANT C: the scan image AND the existing reading.
+    Without it, the model is asked to repair LaTeX it cannot see the source
+    of, which is not any of the four variants out/113 measured.
+    """
+    prompt = (PROPOSE_PROMPT_C if crop else PROPOSE_PROMPT).format(
+        conf=f"{conf:.4f}", latex=latex)
     txt, finish, err = _novita_chat(
-        PROPOSE_PROMPT.format(conf=f"{conf:.4f}", latex=latex),
-        system=PROPOSE_SYSTEM, model=model, max_tokens=max_tokens,
-        timeout=timeout)
+        prompt, system=PROPOSE_SYSTEM, model=model, max_tokens=max_tokens,
+        timeout=timeout, crop=crop)
     if err:
         return "", err
     cleaned = _clean_reply(txt)

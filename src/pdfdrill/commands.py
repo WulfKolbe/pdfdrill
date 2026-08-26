@@ -14008,8 +14008,15 @@ def cmd_refine(pdf: Path, max_conf: float = 0.5, limit: int | None = None,
         index_by_id = {p["id"]: p for p in data["proposals"]}
         if todo:
             with _cf.ThreadPoolExecutor(max_workers=_rf.PROPOSE_WORKERS) as ex:
+                # VARIANT C: hand the model the scan crop the select stage
+                # already made, alongside the existing reading. out/113
+                # measured +146 without the prior and -8 with it.
+                def _crop_for(pid):
+                    q = work / f"{pid}.scan.png"
+                    return str(q) if q.is_file() else None
                 futs = {ex.submit(_rf.propose_one, p.get("original", ""),
                                   float(p.get("confidence") or 0.0),
+                                  crop=_crop_for(p["id"]),
                                   model=model or _rf.NOVITA_MODEL): p["id"]
                         for p in todo}
                 for f in _cf.as_completed(futs):
