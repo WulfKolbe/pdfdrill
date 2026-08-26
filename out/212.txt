@@ -1,0 +1,113 @@
+212 — every document in the MathPix correspondence
+==============================================================================
+12 documents. ONE is current; ELEVEN need the full chain, 3,440 pages.
+
+CURRENCY IS DEFINED BY TWO COMMITS
+------------------------------------------------------------------------------
+   f7d69ae  2026-08-25 21:00  187-188  _normalize_latex strips the trailing
+                                       structural token; a model built before
+                                       it carries \end{itemize} inside 967
+                                       equation bodies corpus-wide
+   5a9a2ab  2026-08-26 10:10  199      \mathbb{<digit>} stops rendering a
+                                       negated turnstile; 758 equations in 44
+                                       documents change appearance
+
+   A document is CURRENT only if
+     * its model was built at or after f7d69ae, AND
+     * its report was built at or after 5a9a2ab, AND
+     * that report is a READING build, not a --no-legend measurement build.
+
+The third condition is not pedantry. Numerical Linear Algebra's report.pdf is
+dated 10:31, after the \mathbb fix — but it is the --no-legend build made for
+the ink pass in 193. It has no legend and no residual column, so it is not a
+report anyone reads. Timestamp alone would have called it current.
+
+THE LIST
+------------------------------------------------------------------------------
+  # bibkey                                               pp  mbb  model  report  read cur
+-----------------------------------------------------------------------------------------
+  1 2103.01507                                          381   17     ok      ok   yes YES
+  2 Geometrodynamics of Gauge Fields On the Geometry o  377    9     ok     OLD    no no
+  3 Introduction to Graph and Hypergraph Theory (Vital  303    0     ok     OLD    no no
+  4 Introduction to Linear and Matrix Algebra (Nathani  492    0     ok     OLD    no no
+  5 Numerical Linear Algebra and Matrix Factorizations  376    0     ok      ok    no no
+  6 Lie Groups, Physics and Geometry - An Intro for Ph  333    0    OLD    none    no no
+  7 2010.14265                                           14    0    OLD     OLD    no no
+  8 An Invitation to Applied Category Theory Seven Ske  352    0    OLD    none    no no
+  9 OMDoc – An Open Markup Format for Mathematical Doc  425    0    OLD    none    no no
+ 10 Seven Sketches in Composability An invitation to a  353    0    OLD    none    no no
+ 11 0707.4470                                            37    0    OLD     OLD    no no
+ 12 Geometric, Algebraic and Topological Methods for Q  378   24    OLD    none    no no
+
+   mbb = occurrences of \mathbb{<digit>} in that document, from out/199.
+   Two documents carry them: 2103.01507 (17) and the QFT volume (24), plus
+   Geometrodynamics (9). Those three are the ones whose RENDERED pages
+   actually change; the rest need rebuilding for the normaliser fix and for
+   the legend, not for \mathbb.
+
+FOLDER PATHS AND GROUPS
+------------------------------------------------------------------------------
+  1  2103.01507
+     /home/wkolbe/pdfdrill-library/2103.01507
+     381 pp · groups: defect, drilled · \mathbb{<digit>}: 17
+  2  Geometrodynamics of Gauge Fields On the Geometry of Yang-Mills and Gravitational Gauge Theories (Eckehard W. Mielke) (Z-Library)
+     /home/wkolbe/pdfdrill-library/Geometrodynamics of Gauge Fields On the Geometry of Yang-Mills and Gravitational Gauge Theories (Eckehard W. Mielke) (Z-Library)
+     377 pp · groups: defect, drilled · \mathbb{<digit>}: 9
+  3  Introduction to Graph and Hypergraph Theory (Vitaly I. Voloshin) (Z-Library)
+     /home/wkolbe/pdfdrill-library/Introduction to Graph and Hypergraph Theory (Vitaly I. Voloshin) (Z-Library)
+     303 pp · groups: defect, drilled · \mathbb{<digit>}: 0
+  4  Introduction to Linear and Matrix Algebra (Nathaniel Johnston) (Z-Library)
+     /home/wkolbe/pdfdrill-library/Introduction to Linear and Matrix Algebra (Nathaniel Johnston) (Z-Library)
+     492 pp · groups: defect, drilled · \mathbb{<digit>}: 0
+  5  Numerical Linear Algebra and Matrix Factorizations (Tom Lyche) (Z-Library)
+     /home/wkolbe/pdfdrill-library/Numerical Linear Algebra and Matrix Factorizations (Tom Lyche) (Z-Library)
+     376 pp · groups: defect, drilled · \mathbb{<digit>}: 0
+  6  Lie Groups, Physics and Geometry - An Intro for Physicists, Engineers and Chemists - R. Gilmore (
+     /home/wkolbe/pdfdrill-library/Lie Groups, Physics and Geometry - An Intro for Physicists, Engineers and Chemists - R. Gilmore (
+     333 pp · groups: defect · \mathbb{<digit>}: 0
+  7  2010.14265
+     /home/wkolbe/pdfdrill-library/2010.14265
+     14 pp · groups: arity · \mathbb{<digit>}: 0
+  8  An Invitation to Applied Category Theory Seven Sketches In Compositionality (Brendan Fong, David I. Spivak) (Z-Library)
+     /home/wkolbe/pdfdrill-library/An Invitation to Applied Category Theory Seven Sketches In Compositionality (Brendan Fong, David I. Spivak) (Z-Library)
+     352 pp · groups: arity · \mathbb{<digit>}: 0
+  9  OMDoc – An Open Markup Format for Mathematical Documents [version 1.2] Foreword by Allan Bundy (Michael Kohlhase (auth.)) (Z-Library)
+     /home/wkolbe/pdfdrill-library/OMDoc – An Open Markup Format for Mathematical Documents [version 1.2] Foreword by Allan Bundy (Michael Kohlhase (auth.)) (Z-Library)
+     425 pp · groups: arity · \mathbb{<digit>}: 0
+ 10  Seven Sketches in Composability An invitation to applied category theory (Brendan Fong, David I. Spivak) (Z-Library)
+     /home/wkolbe/pdfdrill-library/Seven Sketches in Composability An invitation to applied category theory (Brendan Fong, David I. Spivak) (Z-Library)
+     353 pp · groups: arity · \mathbb{<digit>}: 0
+ 11  0707.4470
+     /home/wkolbe/pdfdrill-library/0707.4470
+     37 pp · groups: arity · \mathbb{<digit>}: 0
+ 12  Geometric, Algebraic and Topological Methods for Quantum Field Theory (Alexander Cardona (ed.) etc.) (Z-Library)
+     /home/wkolbe/pdfdrill-library/Geometric, Algebraic and Topological Methods for Quantum Field Theory (Alexander Cardona (ed.) etc.) (Z-Library)
+     378 pp · groups: arity · \mathbb{<digit>}: 24
+
+WHY EVERY ONE OF THE ELEVEN NEEDS THE CHAIN, NOT JUST THE NEW ONES
+------------------------------------------------------------------------------
+The point raised with 213 is right and it is the reason this list exists. The
+\mathbb fix changes 758 rendered equations. Any report built before 2026-08-26
+10:10 typesets those as ⊮, ⊬ and ⊭ — and any residual measured against such a
+report scored a difference between a blackboard digit on the scan and a
+negated turnstile in the render. That difference is real in the artefact and
+absent from the document.
+
+So the five books already drilled are NOT exempt. Four of them were drilled
+between 08-25 23:09 and 08-26 09:07 — before the fix. Only 2103.01507 has been
+rebuilt since, in 194, and it is the single current document.
+
+Three of the eleven have \mathbb hits and their pages genuinely change:
+Geometrodynamics (9) and the QFT volume (24). The other eight need the chain
+for the normaliser fix, for a reading build with a legend, or because they
+have never been drilled at all.
+
+NEVER DRILLED AT ALL
+------------------------------------------------------------------------------
+Six of the twelve have no report and a model predating the normaliser fix:
+Lie Groups, 2010.14265, An Invitation, OMDoc, Seven Sketches, 0707.4470, and
+the QFT volume. They enter the correspondence through out/211's arity hits and
+out/190's excluded false positive, and nothing has been built for them.
+
+SCOPE OF 213
+   11 documents, 3,440 pages. 2103.01507 is skipped: current.
