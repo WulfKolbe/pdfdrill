@@ -1,0 +1,105 @@
+210 — arity mismatch: a relation carrying an index
+==============================================================================
+THE COUNT, AT THREE STRENGTHS
+------------------------------------------------------------------------------
+   documents scanned                                          1,346
+
+   BROAD   any relation carrying a sub- or superscript          614   63 docs
+   MIDDLE  the TURNSTILE family carrying one                     20    7 docs
+   SHARP   a relation carrying a SIBLING super AND subscript      1    1 doc
+
+The sharp detector's single hit is EQ0873 — the Mielke slashed L from out/208.
+One hit, corpus-wide, and it is the case the detector was built to describe.
+
+BROAD IS MOSTLY NOT A DEFECT, AND SAYING SO IS THE POINT
+------------------------------------------------------------------------------
+   \leq 143 · \sim 79 · \Rightarrow 61 · \rightarrow 58 · \geq 38 · \approx 34
+   \models 32 · \equiv 27 · \exists 26 · \in 26 · \forall 24 · \simeq 14
+
+A subscripted relation is usually a legitimate INDEXED FAMILY. Ten examples,
+one per relation, and eight of the ten are correct mathematics:
+
+    1. \forall_{n \geq 1}          0210081 p9      bounded quantifier
+    2. \nVdash_{\{t^n_σ = t^m_e\}} 0707.4470 p24   SUSPECT
+    3. \rightarrow_{e_{7,C}}       0902.0431 p154  SUSPECT — a map arrow does
+                                                   not carry the target as a
+                                                   subscript
+    4. \subset_{\mathcal{I}}       0911.3722 p3    inclusion relative to an ideal
+    5. \models_{k}                 1-s2.0-S03043975 satisfaction in a model
+    6. \approx_{\epsilon}          1205.3463v2 p11 epsilon-approximation
+    7. \sim_{T}                    1211.3375 p5    equivalence modulo T
+    8. \supset^{\mathfrak{su}_2}   1511.08771 p1628 branching-rule notation
+    9. \leq_{e}                    1701.07696 p7   an ordering named e
+   10. \Rightarrow_{\mathcal{R}}^* 1906.05170 p21  rewriting relation, standard
+
+So 614 is a population to look at, not a defect count. Reporting it as
+"614 arity errors" would repeat the mistake out/197 found in the acronym rule
+and out/187 found in my own confusable set: a detector whose first version
+invents a false-positive class to replace the one it removes.
+
+THE MIDDLE TIER IS WHERE THE REAL YIELD IS
+------------------------------------------------------------------------------
+Restricting to the turnstile family — the relations that provably cannot take
+indices, since ⊢ and ⊨ join two expressions and are not operators:
+
+    11  2010.14265                          X \nvdash_{P} \{Y, Z\}
+     2  Seven Sketches (Fong & Spivak)
+     2  An Invitation to Applied Category Theory
+     2  OMDoc markup format
+     1  0707.4470
+     1  Geometric, Algebraic and Topological Methods for QFT
+     1  Geometrodynamics (Mielke)          <- EQ0873
+
+2010.14265's eleven are one defect repeated:
+
+   X \nvdash_{P} \{Y, Z\}
+   \forall S \subseteq V \setminus \{X,Y\}: X \nVdash_{P} Y \mid S
+
+That is CONDITIONAL INDEPENDENCE — X ⫫_P Y | S, the double-perpendicular of
+probabilistic graphical models. MathPix reached for \nvdash to draw ⫫, which
+is the same failure as EQ0873 in a different notation: a glyph produced by a
+command whose meaning is unrelated to it. out/208 inferred this from context
+and could not verify it, because the objects are inline formulas with no CDN
+crop. The arity signature reaches them without needing one.
+
+WHY THIS DETECTOR MATTERS: IT NEEDS NOTHING BUT THE STRING
+------------------------------------------------------------------------------
+EQ0873 passes every check in this sequence. It compiles. Its environments
+balance. Its table widths are uniform. It has no CJK and no confusable cell.
+It sits at confidence 0.99951171875 — MathPix's near-maximum. out/208 found it
+only because out/207 asked why a turnstile had indices, and confirming it took
+a human looking at a crop.
+
+This check needs no crop, no render, no model, no API call. `\nvdash^{A}{ }_{B}`
+is ill-formed as a string, whatever it renders as, because a binary relation
+is not a tensor. It is the first detector in this sequence that could have
+found EQ0873 unaided.
+
+AND THE HONEST LIMIT OF THAT CLAIM
+------------------------------------------------------------------------------
+The sharp detector was DESIGNED from EQ0873. Finding EQ0873 is therefore not
+independent evidence that it works — it is the fit, not a test of the fit. Its
+precision on this corpus is 1 of 1, and that number means less than it looks.
+
+What can be said without overclaiming:
+
+   * it costs one regex over the stored LaTeX, and it is exhaustive;
+   * on the corpus it produces ONE finding and no false positives, so it is
+     not a queue anybody has to triage;
+   * its recall is unknown and probably poor. It catches the tensor-index
+     shape ^{X}{ }_{Y} only. A relation with a single index — the eleven
+     conditional-independence cases — needs the middle tier, which does NOT
+     have clean precision and needs the relation restricted to the turnstile
+     family by hand.
+
+The generalisation that survives is narrower than "arity mismatch" and worth
+stating in its own words: A SYMBOL'S LATEX NAME CARRIES AN ARITY, AND THE
+SURROUNDING SYNTAX CARRIES ANOTHER. Where they disagree, the name is usually
+wrong — because OCR picks a command by how the glyph LOOKS, and a glyph's
+appearance says nothing about how many arguments its command takes.
+
+NOT DONE
+   Not wired into `gaps` or the refine validator. 210 asked for a count and
+   ten examples. Wiring it in means choosing between the broad tier (614, a
+   triage queue) and the sharp one (1, exhaustively verified), and that is a
+   decision about what a "finding" is, not an implementation detail.
