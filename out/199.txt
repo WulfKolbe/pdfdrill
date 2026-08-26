@@ -1,0 +1,110 @@
+199 — \mathbb{1} rendered a negated turnstile in 758 places
+==============================================================================
+THE COUNT
+------------------------------------------------------------------------------
+   documents scanned                    1,345
+   occurrences of \mathbb{<digit>}        758
+   equation/formula objects affected      548
+   documents affected                      44
+
+   by digit:   1 -> 748     0 -> 5     2 -> 5
+
+   worst documents:
+      Geometry of quantum states (Bengtsson & Zyczkowski)   169
+      Homotopical quantum field theory (Yau)                155
+      2306.03667                                             87
+      2002.06055                                             74
+      2102.11940                                             32
+      p613-makarimanshadi                                    27
+
+WHAT IT ACTUALLY RENDERED — MEASURED, NOT ASSUMED
+------------------------------------------------------------------------------
+amssymb's \mathbb is the AMS msbm font and its blackboard glyphs cover A–Z
+only. The digit slots are not empty, which is why nothing failed:
+
+   \mathbb{1}  ->  U+22AE  ⊮  "does not force"
+   \mathbb{0}  ->  U+22AC  ⊬  "does not prove"
+   \mathbb{2}  ->  U+22AD  ⊭  "not true"
+
+Verified by compiling `$\mathbb{1}\ \mathbb{0}\ \mathbb{2}\ \mathbb{R}\
+\mathbb{Z}$` with amssymb alone and extracting the text: ⊮⊬⊭RZ, all from
+MSBM10. The letters were always right.
+
+So 748 indicator functions across 44 documents were being typeset as negated
+turnstiles — in a report whose whole purpose is to show a reader whether the
+OCR read the page correctly. The OCR was right every time. The report was
+wrong, silently, and an ink measurement of those rows was comparing a
+blackboard one against a turnstile and calling the difference a transcription
+error.
+
+THE FIX
+------------------------------------------------------------------------------
+bbm supplies blackboard digits, but as \mathbbm — loading it alone does not
+make \mathbb{1} work. So \mathbb DISPATCHES on its argument:
+
+   \usepackage{bbm}
+   \let\pdfdrillamsbb\mathbb
+   \renewcommand{\mathbb}[1]{%
+     \ifcat_\ifnum9<1\noexpand#1_\else A\fi
+       \mathbbm{#1}%          digits -> bbm
+     \else
+       \pdfdrillamsbb{#1}%    everything else -> the AMS font, unchanged
+     \fi}
+
+Letters keep going to msbm, so every existing \mathbb{R} in every report is
+byte-identical to before. That mattered more than the digits: a package that
+redefines \mathbb wholesale (bbold) would have changed the appearance of every
+blackboard letter in the corpus to fix 758 digits.
+
+CONFIRMED, BY COMPARING RENDERS RATHER THAN BY READING THE SOURCE
+------------------------------------------------------------------------------
+Three 600-dpi renders of the same glyph, hashed:
+
+   \mathbb{1} via the shipped dispatch   d42ed79e408ef9b5
+   \mathbbm{1} straight from bbm         d42ed79e408ef9b5   <- identical
+   \mathbb{1} with amssymb alone         a451f8471bb8c25a   <- different
+
+Byte-identical to bbm's own blackboard one, and different from what it used to
+produce. Font table of the fixed output: the digit comes from bbm, and
+\mathbb{R}/\mathbb{Z} still come from MSBM10.
+
+THREE PREAMBLES, NOT ONE
+------------------------------------------------------------------------------
+The fix had to land in three places that must agree:
+
+   report_tex.PREAMBLE          the report
+   refine.RENDER_PREAMBLE       standalone renders for the ink comparison
+   commands.py                  the per-equation standalone renders
+
+If the report typeset a blackboard one and the standalone renderer still
+produced a turnstile, the ink comparison would report a difference that
+neither the OCR nor the page contains — a defect manufactured by the
+instrument. The block is now a single constant, MATHBB_DIGITS, that all three
+consume, and a test asserts the renderer's preamble contains the report's.
+
+A MISTAKE WORTH RECORDING
+------------------------------------------------------------------------------
+The block's LaTeX line-continuations are bare `%`, and PREAMBLE is a Python
+%-format string. Inlining it broke 18 tests with "not enough arguments for
+format string". My first repair then hit the WRONG COPY — `s.index()` found
+the block inside the new constant rather than inside PREAMBLE, so it gutted
+the constant and left the inline copy in place, and the failure count went up
+to 20.
+
+It is now a named slot, %(bbdigits)s, filled at both call sites. And the test
+asserts on the FORMATTED preamble rather than the template, because a test
+against the raw template would pass while a call site forgot to fill the slot.
+
+Suite 2,331 -> 2,336.
+
+WHAT I DID NOT CHOOSE, AND THE NUMBER BEHIND IT
+------------------------------------------------------------------------------
+bbm's fonts are Type 3 bitmaps here — `pdffonts` reports `[none] Type 3` — 
+while dsfont's \mathds gives a scalable Type 1C (dsrom10). For a report whose
+scan column is placed at pixel-exact size and then measured by inkdrill, a
+bitmap font is a real if small concern.
+
+I used bbm because it is the package named. The swap is one token —
+`\mathbbm{#1}` to `\mathds{#1}` with `\usepackage{dsfont}` — and I would make
+it if the bitmap shows at report resolution. It is recorded here rather than
+decided quietly.

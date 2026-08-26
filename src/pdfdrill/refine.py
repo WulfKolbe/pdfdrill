@@ -243,10 +243,22 @@ def ink_distance(a: dict, b: dict) -> int:
 # rendering and cropping
 # ---------------------------------------------------------------------------
 
-RENDER_PREAMBLE = r"""\documentclass[preview,border=2pt]{standalone}
-\usepackage{amsmath,amssymb,amsfonts,mathtools}
-\begin{document}
-"""
+def _render_preamble() -> str:
+    """The standalone preamble, sharing the report's own blackboard-digit fix.
+
+    These two MUST agree. The ink comparison measures this render against the
+    scan of a REPORT page; if the report typesets \\mathbb{1} as a blackboard
+    one and this renders it as U+22AE, the measurement reports a difference
+    that neither the OCR nor the page contains — a defect manufactured by the
+    instrument.
+    """
+    from .report_tex import MATHBB_DIGITS
+    return ("\\documentclass[preview,border=2pt]{standalone}\n"
+            "\\usepackage{amsmath,amssymb,amsfonts,mathtools}\n"
+            + MATHBB_DIGITS + "\\begin{document}\n")
+
+
+RENDER_PREAMBLE = _render_preamble()
 
 
 def render_latex(latex: str, out_png: Path, *, dpi: int = DPI,

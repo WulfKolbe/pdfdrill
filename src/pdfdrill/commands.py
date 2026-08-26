@@ -13742,6 +13742,7 @@ def cmd_standalone(pdf: Path, only_id: str | None = None) -> str:
 
     def _one(item):
         ident, latex = item
+        from .report_tex import MATHBB_DIGITS as _bbdig
         tex = out_dir / f"{ident}.tex"
         tex.write_text(
             "\\documentclass[border=3pt]{standalone}\n"
@@ -13750,6 +13751,7 @@ def cmd_standalone(pdf: Path, only_id: str | None = None) -> str:
             # 31 FALSE findings on the P13 corpus — a finding must mean the
             # FORMULA is broken, not the preamble
             "\\usepackage{mathrsfs}\n\\usepackage{stmaryrd}\n"
+            + _bbdig
             # 092: the same glyph rescue the report preamble carries. Without
             # it a standalone render silently omits every character the maths
             # fonts lack, and the ink metric then compares an INCOMPLETE render
