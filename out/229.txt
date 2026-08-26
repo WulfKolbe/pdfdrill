@@ -1,0 +1,93 @@
+229 — the \mathscr{g} in 0707.4470
+==============================================================================
+
+ONE ROW. NOT AN EQUATION, AND NOT A FONT GAP.
+------------------------------------------------------------------------------
+   identifier    0707.4470_FO0175
+   type          Formula — INLINE (display: false), not an Equation
+   page          29
+   confidence    NONE. MathPix returned no confidence value for this object;
+                 the report prints "---" in that column.
+   emitted       \mathscr{g}
+
+One occurrence, one row, in the whole document. It is the only lowercase
+\mathscr anywhere in the MathPix output:
+
+     28  \mathscr{J}        23  \mathscr{L}        3  \mathscr{K}
+      1  \mathscr{g}    <-- this row
+
+It is an FO, not an EQ, which is why 229 could not find an EQ identifier for
+it: inline formulas are numbered in their own series.
+
+IT IS NOT A CASE ERROR EITHER. THE AUTHOR WROTE \mathcal{J}.
+------------------------------------------------------------------------------
+0707.4470 is arXiv, so the author's e-print is on disk and is gold. From
+computationalEM.tex, the same sentence:
+
+    Given a discrete $1$-form $A$ and dual source $3$-form
+      $\mathcal{J}$, define the discrete Lagrangian $4$-form
+
+MathPix's rendering of that sentence:
+
+    Given a discrete 1-form $A$ and dual source 3-form $\mathscr{g}$, define
+    the discrete Lagrangian 4-form
+
+The true symbol is **\mathcal{J}** — a script capital J, the source 3-form of
+Maxwell's equations. Not \mathscr{G}. The hypothesis in 229 was the right
+shape — a letter error, not a font gap — and one letter off.
+
+THE COUNTS CLOSE EXACTLY, WHICH MAKES THIS A PROOF RATHER THAN A READING
+------------------------------------------------------------------------------
+   author e-print          MathPix output
+   \mathcal{J}   29        \mathscr{J}   28   +  \mathscr{g}   1
+   \mathcal{L}   23        \mathscr{L}   23
+   \mathcal{K}    3        \mathscr{K}    3
+   ------------------      ---------------------------------------
+   total         55        total         55
+
+**29 = 28 + 1.** MathPix read 28 of the 29 script capital J's correctly and
+misread the 29th. No occurrence is unaccounted for on either side, and the one
+that moved is the one whose sentence names it as the dual source 3-form. The
+identification does not rest on judgement about letterforms.
+
+A SECOND THING THE SAME COMPARISON SHOWS
+------------------------------------------------------------------------------
+MathPix mapped **every** \mathcal to \mathscr — all 55 of them. \mathcal is
+cmsy calligraphic; \mathscr is rsfs10, a visibly different script face. So 54
+rows render in the wrong script FAMILY (present, legible, wrong shape) and one
+row drops. Only the drop is currently detectable, because a wrong-but-present
+glyph raises no warning. Not a defect anyone has asked about; recorded because
+this comparison is what makes it visible.
+
+THE INK CHECK 229 PROPOSES CANNOT BE RUN ON THIS ROW
+------------------------------------------------------------------------------
+There is no crop and no region. out/125 established that inline formulas carry
+no region, and report-crops holds 62 crops, all for display equations — none
+for FO0175. So the "a script capital has a very different shape from a
+lowercase g" test has nothing to measure against here.
+
+That is the right proposal for the general case and it would have worked on an
+EQ row. On this one the e-print answered it outright, which is a stronger
+instrument than the ink: gold source rather than a shape comparison.
+
+WHAT THE REPAIR IS
+------------------------------------------------------------------------------
+\mathscr{g} -> \mathcal{J}. A content fix of one token, not a font change. The
+out/221 warning already says the right thing for this class — "No fallback
+font can reach it — change the command, not the font" — and this is what the
+change turns out to be.
+
+NOT APPLIED HERE. 229 asks for a report, and there is no hand-edit path for
+model content that would not be off-pipeline: the refine loop's record stage
+writes props["latex_refined"] and a provenance="change" realization, it does
+not overwrite props["latex"]. This row is a clean candidate for that mechanism
+— gold-verified, one token — and it is the first one in this sequence whose
+correct value is known with certainty rather than proposed by a model.
+
+CONSEQUENCE IF IT IS APPLIED
+------------------------------------------------------------------------------
+0707.4470 is the last of the eleven documents from out/213 still dropping a
+glyph — one, this one. out/221 took the other five glyph-dropping reports to
+zero and left this one because no font can fix it. Correcting the content
+takes it to zero as well, which makes all eleven measurable and removes the
+only refusal from the 215 handover list.
