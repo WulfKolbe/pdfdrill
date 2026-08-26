@@ -1,0 +1,84 @@
+192 — are the five documents' artefacts committed, and is there any ink data?
+==============================================================================
+ANSWER: Nothing is outstanding, nothing is committed, and nothing SHOULD BE.
+No report.ink.json exists for any of the five.
+
+I did not commit the artefacts. The task says to commit anything outstanding;
+the correct action here is to refuse, and the reason is not mine — it is the
+library repository's own stated policy, which I checked before acting rather
+than after.
+
+PER DOCUMENT
+------------------------------------------------------------------------------
+                                             pdf     eligible   ink.json
+   2103.01507                              3.4 MB      NO         none
+   Geometrodynamics… (Mielke, Z-Library)   3.5 MB      NO         none
+   Introduction to Graph and Hypergraph…   9.2 MB      NO         none
+   Introduction to Linear and Matrix Alg. 15.6 MB      NO         none
+   Numerical Linear Algebra… (Lyche)       4.6 MB      NO         none
+
+   git status in ~/pdfdrill-library: 0 modified, 0 untracked, tree CLEAN.
+   HEAD ecd7f1a "audit 2026-08-26", branch main,
+   origin https://github.com/WulfKolbe/pdfdrill-library.git
+
+WHY THE TREE IS CLEAN DESPITE 490 MB OF NEW FILES
+------------------------------------------------------------------------------
+~/pdfdrill-library is a git repository, and its .gitignore denies by default:
+
+   "This working tree is a 34 GB document library containing copyrighted
+    books and personal scanned mail. Nothing is committed unless it is
+    explicitly un-ignored below, so an accidental `git add -A` cannot
+    publish anything."
+
+The 490 MB the drill produced is invisible to git BY DESIGN. The guard is
+working, and a clean `git status` here means "correctly excluded", not
+"nothing happened".
+
+TWO INDEPENDENT REASONS NOT TO COMMIT, EITHER SUFFICIENT
+------------------------------------------------------------------------------
+1. NONE OF THE FIVE DOCUMENTS IS ELIGIBLE. audit/select_corpus.py states the
+   rule, and all three conditions must hold:
+
+      * PDF of at most 1 MB
+      * not a Z-Library copy of an in-copyright book
+      * not a scan_* folder (personal scanned mail)
+
+   Four of the five are Z-Library books — Mielke, Voloshin, Johnston, Lyche —
+   and all five exceed 1 MB, the smallest at 3.4 MB. Committing them would
+   publish in-copyright books to a public GitHub repository.
+
+2. THE ARTEFACTS THEMSELVES ARE NEVER COMMITTED, for any document. Even an
+   eligible folder contributes only KEEP_SUFFIXES = ('.pdf', '.drill.json').
+   The never-commit list names, verbatim, almost everything the drill made:
+
+      *.docmodel.json   *.lines.json   *.inspect.html   **/inspect/
+      *.docpack.json    *.tgz          *.zip           **/latex/
+
+   So even for an eligible arXiv paper, inspect.html and the model would stay
+   local. The repository is deliberately PDFs plus small JSON.
+
+WHAT THIS MEANS FOR THE DRILL OUTPUT
+------------------------------------------------------------------------------
+The 490 MB is local-only and that is the intended end state, not a gap. If any
+of it is to be shared, the route is the one the ten published documents already
+use: copy the specific artefacts into pdfdrill.github.io/reports/<bibkey>/,
+where the pages session's allowlist admits exactly report.pdf, report.ink.json,
+inspect.html, compare.html and <bibkey>.md — and where a Z-Library book would
+be a licensing decision for the user, not a mechanical one for me.
+
+I am not proposing that. Four of these five are in-copyright books.
+
+NO INK DATA EXISTS
+------------------------------------------------------------------------------
+No report.ink.json, .MISPAIRED or .REFUSED for any of the five. Their reports
+were built without residuals, so each currently carries the out/180 note:
+
+   "Ink comparison not available for this document — no residual measurement
+    has been run for it."
+
+which is the truthful one of the two states, and correct as it stands. Task
+193 produces that measurement; 194 rebuilds the reports with it.
+
+REPO STATE
+   ~/MX/PDFDRILL   clean, HEAD 3159aa9, pushed and verified against origin.
+   ~/pdfdrill-library  clean, HEAD ecd7f1a, nothing staged, nothing to push.
