@@ -1,0 +1,112 @@
+202 — annotated_math added to the vision selector
+==============================================================================
+THE SCHEMA ENTRY
+------------------------------------------------------------------------------
+Selector enum (src/pdfdrill/openai_vision.py, DEFAULT_PROMPT):
+
+   "selector": "text|handwriting|table|math|annotated_math|chemical_equation|
+                chemical_structure|commutative_diagram|gnuplot|tikzpicture|
+                tensor|diagram|chart|photo|logo|empty"
+
+TWO fields, and this is the only selector that has two:
+
+   "annotated_math":    "the mathematics ONLY - the delimiter pair and its
+                         contents, e.g. \left[\begin{array}{ccc}...\end{array}\right]"
+   "annotation_overlay":"tikzpicture BODY drawing only what lies OUTSIDE the
+                         delimiters - arrows, braces, labels - positioned
+                         relative to the node named (M)"
+
+Classification rule:
+
+   - "annotated_math" - mathematics inside a DELIMITER PAIR (brackets,
+     parentheses, braces, bars) with text, arrows, braces or labels positioned
+     OUTSIDE that pair: row-operation arrows beside a matrix, an underbrace
+     naming a block, "n columns" over a bracket, a label pointing at one entry.
+     Fill BOTH fields, never one: "annotated_math" with the delimiter pair and
+     its contents alone, and "annotation_overlay" with tikzpicture body code
+     for everything outside it, positioned relative to a node called (M) which
+     will contain the mathematics. Do NOT copy the annotation into the array -
+     an arrow or a word inside a cell is the failure this selector exists to
+     prevent.
+
+Disambiguation, because a new class is only useful if its neighbours are named:
+
+   ANNOTATION DISAMBIGUATION: a matrix or aligned block with NOTHING outside
+   its delimiters is "math", not "annotated_math". A drawing whose main content
+   is lines and nodes rather than a delimited expression is "tikzpicture".
+   Choose "annotated_math" only when BOTH are present: real mathematics inside
+   delimiters, AND marks outside them.
+
+Structured-output schema (_SCHEMA.properties) gains both string fields, so the
+model can be held to them by the API rather than by the prompt alone.
+
+WHY BOTH, AND NOT ONE
+------------------------------------------------------------------------------
+Every other selector fills one field and `result_to_latex` returns one string.
+This class cannot work that way, because the defining property is that the
+annotation is NOT part of the expression:
+
+   the array alone      loses the arrows
+   the overlay alone    loses the mathematics
+   both merged into one array is the FAILURE ITSELF
+
+That third case is not hypothetical. out/189 classified a real defect in
+Introduction to Linear and Matrix Algebra p103, where MathPix had read a
+row-operation arrow INTO a matrix cell:
+
+   0 & 0 & \uparrow-1 & 1 & 0
+
+A pointer annotation from the page, sitting in the third column of a
+five-column matrix. That is exactly what this selector is for, and it is why
+the rule says "Do NOT copy the annotation into the array" in those words.
+
+THE COMPOSITION
+------------------------------------------------------------------------------
+`compose_annotated_math(maths, overlay)` returns ONE snippet holding both. The
+mathematics becomes a TikZ node named M; the overlay draws around it:
+
+   \begin{tikzpicture}[baseline=(M.base)]
+   \node[inner sep=1pt] (M) {$\left[\begin{array}{ccc} 1 & 0 & 2 \\
+                                    0 & 1 & 3 \\ 0 & 0 & 1 \end{array}\right]$};
+   \draw[->] (M.east) -- ++(1.4,0) node[right] {$R_3-2R_2$};
+   \draw[decorate,decoration={brace,mirror}] (M.south west) -- (M.south east)
+        node[midway,below=4pt] {3 columns};
+   \end{tikzpicture}
+
+Three properties worth stating:
+
+   * It begins with \begin{tikzpicture}, which `svg.is_latex_graphic` already
+     recognises — so it renders by the existing TikZ→SVG route with no new
+     plumbing. Verified: is_latex_graphic() returns True.
+   * A model that returns a COMPLETE tikzpicture in the overlay field has it
+     unwrapped, so one picture is never nested inside another.
+   * With no overlay the maths is returned bare. A node with nothing drawn
+     around it would be a tikzpicture pretending to be an annotation, and it
+     would route a plain matrix down the graphics path for no reason.
+
+VERIFIED BY COMPILING, NOT BY READING
+------------------------------------------------------------------------------
+The example above, through xelatex:
+
+   compiles : yes
+   renders  : 435 x 178 px at 200 dpi
+   text     : "1 0  0 1 0 0  2 3  1 3 columns R3 − 2R2"
+
+Both halves are in the output — the matrix entries AND both annotations. That
+is the whole claim of the class, and it is checked on the rendered artefact
+rather than on the source.
+
+TESTS
+   11 in tests/test_annotated_math.py: the selector reaches the model; both
+   fields are in the structured schema; the rule forbids folding the
+   annotation into the array; composition keeps both parts; the overlay's node
+   reference resolves; a full tikzpicture is unwrapped rather than nested; no
+   overlay returns bare maths; the composed snippet routes by the existing
+   TikZ path; and plain "math" is untouched by the new branch.
+
+   Suite 2,336 -> 2,347.
+
+NOT DONE HERE
+   No model has been run against this selector yet — 202 asked for the schema
+   entry. 205 is where it meets real figures, and the graphbook's author TikZ
+   is the ground truth that makes that a measurement rather than an opinion.

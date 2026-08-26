@@ -31,10 +31,12 @@ DEFAULT_MODEL = "gpt-4o-2024-08-06"
 DEFAULT_PROMPT = """You are given a base64-encoded image crop that an OCR service could NOT resolve and left as a raw image. Identify what it contains and return a JSON object with this structure:
 
 {
-  "selector": "text|handwriting|table|math|chemical_equation|chemical_structure|commutative_diagram|gnuplot|tikzpicture|tensor|diagram|chart|photo|logo|empty",
+  "selector": "text|handwriting|table|math|annotated_math|chemical_equation|chemical_structure|commutative_diagram|gnuplot|tikzpicture|tensor|diagram|chart|photo|logo|empty",
   "text": "verbatim transcription of printed OR handwritten text",
   "table": "LaTeX tabular for a data table",
   "math": "LaTeX math expression",
+  "annotated_math": "the mathematics ONLY - the delimiter pair and its contents, e.g. \\\\left[\\\\begin{array}{ccc}...\\\\end{array}\\\\right]",
+  "annotation_overlay": "tikzpicture BODY drawing only what lies OUTSIDE the delimiters - arrows, braces, labels - positioned relative to the node named (M)",
   "mhchem": "mhchem \\\\ce{...} expression for a chemical formula/equation",
   "chemfig": "chemfig LaTeX code for a 2D molecular structure or reaction scheme",
   "commutative_diagram": "tikz-cd code",
@@ -50,6 +52,7 @@ CLASSIFICATION RULES — fill ONLY the field named by selector.
 - "handwriting" - cursive or hand-printed writing. Transcribe your best reading into "text".
 - "table" - rows/columns of text or numbers. Fill "table" with a \\begin{tabular}...\\end{tabular} reproducing every visible cell, row by row.
 - "math" - a math expression. Fill "math" with LaTeX in $$ delimiters.
+- "annotated_math" - mathematics inside a DELIMITER PAIR (brackets, parentheses, braces, bars) with text, arrows, braces or labels positioned OUTSIDE that pair: row-operation arrows beside a matrix, an underbrace naming a block, "n columns" over a bracket, a label pointing at one entry. Fill BOTH fields, never one: "annotated_math" with the delimiter pair and its contents alone, and "annotation_overlay" with tikzpicture body code for everything outside it, positioned relative to a node called (M) which will contain the mathematics. Do NOT copy the annotation into the array - an arrow or a word inside a cell is the failure this selector exists to prevent.
 - "chemical_equation" - a chemical formula, ion, isotope, or reaction equation written as TEXT on one line (e.g. 2H2 + O2 -> 2H2O, SO4^2-, ^{227}_{90}Th, CrO4^2- <=> Cr2O7^2-). Fill "mhchem" with one \\ce{...} expression using mhchem v4 syntax: digits become subscripts automatically, charges as ^2- / ^+, arrows as ->, <-, <=>, states as (s)/(aq)/(g), precipitate v, gas ^, reaction conditions above arrows as ->[\\text{...}].
 - "chemical_structure" - a DRAWN 2D molecular structure: skeletal/bond-line formula, ring system, Lewis structure, or a reaction scheme whose participants are drawn structures. Fill "chemfig" with chemfig code: bonds - = ~ and angle bonds like -[:30]; rings as *6(...) (e.g. benzene *6(-=-=-=)); branches in parentheses; charges as \\oplus/\\ominus or ^{+}/^{-} in atom labels; Lewis electron pairs via \\charge/\\Lewis. For a multi-structure reaction scheme wrap the whole thing in \\schemestart ... \\schemestop and connect structures with \\arrow (reagents above the arrow as \\arrow{->[reagent]}). Output only body code (no preamble, no \\documentclass).
 - "commutative_diagram" - fill "commutative_diagram" with tikz-cd code.
@@ -58,6 +61,8 @@ CLASSIFICATION RULES — fill ONLY the field named by selector.
 - "tensor" - tensor network diagram. Fill "tensor".
 - "diagram" / "chart" / "photo" / "logo" - a picture with no transcribable text. Fill "description".
 - "empty" - ONLY for a genuinely blank/featureless area.
+
+ANNOTATION DISAMBIGUATION: a matrix or aligned block with NOTHING outside its delimiters is "math", not "annotated_math". A drawing whose main content is lines and nodes rather than a delimited expression is "tikzpicture". Choose "annotated_math" only when BOTH are present: real mathematics inside delimiters, AND marks outside them.
 
 CHEMISTRY DISAMBIGUATION: element symbols with stoichiometric subscripts, charges, or reaction arrows = "chemical_equation" (NOT "math"); any drawing with bond lines, rings, or wedge/dash bonds = "chemical_structure" (NOT "diagram" or "tikzpicture"). A subscripted variable like x_2 with no element symbols stays "math".
 
@@ -167,6 +172,8 @@ _SCHEMA = {
             "text": {"type": "string"},
             "table": {"type": "string"},
             "math": {"type": "string"},
+            "annotated_math": {"type": "string"},
+            "annotation_overlay": {"type": "string"},
             "mhchem": {"type": "string"},
             "chemfig": {"type": "string"},
             "commutative_diagram": {"type": "string"},
@@ -255,6 +262,7 @@ _FIELD_BY_SELECTOR = {
     "handwriting": "text",
     "table": "table",
     "math": "math",
+    "annotated_math": "annotated_math",
     "chemical_equation": "mhchem",
     "chemical_structure": "chemfig",
     "commutative_diagram": "commutative_diagram",
@@ -314,6 +322,40 @@ def _normalize_chemfig(code: str) -> str:
     return "\\chemfig{" + code + "}"
 
 
+def compose_annotated_math(maths: str, overlay: str) -> str:
+    """One snippet carrying BOTH the mathematics and the marks outside it.
+
+    Every other selector fills one field and returns one string. This one
+    cannot: the whole point of the class is that the annotation is NOT part of
+    the expression. Returning the array alone loses the arrows; returning the
+    overlay alone loses the mathematics; and merging them into one array is the
+    failure being prevented — out/189 found a row-reduction where MathPix had
+    read the annotation INTO a cell, giving `0 & 0 & \\uparrow-1 & 1 & 0`.
+
+    So the two are COMPOSED, not chosen between: the mathematics becomes a
+    TikZ node called `M`, and the overlay draws around it. The result begins
+    with \\begin{tikzpicture}, which is what svg.is_latex_graphic already
+    recognises, so it renders by the existing TikZ route with no new plumbing.
+
+    With no overlay the maths is returned unwrapped — a node with nothing
+    drawn around it would be a tikzpicture pretending to be an annotation.
+    """
+    maths = (maths or "").strip().strip("$").strip()
+    overlay = (overlay or "").strip()
+    if not maths:
+        return overlay
+    if not overlay:
+        return maths
+    # a full tikzpicture in the overlay field: take its body, keep one picture
+    m = re.search(r"\\begin\{tikzpicture\}(?:\[[^]]*\])?(.*)\\end\{tikzpicture\}",
+                  overlay, re.S)
+    if m:
+        overlay = m.group(1).strip()
+    return ("\\begin{tikzpicture}[baseline=(M.base)]\n"
+            "\\node[inner sep=1pt] (M) {$" + maths + "$};\n"
+            + overlay + "\n\\end{tikzpicture}")
+
+
 def result_to_latex(result: dict[str, Any]) -> tuple[str, str]:
     """Return (selector, latex_or_code) from a vision result.
 
@@ -326,6 +368,9 @@ def result_to_latex(result: dict[str, Any]) -> tuple[str, str]:
     selector = (result.get("selector") or "").strip()
     field = _FIELD_BY_SELECTOR.get(selector)
     code = (result.get(field) or "").strip() if field else ""
+    if selector == "annotated_math":
+        return selector, compose_annotated_math(
+            code, (result.get("annotation_overlay") or "").strip())
     if selector == "math":
         code = code.strip("$").strip()
     elif selector == "chemical_equation":
