@@ -13251,7 +13251,8 @@ def cmd_reporttex(pdf: Path, paper: str = "a3", landscape: bool = True,
                   min_conf: float | None = None, max_conf: float | None = None,
                   types: str | None = None, form: bool = False,
                   ink: str | None = None, legend: bool = True,
-                  refined: bool = False) -> str:
+                  refined: bool = False,
+                  prefer_refined: bool = False) -> str:
     """LaTeX formula report (report.tex): every EQ/FO/TAB identifier with
     page, escaped source, rendered math, and the MathPix scan crop at its
     exact original physical size; the tex.zip's unrecovered image regions
@@ -13376,7 +13377,7 @@ def cmd_reporttex(pdf: Path, paper: str = "a3", landscape: bool = True,
                         landscape=landscape, px2mm=px2mm,
                         min_conf=min_conf, max_conf=max_conf, types=want,
                         form=form, ink=ink_map, legend_on=legend,
-                        ink_state=ink_state)
+                        ink_state=ink_state, prefer_refined=prefer_refined)
     sc.set_evidence("reporttex_path",
                     str(Path(r["out"]).relative_to(pdf.parent)))
     lines_prefix = []

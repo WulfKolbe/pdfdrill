@@ -95,6 +95,25 @@ def code_listing_tiddlers(listings, bibkey: str) -> list[dict]:
     return out
 
 
+def _refined_fields(t: dict, obj) -> None:
+    """233 — carry a VERIFIED refinement onto the tiddler as evidence.
+
+    `latex` is not touched. The tiddler array stays a faithful projection of
+    what MathPix said, and gains the fields a consumer needs to decide for
+    itself. The report is the projector that chooses; this is what it chooses
+    FROM. Emitting the choice here instead would have made every consumer of
+    the array inherit a decision it never asked for.
+    """
+    from pdfdrill.refine import chosen_latex
+    value, ev = chosen_latex(obj)
+    if not ev:
+        return
+    t["latex_refined"] = value
+    t["refined_basis"] = ev.get("basis", "")
+    t["refined_verified_by"] = ev.get("verified_by", "")
+    t["refined_author"] = ev.get("author", "")
+
+
 def math_titles(doc, bibkey: str) -> dict:
     """`{object_id: "<bibkey>_FO0007" | "<bibkey>_EQ0003"}` for every math object.
 
@@ -657,6 +676,7 @@ class TiddlyWikiProjector(BaseProjector):
             # reader) should not have to open the model to find it.
             if f.props.get("spoken"):
                 t["spoken"] = f.props["spoken"]
+            _refined_fields(t, f)
             out.append(t)
 
         # Equations
@@ -701,6 +721,7 @@ class TiddlyWikiProjector(BaseProjector):
                     t[f"latex_{r.provenance}"] = r.props.get("latex", "")
                     if r.score is not None:
                         t[f"score_{r.provenance}"] = str(r.score)
+            _refined_fields(t, e)
             out.append(t)
 
         # Pictures

@@ -1,0 +1,129 @@
+233 — the consumer for latex_refined
+==============================================================================
+
+ANSWERS
+------------------------------------------------------------------------------
+                                                   pages  refined  glyphs
+   Geometrodynamics (Mielke)                         494        3       0
+   Introduction to Graph and Hypergraph Theory       315        3       0
+   Introduction to Linear and Matrix Algebra         794        8       0
+   Numerical Linear Algebra (Lyche)                  593        8       0
+   Lie Groups, Physics and Geometry (Gilmore)        739        0       0
+   2010.14265                                         11        0       0
+   An Invitation to Applied Category Theory          680        0       0
+   OMDoc 1.2 (Kohlhase)                               98        0       0
+   Seven Sketches in Composability                   679        0       0
+   0707.4470                                          17        1       0
+   Geometric/Algebraic/Topological Methods (QFT)     733        0       0
+   ------------------------------------------------------------------
+   TOTAL                                            5,153       23       0
+
+   **23 rows across 5 of the eleven documents project from a refinement.**
+   **0707.4470 drops ZERO glyphs.**
+   **All eleven pass report_tex.ink_measurable — the 215 handover list has
+     no refusal left.**
+
+Twenty-two of the 23 were verified by INK (out/216's accepted proposals, sitting
+recorded and unused since); one by the author's SOURCE (out/232's \mathcal{J}).
+Corpus-wide there are 33 verified refinements; the ten in 0902.0431 are outside
+the eleven and are unaffected by this run.
+
+HOW IT CHOOSES, AND WHAT IT REFUSES TO CHOOSE
+------------------------------------------------------------------------------
+`refine.chosen_latex(obj)` returns the value a projection should show and the
+evidence behind it. It prefers the refinement only when BOTH exist:
+
+   props["latex_refined"]                        the twin value, and
+   a provenance="change" realization on the      the evidence, carrying
+   same object with verified_by set AND          verified_by, basis, author
+   vouching for that same value
+
+The prop alone is not enough. A prop can be written by anything, and out/232's
+whole point is that the recorded value is worth projecting only because
+something checked it — a refinement whose evidence has gone is not a
+refinement, it is an assertion. Three tests hold the three ways that can fail:
+prop with no realization, realization with no verified_by, and a realization
+that vouches for a DIFFERENT value than the prop holds.
+
+THE MODEL DOES NOT CHANGE
+------------------------------------------------------------------------------
+   props["latex"]          \mathscr{g}    still, after every run above
+   props["latex_refined"]  \mathcal{J}
+
+The choice is made at read time, so the same model projects either way and the
+default projection is byte-identical to what it was. Measured, not asserted:
+built both ways from one tiddler array, 0707.4470's two report.tex files differ
+by exactly **five lines** — the three-line page note, and the one row, removed
+and re-added. Nothing else in 3,900 lines moves.
+
+WHERE THE EVIDENCE LIVES AND WHERE THE CHOICE IS MADE
+------------------------------------------------------------------------------
+The tiddler array now CARRIES the refinement (latex_refined, refined_basis,
+refined_verified_by, refined_author) and does not act on it: `latex` is still
+what MathPix said. Baking the choice in there would have made every consumer of
+the array — TiddlyWiki, the compare table, anything downstream — inherit a
+decision it never asked for. The report is the projector that chooses, and the
+tiddler is what it chooses from.
+
+WHAT THE PAGE SAYS
+------------------------------------------------------------------------------
+At the top, before the table:
+
+   N rows show a REFINEMENT below, not the OCR reading: 22 verified against
+   the ink, 1 verified against the source. Each is marked [refined] beside its
+   identifier. The model is unchanged — the original reading is still what
+   `latex` holds; this projection chose the refinement for them. Rows: …
+
+and on each such row, in the IDENTIFIER column:
+
+   \ident{0707.4470_FO0175}~{\tiny\textbf{[refined: source]}}
+
+The identifier column, deliberately — beside \lowconf and for the same reason
+(out/064, HANDOVER rule 16). The Source, Rendered and Scan columns stay
+byte-identical to what they would otherwise have been, so a per-column ink
+probe still works and an unchanged column remains a free control. A reader must
+be able to see that a row is not what MathPix said WITHOUT the row's own pixels
+changing to tell them. A test asserts the diff is confined to that cell.
+
+OFF BY DEFAULT
+------------------------------------------------------------------------------
+`reporttex --prefer-refined`. Not the default, because the report is the
+instrument the ink residual measures, and the two builds answer different
+questions:
+
+   default          how close is MATHPIX'S READING to the scan
+   --prefer-refined how close is the MODEL'S BEST VALUE to the scan
+
+Both are legitimate and the page names which one it is. Making it the default
+would have silently changed what 33 rows in 6 documents mean to an instrument
+that compares them against a scan, without anyone asking.
+
+A NEAR MISS: THE FIRST RUN REPORTED ZERO
+------------------------------------------------------------------------------
+The first `reporttex --prefer-refined` on 0707.4470 marked no rows and still
+dropped the glyph, which reads exactly like "the consumer does not work".
+
+It did work. `_tiddlers_stale` compares MTIMES against the model, so the array
+cached during out/232 — projected before this change existed — was newer than
+the model and was not rebuilt. A code change to a projector does not invalidate
+its cached output. `pdfdrill tiddlers` re-projects unconditionally and the row
+appeared.
+
+Worth recording as an environment fact rather than a fix: every projector in
+this repo caches on mtime, so after ANY projector change the cached artefact is
+stale in a way nothing detects. The batch above runs `tiddlers` before
+`reporttex` for exactly this reason.
+
+WHAT THIS CLOSES
+------------------------------------------------------------------------------
+out/232 ended: "the loop can accept and record repairs that nothing ever uses.
+out/216's 27 acceptances wait in the same state — accepted, measured, recorded,
+and read by nothing."
+
+Twenty-two of those now reach a page. The loop's output is no longer only
+evidence; there is a projection that acts on it, says so, and leaves the model
+alone. And 0707.4470 — refused for measurement since out/213 found it, still
+refused after out/230 and out/232 recorded the repair — is measurable.
+
+   tests/test_prefer_refined.py   10 tests
+   suite 2,399 -> 2,410

@@ -1487,6 +1487,14 @@ commands:
       bullet per equation row (with --ink, the residual code as selectable
       text). No AcroForm field: 157 established that nothing in the pipeline
       ever re-filled one'
+  - name: prefer_refined
+    flag: --prefer-refined
+    type: bool
+    help: 'project each row from a RECORDED, VERIFIED refinement where one
+      exists (refine''s provenance="change" realization) instead of the OCR
+      reading. The model is not changed — `latex` still holds what MathPix
+      said; the projection chooses. Every such row is marked [refined: basis]
+      beside its identifier and the page states how many and on what basis'
   - name: refined
     flag: --refined
     type: flag

@@ -1074,7 +1074,8 @@ def _do_reporttex(args):
     ink, args = _opt(args, "--ink")
     pdf_args = [a for a in args if a not in ("--compile", "--no-images",
                                              "--portrait", "--form",
-                                             "--no-legend", "--refined")]
+                                             "--no-legend", "--refined",
+                                             "--prefer-refined")]
     return cmd_reporttex(_pdf(pdf_args), paper=paper or "a3",
                          landscape="--portrait" not in args,
                          compile_pdf="--compile" in args,
@@ -1083,7 +1084,8 @@ def _do_reporttex(args):
                          max_conf=float(hi) if hi is not None else None,
                          types=types, form="--form" in args, ink=ink,
                          legend="--no-legend" not in args,
-                         refined="--refined" in args)
+                         refined="--refined" in args,
+                         prefer_refined="--prefer-refined" in args)
 
 
 def _do_report(args):

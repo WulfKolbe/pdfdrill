@@ -70,7 +70,28 @@ def first_pages(tiddlers: list[dict], bibkey: str) -> dict[str, str]:
     return first
 
 
-def rows_for(tiddlers, bibkey):
+def refined_map(tiddlers) -> dict:
+    """{title: {basis, verified_by, author, refined}} for VERIFIED refinements.
+
+    233. The tiddler array carries these as evidence and does not act on them;
+    choosing is this projector's job, which is why the map is built here and
+    not baked into `latex` upstream.
+    """
+    out = {}
+    for t in tiddlers:
+        val = t.get("latex_refined")
+        if val and t.get("refined_verified_by"):
+            out[t.get("title", "")] = {
+                "refined": val,
+                "basis": t.get("refined_basis", ""),
+                "verified_by": t.get("refined_verified_by", ""),
+                "author": t.get("refined_author", ""),
+                "original": t.get("latex") or "",
+            }
+    return out
+
+
+def rows_for(tiddlers, bibkey, refined=None):
     fo, eq, tab, dia = [], [], [], []
     fpage = first_pages(tiddlers, bibkey)
     for t in tiddlers:
@@ -81,6 +102,9 @@ def rows_for(tiddlers, bibkey):
             continue
         kind = m.group(1)
         latex = t.get("latex") or t.get("latex_code") or ""
+        if refined and title in refined:
+            # the whole of the change: one substitution, at read time
+            latex = refined[title]["refined"]
         page = t.get("page") or fpage.get(title, "")
         dims = t.get("width", ""), t.get("height", "")
         if kind in ("FO", "FOX"):
@@ -632,15 +656,54 @@ def conf_cell(conf) -> str:
     return "\\confcell{%s}{%.3f}" % (band, v)
 
 
+#: 233 — the page states what it projected and on what basis. A report that
+#: silently showed a corrected value would answer "what does this document
+#: say" while appearing to answer "what did the OCR read", and those are the
+#: two questions this report exists to keep apart.
+def refined_note(refined: dict) -> str:
+    if not refined:
+        return ""
+    by = {}
+    for info in refined.values():
+        k = info.get("basis") or info.get("verified_by") or "?"
+        by[k] = by.get(k, 0) + 1
+    how = ", ".join("%d verified against the %s" % (v, k)
+                    for k, v in sorted(by.items()))
+    ids = ", ".join(sorted(refined)[:6]) + (" …" if len(refined) > 6 else "")
+    n = len(refined)
+    text = ("%d row%s a REFINEMENT below, not the OCR reading: %s. Each is "
+            "marked [refined] beside its identifier. The model is unchanged — "
+            "the original reading is still what `latex` holds; this projection "
+            "chose the refinement for %s. Rows: %s"
+            % (n, " shows" if n == 1 else "s show", how,
+               "it" if n == 1 else "them", ids))
+    return ("\\begin{quote}\\small\\itshape\n%s\\end{quote}\n\\normalsize\n"
+            % esc_text(text))
+
+
+#: 233 — a row whose value came from a refinement says so IN THE IDENTIFIER
+#: column, beside \lowconf and for the same reason (out/064, HANDOVER rule 16):
+#: the Source, Rendered and Scan columns stay byte-identical to what they would
+#: have been, so a per-column ink probe still works and an unchanged column
+#: remains a free control. A reader must be able to see that this row is not
+#: what MathPix said without the row's own pixels changing to tell them.
+def refined_flag(info) -> str:
+    if not info:
+        return ""
+    return ("~{\\tiny\\textbf{[refined: %s]}}"
+            % esc_text(info.get("basis") or info.get("verified_by") or "?"))
+
+
 def row(title, latex, page, extra="", image=None, punct="", conf="",
-        form=False, residual="inkUnmeasured", code="") -> str:
+        form=False, residual="inkUnmeasured", code="", refined=None) -> str:
     # identifier and equation number are machine keys, not reading
     # matter: at \tiny they stop crowding the 20mm column (and stop
     # overprinting the Page column, inkdrill P16's fourth pass).
-    ident = "\\ident{%s}%s%s" % (breakable_ident(title),
-                                 ("~\\eqnum{%s}" % esc_text(extra))
-                                 if extra else "",
-                                 conf_flag(conf))
+    ident = "\\ident{%s}%s%s%s" % (breakable_ident(title),
+                                   ("~\\eqnum{%s}" % esc_text(extra))
+                                   if extra else "",
+                                   conf_flag(conf),
+                                   refined_flag(refined))
     src = "{\\ttfamily\\footnotesize %s}" % esc_text(latex) if latex else "---"
     safe = renderable(latex) if latex else ""
     # 025: the mark is set BESIDE the math, never inside it — the same
@@ -1035,7 +1098,7 @@ def build_report(tiddlers_path: Path, out: Path | None = None,
                  min_conf: float | None = None, max_conf: float | None = None,
                  types: "set[str] | None" = None, form: bool = False,
                  ink: "dict | None" = None, legend_on: bool = True,
-                 ink_state: str = "") -> dict:
+                 ink_state: str = "", prefer_refined: bool = False) -> dict:
     """Generate report.tex; returns counts {equations, formulas, tables,
     unrecovered, out}.
 
@@ -1047,7 +1110,8 @@ def build_report(tiddlers_path: Path, out: Path | None = None,
     path = Path(tiddlers_path)
     tiddlers = json.loads(path.read_text())
     bibkey = path.name.replace(".tiddlers.json", "")
-    fo, eq, tab, dia = rows_for(tiddlers, bibkey)
+    refined = refined_map(tiddlers) if prefer_refined else {}
+    fo, eq, tab, dia = rows_for(tiddlers, bibkey, refined)
     if types is not None:
         if "equation" not in types: eq = []
         if "formula" not in types: fo = []
@@ -1093,6 +1157,7 @@ def build_report(tiddlers_path: Path, out: Path | None = None,
     # a footer they reach after reading the table as if it were complete.
     if not form:
         out_parts.append(unmeasured_note(ink_state or "not_run"))
+    out_parts.append(refined_note(refined))
     out_parts.append(table_open("Display equations", eq_widths, form, legend_on))
     # 099: doubted rows first. Sorting by confidence ascending puts what
     # MathPix is least sure of at the top of the table, where a reader
@@ -1105,7 +1170,8 @@ def build_report(tiddlers_path: Path, out: Path | None = None,
         out_parts.append(row(title, latex, page, extra=num, image=img,
                              punct=punct, conf=conf, form=form,
                              residual=residual_colour(title, ink),
-                             code=((ink or {}).get(title) or {}).get("code", "")))
+                             code=((ink or {}).get(title) or {}).get("code", ""),
+                             refined=refined.get(title)))
     out_parts.append("\\end{longtable}\n")
 
     # every section starts on a FRESH page: a page mixing the 5-column
@@ -1115,7 +1181,8 @@ def build_report(tiddlers_path: Path, out: Path | None = None,
     out_parts.append(table_open("Inline formulas (first occurrence)",
                                 fo_widths, form, legend_on))
     for title, latex, page, punct in fo:
-        out_parts.append(row(title, latex, page, punct=punct))
+        out_parts.append(row(title, latex, page, punct=punct,
+                             refined=refined.get(title)))
     out_parts.append("\\end{longtable}\n")
 
     if tab:

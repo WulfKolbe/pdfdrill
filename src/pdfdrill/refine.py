@@ -877,6 +877,48 @@ def record_one(doc, obj_id: str, prop: dict) -> bool:
     return True
 
 
+def verified_change(obj):
+    """The provenance="change" realization behind this object's refinement.
+
+    None unless BOTH exist: the twin prop and a change realization that says
+    what verified it. The prop alone is not enough — a prop can be written by
+    anything, and out/232's whole point is that the recorded value is only
+    worth projecting because something checked it. A refinement whose evidence
+    has gone is not a refinement, it is an assertion.
+    """
+    props = getattr(obj, "props", None) or {}
+    if not props.get(REFINED_FIELD):
+        return None
+    for r in getattr(obj, "realizations", None) or []:
+        if getattr(r, "provenance", None) != "change":
+            continue
+        rp = getattr(r, "props", None) or {}
+        if rp.get("verified_by") and rp.get(REFINED_FIELD) == props[REFINED_FIELD]:
+            return r
+    return None
+
+
+def chosen_latex(obj) -> "tuple[str, dict]":
+    """(the value a projection should show, the evidence behind it).
+
+    The evidence dict is empty when the original is being shown, which is the
+    normal case. The MODEL IS NOT TOUCHED: this is a read-time choice, so the
+    same model projects either way and `latex` stays exactly what MathPix said.
+    """
+    props = getattr(obj, "props", None) or {}
+    r = verified_change(obj)
+    if r is None:
+        return props.get("latex", ""), {}
+    rp = r.props or {}
+    return props[REFINED_FIELD], {
+        "original": props.get("latex", ""),
+        "basis": rp.get("basis") or "",
+        "verified_by": rp.get("verified_by") or "",
+        "author": rp.get("author") or "",
+        "evidence": rp.get("evidence") or {},
+    }
+
+
 def identifiers(doc, bibkey: str) -> dict:
     """{object id: "<bibkey>_EQ0515"} — the projector's OWN numbering.
 
