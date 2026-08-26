@@ -14003,6 +14003,17 @@ def cmd_refine(pdf: Path, max_conf: float = 0.5, limit: int | None = None,
                 continue
             obj = doc.objects[oid]
             rec = index.get(oid) or {"id": oid}
+            # 232 — a re-request is a NEW proposal for that row, so every field
+            # describing a PREVIOUS outcome has to go. Leaving `recorded` in
+            # place made the record stage say "nothing accepted to record"
+            # about a proposal it had just accepted, because it had recorded
+            # the older version of it. Stale outcome fields make a fresh run
+            # look like it did something it did not.
+            for stale in ("recorded", "verified_by", "evidence", "reason",
+                          "reason_detail", "record_error", "propose_error",
+                          "measure_error", "validate_error",
+                          "ink_after", "ink_delta"):
+                rec.pop(stale, None)
             rec.update({
                 "type": obj.type,
                 "identifier": idents.get(oid, ""),
@@ -14218,7 +14229,7 @@ def cmd_refine(pdf: Path, max_conf: float = 0.5, limit: int | None = None,
         # anyone through by asserting a word.
         gold = [p for p in data["proposals"]
                 if p.get("status") == "proposed"
-                and p.get("basis") == _rf.VERIFIED_EPRINT]
+                and p.get("basis") in _rf.SOURCE_BASES]
         gacc = grej = 0
         if gold:
             src, srcname = _rf.author_eprint(pdf)
@@ -14242,7 +14253,8 @@ def cmd_refine(pdf: Path, max_conf: float = 0.5, limit: int | None = None,
                     ev["file"] = srcname
                     ev["author_value"] = val
                     p.update({"status": "accepted",
-                              "verified_by": _rf.VERIFIED_EPRINT,
+                              "verified_by": _rf.VERIFIED_SOURCE,
+                              "basis": _rf.VERIFIED_SOURCE,
                               "evidence": ev, "at": _rf._now()})
                     gacc += 1
                 else:
@@ -14252,7 +14264,7 @@ def cmd_refine(pdf: Path, max_conf: float = 0.5, limit: int | None = None,
                               % (srcname, val, p["proposed"]),
                               "at": _rf._now()})
                     grej += 1
-            out.append(f"accept (e-print): {gacc} verified against the author "
+            out.append(f"accept (source): {gacc} verified against the author "
                        f"source, {grej} rejected")
         todo = [p for p in data["proposals"]
                 if p.get("status") == "proposed" and p.get("ink_after") is not None]

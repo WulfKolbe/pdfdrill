@@ -1,0 +1,96 @@
+232 — the FO0175 repair recorded with basis: source
+==============================================================================
+
+DONE — AND THE CONFIRMATION 232 ASKS FOR DOES NOT HOLD
+------------------------------------------------------------------------------
+The repair is recorded. 0707.4470 still drops one glyph. Those two facts are
+not in tension by accident: they are the same design decision seen from two
+sides, and 232 states both halves of it.
+
+WHAT LANDED
+------------------------------------------------------------------------------
+   0707.4470_FO0175   obj_0c9487434929   page 29   inline Formula
+
+   props["latex"]           \mathscr{g}     NEVER OVERWRITTEN
+   props["latex_refined"]   \mathcal{J}
+
+   one realization, stream=refined, role=latex_candidate, provenance="change"
+     verified_by   source
+     basis         source
+     ink_before / ink_after / ink_delta      None, None, None
+     evidence
+       file            computationalEM.tex
+       author_value    \mathcal{J}
+       source_span     $\mathcal{J}$
+       context_before  "Given a discrete form and dual source form"
+       context_after   "define the discrete Lagrangian form"
+       occurrences     1
+
+`occurrences: 1` is the part that matters. The gate did not take the proposal's
+word: it located this object's surrounding prose in the author's e-print, found
+that context exactly once, and read `$\mathcal{J}$` out of the source itself. A
+second match would have been a refusal, not a coin toss.
+
+WHY THE GLYPH STILL DROPS — MEASURED, NOT ARGUED
+------------------------------------------------------------------------------
+   report.tex   \mathscr{g}  1     \mathcal{J}  0
+   report.log   Missing character  1
+   GLYPHS DROPPED: xelatex discarded 1 character(s) and still wrote a PDF
+
+Nothing downstream reads `latex_refined`. A grep of src/ finds exactly one
+reference outside refine.py and it is the log line that names the field. The
+projectors — tiddlers, report, markdown — all read `latex`, and `latex` is
+untouched **because 232 requires it to be**:
+
+    "The original is never overwritten."
+
+A record that changes no projection cannot change what xelatex sets. So:
+
+   0707.4470 still drops one glyph
+   it is still refused for measurement by the out/221 gate
+   ten of the eleven documents from out/213 are measurable, not eleven
+   the 215 handover list still carries exactly one refusal
+
+The claim that it would clear came from my own out/229, which asserted the
+consequence without rebuilding to check. out/230 measured it and said so; this
+is the second confirmation, on the re-recorded version.
+
+WHAT WOULD ACTUALLY CLEAR IT
+------------------------------------------------------------------------------
+A consumer for `latex_refined`: a projector that prefers a recorded, verified
+refinement over the original where one exists, and says on the page which rows
+it used. That is a layer, with the choice visible rather than silent, and it is
+what turns this loop's output from evidence into effect. Twenty-seven
+acceptances from out/216 are waiting in the same state — accepted, measured,
+recorded, and read by nothing.
+
+It is not built here, and it should not be smuggled into a task whose own
+wording forbids overwriting the original. It is the next task, not this one.
+
+TWO THINGS THIS RE-RUN FIXED
+------------------------------------------------------------------------------
+**A re-request inherited the previous outcome.** Re-ingesting a proposal for a
+row that already had one left `recorded: True` in place, so the record stage
+reported "nothing accepted to record" about a proposal it had just accepted —
+it had recorded the older version. Every field describing a previous outcome
+(recorded, verified_by, evidence, reason, the ink numbers, the per-stage
+errors) is now cleared when a request re-proposes a row. Stale outcome fields
+make a fresh run look like it did something it did not, which is the failure
+class this sequence keeps finding.
+
+**record_one appended instead of replacing.** Recording twice left two
+provenance="change" realizations on one object, and a reader finding both has
+no way to tell which one `latex_refined` came from. It now replaces any
+existing refined realization for that object. Verified: one record on disk
+after two runs.
+
+ON THE NAME
+------------------------------------------------------------------------------
+out/230 shipped this route as `basis: eprint`; 232 names it `source`. Both
+spellings are accepted on input, and both normalise to `source` in what gets
+stored — a request written against either wording routes, and the record has
+one name for one thing. VERIFIED_EPRINT stays resolvable as an alias so out/230
+remains readable.
+
+   tests/test_refine_eprint.py   13 tests (2 new: the alias, and replace-not-append)
+   suite 2,397 -> 2,399

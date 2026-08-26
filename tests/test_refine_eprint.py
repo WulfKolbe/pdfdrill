@@ -138,13 +138,13 @@ def test_record_carries_the_verification_that_actually_ran():
     an instrument that never ran."""
     d = _doc()
     ok = rf.record_one(d, "f1", {
-        "proposed": r"\mathcal{J}", "verified_by": rf.VERIFIED_EPRINT,
-        "basis": "eprint", "evidence": {"file": "computationalEM.tex"},
+        "proposed": r"\mathcal{J}", "verified_by": rf.VERIFIED_SOURCE,
+        "basis": "source", "evidence": {"file": "computationalEM.tex"},
     })
     assert ok
     r = d.objects["f1"].realizations[-1]
     assert r.provenance == "change"
-    assert r.props["verified_by"] == "eprint"
+    assert r.props["verified_by"] == "source"     # 232's name for the route
     assert r.props["evidence"]["file"] == "computationalEM.tex"
     assert r.props["ink_before"] is None      # honestly absent, not fabricated
 
@@ -155,3 +155,28 @@ def test_the_original_value_is_never_overwritten():
                             "verified_by": rf.VERIFIED_EPRINT})
     assert d.objects["f1"].props["latex"] == r"\mathscr{g}"
     assert d.objects["f1"].props[rf.REFINED_FIELD] == r"\mathcal{J}"
+
+
+# ------------------------------------------------------------------- 232 ---
+
+def test_both_spellings_of_the_basis_route_to_the_same_check():
+    """out/230 shipped this route as `eprint`; 232 names it `source`. A request
+    written against either wording must still route, and both must normalise
+    to one name in what gets stored — a record with two names for one thing is
+    a reconciliation problem for whoever reads it later."""
+    assert set(rf.SOURCE_BASES) == {"source", "eprint"}
+    assert rf.VERIFIED_EPRINT == rf.VERIFIED_SOURCE == "source"
+
+
+def test_recording_twice_replaces_rather_than_appends():
+    """A reader finding two provenance="change" records for one value has no
+    way to tell which one the prop came from."""
+    d = _doc()
+    for basis in ("eprint", "source"):
+        rf.record_one(d, "f1", {"proposed": r"\mathcal{J}",
+                                "verified_by": rf.VERIFIED_SOURCE,
+                                "basis": basis})
+    changes = [r for r in d.objects["f1"].realizations
+               if r.provenance == "change"]
+    assert len(changes) == 1
+    assert changes[0].props["basis"] == "source"

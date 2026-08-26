@@ -696,7 +696,14 @@ def validate_one(proposed: str, *, original: str = "",
 # have made the whole loop bypassable by asserting a word.
 
 VERIFIED_INK = "ink"
-VERIFIED_EPRINT = "eprint"
+#: 232 names this route `source` — the author's own source is the evidence.
+#: out/230 shipped it as "eprint"; both spellings are accepted on input so a
+#: request written against either wording still routes, and both normalise to
+#: `source` in what gets recorded. A stored record with two names for one
+#: thing is a reconciliation problem for whoever reads it later.
+VERIFIED_SOURCE = "source"
+SOURCE_BASES = ("source", "eprint")
+VERIFIED_EPRINT = VERIFIED_SOURCE        # out/230 spelling, kept resolvable
 
 #: math spans in either dialect — MathPix writes \(...\), authors write $...$
 _MATH_SPAN = re.compile(r"\$\$.*?\$\$|\$.*?\$|\\\(.*?\\\)|\\\[.*?\\\]", re.S)
@@ -835,6 +842,13 @@ def record_one(doc, obj_id: str, prop: dict) -> bool:
             "refusing to record %s: the proposal does not say what verified "
             "it. A record whose provenance is guessed is worth less than no "
             "record." % obj_id)
+    # 232 — REPLACE, do not append. Re-running record (a corrected basis, a
+    # re-verified proposal) used to leave both realizations on the object, and
+    # a reader finding two `change` records for one value has no way to tell
+    # which one the prop came from.
+    obj.realizations = [r for r in obj.realizations
+                        if not (getattr(r, "stream", None) == REFINED_STREAM
+                                and getattr(r, "role", None) == "latex_candidate")]
     stream = doc.ensure_stream(REFINED_STREAM)
     anchor = stream.append(**{
         "text": prop["proposed"], "object": obj_id,
