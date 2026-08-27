@@ -1,4 +1,3 @@
-2026-08-22T08:14:47Z  /  2026-08-22 10:14:47 +02:00 (Europe/Berlin)  commit a676318
 091 - a compile that drops glyphs must not pass as a success
 ==============================================================================
 
@@ -56,5 +55,3 @@ BOTH LOG FORMATS, WHICH IS THE WHOLE POINT
    pin it, including one asserting a clean log returns None rather than 0:
    callers branch on truthiness, and 0 would read as "checked and clean"
    exactly like "no log found".
-
-end time not recorded (report predates 242)

@@ -1,4 +1,3 @@
-2026-08-23T13:48:02Z  /  2026-08-23 15:48:02 +02:00 (Europe/Berlin)  commit 518c548
 128 — CJK / ideographic-description validator, corpus count
 ========================================================================
 VALIDATOR  report_tex.cjk_defect(latex) -> reason or ""
@@ -105,5 +104,3 @@ compiles with zero dropped glyphs. The unrendered count goes 7 -> 8; that is not
 a regression. A row that is visibly absent can be triaged. A row that renders
 with a character silently missing cannot, and would be measured as if it were
 correct.
-
-end time not recorded (report predates 242)

@@ -1,4 +1,3 @@
-2026-08-21T07:51:49Z  /  2026-08-21 09:51:49 +02:00 (Europe/Berlin)  commit 15d80ea
 048 - three-way table: SLT flagged x ink flagged x confidence flagged
 ==============================================================================
 
@@ -85,5 +84,3 @@ WHAT THE TABLE SAYS
 
    3. USED TOGETHER, the three signals flag 40 of 53 equations, and
       confidence contributes none of them.
-
-end time not recorded (report predates 242)

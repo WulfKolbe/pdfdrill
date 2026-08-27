@@ -1,4 +1,3 @@
-2026-08-25T19:14:41Z  /  2026-08-25 21:14:41 +02:00 (Europe/Berlin)  commit ed87f57
 189 — did the fix remove real defects with the false ones?
 ==============================================================================
 VERDICT: No. 917 of the 918 cleared rows are correct mathematics, verified by
@@ -138,5 +137,3 @@ report quietly widens into a build:
        better than the rule it would extend: compare against the array's OWN
        declared column count. Across 1,868 arrays it produced exactly one
        finding, and that finding was real.
-
-end time not recorded (report predates 242)

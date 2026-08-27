@@ -1,4 +1,3 @@
-2026-08-25T14:20:20Z  /  2026-08-25 16:20:20 +02:00 (Europe/Berlin)  commit 79e1d4c
 178 — the missing control: does the gate accept a known-good repair?
 ==============================================================================
 YES. EQ0515 was accepted, and it reached an EXACT topological match.
@@ -145,5 +144,3 @@ refine.report.pdf regenerated: 20 rows, 5 accepted, 15 rejected, 1 page.
 
 out/174's counts describe the minimax-m3 run alone and remain correct as
 written; this run adds a fifth acceptance from a different author.
-
-end time not recorded (report predates 242)

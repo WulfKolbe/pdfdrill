@@ -1,4 +1,3 @@
-2026-08-25T17:39:08Z  /  2026-08-25 19:39:08 +02:00 (Europe/Berlin)  commit e50aee2
 181 — the legend prints on every report
 ==============================================================================
 SHIPPED
@@ -50,5 +49,3 @@ TESTS
    both states; the absent half is NAMED rather than dropped; the two notes
    are different sentences; and neither note contains lattice, coverage,
    inkdrill, enclosure or 0.015.
-
-end time not recorded (report predates 242)

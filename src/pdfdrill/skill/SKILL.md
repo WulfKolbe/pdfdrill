@@ -604,6 +604,7 @@ _Generated from `commands.yaml` by skillsync. Edit the manifest, not this sectio
 | Command | Returns |
 |---|---|
 | `pdfdrill handover <dir> [--ready-only READY_ONLY] [--json AS_JSON]` | The pages-CLI handover list: one line per DOCUMENT under a directory, KEYED ON FOLDER PATH, with the title carried as a display field only. Asserts at runtime that the row count equals the number of distinct paths and refuses to emit the list otherwise, so a title collapse cannot put one document's short measurement under another's full heading. Enumerates through sidecar.iter_documents (a directory is not a document, and report.pdf is not an input). Each row: path, bibkey, title, pages, equations, residual distribution, refined-row count, and either READY or the checks blocking it. |
+| `pdfdrill inkconvert <pdf> [--force FORCE]` | Convert inkdrill's report.compare.tsv into report.ink.json. The TSV carries NO identifiers, so they come from report.tex positionally, in table order — and two things make that safe, both ASSERTED rather than assumed. The TSV holds one all-zero row per page (the legend footer, whose Rendered and Scan cells are blank because the legend spans all columns); those rows are dropped, because an all-zero pair scores distance 0 and would otherwise be classified CLEAN, an absent reading taking the best class. After dropping them the row count must equal the identifier count exactly, or the command REFUSES rather than letting zip() truncate silently. Reports footers_dropped, display_pages and the class distribution. |
 | `pdfdrill publishready <pdf> [--json AS_JSON]` | Is this document's report fit to publish? The five-item checklist, evaluated on what is on disk: zero dropped glyphs; a report.ink.json that is not superseded by a newer .REFUSED/.MISPAIRED; residual bullets AND the full legend on the page, with a flat single-class distribution refused as a pairing failure rather than a result; report.pdf, the .md, the inspect.html and report.ink.json all present; and the numbers the index row is built from (pages, equations, residual distribution, refined-row count) readable. Every check names what it looked at, and a check that cannot see its input FAILS rather than passing quietly. Prints the handover line for a ready document. |
 
 ### Other
@@ -648,6 +649,6 @@ _Generated from `commands.yaml` by skillsync. Edit the manifest, not this sectio
 <!-- COMMANDS:END -->
 
 <!-- PREFLIGHT-TOKEN:BEGIN -->
-Attestation token — the LAST line of this SKILL. If you can read this, you read the whole file. Run `pdfdrill preflight --ack DRILL-a4f75974` before any build/extract command.
-DRILL-a4f75974
+Attestation token — the LAST line of this SKILL. If you can read this, you read the whole file. Run `pdfdrill preflight --ack DRILL-a0c4a2f4` before any build/extract command.
+DRILL-a0c4a2f4
 <!-- PREFLIGHT-TOKEN:END -->

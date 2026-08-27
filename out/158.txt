@@ -1,4 +1,3 @@
-2026-08-24T12:15:54Z  /  2026-08-24 14:15:54 +02:00 (Europe/Berlin)  commit ef408cb
 158 (revised) — four artefacts per document, reachable by URL
 =============================================================
 
@@ -93,5 +92,3 @@ prose are unchanged.
 
 Published at ecdf11b, deploy green, content-types above measured from the live
 URLs rather than assumed.
-
-end time not recorded (report predates 242)

@@ -1,4 +1,3 @@
-2026-08-22T08:14:47Z  /  2026-08-22 10:14:47 +02:00 (Europe/Berlin)  commit a676318
 090 - making the dropped glyphs stop, and why the asked-for mechanism is inert
 ==============================================================================
 
@@ -88,5 +87,3 @@ WHAT THIS DOES NOT CLAIM
    larger run against 267 affected documents and has not been done here. 091
    is what makes that safe to leave outstanding: any report that still drops
    a glyph now says so instead of passing quietly.
-
-end time not recorded (report predates 242)

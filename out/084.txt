@@ -1,4 +1,3 @@
-2026-08-21T17:17:53Z  /  2026-08-21 19:17:53 +02:00 (Europe/Berlin)  commit 91492e3
 084 - language= across the 426 listings
 ==============================================================================
 
@@ -54,5 +53,3 @@ THE IDENTITY MATRIX
    2009.11564 and arXiv_2009.11564 are the same paper stored twice, so the
    top of that list is 36 listings counted in two places. The concentration
    is real but one document contributes to it twice.
-
-end time not recorded (report predates 242)

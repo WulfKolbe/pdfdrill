@@ -1,4 +1,3 @@
-2026-08-21T11:56:23Z  /  2026-08-21 13:56:23 +02:00 (Europe/Berlin)  commit d2fad63
 075 - deletion of the entries 074 marked UNREAD
 ==============================================================================
 
@@ -60,5 +59,3 @@ REMAINING
    1,763 directories accumulated in roughly five days, and whatever calls
    tempfile.mkdtemp is not removing them. That belongs in HANDOVER as an
    open item rather than being swept again by hand.
-
-end time not recorded (report predates 242)

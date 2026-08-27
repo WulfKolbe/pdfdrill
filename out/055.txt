@@ -1,4 +1,3 @@
-2026-08-21T08:25:22Z  /  2026-08-21 10:25:22 +02:00 (Europe/Berlin)  commit 0ea4161
 055 - every transformation of ~ in LaTeX values, on the ingest and projection paths
 ==============================================================================
 
@@ -101,5 +100,3 @@ COMPARISON PATH - AND THE DEFECT
    NOT FIXED HERE — this task asked for the inventory, and choosing which
    rule wins changes published numbers (out/040, out/041, out/052). The
    choice should be made deliberately, not as a side effect of an audit.
-
-end time not recorded (report predates 242)

@@ -1,4 +1,3 @@
-2026-08-26T11:40:31Z  /  2026-08-26 13:40:31 +02:00 (Europe/Berlin)  commit a19479d
 216 — variant C on the newly drilled books
 ==============================================================================
    82 proposals · 56 measured · 27 accepted · 29 no-improvement
@@ -123,5 +122,3 @@ COST AND GUARDS
    the ink gate fired twice with "scan crop has no ink — nothing to measure
      against" — the blank-reference guard from out/184, refusing to measure
      against an empty reference rather than scoring the emptiest proposal best.
-
-end time not recorded (report predates 242)

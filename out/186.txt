@@ -1,4 +1,3 @@
-2026-08-25T20:06:14Z  /  2026-08-25 22:06:14 +02:00 (Europe/Berlin)  commit 9733614
 186 — the floor of 7, restated against a POOLED measurement
 ==============================================================================
 Superseded version below the line. This head is the pooled result the earlier
@@ -196,5 +195,3 @@ WHAT I RECOMMEND INSTEAD
    And whatever is chosen, K and S should be removed from the legend or given
    a definition a row can actually satisfy. A key that lists two classes
    nothing can earn is not a key, it is a claim.
-
-end time not recorded (report predates 242)

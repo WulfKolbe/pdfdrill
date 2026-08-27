@@ -1,4 +1,3 @@
-2026-08-25T14:11:32Z  /  2026-08-25 16:11:32 +02:00 (Europe/Berlin)  commit 591f658
 177 — what geometry can an inline formula be given?
 ==============================================================================
 ANSWER: A PARENT-LINE BOX, AND NOTHING NARROWER. NO FORMULA-SPECIFIC
@@ -117,5 +116,3 @@ what is true — the line box, flagged as shared where it is shared — rather
 than to synthesise a per-formula rectangle. A shared box labelled shared is
 usable. A synthesised box is indistinguishable from a measured one, and this
 is the third task in a row where that distinction was the whole finding.
-
-end time not recorded (report predates 242)

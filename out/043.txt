@@ -1,4 +1,3 @@
-2026-08-21T07:00:40Z  /  2026-08-21 09:00:40 +02:00 (Europe/Berlin)  commit eb48f76
 043 - MathPix confidence for every math line in bh2
 ==============================================================================
 
@@ -82,5 +81,3 @@ CROSS-CHECK: DOES CONFIDENCE PREDICT THE DEFECTS WE FIND BY OTHER MEANS?
    minutes - MathPix was 99.4% sure of it. Confidence is a useful triage
    signal and NOT a substitute for compiling the equation: the two disagree
    on half the known-bad cases in this book.
-
-end time not recorded (report predates 242)

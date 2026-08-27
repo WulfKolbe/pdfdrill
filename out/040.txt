@@ -1,4 +1,3 @@
-2026-08-21T06:46:30Z  /  2026-08-21 08:46:30 +02:00 (Europe/Berlin)  commit e59e54e
 040 - MathPix LaTeX vs the author's, by SLT edit distance
 ==============================================================================
 
@@ -129,5 +128,3 @@ CORRECTION (2026-08-21) - THE 46.4% WAS INFLATED BY A BROKEN SIGNATURE
    needs an SLT that descends into an aligned block, which mathgold does
    not do today. That is the honest state: 417 of 1,745 pairs in this
    corpus are currently unmeasurable by this metric.
-
-end time not recorded (report predates 242)

@@ -1094,69 +1094,29 @@ def ink_measurable(log_path) -> "tuple[bool, str]":
 #: describes land in the same commit. Naming it `base` rather than `commit` is
 #: the difference between a pointer and a claim; `git log --diff-filter=A --
 #: out/NNN.txt` gives the containing commit whenever anyone wants it.
-#: 242 — Europe/Berlin by NAME, not by whatever zone the machine happens to be
-#: in. ZoneInfo carries the DST rules, so the offset follows the March and
-#: October changes instead of being written down and going wrong on one side of
-#: each. It also disambiguates October's repeated hour: 02:30 +02:00 and
-#: 02:30 +01:00 are different instants and the UTC half is what tells them
-#: apart, which is why both are shown rather than either alone.
+#: 244 — a console report says when it was produced. Berlin local time, and
+#: the offset DERIVED from the zone rather than written down: Europe/Berlin is
+#: +01:00 for half the year and +02:00 for the other half, so a hard-coded one
+#: is wrong on one side of every March and October.
+#:
+#: The abbreviation follows the offset too — MEZ at +01:00, MESZ at +02:00.
+#: Printing "MEZ, +02:00" would be a label contradicting the number beside it,
+#: which is the shape of defect this file keeps recording.
 BERLIN = "Europe/Berlin"
 
 
-def _both(when=None) -> str:
-    """`2026-08-27T08:56:07Z  /  2026-08-27 10:56:07 +02:00 (Europe/Berlin)`"""
+def stamp(when=None) -> str:
+    """`2026-08-27 10:56 (MESZ, +02:00)`"""
     import datetime
     from zoneinfo import ZoneInfo
-    u = (when or datetime.datetime.now(datetime.timezone.utc))
+    u = when or datetime.datetime.now(datetime.timezone.utc)
     if u.tzinfo is None:
         u = u.replace(tzinfo=datetime.timezone.utc)
-    u = u.astimezone(datetime.timezone.utc)
     loc = u.astimezone(ZoneInfo(BERLIN))
     off = loc.strftime("%z")
-    return "%s  /  %s %s:%s (%s)" % (
-        u.strftime("%Y-%m-%dT%H:%M:%SZ"),
-        loc.strftime("%Y-%m-%d %H:%M:%S"), off[:3], off[3:], BERLIN)
-
-
-def provenance_open(when=None, repo: "Path | None" = None) -> str:
-    """The FIRST line: when the report started, and the tree it was written on.
-
-    `commit` is the commit HEAD is at; `+dirty` says the tree differs from it,
-    which is the normal state while a report is being written because the
-    write-up and the change it describes land in the same commit and that hash
-    cannot exist yet. The flag is what keeps naming HEAD honest.
-    """
-    import subprocess
-    root = Path(repo) if repo else Path(__file__).resolve().parents[2]
-
-    def git(*a, default=""):
-        try:
-            r = subprocess.run(("git",) + a, cwd=str(root), capture_output=True,
-                               text=True, timeout=30)
-            return r.stdout.strip() if r.returncode == 0 else default
-        except Exception:
-            return default
-
-    commit = git("rev-parse", "--short", "HEAD", default="unknown")
-    dirty = " +dirty" if git("status", "--porcelain") else ""
-    return "%s  commit %s%s" % (_both(when), commit, dirty)
-
-
-def provenance_close(when=None) -> str:
-    """The LAST line: when the report finished.
-
-    With the first line this gives the duration, which the harness otherwise
-    shows only as a "Worked for 6m 55s" note that does not survive being
-    pasted into anything.
-    """
-    return "%s  end" % _both(when)
-
-
-#: what a report written before 242 can honestly say about its own end. The
-#: finish time was never recorded, and a retrofit that supplied one would be
-#: lying about its own provenance in exactly the way the retrofit rule warns
-#: against.
-NO_END = "end time not recorded (report predates 242)"
+    name = "MESZ" if loc.dst() else "MEZ"
+    return "%s (%s, %s:%s)" % (loc.strftime("%Y-%m-%d %H:%M"), name,
+                               off[:3], off[3:])
 
 
 #: 237 — the build stamp. The measurement build and the reading build write

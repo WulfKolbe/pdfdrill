@@ -1,4 +1,3 @@
-2026-08-24T09:31:20Z  /  2026-08-24 11:31:20 +02:00 (Europe/Berlin)  commit 57d1045
 156 — the confidence square's colour mapping
 ============================================
 
@@ -55,5 +54,3 @@ sitting beside the square it appears to recolour.
 
 That is the same field 155 asks to hide and 157 asks whether anything still
 needs. Removing it removes the cyan.
-
-end time not recorded (report predates 242)

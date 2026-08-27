@@ -1,4 +1,3 @@
-2026-08-24T09:25:48Z  /  2026-08-24 11:25:48 +02:00 (Europe/Berlin)  commit 47f7596
 151 — published
 ===============
 
@@ -71,5 +70,3 @@ SCOPE
 -----
 0902.0431 only, as instructed. The index is a table, so adding documents means
 adding rows; nothing about it assumes a single entry.
-
-end time not recorded (report predates 242)

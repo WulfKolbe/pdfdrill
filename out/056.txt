@@ -1,4 +1,3 @@
-2026-08-21T08:33:47Z  /  2026-08-21 10:33:47 +02:00 (Europe/Berlin)  commit d75a1b7
 056 - the demoted identifiers, grouped by the error that demoted them
 ================================================================================
 
@@ -98,5 +97,3 @@ ON THE 25 WITH NO DEFECT IN THE VALUE
    I have not demonstrated it and will not assert it. Regenerating the
    corpus with the preamble fixed is the cheapest next measurement: if these
    25 survive it, they are a separate defect worth its own task.
-
-end time not recorded (report predates 242)

@@ -1,4 +1,3 @@
-2026-08-26T08:45:25Z  /  2026-08-26 10:45:25 +02:00 (Europe/Berlin)  commit a870d57
 202 — annotated_math added to the vision selector
 ==============================================================================
 THE SCHEMA ENTRY
@@ -111,5 +110,3 @@ NOT DONE HERE
    No model has been run against this selector yet — 202 asked for the schema
    entry. 205 is where it meets real figures, and the graphbook's author TikZ
    is the ground truth that makes that a measurement rather than an opinion.
-
-end time not recorded (report predates 242)

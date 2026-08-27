@@ -1,6 +1,3 @@
-2026-08-21T11:59:59Z  /  2026-08-21 13:59:59 +02:00 (Europe/Berlin)  commit 1110c64
 docs/HANDOVER.md
 
 One page, 87 lines. The previous 395-line HANDOVER — 18 rules learned by defect, plus the environment facts — was MOVED to docs/HANDOVER-RULES.md, not deleted, and is linked from the first line of the new file. Rewriting in place would have destroyed eighteen defect-bought rules to satisfy a length target.
-
-end time not recorded (report predates 242)

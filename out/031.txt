@@ -1,4 +1,3 @@
-2026-08-20T18:26:12Z  /  2026-08-20 20:26:12 +02:00 (Europe/Berlin)  commit a6f19ec
 031 - harnesses in tools/ that can iterate more than one document
 ==============================================================================
 
@@ -58,5 +57,3 @@ METHOD
    iteration over documents (glob/rglob/iterdir/listdir, nargs="*"/"+", argv
    loops). 27 entries in tools/ plus 4 in tools/imageserver/ were considered;
    the 6 above qualify.
-
-end time not recorded (report predates 242)

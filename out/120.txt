@@ -1,4 +1,3 @@
-2026-08-22T20:10:57Z  /  2026-08-22 22:10:57 +02:00 (Europe/Berlin)  commit 0d31879
 120 - confidence distribution after the MathPix run
 ==============================================================================
 
@@ -94,5 +93,3 @@ COST
    confidence cells. The 1,189 excluded were the ones that would have behaved
    like the pilot - a technical drawing that bought a page and yielded zero
    equations.
-
-end time not recorded (report predates 242)

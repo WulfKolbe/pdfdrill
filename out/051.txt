@@ -1,4 +1,3 @@
-2026-08-21T07:59:07Z  /  2026-08-21 09:59:07 +02:00 (Europe/Berlin)  commit 58078c1
 051 - the 9 ink-only rows: is the difference MathPix's reading, or our rendering?
 ====================================================================================
 
@@ -102,5 +101,3 @@ ADDENDUM - THE RENDER-VS-SCAN FLOOR, MEASURED UNCONDITIONED
    Data: out/051-floor.tsv (identifier, slt, ink, demoted), handed to the
    ink side to re-flag against. Demoted rows are LABELLED rather than
    dropped, so the exclusion can be checked instead of trusted.
-
-end time not recorded (report predates 242)

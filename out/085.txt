@@ -1,4 +1,3 @@
-2026-08-21T17:17:53Z  /  2026-08-21 19:17:53 +02:00 (Europe/Berlin)  commit 91492e3
 085 - \lstset{language=...} as a global default for the 238 undeclared listings
 ==============================================================================
 
@@ -56,5 +55,3 @@ DOCUMENTS SUPPLYING A DEFAULT
    2603.15617                     ['Python']
    arXiv_2009.11564               ['HTML', 'Java']
    hubbard-ed                     ['julia']
-
-end time not recorded (report predates 242)

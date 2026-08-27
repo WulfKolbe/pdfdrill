@@ -1,4 +1,3 @@
-2026-08-23T14:36:00Z  /  2026-08-23 16:36:00 +02:00 (Europe/Berlin)  commit 0b9f8bc
 124 — form-field build gate
 ===========================
 
@@ -85,5 +84,3 @@ returning 0 fields for a real form would have been caught by nothing, which is
 the same silent-zero failure one layer up. That round trip is now a test.
 
 2201 tests pass.
-
-end time not recorded (report predates 242)

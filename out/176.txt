@@ -1,4 +1,3 @@
-2026-08-25T14:11:32Z  /  2026-08-25 16:11:32 +02:00 (Europe/Berlin)  commit 591f658
 176 — were 170–174 started at all?
 ==============================================================================
 YES. All five were completed, and they are on origin at 1cfa955.
@@ -53,5 +52,3 @@ Grok's 232 → 11 on that row is inkdrill's ROW-level metric; my own re-measure
 puts it at 229 in those units. The acceptance gate refused a worthless
 proposal correctly, and it did not produce the repair. The four acceptances
 must not be read as implying otherwise.
-
-end time not recorded (report predates 242)

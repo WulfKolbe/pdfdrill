@@ -508,6 +508,31 @@ commands:
     type: bool
     help: machine-readable form for the pages CLI
   typed: true
+- name: inkconvert
+  section: Reporting
+  summary: 'Convert inkdrill''s report.compare.tsv into report.ink.json. The TSV
+    carries NO identifiers, so they come from report.tex positionally, in table
+    order — and two things make that safe, both ASSERTED rather than assumed. The
+    TSV holds one all-zero row per page (the legend footer, whose Rendered and
+    Scan cells are blank because the legend spans all columns); those rows are
+    dropped, because an all-zero pair scores distance 0 and would otherwise be
+    classified CLEAN, an absent reading taking the best class. After dropping
+    them the row count must equal the identifier count exactly, or the command
+    REFUSES rather than letting zip() truncate silently. Reports
+    footers_dropped, display_pages and the class distribution.'
+  requires:
+  - reporttex
+  positionals:
+  - name: pdf
+    type: pdf
+    required: true
+    help: PDF path, https URL, or bare arXiv id
+  flags:
+  - name: force
+    flag: --force
+    type: bool
+    help: replace an existing report.ink.json
+  typed: true
 - name: publishready
   section: Reporting
   summary: 'Is this document''s report fit to publish? The five-item checklist,

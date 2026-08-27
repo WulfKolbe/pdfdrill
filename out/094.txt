@@ -1,4 +1,3 @@
-2026-08-22T08:34:50Z  /  2026-08-22 10:34:50 +02:00 (Europe/Berlin)  commit 78e2e6c
 094 - the tail-split audit: how often a leading run was removed
 ==============================================================================
 
@@ -79,5 +78,3 @@ THREE TRAILING SPLITS FOR CONTRAST - THESE ARE CORRECT
    In each of these the mathematics is intact without the removed run,
    which is the test 095 makes explicit: strip only where the maths comes
    FIRST and the prose follows it.
-
-end time not recorded (report predates 242)

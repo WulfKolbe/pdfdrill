@@ -1,4 +1,3 @@
-2026-08-26T11:59:38Z  /  2026-08-26 13:59:38 +02:00 (Europe/Berlin)  commit 1049913
 213 — drill every document from out/212.txt that is not current
 ==============================================================================
    11 documents · 12 steps each · 132 steps · EVERY STEP rc=0
@@ -103,5 +102,3 @@ reporttex picks up report.ink.json from the blob dir with no --ink flag, so
 Nothing here is committed to the library repo. Ten of the eleven are
 Z-Library books or exceed 1 MB; the artefacts (report.pdf, report.tex,
 tiddlers.json, report-crops/) are on the never-commit list and stay local.
-
-end time not recorded (report predates 242)

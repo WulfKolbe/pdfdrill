@@ -1,4 +1,3 @@
-2026-08-25T17:39:08Z  /  2026-08-25 19:39:08 +02:00 (Europe/Berlin)  commit e50aee2
 180 — a reader-facing note on any unmeasured report
 ==============================================================================
 SHIPPED
@@ -72,5 +71,3 @@ too:
    penev_A/B   no ink pass has been run
 
 That is theirs to land, in the same commit as any artefact it describes.
-
-end time not recorded (report predates 242)

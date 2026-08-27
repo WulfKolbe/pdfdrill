@@ -1,4 +1,3 @@
-2026-08-25T13:35:24Z  /  2026-08-25 15:35:24 +02:00 (Europe/Berlin)  commit 1cfa955
 171 — refine: the validate stage
 ==============================================================================
 THE FOUR CHECKS, CHEAPEST FIRST
@@ -71,5 +70,3 @@ TESTS
    16 tests cover this stage: one per rejection reason, one asserting the
    structural-before-compile ordering, and one asserting that a clean value
    passes with work=None so the three cheap checks stand on their own.
-
-end time not recorded (report predates 242)

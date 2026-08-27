@@ -1,4 +1,3 @@
-2026-08-26T10:31:30Z  /  2026-08-26 12:31:30 +02:00 (Europe/Berlin)  commit 18d4eda
 211 — the 20 turnstile-family arity hits, in full
 ==============================================================================
    20 occurrences · 20 objects · 7 documents
@@ -132,5 +131,3 @@ Caught because the content was obviously wrong for the document. Redone with a
 per-document directory. It is the same contamination as the two concurrent
 runs in out/184: a shared work directory, and an image that looks like a
 perfectly good measurement of something else.
-
-end time not recorded (report predates 242)

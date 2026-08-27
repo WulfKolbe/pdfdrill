@@ -1,4 +1,3 @@
-2026-08-26T06:04:42Z  /  2026-08-26 08:04:42 +02:00 (Europe/Berlin)  commit 87dae5a
 197 — semantic then gaps on the five books
 ==============================================================================
 Both ran clean on all five. `semantic` builds the evidence graph (~2.5 min a
@@ -107,5 +106,3 @@ Not fixed under this task, which asked for a report:
 Together those would take 1,487 gaps to roughly 1,250 and make the acronym and
 symbol columns mean what their names say. citation_unmatched (1,061, 71% of
 all gaps) is untouched by this and is its own question.
-
-end time not recorded (report predates 242)

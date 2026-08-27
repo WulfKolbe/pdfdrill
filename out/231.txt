@@ -1,4 +1,3 @@
-2026-08-26T17:53:33Z  /  2026-08-26 19:53:33 +02:00 (Europe/Berlin)  commit ec2dde7
 231 — does MathPix map \mathcal to \mathscr?
 ==============================================================================
 
@@ -106,5 +105,3 @@ The e-print is <stem>.tgz. Never <stem>.tex.zip, which is MathPix's own LaTeX
 output and would agree with the markdown by construction — out/229 nearly used
 it as gold and out/230 put a test on the door. Rows are counted from
 <stem>.tiddlers.json, the object set the report builds from.
-
-end time not recorded (report predates 242)

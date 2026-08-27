@@ -1,4 +1,3 @@
-2026-08-26T14:32:55Z  /  2026-08-26 16:32:55 +02:00 (Europe/Berlin)  commit 671dd6f
 223 — check every escape site against the font actually selected there
 ==============================================================================
 
@@ -161,5 +160,3 @@ generator and an audit, in the shape tools/build_font_categories.py already
 set.
 
    tests/test_glyph_fallback.py  32 tests. Suite 2,376 -> 2,382.
-
-end time not recorded (report predates 242)

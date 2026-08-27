@@ -1,4 +1,3 @@
-2026-08-22T11:22:24Z  /  2026-08-22 13:22:24 +02:00 (Europe/Berlin)  commit bb18eaf
 103 - the per-document notation table
 ==============================================================================
 
@@ -73,5 +72,3 @@ BH2, AS ASKED - AN EMPTY TABLE
    Nothing consumes the table yet. It is a place to put the answer, built
    before the answer, so that 104's candidates have somewhere to land that is
    not a comment in a commit message.
-
-end time not recorded (report predates 242)

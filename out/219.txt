@@ -1,4 +1,3 @@
-2026-08-26T12:12:03Z  /  2026-08-26 14:12:03 +02:00 (Europe/Berlin)  commit 94d91fa
 219 — the Mielke \left. … \right\rfloor row, and the class it belongs to
 ==============================================================================
 
@@ -163,5 +162,3 @@ AVAILABLE FIXES, NOT APPLIED HERE
    has its own ground truth. 424 rows across 18 documents.
 3. The trailing-"}" case (EQ0190, EQ0453): the \end{X} stripper handles a
    trailing environment closer but not a trailing brace.
-
-end time not recorded (report predates 242)

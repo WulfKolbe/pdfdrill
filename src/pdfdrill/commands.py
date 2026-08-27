@@ -1877,12 +1877,12 @@ def cmd_handover(root: Path, ready_only: bool = False,
     except HandoverCollision as e:
         return "REFUSING to hand over: %s" % e
     if as_json:
-        return json.dumps({"started": rt.provenance_open(_t0),
+        return json.dumps({"started": rt.stamp(_t0),
                            "rows": rows, "count": len(rows),
                            "distinct_paths": len({r["path"] for r in rows}),
-                           "finished": rt.provenance_close()},
+                           "finished": rt.stamp()},
                           indent=1)
-    out = [rt.provenance_open(_t0)]
+    out = [rt.stamp(_t0)]
     for r in sorted(rows, key=lambda x: x["path"]):
         out.append(
             "%s | %s | %s | %s pages | %s equations | %s | %d refined | %s"
@@ -1893,7 +1893,57 @@ def cmd_handover(root: Path, ready_only: bool = False,
     ready = sum(1 for r in rows if r["ready"])
     out.append("%d row(s) over %d distinct path(s); %d ready"
                % (len(rows), len({r["path"] for r in rows}), ready))
-    out.append(rt.provenance_close())
+    out.append(rt.stamp())
+    return "\n".join(out)
+
+
+def cmd_inkconvert(pdf: Path, force: bool = False) -> str:
+    """inkdrill's report.compare.tsv -> report.ink.json, with the pairing
+    asserted rather than assumed."""
+    import datetime as _dt
+    from . import inkconvert as _ic
+    from . import report_tex as rt
+    t0 = _dt.datetime.now(_dt.timezone.utc)
+    sc = Sidecar(pdf)
+    d = sc.blob_dir
+    tsv, tex, dest = d / "report.compare.tsv", d / "report.tex", d / "report.ink.json"
+    out = [rt.stamp(t0)]
+    if not tsv.is_file():
+        return "\n".join(out + ["No report.compare.tsv beside the model — "
+                                 "inkdrill has not measured this report.",
+                                 rt.stamp()])
+    if not tex.is_file():
+        return "\n".join(out + ["No report.tex — identifiers come from it.",
+                                 rt.stamp()])
+    if dest.is_file() and not force:
+        return "\n".join(out + ["%s already exists; --force to replace."
+                                 % dest.name, rt.stamp()])
+    # the measurement is of the report that was on disk when inkdrill ran, so
+    # carry that build's stamp if one survives (237/242)
+    stamp_file = d / rt.BUILD_STAMP
+    stamp = None
+    if stamp_file.is_file():
+        try:
+            stamp = json.loads(stamp_file.read_text(encoding="utf-8"))
+        except Exception:
+            stamp = None
+    try:
+        payload = _ic.convert(tsv, tex, stamp=stamp)
+    except _ic.ConversionRefused as e:
+        return "\n".join(out + ["REFUSING to convert: %s" % e, rt.stamp()])
+    _ic.write(payload, dest)
+    by = {}
+    for r in payload["rows"]:
+        c = r["code"][:1]
+        by[c] = by.get(c, 0) + 1
+    out.append("%s: %d rows, %d footer(s) dropped over %d display page(s); %s"
+               % (dest.name, len(payload["rows"]), payload["footers_dropped"],
+                  payload["display_pages"],
+                  ", ".join("%s %d" % (k, v) for k, v in sorted(by.items()))))
+    if payload["footers_dropped"] != payload["display_pages"]:
+        out.append("NOTE: footers_dropped != display_pages — the footer is "
+                   "normally one per page and exactly the last row of each.")
+    out.append(rt.stamp())
     return "\n".join(out)
 
 
@@ -1905,13 +1955,13 @@ def cmd_publishready(pdf: Path, as_json: bool = False) -> str:
     _t0 = _dt.datetime.now(_dt.timezone.utc)      # 242: the real start
     r = publish_ready(pdf)
     if as_json:
-        return _json.dumps({"started": rt.provenance_open(_t0),
+        return _json.dumps({"started": rt.stamp(_t0),
                             "ready": r["ready"], "fields": r["fields"],
                             "checks": {k: {"ok": v[0], "detail": v[1]}
                                        for k, v in r["checks"].items()},
-                            "finished": rt.provenance_close()},
+                            "finished": rt.stamp()},
                            indent=1)
-    lines = [rt.provenance_open(_t0),
+    lines = [rt.stamp(_t0),
              "%s: %s" % (r["fields"]["bibkey"],
                          "READY" if r["ready"] else "NOT READY")]
     for k in PUBLISH_CHECKS:
@@ -1923,7 +1973,7 @@ def cmd_publishready(pdf: Path, as_json: bool = False) -> str:
                      "%d refined"
                      % (f["folder"], f["bibkey"], f["pages"], f["equations"],
                         f["residual"] or "no residual", f["refined_rows"]))
-    lines.append(rt.provenance_close())
+    lines.append(rt.stamp())
     return "\n".join(lines)
 
 

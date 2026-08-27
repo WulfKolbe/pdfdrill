@@ -1,4 +1,3 @@
-2026-08-24T09:25:48Z  /  2026-08-24 11:25:48 +02:00 (Europe/Berlin)  commit 47f7596
 148 — the residual code as selectable text
 ==========================================
 
@@ -58,5 +57,3 @@ VERIFICATION
    codes recoverable by pdftotext: 55
    AcroForm fields             : 57, of which 55 carry a value
    compile                     : 26 pages, 0 errors
-
-end time not recorded (report predates 242)

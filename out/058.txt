@@ -1,4 +1,3 @@
-2026-08-21T09:00:32Z  /  2026-08-21 11:00:32 +02:00 (Europe/Berlin)  commit 9961528
 058 - corpus reports regenerated with the fixed preamble
 ==============================================================================
 
@@ -118,5 +117,3 @@ CORRECTION TO THE ADDENDUM ABOVE
    the user's call, not something either session should change unilaterally
    — both sides read this file, and a silent edit would diverge the two
    populations exactly where we just finished reconciling them.
-
-end time not recorded (report predates 242)

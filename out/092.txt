@@ -1,4 +1,3 @@
-2026-08-22T08:14:47Z  /  2026-08-22 10:14:47 +02:00 (Europe/Berlin)  commit a676318
 092 - the ink compare after 090: how many of the 725 resolve
 ==============================================================================
 
@@ -54,5 +53,3 @@ WHAT WAS STILL WORTH FIXING
    any new one announce itself. The corpus-wide effect is one row of 725,
    which is the honest measure of how much it mattered here - and no measure
    at all of how much it mattered to out/070's conclusion, which it reversed.
-
-end time not recorded (report predates 242)

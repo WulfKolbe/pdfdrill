@@ -1,4 +1,3 @@
-2026-08-25T13:35:02Z  /  2026-08-25 15:35:02 +02:00 (Europe/Berlin)  commit 02cd0d7
 163 — the 1206.0238 run: pdf_id, date, and the CJK that is not there
 ==============================================================================
 AS ASKED
@@ -85,5 +84,3 @@ originated, because it did not come from any artefact in our corpus. If it came
 from a formula report, the identifier will name its document, and out/128's
 thirteen are the candidates — 0902.0431 in particular is a document we HAVE
 flagged for CJK twice, and it is the other document in play this week.
-
-end time not recorded (report predates 242)

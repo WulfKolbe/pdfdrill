@@ -1,4 +1,3 @@
-2026-08-24T07:15:08Z  /  2026-08-24 09:15:08 +02:00 (Europe/Berlin)  commit 92790e4
 143 — --min-conf / --max-conf / --types on reporttex
 ====================================================
 
@@ -64,5 +63,3 @@ WIRING
    is genuinely smaller on disk.
 
 2237 tests pass.
-
-end time not recorded (report predates 242)

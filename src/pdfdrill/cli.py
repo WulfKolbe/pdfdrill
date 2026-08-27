@@ -1046,6 +1046,13 @@ def _do_handover(args):
                         as_json="--json" in args)
 
 
+def _do_inkconvert(args):
+    """pdfdrill inkconvert <pdf> [--force]"""
+    from .commands import cmd_inkconvert
+    return cmd_inkconvert(_pdf([a for a in args if a != "--force"]),
+                          force="--force" in args)
+
+
 def _do_publishready(args):
     """pdfdrill publishready <pdf> [--json]"""
     from .commands import cmd_publishready
@@ -2076,6 +2083,7 @@ HANDLERS = {
         "modeldiff": _do_modeldiff,
         "refine": _do_refine,
         "publishready": _do_publishready,
+        "inkconvert": _do_inkconvert,
         "handover": _do_handover,
         "crossref": _do_crossref,
         "cdncrops": _do_cdncrops,

@@ -1,4 +1,3 @@
-2026-08-23T13:48:02Z  /  2026-08-23 15:48:02 +02:00 (Europe/Berlin)  commit 518c548
 122 — corrections APPLIED to Equation vs Formula objects, book `bh2`
 ====================================================================
 Population: 344 Equation, 4,871 Formula objects (model + tiddlers agree;
@@ -56,5 +55,3 @@ Corrections land almost entirely on Equations, which are 6.6% of the objects:
 Per object that is 7.3% of Equations touched vs 0.1% of Formulas — roughly 70x.
 Display math is where the prose tails, the stray environments and the moved
 punctuation live; an inline $x$ has almost no room to go wrong.
-
-end time not recorded (report predates 242)

@@ -1,4 +1,3 @@
-2026-08-25T13:35:02Z  /  2026-08-25 15:35:02 +02:00 (Europe/Berlin)  commit 02cd0d7
 160 — children_ids as a route to equation confidence
 ==============================================================================
 QUESTION
@@ -121,5 +120,3 @@ The children_ids hypothesis is dead and cheap to bury: the attribute never
 appears on an equation, in either direction, at either the line or the object
 level. The 4,573 that a forced rebuild would recover is the finding worth
 keeping, and it is free — no API call, no new data.
-
-end time not recorded (report predates 242)

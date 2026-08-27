@@ -1,4 +1,3 @@
-2026-08-22T08:14:47Z  /  2026-08-22 10:14:47 +02:00 (Europe/Berlin)  commit a676318
 089 - what the compile logs said
 ==============================================================================
 
@@ -66,5 +65,3 @@ CORRECTION - THIS FILE UNDERCOUNTS, AND 091 IS WHY IT WAS FOUND
 
    The guard built in 091 matches both forms, and a test asserts it, so
    the check cannot pass by being unable to see the failure.
-
-end time not recorded (report predates 242)

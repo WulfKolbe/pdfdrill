@@ -1,4 +1,3 @@
-2026-08-24T07:15:08Z  /  2026-08-24 09:15:08 +02:00 (Europe/Berlin)  commit 92790e4
 145 — 0902.0431's remaining "not rendered" rows
 ===============================================
 
@@ -80,5 +79,3 @@ SUMMARY
    of the 8 that remain: 5 are repairable with an environment wrap
                          2 need re-OCR (hallucinated script)
                          1 is malformed TeX at confidence 0.914
-
-end time not recorded (report predates 242)

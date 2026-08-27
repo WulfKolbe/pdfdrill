@@ -1,4 +1,3 @@
-2026-08-20T18:26:12Z  /  2026-08-20 20:26:12 +02:00 (Europe/Berlin)  commit a6f19ec
 032 - --limit N made required in every harness from out/031.txt
 ==============================================================================
 
@@ -72,5 +71,3 @@ VERIFICATION
    `stream=sys.stderr` as a DEFAULT ARGUMENT, which binds the original stream
    at import time and ignores any later redirection. Invisible in production,
    and it made the announcement untestable. Now resolved at call time.
-
-end time not recorded (report predates 242)

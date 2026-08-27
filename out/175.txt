@@ -1,4 +1,3 @@
-2026-08-25T14:11:32Z  /  2026-08-25 16:11:32 +02:00 (Europe/Berlin)  commit 591f658
 175 — working-tree status
 ==============================================================================
 WORKING TREE: CLEAN
@@ -61,5 +60,3 @@ out/NNN.txt" was true and useless.
 The fix is not a guard, it is a habit: a report is delivered when it is
 pushed, not when it is written. Both commits are now on origin and verified
 there.
-
-end time not recorded (report predates 242)

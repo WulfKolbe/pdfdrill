@@ -1,4 +1,3 @@
-2026-08-21T09:28:47Z  /  2026-08-21 11:28:47 +02:00 (Europe/Berlin)  commit e1a9047
 059 - 040 re-run on the regenerated corpus
 ==============================================================================
 
@@ -94,5 +93,3 @@ REPRODUCING THIS
    scratchpad/rerun040.py, population read from 040.pkl, result to
    059.pkl. Re-running it after any future model-touching change repeats
    the control for free.
-
-end time not recorded (report predates 242)
