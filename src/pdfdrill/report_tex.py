@@ -510,6 +510,57 @@ _INK_COLOUR = {"component": "inkComponent", "weak": "inkWeak",
                "absent": "inkUnmeasured"}
 
 
+#: 241 — the credibility test, and the population it must NOT be run over.
+#:
+#: max/max(1,min) on the two component counts, scale-free and order-free; the
+#: p90 across a document asks whether MOST rows match, which is the pairing
+#: question. A per-row cap would refuse real findings, because a genuinely
+#: mis-transcribed equation SHOULD differ wildly.
+#:
+#: I derived 3.0 from five clean documents (p90 1.03-1.07) against 0902.0431
+#: (7.76) and handed it to the pages gate, which adopted it. None of the six
+#: had many DEMOTED rows, so that failure mode was outside the population I
+#: fitted on — and it is a false positive, not a defect: a row demoted to
+#: \emph{(not rendered)} has no rendered mathematics, so its render is a tiny
+#: constant against a full scan cell and the ratio is legitimately enormous.
+#:
+#: 2010.14265 is 62.5% demoted and reads p90 8.62 over all rows and 1.00 over
+#: rendered ones. OMDoc 1.2 is 50% demoted: 9.08 and 1.08. Both would have been
+#: refused as implausible measurements while being perfectly paired.
+RATIO_P90_MAX = 3.0
+
+
+def component_ratio_p90(rows, rendered=None) -> "float | None":
+    """p90 of max/min over the two component counts, over RENDERED rows.
+
+    `rendered` is a parallel sequence of booleans; rows that rendered nothing
+    are excluded because their ratio measures the absence of a render, not a
+    disagreement between two readings of the same thing.
+    """
+    vals = []
+    for i, r in enumerate(rows):
+        if rendered is not None and i < len(rendered) and not rendered[i]:
+            continue
+        L, R = r.get("L"), r.get("R")
+        if not L or not R:
+            continue
+        a, b = L[0], R[0]
+        vals.append(max(a, b) / max(1, min(a, b)))
+    if not vals:
+        return None
+    vals.sort()
+    return vals[min(len(vals) - 1, int(len(vals) * 0.9))]
+
+
+def demoted_flags(tex_body: str) -> list:
+    """Per EQ row, in table order: did it render, or is it (not rendered)?"""
+    out = []
+    for line in (tex_body or "").split("\n"):
+        if re.search(r"\\ident\{[^&\n]*?EQ\d+\}[^&\n]*& *\d+ *&", line):
+            out.append("not rendered" not in line)
+    return out
+
+
 def ink_join(tiddlers, bibkey: str, ink: "dict | None") -> dict:
     """How much of the ink map actually LANDS on rows of this report.
 

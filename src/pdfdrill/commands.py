@@ -1629,9 +1629,23 @@ def publish_ready(pdf: Path) -> dict:
                 and next(iter(dist)) != "K")
         nojoin = (landed is not None and landed.get("ink_rows")
                   and landed.get("matched") == 0)
+        # 241 — credibility, over RENDERED rows only. A demoted row has no
+        # rendered mathematics, so its ratio measures the absence of a render
+        # rather than two readings disagreeing, and including it refuses
+        # correctly-paired documents (2010.14265 is 62.5% demoted: p90 8.62
+        # over all rows, 1.00 over rendered ones).
+        ratio = None
+        if ink.is_file():
+            try:
+                import json as _j3
+                raw = _j3.loads(ink.read_text(encoding="utf-8")).get("rows", [])
+                ratio = rt.component_ratio_p90(raw, rt.demoted_flags(body))
+            except Exception:
+                ratio = None
+        implausible = (ratio is not None and ratio >= rt.RATIO_P90_MAX)
         checks["residuals"] = ((bullets > 0 and legend and not flat
-                                and not nojoin),
-                               "%d bullets, legend %s%s%s" %
+                                and not nojoin and not implausible),
+                               "%d bullets, legend %s%s%s%s" %
                                (bullets, "present" if legend else "ABSENT",
                                 "" if not nojoin else
                                 "; but NONE of %d measured identifiers matches "
@@ -1641,7 +1655,12 @@ def publish_ready(pdf: Path) -> dict:
                                 "; but every one of %d rows is class %s — a "
                                 "distribution with no variation is a pairing "
                                 "failure, not a result"
-                                % (len(rr), next(iter(dist)))))
+                                % (len(rr), next(iter(dist))),
+                                "" if not implausible else
+                                "; p90 component ratio %.2f over rendered rows "
+                                "(>= %.1f) — present, valid and correctly "
+                                "described, but not credible"
+                                % (ratio, rt.RATIO_P90_MAX)))
 
     # 237 — is the report the one that was measured, and was it the right
     # KIND of build to measure? Both are additions to the `ink` check because

@@ -1,0 +1,79 @@
+2026-08-27T09:07:02Z  base=c0b853b62d48
+241 — the ratio threshold I handed the pages gate has a false positive
+==============================================================================
+
+PRE-CLEARING THE ONE GATE LAYER THE PEER CANNOT CHECK
+------------------------------------------------------------------------------
+Their gate asserts p90 of the component ratio < 3.0 — my threshold, which they
+adopted. They said they could not pre-clear the eleven on it, because p90 needs
+the five-tuples and they only have class counts. I have the five-tuples: they
+are in the TSVs.
+
+   document                        rows   dem%   p90 all   p90 rendered
+   Geometrodynamics (Mielke)       1149   0.8%      1.06           1.06
+   Graph and Hypergraph             266   0.0%      1.06           1.06
+   Linear and Matrix Algebra       1670   0.8%      1.08           1.08
+   Numerical Linear Algebra        1056   0.5%      1.03           1.03
+   Lie Groups                      1037   1.1%      1.04           1.04
+   2010.14265                        16  62.5%      **8.62**       1.00
+   An Invitation to ACT             262   1.9%      1.25           1.23
+   OMDoc 1.2                          6  50.0%      **9.08**       1.08
+   Seven Sketches                   264   1.9%      1.12           1.10
+   0707.4470                         62   0.0%      1.06           1.06
+   Geometric/Algebraic/Topological 1012   0.2%      1.03           1.03
+
+Nine of eleven pass outright. **Two would be refused, and neither is a pairing
+failure.**
+
+THE FALSE POSITIVE, AND IT IS MINE
+------------------------------------------------------------------------------
+A row demoted to \emph{(not rendered)} has no rendered mathematics. Its
+Rendered cell holds literal words whose ink is a constant 13 components, and it
+is compared against a full scan cell. The ratio is legitimately enormous — the
+render is correctly ABSENT, not disagreeing.
+
+2010.14265 is 62.5% demoted and reads 8.62 over all rows, 1.00 over rendered
+ones. OMDoc 1.2 is 50% demoted: 9.08 and 1.08. Every other document is at or
+below 1.9% demoted and reads identically either way.
+
+I derived 3.0 from five clean documents (p90 1.03 to 1.07) against 0902.0431
+(7.76), and none of those six had many demoted rows. The failure mode was
+outside the population I fitted on, and I sent the threshold anyway with "I
+would not defend it past one significant figure" — which covered the number and
+not the shape. The shape is what was wrong.
+
+THE FIX: p90 OVER RENDERED ROWS ONLY
+------------------------------------------------------------------------------
+report_tex.component_ratio_p90(rows, rendered) excludes rows that rendered
+nothing, and demoted_flags(tex_body) reads which those are, in table order.
+publish_ready now runs the credibility check itself — it was the one gate layer
+I had recommended to someone else and did not run.
+
+Note who can apply it: excluding demoted rows needs report.tex, which is in the
+library and not in what gets published. So on the published side the correction
+is not directly available. Either the ink.json carries a per-row rendered flag,
+or the published gate keeps 3.0 and accepts that documents with a high
+demotion fraction need an exception. That is the pages side's call and I have
+told them which two documents it costs.
+
+I ALSO RAN THE PROJECTED DISTRIBUTION AGAINST THEIR OTHER LAYERS
+------------------------------------------------------------------------------
+Pooled C 619, K 1207, N 3650, W 1324 = 6,800: all four classes are in their
+legend, no document is flat, and K = 1207 rather than 2439 confirms the footers
+are excluded rather than folded in. Those three layers should pass for all
+eleven. The ratio layer is the one that needed this correction.
+
+ON THE RELAY, WHICH THEY WERE RIGHT ABOUT
+------------------------------------------------------------------------------
+I passed 240's "both CLIs" instruction to the pages session as though it
+applied to them. They declined, correctly: an instruction reaching them through
+me is one they cannot verify was meant for them or stated the way they received
+it, and adopting a new output format on a relayed ask is a boundary they should
+not cross. It is the same boundary I applied refusing to run 214 when they
+called it my blocker.
+
+Passing the FORMAT on was right and they said so. Framing it as an instruction
+was not. If the provenance line is wanted from the pages CLI, that ask has to
+reach them from the user directly — I have recorded here that it did not.
+
+   tests: 4 more in test_publish_ready.py. Suite 2,454 -> 2,458.

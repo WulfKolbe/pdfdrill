@@ -162,3 +162,56 @@ def test_a_measurement_that_lands_is_not_flagged(tmp_path):
             {"id": "DOC_EQ0002", "code": "S|+9"}]
     r = publish_ready(_doc(tmp_path, ink=good))
     assert r["checks"]["residuals"][0], r["checks"]["residuals"][1]
+
+
+# --- 241: credibility, over rendered rows only -----------------------------
+
+def _fives(l, r):
+    return {"L": [l, 0, 0, 0, 0], "R": [r, 0, 0, 0, 0]}
+
+
+def test_an_implausible_measurement_is_refused(tmp_path):
+    """0902.0431's shape: most rows disagreeing wildly on component count is a
+    pairing failure, not a document that reads badly."""
+    from pdfdrill import report_tex as rt
+    rows = [dict(id="DOC_EQ%04d" % i, code="C|+9", **_fives(10, 800))
+            for i in range(1, 12)]
+    r = publish_ready(_doc(tmp_path, ink=rows))
+    assert not r["ready"]
+    assert "not credible" in r["checks"]["residuals"][1]
+
+
+def test_a_DEMOTED_row_does_not_make_a_document_implausible(tmp_path):
+    """The false positive in the threshold I derived and handed to the pages
+    gate. A row demoted to (not rendered) has no rendered mathematics, so its
+    render is a tiny constant against a full scan cell and the ratio is
+    legitimately enormous. 2010.14265 is 62.5% demoted: p90 8.62 over all rows,
+    1.00 over rendered ones — refused as implausible while perfectly paired."""
+    from pdfdrill import report_tex as rt
+    pdf = _doc(tmp_path, ink=[dict(id="DOC_EQ0001", code="K|0", **_fives(50, 50)),
+                              dict(id="DOC_EQ0002", code="C|+9", **_fives(13, 700))])
+    # mark the SECOND row's identifier as demoted in the tex
+    tex = pdf.parent / "report.tex"
+    tex.write_text(
+        "\\ident{DOC_EQ0001} & 1 & x\n"
+        "\\ident{DOC_EQ0002} & 2 & \\emph{(not rendered)}\n"
+        "\\inkbullet{inkClean}\n\\inkbullet{inkClean}\n"
+        r"\textbf{Residual} render vs scan (inkdrill):" + "\n",
+        encoding="utf-8")
+    r = publish_ready(pdf)
+    assert r["checks"]["residuals"][0], r["checks"]["residuals"][1]
+
+
+def test_the_ratio_is_scale_free_and_order_free():
+    from pdfdrill import report_tex as rt
+    a = [{"L": [10, 0, 0, 0, 0], "R": [80, 0, 0, 0, 0]}] * 10
+    b = [{"L": [80, 0, 0, 0, 0], "R": [10, 0, 0, 0, 0]}] * 10
+    assert rt.component_ratio_p90(a) == rt.component_ratio_p90(b) == 8.0
+
+
+def test_demoted_flags_reads_table_order():
+    from pdfdrill import report_tex as rt
+    body = ("\\ident{X_EQ0001} & 1 & rendered\n"
+            "\\ident{X_EQ0002} & 2 & \\emph{(not rendered)}\n"
+            "\\ident{X_EQ0003} & 3 & rendered\n")
+    assert rt.demoted_flags(body) == [True, False, True]
