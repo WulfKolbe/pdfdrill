@@ -52,6 +52,14 @@ _CDN_URL = re.compile(r"(https?://cdn\.mathpix\.com/cropped/[^\s\}>\])\"]+)")
 # Line types whose images are owned by another processor.
 _SKIP_TYPES = {"diagram"}
 
+#: 249 — the two literals below occur ZERO times in the corpus, so the
+#: figure-line path has never run. MathPix has no `figure` type and no
+#: `caption` type: what carries a figure is `diagram` (24,806 lines, 916 docs)
+#: or `chart` (2,136), and what carries its caption is `figure_label` (22,638).
+#: Corrected in 253 — this note stays so the shape is written down where the
+#: guard is.
+_ABSENT_IN_CORPUS = ("figure", "caption")
+
 
 class PictureProcessor(BaseModule):
     def find_items(self, doc: Document) -> list[dict[str, Any]]:

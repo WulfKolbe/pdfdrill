@@ -1,0 +1,80 @@
+249 — the three "absent" literals: none of them should be removed
+==============================================================================
+
+THE ANSWER IS THE OPPOSITE OF THE PREMISE, AND OUT/245 IS WHY
+------------------------------------------------------------------------------
+out/245 reported "equation", "figure" and "caption" as type literals that occur
+zero times in 4.0M line objects. That count was right and its scope was wrong:
+it read `*.lines.json` only, and **MathPix is not the only producer of lines.**
+
+   "equation"   emitted by the VISIONOCR / LLM-delegation route.
+                tests/test_visionocr.py:119 builds exactly that shape.
+                Removing it from EQ_TYPES broke two tests immediately:
+                  test_ingest_folds_records_into_equation_nodes_with_refnum
+                  test_visionocr_sandbox_roundtrip
+
+   "figure"     exercised by tests/test_picture.py:117, which constructs a
+   "caption"    `figure` line to drive _from_figure_line. The path has a test
+                asserting the shape even though no MathPix document produces
+                it.
+
+So all three stay. I removed "equation" from EQ_TYPES and from formula.py,
+watched the suite go red, and put both back.
+
+"absent from the corpus" is not "absent from the inputs". The corpus is one
+producer's output, and I had written the corpus-scoped claim as if it were a
+claim about the schema. This is the second correction to out/245 in two tasks;
+248 was the first.
+
+It is also the exact trap I described one task earlier, in out/248: "removing a
+guard because today's corpus lacks the shape is how the next document breaks."
+I wrote that about renderable()'s \end{X} stripper and then did it to EQ_TYPES
+in the next task. The test suite caught it; a corpus scan never would have.
+
+WHAT _from_figure_line WAS MEANT TO HANDLE
+------------------------------------------------------------------------------
+A line of type `figure` whose caption arrives as a CHILD of type `caption`:
+
+   picture.py:70    if ltype == "figure": _from_figure_line(...)
+   picture.py:84    if child.get("type") == "caption": caption = child text
+   fallback         extract_figure_caption(text) — a \caption{} in the line
+
+That is a coherent schema. It is not MathPix's.
+
+WHICH TYPE CARRIES IT NOW
+------------------------------------------------------------------------------
+   the figure    `diagram`  24,806 lines, 916 documents
+                 `chart`     2,136 lines, 380 documents
+   the caption   `figure_label` 22,638 lines, 887 documents
+
+And the association is NOT the one the code expects. Of 22,638 figure_label
+lines:
+
+      18,222  have NO PARENT AT ALL
+       4,142  are children of `column`
+         113  of `list_item`
+          48  of `diagram`
+          38  of `rotated_container`
+
+Diagrams owning a figure_label child: 46 of 24,760. Charts: 1 of 2,136.
+**49 figure+caption pairs in the whole corpus, across 12 documents.**
+
+So the parent/child shape exists, and is rare. The dominant relation is
+POSITIONAL — 12,767 figures have a figure_label within one line of them on the
+same page, 13,201 within three, and 11,542 have no label on their page at all.
+
+Fixing _from_figure_line to read `diagram` with a `figure_label` child would
+recover 49 pairs. Fixing it to read proximity would reach ~13,000 and would be
+a heuristic, not a schema. That choice belongs to 253 and is measured there;
+this task establishes only that the literals are not dead and what the real
+shapes are.
+
+CHANGED
+------------------------------------------------------------------------------
+   equation.py   EQ_TYPES keeps both members, with the visionocr reason
+                 written where the set is
+   formula.py    unchanged after revert, with the same note
+   picture.py    _ABSENT_IN_CORPUS names "figure"/"caption" and records what
+                 does carry a figure and its caption, at the guard
+
+Suite 2,472, unchanged — which is the point: nothing was removable.

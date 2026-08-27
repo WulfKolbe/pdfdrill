@@ -127,6 +127,16 @@ def normalize_equation_number(raw) -> str:
 
 
 class EquationProcessor(BaseModule):
+    #: 249 — BOTH, and "equation" is not dead. It occurs ZERO times in the
+    #: 3,998,456 MathPix line objects of the corpus, which is why out/245
+    #: listed it as a literal that never occurs — but that scan read
+    #: *.lines.json only, and MathPix is not the only producer of lines. The
+    #: visionocr / LLM-delegation route emits `type: "equation"` directly
+    #: (tests/test_visionocr.py builds exactly that shape). Removing it broke
+    #: two tests immediately.
+    #:
+    #: "absent from the corpus" is not "absent from the inputs", and the
+    #: corpus is one producer's output.
     EQ_TYPES = {"equation", "math"}
 
     def find_items(self, doc: Document) -> list[dict[str, Any]]:

@@ -71,7 +71,7 @@ class FormulaProcessor(BaseModule):
             payload = stream.payload[anchor]
             ltype = payload.get("type")
             # Skip display equations (handled by EquationProcessor).
-            if ltype in ("equation", "math"):
+            if ltype in ("equation", "math"):   # 249: visionocr emits "equation"
                 continue
             text = payload.get("text_display") or payload.get("text") or ""
             if not text:
