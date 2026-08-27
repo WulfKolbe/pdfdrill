@@ -1,0 +1,152 @@
+237 + 238 — the zip alignment, and publishready over the eleven
+==============================================================================
+
+238 — NO OFF-BY-ONE. THE ZIP ALIGNS EXACTLY, ONCE FOOTERS ARE DROPPED.
+------------------------------------------------------------------------------
+Two independent instruments, both across all eleven.
+
+**A deterministic anchor.** A row demoted to \emph{(not rendered)} has no
+rendered mathematics — its Rendered cell holds the literal words, whose ink is
+a CONSTANT. Measured: L_comp = 13 in every such row, in every document, the
+same 13 across all of them. So every demoted identifier is a known-answer test
+at a known position.
+
+   document                     demoted  hit@0   hit@-1  hit@+1
+   Geometrodynamics (Mielke)          9    9/9      0/9     0/9
+   Linear and Matrix Algebra         14  14/14     1/14    0/14
+   Numerical Linear Algebra           5    5/5      0/5     0/5
+   Lie Groups (Gilmore)              11  11/11     0/11    0/11
+   2010.14265                        10  10/10     8/10    8/10
+   An Invitation to ACT               5    5/5      0/5     1/5
+   OMDoc 1.2                          3    3/3      1/3     1/3
+   Seven Sketches                     5    5/5      0/5     0/5
+   Geometric/Algebraic/Topological    2    2/2      0/2     0/2
+
+64 demoted identifiers, 64 hits at offset 0, and at most 1 of 14 at any shift.
+(2010.14265 hits 8/10 at ±1 too, because 10 of its 16 equations are demoted and
+consecutive — with that density a shift still lands on another 13. Its offset-0
+score is still perfect.)
+
+**A rank correlation**, for the two documents with no demoted rows. Spearman
+between each identifier's LaTeX length and its row's rendered-ink component
+count, at offsets -2..+2:
+
+   Voloshin Hypergraph   +0.058  +0.191  **+0.805**  +0.261  +0.071
+   0707.4470             +0.172  +0.444  **+0.915**  +0.389  +0.116
+
+Offset 0 wins by a factor of three to four. Across the nine larger documents the
+same test gives +0.72 to +0.91 at offset 0 against +0.00 to +0.44 elsewhere.
+
+ONE DOCUMENT LOOKED LIKE AN OFF-BY-ONE AND WAS NOT. 2010.14265's correlation is
+NEGATIVE at every offset (-0.34 to -0.64, "best" at -2). The cause is that 10
+of its 16 rendered cells are the constant 13 regardless of what the equation
+says, so length cannot correlate with ink at any alignment. The proxy failed;
+the alignment was fine, and the anchor test proves it 10/10. A correlation that
+is bad everywhere is a broken instrument, not a shifted one — and it would have
+read as a finding on a table of best-offsets.
+
+WHAT THE ZIP IS MISALIGNED BY, EXACTLY
+------------------------------------------------------------------------------
+The TSV carries NO identifiers — report_page, line, dis, A_eq_B and the two
+five-tuples, nothing else — so pairing can only be positional against
+report.tex. And the TSV contains one all-zero row per page: the legend footer,
+whose Rendered and Scan cells are blank because the legend spans all columns
+via \multicolumn.
+
+   all-zero rows == display pages == last row of every page:  1232 / 1232 / 1232
+
+   and for every document:  tsv rows - all-zero rows == EQ identifiers
+   in aggregate:            8,032 - 1,232 = 6,800 = out/213's equation total
+
+So a naive zip pairs identifier i with row i while ~15% of the rows are
+footers, and every identifier after the first footer takes another equation's
+measurement. Drop the all-zero rows and the counts match to the row, in all
+eleven — which is a post-condition worth asserting rather than trusting.
+
+237 — publishready OVER THE ELEVEN: 0 READY
+------------------------------------------------------------------------------
+   not ready   Geometrodynamics (Mielke)              ink, residuals, artefacts
+   not ready   Introduction to Graph and Hypergraph   ink, residuals, artefacts
+   not ready   Introduction to Linear and Matrix Alg  ink, residuals, artefacts
+   not ready   Numerical Linear Algebra (Lyche)       ink, residuals, artefacts
+   not ready   Lie Groups (Gilmore)                   ink, residuals, artefacts
+   not ready   2010.14265                             ink, residuals, artefacts
+   not ready   An Invitation to Applied Category Th   ink, residuals, artefacts
+   not ready   OMDoc 1.2                              ink, residuals, artefacts
+   not ready   Seven Sketches in Composability        ink, residuals, artefacts
+   not ready   0707.4470                              ink, residuals, artefacts
+   not ready   Geometric/Algebraic/Topological (QFT)  ink, residuals, artefacts
+
+One root cause, identical in all eleven:
+
+   ink: no report.ink.json — no residual measurement has been run
+
+`glyphs` and `index` pass on all eleven. The three failing checks are the same
+absence counted three ways and flip together the moment a conversion lands.
+
+DID THE FOOTER FIX LAND? NO.
+------------------------------------------------------------------------------
+No report.ink.json exists for any of the eleven, and the string `footers_dropped`
+appears nowhere on disk — not in the library, not in fill_ink_fields.py. There
+is no converter output to inspect, so there is nothing that could have landed.
+
+DID footers_dropped == display_pages HOLD? NOT ASSERTABLE — BUT THE UNDERLYING
+FACT IS MEASURED AND IT WILL.
+------------------------------------------------------------------------------
+I cannot report a field nothing has written. What I can report is the quantity
+it would be counting, taken from the TSVs directly: the all-zero rows are
+exactly one per display page, are the last row of every page, and number
+1,232 against 1,232 display pages, in all eleven with no exceptions. So a fix
+that drops footers will find footers_dropped == display_pages. That is a
+prediction from the input, not a confirmation from the output, and the two
+should not be written down as the same thing.
+
+THE CLASS DISTRIBUTION: PROJECTED, AND NOT FLAT ANYWHERE
+------------------------------------------------------------------------------
+Also computed from the TSVs rather than read from an artefact — flag_of() with
+its own floors (NOISE_DISTANCE 7, NOISE_COMP_DELTA 2) applied to the aligned
+rows:
+
+   Geometrodynamics       C 72   K 162   N 757   W 158
+   Graph and Hypergraph   C 11   K 107   N 129   W 19
+   Linear and Matrix Alg  C 270  K 284   N 762   W 354
+   Numerical Linear Alg   C 49   K 170   N 602   W 235
+   Lie Groups             C 81   K 98    N 526   W 332
+   2010.14265             C 9    K 2     N 4     W 1
+   An Invitation to ACT   C 53   K 56    N 105   W 48
+   OMDoc 1.2              C 4            N 1     W 1
+   Seven Sketches         C 42   K 34    N 129   W 59
+   0707.4470              C 2    K 19    N 29    W 12
+   Geometric/Alg/Topol    C 26   K 275   N 606   W 105
+   ---------------------------------------------------
+   POOLED                 C 619  K 1207  N 3650  W 1324   = 6,800
+
+**No document is flat.** Every one carries at least three classes; nine carry
+four. Nothing here has 0902.0431's all-one-class signature, and the
+publishready guard that refuses a flat distribution should pass all eleven.
+
+KEEPING THE FOOTERS WOULD DOUBLE THE CLEAN COUNT. The 1,232 footers score
+distance 0, and flag_of's first branch is `if distance == 0: return "clean"`.
+So they arrive as K|+0 — an absent reading taking the best class — and K goes
+from 1,207 to 2,439, +102%. Not a 15% error at the margin: the clean class
+would be more than half fabricated, and every other check would pass.
+
+S IS UNREACHABLE FROM THIS FORMAT, WHICH IS WHY IT HAS NEVER BEEN SEEN
+------------------------------------------------------------------------------
+flag_of returns "stable" only when distance exceeds the noise floor, the
+component delta is within it, AND scale_stable is true. The TSV has fourteen
+columns and none of them is scale_stable — L_stk/R_stk are the stacked counts
+inside the five-tuple, and A_eq_B is just (dis == 0). So the flag can only ever
+be computed with stable=False, and every such row becomes W.
+
+That is the mechanism behind the zero occurrences of S in 6,207 measured rows.
+Not an unfalsifiable legend entry; a branch that this input format cannot
+reach. The legend names five classes and the pipeline can produce four.
+
+NOT DONE, AND WHY
+------------------------------------------------------------------------------
+I did not run the conversion. It is inkdrill's step under the assignment in
+214, and the projected numbers above are projections precisely because I
+declined to produce the artefact myself. Everything here is a prediction from
+inputs that a conversion can be checked against — which is more useful before
+it runs than after.
