@@ -134,3 +134,31 @@ def test_a_check_that_cannot_see_its_input_FAILS(tmp_path):
     assert not r["ready"]
     assert not r["checks"]["glyphs"][0]
     assert "no report.log" in r["checks"]["glyphs"][1]
+
+
+def test_a_measurement_that_lands_on_NO_rows_is_a_join_failure(tmp_path):
+    """237c. residual_colour returns inkUnmeasured for an identifier it cannot
+    find, so a measurement whose identifiers do not intersect this report's
+    rows renders as a fully measured report in which nothing could be
+    measured — indistinguishable, on the page, from a document nobody
+    measured.
+
+    The shape is a comparison whose two populations cannot overlap. A peer hit
+    it the same week from the other side: 0 of 26 "confirmed" between an
+    ink.json holding only EQ identifiers and a text layer yielding only FO
+    ones. That test could not have returned a hit under any circumstances,
+    including the one where everything is correct."""
+    foreign = [{"id": "SOMEONE_ELSE_EQ%04d" % i, "code": "K|0"}
+               for i in range(1, 8)]
+    r = publish_ready(_doc(tmp_path, ink=foreign))
+    assert not r["ready"]
+    assert "join failure" in r["checks"]["residuals"][1]
+
+
+def test_a_measurement_that_lands_is_not_flagged(tmp_path):
+    good = [{"id": "DOC_EQ0001", "code": "K|0"},
+            {"id": "DOC_EQ0002", "code": "C|+4"},
+            {"id": "DOC_EQ0001", "code": "N|+1"},
+            {"id": "DOC_EQ0002", "code": "S|+9"}]
+    r = publish_ready(_doc(tmp_path, ink=good))
+    assert r["checks"]["residuals"][0], r["checks"]["residuals"][1]

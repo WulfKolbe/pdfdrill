@@ -1611,11 +1611,32 @@ def publish_ready(pdf: Path) -> dict:
             for r in rr:
                 c = (r.get("code") or "?")[:1]
                 dist[c] = dist.get(c, 0) + 1
+        # 237c — a measurement that lands on none of these rows is a JOIN
+        # failure, and on the page it is indistinguishable from a document
+        # nobody measured: every bullet reads "not measured".
+        landed = None
+        if ink.is_file():
+            tidp = next((f for f in d.glob("*.tiddlers.json")), None)
+            if tidp is not None:
+                try:
+                    import json as _j2
+                    landed = rt.ink_join(
+                        _j2.loads(tidp.read_text(encoding="utf-8")),
+                        d.name, rt.load_ink(ink))
+                except Exception:
+                    landed = None
         flat = (dist and len(dist) == 1 and len(rr) > 3
                 and next(iter(dist)) != "K")
-        checks["residuals"] = ((bullets > 0 and legend and not flat),
-                               "%d bullets, legend %s%s" %
+        nojoin = (landed is not None and landed.get("ink_rows")
+                  and landed.get("matched") == 0)
+        checks["residuals"] = ((bullets > 0 and legend and not flat
+                                and not nojoin),
+                               "%d bullets, legend %s%s%s" %
                                (bullets, "present" if legend else "ABSENT",
+                                "" if not nojoin else
+                                "; but NONE of %d measured identifiers matches "
+                                "a row here — a join failure, not a set of "
+                                "unmeasurable rows" % landed["ink_rows"],
                                 "" if not flat else
                                 "; but every one of %d rows is class %s — a "
                                 "distribution with no variation is a pairing "
@@ -13704,6 +13725,17 @@ def cmd_reporttex(pdf: Path, paper: str = "a3", landscape: bool = True,
             ink_path = None
             adopted = ""          # it was not adopted; it was refused
     ink_map = rt.load_ink(ink_path) if ink_path else None
+    # 237c — can this join succeed at all? Computed BEFORE the report is built,
+    # so a measurement that cannot land on these rows is named as a join
+    # failure rather than rendered as a document in which nothing measured.
+    join = {}
+    if ink_map:
+        import json as _j
+        try:
+            join = rt.ink_join(_j.loads(Path(tid).read_text(encoding="utf-8")),
+                               sc.blob_dir.name, ink_map)
+        except Exception:
+            join = {}
     # Residual data implies the residual COLUMN. Without this the file is
     # read, the bullets are computed, and nothing is drawn.
     if ink_map:
@@ -13736,6 +13768,20 @@ def cmd_reporttex(pdf: Path, paper: str = "a3", landscape: bool = True,
                              % (r["equations"], r["formulas"]))
     sc.save()
     lines_prefix = []
+    if join and join.get("ink_rows"):
+        m, n = join["matched"], join["ink_rows"]
+        if m == 0:
+            lines_prefix.append(
+                "INK JOIN FAILED: none of the %d measured identifiers matches "
+                "a row of this report (%d rows). Every bullet would read "
+                "'not measured', which on the page is indistinguishable from a "
+                "document nobody measured. The measurement is for a different "
+                "build or a different document." % (n, join["report_rows"]))
+        elif m < n:
+            lines_prefix.append(
+                "ink join: %d of %d measured identifiers matched a row "
+                "(%d rows in the report); %d did not land."
+                % (m, n, join["report_rows"], n - m))
     if adopted:
         lines_prefix.append(adopted)
     if refused:

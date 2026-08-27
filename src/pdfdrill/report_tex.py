@@ -510,6 +510,35 @@ _INK_COLOUR = {"component": "inkComponent", "weak": "inkWeak",
                "absent": "inkUnmeasured"}
 
 
+def ink_join(tiddlers, bibkey: str, ink: "dict | None") -> dict:
+    """How much of the ink map actually LANDS on rows of this report.
+
+    237c. residual_colour returns inkUnmeasured for an identifier it cannot
+    find, so a measurement whose identifiers do not intersect this report's
+    rows renders as a fully measured report in which nothing could be
+    measured. That is indistinguishable, on the page, from a document nobody
+    has measured — and it is a join failure, not a result.
+
+    The shape is a comparison whose two populations cannot overlap. A peer hit
+    it the same week from the other side: 0 of 26 rows "confirmed" between an
+    ink.json holding only EQ identifiers and a text layer yielding only FO
+    ones. The test could not have returned a hit under any circumstances,
+    including the one where everything is correct, and 0 of 26 reads exactly
+    like a finding.
+
+    So: ask whether the join CAN succeed before reporting what it found.
+    """
+    if not ink:
+        return {"ink_rows": 0, "report_rows": 0, "matched": 0, "rate": None}
+    fo, eq, tab, dia = rows_for(tiddlers, bibkey)
+    titles = {r[0] for r in fo} | {r[0] for r in eq} | {r[0] for r in tab} \
+        | {r[0] for r in dia}
+    matched = len(set(ink) & titles)
+    return {"ink_rows": len(ink), "report_rows": len(titles),
+            "matched": matched,
+            "rate": (matched / len(ink)) if ink else None}
+
+
 def residual_colour(ident: str, ink: "dict | None") -> str:
     """Bullet colour for one row, from the MEASURED residual class.
 
