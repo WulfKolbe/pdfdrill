@@ -115,3 +115,63 @@ def test_the_build_stamp_travels_as_measured_against(tmp_path):
     st = {"pdf": "report.pdf", "pages": 3, "sha256": "a" * 64, "phase": "measure"}
     p = ic.convert(_tsv(tmp_path, rows), _tex(tmp_path, 1), stamp=st)
     assert p["measured_against"]["sha256"] == "a" * 64
+
+
+def test_a_stamp_NEWER_than_the_tsv_is_not_attached(tmp_path, monkeypatch):
+    """244b — attaching whatever stamp is on disk names the build present at
+    CONVERSION time, which differs from the measured build whenever the report
+    was rebuilt in between, and says so with a confidence the file does not
+    have.
+
+    0707.4470 hit exactly this: TSV measured 08:46, build stamp written 11:38
+    three hours later by an unrelated rebuild. The stamp said phase=reading and
+    publishready refused the result — correctly, on a claim the converter had
+    invented. The rule is that a stamp can only be the measured build if it
+    predates the measurement.
+    """
+    import json as _j
+    import os
+    import time
+    from pdfdrill import commands as C
+    d = tmp_path / "DOC"
+    d.mkdir()
+    (d / "DOC.pdf").write_bytes(b"%PDF-1.4\n")
+    rows = [_row(1, 1, [10, 0, 0, 0, 0], [10, 0, 0, 0, 0]), _row(1, 2, FOOT, FOOT)]
+    (d / "report.compare.tsv").write_text("\n".join([HDR] + rows) + "\n",
+                                          encoding="utf-8")
+    (d / "report.tex").write_text(
+        "\\ident{DOC\\_EQ0001} & 1 & x & y \\\\ \\hline\n", encoding="utf-8")
+    (d / "report.build.json").write_text(
+        _j.dumps({"pdf": "report.pdf", "phase": "reading", "sha256": "b" * 64}),
+        encoding="utf-8")
+    now = time.time()
+    os.utime(d / "report.compare.tsv", (now - 3600, now - 3600))
+    os.utime(d / "report.build.json", (now, now))          # newer: a rebuild
+    out = C.cmd_inkconvert(d / "DOC.pdf")
+    assert "NOT attached" in out
+    payload = _j.loads((d / "report.ink.json").read_text(encoding="utf-8"))
+    assert "measured_against" not in payload
+
+
+def test_a_stamp_OLDER_than_the_tsv_is_attached(tmp_path):
+    import json as _j
+    import os
+    import time
+    from pdfdrill import commands as C
+    d = tmp_path / "DOC2"
+    d.mkdir()
+    (d / "DOC2.pdf").write_bytes(b"%PDF-1.4\n")
+    rows = [_row(1, 1, [10, 0, 0, 0, 0], [10, 0, 0, 0, 0]), _row(1, 2, FOOT, FOOT)]
+    (d / "report.compare.tsv").write_text("\n".join([HDR] + rows) + "\n",
+                                          encoding="utf-8")
+    (d / "report.tex").write_text(
+        "\\ident{DOC2\\_EQ0001} & 1 & x & y \\\\ \\hline\n", encoding="utf-8")
+    (d / "report.build.json").write_text(
+        _j.dumps({"pdf": "report.pdf", "phase": "measure", "sha256": "c" * 64}),
+        encoding="utf-8")
+    now = time.time()
+    os.utime(d / "report.build.json", (now - 3600, now - 3600))   # predates
+    os.utime(d / "report.compare.tsv", (now, now))
+    C.cmd_inkconvert(d / "DOC2.pdf")
+    payload = _j.loads((d / "report.ink.json").read_text(encoding="utf-8"))
+    assert payload["measured_against"]["sha256"] == "c" * 64

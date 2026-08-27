@@ -1920,9 +1920,16 @@ def cmd_inkconvert(pdf: Path, force: bool = False) -> str:
                                  % dest.name, rt.stamp()])
     # the measurement is of the report that was on disk when inkdrill ran, so
     # carry that build's stamp if one survives (237/242)
+    # 244b — attach it ONLY if that build can have been the one measured, i.e.
+    # the stamp predates the TSV. Attaching whatever stamp happens to be on
+    # disk names the build present at CONVERSION time, which is a different
+    # thing whenever the report was rebuilt between measuring and converting —
+    # and it says so with a confidence the file does not have. 0707.4470 hit
+    # exactly this: TSV measured 08:46, stamp written 11:38, and the gate
+    # refused the result for naming a reading build.
     stamp_file = d / rt.BUILD_STAMP
     stamp = None
-    if stamp_file.is_file():
+    if stamp_file.is_file() and stamp_file.stat().st_mtime <= tsv.stat().st_mtime:
         try:
             stamp = json.loads(stamp_file.read_text(encoding="utf-8"))
         except Exception:
@@ -1936,6 +1943,11 @@ def cmd_inkconvert(pdf: Path, force: bool = False) -> str:
     for r in payload["rows"]:
         c = r["code"][:1]
         by[c] = by.get(c, 0) + 1
+    if stamp is None and stamp_file.is_file():
+        out.append("build stamp NOT attached: %s is newer than %s, so it "
+                   "cannot be the build that was measured — provenance stays "
+                   "unrecorded rather than wrong."
+                   % (rt.BUILD_STAMP, tsv.name))
     out.append("%s: %d rows, %d footer(s) dropped over %d display page(s); %s"
                % (dest.name, len(payload["rows"]), payload["footers_dropped"],
                   payload["display_pages"],
