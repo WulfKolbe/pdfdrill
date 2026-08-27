@@ -1017,6 +1017,16 @@ def ink_measurable(log_path) -> "tuple[bool, str]":
 #: silent one.
 BUILD_STAMP = "report.build.json"
 
+#: 237b — and the stamp had the SAME collision as the thing it stamps. It was
+#: written to one name and overwritten by the next build, so a phase-2 build
+#: destroyed the phase-1 stamp — the one artefact a measurement needs in order
+#: to be checkable. Under two-phase the measured build and the published build
+#: are different files BY CONSTRUCTION (legend off vs on), so
+#: `measured_against.sha256` can never equal the published report's stamp; it
+#: has to be checked against the surviving stamp OF THAT PHASE.
+def phase_stamp_name(phase: str) -> str:
+    return "report.build.%s.json" % phase
+
 #: the key a MEASUREMENT writes into its own output, carrying a copy of the
 #: stamp of the build it measured. Named once, here, so both sides spell it the
 #: same way.
@@ -1063,9 +1073,26 @@ def write_build_stamp(pdf_out: Path, *, legend: bool, ink_adopted: bool,
         "glyphs_dropped": int(glyphs_dropped_count),
         "phase": ("measure" if (not legend and not ink_adopted) else "reading"),
     })
-    (pdf_out.parent / BUILD_STAMP).write_text(
-        _json.dumps(stamp, indent=1), encoding="utf-8")
+    body = _json.dumps(stamp, indent=1)
+    # the latest build, whatever it was
+    (pdf_out.parent / BUILD_STAMP).write_text(body, encoding="utf-8")
+    # and a copy under this phase's own name, so a phase-1 stamp SURVIVES the
+    # phase-2 build that replaces its PDF
+    (pdf_out.parent / phase_stamp_name(stamp["phase"])).write_text(
+        body, encoding="utf-8")
     return stamp
+
+
+def measure_stamp(blob_dir: Path) -> dict:
+    """The surviving stamp of this document's last phase=measure build."""
+    import json as _json
+    p = Path(blob_dir) / phase_stamp_name("measure")
+    if not p.is_file():
+        return {}
+    try:
+        return _json.loads(p.read_text(encoding="utf-8"))
+    except Exception:
+        return {}
 
 
 def stamp_matches(stamp: dict, pdf_out: Path) -> "tuple[bool, str]":

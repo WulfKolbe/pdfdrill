@@ -1644,16 +1644,30 @@ def publish_ready(pdf: Path) -> dict:
             except Exception:
                 meas = {}
             if meas:
-                if meas.get("sha256") and meas["sha256"] != stamp.get("sha256"):
-                    checks["ink"] = (False,
-                        "measured against a DIFFERENT build (%s pages, %s "
-                        "bytes) than the report.pdf here (%s pages, %s bytes)"
-                        % (meas.get("pages"), meas.get("bytes"),
-                           stamp.get("pages"), stamp.get("bytes")))
-                elif meas.get("phase") == "reading":
+                # 237b — NOT against the published stamp. Under two-phase the
+                # measured build and the published build are different files by
+                # construction (legend off vs on), so requiring sha equality
+                # there would fail every correctly two-phased document and pass
+                # only the ones that skipped phase 1. Check it against the
+                # surviving stamp of the measure phase.
+                mstamp = rt.measure_stamp(d)
+                if meas.get("phase") == "reading":
                     checks["ink"] = (False,
                         "measured against a READING build (legend and bullets "
                         "on the page); measure a phase=measure build")
+                elif mstamp and meas.get("sha256") and \
+                        meas["sha256"] != mstamp.get("sha256"):
+                    checks["ink"] = (False,
+                        "measured against a build (%s pages, %s bytes) that is "
+                        "not this document's last phase=measure build (%s "
+                        "pages, %s bytes)"
+                        % (meas.get("pages"), meas.get("bytes"),
+                           mstamp.get("pages"), mstamp.get("bytes")))
+                elif not mstamp:
+                    checks["ink"] = (checks["ink"][0],
+                        checks["ink"][1] + "; no surviving %s to check "
+                        "`%s` against"
+                        % (rt.phase_stamp_name("measure"), rt.MEASURED_AGAINST))
             else:
                 checks["ink"] = (checks["ink"][0],
                                  checks["ink"][1] + "; no `%s` stamp in the "

@@ -95,8 +95,15 @@ def test_gate_passes_when_the_measurement_names_this_build(tmp_path):
 
 
 def test_gate_refuses_a_measurement_of_a_DIFFERENT_build(tmp_path):
-    """0902.0431 exactly: an ink.json whose build no longer exists."""
-    pdf, stamp = _stamped(tmp_path)
+    """0902.0431 exactly: an ink.json whose build no longer exists.
+
+    237b — checked against the SURVIVING measure-phase stamp, not against the
+    published report. Under two-phase those are different files by
+    construction (legend off vs on), so requiring sha equality against the
+    published stamp would fail every correctly two-phased document and pass
+    only the ones that skipped phase 1.
+    """
+    pdf, stamp = _stamped(tmp_path)          # writes report.build.measure.json
     other = dict(stamp, pages=20, bytes=999, sha256="0" * 64)
     data = json.loads((pdf.parent / "report.ink.json").read_text())
     data[rt.MEASURED_AGAINST] = other
@@ -104,7 +111,43 @@ def test_gate_refuses_a_measurement_of_a_DIFFERENT_build(tmp_path):
                                                 encoding="utf-8")
     r = publish_ready(pdf)
     assert not r["checks"]["ink"][0]
-    assert "DIFFERENT build" in r["checks"]["ink"][1]
+    assert "last phase=measure build" in r["checks"]["ink"][1]
+
+
+def test_a_phase1_stamp_SURVIVES_the_phase2_build_that_replaces_its_pdf(tmp_path):
+    """The stamp had the same collision as the thing it stamps: one filename,
+    overwritten by the next build, destroying the one artefact a measurement
+    needs to be checkable against."""
+    p = _pdf(tmp_path)
+    m = rt.write_build_stamp(p, legend=False, ink_adopted=False,
+                             prefer_refined=False, filters={})
+    p.write_bytes(b"%PDF-1.4\n" + b"z" * 900)          # phase 2 replaces it
+    rt.write_build_stamp(p, legend=True, ink_adopted=True,
+                         prefer_refined=False, filters={})
+    survived = rt.measure_stamp(tmp_path)
+    assert survived["sha256"] == m["sha256"]
+    assert survived["phase"] == "measure"
+    latest = json.loads((tmp_path / rt.BUILD_STAMP).read_text())
+    assert latest["phase"] == "reading"
+
+
+def test_a_correctly_two_phased_document_PASSES(tmp_path):
+    """The case the assertion I first proposed would have failed: the measured
+    build and the published build are different files, as designed."""
+    pdf = _doc(tmp_path, ink=SPREAD)
+    d = pdf.parent
+    (d / "report.pdf").write_bytes(b"%PDF-1.4\n" + b"m" * 50)
+    meas = rt.write_build_stamp(d / "report.pdf", legend=False,
+                                ink_adopted=False, prefer_refined=False,
+                                filters={})
+    (d / "report.pdf").write_bytes(b"%PDF-1.4\n" + b"r" * 700)
+    rt.write_build_stamp(d / "report.pdf", legend=True, ink_adopted=True,
+                         prefer_refined=False, filters={})
+    data = json.loads((d / "report.ink.json").read_text())
+    data[rt.MEASURED_AGAINST] = meas
+    (d / "report.ink.json").write_text(json.dumps(data), encoding="utf-8")
+    r = publish_ready(pdf)
+    assert r["checks"]["ink"][0], r["checks"]["ink"][1]
 
 
 def test_gate_refuses_a_measurement_of_a_READING_build(tmp_path):
