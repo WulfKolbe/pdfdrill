@@ -1,0 +1,124 @@
+245 — every lines.json type across the corpus, and what reads it
+==============================================================================
+POPULATION: 1,350 lines.json files, 3.8 GB, 3,998,456 line objects,
+37 distinct `type` values. Counted with a regex validated against a full parse
+of one document first — exact match, 1,237 of 1,237, and every `type` occurs at
+exactly one path (/pages[]/lines[]), so there is no nesting to conflate.
+
+THE ANSWER TO THE QUESTION AS ASKED: NO.
+------------------------------------------------------------------------------
+   equation.EQ_TYPES = {"equation", "math"}
+
+`diagram` is not read as maths. Neither is `chart`, `figure_label`, `molecule`,
+`icon` or `diagram_info`. Only `math` reaches EquationProcessor — and only
+`math`, because the other member of that set never occurs in the corpus at all.
+
+But two things the scan turned up are larger than the one suspected.
+
+FINDING 1 — 80,035 LINES MATHPIX LABELLED `list_item` ARE READ BY NOTHING
+------------------------------------------------------------------------------
+`"list_item"` appears NOWHERE in src/. Not in a module, not in a constant, not
+in a comparison. 80,035 lines across 882 of 1,350 documents.
+
+They are not merely unclaimed, they are invisible in both directions:
+
+   ListProcessor      list_items.py:66   `if payload.get("type") != "text": continue`
+                      It builds list items by REGEX-SPLITTING BULLETS out of
+                      prose lines, and skips the lines MathPix already typed
+                      as list items.
+   ParagraphProcessor _PROSE_TYPES = {"text","title","quote"}   -> not prose
+                      _BREAK_TYPES has 24 members and list_item is not one
+                      -> not a boundary either
+
+So a `list_item` line contributes nothing and does not even end the paragraph
+it interrupts. The pipeline reconstructs from prose, lexically, what the OCR
+had already labelled structurally — and where MathPix typed the line
+correctly, that label is the one thing thrown away.
+
+FINDING 2 — 126,242 LINES IN 11 TYPES ARE NAMED BY NO MODULE
+------------------------------------------------------------------------------
+    80,035  list_item                (882 docs)
+    44,689  code                     (205 docs)
+       683  form_field                (51)
+       453  multiple_choice_block     (23)
+       133  rotated_container         (18)
+       125  multiple_choice_option    (12)
+        96  icon                      (23)
+        10  table_split_cell           (7)
+        10  molecule                   (4)
+         7  diagram_info               (2)
+         1  x_axis_tick_label          (1)
+
+3.2% of every line in the corpus. `code` is the second largest: 44,689 lines in
+205 documents, and the only "code" in docmodel is diagram.py's own subtype for
+TikZ, which is a different thing entirely.
+
+THE FULL MAP, ALL 37
+------------------------------------------------------------------------------
+CONSUMED — becomes a DocObject
+   text            2,424,604  Paragraph (prose), and ListProcessor mines it
+                              for bullets
+   simple_cell       708,915  TableCell
+   table_row         154,945  TableRow
+   math              130,013  Equation / Formula  <- the ONLY equation input
+   equation_number    47,942  attached to its Equation
+   table_column       46,463  ONLY as a child of a table with children_ids;
+                              a bare table_column line is not an object
+   section_header     43,160  Section
+   complex_cell       34,369  TableCell
+   diagram            24,806  Diagram  (DiagramProcessor, diagram.py:65)
+   table_of_contents_item   19,637 | _row 17,596 | _number 17,001 |
+   _container 653             TocProcessor
+   table              11,160  Table
+   table_spanning_cell 9,289  TableCell
+   footnote            4,802  Footnote
+   authors             2,001  Page metadata
+   title               1,744  Page title / prose
+   abstract              970  Abstract
+   quote                 394  prose
+   column             15,899  Sidenote (sidenote.py) and a paragraph break
+
+BOUNDARY ONLY — ends a paragraph, produces nothing
+   page_info         115,725
+   figure_label       22,638
+   pseudocode          7,078
+   qed_symbol          8,274
+   chart               2,136
+
+IGNORED — the eleven above, 126,242 lines
+
+TREATED AS AN EQUATION — `math`, and nothing else.
+
+THREE TYPE LITERALS IN THE CODE THAT NEVER OCCUR
+------------------------------------------------------------------------------
+   "equation"   tested by equation.py, formula.py, paragraph.py
+   "figure"     tested by picture.py, paragraph.py
+   "caption"    tested by picture.py, paragraph.py
+
+None appears once in 4.0M lines. Consequences:
+
+   EQ_TYPES is half dead — the set reads as two inputs and has one.
+   PictureProcessor._from_figure_line is unreachable: its guard is
+   `ltype == "figure"`, and the caption lookup inside it looks for a child of
+   type "caption". The module is still live through its else-branch
+   (`_from_inline`), so pictures are found from inline markdown images — but
+   the figure-line path, and every caption it would have carried, has never
+   run on this corpus.
+
+None of this is dead code in the out/237b sense — the functions have callers.
+They have no INPUTS. A guard that no data can satisfy is a different failure
+from a function nobody calls, and it is quieter: the module loads, runs,
+matches nothing, and reports success.
+
+WHY THE SUSPECTED ANSWER WAS THE SAFE ONE TO CHECK FIRST
+------------------------------------------------------------------------------
+"diagram read as maths" would have been visible — wrong equations in the
+formula report, wrong residual classes, wrong equation counts. It is not
+happening, and the reason it is not happening is that EQ_TYPES is an
+allowlist of two rather than a denylist.
+
+What is happening is the opposite shape and leaves no trace: types that are
+never claimed produce nothing, break nothing, and log nothing. 126,242 lines
+across 11 types pass through the model builder without being read, and the
+only way to see it is to enumerate what the input contains and diff it against
+what the code names. Every count above is from that diff.
