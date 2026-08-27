@@ -1,0 +1,114 @@
+237b — every consumer of pdf_lines and the pdfminer path
+==============================================================================
+(out/237.txt is taken by the zip-alignment report; this is the second task to
+carry the number, kept separate rather than overwriting it.)
+
+NOTHING IS DEAD. BOTH HAVE LIVE CONSUMERS, NAMED BELOW.
+------------------------------------------------------------------------------
+
+pdf_lines — ONE PRODUCER, THREE READERS
+------------------------------------------------------------------------------
+PRODUCER
+   geometry.fuse()                        creates the stream (geometry.py:130)
+     <- cmd_geometry                      registered command `geometry`
+   geometry.unfuse()                      removes it (geometry.py:114)
+
+READER 1 — equation numbers
+   eqnums.fuse_equation_numbers()         eqnums.py:49
+     doc.streams.get("pdf_lines"), then Range("pdf_lines", a, a) at :122
+     <- cmd_eqnums (commands.py:10140)    registered command `eqnums`
+   Recovers margin numbers "(N)" that MathPix missed, by page + vertical
+   position. This is the only source for those.
+
+READER 2 — list geometry
+   blocks.resplit_list_items_by_geometry()  blocks.py:198
+     <- cmd_lists (commands.py:8149)      registered command `lists`
+   Splits a run-on list item when its band covers >= 2 pdf_lines that each
+   start with a bullet.
+
+READER 3 — layer retraction
+   layer_detect.has_geometry()            layer_detect.py:81
+     "pdf_lines" in doc.streams
+     <- present("geometry", ...)          layer_detect.py:162
+     <- retract_absent_layers()           layer_detect.py:190
+        <- cmd_tables  (commands.py:3829)
+        <- cmd_model   (commands.py:4078)
+     <- still_retracted()                 layer_detect.py:240
+        <- cmd_abstract (commands.py:12005)
+   After a destructive rebuild, this is what decides whether GEOMETRY_FUSED and
+   the geometry_* evidence counters are dropped. The stream's PRESENCE is the
+   test — deliberately not object regions, which survive a rebuild that loses
+   the fusion (tests/test_layer_detect.py: 65 regions on both sides).
+
+pdfminer — ONE MODULE, NO DEAD FUNCTIONS
+------------------------------------------------------------------------------
+Every pdfminer import in src/ is in ONE file, pdfminer_layer.py (lines 50, 93,
+94, 180, 181, 287). Everything else that mentions pdfminer is prose or policy.
+
+All nineteen of its functions have at least one caller, counting calls inside
+the module:
+
+   font_style 3+7   available 3+3   _page_range 2+0   _color_str 2+5
+   char_records 1+3   _iter_layouts_chunked 1+2   iter_page_records 0+1
+   _key 1+4   _same_line 1+0   font_runs 1+2   dominant_style 1+2
+   page_dims 0+3   _overlap 1+0   fuse_emphasis 0+2   attach_page_emphasis 0+3
+   dominant_color 0+2   emphasis_spans 1+3   _norm_heading 2+2
+   heading_crosscheck 0+2
+
+Four call sites reach it, all inside registered commands:
+
+   _pdfminer_char_dump          commands.py:349   <- cmd_mathpix
+   _stream_born_digital_lines   commands.py:779   <- cmd_mathpix
+   _fuse_emphasis_onto_paragraphs commands.py:8990 <- cmd_fontspans
+   cmd_fontspans                commands.py:9058  registered `fontspans`
+
+Consumers of what it produces:
+   reconcile.py     the pdfminer leg of the dual-route merge — geometry and
+                    structure come FROM pdfminer, math from MathPix
+   cid_glyphs.py    repairs the (cid:N) pdfminer emits when a font gives no
+                    /ToUnicode mapping
+   chars_to_lines.py assembles pdfminer/pdfplumber char dumps into lines
+   producer_policy.py declines the lane for producer families it mishandles
+   scan.py, scandrill/handoff.py  keep OCR'd scans OFF this lane
+
+THREE WRONG VERDICTS I HAD TO WITHDRAW BEFORE REPORTING
+------------------------------------------------------------------------------
+Each came from a grep that could not have returned the right answer, and each
+one read like a finding.
+
+1. "_page_range, _same_line, _overlap have NO CALLERS." They are private
+   helpers used only inside pdfminer_layer.py, and I had excluded that file
+   from the search. Counting internal calls: 2, 1, 1.
+
+2. "layer_detect.has_geometry has NO CALLER outside its own module." The four
+   external hits for the bare name are three uses of a LOCAL VARIABLE
+   `has_geometry = bool((out.get("meta") or {}).get("pages"))` inside cmd_model
+   — an unrelated thing with the same name — plus one docstring in a test. So
+   the name-grep was right and the conclusion was wrong in both directions at
+   once: the hits were not callers, and the absence of hits was not absence of
+   callers.
+
+3. "No dynamic dispatch by name." I grepped for getattr(, globals() and the
+   string "has_ and found nothing. The dispatcher is `present(layer, doc, ...)`
+   with an explicit if/elif chain — no name construction at all, which is
+   exactly why a search for name construction could not see it. That chain is
+   what makes has_bibliography, has_geometry, has_expanded_math and has_compare
+   live; all four look uncalled to any direct search.
+
+The pattern is the one this sequence keeps producing: a search whose shape
+cannot express the answer returns an empty result, and an empty result reads as
+a finding. The verdict "dead code" is especially exposed to it, because the
+evidence for dead code is an ABSENCE, and absence is what a mis-shaped query
+returns by default.
+
+WHAT WOULD ACTUALLY BE DEAD, AND IS NOT
+------------------------------------------------------------------------------
+For pdf_lines to be dead, cmd_eqnums, cmd_lists, cmd_tables, cmd_model and
+cmd_abstract would all have to stop reading it. All five are registered in
+commands.yaml and all five ran in the out/213 drill chain over eleven
+documents.
+
+For the pdfminer path to be dead, cmd_mathpix would have to stop calling
+_stream_born_digital_lines and _pdfminer_char_dump. It calls both — the
+born-digital lane is what produced ConformalGeometryOfSimplicialSurfaces' first
+markdown this evening, before the MathPix outputs replaced it.
