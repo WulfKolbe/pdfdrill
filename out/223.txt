@@ -1,3 +1,4 @@
+2026-08-26T14:32:55Z  base=f1d76257cac0
 223 — check every escape site against the font actually selected there
 ==============================================================================
 

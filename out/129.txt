@@ -1,3 +1,4 @@
+2026-08-23T13:48:02Z  base=f0d12775feff
 129 — the row to send MathPix
 ========================================================================
 ASSUMPTION, stated because it changes the answer: no image came through with

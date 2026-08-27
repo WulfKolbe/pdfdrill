@@ -1,3 +1,4 @@
+2026-08-26T10:01:29Z  base=80e750884565
 193 — the residual measurement on the five reports
 ==============================================================================
 ONE of five paired. Four refused, each by a named margin. No report.ink.json

@@ -1,3 +1,4 @@
+2026-08-26T09:10:33Z  base=a870d57846cb
 207 — could any \mathbb{<digit>} have been transcribing a turnstile?
 ==============================================================================
 NO. Not one of the 758. The 199 fix is safe, and this is the check that

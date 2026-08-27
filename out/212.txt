@@ -1,3 +1,4 @@
+2026-08-26T11:06:38Z  base=18d4eda92753
 212 — every document in the MathPix correspondence
 ==============================================================================
 12 documents. ONE is current; ELEVEN need the full chain, 3,440 pages.

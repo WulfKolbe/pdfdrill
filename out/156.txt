@@ -1,3 +1,4 @@
+2026-08-24T09:31:20Z  base=47f75964498b
 156 — the confidence square's colour mapping
 ============================================
 

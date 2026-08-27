@@ -1,3 +1,4 @@
+2026-08-25T19:36:43Z  base=ed87f57e867b
 190 — the five real defects: the list for MathPix
 ==============================================================================
 Five equations MathPix read wrongly, surviving every filter in out/187–189.

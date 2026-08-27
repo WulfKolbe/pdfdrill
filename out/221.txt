@@ -1,3 +1,4 @@
+2026-08-26T12:39:31Z  base=94d91fa534d0
 221 — the four dropped code points, and the gate that stops 214 measuring
 ==============================================================================
 

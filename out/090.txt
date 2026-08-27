@@ -1,3 +1,4 @@
+2026-08-22T08:14:47Z  base=91492e30fedf
 090 - making the dropped glyphs stop, and why the asked-for mechanism is inert
 ==============================================================================
 

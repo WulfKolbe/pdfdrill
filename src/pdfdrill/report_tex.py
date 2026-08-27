@@ -1031,6 +1031,41 @@ def ink_measurable(log_path) -> "tuple[bool, str]":
                    "the extraction." % (Path(log_path).name, n, sample))
 
 
+#: 240 — every report says WHEN it was written and against WHICH tree, on one
+#: line, before anything else. A report arriving after a newer one is otherwise
+#: indistinguishable from a current one, and that happened twice in one session:
+#: a five-day-old report.compare.tsv read as fresh off a listing that printed
+#: HH:MM with no date, and a published 0902.0431 whose artefacts were two days
+#: apart from the library copy they were compared against.
+#:
+#: `base` is the commit the work started FROM, not the commit containing the
+#: report — that hash cannot exist yet, because the report and the change it
+#: describes land in the same commit. Naming it `base` rather than `commit` is
+#: the difference between a pointer and a claim; `git log --diff-filter=A --
+#: out/NNN.txt` gives the containing commit whenever anyone wants it.
+def provenance_line(repo: "Path | None" = None) -> str:
+    """`2026-08-27T09:42:03Z  base=4f9261d6f46f`
+
+    No branch field. Git records no such thing — `--abbrev-ref HEAD` is the
+    branch NOW, not the branch a commit was made on, so on a retrofitted report
+    it would be an unverifiable claim dressed as provenance. The hash locates
+    the tree by itself.
+    """
+    import datetime
+    import subprocess
+    root = Path(repo) if repo else Path(__file__).resolve().parents[2]
+    def git(*a, default="unknown"):
+        try:
+            r = subprocess.run(("git",) + a, cwd=str(root), capture_output=True,
+                               text=True, timeout=30)
+            return r.stdout.strip() or default
+        except Exception:
+            return default
+    now = datetime.datetime.now(datetime.timezone.utc)
+    return "%s  base=%s" % (now.strftime("%Y-%m-%dT%H:%M:%SZ"),
+                            git("rev-parse", "--short=12", "HEAD"))
+
+
 #: 237 — the build stamp. The measurement build and the reading build write
 #: THE SAME filenames, so a phase-1 report is destroyed by the next phase-2
 #: build and nothing on disk records which phase the survivor is. 0902.0431's
@@ -1079,8 +1114,22 @@ def build_stamp(pdf_out: Path) -> dict:
     with pdf_out.open("rb") as fh:
         for chunk in iter(lambda: fh.read(1 << 20), b""):
             h.update(chunk)
+    import subprocess as _sp
+    try:
+        commit = _sp.run(["git", "rev-parse", "--short=12", "HEAD"],
+                         cwd=str(Path(__file__).resolve().parents[2]),
+                         capture_output=True, text=True,
+                         timeout=30).stdout.strip() or "unknown"
+    except Exception:
+        commit = "unknown"
     return {"pdf": pdf_out.name, "pages": pages, "bytes": st.st_size,
-            "sha256": h.hexdigest(), "mtime": int(st.st_mtime)}
+            "sha256": h.hexdigest(), "mtime": int(st.st_mtime),
+            # 240: which tree built this. mtime orders builds; the commit says
+            # what they were built FROM, which mtime cannot.
+            "built_at": __import__("datetime").datetime.now(
+                __import__("datetime").timezone.utc
+            ).strftime("%Y-%m-%dT%H:%M:%SZ"),
+            "commit": commit}
 
 
 def write_build_stamp(pdf_out: Path, *, legend: bool, ink_adopted: bool,

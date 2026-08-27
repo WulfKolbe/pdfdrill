@@ -1,3 +1,4 @@
+2026-08-25T20:06:14Z  base=c31565005e95
 186 — the floor of 7, restated against a POOLED measurement
 ==============================================================================
 Superseded version below the line. This head is the pooled result the earlier

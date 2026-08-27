@@ -1,3 +1,4 @@
+2026-08-26T09:36:07Z  base=52df2a3e4c45
 208 — the Mielke \nvdash case: it is a slashed L, and the same glyph is
       also read as Z in the very next equation
 ==============================================================================

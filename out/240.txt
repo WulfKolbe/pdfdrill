@@ -1,0 +1,94 @@
+2026-08-27T09:01:45Z  base=4f9261d6f46f
+240 — every report says when it was written and against which tree
+==============================================================================
+
+THE LINE
+------------------------------------------------------------------------------
+   2026-08-27T08:09:49Z  base=088db8f5ce31
+
+UTC, then the commit the work started from, on one line, before anything else.
+On all 151 existing out/*.txt and on every one written from now on, and on the
+two CLI reports that cross a session boundary.
+
+WHY `base` AND NOT `commit`
+------------------------------------------------------------------------------
+The commit CONTAINING a report cannot exist when the report is written: the
+write-up and the change it describes land in the same commit, so its hash is
+not computable until after the file is on disk. Naming the base — the tree the
+work started from — is a pointer rather than a claim, and the containing commit
+is one command away whenever anyone wants it:
+
+   git log --diff-filter=A --format=%H -1 -- out/237.txt
+
+The retrofit uses the same definition: the PARENT of the commit that added each
+file, and the commit date as the timestamp. Both are facts git recorded, not
+reconstructions.
+
+WHY THERE IS NO BRANCH FIELD, THOUGH I WROTE ONE FIRST
+------------------------------------------------------------------------------
+The first version emitted `branch=eqblobs-and-gzip-tex`. Git records no such
+thing. `rev-parse --abbrev-ref HEAD` is the branch NOW, not the branch a commit
+was made on, so on 151 retrofitted reports that field would be an unverifiable
+claim wearing the costume of provenance — the exact failure this line exists to
+prevent, introduced by the line itself.
+
+It also adds nothing: the hash locates the tree by itself. Dropped, and a test
+asserts it stays dropped.
+
+THE RETROFIT REPORTED SUCCESS WHILE DOING THE WRONG THING
+------------------------------------------------------------------------------
+Removing the branch field meant re-stamping. The strip pass reported
+
+   stripped the branch-bearing stamp from 0 files
+   stamped 151, already had one 0, skipped 0, of 151
+
+and both numbers were consistent with success. They were not. The strip
+pattern was double-escaped inside a heredoc, so `\\d` reached Python as a
+literal backslash-then-d and matched nothing; the stamper then found no
+well-formed first line on any file and PREPENDED, leaving all 151 with two
+stamps. `head -1` looked perfect on every one of them.
+
+Caught by asking a different question than "did it report success" — how many
+files carry TWO stamp lines. 151. Fixed by replacing rather than prepending,
+with an assertion that the two hashes agree before deleting either. A test now
+covers the duplicate case specifically, because the failure was invisible to
+the check that was supposed to prevent it.
+
+WHERE IT LANDS
+------------------------------------------------------------------------------
+   out/*.txt                 151 of 151, first line
+   pdfdrill publishready     first line of the prose, "provenance" key in --json
+   pdfdrill handover         first line of the prose, "provenance" key in --json
+   report.build.json         gains `commit` and `built_at` — mtime orders
+                             builds, the commit says what they were built FROM,
+                             which mtime cannot
+
+   tools/stamp_reports.py    stamps new files from git history; --check exits
+                             non-zero if any report lacks the line, which is
+                             what CI wants
+
+THE HALF I CANNOT DO
+------------------------------------------------------------------------------
+240 says BOTH CLIs. I can only change this one. The pages CLI's reports reach
+me the same way mine reach it, and both of this session's incidents involved a
+report crossing that boundary — so the rule is worth nothing applied to one
+side. Sent to the peer with the format and the reasoning, including why the
+branch field is absent, so the two sides do not diverge on it.
+
+WHAT IT WOULD HAVE CAUGHT
+------------------------------------------------------------------------------
+Twice this session, and both times the missing qualifier was time:
+
+1. A five-day-old report.compare.tsv read as today's, off a listing printed
+   with `date +%H:%M` — hours and minutes, no date. I built an inference about
+   pacing on a four-hour gap that did not exist.
+
+2. 0902.0431 compared across a published copy and a library copy two days
+   apart, where the page-range test I used cannot detect the difference because
+   a measurement build has fewer pages than the reading build that replaces it.
+
+Neither was a wrong number. Both were correct numbers about a state that had
+been superseded, presented as current.
+
+   tests/test_provenance_line.py   7 tests
+   suite 2,447 -> 2,454

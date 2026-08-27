@@ -1,3 +1,4 @@
+2026-08-26T06:04:42Z  base=be1b8808d15e
 197 — semantic then gaps on the five books
 ==============================================================================
 Both ran clean on all five. `semantic` builds the evidence graph (~2.5 min a

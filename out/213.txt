@@ -1,3 +1,4 @@
+2026-08-26T11:59:38Z  base=658515ca4949
 213 — drill every document from out/212.txt that is not current
 ==============================================================================
    11 documents · 12 steps each · 132 steps · EVERY STEP rc=0

@@ -1,3 +1,4 @@
+2026-08-26T08:45:25Z  base=5a9a2ab63686
 202 — annotated_math added to the vision selector
 ==============================================================================
 THE SCHEMA ENTRY

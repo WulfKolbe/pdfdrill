@@ -1,3 +1,4 @@
+2026-08-25T19:00:43Z  base=a23a5b51454d
 187 — numeric_rows fixed. 919 width failures → 2.
 ==============================================================================
 THE COUNT, against the same exhaustive population

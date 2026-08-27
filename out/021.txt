@@ -1,3 +1,4 @@
+2026-08-20T14:01:50Z  base=85b64b99d625
 021 - normalise LaTeX values whose backslash was severed from its command
 ==============================================================================
 

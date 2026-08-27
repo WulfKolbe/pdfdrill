@@ -1,3 +1,4 @@
+2026-08-24T20:11:12Z  base=41e678ab401b
 158 — the legend on every page (\endfoot + \endlastfoot)
 ========================================================
 

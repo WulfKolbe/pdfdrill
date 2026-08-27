@@ -1850,15 +1850,17 @@ def handover_rows(root: Path, *, ready_only: bool = False) -> list:
 def cmd_handover(root: Path, ready_only: bool = False,
                  as_json: bool = False) -> str:
     """The pages-CLI handover list: one line per document, keyed on path."""
+    from . import report_tex as rt
     try:
         rows = handover_rows(Path(root), ready_only=ready_only)
     except HandoverCollision as e:
         return "REFUSING to hand over: %s" % e
     if as_json:
-        return json.dumps({"rows": rows, "count": len(rows),
+        return json.dumps({"provenance": rt.provenance_line(),
+                           "rows": rows, "count": len(rows),
                            "distinct_paths": len({r["path"] for r in rows})},
                           indent=1)
-    out = []
+    out = [rt.provenance_line()]
     for r in sorted(rows, key=lambda x: x["path"]):
         out.append(
             "%s | %s | %s | %s pages | %s equations | %s | %d refined | %s"
@@ -1875,13 +1877,16 @@ def cmd_handover(root: Path, ready_only: bool = False,
 def cmd_publishready(pdf: Path, as_json: bool = False) -> str:
     """Is this document's report fit to publish? The five-item checklist."""
     import json as _json
+    from . import report_tex as rt
     r = publish_ready(pdf)
     if as_json:
-        return _json.dumps({"ready": r["ready"], "fields": r["fields"],
+        return _json.dumps({"provenance": rt.provenance_line(),
+                            "ready": r["ready"], "fields": r["fields"],
                             "checks": {k: {"ok": v[0], "detail": v[1]}
                                        for k, v in r["checks"].items()}},
                            indent=1)
-    lines = ["%s: %s" % (r["fields"]["bibkey"],
+    lines = [rt.provenance_line(),
+             "%s: %s" % (r["fields"]["bibkey"],
                          "READY" if r["ready"] else "NOT READY")]
     for k in PUBLISH_CHECKS:
         ok, detail = r["checks"][k]

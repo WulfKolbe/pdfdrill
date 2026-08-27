@@ -1,3 +1,4 @@
+2026-08-20T14:37:16Z  base=b23f113975f7
 024 - math objects whose latex ends with , ; . or : (before any closing brace)
 ==============================================================================
 

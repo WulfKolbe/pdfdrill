@@ -1,3 +1,4 @@
+2026-08-26T11:42:13Z  base=a19479dc5832
 217 — the refined report: what was TRIED, not what changed
 ==============================================================================
    Numerical Linear Algebra and Matrix Factorizations (Tom Lyche)

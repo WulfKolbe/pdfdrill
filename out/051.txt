@@ -1,3 +1,4 @@
+2026-08-21T07:59:07Z  base=15d80eae9d38
 051 - the 9 ink-only rows: is the difference MathPix's reading, or our rendering?
 ====================================================================================
 

@@ -1,3 +1,4 @@
+2026-08-25T14:20:20Z  base=591f6582ff8d
 178 — the missing control: does the gate accept a known-good repair?
 ==============================================================================
 YES. EQ0515 was accepted, and it reached an EXACT topological match.

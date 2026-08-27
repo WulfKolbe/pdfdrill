@@ -1,3 +1,4 @@
+2026-08-26T05:27:17Z  base=f5e587e768e4
 195 — the chain order: reporttex now RE-RUNS and adopts the residuals
 ==============================================================================
 WHICH I CHANGED: the second option — reporttex re-runs after the measurement,

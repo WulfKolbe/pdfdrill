@@ -1,3 +1,4 @@
+2026-08-25T19:14:41Z  base=f7d69aee14c8
 189 — did the fix remove real defects with the false ones?
 ==============================================================================
 VERDICT: No. 917 of the 918 cleared rows are correct mathematics, verified by

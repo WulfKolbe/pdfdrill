@@ -1,3 +1,4 @@
+2026-08-25T17:39:08Z  base=79e1d4c5d977
 180 — a reader-facing note on any unmeasured report
 ==============================================================================
 SHIPPED

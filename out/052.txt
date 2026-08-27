@@ -1,3 +1,4 @@
+2026-08-21T08:12:39Z  base=88ac2cb5a24d
 052 - every SLT-zero row in the corpus, unconditioned on ink distance
 ================================================================================
 

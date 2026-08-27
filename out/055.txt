@@ -1,3 +1,4 @@
+2026-08-21T08:25:22Z  base=4d140555a93f
 055 - every transformation of ~ in LaTeX values, on the ingest and projection paths
 ==============================================================================
 

@@ -1,3 +1,4 @@
+2026-08-23T16:11:03Z  base=32700db79be9
 130 — pre-call gate: skip a row whose baseline is already below the noise floor
 ===============================================================================
 
