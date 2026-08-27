@@ -25,7 +25,12 @@ VERSION = "0.4.0"
 #: scikgtex projection, the standalone "Formula Report — <stem>.lines.json.pdf".
 #: Counting them as documents inflates a corpus census and gives them their own
 #: (empty or duplicate) model in any per-document scan.
-_DERIVED_PDFS = {"report.pdf"}
+#: 236 — refine.report.pdf belongs here too. out/217 named it that way on
+#: purpose, so a `report.*` sweep could not catch it alongside the quarantined
+#: report.ink.json.MISPAIRED; the same rename walked it straight past a
+#: derived-PDF check that only knew the exact name "report.pdf", and it was
+#: being enumerated as a document of its own.
+_DERIVED_PDFS = {"report.pdf", "refine.report.pdf"}
 _DERIVED_SUFFIXES = (".scikg.pdf", ".glossaries.pdf")
 _DERIVED_PREFIXES = ("Formula Report ",)
 

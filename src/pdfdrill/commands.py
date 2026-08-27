@@ -1692,6 +1692,113 @@ def _handover_fields(pdf: Path, sc, body: str, ink: Path) -> dict:
     return out
 
 
+#: 236 — titles are DISPLAY. The head of the model's meta block, read by
+#: streaming: these files run to 67 MB and none of them needs parsing to get a
+#: heading. Returns "" rather than raising — a document with no title is a
+#: document with no title, not a document that cannot be listed.
+_META_TITLE = re.compile(r'"title"\s*:\s*"((?:[^"\\]|\\.)*)"')
+
+
+def meta_title(model_path: Path, cap: int = 4_000_000) -> str:
+    try:
+        head = model_path.open("rb").read(cap).decode("utf-8", "replace")
+    except OSError:
+        return ""
+    cut = head.find('"objects"')          # never look past meta into the rows
+    if cut > 0:
+        head = head[:cut]
+    m = _META_TITLE.search(head)
+    if not m:
+        return ""
+    try:
+        return json.loads('"%s"' % m.group(1))
+    except Exception:
+        return m.group(1)
+
+
+class HandoverCollision(Exception):
+    """Two rows claimed one key. Raised, never reconciled."""
+
+
+def handover_rows(root: Path, *, ready_only: bool = False) -> list:
+    """One row per DOCUMENT under `root`, keyed on folder path.
+
+    236. The key is the blob_dir, which is unique by construction; `title` is
+    carried for display and is never a key. A title-keyed list merges the
+    documents that collapse to one heading, and the merged row shows one
+    document's measurement under the other's name — a short measurement under
+    a full heading, which reads as a finding rather than a bug.
+
+    Measured on this corpus: 159 of 1,062 documents share a normalised title
+    with at least one other, collapsing to 72 keys. A title-keyed list loses
+    87 rows and says nothing about having lost them.
+
+    Enumeration goes through sidecar.iter_documents, not a directory walk: a
+    directory is not a document (BH1 holds two), and it excludes report.pdf,
+    which is the file a `glob("*.pdf")[0]` picked up as its own input once the
+    report existed.
+    """
+    from .sidecar import iter_documents
+    rows, seen = [], {}
+    for pdf, blob_dir, _sidecar in iter_documents(root):
+        # A PDF with no model is not a document to hand over. iter_documents
+        # walks the root AND its subdirectories, so pointing it at one
+        # document's folder enumerates that document's `latex/` e-print
+        # figures as eleven more "documents" — twelve rows, none of them a
+        # document, all sharing the empty title. Requiring a model is what
+        # makes the list's population the same one publishready judges.
+        if not (blob_dir / "model.docmodel.json").is_file():
+            continue
+        r = publish_ready(pdf)
+        if ready_only and not r["ready"]:
+            continue
+        f = dict(r["fields"])
+        f["path"] = str(blob_dir.resolve())
+        f["title"] = meta_title(blob_dir / "model.docmodel.json")
+        f["ready"] = r["ready"]
+        f["blocked_by"] = [k for k in PUBLISH_CHECKS if not r["checks"][k][0]]
+        f["reason"] = "; ".join(r["checks"][k][1] for k in f["blocked_by"])
+        if f["path"] in seen:
+            raise HandoverCollision(
+                "two documents resolved to one path %s (%s and %s)"
+                % (f["path"], seen[f["path"]], pdf.name))
+        seen[f["path"]] = pdf.name
+        rows.append(f)
+    # The assertion 236 asks for, at runtime and not only in a test: a row per
+    # distinct path, or the list is not handed over at all.
+    paths = {r["path"] for r in rows}
+    if len(rows) != len(paths):
+        raise HandoverCollision(
+            "%d rows over %d distinct paths — the list collapsed"
+            % (len(rows), len(paths)))
+    return rows
+
+
+def cmd_handover(root: Path, ready_only: bool = False,
+                 as_json: bool = False) -> str:
+    """The pages-CLI handover list: one line per document, keyed on path."""
+    try:
+        rows = handover_rows(Path(root), ready_only=ready_only)
+    except HandoverCollision as e:
+        return "REFUSING to hand over: %s" % e
+    if as_json:
+        return json.dumps({"rows": rows, "count": len(rows),
+                           "distinct_paths": len({r["path"] for r in rows})},
+                          indent=1)
+    out = []
+    for r in sorted(rows, key=lambda x: x["path"]):
+        out.append(
+            "%s | %s | %s | %s pages | %s equations | %s | %d refined | %s"
+            % (r["path"], r["bibkey"], (r["title"] or "(no title)")[:60],
+               r["pages"], r["equations"], r["residual"] or "no residual",
+               r["refined_rows"],
+               "READY" if r["ready"] else "not ready: " + r["reason"][:70]))
+    ready = sum(1 for r in rows if r["ready"])
+    out.append("%d row(s) over %d distinct path(s); %d ready"
+               % (len(rows), len({r["path"] for r in rows}), ready))
+    return "\n".join(out)
+
+
 def cmd_publishready(pdf: Path, as_json: bool = False) -> str:
     """Is this document's report fit to publish? The five-item checklist."""
     import json as _json

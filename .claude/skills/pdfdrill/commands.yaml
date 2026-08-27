@@ -481,6 +481,33 @@ commands:
     type: int
     default: 250
   - *id001
+- name: handover
+  section: Reporting
+  summary: 'The pages-CLI handover list: one line per DOCUMENT under a directory,
+    KEYED ON FOLDER PATH, with the title carried as a display field only. Asserts
+    at runtime that the row count equals the number of distinct paths and refuses
+    to emit the list otherwise, so a title collapse cannot put one document''s
+    short measurement under another''s full heading. Enumerates through
+    sidecar.iter_documents (a directory is not a document, and report.pdf is not
+    an input). Each row: path, bibkey, title, pages, equations, residual
+    distribution, refined-row count, and either READY or the checks blocking it.'
+  requires:
+  - reporttex
+  positionals:
+  - name: dir
+    type: str
+    required: true
+    help: directory to enumerate documents under
+  flags:
+  - name: ready_only
+    flag: --ready-only
+    type: bool
+    help: emit only rows that pass the full publishready checklist
+  - name: as_json
+    flag: --json
+    type: bool
+    help: machine-readable form for the pages CLI
+  typed: true
 - name: publishready
   section: Reporting
   summary: 'Is this document''s report fit to publish? The five-item checklist,

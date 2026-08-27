@@ -1035,6 +1035,17 @@ def _do_refine(args):
                       dpi=int(dpi) if dpi is not None else None)
 
 
+def _do_handover(args):
+    """pdfdrill handover <dir> [--ready-only] [--json]"""
+    from .commands import cmd_handover
+    from pathlib import Path as _P
+    rest = [a for a in args if not a.startswith("--")]
+    if not rest:
+        return "usage: pdfdrill handover <dir> [--ready-only] [--json]"
+    return cmd_handover(_P(rest[0]), ready_only="--ready-only" in args,
+                        as_json="--json" in args)
+
+
 def _do_publishready(args):
     """pdfdrill publishready <pdf> [--json]"""
     from .commands import cmd_publishready
@@ -2065,6 +2076,7 @@ HANDLERS = {
         "modeldiff": _do_modeldiff,
         "refine": _do_refine,
         "publishready": _do_publishready,
+        "handover": _do_handover,
         "crossref": _do_crossref,
         "cdncrops": _do_cdncrops,
         "standalone": _do_standalone,

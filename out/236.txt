@@ -1,0 +1,126 @@
+236 — the handover list keys on folder path
+==============================================================================
+
+THE CHANGE
+------------------------------------------------------------------------------
+`pdfdrill handover <dir> [--ready-only] [--json]`. One row per DOCUMENT, keyed
+on **folder path**, which is unique by construction. `title` is carried as a
+display field and is never a key.
+
+At runtime, before the list is emitted:
+
+    paths = {r["path"] for r in rows}
+    if len(rows) != len(paths):
+        raise HandoverCollision("%d rows over %d distinct paths — the list
+                                 collapsed")
+
+and the command turns that into "REFUSING to hand over: …" rather than printing
+a shorter list. The assertion is in the code, not only in a test: a list that
+collapsed is not handed over at all.
+
+The eleven, listed: **11 rows, 11 distinct paths, 11 distinct titles.**
+
+WHAT THE KEY CHANGE IS WORTH — MEASURED
+------------------------------------------------------------------------------
+   1,062 corpus documents carry a model with a title.
+   **159 of them share a normalised title with at least one other**,
+   collapsing onto **72 keys**.
+   A title-keyed list therefore loses **87 rows**, and says nothing about
+   having lost them.
+
+The largest collisions are the same paper under different filenames — five
+copies of "Lightlike infinity in C G A models of spacetime" (0403019, and three
+numbered duplicates, and a fourth); four of "The magnitude of categories of
+texts enriched by language models"; three of "Clifford Geometrodynamics"
+(0212041, Clifford_Geometrodynamics, gr-qc_0212041). Those are distinct folders
+with distinct reports and distinct residuals. Merging them under one heading
+does not deduplicate anything; it hides ten measurements behind one.
+
+Worst single key: **"Theorem"** — four documents (2302.06594, 2302.06594 (1),
+2306.0024v1, math_0202059) whose extracted title is the word Theorem. A
+title-keyed list files four papers under a heading that is not a title at all.
+
+PREFIX PAIRS: 20, AND NONE INVOLVES THE ELEVEN
+------------------------------------------------------------------------------
+Twenty pairs where one title is a strict prefix of another AT A WORD BOUNDARY:
+
+   Geometric Algebra                     < Geometric Algebra Transformer
+                                         < Geometric Algebra, Gravity and …
+                                         < Geometric Algebra as a Unifying …
+                                         < Geometric Algebra for Multidimension…
+                                         < Geometric algebra based recurrent …
+                                         < Geometric Algebra based Embeddings …
+                                         < Geometric Algebra-based Modeling …
+   Quantum Electronics & Qubits          < … Exercise Sheet 2 - Solutions
+                                         < … - Exercise Sheet 6 Solutions   (x6)
+   quantum field theory                  < Quantum field theory for classical …
+                                         < Quantum Field Theory II Solution …
+   Discrete Differential Geometry        < Discrete Differential-Geometry Ops …
+   A GPU-friendly Geometric Data Model…  < … : Extended version
+   SelfDoc: Self-Supervised Document …   < … Supplementary Material
+
+**None of the eleven is in a prefix pair or an exact collision.** The failure
+this task guards against is real in the corpus and does not currently touch the
+set being prepared — which is the answer, not a reason to skip the guard.
+
+A NUMBER I HAD TO WITHDRAW BEFORE REPORTING IT
+------------------------------------------------------------------------------
+The first pass found 25 prefix pairs and put one of the eleven in the list:
+
+   "Geometric Algebra" is a prefix of
+   "Geometric, Algebraic and Topological Methods for Quantum Field Theory"
+
+It is not. Normalising punctuation to spaces turns the second into "geometric
+algebraic and topological …", and "geometric algebra" is a prefix of that only
+because it cuts ALGEBRAIC in half. Requiring the prefix to end at a word
+boundary drops five such pairs — the Geometric Algebra/Algebraic one, and four
+of "Theorem" against "TheoremLlama" — and takes the count from 25 to 20. It
+also removes the only hit among the eleven, so the reported answer changed on
+the correction.
+
+THE LIST FOUND TWELVE THINGS THAT ARE NOT DOCUMENTS
+------------------------------------------------------------------------------
+The first run over the eleven produced **23 rows and 12 distinct titles** —
+which looks exactly like the collapse this task is about, and was not. The
+extra twelve were:
+
+   refine.report.pdf                      (a derived report)
+   scatter_xy, scatter_xz, scatter_zy, scatter_xzy, minimal-uft,
+   common-effect, orientation-collider, orientation-non-collider,
+   orientation-shielded, orientation-unshielded, triangle-cancelling
+
+— e-print FIGURES from a `latex/` subdirectory. `iter_documents` walks the root
+and its subdirectories, so pointing it at one document's folder enumerates that
+document's figures as documents. All twelve had no title, which is why the
+title count read 12: they collapsed onto the empty string.
+
+Two fixes, both narrow:
+
+**refine.report.pdf is now a derived PDF.** out/217 named it that way ON
+PURPOSE, so a `report.*` sweep could not catch it beside the quarantined
+report.ink.json.MISPAIRED. The same rename walked it straight past
+`_is_derived_pdf`, which knew only the literal "report.pdf". A name chosen to
+escape one glob escaped the check that was supposed to see it. This affects
+every caller of iter_documents, not just this list.
+
+**A PDF with no model is not a document to hand over.** That makes the list's
+population the same one `publishready` judges, and it is what the figure PDFs
+fail.
+
+After both: 11 rows, 11 paths, 11 titles.
+
+WHY THIS FAILURE READS AS A FINDING
+------------------------------------------------------------------------------
+A collapsed row is not empty and does not error. It carries one document's
+measured rows under another document's heading — "6 rows measured" beneath a
+name that promises 1,149 equations. A reader sees a document that measured
+badly, not a list that lost a row. That is the same shape as out/213's six
+reports exiting 0 with glyphs discarded, and out/234's 55-of-55 class C: the
+artefact is present, well-formed, and describes something other than what its
+label says.
+
+Keying on path removes the possibility rather than detecting it. The assertion
+is there for the case where something else reintroduces it.
+
+   tests/test_handover.py   11 tests
+   suite 2,422 -> 2,433
