@@ -1,4 +1,4 @@
-2026-08-21T11:54:44Z  base=e0f6c733c869
+2026-08-21T11:54:44Z  /  2026-08-21 13:54:44 +02:00 (Europe/Berlin)  commit 67b7b67
 074 - files written outside the repo this session
 ==============================================================================
 
@@ -183,3 +183,5 @@ AMENDMENT (075) - THE OUT-OF-SCOPE CLAIM IN SECTION 3 DID NOT HOLD
    the date filter - cleared all of them first. No reader lost a file. The
    statement above was still wrong and is corrected here rather than left
    for a later reader to trip over. See out/075.txt.
+
+end time not recorded (report predates 242)

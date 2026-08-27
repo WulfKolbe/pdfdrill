@@ -1,4 +1,4 @@
-2026-08-22T12:23:38Z  base=07342fb20e1c
+2026-08-22T12:23:38Z  /  2026-08-22 14:23:38 +02:00 (Europe/Berlin)  commit 53fc4cb
 105a - row-width validation on the change-request loader
 ==============================================================================
 
@@ -59,3 +59,5 @@ WHAT IT DOES NOT DO
    coefficients match the page is 106's question and a different instrument.
 
    6 tests.
+
+end time not recorded (report predates 242)

@@ -1,4 +1,4 @@
-2026-08-23T17:57:15Z  base=00e0a6c2ac82
+2026-08-23T17:57:15Z  /  2026-08-23 19:57:15 +02:00 (Europe/Berlin)  commit 1b33146
 133 — one coloured bullet for the residual class
 ================================================
 
@@ -82,3 +82,5 @@ The demo needs xelatex, not pdflatex: it loads fontspec, and pdflatex dies with
 "Fatal Package fontspec Error ... requires either XeTeX or LuaTeX", producing no
 PDF. fill_ink_fields.py's docstring shows a pdflatex-based flow; on this file
 that flow cannot produce the input it then tries to patch.
+
+end time not recorded (report predates 242)

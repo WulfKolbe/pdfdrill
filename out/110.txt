@@ -1,4 +1,4 @@
-2026-08-22T14:05:02Z  base=53fc4cbba24d
+2026-08-22T14:05:02Z  /  2026-08-22 16:05:02 +02:00 (Europe/Berlin)  commit 9753e2d
 110 - gemma_client against minimax/minimax-m3
 ==============================================================================
 
@@ -60,3 +60,5 @@ CALL SHAPE, since it cost a moment to get right
    KEYWORD-only. Passing it positionally raises TypeError before any network
    call, which is the right failure: a mis-shaped call must not reach a paid
    endpoint.
+
+end time not recorded (report predates 242)

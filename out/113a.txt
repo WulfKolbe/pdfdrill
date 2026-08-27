@@ -1,4 +1,4 @@
-2026-08-22T14:05:02Z  base=53fc4cbba24d
+2026-08-22T14:05:02Z  /  2026-08-22 16:05:02 +02:00 (Europe/Berlin)  commit 9753e2d
 113a - failure counts, both scorings, and B split by the S notation
 ==============================================================================
 
@@ -65,3 +65,5 @@ A CAVEAT ON THE DETECTOR
    The non-circular detector is the scan image, and reading it is what the
    model under test is for. So the split is reported as measured and its
    direction of error is stated: it can only UNDERCOUNT the S group.
+
+end time not recorded (report predates 242)

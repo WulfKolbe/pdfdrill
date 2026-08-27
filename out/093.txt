@@ -1,4 +1,4 @@
-2026-08-22T08:14:47Z  base=91492e30fedf
+2026-08-22T08:14:47Z  /  2026-08-22 10:14:47 +02:00 (Europe/Berlin)  commit a676318
 093 - the Pack row: correct identifier, and where the text was actually lost
 ==============================================================================
 
@@ -70,3 +70,5 @@ WHAT TO SEND
    Not fixed here: out/093 was asked to resolve the identifier and produce the
    line, and the fix belongs with a measurement of how many other rows
    text_tail truncates the same way.
+
+end time not recorded (report predates 242)

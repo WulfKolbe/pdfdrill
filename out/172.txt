@@ -1,4 +1,4 @@
-2026-08-25T13:35:24Z  base=02cd0d748a4c
+2026-08-25T13:35:24Z  /  2026-08-25 15:35:24 +02:00 (Europe/Berlin)  commit 1cfa955
 172 — refine: measure and accept
 ==============================================================================
 WHAT THE STAGE DOES
@@ -94,3 +94,5 @@ reference, the smallest carrying 98 ink components. The defect was latent here
 and would have surfaced the first time a region was wrong — which is precisely
 the bug I had already fixed once in this build, when unscaled MathPix
 coordinates were cropping the wrong part of the page.
+
+end time not recorded (report predates 242)

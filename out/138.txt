@@ -1,4 +1,4 @@
-2026-08-23T18:13:43Z  base=58929ec150c2
+2026-08-23T18:13:43Z  /  2026-08-23 20:13:43 +02:00 (Europe/Berlin)  commit 82cbae6
 138 — documents redefining the same macro name across inputs
 ============================================================
 
@@ -82,3 +82,5 @@ NOT DONE HERE
 All 33 still carry models built under first-wins. `pdfdrill model --force` on
 each picks up the corrected expansion; it is offline and free. Not run as part
 of this task.
+
+end time not recorded (report predates 242)

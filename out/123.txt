@@ -1,4 +1,4 @@
-2026-08-23T13:48:02Z  base=f0d12775feff
+2026-08-23T13:48:02Z  /  2026-08-23 15:48:02 +02:00 (Europe/Berlin)  commit 518c548
 123 — every 'not rendered' row in 0902.0431, with confidence and reason
 ==========================================================================
 4,414 report rows; 4,389 are EQ/FO. 31 carry the (not rendered) marker.
@@ -79,3 +79,5 @@ NOTES
   renderable(latex), which returns "" for exactly those rows, so it compiled an
   EMPTY formula and trivially succeeded. Feeding the raw latex instead shows
   the true split above: 29 never reached xelatex at all.
+
+end time not recorded (report predates 242)

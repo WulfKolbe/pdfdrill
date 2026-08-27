@@ -1,4 +1,4 @@
-2026-08-24T09:25:48Z  base=a35edfeb6f95
+2026-08-24T09:25:48Z  /  2026-08-24 11:25:48 +02:00 (Europe/Berlin)  commit 47f7596
 150 — bake /AP appearance streams
 =================================
 
@@ -41,3 +41,5 @@ ignores /NeedAppearances), but this file is already on the correct side of it.
 
 The published copy for 151 is therefore just ~/pdfdrill-library/0902.0431/
 report.pdf as it stands: 3,780,097 bytes, 57 fields, 55 values, /AP baked.
+
+end time not recorded (report predates 242)

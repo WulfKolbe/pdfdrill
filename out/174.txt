@@ -1,4 +1,4 @@
-2026-08-25T13:35:24Z  base=02cd0d748a4c
+2026-08-25T13:35:24Z  /  2026-08-25 15:35:24 +02:00 (Europe/Berlin)  commit 1cfa955
 174 — reporttex --refined, and the whole flow on 0902.0431
 ==============================================================================
 THE FLAG
@@ -173,3 +173,5 @@ something cleaner than the truth.
 
 A pipeline that validated but did not measure would have accepted them all and
 called it a 19-row improvement.
+
+end time not recorded (report predates 242)

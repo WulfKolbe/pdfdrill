@@ -1,4 +1,4 @@
-2026-08-25T19:00:43Z  base=a23a5b51454d
+2026-08-25T19:00:43Z  /  2026-08-25 21:00:43 +02:00 (Europe/Berlin)  commit f7d69ae
 188 — _normalize_latex fixed. 967 environment failures → 0.
 ==============================================================================
 THE COUNT
@@ -72,3 +72,5 @@ TESTS
    closer and the wrapper; several closers all drop; the leading unmatched
    begin drops; a BALANCED environment is kept in both directions; a maths
    closer (\end{array}) is not treated as document structure.
+
+end time not recorded (report predates 242)

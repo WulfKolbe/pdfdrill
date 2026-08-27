@@ -1,4 +1,4 @@
-2026-08-25T17:52:29Z  base=e50aee28043c
+2026-08-25T17:52:29Z  /  2026-08-25 19:52:29 +02:00 (Europe/Berlin)  commit 268665c
 183 — the reader-facing description for reports/index.html
 ==============================================================================
 WRITTEN, AND WHERE IT IS
@@ -79,3 +79,5 @@ The description says "connected components — the separate marks of ink each
 image contains" and never says lattice, enclosure, five-tuple, row coverage or
 median-fill. A reader does not need any of that to understand what was
 compared with what.
+
+end time not recorded (report predates 242)

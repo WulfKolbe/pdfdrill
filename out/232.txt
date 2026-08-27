@@ -1,4 +1,4 @@
-2026-08-26T17:57:11Z  base=ec2dde7ca434
+2026-08-26T17:57:11Z  /  2026-08-26 19:57:11 +02:00 (Europe/Berlin)  commit 806026d
 232 — the FO0175 repair recorded with basis: source
 ==============================================================================
 
@@ -95,3 +95,5 @@ remains readable.
 
    tests/test_refine_eprint.py   13 tests (2 new: the alias, and replace-not-append)
    suite 2,397 -> 2,399
+
+end time not recorded (report predates 242)

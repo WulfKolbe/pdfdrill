@@ -1,0 +1,80 @@
+2026-08-27T09:39:11Z  /  2026-08-27 11:39:11 +02:00 (Europe/Berlin)  commit 3a06f5c +dirty
+242 — two timestamps per report, in both zones
+==============================================================================
+
+THE SHAPE
+------------------------------------------------------------------------------
+   <UTC>  /  <Berlin local +offset> (Europe/Berlin)  commit <short> [+dirty]
+      ... the report ...
+   <UTC>  /  <Berlin local +offset> (Europe/Berlin)  end
+
+First line when the report started, last when it finished. The pair is the
+duration, which the harness otherwise shows only as "Worked for 6m 55s" — a
+line that does not survive being pasted anywhere.
+
+Supersedes 42, which had put local time alone on one line. Both zones is the
+better call and October is the reason: 02:30 Berlin happens TWICE on the change
+day, once at +02:00 and once at +01:00. The local half cannot tell those two
+instants apart. The UTC half can. A test pins both sides of both changes.
+
+THE OFFSET IS DERIVED, AND FROM THE ZONE BY NAME
+------------------------------------------------------------------------------
+ZoneInfo("Europe/Berlin"), not the machine's zone and not a written-down
++02:00. Verified across both transitions:
+
+   2026-01-15T12:00:00Z  ->  2026-01-15 13:00:00 +01:00
+   2026-03-29T00:30:00Z  ->  2026-03-29 01:30:00 +01:00   before the change
+   2026-03-29T01:30:00Z  ->  2026-03-29 03:30:00 +02:00   after it
+   2026-07-15T12:00:00Z  ->  2026-07-15 14:00:00 +02:00
+   2026-10-25T00:30:00Z  ->  2026-10-25 02:30:00 +02:00   the hour that
+   2026-10-25T01:30:00Z  ->  2026-10-25 02:30:00 +01:00   happens twice
+
+Naming the zone rather than inheriting it also means the line is about Berlin
+whatever the machine is set to, which matters if any of this ever runs
+elsewhere.
+
+THE RETROFIT DOES NOT INVENT AN END TIME
+------------------------------------------------------------------------------
+Git recorded ONE instant per existing report: the commit that added it, with
+the offset it was committed at. That instant is converted to Berlin AT THAT
+INSTANT, so a January report would read +01:00 — using today's offset would be
+the retrofit lying about its own provenance, which is the failure the rule
+exists to prevent.
+
+All 153 currently land in August, so all read +02:00. That is not the rule
+being untested: the conversion is exercised across both transitions by test,
+because a rule that has only ever seen one offset has not been shown to follow
+the zone.
+
+The FINISH time was never recorded for any of them. So the closing line says
+
+   end time not recorded (report predates 242)
+
+rather than supplying a plausible one. 153 fabricated end times would each look
+exactly like a measurement, and the duration computed from them would be a
+number with no referent — which is the shape of every defect this sequence has
+turned up.
+
+WHERE IT LANDS
+------------------------------------------------------------------------------
+   out/*.txt                153 of 153, opening and closing lines
+   pdfdrill publishready    start captured at entry, end at return; prose
+                            first/last line, and "started"/"finished" keys
+                            in --json
+   pdfdrill handover        the same
+
+The CLI start is taken when the command is ENTERED, not when its output is
+formatted, so the duration covers the work rather than the printing.
+
+THIS REPORT'S OWN SPAN, and what it does not cover
+------------------------------------------------------------------------------
+The start above was captured when 242 arrived, not when this turn began. The
+turn had already done 42 — local-time-only stamps, since replaced — and that
+work is outside this span. I could have back-dated the start to the beginning
+of the turn and did not, for the same reason the retrofit has no end time.
+
+   tests/test_provenance_line.py   16 tests, including both DST boundaries and
+                                   October's repeated hour
+   suite 2,458 -> 2,467
+
+2026-08-27T09:43:09Z  /  2026-08-27 11:43:09 +02:00 (Europe/Berlin)  end

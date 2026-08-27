@@ -1869,17 +1869,20 @@ def handover_rows(root: Path, *, ready_only: bool = False) -> list:
 def cmd_handover(root: Path, ready_only: bool = False,
                  as_json: bool = False) -> str:
     """The pages-CLI handover list: one line per document, keyed on path."""
+    import datetime as _dt
     from . import report_tex as rt
+    _t0 = _dt.datetime.now(_dt.timezone.utc)      # 242: the real start
     try:
         rows = handover_rows(Path(root), ready_only=ready_only)
     except HandoverCollision as e:
         return "REFUSING to hand over: %s" % e
     if as_json:
-        return json.dumps({"provenance": rt.provenance_line(),
+        return json.dumps({"started": rt.provenance_open(_t0),
                            "rows": rows, "count": len(rows),
-                           "distinct_paths": len({r["path"] for r in rows})},
+                           "distinct_paths": len({r["path"] for r in rows}),
+                           "finished": rt.provenance_close()},
                           indent=1)
-    out = [rt.provenance_line()]
+    out = [rt.provenance_open(_t0)]
     for r in sorted(rows, key=lambda x: x["path"]):
         out.append(
             "%s | %s | %s | %s pages | %s equations | %s | %d refined | %s"
@@ -1890,21 +1893,25 @@ def cmd_handover(root: Path, ready_only: bool = False,
     ready = sum(1 for r in rows if r["ready"])
     out.append("%d row(s) over %d distinct path(s); %d ready"
                % (len(rows), len({r["path"] for r in rows}), ready))
+    out.append(rt.provenance_close())
     return "\n".join(out)
 
 
 def cmd_publishready(pdf: Path, as_json: bool = False) -> str:
     """Is this document's report fit to publish? The five-item checklist."""
+    import datetime as _dt
     import json as _json
     from . import report_tex as rt
+    _t0 = _dt.datetime.now(_dt.timezone.utc)      # 242: the real start
     r = publish_ready(pdf)
     if as_json:
-        return _json.dumps({"provenance": rt.provenance_line(),
+        return _json.dumps({"started": rt.provenance_open(_t0),
                             "ready": r["ready"], "fields": r["fields"],
                             "checks": {k: {"ok": v[0], "detail": v[1]}
-                                       for k, v in r["checks"].items()}},
+                                       for k, v in r["checks"].items()},
+                            "finished": rt.provenance_close()},
                            indent=1)
-    lines = [rt.provenance_line(),
+    lines = [rt.provenance_open(_t0),
              "%s: %s" % (r["fields"]["bibkey"],
                          "READY" if r["ready"] else "NOT READY")]
     for k in PUBLISH_CHECKS:
@@ -1916,6 +1923,7 @@ def cmd_publishready(pdf: Path, as_json: bool = False) -> str:
                      "%d refined"
                      % (f["folder"], f["bibkey"], f["pages"], f["equations"],
                         f["residual"] or "no residual", f["refined_rows"]))
+    lines.append(rt.provenance_close())
     return "\n".join(lines)
 
 

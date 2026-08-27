@@ -1,4 +1,4 @@
-2026-08-21T13:19:26Z  base=4ad9f64c0335
+2026-08-21T13:19:26Z  /  2026-08-21 15:19:26 +02:00 (Europe/Berlin)  commit 939de33
 078 - lstlisting / minted / verbatim / algorithm across the corpus
 ==============================================================================
 
@@ -196,3 +196,5 @@ METHOD NOTE - A ZERO I ALMOST BELIEVED
    suppressed and the empty result read as data. Re-run by feeding an explicit
    file list through xargs: 9 seconds, real hits. A zero that arrives too fast
    is a symptom.
+
+end time not recorded (report predates 242)

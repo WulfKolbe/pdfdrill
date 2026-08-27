@@ -1,4 +1,4 @@
-2026-08-25T18:10:34Z  base=268665c9da2c
+2026-08-25T18:10:34Z  /  2026-08-25 20:10:34 +02:00 (Europe/Berlin)  commit d4214b6
 184 — the population an ink-selected pass reaches and confidence cannot
 ==============================================================================
 RETRACTION RESOLVED. The figures below are the CLEAN isolated re-run and are
@@ -178,3 +178,5 @@ METHOD, SO THE NUMBERS CAN BE CHECKED
    Skips are counted, not dropped: 7 of A and 2 of B could not be measured
    (6 blank references, 2 no crop, 1 other) and are excluded from the ink
    percentages rather than treated as zeros.
+
+end time not recorded (report predates 242)

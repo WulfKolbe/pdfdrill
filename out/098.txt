@@ -1,4 +1,4 @@
-2026-08-22T09:36:04Z  base=7ecfc1b65a2e
+2026-08-22T09:36:04Z  /  2026-08-22 11:36:04 +02:00 (Europe/Berlin)  commit a90ec35
 098 - the 11 rows at component delta <= -10
 ==============================================================================
 
@@ -62,3 +62,5 @@ THE RULE FROM 069 NEEDS A QUALIFIER
    On these 11 that separates 10 from 1 with no overlap. It is the rule
    out/100 uses to classify the whole set, and row 8 is why it needs two
    signs rather than one.
+
+end time not recorded (report predates 242)

@@ -1,4 +1,4 @@
-2026-08-26T09:36:07Z  base=52df2a3e4c45
+2026-08-26T09:36:07Z  /  2026-08-26 11:36:07 +02:00 (Europe/Berlin)  commit 80e7508
 208 — the Mielke \nvdash case: it is a slashed L, and the same glyph is
       also read as Z in the very next equation
 ==============================================================================
@@ -121,3 +121,5 @@ WHAT I HAVE NOT DONE
    means writing \Lslash or \not L into an equation MathPix produced — an edit
    with a provenance question attached, which the refine loop exists to answer
    properly and which 208 did not ask for.
+
+end time not recorded (report predates 242)

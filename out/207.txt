@@ -1,4 +1,4 @@
-2026-08-26T09:10:33Z  base=a870d57846cb
+2026-08-26T09:10:33Z  /  2026-08-26 11:10:33 +02:00 (Europe/Berlin)  commit 52df2a3
 207 — could any \mathbb{<digit>} have been transcribing a turnstile?
 ==============================================================================
 NO. Not one of the 758. The 199 fix is safe, and this is the check that
@@ -106,3 +106,5 @@ VERDICT
 
 199's preamble change is safe on every occurrence in the corpus. No instance
 was a correct transcription that the fix would break.
+
+end time not recorded (report predates 242)

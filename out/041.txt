@@ -1,4 +1,4 @@
-2026-08-21T06:54:31Z  base=e59e54e3ecb6
+2026-08-21T06:54:31Z  /  2026-08-21 08:54:31 +02:00 (Europe/Berlin)  commit c4571d6
 041 - display equations where MathPix and the author's LaTeX DIFFER
 ==============================================================================================
 
@@ -195,3 +195,4 @@ THE FIRST 30
              \mathrm{~d} t=-\int_{X} f \wedge \mathrm{~d}_{s} J \wedge \mathrm{~d} t=-\int_{X} f
              \wedge \mathrm{~d}_{t} \rho=-\left.\int_{\Sigma} f \wedge \rho\right|_{t_{0}} ^{t_{f}}
 
+end time not recorded (report predates 242)

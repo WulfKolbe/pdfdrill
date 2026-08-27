@@ -1,4 +1,4 @@
-2026-08-26T10:01:29Z  base=80e750884565
+2026-08-26T10:01:29Z  /  2026-08-26 12:01:29 +02:00 (Europe/Berlin)  commit a73bb43
 193 — the residual measurement on the five reports
 ==============================================================================
 ONE of five paired. Four refused, each by a named margin. No report.ink.json
@@ -112,3 +112,5 @@ WHAT EXISTS NOW
    2103.01507   report.ink.json, 5,863 rows, 0 refusals, counts reconcile.
    the other 4  no ink file. Their reports carry out/180's note, and it is the
                 truthful one: no residual measurement has been run for them.
+
+end time not recorded (report predates 242)

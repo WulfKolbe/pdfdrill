@@ -1,4 +1,4 @@
-2026-08-22T20:55:39Z  base=0d31879b55de
+2026-08-22T20:55:39Z  /  2026-08-22 22:55:39 +02:00 (Europe/Berlin)  commit 63fc162
 121 — variants C and E on the 0.1–0.5 confidence band
 ==============================================================================
 
@@ -132,3 +132,5 @@ WHAT THIS SET CANNOT SEE
    and no ink comparison can reach them. That class is found by inspecting the
    VALUE (out/128's validator), not the picture, and no re-run of this trial
    will surface it.
+
+end time not recorded (report predates 242)

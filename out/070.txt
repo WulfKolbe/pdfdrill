@@ -1,4 +1,4 @@
-2026-08-21T11:34:25Z  base=2dc900c9a3d8
+2026-08-21T11:34:25Z  /  2026-08-21 13:34:25 +02:00 (Europe/Berlin)  commit e0f6c73
 070 - the 9 uninspected rows, and a correction to 069
 ==============================================================================
 
@@ -148,3 +148,5 @@ WHAT THE NINE SAY ABOUT THE FILTER
    the equation number. That is detectable the same way shading was - the
    number is a separate DocObject with its own region - so the next
    refinement is mechanical rather than a matter of judgement.
+
+end time not recorded (report predates 242)

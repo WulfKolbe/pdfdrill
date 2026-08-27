@@ -1,4 +1,4 @@
-2026-08-22T17:18:00Z  base=732d7c76d664
+2026-08-22T17:18:00Z  /  2026-08-22 19:18:00 +02:00 (Europe/Berlin)  commit 2f6f023
 118 - variant E: C's prior plus the defect out/116 located
 ==============================================================================
 
@@ -79,3 +79,5 @@ WHAT WOULD MAKE THIS CONCLUSIVE
    out/117 is the other half: it looks for MISSING components near a rule,
    which is the direction a hint about absent structure could act on. E as
    written cannot use it, because 116 found the opposite error.
+
+end time not recorded (report predates 242)

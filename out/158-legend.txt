@@ -1,4 +1,4 @@
-2026-08-24T20:11:12Z  base=41e678ab401b
+2026-08-24T20:11:12Z  /  2026-08-24 22:11:12 +02:00 (Europe/Berlin)  commit 012ac1b
 158 — the legend on every page (\endfoot + \endlastfoot)
 ========================================================
 
@@ -75,3 +75,5 @@ placed, which is 25 of 27, and the two exceptions are pages occupied by a
 single row taller than the space a footer needs. If those two matter, the fix
 is to the ROW (split the rendered cell, or drop the crop to a linked thumbnail
 for oversized rows), not to the legend.
+
+end time not recorded (report predates 242)

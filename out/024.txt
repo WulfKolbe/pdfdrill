@@ -1,4 +1,4 @@
-2026-08-20T14:37:16Z  base=b23f113975f7
+2026-08-20T14:37:16Z  /  2026-08-20 16:37:16 +02:00 (Europe/Berlin)  commit 5b2034a
 024 - math objects whose latex ends with , ; . or : (before any closing brace)
 ==============================================================================
 
@@ -135,3 +135,5 @@ PER-DOCUMENT
    1603.00260             4      7       0      37
    1603.04246v2          53    120       0     189
    1604.04795             0      4       0      91
+
+end time not recorded (report predates 242)

@@ -1,4 +1,4 @@
-2026-08-22T14:05:02Z  base=53fc4cbba24d
+2026-08-22T14:05:02Z  /  2026-08-22 16:05:02 +02:00 (Europe/Berlin)  commit 9753e2d
 113 - 19 crops x 4 prompt variants against minimax/minimax-m3
 ==============================================================================
 
@@ -50,3 +50,5 @@ POPULATION WARNING
    OCR itself flagged. 12 of 19 are one document. A variant that improves
    them has been shown to improve the easiest available population, not
    the corpus.
+
+end time not recorded (report predates 242)

@@ -1,4 +1,4 @@
-2026-08-23T16:11:03Z  base=32700db79be9
+2026-08-23T16:11:03Z  /  2026-08-23 18:11:03 +02:00 (Europe/Berlin)  commit 00e0a6c
 131 — retire variant E
 ======================
 
@@ -81,3 +81,5 @@ variant.
 
 E remains in the trial harness as a defined variant so these results stay
 reproducible; it is retired from use, not deleted from the record.
+
+end time not recorded (report predates 242)

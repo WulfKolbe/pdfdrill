@@ -1,4 +1,4 @@
-2026-08-26T17:48:35Z  base=44682332e12a
+2026-08-26T17:48:35Z  /  2026-08-26 19:48:35 +02:00 (Europe/Berlin)  commit 52ba6a1
 230 — the \mathcal{J} fix, applied through the refine record stage
 ==============================================================================
 
@@ -127,3 +127,5 @@ record mechanism is exactly the thing that does not touch projections.
                                  verified it, which is the case the new refusal
                                  exists for
    suite 2,382 -> 2,397
+
+end time not recorded (report predates 242)

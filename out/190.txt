@@ -1,4 +1,4 @@
-2026-08-25T19:36:43Z  base=ed87f57e867b
+2026-08-25T19:36:43Z  /  2026-08-25 21:36:43 +02:00 (Europe/Berlin)  commit c315650
 190 — the five real defects: the list for MathPix
 ==============================================================================
 Five equations MathPix read wrongly, surviving every filter in out/187–189.
@@ -208,3 +208,5 @@ out/189 measured the reach of the narrowest of those checks: the letter-for-
 digit class has ONE member corpus-wide that this apparatus can see. Whether it
 has more that the apparatus cannot see is not established, and I would not
 claim otherwise.
+
+end time not recorded (report predates 242)

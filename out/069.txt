@@ -1,4 +1,4 @@
-2026-08-21T10:56:50Z  base=7f594fb17933
+2026-08-21T10:56:50Z  /  2026-08-21 12:56:50 +02:00 (Europe/Berlin)  commit 2dc900c
 069 - the 725 re-ranked by the symbol half, top 10 inspected
 ==============================================================================
 
@@ -142,3 +142,5 @@ CORRECTION (070) - THE ARROWS IN EQ0019 WERE NEVER DROPPED
    the trailing "-complete." are genuinely absent from the LaTeX. The
    classification in the table stands; the mechanism is truncation at a
    boundary, not lost operators. See out/070.txt.
+
+end time not recorded (report predates 242)

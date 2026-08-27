@@ -1,4 +1,4 @@
-2026-08-21T17:17:53Z  base=b1fe25360d4b
+2026-08-21T17:17:53Z  /  2026-08-21 19:17:53 +02:00 (Europe/Berlin)  commit 91492e3
 087 - body signatures: do listings have an identity without captions?
 ==============================================================================
 
@@ -78,3 +78,5 @@ WHAT THIS LEAVES
    which is what a reader of 2310.02304v3 actually uses. Neither is built
    here and neither should be chosen from this file alone — the point of
    087 was to test the proposed key, and it fails.
+
+end time not recorded (report predates 242)

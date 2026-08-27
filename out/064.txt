@@ -1,4 +1,4 @@
-2026-08-21T10:18:23Z  base=4071d2bba263
+2026-08-21T10:18:23Z  /  2026-08-21 12:18:23 +02:00 (Europe/Berlin)  commit b58f1b5
 064 - the report now consults MathPix confidence
 ==============================================================================
 
@@ -124,3 +124,5 @@ VERIFIED END TO END
    against every unpack site in build_report. That last one exists because
    this tuple grew once before and broke reporttex on all four books while
    the suite stayed green.
+
+end time not recorded (report predates 242)

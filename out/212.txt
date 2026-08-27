@@ -1,4 +1,4 @@
-2026-08-26T11:06:38Z  base=18d4eda92753
+2026-08-26T11:06:38Z  /  2026-08-26 13:06:38 +02:00 (Europe/Berlin)  commit ac530b1
 212 — every document in the MathPix correspondence
 ==============================================================================
 12 documents. ONE is current; ELEVEN need the full chain, 3,440 pages.
@@ -112,3 +112,5 @@ out/190's excluded false positive, and nothing has been built for them.
 
 SCOPE OF 213
    11 documents, 3,440 pages. 2103.01507 is skipped: current.
+
+end time not recorded (report predates 242)

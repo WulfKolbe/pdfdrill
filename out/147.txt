@@ -1,4 +1,4 @@
-2026-08-24T09:25:48Z  base=a35edfeb6f95
+2026-08-24T09:25:48Z  /  2026-08-24 11:25:48 +02:00 (Europe/Berlin)  commit 47f7596
 147 — legend for both channels
 ==============================
 
@@ -61,3 +61,5 @@ mistake as the ones this session has been catching elsewhere, and the compile
 caught it only because those colours no longer existed. Had I renamed them
 instead of removing them, a legend describing classes that never occur would
 have compiled cleanly and shipped.
+
+end time not recorded (report predates 242)

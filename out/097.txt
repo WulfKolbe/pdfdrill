@@ -1,4 +1,4 @@
-2026-08-22T09:10:04Z  base=78e2e6ce568e
+2026-08-22T09:10:04Z  /  2026-08-22 11:10:04 +02:00 (Europe/Berlin)  commit 7ecfc1b
 097 - the corpus compare with the tail-split, glyph and demotion fixes in place
 ==============================================================================
 
@@ -114,3 +114,5 @@ ADDENDUM - THE FLOOR OF 6 IS INHERITED, AND 7 IS WHAT THE DATA SUPPORTS
    the conclusion have different exposures to the choice: quote 591 if the
    floor matters to what you are claiming, and note that the 91% does not
    depend on it either way.
+
+end time not recorded (report predates 242)

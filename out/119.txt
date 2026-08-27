@@ -1,4 +1,4 @@
-2026-08-22T17:11:57Z  base=6dc537f26988
+2026-08-22T17:11:57Z  /  2026-08-22 19:11:57 +02:00 (Europe/Berlin)  commit 732d7c7
 119 - set B's 20 rows, judged by eye: typographic or content
 ==============================================================================
 
@@ -80,3 +80,5 @@ METHOD
    at full width. Judged on whether every symbol, index, sign and coefficient
    matches - not on the five-tuple, which is what out/100 does mechanically
    and which cannot make this call.
+
+end time not recorded (report predates 242)

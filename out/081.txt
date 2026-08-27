@@ -1,4 +1,4 @@
-2026-08-21T14:18:19Z  base=b946b8f5b154
+2026-08-21T14:18:19Z  /  2026-08-21 16:18:19 +02:00 (Europe/Berlin)  commit b1fe253
 081 - \lstinputlisting: listings whose body is in another file
 ==============================================================================
 
@@ -46,3 +46,5 @@ HOW THEY WOULD BE RESOLVED
    Basename matching is the loosest step and can collide when two
    directories hold the same filename. It is used last and, on this
    population, is never reached: every hit above matched on name or suffix.
+
+end time not recorded (report predates 242)

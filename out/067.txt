@@ -1,4 +1,4 @@
-2026-08-21T10:45:48Z  base=364fe045862e
+2026-08-21T10:45:48Z  /  2026-08-21 12:45:48 +02:00 (Europe/Berlin)  commit f307834
 067 - the top 10 of out/066.txt, inspected by eye
 ==============================================================================
 
@@ -102,3 +102,5 @@ CAVEAT WORTH CARRYING
    symbol half is used as a content filter it needs a background test,
    otherwise one document's styling will dominate the top of the list for a
    reason that has nothing to do with mathematics.
+
+end time not recorded (report predates 242)

@@ -1,4 +1,4 @@
-2026-08-22T08:14:47Z  base=91492e30fedf
+2026-08-22T08:14:47Z  /  2026-08-22 10:14:47 +02:00 (Europe/Berlin)  commit a676318
 088 - non-ASCII code points in generated report.tex, outside math mode
 ==============================================================================
 
@@ -56,3 +56,5 @@ THE CODE POINTS
    The long tail is the interesting part: Greek letters, math operators,
    Mathematical Alphanumeric Symbols (U+1D400+), combining accents, and a
    Private Use Area block that is OCR noise with no meaning at all.
+
+end time not recorded (report predates 242)

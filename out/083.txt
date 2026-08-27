@@ -1,4 +1,4 @@
-2026-08-21T14:18:19Z  base=b946b8f5b154
+2026-08-21T14:18:19Z  /  2026-08-21 16:18:19 +02:00 (Europe/Berlin)  commit b1fe253
 083 - MathPix's verbatim: its own rendering, or the author's environment?
 ==============================================================================
 
@@ -66,3 +66,5 @@ LIMIT OF THE METHOD
    The direction of that error is knowable though: it can only
    UNDERSTATE how much of the verbatim is MathPix's own. The 8-of-10
    figure is a floor.
+
+end time not recorded (report predates 242)

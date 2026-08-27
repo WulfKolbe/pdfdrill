@@ -1,4 +1,4 @@
-2026-08-25T13:35:02Z  base=012ac1b519f4
+2026-08-25T13:35:02Z  /  2026-08-25 15:35:02 +02:00 (Europe/Berlin)  commit 02cd0d7
 164 — A/B: enable_document_layout on 0902.0431 page 85
 ==============================================================================
 RESULT
@@ -117,3 +117,5 @@ separates its cells with \quad. The A/B conclusion would have been the same,
 which is exactly why it was worth catching: a broken instrument that happens to
 agree with the right answer still cannot be trusted the next time. The corrected
 count is 92 of 186.
+
+end time not recorded (report predates 242)

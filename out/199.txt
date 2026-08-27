@@ -1,4 +1,4 @@
-2026-08-26T08:10:30Z  base=87dae5a2684a
+2026-08-26T08:10:30Z  /  2026-08-26 10:10:30 +02:00 (Europe/Berlin)  commit 5a9a2ab
 199 — \mathbb{1} rendered a negated turnstile in 758 places
 ==============================================================================
 THE COUNT
@@ -109,3 +109,5 @@ I used bbm because it is the package named. The swap is one token —
 `\mathbbm{#1}` to `\mathds{#1}` with `\usepackage{dsfont}` — and I would make
 it if the bitmap shows at report resolution. It is recorded here rather than
 decided quietly.
+
+end time not recorded (report predates 242)

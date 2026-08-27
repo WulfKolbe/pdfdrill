@@ -1,4 +1,4 @@
-2026-08-27T08:09:49Z  base=088db8f5ce31
+2026-08-27T08:09:49Z  /  2026-08-27 10:09:49 +02:00 (Europe/Berlin)  commit 4f9261d
 237 + 238 — the zip alignment, and publishready over the eleven
 ==============================================================================
 
@@ -151,3 +151,5 @@ I did not run the conversion. It is inkdrill's step under the assignment in
 declined to produce the artefact myself. Everything here is a prediction from
 inputs that a conversion can be checked against — which is more useful before
 it runs than after.
+
+end time not recorded (report predates 242)

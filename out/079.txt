@@ -1,4 +1,4 @@
-2026-08-21T14:18:19Z  base=b946b8f5b154
+2026-08-21T14:18:19Z  /  2026-08-21 16:18:19 +02:00 (Europe/Berlin)  commit b1fe253
 079 - lstlisting -> CodeListing docmodel objects
 ==============================================================================
 
@@ -78,3 +78,5 @@ NOT HANDLED, DELIBERATELY
    pseudocode float is a different object with different semantics, and
    putting it in a CodeListing would amount to calling pseudocode source
    code. It needs its own type.
+
+end time not recorded (report predates 242)

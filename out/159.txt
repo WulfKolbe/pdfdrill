@@ -1,4 +1,4 @@
-2026-08-24T18:19:53Z  base=ef408cbfb21a
+2026-08-24T18:19:53Z  /  2026-08-24 20:19:53 +02:00 (Europe/Berlin)  commit 41e678a
 159 — --ensure can no longer reach a paid step
 ==============================================
 
@@ -92,3 +92,5 @@ TESTS  tests/test_no_paid_ensure.py (6)
      its source — so the fix cannot be silently relocated to a caller
 
 2243 tests pass.
+
+end time not recorded (report predates 242)

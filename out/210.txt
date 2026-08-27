@@ -1,4 +1,4 @@
-2026-08-26T10:10:16Z  base=a73bb43666b6
+2026-08-26T10:10:16Z  /  2026-08-26 12:10:16 +02:00 (Europe/Berlin)  commit bea8f42
 210 — arity mismatch: a relation carrying an index
 ==============================================================================
 THE COUNT, AT THREE STRENGTHS
@@ -104,3 +104,5 @@ NOT DONE
    ten examples. Wiring it in means choosing between the broad tier (614, a
    triage queue) and the sharp one (1, exhaustively verified), and that is a
    decision about what a "finding" is, not an implementation detail.
+
+end time not recorded (report predates 242)

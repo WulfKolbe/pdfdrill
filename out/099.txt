@@ -1,4 +1,4 @@
-2026-08-22T09:36:04Z  base=7ecfc1b65a2e
+2026-08-22T09:36:04Z  /  2026-08-22 11:36:04 +02:00 (Europe/Berlin)  commit a90ec35
 099 - the confidence column
 ==============================================================================
 
@@ -60,3 +60,5 @@ VERIFIED
    Documents whose tiddlers predate out/064 carry no confidence field and
    render "---" throughout. That is correct and visible rather than silently
    green, but it means the column is only populated after a re-projection.
+
+end time not recorded (report predates 242)

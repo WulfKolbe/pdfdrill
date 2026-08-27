@@ -1,4 +1,4 @@
-2026-08-22T14:05:02Z  base=53fc4cbba24d
+2026-08-22T14:05:02Z  /  2026-08-22 16:05:02 +02:00 (Europe/Berlin)  commit 9753e2d
 112 - four prompt variants, as data
 ==============================================================================
 
@@ -74,3 +74,5 @@ ONE OBSERVED BEHAVIOUR THAT MOTIVATES D'S SCHEMA
    substitutes one row's body. D's schema exists to test whether asking for a
    body in JSON removes that, and the cost of the schema is that it may
    suppress content the freer prompts produce. 113 measures both.
+
+end time not recorded (report predates 242)

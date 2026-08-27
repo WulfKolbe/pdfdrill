@@ -1,4 +1,4 @@
-2026-08-21T08:12:39Z  base=88ac2cb5a24d
+2026-08-21T08:12:39Z  /  2026-08-21 10:12:39 +02:00 (Europe/Berlin)  commit 23e9347
 052 - every SLT-zero row in the corpus, unconditioned on ink distance
 ================================================================================
 
@@ -91,3 +91,5 @@ CORRECTION (2026-08-21) - THE FLOOR OF 22 IS RETRACTED; IT IS 7
    rule. A control group is only as good as the rule that built it, and
    'content is identical' was an assumption inherited from the metric
    rather than a property anyone verified.
+
+end time not recorded (report predates 242)

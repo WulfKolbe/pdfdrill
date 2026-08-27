@@ -1,4 +1,4 @@
-2026-08-26T10:01:29Z  base=80e750884565
+2026-08-26T10:01:29Z  /  2026-08-26 12:01:29 +02:00 (Europe/Berlin)  commit a73bb43
 194 — rebuilding with the residual data present
 ==============================================================================
 ONE document had residual data to rebuild with. The 195 fix made it a plain
@@ -47,3 +47,5 @@ Before it, this rebuild would have produced a 238-page report with no bullets
 and a note saying no measurement had been run, while report.ink.json sat
 beside it holding 5,863 measurements. The command's first line of output now
 says which file it adopted, so the alternative is visible rather than silent.
+
+end time not recorded (report predates 242)

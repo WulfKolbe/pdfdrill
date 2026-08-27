@@ -1,4 +1,4 @@
-2026-08-23T17:57:15Z  base=00e0a6c2ac82
+2026-08-23T17:57:15Z  /  2026-08-23 19:57:15 +02:00 (Europe/Berlin)  commit 1b33146
 134 — revert to option (b): the bullet is the mark, the field is the channel
 ============================================================================
 
@@ -92,3 +92,5 @@ FILES
    ~/Downloads/0902.0431tester-134-filled.pdf   after a pypdf fill
    ~/Downloads/fill_ink_fields.py               docstring corrected
    the auditor's 0902.0431tester.tex remains untouched.
+
+end time not recorded (report predates 242)

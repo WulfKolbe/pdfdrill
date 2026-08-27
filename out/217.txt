@@ -1,4 +1,4 @@
-2026-08-26T11:42:13Z  base=a19479dc5832
+2026-08-26T11:42:13Z  /  2026-08-26 13:42:13 +02:00 (Europe/Berlin)  commit 658515c
 217 — the refined report: what was TRIED, not what changed
 ==============================================================================
    Numerical Linear Algebra and Matrix Factorizations (Tom Lyche)
@@ -90,3 +90,5 @@ including report.ink.json.MISPAIRED — a quarantined file whose whole purpose
 is that it must never be republished. A refined report named report-refined.*
 would sit in that namespace. The current name shares no prefix with anything
 published, and the pages side has an allowlist that admits files by name.
+
+end time not recorded (report predates 242)

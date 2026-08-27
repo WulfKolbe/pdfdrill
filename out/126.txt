@@ -1,4 +1,4 @@
-2026-08-23T17:57:15Z  base=00e0a6c2ac82
+2026-08-23T17:57:15Z  /  2026-08-23 19:57:15 +02:00 (Europe/Berlin)  commit 1b33146
 126 (revised) — flag the environment mismatch, keep the repair
 ==============================================================
 
@@ -103,3 +103,5 @@ even though the name appears on both sides. A set-difference check calls that
 clean, and it is the shape a hand-rolled version gets wrong.
 
 2209 tests pass (8 new).
+
+end time not recorded (report predates 242)

@@ -1,4 +1,4 @@
-2026-08-26T17:34:24Z  base=ac54e464b65b
+2026-08-26T17:34:24Z  /  2026-08-26 19:34:24 +02:00 (Europe/Berlin)  commit 4468233
 229 — the \mathscr{g} in 0707.4470
 ==============================================================================
 
@@ -92,3 +92,5 @@ glyph — one, this one. out/221 took the other five glyph-dropping reports to
 zero and left this one because no font can fix it. Correcting the content
 takes it to zero as well, which makes all eleven measurable and removes the
 only refusal from the 215 handover list.
+
+end time not recorded (report predates 242)

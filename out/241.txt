@@ -1,4 +1,4 @@
-2026-08-27T09:07:02Z  base=c0b853b62d48
+2026-08-27T09:07:02Z  /  2026-08-27 11:07:02 +02:00 (Europe/Berlin)  commit 3a06f5c
 241 — the ratio threshold I handed the pages gate has a false positive
 ==============================================================================
 
@@ -77,3 +77,5 @@ was not. If the provenance line is wanted from the pages CLI, that ask has to
 reach them from the user directly — I have recorded here that it did not.
 
    tests: 4 more in test_publish_ready.py. Suite 2,454 -> 2,458.
+
+end time not recorded (report predates 242)

@@ -1,4 +1,4 @@
-2026-08-25T13:35:02Z  base=012ac1b519f4
+2026-08-25T13:35:02Z  /  2026-08-25 15:35:02 +02:00 (Europe/Berlin)  commit 02cd0d7
 161 — the (204) case: an equation number inside a maths value
 ==============================================================================
 FOUND — one occurrence in the corpus.
@@ -60,3 +60,5 @@ contamination, so the loose count is not a defect count and should not be
 quoted as one. Distinguishing the two reliably needs the position test — the
 number trailing the body after a closing delimiter, as here — not the presence
 test.
+
+end time not recorded (report predates 242)

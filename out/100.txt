@@ -1,4 +1,4 @@
-2026-08-22T09:36:04Z  base=7ecfc1b65a2e
+2026-08-22T09:36:04Z  /  2026-08-22 11:36:04 +02:00 (Europe/Berlin)  commit a90ec35
 100 - all 724 flagged rows in the status vocabulary
 ==============================================================================
 
@@ -70,3 +70,5 @@ LIMIT
    been checked by eye on 11 rows (out/098) and 10 rows (out/067), and
    agrees with both. It has NOT been validated on the 703 others, and the
    'wrong' class in particular is a residue rather than a finding.
+
+end time not recorded (report predates 242)

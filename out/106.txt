@@ -1,4 +1,4 @@
-2026-08-22T12:23:38Z  base=07342fb20e1c
+2026-08-22T12:23:38Z  /  2026-08-22 14:23:38 +02:00 (Europe/Berlin)  commit 53fc4cb
 106 - two proposals rendered and measured against the scan. NOTHING APPLIED.
 ==============================================================================
 
@@ -65,3 +65,5 @@ NOT APPLIED
    reconstructions from the scan. That is worth carrying with the accept -
    the ink agreeing to one component is strong evidence and it is not the
    same as a document saying so.
+
+end time not recorded (report predates 242)

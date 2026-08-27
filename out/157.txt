@@ -1,4 +1,4 @@
-2026-08-24T09:31:20Z  base=47f75964498b
+2026-08-24T09:31:20Z  /  2026-08-24 11:31:20 +02:00 (Europe/Berlin)  commit 57d1045
 157 — does anything re-fill an existing report?
 ===============================================
 
@@ -62,3 +62,5 @@ TWO CONSEQUENCES WORTH STATING BEFORE IT GOES
    regression that silently dropped all four demo fields — but with no
    form-bearing report in the pipeline it goes back to guarding a capability
    nothing currently uses.
+
+end time not recorded (report predates 242)

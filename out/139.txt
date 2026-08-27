@@ -1,4 +1,4 @@
-2026-08-23T19:50:33Z  base=82cbae6cd8fe
+2026-08-23T19:50:33Z  /  2026-08-23 21:50:33 +02:00 (Europe/Berlin)  commit da1487c
 139 — rebuilding the 33 first-wins-affected models
 ==================================================
 
@@ -95,3 +95,5 @@ recoverable without rebuilding from a backup that does not exist.
 A multiset diff of the LaTeX values would have been immune to both problems —
 it needs neither stable ids nor stable positions — and is what this comparison
 should have used.
+
+end time not recorded (report predates 242)

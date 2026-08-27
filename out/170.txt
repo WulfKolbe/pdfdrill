@@ -1,4 +1,4 @@
-2026-08-25T13:35:24Z  base=02cd0d748a4c
+2026-08-25T13:35:24Z  /  2026-08-25 15:35:24 +02:00 (Europe/Berlin)  commit 1cfa955
 170 — refine: the select and propose stages
 ==============================================================================
 COMMAND
@@ -173,3 +173,5 @@ paid stage that can run twenty minutes must not be all-or-nothing.
 
 COST
    19 proposals, 0 failures, ~7.5 minutes, one paid model call per row.
+
+end time not recorded (report predates 242)

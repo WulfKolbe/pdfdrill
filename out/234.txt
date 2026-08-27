@@ -1,4 +1,4 @@
-2026-08-26T20:24:25Z  base=4205c4f978c0
+2026-08-26T20:24:25Z  /  2026-08-26 22:24:25 +02:00 (Europe/Berlin)  commit 5524d29
 234 — the five-item checklist, and an empty ready list
 ==============================================================================
 
@@ -135,3 +135,5 @@ index.html fails the publish guard by name.
 
    tests/test_publish_ready.py   12 tests
    suite 2,410 -> 2,422
+
+end time not recorded (report predates 242)

@@ -1,4 +1,4 @@
-2026-08-27T02:57:47Z  base=5524d29bfb69
+2026-08-27T02:57:47Z  /  2026-08-27 04:57:47 +02:00 (Europe/Berlin)  commit 28c6a5f
 236 — the handover list keys on folder path
 ==============================================================================
 
@@ -125,3 +125,5 @@ is there for the case where something else reintroduces it.
 
    tests/test_handover.py   11 tests
    suite 2,422 -> 2,433
+
+end time not recorded (report predates 242)

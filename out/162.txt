@@ -1,4 +1,4 @@
-2026-08-25T13:35:02Z  base=012ac1b519f4
+2026-08-25T13:35:02Z  /  2026-08-25 15:35:02 +02:00 (Europe/Berlin)  commit 02cd0d7
 162 — control characters in the 44 documents: whose are they?
 ==============================================================================
 VERDICT
@@ -91,3 +91,5 @@ line rather than as a competing reading.
 
 I have not made that change — this task asked where the characters come from,
 and the answer is that they come from us.
+
+end time not recorded (report predates 242)

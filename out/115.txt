@@ -1,4 +1,4 @@
-2026-08-22T16:59:22Z  base=9753e2d6d18d
+2026-08-22T16:59:22Z  /  2026-08-22 18:59:22 +02:00 (Europe/Berlin)  commit 6dc537f
 115 - variants C and D on the case-B set (ink >= 6, confidence >= 0.9)
 ==============================================================================
 
@@ -86,3 +86,5 @@ WHAT THIS DOES NOT SHOW
    itself. That is a narrower and more useful claim than 113 alone
    supported: use the model where the OCR reports doubt, not as a general
    second opinion.
+
+end time not recorded (report predates 242)
