@@ -1002,6 +1002,96 @@ def ink_measurable(log_path) -> "tuple[bool, str]":
                    "the extraction." % (Path(log_path).name, n, sample))
 
 
+#: 237 — the build stamp. The measurement build and the reading build write
+#: THE SAME filenames, so a phase-1 report is destroyed by the next phase-2
+#: build and nothing on disk records which phase the survivor is. 0902.0431's
+#: ink.json was measured against a 20-page --min-conf 0.9 --no-legend build and
+#: now sits beside a 27-page reading build; every check anyone ran passed,
+#: because a measurement build has FEWER pages and its page numbers always fit
+#: inside the reading build that replaced it.
+#:
+#: The filenames cannot be fixed without breaking every consumer. What can be
+#: fixed is that the artefact says what it is. Whoever measures a report copies
+#: this block into their output as `measured_against`, and a stamp that no
+#: longer matches the PDF beside it is then a detectable mismatch rather than a
+#: silent one.
+BUILD_STAMP = "report.build.json"
+
+#: the key a MEASUREMENT writes into its own output, carrying a copy of the
+#: stamp of the build it measured. Named once, here, so both sides spell it the
+#: same way.
+MEASURED_AGAINST = "measured_against"
+
+
+def build_stamp(pdf_out: Path) -> dict:
+    """Identity of a built report: what it is, not merely that it exists."""
+    import hashlib
+    import subprocess
+    st = pdf_out.stat()
+    pages = None
+    try:
+        out = subprocess.run(["pdfinfo", str(pdf_out)], capture_output=True,
+                             text=True, timeout=60).stdout
+        m = re.search(r"Pages:\s+(\d+)", out)
+        pages = int(m.group(1)) if m else None
+    except Exception:
+        pages = None
+    h = hashlib.sha256()
+    with pdf_out.open("rb") as fh:
+        for chunk in iter(lambda: fh.read(1 << 20), b""):
+            h.update(chunk)
+    return {"pdf": pdf_out.name, "pages": pages, "bytes": st.st_size,
+            "sha256": h.hexdigest(), "mtime": int(st.st_mtime)}
+
+
+def write_build_stamp(pdf_out: Path, *, legend: bool, ink_adopted: bool,
+                      prefer_refined: bool, filters: dict,
+                      glyphs_dropped_count: int = 0) -> dict:
+    """Write BUILD_STAMP beside the report and return it.
+
+    `phase` is the field a reader acts on. A build with no legend and no ink is
+    what a measurement should be taken against; anything else is a reading
+    build, and measuring one is the defect this exists to make visible.
+    """
+    import json as _json
+    stamp = build_stamp(pdf_out)
+    stamp.update({
+        "legend": bool(legend),
+        "ink_adopted": bool(ink_adopted),
+        "prefer_refined": bool(prefer_refined),
+        "filters": {k: v for k, v in (filters or {}).items() if v is not None},
+        "glyphs_dropped": int(glyphs_dropped_count),
+        "phase": ("measure" if (not legend and not ink_adopted) else "reading"),
+    })
+    (pdf_out.parent / BUILD_STAMP).write_text(
+        _json.dumps(stamp, indent=1), encoding="utf-8")
+    return stamp
+
+
+def stamp_matches(stamp: dict, pdf_out: Path) -> "tuple[bool, str]":
+    """Does a stamp still describe the PDF beside it?
+
+    Compares bytes and sha256, not mtime: a copy preserves content and loses
+    mtime, and it is the CONTENT the measurement was taken against.
+    """
+    if not stamp:
+        return True, "no stamp"
+    if not pdf_out.is_file():
+        return False, "%s is gone" % pdf_out.name
+    st = pdf_out.stat()
+    if stamp.get("bytes") != st.st_size:
+        return False, ("stamp says %s bytes, %s is %s — the build was replaced"
+                       % (stamp.get("bytes"), pdf_out.name, st.st_size))
+    live = build_stamp(pdf_out)
+    if stamp.get("sha256") and stamp["sha256"] != live["sha256"]:
+        return False, "same size, different bytes — the build was replaced"
+    if stamp.get("pages") and live.get("pages") and \
+            stamp["pages"] != live["pages"]:
+        return False, ("stamp says %s pages, %s has %s"
+                       % (stamp["pages"], pdf_out.name, live["pages"]))
+    return True, "matches"
+
+
 def compile_fixpoint(tex_path: Path, max_iter: int = 6):
     """xelatex the report; demote rows whose lines error to source-only and
     recompile until 0 errors (a malformed OCR snippet must cost its own row,

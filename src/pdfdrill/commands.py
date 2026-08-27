@@ -1622,6 +1622,44 @@ def publish_ready(pdf: Path) -> dict:
                                 "failure, not a result"
                                 % (len(rr), next(iter(dist)))))
 
+    # 237 — is the report the one that was measured, and was it the right
+    # KIND of build to measure? Both are additions to the `ink` check because
+    # they are the same question it asks: can this residual be trusted.
+    stamp = {}
+    sp = d / rt.BUILD_STAMP
+    if sp.is_file():
+        try:
+            stamp = json.loads(sp.read_text(encoding="utf-8"))
+        except Exception:
+            stamp = {}
+    if checks["ink"][0] and stamp:
+        ok_s, why_s = rt.stamp_matches(stamp, rep)
+        if not ok_s:
+            checks["ink"] = (False, "the build stamp no longer describes "
+                                    "report.pdf: %s" % why_s)
+        else:
+            try:
+                meas = (json.loads(ink.read_text(encoding="utf-8"))
+                        .get(rt.MEASURED_AGAINST) or {})
+            except Exception:
+                meas = {}
+            if meas:
+                if meas.get("sha256") and meas["sha256"] != stamp.get("sha256"):
+                    checks["ink"] = (False,
+                        "measured against a DIFFERENT build (%s pages, %s "
+                        "bytes) than the report.pdf here (%s pages, %s bytes)"
+                        % (meas.get("pages"), meas.get("bytes"),
+                           stamp.get("pages"), stamp.get("bytes")))
+                elif meas.get("phase") == "reading":
+                    checks["ink"] = (False,
+                        "measured against a READING build (legend and bullets "
+                        "on the page); measure a phase=measure build")
+            else:
+                checks["ink"] = (checks["ink"][0],
+                                 checks["ink"][1] + "; no `%s` stamp in the "
+                                 "measurement, so the build it was taken "
+                                 "against is unrecorded" % rt.MEASURED_AGAINST)
+
     # 4 — everything that travels with report.pdf
     md = next((f for f in d.glob("*.md")), None)
     insp = next((f for f in d.glob("*.inspect.html")), None)
@@ -13733,6 +13771,21 @@ def cmd_reporttex(pdf: Path, paper: str = "a3", landscape: bool = True,
                     f"still wrote a PDF. {first}. The report is missing symbols "
                     f"with no visible trace — do not measure it. "
                     f"{rt.glyph_loss_advice(first)}")
+            # 237 — say what this build IS, beside the thing it built. Phase-1
+            # and phase-2 share these filenames, so without a stamp the only
+            # record of which one survived is whoever ran it.
+            stamp = rt.write_build_stamp(
+                Path(r["out"]).with_suffix(".pdf"),
+                legend=legend, ink_adopted=bool(ink_map),
+                prefer_refined=prefer_refined,
+                filters={"min_conf": min_conf, "max_conf": max_conf,
+                         "types": types},
+                glyphs_dropped_count=(lost[0] if lost else 0))
+            lines.append(
+                f"Build stamp: {rt.BUILD_STAMP} — phase={stamp['phase']}, "
+                f"{stamp['pages']} pages, {stamp['bytes']} bytes, "
+                f"sha256 {stamp['sha256'][:12]}. A measurement of this report "
+                f"should copy it into its output as `{rt.MEASURED_AGAINST}`.")
     else:
         # A .tex written beside an OLDER .pdf is a stale artifact that passes
         # every check anyone runs: it exists, its page count is plausible, and
