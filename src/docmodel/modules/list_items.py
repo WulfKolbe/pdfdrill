@@ -1,6 +1,23 @@
 """
 ListProcessor (procOrder 10).
 
+248 — MathPix TYPES list items, and until now this module ignored that and
+re-derived them lexically. `"list_item"` appeared nowhere in src/: 80,035 lines
+across 882 of 1,350 corpus documents, skipped by `type != "text": continue`.
+
+The container carries the structure, not the words: 75% have EMPTY text and
+`children_ids` pointing at the lines that hold them — usually `text`, but also
+math, equation_number, nested list_item and diagram. So the old scan was not
+missing the items (the children are text lines and do start with markers); it
+was missing their BOUNDARIES. A two-line item became one item plus a stray
+paragraph, an item whose marker MathPix consumed became nothing, and nesting
+was invisible.
+
+Containers are read first. A text line already claimed by a container is not
+scanned again, so nothing is counted twice. Lines outside any container still
+go through the lexical path, which is the only thing that works on documents
+MathPix typed no list_item for at all.
+
 Detects list items inside text lines by looking at a leading marker:
   - Bullets: -, *, •, ○, ▪, etc.
   - Numbered: '1.', '2)', ...
@@ -61,9 +78,43 @@ class ListProcessor(BaseModule):
         items: list[dict[str, Any]] = []
         global_index = 0
 
+        # ---- 248: the typed containers first --------------------------------
+        by_id: dict[str, dict] = {}
+        anchor_by_id: dict[str, Any] = {}
+        for a in stream.anchors:
+            pl = stream.payload[a]
+            lid = pl.get("id")
+            if lid:
+                by_id[lid] = pl
+                anchor_by_id[lid] = a
+        claimed: set = set()          # text lines a container already owns
+        for anchor in stream.anchors:
+            payload = stream.payload[anchor]
+            if payload.get("type") != "list_item":
+                continue
+            marker, content, kids = self._from_container(payload, by_id)
+            for cid in kids:
+                claimed.add(cid)
+            if not content:
+                continue
+            global_index += 1
+            items.append({
+                "anchor": anchor,
+                "marker": marker,
+                "content": content,
+                "page": payload.get("_page"),
+                "line_index": payload.get("_line_index"),
+                "list_index": global_index,
+                "source": "typed",
+                "child_ids": kids,
+            })
+
+        # ---- the lexical path, for lines no container claimed ---------------
         for anchor in stream.anchors:
             payload = stream.payload[anchor]
             if payload.get("type") != "text":
+                continue
+            if payload.get("id") in claimed:
                 continue
             text = (payload.get("text") or "").strip()
             # One line may carry several bullets the OCR merged (no linefeed):
@@ -79,8 +130,42 @@ class ListProcessor(BaseModule):
                     "page": payload.get("_page"),
                     "line_index": payload.get("_line_index"),
                     "list_index": global_index,
+                    "source": "lexical",
+                    "child_ids": [],
                 })
         return items
+
+    @staticmethod
+    def _from_container(payload: dict, by_id: dict) -> tuple:
+        """(marker, content, child ids) for a typed `list_item` line.
+
+        The container's own text is used when it has one (25% of them do);
+        otherwise the content is its `text` children joined — which is what
+        makes a two-line item ONE item instead of an item plus a stray
+        paragraph. Non-text children (math, equation_number, nested items) are
+        claimed so nothing scans them twice, but they are not folded into the
+        content string: an equation inside a list item is an Equation, and
+        flattening it into prose would lose it.
+        """
+        kids = list(payload.get("children_ids") or [])
+        own = (payload.get("text") or "").strip()
+        parts: list[str] = []
+        text_kids: list[str] = []
+        for cid in kids:
+            ch = by_id.get(cid)
+            if not ch or ch.get("type") != "text":
+                continue
+            text_kids.append(cid)
+            t = (ch.get("text") or "").strip()
+            if t:
+                parts.append(t)
+        raw = own or " ".join(parts)
+        if not raw:
+            return "", "", text_kids
+        marker = _detect_marker(raw) or "\u2022"
+        content = re.sub(r"^" + re.escape(marker) + r"\s+", "", raw).strip() \
+            if _detect_marker(raw) else raw
+        return marker, content, text_kids
 
     def create_object(self, item: dict[str, Any], doc: Document) -> Optional[DocObject]:
         obj = DocObject(
@@ -91,6 +176,11 @@ class ListProcessor(BaseModule):
                 "page": item["page"],
                 "line_index": item["line_index"],
                 "list_index": item["list_index"],
+                # 248: which path found it — a typed container or the lexical
+                # fallback. Without it the two are indistinguishable after the
+                # fact, and the whole point of the change is measurable only
+                # if they are not.
+                "detected_by": item.get("source", "lexical"),
                 "bibkey": self.bibkey,
             },
         )

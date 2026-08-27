@@ -1,0 +1,85 @@
+248 — ListProcessor reads the typed containers
+==============================================================================
+
+WHAT CHANGED
+------------------------------------------------------------------------------
+ListProcessor now reads MathPix's `list_item` lines first and falls back to the
+lexical bullet scan only for text lines no container claimed. `list_item` is
+now in ParagraphProcessor's _BREAK_TYPES.
+
+MEASURED, ON A REBUILD
+------------------------------------------------------------------------------
+   dmoi4 (2,976 list_item lines, 700+ pages)
+
+   OLD  1,191 ListItem objects     lexical scan over text lines
+   NEW  3,391                      2,976 typed + 415 lexical
+   gain +2,200  (+185%)
+
+   723 of the new items are longer than 25 words — items whose continuation
+   lines the old scan had left behind as loose paragraph fragments:
+
+     "Nearly 300 new exercises, bringing the total to more than 750. These are
+      better divided into preview activity questions, reading questions..."
+
+The typed count is exactly the container count, which is the check that the
+two paths are not double-counting: every container produced one item and the
+415 lexical ones are lines outside any container.
+
+CORPUS-WIDE INPUT, ALL 1,350 DOCUMENTS
+------------------------------------------------------------------------------
+   80,035  list_item containers, in 882 documents
+   53,716  with EMPTY text — the words are in the children
+   26,319  carrying their own text
+   26,396  with no children at all
+
+   children, by type:
+     161,296  text        7,148  math         1,163  equation_number
+         770  diagram       457  list_item (nested)  310  form_field
+         238  qed_symbol    150  multiple_choice_block
+
+   of the 161,296 text children:
+      23,857  start with a marker  — what the old scan already found
+     137,439  do NOT              — CONTINUATION LINES
+
+   56,326  total lexical hits over all text lines corpus-wide (the old ceiling)
+
+THE NUMBER THAT MATTERS IS 137,439, NOT 80,035
+------------------------------------------------------------------------------
+out/245 said 80,035 lines were "read by nothing". That was true of the
+CONTAINERS and misleading about the items: the containers' children are `text`
+lines and they do start with markers, so the old lexical scan picked up the
+first line of nearly every item. Nothing was silently dropped wholesale.
+
+What was lost is boundaries. 137,439 continuation lines became loose paragraph
+text, so a two-line item was one truncated item plus a fragment. Plus 12,013
+containers whose own text carries no recognisable marker, which the lexical
+scan could never have found, and 457 nested containers whose structure was
+invisible.
+
+I am correcting out/245's framing rather than repeating it: the defect was
+real, and it was a different defect from the one that report described.
+
+\end{itemize} FRAGMENTS DO NOT RESOLVE. NONE OF THEM.
+------------------------------------------------------------------------------
+Searched all 1,350 documents for `\end{itemize|enumerate|description}`:
+
+   at end of line:   complex_cell 191,  code 4
+   anywhere in line: complex_cell 343,  table 86,  code 4   (29 documents)
+
+   owned by a list_item container:  ZERO
+   occurring in a `math` line:      ZERO, anywhere in the corpus
+
+So the stray closers live in TABLE CELLS, not in list structure, and reading
+list containers cannot touch them. The renderable() comment that describes
+MathPix "gluing a stray environment CLOSER onto the end of display math" does
+not match anything in the corpus as it now stands — no math line contains one.
+Whatever produced that observation is not present in these 1,350 documents,
+and the `\end{X}` stripper in renderable() is currently defending against a
+shape the input does not have.
+
+That is a separate finding and I have not acted on it: the stripper is cheap,
+harmless, and removing a guard on the strength of "the corpus does not contain
+it today" is how the next document breaks.
+
+   tests/test_list_items_typed.py   8 tests
+   suite 2,464 -> 2,472

@@ -38,6 +38,12 @@ _BREAK_TYPES = {
     "pseudocode", "qed_symbol", "figure_label", "caption",
     "column",  # sidenotes
     "abstract",
+    # 248: a typed list item must END the paragraph it interrupts. It was in
+    # neither _PROSE_TYPES nor here, so 80,035 lines across 882 documents were
+    # invisible in both directions — they contributed nothing AND did not
+    # break the prose run they sat inside, silently welding the text before a
+    # list to the text after it.
+    "list_item",
 }
 
 # Lines that may contribute to a paragraph.
