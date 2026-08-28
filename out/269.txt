@@ -1,0 +1,79 @@
+269 — the qualified field reference resolves its value
+==============================================================================
+
+THE FIX
+------------------------------------------------------------------------------
+`_rewrite_transclusions` tested only `body.startswith("!!")` — the UNQUALIFIED
+form, "this tiddler's own field". TiddlyWiki's qualified form
+`{{Title!!field}}` — "the caption field OF tiddler Title" — does not start with
+`!!`, so it fell through to the link branch, where the whole string was taken
+as a title:
+
+    before   [0049_H5!!caption](./0049_H5!!caption.md)
+    after    [4.1 Representation Model and Expressiveness](./0049_H5.md)
+
+Both halves are now right: the VALUE is resolved (it becomes the label) and the
+href points at the target's real file. A section listing its subsections wants
+the caption to read as text and to be clickable, and 271 expects the resolved
+link count to rise by exactly these 190, which only holds if they resolve
+rather than disappear.
+
+`tiddlers_to_okf` now builds a `by_title` index from ALL tiddlers, not just the
+units that get files — a reference may legitimately name a Toc or the bibkey
+root, whose FIELD is readable even though they are written no file of their own.
+
+CROSS-CHECK 1 — DEAD LINKS 192 -> 2
+------------------------------------------------------------------------------
+Same 7 documents as 267, real models and real projections throughout:
+
+    links resolving      89,545
+    links dead                2      (was 192)
+    hrefs still containing "!!"   0
+
+CROSS-CHECK 2 — THE VALUE, COMPARED AGAINST THE MODEL
+------------------------------------------------------------------------------
+Not against the projection. For each of the 190 references the target title was
+mapped back to its `Section` DocObject by reproducing the projector's OWN title
+assignment (`_sort_by_flow(objects_of_type("Section"))` enumerated as
+`<bibkey>_H<i+1>`), and the emitted value compared to `obj.props["caption"]`:
+
+    qualified references            190
+      value == the MODEL's caption  190
+      mismatch                        0
+      model value empty               0
+      no model object mapped          0
+
+A first attempt at this check reported "no model object mapped: 190" and
+therefore verified nothing. It tried to read an `_object_id` off the tiddlers,
+which they do not carry. A check that cannot reach its own ground truth returns
+a clean-looking zero for every failure mode at once, and the only tell was that
+the "== model" column was also zero.
+
+CROSS-CHECK 3 — THE 2 SURVIVORS, NAMED
+------------------------------------------------------------------------------
+Both are in `equations/idea14-proceedings_EQ0069.md`, and neither is a link.
+They are LaTeX that my checker's regex reads as markdown link syntax:
+
+    \max _{\operatorname{lat}_{r}}\left[\sqrt{\left(\operatorname{lat}_{r}
+    -\operatorname{lat}_{o}\right)^{2}+\left(\ldots
+
+`\left[ … \right)` puts a `[…](…)` sequence in the text, so `\[([^\]]*)\]\(([^)]+)\)`
+matches inside a formula. They are false positives of the MEASUREMENT, not dead
+links in the bundle — the file contains no such reference and no consumer would
+follow one.
+
+That is why the count was required not to reach 0. It stands at 2 because the
+check is still looking at every `[…](…)` in every file, including the ones that
+are mathematics; a 0 here would have meant the checker had started excluding
+things.
+
+TESTS
+------------------------------------------------------------------------------
+tests/test_okf_references.py — 9, including: the unqualified `{{!!field}}` form
+still inlining bare and unlinked; a `{{T||TPL}}` template transclusion
+untouched; an unknown target degrading to its title rather than to a bad path;
+a missing `by_title` index still never emitting `!!` in an href; `as_link=False`
+giving the bare value for a frontmatter description; and an end-to-end bundle
+assertion that the link points at a file the bundle actually writes.
+
+Suite 2,591.

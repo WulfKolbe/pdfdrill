@@ -128,14 +128,41 @@ def _first_sentence(text: str, limit: int = 160) -> str:
 
 
 def _rewrite_transclusions(text: str, t: dict, title_to_path: dict, from_path: str,
-                           as_link: bool = True) -> str:
+                           as_link: bool = True, by_title: "dict | None" = None) -> str:
     """`{{title||TPL}}` → `[label](rel/folder/title.md)` (relative; or the bare
     `label` when `as_link=False`, for a frontmatter description); `{{!!field}}` →
-    the tiddler's own field value (a section's `! {{!!caption}}` inlines caption)."""
+    the tiddler's own field value (a section's `! {{!!caption}}` inlines caption);
+    `{{Title!!field}}` → that OTHER tiddler's field value, as the label of a link
+    to its file.
+
+    269 — the qualified form was the missing case. TiddlyWiki writes
+    `{{0049_H5!!caption}}` for "the caption field OF tiddler 0049_H5", and the
+    test here was only `body.startswith("!!")`, so a qualified reference fell
+    through to the link branch and the WHOLE string became a tiddler title:
+    `[0049_H5!!caption](./0049_H5!!caption.md)`, a path that cannot exist. It
+    accounted for 190 of the 192 dead links in the corpus sample, every one of
+    them a Section listing its subsections — while `0049_H5` was a tiddler, its
+    `caption` was populated, and `sections/0049_H5.md` was in the same bundle.
+
+    The value is resolved AND the link points at the target's real file, because
+    both are true: a section's sub-heading list wants the caption to read as
+    text and to be clickable. `by_title` is the tiddler index; without it the
+    field cannot be read and the reference degrades to a link labelled by the
+    target title rather than a path containing `!!`.
+    """
+    by_title = by_title or {}
+
     def repl(m: "re.Match") -> str:
         body = m.group(1).strip()
         if body.startswith("!!"):
             return str(t.get(body[2:], "") or "")
+        if "!!" in body and "||" not in body:
+            target, _, field = body.partition("!!")
+            target, field = target.strip(), field.strip()
+            value = str((by_title.get(target) or {}).get(field, "") or "").strip()
+            label = value or target
+            return (f"[{label}]({_link_path(target, title_to_path, from_path)})"
+                    if as_link else label)
         target = body.split("||")[0].strip()
         tpl = body.split("||")[1].strip() if "||" in body else ""
         label = _LABELS.get(tpl, tpl.lower()) or target
@@ -144,10 +171,12 @@ def _rewrite_transclusions(text: str, t: dict, title_to_path: dict, from_path: s
     return _TRANSCLUDE_RE.sub(repl, text or "")
 
 
-def _to_markdown(text: str, t: dict, title_to_path: dict, from_path: str) -> str:
+def _to_markdown(text: str, t: dict, title_to_path: dict, from_path: str,
+                 by_title: "dict | None" = None) -> str:
     """Full body conversion: transclusions + TiddlyWiki widgets → Markdown."""
     return _widgets_to_markdown(
-        _rewrite_transclusions(text or "", t, title_to_path, from_path),
+        _rewrite_transclusions(text or "", t, title_to_path, from_path,
+                               by_title=by_title),
         title_to_path, from_path)
 
 
@@ -161,8 +190,9 @@ _KEEP_FIELDS = ("refnum", "page", "section_number", "level", "citekey", "year",
                 "entry_type", "equation_number", "kind", "language")
 
 
-def _okf_body(t: dict, typ: str, title_to_path: dict, from_path: str) -> str:
-    text = _to_markdown(t.get("text") or "", t, title_to_path, from_path)
+def _okf_body(t: dict, typ: str, title_to_path: dict, from_path: str,
+              by_title: "dict | None" = None) -> str:
+    text = _to_markdown(t.get("text") or "", t, title_to_path, from_path, by_title)
     latex = (t.get("latex") or "").strip()
     if typ in ("Formula", "Equation") and latex:
         display = bool(t.get("displayMode")) or typ == "Equation"
@@ -178,13 +208,14 @@ def _okf_body(t: dict, typ: str, title_to_path: dict, from_path: str) -> str:
     return text
 
 
-def _okf_file(t: dict, bibkey: str, timestamp: str, title_to_path: dict) -> str:
+def _okf_file(t: dict, bibkey: str, timestamp: str, title_to_path: dict,
+              by_title: "dict | None" = None) -> str:
     typ = _okf_type(t)
     from_path = title_to_path[t["title"]]
     title = t.get("caption") or t.get("title") or ""
     latex = (t.get("latex") or "").strip()
     desc = t.get("caption") or (latex or _first_sentence(_strip_md_links(
-        _to_markdown(t.get("text") or "", t, title_to_path, from_path))))
+        _to_markdown(t.get("text") or "", t, title_to_path, from_path, by_title))))
     tags = [x for x in (t.get("tags") or "").split()]
     if bibkey and bibkey not in tags:
         tags.append(bibkey)
@@ -200,11 +231,13 @@ def _okf_file(t: dict, bibkey: str, timestamp: str, title_to_path: dict) -> str:
     for k in _KEEP_FIELDS:                        # preserve extra fields
         if t.get(k) not in (None, ""):
             fm[k] = t[k]
-    return _fm_block(fm) + "\n\n" + _okf_body(t, typ, title_to_path, from_path) + "\n"
+    return (_fm_block(fm) + "\n\n"
+            + _okf_body(t, typ, title_to_path, from_path, by_title) + "\n")
 
 
 def _index_md(units: list, toc_units: list, bibkey: str, meta: dict,
-              timestamp: str, title_to_path: dict) -> str:
+              timestamp: str, title_to_path: dict,
+              by_title: "dict | None" = None) -> str:
     fm: "OrderedDict" = OrderedDict()
     fm["type"] = "Document"
     fm["title"] = meta.get("title") or bibkey
@@ -217,7 +250,8 @@ def _index_md(units: list, toc_units: list, bibkey: str, meta: dict,
     # The document's own TOC (page-numbered section list) folded in, links resolved
     # from the root index.md.
     for tt in toc_units:
-        toc = _to_markdown(tt.get("text") or "", tt, title_to_path, "index.md").strip()
+        toc = _to_markdown(tt.get("text") or "", tt, title_to_path, "index.md",
+                           by_title).strip()
         if toc:
             out += ["## Contents", "", toc, ""]
     groups: "OrderedDict" = OrderedDict()
@@ -245,14 +279,19 @@ def tiddlers_to_okf(tiddlers: list, bibkey: str, meta: dict,
     # Per-type folder layout (Abstract flat at root) + a title→path map, so every
     # cross-link resolves to the right file as a RELATIVE OKF link.
     title_to_path = {t["title"]: _unit_path(t) for t in units}
+    # 269 — the index every qualified `{{Title!!field}}` is resolved against.
+    # Built from ALL tiddlers, not just `units`: a reference may legitimately
+    # name a Toc or the bibkey root, whose FIELD is still readable even though
+    # they get no file of their own.
+    by_title = {t["title"]: t for t in tiddlers if t.get("title")}
     bundle: "dict[str, str]" = {}
     for t in units:
         path = title_to_path[t["title"]]
         if path in _RESERVED:                     # a root-level unit must not clobber index/log
             path = title_to_path[t["title"]] = f"{t['title']}_.md"
-        bundle[path] = _okf_file(t, bibkey, timestamp, title_to_path)
+        bundle[path] = _okf_file(t, bibkey, timestamp, title_to_path, by_title)
     bundle["index.md"] = _index_md(units, toc_units, bibkey, meta or {},
-                                   timestamp, title_to_path)
+                                   timestamp, title_to_path, by_title)
     return bundle
 
 
