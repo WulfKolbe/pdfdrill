@@ -1,0 +1,84 @@
+273 — NOT MINE. This is pdfdrill's side of it.
+==============================================================================
+
+273 is addressed to the LLMWiki CLI: re-import the drilled folder, report which
+of ITS three workarounds are now unnecessary, and write ITS input
+specification. The workarounds are theirs, their importer is theirs, and I
+cannot report on code I have not read. `llmwiki-c3` is a live session on this
+machine; I sent it the pdfdrill-side state as information, with no instruction
+attached — 241 is the reason I do not relay a user's task to a peer as though
+it were mine to assign.
+
+What follows is only what pdfdrill now emits, measured, so their cross-check
+has numbers rather than my summary of them.
+
+WORKAROUND 1 — THE DOT-LEADER STRIP: NO LONGER NEEDED
+------------------------------------------------------------------------------
+Verified on real models and projections of idea14-proceedings and 1511.08771:
+
+    Toc `entries` containing a dot leader           0  of 154 / 674
+    Section captions containing a dot leader        0  of 282 / 521
+    `<bibkey>_TOC` tiddler body lines with one      0  of 282 / 521
+
+All three surfaces are clean, so wherever their strip was applied it now has
+nothing to do. The page number arrives as a FIELD: `rows[i]["locator"]`,
+populated on 122 of 215 and 486 of 916 rows respectively.
+
+WORKAROUND 2 — THE CROP/BIBKEY MAP: DEPENDS WHICH ONE IT WAS
+------------------------------------------------------------------------------
+    folders where a rename orphaned crops     0 of 759   (264)
+    model now records                          meta.bibkey_history
+    consumer                                   report_tex.crop_file() follows it
+
+But there are two different disagreements and only one is fixed. Tiddler titles
+are sanitised through `re.sub(r"[^A-Za-z0-9_\-\.]", "_", t)`, so a bibkey with a
+space or a parenthesis reaches crop FILENAMES as underscores —
+`0111016 (1)` -> `0111016__1_`. That is not a rename, it has not changed, and
+264 explicitly did not touch it.
+
+So: if their map existed for RENAMES it is now unnecessary. If it existed for
+SANITISATION it is still needed, and by the user's own rule that means the
+defect they hit was not the one I diagnosed. I cannot tell which from here, and
+guessing would be worse than saying so.
+
+WORKAROUND 3 — IGNORING Section: PARTLY UNNECESSARY, PARTLY STILL WARRANTED
+------------------------------------------------------------------------------
+    Sections                    9,034 -> 43,159      (265)
+    documents with >=1 Section    499 ->  1,128
+    captions usable                      42,634 / 43,159   (98.8%)
+
+If they ignored Section because it looked arbitrary — 629 documents produced no
+Section at all — that reason is gone.
+
+If they ignored it because the DEPTH was unusable, it is still partly true:
+
+    documents flat in the model but spanning 2-11 header font sizes   249
+    Sections in them                                                6,979
+    levels font_size would give those documents            ~2.6 on average
+    level 3+ anywhere in the corpus                                     0
+
+MathPix emits `\section*` for every heading in those 249, the command wins over
+font size, and the depth is genuinely lost. `\subsubsection` occurs 0 times in
+43,159 headers, so no third level can come from commands at all. 272 recorded
+this as open.
+
+TWO THINGS STILL OPEN, SO NOBODY SPECIFIES AROUND THEM AS IF FIXED
+------------------------------------------------------------------------------
+1. Toc `entries` still double-count. The four `table_of_contents_*` types are a
+   containment hierarchy and `find_items` walks rows AND items at the same
+   level, so a title is recorded twice — 'Invited Talks' and 'Contents' each
+   appear twice in the samples above. 263 removed the number-only entries;
+   the row/item duplication is 261's break 2 and remains. `rows` carries
+   `line_type`, so a consumer can filter to one level; `entries` cannot be
+   deduplicated safely because a document may legitimately repeat a heading.
+
+2. okf `{{||CIT}}` — an empty-title template transclusion — emits
+   `[citation](./.md)`. 32 occurrences in 0008113v1 alone, one per Reference
+   unit. Found in 271 by running the real command; my in-memory harness builds
+   no References and never saw it.
+
+WHAT I DID NOT DO
+------------------------------------------------------------------------------
+I did not write the input specification. Naming what LLMWiki reads, builds and
+parses is a description of their code, and inventing it from the outside would
+produce a document that reads authoritative and is unverified.
