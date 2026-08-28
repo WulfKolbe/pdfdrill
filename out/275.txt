@@ -1,0 +1,131 @@
+275 — what a folder rename must touch
+==============================================================================
+
+Measured on real drilled folders (0008113v1, 2409.18839, kolbe2018hubbard,
+0049). Two names are in play and they are not the same thing:
+
+    FOLDER STEM   the directory name, and the `<stem>.*` filenames in it
+    BIBKEY        the object namespace — `<bibkey>_EQ0001` — which DEFAULTS to
+                  the stem but can be set independently by `--bibkey`
+
+A rename of the folder is a rename of the first. Whether it should also change
+the second is a decision, not a consequence, and 264 already showed they can
+diverge.
+
+A. PATH-DERIVED — a `mv` fixes these, no content is edited
+------------------------------------------------------------------------------
+    <stem>/                       the directory
+    <stem>.pdf                    <stem>.lines.json      <stem>.md
+    <stem>.drill.json             <stem>.tiddlers.json   <stem>.tex.zip
+    <stem>.coverage.tsv           <stem>.inspect.html    <stem>.tgz
+    <stem>.llm.txt                <stem>.chars.json
+
+Not stem-derived, so untouched by a rename:
+    model.docmodel.json · model.docpack.json · report.{tex,pdf,aux,log}
+    report.compare.tsv · tables.{html,json,md} · probe-*.{txt,json}
+    compare.html · formula-report.html · ir.json · md.md
+    inspect/pages/*.png  (p1.png / page-0001.png — indexed, not named)
+    texzip/<uuid>/ · texsrc/ · svg/
+
+B. BIBKEY-DERIVED FILENAMES — renamed only if the bibkey changes too
+------------------------------------------------------------------------------
+    report-crops/<bibkey>_EQ0001.jpg      one per equation/table crop
+    okf/<bibkey>/                          the bundle directory
+    okf/<bibkey>/<bibkey>_ABS01.md         and every unit file under it
+
+These carry the SANITISED bibkey (`re.sub(r"[^A-Za-z0-9_\-\.]", "_", …)`), so
+`0111016 (1)` is on disk as `0111016__1_`. A rename that rewrites them must
+sanitise the new name the same way or it will write files nothing looks for.
+
+C. THE OLD NAME AS CONTENT — targeted field edits, never a substitution
+------------------------------------------------------------------------------
+IDENTIFIER (the bibkey namespace; rewrite only if the bibkey changes)
+
+    model.docmodel.json   meta.bibkey · meta.root_id
+                          props.bibkey       on 137 objects (0008113v1)
+                          props.parent_section on 127 objects
+    model.docpack.json    the same meta, mirrored
+    <stem>.drill.json     evidence.bibkey
+    <stem>.tiddlers.json  every tiddler `title` — 378 occurrences
+    report.tex            \ident{<bibkey>_EQ0001}, 97 occurrences
+    okf/**/*.md           frontmatter `resource: pdfdrill:<bibkey>/<title>`,
+                          `tags: [<bibkey>]`, and every relative link
+
+PATH (rewrite whenever the folder moves, bibkey or not)
+
+    model.docmodel.json   meta.source_path — an ABSOLUTE path,
+                          /home/wkolbe/pdfdrill-library/<stem>/<stem>.lines.json
+    model.docpack.json    the same
+    <stem>.drill.json     pdf: "<stem>.pdf"
+                          evidence.tiddlers_path: "<stem>.tiddlers.json"
+                          evidence.okf_path: "okf/<bibkey>"
+                          and every other evidence.*_path
+    report.tex            \includegraphics{report-crops/<bibkey>_EQ0001.jpg}
+    report.log            LaTeX's own paths — regenerable, ignore
+
+D. WHAT MUST NOT BE TOUCHED — and this rules out the obvious implementation
+------------------------------------------------------------------------------
+    <stem>.lines.json     "text": "arXiv:quant-ph/0008113v1 25 Aug 2000"
+    probe-page-text.json  the same string, from the page
+    <stem>.drill.json     evidence.pdfinfo.Title, pdfinfo_fields.Title,
+                          bibtex.title — all "arXiv:quant-ph/0008113v1 …"
+
+The folder stem for an arXiv paper IS the arXiv id, and the arXiv id is printed
+down the margin of page 1, so it is in the OCR text, in the PDF metadata title
+and in the derived BibTeX. A `sed -i s/old/new/` across the folder would rewrite
+the document's own words and its citation. That is the single fact that decides
+the design: a rename must edit NAMED FIELDS, never match the string.
+
+E. IS IT SAFE AS A FILE OPERATION? YES — AND A REBUILD WOULD BE THE UNSAFE ONE
+------------------------------------------------------------------------------
+Everything in A and B is `mv`. Everything in C is a keyed write into JSON at
+known paths, plus one regex in `report.tex` anchored to `\ident{` and
+`report-crops/`. Nothing requires re-deriving anything from `lines.json`.
+
+A rebuild is NOT required, and reaching for one would cost:
+
+  1. TRANSLATIONS. `model_rebuild_blocked` already refuses a rebuild when the
+     sidecar carries the TRANSLATED fact, and its docstring records the same
+     document being destroyed three times in one week. But the guard is not
+     covering the library:
+
+         documents with the TRANSLATED fact              7
+           still holding text_source in the model        5
+           holding NONE                                  2   2409.18839 (PT-BR)
+                                                             576-659-1-PB (EN-US)
+         documents with text_source and NO fact          1   2510.11170v2, 81 units
+
+     LLMWiki measured 2409.18839's 105 lost units and was right. Two of the
+     seven flagged documents have already lost their translation despite the
+     flag — whether that predates the guard or a path bypasses it, I did not
+     determine here and will not guess. And 2510.11170v2 has 81 translated
+     units with no fact at all, so the guard cannot fire for it.
+
+  2. Anything else a mutator wrote in place. `save_model` has ~20 call sites
+     (`eqnums`, `geometry`, `clean`, refine records, ink) that mutate the model
+     rather than rebuilding it. A rebuild from lines.json reverts all of them;
+     I have not enumerated which, and 276 does not need to, because 276 does
+     not rebuild.
+
+  3. The crops. They are named by tiddler title, so a rebuild + re-projection
+     that changes the bibkey orphans them — which is 264 exactly.
+
+F. THE ONE THING A RENAME CANNOT CARRY FORWARD BY COPYING
+------------------------------------------------------------------------------
+263's `Toc.rows` reaches a model only through a rebuild. Verified on the
+persisted artifacts, not on a fresh projection:
+
+    models on disk                          1,350
+      with a Toc                              154
+      Toc carrying `rows` (263 shape)           0
+      Toc with the old `entries`-only shape   154
+        entries                            54,770
+        entries still containing a leader   34,308
+
+So the library is entirely on the pre-263 shape, and my out/273 claim that the
+leader strip is "no longer needed" was measured on freshly built models rather
+than on the artifacts a consumer reads. LLMWiki was right to correct it. That
+is a separate problem from renaming and 276 will not smuggle a rebuild in to
+solve it.
+
+Nothing changed in this task.
