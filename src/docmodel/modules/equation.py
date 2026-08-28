@@ -126,6 +126,52 @@ def normalize_equation_number(raw) -> str:
     return t.replace("\\", "").strip()
 
 
+#: 254 — the absorbed equation number. When MathPix does not emit a separate
+#: `equation_number` line, the printed number is sometimes swept into the maths
+#: body instead, so the equation renders as `... = 1 + \\frac{1}{2} t e_\\infty .(106)`
+#: with the number inside the formula AND `equation_number` empty. 1,047 lines
+#: in 63 documents corpus-wide (of 130,019 `math` lines); 29 of those documents
+#: carry a full numbering sequence and not one `equation_number` line, so the
+#: loss is per-document, not per-equation.
+#:
+#: The discriminator is the SEPARATOR before the paren. An absorbed number is
+#: set off from the maths by space, a spacing macro or sentence punctuation
+#: (`\\quad (2.14)`, `.(106)`); a group order or function application is glued
+#: to its identifier (`S O(8)`, `\\mathrm{Cl}(8)`, `\\mathrm{H}(2)`) and must be
+#: left alone. Without that gate the naive trailing-`(N)` test misfires on 74
+#: lines of ordinary algebra.
+_ABSORBED_EQNUM = re.compile(
+    r"(?P<sep>\\quad|\\qquad|\\hspace\{[^}]*\}|\\,|\\;|\\ |~|\s|[.,;])\s*"
+    r"\(\s*(?P<num>\d+(?:\.\d+)*[a-zA-Z]?)\s*\)\s*$")
+#: Sentence punctuation is part of the DISPLAYED equation ("… t e_\\infty .");
+#: a spacing macro is only the gap the number was set in. Keep the first, drop
+#: the second — stripping the period too would silently edit the maths.
+_KEEP_SEP = frozenset(".,;")
+#: Display/inline math delimiters that may trail the number.
+_MATH_TAIL = re.compile(r"(?:\\\)|\\\]|\$\$|\$)\s*$")
+
+
+def absorbed_equation_number(latex: str) -> tuple[str, str]:
+    """Split a trailing, separated `(N)` off the end of a math body.
+
+    Returns `(refnum, latex_without_it)`, or `("", latex)` when there is none.
+    Only ever called for equations that found NO `equation_number` line, so a
+    correctly-emitted number is never second-guessed.
+    """
+    if not latex:
+        return "", latex
+    tail = _MATH_TAIL.search(latex)
+    delim = latex[tail.start():] if tail else ""
+    core = latex[:tail.start()] if tail else latex
+    body = core.rstrip()
+    m = _ABSORBED_EQNUM.search(body)
+    if not m:
+        return "", latex
+    sep = m.group("sep")
+    cut = m.start() + (len(sep) if sep in _KEEP_SEP else 0)
+    return m.group("num"), (body[:cut].rstrip() + delim)
+
+
 class EquationProcessor(BaseModule):
     #: 249 — BOTH, and "equation" is not dead. It occurs ZERO times in the
     #: 3,998,456 MathPix line objects of the corpus, which is why out/245
@@ -164,6 +210,13 @@ class EquationProcessor(BaseModule):
                     anchors, stream, i,
                     used={n for n, _a in refnum_by_anchor.values()})
             latex_raw = payload.get("text_display") or payload.get("text") or ""
+            # 254 — last resort: the number MathPix swept into the maths.
+            absorbed = ""
+            if not refnum:
+                absorbed, stripped = absorbed_equation_number(latex_raw)
+                if absorbed:
+                    refnum, latex_raw = absorbed, stripped
+                    self.bump("equation_numbers_recovered")
             items.append({
                 "anchor": anchor,
                 "page": payload.get("_page"),
@@ -171,6 +224,10 @@ class EquationProcessor(BaseModule):
                 "region": payload.get("region"),
                 "refnum": refnum,
                 "refnum_anchor": refnum_anchor,
+                # Provenance: this number was read out of the formula body, not
+                # from an `equation_number` line. A consumer that cares which
+                # numbers MathPix actually stated can tell the two apart.
+                "refnum_source": "absorbed" if absorbed else ("line" if refnum else ""),
                 "latex_raw": latex_raw,
                 "latex": _normalize_latex(latex_raw),
                 # MathPix's own doubt about this line. It was in the payload

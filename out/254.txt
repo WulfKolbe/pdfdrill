@@ -1,0 +1,99 @@
+254 — the absorbed equation number: 1,047 equations, and 29 documents where
+      MathPix emitted no equation numbers at all
+==============================================================================
+
+THE COUNT
+------------------------------------------------------------------------------
+    math lines corpus-wide                          130,019
+      paired with an equation_number line            45,791
+      unpaired                                       84,228
+        ...ending in a separated, parenthesised
+           number — the (204) class                   1,047   in 63 documents
+
+    equation_number lines corpus-wide                47,942
+      78.7% sit immediately after their `math` line
+
+The number is lost twice over: `equation_number` comes out empty AND the number
+renders inside the formula. `1306.1660` p9 prints
+
+    T_t := m m' = 1 + ½ t e_∞ .(106)
+
+as the equation body, with no refnum attached.
+
+IT IS A PER-DOCUMENT FAILURE, NOT A PER-EQUATION ONE
+------------------------------------------------------------------------------
+Of the 63 documents, 29 carry an unbroken numbering sequence in the maths and
+**zero** `equation_number` lines anywhere:
+
+    Quantum_field_theory (Srednicki)   235 hits, 0 eqnum lines
+        1.1, 1.23, 1.27, 1.37, 1.39, 2.8, 2.16, 2.17, 2.18, 2.30, 2.33, 4.9, 6.6…
+    1901.10147                         111 hits, 0 eqnum lines
+        2.1, 2.2, 2.3, 2.8, 2.9, 2.10, 2.28, 3.2, 3.12, 3.13b, 3.13c, 3.17…
+    preprints202505.0818.v1             89 hits, 0 eqnum lines
+    hep-th_0604151                      40   2006.08843  38   1611.09182  30
+
+When MathPix decides not to emit `equation_number` for a document, it does not
+do so per equation — it does so for the whole file, and every number in the
+document is swept into the maths. So 879 of the 1,047 hits come from those 29
+documents. Any downstream feature keyed on equation numbers — `eqnums`, the
+tiddlywiki FREF index, `formula_report`'s eqnum column, `llm_compact`'s
+reference placeholders — is silently empty for those 29 documents, not sparse.
+
+THE DISCRIMINATOR, AND THE FIRST ATTEMPT THAT WAS WRONG
+------------------------------------------------------------------------------
+The naive test the task describes — LaTeX ends in `(N)`, no sibling
+`equation_number` — returns 1,133, and its extra 86 are ordinary algebra:
+
+    S O(8) \cong S s(8)
+    \mathrm{Cl}(q+8)=\mathrm{Cl}(q) \times \mathrm{Cl}(8)
+    \mathrm{Cl}(6)=\mathrm{R}(8)=\mathrm{H} \times \mathrm{H}(2)
+    \operatorname{spin}(6) \oplus \operatorname{spin}(4) \subset \operatorname{spin}(10)
+
+Group orders and function applications end in a parenthesised integer too. What
+separates them is not the number, it is the GAP: an absorbed equation number is
+set off by whitespace, a spacing macro or sentence punctuation
+(`\quad (2.14)`, `.(106)`), while an order is glued to its identifier (`O(8)`).
+Gating on the separator rejects 74 lines of algebra and keeps 1,047.
+
+A second wrong turn is worth recording because it nearly halved the answer. I
+tried to confirm hits by asking whether a document's trailing numbers form an
+increasing sequence, and got 29 SEQUENCE / 34 "scattered", which read as "only
+29 are real". They were all real: `float("1.2.1")` raises, so every
+three-level number was dropped from the sequence before it was tested, and the
+documents numbering `(1.2.1), (1.2.3), (2.2.18)` looked like noise. The parse
+failure was invisible because it removed evidence rather than raising. The
+sequence test was then discarded entirely — the separator gate alone carries
+the discrimination, and a heuristic that needs a second heuristic to be trusted
+is not yet the right one.
+
+WHAT CHANGED
+------------------------------------------------------------------------------
+  src/docmodel/modules/equation.py
+    `absorbed_equation_number(latex) -> (refnum, latex_without_it)`, applied in
+    find_items ONLY when no `equation_number` line was matched — first by
+    region-nearest pairing, then by the ±3 window. A stated number is never
+    second-guessed: measured against the corpus, the new path fires 1,047 times
+    and is suppressed 0 times by an equation that already had one.
+
+    Sentence punctuation is kept, spacing macros are dropped: `.(106)` leaves
+    the period in the maths, `\quad (2.14)` leaves nothing. Stripping the period
+    would have been an unannounced edit to the equation.
+
+    New `refnum_source` prop: "line" | "absorbed" | "". A consumer that needs
+    the numbers MathPix actually stated can still tell them apart from the ones
+    read back out of the formula.
+
+  tests/test_absorbed_eqnum.py — 16 tests, including all four glued forms above
+  as negatives.
+
+Recovered on rebuild: 1,047 equation numbers across 63 documents, and the same
+1,047 formulas stop rendering their own number inside the box.
+
+RESIDUAL RISK, STATED
+------------------------------------------------------------------------------
+The separator gate is a rule about typography, not a proof. A displayed
+expression that genuinely ends in `\quad (2)` — an enumerated case, a cited
+result — would be mis-read as a number. I found none in the 1,047 by sampling
+across both strata, but I did not read all 1,047. `refnum_source: "absorbed"`
+exists so that this class is reversible and countable rather than merged
+invisibly into the stated ones.
