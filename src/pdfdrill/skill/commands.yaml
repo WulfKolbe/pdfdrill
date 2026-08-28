@@ -1564,6 +1564,13 @@ commands:
       bullet per equation row (with --ink, the residual code as selectable
       text). No AcroForm field: 157 established that nothing in the pipeline
       ever re-filled one'
+  - name: render_regions
+    flag: --render-regions
+    type: flag
+    help: 'in the image-regions section, set each region''s own LaTeX beside its crop where one
+      exists (tikzpicture/tikzcd/listing/math). OFF by default: 1,788 of 27,287 corpus rows carry
+      any LaTeX, and on 2208.01506 25 of 43 rendered cells failed to compile and were demoted, so
+      the yield is real but so is the hazard'
   - name: prefer_refined
     flag: --prefer-refined
     type: bool

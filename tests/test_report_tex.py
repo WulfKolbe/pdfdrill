@@ -87,7 +87,9 @@ def test_build_report_writes_all_sections(tmp_path):
     tp.write_text(json.dumps(tiddlers))
     r = build_report(tp, paper="a3", landscape=True)
     tex = (tmp_path / "report.tex").read_text()
-    r.pop("image_named"); r.pop("image_unnamed"); r.pop("texzip_images")
+    for k in ("image_named", "image_unnamed", "texzip_images",
+              "image_rendered", "image_rendered_kept"):
+        r.pop(k, None)
     assert r == {"equations": 1, "formulas": 1, "tables": 1,
                  "unrecovered": 1, "out": tmp_path / "report.tex"}
     assert "a3paper,landscape" in tex

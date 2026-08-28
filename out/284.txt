@@ -1,0 +1,118 @@
+284 — a region's own LaTeX, set beside its crop
+==============================================================================
+
+SCOPE, AFTER 283
+------------------------------------------------------------------------------
+283 found one filename format and no other, so "new-format documents only" is
+every document whose zip has images — 928 of them. There is no old-format
+population on this corpus to exclude.
+
+WHAT LaTeX EXISTS FOR THESE REGIONS
+------------------------------------------------------------------------------
+    27,287 DIA/PIC rows corpus-wide, 877 documents
+
+    carry LaTeX                       1,788   (6.55%)   189 documents
+      tikzpicture                       762
+      tikzcd                            658
+      lstlisting                        323
+      array / bmatrix / cases            28
+      tabular                            12
+      axis / groupplot (pgfplots)        20
+      minipage / itemize / comment       42
+    carry none                       25,499   (93.45%)
+
+The tex.zip is NOT a second source for these. Its diagram content is
+`\includegraphics` pointing at the same crop — 20,670 of them against 42
+tikzpicture in 1,216 zips. So "from the tex.zip or from us" resolves, in
+practice, to "from us": the LaTeX lives on the tiddler, not in the archive.
+
+THE COLUMN
+------------------------------------------------------------------------------
+    Identifier | Page | Source | Rendered LaTeX | Crop
+
+The crop is last, the rendered LaTeX beside it, and the Source column is 282's
+tex.zip filename. `region_render` sets:
+
+    tikzpicture / tikzcd   scaled with \resizebox — the picture is the point
+    lstlisting             escaped monospace, NOT the listings environment: a
+                           verbatim environment in a longtable cell is fragile
+                           and the content is text either way
+    array / cases / …      through `renderable`, which already refuses what
+                           xelatex would choke on
+    everything else        refused
+
+An ALLOWLIST, because the first version was not one. It matched only
+`tikzpicture` and let the rest fall through to `renderable()`, which set
+`\begin{tikzcd}…` as MATHEMATICS — 658 corpus rows of commutative diagram
+handed to the math parser. 2208.01506 then failed to compile at all:
+"Environment tikzcd undefined", a cascade of undefined control sequences, and
+NO report.pdf.
+
+THE AMPERSAND, WHICH IS THE REAL OBSTACLE
+------------------------------------------------------------------------------
+A tikzcd uses `&` as its cell separator. So does the longtable it now sits in.
+pgf reports "Single ampersand used with wrong catcode", 239 characters land in
+`nullfont`, and the row is demoted:
+
+    before   239 errors, 239 dropped glyphs, 53 rows demoted
+    after      0 errors,   4 dropped glyphs, 54 rows demoted
+
+tikz-cd carries the remedy — `[ampersand replacement=\&]` with the body escaped
+to match — verified compiling standalone in a longtable cell at 0 errors and 0
+missing characters. Existing options are merged, not clobbered. A
+`tikzpicture` has no such option, so one containing a bare `&` (a `\matrix`
+node) is refused rather than guessed at.
+
+AND THE FIXPOINT COULD NOT DEMOTE A PICTURE
+------------------------------------------------------------------------------
+`compile_fixpoint` demoted a row by substituting `$\displaystyle …$`. A picture
+cell is `\resizebox{…}{!}{…}` and never matched, so a failing row produced no
+change, the loop broke, and the errors stayed in the document. `_demote_line`
+now brace-matches the `\resizebox` argument — a regex cannot, the body of a
+tikzpicture is full of braces — and leaves the row's other cells intact.
+
+MEASURED ON 2208.01506 (43 image rows, all tikzcd)
+------------------------------------------------------------------------------
+    rows emitting a rendered cell        43
+    surviving the compile                43
+    crop only                             0
+    errors                                0
+    rows demoted                         54   (equation rows, not image rows)
+
+OFF BY DEFAULT — `--render-regions`
+------------------------------------------------------------------------------
+Because of one unresolved thing: with rendering on, this document drops 4
+characters (U+0013, in DejaVu Serif) that it does not drop with rendering off.
+Proved by A/B on the same document — rendering off, 0 missing; on, 4. The
+character is in neither report.tex (0 control bytes) nor any tiddler, so
+xelatex is generating it, and I have not found where.
+
+Four characters in one document is small, and `publishready` refuses any report
+that drops a glyph — correctly. Shipping this on by default would have made
+that gate fail for documents it currently passes. So the flag is opt-in, no
+existing report changes, and the hazard is written down rather than discovered
+later by a failed publish.
+
+TWO COUNTING MISTAKES OF MINE, BOTH THE SAME MISTAKE
+------------------------------------------------------------------------------
+1. `image_rendered` counted cells EMITTED. The report now also carries
+   `image_rendered_kept`, counted from the final report.tex after the fixpoint
+   has demoted what could not compile. Intent and outcome are different
+   numbers and only the second is a result.
+
+2. I tested the 43 bodies in isolation and reported "25 of 43 error". They were
+   compiled against a minimal preamble without amsmath, mathrsfs or stmaryrd —
+   packages the real report carries. Under the actual preamble: 0 errors, 43
+   survive. The isolation harness was the defect, not the rows, and I had
+   already made this exact error twice this session (265, and the frequency
+   check in 277).
+
+Suite 2,656. 10 new tests in tests/test_image_regions.py.
+
+STILL OPEN
+------------------------------------------------------------------------------
+  * U+0013, 4 characters, 1 document, cause unknown.
+  * 281 — whether the rendered tikzpicture/tabular actually matches the page.
+    284 SETS the LaTeX; it does not compare it to the crop. Putting the two
+    side by side is what makes that comparison possible by eye, which is the
+    most this task claims.

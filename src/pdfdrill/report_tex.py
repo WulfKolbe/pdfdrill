@@ -124,6 +124,101 @@ def rows_for(tiddlers, bibkey, refined=None):
     return fo, eq, tab, dia
 
 
+#: 284 — LaTeX carried by an image region, and what can safely be set from it.
+#: Measured corpus-wide over 27,287 DIA/PIC rows: 1,788 (6.55%) carry any
+#: LaTeX — tikzpicture 761, listings/other 1,018, array/align 5, tabular 4 —
+#: and 25,499 carry none at all. The tex.zip is not a second source for these:
+#: its diagram content is `\includegraphics` pointing at the same crop, and it
+#: holds only 42 tikzpicture in 1,216 zips against 20,670 \includegraphics.
+#: The environment vocabulary of image-region LaTeX, counted corpus-wide:
+#:   tikzpicture 762 · tikzcd 658 · lstlisting 323 · scope 145 · minipage 37
+#:   axis 17 · array 16 · tabular 12 · bmatrix 6 · pgfonlayer 6 · comment 3
+#:   groupplot 3 · itemize 2 · cases 1
+#:
+#: An ALLOWLIST, not a guess. The first version matched only `tikzpicture` and
+#: let everything else fall through to `renderable()`, which set
+#: `\begin{tikzcd}…` as MATH — 658 rows of commutative diagram handed to the
+#: math parser. 2208.01506 then failed to compile at all: "Environment tikzcd
+#: undefined", then a cascade of "Undefined control sequence" and unbalanced
+#: braces, and NO report.pdf. An unknown environment must be refused, not
+#: guessed at.
+_PICTURE_ENVS = ("tikzpicture", "tikzcd")
+#: Renderable as mathematics.
+_MATH_ENVS = ("array", "bmatrix", "pmatrix", "vmatrix", "Vmatrix", "matrix",
+              "cases", "aligned", "smallmatrix")
+#: `axis`/`groupplot` are pgfplots and usually want external data; `minipage`,
+#: `itemize`, `comment`, `scope` and `pgfonlayer` are fragments or containers
+#: that mean nothing on their own. 20-odd rows between them, all refused.
+_FIRST_ENV = re.compile(r"\\begin\{([A-Za-z*]+)\}")
+_LSTLISTING = re.compile(r"\\begin\{lstlisting\}(\[[^\]]*\])?", re.S)
+
+
+#: A picture environment inside a longtable cell cannot use a bare `&`: the
+#: table claims it as the column separator and pgf reports "Single ampersand
+#: used with wrong catcode", then 239 characters land in `nullfont` and the row
+#: is demoted. Measured on 2208.01506, whose 43 image rows are mostly tikzcd.
+#:
+#: tikz-cd has the remedy built in — `[ampersand replacement=\&]` with the body
+#: escaped to match. Verified standalone: 0 errors, 0 missing characters, in a
+#: longtable cell. A tikzpicture has no such option, so one carrying a bare `&`
+#: (a \matrix node) is refused rather than guessed at.
+_TIKZCD_OPTS = re.compile(r"^(\s*\\begin\{tikzcd\})(\[[^\]]*\])?", re.S)
+
+
+def _ampersand_safe(lx: str, env: str):
+    """The body made safe for a table cell, or None when it cannot be."""
+    if "&" not in lx:
+        return lx
+    if env != "tikzcd":
+        return None                     # tikzpicture \matrix — refused
+    m = _TIKZCD_OPTS.match(lx)
+    if not m:
+        return None
+    opts = (m.group(2) or "")[1:-1] if m.group(2) else ""
+    opts = (opts + ", " if opts else "") + "ampersand replacement=\\&"
+    rest = lx[m.end():]
+    # every bare & in the body becomes \& to match the declared replacement
+    rest = re.sub(r"(?<!\\)&", r"\\&", rest)
+    return "%s[%s]%s" % (m.group(1), opts, rest)
+
+
+def region_render(latex: str, width_mm=None) -> str:
+    r"""A cell that SETS this region's LaTeX, or "" when nothing can be.
+
+    tikzpicture   -> scaled to the column. The picture is the point.
+    lstlisting    -> escaped monospace, NOT the listings environment: a
+                     verbatim environment inside a longtable cell is fragile,
+                     and the content is text either way.
+    math-ish      -> $\displaystyle ...$ through `renderable`, which already
+                     refuses what xelatex would choke on.
+    anything else -> "" — better an empty cell than a row that hangs the
+                     fixpoint. bh2_EQ0147 hung xelatex for ten minutes inside a
+                     longtable cell, which is why `renderable` exists at all.
+    """
+    lx = (latex or "").strip()
+    if not lx:
+        return ""
+    m = _FIRST_ENV.search(lx)
+    env = m.group(1) if m else ""
+    if env in _PICTURE_ENVS:
+        box = "\\linewidth" if not width_mm else "%.1fmm" % width_mm
+        body = _ampersand_safe(lx, env)
+        if body is None:
+            return ""
+        return "\\resizebox{%s}{!}{%s}" % (box, body)
+    if env == "lstlisting":
+        body = _LSTLISTING.sub("", lx).replace("\\end{lstlisting}", "").strip()
+        return "{\\ttfamily\\tiny %s}" % esc_text(body[:1200])
+    if env and env not in _MATH_ENVS and env != "tabular":
+        return ""                      # refused: see the allowlist above
+    if env == "tabular":
+        return "{\\tiny %s}" % lx
+    safe = renderable(lx)
+    if safe:
+        return "\\FitMath{$\\displaystyle %s$}" % safe
+    return ""
+
+
 def texzip_images(texzip_dir: Path):
     """Index a tex.zip expansion by the FULL region 5-tuple.
 
@@ -240,6 +335,14 @@ PREAMBLE = r"""%% report.tex — generated by tools/make_report_tex.py; compile 
 %% 31 rows, every one a \mathscr).
 \usepackage{mathrsfs}
 \usepackage{stmaryrd}
+%% 284: the image-regions section renders a region's own LaTeX beside its crop.
+%% 761 corpus rows carry a tikzpicture and 1,018 carry a listing. GUARDED for
+%% the same reason 221 guards \newfontfamily: an unguarded \usepackage for a
+%% package this machine lacks aborts the compile and produces NO pdf, which is
+%% worse than the row it would have rendered.
+\IfFileExists{tikz.sty}{\usepackage{tikz}}{}
+\IfFileExists{tikz-cd.sty}{\usepackage{tikz-cd}}{}
+\IfFileExists{listings.sty}{\usepackage{listings}}{}
 %% 090: the Source column is \ttfamily and carries the OCR's raw Unicode.
 %% Latin Modern Mono has none of it, so xelatex dropped 24,953 glyphs across
 %% 1,702 reports with only a warning (out/089). DejaVu Sans Mono covers 208 of
@@ -1363,6 +1466,58 @@ def stamp_matches(stamp: dict, pdf_out: Path) -> "tuple[bool, str]":
     return True, "matches"
 
 
+
+
+def _surviving_renders(tex_path: Path) -> int:
+    """Rendered image cells still present after the fixpoint has demoted the
+    rows that could not compile."""
+    try:
+        body = tex_path.read_text(encoding="utf-8", errors="replace")
+    except Exception:
+        return 0
+    i = body.find("Image regions")
+    if i < 0:
+        return 0
+    return body.count("\\resizebox{", i) + body.count("\\FitMath{", i)
+
+
+
+
+def _demote_line(line: str) -> str:
+    r"""Replace whatever this row RENDERS with `(not rendered)`, leaving its
+    other cells alone. Returns the line unchanged when there is nothing to
+    demote.
+
+    284 — the fixpoint used to substitute `$\displaystyle …$` and nothing else.
+    An image row renders a picture as `\resizebox{…}{!}{…}`, which that pattern
+    does not match, so a tikzcd carrying malformed transcription could not be
+    demoted: the loop found no change to make, broke, and left the errors in
+    the document. 2208.01506 line 462 is the measured case — a `\csname{op}`
+    and a `\mathcal` outside math mode inside a tikzcd.
+    """
+    out = re.sub(r"\$\\displaystyle .*\$", r"\\emph{(not rendered)}", line)
+    if out != line:
+        return out
+    i = line.find("\\resizebox{")
+    if i < 0:
+        return line
+    # brace-match the third argument — a regex cannot, and the body of a
+    # tikzpicture is full of braces
+    j = line.find("{", line.find("}", line.find("}", i) + 1) + 1)
+    if j < 0:
+        return line
+    depth, k = 1, j + 1
+    while k < len(line) and depth:
+        if line[k] == "{" and line[k - 1] != "\\":
+            depth += 1
+        elif line[k] == "}" and line[k - 1] != "\\":
+            depth -= 1
+        k += 1
+    if depth:
+        return line
+    return line[:i] + "\\emph{(not rendered)}" + line[k:]
+
+
 def compile_fixpoint(tex_path: Path, max_iter: int = 6):
     """xelatex the report; demote rows whose lines error to source-only and
     recompile until 0 errors (a malformed OCR snippet must cost its own row,
@@ -1391,8 +1546,7 @@ def compile_fixpoint(tex_path: Path, max_iter: int = 6):
                          _re.findall(r"^l\.(\d+)", text, _re.M)}):
             i = n - 1
             if i < len(src):
-                new = _re.sub(r"\$\\displaystyle .*\$",
-                              r"\\emph{(not rendered)}", src[i])
+                new = _demote_line(src[i])
                 if new != src[i]:
                     src[i] = new
                     demoted.add(n)
@@ -1460,7 +1614,8 @@ def build_report(tiddlers_path: Path, out: Path | None = None,
                  types: "set[str] | None" = None, form: bool = False,
                  ink: "dict | None" = None, legend_on: bool = True,
                  ink_state: str = "", prefer_refined: bool = False,
-                 bibkey_history: "list[str] | None" = None) -> dict:
+                 bibkey_history: "list[str] | None" = None,
+                 render_regions: bool = False) -> dict:
     """Generate report.tex; returns counts {equations, formulas, tables,
     unrecovered, out}.
 
@@ -1573,15 +1728,20 @@ def build_report(tiddlers_path: Path, out: Path | None = None,
                                 body, img))
         out_parts.append("\\end{longtable}\n")
 
-    named = unnamed = 0
+    named = unnamed = rendered = 0
     if dia:
         out_parts.append("\\clearpage\n")
         zreg, zn = ({}, 0)
         if texzip:
             zreg, zn = texzip_images(Path(texzip))
         span = usable - 20 - 20 - 7
-        dimg = round(span * 0.55)
-        dnote = span - dimg
+        # 284 — the crop is the LAST column and the rendered LaTeX sits beside
+        # it. Only 6.55% of rows carry any LaTeX, so the rendered column gets
+        # the smaller share: an empty column on 25,499 rows should not crowd
+        # the picture on all of them.
+        dimg = round(span * 0.40)
+        drend = round(span * 0.32)
+        dnote = span - dimg - drend
         out_parts.append(
             "\\section*{Image regions — TikZ / table / failed-math candidates}\n"
             "Regions MathPix left as images (no LaTeX). The Source column "
@@ -1592,10 +1752,11 @@ def build_report(tiddlers_path: Path, out: Path | None = None,
             "what is on the page; that is a separate question. Reconstruct "
             "with \\texttt{pdfdrill vision}; verify against the real ink with "
             "inkdrill.\n"
-            "\\begin{longtable}{|p{20mm}|p{7mm}|p{%smm}|p{%smm}|}\n"
+            "\\begin{longtable}{|p{20mm}|p{7mm}|p{%smm}|p{%smm}|p{%smm}|}\n"
             "\\hline\n\\textbf{Identifier} & \\textbf{Page} & "
-            "\\textbf{Image} & \\textbf{Source} \\\\\n"
-            "\\hline\\endhead\n" % (dimg, dnote))
+            "\\textbf{Source} & \\textbf{Rendered LaTeX} & "
+            "\\textbf{Crop} \\\\\n"
+            "\\hline\\endhead\n" % (dnote, drend, dimg))
         for title, latex, page, dims, region in dia:
             img_path = zip_name = None
             try:
@@ -1643,10 +1804,16 @@ def build_report(tiddlers_path: Path, out: Path | None = None,
                 srcnote = "\\emph{tex.zip holds no images}"
             else:
                 srcnote = "\\emph{no image for this region (%d in zip)}" % zn
-            out_parts.append("\\ident{%s} & %s & %s & %s "
+            rcell = region_render(latex, drend) if render_regions else ""
+            if rcell:
+                rendered += 1
+            else:
+                rcell = "\\emph{\\tiny(no LaTeX)}" if not (latex or "").strip() \
+                    else "\\emph{\\tiny(not renderable)}"
+            out_parts.append("\\ident{%s} & %s & %s & %s & %s "
                              "\\\\ \\hline\n"
                              % (esc_text(title), esc_text(str(page)),
-                                cell, srcnote))
+                                srcnote, rcell, cell))
         out_parts.append("\\end{longtable}\n")
 
     out_parts.append("\\end{document}\n")
@@ -1664,6 +1831,13 @@ def build_report(tiddlers_path: Path, out: Path | None = None,
             # do not. `texzip_images` is 0 when the zip holds no images at all,
             # which is a different fact from a lookup that failed.
             "image_named": named, "image_unnamed": unnamed,
+            # 284 — `image_rendered` is what was EMITTED. `image_rendered_kept`
+            # is what survived the compile fixpoint, and they are not the same
+            # number: on 2208.01506 all 43 rows emitted a rendered cell and 25
+            # of them errored and were demoted. Reporting the first alone would
+            # be reporting intent as outcome.
+            "image_rendered": rendered,
+            "image_rendered_kept": _surviving_renders(dest),
             "texzip_images": (texzip_images(Path(texzip))[1] if texzip else 0)}
 
 

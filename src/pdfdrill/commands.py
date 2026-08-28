@@ -13860,7 +13860,8 @@ def cmd_reporttex(pdf: Path, paper: str = "a3", landscape: bool = True,
                   types: str | None = None, form: bool = False,
                   ink: str | None = None, legend: bool = True,
                   refined: bool = False,
-                  prefer_refined: bool = False) -> str:
+                  prefer_refined: bool = False,
+                  render_regions: bool = False) -> str:
     """LaTeX formula report (report.tex): every EQ/FO/TAB identifier with
     page, escaped source, rendered math, and the MathPix scan crop at its
     exact original physical size; the tex.zip's unrecovered image regions
@@ -13999,16 +14000,20 @@ def cmd_reporttex(pdf: Path, paper: str = "a3", landscape: bool = True,
                         min_conf=min_conf, max_conf=max_conf, types=want,
                         form=form, ink=ink_map, legend_on=legend,
                         ink_state=ink_state, prefer_refined=prefer_refined,
-                        bibkey_history=_bibkey_history(sc))
+                        bibkey_history=_bibkey_history(sc),
+                        render_regions=render_regions)
     if r.get("unrecovered"):
         _zn = r.get("texzip_images", 0)
         _src = ("no tex.zip" if not texzip else
                 "tex.zip holds no images" if _zn == 0 else
                 "%d images in the zip" % _zn)
         print("Image regions: %d of %d rows name their tex.zip source by region "
-              "5-tuple, %d do not (%s)."
+              "5-tuple, %d do not (%s). Rendered LaTeX: %d emitted, %d survived "
+              "the compile, %d crop-only."
               % (r.get("image_named", 0), r["unrecovered"],
-                 r.get("image_unnamed", 0), _src))
+                 r.get("image_unnamed", 0), _src, r.get("image_rendered", 0),
+                 r.get("image_rendered_kept", 0),
+                 r["unrecovered"] - r.get("image_rendered", 0)))
     sc.set_evidence("reporttex_path",
                     str(Path(r["out"]).relative_to(pdf.parent)))
     _prev_rt = ",".join(sorted(sc.facts - {REPORTTEX_BUILT})) or "INIT"
