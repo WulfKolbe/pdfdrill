@@ -20,7 +20,14 @@ def _doc(tmp_path, *, glyphs=False, ink=None, quarantine=None,
     if glyphs:
         log += 'Missing character: There is no g ("67) in font rsfs10!\n'
     (d / "report.log").write_text(log, encoding="utf-8")
-    body = "\\ident{DOC_EQ0001}\n" + "\\inkbullet{inkClean}\n" * bullets
+    # The real report.tex is a TABLE: `\ident{..} & <page> & ..`, which is the
+    # shape `inkconvert.identifiers()` reads. The fixture used to write a bare
+    # `\ident{..}`, which yields NO identifiers — so a coverage check had
+    # nothing to compare against and passed silently. Four rows, matching
+    # SPREAD, so full coverage is the default and a test that wants a gap
+    # creates one deliberately.
+    body = "".join("\\ident{DOC_EQ%04d} & %d & x\n" % (i, i) for i in (1, 2, 3, 4))
+    body += "\\inkbullet{inkClean}\n" * bullets
     if legend:
         body += r"\textbf{Residual} render vs scan (inkdrill):" + "\n"
     (d / "report.tex").write_text(body, encoding="utf-8")
@@ -215,3 +222,42 @@ def test_demoted_flags_reads_table_order():
             "\\ident{X_EQ0002} & 2 & \\emph{(not rendered)}\n"
             "\\ident{X_EQ0003} & 3 & rendered\n")
     assert rt.demoted_flags(body) == [True, False, True]
+
+
+def test_ink_coverage_is_compared_against_the_report(tmp_path):
+    """A measurement can pair perfectly and still cover only part of the report:
+    rebuild it with different filters afterwards and every measured row still
+    matches while the new rows carry nothing. 1510.06699 reached READY at 219 of
+    279 rows, because "bullets on the page" counts rows that DISPLAY a bullet and
+    the distribution is read off the measurement, not off the report."""
+    pdf = _doc(tmp_path, ink=SPREAD)
+    tex = pdf.parent / "report.tex"          # _doc returns the PDF, not the dir
+    body = tex.read_text(encoding="utf-8")
+    # the table-row shape `identifiers()` actually reads: `\ident{..} & N &`
+    body += "\\ident{DOC_EQ0005} & 5 & x\n\\ident{DOC_EQ0006} & 6 & x\n"
+    tex.write_text(body, encoding="utf-8")
+    r = publish_ready(pdf)
+    assert not r["ready"]
+    passed, why = r["checks"]["ink"]
+    assert not passed
+    assert "4 of 6" in why, why
+    assert "2 carry no measurement" in why, why
+
+
+def test_full_coverage_still_passes(tmp_path):
+    r = publish_ready(_doc(tmp_path, ink=SPREAD))
+    passed, why = r["checks"]["ink"]
+    assert passed, why
+    assert "MEASURES ONLY" not in why and "UNKNOWN" not in why
+
+
+def test_coverage_that_cannot_be_computed_fails_rather_than_passing(tmp_path):
+    """report.tex not in the table shape identifiers() reads: coverage is
+    unknown, and publish_ready's whole rule is that such a check FAILS."""
+    pdf = _doc(tmp_path, ink=SPREAD)
+    (pdf.parent / "report.tex").write_text(
+        "Residual} render vs scan\n\\inkbullet{inkClean}\n", encoding="utf-8")
+    r = publish_ready(pdf)
+    passed, why = r["checks"]["ink"]
+    assert not passed
+    assert "coverage UNKNOWN" in why

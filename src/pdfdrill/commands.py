@@ -1621,12 +1621,45 @@ def publish_ready(pdf: Path) -> dict:
         live = [n for n in quarantined
                 if (d / n).stat().st_mtime >= ink.stat().st_mtime]
         stale = [n for n in quarantined if n not in live]
-        checks["ink"] = (not live,
-                         ("present" if not stale else
-                          "present; %s is older and superseded — delete it"
-                          % stale[0]) if not live
-                         else "present, but %s is NEWER: the last attempt "
-                              "failed to pair" % live[0])
+        # COVERAGE. A measurement that pairs perfectly can still cover only
+        # part of the report: rebuild it with different filters after measuring
+        # and every measured row still matches while the new rows carry
+        # nothing. 1510.06699 reached READY at 219 of 279 rows — 78.5% — with
+        # every other check green, because "bullets on the page" counts rows
+        # that DISPLAY a bullet and the distribution is read off the
+        # measurement rather than off the report. Coverage is the one number
+        # that compares the two.
+        cover = ""
+        try:
+            import json as _json
+            from .inkconvert import identifiers as _idents
+            if tex.is_file():
+                _ids = set(_idents(tex.read_text(encoding="utf-8", errors="replace")))
+                _rows = _json.loads(ink.read_text(encoding="utf-8")).get("rows") or []
+                _measured = {r.get("id") for r in _rows if r.get("id")}
+                _missing = len(_ids - _measured)
+                if not _ids and _rows:
+                    # publish_ready's own rule: a check that cannot see its
+                    # input FAILS. An empty identifier list means report.tex
+                    # is not in the table shape `identifiers()` reads, so
+                    # coverage is unknown — not 100%.
+                    cover = ("; coverage UNKNOWN — report.tex yields no row "
+                             "identifiers, so the %d measured rows cannot be "
+                             "matched to it" % len(_rows))
+                elif _ids and _missing:
+                    cover = ("; MEASURES ONLY %d of %d rows (%.0f%%) — %d carry "
+                             "no measurement, so the report was rebuilt after it "
+                             "was measured" % (len(_ids) - _missing, len(_ids),
+                                               100.0 * (len(_ids) - _missing) / len(_ids),
+                                               _missing))
+        except Exception:
+            cover = "; coverage UNKNOWN — could not compare the measurement to report.tex"
+        checks["ink"] = (not live and not cover,
+                         ((("present" if not stale else
+                            "present; %s is older and superseded — delete it"
+                            % stale[0]) + cover) if not live
+                          else "present, but %s is NEWER: the last attempt "
+                               "failed to pair" % live[0]))
     else:
         checks["ink"] = (False, "no report.ink.json — %s" %
                          (quarantined[0] + " is quarantined" if quarantined
