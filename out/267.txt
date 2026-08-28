@@ -1,0 +1,125 @@
+267 — okf: where a field reference is emitted instead of resolved
+==============================================================================
+
+Both failure modes you named are present, and they are different bugs with
+different repairs. Neither is fixed here.
+
+METHOD
+------------------------------------------------------------------------------
+Full model build + real TiddlyWiki projection + `tiddlers_to_okf` for 7
+documents, then every emitted markdown link resolved against the set of paths
+the bundle actually writes. Per document, not aggregated — one document is an
+outlier large enough to swamp a total.
+
+    document               files    units      A      B   dead links
+    0008113v1                138      137      0      0        0
+    0049                     102      101      2      5        2
+    0110026                  523      522      0     11        0
+    2004.05631v1           2,596    2,595     31    138       31
+    1306.1660                750      749     12      2       12
+    idea14-proceedings     2,557    2,556    124     96      126
+    1511.08771           141,735  141,734     21 13,780       21
+    ------------------------------------------------------------------
+    totals                          148,394    190 14,032      192
+    excluding 1511.08771              6,660    169    252      171
+
+1511.08771 produces 141,734 unit files, almost all Pictures, and dominates the
+B column. Its 13,780 are the same defect as the other 252, not a different one,
+but any total quoted without it is the honest one for a typical document.
+
+
+CLASS A — A REFERENCE EMITTED WHERE THE CONSUMER EXPECTS A VALUE
+------------------------------------------------------------------------------
+  object    Section
+  field     `caption`, always — 190 of 190
+  emitted   [0049_H5!!caption](./0049_H5!!caption.md)
+  target    DOES NOT EXIST, and cannot: `0049_H5!!caption` is not a tiddler
+            title. It is a tiddler title with a field accessor glued to it.
+
+The source is TiddlyWiki's QUALIFIED field reference — `{{Title!!field}}`,
+meaning "the `caption` field OF tiddler `Title`". `_rewrite_transclusions`
+handles only the unqualified form:
+
+    if body.startswith("!!"):          # {{!!caption}} — this tiddler's own field
+        return str(t.get(body[2:], "") or "")
+
+A qualified reference does not start with `!!`, so it falls through to the LINK
+branch, where `target = body.split("||")[0]` takes the whole string
+`0049_H5!!caption` as a tiddler title, finds no such title, and `_link_path`
+returns its "tolerated relative dead link", `./0049_H5!!caption.md`.
+
+Everything needed to resolve it is present in the same projection:
+
+    base `0049_H5` is a tiddler          : yes
+    its `caption` field                  : '4.1 Representation Model and Expressiveness'
+    its OKF file `sections/0049_H5.md`   : in the bundle
+
+So this is not a missing target. It is a parse that never splits on `!!`, and
+it accounts for 190 of the 192 dead links across all 7 documents. Every
+remaining dead link is the same shape.
+
+The repair is a choice, not obvious, which is why this is a report: `{{X!!f}}`
+can legitimately mean either "inline X's f" (a value, matching how `{{!!f}}` is
+treated) or "link to X, labelled by its f" (a reference, which is what a
+section's sub-heading list probably wants). The second is almost certainly
+right here — a Section body listing its subsections wants links — but it is the
+user's call, and either way the emitted filename must stop containing `!!`.
+
+
+CLASS B — A VALUE INLINED, AND THEN DELETED WITH THE WIDGET AROUND IT
+------------------------------------------------------------------------------
+  object    Picture (13,664), Diagram (341), Equation (27)
+  field     `canonical_uri`, `width`, `height` / `latex`, `displayMode`
+  emitted   nothing — the unit file's body is EMPTY
+  target    n/a; no reference is emitted, the value is destroyed
+
+The tiddler body is a SELF-CLOSING widget with the value in an attribute:
+
+    <$image source={{!!canonical_uri}} width={{!!width}} height={{!!height}}/>
+    <$latex text={{!!latex}} displayMode=true />{{!!trailing_punct}}
+
+`_rewrite_transclusions` resolves the field references correctly — that part
+works — which leaves `source=https://cdn.mathpix.com/...`, an UNQUOTED
+attribute. Then:
+
+    _IMAGE_RE = r'<\$image\s+source="([^"]*)"[^>]*?/?>'    requires QUOTES
+    _LATEX_RE = r'<\$latex[^>]*>(.*?)</\$latex>'           requires PAIRED tags
+
+Neither matches. `_ANY_WIDGET_RE` then strips the whole tag as an unconverted
+leftover, and the inlined value goes with it. The resolution succeeded and the
+result was thrown away one line later.
+
+Formula and Equation are mostly rescued by accident: `_okf_body` special-cases
+them and reads the `latex` FIELD directly rather than the converted body. The
+27 Equations that still come out empty are the ones whose `latex` field is
+itself empty, so the rescue has nothing to read. Picture and Diagram have no
+such rescue.
+
+The value is not lost from the file — `resource:` in the frontmatter carries
+the CDN url in 14,032 of 14,032 cases. But the OKF body renders nothing, so a
+markdown consumer sees an image unit with no image.
+
+
+CLASS C — NOT AN okf DEFECT
+------------------------------------------------------------------------------
+56 unit files (Sidenote 55, Footnote 1) are empty because the TIDDLER was
+already empty — `text: ''` before okf touched it. Upstream, and out of scope
+for this report; noted so it is not counted against the projection.
+
+
+SUMMARY
+------------------------------------------------------------------------------
+    A  reference emitted where a value belongs   190   all Section.caption
+                                                       all dead by construction
+    B  value inlined then deleted             14,032   Picture / Diagram /
+                                                       Equation bodies empty
+    C  empty upstream                             56   not okf's doing
+
+    links resolving correctly                 89,355
+    links dead                                   192   (190 of them class A)
+
+The transclusion machinery is not broken in general — 89,355 of 89,547 links
+resolve. Both defects are single missing cases: one syntax form the rewriter
+does not split, and one widget shape the converters do not match.
+
+Nothing changed in this task.
