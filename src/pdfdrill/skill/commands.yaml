@@ -2606,6 +2606,36 @@ commands:
     type: str
     help: comma list of region types (default Equation; Table/Picture/Diagram)
   typed: true
+- name: rename
+  section: Extraction
+  summary: 'Rename a drilled FOLDER (and optionally its bibkey namespace) WITHOUT a rebuild. Moves the
+    directory and its <stem>.* files, retargets the PATH and IDENTIFIER fields inside model / sidecar /
+    tiddlers / report.tex, moves the bibkey-named crops and OKF bundle, and records the prior names in
+    meta.folder_history and meta.bibkey_history. Never substitutes the old name as a string: an arXiv
+    folder is named for the arXiv id, which is printed on page 1 and therefore sits in the OCR text, the
+    PDF title and the derived BibTeX. Never rebuilds, so translations and in-place enrichments survive.'
+  offline_ok: true
+  requires:
+  - model
+  positionals:
+  - name: pdf
+    type: pdf
+    required: true
+    help: PDF/Markdown drilled-doc path, URL, or arXiv id
+  - name: name
+    type: str
+    required: true
+    help: the new folder name
+  flags:
+  - name: bibkey
+    flag: --bibkey
+    type: str
+    help: also rename the object namespace (tiddler titles, crops, OKF bundle) to this key
+  - name: dry_run
+    flag: --dry-run
+    type: flag
+    help: report what would move and change nothing
+  typed: true
 - name: okf
   section: Extraction
   summary: 'Project the docmodel into an OKF (Open Knowledge Format) BUNDLE: one Markdown-with-YAML-frontmatter

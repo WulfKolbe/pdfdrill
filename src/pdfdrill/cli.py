@@ -1892,6 +1892,18 @@ def _do_occurrences(args):
     return cmd_occurrences(_drilled(args[:1]), types=types)
 
 
+def _do_rename(args):
+    """pdfdrill rename <pdf> <newname> [--bibkey K] [--dry-run] — rename a
+    drilled FOLDER (and optionally its bibkey namespace) without a rebuild."""
+    from .commands import cmd_rename
+    bibkey, args = _opt(args, "--bibkey")
+    dry = "--dry-run" in args
+    args = [a for a in args if a != "--dry-run"]
+    pdf = _drilled(args[:1])
+    name = args[1] if len(args) > 1 else ""
+    return cmd_rename(pdf, name=name, bibkey=bibkey, dry_run=dry)
+
+
 def _do_okf(args):
     """pdfdrill okf <pdf> [--out DIR] [--bibkey K] — project the docmodel into an
     OKF (Open Knowledge Format) bundle (Markdown-with-frontmatter, one file/unit)."""
@@ -2126,6 +2138,7 @@ HANDLERS = {
         "steps": _do_steps,
         "retrieve": _do_retrieve,
         "okf": _do_okf,
+        "rename": _do_rename,
         "occurrences": _do_occurrences,
         "context": _do_context,
         "merge": _do_merge,

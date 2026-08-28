@@ -1,0 +1,120 @@
+276 — the folder rename, built on 275
+==============================================================================
+
+    pdfdrill rename <pdf> <newname> [--bibkey K] [--dry-run]
+
+Registered in commands.yaml (138 commands, manifest ↔ HANDLERS in sync), so it
+is a layer the planner can see rather than a script in tools/.
+
+WHAT IT DOES, BY 275'S FOUR GROUPS
+------------------------------------------------------------------------------
+  A  the directory, then the `<stem>.*` files inside it — a move
+  B  `report-crops/<key>_*.jpg` and `okf/<key>/**` — a move, only when the
+     bibkey changes, both ways through `sanitize_title`
+  C  named fields only: meta.bibkey / root_id / source_path, the Document
+     object's own id, props.bibkey, props.parent_section, evidence.bibkey and
+     every evidence path (including nested `mathpix_files[i].path`), tiddler
+     titles / tags / body references, `\ident{}` and `report-crops/` in
+     report.tex, and the OKF bundle's links, `resource:` and tag
+  D  untouched: the OCR text, `pdfinfo.Title`, the derived BibTeX, page prose
+
+The stem and the bibkey stay separable. `rename <new>` moves the folder only;
+`--bibkey K` also moves the namespace. Prior names go on the model as
+`meta.folder_history` and `meta.bibkey_history`.
+
+No rebuild. Enrichments survive by construction.
+
+TESTED ON ONE FOLDER — 0008113v1 -> blume2000optimal
+------------------------------------------------------------------------------
+Through the real CLI, on a copy:
+
+    7 stem files · 195 bibkey-named files · 120 report.tex references
+    docpack invalidated · prior names recorded
+
+Every path in 275's list, checked afterwards:
+
+    <new>.pdf/.lines.json/.md/.drill.json/.tiddlers.json/.tex.zip/.coverage.tsv
+                                                    all present
+    report-crops: 23 files, all new prefix                   yes
+    okf/: single dir `blume2000optimal`, 172 units           yes
+    meta.bibkey / root_id / Document object id               all new
+    meta.source_path                        .../blume2000optimal.lines.json
+    props.bibkey still old                                     0 of 137
+    props.parent_section still old                             0
+    sidecar pdf + every evidence path resolve                yes
+    evidence.mathpix_files[*].path resolve                   yes
+    tiddler titles still old                                   0 of 172
+    tiddler tags carrying the old key                          0
+    report.tex \ident{} still old                              0 of 96
+    \includegraphics targets missing                           0
+    model reloads through model_io                217 objects, clean
+
+STILL POINTING AT THE OLD NAME — 38 HITS IN 11 FILES
+------------------------------------------------------------------------------
+    EXPECTED (the document's own words, and must stay)
+      report.log                 60   LaTeX's own log, regenerable
+      <new>.lines.json            1   "arXiv:quant-ph/0008113v1 25 Aug 2000"
+      probe-page-text.json        1   the same string, off the page
+
+    REPORTED AS RESIDUE
+      <new>.drill.json           10   ALL document content, walked field by
+                                      field: pdfinfo.Title, pdfinfo_fields.Title,
+                                      bibtex.title, links[0].url
+                                      (arxiv.org/abs/quant-ph/0008113v1),
+                                      urls[0].{uri,anchor_text,context}.
+                                      Correct to leave; my classifier buckets the
+                                      whole file rather than the field.
+      model.docmodel.json         3   2 are folder_history / bibkey_history —
+                                      the record itself — and 1 is the OCR text.
+                                      Nothing to fix.
+      <new>.tiddlers.json         9   `Page 1 of *0008113v1*.` — the projector
+      okf/**/pages/*.md          16   writes the bibkey into Page tiddler PROSE,
+                                      and okf carries it through. Genuine
+                                      residue, and the only genuine residue.
+
+So: one real leftover class, the Page-tiddler display string. It is projection
+output, not source, and `pdfdrill tiddlers` + `okf` regenerate it. The rename
+does not rewrite it because it sits inside prose with no anchor — the same
+reason nothing else in group D is touched — and inventing an anchor for it would
+be the substitution this whole design refuses.
+
+The okf bundle also has 32 broken `[citation](./.md)` links after the rename. It
+had them before: that is 271's `{{||CIT}}` defect, still open, not damage from
+this command.
+
+FIVE DEFECTS FOUND BY RUNNING IT, NOT BY WRITING IT
+------------------------------------------------------------------------------
+The first run reported 592 residual hits. Each one was a real gap:
+
+  1. tiddler `tags` carry the bibkey as a whitespace token ("formula 0008113v1")
+     — 341 of the 341 tiddler hits. I had assumed they were broken references.
+  2. report.tex writes `\ident{0008113v1\_\allowbreak{}EQ0001}` — LaTeX escapes
+     the underscore, so an `_`-anchored pattern matched none of the 97 sites.
+     23 "successes" on the first run were all `report-crops/`.
+  3. `evidence.mathpix_files[i].path` — real paths in a nested list, missed by a
+     rule that only looked at top-level `*_path` KEYS.
+  4. The Document object's own `id` IS the bibkey. `meta.root_id` was updated
+     while the object it names was not.
+  5. The OKF bundle: I renamed its FILES and not their contents, so every
+     relative link pointed at a name that no longer existed — worse than not
+     renaming them at all.
+
+And the residue classifier itself was wrong twice: `.md` in its expected-list
+matched every generated okf unit file (burying real residue as "expected"), and
+its expected filenames were built from the OLD stem while it runs AFTER the
+rename, so they matched nothing.
+
+THE DOCPACK: INVALIDATED, NOT EDITED
+------------------------------------------------------------------------------
+`model.docpack.json` is a packed, string-interned cache — one `parent_section`
+value appears 127 times through an intern table. Rewriting that format by hand
+is a worse risk than losing a cache, it is derived, `load_model` falls back to
+the plain model when it is absent, and the next `save_model` regenerates it. So
+the rename deletes it. Verified: the model reloads through `model_io` afterwards.
+
+tests/test_rename_folder.py — 15, including the trap itself (the document's own
+words surviving), the LaTeX-escaped underscore, the nested path list, the
+Document object id, folder-only rename leaving the namespace intact, and an
+assertion that the residue classifier does NOT report a clean sweep.
+
+Suite 2,613.

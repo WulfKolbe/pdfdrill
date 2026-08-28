@@ -6863,6 +6863,51 @@ def cmd_okf(pdf: Path, out: str | None = None, bibkey: str | None = None,
             f"links; open {rel_dir}/index.md in drillui.")
 
 
+def cmd_rename(pdf: Path, name: str = "", bibkey: str | None = None,
+               dry_run: bool = False) -> str:
+    """Rename a drilled FOLDER (and optionally its bibkey namespace) without a
+    rebuild.
+
+    759 library folders are named for a title or a zlib download. `okf --bibkey`
+    renames the projection, not the folder, so nothing renamed the folder until
+    now. This moves the directory and its `<stem>.*` files, retargets the PATH
+    and IDENTIFIER fields inside the model/sidecar/tiddlers/report.tex, and
+    records the prior names in `meta.folder_history` / `meta.bibkey_history`.
+
+    It never rebuilds: 275 measured what that costs (7 documents carry the
+    TRANSLATED fact, 2 already hold zero translated units, one holds 81 with no
+    fact at all). And it never substitutes the old name as a string — the folder
+    stem of an arXiv paper IS the arXiv id, which is printed on page 1 and so
+    appears in the OCR text, the PDF title and the derived BibTeX."""
+    from .renamefolder import plan, rename_folder, residue, RenameRefused
+    folder = Path(pdf).resolve()
+    folder = folder.parent if folder.is_file() else folder
+    if not name:
+        return "rename: give the new folder name, e.g. `pdfdrill rename <pdf> blume2000optimal`"
+    try:
+        p = plan(folder, name, bibkey)
+    except RenameRefused as e:
+        return f"rename refused: {e}"
+    if dry_run:
+        return (f"rename (dry run) {p['old_stem']} -> {p['new_stem']}"
+                f"{', bibkey ' + p['old_bibkey'] + ' -> ' + p['new_bibkey'] if p['renames_bibkey'] else ''}\n"
+                f"  {len(p['stem_files'])} <stem>.* files, "
+                f"{'crops + okf bundle, ' if p['renames_bibkey'] else ''}"
+                f"model/sidecar/tiddlers path+identifier fields, no rebuild")
+    old_stem, old_key = p["old_stem"], p["old_bibkey"]
+    r = rename_folder(folder, name, bibkey)
+    left = residue(r["folder"], old_stem, old_key)
+    n_left = sum(left["UNEXPECTED"].values())
+    return (f"Renamed {old_stem} -> {r['new_stem']}"
+            f"{f" (bibkey {old_key} -> {r['new_bibkey']})" if p['renames_bibkey'] else ''}: "
+            f"{r['stem_files_renamed']} stem files, {r['bibkey_files_moved']} bibkey-named "
+            f"files, {r['report_tex_refs']} report.tex references, docpack invalidated. "
+            f"Prior names recorded on the model. No rebuild — enrichments intact. "
+            f"{n_left} residual mentions of the old name in "
+            f"{len(left['UNEXPECTED'])} files (projection display strings; "
+            f"re-run `tiddlers`/`okf` to clear).")
+
+
 def cmd_context(pdf: Path, query: str = "", *, types: str | None = None,
                 concept: str | None = None, section: str | None = None,
                 k: int | None = None, max_tokens: int | None = None,
