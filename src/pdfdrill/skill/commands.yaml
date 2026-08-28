@@ -2613,6 +2613,29 @@ commands:
     type: str
     help: comma list of region types (default Equation; Table/Picture/Diagram)
   typed: true
+- name: regionink
+  section: Reporting
+  summary: 'Measure the report''s two image columns with inkdrill (284). Renders each image-table page
+    at 300 and 600 dpi, runs `inkdrill compare` — whose default is the LAST TWO columns, which is why
+    Rendered and Scan are last — joins the result to the build''s own row manifest and writes
+    report.regions.ink.json BESIDE report.ink.json. Never merged into it: a row with no LaTeX shows
+    the scan twice and its distance is a self-comparison, not agreement between two sources, so every
+    record carries `duplicated` taken from the manifest rather than inferred from pixels. The join is
+    positional and its count is ASSERTED — a mismatch refuses rather than zipping.'
+  offline_ok: true
+  requires:
+  - reporttex
+  positionals:
+  - name: pdf
+    type: pdf
+    required: true
+    help: PDF path, https URL, or bare arXiv id
+  flags:
+  - name: force
+    flag: --force
+    type: flag
+    help: replace an existing report.regions.ink.json
+  typed: true
 - name: rename
   section: Extraction
   summary: 'Rename a drilled FOLDER (and optionally its bibkey namespace) WITHOUT a rebuild. Moves the

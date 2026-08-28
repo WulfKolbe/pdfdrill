@@ -88,7 +88,7 @@ def test_build_report_writes_all_sections(tmp_path):
     r = build_report(tp, paper="a3", landscape=True)
     tex = (tmp_path / "report.tex").read_text()
     for k in ("image_named", "image_unnamed", "texzip_images",
-              "image_rendered", "image_rendered_kept"):
+              "image_rendered", "image_rendered_kept", "image_duplicated"):
         r.pop(k, None)
     assert r == {"equations": 1, "formulas": 1, "tables": 1,
                  "unrecovered": 1, "out": tmp_path / "report.tex"}

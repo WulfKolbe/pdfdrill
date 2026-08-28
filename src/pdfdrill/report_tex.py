@@ -219,6 +219,43 @@ def region_render(latex: str, width_mm=None) -> str:
     return ""
 
 
+#: 284 — the regions residual, beside report.ink.json rather than inside it.
+#: The equation measurement and the region measurement are different
+#: populations against different comparands; merging them would put a
+#: self-comparison (a duplicated row) into the same distribution as a genuine
+#: rendered-against-scan pair.
+REGIONS_INK = "report.regions.ink.json"
+
+#: The row manifest the measurement joins against: one record per image row, in
+#: printed order, naming what each of the two cells actually holds. Written by
+#: the build because only the build knows; without it the measurement would
+#: have to infer "duplicated" from the pixels, which is precisely the inference
+#: 284 forbids — a self-comparison must be RECORDED as one, not deduced.
+REGIONS_MANIFEST = "report.regions.json"
+
+
+def _img_cell(img_path: Path, out_dir: Path, col_mm, px2mm, dims) -> str:
+    """An \\includegraphics cell sized to the column.
+
+    Both image columns go through this: a Rendered cell sized differently from
+    its Scan would put a scale difference into the residual, which is the one
+    thing the two columns exist to measure.
+    """
+    w_mm = None
+    if px2mm:
+        real = jpg_width(img_path) or (dims[0] if dims else None)
+        try:
+            w_mm = min(float(real) * px2mm, col_mm)
+        except (TypeError, ValueError):
+            w_mm = None
+    size = ("width=%.1fmm" % w_mm) if w_mm else "width=\\linewidth"
+    try:
+        rel = img_path.resolve().relative_to(out_dir)
+    except ValueError:
+        rel = img_path
+    return "\\includegraphics[%s]{%s}" % (size, str(rel).replace("\\", "/"))
+
+
 def texzip_images(texzip_dir: Path):
     """Index a tex.zip expansion by the FULL region 5-tuple.
 
@@ -1728,35 +1765,63 @@ def build_report(tiddlers_path: Path, out: Path | None = None,
                                 body, img))
         out_parts.append("\\end{longtable}\n")
 
-    named = unnamed = rendered = 0
+    named = unnamed = rendered = duplicated = 0
+    manifest: list = []
     if dia:
         out_parts.append("\\clearpage\n")
         zreg, zn = ({}, 0)
         if texzip:
             zreg, zn = texzip_images(Path(texzip))
-        span = usable - 20 - 20 - 7
-        # 284 — the crop is the LAST column and the rendered LaTeX sits beside
-        # it. Only 6.55% of rows carry any LaTeX, so the rendered column gets
-        # the smaller share: an empty column on 25,499 rows should not crowd
-        # the picture on all of them.
-        dimg = round(span * 0.40)
-        drend = round(span * 0.32)
-        dnote = span - dimg - drend
+        span = usable - 20 - 7 - 12 - 20
+        # 284 (revised) — TWO image columns, and they are the LAST two, which
+        # is what `inkdrill compare` defaults to. They get equal width because
+        # the whole point is comparing them: a Rendered cell narrower than its
+        # Scan would put a scale difference into the residual.
+        dnote = round(span * 0.24)
+        drend = round((span - dnote) / 2)
+        dimg = span - dnote - drend
+        regdir = dest.parent / "standalone-regions"
+        # The residual class per identifier, from a previous measurement.
+        # Absent on the first pass — the class column is "---" until the
+        # regions have been measured, which is the honest state rather than a
+        # blank that looks like "clean".
+        ink_class = {}
+        try:
+            _rj = dest.parent / REGIONS_INK
+            if _rj.is_file():
+                ink_class = {r["id"]: r.get("code") or r.get("flag") or ""
+                             for r in (json.loads(_rj.read_text(
+                                 encoding="utf-8")).get("rows") or [])
+                             if r.get("id")}
+        except Exception:
+            ink_class = {}
         out_parts.append(
-            "\\section*{Image regions — TikZ / table / failed-math candidates}\n"
-            "Regions MathPix left as images (no LaTeX). The Source column "
-            "names the \\texttt{tex.zip} file whose filename region 5-tuple "
-            "(page, height, width, top\\_left\\_y, top\\_left\\_x) equals this "
-            "row's — an exact key match, not a guess. Naming the file does NOT "
-            "say its \\texttt{tikzpicture} or \\texttt{tabular} renders to "
-            "what is on the page; that is a separate question. Reconstruct "
-            "with \\texttt{pdfdrill vision}; verify against the real ink with "
+            "\\section*{Image regions — rendered against scan}\n"
+            "Two comparable cells per row. \\textbf{Rendered}: the region's "
+            "own LaTeX compiled as its OWN document, or — where no LaTeX "
+            "exists — the scan again, so every row has two cells and the ink "
+            "difference reads as a floor rather than as "
+            "missing-versus-present. A duplicated row is marked "
+            "\\emph{(dup)} and its distance is a SELF-comparison, not "
+            "agreement between two sources. \\textbf{Scan}: the "
+            "\\texttt{tex.zip} image whose filename region 5-tuple matches "
+            "this row, else the CDN crop. The Class column carries the "
+            "residual class beside MathPix's confidence, as the equation rows "
+            "do. Setting a region's LaTeX does NOT say it renders to what is "
+            "on the page — that is what the two columns are for, and 281 is "
+            "the open question they exist to let a reader answer. A region "
+            "with no LaTeX can be reconstructed with \\texttt{pdfdrill "
+            "vision}; verify any LLM result against the real ink with "
             "inkdrill.\n"
-            "\\begin{longtable}{|p{20mm}|p{7mm}|p{%smm}|p{%smm}|p{%smm}|}\n"
+            "\\begin{longtable}{|p{20mm}|p{7mm}|p{12mm}|p{%smm}|p{%smm}|p{%smm}|}\n"
             "\\hline\n\\textbf{Identifier} & \\textbf{Page} & "
-            "\\textbf{Source} & \\textbf{Rendered LaTeX} & "
-            "\\textbf{Crop} \\\\\n"
-            "\\hline\\endhead\n" % (dnote, drend, dimg))
+            "\\textbf{Class} & \\textbf{Source} & \\textbf{Rendered} & "
+            "\\textbf{Scan} \\\\\n"
+            # NO \endhead. The header is a 6-cell row and `inkdrill compare`
+            # reads it as data — one spurious measurement per page, offsetting
+            # every identifier after it. Printed once, exactly one row has to
+            # be dropped and the pairing can be ASSERTED rather than guessed.
+            "\\hline\n" % (dnote, drend, dimg))
         for title, latex, page, dims, region in dia:
             img_path = zip_name = None
             try:
@@ -1804,16 +1869,36 @@ def build_report(tiddlers_path: Path, out: Path | None = None,
                 srcnote = "\\emph{tex.zip holds no images}"
             else:
                 srcnote = "\\emph{no image for this region (%d in zip)}" % zn
-            rcell = region_render(latex, drend) if render_regions else ""
-            if rcell:
+            # RENDERED CELL. The region's own LaTeX, compiled standalone by
+            # `region_standalone.render` into standalone-regions/<ident>.png.
+            # Where there is none — 25,499 of 27,287 corpus rows — the SCAN is
+            # repeated here, so the row still has two comparable cells and the
+            # residual reads as a floor instead of missing-versus-present.
+            reg_png = regdir / ("%s.png" % title)
+            if render_regions and reg_png.is_file():
+                rcell = _img_cell(reg_png, out_dir, drend, px2mm, dims)
                 rendered += 1
+                dup = False
             else:
-                rcell = "\\emph{\\tiny(no LaTeX)}" if not (latex or "").strip() \
-                    else "\\emph{\\tiny(not renderable)}"
-            out_parts.append("\\ident{%s} & %s & %s & %s & %s "
+                rcell = cell                       # the scan, repeated
+                duplicated += 1
+                dup = True
+            klass = ink_class.get(title, "")
+            ccell = ("{\\tiny %s}" % esc_text(klass)) if klass else "---"
+            if dup:
+                ccell += " \\emph{\\tiny(dup)}"
+            manifest.append({
+                "id": title, "page": str(page),
+                "rendered_source": ("standalone" if not dup else "scan (duplicated)"),
+                "scan_source": (zip_name if zip_name else
+                                ("crop" if img_path is not None else "none")),
+                "duplicated": dup,
+                "has_latex": bool((latex or "").strip()),
+            })
+            out_parts.append("\\ident{%s} & %s & %s & %s & %s & %s "
                              "\\\\ \\hline\n"
                              % (esc_text(title), esc_text(str(page)),
-                                srcnote, rcell, cell))
+                                ccell, srcnote, rcell, cell))
         out_parts.append("\\end{longtable}\n")
 
     out_parts.append("\\end{document}\n")
@@ -1825,6 +1910,10 @@ def build_report(tiddlers_path: Path, out: Path | None = None,
                                "geom": geom,
                                "unicode": unicode_decls("".join(out_parts[1:]))}
     dest.write_text("".join(out_parts))
+    if manifest:
+        (dest.parent / REGIONS_MANIFEST).write_text(
+            json.dumps({"bibkey": bibkey, "rows": manifest}, indent=1),
+            encoding="utf-8")
     return {"equations": len(eq), "formulas": len(fo), "tables": len(tab),
             "unrecovered": len(dia), "out": dest,
             # 282 — how many image rows name their tex.zip source, and how many
@@ -1837,6 +1926,7 @@ def build_report(tiddlers_path: Path, out: Path | None = None,
             # of them errored and were demoted. Reporting the first alone would
             # be reporting intent as outcome.
             "image_rendered": rendered,
+            "image_duplicated": duplicated,
             "image_rendered_kept": _surviving_renders(dest),
             "texzip_images": (texzip_images(Path(texzip))[1] if texzip else 0)}
 

@@ -1893,6 +1893,15 @@ def _do_occurrences(args):
     return cmd_occurrences(_drilled(args[:1]), types=types)
 
 
+def _do_regionink(args):
+    """pdfdrill regionink <pdf> [--force] — measure the report's Rendered and
+    Scan image columns with inkdrill into report.regions.ink.json."""
+    from .commands import cmd_regionink
+    force = "--force" in args
+    args = [a for a in args if a != "--force"]
+    return cmd_regionink(_drilled(args[:1]), force=force)
+
+
 def _do_rename(args):
     """pdfdrill rename <pdf> <newname> [--bibkey K] [--dry-run] — rename a
     drilled FOLDER (and optionally its bibkey namespace) without a rebuild."""
@@ -2140,6 +2149,7 @@ HANDLERS = {
         "retrieve": _do_retrieve,
         "okf": _do_okf,
         "rename": _do_rename,
+        "regionink": _do_regionink,
         "occurrences": _do_occurrences,
         "context": _do_context,
         "merge": _do_merge,

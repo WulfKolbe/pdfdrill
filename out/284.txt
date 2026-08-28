@@ -1,118 +1,121 @@
-284 — a region's own LaTeX, set beside its crop
+284 (revised) — two image columns, rendered against scan
 ==============================================================================
 
-SCOPE, AFTER 283
+I have NOT started the corpus run. The report side is built and measured; the
+measurement side refuses rather than producing rows, and the reason is in
+"WHAT IS NOT DONE" below. Reporting a blocker before starting is not the same
+as asking a question during the run.
+
+THE REPORT — BUILT AND WORKING
 ------------------------------------------------------------------------------
-283 found one filename format and no other, so "new-format documents only" is
-every document whose zip has images — 928 of them. There is no old-format
-population on this corpus to exclude.
+    Identifier | Page | Class | Source | Rendered | Scan
 
-WHAT LaTeX EXISTS FOR THESE REGIONS
+Rendered and Scan are the LAST TWO columns because `inkdrill compare` compares
+the last two by default. They are given equal width: a Rendered cell narrower
+than its Scan would put a scale difference into the residual, which is the one
+thing the two columns exist to measure.
+
+  Rendered  the region's own LaTeX compiled as its OWN document, rasterised by
+            ghostscript at 400 dpi into standalone-regions/<ident>.png. Where
+            there is no LaTeX — 25,499 of 27,287 corpus rows — the SCAN is
+            repeated here and the row is marked \emph{(dup)}.
+  Scan      the tex.zip image whose filename region 5-tuple matches (282),
+            else the CDN crop.
+  Class     the residual class beside MathPix's confidence, read back from
+            report.regions.ink.json. "---" until measured, which is the honest
+            state rather than a blank that reads as clean.
+
+COMPILING STANDALONE IS WHAT MADE IT WORK
 ------------------------------------------------------------------------------
-    27,287 DIA/PIC rows corpus-wide, 877 documents
+The first 284 set the LaTeX INSIDE the longtable. That failed three ways: a
+tikzcd's `&` collides with the table's own (239 errors, 239 glyphs into
+nullfont), a tikzpicture `\matrix` had no workaround at all, and the build
+still dropped 4 characters I could not account for.
 
-    carry LaTeX                       1,788   (6.55%)   189 documents
-      tikzpicture                       762
-      tikzcd                            658
-      lstlisting                        323
-      array / bmatrix / cases            28
-      tabular                            12
-      axis / groupplot (pgfplots)        20
-      minipage / itemize / comment       42
-    carry none                       25,499   (93.45%)
+Compiling each region alone removes the problem instead of working around it.
+On 2208.01506, whose 43 image rows are almost all tikzcd:
 
-The tex.zip is NOT a second source for these. Its diagram content is
-`\includegraphics` pointing at the same crop — 20,670 of them against 42
-tikzpicture in 1,216 zips. So "from the tex.zip or from us" resolves, in
-practice, to "from us": the LaTeX lives on the tiddler, not in the archive.
+    inline    239 errors · 239 dropped glyphs · ampersand workaround needed
+    standalone  0 errors ·   0 dropped glyphs · 42 of 43 compiled
 
-THE COLUMN
+MEASURED — 10 documents, up to 25 regions each
 ------------------------------------------------------------------------------
-    Identifier | Page | Source | Rendered LaTeX | Crop
+    attempted   207
+    compiled    138   (66.7%)
+    failed       69
 
-The crop is last, the rendered LaTeX beside it, and the Source column is 282's
-tex.zip filename. `region_render` sets:
+    2002.06055   23/25      fricas_intro   19/19      1910.04947  11/11
+    2208.01506   24/25      2508.08293v1   17/19      ZZ Top       9/12
+    2210.06079   16/25      2602.23211     16/25
+    2004.05631    3/25      2512.15098v4    0/21
 
-    tikzpicture / tikzcd   scaled with \resizebox — the picture is the point
-    lstlisting             escaped monospace, NOT the listings environment: a
-                           verbatim environment in a longtable cell is fragile
-                           and the content is text either way
-    array / cases / …      through `renderable`, which already refuses what
-                           xelatex would choke on
-    everything else        refused
+The two documents that fail almost everything fail for one reason, and it is
+not the renderer:
 
-An ALLOWLIST, because the first version was not one. It matched only
-`tikzpicture` and let the rest fall through to `renderable()`, which set
-`\begin{tikzcd}…` as MATHEMATICS — 658 corpus rows of commutative diagram
-handed to the math parser. 2208.01506 then failed to compile at all:
-"Environment tikzcd undefined", a cascade of undefined control sequences, and
-NO report.pdf.
+    ! LaTeX Error: File `figures/ch1/concept2' not found.
+    ! Undefined control sequence.        (\<v|  \>  — author macros)
 
-THE AMPERSAND, WHICH IS THE REAL OBSTACLE
+The region's LaTeX references the AUTHOR's own figure files and the AUTHOR's
+own preamble macros. A standalone document has neither. That is a real limit
+with a known remedy — `latex_source.standalone_preamble()` already converts a
+document's own preamble for exactly this purpose, and `injectlatex` has the
+e-print — and it is the obvious next step rather than something this task
+invented a workaround for.
+
+THE MEASUREMENT — WRITTEN, AND IT REFUSES
 ------------------------------------------------------------------------------
-A tikzcd uses `&` as its cell separator. So does the longtable it now sits in.
-pgf reports "Single ampersand used with wrong catcode", 239 characters land in
-`nullfont`, and the row is demoted:
+    pdfdrill regionink <pdf> [--force]   ->  report.regions.ink.json
 
-    before   239 errors, 239 dropped glyphs, 53 rows demoted
-    after      0 errors,   4 dropped glyphs, 54 rows demoted
+Renders each image-table page at 300 and 600 dpi, runs `inkdrill compare` as a
+SUBPROCESS (pdfdrill consumes inkdrill, it never imports it), joins the result
+to the build's own row manifest and classifies with the same `flag_of` the
+equation rows use.
 
-tikz-cd carries the remedy — `[ampersand replacement=\&]` with the body escaped
-to match — verified compiling standalone in a longtable cell at 0 errors and 0
-missing characters. Existing options are merged, not clobbered. A
-`tikzpicture` has no such option, so one containing a bare `&` (a `\matrix`
-node) is refused rather than guessed at.
+Beside report.ink.json, never merged into it. Each record carries:
 
-AND THE FIXPOINT COULD NOT DEMOTE A PICTURE
+    id · page · report_page · line
+    rendered_source   "standalone" | "scan (duplicated)"
+    scan_source       the tex.zip filename | "crop" | "none"
+    duplicated        TRUE for a self-comparison
+    has_latex · L · R · distance · comp_delta · signed_delta · flag · code
+
+`duplicated` comes from the build's manifest, not from comparing the pixels.
+A row that shows the scan twice has a distance that is a FLOOR, not agreement
+between two sources, and deducing that from the numbers is exactly the
+inference this task forbids.
+
+WHAT IS NOT DONE, AND WHY I STOPPED RATHER THAN RAN
 ------------------------------------------------------------------------------
-`compile_fixpoint` demoted a row by substituting `$\displaystyle …$`. A picture
-cell is `\resizebox{…}{!}{…}` and never matched, so a failing row produced no
-change, the loop broke, and the errors stayed in the document. `_demote_line`
-now brace-matches the `\resizebox` argument — a regex cannot, the body of a
-tikzpicture is full of braces — and leaves the row's other cells intact.
+My page/row detection under-counts. On 0049 — 6 image rows, 5 on report page 3
+and 1 on page 4 — `inkdrill compare` returns 4 rows for page 3 and 0 for page
+4, because a page carrying a single row forms no detectable row lattice.
 
-MEASURED ON 2208.01506 (43 image rows, all tikzcd)
+The join then REFUSED:
+
+    REFUSING to write report.regions.ink.json: 4 measured rows against 6
+    manifest rows — the pairing is unknown.
+
+That is the correct outcome and the assert earning its place — it also caught a
+real mistake of mine earlier, when I rebuilt report.tex without --compile and
+the PDF on disk was a different layout. But a refusal is not a measurement.
+
+inkdrill's own `tools/reportcompare.py` solves this for the equation table with
+a 150 dpi probe, a leading contiguous run of pages whose lattice matches the
+column count, a coverage check and a 40 px sliver filter. I have none of that.
+Reimplementing it badly and then running it unattended across 1,351 documents
+would produce quietly wrong rows in a file whose whole purpose is to be trusted
+— which is the failure this session has spent its length avoiding.
+
+So: the corpus run is not started. What it needs is inkdrill's detection, and
+that is inkdrill's code.
+
+CHANGED
 ------------------------------------------------------------------------------
-    rows emitting a rendered cell        43
-    surviving the compile                43
-    crop only                             0
-    errors                                0
-    rows demoted                         54   (equation rows, not image rows)
+  src/pdfdrill/region_standalone.py   new — compile a region's LaTeX alone
+  src/pdfdrill/regionink.py           new — measure, join, assert, classify
+  src/pdfdrill/report_tex.py          six columns, the manifest, the class
+                                      column, equal-width image cells
+  src/pdfdrill/commands.py            _render_regions, cmd_regionink
+  commands.yaml                       regionink registered (139 commands)
 
-OFF BY DEFAULT — `--render-regions`
-------------------------------------------------------------------------------
-Because of one unresolved thing: with rendering on, this document drops 4
-characters (U+0013, in DejaVu Serif) that it does not drop with rendering off.
-Proved by A/B on the same document — rendering off, 0 missing; on, 4. The
-character is in neither report.tex (0 control bytes) nor any tiddler, so
-xelatex is generating it, and I have not found where.
-
-Four characters in one document is small, and `publishready` refuses any report
-that drops a glyph — correctly. Shipping this on by default would have made
-that gate fail for documents it currently passes. So the flag is opt-in, no
-existing report changes, and the hazard is written down rather than discovered
-later by a failed publish.
-
-TWO COUNTING MISTAKES OF MINE, BOTH THE SAME MISTAKE
-------------------------------------------------------------------------------
-1. `image_rendered` counted cells EMITTED. The report now also carries
-   `image_rendered_kept`, counted from the final report.tex after the fixpoint
-   has demoted what could not compile. Intent and outcome are different
-   numbers and only the second is a result.
-
-2. I tested the 43 bodies in isolation and reported "25 of 43 error". They were
-   compiled against a minimal preamble without amsmath, mathrsfs or stmaryrd —
-   packages the real report carries. Under the actual preamble: 0 errors, 43
-   survive. The isolation harness was the defect, not the rows, and I had
-   already made this exact error twice this session (265, and the frequency
-   check in 277).
-
-Suite 2,656. 10 new tests in tests/test_image_regions.py.
-
-STILL OPEN
-------------------------------------------------------------------------------
-  * U+0013, 4 characters, 1 document, cause unknown.
-  * 281 — whether the rendered tikzpicture/tabular actually matches the page.
-    284 SETS the LaTeX; it does not compare it to the crop. Putting the two
-    side by side is what makes that comparison possible by eye, which is the
-    most this task claims.
+Suite 2,656.

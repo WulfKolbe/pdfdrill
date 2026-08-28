@@ -6896,6 +6896,94 @@ def cmd_okf(pdf: Path, out: str | None = None, bibkey: str | None = None,
             f"links; open {rel_dir}/index.md in drillui.")
 
 
+def _render_regions(sc, tiddlers) -> tuple:
+    """Compile every image region's own LaTeX as its own document (284).
+
+    Returns (rendered, failed, [(identifier, reason), ...]). Already-rendered
+    identifiers are skipped, so a re-run costs nothing and the corpus pass is
+    resumable — it is meant to run unattended.
+    """
+    import re as _re
+    from .region_standalone import render as _render
+    out_dir = sc.blob_dir / "standalone-regions"
+    rows = [(t.get("title", ""), (t.get("latex") or t.get("latex_code") or ""))
+            for t in tiddlers if isinstance(t, dict)
+            and _re.search(r"_(DIA|PIC)_\d+$", str(t.get("title", "")))]
+    todo = [(i, lx) for i, lx in rows if lx.strip()
+            and not (out_dir / f"{i}.png").is_file()]
+    done = sum(1 for i, lx in rows if lx.strip()
+               and (out_dir / f"{i}.png").is_file())
+    failed = []
+    for ident, latex in todo:
+        png, err = _render(ident, latex, out_dir)
+        if png is None:
+            failed.append((ident, (err or "?")[:60]))
+        else:
+            done += 1
+    if failed:
+        (out_dir / "_failures.txt").write_text(
+            "\n".join("%s\t%s" % f for f in failed) + "\n", encoding="utf-8")
+    return done, len(failed), failed
+
+
+
+def cmd_regionink(pdf: Path, force: bool = False) -> str:
+    """284: measure the report's two image columns with inkdrill.
+
+    Renders each image-table page at 300 and 600 dpi, runs `inkdrill compare`
+    (whose default is the LAST TWO columns — which is why Rendered and Scan are
+    last), joins the result to the build's own row manifest and writes
+    `report.regions.ink.json`.
+
+    Beside `report.ink.json`, never merged into it: a row with no LaTeX
+    compares the scan against ITSELF, and that distance is a floor rather than
+    agreement between two sources. Every record says which it is.
+    """
+    from . import regionink as ri
+    from .report_tex import REGIONS_INK, REGIONS_MANIFEST
+    sc = Sidecar(pdf)
+    d = sc.blob_dir
+    rep, man = d / "report.pdf", d / REGIONS_MANIFEST
+    out = d / REGIONS_INK
+    if not ri.inkdrill_available():
+        return ("regionink: inkdrill not found at $INKDRILL_HOME "
+                "(default ~/inkdrill). pdfdrill consumes inkdrill, it does not "
+                "ship it.")
+    if not rep.is_file():
+        return f"regionink: no report.pdf — run `pdfdrill reporttex {pdf.name} --compile --render-regions` first."
+    if not man.is_file():
+        return (f"regionink: no {REGIONS_MANIFEST} — the report was built "
+                f"without image rows, or before 284.")
+    if out.is_file() and not force:
+        return f"{REGIONS_INK} already exists; --force to replace."
+    manifest = json.loads(man.read_text(encoding="utf-8")).get("rows") or []
+    if not manifest:
+        return "regionink: the manifest holds no image rows — nothing to measure."
+    work = d / "regionink-work"
+    rows = ri.measure(rep, work)
+    stamp = {}
+    try:
+        stamp = json.loads((d / "report.build.json").read_text(encoding="utf-8"))
+    except Exception:
+        stamp = {}
+    try:
+        payload = ri.build(rows, manifest, stamp or None)
+    except ri.RegionInkRefused as e:
+        (d / (REGIONS_INK + ".REFUSED")).write_text(str(e), encoding="utf-8")
+        return f"REFUSING to write {REGIONS_INK}: {e}"
+    out.write_text(json.dumps(payload, indent=1), encoding="utf-8")
+    import collections as _c
+    dist = _c.Counter(r["flag"] for r in payload["rows"])
+    dup = payload["duplicated_rows"]
+    return (f"{REGIONS_INK}: {len(payload['rows'])} rows — "
+            f"{payload['measured_rows']} rendered-vs-scan, {dup} duplicated "
+            f"(self-comparison). Classes: "
+            + ", ".join(f"{k} {v}" for k, v in sorted(dist.items())) + ".")
+
+
+
+
+
 def cmd_rename(pdf: Path, name: str = "", bibkey: str | None = None,
                dry_run: bool = False) -> str:
     """Rename a drilled FOLDER (and optionally its bibkey namespace) without a
@@ -13995,6 +14083,11 @@ def cmd_reporttex(pdf: Path, paper: str = "a3", landscape: bool = True,
             ink_state = "unpairable" if quarantined else "not_run"
     # 264 — the keys this model used to carry, so a crop written before a
     # `--bibkey` rename is still found instead of showing as "---".
+    if render_regions:
+        _n, _f, _errs = _render_regions(sc, tiddlers)
+        print("Region LaTeX: %d compiled standalone, %d failed%s."
+              % (_n, _f, (" — " + "; ".join("%s: %s" % e for e in _errs[:3]))
+                 if _errs else ""))
     r = rt.build_report(tid, crops=crops, texzip=texzip, paper=paper,
                         landscape=landscape, px2mm=px2mm,
                         min_conf=min_conf, max_conf=max_conf, types=want,
@@ -14008,12 +14101,12 @@ def cmd_reporttex(pdf: Path, paper: str = "a3", landscape: bool = True,
                 "tex.zip holds no images" if _zn == 0 else
                 "%d images in the zip" % _zn)
         print("Image regions: %d of %d rows name their tex.zip source by region "
-              "5-tuple, %d do not (%s). Rendered LaTeX: %d emitted, %d survived "
-              "the compile, %d crop-only."
+              "5-tuple, %d do not (%s). Two image columns: %d rows show "
+              "rendered LaTeX, %d repeat the scan for want of LaTeX (marked "
+              "dup — a self-comparison, not agreement)."
               % (r.get("image_named", 0), r["unrecovered"],
                  r.get("image_unnamed", 0), _src, r.get("image_rendered", 0),
-                 r.get("image_rendered_kept", 0),
-                 r["unrecovered"] - r.get("image_rendered", 0)))
+                 r.get("image_duplicated", 0)))
     sc.set_evidence("reporttex_path",
                     str(Path(r["out"]).relative_to(pdf.parent)))
     _prev_rt = ",".join(sorted(sc.facts - {REPORTTEX_BUILT})) or "INIT"
