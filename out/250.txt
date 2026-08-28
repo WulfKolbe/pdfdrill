@@ -1,0 +1,80 @@
+250 — every corpus type is accounted for, or named as a gap
+==============================================================================
+
+ONE DIRECTION, AS REVISED
+------------------------------------------------------------------------------
+The reverse check is not built. out/249 established that "equation", "figure"
+and "caption" occur zero times in 4.0M MathPix line objects and are all live —
+"equation" from the visionocr route, "figure"/"caption" asserted by
+tests/test_picture.py. A check flagging them would have been answered by
+allowlisting them, which is decoration.
+
+The direction with teeth: a type MathPix emits that no module names produces
+nothing, breaks nothing, logs nothing. That is exactly how `list_item` went
+unread across 882 documents.
+
+CURRENT VIOLATIONS: NONE — because all ten are now listed, with reasons
+------------------------------------------------------------------------------
+   37 corpus types
+   27 CLAIMED   named with the module that reads them
+   10 IGNORED   named with a reason that states its KIND first
+    0 unaccounted
+
+Listing a type is not absolving it. Three of the ten are content being dropped
+and the contract says GAP: in the reason itself, so "ignored" cannot be read as
+"fine":
+
+   GAP  code                44,689 lines, 205 docs
+        Source listings and logic programs, dropped entirely. docmodel's only
+        "code" is diagram.py's TikZ subtype, unrelated. The largest unread type
+        in the corpus, and it is content.
+
+   GAP  molecule                10 lines, 4 docs
+        A CDN image link to a rendered chemical structure — the same shape a
+        Picture carries. The content exists and nothing collects it.
+
+   GAP  table_split_cell        10 lines, 7 docs
+        A \backslashbox diagonal header cell with one child. It belongs in
+        table.py's _CELL_TYPES beside simple/complex/spanning and is missing.
+
+The other seven are not gaps, and each says which kind it is:
+
+   container only   multiple_choice_block (453), multiple_choice_option (125),
+                    rotated_container (133) — their children are separately
+                    typed and read on their own, so the words survive and only
+                    the grouping is lost
+   sub-element      diagram_info (7)  numeric fragments INSIDE a diagram
+                    x_axis_tick_label (1)  a chart axis label
+   non-content      form_field (683)  checkbox glyphs \n□ from questionnaires
+                    icon (96)  empty text, a visual mark only
+
+HOW IT IS ENFORCED
+------------------------------------------------------------------------------
+   src/docmodel/corpus_types.json   the inventory, COMMITTED not scanned — the
+                                    corpus is 3.8 GB and a check must not read
+                                    it at startup. Carries its own provenance:
+                                    what was scanned, how, and WHOSE OUTPUT it
+                                    is, because out/249 turned on that scope.
+   src/docmodel/type_contract.py    CLAIMED / IGNORED / violations() / gaps()
+   tests/test_type_contract.py      7 tests
+
+Two of the tests exist to stop the contract rotting into a comment:
+
+   every CLAIMED type must actually appear in the module that claims it — an
+   entry naming a module that does not mention the type is a claim about code
+   that isn't there
+
+   every IGNORED reason must lead with its kind (GAP / container only /
+   sub-element / non-content) and be longer than a shrug. A type moved into
+   IGNORED to silence the check, with a reason that does not survive being read
+   aloud, defeats the check — and that is the only way this contract can fail
+   quietly.
+
+WHAT THE CHECK WOULD HAVE CAUGHT
+------------------------------------------------------------------------------
+`list_item`, at 80,035 lines in 882 of 1,350 documents, from the day it was
+first emitted. It took a full corpus enumeration in out/245 to find it, and the
+enumeration only happened because someone asked. This turns that into a
+standing assertion that costs nothing to run.
+
+   suite 2,472 -> 2,479
