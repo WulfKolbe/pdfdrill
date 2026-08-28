@@ -1,0 +1,93 @@
+282 — the image-regions section names its source
+==============================================================================
+
+WHAT CHANGED
+------------------------------------------------------------------------------
+The section was "Unrecovered image regions" and its Source column said one of
+three words: "tex.zip (local)", "crops", or "CDN only" — a statement about
+WHERE the picture came from, never about WHICH file. It now names the file:
+
+    0049_DIA_0001  p004  [crop]  347c6137-…-04_548_852_666_640.jpg
+    0049_DIA_0002  p005  [crop]  347c6137-…-05_397_832_242_653.jpg
+    0049_DIA_0003  p007  [crop]  (no image for this region — 5 in zip)
+    0049_DIA_0004  p009  [crop]  347c6137-…-09_613_1208_223_464.jpg
+    0049_DIA_0005  p010  [crop]  347c6137-…-10_517_918_440_595.jpg
+    0049_DIA_0006  p010  [crop]  347c6137-…-10_690_1217_1248_459.jpg
+
+The lookup is the region 5-tuple `(page, height, width, top_left_y,
+top_left_x)`, which out/279 verified is exactly what the filename encodes —
+20,276 of 20,287 corpus filenames match a region in their own document's
+lines.json, 99.95%. It is a dictionary lookup, not a guess.
+
+AND IT FIXES A WRONG ANSWER, NOT ONLY A MISSING ONE
+------------------------------------------------------------------------------
+The old index keyed on `(page, height, width)` and fell back to
+`by_page[page]` — the FIRST image on that page — for anything it missed. So:
+
+  * two figures of the same size on one page collapsed to one entry, and
+  * every unmatched row on a page was handed that page's first image.
+
+DIA_0005 and DIA_0006 above are both on page 10 and now resolve to different
+files. Under the page fallback they would both have named the first one. A
+named source that can be the wrong picture is worse than none, because nothing
+downstream can tell.
+
+The section title changed with it: "Unrecovered" was no longer what it shows.
+
+THE THREE ABSENCES READ DIFFERENTLY — WHICH WAS THE POINT
+------------------------------------------------------------------------------
+    no tex.zip
+    tex.zip holds no images
+    no image for this region (N in zip)
+
+285 of 1,216 corpus tex.zips hold no image at all. Reporting those as a failed
+lookup would blame the lookup for an empty container, so `texzip_images` now
+returns the image COUNT alongside the index and the section picks its wording
+from it.
+
+CORPUS-WIDE: HOW MANY ROWS GAIN A NAMED SOURCE
+------------------------------------------------------------------------------
+    877 documents, 27,287 DIA/PIC rows
+
+    gain a NAMED tex.zip source        9,944   (36.4%)
+    have none                         17,343   (63.6%)
+        no tex.zip at all             14,392
+        tex.zip holds no images          211
+        zip has images, no match       2,740
+
+The three causes sum to 17,343 exactly. Separately, 3,001 of those rows lack a
+usable region on the tiddler (a missing or non-numeric `top_left_*`), which
+cuts across all three and is why a row can fail even where the zip is healthy.
+
+So the honest headline is not "36% matched" but: **where a tex.zip with images
+exists, the lookup succeeds 9,944 times against 2,740 failures — 78.4%** — and
+the dominant reason for a blank Source column is that 14,392 rows belong to
+documents with no tex.zip to look in. That is a missing input, not a failed
+match, and the report now says so on the row.
+
+WHAT THIS DOES NOT DO — 281 IS STILL OPEN
+------------------------------------------------------------------------------
+Naming the file says which file. It does not say the file's `tikzpicture` or
+`tabular` renders to what is on the page. The section says so in its own
+preamble text rather than leaving a reader to assume that a named source is a
+verified one, and there is a test asserting that sentence stays there.
+
+281 — does the tex.zip's LaTeX render to the page? — is untouched by this and
+remains the open question.
+
+CHANGED
+------------------------------------------------------------------------------
+  src/pdfdrill/report_tex.py
+    texzip_images() -> (by_region, n_images), keyed on the 5-tuple; the
+    (page,h,w) key and the by_page fallback are gone
+    rows_for() carries the full region on DIA/TAB rows
+    build_report() returns image_named / image_unnamed / texzip_images
+  src/pdfdrill/commands.py
+    reporttex prints the per-document tally
+
+  tests/test_image_regions.py — 7 new, including two figures on one page
+  staying distinct, same-size figures not collapsing, an empty zip reporting 0
+  rather than an empty index, and the 281 caveat surviving in the text.
+  tests/test_report_tex.py — two tests updated to the new contract.
+
+Suite 2,646.

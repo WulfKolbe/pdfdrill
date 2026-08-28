@@ -51,13 +51,19 @@ def test_renderable_repairs_the_snippet_that_hung_xelatex():
     assert renderable(r"\widehat{\}}") == r"\widehat{\}}"
 
 
-def test_texzip_image_names_parse_page_and_dims(tmp_path):
+def test_texzip_image_names_parse_the_full_region(tmp_path):
+    """282 — keyed on all five numbers, not (page, height, width) with a page
+    fallback. out/279 verified the filename IS the region: 20,276 of 20,287
+    corpus filenames match a lines.json region exactly."""
     (tmp_path / "images").mkdir()
     img = tmp_path / "images" / "uuid-400_1019_1078_5_106.jpg"
     img.write_bytes(b"x")
-    by_key, by_page = texzip_images(tmp_path)
-    assert by_key[(400, 1019, 1078)] == img
-    assert by_page[400] == img
+    by_region, n = texzip_images(tmp_path)
+    assert n == 1
+    assert by_region[(400, 1019, 1078, 5, 106)] == img
+    # the old 3-tuple key and the page fallback are both gone: they attached
+    # the first image of a page to every unmatched row on it
+    assert (400, 1019, 1078) not in by_region
 
 
 def test_col_widths_sum_within_usable_span():
@@ -81,6 +87,7 @@ def test_build_report_writes_all_sections(tmp_path):
     tp.write_text(json.dumps(tiddlers))
     r = build_report(tp, paper="a3", landscape=True)
     tex = (tmp_path / "report.tex").read_text()
+    r.pop("image_named"); r.pop("image_unnamed"); r.pop("texzip_images")
     assert r == {"equations": 1, "formulas": 1, "tables": 1,
                  "unrecovered": 1, "out": tmp_path / "report.tex"}
     assert "a3paper,landscape" in tex
@@ -88,7 +95,9 @@ def test_build_report_writes_all_sections(tmp_path):
     assert "k\\_\\allowbreak{}EQ0001" in tex and "(1)" in tex
     # formula first-occurrence page came from the transcluding paragraph
     assert "k\\_\\allowbreak{}FO0001} & 002" in tex
-    assert "Unrecovered image regions" in tex
+    # 282 renamed it: the section names each row's tex.zip source, so calling
+    # every region "unrecovered" was no longer what it shows.
+    assert "Image regions" in tex
     assert "pdfdrill vision" in tex and "inkdrill" in tex
 
 

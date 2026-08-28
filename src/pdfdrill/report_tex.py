@@ -107,6 +107,10 @@ def rows_for(tiddlers, bibkey, refined=None):
             latex = refined[title]["refined"]
         page = t.get("page") or fpage.get(title, "")
         dims = t.get("width", ""), t.get("height", "")
+        # 282 — the full region, so a tex.zip image can be named by its
+        # 5-tuple rather than guessed at from page + size.
+        region = (t.get("page"), t.get("height"), t.get("width"),
+                  t.get("top_left_y"), t.get("top_left_x"))
         if kind in ("FO", "FOX"):
             fo.append((title, latex, page, t.get("trailing_punct", "")))
         elif kind == "EQ":
@@ -114,24 +118,43 @@ def rows_for(tiddlers, bibkey, refined=None):
                        t.get("width", ""), t.get("trailing_punct", ""),
                        t.get("confidence", "")))
         elif kind == "TAB":
-            tab.append((title, latex, page, dims))
+            tab.append((title, latex, page, dims, region))
         else:
-            dia.append((title, latex, page, dims))
+            dia.append((title, latex, page, dims, region))
     return fo, eq, tab, dia
 
 
 def texzip_images(texzip_dir: Path):
-    """Map (page:int, height, width) and page -> image path from a MathPix
-    tex.zip expansion (images named <id>-<page>_<h>_<w>_<y>_<x>.jpg)."""
-    by_key, by_page = {}, {}
-    for img in sorted(texzip_dir.rglob("*.jpg")) +                sorted(texzip_dir.rglob("*.png")):
-        m = re.search(r"-(\d+)_(\d+)_(\d+)_\d+_\d+\.\w+$", img.name)
+    """Index a tex.zip expansion by the FULL region 5-tuple.
+
+    out/279 measured what these filenames are:
+
+        <process-id>-<page>_<height>_<width>_<top_left_y>_<top_left_x>.jpg
+
+    and verified the four numbers after the page ARE the region — 20,276 of
+    20,287 filenames match a region in their own document's lines.json exactly,
+    99.95%. So the association is a dictionary lookup on a key both sides hold,
+    not a guess.
+
+    This used to key on `(page, height, width)` and fall back to "any image on
+    that page". Three figures of the same size on one page collided, and the
+    page fallback attached the FIRST image on a page to every unmatched row on
+    it — a named source that could be the wrong picture, which is worse than
+    none.
+
+    Returns `(by_region, n_images)`. `n_images` matters: 285 of 1,216 corpus
+    tex.zips hold no image at all, and an empty zip must not read like a failed
+    lookup.
+    """
+    by_region, n = {}, 0
+    for img in sorted(texzip_dir.rglob("*.jpg")) + \
+               sorted(texzip_dir.rglob("*.png")):
+        n += 1
+        m = re.search(r"-(\d+)_(\d+)_(\d+)_(\d+)_(\d+)\.\w+$", img.name)
         if not m:
             continue
-        page, h, w = (int(x) for x in m.groups())
-        by_key[(page, h, w)] = img
-        by_page.setdefault(page, img)
-    return by_key, by_page
+        by_region[tuple(int(x) for x in m.groups())] = img
+    return by_region, n
 
 
 def jpg_width(path: Path):
@@ -1536,7 +1559,7 @@ def build_report(tiddlers_path: Path, out: Path | None = None,
             "\\textbf{Identifier} & \\textbf{Page} & "
             "\\textbf{Content (LaTeX source if any)} & "
             "\\textbf{Scan image} \\\\\n\\hline\\endhead\n")
-        for title, latex, page, dims in tab:
+        for title, latex, page, dims, _region in tab:
             body = ("{\\ttfamily\\footnotesize %s}" % esc_text(latex)
                     ) if latex else (
                 "(no LaTeX source; %s\\,$\\times$\\,%s px"
@@ -1550,32 +1573,44 @@ def build_report(tiddlers_path: Path, out: Path | None = None,
                                 body, img))
         out_parts.append("\\end{longtable}\n")
 
+    named = unnamed = 0
     if dia:
         out_parts.append("\\clearpage\n")
-        zkey, zpage = ({}, {})
+        zreg, zn = ({}, 0)
         if texzip:
-            zkey, zpage = texzip_images(Path(texzip))
+            zreg, zn = texzip_images(Path(texzip))
         span = usable - 20 - 20 - 7
         dimg = round(span * 0.55)
         dnote = span - dimg
         out_parts.append(
-            "\\section*{Unrecovered image regions — TikZ / table / "
-            "failed-math candidates}\n"
-            "Regions MathPix left as images (no LaTeX). Reconstruct with "
-            "\\texttt{pdfdrill vision} (LLM classify + transcribe to "
-            "TikZ/tabular/math); verify an LLM result against the real ink "
-            "with inkdrill.\n"
+            "\\section*{Image regions — TikZ / table / failed-math candidates}\n"
+            "Regions MathPix left as images (no LaTeX). The Source column "
+            "names the \\texttt{tex.zip} file whose filename region 5-tuple "
+            "(page, height, width, top\\_left\\_y, top\\_left\\_x) equals this "
+            "row's — an exact key match, not a guess. Naming the file does NOT "
+            "say its \\texttt{tikzpicture} or \\texttt{tabular} renders to "
+            "what is on the page; that is a separate question. Reconstruct "
+            "with \\texttt{pdfdrill vision}; verify against the real ink with "
+            "inkdrill.\n"
             "\\begin{longtable}{|p{20mm}|p{7mm}|p{%smm}|p{%smm}|}\n"
             "\\hline\n\\textbf{Identifier} & \\textbf{Page} & "
             "\\textbf{Image} & \\textbf{Source} \\\\\n"
             "\\hline\\endhead\n" % (dimg, dnote))
-        for title, latex, page, dims in dia:
-            img_path = None
+        for title, latex, page, dims, region in dia:
+            img_path = zip_name = None
             try:
-                key = (int(page), int(dims[1]), int(dims[0]))
-                img_path = zkey.get(key) or zpage.get(int(page))
+                img_path = zreg.get(tuple(int(x) for x in region))
             except (TypeError, ValueError):
-                pass
+                img_path = None
+            if img_path is not None:
+                zip_name = img_path.name
+                named += 1
+            else:
+                unnamed += 1
+            # The CROP still fills the Image column when the zip has no match:
+            # the picture is what a reader compares against, and it is
+            # available for every row (278 — the rectangle is stated on 100% of
+            # these lines). Only the SOURCE column depends on the lookup.
             if img_path is None and crops:
                 img_path = crop_file(crops, title, bibkey, bibkey_history)
             if img_path is not None:
@@ -1594,11 +1629,20 @@ def build_report(tiddlers_path: Path, out: Path | None = None,
                     rel = img_path
                 cell = "\\includegraphics[%s]{%s}" % (
                     size, str(rel).replace("\\", "/"))
-                srcnote = "tex.zip (local)" if zkey or zpage else "crops"
             else:
                 cell = ("\\emph{(image not on disk — pass --texzip or "
                         "download the CDN crop)}")
-                srcnote = "CDN only"
+            # 282 — a genuine ABSENCE must not read like a failed lookup.
+            # 285 of 1,216 corpus tex.zips hold no image at all; saying
+            # "no match" there would blame the lookup for an empty container.
+            if zip_name:
+                srcnote = "{\\ttfamily\\tiny %s}" % esc_text(zip_name)
+            elif not texzip:
+                srcnote = "\\emph{no tex.zip}"
+            elif zn == 0:
+                srcnote = "\\emph{tex.zip holds no images}"
+            else:
+                srcnote = "\\emph{no image for this region (%d in zip)}" % zn
             out_parts.append("\\ident{%s} & %s & %s & %s "
                              "\\\\ \\hline\n"
                              % (esc_text(title), esc_text(str(page)),
@@ -1615,7 +1659,12 @@ def build_report(tiddlers_path: Path, out: Path | None = None,
                                "unicode": unicode_decls("".join(out_parts[1:]))}
     dest.write_text("".join(out_parts))
     return {"equations": len(eq), "formulas": len(fo), "tables": len(tab),
-            "unrecovered": len(dia), "out": dest}
+            "unrecovered": len(dia), "out": dest,
+            # 282 — how many image rows name their tex.zip source, and how many
+            # do not. `texzip_images` is 0 when the zip holds no images at all,
+            # which is a different fact from a lookup that failed.
+            "image_named": named, "image_unnamed": unnamed,
+            "texzip_images": (texzip_images(Path(texzip))[1] if texzip else 0)}
 
 
 def main() -> None:
