@@ -95,11 +95,22 @@ def convert(tsv: Path, tex: Path, *, stamp: dict | None = None) -> dict:
         R = [int(r[k]) for k in FIVE_R]
         distance = sum(abs(a - b) for a, b in zip(L, R))
         signed = R[0] - L[0]
-        # the TSV has no scale_stable column, so "stable" is unreachable from
-        # this format and every such row becomes "weak". That is the mechanism
-        # behind zero S in 6,207 measured rows corpus-wide — a branch this
-        # input cannot reach, not a class the corpus never produced.
-        flag = flag_of(distance, abs(signed), False)
+        # `A_eq_B` IS the scale_stable input, and it has been in this header
+        # since the first file — I quoted the fourteen columns back to inkdrill
+        # myself with A_eq_B fourth. This passed a hardcoded False beside a
+        # comment asserting the column did not exist, so `stable` was
+        # unreachable and every such row became `weak`. The "zero S in 6,207
+        # measured rows corpus-wide" that comment offered as evidence was the
+        # branch refusing to fire, measured and then explained by the thing
+        # causing it.
+        #
+        # A_eq_B: the 300 dpi five-tuple equals the 600 dpi one — two
+        # INDEPENDENT renders agreeing. Not to be confused with `B_stable`,
+        # which is B against its own half-scale resample: one render, weaker,
+        # and not what this class means.
+        flag = flag_of(distance, abs(signed),
+                       str(r.get("A_eq_B", "")).strip().lower()
+                       in ("yes", "true", "1"))
         out.append({
             "id": ident,
             "report_page": int(r["report_page"]),

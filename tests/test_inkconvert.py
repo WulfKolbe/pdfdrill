@@ -175,3 +175,40 @@ def test_a_stamp_OLDER_than_the_tsv_is_attached(tmp_path):
     C.cmd_inkconvert(d / "DOC2.pdf")
     payload = _j.loads((d / "report.ink.json").read_text(encoding="utf-8"))
     assert payload["measured_against"]["sha256"] == "c" * 64
+
+
+def test_A_eq_B_is_the_scale_stable_input(tmp_path):
+    """inkdrill's correction, and a real bug. `A_eq_B` — the 300 dpi five-tuple
+    equalling the 600 dpi one, two INDEPENDENT renders agreeing — is what
+    flag_of reads as scale_stable, and it has been in the TSV header since the
+    first file. convert() passed a hardcoded False beside a comment asserting
+    the column did not exist, so `stable` was unreachable and every such row
+    became `weak`."""
+    tsv = tmp_path / "report.compare.tsv"
+    tsv.write_text(
+        "report_page\tline\tdis\tA_eq_B\t"
+        "L_comp\tL_holes\tL_stk\tL_cen\tL_off\t"
+        "R_comp\tR_holes\tR_stk\tR_cen\tR_off\n"
+        # distance 9 (> NOISE_DISTANCE 7), comp_delta 0, A_eq_B yes -> stable
+        "1\t1\t9\tyes\t10\t0\t0\t0\t0\t10\t9\t0\t0\t0\n"
+        # identical numbers, A_eq_B NO -> weak
+        "1\t2\t9\tNO\t10\t0\t0\t0\t0\t10\t9\t0\t0\t0\n",
+        encoding="utf-8")
+    tex = tmp_path / "report.tex"
+    tex.write_text("\\ident{D\\_EQ0001} & 1 & x\n\\ident{D\\_EQ0002} & 1 & x\n",
+                   encoding="utf-8")
+    from pdfdrill.inkconvert import convert
+    rows = convert(tsv, tex)["rows"]
+    assert [r["flag"] for r in rows] == ["stable", "weak"]
+    # signed_delta is R_comp - L_comp = 0 here; the CLASS is what differs
+    assert [r["code"] for r in rows] == ["S|+0", "W|+0"]
+
+
+def test_scale_stable_accepts_the_spellings_inkdrill_emits(tmp_path):
+    from pdfdrill.inkconvert import flag_of
+    # above the noise floor, component delta inside the band
+    assert flag_of(9, 0, True) == "stable"
+    assert flag_of(9, 0, False) == "weak"
+    # and the gate is only consulted past the floor
+    assert flag_of(0, 0, False) == "clean"
+    assert flag_of(3, 0, True) == "noise"
