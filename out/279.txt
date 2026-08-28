@@ -1,0 +1,91 @@
+279 — what the tex.zip contains, and why matching is neither vision nor arithmetic
+==============================================================================
+
+WHAT IS IN THE ZIPS
+------------------------------------------------------------------------------
+    tex.zip files                       1,216   (0 unreadable)
+      with image files                    931
+      with NO image files                 285
+    image files                        20,582
+    \includegraphics                   20,670
+    float environments                 16,537
+
+285 zips carry no image at all — 1510.06699's, for instance, holds exactly one
+`.tex` and nothing else. So "the tex.zip has the pictures" is true of 77% of
+documents, not all of them.
+
+DO THE FILENAMES CARRY A PAGE NUMBER? YES — AND FOUR MORE NUMBERS
+------------------------------------------------------------------------------
+    347c6137-8dc3-4f41-86ab-77de4ae1347f-04_548_852_666_640.jpg
+    └── process id ──────────────────────┘ └pg┘ └─h─┘└─w─┘└y ┘└x ┘
+
+    filenames carrying a digit group   20,565 of 20,582
+    \includegraphics targets likewise  20,645 of 20,670
+
+The `.tex` references each image by that filename with the extension stripped —
+`\includegraphics[alt={},max width=\textwidth]{…-04_548_852_666_640}` — so the
+reference carries the page too.
+
+The four numbers after the page are not an index. They are the REGION:
+`height_width_top_left_y_top_left_x`, the same four keys 278 found on every
+diagram, chart and table line.
+
+VERIFIED, NOT INFERRED FROM THE SHAPE
+------------------------------------------------------------------------------
+Every parseable filename was looked up as a 5-tuple `(page, height, width,
+top_left_y, top_left_x)` against the regions in that document's own lines.json:
+
+    documents with a canonical lines.json + tex.zip    1,210
+    image filenames parsed                           20,287
+    EXACT match to a region in lines.json             20,276   (99.95%)
+    no match                                             11   (0.05%)
+    filenames that do not parse                          17
+
+    what the matched regions are:
+      diagram 17,787 · chart 2,099 · code 193 · text 126
+      simple_cell 23 · complex_cell 15
+
+So matching a tex.zip image to a docmodel object is not vision, and it is not
+arithmetic either. It is a dictionary lookup on a key both sides already hold.
+The task's premise was conservative: page alone would have needed arithmetic to
+disambiguate several figures on one page; the filename disambiguates them
+itself.
+
+THE 11 THAT DO NOT MATCH
+------------------------------------------------------------------------------
+    2505.0046v1   5    lines.json carries NO image_id at all, and its tex.zip
+                       is dated 2026-04-04 against a lines.json of 2026-08-03 —
+                       four months apart, so they are two different MathPix runs
+                       and the regions have no reason to agree.
+    2510.11170v2  4
+    BH1           2
+
+11 in 20,287 is 0.05%, and the largest cause is a stale pairing rather than a
+disagreement about geometry.
+
+FLOAT POSITION CARRIES NOTHING
+------------------------------------------------------------------------------
+    figure[h]   12,795      table[h]   3,734
+    table[]         5       figure[]       2      figure[!t]   1
+
+16,529 of 16,537 float environments are `[h]` — "here". That is MathPix
+emitting a fixed specifier, not a statement about where the float sat on the
+page. Anything read out of the float position would be reading a constant. The
+page is in the filename, which is where it should be looked for.
+
+A MEASUREMENT ERROR OF MINE, CORRECTED MID-TASK
+------------------------------------------------------------------------------
+The first corpus pass reported 17 unmatched across the same three documents.
+It picked each folder's lines.json with `glob("*.lines.json")[0]`, and three of
+these folders hold more than one:
+
+    2510.11170v2.glossaries.lines.json · 2510.11170v2.lines.json · test.lines.json
+    BH1-9add65ca.lines.json · BH1.lines.json
+
+So the tex.zip was being compared against a glossaries extract and a variant
+run. Comparing against the canonical `<stem>.lines.json` gives 11, not 17. I
+caught it because a second script written to characterise the mismatches found
+none at all — two of my own scans disagreeing, which is a reason to stop and
+not to pick the more convenient answer.
+
+Nothing changed in this task.
