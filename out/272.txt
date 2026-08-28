@@ -1,0 +1,96 @@
+272 — the section tree after 265
+==============================================================================
+
+THE TREE
+------------------------------------------------------------------------------
+    section_header lines            43,160
+    Sections created                43,159
+    skipped                              1
+
+    level 1                         24,810
+    level 2                         18,349
+    level 3+                             0
+
+    documents with Sections          1,128
+      multi-level                      698
+      flat                             431
+
+CROSS-CHECK 1 — THE ONE MISSING SECTION, NAMED
+------------------------------------------------------------------------------
+    document   Axe-Fx-II-Owners-Manual
+    line id    d525518fee7940c2808e8aeb160b01a6
+    type       section_header, font_size 28, 1 child
+    text       ''
+    text_display ''
+
+Its single child `d1bd70774269446da576d43576a6cbd7` is ITSELF a
+`section_header`, and also has `text: ''` and `text_display: ''` — a nested
+header with no caption at either level. 265's guard is "skip a header with no
+text anywhere", and this is the one line in the corpus that satisfies it.
+
+It is correctly dropped: an empty caption is not a section. The child is not
+lost — it has two children of its own, so when the loop reaches that line it
+takes ITS first child's text and becomes a Section normally. Exactly one line,
+exactly one Section short.
+
+CROSS-CHECK 2 — IS A FLAT DOCUMENT FLAT IN THE SOURCE? MOSTLY NOT.
+------------------------------------------------------------------------------
+This is the check that found something.
+
+    flat documents                                   431
+      flat AND one header font size                  182   flat in the source
+      flat BUT 2-11 distinct header font sizes       249   levels lost
+
+    distinct header font sizes among flat documents
+      1 size  182 · 2 sizes 175 · 3 sizes 46 · 4 sizes 11 · 5 sizes 5
+      6 sizes 4 · 7 sizes 2 · 8 sizes 3 · 9 sizes 1 · 10 sizes 1 · 11 sizes 1
+
+The 182 are a fact: one heading size, one level, nothing lost. The 249 are not.
+
+    DH2017-abstracts        2,371 headers, ALL \section*, 10 font sizes
+                            (28 x 1331, 35 x 879, 44 x 82, …)
+    Intro to General Relativity  471 headers, ALL \section*,  8 sizes
+    Quantum Field Theory Demystified 206 headers, ALL \section*, 9 sizes
+    Journey to the Edge of Reason  85 headers, ALL \section*, 11 sizes
+
+A 2,371-heading conference proceedings with ten distinct heading sizes does not
+have one level. MathPix emitted `\section*` for every one of them, and because
+the LaTeX command wins over `font_size` — the precedence 259 argued for and 265
+confirmed — the model inherits the flattening rather than correcting it.
+
+    Sections in multi-level documents            35,058
+    Sections in genuinely-flat documents          1,122
+    Sections in flat-but-multi-size documents     6,979   <- affected
+
+    levels font_size would give those 249 documents: 2.6 on average
+
+WHAT THIS MEANS FOR 259 AND 265
+------------------------------------------------------------------------------
+259's font_size ranking is not useless and 265's "it fires once" was not the
+whole story. The ranking is MASKED by command precedence in precisely the 249
+documents where it would help: every header carries a command, so the command
+wins, and the command is the same for all of them.
+
+The precedence itself is still right where the command carries information —
+the author's own `\subsection*` beats an inference from pixel height. It is
+wrong where the command carries NO information, which is detectable without
+guessing: a document whose headers all bear the same command AND span more than
+one font size has a hierarchy the command is not expressing.
+
+Recorded as open, not fixed — 272 is a reporting step, and this is a change to
+level assignment that deserves its own measurement rather than being folded
+into a report about the current state:
+
+    Section levels — where every header shares one command but the document
+    has 2+ header font sizes, the command carries no depth and font_size
+    should decide. 249 documents, 6,979 Sections, ~2.6 levels recoverable.
+
+WHY level 3+ IS STILL ZERO
+------------------------------------------------------------------------------
+Unchanged from 265 and now with the reason attached: `\subsubsection`,
+`\paragraph` and `\subparagraph` occur 0 times in 43,159 headers. MathPix's
+section vocabulary in this corpus is `\section*` and `\subsection*` only. So the
+model cannot express a third level from commands, and the 249 documents above
+are where a third level actually exists in the page.
+
+Nothing changed in this task.
