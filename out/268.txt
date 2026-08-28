@@ -1,0 +1,71 @@
+268 — real models for both defect classes, with object counts
+==============================================================================
+
+Both fixtures are real: `pdfdrill`'s own module pipeline (18 modules, config.json
+order) run over the drilled `lines.json`, then the TiddlyWiki projection, then
+`tiddlers_to_okf`. No branch was replayed in isolation — 265 is the reason.
+
+DOCUMENT 1 — idea14-proceedings, chosen for {{Title!!caption}}
+------------------------------------------------------------------------------
+    DocObjects 2,779        OKF files 2,557
+
+      Paragraph  758   Formula   638   ListItem  284   Section   282
+      Sidenote   231   TableCell 169   Page      130   Diagram    92
+      Equation    73   TableRow   48   Footnote   24   Abstract   19
+      Citation    12   Picture    10   Table       6   Toc         1
+      CodeListing  1   Document    1
+
+    qualified {{Title!!field}} references   124   all Section -> !!caption
+    dead links                              126
+    empty bodies                            101   Diagram 86, Picture 10,
+                                                  Sidenote 5
+
+DOCUMENT 2 — 2004.05631v1, chosen for Picture/Diagram/Equation bodies
+------------------------------------------------------------------------------
+    DocObjects 2,668        OKF files 2,596
+
+      Formula  1,116   Paragraph 576   Equation  254   Diagram   137
+      Page       135   Sidenote  134   Citation  113   ListItem   71
+      Section     57   TableCell  35   Footnote   13   Table      12
+      TableRow    10   Picture     2   Toc         1   Abstract    1
+      Document     1
+
+    qualified {{Title!!field}} references    31   all Section -> !!caption
+    dead links                               31
+    empty bodies                            152   Diagram 135, Sidenote 14,
+                                                  Picture 2, Equation 1
+
+CROSS-CHECK: NON-ZERO ON BOTH
+------------------------------------------------------------------------------
+    class A ({{Title!!caption}})   124 and 31    non-zero
+    class B (empty bodies)         101 and 152   non-zero
+
+Neither fixture is silent, so a later zero will mean the fix worked rather than
+that the document never had the shape.
+
+TWO NUMBERS THAT DO NOT MATCH, NAMED NOW SO THEY ARE NOT MISREAD LATER
+------------------------------------------------------------------------------
+1. Self-closing widget bodies are far more numerous than empty bodies:
+
+       idea14         823 widget bodies  ->  101 empty
+       2004.05631v1 1,539 widget bodies  ->  152 empty
+
+   The difference is Formula and most Equations. Their bodies are destroyed the
+   same way, but `_okf_body` special-cases those two types and reads the `latex`
+   FIELD instead of the converted text, so the file is populated anyway. They
+   are NOT part of class B's count and must not be counted as fixed by 270.
+   `2004.05631v1`'s single empty Equation is the one whose `latex` field is
+   itself empty, so the rescue has nothing to read.
+
+2. Sidenote appears in the empty-body counts (5 and 14) and is class C, not
+   class B — its tiddler `text` is already `''` before okf runs. 270 must leave
+   those empty, and 267's third cross-check is exactly that: a body still empty
+   after the fix has to be empty in the model too.
+
+BASELINE FOR 269-271
+------------------------------------------------------------------------------
+    document              units    links resolve   dead   empty bodies
+    idea14-proceedings    2,556           5,123     126            101
+    2004.05631v1          2,595           6,060      31            152
+
+Nothing changed in this task.
