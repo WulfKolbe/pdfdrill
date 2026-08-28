@@ -1,0 +1,111 @@
+255 — the contract, one level down: 24 fields, and two of them are ours
+==============================================================================
+
+WHY FIELDS ARE THE QUIETER LOSS
+------------------------------------------------------------------------------
+An unnamed TYPE drops a whole line, and a missing line is at least visible in a
+projection. An unread FIELD drops a dimension of every line that carries it and
+leaves the text intact, so nothing downstream looks wrong. `conversion_output`
+sits on 3,465,341 lines, survives docpack round-trips perfectly, and is read by
+nothing (out/252). `subtype` sat on 1,239,021 and was unread until 256, when it
+turned out to hold the answer to a problem the code was solving with a
+heuristic its own docstring apologised for.
+
+THE INVENTORY
+------------------------------------------------------------------------------
+Full parse of 1,351 documents, 3,999,815 line objects. 24 distinct keys, with
+how many lines carry a NON-EMPTY value:
+
+    region 3,999,815 · id 3,999,815 · type 3,999,815 · text 3,634,756
+    text_display 3,478,439 · cnt 3,465,341 · line 3,465,341 · column 3,465,341
+    font_size 3,463,072 · is_printed 3,465,341 · is_handwritten 3,465,341
+    conversion_output 3,465,341 · confidence 3,100,483 · confidence_rate
+    3,100,483 · parent_id 2,031,812 · subtype 1,239,021 · cell_column 753,870
+    cell_col_span 753,870 · cell_row 753,865 · cell_row_span 753,865
+    children_ids 177,796 · selected_labels 61,603 · out_of_column 52,668
+    margin_role 52,668
+
+    claimed by a module  14
+    ignored with a reason 10
+    unaccounted for        0
+
+THE FIVE YOU NAMED, AND WHAT EACH TURNED OUT TO BE
+------------------------------------------------------------------------------
+Not one of them is the same kind of thing, which is the point of making the
+contract name reasons rather than just listing exemptions.
+
+  subtype (1,239,021)      — no longer a violation. 256 reads it.
+
+  parent_id (2,031,812)    — redundant, and now VERIFIED rather than assumed.
+                             Over 500 documents, 1,122,695 of 1,122,695 lines
+                             with a parent_id are listed back in that parent's
+                             children_ids. Exact inverses. Walking children_ids
+                             downward loses nothing. I wrote the check because
+                             "obviously redundant" is the shape of the three
+                             wrong dead-code verdicts in out/237b.
+
+  selected_labels (61,603) — opaque. Each value is a list of 32-hex MathPix
+                             label ids, ['f883f3e2b61b46259fe0510affe81c0d'].
+                             They resolve against nothing we hold. There is no
+                             content behind them to lose.
+
+  out_of_column (52,668)   — NOT A MATHPIX FIELD.
+  margin_role   (52,668)   — NOT A MATHPIX FIELD.
+
+The last two are the finding. `semantic.geometry_columns.tag_out_of_column`
+stamps both onto page lines in place, and `commands.py` reads them back in the
+same pass — pdfdrill writes them and pdfdrill reads them. They appear in
+lines.json for 90 documents only because those files were re-saved after
+tagging. The proof they are ours is that both sit on *exactly* the same 52,668
+lines, and `margin_role`'s values come from pdfdrill's own
+`classify_margin_item` enum — MathPix has no such vocabulary.
+
+So a field contract that assumed "every field in lines.json is a MathPix field"
+would have reported two of pdfdrill's own annotations as MathPix output we were
+failing to read. The inventory's provenance block says this in as many words,
+because the next person to regenerate it will not rediscover it.
+
+THE TWO REAL GAPS
+------------------------------------------------------------------------------
+  cnt (3,465,341)       A four-point polygon — the line's actual quadrilateral,
+                        [[996,2714],[1078,2714],[1078,2750],[996,2750]] — where
+                        `region` is only its axis-aligned bounding box. For
+                        rotated or skewed lines the two differ, and every crop
+                        we build uses the box. docpack packs `cnt` faithfully
+                        and nothing reads it.
+
+  font_size (3,463,072) A pixel height per line (31, 29, 28, 22…). Header
+                        detection runs on text patterns alone. The signal that
+                        would settle a heading from a bold run is on every line,
+                        unread.
+
+Neither is fixed here — 255 was scoped to build the contract, and both are now
+declared gaps that a test will keep visible rather than notes in a report.
+
+WHAT CHANGED
+------------------------------------------------------------------------------
+  src/docmodel/type_contract.py
+    CLAIMED_FIELDS (14) / IGNORED_FIELDS (10) / corpus_fields() /
+    field_violations() / field_gaps(), mirroring 250's type contract exactly.
+    One direction only, for 250's reason: a field named in code but absent from
+    today's corpus is not a defect.
+
+  src/docmodel/corpus_fields.json
+    Committed inventory (counts, non-empty counts, document counts) with a
+    provenance block naming the mixed producer.
+
+  tests/test_type_contract.py — 7 more tests: no unaccounted field; claimed and
+  ignored disjoint; every reason categorised AND longer than 40 characters —
+  the length floor is there because 253's wrong reason was a short one written
+  from a field's name.
+
+Suite 2,523, all green.
+
+THE RULE THIS TASK RUNS ON
+------------------------------------------------------------------------------
+Every reason above was written after reading the field's values, not its name.
+That is 253's lesson applied before the fact rather than after: `cnt` had to be
+printed to know it was a polygon and not a count, `selected_labels` to know the
+labels were opaque hashes and not text, `is_printed` to know it is constant to
+within 8 lines in 1.37 million. A contract whose reasons are guesses is a
+contract that certifies guesses.

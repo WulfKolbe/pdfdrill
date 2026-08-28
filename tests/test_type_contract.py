@@ -69,3 +69,56 @@ def test_the_inventory_records_how_it_was_taken():
 def test_list_item_is_claimed_now():
     """out/248. It was the violation this contract would have caught."""
     assert "list_item" in tc.CLAIMED and "list_items" in tc.CLAIMED["list_item"]
+
+
+# ---- 255: the same contract for FIELDS -----------------------------------
+
+def test_every_corpus_field_is_named():
+    from docmodel.type_contract import field_violations
+    assert field_violations() == [], (
+        "a field MathPix emits that no module reads and no reason names: "
+        "silent loss, exactly like an unnamed type")
+
+
+def test_claimed_and_ignored_fields_are_disjoint():
+    from docmodel.type_contract import CLAIMED_FIELDS, IGNORED_FIELDS
+    assert not (set(CLAIMED_FIELDS) & set(IGNORED_FIELDS))
+
+
+def test_every_ignored_field_reason_is_categorised():
+    from docmodel.type_contract import IGNORED_FIELDS
+    prefixes = ("GAP:", "redundant", "non-content:", "opaque:", "carried,",
+                "NOT A MATHPIX FIELD")
+    for field, why in IGNORED_FIELDS.items():
+        assert why.startswith(prefixes), f"{field}: uncategorised reason"
+        assert len(why) > 40, f"{field}: a reason too short to have been read"
+
+
+def test_the_subtype_field_moved_from_unread_to_claimed():
+    # 256 — it was the largest unread field at 1,239,021 lines.
+    from docmodel.type_contract import CLAIMED_FIELDS, IGNORED_FIELDS
+    assert "subtype" in CLAIMED_FIELDS
+    assert "subtype" not in IGNORED_FIELDS
+
+
+def test_the_two_pdfdrill_written_fields_are_marked_as_such():
+    # They are not MathPix gaps — we wrote them. Same writer, same 52,668 lines.
+    from docmodel.type_contract import IGNORED_FIELDS, corpus_fields
+    counts = corpus_fields()
+    assert counts["out_of_column"] == counts["margin_role"]
+    for f in ("out_of_column", "margin_role"):
+        assert IGNORED_FIELDS[f].startswith("NOT A MATHPIX FIELD")
+
+
+def test_field_gaps_are_the_two_geometry_and_typography_signals():
+    from docmodel.type_contract import field_gaps
+    assert set(field_gaps()) == {"cnt", "font_size"}
+
+
+def test_field_inventory_records_that_it_is_not_mathpix_only():
+    import json
+    from docmodel.type_contract import FIELD_INVENTORY
+    prov = json.loads(FIELD_INVENTORY.read_text(encoding="utf-8"))["_provenance"]
+    assert "pdfdrill writes back" in prov["producer"] or \
+           "pdfdrill" in prov["producer"]
+    assert prov["line_objects"] > 3_900_000

@@ -104,3 +104,108 @@ def gaps() -> dict[str, int]:
     counts = corpus_types()
     return {t: counts.get(t, 0) for t, why in IGNORED.items()
             if why.startswith("GAP:")}
+
+
+# ===========================================================================
+# 255 — the same contract, one level down: every FIELD the corpus contains.
+#
+# A type nobody names drops a whole line. A field nobody reads drops a
+# dimension of every line that has it, and it is quieter still: `conversion_
+# output` sits on 3,465,341 lines, is carried faithfully through docpack, and
+# is consulted by nothing (out/252). `subtype` sat on 1,239,021 and was unread
+# until 256.
+#
+# Same single direction as the type contract, for the same reason. And the same
+# rule about reasons: "ignored" earns its place by naming what the values are.
+# 253 was the lesson — a reason written from a field's NAME asserted that
+# `figure_label` carried figure captions, when reading its values showed axis
+# labels and chord names. Every reason below was written after looking at the
+# values.
+# ===========================================================================
+
+FIELD_INVENTORY = Path(__file__).with_name("corpus_fields.json")
+
+#: field -> what reads it
+CLAIMED_FIELDS: dict[str, str] = {
+    "id": "base_module.build_line_index; every children_ids lookup",
+    "type": "every module — see CLAIMED above",
+    "text": "every module (the fallback when text_display is absent)",
+    "text_display": "every module (preferred over text)",
+    "region": "mathpix.crop_url/image_ref, equation.py's region-nearest number "
+              "pairing, semantic.geometry_columns, table rule measurement",
+    "children_ids": "footnote, sidenote, diagram, list_items, picture, table",
+    "confidence": "equation.py — MathPix's own doubt, surfaced in the formula "
+                  "report (out/063)",
+    "confidence_rate": "equation.py, tiddlywiki",
+    "subtype": "dehyphenation (256, the continues_line_* family), diagram.py "
+               "(its own 'code'), formula_report, distill_reader",
+    "column": "sidenote.py (a sidenote IS a column line), rectoverso's column "
+              "signal",
+    "cell_column": "pdfdrill.table_structure",
+    "cell_col_span": "pdfdrill.table_structure",
+    "cell_row": "pdfdrill.table_structure",
+    "cell_row_span": "pdfdrill.table_structure",
+}
+
+#: field -> why nothing reads it. GAP: means information is being lost.
+IGNORED_FIELDS: dict[str, str] = {
+    "cnt": "GAP: 3,465,341 lines. A four-point polygon — the line's actual "
+           "quadrilateral, e.g. [[996,2714],[1078,2714],[1078,2750],[996,2750]] "
+           "— where `region` is only its axis-aligned box. For rotated or "
+           "skewed lines the two differ, and every crop we build uses the box. "
+           "docpack packs it; nothing reads it.",
+    "font_size": "GAP: 3,463,072 lines carry a pixel height (31, 29, 28, 22…). "
+                 "Header detection is done on text patterns alone, and the "
+                 "signal that would settle a heading from a bold run is sitting "
+                 "unread on every line.",
+    "conversion_output": "carried, not read: 3,465,341 lines, a boolean "
+                         "(958,464 false / 413,259 true in the 500-doc sample). "
+                         "out/252 audited it and found no case where reading it "
+                         "would remove content that is wrongly included, so it "
+                         "stays unread deliberately rather than by omission.",
+    "parent_id": "redundant, VERIFIED: 2,031,812 lines name a parent. Checked "
+                 "over 500 documents — 1,122,695 of 1,122,695 parents list the "
+                 "child back in `children_ids`. The two are exact inverses, so "
+                 "walking children_ids downward loses nothing. This entry "
+                 "exists because 'redundant' was an assumption until it was "
+                 "counted.",
+    "line": "redundant: 3,465,341 lines carry their 1-based index within the "
+            "page (1, 2, 3…), which is the order the array already has.",
+    "is_printed": "non-content: 3,465,341 lines, effectively constant — 8 "
+                  "`false` in 1,371,715 in the 500-doc sample. Echoed into "
+                  "snippet requests by mathpix_snip; carries no decision.",
+    "is_handwritten": "non-content: as above, 6 `true` in 1,371,717.",
+    "selected_labels": "opaque: 61,603 lines in 1,006 documents, each a list of "
+                       "32-hex MathPix label ids "
+                       "(['f883f3e2b61b46259fe0510affe81c0d']). They resolve "
+                       "against nothing we hold, so there is no content behind "
+                       "them to lose.",
+    "out_of_column": "NOT A MATHPIX FIELD — pdfdrill writes it. "
+                     "semantic.geometry_columns.tag_out_of_column stamps it on "
+                     "page lines in place and commands.py reads it back in the "
+                     "same pass. It reaches 52,668 lines of 90 documents only "
+                     "because those files were re-saved after tagging.",
+    "margin_role": "NOT A MATHPIX FIELD — as above, same writer, and on exactly "
+                   "the same 52,668 lines. Its values come from pdfdrill's own "
+                   "classify_margin_item enum, which is what makes the pair "
+                   "provably ours: MathPix has no such vocabulary.",
+}
+
+
+def corpus_fields() -> dict:
+    """{field: line count} as last measured. Committed, not scanned at runtime."""
+    return json.loads(FIELD_INVENTORY.read_text(encoding="utf-8"))["counts"]
+
+
+def field_violations() -> list[str]:
+    """Corpus fields named by neither CLAIMED_FIELDS nor IGNORED_FIELDS."""
+    counts = corpus_fields()
+    known = set(CLAIMED_FIELDS) | set(IGNORED_FIELDS)
+    return sorted((f for f in counts if f not in known), key=lambda f: -counts[f])
+
+
+def field_gaps() -> dict[str, int]:
+    """IGNORED_FIELDS entries whose reason says GAP, with their line counts."""
+    counts = corpus_fields()
+    return {f: counts.get(f, 0) for f, why in IGNORED_FIELDS.items()
+            if why.startswith("GAP:")}
