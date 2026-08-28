@@ -76,15 +76,28 @@ class HeaderProcessor(BaseModule):
             payload = stream.payload[anchor]
             if payload.get("type") != "section_header":
                 continue
+            # 265 — a header WITHOUT children is still a header. This used to
+            # `continue`, and 34,126 of the corpus's 43,160 section_header
+            # lines (79%) have no children: 'REFERENCES', '1. Introduction',
+            # '4. Spin-foam models and loop quantum gravity' — captions in the
+            # line's OWN text, with a font_size, producing no Section at all.
+            # 629 documents had section headers and not one Section object.
+            #
+            # That is what a consumer means by calling Section "noisy and
+            # ignored": the set it sees is missing four fifths of the headings,
+            # so it looks arbitrary. The LaTeX-command path is unchanged; this
+            # only adds the lines that were being dropped.
             kids = payload.get("children_ids") or []
-            if not kids:
+            child = by_id.get(kids[0]) if kids else None
+            if child is not None:
+                child_text = child.get("text") or ""
+                child_display = child.get("text_display") or ""
+            else:
+                child_text = payload.get("text") or ""
+                child_display = payload.get("text_display") or ""
+            if not (child_text.strip() or child_display.strip()):
+                self.bump("headers_without_text_skipped")
                 continue
-            child = by_id.get(kids[0])
-            if not child:
-                continue
-
-            child_text = child.get("text") or ""
-            child_display = child.get("text_display") or ""
 
             cmd, caption = self._parse_header(child_text, child_display)
             stated = _CMD_ONLY_RE.search(child_display) or _CMD_RE.search(child_display)

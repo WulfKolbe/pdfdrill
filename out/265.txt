@@ -1,0 +1,102 @@
+265 — Section quality re-measured. The consumer is right, and 259's report
+      was wrong.
+==============================================================================
+
+THE ANSWER TO THE QUESTION AS ASKED
+------------------------------------------------------------------------------
+259's font_size ranking changed nothing measurable. Before it and after it:
+
+    documents with a multi-level section tree     163
+    documents still flat                          336
+
+Zero documents gained a level. The reason is not that ranking does not work —
+it is that the branch almost never runs, and finding out why exposed something
+much larger.
+
+259's REPORT WAS WRONG. THE CORRECTION.
+------------------------------------------------------------------------------
+out/259 says "34,128 headers (79%) take their level from font_size, in 975
+documents". The real number is 2.
+
+I measured the font_size branch by replaying it over all 43,160
+`section_header` lines and never checked that `HeaderProcessor` reaches them.
+It does not:
+
+    if not kids:
+        continue
+
+A header with no `children_ids` was dropped before any level was assigned, and
+that is 34,126 of the 43,160 lines. So the population I reported as "taking
+their level from font_size" was in fact the population being discarded
+entirely. The two numbers coincided (34,128 vs 34,126) which made the wrong one
+look confirmed.
+
+That is the second time in this run the same mistake has produced a plausible
+number: measuring what a function WOULD do to the corpus instead of what the
+pipeline actually does to it. 262 caught the other one by building a real
+model, and so did this.
+
+WHAT WAS ACTUALLY BROKEN
+------------------------------------------------------------------------------
+    section_header lines                          43,160
+      no children -> dropped outright             34,126   (79%)
+      with a child -> became a Section             9,034
+
+    documents with any section_header               1,128
+      producing at least one Section                  499
+      producing NONE at all                           629
+      losing at least one heading                     974
+
+The dropped lines are not marginal. They carry their caption in the line's own
+fields:
+
+    text_display '\section*{REFERENCES}'                     text 'REFERENCES'
+    text_display '\section*{1. Introduction}'                text '1. Introduction'
+    text_display '\section*{4. Spin-foam models and loop quantum gravity}'
+
+That is what a consumer means by calling Section "noisy and ignored". The set
+it was handed is missing four fifths of the document's headings, in a pattern
+that has nothing to do with the document — so what survives looks arbitrary.
+The consumer was not working around a fixed defect. It was working around a
+live one, and a bigger one than font_size.
+
+THE FIX
+------------------------------------------------------------------------------
+`HeaderProcessor` now falls back to the header LINE's own text when it has no
+child, and skips only a header with no text anywhere.
+
+    Sections created                 9,034  ->  43,159
+    documents with >=1 Section         499  ->   1,128
+    documents flat                      336  ->     431
+    documents with 2 levels             163  ->     699
+
+Every recovered heading arrives with its LaTeX command intact — MathPix writes
+`\section*{…}` into the header line's own `text_display` and puts the plain
+caption in `text`, which is exactly why they never needed the child:
+
+    section       24,809
+    subsection    18,349
+    (none)             2
+
+Caption quality across all 43,159: 42,634 usable, 525 thin (under 3 characters
+or digits only). 98.8%.
+
+WHY font_size NOW FIRES ONCE
+------------------------------------------------------------------------------
+Because 43,158 of 43,159 headers carry an explicit `\section`-family command,
+and the command wins — correctly, as 259 argued: the author's own statement of
+depth beats an inference from pixel height. The ranking is not wasted; it is
+the fallback for the case that turns out to be rare in this corpus. 259's
+mechanism was sound and its measurement was not.
+
+NO DOCUMENT REACHES 3 LEVELS
+------------------------------------------------------------------------------
+699 documents have exactly 2 and none have more, because
+`\subsubsection`/`\paragraph` do not occur at all — 0 of 43,159. Whether MathPix
+never emits them or these documents never use them is not something this
+measurement can distinguish, and I am not going to guess. It is stated here as
+an open question rather than reported as a depth limit.
+
+Suite 2,582. 4 tests: a childless header becoming a Section, a childless
+subsection keeping its depth, the child still winning where there is one, and a
+header with no text anywhere still being skipped.

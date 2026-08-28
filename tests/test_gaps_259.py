@@ -382,3 +382,49 @@ def test_a_truncated_crop_is_not_accepted(tmp_path):
     crops = tmp_path / "c"; crops.mkdir()
     (crops / "k_EQ0001.jpg").write_bytes(b"x" * 100)   # < 500 bytes
     assert crop_file(crops, "k_EQ0001", "k", []) is None
+
+
+# ---- 265: a header without children is still a header ----------------------
+
+def test_a_childless_header_becomes_a_section():
+    """34,126 of the corpus's 43,160 section_header lines have no children and
+    were dropped outright — 79% of every heading, in 629 documents that ended
+    up with no Section object at all."""
+    from docmodel.modules.header import HeaderProcessor
+    doc = _doc([{"id": "h", "type": "section_header", "font_size": 46,
+                 "text": "REFERENCES",
+                 "text_display": "\n\n\\section*{REFERENCES}"}])
+    items = _mod(HeaderProcessor).find_items(doc)
+    assert len(items) == 1
+    assert items[0]["caption"] == "REFERENCES"
+    assert items[0]["cmd"] == "section"
+    assert items[0]["level"] == 1
+    assert items[0]["level_basis"] == "latex_command"
+
+
+def test_a_childless_subsection_keeps_its_depth():
+    from docmodel.modules.header import HeaderProcessor
+    doc = _doc([{"id": "h", "type": "section_header",
+                 "text": "2.1 Method",
+                 "text_display": "\\subsection*{2.1 Method}"}])
+    assert _mod(HeaderProcessor).find_items(doc)[0]["level"] == 2
+
+
+def test_the_child_still_wins_when_there_is_one():
+    from docmodel.modules.header import HeaderProcessor
+    doc = _doc([
+        {"id": "h", "type": "section_header", "children_ids": ["c"],
+         "text": "ignored", "text_display": "\\section*{ignored}"},
+        {"id": "c", "type": "text", "text": "Real Caption",
+         "text_display": "\\subsection*{Real Caption}"},
+    ])
+    item = _mod(HeaderProcessor).find_items(doc)[0]
+    assert item["caption"] == "Real Caption"
+    assert item["level"] == 2
+
+
+def test_a_header_with_no_text_at_all_is_still_skipped():
+    from docmodel.modules.header import HeaderProcessor
+    doc = _doc([{"id": "h", "type": "section_header", "text": "  ",
+                 "text_display": ""}])
+    assert _mod(HeaderProcessor).find_items(doc) == []
