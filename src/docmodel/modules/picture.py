@@ -20,7 +20,9 @@ Picks up figures and inline image URLs.
 What this processor captures:
 
 - Lines of type='figure': image URL from `crop_url(image_id, region)`, caption
-  from a child of type='caption' or the line's own `\\caption{}`.
+  from a child of type='caption' or the line's own `\\caption{}`. **No producer
+  emits either type** — see the note on `_NO_PRODUCER` below; this path is
+  exercised only by synthetic fixtures.
 - Inline Markdown images (`![]()`) / bare CDN URLs embedded in text lines.
 
 `type='diagram'` lines are intentionally NOT handled here — they are owned by
@@ -52,13 +54,23 @@ _CDN_URL = re.compile(r"(https?://cdn\.mathpix\.com/cropped/[^\s\}>\])\"]+)")
 # Line types whose images are owned by another processor.
 _SKIP_TYPES = {"diagram"}
 
-#: 249 — the two literals below occur ZERO times in the corpus, so the
-#: figure-line path has never run. MathPix has no `figure` type and no
-#: `caption` type: what carries a figure is `diagram` (24,806 lines, 916 docs)
-#: or `chart` (2,136), and what carries its caption is `figure_label` (22,638).
-#: Corrected in 253 — this note stays so the shape is written down where the
-#: guard is.
-_ABSENT_IN_CORPUS = ("figure", "caption")
+#: 249 saw zero `figure` / `caption` lines in the corpus but kept the branch,
+#: because that scan read MathPix `*.lines.json` only and a second producer
+#: (visionocr) had already been caught supplying a "dead" literal. 253 checked
+#: the producers rather than the corpus: **nothing in this repo emits a line of
+#: type `figure` or `caption`** — not mathpix, not visionocr, not pdf_lines. The
+#: branch below is reachable from test fixtures alone, and `tiddlywiki.py`
+#: consumes a `from_line_type == "figure"` that is therefore never set.
+#:
+#: 253 also retired the replacement shape this comment used to assert. MathPix's
+#: `figure_label` (22,638 lines) is NOT the caption: all 49 of the ones parented
+#: to a diagram/chart are in-figure text — axis labels ("GATE VOLTAGE (V)"),
+#: chord names, code-listing titles, three empty strings. The caption is carried
+#: by `\\caption{}` inside the diagram/chart line's OWN text (12,632 corpus-wide,
+#: 83% of them matching `Figure N:`), which `DiagramProcessor` and `_from_inline`
+#: already read. Kept as a named tuple so the next reader inherits the check
+#: instead of re-running it.
+_NO_PRODUCER = ("figure", "caption")
 
 
 class PictureProcessor(BaseModule):

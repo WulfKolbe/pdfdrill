@@ -12,7 +12,9 @@ children, their text is concatenated into a `latex_code` prop.
 
 When the line carries a `\\caption{...}` (the LaTeX figure form), its caption is
 extracted (balanced braces) and parsed into kind/refnum (`Picture 1`, `Sketch
-2`, …); the Markdown `![]()` form carries no caption.
+2`, …); the Markdown `![]()` form carries no caption. A `figure_label` child is
+NOT a caption — it is in-figure text (axis label, legend, listing title) and is
+recorded separately as `labels` (253).
 
 Future: if a TikZ reconstruction step succeeds, it would add another
 realization with role='tikz_reconstruction' pointing into a new per-diagram
@@ -65,11 +67,19 @@ class DiagramProcessor(BaseModule):
             if payload.get("type") != "diagram":
                 continue
             latex_parts = []
+            # 253 — `figure_label` children are the figure's OWN text (axis
+            # labels, legend entries, listing titles), not its caption. All 49
+            # in the corpus read that way; attaching one as a caption would be
+            # an invented association. They are recorded as `labels`, a stated
+            # containment link, and still joined into latex_parts as before.
+            labels: list[str] = []
             for cid in payload.get("children_ids", []) or []:
                 child = by_id.get(cid)
                 if not child:
                     continue
                 ct = child.get("text_display") or child.get("text") or ""
+                if child.get("type") == "figure_label" and ct.strip():
+                    labels.append(ct.strip())
                 if ct:
                     latex_parts.append(ct)
             # MathPix often emits a diagram line as a `\begin{figure}…\caption{…}
@@ -93,6 +103,7 @@ class DiagramProcessor(BaseModule):
                 "code": code[0] if code else "",
                 "language": code[1] if code else "",
                 "caption": caption,
+                "labels": labels,
             })
         return items
 
@@ -112,6 +123,9 @@ class DiagramProcessor(BaseModule):
                 "caption": cap_body,
                 "kind": kind,           # 'Picture' / 'Sketch' / 'Figure' / ... / None
                 "refnum": refnum,
+                # In-figure text (MathPix `figure_label` children). NOT a
+                # caption — see extract_items. Empty for all but 49 lines.
+                "labels": item.get("labels", []),
                 # A code listing is not an image: no CDN crop.
                 "cdn_url": "" if is_code else image_ref(
                     item["image_id"], item["region"], doc.meta.get("source", "mathpix")),

@@ -1,0 +1,127 @@
+253 — the figure/caption link: the schema shape is not a caption shape
+==============================================================================
+
+THE TASK'S PREMISE, AND MINE IN 249, WERE BOTH WRONG.
+
+249 left a note in picture.py asserting: "MathPix has no `figure` type and no
+`caption` type: what carries a figure is `diagram` or `chart`, and what carries
+its caption is `figure_label`." The first half is right. The second half is not,
+and 253 was scoped to act on it. Acting on it would have attached an axis label
+to a figure as its caption 27 times.
+
+WHAT `figure_label` ACTUALLY IS
+------------------------------------------------------------------------------
+22,638 lines corpus-wide. 49 of them are parented to a diagram or chart through
+children_ids. Those 49, verbatim and complete, are the whole population — so
+this is not a sample argument:
+
+    GATE VOLTAGE (V)          -200 - Imm            \(\lambda=304.0~nm\)
+    Step Trace                main.ps               1)
+    Percentage of VTAB tasks solved (total=19)      (88)
+    Am7 / Am AS / A7 Am A5 / Verse 1 / with Lead Fill 3 / End Rhythm Figure 1
+    Listing 2.1 trifactor ... Listing 15.2 rayleighit   (27 of them)
+    TOP J-LENS TOKENS         ThreeDimensionalViewport : "Trefoil knot"
+    Type:Union(f1; OrderedCompletion Expression Integer,...)
+    "" (three empty)
+
+Axis labels, chord names above guitar tab, code-listing titles, an equation
+number. This is text drawn INSIDE the figure, which is what the type name says
+if read as MathPix means it. It is not the caption below the figure.
+
+The discriminator, corpus-wide:
+
+    figure_label lines                     22,638   31.8% match `Figure N:`
+      median length 21 chars, p90 66
+    diagram/chart \caption{} bodies        12,632   83.1% match `Figure N:`
+
+A caption is a sentence and names itself. A figure_label is a fragment.
+
+WHERE THE CAPTION ACTUALLY LIVES, AND WHO ALREADY READS IT
+------------------------------------------------------------------------------
+Inside the diagram/chart line's OWN text, as `\caption{}` within a
+`\begin{figure}` block.
+
+    diagram lines                          24,806
+      with own \caption{}                  10,825   read by DiagramProcessor
+    chart lines                             2,136
+      with own \caption{}                   1,807   read by PictureProcessor
+                                                    (_from_inline; all 1,807
+                                                    sit inside \begin{figure},
+                                                    which is what that path
+                                                    gates on — checked, not
+                                                    assumed)
+    ------------------------------------------------------------------------
+    figure+caption pairs in the corpus     12,632
+    pairs pdfdrill recovers today          12,632   (100%)
+
+So the answer to "how many pairs does the corpus hold and how many does
+pdfdrill recover" is: all of them, already. My pre-task note said "zero
+recovered". That was true of the dead `_from_figure_line` branch and false of
+the document, which is the difference between auditing a function and auditing
+an outcome.
+
+THE DEAD BRANCH — CHECKED BY PRODUCER THIS TIME, NOT BY CORPUS
+------------------------------------------------------------------------------
+249 kept the `figure` / `caption` literals because its scan read MathPix
+`*.lines.json` only, and removing a "dead" literal on that evidence had just
+broken two visionocr tests. 253 asked the stronger question — which code emits
+a line of either type — and the answer is: none. Not mathpix_client, not
+openai_vision, not pdf_lines. Only test fixtures.
+
+Two consequences, both recorded rather than removed:
+
+  - `_from_figure_line` is reachable from fixtures alone. Renamed the marker
+    `_ABSENT_IN_CORPUS` -> `_NO_PRODUCER`, which is the stronger and now
+    verified claim.
+  - `docops/projectors/tiddlywiki.py:427` branches on
+    `pic.props["from_line_type"] == "figure"`. Nothing sets it. A consumer of a
+    value no producer produces — the same shape as 252's conversion_output,
+    found for the same reason.
+
+WHAT CHANGED
+------------------------------------------------------------------------------
+The schema link IS real; it is a containment link, not a caption link. So
+DiagramProcessor now records it as what it is:
+
+  src/docmodel/modules/diagram.py
+    `figure_label` children -> new `labels` prop (list of in-figure strings),
+    empties dropped. `caption` is untouched and still comes only from the
+    line's own `\caption{}`. The 5 diagrams that have both keep both, in the
+    right two fields.
+
+  src/docmodel/modules/picture.py
+    Docstring + marker comment corrected to state the measured shape, so the
+    next reader inherits the check instead of re-deriving the wrong link.
+
+  tests/test_figure_labels.py — 7 tests, incl. the both-present case, the
+  three empty children, and the chart-inline path.
+
+THE POSITIONAL CANDIDATES: RECORDED, NOT ASSERTED
+------------------------------------------------------------------------------
+Per instruction, proximity was measured and NOT written into any object.
+
+    diagram, no caption from either source              13,940
+      with a figure_label within 1 line on the page        661   (1 ambiguous)
+      within 3 lines                                       275
+      no figure_label anywhere on the page              11,250
+    chart, no caption from either source                   328
+      within 1 line                                          5
+
+Two reasons this stays unresolved, and the second is the real one. Proximity
+has no ground truth here — but more decisively, the thing proximity would be
+matching is a figure_label, and figure_label is not a caption. A heuristic
+pointed at the wrong type does not become right by being confident. The 661
+adjacencies are recorded here and nowhere else.
+
+WHAT THIS COST TO GET RIGHT
+------------------------------------------------------------------------------
+The failing step was 249's, where I wrote a replacement shape into a code
+comment on the strength of a type name and a co-occurrence count, without ever
+looking at the strings. It read as a finding for two tasks. The check that
+overturned it was printing all 49 values — the whole population, small enough
+that there was never an excuse not to.
+
+Named class, for HANDOVER-RULES: a type name is a claim by the producer, not a
+measurement by us. `figure_label` sounds like a figure's label and is a label
+in the figure. Confirm what a field contains by reading its values before
+writing its meaning into code.
