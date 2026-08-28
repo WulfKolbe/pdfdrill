@@ -1,0 +1,116 @@
+256 — the join MathPix already stated, on 1,228,183 lines nothing read
+==============================================================================
+
+THE FIELD
+------------------------------------------------------------------------------
+Every text line's `subtype` says how that line attaches to the line before it:
+
+    continues_line_space        924,500   1012 docs   join with a space
+    continues_line_newline      155,679    996        join across a source newline
+    continues_line_no_hyphen    142,042    929        join and DROP the hyphen
+    continues_line_no_space       5,962    680        join with NO space,
+                                                      hyphen KEPT (a compound)
+    ------------------------------------------------------------------------
+    1,228,183 lines, on 41% of the corpus's 2,425,957 text lines
+
+`no_hyphen` versus `no_space` is precisely the distinction the heuristic could
+not make, and the docstring's own example is on the wrong side of it:
+"CIFAR-" + "10" is `no_space` — keep the hyphen, add no space.
+
+DIRECTION — CHECKED, BECAUSE GETTING IT BACKWARDS INVERTS THE RULE
+------------------------------------------------------------------------------
+The verdict sits on the FOLLOWING line, not on the broken one. Measured over
+hyphen-ending lines:
+
+    the hyphen line's OWN subtype   space 572 · no_hyphen 101 · no_space 14
+    the FOLLOWING line's subtype    no_space 473 · no_hyphen 399 · space 32
+
+The broken line's own subtype describes how *it* joined its predecessor and
+reads `space` most of the time. Reading it as the verdict would have produced
+"join with a space" on the majority of real hyphen breaks — the exact opposite
+of the fix.
+
+WHAT THE OLD RULE COST, AND IT IS NOT THE FAILURE THE DOCSTRING NAMED
+------------------------------------------------------------------------------
+The docstring worried about "one-to-one" becoming "oneto-one". I searched the
+corpus for that shape: three line breaks after a word ending "one-", and not
+one of them is "one-to-one". Meanwhile:
+
+    139,660 lines carry `continues_line_no_hyphen` where the preceding line
+    does NOT end in a hyphen — MathPix had already removed it.
+
+`HYPHEN_TAIL` therefore never matched, the `m is None` branch ran, and a space
+was inserted into the middle of the word:
+
+    "the posterior probability that the hy" + " " + "pothesis is true"
+    "The measure"  + " " + "ment result is k"
+    "Never"        + " " + "theless, the content of"
+    "of the mea"   + " " + "surement is k with probability"
+
+That is 139,660 split words against 3 possible compound mis-joins. The named
+failure was the rare one; the unnamed one was two thousand times larger and had
+been sitting in the default path the whole time.
+
+Full change count, replaying old rule vs new over all 2,425,957 line pairs:
+
+    unchanged                              2,280,225
+    CHANGED                                  145,732   (6.01%)
+      keep+space -> keep, no space           145,065   split words rejoined
+      drop hyphen -> keep it                     557   compounds saved
+                                                       ("corre-" + "sponding",
+                                                        "CIFAR-" + "10")
+      keep -> drop hyphen                         97   soft breaks the
+                                                       heuristic missed
+      drop -> keep with a space                    13   MathPix disagrees with
+                                                       the heuristic's join
+
+WHAT CHANGED
+------------------------------------------------------------------------------
+Both implementations, because the one with teeth was not the one the task
+named. `DehyphenationProcessor` (docmodel, the derived cleaned stream) is the
+demo; `docops.mutators.Dehyphenate` is what rewrites `Paragraph.props.text` —
+the text every projector reads. Both had the same `m is None` branch.
+
+  src/docmodel/modules/dehyphenation.py
+    `_STATED` maps the four values to an action. The stated join decides;
+    absent it, the old heuristic runs unchanged. Each `dehyphenate` alignment
+    now carries `join_basis`: "mathpix" | "heuristic" | "none".
+    Guard: `no_hyphen` on a line that does NOT end in "-" means "no extra
+    character", so the last letter is never amputated.
+
+  src/docops/mutators/dehyphenate.py
+    Same precedence, applied where the paragraph text is actually built.
+    Counters `joins_from_mathpix` / `joins_from_heuristic` separate the two.
+
+  tests/test_dehyphenate_stated.py — 9 tests, including the 139,660-line
+  dominant case, the CIFAR-10 compound, both heuristic fallbacks (the existing
+  "one-to-one" and "in-formation" cases still pass untouched), and the
+  completeness of `_STATED` against the four corpus values.
+
+Suite 2,516, all green.
+
+THE HEURISTIC IS NOT RETIRED
+------------------------------------------------------------------------------
+59% of text lines carry no subtype, and only 5,036 of the 37,185 hyphen-broken
+lines have a verdict — the field is populated unevenly by document, not by line.
+So the fallback carries most of the traffic and had to keep working, not merely
+keep compiling. Both of its existing tests pass unchanged.
+
+ONE SELF-INFLICTED DETOUR, RECORDED
+------------------------------------------------------------------------------
+My first scan for the field looked for KEYS named `continues_line_*` and found
+zero, in a corpus where 1.2 million lines carry those strings as VALUES of
+`subtype`. A `grep -rl continues_line` over the library also returned nothing,
+which agreed with the wrong scan and nearly closed the task as "the premise has
+no support in the library". Two instruments agreeing is not corroboration when
+they share the same defect.
+
+The second detour: two test failures in a row that were stale `.pyc`, written
+by my own corpus-validation runs — which I invoked as bare `python3` without
+`PYTHONDONTWRITEBYTECODE=1`. That is HANDOVER-RULES rule 4, triggered by the
+scripts I wrote to verify the fix rather than by the test command.
+
+The third was mine and not the code's: I asserted the cleaned chunks join to
+"thehypothesis" when the correct answer is "the hypothesis" — the surviving
+space is between the article and the word. The code was right and my expected
+value was wrong, which for a moment looked like the fix failing.

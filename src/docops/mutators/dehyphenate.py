@@ -6,7 +6,21 @@ realization, detects line-break soft hyphens, and rewrites `Paragraph.props.text
 with the cleaned version. The original (pre-cleaning) text is preserved in
 `Paragraph.props.text_raw` if not already set.
 
-Improved heuristic over the demo DehyphenationProcessor in the converter:
+**256 — MathPix states the join; the heuristic is the fallback.** Each line's
+own `subtype` says how it attaches to the line before it:
+`continues_line_no_hyphen` (join, drop the hyphen), `continues_line_no_space`
+(join, KEEP the hyphen — a real compound like "CIFAR-" + "10"),
+`continues_line_space` / `_newline` (join with a space). Where it is present it
+decides; where it is absent (59% of text lines) the heuristic below runs
+unchanged.
+
+The largest defect it fixes is not the hyphen case at all. On 139,660 corpus
+lines MathPix had ALREADY removed the hyphen, so `HYPHEN_TAIL` never matched
+and the `m is None` branch inserted a space into the middle of a word:
+"the hy" + " " + "pothesis", "The measure" + " " + "ment result",
+"Never" + " " + "theless". Those are now joined with nothing, as stated.
+
+Heuristic used when no subtype is present:
 
     join lines A and B (B follows A in the paragraph) iff:
       - A's tail matches `(\\w+)-\\s*$`                 ... A ends with hyphen
@@ -29,6 +43,7 @@ from __future__ import annotations
 
 from docmodel.core import Document, Alignment, Range
 from docmodel.text_utils import HYPHEN_TAIL, NEXT_WORD, is_soft_break
+from docmodel.modules.dehyphenation import _STATED
 from ..base import BaseMutator
 
 
@@ -127,6 +142,27 @@ class Dehyphenate(BaseMutator):
 
             prev = parts[-1] if parts else ""
             m = HYPHEN_TAIL.search(prev)
+
+            # 256 — MathPix's stated join wins wherever it is present.
+            stated = _STATED.get(_payload.get("subtype") or "")
+            if stated is not None:
+                if stated == "drop_hyphen" and m is not None:
+                    parts[-1] = prev[: m.start()] + m.group(1)
+                    parts.append(txt.lstrip())
+                    records.append((i, True))
+                    joins += 1
+                    self.bump("joins_from_mathpix")
+                else:
+                    # `no_space`, or `no_hyphen` on a line MathPix already
+                    # stripped: concatenate with nothing. `space`/`newline`:
+                    # one space, which is what the old code always did.
+                    parts.append(("" if stated in ("drop_hyphen", "no_space")
+                                  else " ") + txt.lstrip())
+                    if m is not None:
+                        records.append((i, False))
+                    self.bump("joins_from_mathpix")
+                continue
+
             if m is None:
                 parts.append(" " + txt)
                 continue
@@ -138,6 +174,7 @@ class Dehyphenate(BaseMutator):
 
             soft = is_soft_break(tail_word, next_token)
             records.append((i, soft))
+            self.bump("joins_from_heuristic")
             if soft:
                 # Drop trailing hyphen on prev, no whitespace.
                 parts[-1] = prev[: m.start()] + tail_word

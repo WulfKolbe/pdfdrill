@@ -37,6 +37,16 @@ from ..text_utils import HYPHEN_TAIL
 # purpose, to demonstrate that the cross-stream design keeps that safe.
 _NEXT_CONTINUATION = re.compile(r"^[a-zäöüß0-9]")
 
+#: MathPix's stated join, read off the FOLLOWING line's subtype (256). Maps to
+#: what this processor must do at the break. `newline` is a source line break
+#: inside running prose, so it joins with a space exactly like `space` does.
+_STATED = {
+    "continues_line_no_hyphen": "drop_hyphen",
+    "continues_line_no_space": "no_space",
+    "continues_line_space": "space",
+    "continues_line_newline": "space",
+}
+
 
 class DehyphenationProcessor(BaseModule):
 
@@ -77,26 +87,40 @@ class DehyphenationProcessor(BaseModule):
             if not text:
                 continue
 
-            # Detect soft hyphen: this line ends with '-' and the next prose
-            # anchor in the paragraph continues lowercase.
+            # How does the NEXT line join this one? MathPix says so directly
+            # (its subtype); fall back to the hyphen heuristic when it doesn't.
             is_soft_break = False
-            if HYPHEN_TAIL.search(text) and i + 1 < len(anchors):
-                next_text = (
-                    stream.payload[anchors[i + 1]].get("text_display")
-                    or stream.payload[anchors[i + 1]].get("text")
-                    or ""
-                )
-                if _NEXT_CONTINUATION.match(next_text):
-                    is_soft_break = True
-                    join_count += 1
+            basis = "none"
+            last = i >= len(anchors) - 1
+            next_payload = None if last else stream.payload[anchors[i + 1]]
+            next_text = "" if last else (
+                next_payload.get("text_display") or next_payload.get("text") or "")
+            stated = _STATED.get((next_payload or {}).get("subtype") or "")
 
-            # If this is a soft break, drop the trailing hyphen.
+            if stated is not None:
+                basis = "mathpix"
+                is_soft_break = stated == "drop_hyphen"
+                gap = "" if stated in ("drop_hyphen", "no_space") else " "
+            elif HYPHEN_TAIL.search(text) and not last and _NEXT_CONTINUATION.match(next_text):
+                basis = "heuristic"
+                is_soft_break = True
+                gap = ""
+            else:
+                basis = "heuristic" if not last else "none"
+                gap = "" if last else " "
+            if is_soft_break:
+                join_count += 1
+
             written = text.rstrip()
             if is_soft_break:
-                written = written[:-1]      # drop the '-'
-                joiner = ""                  # no whitespace inserted
-            else:
-                joiner = " " if i < len(anchors) - 1 else ""
+                # `no_hyphen` is only a hyphen instruction when there IS one to
+                # drop; on a line that does not end in `-` it just means "no
+                # extra character", so never amputate a real last letter.
+                if written.endswith("-"):
+                    written = written[:-1]
+                else:
+                    is_soft_break = False
+            joiner = "" if last else gap
 
             # Emit ONE derived anchor per source line holding the line's cleaned
             # text. (Previously one anchor PER CHARACTER — ~50 bytes/char of pure
@@ -117,6 +141,9 @@ class DehyphenationProcessor(BaseModule):
                 right=Range(derived_name, a, a),
                 props={
                     "soft_break_removed": is_soft_break,
+                    # Which signal decided this join: MathPix's stated
+                    # `continues_line_*` subtype, or the fallback heuristic.
+                    "join_basis": basis,
                 },
             ))
 
