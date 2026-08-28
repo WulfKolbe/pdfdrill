@@ -1,0 +1,99 @@
+264 — the bibkey rename: 0 folders affected, and the code path that would
+      produce it
+==============================================================================
+
+HOW MANY DRILLED FOLDERS ARE IN THAT STATE: NONE
+------------------------------------------------------------------------------
+    folders with downloaded crops                760
+    comparable (crops + a model bibkey)          759
+    crop prefix == sanitize_title(model bibkey)  759
+    genuine mismatch                               0
+
+Nobody has run `okf --bibkey` with a different key against this library. The
+defect is real in the code and has not yet been triggered on disk.
+
+A FALSE POSITIVE OF MY OWN, WORTH RECORDING BECAUSE IT LOOKED LIKE THE ANSWER
+------------------------------------------------------------------------------
+My first pass compared the model's bibkey to the crop filename prefix and
+reported 60 mismatched folders:
+
+    0111016 (1)      model='0111016 (1)'   crops='0111016__1_'
+    04 posdzech …    model='04 posdzech - maps to …'
+                     crops='04_posdzech_-_maps_to_…'
+
+Every one is filename sanitisation, not a rename. The TiddlyWiki projector runs
+each title through `re.sub(r"[^A-Za-z0-9_\-\.]", "_", t)`, so a bibkey with a
+space or a parenthesis reaches the crop file as underscores. `report_tex`
+already knows this — it carries `sanitize_title` and a comment recording the
+day that exact confusion hid 2,676 equations across 81 documents.
+
+I had reproduced a bug that was already fixed, by comparing a raw value to a
+sanitised one. Re-run through the shipped sanitiser: 759 of 759 match. 60
+"findings" went to zero, and the only reason I caught it is that the
+"mismatched" pairs were obviously the same string.
+
+WHERE THE RENAME ACTUALLY GOES WRONG
+------------------------------------------------------------------------------
+`cmd_okf(pdf, bibkey=NEW)` has two paths and they fail differently.
+
+  Model STALE   -> `cmd_model(pdf, bibkey=NEW)` rebuilds and PERSISTS. Every
+                   object id and tiddler title becomes `NEW_…`. The crops in
+                   `report-crops/` are still `OLD_EQ0001.jpg`, because they are
+                   written by `report`/`cdncrops` and nothing tells them.
+                   `crop_cell` looks for `NEW_EQ0001.jpg`, does not find it,
+                   and emits "---" for every image cell.
+
+  Model FRESH   -> `cmd_model` is never called. `doc.meta["bibkey"] = key`
+                   mutates the in-memory copy only, so the OKF bundle's unit
+                   ids are `NEW_…` while the model file on disk, the tiddler
+                   array and the crops are all `OLD_…`, and nothing anywhere
+                   records that they are the same document. This is the worse
+                   of the two: the bundle disagrees with the file it was built
+                   from.
+
+WHICH REPAIR, AND WHY
+------------------------------------------------------------------------------
+Renaming the crop files was the wrong option. `okf` is a projector; the crops
+belong to `report`/`cdncrops`, and a projector that renames another command's
+artefacts is a side effect nobody asked for — worse when `--bibkey` is a
+one-off view rather than a permanent rename, which the fresh-model path shows
+it can be. The crops are also a re-downloadable cache, so the cost of leaving
+them is a lookup, not a loss.
+
+So: the model records what it used to be called.
+
+  src/pdfdrill/commands.py
+    `_record_prior_bibkey(sc, model_path, prior)` — appends the replaced key to
+    `meta.bibkey_history` on the model and mirrors it into the sidecar. Called
+    from `cmd_model` whenever an explicit `--bibkey` changes the key.
+    Best-effort: a model that cannot be read is not worth failing a rename over.
+
+    `cmd_okf`'s fresh-model branch records the prior key on the in-memory doc
+    too, so the bundle itself carries the mapping even when nothing is rebuilt.
+
+    `_bibkey_history(sc)` — reads it back, sidecar first, model file second.
+
+  src/pdfdrill/report_tex.py
+    `crop_file(crops_dir, title, bibkey, history)` — current title first, then
+    the same suffix under each earlier bibkey, each run through
+    `sanitize_title` so a renamed-from key with a space still resolves. Used by
+    `crop_cell`, by the widest-crop measurement and by the table image lookup,
+    so all three follow the rename rather than one of them.
+
+    With no history it performs exactly the pre-264 single lookup — the 759
+    folders that are fine stay on the identical path.
+
+VERIFICATION
+------------------------------------------------------------------------------
+5 tests: a crop found under an earlier key; the current name preferred when
+both exist; an earlier key with a space resolved through the sanitiser; no
+history behaving exactly as before; and a truncated (<500 byte) crop still
+rejected.
+
+Suite 2,578.
+
+WHAT I DID NOT DO
+------------------------------------------------------------------------------
+I did not backfill `bibkey_history` for the 759 existing folders — they have
+never been renamed, so there is no prior key to record, and inventing one would
+be worse than the empty field.

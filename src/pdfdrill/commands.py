@@ -1017,6 +1017,53 @@ def _lines_json_source(lines_path: Path) -> str:
 _JUNK_STEM = re.compile(r"^\d{5,}|\s|[._-]{2,}")
 
 
+def _bibkey_history(sc) -> list[str]:
+    """Earlier bibkeys this document's model carried (264), oldest first."""
+    raw = ""
+    try:
+        raw = sc.get_evidence("bibkey_history") or ""
+    except Exception:
+        raw = ""
+    if not raw:
+        try:
+            import json as _json
+            mp = _model_path(sc)
+            if mp.exists():
+                meta = _json.loads(mp.read_text(encoding="utf-8")).get("meta", {})
+                return [h for h in (meta.get("bibkey_history") or []) if h]
+        except Exception:
+            return []
+    return [h for h in (x.strip() for x in raw.split(",")) if h]
+
+
+def _record_prior_bibkey(sc, model_path: Path, prior: str) -> None:
+    """Append `prior` to the model's `bibkey_history` (264).
+
+    Object ids, tiddler titles and OKF unit paths all carry the bibkey, but
+    `report-crops/<sanitised bibkey>_EQ0001.jpg` is written by a different
+    command and is not renamed. Without this the two simply disagree and every
+    consumer has to guess; with it the mapping is stated. Best-effort: a model
+    that cannot be read or written is not worth failing a rename over.
+    """
+    import json as _json
+    try:
+        if not model_path.exists():
+            return
+        data = _json.loads(model_path.read_text(encoding="utf-8"))
+        meta = data.setdefault("meta", {})
+        hist = [h for h in (meta.get("bibkey_history") or []) if h != prior]
+        hist.append(prior)
+        meta["bibkey_history"] = hist
+        model_path.write_text(_json.dumps(data), encoding="utf-8")
+    except Exception:
+        return
+    try:
+        sc.set_evidence("bibkey_history", ",".join(hist))
+        sc.save()
+    except Exception:
+        pass
+
+
 def resolve_bibkey(pdf: Path, explicit: str | None = None,
                    sc: "Sidecar | None" = None) -> str:
     """Resolve the bibkey/tiddler-prefix for a PDF.
@@ -3898,7 +3945,13 @@ def cmd_model(pdf: Path, force: bool = False, bibkey: str | None = None,
     upgraded_from_ocr = False
     relaned = False
     # A new explicit --bibkey forces a rebuild so titles/meta pick it up.
-    if bibkey and key != sc.get_evidence("bibkey"):
+    # 264 — a rebuild renames every object id and tiddler title, but NOT the
+    # crop files on disk, which are named `<sanitised bibkey>_EQ0001.jpg` and
+    # belong to `report`/`cdncrops`, not here. The prior key is recorded on the
+    # model so a consumer can map the two without guessing; renaming another
+    # command's artefacts from this one would be the wrong repair.
+    prior_bibkey = sc.get_evidence("bibkey")
+    if bibkey and key != prior_bibkey:
         force = True
     # Auto-rebuild if the lines.json is NEWER than the model — e.g. MathPix
     # replaced an earlier tesseract OCR. Otherwise a stale, garbled model would
@@ -4008,6 +4061,8 @@ def cmd_model(pdf: Path, force: bool = False, bibkey: str | None = None,
         debug_modules=[],
     )
     sc.set_evidence("bibkey", key)
+    if prior_bibkey and prior_bibkey != key:
+        _record_prior_bibkey(sc, model_path, prior_bibkey)
 
     # Auto-strip MathPix HEADING RESIDUALS + lift footnotes at build time, so no
     # Paragraph carries a leaked `\section*{}` (which overflowed the inspect box,
@@ -6774,6 +6829,17 @@ def cmd_okf(pdf: Path, out: str | None = None, bibkey: str | None = None,
         key = (bibkey or sc.get_evidence("bibkey") or doc.meta.get("bibkey")
                or pdf.stem).strip()
         if bibkey:
+            # 264 — the model on disk is NOT rewritten here (only the stale
+            # branch above rebuilds it), so without this the bundle's unit ids
+            # would carry the new key while the model file, the tiddlers and
+            # the crops all carry the old one, with nothing recording that they
+            # are the same document.
+            prior = doc.meta.get("bibkey")
+            if prior and prior != key:
+                hist = [h for h in (doc.meta.get("bibkey_history") or [])
+                        if h != prior]
+                hist.append(prior)
+                doc.meta["bibkey_history"] = hist
             doc.meta["bibkey"] = key
         proj = OKFProjector(OperatorConfig(op="projector", classname="OKFProjector",
                                            params={}))
@@ -13848,11 +13914,14 @@ def cmd_reporttex(pdf: Path, paper: str = "a3", landscape: bool = True,
         else:
             quarantined = (sc.blob_dir / "report.ink.json.MISPAIRED").exists()
             ink_state = "unpairable" if quarantined else "not_run"
+    # 264 — the keys this model used to carry, so a crop written before a
+    # `--bibkey` rename is still found instead of showing as "---".
     r = rt.build_report(tid, crops=crops, texzip=texzip, paper=paper,
                         landscape=landscape, px2mm=px2mm,
                         min_conf=min_conf, max_conf=max_conf, types=want,
                         form=form, ink=ink_map, legend_on=legend,
-                        ink_state=ink_state, prefer_refined=prefer_refined)
+                        ink_state=ink_state, prefer_refined=prefer_refined,
+                        bibkey_history=_bibkey_history(sc))
     sc.set_evidence("reporttex_path",
                     str(Path(r["out"]).relative_to(pdf.parent)))
     _prev_rt = ",".join(sorted(sc.facts - {REPORTTEX_BUILT})) or "INIT"

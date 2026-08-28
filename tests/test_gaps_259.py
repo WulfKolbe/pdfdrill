@@ -336,3 +336,49 @@ def test_the_model_carries_title_locator_and_raw():
         {"title": "", "locator": "7", "raw": "..... 7",
          "line_type": "table_of_contents_number"},
     ]
+
+
+# ---- 264: a bibkey rename is recorded, so crops can still be found ---------
+
+def test_crop_file_finds_the_crop_under_an_earlier_bibkey(tmp_path):
+    from pdfdrill.report_tex import crop_file
+    crops = tmp_path / "report-crops"
+    crops.mkdir()
+    (crops / "oldkey_EQ0001.jpg").write_bytes(b"x" * 800)
+    # Renamed model: title now carries the new key, the file still the old one.
+    assert crop_file(crops, "newkey_EQ0001", "newkey", ["oldkey"]) == \
+        crops / "oldkey_EQ0001.jpg"
+
+
+def test_crop_file_prefers_the_current_name(tmp_path):
+    from pdfdrill.report_tex import crop_file
+    crops = tmp_path / "c"; crops.mkdir()
+    (crops / "oldkey_EQ0001.jpg").write_bytes(b"x" * 800)
+    (crops / "newkey_EQ0001.jpg").write_bytes(b"y" * 800)
+    assert crop_file(crops, "newkey_EQ0001", "newkey", ["oldkey"]) == \
+        crops / "newkey_EQ0001.jpg"
+
+
+def test_crop_file_follows_a_sanitised_earlier_key(tmp_path):
+    # The prior key had a space; the file on disk carries the sanitised form.
+    from pdfdrill.report_tex import crop_file
+    crops = tmp_path / "c"; crops.mkdir()
+    (crops / "0111016__1__EQ0002.jpg").write_bytes(b"x" * 800)
+    assert crop_file(crops, "k_EQ0002", "k", ["0111016 (1)"]) == \
+        crops / "0111016__1__EQ0002.jpg"
+
+
+def test_crop_file_without_history_behaves_exactly_as_before(tmp_path):
+    from pdfdrill.report_tex import crop_file
+    crops = tmp_path / "c"; crops.mkdir()
+    (crops / "oldkey_EQ0001.jpg").write_bytes(b"x" * 800)
+    assert crop_file(crops, "newkey_EQ0001", "newkey", None) is None
+    assert crop_file(crops, "newkey_EQ0001", "newkey", []) is None
+    assert crop_file(None, "x", "k", ["o"]) is None
+
+
+def test_a_truncated_crop_is_not_accepted(tmp_path):
+    from pdfdrill.report_tex import crop_file
+    crops = tmp_path / "c"; crops.mkdir()
+    (crops / "k_EQ0001.jpg").write_bytes(b"x" * 100)   # < 500 bytes
+    assert crop_file(crops, "k_EQ0001", "k", []) is None

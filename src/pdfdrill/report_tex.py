@@ -145,7 +145,8 @@ def jpg_width(path: Path):
 
 
 def crop_cell(crops_dir: Path | None, out_dir: Path, title: str,
-              px_width="", px2mm=None, col_mm=None) -> str:
+              px_width="", px2mm=None, col_mm=None,
+              bibkey: str = "", history: "list[str] | None" = None) -> str:
     """An \\includegraphics cell for the tiddler's downloaded CDN crop.
 
     With px2mm (mm per MathPix page pixel) and the region's pixel width the
@@ -154,8 +155,8 @@ def crop_cell(crops_dir: Path | None, out_dir: Path, title: str,
     """
     if not crops_dir:
         return "---"
-    img = crops_dir / f"{title}.jpg"
-    if not img.is_file() or img.stat().st_size < 500:
+    img = crop_file(crops_dir, title, bibkey, history)
+    if img is None:
         return "---"
     try:
         rel = img.relative_to(out_dir)
@@ -858,6 +859,31 @@ def auto_px2mm(pdf: Path) -> float | None:
         return None
 
 
+#: 264 — a `--bibkey` rename renames object ids and tiddler titles but not the
+#: crops on disk, which are `report-crops/<sanitised bibkey>_EQ0001.jpg` and are
+#: written by `report`/`cdncrops`. The model records the keys it used to carry
+#: in `meta.bibkey_history`, so the mapping is READ, not guessed: a crop is
+#: looked up under the current title first, then under the same suffix with an
+#: earlier bibkey. No history -> exactly the pre-264 single lookup.
+def crop_file(crops_dir: "Path | None", title: str,
+              bibkey: str = "", history: "list[str] | None" = None):
+    """The crop for `title`, following a recorded bibkey rename. None if absent."""
+    if not crops_dir or not title:
+        return None
+    f = crops_dir / f"{title}.jpg"
+    if f.is_file() and f.stat().st_size > 500:
+        return f
+    cur = sanitize_title(bibkey or "")
+    if not cur or not history or not title.startswith(cur):
+        return None
+    suffix = title[len(cur):]
+    for prior in reversed(history):
+        alt = crops_dir / f"{sanitize_title(prior)}{suffix}.jpg"
+        if alt.is_file() and alt.stat().st_size > 500:
+            return alt
+    return None
+
+
 def download_crops(tiddlers: list[dict], dest: Path, trim: bool = True):
     """Fetch each EQ/TAB tiddler's CDN crop into dest/<title>.jpg (cached);
     left-trim whitespace when PIL is available. Returns (ok, cached, failed).
@@ -1346,7 +1372,8 @@ def build_report(tiddlers_path: Path, out: Path | None = None,
                  min_conf: float | None = None, max_conf: float | None = None,
                  types: "set[str] | None" = None, form: bool = False,
                  ink: "dict | None" = None, legend_on: bool = True,
-                 ink_state: str = "", prefer_refined: bool = False) -> dict:
+                 ink_state: str = "", prefer_refined: bool = False,
+                 bibkey_history: "list[str] | None" = None) -> dict:
     """Generate report.tex; returns counts {equations, formulas, tables,
     unrecovered, out}.
 
@@ -1385,8 +1412,8 @@ def build_report(tiddlers_path: Path, out: Path | None = None,
     if crops and px2mm:
         widest = 0.0
         for title, _lx, _pg, _num, wpx, _pt, _cf in eq:
-            f = crops / f"{title}.jpg"
-            if f.is_file():
+            f = crop_file(crops, title, bibkey, bibkey_history)
+            if f is not None:
                 w = jpg_width(f) or (float(wpx) if wpx else 0)
                 widest = max(widest, float(w) * px2mm)
         if widest and widest + 2 < eq_widths[5]:
@@ -1414,7 +1441,8 @@ def build_report(tiddlers_path: Path, out: Path | None = None,
     eq = sorted(eq, key=lambda r: (float(r[6]) if r[6] not in (None, "") else 2.0))
     for title, latex, page, num, wpx, punct, conf in eq:
         img = crop_cell(crops, out_dir, title, px_width=wpx,
-                        px2mm=px2mm, col_mm=img_col) if crops else None
+                        px2mm=px2mm, col_mm=img_col,
+                        bibkey=bibkey, history=bibkey_history) if crops else None
         out_parts.append(row(title, latex, page, extra=num, image=img,
                              punct=punct, conf=conf, form=form,
                              residual=residual_colour(title, ink),
@@ -1450,7 +1478,8 @@ def build_report(tiddlers_path: Path, out: Path | None = None,
                 "(no LaTeX source; %s\\,$\\times$\\,%s px"
                 " region — see tables.html)" % dims)
             img = crop_cell(crops, out_dir, title,
-                            px_width=dims[0], px2mm=px2mm, col_mm=tim)
+                            px_width=dims[0], px2mm=px2mm, col_mm=tim,
+                            bibkey=bibkey, history=bibkey_history)
             out_parts.append("\\ident{%s} & %s & %s & %s "
                              "\\\\ \\hline\n"
                              % (esc_text(title), esc_text(str(page)),
@@ -1484,8 +1513,7 @@ def build_report(tiddlers_path: Path, out: Path | None = None,
             except (TypeError, ValueError):
                 pass
             if img_path is None and crops:
-                cand = crops / f"{title}.jpg"
-                img_path = cand if cand.is_file() else None
+                img_path = crop_file(crops, title, bibkey, bibkey_history)
             if img_path is not None:
                 w_mm2 = None
                 if px2mm:
