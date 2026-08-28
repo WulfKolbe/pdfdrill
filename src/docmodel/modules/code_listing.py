@@ -75,8 +75,15 @@ class CodeProcessor(BaseModule):
         run_page = None
 
         def flush():
+            # list(run), NOT run: `_build` stores the anchors it is handed, and
+            # the caller clears this list immediately afterwards. Passing the
+            # live list aliased every item's realization to whatever the NEXT
+            # run held — and emptied the last one, so create_object raised
+            # IndexError on the first real document. The unit tests missed it
+            # because they assert on `code`, a string built inside `_build`,
+            # which is correct either way.
             if run:
-                items.append(self._build(run, stream, by_id, run_page))
+                items.append(self._build(list(run), stream, by_id, run_page))
 
         for anchor in stream.anchors:
             payload = stream.payload[anchor]

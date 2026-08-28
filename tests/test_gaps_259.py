@@ -233,3 +233,51 @@ def test_molecule_was_already_claimed_by_the_inline_picture_path():
     items = _mod(PictureProcessor).find_items(doc)
     assert len(items) == 1
     assert items[0]["from_line_type"] == "molecule"
+
+
+def test_each_listing_keeps_its_own_anchors():
+    """The run list is reused across runs; handing it over by reference gave
+    every listing but the last the NEXT one's anchors, and emptied the last."""
+    doc = _doc([
+        {"id": "a", "type": "code", "text": "\nfirst()"},
+        {"id": "b", "type": "text", "text": "prose"},
+        {"id": "c", "type": "code", "text": "\nsecond()"},
+        {"id": "d", "type": "text", "text": "more prose"},
+        {"id": "e", "type": "code", "text": "\nthird()"},
+    ])
+    m = _mod(CodeProcessor)
+    items = m.find_items(doc)
+    assert [len(i["anchors"]) for i in items] == [1, 1, 1]
+    assert len({id(i["anchors"]) for i in items}) == 3, "the same list was reused"
+    m.process_document(doc)
+    objs = doc.objects_of_type("CodeListing")
+    assert len(objs) == 3
+    stream = doc.stream("mathpix_lines")
+    for obj, expected in zip(objs, ["first()", "second()", "third()"]):
+        r = obj.realizations[0]
+        assert stream.payload[r.start]["text"].strip() == expected
+
+
+# ---- 262: a Toc is derived, and each projection chooses ---------------------
+
+def test_a_toc_object_is_marked_derived():
+    from docmodel.modules.toc import TocProcessor
+    from docops.projectors.common import is_derived
+    doc = _doc([
+        {"id": "c", "type": "table_of_contents_container", "children_ids": ["r"]},
+        {"id": "r", "type": "table_of_contents_row", "parent_id": "c",
+         "text": "Chapter 1 ..... 7"},
+    ])
+    m = _mod(TocProcessor)
+    m.process_document(doc)
+    toc = doc.objects_of_type("Toc")[0]
+    assert toc.props["derived"] is True
+    assert toc.props["derived_from"] == "section_header"
+    assert is_derived(toc)
+
+
+def test_is_derived_is_false_for_everything_else():
+    from docops.projectors.common import is_derived
+    from docmodel.core import DocObject
+    assert not is_derived(DocObject(type="Paragraph", props={"text": "x"}))
+    assert not is_derived(DocObject(type="Abstract", props={"text": "x"}))

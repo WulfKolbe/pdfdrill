@@ -90,3 +90,16 @@ def equation_label(eq: DocObject) -> str:
     # Some refnums come in like '\1.1\' from MathPix display strings; strip.
     refnum = refnum.replace("\\", "").strip()
     return refnum
+
+
+def is_derived(obj) -> bool:
+    """True when the object duplicates content that exists elsewhere in the
+    same document (262).
+
+    A projection must CHOOSE what to do with one — show it because it is on
+    the page, or omit it and rebuild the real thing from the source it was
+    derived from. What it must not do is decide by accident, which is what
+    happens when the only signal is a type name each projector tests for
+    itself.
+    """
+    return bool(getattr(obj, "props", {}).get("derived"))

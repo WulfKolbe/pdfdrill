@@ -108,8 +108,15 @@ def test_every_nontextual_type_is_transcluded():
     used = set()
     for t in ts:
         used.update(re.findall(r"\|\|([A-Z]+)\}\}", t.get("text") or ""))
-    required = {"PARA", "EQBLOCK", "TAB", "PIC", "DIA", "LI", "ABS", "TOC", "SN"}
+    # 262 — TOC is deliberately NOT here. A Toc is derived content and this
+    # projection omits the object and rebuilds the table from the section
+    # headers by filter. The invariant still holds for every type that is
+    # supposed to reach the wiki through its own template.
+    required = {"PARA", "EQBLOCK", "TAB", "PIC", "DIA", "LI", "ABS", "SN"}
     assert required <= used, f"never emitted: {sorted(required - used)}"
+    assert "TOC" not in used, (
+        "a Toc object was transcluded — 262 omits derived objects from this "
+        "projection; the TOC tiddler is built by filter instead")
 
 
 def test_inline_formula_is_transcluded_from_paragraph_text():

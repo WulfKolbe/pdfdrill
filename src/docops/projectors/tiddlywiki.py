@@ -38,7 +38,7 @@ from typing import Optional
 
 from docmodel.core import Document, DocObject
 from ..base import BaseProjector
-from .common import embed_image
+from .common import embed_image, is_derived
 
 
 def _tw_now() -> str:
@@ -357,9 +357,13 @@ _CDN_URL_RE = re.compile(r"https?://cdn\.mathpix\.com/cropped/[^\s)\]\}\"<>]+")
 
 # Block-level content types listed inside a Section tiddler's body.
 # Formulas/Citations/Footnotes do NOT appear at block level — they're inline.
+# 262 — "Toc" removed: a derived object is not transcluded into the section it
+# happens to sit in. This projection rebuilds the table from the section
+# headers by filter, so embedding a frozen copy of it inside one of those very
+# sections was a duplicate pointing at its own source.
 _BLOCK_TYPES_IN_SECTION = {
     "Paragraph", "Equation", "Table", "Picture", "Diagram",
-    "ListItem", "Abstract", "Toc", "Sidenote",
+    "ListItem", "Abstract", "Sidenote",
 }
 
 
@@ -891,15 +895,22 @@ class TiddlyWikiProjector(BaseProjector):
             toc_rows.append(
                 f'{indent}- {fi} <$link to="{title[s.id]}">{cap}</$link>{pg_s}'.rstrip())
         toc_body = "\n".join(toc_rows)
-        for toc in inv["tocs"]:
-            t = self._t(title[toc.id], toc_body, f"toc {_bibtag(bibkey)}")
-            t["format"] = "fractal_xref"
-            out.append(t)
-        # If the doc had NO Toc object but has sections, still emit one so the
-        # xref index always exists.
-        if not inv["tocs"] and toc_rows:
+        # 262 — the Toc OBJECTS are omitted from this projection entirely. They
+        # are marked derived: every entry duplicates a section_header that is
+        # already a tiddler here, and a frozen copy cannot follow the sections
+        # it points at when they are retitled or renumbered. What is emitted
+        # instead is ONE table built by filter from those same sections — the
+        # thing the OCR entries were a lossy photograph of.
+        #
+        # Before 262 the Toc objects were not rendered either, but only
+        # incidentally: each one got a tiddler whose body was already this
+        # rebuilt table, so N Toc objects produced N identical copies of it and
+        # the omission was never a decision anyone had taken.
+        self._omitted_derived = sum(1 for t in inv["tocs"] if is_derived(t))
+        if toc_rows:
             t = self._t(f"{bibkey}_TOC", toc_body, f"toc {_bibtag(bibkey)}")
             t["format"] = "fractal_xref"
+            t["derived_omitted"] = str(self._omitted_derived)
             out.append(t)
 
         # References (bibliographic entries). The text leads with a {{||CIT}}

@@ -4,6 +4,19 @@ TocProcessor (procOrder 6).
 Collects all `table_of_contents_*` lines (container, row, item, number) and
 emits a single Toc DocObject containing the concatenated entries, with
 realizations into each contributing line.
+
+**262 — a Toc is DERIVED content.** Every entry duplicates a `section_header`
+that exists elsewhere in the same document; the TOC is the book's own index of
+itself. The TypeScript predecessor deleted TOC lines outright for that reason,
+which loses the fact that the page HAS one.
+
+So the model keeps it and marks it: `derived: True`. What the page contains is
+a question for the model; what a reader should see is a question for the
+projection, and the two are answered in different places — the same separation
+`latex_refined` uses. A projection that shows the page as it is (inspect.html,
+report.tex, plaintext) keeps the Toc; a projection that can rebuild the table
+from the section headers themselves (TiddlyWiki, by filter) omits it rather
+than freezing a copy that cannot follow the sections it points at.
 """
 from __future__ import annotations
 
@@ -61,6 +74,11 @@ class TocProcessor(BaseModule):
             type="Toc",
             props={
                 "entries": item["entries"],
+                # 262 — every entry duplicates a section_header elsewhere in
+                # this document. Projections decide what to do about it; the
+                # model only states that it is so.
+                "derived": True,
+                "derived_from": "section_header",
                 "bibkey": self.bibkey,
             },
         )

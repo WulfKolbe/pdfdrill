@@ -71,5 +71,8 @@ class PlainTextProjector(BaseProjector):
             marker = p.get("marker") or "-"
             return f"  {marker} {p.get('content', '')}"
         if t == "Toc":
+            # 262 — KEPT deliberately. This projection is a faithful dump of
+            # what the page holds, and the page holds a table of contents.
+            # (TiddlyWiki omits it and rebuilds by filter; see toc.py.)
             return "[TABLE OF CONTENTS]\n" + "\n".join(p.get("entries", []))
         return ""

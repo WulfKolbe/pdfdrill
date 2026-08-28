@@ -339,6 +339,7 @@ def _short_label(obj: dict, preview: str) -> str:
     if t == "Abstract":
         return "Abstract"
     if t == "Toc":
+        # 262 — KEPT: inspect.html shows what is on the page, derived or not.
         # NOT its first stored entry: those are the raw OCR lines of the printed
         # contents page, i.e. the untranslated original, which then showed as
         # German inside an English reading. A structural affordance, like the

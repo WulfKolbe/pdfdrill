@@ -1,0 +1,112 @@
+262 — the TOC's fate, decided rather than defaulted
+==============================================================================
+
+WHAT THE MODEL NOW SAYS
+------------------------------------------------------------------------------
+`TocProcessor` marks every Toc object:
+
+    "derived": True
+    "derived_from": "section_header"
+
+Corpus-wide:
+
+    documents scanned                        1,351
+    documents with a table of contents         155
+    Toc objects marked derived                 155   (one per document)
+    table_of_contents_* lines behind them   54,887
+      table_of_contents_item                19,637
+      table_of_contents_row                 17,596
+      table_of_contents_number              17,001
+      table_of_contents_container              653
+    entry strings those lines produce       54,240
+
+The types are read, not deleted. 261 established they were already read
+correctly; the TypeScript predecessor deleted TOC lines outright, which loses
+the fact that the page HAS a table of contents. The model records what the page
+has; the projection decides what to show. Same separation as latex_refined.
+
+WHAT LEAVES THE TIDDLER OUTPUT
+------------------------------------------------------------------------------
+Measured on idea14-proceedings (12,001 lines, 219 TOC lines, 215 entries), a
+full model build and a real TiddlyWiki projection, before and after:
+
+                                        before          after
+    Toc objects                              1               1
+    derived flag                          None            True
+    entries in the model                   215             215
+    tiddlers emitted                     2,589           2,589
+    TOC-tagged tiddlers                      1               1
+      title                       idea14_TOC01      idea14_TOC
+      body                     fractal_xref     fractal_xref (282 lines)
+      keyed to a Toc object?             yes              no
+    transcluded into a Section               1               0
+
+Corpus-wide, 155 Toc objects and the 54,240 entry strings behind them no longer
+reach the tiddler output as objects at all.
+
+BUT THE HONEST NUMBER IS SMALLER THAN THAT, AND IT MATTERS
+------------------------------------------------------------------------------
+The raw OCR entry strings were ALREADY absent from the tiddler bodies before
+262. TiddlyWiki has rebuilt the TOC as a fractal xref from the section headers
+for some time, and the Toc object's tiddler body was that rebuilt table — so
+the object contributed its identity and its position, never its entries.
+
+What was wrong was that this was not a decision. Each Toc object got a tiddler
+whose body was the rebuilt table, so N Toc objects would have produced N
+identical copies of it, and "Toc" sat in `_BLOCK_TYPES_IN_SECTION`, so the
+frozen copy was transcluded into whichever section it happened to fall in — a
+duplicate pointing at its own source. Both are now gone, and the single
+`<bibkey>_TOC` tiddler is built by filter whether or not the page had a table
+of contents at all.
+
+So: 54,240 entry strings leave the tiddler output as a matter of policy;
+approximately 0 of them were being rendered before, by accident. Reporting the
+first number without the second would overstate the change.
+
+One measurement worth keeping, because it is the argument for `derived` in
+miniature: of idea14's 170 distinct entry strings, 15 occur somewhere in the
+tiddler output — 1 in the rebuilt TOC and 14 in body prose, none of them
+sourced from the Toc object. A TOC entry is a copy of a title that exists
+elsewhere, which is what makes it derived and what makes freezing it a
+liability: the copy cannot follow its source when a section is retitled or
+renumbered.
+
+WHO KEEPS IT, AND WHY, WRITTEN DOWN
+------------------------------------------------------------------------------
+    TiddlyWiki    OMITS.  Rebuilds the table by filter from the Section
+                          objects the entries duplicate.
+    plaintext     KEEPS.  A faithful dump of what the page holds, and the page
+                          holds a table of contents.
+    inspect.html  KEEPS.  Shows what is on the page, derived or not.
+    llm_compact   OMITS.  Already did, with the comment "TOC is redundant in
+                          the compact view" — the same judgement, reached
+                          independently and now backed by a model field.
+    report.tex    unaffected — it does not read Toc.
+
+Each of those is now a line of code that says so, not a type name each
+projector happens to test for itself. The predicate is
+`docops.projectors.common.is_derived(obj)`, so the next derived type inherits
+the decision point instead of re-inventing it.
+
+A DEFECT OF MINE, FOUND BY DOING THIS
+------------------------------------------------------------------------------
+Building a full model for the before/after measurement crashed on the
+CodeProcessor I shipped in 259:
+
+    IndexError: list index out of range   (code_listing.py, create_object)
+
+`find_items` accumulates a run of `code` anchors in a list, hands that list to
+`_build`, then clears it for the next run. `_build` stored the list BY
+REFERENCE, so every listing's realization aliased whatever the next run held,
+and the last one was emptied outright. It crashed on the first real document.
+
+The unit tests did not catch it because they assert on `code` — a string built
+inside `_build`, which is correct either way — and never on the anchors. Fixed
+(`list(run)`), with a regression test that asserts three listings hold three
+distinct anchor lists and that each realization points at its own first line.
+
+The lesson is not the aliasing bug, which is ordinary. It is that 259's tests
+checked the value a reader would look at and not the structure the model is
+made of, so a green suite certified an object that could not be built.
+
+Suite 2,562.
