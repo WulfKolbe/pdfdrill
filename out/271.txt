@@ -1,0 +1,89 @@
+271 — full okf projection: links and bodies together
+==============================================================================
+
+A. THE REAL COMMAND, ON DISK
+------------------------------------------------------------------------------
+    PDFDRILL_NO_PREFLIGHT=1 ./pdfdrill okf ~/pdfdrill-library/0008113v1/0008113v1.pdf
+    -> okf/0008113v1/, 172 files in 5 per-type folders
+
+    unit files            171
+    populated bodies      171
+    EMPTY bodies            0
+    links resolve         331
+    links DEAD             32
+    hrefs containing "!!"   0
+
+B. THE CROSS-CHECK, ON THE 7-DOCUMENT SET 89,547 CAME FROM
+------------------------------------------------------------------------------
+89,547 is the 7-document figure from 267, not one folder's, so it is checked
+where it was measured. Re-run after BOTH 269 and 270:
+
+    document              units   populated  empty   resolve   dead
+    0008113v1               137         137      0       274      0
+    0049                    101         101      0       214      0
+    0110026                 522         522      0     1,246      0
+    2004.05631v1          2,595       2,580     15     6,091      0
+    1306.1660               749         748      1     1,673      0
+    idea14-proceedings    2,556       2,551      5     5,247      2
+    1511.08771          141,734     141,672     62    74,800      0
+    ------------------------------------------------------------------
+    TOTAL               148,394     148,311     83    89,545      2
+
+    internal links total   89,547     267 baseline 89,547   unchanged
+    resolved               89,545     267 baseline 89,355   +190 exactly
+    dead                        2     267 baseline    192
+
+The rise is exactly the 190 from 269 — not one more, not one fewer. Every
+qualified reference site was covered, and nothing else started resolving.
+
+ONE THING THAT DID CHANGE, NAMED
+------------------------------------------------------------------------------
+    external image links   0 -> 21,144
+
+These are the `![](https://cdn.mathpix.com/…)` bodies 270 restored. They are
+EXTERNAL hrefs, excluded from the internal-link count by the same rule in both
+measurements, which is why the 89,547 total is unmoved. They are new content,
+not new links, and saying so is the difference between "+190 exactly" being a
+result and being a coincidence.
+
+BODY POPULATION RECONCILES WITH 268 AND 270
+------------------------------------------------------------------------------
+    83 empty bodies = 27 Equation  (latex prop empty in the MODEL — 270)
+                    + 55 Sidenote  (tiddler text empty upstream — 268 class C)
+                    +  1 Footnote  (same)
+
+Not one is empty because of the projection.
+
+C. A THIRD DEFECT, FOUND ONLY BY RUNNING THE REAL COMMAND
+------------------------------------------------------------------------------
+The on-disk bundle has 32 dead links where my in-memory harness had 0, because
+the real `cmd_model` builds object types my harness does not: the on-disk model
+has 32 References and 4 Citations, and my 7-document harness produces neither.
+
+All 32 are the same shape:
+
+    references/0008113v1_REF_Malakhov1998.md   [citation](./.md)
+
+The source is `{{||CIT}}` — a template transclusion with an EMPTY title, which
+in TiddlyWiki means "the CURRENT tiddler through template CIT". okf takes the
+title before `||`, gets `""`, and `_link_path("")` returns `./.md`: a link to a
+file whose name is empty.
+
+This is neither of the two classes 267 diagnosed and neither 269 nor 270
+touches it. It is not fixed here — 271 is a verification step, and a defect
+found during verification should be named rather than quietly repaired inside a
+step whose numbers are supposed to be comparable.
+
+Recorded as open:
+    okf `{{||CIT}}` — empty-title template transclusion emits `./.md`.
+    32 occurrences in 0008113v1 alone; every Reference unit carries one.
+
+WHAT THIS SAYS ABOUT THE HARNESS
+------------------------------------------------------------------------------
+The 7-document harness runs `config.json`'s 18 modules. `cmd_model` runs those
+AND the bibliography/reference stage. So every number in 268-271 measured from
+the harness is sound for the object types it builds and blind to References and
+Citations — which is exactly how a whole defect class stayed invisible across
+four steps. The on-disk run is the one that found it.
+
+Nothing changed in this task.
