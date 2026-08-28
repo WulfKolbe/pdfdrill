@@ -47,6 +47,53 @@ _IMAGE_RE = re.compile(r'<\$image\s+source="([^"]*)"[^>]*?/?>')
 _LATEX_RE = re.compile(r'<\$latex[^>]*>(.*?)</\$latex>', re.S)
 _ANY_WIDGET_RE = re.compile(r'</?\$[a-zA-Z]+[^>]*>')
 
+# 270 — SELF-CLOSING widgets, whose value lives in an ATTRIBUTE:
+#     <$image source={{!!canonical_uri}} width={{!!width}} height={{!!height}}/>
+#     <$latex text={{!!latex}} displayMode={{!!displayMode}} />
+# The converters above need `source="…"` (quoted) and `<$latex>…</$latex>`
+# (paired), so neither matched. Transclusion ran first, turning the attribute
+# into a bare unquoted URL or a LaTeX string full of spaces and braces, and
+# `_ANY_WIDGET_RE` then stripped the whole tag — taking the value with it. 14,032
+# Picture / Diagram / Equation bodies came out EMPTY while the resolution itself
+# had succeeded.
+#
+# So this runs BEFORE `_rewrite_transclusions`, while each attribute is still
+# the single unambiguous token `{{!!field}}`. Once the URL is inlined, the
+# attribute cannot be delimited again without guessing where it ends — a LaTeX
+# body contains spaces, `>` and `/`.
+_SELF_WIDGET_RE = re.compile(r'<\$(image|latex)\s+([^>]*?)/\s*>')
+_ATTR_RE = re.compile(r'(\w+)\s*=\s*("[^"]*"|\{\{[^{}]*\}\}|[^\s>/]+)')
+
+
+def _attr_value(raw: str, t: dict) -> str:
+    """One widget attribute's value: a quoted literal, a `{{!!field}}` reference
+    read off `t`, or a bare token."""
+    raw = raw.strip()
+    if raw.startswith('"') and raw.endswith('"'):
+        return raw[1:-1]
+    if raw.startswith("{{") and raw.endswith("}}"):
+        body = raw[2:-2].strip()
+        return str(t.get(body[2:], "") or "") if body.startswith("!!") else ""
+    return raw
+
+
+def _self_widgets_to_markdown(text: str, t: dict) -> str:
+    """`<$image source={{!!canonical_uri}} …/>` → `![](url)`;
+    `<$latex text={{!!latex}} displayMode=…/>` → `$latex$` / `$$latex$$`.
+    The value is emitted as CONTENT; nothing is left in an attribute to lose."""
+    def repl(m: "re.Match") -> str:
+        kind = m.group(1)
+        attrs = {k: _attr_value(v, t) for k, v in _ATTR_RE.findall(m.group(2))}
+        if kind == "image":
+            url = attrs.get("source", "").strip()
+            return f"![]({url})" if url else ""
+        body = attrs.get("text", "").strip()
+        if not body:
+            return ""
+        display = str(attrs.get("displayMode", "")).strip().lower() in ("true", "yes", "1")
+        return f"$$ {body} $$" if display else f"${body}$"
+    return _SELF_WIDGET_RE.sub(repl, text or "")
+
 
 def _type_dir(typ: str) -> str:
     return _TYPE_DIR.get(typ, (typ or "unit").lower() + "s")
@@ -175,8 +222,9 @@ def _to_markdown(text: str, t: dict, title_to_path: dict, from_path: str,
                  by_title: "dict | None" = None) -> str:
     """Full body conversion: transclusions + TiddlyWiki widgets → Markdown."""
     return _widgets_to_markdown(
-        _rewrite_transclusions(text or "", t, title_to_path, from_path,
-                               by_title=by_title),
+        _rewrite_transclusions(
+            _self_widgets_to_markdown(text or "", t),
+            t, title_to_path, from_path, by_title=by_title),
         title_to_path, from_path)
 
 

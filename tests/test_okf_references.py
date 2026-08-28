@@ -84,3 +84,63 @@ def test_end_to_end_the_bundle_link_points_at_a_file_it_writes():
     assert "[4.1 Representation Model](./K_H5.md)" in body
     assert "sections/K_H5.md" in bundle       # the target really is written
     assert "!!" not in body
+
+
+# ---- 270: the self-closing widget whose value was stripped with the tag ----
+
+from docops.projectors.okf import _self_widgets_to_markdown, _okf_body
+
+
+def test_an_image_widget_becomes_markdown_content():
+    t = {"canonical_uri": "https://cdn.mathpix.com/cropped/a-1.jpg?h=1&w=2",
+         "width": "200", "height": "100"}
+    out = _self_widgets_to_markdown(
+        "<$image source={{!!canonical_uri}} width={{!!width}} "
+        "height={{!!height}}/>", t)
+    assert out == "![](https://cdn.mathpix.com/cropped/a-1.jpg?h=1&w=2)"
+
+
+def test_a_latex_widget_becomes_inline_or_display_math():
+    t = {"latex": "E = m c^{2}", "displayMode": ""}
+    assert _self_widgets_to_markdown(
+        "<$latex text={{!!latex}} displayMode={{!!displayMode}} />", t) == "$E = m c^{2}$"
+    t2 = {"latex": "E = m c^{2}"}
+    assert _self_widgets_to_markdown(
+        "<$latex text={{!!latex}} displayMode=true />", t2) == "$$ E = m c^{2} $$"
+
+
+def test_a_latex_body_with_spaces_braces_and_slashes_survives_whole():
+    # The reason this runs BEFORE transclusion: once inlined, the attribute
+    # cannot be delimited again without guessing where it ends.
+    tex = r"\max _{x}\left[\sqrt{a/b}\right)^{2} > 0"
+    out = _self_widgets_to_markdown(
+        "<$latex text={{!!latex}} displayMode=true />", {"latex": tex})
+    assert out == f"$$ {tex} $$"
+
+
+def test_a_widget_whose_field_is_empty_emits_nothing_not_a_stub():
+    assert _self_widgets_to_markdown(
+        "<$image source={{!!canonical_uri}} />", {"canonical_uri": ""}) == ""
+    assert _self_widgets_to_markdown(
+        "<$latex text={{!!latex}} />", {"latex": ""}) == ""
+
+
+def test_a_quoted_attribute_still_works():
+    assert _self_widgets_to_markdown('<$image source="http://x/i.png"/>', {}) \
+        == "![](http://x/i.png)"
+
+
+def test_a_paired_latex_widget_is_left_to_the_existing_converter():
+    # <$latex>body</$latex> is NOT self-closing; _widgets_to_markdown owns it.
+    txt = "<$latex>a+b</$latex>"
+    assert _self_widgets_to_markdown(txt, {}) == txt
+
+
+def test_the_picture_body_is_populated_end_to_end():
+    t = {"title": "K_PIC_0001", "tags": "picture",
+         "canonical_uri": "http://cdn/x.jpg", "width": "10", "height": "5",
+         "text": "<$image source={{!!canonical_uri}} width={{!!width}} "
+                 "height={{!!height}}/>"}
+    body = _okf_body(t, "Picture", {"K_PIC_0001": "figures/K_PIC_0001.md"},
+                     "figures/K_PIC_0001.md", {"K_PIC_0001": t})
+    assert body.strip() == "![](http://cdn/x.jpg)"

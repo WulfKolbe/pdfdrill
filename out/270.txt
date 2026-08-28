@@ -1,0 +1,79 @@
+270 — the value emitted as content, not as an attribute
+==============================================================================
+
+THE FIX, AND WHY IT RUNS FIRST
+------------------------------------------------------------------------------
+The bodies are self-closing widgets carrying the value in an attribute:
+
+    <$image source={{!!canonical_uri}} width={{!!width}} height={{!!height}}/>
+    <$latex text={{!!latex}} displayMode={{!!displayMode}} />
+
+`_IMAGE_RE` wants `source="…"` (quoted) and `_LATEX_RE` wants
+`<$latex>…</$latex>` (paired), so neither matched. `_rewrite_transclusions` ran
+first and resolved the field correctly, leaving a bare unquoted URL or a LaTeX
+string, and `_ANY_WIDGET_RE` then stripped the whole tag — taking the resolved
+value with it. The resolution had succeeded; the result was discarded one line
+later.
+
+`_self_widgets_to_markdown` runs BEFORE transclusion resolution, while each
+attribute is still the single unambiguous token `{{!!field}}`, and emits the
+value as CONTENT:
+
+    <$image source={{!!canonical_uri}} …/>   ->  ![](https://cdn…/a-1.jpg?h=1&w=2)
+    <$latex text={{!!latex}} displayMode=… />  ->  $E = m c^{2}$  /  $$ … $$
+
+Order is the whole point. Once the URL is inlined the attribute cannot be
+delimited again without guessing where it ends, and a LaTeX body legitimately
+contains spaces, `>` and `/` — `\max _{x}\left[\sqrt{a/b}\right)^{2} > 0` has
+all three. Nothing is left in an attribute to lose.
+
+CROSS-CHECK 1 — THE COUNT
+------------------------------------------------------------------------------
+Same 7 documents, real models and real projections:
+
+    Picture / Diagram / Equation unit files   15,088
+      populated                               15,061
+      still empty                                 27      (was 14,032)
+
+CROSS-CHECK 2 — BYTE FOR BYTE AGAINST THE MODEL
+------------------------------------------------------------------------------
+Each title was mapped back to its DocObject by reproducing the projector's own
+title assignment, and the model's `url` / `latex` prop looked for verbatim in
+the emitted body:
+
+    bodies containing the MODEL value verbatim   15,061
+    mismatch                                          0
+
+CROSS-CHECK 3 — EVERY SURVIVOR IS EMPTY IN THE MODEL TOO
+------------------------------------------------------------------------------
+    still empty                                    27   all Equation
+      empty in the model as well (correct)         27
+      empty in projection but present in model      0
+
+    2004.05631v1_EQ0096, 1511.08771_EQ0021, _EQ0042, _EQ0116, _EQ0224, …
+
+These are Equations whose `latex` prop is itself empty — an object with no
+value, which is a different fact from a value lost in projection, and the
+distinction the cross-check was written to force. Not one body is empty because
+of the projection.
+
+WHAT IS DELIBERATELY UNCHANGED
+------------------------------------------------------------------------------
+Sidenote (55) and Footnote (1) stay empty. Their tiddler `text` is `''` before
+okf runs — 268 recorded them as class C, upstream, and 270 must not appear to
+fix them by touching the projection.
+
+Formula and most Equations were never in the 14,032: `_okf_body` special-cases
+those two types and reads the `latex` FIELD, so their files populated despite
+the same destruction. Their bodies now also convert properly, but they were not
+counted as broken and are not counted as fixed.
+
+TESTS
+------------------------------------------------------------------------------
+7 more in tests/test_okf_references.py: the image widget; inline vs display
+math; a LaTeX body with spaces, braces and a slash surviving whole; an empty
+field emitting nothing rather than a stub `![]()`; a quoted attribute still
+working; a PAIRED `<$latex>…</$latex>` left to the existing converter; and an
+end-to-end `_okf_body` assertion for a Picture.
+
+Suite 2,598.
