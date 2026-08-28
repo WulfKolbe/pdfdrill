@@ -1,0 +1,118 @@
+261 — the abstract/TOC swap: both labels are read, and one object claims 99%
+      of the document
+==============================================================================
+
+DOCUMENT: idea14-proceedings   12,001 lines, 219 TOC lines, 19 abstract lines
+(the clearest of the 46 corpus documents carrying both types)
+
+ARE THE TYPES READ, OR IS THE LABEL INFERRED FROM TEXT? READ.
+------------------------------------------------------------------------------
+Neither is guessed. `AbstractProcessor.find_items` gates on
+`payload["type"] == "abstract"` and nothing else. `TocProcessor.find_items`
+gates on membership of the four `table_of_contents_*` types. The three regexes
+in abstract.py (`\begin{abstract}`, `\end{abstract}`, `\section*{Abstract}`)
+run only on text that the TYPE already selected, and they strip wrappers — they
+never decide what an abstract is.
+
+So this is not a detection failure. Both labels arrive correct and both are
+believed. The break is in the association afterwards.
+
+BREAK 1 — ONE Toc OBJECT, REALIZED OVER THE WHOLE BOOK
+------------------------------------------------------------------------------
+`TocProcessor` collects every `table_of_contents_*` line in the document into a
+SINGLE Toc and realizes it as one contiguous range:
+
+    Realization(start=anchors[0], end=anchors[-1])
+
+This document has TOC lines on page 6 (the front table of contents) and again
+on page 130 (back matter). The first and last are therefore 11,898 anchors
+apart, and the Toc's realization is:
+
+    anchors 101 .. 11,999   =  11,899 of 12,001 lines   =  99% of the document
+
+What is inside that claimed range:
+
+    text                    10,271
+    section_header             280
+    column                     231
+    simple_cell                129
+    page_info                  125
+    figure_label               107
+    diagram                     92
+    table_of_contents_item      88   <- the 219 lines it is actually about
+    equation_number             84
+
+and 18 of the 19 abstract lines. Resolving "which object realizes this line"
+returns Toc for essentially every line in the book, and for 18 abstracts it
+returns `Abstract+Page+Toc`. That is the swap: not a mislabelled abstract, but
+a Toc whose range swallows them.
+
+The range is a claim about which anchors the object IS. A Toc that is 219 lines
+claiming 11,899 is false regardless of who reads it. Today nothing walks it —
+`slice_anchors` over a surface range is used by the dehyphenators,
+promote_cleaned and tiddlywiki's paragraph rebuild, all Paragraph-scoped, and
+`DocumentFlowProcessor` keys only on `surface[0]`, so the reading order is
+unaffected. The falsehood is inherited by the next consumer, not by a current
+one, and I am not going to report a symptom I did not observe.
+
+BREAK 2 — 65 ENTRIES RECORDED 215 TIMES
+------------------------------------------------------------------------------
+The four TOC types are a containment hierarchy: container -> rows -> (item,
+number). `find_items` walks all four at the same level, appending one entry per
+LINE, so every entry is recorded once per level it appears at:
+
+    table_of_contents_row       65   the joined text of its children
+    table_of_contents_item      88   the same words again, on their own
+    table_of_contents_number    62   the same page number again, on its own
+    table_of_contents_container  4   contributes NOTHING (its children are
+                                     rows, whose own text is empty — the
+                                     content sits one level further down, so
+                                     the join resolves to "")
+    ----
+                               215   entries recorded, 170 distinct
+
+The real entry count is 65. The repeats are visible in the data:
+
+    entries[0:6] = ['Invited Talks', 'Invited Talks',
+                    'Information Visualization for Knowledg',
+                    'Information Visualization for Knowledg',
+                    'Ben Shneiderman', '..... 8']
+
+'Invited Talks' twice — once as the row, once as the item. And '..... 8' is
+recorded as an ENTRY in its own right: a bare leader-dots-and-page-number with
+no title attached. '..... 10', '..... 19', '..... 26' and '..... 67' each
+appear five times.
+
+WHAT IS NOT BROKEN
+------------------------------------------------------------------------------
+The abstract side is sound and should not be touched:
+
+    19 abstract lines -> 19 Abstract objects, every one non-empty
+       p5  2,662 chars   'Preface \n\nData, data everywhere; massive datasets…'
+       p8    824 chars   'Interactive information visualization tools provide…'
+       p9  1,322 chars   'This talk will consist of two parts…'
+       p10   674 chars   'In this demo paper we introduce VizLinc…'
+
+    parents: 16 under a `column` line, 3 with none.
+
+The abstract LINE's own `text` is empty in all 19 cases — the content is in its
+children (10 to 30 each), which `find_items` already joins. That is the shape,
+not a defect.
+
+A LESSER FINDING, RECORDED WHILE HERE
+------------------------------------------------------------------------------
+abstract.py's docstring says "Multiple abstract lines collapse into one
+DocObject when they appear contiguously." The code does no such thing — it
+emits one Abstract per line unconditionally. For a proceedings volume that is
+the RIGHT behaviour (19 papers, 19 abstracts) and the docstring is simply
+describing something that was never written. Not fixed here; 261 is a
+diagnosis.
+
+THE DIAGNOSIS IN ONE LINE
+------------------------------------------------------------------------------
+Both types are read correctly. One Toc object is emitted per DOCUMENT rather
+than per table of contents, its realization spans first-TOC-line to
+last-TOC-line and therefore contains the abstracts, and its entries are the
+same 65 rows counted once per level of a four-level containment hierarchy.
+
+Nothing changed in this task.
