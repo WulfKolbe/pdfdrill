@@ -1,0 +1,57 @@
+278 — crop URL and region on diagram, chart and table lines
+==============================================================================
+
+THE THREE COUNTS ASKED FOR
+------------------------------------------------------------------------------
+    1,351 documents, 38,102 diagram / chart / table lines
+
+    both a crop URL and a region        20,355   (53.4%)
+    a crop URL but NO region                 0   (0.0%)
+    a region but NO crop URL            17,747   (46.6%)
+
+Not one line in the corpus carries a crop without a region. The empty bucket is
+the whole finding: there is no line anywhere that points at a rectangle it
+cannot describe.
+
+AND THE 17,747 ARE NOT MISSING ANYTHING
+------------------------------------------------------------------------------
+"No crop URL" means no `![](https://cdn.mathpix.com/…)` written into the line's
+text. It does not mean no crop.
+
+    lines whose URL is CONSTRUCTIBLE from image_id + region   38,102   (100%)
+
+Every one of the 38,102 sits on a page carrying an `image_id`, and every one
+has all four region keys (`height`, `width`, `top_left_y`, `top_left_x`). That
+is exactly the input `mathpix.crop_url(image_id, region)` takes, and the URL it
+builds is the same string MathPix embeds when it embeds one — the page image
+plus a rectangle in the query.
+
+So the rectangle is stated for 100% of these lines, either written out or
+reconstructible from two fields that are always present. No matching is needed,
+by vision or otherwise.
+
+BY TYPE, BECAUSE THE SPLIT IS NOT NOISE
+------------------------------------------------------------------------------
+    diagram   24,806 lines, 914 docs    18,000 with an explicit URL   6,806 without
+    chart      2,136 lines, 380 docs     2,129                             7
+    table     11,160 lines, 693 docs       226                        10,934
+
+Charts almost always carry the URL (99.7%); tables almost never do (2.0%).
+That is not inconsistency — a table is exported as a `tabular`, so MathPix has
+no reason to write an image link into it, while a chart has nothing else to
+offer. Diagrams sit between at 72.6%, which matches 259's finding that a
+diagram's body is sometimes a fenced code listing rather than a picture.
+
+The read-side consequence is the same for all three: `image_ref(image_id,
+region, source)` does not care which of the two forms a line used.
+
+WHAT THIS SETTLES
+------------------------------------------------------------------------------
+Any procedure that tries to associate one of these objects with an image by
+matching pixels, or by proximity, or by ordinal position, is solving a problem
+the data does not have. The line already says which rectangle of which page
+image it is. 253 reached the same conclusion from the other direction: a stated
+association is usable and an invented one is not, and here the association is
+stated 38,102 times out of 38,102.
+
+Nothing changed in this task.
