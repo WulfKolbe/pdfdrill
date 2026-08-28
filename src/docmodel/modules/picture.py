@@ -137,6 +137,7 @@ class PictureProcessor(BaseModule):
             "page": payload.get("_page"),
             "region": region,
             "from_line_type": "figure",
+            "mathpix_subtype": payload.get("subtype", ""),
             "quad": _skew_quad(payload),
         }]
 
@@ -173,6 +174,12 @@ class PictureProcessor(BaseModule):
                 "page": payload.get("_page"),
                 "region": region_from_url(url),
                 "from_line_type": payload.get("type"),
+                # 260 — MathPix's own subtype. A chart line reaches here and
+                # says which KIND of chart it is (line 967, analytical 445,
+                # column 315, scatter 265, bar 60, area 4, pie 1 — 2,057 lines
+                # in 320 documents). The value was read off the line and thrown
+                # away one statement later.
+                "mathpix_subtype": payload.get("subtype", ""),
                 # The URL already carries its own rectangle; the quad is extra
                 # information about the same line, not a competing crop.
                 "quad": _skew_quad(payload),
@@ -191,6 +198,7 @@ class PictureProcessor(BaseModule):
                 "page": item["page"],
                 "region": item["region"],
                 "from_line_type": item["from_line_type"],
+                "mathpix_subtype": item.get("mathpix_subtype", ""),
                 # 259 — MathPix's four corners, carried ONLY when they say
                 # something a rectangle cannot. Empty for the 99.86% of lines
                 # that are upright.

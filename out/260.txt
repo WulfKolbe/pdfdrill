@@ -1,0 +1,117 @@
+260 — the third dimension: values. Two live losses under a green check.
+==============================================================================
+
+WHY THE FIRST TWO DIMENSIONS COULD NOT SEE IT
+------------------------------------------------------------------------------
+250 asked whether every TYPE is named. 255 asked whether every FIELD is read.
+Both were green while 1,239,021 `subtype` values did nothing: `text` was a
+claimed type, `subtype` became a claimed field, and no check in the repo could
+look one level further down. A contract that stops at the field certifies the
+container, not the contents.
+
+VIOLATIONS FOUND
+------------------------------------------------------------------------------
+Two, and both were live losses rather than merely undeclared ones.
+
+  1. `algorithm` — 6,192 lines, 202 documents, the 4th largest subtype value
+     in the corpus, and 6,108 of them (98.6%) were being DESTROYED by our own
+     code. DiagramProcessor wrote
+
+         "subtype": "code" if code else payload.get("subtype", "")
+
+     so any diagram whose body is a fenced block had MathPix's own word for
+     what it is overwritten by ours. 68 `pseudocode` values went the same way.
+     Seven projectors branch on `subtype == "code"` to avoid compiling a
+     listing as TikZ, so the assignment itself is right and could not simply be
+     reverted — the defect was that one field was carrying two different
+     claims. Both are kept now: `subtype` stays our classification,
+     `mathpix_subtype` carries MathPix's, never overwritten.
+
+     6,176 values recovered.
+
+  2. The chart kinds — 2,057 lines in 320 documents. A `chart` line states
+     which kind of chart it is (line 967, analytical 445, column 315,
+     scatter 265, bar 60, area 4, pie 1). It reaches PictureProcessor's inline
+     path, which read the line and built a Picture without ever looking at
+     `subtype`. The value was in the payload in hand and dropped one statement
+     later. Now carried as `mathpix_subtype`.
+
+     2,057 values recovered.
+
+Neither would have been caught by 250 or 255: `chart` is a claimed type,
+`subtype` is a claimed field, `Picture` is a real object, and the pipeline was
+green throughout.
+
+THE CONTRACT
+------------------------------------------------------------------------------
+`HANDLED_VALUES` / `IGNORED_VALUES` / `value_violations()` /
+`unenumerated_read_fields()`, with `corpus_values.json` as the committed
+inventory.
+
+    subtype   27 distinct values, all 27 accounted for
+                17 handled  (4 continues_line_* -> dehyphenation; 6 diagram
+                             kinds -> mathpix_subtype; 7 chart kinds -> the
+                             same)
+                10 ignored  (form_field's 6 UI glyphs, page_info's margin_note
+                             and qr_code, the drop cap, the sideways cell)
+    column     5 distinct values, all 5 accounted for
+                 1 handled  (0 — 15,819 lines, the sidenote itself)
+                 4 ignored  (1/2/3/6 — 80 lines whose children are separately
+                             typed and read on their own: 809 text, 74
+                             page_info, 72 list_item, 37 math. Only the
+                             grouping is lost, which is the same disposal the
+                             type contract gives multiple_choice_block.)
+
+    VIOLATIONS: 0        UNENUMERATED READ FIELDS: 0
+
+SCOPE, STATED RATHER THAN QUIETLY NARROWED
+------------------------------------------------------------------------------
+A value contract only means something for a field with a closed vocabulary —
+"every value of `text` is handled" is not a claim anyone can make. So 2 of the
+16 read fields are enumerable and the other 14 are listed in
+`UNBOUNDED_FIELDS`, each with the reason enumeration does not apply, and
+`unenumerated_read_fields()` fails if a read field appears in neither list.
+
+Without that second check the whole thing would cover an eighth of the surface
+and report itself complete — which is precisely the failure mode being fixed,
+one level down. The reasons are not filler either:
+
+    font_size   ordinal, 207 distinct pixel heights, consumed by RANK within a
+                document (259). Enumerating them would invite exactly the
+                absolute threshold that ranking exists to avoid.
+    type        delegated — it is covered value-by-value by CLAIMED / IGNORED,
+                which is what 250 already is.
+    confidence  continuous, consumed by comparison.
+
+TESTS
+------------------------------------------------------------------------------
+8 more in tests/test_type_contract.py: no unaccounted value; every read field
+enumerated or excused; handled and ignored disjoint; every ignored reason
+categorised AND over 40 characters; the four continues_line_* values all
+handled; `mathpix_subtype` preserved where we overwrite `subtype`; a chart kind
+reaching the Picture; the inventory recording its own scope.
+
+The length floor caught me during this task. Four `column` entries said
+"container only: 16 lines. As above." — true, and 35 characters. I wrote each
+one out rather than padding the string, because a floor that can be satisfied
+by adding words is not a floor. That is the same rule the reasons themselves
+are held to.
+
+Suite 2,559.
+
+WHAT IS NOW HARD TO REOPEN
+------------------------------------------------------------------------------
+    dimension   check                          currently
+    type        violations()                   0
+    type        gaps()                         0   (259 closed all three)
+    field       field_violations()             0
+    field       field_gaps()                   0   (259 closed both)
+    value       value_violations()             0
+    value       unenumerated_read_fields()     0
+
+A new MathPix type, a new field, or a new value under a read field now fails a
+test rather than passing silently. The inventories are committed snapshots, so
+what this cannot catch is a value that appears in a document drilled after the
+last scan — the check is only as current as `corpus_types.json`,
+`corpus_fields.json` and `corpus_values.json`, and each carries a provenance
+block saying when and over what it was taken.

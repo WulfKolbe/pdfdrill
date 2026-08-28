@@ -101,7 +101,14 @@ class DiagramProcessor(BaseModule):
                 # 259 — the tighter of `region` and the `cnt` polygon's bbox.
                 "region": crop_region(payload),
                 "quad": ([] if is_axis_aligned(quad(payload)) else quad(payload)),
+                # `subtype` stays OUR classification: seven projectors branch
+                # on == "code" to avoid compiling a listing as TikZ. But that
+                # assignment destroyed MathPix's own value on 6,176 lines
+                # (6,108 `algorithm`, 68 `pseudocode`) — a stated value lost
+                # under a read field, which is what 260 exists to catch. Both
+                # are kept now, in two fields.
                 "subtype": "code" if code else payload.get("subtype", ""),
+                "mathpix_subtype": payload.get("subtype", ""),
                 "latex_code": "" if code else latex_code,
                 "code": code[0] if code else "",
                 "language": code[1] if code else "",
@@ -123,6 +130,10 @@ class DiagramProcessor(BaseModule):
                 # upright rectangle (see mathpix.crop_region).
                 "quad": item.get("quad", []),
                 "subtype": item["subtype"],
+                # MathPix's own word for what this diagram is: `algorithm`
+                # (6,192 lines, 202 docs), `pseudocode`, `chemistry`,
+                # `chemistry_reaction`, `triangle`, `logo`. Never overwritten.
+                "mathpix_subtype": item.get("mathpix_subtype", ""),
                 "latex_code": item["latex_code"],
                 "code": item.get("code", ""),
                 "language": item.get("language", ""),

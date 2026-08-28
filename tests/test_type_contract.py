@@ -133,3 +133,82 @@ def test_field_inventory_records_that_it_is_not_mathpix_only():
     assert "pdfdrill writes back" in prov["producer"] or \
            "pdfdrill" in prov["producer"]
     assert prov["line_objects"] > 3_900_000
+
+
+# ---- 260: the value dimension --------------------------------------------
+
+def test_no_corpus_value_is_unaccounted_for():
+    """The check subtype would have failed. 250 and 255 were both green while
+    1,239,021 subtype values sat unread — the field was in the schema, the type
+    was claimed, and nothing could see one level further down."""
+    assert tc.value_violations() == [], (
+        "values under a READ field that nothing handles and no reason names: %s"
+        % tc.value_violations()[:5])
+
+
+def test_every_read_field_is_either_enumerated_or_excused():
+    """A value contract that silently covers 2 of 16 read fields is the same
+    omission one level down."""
+    assert tc.unenumerated_read_fields() == []
+
+
+def test_handled_and_ignored_values_are_disjoint():
+    for field in set(tc.HANDLED_VALUES) | set(tc.IGNORED_VALUES):
+        overlap = set(tc.HANDLED_VALUES.get(field, {})) & set(tc.IGNORED_VALUES.get(field, {}))
+        assert not overlap, f"{field}: {overlap} is both handled and ignored"
+
+
+def test_every_ignored_value_reason_is_categorised_and_real():
+    prefixes = ("sub-element:", "non-content:", "typographic:", "container only:")
+    for field, values in tc.IGNORED_VALUES.items():
+        for value, why in values.items():
+            assert why.startswith(prefixes), f"{field}.{value}: uncategorised"
+            assert len(why) > 40, f"{field}.{value}: reason too thin to be a reason"
+
+
+def test_the_four_continues_line_values_are_all_handled():
+    # 256's family, and the reason this dimension exists.
+    handled = tc.HANDLED_VALUES["subtype"]
+    for v in ("continues_line_space", "continues_line_newline",
+              "continues_line_no_hyphen", "continues_line_no_space"):
+        assert "dehyphenation" in handled[v]
+
+
+def test_mathpix_subtype_is_preserved_where_we_overwrite_subtype():
+    """6,108 `algorithm` and 68 `pseudocode` values were destroyed by our own
+    subtype='code' assignment. Both fields now exist."""
+    from docmodel.core import Document
+    from docmodel.modules.page import ingest_lines_json
+    from docmodel.modules.diagram import DiagramProcessor
+    from docmodel.base_module import ModuleConfig
+    doc = Document()
+    ingest_lines_json(doc, {"pages": [{"page": 1, "image_id": "i", "lines": [
+        {"id": "d", "type": "diagram", "subtype": "algorithm",
+         "text": "```python\nwhile True:\n    pass\n```", "children_ids": []},
+    ]}]})
+    m = DiagramProcessor(ModuleConfig(title="D", classname="D", proc_order=0), "T")
+    obj = m.create_object(m.find_items(doc)[0], doc)
+    assert obj.props["subtype"] == "code"            # seven projectors need this
+    assert obj.props["mathpix_subtype"] == "algorithm"   # and MathPix's own word
+
+
+def test_a_chart_kind_reaches_the_picture():
+    from docmodel.core import Document
+    from docmodel.modules.page import ingest_lines_json
+    from docmodel.modules.picture import PictureProcessor
+    from docmodel.base_module import ModuleConfig
+    doc = Document()
+    ingest_lines_json(doc, {"pages": [{"page": 1, "image_id": "i", "lines": [
+        {"id": "c", "type": "chart", "subtype": "scatter",
+         "text": "![](https://cdn.mathpix.com/cropped/a-1.jpg?height=1&width=2"
+                 "&top_left_y=3&top_left_x=4)"},
+    ]}]})
+    m = PictureProcessor(ModuleConfig(title="P", classname="P", proc_order=0), "T")
+    obj = m.create_object(m.find_items(doc)[0], doc)
+    assert obj.props["mathpix_subtype"] == "scatter"
+
+
+def test_the_value_inventory_records_its_scope():
+    prov = json.loads(tc.VALUE_INVENTORY.read_text(encoding="utf-8"))["_provenance"]
+    assert "not enumerated" in prov["method"]
+    assert prov["line_objects"] > 3_900_000

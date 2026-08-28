@@ -209,3 +209,141 @@ def field_gaps() -> dict[str, int]:
     counts = corpus_fields()
     return {f: counts.get(f, 0) for f, why in IGNORED_FIELDS.items()
             if why.startswith("GAP:")}
+
+
+# ===========================================================================
+# 260 — the third dimension: VALUES.
+#
+# 250 asked whether every type is named. 255 asked whether every field is read.
+# Both were green while 1,239,021 `subtype` values sat unread: the field was in
+# the schema, the type carrying it was claimed, the field was later claimed too
+# — and no check could see that the VALUES under it were doing nothing. That is
+# the hole this closes. A contract that stops at the field level certifies the
+# container, not the contents.
+#
+# Scope, stated rather than assumed: a value contract only means anything for a
+# field with a CLOSED vocabulary. "Every value of `text` is handled" is not a
+# claim anyone can make. So the enumerable fields are enumerated and the rest
+# are listed in UNBOUNDED_FIELDS with the reason enumeration does not apply —
+# because silently skipping them would be the same omission one level down.
+# ===========================================================================
+
+VALUE_INVENTORY = Path(__file__).with_name("corpus_values.json")
+
+#: A read field whose values cannot be enumerated -> why not. Listing these is
+#: not a formality: the alternative is a check that quietly covers 2 of the 16
+#: fields pdfdrill reads and reports itself as complete.
+UNBOUNDED_FIELDS: dict[str, str] = {
+    "type": "delegated: covered value-by-value by CLAIMED / IGNORED above.",
+    "id": "unbounded: an opaque per-line identifier.",
+    "text": "unbounded: the content itself.",
+    "text_display": "unbounded: the content itself.",
+    "region": "structured: four numbers, not a vocabulary.",
+    "cnt": "structured: four coordinate pairs.",
+    "children_ids": "structured: a list of ids.",
+    "confidence": "continuous: a probability in [0,1], consumed by comparison.",
+    "confidence_rate": "continuous: as above.",
+    "font_size": "ordinal: 207 distinct pixel heights, consumed by RANK within "
+                 "a document (header.levels_by_font_size), never by value. "
+                 "Enumerating them would invite exactly the absolute threshold "
+                 "that ranking exists to avoid.",
+    "cell_column": "ordinal: a grid index.",
+    "cell_row": "ordinal: a grid index.",
+    "cell_col_span": "ordinal: a span count.",
+    "cell_row_span": "ordinal: a span count.",
+}
+
+#: field -> value -> what reads it.
+HANDLED_VALUES: dict[str, dict[str, str]] = {
+    "subtype": {
+        "continues_line_space": "dehyphenation (256): join with a space",
+        "continues_line_newline": "dehyphenation (256): join with a space",
+        "continues_line_no_hyphen": "dehyphenation (256): join, drop the hyphen",
+        "continues_line_no_space": "dehyphenation (256): join, keep the hyphen",
+        "algorithm": "diagram.mathpix_subtype (260)",
+        "pseudocode": "diagram.mathpix_subtype (260)",
+        "chemistry": "diagram.mathpix_subtype (260)",
+        "chemistry_reaction": "diagram.mathpix_subtype (260)",
+        "triangle": "diagram.mathpix_subtype (260)",
+        "logo": "diagram.mathpix_subtype (260)",
+        "line": "picture.mathpix_subtype (260) — chart kind",
+        "analytical": "picture.mathpix_subtype (260) — chart kind",
+        "column": "picture.mathpix_subtype (260) — chart kind",
+        "scatter": "picture.mathpix_subtype (260) — chart kind",
+        "bar": "picture.mathpix_subtype (260) — chart kind",
+        "area": "picture.mathpix_subtype (260) — chart kind",
+        "pie": "picture.mathpix_subtype (260) — chart kind",
+    },
+    "column": {
+        "0": "sidenote.py — a column-0 `column` line IS the sidenote "
+             "(15,819 lines)",
+    },
+}
+
+#: field -> value -> why nothing reads it.
+IGNORED_VALUES: dict[str, dict[str, str]] = {
+    "subtype": {
+        "margin_note": "sub-element: 1,866 lines on `page_info`, 21 docs. "
+                       "page_info is a paragraph break and produces no object, "
+                       "so there is nothing to hang the value on. The words "
+                       "themselves are reached through geometry_columns' own "
+                       "margin_role, which is a separate and read path.",
+        "qr_code": "non-content: 15 lines on `page_info`. A scannable mark.",
+        "checkbox": "non-content: 53 lines on `form_field`, which the type "
+                    "contract already lists as UI furniture with no prose.",
+        "box": "non-content: 32 lines on `form_field`. As above.",
+        "dotted": "non-content: 17 lines on `form_field`. As above.",
+        "parentheses": "non-content: 6 lines on `form_field`. As above.",
+        "dashed": "non-content: 4 lines on `form_field`. As above.",
+        "circle": "non-content: 1 line on `form_field`. As above.",
+        "big_capital_letter": "typographic: 23 lines, 13 docs. A drop cap. The "
+                              "letter is in `text` and reaches the paragraph "
+                              "either way; only the fact that it was set large "
+                              "is dropped, and nothing renders drop caps.",
+        "vertical": "typographic: 5 lines on `simple_cell`, 3 docs. A cell "
+                    "whose text is set sideways. The text is collected by "
+                    "table.py; the rotation is not, and no projector can "
+                    "express it.",
+    },
+    "column": {
+        "1": "container only: 56 `column` lines. sidenote.py treats only "
+             "column 0 as a sidenote; the children of the others are "
+             "separately typed and read on their own (809 text, 74 page_info, "
+             "72 list_item, 37 math, …), so the words survive and only the "
+             "grouping is lost — the same disposal the type contract gives "
+             "multiple_choice_block.",
+        "2": "container only: 16 lines. Children separately typed and read on "
+             "their own; only the column grouping is lost.",
+        "3": "container only: 7 lines. Children separately typed and read on "
+             "their own; only the column grouping is lost.",
+        "6": "container only: 1 line. Its children are separately typed and "
+             "read on their own; only the column grouping is lost.",
+    },
+}
+
+
+def corpus_values() -> dict:
+    """{field: {value: count}} as last measured, for the enumerable fields."""
+    data = json.loads(VALUE_INVENTORY.read_text(encoding="utf-8"))
+    return {k: v for k, v in data.items() if not k.startswith("_")
+            and not k.endswith("_docs")}
+
+
+def value_violations() -> list[tuple]:
+    """(field, value, count) for corpus values that are neither handled nor
+    ignored, worst first. This is the check `subtype` would have failed."""
+    out = []
+    for field, counts in corpus_values().items():
+        known = set(HANDLED_VALUES.get(field, {})) | set(IGNORED_VALUES.get(field, {}))
+        for value, n in counts.items():
+            if str(value) not in known:
+                out.append((field, str(value), n))
+    return sorted(out, key=lambda r: -r[2])
+
+
+def unenumerated_read_fields() -> list[str]:
+    """Read fields that are neither enumerated nor excused. Must be empty:
+    a value contract covering 2 of 16 fields and calling itself complete is
+    the omission it was built to prevent."""
+    covered = set(HANDLED_VALUES) | set(IGNORED_VALUES) | set(UNBOUNDED_FIELDS)
+    return sorted(f for f in CLAIMED_FIELDS if f not in covered)
