@@ -1,0 +1,105 @@
+251 — documented vs observed: the subtypes are all there and none are read
+==============================================================================
+
+THE FOUR NEVER-OCCURRING TYPES: I CAN EVIDENCE THREE, NOT FOUR
+------------------------------------------------------------------------------
+The list of 41 documented types is MathPix's own documentation and is not in
+this repo — I looked, and the only files naming several of these types are the
+inventory and contract I wrote yesterday. So I cannot diff 41 against 37; I can
+only report the type names this codebase expects and the corpus never supplies:
+
+   "equation"   0 of 3,999,815 lines   EquationProcessor.EQ_TYPES, formula.py
+   "figure"     0                       picture.py, paragraph.py
+   "caption"    0                       picture.py, paragraph.py
+
+Three, not four, and out/249 established that none of them is dead: "equation"
+comes from the visionocr route and "figure"/"caption" are asserted by
+tests/test_picture.py. They are absent from MathPix's output, not from the
+schema pdfdrill serves.
+
+The fourth cannot be named without the documented list. Paste it and the diff
+is one command; guessing a fourth from 37 observed names would be inventing a
+finding, which is the thing this sequence keeps catching.
+
+THE SUBTYPE PREMISE IS THE OTHER WAY ROUND: ALL FIVE OCCUR
+------------------------------------------------------------------------------
+   diagram.algorithm            6,192 lines   202 docs
+   diagram.pseudocode             525         196
+   diagram.chemistry               15           8
+   diagram.triangle                15           5
+   diagram.chemistry_reaction      10           3
+   diagram.logo                     2           2   <- a SIXTH, not in the five
+
+Not one of the five is unseen. There is a sixth the list does not mention.
+
+And the separation you flagged is real and confirmed: `pseudocode` as a TYPE is
+7,078 lines in 194 documents; `diagram.pseudocode` as a SUBTYPE is 525 lines in
+196 documents. Different things, both present, and a check keyed on the string
+"pseudocode" alone would conflate them.
+
+WHAT IS ACTUALLY WRONG: 1,239,021 SUBTYPE VALUES, NONE READ
+------------------------------------------------------------------------------
+27 distinct (type, subtype) pairs across the corpus. pdfdrill reads NONE of
+them — every `subtype` comparison in src/ is against "code" or "acronym", both
+of which pdfdrill SETS itself (diagram.py stamps subtype="code" for TikZ). The
+field arrives populated on 31% of all lines and no module consults it.
+
+The dominant family is not decorative:
+
+     924,500   1012 docs   text.continues_line_space
+     155,679    996       text.continues_line_newline
+     142,042    929       text.continues_line_no_hyphen
+       5,962    680       text.continues_line_no_space
+   ---------
+   1,228,183 lines telling us EXACTLY how each text line joins the one before
+   it — with a space, with a newline, with no space, or across a hyphen that
+   is not a hyphen.
+
+DehyphenationProcessor's docstring calls its own rule "intentionally a *naive
+demo*" that "will false-positive on real hyphenated compounds like
+'one-to-one' (it produces 'oneto-one')", and invites replacement by "dictionary
+lookup, language model, compound detection". The replacement it needs is none
+of those. MathPix already answered the question per line, 142,042 times for the
+hyphen case alone, and the answer is sitting in a field nothing reads.
+
+ParagraphProcessor does not read it either — no occurrence of `subtype` or
+`continues_line` anywhere in paragraph.py.
+
+The rest, all 27 pairs:
+   page_info.margin_note 1,866 (21 docs) · page_info.qr_code 15
+   chart.line 967 · chart.analytical 445 · chart.column 315 · chart.scatter 265
+   chart.bar 60 · chart.area 4 · chart.pie 1
+   form_field.checkbox 53 · .box 32 · .dotted 17 · .parentheses 6 · .dashed 4
+   form_field.circle 1
+   text.big_capital_letter 23 (drop caps) · simple_cell.vertical 5
+
+chart's seven subtypes are the chart KIND — line, bar, scatter, pie — which is
+the one thing a reader needs to know about a chart the pipeline currently
+renders as an opaque region.
+
+WHY THIS ONE WAS INVISIBLE
+------------------------------------------------------------------------------
+out/250's contract checks that every TYPE is claimed. Every type carrying these
+subtypes is claimed — text, diagram, chart, page_info are all in CLAIMED — so
+the contract passes and 1.2M unread values sit underneath a green check.
+
+A type-level contract cannot see a field-level gap. The same enumeration that
+found `list_item` would have found this on day one if it had enumerated KEYS as
+well as type values; it enumerated one field because that was the field the
+question named.
+
+For the record, every key present on a line corpus-wide, with counts:
+   region, id, type, text, text_display  3,999,815 each
+   cnt, line, column, font_size, is_printed, is_handwritten,
+     conversion_output                   3,465,341
+   confidence, confidence_rate           3,100,483
+   parent_id                             2,031,812
+   subtype                               1,239,021
+   cell_column, cell_col_span            753,870
+   cell_row, cell_row_span               753,865
+   children_ids                          177,796
+   selected_labels                       61,603
+   out_of_column, margin_role            52,668
+
+conversion_output is 252. parent_id, selected_labels, out_of_column and
+margin_role are not audited by anything yet and I have not checked them.
