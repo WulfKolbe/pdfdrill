@@ -1,0 +1,80 @@
+258 — "false" is truthy, and the corpus shows it
+==============================================================================
+
+THE ANSWER: THE REQUEST IS NOT HONOURED, AND ONLY FOR THE ONE SET TO "false"
+------------------------------------------------------------------------------
+Prose only — math spans, code fences, URLs, table rows and heading lines all
+excluded, because #, & and $ carry markdown syntax there and would contaminate
+the count. % does not, which is why % is the clean instrument.
+
+              requested          2026-06            2026-08
+   percent    "false" (OFF)   102 esc / 2,857 bare   4,964 esc /   85 bare
+   ampersand  "true"  (ON)    738 esc /   888 bare   3,767 esc / 4,815 bare
+   hash       "true"  (ON)    117 esc /   663 bare     684 esc /    7 bare
+
+By August every one of them escapes. `hash` at 684/7 is the request honoured.
+`percent` at 4,964/85 is the request INVERTED — it is the only option set to
+"false" and the only one where request and behaviour disagree.
+
+THE REQUEST NEVER CHANGED
+------------------------------------------------------------------------------
+   git log -S'escape_percent' -- src/pdfdrill/mathpix_client.py
+   -> 98d131b, 2026-05-29, and nothing since
+
+The md block committed that day is byte-identical to the one sent today. Same
+four values, sent unchanged for three months, and the output flipped from
+"nothing escapes" to "everything escapes" somewhere across July. Whatever
+changed is on MathPix's side; what we sent is constant.
+
+WHY THE STRING IS THE SUSPECT
+------------------------------------------------------------------------------
+A non-empty string is truthy in every language a server might parse this in.
+`"false"` and `"true"` are the same request once the value is read as a flag
+rather than parsed as JSON — and the observed August behaviour is exactly
+"all four on":
+
+   % on   (asked off)   #on (asked on)   & on (asked on)   $ on (asked on)
+
+June's behaviour is equally consistent: the option not applied at all, so
+nothing escaped either way. The transition looks like the server starting to
+honour a field it previously ignored — and honouring it as a truthy string.
+
+I have NOT proved this. Proving it needs a controlled pair of requests with
+booleans and with strings, which is two paid jobs and a live behaviour change,
+and the evidence is already one-directional: the single option we asked to be
+OFF is the single one that is ON.
+
+FIXED: FOUR STRINGS -> FOUR BOOLEANS
+------------------------------------------------------------------------------
+   "escape_ampersand": "true"   ->  True
+   "escape_dollar":    "true"   ->  True
+   "escape_percent":   "false"  ->  False
+   "escape_hash":      "true"   ->  True
+
+The intent is unchanged — escaping on for &, $, # and off for % — which is what
+the original values SAID and not what they did. Only the type changed, and the
+type is what the API documents.
+
+A test asserts each is a bool, that `escape_percent` survives json.dumps as
+`false` and not `"false"`, and that NO string anywhere in CONVERSION_OPTIONS
+reads "true"/"false" — a second one would be just as silent as the first.
+
+WHAT THIS DOES NOT FIX
+------------------------------------------------------------------------------
+456 documents already carry `\%` in prose against an explicit request not to
+escape it. Nothing downstream reads it — `\%` is not a markdown escape and
+renders literally — so those artefacts are wrong in a visible but harmless way
+and I have not re-drilled anything. The change affects future jobs only.
+
+The document moved into the wiki yesterday
+(ConformalGeometryOfSimplicialSurfaces) carries zero `\%` in either copy, so
+that hand-over is unaffected.
+
+WHAT MADE IT SILENT
+------------------------------------------------------------------------------
+The value was correct as an English word and wrong as a type, in a field that
+is write-only from our side: we send it, the server acts on it, and nothing
+ever reads it back. There is no response field saying which options were
+applied. The only witness is the shape of the output three months later, and
+seeing it required knowing what had been asked for — which is in a dict in one
+file that nothing else refers to.

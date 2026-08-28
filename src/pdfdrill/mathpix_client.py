@@ -46,10 +46,31 @@ CONVERSION_OPTIONS = {
         "md": {
             "math_inline_delimiters": ["$", "$"],
             "math_display_delimiters": ["$$", "$$"],
-            "escape_ampersand": "true",
-            "escape_dollar": "true",
-            "escape_percent": "false",
-            "escape_hash": "true",
+            # 258 — BOOLEANS, not the strings they were copied as. These four
+            # are documented as booleans and went on the wire as "true"/"false"
+            # from the first commit (98d131b, 2026-05-29) unchanged.
+            #
+            # The corpus shows the request being read as truthy on both values.
+            # Same options, three periods, prose only, tables/fences/URLs/
+            # headings excluded:
+            #
+            #            % escaped/bare     & escaped/bare    # escaped/bare
+            #   2026-06     102 / 2,857        738 / 888        117 / 663
+            #   2026-08   4,964 /    85      3,767 / 4,815      684 /   7
+            #
+            # By August every one of them escapes — including `percent`, the
+            # only one set to "false" and the only one where the request and
+            # the behaviour disagree. A non-empty string is truthy in every
+            # language a server might parse this in, so "false" asks for the
+            # same thing "true" does.
+            #
+            # 456 documents carry \% in prose against an explicit request not
+            # to escape it. Nothing downstream reads it, so no artefact is
+            # being corrected here — the wire format is.
+            "escape_ampersand": True,
+            "escape_dollar": True,
+            "escape_percent": False,
+            "escape_hash": True,
         },
     }
 }
