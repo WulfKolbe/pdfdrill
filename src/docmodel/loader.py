@@ -38,6 +38,7 @@ DEFAULT_REGISTRY: dict[str, str] = {
     "TocProcessor":                "docmodel.modules.toc",
     "AbstractProcessor":           "docmodel.modules.abstract",
     "DiagramProcessor":            "docmodel.modules.diagram",
+    "CodeProcessor":               "docmodel.modules.code_listing",
     "HeaderProcessor":             "docmodel.modules.header",
     "PictureProcessor":            "docmodel.modules.picture",
     "ListProcessor":               "docmodel.modules.list_items",

@@ -53,21 +53,22 @@ CLAIMED: dict[str, str] = {
     "pseudocode": "paragraph (break)",
     "qed_symbol": "paragraph (break)",
     "list_item": "list_items, paragraph (break)",       # out/248
+    "code": "code_listing (CodeListing), diagram (its `code` prop), "
+            "paragraph (break)",                        # 259
+    "table_split_cell": "table (_CELL_TYPES)",          # 259
+    "molecule": "picture (the inline Markdown-CDN path)",
 }
 
 #: type -> why nothing reads it. GAP: means content is being dropped.
+#:
+#: 259 emptied this dict of its GAP entries, and two of the three were wrong
+#: when written. `code` was called "dropped entirely" when 43,553 of its 44,689
+#: lines already survived as a Diagram's `code` prop; `molecule` was called
+#: uncollected when PictureProcessor's inline path had always matched its
+#: Markdown CDN link. Both reasons were written from a type's absence in the
+#: module that "should" have owned it, without running the module that did.
+#: Only `table_split_cell` was the plain omission it claimed to be.
 IGNORED: dict[str, str] = {
-    "code": "GAP: 44,689 lines in 205 documents. Source listings and logic "
-            "programs, dropped entirely. docmodel's only 'code' is diagram.py's "
-            "TikZ subtype, which is unrelated. This is the largest unread type "
-            "in the corpus and it is content, not decoration.",
-    "molecule": "GAP: 10 lines in 4 documents. A CDN image link to a rendered "
-                "chemical structure — the same shape a Picture carries, so the "
-                "content exists and nothing collects it.",
-    "table_split_cell": "GAP: 10 lines in 7 documents. A \\backslashbox "
-                        "diagonal header cell with one child. It belongs in "
-                        "table.py's _CELL_TYPES beside simple/complex/spanning "
-                        "and is missing from it.",
     "multiple_choice_block": "container only: 453 lines, 23 docs. Its children "
                              "are separately typed and are read on their own, "
                              "so the words survive and only the grouping is "
@@ -143,21 +144,20 @@ CLAIMED_FIELDS: dict[str, str] = {
               "signal",
     "cell_column": "pdfdrill.table_structure",
     "cell_col_span": "pdfdrill.table_structure",
+    "cnt": "mathpix.crop_region/quad — 259. Tightens the crop on the 4,618 "
+           "lines whose polygon is not axis-aligned and whose `region` "
+           "disagrees with its bbox; carried onto Diagram/Picture as `quad` "
+           "so a consumer can mask or deskew. Lines without `cnt` keep "
+           "`region` unchanged.",
+    "font_size": "header.py — 259. Ranks a document's OWN header sizes to set "
+                 "Section.level for the 34,128 headers (79%) that carry no "
+                 "\\section-family command and were all level 1.",
     "cell_row": "pdfdrill.table_structure",
     "cell_row_span": "pdfdrill.table_structure",
 }
 
 #: field -> why nothing reads it. GAP: means information is being lost.
 IGNORED_FIELDS: dict[str, str] = {
-    "cnt": "GAP: 3,465,341 lines. A four-point polygon — the line's actual "
-           "quadrilateral, e.g. [[996,2714],[1078,2714],[1078,2750],[996,2750]] "
-           "— where `region` is only its axis-aligned box. For rotated or "
-           "skewed lines the two differ, and every crop we build uses the box. "
-           "docpack packs it; nothing reads it.",
-    "font_size": "GAP: 3,463,072 lines carry a pixel height (31, 29, 28, 22…). "
-                 "Header detection is done on text patterns alone, and the "
-                 "signal that would settle a heading from a bold run is sitting "
-                 "unread on every line.",
     "conversion_output": "carried, not read: 3,465,341 lines, a boolean "
                          "(958,464 false / 413,259 true in the 500-doc sample). "
                          "out/252 audited it and found no case where reading it "

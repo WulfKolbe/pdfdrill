@@ -50,12 +50,19 @@ def test_every_ignored_type_carries_a_real_reason():
             f"{t}: reason must state its KIND first — {why[:40]!r}"
 
 
-def test_the_gaps_are_named_as_gaps_not_buried():
-    """Three IGNORED entries are content being dropped, and the contract says
-    so rather than letting 'ignored' read as 'fine'."""
-    g = tc.gaps()
-    assert set(g) == {"code", "molecule", "table_split_cell"}
-    assert g["code"] > 40000, "code is the largest unread type in the corpus"
+def test_no_type_gap_is_open():
+    """259 closed all three. The check that matters is not which gaps exist but
+    that a GAP entry is never left standing as if 'ignored' meant 'fine' — so
+    this asserts the set is empty, and the next reopened gap has to justify
+    itself here rather than appearing silently."""
+    assert tc.gaps() == {}, (
+        "a type GAP is open again: %s" % sorted(tc.gaps()))
+
+
+def test_the_types_259_closed_are_claimed_by_name():
+    for t in ("code", "molecule", "table_split_cell"):
+        assert t in tc.CLAIMED, f"{t} was closed in 259 and must stay claimed"
+        assert t not in tc.IGNORED
 
 
 def test_the_inventory_records_how_it_was_taken():
@@ -110,9 +117,13 @@ def test_the_two_pdfdrill_written_fields_are_marked_as_such():
         assert IGNORED_FIELDS[f].startswith("NOT A MATHPIX FIELD")
 
 
-def test_field_gaps_are_the_two_geometry_and_typography_signals():
-    from docmodel.type_contract import field_gaps
-    assert set(field_gaps()) == {"cnt", "font_size"}
+def test_no_field_gap_is_open():
+    # 259 closed both: `cnt` now tightens skewed crops, `font_size` now sets
+    # header levels. Same standard as the type gaps above.
+    from docmodel.type_contract import field_gaps, CLAIMED_FIELDS
+    assert field_gaps() == {}, "a field GAP is open again: %s" % sorted(field_gaps())
+    for f in ("cnt", "font_size"):
+        assert f in CLAIMED_FIELDS
 
 
 def test_field_inventory_records_that_it_is_not_mathpix_only():

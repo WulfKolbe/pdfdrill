@@ -21,7 +21,13 @@ _ROW_TYPES = {"table_row"}
 # table_spanning_cell carries the layout structure (a header covering N
 # columns / a row-group label covering N rows); it was missing here, which
 # silently dropped every spanning cell from the model.
-_CELL_TYPES = {"simple_cell", "complex_cell", "table_spanning_cell"}
+# 259 — `table_split_cell` is the fourth cell type: a \backslashbox /
+# \slashbox diagonal header ("\backslashbox{Publication Type}{Language}"),
+# 10 lines in 7 documents. It was named in the type contract as a GAP and
+# belonged here all along; without it the corner cell of a cross-tabulation
+# is dropped and the table reads as if it had no row/column heading.
+_CELL_TYPES = {"simple_cell", "complex_cell", "table_spanning_cell",
+               "table_split_cell"}
 # MathPix per-cell grid coordinates, kept verbatim on the collected child.
 _CELL_COORD_KEYS = ("cell_row", "cell_column", "cell_row_span", "cell_col_span",
                     "region")

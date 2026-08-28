@@ -5,6 +5,19 @@ Lines of type='section_header' usually have a single child carrying both a
 clean caption (`text`) and a LaTeX command (`text_display`, e.g.
 `\\section*{...}`). We create one Section DocObject per header with level,
 caption, and command kind.
+
+**259 — the level comes from `font_size` when there is no command.** Only 9,032
+of the corpus's 43,160 section_header lines carry a `\\section`-family command;
+the other 34,128 (79%) hit Strategy 3 and were all assigned level 1, so four
+fifths of every heading tree was flat. MathPix states a pixel height on every
+one of them. Ranking a document's OWN distinct header sizes, largest first,
+gives the level directly — no threshold, no regex, and no cross-document
+constant, because a size means nothing except relative to the other headers of
+the same document.
+
+The LaTeX command still wins wherever it exists: it is the author's own
+statement of depth, and a font size is an inference from it. Lines with neither
+a command nor a font size keep level 1.
 """
 from __future__ import annotations
 
@@ -27,6 +40,22 @@ _LEVEL = {
     "paragraph": 4, "subparagraph": 5,
 }
 
+#: Deepest level a font-size rank may produce. Matches _LEVEL's range, so a
+#: size-derived level is never deeper than a command-derived one can be.
+_MAX_SIZE_LEVEL = 5
+
+
+def levels_by_font_size(sizes: list) -> dict:
+    """{font_size: level} for one document, biggest size = level 1.
+
+    Ranked WITHIN the document. A 31px heading is a chapter title in one paper
+    and a running subsection in another, so any absolute threshold would be a
+    constant with no population behind it.
+    """
+    distinct = sorted({s for s in sizes if isinstance(s, (int, float)) and s > 0},
+                      reverse=True)
+    return {s: min(i + 1, _MAX_SIZE_LEVEL) for i, s in enumerate(distinct)}
+
 
 class HeaderProcessor(BaseModule):
     def find_items(self, doc: Document) -> list[dict[str, Any]]:
@@ -35,6 +64,13 @@ class HeaderProcessor(BaseModule):
         stream = doc.stream(self.LINES_STREAM)
         by_id = self.build_line_index(doc)
         items: list[dict[str, Any]] = []
+
+        # 259 — rank this document's own header sizes before assigning any
+        # level, so a size-derived level is relative to its own document.
+        by_size = levels_by_font_size([
+            stream.payload[a].get("font_size") for a in stream.anchors
+            if stream.payload[a].get("type") == "section_header"
+        ])
 
         for anchor in stream.anchors:
             payload = stream.payload[anchor]
@@ -51,13 +87,27 @@ class HeaderProcessor(BaseModule):
             child_display = child.get("text_display") or ""
 
             cmd, caption = self._parse_header(child_text, child_display)
+            stated = _CMD_ONLY_RE.search(child_display) or _CMD_RE.search(child_display)
+            size = payload.get("font_size")
+            if stated:
+                level, basis = _LEVEL.get(cmd, 1), "latex_command"
+            elif size in by_size:
+                level, basis = by_size[size], "font_size"
+                self.bump("levels_from_font_size")
+            else:
+                level, basis = 1, "default"
+                self.bump("levels_defaulted")
             items.append({
                 "anchor": anchor,
                 "page": payload.get("_page"),
                 "line_index": payload.get("_line_index"),
                 "cmd": cmd,
                 "caption": caption,
-                "level": _LEVEL.get(cmd, 1),
+                "level": level,
+                # Which signal set the level: the author's command, MathPix's
+                # font size, or nothing at all.
+                "level_basis": basis,
+                "font_size": size,
             })
         return items
 
@@ -81,6 +131,8 @@ class HeaderProcessor(BaseModule):
                 "level": item["level"],
                 "caption": item["caption"],
                 "cmd": item["cmd"],
+                "level_basis": item["level_basis"],
+                "font_size": item.get("font_size"),
                 "page": item["page"],
                 "line_index": item["line_index"],
                 "bibkey": self.bibkey,

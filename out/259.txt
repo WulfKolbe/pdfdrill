@@ -1,0 +1,169 @@
+259 — the four gaps, closed and measured. Two of them were not gaps.
+==============================================================================
+
+BEFORE ANYTHING ELSE: THE AUDIT WAS WRONG TWICE
+------------------------------------------------------------------------------
+Two of the four entries I wrote into the type contract as GAPs were already
+being read. Both reasons were written the same way — by noting that the module
+which *should* own a type does not mention it, without running the module that
+actually does.
+
+  code       "dropped entirely"   -> 43,553 of 44,689 lines (97.5%) already
+                                     survived as a Diagram's `code` prop.
+  molecule   "nothing collects it" -> all 10 lines have always produced a
+                                     Picture through PictureProcessor's inline
+                                     path, which matches any Markdown CDN link
+                                     regardless of type.
+
+Only `table_split_cell` was the plain omission it claimed to be. This is the
+same failure as 253's `figure_label`: a reason written from a name and an
+absence rather than from running the code. It is now recorded in the contract
+where the entries used to be.
+
+
+GAP 1 — code -> CodeListing
+------------------------------------------------------------------------------
+BEFORE   44,689 lines, 205 documents.
+         43,933 are children of a `diagram`; DiagramProcessor joins its
+         children and pulls a fenced block out, recovering 43,553 as a string
+         prop. Genuinely unreachable: 1,136 lines —
+             380 under 51 diagrams whose joined text is not fenced, so
+                 _extract_code returns None and the listing is treated as a
+                 graphic;
+             502 under a `column` parent, 241 with no parent, 8 under
+                 `list_item`, 5 under `chart` — no processor looks at them.
+         And a listing that exists only as a prop has no anchors: nothing can
+         point at a line of it.
+
+AFTER    6,243 CodeListing objects over 44,689 lines in 205 documents.
+         0 runs produced nothing.
+         Lines newly reachable at all: 1,136. Lines newly ADDRESSABLE (their
+         own anchors, a surface realization): all 44,689.
+
+HOW      One object per maximal run of consecutive `code` lines on a page,
+         taking each line's own text verbatim and joining in order. It does not
+         re-parse a fence to recover a body MathPix already handed over line by
+         line. Fence lines are MathPix's delimiters and are dropped; the info
+         string on an opening fence supplies `language` when it has one.
+         Indentation is content and survives; one leading "\n" per line is
+         MathPix's terminator and is stripped, so a genuinely blank interior
+         line still survives (tested).
+
+         The Diagram `code` prop is untouched — consumers depend on it, and a
+         CodeListing realizes the code CHILD anchors while the Diagram realizes
+         the diagram line, so no anchor is claimed twice.
+
+         `code` was also missing from ParagraphProcessor's break types, exactly
+         as `list_item` was in 248: a listing did not end the prose run it
+         interrupted. Added.
+
+FALLBACK n/a — there is no heuristic here. The field IS the content.
+
+
+GAP 2 — cnt, the true quadrilateral
+------------------------------------------------------------------------------
+BEFORE   3,465,341 lines carry `cnt`; every crop used `region`.
+
+         Not axis-aligned:                     4,886 lines, 152 documents
+           ...where region != the polygon bbox 4,618
+           ...where region IS the bbox            268
+         Axis-aligned:                     3,459,944
+           ...region identical to the bbox  3,158,114
+           ...differing by 0-2px               22,655 (inclusive-bound padding)
+
+         So on upright lines the two agree to within a pixel or two, and there
+         was nothing to win. On rotated lines a rectangle drawn round slanted
+         text is wider than the text: bbox area / polygon area is 1.06x at the
+         median, 1.28x at p90, 1.46x at p99 and 147x at worst. arXiv 1808.07302
+         has diagonal annotations inflating 3.7x-5.6x.
+
+AFTER    4,618 crop rectangles changed, in 151 documents.
+         105 of them on an image-bearing line (diagram / chart / molecule).
+         4,886 quadrilaterals carried onto Diagram / Picture as `quad`.
+
+HOW      `mathpix.crop_region(payload)` returns `region` unless `cnt` says the
+         line is rotated AND the polygon's own bbox is strictly tighter. A CDN
+         crop is a rectangle, so the polygon cannot make the crop
+         non-rectangular — it can only make it tight, and be carried so a
+         consumer that wants to mask or deskew has the corners.
+
+         `quad` is stored ONLY when it is not an upright rectangle. Storing it
+         on all 3.4M lines would restate `region` and bloat every model file
+         for nothing.
+
+FALLBACK 534,474 corpus lines have no `cnt` at all and keep `region`
+         unchanged, as do all 3,459,944 upright ones — 99.87% of lines take the
+         pre-259 path exactly.
+
+
+GAP 3 — font_size -> header level
+------------------------------------------------------------------------------
+BEFORE   43,160 section_header lines.
+           with a \section-family command    9,032  (21%)
+           without                          34,128  (79%)  ALL level 1
+
+         Four fifths of every heading tree in the corpus was flat, and MathPix
+         states a pixel height on every one of those lines.
+
+AFTER    34,128 headers take their level from font_size, in 975 documents.
+           level 1   6,478
+           level 2   5,514
+           level 3   5,166
+           level 4   5,566
+           level 5  11,404
+         9,032 keep the LaTeX command. 0 fell through to the default.
+
+HOW      Ranked WITHIN each document: distinct header sizes sorted largest
+         first, rank = level. No threshold and no cross-document constant — a
+         31px heading is a chapter title in one paper and a running subsection
+         in another, so an absolute cut would be a constant with no population
+         behind it.
+
+FALLBACK The LaTeX command still wins wherever it exists — it is the author's
+         own statement of depth, and a font size is an inference from it. A
+         header with neither keeps level 1, and `level_basis` on every Section
+         says which of the three decided.
+
+CAVEAT   Levels are capped at 5, matching _LEVEL's own range, so a document
+         with more than 5 distinct header sizes collapses its tail into level
+         5. That is 83 documents (7%); 93% have 5 or fewer. The level-5 bucket
+         is large (11,404) because those 83 are books with many headings.
+
+
+GAP 4 — table_split_cell, and molecule
+------------------------------------------------------------------------------
+BEFORE   table_split_cell: 10 lines, 7 documents, not in table.py's
+         _CELL_TYPES. The `\backslashbox{Publication Type}{Language}` corner
+         cell of a cross-tabulation, dropped — so the table read as though it
+         had no row/column heading at all.
+
+AFTER    10 cells collected in 7 documents. _CELL_TYPES is now
+         {simple_cell, complex_cell, table_spanning_cell, table_split_cell}.
+
+         Checked before trusting the one-line fix: all 10 are DIRECT children
+         of the `table` and listed in its children_ids. `_collect_children`
+         does not recurse, so had they hung off a `table_row` the change would
+         have compiled, passed a green suite and collected nothing. My first
+         test fixture nested them under a row and failed for exactly that
+         reason.
+
+         molecule: 0 changed. It was never a gap — see the top of this report.
+         Named explicitly in picture.py as `_COVERED_BY_INLINE` so the next
+         reader can see it is handled without having to reason about which
+         branch a catch-all takes.
+
+
+TOTALS
+------------------------------------------------------------------------------
+    objects created / changed      6,243 CodeListing (new type)
+                                   4,618 crop rectangles tightened
+                                   4,886 quads carried
+                                  34,128 Section levels corrected
+                                      10 split cells collected
+    documents touched                205 (code) · 151 (cnt) · 975 (font_size)
+                                       7 (split cells)
+    heuristics retained as fallback  the LaTeX command for 9,032 headers;
+                                     `region` for 99.87% of lines; nothing for
+                                     code, where the field is the content
+    type gaps open                   0        field gaps open   0
+    suite                            2,551

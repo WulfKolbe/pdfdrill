@@ -29,7 +29,8 @@ import re
 from ._captions import extract_figure_caption, parse_caption
 from ..base_module import BaseModule
 from ..core import Document, DocObject, Realization
-from ..mathpix import crop_url, image_ref
+from ..mathpix import (crop_url, image_ref, crop_region, quad,
+                       is_axis_aligned)
 
 
 _FENCE = ("```", "~~~")
@@ -97,7 +98,9 @@ class DiagramProcessor(BaseModule):
                 "anchor": anchor,
                 "page": payload.get("_page"),
                 "image_id": payload.get("_image_id"),
-                "region": payload.get("region"),
+                # 259 — the tighter of `region` and the `cnt` polygon's bbox.
+                "region": crop_region(payload),
+                "quad": ([] if is_axis_aligned(quad(payload)) else quad(payload)),
                 "subtype": "code" if code else payload.get("subtype", ""),
                 "latex_code": "" if code else latex_code,
                 "code": code[0] if code else "",
@@ -116,6 +119,9 @@ class DiagramProcessor(BaseModule):
                 "page": item["page"],
                 "image_id": item["image_id"],
                 "region": item["region"],
+                # MathPix's four corners, kept only when they are not an
+                # upright rectangle (see mathpix.crop_region).
+                "quad": item.get("quad", []),
                 "subtype": item["subtype"],
                 "latex_code": item["latex_code"],
                 "code": item.get("code", ""),

@@ -42,7 +42,8 @@ from typing import Any, Optional
 from ._captions import extract_figure_caption, parse_caption
 from ..base_module import BaseModule
 from ..core import Document, DocObject, Realization
-from ..mathpix import crop_url, image_ref, region_from_url
+from ..mathpix import (crop_url, image_ref, region_from_url,
+                       crop_region, quad, is_axis_aligned)
 
 
 # Markdown image link (the only image-URL form we trust).
@@ -53,6 +54,14 @@ _CDN_URL = re.compile(r"(https?://cdn\.mathpix\.com/cropped/[^\s\}>\])\"]+)")
 
 # Line types whose images are owned by another processor.
 _SKIP_TYPES = {"diagram"}
+
+#: 259 — types that reach `_from_inline` through the else-branch and are fully
+#: handled there, named explicitly because a catch-all is invisible to anyone
+#: (and to any check) reading this file for a type. `"molecule"` — 10 lines in
+#: 4 documents, a rendered chemical structure — carries a plain Markdown CDN
+#: link and has always produced a Picture. The type contract listed it as a GAP
+#: on the assumption that a type needs a branch to be read; it does not.
+_COVERED_BY_INLINE = ("molecule",)
 
 #: 249 saw zero `figure` / `caption` lines in the corpus but kept the branch,
 #: because that scan read MathPix `*.lines.json` only and a second producer
@@ -71,6 +80,13 @@ _SKIP_TYPES = {"diagram"}
 #: already read. Kept as a named tuple so the next reader inherits the check
 #: instead of re-running it.
 _NO_PRODUCER = ("figure", "caption")
+
+
+def _skew_quad(payload) -> list:
+    """The four corners, but only when they are NOT an upright rectangle —
+    otherwise they restate `region` and would bloat every model file."""
+    c = quad(payload)
+    return [] if (not c or is_axis_aligned(c)) else c
 
 
 class PictureProcessor(BaseModule):
@@ -107,8 +123,10 @@ class PictureProcessor(BaseModule):
         if not caption:
             caption = extract_figure_caption(text)
         # Markdown link only: the page image + rectangle from this line's own
-        # region (NOT the \includegraphics target).
-        region = payload.get("region") or {}
+        # region (NOT the \includegraphics target). 259 — where `cnt` says the
+        # line is rotated, its bbox is used instead: a box round rotated text is
+        # wider than the text.
+        region = crop_region(payload)
         url = image_ref(payload.get("_image_id"), region, source)
         if not url:
             return []
@@ -119,6 +137,7 @@ class PictureProcessor(BaseModule):
             "page": payload.get("_page"),
             "region": region,
             "from_line_type": "figure",
+            "quad": _skew_quad(payload),
         }]
 
     @staticmethod
@@ -154,6 +173,9 @@ class PictureProcessor(BaseModule):
                 "page": payload.get("_page"),
                 "region": region_from_url(url),
                 "from_line_type": payload.get("type"),
+                # The URL already carries its own rectangle; the quad is extra
+                # information about the same line, not a competing crop.
+                "quad": _skew_quad(payload),
             })
         return out
 
@@ -169,6 +191,10 @@ class PictureProcessor(BaseModule):
                 "page": item["page"],
                 "region": item["region"],
                 "from_line_type": item["from_line_type"],
+                # 259 — MathPix's four corners, carried ONLY when they say
+                # something a rectangle cannot. Empty for the 99.86% of lines
+                # that are upright.
+                "quad": item.get("quad", []),
                 "bibkey": self.bibkey,
             },
         )

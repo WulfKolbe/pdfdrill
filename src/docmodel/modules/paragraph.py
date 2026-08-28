@@ -36,6 +36,8 @@ _BREAK_TYPES = {
     "figure", "diagram", "chart",
     "equation", "math", "equation_number",
     "pseudocode", "qed_symbol", "figure_label", "caption",
+    # 259 — a code listing interrupts prose exactly as a list does (248).
+    "code",
     "column",  # sidenotes
     "abstract",
     # 248: a typed list item must END the paragraph it interrupts. It was in
