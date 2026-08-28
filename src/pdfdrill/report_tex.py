@@ -397,6 +397,67 @@ def cjk_defect(latex: str) -> str:
     return ""
 
 
+
+#: TeX math ALPHABETS are not fonts with gaps — they are alphabets. rsfs10
+#: (\mathscr) and eufm10 (\mathfrak) are uppercase-only script/fraktur faces;
+#: asking either for a lowercase letter drops it SILENTLY, leaving a PDF that
+#: looks finished and is missing letters. `glyph_loss_advice` has said "change
+#: the command, not the font" since out/219 — this is that change.
+#:
+#: Measured on 2103.01507, whose author wrote
+#:     \DeclareMathOperator{\cMap}{\mathstscr{M\mkern-4mu a\mkern-3.5mu p}}
+#: MathPix read the script "Map" off the page and transcribed it \mathscr{M a p},
+#: which is a faithful reading. rsfs10 has no `a` and no `p`, so 11 of that
+#: report's 12 dropped glyphs were those five rows. No fallback font reaches it
+#: (the ALPHABET lacks the letter, not the font the code point) and no installed
+#: face here carries lowercase script.
+#:
+#: So the letters the alphabet cannot set are moved OUT of it and set italic,
+#: which is what an operator name looks like anyway. This touches ONLY the
+#: rendered cell — the Source column still shows `\mathscr{M a p}` character for
+#: character, so the page keeps saying what MathPix produced.
+#: rsfs10 ONLY. The comment on `_TEX_MATH_FONTS` said "rsfs10 and eufm10 have
+#: no lowercase" and eufm10 does: `$\mathfrak{m}\mathfrak{a}\mathfrak{p}$`
+#: compiles with zero missing characters, and 2103.01507's own `\mathfrak{m}`
+#: drew no warning in a log that names every other drop. Including it here
+#: would have rewritten correct fraktur into italic to fix a defect it does not
+#: have — a two-line test against the claim, before trusting it.
+_ALPHABET_UPPER_ONLY = ("mathscr",)
+_ALPHABET_ARG = re.compile(
+    r"\\(%s)\s*\{([^{}]*)\}" % "|".join(_ALPHABET_UPPER_ONLY))
+
+
+def alphabet_safe(latex: str) -> str:
+    r"""Move characters a TeX math alphabet cannot set out of it.
+
+    `\mathscr{M a p}` -> `\mathscr{M}\mathit{a}\mathit{p}`. An argument with no
+    lowercase is returned untouched, so the 138 `\mathscr{F}` in the same
+    document are not disturbed.
+    """
+    def repl(m):
+        cmd, arg = m.group(1), m.group(2)
+        if not re.search(r"[a-z]", arg):
+            return m.group(0)
+        out, run = [], []
+
+        def flush_upper():
+            if run:
+                out.append("\\%s{%s}" % (cmd, "".join(run)))
+                del run[:]
+
+        for ch in arg:
+            if ch.islower():
+                flush_upper()
+                out.append("\\mathit{%s}" % ch)
+            elif ch.isspace():
+                continue            # inter-letter space inside an operator name
+            else:
+                run.append(ch)
+        flush_upper()
+        return "".join(out)
+    return _ALPHABET_ARG.sub(repl, latex or "")
+
+
 def renderable(latex: str) -> str:
     """Return latex safe to put inside $...$, or "" when it is not.
 
@@ -405,6 +466,7 @@ def renderable(latex: str) -> str:
     validated here and demoted to source-only when it cannot render.
     """
     lx = re.sub(r"\s+", " ", latex).strip()
+    lx = alphabet_safe(lx)
     if cjk_defect(lx):
         return ""              # 128: hallucinated script never reaches xelatex
     # MathPix glues a stray environment CLOSER onto the end of display math when
@@ -1046,8 +1108,10 @@ def glyph_loss_advice(sample: str) -> str:
     if tfm or cp < 0x80:
         return ("%s is not a Unicode coverage problem: the character %r was "
                 "set in %s, a TeX math ALPHABET that does not contain it "
-                "(rsfs10 and eufm10 have no lowercase). No fallback font can "
-                "reach it — change the command, not the font."
+                "(rsfs10 has no lowercase; eufm10, contrary to an earlier note "
+                "here, does). No fallback font can reach it — change the "
+                "command, not the font, which `alphabet_safe` now does for "
+                "\\mathscr."
                 % ("U+%04X" % cp, ch, font.strip() or "a TeX math font"))
     return ("add U+%04X to report_tex._MATH_CMD, to a fallback family's "
             "measured ranges, or to _NO_FONT for a visible marker." % cp)
