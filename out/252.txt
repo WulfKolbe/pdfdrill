@@ -1,0 +1,90 @@
+252 — conversion_output: unread, and the premise does not hold
+==============================================================================
+
+DOES PDFDRILL READ IT? NO — IT ONLY CARRIES IT.
+------------------------------------------------------------------------------
+One occurrence in the whole codebase:
+
+   src/pdfdrill/docpack.py:100   PROF_KEYS = ("font_size", "confidence",
+       "confidence_rate", "is_printed", "is_handwritten", "conversion_output")
+
+That is the packer collapsing per-line profile fields into a shared table. It
+preserves the value through the .docpack round trip and nothing branches on it.
+No module in src/docmodel/modules/ mentions it. No projector mentions it.
+
+THE COUNTS
+------------------------------------------------------------------------------
+   3,999,815  line objects
+   2,007,865  conversion_output = true
+   1,457,476  conversion_output = false      36% of all lines
+     534,474  field ABSENT (505,464 of them `text`, 29,010 `math`)
+
+"IF IT DOESN'T, WE ARE INCLUDING CONTENT MATHPIX MARKED AS EXCLUDED"
+------------------------------------------------------------------------------
+That is the premise, and it does not survive the split that matters:
+
+   false, and a CHILD of another line   1,216,604   83%
+   false, and TOP-LEVEL                   240,872   17%
+
+`false` does not mark worthless content. It marks a line that must not be
+emitted as its OWN block in the converted output — overwhelmingly because
+something else already carries it:
+
+   708,915  simple_cell     rendered inside its table
+   201,948  text            children of list_item / cells
+   154,937  table_row       inside its table
+    46,459  table_column        "
+    34,369  complex_cell        "
+    18,497  list_item       nested inside another list item
+    17,563  table_of_contents_row
+
+Every one of those is content pdfdrill SHOULD include, and does — through the
+container. TableProcessor builds cells from `children_ids`; ListProcessor now
+does the same (out/248). Emitting them standalone as well is exactly what
+`false` is telling us not to do, and pdfdrill does not.
+
+AND THE DECISIVE CHECK: ZERO
+------------------------------------------------------------------------------
+   text lines with conversion_output = false AND no parent_id:
+       0 lines, in 0 documents, across the whole corpus.
+
+There is no standalone prose anywhere that MathPix marked excluded and
+pdfdrill includes. The failure the task anticipated does not occur, and it
+cannot occur silently in future either — the class is empty, not merely small.
+
+WHAT THE 240,872 TOP-LEVEL FALSE LINES ARE
+------------------------------------------------------------------------------
+   112,196  page_info          running heads, folios, "Typeset using REVTEX",
+                               "arXiv:quant-ph/0008113v1 25 Aug 2000"
+    42,086  equation_number    "(1)" — rendered INSIDE its equation
+    35,977  list_item          the container; its children carry the words
+    17,392  figure_label
+    15,675  column
+     6,042  diagram
+     4,235  section_header · 2,725 footnote · 1,341 authors · 1,052 title
+       662  abstract · 632 table_of_contents_container
+
+pdfdrill's existing treatment already agrees with the marking, by other means:
+page_info and figure_label are paragraph BREAK types that produce no object;
+equation_number is attached to its Equation rather than emitted separately;
+list_item containers are read for structure and their children for words.
+
+The agreement is coincidental rather than derived — nothing consults the field
+— but it is agreement, and the audit was worth running to establish that
+rather than assume it in either direction.
+
+WHERE READING IT WOULD ACTUALLY CHANGE SOMETHING
+------------------------------------------------------------------------------
+Three types appear in the top-level false set AND are consumed into objects by
+pdfdrill: section_header (4,235), footnote (2,725), title (1,052), authors
+(1,341), abstract (662). Those are lines MathPix says should not be emitted as
+their own block, which pdfdrill turns into Section, Footnote, Page-title and
+Abstract objects.
+
+That is not necessarily wrong — a Section object is structure, not emitted
+prose, and the marking is about conversion output rather than about modelling.
+But it is the only place the two disagree, it is ~10,000 lines, and I have not
+established which is right. Recorded, not acted on.
+
+Nothing changed in this task. The field stays unread, because the audit found
+no case where reading it would remove content that is being wrongly included.
