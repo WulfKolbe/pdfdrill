@@ -281,3 +281,58 @@ def test_is_derived_is_false_for_everything_else():
     from docmodel.core import DocObject
     assert not is_derived(DocObject(type="Paragraph", props={"text": "x"}))
     assert not is_derived(DocObject(type="Abstract", props={"text": "x"}))
+
+
+# ---- 263: the dot leader is not part of the title --------------------------
+
+@pytest.mark.parametrize("raw,title,loc", [
+    (r"1.1. Cayley algebra \(\mathfrak{C}\)  ..... 1",
+     r"1.1. Cayley algebra \(\mathfrak{C}\)", "1"),
+    ("..... 1", "", "1"),                       # a table_of_contents_number line
+    ("Preface ....... xiv", "Preface", "xiv"),  # roman page number
+    ("Terminology ..... 3.1.2.1", "Terminology", "3.1.2.1"),  # section locator
+    ("Results .... 12a", "Results", "12a"),
+    ("Appendix ..... 200-204", "Appendix", "200-204"),
+    ("A Title With No Leader", "A Title With No Leader", ""),
+    ("", "", ""),
+])
+def test_split_leader(raw, title, loc):
+    from docmodel.modules.toc import split_leader
+    assert split_leader(raw) == (title, loc)
+
+
+def test_a_multiline_row_keeps_its_authors_and_lifts_the_page_number():
+    # 948 corpus rows read "Title ..... 57 \n Authors". Stripping the leader
+    # without lifting the number welds it into the title.
+    from docmodel.modules.toc import split_leader
+    title, loc = split_leader(
+        "Discrete Complex Analysis on Planar Quad-Graphs  ..... 57 \n"
+        "Alexander I. Bobenko and Felix Günther")
+    assert loc == "57"
+    assert title == ("Discrete Complex Analysis on Planar Quad-Graphs\n"
+                     "Alexander I. Bobenko and Felix Günther")
+    assert ".." not in title
+
+
+def test_no_leader_survives_into_any_title():
+    from docmodel.modules.toc import split_leader
+    for raw in ("X ..... 1", "..... 9", "Y .. z", "A ... B ... 4"):
+        assert ".." not in split_leader(raw)[0]
+
+
+def test_the_model_carries_title_locator_and_raw():
+    from docmodel.modules.toc import TocProcessor
+    doc = _doc([
+        {"id": "r", "type": "table_of_contents_row", "text": "Chapter 1 ..... 7"},
+        {"id": "n", "type": "table_of_contents_number", "text": "..... 7"},
+    ])
+    m = _mod(TocProcessor)
+    m.process_document(doc)
+    toc = doc.objects_of_type("Toc")[0]
+    assert toc.props["entries"] == ["Chapter 1"]        # the number line drops out
+    assert toc.props["rows"] == [
+        {"title": "Chapter 1", "locator": "7", "raw": "Chapter 1 ..... 7",
+         "line_type": "table_of_contents_row"},
+        {"title": "", "locator": "7", "raw": "..... 7",
+         "line_type": "table_of_contents_number"},
+    ]

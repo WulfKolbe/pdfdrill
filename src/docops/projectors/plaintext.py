@@ -74,5 +74,17 @@ class PlainTextProjector(BaseProjector):
             # 262 — KEPT deliberately. This projection is a faithful dump of
             # what the page holds, and the page holds a table of contents.
             # (TiddlyWiki omits it and rebuilds by filter; see toc.py.)
+            # 263 — render from `rows` so the page number survives the leader
+            # being stripped. `entries` alone would drop it.
+            rows = p.get("rows")
+            if rows:
+                out = []
+                for r in rows:
+                    title = (r.get("title") or "").strip()
+                    loc = (r.get("locator") or "").strip()
+                    if not title and not loc:
+                        continue
+                    out.append(f"{title}  {loc}".strip() if loc else title)
+                return "[TABLE OF CONTENTS]\n" + "\n".join(out)
             return "[TABLE OF CONTENTS]\n" + "\n".join(p.get("entries", []))
         return ""

@@ -1,0 +1,95 @@
+263 — the dot leader comes off in the model, once
+==============================================================================
+
+WHAT THE CORPUS CARRIES
+------------------------------------------------------------------------------
+    entry strings from table_of_contents_* lines      54,240
+      carrying a dot leader                           33,946   (62.6%)
+        ...that are ONLY a leader and a number        16,870
+        ...that split into title + locator            16,845
+        ...where the dots are not a title/number
+           boundary ("..... a", "..... page")            231
+      with no leader at all                           20,294
+    documents affected                                   153
+
+The only leader character MathPix emits in this corpus is `.` — checked across
+all 54,240 entries, and there is no `·`, `…`, `_` or dash leader anywhere. So
+the rule is one character class, not a guess at typography.
+
+WHY STRIPPING THE LEADER ALONE WOULD HAVE BEEN WORSE
+------------------------------------------------------------------------------
+`table_of_contents_number` is its own type, so on a NUMBER line the parts are
+already separate. But a ROW's entry is the join of its children, and there the
+three parts arrive fused:
+
+    "1.1. Cayley algebra \(\mathfrak{C}\)  ..... 1"
+
+Deleting the dots gives "1.1. Cayley algebra \(\mathfrak{C}\) 1" — the page
+number welded to the title, which is worse than leaving the dots in. The
+locator has to be lifted out in the same operation, which is what
+`split_leader` does.
+
+948 rows made that concrete. A proceedings TOC row reads
+
+    "Discrete Complex Analysis on Planar Quad-Graphs  ..... 57 \n
+     Alexander I. Bobenko and Felix Günther"
+
+The authors belong to the entry; the page number does not belong to the title.
+The locator is therefore taken as what sits between the leader and the first
+line break, and anything past that break stays with the title. A first version
+of the rule required the whole tail to be a page number, so all 948 of these
+fell to the fallback and got "… Quad-Graphs 57 Alexander I. Bobenko" — the
+exact welding the rule exists to prevent. Found by printing the cases the rule
+did NOT classify, rather than counting the ones it did.
+
+A second sub-case in the same 948: 231 entries whose locator is a dotted
+section number (`3.1.2.1`, `4.6.2`) rather than a page — an index pointing at
+sections. The locator pattern accepts arabic, roman, dotted, ranged and
+letter-suffixed forms.
+
+WHAT CHANGED
+------------------------------------------------------------------------------
+  src/docmodel/modules/toc.py
+    `split_leader(text) -> (title, locator)`, applied once in `find_items`.
+
+    `entries`   now leader-stripped TITLES. The 16,870 leader-only lines
+                contribute nothing, because they have no title by construction
+                — they are the `table_of_contents_number` lines, and "..... 7"
+                was being recorded as an entry in its own right (261, break 2).
+    `rows`      new: [{title, locator, raw, line_type}] per contributing line,
+                so a consumer never parses dots out of a string again and the
+                page number is not lost by the stripping.
+
+  src/docops/projectors/plaintext.py
+    Renders from `rows` — "title  locator" — so the faithful page dump keeps
+    the page numbers it always showed, without the leader.
+
+VERIFICATION
+------------------------------------------------------------------------------
+Replayed over all 54,240 corpus entries with the shipped function:
+
+    leaders surviving into a title                           0
+    entries reduced to a title + locator                16,845
+    entries correctly reduced to no title              16,870
+    entries with dots removed but no locator found         231
+
+12 tests, including every locator form, the multi-line row, and an assertion
+that no title anywhere contains "..".
+
+ONE MISTAKE WORTH RECORDING
+------------------------------------------------------------------------------
+I first wrote `entry_strings.append(title or raw)`. The `or raw` was meant to
+protect entries with no leader — which do not need it, since their title IS the
+raw text. What it actually did was put every leader-only line back into
+`entries` as "..... 7", re-admitting the precise junk this task removes. Caught
+by a test that asserted the entry list, not by the corpus replay, which counted
+titles and never looked at what `entries` ended up holding.
+
+Suite 2,573.
+
+STILL OPEN
+------------------------------------------------------------------------------
+261's break 1 — the Toc realization spanning first-TOC-line to last-TOC-line,
+99% of a document — is untouched. 263 was scoped to the leader. The triple
+counting (break 2) is partly reduced here: the 16,870 number lines no longer
+produce entries, leaving row and item duplication.
