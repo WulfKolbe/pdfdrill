@@ -1,0 +1,111 @@
+257 — the exact MathPix request shape, and the three flags
+==============================================================================
+
+NONE OF THE THREE FLAGS IS SET. ANYWHERE. ON EITHER ROUTE.
+------------------------------------------------------------------------------
+   grep -rn "enable_document_layout|disable_lstlisting|disable_itemize" src/ tests/
+   -> no matches
+
+So all three are whatever the MathPix server defaults are. Every corpus
+behaviour attributed to them is the server's choice, not ours, and nothing in
+this repo has ever varied them.
+
+ROUTE 1 — THE PDF ROUTE
+------------------------------------------------------------------------------
+   endpoint   POST https://api.mathpix.com/v3/pdf-file
+   body       multipart/form-data, two parts:
+                options_json  (the JSON below, verbatim)
+                file          (the PDF, streamed in 4 MB chunks)
+   headers    app_id, app_key, Content-Type: multipart/form-data; boundary=…,
+              Content-Length
+   polling    GET /v3/pdf/{pdf_id}
+   formats    lines.json, md, tex.zip   (DEFAULT_FORMATS, download order)
+
+   options_json AS TRANSMITTED — json.dumps(CONVERSION_OPTIONS), complete:
+
+     {"conversion_options":
+       {"tex.zip": {"include_equation_tags": true,
+                    "idiomatic_eqn_arrays": true},
+        "md":      {"math_inline_delimiters": ["$", "$"],
+                    "math_display_delimiters": ["$$", "$$"],
+                    "escape_ampersand": "true",
+                    "escape_dollar": "true",
+                    "escape_percent": "false",
+                    "escape_hash": "true"}}}
+
+That is the whole of it. Six string-valued escape flags and four booleans, all
+inside `conversion_options`, which is the per-FORMAT rendering block. There is
+no top-level options key at all — no enable_document_layout, no
+include_line_data, no rm_spaces, nothing that would change what the OCR
+segments, only how the chosen formats are written out.
+
+Note the four escape values are the STRINGS "true"/"false", not booleans. That
+is how they were copied from mtestzx.py and it is what goes on the wire.
+
+ROUTE 2 — THE SNIPPET ROUTE
+------------------------------------------------------------------------------
+   endpoint   POST https://api.mathpix.com/v3/text
+   body       application/json, built by build_payload():
+
+     {"src": "<data: URI or URL>",
+      "formats": ["text", "data"],
+      "math_inline_delimiters": ["$", "$"],
+      "rm_spaces": true,
+      "include_line_data": true,
+      "data_options": {"include_latex": true}}
+
+   `is_async` and an arbitrary `extra` dict are supported and unused by the
+   callers. Again: none of the three flags.
+
+The two routes share no options object. The PDF route sends conversion_options
+only; the snippet route sends top-level options only. Neither sends the other's.
+
+WHAT THE CORPUS SAYS ABOUT enable_document_layout
+------------------------------------------------------------------------------
+The premise is right that layout was active: 44,689 `code` lines and 7,078
+`pseudocode` lines came back, plus 24,806 diagram, 22,638 figure_label, 2,136
+chart and the whole table_of_contents family. A route with document layout off
+would not emit those types.
+
+Since we send nothing, that is the SERVER DEFAULT, uniformly, across all 1,350
+jobs. It is not our setting and it never varied.
+
+WHAT THE CORPUS SAYS ABOUT disable_lstlisting — AND THE HYPOTHESIS IS WRONG
+------------------------------------------------------------------------------
+Scanned all 1,216 tex.zip archives:
+
+   \begin{lstlisting}   477 blocks in 161 documents
+   \begin{verbatim}   6,370 blocks in 220 documents
+   both, same document              54 documents
+   lstlisting only                 107
+   verbatim only                   166
+
+**54 documents contain both.** 0212032 has 9 lstlisting and 25 verbatim in one
+tex.zip; 2109.08899 has 2 and 2. A per-job flag cannot produce both inside a
+single job's output. MathPix is choosing per BLOCK — lstlisting where it
+identifies a listing, verbatim otherwise — and the choice is a property of the
+content, not of a setting that varied across jobs.
+
+So the corpus does not show the flag varying. It shows the flag never being
+sent and the server making a per-block decision. The markdown route, separately,
+is uniform: 0 lstlisting and 13,413 fenced blocks across 296 of 1,430 .md
+files — fences are simply what the md format uses.
+
+disable_itemize: 21,536 itemize/enumerate blocks in 1,017 of 1,216 tex.zip
+archives. Not disabled, and never sent.
+
+WHAT THIS MEANS IF ANY OF THEM IS EVER WANTED
+------------------------------------------------------------------------------
+All three are top-level options on /v3/pdf-file, and CONVERSION_OPTIONS has no
+top-level section — it is `{"conversion_options": {...}}` and nothing else. So
+setting one is not a value change, it is a structural addition to the body, and
+the current shape gives no place to put it that would be picked up by accident.
+
+I have not added them. Sending an option we have never sent would change the
+segmentation of every future job, and out/164 already measured that
+enable_document_layout is not free: it was an A/B on one page of 0902.0431.
+Changing it globally on the strength of a code read, with 1,350 documents
+already drilled under the default, is not a change to make without the A/B
+being redone at corpus scale.
+
+Nothing changed in this task.
