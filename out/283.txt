@@ -1,0 +1,87 @@
+283 — tex.zip filename census: one format, no transition
+==============================================================================
+
+THE CENSUS
+------------------------------------------------------------------------------
+    1,216 tex.zips (0 unreadable), 20,582 image files
+
+    coordinate form  -<page>_<h>_<w>_<y>_<x>     20,565
+    collision form   -<page>_<n>(<m>)                 0
+    neither                                          17
+
+    zips by dominant form
+      coordinate                                    928
+      no images at all                              285
+      only non-coordinate images                      3
+
+THE COLLISION FORM DOES NOT OCCUR. NOT ONCE.
+------------------------------------------------------------------------------
+This is a negative on the premise, so it is worth saying how hard I looked
+rather than just reporting a zero.
+
+    filenames containing "(" or ")" or "[" or "]" or "%28"/"%29",
+    anywhere in the name OR the zip path                            0
+
+    underscore-separated numeric groups after the final "-":
+        exactly 5                                              20,565
+        2 or 3 (a collision or simple form)                          0
+        no trailing -digits at all                                  17
+
+Every image filename that carries a trailing digit group carries exactly five.
+There is no `-04_2(1).jpg`, no `-04_2.jpg`, and no percent-escaped variant.
+
+THE 17 THAT MATCH NEITHER — AND THEY RECONCILE WITH 279 EXACTLY
+------------------------------------------------------------------------------
+    image-not-found.png                    11
+    smile-<40-hex-sha1>.png                 6
+    ----
+                                           17     = out/279's "17 unparseable"
+
+Neither is a collision. `image-not-found.png` is MathPix's placeholder for a
+region it could not export — a stated failure, not a naming scheme. The
+`smile-<hash>.png` files are rendered chemical structures, named by content
+hash because a SMILES string has no page position; they are the `molecule` type
+259 found (10 lines, 4 documents), and a content hash is the right key for
+something that is not a crop of a page.
+
+So 279's 17 and 283's 17 are the same 17 files, and none of them is a format.
+
+BY DATE — WHICH IS WHERE A TRANSITION WOULD SHOW
+------------------------------------------------------------------------------
+Zip mtime is the DOWNLOAD time, not MathPix's export time, so it is a weak
+proxy on its own. The timestamps MathPix writes INSIDE each zip entry are the
+real export time, and both were measured:
+
+    zip-internal month   images    coord   collision   simple   other
+    2026-02                   1        1           0        0       0
+    2026-03                   2        2           0        0       0
+    2026-04                   5        5           0        0       0
+    2026-05                 266      265           0        0       1
+    2026-06               1,212    1,212           0        0       0
+    2026-07               1,322    1,322           0        0       0
+    2026-08              17,774   17,758           0        0      16
+
+The two clocks agree month for month, which also says pdfdrill downloads these
+promptly rather than sitting on them.
+
+The coordinate form is present in the FIRST month of the corpus and every month
+since. There is no transition to show because there is no second format: the
+answer to "does the format change show as a transition rather than a mixture"
+is that it is neither — it is a constant.
+
+WHAT THIS CANNOT SAY
+------------------------------------------------------------------------------
+This is 1,216 zips spanning 2026-02-24 to 2026-08-27. If MathPix used a
+collision form before February 2026, or uses one for an export mode this
+library has never requested, nothing here would show it. I can report that the
+form does not occur in what we hold; I cannot report that it does not exist.
+
+CONSEQUENCE FOR 284 AND 285
+------------------------------------------------------------------------------
+284 is scoped to "new-format documents only" and 285 to "old-format documents".
+On this corpus that split has 928 documents on one side and 0 on the other. 284
+therefore applies to every document whose zip has images, and 285's population
+is empty here — which is a thing to check with inkdrill before either of us
+spends time on a matching strategy for documents that may not exist.
+
+Nothing changed in this task.
