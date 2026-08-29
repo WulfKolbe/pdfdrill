@@ -1,0 +1,28 @@
+{
+ "doc": "2311.09533v3",
+ "pdf": "2311.09533v3.pdf",
+ "rc": 0,
+ "stdout_tail": "Build stamp: report.build.json — phase=reading, 5 pages, 538960 bytes, sha256 669b5859952a. A measurement of this report should copy it into its output as `measured_against`.",
+ "seconds": 4.9,
+ "regions": {
+  "regions_with_latex": 1,
+  "attempted_now": 1,
+  "rendered": 1,
+  "failed": 0,
+  "has_author_preamble": false,
+  "graphics_dir": "/home/wkolbe/pdfdrill-library/2311.09533v3/texsrc",
+  "failures": []
+ },
+ "manifest_rows": 5,
+ "with_latex": 1,
+ "duplicated": 4,
+ "table_cols": [
+  6,
+  5,
+  4,
+  6
+ ],
+ "six_col_tables": 2,
+ "region_table_cols": 6,
+ "ink_selectable": false
+}
