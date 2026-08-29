@@ -1,0 +1,11 @@
+{
+ "doc": "BH1",
+ "pdf": "BH1-9add65ca.pdf",
+ "rc": 0,
+ "stdout_tail": "Build stamp: report.build.json — phase=reading, 150 pages, 7518813 bytes, sha256 1402eb1a99bf. A measurement of this report should copy it into its output as `measured_against`.",
+ "seconds": 168.1,
+ "table_cols": [],
+ "six_col_tables": 0,
+ "region_table_cols": null,
+ "ink_selectable": false
+}
