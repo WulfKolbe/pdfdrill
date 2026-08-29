@@ -1,117 +1,186 @@
-r"""311 — produce inkdrill's report.compare.tsv ourselves.
+r"""311/322 — produce inkdrill's report.compare.tsv ourselves.
 
-`inkconvert` reads a TSV that, until now, only the peer inkdrill session
-produced ("the inkdrill harness writes per-doc report.compare.tsv into each
-library folder when its run completes", HANDOVER-RULES). 982 of 1,350 documents
-have never been measured, so their reports carry empty ink columns and nothing
-explains why.
+`inkconvert` reads a TSV that only the peer inkdrill session used to produce,
+so most documents have never been measured and their reports carry empty ink
+columns with nothing explaining why.
 
-The measurement itself is not secret: it is the same shape `regionink` already
-runs for the IMAGE table, pointed at the EQUATION table instead. Two arguments
-differ and both matter:
+Three facts govern which rows belong in that file, and 311c got two of them
+wrong by reasoning instead of reading:
 
-  columns=5   the equation table's own width, from our source. regionink uses
-              6 for the image table. Guessing it is how a 5-column lattice was
-              read as 6 and every identifier after the first page shifted.
-  header=every  the equation table repeats its header via \endhead, so row 0 of
-              EVERY page is a header. The image table prints its header once,
-              which is why regionink passes `first`. Getting this backwards
-              drops one data row per page, silently.
+**Only the DISPLAY EQUATIONS table.** `inkconvert.identifiers` matches
+`\ident{...EQ<digits>}` and nothing else, so formulas, tables and image
+regions are not paired against and must not be measured.
+
+**The legend rows STAY.** `inkconvert.read_tsv` separates one all-zero row per
+page as the legend footer and counts display pages from them. Dropping them
+here would leave the consumer with no footers to find and a row count short by
+one per page. 311c dropped them.
+
+**The table is selected by ORDINAL, not width.** A column count cannot pick a
+table when two share one (320), and contiguity cannot separate two ADJACENT
+tables of one width — 0049's equations and formulas are both 5 columns, so
+inkdrill sees one 28-row run. `report.tables.json` (321) says it is 1 row then
+27, and because the builder puts a `\clearpage` between sections, the split
+falls on a page boundary and can be taken exactly.
 
 pdfdrill CONSUMES inkdrill: it is a subprocess, never an import.
 """
 
 from __future__ import annotations
 
+import json
 from pathlib import Path
 
 from . import regionink as ri
 
-#: Fallback only. The equation table's width is NOT a constant: ink adoption
-#: adds a residual column, so the same report is 5 wide without ink and 6 with
-#: it. Hardcoding 5 made `reportpages` return no pages at all on an adopted
-#: report while its census plainly showed the table — the guess this module's
-#: own docstring warns against, made two functions below the warning.
-EQUATION_COLUMNS_FALLBACK = 5
-
-
-def equation_columns(report_tex: Path) -> int:
-    r"""The equation table's declared width, from the report's own preamble.
-
-    `report_tex` writes the equation/formula table FIRST and closes with the
-    image-region table, so the first `\begin{longtable}` is the one to measure.
-    Counting `p{` on that line is exact: every column in these preambles is a
-    `p{..mm}`, and `|` decorations carry none.
-    """
-    try:
-        text = Path(report_tex).read_text(errors="replace")
-    except OSError:
-        return EQUATION_COLUMNS_FALLBACK
-    for line in text.splitlines():
-        if r"\begin{longtable}" in line:
-            n = line.count("p{")
-            return n or EQUATION_COLUMNS_FALLBACK
-    return EQUATION_COLUMNS_FALLBACK
-#: inkdrill's TSV column order, which `inkconvert` parses.
+EQUATION_CAPTION = "Display equations"
 TSV_HEADER = ("report_page", "line", "dis", "A_eq_B",
               "L_comp", "L_holes", "L_stk", "L_cen", "L_off",
               "R_comp", "R_holes", "R_stk", "R_cen", "R_off")
 
 
 class MeasureRefused(RuntimeError):
-    """The report cannot be measured, and saying so beats writing a wrong TSV."""
+    """The report cannot be measured, and saying so beats a wrong TSV."""
 
 
-def measure(report_pdf: Path, work: Path, timeout: int = 900,
-            columns: int | None = None) -> list:
-    r"""Every equation-table row of the report, in printed order.
+def equations_table(doc_dir: Path) -> dict:
+    """The builder's own record of its Display equations table (321)."""
+    f = Path(doc_dir) / "report.tables.json"
+    if not f.is_file():
+        return _from_tex(Path(doc_dir) / "report.tex")
+    try:
+        tables = json.loads(f.read_text(encoding="utf-8")).get("tables") or []
+    except Exception as exc:
+        raise MeasureRefused("report.tables.json unreadable: %s" % exc)
+    for t in tables:
+        if t.get("caption") == EQUATION_CAPTION:
+            return t
+    raise MeasureRefused("report.tables.json names no %r table"
+                         % EQUATION_CAPTION)
 
-    `inkdrill compare` has no header flag, so it returns the header row as
-    data. `reportpages --header every` does drop it. With `every` the header
-    repeats on EVERY page, so compare comes back exactly one row long per page
-    — the same reconciliation 293 made for the image table, where the header
-    prints once and only the first page was over by one.
 
-    The drop is explicit and only when the arithmetic says so. Any other
-    disagreement refuses: writing a TSV from two disagreeing views would put
-    every later identifier on the wrong row, which is the failure that produces
-    a file rather than an error.
+def _from_tex(tex: Path) -> dict:
+    r"""The equations table read back out of report.tex.
+
+    A FALLBACK for the 1,222 reports built before the builder started stating
+    its boundaries (321), so 322 does not have to rebuild the corpus first.
+    It is derived rather than stated, and the two differ in what they can
+    know: this reads the FIRST longtable and trusts that it is the equations
+    table, which the builder's own record does not have to assume.
     """
+    import re
+    if not tex.is_file():
+        raise MeasureRefused("no report.tables.json and no report.tex")
+    lines = tex.read_text(encoding="utf-8", errors="replace").splitlines()
+    start = next((i for i, l in enumerate(lines)
+                  if r"\begin{longtable}" in l), None)
+    if start is None:
+        raise MeasureRefused("report.tex holds no longtable")
+    end = next((i for i, l in enumerate(lines[start:], start)
+                if r"\end{longtable}" in l), len(lines))
+    body = lines[start:end]
+    idents = [l for l in body if r"\ident{" in l and "EQ" in l]
+    return {"caption": EQUATION_CAPTION, "columns": lines[start].count("p{"),
+            "legend": any("multicolumn" in l for l in body),
+            "endhead": any(r"\endhead" in l for l in body),
+            "rows": len(idents), "identifiers": [], "derived_from": "report.tex"}
+
+
+def _pages_for(rows_by_page: dict, pages: list, want: int, legend: bool):
+    """The leading pages of a run that hold `want` data rows.
+
+    The builder `\\clearpage`s between sections, so a table owns whole pages
+    and the split is exact. A split landing mid-page means the premise is
+    wrong, and this refuses rather than taking a prefix of a page.
+    """
+    got, take = 0, []
+    for p in pages:
+        n = len(rows_by_page.get(str(p), []))
+        got += n - (1 if legend else 0)
+        take.append(p)
+        if got == want:
+            return take
+        if got > want:
+            raise MeasureRefused(
+                "the equations table does not end on a page boundary: %d rows "
+                "after page %d against %d expected. The builder clearpages "
+                "between sections, so this means the run is not the table."
+                % (got, p, want))
+    raise MeasureRefused(
+        "run holds %d data rows, the manifest expects %d for the equations "
+        "table" % (got, want))
+
+
+def measure(report_pdf: Path, work: Path, timeout: int = 900) -> list:
+    r"""Every Display-equations row of the report, legend rows included."""
+    doc_dir = Path(report_pdf).parent
+    t = equations_table(doc_dir)
+    want, cols = t["rows"], t["columns"]
+    header = "every" if t.get("endhead") else "first"
+    if not want:
+        return []
     work.mkdir(parents=True, exist_ok=True)
-    if columns is None:
-        columns = equation_columns(report_pdf.with_suffix(".tex"))
-    expected = ri.detect_pages(report_pdf, columns=columns,
-                               header="every", timeout=timeout)
+    sel = ri.reportpages_json(report_pdf, columns=cols, table=1,
+                              header=header, timeout=timeout)
+    runs = sel.get("tables") or []
+    if not runs:
+        raise MeasureRefused("inkdrill found no table in %s" % report_pdf.name)
+    # ordinal 1 is the equations table on nearly every document; when the
+    # first run is a different width, take the first run that matches.
+    if runs[0]["columns"] != cols:
+        cand = [r for r in runs if r["columns"] == cols]
+        if not cand:
+            raise MeasureRefused(
+                "no run is %d columns wide; inkdrill saw %s"
+                % (cols, [r["columns"] for r in runs]))
+        sel = ri.reportpages_json(report_pdf, columns=cols,
+                                  table=cand[0]["ordinal"], header=header,
+                                  timeout=timeout)
+    pages = _pages_for(sel.get("rows") or {}, sel.get("pages") or [],
+                       want, bool(t.get("legend")))
     out = []
-    for page in sorted(expected):
-        want = expected[page]
+    for page in pages:
         a = ri._render(report_pdf, page, 300, work)
         b = ri._render(report_pdf, page, 600, work)
         if not (a.is_file() and b.is_file()):
-            raise MeasureRefused("could not render page %d of %s"
-                                 % (page, report_pdf.name))
+            raise MeasureRefused("could not render page %d" % page)
         rows = ri.compare_page(a, b, page, timeout)
-        if len(rows) == want + 1:
-            rows = rows[1:]                       # the per-page header row
-        if len(rows) != want:
+        expect = len((sel.get("rows") or {}).get(str(page), []))
+        if len(rows) == expect + 1:
+            rows = rows[1:]                  # compare has no header rule
+        if len(rows) != expect:
             raise MeasureRefused(
-                "page %d: inkdrill compare returned %d rows, reportpages "
-                "expects %d. Writing a TSV from two disagreeing views would "
-                "put every later identifier on the wrong row."
-                % (page, len(rows), want))
+                "page %d: compare returned %d rows, reportpages expects %d"
+                % (page, len(rows), expect))
+        if t.get("legend") and rows:
+            # THE FOOTER RECONCILIATION (322). One legend row per page, and it
+            # is the LAST row: `legend_foot` emits the key as \endfoot and
+            # \endlastfoot, so LaTeX sets it at the bottom of every page.
+            #
+            # It is dropped HERE rather than left for inkconvert, whose rule is
+            # that a footer is all-zero in BOTH five-tuples. That holds only
+            # for the 6-column table, where the last two columns are Rendered
+            # and Scan and the legend fills neither. On a 5-column table they
+            # are LaTeX source and Rendered, the legend's \multicolumn covers
+            # the source cell, and the row measures L=[68,23,3,3,0] against
+            # R=[0,0,0,0,0] -- not all-zero, so inkconvert would count it as an
+            # equation and refuse the pairing. Measured on 0049.
+            rows = rows[:-1]
         out.extend(rows)
+    data = len(out)
+    if data != want:
+        raise MeasureRefused(
+            "%d data rows measured against %d identifiers — the pairing would "
+            "be unknown and inkconvert would refuse it anyway" % (data, want))
     return out
 
 
 def distance(L: list, R: list) -> int:
-    """L1 between the two five-tuples — inkdrill's `dis` column, reproduced.
+    """L1 between the two five-tuples — inkdrill's `dis`, reproduced.
 
-    `inkdrill compare` does NOT emit a distance; its third column is a label.
-    The distance is derived, and this is the same sum `inkconvert.rows` computes
-    from L and R, verified against inkdrill's own TSV: rows scoring 2, 5 and 12
-    there reproduce exactly here. Writing a placeholder 0 instead would have
-    been harmless to the conversion — inkconvert recomputes it — and a
-    fabricated number in a file that claims to be a measurement.
+    `inkdrill compare` emits no distance; its third column is a label. This is
+    the sum `inkconvert` recomputes, verified against inkdrill's own TSV:
+    rows scoring 2, 5 and 12 there reproduce exactly.
     """
     return sum(abs(a - b) for a, b in zip(L, R))
 

@@ -55,6 +55,34 @@ REPORTPAGES = _INKDRILL_HOME / "tools" / "reportpages.py"
 REGION_COLUMNS = 6
 
 
+def reportpages_json(report_pdf: Path, columns: int, table: int | None = None,
+                     header: str = "first", timeout: int = 1800) -> dict:
+    """inkdrill's page/row detection, whole. Subprocess, never an import.
+
+    322 — `--table N` selects by ORDINAL because a column count cannot pick a
+    table when two share one. inkdrill cross-checks the two and reports a
+    disagreement rather than reconciling it, so a wrong column count returns
+    no rows and says why instead of measuring the wrong table.
+    """
+    if not REPORTPAGES.is_file():
+        raise RegionInkRefused(
+            "inkdrill's tools/reportpages.py not found at %s" % REPORTPAGES)
+    cmd = ["python3", str(REPORTPAGES), "--pdf", str(report_pdf),
+           "--columns", str(columns), "--header", header]
+    if table is not None:
+        cmd += ["--table", str(table)]
+    p = subprocess.run(cmd, capture_output=True, text=True, timeout=timeout)
+    try:
+        d = json.loads(p.stdout)
+    except Exception:
+        raise RegionInkRefused(
+            "reportpages emitted no JSON for %s (rc=%d): %s"
+            % (report_pdf.name, p.returncode, (p.stderr or p.stdout)[:200]))
+    if d.get("mismatch"):
+        raise RegionInkRefused("reportpages: %s" % d["mismatch"])
+    return d
+
+
 def detect_pages(report_pdf: Path, columns: int = REGION_COLUMNS,
                  timeout: int = 1800, header: str = "first") -> dict:
     r"""{page: expected row count} for the region table, from inkdrill.
