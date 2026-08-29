@@ -1,0 +1,17 @@
+{
+ "doc": "Introduction to Linear and Matrix Algebra (Nathaniel Johnston) (Z-Library)",
+ "pdf": "Introduction to Linear and Matrix Algebra (Nathaniel Johnston) (Z-Library).pdf",
+ "rc": 1,
+ "stdout_tail": "",
+ "error": "F built from the other build's cross-references, which compiles and is wrong. If that process is gone, delete /home/wkolbe/pdfdrill-library/Introduction to Linear and Matrix Algebra (Nathaniel Johnston) (Z-Library)/.Introduction to Linear and Matrix Algebra (Nathaniel Johnston) (Z-Library).pdf.lock.",
+ "seconds": 0.3,
+ "table_cols": [
+  6,
+  5,
+  4,
+  4
+ ],
+ "six_col_tables": 1,
+ "region_table_cols": 4,
+ "ink_selectable": false
+}
