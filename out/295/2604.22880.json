@@ -1,0 +1,33 @@
+{
+ "doc": "2604.22880",
+ "pdf": "2604.22880.pdf",
+ "rc": 0,
+ "stdout_tail": "Build stamp: report.build.json — phase=reading, 5 pages, 681410 bytes, sha256 f916ec65a621. A measurement of this report should copy it into its output as `measured_against`.",
+ "seconds": 7.5,
+ "regions": {
+  "regions_with_latex": 1,
+  "attempted_now": 1,
+  "rendered": 0,
+  "failed": 1,
+  "has_author_preamble": false,
+  "graphics_dir": "/home/wkolbe/pdfdrill-library/2604.22880/texsrc",
+  "failures": [
+   {
+    "id": "2604.22880_DIA_0005",
+    "first_error": "! Missing \\endcsname inserted."
+   }
+  ]
+ },
+ "manifest_rows": 7,
+ "with_latex": 1,
+ "duplicated": 7,
+ "table_cols": [
+  6,
+  5,
+  4,
+  6
+ ],
+ "six_col_tables": 2,
+ "region_table_cols": 6,
+ "ink_selectable": false
+}
