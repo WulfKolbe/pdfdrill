@@ -1,0 +1,28 @@
+{
+ "doc": "50 years of Combinatorics, Graph Theory, and Computing (Discrete Mathematics and Its Applications) (Fan Chung (editor), Ron Graham (editor) etc.) (Z-Library)",
+ "pdf": "50 years of Combinatorics, Graph Theory, and Computing (Discrete Mathematics and Its Applications) (Fan Chung (editor), Ron Graham (editor) etc.) (Z-Library).pdf",
+ "rc": 0,
+ "stdout_tail": "Build stamp: report.build.json — phase=reading, 1146 pages, 9486823 bytes, sha256 e005644fbd1d. A measurement of this report should copy it into its output as `measured_against`.",
+ "seconds": 283.0,
+ "regions": {
+  "regions_with_latex": 8,
+  "attempted_now": 8,
+  "rendered": 8,
+  "failed": 0,
+  "has_author_preamble": false,
+  "graphics_dir": null,
+  "failures": []
+ },
+ "manifest_rows": 116,
+ "with_latex": 8,
+ "duplicated": 108,
+ "table_cols": [
+  6,
+  5,
+  4,
+  6
+ ],
+ "six_col_tables": 2,
+ "region_table_cols": 6,
+ "ink_selectable": false
+}
