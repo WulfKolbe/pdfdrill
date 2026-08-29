@@ -1,0 +1,27 @@
+{
+ "doc": "30253-1526-24697-2-10-20241121",
+ "pdf": "30253-1526-24697-2-10-20241121.pdf",
+ "rc": 0,
+ "stdout_tail": "Build stamp: report.build.json — phase=reading, 13 pages, 755896 bytes, sha256 a874759330f9. A measurement of this report should copy it into its output as `measured_against`.",
+ "seconds": 8.7,
+ "regions": {
+  "regions_with_latex": 5,
+  "attempted_now": 5,
+  "rendered": 5,
+  "failed": 0,
+  "has_author_preamble": false,
+  "graphics_dir": null,
+  "failures": []
+ },
+ "manifest_rows": 8,
+ "with_latex": 5,
+ "duplicated": 3,
+ "table_cols": [
+  6,
+  5,
+  6
+ ],
+ "six_col_tables": 2,
+ "region_table_cols": 6,
+ "ink_selectable": false
+}
