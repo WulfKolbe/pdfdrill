@@ -649,3 +649,7 @@ Traceback (most recent call last):
     return f.write(data)
            ~~~~~~~^^^^^^
 UnicodeEncodeError: 'utf-8' codec can't encode character '\udce8' in position 14: surrogates not allowed
+population: 1346 documents (21 from the site, first)
+[ 639/1346] AltenkirchMcBrided-TowardsOTT        8.0s  regions=3 failed=0 selectable=False
+[ 640/1346] Ana3_WS25_Loesung_Blat02             2.8s  regions=0 failed=0 selectable=False
+[ 641/1346] Ana3_WS25_Loesung_Blat04             3.0s  regions=0 failed=0 selectable=False
