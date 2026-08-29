@@ -1,0 +1,28 @@
+{
+ "doc": "Compressed sensing in radar signal processing (Antonio De Maio, Yonina C.Eldar etc.) (Z-Library)",
+ "pdf": "Compressed sensing in radar signal processing (Antonio De Maio, Yonina C.Eldar etc.) (Z-Library).pdf",
+ "rc": 0,
+ "stdout_tail": "Build stamp: report.build.json — phase=reading, 457 pages, 21915612 bytes, sha256 eb7c965766d8. A measurement of this report should copy it into its output as `measured_against`.",
+ "seconds": 391.5,
+ "regions": {
+  "regions_with_latex": 12,
+  "attempted_now": 12,
+  "rendered": 12,
+  "failed": 0,
+  "has_author_preamble": false,
+  "graphics_dir": null,
+  "failures": []
+ },
+ "manifest_rows": 182,
+ "with_latex": 12,
+ "duplicated": 170,
+ "table_cols": [
+  6,
+  5,
+  4,
+  6
+ ],
+ "six_col_tables": 2,
+ "region_table_cols": 6,
+ "ink_selectable": false
+}
