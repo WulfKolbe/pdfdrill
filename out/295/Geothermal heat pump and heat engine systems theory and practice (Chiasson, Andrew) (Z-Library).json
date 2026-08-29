@@ -1,0 +1,33 @@
+{
+ "doc": "Geothermal heat pump and heat engine systems theory and practice (Chiasson, Andrew) (Z-Library)",
+ "pdf": "Geothermal heat pump and heat engine systems theory and practice (Chiasson, Andrew) (Z-Library).pdf",
+ "rc": 0,
+ "stdout_tail": "Build stamp: report.build.json — phase=reading, 334 pages, 26654599 bytes, sha256 dc4b2781a700. A measurement of this report should copy it into its output as `measured_against`.",
+ "seconds": 297.4,
+ "regions": {
+  "regions_with_latex": 2,
+  "attempted_now": 2,
+  "rendered": 1,
+  "failed": 1,
+  "has_author_preamble": false,
+  "graphics_dir": null,
+  "failures": [
+   {
+    "id": "Geothermal_heat_pump_and_heat_engine_systems_theory_and_practice__Chiasson__Andrew___Z-Library__DIA_0021",
+    "first_error": "! Missing $ inserted."
+   }
+  ]
+ },
+ "manifest_rows": 262,
+ "with_latex": 2,
+ "duplicated": 261,
+ "table_cols": [
+  6,
+  5,
+  4,
+  6
+ ],
+ "six_col_tables": 2,
+ "region_table_cols": 6,
+ "ink_selectable": false
+}
