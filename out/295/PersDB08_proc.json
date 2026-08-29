@@ -1,0 +1,28 @@
+{
+ "doc": "PersDB08_proc",
+ "pdf": "PersDB08_proc.pdf",
+ "rc": 0,
+ "stdout_tail": "Build stamp: report.build.json — phase=reading, 29 pages, 1910585 bytes, sha256 ef4bf7190952. A measurement of this report should copy it into its output as `measured_against`.",
+ "seconds": 22.7,
+ "regions": {
+  "regions_with_latex": 1,
+  "attempted_now": 1,
+  "rendered": 1,
+  "failed": 0,
+  "has_author_preamble": false,
+  "graphics_dir": null,
+  "failures": []
+ },
+ "manifest_rows": 39,
+ "with_latex": 1,
+ "duplicated": 38,
+ "table_cols": [
+  5,
+  5,
+  4,
+  6
+ ],
+ "six_col_tables": 1,
+ "region_table_cols": 6,
+ "ink_selectable": true
+}
