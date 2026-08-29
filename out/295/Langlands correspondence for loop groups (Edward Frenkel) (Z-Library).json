@@ -1,0 +1,28 @@
+{
+ "doc": "Langlands correspondence for loop groups (Edward Frenkel) (Z-Library)",
+ "pdf": "Langlands correspondence for loop groups (Edward Frenkel) (Z-Library).pdf",
+ "rc": 0,
+ "stdout_tail": "Build stamp: report.build.json — phase=reading, 589 pages, 17641634 bytes, sha256 580df4b2d39d. A measurement of this report should copy it into its output as `measured_against`.",
+ "seconds": 824.5,
+ "regions": {
+  "regions_with_latex": 0,
+  "attempted_now": 0,
+  "rendered": 0,
+  "failed": 0,
+  "has_author_preamble": false,
+  "graphics_dir": null,
+  "failures": []
+ },
+ "manifest_rows": 23,
+ "with_latex": 0,
+ "duplicated": 23,
+ "table_cols": [
+  6,
+  5,
+  4,
+  6
+ ],
+ "six_col_tables": 2,
+ "region_table_cols": 6,
+ "ink_selectable": false
+}
