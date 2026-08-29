@@ -1,0 +1,28 @@
+{
+ "doc": "1-s2.0-S0951832023002612-main",
+ "pdf": "1-s2.0-S0951832023002612-main.pdf",
+ "rc": 0,
+ "stdout_tail": "Build stamp: report.build.json — phase=reading, 21 pages, 1427358 bytes, sha256 59beb02ec040. A measurement of this report should copy it into its output as `measured_against`.",
+ "seconds": 2.9,
+ "regions": {
+  "regions_with_latex": 0,
+  "attempted_now": 0,
+  "rendered": 0,
+  "failed": 0,
+  "has_author_preamble": false,
+  "graphics_dir": null,
+  "failures": []
+ },
+ "manifest_rows": 11,
+ "with_latex": 0,
+ "duplicated": 11,
+ "table_cols": [
+  6,
+  5,
+  4,
+  6
+ ],
+ "six_col_tables": 2,
+ "region_table_cols": 6,
+ "ink_selectable": false
+}
