@@ -1,0 +1,41 @@
+{
+ "doc": "OMDoc – An Open Markup Format for Mathematical Documents [version 1.2] Foreword by Allan Bundy (Michael Kohlhase (auth.)) (Z-Library)",
+ "pdf": "OMDoc – An Open Markup Format for Mathematical Documents [version 1.2] Foreword by Allan Bundy (Michael Kohlhase (auth.)) (Z-Library).pdf",
+ "rc": 0,
+ "stdout_tail": "Build stamp: report.build.json — phase=reading, 98 pages, 3803864 bytes, sha256 d0c4d727a466. A measurement of this report should copy it into its output as `measured_against`.",
+ "seconds": 10.9,
+ "regions": {
+  "regions_with_latex": 7,
+  "attempted_now": 3,
+  "rendered": 4,
+  "failed": 3,
+  "has_author_preamble": false,
+  "graphics_dir": null,
+  "failures": [
+   {
+    "id": "OMDoc___An_Open_Markup_Format_for_Mathematical_Documents__version_1.2__Foreword_by_Allan_Bundy__Michael_Kohlhase__auth.____Z-Library__DIA_0085",
+    "first_error": "! Misplaced alignment tab character &."
+   },
+   {
+    "id": "OMDoc___An_Open_Markup_Format_for_Mathematical_Documents__version_1.2__Foreword_by_Allan_Bundy__Michael_Kohlhase__auth.____Z-Library__DIA_0113",
+    "first_error": "! Misplaced alignment tab character &."
+   },
+   {
+    "id": "OMDoc___An_Open_Markup_Format_for_Mathematical_Documents__version_1.2__Foreword_by_Allan_Bundy__Michael_Kohlhase__auth.____Z-Library__DIA_0120",
+    "first_error": "! Misplaced alignment tab character &."
+   }
+  ]
+ },
+ "manifest_rows": 271,
+ "with_latex": 7,
+ "duplicated": 267,
+ "table_cols": [
+  6,
+  5,
+  4,
+  6
+ ],
+ "six_col_tables": 2,
+ "region_table_cols": 6,
+ "ink_selectable": false
+}
