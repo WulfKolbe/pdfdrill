@@ -1,0 +1,77 @@
+310 - reporttex declares the ink it was already reading
+==================================================================
+
+THE GAP
+  reporttex adopts report.ink.json when it is present ('residuals: adopted
+  report.ink.json (no --ink needed)') but declared requires: [model,
+  geometry, injectlatex, cdncrops, tiddlers]. inkconvert, which PRODUCES
+  that file, was not among them - so the planner never offered it and the
+  reports came out with empty ink columns and nothing saying why.
+
+  This is the 2026-08-18 rule verbatim: a layer's requires names everything
+  it READS, not everything it calls, and a dependency that is not in the
+  manifest is not a dependency, it is a hope.
+
+WHAT THE PLANNER NOW OFFERS BEFORE A REPORT
+
+  reporttex requires: model, geometry, injectlatex, cdncrops, tiddlers,
+                      inkconvert
+
+  On a document with a TSV but no ink (0008113v1), `steps reporttex` was:
+      injectlatex -> reporttex
+  and is now:
+      injectlatex -> inkconvert -> reporttex
+
+  Running that inkconvert produced report.ink.json with 23 rows (K 2, N 20,
+  W 1), after which the step drops out of the chain. The offer resolves.
+
+HOW MANY OF THE 1,350 WOULD NEWLY RESOLVE
+
+  documents with a docmodel            : 1350
+  already satisfied (report.ink.json)  : 20
+  NEWLY RESOLVE (report.compare.tsv,
+    no report.ink.json - one command)  : 348
+  cannot resolve: inkdrill has never
+    measured them, so there is no TSV  : 982
+
+  349 when measured before this task; 348 now, because one (0008113v1) was
+  converted above to prove the offer resolves. So the declaration turns 349
+  documents from silently ink-less into one offline command away from ink,
+  and names the remaining 982 honestly rather than leaving their empty
+  columns unexplained.
+
+  Caveat measured, not assumed: for documents 295 has rebuilt, the new
+  report.build.json post-dates the old TSV, so inkconvert attaches NO build
+  stamp ('provenance stays unrecorded rather than wrong', 244b). The ink
+  rows are still joined to identifiers; only the measured-against stamp is
+  withheld.
+
+TWO THINGS THE CHANGE EXPOSED
+
+  1. A CYCLE, and it is not a modelling error. inkconvert requires
+     reporttex (inkdrill measures the report's PDF) and reporttex now
+     requires inkconvert. The report is built TWICE: a measure phase, then
+     a reading phase that adopts the measurement. One command name, two
+     phases, so the edge genuinely points both ways.
+
+     plan() drops the back edge, so each end gets the right order:
+       plan(reporttex)  -> ['inkconvert', 'reporttex']
+       plan(inkconvert) -> ['reporttex', 'inkconvert']
+
+     It did NOT do that before this task. The cycle guard stopped the
+     RECURSION but still appended the dependency, so a fresh document
+     planned reporttex twice - once as its own prerequisite, once as the
+     target. It stayed hidden because every document that already had a
+     report satisfied the edge before the guard was reached. I asserted the
+     old behaviour was correct before testing it; the test disagreed.
+
+  2. inkconvert produced no FACT. The capability graph derives what a
+     command establishes from its add_fact calls, and a prerequisite that
+     produces nothing is one the planner can name but never satisfy. It now
+     records INK_CONVERTED.
+
+  done_when for inkconvert is artifact:ink - PRESENCE, not freshness.
+  inkconvert refuses to overwrite report.ink.json without --force, so a
+  freshness test would report the document unsatisfied forever while the
+  step meant to satisfy it declines to act. A detector must agree with the
+  command it detects.

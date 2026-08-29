@@ -118,3 +118,45 @@ if __name__ == "__main__":
     if failed:
         print(f"\n{len(failed)} of {len(tests)} failed"); sys.exit(1)
     print(f"\nAll {len(tests)} tests passed.")
+
+
+# --- 310: reporttex reads the ink it never declared -------------------------
+
+def test_reporttex_declares_inkconvert():
+    """A layer's `requires` names everything it READS. reporttex adopts
+    report.ink.json, so inkconvert is a dependency, not a coincidence."""
+    from pdfdrill import planner
+    man = planner.load_manifest()
+    req, _done = planner.load_graph(man)
+    assert "inkconvert" in req["reporttex"]
+
+
+def test_the_reporttex_inkconvert_cycle_resolves_from_either_end():
+    """The report is built TWICE — a measure phase, then a reading phase that
+    adopts the measurement — so the edge genuinely points both ways. The cycle
+    guard must drop the edge that would run the same command twice, and the
+    order must be right whichever end is asked for."""
+    from pdfdrill import planner
+    req = {"reporttex": ["model", "inkconvert"],
+           "inkconvert": ["reporttex"], "model": []}
+    fwd = planner.plan("reporttex", req, satisfied={"model"})
+    assert fwd == ["inkconvert", "reporttex"]
+    rev = planner.plan("inkconvert", req, satisfied={"model"})
+    assert rev == ["reporttex", "inkconvert"]
+
+
+def test_inkconvert_done_when_agrees_with_the_command(tmp_path):
+    """inkconvert refuses to overwrite report.ink.json without --force, so a
+    FRESHNESS detector would call the document unsatisfied forever while the
+    step meant to satisfy it declines to act. Presence is the honest test."""
+    from pdfdrill import planner
+
+    class _SC:
+        blob_dir = tmp_path
+
+    assert planner._ink_current(_SC()) is False
+    f = tmp_path / "report.ink.json"
+    f.write_text("")
+    assert planner._ink_current(_SC()) is False, "an empty file is not ink"
+    f.write_text('{"rows": []}')
+    assert planner._ink_current(_SC()) is True

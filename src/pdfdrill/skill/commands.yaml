@@ -522,6 +522,7 @@ commands:
     footers_dropped, display_pages and the class distribution.'
   requires:
   - reporttex
+  done_when: artifact:ink
   positionals:
   - name: pdf
     type: pdf
@@ -1519,6 +1520,7 @@ commands:
   - injectlatex
   - cdncrops
   - tiddlers
+  - inkconvert
   done_when: artifact:report
   positionals:
   - name: pdf

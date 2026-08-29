@@ -2021,6 +2021,12 @@ def cmd_inkconvert(pdf: Path, force: bool = False) -> str:
     except _ic.ConversionRefused as e:
         return "\n".join(out + ["REFUSING to convert: %s" % e, rt.stamp()])
     _ic.write(payload, dest)
+    # 310 — reporttex now DECLARES inkconvert, and the capability graph derives
+    # what a command establishes from its add_fact calls. Without this the
+    # dependency resolves to a command that produces nothing, which is a
+    # prerequisite the planner can name but never satisfy.
+    sc.add_fact("INK_CONVERTED")
+    sc.save()
     by = {}
     for r in payload["rows"]:
         c = r["code"][:1]

@@ -25,7 +25,7 @@ def test_reporttex_is_a_registered_command_with_manifest_entry():
     cmds = man["commands"] if isinstance(man, dict) else man
     entry = next(c for c in cmds if c["name"] == "reporttex")
     assert entry.get("requires") == ["model", "geometry", "injectlatex",
-                                     "cdncrops", "tiddlers"], \
+                                     "cdncrops", "tiddlers", "inkconvert"], \
         "reporttex must declare EVERYTHING it reads, not what it calls"
 
 

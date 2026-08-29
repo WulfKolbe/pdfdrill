@@ -32,7 +32,21 @@ def load_manifest() -> dict:
 
 
 def load_graph(manifest: dict) -> tuple[dict[str, list[str]], dict[str, str]]:
-    """(requires, done_when) maps from the manifest."""
+    """(requires, done_when) maps from the manifest.
+
+    310 — `reporttex` and `inkconvert` require EACH OTHER, and that is not a
+    modelling error: the report is built twice. The first build is the
+    `measure` phase, inkdrill measures its PDF, `inkconvert` turns that
+    measurement into report.ink.json, and the second build adopts it and
+    becomes the `reading` phase. One command name, two phases, so the edge
+    genuinely points both ways.
+
+    `plan` drops the back edge, so asking for `reporttex` plans
+    `... inkconvert -> reporttex` and asking for `inkconvert` plans
+    `... reporttex -> inkconvert` — each the right order for what was asked.
+    It did not do that until 310: the guard stopped the RECURSION but still
+    appended the dependency, so a fresh document planned reporttex twice.
+    """
     requires: dict[str, list[str]] = {}
     done: dict[str, str] = {}
     for c in manifest.get("commands", []):
@@ -53,6 +67,14 @@ def plan(target: str, requires: dict[str, list[str]], satisfied: set[str]) -> li
             return
         for dep in requires.get(cmd, []):
             if dep in satisfied or dep in out:
+                continue
+            if dep in stack:
+                # 310 — the back edge of a cycle. Recursing was already
+                # guarded, but the append was not, so `reporttex` requiring
+                # `inkconvert` requiring `reporttex` planned reporttex TWICE:
+                # once as its own prerequisite, once as the target. It only
+                # stayed hidden because every document that had a report
+                # already satisfied the edge.
                 continue
             add(dep, stack | {cmd})
             if dep not in out:
@@ -110,7 +132,22 @@ def detect(spec: str, sc, pdf: Path, model_path: Path) -> bool:
         return _is_mathpix_lines(lp)
     if spec == "artifact:cdncrops":
         return _cdncrops_done(sc, pdf)
+    if spec == "artifact:ink":
+        return _ink_current(sc)
     return False
+
+
+def _ink_current(sc) -> bool:
+    """310 — report.ink.json exists and is not empty.
+
+    PRESENCE, not freshness, and deliberately: `inkconvert` refuses to
+    overwrite an existing report.ink.json without --force, so a freshness test
+    would report the document unsatisfied forever while the step that is meant
+    to satisfy it declines to act. A detector must agree with the command it
+    detects, or the planner asks for the same thing on every run.
+    """
+    f = sc.blob_dir / "report.ink.json"
+    return f.is_file() and f.stat().st_size > 0
 
 
 def _report_current(sc) -> bool:
