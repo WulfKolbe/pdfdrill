@@ -1,0 +1,27 @@
+{
+ "doc": "IDG1+2handout",
+ "pdf": "IDG1+2handout.pdf",
+ "rc": 0,
+ "stdout_tail": "Build stamp: report.build.json — phase=reading, 15 pages, 542559 bytes, sha256 15c7ca950599. A measurement of this report should copy it into its output as `measured_against`.",
+ "seconds": 3.6,
+ "regions": {
+  "regions_with_latex": 0,
+  "attempted_now": 0,
+  "rendered": 0,
+  "failed": 0,
+  "has_author_preamble": false,
+  "graphics_dir": null,
+  "failures": []
+ },
+ "manifest_rows": 2,
+ "with_latex": 0,
+ "duplicated": 2,
+ "table_cols": [
+  6,
+  5,
+  6
+ ],
+ "six_col_tables": 2,
+ "region_table_cols": 6,
+ "ink_selectable": false
+}
