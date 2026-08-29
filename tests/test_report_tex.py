@@ -298,3 +298,47 @@ def test_col_widths_still_sum_to_the_span():
             assert len(w) == (6 if img else 5)
             assert sum(w) <= usable, (usable, img, w, sum(w))
             assert all(x > 0 for x in w)
+
+
+# --- 297: the compile runs in a private directory ---------------------------
+
+def test_compile_leaves_no_aux_beside_the_document(tmp_path):
+    """The .aux is the whole reason for the private build directory.
+
+    Pass N writes it and pass N+1 READS it, so two builds sharing one produce a
+    PDF whose cross-references were resolved against the other build's
+    numbering — it compiles, and every reference is wrong. If an .aux is beside
+    the document afterwards, a concurrent build can reach it.
+    """
+    import shutil
+    if shutil.which("xelatex") is None:
+        import pytest
+        pytest.skip("xelatex not installed")
+    from pdfdrill import report_tex as rt
+    tex = tmp_path / "report.tex"
+    tex.write_text("\\documentclass{article}\n\\begin{document}\n"
+                   "\\section{A}\\label{s}\nSee \\ref{s}.\n\\end{document}\n")
+    res = rt.compile_fixpoint(tex)
+    assert res is not None
+    pages, nerr, demoted = res
+    assert pages == 1 and nerr == 0
+    assert (tmp_path / "report.pdf").is_file()
+    assert (tmp_path / "report.log").is_file()
+    leftovers = sorted(p.name for p in tmp_path.iterdir()
+                       if p.suffix in (".aux", ".out", ".toc", ".part"))
+    assert not leftovers, leftovers
+
+
+def test_compile_rewrites_the_tex_only_when_it_demoted_a_row(tmp_path):
+    """An untouched .tex keeps its mtime, so the staleness guards stay honest."""
+    import shutil
+    if shutil.which("xelatex") is None:
+        import pytest
+        pytest.skip("xelatex not installed")
+    from pdfdrill import report_tex as rt
+    tex = tmp_path / "report.tex"
+    tex.write_text("\\documentclass{article}\n\\begin{document}\nx\n"
+                   "\\end{document}\n")
+    before = tex.stat().st_mtime_ns
+    rt.compile_fixpoint(tex)
+    assert tex.stat().st_mtime_ns == before

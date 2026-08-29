@@ -19,6 +19,7 @@ import time
 from pathlib import Path
 
 from . import jsonio as _jsonio
+from .doclock import writer as _writes
 from .sidecar import Sidecar
 from .model_io import load_model, save_model
 
@@ -1460,6 +1461,7 @@ def cmd_artifacts(pdf: Path, all_files: bool = False) -> str:
     return "\n".join(lines)
 
 
+@_writes("ocr")
 def cmd_ocr(pdf: Path, lang: str = "eng", ppi: int = 300, force: bool = False,
             min_conf: float | None = None, typing: bool = True) -> str:
     """Build a MathPix-compatible `<pdf>.lines.json` via tesseract OCR (enriched).
@@ -2069,6 +2071,7 @@ def cmd_publishready(pdf: Path, as_json: bool = False) -> str:
     return "\n".join(lines)
 
 
+@_writes("pageside")
 def cmd_pageside(pdf: Path) -> str:
     """Classify each page as recto (right) / verso (left) book page.
 
@@ -2157,6 +2160,7 @@ def _born_digital_scan_guard(pdf: Path, cmd: str) -> "str | None":
     return None
 
 
+@_writes("continuity")
 def cmd_continuity(pdf: Path, force: bool = False, ppi: int = 250,
                    lang: str = "deu+eng") -> str:
     """Recover page-continuity markers from the page MARGINS via full-page OCR.
@@ -2399,6 +2403,7 @@ def cmd_segment(pdf: Path, force: bool = False) -> str:
             f"number):\n" + "\n".join(lines))
 
 
+@_writes("elements")
 def cmd_elements(pdf: Path, force: bool = False, model: str | None = None,
                  bibkey: str | None = None, source: str | None = None,
                  ppi: int = 300, lang: str = "deu+eng") -> str:
@@ -2507,6 +2512,7 @@ def cmd_elements(pdf: Path, force: bool = False, model: str | None = None,
             + body)
 
 
+@_writes("semantic")
 def cmd_semantic(pdf: Path, store: str | None = None, force: bool = False) -> str:
     """Build the semantic graph (CSP layer): entities accumulate evidence.
 
@@ -2938,6 +2944,7 @@ def cmd_autosegment(pdf: Path, threshold: float = 0.5) -> str:
     return head + cmd_segment(pdf)
 
 
+@_writes("fontid")
 def cmd_fontid(pdf: Path, pages: str | None = None, limit: int = 12,
                ppi: int = 200) -> str:
     """Identify the font VISUALLY for scanned/OCR input (the PDF has no font
@@ -3114,6 +3121,7 @@ def cmd_spellqc(pdf: Path, lang: str | None = None) -> str:
     return "\n".join(lines)
 
 
+@_writes("qr")
 def cmd_qr(pdf: Path, dpi: int = 300, pages: str | None = None,
            formats: str | None = None) -> str:
     """Scan for QR codes & barcodes — confirmation data the text layer can't give.
@@ -3270,6 +3278,7 @@ def _write_offline_bundle(viewer: Path, title: str) -> str:
         return f" (offline bundle failed: {e})"
 
 
+@_writes("pyramid")
 def cmd_pyramid(pdf: Path, dpi: int = 600, force: bool = False,
                 offline: bool = False) -> str:
     """Build a local 600-DPI Deep-Zoom (DZI) pyramid for the doc — the
@@ -3339,6 +3348,7 @@ def _imageserve_argv(pdf: Path, sc: "Sidecar", port: int, dpi: int | None):
     return argv, f"http://localhost:{port}/viewer.html", ""
 
 
+@_writes("imageserve")
 def cmd_imageserve(pdf: Path, port: int = 8000, dpi: int | None = None,
                    background: bool = False) -> str:
     """Serve the doc's local pyramid as a MathPix-free image source: a drop-in
@@ -3403,6 +3413,7 @@ def cmd_imageserve(pdf: Path, port: int = 8000, dpi: int | None = None,
     return ""                      # unreachable
 
 
+@_writes("rasterize")
 def cmd_rasterize(pdf: Path, pages: str | None = None, dpi: int = 400,
                   fmt: str = "png", force: bool = False) -> str:
     """Rasterize page(s) to images for visual inspection (the skill's core op).
@@ -3451,6 +3462,7 @@ def cmd_rasterize(pdf: Path, pages: str | None = None, dpi: int = 400,
             f"(~1,600 tokens each at 150 DPI):\n" + body)
 
 
+@_writes("attachments")
 def cmd_attachments(pdf: Path, extract: bool = False) -> str:
     """List (and optionally extract) embedded file attachments.
 
@@ -3533,6 +3545,7 @@ def cmd_formfields(pdf: Path) -> str:
             + "\n".join(lines))
 
 
+@_writes("extractimages")
 def cmd_extractimages(pdf: Path, pages: str | None = None,
                       original_format: bool = False, force: bool = False) -> str:
     """Extract embedded raster image BYTES to files (`pdfimages`).
@@ -3754,6 +3767,7 @@ def _fuse_eqblob_regions(pdf: Path, geos) -> int:
     return fused
 
 
+@_writes("tables")
 def cmd_tables(pdf: Path, pages: str | None = None) -> str:
     """Tables from the model's gold LaTeX (if built) + keyless pdfplumber.
 
@@ -3951,6 +3965,7 @@ def model_rebuild_blocked(translated: bool, lang, allow: bool) -> str:
             f"to run `pdfdrill translate` again afterwards (a paid DeepL call)")
 
 
+@_writes("model")
 def cmd_model(pdf: Path, force: bool = False, bibkey: str | None = None,
               force_discard_translation: bool = False) -> str:
     """Build the unified docmodel Document from MathPix lines.json.
@@ -4349,6 +4364,7 @@ def _model_pua_note(lines_path: Path) -> str:
     return ("\nNOTE: " + rep) if rep else ""
 
 
+@_writes("compare")
 def cmd_compare(pdf: Path, force: bool = False, embed: bool = False) -> str:
     """Emit the LaTeX | KaTeX | MathPix-image comparison HTML.
 
@@ -4401,6 +4417,7 @@ def cmd_compare(pdf: Path, force: bool = False, embed: bool = False) -> str:
     )
 
 
+@_writes("bibsource")
 def cmd_bibsource(pdf: Path, bib_path: str | None = None,
                   bbl_path: str | None = None, force: bool = False) -> str:
     """Ingest the author's GOLD bibliography (`.bbl` + `.bib`) into the model.
@@ -4601,6 +4618,7 @@ def cmd_folder(folder: Path, force: bool = False) -> str:
     return head + "\n" + "\n".join(lines_out)
 
 
+@_writes("rulebook")
 def cmd_rulebook(pdf: Path, force: bool = False) -> str:
     """The vertical slice: claims/definitions -> kitems -> rulebook.md.
 
@@ -5038,6 +5056,7 @@ def cmd_inktables(pdf: Path, ink_json: Path, page: "int | None" = None) -> str:
               "judged by the existing cross-checker (sidecar: ink_tables).")
 
 
+@_writes("clean")
 def cmd_clean(pdf: Path) -> str:
     """Clean MathPix LaTeX residuals from the model so semantic analysis sees
     plain text. Today: leading `\\section*{Title}` commands that MathPix merged
@@ -5072,6 +5091,7 @@ def cmd_clean(pdf: Path) -> str:
                if (fn or nh or mt or fm or sp) else "Nothing to clean.")) 
 
 
+@_writes("llmtext")
 def cmd_llmtext(pdf: Path, delimiter: str = "%%%%", split: bool = True) -> str:
     """Flat, delimiter-separated dump for an LLM: per unit the tiddler-style
     title then the content (paragraph TEXT or formula LATEX), in document
@@ -5110,6 +5130,7 @@ def cmd_llmtext(pdf: Path, delimiter: str = "%%%%", split: bool = True) -> str:
             f"Open {_artref(sc, out_path)} in a browser.")
 
 
+@_writes("enhance")
 def cmd_enhance(pdf: Path, only: str | None = None, skip: str | None = None) -> str:
     """Run the uniform enhancement PASS PIPELINE over the model's IR — an ordered,
     dependency-aware sequence of idempotent passes (frontmatter / math / citation /
@@ -5249,6 +5270,7 @@ def cmd_conclusion(pdf: Path, limit: int = 8) -> str:
     return head + "\n\n" + "\n\n".join(paras) + caveat
 
 
+@_writes("mathir")
 def cmd_mathir(pdf: Path) -> str:
     """Canonical math layer: parse every FO/EQ's macro-EXPANDED LaTeX into a
     canonical tree (SymPy, anchored by its srepr) and PERSIST it under
@@ -5699,6 +5721,7 @@ def _document_macro_names(doc, pdf: Path | None = None) -> set[str] | None:
         return None
 
 
+@_writes("formulas")
 def cmd_formulas(pdf: Path, out: str | None = None, plain: bool = False) -> str:
     """Project every Formula/Equation for an EXTERNAL math pipeline (de-macro,
     a Speech Rule Engine, …).
@@ -6112,6 +6135,7 @@ def sre_engine_dir() -> Path | None:
     return None
 
 
+@_writes("speak")
 def cmd_speak(pdf: Path, limit: int | None = None, force: bool = False,
               domain: str = "clearspeak") -> str:
     """Render every Formula/Equation to SPEECH and store it as `spoken`.
@@ -6224,6 +6248,7 @@ def cmd_speak(pdf: Path, limit: int | None = None, force: bool = False,
             f"(one formula: `--n 2` or `--id <title>`)")
 
 
+@_writes("spoken")
 def cmd_spoken(pdf: Path, out: str | None = None, as_json: bool = False,
                fallback: str = "latex", to_stdout: bool = False,
                footnotes: str = "hint", cites: str = "number",
@@ -6427,6 +6452,7 @@ def cmd_spoken(pdf: Path, out: str | None = None, as_json: bool = False,
             f"\n  (`--print` dumps the whole text to the terminal instead.)")
 
 
+@_writes("expandmath")
 def cmd_expandmath(pdf: Path, force: bool = False) -> str:
     """PERSIST the fully macro-expanded LaTeX of every Formula/Equation.
 
@@ -6511,6 +6537,7 @@ def cmd_expandmath(pdf: Path, force: bool = False) -> str:
             f"one per line) or `pdfdrill formulas {pdf.name}` (full JSON).")
 
 
+@_writes("sre")
 def cmd_sre(pdf: Path, out: str | None = None, plain: bool = False,
             safe_only: bool = False) -> str:
     """Projection for the SPOKEN-MATH toolchain (latex2mml → MathML → Speech
@@ -6727,6 +6754,7 @@ def _lines_json_equations(lines: dict) -> "tuple[list, dict]":
     return eqs, pages
 
 
+@_writes("reconcile")
 def cmd_reconcile(pdf: Path, mathpix: str | None = None, adopt_all: bool = False) -> str:
     """Dual-route reconciliation: keep the pdfminer model's STRUCTURE + GEOMETRY,
     correct its garbled MATH with MathPix's clean LaTeX, region-matched. Runs the
@@ -6781,6 +6809,7 @@ def cmd_reconcile(pdf: Path, mathpix: str | None = None, adopt_all: bool = False
             f"for the corrected math with the original structure intact.")
 
 
+@_writes("occurrences")
 def cmd_occurrences(pdf: Path, types: str | None = None) -> str:
     """Emit `<bibkey>.occurrences.json` — a clean per-element region list (page +
     bbox + tiddler title) for the optional external IMAGE-ENRICHMENT tools (locate
@@ -6817,6 +6846,7 @@ def cmd_occurrences(pdf: Path, types: str | None = None) -> str:
             f"enrichment tool contract — locate each on the page by its region.")
 
 
+@_writes("okf")
 def cmd_okf(pdf: Path, out: str | None = None, bibkey: str | None = None,
             semantic: bool = False) -> str:
     """Project into an OKF (Open Knowledge Format) bundle: one Markdown-with-YAML-
@@ -6965,6 +6995,7 @@ def _render_regions(sc, tiddlers) -> tuple:
 
 
 
+@_writes("regionink")
 def cmd_regionink(pdf: Path, force: bool = False) -> str:
     """284: measure the report's two image columns with inkdrill.
 
@@ -7067,6 +7098,7 @@ def cmd_rename(pdf: Path, name: str = "", bibkey: str | None = None,
             f"re-run `tiddlers`/`okf` to clear).")
 
 
+@_writes("context")
 def cmd_context(pdf: Path, query: str = "", *, types: str | None = None,
                 concept: str | None = None, section: str | None = None,
                 k: int | None = None, max_tokens: int | None = None,
@@ -7263,6 +7295,7 @@ def cmd_ask(pdf: Path, question: str, precision: float | None = None,
     return "\n".join(lines)
 
 
+@_writes("chatlog")
 def cmd_chatlog(pdf: Path, question: str, answer: str,
                 units: str = "", model: str = "",
                 verdict: str | None = None) -> str:
@@ -7316,6 +7349,7 @@ def cmd_chatlog(pdf: Path, question: str, answer: str,
             f"{len(unit_ids)} cited unit(s). Transcript: {sc.blob_dir.name}/chat.jsonl.")
 
 
+@_writes("remath")
 def cmd_remath(pdf: Path, pages: "list[int] | None" = None, force: bool = False) -> str:
     """Rebuild MathPix-quality Markdown (WITH LaTeX math) from rendered pages by
     delegating each page to the Claude agent (openai_vision.MATHPIX_MD_PROMPT).
@@ -7460,6 +7494,7 @@ def _fold_eq_records_into_lines_json(lines_path: Path, records: list,
     return n_eq, n_num
 
 
+@_writes("visionocr")
 def cmd_visionocr(pdf: Path, ingest: str | None = None, dpi: int = 200,
                   pages: "list[int] | None" = None, force: bool = False) -> str:
     """Keyless, agent-delegated equation OCR — the MathPix-free route to first-class
@@ -7661,6 +7696,7 @@ def cmd_identifiers(pdf: Path) -> str:
             f"Stored in the sidecar (identifiers).")
 
 
+@_writes("booktoc")
 def cmd_booktoc(pdf: Path) -> str:
     """Greppable table of contents with printed→PDF page alignment.
 
@@ -7970,6 +8006,7 @@ def cmd_svg(target: Path, limit: int | None = None, force: bool = False) -> str:
             + (f" Re-run with --force to retry the {errors} that failed." if errors else ""))
 
 
+@_writes("distill")
 def cmd_distill(pdf: Path, embed: bool = False) -> str:
     """Emit a distill-structured single-file reading view (`<bibkey>.distill.html`).
 
@@ -8010,6 +8047,7 @@ def cmd_distill(pdf: Path, embed: bool = False) -> str:
             f"refs, hover citations. Open {rel} in a browser.")
 
 
+@_writes("report")
 def cmd_report(pdf: Path, force: bool = False, embed: bool = False,
                scale: float = 1.0) -> str:
     """Emit a full inline+display math report (formula-report.html).
@@ -8114,6 +8152,7 @@ def _inspect_pages_dir(pdf: Path, sc: "Sidecar", pages: str | None,
     return out, src_dpi
 
 
+@_writes("inspect")
 def cmd_inspect(pdf: Path, pages: str | None = None, embed: bool = True,
                 dpi: int = 120, src_dpi: int = 400, images: bool = True,
                 force: bool = False) -> str:
@@ -8205,6 +8244,7 @@ def _deliver_region_crop(pdf: Path, sc: "Sidecar", page: int,
     return crop_path
 
 
+@_writes("snip")
 def cmd_snip(pdf: Path, limit: int | None = None, force: bool = False,
              image: str | None = None, page: int | None = None,
              rect: tuple | None = None, ppi: int = 200,
@@ -8371,6 +8411,7 @@ def cmd_snip(pdf: Path, limit: int | None = None, force: bool = False,
 # Block reconstruction — nest ListItems into a recursive List tree
 # ---------------------------------------------------------------------------
 
+@_writes("lists")
 def cmd_lists(pdf: Path, force: bool = False) -> str:
     """Group flat ListItems into nested `List` containers using fused
     indentation geometry. Auto-chains `model` and `geometry`.
@@ -8496,6 +8537,7 @@ def cmd_lists(pdf: Path, force: bool = False) -> str:
     return _format_lists(sc)
 
 
+@_writes("algorithms")
 def cmd_algorithms(pdf: Path, force: bool = False) -> str:
     """Reconstruct `Algorithm` blocks from MathPix `pseudocode` lines.
 
@@ -8680,6 +8722,7 @@ def _auto_bibliography(pdf: Path, sc, doc):
     return doc
 
 
+@_writes("latex")
 def cmd_latex(pdf: Path, force: bool = False, compile: bool = False,
               dump_stages: bool = False) -> str:
     """PROJECT the drilled document to a self-contained, COMPILABLE LaTeX
@@ -8760,6 +8803,7 @@ def cmd_latex(pdf: Path, force: bool = False, compile: bool = False,
     return "\n".join(lines)
 
 
+@_writes("beamer")
 def cmd_beamer(pdf: Path, force: bool = False, compile: bool = False) -> str:
     """PROJECT the docmodel to a LaTeX **beamer** slide deck — one frame per
     Section (`allowframebreaks`), a title + outline + References frame. Same
@@ -8821,6 +8865,7 @@ def promote_equation_label(obj, src_eq: dict) -> bool:
     return True
 
 
+@_writes("injectlatex")
 def cmd_injectlatex(pdf: Path, tex: str | None = None, force: bool = False) -> str:
     """Ingest the author's LaTeX source (.tex or arXiv .tgz) as a competing
     `tex` provenance on each matched equation.
@@ -9169,6 +9214,7 @@ def _locate_latex_source(pdf: Path, sc: "Sidecar", tex: str | None):
     return src, None
 
 
+@_writes("merge")
 def cmd_merge(pdf: Path, tex: str | None = None) -> str:
     """Three-source prose merge — **LaTeX content onto MathPix geometry**.
 
@@ -9312,6 +9358,7 @@ def _fuse_emphasis_onto_paragraphs(model_dict: dict, doc, spans: list, pdf_dims:
     return n
 
 
+@_writes("fontspans")
 def cmd_fontspans(pdf: Path, pages: str | None = None) -> str:
     """The pdfminer LEG — recover the local formatting MathPix flattens.
 
@@ -9591,6 +9638,7 @@ def _tiddler_translation_warning(claims_translated, lang, tiddlers) -> str:
             "translate` to restore it (the model still holds both languages).")
 
 
+@_writes("tiddlers")
 def cmd_tiddlers(pdf: Path, force: bool = False, embed: bool = False,
                  bibkey: str | None = None, embed_svg: bool = True) -> str:
     """Emit a TiddlyWiki JSON tiddler array from the unified model.
@@ -9837,6 +9885,7 @@ def _translate_tiddler_file_inplace(path: Path, batch_fn, target_lang: str,
     return changed
 
 
+@_writes("translate")
 def cmd_translate(pdf: Path, target_lang: str = "EN-US",
                   source_lang: str | None = None, limit: int | None = None,
                   force: bool = False) -> str:
@@ -9940,6 +9989,7 @@ def cmd_translate(pdf: Path, target_lang: str = "EN-US",
 # Geometry fusion — lift pdftotext -tsv layout onto the model (cross-level)
 # ---------------------------------------------------------------------------
 
+@_writes("geometry")
 def cmd_geometry(pdf: Path, force: bool = False) -> str:
     """Fuse cheap pdftotext -tsv word geometry onto the unified model.
 
@@ -10021,6 +10071,7 @@ def _format_geometry(sc: Sidecar) -> str:
 # Bibliography — parse the References section into Reference objects
 # ---------------------------------------------------------------------------
 
+@_writes("bibliography")
 def cmd_bibliography(pdf: Path, force: bool = False) -> str:
     """Parse the References section into `Reference` DocObjects.
 
@@ -10107,6 +10158,7 @@ def cmd_bibliography(pdf: Path, force: bool = False) -> str:
     return _format_bibliography(sc) + source_note
 
 
+@_writes("bibfetch")
 def cmd_bibfetch(pdf: Path, limit: int | None = None, force: bool = False) -> str:
     """Enrich Reference entries with full BibTeX via Perplexity SONAR.
 
@@ -10258,6 +10310,7 @@ def _bibfetch_via_delegate(pdf: Path, doc, todo, sc, model_path, runtime) -> str
             + f". Rebuild `pdfdrill tiddlers {pdf.name}`.")
 
 
+@_writes("citedrill")
 def cmd_citedrill(pdf: Path, limit: int | None = None, force: bool = False) -> str:
     """Drill INTO each citation: find where the cited publication can be
     downloaded (Perplexity SONAR for all links, plus links seeded from the
@@ -10432,6 +10485,7 @@ def cmd_eqnums(pdf: Path, force: bool = False) -> str:
 # Phase-2 scoring — quantify agreement across provenances
 # ---------------------------------------------------------------------------
 
+@_writes("score")
 def cmd_score(pdf: Path, force: bool = False) -> str:
     """Score each equation by cross-provenance agreement + snip confidence.
 
@@ -10505,6 +10559,7 @@ def _format_score(sc: Sidecar) -> str:
 _NLP_DEFAULT_TYPES = ["Paragraph", "Abstract", "Section", "ListItem", "Footnote"]
 
 
+@_writes("nlp")
 def cmd_nlp(pdf: Path, limit: int | None = None, pages: int | None = None,
             types: list[str] | None = None, force: bool = False) -> str:
     """Run the Stanza neural NLP pipeline over the model's prose objects.
@@ -10608,6 +10663,7 @@ _ESCALATE_PROMPT = (
 )
 
 
+@_writes("escalate")
 def cmd_escalate(pdf: Path, limit: int | None = None) -> str:
     """Phase-3 step 1: export the FLAGGED equations for a second opinion.
 
@@ -10737,6 +10793,7 @@ def cmd_relearn(pdf: Path) -> str:
 # Link annotations as first-class model nodes
 # ---------------------------------------------------------------------------
 
+@_writes("annotate")
 def cmd_annotate(pdf: Path, force: bool = False) -> str:
     """Promote hyperlink annotations into the model as `Link` DocObjects.
 
@@ -10821,6 +10878,7 @@ _LLM_PROMPT = (
 )
 
 
+@_writes("candidates")
 def cmd_candidates(pdf: Path, provider: str = "llm",
                    limit: int | None = None, out: str | None = None) -> str:
     """Export a manifest of equation crops for an external reader (e.g. an LLM).
@@ -10886,6 +10944,7 @@ def cmd_candidates(pdf: Path, provider: str = "llm",
     )
 
 
+@_writes("ingest")
 def cmd_ingest(pdf: Path, candidates_path: str, provider: str = "llm",
                force: bool = False) -> str:
     """Attach externally-produced LaTeX candidates to the model.
@@ -11036,6 +11095,7 @@ def _collect_cdn_crops(doc) -> list[tuple]:
     return out
 
 
+@_writes("vision")
 def cmd_vision(pdf: Path, limit: int | None = None, force: bool = False) -> str:
     """Read every MathPix CDN crop with GPT-4o vision (the `openai` provenance).
 
@@ -11210,6 +11270,7 @@ def cmd_vision(pdf: Path, limit: int | None = None, force: bool = False) -> str:
     )
 
 
+@_writes("embedimages")
 def cmd_embedimages(pdf: Path, force: bool = False) -> str:
     """Wire embedded raster images (pdfplumber rects + `pdfimages -list`) into
     the model as `EmbeddedImage` nodes, fused onto MathPix Picture/Diagram crops.
@@ -12501,6 +12562,7 @@ def _md_from_latex_source(pdf: Path, sc: "Sidecar") -> "str | None":
             + _write_md(pdf, sc, md, source="latex"))
 
 
+@_writes("md")
 def cmd_md(pdf: Path, pages: str | None = None) -> str:
     """Build Markdown. Prefers the author's LaTeX (arXiv/source) — clean, no
     hyphenation, isolated abstract, bibliography — else the PDF text-layer."""
@@ -13516,6 +13578,7 @@ _PANDOC_HEADER = r"""\usepackage{fontspec}
 """
 
 
+@_writes("render")
 def cmd_render(pdf: Path, force: bool = False) -> str:
     """Render the built markdown to a PDF via pandoc + lualatex.
 
@@ -13594,6 +13657,7 @@ def cmd_render(pdf: Path, force: bool = False) -> str:
             f"Output: {rel} ({pdf_out.stat().st_size//1024} KB).")
 
 
+@_writes("stex")
 def cmd_stex(pdf: Path, flavor: str = "latex", compile: bool = False) -> str:
     """Project the semantic graph to enriched LaTeX.
 
@@ -13650,6 +13714,7 @@ def cmd_stex(pdf: Path, flavor: str = "latex", compile: bool = False) -> str:
             f"{rel}.{note}")
 
 
+@_writes("lean")
 def cmd_lean(pdf: Path, limit: int | None = None, force: bool = False,
              emit_only: bool = False) -> str:
     """Export theorems to Lean 4 — STORE then PROJECT.
@@ -13708,6 +13773,7 @@ def cmd_lean(pdf: Path, limit: int | None = None, force: bool = False,
             f"theorem tiddlers.")
 
 
+@_writes("scikgtex")
 def cmd_scikgtex(pdf: Path, compile: bool = False) -> str:
     """Project the drilled document to SciKGTeX-annotated LaTeX, so the compiled
     PDF carries ORKG contribution metadata as XMP/RDF (title/authors/research
@@ -13980,6 +14046,7 @@ def _vision_via_delegate(pdf: Path, doc, todo, targets, sc, model_path,
             f"Run `pdfdrill compare {pdf.name}` to see the column.")
 
 
+@_writes("reporttex")
 def cmd_reporttex(pdf: Path, paper: str = "a3", landscape: bool = True,
                   compile_pdf: bool = False, images: bool = True,
                   min_conf: float | None = None, max_conf: float | None = None,
@@ -14285,6 +14352,7 @@ def _edit_source(sc: "Sidecar", url: str | None = None) -> dict:
     return stamp
 
 
+@_writes("tailsplit")
 def cmd_tailsplit(pdf: Path) -> str:
     """P7: split a math region carrying a PROSE tail into two objects — the
     expression keeps <id> (tail stripped from its latex, original kept under
@@ -14432,6 +14500,7 @@ def cmd_modeldiff(old_path: Path, new_path: Path, limit: int = 40) -> str:
     return "\n".join(out)
 
 
+@_writes("crossref")
 def cmd_crossref(pdf: Path | None = None, store: str | None = None,
                  query: str | None = None, map_pair: str | None = None,
                  kind: str = "formula", k: int = 10) -> str:
@@ -14535,6 +14604,7 @@ def cmd_cdncrops(pdf: Path) -> str:
             f"{n_cdn} CDN math crops → {crops}/")
 
 
+@_writes("standalone")
 def cmd_standalone(pdf: Path, only_id: str | None = None) -> str:
     """P14: compile each display equation's LaTeX as its OWN standalone
     document and rasterize to PNG (ghostscript, 400 dpi) — one file per
@@ -14649,6 +14719,7 @@ def cmd_standalone(pdf: Path, only_id: str | None = None) -> str:
     return "\n".join(lines)
 
 
+@_writes("latexnorm")
 def cmd_latexnorm(pdf: Path) -> str:
     """021: join every LONE backslash that was severed from its command name
     ('\\<newline>mathrm{e}' -> '\\mathrm{e}'), leaving all other whitespace
@@ -14686,6 +14757,7 @@ def cmd_latexnorm(pdf: Path) -> str:
                "  Nothing to normalise — no value carries the pattern."))
 
 
+@_writes("trailingpunct")
 def cmd_trailingpunct(pdf: Path) -> str:
     """025: move a TOP-LEVEL trailing sentence mark out of each math object's
     `latex` and into `trailing_punct` — the TiddlyWiki separation made
@@ -14739,6 +14811,7 @@ def cmd_trailingpunct(pdf: Path) -> str:
 # 170–174 — refine
 # ---------------------------------------------------------------------------
 
+@_writes("refine")
 def cmd_refine(pdf: Path, max_conf: float = 0.5, limit: int | None = None,
                stages: str | None = None, dpi: int | None = None,
                model: str | None = None, author: str | None = None,

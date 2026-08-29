@@ -136,6 +136,16 @@ tests failing against correct source (HANDOVER-RULES rule 4).
   host-named `NetworkBlocked`, never a stack trace.
 - **Licence-bound vocabulary downloads stay out of git** (`vocab/sources/*/`
   except `STUB.md`; all of `vocab/compiled/`).
+- **One writer per document.** Every build command writes fixed names beside
+  the PDF, so two processes on one document interleave rather than collide.
+  `doclock.hold` / `@_writes("<cmd>")` takes an `O_EXCL` lock named after the
+  PDF; the second process refuses. 72 handlers carry it, and
+  `test_every_pdf_writer_holds_the_lock` fails if a new one does not. The
+  LaTeX compile also runs in a private directory (`-output-directory`, cwd
+  still the doc folder so relative `\includegraphics` resolves) — a shared
+  `.aux` yields a PDF resolved against another build's cross-references: it
+  compiles, it looks right, and every `\ref` points at the wrong equation
+  (297).
 - **Verify pushes**: after any push claim, `git ls-remote origin` — commits
   must never exist only locally or in a scratch worktree (2026-08-16 incident,
   HANDOVER-RULES header).

@@ -14,6 +14,7 @@ whose text transcludes it. Stdlib only; compile with xelatex.
 """
 import argparse
 import json
+import os
 import re
 from pathlib import Path
 
@@ -1559,46 +1560,91 @@ def compile_fixpoint(tex_path: Path, max_iter: int = 6):
     """xelatex the report; demote rows whose lines error to source-only and
     recompile until 0 errors (a malformed OCR snippet must cost its own row,
     never the document). Returns (pages, errors, demoted_rows) or None when
-    xelatex is absent."""
+    xelatex is absent.
+
+    297 — the compile runs in a PRIVATE directory. The .tex is copied there and
+    the demote loop rewrites the COPY; `-output-directory` sends .aux, .log,
+    .out and .pdf there too. cwd stays the document's folder so every relative
+    `\\includegraphics` (crops/, standalone-regions/) still resolves — the one
+    thing a naive "cd to a temp dir" breaks.
+
+    The .aux is the reason. It is written by pass N and READ by pass N+1, so
+    two builds sharing one produce a PDF whose cross-references were resolved
+    against the other build's numbering: it compiles, it looks right, and every
+    reference points at the wrong equation. Only the finished PDF, .log and the
+    demoted .tex are copied back, the PDF through a temp name so a reader never
+    opens a half-written file.
+    """
     import re as _re
     import shutil
     import subprocess
+    import tempfile
     if shutil.which("xelatex") is None:
         return None
-    d, log = tex_path.parent, tex_path.with_suffix(".log")
-    demoted: set[int] = set()
-    pages = nerr = 0
-    for _ in range(max_iter):
-        subprocess.run(["xelatex", "-interaction=nonstopmode", tex_path.name],
-                       cwd=d, capture_output=True, timeout=1800)
+    d = tex_path.parent
+    work = Path(tempfile.mkdtemp(prefix="pdfdrill-tex-"))
+    try:
+        src_tex = work / tex_path.name
+        shutil.copy2(tex_path, src_tex)
+        log = src_tex.with_suffix(".log")
+        cmd = ["xelatex", "-interaction=nonstopmode",
+               "-output-directory", str(work), str(src_tex)]
+        demoted: set[int] = set()
+        pages = nerr = 0
+        for _ in range(max_iter):
+            subprocess.run(cmd, cwd=d, capture_output=True, timeout=1800)
+            text = log.read_text(errors="replace") if log.is_file() else ""
+            nerr = len(_re.findall(r"^! ", text, _re.M))
+            m = _re.search(r"Output written on .*\((\d+) pages?", text)
+            pages = int(m.group(1)) if m else 0
+            if nerr == 0:
+                break
+            src = src_tex.read_text().split("\n")
+            changed = False
+            for n in sorted({int(x) for x in
+                             _re.findall(r"^l\.(\d+)", text, _re.M)}):
+                i = n - 1
+                if i < len(src):
+                    new = _demote_line(src[i])
+                    if new != src[i]:
+                        src[i] = new
+                        demoted.add(n)
+                        changed = True
+            if not changed:
+                break
+            src_tex.write_text("\n".join(src))
+        # final pass for longtable column alignment
+        subprocess.run(cmd, cwd=d, capture_output=True, timeout=1800)
         text = log.read_text(errors="replace") if log.is_file() else ""
         nerr = len(_re.findall(r"^! ", text, _re.M))
         m = _re.search(r"Output written on .*\((\d+) pages?", text)
-        pages = int(m.group(1)) if m else 0
-        if nerr == 0:
-            break
-        src = tex_path.read_text().split("\n")
-        changed = False
-        for n in sorted({int(x) for x in
-                         _re.findall(r"^l\.(\d+)", text, _re.M)}):
-            i = n - 1
-            if i < len(src):
-                new = _demote_line(src[i])
-                if new != src[i]:
-                    src[i] = new
-                    demoted.add(n)
-                    changed = True
-        if not changed:
-            break
-        tex_path.write_text("\n".join(src))
-    # final pass for longtable column alignment
-    subprocess.run(["xelatex", "-interaction=nonstopmode", tex_path.name],
-                   cwd=d, capture_output=True, timeout=1800)
-    text = log.read_text(errors="replace") if log.is_file() else ""
-    nerr = len(_re.findall(r"^! ", text, _re.M))
-    m = _re.search(r"Output written on .*\((\d+) pages?", text)
-    pages = int(m.group(1)) if m else pages
-    return pages, nerr, len(demoted)
+        pages = int(m.group(1)) if m else pages
+        _publish(src_tex, tex_path, demoted)
+        return pages, nerr, len(demoted)
+    finally:
+        shutil.rmtree(work, ignore_errors=True)
+
+
+def _publish(src_tex: Path, tex_path: Path, demoted: set) -> None:
+    """Copy the private build's products back beside the document.
+
+    The .tex goes back only when the demote loop changed it, so an unchanged
+    document keeps its original mtime and the staleness guards stay honest.
+    """
+    import shutil
+    d = tex_path.parent
+    if demoted:
+        shutil.copy2(src_tex, tex_path)
+    for suffix in (".log",):
+        f = src_tex.with_suffix(suffix)
+        if f.is_file():
+            shutil.copy2(f, d / (tex_path.stem + suffix))
+    pdf = src_tex.with_suffix(".pdf")
+    if pdf.is_file():
+        dest = d / (tex_path.stem + ".pdf")
+        tmp = d / ("." + dest.name + ".part")
+        shutil.copy2(pdf, tmp)
+        os.replace(tmp, dest)             # atomic: a reader sees old or new
 
 
 #: 143 — the object kinds `--types` can select, and the row list each maps to
