@@ -1,0 +1,28 @@
+{
+ "doc": "IET Intelligent Trans Sys - 2022 - Zang - A multi‐channel geometric algebra residual network for traffic data prediction",
+ "pdf": "IET Intelligent Trans Sys - 2022 - Zang - A multi‐channel geometric algebra residual network for traffic data prediction.pdf",
+ "rc": 0,
+ "stdout_tail": "Build stamp: report.build.json — phase=reading, 26 pages, 1597807 bytes, sha256 2a8ebe4605d7. A measurement of this report should copy it into its output as `measured_against`.",
+ "seconds": 2.7,
+ "regions": {
+  "regions_with_latex": 0,
+  "attempted_now": 0,
+  "rendered": 0,
+  "failed": 0,
+  "has_author_preamble": false,
+  "graphics_dir": null,
+  "failures": []
+ },
+ "manifest_rows": 9,
+ "with_latex": 0,
+ "duplicated": 9,
+ "table_cols": [
+  6,
+  5,
+  4,
+  6
+ ],
+ "six_col_tables": 2,
+ "region_table_cols": 6,
+ "ink_selectable": false
+}
