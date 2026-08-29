@@ -1,0 +1,24 @@
+{
+ "doc": "AKolbe20260316_stadtkasse",
+ "pdf": "AKolbe20260316_stadtkasse.pdf",
+ "rc": 0,
+ "stdout_tail": "Build stamp: report.build.json — phase=reading, 3 pages, 49442 bytes, sha256 fe77ebf3571e. A measurement of this report should copy it into its output as `measured_against`.",
+ "seconds": 2.1,
+ "regions": {
+  "regions_with_latex": 0,
+  "attempted_now": 0,
+  "rendered": 0,
+  "failed": 0,
+  "has_author_preamble": false,
+  "graphics_dir": null,
+  "failures": []
+ },
+ "table_cols": [
+  5,
+  5,
+  4
+ ],
+ "six_col_tables": 0,
+ "region_table_cols": 4,
+ "ink_selectable": false
+}
