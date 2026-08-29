@@ -1,0 +1,28 @@
+{
+ "doc": "AltenkirchMcBrided-TowardsOTT",
+ "pdf": "AltenkirchMcBrided-TowardsOTT.pdf",
+ "rc": 0,
+ "stdout_tail": "Build stamp: report.build.json — phase=reading, 18 pages, 1812088 bytes, sha256 a22118cdc4cf. A measurement of this report should copy it into its output as `measured_against`.",
+ "seconds": 8.0,
+ "regions": {
+  "regions_with_latex": 3,
+  "attempted_now": 3,
+  "rendered": 3,
+  "failed": 0,
+  "has_author_preamble": false,
+  "graphics_dir": null,
+  "failures": []
+ },
+ "manifest_rows": 3,
+ "with_latex": 3,
+ "duplicated": 0,
+ "table_cols": [
+  6,
+  5,
+  4,
+  6
+ ],
+ "six_col_tables": 2,
+ "region_table_cols": 6,
+ "ink_selectable": false
+}
