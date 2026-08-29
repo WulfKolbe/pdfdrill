@@ -1,0 +1,26 @@
+{
+ "doc": "BradleyGastaldiTerilla2023",
+ "pdf": "BradleyGastaldiTerilla2023.pdf",
+ "rc": 0,
+ "stdout_tail": "Build stamp: report.build.json — phase=reading, 13 pages, 881228 bytes, sha256 07dc29074a01. A measurement of this report should copy it into its output as `measured_against`.",
+ "seconds": 2.8,
+ "regions": {
+  "regions_with_latex": 0,
+  "attempted_now": 0,
+  "rendered": 0,
+  "failed": 0,
+  "has_author_preamble": false,
+  "graphics_dir": null,
+  "failures": []
+ },
+ "manifest_rows": 13,
+ "with_latex": 0,
+ "duplicated": 0,
+ "table_cols": [
+  6,
+  5,
+  4,
+  6
+ ],
+ "ink_eligible": false
+}
