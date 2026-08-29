@@ -1,0 +1,53 @@
+{
+ "doc": "2407.03203",
+ "pdf": "2407.03203.pdf",
+ "rc": 0,
+ "stdout_tail": "Build stamp: report.build.json — phase=reading, 9 pages, 722272 bytes, sha256 8660724e0be5. A measurement of this report should copy it into its output as `measured_against`.",
+ "seconds": 12.7,
+ "regions": {
+  "regions_with_latex": 10,
+  "attempted_now": 10,
+  "rendered": 4,
+  "failed": 6,
+  "has_author_preamble": false,
+  "graphics_dir": "/home/wkolbe/pdfdrill-library/2407.03203/texsrc",
+  "failures": [
+   {
+    "id": "2407.03203_DIA_0008",
+    "first_error": "! Missing $ inserted."
+   },
+   {
+    "id": "2407.03203_DIA_0009",
+    "first_error": "! Missing $ inserted."
+   },
+   {
+    "id": "2407.03203_DIA_0013",
+    "first_error": "! LaTeX Error: Not allowed in LR mode."
+   },
+   {
+    "id": "2407.03203_DIA_0014",
+    "first_error": "! Missing $ inserted."
+   },
+   {
+    "id": "2407.03203_DIA_0015",
+    "first_error": "! Missing $ inserted."
+   },
+   {
+    "id": "2407.03203_DIA_0016",
+    "first_error": "! Missing $ inserted."
+   }
+  ]
+ },
+ "manifest_rows": 46,
+ "with_latex": 10,
+ "duplicated": 42,
+ "table_cols": [
+  6,
+  5,
+  4,
+  6
+ ],
+ "six_col_tables": 2,
+ "region_table_cols": 6,
+ "ink_selectable": false
+}
