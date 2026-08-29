@@ -56,7 +56,7 @@ REGION_COLUMNS = 6
 
 
 def detect_pages(report_pdf: Path, columns: int = REGION_COLUMNS,
-                 timeout: int = 1800) -> dict:
+                 timeout: int = 1800, header: str = "first") -> dict:
     r"""{page: expected row count} for the region table, from inkdrill.
 
     `--header first`: our region table prints its header ONCE, not per page.
@@ -70,8 +70,12 @@ def detect_pages(report_pdf: Path, columns: int = REGION_COLUMNS,
             "inkdrill's tools/reportpages.py not found at %s — 286's entry "
             "point is what carries the page detection, and guessing it here is "
             "what produced a short join before." % REPORTPAGES)
+    # `header` is a PARAMETER, not a constant: the image table prints its
+    # header once (`first`) and the equation table repeats it via \endhead
+    # (`every`). The default stays `first`, so this module's own behaviour is
+    # unchanged; 311 passes `every`.
     p = subprocess.run(["python3", str(REPORTPAGES), "--pdf", str(report_pdf),
-                        "--columns", str(columns), "--header", "first"],
+                        "--columns", str(columns), "--header", header],
                        capture_output=True, text=True, timeout=timeout)
     try:
         d = json.loads(p.stdout)
@@ -120,7 +124,12 @@ def compare_page(a: Path, b: Path, page: int, timeout: int = 900) -> list:
             nums = [int(x) for x in cells[3:13]]
         except ValueError:
             continue                     # the header separator, or a blank row
+        try:
+            dis = int(cells[2])
+        except ValueError:
+            dis = 0                  # a non-numeric distance cell
         rows.append({"page": int(cells[0]), "line": int(cells[1]),
+                     "dis": dis,
                      "L": nums[:5], "R": nums[5:],
                      "a_eq_b": cells[13].strip().lower() in ("yes", "true", "1")})
     return rows
