@@ -1,0 +1,24 @@
+{
+ "doc": "2412.08415v1",
+ "pdf": "2412.08415v1.pdf",
+ "rc": 1,
+ "stdout_tail": "Region LaTeX: 0 compiled standalone, 0 failed (author preamble: yes; graphics: texsrc).",
+ "error": "Error [FileNotFoundError]: [Errno 2] No such file or directory: '/home/wkolbe/pdfdrill-library/2412.08415v1/report.pdf'",
+ "seconds": 3.0,
+ "regions": {
+  "regions_with_latex": 0,
+  "attempted_now": 0,
+  "rendered": 0,
+  "failed": 0,
+  "has_author_preamble": true,
+  "graphics_dir": "/home/wkolbe/pdfdrill-library/2412.08415v1/texsrc",
+  "failures": []
+ },
+ "table_cols": [
+  5,
+  5
+ ],
+ "six_col_tables": 0,
+ "region_table_cols": 5,
+ "ink_selectable": false
+}
