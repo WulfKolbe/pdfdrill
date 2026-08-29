@@ -1,0 +1,33 @@
+{
+ "doc": "2102.09388",
+ "pdf": "2102.09388.pdf",
+ "rc": 0,
+ "stdout_tail": "Build stamp: report.build.json — phase=reading, 13 pages, 639051 bytes, sha256 ae4ae693f8e5. A measurement of this report should copy it into its output as `measured_against`.",
+ "seconds": 7.6,
+ "regions": {
+  "regions_with_latex": 5,
+  "attempted_now": 5,
+  "rendered": 4,
+  "failed": 1,
+  "has_author_preamble": false,
+  "graphics_dir": "/home/wkolbe/pdfdrill-library/2102.09388/texsrc",
+  "failures": [
+   {
+    "id": "2102.09388_DIA_0052",
+    "first_error": "! Missing $ inserted."
+   }
+  ]
+ },
+ "manifest_rows": 166,
+ "with_latex": 5,
+ "duplicated": 162,
+ "table_cols": [
+  6,
+  5,
+  4,
+  6
+ ],
+ "six_col_tables": 2,
+ "region_table_cols": 6,
+ "ink_selectable": false
+}
