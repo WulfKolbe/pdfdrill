@@ -1,0 +1,29 @@
+{
+ "doc": "1910.04947",
+ "pdf": "1910.04947.pdf",
+ "rc": 1,
+ "stdout_tail": "Image regions: 0 of 11 rows name their tex.zip source by region 5-tuple, 11 do not (no tex.zip). Two image columns: 11 rows show rendered LaTeX, 0 repeat the scan for want of LaTeX (marked dup — a self-comparison, not agreement).",
+ "error": "Error [FileNotFoundError]: [Errno 2] No such file or directory: '/home/wkolbe/pdfdrill-library/1910.04947/report.pdf'",
+ "seconds": 3.3,
+ "regions": {
+  "regions_with_latex": 11,
+  "attempted_now": 0,
+  "rendered": 11,
+  "failed": 0,
+  "has_author_preamble": true,
+  "graphics_dir": "/home/wkolbe/pdfdrill-library/1910.04947/texsrc",
+  "failures": []
+ },
+ "manifest_rows": 11,
+ "with_latex": 11,
+ "duplicated": 0,
+ "table_cols": [
+  5,
+  5,
+  4,
+  6
+ ],
+ "six_col_tables": 1,
+ "region_table_cols": 6,
+ "ink_selectable": true
+}
