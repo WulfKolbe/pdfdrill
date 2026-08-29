@@ -1,0 +1,27 @@
+{
+ "doc": "A_quantum_dot_in_germanium_proximitized_by_a_super (1)",
+ "pdf": "A_quantum_dot_in_germanium_proximitized_by_a_super (1).pdf",
+ "rc": 0,
+ "stdout_tail": "Build stamp: report.build.json — phase=reading, 14 pages, 510740 bytes, sha256 89a5b138296b. A measurement of this report should copy it into its output as `measured_against`.",
+ "seconds": 2.3,
+ "regions": {
+  "regions_with_latex": 0,
+  "attempted_now": 0,
+  "rendered": 0,
+  "failed": 0,
+  "has_author_preamble": false,
+  "graphics_dir": null,
+  "failures": []
+ },
+ "manifest_rows": 5,
+ "with_latex": 0,
+ "duplicated": 5,
+ "table_cols": [
+  5,
+  5,
+  6
+ ],
+ "six_col_tables": 1,
+ "region_table_cols": 6,
+ "ink_selectable": true
+}
