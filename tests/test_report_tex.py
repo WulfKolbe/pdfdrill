@@ -342,3 +342,49 @@ def test_compile_rewrites_the_tex_only_when_it_demoted_a_row(tmp_path):
     before = tex.stat().st_mtime_ns
     rt.compile_fixpoint(tex)
     assert tex.stat().st_mtime_ns == before
+
+
+# --- 321: the builder states its own table boundaries -----------------------
+
+def test_table_record_carries_what_a_measurement_needs():
+    from pdfdrill import report_tex as rt
+    r = rt._table_record("Display equations", (20, 7, 13, 80, 80),
+                         legend=True, endhead=True,
+                         identifiers=["D_EQ0001", "D_EQ0002"])
+    assert r["columns"] == 5
+    assert r["rows"] == 2 and r["identifiers"][0] == "D_EQ0001"
+    assert r["legend"] is True and r["endhead"] is True
+
+
+def test_manifest_separates_two_adjacent_tables_of_equal_width(tmp_path):
+    """The whole point. inkdrill groups pages into tables by contiguity plus
+    equal width, which CANNOT separate 0049's equations and formulas — both
+    5 columns, adjacent, so they group as one 28-row run. The builder knows
+    it is 1 then 27 and now says so."""
+    from pdfdrill import report_tex as rt
+    tables = [
+        rt._table_record("Display equations", (20, 7, 13, 80, 80),
+                         True, True, ["D_EQ0001"]),
+        rt._table_record("Inline formulas (first occurrence)",
+                         (20, 7, 13, 80, 80), True, True,
+                         ["D_FO%04d" % i for i in range(1, 28)]),
+    ]
+    assert tables[0]["columns"] == tables[1]["columns"] == 5
+    assert [t["rows"] for t in tables] == [1, 27]
+    # and the reconciliation a consumer performs against a 2-page run:
+    # 1 + 27 identifiers + one legend row per page = 30, which is what
+    # inkdrill measured on 0049.
+    pages = 2
+    legend_rows = sum(pages for t in tables if t["legend"] and t is tables[0])
+    assert sum(t["rows"] for t in tables) + legend_rows == 30
+
+
+def test_a_table_without_a_legend_adds_no_footer_row():
+    """Image regions carry no legend and no \\endhead, and inkdrill measured
+    exactly the identifier count there — 3 against 3."""
+    from pdfdrill import report_tex as rt
+    r = rt._table_record("Image regions — rendered against scan",
+                         (20, 7, 12, 60, 60, 60), False, False,
+                         ["D_DIA_0001", "D_DIA_0002", "D_DIA_0003"])
+    assert r["legend"] is False and r["endhead"] is False
+    assert r["rows"] == 3 and r["columns"] == 6

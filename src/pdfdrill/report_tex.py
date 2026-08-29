@@ -233,6 +233,16 @@ REGIONS_INK = "report.regions.ink.json"
 #: have to infer "duplicated" from the pixels, which is precisely the inference
 #: 284 forbids — a self-comparison must be RECORDED as one, not deduced.
 REGIONS_MANIFEST = "report.regions.json"
+#: 321 — the table boundaries the BUILDER knows. inkdrill groups
+#: pages into tables by contiguity plus equal column width, which
+#: structurally cannot separate two ADJACENT tables of the same
+#: width: 0049's equations and formulas are both 5 columns and
+#: adjacent, so they group as one run and the ordinal stops being
+#: the longtable index. Nothing in the rendered page can fix that.
+#: We do not have to infer it — this module emitted the tables and
+#: knows where each begins, how wide it is, and which identifiers
+#: it holds. Stating it is cheaper and exact.
+TABLES_MANIFEST = "report.tables.json"
 
 
 def _img_cell(img_path: Path, out_dir: Path, col_mm, px2mm, dims) -> str:
@@ -470,6 +480,23 @@ def col_widths(usable_mm: float, with_image: bool):
         return ident, page, conf, src, rend, rest - src - rend
     src = round(rest / 2)
     return ident, page, conf, src, rest - src
+
+
+def _table_record(caption, widths, legend: bool, endhead: bool,
+                  identifiers) -> dict:
+    r"""One table's boundary, as the builder knows it (321).
+
+    `rows` is the identifier count, which is what a measurement joins
+    against. `legend` matters because `legend_foot` emits the key as
+    `\endfoot` AND `\endlastfoot`, so it repeats on EVERY page and a lattice
+    reads it as a row — inkdrill measured exactly one extra row per page of
+    the run on the two legend-bearing tables and none on the other two (320).
+    `endhead` says whether the header repeats, which is the `--header
+    first|every` argument a consumer must pass.
+    """
+    return {"caption": caption, "columns": len(widths),
+            "legend": bool(legend), "endhead": bool(endhead),
+            "rows": len(identifiers), "identifiers": list(identifiers)}
 
 
 def table_open(caption: str, widths, form: bool = False,
@@ -1758,6 +1785,7 @@ def build_report(tiddlers_path: Path, out: Path | None = None,
     if not form:
         out_parts.append(unmeasured_note(ink_state or "not_run"))
     out_parts.append(refined_note(refined))
+    tables_manifest = []
     out_parts.append(table_open("Display equations", eq_widths, form, legend_on))
     # 099: doubted rows first. Sorting by confidence ascending puts what
     # MathPix is least sure of at the top of the table, where a reader
@@ -1774,6 +1802,8 @@ def build_report(tiddlers_path: Path, out: Path | None = None,
                              code=((ink or {}).get(title) or {}).get("code", ""),
                              refined=refined.get(title)))
     out_parts.append("\\end{longtable}\n")
+    tables_manifest.append(_table_record(
+        "Display equations", eq_widths, legend_on, True, [r[0] for r in eq]))
 
     # every section starts on a FRESH page: a page mixing the 5-column
     # equations table with the 4-column formulas table defeats per-page
@@ -1785,6 +1815,9 @@ def build_report(tiddlers_path: Path, out: Path | None = None,
         out_parts.append(row(title, latex, page, punct=punct,
                              refined=refined.get(title)))
     out_parts.append("\\end{longtable}\n")
+    tables_manifest.append(_table_record(
+        "Inline formulas (first occurrence)", fo_widths, legend_on, True,
+        [r[0] for r in fo]))
 
     if tab:
         out_parts.append("\\clearpage\n")
@@ -1810,6 +1843,8 @@ def build_report(tiddlers_path: Path, out: Path | None = None,
                              % (esc_text(title), esc_text(str(page)),
                                 body, img))
         out_parts.append("\\end{longtable}\n")
+        tables_manifest.append(_table_record(
+            "Tables", (26, 9, ts, tim), False, True, [r[0] for r in tab]))
 
     named = unnamed = rendered = duplicated = 0
     manifest: list = []
@@ -1946,6 +1981,10 @@ def build_report(tiddlers_path: Path, out: Path | None = None,
                              % (esc_text(title), esc_text(str(page)),
                                 ccell, srcnote, rcell, cell))
         out_parts.append("\\end{longtable}\n")
+        # NO \endhead on this one (284) — its header prints once.
+        tables_manifest.append(_table_record(
+            "Image regions — rendered against scan", (20, 7, 12, dnote,
+             drend, dimg), False, False, [r[0] for r in dia]))
 
     out_parts.append("\\end{document}\n")
     # 090: the declarations depend on what the body actually contains, so the
@@ -1956,6 +1995,11 @@ def build_report(tiddlers_path: Path, out: Path | None = None,
                                "geom": geom,
                                "unicode": unicode_decls("".join(out_parts[1:]))}
     dest.write_text("".join(out_parts))
+    for i, t in enumerate(tables_manifest, 1):
+        t["ordinal"] = i
+    (dest.parent / TABLES_MANIFEST).write_text(
+        json.dumps({"bibkey": bibkey, "tables": tables_manifest}, indent=1),
+        encoding="utf-8")
     if manifest:
         (dest.parent / REGIONS_MANIFEST).write_text(
             json.dumps({"bibkey": bibkey, "rows": manifest}, indent=1),
