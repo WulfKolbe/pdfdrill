@@ -1,0 +1,27 @@
+{
+ "doc": "LIPIcs-CPM-2021-15",
+ "pdf": "LIPIcs-CPM-2021-15.pdf",
+ "rc": 0,
+ "stdout_tail": "Build stamp: report.build.json — phase=reading, 19 pages, 209313 bytes, sha256 655cc72beb7f. A measurement of this report should copy it into its output as `measured_against`.",
+ "seconds": 2.6,
+ "regions": {
+  "regions_with_latex": 0,
+  "attempted_now": 0,
+  "rendered": 0,
+  "failed": 0,
+  "has_author_preamble": false,
+  "graphics_dir": null,
+  "failures": []
+ },
+ "manifest_rows": 1,
+ "with_latex": 0,
+ "duplicated": 1,
+ "table_cols": [
+  5,
+  5,
+  6
+ ],
+ "six_col_tables": 1,
+ "region_table_cols": 6,
+ "ink_selectable": true
+}
