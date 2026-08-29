@@ -1,0 +1,28 @@
+{
+ "doc": "AIAA-2009-5069-885Gravitational_Field_Propulsion",
+ "pdf": "AIAA-2009-5069-885Gravitational_Field_Propulsion.pdf",
+ "rc": 0,
+ "stdout_tail": "Build stamp: report.build.json — phase=reading, 17 pages, 638077 bytes, sha256 29df87103d3f. A measurement of this report should copy it into its output as `measured_against`.",
+ "seconds": 2.4,
+ "regions": {
+  "regions_with_latex": 0,
+  "attempted_now": 0,
+  "rendered": 0,
+  "failed": 0,
+  "has_author_preamble": false,
+  "graphics_dir": null,
+  "failures": []
+ },
+ "manifest_rows": 6,
+ "with_latex": 0,
+ "duplicated": 6,
+ "table_cols": [
+  6,
+  5,
+  4,
+  6
+ ],
+ "six_col_tables": 2,
+ "region_table_cols": 6,
+ "ink_selectable": false
+}
