@@ -1,0 +1,28 @@
+{
+ "doc": "Algebraic Geometry A Problem Solving Approach (With solutions) (Thomas Garrity, Richard Belshoff, Lynette Boos etc.) (Z-Library)",
+ "pdf": "Algebraic Geometry A Problem Solving Approach (With solutions) (Thomas Garrity, Richard Belshoff, Lynette Boos etc.) (Z-Library).pdf",
+ "rc": -1,
+ "error": "timeout after 900s",
+ "seconds": 900.1,
+ "regions": {
+  "regions_with_latex": 0,
+  "attempted_now": 0,
+  "rendered": 0,
+  "failed": 0,
+  "has_author_preamble": false,
+  "graphics_dir": null,
+  "failures": []
+ },
+ "manifest_rows": 89,
+ "with_latex": 0,
+ "duplicated": 89,
+ "table_cols": [
+  6,
+  5,
+  4,
+  6
+ ],
+ "six_col_tables": 2,
+ "region_table_cols": 6,
+ "ink_selectable": false
+}
