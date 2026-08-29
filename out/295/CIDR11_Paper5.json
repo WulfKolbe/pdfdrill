@@ -1,0 +1,27 @@
+{
+ "doc": "CIDR11_Paper5",
+ "pdf": "CIDR11_Paper5.pdf",
+ "rc": 0,
+ "stdout_tail": "Build stamp: report.build.json — phase=reading, 3 pages, 210530 bytes, sha256 38d5ceca53ad. A measurement of this report should copy it into its output as `measured_against`.",
+ "seconds": 3.4,
+ "regions": {
+  "regions_with_latex": 1,
+  "attempted_now": 1,
+  "rendered": 1,
+  "failed": 0,
+  "has_author_preamble": false,
+  "graphics_dir": null,
+  "failures": []
+ },
+ "manifest_rows": 9,
+ "with_latex": 1,
+ "duplicated": 8,
+ "table_cols": [
+  5,
+  5,
+  6
+ ],
+ "six_col_tables": 1,
+ "region_table_cols": 6,
+ "ink_selectable": true
+}
