@@ -1,0 +1,28 @@
+{
+ "doc": "NeurIPS-2023-famo-fast-adaptive-multitask-optimization-Paper-Conference",
+ "pdf": "NeurIPS-2023-famo-fast-adaptive-multitask-optimization-Paper-Conference.pdf",
+ "rc": 0,
+ "stdout_tail": "Build stamp: report.build.json — phase=reading, 14 pages, 1495328 bytes, sha256 6c2ba432747d. A measurement of this report should copy it into its output as `measured_against`.",
+ "seconds": 6.8,
+ "regions": {
+  "regions_with_latex": 2,
+  "attempted_now": 2,
+  "rendered": 2,
+  "failed": 0,
+  "has_author_preamble": false,
+  "graphics_dir": null,
+  "failures": []
+ },
+ "manifest_rows": 7,
+ "with_latex": 2,
+ "duplicated": 5,
+ "table_cols": [
+  6,
+  5,
+  4,
+  6
+ ],
+ "six_col_tables": 2,
+ "region_table_cols": 6,
+ "ink_selectable": false
+}
