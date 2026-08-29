@@ -1,0 +1,28 @@
+{
+ "doc": "Elementary Differential Geometry (Christian Bär) (Z-Library)",
+ "pdf": "Elementary Differential Geometry (Christian Bär) (Z-Library).pdf",
+ "rc": 0,
+ "stdout_tail": "Build stamp: report.build.json — phase=reading, 482 pages, 25120188 bytes, sha256 a9b814d47709. A measurement of this report should copy it into its output as `measured_against`.",
+ "seconds": 756.1,
+ "regions": {
+  "regions_with_latex": 0,
+  "attempted_now": 0,
+  "rendered": 0,
+  "failed": 0,
+  "has_author_preamble": false,
+  "graphics_dir": null,
+  "failures": []
+ },
+ "manifest_rows": 186,
+ "with_latex": 0,
+ "duplicated": 186,
+ "table_cols": [
+  6,
+  5,
+  4,
+  6
+ ],
+ "six_col_tables": 2,
+ "region_table_cols": 6,
+ "ink_selectable": false
+}
