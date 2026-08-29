@@ -1,0 +1,28 @@
+{
+ "doc": "NonLinearAlgebra",
+ "pdf": "NonLinearAlgebra.pdf",
+ "rc": 0,
+ "stdout_tail": "Build stamp: report.build.json — phase=reading, 126 pages, 1176632 bytes, sha256 89763a70d610. A measurement of this report should copy it into its output as `measured_against`.",
+ "seconds": 142.9,
+ "regions": {
+  "regions_with_latex": 0,
+  "attempted_now": 0,
+  "rendered": 0,
+  "failed": 0,
+  "has_author_preamble": false,
+  "graphics_dir": null,
+  "failures": []
+ },
+ "manifest_rows": 18,
+ "with_latex": 0,
+ "duplicated": 18,
+ "table_cols": [
+  5,
+  5,
+  4,
+  6
+ ],
+ "six_col_tables": 1,
+ "region_table_cols": 6,
+ "ink_selectable": true
+}
