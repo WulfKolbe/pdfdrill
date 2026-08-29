@@ -1,0 +1,28 @@
+{
+ "doc": "Geometrie und GPS Mathematische, physikalische und technische Grundlagen der Satellitenortung verständlich erklärt (Helmut Albrecht) (Z-Library)",
+ "pdf": "Geometrie und GPS Mathematische, physikalische und technische Grundlagen der Satellitenortung verständlich erklärt (Helmut Albrecht) (Z-Library).pdf",
+ "rc": 0,
+ "stdout_tail": "Build stamp: report.build.json — phase=reading, 238 pages, 10831433 bytes, sha256 00570409b34e. A measurement of this report should copy it into its output as `measured_against`.",
+ "seconds": 279.7,
+ "regions": {
+  "regions_with_latex": 0,
+  "attempted_now": 0,
+  "rendered": 0,
+  "failed": 0,
+  "has_author_preamble": false,
+  "graphics_dir": null,
+  "failures": []
+ },
+ "manifest_rows": 553,
+ "with_latex": 0,
+ "duplicated": 553,
+ "table_cols": [
+  6,
+  5,
+  4,
+  6
+ ],
+ "six_col_tables": 2,
+ "region_table_cols": 6,
+ "ink_selectable": false
+}
