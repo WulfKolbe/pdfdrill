@@ -1,0 +1,73 @@
+{
+ "doc": "1211.3375",
+ "pdf": "1211.3375.pdf",
+ "rc": 0,
+ "stdout_tail": "Build stamp: report.build.json — phase=reading, 13 pages, 2296253 bytes, sha256 fc0235d29dde. A measurement of this report should copy it into its output as `measured_against`.",
+ "seconds": 28.0,
+ "regions": {
+  "regions_with_latex": 15,
+  "attempted_now": 15,
+  "rendered": 4,
+  "failed": 11,
+  "has_author_preamble": true,
+  "graphics_dir": "/home/wkolbe/pdfdrill-library/1211.3375/texsrc",
+  "failures": [
+   {
+    "id": "1211.3375_DIA_0010",
+    "first_error": "! Undefined control sequence."
+   },
+   {
+    "id": "1211.3375_DIA_0011",
+    "first_error": "! Undefined control sequence."
+   },
+   {
+    "id": "1211.3375_DIA_0012",
+    "first_error": "! Undefined control sequence."
+   },
+   {
+    "id": "1211.3375_DIA_0013",
+    "first_error": "! Undefined control sequence."
+   },
+   {
+    "id": "1211.3375_DIA_0014",
+    "first_error": "! LaTeX Error: Environment ssdef undefined."
+   },
+   {
+    "id": "1211.3375_DIA_0015",
+    "first_error": "! LaTeX Error: Environment ssdef undefined."
+   },
+   {
+    "id": "1211.3375_DIA_0016",
+    "first_error": "! LaTeX Error: Environment ssdef undefined."
+   },
+   {
+    "id": "1211.3375_DIA_0018",
+    "first_error": "! Undefined control sequence."
+   },
+   {
+    "id": "1211.3375_DIA_0019",
+    "first_error": "! Undefined control sequence."
+   },
+   {
+    "id": "1211.3375_DIA_0020",
+    "first_error": "! Paragraph ended before \\pgfplots@@environment@axis was com"
+   },
+   {
+    "id": "1211.3375_DIA_0021",
+    "first_error": "! Paragraph ended before \\pgfplots@@environment@axis was com"
+   }
+  ]
+ },
+ "manifest_rows": 25,
+ "with_latex": 15,
+ "duplicated": 21,
+ "table_cols": [
+  6,
+  5,
+  4,
+  6
+ ],
+ "six_col_tables": 2,
+ "region_table_cols": 6,
+ "ink_selectable": false
+}
