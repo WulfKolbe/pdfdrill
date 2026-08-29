@@ -1,0 +1,126 @@
+286 — the author's preamble, and why it needed a fallback
+==============================================================================
+
+THE COMPILE RATE
+------------------------------------------------------------------------------
+    10 documents, 207 regions, the same sample as 284
+
+    generic preamble only        138/207   (66.7%)
+    author's preamble only       108/207   (52.2%)
+    author's + fallback          165/207   (79.7%)
+
+    failures 69 -> 42
+
+    document                        rows   before   after
+    2004.05631                        25        3      21
+    2210.06079                        25       16      25
+    2208.01506                        25       24      24
+    2602.23211                        25       16      16
+    2002.06055                        25       23      23
+    2508.08293v1                      19       17      17
+    fricas_intro                      19       19      19
+    ZZ Top Volume 1                   12        9       9
+    1910.04947                        11       11      11
+    2512.15098v4                      21        0       0
+
+THE FALLBACK IS THE FINDING, NOT THE INJECTION
+------------------------------------------------------------------------------
+Injecting the author's preamble ALONE made things WORSE: 66.7% -> 52.2%. It
+rescued the documents whose regions need it —
+
+    2004.05631    3/25 -> 21/25
+    2210.06079   16/25 -> 25/25
+
+— and took three others to ZERO:
+
+    2208.01506   24/25 -> 0/25   ! LaTeX Error: Missing \begin{document}.
+    2602.23211   16/25 -> 0/25   ! Illegal parameter number in definition of \hgnodea.
+    2508.08293v1 17/19 -> 0/19
+
+Both errors are in the extracted PREAMBLE, not in the region: all three
+documents compile fine generically. `standalone_preamble()` pulls macro bodies
+and declarations out of a preamble, and on these three what it pulls does not
+stand on its own — a stray token before `\begin{document}`, a `#1` lifted out
+of the definition that gave it meaning.
+
+So neither preamble is right for every document, and which one is right cannot
+be decided in advance. It is decided by trying: the author's first, the generic
+one on failure. That costs a second compile only on rows that fail the first,
+and it yields the per-document maximum — 165, which is exactly
+max(generic, author) summed across the sample.
+
+Had I shipped the injection on its own measurement I would have reported "the
+author's preamble is the fix" and regressed three documents in ten.
+
+WHAT STILL FAILS — 42 ROWS
+------------------------------------------------------------------------------
+2512.15098v4 is 21 of the 42 and fails under every preamble:
+
+    \begin{tikzpicture} \node (img) {\adjustbox{max width=\linewidth,
+                                     max height=\ImageMaxHeight}{...}}
+
+`\adjustbox` was simply missing from the guarded package list and is now there.
+`\ImageMaxHeight` is an author `\newlength`, and `standalone_preamble` collects
+`\newcommand`/`\def`/`\DeclareMathOperator`/`\newcolumntype` but not
+`\newlength`/`\setlength`. That is a named, specific extraction gap rather than
+a mystery, and it is the next thing to widen if this number matters more.
+
+The remaining 21 are spread thin: author macros the extractor missed, and
+figure files the e-print does not contain.
+
+CHANGED
+------------------------------------------------------------------------------
+  src/pdfdrill/region_standalone.py
+    render() tries the author's preamble then falls back to the generic one;
+    `\graphicspath` points at the e-print (`texsrc/` and `texsrc/figures/`);
+    TEXINPUTS carries the author's local .sty/.cls, without which a preamble
+    loading `tufte-book-tai.cls` cannot find it; `adjustbox` and `xcolor`
+    added to the guarded packages.
+  src/pdfdrill/commands.py
+    _render_regions reads meta.latex_preamble.standalone and
+    meta.latex_source_dir from the model, falling back to <blob>/texsrc, and
+    reports which of the two it had.
+
+  tests/test_region_standalone.py — 12, including that only bare maths is
+  wrapped in math mode, that every package is `\IfFileExists`-guarded (221's
+  rule), and that the author's preamble replaces the head rather than
+  duplicating `\documentclass`.
+
+A SECOND DEFECT, FOUND BY DISAGREEING WITH inkdrill
+------------------------------------------------------------------------------
+Converting 2103.01507's measurement, my classes read C 92 against inkdrill's
+component 90 — the other four identical. The two are EQ0383 and EQ1005, both
+rows the report DEMOTED to `\emph{(not rendered)}`.
+
+A demoted row has no rendering. Measuring it compares italic English against a
+formula, which scores a large component delta and was being called `component`
+— a defect in the conversion, not in the extraction. inkdrill excludes such
+rows; I was counting them.
+
+It matters beyond the tally: `publishready` gates on the p90 component ratio,
+and `component_ratio_p90` already takes a `rendered` mask for exactly this
+reason — the machinery existed and `inkconvert` was not using it. A false
+`component` inflates the number the gate reads.
+
+Fixed: `inkconvert` now marks such rows `rendered: false` with flag
+`unrendered`, code `U`. 2103.01507 re-converts to C 90, K 300, N 904, S 15,
+W 234 — matching inkdrill's five classes exactly, with U 2 alongside.
+1510.06699 has no demoted rows and is unaffected, so its published numbers
+stand.
+
+Suite 2,668.
+
+286's OTHER HALF
+------------------------------------------------------------------------------
+inkdrill has agreed to expose the page detection as
+`python3 -m inkdrill pages --pdf report.pdf --columns 6`, JSON on stdout, same
+probe and leading-run and coverage and sliver filter — one implementation.
+
+They also caught something I had understated: `reportcompare` does not detect
+the header, it skips `ln == 0` on EVERY page unconditionally. That is right for
+the equation table, whose `\endhead` repeats the header; on my image table,
+where the header prints once, it would drop a DATA row from every page after
+the first. So the subcommand takes `--header first|every` as an argument rather
+than assuming. They asked me to test both sides of that switch against real
+tables once it lands, which I have — the equation table repeats its header and
+the image table does not.

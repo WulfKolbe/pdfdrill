@@ -36,7 +36,20 @@ from pathlib import Path
 NOISE_DISTANCE = 7
 NOISE_COMP_DELTA = 2
 FLAG_CODE = {"clean": "K", "noise": "N", "weak": "W", "stable": "S",
-             "component": "C"}
+             "component": "C",
+             # A row demoted to \emph{(not rendered)} has NO rendering to
+             # compare. Measuring it against the scan compares italic English
+             # against a formula, which scores a large component delta and was
+             # being classified `component` — a defect in the conversion, not
+             # in the extraction. inkdrill excludes such rows from its own
+             # tally; my count read C 92 against their 90 on 2103.01507, and
+             # the two rows were EQ0383 and EQ1005, both demoted.
+             #
+             # It matters beyond the tally: publishready gates on the p90
+             # component ratio, and `component_ratio_p90` already takes a
+             # `rendered` mask for exactly this reason. A false `component`
+             # inflates the number the gate reads.
+             "unrendered": "U"}
 FIVE_L = ("L_comp", "L_holes", "L_stk", "L_cen", "L_off")
 FIVE_R = ("R_comp", "R_holes", "R_stk", "R_cen", "R_off")
 
@@ -81,8 +94,11 @@ def read_tsv(path: Path) -> tuple:
 
 def convert(tsv: Path, tex: Path, *, stamp: dict | None = None) -> dict:
     """The ink.json payload, or ConversionRefused. Writes nothing."""
+    from .report_tex import demoted_flags
     body, footers = read_tsv(tsv)
-    ids = identifiers(tex.read_text(encoding="utf-8", errors="replace"))
+    tex_body = tex.read_text(encoding="utf-8", errors="replace")
+    ids = identifiers(tex_body)
+    did_render = demoted_flags(tex_body)
     pages = {r.get("report_page") for r in footers}
     if len(body) != len(ids):
         raise ConversionRefused(
@@ -108,9 +124,10 @@ def convert(tsv: Path, tex: Path, *, stamp: dict | None = None) -> dict:
         # INDEPENDENT renders agreeing. Not to be confused with `B_stable`,
         # which is B against its own half-scale resample: one render, weaker,
         # and not what this class means.
+        rendered = did_render[len(out)] if len(out) < len(did_render) else True
         flag = flag_of(distance, abs(signed),
                        str(r.get("A_eq_B", "")).strip().lower()
-                       in ("yes", "true", "1"))
+                       in ("yes", "true", "1")) if rendered else "unrendered"
         out.append({
             "id": ident,
             "report_page": int(r["report_page"]),
@@ -120,6 +137,9 @@ def convert(tsv: Path, tex: Path, *, stamp: dict | None = None) -> dict:
             "comp_delta": abs(signed),
             "signed_delta": signed,
             "flag": flag,
+            # False when the report demoted this row: there is no rendering,
+            # so its distance measures an absence, not a disagreement.
+            "rendered": bool(rendered),
             "code": "%s|%+d" % (FLAG_CODE[flag], signed),
         })
     payload = {

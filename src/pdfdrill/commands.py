@@ -6906,6 +6906,28 @@ def _render_regions(sc, tiddlers) -> tuple:
     import re as _re
     from .region_standalone import render as _render
     out_dir = sc.blob_dir / "standalone-regions"
+    # 286 — the author's own preamble and figure files. `injectlatex` stores
+    # the standalone form on the model and names the source dir; without them a
+    # region using the author's macros or their `figures/ch1/concept2` cannot
+    # compile no matter how good the renderer is.
+    author_pre, src_dir = "", None
+    try:
+        mp = _model_path(sc)
+        if mp.exists():
+            meta = json.loads(mp.read_text(encoding="utf-8")).get("meta", {})
+            author_pre = ((meta.get("latex_preamble") or {}).get("standalone")
+                          or "")
+            sd = meta.get("latex_source_dir")
+            if sd and Path(sd).is_dir():
+                src_dir = Path(sd)
+    except Exception:
+        author_pre, src_dir = "", None
+    if src_dir is None:
+        for cand in ("texsrc", "eprint"):
+            d = sc.blob_dir / cand
+            if d.is_dir():
+                src_dir = d
+                break
     rows = [(t.get("title", ""), (t.get("latex") or t.get("latex_code") or ""))
             for t in tiddlers if isinstance(t, dict)
             and _re.search(r"_(DIA|PIC)_\d+$", str(t.get("title", "")))]
@@ -6915,7 +6937,9 @@ def _render_regions(sc, tiddlers) -> tuple:
                and (out_dir / f"{i}.png").is_file())
     failed = []
     for ident, latex in todo:
-        png, err = _render(ident, latex, out_dir)
+        png, err = _render(ident, latex, out_dir,
+                           author_preamble=author_pre,
+                           graphics_dir=src_dir, texinputs=src_dir)
         if png is None:
             failed.append((ident, (err or "?")[:60]))
         else:
@@ -6923,7 +6947,7 @@ def _render_regions(sc, tiddlers) -> tuple:
     if failed:
         (out_dir / "_failures.txt").write_text(
             "\n".join("%s\t%s" % f for f in failed) + "\n", encoding="utf-8")
-    return done, len(failed), failed
+    return done, len(failed), failed, bool(author_pre), src_dir
 
 
 
@@ -14084,9 +14108,12 @@ def cmd_reporttex(pdf: Path, paper: str = "a3", landscape: bool = True,
     # 264 — the keys this model used to carry, so a crop written before a
     # `--bibkey` rename is still found instead of showing as "---".
     if render_regions:
-        _n, _f, _errs = _render_regions(sc, tiddlers)
-        print("Region LaTeX: %d compiled standalone, %d failed%s."
-              % (_n, _f, (" — " + "; ".join("%s: %s" % e for e in _errs[:3]))
+        _n, _f, _errs, _has_pre, _sd = _render_regions(sc, tiddlers)
+        print("Region LaTeX: %d compiled standalone, %d failed "
+              "(author preamble: %s; graphics: %s)%s."
+              % (_n, _f, "yes" if _has_pre else "NO",
+                 (_sd.name if _sd else "NO"),
+                 (" — " + "; ".join("%s: %s" % e for e in _errs[:2]))
                  if _errs else ""))
     r = rt.build_report(tid, crops=crops, texzip=texzip, paper=paper,
                         landscape=landscape, px2mm=px2mm,
