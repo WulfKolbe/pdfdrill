@@ -1,0 +1,27 @@
+{
+ "doc": "Multiple_Channel_Wireless_Sensing_System",
+ "pdf": "Multiple_Channel_Wireless_Sensing_System.pdf",
+ "rc": 0,
+ "stdout_tail": "Build stamp: report.build.json — phase=reading, 6 pages, 840694 bytes, sha256 f60230b9e1d7. A measurement of this report should copy it into its output as `measured_against`.",
+ "seconds": 3.6,
+ "regions": {
+  "regions_with_latex": 1,
+  "attempted_now": 1,
+  "rendered": 1,
+  "failed": 0,
+  "has_author_preamble": false,
+  "graphics_dir": null,
+  "failures": []
+ },
+ "manifest_rows": 10,
+ "with_latex": 1,
+ "duplicated": 9,
+ "table_cols": [
+  6,
+  5,
+  6
+ ],
+ "six_col_tables": 2,
+ "region_table_cols": 6,
+ "ink_selectable": false
+}
