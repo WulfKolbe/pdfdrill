@@ -1,0 +1,33 @@
+{
+ "doc": "2511.07378v1",
+ "pdf": "2511.07378v1.pdf",
+ "rc": 1,
+ "stdout_tail": "Image regions: 0 of 1 rows name their tex.zip source by region 5-tuple, 1 do not (no tex.zip). Two image columns: 0 rows show rendered LaTeX, 1 repeat the scan for want of LaTeX (marked dup — a self-comparison, not agreement).",
+ "error": "Error [FileNotFoundError]: [Errno 2] No such file or directory: '/home/wkolbe/pdfdrill-library/2511.07378v1/report.pdf'",
+ "seconds": 7.1,
+ "regions": {
+  "regions_with_latex": 1,
+  "attempted_now": 1,
+  "rendered": 0,
+  "failed": 1,
+  "has_author_preamble": true,
+  "graphics_dir": "/home/wkolbe/pdfdrill-library/2511.07378v1/texsrc",
+  "failures": [
+   {
+    "id": "2511.07378v1_DIA_0001",
+    "first_error": "! Package pgf Error: No shape named `last' is known."
+   }
+  ]
+ },
+ "manifest_rows": 1,
+ "with_latex": 1,
+ "duplicated": 1,
+ "table_cols": [
+  5,
+  5,
+  6
+ ],
+ "six_col_tables": 1,
+ "region_table_cols": 6,
+ "ink_selectable": true
+}
