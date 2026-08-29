@@ -1,0 +1,33 @@
+{
+ "doc": "DH2017-abstracts",
+ "pdf": "DH2017-abstracts.pdf",
+ "rc": 0,
+ "stdout_tail": "Build stamp: report.build.json — phase=reading, 149 pages, 25465844 bytes, sha256 53f00f145b2b. A measurement of this report should copy it into its output as `measured_against`.",
+ "seconds": 27.1,
+ "regions": {
+  "regions_with_latex": 1,
+  "attempted_now": 1,
+  "rendered": 0,
+  "failed": 1,
+  "has_author_preamble": false,
+  "graphics_dir": null,
+  "failures": [
+   {
+    "id": "DH2017-abstracts_DIA_0394",
+    "first_error": "! Missing $ inserted."
+   }
+  ]
+ },
+ "manifest_rows": 657,
+ "with_latex": 1,
+ "duplicated": 657,
+ "table_cols": [
+  5,
+  5,
+  4,
+  6
+ ],
+ "six_col_tables": 1,
+ "region_table_cols": 6,
+ "ink_selectable": true
+}
