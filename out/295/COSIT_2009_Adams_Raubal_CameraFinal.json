@@ -1,0 +1,28 @@
+{
+ "doc": "COSIT_2009_Adams_Raubal_CameraFinal",
+ "pdf": "COSIT_2009_Adams_Raubal_CameraFinal.pdf",
+ "rc": 0,
+ "stdout_tail": "Build stamp: report.build.json — phase=reading, 12 pages, 556453 bytes, sha256 d0cb9f3c960c. A measurement of this report should copy it into its output as `measured_against`.",
+ "seconds": 6.2,
+ "regions": {
+  "regions_with_latex": 2,
+  "attempted_now": 2,
+  "rendered": 2,
+  "failed": 0,
+  "has_author_preamble": false,
+  "graphics_dir": null,
+  "failures": []
+ },
+ "manifest_rows": 5,
+ "with_latex": 2,
+ "duplicated": 3,
+ "table_cols": [
+  6,
+  5,
+  4,
+  6
+ ],
+ "six_col_tables": 2,
+ "region_table_cols": 6,
+ "ink_selectable": false
+}
