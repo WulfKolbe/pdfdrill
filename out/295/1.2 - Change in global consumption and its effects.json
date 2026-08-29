@@ -1,0 +1,32 @@
+{
+ "doc": "1.2 - Change in global consumption and its effects",
+ "pdf": "1.2 - Change in global consumption and its effects.pdf",
+ "rc": 0,
+ "stdout_tail": "Build stamp: report.build.json — phase=reading, 9 pages, 1940715 bytes, sha256 e30c477af81f. A measurement of this report should copy it into its output as `measured_against`.",
+ "seconds": 2.9,
+ "regions": {
+  "regions_with_latex": 1,
+  "attempted_now": 1,
+  "rendered": 0,
+  "failed": 1,
+  "has_author_preamble": false,
+  "graphics_dir": null,
+  "failures": [
+   {
+    "id": "1.2_-_Change_in_global_consumption_and_its_effects_DIA_0007",
+    "first_error": "! Missing $ inserted."
+   }
+  ]
+ },
+ "manifest_rows": 24,
+ "with_latex": 1,
+ "duplicated": 24,
+ "table_cols": [
+  6,
+  5,
+  6
+ ],
+ "six_col_tables": 2,
+ "region_table_cols": 6,
+ "ink_selectable": false
+}
