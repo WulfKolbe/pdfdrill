@@ -1,0 +1,33 @@
+{
+ "doc": "Nitric Oxide Biology and Pathobiology (Louis J. Ignarro Bruce A. Freeman) (Z-Library)",
+ "pdf": "Nitric Oxide Biology and Pathobiology (Louis J. Ignarro Bruce A. Freeman) (Z-Library).pdf",
+ "rc": 0,
+ "stdout_tail": "Build stamp: report.build.json — phase=reading, 166 pages, 10946450 bytes, sha256 5191dc42a615. A measurement of this report should copy it into its output as `measured_against`.",
+ "seconds": 52.8,
+ "regions": {
+  "regions_with_latex": 1,
+  "attempted_now": 1,
+  "rendered": 0,
+  "failed": 1,
+  "has_author_preamble": false,
+  "graphics_dir": null,
+  "failures": [
+   {
+    "id": "Nitric_Oxide_Biology_and_Pathobiology__Louis_J._Ignarro_Bruce_A._Freeman___Z-Library__DIA_0070",
+    "first_error": "! Misplaced alignment tab character &."
+   }
+  ]
+ },
+ "manifest_rows": 107,
+ "with_latex": 1,
+ "duplicated": 107,
+ "table_cols": [
+  6,
+  5,
+  4,
+  6
+ ],
+ "six_col_tables": 2,
+ "region_table_cols": 6,
+ "ink_selectable": false
+}
