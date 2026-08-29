@@ -132,9 +132,26 @@ def _overlay_node(text: str, start: int) -> bool:
     return bool(re.search(r"\\begin\s*\{tikzpicture\}\s*\[[^\]]*overlay", back))
 
 
+def _caption_for(text: str, pos: int, caps: list) -> str:
+    r"""The caption of the float containing `pos`.
+
+    Scoped to the enclosing figure/table so a caption belonging to the NEXT
+    float is never attached to this one — that mis-attachment would corrupt a
+    join built on caption text while looking like a successful match.
+    """
+    for env in ("figure", "table", "wrapfigure", "subfigure"):
+        span = enclosing_span(text, pos, env)
+        if span:
+            inside = [c for c in caps if span[0] <= c["pos"] < span[1]]
+            if inside:
+                return inside[0]["text"]
+    return ""
+
+
 def calls(text: str, source: str = "") -> list:
     r"""Every `\includegraphics` in `text`, in document order."""
     body = _COMMENT.sub("", text)
+    caps = captions(body)
     out = []
     for m in _INCLUDE.finditer(body):
         i = _skip_ws(body, m.end())
@@ -148,8 +165,12 @@ def calls(text: str, source: str = "") -> list:
             continue                              # malformed; not a call
         opts = parse_options(opts_raw)
         envs = _environments(body, m.start())
+        cap = _caption_for(body, m.start(), caps)
         out.append({
             "source": source,
+            "pos": m.start(),
+            "caption": cap,
+            "caption_plain": plain(cap) if cap else "",
             "line": body[:m.start()].count("\n") + 1,
             "file": ref.strip(),
             "options": opts,
@@ -290,3 +311,67 @@ def summarise(scanned: dict, author_only: bool = True) -> dict:
                     and not x["in_tikzpicture"]),
         "distinct_files": len({x["file"] for x in c}),
     }
+
+_CAPTION = re.compile(r"\\caption\*?\s*(?=[\[{])")
+
+
+def captions(text: str) -> list:
+    r"""Every `\caption{...}` with its character offset, brace-matched.
+
+    `\caption[short]{long}` carries an optional short form first, and a
+    caption body routinely contains braces (`\gls{nmf}`, `$x^{2}$`), so the
+    body cannot be taken with `\{([^}]*)\}`.
+    """
+    out = []
+    for m in _CAPTION.finditer(text):
+        i = _skip_ws(text, m.end())
+        if i < len(text) and text[i] == "[":
+            _, i = _matched(text, i, "[", "]")
+            i = _skip_ws(text, i)
+        body, _ = _matched(text, i, "{", "}")
+        if body is not None:
+            out.append({"pos": m.start(), "text": body})
+    return out
+
+
+#: LaTeX a caption carries that OCR renders as its plain content, or drops.
+_MACRO_ARG = re.compile(r"\\(?:gls|Gls|acrshort|acrlong|acrfull|emph|textit|"
+                        r"textbf|texttt|rev|text|mbox|ensuremath)\s*\{")
+_ANY_CMD = re.compile(r"\\[a-zA-Z@]+\*?")
+_WS = re.compile(r"\s+")
+
+
+def plain(text: str) -> str:
+    r"""A caption reduced to the words OCR would have read.
+
+    `\caption{\rev{F1-Score of \acrshort{nmfft} for various models}}` and the
+    OCR's "F1-Score of NMF-FT for various models" must reduce to something a
+    substring test can align. Macro ARGUMENTS are kept (they are printed);
+    the macro names and the braces are not.
+    """
+    prev = None
+    while prev != text:
+        prev = text
+        m = _MACRO_ARG.search(text)
+        if m:
+            inner, end = _matched(text, m.end() - 1, "{", "}")
+            if inner is not None:
+                text = text[:m.start()] + inner + text[end:]
+    text = _ANY_CMD.sub(" ", text)
+    text = text.replace("{", " ").replace("}", " ").replace("$", " ")
+    text = re.sub(r"[^0-9A-Za-z ]+", " ", text)
+    return _WS.sub(" ", text).strip().lower()
+
+
+def enclosing_span(text: str, pos: int, env: str = "figure"):
+    r"""The `\begin{env}...\end{env}` span containing `pos`, or None."""
+    starts = [m.start() for m in
+              re.finditer(r"\\begin\s*\{" + env + r"\*?\}", text)
+              if m.start() < pos]
+    if not starts:
+        return None
+    b = starts[-1]
+    m = re.search(r"\\end\s*\{" + env + r"\*?\}", text[b:])
+    e = b + m.end() if m else len(text)
+    return (b, e) if b <= pos < e else None
+
