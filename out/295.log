@@ -668,3 +668,91 @@ Traceback (most recent call last):
     return f.write(data)
            ~~~~~~~^^^^^^
 UnicodeEncodeError: 'utf-8' codec can't encode character '\udc96' in position 111: surrogates not allowed
+population: 1346 documents (21 from the site, first)
+[ 645/1346] AttachBBlocaldim                     5.6s  regions=1 failed=0 selectable=False
+[ 646/1346] AutoMSC_Automatic_Assignment_of_Ma   2.6s  regions=0 failed=0 selectable=False
+[ 647/1346] Autonomous Driving Perception Fund 104.4s  regions=1 failed=0 selectable=False
+[ 648/1346] Axe-Fx-II-Owners-Manual              9.5s  regions=2 failed=0 selectable=True
+[ 649/1346] BH1                                168.1s  regions=- failed=- selectable=False
+[ 650/1346] BH1org_OCR                          19.2s  regions=0 failed=0 selectable=False
+[ 651/1346] BH3FR                                9.0s  regions=0 failed=0 selectable=False
+[ 652/1346] BangaloreKMContinued                 2.8s  regions=0 failed=0 selectable=False
+[ 653/1346] BirgitRichter_book                 695.6s  regions=0 failed=0 selectable=False
+[ 654/1346] Bludau25UnfoldablesSTAR              2.5s  regions=0 failed=0 selectable=True
+[ 655/1346] Boltzmann solution                   2.9s  regions=0 failed=0 selectable=False
+[ 656/1346] Brian_R_Hunt_1999_Nonlinearity_12_   2.9s  regions=0 failed=0 selectable=False
+[ 657/1346] Bruderus_Regelgeraet_ERC_Montagean   2.4s  regions=0 failed=0 selectable=True
+[ 658/1346] Bruderus_Regelgeraet_ERC_Montagean   2.4s  regions=0 failed=0 selectable=True
+[ 659/1346] Burkhard Heim - Einführung in Burk  40.6s  regions=0 failed=0 selectable=False
+[ 660/1346] Burkhard Heim - Elementarstrukture  94.7s  regions=0 failed=0 selectable=True
+[ 661/1346] C12-2133                             2.7s  regions=0 failed=0 selectable=False
+[ 662/1346] C12-3055                             2.8s  regions=0 failed=0 selectable=True
+[ 663/1346] CERN-THESIS-2014-012                 4.0s  regions=0 failed=0 selectable=False
+[ 664/1346] CGIVD2_Dreyer                        3.0s  regions=0 failed=0 selectable=False
+[ 665/1346] CH-3127                              2.5s  regions=0 failed=0 selectable=True
+[ 666/1346] CIDR11_Paper26                       2.4s  regions=0 failed=0 selectable=True
+[ 667/1346] CIDR11_Paper5                        3.4s  regions=1 failed=0 selectable=True
+[ 668/1346] CIDR13_Paper73                       2.4s  regions=0 failed=0 selectable=True
+[ 669/1346] CIDR15_Paper1                        5.2s  regions=0 failed=0 selectable=True
+[ 670/1346] CM2526_exercise_6_solution           2.6s  regions=0 failed=0 selectable=False
+[ 671/1346] CM2526_exercises_01                  2.5s  regions=0 failed=0 selectable=False
+[ 672/1346] CM2526_exercises_02                  2.5s  regions=0 failed=0 selectable=False
+[ 673/1346] CM2526_exercises_04                  2.4s  regions=0 failed=0 selectable=False
+[ 674/1346] CM2526_exercises_04_solution         4.4s  regions=0 failed=0 selectable=False
+[ 675/1346] CM2526_exercises_05                  2.4s  regions=0 failed=0 selectable=False
+[ 676/1346] CM2526_exercises_06                  2.4s  regions=0 failed=0 selectable=True
+[ 677/1346] CM2526_exercises_07                  2.4s  regions=0 failed=0 selectable=False
+[ 678/1346] CM2526_exercises_08                  2.4s  regions=0 failed=0 selectable=False
+[ 679/1346] CM2526_exercises_09                  2.4s  regions=0 failed=0 selectable=False
+[ 680/1346] CMU_DDG_FA17_CurvesSurfacesIntro     3.0s  regions=0 failed=0 selectable=False
+[ 681/1346] CN208060706U                         2.4s  regions=0 failed=0 selectable=True
+[ 682/1346] COSIT_2009_Adams_Raubal_CameraFina   6.2s  regions=2 failed=0 selectable=False
+[ 683/1346] CSD-91-628                           3.3s  regions=0 failed=1 selectable=True
+[ 684/1346] Can_compatible_discretization_fini   2.5s  regions=0 failed=0 selectable=False
+[ 685/1346] Cat2Type                             2.7s  regions=0 failed=0 selectable=False
+[ 686/1346] Chapter 1 - Ballistic transport an   5.2s  regions=1 failed=0 selectable=False
+[ 687/1346] Character_Recognition_Using_Graph-   2.5s  regions=0 failed=0 selectable=True
+[ 688/1346] ChatGPT Chat Export-10               2.4s  regions=0 failed=0 selectable=False
+[ 689/1346] ChatGPTChatExport-11                 2.5s  regions=0 failed=0 selectable=False
+[ 690/1346] Chats-10                             2.6s  regions=0 failed=0 selectable=False
+[ 691/1346] Chats-13                             2.5s  regions=0 failed=0 selectable=False
+[ 692/1346] Chats-14                             2.5s  regions=0 failed=0 selectable=False
+[ 693/1346] Chats-15                             2.4s  regions=0 failed=0 selectable=False
+[ 694/1346] Chats-16                             2.3s  regions=0 failed=0 selectable=False
+[ 695/1346] Chats-19                             2.3s  regions=0 failed=0 selectable=False
+[ 696/1346] Chats-21                             2.4s  regions=0 failed=0 selectable=False
+[ 697/1346] Chats-5                              2.6s  regions=0 failed=0 selectable=False
+[ 698/1346] Chats-6                              2.6s  regions=0 failed=0 selectable=False
+[ 699/1346] Chats-8                              2.3s  regions=0 failed=0 selectable=False
+[ 700/1346] Chats-9                              2.7s  regions=0 failed=0 selectable=False
+[ 701/1346] Chen_Self-Supervised_Learning_With   2.9s  regions=0 failed=0 selectable=False
+[ 702/1346] Chen_Self-Supervised_Learning_With   2.7s  regions=0 failed=0 selectable=False
+[ 703/1346] Clifford_Algebras_in_Symplectic_Ge   3.2s  regions=0 failed=0 selectable=False
+[ 704/1346] Clifford_Geometrodynamics            2.7s  regions=0 failed=0 selectable=False
+[ 705/1346] Clifford_bundle_formulation_of_BF_   4.7s  regions=0 failed=0 selectable=False
+[ 706/1346] Coherent behavior in neuronal netw 130.4s  regions=0 failed=0 selectable=False
+[ 707/1346] CommentatMathUnivCarolRetro_43-200   3.0s  regions=0 failed=0 selectable=False
+[ 708/1346] Commercial Hydroponics 3rd Edition   4.3s  regions=0 failed=0 selectable=False
+[ 709/1346] Complex Analysis - Peter Ebenfelt, 789.6s  regions=0 failed=0 selectable=False
+[ 710/1346] Compressed sensing in radar signal 391.5s  regions=12 failed=0 selectable=False
+[ 711/1346] Concept_Layers_Enhancing_Interpret   4.5s  regions=1 failed=0 selectable=False
+[ 712/1346] Conceptual_spaces_in_object-orient   4.2s  regions=0 failed=0 selectable=True
+[ 713/1346] Concettometria_12_gennaio_2026       2.4s  regions=0 failed=0 selectable=False
+[ 714/1346] ConformalGeometryOfSimplicialSurfa   3.2s  regions=0 failed=0 selectable=False
+[ 715/1346] Constrained Clustering Advances in 275.0s  regions=10 failed=1 selectable=False
+[ 716/1346] D15-1204                             3.8s  regions=0 failed=0 selectable=True
+[ 717/1346] D19                                  4.1s  regions=0 failed=0 selectable=True
+[ 718/1346] DDG-AMS-Notices                      2.6s  regions=0 failed=0 selectable=False
+[ 719/1346] DE120100028-project-description      2.3s  regions=0 failed=0 selectable=False
+[ 720/1346] DESCRIPTION_obsgermany-climate-dai   2.3s  regions=0 failed=0 selectable=False
+[ 721/1346] DESIGN AND REALISATION OF COMPOSIT   2.4s  regions=0 failed=0 selectable=False
+[ 722/1346] DH2017-abstracts                    27.1s  regions=0 failed=1 selectable=True
+[ 723/1346] DKT05                                4.6s  regions=0 failed=0 selectable=False
+[ 724/1346] DKT05 (1)                            4.6s  regions=0 failed=0 selectable=False
+[ 725/1346] DMSB_III                             5.4s  regions=1 failed=0 selectable=False
+[ 726/1346] DSDL_2019_Einspeiser-MIT-verguetet   2.3s  regions=0 failed=0 selectable=False
+[ 727/1346] Datas_2016_LHTES&TPV_Postprint_fin   3.7s  regions=0 failed=0 selectable=False
+[ 728/1346] Datas_2016_LHTES&TPV_Postprint_fin   3.7s  regions=0 failed=0 selectable=False
+[ 729/1346] DeVitoOehrlepaper                    4.0s  regions=0 failed=0 selectable=False
+[ 730/1346] Der_Einfluss_des_Magnetfeldes_bei_   2.7s  regions=0 failed=0 selectable=False
+[ 731/1346] Derivation_of_O3_Electrodynamics_f   2.6s  regions=0 failed=0 selectable=False

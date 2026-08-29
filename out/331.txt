@@ -1,0 +1,82 @@
+331 - whose tree is 2004.05631v1/texsrc/abab828b-.../ ?
+==================================================================
+
+IT IS A MATHPIX tex.zip UNPACKED INTO texsrc/ -- one of the six from 298.
+Four independent things say so and none of them is the directory name
+alone:
+
+  1. The directory is named for a PROCESS ID, not a chapter or a figure
+     set: abab828b-61e2-4095-ac03-1e28612cc14a.
+  2. All twenty of the last images parse as a MathPix region 5-tuple
+     (page, height, width, top_left_y, top_left_x). 20 of 20.
+  3. The .tex beside them holds 351,788 bytes, 134 \includegraphics, and
+     \graphicspath{{./images/}} -- and ZERO tikzcd and ZERO tikzpicture.
+     It is a linear reconstruction of the document's prose with each
+     figure replaced by a crop, which is what MathPix emits.
+  4. Every one of the twenty is included with the SAME option string,
+     `[max width=\textwidth, alt={}, center]`. An author writes varied
+     options; a generator writes one.
+
+The author's own tree sits beside it and looks nothing like this: 12 .tex
+files holding 105 tikzcd environments, 166 tikzpicture, 101
+\includegraphics.
+
+THE LAST TWENTY
+
+  filename                                                 5-tuple   page
+  5-ac03-1e28612cc14a-112_167_274_2053_885.jpg             yes       112
+  5-ac03-1e28612cc14a-114_179_255_1800_659.jpg             yes       114
+  95-ac03-1e28612cc14a-115_188_257_408_661.jpg             yes       115
+  95-ac03-1e28612cc14a-117_179_261_992_657.jpg             yes       117
+  5-ac03-1e28612cc14a-118_108_1187_846_262.jpg             yes       118
+  5-ac03-1e28612cc14a-118_175_402_1469_885.jpg             yes       118
+  5-ac03-1e28612cc14a-118_175_407_1469_287.jpg             yes       118
+  -ac03-1e28612cc14a-119_140_184_2015_1417.jpg             yes       119
+  -ac03-1e28612cc14a-119_142_184_2013_1744.jpg             yes       119
+  5-ac03-1e28612cc14a-119_177_407_1549_287.jpg             yes       119
+  5-ac03-1e28612cc14a-119_180_409_1546_885.jpg             yes       119
+  5-ac03-1e28612cc14a-121_184_265_2212_657.jpg             yes       121
+  95-ac03-1e28612cc14a-122_94_205_2169_687.jpg             yes       122
+  95-ac03-1e28612cc14a-125_175_259_343_659.jpg             yes       125
+  5-ac03-1e28612cc14a-126_102_1124_580_262.jpg             yes       126
+  5-ac03-1e28612cc14a-126_175_256_1233_885.jpg             yes       126
+  5-ac03-1e28612cc14a-126_175_258_1233_436.jpg             yes       126
+  5-ac03-1e28612cc14a-128_170_265_2217_657.jpg             yes       128
+  95-ac03-1e28612cc14a-128_173_343_676_614.jpg             yes       128
+  5-ac03-1e28612cc14a-128_175_253_1748_663.jpg             yes       128
+
+  filename form : <process-id>-<page>_<height>_<width>_<y>_<x>.jpg
+  parses as a
+  region 5-tuple: 20 of 20
+  the .tex beside them contains, for each: one \includegraphics with the
+  identical option string, set inline in OCR'd prose. Around the last:
+
+     Universal Property of the Unit. For any object C in C and any
+     morphism f: X -> U C ...
+     \includegraphics[max width=\textwidth, alt={}, center]{...-128_175_253_1748_663}
+     In the special case when C=F Y for some object Y in D ...
+
+WHAT THIS MEANS FOR 332, AND IT IS NOT WHAT 332 ASSUMES
+
+  332 asks for 'a tikzcd environment from the source if the tree is the
+  author's, or the MathPix region and its emitted LaTeX if it isn't'. The
+  tree is not the author's, so the second branch applies -- but the second
+  branch does not yield a gold set.
+
+  These twenty crops have NO LaTeX. MathPix emitted an \includegraphics
+  for each, which is the statement that it could not read them. There is
+  no 'emitted LaTeX' to compare a proposal against.
+
+  The author's 105 tikzcd environments ARE known-correct commutative
+  diagram source, and they are in the same document -- but pairing one to
+  a crop is the join 301 measured: 0 matched of 8 known pairs, because
+  MathPix finds regions the author never wrote as a file and the two
+  sequences interleave.
+
+  So a gold set of twenty CDs with known-correct TikZ and a crop of each
+  cannot be assembled from this directory by pairing. It can be built
+  another way -- compile the author's tikzcd and render each one, which
+  gives a picture whose correct source is known by construction and needs
+  no join at all. The image is then a clean render rather than a page
+  crop, which is a real difference and the reason to say so rather than
+  quietly substitute it.
