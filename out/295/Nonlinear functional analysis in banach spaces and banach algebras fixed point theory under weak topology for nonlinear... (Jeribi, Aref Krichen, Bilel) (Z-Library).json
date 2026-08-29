@@ -1,0 +1,24 @@
+{
+ "doc": "Nonlinear functional analysis in banach spaces and banach algebras fixed point theory under weak topology for nonlinear... (Jeribi, Aref Krichen, Bilel) (Z-Library)",
+ "pdf": "Nonlinear functional analysis in banach spaces and banach algebras fixed point theory under weak topology for nonlinear... (Jeribi, Aref Krichen, Bilel) (Z-Library).pdf",
+ "rc": 0,
+ "stdout_tail": "Build stamp: report.build.json — phase=reading, 1043 pages, 23819264 bytes, sha256 8f17d1f96e28. A measurement of this report should copy it into its output as `measured_against`.",
+ "seconds": 874.7,
+ "regions": {
+  "regions_with_latex": 0,
+  "attempted_now": 0,
+  "rendered": 0,
+  "failed": 0,
+  "has_author_preamble": false,
+  "graphics_dir": null,
+  "failures": []
+ },
+ "table_cols": [
+  6,
+  5,
+  4
+ ],
+ "six_col_tables": 1,
+ "region_table_cols": 4,
+ "ink_selectable": false
+}
