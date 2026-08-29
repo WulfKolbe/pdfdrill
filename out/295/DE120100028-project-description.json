@@ -1,0 +1,23 @@
+{
+ "doc": "DE120100028-project-description",
+ "pdf": "DE120100028-project-description.pdf",
+ "rc": 0,
+ "stdout_tail": "Build stamp: report.build.json — phase=reading, 2 pages, 50548 bytes, sha256 8ab86b71df81. A measurement of this report should copy it into its output as `measured_against`.",
+ "seconds": 2.3,
+ "regions": {
+  "regions_with_latex": 0,
+  "attempted_now": 0,
+  "rendered": 0,
+  "failed": 0,
+  "has_author_preamble": false,
+  "graphics_dir": null,
+  "failures": []
+ },
+ "table_cols": [
+  5,
+  5
+ ],
+ "six_col_tables": 0,
+ "region_table_cols": 5,
+ "ink_selectable": false
+}
