@@ -67,3 +67,8 @@
 {"doc": "big-data-linkage", "pages": 11, "outcome": "measured", "rows": 6, "convert": "converted", "seconds": 69.0}
 {"doc": "hep-th_9411188", "pages": 11, "outcome": "measured", "rows": 34, "convert": "converted", "seconds": 280.8}
 {"doc": "nai-paper-916", "pages": 11, "outcome": "measured", "rows": 45, "convert": "converted", "seconds": 285.3}
+{"doc": "zorich_square_tiled", "pages": 11, "outcome": "measured", "rows": 16, "convert": "converted", "seconds": 284.5}
+{"doc": "1709.07941", "pages": 12, "outcome": "measured", "rows": 33, "convert": "converted", "seconds": 285.9}
+{"doc": "1709.10026v3", "pages": 12, "outcome": "measured", "rows": 16, "convert": "converted", "seconds": 141.5}
+{"doc": "1901.05873", "pages": 12, "outcome": "measured", "rows": 16, "convert": "converted", "seconds": 135.8}
+{"doc": "2302.07629", "pages": 12, "outcome": "measured", "rows": 26, "convert": "converted", "seconds": 353.1}

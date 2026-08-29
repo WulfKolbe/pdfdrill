@@ -1,0 +1,1860 @@
+{
+ "matched": [
+  {
+   "file": "figures/ch4/mpsapprox2",
+   "base": "figures/ch4/mpsapprox2.jpg",
+   "source": "chapters/four_tufte.tex",
+   "base_wh": [
+    1361,
+    961
+   ],
+   "pages": [
+    94
+   ],
+   "candidates": [
+    "4a-094_439_502_1581_1417.jpg"
+   ],
+   "n_pages": 1,
+   "n_cands": 1
+  },
+  {
+   "file": "figures/ch4/psi_N2",
+   "base": "figures/ch4/psi_N2.jpg",
+   "source": "chapters/four_tufte.tex",
+   "base_wh": [
+    1776,
+    1953
+   ],
+   "pages": [
+    105
+   ],
+   "candidates": [
+    "4a-105_568_579_1052_1409.jpg"
+   ],
+   "n_pages": 1,
+   "n_cands": 1
+  },
+  {
+   "file": "figures/ch3/rho_xi",
+   "base": "figures/ch3/rho_xi.jpg",
+   "source": "chapters/three_tufte.tex",
+   "base_wh": [
+    553,
+    825
+   ],
+   "pages": [
+    88
+   ],
+   "candidates": [
+    "4a-088_295_291_1482_1516.jpg"
+   ],
+   "n_pages": 1,
+   "n_cands": 1
+  },
+  {
+   "file": "figures/ch1/passage",
+   "base": "figures/ch1/passage.jpg",
+   "source": "chapters/two_tufte.tex",
+   "base_wh": [
+    730,
+    610
+   ],
+   "pages": [
+    26
+   ],
+   "candidates": [
+    "14a-026_276_432_337_1448.jpg"
+   ],
+   "n_pages": 1,
+   "n_cands": 1
+  },
+  {
+   "file": "figures/ch1/bothways",
+   "base": "figures/ch1/bothways.jpg",
+   "source": "chapters/two_tufte.tex",
+   "base_wh": [
+    725,
+    538
+   ],
+   "pages": [
+    38
+   ],
+   "candidates": [
+    "c14a-038_197_740_257_421.jpg"
+   ],
+   "n_pages": 1,
+   "n_cands": 1
+  },
+  {
+   "file": "figures/ch2/pt2.jpg",
+   "base": "figures/ch2/pt2.jpg",
+   "source": "chapters/two_tufte.tex",
+   "base_wh": [
+    2399,
+    1424
+   ],
+   "pages": [
+    45
+   ],
+   "candidates": [
+    "c14a-045_561_783_378_399.jpg"
+   ],
+   "n_pages": 1,
+   "n_cands": 1
+  },
+  {
+   "file": "figures/ch2/vec_map",
+   "base": "figures/ch2/vec_map.jpg",
+   "source": "chapters/two_tufte.tex",
+   "base_wh": [
+    1148,
+    447
+   ],
+   "pages": [
+    49
+   ],
+   "candidates": [
+    "c14a-049_194_525_537_550.jpg"
+   ],
+   "n_pages": 1,
+   "n_cands": 1
+  },
+  {
+   "file": "figures/ch2/entanglement",
+   "base": "figures/ch2/entanglement.jpg",
+   "source": "chapters/two_tufte.tex",
+   "base_wh": [
+    2239,
+    1578
+   ],
+   "pages": [
+    57
+   ],
+   "candidates": [
+    "14a-057_588_909_1041_333.jpg"
+   ],
+   "n_pages": 1,
+   "n_cands": 1
+  }
+ ],
+ "ambiguous": [
+  {
+   "file": "figures/ch4/mpsch4",
+   "base": "figures/ch4/mpsch4.jpg",
+   "source": "chapters/four_tufte.tex",
+   "base_wh": [
+    1372,
+    463
+   ],
+   "pages": [
+    97,
+    99,
+    101
+   ],
+   "candidates": [
+    "14a-097_201_475_1899_550.jpg",
+    "c14a-097_205_719_560_431.jpg",
+    "14a-099_173_326_655_1499.jpg",
+    "14a-099_195_480_1142_541.jpg",
+    "c14a-099_207_518_715_524.jpg",
+    "c14a-099_308_656_253_457.jpg",
+    "4a-099_622_1032_1634_268.jpg",
+    "c14a-101_203_557_253_511.jpg",
+    "14a-101_304_439_1847_878.jpg",
+    "14a-101_312_445_1843_262.jpg"
+   ],
+   "n_pages": 3,
+   "n_cands": 10
+  },
+  {
+   "file": "figures/ch4/psi2",
+   "base": "figures/ch4/psi2.jpg",
+   "source": "chapters/four_tufte.tex",
+   "base_wh": [
+    656,
+    405
+   ],
+   "pages": [
+    97
+   ],
+   "candidates": [
+    "14a-097_201_475_1899_550.jpg",
+    "c14a-097_205_719_560_431.jpg"
+   ],
+   "n_pages": 1,
+   "n_cands": 2
+  },
+  {
+   "file": "figures/ch4/getting_psi2",
+   "base": "figures/ch4/getting_psi2.jpg",
+   "source": "chapters/four_tufte.tex",
+   "base_wh": [
+    2082,
+    1758
+   ],
+   "pages": [
+    98,
+    99,
+    100
+   ],
+   "candidates": [
+    "c14a-098_136_980_320_305.jpg",
+    "14a-098_311_796_1514_386.jpg",
+    "14a-098_362_1017_509_279.jpg",
+    "14a-099_173_326_655_1499.jpg",
+    "14a-099_195_480_1142_541.jpg",
+    "c14a-099_207_518_715_524.jpg",
+    "c14a-099_308_656_253_457.jpg",
+    "4a-099_622_1032_1634_268.jpg",
+    "14a-100_347_1006_732_279.jpg",
+    "4a-100_591_1019_1478_279.jpg"
+   ],
+   "n_pages": 3,
+   "n_cands": 10
+  },
+  {
+   "file": "figures/ch4/rho2_ch4",
+   "base": "figures/ch4/rho2_ch4.jpg",
+   "source": "chapters/four_tufte.tex",
+   "base_wh": [
+    1337,
+    533
+   ],
+   "pages": [
+    98
+   ],
+   "candidates": [
+    "c14a-098_136_980_320_305.jpg",
+    "14a-098_311_796_1514_386.jpg",
+    "14a-098_362_1017_509_279.jpg"
+   ],
+   "n_pages": 1,
+   "n_cands": 3
+  },
+  {
+   "file": "figures/ch4/spectral",
+   "base": "figures/ch4/spectral.jpg",
+   "source": "chapters/four_tufte.tex",
+   "base_wh": [
+    930,
+    574
+   ],
+   "pages": [
+    99
+   ],
+   "candidates": [
+    "14a-099_173_326_655_1499.jpg",
+    "14a-099_195_480_1142_541.jpg",
+    "c14a-099_207_518_715_524.jpg",
+    "c14a-099_308_656_253_457.jpg",
+    "4a-099_622_1032_1634_268.jpg"
+   ],
+   "n_pages": 1,
+   "n_cands": 5
+  },
+  {
+   "file": "figures/ch4/firsttwo",
+   "base": "figures/ch4/firsttwo.jpg",
+   "source": "chapters/four_tufte.tex",
+   "base_wh": [
+    1372,
+    463
+   ],
+   "pages": [
+    97,
+    99,
+    101
+   ],
+   "candidates": [
+    "14a-097_201_475_1899_550.jpg",
+    "c14a-097_205_719_560_431.jpg",
+    "14a-099_173_326_655_1499.jpg",
+    "14a-099_195_480_1142_541.jpg",
+    "c14a-099_207_518_715_524.jpg",
+    "c14a-099_308_656_253_457.jpg",
+    "4a-099_622_1032_1634_268.jpg",
+    "c14a-101_203_557_253_511.jpg",
+    "14a-101_304_439_1847_878.jpg",
+    "14a-101_312_445_1843_262.jpg"
+   ],
+   "n_pages": 3,
+   "n_cands": 10
+  },
+  {
+   "file": "figures/ch4/psi_3",
+   "base": "figures/ch4/psi_3.jpg",
+   "source": "chapters/four_tufte.tex",
+   "base_wh": [
+    675,
+    398
+   ],
+   "pages": [
+    99
+   ],
+   "candidates": [
+    "14a-099_173_326_655_1499.jpg",
+    "14a-099_195_480_1142_541.jpg",
+    "c14a-099_207_518_715_524.jpg",
+    "c14a-099_308_656_253_457.jpg",
+    "4a-099_622_1032_1634_268.jpg"
+   ],
+   "n_pages": 1,
+   "n_cands": 5
+  },
+  {
+   "file": "figures/ch4/getting_psi3",
+   "base": "figures/ch4/getting_psi3.jpg",
+   "source": "chapters/four_tufte.tex",
+   "base_wh": [
+    2082,
+    1758
+   ],
+   "pages": [
+    98,
+    99,
+    100
+   ],
+   "candidates": [
+    "c14a-098_136_980_320_305.jpg",
+    "14a-098_311_796_1514_386.jpg",
+    "14a-098_362_1017_509_279.jpg",
+    "14a-099_173_326_655_1499.jpg",
+    "14a-099_195_480_1142_541.jpg",
+    "c14a-099_207_518_715_524.jpg",
+    "c14a-099_308_656_253_457.jpg",
+    "4a-099_622_1032_1634_268.jpg",
+    "14a-100_347_1006_732_279.jpg",
+    "4a-100_591_1019_1478_279.jpg"
+   ],
+   "n_pages": 3,
+   "n_cands": 10
+  },
+  {
+   "file": "figures/ch4/rho3_ch4",
+   "base": "figures/ch4/rho3_ch4.jpg",
+   "source": "chapters/four_tufte.tex",
+   "base_wh": [
+    1775,
+    668
+   ],
+   "pages": [
+    100
+   ],
+   "candidates": [
+    "14a-100_347_1006_732_279.jpg",
+    "4a-100_591_1019_1478_279.jpg"
+   ],
+   "n_pages": 1,
+   "n_cands": 2
+  },
+  {
+   "file": "figures/ch4/getting_psi4",
+   "base": "figures/ch4/getting_psi4.jpg",
+   "source": "chapters/four_tufte.tex",
+   "base_wh": [
+    2082,
+    1758
+   ],
+   "pages": [
+    98,
+    99,
+    100
+   ],
+   "candidates": [
+    "c14a-098_136_980_320_305.jpg",
+    "14a-098_311_796_1514_386.jpg",
+    "14a-098_362_1017_509_279.jpg",
+    "14a-099_173_326_655_1499.jpg",
+    "14a-099_195_480_1142_541.jpg",
+    "c14a-099_207_518_715_524.jpg",
+    "c14a-099_308_656_253_457.jpg",
+    "4a-099_622_1032_1634_268.jpg",
+    "14a-100_347_1006_732_279.jpg",
+    "4a-100_591_1019_1478_279.jpg"
+   ],
+   "n_pages": 3,
+   "n_cands": 10
+  },
+  {
+   "file": "figures/ch4/mpsch4",
+   "base": "figures/ch4/mpsch4.jpg",
+   "source": "chapters/four_tufte.tex",
+   "base_wh": [
+    1372,
+    463
+   ],
+   "pages": [
+    97,
+    99,
+    101
+   ],
+   "candidates": [
+    "14a-097_201_475_1899_550.jpg",
+    "c14a-097_205_719_560_431.jpg",
+    "14a-099_173_326_655_1499.jpg",
+    "14a-099_195_480_1142_541.jpg",
+    "c14a-099_207_518_715_524.jpg",
+    "c14a-099_308_656_253_457.jpg",
+    "4a-099_622_1032_1634_268.jpg",
+    "c14a-101_203_557_253_511.jpg",
+    "14a-101_304_439_1847_878.jpg",
+    "14a-101_312_445_1843_262.jpg"
+   ],
+   "n_pages": 3,
+   "n_cands": 10
+  },
+  {
+   "file": "figures/ch4/complete_graph",
+   "base": "figures/ch4/complete_graph.jpg",
+   "source": "chapters/four_tufte.tex",
+   "base_wh": [
+    1767,
+    577
+   ],
+   "pages": [
+    101,
+    104
+   ],
+   "candidates": [
+    "c14a-101_203_557_253_511.jpg",
+    "14a-101_304_439_1847_878.jpg",
+    "14a-101_312_445_1843_262.jpg",
+    "4a-104_166_276_1336_1411.jpg",
+    "14a-104_193_336_880_1493.jpg",
+    "c14a-104_520_578_247_507.jpg"
+   ],
+   "n_pages": 2,
+   "n_cands": 6
+  },
+  {
+   "file": "figures/ch4/summarize",
+   "base": "figures/ch4/summarize.jpg",
+   "source": "chapters/four_tufte.tex",
+   "base_wh": [
+    522,
+    363
+   ],
+   "pages": [
+    104
+   ],
+   "candidates": [
+    "4a-104_166_276_1336_1411.jpg",
+    "14a-104_193_336_880_1493.jpg",
+    "c14a-104_520_578_247_507.jpg"
+   ],
+   "n_pages": 1,
+   "n_cands": 3
+  },
+  {
+   "file": "figures/ch4/training_graph",
+   "base": "figures/ch4/training_graph.jpg",
+   "source": "chapters/four_tufte.tex",
+   "base_wh": [
+    1767,
+    577
+   ],
+   "pages": [
+    101,
+    104
+   ],
+   "candidates": [
+    "c14a-101_203_557_253_511.jpg",
+    "14a-101_304_439_1847_878.jpg",
+    "14a-101_312_445_1843_262.jpg",
+    "4a-104_166_276_1336_1411.jpg",
+    "14a-104_193_336_880_1493.jpg",
+    "c14a-104_520_578_247_507.jpg"
+   ],
+   "n_pages": 2,
+   "n_cands": 6
+  },
+  {
+   "file": "figures/ch1/concept2",
+   "base": "figures/ch1/concept2.jpg",
+   "source": "chapters/one_tufte.tex",
+   "base_wh": [
+    1359,
+    1049
+   ],
+   "pages": [
+    14,
+    79
+   ],
+   "candidates": [
+    "4a-014_101_1208_1650_266.jpg",
+    "4a-014_259_1204_1228_283.jpg",
+    "14a-079_152_409_2068_584.jpg",
+    "4a-079_233_549_1991_1443.jpg",
+    "14a-079_289_613_1553_483.jpg",
+    "14a-079_81_601_2371_1430.jpg"
+   ],
+   "n_pages": 2,
+   "n_cands": 6
+  },
+  {
+   "file": "figures/ch2/graph2",
+   "base": "figures/ch2/graph2.jpg",
+   "source": "chapters/one_tufte.tex",
+   "base_wh": [
+    928,
+    770
+   ],
+   "pages": [
+    15,
+    73,
+    74,
+    75,
+    76,
+    79,
+    81
+   ],
+   "candidates": [
+    "14a-015_166_200_1701_885.jpg",
+    "14a-015_170_205_1697_489.jpg",
+    "c14a-015_282_613_253_483.jpg",
+    "14a-073_272_330_1484_627.jpg",
+    "14a-074_278_441_1963_567.jpg",
+    "14a-075_276_489_2099_416.jpg",
+    "c14a-075_278_336_777_431.jpg",
+    "14a-075_289_489_1652_386.jpg",
+    "14a-075_291_729_1211_421.jpg",
+    "c14a-076_273_483_378_418.jpg",
+    "14a-076_285_611_1396_483.jpg",
+    "14a-079_152_409_2068_584.jpg",
+    "4a-079_233_549_1991_1443.jpg",
+    "14a-079_289_613_1553_483.jpg",
+    "14a-079_81_601_2371_1430.jpg",
+    "c14a-081_289_617_713_481.jpg"
+   ],
+   "n_pages": 7,
+   "n_cands": 16
+  },
+  {
+   "file": "figures/ch3/eqpsi",
+   "base": "figures/ch3/eqpsi.jpg",
+   "source": "chapters/three_tufte.tex",
+   "base_wh": [
+    538,
+    340
+   ],
+   "pages": [
+    63
+   ],
+   "candidates": [
+    "c14a-063_145_304_330_631.jpg",
+    "14a-063_244_435_1903_844.jpg",
+    "14a-063_261_446_1894_298.jpg",
+    "14a-063_285_299_1310_640.jpg"
+   ],
+   "n_pages": 1,
+   "n_cands": 4
+  },
+  {
+   "file": "figures/ch3/eqrho",
+   "base": "figures/ch3/eqrho.jpg",
+   "source": "chapters/three_tufte.tex",
+   "base_wh": [
+    517,
+    661
+   ],
+   "pages": [
+    63
+   ],
+   "candidates": [
+    "c14a-063_145_304_330_631.jpg",
+    "14a-063_244_435_1903_844.jpg",
+    "14a-063_261_446_1894_298.jpg",
+    "14a-063_285_299_1310_640.jpg"
+   ],
+   "n_pages": 1,
+   "n_cands": 4
+  },
+  {
+   "file": "figures/ch3/eqredrho",
+   "base": "figures/ch3/eqredrho.jpg",
+   "source": "chapters/three_tufte.tex",
+   "base_wh": [
+    1748,
+    610
+   ],
+   "pages": [
+    63
+   ],
+   "candidates": [
+    "c14a-063_145_304_330_631.jpg",
+    "14a-063_244_435_1903_844.jpg",
+    "14a-063_261_446_1894_298.jpg",
+    "14a-063_285_299_1310_640.jpg"
+   ],
+   "n_pages": 1,
+   "n_cands": 4
+  },
+  {
+   "file": "figures/ch2/question.jpg",
+   "base": "figures/ch2/question.jpg",
+   "source": "chapters/three_tufte.tex",
+   "base_wh": [
+    1571,
+    446
+   ],
+   "pages": [
+    72
+   ],
+   "candidates": [
+    "14a-072_286_456_481_1422.jpg",
+    "4a-072_287_410_1061_1460.jpg"
+   ],
+   "n_pages": 1,
+   "n_cands": 2
+  },
+  {
+   "file": "figures/ch2/graph3",
+   "base": "figures/ch2/graph3.jpg",
+   "source": "chapters/three_tufte.tex",
+   "base_wh": [
+    928,
+    770
+   ],
+   "pages": [
+    15,
+    73,
+    74,
+    75,
+    76,
+    79,
+    81
+   ],
+   "candidates": [
+    "14a-015_166_200_1701_885.jpg",
+    "14a-015_170_205_1697_489.jpg",
+    "c14a-015_282_613_253_483.jpg",
+    "14a-073_272_330_1484_627.jpg",
+    "14a-074_278_441_1963_567.jpg",
+    "14a-075_276_489_2099_416.jpg",
+    "c14a-075_278_336_777_431.jpg",
+    "14a-075_289_489_1652_386.jpg",
+    "14a-075_291_729_1211_421.jpg",
+    "c14a-076_273_483_378_418.jpg",
+    "14a-076_285_611_1396_483.jpg",
+    "14a-079_152_409_2068_584.jpg",
+    "4a-079_233_549_1991_1443.jpg",
+    "14a-079_289_613_1553_483.jpg",
+    "14a-079_81_601_2371_1430.jpg",
+    "c14a-081_289_617_713_481.jpg"
+   ],
+   "n_pages": 7,
+   "n_cands": 16
+  },
+  {
+   "file": "figures/ch2/graph4b",
+   "base": "figures/ch2/graph4b.jpg",
+   "source": "chapters/three_tufte.tex",
+   "base_wh": [
+    964,
+    762
+   ],
+   "pages": [
+    75
+   ],
+   "candidates": [
+    "14a-075_276_489_2099_416.jpg",
+    "c14a-075_278_336_777_431.jpg",
+    "14a-075_289_489_1652_386.jpg",
+    "14a-075_291_729_1211_421.jpg"
+   ],
+   "n_pages": 1,
+   "n_cands": 4
+  },
+  {
+   "file": "figures/ch2/graph5",
+   "base": "figures/ch2/graph5.jpg",
+   "source": "chapters/three_tufte.tex",
+   "base_wh": [
+    964,
+    762
+   ],
+   "pages": [
+    75
+   ],
+   "candidates": [
+    "14a-075_276_489_2099_416.jpg",
+    "c14a-075_278_336_777_431.jpg",
+    "14a-075_289_489_1652_386.jpg",
+    "14a-075_291_729_1211_421.jpg"
+   ],
+   "n_pages": 1,
+   "n_cands": 4
+  },
+  {
+   "file": "figures/ch2/graph6",
+   "base": "figures/ch2/graph6.jpg",
+   "source": "chapters/three_tufte.tex",
+   "base_wh": [
+    928,
+    770
+   ],
+   "pages": [
+    15,
+    73,
+    74,
+    75,
+    76,
+    79,
+    81
+   ],
+   "candidates": [
+    "14a-015_166_200_1701_885.jpg",
+    "14a-015_170_205_1697_489.jpg",
+    "c14a-015_282_613_253_483.jpg",
+    "14a-073_272_330_1484_627.jpg",
+    "14a-074_278_441_1963_567.jpg",
+    "14a-075_276_489_2099_416.jpg",
+    "c14a-075_278_336_777_431.jpg",
+    "14a-075_289_489_1652_386.jpg",
+    "14a-075_291_729_1211_421.jpg",
+    "c14a-076_273_483_378_418.jpg",
+    "14a-076_285_611_1396_483.jpg",
+    "14a-079_152_409_2068_584.jpg",
+    "4a-079_233_549_1991_1443.jpg",
+    "14a-079_289_613_1553_483.jpg",
+    "14a-079_81_601_2371_1430.jpg",
+    "c14a-081_289_617_713_481.jpg"
+   ],
+   "n_pages": 7,
+   "n_cands": 16
+  },
+  {
+   "file": "figures/ch2/graph7",
+   "base": "figures/ch2/graph7.jpg",
+   "source": "chapters/three_tufte.tex",
+   "base_wh": [
+    928,
+    770
+   ],
+   "pages": [
+    15,
+    73,
+    74,
+    75,
+    76,
+    79,
+    81
+   ],
+   "candidates": [
+    "14a-015_166_200_1701_885.jpg",
+    "14a-015_170_205_1697_489.jpg",
+    "c14a-015_282_613_253_483.jpg",
+    "14a-073_272_330_1484_627.jpg",
+    "14a-074_278_441_1963_567.jpg",
+    "14a-075_276_489_2099_416.jpg",
+    "c14a-075_278_336_777_431.jpg",
+    "14a-075_289_489_1652_386.jpg",
+    "14a-075_291_729_1211_421.jpg",
+    "c14a-076_273_483_378_418.jpg",
+    "14a-076_285_611_1396_483.jpg",
+    "14a-079_152_409_2068_584.jpg",
+    "4a-079_233_549_1991_1443.jpg",
+    "14a-079_289_613_1553_483.jpg",
+    "14a-079_81_601_2371_1430.jpg",
+    "c14a-081_289_617_713_481.jpg"
+   ],
+   "n_pages": 7,
+   "n_cands": 16
+  },
+  {
+   "file": "figures/ch2/graph8",
+   "base": "figures/ch2/graph8.jpg",
+   "source": "chapters/three_tufte.tex",
+   "base_wh": [
+    928,
+    770
+   ],
+   "pages": [
+    15,
+    73,
+    74,
+    75,
+    76,
+    79,
+    81
+   ],
+   "candidates": [
+    "14a-015_166_200_1701_885.jpg",
+    "14a-015_170_205_1697_489.jpg",
+    "c14a-015_282_613_253_483.jpg",
+    "14a-073_272_330_1484_627.jpg",
+    "14a-074_278_441_1963_567.jpg",
+    "14a-075_276_489_2099_416.jpg",
+    "c14a-075_278_336_777_431.jpg",
+    "14a-075_289_489_1652_386.jpg",
+    "14a-075_291_729_1211_421.jpg",
+    "c14a-076_273_483_378_418.jpg",
+    "14a-076_285_611_1396_483.jpg",
+    "14a-079_152_409_2068_584.jpg",
+    "4a-079_233_549_1991_1443.jpg",
+    "14a-079_289_613_1553_483.jpg",
+    "14a-079_81_601_2371_1430.jpg",
+    "c14a-081_289_617_713_481.jpg"
+   ],
+   "n_pages": 7,
+   "n_cands": 16
+  },
+  {
+   "file": "figures/ch2/graph2",
+   "base": "figures/ch2/graph2.jpg",
+   "source": "chapters/three_tufte.tex",
+   "base_wh": [
+    928,
+    770
+   ],
+   "pages": [
+    15,
+    73,
+    74,
+    75,
+    76,
+    79,
+    81
+   ],
+   "candidates": [
+    "14a-015_166_200_1701_885.jpg",
+    "14a-015_170_205_1697_489.jpg",
+    "c14a-015_282_613_253_483.jpg",
+    "14a-073_272_330_1484_627.jpg",
+    "14a-074_278_441_1963_567.jpg",
+    "14a-075_276_489_2099_416.jpg",
+    "c14a-075_278_336_777_431.jpg",
+    "14a-075_289_489_1652_386.jpg",
+    "14a-075_291_729_1211_421.jpg",
+    "c14a-076_273_483_378_418.jpg",
+    "14a-076_285_611_1396_483.jpg",
+    "14a-079_152_409_2068_584.jpg",
+    "4a-079_233_549_1991_1443.jpg",
+    "14a-079_289_613_1553_483.jpg",
+    "14a-079_81_601_2371_1430.jpg",
+    "c14a-081_289_617_713_481.jpg"
+   ],
+   "n_pages": 7,
+   "n_cands": 16
+  },
+  {
+   "file": "figures/ch2/graph2",
+   "base": "figures/ch2/graph2.jpg",
+   "source": "chapters/three_tufte.tex",
+   "base_wh": [
+    928,
+    770
+   ],
+   "pages": [
+    15,
+    73,
+    74,
+    75,
+    76,
+    79,
+    81
+   ],
+   "candidates": [
+    "14a-015_166_200_1701_885.jpg",
+    "14a-015_170_205_1697_489.jpg",
+    "c14a-015_282_613_253_483.jpg",
+    "14a-073_272_330_1484_627.jpg",
+    "14a-074_278_441_1963_567.jpg",
+    "14a-075_276_489_2099_416.jpg",
+    "c14a-075_278_336_777_431.jpg",
+    "14a-075_289_489_1652_386.jpg",
+    "14a-075_291_729_1211_421.jpg",
+    "c14a-076_273_483_378_418.jpg",
+    "14a-076_285_611_1396_483.jpg",
+    "14a-079_152_409_2068_584.jpg",
+    "4a-079_233_549_1991_1443.jpg",
+    "14a-079_289_613_1553_483.jpg",
+    "14a-079_81_601_2371_1430.jpg",
+    "c14a-081_289_617_713_481.jpg"
+   ],
+   "n_pages": 7,
+   "n_cands": 16
+  },
+  {
+   "file": "figures/ch1/concept2",
+   "base": "figures/ch1/concept2.jpg",
+   "source": "chapters/three_tufte.tex",
+   "base_wh": [
+    1359,
+    1049
+   ],
+   "pages": [
+    14,
+    79
+   ],
+   "candidates": [
+    "4a-014_101_1208_1650_266.jpg",
+    "4a-014_259_1204_1228_283.jpg",
+    "14a-079_152_409_2068_584.jpg",
+    "4a-079_233_549_1991_1443.jpg",
+    "14a-079_289_613_1553_483.jpg",
+    "14a-079_81_601_2371_1430.jpg"
+   ],
+   "n_pages": 2,
+   "n_cands": 6
+  },
+  {
+   "file": "figures/ch3/graph2b",
+   "base": "figures/ch3/graph2b.jpg",
+   "source": "chapters/three_tufte.tex",
+   "base_wh": [
+    928,
+    770
+   ],
+   "pages": [
+    15,
+    73,
+    74,
+    75,
+    76,
+    79,
+    81
+   ],
+   "candidates": [
+    "14a-015_166_200_1701_885.jpg",
+    "14a-015_170_205_1697_489.jpg",
+    "c14a-015_282_613_253_483.jpg",
+    "14a-073_272_330_1484_627.jpg",
+    "14a-074_278_441_1963_567.jpg",
+    "14a-075_276_489_2099_416.jpg",
+    "c14a-075_278_336_777_431.jpg",
+    "14a-075_289_489_1652_386.jpg",
+    "14a-075_291_729_1211_421.jpg",
+    "c14a-076_273_483_378_418.jpg",
+    "14a-076_285_611_1396_483.jpg",
+    "14a-079_152_409_2068_584.jpg",
+    "4a-079_233_549_1991_1443.jpg",
+    "14a-079_289_613_1553_483.jpg",
+    "14a-079_81_601_2371_1430.jpg",
+    "c14a-081_289_617_713_481.jpg"
+   ],
+   "n_pages": 7,
+   "n_cands": 16
+  },
+  {
+   "file": "figures/ch3/M_31",
+   "base": "figures/ch3/M_31.jpg",
+   "source": "chapters/three_tufte.tex",
+   "base_wh": [
+    591,
+    505
+   ],
+   "pages": [
+    86
+   ],
+   "candidates": [
+    "14a-086_190_304_517_1508.jpg",
+    "4a-086_223_510_1791_1411.jpg",
+    "14a-086_641_534_876_1413.jpg"
+   ],
+   "n_pages": 1,
+   "n_cands": 3
+  },
+  {
+   "file": "figures/ch3/rho0",
+   "base": "figures/ch3/rho0.jpg",
+   "source": "chapters/three_tufte.tex",
+   "base_wh": [
+    1517,
+    1817
+   ],
+   "pages": [
+    86
+   ],
+   "candidates": [
+    "14a-086_190_304_517_1508.jpg",
+    "4a-086_223_510_1791_1411.jpg",
+    "14a-086_641_534_876_1413.jpg"
+   ],
+   "n_pages": 1,
+   "n_cands": 3
+  },
+  {
+   "file": "figures/ch3/rho_povm",
+   "base": "figures/ch3/rho_povm.jpg",
+   "source": "chapters/three_tufte.tex",
+   "base_wh": [
+    1951,
+    825
+   ],
+   "pages": [
+    86
+   ],
+   "candidates": [
+    "14a-086_190_304_517_1508.jpg",
+    "4a-086_223_510_1791_1411.jpg",
+    "14a-086_641_534_876_1413.jpg"
+   ],
+   "n_pages": 1,
+   "n_cands": 3
+  },
+  {
+   "file": "figures/ch3/rho1",
+   "base": "figures/ch3/rho1.jpg",
+   "source": "chapters/three_tufte.tex",
+   "base_wh": [
+    2497,
+    841
+   ],
+   "pages": [
+    89,
+    90
+   ],
+   "candidates": [
+    "14a-089_252_179_730_1572.jpg",
+    "c14a-089_304_214_715_691.jpg",
+    "c14a-089_304_278_717_949.jpg",
+    "c14a-089_311_259_708_354.jpg",
+    "c14a-090_376_869_825_356.jpg"
+   ],
+   "n_pages": 2,
+   "n_cands": 5
+  },
+  {
+   "file": "figures/ch3/rho2",
+   "base": "figures/ch3/rho2.jpg",
+   "source": "chapters/three_tufte.tex",
+   "base_wh": [
+    2497,
+    841
+   ],
+   "pages": [
+    89,
+    90
+   ],
+   "candidates": [
+    "14a-089_252_179_730_1572.jpg",
+    "c14a-089_304_214_715_691.jpg",
+    "c14a-089_304_278_717_949.jpg",
+    "c14a-089_311_259_708_354.jpg",
+    "c14a-090_376_869_825_356.jpg"
+   ],
+   "n_pages": 2,
+   "n_cands": 5
+  },
+  {
+   "file": "figures/ch2/2tensor",
+   "base": "figures/ch2/2tensor.png",
+   "source": "chapters/two_tufte.tex",
+   "base_wh": [
+    760,
+    346
+   ],
+   "pages": [
+    31,
+    32
+   ],
+   "candidates": [
+    "14a-032_140_626_1564_500.jpg",
+    "14a-032_141_602_1241_511.jpg",
+    "14a-032_173_439_1980_595.jpg",
+    "c14a-032_443_577_367_502.jpg",
+    "c14a-032_72_188_657_1568.jpg",
+    "14a-032_80_179_1160_1572.jpg"
+   ],
+   "n_pages": 2,
+   "n_cands": 6
+  },
+  {
+   "file": "figures/ch2/function",
+   "base": "figures/ch2/function.jpg",
+   "source": "chapters/two_tufte.tex",
+   "base_wh": [
+    788,
+    309
+   ],
+   "pages": [
+    32
+   ],
+   "candidates": [
+    "14a-032_140_626_1564_500.jpg",
+    "14a-032_141_602_1241_511.jpg",
+    "14a-032_173_439_1980_595.jpg",
+    "c14a-032_443_577_367_502.jpg",
+    "c14a-032_72_188_657_1568.jpg",
+    "14a-032_80_179_1160_1572.jpg"
+   ],
+   "n_pages": 1,
+   "n_cands": 6
+  },
+  {
+   "file": "figures/ch2/2tensor",
+   "base": "figures/ch2/2tensor.png",
+   "source": "chapters/two_tufte.tex",
+   "base_wh": [
+    760,
+    346
+   ],
+   "pages": [
+    31,
+    32
+   ],
+   "candidates": [
+    "14a-032_140_626_1564_500.jpg",
+    "14a-032_141_602_1241_511.jpg",
+    "14a-032_173_439_1980_595.jpg",
+    "c14a-032_443_577_367_502.jpg",
+    "c14a-032_72_188_657_1568.jpg",
+    "14a-032_80_179_1160_1572.jpg"
+   ],
+   "n_pages": 2,
+   "n_cands": 6
+  },
+  {
+   "file": "figures/ch2/scalar",
+   "base": "figures/ch2/scalar.png",
+   "source": "chapters/two_tufte.tex",
+   "base_wh": [
+    760,
+    285
+   ],
+   "pages": [
+    32
+   ],
+   "candidates": [
+    "14a-032_140_626_1564_500.jpg",
+    "14a-032_141_602_1241_511.jpg",
+    "14a-032_173_439_1980_595.jpg",
+    "c14a-032_443_577_367_502.jpg",
+    "c14a-032_72_188_657_1568.jpg",
+    "14a-032_80_179_1160_1572.jpg"
+   ],
+   "n_pages": 1,
+   "n_cands": 6
+  },
+  {
+   "file": "figures/ch2/vector",
+   "base": "figures/ch2/vector.png",
+   "source": "chapters/two_tufte.tex",
+   "base_wh": [
+    760,
+    333
+   ],
+   "pages": [
+    32
+   ],
+   "candidates": [
+    "14a-032_140_626_1564_500.jpg",
+    "14a-032_141_602_1241_511.jpg",
+    "14a-032_173_439_1980_595.jpg",
+    "c14a-032_443_577_367_502.jpg",
+    "c14a-032_72_188_657_1568.jpg",
+    "14a-032_80_179_1160_1572.jpg"
+   ],
+   "n_pages": 1,
+   "n_cands": 6
+  },
+  {
+   "file": "figures/ch2/2tensor",
+   "base": "figures/ch2/2tensor.png",
+   "source": "chapters/two_tufte.tex",
+   "base_wh": [
+    760,
+    346
+   ],
+   "pages": [
+    31,
+    32
+   ],
+   "candidates": [
+    "14a-032_140_626_1564_500.jpg",
+    "14a-032_141_602_1241_511.jpg",
+    "14a-032_173_439_1980_595.jpg",
+    "c14a-032_443_577_367_502.jpg",
+    "c14a-032_72_188_657_1568.jpg",
+    "14a-032_80_179_1160_1572.jpg"
+   ],
+   "n_pages": 2,
+   "n_cands": 6
+  },
+  {
+   "file": "figures/ch2/3tensor",
+   "base": "figures/ch2/3tensor.png",
+   "source": "chapters/two_tufte.tex",
+   "base_wh": [
+    760,
+    576
+   ],
+   "pages": [
+    32
+   ],
+   "candidates": [
+    "14a-032_140_626_1564_500.jpg",
+    "14a-032_141_602_1241_511.jpg",
+    "14a-032_173_439_1980_595.jpg",
+    "c14a-032_443_577_367_502.jpg",
+    "c14a-032_72_188_657_1568.jpg",
+    "14a-032_80_179_1160_1572.jpg"
+   ],
+   "n_pages": 1,
+   "n_cands": 6
+  },
+  {
+   "file": "figures/ch2/TNs/tn1",
+   "base": "figures/ch2/TNs/tn1.png",
+   "source": "chapters/two_tufte.tex",
+   "base_wh": [
+    561,
+    251
+   ],
+   "pages": [
+    32,
+    34
+   ],
+   "candidates": [
+    "14a-032_140_626_1564_500.jpg",
+    "14a-032_141_602_1241_511.jpg",
+    "14a-032_173_439_1980_595.jpg",
+    "c14a-032_443_577_367_502.jpg",
+    "c14a-032_72_188_657_1568.jpg",
+    "14a-032_80_179_1160_1572.jpg",
+    "c14a-034_341_721_446_453.jpg",
+    "14a-034_399_504_1978_560.jpg",
+    "c14a-034_72_540_1147_541.jpg",
+    "c14a-034_87_617_1531_507.jpg"
+   ],
+   "n_pages": 2,
+   "n_cands": 10
+  },
+  {
+   "file": "figures/ch2/TNs/tn2",
+   "base": "figures/ch2/TNs/tn2.png",
+   "source": "chapters/two_tufte.tex",
+   "base_wh": [
+    589,
+    263
+   ],
+   "pages": [
+    32
+   ],
+   "candidates": [
+    "14a-032_140_626_1564_500.jpg",
+    "14a-032_141_602_1241_511.jpg",
+    "14a-032_173_439_1980_595.jpg",
+    "c14a-032_443_577_367_502.jpg",
+    "c14a-032_72_188_657_1568.jpg",
+    "14a-032_80_179_1160_1572.jpg"
+   ],
+   "n_pages": 1,
+   "n_cands": 6
+  },
+  {
+   "file": "figures/ch2/TNs/tn3",
+   "base": "figures/ch2/TNs/tn3.png",
+   "source": "chapters/two_tufte.tex",
+   "base_wh": [
+    962,
+    254
+   ],
+   "pages": [
+    32
+   ],
+   "candidates": [
+    "14a-032_140_626_1564_500.jpg",
+    "14a-032_141_602_1241_511.jpg",
+    "14a-032_173_439_1980_595.jpg",
+    "c14a-032_443_577_367_502.jpg",
+    "c14a-032_72_188_657_1568.jpg",
+    "14a-032_80_179_1160_1572.jpg"
+   ],
+   "n_pages": 1,
+   "n_cands": 6
+  },
+  {
+   "file": "figures/ch2/TNs/tn_4",
+   "base": "figures/ch2/TNs/tn_4.png",
+   "source": "chapters/two_tufte.tex",
+   "base_wh": [
+    560,
+    242
+   ],
+   "pages": [
+    32
+   ],
+   "candidates": [
+    "14a-032_140_626_1564_500.jpg",
+    "14a-032_141_602_1241_511.jpg",
+    "14a-032_173_439_1980_595.jpg",
+    "c14a-032_443_577_367_502.jpg",
+    "c14a-032_72_188_657_1568.jpg",
+    "14a-032_80_179_1160_1572.jpg"
+   ],
+   "n_pages": 1,
+   "n_cands": 6
+  },
+  {
+   "file": "figures/ch2/TNs/Mv",
+   "base": "figures/ch2/TNs/Mv.jpg",
+   "source": "chapters/two_tufte.tex",
+   "base_wh": [
+    1417,
+    244
+   ],
+   "pages": [
+    32
+   ],
+   "candidates": [
+    "14a-032_140_626_1564_500.jpg",
+    "14a-032_141_602_1241_511.jpg",
+    "14a-032_173_439_1980_595.jpg",
+    "c14a-032_443_577_367_502.jpg",
+    "c14a-032_72_188_657_1568.jpg",
+    "14a-032_80_179_1160_1572.jpg"
+   ],
+   "n_pages": 1,
+   "n_cands": 6
+  },
+  {
+   "file": "figures/ch2/TNs/tn5",
+   "base": "figures/ch2/TNs/tn5.png",
+   "source": "chapters/two_tufte.tex",
+   "base_wh": [
+    592,
+    243
+   ],
+   "pages": [
+    33
+   ],
+   "candidates": [
+    "c14a-033_115_540_249_541.jpg",
+    "14a-033_126_461_1658_584.jpg",
+    "14a-033_336_502_1153_562.jpg",
+    "c14a-033_89_184_2002_721.jpg"
+   ],
+   "n_pages": 1,
+   "n_cands": 4
+  },
+  {
+   "file": "figures/ch2/TNs/tn6",
+   "base": "figures/ch2/TNs/tn6.png",
+   "source": "chapters/two_tufte.tex",
+   "base_wh": [
+    464,
+    251
+   ],
+   "pages": [
+    33
+   ],
+   "candidates": [
+    "c14a-033_115_540_249_541.jpg",
+    "14a-033_126_461_1658_584.jpg",
+    "14a-033_336_502_1153_562.jpg",
+    "c14a-033_89_184_2002_721.jpg"
+   ],
+   "n_pages": 1,
+   "n_cands": 4
+  },
+  {
+   "file": "figures/ch2/TNs/tn7",
+   "base": "figures/ch2/TNs/tn7.png",
+   "source": "chapters/two_tufte.tex",
+   "base_wh": [
+    466,
+    257
+   ],
+   "pages": [
+    33
+   ],
+   "candidates": [
+    "c14a-033_115_540_249_541.jpg",
+    "14a-033_126_461_1658_584.jpg",
+    "14a-033_336_502_1153_562.jpg",
+    "c14a-033_89_184_2002_721.jpg"
+   ],
+   "n_pages": 1,
+   "n_cands": 4
+  },
+  {
+   "file": "figures/ch2/TNs/tn5",
+   "base": "figures/ch2/TNs/tn5.png",
+   "source": "chapters/two_tufte.tex",
+   "base_wh": [
+    592,
+    243
+   ],
+   "pages": [
+    33
+   ],
+   "candidates": [
+    "c14a-033_115_540_249_541.jpg",
+    "14a-033_126_461_1658_584.jpg",
+    "14a-033_336_502_1153_562.jpg",
+    "c14a-033_89_184_2002_721.jpg"
+   ],
+   "n_pages": 1,
+   "n_cands": 4
+  },
+  {
+   "file": "figures/ch2/TNs/tn5",
+   "base": "figures/ch2/TNs/tn5.png",
+   "source": "chapters/two_tufte.tex",
+   "base_wh": [
+    592,
+    243
+   ],
+   "pages": [
+    33
+   ],
+   "candidates": [
+    "c14a-033_115_540_249_541.jpg",
+    "14a-033_126_461_1658_584.jpg",
+    "14a-033_336_502_1153_562.jpg",
+    "c14a-033_89_184_2002_721.jpg"
+   ],
+   "n_pages": 1,
+   "n_cands": 4
+  },
+  {
+   "file": "figures/ch2/TNs/tn9",
+   "base": "figures/ch2/TNs/tn9.png",
+   "source": "chapters/two_tufte.tex",
+   "base_wh": [
+    1093,
+    291
+   ],
+   "pages": [
+    34
+   ],
+   "candidates": [
+    "c14a-034_341_721_446_453.jpg",
+    "14a-034_399_504_1978_560.jpg",
+    "c14a-034_72_540_1147_541.jpg",
+    "c14a-034_87_617_1531_507.jpg"
+   ],
+   "n_pages": 1,
+   "n_cands": 4
+  },
+  {
+   "file": "figures/ch2/TNs/tn11",
+   "base": "figures/ch2/TNs/tn11.png",
+   "source": "chapters/two_tufte.tex",
+   "base_wh": [
+    1101,
+    314
+   ],
+   "pages": [
+    34
+   ],
+   "candidates": [
+    "c14a-034_341_721_446_453.jpg",
+    "14a-034_399_504_1978_560.jpg",
+    "c14a-034_72_540_1147_541.jpg",
+    "c14a-034_87_617_1531_507.jpg"
+   ],
+   "n_pages": 1,
+   "n_cands": 4
+  },
+  {
+   "file": "figures/ch2/TNs/tn10",
+   "base": "figures/ch2/TNs/tn10.png",
+   "source": "chapters/two_tufte.tex",
+   "base_wh": [
+    1122,
+    83
+   ],
+   "pages": [
+    34
+   ],
+   "candidates": [
+    "c14a-034_341_721_446_453.jpg",
+    "14a-034_399_504_1978_560.jpg",
+    "c14a-034_72_540_1147_541.jpg",
+    "c14a-034_87_617_1531_507.jpg"
+   ],
+   "n_pages": 1,
+   "n_cands": 4
+  },
+  {
+   "file": "figures/ch2/TNs/tn10",
+   "base": "figures/ch2/TNs/tn10.png",
+   "source": "chapters/two_tufte.tex",
+   "base_wh": [
+    1122,
+    83
+   ],
+   "pages": [
+    34
+   ],
+   "candidates": [
+    "c14a-034_341_721_446_453.jpg",
+    "14a-034_399_504_1978_560.jpg",
+    "c14a-034_72_540_1147_541.jpg",
+    "c14a-034_87_617_1531_507.jpg"
+   ],
+   "n_pages": 1,
+   "n_cands": 4
+  },
+  {
+   "file": "figures/ch2/TNs/tn19",
+   "base": "figures/ch2/TNs/tn19.jpg",
+   "source": "chapters/two_tufte.tex",
+   "base_wh": [
+    2161,
+    251
+   ],
+   "pages": [
+    34
+   ],
+   "candidates": [
+    "c14a-034_341_721_446_453.jpg",
+    "14a-034_399_504_1978_560.jpg",
+    "c14a-034_72_540_1147_541.jpg",
+    "c14a-034_87_617_1531_507.jpg"
+   ],
+   "n_pages": 1,
+   "n_cands": 4
+  },
+  {
+   "file": "figures/ch2/TNs/tn1",
+   "base": "figures/ch2/TNs/tn1.png",
+   "source": "chapters/two_tufte.tex",
+   "base_wh": [
+    561,
+    251
+   ],
+   "pages": [
+    32,
+    34
+   ],
+   "candidates": [
+    "14a-032_140_626_1564_500.jpg",
+    "14a-032_141_602_1241_511.jpg",
+    "14a-032_173_439_1980_595.jpg",
+    "c14a-032_443_577_367_502.jpg",
+    "c14a-032_72_188_657_1568.jpg",
+    "14a-032_80_179_1160_1572.jpg",
+    "c14a-034_341_721_446_453.jpg",
+    "14a-034_399_504_1978_560.jpg",
+    "c14a-034_72_540_1147_541.jpg",
+    "c14a-034_87_617_1531_507.jpg"
+   ],
+   "n_pages": 2,
+   "n_cands": 10
+  },
+  {
+   "file": "figures/ch2/TNs/tn12",
+   "base": "figures/ch2/TNs/tn12.jpg",
+   "source": "chapters/two_tufte.tex",
+   "base_wh": [
+    1178,
+    306
+   ],
+   "pages": [
+    34
+   ],
+   "candidates": [
+    "c14a-034_341_721_446_453.jpg",
+    "14a-034_399_504_1978_560.jpg",
+    "c14a-034_72_540_1147_541.jpg",
+    "c14a-034_87_617_1531_507.jpg"
+   ],
+   "n_pages": 1,
+   "n_cands": 4
+  },
+  {
+   "file": "figures/ch2/TNs/tn20",
+   "base": "figures/ch2/TNs/tn20.jpg",
+   "source": "chapters/two_tufte.tex",
+   "base_wh": [
+    2014,
+    1117
+   ],
+   "pages": [
+    34
+   ],
+   "candidates": [
+    "c14a-034_341_721_446_453.jpg",
+    "14a-034_399_504_1978_560.jpg",
+    "c14a-034_72_540_1147_541.jpg",
+    "c14a-034_87_617_1531_507.jpg"
+   ],
+   "n_pages": 1,
+   "n_cands": 4
+  },
+  {
+   "file": "figures/ch2/TNs/tn18",
+   "base": "figures/ch2/TNs/tn18.jpg",
+   "source": "chapters/two_tufte.tex",
+   "base_wh": [
+    451,
+    358
+   ],
+   "pages": [
+    35
+   ],
+   "candidates": [
+    "4a-035_122_1017_2253_305.jpg",
+    "c14a-035_165_588_966_519.jpg",
+    "14a-035_218_948_1826_335.jpg",
+    "cc14a-035_93_115_558_756.jpg"
+   ],
+   "n_pages": 1,
+   "n_cands": 4
+  },
+  {
+   "file": "figures/ch2/TNs/tn13",
+   "base": "figures/ch2/TNs/tn13.jpg",
+   "source": "chapters/two_tufte.tex",
+   "base_wh": [
+    707,
+    431
+   ],
+   "pages": [
+    35
+   ],
+   "candidates": [
+    "4a-035_122_1017_2253_305.jpg",
+    "c14a-035_165_588_966_519.jpg",
+    "14a-035_218_948_1826_335.jpg",
+    "cc14a-035_93_115_558_756.jpg"
+   ],
+   "n_pages": 1,
+   "n_cands": 4
+  },
+  {
+   "file": "figures/ch2/TNs/tn14",
+   "base": "figures/ch2/TNs/tn14.jpg",
+   "source": "chapters/two_tufte.tex",
+   "base_wh": [
+    823,
+    461
+   ],
+   "pages": [
+    35
+   ],
+   "candidates": [
+    "4a-035_122_1017_2253_305.jpg",
+    "c14a-035_165_588_966_519.jpg",
+    "14a-035_218_948_1826_335.jpg",
+    "cc14a-035_93_115_558_756.jpg"
+   ],
+   "n_pages": 1,
+   "n_cands": 4
+  },
+  {
+   "file": "figures/ch2/TNs/tn17",
+   "base": "figures/ch2/TNs/tn17.jpg",
+   "source": "chapters/two_tufte.tex",
+   "base_wh": [
+    3853,
+    577
+   ],
+   "pages": [
+    35
+   ],
+   "candidates": [
+    "4a-035_122_1017_2253_305.jpg",
+    "c14a-035_165_588_966_519.jpg",
+    "14a-035_218_948_1826_335.jpg",
+    "cc14a-035_93_115_558_756.jpg"
+   ],
+   "n_pages": 1,
+   "n_cands": 4
+  },
+  {
+   "file": "figures/ch2/TNs/mps",
+   "base": "figures/ch2/TNs/mps.jpg",
+   "source": "chapters/two_tufte.tex",
+   "base_wh": [
+    1918,
+    403
+   ],
+   "pages": [
+    33,
+    35,
+    36
+   ],
+   "candidates": [
+    "c14a-033_115_540_249_541.jpg",
+    "14a-033_126_461_1658_584.jpg",
+    "14a-033_336_502_1153_562.jpg",
+    "c14a-033_89_184_2002_721.jpg",
+    "4a-035_122_1017_2253_305.jpg",
+    "c14a-035_165_588_966_519.jpg",
+    "14a-035_218_948_1826_335.jpg",
+    "cc14a-035_93_115_558_756.jpg",
+    "14a-036_128_549_1417_515.jpg"
+   ],
+   "n_pages": 3,
+   "n_cands": 9
+  },
+  {
+   "file": "figures/ch2/TNs/mps",
+   "base": "figures/ch2/TNs/mps.jpg",
+   "source": "chapters/two_tufte.tex",
+   "base_wh": [
+    1918,
+    403
+   ],
+   "pages": [
+    33,
+    35,
+    36
+   ],
+   "candidates": [
+    "c14a-033_115_540_249_541.jpg",
+    "14a-033_126_461_1658_584.jpg",
+    "14a-033_336_502_1153_562.jpg",
+    "c14a-033_89_184_2002_721.jpg",
+    "4a-035_122_1017_2253_305.jpg",
+    "c14a-035_165_588_966_519.jpg",
+    "14a-035_218_948_1826_335.jpg",
+    "cc14a-035_93_115_558_756.jpg",
+    "14a-036_128_549_1417_515.jpg"
+   ],
+   "n_pages": 3,
+   "n_cands": 9
+  },
+  {
+   "file": "figures/ch2/zoom",
+   "base": "figures/ch2/zoom.jpg",
+   "source": "chapters/two_tufte.tex",
+   "base_wh": [
+    2091,
+    1816
+   ],
+   "pages": [
+    42
+   ],
+   "candidates": [
+    "14a-042_158_405_1929_588.jpg",
+    "4a-042_364_430_1394_1425.jpg"
+   ],
+   "n_pages": 1,
+   "n_cands": 2
+  },
+  {
+   "file": "figures/ch2/svd",
+   "base": "figures/ch2/svd.png",
+   "source": "chapters/two_tufte.tex",
+   "base_wh": [
+    1379,
+    339
+   ],
+   "pages": [
+    50
+   ],
+   "candidates": [
+    "c14a-050_313_553_820_515.jpg",
+    "14a-050_386_533_1344_522.jpg"
+   ],
+   "n_pages": 1,
+   "n_cands": 2
+  },
+  {
+   "file": "figures/ch2/svd2",
+   "base": "figures/ch2/svd2.jpg",
+   "source": "chapters/two_tufte.tex",
+   "base_wh": [
+    1073,
+    1076
+   ],
+   "pages": [
+    50
+   ],
+   "candidates": [
+    "c14a-050_313_553_820_515.jpg",
+    "14a-050_386_533_1344_522.jpg"
+   ],
+   "n_pages": 1,
+   "n_cands": 2
+  },
+  {
+   "file": "figures/ch2/entanglement2",
+   "base": "figures/ch2/entanglement2.jpg",
+   "source": "chapters/two_tufte.tex",
+   "base_wh": [
+    1117,
+    1028
+   ],
+   "pages": [
+    58
+   ],
+   "candidates": [
+    "4a-058_147_1135_1632_264.jpg",
+    "c14a-058_345_561_717_509.jpg"
+   ],
+   "n_pages": 1,
+   "n_cands": 2
+  },
+  {
+   "file": "figures/ch2/mpsapprox",
+   "base": "figures/ch2/mpsapprox.jpg",
+   "source": "chapters/two_tufte.tex",
+   "base_wh": [
+    3283,
+    408
+   ],
+   "pages": [
+    58
+   ],
+   "candidates": [
+    "4a-058_147_1135_1632_264.jpg",
+    "c14a-058_345_561_717_509.jpg"
+   ],
+   "n_pages": 1,
+   "n_cands": 2
+  }
+ ],
+ "unmatched": [
+  {
+   "file": "figures/ch4/psiemp",
+   "base": "figures/ch4/psiemp.jpg",
+   "source": "chapters/four_tufte.tex",
+   "base_wh": [
+    2788,
+    381
+   ],
+   "pages": [
+    96
+   ],
+   "candidates": [],
+   "n_pages": 1,
+   "n_cands": 0
+  },
+  {
+   "file": "figures/ch3/psi4",
+   "base": "figures/ch3/psi4.jpg",
+   "source": "chapters/three_tufte.tex",
+   "base_wh": [
+    618,
+    395
+   ],
+   "pages": [
+    85
+   ],
+   "candidates": [],
+   "n_pages": 1,
+   "n_cands": 0
+  },
+  {
+   "file": "figures/ch1/covector",
+   "base": "figures/ch1/covector.jpg",
+   "source": "chapters/two_tufte.tex",
+   "base_wh": [
+    1446,
+    820
+   ],
+   "pages": [
+    39
+   ],
+   "candidates": [],
+   "n_pages": 1,
+   "n_cands": 0
+  }
+ ],
+ "contested": [
+  {
+   "crop": "14a-053_1359_819_889_380.jpg",
+   "claimed_by": [
+    "figures/ch2/bestproof1.jpg",
+    "figures/ch2/bestproof2.jpg"
+   ]
+  }
+ ]
+}

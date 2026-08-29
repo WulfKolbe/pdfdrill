@@ -1,0 +1,78 @@
+339 - pairing 2004.05631v1's annotated figures to their crops
+====================================================================
+
+HOW, and it is not order
+
+  The author's .tex gives no page. But the base images are EMBEDDED in the
+  author's own PDF, so `pdfimages -list` states the page and pixel size of
+  each -- no compile, no ordinal, no inference. All 84 annotated bases
+  have their exact pixel size embedded; 41 at exactly one page.
+
+  The crop side states page and rectangle in its filename (331). Both
+  numberings are the PDF's: embedded images span pages 5..106, crops
+  5..128, overlapping on 45 pages. 18 pages carry a crop and no embedded
+  image -- the author's tikzcd diagrams, drawn in TeX and cropped by
+  MathPix as pictures. 4 carry an embedded image MathPix did not crop.
+
+RESULT over the 84 annotated inclusions
+
+  MATCHED    (one crop, and that crop claimed
+              by exactly one base)          : 8
+  CONTESTED  (one crop, two bases claim it) : 1
+  AMBIGUOUS  (more than one crop)           : 71
+  UNMATCHED  (none)                         : 3
+
+  The reverse check matters and I nearly skipped it. Ten rows had exactly
+  one candidate crop, but figures/ch2/bestproof1.jpg and bestproof2.jpg
+  BOTH pointed at 053_1359_819_889_380 -- two subfigures of one float,
+  which MathPix cropped once. Two claims on one answer is not a pair, and
+  it is the same case 301 dropped as contested. Keeping either would let
+  a later measurement be scored right about a pairing nobody knows.
+
+  Ambiguity is REPORTED, not resolved. Every ambiguous row below keeps
+  all of its candidates; taking the nearest or the first is 282's defect
+  and the reason 301 scored the ordinal join at 0 of 8.
+
+AMBIGUITY, BY CAUSE
+
+  the base's pixel size appears on SEVERAL pages   : 27
+     (the author reuses one image, so the size does not name a page)
+  one page, but that page carries SEVERAL crops    : 44
+     (several figures on the page; the rectangle would have to be
+      matched, and a crop covers image PLUS annotation so its shape is
+      not the base's -- 301 measured that at up to 2.4x off)
+
+  candidates per ambiguous row: 2->8 rows, 3->5 rows, 4->21 rows, 5->4 rows, 6->15 rows, 9->2 rows, 10->8 rows, 16->8 rows
+
+MATCHED PAIRS (first 20)
+
+  base file                           page  crop
+  figures/ch4/mpsapprox2.jpg            94  4a-094_439_502_1581_1417.jpg
+  figures/ch4/psi_N2.jpg               105  4a-105_568_579_1052_1409.jpg
+  figures/ch3/rho_xi.jpg                88  4a-088_295_291_1482_1516.jpg
+  figures/ch1/passage.jpg               26  14a-026_276_432_337_1448.jpg
+  figures/ch1/bothways.jpg              38  c14a-038_197_740_257_421.jpg
+  figures/ch2/pt2.jpg                   45  c14a-045_561_783_378_399.jpg
+  figures/ch2/vec_map.jpg               49  c14a-049_194_525_537_550.jpg
+  figures/ch2/bestproof1.jpg            53  14a-053_1359_819_889_380.jpg
+  figures/ch2/bestproof2.jpg            53  14a-053_1359_819_889_380.jpg
+  figures/ch2/entanglement.jpg          57  14a-057_588_909_1041_333.jpg
+
+UNMATCHED
+  figures/ch4/psiemp.jpg             pages [96] -- no crop on any of them
+  figures/ch3/psi4.jpg               pages [85] -- no crop on any of them
+  figures/ch1/covector.jpg           pages [39] -- no crop on any of them
+
+WHAT THIS GIVES 336
+
+  8 pairs where the base file and the crop of that same figure are both
+  known, on a page both sides agree about, and where no other base claims
+  that crop. That is the pair 336 needs and
+  the first one this project has had: 301 could not produce one by order,
+  and 335 could only count crops per document.
+
+  It does NOT need the remaining 72 resolved. A diff needs pairs it is
+  sure of, and 340's hand-editing is for the ones that stay ambiguous --
+  which is why 339 comes first.
+
+out/339.json carries every row with all its candidates.
