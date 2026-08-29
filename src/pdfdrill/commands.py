@@ -6988,9 +6988,27 @@ def _render_regions(sc, tiddlers) -> tuple:
             failed.append((ident, (err or "?")[:60]))
         else:
             done += 1
+    # 295 — the outcome is WRITTEN, not printed. The console note carries the
+    # first two failures; a corpus pass needs all of them, and it needs them to
+    # be the CURRENT ones. The old `if failed:` left a stale _failures.txt
+    # behind on a document that later succeeded, which a corpus reader would
+    # have counted as a live failure.
+    out_dir.mkdir(parents=True, exist_ok=True)
+    fp = out_dir / "_failures.txt"
     if failed:
-        (out_dir / "_failures.txt").write_text(
-            "\n".join("%s\t%s" % f for f in failed) + "\n", encoding="utf-8")
+        fp.write_text("\n".join("%s\t%s" % f for f in failed) + "\n",
+                      encoding="utf-8")
+    elif fp.is_file():
+        fp.unlink()
+    (out_dir / "_outcomes.json").write_text(json.dumps({
+        "regions_with_latex": len(rows and [1 for _i, _l in rows if _l.strip()]),
+        "attempted_now": len(todo),
+        "rendered": done,
+        "failed": len(failed),
+        "has_author_preamble": bool(author_pre),
+        "graphics_dir": str(src_dir) if src_dir else None,
+        "failures": [{"id": i, "first_error": e} for i, e in failed],
+    }, indent=1), encoding="utf-8")
     return done, len(failed), failed, bool(author_pre), src_dir
 
 
