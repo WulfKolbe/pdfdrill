@@ -1,0 +1,73 @@
+{
+ "doc": "2004.05631",
+ "pdf": "2004.05631.pdf",
+ "rc": 0,
+ "stdout_tail": "Build stamp: report.build.json — phase=reading, 27 pages, 206731 bytes, sha256 ebf3a65a8d1d. A measurement of this report should copy it into its output as `measured_against`.",
+ "seconds": 38.1,
+ "regions": {
+  "regions_with_latex": 128,
+  "attempted_now": 11,
+  "rendered": 117,
+  "failed": 11,
+  "has_author_preamble": true,
+  "graphics_dir": "/home/wkolbe/pdfdrill-library/2004.05631/texsrc",
+  "failures": [
+   {
+    "id": "2004.05631_DIA_0005",
+    "first_error": "! Undefined control sequence."
+   },
+   {
+    "id": "2004.05631_DIA_0011",
+    "first_error": "! Package pgfkeys Error: I do not know the key '/tikz/tensor"
+   },
+   {
+    "id": "2004.05631_DIA_0018",
+    "first_error": "! Package pgfkeys Error: I do not know the key '/tikz/tensor"
+   },
+   {
+    "id": "2004.05631_DIA_0019",
+    "first_error": "! Package pgfkeys Error: I do not know the key '/tikz/tensor"
+   },
+   {
+    "id": "2004.05631_DIA_0046",
+    "first_error": "! Package pgfkeys Error: I do not know the key '/tikz/withar"
+   },
+   {
+    "id": "2004.05631_DIA_0047",
+    "first_error": "! Package pgfkeys Error: I do not know the key '/tikz/withar"
+   },
+   {
+    "id": "2004.05631_DIA_0083",
+    "first_error": "! Missing $ inserted."
+   },
+   {
+    "id": "2004.05631_DIA_0084",
+    "first_error": "! Package pgfkeys Error: I do not know the key '/tikz/tensor"
+   },
+   {
+    "id": "2004.05631_DIA_0087",
+    "first_error": "! Package pgfkeys Error: I do not know the key '/tikz/tensor"
+   },
+   {
+    "id": "2004.05631_DIA_0088",
+    "first_error": "! Package pgfkeys Error: I do not know the key '/tikz/tensor"
+   },
+   {
+    "id": "2004.05631_DIA_0093",
+    "first_error": "! Package pgfkeys Error: I do not know the key '/tikz/tensor"
+   }
+  ]
+ },
+ "manifest_rows": 128,
+ "with_latex": 128,
+ "duplicated": 11,
+ "table_cols": [
+  5,
+  5,
+  4,
+  6
+ ],
+ "six_col_tables": 1,
+ "region_table_cols": 6,
+ "ink_selectable": true
+}
