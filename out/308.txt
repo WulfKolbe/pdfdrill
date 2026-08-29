@@ -1,0 +1,68 @@
+308 - \right. the invisible right delimiter
+====================================================================
+
+  \right. prints NOTHING. `\left( x \right.` sets an opening parenthesis
+  with no closing one: legal, compiles, and to any rule that COUNTS
+  delimiters it is balanced - \left and \right are matched. The defect is
+  invisible to every check that counts rather than looks.
+
+  The construct has legitimate uses - a one-sided brace, a fence carried
+  across a line break - so its presence is not by itself a defect. Whether
+  the page shows a delimiter is a question about the SCAN and is not
+  decided here. This is the count and the openers.
+
+COVERAGE: the same pass as 307 - 1349 models scanned, 1 skipped, 0 unreadable.
+
+COUNT
+  values containing \right.        : 3707
+  \right. occurrences              : 4310
+  of those, paired to an opener    : 4250
+  OPENED BY \left(                 : 1921
+                                     (45.2% of paired)
+  documents affected               : 499
+
+  An unpaired \right. is still counted: reporting only paired ones would
+  under-report exactly the malformed values this looks for.
+
+every opener, by frequency:
+  '('                1921
+  '\\{'              1542
+  '['                 468
+  '\\langle'           96
+  '\\lfloor'           94
+  '|'                  50
+  '\\|'                24
+  '\\rangle'           17
+  '.'                  13
+  '\\lceil'            13
+  '\\lbrace'            8
+  '\\vert'              2
+  '\\}'                 2
+
+top 12 documents by values containing \right.:
+  Nonlinear functional analysis in banach spaces a 167
+  Quaternion and Clifford Fourier Transforms (Eckh 134
+  0902.0431                                        85
+  Schrödinger Theory of Electrons Complementary Pe 82
+  Algebraic Geometry A Problem Solving Approach (W 64
+  Arbeitsbuch Höhere Mathematik in Rezepten (2. Au 63
+  1205.5935v1                                      55
+  The Geometry of Minkowski Spacetime - An Intro.  52
+  Discrete Mathematics Graph Algorithms, Algebraic 48
+  A First Course in Modular Forms (Fred Diamond, J 46
+  Early_Proceedings_of_the_Alterman_Confer         46
+  Higher Operads, Higher Categories (Tom Leinster) 44
+
+sample values where \left( is closed by \right. :
+  020-Cation Distribution in Eu-Sc-Fe   [Formula.latex]  openers={'(': 1}
+     \left(\mathrm{Eu}_{2} \mathrm{O}_{3}, \mathrm{Sc}_{2} \mathrm{O}_{3}\right.
+  0212032  [Equation.latex]  openers={'(': 1}
+     \left.\begin{array}{c} B W=\left[\begin{array}{cccc} 1 & 0 & 0 & 0 \\ 0 & b_{1,1} & b_{1,2} & 0 \\ 0 & b_{2,1} & b_{2,2} & 0 \\ 0 & 0 & 0 & b_{2,1} b_
+  0212032  [Formula.latex]  openers={'(': 1}
+     \left(2^{\wedge}\right.
+  03502-AAAI24.YooY  [Equation.latex]  openers={'(': 1}
+     \begin{aligned} p\left(v_{d}\right. & \left.=\operatorname{Dec}\left(\mathbf{c}_{d}, \boldsymbol{\rho}_{d}\right) \mid \theta_{d}, \boldsymbol{\beta},
+  0607190  [Formula.latex]  openers={'(': 1}
+     F\left(=(0,0)\right.
+
+per-value records: out/308.json
