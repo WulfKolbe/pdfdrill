@@ -1,0 +1,28 @@
+{
+ "doc": "Concept_Layers_Enhancing_Interpretability_and_Inte",
+ "pdf": "Concept_Layers_Enhancing_Interpretability_and_Inte.pdf",
+ "rc": 0,
+ "stdout_tail": "Build stamp: report.build.json — phase=reading, 10 pages, 317987 bytes, sha256 72467be9ad08. A measurement of this report should copy it into its output as `measured_against`.",
+ "seconds": 4.5,
+ "regions": {
+  "regions_with_latex": 1,
+  "attempted_now": 1,
+  "rendered": 1,
+  "failed": 0,
+  "has_author_preamble": false,
+  "graphics_dir": null,
+  "failures": []
+ },
+ "manifest_rows": 2,
+ "with_latex": 1,
+ "duplicated": 1,
+ "table_cols": [
+  6,
+  5,
+  4,
+  6
+ ],
+ "six_col_tables": 2,
+ "region_table_cols": 6,
+ "ink_selectable": false
+}
