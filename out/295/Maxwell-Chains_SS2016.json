@@ -1,0 +1,32 @@
+{
+ "doc": "Maxwell-Chains_SS2016",
+ "pdf": "Maxwell-Chains_SS2016.pdf",
+ "rc": 0,
+ "stdout_tail": "Build stamp: report.build.json — phase=reading, 64 pages, 3503717 bytes, sha256 964b57ce993f. A measurement of this report should copy it into its output as `measured_against`.",
+ "seconds": 7.5,
+ "regions": {
+  "regions_with_latex": 1,
+  "attempted_now": 1,
+  "rendered": 0,
+  "failed": 1,
+  "has_author_preamble": false,
+  "graphics_dir": null,
+  "failures": [
+   {
+    "id": "Maxwell-Chains_SS2016_DIA_0008",
+    "first_error": "! LaTeX Error: Bad math environment delimiter."
+   }
+  ]
+ },
+ "manifest_rows": 32,
+ "with_latex": 1,
+ "duplicated": 32,
+ "table_cols": [
+  6,
+  5,
+  6
+ ],
+ "six_col_tables": 2,
+ "region_table_cols": 6,
+ "ink_selectable": false
+}
