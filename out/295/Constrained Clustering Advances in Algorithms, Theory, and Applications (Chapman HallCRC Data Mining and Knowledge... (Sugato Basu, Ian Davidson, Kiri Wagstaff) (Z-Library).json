@@ -1,0 +1,33 @@
+{
+ "doc": "Constrained Clustering Advances in Algorithms, Theory, and Applications (Chapman HallCRC Data Mining and Knowledge... (Sugato Basu, Ian Davidson, Kiri Wagstaff) (Z-Library)",
+ "pdf": "Constrained Clustering Advances in Algorithms, Theory, and Applications (Chapman HallCRC Data Mining and Knowledge... (Sugato Basu, Ian Davidson, Kiri Wagstaff) (Z-Library).pdf",
+ "rc": 0,
+ "stdout_tail": "Build stamp: report.build.json — phase=reading, 628 pages, 15165573 bytes, sha256 795ffae83baf. A measurement of this report should copy it into its output as `measured_against`.",
+ "seconds": 275.0,
+ "regions": {
+  "regions_with_latex": 11,
+  "attempted_now": 11,
+  "rendered": 10,
+  "failed": 1,
+  "has_author_preamble": false,
+  "graphics_dir": null,
+  "failures": [
+   {
+    "id": "Constrained_Clustering_Advances_in_Algorithms__Theory__and_Applications__Chapman_HallCRC_Data_Mining_and_Knowledge...__Sugato_Basu__Ian_Davidson__Kiri_Wagstaff___Z-Library__DIA_0002",
+    "first_error": "! LaTeX Error: Something's wrong--perhaps a missing \\item."
+   }
+  ]
+ },
+ "manifest_rows": 106,
+ "with_latex": 11,
+ "duplicated": 96,
+ "table_cols": [
+  6,
+  5,
+  4,
+  6
+ ],
+ "six_col_tables": 2,
+ "region_table_cols": 6,
+ "ink_selectable": false
+}
