@@ -1,0 +1,37 @@
+{
+ "doc": "2409.01704v1",
+ "pdf": "2409.01704v1.pdf",
+ "rc": 0,
+ "stdout_tail": "Build stamp: report.build.json — phase=reading, 10 pages, 1891318 bytes, sha256 613576804022. A measurement of this report should copy it into its output as `measured_against`.",
+ "seconds": 3.7,
+ "regions": {
+  "regions_with_latex": 2,
+  "attempted_now": 2,
+  "rendered": 0,
+  "failed": 2,
+  "has_author_preamble": false,
+  "graphics_dir": "/home/wkolbe/pdfdrill-library/2409.01704v1/texsrc",
+  "failures": [
+   {
+    "id": "2409.01704v1_DIA_0010",
+    "first_error": "! Misplaced alignment tab character &."
+   },
+   {
+    "id": "2409.01704v1_DIA_0013",
+    "first_error": "! Misplaced alignment tab character &."
+   }
+  ]
+ },
+ "manifest_rows": 29,
+ "with_latex": 2,
+ "duplicated": 29,
+ "table_cols": [
+  6,
+  5,
+  4,
+  6
+ ],
+ "six_col_tables": 2,
+ "region_table_cols": 6,
+ "ink_selectable": false
+}
