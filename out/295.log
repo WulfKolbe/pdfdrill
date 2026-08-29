@@ -653,3 +653,18 @@ population: 1346 documents (21 from the site, first)
 [ 639/1346] AltenkirchMcBrided-TowardsOTT        8.0s  regions=3 failed=0 selectable=False
 [ 640/1346] Ana3_WS25_Loesung_Blat02             2.8s  regions=0 failed=0 selectable=False
 [ 641/1346] Ana3_WS25_Loesung_Blat04             3.0s  regions=0 failed=0 selectable=False
+[ 642/1346] Arbeitsbuch Höhere Mathematik in R 900.1s  regions=- failed=- selectable=False
+[ 643/1346] Article_Smail_Ahmim                  2.4s  regions=0 failed=0 selectable=False
+Traceback (most recent call last):
+  File "/home/wkolbe/MX/PDFDRILL/tools/run295.py", line 185, in <module>
+    main()
+    ~~~~^^
+  File "/home/wkolbe/MX/PDFDRILL/tools/run295.py", line 157, in main
+    dest.write_text(json.dumps(row, indent=1, ensure_ascii=False),
+    ~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+                    encoding="utf-8")
+                    ^^^^^^^^^^^^^^^^^
+  File "/usr/lib/python3.14/pathlib/__init__.py", line 810, in write_text
+    return f.write(data)
+           ~~~~~~~^^^^^^
+UnicodeEncodeError: 'utf-8' codec can't encode character '\udc96' in position 111: surrogates not allowed

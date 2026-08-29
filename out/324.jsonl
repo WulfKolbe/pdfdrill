@@ -1,0 +1,1350 @@
+{"doc": "0008113v1", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "0049", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "0110026", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "0111016", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "0111016 (1)", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "020-Cation Distribution in Eu-Sc-Fe Garnets", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "020066_1_online", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "0210081", "low_conf_equations": 2, "A": [], "B": [], "alt": []}
+{"doc": "0212032", "low_conf_equations": 1, "A": [], "B": [], "alt": []}
+{"doc": "0212041", "low_conf_equations": 3, "A": [], "B": [], "alt": []}
+{"doc": "03-NTCIR11-TEMPORALIA-BurghartzR", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "03502-AAAI24.YooY", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "04 posdzech - maps to elementary structures", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "040123", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "0403019", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "0403019 (1)", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "0403019 (2)", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "0403019 (3)", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "0403040v2", "low_conf_equations": 2, "A": [{"ident": "0403040v2_EQ0076", "eq_index": 76, "conf": 0.120053, "page": 9, "arrows_in_array": 5, "vert_in_cell": 0, "latex": "\\begin{array}{lll} \\text { Scalar } & \\bar{\\psi} \\psi & \\rightarrow \\rho \\cos \\beta=\\langle\\boldsymbol{\\Psi} \\tilde{\\boldsymbol{\\Psi}}\\rangle_{0} \\\\ \\text { Vector } & \\bar{\\psi} \\gamma^{\\mu} \\psi & \\rightarrow \\\\ \\text { Bivector (or tensor) } & \\bar{\\psi} \\frac{i}{2}\\left[\\gamma^{\\mu}, \\gamma^{\\nu"}], "B": [], "alt": []}
+{"doc": "0503219", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "0607190", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "0609399", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "0707.2676", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "0707.4470", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "0711.0273", "low_conf_equations": 1, "A": [], "B": [], "alt": []}
+{"doc": "07165428", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "0802.3344", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "0803.2924", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "0806.1585", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "0864", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "0902.0431", "low_conf_equations": 26, "A": [{"ident": "0902.0431_EQ0365", "eq_index": 365, "conf": 0.264266, "page": 59, "arrows_in_array": 11, "vert_in_cell": 1, "latex": "\\begin{array}{clcccccc} 1 & \\longrightarrow & \\operatorname{Spin}(8) & \\longrightarrow & \\left(F_{4}\\right)_{E_{1}} & \\longrightarrow & S^{8} & \\longrightarrow \\\\ & & \\downarrow p^{\\prime} & & \\downarrow p & & \\downarrow= & \\\\ 1 & \\longrightarrow & S O(8) & \\longrightarrow & S O(9) & \\longrightarrow"}], "B": [], "alt": []}
+{"doc": "0903.2087", "low_conf_equations": 5, "A": [], "B": [], "alt": []}
+{"doc": "0905.0767", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "0905.2720", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "0911.3722", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "0911.5175", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "0911.5175v2", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "0911.5175v2 (1)", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "0912.0721", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "09150083013_100172453DRW004B", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "1-s2.0-S0010448509000463-main", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "1-s2.0-S0022039622000146-main", "low_conf_equations": 4, "A": [], "B": [], "alt": []}
+{"doc": "1-s2.0-S0024379507002820-main", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "1-s2.0-S0304397597000480-main", "low_conf_equations": 2, "A": [], "B": [], "alt": []}
+{"doc": "1-s2.0-S0378778825011211-main", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "1-s2.0-S039304401100026X-main", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "1-s2.0-S0927650524001130-main", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "1-s2.0-S0951832023002612-main", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "1-s2.0-S1319157821001294-main", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "1-s2.0-S1319157821001294-main (1)", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "1-s2.0-S1474034614000184-main", "low_conf_equations": 1, "A": [], "B": [], "alt": []}
+{"doc": "1-s2.0-S157086830900041X-main", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "1-s2.0-S1877705814016762-main", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "1-s2.0-S2211379719323940-main", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "1-s2.0-S2238785420321049-main", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "1-s2.0-S2590005626001165-main", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "1-s2.0-S2590005626001165-main (1)", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "1.2 - Change in global consumption and its effects", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "1.AACA_GeometricAlgebraforMultidimension-UnifiedGeographicalInformationSystem", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "10.1007_s00006-017-0798-7", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "10.53759_978-9914-9946-1-2_12", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "1001850", "low_conf_equations": 5, "A": [], "B": [], "alt": []}
+{"doc": "1006.4908", "low_conf_equations": 2, "A": [], "B": [], "alt": []}
+{"doc": "1012.3259", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "11-integer-poly", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "11.Uebung_VK_25", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "1101.4542", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "1103.2338v5", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "1110.0240", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "1172_policy_pre_training_for_autono", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "11_Paper", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "12.Uebung_VK_25 (1)", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "1205.3463v2", "low_conf_equations": 1, "A": [], "B": [], "alt": []}
+{"doc": "1205.5935v1", "low_conf_equations": 9, "A": [], "B": [], "alt": []}
+{"doc": "1206.0238", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "1209.3845v2", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "1211.3375", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "1212.5636", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "1304.0071v3", "low_conf_equations": 1, "A": [], "B": [], "alt": []}
+{"doc": "1306.1660", "low_conf_equations": 1, "A": [], "B": [], "alt": []}
+{"doc": "1306.1660v1", "low_conf_equations": 1, "A": [], "B": [], "alt": []}
+{"doc": "1306287", "low_conf_equations": 25, "A": [], "B": [], "alt": []}
+{"doc": "1310.4843", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "140105778", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "1404.2443", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "1405.0030vG", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "1406.3411", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "1407.4737", "low_conf_equations": 3, "A": [], "B": [], "alt": []}
+{"doc": "1407.7814", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "1408.0838", "low_conf_equations": 1, "A": [], "B": [], "alt": []}
+{"doc": "1410.3916", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "1410.6675", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "1411.5002", "low_conf_equations": 3, "A": [], "B": [], "alt": []}
+{"doc": "1412.8390", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "1414674613", "low_conf_equations": 1, "A": [], "B": [], "alt": []}
+{"doc": "14586-Article Text-42557-2-10-20210905", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "1461280", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "1501.00696", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "1502.02973", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "1503.00301", "low_conf_equations": 2, "A": [], "B": [], "alt": []}
+{"doc": "1506.0005v1", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "1507.08039", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "1510.06699", "low_conf_equations": 3, "A": [], "B": [], "alt": []}
+{"doc": "1511.00652", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "1511.08771", "skipped": "too large"}
+{"doc": "1602.04650", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "1602.06844", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "1602.07462", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "1603.00260", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "1603.04246v2", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "1604.04795", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "1605.02019", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "1605.0232v1", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "1605.03431", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "1605.05775", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "1608.03889", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "1608.06622", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "1609.03457", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "1609.04938v1", "low_conf_equations": 1, "A": [], "B": [], "alt": []}
+{"doc": "1609.05293", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "1610.09935", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "1611.03955", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "1611.03955 (1)", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "1611.09182", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "1701.02095", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "1701.07696", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "1701.08096", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "1702.0234v1", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "1702.06385", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "1702.06776", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "1702.06875", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "1703.01192", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "1703.08160", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "1704.03940", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "1704.04455", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "1704.05730", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "1705.0019v1", "low_conf_equations": 1, "A": [], "B": [], "alt": []}
+{"doc": "1705.02518", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "1705.02519", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "1705.02522", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "1705.02667", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "1705.02668", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "1705.02669", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "1705.09391", "low_conf_equations": 1, "A": [], "B": [], "alt": []}
+{"doc": "1706.08746", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "1706.10192", "low_conf_equations": 1, "A": [], "B": [], "alt": []}
+{"doc": "1707.00189", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "1707.08872", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "1708.00006", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "1709.00900", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "1709.01848", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "1709.03544", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "1709.07941", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "1709.08915", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "1709.10026v3", "low_conf_equations": 1, "A": [], "B": [], "alt": []}
+{"doc": "1710.04811", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "1711.04607", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "1711.05441", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "1711.10105", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "1712.01815", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "1712.05204", "low_conf_equations": 2, "A": [], "B": [], "alt": []}
+{"doc": "1801.06136", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "1802.08153", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "1802.08153v1", "low_conf_equations": 1, "A": [], "B": [], "alt": []}
+{"doc": "1803.09123", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "1803.11166", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "1804.10694v5", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "1805.00791", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "1805.01788", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "1805.08511", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "1805.09782", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "1806.01059", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "1806.02392", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "1806.05258", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "1806.07916", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "1807.01540", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "1807.03656", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "1807.06173", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "1808.06356", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "1808.07302", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "1808.09800v2", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "1809.05467", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "1809.06416", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "1809.09528", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "1810.05432", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "1811.00252", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "1811.06102", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "1812.06193", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "1812.10557", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "1901.05797", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "1901.05873", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "1901.06950", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "1901.10147", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "1901.10147 (1)", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "1901.10263", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "1902.03118", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "1902.05309", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "1903.04829", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "1904.00084", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "1904.01451", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "1904.01966", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "1904.05737", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "1904.07094", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "1904.10887", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "1904.12577v2", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "1905.02788", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "1905.06931", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "1905.08669", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "1905.08669 (1)", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "1905.08691", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "1905.10989", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "1906.02691", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "1906.03304", "low_conf_equations": 1, "A": [], "B": [], "alt": []}
+{"doc": "1906.05170", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "1906.08804v5", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "1907.01439", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "1907.02830", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "1907.03740", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "1908.00469", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "1908.03109", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "1908.03650", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "1908.07836", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "1908.11682", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "1908.11728", "low_conf_equations": 1, "A": [], "B": [], "alt": []}
+{"doc": "1909.00692", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "1909.00741", "low_conf_equations": 1, "A": [], "B": [], "alt": []}
+{"doc": "1909.00749", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "1910.03262", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "1910.04947", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "1910.05241", "low_conf_equations": 2, "A": [], "B": [], "alt": []}
+{"doc": "1910.06048", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "1910.08395", "low_conf_equations": 1, "A": [], "B": [], "alt": []}
+{"doc": "1910.09966", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "1910.10255", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "1911.02850", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "1911.08029", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "1911.08378", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "1912.05960", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "1912.12689", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "1912.13318v5", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "1995b", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "2001.04170", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "2001.04425", "low_conf_equations": 1, "A": [], "B": [], "alt": []}
+{"doc": "2002.01693", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "2002.05993", "low_conf_equations": 1, "A": [], "B": [], "alt": []}
+{"doc": "2002.05993_OCR", "low_conf_equations": 1, "A": [], "B": [], "alt": []}
+{"doc": "2002.06055", "low_conf_equations": 29, "A": [{"ident": "2002.06055_EQ0043", "eq_index": 43, "conf": 0.231967, "page": 26, "arrows_in_array": 3, "vert_in_cell": 1, "latex": "\\begin{aligned} & Y \\otimes(\\mathbb{1} \\otimes X) \\xrightarrow{\\alpha_{Y, \\mathbb{1}, X}^{-1}}(Y \\otimes \\mathbb{1}) \\otimes X \\\\ & \\begin{array}{c} \\downarrow \\rho_{Y} \\otimes X \\\\ \\downarrow \\otimes \\lambda_{X} \\downarrow \\\\ Y \\otimes X=X \\end{array} \\end{aligned}"}, {"ident": "2002.06055_EQ0341", "eq_index": 341, "conf": 0.265207, "page": 126, "arrows_in_array": 6, "vert_in_cell": 1, "latex": "\\begin{array}{ccc} (F h \\circ F g) \\circ F f & \\xrightarrow{a^{\\prime}} F h \\circ(F g \\circ F f) \\\\ F^{2} * 1_{F f} \\uparrow & & \\uparrow 1_{F h} * F^{2} \\\\ F(h g) \\circ F f & & F h \\circ F(g f) \\\\ F^{2} \\uparrow & & \\uparrow \\\\ F((h g) f) \\xrightarrow{F a} & F(h(g f)) \\end{array}"}, {"ident": "2002.06055_EQ0726", "eq_index": 726, "conf": 0.026319, "page": 276, "arrows_in_array": 5, "vert_in_cell": 0, "latex": "\\begin{array}{r} \\left(W, g ;(X, f ; Y)_{F}\\right)_{F} \\xrightarrow{\\beta_{\\left\\langle(X, f ; Y)_{F} ; g\\right\\rangle}}(X, f ; Y)_{F} \\xrightarrow{\\beta_{\\langle Y ; f\\rangle}} Y \\in \\mathrm{~A} \\\\ W \\longrightarrow X \\xrightarrow{f} \\\\ (W, f g ; Y)_{F} \\longrightarrow Y_{P} \\in \\mathrm{C} \\\\ \\beta"}, {"ident": "2002.06055_EQ0829", "eq_index": 829, "conf": 0.188474, "page": 307, "arrows_in_array": 6, "vert_in_cell": 0, "latex": "\\begin{array}{ccc} Z_{g, f} \\xrightarrow{\\bar{f}} Z_{g} \\xrightarrow{\\bar{g}} Z & Z_{g f} \\xrightarrow{\\overline{g f}} Z \\\\ A \\xrightarrow{f} B \\xrightarrow{g} C & & A \\xrightarrow{g f} C \\end{array}"}, {"ident": "2002.06055_EQ0905", "eq_index": 905, "conf": 0.06433, "page": 326, "arrows_in_array": 2, "vert_in_cell": 1, "latex": "\\begin{aligned} &\\left(A, \\alpha_{A} f^{F} Y\\right) \\xrightarrow{\\left(1_{A}, \\gamma_{f^{F} Y}^{A}\\right)}\\left(A, \\beta_{A} f^{F} Y\\right) \\\\ & \\begin{array}{l} \\downarrow \\\\ \\left.\\left.\\left(f, \\alpha_{f, Y}^{-1} \\circ \\alpha_{A} 1_{f{ }^{F} Y}\\right)\\right|_{\\downarrow, \\beta_{f}, Y} \\circ \\beta"}], "B": [], "alt": []}
+{"doc": "2002.08155", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "2003.03155", "low_conf_equations": 2, "A": [], "B": [], "alt": []}
+{"doc": "2003.08551v2", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "2004.02023", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "2004.03630", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "2004.05631", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "2004.05631v1", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "2004.11980", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "2004.13117", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "2005.03529", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "2005.04015", "low_conf_equations": 13, "A": [], "B": [], "alt": []}
+{"doc": "2005.05886", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "2006.0218v1", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "2006.04439", "low_conf_equations": 1, "A": [], "B": [], "alt": []}
+{"doc": "2006.07859", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "2006.08843", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "2006.14038", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "2006.14038 (1)", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "2006.16930", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "2007_Bob_Spr", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "2008.06742", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "2008.09093", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "2009.05574", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "2009.07258", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "2009.09049", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "2009.10417", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "2009.11564", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "2010.00989", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "2010.06467", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "2010.14265", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "2011.00905", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "2011.05171", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "2011.06844", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "2012.15581", "low_conf_equations": 6, "A": [], "B": [], "alt": []}
+{"doc": "2016010446_수학과_최천호", "low_conf_equations": 1, "A": [], "B": [], "alt": []}
+{"doc": "2016_Book_AdvancesInDiscreteDifferential", "low_conf_equations": 5, "A": [], "B": [], "alt": []}
+{"doc": "2018-02-25-Topologies-of-Guitar-Pickup-Circuits", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "2020.coling-main.46", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "2020.emnlp-demos.14", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "2020.emnlp-main.434", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "2020.findings-emnlp.424", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "2020.lrec-1.707", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "2020.lrec-1.751", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "2021-Conformal", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "2022.coling-1.279", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "2023.wiesp-1.8", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "2024.emnlp-main.153", "low_conf_equations": 1, "A": [], "B": [], "alt": []}
+{"doc": "2025-07-06-daily-air", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "2025.lm4dh-1.13", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "2025_05_15_4ff45b8a311ea255c52dg", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "2025_ICEIS__Jlio___SUBMISSION_", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "20c-cation", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "2102.00554", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "2102.02817", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "2102.08145", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "2102.09388", "low_conf_equations": 1, "A": [], "B": [], "alt": []}
+{"doc": "2102.11507", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "2102.11940", "low_conf_equations": 1, "A": [], "B": [], "alt": []}
+{"doc": "2103.01507", "low_conf_equations": 45, "A": [{"ident": "2103.01507_EQ0195", "eq_index": 195, "conf": 0.056861, "page": 49, "arrows_in_array": 4, "vert_in_cell": 1, "latex": "\\begin{array}{ccc} \\Pi \\times \\mathcal{P} & \\xrightarrow{\\mathcal{A}} & \\mathbb{R} \\times \\mathbb{R} \\\\ \\downarrow & & \\downarrow+ \\\\ \\mathcal{P} & & \\stackrel{\\downarrow}{\\mathbb{A}} \\end{array}"}, {"ident": "2103.01507_EQ0580", "eq_index": 580, "conf": 0.056992, "page": 143, "arrows_in_array": 4, "vert_in_cell": 0, "latex": "\\begin{array}{r} C_{\\mathrm{rel} \\partial}^{*, c}\\left(B \\hat{Z}_{1}, \\mathcal{T}\\left(\\mathfrak{X}_{1}\\right)\\right) \\wedge C_{\\mathrm{rel} \\partial}^{*, c}\\left(B \\hat{Z}_{2}, \\mathcal{T}\\left(\\mathfrak{X}_{2}\\right)\\right) \\rightarrow C_{\\mathrm{rel} \\partial}^{*, c}(B \\hat{Z}, \\mathcal{T}(\\mathb"}, {"ident": "2103.01507_EQ1445", "eq_index": 1445, "conf": 0.002617, "page": 357, "arrows_in_array": 5, "vert_in_cell": 1, "latex": "\\begin{array}{ccc} \\left(G_{0}, Y_{0}, V_{0}\\right) \\xrightarrow{f_{0}} & \\left(G_{0}^{\\prime}, Y_{0}^{\\prime}, V_{0}^{\\prime}\\right) \\\\ \\stackrel{g}{\\downarrow} & \\stackrel{\\uparrow_{\\text {id }}}{G_{1}} \\\\ \\left(G_{1}, Y_{1}, V_{1}\\right) \\xrightarrow{h \\circ f_{1}} & \\left(G_{0}^{\\prime}, Y_{0}^{"}, {"ident": "2103.01507_EQ1446", "eq_index": 1446, "conf": 0.123041, "page": 357, "arrows_in_array": 4, "vert_in_cell": 1, "latex": "\\begin{array}{cc} \\left(G_{0}, Y_{0}, V_{0}\\right) \\xrightarrow{f_{0}} & \\left(G_{0}^{\\prime}, Y_{0}^{\\prime}, V_{0}^{\\prime}\\right) \\\\ \\stackrel{g}{\\downarrow} & \\stackrel{f_{1}}{\\rightarrow} \\\\ \\left(G_{2}, Y_{2}, V_{2}\\right) \\xrightarrow{f_{1}} & \\left(G_{2}^{\\prime}, Y_{2}^{\\prime}, V_{2}^{\\pri"}], "B": [{"ident": "2103.01507_EQ0750", "eq_index": 750, "conf": 0.006458, "page": 177, "arrows_in_array": 1, "vert_in_cell": 1, "latex": "\\begin{gathered} C_{\\text {rely }}^{*, c}\\left(B \\hat{Z}_{f^{\\prime \\prime} \\circ h \\circ h^{\\prime}} ; S^{T \\hat{X}_{f^{\\prime \\prime}} \\circ h \\circ h^{\\prime}} \\mid 0^{-V}\\right) \\longleftarrow \\begin{array}{c} g \\circ g^{\\prime} \\circ \\\\ \\downarrow o h \\circ h^{\\prime} \\end{array} C_{\\text {relo"}], "alt": []}
+{"doc": "2103.01828", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "2103.02280", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "2103.05256", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "2103.05358", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "2104.03466", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "2104.05122", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "2104.08926", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "2104.10165", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "2104.10165 (1)", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "2104.13478", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "2104.13478v2", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "2105.00377", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "2105.01925", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "2105.04850", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "2105.05008", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "2105.06220", "low_conf_equations": 1, "A": [], "B": [], "alt": []}
+{"doc": "2105.06220 (1)", "low_conf_equations": 1, "A": [], "B": [], "alt": []}
+{"doc": "2105.07975", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "2105.13662", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "2106.00550", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "2106.07890", "low_conf_equations": 1, "A": [{"ident": "2106.07890_EQ0004", "eq_index": 4, "conf": 0.255197, "page": 7, "arrows_in_array": 3, "vert_in_cell": 0, "latex": "\\begin{cases}* \\rightarrow * & \\text { when } d \\text { contains } c, \\text { red }, \\text { and blue } \\\\ \\emptyset \\rightarrow * & \\text { when } d \\text { does not contain both } c \\text { and red, and } d \\text { does contain blue } \\\\ \\emptyset \\rightarrow \\emptyset & \\text { when } d \\text { d"}], "B": [], "alt": []}
+{"doc": "2106.15845v2", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "2107.03771", "low_conf_equations": 1, "A": [], "B": [], "alt": []}
+{"doc": "2107.09191", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "2107.14795", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "2108.08597", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "2109.00954", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "2109.04432", "low_conf_equations": 1, "A": [], "B": [], "alt": []}
+{"doc": "2109.04713", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "2109.04716", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "2109.08655", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "2109.08899", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "2109.08899v1", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "2109.08935", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "2110.03469", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "2110.04867", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "2110.04888", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "2110.09599", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "2110.11150", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "2110.13883", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "2111.13611", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "2112.06360", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "2112.09332v3", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "2112.10133", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "2112.12675", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "2112.13375", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "21_hans", "low_conf_equations": 5, "A": [], "B": [], "alt": []}
+{"doc": "21bigdata-forte", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "2201.02177v1", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "2201.03873", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "2201.04905", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "2201.13360", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "2201.13360v2", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "2202.0099v1", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "2202.03555", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "2202.06733", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "2202.09464v1", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "2203.02378v3", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "2204.10432", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "2204.11677", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "2205.00001v3", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "2205.11258", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "2205.11390", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "2205.13147v4", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "2205.13449v2", "low_conf_equations": 10, "A": [], "B": [], "alt": []}
+{"doc": "2206.10304v1", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "2207.03560", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "2208.01506", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "2208.09292", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "2209.00445", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "2209.00445v3", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "2209.07250", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "2210.01571", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "2210.01629v3", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "2210.04530", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "2210.05359", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "2210.06079", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "2210.07763", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "2211.06384", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "2211.10804", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "2212.00870", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "2302.05211v1", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "2302.06594", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "2302.06594 (1)", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "2302.07348", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "2302.07629", "low_conf_equations": 2, "A": [], "B": [], "alt": []}
+{"doc": "2303.03192", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "2303.11082", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "2303.13542v1", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "2303.17190", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "2303.17580", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "2304.0228v1", "low_conf_equations": 3, "A": [], "B": [], "alt": []}
+{"doc": "2304.03442", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "2304.05000", "low_conf_equations": 1, "A": [], "B": [], "alt": []}
+{"doc": "2304.09433v2", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "2304.14263", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "2305.04710v1", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "2305.05403", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "2305.16755", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "2305.17812", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "2305.18415", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "2306.0024v1", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "2306.0024v2", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "2306.02572", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "2306.03667", "low_conf_equations": 1, "A": [], "B": [], "alt": []}
+{"doc": "2306.04271", "low_conf_equations": 3, "A": [], "B": [], "alt": []}
+{"doc": "2306.13098", "low_conf_equations": 1, "A": [], "B": [], "alt": []}
+{"doc": "2306.17472", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "2307.03122", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "2307.07924v4", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "2307.11927", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "2307.12008", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "2307.13528v2", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "2308.06374", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "2308.07777v1", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "2309.13736", "low_conf_equations": 2, "A": [], "B": [], "alt": []}
+{"doc": "2310.02304v3", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "2310.03024v2", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "2310.04444v3", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "2310.05900", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "2310.07064v2", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "2310.08579", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "2310.10631v3", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "2310.14771", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "2311.0020v1", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "2311.01314", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "2311.09533v3", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "2312.00454", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "2312.11370", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "2312.11532", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "2312.11532v2", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "2401.01142v1", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "2401.03142", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "2401.08585v1", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "2402.02805v2", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "2402.06954v1", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "2402.14207", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "2403.07120v1", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "2403.14252v1", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "2403.18415", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "2404.02905v2", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "2404.04837v3", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "2404.06911v1", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "2404.12981v1", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "2404.14619v1", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "2404.16130v1", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "2405.02732", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "2405.07987", "low_conf_equations": 1, "A": [], "B": [], "alt": []}
+{"doc": "2405.08011v1", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "2405.15071v2", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "2405.20233v1", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "2406.05348v3", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "2406.19108v2", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "2407.01449v2", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "2407.03203", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "2407.06659v3", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "2407.10188v2", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "2407.11418v1", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "2408.08435v1", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "2408.09869v5", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "2408.11646", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "2408.14035v2", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "2408.14717v1", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "240850084_217980236955240_7150574681865916514_n", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "2409.01704v1", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "2409.02789v2", "low_conf_equations": 7, "A": [], "B": [], "alt": []}
+{"doc": "2409.12183v1", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "2409.12568v1", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "2409.18839", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "2410.10630v1", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "2410.19056v1", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "2410.21169v5", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "2411.04920", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "2411.12449", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "2412.08415v1", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "2501.03145", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "2501.06662", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "2501.06662v1", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "2501.06662v2", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "2501.06699", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "2502.06772v1", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "2502.06772v2", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "2502.09623", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "2502.09623v5", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "2502.15601v2", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "2502.19297v1", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "2502.20855", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "2502.20855v2", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "2503.21383", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "2505.0046v1", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "2505.0100v1", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "2505.02322v1", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "2505.02322v2", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "2505.04670v2", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "2505.05522", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "2505.05522v4", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "2505.14385v2", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "2505.21946v1", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "2506.22516v1", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "2507.11019v1", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "2507.21892v1", "low_conf_equations": 1, "A": [], "B": [], "alt": []}
+{"doc": "2507.21892v1 (1)", "low_conf_equations": 1, "A": [], "B": [], "alt": []}
+{"doc": "2508.06988v1", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "2508.08293v1", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "2508.19773", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "2509.04603v3", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "2509.19446", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "2509.26251v2", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "2510.08252", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "2510.11170v2", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "2510.12269v3", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "2510.15428v1", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "2510.15795", "low_conf_equations": 2, "A": [], "B": [], "alt": []}
+{"doc": "2510.24709v1", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "2510.26854v2", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "2511.07378v1", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "2512.05238v1", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "2512.15098v4", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "2512.21782v1", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "253671.253729", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "2601.00649v1", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "2601.07372", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "2601.07372v1", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "2601.13306", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "2602.11699v3", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "2602.12042v1", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "2602.14075v1", "low_conf_equations": 2, "A": [], "B": [], "alt": []}
+{"doc": "2602.23211", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "2603.01471", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "2603.05061", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "2603.10087", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "2603.13032v1", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "2603.14147", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "2603.15617", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "2603.16021v2", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "2603.21852v2", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "2604.04771", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "2604.11744", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "2604.17002", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "2604.22294", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "2604.22880", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "2604.24175v1", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "2605.12061v1", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "2605.21997v1", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "2605.22763v1", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "2605.30882v1", "low_conf_equations": 1, "A": [], "B": [], "alt": []}
+{"doc": "2606.13669", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "2606.14243", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "2606.16905", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "2606.17642v1", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "2606.26722", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "2606.28429v1", "low_conf_equations": 1, "A": [], "B": [], "alt": []}
+{"doc": "2607.00341", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "2607.02234", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "2607.05794", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "2607.07388", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "2607.15495", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "2607.21333", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "2608.24876v1", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "30253-1526-24697-2-10-20241121", "low_conf_equations": 2, "A": [], "B": [], "alt": []}
+{"doc": "312_Paper", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "3197517.3201354", "low_conf_equations": 1, "A": [], "B": [], "alt": []}
+{"doc": "3318464.3389774", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "3572917", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "3588432.3591518", "low_conf_equations": 3, "A": [{"ident": "3588432.3591518_EQ0019", "eq_index": 19, "conf": 0.284427, "page": 5, "arrows_in_array": 4, "vert_in_cell": 1, "latex": "\\begin{array}{cl} \\mathcal{F}\\left(S_{2}\\right) \\xrightarrow{P_{12}} \\mathcal{F}\\left(S_{1}\\right) \\\\ \\Phi_{2, k} \\uparrow & \\Phi_{1, k}^{\\dagger} \\downarrow \\uparrow \\Phi_{1, k} \\\\ \\left\\langle\\Phi_{2, k}\\right\\rangle \\cong \\mathbb{R}^{k} \\stackrel{ }{C_{12}^{*}} \\mathbb{R}^{k} \\cong\\left\\langle\\Ph"}], "B": [], "alt": []}
+{"doc": "3613424.3614285", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "3643027", "low_conf_equations": 1, "A": [], "B": [], "alt": []}
+{"doc": "3DPGA", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "3c7d08e7-d9f6-4b13-84c0-74e931bf24f7", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "467_Paper", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "4943_Joost-Orientation-Skew-Detection-IJDAR10", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "49_learning_lie_group_symmetry_tr", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "50 years of Combinatorics, Graph Theory, and Computing (Discrete Mathematics and Its Applications) (Fan Chung (editor), Ron Graham (editor) etc.) (Z-Library)", "low_conf_equations": 7, "A": [], "B": [], "alt": []}
+{"doc": "5032cc0b9f09979ef8a89bce4b91191132f0", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "548", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "576-659-1-PB", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "6", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "6788_Riemannian_Generative_Dec", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "6a7c64cb1efed", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "7226-effective-parallelisation-for-machine-learning", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "75_the_impact_of_task_structure_r", "low_conf_equations": 1, "A": [], "B": [], "alt": []}
+{"doc": "830_paper", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "844673279-LESSON-1-Understanding-Chemical-Reactions-and-Equations", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "862117039-Heim-Theory-Reconstructed-10-05-2025-Toward-Experimental-Validation", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "900051.900053", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "9411188", "low_conf_equations": 1, "A": [], "B": [], "alt": []}
+{"doc": "9602137v2", "low_conf_equations": 2, "A": [], "B": [], "alt": []}
+{"doc": "978-3-540-30463-0_3", "low_conf_equations": 4, "A": [], "B": [], "alt": []}
+{"doc": "9780521140638_frontmatter", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "9781108231596.012", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "9912231", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "A First Course in Modular Forms (Fred Diamond, Jerry Shurman (auth.)) (Z-Library)", "low_conf_equations": 10, "A": [], "B": [], "alt": []}
+{"doc": "A Primer of Analytic Number Theory From Pythagoras to Riemann (Jeffrey Stopple) (Z-Library)", "low_conf_equations": 8, "A": [], "B": [], "alt": []}
+{"doc": "A Visual Introduction to Differential Forms and Calculus on Manifolds (Jon Pierre Fortney) (Z-Library)", "low_conf_equations": 28, "A": [], "B": [], "alt": []}
+{"doc": "AFastAlgorithmforRailExtractionUsingMobileLaserScanningData", "low_conf_equations": 1, "A": [], "B": [], "alt": []}
+{"doc": "AGRAIV_Square_tiled_surfaces_(1)", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "AIAA-2009-5069-885Gravitational_Field_Propulsion", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "AIAA-2013-1750", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "AIAA2005-4321-a4", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "AIAA2010-021-NFF-1", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "AIAA5595JCP2007DarkAbbreviated", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "AIP2010Hauser", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "AKolbe20260316_Bundeskasse", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "AKolbe20260316_stadtkasse", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "A_Class_of_Conceptual_Spaces_Consisting_of_Boundar", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "A_Survey_on_Quaternion_Algebra_and_Geometric_Algebra_Applications_in_Engineering_and_Computer_Science_19952020", "low_conf_equations": 1, "A": [], "B": [], "alt": []}
+{"doc": "A_Tensor_Based_Data_Model_for_Polystore_An_Applica", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "A_bit_better_Variants_of_duality_in_geometric_alge", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "A_method_for_tokenizing_text", "low_conf_equations": 1, "A": [], "B": [], "alt": []}
+{"doc": "A_new_theory_of_light_and_matter", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "A_quantum_dot_in_germanium_proximitized_by_a_super", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "A_quantum_dot_in_germanium_proximitized_by_a_super (1)", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "AberdeenTalk", "low_conf_equations": 1, "A": [], "B": [], "alt": []}
+{"doc": "Algebraic Geometry A Problem Solving Approach (With solutions) (Thomas Garrity, Richard Belshoff, Lynette Boos etc.) (Z-Library)", "low_conf_equations": 1, "A": [], "B": [], "alt": []}
+{"doc": "Algebraic Number Theory (DISCRETE MATHEMATICS AND ITS APPLICATIONS) (Richard A. Mollin) (Z-Library)", "low_conf_equations": 8, "A": [], "B": [], "alt": []}
+{"doc": "Algebraic and geometric ideas in the theory of discrete optimization (Jesús De Loera, Raymond Hemmecke etc.) (Z-Library)", "low_conf_equations": 16, "A": [], "B": [], "alt": []}
+{"doc": "Algebraic and geometric ideas in the theory of discrete optimization (Jesús De Loera, Raymond Hemmecke etc.) (z-lib.org)-1", "low_conf_equations": 16, "A": [], "B": [], "alt": []}
+{"doc": "Alg?bre 1 [Lecture notes] (Olivier Debarre) (Z-Library)", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "AltenkirchMcBrided-TowardsOTT", "low_conf_equations": 11, "A": [], "B": [], "alt": []}
+{"doc": "An Invitation to Applied Category Theory Seven Sketches In Compositionality (Brendan Fong, David I. Spivak) (Z-Library)", "low_conf_equations": 23, "A": [{"ident": "An Invitation to Applied Category Theory Seven Sketches In Compositionality (Brendan Fong, David I. Spivak) (Z-Library)_EQ0062", "eq_index": 62, "conf": 0.001406, "page": 113, "arrows_in_array": 2, "vert_in_cell": 1, "latex": "I=\\left\\lvert\\, \\begin{array}{ccc} 1 & a & 2 \\\\ & \\downarrow & \\downarrow \\\\ & \\triangleright & 3 \\\\ & & \\stackrel{4}{b} \\end{array}\\right."}, {"ident": "An Invitation to Applied Category Theory Seven Sketches In Compositionality (Brendan Fong, David I. Spivak) (Z-Library)_EQ0096", "eq_index": 96, "conf": 0.022027, "page": 146, "arrows_in_array": 2, "vert_in_cell": 1, "latex": "\\operatorname{Col}(\\Phi)=\\begin{array}{|cc|} & \\stackrel{5}{\\longrightarrow} \\\\ 2 \\downarrow & 3\\left(\\bigcup_{\\dot{y}}^{x} 4\\right. \\\\ \\stackrel{\\bullet}{\\dot{a}} & \\\\ \\underset{\\dot{y}}{a} \\end{array}"}, {"ident": "An Invitation to Applied Category Theory Seven Sketches In Compositionality (Brendan Fong, David I. Spivak) (Z-Library)_EQ0180", "eq_index": 180, "conf": 0.01256, "page": 273, "arrows_in_array": 2, "vert_in_cell": 1, "latex": "G=\\left|\\begin{array}{ccc} 1 & & 2 \\\\ & \\underset{c}{a}{ }^{\\downarrow} e^{\\downarrow} \\\\ & & v_{3} \\end{array}\\right|"}, {"ident": "An Invitation to Applied Category Theory Seven Sketches In Compositionality (Brendan Fong, David I. Spivak) (Z-Library)_EQ0202", "eq_index": 202, "conf": 0.000692, "page": 291, "arrows_in_array": 3, "vert_in_cell": 2, "latex": "G_{1}=\\begin{array}{|c|} \\hline \\text { 孛 } \\\\ f=g \\end{array} \\quad G_{2}=\\begin{array}{|c|} \\hline f \\\\ \\stackrel{\\mathcal{Q}}{a} \\\\ f=a \\end{array} \\quad G_{3}=\\begin{array}{|ccc|} \\bullet & \\xrightarrow{f} & \\bullet \\\\ g \\downarrow & & \\downarrow \\\\ \\bullet & i \\\\ f \\circ & \\bullet \\\\ f \\circ g "}], "B": [], "alt": []}
+{"doc": "Ana3_WS25_Loesung_Blat02", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "Ana3_WS25_Loesung_Blat04", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "Arbeitsbuch Höhere Mathematik in Rezepten (2. Auflage, 2017)", "low_conf_equations": 13, "A": [], "B": [], "alt": []}
+{"doc": "Article_Smail_Ahmim", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "Artificial General Intelligence 15th International Conference, AGI 2022, Seattle, WA, USA, August 19?22, 2022, Proceedings (Ben Goertzel, Matt Ikl?, Alexey Potapov etc.) (Z-Library)", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "AttachBBlocaldim", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "AutoMSC_Automatic_Assignment_of_Mathematics_Subjec", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "Autonomous Driving Perception Fundamentals and Applications (Rui Fan, Sicen Guo, Mohammud Junaid Bocus) (Z-Library)", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "Axe-Fx-II-Owners-Manual", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "BH1", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "BH1org_OCR", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "BH3FR", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "BangaloreKMContinued", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "BirgitRichter_book", "low_conf_equations": 12, "A": [{"ident": "BirgitRichter_book_EQ0688", "eq_index": 688, "conf": 0.234998, "page": 237, "arrows_in_array": 3, "vert_in_cell": 1, "latex": "\\left|\\operatorname{pr}_{2}\\right|:\\left(\\begin{array}{rr} & \\\\ C_{p} \\xrightarrow{\\alpha_{p}} \\ldots \\xrightarrow{\\alpha_{1}} C_{0} & B\\left(F\\left(C_{0}\\right) \\downarrow \\mathcal{D}\\right) \\end{array}\\right) \\rightarrow\\left(\\begin{array}{ccc} & & \\\\ & \\bigsqcup & \\\\ C_{p} \\xrightarrow{\\alpha_{p}"}], "B": [], "alt": []}
+{"doc": "Bludau25UnfoldablesSTAR", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "Boltzmann solution", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "BradleyGastaldiTerilla2023", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "Brian_R_Hunt_1999_Nonlinearity_12_1263", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "Bruderus_Regelgeraet_ERC_Montageanweisung-2", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "Bruderus_Regelgeraet_ERC_Montageanweisung-2 (1)", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "Burkhard Heim - Einführung in Burkhard Heim Elementarstrukturen der Materie mit Begriffs- und Formelregister-compressed", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "Burkhard Heim - Elementarstrukturen der Materie Einheitliche strukturelle Quantenfeldtheorie der Materie und Gravitation 2-compressed", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "C12-2133", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "C12-3055", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "CERN-THESIS-2014-012", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "CGIVD2_Dreyer", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "CH-3127", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "CIDR11_Paper26", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "CIDR11_Paper5", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "CIDR13_Paper73", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "CIDR15_Paper1", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "CM2526_exercise_6_solution", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "CM2526_exercises_01", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "CM2526_exercises_02", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "CM2526_exercises_04", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "CM2526_exercises_04_solution", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "CM2526_exercises_05", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "CM2526_exercises_06", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "CM2526_exercises_07", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "CM2526_exercises_08", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "CM2526_exercises_09", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "CMU_DDG_FA17_CurvesSurfacesIntro", "low_conf_equations": 1, "A": [], "B": [], "alt": []}
+{"doc": "CN208060706U", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "COSIT_2009_Adams_Raubal_CameraFinal", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "CSD-91-628", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "Can_compatible_discretization_finite_ele", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "Cat2Type", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "Chapter 1 - Ballistic transport and Landauer formula", "low_conf_equations": 3, "A": [], "B": [], "alt": []}
+{"doc": "Character_Recognition_Using_Graph-based_Method_for", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "ChatGPT Chat Export-10", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "ChatGPTChatExport-11", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "Chats-10", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "Chats-13", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "Chats-14", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "Chats-15", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "Chats-16", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "Chats-19", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "Chats-21", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "Chats-5", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "Chats-6", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "Chats-8", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "Chats-9", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "Chen_Self-Supervised_Learning_With_Geometric_Constraints_in_Monocular_Video_Connecting_Flow_ICCV_2019_paper", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "Chen_Self-Supervised_Learning_With_Geometric_Constraints_in_Monocular_Video_Connecting_Flow_ICCV_2019_paper (1)", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "Clifford_Algebras_in_Symplectic_Geometry", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "Clifford_Geometrodynamics", "low_conf_equations": 3, "A": [], "B": [], "alt": []}
+{"doc": "Clifford_bundle_formulation_of_BF_gravit", "low_conf_equations": 54, "A": [{"ident": "Clifford_bundle_formulation_of_BF_gravit_EQ0115", "eq_index": 115, "conf": 0.051129, "page": 17, "arrows_in_array": 4, "vert_in_cell": 0, "latex": "\\begin{aligned} \\underline{L}_{\\text {Dirac }} & =\\underline{e}\\left\\langle\\left(\\psi^{\\prime}\\right)^{\\dagger} \\gamma_{0} \\vec{e}\\left(\\underset{\\rightarrow}{\\partial}+\\frac{1}{2} \\underset{\\rightarrow}{\\omega}-i \\underset{\\rightarrow}{A}+\\frac{i m}{4} \\underset{\\rightarrow}{e}\\right) \\psi^{\\mid}\\r"}, {"ident": "Clifford_bundle_formulation_of_BF_gravit_EQ0131", "eq_index": 131, "conf": 0.091823, "page": 19, "arrows_in_array": 3, "vert_in_cell": 0, "latex": "\\underset{\\vec{a}}{\\tilde{F}}=\\left[\\begin{array}{cc} \\underset{\\vec{a}}{F^{l}}+\\frac{1}{2} C_{g}^{r} \\times C_{g}^{l} & \\underline{\\partial} C_{g}^{r}+\\frac{1}{2} \\underline{A}_{g}^{l} C_{g}^{r}-\\frac{1}{2} C_{g}^{r}{\\underset{\\sim}{A}}^{r} \\\\ \\underset{\\rightarrow}{\\partial} C_{g}^{l}+\\frac{1}{2} "}, {"ident": "Clifford_bundle_formulation_of_BF_gravit_EQ0147", "eq_index": 147, "conf": 0.02172, "page": 22, "arrows_in_array": 3, "vert_in_cell": 0, "latex": "\\vec{e} \\underline{\\vec{F}}^{\\prime} \\sim\\left[\\begin{array}{cc} \\underset{\\rightarrow}{\\partial}+\\frac{1}{4}(\\underset{\\vec{e}}{\\vec{e}} \\underset{\\rightarrow}{t})-\\frac{i}{2} W^{3} & -\\frac{i}{2} W^{1}-\\frac{1}{2} W^{2} \\\\ -\\frac{i}{2} W^{1}+\\frac{1}{2} W^{2} & \\underset{\\rightarrow}{\\partial}+\\fr"}], "B": [], "alt": []}
+{"doc": "Coherent behavior in neuronal networks (Michael Okun, Alik Mokeichev etc.) (Z-Library)", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "CommentatMathUnivCarolRetro_43-2002-2_3", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "Commercial Hydroponics 3rd Edition (John Mason) (Z-Library)", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "Complex Analysis - Peter Ebenfelt, et al., (Birkhauser, 2010) WW", "low_conf_equations": 1, "A": [], "B": [], "alt": []}
+{"doc": "Compressed sensing in radar signal processing (Antonio De Maio, Yonina C.Eldar etc.) (Z-Library)", "low_conf_equations": 7, "A": [], "B": [], "alt": []}
+{"doc": "Concept_Layers_Enhancing_Interpretability_and_Inte", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "Conceptual_spaces_in_object-oriented_framework", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "Concettometria_12_gennaio_2026", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "ConformalGeometryOfSimplicialSurfaces", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "Constrained Clustering Advances in Algorithms, Theory, and Applications (Chapman HallCRC Data Mining and Knowledge... (Sugato Basu, Ian Davidson, Kiri Wagstaff) (Z-Library)", "low_conf_equations": 9, "A": [], "B": [], "alt": []}
+{"doc": "D15-1204", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "D19", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "DDG-AMS-Notices", "low_conf_equations": 1, "A": [], "B": [], "alt": []}
+{"doc": "DE120100028-project-description", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "DESCRIPTION_obsgermany-climate-daily-solar_en", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "DESIGN AND REALISATION OF COMPOSITE GRIDSHELL postprint", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "DH2017-abstracts", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "DKT05", "low_conf_equations": 1, "A": [], "B": [], "alt": []}
+{"doc": "DKT05 (1)", "low_conf_equations": 1, "A": [], "B": [], "alt": []}
+{"doc": "DMSB_III", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "DSDL_2019_Einspeiser-MIT-verguetetem-Eigenverbrauch_30012019", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "Datas_2016_LHTES&TPV_Postprint_final", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "Datas_2016_LHTES&TPV_Postprint_final (1)", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "DeVitoOehrlepaper", "low_conf_equations": 20, "A": [], "B": [], "alt": []}
+{"doc": "Der_Einfluss_des_Magnetfeldes_bei_der_Th", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "Derivation_of_O3_Electrodynamics_from_the_Irreduci", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "Differential Geometry and Topology With a View to Dynamical Systems (Keith Burns, Marian Gidea) (Z-Library)", "low_conf_equations": 2, "A": [], "B": [], "alt": []}
+{"doc": "Differenziertes Krafttraining mit Schwerpunkt Wirbelsäule (Axel Gottlob) (Z-Library)", "low_conf_equations": 3, "A": [], "B": [], "alt": []}
+{"doc": "Discrete Curvature, Spin, and Geometric Algebra as a Modern Basis for Heim-Style Minimal-Area Physic", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "Discrete Differential Geometry (Alexander I. Bobenko (auth.) etc.) (Z-Library)", "low_conf_equations": 3, "A": [], "B": [], "alt": []}
+{"doc": "Discrete Mathematics Graph Algorithms, Algebraic Structures, Coding Theory, and Cryptography (Sriraman Sridharan R. Balakrishnan) (Z-Library)", "low_conf_equations": 16, "A": [], "B": [], "alt": []}
+{"doc": "DiscreteFundamentalForms", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "Discrete_Differential_Forms_for_Computational_Mode", "low_conf_equations": 1, "A": [], "B": [], "alt": []}
+{"doc": "Document Parsing Unveiled_ Techniques, Challenges, and Prospects for Structured Information Extraction", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "Document_2486093_15101", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "Dorst_fitting_final_JMIV", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "Dressler2011", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "Drill-down_Interactive_Retrieval_of_Complex_Scenes", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "E0744EC7D2E6166F89D3B3ACE1E_70BADF72_6391A8", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "E8Geometry", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "EEsample", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "EGICF12-EMITC2_031", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "EMNLP101", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "EMNLP103", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "EMNLP113", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "EMNLP2014038", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "ESWC2019-Poster", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "Early_Proceedings_of_the_Alterman_Confer", "low_conf_equations": 33, "A": [{"ident": "Early_Proceedings_of_the_Alterman_Confer_EQ0793", "eq_index": 793, "conf": 0.283132, "page": 189, "arrows_in_array": 2, "vert_in_cell": 0, "latex": "\\begin{array}{cccc} \\Lambda_{n} \\times \\Lambda_{n} & \\longrightarrow \\Lambda_{n} & \\Lambda_{n} \\times \\Lambda_{n} & \\stackrel{*}{\\longrightarrow} \\Lambda_{n} \\\\ (A, B) & \\longmapsto A B & (A, B) & \\longmapsto A * B \\end{array}"}], "B": [], "alt": []}
+{"doc": "Einstein_Cartan_Evans_ECE_Unified_Field", "low_conf_equations": 1, "A": [], "B": [], "alt": []}
+{"doc": "Elementary Differential Geometry (Christian Bär) (Z-Library)", "low_conf_equations": 5, "A": [], "B": [], "alt": []}
+{"doc": "Encoding-Geometric-Frustration-In-Tetrahedral-Packing-With-Gaps-Discrete-Curvature-Distortion-or-Twisting", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "EnergyHarvesting", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "Engineering General Intelligence, Part 1 A Path to Advanced AGI via Embodied Learning and Cognitive Synergy (Ben Goertzel, Cassio Pennachin etc.) (Z-Library)", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "Engineering in Life Sciences - 2022 - Erdmann", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "Entropy and Diversity The Axiomatic Approach (Tom Leinster) (Z-Library)", "low_conf_equations": 3, "A": [{"ident": "Entropy and Diversity The Axiomatic Approach (Tom Leinster) (Z-Library)_EQ0777", "eq_index": 777, "conf": 0.205753, "page": 257, "arrows_in_array": 2, "vert_in_cell": 0, "latex": "\\begin{array}{rcll} \\sigma(-, \\mathbf{v}): & \\Delta_{n}^{\\circ} & \\rightarrow & (0, \\infty) \\\\ & \\mathbf{p} & \\mapsto & \\sigma(\\mathbf{p}, \\mathbf{v}) \\end{array}"}], "B": [], "alt": []}
+{"doc": "ExSheet2", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "ExSheet6", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "ExerciseSheet_5_solution", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "ExerciseSheet_7_solution", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "ExerciseSheet_8_solution", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "Exercises_Finite_Fields", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "Expressing_Discrete_Geometry_using_the_Conformal_M", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "FIAS_GaugeGravity_05", "low_conf_equations": 1, "A": [], "B": [], "alt": []}
+{"doc": "FangStationaryphaseprinciple", "low_conf_equations": 5, "A": [], "B": [], "alt": []}
+{"doc": "Fersch_Auftrag_2023", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "FoundationsDeepLearning", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "From_Lie_Theory_to_Deformation_Theory_and_Quantiza", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "Fundaments_of_Quaternionic_Clifford_Anal", "low_conf_equations": 3, "A": [{"ident": "Fundaments_of_Quaternionic_Clifford_Anal_EQ0076", "eq_index": 76, "conf": 0.214867, "page": 12, "arrows_in_array": 3, "vert_in_cell": 0, "latex": "\\begin{array}{c:cccc} \\mathcal{E} & : & \\mathcal{E}^{\\dagger} \\mathcal{H}_{a+1, b-1}^{S} & \\longrightarrow & \\mathcal{H}_{a+1, b-1}^{S} \\\\ \\mathcal{E} & : & \\mathcal{E}^{\\dagger} 2 \\mathcal{H}_{a+2, b-2}^{S} & \\longrightarrow & \\mathcal{E}^{\\dagger} \\mathcal{H}_{a+2, b-2}^{S} \\\\ \\vdots & & & & \\\\ \\m"}], "B": [], "alt": []}
+{"doc": "Fundaments_of_Quaternionic_Clifford_Anal (1)", "low_conf_equations": 3, "A": [{"ident": "Fundaments_of_Quaternionic_Clifford_Anal (1)_EQ0076", "eq_index": 76, "conf": 0.215443, "page": 12, "arrows_in_array": 3, "vert_in_cell": 0, "latex": "\\begin{array}{c:cccc} \\mathcal{E} & : & \\mathcal{E}^{\\dagger} \\mathcal{H}_{a+1, b-1}^{S} & \\longrightarrow & \\mathcal{H}_{a+1, b-1}^{S} \\\\ \\mathcal{E} & : & \\mathcal{E}^{\\dagger} 2 \\mathcal{H}_{a+2, b-2}^{S} & \\longrightarrow & \\mathcal{E}^{\\dagger} \\mathcal{H}_{a+2, b-2}^{S} \\\\ \\vdots & & & & \\\\ \\m"}], "B": [], "alt": []}
+{"doc": "GAALOPScript", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "GUILDFORD-2013-SURREY", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "Garamon_A_Geometric_Algebra_Library_Generator", "low_conf_equations": 4, "A": [{"ident": "Garamon_A_Geometric_Algebra_Library_Generator_EQ0042", "eq_index": 42, "conf": 0.03794, "page": 21, "arrows_in_array": 3, "vert_in_cell": 1, "latex": "\\begin{gathered} \\begin{array}{r} \\left(\\mathfrak{c}_{\\mathrm{u}},\\left(\\mathfrak{c}_{\\mathrm{u}+\\mathrm{msb}}, \\ldots, \\mathfrak{c}_{\\mathrm{u}+2^{d-1}}\\right)\\right) \\xrightarrow{\\psi}\\left(\\mathfrak{c}_{\\mathrm{u}+\\mathrm{msb}},\\left(\\mathfrak{c}_{\\mathrm{u}+2 \\mathrm{msb}},\\left(\\cdots\\left(\\mat"}], "B": [], "alt": []}
+{"doc": "Gardenfors_EvRep", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "General Relativity Simplified Assessed (Taha Sochi) (Z-Library)", "low_conf_equations": 1, "A": [], "B": [], "alt": []}
+{"doc": "Geometric algebra for physicists - errata (Chris Doran, Anthony Lasenby) (Z-Library)", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "Geometric, Algebraic and Topological Methods for Quantum Field Theory (Alexander Cardona (ed.) etc.) (Z-Library)", "low_conf_equations": 11, "A": [{"ident": "Geometric, Algebraic and Topological Methods for Quantum Field Theory (Alexander Cardona (ed.) etc.) (Z-Library)_EQ0077", "eq_index": 77, "conf": 0.149835, "page": 46, "arrows_in_array": 3, "vert_in_cell": 0, "latex": "\\left.\\begin{array}{ccccccc} 1 & \\rightarrow & \\operatorname{Inn}(\\mathcal{A}) & \\longrightarrow & \\operatorname{Aut}(\\mathcal{A}) & \\longrightarrow & \\operatorname{Aut}(\\mathcal{A}) / \\operatorname{Inn}(\\mathcal{A}) \\end{array} \\right\\rvert\\, \\begin{gathered} 1, \\\\ 1 \\\\ \\hline \\end{gathered} \\quad "}, {"ident": "Geometric, Algebraic and Topological Methods for Quantum Field Theory (Alexander Cardona (ed.) etc.) (Z-Library)_EQ0889", "eq_index": 889, "conf": 0.076898, "page": 345, "arrows_in_array": 5, "vert_in_cell": 1, "latex": "\\begin{array}{rll} \\operatorname{Map}(8, M)=L M \\times_{M} L M & \\longrightarrow L M \\times L M \\\\ \\downarrow & \\Delta & \\\\ M & \\downarrow & \\downarrow \\\\ \\downarrow^{e v \\times e v} \\end{array} c M \\times M \\text { }"}, {"ident": "Geometric, Algebraic and Topological Methods for Quantum Field Theory (Alexander Cardona (ed.) etc.) (Z-Library)_EQ0908", "eq_index": 908, "conf": 0.079587, "page": 350, "arrows_in_array": 7, "vert_in_cell": 1, "latex": "\\begin{array}{rlc} P_{g} M:{ }_{1} \\times{ }_{0} P_{h} M & \\longrightarrow & P_{g} M \\times P_{h} M \\\\ \\downarrow & & \\downarrow \\\\ \\downarrow & e_{0} \\circ \\pi_{1} & \\\\ M & & \\downarrow \\\\ \\downarrow & & \\downarrow \\times M \\end{array}"}], "B": [], "alt": []}
+{"doc": "GeometricAlgebra-basedModelingandAnalysisforMulti-layerMulti-temporalGeographicData", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "Geometric_topology", "low_conf_equations": 3, "A": [], "B": [], "alt": []}
+{"doc": "Geometrie und GPS Mathematische, physikalische und technische Grundlagen der Satellitenortung verständlich erklärt (Helmut Albrecht) (Z-Library)", "low_conf_equations": 4, "A": [], "B": [], "alt": []}
+{"doc": "Geometrodynamics of Gauge Fields On the Geometry of Yang-Mills and Gravitational Gauge Theories (Eckehard W. Mielke) (Z-Library)", "low_conf_equations": 44, "A": [{"ident": "Geometrodynamics of Gauge Fields On the Geometry of Yang-Mills and Gravitational Gauge Theories (Eckehard W. Mielke) (Z-Library)_EQ1059", "eq_index": 1059, "conf": 0.147446, "page": 346, "arrows_in_array": 2, "vert_in_cell": 1, "latex": "\\begin{aligned} \\psi= & {\\left[\\begin{array}{lll|l} \\mathcal{P}_{a} & \\mathcal{P}_{b} & \\mathcal{P}_{c} & \\nu_{e} \\\\ \\eta_{a} & \\eta_{b} & \\eta_{c} & e^{-} \\\\ \\lambda_{a} & \\lambda_{b} & \\lambda_{c} & \\mu^{-} \\\\ \\hline c_{a} & c_{b} & c_{c} & \\nu_{\\mu} \\end{array}\\right] \\begin{array}{cc} \\text { up"}], "B": [], "alt": []}
+{"doc": "Geometry of quantum states an introduction to quantum entanglement (Ingemar Bengtsson, Karol Zyczkowski) (Z-Library)", "low_conf_equations": 6, "A": [], "B": [], "alt": []}
+{"doc": "Geothermal heat pump and heat engine systems theory and practice (Chiasson, Andrew) (Z-Library)", "low_conf_equations": 4, "A": [], "B": [], "alt": []}
+{"doc": "Glimpses of Soliton Theory The Algebra and Geometry of Nonlinear PDEs (Alex Kasman) (Z-Library)", "low_conf_equations": 2, "A": [], "B": [], "alt": []}
+{"doc": "Goedel", "low_conf_equations": 1, "A": [], "B": [], "alt": []}
+{"doc": "Google Gemini", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "Graph Classification and Clustering Based on Ve... (Z-Library)", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "Grassmann,GeometryandMechanics", "low_conf_equations": 3, "A": [], "B": [], "alt": []}
+{"doc": "Grassmann,GeometryandMechanics (1)", "low_conf_equations": 3, "A": [], "B": [], "alt": []}
+{"doc": "Grassmannians of Classical Buildings (Algebra and Discrete Mathematics) (Mark Pankov) (Z-Library)", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "Gravitational Radiation, Luminous Black Holes and Gamma-Ray Burst Supernovae - M. van Putten (Cambridge, 2005) WW", "low_conf_equations": 2, "A": [], "B": [], "alt": []}
+{"doc": "HAL - 2020 - Novak - JAES - Pickup", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "Hamiltonian_Mechanics_with_Geometric_Calculus", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "Handbuch_Elektrotechnik__Wilfried_Plamann__Detlef_Schulz__Hrsg.____z-lib.org_", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "Harmonic Maass Forms and Mock Modular Forms Theory and Applications (Kathrin Bringmann , Amanda Folsom , Ken Ono etc.) (Z-Library)", "low_conf_equations": 21, "A": [], "B": [], "alt": [{"ident": "Harmonic Maass Forms and Mock Modular Forms Theory and Applications (Kathrin Bringmann , Amanda Folsom , Ken Ono etc.) (Z-Library)_EQ1644", "conf": 0.008986, "cdots": 4, "bare_rows": 3, "latex": "\\begin{aligned} \\chi(q): & =\\sum_{n=0}^{\\infty} \\frac{q^{n^{2}}(-q ; q)_{n}}{\\left(-q^{3} ; q^{3}\\right)_{n}} \\\\ & =\\left(1+\\zeta_{3}\\right)\\left(1-\\zeta_{3} g_{3}\\left(-\\zeta_{3} ; q\\right)\\right) \\\\ & =q^{-\\frac{1}{8}} \\mu\\left(2 \\tau+\\frac{1}{2}, \\tau ; 3 \\tau\\right)+q^{\\frac{1}{24}} \\frac{\\eta(3"}, {"ident": "Harmonic Maass Forms and Mock Modular Forms Theory and Applications (Kathrin Bringmann , Amanda Folsom , Ken Ono etc.) (Z-Library)_EQ1645", "conf": 0.000554, "cdots": 4, "bare_rows": 1, "latex": "\\begin{aligned} f_{0}(q): & =\\sum_{n=0}^{\\infty} \\frac{q^{n^{2}}}{(-q ; q)_{n}} \\\\ & =-2 q^{2} g_{3}\\left(q^{2} ; q^{10}\\right)+\\frac{\\left(q^{5} ; q^{5}\\right)_{\\infty}\\left(q^{5} ; q^{10}\\right)_{\\infty}}{\\left(q ; q^{5}\\right)_{\\infty}\\left(q^{4} ; q^{5}\\right)_{\\infty}} \\\\ & =2 i q^{-\\frac{13}{4"}, {"ident": "Harmonic Maass Forms and Mock Modular Forms Theory and Applications (Kathrin Bringmann , Amanda Folsom , Ken Ono etc.) (Z-Library)_EQ1654", "conf": 0.018316, "cdots": 3, "bare_rows": 2, "latex": "\\begin{aligned} \\sigma(q):= & \\sum_{n=0}^{\\infty} \\frac{q^{\\frac{(n+1)(n+2)}{2}}(-q ; q)_{n}}{\\left(q ; q^{2}\\right)_{n+1}} \\\\ = & q^{\\frac{1}{2}} g_{2}\\left(q^{\\frac{1}{2}} ; q^{3}\\right)-\\frac{1}{2} \\frac{(q ; q)_{\\infty}^{3}\\left(q^{\\frac{3}{2}} ; q^{\\frac{3}{2}}\\right)_{\\infty}^{2}\\left(q^{6} ; "}, {"ident": "Harmonic Maass Forms and Mock Modular Forms Theory and Applications (Kathrin Bringmann , Amanda Folsom , Ken Ono etc.) (Z-Library)_EQ1655", "conf": 0.000905, "cdots": 2, "bare_rows": 1, "latex": "\\begin{aligned} \\gamma(q):= & \\sum_{n=0}^{\\infty} \\frac{q^{n^{2}}(q ; q)_{n}}{\\left(q^{3} ; q^{3}\\right)_{n}} \\\\ = & -3 q^{\\frac{1}{4}} g_{2}\\left(q^{\\frac{1}{4}} ; q^{\\frac{3}{2}}\\right)+\\frac{3}{2} \\frac{\\left(q^{\\frac{1}{2}} ; q^{\\frac{1}{2}}\\right)_{\\infty}^{3}\\left(q^{\\frac{3}{4}} ; q^{\\frac{3}"}, {"ident": "Harmonic Maass Forms and Mock Modular Forms Theory and Applications (Kathrin Bringmann , Amanda Folsom , Ken Ono etc.) (Z-Library)_EQ1661", "conf": 0.049352, "cdots": 3, "bare_rows": 3, "latex": "\\begin{aligned} T_{1}(q):= & \\sum_{n=0}^{\\infty} \\frac{q^{n(n+1)}\\left(-q^{2} ; q^{2}\\right)_{n}}{\\left(-q ; q^{2}\\right)_{n+1}} \\\\ = & i q^{\\frac{1}{2}} g_{2}\\left(-i q^{\\frac{3}{2}} ; q^{4}\\right)-\\frac{\\left(-i q^{\\frac{1}{2}} ;-q\\right)_{\\infty}^{2}(-q ;-q)_{\\infty}\\left(-q ; q^{8}\\right)_{\\inft"}, {"ident": "Harmonic Maass Forms and Mock Modular Forms Theory and Applications (Kathrin Bringmann , Amanda Folsom , Ken Ono etc.) (Z-Library)_EQ1664", "conf": 0.014736, "cdots": 2, "bare_rows": 1, "latex": "\\begin{aligned} & +2 i q^{\\frac{1}{2}} \\frac{\\left(q^{2} ; q^{2}\\right)_{\\infty}^{2}}{(-q ;-q)_{\\infty}\\left(q^{4} ; q^{20}\\right)_{\\infty}\\left(q^{10} ; q^{20}\\right)_{\\infty}\\left(q^{16} ; q^{20}\\right)_{\\infty}} \\\\ & +\\frac{\\left(q^{2} ; q^{2}\\right)_{\\infty}^{2}\\left(q ; q^{10}\\right)_{\\infty}^{"}]}
+{"doc": "Harwood - Joe Flynn's Parallel Path Magnetic Technology (2003)", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "HeRuWaWi12_final", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "Heim-posdzechgrafikenberlin1994", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "Heim1982und989", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "Heim1982und989Deepseek", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "HeimChatGPTFeb26", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "HeimChatGPTFeb26b", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "Hertlein_DocMatcher_Document_Image_Dewarping_via_Structural_and_Textual_Line_Matching_WACV_2025_paper", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "High-Order_Inverse_Dynamics_of_Serial_Robots_Based", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "Higher Operads, Higher Categories (Tom Leinster) (Z-Library)", "low_conf_equations": 33, "A": [{"ident": "Higher Operads, Higher Categories (Tom Leinster) (Z-Library)_EQ0596", "eq_index": 596, "conf": 0.145464, "page": 363, "arrows_in_array": 2, "vert_in_cell": 0, "latex": "\\[ \\begin{array}{cl} \\left(\\otimes_{\\tau_{1}}\\left(P a_{1}^{1}, \\ldots, P a_{1}^{k_{1}}\\right) \\otimes \\cdots \\otimes\\right. & \\left.\\otimes_{\\tau_{n}}\\left(P a_{n}^{1}, \\ldots, P a_{n}^{k_{n}}\\right)\\right) \\\\ \\xrightarrow{\\left(\\pi_{\\tau_{1}} \\otimes \\cdots \\otimes \\pi_{\\tau_{n}}\\right)} & \\left(P"}], "B": [{"ident": "Higher Operads, Higher Categories (Tom Leinster) (Z-Library)_EQ0308", "eq_index": 308, "conf": 0.142667, "page": 213, "arrows_in_array": 1, "vert_in_cell": 1, "latex": "C=\\left(\\begin{array}{cccc} & & C_{1} & \\\\ & \\operatorname{dom} & & \\operatorname{cod} \\\\ & & & \\\\ T E & & & \\\\ E & & & \\end{array}\\right), \\quad X=\\left(\\begin{array}{c} X \\\\ \\downarrow p \\\\ E \\end{array}\\right)"}, {"ident": "Higher Operads, Higher Categories (Tom Leinster) (Z-Library)_EQ0446", "eq_index": 446, "conf": 0.053016, "page": 309, "arrows_in_array": 1, "vert_in_cell": 1, "latex": "\\begin{array}{lcc} {\\left[\\mathbb{G}_{M}^{\\mathrm{op}}, \\text { Set }\\right]} & M \\text {-Operad } & M-\\text { OP } \\\\ R_{m}^{M} \\backslash \\dashv \\uparrow \\quad I_{m}^{M} & \\left(R_{m}^{M}\\right)_{*} \\backslash f\\left(I_{m}^{M}\\right)_{*} & \\left(R_{m}^{M}\\right)_{*} \\backslash f\\left(I_{m}^{M}\\rig"}], "alt": []}
+{"doc": "Higher categories and homotopical algebra (Denis-Charles Cisinski) (Z-Library)", "low_conf_equations": 16, "A": [], "B": [], "alt": []}
+{"doc": "HitoshiKonno", "low_conf_equations": 8, "A": [], "B": [], "alt": []}
+{"doc": "Hodge Theory and Complex Algebraic Geometry (Claire Voisin, Leila Schneps) (Z-Library)", "low_conf_equations": 4, "A": [], "B": [], "alt": []}
+{"doc": "Homotopical quantum field theory (Yau, Donald Ying) (Z-Library)", "low_conf_equations": 69, "A": [{"ident": "Homotopical quantum field theory (Yau, Donald Ying) (Z-Library)_EQ0236", "eq_index": 236, "conf": 0.14338, "page": 99, "arrows_in_array": 2, "vert_in_cell": 0, "latex": "\\begin{array}{lll} \\gamma(y ; x)=1_{c} & \\text { for } & \\mathrm{O}\\binom{c}{d} \\times \\mathrm{O}\\binom{d}{c} \\xrightarrow{\\gamma} \\mathrm{O}\\binom{c}{c}, \\\\ \\gamma(x ; y)=1_{d} & \\text { for } & \\mathrm{O}\\binom{d}{c} \\times \\mathrm{O}\\binom{c}{d} \\longrightarrow \\\\ \\binom{d}{d} . \\end{array}"}, {"ident": "Homotopical quantum field theory (Yau, Donald Ying) (Z-Library)_EQ0696", "eq_index": 696, "conf": 0.245192, "page": 240, "arrows_in_array": 5, "vert_in_cell": 1, "latex": "\\begin{array}{r} \\bigotimes_{j=1}^{m} Z_{c_{j}} \\xrightarrow{\\otimes_{j} \\lambda^{Z}\\left\\{r_{c_{j}}\\right\\}} \\bigotimes_{j=1}^{m} W_{c_{j}}^{*}=\\bigotimes_{j=1}^{m} Z_{c_{F c_{j}}} \\\\ \\lambda^{Z}\\left\\{p_{j}\\right\\} \\downarrow \\\\ Z_{c} \\longrightarrow \\lambda^{W^{*}}\\left\\{p_{j}\\right\\} \\downarrow="}], "B": [], "alt": []}
+{"doc": "IDEAL2020___Zaki", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "IDG1+2handout", "low_conf_equations": 2, "A": [{"ident": "IDG1+2handout_EQ0004", "eq_index": 4, "conf": 0.174415, "page": 10, "arrows_in_array": 3, "vert_in_cell": 1, "latex": "\\begin{array}{lr} \\pi^{-1}\\left(U_{x}\\right) \\longrightarrow & \\Phi_{x} \\times \\mathbb{R}^{k} \\\\ \\left.\\downarrow \\pi\\right|_{\\pi^{-1}\\left(U_{x}\\right)} & \\pi U_{x} \\downarrow \\\\ U_{x} \\xlongequal{ } & U_{x}, \\end{array}"}], "B": [{"ident": "IDG1+2handout_EQ0003", "eq_index": 3, "conf": 0.02573, "page": 7, "arrows_in_array": 1, "vert_in_cell": 1, "latex": "\\begin{array}{lll} \\mathbb{R}^{m} \\supseteq U_{i} \\supseteq\\left(f \\circ \\phi_{i}\\right)^{-1}\\left(\\psi_{j}\\left(V_{j}\\right)\\right) & & \\psi_{j}^{-1} \\circ f \\circ \\phi_{i} \\\\ \\left|\\phi_{i}\\right|_{\\left(f \\circ \\phi_{i}\\right)^{-1}\\left(\\psi_{j}\\left(V_{j}\\right)\\right)} & \\left.f\\right|_{f-1}\\le"}], "alt": []}
+{"doc": "IDTIR2019", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "IEEEtran_HOWTO", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "IET Intelligent Trans Sys - 2022 - Zang - A multi‐channel geometric algebra residual network for traffic data prediction", "low_conf_equations": 1, "A": [], "B": [], "alt": []}
+{"doc": "IJCAI13-478", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "Infineon-motorcontrol_handbook-AdditionalTechnicalInformation-v01_00-EN", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "Infineon-motorcontrol_handbook-AdditionalTechnicalInformation-v01_00-EN.pdf.drill", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "Infusion_of_Big_Data_Concepts_Across_the", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "Intelligent-Internet-Whitepaper", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "Introduction to General Relativity, Black Holes and Cosmology (Yvonne Choquet-Bruhat) (Z-Library)", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "Introduction to Graph and Hypergraph Theory (Vitaly I. Voloshin) (Z-Library)", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "Introduction to Linear and Matrix Algebra (Nathaniel Johnston) (Z-Library)", "low_conf_equations": 32, "A": [{"ident": "Introduction to Linear and Matrix Algebra (Nathaniel Johnston) (Z-Library)_EQ0005", "eq_index": 5, "conf": 0.091512, "page": 22, "arrows_in_array": 4, "vert_in_cell": 0, "latex": "\\begin{array}{rlrl} & & \\mathbf{x}-(3,2,1) & =(1,2,3)-3 \\mathbf{x} \\\\ \\Longrightarrow & \\mathbf{x} & =(4,4,4)-3 \\mathbf{x} & \\text { (add }(3,2,1) \\text { to both sides) } \\\\ \\Longrightarrow & 4 \\mathbf{x} & =(4,4,4) & \\\\ \\Longrightarrow & \\mathbf{x} & =(1,1,1) . & \\\\ \\Longrightarrow & \\text { (divi"}, {"ident": "Introduction to Linear and Matrix Algebra (Nathaniel Johnston) (Z-Library)_EQ0006", "eq_index": 6, "conf": 0.140503, "page": 22, "arrows_in_array": 4, "vert_in_cell": 0, "latex": "\\begin{array}{rlrl} & & \\mathbf{x}+2(\\mathbf{v}+\\mathbf{w}) & =-\\mathbf{v}-3(\\mathbf{x}-\\mathbf{w}) \\\\ \\Longrightarrow & \\mathbf{x}+2 \\mathbf{v}+2 \\mathbf{w} & =-\\mathbf{v}-3 \\mathbf{x}+3 \\mathbf{w} & \\\\ \\Longrightarrow & 4 \\mathbf{x} & =-3 \\mathbf{v}+\\mathbf{w} & \\\\ \\Longrightarrow & \\mathbf{x} & ="}], "B": [], "alt": []}
+{"doc": "JV2080perf", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "Jordan Structures in Lie Algebras (Antonio Fernandez Lopez (author)) (Z-Library)", "low_conf_equations": 4, "A": [], "B": [], "alt": []}
+{"doc": "Journey to the Edge of Reason The Life of Kurt Gödel (Stephen Budiansky) (Z-Library)", "low_conf_equations": 1, "A": [], "B": [], "alt": []}
+{"doc": "K19-1013", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "K3HKDMV", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "KI_2017_Bechberger", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "Kernert", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "Kriegeretal2021InformationExtractionfromInvoices", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "L-groups and the Langlands program for covering groups (Wee Teck Gan (???), Fan Gao (??) etc.) (Z-Library)", "low_conf_equations": 13, "A": [{"ident": "L-groups and the Langlands program for covering groups (Wee Teck Gan (???), Fan Gao (??) etc.) (Z-Library)_EQ0572", "eq_index": 572, "conf": 0.008968, "page": 186, "arrows_in_array": 2, "vert_in_cell": 1, "latex": "\\begin{array}{ccc} \\underset{\\downarrow}{\\operatorname{Spl}\\left(D^{\\sharp}\\right)} \\xrightarrow{g^{*}} & \\operatorname{Spl}\\left(D_{S}^{\\sharp}\\right) & \\hat{T} \\times \\operatorname{Spl}\\left(D^{\\sharp}\\right) \\end{array} \\xrightarrow{*} \\underset{\\downarrow}{\\downarrow w^{*} \\circ \\sigma} \\quad \\u"}], "B": [{"ident": "L-groups and the Langlands program for covering groups (Wee Teck Gan (???), Fan Gao (??) etc.) (Z-Library)_EQ0157", "eq_index": 157, "conf": 0.011312, "page": 81, "arrows_in_array": 1, "vert_in_cell": 1, "latex": "\\begin{array}{ll} \\hat{\\mathscr{T}}_{2} \\times \\operatorname{SPL}\\left(\\mathscr{D}_{2, Q_{2}, n}\\right) & { }^{*} \\operatorname{SPL}\\left(\\mathscr{D}_{2, Q_{2}, n}\\right) \\\\ \\underbrace{}_{\\downarrow} \\hat{\\iota} \\times \\iota^{*} & \\\\ \\hat{\\mathscr{T}}_{1} \\times \\operatorname{SPL}\\left(\\mathscr{D}_"}], "alt": []}
+{"doc": "LATEX Graphics with TikZ A practitioners guide to drawing 2D and 3D images, diagrams, charts, and plots (Stefan Kottwitz) (Z-Library)", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "LIPIcs-CPM-2021-15", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "LIPIcs.WABI.2024.3", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "LaTeX-Math-Symbols", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "LaTeX-ready snippet (minimal, axiomatic)", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "Langlands correspondence for loop groups (Edward Frenkel) (Z-Library)", "low_conf_equations": 15, "A": [], "B": [], "alt": []}
+{"doc": "Large_mesh_deformation_using_the_volumetric_graph_", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "Latexml-1404.6547", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "Latexml-1404.6547 (1)", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "LauncherSymPaper2007-0-42", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "Law-of-Sums-of-the-Squares-of-Areas-11.12-final-CCP", "low_conf_equations": 1, "A": [], "B": [], "alt": []}
+{"doc": "LearnCat", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "Lectures in Magnetohydrodynamics With an Appendix on Extended MHD (Schnack, Dalton D.) (Z-Library)", "low_conf_equations": 1, "A": [], "B": [], "alt": []}
+{"doc": "Leopardi-ICCA9-FE-GC", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "Lernen", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "Lernen (1)", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "Li_D2Dewarp_Dual_Dimensions_Geometric_Representation_Learning_Based_Document_Image_Dewarping_CVPR_2026_paper", "low_conf_equations": 3, "A": [], "B": [], "alt": []}
+{"doc": "Li_Learnable_Subspace_Orthogonal_Transformed_Projection_for_Semi-supervised_Image_Classification_ACCV_2022_paper", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "Li_SelfDoc_Self-Supervised_Document_CVPR_2021_supplemental", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "Li_SelfDoc_Self-Supervised_Document_Representation_Learning_CVPR_2021_paper", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "Lie Groups, Physics and Geometry - An Intro for Physicists, Engineers and Chemists - R. Gilmore (", "low_conf_equations": 25, "A": [{"ident": "Lie Groups, Physics and Geometry - An Intro for Physicists, Engineers and Chemists - R. Gilmore (_EQ0686", "eq_index": 686, "conf": 0.013917, "page": 220, "arrows_in_array": 4, "vert_in_cell": 0, "latex": "\\begin{aligned} & {\\left[\\mathfrak{h}^{\\prime}, \\mathfrak{h}^{\\prime}\\right]=[\\mathfrak{h}, \\mathfrak{h}] \\subseteq\\left[\\begin{array}{ccc} \\mathfrak{h} & & \\\\ {\\left[\\mathfrak{h}^{\\prime}, \\mathfrak{p}^{\\prime}\\right]} & =[\\mathfrak{h}, \\epsilon \\mathfrak{p}]=\\epsilon[\\mathfrak{h}, \\mathfrak{p}] & "}], "B": [], "alt": []}
+{"doc": "Loesungsvorschlag Nachklausur Analysis II-SS21", "low_conf_equations": 1, "A": [], "B": [], "alt": []}
+{"doc": "MADe for Model-based FMEA", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "MAKSIM_E", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "MG12_FA", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "MLG2018_paper_35", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "MPIMD14-01", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "MSA__Memory_Sparse_Attention_for_Efficient_End_to_End_Memory_Model_Scaling_to_100M_Tokens", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "Making_Array-Based_Translation_Practical_for_Moder", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "Making_Array-Based_Translation_Practical_for_Moder (1)", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "Massenformel_nach_B_Heim_1982", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "Masterarbeit_StroblN", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "Math Methods in App Sciences - 2023 - Lasenby", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "MathBert_paper-03", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "Mathematical_Rescue_of_Weinsteins_Geomet", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "Mathematics, Physics Chemistry With The Wolfram Language (S. M. Blinder) (Z-Library)", "low_conf_equations": 49, "A": [], "B": [], "alt": []}
+{"doc": "Maxwell-Chains_SS2016", "low_conf_equations": 5, "A": [], "B": [], "alt": []}
+{"doc": "Meta-Learning_with_Graph_Neural_Networks_Methods_a", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "Metacognitive_Sedenion-Valued_Neural_Network_and_its_Learning_Algorithm", "low_conf_equations": 2, "A": [], "B": [], "alt": []}
+{"doc": "Metacognitive_Sedenion-Valued_Neural_Network_and_its_Learning_Algorithm (1)", "low_conf_equations": 2, "A": [], "B": [], "alt": []}
+{"doc": "Method_for_narrow-band_search_of_continuous_gravit", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "MinimalCurrent", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "Motovun Jack", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "Multiple_Channel_Wireless_Sensing_System", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "NDrigidbody", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "NIPS-2016-binarized-neural-networks-Paper", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "NLP4RE19_paper08", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "NaliniJoshi", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "Natural-Language Agent Harnesses", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "Network-on-Chip Security and Privacy (Prabhat Mishra (editor) etc.) (Z-Library)", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "Netzverkehrsimulation+und+Angriffserkennung+anhand+von+Machine+Learning+in+IEC61850-basierten+Netzwerken", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "NeurIPS-2023-famo-fast-adaptive-multitask-optimization-Paper-Conference", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "New_Applications_of_Cliffords_Geometric_Algebra", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "NextDocument", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "Nitric Oxide Biology and Pathobiology (Louis J. Ignarro Bruce A. Freeman) (Z-Library)", "low_conf_equations": 1, "A": [], "B": [], "alt": []}
+{"doc": "NitroGen An Open Foundation Model forGeneralist Gaming Agents (Loïc Magne1 , Anas Awadalla1 2 etc.) (Z-Library)", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "NonLinearAlgebra", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "Nonlinear functional analysis in banach spaces and banach algebras fixed point theory under weak topology for nonlinear... (Jeribi, Aref Krichen, Bilel) (Z-Library)", "low_conf_equations": 4, "A": [], "B": [], "alt": []}
+{"doc": "Normalization_square_roots_and_the_exponential_and", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "Number, Shape, Symmetry An Introduction to Number Theory, Geometry, and Group Theory (Diane L. Herrmann, Paul J. Sally Jr.) (Z-Library)", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "Numerical Linear Algebra and Matrix Factorizations (Tom Lyche) (Z-Library)", "low_conf_equations": 10, "A": [], "B": [], "alt": []}
+{"doc": "OMDoc – An Open Markup Format for Mathematical Documents [version 1.2] Foreword by Allan Bundy (Michael Kohlhase (auth.)) (Z-Library)", "low_conf_equations": 3, "A": [], "B": [], "alt": []}
+{"doc": "P10-1087", "low_conf_equations": 1, "A": [], "B": [], "alt": []}
+{"doc": "P13-4023", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "P15-1092", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "Paper_20692", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "Paper_20702", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "Pepe_CGAPoseNetGCAN_A_Geometric_Clifford_Algebra_Network_for_Geometry-Aware_Camera_Pose_WACV_2024_paper", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "PersDB08_proc", "low_conf_equations": 3, "A": [], "B": [], "alt": []}
+{"doc": "PhysRevResearch.6.023294", "low_conf_equations": 1, "A": [], "B": [], "alt": []}
+{"doc": "Plant Litter Decomposition, Humus Formation, Carbon Sequestration (Björn Berg, Charles McClaugherty) (Z-Library)", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "Practical_Geometric_Modeling_Using_Geometric_Algeb", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "PrimaryElectionsCalendar", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "Principles_of_Model_Checking__Christel_Baier__Joost-Pieter_Katoen_etc._", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "Projective_Geometric_Algebra_as_a_Subalgebra_of_Co", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "PythonPrimeronScientificbook", "low_conf_equations": 1, "A": [], "B": [], "alt": []}
+{"doc": "QCGA2018", "low_conf_equations": 1, "A": [], "B": [], "alt": []}
+{"doc": "QG_2018", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "QZ101337", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "Quantum Field Theory Demystified (David McMahon) (z-lib.org)", "low_conf_equations": 1, "A": [], "B": [], "alt": []}
+{"doc": "Quantum Field Theory and Condensed Matter An Introduction (Ramamurti Shankar) (z-lib.org)", "low_conf_equations": 2, "A": [], "B": [], "alt": []}
+{"doc": "Quantum Mechanics Of Geometry -  [jnl article] - A. Ashtekar (1999) WW", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "Quantum_field_theory__Mark_Srednicki___z-lib.org_", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "Quaternion and Clifford Fourier Transforms (Eckhard Hitzer) (Z-Library)", "low_conf_equations": 97, "A": [], "B": [], "alt": []}
+{"doc": "Qwen_latex_20250812_lac5gdl62", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "Qwen_postscript_20260228_8h8efjc7u", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "Qwen_postscript_20260228_9m965qm4z", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "R2017-Dean", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "RAGtifier_Evaluating_RAG_Generation_Approaches_of_", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "RAGtifier_Evaluating_RAG_Generation_Approaches_of_ (1)", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "RE4B-DE", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "RR-1981", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "Radmila_Sazdanovic_1", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "Readings in Database Systems (Peter Bailis, Joseph M. Hellerstein etc.) (z-library.sk, 1lib.sk, z-lib.sk)", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "Recasting_Transfinite_Set_Theory_through", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "Reflections_in_conics_quadrics_and_hyper", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "Reflections_in_conics_quadrics_and_hyper (1)", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "Refractive_index_and_lattice_parameter_prediction_", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "Reparameterization_through_Coverings_and_Topologic", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "RepulsiveCurves", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "RepulsiveSurfaces", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "Review-of-Transformations", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "Riemannian_generative_decoder", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "RischClaude14p", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "Rustamov07", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "SDU_test", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "SI-HoMan-PL-de-53", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "SMA_Passwortrichtlinie-de-10", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "STS018-P2-S", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "Schaums Outline of Discrete Mathematics, Revised Third Edition (Seymour Lipschutz, Marc Lipson) (Z-Library)", "low_conf_equations": 18, "A": [], "B": [], "alt": []}
+{"doc": "Schrödinger Theory of Electrons Complementary Perspectives (Viraht Sahni) (Z-Library)", "low_conf_equations": 7, "A": [], "B": [], "alt": []}
+{"doc": "Semantic_spaces_Measuring_the_distance_b", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "Seven Sketches in Composability An invitation to applied category theory (Brendan Fong, David I. Spivak) (Z-Library)", "low_conf_equations": 21, "A": [{"ident": "Seven Sketches in Composability An invitation to applied category theory (Brendan Fong, David I. Spivak) (Z-Library)_EQ0061", "eq_index": 61, "conf": 0.007756, "page": 110, "arrows_in_array": 3, "vert_in_cell": 1, "latex": "I=\\left[\\begin{array}{ccc} 1 & \\underset{\\bullet}{a} & \\stackrel{2}{\\bullet}{ }^{b} d \\\\ & \\downarrow & \\\\ & \\downarrow & \\\\ & \\downarrow & \\bullet \\end{array}\\right."}, {"ident": "Seven Sketches in Composability An invitation to applied category theory (Brendan Fong, David I. Spivak) (Z-Library)_EQ0181", "eq_index": 181, "conf": 0.043581, "page": 274, "arrows_in_array": 5, "vert_in_cell": 1, "latex": "G=\\left|\\begin{array}{ccc} 1 & \\underset{\\bullet}{a} & \\stackrel{2}{\\bullet} \\\\ & \\downarrow & \\downarrow \\\\ & \\downarrow & \\\\ & \\downarrow & \\\\ & \\downarrow & \\end{array}\\right|"}], "B": [], "alt": []}
+{"doc": "Shortpaper_SGP2019", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "Simulating_the_construction_of_conceptua", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "Solar Hybrid Systems Design and Application (Aktas Ahmet, Kirçiçek Yagmur) (Z-Library)", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "Sonnenkaelte", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "Space Group Representations Theory, Tables and Applications (Nikolai B. Melnikov, Boris I. Reser) (Z-Library)", "low_conf_equations": 11, "A": [], "B": [], "alt": []}
+{"doc": "Space_Bending_Lattices_Parameterization", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "Spectral properties of banded Toeplitz matrices (Albrecht Bo?ttcher Sergei M Grudsky) (Z-Library)", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "Spinor_wave_equation_of_photon", "low_conf_equations": 2, "A": [], "B": [], "alt": []}
+{"doc": "Streicher_BASiS_Batch_Aligned_Spectral_Embedding_Space_CVPR_2023_paper", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "Study_on_Spatial_Geometric_Similarity_Based_on_Con", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "TTO03", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "TabulaROSA_Tabular_Operating_System_Arch", "low_conf_equations": 1, "A": [], "B": [], "alt": []}
+{"doc": "Techno-Economic_Analysis_of_Utility-Scale_Solar_Ph", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "Tensors and Riemannian Geometry With Applications to Differential Equations (Ibragimov N.H.) (z-lib.org)", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "Text_preparation_through_extended_tokeni", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "Text_preparation_through_extended_tokeni (1)", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "The Beltrami Equation A Geometric Approach", "low_conf_equations": 2, "A": [], "B": [], "alt": []}
+{"doc": "The Character Theory of Finite Groups of Lie Type A Guided Tour (Meinolf Geck, Gunter Malle) (Z-Library)", "low_conf_equations": 10, "A": [{"ident": "The Character Theory of Finite Groups of Lie Type A Guided Tour (Meinolf Geck, Gunter Malle) (Z-Library)_EQ0144", "eq_index": 144, "conf": 0.139999, "page": 73, "arrows_in_array": 2, "vert_in_cell": 0, "latex": "\\begin{array}{clc} \\mathbf{Z}^{\\circ} \\times \\mathbf{G}_{\\text {der }} & \\longrightarrow & \\mathbf{G} \\\\ (z, g) & \\mapsto & z g \\end{array} \\quad \\text { and } \\quad \\begin{array}{lll} \\mathbf{G} & \\longrightarrow & \\mathbf{G} / \\mathbf{G}_{\\text {der }} \\times \\mathbf{G} / \\mathbf{Z}^{\\circ} \\\\ & &"}], "B": [], "alt": []}
+{"doc": "The Genesis of the Langlands Program (Julia Mueller (editor)) (Z-Library)", "low_conf_equations": 1, "A": [], "B": [], "alt": []}
+{"doc": "The Geometry and Topology of Three-Manifolds (William P. Thurston) (Z-Library)", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "The Geometry of Minkowski Spacetime - An Intro. to the Mathematics of the Special Theory of Relativity 2nd ed. - G. Naber (Springer, 2012) WW", "low_conf_equations": 26, "A": [], "B": [], "alt": []}
+{"doc": "The Oxford Solid State Basics - Prof. Steven H. Simon", "low_conf_equations": 8, "A": [], "B": [], "alt": []}
+{"doc": "The biblatex Package (Philipp Lehman, Philip Kime, Moritz Wemheuer) (Z-Library)", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "The_Everything_Kids_Giant_Book_of_Jokes__Riddles_and_Brain_Teasers__Dahl__Wagner_and_Weintraub.___z-lib.org_", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "The_Size_and_Energy_Loss_of_a_Wave_Packe", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "The_Size_and_Energy_of_a_Wave_Packet", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "The_Supergeometric_Algebra", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "The_Supergeometric_Algebra (1)", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "The_topology_and_geometry_of_random_square-tiled_s", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "Thermodynamic Abstract to Physical Instantiation", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "ThomasKecker", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "Tutorium Quantenmechanik", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "UM-CS-1988-053", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "Uebung11", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "Uebung12", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "Uebung_02", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "Uebungg02_solution", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "Uebungg02_solution-1", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "Uebungsblatt 01", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "Uebungsblatt 02", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "Uebungsblatt 04", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "Uebungsblatt 05", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "Uebungsblatt 06", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "Uebungsblatt 10", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "Uebungsblatt5LösungenGemini", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "Uebungsblatt6LösungenQwen", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "Understanding Geometric Algebra for Electromagnetic Theory - J. Arthur (Wiley_IEEE, 2011) WW", "low_conf_equations": 23, "A": [{"ident": "Understanding Geometric Algebra for Electromagnetic Theory - J. Arthur (Wiley_IEEE, 2011) WW_EQ0298", "eq_index": 298, "conf": 0.241829, "page": 228, "arrows_in_array": 3, "vert_in_cell": 0, "latex": "\\begin{array}{lll} \\boldsymbol{J}= & \\rho \\boldsymbol{t}+\\boldsymbol{J} & \\leftrightarrow \\\\ \\boldsymbol{F}= & \\boldsymbol{E}-\\boldsymbol{B} & \\leftrightarrow \\\\ \\boldsymbol{A}=-\\boldsymbol{\\Phi} \\boldsymbol{t}-\\boldsymbol{A} & \\leftrightarrow & \\mathbf{E}+\\boldsymbol{B} \\\\ & -\\boldsymbol{\\Phi} \\bol"}], "B": [], "alt": []}
+{"doc": "Understanding Vision Theory, Models, and Data (Li Zhaoping) (Z-Library)", "low_conf_equations": 3, "A": [], "B": [], "alt": []}
+{"doc": "Upadhyay", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "VLDS2012_p03_invited_Weikum", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "VLDS2012_p15_Nakashole", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "VLDS2012_p21_Bienvenu", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "VSR-Slides", "low_conf_equations": 1, "A": [], "B": [], "alt": []}
+{"doc": "Variational Approach to Gravity Field Theories From Newton to Einstein and Beyond (Alberto Vecchiato (auth.)) (Z-Library)", "low_conf_equations": 2, "A": [], "B": [], "alt": []}
+{"doc": "Verbalizable Representations Form a Global Workspace in Language Models", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "Visualization analysis and design (Tamara Munzner) (Z-Library)", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "Visualization of Time-Oriented Data (Wolfgang Aigner, Silvia Miksch etc.) (Z-Library)", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "Vorausschauende+Instandhaltung+von+Stromnetzanlagen+mittels+Deep+Generative+Models", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "W16-2909", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "WCFS_2021_MawhorterPeter_Fractalcoordinatesfo", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "WDorg4", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "WKolbe20250829_ELSTER", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "WKolbe_Rechnung_FrontscheibeA6_2025", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "WallingTalk", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "Week_14", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "ZZ Top Volume 1 Guitar Vocal CLASSIC Authentic Guitar-Tab Edition includes complete Solos (Hamstein Music) (z-lib.org)", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "ZigZagProject", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "aflb342m679", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "aflb472m968", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "agt.2013.13.2193", "low_conf_equations": 1, "A": [], "B": [], "alt": []}
+{"doc": "akbc2014_submission_13", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "akbc2014_submission_8", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "akolberesultsmaster", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "algebraicQM", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "angled-survey", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "anglemaps_SIGGRAPH_2015", "low_conf_equations": 1, "A": [], "B": [], "alt": []}
+{"doc": "applsci-13-02729-v2", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "arXiv-2302.07855v1", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "arXiv_2009.11564", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "arxiv_v1", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "atc24-zhong", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "auto-tune-1.1", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "axioms-11-000852", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "bh2", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "big-data-linkage", "low_conf_equations": 1, "A": [], "B": [], "alt": []}
+{"doc": "bommes_zimmer_2009_siggraph_011", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "bradley_spring22", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "breuils_engage_2017", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "businesscard", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "cam-cocuma87", "low_conf_equations": 7, "A": [], "B": [], "alt": []}
+{"doc": "cameronGRFessay1Apr2019", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "cat", "low_conf_equations": 5, "A": [], "B": [], "alt": []}
+{"doc": "cc4be2488d65e54a6ed06492f8968398ddc18ebe", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "chaintester", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "chys2008", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "classification", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "cleantechnol-06-00018", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "compositelearn", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "conceptgemini", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "cs-2020-04", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "curvedtext", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "cv", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "d30ad510-a0c6-4c48-9b1f-766f595b5a97_Uebungsblatt 01", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "d3se01228j", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "dbakery-complete", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "deep-research-report-1", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "deepseek_postscript_20260228_780a1a", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "deepseek_postscript_20260228_7ecf9e", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "dhm_arzneimittelinfo_nitrate", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "discrete-di-erence-equations", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "discretegeomclaude", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "distro_doc", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "dlrg", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "dmoi4", "low_conf_equations": 15, "A": [], "B": [], "alt": []}
+{"doc": "dravhandling-villamizar", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "e12s38", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "e12s39", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "e12s40", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "e12s41", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "e12s42", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "e12s43", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "elbe_chart-eps-converted-to", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "elbetest", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "emnlp20reg", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "energy", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "entropy-23-00018-v2", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "entropy-23-01195-v2", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "entropy-25-00573-v2", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "eridian", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "erlebacher", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "escher_complex", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "eschertest.dvi", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "espacenetDocument", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "eswc-2020-yago", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "example", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "exerc02", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "exercise01", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "exercise2", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "exploring-the-causes-of-power-converter-failure-in-wind-jch5g7rocp", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "exploring-vibration-sensing-for-condition-based-monitoring", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "fastSpectrum", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "fe901db790b36bc93b47bc24f37c1b5c_lec8", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "fgene-13-927222", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "fgene-13-927222 (1)", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "finanzamt2026", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "first", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "flattened", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "fncom-16-1078150", "low_conf_equations": 1, "A": [], "B": [], "alt": []}
+{"doc": "fractalfract-03-00048", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "fricas_intro", "low_conf_equations": 7, "A": [], "B": [], "alt": []}
+{"doc": "fulltext", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "gr-qc_0012035", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "gr-qc_0110026", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "gr-qc_0111016", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "gr-qc_0212041", "low_conf_equations": 3, "A": [], "B": [], "alt": []}
+{"doc": "grady2010discrete", "low_conf_equations": 8, "A": [], "B": [], "alt": []}
+{"doc": "graphs-and-categories", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "gridFluids_fluid-EulerParticle", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "groups", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "guide-tables", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "guitar", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "gwwk99", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "hamann-baustoffe.de_checkout_finish_sUniqueID_3ED971328A402853U#", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "heim_formula_gemmina_ai_studio_a1", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "heinrich_state_2013", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "hep-th_0001124", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "hep-th_0512172", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "hep-th_0604151", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "hep-th_9411188", "low_conf_equations": 1, "A": [], "B": [], "alt": []}
+{"doc": "hering_circuit", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "hess-2022-251", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "hexatest", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "hodge", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "idea14-proceedings", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "idea15-proceedings", "low_conf_equations": 1, "A": [], "B": [], "alt": []}
+{"doc": "idmt_real_time_pitch_detection_documentation", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "ijgi-07-00172", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "inner_2002", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "intpoly", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "iswc2013_poster_22", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "j.geomphys.2012.02.006", "low_conf_equations": 1, "A": [], "B": [], "alt": []}
+{"doc": "j.jcp.2018.03.019", "low_conf_equations": 1, "A": [], "B": [], "alt": []}
+{"doc": "j.nuclphysb.2018.09.006", "low_conf_equations": 2, "A": [], "B": [], "alt": []}
+{"doc": "jmp_2021052415575774", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "josab-40-8-1922", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "jucs_14_10_1792_1807_spaniol", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "kalinin-et-al-2018-self-organized-criticality-and-pattern-emergence-through-the-lens-of-tropical-geometry", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "kdd-rp", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "keller-helmert-icaps2013", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "kira_kempinska_GIS2017", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "kolbe", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "kolbe2018hubbard", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "kp_output", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "kyoto", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "latex2-script", "low_conf_equations": 1, "A": [], "B": [], "alt": []}
+{"doc": "lattic_constants_bigmodel", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "ldow2014_paper_03", "low_conf_equations": 2, "A": [], "B": [], "alt": []}
+{"doc": "lecture01", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "leitz_label_kolbe", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "lenort", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "lie1", "low_conf_equations": 1, "A": [], "B": [], "alt": []}
+{"doc": "linguist", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "llm-new-architectures", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "llm-subobject", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "llm-subobject-classifier", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "loc205079c8610_slides", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "loc4fabe75a107_slides", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "loc5a36ec53057_slides", "low_conf_equations": 1, "A": [], "B": [], "alt": []}
+{"doc": "loc87718b2e4fe_slides", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "locaf7b3bec909_slides", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "locd0d05da4fc9_slides", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "loce2a79389a51_slides", "low_conf_equations": 1, "A": [], "B": [], "alt": []}
+{"doc": "loce9b3a217aa5_slides", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "locf2dcd5dd47f_slides", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "lopez_aaca_2017", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "lsdsir2", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "madday", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "main", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "main (2)", "low_conf_equations": 3, "A": [], "B": [], "alt": []}
+{"doc": "marx19a", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "math-ph_0212032", "low_conf_equations": 1, "A": [], "B": [], "alt": []}
+{"doc": "math-ph_0403019", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "math_0010054", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "math_0202059", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "mathematics-11-03607", "low_conf_equations": 2, "A": [], "B": [], "alt": []}
+{"doc": "mccarthy-measurementofthetopquarkmassintheallhadronic", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "metricNeutralVis", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "middleware21", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "mixedarea2010", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "mly-psmath", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "mnrasl_381_1_l50", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "moduli-red-harvard", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "morphisms", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "musterloesung", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "nai-paper-916", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "narcissus", "low_conf_equations": 4, "A": [], "B": [], "alt": []}
+{"doc": "nguyenc14", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "nopi_testpagei", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "numinf_3_linear_ausgleich", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "oaianswer", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "oaianswer-1", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "oaianswer-2", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "ontolingua-kaj-1993", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "origamis_Grenoble_matheus_3", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "overlay-1773229265406", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "overlay-1773230703911", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "p03", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "p06", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "p100", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "p1272-beyer", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "p1450-yosef", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "p1521-yahya", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "p1713-suchanek", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "p1810-miliaraki", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "p2530-pereira", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "p4", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "p41", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "p575-eltabakh", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "p589-dutta", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "p6", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "p613-makarimanshadi", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "p71", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "p8", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "p85-miettinen", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "p_247", "low_conf_equations": 1, "A": [], "B": [], "alt": []}
+{"doc": "palmas14a", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "paper", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "paper-02", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "paper-25", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "paper-52", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "paper-7", "low_conf_equations": 1, "A": [], "B": [], "alt": []}
+{"doc": "paper0", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "paper1-kg4ir", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "paper15", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "paper2", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "paper20", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "paper350", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "paper396", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "paper482", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "paper4Axiomatic", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "paper5", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "paper572", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "paper62", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "paper_1", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "paper_15", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "parrlearn", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "pattern-based-quadrangulation", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "paul_cp_violation", "low_conf_equations": 1, "A": [], "B": [], "alt": []}
+{"doc": "penev_A", "low_conf_equations": 1, "A": [], "B": [], "alt": []}
+{"doc": "penev_A.pdf.drill", "low_conf_equations": 1, "A": [], "B": [], "alt": []}
+{"doc": "penev_B", "low_conf_equations": 1, "A": [], "B": [], "alt": []}
+{"doc": "penev_B.pdf.drill", "low_conf_equations": 1, "A": [], "B": [], "alt": []}
+{"doc": "percussion map", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "pfahler_morik_2020a", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "pia2014_paper_04", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "pia2014_proceedings", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "plot", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "pola_pojeciowe_drzewiasto_fraktalne_5_z_rysunkami_afiliacje_na_tytuowej", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "pollmann_schnyder_physik_journal_2015", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "pomp_2024", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "postscriptexamples23", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "preprints201901.0053.v1", "low_conf_equations": 1, "A": [], "B": [], "alt": []}
+{"doc": "preprints202111.0359.v2", "low_conf_equations": 1, "A": [], "B": [], "alt": []}
+{"doc": "preprints202505.0818.v1", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "prob07", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "problemstatement", "low_conf_equations": 2, "A": [], "B": [], "alt": []}
+{"doc": "prolmanual", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "pst-knot-doc", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "python-handbook", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "qft2_Exercise1-1", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "qft2_Exercise1-2", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "qft2_Exercise2-10", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "qft2_Exercise2-11", "low_conf_equations": 1, "A": [], "B": [], "alt": []}
+{"doc": "qft2_Exercise2-12", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "qft2_Exercise2-13", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "qft2_Exercise2-3", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "qft2_Exercise2-4", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "qft2_Exercise2-5", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "qft2_Exercise2-6", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "qft2_Exercise2-6_solutions", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "qft2_Exercise2-7", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "qft2_Exercise2-8", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "qft2_Exercise2-8_solutions", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "qft2_Exercise2-9", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "qft2_Exercise2-9_solutions", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "qftbook", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "qt62k441m6", "low_conf_equations": 4, "A": [], "B": [], "alt": []}
+{"doc": "quant-ph_0101012", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "r1", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "r2", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "raw-python", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "recursive_trace_geometry_final_compiled", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "regularmeshes", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "report", "low_conf_equations": 20, "A": [{"ident": "report_EQ0047", "eq_index": 47, "conf": 0.06474, "page": 14, "arrows_in_array": 11, "vert_in_cell": 1, "latex": "\\begin{array}{clcccccc} 1 & \\longrightarrow & \\operatorname{Spin}(8) & \\longrightarrow & \\left(F_{4}\\right)_{E_{1}} & \\longrightarrow & S^{8} & \\longrightarrow \\\\ & & \\downarrow p^{\\prime} & & \\downarrow p & & \\downarrow= & \\\\ 1 & \\longrightarrow & S O(8) & \\longrightarrow & S O(9) & \\longrightarrow"}], "B": [], "alt": []}
+{"doc": "report_auto", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "rnoti-apr10-cov4", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "rph8-g15q", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "s00006-016-0700-z", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "s00006-020-1046-0", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "s10311-022-01485-y", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "s10958-012-0842-z", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "s40517-022-00233-3", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "s41467-025-66066-3", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "s41598-022-06895-0", "low_conf_equations": 2, "A": [], "B": [], "alt": []}
+{"doc": "s41598-022-26602-3", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "s42256-022-00556-7", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "saarland.univ.web.rev", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "scan_20260527_202821", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "scan_20260527_203727", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "scan_20260527_204203", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "scan_20260528_211713", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "scan_20260530_205842", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "scan_20260530_210015", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "scan_20260530_210342", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "scan_20260530_210514", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "scan_20260530_210623", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "scan_20260530_211129", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "scan_20260530_211808", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "scan_20260530_212419", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "scan_20260530_212914", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "scan_20260530_213421", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "scan_20260530_213608", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "scan_20260530_213818", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "scan_20260530_214259", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "scan_20260530_230729", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "scan_20260530_231215", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "scan_20260530_231637", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "scan_20260531_114026", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "scan_20260531_114321", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "scan_20260531_124307", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "scan_20260531_124851", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "scan_20260531_125820", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "schenkel", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "schibuolapaper", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "sdisoth2013", "low_conf_equations": 1, "A": [], "B": [], "alt": []}
+{"doc": "sensors-16-01859", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "sensors-23-04297-v3", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "sensors-23-04297-v3 (1)", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "set6", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "sheet10", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "sheet2answer", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "sigma12-060", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "sigma14-072", "low_conf_equations": 1, "A": [], "B": [], "alt": []}
+{"doc": "smart-paper1", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "solvers1", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "spectral_descriptor_ecai_rev", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "spinors", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "sqlgpu", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "ssrn-4835497", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "subq-1-1-small-model-card", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "superhot-rock-energy-report", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "symmetry-12-00975", "low_conf_equations": 1, "A": [], "B": [], "alt": []}
+{"doc": "testtable", "low_conf_equations": 2, "A": [{"ident": "testtable_EQ0023", "eq_index": 23, "conf": 0.137543, "page": 8, "arrows_in_array": 16, "vert_in_cell": 1, "latex": "\\left.\\begin{array}{ll} |\\uparrow, \\uparrow \\downarrow\\rangle=[1,3] & \\rightarrow \\\\ |\\downarrow, \\downarrow \\uparrow\\rangle=[1,3] & \\rightarrow \\\\ |\\uparrow \\downarrow, \\uparrow\\rangle=[3,1] & \\rightarrow \\\\ |\\uparrow \\downarrow, \\downarrow\\rangle=[3,2] & \\rightarrow \\end{array}|\\downarrow, \\uparro"}], "B": [], "alt": []}
+{"doc": "th-6236-91", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "th-6236-91 (1)", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "tiling", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "towler_pauli", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "tvcg14-flowgraph", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "tworm", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "umap2014_lateresults_01", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "unit-distance-proof", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "vandermaaten08a", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "vector-dirichlet", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "vlhcc13", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "volovich1", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "w11134", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "webdb2009-final", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "weikum-paper", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "wordpress.discretization.de-A Quick and Dirty Introduction to Exterior Calculus  Part IV Differential Operators", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "ws-19-20-category-theory-hw4", "low_conf_equations": 1, "A": [], "B": [], "alt": []}
+{"doc": "ws2526ueb00", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "ws2526ueb00-solutions", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "ziegenhagen", "low_conf_equations": 0, "A": [], "B": [], "alt": []}
+{"doc": "zorich_square_tiled", "low_conf_equations": 1, "A": [], "B": [], "alt": []}

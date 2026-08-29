@@ -1,0 +1,101 @@
+324 - the text signal: a diagram misread as an equation
+====================================================================
+
+CENSUS AS SPECIFIED
+  scanned                          : 1349 models (one 4.6 GB, unloadable)
+  equations with confidence < 0.3  : 1401
+
+  A  array holding >=2 arrow commands : 44
+  B  \uparrow/\downarrow inside a cell : 5
+  CENSUS                              : 49 rows
+  documents                           : 27
+
+DOCUMENTS
+  2002.06055                                               5
+  2103.01507                                               5
+  An Invitation to Applied Category Theory Seven Sketches  4
+  Clifford_bundle_formulation_of_BF_gravit                 3
+  Geometric, Algebraic and Topological Methods for Quantum 3
+  Higher Operads, Higher Categories (Tom Leinster) (Z-Libr 3
+  Homotopical quantum field theory (Yau, Donald Ying) (Z-L 2
+  IDG1+2handout                                            2
+  Introduction to Linear and Matrix Algebra (Nathaniel Joh 2
+  L-groups and the Langlands program for covering groups ( 2
+  Seven Sketches in Composability An invitation to applied 2
+  0403040v2                                                1
+  0902.0431                                                1
+  2106.07890                                               1
+  3588432.3591518                                          1
+  BirgitRichter_book                                       1
+  Early_Proceedings_of_the_Alterman_Confer                 1
+  Entropy and Diversity The Axiomatic Approach (Tom Leinst 1
+  Fundaments_of_Quaternionic_Clifford_Anal                 1
+  Fundaments_of_Quaternionic_Clifford_Anal (1)             1
+  Garamon_A_Geometric_Algebra_Library_Generator            1
+  Geometrodynamics of Gauge Fields On the Geometry of Yang 1
+  Lie Groups, Physics and Geometry - An Intro for Physicis 1
+  The Character Theory of Finite Groups of Lie Type A Guid 1
+  Understanding Geometric Algebra for Electromagnetic Theo 1
+  report                                                   1
+  testtable                                                1
+
+TEN EXAMPLES
+
+   1. 0403040v2_EQ0076  p9  conf 0.1201  arrows=5 vert=0
+      \begin{array}{lll} \text { Scalar } & \bar{\psi} \psi & \rightarrow \rho \cos \beta=\langle\boldsymbol{\Psi} \tilde{\boldsymbol{\Psi}}\rangle_{0} \\ \
+   2. 0902.0431_EQ0365  p59  conf 0.2643  arrows=11 vert=1
+      \begin{array}{clcccccc} 1 & \longrightarrow & \operatorname{Spin}(8) & \longrightarrow & \left(F_{4}\right)_{E_{1}} & \longrightarrow & S^{8} & \longr
+   3. 2002.06055_EQ0043  p26  conf 0.2320  arrows=3 vert=1
+      \begin{aligned} & Y \otimes(\mathbb{1} \otimes X) \xrightarrow{\alpha_{Y, \mathbb{1}, X}^{-1}}(Y \otimes \mathbb{1}) \otimes X \\ & \begin{array}{c} \
+   4. 2002.06055_EQ0341  p126  conf 0.2652  arrows=6 vert=1
+      \begin{array}{ccc} (F h \circ F g) \circ F f & \xrightarrow{a^{\prime}} F h \circ(F g \circ F f) \\ F^{2} * 1_{F f} \uparrow & & \uparrow 1_{F h} * F^
+   5. 2002.06055_EQ0726  p276  conf 0.0263  arrows=5 vert=0
+      \begin{array}{r} \left(W, g ;(X, f ; Y)_{F}\right)_{F} \xrightarrow{\beta_{\left\langle(X, f ; Y)_{F} ; g\right\rangle}}(X, f ; Y)_{F} \xrightarrow{\b
+   6. 2002.06055_EQ0829  p307  conf 0.1885  arrows=6 vert=0
+      \begin{array}{ccc} Z_{g, f} \xrightarrow{\bar{f}} Z_{g} \xrightarrow{\bar{g}} Z & Z_{g f} \xrightarrow{\overline{g f}} Z \\ A \xrightarrow{f} B \xrigh
+   7. 2002.06055_EQ0905  p326  conf 0.0643  arrows=2 vert=1
+      \begin{aligned} &\left(A, \alpha_{A} f^{F} Y\right) \xrightarrow{\left(1_{A}, \gamma_{f^{F} Y}^{A}\right)}\left(A, \beta_{A} f^{F} Y\right) \\ & \begi
+   8. 2103.01507_EQ0195  p49  conf 0.0569  arrows=4 vert=1
+      \begin{array}{ccc} \Pi \times \mathcal{P} & \xrightarrow{\mathcal{A}} & \mathbb{R} \times \mathbb{R} \\ \downarrow & & \downarrow+ \\ \mathcal{P} & & 
+   9. 2103.01507_EQ0580  p143  conf 0.0570  arrows=4 vert=0
+      \begin{array}{r} C_{\mathrm{rel} \partial}^{*, c}\left(B \hat{Z}_{1}, \mathcal{T}\left(\mathfrak{X}_{1}\right)\right) \wedge C_{\mathrm{rel} \partial}
+  10. 2103.01507_EQ1445  p357  conf 0.0026  arrows=5 vert=1
+      \begin{array}{ccc} \left(G_{0}, Y_{0}, V_{0}\right) \xrightarrow{f_{0}} & \left(G_{0}^{\prime}, Y_{0}^{\prime}, V_{0}^{\prime}\right) \\ \stackrel{g}{
+
+CARDONA EQ0717 IS NOT IN THIS CENSUS, AND THAT IS THE FINDING
+
+  confidence 0.003435, page 275
+
+    \begin{aligned} & \hat{T}=\operatorname{tr}_{a} M_{a}(u) \\ &=\left.\right|_{L} ^{L} \cdots \\ & \cdots \cdots \\ & \cdots 2 \\ & L \end{aligned} a .
+
+  arrows in an array : 0
+  \uparrow/\downarrow : 0
+  array environment  : no - it is `aligned`
+
+  It matches neither criterion. It IS the class being hunted -- a spin
+  chain drawing OCR'd as mathematics, confidence 0.003 -- but its text
+  signal is not arrows. It is an empty fence and a row of ellipses:
+  `\left.\right|` with nothing between the delimiters, then rows that
+  are `\cdots \cdots`, `\cdots 2`, `L`.
+
+  So the specified criteria select a REAL population - 49 rows of genuine
+  commutative diagrams - but not the example given as the case to catch.
+  Both facts are reported rather than reconciled by widening the rule
+  until the example falls in.
+
+MEASURED ALTERNATIVES, over the same 1,401 low-confidence equations
+
+  array or aligned present          964  (68.8%)
+  arrows >= 2 anywhere              216  (15.4%)
+  ellipses >= 2                     138  (9.9%)
+  ellipses >= 2 AND aligned         112  (8.0%)
+  empty fence \left.\right            2  (0.1%)
+
+  The census criterion (arrows INSIDE an array) is 44; arrows anywhere is
+  216, so the array requirement is doing most of the narrowing.
+
+  The empty fence is the sharpest signal in the set - 2 rows of 1,401 -
+  and EQ0717 is one of the two. n=2 is far too small to build a selector
+  on, and it is offered as a measurement rather than a proposal.
+
+per-row records: out/324.json (census) and out/324b.jsonl (all 1,401)

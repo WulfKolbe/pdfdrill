@@ -1,0 +1,546 @@
+{
+ "A": [
+  {
+   "doc": "0403040v2",
+   "ident": "0403040v2_EQ0076",
+   "eq_index": 76,
+   "conf": 0.120053,
+   "page": 9,
+   "arrows_in_array": 5,
+   "vert_in_cell": 0,
+   "latex": "\\begin{array}{lll} \\text { Scalar } & \\bar{\\psi} \\psi & \\rightarrow \\rho \\cos \\beta=\\langle\\boldsymbol{\\Psi} \\tilde{\\boldsymbol{\\Psi}}\\rangle_{0} \\\\ \\text { Vector } & \\bar{\\psi} \\gamma^{\\mu} \\psi & \\rightarrow \\\\ \\text { Bivector (or tensor) } & \\bar{\\psi} \\frac{i}{2}\\left[\\gamma^{\\mu}, \\gamma^{\\nu"
+  },
+  {
+   "doc": "0902.0431",
+   "ident": "0902.0431_EQ0365",
+   "eq_index": 365,
+   "conf": 0.264266,
+   "page": 59,
+   "arrows_in_array": 11,
+   "vert_in_cell": 1,
+   "latex": "\\begin{array}{clcccccc} 1 & \\longrightarrow & \\operatorname{Spin}(8) & \\longrightarrow & \\left(F_{4}\\right)_{E_{1}} & \\longrightarrow & S^{8} & \\longrightarrow \\\\ & & \\downarrow p^{\\prime} & & \\downarrow p & & \\downarrow= & \\\\ 1 & \\longrightarrow & S O(8) & \\longrightarrow & S O(9) & \\longrightarrow"
+  },
+  {
+   "doc": "2002.06055",
+   "ident": "2002.06055_EQ0043",
+   "eq_index": 43,
+   "conf": 0.231967,
+   "page": 26,
+   "arrows_in_array": 3,
+   "vert_in_cell": 1,
+   "latex": "\\begin{aligned} & Y \\otimes(\\mathbb{1} \\otimes X) \\xrightarrow{\\alpha_{Y, \\mathbb{1}, X}^{-1}}(Y \\otimes \\mathbb{1}) \\otimes X \\\\ & \\begin{array}{c} \\downarrow \\rho_{Y} \\otimes X \\\\ \\downarrow \\otimes \\lambda_{X} \\downarrow \\\\ Y \\otimes X=X \\end{array} \\end{aligned}"
+  },
+  {
+   "doc": "2002.06055",
+   "ident": "2002.06055_EQ0341",
+   "eq_index": 341,
+   "conf": 0.265207,
+   "page": 126,
+   "arrows_in_array": 6,
+   "vert_in_cell": 1,
+   "latex": "\\begin{array}{ccc} (F h \\circ F g) \\circ F f & \\xrightarrow{a^{\\prime}} F h \\circ(F g \\circ F f) \\\\ F^{2} * 1_{F f} \\uparrow & & \\uparrow 1_{F h} * F^{2} \\\\ F(h g) \\circ F f & & F h \\circ F(g f) \\\\ F^{2} \\uparrow & & \\uparrow \\\\ F((h g) f) \\xrightarrow{F a} & F(h(g f)) \\end{array}"
+  },
+  {
+   "doc": "2002.06055",
+   "ident": "2002.06055_EQ0726",
+   "eq_index": 726,
+   "conf": 0.026319,
+   "page": 276,
+   "arrows_in_array": 5,
+   "vert_in_cell": 0,
+   "latex": "\\begin{array}{r} \\left(W, g ;(X, f ; Y)_{F}\\right)_{F} \\xrightarrow{\\beta_{\\left\\langle(X, f ; Y)_{F} ; g\\right\\rangle}}(X, f ; Y)_{F} \\xrightarrow{\\beta_{\\langle Y ; f\\rangle}} Y \\in \\mathrm{~A} \\\\ W \\longrightarrow X \\xrightarrow{f} \\\\ (W, f g ; Y)_{F} \\longrightarrow Y_{P} \\in \\mathrm{C} \\\\ \\beta"
+  },
+  {
+   "doc": "2002.06055",
+   "ident": "2002.06055_EQ0829",
+   "eq_index": 829,
+   "conf": 0.188474,
+   "page": 307,
+   "arrows_in_array": 6,
+   "vert_in_cell": 0,
+   "latex": "\\begin{array}{ccc} Z_{g, f} \\xrightarrow{\\bar{f}} Z_{g} \\xrightarrow{\\bar{g}} Z & Z_{g f} \\xrightarrow{\\overline{g f}} Z \\\\ A \\xrightarrow{f} B \\xrightarrow{g} C & & A \\xrightarrow{g f} C \\end{array}"
+  },
+  {
+   "doc": "2002.06055",
+   "ident": "2002.06055_EQ0905",
+   "eq_index": 905,
+   "conf": 0.06433,
+   "page": 326,
+   "arrows_in_array": 2,
+   "vert_in_cell": 1,
+   "latex": "\\begin{aligned} &\\left(A, \\alpha_{A} f^{F} Y\\right) \\xrightarrow{\\left(1_{A}, \\gamma_{f^{F} Y}^{A}\\right)}\\left(A, \\beta_{A} f^{F} Y\\right) \\\\ & \\begin{array}{l} \\downarrow \\\\ \\left.\\left.\\left(f, \\alpha_{f, Y}^{-1} \\circ \\alpha_{A} 1_{f{ }^{F} Y}\\right)\\right|_{\\downarrow, \\beta_{f}, Y} \\circ \\beta"
+  },
+  {
+   "doc": "2103.01507",
+   "ident": "2103.01507_EQ0195",
+   "eq_index": 195,
+   "conf": 0.056861,
+   "page": 49,
+   "arrows_in_array": 4,
+   "vert_in_cell": 1,
+   "latex": "\\begin{array}{ccc} \\Pi \\times \\mathcal{P} & \\xrightarrow{\\mathcal{A}} & \\mathbb{R} \\times \\mathbb{R} \\\\ \\downarrow & & \\downarrow+ \\\\ \\mathcal{P} & & \\stackrel{\\downarrow}{\\mathbb{A}} \\end{array}"
+  },
+  {
+   "doc": "2103.01507",
+   "ident": "2103.01507_EQ0580",
+   "eq_index": 580,
+   "conf": 0.056992,
+   "page": 143,
+   "arrows_in_array": 4,
+   "vert_in_cell": 0,
+   "latex": "\\begin{array}{r} C_{\\mathrm{rel} \\partial}^{*, c}\\left(B \\hat{Z}_{1}, \\mathcal{T}\\left(\\mathfrak{X}_{1}\\right)\\right) \\wedge C_{\\mathrm{rel} \\partial}^{*, c}\\left(B \\hat{Z}_{2}, \\mathcal{T}\\left(\\mathfrak{X}_{2}\\right)\\right) \\rightarrow C_{\\mathrm{rel} \\partial}^{*, c}(B \\hat{Z}, \\mathcal{T}(\\mathb"
+  },
+  {
+   "doc": "2103.01507",
+   "ident": "2103.01507_EQ1445",
+   "eq_index": 1445,
+   "conf": 0.002617,
+   "page": 357,
+   "arrows_in_array": 5,
+   "vert_in_cell": 1,
+   "latex": "\\begin{array}{ccc} \\left(G_{0}, Y_{0}, V_{0}\\right) \\xrightarrow{f_{0}} & \\left(G_{0}^{\\prime}, Y_{0}^{\\prime}, V_{0}^{\\prime}\\right) \\\\ \\stackrel{g}{\\downarrow} & \\stackrel{\\uparrow_{\\text {id }}}{G_{1}} \\\\ \\left(G_{1}, Y_{1}, V_{1}\\right) \\xrightarrow{h \\circ f_{1}} & \\left(G_{0}^{\\prime}, Y_{0}^{"
+  },
+  {
+   "doc": "2103.01507",
+   "ident": "2103.01507_EQ1446",
+   "eq_index": 1446,
+   "conf": 0.123041,
+   "page": 357,
+   "arrows_in_array": 4,
+   "vert_in_cell": 1,
+   "latex": "\\begin{array}{cc} \\left(G_{0}, Y_{0}, V_{0}\\right) \\xrightarrow{f_{0}} & \\left(G_{0}^{\\prime}, Y_{0}^{\\prime}, V_{0}^{\\prime}\\right) \\\\ \\stackrel{g}{\\downarrow} & \\stackrel{f_{1}}{\\rightarrow} \\\\ \\left(G_{2}, Y_{2}, V_{2}\\right) \\xrightarrow{f_{1}} & \\left(G_{2}^{\\prime}, Y_{2}^{\\prime}, V_{2}^{\\pri"
+  },
+  {
+   "doc": "2106.07890",
+   "ident": "2106.07890_EQ0004",
+   "eq_index": 4,
+   "conf": 0.255197,
+   "page": 7,
+   "arrows_in_array": 3,
+   "vert_in_cell": 0,
+   "latex": "\\begin{cases}* \\rightarrow * & \\text { when } d \\text { contains } c, \\text { red }, \\text { and blue } \\\\ \\emptyset \\rightarrow * & \\text { when } d \\text { does not contain both } c \\text { and red, and } d \\text { does contain blue } \\\\ \\emptyset \\rightarrow \\emptyset & \\text { when } d \\text { d"
+  },
+  {
+   "doc": "3588432.3591518",
+   "ident": "3588432.3591518_EQ0019",
+   "eq_index": 19,
+   "conf": 0.284427,
+   "page": 5,
+   "arrows_in_array": 4,
+   "vert_in_cell": 1,
+   "latex": "\\begin{array}{cl} \\mathcal{F}\\left(S_{2}\\right) \\xrightarrow{P_{12}} \\mathcal{F}\\left(S_{1}\\right) \\\\ \\Phi_{2, k} \\uparrow & \\Phi_{1, k}^{\\dagger} \\downarrow \\uparrow \\Phi_{1, k} \\\\ \\left\\langle\\Phi_{2, k}\\right\\rangle \\cong \\mathbb{R}^{k} \\stackrel{ }{C_{12}^{*}} \\mathbb{R}^{k} \\cong\\left\\langle\\Ph"
+  },
+  {
+   "doc": "An Invitation to Applied Category Theory Seven Sketches In Compositionality (Brendan Fong, David I. Spivak) (Z-Library)",
+   "ident": "An Invitation to Applied Category Theory Seven Sketches In Compositionality (Brendan Fong, David I. Spivak) (Z-Library)_EQ0062",
+   "eq_index": 62,
+   "conf": 0.001406,
+   "page": 113,
+   "arrows_in_array": 2,
+   "vert_in_cell": 1,
+   "latex": "I=\\left\\lvert\\, \\begin{array}{ccc} 1 & a & 2 \\\\ & \\downarrow & \\downarrow \\\\ & \\triangleright & 3 \\\\ & & \\stackrel{4}{b} \\end{array}\\right."
+  },
+  {
+   "doc": "An Invitation to Applied Category Theory Seven Sketches In Compositionality (Brendan Fong, David I. Spivak) (Z-Library)",
+   "ident": "An Invitation to Applied Category Theory Seven Sketches In Compositionality (Brendan Fong, David I. Spivak) (Z-Library)_EQ0096",
+   "eq_index": 96,
+   "conf": 0.022027,
+   "page": 146,
+   "arrows_in_array": 2,
+   "vert_in_cell": 1,
+   "latex": "\\operatorname{Col}(\\Phi)=\\begin{array}{|cc|} & \\stackrel{5}{\\longrightarrow} \\\\ 2 \\downarrow & 3\\left(\\bigcup_{\\dot{y}}^{x} 4\\right. \\\\ \\stackrel{\\bullet}{\\dot{a}} & \\\\ \\underset{\\dot{y}}{a} \\end{array}"
+  },
+  {
+   "doc": "An Invitation to Applied Category Theory Seven Sketches In Compositionality (Brendan Fong, David I. Spivak) (Z-Library)",
+   "ident": "An Invitation to Applied Category Theory Seven Sketches In Compositionality (Brendan Fong, David I. Spivak) (Z-Library)_EQ0180",
+   "eq_index": 180,
+   "conf": 0.01256,
+   "page": 273,
+   "arrows_in_array": 2,
+   "vert_in_cell": 1,
+   "latex": "G=\\left|\\begin{array}{ccc} 1 & & 2 \\\\ & \\underset{c}{a}{ }^{\\downarrow} e^{\\downarrow} \\\\ & & v_{3} \\end{array}\\right|"
+  },
+  {
+   "doc": "An Invitation to Applied Category Theory Seven Sketches In Compositionality (Brendan Fong, David I. Spivak) (Z-Library)",
+   "ident": "An Invitation to Applied Category Theory Seven Sketches In Compositionality (Brendan Fong, David I. Spivak) (Z-Library)_EQ0202",
+   "eq_index": 202,
+   "conf": 0.000692,
+   "page": 291,
+   "arrows_in_array": 3,
+   "vert_in_cell": 2,
+   "latex": "G_{1}=\\begin{array}{|c|} \\hline \\text { 孛 } \\\\ f=g \\end{array} \\quad G_{2}=\\begin{array}{|c|} \\hline f \\\\ \\stackrel{\\mathcal{Q}}{a} \\\\ f=a \\end{array} \\quad G_{3}=\\begin{array}{|ccc|} \\bullet & \\xrightarrow{f} & \\bullet \\\\ g \\downarrow & & \\downarrow \\\\ \\bullet & i \\\\ f \\circ & \\bullet \\\\ f \\circ g "
+  },
+  {
+   "doc": "BirgitRichter_book",
+   "ident": "BirgitRichter_book_EQ0688",
+   "eq_index": 688,
+   "conf": 0.234998,
+   "page": 237,
+   "arrows_in_array": 3,
+   "vert_in_cell": 1,
+   "latex": "\\left|\\operatorname{pr}_{2}\\right|:\\left(\\begin{array}{rr} & \\\\ C_{p} \\xrightarrow{\\alpha_{p}} \\ldots \\xrightarrow{\\alpha_{1}} C_{0} & B\\left(F\\left(C_{0}\\right) \\downarrow \\mathcal{D}\\right) \\end{array}\\right) \\rightarrow\\left(\\begin{array}{ccc} & & \\\\ & \\bigsqcup & \\\\ C_{p} \\xrightarrow{\\alpha_{p}"
+  },
+  {
+   "doc": "Clifford_bundle_formulation_of_BF_gravit",
+   "ident": "Clifford_bundle_formulation_of_BF_gravit_EQ0115",
+   "eq_index": 115,
+   "conf": 0.051129,
+   "page": 17,
+   "arrows_in_array": 4,
+   "vert_in_cell": 0,
+   "latex": "\\begin{aligned} \\underline{L}_{\\text {Dirac }} & =\\underline{e}\\left\\langle\\left(\\psi^{\\prime}\\right)^{\\dagger} \\gamma_{0} \\vec{e}\\left(\\underset{\\rightarrow}{\\partial}+\\frac{1}{2} \\underset{\\rightarrow}{\\omega}-i \\underset{\\rightarrow}{A}+\\frac{i m}{4} \\underset{\\rightarrow}{e}\\right) \\psi^{\\mid}\\r"
+  },
+  {
+   "doc": "Clifford_bundle_formulation_of_BF_gravit",
+   "ident": "Clifford_bundle_formulation_of_BF_gravit_EQ0131",
+   "eq_index": 131,
+   "conf": 0.091823,
+   "page": 19,
+   "arrows_in_array": 3,
+   "vert_in_cell": 0,
+   "latex": "\\underset{\\vec{a}}{\\tilde{F}}=\\left[\\begin{array}{cc} \\underset{\\vec{a}}{F^{l}}+\\frac{1}{2} C_{g}^{r} \\times C_{g}^{l} & \\underline{\\partial} C_{g}^{r}+\\frac{1}{2} \\underline{A}_{g}^{l} C_{g}^{r}-\\frac{1}{2} C_{g}^{r}{\\underset{\\sim}{A}}^{r} \\\\ \\underset{\\rightarrow}{\\partial} C_{g}^{l}+\\frac{1}{2} "
+  },
+  {
+   "doc": "Clifford_bundle_formulation_of_BF_gravit",
+   "ident": "Clifford_bundle_formulation_of_BF_gravit_EQ0147",
+   "eq_index": 147,
+   "conf": 0.02172,
+   "page": 22,
+   "arrows_in_array": 3,
+   "vert_in_cell": 0,
+   "latex": "\\vec{e} \\underline{\\vec{F}}^{\\prime} \\sim\\left[\\begin{array}{cc} \\underset{\\rightarrow}{\\partial}+\\frac{1}{4}(\\underset{\\vec{e}}{\\vec{e}} \\underset{\\rightarrow}{t})-\\frac{i}{2} W^{3} & -\\frac{i}{2} W^{1}-\\frac{1}{2} W^{2} \\\\ -\\frac{i}{2} W^{1}+\\frac{1}{2} W^{2} & \\underset{\\rightarrow}{\\partial}+\\fr"
+  },
+  {
+   "doc": "Early_Proceedings_of_the_Alterman_Confer",
+   "ident": "Early_Proceedings_of_the_Alterman_Confer_EQ0793",
+   "eq_index": 793,
+   "conf": 0.283132,
+   "page": 189,
+   "arrows_in_array": 2,
+   "vert_in_cell": 0,
+   "latex": "\\begin{array}{cccc} \\Lambda_{n} \\times \\Lambda_{n} & \\longrightarrow \\Lambda_{n} & \\Lambda_{n} \\times \\Lambda_{n} & \\stackrel{*}{\\longrightarrow} \\Lambda_{n} \\\\ (A, B) & \\longmapsto A B & (A, B) & \\longmapsto A * B \\end{array}"
+  },
+  {
+   "doc": "Entropy and Diversity The Axiomatic Approach (Tom Leinster) (Z-Library)",
+   "ident": "Entropy and Diversity The Axiomatic Approach (Tom Leinster) (Z-Library)_EQ0777",
+   "eq_index": 777,
+   "conf": 0.205753,
+   "page": 257,
+   "arrows_in_array": 2,
+   "vert_in_cell": 0,
+   "latex": "\\begin{array}{rcll} \\sigma(-, \\mathbf{v}): & \\Delta_{n}^{\\circ} & \\rightarrow & (0, \\infty) \\\\ & \\mathbf{p} & \\mapsto & \\sigma(\\mathbf{p}, \\mathbf{v}) \\end{array}"
+  },
+  {
+   "doc": "Fundaments_of_Quaternionic_Clifford_Anal",
+   "ident": "Fundaments_of_Quaternionic_Clifford_Anal_EQ0076",
+   "eq_index": 76,
+   "conf": 0.214867,
+   "page": 12,
+   "arrows_in_array": 3,
+   "vert_in_cell": 0,
+   "latex": "\\begin{array}{c:cccc} \\mathcal{E} & : & \\mathcal{E}^{\\dagger} \\mathcal{H}_{a+1, b-1}^{S} & \\longrightarrow & \\mathcal{H}_{a+1, b-1}^{S} \\\\ \\mathcal{E} & : & \\mathcal{E}^{\\dagger} 2 \\mathcal{H}_{a+2, b-2}^{S} & \\longrightarrow & \\mathcal{E}^{\\dagger} \\mathcal{H}_{a+2, b-2}^{S} \\\\ \\vdots & & & & \\\\ \\m"
+  },
+  {
+   "doc": "Fundaments_of_Quaternionic_Clifford_Anal (1)",
+   "ident": "Fundaments_of_Quaternionic_Clifford_Anal (1)_EQ0076",
+   "eq_index": 76,
+   "conf": 0.215443,
+   "page": 12,
+   "arrows_in_array": 3,
+   "vert_in_cell": 0,
+   "latex": "\\begin{array}{c:cccc} \\mathcal{E} & : & \\mathcal{E}^{\\dagger} \\mathcal{H}_{a+1, b-1}^{S} & \\longrightarrow & \\mathcal{H}_{a+1, b-1}^{S} \\\\ \\mathcal{E} & : & \\mathcal{E}^{\\dagger} 2 \\mathcal{H}_{a+2, b-2}^{S} & \\longrightarrow & \\mathcal{E}^{\\dagger} \\mathcal{H}_{a+2, b-2}^{S} \\\\ \\vdots & & & & \\\\ \\m"
+  },
+  {
+   "doc": "Garamon_A_Geometric_Algebra_Library_Generator",
+   "ident": "Garamon_A_Geometric_Algebra_Library_Generator_EQ0042",
+   "eq_index": 42,
+   "conf": 0.03794,
+   "page": 21,
+   "arrows_in_array": 3,
+   "vert_in_cell": 1,
+   "latex": "\\begin{gathered} \\begin{array}{r} \\left(\\mathfrak{c}_{\\mathrm{u}},\\left(\\mathfrak{c}_{\\mathrm{u}+\\mathrm{msb}}, \\ldots, \\mathfrak{c}_{\\mathrm{u}+2^{d-1}}\\right)\\right) \\xrightarrow{\\psi}\\left(\\mathfrak{c}_{\\mathrm{u}+\\mathrm{msb}},\\left(\\mathfrak{c}_{\\mathrm{u}+2 \\mathrm{msb}},\\left(\\cdots\\left(\\mat"
+  },
+  {
+   "doc": "Geometric, Algebraic and Topological Methods for Quantum Field Theory (Alexander Cardona (ed.) etc.) (Z-Library)",
+   "ident": "Geometric, Algebraic and Topological Methods for Quantum Field Theory (Alexander Cardona (ed.) etc.) (Z-Library)_EQ0077",
+   "eq_index": 77,
+   "conf": 0.149835,
+   "page": 46,
+   "arrows_in_array": 3,
+   "vert_in_cell": 0,
+   "latex": "\\left.\\begin{array}{ccccccc} 1 & \\rightarrow & \\operatorname{Inn}(\\mathcal{A}) & \\longrightarrow & \\operatorname{Aut}(\\mathcal{A}) & \\longrightarrow & \\operatorname{Aut}(\\mathcal{A}) / \\operatorname{Inn}(\\mathcal{A}) \\end{array} \\right\\rvert\\, \\begin{gathered} 1, \\\\ 1 \\\\ \\hline \\end{gathered} \\quad "
+  },
+  {
+   "doc": "Geometric, Algebraic and Topological Methods for Quantum Field Theory (Alexander Cardona (ed.) etc.) (Z-Library)",
+   "ident": "Geometric, Algebraic and Topological Methods for Quantum Field Theory (Alexander Cardona (ed.) etc.) (Z-Library)_EQ0889",
+   "eq_index": 889,
+   "conf": 0.076898,
+   "page": 345,
+   "arrows_in_array": 5,
+   "vert_in_cell": 1,
+   "latex": "\\begin{array}{rll} \\operatorname{Map}(8, M)=L M \\times_{M} L M & \\longrightarrow L M \\times L M \\\\ \\downarrow & \\Delta & \\\\ M & \\downarrow & \\downarrow \\\\ \\downarrow^{e v \\times e v} \\end{array} c M \\times M \\text { }"
+  },
+  {
+   "doc": "Geometric, Algebraic and Topological Methods for Quantum Field Theory (Alexander Cardona (ed.) etc.) (Z-Library)",
+   "ident": "Geometric, Algebraic and Topological Methods for Quantum Field Theory (Alexander Cardona (ed.) etc.) (Z-Library)_EQ0908",
+   "eq_index": 908,
+   "conf": 0.079587,
+   "page": 350,
+   "arrows_in_array": 7,
+   "vert_in_cell": 1,
+   "latex": "\\begin{array}{rlc} P_{g} M:{ }_{1} \\times{ }_{0} P_{h} M & \\longrightarrow & P_{g} M \\times P_{h} M \\\\ \\downarrow & & \\downarrow \\\\ \\downarrow & e_{0} \\circ \\pi_{1} & \\\\ M & & \\downarrow \\\\ \\downarrow & & \\downarrow \\times M \\end{array}"
+  },
+  {
+   "doc": "Geometrodynamics of Gauge Fields On the Geometry of Yang-Mills and Gravitational Gauge Theories (Eckehard W. Mielke) (Z-Library)",
+   "ident": "Geometrodynamics of Gauge Fields On the Geometry of Yang-Mills and Gravitational Gauge Theories (Eckehard W. Mielke) (Z-Library)_EQ1059",
+   "eq_index": 1059,
+   "conf": 0.147446,
+   "page": 346,
+   "arrows_in_array": 2,
+   "vert_in_cell": 1,
+   "latex": "\\begin{aligned} \\psi= & {\\left[\\begin{array}{lll|l} \\mathcal{P}_{a} & \\mathcal{P}_{b} & \\mathcal{P}_{c} & \\nu_{e} \\\\ \\eta_{a} & \\eta_{b} & \\eta_{c} & e^{-} \\\\ \\lambda_{a} & \\lambda_{b} & \\lambda_{c} & \\mu^{-} \\\\ \\hline c_{a} & c_{b} & c_{c} & \\nu_{\\mu} \\end{array}\\right] \\begin{array}{cc} \\text { up"
+  },
+  {
+   "doc": "Higher Operads, Higher Categories (Tom Leinster) (Z-Library)",
+   "ident": "Higher Operads, Higher Categories (Tom Leinster) (Z-Library)_EQ0596",
+   "eq_index": 596,
+   "conf": 0.145464,
+   "page": 363,
+   "arrows_in_array": 2,
+   "vert_in_cell": 0,
+   "latex": "\\[ \\begin{array}{cl} \\left(\\otimes_{\\tau_{1}}\\left(P a_{1}^{1}, \\ldots, P a_{1}^{k_{1}}\\right) \\otimes \\cdots \\otimes\\right. & \\left.\\otimes_{\\tau_{n}}\\left(P a_{n}^{1}, \\ldots, P a_{n}^{k_{n}}\\right)\\right) \\\\ \\xrightarrow{\\left(\\pi_{\\tau_{1}} \\otimes \\cdots \\otimes \\pi_{\\tau_{n}}\\right)} & \\left(P"
+  },
+  {
+   "doc": "Homotopical quantum field theory (Yau, Donald Ying) (Z-Library)",
+   "ident": "Homotopical quantum field theory (Yau, Donald Ying) (Z-Library)_EQ0236",
+   "eq_index": 236,
+   "conf": 0.14338,
+   "page": 99,
+   "arrows_in_array": 2,
+   "vert_in_cell": 0,
+   "latex": "\\begin{array}{lll} \\gamma(y ; x)=1_{c} & \\text { for } & \\mathrm{O}\\binom{c}{d} \\times \\mathrm{O}\\binom{d}{c} \\xrightarrow{\\gamma} \\mathrm{O}\\binom{c}{c}, \\\\ \\gamma(x ; y)=1_{d} & \\text { for } & \\mathrm{O}\\binom{d}{c} \\times \\mathrm{O}\\binom{c}{d} \\longrightarrow \\\\ \\binom{d}{d} . \\end{array}"
+  },
+  {
+   "doc": "Homotopical quantum field theory (Yau, Donald Ying) (Z-Library)",
+   "ident": "Homotopical quantum field theory (Yau, Donald Ying) (Z-Library)_EQ0696",
+   "eq_index": 696,
+   "conf": 0.245192,
+   "page": 240,
+   "arrows_in_array": 5,
+   "vert_in_cell": 1,
+   "latex": "\\begin{array}{r} \\bigotimes_{j=1}^{m} Z_{c_{j}} \\xrightarrow{\\otimes_{j} \\lambda^{Z}\\left\\{r_{c_{j}}\\right\\}} \\bigotimes_{j=1}^{m} W_{c_{j}}^{*}=\\bigotimes_{j=1}^{m} Z_{c_{F c_{j}}} \\\\ \\lambda^{Z}\\left\\{p_{j}\\right\\} \\downarrow \\\\ Z_{c} \\longrightarrow \\lambda^{W^{*}}\\left\\{p_{j}\\right\\} \\downarrow="
+  },
+  {
+   "doc": "IDG1+2handout",
+   "ident": "IDG1+2handout_EQ0004",
+   "eq_index": 4,
+   "conf": 0.174415,
+   "page": 10,
+   "arrows_in_array": 3,
+   "vert_in_cell": 1,
+   "latex": "\\begin{array}{lr} \\pi^{-1}\\left(U_{x}\\right) \\longrightarrow & \\Phi_{x} \\times \\mathbb{R}^{k} \\\\ \\left.\\downarrow \\pi\\right|_{\\pi^{-1}\\left(U_{x}\\right)} & \\pi U_{x} \\downarrow \\\\ U_{x} \\xlongequal{ } & U_{x}, \\end{array}"
+  },
+  {
+   "doc": "Introduction to Linear and Matrix Algebra (Nathaniel Johnston) (Z-Library)",
+   "ident": "Introduction to Linear and Matrix Algebra (Nathaniel Johnston) (Z-Library)_EQ0005",
+   "eq_index": 5,
+   "conf": 0.091512,
+   "page": 22,
+   "arrows_in_array": 4,
+   "vert_in_cell": 0,
+   "latex": "\\begin{array}{rlrl} & & \\mathbf{x}-(3,2,1) & =(1,2,3)-3 \\mathbf{x} \\\\ \\Longrightarrow & \\mathbf{x} & =(4,4,4)-3 \\mathbf{x} & \\text { (add }(3,2,1) \\text { to both sides) } \\\\ \\Longrightarrow & 4 \\mathbf{x} & =(4,4,4) & \\\\ \\Longrightarrow & \\mathbf{x} & =(1,1,1) . & \\\\ \\Longrightarrow & \\text { (divi"
+  },
+  {
+   "doc": "Introduction to Linear and Matrix Algebra (Nathaniel Johnston) (Z-Library)",
+   "ident": "Introduction to Linear and Matrix Algebra (Nathaniel Johnston) (Z-Library)_EQ0006",
+   "eq_index": 6,
+   "conf": 0.140503,
+   "page": 22,
+   "arrows_in_array": 4,
+   "vert_in_cell": 0,
+   "latex": "\\begin{array}{rlrl} & & \\mathbf{x}+2(\\mathbf{v}+\\mathbf{w}) & =-\\mathbf{v}-3(\\mathbf{x}-\\mathbf{w}) \\\\ \\Longrightarrow & \\mathbf{x}+2 \\mathbf{v}+2 \\mathbf{w} & =-\\mathbf{v}-3 \\mathbf{x}+3 \\mathbf{w} & \\\\ \\Longrightarrow & 4 \\mathbf{x} & =-3 \\mathbf{v}+\\mathbf{w} & \\\\ \\Longrightarrow & \\mathbf{x} & ="
+  },
+  {
+   "doc": "L-groups and the Langlands program for covering groups (Wee Teck Gan (???), Fan Gao (??) etc.) (Z-Library)",
+   "ident": "L-groups and the Langlands program for covering groups (Wee Teck Gan (???), Fan Gao (??) etc.) (Z-Library)_EQ0572",
+   "eq_index": 572,
+   "conf": 0.008968,
+   "page": 186,
+   "arrows_in_array": 2,
+   "vert_in_cell": 1,
+   "latex": "\\begin{array}{ccc} \\underset{\\downarrow}{\\operatorname{Spl}\\left(D^{\\sharp}\\right)} \\xrightarrow{g^{*}} & \\operatorname{Spl}\\left(D_{S}^{\\sharp}\\right) & \\hat{T} \\times \\operatorname{Spl}\\left(D^{\\sharp}\\right) \\end{array} \\xrightarrow{*} \\underset{\\downarrow}{\\downarrow w^{*} \\circ \\sigma} \\quad \\u"
+  },
+  {
+   "doc": "Lie Groups, Physics and Geometry - An Intro for Physicists, Engineers and Chemists - R. Gilmore (",
+   "ident": "Lie Groups, Physics and Geometry - An Intro for Physicists, Engineers and Chemists - R. Gilmore (_EQ0686",
+   "eq_index": 686,
+   "conf": 0.013917,
+   "page": 220,
+   "arrows_in_array": 4,
+   "vert_in_cell": 0,
+   "latex": "\\begin{aligned} & {\\left[\\mathfrak{h}^{\\prime}, \\mathfrak{h}^{\\prime}\\right]=[\\mathfrak{h}, \\mathfrak{h}] \\subseteq\\left[\\begin{array}{ccc} \\mathfrak{h} & & \\\\ {\\left[\\mathfrak{h}^{\\prime}, \\mathfrak{p}^{\\prime}\\right]} & =[\\mathfrak{h}, \\epsilon \\mathfrak{p}]=\\epsilon[\\mathfrak{h}, \\mathfrak{p}] & "
+  },
+  {
+   "doc": "Seven Sketches in Composability An invitation to applied category theory (Brendan Fong, David I. Spivak) (Z-Library)",
+   "ident": "Seven Sketches in Composability An invitation to applied category theory (Brendan Fong, David I. Spivak) (Z-Library)_EQ0061",
+   "eq_index": 61,
+   "conf": 0.007756,
+   "page": 110,
+   "arrows_in_array": 3,
+   "vert_in_cell": 1,
+   "latex": "I=\\left[\\begin{array}{ccc} 1 & \\underset{\\bullet}{a} & \\stackrel{2}{\\bullet}{ }^{b} d \\\\ & \\downarrow & \\\\ & \\downarrow & \\\\ & \\downarrow & \\bullet \\end{array}\\right."
+  },
+  {
+   "doc": "Seven Sketches in Composability An invitation to applied category theory (Brendan Fong, David I. Spivak) (Z-Library)",
+   "ident": "Seven Sketches in Composability An invitation to applied category theory (Brendan Fong, David I. Spivak) (Z-Library)_EQ0181",
+   "eq_index": 181,
+   "conf": 0.043581,
+   "page": 274,
+   "arrows_in_array": 5,
+   "vert_in_cell": 1,
+   "latex": "G=\\left|\\begin{array}{ccc} 1 & \\underset{\\bullet}{a} & \\stackrel{2}{\\bullet} \\\\ & \\downarrow & \\downarrow \\\\ & \\downarrow & \\\\ & \\downarrow & \\\\ & \\downarrow & \\end{array}\\right|"
+  },
+  {
+   "doc": "The Character Theory of Finite Groups of Lie Type A Guided Tour (Meinolf Geck, Gunter Malle) (Z-Library)",
+   "ident": "The Character Theory of Finite Groups of Lie Type A Guided Tour (Meinolf Geck, Gunter Malle) (Z-Library)_EQ0144",
+   "eq_index": 144,
+   "conf": 0.139999,
+   "page": 73,
+   "arrows_in_array": 2,
+   "vert_in_cell": 0,
+   "latex": "\\begin{array}{clc} \\mathbf{Z}^{\\circ} \\times \\mathbf{G}_{\\text {der }} & \\longrightarrow & \\mathbf{G} \\\\ (z, g) & \\mapsto & z g \\end{array} \\quad \\text { and } \\quad \\begin{array}{lll} \\mathbf{G} & \\longrightarrow & \\mathbf{G} / \\mathbf{G}_{\\text {der }} \\times \\mathbf{G} / \\mathbf{Z}^{\\circ} \\\\ & &"
+  },
+  {
+   "doc": "Understanding Geometric Algebra for Electromagnetic Theory - J. Arthur (Wiley_IEEE, 2011) WW",
+   "ident": "Understanding Geometric Algebra for Electromagnetic Theory - J. Arthur (Wiley_IEEE, 2011) WW_EQ0298",
+   "eq_index": 298,
+   "conf": 0.241829,
+   "page": 228,
+   "arrows_in_array": 3,
+   "vert_in_cell": 0,
+   "latex": "\\begin{array}{lll} \\boldsymbol{J}= & \\rho \\boldsymbol{t}+\\boldsymbol{J} & \\leftrightarrow \\\\ \\boldsymbol{F}= & \\boldsymbol{E}-\\boldsymbol{B} & \\leftrightarrow \\\\ \\boldsymbol{A}=-\\boldsymbol{\\Phi} \\boldsymbol{t}-\\boldsymbol{A} & \\leftrightarrow & \\mathbf{E}+\\boldsymbol{B} \\\\ & -\\boldsymbol{\\Phi} \\bol"
+  },
+  {
+   "doc": "report",
+   "ident": "report_EQ0047",
+   "eq_index": 47,
+   "conf": 0.06474,
+   "page": 14,
+   "arrows_in_array": 11,
+   "vert_in_cell": 1,
+   "latex": "\\begin{array}{clcccccc} 1 & \\longrightarrow & \\operatorname{Spin}(8) & \\longrightarrow & \\left(F_{4}\\right)_{E_{1}} & \\longrightarrow & S^{8} & \\longrightarrow \\\\ & & \\downarrow p^{\\prime} & & \\downarrow p & & \\downarrow= & \\\\ 1 & \\longrightarrow & S O(8) & \\longrightarrow & S O(9) & \\longrightarrow"
+  },
+  {
+   "doc": "testtable",
+   "ident": "testtable_EQ0023",
+   "eq_index": 23,
+   "conf": 0.137543,
+   "page": 8,
+   "arrows_in_array": 16,
+   "vert_in_cell": 1,
+   "latex": "\\left.\\begin{array}{ll} |\\uparrow, \\uparrow \\downarrow\\rangle=[1,3] & \\rightarrow \\\\ |\\downarrow, \\downarrow \\uparrow\\rangle=[1,3] & \\rightarrow \\\\ |\\uparrow \\downarrow, \\uparrow\\rangle=[3,1] & \\rightarrow \\\\ |\\uparrow \\downarrow, \\downarrow\\rangle=[3,2] & \\rightarrow \\end{array}|\\downarrow, \\uparro"
+  }
+ ],
+ "B": [
+  {
+   "doc": "2103.01507",
+   "ident": "2103.01507_EQ0750",
+   "eq_index": 750,
+   "conf": 0.006458,
+   "page": 177,
+   "arrows_in_array": 1,
+   "vert_in_cell": 1,
+   "latex": "\\begin{gathered} C_{\\text {rely }}^{*, c}\\left(B \\hat{Z}_{f^{\\prime \\prime} \\circ h \\circ h^{\\prime}} ; S^{T \\hat{X}_{f^{\\prime \\prime}} \\circ h \\circ h^{\\prime}} \\mid 0^{-V}\\right) \\longleftarrow \\begin{array}{c} g \\circ g^{\\prime} \\circ \\\\ \\downarrow o h \\circ h^{\\prime} \\end{array} C_{\\text {relo"
+  },
+  {
+   "doc": "Higher Operads, Higher Categories (Tom Leinster) (Z-Library)",
+   "ident": "Higher Operads, Higher Categories (Tom Leinster) (Z-Library)_EQ0308",
+   "eq_index": 308,
+   "conf": 0.142667,
+   "page": 213,
+   "arrows_in_array": 1,
+   "vert_in_cell": 1,
+   "latex": "C=\\left(\\begin{array}{cccc} & & C_{1} & \\\\ & \\operatorname{dom} & & \\operatorname{cod} \\\\ & & & \\\\ T E & & & \\\\ E & & & \\end{array}\\right), \\quad X=\\left(\\begin{array}{c} X \\\\ \\downarrow p \\\\ E \\end{array}\\right)"
+  },
+  {
+   "doc": "Higher Operads, Higher Categories (Tom Leinster) (Z-Library)",
+   "ident": "Higher Operads, Higher Categories (Tom Leinster) (Z-Library)_EQ0446",
+   "eq_index": 446,
+   "conf": 0.053016,
+   "page": 309,
+   "arrows_in_array": 1,
+   "vert_in_cell": 1,
+   "latex": "\\begin{array}{lcc} {\\left[\\mathbb{G}_{M}^{\\mathrm{op}}, \\text { Set }\\right]} & M \\text {-Operad } & M-\\text { OP } \\\\ R_{m}^{M} \\backslash \\dashv \\uparrow \\quad I_{m}^{M} & \\left(R_{m}^{M}\\right)_{*} \\backslash f\\left(I_{m}^{M}\\right)_{*} & \\left(R_{m}^{M}\\right)_{*} \\backslash f\\left(I_{m}^{M}\\rig"
+  },
+  {
+   "doc": "IDG1+2handout",
+   "ident": "IDG1+2handout_EQ0003",
+   "eq_index": 3,
+   "conf": 0.02573,
+   "page": 7,
+   "arrows_in_array": 1,
+   "vert_in_cell": 1,
+   "latex": "\\begin{array}{lll} \\mathbb{R}^{m} \\supseteq U_{i} \\supseteq\\left(f \\circ \\phi_{i}\\right)^{-1}\\left(\\psi_{j}\\left(V_{j}\\right)\\right) & & \\psi_{j}^{-1} \\circ f \\circ \\phi_{i} \\\\ \\left|\\phi_{i}\\right|_{\\left(f \\circ \\phi_{i}\\right)^{-1}\\left(\\psi_{j}\\left(V_{j}\\right)\\right)} & \\left.f\\right|_{f-1}\\le"
+  },
+  {
+   "doc": "L-groups and the Langlands program for covering groups (Wee Teck Gan (???), Fan Gao (??) etc.) (Z-Library)",
+   "ident": "L-groups and the Langlands program for covering groups (Wee Teck Gan (???), Fan Gao (??) etc.) (Z-Library)_EQ0157",
+   "eq_index": 157,
+   "conf": 0.011312,
+   "page": 81,
+   "arrows_in_array": 1,
+   "vert_in_cell": 1,
+   "latex": "\\begin{array}{ll} \\hat{\\mathscr{T}}_{2} \\times \\operatorname{SPL}\\left(\\mathscr{D}_{2, Q_{2}, n}\\right) & { }^{*} \\operatorname{SPL}\\left(\\mathscr{D}_{2, Q_{2}, n}\\right) \\\\ \\underbrace{}_{\\downarrow} \\hat{\\iota} \\times \\iota^{*} & \\\\ \\hat{\\mathscr{T}}_{1} \\times \\operatorname{SPL}\\left(\\mathscr{D}_"
+  }
+ ],
+ "alt": [
+  {
+   "doc": "Harmonic Maass Forms and Mock Modular Forms Theory and Applications (Kathrin Bringmann , Amanda Folsom , Ken Ono etc.) (Z-Library)",
+   "ident": "Harmonic Maass Forms and Mock Modular Forms Theory and Applications (Kathrin Bringmann , Amanda Folsom , Ken Ono etc.) (Z-Library)_EQ1644",
+   "conf": 0.008986,
+   "cdots": 4,
+   "bare_rows": 3,
+   "latex": "\\begin{aligned} \\chi(q): & =\\sum_{n=0}^{\\infty} \\frac{q^{n^{2}}(-q ; q)_{n}}{\\left(-q^{3} ; q^{3}\\right)_{n}} \\\\ & =\\left(1+\\zeta_{3}\\right)\\left(1-\\zeta_{3} g_{3}\\left(-\\zeta_{3} ; q\\right)\\right) \\\\ & =q^{-\\frac{1}{8}} \\mu\\left(2 \\tau+\\frac{1}{2}, \\tau ; 3 \\tau\\right)+q^{\\frac{1}{24}} \\frac{\\eta(3"
+  },
+  {
+   "doc": "Harmonic Maass Forms and Mock Modular Forms Theory and Applications (Kathrin Bringmann , Amanda Folsom , Ken Ono etc.) (Z-Library)",
+   "ident": "Harmonic Maass Forms and Mock Modular Forms Theory and Applications (Kathrin Bringmann , Amanda Folsom , Ken Ono etc.) (Z-Library)_EQ1645",
+   "conf": 0.000554,
+   "cdots": 4,
+   "bare_rows": 1,
+   "latex": "\\begin{aligned} f_{0}(q): & =\\sum_{n=0}^{\\infty} \\frac{q^{n^{2}}}{(-q ; q)_{n}} \\\\ & =-2 q^{2} g_{3}\\left(q^{2} ; q^{10}\\right)+\\frac{\\left(q^{5} ; q^{5}\\right)_{\\infty}\\left(q^{5} ; q^{10}\\right)_{\\infty}}{\\left(q ; q^{5}\\right)_{\\infty}\\left(q^{4} ; q^{5}\\right)_{\\infty}} \\\\ & =2 i q^{-\\frac{13}{4"
+  },
+  {
+   "doc": "Harmonic Maass Forms and Mock Modular Forms Theory and Applications (Kathrin Bringmann , Amanda Folsom , Ken Ono etc.) (Z-Library)",
+   "ident": "Harmonic Maass Forms and Mock Modular Forms Theory and Applications (Kathrin Bringmann , Amanda Folsom , Ken Ono etc.) (Z-Library)_EQ1654",
+   "conf": 0.018316,
+   "cdots": 3,
+   "bare_rows": 2,
+   "latex": "\\begin{aligned} \\sigma(q):= & \\sum_{n=0}^{\\infty} \\frac{q^{\\frac{(n+1)(n+2)}{2}}(-q ; q)_{n}}{\\left(q ; q^{2}\\right)_{n+1}} \\\\ = & q^{\\frac{1}{2}} g_{2}\\left(q^{\\frac{1}{2}} ; q^{3}\\right)-\\frac{1}{2} \\frac{(q ; q)_{\\infty}^{3}\\left(q^{\\frac{3}{2}} ; q^{\\frac{3}{2}}\\right)_{\\infty}^{2}\\left(q^{6} ; "
+  },
+  {
+   "doc": "Harmonic Maass Forms and Mock Modular Forms Theory and Applications (Kathrin Bringmann , Amanda Folsom , Ken Ono etc.) (Z-Library)",
+   "ident": "Harmonic Maass Forms and Mock Modular Forms Theory and Applications (Kathrin Bringmann , Amanda Folsom , Ken Ono etc.) (Z-Library)_EQ1655",
+   "conf": 0.000905,
+   "cdots": 2,
+   "bare_rows": 1,
+   "latex": "\\begin{aligned} \\gamma(q):= & \\sum_{n=0}^{\\infty} \\frac{q^{n^{2}}(q ; q)_{n}}{\\left(q^{3} ; q^{3}\\right)_{n}} \\\\ = & -3 q^{\\frac{1}{4}} g_{2}\\left(q^{\\frac{1}{4}} ; q^{\\frac{3}{2}}\\right)+\\frac{3}{2} \\frac{\\left(q^{\\frac{1}{2}} ; q^{\\frac{1}{2}}\\right)_{\\infty}^{3}\\left(q^{\\frac{3}{4}} ; q^{\\frac{3}"
+  },
+  {
+   "doc": "Harmonic Maass Forms and Mock Modular Forms Theory and Applications (Kathrin Bringmann , Amanda Folsom , Ken Ono etc.) (Z-Library)",
+   "ident": "Harmonic Maass Forms and Mock Modular Forms Theory and Applications (Kathrin Bringmann , Amanda Folsom , Ken Ono etc.) (Z-Library)_EQ1661",
+   "conf": 0.049352,
+   "cdots": 3,
+   "bare_rows": 3,
+   "latex": "\\begin{aligned} T_{1}(q):= & \\sum_{n=0}^{\\infty} \\frac{q^{n(n+1)}\\left(-q^{2} ; q^{2}\\right)_{n}}{\\left(-q ; q^{2}\\right)_{n+1}} \\\\ = & i q^{\\frac{1}{2}} g_{2}\\left(-i q^{\\frac{3}{2}} ; q^{4}\\right)-\\frac{\\left(-i q^{\\frac{1}{2}} ;-q\\right)_{\\infty}^{2}(-q ;-q)_{\\infty}\\left(-q ; q^{8}\\right)_{\\inft"
+  },
+  {
+   "doc": "Harmonic Maass Forms and Mock Modular Forms Theory and Applications (Kathrin Bringmann , Amanda Folsom , Ken Ono etc.) (Z-Library)",
+   "ident": "Harmonic Maass Forms and Mock Modular Forms Theory and Applications (Kathrin Bringmann , Amanda Folsom , Ken Ono etc.) (Z-Library)_EQ1664",
+   "conf": 0.014736,
+   "cdots": 2,
+   "bare_rows": 1,
+   "latex": "\\begin{aligned} & +2 i q^{\\frac{1}{2}} \\frac{\\left(q^{2} ; q^{2}\\right)_{\\infty}^{2}}{(-q ;-q)_{\\infty}\\left(q^{4} ; q^{20}\\right)_{\\infty}\\left(q^{10} ; q^{20}\\right)_{\\infty}\\left(q^{16} ; q^{20}\\right)_{\\infty}} \\\\ & +\\frac{\\left(q^{2} ; q^{2}\\right)_{\\infty}^{2}\\left(q ; q^{10}\\right)_{\\infty}^{"
+  }
+ ]
+}
