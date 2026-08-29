@@ -1,0 +1,37 @@
+{
+ "doc": "1905.06931",
+ "pdf": "1905.06931.pdf",
+ "rc": 0,
+ "stdout_tail": "Build stamp: report.build.json — phase=reading, 52 pages, 505380 bytes, sha256 1b0addfa55a2. A measurement of this report should copy it into its output as `measured_against`.",
+ "seconds": 19.5,
+ "regions": {
+  "regions_with_latex": 8,
+  "attempted_now": 8,
+  "rendered": 6,
+  "failed": 2,
+  "has_author_preamble": true,
+  "graphics_dir": "/home/wkolbe/pdfdrill-library/1905.06931/texsrc",
+  "failures": [
+   {
+    "id": "1905.06931_DIA_0006",
+    "first_error": "! Package inputenc Error: inputenc is not designed for xetex"
+   },
+   {
+    "id": "1905.06931_DIA_0007",
+    "first_error": "! Package inputenc Error: inputenc is not designed for xetex"
+   }
+  ]
+ },
+ "manifest_rows": 8,
+ "with_latex": 8,
+ "duplicated": 2,
+ "table_cols": [
+  5,
+  5,
+  4,
+  6
+ ],
+ "six_col_tables": 1,
+ "region_table_cols": 6,
+ "ink_selectable": true
+}
