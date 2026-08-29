@@ -1,0 +1,33 @@
+{
+ "doc": "2608.24876v1",
+ "pdf": "2608.24876v1.pdf",
+ "rc": 0,
+ "stdout_tail": "Build stamp: report.build.json — phase=reading, 11 pages, 112691 bytes, sha256 52f2b47800fc. A measurement of this report should copy it into its output as `measured_against`.",
+ "seconds": 4.5,
+ "regions": {
+  "regions_with_latex": 1,
+  "attempted_now": 1,
+  "rendered": 0,
+  "failed": 1,
+  "has_author_preamble": true,
+  "graphics_dir": "/home/wkolbe/pdfdrill-library/2608.24876v1/texsrc",
+  "failures": [
+   {
+    "id": "2608.24876v1_DIA_0001",
+    "first_error": "! LaTeX Error: Missing \\begin{document}."
+   }
+  ]
+ },
+ "manifest_rows": 1,
+ "with_latex": 1,
+ "duplicated": 1,
+ "table_cols": [
+  5,
+  5,
+  4,
+  6
+ ],
+ "six_col_tables": 1,
+ "region_table_cols": 6,
+ "ink_selectable": true
+}
