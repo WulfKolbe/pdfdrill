@@ -1,0 +1,23 @@
+{
+ "doc": "Ana3_WS25_Loesung_Blat02",
+ "pdf": "Ana3_WS25_Loesung_Blat02.pdf",
+ "rc": 0,
+ "stdout_tail": "Build stamp: report.build.json — phase=reading, 10 pages, 534124 bytes, sha256 f5cb308315d9. A measurement of this report should copy it into its output as `measured_against`.",
+ "seconds": 2.8,
+ "regions": {
+  "regions_with_latex": 0,
+  "attempted_now": 0,
+  "rendered": 0,
+  "failed": 0,
+  "has_author_preamble": false,
+  "graphics_dir": null,
+  "failures": []
+ },
+ "table_cols": [
+  6,
+  5
+ ],
+ "six_col_tables": 1,
+ "region_table_cols": 5,
+ "ink_selectable": false
+}
