@@ -1,0 +1,37 @@
+{
+ "doc": "Algebraic and geometric ideas in the theory of discrete optimization (Jesús De Loera, Raymond Hemmecke etc.) (z-lib.org)-1",
+ "pdf": "Algebraic and geometric ideas in the theory of discrete optimization (Jesús De Loera, Raymond Hemmecke etc.) (z-lib.org)-1.pdf",
+ "rc": 0,
+ "stdout_tail": "Build stamp: report.build.json — phase=reading, 929 pages, 16022336 bytes, sha256 10238a09ebea. A measurement of this report should copy it into its output as `measured_against`.",
+ "seconds": 530.6,
+ "regions": {
+  "regions_with_latex": 22,
+  "attempted_now": 22,
+  "rendered": 20,
+  "failed": 2,
+  "has_author_preamble": false,
+  "graphics_dir": null,
+  "failures": [
+   {
+    "id": "Algebraic_and_geometric_ideas_in_the_theory_of_discrete_optimization__Jes_s_De_Loera__Raymond_Hemmecke_etc.___z-lib.org_-1_DIA_0045",
+    "first_error": "! Misplaced alignment tab character &."
+   },
+   {
+    "id": "Algebraic_and_geometric_ideas_in_the_theory_of_discrete_optimization__Jes_s_De_Loera__Raymond_Hemmecke_etc.___z-lib.org_-1_DIA_0062",
+    "first_error": "! Misplaced alignment tab character &."
+   }
+  ]
+ },
+ "manifest_rows": 95,
+ "with_latex": 22,
+ "duplicated": 75,
+ "table_cols": [
+  6,
+  5,
+  4,
+  6
+ ],
+ "six_col_tables": 2,
+ "region_table_cols": 6,
+ "ink_selectable": false
+}
