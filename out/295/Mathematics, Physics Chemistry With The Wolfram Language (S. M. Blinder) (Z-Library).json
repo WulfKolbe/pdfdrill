@@ -1,0 +1,97 @@
+{
+ "doc": "Mathematics, Physics Chemistry With The Wolfram Language (S. M. Blinder) (Z-Library)",
+ "pdf": "Mathematics, Physics Chemistry With The Wolfram Language (S. M. Blinder) (Z-Library).pdf",
+ "rc": 0,
+ "stdout_tail": "Build stamp: report.build.json — phase=reading, 428 pages, 24072949 bytes, sha256 cb50373ff10d. A measurement of this report should copy it into its output as `measured_against`.",
+ "seconds": 295.0,
+ "regions": {
+  "regions_with_latex": 20,
+  "attempted_now": 20,
+  "rendered": 3,
+  "failed": 17,
+  "has_author_preamble": false,
+  "graphics_dir": null,
+  "failures": [
+   {
+    "id": "Mathematics__Physics_Chemistry_With_The_Wolfram_Language__S._M._Blinder___Z-Library__DIA_0014",
+    "first_error": "! Misplaced alignment tab character &."
+   },
+   {
+    "id": "Mathematics__Physics_Chemistry_With_The_Wolfram_Language__S._M._Blinder___Z-Library__DIA_0087",
+    "first_error": "! Misplaced alignment tab character &."
+   },
+   {
+    "id": "Mathematics__Physics_Chemistry_With_The_Wolfram_Language__S._M._Blinder___Z-Library__DIA_0094",
+    "first_error": "! Misplaced alignment tab character &."
+   },
+   {
+    "id": "Mathematics__Physics_Chemistry_With_The_Wolfram_Language__S._M._Blinder___Z-Library__DIA_0099",
+    "first_error": "! Misplaced alignment tab character &."
+   },
+   {
+    "id": "Mathematics__Physics_Chemistry_With_The_Wolfram_Language__S._M._Blinder___Z-Library__DIA_0111",
+    "first_error": "! Misplaced alignment tab character &."
+   },
+   {
+    "id": "Mathematics__Physics_Chemistry_With_The_Wolfram_Language__S._M._Blinder___Z-Library__DIA_0175",
+    "first_error": "! Misplaced alignment tab character &."
+   },
+   {
+    "id": "Mathematics__Physics_Chemistry_With_The_Wolfram_Language__S._M._Blinder___Z-Library__DIA_0182",
+    "first_error": "! Misplaced alignment tab character &."
+   },
+   {
+    "id": "Mathematics__Physics_Chemistry_With_The_Wolfram_Language__S._M._Blinder___Z-Library__DIA_0213",
+    "first_error": "! Misplaced alignment tab character &."
+   },
+   {
+    "id": "Mathematics__Physics_Chemistry_With_The_Wolfram_Language__S._M._Blinder___Z-Library__DIA_0215",
+    "first_error": "! Misplaced alignment tab character &."
+   },
+   {
+    "id": "Mathematics__Physics_Chemistry_With_The_Wolfram_Language__S._M._Blinder___Z-Library__DIA_0235",
+    "first_error": "! Misplaced alignment tab character &."
+   },
+   {
+    "id": "Mathematics__Physics_Chemistry_With_The_Wolfram_Language__S._M._Blinder___Z-Library__DIA_0261",
+    "first_error": "! Misplaced alignment tab character &."
+   },
+   {
+    "id": "Mathematics__Physics_Chemistry_With_The_Wolfram_Language__S._M._Blinder___Z-Library__DIA_0379",
+    "first_error": "! Misplaced alignment tab character &."
+   },
+   {
+    "id": "Mathematics__Physics_Chemistry_With_The_Wolfram_Language__S._M._Blinder___Z-Library__DIA_0380",
+    "first_error": "! Misplaced alignment tab character &."
+   },
+   {
+    "id": "Mathematics__Physics_Chemistry_With_The_Wolfram_Language__S._M._Blinder___Z-Library__DIA_0381",
+    "first_error": "! LaTeX Error: Bad math environment delimiter."
+   },
+   {
+    "id": "Mathematics__Physics_Chemistry_With_The_Wolfram_Language__S._M._Blinder___Z-Library__DIA_0391",
+    "first_error": "! Misplaced alignment tab character &."
+   },
+   {
+    "id": "Mathematics__Physics_Chemistry_With_The_Wolfram_Language__S._M._Blinder___Z-Library__DIA_0392",
+    "first_error": "! Misplaced alignment tab character &."
+   },
+   {
+    "id": "Mathematics__Physics_Chemistry_With_The_Wolfram_Language__S._M._Blinder___Z-Library__DIA_0393",
+    "first_error": "! Misplaced alignment tab character &."
+   }
+  ]
+ },
+ "manifest_rows": 498,
+ "with_latex": 20,
+ "duplicated": 495,
+ "table_cols": [
+  6,
+  5,
+  4,
+  6
+ ],
+ "six_col_tables": 2,
+ "region_table_cols": 6,
+ "ink_selectable": false
+}
