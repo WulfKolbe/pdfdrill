@@ -1,0 +1,25 @@
+{
+ "doc": "bradley_spring22",
+ "pdf": "bradley_spring22.pdf",
+ "rc": 0,
+ "stdout_tail": "Build stamp: report.build.json — phase=reading, 11 pages, 521905 bytes, sha256 02186ec06c86. A measurement of this report should copy it into its output as `measured_against`.",
+ "seconds": 4.1,
+ "regions": {
+  "regions_with_latex": 0,
+  "attempted_now": 0,
+  "rendered": 0,
+  "failed": 0,
+  "has_author_preamble": false,
+  "graphics_dir": null,
+  "failures": []
+ },
+ "manifest_rows": 10,
+ "with_latex": 0,
+ "duplicated": 0,
+ "table_cols": [
+  6,
+  5,
+  6
+ ],
+ "ink_eligible": false
+}
