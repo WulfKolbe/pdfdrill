@@ -1,0 +1,28 @@
+{
+ "doc": "CommentatMathUnivCarolRetro_43-2002-2_3",
+ "pdf": "CommentatMathUnivCarolRetro_43-2002-2_3.pdf",
+ "rc": 0,
+ "stdout_tail": "Build stamp: report.build.json — phase=reading, 19 pages, 870047 bytes, sha256 001507de0a50. A measurement of this report should copy it into its output as `measured_against`.",
+ "seconds": 3.0,
+ "regions": {
+  "regions_with_latex": 0,
+  "attempted_now": 0,
+  "rendered": 0,
+  "failed": 0,
+  "has_author_preamble": false,
+  "graphics_dir": null,
+  "failures": []
+ },
+ "manifest_rows": 1,
+ "with_latex": 0,
+ "duplicated": 1,
+ "table_cols": [
+  6,
+  5,
+  4,
+  6
+ ],
+ "six_col_tables": 2,
+ "region_table_cols": 6,
+ "ink_selectable": false
+}
