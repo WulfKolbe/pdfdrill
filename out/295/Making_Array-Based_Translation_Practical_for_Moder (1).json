@@ -1,0 +1,28 @@
+{
+ "doc": "Making_Array-Based_Translation_Practical_for_Moder (1)",
+ "pdf": "Making_Array-Based_Translation_Practical_for_Moder (1).pdf",
+ "rc": 0,
+ "stdout_tail": "Build stamp: report.build.json — phase=reading, 13 pages, 1063681 bytes, sha256 d9823281c0da. A measurement of this report should copy it into its output as `measured_against`.",
+ "seconds": 8.8,
+ "regions": {
+  "regions_with_latex": 4,
+  "attempted_now": 4,
+  "rendered": 4,
+  "failed": 0,
+  "has_author_preamble": false,
+  "graphics_dir": null,
+  "failures": []
+ },
+ "manifest_rows": 17,
+ "with_latex": 4,
+ "duplicated": 13,
+ "table_cols": [
+  5,
+  5,
+  4,
+  6
+ ],
+ "six_col_tables": 1,
+ "region_table_cols": 6,
+ "ink_selectable": true
+}
