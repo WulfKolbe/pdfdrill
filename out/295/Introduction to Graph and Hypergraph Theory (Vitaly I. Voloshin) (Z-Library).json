@@ -1,0 +1,28 @@
+{
+ "doc": "Introduction to Graph and Hypergraph Theory (Vitaly I. Voloshin) (Z-Library)",
+ "pdf": "Introduction to Graph and Hypergraph Theory (Vitaly I. Voloshin) (Z-Library).pdf",
+ "rc": 0,
+ "stdout_tail": "Build stamp: report.build.json — phase=reading, 314 pages, 11789899 bytes, sha256 ac076062a3b7. A measurement of this report should copy it into its output as `measured_against`.",
+ "seconds": 9.9,
+ "regions": {
+  "regions_with_latex": 0,
+  "attempted_now": 0,
+  "rendered": 0,
+  "failed": 0,
+  "has_author_preamble": false,
+  "graphics_dir": null,
+  "failures": []
+ },
+ "manifest_rows": 176,
+ "with_latex": 0,
+ "duplicated": 176,
+ "table_cols": [
+  6,
+  5,
+  4,
+  6
+ ],
+ "six_col_tables": 2,
+ "region_table_cols": 6,
+ "ink_selectable": false
+}
