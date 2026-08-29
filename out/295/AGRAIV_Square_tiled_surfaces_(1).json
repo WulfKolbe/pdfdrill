@@ -1,0 +1,28 @@
+{
+ "doc": "AGRAIV_Square_tiled_surfaces_(1)",
+ "pdf": "AGRAIV_Square_tiled_surfaces_(1).pdf",
+ "rc": 0,
+ "stdout_tail": "Build stamp: report.build.json — phase=reading, 27 pages, 956087 bytes, sha256 592e66e259ab. A measurement of this report should copy it into its output as `measured_against`.",
+ "seconds": 2.9,
+ "regions": {
+  "regions_with_latex": 0,
+  "attempted_now": 0,
+  "rendered": 0,
+  "failed": 0,
+  "has_author_preamble": false,
+  "graphics_dir": null,
+  "failures": []
+ },
+ "manifest_rows": 7,
+ "with_latex": 0,
+ "duplicated": 7,
+ "table_cols": [
+  6,
+  5,
+  4,
+  6
+ ],
+ "six_col_tables": 2,
+ "region_table_cols": 6,
+ "ink_selectable": false
+}
