@@ -1,0 +1,28 @@
+{
+ "doc": "Axe-Fx-II-Owners-Manual",
+ "pdf": "Axe-Fx-II-Owners-Manual.pdf",
+ "rc": 0,
+ "stdout_tail": "Build stamp: report.build.json — phase=reading, 41 pages, 8926573 bytes, sha256 cfd14b7cbcc3. A measurement of this report should copy it into its output as `measured_against`.",
+ "seconds": 9.5,
+ "regions": {
+  "regions_with_latex": 2,
+  "attempted_now": 2,
+  "rendered": 2,
+  "failed": 0,
+  "has_author_preamble": false,
+  "graphics_dir": null,
+  "failures": []
+ },
+ "manifest_rows": 221,
+ "with_latex": 2,
+ "duplicated": 219,
+ "table_cols": [
+  5,
+  5,
+  4,
+  6
+ ],
+ "six_col_tables": 1,
+ "region_table_cols": 6,
+ "ink_selectable": true
+}
