@@ -1,0 +1,28 @@
+{
+ "doc": "2411.04920",
+ "pdf": "2411.04920.pdf",
+ "rc": 0,
+ "stdout_tail": "Build stamp: report.build.json — phase=reading, 7 pages, 609293 bytes, sha256 290067bd7538. A measurement of this report should copy it into its output as `measured_against`.",
+ "seconds": 7.2,
+ "regions": {
+  "regions_with_latex": 2,
+  "attempted_now": 2,
+  "rendered": 2,
+  "failed": 0,
+  "has_author_preamble": false,
+  "graphics_dir": "/home/wkolbe/pdfdrill-library/2411.04920/texsrc",
+  "failures": []
+ },
+ "manifest_rows": 9,
+ "with_latex": 2,
+ "duplicated": 7,
+ "table_cols": [
+  5,
+  5,
+  4,
+  6
+ ],
+ "six_col_tables": 1,
+ "region_table_cols": 6,
+ "ink_selectable": true
+}
