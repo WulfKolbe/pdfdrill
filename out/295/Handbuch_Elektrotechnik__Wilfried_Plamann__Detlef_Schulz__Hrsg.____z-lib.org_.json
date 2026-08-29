@@ -1,0 +1,23 @@
+{
+ "doc": "Handbuch_Elektrotechnik__Wilfried_Plamann__Detlef_Schulz__Hrsg.____z-lib.org_",
+ "pdf": "Handbuch_Elektrotechnik__Wilfried_Plamann__Detlef_Schulz__Hrsg.____z-lib.org_.pdf",
+ "rc": 0,
+ "stdout_tail": "Build stamp: report.build.json — phase=reading, 9 pages, 81273 bytes, sha256 6479d4a10d8a. A measurement of this report should copy it into its output as `measured_against`.",
+ "seconds": 38.3,
+ "regions": {
+  "regions_with_latex": 0,
+  "attempted_now": 0,
+  "rendered": 0,
+  "failed": 0,
+  "has_author_preamble": false,
+  "graphics_dir": null,
+  "failures": []
+ },
+ "table_cols": [
+  5,
+  5
+ ],
+ "six_col_tables": 0,
+ "region_table_cols": 5,
+ "ink_selectable": false
+}
