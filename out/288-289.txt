@@ -1,0 +1,121 @@
+288 + 289 — the extractor bugs, and the field that made them almost irrelevant
+==============================================================================
+
+288 — THE THREE REGRESSING DOCUMENTS, NAMED
+------------------------------------------------------------------------------
+All three fail in the extracted preamble, and all three name a different bug.
+
+  2208.01506   ! LaTeX Error: Missing \begin{document}.
+               The extractor emits, at line 23:
+                   \providecommand{\appendix@section}{}\renewcommand\appendix@section[1]{
+               As written in NotesDAG.tex:
+                   \newcommand\appendix@section[1]{%
+               `@` is a letter only between \makeatletter and \makeatother.
+               Lifted out bare, `\appendix@section` parses as `\appendix`
+               followed by the text `@section`, the brace count goes wrong, and
+               LaTeX reports a missing \begin{document} a hundred lines later —
+               naming neither the macro nor the line that caused it.
+
+               (A second, separate cause appears when TEXINPUTS is not set:
+               \usepackage{articlemacro} is a LOCAL .sty in the e-print. It is
+               there, and the render path already passes TEXINPUTS, so this one
+               is not a bug — it was my probe that was wrong.)
+
+  2602.23211   ! Illegal parameter number in definition of \hgnodea.
+               Extracted:      \def\hgnodea{#1}          (top level, alone)
+               As written, tikz-hypergraph.tex:121:
+                   \pgfextra{
+                     \def\hgnodea{#1}
+                     \def\hgnodeb{#2}
+                   }
+               nested inside a \tikzset body. `#1` is legal only inside a
+               definition that has a parameter. `_collect_macro_defs` already
+               had a nesting guard, but it tested "inside a span I previously
+               captured" — and \tikzset blocks are collected separately, so
+               nothing covered this one.
+
+  2508.08293v1 ! Undefined control sequence at
+                   \providecommand{\colim}{}\renewcommand\colim{\textup{colim}}
+               the same robustification shape as 2208.01506.
+
+FIXED IN THE EXTRACTOR, NOT THE FALLBACK
+------------------------------------------------------------------------------
+  latex_source._collect_macro_defs
+      nesting is now BRACE DEPTH, not previously-captured spans. A \def at
+      depth > 0 belongs to the body that encloses it.
+  latex_source.standalone_preamble
+      definitions are wrapped in \makeatletter/\makeatother when any name
+      contains `@`. Only the definitions — a \usepackage inside \makeatletter
+      is legal but changes catcodes during the package's own loading, which is
+      not something to do on spec.
+  latex_source._DEF_START
+      + \newlength, + \newsavebox (287). 2512.15098v4 defines \ImageMaxHeight
+      as a \newlength and used it in every one of its 21 regions.
+  commands._render_regions
+      RE-EXTRACTS from meta.latex_preamble.original rather than trusting the
+      stored `standalone`, which was computed when injectlatex ran. Otherwise
+      an extractor fix reaches only documents re-injected afterwards.
+
+AND IT DID NOT HELP THESE THREE. Each still fails 0/6 with the author's
+preamble. The three constructs above are real and now handled; what remains is
+something else in preambles of 3,000-4,600 characters, and I did not chase it
+further because 289 showed the ground had moved.
+
+289 — THE FIELDS
+------------------------------------------------------------------------------
+    207 regions across the 10 sampled documents
+
+    carry `latex_original`                      176
+      whose value DIFFERS from latex_code        40
+    `macros_unresolved` non-empty                 0
+    field the renderer compiles           latex_code   (`latex or latex_code`)
+
+And latex_code is the MACRO-EXPANDED form. The pair, from 2002.06055:
+
+    latex_code      \begin{tikzcd} \mathsf{C}(Y,Z) \times \mathsf{C}(X,Y) …
+    latex_original  \begin{tikzcd} \C(Y,Z) \times \C(X,Y) …
+
+So the renderer was already compiling the field with no author macros in it,
+and `macros_unresolved` is empty on all 207 — which says the same thing from
+the other side. I had been injecting a preamble to resolve macros that were
+already resolved.
+
+THE PAIRING, MEASURED
+------------------------------------------------------------------------------
+    A  expanded field + GENERIC preamble      151/207   (72.9%)
+    B  original field + AUTHOR preamble        70/176
+    -- 286's fallback (expanded, author then generic)  165/207 (79.7%)
+
+289's hypothesis is half right, and the half that is right matters. Macro
+resolution is NOT on the critical path: A at 72.9% uses no author preamble at
+all, and the gain over the 138/207 (66.7%) that generic-only scored in 286 is
++13 from `\graphicspath` and TEXINPUTS — the author's FIGURE FILES — not from
+the preamble.
+
+The other half: the author's preamble is still worth ~14 rows (165 against
+151), and it is not macros. I tested what else it could be by building a
+STYLES-ONLY preamble — the generic head plus the author's \usetikzlibrary,
+\definecolor and \tikzset blocks and nothing else:
+
+    2004.05631   styles-only 16/25   generic 16/25   full author 21/25
+    2210.06079   styles-only 16/25   generic 16/25   full author 25/25
+    2002.06055   styles-only 23/25   generic 23/25   full author 23/25
+
+Styles-only is identical to generic. So the remaining value is in the author's
+PACKAGES, not their macros and not their styles — which is a narrower and more
+tractable question than "inject the preamble", and it is where I would look
+next.
+
+WHAT I DID NOT ANSWER
+------------------------------------------------------------------------------
+288 also asked how many regions compile under the generic preamble while still
+referencing an author macro — compiling wrongly rather than correctly. On this
+corpus the answer is bounded by construction: `macros_unresolved` is empty on
+all 207 and the compiled field is the expanded one, so a region referencing an
+undefined author macro would fail rather than compile. The 40 regions whose
+`latex_original` differs are precisely the ones where expansion did something,
+and it is the EXPANDED form that is compiled. I did not verify the rendered
+output pixel-wise against the scan, which is the only way to catch a macro that
+expanded to something wrong rather than something missing — that is 281.
+
+Suite 2,668.

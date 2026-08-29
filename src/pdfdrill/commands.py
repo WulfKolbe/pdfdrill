@@ -6915,8 +6915,22 @@ def _render_regions(sc, tiddlers) -> tuple:
         mp = _model_path(sc)
         if mp.exists():
             meta = json.loads(mp.read_text(encoding="utf-8")).get("meta", {})
-            author_pre = ((meta.get("latex_preamble") or {}).get("standalone")
-                          or "")
+            _lp = meta.get("latex_preamble") or {}
+            # 288 — RE-EXTRACT from the original rather than trusting the
+            # stored `standalone`. That copy was computed when `injectlatex`
+            # ran, so an extractor fix would otherwise reach only documents
+            # re-injected afterwards, and re-injecting 1,350 models to pick up
+            # a preamble fix is the wrong shape of work. Falls back to the
+            # stored form when the original is not there.
+            author_pre = ""
+            if _lp.get("original"):
+                try:
+                    from . import latex_source as _ls
+                    author_pre = _ls.standalone_preamble(_lp["original"])
+                except Exception:
+                    author_pre = ""
+            if not author_pre:
+                author_pre = _lp.get("standalone") or ""
             sd = meta.get("latex_source_dir")
             if sd and Path(sd).is_dir():
                 src_dir = Path(sd)

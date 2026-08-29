@@ -675,9 +675,14 @@ def _drop_from_standalone(name: str) -> bool:
 # custom type (`P{3cm}`) fails with "Illegal pream-token (P)" if the
 # definition is not carried into the standalone preamble. That single
 # omission accounted for 13 of 14 table-SVG failures on one paper.
+#: 287 — `\newlength` belongs here: 2512.15098v4 defines `\ImageMaxHeight`
+#: that way and every one of its 21 regions used it inside an `\adjustbox`,
+#: failing "Undefined control sequence" under any preamble because the
+#: collector took `\newcommand`/`\def`/`\DeclareMathOperator`/`\newcolumntype`
+#: and nothing else. `\newsavebox` for the same reason.
 _DEF_START = re.compile(
     r"\\(?:re|provide)?newcommand\*?|\\DeclareMathOperator\*?"
-    r"|\\newcolumntype")
+    r"|\\newcolumntype|\\newlength|\\newsavebox")
 
 
 def _collect_macro_defs(preamble: str) -> list[str]:
@@ -727,7 +732,24 @@ def _collect_macro_defs(preamble: str) -> list[str]:
         out.append(preamble[m.start():i])
         spans.append((m.start(), i))
 
+    def _depth_at(pos: int) -> int:
+        """Brace depth at `pos`, ignoring escaped braces."""
+        d = 0
+        for k in range(pos):
+            c = preamble[k]
+            if c in "{}" and (k == 0 or preamble[k - 1] != "\\"):
+                d += 1 if c == "{" else -1
+        return d
+
     for m in re.finditer(r"\\def\\[A-Za-z@]+", preamble):
+        # 288 — nesting is BRACE DEPTH, not "inside a span I already captured".
+        # 2602.23211 defines \hgnodea inside a \pgfextra{} block inside a
+        # \tikzset{}, and \tikzset blocks are collected separately, so the
+        # span test did not cover it. Lifted out, `\def\hgnodea{#1}` is
+        # "! Illegal parameter number" and it failed all 25 of that document's
+        # regions.
+        if _depth_at(m.start()) > 0:
+            continue
         # A `\def` INSIDE another definition's body is part of that body, not a
         # definition of its own. Emitting it separately lifts it out of the
         # context that binds its parameters:
@@ -822,8 +844,34 @@ def standalone_preamble(preamble: str) -> str:
     # styles reference exist under standalone; tikz so bare \begin{tikzpicture}
     # compiles even if the project loads it indirectly. (Mirrors LATW.)
     head = "\\documentclass[border=2pt,class=report]{standalone}\n\\usepackage{tikz}"
+    # 288 — a definition whose NAME contains `@` is only legal between
+    # \makeatletter and \makeatother. 2208.01506's preamble defines
+    # \appendix@section; lifted out bare, `@` is not a letter, so
+    # `\appendix@section` parses as `\appendix` followed by the text
+    # `@section`, the brace counting goes wrong and LaTeX reports "Missing
+    # \begin{document}" a hundred lines later. All 25 of that document's
+    # regions failed on it, and the error names neither the macro nor the line
+    # that caused it.
+    #
+    # Wrapping only the definitions, not the packages: a \usepackage inside
+    # \makeatletter is legal but changes catcodes for the package's own
+    # loading, which is not something to do on spec.
+    if defs and any("@" in _def_name(d) for d in defs):
+        defs = ["\\makeatletter", *defs, "\\makeatother"]
     return "\n".join([head, *pkgs, *libs, *fonts, *decls, *colors, *defs,
                       *tikzsets, *pgfsets])
+
+
+def _def_name(definition: str) -> str:
+    """The macro name a collected definition defines, or ""."""
+    m = re.search(r"\\(?:re|provide)?newcommand\*?\s*\{?\s*\\([A-Za-z@]+)"
+                  r"|\\DeclareMathOperator\*?\s*\{?\s*\\([A-Za-z@]+)"
+                  r"|\\def\s*\\([A-Za-z@]+)"
+                  r"|\\new(?:length|savebox)\s*\{?\s*\\([A-Za-z@]+)",
+                  definition or "")
+    if not m:
+        return ""
+    return next((g for g in m.groups() if g), "")
 
 
 # ---------------------------------------------------------------------------
