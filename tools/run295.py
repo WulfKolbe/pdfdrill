@@ -147,6 +147,13 @@ def main():
             skipped += 1
             continue
         row = run(name, pdf)
+        # A lock refusal is not a measurement of the document, it is a
+        # statement about another process. Writing it would make the failure
+        # permanent, since the run resumes on the presence of this file.
+        if "DocumentBusy" in (row.get("error") or ""):
+            print("[%4d/%4d] %-34s LOCKED by another process - left for a re-run"
+                  % (i, len(docs), name[:34]), flush=True)
+            continue
         dest.write_text(json.dumps(row, indent=1, ensure_ascii=False),
                         encoding="utf-8")
         done += 1
