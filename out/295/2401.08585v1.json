@@ -1,0 +1,41 @@
+{
+ "doc": "2401.08585v1",
+ "pdf": "2401.08585v1.pdf",
+ "rc": 0,
+ "stdout_tail": "Build stamp: report.build.json — phase=reading, 11 pages, 138878 bytes, sha256 8dddf049f68e. A measurement of this report should copy it into its output as `measured_against`.",
+ "seconds": 9.2,
+ "regions": {
+  "regions_with_latex": 3,
+  "attempted_now": 3,
+  "rendered": 0,
+  "failed": 3,
+  "has_author_preamble": true,
+  "graphics_dir": "/home/wkolbe/pdfdrill-library/2401.08585v1/texsrc",
+  "failures": [
+   {
+    "id": "2401.08585v1_DIA_0001",
+    "first_error": "! Package pgfkeys Error: I do not know the key '/tikz/decomp"
+   },
+   {
+    "id": "2401.08585v1_DIA_0002",
+    "first_error": "! Package pgfkeys Error: I do not know the key '/tikz/medium"
+   },
+   {
+    "id": "2401.08585v1_DIA_0003",
+    "first_error": "! Package pgfkeys Error: I do not know the key '/tikz/seen' "
+   }
+  ]
+ },
+ "manifest_rows": 3,
+ "with_latex": 3,
+ "duplicated": 3,
+ "table_cols": [
+  5,
+  5,
+  4,
+  6
+ ],
+ "six_col_tables": 1,
+ "region_table_cols": 6,
+ "ink_selectable": true
+}
