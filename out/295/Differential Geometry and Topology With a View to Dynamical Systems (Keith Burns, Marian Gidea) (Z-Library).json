@@ -1,0 +1,27 @@
+{
+ "doc": "Differential Geometry and Topology With a View to Dynamical Systems (Keith Burns, Marian Gidea) (Z-Library)",
+ "pdf": "Differential Geometry and Topology With a View to Dynamical Systems (Keith Burns, Marian Gidea) (Z-Library).pdf",
+ "rc": 0,
+ "stdout_tail": "Build stamp: report.build.json — phase=reading, 770 pages, 17452773 bytes, sha256 8d6c6cf62a05. A measurement of this report should copy it into its output as `measured_against`.",
+ "seconds": 538.0,
+ "regions": {
+  "regions_with_latex": 0,
+  "attempted_now": 0,
+  "rendered": 0,
+  "failed": 0,
+  "has_author_preamble": false,
+  "graphics_dir": null,
+  "failures": []
+ },
+ "manifest_rows": 132,
+ "with_latex": 0,
+ "duplicated": 132,
+ "table_cols": [
+  6,
+  5,
+  6
+ ],
+ "six_col_tables": 2,
+ "region_table_cols": 6,
+ "ink_selectable": false
+}
