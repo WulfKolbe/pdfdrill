@@ -1,0 +1,28 @@
+{
+ "doc": "Discrete Mathematics Graph Algorithms, Algebraic Structures, Coding Theory, and Cryptography (Sriraman Sridharan R. Balakrishnan) (Z-Library)",
+ "pdf": "Discrete Mathematics Graph Algorithms, Algebraic Structures, Coding Theory, and Cryptography (Sriraman Sridharan R. Balakrishnan) (Z-Library).pdf",
+ "rc": 0,
+ "stdout_tail": "Build stamp: report.build.json — phase=reading, 836 pages, 10868364 bytes, sha256 df1abea3b12b. A measurement of this report should copy it into its output as `measured_against`.",
+ "seconds": 329.0,
+ "regions": {
+  "regions_with_latex": 6,
+  "attempted_now": 6,
+  "rendered": 6,
+  "failed": 0,
+  "has_author_preamble": false,
+  "graphics_dir": null,
+  "failures": []
+ },
+ "manifest_rows": 151,
+ "with_latex": 6,
+ "duplicated": 145,
+ "table_cols": [
+  6,
+  5,
+  4,
+  6
+ ],
+ "six_col_tables": 2,
+ "region_table_cols": 6,
+ "ink_selectable": false
+}
