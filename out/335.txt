@@ -1,0 +1,65 @@
+335 - the annotation-over-figure shape
+==================================================================
+
+  documents with a tikzpicture inclusion : 11
+  tikzpicture inclusions                 : 239
+  ...node/overlay placed (298's figure)  : 239
+
+  WITH SIBLING \node or \draw            : 224
+  with none (a picture in a node, and
+  nothing drawn over it)                 : 15
+
+  A node-placed image with no siblings is an image with extra steps -- the
+  tikzpicture adds nothing a reader can see, so a crop of the page IS a
+  crop of the file. Only the ones with siblings are the annotation case.
+
+  of the 224 with siblings:
+    base file resolves on disk           : 221
+    base file NOT found                  : 3
+    ...and the document holds MathPix
+       crops at all                      : 136
+
+PER DOCUMENT
+  document                                  tikz  sibs  base  crops
+  1805.00791                                   1     1     1      0
+  2004.05631                                  85    84    84      0
+  2004.05631v1                                85    84    84    134
+  2012.15581                                  52    40    40     91
+  2102.08145                                   4     4     4      9
+  2104.05122                                   2     2     2     24
+  2104.08926                                   3     3     3      1
+  2406.19108v2                                 1     1     1     17
+  2409.01704v1                                 1     0     0     21
+  2508.19773                                   2     2     2      9
+  2512.15098v4                                 3     3     0      0
+
+  sibling counts, where there are any:
+    1 node(s) + 0 draw(s)   55 inclusions
+    3 node(s) + 0 draw(s)   28 inclusions
+    5 node(s) + 0 draw(s)   28 inclusions
+    2 node(s) + 0 draw(s)   22 inclusions
+    4 node(s) + 0 draw(s)   17 inclusions
+    17 node(s) + 0 draw(s)   8 inclusions
+    11 node(s) + 0 draw(s)   8 inclusions
+    4 node(s) + 3 draw(s)   6 inclusions
+
+THE TRIPLE IS NOT YET A GOLD SET, AND THE MISSING LEG IS THE SAME ONE
+
+  A triple needs the base file, the annotation, and the crop OF THAT
+  FIGURE. The first two are in hand for 221 inclusions. The third is not:
+  the crops exist as files, but which crop shows which inclusion is the
+  join 301 measured at 0 matched of 8 known pairs. Counting a document's
+  crops is not resolving one.
+
+  So this census reports what it can establish -- 221 annotated figures
+  whose base file is on disk, in documents that hold crops -- and stops
+  short of calling them triples, because the pairing that would make them
+  triples is the thing that does not work yet.
+
+  336 diffs a base against a crop. For that it needs ONE pair it is sure
+  of, not 221 it is not. 2004.05631v1's tex.zip sits inside texsrc/ (331),
+  so for that document the crop's page and rectangle are stated in the
+  filename, and a pair can be established by page and shape rather than by
+  order. That is the narrow route worth taking before the wide one.
+
+out/335.json carries every inclusion with its siblings and base path.

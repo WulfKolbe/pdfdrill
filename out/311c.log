@@ -60,3 +60,11 @@ scope: 196 documents, 7239 report pages
 [ 59/196] 2211.10804                              10p measured  converted 276s
 [ 60/196] 2306.02572                              10p measured  converted 224s
 [ 61/196] 2505.14385v2                            10p measured  converted 219s
+[ 62/196] 2605.30882v1                            10p measured  converted 465s
+[ 63/196] TabulaROSA_Tabular_Operating_System_Ar  10p measured  converted 143s
+[ 64/196] emnlp20reg                              10p measured  converted 204s
+[ 65/196] qt62k441m6                              10p measured  converted 142s
+[ 66/196] 1808.07302                              11p measured  converted 125s
+[ 67/196] big-data-linkage                        11p measured  converted 69s
+[ 68/196] hep-th_9411188                          11p measured  converted 281s
+[ 69/196] nai-paper-916                           11p measured  converted 285s

@@ -806,3 +806,7 @@ population: 1346 documents (21 from the site, first)
 [ 779/1346] General Relativity Simplified Asse 569.2s  regions=0 failed=0 selectable=False
 [ 780/1346] Geometric algebra for physicists -   2.5s  regions=0 failed=0 selectable=False
 [ 781/1346] GeometricAlgebra-basedModelingandA   2.4s  regions=0 failed=0 selectable=False
+[ 782/1346] Geometric_topology                 532.1s  regions=0 failed=0 selectable=False
+[ 783/1346] Geometrie und GPS Mathematische, p 279.7s  regions=0 failed=0 selectable=False
+[ 784/1346] Geometry of quantum states an intr 900.1s  regions=0 failed=0 selectable=False
+[ 785/1346] Geothermal heat pump and heat engi 297.4s  regions=1 failed=1 selectable=False

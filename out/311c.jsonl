@@ -59,3 +59,11 @@
 {"doc": "2211.10804", "pages": 10, "outcome": "measured", "rows": 23, "convert": "converted", "seconds": 275.5}
 {"doc": "2306.02572", "pages": 10, "outcome": "measured", "rows": 17, "convert": "converted", "seconds": 223.5}
 {"doc": "2505.14385v2", "pages": 10, "outcome": "measured", "rows": 20, "convert": "converted", "seconds": 218.8}
+{"doc": "2605.30882v1", "pages": 10, "outcome": "measured", "rows": 53, "convert": "converted", "seconds": 464.7}
+{"doc": "TabulaROSA_Tabular_Operating_System_Arch", "pages": 10, "outcome": "measured", "rows": 20, "convert": "converted", "seconds": 143.3}
+{"doc": "emnlp20reg", "pages": 10, "outcome": "measured", "rows": 12, "convert": "converted", "seconds": 203.5}
+{"doc": "qt62k441m6", "pages": 10, "outcome": "measured", "rows": 8, "convert": "converted", "seconds": 142.5}
+{"doc": "1808.07302", "pages": 11, "outcome": "measured", "rows": 12, "convert": "converted", "seconds": 125.2}
+{"doc": "big-data-linkage", "pages": 11, "outcome": "measured", "rows": 6, "convert": "converted", "seconds": 69.0}
+{"doc": "hep-th_9411188", "pages": 11, "outcome": "measured", "rows": 34, "convert": "converted", "seconds": 280.8}
+{"doc": "nai-paper-916", "pages": 11, "outcome": "measured", "rows": 45, "convert": "converted", "seconds": 285.3}

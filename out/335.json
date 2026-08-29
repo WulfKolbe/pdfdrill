@@ -1,0 +1,2469 @@
+[
+ {
+  "doc": "1805.00791",
+  "tikz_inclusions": 1,
+  "mathpix_crops": 0,
+  "hits": [
+   {
+    "file": "cheese",
+    "source": "cheese.tex",
+    "line": 4,
+    "overlay": true,
+    "nodes": 0,
+    "draws": 2,
+    "siblings": 2,
+    "base_on_disk": "cheese.png"
+   }
+  ]
+ },
+ {
+  "doc": "2004.05631",
+  "tikz_inclusions": 85,
+  "mathpix_crops": 0,
+  "hits": [
+   {
+    "file": "figures/ch4/mpsapprox2",
+    "source": "chapters/four_tufte.tex",
+    "line": 19,
+    "overlay": true,
+    "nodes": 2,
+    "draws": 1,
+    "siblings": 3,
+    "base_on_disk": "figures/ch4/mpsapprox2.jpg"
+   },
+   {
+    "file": "figures/ch4/psiemp",
+    "source": "chapters/four_tufte.tex",
+    "line": 64,
+    "overlay": true,
+    "nodes": 3,
+    "draws": 0,
+    "siblings": 3,
+    "base_on_disk": "figures/ch4/psiemp.jpg"
+   },
+   {
+    "file": "figures/ch4/mpsch4",
+    "source": "chapters/four_tufte.tex",
+    "line": 75,
+    "overlay": true,
+    "nodes": 6,
+    "draws": 0,
+    "siblings": 6,
+    "base_on_disk": "figures/ch4/mpsch4.jpg"
+   },
+   {
+    "file": "figures/ch4/psi2",
+    "source": "chapters/four_tufte.tex",
+    "line": 101,
+    "overlay": true,
+    "nodes": 1,
+    "draws": 0,
+    "siblings": 1,
+    "base_on_disk": "figures/ch4/psi2.jpg"
+   },
+   {
+    "file": "figures/ch4/getting_psi2",
+    "source": "chapters/four_tufte.tex",
+    "line": 109,
+    "overlay": true,
+    "nodes": 4,
+    "draws": 3,
+    "siblings": 7,
+    "base_on_disk": "figures/ch4/getting_psi2.jpg"
+   },
+   {
+    "file": "figures/ch4/rho2_ch4",
+    "source": "chapters/four_tufte.tex",
+    "line": 148,
+    "overlay": true,
+    "nodes": 2,
+    "draws": 0,
+    "siblings": 2,
+    "base_on_disk": "figures/ch4/rho2_ch4.jpg"
+   },
+   {
+    "file": "figures/ch4/spectral",
+    "source": "chapters/four_tufte.tex",
+    "line": 160,
+    "overlay": true,
+    "nodes": 5,
+    "draws": 0,
+    "siblings": 5,
+    "base_on_disk": "figures/ch4/spectral.jpg"
+   },
+   {
+    "file": "figures/ch4/firsttwo",
+    "source": "chapters/four_tufte.tex",
+    "line": 176,
+    "overlay": true,
+    "nodes": 2,
+    "draws": 0,
+    "siblings": 2,
+    "base_on_disk": "figures/ch4/firsttwo.jpg"
+   },
+   {
+    "file": "figures/ch4/psi_3",
+    "source": "chapters/four_tufte.tex",
+    "line": 184,
+    "overlay": true,
+    "nodes": 1,
+    "draws": 0,
+    "siblings": 1,
+    "base_on_disk": "figures/ch4/psi_3.jpg"
+   },
+   {
+    "file": "figures/ch4/getting_psi3",
+    "source": "chapters/four_tufte.tex",
+    "line": 192,
+    "overlay": true,
+    "nodes": 4,
+    "draws": 3,
+    "siblings": 7,
+    "base_on_disk": "figures/ch4/getting_psi3.jpg"
+   },
+   {
+    "file": "figures/ch4/rho3_ch4",
+    "source": "chapters/four_tufte.tex",
+    "line": 232,
+    "overlay": true,
+    "nodes": 3,
+    "draws": 0,
+    "siblings": 3,
+    "base_on_disk": "figures/ch4/rho3_ch4.jpg"
+   },
+   {
+    "file": "figures/ch4/getting_psi4",
+    "source": "chapters/four_tufte.tex",
+    "line": 242,
+    "overlay": true,
+    "nodes": 4,
+    "draws": 3,
+    "siblings": 7,
+    "base_on_disk": "figures/ch4/getting_psi4.jpg"
+   },
+   {
+    "file": "figures/ch4/mpsch4",
+    "source": "chapters/four_tufte.tex",
+    "line": 279,
+    "overlay": true,
+    "nodes": 5,
+    "draws": 0,
+    "siblings": 5,
+    "base_on_disk": "figures/ch4/mpsch4.jpg"
+   },
+   {
+    "file": "figures/ch4/complete_graph",
+    "source": "chapters/four_tufte.tex",
+    "line": 298,
+    "overlay": true,
+    "nodes": 12,
+    "draws": 0,
+    "siblings": 12,
+    "base_on_disk": "figures/ch4/complete_graph.jpg"
+   },
+   {
+    "file": "figures/ch4/summarize",
+    "source": "chapters/four_tufte.tex",
+    "line": 394,
+    "overlay": true,
+    "nodes": 3,
+    "draws": 0,
+    "siblings": 3,
+    "base_on_disk": "figures/ch4/summarize.jpg"
+   },
+   {
+    "file": "figures/ch4/training_graph",
+    "source": "chapters/four_tufte.tex",
+    "line": 407,
+    "overlay": true,
+    "nodes": 12,
+    "draws": 0,
+    "siblings": 12,
+    "base_on_disk": "figures/ch4/training_graph.jpg"
+   },
+   {
+    "file": "figures/ch4/psi_N2",
+    "source": "chapters/four_tufte.tex",
+    "line": 467,
+    "overlay": true,
+    "nodes": 3,
+    "draws": 0,
+    "siblings": 3,
+    "base_on_disk": "figures/ch4/psi_N2.jpg"
+   },
+   {
+    "file": "figures/ch1/concept2",
+    "source": "chapters/one_tufte.tex",
+    "line": 103,
+    "overlay": true,
+    "nodes": 8,
+    "draws": 0,
+    "siblings": 8,
+    "base_on_disk": "figures/ch1/concept2.jpg"
+   },
+   {
+    "file": "figures/ch2/graph2",
+    "source": "chapters/one_tufte.tex",
+    "line": 121,
+    "overlay": true,
+    "nodes": 5,
+    "draws": 0,
+    "siblings": 5,
+    "base_on_disk": "figures/ch2/graph2.jpg"
+   },
+   {
+    "file": "figures/ch3/eqpsi",
+    "source": "chapters/three_tufte.tex",
+    "line": 51,
+    "overlay": true,
+    "nodes": 1,
+    "draws": 0,
+    "siblings": 1,
+    "base_on_disk": "figures/ch3/eqpsi.jpg"
+   },
+   {
+    "file": "figures/ch3/eqrho",
+    "source": "chapters/three_tufte.tex",
+    "line": 72,
+    "overlay": true,
+    "nodes": 1,
+    "draws": 0,
+    "siblings": 1,
+    "base_on_disk": "figures/ch3/eqrho.jpg"
+   },
+   {
+    "file": "figures/ch3/eqredrho",
+    "source": "chapters/three_tufte.tex",
+    "line": 87,
+    "overlay": true,
+    "nodes": 2,
+    "draws": 0,
+    "siblings": 2,
+    "base_on_disk": "figures/ch3/eqredrho.jpg"
+   },
+   {
+    "file": "figures/ch2/question.jpg",
+    "source": "chapters/three_tufte.tex",
+    "line": 457,
+    "overlay": true,
+    "nodes": 5,
+    "draws": 0,
+    "siblings": 5,
+    "base_on_disk": "figures/ch2/question.jpg"
+   },
+   {
+    "file": "figures/ch2/graph3",
+    "source": "chapters/three_tufte.tex",
+    "line": 534,
+    "overlay": true,
+    "nodes": 5,
+    "draws": 0,
+    "siblings": 5,
+    "base_on_disk": "figures/ch2/graph3.jpg"
+   },
+   {
+    "file": "figures/ch2/graph4b",
+    "source": "chapters/three_tufte.tex",
+    "line": 563,
+    "overlay": true,
+    "nodes": 3,
+    "draws": 0,
+    "siblings": 3,
+    "base_on_disk": "figures/ch2/graph4b.jpg"
+   },
+   {
+    "file": "figures/ch2/graph5",
+    "source": "chapters/three_tufte.tex",
+    "line": 573,
+    "overlay": true,
+    "nodes": 3,
+    "draws": 0,
+    "siblings": 3,
+    "base_on_disk": "figures/ch2/graph5.jpg"
+   },
+   {
+    "file": "figures/ch2/graph6",
+    "source": "chapters/three_tufte.tex",
+    "line": 583,
+    "overlay": true,
+    "nodes": 4,
+    "draws": 0,
+    "siblings": 4,
+    "base_on_disk": "figures/ch2/graph6.jpg"
+   },
+   {
+    "file": "figures/ch2/graph7",
+    "source": "chapters/three_tufte.tex",
+    "line": 594,
+    "overlay": true,
+    "nodes": 2,
+    "draws": 0,
+    "siblings": 2,
+    "base_on_disk": "figures/ch2/graph7.jpg"
+   },
+   {
+    "file": "figures/ch2/graph8",
+    "source": "chapters/three_tufte.tex",
+    "line": 603,
+    "overlay": true,
+    "nodes": 3,
+    "draws": 0,
+    "siblings": 3,
+    "base_on_disk": "figures/ch2/graph8.jpg"
+   },
+   {
+    "file": "figures/ch2/graph2",
+    "source": "chapters/three_tufte.tex",
+    "line": 619,
+    "overlay": true,
+    "nodes": 5,
+    "draws": 0,
+    "siblings": 5,
+    "base_on_disk": "figures/ch2/graph2.jpg"
+   },
+   {
+    "file": "figures/ch2/graph2",
+    "source": "chapters/three_tufte.tex",
+    "line": 713,
+    "overlay": true,
+    "nodes": 5,
+    "draws": 0,
+    "siblings": 5,
+    "base_on_disk": "figures/ch2/graph2.jpg"
+   },
+   {
+    "file": "figures/ch1/concept2",
+    "source": "chapters/three_tufte.tex",
+    "line": 725,
+    "overlay": true,
+    "nodes": 6,
+    "draws": 0,
+    "siblings": 6,
+    "base_on_disk": "figures/ch1/concept2.jpg"
+   },
+   {
+    "file": "figures/ch3/graph2b",
+    "source": "chapters/three_tufte.tex",
+    "line": 806,
+    "overlay": true,
+    "nodes": 5,
+    "draws": 0,
+    "siblings": 5,
+    "base_on_disk": "figures/ch3/graph2b.jpg"
+   },
+   {
+    "file": "figures/ch3/psi4",
+    "source": "chapters/three_tufte.tex",
+    "line": 915,
+    "overlay": true,
+    "nodes": 1,
+    "draws": 0,
+    "siblings": 1,
+    "base_on_disk": "figures/ch3/psi4.jpg"
+   },
+   {
+    "file": "figures/ch3/M_31",
+    "source": "chapters/three_tufte.tex",
+    "line": 927,
+    "overlay": true,
+    "nodes": 1,
+    "draws": 0,
+    "siblings": 1,
+    "base_on_disk": "figures/ch3/M_31.jpg"
+   },
+   {
+    "file": "figures/ch3/rho0",
+    "source": "chapters/three_tufte.tex",
+    "line": 933,
+    "overlay": true,
+    "nodes": 2,
+    "draws": 2,
+    "siblings": 4,
+    "base_on_disk": "figures/ch3/rho0.jpg"
+   },
+   {
+    "file": "figures/ch3/rho_povm",
+    "source": "chapters/three_tufte.tex",
+    "line": 943,
+    "overlay": true,
+    "nodes": 1,
+    "draws": 0,
+    "siblings": 1,
+    "base_on_disk": "figures/ch3/rho_povm.jpg"
+   },
+   {
+    "file": "figures/ch3/rho_xi",
+    "source": "chapters/three_tufte.tex",
+    "line": 1057,
+    "overlay": true,
+    "nodes": 1,
+    "draws": 0,
+    "siblings": 1,
+    "base_on_disk": "figures/ch3/rho_xi.jpg"
+   },
+   {
+    "file": "figures/ch3/rho1",
+    "source": "chapters/three_tufte.tex",
+    "line": 1101,
+    "overlay": true,
+    "nodes": 2,
+    "draws": 0,
+    "siblings": 2,
+    "base_on_disk": "figures/ch3/rho1.jpg"
+   },
+   {
+    "file": "figures/ch3/rho2",
+    "source": "chapters/three_tufte.tex",
+    "line": 1142,
+    "overlay": true,
+    "nodes": 5,
+    "draws": 0,
+    "siblings": 5,
+    "base_on_disk": "figures/ch3/rho2.jpg"
+   },
+   {
+    "file": "figures/ch1/passage",
+    "source": "chapters/two_tufte.tex",
+    "line": 170,
+    "overlay": true,
+    "nodes": 3,
+    "draws": 0,
+    "siblings": 3,
+    "base_on_disk": "figures/ch1/passage.jpg"
+   },
+   {
+    "file": "figures/ch2/2tensor",
+    "source": "chapters/two_tufte.tex",
+    "line": 384,
+    "overlay": true,
+    "nodes": 3,
+    "draws": 0,
+    "siblings": 3,
+    "base_on_disk": "figures/ch2/2tensor.png"
+   },
+   {
+    "file": "figures/ch2/function",
+    "source": "chapters/two_tufte.tex",
+    "line": 399,
+    "overlay": true,
+    "nodes": 3,
+    "draws": 0,
+    "siblings": 3,
+    "base_on_disk": "figures/ch2/function.jpg"
+   },
+   {
+    "file": "figures/ch2/2tensor",
+    "source": "chapters/two_tufte.tex",
+    "line": 408,
+    "overlay": true,
+    "nodes": 1,
+    "draws": 0,
+    "siblings": 1,
+    "base_on_disk": "figures/ch2/2tensor.png"
+   },
+   {
+    "file": "figures/ch2/scalar",
+    "source": "chapters/two_tufte.tex",
+    "line": 426,
+    "overlay": true,
+    "nodes": 17,
+    "draws": 0,
+    "siblings": 17,
+    "base_on_disk": "figures/ch2/scalar.png"
+   },
+   {
+    "file": "figures/ch2/vector",
+    "source": "chapters/two_tufte.tex",
+    "line": 428,
+    "overlay": true,
+    "nodes": 17,
+    "draws": 0,
+    "siblings": 17,
+    "base_on_disk": "figures/ch2/vector.png"
+   },
+   {
+    "file": "figures/ch2/2tensor",
+    "source": "chapters/two_tufte.tex",
+    "line": 431,
+    "overlay": true,
+    "nodes": 17,
+    "draws": 0,
+    "siblings": 17,
+    "base_on_disk": "figures/ch2/2tensor.png"
+   },
+   {
+    "file": "figures/ch2/3tensor",
+    "source": "chapters/two_tufte.tex",
+    "line": 435,
+    "overlay": true,
+    "nodes": 17,
+    "draws": 0,
+    "siblings": 17,
+    "base_on_disk": "figures/ch2/3tensor.png"
+   },
+   {
+    "file": "figures/ch2/TNs/tn1",
+    "source": "chapters/two_tufte.tex",
+    "line": 450,
+    "overlay": true,
+    "nodes": 7,
+    "draws": 0,
+    "siblings": 7,
+    "base_on_disk": "figures/ch2/TNs/tn1.png"
+   },
+   {
+    "file": "figures/ch2/TNs/tn2",
+    "source": "chapters/two_tufte.tex",
+    "line": 454,
+    "overlay": true,
+    "nodes": 7,
+    "draws": 0,
+    "siblings": 7,
+    "base_on_disk": "figures/ch2/TNs/tn2.png"
+   },
+   {
+    "file": "figures/ch2/TNs/tn3",
+    "source": "chapters/two_tufte.tex",
+    "line": 466,
+    "overlay": true,
+    "nodes": 6,
+    "draws": 1,
+    "siblings": 7,
+    "base_on_disk": "figures/ch2/TNs/tn3.png"
+   },
+   {
+    "file": "figures/ch2/TNs/tn_4",
+    "source": "chapters/two_tufte.tex",
+    "line": 472,
+    "overlay": true,
+    "nodes": 6,
+    "draws": 1,
+    "siblings": 7,
+    "base_on_disk": "figures/ch2/TNs/tn_4.png"
+   },
+   {
+    "file": "figures/ch2/TNs/Mv",
+    "source": "chapters/two_tufte.tex",
+    "line": 483,
+    "overlay": true,
+    "nodes": 4,
+    "draws": 0,
+    "siblings": 4,
+    "base_on_disk": "figures/ch2/TNs/Mv.jpg"
+   },
+   {
+    "file": "figures/ch2/TNs/tn5",
+    "source": "chapters/two_tufte.tex",
+    "line": 502,
+    "overlay": true,
+    "nodes": 5,
+    "draws": 0,
+    "siblings": 5,
+    "base_on_disk": "figures/ch2/TNs/tn5.png"
+   },
+   {
+    "file": "figures/ch2/TNs/tn6",
+    "source": "chapters/two_tufte.tex",
+    "line": 504,
+    "overlay": true,
+    "nodes": 5,
+    "draws": 0,
+    "siblings": 5,
+    "base_on_disk": "figures/ch2/TNs/tn6.png"
+   },
+   {
+    "file": "figures/ch2/TNs/tn7",
+    "source": "chapters/two_tufte.tex",
+    "line": 506,
+    "overlay": true,
+    "nodes": 5,
+    "draws": 0,
+    "siblings": 5,
+    "base_on_disk": "figures/ch2/TNs/tn7.png"
+   },
+   {
+    "file": "figures/ch2/TNs/tn5",
+    "source": "chapters/two_tufte.tex",
+    "line": 520,
+    "overlay": true,
+    "nodes": 4,
+    "draws": 0,
+    "siblings": 4,
+    "base_on_disk": "figures/ch2/TNs/tn5.png"
+   },
+   {
+    "file": "figures/ch2/TNs/tn5",
+    "source": "chapters/two_tufte.tex",
+    "line": 522,
+    "overlay": true,
+    "nodes": 4,
+    "draws": 0,
+    "siblings": 4,
+    "base_on_disk": "figures/ch2/TNs/tn5.png"
+   },
+   {
+    "file": "figures/ch2/TNs/tn8",
+    "source": "chapters/two_tufte.tex",
+    "line": 535,
+    "overlay": true,
+    "nodes": 0,
+    "draws": 0,
+    "siblings": 0,
+    "base_on_disk": "figures/ch2/TNs/tn8.png"
+   },
+   {
+    "file": "figures/ch2/TNs/tn9",
+    "source": "chapters/two_tufte.tex",
+    "line": 547,
+    "overlay": true,
+    "nodes": 11,
+    "draws": 0,
+    "siblings": 11,
+    "base_on_disk": "figures/ch2/TNs/tn9.png"
+   },
+   {
+    "file": "figures/ch2/TNs/tn11",
+    "source": "chapters/two_tufte.tex",
+    "line": 552,
+    "overlay": true,
+    "nodes": 11,
+    "draws": 0,
+    "siblings": 11,
+    "base_on_disk": "figures/ch2/TNs/tn11.png"
+   },
+   {
+    "file": "figures/ch2/TNs/tn10",
+    "source": "chapters/two_tufte.tex",
+    "line": 558,
+    "overlay": true,
+    "nodes": 11,
+    "draws": 0,
+    "siblings": 11,
+    "base_on_disk": "figures/ch2/TNs/tn10.png"
+   },
+   {
+    "file": "figures/ch2/TNs/tn10",
+    "source": "chapters/two_tufte.tex",
+    "line": 559,
+    "overlay": true,
+    "nodes": 11,
+    "draws": 0,
+    "siblings": 11,
+    "base_on_disk": "figures/ch2/TNs/tn10.png"
+   },
+   {
+    "file": "figures/ch2/TNs/tn19",
+    "source": "chapters/two_tufte.tex",
+    "line": 567,
+    "overlay": true,
+    "nodes": 1,
+    "draws": 0,
+    "siblings": 1,
+    "base_on_disk": "figures/ch2/TNs/tn19.jpg"
+   },
+   {
+    "file": "figures/ch2/TNs/tn1",
+    "source": "chapters/two_tufte.tex",
+    "line": 576,
+    "overlay": true,
+    "nodes": 2,
+    "draws": 0,
+    "siblings": 2,
+    "base_on_disk": "figures/ch2/TNs/tn1.png"
+   },
+   {
+    "file": "figures/ch2/TNs/tn12",
+    "source": "chapters/two_tufte.tex",
+    "line": 578,
+    "overlay": true,
+    "nodes": 2,
+    "draws": 0,
+    "siblings": 2,
+    "base_on_disk": "figures/ch2/TNs/tn12.jpg"
+   },
+   {
+    "file": "figures/ch2/TNs/tn20",
+    "source": "chapters/two_tufte.tex",
+    "line": 587,
+    "overlay": true,
+    "nodes": 2,
+    "draws": 0,
+    "siblings": 2,
+    "base_on_disk": "figures/ch2/TNs/tn20.jpg"
+   },
+   {
+    "file": "figures/ch2/TNs/tn18",
+    "source": "chapters/two_tufte.tex",
+    "line": 598,
+    "overlay": true,
+    "nodes": 1,
+    "draws": 0,
+    "siblings": 1,
+    "base_on_disk": "figures/ch2/TNs/tn18.jpg"
+   },
+   {
+    "file": "figures/ch2/TNs/tn13",
+    "source": "chapters/two_tufte.tex",
+    "line": 608,
+    "overlay": true,
+    "nodes": 4,
+    "draws": 0,
+    "siblings": 4,
+    "base_on_disk": "figures/ch2/TNs/tn13.jpg"
+   },
+   {
+    "file": "figures/ch2/TNs/tn14",
+    "source": "chapters/two_tufte.tex",
+    "line": 612,
+    "overlay": true,
+    "nodes": 4,
+    "draws": 0,
+    "siblings": 4,
+    "base_on_disk": "figures/ch2/TNs/tn14.jpg"
+   },
+   {
+    "file": "figures/ch2/TNs/tn17",
+    "source": "chapters/two_tufte.tex",
+    "line": 623,
+    "overlay": true,
+    "nodes": 5,
+    "draws": 0,
+    "siblings": 5,
+    "base_on_disk": "figures/ch2/TNs/tn17.jpg"
+   },
+   {
+    "file": "figures/ch2/TNs/mps",
+    "source": "chapters/two_tufte.tex",
+    "line": 635,
+    "overlay": true,
+    "nodes": 1,
+    "draws": 0,
+    "siblings": 1,
+    "base_on_disk": "figures/ch2/TNs/mps.jpg"
+   },
+   {
+    "file": "figures/ch2/TNs/mps",
+    "source": "chapters/two_tufte.tex",
+    "line": 646,
+    "overlay": true,
+    "nodes": 1,
+    "draws": 0,
+    "siblings": 1,
+    "base_on_disk": "figures/ch2/TNs/mps.jpg"
+   },
+   {
+    "file": "figures/ch1/bothways",
+    "source": "chapters/two_tufte.tex",
+    "line": 686,
+    "overlay": true,
+    "nodes": 2,
+    "draws": 0,
+    "siblings": 2,
+    "base_on_disk": "figures/ch1/bothways.jpg"
+   },
+   {
+    "file": "figures/ch1/covector",
+    "source": "chapters/two_tufte.tex",
+    "line": 795,
+    "overlay": true,
+    "nodes": 3,
+    "draws": 0,
+    "siblings": 3,
+    "base_on_disk": "figures/ch1/covector.jpg"
+   },
+   {
+    "file": "figures/ch2/zoom",
+    "source": "chapters/two_tufte.tex",
+    "line": 873,
+    "overlay": true,
+    "nodes": 1,
+    "draws": 0,
+    "siblings": 1,
+    "base_on_disk": "figures/ch2/zoom.jpg"
+   },
+   {
+    "file": "figures/ch2/pt2.jpg",
+    "source": "chapters/two_tufte.tex",
+    "line": 1057,
+    "overlay": true,
+    "nodes": 3,
+    "draws": 2,
+    "siblings": 5,
+    "base_on_disk": "figures/ch2/pt2.jpg"
+   },
+   {
+    "file": "figures/ch2/vec_map",
+    "source": "chapters/two_tufte.tex",
+    "line": 1206,
+    "overlay": true,
+    "nodes": 2,
+    "draws": 0,
+    "siblings": 2,
+    "base_on_disk": "figures/ch2/vec_map.jpg"
+   },
+   {
+    "file": "figures/ch2/svd",
+    "source": "chapters/two_tufte.tex",
+    "line": 1240,
+    "overlay": true,
+    "nodes": 5,
+    "draws": 0,
+    "siblings": 5,
+    "base_on_disk": "figures/ch2/svd.png"
+   },
+   {
+    "file": "figures/ch2/svd2",
+    "source": "chapters/two_tufte.tex",
+    "line": 1256,
+    "overlay": true,
+    "nodes": 4,
+    "draws": 0,
+    "siblings": 4,
+    "base_on_disk": "figures/ch2/svd2.jpg"
+   },
+   {
+    "file": "figures/ch2/bestproof1",
+    "source": "chapters/two_tufte.tex",
+    "line": 1356,
+    "overlay": true,
+    "nodes": 9,
+    "draws": 0,
+    "siblings": 9,
+    "base_on_disk": "figures/ch2/bestproof1.jpg"
+   },
+   {
+    "file": "figures/ch2/bestproof2",
+    "source": "chapters/two_tufte.tex",
+    "line": 1366,
+    "overlay": true,
+    "nodes": 9,
+    "draws": 0,
+    "siblings": 9,
+    "base_on_disk": "figures/ch2/bestproof2.jpg"
+   },
+   {
+    "file": "figures/ch2/entanglement",
+    "source": "chapters/two_tufte.tex",
+    "line": 1439,
+    "overlay": true,
+    "nodes": 7,
+    "draws": 0,
+    "siblings": 7,
+    "base_on_disk": "figures/ch2/entanglement.jpg"
+   },
+   {
+    "file": "figures/ch2/entanglement2",
+    "source": "chapters/two_tufte.tex",
+    "line": 1456,
+    "overlay": true,
+    "nodes": 3,
+    "draws": 0,
+    "siblings": 3,
+    "base_on_disk": "figures/ch2/entanglement2.jpg"
+   },
+   {
+    "file": "figures/ch2/mpsapprox",
+    "source": "chapters/two_tufte.tex",
+    "line": 1465,
+    "overlay": true,
+    "nodes": 1,
+    "draws": 0,
+    "siblings": 1,
+    "base_on_disk": "figures/ch2/mpsapprox.jpg"
+   }
+  ]
+ },
+ {
+  "doc": "2004.05631v1",
+  "tikz_inclusions": 85,
+  "mathpix_crops": 134,
+  "hits": [
+   {
+    "file": "figures/ch4/mpsapprox2",
+    "source": "chapters/four_tufte.tex",
+    "line": 19,
+    "overlay": true,
+    "nodes": 2,
+    "draws": 1,
+    "siblings": 3,
+    "base_on_disk": "figures/ch4/mpsapprox2.jpg"
+   },
+   {
+    "file": "figures/ch4/psiemp",
+    "source": "chapters/four_tufte.tex",
+    "line": 64,
+    "overlay": true,
+    "nodes": 3,
+    "draws": 0,
+    "siblings": 3,
+    "base_on_disk": "figures/ch4/psiemp.jpg"
+   },
+   {
+    "file": "figures/ch4/mpsch4",
+    "source": "chapters/four_tufte.tex",
+    "line": 75,
+    "overlay": true,
+    "nodes": 6,
+    "draws": 0,
+    "siblings": 6,
+    "base_on_disk": "figures/ch4/mpsch4.jpg"
+   },
+   {
+    "file": "figures/ch4/psi2",
+    "source": "chapters/four_tufte.tex",
+    "line": 101,
+    "overlay": true,
+    "nodes": 1,
+    "draws": 0,
+    "siblings": 1,
+    "base_on_disk": "figures/ch4/psi2.jpg"
+   },
+   {
+    "file": "figures/ch4/getting_psi2",
+    "source": "chapters/four_tufte.tex",
+    "line": 109,
+    "overlay": true,
+    "nodes": 4,
+    "draws": 3,
+    "siblings": 7,
+    "base_on_disk": "figures/ch4/getting_psi2.jpg"
+   },
+   {
+    "file": "figures/ch4/rho2_ch4",
+    "source": "chapters/four_tufte.tex",
+    "line": 148,
+    "overlay": true,
+    "nodes": 2,
+    "draws": 0,
+    "siblings": 2,
+    "base_on_disk": "figures/ch4/rho2_ch4.jpg"
+   },
+   {
+    "file": "figures/ch4/spectral",
+    "source": "chapters/four_tufte.tex",
+    "line": 160,
+    "overlay": true,
+    "nodes": 5,
+    "draws": 0,
+    "siblings": 5,
+    "base_on_disk": "figures/ch4/spectral.jpg"
+   },
+   {
+    "file": "figures/ch4/firsttwo",
+    "source": "chapters/four_tufte.tex",
+    "line": 176,
+    "overlay": true,
+    "nodes": 2,
+    "draws": 0,
+    "siblings": 2,
+    "base_on_disk": "figures/ch4/firsttwo.jpg"
+   },
+   {
+    "file": "figures/ch4/psi_3",
+    "source": "chapters/four_tufte.tex",
+    "line": 184,
+    "overlay": true,
+    "nodes": 1,
+    "draws": 0,
+    "siblings": 1,
+    "base_on_disk": "figures/ch4/psi_3.jpg"
+   },
+   {
+    "file": "figures/ch4/getting_psi3",
+    "source": "chapters/four_tufte.tex",
+    "line": 192,
+    "overlay": true,
+    "nodes": 4,
+    "draws": 3,
+    "siblings": 7,
+    "base_on_disk": "figures/ch4/getting_psi3.jpg"
+   },
+   {
+    "file": "figures/ch4/rho3_ch4",
+    "source": "chapters/four_tufte.tex",
+    "line": 232,
+    "overlay": true,
+    "nodes": 3,
+    "draws": 0,
+    "siblings": 3,
+    "base_on_disk": "figures/ch4/rho3_ch4.jpg"
+   },
+   {
+    "file": "figures/ch4/getting_psi4",
+    "source": "chapters/four_tufte.tex",
+    "line": 242,
+    "overlay": true,
+    "nodes": 4,
+    "draws": 3,
+    "siblings": 7,
+    "base_on_disk": "figures/ch4/getting_psi4.jpg"
+   },
+   {
+    "file": "figures/ch4/mpsch4",
+    "source": "chapters/four_tufte.tex",
+    "line": 279,
+    "overlay": true,
+    "nodes": 5,
+    "draws": 0,
+    "siblings": 5,
+    "base_on_disk": "figures/ch4/mpsch4.jpg"
+   },
+   {
+    "file": "figures/ch4/complete_graph",
+    "source": "chapters/four_tufte.tex",
+    "line": 298,
+    "overlay": true,
+    "nodes": 12,
+    "draws": 0,
+    "siblings": 12,
+    "base_on_disk": "figures/ch4/complete_graph.jpg"
+   },
+   {
+    "file": "figures/ch4/summarize",
+    "source": "chapters/four_tufte.tex",
+    "line": 394,
+    "overlay": true,
+    "nodes": 3,
+    "draws": 0,
+    "siblings": 3,
+    "base_on_disk": "figures/ch4/summarize.jpg"
+   },
+   {
+    "file": "figures/ch4/training_graph",
+    "source": "chapters/four_tufte.tex",
+    "line": 407,
+    "overlay": true,
+    "nodes": 12,
+    "draws": 0,
+    "siblings": 12,
+    "base_on_disk": "figures/ch4/training_graph.jpg"
+   },
+   {
+    "file": "figures/ch4/psi_N2",
+    "source": "chapters/four_tufte.tex",
+    "line": 467,
+    "overlay": true,
+    "nodes": 3,
+    "draws": 0,
+    "siblings": 3,
+    "base_on_disk": "figures/ch4/psi_N2.jpg"
+   },
+   {
+    "file": "figures/ch1/concept2",
+    "source": "chapters/one_tufte.tex",
+    "line": 103,
+    "overlay": true,
+    "nodes": 8,
+    "draws": 0,
+    "siblings": 8,
+    "base_on_disk": "figures/ch1/concept2.jpg"
+   },
+   {
+    "file": "figures/ch2/graph2",
+    "source": "chapters/one_tufte.tex",
+    "line": 121,
+    "overlay": true,
+    "nodes": 5,
+    "draws": 0,
+    "siblings": 5,
+    "base_on_disk": "figures/ch2/graph2.jpg"
+   },
+   {
+    "file": "figures/ch3/eqpsi",
+    "source": "chapters/three_tufte.tex",
+    "line": 51,
+    "overlay": true,
+    "nodes": 1,
+    "draws": 0,
+    "siblings": 1,
+    "base_on_disk": "figures/ch3/eqpsi.jpg"
+   },
+   {
+    "file": "figures/ch3/eqrho",
+    "source": "chapters/three_tufte.tex",
+    "line": 72,
+    "overlay": true,
+    "nodes": 1,
+    "draws": 0,
+    "siblings": 1,
+    "base_on_disk": "figures/ch3/eqrho.jpg"
+   },
+   {
+    "file": "figures/ch3/eqredrho",
+    "source": "chapters/three_tufte.tex",
+    "line": 87,
+    "overlay": true,
+    "nodes": 2,
+    "draws": 0,
+    "siblings": 2,
+    "base_on_disk": "figures/ch3/eqredrho.jpg"
+   },
+   {
+    "file": "figures/ch2/question.jpg",
+    "source": "chapters/three_tufte.tex",
+    "line": 457,
+    "overlay": true,
+    "nodes": 5,
+    "draws": 0,
+    "siblings": 5,
+    "base_on_disk": "figures/ch2/question.jpg"
+   },
+   {
+    "file": "figures/ch2/graph3",
+    "source": "chapters/three_tufte.tex",
+    "line": 534,
+    "overlay": true,
+    "nodes": 5,
+    "draws": 0,
+    "siblings": 5,
+    "base_on_disk": "figures/ch2/graph3.jpg"
+   },
+   {
+    "file": "figures/ch2/graph4b",
+    "source": "chapters/three_tufte.tex",
+    "line": 563,
+    "overlay": true,
+    "nodes": 3,
+    "draws": 0,
+    "siblings": 3,
+    "base_on_disk": "figures/ch2/graph4b.jpg"
+   },
+   {
+    "file": "figures/ch2/graph5",
+    "source": "chapters/three_tufte.tex",
+    "line": 573,
+    "overlay": true,
+    "nodes": 3,
+    "draws": 0,
+    "siblings": 3,
+    "base_on_disk": "figures/ch2/graph5.jpg"
+   },
+   {
+    "file": "figures/ch2/graph6",
+    "source": "chapters/three_tufte.tex",
+    "line": 583,
+    "overlay": true,
+    "nodes": 4,
+    "draws": 0,
+    "siblings": 4,
+    "base_on_disk": "figures/ch2/graph6.jpg"
+   },
+   {
+    "file": "figures/ch2/graph7",
+    "source": "chapters/three_tufte.tex",
+    "line": 594,
+    "overlay": true,
+    "nodes": 2,
+    "draws": 0,
+    "siblings": 2,
+    "base_on_disk": "figures/ch2/graph7.jpg"
+   },
+   {
+    "file": "figures/ch2/graph8",
+    "source": "chapters/three_tufte.tex",
+    "line": 603,
+    "overlay": true,
+    "nodes": 3,
+    "draws": 0,
+    "siblings": 3,
+    "base_on_disk": "figures/ch2/graph8.jpg"
+   },
+   {
+    "file": "figures/ch2/graph2",
+    "source": "chapters/three_tufte.tex",
+    "line": 619,
+    "overlay": true,
+    "nodes": 5,
+    "draws": 0,
+    "siblings": 5,
+    "base_on_disk": "figures/ch2/graph2.jpg"
+   },
+   {
+    "file": "figures/ch2/graph2",
+    "source": "chapters/three_tufte.tex",
+    "line": 713,
+    "overlay": true,
+    "nodes": 5,
+    "draws": 0,
+    "siblings": 5,
+    "base_on_disk": "figures/ch2/graph2.jpg"
+   },
+   {
+    "file": "figures/ch1/concept2",
+    "source": "chapters/three_tufte.tex",
+    "line": 725,
+    "overlay": true,
+    "nodes": 6,
+    "draws": 0,
+    "siblings": 6,
+    "base_on_disk": "figures/ch1/concept2.jpg"
+   },
+   {
+    "file": "figures/ch3/graph2b",
+    "source": "chapters/three_tufte.tex",
+    "line": 806,
+    "overlay": true,
+    "nodes": 5,
+    "draws": 0,
+    "siblings": 5,
+    "base_on_disk": "figures/ch3/graph2b.jpg"
+   },
+   {
+    "file": "figures/ch3/psi4",
+    "source": "chapters/three_tufte.tex",
+    "line": 915,
+    "overlay": true,
+    "nodes": 1,
+    "draws": 0,
+    "siblings": 1,
+    "base_on_disk": "figures/ch3/psi4.jpg"
+   },
+   {
+    "file": "figures/ch3/M_31",
+    "source": "chapters/three_tufte.tex",
+    "line": 927,
+    "overlay": true,
+    "nodes": 1,
+    "draws": 0,
+    "siblings": 1,
+    "base_on_disk": "figures/ch3/M_31.jpg"
+   },
+   {
+    "file": "figures/ch3/rho0",
+    "source": "chapters/three_tufte.tex",
+    "line": 933,
+    "overlay": true,
+    "nodes": 2,
+    "draws": 2,
+    "siblings": 4,
+    "base_on_disk": "figures/ch3/rho0.jpg"
+   },
+   {
+    "file": "figures/ch3/rho_povm",
+    "source": "chapters/three_tufte.tex",
+    "line": 943,
+    "overlay": true,
+    "nodes": 1,
+    "draws": 0,
+    "siblings": 1,
+    "base_on_disk": "figures/ch3/rho_povm.jpg"
+   },
+   {
+    "file": "figures/ch3/rho_xi",
+    "source": "chapters/three_tufte.tex",
+    "line": 1057,
+    "overlay": true,
+    "nodes": 1,
+    "draws": 0,
+    "siblings": 1,
+    "base_on_disk": "figures/ch3/rho_xi.jpg"
+   },
+   {
+    "file": "figures/ch3/rho1",
+    "source": "chapters/three_tufte.tex",
+    "line": 1101,
+    "overlay": true,
+    "nodes": 2,
+    "draws": 0,
+    "siblings": 2,
+    "base_on_disk": "figures/ch3/rho1.jpg"
+   },
+   {
+    "file": "figures/ch3/rho2",
+    "source": "chapters/three_tufte.tex",
+    "line": 1142,
+    "overlay": true,
+    "nodes": 5,
+    "draws": 0,
+    "siblings": 5,
+    "base_on_disk": "figures/ch3/rho2.jpg"
+   },
+   {
+    "file": "figures/ch1/passage",
+    "source": "chapters/two_tufte.tex",
+    "line": 170,
+    "overlay": true,
+    "nodes": 3,
+    "draws": 0,
+    "siblings": 3,
+    "base_on_disk": "figures/ch1/passage.jpg"
+   },
+   {
+    "file": "figures/ch2/2tensor",
+    "source": "chapters/two_tufte.tex",
+    "line": 384,
+    "overlay": true,
+    "nodes": 3,
+    "draws": 0,
+    "siblings": 3,
+    "base_on_disk": "figures/ch2/2tensor.png"
+   },
+   {
+    "file": "figures/ch2/function",
+    "source": "chapters/two_tufte.tex",
+    "line": 399,
+    "overlay": true,
+    "nodes": 3,
+    "draws": 0,
+    "siblings": 3,
+    "base_on_disk": "figures/ch2/function.jpg"
+   },
+   {
+    "file": "figures/ch2/2tensor",
+    "source": "chapters/two_tufte.tex",
+    "line": 408,
+    "overlay": true,
+    "nodes": 1,
+    "draws": 0,
+    "siblings": 1,
+    "base_on_disk": "figures/ch2/2tensor.png"
+   },
+   {
+    "file": "figures/ch2/scalar",
+    "source": "chapters/two_tufte.tex",
+    "line": 426,
+    "overlay": true,
+    "nodes": 17,
+    "draws": 0,
+    "siblings": 17,
+    "base_on_disk": "figures/ch2/scalar.png"
+   },
+   {
+    "file": "figures/ch2/vector",
+    "source": "chapters/two_tufte.tex",
+    "line": 428,
+    "overlay": true,
+    "nodes": 17,
+    "draws": 0,
+    "siblings": 17,
+    "base_on_disk": "figures/ch2/vector.png"
+   },
+   {
+    "file": "figures/ch2/2tensor",
+    "source": "chapters/two_tufte.tex",
+    "line": 431,
+    "overlay": true,
+    "nodes": 17,
+    "draws": 0,
+    "siblings": 17,
+    "base_on_disk": "figures/ch2/2tensor.png"
+   },
+   {
+    "file": "figures/ch2/3tensor",
+    "source": "chapters/two_tufte.tex",
+    "line": 435,
+    "overlay": true,
+    "nodes": 17,
+    "draws": 0,
+    "siblings": 17,
+    "base_on_disk": "figures/ch2/3tensor.png"
+   },
+   {
+    "file": "figures/ch2/TNs/tn1",
+    "source": "chapters/two_tufte.tex",
+    "line": 450,
+    "overlay": true,
+    "nodes": 7,
+    "draws": 0,
+    "siblings": 7,
+    "base_on_disk": "figures/ch2/TNs/tn1.png"
+   },
+   {
+    "file": "figures/ch2/TNs/tn2",
+    "source": "chapters/two_tufte.tex",
+    "line": 454,
+    "overlay": true,
+    "nodes": 7,
+    "draws": 0,
+    "siblings": 7,
+    "base_on_disk": "figures/ch2/TNs/tn2.png"
+   },
+   {
+    "file": "figures/ch2/TNs/tn3",
+    "source": "chapters/two_tufte.tex",
+    "line": 466,
+    "overlay": true,
+    "nodes": 6,
+    "draws": 1,
+    "siblings": 7,
+    "base_on_disk": "figures/ch2/TNs/tn3.png"
+   },
+   {
+    "file": "figures/ch2/TNs/tn_4",
+    "source": "chapters/two_tufte.tex",
+    "line": 472,
+    "overlay": true,
+    "nodes": 6,
+    "draws": 1,
+    "siblings": 7,
+    "base_on_disk": "figures/ch2/TNs/tn_4.png"
+   },
+   {
+    "file": "figures/ch2/TNs/Mv",
+    "source": "chapters/two_tufte.tex",
+    "line": 483,
+    "overlay": true,
+    "nodes": 4,
+    "draws": 0,
+    "siblings": 4,
+    "base_on_disk": "figures/ch2/TNs/Mv.jpg"
+   },
+   {
+    "file": "figures/ch2/TNs/tn5",
+    "source": "chapters/two_tufte.tex",
+    "line": 502,
+    "overlay": true,
+    "nodes": 5,
+    "draws": 0,
+    "siblings": 5,
+    "base_on_disk": "figures/ch2/TNs/tn5.png"
+   },
+   {
+    "file": "figures/ch2/TNs/tn6",
+    "source": "chapters/two_tufte.tex",
+    "line": 504,
+    "overlay": true,
+    "nodes": 5,
+    "draws": 0,
+    "siblings": 5,
+    "base_on_disk": "figures/ch2/TNs/tn6.png"
+   },
+   {
+    "file": "figures/ch2/TNs/tn7",
+    "source": "chapters/two_tufte.tex",
+    "line": 506,
+    "overlay": true,
+    "nodes": 5,
+    "draws": 0,
+    "siblings": 5,
+    "base_on_disk": "figures/ch2/TNs/tn7.png"
+   },
+   {
+    "file": "figures/ch2/TNs/tn5",
+    "source": "chapters/two_tufte.tex",
+    "line": 520,
+    "overlay": true,
+    "nodes": 4,
+    "draws": 0,
+    "siblings": 4,
+    "base_on_disk": "figures/ch2/TNs/tn5.png"
+   },
+   {
+    "file": "figures/ch2/TNs/tn5",
+    "source": "chapters/two_tufte.tex",
+    "line": 522,
+    "overlay": true,
+    "nodes": 4,
+    "draws": 0,
+    "siblings": 4,
+    "base_on_disk": "figures/ch2/TNs/tn5.png"
+   },
+   {
+    "file": "figures/ch2/TNs/tn8",
+    "source": "chapters/two_tufte.tex",
+    "line": 535,
+    "overlay": true,
+    "nodes": 0,
+    "draws": 0,
+    "siblings": 0,
+    "base_on_disk": "figures/ch2/TNs/tn8.png"
+   },
+   {
+    "file": "figures/ch2/TNs/tn9",
+    "source": "chapters/two_tufte.tex",
+    "line": 547,
+    "overlay": true,
+    "nodes": 11,
+    "draws": 0,
+    "siblings": 11,
+    "base_on_disk": "figures/ch2/TNs/tn9.png"
+   },
+   {
+    "file": "figures/ch2/TNs/tn11",
+    "source": "chapters/two_tufte.tex",
+    "line": 552,
+    "overlay": true,
+    "nodes": 11,
+    "draws": 0,
+    "siblings": 11,
+    "base_on_disk": "figures/ch2/TNs/tn11.png"
+   },
+   {
+    "file": "figures/ch2/TNs/tn10",
+    "source": "chapters/two_tufte.tex",
+    "line": 558,
+    "overlay": true,
+    "nodes": 11,
+    "draws": 0,
+    "siblings": 11,
+    "base_on_disk": "figures/ch2/TNs/tn10.png"
+   },
+   {
+    "file": "figures/ch2/TNs/tn10",
+    "source": "chapters/two_tufte.tex",
+    "line": 559,
+    "overlay": true,
+    "nodes": 11,
+    "draws": 0,
+    "siblings": 11,
+    "base_on_disk": "figures/ch2/TNs/tn10.png"
+   },
+   {
+    "file": "figures/ch2/TNs/tn19",
+    "source": "chapters/two_tufte.tex",
+    "line": 567,
+    "overlay": true,
+    "nodes": 1,
+    "draws": 0,
+    "siblings": 1,
+    "base_on_disk": "figures/ch2/TNs/tn19.jpg"
+   },
+   {
+    "file": "figures/ch2/TNs/tn1",
+    "source": "chapters/two_tufte.tex",
+    "line": 576,
+    "overlay": true,
+    "nodes": 2,
+    "draws": 0,
+    "siblings": 2,
+    "base_on_disk": "figures/ch2/TNs/tn1.png"
+   },
+   {
+    "file": "figures/ch2/TNs/tn12",
+    "source": "chapters/two_tufte.tex",
+    "line": 578,
+    "overlay": true,
+    "nodes": 2,
+    "draws": 0,
+    "siblings": 2,
+    "base_on_disk": "figures/ch2/TNs/tn12.jpg"
+   },
+   {
+    "file": "figures/ch2/TNs/tn20",
+    "source": "chapters/two_tufte.tex",
+    "line": 587,
+    "overlay": true,
+    "nodes": 2,
+    "draws": 0,
+    "siblings": 2,
+    "base_on_disk": "figures/ch2/TNs/tn20.jpg"
+   },
+   {
+    "file": "figures/ch2/TNs/tn18",
+    "source": "chapters/two_tufte.tex",
+    "line": 598,
+    "overlay": true,
+    "nodes": 1,
+    "draws": 0,
+    "siblings": 1,
+    "base_on_disk": "figures/ch2/TNs/tn18.jpg"
+   },
+   {
+    "file": "figures/ch2/TNs/tn13",
+    "source": "chapters/two_tufte.tex",
+    "line": 608,
+    "overlay": true,
+    "nodes": 4,
+    "draws": 0,
+    "siblings": 4,
+    "base_on_disk": "figures/ch2/TNs/tn13.jpg"
+   },
+   {
+    "file": "figures/ch2/TNs/tn14",
+    "source": "chapters/two_tufte.tex",
+    "line": 612,
+    "overlay": true,
+    "nodes": 4,
+    "draws": 0,
+    "siblings": 4,
+    "base_on_disk": "figures/ch2/TNs/tn14.jpg"
+   },
+   {
+    "file": "figures/ch2/TNs/tn17",
+    "source": "chapters/two_tufte.tex",
+    "line": 623,
+    "overlay": true,
+    "nodes": 5,
+    "draws": 0,
+    "siblings": 5,
+    "base_on_disk": "figures/ch2/TNs/tn17.jpg"
+   },
+   {
+    "file": "figures/ch2/TNs/mps",
+    "source": "chapters/two_tufte.tex",
+    "line": 635,
+    "overlay": true,
+    "nodes": 1,
+    "draws": 0,
+    "siblings": 1,
+    "base_on_disk": "figures/ch2/TNs/mps.jpg"
+   },
+   {
+    "file": "figures/ch2/TNs/mps",
+    "source": "chapters/two_tufte.tex",
+    "line": 646,
+    "overlay": true,
+    "nodes": 1,
+    "draws": 0,
+    "siblings": 1,
+    "base_on_disk": "figures/ch2/TNs/mps.jpg"
+   },
+   {
+    "file": "figures/ch1/bothways",
+    "source": "chapters/two_tufte.tex",
+    "line": 686,
+    "overlay": true,
+    "nodes": 2,
+    "draws": 0,
+    "siblings": 2,
+    "base_on_disk": "figures/ch1/bothways.jpg"
+   },
+   {
+    "file": "figures/ch1/covector",
+    "source": "chapters/two_tufte.tex",
+    "line": 795,
+    "overlay": true,
+    "nodes": 3,
+    "draws": 0,
+    "siblings": 3,
+    "base_on_disk": "figures/ch1/covector.jpg"
+   },
+   {
+    "file": "figures/ch2/zoom",
+    "source": "chapters/two_tufte.tex",
+    "line": 873,
+    "overlay": true,
+    "nodes": 1,
+    "draws": 0,
+    "siblings": 1,
+    "base_on_disk": "figures/ch2/zoom.jpg"
+   },
+   {
+    "file": "figures/ch2/pt2.jpg",
+    "source": "chapters/two_tufte.tex",
+    "line": 1057,
+    "overlay": true,
+    "nodes": 3,
+    "draws": 2,
+    "siblings": 5,
+    "base_on_disk": "figures/ch2/pt2.jpg"
+   },
+   {
+    "file": "figures/ch2/vec_map",
+    "source": "chapters/two_tufte.tex",
+    "line": 1206,
+    "overlay": true,
+    "nodes": 2,
+    "draws": 0,
+    "siblings": 2,
+    "base_on_disk": "figures/ch2/vec_map.jpg"
+   },
+   {
+    "file": "figures/ch2/svd",
+    "source": "chapters/two_tufte.tex",
+    "line": 1240,
+    "overlay": true,
+    "nodes": 5,
+    "draws": 0,
+    "siblings": 5,
+    "base_on_disk": "figures/ch2/svd.png"
+   },
+   {
+    "file": "figures/ch2/svd2",
+    "source": "chapters/two_tufte.tex",
+    "line": 1256,
+    "overlay": true,
+    "nodes": 4,
+    "draws": 0,
+    "siblings": 4,
+    "base_on_disk": "figures/ch2/svd2.jpg"
+   },
+   {
+    "file": "figures/ch2/bestproof1",
+    "source": "chapters/two_tufte.tex",
+    "line": 1356,
+    "overlay": true,
+    "nodes": 9,
+    "draws": 0,
+    "siblings": 9,
+    "base_on_disk": "figures/ch2/bestproof1.jpg"
+   },
+   {
+    "file": "figures/ch2/bestproof2",
+    "source": "chapters/two_tufte.tex",
+    "line": 1366,
+    "overlay": true,
+    "nodes": 9,
+    "draws": 0,
+    "siblings": 9,
+    "base_on_disk": "figures/ch2/bestproof2.jpg"
+   },
+   {
+    "file": "figures/ch2/entanglement",
+    "source": "chapters/two_tufte.tex",
+    "line": 1439,
+    "overlay": true,
+    "nodes": 7,
+    "draws": 0,
+    "siblings": 7,
+    "base_on_disk": "figures/ch2/entanglement.jpg"
+   },
+   {
+    "file": "figures/ch2/entanglement2",
+    "source": "chapters/two_tufte.tex",
+    "line": 1456,
+    "overlay": true,
+    "nodes": 3,
+    "draws": 0,
+    "siblings": 3,
+    "base_on_disk": "figures/ch2/entanglement2.jpg"
+   },
+   {
+    "file": "figures/ch2/mpsapprox",
+    "source": "chapters/two_tufte.tex",
+    "line": 1465,
+    "overlay": true,
+    "nodes": 1,
+    "draws": 0,
+    "siblings": 1,
+    "base_on_disk": "figures/ch2/mpsapprox.jpg"
+   }
+  ]
+ },
+ {
+  "doc": "2012.15581",
+  "tikz_inclusions": 52,
+  "mathpix_crops": 91,
+  "hits": [
+   {
+    "file": "./figures/images/elasticity/res/cut/screenshot_67-sol2",
+    "source": "figures/elasticity.tex",
+    "line": 6,
+    "overlay": true,
+    "nodes": 1,
+    "draws": 2,
+    "siblings": 3,
+    "base_on_disk": "figures/images/elasticity/res/cut/screenshot_67-sol2.png"
+   },
+   {
+    "file": "./figures/images/elasticity/res/rot/cut/elast_1",
+    "source": "figures/elasticity.tex",
+    "line": 28,
+    "overlay": true,
+    "nodes": 1,
+    "draws": 3,
+    "siblings": 4,
+    "base_on_disk": "figures/images/elasticity/res/rot/cut/elast_1.png"
+   },
+   {
+    "file": "./figures/images/elasticity/res/cut/screenshot_67-err_f2",
+    "source": "figures/elasticity.tex",
+    "line": 59,
+    "overlay": true,
+    "nodes": 1,
+    "draws": 2,
+    "siblings": 3,
+    "base_on_disk": "figures/images/elasticity/res/cut/screenshot_67-err_f2.png"
+   },
+   {
+    "file": "./figures/images/elasticity/res/rot/cut/elast_2",
+    "source": "figures/elasticity.tex",
+    "line": 81,
+    "overlay": true,
+    "nodes": 1,
+    "draws": 2,
+    "siblings": 3,
+    "base_on_disk": "figures/images/elasticity/res/rot/cut/elast_2.png"
+   },
+   {
+    "file": "./figures/images/vertices_dim_2.png",
+    "source": "figures/geometric_decomposition.tex",
+    "line": 8,
+    "overlay": true,
+    "nodes": 3,
+    "draws": 0,
+    "siblings": 3,
+    "base_on_disk": "figures/images/vertices_dim_2.png"
+   },
+   {
+    "file": "./figures/images/lines_dim_2.png",
+    "source": "figures/geometric_decomposition.tex",
+    "line": 20,
+    "overlay": true,
+    "nodes": 3,
+    "draws": 0,
+    "siblings": 3,
+    "base_on_disk": "figures/images/lines_dim_2.png"
+   },
+   {
+    "file": "./figures/images/face_dim_2.png",
+    "source": "figures/geometric_decomposition.tex",
+    "line": 32,
+    "overlay": true,
+    "nodes": 1,
+    "draws": 0,
+    "siblings": 1,
+    "base_on_disk": "figures/images/face_dim_2.png"
+   },
+   {
+    "file": "./figures/images/cl_T_dim_2.png",
+    "source": "figures/geometric_decomposition.tex",
+    "line": 42,
+    "overlay": true,
+    "nodes": 0,
+    "draws": 0,
+    "siblings": 0,
+    "base_on_disk": "figures/images/cl_T_dim_2.png"
+   },
+   {
+    "file": "./figures/images/level1_simplex_dim_3.png",
+    "source": "figures/incomplete_freudenthal.tex",
+    "line": 8,
+    "overlay": true,
+    "nodes": 4,
+    "draws": 0,
+    "siblings": 4,
+    "base_on_disk": "figures/images/level1_simplex_dim_3.png"
+   },
+   {
+    "file": "./figures/images/red_refinement_dim_3.png",
+    "source": "figures/incomplete_freudenthal.tex",
+    "line": 21,
+    "overlay": true,
+    "nodes": 0,
+    "draws": 0,
+    "siblings": 0,
+    "base_on_disk": "figures/images/red_refinement_dim_3.png"
+   },
+   {
+    "file": "./figures/images/vertex_refinement_dim_3.png",
+    "source": "figures/incomplete_freudenthal.tex",
+    "line": 30,
+    "overlay": true,
+    "nodes": 0,
+    "draws": 0,
+    "siblings": 0,
+    "base_on_disk": "figures/images/vertex_refinement_dim_3.png"
+   },
+   {
+    "file": "./figures/images/line_refinement_dim_3.png",
+    "source": "figures/incomplete_freudenthal.tex",
+    "line": 39,
+    "overlay": true,
+    "nodes": 0,
+    "draws": 0,
+    "siblings": 0,
+    "base_on_disk": "figures/images/line_refinement_dim_3.png"
+   },
+   {
+    "file": "./figures/images/face_refinement_dim_3.png",
+    "source": "figures/incomplete_freudenthal.tex",
+    "line": 48,
+    "overlay": true,
+    "nodes": 0,
+    "draws": 0,
+    "siblings": 0,
+    "base_on_disk": "figures/images/face_refinement_dim_3.png"
+   },
+   {
+    "file": "./figures/images/volume_refinement_dim_3.png",
+    "source": "figures/incomplete_freudenthal.tex",
+    "line": 57,
+    "overlay": true,
+    "nodes": 0,
+    "draws": 0,
+    "siblings": 0,
+    "base_on_disk": "figures/images/volume_refinement_dim_3.png"
+   },
+   {
+    "file": "./figures/images/hodgelaplacian/2D/K2/res/screenshot_1-err_f1.png",
+    "source": "figures/lshape_error_decay_rate.tex",
+    "line": 6,
+    "overlay": true,
+    "nodes": 1,
+    "draws": 0,
+    "siblings": 1,
+    "base_on_disk": "figures/images/hodgelaplacian/2D/K2/res/screenshot_1-err_f1.png"
+   },
+   {
+    "file": "./figures/images/hodgelaplacian/2D/K2/res/screenshot_1-err_fs.png",
+    "source": "figures/lshape_error_decay_rate.tex",
+    "line": 30,
+    "overlay": true,
+    "nodes": 1,
+    "draws": 0,
+    "siblings": 1,
+    "base_on_disk": "figures/images/hodgelaplacian/2D/K2/res/screenshot_1-err_fs.png"
+   },
+   {
+    "file": "./figures/images/hodgelaplacian/2D/K2/res/screenshot_1-err_dec_rate.png",
+    "source": "figures/lshape_error_decay_rate.tex",
+    "line": 53,
+    "overlay": true,
+    "nodes": 1,
+    "draws": 0,
+    "siblings": 1,
+    "base_on_disk": "figures/images/hodgelaplacian/2D/K2/res/screenshot_1-err_dec_rate.png"
+   },
+   {
+    "file": "./figures/images/hodgelaplacian/2D/K2/res/screenshot_1-sol2.png",
+    "source": "figures/lshape_solution_u.tex",
+    "line": 6,
+    "overlay": true,
+    "nodes": 1,
+    "draws": 0,
+    "siblings": 1,
+    "base_on_disk": "figures/images/hodgelaplacian/2D/K2/res/screenshot_1-sol2.png"
+   },
+   {
+    "file": "./figures/images/hodgelaplacian/2D/K2/res/screenshot_69-sol2.png",
+    "source": "figures/lshape_solution_u.tex",
+    "line": 27,
+    "overlay": true,
+    "nodes": 1,
+    "draws": 0,
+    "siblings": 1,
+    "base_on_disk": "figures/images/hodgelaplacian/2D/K2/res/screenshot_69-sol2.png"
+   },
+   {
+    "file": "./figures/images/hodgelaplacian/2D/K2/res/screenshot_69-wireframe.png",
+    "source": "figures/refined_laplacian_2d_k2.tex",
+    "line": 6,
+    "overlay": true,
+    "nodes": 1,
+    "draws": 0,
+    "siblings": 1,
+    "base_on_disk": "figures/images/hodgelaplacian/2D/K2/res/screenshot_69-wireframe.png"
+   },
+   {
+    "file": "./figures/images/hodgelaplacian/2D/K2/res/screenshot_69-err_fs.png",
+    "source": "figures/refined_laplacian_2d_k2.tex",
+    "line": 29,
+    "overlay": true,
+    "nodes": 1,
+    "draws": 0,
+    "siblings": 1,
+    "base_on_disk": "figures/images/hodgelaplacian/2D/K2/res/screenshot_69-err_fs.png"
+   },
+   {
+    "file": "./figures/images/hodgelaplacian/2D/K2/res/screenshot_69-err_dec_rate.png",
+    "source": "figures/refined_laplacian_2d_k2.tex",
+    "line": 51,
+    "overlay": true,
+    "nodes": 1,
+    "draws": 0,
+    "siblings": 1,
+    "base_on_disk": "figures/images/hodgelaplacian/2D/K2/res/screenshot_69-err_dec_rate.png"
+   },
+   {
+    "file": "./figures/images/hodgelaplacian/2D/K2/res/screenshot_69-p_order.png",
+    "source": "figures/refined_laplacian_2d_k2.tex",
+    "line": 74,
+    "overlay": true,
+    "nodes": 1,
+    "draws": 0,
+    "siblings": 1,
+    "base_on_disk": "figures/images/hodgelaplacian/2D/K2/res/screenshot_69-p_order.png"
+   },
+   {
+    "file": "./figures/images/elasticity/p_order_scale_1",
+    "source": "figures/zoom.tex",
+    "line": 5,
+    "overlay": true,
+    "nodes": 5,
+    "draws": 2,
+    "siblings": 7,
+    "base_on_disk": "figures/images/elasticity/p_order_scale_1.png"
+   },
+   {
+    "file": "./figures/images/elasticity/p_order_scale_2",
+    "source": "figures/zoom.tex",
+    "line": 7,
+    "overlay": true,
+    "nodes": 5,
+    "draws": 2,
+    "siblings": 7,
+    "base_on_disk": "figures/images/elasticity/p_order_scale_2.png"
+   },
+   {
+    "file": "./figures/images/elasticity/p_order_scale_3",
+    "source": "figures/zoom.tex",
+    "line": 9,
+    "overlay": true,
+    "nodes": 5,
+    "draws": 2,
+    "siblings": 7,
+    "base_on_disk": "figures/images/elasticity/p_order_scale_3.png"
+   },
+   {
+    "file": "./figures/images/vertices_dim_2.png",
+    "source": "ms.tex",
+    "line": 384,
+    "overlay": true,
+    "nodes": 3,
+    "draws": 0,
+    "siblings": 3,
+    "base_on_disk": "figures/images/vertices_dim_2.png"
+   },
+   {
+    "file": "./figures/images/lines_dim_2.png",
+    "source": "ms.tex",
+    "line": 396,
+    "overlay": true,
+    "nodes": 3,
+    "draws": 0,
+    "siblings": 3,
+    "base_on_disk": "figures/images/lines_dim_2.png"
+   },
+   {
+    "file": "./figures/images/face_dim_2.png",
+    "source": "ms.tex",
+    "line": 408,
+    "overlay": true,
+    "nodes": 1,
+    "draws": 0,
+    "siblings": 1,
+    "base_on_disk": "figures/images/face_dim_2.png"
+   },
+   {
+    "file": "./figures/images/cl_T_dim_2.png",
+    "source": "ms.tex",
+    "line": 418,
+    "overlay": true,
+    "nodes": 0,
+    "draws": 0,
+    "siblings": 0,
+    "base_on_disk": "figures/images/cl_T_dim_2.png"
+   },
+   {
+    "file": "./figures/images/level1_simplex_dim_3.png",
+    "source": "ms.tex",
+    "line": 791,
+    "overlay": true,
+    "nodes": 4,
+    "draws": 0,
+    "siblings": 4,
+    "base_on_disk": "figures/images/level1_simplex_dim_3.png"
+   },
+   {
+    "file": "./figures/images/red_refinement_dim_3.png",
+    "source": "ms.tex",
+    "line": 804,
+    "overlay": true,
+    "nodes": 0,
+    "draws": 0,
+    "siblings": 0,
+    "base_on_disk": "figures/images/red_refinement_dim_3.png"
+   },
+   {
+    "file": "./figures/images/vertex_refinement_dim_3.png",
+    "source": "ms.tex",
+    "line": 813,
+    "overlay": true,
+    "nodes": 0,
+    "draws": 0,
+    "siblings": 0,
+    "base_on_disk": "figures/images/vertex_refinement_dim_3.png"
+   },
+   {
+    "file": "./figures/images/line_refinement_dim_3.png",
+    "source": "ms.tex",
+    "line": 822,
+    "overlay": true,
+    "nodes": 0,
+    "draws": 0,
+    "siblings": 0,
+    "base_on_disk": "figures/images/line_refinement_dim_3.png"
+   },
+   {
+    "file": "./figures/images/face_refinement_dim_3.png",
+    "source": "ms.tex",
+    "line": 831,
+    "overlay": true,
+    "nodes": 0,
+    "draws": 0,
+    "siblings": 0,
+    "base_on_disk": "figures/images/face_refinement_dim_3.png"
+   },
+   {
+    "file": "./figures/images/volume_refinement_dim_3.png",
+    "source": "ms.tex",
+    "line": 840,
+    "overlay": true,
+    "nodes": 0,
+    "draws": 0,
+    "siblings": 0,
+    "base_on_disk": "figures/images/volume_refinement_dim_3.png"
+   },
+   {
+    "file": "./figures/images/hodgelaplacian/2D/K2/res/screenshot_1-sol2.png",
+    "source": "ms.tex",
+    "line": 1094,
+    "overlay": true,
+    "nodes": 1,
+    "draws": 0,
+    "siblings": 1,
+    "base_on_disk": "figures/images/hodgelaplacian/2D/K2/res/screenshot_1-sol2.png"
+   },
+   {
+    "file": "./figures/images/hodgelaplacian/2D/K2/res/screenshot_69-sol2.png",
+    "source": "ms.tex",
+    "line": 1115,
+    "overlay": true,
+    "nodes": 1,
+    "draws": 0,
+    "siblings": 1,
+    "base_on_disk": "figures/images/hodgelaplacian/2D/K2/res/screenshot_69-sol2.png"
+   },
+   {
+    "file": "./figures/images/hodgelaplacian/2D/K2/res/screenshot_1-err_f1.png",
+    "source": "ms.tex",
+    "line": 1142,
+    "overlay": true,
+    "nodes": 1,
+    "draws": 0,
+    "siblings": 1,
+    "base_on_disk": "figures/images/hodgelaplacian/2D/K2/res/screenshot_1-err_f1.png"
+   },
+   {
+    "file": "./figures/images/hodgelaplacian/2D/K2/res/screenshot_1-err_fs.png",
+    "source": "ms.tex",
+    "line": 1166,
+    "overlay": true,
+    "nodes": 1,
+    "draws": 0,
+    "siblings": 1,
+    "base_on_disk": "figures/images/hodgelaplacian/2D/K2/res/screenshot_1-err_fs.png"
+   },
+   {
+    "file": "./figures/images/hodgelaplacian/2D/K2/res/screenshot_1-err_dec_rate.png",
+    "source": "ms.tex",
+    "line": 1189,
+    "overlay": true,
+    "nodes": 1,
+    "draws": 0,
+    "siblings": 1,
+    "base_on_disk": "figures/images/hodgelaplacian/2D/K2/res/screenshot_1-err_dec_rate.png"
+   },
+   {
+    "file": "./figures/images/hodgelaplacian/2D/K2/res/screenshot_69-wireframe.png",
+    "source": "ms.tex",
+    "line": 1220,
+    "overlay": true,
+    "nodes": 1,
+    "draws": 0,
+    "siblings": 1,
+    "base_on_disk": "figures/images/hodgelaplacian/2D/K2/res/screenshot_69-wireframe.png"
+   },
+   {
+    "file": "./figures/images/hodgelaplacian/2D/K2/res/screenshot_69-err_fs.png",
+    "source": "ms.tex",
+    "line": 1243,
+    "overlay": true,
+    "nodes": 1,
+    "draws": 0,
+    "siblings": 1,
+    "base_on_disk": "figures/images/hodgelaplacian/2D/K2/res/screenshot_69-err_fs.png"
+   },
+   {
+    "file": "./figures/images/hodgelaplacian/2D/K2/res/screenshot_69-err_dec_rate.png",
+    "source": "ms.tex",
+    "line": 1265,
+    "overlay": true,
+    "nodes": 1,
+    "draws": 0,
+    "siblings": 1,
+    "base_on_disk": "figures/images/hodgelaplacian/2D/K2/res/screenshot_69-err_dec_rate.png"
+   },
+   {
+    "file": "./figures/images/hodgelaplacian/2D/K2/res/screenshot_69-p_order.png",
+    "source": "ms.tex",
+    "line": 1288,
+    "overlay": true,
+    "nodes": 1,
+    "draws": 0,
+    "siblings": 1,
+    "base_on_disk": "figures/images/hodgelaplacian/2D/K2/res/screenshot_69-p_order.png"
+   },
+   {
+    "file": "./figures/images/elasticity/res/cut/screenshot_67-sol2",
+    "source": "ms.tex",
+    "line": 1424,
+    "overlay": true,
+    "nodes": 1,
+    "draws": 2,
+    "siblings": 3,
+    "base_on_disk": "figures/images/elasticity/res/cut/screenshot_67-sol2.png"
+   },
+   {
+    "file": "./figures/images/elasticity/res/rot/cut/elast_1",
+    "source": "ms.tex",
+    "line": 1446,
+    "overlay": true,
+    "nodes": 1,
+    "draws": 3,
+    "siblings": 4,
+    "base_on_disk": "figures/images/elasticity/res/rot/cut/elast_1.png"
+   },
+   {
+    "file": "./figures/images/elasticity/res/cut/screenshot_67-err_f2",
+    "source": "ms.tex",
+    "line": 1477,
+    "overlay": true,
+    "nodes": 1,
+    "draws": 2,
+    "siblings": 3,
+    "base_on_disk": "figures/images/elasticity/res/cut/screenshot_67-err_f2.png"
+   },
+   {
+    "file": "./figures/images/elasticity/res/rot/cut/elast_2",
+    "source": "ms.tex",
+    "line": 1499,
+    "overlay": true,
+    "nodes": 1,
+    "draws": 2,
+    "siblings": 3,
+    "base_on_disk": "figures/images/elasticity/res/rot/cut/elast_2.png"
+   },
+   {
+    "file": "./figures/images/elasticity/p_order_scale_1",
+    "source": "ms.tex",
+    "line": 1530,
+    "overlay": true,
+    "nodes": 5,
+    "draws": 2,
+    "siblings": 7,
+    "base_on_disk": "figures/images/elasticity/p_order_scale_1.png"
+   },
+   {
+    "file": "./figures/images/elasticity/p_order_scale_2",
+    "source": "ms.tex",
+    "line": 1532,
+    "overlay": true,
+    "nodes": 5,
+    "draws": 2,
+    "siblings": 7,
+    "base_on_disk": "figures/images/elasticity/p_order_scale_2.png"
+   },
+   {
+    "file": "./figures/images/elasticity/p_order_scale_3",
+    "source": "ms.tex",
+    "line": 1534,
+    "overlay": true,
+    "nodes": 5,
+    "draws": 2,
+    "siblings": 7,
+    "base_on_disk": "figures/images/elasticity/p_order_scale_3.png"
+   }
+  ]
+ },
+ {
+  "doc": "2102.08145",
+  "tikz_inclusions": 4,
+  "mathpix_crops": 9,
+  "hits": [
+   {
+    "file": "figures/DVS_image.png",
+    "source": "root.tex",
+    "line": 129,
+    "overlay": true,
+    "nodes": 7,
+    "draws": 3,
+    "siblings": 10,
+    "base_on_disk": "figures/DVS_image.png"
+   },
+   {
+    "file": "figures/hough_space_and_line_detection_2.png",
+    "source": "root.tex",
+    "line": 132,
+    "overlay": true,
+    "nodes": 7,
+    "draws": 3,
+    "siblings": 10,
+    "base_on_disk": "figures/hough_space_and_line_detection_2.png"
+   },
+   {
+    "file": "figures/tracking_space_no_axis.png",
+    "source": "root.tex",
+    "line": 135,
+    "overlay": true,
+    "nodes": 7,
+    "draws": 3,
+    "siblings": 10,
+    "base_on_disk": "figures/tracking_space_no_axis.png"
+   },
+   {
+    "file": "figures/Betriebshof_no_axis.png",
+    "source": "root.tex",
+    "line": 138,
+    "overlay": true,
+    "nodes": 7,
+    "draws": 3,
+    "siblings": 10,
+    "base_on_disk": "figures/Betriebshof_no_axis.png"
+   }
+  ]
+ },
+ {
+  "doc": "2104.05122",
+  "tikz_inclusions": 2,
+  "mathpix_crops": 24,
+  "hits": [
+   {
+    "file": "cards_Severini_v3.pdf",
+    "source": "36_officers_PRL_main.tex",
+    "line": 1506,
+    "overlay": true,
+    "nodes": 2,
+    "draws": 0,
+    "siblings": 2,
+    "base_on_disk": "cards_Severini_v3.pdf"
+   },
+   {
+    "file": "ame_algorithm_seed_v3.pdf",
+    "source": "36_officers_PRL_main.tex",
+    "line": 1563,
+    "overlay": true,
+    "nodes": 2,
+    "draws": 0,
+    "siblings": 2,
+    "base_on_disk": "ame_algorithm_seed_v3.pdf"
+   }
+  ]
+ },
+ {
+  "doc": "2104.08926",
+  "tikz_inclusions": 3,
+  "mathpix_crops": 1,
+  "hits": [
+   {
+    "file": "figs/singledoc.png",
+    "source": "Introduction.tex",
+    "line": 35,
+    "overlay": true,
+    "nodes": 1,
+    "draws": 0,
+    "siblings": 1,
+    "base_on_disk": "figs/singledoc.png"
+   },
+   {
+    "file": "figs/singledoc.png",
+    "source": "Introduction.tex",
+    "line": 56,
+    "overlay": true,
+    "nodes": 1,
+    "draws": 0,
+    "siblings": 1,
+    "base_on_disk": "figs/singledoc.png"
+   },
+   {
+    "file": "figs/singledoc.png",
+    "source": "Introduction.tex",
+    "line": 66,
+    "overlay": true,
+    "nodes": 1,
+    "draws": 0,
+    "siblings": 1,
+    "base_on_disk": "figs/singledoc.png"
+   }
+  ]
+ },
+ {
+  "doc": "2406.19108v2",
+  "tikz_inclusions": 1,
+  "mathpix_crops": 17,
+  "hits": [
+   {
+    "file": "img/replicator.pdf",
+    "source": "case_study.tex",
+    "line": 26,
+    "overlay": true,
+    "nodes": 4,
+    "draws": 0,
+    "siblings": 4,
+    "base_on_disk": "img/replicator.pdf"
+   }
+  ]
+ },
+ {
+  "doc": "2409.01704v1",
+  "tikz_inclusions": 1,
+  "mathpix_crops": 21,
+  "hits": [
+   {
+    "file": "Figs/got_logo.png",
+    "source": "Manuscript.tex",
+    "line": 103,
+    "overlay": true,
+    "nodes": 0,
+    "draws": 0,
+    "siblings": 0,
+    "base_on_disk": "Figs/got_logo.png"
+   }
+  ]
+ },
+ {
+  "doc": "2508.19773",
+  "tikz_inclusions": 2,
+  "mathpix_crops": 9,
+  "hits": [
+   {
+    "file": "images/before.PNG",
+    "source": "papercontent.tex",
+    "line": 58,
+    "overlay": true,
+    "nodes": 3,
+    "draws": 1,
+    "siblings": 4,
+    "base_on_disk": "images/before.PNG"
+   },
+   {
+    "file": "images/after.PNG",
+    "source": "papercontent.tex",
+    "line": 60,
+    "overlay": true,
+    "nodes": 3,
+    "draws": 1,
+    "siblings": 4,
+    "base_on_disk": "images/after.PNG"
+   }
+  ]
+ },
+ {
+  "doc": "2512.15098v4",
+  "tikz_inclusions": 3,
+  "mathpix_crops": 0,
+  "hits": [
+   {
+    "file": "#1",
+    "source": "appendix/examples.tex",
+    "line": 86,
+    "overlay": true,
+    "nodes": 1,
+    "draws": 0,
+    "siblings": 1,
+    "base_on_disk": null
+   },
+   {
+    "file": "#1",
+    "source": "appendix/examples.tex",
+    "line": 116,
+    "overlay": true,
+    "nodes": 1,
+    "draws": 0,
+    "siblings": 1,
+    "base_on_disk": null
+   },
+   {
+    "file": "#1",
+    "source": "appendix/examples.tex",
+    "line": 153,
+    "overlay": true,
+    "nodes": 1,
+    "draws": 1,
+    "siblings": 2,
+    "base_on_disk": null
+   }
+  ]
+ }
+]

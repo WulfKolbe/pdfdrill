@@ -375,3 +375,30 @@ def enclosing_span(text: str, pos: int, env: str = "figure"):
     e = b + m.end() if m else len(text)
     return (b, e) if b <= pos < e else None
 
+
+_NODE = re.compile(r"\\node\b")
+_DRAW = re.compile(r"\\draw\b")
+
+
+def tikz_siblings(text: str, pos: int) -> dict:
+    r"""What else the enclosing tikzpicture draws besides this inclusion (335).
+
+    A picture placed by a node with NO siblings is just an image with extra
+    steps — the tikzpicture adds nothing a reader can see. A picture with
+    sibling `\node`s or `\draw`s is the annotation-over-figure case: the
+    author drew ON the image, so the page shows something the base file does
+    not, and a crop of the page is not a crop of the file.
+
+    The node holding the inclusion is not counted as its own sibling.
+    """
+    span = enclosing_span(text, pos, "tikzpicture")
+    if not span:
+        return {"nodes": 0, "draws": 0, "siblings": 0}
+    body = text[span[0]:span[1]]
+    own = 0
+    m = re.search(r"\\node\b[^;]*$", text[span[0]:pos])
+    if m:
+        own = 1                       # the \node whose body is this image
+    nodes = max(0, len(_NODE.findall(body)) - own)
+    draws = len(_DRAW.findall(body))
+    return {"nodes": nodes, "draws": draws, "siblings": nodes + draws}
