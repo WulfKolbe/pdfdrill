@@ -1,0 +1,32 @@
+{
+ "doc": "Glimpses of Soliton Theory The Algebra and Geometry of Nonlinear PDEs (Alex Kasman) (Z-Library)",
+ "pdf": "Glimpses of Soliton Theory The Algebra and Geometry of Nonlinear PDEs (Alex Kasman) (Z-Library).pdf",
+ "rc": 0,
+ "stdout_tail": "Build stamp: report.build.json — phase=reading, 282 pages, 8773308 bytes, sha256 888f318db469. A measurement of this report should copy it into its output as `measured_against`.",
+ "seconds": 343.9,
+ "regions": {
+  "regions_with_latex": 4,
+  "attempted_now": 4,
+  "rendered": 3,
+  "failed": 1,
+  "has_author_preamble": false,
+  "graphics_dir": null,
+  "failures": [
+   {
+    "id": "Glimpses_of_Soliton_Theory_The_Algebra_and_Geometry_of_Nonlinear_PDEs__Alex_Kasman___Z-Library__DIA_0051",
+    "first_error": "! Misplaced alignment tab character &."
+   }
+  ]
+ },
+ "manifest_rows": 116,
+ "with_latex": 4,
+ "duplicated": 113,
+ "table_cols": [
+  6,
+  5,
+  6
+ ],
+ "six_col_tables": 2,
+ "region_table_cols": 6,
+ "ink_selectable": false
+}
