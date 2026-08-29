@@ -1,0 +1,28 @@
+{
+ "doc": "Network-on-Chip Security and Privacy (Prabhat Mishra (editor) etc.) (Z-Library)",
+ "pdf": "Network-on-Chip Security and Privacy (Prabhat Mishra (editor) etc.) (Z-Library).pdf",
+ "rc": 0,
+ "stdout_tail": "Build stamp: report.build.json — phase=reading, 186 pages, 13935051 bytes, sha256 591b84b5c552. A measurement of this report should copy it into its output as `measured_against`.",
+ "seconds": 92.2,
+ "regions": {
+  "regions_with_latex": 17,
+  "attempted_now": 17,
+  "rendered": 17,
+  "failed": 0,
+  "has_author_preamble": false,
+  "graphics_dir": null,
+  "failures": []
+ },
+ "manifest_rows": 222,
+ "with_latex": 17,
+ "duplicated": 205,
+ "table_cols": [
+  6,
+  5,
+  4,
+  6
+ ],
+ "six_col_tables": 2,
+ "region_table_cols": 6,
+ "ink_selectable": false
+}
