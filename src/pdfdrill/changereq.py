@@ -251,3 +251,194 @@ def load(path: Path, validate: bool = True) -> list:
                 p.problems.append(f"non-uniform numeric table row widths - {detail}")
         out.append(p)
     return out
+
+
+# ---------------------------------------------------------------------------
+# 307 — the DECLARED column count.
+#
+# `\begin{array}{c|c|c|c|c|c|c}` states seven columns. A row with five is a
+# transcription that lost entries, and LaTeX sets it without complaint.
+#
+# This rule shares nothing with `check_uniform_widths` on purpose, and catches
+# rows that one cannot:
+#
+#   * uniformity needs >=60% of cells to be bare numbers, so a symbolic or
+#     mixed table is skipped entirely; the declaration is checked whatever the
+#     cells hold.
+#   * uniformity compares rows to EACH OTHER, so a table whose every row is
+#     short by the same amount is perfectly uniform and perfectly wrong.
+#     Against the declaration it is wrong on every row.
+#   * uniformity needs two rows to have an opinion. A one-row array is checked
+#     here.
+# ---------------------------------------------------------------------------
+
+#: Column types that occupy a column and take a braced width argument.
+_ARG_COLS = "pmb"
+#: Preamble decorations that occupy no column but take a braced argument.
+_DECOR = "@!><"
+#: Rules and spacing that are not a row.
+_NOT_A_ROW = re.compile(
+    r"^(?:\s|\\hline|\\toprule|\\midrule|\\bottomrule|\\cline\s*\{[^}]*\}"
+    r"|\\cmidrule\s*(?:\[[^]]*\])?\s*\{[^}]*\}|\\noalign\s*\{[^}]*\}"
+    r"|\\addlinespace(?:\s*\[[^]]*\])?|\\rule\s*\{[^}]*\}\s*\{[^}]*\}"
+    r"|\\\[[^]]*\]|&)*$")
+_MULTICOL = re.compile(r"\\multicolumn\s*\{\s*(\d+)\s*\}")
+#: environments that DECLARE a column count. `matrix`/`cases` do not take a
+#: preamble at all, so they have nothing to be checked against and are absent.
+_DECLARING_ENVS = ("array", "tabular", "tabularx", "longtable", "supertabular",
+                   "tabulary")
+
+
+def _brace_arg(spec: str, i: int):
+    """(inner, next-index) for the {...} starting at i, brace-matched."""
+    if i >= len(spec) or spec[i] != "{":
+        return "", i
+    depth, j = 0, i
+    while j < len(spec):
+        if spec[j] == "{":
+            depth += 1
+        elif spec[j] == "}":
+            depth -= 1
+            if not depth:
+                return spec[i + 1:j], j + 1
+        j += 1
+    return spec[i + 1:], len(spec)
+
+
+def parse_colspec(spec: str) -> int:
+    r"""How many columns a preamble declares.
+
+    `|`, `@{...}`, `>{\bfseries}` and friends decorate without occupying a
+    column; `p{2cm}` occupies one and swallows a brace group that would
+    otherwise be counted as more columns; `*{4}{c}` repeats.
+    """
+    n, i = 0, 0
+    while i < len(spec):
+        c = spec[i]
+        if c in " \t\r\n|":
+            i += 1
+        elif c in _DECOR:
+            _, i = _brace_arg(spec, i + 1)
+        elif c == "*":
+            cnt, i = _brace_arg(spec, i + 1)
+            sub, i = _brace_arg(spec, i)
+            try:
+                n += max(0, int(cnt.strip())) * parse_colspec(sub)
+            except ValueError:
+                n += parse_colspec(sub)
+        elif c in _ARG_COLS:
+            n += 1
+            _, i = _brace_arg(spec, i + 1)
+        elif c.isalpha():
+            n += 1
+            i += 1
+        else:
+            i += 1
+    return n
+
+
+def _row_cells(row: str) -> int:
+    r"""Columns a row occupies, counting `\multicolumn{n}` as n."""
+    cells = row.split("&")
+    n = 0
+    for cell in cells:
+        m = _MULTICOL.search(cell)
+        n += int(m.group(1)) if m else 1
+    return n
+
+
+def declared_tables(latex: str) -> list:
+    r"""Every table that DECLARES a column count, with its rows' widths."""
+    text = latex or ""
+    out, i = [], 0
+    begin = re.compile(r"\\begin\{(" + "|".join(_DECLARING_ENVS) + r")\}")
+    while i < len(text):
+        m = begin.search(text, i)
+        if not m:
+            break
+        env = m.group(1)
+        j = m.end()
+        # skip [t]/[b] position, then take the preamble
+        while j < len(text) and text[j] in " \t\r\n":
+            j += 1
+        if j < len(text) and text[j] == "[":
+            depth = 0
+            while j < len(text):
+                if text[j] == "[":
+                    depth += 1
+                elif text[j] == "]":
+                    depth -= 1
+                    if not depth:
+                        j += 1
+                        break
+                j += 1
+            while j < len(text) and text[j] in " \t\r\n":
+                j += 1
+        spec, j = _brace_arg(text, j)
+        if not spec:
+            i = m.end()
+            continue
+        # Depth-counted, like `_table_bodies`. Taking the FIRST \end{env}
+        # truncates an outer array at its inner one, and the outer table's
+        # rows are then measured on a fragment -- a wrong width reported with
+        # full confidence, which is the defect this rule exists to catch.
+        open_re = re.compile(r"\\begin\{" + env + r"\}")
+        close_re = re.compile(r"\\end\{" + env + r"\}")
+        depth, k = 1, j
+        end_at = None
+        while k < len(text) and depth:
+            o, c = open_re.search(text, k), close_re.search(text, k)
+            if not c:
+                break
+            if o and o.start() < c.start():
+                depth += 1
+                k = o.end()
+            else:
+                depth -= 1
+                k = c.end()
+                if not depth:
+                    end_at = c.start()
+        if end_at is None:
+            break
+        body = text[j:end_at]
+        declared = parse_colspec(spec)
+        flat = _flatten_nested(body)
+        widths = [_row_cells(r) for r in _ROWSEP.split(flat)
+                  if not _NOT_A_ROW.match(r)]
+        if declared:
+            out.append({"env": env, "spec": spec.strip(),
+                        "declared": declared, "widths": widths})
+        i = k
+    return out
+
+
+def check_declared_widths(latex: str):
+    r"""(ok, detail) — rows whose cell count disagrees with the preamble.
+
+    Only rows that are TOO WIDE or TOO NARROW are reported, and a row is never
+    compared to its neighbours: the declaration is the authority. A table whose
+    every row is short by two is silent under uniformity and loud here.
+    """
+    tables = declared_tables(latex)
+    if not tables:
+        return True, "no table declares a column count"
+    bad = []
+    for ti, t in enumerate(tables, 1):
+        off = [(i + 1, w) for i, w in enumerate(t["widths"])
+               if w != t["declared"]]
+        if off:
+            bad.append({"table": ti, "env": t["env"], "spec": t["spec"],
+                        "declared": t["declared"], "rows": t["widths"],
+                        "offending": off})
+    if not bad:
+        shape = ", ".join("%s %dx%d" % (t["env"], len(t["widths"]), t["declared"])
+                          for t in tables)
+        return True, "%d declaring table(s): %s" % (len(tables), shape)
+    parts = []
+    for b in bad:
+        parts.append("%s{%s} declares %d, rows %s disagree (%s)"
+                     % (b["env"], b["spec"], b["declared"],
+                        [r for r, _ in b["offending"]],
+                        ", ".join("row %d has %d" % (r, w)
+                                  for r, w in b["offending"][:4])))
+    return False, "; ".join(parts)

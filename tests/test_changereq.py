@@ -138,3 +138,66 @@ def test_imaginary_unit_is_not_a_misread_digit():
 def test_identity_matrix_letter_is_not_a_misread_digit():
     assert confusable_cells(
         r"\begin{array}{cc} I & 0 \\ 0 & I \end{array}") == []
+
+
+from pdfdrill import changereq as cr  # noqa: E402
+
+# --- 307: the DECLARED column count ----------------------------------------
+
+def test_colspec_counts_only_columns():
+    r"""`|` decorates, `p{2cm}` occupies one and swallows a brace group that
+    would otherwise count as more columns, `*{4}{c}` repeats."""
+    assert cr.parse_colspec("c|c|c|c|c|c|c") == 7
+    assert cr.parse_colspec("|l|p{2cm}|r|") == 3
+    assert cr.parse_colspec("*{4}{c}|l") == 5
+    assert cr.parse_colspec(r">{\bfseries}c@{\quad}c") == 2
+    assert cr.parse_colspec("") == 0
+
+
+def test_declared_width_catches_the_short_row():
+    r"""\begin{array}{c|c|c|c|c|c|c} declares seven; the last row has five."""
+    eq = (r"\begin{array}{c|c|c|c|c|c|c} 1&2&3&4&5&6&7 \\ \hline "
+          r"a&b&c&d&e \end{array}")
+    ok, detail = cr.check_declared_widths(eq)
+    assert not ok
+    assert "declares 7" in detail and "row 2 has 5" in detail
+
+
+def test_declared_catches_what_uniformity_cannot():
+    """Three independent blind spots of the numeric-uniformity rule."""
+    # 1. every row short by the same amount: uniform, and wrong
+    u = r"\begin{array}{cccc} 1&2&3 \\ 4&5&6 \\ 7&8&9 \end{array}"
+    assert cr.check_uniform_widths(u)[0] is True
+    assert cr.check_declared_widths(u)[0] is False
+    # 2. a symbolic table is never examined by the numeric rule
+    s = (r"\begin{array}{ccc} \alpha & \beta \\ "
+         r"\gamma & \delta & \epsilon \end{array}")
+    assert cr.check_uniform_widths(s)[0] is True
+    assert cr.check_declared_widths(s)[0] is False
+    # 3. one row gives uniformity no opinion at all
+    one = r"\begin{array}{cccc} 1&2 \end{array}"
+    assert cr.check_uniform_widths(one)[0] is True
+    assert cr.check_declared_widths(one)[0] is False
+
+
+def test_multicolumn_spans_and_rules_are_not_rows():
+    r"""\multicolumn{3} occupies three columns, and \hline is not a row."""
+    m = (r"\begin{tabular}{|c|c|c|} \hline \multicolumn{3}{c}{head} \\ "
+         r"\hline a&b&c \\ \hline \end{tabular}")
+    assert cr.check_declared_widths(m)[0] is True
+
+
+def test_correct_tables_stay_silent():
+    assert cr.check_declared_widths(r"\begin{array}{cc} 1&2 \\ 3&4 \end{array}")[0]
+    # matrix/cases declare nothing, so there is nothing to check against
+    assert cr.check_declared_widths(
+        r"\begin{matrix} 1&2 \\ 3&4&5 \end{matrix}")[0] is True
+    assert cr.check_declared_widths("no table here")[0] is True
+
+
+def test_nested_array_is_one_cell_to_its_parent():
+    r"""An inner array's own `\\` must not split the OUTER table's rows."""
+    n = (r"\begin{array}{cc} "
+         r"\begin{array}{ccc} 1&2&3 \\ 4&5&6 \end{array} & x \\ y & z"
+         r" \end{array}")
+    assert cr.check_declared_widths(n)[0] is True

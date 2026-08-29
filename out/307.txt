@@ -1,0 +1,66 @@
+307 - the array-width validator now uses the DECLARED column count
+====================================================================
+
+COVERAGE
+  models recorded           : 1350
+  scanned                   : 1349
+  skipped, too large to load: 1
+      1511.08771                                   4.6 GB
+  unreadable                : 0
+
+  Fields read: latex, latex_original, latex_refined.
+
+WHAT THE RULE IS
+  \begin{array}{c|c|c|c|c|c|c} declares seven columns; a row with five is
+  a transcription that lost entries, and LaTeX sets it without complaint.
+  189 named this remedy and left it unbuilt.
+
+  It shares no code with check_uniform_widths and catches three classes
+  that rule cannot see:
+    - uniformity needs >=60% of cells to be bare numbers, so a symbolic or
+      mixed table is never examined at all;
+    - uniformity compares rows to EACH OTHER, so a table short by the same
+      amount on every row is perfectly uniform and perfectly wrong;
+    - uniformity needs two rows to have an opinion; a one-row array is
+      checked here.
+
+HITS CORPUS-WIDE
+  values holding a declaring table : 12450
+  declaring tables seen            : 19862
+  VALUES WITH A ROW DISAGREEING
+    WITH ITS OWN PREAMBLE          : 961
+                                     (7.7% of declaring values)
+  of those, numeric-uniformity is
+    SILENT                         : 773
+                                     (80.4% - only this rule finds them)
+  documents affected               : 177
+
+top 12 documents by hits:
+  1910.04947                                       145
+  bh2                                              60
+  BH1org_OCR                                       55
+  Burkhard Heim - Elementarstrukturen der Materie  44
+  Lie Groups, Physics and Geometry - An Intro for  41
+  Introduction to Linear and Matrix Algebra (Natha 25
+  2106.00550                                       24
+  report                                           24
+  Schaums Outline of Discrete Mathematics, Revised 21
+  The Character Theory of Finite Groups of Lie Typ 18
+  2004.05631                                       17
+  2104.10165                                       16
+
+sample hits where uniformity is silent:
+  0802.3344  [Table.latex_original]
+     tabular{ll} declares 2, rows [8] disagree (row 8 has 1)
+  0802.3344  [Table.latex_original]
+     tabular{ll} declares 2, rows [7] disagree (row 7 has 1)
+  0902.0431  [Equation.latex]
+     array{ll} declares 2, rows [1, 2] disagree (row 1 has 1, row 2 has 1)
+  0902.0431  [Equation.latex]
+     array{cll} declares 3, rows [4] disagree (row 4 has 2)
+  0902.0431  [Equation.latex]
+     array{cc} declares 2, rows [4] disagree (row 4 has 1)
+  0902.0431  [Equation.latex_refined]
+     array{llllllllllllll} declares 14, rows [1, 2, 3, 4, 5, 6, 7, 8, 9, 10] disagree (row 1 has 13, row 2 has 13, row 3 has 13, row 4 has 13)
+
+per-value records: out/307.json

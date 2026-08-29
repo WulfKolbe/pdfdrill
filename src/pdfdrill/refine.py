@@ -623,6 +623,7 @@ def _clean_reply(text: str) -> str:
 #: rejection reasons, as they appear in changes.json and in the counts
 R_WIDTH = "width uniformity"
 R_CONFUSE = "digit misread as a letter"
+R_DECLARED = "row disagrees with the declared column count"
 R_ENV = "environment balance"
 R_CJK = "CJK"
 R_COMPILE = "standalone compile"
@@ -650,6 +651,13 @@ def validate_one(proposed: str, *, original: str = "",
     ok, detail = _cr.check_uniform_widths(proposed)
     if not ok:
         return False, R_WIDTH, detail
+
+    # 307: the preamble states the width. Uniformity compares rows to each
+    # other, so a table short by two on EVERY row is uniform and wrong; and it
+    # needs 60% numeric cells, so a symbolic table is never examined at all.
+    ok, detail = _cr.check_declared_widths(proposed)
+    if not ok:
+        return False, R_DECLARED, detail
 
     # 187: the signal the old width check caught by accident, now named. A
     # lone letter inside an otherwise-numeric table is a misread digit.
