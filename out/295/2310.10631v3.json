@@ -1,0 +1,33 @@
+{
+ "doc": "2310.10631v3",
+ "pdf": "2310.10631v3.pdf",
+ "rc": 0,
+ "stdout_tail": "Build stamp: report.build.json — phase=reading, 5 pages, 227146 bytes, sha256 d7efb49b8577. A measurement of this report should copy it into its output as `measured_against`.",
+ "seconds": 3.2,
+ "regions": {
+  "regions_with_latex": 1,
+  "attempted_now": 1,
+  "rendered": 0,
+  "failed": 1,
+  "has_author_preamble": false,
+  "graphics_dir": "/home/wkolbe/pdfdrill-library/2310.10631v3/texsrc",
+  "failures": [
+   {
+    "id": "2310.10631v3_DIA_0009",
+    "first_error": "! Misplaced alignment tab character &."
+   }
+  ]
+ },
+ "manifest_rows": 15,
+ "with_latex": 1,
+ "duplicated": 15,
+ "table_cols": [
+  6,
+  5,
+  4,
+  6
+ ],
+ "six_col_tables": 2,
+ "region_table_cols": 6,
+ "ink_selectable": false
+}
