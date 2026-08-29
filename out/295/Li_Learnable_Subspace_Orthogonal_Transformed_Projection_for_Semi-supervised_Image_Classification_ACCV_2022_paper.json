@@ -1,0 +1,28 @@
+{
+ "doc": "Li_Learnable_Subspace_Orthogonal_Transformed_Projection_for_Semi-supervised_Image_Classification_ACCV_2022_paper",
+ "pdf": "Li_Learnable_Subspace_Orthogonal_Transformed_Projection_for_Semi-supervised_Image_Classification_ACCV_2022_paper.pdf",
+ "rc": 0,
+ "stdout_tail": "Build stamp: report.build.json — phase=reading, 25 pages, 584503 bytes, sha256 0496be07c9fb. A measurement of this report should copy it into its output as `measured_against`.",
+ "seconds": 4.1,
+ "regions": {
+  "regions_with_latex": 1,
+  "attempted_now": 1,
+  "rendered": 1,
+  "failed": 0,
+  "has_author_preamble": false,
+  "graphics_dir": null,
+  "failures": []
+ },
+ "manifest_rows": 6,
+ "with_latex": 1,
+ "duplicated": 5,
+ "table_cols": [
+  6,
+  5,
+  4,
+  6
+ ],
+ "six_col_tables": 2,
+ "region_table_cols": 6,
+ "ink_selectable": false
+}
