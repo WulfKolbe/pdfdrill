@@ -1,0 +1,28 @@
+{
+ "doc": "Burkhard Heim - Elementarstrukturen der Materie Einheitliche strukturelle Quantenfeldtheorie der Materie und Gravitation 2-compressed",
+ "pdf": "Burkhard Heim - Elementarstrukturen der Materie Einheitliche strukturelle Quantenfeldtheorie der Materie und Gravitation 2-compressed.pdf",
+ "rc": 0,
+ "stdout_tail": "Build stamp: report.build.json — phase=reading, 901 pages, 2112713 bytes, sha256 64b16b2bfb27. A measurement of this report should copy it into its output as `measured_against`.",
+ "seconds": 94.7,
+ "regions": {
+  "regions_with_latex": 0,
+  "attempted_now": 0,
+  "rendered": 0,
+  "failed": 0,
+  "has_author_preamble": false,
+  "graphics_dir": null,
+  "failures": []
+ },
+ "manifest_rows": 3,
+ "with_latex": 0,
+ "duplicated": 3,
+ "table_cols": [
+  5,
+  5,
+  4,
+  6
+ ],
+ "six_col_tables": 1,
+ "region_table_cols": 6,
+ "ink_selectable": true
+}
