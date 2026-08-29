@@ -1,0 +1,11 @@
+{
+ "doc": "2510.11170v2",
+ "pdf": "test.pdf",
+ "rc": 0,
+ "stdout_tail": "Build stamp: report.build.json — phase=reading, 4 pages, 107416 bytes, sha256 cfae78c57e8b. A measurement of this report should copy it into its output as `measured_against`.",
+ "seconds": 3.2,
+ "table_cols": [],
+ "six_col_tables": 0,
+ "region_table_cols": null,
+ "ink_selectable": false
+}
