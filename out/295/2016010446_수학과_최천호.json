@@ -1,0 +1,28 @@
+{
+ "doc": "2016010446_수학과_최천호",
+ "pdf": "2016010446_수학과_최천호.pdf",
+ "rc": 0,
+ "stdout_tail": "Build stamp: report.build.json — phase=reading, 7 pages, 496398 bytes, sha256 b72a45a8e066. A measurement of this report should copy it into its output as `measured_against`.",
+ "seconds": 4.2,
+ "regions": {
+  "regions_with_latex": 0,
+  "attempted_now": 0,
+  "rendered": 0,
+  "failed": 0,
+  "has_author_preamble": false,
+  "graphics_dir": null,
+  "failures": []
+ },
+ "manifest_rows": 2,
+ "with_latex": 0,
+ "duplicated": 2,
+ "table_cols": [
+  6,
+  5,
+  4,
+  6
+ ],
+ "six_col_tables": 2,
+ "region_table_cols": 6,
+ "ink_selectable": false
+}
