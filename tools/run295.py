@@ -110,8 +110,13 @@ def run(name, pdf):
         try:
             rows = json.loads(man.read_text(errors="replace")).get("rows") or []
             row["manifest_rows"] = len(rows)
-            row["with_latex"] = sum(1 for r in rows if r.get("has_latex") == "True")
-            row["duplicated"] = sum(1 for r in rows if r.get("duplicated") == "True")
+            # The manifest writes real booleans. An older one wrote the STRINGS
+            # "True"/"False", and comparing against the string form counted 0
+            # for every document while looking like a finding.
+            def _t(v):
+                return v is True or (isinstance(v, str) and v.lower() == "true")
+            row["with_latex"] = sum(1 for r in rows if _t(r.get("has_latex")))
+            row["duplicated"] = sum(1 for r in rows if _t(r.get("duplicated")))
         except Exception:
             pass
     specs = last_table_cols(d / "report.tex")
@@ -119,7 +124,13 @@ def run(name, pdf):
     # ink-eligible: regionink selects the region table by column count, so it
     # needs a 6-column table that is the last one AND the only one (0707.4470
     # has two, because ink adoption widens the equation table to 6 as well).
-    row["ink_eligible"] = bool(specs) and specs[-1] == 6 and specs.count(6) == 1
+    row["six_col_tables"] = specs.count(6)
+    row["region_table_cols"] = specs[-1] if specs else None
+    # Ink adoption widens the EQUATION table to 6 columns too, so on an adopted
+    # report the region table is no longer identifiable by column count alone.
+    # Recorded as data rather than collapsed into a False: the count is what
+    # 281/296 need in order to pick a different discriminator.
+    row["ink_selectable"] = bool(specs) and specs[-1] == 6 and specs.count(6) == 1
     return row
 
 
@@ -153,11 +164,11 @@ def main():
             subprocess.run(["git", "push", "-q", "origin", "HEAD"],
                            cwd=ROOT, capture_output=True, timeout=300)
             since_push = 0
-        print("[%4d/%4d] %-34s %5.1fs  regions=%s failed=%s eligible=%s"
+        print("[%4d/%4d] %-34s %5.1fs  regions=%s failed=%s selectable=%s"
               % (i, len(docs), name[:34], row["seconds"],
                  (row.get("regions") or {}).get("rendered", "-"),
                  (row.get("regions") or {}).get("failed", "-"),
-                 row["ink_eligible"]), flush=True)
+                 row["ink_selectable"]), flush=True)
     subprocess.run(["git", "push", "-q", "origin", "HEAD"], cwd=ROOT,
                    capture_output=True, timeout=300)
     print("done: %d built, %d already present" % (done, skipped), flush=True)
