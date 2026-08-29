@@ -1,0 +1,28 @@
+{
+ "doc": "E0744EC7D2E6166F89D3B3ACE1E_70BADF72_6391A8",
+ "pdf": "E0744EC7D2E6166F89D3B3ACE1E_70BADF72_6391A8.pdf",
+ "rc": 0,
+ "stdout_tail": "Build stamp: report.build.json — phase=reading, 325 pages, 10438918 bytes, sha256 1e9757e93330. A measurement of this report should copy it into its output as `measured_against`.",
+ "seconds": 174.8,
+ "regions": {
+  "regions_with_latex": 0,
+  "attempted_now": 0,
+  "rendered": 0,
+  "failed": 0,
+  "has_author_preamble": false,
+  "graphics_dir": null,
+  "failures": []
+ },
+ "manifest_rows": 334,
+ "with_latex": 0,
+ "duplicated": 334,
+ "table_cols": [
+  5,
+  5,
+  4,
+  6
+ ],
+ "six_col_tables": 1,
+ "region_table_cols": 6,
+ "ink_selectable": true
+}
