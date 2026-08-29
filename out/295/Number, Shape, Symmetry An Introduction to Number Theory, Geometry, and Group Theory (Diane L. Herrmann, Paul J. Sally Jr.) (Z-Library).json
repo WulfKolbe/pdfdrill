@@ -1,0 +1,41 @@
+{
+ "doc": "Number, Shape, Symmetry An Introduction to Number Theory, Geometry, and Group Theory (Diane L. Herrmann, Paul J. Sally Jr.) (Z-Library)",
+ "pdf": "Number, Shape, Symmetry An Introduction to Number Theory, Geometry, and Group Theory (Diane L. Herrmann, Paul J. Sally Jr.) (Z-Library).pdf",
+ "rc": 0,
+ "stdout_tail": "Build stamp: report.build.json — phase=reading, 541 pages, 10917358 bytes, sha256 041b49d86ba9. A measurement of this report should copy it into its output as `measured_against`.",
+ "seconds": 207.3,
+ "regions": {
+  "regions_with_latex": 3,
+  "attempted_now": 3,
+  "rendered": 0,
+  "failed": 3,
+  "has_author_preamble": false,
+  "graphics_dir": null,
+  "failures": [
+   {
+    "id": "Number__Shape__Symmetry_An_Introduction_to_Number_Theory__Geometry__and_Group_Theory__Diane_L._Herrmann__Paul_J._Sally_Jr.___Z-Library__DIA_0252",
+    "first_error": "! Misplaced alignment tab character &."
+   },
+   {
+    "id": "Number__Shape__Symmetry_An_Introduction_to_Number_Theory__Geometry__and_Group_Theory__Diane_L._Herrmann__Paul_J._Sally_Jr.___Z-Library__DIA_0253",
+    "first_error": "! Misplaced alignment tab character &."
+   },
+   {
+    "id": "Number__Shape__Symmetry_An_Introduction_to_Number_Theory__Geometry__and_Group_Theory__Diane_L._Herrmann__Paul_J._Sally_Jr.___Z-Library__DIA_0263",
+    "first_error": "! Misplaced alignment tab character &."
+   }
+  ]
+ },
+ "manifest_rows": 361,
+ "with_latex": 3,
+ "duplicated": 361,
+ "table_cols": [
+  6,
+  5,
+  4,
+  6
+ ],
+ "six_col_tables": 2,
+ "region_table_cols": 6,
+ "ink_selectable": false
+}
