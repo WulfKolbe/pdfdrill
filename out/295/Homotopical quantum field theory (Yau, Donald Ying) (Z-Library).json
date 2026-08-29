@@ -1,0 +1,28 @@
+{
+ "doc": "Homotopical quantum field theory (Yau, Donald Ying) (Z-Library)",
+ "pdf": "Homotopical quantum field theory (Yau, Donald Ying) (Z-Library).pdf",
+ "rc": 0,
+ "stdout_tail": "Build stamp: report.build.json — phase=reading, 356 pages, 15663008 bytes, sha256 19f8c46c17ca. A measurement of this report should copy it into its output as `measured_against`.",
+ "seconds": 536.0,
+ "regions": {
+  "regions_with_latex": 0,
+  "attempted_now": 0,
+  "rendered": 0,
+  "failed": 0,
+  "has_author_preamble": false,
+  "graphics_dir": null,
+  "failures": []
+ },
+ "manifest_rows": 256,
+ "with_latex": 0,
+ "duplicated": 256,
+ "table_cols": [
+  6,
+  5,
+  4,
+  6
+ ],
+ "six_col_tables": 2,
+ "region_table_cols": 6,
+ "ink_selectable": false
+}
