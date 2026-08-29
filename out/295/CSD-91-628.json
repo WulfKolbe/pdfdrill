@@ -1,0 +1,32 @@
+{
+ "doc": "CSD-91-628",
+ "pdf": "CSD-91-628.pdf",
+ "rc": 0,
+ "stdout_tail": "Build stamp: report.build.json — phase=reading, 4 pages, 614621 bytes, sha256 c2d32440a734. A measurement of this report should copy it into its output as `measured_against`.",
+ "seconds": 3.3,
+ "regions": {
+  "regions_with_latex": 1,
+  "attempted_now": 1,
+  "rendered": 0,
+  "failed": 1,
+  "has_author_preamble": false,
+  "graphics_dir": null,
+  "failures": [
+   {
+    "id": "CSD-91-628_DIA_0007",
+    "first_error": "! Missing $ inserted."
+   }
+  ]
+ },
+ "manifest_rows": 11,
+ "with_latex": 1,
+ "duplicated": 11,
+ "table_cols": [
+  5,
+  5,
+  6
+ ],
+ "six_col_tables": 1,
+ "region_table_cols": 6,
+ "ink_selectable": true
+}
