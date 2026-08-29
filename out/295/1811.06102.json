@@ -1,0 +1,37 @@
+{
+ "doc": "1811.06102",
+ "pdf": "1811.06102.pdf",
+ "rc": 0,
+ "stdout_tail": "Build stamp: report.build.json — phase=reading, 33 pages, 351373 bytes, sha256 62703814fb99. A measurement of this report should copy it into its output as `measured_against`.",
+ "seconds": 8.8,
+ "regions": {
+  "regions_with_latex": 3,
+  "attempted_now": 3,
+  "rendered": 1,
+  "failed": 2,
+  "has_author_preamble": true,
+  "graphics_dir": "/home/wkolbe/pdfdrill-library/1811.06102/texsrc",
+  "failures": [
+   {
+    "id": "1811.06102_DIA_0001",
+    "first_error": "! Paragraph ended before \\tikz@picture was complete."
+   },
+   {
+    "id": "1811.06102_DIA_0002",
+    "first_error": "! Paragraph ended before \\tikz@picture was complete."
+   }
+  ]
+ },
+ "manifest_rows": 3,
+ "with_latex": 3,
+ "duplicated": 2,
+ "table_cols": [
+  5,
+  5,
+  4,
+  6
+ ],
+ "six_col_tables": 1,
+ "region_table_cols": 6,
+ "ink_selectable": true
+}
