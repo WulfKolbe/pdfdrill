@@ -1,0 +1,37 @@
+{
+ "doc": "2508.08293v1",
+ "pdf": "2508.08293v1.pdf",
+ "rc": 0,
+ "stdout_tail": "Build stamp: report.build.json — phase=reading, 15 pages, 212826 bytes, sha256 924cdab80c08. A measurement of this report should copy it into its output as `measured_against`.",
+ "seconds": 7.5,
+ "regions": {
+  "regions_with_latex": 19,
+  "attempted_now": 2,
+  "rendered": 17,
+  "failed": 2,
+  "has_author_preamble": true,
+  "graphics_dir": "/home/wkolbe/pdfdrill-library/2508.08293v1/texsrc",
+  "failures": [
+   {
+    "id": "2508.08293v1_DIA_0012",
+    "first_error": "! Undefined control sequence."
+   },
+   {
+    "id": "2508.08293v1_DIA_0016",
+    "first_error": "! Undefined control sequence."
+   }
+  ]
+ },
+ "manifest_rows": 19,
+ "with_latex": 19,
+ "duplicated": 2,
+ "table_cols": [
+  5,
+  5,
+  4,
+  6
+ ],
+ "six_col_tables": 1,
+ "region_table_cols": 6,
+ "ink_selectable": true
+}
