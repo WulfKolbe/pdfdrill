@@ -1,0 +1,28 @@
+{
+ "doc": "DMSB_III",
+ "pdf": "DMSB_III.pdf",
+ "rc": 0,
+ "stdout_tail": "Build stamp: report.build.json — phase=reading, 13 pages, 1457364 bytes, sha256 64f62a64ccd4. A measurement of this report should copy it into its output as `measured_against`.",
+ "seconds": 5.4,
+ "regions": {
+  "regions_with_latex": 1,
+  "attempted_now": 1,
+  "rendered": 1,
+  "failed": 0,
+  "has_author_preamble": false,
+  "graphics_dir": null,
+  "failures": []
+ },
+ "manifest_rows": 9,
+ "with_latex": 1,
+ "duplicated": 8,
+ "table_cols": [
+  6,
+  5,
+  4,
+  6
+ ],
+ "six_col_tables": 2,
+ "region_table_cols": 6,
+ "ink_selectable": false
+}
