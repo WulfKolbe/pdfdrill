@@ -1,0 +1,28 @@
+{
+ "doc": "21bigdata-forte",
+ "pdf": "21bigdata-forte.pdf",
+ "rc": 0,
+ "stdout_tail": "Build stamp: report.build.json — phase=reading, 12 pages, 801260 bytes, sha256 bb196af62cff. A measurement of this report should copy it into its output as `measured_against`.",
+ "seconds": 4.3,
+ "regions": {
+  "regions_with_latex": 1,
+  "attempted_now": 1,
+  "rendered": 1,
+  "failed": 0,
+  "has_author_preamble": false,
+  "graphics_dir": null,
+  "failures": []
+ },
+ "manifest_rows": 6,
+ "with_latex": 1,
+ "duplicated": 5,
+ "table_cols": [
+  6,
+  5,
+  4,
+  6
+ ],
+ "six_col_tables": 2,
+ "region_table_cols": 6,
+ "ink_selectable": false
+}
