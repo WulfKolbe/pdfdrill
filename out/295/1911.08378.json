@@ -1,0 +1,33 @@
+{
+ "doc": "1911.08378",
+ "pdf": "1911.08378.pdf",
+ "rc": 0,
+ "stdout_tail": "Build stamp: report.build.json — phase=reading, 8 pages, 479360 bytes, sha256 9ebd1f926ab7. A measurement of this report should copy it into its output as `measured_against`.",
+ "seconds": 2.7,
+ "regions": {
+  "regions_with_latex": 1,
+  "attempted_now": 1,
+  "rendered": 0,
+  "failed": 1,
+  "has_author_preamble": false,
+  "graphics_dir": "/home/wkolbe/pdfdrill-library/1911.08378/texsrc",
+  "failures": [
+   {
+    "id": "1911.08378_DIA_0002",
+    "first_error": "! Extra \\else."
+   }
+  ]
+ },
+ "manifest_rows": 3,
+ "with_latex": 1,
+ "duplicated": 3,
+ "table_cols": [
+  6,
+  5,
+  4,
+  6
+ ],
+ "six_col_tables": 2,
+ "region_table_cols": 6,
+ "ink_selectable": false
+}
