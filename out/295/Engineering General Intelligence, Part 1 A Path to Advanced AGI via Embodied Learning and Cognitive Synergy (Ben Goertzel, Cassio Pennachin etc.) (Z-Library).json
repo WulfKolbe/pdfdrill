@@ -1,0 +1,28 @@
+{
+ "doc": "Engineering General Intelligence, Part 1 A Path to Advanced AGI via Embodied Learning and Cognitive Synergy (Ben Goertzel, Cassio Pennachin etc.) (Z-Library)",
+ "pdf": "Engineering General Intelligence, Part 1 A Path to Advanced AGI via Embodied Learning and Cognitive Synergy (Ben Goertzel, Cassio Pennachin etc.) (Z-Library).pdf",
+ "rc": 0,
+ "stdout_tail": "Build stamp: report.build.json — phase=reading, 75 pages, 4335161 bytes, sha256 f4d4c1d67bfd. A measurement of this report should copy it into its output as `measured_against`.",
+ "seconds": 31.1,
+ "regions": {
+  "regions_with_latex": 0,
+  "attempted_now": 0,
+  "rendered": 0,
+  "failed": 0,
+  "has_author_preamble": false,
+  "graphics_dir": null,
+  "failures": []
+ },
+ "manifest_rows": 102,
+ "with_latex": 0,
+ "duplicated": 102,
+ "table_cols": [
+  6,
+  5,
+  4,
+  6
+ ],
+ "six_col_tables": 2,
+ "region_table_cols": 6,
+ "ink_selectable": false
+}
