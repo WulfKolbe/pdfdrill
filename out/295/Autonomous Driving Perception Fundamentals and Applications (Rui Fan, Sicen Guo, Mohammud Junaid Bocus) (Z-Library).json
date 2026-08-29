@@ -1,0 +1,28 @@
+{
+ "doc": "Autonomous Driving Perception Fundamentals and Applications (Rui Fan, Sicen Guo, Mohammud Junaid Bocus) (Z-Library)",
+ "pdf": "Autonomous Driving Perception Fundamentals and Applications (Rui Fan, Sicen Guo, Mohammud Junaid Bocus) (Z-Library).pdf",
+ "rc": 0,
+ "stdout_tail": "Build stamp: report.build.json — phase=reading, 171 pages, 12761272 bytes, sha256 637c47646273. A measurement of this report should copy it into its output as `measured_against`.",
+ "seconds": 104.4,
+ "regions": {
+  "regions_with_latex": 1,
+  "attempted_now": 1,
+  "rendered": 1,
+  "failed": 0,
+  "has_author_preamble": false,
+  "graphics_dir": null,
+  "failures": []
+ },
+ "manifest_rows": 175,
+ "with_latex": 1,
+ "duplicated": 174,
+ "table_cols": [
+  6,
+  5,
+  4,
+  6
+ ],
+ "six_col_tables": 2,
+ "region_table_cols": 6,
+ "ink_selectable": false
+}
