@@ -1,0 +1,28 @@
+{
+ "doc": "High-Order_Inverse_Dynamics_of_Serial_Robots_Based",
+ "pdf": "High-Order_Inverse_Dynamics_of_Serial_Robots_Based.pdf",
+ "rc": 0,
+ "stdout_tail": "Build stamp: report.build.json — phase=reading, 34 pages, 1992454 bytes, sha256 f390cbd3e94b. A measurement of this report should copy it into its output as `measured_against`.",
+ "seconds": 9.3,
+ "regions": {
+  "regions_with_latex": 2,
+  "attempted_now": 2,
+  "rendered": 2,
+  "failed": 0,
+  "has_author_preamble": false,
+  "graphics_dir": null,
+  "failures": []
+ },
+ "manifest_rows": 8,
+ "with_latex": 2,
+ "duplicated": 6,
+ "table_cols": [
+  6,
+  5,
+  4,
+  6
+ ],
+ "six_col_tables": 2,
+ "region_table_cols": 6,
+ "ink_selectable": false
+}
