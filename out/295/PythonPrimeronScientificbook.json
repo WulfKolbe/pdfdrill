@@ -1,0 +1,33 @@
+{
+ "doc": "PythonPrimeronScientificbook",
+ "pdf": "PythonPrimeronScientificbook.pdf",
+ "rc": 0,
+ "stdout_tail": "Build stamp: report.build.json — phase=reading, 90 pages, 4251262 bytes, sha256 6ae9720d96b6. A measurement of this report should copy it into its output as `measured_against`.",
+ "seconds": 213.0,
+ "regions": {
+  "regions_with_latex": 1,
+  "attempted_now": 1,
+  "rendered": 0,
+  "failed": 1,
+  "has_author_preamble": false,
+  "graphics_dir": null,
+  "failures": [
+   {
+    "id": "PythonPrimeronScientificbook_DIA_0656",
+    "first_error": "! Missing $ inserted."
+   }
+  ]
+ },
+ "manifest_rows": 1031,
+ "with_latex": 1,
+ "duplicated": 1031,
+ "table_cols": [
+  6,
+  5,
+  4,
+  6
+ ],
+ "six_col_tables": 2,
+ "region_table_cols": 6,
+ "ink_selectable": false
+}
