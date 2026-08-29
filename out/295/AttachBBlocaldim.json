@@ -1,0 +1,28 @@
+{
+ "doc": "AttachBBlocaldim",
+ "pdf": "AttachBBlocaldim.pdf",
+ "rc": 0,
+ "stdout_tail": "Build stamp: report.build.json — phase=reading, 30 pages, 2624095 bytes, sha256 f9ac24fc831e. A measurement of this report should copy it into its output as `measured_against`.",
+ "seconds": 5.6,
+ "regions": {
+  "regions_with_latex": 1,
+  "attempted_now": 1,
+  "rendered": 1,
+  "failed": 0,
+  "has_author_preamble": false,
+  "graphics_dir": null,
+  "failures": []
+ },
+ "manifest_rows": 5,
+ "with_latex": 1,
+ "duplicated": 4,
+ "table_cols": [
+  6,
+  5,
+  4,
+  6
+ ],
+ "six_col_tables": 2,
+ "region_table_cols": 6,
+ "ink_selectable": false
+}
