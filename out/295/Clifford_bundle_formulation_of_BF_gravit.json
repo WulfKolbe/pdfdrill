@@ -1,0 +1,24 @@
+{
+ "doc": "Clifford_bundle_formulation_of_BF_gravit",
+ "pdf": "Clifford_bundle_formulation_of_BF_gravit.pdf",
+ "rc": 0,
+ "stdout_tail": "Build stamp: report.build.json — phase=reading, 41 pages, 4055991 bytes, sha256 4cb739b50933. A measurement of this report should copy it into its output as `measured_against`.",
+ "seconds": 4.7,
+ "regions": {
+  "regions_with_latex": 0,
+  "attempted_now": 0,
+  "rendered": 0,
+  "failed": 0,
+  "has_author_preamble": false,
+  "graphics_dir": null,
+  "failures": []
+ },
+ "table_cols": [
+  6,
+  5,
+  4
+ ],
+ "six_col_tables": 1,
+ "region_table_cols": 4,
+ "ink_selectable": false
+}
