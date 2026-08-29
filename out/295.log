@@ -1,0 +1,101 @@
+population: 1346 documents (21 from the site, first)
+[   1/1346] 0707.4470                            4.5s  regions=1 failed=0 selectable=False
+[   2/1346] 0902.0431                           25.6s  regions=0 failed=0 selectable=False
+[   3/1346] 1510.06699                           6.9s  regions=0 failed=0 selectable=False
+[   4/1346] 1605.05775                           3.0s  regions=0 failed=0 selectable=False
+[   5/1346] 2010.14265                           4.3s  regions=1 failed=0 selectable=False
+[   6/1346] 2106.07890                           3.1s  regions=0 failed=0 selectable=False
+[   7/1346] 2501.06662                           3.1s  regions=0 failed=0 selectable=False
+[   8/1346] BradleyGastaldiTerilla2023           2.6s  regions=0 failed=0 selectable=False
+[   9/1346] bradley_spring22                     3.5s  regions=0 failed=0 selectable=False
+[  10/1346] Geometric, Algebraic and Topologic  37.6s  regions=0 failed=0 selectable=False
+[  11/1346] An Invitation to Applied Category   27.7s  regions=0 failed=0 selectable=False
+[  12/1346] Seven Sketches in Composability An  28.4s  regions=1 failed=0 selectable=False
+[  13/1346] Lie Groups, Physics and Geometry -  38.2s  regions=0 failed=0 selectable=False
+[  14/1346] Introduction to Linear and Matrix   67.0s  regions=0 failed=0 selectable=False
+[  15/1346] OMDoc – An Open Markup Format for   10.9s  regions=4 failed=3 selectable=False
+[  16/1346] Numerical Linear Algebra and Matri  30.8s  regions=0 failed=0 selectable=False
+[  17/1346] Geometrodynamics of Gauge Fields O  40.3s  regions=0 failed=0 selectable=False
+[  18/1346] penev_A                              4.3s  regions=0 failed=0 selectable=False
+[  19/1346] penev_B                              3.5s  regions=0 failed=0 selectable=False
+[  20/1346] rph8-g15q                            3.5s  regions=0 failed=0 selectable=False
+[  21/1346] Introduction to Graph and Hypergra   9.9s  regions=0 failed=0 selectable=False
+[  22/1346] 0008113v1                            2.4s  regions=0 failed=0 selectable=False
+[  23/1346] 0049                                 2.7s  regions=0 failed=0 selectable=True
+[  24/1346] 0110026                              2.9s  regions=0 failed=0 selectable=False
+[  25/1346] 0111016                              2.9s  regions=0 failed=0 selectable=False
+[  26/1346] 0111016 (1)                          2.9s  regions=0 failed=0 selectable=False
+[  27/1346] 020-Cation Distribution in Eu-Sc-F   2.4s  regions=0 failed=0 selectable=False
+[  28/1346] 020066_1_online                      3.2s  regions=0 failed=0 selectable=False
+[  29/1346] 0210081                              3.9s  regions=0 failed=0 selectable=False
+[  30/1346] 0212032                             15.0s  regions=9 failed=0 selectable=False
+[  31/1346] 0212041                              2.7s  regions=0 failed=0 selectable=False
+[  32/1346] 03-NTCIR11-TEMPORALIA-BurghartzR     6.3s  regions=0 failed=0 selectable=True
+[  33/1346] 03502-AAAI24.YooY                    6.2s  regions=2 failed=0 selectable=False
+[  34/1346] 04 posdzech - maps to elementary s   3.6s  regions=1 failed=0 selectable=False
+[  35/1346] 040123                               2.2s  regions=0 failed=0 selectable=True
+[  36/1346] 0403019                              2.4s  regions=0 failed=0 selectable=False
+[  37/1346] 0403019 (1)                          2.4s  regions=0 failed=0 selectable=False
+[  38/1346] 0403019 (2)                          2.4s  regions=0 failed=0 selectable=False
+[  39/1346] 0403019 (3)                          2.4s  regions=0 failed=0 selectable=False
+[  40/1346] 0403040v2                            4.0s  regions=0 failed=0 selectable=False
+[  41/1346] 0503219                              2.5s  regions=0 failed=0 selectable=False
+[  42/1346] 0607190                              2.4s  regions=0 failed=0 selectable=False
+[  43/1346] 0609399                              3.6s  regions=0 failed=0 selectable=False
+[  44/1346] 0707.2676                            2.6s  regions=0 failed=0 selectable=False
+[  45/1346] 0711.0273                            2.5s  regions=0 failed=0 selectable=False
+[  46/1346] 07165428                             3.2s  regions=0 failed=0 selectable=False
+[  47/1346] 0802.3344                            2.6s  regions=0 failed=0 selectable=False
+[  48/1346] 0803.2924                            2.4s  regions=0 failed=0 selectable=False
+[  49/1346] 0806.1585                            4.7s  regions=0 failed=0 selectable=False
+[  50/1346] 0864                                 4.4s  regions=0 failed=0 selectable=True
+[  51/1346] 0903.2087                            3.2s  regions=0 failed=0 selectable=False
+[  52/1346] 0905.0767                            2.4s  regions=0 failed=0 selectable=False
+[  53/1346] 0905.2720                            2.9s  regions=0 failed=0 selectable=False
+[  54/1346] 0911.3722                            2.5s  regions=0 failed=0 selectable=False
+[  55/1346] 0911.5175                            2.4s  regions=0 failed=0 selectable=False
+[  56/1346] 0911.5175v2                          2.4s  regions=0 failed=0 selectable=False
+[  57/1346] 0911.5175v2 (1)                      2.3s  regions=0 failed=0 selectable=False
+[  58/1346] 0912.0721                            2.4s  regions=0 failed=0 selectable=False
+[  59/1346] 09150083013_100172453DRW004B         2.2s  regions=0 failed=0 selectable=True
+[  60/1346] 1-s2.0-S0010448509000463-main        2.8s  regions=0 failed=0 selectable=False
+[  61/1346] 1-s2.0-S0022039622000146-main       12.5s  regions=1 failed=0 selectable=False
+[  62/1346] 1-s2.0-S0024379507002820-main        2.8s  regions=0 failed=0 selectable=False
+[  63/1346] 1-s2.0-S0304397597000480-main        2.5s  regions=0 failed=0 selectable=False
+[  64/1346] 1-s2.0-S0378778825011211-main        2.6s  regions=0 failed=0 selectable=False
+[  65/1346] 1-s2.0-S039304401100026X-main        3.2s  regions=0 failed=0 selectable=False
+[  66/1346] 1-s2.0-S0927650524001130-main        3.2s  regions=0 failed=0 selectable=False
+[  67/1346] 1-s2.0-S0951832023002612-main        2.9s  regions=0 failed=0 selectable=False
+[  68/1346] 1-s2.0-S1319157821001294-main        3.9s  regions=1 failed=0 selectable=False
+[  69/1346] 1-s2.0-S1319157821001294-main (1)    3.9s  regions=1 failed=0 selectable=False
+[  70/1346] 1-s2.0-S1474034614000184-main        2.8s  regions=0 failed=0 selectable=False
+[  71/1346] 1-s2.0-S157086830900041X-main        2.6s  regions=0 failed=0 selectable=False
+[  72/1346] 1-s2.0-S1877705814016762-main        2.3s  regions=0 failed=0 selectable=True
+[  73/1346] 1-s2.0-S2211379719323940-main        2.4s  regions=0 failed=0 selectable=False
+[  74/1346] 1-s2.0-S2238785420321049-main        2.5s  regions=0 failed=0 selectable=False
+[  75/1346] 1-s2.0-S2590005626001165-main        2.3s  regions=0 failed=0 selectable=True
+[  76/1346] 1-s2.0-S2590005626001165-main (1)    5.2s  regions=1 failed=0 selectable=True
+[  77/1346] 1.2 - Change in global consumption   2.9s  regions=0 failed=1 selectable=False
+[  78/1346] 1.AACA_GeometricAlgebraforMultidim   2.3s  regions=0 failed=0 selectable=True
+[  79/1346] 10.1007_s00006-017-0798-7            3.1s  regions=0 failed=0 selectable=False
+[  80/1346] 10.53759_978-9914-9946-1-2_12        2.3s  regions=0 failed=0 selectable=False
+[  81/1346] 1001850                            726.8s  regions=0 failed=0 selectable=False
+[  82/1346] 1006.4908                            3.1s  regions=0 failed=0 selectable=False
+[  83/1346] 1012.3259                            2.6s  regions=0 failed=0 selectable=False
+[  84/1346] 11-integer-poly                      2.4s  regions=0 failed=0 selectable=False
+[  85/1346] 11.Uebung_VK_25                      2.3s  regions=0 failed=0 selectable=False
+[  86/1346] 1101.4542                            4.6s  regions=0 failed=0 selectable=False
+[  87/1346] 1103.2338v5                          2.6s  regions=0 failed=0 selectable=False
+[  88/1346] 1110.0240                            2.6s  regions=0 failed=0 selectable=False
+[  89/1346] 1172_policy_pre_training_for_auton   2.5s  regions=0 failed=0 selectable=False
+[  90/1346] 11_Paper                             4.1s  regions=0 failed=0 selectable=True
+[  91/1346] 12.Uebung_VK_25 (1)                  2.4s  regions=0 failed=0 selectable=False
+[  92/1346] 1205.3463v2                          5.9s  regions=0 failed=0 selectable=False
+[  93/1346] 1205.5935v1                         12.5s  regions=0 failed=0 selectable=False
+[  94/1346] 1206.0238                            3.6s  regions=1 failed=0 selectable=False
+[  95/1346] 1209.3845v2                          3.3s  regions=0 failed=0 selectable=False
+[  96/1346] 1211.3375                           28.0s  regions=4 failed=11 selectable=False
+[  97/1346] 1212.5636                            2.6s  regions=0 failed=0 selectable=False
+[  98/1346] 1304.0071v3                          3.7s  regions=1 failed=0 selectable=False
+[  99/1346] 1306.1660                            4.1s  regions=0 failed=0 selectable=False
+[ 100/1346] 1306.1660v1                          4.1s  regions=0 failed=0 selectable=False

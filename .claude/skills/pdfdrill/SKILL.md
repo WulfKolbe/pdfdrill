@@ -641,6 +641,12 @@ _Generated from `commands.yaml` by skillsync. Edit the manifest, not this sectio
 | `pdfdrill sre <pdf> [--out OUT] [--plain] [--safe-only]` | spoken-math projection for latex2mml → MathML → speech-rule-engine — emits macro-free latex_sre per formula (latex2mml expands nothing) and flags units whose unresolved macros would be mis-spoken |
 | `pdfdrill formulas <pdf> [--out OUT] [--plain]` | math projection for an external de-macro / SRE pipeline — every Formula/Equation in flow order with id, transclusion placeholder, expanded latex, latex_original, its control sequences and the document-defined macros expansion left unresolved |
 
+### Reports and projections
+
+| Command | Returns |
+|---|---|
+| `pdfdrill texfigures <pdf> [--json] [--unresolved]` | 298: every includegraphics call in the author's own texsrc/ sources -- the file referenced, the options it carries (trim/clip change WHAT reaches the page, width/scale/angle only how big it is), whether the file resolves on disk, and the environment around it (bare, inside a figure, or a tikzpicture node placed over the page). Read-only; the author's view of a figure, beside MathPix's crop of it. |
+
 ### OCR / model pipeline
 
 | Command | Returns |
@@ -651,6 +657,6 @@ _Generated from `commands.yaml` by skillsync. Edit the manifest, not this sectio
 <!-- COMMANDS:END -->
 
 <!-- PREFLIGHT-TOKEN:BEGIN -->
-Attestation token — the LAST line of this SKILL. If you can read this, you read the whole file. Run `pdfdrill preflight --ack DRILL-7c0317a0` before any build/extract command.
-DRILL-7c0317a0
+Attestation token — the LAST line of this SKILL. If you can read this, you read the whole file. Run `pdfdrill preflight --ack DRILL-3e99677a` before any build/extract command.
+DRILL-3e99677a
 <!-- PREFLIGHT-TOKEN:END -->

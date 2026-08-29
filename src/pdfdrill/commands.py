@@ -7013,6 +7013,79 @@ def _render_regions(sc, tiddlers) -> tuple:
 
 
 
+
+def _texsrc_dir(sc) -> "Path | None":
+    """The author's unpacked sources, wherever this document keeps them."""
+    for cand in ("texsrc", "eprint", "latex_source"):
+        d = sc.blob_dir / cand
+        if d.is_dir():
+            return d
+    try:
+        mp = _model_path(sc)
+        if mp.exists():
+            sd = json.loads(mp.read_text(encoding="utf-8")).get(
+                "meta", {}).get("latex_source_dir")
+            if sd and Path(sd).is_dir():
+                return Path(sd)
+    except Exception:                                     # noqa: BLE001
+        pass
+    return None
+
+
+def cmd_texfigures(pdf: Path, json_out: bool = False,
+                   unresolved: bool = False) -> str:
+    """298: every \\includegraphics in the author's own sources.
+
+    Read-only. Writes nothing beside the document, so it never contends with a
+    build for the document lock.
+    """
+    from . import texgraphics as tg
+    sc = Sidecar(pdf)
+    src = _texsrc_dir(sc)
+    if src is None:
+        return (f"texfigures: no author sources for {pdf.name} — run "
+                f"`pdfdrill latex {pdf.name}` (free for arXiv) or "
+                f"`injectlatex` to bring the .tex in.")
+    scanned = tg.scan(src)
+    summ = tg.summarise(scanned)
+    if json_out:
+        return _jsonio.dumps({"source_dir": str(src), **scanned, "summary": summ})
+    calls = scanned["calls"]
+    if unresolved:
+        miss = [c for c in calls if not c["resolved"]]
+        if not miss:
+            return (f"texfigures: all {summ['calls']} inclusions resolve on "
+                    f"disk under {src.name}/.")
+        lines = [f"{len(miss)} of {summ['calls']} inclusions do not resolve "
+                 f"under {src.name}/:"]
+        for c in miss[:40]:
+            lines.append("  %s:%d  %s" % (c["source"], c["line"], c["file"]))
+        if len(miss) > 40:
+            lines.append("  ... and %d more" % (len(miss) - 40))
+        return "\n".join(lines)
+    out = [
+        f"{pdf.name} — \\includegraphics in {src.name}/ "
+        f"({scanned['tex_files']} .tex file(s)):",
+        f"  calls                 {summ['calls']} "
+        f"({summ['distinct_files']} distinct files)",
+        f"  resolved on disk      {summ['resolved']} "
+        f"({summ['unresolved']} not found)",
+        f"  carry trim/clip       {summ['with_trim_or_clip']}  "
+        f"— the file on disk is LARGER than what the page shows",
+        f"  inside a figure       {summ['in_figure']}",
+        f"  inside a tikzpicture  {summ['in_tikzpicture']} "
+        f"(of which {summ['overlay_node']} are overlay/at-node placed)",
+        f"  bare (neither)        {summ['bare']}",
+    ]
+    if scanned["graphicspath"]:
+        out.append("  \\graphicspath        " + ", ".join(scanned["graphicspath"]))
+    if summ["unresolved"]:
+        out.append(f"  `--unresolved` lists the {summ['unresolved']} that were "
+                   f"not found; a missing file is usually a graphicspath this "
+                   f"scan did not follow, not a broken source.")
+    return "\n".join(out)
+
+
 @_writes("regionink")
 def cmd_regionink(pdf: Path, force: bool = False) -> str:
     """284: measure the report's two image columns with inkdrill.

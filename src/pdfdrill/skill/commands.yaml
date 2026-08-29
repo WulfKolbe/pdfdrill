@@ -2613,6 +2613,31 @@ commands:
     type: str
     help: comma list of region types (default Equation; Table/Picture/Diagram)
   typed: true
+- name: texfigures
+  section: Reports and projections
+  summary: >-
+    298: every includegraphics call in the author's own texsrc/ sources -- the file
+    referenced, the options it carries (trim/clip change WHAT reaches the page,
+    width/scale/angle only how big it is), whether the file resolves on disk,
+    and the environment around it (bare, inside a figure, or a tikzpicture node
+    placed over the page). Read-only; the author's view of a figure, beside
+    MathPix's crop of it.
+  offline_ok: true
+  positionals:
+  - name: pdf
+    type: pdf
+    required: true
+    help: PDF path, https URL, or bare arXiv id
+  flags:
+  - name: json
+    flag: --json
+    type: flag
+    help: emit the full per-call records instead of the summary
+  - name: unresolved
+    flag: --unresolved
+    type: flag
+    help: list only the calls whose file was not found on disk
+  typed: true
 - name: regionink
   section: Reporting
   summary: 'Measure the report''s two image columns with inkdrill (284). Renders each image-table page

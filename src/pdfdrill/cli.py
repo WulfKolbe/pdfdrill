@@ -1893,6 +1893,16 @@ def _do_occurrences(args):
     return cmd_occurrences(_drilled(args[:1]), types=types)
 
 
+def _do_texfigures(args):
+    """pdfdrill texfigures <pdf> [--json] [--unresolved] — every
+    \\includegraphics in the author's own sources (298)."""
+    from .commands import cmd_texfigures
+    js = "--json" in args
+    un = "--unresolved" in args
+    args = [a for a in args if a not in ("--json", "--unresolved")]
+    return cmd_texfigures(_drilled(args[:1]), json_out=js, unresolved=un)
+
+
 def _do_regionink(args):
     """pdfdrill regionink <pdf> [--force] — measure the report's Rendered and
     Scan image columns with inkdrill into report.regions.ink.json."""
@@ -2150,6 +2160,7 @@ HANDLERS = {
         "okf": _do_okf,
         "rename": _do_rename,
         "regionink": _do_regionink,
+        "texfigures": _do_texfigures,
         "occurrences": _do_occurrences,
         "context": _do_context,
         "merge": _do_merge,

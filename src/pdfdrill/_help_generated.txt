@@ -163,6 +163,9 @@ Analysis (needs a built model):
   pdfdrill sre <pdf> [--out OUT] [--plain] [--safe-only] spoken-math projection for latex2mml → MathML → speech-rule-engine — emits macro-free latex_sre per formula (latex2mml expands nothing) and flags units whose unresolved macros would be mis-spoken
   pdfdrill formulas <pdf> [--out OUT] [--plain] math projection for an external de-macro / SRE pipeline — every Formula/Equation in flow order with id, transclusion placeholder, expanded latex, latex_original, its control sequences and the document-defined macros expansion left unresolved
 
+Reports and projections:
+  pdfdrill texfigures <pdf> [--json] [--unresolved] 298: every includegraphics call in the author's own texsrc/ sources -- the file referenced, the options it carries (trim/clip change WHAT reaches the page, width/scale/angle only how big it is), whether the file resolves on disk, and the environment around it (bare, inside a figure, or a tikzpicture node placed over the page). Read-only; the author's view of a figure, beside MathPix's crop of it.
+
 OCR / model pipeline:
   pdfdrill remath <pdf> [--pages PAGES] [--force] Keyless MathPix replacement: rebuild MathPix-quality Markdown (LaTeX math) from rendered pages via Claude delegation, so transclusion works without a MathPix key
   pdfdrill visionocr <pdf> [--ingest INGEST] [--dpi DPI] [--pages PAGES] [--force] Keyless agent-delegated EQUATION OCR: rasterize each page → the running Claude reads the math → fold {page,number,latex,kind} records into the lines.json as real Equation nodes (number paired by geometry). The keyless math route when tesseract built a doc prose-only (NEEDS_VISION_OCR)

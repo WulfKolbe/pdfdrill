@@ -1,0 +1,52 @@
+298 - every \includegraphics in the author's own sources
+================================================================
+population: 460 documents with texsrc/ (all scanned, 0 errors)
+  with >=1 author inclusion    : 381
+  with none                    : 79
+  texsrc/ also holding a
+  MathPix tex.zip extraction   : 6 docs, 205 calls (excluded below)
+
+AUTHOR INCLUSIONS
+  calls                        : 5014   (4581 distinct files)
+  resolved on disk             : 4924   (98.2%)
+  NOT resolved                 : 90   (1.8%)
+
+  carry trim/clip              : 198   (3.9%)
+      the file on disk is LARGER than what the page shows, so a crop
+      and the file are not the same picture.
+  inside a figure              : 4264   (85.0%)
+  inside a tikzpicture         : 239   (4.8%)
+      of those, at-node/overlay: 239   (placed by TikZ, so the float's
+                                 rectangle is not the picture's)
+  bare (neither)               : 572   (11.4%)
+
+documents carrying trim/clip   : 43
+documents with a tikz include  : 11
+documents with any unresolved  : 24
+
+top 10 by author call count:
+  document                               calls  resl  trim   fig  tikz  bare
+  2004.05631                               100   100     0     9    85    12
+  2004.05631v1                             100   100     0     9    85    12
+  2607.15495                                94    94     0    94     0     0
+  2307.07924v4                              92    92     0    18     0    74
+  2505.05522                                92    91     2    91     0     1
+  2505.05522v4                              92    91     2    91     0     1
+  2507.21892v1                              84    84     0    22     0    62
+  2507.21892v1 (1)                          84    84     0    22     0    62
+  1506.0005v1                               75    75     0    75     0     0
+  2104.13478                                70    69     0    29     0    41
+
+remaining unresolved, by document:
+  2505.21946v1                           25 of 62
+  1406.3411                              10 of 21
+  2512.15098v4                           8 of 30
+  2407.10188v2                           6 of 10
+  2405.20233v1                           5 of 31
+  1705.02669                             4 of 12
+  1804.10694v5                           4 of 10
+  2505.04670v2                           4 of 8
+  1905.10989                             3 of 6
+  2408.11646                             3 of 35
+
+per-document records: out/298.json
