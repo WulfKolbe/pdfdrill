@@ -42,37 +42,52 @@ def inkdrill_available() -> bool:
     return (_INKDRILL_HOME / "inkdrill" / "__main__.py").is_file()
 
 
-def table_pages(report_pdf: Path) -> list:
-    """Report pages holding the image table — the section heading to the end.
+#: inkdrill's page detection, as a subprocess (286). It carries the 150 dpi
+#: probe, the contiguous-run selection, the coverage check and the sliver
+#: filter, and since their 285ec9a it picks the table as the LARGEST region
+#: rather than the holliest — which is what fixed both the 6-vs-5 column
+#: disagreement and the single-row page.
+REPORTPAGES = _INKDRILL_HOME / "tools" / "reportpages.py"
+#: The region table's column count, from OUR source. Never guessed here, and
+#: never inferred from the lattice: `reportpages` takes it as an argument
+#: precisely so the two views of the table can be compared rather than
+#: conflated.
+REGION_COLUMNS = 6
 
-    KNOWN LIMIT, and it is why `build` asserts rather than trusting this: a
-    page carrying a SINGLE image row forms no detectable row lattice and
-    `inkdrill compare` returns nothing for it. Measured on 0049 — page 3 holds
-    5 rows and yields 4, page 4 holds 1 and yields 0, against a manifest of 6.
-    The join then refuses, which is correct, but it means this driver does not
-    yet reproduce what inkdrill's own `tools/reportcompare.py` does for the
-    equation table: a 150 dpi probe, a leading contiguous run of pages whose
-    lattice matches the column count, a coverage check and a sliver filter.
-    That detection is inkdrill's, and reimplementing it here badly would
-    produce quietly wrong rows instead of a refusal.
+
+def detect_pages(report_pdf: Path, columns: int = REGION_COLUMNS,
+                 timeout: int = 1800) -> dict:
+    r"""{page: expected row count} for the region table, from inkdrill.
+
+    `--header first`: our region table prints its header ONCE, not per page.
+    reportcompare's own rule is to skip row 0 on EVERY page, which is right for
+    the equation table (\endhead repeats it) and would eat a DATA row from
+    every page after the first here. inkdrill exposed it as a flag rather than
+    a constant because of that difference.
     """
-    if shutil.which("pdftotext") is None:
-        return []
-    out = subprocess.run(["pdftotext", "-layout", str(report_pdf), "-"],
-                         capture_output=True, text=True, timeout=600).stdout
-    # pdftotext ends its output with a form feed, so the split yields a
-    # trailing empty segment that is not a page.
-    pages = [pg for pg in out.split("\f")]
-    while pages and not pages[-1].strip():
-        pages.pop()
-    first = None
-    for i, pg in enumerate(pages, 1):
-        if "Image regions" in pg:
-            first = i
-            break
-    if first is None:
-        return []
-    return list(range(first, len(pages) + 1))
+    if not REPORTPAGES.is_file():
+        raise RegionInkRefused(
+            "inkdrill's tools/reportpages.py not found at %s — 286's entry "
+            "point is what carries the page detection, and guessing it here is "
+            "what produced a short join before." % REPORTPAGES)
+    p = subprocess.run(["python3", str(REPORTPAGES), "--pdf", str(report_pdf),
+                        "--columns", str(columns), "--header", "first"],
+                       capture_output=True, text=True, timeout=timeout)
+    try:
+        d = json.loads(p.stdout)
+    except Exception:
+        raise RegionInkRefused(
+            "reportpages emitted no JSON for %s (rc=%d): %s"
+            % (report_pdf.name, p.returncode, (p.stderr or p.stdout)[:200]))
+    rows = d.get("rows") or {}
+    out = {int(k): len(v) for k, v in rows.items()}
+    if not out:
+        raise RegionInkRefused(
+            "reportpages found no %d-column table in %s. Census of what it did "
+            "see: %s — a column count that disagrees with our source is a real "
+            "difference between the two views of the table, not a miss."
+            % (columns, report_pdf.name, d.get("census")))
+    return out
 
 
 def _render(report_pdf: Path, page: int, dpi: int, out: Path) -> Path:
@@ -112,15 +127,35 @@ def compare_page(a: Path, b: Path, page: int, timeout: int = 900) -> list:
 
 
 def measure(report_pdf: Path, work: Path, timeout: int = 900) -> list:
-    """Every image-table row of the report, in printed order."""
+    """Every image-table row of the report, in printed order.
+
+    Two tools, one job each: inkdrill's `reportpages` says WHICH pages and HOW
+    MANY rows (it owns the lattice), `inkdrill compare` says what the two
+    columns measure. The counts are reconciled per page rather than trusted —
+    `compare` has no header rule, so on the page carrying the once-printed
+    header it returns one row more than `reportpages` does, and that row is
+    dropped explicitly and only when the arithmetic says so.
+    """
     work.mkdir(parents=True, exist_ok=True)
+    expected = detect_pages(report_pdf)
     out = []
-    for page in table_pages(report_pdf):
+    for page in sorted(expected):
+        want = expected[page]
         a = _render(report_pdf, page, 300, work)
         b = _render(report_pdf, page, 600, work)
         if not (a.is_file() and b.is_file()):
-            continue
-        out.extend(compare_page(a, b, page, timeout))
+            raise RegionInkRefused("could not render page %d of %s"
+                                   % (page, report_pdf.name))
+        rows = compare_page(a, b, page, timeout)
+        if len(rows) == want + 1:
+            rows = rows[1:]                       # the once-printed header
+        if len(rows) != want:
+            raise RegionInkRefused(
+                "page %d: inkdrill compare returned %d rows, reportpages "
+                "expects %d. The two disagree about the same page, and zipping "
+                "them would put every later identifier on the wrong row."
+                % (page, len(rows), want))
+        out.extend(rows)
     return out
 
 
