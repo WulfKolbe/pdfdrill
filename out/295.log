@@ -634,3 +634,4 @@ population: 1346 documents (21 from the site, first)
 [ 633/1346] AberdeenTalk                         2.3s  regions=0 failed=0 selectable=False
 [ 634/1346] Algebraic Geometry A Problem Solvi 900.1s  regions=0 failed=0 selectable=False
 [ 635/1346] Algebraic Number Theory (DISCRETE  900.1s  regions=- failed=- selectable=False
+[ 636/1346] Algebraic and geometric ideas in t 525.8s  regions=20 failed=2 selectable=False

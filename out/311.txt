@@ -1,0 +1,63 @@
+311 - scoping the ink pass by equation confidence
+==================================================================
+
+NOT STARTED. This is the size, first.
+
+SCOPE
+  documents scanned                        : 1349 (1 model too large to load)
+  with >=1 Equation                        : 1048
+  whose objects carry a confidence at all  : 918
+
+  DOCUMENTS WITH >=1 EQUATION BELOW 0.5    : 369
+
+  equations in the corpus                  : 119451
+  equations below 0.5                      : 3320  (2.8%)
+
+WHAT THE 369 ALREADY HAVE
+  already hold report.ink.json (nothing to do) : 15
+  hold inkdrill's TSV - `inkconvert` only      : 101
+  hold a report.pdf for inkdrill to measure    : 298
+  NEED a full inkdrill run                     : 267
+
+ESTIMATE AGAINST 295's OBSERVED RATE
+  295 rows so far          : 636
+  mean   s/document        : 18.4
+  median s/document        : 2.9   (the mean is carried by the books)
+  wall-clock rate          : 18.8 s/document, 3.2 documents/min
+
+  369 documents at 18.8 s  : 1.9 h
+  267 needing inkdrill     : 1.4 h
+  101 needing inkconvert   : minutes (it reads a TSV; 0008113v1 took ~1 s)
+
+  THAT ESTIMATE IS A FLOOR, NOT A PREDICTION. 295's rate is the rate of
+  `reporttex`, which builds a LaTeX report. The ink pass runs inkdrill over
+  the rendered report pages, which is different work. The one inkdrill
+  timing measured this session - reportpages page detection on a 16-page
+  report - took 127 s, about seven times 295's per-document rate. At that
+  cost the 267 would be 9.4 h rather than 1.4 h. The honest range is
+  1.4 to 9.4 hours and the spread is because inkdrill's own per-document
+  cost on this work has never been measured. Measuring it on ten documents
+  would cost about twenty minutes and would replace the range with a
+  number.
+
+A LIMIT OF THE FILTER ITSELF, measured not assumed
+
+  Formula objects carry confidence: None. Not a low value - no value. In
+  0707.4470 that is 213 Formulas against 62 Equations, and corpus-wide no
+  Formula anywhere falls below 0.5 because none of them can.
+
+  So 'documents with a low-confidence equation' selects on the minority
+  object type. If the point of the ink pass is to find OCR that went wrong,
+  this filter is blind to the majority of the mathematics by construction.
+  Reporting '0 formulas below 0.5' as a quality result would have been the
+  same error as reading a type name for a measurement.
+
+  The 369 is the answer to the question asked. Whether it is the right
+  scope depends on whether formulas are meant to be in it, and that is a
+  decision I have not taken.
+
+  Also: 431 of the 1,349 documents carry no confidence on any object, so
+  they cannot enter or fail this filter - they are simply not selectable
+  by it.
+
+document list: out/311.scope.json  |  per-document records: out/311.jsonl
