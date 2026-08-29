@@ -1,0 +1,28 @@
+{
+ "doc": "Seven Sketches in Composability An invitation to applied category theory (Brendan Fong, David I. Spivak) (Z-Library)",
+ "pdf": "Seven Sketches in Composability An invitation to applied category theory (Brendan Fong, David I. Spivak) (Z-Library).pdf",
+ "rc": 0,
+ "stdout_tail": "Build stamp: report.build.json — phase=reading, 679 pages, 13010172 bytes, sha256 3400f6fb7f90. A measurement of this report should copy it into its output as `measured_against`.",
+ "seconds": 28.4,
+ "regions": {
+  "regions_with_latex": 1,
+  "attempted_now": 0,
+  "rendered": 1,
+  "failed": 0,
+  "has_author_preamble": false,
+  "graphics_dir": null,
+  "failures": []
+ },
+ "manifest_rows": 503,
+ "with_latex": 1,
+ "duplicated": 502,
+ "table_cols": [
+  6,
+  5,
+  4,
+  6
+ ],
+ "six_col_tables": 2,
+ "region_table_cols": 6,
+ "ink_selectable": false
+}
