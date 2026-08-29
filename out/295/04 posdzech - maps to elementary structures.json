@@ -1,0 +1,28 @@
+{
+ "doc": "04 posdzech - maps to elementary structures",
+ "pdf": "04 posdzech - maps to elementary structures.pdf",
+ "rc": 0,
+ "stdout_tail": "Build stamp: report.build.json — phase=reading, 26 pages, 5663575 bytes, sha256 466ad58c9278. A measurement of this report should copy it into its output as `measured_against`.",
+ "seconds": 3.6,
+ "regions": {
+  "regions_with_latex": 1,
+  "attempted_now": 1,
+  "rendered": 1,
+  "failed": 0,
+  "has_author_preamble": false,
+  "graphics_dir": null,
+  "failures": []
+ },
+ "manifest_rows": 43,
+ "with_latex": 1,
+ "duplicated": 42,
+ "table_cols": [
+  6,
+  5,
+  4,
+  6
+ ],
+ "six_col_tables": 2,
+ "region_table_cols": 6,
+ "ink_selectable": false
+}
