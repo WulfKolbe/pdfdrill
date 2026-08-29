@@ -1,0 +1,27 @@
+{
+ "doc": "Introduction to General Relativity, Black Holes and Cosmology (Yvonne Choquet-Bruhat) (Z-Library)",
+ "pdf": "Introduction to General Relativity, Black Holes and Cosmology (Yvonne Choquet-Bruhat) (Z-Library).pdf",
+ "rc": 0,
+ "stdout_tail": "Build stamp: report.build.json — phase=reading, 404 pages, 15978798 bytes, sha256 f56cfb2ea333. A measurement of this report should copy it into its output as `measured_against`.",
+ "seconds": 850.7,
+ "regions": {
+  "regions_with_latex": 0,
+  "attempted_now": 0,
+  "rendered": 0,
+  "failed": 0,
+  "has_author_preamble": false,
+  "graphics_dir": null,
+  "failures": []
+ },
+ "manifest_rows": 8,
+ "with_latex": 0,
+ "duplicated": 8,
+ "table_cols": [
+  6,
+  5,
+  6
+ ],
+ "six_col_tables": 2,
+ "region_table_cols": 6,
+ "ink_selectable": false
+}
