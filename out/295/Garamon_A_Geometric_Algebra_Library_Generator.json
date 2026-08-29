@@ -1,0 +1,28 @@
+{
+ "doc": "Garamon_A_Geometric_Algebra_Library_Generator",
+ "pdf": "Garamon_A_Geometric_Algebra_Library_Generator.pdf",
+ "rc": 0,
+ "stdout_tail": "Build stamp: report.build.json — phase=reading, 40 pages, 3104346 bytes, sha256 39f8cb6e67cf. A measurement of this report should copy it into its output as `measured_against`.",
+ "seconds": 26.6,
+ "regions": {
+  "regions_with_latex": 10,
+  "attempted_now": 10,
+  "rendered": 10,
+  "failed": 0,
+  "has_author_preamble": false,
+  "graphics_dir": null,
+  "failures": []
+ },
+ "manifest_rows": 26,
+ "with_latex": 10,
+ "duplicated": 16,
+ "table_cols": [
+  6,
+  5,
+  4,
+  6
+ ],
+ "six_col_tables": 2,
+ "region_table_cols": 6,
+ "ink_selectable": false
+}
