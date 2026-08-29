@@ -1,0 +1,69 @@
+{
+ "doc": "2010.06467",
+ "pdf": "2010.06467.pdf",
+ "rc": 0,
+ "stdout_tail": "Build stamp: report.build.json — phase=reading, 22 pages, 182523 bytes, sha256 c56f6b17b162. A measurement of this report should copy it into its output as `measured_against`.",
+ "seconds": 40.0,
+ "regions": {
+  "regions_with_latex": 10,
+  "attempted_now": 10,
+  "rendered": 0,
+  "failed": 10,
+  "has_author_preamble": true,
+  "graphics_dir": "/home/wkolbe/pdfdrill-library/2010.06467/texsrc",
+  "failures": [
+   {
+    "id": "2010.06467_DIA_0001",
+    "first_error": "! Paragraph ended before \\pgfplots@@environment@axis was com"
+   },
+   {
+    "id": "2010.06467_DIA_0002",
+    "first_error": "! Paragraph ended before \\pgfplots@@environment@axis was com"
+   },
+   {
+    "id": "2010.06467_DIA_0003",
+    "first_error": "! Paragraph ended before \\pgfplots@@environment@axis was com"
+   },
+   {
+    "id": "2010.06467_DIA_0004",
+    "first_error": "! Undefined control sequence."
+   },
+   {
+    "id": "2010.06467_DIA_0005",
+    "first_error": "! Undefined control sequence."
+   },
+   {
+    "id": "2010.06467_DIA_0006",
+    "first_error": "! Undefined control sequence."
+   },
+   {
+    "id": "2010.06467_DIA_0007",
+    "first_error": "! Undefined control sequence."
+   },
+   {
+    "id": "2010.06467_DIA_0008",
+    "first_error": "! Undefined control sequence."
+   },
+   {
+    "id": "2010.06467_DIA_0009",
+    "first_error": "! Undefined control sequence."
+   },
+   {
+    "id": "2010.06467_DIA_0010",
+    "first_error": "! Undefined control sequence."
+   }
+  ]
+ },
+ "manifest_rows": 10,
+ "with_latex": 10,
+ "duplicated": 10,
+ "table_cols": [
+  5,
+  5,
+  4,
+  6
+ ],
+ "six_col_tables": 1,
+ "region_table_cols": 6,
+ "ink_selectable": true
+}
