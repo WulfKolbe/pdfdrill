@@ -1,0 +1,103 @@
+290 (revised) — the props table, generated, and a block that makes it read
+==============================================================================
+
+WHAT WAS BUILT
+------------------------------------------------------------------------------
+  docs/layers/PROPS.md          GENERATED. 118 props over 26 object types,
+                                each with its object count, the types it
+                                appears on, the command that writes it, and
+                                the modules that read it.
+  tools/propscan.py             readers / writers / mentions from src/**/*.py
+  tools/propstable.py           the two JSONs -> PROPS.md
+  src/docmodel/corpus_props.json   a walk of 1,350 model.docmodel.json
+  src/docmodel/props_code.json     the code scan
+  src/docmodel/prop_contract.py    the two checks + a reason per unread prop
+
+Nothing in the table is hand-written. The one hand-kept list is
+`NO_READER_REASON` — 33 entries, one per prop with no reader — which is the
+same shape `type_contract.IGNORED` has and exists for the same reason: an
+absence has to be explained or it is just an absence.
+
+THE TWO CHECKS, BOTH GREEN
+------------------------------------------------------------------------------
+    table_violations()      every prop in the CORPUS is in the table with a
+                            reader or an explicit reason      -> []
+    table_not_in_corpus()   every prop in the TABLE occurs in the corpus  -> []
+
+The second direction is kept here although 250 dropped it for types. A type
+literal absent from today's corpus is not a defect — MathPix owns that
+vocabulary. A prop is OURS, so a name in the table that no model carries is a
+typo or a writer that has been removed.
+
+THE SCAN LIED BY OMISSION, AND THAT IS WHY THERE IS A THIRD TIER
+------------------------------------------------------------------------------
+A first version knew only `props.get("x")` and `props["x"]`. It reported
+`latex_refined`, `text_source`, `page_before_repair`, `caption_source` and
+`content_source` as having zero readers AND zero writers — five props that are
+all in active use:
+
+    latex_refined       written and read through a CONSTANT,
+                        refine.REFINED_FIELD = "latex_refined"
+    page_before_repair  written with props.setdefault
+    text_source         tested by membership in a tuple of prose keys
+
+So the scan now records `mentions` as well, and the table shows them: a prop
+with no reader but a mention is weaker evidence than a reader and is NOT the
+same as untouched. Reporting those five as dead would have been out/237b
+repeated — three "dead code" verdicts that were a dispatcher the search could
+not see.
+
+33 props have no direct reader. Every one has at least one mention, so none is
+untouched. Named among them:
+
+    latex_raw            112,066 objects. The maths BEFORE normalisation, kept
+                         so a normalisation defect is recoverable — and nothing
+                         has ever recovered one.
+    languages_detected    65,966 pages. MathPix's script detection, consulted by
+                         nothing, including the routing that picks a vision lane.
+    style                 22,120 Sections. 259 set levels from font_size and
+                         never looked at this.
+    numeric               10,695 cells. No projector formats on it.
+    uri / anchor_text /
+    context                  254 each. `links` reads the annotation layer
+                         directly rather than these objects.
+
+THE PAIRS ARE AT THE TOP OF THE TABLE, NOT BURIED IN IT
+------------------------------------------------------------------------------
+    latex / latex_original      `latex` and `latex_code` are macro-EXPANDED;
+                                `latex_original` keeps the author's macros.
+                                289 measured the cost of choosing wrong:
+                                original+author 70/176 against
+                                expanded+generic 151/207.
+    latex_pretail /             `trailing_punct` is punctuation printed after
+    trailing_punct              the maths and set BESIDE it (025);
+                                `latex_pretail` is maths belonging to the
+                                following prose. Neither goes back into `latex`.
+    latex_refined               a verified refinement in a TWIN prop, because
+                                `latex` is never overwritten (232). A consumer
+                                reading `latex` alone ignores every accepted
+                                repair — which is what 233 had to build.
+
+CLAUDE.md
+------------------------------------------------------------------------------
+A block above "What this repo is": before building anything that reads pdfdrill
+output or writes a projection, read docs/TRANSCLUSION.md,
+docs/layers/README.md and docs/layers/PROPS.md, then check `pdfdrill --help`
+for a command that already does it — naming `cmd_tiddlers` and `cmd_okf`,
+because both were rebuilt this week.
+
+THE PATTERN, SINCE IT IS THE SAME ONE THREE TIMES
+------------------------------------------------------------------------------
+`list_item` was unread in 882 documents. `code` was recorded as "dropped
+entirely" when 43,553 of its 44,689 lines were already recovered. `cmd_tiddlers`
+and `cmd_okf` were reinvented while shipped and documented. None of those is
+carelessness — in each case the capability existed, was written down, and
+nothing in the path forced a look.
+
+The type contract fixed that for MathPix's fields by making an unread type fail
+a check. The equivalent for our own output cannot be a check, because the thing
+being rebuilt is a whole command rather than a field. It has to be a reader who
+is required to look, which is what the CLAUDE.md block is, and a table cheap
+enough to look at, which is what PROPS.md is.
+
+6 tests. Suite 2,674.

@@ -212,3 +212,58 @@ def test_the_value_inventory_records_its_scope():
     prov = json.loads(tc.VALUE_INVENTORY.read_text(encoding="utf-8"))["_provenance"]
     assert "not enumerated" in prov["method"]
     assert prov["line_objects"] > 3_900_000
+
+
+# ---- 290: the props table ------------------------------------------------
+
+def test_every_corpus_prop_is_in_the_table_with_a_reader_or_a_reason():
+    """The direction with teeth, as it was for types: a prop the corpus
+    contains and the table omits is one nobody has looked at. `subtype` sat
+    unread on 1,239,021 lines exactly that way."""
+    from docmodel.prop_contract import table_violations
+    assert table_violations() == [], table_violations()[:5]
+
+
+def test_every_table_prop_occurs_in_the_corpus():
+    """250 dropped this direction for TYPES — MathPix owns that vocabulary and
+    a literal absent today is not a defect. Props are OURS, so a name in the
+    table that no model carries is a typo or a removed writer."""
+    from docmodel.prop_contract import table_not_in_corpus
+    assert table_not_in_corpus() == []
+
+
+def test_the_table_is_generated_not_hand_written():
+    from docmodel.prop_contract import TABLE
+    head = TABLE.read_text(encoding="utf-8")[:400]
+    assert "Generated — do not edit" in head
+    assert "tools/propstable.py" in head
+
+
+def test_the_pairs_are_named_where_a_reader_will_see_them():
+    """latex/latex_original, latex_pretail/trailing_punct, latex_refined — the
+    three places a wrong choice compiles silently rather than failing."""
+    from docmodel.prop_contract import TABLE
+    body = TABLE.read_text(encoding="utf-8")
+    for pair in ("`latex` / `latex_original`",
+                 "`latex_pretail` / `trailing_punct`", "`latex_refined`"):
+        assert pair in body, pair
+
+
+def test_every_no_reader_reason_is_real():
+    from docmodel.prop_contract import NO_READER_REASON, all_corpus_props
+    counts = all_corpus_props()
+    for prop, why in NO_READER_REASON.items():
+        assert prop in counts, "%s: a reason for a prop no model carries" % prop
+        assert len(why) > 30, "%s: reason too thin to be a reason" % prop
+
+
+def test_claude_md_sends_a_builder_to_the_docs_first():
+    """The point of 290: nothing in the path forced a look, so cmd_tiddlers and
+    cmd_okf were both reinvented."""
+    from pathlib import Path
+    md = (Path(__file__).resolve().parent.parent / "CLAUDE.md").read_text(encoding="utf-8")
+    head = md[:md.index("## What this repo is")]
+    for token in ("docs/TRANSCLUSION.md", "docs/layers/README.md",
+                  "docs/layers/PROPS.md", "cmd_tiddlers", "cmd_okf",
+                  "pdfdrill --help"):
+        assert token in head, token

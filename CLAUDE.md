@@ -16,6 +16,27 @@ cost time here.
 the non-obvious environment facts (LgEval pin, dictionaries, `resume.sh`), and
 the unverified assumptions.
 
+## Before building anything that reads pdfdrill output or writes a projection
+
+Read these first, then check `pdfdrill --help` for a command that already does it:
+
+- **`docs/TRANSCLUSION.md`** — most "content is missing" reports are transclusion
+  failures and are invisible unless you know the shape.
+- **`docs/layers/README.md`** — the living layer documentation. Anything dated in
+  its filename is a historical snapshot and points here.
+- **`docs/layers/PROPS.md`** — every DocObject prop, who writes it, who reads it,
+  and the pairs where a wrong choice compiles silently (`latex` /
+  `latex_original`, `latex_pretail` / `trailing_punct`, `latex_refined`).
+  Generated; `docmodel.prop_contract` holds it to the corpus.
+
+**`cmd_tiddlers` and `cmd_okf` already exist.** Both were reinvented this week —
+a TiddlyWiki projection and an OKF bundle, each shipped and documented. The
+pattern is the same one that hid `list_item` in 882 documents and called `code`
+"dropped entirely" when 97.5% of it was already recovered: a capability exists,
+is written down, and gets rebuilt anyway, because nothing in the path forces a
+look. The type contract fixed that for MathPix's fields by making an unread type
+fail a check; the equivalent for our own output is a reader who looks first.
+
 ## What this repo is
 
 **PDFDRILL** = quality control of PDF→LaTeX OCR, building toward a
