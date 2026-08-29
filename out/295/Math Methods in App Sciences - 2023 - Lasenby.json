@@ -1,0 +1,28 @@
+{
+ "doc": "Math Methods in App Sciences - 2023 - Lasenby",
+ "pdf": "Math Methods in App Sciences - 2023 - Lasenby.pdf",
+ "rc": 0,
+ "stdout_tail": "Build stamp: report.build.json — phase=reading, 28 pages, 1202347 bytes, sha256 e51f12690446. A measurement of this report should copy it into its output as `measured_against`.",
+ "seconds": 3.2,
+ "regions": {
+  "regions_with_latex": 0,
+  "attempted_now": 0,
+  "rendered": 0,
+  "failed": 0,
+  "has_author_preamble": false,
+  "graphics_dir": null,
+  "failures": []
+ },
+ "manifest_rows": 3,
+ "with_latex": 0,
+ "duplicated": 3,
+ "table_cols": [
+  6,
+  5,
+  4,
+  6
+ ],
+ "six_col_tables": 2,
+ "region_table_cols": 6,
+ "ink_selectable": false
+}
