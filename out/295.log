@@ -635,3 +635,17 @@ population: 1346 documents (21 from the site, first)
 [ 634/1346] Algebraic Geometry A Problem Solvi 900.1s  regions=0 failed=0 selectable=False
 [ 635/1346] Algebraic Number Theory (DISCRETE  900.1s  regions=- failed=- selectable=False
 [ 636/1346] Algebraic and geometric ideas in t 525.8s  regions=20 failed=2 selectable=False
+[ 637/1346] Algebraic and geometric ideas in t 530.6s  regions=20 failed=2 selectable=False
+Traceback (most recent call last):
+  File "/home/wkolbe/MX/PDFDRILL/tools/run295.py", line 185, in <module>
+    main()
+    ~~~~^^
+  File "/home/wkolbe/MX/PDFDRILL/tools/run295.py", line 157, in main
+    dest.write_text(json.dumps(row, indent=1, ensure_ascii=False),
+    ~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+                    encoding="utf-8")
+                    ^^^^^^^^^^^^^^^^^
+  File "/usr/lib/python3.14/pathlib/__init__.py", line 810, in write_text
+    return f.write(data)
+           ~~~~~~~^^^^^^
+UnicodeEncodeError: 'utf-8' codec can't encode character '\udce8' in position 14: surrogates not allowed
