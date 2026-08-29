@@ -1,0 +1,49 @@
+{
+ "doc": "2502.20855",
+ "pdf": "2502.20855.pdf",
+ "rc": 0,
+ "stdout_tail": "Build stamp: report.build.json — phase=reading, 12 pages, 182984 bytes, sha256 e04c5145213f. A measurement of this report should copy it into its output as `measured_against`.",
+ "seconds": 21.6,
+ "regions": {
+  "regions_with_latex": 7,
+  "attempted_now": 7,
+  "rendered": 2,
+  "failed": 5,
+  "has_author_preamble": true,
+  "graphics_dir": "/home/wkolbe/pdfdrill-library/2502.20855/texsrc",
+  "failures": [
+   {
+    "id": "2502.20855_DIA_0001",
+    "first_error": "! Paragraph ended before \\tikz@picture was complete."
+   },
+   {
+    "id": "2502.20855_DIA_0002",
+    "first_error": "! Paragraph ended before \\tikz@picture was complete."
+   },
+   {
+    "id": "2502.20855_DIA_0004",
+    "first_error": "! Paragraph ended before \\tikz@picture was complete."
+   },
+   {
+    "id": "2502.20855_DIA_0005",
+    "first_error": "! Package glossaries Error: Glossary entry `bert' has not be"
+   },
+   {
+    "id": "2502.20855_DIA_0006",
+    "first_error": "! Package Listings Error: Couldn't load requested style."
+   }
+  ]
+ },
+ "manifest_rows": 7,
+ "with_latex": 7,
+ "duplicated": 5,
+ "table_cols": [
+  5,
+  5,
+  4,
+  6
+ ],
+ "six_col_tables": 1,
+ "region_table_cols": 6,
+ "ink_selectable": true
+}
