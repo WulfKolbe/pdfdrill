@@ -1,0 +1,26 @@
+{
+ "doc": "An Invitation to Applied Category Theory Seven Sketches In Compositionality (Brendan Fong, David I. Spivak) (Z-Library)",
+ "pdf": "An Invitation to Applied Category Theory Seven Sketches In Compositionality (Brendan Fong, David I. Spivak) (Z-Library).pdf",
+ "rc": 0,
+ "stdout_tail": "Build stamp: report.build.json — phase=reading, 679 pages, 11552521 bytes, sha256 a6aad0c98098. A measurement of this report should copy it into its output as `measured_against`.",
+ "seconds": 35.1,
+ "regions": {
+  "regions_with_latex": 0,
+  "attempted_now": 0,
+  "rendered": 0,
+  "failed": 0,
+  "has_author_preamble": false,
+  "graphics_dir": null,
+  "failures": []
+ },
+ "manifest_rows": 505,
+ "with_latex": 0,
+ "duplicated": 0,
+ "table_cols": [
+  6,
+  5,
+  4,
+  6
+ ],
+ "ink_eligible": false
+}
