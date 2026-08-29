@@ -1,0 +1,67 @@
+332 - the clean gold set: the author's own commutative diagrams
+====================================================================
+
+DOCUMENT  2004.05631v1 (Bradley, 'At the Interface of Algebra and
+          Statistics'), 12 author .tex files.
+
+  tikzcd environments  : 52
+  COMPILED             : 46
+  failed               : 6
+
+  Correction to 331: I reported 105 tikzcd there. That counted every
+  occurrence of the string, which is one per \begin AND one per \end.
+  There are 52 environments.
+
+THE PREAMBLE WAS THE WHOLE DIFFERENCE, and it is 288's defect again
+
+  First run: 29 compiled, 23 failed, 17 of them 'Undefined control
+  sequence' -- the author's own macros. thesis.tex yields 393 characters
+  of preamble with 3 \newcommand, because the macros live in
+  chapters/preamble_tufte.tex (4,010 chars, 16 \newcommand) reached only
+  through \input, and standalone_preamble was reading the root file
+  alone.
+
+  latex_source.expand_inputs already existed and was not being called.
+  Expanding first: preamble 393 -> 2,135 chars, compiled 29 -> 46.
+
+  The same call is missing in commands._render_regions, which extracts a
+  preamble the same way for the region renders. Not changed here -- that
+  is a live pass's input and a separate measurement.
+
+THE SIX FAILURES ARE NOT DIAGRAMS
+
+  ! Missing $ inserted.                                          5
+  ! You can't use `macro parameter character #' in math mode.    1
+
+  Examined rather than counted:
+    CD_five_tufte_016          every body line COMMENTED OUT (3 of 3)
+    CD_five_tufte_022          every body line COMMENTED OUT (2 of 2)
+    CD_five_tufte_023          every body line COMMENTED OUT (2 of 2)
+    CD_preamble_tuf_001        a macro TEMPLATE (#1..#4), not a diagram
+    CD_two_tufte_005           every body line COMMENTED OUT (1 of 1)
+    CD_two_tufte_006           every body line COMMENTED OUT (1 of 1)
+
+  Five are diagrams the author commented out and left in the source; one
+  is the \newcommand that DEFINES a diagram shape, with #1..#4 where the
+  objects go. Neither is a commutative diagram, so the gold set is 46 of
+  46 real ones rather than 46 of 52.
+
+WHAT THE SET IS
+
+  46 PNG renders in 2004.05631v1/goldcd/, each with the exact tikzcd
+  source that produced it. The correct answer is known by construction --
+  it IS the source -- so nothing is joined to anything. 301 measured the
+  alternative, pairing an author figure to a MathPix crop, at 0 matched
+  of 8 known pairs.
+
+  by source file:
+    chapters/five_tufte.tex            20
+    chapters/two_tufte.tex             14
+    chapters/three_tufte.tex           9
+    chapters/one_tufte.tex             2
+    chapters/four_tufte.tex            1
+
+  This is a CLEAN render: no scan noise, no page context, no surrounding
+  prose. 333 measures the ceiling on it; 334 measures what the page costs.
+
+out/332.json carries every item with its source and its render path.

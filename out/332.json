@@ -1,0 +1,322 @@
+{
+ "document": "2004.05631v1",
+ "environments": 52,
+ "compiled": 46,
+ "failed": 6,
+ "items": [
+  {
+   "ident": "CD_five_tufte_001",
+   "source": "chapters/five_tufte.tex",
+   "latex": "\\begin{tikzcd}[ampersand replacement =\\&]\n  F \\arrow[r, \"F\\circ\\eta\", Rightarrow] \\arrow[rd, \"\\id_F\"', Rightarrow] \\& FGF \\arrow[d, \"\\epsilon \\circ F\", Rightarrow] \\&  \\& G \\arrow[r, \"\\eta\\circ G\", Rightarrow] \\arrow[rd, \"\\id_G\"', Rightarrow] \\& GFG \\arrow[d, \"G\\circ \\epsilon\", Rightarrow] \\\\  \\& F                               \\&  \\&  \\& G           \n  \\end{tikzcd}",
+   "png": "goldcd/CD_five_tufte_001.png"
+  },
+  {
+   "ident": "CD_five_tufte_002",
+   "source": "chapters/five_tufte.tex",
+   "latex": "\\begin{tikzcd}\n  UFX \\arrow[r, \"U\\hat f\", dashed]                  & UW \\\\\n  X \\arrow[ru, \"f\"'] \\arrow[u, \"\\eta_X\"] &   \n  \\end{tikzcd}",
+   "png": "goldcd/CD_five_tufte_002.png"
+  },
+  {
+   "ident": "CD_five_tufte_003",
+   "source": "chapters/five_tufte.tex",
+   "latex": "\\begin{tikzcd}\n  \\mathbb{C}^X \\arrow[r, \"\\hat f\", dashed]                  & W \\\\\n  X \\arrow[ru, \"f\"'] \\arrow[u, \"\\eta_X\"] &   \n  \\end{tikzcd}",
+   "png": "goldcd/CD_five_tufte_003.png"
+  },
+  {
+   "ident": "CD_five_tufte_004",
+   "source": "chapters/five_tufte.tex",
+   "latex": "\\begin{tikzcd}\n  {\\mathsf{Set}(X,U\\mathbb{C}^Y)} & \\cong & {\\mathsf{Set}(X\\times Y,U\\mathbb{C})}                 & \\cong & {\\mathsf{Set}(Y,U\\mathbb{C}^X)} \\\\[-20pt]\n  \\alpha             &       & M \\arrow[rr, maps to] \\arrow[ll, maps to] &       & \\beta            \n  \\end{tikzcd}",
+   "png": "goldcd/CD_five_tufte_004.png"
+  },
+  {
+   "ident": "CD_five_tufte_005",
+   "source": "chapters/five_tufte.tex",
+   "latex": "\\begin{tikzcd}\n  U\\mathbb{C}^X \\arrow[r, \"UM\", dashed]         & U\\mathbb{C}^Y && U\\mathbb{C}^Y \\arrow[r, \"UM^\\dagger \", dashed]         & U\\mathbb{C}^X \\\\\n  X \\arrow[ru, \"\\alpha\"'] \\arrow[u, hook] &     && Y \\arrow[u, hook] \\arrow[ru, \"\\beta\"'] &    \n  \\end{tikzcd}",
+   "png": "goldcd/CD_five_tufte_005.png"
+  },
+  {
+   "ident": "CD_five_tufte_006",
+   "source": "chapters/five_tufte.tex",
+   "latex": "\\begin{tikzcd}\n  UF\\C \\arrow[r, \"U\\hat f\", dashed] & U\\mathsf{D} \\\\\n  \\C \\arrow[ru, \"f\"'] \\arrow[u,\"\\eta_\\C\"]                 &   \n  \\end{tikzcd}",
+   "png": "goldcd/CD_five_tufte_006.png"
+  },
+  {
+   "ident": "CD_five_tufte_007",
+   "source": "chapters/five_tufte.tex",
+   "latex": "\\begin{tikzcd}\n  \\mathsf{Set}^{\\C^{\\op}}\\arrow[r, \"\\hat f\", dashed] & \\mathsf{D} \\\\\n  \\C \\arrow[ru, \"f\"'] \\arrow[u,\"\\eta_\\C\"]                 &   \n  \\end{tikzcd}",
+   "png": "goldcd/CD_five_tufte_007.png"
+  },
+  {
+   "ident": "CD_five_tufte_008",
+   "source": "chapters/five_tufte.tex",
+   "latex": "\\begin{tikzcd}\n  U \\bar F\\C \\arrow[r, \"U\\hat g\", dashed] & U\\D \\\\\n  \\C \\arrow[ru, \"g\"'] \\arrow[u,\"\\eta_{\\C}\"]                 &   \n  \\end{tikzcd}",
+   "png": "goldcd/CD_five_tufte_008.png"
+  },
+  {
+   "ident": "CD_five_tufte_009",
+   "source": "chapters/five_tufte.tex",
+   "latex": "\\begin{tikzcd}\n  {\\mathsf{Cat}(\\C^{\\op},U\\mathsf{Set}^\\D)} & & {\\mathsf{Cat}(\\C^{\\op}\\times \\D,U\\mathsf{Set})}\\arrow[ll]\\arrow[rr]                 & & {\\mathsf{Cat}(\\D,U\\mathsf{Set}^{\\C^{\\op}})} \\\\[-20pt]\n  A             &       & M \\arrow[rr, maps to] \\arrow[ll, maps to] &       & B            \n  \\end{tikzcd}",
+   "png": "goldcd/CD_five_tufte_009.png"
+  },
+  {
+   "ident": "CD_five_tufte_010",
+   "source": "chapters/five_tufte.tex",
+   "latex": "\\begin{tikzcd}\n  U\\mathsf{Set}^{\\C^{\\op}} \\arrow[r, \"UM^*\", dashed]         & (U\\mathsf{Set}^\\D)^{\\op} && (U\\mathsf{Set}^\\D)^{\\op} \\arrow[r, \"UM_*\", dashed]         & U\\mathsf{Set}^{\\C^{\\op}} \\\\\n  \\C \\arrow[ru, \"A\"'] \\arrow[u, hook] &     && \\D \\arrow[u, hook] \\arrow[ru, \"B\"'] &    \n  \\end{tikzcd}",
+   "png": "goldcd/CD_five_tufte_010.png"
+  },
+  {
+   "ident": "CD_five_tufte_011",
+   "source": "chapters/five_tufte.tex",
+   "latex": "\\begin{tikzcd}\n  U\\mathsf{Set}^{\\C^{\\op}} \\arrow[r, \"M^*\", dashed]         & (U\\mathsf{Set}^{\\D})^{\\op} && (U\\mathsf{Set}^{\\D})^{\\op} \\arrow[r, \"M_*\", dashed]         & U\\mathsf{Set}^{\\C^{\\op}} \\\\\n  \\C \\arrow[ru, \"A\"'] \\arrow[u, hook] &     && \\D \\arrow[u, hook] \\arrow[ru, \"B\"'] &    \n  \\end{tikzcd}",
+   "png": "goldcd/CD_five_tufte_011.png"
+  },
+  {
+   "ident": "CD_five_tufte_012",
+   "source": "chapters/five_tufte.tex",
+   "latex": "\\begin{tikzcd}[ampersand replacement =\\&]\n    \\mathbb{C}^X \\arrow[r, \"M\", dashed]         \\& \\mathbb{C}^Y \\&\\& \\mathbb{C}^Y \\arrow[r, \"M^\\dagger\", dashed]         \\& \\mathbb{C}^X \\\\\n    X \\arrow[ru, \"\\alpha\"'] \\arrow[u, hook] \\&     \\&\\& Y \\arrow[u, hook] \\arrow[ru, \"\\beta\"'] \\&    \n    \\end{tikzcd}",
+   "png": "goldcd/CD_five_tufte_012.png"
+  },
+  {
+   "ident": "CD_five_tufte_013",
+   "source": "chapters/five_tufte.tex",
+   "latex": "\\begin{tikzcd}\n  UFX \\arrow[r, \"U \\hat f\",dashed]                    & UP \\\\\n  X \\arrow[ru, \"f\"'] \\arrow[u, \"\\eta_X\"] &   \n  \\end{tikzcd}",
+   "png": "goldcd/CD_five_tufte_013.png"
+  },
+  {
+   "ident": "CD_five_tufte_014",
+   "source": "chapters/five_tufte.tex",
+   "latex": "\\begin{tikzcd}\n  0 \\arrow[r] \\arrow[loop, distance=2em, in=125, out=55] & 1 \\arrow[loop, distance=2em, in=55, out=125]\n  \\end{tikzcd}",
+   "png": "goldcd/CD_five_tufte_014.png"
+  },
+  {
+   "ident": "CD_five_tufte_015",
+   "source": "chapters/five_tufte.tex",
+   "latex": "\\begin{tikzcd}\n  U\\bar FX \\arrow[r, \"U\\hat g\"]                    & UP \\\\\n  X \\arrow[ru, \"g\"'] \\arrow[u, \"\\eta_X\"] &   \n  \\end{tikzcd}",
+   "png": "goldcd/CD_five_tufte_015.png"
+  },
+  {
+   "ident": "CD_five_tufte_017",
+   "source": "chapters/five_tufte.tex",
+   "latex": "\\begin{tikzcd}\n  {\\mathsf{Set}(X,U2^Y)} & \\cong & {\\mathsf{Set}(X\\times Y,U2)}                 & \\cong & {\\mathsf{Set}(Y,U2^X)} \\\\[-20pt]\n  a             &       & R \\arrow[rr, maps to] \\arrow[ll, maps to] &       & b            \n  \\end{tikzcd}",
+   "png": "goldcd/CD_five_tufte_017.png"
+  },
+  {
+   "ident": "CD_five_tufte_018",
+   "source": "chapters/five_tufte.tex",
+   "latex": "\\begin{tikzcd}\n  U2^X \\arrow[r, \"Uf\", dashed]         & U2^Y && U2^Y \\arrow[r, \"Ug\", dashed]         & U2^X \\\\\n  X \\arrow[ru, \"a\"'] \\arrow[u, hook] &     && Y \\arrow[u, hook] \\arrow[ru, \"b\"'] &    \n  \\end{tikzcd}",
+   "png": "goldcd/CD_five_tufte_018.png"
+  },
+  {
+   "ident": "CD_five_tufte_019",
+   "source": "chapters/five_tufte.tex",
+   "latex": "\\begin{tikzcd}\n  Y\\times X \\arrow[r, \"M\"] \\arrow[d, \"m\\times \\id_X\"', dashed] & UE \\\\\n  UE^X\\times X \\arrow[ru, \"\\eval\"']                                     &   \n  \\end{tikzcd}",
+   "png": "goldcd/CD_five_tufte_019.png"
+  },
+  {
+   "ident": "CD_five_tufte_020",
+   "source": "chapters/five_tufte.tex",
+   "latex": "\\begin{tikzcd}\n  UFX \\arrow[r, dashed, \"U\\hat f\"]       & UC \\\\\n  X \\arrow[ru, \"f\"'] \\arrow[u, \"i\"] &   \n  \\end{tikzcd}",
+   "png": "goldcd/CD_five_tufte_020.png"
+  },
+  {
+   "ident": "CD_five_tufte_021",
+   "source": "chapters/five_tufte.tex",
+   "latex": "\\begin{tikzcd}\n  UE^X \\arrow[r, dashed, \"U\\hat f\"]       & UE^Y \\\\\n  X \\arrow[ru, \"f\"'] \\arrow[u, \"i\"] &   \n  \\end{tikzcd}",
+   "png": "goldcd/CD_five_tufte_021.png"
+  },
+  {
+   "ident": "CD_four_tufte_001",
+   "source": "chapters/four_tufte.tex",
+   "latex": "\\begin{tikzcd}[ampersand replacement = \\&]\n\tV\\otimes V \\arrow[d, \"U^\\dagger\"'] \\arrow[r, \"\\rho_2\"] \\& V\\otimes V              \\\\\n\tW \\arrow[r, \"D\"]                                       \\& W \\arrow[u, \"U\"', hook]\n\t\\end{tikzcd}",
+   "png": "goldcd/CD_four_tufte_001.png"
+  },
+  {
+   "ident": "CD_one_tufte_001",
+   "source": "chapters/one_tufte.tex",
+   "latex": "\\begin{tikzcd}\n\t2^X \\arrow[r, \"f\", dashed]         & 2^Y && 2^Y \\arrow[r, \"g\", dashed]         & 2^X \\\\\n\tX \\arrow[ru, \"a\"'] \\arrow[u, hook] &     && Y \\arrow[u, hook] \\arrow[ru, \"b\"'] &    \n\t\\end{tikzcd}",
+   "png": "goldcd/CD_one_tufte_001.png"
+  },
+  {
+   "ident": "CD_one_tufte_002",
+   "source": "chapters/one_tufte.tex",
+   "latex": "\\begin{tikzcd}\n\t\\mathbb{C}^X \\arrow[r, \"M\", dashed]         & \\mathbb{C}^Y && \\mathbb{C}^Y \\arrow[r, \"M^\\dagger\", dashed]         & \\mathbb{C}^X \\\\\n\tX \\arrow[ru, \"\\alpha\"'] \\arrow[u, hook] &     && Y \\arrow[u, hook] \\arrow[ru, \"\\beta\"'] &    \n\t\\end{tikzcd}",
+   "png": "goldcd/CD_one_tufte_002.png"
+  },
+  {
+   "ident": "CD_three_tufte_001",
+   "source": "chapters/three_tufte.tex",
+   "latex": "\\begin{tikzcd}\n\t\\text{fruit} \\arrow[d, \"50\\%\"', bend right, shift right=3] \\arrow[dd, \"50\\%\", bend left=49, shift left=2] \\\\\n\t\\text{\\color{YellowOrange}orange}\\\\\n\t\\text{\\color{Green}green}                 \n\t\\end{tikzcd}",
+   "png": "goldcd/CD_three_tufte_001.png"
+  },
+  {
+   "ident": "CD_three_tufte_002",
+   "source": "chapters/three_tufte.tex",
+   "latex": "\\begin{tikzcd}\n\t\\text{vegetable} \\ar[dd,\"100\\%\"]\\\\ \\\\\n\t\\text{\\color{Purple}purple}\n\t\\end{tikzcd}",
+   "png": "goldcd/CD_three_tufte_002.png"
+  },
+  {
+   "ident": "CD_three_tufte_003",
+   "source": "chapters/three_tufte.tex",
+   "latex": "\\begin{tikzcd}\n\tX\\ar[r,\"a\"] & 2^Y \\\\[-20pt]\n\tx \\ar[r,mapsto] & a(x):=\\{y\\in Y\\mid R(x,y)=1\\}\\\\[10pt] \n\tY\\ar[r,\"b\"] & 2^X \\\\[-20pt]\n\ty \\ar[r,mapsto] & b(y):=\\{x\\in X\\mid R(x,y)=1\\}\n\t\\end{tikzcd}",
+   "png": "goldcd/CD_three_tufte_003.png"
+  },
+  {
+   "ident": "CD_three_tufte_004",
+   "source": "chapters/three_tufte.tex",
+   "latex": "\\begin{tikzcd}[ampersand replacement = \\&]\n\t2^X \\arrow[r, \"f\", dashed]   \\& 2^Y \\\\\n\tX \\arrow[u] \\arrow[ru, \"a\"'] \\&    \n\t\\end{tikzcd}",
+   "png": "goldcd/CD_three_tufte_004.png"
+  },
+  {
+   "ident": "CD_three_tufte_005",
+   "source": "chapters/three_tufte.tex",
+   "latex": "\\begin{tikzcd}[ampersand replacement = \\&]\n\t2^Y \\arrow[r, \"g\", dashed]   \\& 2^X \\\\\n\tY \\arrow[u] \\arrow[ru, \"b\"'] \\&    \n\t\\end{tikzcd}",
+   "png": "goldcd/CD_three_tufte_005.png"
+  },
+  {
+   "ident": "CD_three_tufte_006",
+   "source": "chapters/three_tufte.tex",
+   "latex": "\\begin{tikzcd}\n\tX\\ar[r,\"\\alpha\"] & \\mathbb{C}^Y \\\\[-20pt]\n\tx_i \\ar[r,mapsto] & A_i|\\psi\\>\n\t\\end{tikzcd}",
+   "png": "goldcd/CD_three_tufte_006.png"
+  },
+  {
+   "ident": "CD_three_tufte_007",
+   "source": "chapters/three_tufte.tex",
+   "latex": "\\begin{tikzcd}[ampersand replacement = \\&]\n\t\\mathbb{C}^X \\arrow[r, \"M\", dashed]   \\& \\mathbb{C}^Y \\\\\n\tX \\arrow[u] \\arrow[ru, \"\\alpha\"'] \\&    \n\t\\end{tikzcd}",
+   "png": "goldcd/CD_three_tufte_007.png"
+  },
+  {
+   "ident": "CD_three_tufte_008",
+   "source": "chapters/three_tufte.tex",
+   "latex": "\\begin{tikzcd}[ampersand replacement = \\&]\n\t\\mathbb{C}^Y \\arrow[r, \"M^\\dagger\", dashed]   \\& \\mathbb{C}^X \\\\\n\tY \\arrow[u] \\arrow[ru, \"\\beta\"'] \\&    \n\t\\end{tikzcd}",
+   "png": "goldcd/CD_three_tufte_008.png"
+  },
+  {
+   "ident": "CD_three_tufte_009",
+   "source": "chapters/three_tufte.tex",
+   "latex": "\\begin{tikzcd}\n\tY\\ar[r,\"\\beta\"] & \\mathbb{C}^X \\\\[-20pt]\n\ty_\\alpha \\ar[r,mapsto] & B_\\alpha|\\psi\\>\n\t\\end{tikzcd}",
+   "png": "goldcd/CD_three_tufte_009.png"
+  },
+  {
+   "ident": "CD_two_tufte_001",
+   "source": "chapters/two_tufte.tex",
+   "latex": "\\begin{tikzcd}\nV \\ar[r,\"\\<v|\"] & \\mathbb{C}\\\\[-20pt]\n{|v'\\>} \\ar[r,mapsto] & {\\<v|v'\\>}\n\\end{tikzcd}",
+   "png": "goldcd/CD_two_tufte_001.png"
+  },
+  {
+   "ident": "CD_two_tufte_002",
+   "source": "chapters/two_tufte.tex",
+   "latex": "\\begin{tikzcd}[ampersand replacement = \\&]\n\t\\mathsf{Set} \\ar[r,\"X\\times -\"] \\& \\mathsf{Set}\\\\[-10pt]\n\tY \\ar[r,mapsto] \\& X\\times Y\n\t\\end{tikzcd}",
+   "png": "goldcd/CD_two_tufte_002.png"
+  },
+  {
+   "ident": "CD_two_tufte_003",
+   "source": "chapters/two_tufte.tex",
+   "latex": "\\begin{tikzcd}[ampersand replacement = \\&]\n\tV\\ar[r,\"{\\<v|-\\>}\"] \\& \\mathbb{C}\\\\[-10pt]\n\tv' \\ar[r,mapsto] \\& {\\<v|v'\\>}\n\t\\end{tikzcd}",
+   "png": "goldcd/CD_two_tufte_003.png"
+  },
+  {
+   "ident": "CD_two_tufte_004",
+   "source": "chapters/two_tufte.tex",
+   "latex": "\\begin{tikzcd}\nV \\ar[r,\"|w\\>\\<v|\"] & W\\\\[-20pt]\n{|v'\\>} \\ar[r,mapsto] & {|w\\>\\<v|v'\\>}\n\\end{tikzcd}",
+   "png": "goldcd/CD_two_tufte_004.png"
+  },
+  {
+   "ident": "CD_two_tufte_007",
+   "source": "chapters/two_tufte.tex",
+   "latex": "\\begin{tikzcd}\n\t  & V\\otimes W \\arrow[ld, \"\\text{no!}\"', dotted] \\arrow[rd, \"\\text{no!}\", dotted] &   \\\\\n\tV &                                                                               & W\n\t\\end{tikzcd}",
+   "png": "goldcd/CD_two_tufte_007.png"
+  },
+  {
+   "ident": "CD_two_tufte_008",
+   "source": "chapters/two_tufte.tex",
+   "latex": "\\begin{tikzcd}\n\tV\\otimes W \\arrow[r, \"\\text{no!}\", dotted] & V \\\\\n\tV\\times W \\arrow[u, hook] \\arrow[ru, \"p\"'] &  \n\t\\end{tikzcd}",
+   "png": "goldcd/CD_two_tufte_008.png"
+  },
+  {
+   "ident": "CD_two_tufte_009",
+   "source": "chapters/two_tufte.tex",
+   "latex": "\\begin{tikzcd}[ampersand replacement = \\&]\n\t\tV\\otimes W \\arrow[r, \"\\hat f\", dashed] \\& Z \\\\\n\t\tV\\times W \\arrow[u, hook] \\arrow[ru, \"f\"'] \\&  \n\t\t\\end{tikzcd}",
+   "png": "goldcd/CD_two_tufte_009.png"
+  },
+  {
+   "ident": "CD_two_tufte_010",
+   "source": "chapters/two_tufte.tex",
+   "latex": "\\begin{tikzcd}\n\t        & \\End(V\\otimes W) \\arrow[ld] \\arrow[rd] &         \\\\\n\t\\End(V) &                                                           & \\End(W)\n\t\\end{tikzcd}",
+   "png": "goldcd/CD_two_tufte_010.png"
+  },
+  {
+   "ident": "CD_two_tufte_011",
+   "source": "chapters/two_tufte.tex",
+   "latex": "\\begin{tikzcd}\n\t        & \\End(V\\otimes W) \\arrow[ld, \"\\tr_W\"'] \\arrow[rd, \"\\tr_V\"] &         \\\\\n\t\\End(V) &                                                           & \\End(W)\n\t\\end{tikzcd}",
+   "png": "goldcd/CD_two_tufte_011.png"
+  },
+  {
+   "ident": "CD_two_tufte_012",
+   "source": "chapters/two_tufte.tex",
+   "latex": "\\begin{tikzcd}[ampersand replacement = \\&]\n\t\\End(V)\\otimes\\End(W) \\arrow[dd, \"\\id_{\\End(V)}\\otimes\\tr\"]\\\\ \\\\\n\t\\End(V)\\otimes\\mathbb{C} \\arrow[d, \"\\cong\"]\\\\\n\t\\End(V)\n\t\\end{tikzcd}",
+   "png": "goldcd/CD_two_tufte_012.png"
+  },
+  {
+   "ident": "CD_two_tufte_013",
+   "source": "chapters/two_tufte.tex",
+   "latex": "\\begin{tikzcd} V\\otimes W\\ar[r,dotted] &V\\end{tikzcd}",
+   "png": "goldcd/CD_two_tufte_013.png"
+  },
+  {
+   "ident": "CD_two_tufte_014",
+   "source": "chapters/two_tufte.tex",
+   "latex": "\\begin{tikzcd}\n\t\\End V\\otimes \\End W \\arrow[r, \"\\tr_W\", dashed]      & \\End V \\\\\n\t\\End V\\times \\End W \\arrow[ru, \"p\"'] \\arrow[u, hook] &       \n\t\\end{tikzcd}",
+   "png": "goldcd/CD_two_tufte_014.png"
+  },
+  {
+   "ident": "CD_two_tufte_015",
+   "source": "chapters/two_tufte.tex",
+   "latex": "\\begin{tikzcd}\n             & V\\otimes W \\arrow[ld, \"B_\\alpha\"'] \\arrow[rd, \"A_i\"] &              \\\\\nV &                                     & W\n\\end{tikzcd}",
+   "png": "goldcd/CD_two_tufte_015.png"
+  },
+  {
+   "ident": "CD_two_tufte_016",
+   "source": "chapters/two_tufte.tex",
+   "latex": "\\begin{tikzcd}\n\t{|e_i\\>} \\ar[r,shift right] & {|f_i\\>} \\ar[l, shift right, \"\\lambda_i\",swap]\n\t\\end{tikzcd}",
+   "png": "goldcd/CD_two_tufte_016.png"
+  }
+ ],
+ "failures": [
+  {
+   "ident": "CD_five_tufte_016",
+   "source": "chapters/five_tufte.tex",
+   "latex": "\\begin{tikzcd}\n%      & p \\arrow[ldd, bend right] \\arrow[rdd,  bend left] \\arrow[d, dashed] &     \\\\\n%      & fA=\\bigwedge_x ax \\arrow[ld] \\arrow[rd]                                      &     \\\\\n%     ax &                                                                                                & ax'\n%   \\end{tikzcd}",
+   "error": "! Missing $ inserted."
+  },
+  {
+   "ident": "CD_five_tufte_022",
+   "source": "chapters/five_tufte.tex",
+   "latex": "\\begin{tikzcd}\n%   \\mathbb{C}^X\\arrow[r, dashed, \"\\tilde f\"]       & \\mathbb{C}^Y \\\\\n%   X \\arrow[ru, \"f\"'] \\arrow[u, \"i\"] &   \n%   \\end{tikzcd}",
+   "error": "! Missing $ inserted."
+  },
+  {
+   "ident": "CD_five_tufte_023",
+   "source": "chapters/five_tufte.tex",
+   "latex": "\\begin{tikzcd}\n%     2^X\\arrow[r, dashed, \"\\tilde f\"]       & 2^Y \\\\\n%     X \\arrow[ru, \"f\"'] \\arrow[u, \"i\"] &   \n%     \\end{tikzcd}",
+   "error": "! Missing $ inserted."
+  },
+  {
+   "ident": "CD_preamble_tuf_001",
+   "source": "chapters/preamble_tufte.tex",
+   "latex": "\\begin{tikzcd}[ampersand replacement=\\&, column sep=4ex, cramped]\n   #1 \\colon #2\t\\ar[yshift=+.6ex]{r}\n\\& #3 \\colon #4\t\\ar[yshift=-.4ex]{l}\n\\end{tikzcd}",
+   "error": "! You can't use `macro parameter character #' in math mode."
+  },
+  {
+   "ident": "CD_two_tufte_005",
+   "source": "chapters/two_tufte.tex",
+   "latex": "\\begin{tikzcd}[ampersand replacement = \\&]\n\t% \\text{ a density on } \\mathbb{C}^S \\arrow[rr, bend left,thick] \\&  \\& \\text{probabilities on } S \\arrow[ll, bend left,gray]\n\t% \\end{tikzcd}",
+   "error": "! Missing $ inserted."
+  },
+  {
+   "ident": "CD_two_tufte_006",
+   "source": "chapters/two_tufte.tex",
+   "latex": "\\begin{tikzcd}[ampersand replacement = \\&]\n\t% \\text{ a density on } \\mathbb{C}^S \\arrow[rr, bend left,gray] \\&  \\& \\text{probabilities on } S \\arrow[ll, bend left,thick]\n\t% \\end{tikzcd}",
+   "error": "! Missing $ inserted."
+  }
+ ]
+}
