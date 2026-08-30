@@ -111,8 +111,14 @@ def widths(usable_mm: float):
     difference into the residual, which is exactly the number this report
     exists to produce.
     """
-    span = usable_mm - 28
-    ident, page, conf = 20, 22, 13     # `page` is wider: it holds "s00 r0042"
+    # 378 — the reserve for separators was 28mm and the table overflowed the
+    # page: measured on the rendered page, six vertical rules instead of
+    # seven, the last column's right edge landing at ~420mm, the paper edge.
+    # inkdrill then read FIVE columns and was right to — a clipped rule is
+    # not a column boundary. Each of six columns costs 2\tabcolsep (~4.2mm)
+    # plus a rule, so the true reserve is ~44mm, not 28.
+    span = usable_mm - 46
+    ident, page, conf = 20, 22, 13     # `page` is wider: it holds shard+row
     rest = span - ident - page - conf
     img = (rest - round(rest * 0.30)) // 2      # the two compared columns
     src = rest - 2 * img                        # the remainder goes HERE
