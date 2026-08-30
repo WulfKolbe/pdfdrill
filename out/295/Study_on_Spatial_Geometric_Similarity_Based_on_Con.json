@@ -1,0 +1,28 @@
+{
+ "doc": "Study_on_Spatial_Geometric_Similarity_Based_on_Con",
+ "pdf": "Study_on_Spatial_Geometric_Similarity_Based_on_Con.pdf",
+ "rc": 0,
+ "stdout_tail": "Build stamp: report.build.json — phase=reading, 24 pages, 1204869 bytes, sha256 f3774ef303b1. A measurement of this report should copy it into its output as `measured_against`.",
+ "seconds": 3.7,
+ "regions": {
+  "regions_with_latex": 0,
+  "attempted_now": 0,
+  "rendered": 0,
+  "failed": 0,
+  "has_author_preamble": false,
+  "graphics_dir": null,
+  "failures": []
+ },
+ "manifest_rows": 28,
+ "with_latex": 0,
+ "duplicated": 28,
+ "table_cols": [
+  6,
+  5,
+  4,
+  7
+ ],
+ "six_col_tables": 1,
+ "region_table_cols": 7,
+ "ink_selectable": false
+}
