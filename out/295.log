@@ -983,3 +983,5 @@ Traceback (most recent call last):
     return f.write(data)
            ~~~~~~~^^^^^^
 UnicodeEncodeError: 'utf-8' codec can't encode character '\udca8' in position 71: surrogates not allowed
+population: 1349 documents (21 from the site, first)
+[ 472/1349] 2405.15306                           7.5s  regions=0 failed=0 selectable=False

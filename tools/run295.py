@@ -79,8 +79,21 @@ def last_table_cols(tex: pathlib.Path):
     return [ln.count("p{") for ln in s.splitlines() if "\\begin{longtable}" in ln]
 
 
+def _safe(name: str) -> str:
+    """One library folder name holds a byte that is not valid UTF-8 -- a
+    latin-1 "Bo(0xa8)ttcher" -- which Python surfaces as a surrogate escape and
+    json/write_text refuse to encode. The pass died on it at document 946 with
+    a UnicodeEncodeError, having run for hours.
+
+    The same guard was written for the 307 and 324 corpus scans and never
+    carried back here, which is the whole defect: a fix that lives in one
+    runner and not the other is not a fix, it is a note.
+    """
+    return name.encode("utf-8", "replace").decode("utf-8")
+
+
 def run(name, pdf):
-    row = {"doc": name, "pdf": pdf.name}
+    row = {"doc": _safe(name), "pdf": _safe(pdf.name)}
     t0 = time.time()
     env = dict(os.environ, PDFDRILL_NO_PREFLIGHT="1", PYTHONDONTWRITEBYTECODE="1")
     try:
@@ -142,7 +155,7 @@ def main():
     done = skipped = 0
     since_push = 0
     for i, (name, pdf) in enumerate(docs, 1):
-        dest = OUT / ("%s.json" % name.replace("/", "_"))
+        dest = OUT / ("%s.json" % _safe(name).replace("/", "_"))
         if dest.is_file():
             skipped += 1
             continue

@@ -138,3 +138,22 @@
 {"doc": "preprints202111.0359.v2", "pages": 21, "outcome": "measured", "rows": 52, "convert": "converted", "seconds": 380.9}
 {"doc": "2304.0228v1", "pages": 22, "outcome": "measured", "rows": 69, "convert": "converted", "seconds": 639.3}
 {"doc": "The_Supergeometric_Algebra", "pages": 22, "outcome": "measured", "rows": 108, "convert": "converted", "seconds": 729.9}
+{"doc": "mathematics-11-03607", "pages": 22, "outcome": "measured", "rows": 83, "convert": "converted", "seconds": 771.8}
+{"doc": "0403040v2", "pages": 23, "outcome": "measured", "rows": 167, "convert": "converted", "seconds": 1155.8}
+{"doc": "1712.05204", "pages": 23, "outcome": "refused", "error": "MeasureRefused: run holds 33 data rows, the manifest expects 34 for the equations table", "seconds": 125.8}
+{"doc": "2309.13736", "pages": 23, "outcome": "measured", "rows": 57, "convert": "converted", "seconds": 824.4}
+{"doc": "MinimalCurrent", "pages": 23, "outcome": "measured", "rows": 60, "convert": "converted", "seconds": 373.9}
+{"doc": "RepulsiveSurfaces", "pages": 23, "outcome": "measured", "rows": 60, "convert": "converted", "seconds": 362.0}
+{"doc": "Space_Bending_Lattices_Parameterization", "pages": 23, "outcome": "measured", "rows": 31, "convert": "converted", "seconds": 280.3}
+{"doc": "The_Supergeometric_Algebra (1)", "pages": 23, "outcome": "measured", "rows": 108, "convert": "converted", "seconds": 758.2}
+{"doc": "problemstatement", "pages": 23, "outcome": "refused", "error": "MeasureRefused: run holds 57 data rows, the manifest expects 58 for the equations table", "seconds": 164.4}
+{"doc": "1-s2.0-S1474034614000184-main", "pages": 24, "outcome": "refused", "error": "MeasureRefused: page 1: compare returned 8 rows, reportpages expects 4", "seconds": 102.3}
+{"doc": "1611.03955", "pages": 24, "outcome": "measured", "rows": 85, "convert": "converted", "seconds": 842.6}
+{"doc": "2409.02789v2", "pages": 24, "outcome": "refused", "error": "MeasureRefused: run holds 82 data rows, the manifest expects 84 for the equations table", "seconds": 173.3}
+{"doc": "9602137v2", "pages": 24, "outcome": "measured", "rows": 96, "convert": "converted", "seconds": 861.1}
+{"doc": "Metacognitive_Sedenion-Valued_Neural_Network_and_its_Learning_Algorithm", "pages": 24, "outcome": "measured", "rows": 30, "convert": "converted", "seconds": 425.0}
+{"doc": "Reflections_in_conics_quadrics_and_hyper", "pages": 24, "outcome": "measured", "rows": 102, "convert": "converted", "seconds": 919.9}
+{"doc": "2006.04439", "pages": 25, "outcome": "measured", "rows": 118, "convert": "converted", "seconds": 1014.0}
+{"doc": "2202.09464v1", "pages": 25, "outcome": "refused", "error": "MeasureRefused: run holds 45 data rows, the manifest expects 47 for the equations table", "seconds": 166.7}
+{"doc": "2304.05000", "pages": 25, "outcome": "measured", "rows": 93, "convert": "converted", "seconds": 987.6}
+{"doc": "1414674613", "pages": 26, "outcome": "measured", "rows": 134, "convert": "converted", "seconds": 1546.0}
