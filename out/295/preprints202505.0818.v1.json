@@ -1,0 +1,33 @@
+{
+ "doc": "preprints202505.0818.v1",
+ "pdf": "preprints202505.0818.v1.pdf",
+ "rc": 0,
+ "stdout_tail": "Build stamp: report.build.json — phase=reading, 22 pages, 218399 bytes, sha256 a276ee1d1e50. A measurement of this report should copy it into its output as `measured_against`.",
+ "seconds": 9.1,
+ "regions": {
+  "regions_with_latex": 3,
+  "attempted_now": 3,
+  "rendered": 2,
+  "failed": 1,
+  "has_author_preamble": true,
+  "graphics_dir": "/home/wkolbe/pdfdrill-library/preprints202505.0818.v1/texsrc",
+  "failures": [
+   {
+    "id": "preprints202505.0818.v1_DIA_0002",
+    "first_error": "! LaTeX Error: \\mathrm allowed only in math mode."
+   }
+  ]
+ },
+ "manifest_rows": 3,
+ "with_latex": 3,
+ "duplicated": 1,
+ "table_cols": [
+  5,
+  5,
+  4,
+  7
+ ],
+ "six_col_tables": 0,
+ "region_table_cols": 7,
+ "ink_selectable": false
+}
