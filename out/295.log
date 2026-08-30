@@ -1030,3 +1030,25 @@ population: 1349 documents (21 from the site, first)
 [ 971/1349] The_topology_and_geometry_of_rando   4.1s  regions=0 failed=0 selectable=False
 [ 972/1349] Thermodynamic Abstract to Physical   2.5s  regions=0 failed=0 selectable=False
 [ 973/1349] ThomasKecker                         2.8s  regions=0 failed=0 selectable=False
+[ 974/1349] Tutorium Quantenmechanik           804.3s  regions=0 failed=0 selectable=False
+[ 975/1349] UM-CS-1988-053                       2.5s  regions=0 failed=0 selectable=False
+[ 976/1349] Uebung11                             2.5s  regions=0 failed=0 selectable=False
+[ 977/1349] Uebung12                             2.6s  regions=0 failed=0 selectable=False
+[ 978/1349] Uebung_02                            2.4s  regions=0 failed=0 selectable=False
+[ 979/1349] Uebungg02_solution                   2.8s  regions=0 failed=0 selectable=False
+[ 980/1349] Uebungg02_solution-1                 2.8s  regions=0 failed=0 selectable=False
+[ 981/1349] Uebungsblatt 01                      2.4s  regions=0 failed=0 selectable=False
+[ 982/1349] Uebungsblatt 02                      2.5s  regions=0 failed=0 selectable=False
+[ 983/1349] Uebungsblatt 04                      2.4s  regions=0 failed=0 selectable=False
+[ 984/1349] Uebungsblatt 05                      2.4s  regions=0 failed=0 selectable=False
+[ 985/1349] Uebungsblatt 06                      2.5s  regions=0 failed=0 selectable=False
+[ 986/1349] Uebungsblatt 10                      2.4s  regions=0 failed=0 selectable=False
+[ 987/1349] Uebungsblatt5LösungenGemini          2.7s  regions=0 failed=0 selectable=False
+[ 988/1349] Uebungsblatt6LösungenQwen            2.7s  regions=0 failed=0 selectable=False
+[ 989/1349] Understanding Geometric Algebra fo 287.4s  regions=0 failed=0 selectable=False
+[ 990/1349] Understanding Vision Theory, Model 450.4s  regions=0 failed=0 selectable=False
+[ 991/1349] Upadhyay                             3.4s  regions=0 failed=0 selectable=False
+[ 992/1349] VLDS2012_p03_invited_Weikum          2.6s  regions=0 failed=0 selectable=False
+[ 993/1349] VLDS2012_p15_Nakashole               5.4s  regions=0 failed=0 selectable=False
+[ 994/1349] VLDS2012_p21_Bienvenu                2.8s  regions=0 failed=0 selectable=False
+[ 995/1349] VSR-Slides                           3.6s  regions=0 failed=1 selectable=False

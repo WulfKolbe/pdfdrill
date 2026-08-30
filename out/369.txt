@@ -1,0 +1,76 @@
+369 - DaTikZ-V4's first 100 rows in the standard report form
+============================================================
+
+BUILT: 100 rows, 34 pages, 0 compile errors.
+
+  Same builder (report_tex.table_open), same six-column header, same
+  legend, same widths policy. No new shape.
+
+    Identifier | Page | Conf. | LaTeX source | Rendered | Scan image
+
+  Identifier    DTZ00000..DTZ00099, with the dataset's own file_id beneath
+                it, the way an equation row carries \lowconf beneath its own.
+  Page          NOT a page — these rows have none. It holds the shard and
+                row index the record came from, and the section preamble says
+                so. A column headed Page that holds something else is worse
+                than no column.
+  Conf.         `---`. The dataset carries no confidence value, and 252
+                established that absent and zero must read differently, so
+                nothing is invented: conf_cell("") renders a dash and
+                conf_cell(0.0) renders a red square. A test holds both.
+  LaTeX source  the first four lines truncated, with the path to the row's
+                own .tex beneath. Each row's code is its own file already —
+                datikz-fixture/tikz/DTZ*.tex, one per object, never inlined.
+  Rendered      our standalone compile.
+  Scan image    the dataset's own 448x448 PNG.
+
+  The two image columns are EXACTLY equal at 112mm (340): a width difference
+  between the columns being compared puts a scale difference into the
+  residual, which is the number this report exists to produce. The odd
+  millimetre goes to the source column, and a test asserts the equality.
+
+WHAT IT MEASURES, stated on the page and held there by a test
+
+  Every other report in this project puts a READING beside a PAGE. This one
+  puts two RENDERS OF THE SAME CODE side by side. Any ink distance is our
+  LaTeX installation differing from theirs — fonts, tikz library versions,
+  pgfplots compat — and never a transcription error, because nothing was
+  transcribed. It is a renderer-versus-renderer FLOOR.
+
+  tests/test_datikz_report.py holds the caveat on the page, the same way
+  282's is held. The report looks exactly like every other one here, which
+  is precisely why it needs the sentence: a reader who takes it for a reading
+  comparison will read our font substitutions as OCR defects.
+
+COMPILES: 97 of 100
+
+  The three failures, all one error and one cause:
+
+    ! Package inputenc Error: inputenc is not designed for xetex or luatex.
+    DTZ00066, DTZ00067, DTZ00068  — arxiv_src_new_276_224_47_{0,1,2}
+
+  Not a missing library, the ENGINE: those three declare
+  \usepackage[latin1]{inputenc}, which xelatex refuses; the 17 other rows
+  that load inputenc use [utf8], which it accepts. All three compile under
+  pdflatex (367).
+
+ONE COMPILE THAT SUCCEEDED AND PRODUCED NOTHING
+
+  DTZ00077 renders to a 1x231 pixel PDF. It is a success by the
+  did-a-PDF-appear test and nothing by any other, and `width=\linewidth` on
+  a one-pixel-wide image scaled the height past TeX's limit — "! Dimension
+  too large", the report's only remaining error before it was found.
+
+  Both image cells now carry width AND height with keepaspectratio, so a
+  degenerate render cannot break the page it is reported on, and the row is
+  marked `degenerate render` rather than showing an empty cell that looks
+  like a missing file. 1 of 97.
+
+SOURCE DISTRIBUTION: {'arxiv': 100}
+
+  All one source. The shards are grouped by source rather than interleaved,
+  so the first hundred rows are packing order, not a sample — these are a
+  slice of arXiv and every rate above is an arXiv rate. Drawing across
+  sources needs a stride over the 25 shards or a filter on `source`.
+
+REPORT: ~/pdfdrill-library/datikz-fixture/report.{tex,pdf}
