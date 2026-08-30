@@ -1,0 +1,51 @@
+295 - the corpus region pass, COMPLETE
+======================================
+
+  done: 402 built this run, 947 already present, 1349 of 1349 processed.
+  12.9 hours of summed per-document time, across several restarts.
+
+RESULT
+
+  documents processed        1349
+  rc = 0                     1330
+  rc != 0                      19
+
+  image-region rows total   41668
+  of those carrying LaTeX     950   (2.3%)
+
+  region LaTeX compiled       790
+  region LaTeX failed         160
+  RATE                      83.2%
+
+  ink_selectable              166   documents whose region table can be
+                                    picked by column count alone
+
+WHAT THE 2.3% MEANS, and it is the number that matters
+
+  41,668 image-region rows across the corpus, and 950 carry any LaTeX at
+  all. The other 40,718 are rows where MathPix emitted a crop and no code —
+  an \includegraphics is its statement that it could not read the region.
+
+  So the region-compile rate of 83.2% is a rate over 950 rows, not over
+  41,668. It says the renderer handles what it is given; it says nothing
+  about the 97.7% it is never given.
+
+  This is the same shape as 337's seven pairs being exhaustive rather than
+  favourable: a high rate on a small denominator, where the denominator is
+  the finding.
+
+THREE DEFECTS FOUND BY RUNNING IT
+
+  The pass died three times, twice on the SAME library folder whose name is
+  not valid UTF-8 (a latin-1 "Algèbre 1 [Lecture notes]"). The first fix
+  sanitised the row data and the output filename and left the progress
+  print formatting the raw name, so it died again on a different byte. A
+  fix that covers the data path and not the display path is half a fix.
+
+  Cleaned up here: 1352 row files were on disk against a population of
+  1349. The three extras were pre-fix files written under raw names, each
+  with a sanitised twin — removed, leaving 1349 for 1349.
+
+  The population itself grew 1346 -> 1349 during the run, which is why the
+  monitor's hardcoded denominator read "1352/1346". The count was right and
+  the denominator was stale.
