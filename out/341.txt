@@ -1,0 +1,62 @@
+341 - bothways: is the crop a partial view, or is the pairing wrong?
+====================================================================
+
+NEITHER. The pairing is CORRECT and the crop is the WHOLE composed
+figure. The dimensions disagree because the composition is not the base.
+
+THE TWO IMAGES
+
+  base   figures/ch1/bothways.jpg    725 x 538 px, 132 dpi, aspect 1.348
+         two curved arrows forming a cycle, and nothing else.
+
+  crop   ...-038_197_740_257_421.jpg 740 x 197 px, aspect 3.756
+         the same two arrows PLUS the words "density operator" on the
+         left and "probability distribution" on the right, set between
+         them.
+
+  The crop file's own dimensions match its 5-tuple exactly (740 x 197),
+  so the filename is not lying about the rectangle.
+
+THE SOURCE SAYS WHY
+
+  chapters/two_tufte.tex:686
+
+    \begin{tikzpicture}
+    \node at (0,0)   {\includegraphics[scale=0.1]{figures/ch1/bothways}};
+    \node at (-2,0)  {density operator};
+    \node at (2.2,0) {probability distribution};
+    \end{tikzpicture}
+
+  No trim, no clip. The image is placed at the origin and TWO TEXT NODES
+  are placed either side of it on the same baseline. The composition is
+  therefore much wider than the image and no taller, which is exactly
+  the shape the crop has. Every mark in the crop is accounted for: the
+  arrows are the base, the words are the two sibling nodes.
+
+IS THERE A BETTER CANDIDATE ON THAT PAGE?
+
+  No. Page 38 carries exactly ONE crop, the one paired. There is nothing
+  else it could be.
+
+WHAT THIS SETTLES, AND WHAT IT DOES NOT
+
+  It settles that an aspect-ratio disagreement between base and crop is
+  NOT evidence of a wrong pairing when the inclusion is annotated. 301
+  measured four tikz-composed pairs differing by up to 2.4x and read
+  that as "expected"; this one differs by 2.8x and is right. Shape can
+  corroborate a pairing between a plain figure and its crop. For an
+  annotated one it cannot, in either direction.
+
+  It also shows the labels sit BETWEEN the arrows -- inside the base's
+  own rectangle, not outside it. A prompt or detector that assumes
+  annotation surrounds the figure would place these two wrong. That is
+  342's question and this is one instance of it.
+
+METHOD NOTE
+
+  I first predicted the composed aspect from the node coordinates and
+  got 7.34 against a measured 3.76, and the gap was entirely my own
+  invented text widths -- I had guessed "about 2.6 cm and 4.2 cm". The
+  number was discarded rather than reported: a prediction built on made
+  up inputs is not a measurement, and looking at the two images settled
+  in one step what the arithmetic could not.

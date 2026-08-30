@@ -72,3 +72,67 @@
 {"doc": "1709.10026v3", "pages": 12, "outcome": "measured", "rows": 16, "convert": "converted", "seconds": 141.5}
 {"doc": "1901.05873", "pages": 12, "outcome": "measured", "rows": 16, "convert": "converted", "seconds": 135.8}
 {"doc": "2302.07629", "pages": 12, "outcome": "measured", "rows": 26, "convert": "converted", "seconds": 353.1}
+{"doc": "2310.04444v3", "pages": 12, "outcome": "measured", "rows": 17, "convert": "converted", "seconds": 154.7}
+{"doc": "2507.21892v1", "pages": 12, "outcome": "measured", "rows": 33, "convert": "converted", "seconds": 290.0}
+{"doc": "MPIMD14-01", "pages": 12, "outcome": "measured", "rows": 33, "convert": "converted", "seconds": 203.5}
+{"doc": "ijgi-07-00172", "pages": 12, "outcome": "measured", "rows": 17, "convert": "converted", "seconds": 200.0}
+{"doc": "preprints201901.0053.v1", "pages": 12, "outcome": "refused", "error": "MeasureRefused: page 3: compare returned 0 rows, reportpages expects 1", "seconds": 105.2}
+{"doc": "0110026", "pages": 13, "outcome": "measured", "rows": 59, "convert": "converted", "seconds": 431.4}
+{"doc": "0609399", "pages": 13, "outcome": "measured", "rows": 29, "convert": "converted", "seconds": 206.8}
+{"doc": "2102.09388", "pages": 13, "outcome": "measured", "rows": 8, "convert": "converted", "seconds": 70.0}
+{"doc": "2106.15845v2", "pages": 13, "outcome": "measured", "rows": 23, "convert": "converted", "seconds": 208.0}
+{"doc": "2202.06733", "pages": 13, "outcome": "measured", "rows": 75, "convert": "converted", "seconds": 437.9}
+{"doc": "9781108231596.012", "pages": 13, "outcome": "measured", "rows": 92, "convert": "converted", "seconds": 504.7}
+{"doc": "AFastAlgorithmforRailExtractionUsingMobileLaserScanningData", "pages": 13, "outcome": "refused", "error": "MeasureRefused: page 1: compare returned 20 rows, reportpages expects 10", "seconds": 82.8}
+{"doc": "Grassmann,GeometryandMechanics", "pages": 13, "outcome": "measured", "rows": 33, "convert": "converted", "seconds": 258.4}
+{"doc": "Grassmann,GeometryandMechanics (1)", "pages": 13, "outcome": "measured", "rows": 33, "convert": "converted", "seconds": 262.3}
+{"doc": "cam-cocuma87", "pages": 13, "outcome": "measured", "rows": 51, "convert": "converted", "seconds": 314.1}
+{"doc": "fricas_intro", "pages": 13, "outcome": "measured", "rows": 52, "convert": "converted", "seconds": 433.6}
+{"doc": "2305.18415", "pages": 14, "outcome": "measured", "rows": 22, "convert": "converted", "seconds": 272.2}
+{"doc": "2405.07987", "pages": 14, "outcome": "measured", "rows": 30, "convert": "converted", "seconds": 344.9}
+{"doc": "DKT05 (1)", "pages": 14, "outcome": "measured", "rows": 60, "convert": "converted", "seconds": 366.7}
+{"doc": "QCGA2018", "pages": 14, "outcome": "measured", "rows": 55, "convert": "converted", "seconds": 646.0}
+{"doc": "applsci-13-02729-v2", "pages": 14, "outcome": "measured", "rows": 12, "convert": "converted", "seconds": 71.9}
+{"doc": "symmetry-12-00975", "pages": 14, "outcome": "measured", "rows": 67, "convert": "converted", "seconds": 508.8}
+{"doc": "1-s2.0-S0378778825011211-main", "pages": 15, "outcome": "refused", "error": "MeasureRefused: page 1: compare returned 22 rows, reportpages expects 11", "seconds": 85.5}
+{"doc": "1910.08395", "pages": 15, "outcome": "refused", "error": "MeasureRefused: run holds 38 data rows, the manifest expects 39 for the equations table", "seconds": 96.7}
+{"doc": "2306.03667", "pages": 15, "outcome": "measured", "rows": 40, "convert": "converted", "seconds": 437.3}
+{"doc": "2507.21892v1 (1)", "pages": 15, "outcome": "measured", "rows": 33, "convert": "converted", "seconds": 291.6}
+{"doc": "75_the_impact_of_task_structure_r", "pages": 15, "outcome": "measured", "rows": 30, "convert": "converted", "seconds": 283.2}
+{"doc": "HitoshiKonno", "pages": 15, "outcome": "measured", "rows": 48, "convert": "converted", "seconds": 887.3}
+{"doc": "IDG1+2handout", "pages": 15, "outcome": "measured", "rows": 10, "convert": "converted", "seconds": 138.8}
+{"doc": "fncom-16-1078150", "pages": 15, "outcome": "measured", "rows": 44, "convert": "converted", "seconds": 581.0}
+{"doc": "s42256-022-00556-7", "pages": 15, "outcome": "measured", "rows": 20, "convert": "converted", "seconds": 146.8}
+{"doc": "sigma12-060", "pages": 15, "outcome": "measured", "rows": 58, "convert": "converted", "seconds": 718.8}
+{"doc": "2110.04867", "pages": 16, "outcome": "measured", "rows": 54, "convert": "converted", "seconds": 706.7}
+{"doc": "2207.03560", "pages": 16, "outcome": "measured", "rows": 51, "convert": "converted", "seconds": 441.4}
+{"doc": "2306.13098", "pages": 16, "outcome": "measured", "rows": 52, "convert": "converted", "seconds": 643.9}
+{"doc": "CMU_DDG_FA17_CurvesSurfacesIntro", "pages": 16, "outcome": "measured", "rows": 45, "convert": "converted", "seconds": 268.8}
+{"doc": "arxiv_v1", "pages": 16, "outcome": "measured", "rows": 59, "convert": "converted", "seconds": 567.4}
+{"doc": "gr-qc_0110026", "pages": 16, "outcome": "measured", "rows": 59, "convert": "converted", "seconds": 381.8}
+{"doc": "1-s2.0-S0024379507002820-main", "pages": 17, "outcome": "refused", "error": "MeasureRefused: page 1: compare returned 8 rows, reportpages expects 4", "seconds": 154.0}
+{"doc": "2110.11150", "pages": 17, "outcome": "measured", "rows": 28, "convert": "converted", "seconds": 488.6}
+{"doc": "2501.06662v1", "pages": 17, "outcome": "measured", "rows": 59, "convert": "converted", "seconds": 565.9}
+{"doc": "2606.28429v1", "pages": 17, "outcome": "measured", "rows": 25, "convert": "converted", "seconds": 338.2}
+{"doc": "3197517.3201354", "pages": 17, "outcome": "measured", "rows": 34, "convert": "converted", "seconds": 279.3}
+{"doc": "s40517-022-00233-3", "pages": 17, "outcome": "measured", "rows": 26, "convert": "converted", "seconds": 199.4}
+{"doc": "1802.08153v1", "pages": 18, "outcome": "measured", "rows": 106, "convert": "converted", "seconds": 699.8}
+{"doc": "1908.11728", "pages": 18, "outcome": "measured", "rows": 48, "convert": "converted", "seconds": 347.7}
+{"doc": "2020.coling-main.46", "pages": 18, "outcome": "measured", "rows": 31, "convert": "converted", "seconds": 567.7}
+{"doc": "2306.04271", "pages": 18, "outcome": "measured", "rows": 76, "convert": "converted", "seconds": 773.4}
+{"doc": "2505.21946v1", "pages": 18, "outcome": "measured", "rows": 41, "convert": "converted", "seconds": 286.7}
+{"doc": "2602.14075v1", "pages": 18, "outcome": "measured", "rows": 201, "convert": "converted", "seconds": 993.6}
+{"doc": "Clifford_Algebras_in_Symplectic_Geometry", "pages": 18, "outcome": "measured", "rows": 73, "convert": "converted", "seconds": 419.4}
+{"doc": "FangStationaryphaseprinciple", "pages": 18, "outcome": "measured", "rows": 74, "convert": "converted", "seconds": 646.6}
+{"doc": "j.jcp.2018.03.019", "pages": 18, "outcome": "refused", "error": "MeasureRefused: page 3: compare returned 0 rows, reportpages expects 1", "seconds": 155.5}
+{"doc": "1910.05241", "pages": 19, "outcome": "measured", "rows": 43, "convert": "converted", "seconds": 356.4}
+{"doc": "1-s2.0-S0304397597000480-main", "pages": 20, "outcome": "refused", "error": "MeasureRefused: page 1: compare returned 8 rows, reportpages expects 4", "seconds": 84.5}
+{"doc": "2005.05886", "pages": 20, "outcome": "measured", "rows": 37, "convert": "converted", "seconds": 415.1}
+{"doc": "2006.07859", "pages": 20, "outcome": "measured", "rows": 67, "convert": "converted", "seconds": 447.5}
+{"doc": "main (2)", "pages": 20, "outcome": "measured", "rows": 65, "convert": "converted", "seconds": 1027.1}
+{"doc": "1705.0019v1", "pages": 21, "outcome": "refused", "error": "MeasureRefused: run holds 97 data rows, the manifest expects 98 for the equations table", "seconds": 129.4}
+{"doc": "1904.01966", "pages": 21, "outcome": "measured", "rows": 138, "convert": "converted", "seconds": 886.4}
+{"doc": "2012.15581", "pages": 21, "outcome": "measured", "rows": 79, "convert": "converted", "seconds": 739.1}
+{"doc": "3c7d08e7-d9f6-4b13-84c0-74e931bf24f7", "pages": 21, "outcome": "refused", "error": "MeasureRefused: page 1: compare returned 14 rows, reportpages expects 7", "seconds": 267.0}
+{"doc": "penev_B", "pages": 21, "outcome": "measured", "rows": 62, "convert": "converted", "seconds": 360.4}
+{"doc": "preprints202111.0359.v2", "pages": 21, "outcome": "measured", "rows": 52, "convert": "converted", "seconds": 380.9}

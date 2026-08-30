@@ -73,3 +73,67 @@ scope: 196 documents, 7239 report pages
 [ 72/196] 1709.10026v3                            12p measured  converted 142s
 [ 73/196] 1901.05873                              12p measured  converted 136s
 [ 74/196] 2302.07629                              12p measured  converted 353s
+[ 75/196] 2310.04444v3                            12p measured  converted 155s
+[ 76/196] 2507.21892v1                            12p measured  converted 290s
+[ 77/196] MPIMD14-01                              12p measured  converted 204s
+[ 78/196] ijgi-07-00172                           12p measured  converted 200s
+[ 79/196] preprints201901.0053.v1                 12p refused   -         105s
+[ 80/196] 0110026                                 13p measured  converted 431s
+[ 81/196] 0609399                                 13p measured  converted 207s
+[ 82/196] 2102.09388                              13p measured  converted 70s
+[ 83/196] 2106.15845v2                            13p measured  converted 208s
+[ 84/196] 2202.06733                              13p measured  converted 438s
+[ 85/196] 9781108231596.012                       13p measured  converted 505s
+[ 86/196] AFastAlgorithmforRailExtractionUsingMo  13p refused   -         83s
+[ 87/196] Grassmann,GeometryandMechanics          13p measured  converted 258s
+[ 88/196] Grassmann,GeometryandMechanics (1)      13p measured  converted 262s
+[ 89/196] cam-cocuma87                            13p measured  converted 314s
+[ 90/196] fricas_intro                            13p measured  converted 434s
+[ 91/196] 2305.18415                              14p measured  converted 272s
+[ 92/196] 2405.07987                              14p measured  converted 345s
+[ 93/196] DKT05 (1)                               14p measured  converted 367s
+[ 94/196] QCGA2018                                14p measured  converted 646s
+[ 95/196] applsci-13-02729-v2                     14p measured  converted 72s
+[ 96/196] symmetry-12-00975                       14p measured  converted 509s
+[ 97/196] 1-s2.0-S0378778825011211-main           15p refused   -         86s
+[ 98/196] 1910.08395                              15p refused   -         97s
+[ 99/196] 2306.03667                              15p measured  converted 437s
+[100/196] 2507.21892v1 (1)                        15p measured  converted 292s
+[101/196] 75_the_impact_of_task_structure_r       15p measured  converted 283s
+[102/196] HitoshiKonno                            15p measured  converted 887s
+[103/196] IDG1+2handout                           15p measured  converted 139s
+[104/196] fncom-16-1078150                        15p measured  converted 581s
+[105/196] s42256-022-00556-7                      15p measured  converted 147s
+[106/196] sigma12-060                             15p measured  converted 719s
+[107/196] 2110.04867                              16p measured  converted 707s
+[108/196] 2207.03560                              16p measured  converted 441s
+[109/196] 2306.13098                              16p measured  converted 644s
+[110/196] CMU_DDG_FA17_CurvesSurfacesIntro        16p measured  converted 269s
+[111/196] arxiv_v1                                16p measured  converted 567s
+[112/196] gr-qc_0110026                           16p measured  converted 382s
+[113/196] 1-s2.0-S0024379507002820-main           17p refused   -         154s
+[114/196] 2110.11150                              17p measured  converted 489s
+[115/196] 2501.06662v1                            17p measured  converted 566s
+[116/196] 2606.28429v1                            17p measured  converted 338s
+[117/196] 3197517.3201354                         17p measured  converted 279s
+[118/196] s40517-022-00233-3                      17p measured  converted 199s
+[119/196] 1802.08153v1                            18p measured  converted 700s
+[120/196] 1908.11728                              18p measured  converted 348s
+[121/196] 2020.coling-main.46                     18p measured  converted 568s
+[122/196] 2306.04271                              18p measured  converted 773s
+[123/196] 2505.21946v1                            18p measured  converted 287s
+[124/196] 2602.14075v1                            18p measured  converted 994s
+[125/196] Clifford_Algebras_in_Symplectic_Geomet  18p measured  converted 419s
+[126/196] FangStationaryphaseprinciple            18p measured  converted 647s
+[127/196] j.jcp.2018.03.019                       18p refused   -         156s
+[128/196] 1910.05241                              19p measured  converted 356s
+[129/196] 1-s2.0-S0304397597000480-main           20p refused   -         84s
+[130/196] 2005.05886                              20p measured  converted 415s
+[131/196] 2006.07859                              20p measured  converted 448s
+[132/196] main (2)                                20p measured  converted 1027s
+[133/196] 1705.0019v1                             21p refused   -         129s
+[134/196] 1904.01966                              21p measured  converted 886s
+[135/196] 2012.15581                              21p measured  converted 739s
+[136/196] 3c7d08e7-d9f6-4b13-84c0-74e931bf24f7    21p refused   -         267s
+[137/196] penev_B                                 21p measured  converted 360s
+[138/196] preprints202111.0359.v2                 21p measured  converted 381s
