@@ -1,0 +1,33 @@
+{
+ "doc": "The biblatex Package (Philipp Lehman, Philip Kime, Moritz Wemheuer) (Z-Library)",
+ "pdf": "The biblatex Package (Philipp Lehman, Philip Kime, Moritz Wemheuer) (Z-Library).pdf",
+ "rc": 0,
+ "stdout_tail": "Build stamp: report.build.json — phase=reading, 53 pages, 559633 bytes, sha256 fdcd98bbf034. A measurement of this report should copy it into its output as `measured_against`.",
+ "seconds": 50.5,
+ "regions": {
+  "regions_with_latex": 25,
+  "attempted_now": 25,
+  "rendered": 24,
+  "failed": 1,
+  "has_author_preamble": false,
+  "graphics_dir": null,
+  "failures": [
+   {
+    "id": "The_biblatex_Package__Philipp_Lehman__Philip_Kime__Moritz_Wemheuer___Z-Library__DIA_0531",
+    "first_error": "! Misplaced alignment tab character &."
+   }
+  ]
+ },
+ "manifest_rows": 1279,
+ "with_latex": 25,
+ "duplicated": 1255,
+ "table_cols": [
+  5,
+  5,
+  4,
+  7
+ ],
+ "six_col_tables": 0,
+ "region_table_cols": 7,
+ "ink_selectable": false
+}
