@@ -1,0 +1,27 @@
+{
+ "doc": "WCFS_2021_MawhorterPeter_Fractalcoordinatesfo",
+ "pdf": "WCFS_2021_MawhorterPeter_Fractalcoordinatesfo.pdf",
+ "rc": 0,
+ "stdout_tail": "Build stamp: report.build.json — phase=reading, 6 pages, 1005015 bytes, sha256 3fec64919a42. A measurement of this report should copy it into its output as `measured_against`.",
+ "seconds": 2.5,
+ "regions": {
+  "regions_with_latex": 0,
+  "attempted_now": 0,
+  "rendered": 0,
+  "failed": 0,
+  "has_author_preamble": false,
+  "graphics_dir": null,
+  "failures": []
+ },
+ "manifest_rows": 4,
+ "with_latex": 0,
+ "duplicated": 4,
+ "table_cols": [
+  5,
+  5,
+  7
+ ],
+ "six_col_tables": 0,
+ "region_table_cols": 7,
+ "ink_selectable": false
+}
