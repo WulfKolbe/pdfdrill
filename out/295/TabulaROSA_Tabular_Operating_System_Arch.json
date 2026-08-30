@@ -1,0 +1,28 @@
+{
+ "doc": "TabulaROSA_Tabular_Operating_System_Arch",
+ "pdf": "TabulaROSA_Tabular_Operating_System_Arch.pdf",
+ "rc": 0,
+ "stdout_tail": "Build stamp: report.build.json — phase=reading, 17 pages, 594542 bytes, sha256 6e28bb53a99d. A measurement of this report should copy it into its output as `measured_against`.",
+ "seconds": 3.2,
+ "regions": {
+  "regions_with_latex": 0,
+  "attempted_now": 0,
+  "rendered": 0,
+  "failed": 0,
+  "has_author_preamble": false,
+  "graphics_dir": null,
+  "failures": []
+ },
+ "manifest_rows": 16,
+ "with_latex": 0,
+ "duplicated": 16,
+ "table_cols": [
+  6,
+  5,
+  4,
+  7
+ ],
+ "six_col_tables": 1,
+ "region_table_cols": 7,
+ "ink_selectable": false
+}
