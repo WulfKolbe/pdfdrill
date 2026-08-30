@@ -1,0 +1,28 @@
+{
+ "doc": "Text_preparation_through_extended_tokeni",
+ "pdf": "Text_preparation_through_extended_tokeni.pdf",
+ "rc": 0,
+ "stdout_tail": "Build stamp: report.build.json — phase=reading, 7 pages, 365580 bytes, sha256 66715298a561. A measurement of this report should copy it into its output as `measured_against`.",
+ "seconds": 3.5,
+ "regions": {
+  "regions_with_latex": 1,
+  "attempted_now": 1,
+  "rendered": 1,
+  "failed": 0,
+  "has_author_preamble": false,
+  "graphics_dir": null,
+  "failures": []
+ },
+ "manifest_rows": 5,
+ "with_latex": 1,
+ "duplicated": 4,
+ "table_cols": [
+  5,
+  5,
+  4,
+  7
+ ],
+ "six_col_tables": 0,
+ "region_table_cols": 7,
+ "ink_selectable": false
+}
