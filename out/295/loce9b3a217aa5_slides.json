@@ -1,0 +1,33 @@
+{
+ "doc": "loce9b3a217aa5_slides",
+ "pdf": "loce9b3a217aa5_slides.pdf",
+ "rc": 0,
+ "stdout_tail": "Build stamp: report.build.json — phase=reading, 23 pages, 6286232 bytes, sha256 c8589792033d. A measurement of this report should copy it into its output as `measured_against`.",
+ "seconds": 4.3,
+ "regions": {
+  "regions_with_latex": 1,
+  "attempted_now": 1,
+  "rendered": 0,
+  "failed": 1,
+  "has_author_preamble": false,
+  "graphics_dir": null,
+  "failures": [
+   {
+    "id": "loce9b3a217aa5_slides_DIA_0027",
+    "first_error": "! Misplaced alignment tab character &."
+   }
+  ]
+ },
+ "manifest_rows": 66,
+ "with_latex": 1,
+ "duplicated": 66,
+ "table_cols": [
+  5,
+  5,
+  4,
+  7
+ ],
+ "six_col_tables": 0,
+ "region_table_cols": 7,
+ "ink_selectable": false
+}
