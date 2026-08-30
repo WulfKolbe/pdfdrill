@@ -172,3 +172,5 @@ scope: 196 documents, 7239 report pages
 [171/196] AttachBBlocaldim                        30p measured  converted 749s
 [172/196] Normalization_square_roots_and_the_exp  31p measured  converted 550s
 [173/196] 1-s2.0-S039304401100026X-main           32p refused   -         155s
+[174/196] High-Order_Inverse_Dynamics_of_Serial_  32p measured  converted 1056s
+[175/196] idea15-proceedings                      33p measured  converted 163s

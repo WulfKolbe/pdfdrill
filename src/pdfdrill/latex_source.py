@@ -991,6 +991,94 @@ def _env_blocks(body: str, env: str) -> list[dict]:
     return out
 
 
+#: 352 — `\tikz` used INLINE, which `_GRAPHIC_ENVS` structurally cannot see:
+#: that list drives a `\begin`/`\end` scan, so an inline picture is not
+#: failing to parse, it is never looked for, and nothing reports a missing
+#: diagram. Two spellings exist and LATW's TikzScanner carries only the first:
+#:
+#:     \tikz[opts]{ ... }      braced
+#:     \tikz ... ;             semicolon-terminated
+#:
+#: LATW's pattern is /\\tikz\s*{([^}]+)}/ — no optional argument, and
+#: `[^}]+` stops at the first `}`, so `\tikz{\node {a};}` truncates. Ported
+#: as a brace MATCH with the optional argument allowed, because porting the
+#: regex would import its two limits along with its coverage.
+_INLINE_TIKZ = re.compile(r"\\tikz(?![A-Za-z])")
+
+
+def _commented(body: str, pos: int) -> bool:
+    r"""Is `pos` after an unescaped `%` on its own line?
+
+    Found by the 348 fixture, whose explanatory comments describe the two
+    inline spellings and were then detected AS two inline pictures. Comments
+    are stripped nowhere here because `pos` is what callers use to locate the
+    code in the original body; skipping the match keeps both.
+    """
+    start = body.rfind("\n", 0, pos) + 1
+    i = start
+    while i < pos:
+        if body[i] == "\\":
+            i += 2
+            continue
+        if body[i] == "%":
+            return True
+        i += 1
+    return False
+
+
+def _inline_tikz_blocks(body: str) -> list[dict]:
+    r"""Every inline `\tikz`, brace-matched or semicolon-terminated."""
+    out: list[dict] = []
+    for m in _INLINE_TIKZ.finditer(body):
+        if _commented(body, m.start()):
+            continue
+        i = m.end()
+        while i < len(body) and body[i] in " \t\r\n":
+            i += 1
+        if i < len(body) and body[i] == "[":          # optional [options]
+            depth, j = 0, i
+            while j < len(body):
+                if body[j] == "[":
+                    depth += 1
+                elif body[j] == "]":
+                    depth -= 1
+                    if not depth:
+                        j += 1
+                        break
+                j += 1
+            i = j
+            while i < len(body) and body[i] in " \t\r\n":
+                i += 1
+        if i >= len(body):
+            continue
+        if body[i] == "{":
+            inner = _balanced(body, i)                # brace MATCH, not [^}]+
+            if inner is None:
+                continue
+            end = i + len(inner)
+        else:
+            # semicolon-terminated: to the first `;` at brace depth 0
+            depth, j = 0, i
+            while j < len(body):
+                c = body[j]
+                if c == "\\":
+                    j += 2
+                    continue
+                if c == "{":
+                    depth += 1
+                elif c == "}":
+                    depth -= 1
+                elif c == ";" and depth <= 0:
+                    break
+                j += 1
+            if j >= len(body):
+                continue
+            end = j + 1
+        out.append({"env": "tikz", "code": body[m.start():end],
+                    "pos": m.start()})
+    return out
+
+
 def extract_graphics(body: str) -> list[dict]:
     """TikZ pictures and tables in document order: {env, code, pos, caption}.
 
@@ -1000,6 +1088,14 @@ def extract_graphics(body: str) -> list[dict]:
     out: list[dict] = []
     for env in _GRAPHIC_ENVS:
         out.extend(_env_blocks(body, env))
+    # inline \tikz, which the environment list cannot reach (352)
+    taken = [(b["pos"], b["pos"] + len(b["code"])) for b in out]
+    for b in _inline_tikz_blocks(body):
+        # an inline \tikz INSIDE a tikzpicture is part of that picture, not a
+        # second diagram; without this the same ink is reported twice.
+        if any(a <= b["pos"] < z for a, z in taken):
+            continue
+        out.append(b)
     # attach a caption from the enclosing float, if any
     for it in out:
         window = body[it["pos"]: it["pos"] + len(it["code"]) + 400]
