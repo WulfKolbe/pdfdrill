@@ -1020,3 +1020,5 @@ population: 1349 documents (21 from the site, first)
 [ 961/1349] The Genesis of the Langlands Progr 647.3s  regions=0 failed=0 selectable=False
 [ 962/1349] The Geometry and Topology of Three 284.3s  regions=0 failed=0 selectable=False
 [ 963/1349] The Geometry of Minkowski Spacetim 652.2s  regions=0 failed=0 selectable=False
+[ 964/1349] The Oxford Solid State Basics - Pr 449.4s  regions=0 failed=0 selectable=False
+[ 965/1349] The biblatex Package (Philipp Lehm  50.5s  regions=24 failed=1 selectable=False

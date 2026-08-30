@@ -1,0 +1,59 @@
+366 - what the samples actually contain
+=======================================
+
+~/Downloads/tikzilla_samples/ holds 20 files: ten .tex and ten .png,
+written 13:53 today. (It was EMPTY at 13:43 when I first looked for the
+dataset — the script had not yet run.)
+
+1. FULL DOCUMENTS, NOT BARE ENVIRONMENTS
+----------------------------------------
+
+  Every one of the ten begins `\documentclass[tikz]{standalone}` and
+  contains exactly one tikz environment:
+
+    file                 bytes  documentclass  tikz env
+    tikz_sample_000       2898        1            1
+    tikz_sample_001       1088        1            1
+    tikz_sample_002 .. 009  289-392   1 each       1 each
+
+  So they must NOT be wrapped. `tikz_code` in DaTikZ-V4 stores a complete
+  compilable document — checked beyond the ten, on the first 100 rows of
+  train-00000: 100 of 100 carry \documentclass.
+
+  I HAD ALREADY MADE THE MISTAKE THIS ASKS ABOUT. 364's script wrapped every
+  row in a standalone preamble, which put a \documentclass inside
+  \begin{document}, and 365 compiled 0 of 100. That zero was a measurement of
+  my wrapper and nothing else — not of the code, not of the preamble, not of
+  coverage. The script now wraps only when `\documentclass` is absent, and 0
+  of the 100 rows need it.
+
+2. THE PNG IS 448x448 AND PADDED, NOT SCALED TO FILL
+-----------------------------------------------------
+
+  All ten are exactly 448x448, 8-bit RGB — 359's figure confirmed.
+
+  PADDED. The figure is scaled to FIT and the shorter axis is filled with
+  background. Ink bounding box against the frame:
+
+    sample_000   446x418   fills 100% wide,  93% tall
+    sample_001   443x239   fills  99% wide,  53% tall
+    sample_002   413x437   fills  92% wide,  98% tall
+    sample_003   405x70    fills  90% wide,  16% tall
+    sample_004    49x438   fills  11% wide,  98% tall
+
+  One axis is always near-full and the other is whatever the aspect ratio
+  gives — 16% for a wide flat figure, 11% wide for a tall narrow one. That
+  matters for 368: comparing our render against a padded square measures the
+  padding unless the two are matched first. A naive column-versus-column ink
+  distance on these would be dominated by white space, not by drawing.
+
+3. THE SOURCES WERE NOT SAVED
+------------------------------
+
+  The directory holds only .tex and .png — no manifest, no metadata, so the
+  `source` field of those ten rows is not recoverable from what was written.
+
+  From the fixture built directly off the parquet, the first 100 rows are all
+  `arxiv`, because the shards are grouped by source (364). The ten are almost
+  certainly the same, but that is an inference from the same ordering rather
+  than a fact about these files, and it is written here as one.

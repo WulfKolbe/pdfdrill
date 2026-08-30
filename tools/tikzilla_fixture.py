@@ -2,7 +2,7 @@
 """Build an inkdrill-comparable fixture from a local DaTikZ-V4 parquet set.
 
 Reads parquet directly — no network, no datasets cache. Emits, per row:
-  <out>/tikz/<id>.tex        the author's tikz_code, wrapped standalone
+  <out>/tikz/<id>.tex        the author's tikz_code, wrapped ONLY if bare
   <out>/png/<id>.png         the dataset's own render (448x448)
   <out>/manifest.json        id, source, caption, vlm_description, paths
 
@@ -80,7 +80,13 @@ def main() -> int:
             no_code += 1
             continue
         tex = a.out / "tikz" / f"{rid}.tex"
-        tex.write_text(STANDALONE % code, encoding="utf-8")
+        # 366 — WRAP ONLY IF BARE. DaTikZ-V4 stores a COMPLETE document in
+        # `tikz_code`: every one of the first 100 rows begins
+        # \documentclass[tikz]{standalone}. Wrapping that put a
+        # \documentclass inside \begin{document} and 0 of 100 compiled --
+        # a measurement of the wrapper, not of the code or the preamble.
+        tex.write_text(code if "\\documentclass" in code
+                       else STANDALONE % code, encoding="utf-8")
 
         raw = png_bytes(rec.get("png_image"))
         png = a.out / "png" / f"{rid}.png"

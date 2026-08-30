@@ -176,3 +176,4 @@
 {"doc": "2005.04015", "pages": 35, "outcome": "measured", "rows": 112, "convert": "converted", "seconds": 1831.0}
 {"doc": "2205.13449v2", "pages": 35, "outcome": "refused", "error": "MeasureRefused: run holds 108 data rows, the manifest expects 113 for the equations table", "seconds": 292.7}
 {"doc": "j.geomphys.2012.02.006", "pages": 35, "outcome": "measured", "rows": 109, "convert": "converted", "seconds": 1449.9}
+{"doc": "Garamon_A_Geometric_Algebra_Library_Generator", "pages": 36, "outcome": "measured", "rows": 82, "convert": "converted", "seconds": 1276.5}
