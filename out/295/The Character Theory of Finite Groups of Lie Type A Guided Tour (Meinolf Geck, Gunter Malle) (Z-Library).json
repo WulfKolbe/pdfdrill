@@ -1,0 +1,28 @@
+{
+ "doc": "The Character Theory of Finite Groups of Lie Type A Guided Tour (Meinolf Geck, Gunter Malle) (Z-Library)",
+ "pdf": "The Character Theory of Finite Groups of Lie Type A Guided Tour (Meinolf Geck, Gunter Malle) (Z-Library).pdf",
+ "rc": 0,
+ "stdout_tail": "Build stamp: report.build.json — phase=reading, 1030 pages, 16698131 bytes, sha256 83fdf5d2494b. A measurement of this report should copy it into its output as `measured_against`.",
+ "seconds": 617.5,
+ "regions": {
+  "regions_with_latex": 0,
+  "attempted_now": 0,
+  "rendered": 0,
+  "failed": 0,
+  "has_author_preamble": false,
+  "graphics_dir": null,
+  "failures": []
+ },
+ "manifest_rows": 10,
+ "with_latex": 0,
+ "duplicated": 10,
+ "table_cols": [
+  6,
+  5,
+  4,
+  7
+ ],
+ "six_col_tables": 1,
+ "region_table_cols": 7,
+ "ink_selectable": false
+}
