@@ -1,0 +1,48 @@
+367 - compiling the samples: the preamble question does not arise
+=================================================================
+
+THE TEN: 10 of 10 COMPILED. No failures.
+
+  Compiled with xelatex, as-is, using each file's OWN
+  \documentclass[tikz]{standalone} and its own \usepackage lines. Nothing
+  of ours was added, because 366 established they are complete documents.
+
+  So the coverage question the task poses — "the preamble was built for
+  arXiv figures and this dataset draws from arXiv, GitHub, TeX.SE and
+  synthetic sources, so a GitHub or synthetic figure may want libraries the
+  preamble doesn't load" — DOES NOT ARISE FOR THIS DATASET. There is no
+  preamble of ours in the path. DaTikZ-V4 ships each figure with the
+  packages it needs, which is what makes it usable without curation.
+
+  That is a different answer from the one expected, and it is the better
+  one: it means 364 can go to 100 rows, or to 427,753, without a preamble
+  audit. The mathrsfs/stmaryrd shape of finding cannot recur here.
+
+THE HUNDRED: 97 of 100 with xelatex, 100 of 100 with an engine fallback.
+
+  Re-run over 364's fixture after the wrapping fix:
+
+    compiled 97, failed 3
+
+  All three failures are ONE error and ONE cause:
+
+    ! Package inputenc Error: inputenc is not designed for xetex or luatex.
+
+  and all three are consecutive figures from a single source paper
+  (arxiv_src_new_276_224_47_{0,1,2}).
+
+  It is not a missing library. It is the ENGINE. 20 of the 100 load
+  inputenc; 17 pass and 3 fail, and the discriminator is exact:
+
+    \usepackage[utf8]{inputenc}     17 files   xelatex accepts (a no-op)
+    \usepackage[latin1]{inputenc}    3 files   xelatex refuses
+
+  All three compile under pdflatex, verified. So the honest rate is 100 of
+  100 given an engine fallback, and 97 of 100 under a fixed xelatex.
+
+  A NOTE ON THE PROJECT RULE. "Projected LaTeX compiles with xelatex, not
+  pdflatex" is about OUR projections, which carry raw Unicode from MathPix.
+  It does not govern third-party author source, which may predate UTF-8 and
+  declare latin1. Applying our rule to their documents is what produced the
+  three failures, and a fallback — try xelatex, then pdflatex on an inputenc
+  engine error — costs one retry on 3% of rows.
