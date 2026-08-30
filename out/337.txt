@@ -1,0 +1,78 @@
+337 - can a model reproduce the annotation over a figure?
+====================================================================
+
+SEVEN PAIRS. Each is a base figure file, the MathPix crop of how it appears
+on the page, and the author's own tikzpicture compiled standalone as the
+reference. The right answer is known by construction (332's trick), so
+nothing is joined and nothing is judged by eye.
+
+  MiniMax-m3 via Novita, both images per call, asked for the annotation
+  TikZ only -- the \includegraphics line is given in the prompt.
+
+THE POSITION STATEMENT, and it had to be re-measured first
+
+  342 classified these 7 as 5 overlapping / 2 around. That was wrong for
+  three rows. My extent came from `scale=`/`width=` arithmetic, and for
+  width=\linewidth I had hardcoded 'a Tufte text block, ~12 cm'. Measured
+  against pdfplumber's actual image rectangles: mpsapprox2 340 pt computed
+  against 143 measured, psi_N2 261 against 142, pt2 408 against 222. All
+  three flip from overlapping to around on the measured extent.
+
+  The split is 4 AROUND and 3 OVERLAPPING, which is what you said it was.
+  Every position below comes from a rectangle measured in the compiled
+  PDF, not from my arithmetic.
+
+RESULT
+
+  base                         placement     dist   flag  class
+  figures/ch4/mpsapprox2.jpg   around          22 component  DIFFERING
+  figures/ch4/psi_N2.jpg       overlapping    180   weak  DIFFERING
+  figures/ch3/rho_xi.jpg       around           2  noise  MATCHED
+  figures/ch1/bothways.jpg     around           6  noise  MATCHED
+  figures/ch2/pt2.jpg          around          10   weak  DIFFERING
+  figures/ch2/vec_map.jpg      overlapping    216 component  DIFFERING
+  figures/ch2/entanglement.jpg overlapping     72 component  DIFFERING
+
+  compiled            : 7 of 7
+  failed to compile   : 0
+  MATCHED (ink)       : 2
+  DIFFERING           : 5
+
+  MATCHED uses the project's own thresholds -- inkconvert.flag_of, distance
+  <= 7 and component delta <= 2 -- rather than one chosen for this table.
+
+THE SPLIT IS THE MEASUREMENT
+
+  around       n=4   distances [2, 6, 10, 22]   median 10
+  overlapping  n=3   distances [72, 180, 216]   median 180
+
+  An eighteenfold difference in median ink distance between a row whose
+  position was STATED and one where it could not be. Every `around` row
+  lands in 2..22; every `overlapping` row in 72..216. The two populations
+  do not touch.
+
+  So a stated direction helps, and it helps decisively. And an overlapping
+  row is not recoverable from the images alone -- the model can see that
+  something was added but not where it goes, and 3 of 7 here are that
+  case. 342 measured 59% of the corpus that way before its own extent bug
+  was found; the corrected share on these seven is 43%.
+
+THE CLOSEST REPRODUCTION
+
+  bothways, distance 6, 57 components against 57:
+    model  : \node at (-2.00,0) {density operator}; \node at (2.20,0) {probability distribution};
+    author : \node at (-2,0) {density operator}; \node at (2.2,0) {probability distribution};
+
+  It recovered the author's own coordinates to two decimals. That is what
+  a stated position buys: the prompt gave the image extent and the offsets,
+  and the model placed the labels where the author placed them.
+
+ONE RETRY, AND WHY
+
+  pt2 returned an EMPTY reply with finish_reason='length' at a 4,000-token
+  budget. minimax-m3 is a reasoning model that spends completion tokens
+  before emitting a character -- refine._novita_chat's docstring says so.
+  Retried at 16,000 it answered in 82 characters and compiled. An empty
+  reply from a budget is not a refusal and must not be scored as one.
+
+out/337.replies.json carries every prompt, reply, render and ink row.

@@ -136,3 +136,5 @@
 {"doc": "3c7d08e7-d9f6-4b13-84c0-74e931bf24f7", "pages": 21, "outcome": "refused", "error": "MeasureRefused: page 1: compare returned 14 rows, reportpages expects 7", "seconds": 267.0}
 {"doc": "penev_B", "pages": 21, "outcome": "measured", "rows": 62, "convert": "converted", "seconds": 360.4}
 {"doc": "preprints202111.0359.v2", "pages": 21, "outcome": "measured", "rows": 52, "convert": "converted", "seconds": 380.9}
+{"doc": "2304.0228v1", "pages": 22, "outcome": "measured", "rows": 69, "convert": "converted", "seconds": 639.3}
+{"doc": "The_Supergeometric_Algebra", "pages": 22, "outcome": "measured", "rows": 108, "convert": "converted", "seconds": 729.9}

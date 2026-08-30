@@ -1,0 +1,436 @@
+[
+ {
+  "file": "figures/ch4/mpsapprox2",
+  "base": "figures/ch4/mpsapprox2.jpg",
+  "source": "chapters/four_tufte.tex",
+  "base_wh": [
+   1361,
+   961
+  ],
+  "pages": [
+   94
+  ],
+  "candidates": [
+   "4a-094_439_502_1581_1417.jpg"
+  ],
+  "n_pages": 1,
+  "n_cands": 1,
+  "verdict": "overlapping",
+  "extent_cm": [
+   12.0,
+   8.47
+  ],
+  "origin": [
+   0.0,
+   0.0
+  ],
+  "author_tikz": "\\begin{tikzpicture}\n\t\\node at (0,0) {\\includegraphics[width=\\linewidth]{figures/ch4/mpsapprox2}};\n\t\\draw[line join=round,\n\t\tdecorate, decoration={\n\t\tzigzag,\n\t\tsegment length=10,\n\t\tamplitude=2,post=lineto,\n\t\tpost length=2pt\n\t\t}, ->, >=stealth]\n\t\t(0,.5) -- (0,-.5); \n\t\\node at (0,2) {start with $|\\psi\\>$};\n\t\\node at (0,-2) {finish with $|\\psi_{\\text{MPS}}\\>$};\n\t\\end{tikzpicture}",
+  "options_raw": "width=\\linewidth",
+  "crop": "/home/wkolbe/pdfdrill-library/2004.05631v1/texsrc/abab828b-61e2-4095-ac03-1e28612cc14a/images/abab828b-61e2-4095-ac03-1e28612cc14a-094_439_502_1581_1417.jpg",
+  "author_png": "/home/wkolbe/pdfdrill-library/2004.05631v1/annot337/AUTHOR_mpsapprox2.png",
+  "author_error": null,
+  "measured_cm": [
+   5.06,
+   3.57
+  ],
+  "verdict_measured": "around",
+  "inside_m": 0,
+  "outside_m": 2,
+  "reply": "\\node at (0, 2.0) {start with $|\\psi\\rangle$};\n\\node at (0, -2.0) {finish with $|\\psi_{\\mathrm{MPS}}\\rangle$};\n\\draw[->, decorate, decoration={snake, amplitude=2pt, segment length=6pt}] (0, 1.2) -- (0, -1.2);",
+  "finish": "stop",
+  "api_error": "",
+  "seconds": 20.8,
+  "annotation": "\\node at (0, 2.0) {start with $|\\psi\\rangle$};\n\\node at (0, -2.0) {finish with $|\\psi_{\\mathrm{MPS}}\\rangle$};\n\\draw[->, decorate, decoration={snake, amplitude=2pt, segment length=6pt}] (0, 1.2) -- (0, -1.2);",
+  "model_png": "/home/wkolbe/pdfdrill-library/2004.05631v1/annot337/MODEL_mpsapprox2.png",
+  "compile_error": null,
+  "ink": {
+   "L": [
+    50,
+    312,
+    10,
+    6,
+    4
+   ],
+   "R": [
+    47,
+    299,
+    7,
+    3,
+    4
+   ],
+   "distance": 22
+  }
+ },
+ {
+  "file": "figures/ch4/psi_N2",
+  "base": "figures/ch4/psi_N2.jpg",
+  "source": "chapters/four_tufte.tex",
+  "base_wh": [
+   1776,
+   1953
+  ],
+  "pages": [
+   105
+  ],
+  "candidates": [
+   "4a-105_568_579_1052_1409.jpg"
+  ],
+  "n_pages": 1,
+  "n_cands": 1,
+  "verdict": "overlapping",
+  "extent_cm": [
+   9.21,
+   10.13
+  ],
+  "origin": [
+   0.0,
+   0.0
+  ],
+  "author_tikz": "\\begin{tikzpicture}\n\t\\node at (0,0) {\\includegraphics[scale=0.147]{figures/ch4/psi_N2}};\n\t\\node at (-2.6,1.5) {$|\\psi_N\\>=$};\n\t\\node at (-2.2,-.25) {=};\n\t\\node at (0,-.25) {$\\rightsquigarrow$};\n\t\\end{tikzpicture}",
+  "options_raw": "scale=0.147",
+  "crop": "/home/wkolbe/pdfdrill-library/2004.05631v1/texsrc/abab828b-61e2-4095-ac03-1e28612cc14a/images/abab828b-61e2-4095-ac03-1e28612cc14a-105_568_579_1052_1409.jpg",
+  "author_png": "/home/wkolbe/pdfdrill-library/2004.05631v1/annot337/AUTHOR_psi_N2.png",
+  "author_error": null,
+  "measured_cm": [
+   5.02,
+   5.52
+  ],
+  "verdict_measured": "overlapping",
+  "inside_m": 2,
+  "outside_m": 1,
+  "reply": "\\node at (-4.5,4) {$|\\psi_N\\rangle =$};\n\\node at (-3.5,0) {$=$};",
+  "finish": "stop",
+  "api_error": "",
+  "seconds": 19.9,
+  "annotation": "\\node at (-4.5,4) {$|\\psi_N\\rangle =$};\n\\node at (-3.5,0) {$=$};",
+  "model_png": "/home/wkolbe/pdfdrill-library/2004.05631v1/annot337/MODEL_psi_N2.png",
+  "compile_error": null,
+  "ink": {
+   "L": [
+    115,
+    397,
+    30,
+    8,
+    22
+   ],
+   "R": [
+    114,
+    228,
+    26,
+    9,
+    17
+   ],
+   "distance": 180
+  }
+ },
+ {
+  "file": "figures/ch3/rho_xi",
+  "base": "figures/ch3/rho_xi.jpg",
+  "source": "chapters/three_tufte.tex",
+  "base_wh": [
+   553,
+   825
+  ],
+  "pages": [
+   88
+  ],
+  "candidates": [
+   "4a-088_295_291_1482_1516.jpg"
+  ],
+  "n_pages": 1,
+  "n_cands": 1,
+  "verdict": "around",
+  "extent_cm": [
+   1.95,
+   2.91
+  ],
+  "origin": [
+   0.0,
+   0.0
+  ],
+  "author_tikz": "\\begin{tikzpicture}\n\t\\node at (0,0) {\\includegraphics[scale=0.1]{figures/ch3/rho_xi}};\n\t\\node at (-1.5,0) {$\\rho_x=$};\n\t\\end{tikzpicture}",
+  "options_raw": "scale=0.1",
+  "crop": "/home/wkolbe/pdfdrill-library/2004.05631v1/texsrc/abab828b-61e2-4095-ac03-1e28612cc14a/images/abab828b-61e2-4095-ac03-1e28612cc14a-088_295_291_1482_1516.jpg",
+  "author_png": "/home/wkolbe/pdfdrill-library/2004.05631v1/annot337/AUTHOR_rho_xi.png",
+  "author_error": null,
+  "measured_cm": [
+   1.95,
+   2.91
+  ],
+  "verdict_measured": "around",
+  "inside_m": 0,
+  "outside_m": 1,
+  "reply": "\\node[anchor=east] at (-1.505,0) {$\\rho_X =$};",
+  "finish": "stop",
+  "api_error": "",
+  "seconds": 3.3,
+  "annotation": "\\node[anchor=east] at (-1.505,0) {$\\rho_X =$};",
+  "model_png": "/home/wkolbe/pdfdrill-library/2004.05631v1/annot337/MODEL_rho_xi.png",
+  "compile_error": null,
+  "ink": {
+   "L": [
+    23,
+    381,
+    0,
+    0,
+    0
+   ],
+   "R": [
+    23,
+    381,
+    1,
+    1,
+    0
+   ],
+   "distance": 2
+  }
+ },
+ {
+  "file": "figures/ch1/bothways",
+  "base": "figures/ch1/bothways.jpg",
+  "source": "chapters/two_tufte.tex",
+  "base_wh": [
+   725,
+   538
+  ],
+  "pages": [
+   38
+  ],
+  "candidates": [
+   "c14a-038_197_740_257_421.jpg"
+  ],
+  "n_pages": 1,
+  "n_cands": 1,
+  "verdict": "around",
+  "extent_cm": [
+   2.56,
+   1.9
+  ],
+  "origin": [
+   0.0,
+   0.0
+  ],
+  "author_tikz": "\\begin{tikzpicture}\n\t\\node at (0,0) {\\includegraphics[scale=0.1]{figures/ch1/bothways}};\n\t\\node at (-2,0) {density operator};\n\t\\node at (2.2,0) {probability distribution};\n\t\\end{tikzpicture}",
+  "options_raw": "scale=0.1",
+  "crop": "/home/wkolbe/pdfdrill-library/2004.05631v1/texsrc/abab828b-61e2-4095-ac03-1e28612cc14a/images/abab828b-61e2-4095-ac03-1e28612cc14a-038_197_740_257_421.jpg",
+  "author_png": "/home/wkolbe/pdfdrill-library/2004.05631v1/annot337/AUTHOR_bothways.png",
+  "author_error": null,
+  "measured_cm": [
+   2.56,
+   1.9
+  ],
+  "verdict_measured": "around",
+  "inside_m": 0,
+  "outside_m": 2,
+  "reply": "\\node at (-2.00,0) {density operator};\n\\node at (2.20,0) {probability distribution};",
+  "finish": "stop",
+  "api_error": "",
+  "seconds": 3.7,
+  "annotation": "\\node at (-2.00,0) {density operator};\n\\node at (2.20,0) {probability distribution};",
+  "model_png": "/home/wkolbe/pdfdrill-library/2004.05631v1/annot337/MODEL_bothways.png",
+  "compile_error": null,
+  "ink": {
+   "L": [
+    57,
+    16,
+    24,
+    7,
+    17
+   ],
+   "R": [
+    57,
+    16,
+    27,
+    7,
+    20
+   ],
+   "distance": 6
+  }
+ },
+ {
+  "file": "figures/ch2/pt2.jpg",
+  "base": "figures/ch2/pt2.jpg",
+  "source": "chapters/two_tufte.tex",
+  "base_wh": [
+   2399,
+   1424
+  ],
+  "pages": [
+   45
+  ],
+  "candidates": [
+   "c14a-045_561_783_378_399.jpg"
+  ],
+  "n_pages": 1,
+  "n_cands": 1,
+  "verdict": "overlapping",
+  "extent_cm": [
+   14.39,
+   8.54
+  ],
+  "origin": [
+   0.0,
+   0.0
+  ],
+  "author_tikz": "\\begin{tikzpicture}[x=1.5cm]\n\\node at (0,0) {\\includegraphics[scale=0.17]{figures/ch2/pt2.jpg}};\n\\node at (0,0) {$f$};\n\\node at (-1.8,-3) {$\\tr_Wf$};\n\\node at (1.8,-3) {$\\tr_Vf$};\n\n\\draw[thick, ->, >=stealth] (-1,1)--(-1.8,0);\n\\draw[thick, ->, >=stealth] (1,1)--(1.8,0);\n\\end{tikzpicture}",
+  "options_raw": "scale=0.17",
+  "crop": "/home/wkolbe/pdfdrill-library/2004.05631v1/texsrc/abab828b-61e2-4095-ac03-1e28612cc14a/images/abab828b-61e2-4095-ac03-1e28612cc14a-045_561_783_378_399.jpg",
+  "author_png": "/home/wkolbe/pdfdrill-library/2004.05631v1/annot337/AUTHOR_pt2.png",
+  "author_error": null,
+  "measured_cm": [
+   7.85,
+   4.66
+  ],
+  "verdict_measured": "around",
+  "inside_m": 0,
+  "outside_m": 2,
+  "reply": "```\n\\node at (-2,-3) {$\\mathrm{tr}_W f$};\n\\node at (2,-3) {$\\mathrm{tr}_V f$};\n```",
+  "finish": "stop",
+  "api_error": "",
+  "seconds": 27.0,
+  "annotation": "\\node at (-2,-3) {$\\mathrm{tr}_W f$};\n\\node at (2,-3) {$\\mathrm{tr}_V f$};",
+  "model_png": "/home/wkolbe/pdfdrill-library/2004.05631v1/annot337/MODEL_pt2.png",
+  "compile_error": null,
+  "ink": {
+   "L": [
+    27,
+    255,
+    1,
+    0,
+    1
+   ],
+   "R": [
+    26,
+    248,
+    2,
+    0,
+    2
+   ],
+   "distance": 10
+  }
+ },
+ {
+  "file": "figures/ch2/vec_map",
+  "base": "figures/ch2/vec_map.jpg",
+  "source": "chapters/two_tufte.tex",
+  "base_wh": [
+   1148,
+   447
+  ],
+  "pages": [
+   49
+  ],
+  "candidates": [
+   "c14a-049_194_525_537_550.jpg"
+  ],
+  "n_pages": 1,
+  "n_cands": 1,
+  "verdict": "overlapping",
+  "extent_cm": [
+   5.26,
+   2.05
+  ],
+  "origin": [
+   0.0,
+   0.0
+  ],
+  "author_tikz": "\\begin{tikzpicture}[y=.5cm]\n\t\\node at (0,0) {\\includegraphics[scale=0.13]{figures/ch2/vec_map}};\n\t\\node at (-.8,.9) {swap};\n\t\\node at (1.4,1) {slide};\n\t\\end{tikzpicture}",
+  "options_raw": "scale=0.13",
+  "crop": "/home/wkolbe/pdfdrill-library/2004.05631v1/texsrc/abab828b-61e2-4095-ac03-1e28612cc14a/images/abab828b-61e2-4095-ac03-1e28612cc14a-049_194_525_537_550.jpg",
+  "author_png": "/home/wkolbe/pdfdrill-library/2004.05631v1/annot337/AUTHOR_vec_map.png",
+  "author_error": null,
+  "measured_cm": [
+   5.26,
+   2.05
+  ],
+  "verdict_measured": "overlapping",
+  "inside_m": 2,
+  "outside_m": 0,
+  "reply": "\\node at (-3.5,1.5) {swap};\n\\node at (3,1.5) {slide};",
+  "finish": "stop",
+  "api_error": "",
+  "seconds": 7.8,
+  "annotation": "\\node at (-3.5,1.5) {swap};\n\\node at (3,1.5) {slide};",
+  "model_png": "/home/wkolbe/pdfdrill-library/2004.05631v1/annot337/MODEL_vec_map.png",
+  "compile_error": null,
+  "ink": {
+   "L": [
+    15,
+    436,
+    7,
+    3,
+    4
+   ],
+   "R": [
+    28,
+    241,
+    4,
+    4,
+    0
+   ],
+   "distance": 216
+  }
+ },
+ {
+  "file": "figures/ch2/entanglement",
+  "base": "figures/ch2/entanglement.jpg",
+  "source": "chapters/two_tufte.tex",
+  "base_wh": [
+   2239,
+   1578
+  ],
+  "pages": [
+   57
+  ],
+  "candidates": [
+   "14a-057_588_909_1041_333.jpg"
+  ],
+  "n_pages": 1,
+  "n_cands": 1,
+  "verdict": "overlapping",
+  "extent_cm": [
+   7.9,
+   5.57
+  ],
+  "origin": [
+   0.0,
+   0.0
+  ],
+  "author_tikz": "\\begin{tikzpicture}\n\\node at (0,0) {\\includegraphics[scale=0.1]{figures/ch2/entanglement}};\n\\node at (-4.6,2) {$|\\psi\\>=$};\n\\node at (1.8,2.8) {absorb};\n\\node at (1.8,.7) {\\textbf{thick}};\n\\node at (1.8,-1.4) {thin};\n\\node at (-1,2) {$\\overset{\\text{SVD}}{\\rightsquigarrow}$};\n\\node at (-1,.2) {$\\rightsquigarrow$};\n\\node at (-1,-1.8) {$\\overset{\\text{truncate}}{\\approx}$};\n\\end{tikzpicture}",
+  "options_raw": "scale=0.1",
+  "crop": "/home/wkolbe/pdfdrill-library/2004.05631v1/texsrc/abab828b-61e2-4095-ac03-1e28612cc14a/images/abab828b-61e2-4095-ac03-1e28612cc14a-057_588_909_1041_333.jpg",
+  "author_png": "/home/wkolbe/pdfdrill-library/2004.05631v1/annot337/AUTHOR_entanglement.png",
+  "author_error": null,
+  "measured_cm": [
+   7.9,
+   5.57
+  ],
+  "verdict_measured": "overlapping",
+  "inside_m": 5,
+  "outside_m": 2,
+  "reply": "\\node at (-9,-2) {$|\\psi\\rangle =$};\n\\node at (1.5,2.3) {absorb};\n\\node at (1.5,-1) {thick};\n\\node at (1.5,-3.5) {thin};\n\\node at (-1.5,0.4) {SVD};\n\\node at (-1,-2.6) {truncate};\n\\draw[decorate,decoration={zigzag,segment length=2,amplitude=1.2}] (-1.8,0.1) -- (-0.8,0.1);\n\\draw[decorate,decoration={zigzag,segment length=2,amplitude=1.2}] (-0.7,-2.9) -- (0.3,-2.9);",
+  "finish": "stop",
+  "api_error": "",
+  "seconds": 12.6,
+  "annotation": "\\node at (-9,-2) {$|\\psi\\rangle =$};\n\\node at (1.5,2.3) {absorb};\n\\node at (1.5,-1) {thick};\n\\node at (1.5,-3.5) {thin};\n\\node at (-1.5,0.4) {SVD};\n\\node at (-1,-2.6) {truncate};\n\\draw[decorate,decoration={zigzag,segment length=2,amplitude=1.2}] (-1.8,0.1) -- (-0.8,0.1);\n\\draw[decorate,decoration={zigzag,segment length=2,amplitude=1.2}] (-0.7,-2.9) -- (0.3,-2.9);",
+  "model_png": "/home/wkolbe/pdfdrill-library/2004.05631v1/annot337/MODEL_entanglement.png",
+  "compile_error": null,
+  "ink": {
+   "L": [
+    81,
+    81,
+    20,
+    12,
+    8
+   ],
+   "R": [
+    61,
+    37,
+    23,
+    11,
+    12
+   ],
+   "distance": 72
+  }
+ }
+]

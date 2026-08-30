@@ -525,10 +525,18 @@ def _novita_chat(prompt: str, *, system: str, model: str, max_tokens: int,
     content: Any = prompt
     if crop:
         import base64
-        b64 = base64.b64encode(Path(crop).read_bytes()).decode()
-        content = [{"type": "text", "text": prompt},
-                   {"type": "image_url",
-                    "image_url": {"url": f"data:image/png;base64,{b64}"}}]
+        # 337 — `crop` may be ONE path or several. The annotation task needs
+        # two: the base figure and the crop of the composed figure. A single
+        # image cannot show what was added, because the addition is the
+        # difference between them.
+        paths = [crop] if isinstance(crop, (str, Path)) else list(crop)
+        content = [{"type": "text", "text": prompt}]
+        for c in paths:
+            suffix = Path(c).suffix.lower().lstrip(".") or "png"
+            mime = "jpeg" if suffix in ("jpg", "jpeg") else suffix
+            b64 = base64.b64encode(Path(c).read_bytes()).decode()
+            content.append({"type": "image_url",
+                            "image_url": {"url": f"data:image/{mime};base64,{b64}"}})
     payload = {
         "model": model,
         "messages": [{"role": "system", "content": system},
