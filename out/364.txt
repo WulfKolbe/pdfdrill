@@ -1,54 +1,57 @@
-364 - a local fixture from DaTikZ-V4, no download
-=================================================
+364 (revised) - reading the Arrow cache
+=======================================
 
-WHERE THE DATA ACTUALLY IS
+BOTH CACHES EXIST. The dataset is on this machine twice:
 
-  Not in ~/Downloads. There is no parquet anywhere under it; the only
-  DaTikZ-shaped thing there is ~/Downloads/tikzilla_samples, an EMPTY
-  directory created 13:43 today — the failed run's output.
+  ~/.cache/huggingface/hub/datasets--nllg--DaTikZ-V4/snapshots/33734c83.../
+      data/train-000{00..85}.parquet          86 files, 11 GB  (downloaded)
+  ~/.cache/huggingface/datasets/nllg___da_tik_z-v4/default/0.0.0/33734c83.../
+      da_tik_z-v4-train-000{00..24}-of-00025.arrow   25 shards, 12 GB (built)
 
-  The dataset is already downloaded, in the HuggingFace hub cache:
+  ~23 GB in total for one dataset. Neither is in ~/Downloads. The reader now
+  uses the Arrow cache, as instructed.
 
-    ~/.cache/huggingface/hub/datasets--nllg--DaTikZ-V4/snapshots/
-        33734c83.../data/train-000{00..85}.parquet     86 files, 11 GB
+  The two agree: reading the first record from the first shard of each gives
+  the same row, file_id arxiv_src_new_528_716_64_0. That is worth one check
+  rather than an assumption, since the fixture is now built from a different
+  file format than the one 364 first used.
 
-  So nothing needed re-downloading, and the script run with its default
-  --root would have found nothing and said so. Pointed at the snapshot it
-  works directly off those files.
+SPLITS, READ RATHER THAN INFERRED
+
+  dataset_info.json declares: train (427753 examples, 25 shards)
+  splits found on disk       : train (25 shards)
+
+  The declaration is authoritative and confirms 359 exactly — one split,
+  427,753 rows. The filename pattern `-<split>-NNNNN-of-NNNNN.arrow` agrees
+  with it. Taking the split from the FILENAME rather than searching the whole
+  path also removes a real trap: a substring test for "test" over the full
+  path would label every shard `test` under any directory containing that
+  word.
+
+READER CHANGES
+
+  - `find_shards` globs *.arrow and parses the split out of the filename;
+    `declared_splits` reads dataset_info.json and prints it first.
+  - `rows` opens with pyarrow.ipc over `pa.memory_map`, trying `open_stream`
+    and falling back to `open_file` on ArrowInvalid, since HF writes either
+    depending on version. Memory-mapped, so a 500 MB shard is not read into
+    RAM and a limit of 100 touches only the first shard.
 
 RUN, 100 rows
 
-  splits found        : train (86 files)   — no test split exists
-  rows written        : 100
-  rows with no PNG    : 0
-  rows with empty code: 0
-  captions present    : 48 of 100
-  vlm_description     : 100 of 100
-  on disk             : 100 .tex, 100 .png (448x448 RGB), 3.4 MB
+  rows written         : 100
+  rows with no PNG     : 0
+  rows with empty code : 0
+  captions present     : 48 of 100
+  vlm_description      : 100 of 100
+  wrapped by us        : 0 of 100   (all carry their own \documentclass, 366)
 
-THE 100 ARE NOT A SAMPLE. THEY ARE ALL arxiv.
+  SOURCE DISTRIBUTION  : {'arxiv': 100}
 
-  source distribution: {'arxiv': 100}
+  Still all one source, and for the same reason as before: the shards are
+  grouped by source, not interleaved. These 100 are a slice of arXiv, not a
+  sample of the dataset, and any rate from them is an arXiv rate.
 
-  The parquet is GROUPED BY SOURCE, not interleaved. Measured on three
-  shards, first 2,048 rows of each:
-
-    train-00000   arxiv 2048
-    train-00040   tex   2048
-    train-00085   arxiv 2048
-
-  So the first 100 rows are a slice of one source, and any rate measured on
-  them is a rate for arXiv figures. arXiv is 1,471,083 of the paper's
-  2,000,880, so it is the majority source — but "majority" is not "sample",
-  and a compile rate from these rows must not be quoted as the dataset's.
-
-  Drawing across sources needs either a stride over shards or reading the
-  `source` column and filtering. Not done here: the task asked for 100 rows
-  and this reports what those 100 are.
-
-  Note also that `caption` is empty for more than half (48 of 100 present)
-  while `vlm_description` is present for all — consistent with the caption
-  being the ORIGINAL figure caption, absent whenever the source figure had
-  none, and the description being generated for every row.
-
-FIXTURE: ~/pdfdrill-library/datikz-fixture/{tikz,png,manifest.json}
+  Compile over the regenerated fixture, unchanged from the parquet-sourced
+  one: 97 of 100, the three failures all `[latin1]{inputenc}` under xelatex
+  (367), all three compiling under pdflatex.
