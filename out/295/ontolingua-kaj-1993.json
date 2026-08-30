@@ -1,0 +1,32 @@
+{
+ "doc": "ontolingua-kaj-1993",
+ "pdf": "ontolingua-kaj-1993.pdf",
+ "rc": 0,
+ "stdout_tail": "Build stamp: report.build.json — phase=reading, 4 pages, 401927 bytes, sha256 3613df02108f. A measurement of this report should copy it into its output as `measured_against`.",
+ "seconds": 3.7,
+ "regions": {
+  "regions_with_latex": 1,
+  "attempted_now": 1,
+  "rendered": 0,
+  "failed": 1,
+  "has_author_preamble": false,
+  "graphics_dir": null,
+  "failures": [
+   {
+    "id": "ontolingua-kaj-1993_DIA_0005",
+    "first_error": "! Misplaced alignment tab character &."
+   }
+  ]
+ },
+ "manifest_rows": 32,
+ "with_latex": 1,
+ "duplicated": 32,
+ "table_cols": [
+  6,
+  5,
+  7
+ ],
+ "six_col_tables": 1,
+ "region_table_cols": 7,
+ "ink_selectable": false
+}
