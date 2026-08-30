@@ -1,0 +1,23 @@
+{
+ "doc": "locf2dcd5dd47f_slides",
+ "pdf": "locf2dcd5dd47f_slides.pdf",
+ "rc": 0,
+ "stdout_tail": "Build stamp: report.build.json — phase=reading, 2 pages, 36322 bytes, sha256 dfe684d7b543. A measurement of this report should copy it into its output as `measured_against`.",
+ "seconds": 2.5,
+ "regions": {
+  "regions_with_latex": 0,
+  "attempted_now": 0,
+  "rendered": 0,
+  "failed": 0,
+  "has_author_preamble": false,
+  "graphics_dir": null,
+  "failures": []
+ },
+ "table_cols": [
+  5,
+  5
+ ],
+ "six_col_tables": 0,
+ "region_table_cols": 5,
+ "ink_selectable": false
+}
