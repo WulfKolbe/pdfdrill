@@ -1,0 +1,27 @@
+{
+ "doc": "dbakery-complete",
+ "pdf": "dbakery-complete.pdf",
+ "rc": 0,
+ "stdout_tail": "Build stamp: report.build.json — phase=reading, 10 pages, 390989 bytes, sha256 7a7858c18be2. A measurement of this report should copy it into its output as `measured_against`.",
+ "seconds": 11.0,
+ "regions": {
+  "regions_with_latex": 6,
+  "attempted_now": 6,
+  "rendered": 6,
+  "failed": 0,
+  "has_author_preamble": false,
+  "graphics_dir": null,
+  "failures": []
+ },
+ "manifest_rows": 7,
+ "with_latex": 6,
+ "duplicated": 1,
+ "table_cols": [
+  6,
+  5,
+  7
+ ],
+ "six_col_tables": 1,
+ "region_table_cols": 7,
+ "ink_selectable": false
+}
