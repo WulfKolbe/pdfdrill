@@ -1,0 +1,12 @@
+{
+ "doc": "Alg?bre 1 [Lecture notes] (Olivier Debarre) (Z-Library)",
+ "pdf": "Alg?bre 1 [Lecture notes] (Olivier Debarre) (Z-Library).pdf",
+ "rc": 1,
+ "stdout_tail": "",
+ "error": "Error [UnicodeEncodeError]: 'utf-8' codec can't encode character '\\udce8' in position 140: surrogates not allowed",
+ "seconds": 2.2,
+ "table_cols": [],
+ "six_col_tables": 0,
+ "region_table_cols": null,
+ "ink_selectable": false
+}
