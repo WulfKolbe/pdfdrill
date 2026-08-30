@@ -158,3 +158,5 @@ scope: 196 documents, 7239 report pages
 [157/196] 2202.09464v1                            25p refused   -         167s
 [158/196] 2304.05000                              25p measured  converted 988s
 [159/196] 1414674613                              26p measured  converted 1546s
+[160/196] 1605.03431                              26p measured  refused   1549s
+[161/196] Chapter 1 - Ballistic transport and La  26p measured  converted 340s

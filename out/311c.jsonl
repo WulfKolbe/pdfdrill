@@ -157,3 +157,5 @@
 {"doc": "2202.09464v1", "pages": 25, "outcome": "refused", "error": "MeasureRefused: run holds 45 data rows, the manifest expects 47 for the equations table", "seconds": 166.7}
 {"doc": "2304.05000", "pages": 25, "outcome": "measured", "rows": 93, "convert": "converted", "seconds": 987.6}
 {"doc": "1414674613", "pages": 26, "outcome": "measured", "rows": 134, "convert": "converted", "seconds": 1546.0}
+{"doc": "1605.03431", "pages": 26, "outcome": "measured", "rows": 146, "convert": "refused", "seconds": 1548.8}
+{"doc": "Chapter 1 - Ballistic transport and Landauer formula", "pages": 26, "outcome": "measured", "rows": 18, "convert": "converted", "seconds": 340.5}

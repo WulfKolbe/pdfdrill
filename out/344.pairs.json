@@ -1,0 +1,78 @@
+[
+ {
+  "doc": "2004.05631v1",
+  "base": "figures/ch4/mpsapprox2.jpg",
+  "file": "figures/ch4/mpsapprox2",
+  "source": "chapters/four_tufte.tex",
+  "line": 19,
+  "extent_cm": [
+   5.061,
+   3.574
+  ],
+  "inside": 0,
+  "outside": 2,
+  "origin": [
+   0.0,
+   0.0
+  ],
+  "verdict": "around",
+  "crop": "/home/wkolbe/pdfdrill-library/2004.05631v1/texzip/abab828b-61e2-4095-ac03-1e28612cc14a/images/abab828b-61e2-4095-ac03-1e28612cc14a-094_439_502_1581_1417.jpg"
+ },
+ {
+  "doc": "2004.05631v1",
+  "base": "figures/ch3/rho_xi.jpg",
+  "file": "figures/ch3/rho_xi",
+  "source": "chapters/three_tufte.tex",
+  "line": 1057,
+  "extent_cm": [
+   1.951,
+   2.91
+  ],
+  "inside": 0,
+  "outside": 1,
+  "origin": [
+   0.0,
+   0.0
+  ],
+  "verdict": "around",
+  "crop": "/home/wkolbe/pdfdrill-library/2004.05631v1/texzip/abab828b-61e2-4095-ac03-1e28612cc14a/images/abab828b-61e2-4095-ac03-1e28612cc14a-088_295_291_1482_1516.jpg"
+ },
+ {
+  "doc": "2004.05631v1",
+  "base": "figures/ch1/bothways.jpg",
+  "file": "figures/ch1/bothways",
+  "source": "chapters/two_tufte.tex",
+  "line": 686,
+  "extent_cm": [
+   2.558,
+   1.898
+  ],
+  "inside": 0,
+  "outside": 2,
+  "origin": [
+   0.0,
+   0.0
+  ],
+  "verdict": "around",
+  "crop": "/home/wkolbe/pdfdrill-library/2004.05631v1/texzip/abab828b-61e2-4095-ac03-1e28612cc14a/images/abab828b-61e2-4095-ac03-1e28612cc14a-038_197_740_257_421.jpg"
+ },
+ {
+  "doc": "2004.05631v1",
+  "base": "figures/ch2/pt2.jpg",
+  "file": "figures/ch2/pt2.jpg",
+  "source": "chapters/two_tufte.tex",
+  "line": 1057,
+  "extent_cm": [
+   7.848,
+   4.658
+  ],
+  "inside": 0,
+  "outside": 2,
+  "origin": [
+   0.0,
+   0.0
+  ],
+  "verdict": "around",
+  "crop": "/home/wkolbe/pdfdrill-library/2004.05631v1/texzip/abab828b-61e2-4095-ac03-1e28612cc14a/images/abab828b-61e2-4095-ac03-1e28612cc14a-045_561_783_378_399.jpg"
+ }
+]

@@ -1,0 +1,77 @@
+344 - 337's method does not have 106 rows to run on. It has four.
+====================================================================
+
+WHY, and it is not the model or the prompt
+
+  337's method needs BOTH images: the base file and the crop of how that
+  figure appears on the page. The addition is the difference between them,
+  so one image cannot show it.
+
+  The 106 around rows carry 106 base files. They do not carry 106 crops.
+
+THE POPULATION, narrowed twice
+
+  106 around rows sit in FOUR folders:
+    2004.05631                               44
+    2004.05631v1                             44
+    2012.15581                               16
+    2508.19773                               2
+
+  2004.05631 and 2004.05631v1 are the SAME document in two folders, and
+  only v1 holds the tex.zip. So 44 of the 106 are duplicates of another
+  44, and the distinct population is 62, not 106.
+
+  Of those 62, pairing a base to its crop by page (339's method):
+
+    document          around  UNIQUE  contested  ambiguous  no crop
+    2004.05631v1          44       4          0         39        1
+    2012.15581            16       0         12          4        0
+    2508.19773             2       0          2          0        0
+    ----------------------------------------------------------------
+    total                 62       4         14         43        1
+
+  FOUR rows have a unique crop. 43 sit on pages carrying several crops;
+  14 are contested, where several bases claim one crop and neither can be
+  assigned without choosing -- 301's defect and 339's.
+
+AND THE FOUR ARE THE FOUR 337 ALREADY MEASURED
+    figures/ch4/mpsapprox2.jpg
+    figures/ch3/rho_xi.jpg
+    figures/ch1/bothways.jpg
+    figures/ch2/pt2.jpg
+
+  mpsapprox2, rho_xi, bothways, pt2 -- exactly 337's four `around` rows.
+  There is no new measurement to make here.
+
+SO: WERE THE SEVEN FAVOURABLE OR REPRESENTATIVE?
+
+  Neither. They were EXHAUSTIVE. Seven pairs is not a sample drawn from a
+  larger set that might have been kinder -- it is every row in the corpus
+  where a base, a crop and an author reference can all three be named
+  without guessing. The distribution cannot be compared against a wider
+  one because a wider one does not exist yet.
+
+  That is a better answer than a number would have been, and it names the
+  bottleneck precisely: it is not the model, the prompt, the position
+  statement or the ink metric. It is the crop pairing. 337 measured the
+  around population at a median ink distance of 10 against 180, on all
+  four rows that exist.
+
+WHAT WOULD UNLOCK THE OTHER 58
+
+  43 ambiguous rows need the page's several crops told apart -- by
+  rectangle, which needs each inclusion's own placement, or by hand.
+  14 contested rows need a person to say which base is which crop.
+  That is exactly 340's sidecar, and this quantifies the case for it:
+  without it the measurable population is 4, with it it is 62.
+
+A BUG FOUND ON THE WAY, worth recording because the first answer was 0
+
+  The first run reported ZERO unique pairs. 2004.05631v1 keeps its tex.zip
+  in BOTH texzip/ and texsrc/, and I globbed both, so every crop was
+  counted twice and every page looked ambiguous. Deduplicating by filename
+  gives 4. A count of zero from a doubled population is not a finding.
+
+NO MODEL CALLS WERE MADE. 106 calls at 16,000 tokens would have been spent
+on rows that cannot be scored, because 102 of them have no crop to compare
+against.
