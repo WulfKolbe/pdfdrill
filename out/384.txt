@@ -1,0 +1,52 @@
+384 - 442 against 429
+=====================
+
+442 IS CORRECT. 429 IS NOT REPRODUCIBLE AND IS NOT MINE.
+
+WHAT 442 IS
+
+  Equations whose `confidence` prop is strictly below 0.1, over the corpus
+  capture out/324b.jsonl: every equation with confidence < 0.3 across 1,349
+  models, 1,401 rows, one model skipped as too large to load.
+
+    conf <  0.1      442     in 112 documents
+    conf <= 0.1      442     identical — no equation has confidence exactly 0.1
+
+  So the `<` / `<=` question, which is the usual source of an off-by-a-few,
+  does not arise here. The two conventions agree.
+
+EVERY OTHER CONVENTION I COULD CONSTRUCT
+
+    conf <  0.1                                442
+    conf <= 0.1                                442
+    conf <  0.1, excluding exact 0.0           440   (2 rows are exactly 0)
+    collapsing "(N)" duplicate folders         440   (3 base names duplicated)
+    collapsing identical latex+confidence      433
+    conf <  0.10 after rounding to 2 dp        419
+    conf <  0.1  after rounding to 3 dp        438
+
+  None yields 429. The nearest are 433 and 438, and neither is a defensible
+  rule — collapsing identical LaTeX merges two genuinely distinct objects in
+  two documents, and rounding before a threshold is simply wrong: it moves
+  0.104 below 0.10 and 0.096 above it, changing membership by the display
+  format rather than by the value.
+
+WHICH IS CORRECT
+
+  The exact stored value with a strict `<`. Confidence is a float MathPix
+  emits; rounding is a presentation choice and must not decide a population.
+  On that rule the answer is 442, and `<=` gives the same number.
+
+WHERE 429 CAME FROM
+
+  Not from any report in this repository — `429` appears in out/021.txt as a
+  page count, in out/066.txt as a row index, in out/121.txt as an HTTP status
+  and as the value 0.429, and nowhere as a count of low-confidence equations.
+
+  It reached me in the task text of 381 and I used it there without checking,
+  then measured 442 and reported the disagreement rather than the number. The
+  reconciliation is that there is nothing to reconcile: 429 has no derivation
+  I can find, and the only figure with one is 442.
+
+  Reported as unresolved rather than forced. Two numbers agreeing after one
+  of them is bent to fit is worse than two numbers differing.
