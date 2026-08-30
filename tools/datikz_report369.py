@@ -134,11 +134,24 @@ def main() -> int:
     rendered = {r["id"]: r.get("rendered") for r in built["rows"]}
     errors = {r["id"]: r.get("compile_error", "") for r in built["failures"]}
 
+    # 386 — the residual half of the Conf. column. The report is built TWICE
+    # (planner.load_graph: reporttex and inkconvert require each other): the
+    # first build is the MEASUREMENT phase and has no ink, inkdrill measures
+    # its PDF, inkconvert writes report.ink.json, and this second build adopts
+    # it. So the ink is read if present and its absence is NOT an error --
+    # but an absent measurement must not be dressed as a measured one, so the
+    # form preamble, the bullets and the residual legend all switch together
+    # on this one condition. A build with no ink keeps LEGEND_NO_INK, which
+    # says so on the page.
+    inkp = FIX / "report.ink.json"
+    ink = rt.load_ink(inkp) if inkp.is_file() else None
+
     w = widths(420 - 16)                          # a3 landscape, 8mm margins
     # hyperref appended to OUR document only — the shared report preamble is
     # untouched, because a link column is this report's need and not every
     # report's.
-    parts = [rt.PREAMBLE % {"bbdigits": rt.MATHBB_DIGITS, "form": "",
+    parts = [rt.PREAMBLE % {"bbdigits": rt.MATHBB_DIGITS,
+                            "form": rt.FORM_PREAMBLE if ink else "",
                             "geom": "a3paper,landscape,margin=8mm",
                             "unicode": ""}]
     parts[0] = parts[0].replace(
@@ -148,7 +161,7 @@ def main() -> int:
         "\\begin{document}")
     parts.append("\\section*{DaTikZ-V4 --- first 100 rows}\n")
     parts.append(CAVEAT + "\n\n")
-    parts.append(rt.table_open("Rows", w, False, True))
+    parts.append(rt.table_open("Rows", w, bool(ink), True))
 
     n_img = n_degen = 0
     for i, r in enumerate(man["rows"]):
@@ -171,7 +184,18 @@ def main() -> int:
                     r["tex"], rt.esc_text(r["tex"])))
         page = ("{\\tiny shard %02d\\newline row %d}"
                 % (shard_of(i, CACHE), i))
+        # The confidence half stays a dash -- the dataset carries no
+        # confidence and 252 forbids inventing one. The RESIDUAL half is
+        # measured, and it is the same construction rt.row uses under
+        # form=True, so a reader who knows one report knows this one.
         conf = rt.conf_cell("")                   # absent, never invented
+        if ink:
+            rec = ink.get(rid) or {}
+            code = rec.get("code", "")
+            conf = ("%s\\hspace{0.6em}\\inkbullet{%s}%s"
+                    % (conf, rt.residual_colour(rid, ink),
+                       ("\\,\\texttt{\\tiny %s}" % rt.esc_text(code))
+                       if code else ""))
         code = (FIX / r["tex"]).read_text(errors="replace")
         gen = summaries.get(rid, {})
         # Truncate from the PICTURE, not the file. Every row's first lines are

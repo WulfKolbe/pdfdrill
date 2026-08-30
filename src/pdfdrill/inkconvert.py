@@ -55,6 +55,19 @@ FIVE_R = ("R_comp", "R_holes", "R_stk", "R_cen", "R_off")
 
 _IDENT = re.compile(r"\\ident\{([^&\n]*?EQ\d+)\}[^&\n]*& *(\d+) *&")
 
+#: 386 — the DTZ figure report carries neither half of the contract above: its
+#: identifiers are DTZ00000, not <bib>_EQ0001, and its Page cell holds
+#: "shard 00 / row 0" rather than a bare page number. `identifiers` therefore
+#: found none, `convert` saw 100 measured rows against 0 identifiers, and
+#: refused — correctly, on the rule it was given.
+#:
+#: This is a SECOND pattern, not a loosened first one. Relaxing `_IDENT` to
+#: accept a non-numeric Page cell would widen the contract for the eleven
+#: published reports too, whose alignment is the thing out/237 verified 64 of
+#: 64 at offset zero. A new report form gets a new pattern; the proven one is
+#: not edited to accommodate it.
+_IDENT_FIG = re.compile(r"\\ident\{([^&\n]*?[A-Z]{2,4}\d{3,})\}[^&\n]*&")
+
 
 class ConversionRefused(Exception):
     """The pairing cannot be established. No file is written."""
@@ -75,8 +88,18 @@ def clean_ident(text: str) -> str:
 
 
 def identifiers(tex_body: str) -> list:
-    """EQ identifiers in TABLE order, which is the order the TSV rows are in."""
-    return [clean_ident(m.group(1)) for m in _IDENT.finditer(tex_body)]
+    """Row identifiers in TABLE order, which is the order the TSV rows are in.
+
+    The EQ form is tried FIRST and alone: if it matches anything at all, that
+    is the answer. Only a report where it matches NOTHING falls through to the
+    figure form, so no document can ever be read by both patterns and no
+    existing report's pairing can change. A fallback that could fire on a
+    partial match would be a silent re-pairing of the eleven.
+    """
+    ids = [clean_ident(m.group(1)) for m in _IDENT.finditer(tex_body)]
+    if ids:
+        return ids
+    return [clean_ident(m.group(1)) for m in _IDENT_FIG.finditer(tex_body)]
 
 
 def read_tsv(path: Path) -> tuple:

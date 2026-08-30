@@ -81,3 +81,44 @@ def test_the_generated_column_is_marked_as_generated():
     assert "not measured" in c
     assert "reading aid" in c
     assert "reachable through the link" in c
+
+
+def test_the_figure_identifier_pattern_does_not_touch_the_eq_one():
+    r"""386 — DTZ rows carry neither half of inkconvert's EQ contract: the
+    identifier is DTZ00000, not <bib>_EQ0001, and the Page cell holds
+    "shard 00 / row 0" rather than a bare number. A second pattern was added
+    for them.
+
+    The risk in adding it is not that it fails — it is that it fires on a
+    document the EQ pattern already handles and silently RE-PAIRS the eleven
+    published reports, whose alignment out/237 verified 64 of 64 at offset
+    zero. So the fallback is all-or-nothing: it runs only when the EQ pattern
+    matched NOTHING at all.
+    """
+    from pdfdrill import inkconvert as ic
+    eq = (r"\ident{doc\allowbreak{}_EQ0001} & 12 & x & y \\ \hline" "\n"
+          r"\ident{doc\allowbreak{}_EQ0002} & 13 & x & y \\ \hline")
+    assert ic.identifiers(eq) == ["doc_EQ0001", "doc_EQ0002"]
+
+    fig = (r"\ident{DTZ00000}\newline{\tiny f} & {\tiny shard 00} & --- \\" "\n"
+           r"\ident{DTZ00001}\newline{\tiny f} & {\tiny shard 01} & --- \\")
+    assert ic.identifiers(fig) == ["DTZ00000", "DTZ00001"]
+
+    # A document holding BOTH must be read by the EQ pattern alone: one
+    # matching EQ row is enough to keep the figure pattern out entirely.
+    both = eq + "\n" + fig
+    assert ic.identifiers(both) == ["doc_EQ0001", "doc_EQ0002"]
+
+
+def test_the_report_states_it_has_no_residual_until_it_has_one():
+    """386 — the report is built twice and the first build has no ink.
+
+    An absent measurement must not be dressed as a measured one, so the form
+    preamble, the bullets and the residual legend switch together on the
+    presence of report.ink.json. This asserts the no-ink build still carries
+    the legend that says so, which is what 252 requires of an absent reading.
+    """
+    from pdfdrill import report_tex as rt
+    no_ink = rt.table_open("Rows", (20, 22, 13, 91, 106, 106), False, True)
+    assert "no residual" in no_ink.lower()
+    assert "\\inkbullet" not in no_ink
