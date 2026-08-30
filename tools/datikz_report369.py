@@ -142,21 +142,27 @@ def main() -> int:
         # way an equation row carries \lowconf beneath its identifier.
         # \newline, NOT \\ — inside a p{} column `\\` ends the ROW, and
         # inside a braced group it ends it mid-group: 400 "Extra }" errors.
-        # Column 1 is the identifier ALONE. Everything that locates the row
-        # in the dataset belongs in Page, which is the column for it.
-        ident = "\\ident{%s}" % rt.breakable_ident(rid)
-        page = ("{\\tiny shard %02d\\newline row %d\\newline %s}"
-                % (shard_of(i, CACHE), i,
-                   rt.esc_text((r.get("file_id") or "")[:30])))
+        # 377 — everything that ADDRESSES the object stays in column 1, under
+        # the identifier, in the slot an equation row uses for \lowconf: the
+        # dataset's own id, then a link to the row's .tex. Column 4 is for the
+        # object's CONTENT, so it stays comparable row to row and an unchanged
+        # content column remains a free control (340's reasoning for the
+        # marker). Page keeps what LOCATES the row in the file — shard and
+        # row index — which is a different question from what names it.
+        ident = ("\\ident{%s}\\newline{\\tiny %s}\\newline"
+                 "\\href{run:%s}{\\ttfamily\\tiny %s}"
+                 % (rt.breakable_ident(rid),
+                    rt.esc_text((r.get("file_id") or "")[:30]),
+                    r["tex"], rt.esc_text(r["tex"])))
+        page = ("{\\tiny shard %02d\\newline row %d}"
+                % (shard_of(i, CACHE), i))
         conf = rt.conf_cell("")                   # absent, never invented
         code = (FIX / r["tex"]).read_text(errors="replace")
         # Truncate from the PICTURE, not the file. Every row's first lines are
         # \documentclass and \usepackage — identical across rows and silent
         # about the figure, so the column showed the preamble and nothing else.
         head = _from_picture(code)
-        src = ("\\href{run:%s}{\\ttfamily\\tiny %s}\\newline"
-               "{\\ttfamily\\tiny %s}"
-               % (r["tex"], rt.esc_text(r["tex"]), rt.esc_text(head[:230])))
+        src = "{\\ttfamily\\tiny %s}" % rt.esc_text(head[:260])
         rp = rendered.get(rid)
         if rp:
             # width AND height, keepaspectratio, on BOTH image cells. DTZ00077
