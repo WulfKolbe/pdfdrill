@@ -1,0 +1,24 @@
+{
+ "doc": "hamann-baustoffe.de_checkout_finish_sUniqueID_3ED971328A402853U#",
+ "pdf": "hamann-baustoffe.de_checkout_finish_sUniqueID_3ED971328A402853U#.pdf",
+ "rc": 0,
+ "stdout_tail": "Build stamp: report.build.json — phase=reading, 3 pages, 51772 bytes, sha256 c4aca02c4447. A measurement of this report should copy it into its output as `measured_against`.",
+ "seconds": 2.7,
+ "regions": {
+  "regions_with_latex": 0,
+  "attempted_now": 0,
+  "rendered": 0,
+  "failed": 0,
+  "has_author_preamble": false,
+  "graphics_dir": null,
+  "failures": []
+ },
+ "table_cols": [
+  5,
+  5,
+  4
+ ],
+ "six_col_tables": 0,
+ "region_table_cols": 4,
+ "ink_selectable": false
+}
