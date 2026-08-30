@@ -1,0 +1,28 @@
+{
+ "doc": "idea15-proceedings",
+ "pdf": "idea15-proceedings.pdf",
+ "rc": 0,
+ "stdout_tail": "Build stamp: report.build.json — phase=reading, 30 pages, 4388899 bytes, sha256 8b71a83125de. A measurement of this report should copy it into its output as `measured_against`.",
+ "seconds": 15.3,
+ "regions": {
+  "regions_with_latex": 1,
+  "attempted_now": 1,
+  "rendered": 1,
+  "failed": 0,
+  "has_author_preamble": false,
+  "graphics_dir": null,
+  "failures": []
+ },
+ "manifest_rows": 64,
+ "with_latex": 1,
+ "duplicated": 63,
+ "table_cols": [
+  5,
+  5,
+  4,
+  7
+ ],
+ "six_col_tables": 0,
+ "region_table_cols": 7,
+ "ink_selectable": false
+}
