@@ -1017,3 +1017,6 @@ population: 1349 documents (21 from the site, first)
 [ 958/1349] Text_preparation_through_extended_   3.5s  regions=1 failed=0 selectable=False
 [ 959/1349] The Beltrami Equation A Geometric  685.8s  regions=0 failed=0 selectable=False
 [ 960/1349] The Character Theory of Finite Gro 617.5s  regions=0 failed=0 selectable=False
+[ 961/1349] The Genesis of the Langlands Progr 647.3s  regions=0 failed=0 selectable=False
+[ 962/1349] The Geometry and Topology of Three 284.3s  regions=0 failed=0 selectable=False
+[ 963/1349] The Geometry of Minkowski Spacetim 652.2s  regions=0 failed=0 selectable=False

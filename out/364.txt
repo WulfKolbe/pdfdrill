@@ -1,0 +1,54 @@
+364 - a local fixture from DaTikZ-V4, no download
+=================================================
+
+WHERE THE DATA ACTUALLY IS
+
+  Not in ~/Downloads. There is no parquet anywhere under it; the only
+  DaTikZ-shaped thing there is ~/Downloads/tikzilla_samples, an EMPTY
+  directory created 13:43 today — the failed run's output.
+
+  The dataset is already downloaded, in the HuggingFace hub cache:
+
+    ~/.cache/huggingface/hub/datasets--nllg--DaTikZ-V4/snapshots/
+        33734c83.../data/train-000{00..85}.parquet     86 files, 11 GB
+
+  So nothing needed re-downloading, and the script run with its default
+  --root would have found nothing and said so. Pointed at the snapshot it
+  works directly off those files.
+
+RUN, 100 rows
+
+  splits found        : train (86 files)   — no test split exists
+  rows written        : 100
+  rows with no PNG    : 0
+  rows with empty code: 0
+  captions present    : 48 of 100
+  vlm_description     : 100 of 100
+  on disk             : 100 .tex, 100 .png (448x448 RGB), 3.4 MB
+
+THE 100 ARE NOT A SAMPLE. THEY ARE ALL arxiv.
+
+  source distribution: {'arxiv': 100}
+
+  The parquet is GROUPED BY SOURCE, not interleaved. Measured on three
+  shards, first 2,048 rows of each:
+
+    train-00000   arxiv 2048
+    train-00040   tex   2048
+    train-00085   arxiv 2048
+
+  So the first 100 rows are a slice of one source, and any rate measured on
+  them is a rate for arXiv figures. arXiv is 1,471,083 of the paper's
+  2,000,880, so it is the majority source — but "majority" is not "sample",
+  and a compile rate from these rows must not be quoted as the dataset's.
+
+  Drawing across sources needs either a stride over shards or reading the
+  `source` column and filtering. Not done here: the task asked for 100 rows
+  and this reports what those 100 are.
+
+  Note also that `caption` is empty for more than half (48 of 100 present)
+  while `vlm_description` is present for all — consistent with the caption
+  being the ORIGINAL figure caption, absent whenever the source figure had
+  none, and the description being generated for every row.
+
+FIXTURE: ~/pdfdrill-library/datikz-fixture/{tikz,png,manifest.json}
