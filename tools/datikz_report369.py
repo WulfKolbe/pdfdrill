@@ -43,7 +43,14 @@ CAVEAT = (
     "confidence value; an absent reading is not a good one (252), so it "
     "shows a dash rather than a number. \\textbf{Page} is not a page --- "
     "these rows have none --- it is the shard and row index the record came "
-    "from.")
+    "from. "
+    "\\textbf{Split.} These rows are V4 \\emph{train}. 92 of DaTikZ-v2's 442 "
+    "test rows appear in V4's training data BY PICTURE --- the same "
+    "tikzpicture body --- though not by document, because V4 rewrites every "
+    "wrapper to \\texttt{standalone} and a whole-file hash therefore finds "
+    "none of them. Neither release page states this. 350 V2 test rows are "
+    "clean; a model measurement must use those, and this report is a "
+    "renderer measurement where it does not matter.")
 
 
 _PICTURE = re.compile(r"\\\\begin\\{(?:tikzpicture|tikzcd|axis|circuitikz|forest)\\}")

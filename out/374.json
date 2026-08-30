@@ -1,0 +1,651 @@
+{
+ "v2_test_rows": 442,
+ "contaminated": 92,
+ "clean": 350,
+ "rows": [
+  {
+   "v2_test_index": 3,
+   "uri": "https://arxiv.org/abs/2303.02533",
+   "origin": "arxiv",
+   "v4_file_id": "arxiv_src_new_901_365_7_0",
+   "body_chars": 808
+  },
+  {
+   "v2_test_index": 4,
+   "uri": "https://arxiv.org/abs/2304.13253",
+   "origin": "arxiv",
+   "v4_file_id": "arxiv_src_new_452_422_141_0",
+   "body_chars": 955
+  },
+  {
+   "v2_test_index": 9,
+   "uri": "https://arxiv.org/abs/2212.01394",
+   "origin": "arxiv",
+   "v4_file_id": "arxiv_src_new_521_831_150_0",
+   "body_chars": 737
+  },
+  {
+   "v2_test_index": 23,
+   "uri": "https://arxiv.org/abs/2301.09808",
+   "origin": "arxiv",
+   "v4_file_id": "arxiv_src_new_391_687_120_0",
+   "body_chars": 831
+  },
+  {
+   "v2_test_index": 26,
+   "uri": "https://arxiv.org/abs/2209.13690",
+   "origin": "arxiv",
+   "v4_file_id": "arxiv_src_new_328_294_11_0",
+   "body_chars": 661
+  },
+  {
+   "v2_test_index": 29,
+   "uri": "https://arxiv.org/abs/2209.01037",
+   "origin": "arxiv",
+   "v4_file_id": "arxiv_src_new_699_930_83_3",
+   "body_chars": 1067
+  },
+  {
+   "v2_test_index": 34,
+   "uri": "https://arxiv.org/abs/2305.11783",
+   "origin": "arxiv",
+   "v4_file_id": "arxiv_src_new_468_958_4_2",
+   "body_chars": 485
+  },
+  {
+   "v2_test_index": 41,
+   "uri": "https://arxiv.org/abs/2303.05444",
+   "origin": "arxiv",
+   "v4_file_id": "arxiv_src_new_613_123_187_0",
+   "body_chars": 1045
+  },
+  {
+   "v2_test_index": 43,
+   "uri": "https://arxiv.org/abs/2202.03185",
+   "origin": "arxiv",
+   "v4_file_id": "arxiv_src_new_369_835_84_25",
+   "body_chars": 1940
+  },
+  {
+   "v2_test_index": 46,
+   "uri": "https://arxiv.org/abs/2204.00072",
+   "origin": "arxiv",
+   "v4_file_id": "arxiv_src_new_893_436_49_0",
+   "body_chars": 822
+  },
+  {
+   "v2_test_index": 47,
+   "uri": "https://arxiv.org/abs/2212.04399",
+   "origin": "arxiv",
+   "v4_file_id": "arxiv_src_new_370_361_19_3",
+   "body_chars": 7073
+  },
+  {
+   "v2_test_index": 55,
+   "uri": "https://arxiv.org/abs/2303.14533",
+   "origin": "arxiv",
+   "v4_file_id": "arxiv_src_new_848_981_91_0",
+   "body_chars": 729
+  },
+  {
+   "v2_test_index": 63,
+   "uri": "https://arxiv.org/abs/2305.12638",
+   "origin": "arxiv",
+   "v4_file_id": "arxiv_src_new_469_765_0_0",
+   "body_chars": 1098
+  },
+  {
+   "v2_test_index": 66,
+   "uri": "https://arxiv.org/abs/2301.00773",
+   "origin": "arxiv",
+   "v4_file_id": "arxiv_src_new_380_491_48_1",
+   "body_chars": 1311
+  },
+  {
+   "v2_test_index": 89,
+   "uri": "https://arxiv.org/abs/2302.07555",
+   "origin": "arxiv",
+   "v4_file_id": "arxiv_src_new_465_374_158_0",
+   "body_chars": 2240
+  },
+  {
+   "v2_test_index": 93,
+   "uri": "https://arxiv.org/abs/2304.00923",
+   "origin": "arxiv",
+   "v4_file_id": "arxiv_src_new_529_769_48_0",
+   "body_chars": 3621
+  },
+  {
+   "v2_test_index": 102,
+   "uri": "https://arxiv.org/abs/2304.02823",
+   "origin": "arxiv",
+   "v4_file_id": "arxiv_src_new_439_273_65_1",
+   "body_chars": 1010
+  },
+  {
+   "v2_test_index": 104,
+   "uri": "https://arxiv.org/abs/2211.08850",
+   "origin": "arxiv",
+   "v4_file_id": "arxiv_src_new_356_609_55_3",
+   "body_chars": 3614
+  },
+  {
+   "v2_test_index": 110,
+   "uri": "https://arxiv.org/abs/2305.05739",
+   "origin": "arxiv",
+   "v4_file_id": "arxiv_src_new_460_132_86_15",
+   "body_chars": 986
+  },
+  {
+   "v2_test_index": 111,
+   "uri": "https://arxiv.org/abs/2303.13380",
+   "origin": "arxiv",
+   "v4_file_id": "arxiv_src_new_529_769_154_7",
+   "body_chars": 2815
+  },
+  {
+   "v2_test_index": 114,
+   "uri": "https://arxiv.org/abs/2209.04720",
+   "origin": "arxiv",
+   "v4_file_id": "arxiv_src_new_317_438_17_14",
+   "body_chars": 325
+  },
+  {
+   "v2_test_index": 115,
+   "uri": "https://arxiv.org/abs/2210.12258",
+   "origin": "arxiv",
+   "v4_file_id": "arxiv_src_new_343_799_74_0",
+   "body_chars": 567
+  },
+  {
+   "v2_test_index": 132,
+   "uri": "https://arxiv.org/abs/2303.08196",
+   "origin": "arxiv",
+   "v4_file_id": "arxiv_src_new_423_190_8_0",
+   "body_chars": 462
+  },
+  {
+   "v2_test_index": 139,
+   "uri": "https://arxiv.org/abs/2305.04705",
+   "origin": "arxiv",
+   "v4_file_id": "arxiv_src_new_553_698_190_0",
+   "body_chars": 17865
+  },
+  {
+   "v2_test_index": 157,
+   "uri": "https://arxiv.org/abs/2302.03568",
+   "origin": "arxiv",
+   "v4_file_id": "arxiv_src_new_964_540_91_2",
+   "body_chars": 3642
+  },
+  {
+   "v2_test_index": 158,
+   "uri": "https://arxiv.org/abs/2301.13037",
+   "origin": "arxiv",
+   "v4_file_id": "arxiv_src_new_396_256_33_0",
+   "body_chars": 1398
+  },
+  {
+   "v2_test_index": 164,
+   "uri": "https://arxiv.org/abs/2209.01977",
+   "origin": "arxiv",
+   "v4_file_id": "arxiv_src_new_314_648_17_1",
+   "body_chars": 1806
+  },
+  {
+   "v2_test_index": 168,
+   "uri": "https://arxiv.org/abs/2209.03675",
+   "origin": "arxiv",
+   "v4_file_id": "arxiv_src_new_355_24_4_4",
+   "body_chars": 1119
+  },
+  {
+   "v2_test_index": 172,
+   "uri": "https://arxiv.org/abs/2203.16423",
+   "origin": "arxiv",
+   "v4_file_id": "arxiv_src_new_316_463_133_3",
+   "body_chars": 1959
+  },
+  {
+   "v2_test_index": 173,
+   "uri": "https://arxiv.org/abs/2210.05974",
+   "origin": "arxiv",
+   "v4_file_id": "arxiv_src_new_569_183_176_0",
+   "body_chars": 1512
+  },
+  {
+   "v2_test_index": 174,
+   "uri": "https://arxiv.org/abs/2211.05325",
+   "origin": "arxiv",
+   "v4_file_id": "arxiv_src_new_352_833_166_6",
+   "body_chars": 683
+  },
+  {
+   "v2_test_index": 182,
+   "uri": "https://arxiv.org/abs/2303.09816",
+   "origin": "arxiv",
+   "v4_file_id": "arxiv_src_new_454_905_70_4",
+   "body_chars": 721
+  },
+  {
+   "v2_test_index": 183,
+   "uri": "https://arxiv.org/abs/2301.06039",
+   "origin": "arxiv",
+   "v4_file_id": "arxiv_src_new_387_974_26_37",
+   "body_chars": 3188
+  },
+  {
+   "v2_test_index": 184,
+   "uri": "https://arxiv.org/abs/2212.09905",
+   "origin": "arxiv",
+   "v4_file_id": "arxiv_src_new_376_196_123_15",
+   "body_chars": 402
+  },
+  {
+   "v2_test_index": 186,
+   "uri": "https://arxiv.org/abs/2212.09869",
+   "origin": "arxiv",
+   "v4_file_id": "arxiv_src_new_639_1087_60_1",
+   "body_chars": 2978
+  },
+  {
+   "v2_test_index": 188,
+   "uri": "https://arxiv.org/abs/2303.17263",
+   "origin": "arxiv",
+   "v4_file_id": "arxiv_src_new_435_134_91_0",
+   "body_chars": 1166
+  },
+  {
+   "v2_test_index": 196,
+   "uri": "https://arxiv.org/abs/2304.01072",
+   "origin": "arxiv",
+   "v4_file_id": "arxiv_src_new_592_886_171_4",
+   "body_chars": 1942
+  },
+  {
+   "v2_test_index": 198,
+   "uri": "https://arxiv.org/abs/2303.14229",
+   "origin": "arxiv",
+   "v4_file_id": "arxiv_src_new_432_1114_7_3",
+   "body_chars": 6815
+  },
+  {
+   "v2_test_index": 204,
+   "uri": "https://arxiv.org/abs/2212.10355",
+   "origin": "arxiv",
+   "v4_file_id": "arxiv_src_new_456_362_121_0",
+   "body_chars": 2370
+  },
+  {
+   "v2_test_index": 206,
+   "uri": "https://arxiv.org/abs/2212.02167",
+   "origin": "arxiv",
+   "v4_file_id": "arxiv_src_new_367_348_194_0",
+   "body_chars": 691
+  },
+  {
+   "v2_test_index": 209,
+   "uri": "https://arxiv.org/abs/2211.03340",
+   "origin": "arxiv",
+   "v4_file_id": "arxiv_src_new_747_1045_194_0",
+   "body_chars": 1789
+  },
+  {
+   "v2_test_index": 214,
+   "uri": "https://arxiv.org/abs/2302.08937",
+   "origin": "arxiv",
+   "v4_file_id": "arxiv_src_new_781_433_153_0",
+   "body_chars": 420
+  },
+  {
+   "v2_test_index": 216,
+   "uri": "https://arxiv.org/abs/2104.09645",
+   "origin": "arxiv",
+   "v4_file_id": "arxiv_src_new_317_438_179_0",
+   "body_chars": 1335
+  },
+  {
+   "v2_test_index": 218,
+   "uri": "https://arxiv.org/abs/2212.04399",
+   "origin": "arxiv",
+   "v4_file_id": "arxiv_src_new_370_361_19_1",
+   "body_chars": 3720
+  },
+  {
+   "v2_test_index": 219,
+   "uri": "https://arxiv.org/abs/2206.04260",
+   "origin": "arxiv",
+   "v4_file_id": "arxiv_src_new_333_965_71_9",
+   "body_chars": 820
+  },
+  {
+   "v2_test_index": 224,
+   "uri": "https://arxiv.org/abs/2209.14989",
+   "origin": "arxiv",
+   "v4_file_id": "arxiv_src_new_768_357_156_0",
+   "body_chars": 1054
+  },
+  {
+   "v2_test_index": 227,
+   "uri": "https://arxiv.org/abs/2305.13341",
+   "origin": "arxiv",
+   "v4_file_id": "arxiv_src_new_469_765_120_6",
+   "body_chars": 812
+  },
+  {
+   "v2_test_index": 230,
+   "uri": "https://arxiv.org/abs/2205.06105",
+   "origin": "arxiv",
+   "v4_file_id": "arxiv_src_new_402_292_140_0",
+   "body_chars": 1528
+  },
+  {
+   "v2_test_index": 231,
+   "uri": "https://arxiv.org/abs/2203.13806",
+   "origin": "arxiv",
+   "v4_file_id": "arxiv_src_new_350_657_28_1",
+   "body_chars": 768
+  },
+  {
+   "v2_test_index": 233,
+   "uri": "https://arxiv.org/abs/2302.08616",
+   "origin": "arxiv",
+   "v4_file_id": "arxiv_src_new_533_340_123_1",
+   "body_chars": 672
+  },
+  {
+   "v2_test_index": 239,
+   "uri": "https://arxiv.org/abs/2209.02287",
+   "origin": "arxiv",
+   "v4_file_id": "arxiv_src_new_411_949_98_6",
+   "body_chars": 2195
+  },
+  {
+   "v2_test_index": 241,
+   "uri": "https://arxiv.org/abs/2211.08427",
+   "origin": "arxiv",
+   "v4_file_id": "arxiv_src_new_355_24_141_0",
+   "body_chars": 190
+  },
+  {
+   "v2_test_index": 243,
+   "uri": "https://arxiv.org/abs/2305.01272",
+   "origin": "arxiv",
+   "v4_file_id": "arxiv_src_new_455_1175_24_0",
+   "body_chars": 1328
+  },
+  {
+   "v2_test_index": 253,
+   "uri": "https://arxiv.org/abs/2303.08924",
+   "origin": "arxiv",
+   "v4_file_id": "arxiv_src_new_522_409_125_1",
+   "body_chars": 621
+  },
+  {
+   "v2_test_index": 255,
+   "uri": "https://arxiv.org/abs/2305.10152",
+   "origin": "arxiv",
+   "v4_file_id": "arxiv_src_new_466_706_83_10",
+   "body_chars": 11776
+  },
+  {
+   "v2_test_index": 268,
+   "uri": "https://arxiv.org/abs/2303.13998",
+   "origin": "arxiv",
+   "v4_file_id": "arxiv_src_new_431_239_167_0",
+   "body_chars": 662
+  },
+  {
+   "v2_test_index": 274,
+   "uri": "https://arxiv.org/abs/2212.10694",
+   "origin": "arxiv",
+   "v4_file_id": "arxiv_src_new_377_1161_55_1",
+   "body_chars": 1764
+  },
+  {
+   "v2_test_index": 276,
+   "uri": "https://arxiv.org/abs/2305.12405",
+   "origin": "arxiv",
+   "v4_file_id": "arxiv_src_new_468_958_151_0",
+   "body_chars": 2017
+  },
+  {
+   "v2_test_index": 279,
+   "uri": "https://arxiv.org/abs/2303.02780",
+   "origin": "arxiv",
+   "v4_file_id": "arxiv_src_new_416_484_193_0",
+   "body_chars": 984
+  },
+  {
+   "v2_test_index": 283,
+   "uri": "https://arxiv.org/abs/2303.04731",
+   "origin": "arxiv",
+   "v4_file_id": "arxiv_src_new_418_663_164_0",
+   "body_chars": 660
+  },
+  {
+   "v2_test_index": 290,
+   "uri": "https://arxiv.org/abs/2106.11418",
+   "origin": "arxiv",
+   "v4_file_id": "arxiv_src_new_653_259_89_0",
+   "body_chars": 2578
+  },
+  {
+   "v2_test_index": 292,
+   "uri": "https://arxiv.org/abs/2304.09300",
+   "origin": "arxiv",
+   "v4_file_id": "arxiv_src_new_447_1084_57_5",
+   "body_chars": 3188
+  },
+  {
+   "v2_test_index": 302,
+   "uri": "https://arxiv.org/abs/2206.04260",
+   "origin": "arxiv",
+   "v4_file_id": "arxiv_src_new_333_965_71_7",
+   "body_chars": 697
+  },
+  {
+   "v2_test_index": 303,
+   "uri": "https://arxiv.org/abs/2301.05232",
+   "origin": "arxiv",
+   "v4_file_id": "arxiv_src_new_385_70_105_3",
+   "body_chars": 734
+  },
+  {
+   "v2_test_index": 306,
+   "uri": "https://arxiv.org/abs/2209.03675",
+   "origin": "arxiv",
+   "v4_file_id": "arxiv_src_new_355_24_4_5",
+   "body_chars": 2375
+  },
+  {
+   "v2_test_index": 307,
+   "uri": "https://arxiv.org/abs/2210.03515",
+   "origin": "arxiv",
+   "v4_file_id": "arxiv_src_new_345_176_71_7",
+   "body_chars": 28053
+  },
+  {
+   "v2_test_index": 313,
+   "uri": "https://arxiv.org/abs/2304.12740",
+   "origin": "arxiv",
+   "v4_file_id": "arxiv_src_new_783_313_154_2",
+   "body_chars": 1976
+  },
+  {
+   "v2_test_index": 325,
+   "uri": "https://arxiv.org/abs/2303.02081",
+   "origin": "arxiv",
+   "v4_file_id": "arxiv_src_new_416_484_141_0",
+   "body_chars": 1136
+  },
+  {
+   "v2_test_index": 332,
+   "uri": "https://arxiv.org/abs/2204.11158",
+   "origin": "arxiv",
+   "v4_file_id": "arxiv_src_new_373_425_66_45",
+   "body_chars": 2083
+  },
+  {
+   "v2_test_index": 334,
+   "uri": "https://arxiv.org/abs/2302.03667",
+   "origin": "arxiv",
+   "v4_file_id": "arxiv_src_new_588_336_91_0",
+   "body_chars": 1394
+  },
+  {
+   "v2_test_index": 337,
+   "uri": "https://arxiv.org/abs/2303.10490",
+   "origin": "arxiv",
+   "v4_file_id": "arxiv_src_new_430_603_40_6",
+   "body_chars": 5505
+  },
+  {
+   "v2_test_index": 341,
+   "uri": "https://arxiv.org/abs/2305.11086",
+   "origin": "arxiv",
+   "v4_file_id": "arxiv_src_new_526_808_56_1",
+   "body_chars": 710
+  },
+  {
+   "v2_test_index": 346,
+   "uri": "https://arxiv.org/abs/2305.16271",
+   "origin": "arxiv",
+   "v4_file_id": "arxiv_src_new_472_109_51_1",
+   "body_chars": 466
+  },
+  {
+   "v2_test_index": 348,
+   "uri": "https://arxiv.org/abs/2206.00992",
+   "origin": "arxiv",
+   "v4_file_id": "arxiv_src_new_318_750_188_0",
+   "body_chars": 1208
+  },
+  {
+   "v2_test_index": 349,
+   "uri": "https://arxiv.org/abs/2301.10393",
+   "origin": "arxiv",
+   "v4_file_id": "arxiv_src_new_393_40_48_5",
+   "body_chars": 4625
+  },
+  {
+   "v2_test_index": 355,
+   "uri": "https://arxiv.org/abs/2203.13806",
+   "origin": "arxiv",
+   "v4_file_id": "arxiv_src_new_350_657_28_0",
+   "body_chars": 651
+  },
+  {
+   "v2_test_index": 365,
+   "uri": "https://arxiv.org/abs/2305.19985",
+   "origin": "arxiv",
+   "v4_file_id": "arxiv_src_new_553_698_47_3",
+   "body_chars": 1243
+  },
+  {
+   "v2_test_index": 366,
+   "uri": "https://arxiv.org/abs/2305.10324",
+   "origin": "arxiv",
+   "v4_file_id": "arxiv_src_new_466_706_94_1",
+   "body_chars": 502
+  },
+  {
+   "v2_test_index": 368,
+   "uri": "https://arxiv.org/abs/2305.19555",
+   "origin": "arxiv",
+   "v4_file_id": "arxiv_src_new_621_315_160_0",
+   "body_chars": 627
+  },
+  {
+   "v2_test_index": 369,
+   "uri": "https://arxiv.org/abs/2211.11766",
+   "origin": "arxiv",
+   "v4_file_id": "arxiv_src_new_481_286_50_0",
+   "body_chars": 757
+  },
+  {
+   "v2_test_index": 370,
+   "uri": "https://arxiv.org/abs/2209.13854",
+   "origin": "arxiv",
+   "v4_file_id": "arxiv_src_new_328_294_17_4",
+   "body_chars": 597
+  },
+  {
+   "v2_test_index": 377,
+   "uri": "https://arxiv.org/abs/2210.13752",
+   "origin": "arxiv",
+   "v4_file_id": "arxiv_src_new_344_360_138_0",
+   "body_chars": 1931
+  },
+  {
+   "v2_test_index": 398,
+   "uri": "https://arxiv.org/abs/2305.11783",
+   "origin": "arxiv",
+   "v4_file_id": "arxiv_src_new_468_958_4_1",
+   "body_chars": 331
+  },
+  {
+   "v2_test_index": 402,
+   "uri": "https://arxiv.org/abs/2302.11783",
+   "origin": "arxiv",
+   "v4_file_id": "arxiv_src_new_840_235_10_7",
+   "body_chars": 567
+  },
+  {
+   "v2_test_index": 403,
+   "uri": "https://arxiv.org/abs/2301.11802",
+   "origin": "arxiv",
+   "v4_file_id": "arxiv_src_new_394_1126_172_3",
+   "body_chars": 1276
+  },
+  {
+   "v2_test_index": 408,
+   "uri": "https://arxiv.org/abs/2304.06313",
+   "origin": "arxiv",
+   "v4_file_id": "arxiv_src_new_1118_50_43_1",
+   "body_chars": 1103
+  },
+  {
+   "v2_test_index": 411,
+   "uri": "https://arxiv.org/abs/2301.06205",
+   "origin": "arxiv",
+   "v4_file_id": "arxiv_src_new_387_974_63_0",
+   "body_chars": 523
+  },
+  {
+   "v2_test_index": 420,
+   "uri": "https://arxiv.org/abs/2301.05232",
+   "origin": "arxiv",
+   "v4_file_id": "arxiv_src_new_385_70_105_2",
+   "body_chars": 1034
+  },
+  {
+   "v2_test_index": 422,
+   "uri": "https://arxiv.org/abs/2301.04111",
+   "origin": "arxiv",
+   "v4_file_id": "arxiv_src_new_384_1015_25_0",
+   "body_chars": 1504
+  },
+  {
+   "v2_test_index": 427,
+   "uri": "https://arxiv.org/abs/2206.08014",
+   "origin": "arxiv",
+   "v4_file_id": "arxiv_src_new_379_982_3_2",
+   "body_chars": 1347
+  },
+  {
+   "v2_test_index": 432,
+   "uri": "https://arxiv.org/abs/2302.13391",
+   "origin": "arxiv",
+   "v4_file_id": "arxiv_src_new_413_954_152_5",
+   "body_chars": 1767
+  },
+  {
+   "v2_test_index": 434,
+   "uri": "https://arxiv.org/abs/2210.13094",
+   "origin": "arxiv",
+   "v4_file_id": "arxiv_src_new_485_345_93_4",
+   "body_chars": 1218
+  }
+ ]
+}

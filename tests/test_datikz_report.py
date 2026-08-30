@@ -59,3 +59,14 @@ def test_confidence_is_absent_not_invented():
     assert rt.conf_cell("") == "---"
     assert rt.conf_cell(None) == "---"
     assert rt.conf_cell(0.0) != "---", "zero IS a reading and must not look absent"
+
+
+def test_the_caveat_records_the_split_and_the_contamination():
+    """374 — a reader cannot tell a training row from a held-out one by
+    looking at the figure, and neither release page states the overlap."""
+    c = _caveat()
+    assert "V4 \\emph{train}" in c or "train" in c
+    assert "92" in c and "442" in c and "350" in c
+    assert "BY PICTURE" in c
+    assert "not by document" in c
+    assert "Neither release page states this" in c

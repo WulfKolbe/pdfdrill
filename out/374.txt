@@ -1,0 +1,53 @@
+374 - the 92, named and marked
+==============================
+
+  V2 test rows            442
+  CONTAMINATED             92   present in V4 train by picture
+  CLEAN evaluation set    350
+
+  All 92 are origin `arxiv`. The five tikz.net rows are clean.
+
+  Full list with V2 test index, source URI, and the matching V4 train
+  file_id: out/374.json. First ten:
+
+    v2[  3]  arxiv_src_new_901_365_7_0      arxiv.org/abs/2303.02533
+    v2[  4]  arxiv_src_new_452_422_141_0    arxiv.org/abs/2304.13253
+    v2[  9]  arxiv_src_new_521_831_150_0    arxiv.org/abs/2212.01394
+    v2[ 23]  arxiv_src_new_391_687_120_0    arxiv.org/abs/2301.09808
+    v2[ 26]  arxiv_src_new_328_294_11_0     arxiv.org/abs/2209.13690
+    v2[ 29]  arxiv_src_new_699_930_83_3     arxiv.org/abs/2209.01037
+    v2[ 34]  arxiv_src_new_468_958_4_2      arxiv.org/abs/2305.11783
+    v2[ 41]  arxiv_src_new_613_123_187_0    arxiv.org/abs/2303.05444
+    v2[ 43]  arxiv_src_new_369_835_84_25    arxiv.org/abs/2202.03185
+    v2[ 46]  arxiv_src_new_893_436_49_0     arxiv.org/abs/2204.00072
+
+MARKED IN THE MANIFEST
+
+  datikz-fixture/manifest.json now carries a `contamination` block naming
+  the counts and pointing at out/371.txt and out/374.json, and any row that
+  is one of the 92 carries `in_v2_test: true`.
+
+  NONE of the fixture's own 100 rows is one of the 92. That is worth stating
+  rather than leaving as an empty field: the flag is present and false
+  everywhere, so a reader does not have to wonder whether it was applied.
+
+ON THE REPORT PAGE
+
+  The caveat gained a Split paragraph, held by
+  test_the_caveat_records_the_split_and_the_contamination:
+
+    "These rows are V4 train. 92 of DaTikZ-v2's 442 test rows appear in
+     V4's training data BY PICTURE — the same tikzpicture body — though not
+     by document, because V4 rewrites every wrapper to standalone and a
+     whole-file hash therefore finds none of them. Neither release page
+     states this. 350 V2 test rows are clean; a model measurement must use
+     those, and this report is a renderer measurement where it does not
+     matter."
+
+  A reader cannot tell a training row from a held-out one by looking at the
+  figure. That is the whole reason the sentence has to be on the page rather
+  than in a commit message.
+
+FOR 372
+
+  Build on the 350, not the 442.
