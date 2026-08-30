@@ -1,0 +1,74 @@
+371 - DaTikZ-v2 test, and whether V4 train excludes it
+======================================================
+
+V2 TEST: 442 rows.
+
+  columns: caption, code, image, pdf, uri, origin, date
+
+  THEY DO NOT MATCH V4's. Only `caption` shares a name:
+
+    V4   file_id  caption  vlm_description  tikz_code  png_image  source
+    V2            caption                   code       image      origin
+         + pdf (binary), uri, date
+
+  So it is not "V4's columns minus vlm_description". The code field is
+  `code` not `tikz_code`, the image is `image` not `png_image`, the source
+  is `origin` not `source`, and V2 carries three fields V4 drops — the
+  compiled `pdf` as binary, the source `uri`, and a `date`. V4 carries two
+  V2 lacks, `file_id` and `vlm_description`.
+
+  origins: arxiv 437, tikz.net 5.   dates: 2022-09-02 .. 2023-09-26.
+
+  (`load_dataset(..., split="test")` still builds every split: it generated
+  94,532 train rows to hand back 442. "Test split only" is a selection, not
+  a download scope.)
+
+THE OVERLAP: 92 of 442 V2 TEST ROWS ARE IN V4 TRAIN.
+
+  The exclusion did NOT hold, and the naive check says it did.
+
+    exact `tikz_code` / `code` hash        0 of 442
+    whitespace-normalised hash            0 of 442
+    TIKZPICTURE BODY, normalised         92 of 442     <-- 21%
+
+  Zero was a confound, not a result. V4 REWRITES THE WRAPPER: 5,000 of 5,000
+  sampled V4 rows are \documentclass[tikz]{standalone}, while V2 keeps the
+  original paper's class — article 242, amsart 92, IEEEtran 32, revtex4-2
+  16. The same figure therefore has different `tikz_code` in each release,
+  and hashing the whole document can never match. Comparing the tikzpicture
+  environments alone removes the rewriting and finds the overlap.
+
+  Not collisions: matched bodies run 190 to 28,053 characters, median 1,136,
+  and only one is under 200. Three examples, V2 test index to V4 train
+  file_id: v2[186] -> arxiv_src_new_639_1087_60_1 (2,978 chars,
+  arxiv.org/abs/2212.09869); v2[173] -> arxiv_src_new_569_183_176_0 (1,512);
+  v2[55] -> arxiv_src_new_848_981_91_0 (729).
+
+WHAT THAT MEANS
+
+  V4 train is CONTAMINATED for evaluation against the V2 test set — for at
+  least 92 of its 442 rows, 21%. A model trained on V4 train has seen them.
+
+  It remains fine for what 369 uses it for. 369 measures a RENDERER against
+  a renderer on identical code; whether a model saw that code is irrelevant
+  to whether two LaTeX installations draw it the same way. The distinction
+  369 already records on its page — floor, not reading — is exactly the one
+  that keeps this usable.
+
+  Any row carried into a model measurement must state its split, which is
+  372's point and now has a number behind it.
+
+THREE INSTRUMENT ERRORS ON THE WAY TO ONE NUMBER
+
+  1. Exact hash returned 0 and I nearly reported it as exclusion. It was the
+     wrapper rewriting.
+  2. The body extractor used re.findall with a CAPTURING GROUP, which returns
+     the group rather than the match — so it joined the environment NAMES and
+     every row hashed to the string "tikzpicture". It reported "2 of 442
+     rows with a body" when 441 of 442 have one, and the 2 was two distinct
+     name-strings. finditer + group(0) fixed it.
+  3. The first version of that same check reported "2 of 442 overlap", which
+     was matching on the literal word "tikzpicture".
+
+  Every one of those produced a clean-looking number. The only reason any
+  was caught is that 0 and 2 were both too tidy for a 427,753-row scan.
