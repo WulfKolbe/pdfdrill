@@ -1,0 +1,33 @@
+{
+ "doc": "Radmila_Sazdanovic_1",
+ "pdf": "Radmila_Sazdanovic_1.pdf",
+ "rc": 0,
+ "stdout_tail": "Build stamp: report.build.json — phase=reading, 10 pages, 798624 bytes, sha256 0e91d6740f85. A measurement of this report should copy it into its output as `measured_against`.",
+ "seconds": 3.5,
+ "regions": {
+  "regions_with_latex": 1,
+  "attempted_now": 1,
+  "rendered": 0,
+  "failed": 1,
+  "has_author_preamble": false,
+  "graphics_dir": null,
+  "failures": [
+   {
+    "id": "Radmila_Sazdanovic_1_DIA_0020",
+    "first_error": "! LaTeX Error: Bad math environment delimiter."
+   }
+  ]
+ },
+ "manifest_rows": 39,
+ "with_latex": 1,
+ "duplicated": 39,
+ "table_cols": [
+  5,
+  5,
+  4,
+  6
+ ],
+ "six_col_tables": 1,
+ "region_table_cols": 6,
+ "ink_selectable": true
+}
