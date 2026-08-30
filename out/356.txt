@@ -1,0 +1,71 @@
+THESIS (2004.05631v1, 12 author .tex files)
+  \ref-family calls          : 339   -> Reference objects gained
+  \label targets             : 114
+  \includegraphics total     : 100
+    inside a graphic block   : 85  (already an object via that block)
+    ORPHAN, yields nothing   : 15  -> Picture objects gained
+
+CORPUS (459 documents with author texsrc/)
+  \ref-family calls          : 33624
+  \label targets             : 23678
+  \includegraphics total     : 5105
+    inside a graphic block   : 576
+    ORPHAN, yields nothing   : 4529
+
+  documents with orphan inclusions: 380
+  top ten:
+    2607.15495                                   94
+    2307.07924v4                                 92
+    2505.05522                                   80
+    2505.05522v4                                 80
+    1506.0005v1                                  75
+    2104.13478                                   70
+    2104.13478v2                                 70
+    2403.07120v1                                 70
+    2103.01828                                   68
+    1605.0232v1                                  66
+
+READING THESE
+=============
+
+\ref — 33,624 calls corpus-wide against 23,678 \label targets.
+
+  A Reference object per call is what LATW's InlineElementScanner emits
+  ({{key||REF}}); pdfdrill has zero `type="Reference"` on the source path and
+  a \ref survives only as characters inside a Paragraph. So a cross-reference
+  is currently unresolvable and uncountable: nothing can answer "what points
+  at this theorem" without re-parsing the prose.
+
+  33,624 is also a warning about the shape of the fix. That is more objects
+  than the corpus has Equations, and most carry no information beyond a label
+  string. The useful unit is arguably the EDGE (this paragraph -> that label),
+  not an object per call, and 23,678 labels is the count of things that can
+  actually be pointed AT. Emitting 33,624 objects because LATW does would be
+  porting a decision rather than a capability.
+
+\includegraphics — 4,529 orphans of 5,105 corpus-wide, in 380 of 459 documents.
+
+  An "orphan" is an inclusion that is not inside a tikzpicture, tabular or
+  other graphic block, so extract_graphics never returns it and NOTHING is
+  emitted for it. 89% of all author inclusions are in that state, and 83% of
+  documents contain at least one. That is the class the task named, and it is
+  larger than the class that IS handled by a factor of eight.
+
+  A figure that is only \includegraphics{figures/ch2/graph} produces no
+  object, no SVG, no tiddler and no report row. It is not degraded — it is
+  absent, and nothing says so.
+
+THE THESIS IS THE EXCEPTION, WHICH IS WHY THIS WAS NOT OBVIOUS
+==============================================================
+
+  thesis:  85 of 100 inclusions sit inside a graphic block, 15 orphan
+  corpus:  576 of 5,105 do,                                4,529 orphan
+
+  The thesis wraps nearly every figure in a tikzpicture to annotate it — the
+  node-placed style 335 counted at 239 across 11 documents, 85 of them here.
+  So the document this work has been aimed at is the one document where the
+  orphan class barely appears: 15%, against 89% everywhere else.
+
+  Measuring coverage on it would have said the gap was small. That is the
+  same shape as 348's reason for existing: a corpus reports the constructs it
+  happens to contain, and one document reports its own habits.

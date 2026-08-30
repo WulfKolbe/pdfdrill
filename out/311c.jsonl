@@ -173,3 +173,4 @@
 {"doc": "1-s2.0-S039304401100026X-main", "pages": 32, "outcome": "refused", "error": "MeasureRefused: page 1: compare returned 22 rows, reportpages expects 11", "seconds": 155.2}
 {"doc": "High-Order_Inverse_Dynamics_of_Serial_Robots_Based", "pages": 32, "outcome": "measured", "rows": 89, "convert": "converted", "seconds": 1056.5}
 {"doc": "idea15-proceedings", "pages": 33, "outcome": "measured", "rows": 26, "convert": "converted", "seconds": 162.8}
+{"doc": "2005.04015", "pages": 35, "outcome": "measured", "rows": 112, "convert": "converted", "seconds": 1831.0}

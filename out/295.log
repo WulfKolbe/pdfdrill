@@ -1003,3 +1003,15 @@ Traceback (most recent call last):
              row["ink_selectable"]), flush=True)
              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 UnicodeEncodeError: 'utf-8' codec can't encode character '\udce8' in position 15: surrogates not allowed
+population: 1349 documents (21 from the site, first)
+[ 647/1349] Artificial General Intelligence 15   2.0s  regions=- failed=- selectable=False
+[ 949/1349] Spectral properties of banded Toep   1.9s  regions=- failed=- selectable=False
+[ 950/1349] Spinor_wave_equation_of_photon       3.1s  regions=0 failed=0 selectable=False
+[ 951/1349] Streicher_BASiS_Batch_Aligned_Spec   6.5s  regions=2 failed=0 selectable=False
+[ 952/1349] Study_on_Spatial_Geometric_Similar   3.7s  regions=0 failed=0 selectable=False
+[ 953/1349] TTO03                                4.4s  regions=0 failed=0 selectable=False
+[ 954/1349] TabulaROSA_Tabular_Operating_Syste   3.2s  regions=0 failed=0 selectable=False
+[ 955/1349] Techno-Economic_Analysis_of_Utilit   2.9s  regions=0 failed=0 selectable=False
+[ 956/1349] Tensors and Riemannian Geometry Wi  11.6s  regions=0 failed=0 selectable=False
+[ 957/1349] Text_preparation_through_extended_   3.5s  regions=1 failed=0 selectable=False
+[ 958/1349] Text_preparation_through_extended_   3.5s  regions=1 failed=0 selectable=False
