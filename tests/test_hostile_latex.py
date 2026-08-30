@@ -83,8 +83,10 @@ def test_extract_graphics_now_finds_all_three():
     both, and the count is 3 of 3."""
     _, body = _split()
     got = ls.extract_graphics(body)
-    assert len(got) == 4          # +1: the picture inside the margin note (355)
-    assert [g["env"] for g in got].count("tikzpicture") == 2
+    # 3 tikzpicture: the plain one, the margin note's (355), the one wrapping
+    # an inclusion (357); plus the 2 inline forms this test is named for
+    assert len(got) == 5
+    assert [g["env"] for g in got].count("tikzpicture") == 3
     assert [g["env"] for g in got].count("tikz") == 2
     assert any("baseline" in g["code"] for g in got), "inline braced form"
     assert any("(0,1)" in g["code"] for g in got), "inline semicolon form"
@@ -130,8 +132,8 @@ def test_an_inputed_tikzpicture_is_invisible_until_inputs_are_expanded():
     after = ls.extract_graphics(whole.split("\\begin{document}", 1)[1])
     assert any("(1,1)" in g["code"] for g in after)
     # 2 tikzpicture (one of them \input'ed) + the 2 inline forms 352 added
-    assert len(after) == 5   # 3 tikzpicture + 2 inline (355 added the margin one)
-    assert [g["env"] for g in after].count("tikzpicture") == 3
+    assert len(after) == 6   # +1 again: the \\input'ed tikzpicture
+    assert [g["env"] for g in after].count("tikzpicture") == 4
 
 
 def test_a_custom_environment_is_neither_macro_nor_graphic():
@@ -169,7 +171,7 @@ def test_a_graphic_in_the_margin_is_marked_and_one_in_the_body_is_not():
     marked = [g for g in got if ls.in_margin(spans, g["pos"])]
     assert len(marked) == 1
     assert "(2,2)" in marked[0]["code"]
-    assert len(got) - len(marked) == 3, "the others must stay unmarked"
+    assert len(got) - len(marked) == 4, "the others must stay unmarked"
 
 
 def test_a_commented_margin_note_is_not_one():
@@ -179,3 +181,34 @@ def test_a_commented_margin_note_is_not_one():
 def test_an_unbalanced_margin_note_is_refused_not_guessed():
     """Better no object than one holding the rest of the file."""
     assert ls.extract_margin_notes("\\marginnote{unclosed") == []
+
+
+# --- 357: orphan inclusions become Picture objects -------------------------
+
+def test_an_orphan_inclusion_is_found_and_a_covered_one_is_not():
+    r"""`extract_graphics` returns BLOCKS, so an \includegraphics standing on
+    its own produced nothing at all — no object, no SVG, no report row."""
+    _, body = _split()
+    orph = ls.orphan_graphics(body)
+    files = [o["file"] for o in orph]
+    assert "figs/plain" in files, "the bare inclusion is an orphan"
+    assert "figs/inner" not in files, "the one inside a tikzpicture is covered"
+
+
+def test_orphan_positions_are_raw_body_offsets():
+    r"""`texgraphics.calls` reports positions in COMMENT-STRIPPED text and
+    `extract_graphics` in the raw body. Comparing them directly misclassified
+    any inclusion preceded by a comment and would have placed every Picture at
+    the wrong point in the flow — 4,610 orphans where the true count is
+    4,529."""
+    body = ("%" + " a comment long enough to shift every later offset\n"
+            + "\\begin{tikzpicture}\\node{\\includegraphics{a}};\\end{tikzpicture}\n"
+            + "\\includegraphics{b}\n")
+    orph = ls.orphan_graphics(body)
+    assert [o["file"] for o in orph] == ["b"]
+    pos = orph[0]["pos"]
+    assert body[pos:pos + len("\\includegraphics{b}")] == "\\includegraphics{b}"
+
+
+def test_a_commented_inclusion_is_not_an_orphan():
+    assert ls.orphan_graphics("% \\includegraphics{ghost}\n") == []

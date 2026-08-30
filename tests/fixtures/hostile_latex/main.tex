@@ -38,6 +38,13 @@
 %% Brace-matched or the closing } of the tikzpicture ends the note early.
 \marginnote[-6cm]{A note, with \begin{tikzpicture}\draw (0,0) -- (2,2);\end{tikzpicture} inside.}
 
+%% (d) an inclusion NO graphic block covers -- an orphan. Before 357 this
+%%     produced no object at all: no SVG, no tiddler, no report row.
+\includegraphics[width=2cm]{figs/plain}
+
+%% (e) one INSIDE a tikzpicture node: covered by that block, not an orphan
+\begin{tikzpicture}\node at (0,0) {\includegraphics{figs/inner}};\end{tikzpicture}
+
 %% a tikzpicture reached only through \input
 \input{included}
 

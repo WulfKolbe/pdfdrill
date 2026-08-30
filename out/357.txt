@@ -1,0 +1,50 @@
+357 - orphan \includegraphics emitted as Picture objects
+==============================================================
+
+An orphan is an inclusion no graphic block covers. extract_graphics
+returns BLOCKS, so one standing on its own produced no object, no SVG, no
+tiddler and no report row -- absent rather than degraded, and silent.
+
+THESIS
+  Picture objects created  : 15
+  resolve to a file on disk: 15
+  carrying trim/clip       : 0
+  inside a margin note     : 4
+
+CORPUS  (459 documents with author texsrc/)
+  documents gaining Pictures : 380
+  PICTURE OBJECTS CREATED    : 4529
+    resolve to a file on disk: 4419  (97.6%)
+    do NOT resolve           : 110  (2.4%)
+    carrying trim/clip       : 170
+
+top ten documents:
+  2607.15495                                     94
+  2307.07924v4                                   92
+  2505.05522                                     80
+  2505.05522v4                                   80
+  1506.0005v1                                    75
+  2104.13478                                     70
+  2104.13478v2                                   70
+  2403.07120v1                                   70
+  2103.01828                                     68
+  1605.0232v1                                    66
+
+the 110 unresolved sit in 26 documents:
+  2505.21946v1                                   25
+  2405.15306                                     17
+  1406.3411                                      10
+  2407.10188v2                                   6
+  2603.03072                                     6
+  2405.20233v1                                   5
+
+A COORDINATE BUG, found because the count disagreed with 356's
+
+  The first run reported 4,610 against 356's measured 4,529.
+  `texgraphics.calls` strips comments and reports positions in the
+  STRIPPED text; `extract_graphics` reports them in the RAW body. The
+  containment test compared the two directly -- different coordinate
+  systems -- so an inclusion preceded by a comment was misclassified, and
+  every Picture would have been placed at the wrong point in the document
+  flow. Both sides are now computed on the same stripped text and the
+  positions mapped back. An 81-object disagreement was the only symptom.

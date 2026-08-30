@@ -1015,3 +1015,4 @@ population: 1349 documents (21 from the site, first)
 [ 956/1349] Tensors and Riemannian Geometry Wi  11.6s  regions=0 failed=0 selectable=False
 [ 957/1349] Text_preparation_through_extended_   3.5s  regions=1 failed=0 selectable=False
 [ 958/1349] Text_preparation_through_extended_   3.5s  regions=1 failed=0 selectable=False
+[ 959/1349] The Beltrami Equation A Geometric  685.8s  regions=0 failed=0 selectable=False

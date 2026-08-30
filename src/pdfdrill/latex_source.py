@@ -1090,6 +1090,58 @@ _MARGIN_CMDS = ("marginnote", "sidenote", "marginpar")
 _MARGIN = re.compile(r"\\(" + "|".join(_MARGIN_CMDS) + r")\s*(?:\[([^\]]*)\])?\s*\{")
 
 
+#: 357 — an `\includegraphics` that is not inside a tikzpicture, tabular or
+#: other graphic block. `extract_graphics` returns BLOCKS, so an inclusion
+#: standing on its own is not degraded, it is absent: no object, no SVG, no
+#: tiddler, no report row, and nothing saying so. 4,529 of the corpus's 5,105
+#: inclusions are in that state, across 380 of 459 documents (356).
+def _strip_comments_mapped(body: str) -> "tuple[str, list]":
+    r"""(stripped, index_map) where index_map[i] is i's position in `body`.
+
+    `texgraphics.calls` strips comments and reports positions in the STRIPPED
+    text; `extract_graphics` reports them in the RAW body. Comparing the two
+    directly is comparing different coordinate systems, and it silently
+    misclassifies an inclusion whenever a comment precedes it — it read 4,610
+    orphans where the true count is 4,529, and it would have placed every
+    Picture at the wrong point in the document flow.
+    """
+    out, idx, i, n = [], [], 0, len(body)
+    while i < n:
+        c = body[i]
+        if c == "\\" and i + 1 < n:
+            out.append(c); idx.append(i)
+            out.append(body[i + 1]); idx.append(i + 1)
+            i += 2
+            continue
+        if c == "%":
+            j = body.find("\n", i)
+            i = n if j < 0 else j
+            continue
+        out.append(c); idx.append(i)
+        i += 1
+    return "".join(out), idx
+
+
+def orphan_graphics(body: str) -> list[dict]:
+    r"""Every `\includegraphics` that no graphic block already covers.
+
+    Both sides are computed on the SAME comment-stripped text, and the
+    positions are mapped back so callers get offsets into `body`.
+    """
+    from . import texgraphics as _tg
+    stripped, idx = _strip_comments_mapped(body)
+    spans = [(g["pos"], g["pos"] + len(g["code"]))
+             for g in extract_graphics(stripped)]
+    out = []
+    for c in _tg.calls(stripped):
+        if any(a <= c["pos"] < z for a, z in spans):
+            continue                      # the block is already the object
+        c = dict(c)
+        c["pos"] = idx[c["pos"]] if c["pos"] < len(idx) else c["pos"]
+        out.append(c)
+    return out
+
+
 def extract_margin_notes(body: str) -> list[dict]:
     r"""Every `\marginnote[offset]{...}` / `\sidenote` / `\marginpar`.
 
@@ -1806,7 +1858,9 @@ def build_source_model(tex_path: str, bibkey: str = "DOC") -> "object":
     # 355 — margin material, and the spans that let a graphic say it is in it
     _margins = extract_margin_notes(body)
     _mspans = [(n["pos"], n["end"]) for n in _margins]
-    items = ([("margin", n["pos"], n) for n in _margins]
+    _orphans = orphan_graphics(body)
+    items = ([("picture", c["pos"], c) for c in _orphans]
+             + [("margin", n["pos"], n) for n in _margins]
              + [("section", s["pos"], s) for s in extract_sections(body)]
              + [("equation", e["pos"], e) for e in extract_display_equations(body)]
              + [("graphic", g["pos"], g) for g in extract_graphics(body)]
@@ -1819,7 +1873,7 @@ def build_source_model(tex_path: str, bibkey: str = "DOC") -> "object":
     pending_proofs: list = []           # (proof dict, Proof object) to pair after
 
     n_sec = n_eq = n_dia = n_tab = n_para = n_formula = n_abs = n_ltx = 0
-    n_margin = n_dia_margin = 0
+    n_margin = n_dia_margin = n_pic = 0
     fi = 0
     formula_no = 0
     formula_titles: dict[str, str] = {}    # content key -> FO title (de-dup)
@@ -1878,6 +1932,25 @@ def build_source_model(tex_path: str, bibkey: str = "DOC") -> "object":
                 "margin_cmd": it["cmd"], "in_margin": True,
                 "flow_index": fi, "bibkey": bibkey}))
             n_margin += 1
+        elif kind == "picture":
+            from . import texgraphics as _tg
+            roots = [base_dir] + [os.path.join(base_dir, g)
+                                  for g in _tg.graphicspath(full)]
+            hit = _tg.resolve(it["file"], roots)
+            props = {"file": it["file"],
+                     "resolved": os.path.relpath(str(hit), base_dir) if hit else "",
+                     "options": it.get("options_raw", ""),
+                     "caption": it.get("caption", ""),
+                     "latex_original": it["code"] if "code" in it else "",
+                     "flow_index": fi, "bibkey": bibkey}
+            # trim/clip means the file on disk is LARGER than what the page
+            # shows, so a consumer must not treat the two as the same picture
+            if it.get("has_trim_or_clip"):
+                props["trimmed"] = True
+            if in_margin(_mspans, it["pos"]):
+                props["in_margin"] = True
+            doc.add(DocObject(type="Picture", props=props))
+            n_pic += 1
         elif kind == "graphic":
             code = expand_macros(it["code"], macros)
             props = {"latex_code": code, "latex_original": it["code"],
