@@ -1052,3 +1052,104 @@ population: 1349 documents (21 from the site, first)
 [ 993/1349] VLDS2012_p15_Nakashole               5.4s  regions=0 failed=0 selectable=False
 [ 994/1349] VLDS2012_p21_Bienvenu                2.8s  regions=0 failed=0 selectable=False
 [ 995/1349] VSR-Slides                           3.6s  regions=0 failed=1 selectable=False
+[ 996/1349] Variational Approach to Gravity Fi 709.7s  regions=0 failed=0 selectable=False
+[ 997/1349] Verbalizable Representations Form   15.1s  regions=0 failed=2 selectable=False
+[ 998/1349] Visualization analysis and design   13.6s  regions=0 failed=0 selectable=False
+[ 999/1349] Visualization of Time-Oriented Dat  14.9s  regions=0 failed=0 selectable=False
+[1000/1349] Vorausschauende+Instandhaltung+von   2.3s  regions=0 failed=0 selectable=False
+[1001/1349] W16-2909                             2.5s  regions=0 failed=0 selectable=False
+[1002/1349] WCFS_2021_MawhorterPeter_Fractalco   2.5s  regions=0 failed=0 selectable=False
+[1003/1349] WDorg4                               6.3s  regions=0 failed=0 selectable=False
+[1004/1349] WKolbe20250829_ELSTER                2.3s  regions=0 failed=0 selectable=False
+[1005/1349] WKolbe_Rechnung_FrontscheibeA6_202   2.8s  regions=0 failed=0 selectable=False
+[1006/1349] WallingTalk                          2.6s  regions=0 failed=0 selectable=False
+[1007/1349] Week_14                              2.5s  regions=0 failed=0 selectable=False
+[1008/1349] ZZ Top Volume 1 Guitar Vocal CLASS   9.1s  regions=9 failed=3 selectable=False
+[1009/1349] ZigZagProject                        2.8s  regions=0 failed=0 selectable=False
+[1010/1349] aflb342m679                          2.5s  regions=0 failed=0 selectable=False
+[1011/1349] aflb472m968                          2.8s  regions=0 failed=0 selectable=False
+[1012/1349] agt.2013.13.2193                     2.8s  regions=0 failed=0 selectable=False
+[1013/1349] akbc2014_submission_13               2.4s  regions=0 failed=0 selectable=False
+[1014/1349] akbc2014_submission_8                4.4s  regions=0 failed=0 selectable=False
+[1015/1349] akolberesultsmaster                  2.3s  regions=0 failed=0 selectable=False
+[1016/1349] algebraicQM                          2.3s  regions=0 failed=0 selectable=False
+[1017/1349] angled-survey                        2.9s  regions=0 failed=0 selectable=False
+[1018/1349] anglemaps_SIGGRAPH_2015              4.2s  regions=1 failed=0 selectable=False
+[1019/1349] applsci-13-02729-v2                  2.8s  regions=0 failed=0 selectable=False
+[1020/1349] arXiv-2302.07855v1                   3.0s  regions=0 failed=0 selectable=False
+[1021/1349] arXiv_2009.11564                     3.7s  regions=0 failed=0 selectable=False
+[1022/1349] arxiv_v1                             3.3s  regions=0 failed=0 selectable=False
+[1023/1349] atc24-zhong                          2.5s  regions=0 failed=0 selectable=False
+[1024/1349] auto-tune-1.1                        2.4s  regions=0 failed=0 selectable=False
+[1025/1349] axioms-11-000852                     3.5s  regions=0 failed=0 selectable=False
+[1026/1349] bh2                                 19.3s  regions=0 failed=0 selectable=False
+[1027/1349] big-data-linkage                     4.3s  regions=1 failed=0 selectable=False
+[1028/1349] bommes_zimmer_2009_siggraph_011      4.1s  regions=1 failed=0 selectable=False
+[1029/1349] breuils_engage_2017                  7.5s  regions=3 failed=0 selectable=False
+[1030/1349] businesscard                         2.4s  regions=0 failed=0 selectable=False
+[1031/1349] cam-cocuma87                        21.0s  regions=0 failed=0 selectable=False
+[1032/1349] cameronGRFessay1Apr2019              2.4s  regions=0 failed=0 selectable=False
+[1033/1349] cat                                 17.9s  regions=0 failed=0 selectable=False
+[1034/1349] cc4be2488d65e54a6ed06492f8968398dd   2.7s  regions=0 failed=0 selectable=False
+[1035/1349] chaintester                          2.6s  regions=0 failed=0 selectable=False
+[1036/1349] chys2008                             3.3s  regions=0 failed=0 selectable=False
+[1037/1349] classification                       3.8s  regions=0 failed=0 selectable=False
+[1038/1349] cleantechnol-06-00018                2.6s  regions=0 failed=0 selectable=False
+[1039/1349] compositelearn                       2.5s  regions=0 failed=0 selectable=False
+[1040/1349] conceptgemini                        2.6s  regions=0 failed=0 selectable=False
+[1041/1349] cs-2020-04                           3.2s  regions=0 failed=0 selectable=False
+[1042/1349] curvedtext                           2.6s  regions=0 failed=0 selectable=False
+[1043/1349] cv                                   2.4s  regions=0 failed=0 selectable=False
+[1044/1349] d30ad510-a0c6-4c48-9b1f-766f595b5a   2.6s  regions=0 failed=0 selectable=False
+[1045/1349] d3se01228j                           2.8s  regions=0 failed=0 selectable=False
+[1046/1349] dbakery-complete                    11.0s  regions=6 failed=0 selectable=False
+[1047/1349] deep-research-report-1               3.7s  regions=0 failed=0 selectable=False
+[1048/1349] deepseek_postscript_20260228_780a1   2.3s  regions=0 failed=0 selectable=False
+[1049/1349] deepseek_postscript_20260228_7ecf9   2.3s  regions=0 failed=0 selectable=False
+[1050/1349] dhm_arzneimittelinfo_nitrate         2.4s  regions=0 failed=0 selectable=False
+[1051/1349] discrete-di-erence-equations         2.8s  regions=0 failed=0 selectable=False
+[1052/1349] discretegeomclaude                   2.6s  regions=0 failed=0 selectable=False
+[1053/1349] distro_doc                          12.6s  regions=7 failed=0 selectable=False
+[1054/1349] dlrg                                 2.9s  regions=0 failed=0 selectable=False
+[1055/1349] dmoi4                              217.9s  regions=0 failed=0 selectable=False
+[1056/1349] dravhandling-villamizar              2.6s  regions=0 failed=0 selectable=False
+[1057/1349] e12s38                               2.4s  regions=0 failed=0 selectable=False
+[1058/1349] e12s39                               2.4s  regions=0 failed=0 selectable=False
+[1059/1349] e12s40                               2.4s  regions=0 failed=0 selectable=False
+[1060/1349] e12s41                               2.4s  regions=0 failed=0 selectable=False
+[1061/1349] e12s42                               2.4s  regions=0 failed=0 selectable=False
+[1062/1349] e12s43                               2.4s  regions=0 failed=0 selectable=False
+[1063/1349] elbe_chart-eps-converted-to          2.4s  regions=0 failed=0 selectable=False
+[1064/1349] elbetest                             2.4s  regions=0 failed=0 selectable=False
+[1065/1349] emnlp20reg                           4.2s  regions=0 failed=0 selectable=False
+[1066/1349] energy                               2.5s  regions=0 failed=0 selectable=False
+[1067/1349] entropy-23-00018-v2                  2.6s  regions=0 failed=0 selectable=False
+[1068/1349] entropy-23-01195-v2                  3.0s  regions=0 failed=0 selectable=False
+[1069/1349] entropy-25-00573-v2                  4.5s  regions=1 failed=0 selectable=False
+[1070/1349] eridian                              2.2s  regions=0 failed=0 selectable=False
+[1071/1349] erlebacher                           3.6s  regions=0 failed=0 selectable=False
+[1072/1349] escher_complex                       2.3s  regions=0 failed=0 selectable=False
+[1073/1349] eschertest.dvi                       2.3s  regions=0 failed=0 selectable=False
+[1074/1349] espacenetDocument                    2.4s  regions=0 failed=0 selectable=False
+[1075/1349] eswc-2020-yago                       2.5s  regions=0 failed=0 selectable=False
+[1076/1349] example                              2.4s  regions=0 failed=0 selectable=False
+[1077/1349] exerc02                              2.6s  regions=0 failed=0 selectable=False
+[1078/1349] exercise01                           2.5s  regions=0 failed=0 selectable=False
+[1079/1349] exercise2                            2.5s  regions=0 failed=0 selectable=False
+[1080/1349] exploring-the-causes-of-power-conv   2.6s  regions=0 failed=0 selectable=False
+[1081/1349] exploring-vibration-sensing-for-co   3.7s  regions=0 failed=0 selectable=False
+[1082/1349] fastSpectrum                         3.0s  regions=0 failed=0 selectable=False
+[1083/1349] fe901db790b36bc93b47bc24f37c1b5c_l   2.8s  regions=0 failed=0 selectable=False
+[1084/1349] fgene-13-927222                      2.7s  regions=0 failed=0 selectable=False
+[1085/1349] fgene-13-927222 (1)                  2.7s  regions=0 failed=0 selectable=False
+[1086/1349] finanzamt2026                        2.3s  regions=0 failed=0 selectable=False
+[1087/1349] first                                3.4s  regions=1 failed=0 selectable=False
+[1088/1349] flattened                            2.4s  regions=0 failed=0 selectable=False
+[1089/1349] fncom-16-1078150                     3.2s  regions=0 failed=0 selectable=False
+[1090/1349] fractalfract-03-00048                2.5s  regions=0 failed=0 selectable=False
+[1091/1349] fricas_intro                         5.4s  regions=19 failed=0 selectable=False
+[1092/1349] fulltext                            70.6s  regions=0 failed=0 selectable=False
+[1093/1349] gr-qc_0012035                        3.7s  regions=0 failed=0 selectable=False
+[1094/1349] gr-qc_0110026                        3.4s  regions=0 failed=0 selectable=False
+[1095/1349] gr-qc_0111016                        3.3s  regions=0 failed=0 selectable=False
+[1096/1349] gr-qc_0212041                        2.9s  regions=0 failed=0 selectable=False

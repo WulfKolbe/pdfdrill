@@ -15,6 +15,7 @@ measurement, and it is the floor every later TikZ comparison sits on.
 """
 import json
 import pathlib
+import re
 import sys
 
 ROOT = pathlib.Path(__file__).resolve().parents[1]
@@ -22,6 +23,7 @@ sys.path.insert(0, str(ROOT / "src"))
 from pdfdrill import report_tex as rt                      # noqa: E402
 
 FIX = pathlib.Path.home() / "pdfdrill-library" / "datikz-fixture"
+CACHE = pathlib.Path.home() / ".cache/huggingface/datasets/nllg___da_tik_z-v4"
 
 #: 369 — stated on the page, and held there by
 #: tests/test_datikz_report.py::test_the_caveat_stays_on_the_page, the same
@@ -42,6 +44,42 @@ CAVEAT = (
     "shows a dash rather than a number. \\textbf{Page} is not a page --- "
     "these rows have none --- it is the shard and row index the record came "
     "from.")
+
+
+_PICTURE = re.compile(r"\\\\begin\\{(?:tikzpicture|tikzcd|axis|circuitikz|forest)\\}")
+
+
+def _from_picture(code: str) -> str:
+    """The source from the first drawing environment, not from the file.
+
+    \\documentclass, \\usepackage[utf8]{inputenc} and the author's French
+    comment are identical row to row and say nothing about the figure.
+    Falls back to \\begin{document}, then to the whole file.
+    """
+    m = _PICTURE.search(code)
+    if m:
+        return code[m.start():]
+    i = code.find("\\begin{document}")
+    return code[i + len("\\begin{document}"):].lstrip() if i >= 0 else code
+
+
+def shard_of(index: int, root: pathlib.Path) -> int:
+    """Which shard a row index falls in, from dataset_info.json's own
+    `shard_lengths`. The report said `s00` because a limit of 100 never
+    leaves the first shard — true, and hardcoded, which are different
+    things."""
+    for info in sorted(root.rglob("dataset_info.json")):
+        try:
+            sl = (json.loads(info.read_text())["splits"]["train"]
+                  .get("shard_lengths") or [])
+        except Exception:
+            continue
+        run = 0
+        for k, n in enumerate(sl):
+            if index < run + n:
+                return k
+            run += n
+    return 0
 
 
 def _degenerate(png: pathlib.Path, floor: int = 8) -> bool:
@@ -76,9 +114,16 @@ def main() -> int:
     errors = {r["id"]: r.get("compile_error", "") for r in built["failures"]}
 
     w = widths(420 - 16)                          # a3 landscape, 8mm margins
+    # hyperref appended to OUR document only — the shared report preamble is
+    # untouched, because a link column is this report's need and not every
+    # report's.
     parts = [rt.PREAMBLE % {"bbdigits": rt.MATHBB_DIGITS, "form": "",
                             "geom": "a3paper,landscape,margin=8mm",
                             "unicode": ""}]
+    parts[0] = parts[0].replace(
+        "\\begin{document}",
+        "\\usepackage{hyperref}\n\\hypersetup{colorlinks,urlcolor=blue}\n"
+        "\\begin{document}")
     parts.append("\\section*{DaTikZ-V4 --- first 100 rows}\n")
     parts.append(CAVEAT + "\n\n")
     parts.append(rt.table_open("Rows", w, False, True))
@@ -90,16 +135,21 @@ def main() -> int:
         # way an equation row carries \lowconf beneath its identifier.
         # \newline, NOT \\ — inside a p{} column `\\` ends the ROW, and
         # inside a braced group it ends it mid-group: 400 "Extra }" errors.
-        ident = ("\\ident{%s}\\newline{\\tiny %s}"
-                 % (rt.breakable_ident(rid),
-                    rt.esc_text((r.get("file_id") or "")[:38])))
-        # Page is NOT a page. Say what the number is.
-        page = "{\\tiny s%s\\newline r%05d}" % ("00", i)
+        # Column 1 is the identifier ALONE. Everything that locates the row
+        # in the dataset belongs in Page, which is the column for it.
+        ident = "\\ident{%s}" % rt.breakable_ident(rid)
+        page = ("{\\tiny shard %02d\\newline row %d\\newline %s}"
+                % (shard_of(i, CACHE), i,
+                   rt.esc_text((r.get("file_id") or "")[:30])))
         conf = rt.conf_cell("")                   # absent, never invented
         code = (FIX / r["tex"]).read_text(errors="replace")
-        head = "\n".join(code.splitlines()[:4])
-        src = ("{\\ttfamily\\tiny %s\\newline\\textbf{%s}}"
-               % (rt.esc_text(head[:180]), rt.esc_text(r["tex"])))
+        # Truncate from the PICTURE, not the file. Every row's first lines are
+        # \documentclass and \usepackage — identical across rows and silent
+        # about the figure, so the column showed the preamble and nothing else.
+        head = _from_picture(code)
+        src = ("\\href{run:%s}{\\ttfamily\\tiny %s}\\newline"
+               "{\\ttfamily\\tiny %s}"
+               % (r["tex"], rt.esc_text(r["tex"]), rt.esc_text(head[:230])))
         rp = rendered.get(rid)
         if rp:
             # width AND height, keepaspectratio, on BOTH image cells. DTZ00077
