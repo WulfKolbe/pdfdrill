@@ -1,0 +1,45 @@
+{
+ "doc": "narcissus",
+ "pdf": "narcissus.pdf",
+ "rc": 0,
+ "stdout_tail": "Build stamp: report.build.json — phase=reading, 10 pages, 1230803 bytes, sha256 f592e96f2788. A measurement of this report should copy it into its output as `measured_against`.",
+ "seconds": 15.3,
+ "regions": {
+  "regions_with_latex": 7,
+  "attempted_now": 7,
+  "rendered": 3,
+  "failed": 4,
+  "has_author_preamble": false,
+  "graphics_dir": null,
+  "failures": [
+   {
+    "id": "narcissus_DIA_0019",
+    "first_error": "! Misplaced alignment tab character &."
+   },
+   {
+    "id": "narcissus_DIA_0022",
+    "first_error": "! Misplaced alignment tab character &."
+   },
+   {
+    "id": "narcissus_DIA_0026",
+    "first_error": "! Misplaced alignment tab character &."
+   },
+   {
+    "id": "narcissus_DIA_0036",
+    "first_error": "! Misplaced alignment tab character &."
+   }
+  ]
+ },
+ "manifest_rows": 46,
+ "with_latex": 7,
+ "duplicated": 43,
+ "table_cols": [
+  6,
+  5,
+  4,
+  7
+ ],
+ "six_col_tables": 1,
+ "region_table_cols": 7,
+ "ink_selectable": false
+}
