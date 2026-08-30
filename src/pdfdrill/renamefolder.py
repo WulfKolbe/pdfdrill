@@ -206,11 +206,42 @@ def rename_report_tex(path: Path, old_key: str, new_key: str) -> int:
         return 0
     o, n = sanitize_title(old_key), sanitize_title(new_key)
     text = path.read_text(encoding="utf-8", errors="replace")
-    # LaTeX writes the underscore as `\_\allowbreak{}`, so an `_`-anchored
-    # pattern matched none of the 97 \ident{} sites on the first run.
-    us = r"(?:_|\\_(?:\\allowbreak\{\})?)"
-    out, n1 = re.subn(rf"(\\ident\{{){re.escape(o)}(?={us})", rf"\g<1>{n}", text)
+    # 394 — the identifier is matched by UNESCAPING it, not by a pattern that
+    # tries to describe the escaping.
+    #
+    # Two regexes failed here first, each for its own reason, and the second
+    # is why this approach changed. `\ident{}` content is written by
+    # `breakable_ident`, which inserts `\allowbreak{}` after underscores AND
+    # after a period: the real text holds `etc.\allowbreak{}\_\allowbreak{}`.
+    # No `_`-anchored pattern covers that, and each fix produced a pattern that
+    # matched a few sites and silently missed 5,551 of 5,709 — a nonzero count
+    # that reads as success.
+    #
+    # So: pull each ident out, strip the escaping, compare plainly, and write
+    # the new one back escaped. The rule then depends on nothing but the key.
+    def _unesc(x):
+        return x.replace("\\allowbreak{}", "").replace("\\_", "_")
+
+    def _esc(x):
+        return x.replace("_", "\\_\\allowbreak{}")
+
+    o_bare = o.rstrip("_")
+    n1 = 0
+
+    def _sub(m):
+        nonlocal n1
+        plain = _unesc(m.group(1))
+        if not plain.startswith(o_bare):
+            return m.group(0)
+        n1 += 1
+        suffix = plain[len(o_bare):].lstrip("_")
+        return "\\ident{" + _esc(n + "_" + suffix if suffix else n) + "}"
+
+    out = re.sub(r"\\ident\{((?:[^{}]|\{\})*)\}", _sub, text)
     out, n2 = re.subn(rf"(report-crops/){re.escape(o)}(_)", rf"\g<1>{n}\g<2>", out)
+    out, n2b = re.subn(rf"(standalone-regions/){re.escape(o)}(_)",
+                       rf"\g<1>{n}\g<2>", out)
+    n2 += n2b
     # The report's own title line.
     out, n3 = re.subn(rf"(\\section\*\{{){re.escape(o)}(\s)", rf"\g<1>{n}\g<2>", out)
     if n1 + n2 + n3:
@@ -230,6 +261,18 @@ def rename_bibkey_files(folder: Path, old_key: str, new_key: str) -> int:
             if f.is_file() and f.name.startswith(o + "_"):
                 f.rename(crops / (n + f.name[len(o):]))
                 moved += 1
+    # 394 — standalone-regions holds bibkey-named PNGs too, and it was not in
+    # this function. After a rename its 9 files kept the old name and
+    # report.tex still resolved them, so nothing broke and nothing said so:
+    # the old title, Z-Library marker and all, simply stayed on disk and in
+    # every \includegraphics path that reaches the built PDF.
+    regions = folder / "standalone-regions"
+    if regions.is_dir():
+        for f in sorted(regions.iterdir()):
+            if f.is_file() and f.name.startswith(o + "_"):
+                f.rename(regions / (n + f.name[len(o):]))
+                moved += 1
+
     okf = folder / "okf" / o
     if okf.is_dir():
         for f in sorted(okf.rglob("*")):
@@ -319,11 +362,51 @@ def rename_folder(folder: Path, new_stem: str, new_key: Optional[str] = None) ->
     _rewrite_json(sidecar, lambda d: _retarget_sidecar(d, old_stem, new_stem, old_key, new_key))
     _rewrite_json(tid, lambda d: _retarget_tiddlers(d, old_key, new_key))
     tex_hits = rename_report_tex(dst / "report.tex", old_key, new_key)
+    # 394 — report.regions.json was NOT in this list and had to be.
+    #
+    # It is not a display string. Its `bibkey` is a live identifier and its 116
+    # row `id`s are the SANITIZED bibkey plus `_PIC_0001`, so after a rename
+    # every one of them names a document that no longer exists while the report
+    # they must join to carries the new key. The regions residual then joins two
+    # populations that cannot intersect — 0 matched out of 116 — and
+    # `residual_colour` renders that as a fully measured document in which
+    # nothing could be measured, which is the exact shape report_tex.py:826
+    # already warns about from the other side.
+    #
+    # Found by auditing residue after the first real rename rather than by a
+    # test, because nothing rebuilt: the file simply sat there being wrong.
+    reg_hits = _rewrite_json(dst / "report.regions.json",
+                             lambda d: _retarget_regions(d, old_key, new_key))
 
     p.update({"stem_files_renamed": renamed, "bibkey_files_moved": moved,
-              "report_tex_refs": tex_hits, "folder": dst,
+              "report_tex_refs": tex_hits, "regions_retargeted": bool(reg_hits),
+              "folder": dst,
               "docpack_invalidated": True})
     return p
+
+
+def _retarget_regions(data: Any, old_key: str, new_key: str) -> bool:
+    """The regions manifest: its `bibkey` and every row id built from it.
+
+    Row ids are `sanitize_title(bibkey) + "_PIC_nnnn"`, so the substitution is
+    on the SANITIZED form and anchored at the start — a bibkey is a prefix of
+    the identifier, never a fragment inside it, and an unanchored replace on a
+    short key would rewrite the middle of unrelated strings.
+    """
+    from .report_tex import sanitize_title
+    if not isinstance(data, dict) or old_key == new_key:
+        return False
+    changed = False
+    if data.get("bibkey") == old_key:
+        data["bibkey"] = new_key
+        changed = True
+    old_s, new_s = sanitize_title(old_key), sanitize_title(new_key)
+    for row in data.get("rows") or []:
+        rid = row.get("id")
+        if isinstance(rid, str) and rid.startswith(old_s):
+            row["id"] = new_s + rid[len(old_s):]
+            changed = True
+    return changed
 
 
 def residue(folder: Path, old_stem: str, old_key: str = "") -> dict:

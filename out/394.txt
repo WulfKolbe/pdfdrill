@@ -1,0 +1,111 @@
+394 — 50 years of Combinatorics -> chung2019combinatorics
+=========================================================
+
+Renamed with `pdfdrill rename` (275/276), which already does this. No new
+tool was written.
+
+  folder  "50 years of Combinatorics, Graph Theory, and Computing (Discrete
+           Mathematics and Its Applications) (Fan Chung (editor), Ron Graham
+           (editor) etc.) (Z-Library)"
+       -> chung2019combinatorics
+  bibkey  the same string -> chung2019combinatorics
+
+WHAT RESOLVES AFTERWARDS
+
+  stem files                    6 of 6      .pdf .md .lines.json .drill.json
+                                            .tiddlers.json .tex.zip
+  \includegraphics            577 of 577    all resolve on disk
+  report-crops                411 of 411    new-named
+  standalone-regions            8 of 8      new-named
+  report.tex \ident          5709 of 5709   all carry the new key
+  report.regions.json         bibkey + 116 row ids, all new
+  tiddler titles             8217 of 8233   new-key
+  model root_id               chung2019combinatorics
+  model folder_history        the prior folder name, recorded
+  model bibkey_history        the prior bibkey, recorded
+  model.docpack.json          deleted (derived cache; regenerates on save)
+
+The 16 tiddlers without the key are the TYPE tiddlers — FO, CIT, FN, PIC,
+PARA, EQBLOCK, EQ, FREF, TAB, DIA, LI, ABS, PROOF, TOC, SN, LTX. Shared
+vocabulary, not this document's objects; they are correct unprefixed.
+
+THREE DEFECTS IN THE RENAME PATH, found by auditing rather than by a test
+------------------------------------------------------------------------
+
+Nothing rebuilt, so none of these announced itself. The files simply sat
+there being wrong, which is why the audit had to be done by hand.
+
+1. report.regions.json WAS NOT IN THE RENAME PATH AT ALL.
+
+   Its `bibkey` is a live identifier and its 116 row ids are the sanitized
+   bibkey plus `_PIC_0001`. After the rename every id named a document that
+   no longer exists while the report carried the new key, so the regions
+   residual would join two populations that cannot intersect — 0 of 116 —
+   and `residual_colour` renders that as a fully measured document in which
+   nothing could be measured. report_tex.py:826 already warns about exactly
+   this shape from the other side. Added `_retarget_regions`.
+
+2. standalone-regions WAS NOT RENAMED.
+
+   `rename_bibkey_files` covered report-crops and the OKF bundle, not this.
+   Its 9 files kept the old name and report.tex still resolved them, so
+   nothing broke and nothing said so: the old title, Z-Library marker and
+   all, stayed on disk and in every \includegraphics path reaching the built
+   PDF. Added, plus the matching path rewrite in report.tex.
+
+3. NOT ONE OF 5,709 \ident{} SITES WAS RETARGETED, and the count said 411.
+
+   This is the one worth reading. `rename_report_tex` matched the sanitized
+   key with plain underscores; `\ident{}` content is written by
+   `breakable_ident`, which escapes every underscore as `\_\allowbreak{}`.
+   A comment in that function already recorded this failure once ("matched
+   none of the 97 \ident{} sites on the first run") and the fix handled the
+   separator AFTER the key but not the underscores INSIDE it.
+
+   Two further pattern fixes each matched a little and missed most:
+
+     as-is, with lookahead            0 of 5709
+     trailing "_" stripped          158 of 5709
+     unescape and compare          5709 of 5709
+
+   The 158 was the trap. A pattern that matches some sites returns a nonzero
+   count, and the command reported "411 report.tex references" the whole
+   time — 411 crop paths, 0 identifiers. A count that is nonzero for the
+   wrong reason reads exactly like success.
+
+   The escaping is not describable by an underscore rule anyway:
+   `breakable_ident` also breaks after a PERIOD, so the real text contains
+   `etc.\allowbreak{}\_\allowbreak{}`. So the identifier is now UNESCAPED,
+   compared plainly, and written back escaped. The rule depends on the key
+   and on nothing else.
+
+WHAT STILL NAMES THE OLD FOLDER — and none of it is a path
+
+  file                              raw title   sanitized
+  chung2019combinatorics.drill.json         2       0
+  chung2019combinatorics.tiddlers.json  26125       0
+  model.docmodel.json                      12       0
+  report.tex                                1       0
+
+Zero sanitized occurrences anywhere, which is the load-bearing number: a
+sanitized occurrence would be a path or an identifier. Every one of these is
+the raw title as PROSE:
+
+  model.docmodel.json    folder_history and bibkey_history — required, and
+                         what 394 asked to record.
+  drill.json             MODEL_BUILT.inputs, the absolute path the model was
+                         built from. Provenance of a past event; it names a
+                         path that no longer exists because that is what
+                         happened.
+  tiddlers.json          display strings: "Page 1 of *50 years of ...*". The
+                         book's actual title, carrying the Z-Library marker.
+  report.tex             the \section*{} heading, same string.
+
+The last two clear on the next projection. 396 rebuilds report.tex; the
+tiddler display strings need a `tiddlers` re-run, and that is a deliberate
+non-action here — the title is the book's real title, and replacing it with
+`chung2019combinatorics` would put a BibTeX key where a reader expects a
+name. What should go is the "(Z-Library)" download marker, and that is a
+title-cleaning question, not a rename one.
+
+2,747 tests pass.
