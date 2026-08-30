@@ -1,0 +1,12 @@
+{
+ "doc": "Artificial General Intelligence 15th International Conference, AGI 2022, Seattle, WA, USA, August 19?22, 2022, Proceedings (Ben Goertzel, Matt Ikl?, Alexey Potapov etc.) (Z-Library)",
+ "pdf": "Artificial General Intelligence 15th International Conference, AGI 2022, Seattle, WA, USA, August 19?22, 2022, Proceedings (Ben Goertzel, Matt Ikl?, Alexey Potapov etc.) (Z-Library).pdf",
+ "rc": 1,
+ "stdout_tail": "",
+ "error": "Error [UnicodeEncodeError]: 'utf-8' codec can't encode character '\\udc96' in position 363: surrogates not allowed",
+ "seconds": 2.0,
+ "table_cols": [],
+ "six_col_tables": 0,
+ "region_table_cols": null,
+ "ink_selectable": false
+}
