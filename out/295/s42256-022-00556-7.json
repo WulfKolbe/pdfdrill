@@ -1,0 +1,28 @@
+{
+ "doc": "s42256-022-00556-7",
+ "pdf": "s42256-022-00556-7.pdf",
+ "rc": 0,
+ "stdout_tail": "Build stamp: report.build.json — phase=reading, 16 pages, 973129 bytes, sha256 758d69c505cc. A measurement of this report should copy it into its output as `measured_against`.",
+ "seconds": 5.4,
+ "regions": {
+  "regions_with_latex": 1,
+  "attempted_now": 1,
+  "rendered": 1,
+  "failed": 0,
+  "has_author_preamble": false,
+  "graphics_dir": null,
+  "failures": []
+ },
+ "manifest_rows": 6,
+ "with_latex": 1,
+ "duplicated": 5,
+ "table_cols": [
+  6,
+  5,
+  4,
+  7
+ ],
+ "six_col_tables": 1,
+ "region_table_cols": 7,
+ "ink_selectable": false
+}
