@@ -1,0 +1,59 @@
+360 - is TikZilla callable, and can it be measured on the seven pairs?
+======================================================================
+
+CALLABLE FROM THE EXISTING CLIENT: 8B yes-with-a-key, 3B no.
+
+  The client is `refine._novita_chat`, an OpenAI-compatible POST. Its
+  endpoint is `NOVITA_BASE_URL || NOVITA_API_BASE ||
+  https://api.novita.ai/v3/openai`, so it is already provider-agnostic by
+  environment variable.
+
+  I expected the `host="api.novita.ai"` argument on the net.urlopen call to
+  pin it to one provider. It does not: `net.urlopen` uses `host` only to name
+  the host in a NetworkBlocked message, and there is no allowlist anywhere in
+  net.py — zero matches for a host check. So the client can be pointed at any
+  OpenAI-compatible endpoint by setting one variable.
+
+  TikZilla-8B  listed on Featherless AI, an OpenAI-compatible provider.
+               Reachable by setting NOVITA_BASE_URL and supplying that
+               provider's key. FEATHERLESS_API_KEY is NOT set here.
+  TikZilla-3B  "isn't deployed by any Inference Provider" — weights only.
+               Running it means local inference (transformers/vLLM, ~6 GB in
+               BF16), which is a new dependency, not a client change.
+
+BUT IT CANNOT BE MEASURED AGAINST THE SEVEN PAIRS, AND THAT IS THE ANSWER.
+
+  Both TikZilla variants are TEXT-ONLY. The paper's task is "generating
+  high-quality figures from textual descriptions". Neither model has a vision
+  encoder.
+
+  337 passes TWO IMAGES per call — the base figure and the crop of how it
+  appears on the page — because the annotation IS the difference between
+  them. One image cannot show it; zero images certainly cannot. A text-only
+  model cannot receive the input the task is made of.
+
+  So the premise that "the annotation task is a small instance of what it was
+  trained on" does not hold in the direction it needs to. TikZilla is
+  description -> TikZ. The annotation task is image -> TikZ. They share an
+  output format and not an input.
+
+  What COULD be sent is 342/355's positional description alone: "the image is
+  2.56cm wide, one element 0.72cm to the LEFT of its edge". That is a real
+  experiment, but it is not comparable to 337's numbers, because the model
+  would be told WHERE the labels are and never shown WHAT THEY SAY — the
+  strings "density operator" and "probability distribution" exist only in the
+  image. It would be scored on placement with the content necessarily wrong,
+  against seven pairs whose ink distance is dominated by glyphs.
+
+  Running that and putting the number beside 337's median of 10 would be
+  comparing two different tasks and reporting it as a model difference.
+
+THE MODEL THAT WOULD FIT is DeTikZify, same group, different family:
+nllg/detikzify-v2-8b and v2.5-8b, LLaMA-3.1-8b with a SigLIP vision encoder,
+image-or-sketch -> TikZ. It takes ONE image, not two, so the annotation task
+would still need restating — give it the composed crop and ask for the whole
+figure, then diff against the author's tikzpicture — but that restatement is
+sound, whereas asking a text-only model to look at a picture is not.
+
+NOTHING WAS CALLED. No key exists for the one hosted variant, and the
+measurement the task asks for would not have measured what it says.
