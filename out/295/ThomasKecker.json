@@ -1,0 +1,27 @@
+{
+ "doc": "ThomasKecker",
+ "pdf": "ThomasKecker.pdf",
+ "rc": 0,
+ "stdout_tail": "Build stamp: report.build.json — phase=reading, 4 pages, 875430 bytes, sha256 c3891cf752c2. A measurement of this report should copy it into its output as `measured_against`.",
+ "seconds": 2.8,
+ "regions": {
+  "regions_with_latex": 0,
+  "attempted_now": 0,
+  "rendered": 0,
+  "failed": 0,
+  "has_author_preamble": false,
+  "graphics_dir": null,
+  "failures": []
+ },
+ "manifest_rows": 1,
+ "with_latex": 0,
+ "duplicated": 1,
+ "table_cols": [
+  6,
+  5,
+  7
+ ],
+ "six_col_tables": 1,
+ "region_table_cols": 7,
+ "ink_selectable": false
+}
