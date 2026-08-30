@@ -1,0 +1,66 @@
+359 - DaTikZ-V4 and TikZilla: what is actually downloadable
+===========================================================
+
+Read from the HuggingFace pages and the paper (arXiv 2603.03072), not
+recalled.
+
+DaTikZ-V4  —  https://huggingface.co/datasets/nllg/DaTikZ-V4
+--------------------------------------------------------------
+
+  format    Parquet
+  size      11.1 GB
+  rows      427,753   (single `train` split, no test/validation)
+  licence   Apache-2.0
+
+  Columns, exactly:
+
+    file_id          unique id
+    caption          the ORIGINAL figure caption from the source document
+    vlm_description  a generated visual description (Qwen2.5-VL-7B-Instruct)
+    tikz_code        the complete LaTeX/TikZ source
+    png_image        a RENDERED PNG of the figure, 448x448
+    source           arxiv | github | tex | synthetic | curated
+
+  IT IS THE SHAPE THIS PROJECT HAS BEEN BUILDING BY HAND. Every row carries
+  the code AND a rendering of it, which is exactly what 332's 46 compiled
+  tikzcd figures are, and what the seven annotation pairs are a seven-row version
+  of. 427,753 rows against 46.
+
+  Two things it does NOT carry, and they matter for what it can be used for:
+
+    - no page context. The PNG is the figure rendered alone at 448x448, not
+      a crop of a printed page. It is 332's clean-render set at scale, not
+      334's page-crop set. Scan noise is absent by construction.
+    - no annotation split. `tikz_code` is the whole figure. Nothing separates
+      "the base picture" from "what was drawn over it", which is the
+      distinction 335/342/355 exist to make. A row where the author annotated
+      an \includegraphics is one blob of TikZ.
+
+  A COUNT THAT DOES NOT RECONCILE, reported rather than resolved. The paper's
+  Table 2 gives DaTikZ-V4 as 2,000,880 figures — arXiv 1,471,083, GitHub
+  413,178, TeX StackExchange 97,909, synthetic 13,514, curated 5,196 — and
+  says those are post-filtering final numbers. The HuggingFace release has
+  427,753 rows, 21% of that. The paper notes a licence split of 35.55%
+  permissive / 40.03% nonexclusive-distribution / 24.43% unlicensed, so the
+  likely reason is redistribution rights, but the pages do not say so and I
+  am not going to assert it. Anyone sizing work off "2 million" should size
+  it off 427,753 instead.
+
+TikZilla  —  https://huggingface.co/nllg/TikZilla-8B and TikZilla-3B
+--------------------------------------------------------------------
+
+  TikZilla-3B   base Qwen2.5-3B     safetensors BF16  Apache-2.0
+  TikZilla-8B   base Qwen3-8B-Base  safetensors       Apache-2.0
+
+  Both are weights only — there is no packaged runtime, no GGUF listed, and
+  no API of their own. Trained on DaTikZ-V4 with SFT then RL; RL variants
+  (TikZilla-3B-RL, TikZilla-8B-RL) exist in the same collection.
+
+  BOTH ARE TEXT-ONLY. Neither is a vision model. That is the fact that
+  decides 360 and it is stated on the model cards and in the paper: the task
+  is "generating high-quality figures from textual descriptions".
+
+  The image-to-TikZ model from the same group is a DIFFERENT family:
+  DeTikZify (nllg/detikzify-v2-8b, v2.5-8b, ds-7b, tl-1.1b), built on
+  LLaMA-3.1-8b with a SigLIP vision encoder, which does take a figure or a
+  sketch and emit TikZ. That is the family the annotation work would need.
