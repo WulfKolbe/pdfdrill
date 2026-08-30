@@ -1,0 +1,23 @@
+{
+ "doc": "qft2_Exercise2-8_solutions",
+ "pdf": "qft2_Exercise2-8_solutions.pdf",
+ "rc": 0,
+ "stdout_tail": "Build stamp: report.build.json — phase=reading, 4 pages, 235718 bytes, sha256 76d8e8fe104f. A measurement of this report should copy it into its output as `measured_against`.",
+ "seconds": 2.5,
+ "regions": {
+  "regions_with_latex": 0,
+  "attempted_now": 0,
+  "rendered": 0,
+  "failed": 0,
+  "has_author_preamble": false,
+  "graphics_dir": null,
+  "failures": []
+ },
+ "table_cols": [
+  6,
+  5
+ ],
+ "six_col_tables": 1,
+ "region_table_cols": 5,
+ "ink_selectable": false
+}
