@@ -145,6 +145,13 @@ def measure(report_pdf: Path, work: Path, timeout: int = 900) -> list:
         if not (a.is_file() and b.is_file()):
             raise MeasureRefused("could not render page %d" % page)
         rows = ri.compare_page(a, b, page, timeout)
+        # 388 — the rasters go now. A PGM is uncompressed, so a 400-page book
+        # would leave 50 GB of intermediates for a TSV of a few kilobytes.
+        for _f in (a, b):
+            try:
+                _f.unlink()
+            except OSError:
+                pass
         expect = len((sel.get("rows") or {}).get(str(page), []))
         if len(rows) == expect + 1:
             rows = rows[1:]                  # compare has no header rule

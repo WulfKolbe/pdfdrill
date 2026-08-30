@@ -123,10 +123,24 @@ def detect_pages(report_pdf: Path, columns: int = REGION_COLUMNS,
 
 
 def _render(report_pdf: Path, page: int, dpi: int, out: Path) -> Path:
-    dst = out / f"p{page}_{dpi}.png"
+    """388 — pgmraw, not png16m.
+
+    inkdrill decodes PNG in pure Python at ~0.7 s per megapixel; an A3 report
+    page at 600 dpi is 69.6 Mpx, so the decode alone was 44 s and 93% of the
+    cost of measuring a page. PGM is a header parse and a table lookup, 0.002
+    s/Mpx. Measured end to end on one page through the real subprocess:
+    60.65 s -> 4.6 s. The masks are byte-identical, which is asserted in
+    inkdrill's tests/test_pnm_stream.py and was re-checked on this corpus
+    before either caller was switched.
+
+    The trade is size — the same page is 0.4 MB as PNG and 66 MB as PGM — so
+    the caller deletes each pair as soon as its compare has run. Re-rendering
+    costs 0.3 s, which is less than decoding the PNG it replaces.
+    """
+    dst = out / f"p{page}_{dpi}.pgm"
     if dst.is_file():
         return dst
-    subprocess.run(["gs", "-q", "-dNOPAUSE", "-dBATCH", "-sDEVICE=png16m",
+    subprocess.run(["gs", "-q", "-dNOPAUSE", "-dBATCH", "-sDEVICE=pgmraw",
                     f"-r{dpi}", f"-dFirstPage={page}", f"-dLastPage={page}",
                     f"-sOutputFile={dst.name}", str(report_pdf)],
                    cwd=out, capture_output=True, timeout=900)
