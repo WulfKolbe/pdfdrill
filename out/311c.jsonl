@@ -188,3 +188,6 @@
 {"doc": "Maxwell-Chains_SS2016", "pages": 63, "outcome": "measured", "rows": 134, "convert": "converted", "seconds": 3950.8}
 {"doc": "1-s2.0-S0022039622000146-main", "pages": 70, "outcome": "refused", "error": "MeasureRefused: page 1: compare returned 6 rows, reportpages expects 3", "seconds": 398.2}
 {"doc": "1306287", "pages": 172, "outcome": "refused", "error": "TimeoutExpired: Command '['python3', '/home/wkolbe/inkdrill/tools/reportpages.py', '--pdf', '/home/wkolbe/pdfdrill-library/1306287/report.pdf', '--columns', '6', '--h", "seconds": 900.1}
+{"doc": "1001850", "pages": 247, "outcome": "refused", "error": "TimeoutExpired: Command '['python3', '/home/wkolbe/inkdrill/tools/reportpages.py', '--pdf', '/home/wkolbe/pdfdrill-library/1001850/report.pdf', '--columns', '6', '--h", "seconds": 900.1}
+{"doc": "2002.06055", "pages": 248, "outcome": "refused", "error": "TimeoutExpired: Command '['python3', '/home/wkolbe/inkdrill/tools/reportpages.py', '--pdf', '/home/wkolbe/pdfdrill-library/2002.06055/report.pdf', '--columns', '6', '", "seconds": 900.1}
+{"doc": "2016_Book_AdvancesInDiscreteDifferential", "pages": 389, "outcome": "refused", "error": "TimeoutExpired: Command '['python3', '/home/wkolbe/inkdrill/tools/reportpages.py', '--pdf', '/home/wkolbe/pdfdrill-library/2016_Book_AdvancesInDiscreteDifferential/re", "seconds": 900.1}

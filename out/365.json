@@ -1,6 +1,6 @@
 {
- "compiled": 97,
- "failed": 3,
+ "compiled": 100,
+ "failed": 0,
  "rows": [
   {
    "id": "DTZ00000",
@@ -10,7 +10,8 @@
    "vlm_description": "A diagram is presented with four blue-framed boxes arranged in a 2x2 grid. Each box contains mathematical expressions related to sets $\\Lambda_i$, weights $|w_i|$, and norms $\\overline{w}_i$. The first row includes:\n\n- Box 1: $\\Lambda_0 = \\{0, 1, 3, 6, 64, 64\\}$, $|w_0| = |m\\rangle = \\sum_{i=1}^{6} \\alpha_i |\\eta_i\\rangle$, with a label $\\frac{\\lambda_i}{gcd(\\Lambda_0)}$ pointing to the left indicating \"is odd\" and another arrow pointing right indicating \"is even\".\n- Box 2: $\\Lambda_1 = \\{1, 3\\}$, $|w_1\\rangle = \\frac{\\alpha_2|\\eta_2\\rangle + \\alpha_3|\\eta_3\\rangle}{\\sqrt{\\alpha_2^2 + \\alpha_3^2}}$, with similar labeling for odd and even gcd.\n\nThe second row includes:\n\n- Box 3: $\\Lambda_2 = \\{6\\}$, $|w_2\\rangle = \\frac{\\alpha_4|\\eta_4\\rangle}{\\sqrt{\\alpha_4^2}}$, with the same odd/even gcd labeling.\n- Box 4: $\\Lambda_3 = \\{64, 64\\}$, $|w_3\\rangle = \\frac{\\alpha_5|\\eta_5\\rangle + \\alpha_6|\\eta_6\\rangle}{\\sqrt{\\alpha_5^2 + \\alpha_6^2}}$, again with odd/even gcd labeling.\n\nBelow the grid, a label $d_M = 3$ is positioned centrally. The entire diagram is enclosed within a larger blue frame.",
    "tex": "tikz/DTZ00000.tex",
    "png": "png/DTZ00000.png",
-   "rendered": "rendered/DTZ00000.png"
+   "rendered": "rendered/DTZ00000.png",
+   "engine": "xelatex"
   },
   {
    "id": "DTZ00001",
@@ -20,7 +21,8 @@
    "vlm_description": "A square grid of four circles is positioned in the upper left quadrant, with each circle connected to its adjacent circles by solid black lines forming a square. A dotted line extends from the top right corner of the square, curving downward and then upward to connect to another circle located below and to the right of the square. This connecting line is also dotted and contains two small arrowheads pointing towards the connecting point. Another dotted line originates from the bottom right corner of the square, curving upwards and then to the left to connect to a circle located above and to the left of the square. This line also contains two small arrowheads pointing towards the connecting point. The circles are evenly spaced within the square, and the overall layout suggests a network or flow diagram.",
    "tex": "tikz/DTZ00001.tex",
    "png": "png/DTZ00001.png",
-   "rendered": "rendered/DTZ00001.png"
+   "rendered": "rendered/DTZ00001.png",
+   "engine": "xelatex"
   },
   {
    "id": "DTZ00002",
@@ -30,7 +32,8 @@
    "vlm_description": "The image features two words: \"Ground Truth\" and \"Semantics\". \"Ground Truth\" is positioned above \"Semantics\", both words are written in a serif font. \"Ground Truth\" is slightly larger than \"Semantics\". Both words are aligned horizontally and centered within the image. The text is colored black, with no additional decorative elements or background.",
    "tex": "tikz/DTZ00002.tex",
    "png": "png/DTZ00002.png",
-   "rendered": "rendered/DTZ00002.png"
+   "rendered": "rendered/DTZ00002.png",
+   "engine": "xelatex"
   },
   {
    "id": "DTZ00003",
@@ -40,7 +43,8 @@
    "vlm_description": "The word \"Prediction\" is centrally aligned within a white rectangular box, which occupies most of the image space. The text is in a serif font, black in color, and positioned slightly below the center of the rectangle. The rectangle is bordered by a thin black line, creating a subtle frame around the text. The background outside the rectangle is plain white, providing contrast to the black text and the black border.",
    "tex": "tikz/DTZ00003.tex",
    "png": "png/DTZ00003.png",
-   "rendered": "rendered/DTZ00003.png"
+   "rendered": "rendered/DTZ00003.png",
+   "engine": "xelatex"
   },
   {
    "id": "DTZ00004",
@@ -50,7 +54,8 @@
    "vlm_description": "The image displays the text \"Semantic-KITTI\" in a serif font, positioned centrally within a rectangular frame. The text is oriented vertically, with the word \"Semantic\" at the top and \"KITTI\" at the bottom. The font color appears to be dark gray or black, and the letters are evenly spaced. The background of the rectangle is white, providing a stark contrast to the text. The rectangle itself is outlined with a thin black border, which is slightly thicker than the text's stroke but not prominent enough to draw attention away from the text. The overall design is simple and clean, focusing entirely on the text without any additional graphical elements or decorations.",
    "tex": "tikz/DTZ00004.tex",
    "png": "png/DTZ00004.png",
-   "rendered": "rendered/DTZ00004.png"
+   "rendered": "rendered/DTZ00004.png",
+   "engine": "xelatex"
   },
   {
    "id": "DTZ00005",
@@ -60,7 +65,8 @@
    "vlm_description": "The word \"FLORIDA\" is written vertically in uppercase letters, aligned to the right side of the image. Each letter is separated by a small gap, and the font appears to be sans-serif. The text is colored black, and there are no additional elements or decorations present in the image.",
    "tex": "tikz/DTZ00005.tex",
    "png": "png/DTZ00005.png",
-   "rendered": "rendered/DTZ00005.png"
+   "rendered": "rendered/DTZ00005.png",
+   "engine": "xelatex"
   },
   {
    "id": "DTZ00006",
@@ -70,7 +76,8 @@
    "vlm_description": "The image features two words, \"Ground Truth\" and \"Semantic POSS,\" arranged vertically. \"Ground Truth\" is positioned at the top, slightly offset to the right, with its letters stacked in a vertical alignment. Below it, \"Semantic POSS\" is written in a similar vertical alignment but slightly offset to the left. Both words are in a serif font, with \"Ground Truth\" in a larger size than \"Semantic POSS.\" The text is colored in black, and there are no additional lines, arrows, or labels present in the image.",
    "tex": "tikz/DTZ00006.tex",
    "png": "png/DTZ00006.png",
-   "rendered": "rendered/DTZ00006.png"
+   "rendered": "rendered/DTZ00006.png",
+   "engine": "xelatex"
   },
   {
    "id": "DTZ00007",
@@ -80,7 +87,8 @@
    "vlm_description": "The word \"Prediction\" is centrally aligned within a white rectangular box, which occupies most of the image space. The text is in a serif font, black in color, and positioned slightly below the center of the rectangle. The rectangle is bordered by a thin black line, creating a subtle frame around the text. The background outside the rectangle is plain white, providing contrast to the black text and the black border.",
    "tex": "tikz/DTZ00007.tex",
    "png": "png/DTZ00007.png",
-   "rendered": "rendered/DTZ00007.png"
+   "rendered": "rendered/DTZ00007.png",
+   "engine": "xelatex"
   },
   {
    "id": "DTZ00008",
@@ -90,7 +98,8 @@
    "vlm_description": "The image displays the text \"Semantic-KITTI\" in a serif font, positioned centrally within a rectangular frame. The text is oriented vertically, with each letter stacked one above the other. The letters are evenly spaced both horizontally and vertically, and the font size appears uniform across all characters. The background of the rectangle is white, and there are no additional elements or decorations present in the image.",
    "tex": "tikz/DTZ00008.tex",
    "png": "png/DTZ00008.png",
-   "rendered": "rendered/DTZ00008.png"
+   "rendered": "rendered/DTZ00008.png",
+   "engine": "xelatex"
   },
   {
    "id": "DTZ00009",
@@ -100,7 +109,8 @@
    "vlm_description": "The word \"FLORIDA\" is written vertically in uppercase letters, aligned to the right side of the image. Each letter is separated by a small gap, and the font appears to be sans-serif. The text is colored black, and there are no additional elements or decorations present in the image.",
    "tex": "tikz/DTZ00009.tex",
    "png": "png/DTZ00009.png",
-   "rendered": "rendered/DTZ00009.png"
+   "rendered": "rendered/DTZ00009.png",
+   "engine": "xelatex"
   },
   {
    "id": "DTZ00010",
@@ -110,7 +120,8 @@
    "vlm_description": "A rectangle spans horizontally across the center of the image, with its top edge slightly curved upwards. Two semicircles are positioned symmetrically above the rectangle, each touching the top edge of the rectangle. The semicircles are identical in size and are separated by a small gap. Each semicircle has a short arrow pointing downwards towards the rectangle, indicating a downward force or direction. The rectangle is outlined in black, while the semicircles are filled with white, and the arrows are drawn in black.",
    "tex": "tikz/DTZ00010.tex",
    "png": "png/DTZ00010.png",
-   "rendered": "rendered/DTZ00010.png"
+   "rendered": "rendered/DTZ00010.png",
+   "engine": "xelatex"
   },
   {
    "id": "DTZ00011",
@@ -120,7 +131,8 @@
    "vlm_description": "A large rectangle is positioned centrally, with two downward-pointing arrows originating from its lower corners. The arrows are thick and black, with their tips pointing directly downwards. The rectangle spans horizontally across the image, with equal spacing between the arrow origins and the rectangle's edges. The arrows are aligned vertically under the rectangle, with no additional labels or markings present.",
    "tex": "tikz/DTZ00011.tex",
    "png": "png/DTZ00011.png",
-   "rendered": "rendered/DTZ00011.png"
+   "rendered": "rendered/DTZ00011.png",
+   "engine": "xelatex"
   },
   {
    "id": "DTZ00012",
@@ -130,7 +142,8 @@
    "vlm_description": "A rectangle with a width approximately twice its height is positioned centrally. Two identical curved arrows, each with a thick black stroke and a small black dot near the tip, extend upwards from the top corners of the rectangle. The arrows are symmetrically placed, one on the left and one on the right, both pointing straight up. The rectangle is outlined with a thin black line, and there are no additional labels or markings within or around the shape.",
    "tex": "tikz/DTZ00012.tex",
    "png": "png/DTZ00012.png",
-   "rendered": "rendered/DTZ00012.png"
+   "rendered": "rendered/DTZ00012.png",
+   "engine": "xelatex"
   },
   {
    "id": "DTZ00013",
@@ -140,7 +153,8 @@
    "vlm_description": "A curved black line starts from the left side, extending towards the right, curving upwards before sharply turning downwards and ending near the center-right. The line is smooth and continuous, with no sharp angles. It appears to be a single, unbroken stroke. There are no additional elements or labels present in the image.",
    "tex": "tikz/DTZ00013.tex",
    "png": "png/DTZ00013.png",
-   "rendered": "rendered/DTZ00013.png"
+   "rendered": "rendered/DTZ00013.png",
+   "engine": "xelatex"
   },
   {
    "id": "DTZ00014",
@@ -150,7 +164,8 @@
    "vlm_description": "A curved line resembling a parabola opens downward, starting from the left side and extending to the right, with its vertex positioned slightly above the center. The curve is smooth and symmetric. Above the curve, the letter \"Y\" is written in a serif font, aligned horizontally with the midpoint of the curve. Below the curve, the letter \"C\" is similarly written in a serif font, also aligned horizontally with the midpoint of the curve. Both letters are positioned directly beneath the curve, with \"Y\" above and \"C\" below.",
    "tex": "tikz/DTZ00014.tex",
    "png": "png/DTZ00014.png",
-   "rendered": "rendered/DTZ00014.png"
+   "rendered": "rendered/DTZ00014.png",
+   "engine": "xelatex"
   },
   {
    "id": "DTZ00015",
@@ -160,7 +175,8 @@
    "vlm_description": "A curved line extends downward from the top left, curving slightly before meeting a vertical line that descends from the top center. This vertical line intersects another curved line that extends downward from the top right, curving slightly before meeting the same vertical line. The vertical line is labeled \"Y\" at its top end, positioned just above the intersection point. Below the vertical line, near its base, the letter \"C\" is written in lowercase. The entire structure is enclosed within a bounding box that spans horizontally across the image.",
    "tex": "tikz/DTZ00015.tex",
    "png": "png/DTZ00015.png",
-   "rendered": "rendered/DTZ00015.png"
+   "rendered": "rendered/DTZ00015.png",
+   "engine": "xelatex"
   },
   {
    "id": "DTZ00016",
@@ -170,7 +186,8 @@
    "vlm_description": "A commutative diagram is depicted with two rows of arrows and labels. The top row starts with a node labeled \\(F(X)\\), which is connected by an arrow labeled \\(\\rho_X\\) pointing right to another node labeled \\(G(X)\\). Below \\(F(X)\\), there is a vertical arrow labeled \\(F(f)\\) pointing down to a node labeled \\(F(Y)\\). Similarly, the top row ends with a node labeled \\(G(X)\\), which has a vertical arrow labeled \\(\\nu_f G(f)\\) pointing down to a node labeled \\(G(Y)\\). The bottom row starts with \\(F(Y)\\) and ends with \\(G(Y)\\), both connected by an arrow labeled \\(\\rho_Y\\). The entire diagram is enclosed within a rectangle, with no additional labels or decorations outside the nodes and arrows.",
    "tex": "tikz/DTZ00016.tex",
    "png": "png/DTZ00016.png",
-   "rendered": "rendered/DTZ00016.png"
+   "rendered": "rendered/DTZ00016.png",
+   "engine": "xelatex"
   },
   {
    "id": "DTZ00017",
@@ -180,7 +197,8 @@
    "vlm_description": "A diagram illustrating a commutative triangle with three nodes and four arrows. The node labeled \\(F(X)\\) is positioned at the top left, connected by a thin arrow labeled \\(p_X\\) pointing right to another node labeled \\(\\widetilde{F}(X)\\). From \\(\\widetilde{F}(X)\\), a thin arrow labeled \\(q_X\\) points right to the third node labeled \\(F(X)\\) at the top right. Below these nodes, a node labeled \\(G(X)\\) is situated at the bottom center. Arrows extend from \\(F(X)\\) to \\(G(X)\\) labeled \\(\\alpha_X\\), from \\(\\widetilde{F}(X)\\) to \\(G(X)\\) labeled \\(\\eta_X\\), and from \\(F(X)\\) to \\(G(X)\\) again labeled \\(\\beta_X\\). All arrows are directed towards \\(G(X)\\), forming a closed loop.",
    "tex": "tikz/DTZ00017.tex",
    "png": "png/DTZ00017.png",
-   "rendered": "rendered/DTZ00017.png"
+   "rendered": "rendered/DTZ00017.png",
+   "engine": "xelatex"
   },
   {
    "id": "DTZ00018",
@@ -190,7 +208,8 @@
    "vlm_description": "A commutative diagram is depicted with two rows of expressions involving tensor products and functors. The top row starts with \\( F(X) \\otimes F(Y) \\otimes F(Z) \\), which is mapped by \\( F_2(X,Y) \\otimes \\text{id}_{F(Z)} \\) to \\( F(X \\otimes Y) \\otimes F(Z) \\). A vertical arrow labeled \\( \\text{id}_{F(X)} \\otimes F_2(Y,Z) \\) connects the first expression to the second row. The second row begins with \\( F(X) \\otimes F(Y \\otimes Z) \\), which is mapped by \\( F_2(X,Y \\otimes Z) \\) to \\( F(X \\otimes Y \\otimes Z) \\). An arrow labeled \\( F_2(X \\otimes Y, Z) \\) points from the top right to the bottom right corner.",
    "tex": "tikz/DTZ00018.tex",
    "png": "png/DTZ00018.png",
-   "rendered": "rendered/DTZ00018.png"
+   "rendered": "rendered/DTZ00018.png",
+   "engine": "xelatex"
   },
   {
    "id": "DTZ00019",
@@ -200,7 +219,8 @@
    "vlm_description": "A commutative diagram is depicted with four nodes arranged in a square. The top-left node is labeled \\( F(X) \\otimes F(Y) \\), the top-right node is labeled \\( G(X) \\otimes G(Y) \\), the bottom-left node is labeled \\( F(X \\otimes Y) \\), and the bottom-right node is labeled \\( G(X \\otimes Y) \\). There are two horizontal arrows: one from \\( F(X) \\otimes F(Y) \\) to \\( G(X) \\otimes G(Y) \\) labeled \\( \\rho_X \\otimes \\rho_Y \\), and another from \\( F(X \\otimes Y) \\) to \\( G(X \\otimes Y) \\) labeled \\( \\rho_{X \\otimes Y} \\). Additionally, there are two vertical arrows: one from \\( F(X) \\otimes F(Y) \\) to \\( F(X \\otimes Y) \\) labeled \\( F_2(X, Y) \\), and another from \\( G(X) \\otimes G(Y) \\) to \\( G(X \\otimes Y) \\) labeled \\( G_2(X, Y) \\).",
    "tex": "tikz/DTZ00019.tex",
    "png": "png/DTZ00019.png",
-   "rendered": "rendered/DTZ00019.png"
+   "rendered": "rendered/DTZ00019.png",
+   "engine": "xelatex"
   },
   {
    "id": "DTZ00020",
@@ -210,7 +230,8 @@
    "vlm_description": "A commutative diagram is depicted with four nodes arranged in a square. The top-left node is labeled \\( F(X) \\otimes F(Y) \\), the top-right node is labeled \\( F(Y) \\otimes F(X) \\), the bottom-left node is labeled \\( F(X \\otimes Y) \\), and the bottom-right node is labeled \\( F(Y \\otimes X) \\). There are two horizontal arrows: one from \\( F(X) \\otimes F(Y) \\) to \\( F(Y) \\otimes F(X) \\) labeled \\( (F(\\text{id}_Y) \\otimes F(\\text{id}_X))\\tau_{F(X),F(Y)} \\), and another from \\( F(X \\otimes Y) \\) to \\( F(Y \\otimes X) \\) labeled \\( F(\\tau_{X,Y}) \\). Additionally, there are two vertical arrows: one from \\( F(X) \\otimes F(Y) \\) to \\( F(X \\otimes Y) \\) labeled \\( F_2(X,Y) \\), and another from \\( F(Y) \\otimes F(X) \\) to \\( F(Y \\otimes X) \\) labeled \\( F_2(Y,X) \\).",
    "tex": "tikz/DTZ00020.tex",
    "png": "png/DTZ00020.png",
-   "rendered": "rendered/DTZ00020.png"
+   "rendered": "rendered/DTZ00020.png",
+   "engine": "xelatex"
   },
   {
    "id": "DTZ00021",
@@ -220,7 +241,8 @@
    "vlm_description": "A series of six vertical black lines are evenly spaced horizontally across the image. Below these lines, there are six lowercase letters 'c' arranged in a row, each centered directly beneath its corresponding vertical line. The letters are evenly spaced both vertically and horizontally. The lines extend slightly beyond the letters they align with, creating a symmetrical appearance. The overall arrangement is simple and geometric, with no additional markings or labels present.",
    "tex": "tikz/DTZ00021.tex",
    "png": "png/DTZ00021.png",
-   "rendered": "rendered/DTZ00021.png"
+   "rendered": "rendered/DTZ00021.png",
+   "engine": "xelatex"
   },
   {
    "id": "DTZ00022",
@@ -230,7 +252,8 @@
    "vlm_description": "A commutative diagram is depicted with nodes labeled \\(F(C)\\), \\(F(X)^* \\otimes F(X)\\), and \\(D\\). Arrows connect these nodes: one from \\(F(C)\\) to \\(F(X)^* \\otimes F(X)\\) labeled \\(F(\\iota_X)\\), another from \\(F(X)^* \\otimes F(X)\\) to \\(D\\) labeled \\(j_{F(X)}\\), and a third from \\(F(C)\\) to \\(D\\) labeled \\(\\zeta\\). The arrow from \\(F(C)\\) to \\(F(X)^* \\otimes F(X)\\) is positioned diagonally upwards to the left, while the arrow from \\(F(X)^* \\otimes F(X)\\) to \\(D\\) is positioned diagonally downwards to the right. The arrow from \\(F(C)\\) to \\(D\\) is horizontal and located below the other two arrows.",
    "tex": "tikz/DTZ00022.tex",
    "png": "png/DTZ00022.png",
-   "rendered": "rendered/DTZ00022.png"
+   "rendered": "rendered/DTZ00022.png",
+   "engine": "xelatex"
   },
   {
    "id": "DTZ00023",
@@ -240,7 +263,8 @@
    "vlm_description": "A rectangle labeled \"Capital good\" is positioned on the left side of the image, with a thin black arrow pointing towards another rectangle labeled \"Repair shop\" on the right. Both rectangles contain a black dot and text inside them: the first rectangle has the text \"$GI/1$\" and the second has \"$M/K$\". Below each rectangle, there is a label indicating the name of the entity: \"Capital good\" under the first rectangle and \"Repair shop\" under the second. The rectangles are connected by a thin black arrow pointing from the \"Capital good\" rectangle to the \"Repair shop\" rectangle. The entire diagram is enclosed within a larger black rectangle.",
    "tex": "tikz/DTZ00023.tex",
    "png": "png/DTZ00023.png",
-   "rendered": "rendered/DTZ00023.png"
+   "rendered": "rendered/DTZ00023.png",
+   "engine": "xelatex"
   },
   {
    "id": "DTZ00024",
@@ -250,7 +274,8 @@
    "vlm_description": "A large rectangle encompasses the entire diagram. Inside the rectangle, there are three vertical sequences of nodes aligned to the left. Each node is a black square containing a white circle and text labeled '$GI/1/S_i$' where $i$ ranges from 1 to $n$. Arrows point from each node to a central node labeled '$M/K$'. The first arrow originates from the top node, the second from the middle node, and the third from the bottom node. The central node '$M/K$' is positioned slightly to the right of the middle node and is connected to the top and bottom nodes by horizontal lines. The diagram is enclosed within a large rectangle with thick black borders.",
    "tex": "tikz/DTZ00024.tex",
    "png": "png/DTZ00024.png",
-   "rendered": "rendered/DTZ00024.png"
+   "rendered": "rendered/DTZ00024.png",
+   "engine": "xelatex"
   },
   {
    "id": "DTZ00025",
@@ -260,7 +285,8 @@
    "vlm_description": "A rectangle labeled \"Capital good\" is positioned on the left side of the image, containing a black dot and the text \"$M_n/1/S_i$\" aligned to its right. A thick black arrow extends from the right edge of this rectangle towards another rectangle labeled \"Repair shop,\" which contains a black dot and the text \"$M_n/K$\" aligned to its right. Both rectangles are connected by a straight black line. Below the \"Capital good\" rectangle, the label \"Capital good\" is written in black text. Below the \"Repair shop\" rectangle, the label \"Repair shop\" is written in black text. The entire diagram is enclosed within a larger black rectangle.",
    "tex": "tikz/DTZ00025.tex",
    "png": "png/DTZ00025.png",
-   "rendered": "rendered/DTZ00025.png"
+   "rendered": "rendered/DTZ00025.png",
+   "engine": "xelatex"
   },
   {
    "id": "DTZ00026",
@@ -270,7 +296,8 @@
    "vlm_description": "The image consists of five interconnected graphs arranged in two rows and two columns, with one additional graph at the bottom right. Each graph is a simple undirected graph with nodes labeled with integers ranging from -1 to 3. The nodes are connected by edges, forming a network structure. \n\nIn the first row, the leftmost graph has a node labeled -1 highlighted in red, with an arrow pointing to another node labeled 0. Another node labeled 0 is connected to a node labeled 2, which is also highlighted in blue. An arrow labeled \"lend on blue\" points from the blue-highlighted node 2 to the node labeled 0. The second graph in the first row has a node labeled 1 highlighted in red, with an arrow pointing to a node labeled 3. This node labeled 3 is connected to a node labeled 2, which is also highlighted in blue. An arrow labeled \"borrow on red\" points from the red-highlighted node 1 to the node labeled 3.\n\nIn the second row, the leftmost graph has a node labeled -1 highlighted in red, with an arrow pointing to a node labeled 2. The node labeled 2 is connected to a node labeled 0. The second graph in the second row has a node labeled 1 highlighted in red, with an arrow pointing to a node labeled 3. The node labeled 3 is connected to a node labeled 2.\n\nThe bottom right graph has a node labeled 1 highlighted in red, with an arrow pointing to a node labeled 2. The node labeled 2 is connected to a node labeled 1. Below these graphs, there are two text blocks: the left block reads \"Effective divisor reached in \\( M_{\\min} = 1 \\) move,\" and the right block reads \"Effective divisor reached in \\( M_0 = 4 \\) moves Binge Borrowing algorithm.\"",
    "tex": "tikz/DTZ00026.tex",
    "png": "png/DTZ00026.png",
-   "rendered": "rendered/DTZ00026.png"
+   "rendered": "rendered/DTZ00026.png",
+   "engine": "xelatex"
   },
   {
    "id": "DTZ00027",
@@ -280,7 +307,8 @@
    "vlm_description": "A commutative diagram is depicted with two rows of transformations. The top row starts with a tensor product \\( V_i \\otimes_{F_i} F_j \\), which is mapped to \\( V_j \\) via the arrow labeled \\( \\phi_{ij} \\). Below this, another tensor product \\( V'_i \\otimes_{F_i} F_j \\) is transformed into \\( V'_j \\) through the arrow \\( \\phi'_{ij} \\). Both transformations have labels positioned above them. On the left side of the diagram, there is a vertical arrow labeled \\( \\alpha_i \\otimes id \\) connecting the first tensor product to the second one. Similarly, on the right side, there is another vertical arrow labeled \\( \\alpha_j \\) connecting the first transformation result to the second one. The entire diagram is enclosed within a rectangle, with the arrows and labels clearly defined and positioned to indicate the flow of the transformations.",
    "tex": "tikz/DTZ00027.tex",
    "png": "png/DTZ00027.png",
-   "rendered": "rendered/DTZ00027.png"
+   "rendered": "rendered/DTZ00027.png",
+   "engine": "xelatex"
   },
   {
    "id": "DTZ00028",
@@ -290,7 +318,8 @@
    "vlm_description": "A sequence of arrows connects five labeled nodes arranged horizontally. Starting from the left, the first node is labeled \"0\" and is connected by a thin arrow pointing right to a node labeled \"J\". Another thin arrow extends from \"J\" to a node labeled \"$A \\otimes_R A^\\circ$\", where the tensor product symbol (\\(\\otimes\\)) and the tensor product's argument (\\(R\\)) are clearly visible. Following this, another thin arrow leads from \"$A \\otimes_R A^\\circ$\" to a node labeled \"A\", which is further connected by a thicker arrow labeled \"\\(\\mu\\)\" pointing right to the final node labeled \"0\". The entire sequence is neatly aligned horizontally, with each arrow maintaining a consistent length and direction, ensuring clarity in the representation of the mathematical structure.",
    "tex": "tikz/DTZ00028.tex",
    "png": "png/DTZ00028.png",
-   "rendered": "rendered/DTZ00028.png"
+   "rendered": "rendered/DTZ00028.png",
+   "engine": "xelatex"
   },
   {
    "id": "DTZ00029",
@@ -300,7 +329,8 @@
    "vlm_description": "A triangular network diagram is depicted with nodes labeled \\(F_P\\), \\(F_U\\), \\(F_{\\varphi}\\), \\(F_{\\varphi U}\\), \\(F_{P'}\\), \\(F_{\\varphi U'}\\), and \\(F_{U'}\\). The node \\(F_P\\) is positioned at the lower left, \\(F_U\\) at the lower right, and \\(F_{\\varphi}\\) at the upper left. \\(F_{\\varphi U}\\) is connected to both \\(F_P\\) and \\(F_U\\), forming a central node. Similarly, \\(F_{\\varphi U'}\\) connects to \\(F_{\\varphi U}\\) and \\(F_{U'}\\), while \\(F_{P'}\\) connects to \\(F_{\\varphi U}\\) and \\(F_{P}\\). Finally, \\(F\\) is positioned at the center, connecting to all six other nodes, creating a star-like structure. All connections are represented by straight black lines.",
    "tex": "tikz/DTZ00029.tex",
    "png": "png/DTZ00029.png",
-   "rendered": "rendered/DTZ00029.png"
+   "rendered": "rendered/DTZ00029.png",
+   "engine": "xelatex"
   },
   {
    "id": "DTZ00030",
@@ -310,7 +340,8 @@
    "vlm_description": "Two vertical arrows connect two horizontal arrows, forming a commutative diagram. The top horizontal arrow is labeled $\\phi$ and points from $E$ to $E'$. The bottom horizontal arrow is labeled $\\psi$ and points from $A$ to $A'$. Both vertical arrows point downward, connecting $E$ and $A$ to $E'$ and $A'$ respectively. The labels $\\phi$ and $\\psi$ are positioned above their respective arrows, centered along the length of each arrow.",
    "tex": "tikz/DTZ00030.tex",
    "png": "png/DTZ00030.png",
-   "rendered": "rendered/DTZ00030.png"
+   "rendered": "rendered/DTZ00030.png",
+   "engine": "xelatex"
   },
   {
    "id": "DTZ00031",
@@ -320,7 +351,8 @@
    "vlm_description": "A diagram featuring two parallel horizontal arrows connecting two rows of mathematical expressions. The top row starts with $\\widehat{R_U}$, which is connected by a thick arrow pointing right to $\\widehat{R_\\varphi}$. Below, another thick arrow connects $\\widehat{R_U}/\\eta$ to $k(\\varphi)$. Both vertical arrows point downward, indicating a transformation or relationship between the expressions in each row. The expressions are aligned horizontally, and the arrows are positioned centrally, ensuring symmetry in the layout.",
    "tex": "tikz/DTZ00031.tex",
    "png": "png/DTZ00031.png",
-   "rendered": "rendered/DTZ00031.png"
+   "rendered": "rendered/DTZ00031.png",
+   "engine": "xelatex"
   },
   {
    "id": "DTZ00032",
@@ -330,7 +362,8 @@
    "vlm_description": "A commutative diagram is depicted with two rows of tensor products and arrows. In the top row, there is a tensor product \\( E_U \\otimes_{F_U} F_\\varphi \\) on the left, which is mapped to \\( E \\otimes_{F_P} F_\\varphi \\) via an arrow labeled \\( \\phi \\). Below this, a vertical arrow labeled \\( \\iota \\otimes id \\) connects the top left tensor product to another tensor product \\( A_U \\otimes_{F_U} F_\\varphi \\) on the bottom left. In the bottom row, the tensor product \\( A_U \\otimes_{F_U} F_\\varphi \\) is mapped to \\( D \\otimes_{F_P} F_\\varphi \\) via an arrow labeled \\( \\psi \\). The entire diagram is enclosed within a rectangle, with no additional labels or decorations outside the diagram itself.",
    "tex": "tikz/DTZ00032.tex",
    "png": "png/DTZ00032.png",
-   "rendered": "rendered/DTZ00032.png"
+   "rendered": "rendered/DTZ00032.png",
+   "engine": "xelatex"
   },
   {
    "id": "DTZ00033",
@@ -340,7 +373,8 @@
    "vlm_description": "The image consists of two parallel commutative diagrams separated by the word \"and\". In the first diagram, there is a tensor product \\(E_U \\otimes_{F_U} F_{\\psi U}\\) on the left, which is mapped via \\(\\phi_U\\) to \\(E_{P'} \\otimes_{F_{p'}} F_{\\psi U}\\). Below this, another tensor product \\(A_U \\otimes_{F_U} F_{\\psi U}\\) is mapped via \\(\\psi_U\\) to \\(A_{P'} \\otimes_{F_{p'}} F_{\\psi U}\\). Both mappings have a vertical arrow pointing downward, indicating a projection or transformation. The second diagram mirrors the first but with additional notation: \\(F_{\\psi U'}^{m}\\) is mapped via \\(\\phi_{U'}\\) to \\(E_{P'} \\otimes_{F_{p'}} F_{\\psi U'}\\), and \\(M_{P'^{m}}(F_{\\psi U'})\\) is mapped via \\(\\psi_{U'}\\) to \\(A_{P'} \\otimes_{F_{p'}} F_{\\psi U'}\\). The first diagram includes a vertical arrow labeled \\(\\iota \\otimes id\\) pointing downward, while the second diagram includes a vertical arrow labeled \\(diag\\) pointing downward.",
    "tex": "tikz/DTZ00033.tex",
    "png": "png/DTZ00033.png",
-   "rendered": "rendered/DTZ00033.png"
+   "rendered": "rendered/DTZ00033.png",
+   "engine": "xelatex"
   },
   {
    "id": "DTZ00034",
@@ -350,7 +384,8 @@
    "vlm_description": "Two commutative diagrams are displayed side by side. In each diagram, there are two vertical sequences of arrows and two horizontal arrows forming squares. The left diagram starts with \\(L_Q \\otimes_{F_Q} F_\\xi\\) at the top left, followed by \\(A_Q \\otimes_{F_Q} F_\\xi\\) at the bottom left. Both are mapped to \\(L_\\xi\\) at the top right through \\(\\phi_{Q,\\xi}\\), and to \\(A_\\xi\\) at the bottom right through \\(\\psi_{Q,\\xi}\\). The left diagram also includes a downward arrow labeled \\(\\iota_Q \\otimes id\\) from \\(L_Q \\otimes_{F_Q} F_\\xi\\) to \\(A_Q \\otimes_{F_Q} F_\\xi\\). The right diagram mirrors the left but uses \\(L_V \\otimes_{F_V} F_\\xi\\) and \\(A_V \\otimes_{F_V} F_\\xi\\) instead, with corresponding mappings to \\(L_\\xi\\) and \\(A_\\xi\\) via \\(\\phi_{V,\\xi}\\) and \\(\\psi_{V,\\xi}\\), respectively. The downward arrow in the right diagram is labeled \\(\\iota_V \\otimes id\\).",
    "tex": "tikz/DTZ00034.tex",
    "png": "png/DTZ00034.png",
-   "rendered": "rendered/DTZ00034.png"
+   "rendered": "rendered/DTZ00034.png",
+   "engine": "xelatex"
   },
   {
    "id": "DTZ00035",
@@ -360,7 +395,8 @@
    "vlm_description": "A commutative diagram is depicted with two rows of arrows and labels. The top row starts with a tensor product symbol \"$\\otimes$\" between $L_Q$ and $F_\\xi$, followed by a subscript \"$_{F_Q}$\". This is mapped to $L_\\xi$ via an arrow labeled $\\phi_{Q,\\xi}$. Below this, another tensor product symbol \"$\\otimes$\" appears between $A_Q$ and $F_\\xi$, also with a subscript \"$_{F_Q}$\", which is mapped to $A_\\xi$ via an arrow labeled $\\psi_{Q,\\xi}$. On the left side, there is a vertical arrow labeled $\\iota_Q \\otimes id$, pointing downward from the top tensor product to the bottom one. On the right side, there is another vertical arrow labeled $\\iota_\\xi$, pointing downward from the top $L_\\xi$ to the bottom $A_\\xi$.",
    "tex": "tikz/DTZ00035.tex",
    "png": "png/DTZ00035.png",
-   "rendered": "rendered/DTZ00035.png"
+   "rendered": "rendered/DTZ00035.png",
+   "engine": "xelatex"
   },
   {
    "id": "DTZ00036",
@@ -370,7 +406,8 @@
    "vlm_description": "A hexagon with vertices labeled \\(v_1\\) through \\(v_6\\) is outlined in black. Each vertex is connected to its adjacent vertices by straight black lines forming the sides of the hexagon. The sides opposite each other are labeled \\(l_1\\) and \\(l_2\\), with \\(l_1\\) being the longer side. Inside the hexagon, there is a smaller gray parallelogram with its vertices also labeled \\(v_1\\) through \\(v_4\\). The parallelogram is shaded gray. The angle \\(\\theta\\) is marked at the intersection of two diagonals within the parallelogram. A blue circle labeled \\(O\\) is positioned at the center of the hexagon, slightly offset towards the top right. The hexagon and parallelogram share the same center point \\(O\\).",
    "tex": "tikz/DTZ00036.tex",
    "png": "png/DTZ00036.png",
-   "rendered": "rendered/DTZ00036.png"
+   "rendered": "rendered/DTZ00036.png",
+   "engine": "xelatex"
   },
   {
    "id": "DTZ00037",
@@ -380,7 +417,8 @@
    "vlm_description": "A square with vertices labeled \\(v_1\\) through \\(v_8\\) is outlined by four equal-length lines \\(l_1\\) and \\(l_2\\). The interior angles at each vertex are marked with \\(\\phi\\) and \\(\\theta\\), where \\(\\phi = \\frac{3\\pi}{2} - \\theta\\). The angle \\(\\theta\\) is indicated at the top right corner of the square, and \\(\\phi\\) is shown at the bottom left corner. The square is divided into eight triangular regions by the diagonals connecting opposite vertices. The center of the square is marked with a blue dot labeled \\(O\\). The labels \\(l_1\\) and \\(l_2\\) are positioned along the sides of the square, with \\(l_1\\) being the horizontal lines and \\(l_2\\) the vertical lines. The vertices \\(v_1\\) through \\(v_8\\) are located at the intersections of these lines.",
    "tex": "tikz/DTZ00037.tex",
    "png": "png/DTZ00037.png",
-   "rendered": "rendered/DTZ00037.png"
+   "rendered": "rendered/DTZ00037.png",
+   "engine": "xelatex"
   },
   {
    "id": "DTZ00038",
@@ -390,7 +428,8 @@
    "vlm_description": "A large octagon is centered within a larger square, both outlined in black. The octagon is inscribed within the square, touching its sides at midpoints. The square is divided into four equal quadrants by two perpendicular lines extending from opposite corners. Two smaller squares are positioned within the octagon, one at each end, aligned along the diagonals of the octagon. The octagon's vertices are labeled with angles $\\theta$ and $\\phi$, with $\\theta$ located at the top right vertex and $\\phi$ at the bottom left vertex. The side lengths of the octagon are labeled $l_1$ and $l_2$, with $l_1$ being the longer side and $l_2$ the shorter side, both extending from the center of the octagon to the midpoint of the square's sides. The background is filled with a light gray color, and the entire figure is outlined in black.",
    "tex": "tikz/DTZ00038.tex",
    "png": "png/DTZ00038.png",
-   "rendered": "rendered/DTZ00038.png"
+   "rendered": "rendered/DTZ00038.png",
+   "engine": "xelatex"
   },
   {
    "id": "DTZ00039",
@@ -400,7 +439,8 @@
    "vlm_description": "A hexagon with vertices labeled \\(v_1\\) through \\(v_6\\) is positioned centrally. The hexagon is divided into two shaded regions by a diagonal line extending from vertex \\(v_3\\) to the midpoint of side \\(l_2\\). The hexagon's sides are labeled \\(l_1\\), \\(l_2\\), and \\(l_3\\) corresponding to the lengths of its sides. The hexagon's height is labeled \\(L_y\\) and its width \\(L_x\\). Inside the hexagon, there is a smaller square labeled \\(E\\) with a blue dot at its center. The angles \\(\\theta\\) and \\(\\phi\\) are marked at the intersection of the diagonal line and the hexagon's sides. The hexagon's vertices are connected by black lines forming the shape. The hexagon's sides are oriented horizontally and vertically, with \\(l_1\\) and \\(l_3\\) being vertical and \\(l_2\\) being horizontal. The shaded regions are symmetrically placed within the hexagon, dividing it into two equal parts.",
    "tex": "tikz/DTZ00039.tex",
    "png": "png/DTZ00039.png",
-   "rendered": "rendered/DTZ00039.png"
+   "rendered": "rendered/DTZ00039.png",
+   "engine": "xelatex"
   },
   {
    "id": "DTZ00040",
@@ -410,7 +450,8 @@
    "vlm_description": "A regular octagon is depicted with its side lengths labeled as \\( l_1 \\). The height of the octagon is divided into two segments: \\( h_1 \\) at the base and \\( h_2 = l_3 \\) at the top. The width of the octagon is labeled as \\( w \\). Two angles within the octagon are marked: one labeled \\( \\theta \\) near the top right corner and another labeled \\( \\phi \\) near the bottom left corner. The octagon is shaded in gray in the top-left and bottom-right quadrants. The side length \\( l_1 \\) is also indicated with an arrow pointing horizontally across the octagon.",
    "tex": "tikz/DTZ00040.tex",
    "png": "png/DTZ00040.png",
-   "rendered": "rendered/DTZ00040.png"
+   "rendered": "rendered/DTZ00040.png",
+   "engine": "xelatex"
   },
   {
    "id": "DTZ00041",
@@ -420,7 +461,8 @@
    "vlm_description": "The image displays a line plot titled \"A Demonstration of Using LaTeX Plot\". The x-axis represents SNR (Signal-to-Noise Ratio) values in decibels (dB), ranging from approximately 0 to 3, marked at intervals of 1 dB. The y-axis represents Mean Squared Error (MSE) in squared units, ranging from 0.8 to 1.1, marked at intervals of 0.1. Six distinct lines, each representing a different value of \\(L/D\\) (length to diameter ratio), are plotted: \\(L/D=2.5\\), \\(L/D=3.5\\), \\(L/D=4.0\\), \\(L/D=4.5\\), \\(L/D=5.0\\), and \\(L/D=6.0\\). The lines are represented by solid, dashed, and dash-dotted patterns, with corresponding markers at data points. The legend is located in the top left corner, indicating the line styles and their respective \\(L/D\\) values. The plot includes gridlines for both axes, aiding in the visualization of the data points and trends.",
    "tex": "tikz/DTZ00041.tex",
    "png": "png/DTZ00041.png",
-   "rendered": "rendered/DTZ00041.png"
+   "rendered": "rendered/DTZ00041.png",
+   "engine": "xelatex"
   },
   {
    "id": "DTZ00042",
@@ -430,7 +472,8 @@
    "vlm_description": "A sequence of five nodes labeled \\(a_0\\) through \\(a_4\\) is arranged horizontally, each node connected to two other nodes below them, forming a series of downward-pointing triangles. The nodes \\(b_0\\) through \\(b_3\\) are positioned directly beneath \\(a_0\\) through \\(a_3\\), respectively, and are connected to the corresponding \\(a_i\\) nodes by dashed lines. The node \\(a_4\\) is connected to a circular path consisting of four additional nodes, which form a clockwise cycle with dashed arrows indicating the direction of movement. The entire structure is drawn using TikZ commands, with nodes represented as circles and lines as straight segments.",
    "tex": "tikz/DTZ00042.tex",
    "png": "png/DTZ00042.png",
-   "rendered": "rendered/DTZ00042.png"
+   "rendered": "rendered/DTZ00042.png",
+   "engine": "xelatex"
   },
   {
    "id": "DTZ00043",
@@ -440,7 +483,8 @@
    "vlm_description": "A series of interconnected nodes arranged in a linear fashion, each node is a small circle with a filled center. Starting from the left, the first node is connected to the second by a straight arrow pointing right. This pattern continues sequentially until the seventh node, which is also connected to the eighth node by a straight arrow pointing right. The eighth node is then connected to the ninth node by a diagonal arrow pointing upwards and to the right, forming a triangular shape with the tenth node, which is connected to the ninth by a straight arrow pointing downwards. The tenth node is then connected to the eleventh node by a straight arrow pointing right, completing the sequence. The nodes are evenly spaced along a horizontal line, and the arrows indicate directional connections between them.",
    "tex": "tikz/DTZ00043.tex",
    "png": "png/DTZ00043.png",
-   "rendered": "rendered/DTZ00043.png"
+   "rendered": "rendered/DTZ00043.png",
+   "engine": "xelatex"
   },
   {
    "id": "DTZ00044",
@@ -450,7 +494,8 @@
    "vlm_description": "A tree diagram is depicted with four nodes and six edges. At the top, there is a node labeled \"PredFake — 1\" connected by an upward arrow to another node labeled \"ActualFake\". This node \"ActualFake\" is further connected by two downward arrows to two nodes labeled \"PredReal — 0\" and \"PredReal — 1\", respectively. The node \"PredReal — 0\" is also connected by an upward arrow to a node labeled \"ActualReal\". The node \"ActualReal\" is connected by an upward arrow to a node labeled \"PredFake — 1\". The node \"PredReal — 1\" is connected by an upward arrow to a node labeled \"PredFake — 1\". The node \"PredReal — 0\" is connected by an upward arrow to a node labeled \"PredFake — 1\". The node \"PredReal — 1\" is connected by an upward arrow to a node labeled \"PredFake — 1\". The node \"PredReal — 0\" is connected by an upward arrow to a node labeled \"PredFake — 1\". The node \"PredReal — 1\" is connected by an upward arrow to a node labeled \"PredFake — 1\". The node \"PredReal — 0\" is connected by an upward arrow to a node labeled \"PredFake — 1\". The node \"PredReal — 1\" is connected by an upward arrow to a node labeled \"PredFake — 1\". The node \"PredReal — 0\" is connected by an upward arrow to a node labeled \"PredFake — 1\". The node \"PredReal — 1\" is connected by an upward arrow to a node labeled \"PredFake — 1\". The node \"PredReal — 0\" is connected by an upward arrow to a node labeled \"PredFake — 1\". The node \"PredReal — 1\" is connected by an upward arrow to a node labeled \"PredFake — 1\". The node \"PredReal — 0\" is connected by an upward arrow to a node labeled \"PredFake — 1\". The node \"PredReal — 1\" is connected by an upward arrow to a node labeled \"PredFake — 1\". The node \"PredReal — 0\" is connected by an upward arrow to a node labeled \"PredFake — 1\". The node \"PredReal — 1\" is connected by an upward arrow to a node labeled \"PredFake — 1\". The node \"PredReal — 0\" is connected by an upward arrow to a node labeled \"PredFake — 1\". The node \"PredReal — 1\" is connected by an upward arrow to a node labeled \"PredFake — 1\". The node \"PredReal — 0\" is connected by an upward arrow to a node labeled \"PredFake — 1\". The node \"PredReal — 1\" is connected by an upward arrow to a node labeled \"PredFake — 1\". The node \"PredReal — 0\" is connected by an upward arrow to a node labeled \"PredFake — 1\". The node \"PredReal — 1\" is connected by an upward arrow to a node labeled \"PredFake — 1\". The node \"PredReal — 0\" is connected by an upward arrow to a node labeled \"PredFake — 1\". The node \"PredReal — 1\" is connected by an upward arrow to a node labeled \"PredFake — 1\". The node \"PredReal — 0\" is connected by an upward arrow to a node labeled \"PredFake — 1\". The node \"PredReal — 1\" is connected by an upward arrow to a node labeled \"PredFake — 1\". The node \"PredReal — 0\" is connected by an upward arrow to a node labeled \"PredFake — 1\". The node \"PredReal — 1\" is connected by an upward arrow to a node labeled \"PredFake — 1\". The node \"PredReal — 0\" is connected by an upward arrow to a node labeled \"PredFake — 1\". The node \"PredReal — 1\" is connected by an upward arrow to a node labeled \"PredFake — 1\". The node \"PredReal — 0\" is connected by an upward arrow to a node labeled \"PredFake — 1\". The node \"PredReal — 1\" is connected by an upward arrow to a node labeled \"PredFake — 1\". The node \"PredReal — 0\" is connected by an upward arrow to a node labeled \"PredFake — 1\". The node \"PredReal — 1\" is connected by an upward arrow to a node labeled \"PredFake — 1\". The node \"PredReal — 0\" is connected by an upward arrow to a node labeled \"PredFake — 1\". The node \"PredReal — 1\" is connected by an upward arrow to a node",
    "tex": "tikz/DTZ00044.tex",
    "png": "png/DTZ00044.png",
-   "rendered": "rendered/DTZ00044.png"
+   "rendered": "rendered/DTZ00044.png",
+   "engine": "xelatex"
   },
   {
    "id": "DTZ00045",
@@ -460,7 +505,8 @@
    "vlm_description": "A graph titled \"Reuters 21578\" displays EER (Equal Error Rate) on the vertical axis ranging from 0.05 to 0.35, and the number of documents on the horizontal axis ranging from 1 to 5. The graph features four lines representing different models: UAR19 in dark blue, UAR in light blue, SBERT in purple, and UAR23 in green. Each line is accompanied by a shaded area indicating confidence intervals. The UAR19 line starts at approximately 0.25 at 1 document and decreases steadily to around 0.08 at 5 documents. The UAR line begins slightly higher than UAR19, around 0.26 at 1 document, and also decreases to about 0.08 at 5 documents. SBERT starts at roughly 0.24 at 1 document and drops to approximately 0.07 at 5 documents. UAR23 starts at about 0.35 at 1 document and decreases to around 0.22 at 5 documents. Labels for each model are positioned near the respective lines, with UAR19 and UAR23 in cyan, UAR in light blue, and SBERT in dark blue. The x-axis is labeled \"Number of Documents,\" and the y-axis is labeled \"EER.\" The gridlines are light gray, and the axes are black. The graph is enclosed within a white background.",
    "tex": "tikz/DTZ00045.tex",
    "png": "png/DTZ00045.png",
-   "rendered": "rendered/DTZ00045.png"
+   "rendered": "rendered/DTZ00045.png",
+   "engine": "xelatex"
   },
   {
    "id": "DTZ00046",
@@ -470,7 +516,8 @@
    "vlm_description": "The graph displays the Area Under the Curve (AUC) for different models across varying numbers of documents. The title \"Reuters 21578\" is positioned at the top center. The y-axis, labeled \"AUC,\" extends from approximately 0.65 to 0.95, with tick marks at intervals of 0.05. The x-axis, labeled \"Number of Documents,\" ranges from 1 to 5, marked at each integer value. Four distinct lines represent different models: SBERT in dark purple, UAR19 in light blue, UAR23 in green, and another model in teal. Each line is accompanied by a shaded area representing confidence intervals. The SBERT line starts at around 0.80 and rises steadily to just below 0.95 at 5 documents. UAR19 begins slightly lower than SBERT, around 0.75, and also shows a gradual increase but remains below SBERT. UAR23 starts near 0.70 and increases more steeply than UAR19, reaching close to 0.85 at 5 documents. The teal model starts at roughly 0.65 and shows a moderate increase, ending around 0.80 at 5 documents. Labels for the models are placed near the top of their respective lines, with SBERT in dark purple, UAR19 in light blue, UAR23 in green, and the fourth model in teal. The x-axis is oriented horizontally, and the y-axis is oriented vertically, both extending beyond the data range to provide a clear view of the trend lines.",
    "tex": "tikz/DTZ00046.tex",
    "png": "png/DTZ00046.png",
-   "rendered": "rendered/DTZ00046.png"
+   "rendered": "rendered/DTZ00046.png",
+   "engine": "xelatex"
   },
   {
    "id": "DTZ00047",
@@ -480,7 +527,8 @@
    "vlm_description": "A line chart displays AUC values on the y-axis ranging from approximately 0.65 to 0.97, with a grid overlay. The x-axis represents the \"Number of Sentences,\" ranging from 1 to 25. Four distinct lines, each representing a different model: UAR19 in green, UAR in light blue, UAR23 in purple, and SBERT in dark blue, are plotted. The UAR19 line starts at around 0.70 and increases steadily, reaching close to 0.97 at the end. The UAR line begins slightly lower than UAR19, around 0.68, and also shows a steady increase but remains below UAR19. The UAR23 line starts at approximately 0.75 and increases more sharply than UAR but less steeply than UAR19, ending near 0.95. The SBERT line starts at roughly 0.65 and increases gradually, ending just below 0.95. Labels for the models are placed near the lines, with UAR19 in green, UAR in light blue, UAR23 in purple, and SBERT in dark blue. The chart includes a title \"CDS\" positioned at the top center, and \"AUC\" is written vertically at the left side of the y-axis. The x-axis is labeled \"Number of Sentences\" at the bottom.",
    "tex": "tikz/DTZ00047.tex",
    "png": "png/DTZ00047.png",
-   "rendered": "rendered/DTZ00047.png"
+   "rendered": "rendered/DTZ00047.png",
+   "engine": "xelatex"
   },
   {
    "id": "DTZ00048",
@@ -490,7 +538,8 @@
    "vlm_description": "A graph with a grid background spans the entire area, with the x-axis labeled \"Score\" ranging from 0 to 1, and the y-axis extending upwards. Four curves are plotted: one in dark blue labeled \"Reddit,\" one in light blue labeled \"Amazon,\" one in dark green labeled \"fanfic,\" and one in yellow labeled \"MRPC+.\" The curves start close together near the origin and diverge as they approach the peak around x=0.5, where the \"Reddit\" curve peaks slightly higher than the others. All curves decline sharply after reaching their peaks, with the \"Reddit\" curve dropping off more steeply than the others. The legend is positioned in the upper right corner, with each curve color corresponding to its label.",
    "tex": "tikz/DTZ00048.tex",
    "png": "png/DTZ00048.png",
-   "rendered": "rendered/DTZ00048.png"
+   "rendered": "rendered/DTZ00048.png",
+   "engine": "xelatex"
   },
   {
    "id": "DTZ00049",
@@ -500,7 +549,8 @@
    "vlm_description": "A line chart with the title \"CDS\" positioned at the top center. The x-axis is labeled \"Number of Sentences\" and ranges from 1 to 25, while the y-axis is labeled \"EER\" and ranges from 0 to 0.37. The chart contains four lines: one dark green line labeled \"UAR19\" at the bottom, a light green line labeled \"UAR23\" slightly above it, a light blue line labeled \"SBERT\" above them, and a purple line labeled \"UAR\" at the top right. The lines are plotted with decreasing EER values as the number of sentences increases. The grid lines are light gray and intersect the axes at regular intervals. The legend is not explicitly shown within the chart area but can be inferred from the line labels.",
    "tex": "tikz/DTZ00049.tex",
    "png": "png/DTZ00049.png",
-   "rendered": "rendered/DTZ00049.png"
+   "rendered": "rendered/DTZ00049.png",
+   "engine": "xelatex"
   },
   {
    "id": "DTZ00050",
@@ -510,7 +560,8 @@
    "vlm_description": "A grid spans the background of the graph, with horizontal lines at intervals of 0.2 and vertical lines at intervals of 0.2. The x-axis is labeled \"Score\" and ranges from 0 to 1, while the y-axis is not labeled but appears to represent some metric. Five curves are plotted on the graph: Reddit in dark blue, Amazon in light blue, fanfic in dark green, MRPC+ in gold, and MRPC− in yellow. The curves start close to the origin and rise sharply before peaking around the score of 0.7. Reddit and Amazon peak slightly higher than the others, while fanfic peaks lower. MRPC+ and MRPC− have similar peaks but are slightly lower than the others. The legend is located in the top left corner, identifying each curve color with its corresponding label.",
    "tex": "tikz/DTZ00050.tex",
    "png": "png/DTZ00050.png",
-   "rendered": "rendered/DTZ00050.png"
+   "rendered": "rendered/DTZ00050.png",
+   "engine": "xelatex"
   },
   {
    "id": "DTZ00051",
@@ -520,7 +571,8 @@
    "vlm_description": "A grid spans the background of the graph, with horizontal lines at intervals of 0.2 and vertical lines at intervals of 0.2. The x-axis is labeled \"Score\" and ranges from 0 to 1. The y-axis is not labeled but appears to be normalized. Five curves are plotted: Reddit in dark blue, Amazon in light blue, fanfic in green, MRPC+ in yellow, and MRPC− in darker yellow. Each curve peaks around the score of 0.7. Reddit and Amazon have similar peak heights, while fanfic is slightly lower. MRPC+ and MRPC− have the same peak height, which is higher than the others. The legend is positioned at the top left corner, identifying each curve by color and label.",
    "tex": "tikz/DTZ00051.tex",
    "png": "png/DTZ00051.png",
-   "rendered": "rendered/DTZ00051.png"
+   "rendered": "rendered/DTZ00051.png",
+   "engine": "xelatex"
   },
   {
    "id": "DTZ00052",
@@ -530,7 +582,8 @@
    "vlm_description": "A graph with a grid background spans the entire area, with the x-axis labeled \"Score\" ranging from 0 to 1. Four distinct curves are plotted: one in dark purple labeled \"Reddit,\" one in light blue labeled \"Amazon,\" one in dark green labeled \"fanfic,\" and one in yellow labeled \"MRPC+.\" The curves start close together near the origin but diverge as they progress along the x-axis. The \"Reddit\" curve peaks slightly before the \"Amazon\" curve, which then surpasses it. The \"fanfic\" curve rises sharply, peaking higher than the others, and then declines steeply. The \"MRPC+\" curve also rises sharply but remains below the \"fanfic\" curve until it drops off sharply towards the end. The legend is positioned in the upper right corner, with each label corresponding to its respective color and curve.",
    "tex": "tikz/DTZ00052.tex",
    "png": "png/DTZ00052.png",
-   "rendered": "rendered/DTZ00052.png"
+   "rendered": "rendered/DTZ00052.png",
+   "engine": "xelatex"
   },
   {
    "id": "DTZ00053",
@@ -540,7 +593,8 @@
    "vlm_description": "A graph titled \"Reuters 21578\" displays the Equal Error Rate (EER) against the number of documents. The x-axis represents the number of documents ranging from 1 to 5, while the y-axis represents EER values ranging from approximately 0.05 to 0.35. Four lines represent different models: SBERT in dark blue, UAR in light blue, UAR19 in green, and UAR23 in teal. Each line is accompanied by a shaded area representing confidence intervals. The SBERT line starts at around 0.25 at 1 document and decreases steadily to approximately 0.08 at 5 documents. The UAR line begins at roughly 0.35 at 1 document and decreases to about 0.20 at 5 documents. The UAR19 line starts at around 0.30 and decreases to approximately 0.20. The UAR23 line starts at about 0.35 and decreases to around 0.25. Labels for each model are positioned near the respective lines, with UAR23 having an additional arrow pointing to its shaded area. The grid lines are light gray, providing a background for the data points and lines.",
    "tex": "tikz/DTZ00053.tex",
    "png": "png/DTZ00053.png",
-   "rendered": "rendered/DTZ00053.png"
+   "rendered": "rendered/DTZ00053.png",
+   "engine": "xelatex"
   },
   {
    "id": "DTZ00054",
@@ -550,7 +604,8 @@
    "vlm_description": "A graph titled \"CDS\" displays EER (Equal Error Rate) on the vertical axis ranging from 0.05 to 0.35, and the number of sentences on the horizontal axis ranging from 1 to 25. The graph features four lines representing different models: SBERT in dark blue, UAR23 in light purple, UAR19 in green, and UAR in light blue. Each line starts at approximately 0.35 at the 1 sentence mark and decreases as the number of sentences increases. The SBERT line is the steepest, followed by UAR23, UAR19, and finally UAR which is the flattest. The legend is positioned at the top right corner of the graph. The background grid is light gray, and the axes are labeled with black text. The title \"CDS\" is written in black at the top center of the graph.",
    "tex": "tikz/DTZ00054.tex",
    "png": "png/DTZ00054.png",
-   "rendered": "rendered/DTZ00054.png"
+   "rendered": "rendered/DTZ00054.png",
+   "engine": "xelatex"
   },
   {
    "id": "DTZ00055",
@@ -560,7 +615,8 @@
    "vlm_description": "A line chart titled \"Reuters 21578\" displays the Area Under the Curve (AUC) values against the number of documents. The x-axis represents the number of documents ranging from 1 to 5, while the y-axis represents AUC values ranging from approximately 0.65 to 0.95. Four lines represent different models: SBERT in dark blue, UARI9 in light blue, UAR23 in green, and UAR in cyan. Each line is accompanied by a shaded area representing confidence intervals. The SBERT line starts at around 0.80 and increases steadily to nearly 0.95. The UARI9 line begins slightly lower than SBERT, around 0.75, and also rises but remains below SBERT. The UAR23 line starts at roughly 0.70 and shows a moderate increase, staying below both SBERT and UARI9. The UAR line starts at approximately 0.65 and shows a gradual increase. The legend is positioned at the top right corner of the chart. The x-axis is labeled \"Number of Documents,\" and the y-axis is labeled \"AUC.\" The gridlines are light gray and evenly spaced across the chart.",
    "tex": "tikz/DTZ00055.tex",
    "png": "png/DTZ00055.png",
-   "rendered": "rendered/DTZ00055.png"
+   "rendered": "rendered/DTZ00055.png",
+   "engine": "xelatex"
   },
   {
    "id": "DTZ00056",
@@ -570,7 +626,8 @@
    "vlm_description": "A graph displays the Area Under the Curve (AUC) against the number of sentences, ranging from 1 to 25 on the x-axis and from approximately 0.65 to 0.97 on the y-axis. Four distinct lines represent different models: UAR19 in dark green, UAR23 in light blue, CDS in light teal, and SBERT in dark purple. Each line starts at a point near (1, 0.65) and ascends to the right, with UAR19 reaching the highest AUC value around 0.97. UAR23 follows closely behind, while CDS and SBERT show lower AUC values, with SBERT starting slightly higher than CDS but both ending closer to each other. Labels for the models are positioned above their respective lines, with UAR19 and UAR23 in cyan and SBERT in blue. The x-axis is labeled \"Number of Sentences\" and the y-axis is labeled \"AUC.\" The grid lines are light gray, providing a structured background for the data points.",
    "tex": "tikz/DTZ00056.tex",
    "png": "png/DTZ00056.png",
-   "rendered": "rendered/DTZ00056.png"
+   "rendered": "rendered/DTZ00056.png",
+   "engine": "xelatex"
   },
   {
    "id": "DTZ00057",
@@ -580,7 +637,8 @@
    "vlm_description": "A graph titled \"Amount of video memory (VRAM) used\" displays VRAM usage in gigabytes (GB) on the y-axis ranging from 0 to 3.5, marked at intervals of 0.5. The x-axis represents tensor length, ranging from 0 to approximately 2800, marked at intervals of 400. Four distinct lines represent different models: ActionFormer (black with cross markers), STALE (cyan with diamond markers), TemporalMaxer (red with square markers), and TriDet (blue with star markers). The legend is located in the top-left corner. The graph includes a dashed horizontal line at 3 GB. The data points for each model show increasing VRAM usage as tensor length increases, with STALE consistently using the most VRAM, followed by ActionFormer, TemporalMaxer, and TriDet.",
    "tex": "tikz/DTZ00057.tex",
    "png": "png/DTZ00057.png",
-   "rendered": "rendered/DTZ00057.png"
+   "rendered": "rendered/DTZ00057.png",
+   "engine": "xelatex"
   },
   {
    "id": "DTZ00058",
@@ -590,7 +648,8 @@
    "vlm_description": "A line chart with four distinct lines representing different models: ActionFormer, STALE, TemporalMaxer, and TriDet, each plotted with a unique marker type and color. The x-axis is labeled \"Tensor length\" and spans from 0 to approximately 3000, marked at intervals of 800. The y-axis is labeled \"GMACs\" and ranges from 0 to 170, marked at intervals of 50. The ActionFormer line is represented by black crosses, STALE by cyan plus signs, TemporalMaxer by red triangles, and TriDet by blue stars. The legend is positioned in the top left corner, identifying each model with its respective marker. The graph includes a dashed gray horizontal line at the GMACs value of 100, which appears to be a reference or threshold line. The overall trend shows that as tensor length increases, the number of GMACs generally increases for all models, with STALE consistently having the highest values and TemporalMaxer the lowest.",
    "tex": "tikz/DTZ00058.tex",
    "png": "png/DTZ00058.png",
-   "rendered": "rendered/DTZ00058.png"
+   "rendered": "rendered/DTZ00058.png",
+   "engine": "xelatex"
   },
   {
    "id": "DTZ00059",
@@ -600,7 +659,8 @@
    "vlm_description": "A triangular network diagram is depicted with a source node labeled \"Source\" at the bottom left and a destination node labeled \"Destination\" at the bottom right. Three paths emanate from the source: Path 1 is represented by a red arrow pointing upwards, Path 2 by a green arrow pointing upwards, and Path 3 by a blue arrow pointing upwards. Each path leads to a central node labeled \"Link 1,\" which is connected to another central node labeled \"Link 2.\" Link 2 is connected to two more nodes labeled \"Link 3\" and \"Link 4,\" both of which are connected to the destination node. Additionally, there is a connection from the source to the destination labeled \"Arrivals\" with a series of wavy lines indicating the flow of arrivals. Another connection labeled \"Rejections\" is shown as a curved arrow pointing from the source towards the destination. The links are labeled accordingly: Link 1, Link 2, Link 3, Link 4, and Link 5.",
    "tex": "tikz/DTZ00059.tex",
    "png": "png/DTZ00059.png",
-   "rendered": "rendered/DTZ00059.png"
+   "rendered": "rendered/DTZ00059.png",
+   "engine": "xelatex"
   },
   {
    "id": "DTZ00060",
@@ -610,7 +670,8 @@
    "vlm_description": "A pie chart is divided into seven segments, each representing a different category. The categories are labeled around the perimeter of the chart: \"Memory Category\" at the top right, \"Resource Category\" slightly below and to the left, \"Calculation Category\" further down, \"Function Category\" at the bottom, \"Initialization Category\" to the left of the bottom, \"Reachability Category\" slightly above and to the left of the bottom, and \"Evaluation Category\" at the top left. Each segment is colored differently: \"Memory Category\" is gray, \"Resource Category\" is light gray, \"Calculation Category\" is dark gray, \"Function Category\" is medium gray, \"Initialization Category\" is light gray, \"Reachability Category\" is dark gray, and \"Evaluation Category\" is light gray. The percentages of each category are written within the segments: \"Memory Category\" is 21.4%, \"Resource Category\" is 7.1%, \"Calculation Category\" is 7.1%, \"Function Category\" is 25.0%, \"Initialization Category\" is 7.1%, \"Reachability Category\" is 7.1%, and \"Evaluation Category\" is 17.9%. Below each category name, the number of Common Weakness Enumerations (CWEs) and the number of Common Software Errors (CS) are specified: \"Memory Category\" has 55 CWEs and 6 CS, \"Resource Category\" has 3 CWEs and 2 CS, \"Calculation Category\" has 3 CWEs and 2 CS, \"Function Category\" has 39 CWEs and 7 CS, \"Initialization Category\" has 45 CWEs and 2 CS, \"Reachability Category\" has 22 CWEs and 2 CS, and \"Evaluation Category\" has 70 CWEs and 5 CS.",
    "tex": "tikz/DTZ00060.tex",
    "png": "png/DTZ00060.png",
-   "rendered": "rendered/DTZ00060.png"
+   "rendered": "rendered/DTZ00060.png",
+   "engine": "xelatex"
   },
   {
    "id": "DTZ00061",
@@ -620,7 +681,8 @@
    "vlm_description": "A pie chart is divided into several segments, each representing a different category of security vulnerabilities. The largest segment, labeled \"Overflow,\" occupies approximately one-third of the circle and is colored gray. Adjacent to it, a smaller gray segment represents \"Denial of Service (DoS)\" at around 29%. Below these two, a slightly larger gray segment labeled \"None\" takes up about 24.1%. To the right, a small gray segment labeled \"Gain Information\" accounts for 0.7%. Further right, a very thin gray segment labeled \"Bypass\" makes up just 1%. Next, a small gray segment labeled \"Memory Corruption\" is about 1.9%. Following that, a larger gray segment labeled \"Code Execution\" is approximately 11.1%. Finally, a very thin gray segment labeled \"Cross-site scripting (XSS)\" is about 0.1%. Each segment is labeled with its percentage value and vulnerability type, with the percentages written in white text near the edge of the pie chart.",
    "tex": "tikz/DTZ00061.tex",
    "png": "png/DTZ00061.png",
-   "rendered": "rendered/DTZ00061.png"
+   "rendered": "rendered/DTZ00061.png",
+   "engine": "xelatex"
   },
   {
    "id": "DTZ00062",
@@ -630,7 +692,8 @@
    "vlm_description": "A rectangular diagram is divided into four quadrants by two horizontal and two vertical lines. In the top-left quadrant, a rectangle labeled \"RVT code word\" is positioned at the top-left corner. Below it, a smaller rectangle labeled \"Multiplicity sequence Vertical orders vector\" is aligned horizontally. To the right of these rectangles, another rectangle labeled \"Puiseux characteristic\" is placed at the top-right corner. Below it, a smaller rectangle labeled \"Restricted Puiseux characteristic\" is aligned horizontally. Both rectangles in the top row have arrows pointing towards each other, indicating a relationship. In the bottom-left quadrant, a rectangle labeled \"Goursat code word\" is positioned at the bottom-left corner. Below it, a larger rectangle contains the labels \"Small growth vector,\" \"Jean's beta vector,\" \"Derived vector,\" \"Second derived vector,\" and \"Restricted vertical orders vector.\" This rectangle is connected to both the \"Multiplicity sequence Vertical orders vector\" and the \"Restricted Puiseux characteristic\" rectangles via arrows, suggesting a flow or transformation between these elements.",
    "tex": "tikz/DTZ00062.tex",
    "png": "png/DTZ00062.png",
-   "rendered": "rendered/DTZ00062.png"
+   "rendered": "rendered/DTZ00062.png",
+   "engine": "xelatex"
   },
   {
    "id": "DTZ00063",
@@ -640,7 +703,8 @@
    "vlm_description": "Four circles labeled \\(A\\), \\(B\\), \\(C\\), and \\(D\\) are arranged horizontally at the top, each connected to four circles labeled \\(A, 1\\), \\(B, 2\\), \\(C, 3\\), and \\(D, 4\\) at the bottom. Each top circle is connected to every corresponding bottom circle by a straight black line. The top circles have a label \\(A, *\\), \\(B, *\\), \\(C, *\\), and \\(D, *\\). The bottom circles have labels \\(A, 1\\), \\(B, 2\\), \\(C, 3\\), and \\(D, 4\\), positioned directly below their respective top counterparts.",
    "tex": "tikz/DTZ00063.tex",
    "png": "png/DTZ00063.png",
-   "rendered": "rendered/DTZ00063.png"
+   "rendered": "rendered/DTZ00063.png",
+   "engine": "xelatex"
   },
   {
    "id": "DTZ00064",
@@ -650,7 +714,8 @@
    "vlm_description": "Four circles labeled \\(A\\), \\(B\\), \\(C\\), and \\(D\\) are arranged horizontally at the top, each connected to four circles labeled \\(A, 1\\), \\(B, 2\\), \\(C, 3\\), and \\(D, 4\\) at the bottom. Each top circle is connected to every bottom circle by a straight black line. The top circles have a label \\(A, *\\), \\(B, *\\), \\(C, *\\), and \\(D, *\\). The bottom circles have labels \\(A, 1\\), \\(B, 2\\), \\(C, 3\\), and \\(D, 4\\) positioned directly below their corresponding top circles.",
    "tex": "tikz/DTZ00064.tex",
    "png": "png/DTZ00064.png",
-   "rendered": "rendered/DTZ00064.png"
+   "rendered": "rendered/DTZ00064.png",
+   "engine": "xelatex"
   },
   {
    "id": "DTZ00065",
@@ -660,320 +725,9 @@
    "vlm_description": "The image consists of a single character 'c' in a serif font, positioned slightly off-center towards the upper left quadrant of the canvas. The character is rendered in a dark gray color and appears to be in a bold style. The background is plain white, with no additional elements or annotations present. The character 'c' is oriented horizontally and occupies a small portion of the overall space, leaving much of the canvas blank.",
    "tex": "tikz/DTZ00065.tex",
    "png": "png/DTZ00065.png",
-   "rendered": "rendered/DTZ00065.png"
+   "rendered": "rendered/DTZ00065.png",
+   "engine": "xelatex"
   },
-  {
-   "id": "DTZ00069",
-   "source": "arxiv",
-   "file_id": "arxiv_src_new_276_224_41_0",
-   "caption": "",
-   "vlm_description": "The image consists of two separate sections labeled \"a)\" and \"b)\". Section \"a)\" is blank, showing no visible content. Section \"b)\" also appears empty, with no discernible shapes, lines, or labels present.",
-   "tex": "tikz/DTZ00069.tex",
-   "png": "png/DTZ00069.png",
-   "rendered": "rendered/DTZ00069.png"
-  },
-  {
-   "id": "DTZ00070",
-   "source": "arxiv",
-   "file_id": "arxiv_src_new_276_224_41_1",
-   "caption": "",
-   "vlm_description": "The image consists of two separate sections labeled \"a)\" and \"b)\". Section \"a)\" is blank, showing no visible content. Section \"b)\" also appears empty, with no discernible shapes, lines, or labels present.",
-   "tex": "tikz/DTZ00070.tex",
-   "png": "png/DTZ00070.png",
-   "rendered": "rendered/DTZ00070.png"
-  },
-  {
-   "id": "DTZ00071",
-   "source": "arxiv",
-   "file_id": "arxiv_src_new_276_224_41_2",
-   "caption": "",
-   "vlm_description": "The image consists of a single white background with no visible geometric shapes, lines, or labels. It appears to be a blank canvas or placeholder, possibly indicating a section for additional content or a title. There are no discernible features or markings present within the frame.",
-   "tex": "tikz/DTZ00071.tex",
-   "png": "png/DTZ00071.png",
-   "rendered": "rendered/DTZ00071.png"
-  },
-  {
-   "id": "DTZ00072",
-   "source": "arxiv",
-   "file_id": "arxiv_src_new_276_224_41_3",
-   "caption": "",
-   "vlm_description": "The image consists of a single character, the lowercase letter \"b\", written in a serif font. The letter is positioned centrally within the image, occupying most of the vertical space. It is rendered in a dark gray color, with a slight shadow effect beneath it, giving it a three-dimensional appearance. The letter \"b\" is oriented horizontally, with its looped tail extending to the right and the stem pointing downward. The loop is smooth and rounded, and the stem is straight and slightly angled upwards towards the right. There are no additional elements or annotations present in the image.",
-   "tex": "tikz/DTZ00072.tex",
-   "png": "png/DTZ00072.png",
-   "rendered": "rendered/DTZ00072.png"
-  },
-  {
-   "id": "DTZ00073",
-   "source": "arxiv",
-   "file_id": "arxiv_src_new_276_224_53_0",
-   "caption": "",
-   "vlm_description": "A bright lime green circle occupies most of the frame, with a slightly blurred texture giving it a pixelated appearance. Inside the circle, the letters \"iD\" are prominently displayed in a bold, sans-serif font, oriented vertically with \"i\" at the top and \"D\" at the bottom. The text is white, creating a strong contrast against the green background. The circle is centered within the frame, and there are no additional elements or labels present.",
-   "tex": "tikz/DTZ00073.tex",
-   "png": "png/DTZ00073.png",
-   "rendered": "rendered/DTZ00073.png"
-  },
-  {
-   "id": "DTZ00074",
-   "source": "arxiv",
-   "file_id": "arxiv_src_new_276_224_78_0",
-   "caption": "Scaling analysis using the method of manufactured solutions. (a) A known solution, shown at $t= 1.24$, manufactured using the body forces \\eqrefeq:mms_f",
-   "vlm_description": "The image consists of two subplots side by side, each labeled with text at the bottom left corner. The left subplot is titled \"(a) Manufactured solution\" and the right one is titled \"(b) Error scaling analysis\". Both subplots have a vertical axis labeled \"solid fraction φ\" positioned on the left side of the plot area. The background of both subplots is white, and there are no additional graphical elements or data points within the plots themselves. The text labels are in a serif font, and the subplot titles are in a sans-serif font. The overall layout is simple and clean, with ample space around the text and axes.",
-   "tex": "tikz/DTZ00074.tex",
-   "png": "png/DTZ00074.png",
-   "rendered": "rendered/DTZ00074.png"
-  },
-  {
-   "id": "DTZ00075",
-   "source": "arxiv",
-   "file_id": "arxiv_src_new_276_224_78_1",
-   "caption": "Comparison of classical phase separation with and without elastic resistance. (a) In the absence of elasticity, a biphasic gel undergoes spinodal decomposition, forming biconnected regions and eventually isolated droplets which undergo slow ripening \\citeptanaka_unusual_1993",
-   "vlm_description": "A vertical axis labeled \"solid fraction $\\phi$\" extends upwards from the right side of the image, starting at the bottom edge and extending to the top edge. The axis is marked with a thin black line at regular intervals. At the very top of the axis, near the right edge, there is a label \"$\\phi = 0.5$\". Below this, another label \"$\\phi = 0.05$\" is positioned slightly lower on the same vertical line. Along the bottom of the image, four horizontal time markers are evenly spaced: \"t = 180\", \"t = 250\", \"t = 500\", and \"t = 1000\" from left to right. These markers are aligned horizontally with the corresponding vertical lines extending upwards from the bottom edge of the image.",
-   "tex": "tikz/DTZ00075.tex",
-   "png": "png/DTZ00075.png",
-   "rendered": "rendered/DTZ00075.png"
-  },
-  {
-   "id": "DTZ00076",
-   "source": "arxiv",
-   "file_id": "arxiv_src_new_276_224_79_3",
-   "caption": "",
-   "vlm_description": "Two text labels are positioned horizontally in the center of the image. The label \"Stopped Incident\" is located at the left side, while \"Slow-Moving Incident\" is situated at the right side. Both labels are written in a serif font and are aligned vertically with each other. The text is black and appears to be of equal size. The background is plain white, and there are no additional graphical elements or annotations present.",
-   "tex": "tikz/DTZ00076.tex",
-   "png": "png/DTZ00076.png",
-   "rendered": "rendered/DTZ00076.png"
-  },
-  {
-   "id": "DTZ00077",
-   "source": "arxiv",
-   "file_id": "arxiv_src_new_276_224_79_4",
-   "caption": "",
-   "vlm_description": "A vertical black line extends downward from the top edge of the image, occupying approximately one-third of the image's height. The line is straight and uniform in thickness, with no additional markings or labels along its length. The background is entirely white, providing high contrast to the black line.",
-   "tex": "tikz/DTZ00077.tex",
-   "png": "png/DTZ00077.png",
-   "rendered": "rendered/DTZ00077.png"
-  },
-  {
-   "id": "DTZ00078",
-   "source": "arxiv",
-   "file_id": "arxiv_src_new_276_224_79_6",
-   "caption": "",
-   "vlm_description": "Two text labels are positioned horizontally in the center of the image. The label on the left reads \"Discretionary lane changes\" in a serif font, aligned to the left edge of its bounding box. The label on the right reads \"Mandatory overtaking\" in a similar serif font, aligned to the right edge of its bounding box. Both labels are centered vertically within their respective spaces, with equal spacing between them. The background is plain white, and there are no additional graphical elements or annotations present.",
-   "tex": "tikz/DTZ00078.tex",
-   "png": "png/DTZ00078.png",
-   "rendered": "rendered/DTZ00078.png"
-  },
-  {
-   "id": "DTZ00079",
-   "source": "arxiv",
-   "file_id": "arxiv_src_new_276_224_77_0",
-   "caption": "",
-   "vlm_description": "A diagram consists of four nodes arranged in a square formation. The top-left node is labeled $\\pi_{i-1,j}$, the top-right node is labeled $\\pi_{i,j}$, the bottom-left node is labeled $\\pi_{i-1,j-1}$, and the bottom-right node is labeled $\\pi_{i,j-1}$. Each pair of adjacent nodes is connected by a horizontal line segment labeled with a variable: $\\pi_{i-1,j}$ to $\\pi_{i,j}$ is labeled $k_i$, and $\\pi_{i-1,j-1}$ to $\\pi_{i,j-1}$ is also labeled $k_i$. Additionally, vertical lines extend downward from each node, labeled $l_j$ at the right side of the top and bottom nodes. The entire structure is symmetric along both the horizontal and vertical axes.",
-   "tex": "tikz/DTZ00079.tex",
-   "png": "png/DTZ00079.png",
-   "rendered": "rendered/DTZ00079.png"
-  },
-  {
-   "id": "DTZ00080",
-   "source": "arxiv",
-   "file_id": "arxiv_src_new_276_224_77_1",
-   "caption": "A $k$-growth diagram",
-   "vlm_description": "A grid of six nodes arranged in two rows and three columns, each node labeled with a permutation of four numbers: 1234, 1243, 1324, 1342, 1432, and 15324. Each node is connected to its adjacent nodes by a thin black line, forming a network-like structure. Above each node, there is a number indicating the distance between the node and its neighbors, with values 2 and 3 appearing alternately. The numbers 2 and 3 are positioned above the connecting lines, aligned horizontally with the nodes they connect.",
-   "tex": "tikz/DTZ00080.tex",
-   "png": "png/DTZ00080.png",
-   "rendered": "rendered/DTZ00080.png"
-  },
-  {
-   "id": "DTZ00081",
-   "source": "arxiv",
-   "file_id": "arxiv_src_new_276_224_77_3",
-   "caption": "A growth diagram for $w=13524$ and $v=1432$",
-   "vlm_description": "A series of horizontal lines are arranged in a grid-like structure, each line labeled with four numbers in a specific order. The first row consists of the sequence 1432, 2431, 24513, 34512, and 34521, each separated by a thin black line. Below each number in the first row, there is a vertical line labeled with the number 2. The second row mirrors the first but with the sequence 1342, 2341, 23514, 24513, and 24531, also separated by thin black lines. Each number in the second row is vertically aligned with the corresponding number in the first row and is labeled with the number 3. The third row follows the same pattern with the sequence 1243, 1342, 13524, 14523, and 14532, again separated by thin black lines, and each number is vertically aligned with its counterpart in the previous rows, labeled with the number 4. The fourth row repeats the sequence 1234, 1243, 12534, 12543, and 13542, separated by thin black lines, with each number vertically aligned and labeled with the number 3.",
-   "tex": "tikz/DTZ00081.tex",
-   "png": "png/DTZ00081.png",
-   "rendered": "rendered/DTZ00081.png"
-  },
-  {
-   "id": "DTZ00082",
-   "source": "arxiv",
-   "file_id": "arxiv_src_new_276_224_123_5",
-   "caption": "",
-   "vlm_description": "A commutative diagram is depicted with arrows and labels. At the top left, a node labeled $([B]^*\\pi_L)^{-1}(x)$ is connected by an arrow pointing right to another node labeled $[B]^*Y_L$. From $[B]^*Y_L$, there is an arrow pointing right to a node labeled $Y_L$. Below these nodes, a vertical arrow connects $([B]^*\\pi_L)^{-1}(x)$ to a node labeled $x$. To the right of $x$, an arrow points right to a node labeled $A_L$. Another vertical arrow connects $[B]^*Y_L$ to a node labeled $A_L$. Finally, an arrow points right from $A_L$ to a node labeled $A_L$. The entire diagram is structured in a grid-like fashion, with each node and arrow clearly defined and positioned relative to one another.",
-   "tex": "tikz/DTZ00082.tex",
-   "png": "png/DTZ00082.png",
-   "rendered": "rendered/DTZ00082.png"
-  },
-  {
-   "id": "DTZ00083",
-   "source": "arxiv",
-   "file_id": "arxiv_src_new_276_224_149_0",
-   "caption": "\\labelf:io_irreducible",
-   "vlm_description": "A circular diagram consists of four nodes labeled 1, 2, 3, and 4, arranged clockwise. Node 1 is at the top, node 2 is at the bottom left, node 3 is at the bottom right, and node 4 is at the top right. Each node is connected to every other node by a curved arrow labeled with a subscripted variable: \\(a_{11}\\) loops back to node 1, \\(a_{21}\\) points from node 2 to node 1, \\(a_{12}\\) points from node 1 to node 2, \\(a_{31}\\) points from node 3 to node 1, \\(a_{24}\\) points from node 2 to node 4, \\(a_{43}\\) points from node 4 to node 3, \\(a_{23}\\) points from node 2 to node 3, and \\(a_{41}\\) points from node 4 to node 1. The arrows are curved and directed towards the next node in the clockwise direction.",
-   "tex": "tikz/DTZ00083.tex",
-   "png": "png/DTZ00083.png",
-   "rendered": "rendered/DTZ00083.png"
-  },
-  {
-   "id": "DTZ00084",
-   "source": "arxiv",
-   "file_id": "arxiv_src_new_276_224_149_1",
-   "caption": "\\labelf:hub",
-   "vlm_description": "A central node labeled \"1\" is positioned at the top center. Four nodes labeled \"2\", \"3\", \"4\", and \"5\" are arranged horizontally below \"1\". Each of these four nodes is connected to \"1\" by a straight black line, forming a tree-like structure. Node \"2\" is located to the left, while \"5\" is to the right. Nodes \"3\" and \"4\" are positioned symmetrically between \"2\" and \"5\". The connections are direct and unbroken, with no additional labels or decorations on the lines.",
-   "tex": "tikz/DTZ00084.tex",
-   "png": "png/DTZ00084.png",
-   "rendered": "rendered/DTZ00084.png"
-  },
-  {
-   "id": "DTZ00085",
-   "source": "arxiv",
-   "file_id": "arxiv_src_new_276_224_149_2",
-   "caption": "",
-   "vlm_description": "A central node labeled \"5\" is surrounded by four nodes labeled \"1\", \"2\", \"3\", and \"4\" positioned at the cardinal directions: north, northeast, south, and southwest respectively. Each of these nodes is connected to the central node \"5\" by a single arrow pointing towards it. Node \"1\" is located at approximately (0.8, 0.8), node \"2\" at (0.2, 0.8), node \"3\" at (-0.8, -0.8), and node \"4\" at (0.8, -0.8). The central node \"5\" is slightly larger than the surrounding nodes and is located at the origin (0, 0).",
-   "tex": "tikz/DTZ00085.tex",
-   "png": "png/DTZ00085.png",
-   "rendered": "rendered/DTZ00085.png"
-  },
-  {
-   "id": "DTZ00086",
-   "source": "arxiv",
-   "file_id": "arxiv_src_new_276_224_149_3",
-   "caption": "",
-   "vlm_description": "A square with vertices labeled 1, 2, 3, and 4 in a clockwise direction starting from the top left. Each vertex is a circle with a black border and a white interior. Arrows connect each vertex to the next one in the sequence, forming a closed loop. The arrow from vertex 1 points towards vertex 2, from vertex 2 towards vertex 3, from vertex 3 towards vertex 4, and from vertex 4 back to vertex 1. The arrows are thin and black, with their tails originating from the center of each respective vertex and their heads pointing towards the next vertex.",
-   "tex": "tikz/DTZ00086.tex",
-   "png": "png/DTZ00086.png",
-   "rendered": "rendered/DTZ00086.png"
-  },
-  {
-   "id": "DTZ00087",
-   "source": "arxiv",
-   "file_id": "arxiv_src_new_276_224_152_0",
-   "caption": "\\labelf:graph",
-   "vlm_description": "A central node labeled \"D\" is connected to six other nodes: \"A\", \"B\", \"C\", \"E\", \"F\", and \"G\". Node \"A\" is positioned at the top and is connected to \"D\" with a line labeled \"3\". Node \"B\" is located to the right of \"D\" and is connected to \"D\" with a line labeled \"9\". Node \"C\" is to the left of \"D\" and is connected to \"D\" with a line labeled \"2\". Node \"E\" is below \"D\" and to the right and is connected to \"D\" with a line labeled \"8\". Node \"F\" is below \"D\" and to the left and is connected to \"D\" with a line labeled \"4\". Node \"G\" is below \"D\" and is connected to \"D\" with a line labeled \"1\". Additionally, there are lines extending from \"D\" to \"C\" labeled \"5\", from \"D\" to \"F\" labeled \"1\", and from \"D\" to \"E\" labeled \"4\".",
-   "tex": "tikz/DTZ00087.tex",
-   "png": "png/DTZ00087.png",
-   "rendered": "rendered/DTZ00087.png"
-  },
-  {
-   "id": "DTZ00088",
-   "source": "arxiv",
-   "file_id": "arxiv_src_new_276_224_152_1",
-   "caption": "\\labelf:graph2",
-   "vlm_description": "A network diagram is depicted with six nodes labeled A through F arranged in a partially connected structure. Node A is connected to node D with a thick red line labeled \"5\". Node B is connected to node D with a thin black line labeled \"9\". Node C is connected to node D with a thin black line labeled \"2\". Node D is connected to node G with a thin black line labeled \"8\". Node E is connected to node D with a thin black line labeled \"6\". Node F is connected to node D with a thin black line labeled \"4\". Node G is connected to node D with a thin black line labeled \"1\". Node A is also connected to node C with a thin black line labeled \"3\". Node B is connected to node E with a thin black line labeled \"1\". Node F is connected to node G with a thin black line labeled \"4\". The nodes are circular and evenly spaced around the central node D.",
-   "tex": "tikz/DTZ00088.tex",
-   "png": "png/DTZ00088.png",
-   "rendered": "rendered/DTZ00088.png"
-  },
-  {
-   "id": "DTZ00089",
-   "source": "arxiv",
-   "file_id": "arxiv_src_new_276_224_152_2",
-   "caption": "\\labelf:graph3",
-   "vlm_description": "A tree diagram is depicted with nodes labeled A, B, C, D, E, F, and G. Node A is at the top and branches out to nodes B, C, and D. Node B branches to node D, while node C branches to node F. Node D is central and connects to nodes A, B, E, and F. Node E branches to node D, and node F branches to nodes D and G. Node G is at the bottom right and branches from node D. Arrows indicate the direction of the connections. The numbers 1, 2, 3, 4, 5, 6, 8, 9, and 10 are placed near the connecting lines, indicating the order or weight of the connections. Node A is connected to node D with a thick blue line labeled 3. Node B is connected to node D with a thin black line labeled 9. Node C is connected to node F with a thin black line labeled 2. Node D is connected to node E with a thin black line labeled 6. Node D is connected to node F with a thin black line labeled 4. Node D is connected to node G with a thin black line labeled 8. Node F is connected to node G with a thin black line labeled 1.",
-   "tex": "tikz/DTZ00089.tex",
-   "png": "png/DTZ00089.png",
-   "rendered": "rendered/DTZ00089.png"
-  },
-  {
-   "id": "DTZ00090",
-   "source": "arxiv",
-   "file_id": "arxiv_src_new_276_224_152_3",
-   "caption": "\\labelf:graph4",
-   "vlm_description": "A circular node labeled \"A\" is positioned at the top center, connected by a thick black arrow pointing downward to another circular node labeled \"D\". This connection is labeled with the number \"3\" in black. Node \"A\" also has two other connections: one to the left circular node labeled \"C\", which is connected by a thick black arrow labeled \"5\" in black; and one to the right circular node labeled \"B\", which is connected by a thick black arrow labeled \"1\" in black. Node \"D\" is further connected to the left circular node labeled \"F\" by a thick black arrow labeled \"4\" in black, and to the right circular node labeled \"E\" by a thick black arrow labeled \"6\" in black. Node \"D\" also has a connection to the bottom circular node labeled \"G\" by a thick black arrow labeled \"8\" in black. Node \"G\" is connected to the left circular node labeled \"F\" by a thick black arrow labeled \"1\" in black, and to the right circular node labeled \"E\" by a thick black arrow labeled \"4\" in black. Node \"G\" is also connected to the bottom circular node labeled \"H\" by a thick black arrow labeled \"0\" in black. Node \"C\" is connected to the left circular node labeled \"F\" by a thick black arrow labeled \"2\" in black. Node \"B\" is connected to the right circular node labeled \"E\" by a thick black arrow labeled \"9\" in black. Node \"D\" is connected to the bottom circular node labeled \"G\" by a thick black arrow labeled \"8\" in black. Node \"A\" is connected to the top circular node labeled \"C\" by a thick black arrow labeled \"3\" in black. Node \"A\" is connected to the right circular node labeled \"B\" by a thick black arrow labeled \"1\" in black. Node \"D\" is connected to the left circular node labeled \"F\" by a thick black arrow labeled \"4\" in black. Node \"D\" is connected to the right circular node labeled \"E\" by a thick black arrow labeled \"6\" in black. Node \"D\" is connected to the bottom circular node labeled \"G\" by a thick black arrow labeled \"8\" in black. Node \"G\" is connected to the left circular node labeled \"F\" by a thick black arrow labeled \"1\" in black. Node \"G\" is connected to the right circular node labeled \"E\" by a thick black arrow labeled \"4\" in black. Node \"G\" is connected to the bottom circular node labeled \"H\" by a thick black arrow labeled \"0\" in black. Node \"C\" is connected to the left circular node labeled \"F\" by a thick black arrow labeled \"2\" in black. Node \"B\" is connected to the right circular node labeled \"E\" by a thick black arrow labeled \"9\" in black. Node \"A\" is connected to the top circular node labeled \"C\" by a thick black arrow labeled \"3\" in black. Node \"A\" is connected to the right circular node labeled \"B\" by a thick black arrow labeled \"1\" in black. Node \"D\" is connected to the left circular node labeled \"F\" by a thick black arrow labeled \"4\" in black. Node \"D\" is connected to the right circular node labeled \"E\" by a thick black arrow labeled \"6\" in black. Node \"D\" is connected to the bottom circular node labeled \"G\" by a thick black arrow labeled \"8\" in black. Node \"G\" is connected to the left circular node labeled \"F\" by a thick black arrow labeled \"1\" in black. Node \"G\" is connected to the right circular node labeled \"E\" by a thick black arrow labeled \"4\" in black. Node \"G\" is connected to the bottom circular node labeled \"H\" by a thick black arrow labeled \"0\" in black. Node \"C\" is connected to the left circular node labeled \"F\" by a thick black arrow labeled \"2\" in black. Node \"B\" is connected to the right circular node labeled \"E\" by a thick black arrow labeled \"9\" in black. Node \"A\" is connected to the top circular node labeled \"C\" by a thick black arrow labeled \"3\" in black. Node \"A\" is connected to the right circular node labeled \"B\" by a thick black arrow labeled \"1\" in black. Node \"D\" is connected to the left circular node labeled \"F\" by a thick black arrow labeled \"4\" in black. Node \"D\" is connected to the right circular node labeled \"E\" by a thick black arrow labeled \"6\" in black. Node \"D\" is connected to the bottom circular node labeled \"G\" by a thick black arrow labeled \"8\" in black. Node \"G\" is connected to the",
-   "tex": "tikz/DTZ00090.tex",
-   "png": "png/DTZ00090.png",
-   "rendered": "rendered/DTZ00090.png"
-  },
-  {
-   "id": "DTZ00091",
-   "source": "arxiv",
-   "file_id": "arxiv_src_new_276_224_152_4",
-   "caption": "\\labelf:shortest_paths_5",
-   "vlm_description": "A tree diagram is depicted with nodes labeled A, B, C, D, E, F, and G. Node A is at the top and branches out to nodes B, C, and D. Node B branches to node E, while node C branches to node F. Node D branches to nodes G and E. Node G loops back to itself. Arrows indicate the direction of flow, with numbers labeling the edges: 5 from A to C, 3 from A to D, 1 from A to B, 9 from B to D, 6 from B to E, 2 from C to F, 4 from C to D, 4 from D to G, 8 from D to E, and 1 from D to G. Node G also has a self-loop labeled 0.",
-   "tex": "tikz/DTZ00091.tex",
-   "png": "png/DTZ00091.png",
-   "rendered": "rendered/DTZ00091.png"
-  },
-  {
-   "id": "DTZ00092",
-   "source": "arxiv",
-   "file_id": "arxiv_src_new_276_224_152_5",
-   "caption": "",
-   "vlm_description": "A network diagram illustrating a bipartite graph where workers and jobs are represented by two sets of circles. On the left side, there are four labeled circles representing workers: \"1\", \"2\", \"3\", and \"40\". These circles are connected to corresponding circles on the right side, which represent jobs, by black arrows indicating directed relationships. The worker circle labeled \"1\" is connected to job circles \"1\" and \"2\", while the worker circle labeled \"2\" is connected to job circles \"2\" and \"3\". The worker circle labeled \"3\" is connected to job circles \"3\" and \"40\", and the worker circle labeled \"40\" is connected to job circles \"40\" and \"39\". The labels for the workers are positioned above their respective circles, and the labels for the jobs are positioned below their respective circles. The diagram uses a consistent black color for the arrows and white for the labels.",
-   "tex": "tikz/DTZ00092.tex",
-   "png": "png/DTZ00092.png",
-   "rendered": "rendered/DTZ00092.png"
-  },
-  {
-   "id": "DTZ00093",
-   "source": "arxiv",
-   "file_id": "arxiv_src_new_276_224_152_6",
-   "caption": "",
-   "vlm_description": "A diagram featuring seven circles, each labeled with Greek letters $\\psi_1$, $\\psi_2$, $\\psi_3$, $\\varphi_1$, $\\varphi_2$, $\\varphi_3$, $\\varphi_4$, $\\varphi_5$, $\\varphi_6$, and $\\varphi_7$. The circles are colored red and blue, with red circles containing $\\psi_1$, $\\psi_2$, and $\\psi_3$, and blue circles containing $\\varphi_1$, $\\varphi_2$, $\\varphi_3$, $\\varphi_4$, $\\varphi_5$, and $\\varphi_6$. Arrows connect the circles in a specific pattern: $\\varphi_1$ points to $\\psi_1$, $\\varphi_2$ points to $\\psi_1$, $\\varphi_3$ points to $\\psi_3$, $\\varphi_4$ points to $\\psi_3$, $\\varphi_5$ points to $\\psi_4$, $\\varphi_6$ points to $\\psi_4$, and $\\varphi_7$ points to $\\psi_2$. The arrows are directed towards the red circles, indicating a flow or relationship from the blue circles to the red ones. The circles are positioned in a scattered arrangement, with no specific alignment or symmetry.",
-   "tex": "tikz/DTZ00093.tex",
-   "png": "png/DTZ00093.png",
-   "rendered": "rendered/DTZ00093.png"
-  },
-  {
-   "id": "DTZ00094",
-   "source": "arxiv",
-   "file_id": "arxiv_src_new_276_224_152_7",
-   "caption": "",
-   "vlm_description": "A network diagram is depicted with two types of nodes: red circles labeled $\\psi_1$, $\\psi_2$, $\\psi_3$, and $\\psi_4$, and blue circles labeled $\\varphi_1$, $\\varphi_2$, $\\varphi_3$, $\\varphi_4$, $\\varphi_5$, $\\varphi_6$, and $\\varphi_7$. Red circles are positioned at the center and slightly higher than the blue circles. Blue circles are arranged around the red circles, with some pointing towards the red circles and others pointing away. Arrows indicate directed connections between nodes, with blue arrows pointing from $\\varphi_1$ to $\\psi_1$, $\\varphi_2$ to $\\psi_1$, $\\varphi_3$ to $\\psi_2$, $\\varphi_4$ to $\\psi_3$, $\\varphi_5$ to $\\psi_4$, $\\varphi_6$ to $\\psi_2$, and $\\varphi_7$ to $\\psi_3$. The layout suggests a hierarchical or dependency structure among the nodes.",
-   "tex": "tikz/DTZ00094.tex",
-   "png": "png/DTZ00094.png",
-   "rendered": "rendered/DTZ00094.png"
-  },
-  {
-   "id": "DTZ00095",
-   "source": "arxiv",
-   "file_id": "arxiv_src_new_276_224_152_8",
-   "caption": "\\labelf:optimal_flow_1",
-   "vlm_description": "A diagram consists of four nodes labeled 1, 2, 3, and 4, arranged in a triangular formation. Node 1 is positioned at the top left, node 2 is directly below node 1, node 3 is directly below node 2, and node 4 is at the rightmost position. Node 1 is connected to node 2 by a vertical line labeled \"1,\" and to node 3 by another vertical line also labeled \"1.\" Node 2 is connected to node 4 by a diagonal line labeled \"4,\" and node 3 is connected to node 4 by a diagonal line labeled \"1.\" Node 4 is highlighted in red and labeled with \"d4 = 10\" at its top right. Node 1 is circled in blue and labeled with \"s1 = 10\" at its top left.",
-   "tex": "tikz/DTZ00095.tex",
-   "png": "png/DTZ00095.png",
-   "rendered": "rendered/DTZ00095.png"
-  },
-  {
-   "id": "DTZ00096",
-   "source": "arxiv",
-   "file_id": "arxiv_src_new_276_224_152_9",
-   "caption": "\\labelf:optimal_flow_vs_transportation_1",
-   "vlm_description": "On the left side, there is a network diagram with five nodes labeled 1 through 5. Node 1 is blue and positioned at the top left, node 2 is also blue and located below node 1, node 3 is central and white, node 4 is red and situated to the right of node 3, and node 5 is red and placed below node 3. Node 1 is connected to node 2 by a line labeled \"1\" and to node 3 by a line labeled \"5\". Node 2 is connected to node 3 by a line labeled \"1\". Node 3 is connected to node 4 by a line labeled \"1\" and to node 5 by a line labeled \"1\". On the right side, another network diagram is depicted with similar nodes but different connections. Node 1 is blue and positioned at the top left, node 2 is blue and located below node 1, node 3 is central and white, node 4 is red and situated to the right of node 3, and node 5 is red and placed below node 3. Node 1 is connected to node 2 by a line labeled \"3\", node 2 is connected to node 3 by a line labeled \"3\", node 3 is connected to node 4 by a line labeled \"2\", and node 3 is connected to node 5 by a line labeled \"2\".",
-   "tex": "tikz/DTZ00096.tex",
-   "png": "png/DTZ00096.png",
-   "rendered": "rendered/DTZ00096.png"
-  },
-  {
-   "id": "DTZ00097",
-   "source": "arxiv",
-   "file_id": "arxiv_src_new_276_224_154_0",
-   "caption": "\\labelf:quah_graph",
-   "vlm_description": "A circular diagram consists of five nodes labeled 1 through 5, arranged in a clockwise sequence. Node 1 is connected to node 2 with a curved arrow labeled 0.97, and another curved arrow from node 2 back to node 1 labeled 0.05. Node 2 is connected to node 3 with a curved arrow labeled 0.92, and another curved arrow from node 3 back to node 2 labeled 0.04. Node 3 is connected to node 4 with a curved arrow labeled 0.92, and another curved arrow from node 4 back to node 3 labeled 0.04. Node 4 is connected to node 5 with a curved arrow labeled 0.94, and another curved arrow from node 5 back to node 4 labeled 0.02. Node 5 is connected to node 1 with a curved arrow labeled 0.99. All arrows are directed and have a slight bend, indicating a probabilistic transition between states.",
-   "tex": "tikz/DTZ00097.tex",
-   "png": "png/DTZ00097.png",
-   "rendered": "rendered/DTZ00097.png"
-  },
-  {
-   "id": "DTZ00098",
-   "source": "arxiv",
-   "file_id": "arxiv_src_new_276_224_154_1",
-   "caption": "\\labelf:quah_graph_2",
-   "vlm_description": "A circular diagram consists of five nodes labeled 1 through 5, arranged in a clockwise sequence. Node 1 is connected to node 2 with a curved arrow labeled 0.97, and another curved arrow from node 2 back to node 1 labeled 0.03. Node 2 is connected to node 3 with a curved arrow labeled 0.89, and another curved arrow from node 3 back to node 2 labeled 0.06. Node 3 is connected to node 4 with a curved arrow labeled 0.90, and another curved arrow from node 4 back to node 3 labeled 0.05. Node 4 is connected to node 5 with a curved arrow labeled 0.90, and another curved arrow from node 5 back to node 4 labeled 0.04. Node 5 is connected to node 1 with a curved arrow labeled 0.99, and another curved arrow from node 1 back to node 5 labeled 0.01. Each node is a circle with a filled center, and the arrows are directed from the lower right of one node to the upper left of the next, forming a closed loop.",
-   "tex": "tikz/DTZ00098.tex",
-   "png": "png/DTZ00098.png",
-   "rendered": "rendered/DTZ00098.png"
-  },
-  {
-   "id": "DTZ00099",
-   "source": "arxiv",
-   "file_id": "arxiv_src_new_276_224_154_2",
-   "caption": "\\labelf:poverty_trap_2",
-   "vlm_description": "Three oval shapes are positioned horizontally, each containing a label: \"middle class\" in the center, \"rich\" to the right, and \"poor\" at the bottom. Each oval has a curved arrow pointing back to itself, indicating a cycle within each group. A thick black arrow connects the \"middle class\" oval to the \"rich\" oval, suggesting a flow or relationship between these two groups. Another thick black arrow connects the \"rich\" oval to the \"middle class\" oval, forming a reciprocal relationship. The \"poor\" oval is isolated and not connected to any other oval.",
-   "tex": "tikz/DTZ00099.tex",
-   "png": "png/DTZ00099.png",
-   "rendered": "rendered/DTZ00099.png"
-  }
- ],
- "failures": [
   {
    "id": "DTZ00066",
    "source": "arxiv",
@@ -982,7 +736,8 @@
    "vlm_description": "A curved black line starts at the origin (0,0) and extends to the right, forming a smooth arc that peaks at approximately (1.5, 1). The curve is labeled with the equation $\\sqrt{p(1-p)}$ positioned at the top right corner. Below the curve, a horizontal line segment is drawn from the origin to the point (L - μ, 0), where L and μ are parameters not explicitly defined but are used in the equation $\\frac{p}{1+\\frac{q^2}{(L-\\mu)^2}}$. This line segment is labeled with the fraction $\\frac{p}{1+\\frac{q^2}{(L-\\mu)^2}}$ at its midpoint. The entire graph is set against a white background with axes extending outward from the origin, the vertical axis pointing upwards and the horizontal axis extending to the right.",
    "tex": "tikz/DTZ00066.tex",
    "png": "png/DTZ00066.png",
-   "compile_error": "! Package inputenc Error: inputenc is not designed for xetex or luatex."
+   "rendered": "rendered/DTZ00066.png",
+   "engine": "pdflatex"
   },
   {
    "id": "DTZ00067",
@@ -992,7 +747,8 @@
    "vlm_description": "A curve is plotted on a coordinate system with the x-axis labeled \\( p \\) and the y-axis not labeled but implied. The curve starts at the origin \\((0,0)\\), rises to a peak, and then falls back towards the x-axis. The equation of the curve is \\(\\frac{p}{1 + \\frac{1 + e^{\\frac{p}{L-\\mu}}}{(L-\\mu)^2}}\\). Above the curve, there is a label indicating \\( c \\geq 1 \\). To the right of the curve, a legend box contains a line labeled \\(\\sqrt{p(1-p)}\\) with a corresponding line drawn beneath it. The curve is smooth and symmetric around its peak, which is located near the center of the plot area.",
    "tex": "tikz/DTZ00067.tex",
    "png": "png/DTZ00067.png",
-   "compile_error": "! Package inputenc Error: inputenc is not designed for xetex or luatex."
+   "rendered": "rendered/DTZ00067.png",
+   "engine": "pdflatex"
   },
   {
    "id": "DTZ00068",
@@ -1002,7 +758,350 @@
    "vlm_description": "A curved black line starts at the origin (0,0) and extends to the right, reaching its peak at approximately (0.5, 0.75). Above the curve, the text \"$c < 1$\" is positioned near the top center. Below the curve, the equation $\\frac{1}{1 + \\frac{L\\sigma^2}{(L-\\mu)^2}}$ is written at the left side, aligned vertically with the curve's starting point. To the right of the curve, a rectangle contains the text \"$\\sqrt{p(1-p)}$\" with a horizontal line above it, indicating a label or title. The x-axis is labeled \"p\" at the far right, extending horizontally from the curve's endpoint. The y-axis is not explicitly labeled but is implied by the vertical orientation of the curve.",
    "tex": "tikz/DTZ00068.tex",
    "png": "png/DTZ00068.png",
-   "compile_error": "! Package inputenc Error: inputenc is not designed for xetex or luatex."
+   "rendered": "rendered/DTZ00068.png",
+   "engine": "pdflatex"
+  },
+  {
+   "id": "DTZ00069",
+   "source": "arxiv",
+   "file_id": "arxiv_src_new_276_224_41_0",
+   "caption": "",
+   "vlm_description": "The image consists of two separate sections labeled \"a)\" and \"b)\". Section \"a)\" is blank, showing no visible content. Section \"b)\" also appears empty, with no discernible shapes, lines, or labels present.",
+   "tex": "tikz/DTZ00069.tex",
+   "png": "png/DTZ00069.png",
+   "rendered": "rendered/DTZ00069.png",
+   "engine": "xelatex"
+  },
+  {
+   "id": "DTZ00070",
+   "source": "arxiv",
+   "file_id": "arxiv_src_new_276_224_41_1",
+   "caption": "",
+   "vlm_description": "The image consists of two separate sections labeled \"a)\" and \"b)\". Section \"a)\" is blank, showing no visible content. Section \"b)\" also appears empty, with no discernible shapes, lines, or labels present.",
+   "tex": "tikz/DTZ00070.tex",
+   "png": "png/DTZ00070.png",
+   "rendered": "rendered/DTZ00070.png",
+   "engine": "xelatex"
+  },
+  {
+   "id": "DTZ00071",
+   "source": "arxiv",
+   "file_id": "arxiv_src_new_276_224_41_2",
+   "caption": "",
+   "vlm_description": "The image consists of a single white background with no visible geometric shapes, lines, or labels. It appears to be a blank canvas or placeholder, possibly indicating a section for additional content or a title. There are no discernible features or markings present within the frame.",
+   "tex": "tikz/DTZ00071.tex",
+   "png": "png/DTZ00071.png",
+   "rendered": "rendered/DTZ00071.png",
+   "engine": "xelatex"
+  },
+  {
+   "id": "DTZ00072",
+   "source": "arxiv",
+   "file_id": "arxiv_src_new_276_224_41_3",
+   "caption": "",
+   "vlm_description": "The image consists of a single character, the lowercase letter \"b\", written in a serif font. The letter is positioned centrally within the image, occupying most of the vertical space. It is rendered in a dark gray color, with a slight shadow effect beneath it, giving it a three-dimensional appearance. The letter \"b\" is oriented horizontally, with its looped tail extending to the right and the stem pointing downward. The loop is smooth and rounded, and the stem is straight and slightly angled upwards towards the right. There are no additional elements or annotations present in the image.",
+   "tex": "tikz/DTZ00072.tex",
+   "png": "png/DTZ00072.png",
+   "rendered": "rendered/DTZ00072.png",
+   "engine": "xelatex"
+  },
+  {
+   "id": "DTZ00073",
+   "source": "arxiv",
+   "file_id": "arxiv_src_new_276_224_53_0",
+   "caption": "",
+   "vlm_description": "A bright lime green circle occupies most of the frame, with a slightly blurred texture giving it a pixelated appearance. Inside the circle, the letters \"iD\" are prominently displayed in a bold, sans-serif font, oriented vertically with \"i\" at the top and \"D\" at the bottom. The text is white, creating a strong contrast against the green background. The circle is centered within the frame, and there are no additional elements or labels present.",
+   "tex": "tikz/DTZ00073.tex",
+   "png": "png/DTZ00073.png",
+   "rendered": "rendered/DTZ00073.png",
+   "engine": "xelatex"
+  },
+  {
+   "id": "DTZ00074",
+   "source": "arxiv",
+   "file_id": "arxiv_src_new_276_224_78_0",
+   "caption": "Scaling analysis using the method of manufactured solutions. (a) A known solution, shown at $t= 1.24$, manufactured using the body forces \\eqrefeq:mms_f",
+   "vlm_description": "The image consists of two subplots side by side, each labeled with text at the bottom left corner. The left subplot is titled \"(a) Manufactured solution\" and the right one is titled \"(b) Error scaling analysis\". Both subplots have a vertical axis labeled \"solid fraction φ\" positioned on the left side of the plot area. The background of both subplots is white, and there are no additional graphical elements or data points within the plots themselves. The text labels are in a serif font, and the subplot titles are in a sans-serif font. The overall layout is simple and clean, with ample space around the text and axes.",
+   "tex": "tikz/DTZ00074.tex",
+   "png": "png/DTZ00074.png",
+   "rendered": "rendered/DTZ00074.png",
+   "engine": "xelatex"
+  },
+  {
+   "id": "DTZ00075",
+   "source": "arxiv",
+   "file_id": "arxiv_src_new_276_224_78_1",
+   "caption": "Comparison of classical phase separation with and without elastic resistance. (a) In the absence of elasticity, a biphasic gel undergoes spinodal decomposition, forming biconnected regions and eventually isolated droplets which undergo slow ripening \\citeptanaka_unusual_1993",
+   "vlm_description": "A vertical axis labeled \"solid fraction $\\phi$\" extends upwards from the right side of the image, starting at the bottom edge and extending to the top edge. The axis is marked with a thin black line at regular intervals. At the very top of the axis, near the right edge, there is a label \"$\\phi = 0.5$\". Below this, another label \"$\\phi = 0.05$\" is positioned slightly lower on the same vertical line. Along the bottom of the image, four horizontal time markers are evenly spaced: \"t = 180\", \"t = 250\", \"t = 500\", and \"t = 1000\" from left to right. These markers are aligned horizontally with the corresponding vertical lines extending upwards from the bottom edge of the image.",
+   "tex": "tikz/DTZ00075.tex",
+   "png": "png/DTZ00075.png",
+   "rendered": "rendered/DTZ00075.png",
+   "engine": "xelatex"
+  },
+  {
+   "id": "DTZ00076",
+   "source": "arxiv",
+   "file_id": "arxiv_src_new_276_224_79_3",
+   "caption": "",
+   "vlm_description": "Two text labels are positioned horizontally in the center of the image. The label \"Stopped Incident\" is located at the left side, while \"Slow-Moving Incident\" is situated at the right side. Both labels are written in a serif font and are aligned vertically with each other. The text is black and appears to be of equal size. The background is plain white, and there are no additional graphical elements or annotations present.",
+   "tex": "tikz/DTZ00076.tex",
+   "png": "png/DTZ00076.png",
+   "rendered": "rendered/DTZ00076.png",
+   "engine": "xelatex"
+  },
+  {
+   "id": "DTZ00077",
+   "source": "arxiv",
+   "file_id": "arxiv_src_new_276_224_79_4",
+   "caption": "",
+   "vlm_description": "A vertical black line extends downward from the top edge of the image, occupying approximately one-third of the image's height. The line is straight and uniform in thickness, with no additional markings or labels along its length. The background is entirely white, providing high contrast to the black line.",
+   "tex": "tikz/DTZ00077.tex",
+   "png": "png/DTZ00077.png",
+   "rendered": "rendered/DTZ00077.png",
+   "engine": "xelatex"
+  },
+  {
+   "id": "DTZ00078",
+   "source": "arxiv",
+   "file_id": "arxiv_src_new_276_224_79_6",
+   "caption": "",
+   "vlm_description": "Two text labels are positioned horizontally in the center of the image. The label on the left reads \"Discretionary lane changes\" in a serif font, aligned to the left edge of its bounding box. The label on the right reads \"Mandatory overtaking\" in a similar serif font, aligned to the right edge of its bounding box. Both labels are centered vertically within their respective spaces, with equal spacing between them. The background is plain white, and there are no additional graphical elements or annotations present.",
+   "tex": "tikz/DTZ00078.tex",
+   "png": "png/DTZ00078.png",
+   "rendered": "rendered/DTZ00078.png",
+   "engine": "xelatex"
+  },
+  {
+   "id": "DTZ00079",
+   "source": "arxiv",
+   "file_id": "arxiv_src_new_276_224_77_0",
+   "caption": "",
+   "vlm_description": "A diagram consists of four nodes arranged in a square formation. The top-left node is labeled $\\pi_{i-1,j}$, the top-right node is labeled $\\pi_{i,j}$, the bottom-left node is labeled $\\pi_{i-1,j-1}$, and the bottom-right node is labeled $\\pi_{i,j-1}$. Each pair of adjacent nodes is connected by a horizontal line segment labeled with a variable: $\\pi_{i-1,j}$ to $\\pi_{i,j}$ is labeled $k_i$, and $\\pi_{i-1,j-1}$ to $\\pi_{i,j-1}$ is also labeled $k_i$. Additionally, vertical lines extend downward from each node, labeled $l_j$ at the right side of the top and bottom nodes. The entire structure is symmetric along both the horizontal and vertical axes.",
+   "tex": "tikz/DTZ00079.tex",
+   "png": "png/DTZ00079.png",
+   "rendered": "rendered/DTZ00079.png",
+   "engine": "xelatex"
+  },
+  {
+   "id": "DTZ00080",
+   "source": "arxiv",
+   "file_id": "arxiv_src_new_276_224_77_1",
+   "caption": "A $k$-growth diagram",
+   "vlm_description": "A grid of six nodes arranged in two rows and three columns, each node labeled with a permutation of four numbers: 1234, 1243, 1324, 1342, 1432, and 15324. Each node is connected to its adjacent nodes by a thin black line, forming a network-like structure. Above each node, there is a number indicating the distance between the node and its neighbors, with values 2 and 3 appearing alternately. The numbers 2 and 3 are positioned above the connecting lines, aligned horizontally with the nodes they connect.",
+   "tex": "tikz/DTZ00080.tex",
+   "png": "png/DTZ00080.png",
+   "rendered": "rendered/DTZ00080.png",
+   "engine": "xelatex"
+  },
+  {
+   "id": "DTZ00081",
+   "source": "arxiv",
+   "file_id": "arxiv_src_new_276_224_77_3",
+   "caption": "A growth diagram for $w=13524$ and $v=1432$",
+   "vlm_description": "A series of horizontal lines are arranged in a grid-like structure, each line labeled with four numbers in a specific order. The first row consists of the sequence 1432, 2431, 24513, 34512, and 34521, each separated by a thin black line. Below each number in the first row, there is a vertical line labeled with the number 2. The second row mirrors the first but with the sequence 1342, 2341, 23514, 24513, and 24531, also separated by thin black lines. Each number in the second row is vertically aligned with the corresponding number in the first row and is labeled with the number 3. The third row follows the same pattern with the sequence 1243, 1342, 13524, 14523, and 14532, again separated by thin black lines, and each number is vertically aligned with its counterpart in the previous rows, labeled with the number 4. The fourth row repeats the sequence 1234, 1243, 12534, 12543, and 13542, separated by thin black lines, with each number vertically aligned and labeled with the number 3.",
+   "tex": "tikz/DTZ00081.tex",
+   "png": "png/DTZ00081.png",
+   "rendered": "rendered/DTZ00081.png",
+   "engine": "xelatex"
+  },
+  {
+   "id": "DTZ00082",
+   "source": "arxiv",
+   "file_id": "arxiv_src_new_276_224_123_5",
+   "caption": "",
+   "vlm_description": "A commutative diagram is depicted with arrows and labels. At the top left, a node labeled $([B]^*\\pi_L)^{-1}(x)$ is connected by an arrow pointing right to another node labeled $[B]^*Y_L$. From $[B]^*Y_L$, there is an arrow pointing right to a node labeled $Y_L$. Below these nodes, a vertical arrow connects $([B]^*\\pi_L)^{-1}(x)$ to a node labeled $x$. To the right of $x$, an arrow points right to a node labeled $A_L$. Another vertical arrow connects $[B]^*Y_L$ to a node labeled $A_L$. Finally, an arrow points right from $A_L$ to a node labeled $A_L$. The entire diagram is structured in a grid-like fashion, with each node and arrow clearly defined and positioned relative to one another.",
+   "tex": "tikz/DTZ00082.tex",
+   "png": "png/DTZ00082.png",
+   "rendered": "rendered/DTZ00082.png",
+   "engine": "xelatex"
+  },
+  {
+   "id": "DTZ00083",
+   "source": "arxiv",
+   "file_id": "arxiv_src_new_276_224_149_0",
+   "caption": "\\labelf:io_irreducible",
+   "vlm_description": "A circular diagram consists of four nodes labeled 1, 2, 3, and 4, arranged clockwise. Node 1 is at the top, node 2 is at the bottom left, node 3 is at the bottom right, and node 4 is at the top right. Each node is connected to every other node by a curved arrow labeled with a subscripted variable: \\(a_{11}\\) loops back to node 1, \\(a_{21}\\) points from node 2 to node 1, \\(a_{12}\\) points from node 1 to node 2, \\(a_{31}\\) points from node 3 to node 1, \\(a_{24}\\) points from node 2 to node 4, \\(a_{43}\\) points from node 4 to node 3, \\(a_{23}\\) points from node 2 to node 3, and \\(a_{41}\\) points from node 4 to node 1. The arrows are curved and directed towards the next node in the clockwise direction.",
+   "tex": "tikz/DTZ00083.tex",
+   "png": "png/DTZ00083.png",
+   "rendered": "rendered/DTZ00083.png",
+   "engine": "xelatex"
+  },
+  {
+   "id": "DTZ00084",
+   "source": "arxiv",
+   "file_id": "arxiv_src_new_276_224_149_1",
+   "caption": "\\labelf:hub",
+   "vlm_description": "A central node labeled \"1\" is positioned at the top center. Four nodes labeled \"2\", \"3\", \"4\", and \"5\" are arranged horizontally below \"1\". Each of these four nodes is connected to \"1\" by a straight black line, forming a tree-like structure. Node \"2\" is located to the left, while \"5\" is to the right. Nodes \"3\" and \"4\" are positioned symmetrically between \"2\" and \"5\". The connections are direct and unbroken, with no additional labels or decorations on the lines.",
+   "tex": "tikz/DTZ00084.tex",
+   "png": "png/DTZ00084.png",
+   "rendered": "rendered/DTZ00084.png",
+   "engine": "xelatex"
+  },
+  {
+   "id": "DTZ00085",
+   "source": "arxiv",
+   "file_id": "arxiv_src_new_276_224_149_2",
+   "caption": "",
+   "vlm_description": "A central node labeled \"5\" is surrounded by four nodes labeled \"1\", \"2\", \"3\", and \"4\" positioned at the cardinal directions: north, northeast, south, and southwest respectively. Each of these nodes is connected to the central node \"5\" by a single arrow pointing towards it. Node \"1\" is located at approximately (0.8, 0.8), node \"2\" at (0.2, 0.8), node \"3\" at (-0.8, -0.8), and node \"4\" at (0.8, -0.8). The central node \"5\" is slightly larger than the surrounding nodes and is located at the origin (0, 0).",
+   "tex": "tikz/DTZ00085.tex",
+   "png": "png/DTZ00085.png",
+   "rendered": "rendered/DTZ00085.png",
+   "engine": "xelatex"
+  },
+  {
+   "id": "DTZ00086",
+   "source": "arxiv",
+   "file_id": "arxiv_src_new_276_224_149_3",
+   "caption": "",
+   "vlm_description": "A square with vertices labeled 1, 2, 3, and 4 in a clockwise direction starting from the top left. Each vertex is a circle with a black border and a white interior. Arrows connect each vertex to the next one in the sequence, forming a closed loop. The arrow from vertex 1 points towards vertex 2, from vertex 2 towards vertex 3, from vertex 3 towards vertex 4, and from vertex 4 back to vertex 1. The arrows are thin and black, with their tails originating from the center of each respective vertex and their heads pointing towards the next vertex.",
+   "tex": "tikz/DTZ00086.tex",
+   "png": "png/DTZ00086.png",
+   "rendered": "rendered/DTZ00086.png",
+   "engine": "xelatex"
+  },
+  {
+   "id": "DTZ00087",
+   "source": "arxiv",
+   "file_id": "arxiv_src_new_276_224_152_0",
+   "caption": "\\labelf:graph",
+   "vlm_description": "A central node labeled \"D\" is connected to six other nodes: \"A\", \"B\", \"C\", \"E\", \"F\", and \"G\". Node \"A\" is positioned at the top and is connected to \"D\" with a line labeled \"3\". Node \"B\" is located to the right of \"D\" and is connected to \"D\" with a line labeled \"9\". Node \"C\" is to the left of \"D\" and is connected to \"D\" with a line labeled \"2\". Node \"E\" is below \"D\" and to the right and is connected to \"D\" with a line labeled \"8\". Node \"F\" is below \"D\" and to the left and is connected to \"D\" with a line labeled \"4\". Node \"G\" is below \"D\" and is connected to \"D\" with a line labeled \"1\". Additionally, there are lines extending from \"D\" to \"C\" labeled \"5\", from \"D\" to \"F\" labeled \"1\", and from \"D\" to \"E\" labeled \"4\".",
+   "tex": "tikz/DTZ00087.tex",
+   "png": "png/DTZ00087.png",
+   "rendered": "rendered/DTZ00087.png",
+   "engine": "xelatex"
+  },
+  {
+   "id": "DTZ00088",
+   "source": "arxiv",
+   "file_id": "arxiv_src_new_276_224_152_1",
+   "caption": "\\labelf:graph2",
+   "vlm_description": "A network diagram is depicted with six nodes labeled A through F arranged in a partially connected structure. Node A is connected to node D with a thick red line labeled \"5\". Node B is connected to node D with a thin black line labeled \"9\". Node C is connected to node D with a thin black line labeled \"2\". Node D is connected to node G with a thin black line labeled \"8\". Node E is connected to node D with a thin black line labeled \"6\". Node F is connected to node D with a thin black line labeled \"4\". Node G is connected to node D with a thin black line labeled \"1\". Node A is also connected to node C with a thin black line labeled \"3\". Node B is connected to node E with a thin black line labeled \"1\". Node F is connected to node G with a thin black line labeled \"4\". The nodes are circular and evenly spaced around the central node D.",
+   "tex": "tikz/DTZ00088.tex",
+   "png": "png/DTZ00088.png",
+   "rendered": "rendered/DTZ00088.png",
+   "engine": "xelatex"
+  },
+  {
+   "id": "DTZ00089",
+   "source": "arxiv",
+   "file_id": "arxiv_src_new_276_224_152_2",
+   "caption": "\\labelf:graph3",
+   "vlm_description": "A tree diagram is depicted with nodes labeled A, B, C, D, E, F, and G. Node A is at the top and branches out to nodes B, C, and D. Node B branches to node D, while node C branches to node F. Node D is central and connects to nodes A, B, E, and F. Node E branches to node D, and node F branches to nodes D and G. Node G is at the bottom right and branches from node D. Arrows indicate the direction of the connections. The numbers 1, 2, 3, 4, 5, 6, 8, 9, and 10 are placed near the connecting lines, indicating the order or weight of the connections. Node A is connected to node D with a thick blue line labeled 3. Node B is connected to node D with a thin black line labeled 9. Node C is connected to node F with a thin black line labeled 2. Node D is connected to node E with a thin black line labeled 6. Node D is connected to node F with a thin black line labeled 4. Node D is connected to node G with a thin black line labeled 8. Node F is connected to node G with a thin black line labeled 1.",
+   "tex": "tikz/DTZ00089.tex",
+   "png": "png/DTZ00089.png",
+   "rendered": "rendered/DTZ00089.png",
+   "engine": "xelatex"
+  },
+  {
+   "id": "DTZ00090",
+   "source": "arxiv",
+   "file_id": "arxiv_src_new_276_224_152_3",
+   "caption": "\\labelf:graph4",
+   "vlm_description": "A circular node labeled \"A\" is positioned at the top center, connected by a thick black arrow pointing downward to another circular node labeled \"D\". This connection is labeled with the number \"3\" in black. Node \"A\" also has two other connections: one to the left circular node labeled \"C\", which is connected by a thick black arrow labeled \"5\" in black; and one to the right circular node labeled \"B\", which is connected by a thick black arrow labeled \"1\" in black. Node \"D\" is further connected to the left circular node labeled \"F\" by a thick black arrow labeled \"4\" in black, and to the right circular node labeled \"E\" by a thick black arrow labeled \"6\" in black. Node \"D\" also has a connection to the bottom circular node labeled \"G\" by a thick black arrow labeled \"8\" in black. Node \"G\" is connected to the left circular node labeled \"F\" by a thick black arrow labeled \"1\" in black, and to the right circular node labeled \"E\" by a thick black arrow labeled \"4\" in black. Node \"G\" is also connected to the bottom circular node labeled \"H\" by a thick black arrow labeled \"0\" in black. Node \"C\" is connected to the left circular node labeled \"F\" by a thick black arrow labeled \"2\" in black. Node \"B\" is connected to the right circular node labeled \"E\" by a thick black arrow labeled \"9\" in black. Node \"D\" is connected to the bottom circular node labeled \"G\" by a thick black arrow labeled \"8\" in black. Node \"A\" is connected to the top circular node labeled \"C\" by a thick black arrow labeled \"3\" in black. Node \"A\" is connected to the right circular node labeled \"B\" by a thick black arrow labeled \"1\" in black. Node \"D\" is connected to the left circular node labeled \"F\" by a thick black arrow labeled \"4\" in black. Node \"D\" is connected to the right circular node labeled \"E\" by a thick black arrow labeled \"6\" in black. Node \"D\" is connected to the bottom circular node labeled \"G\" by a thick black arrow labeled \"8\" in black. Node \"G\" is connected to the left circular node labeled \"F\" by a thick black arrow labeled \"1\" in black. Node \"G\" is connected to the right circular node labeled \"E\" by a thick black arrow labeled \"4\" in black. Node \"G\" is connected to the bottom circular node labeled \"H\" by a thick black arrow labeled \"0\" in black. Node \"C\" is connected to the left circular node labeled \"F\" by a thick black arrow labeled \"2\" in black. Node \"B\" is connected to the right circular node labeled \"E\" by a thick black arrow labeled \"9\" in black. Node \"A\" is connected to the top circular node labeled \"C\" by a thick black arrow labeled \"3\" in black. Node \"A\" is connected to the right circular node labeled \"B\" by a thick black arrow labeled \"1\" in black. Node \"D\" is connected to the left circular node labeled \"F\" by a thick black arrow labeled \"4\" in black. Node \"D\" is connected to the right circular node labeled \"E\" by a thick black arrow labeled \"6\" in black. Node \"D\" is connected to the bottom circular node labeled \"G\" by a thick black arrow labeled \"8\" in black. Node \"G\" is connected to the left circular node labeled \"F\" by a thick black arrow labeled \"1\" in black. Node \"G\" is connected to the right circular node labeled \"E\" by a thick black arrow labeled \"4\" in black. Node \"G\" is connected to the bottom circular node labeled \"H\" by a thick black arrow labeled \"0\" in black. Node \"C\" is connected to the left circular node labeled \"F\" by a thick black arrow labeled \"2\" in black. Node \"B\" is connected to the right circular node labeled \"E\" by a thick black arrow labeled \"9\" in black. Node \"A\" is connected to the top circular node labeled \"C\" by a thick black arrow labeled \"3\" in black. Node \"A\" is connected to the right circular node labeled \"B\" by a thick black arrow labeled \"1\" in black. Node \"D\" is connected to the left circular node labeled \"F\" by a thick black arrow labeled \"4\" in black. Node \"D\" is connected to the right circular node labeled \"E\" by a thick black arrow labeled \"6\" in black. Node \"D\" is connected to the bottom circular node labeled \"G\" by a thick black arrow labeled \"8\" in black. Node \"G\" is connected to the",
+   "tex": "tikz/DTZ00090.tex",
+   "png": "png/DTZ00090.png",
+   "rendered": "rendered/DTZ00090.png",
+   "engine": "xelatex"
+  },
+  {
+   "id": "DTZ00091",
+   "source": "arxiv",
+   "file_id": "arxiv_src_new_276_224_152_4",
+   "caption": "\\labelf:shortest_paths_5",
+   "vlm_description": "A tree diagram is depicted with nodes labeled A, B, C, D, E, F, and G. Node A is at the top and branches out to nodes B, C, and D. Node B branches to node E, while node C branches to node F. Node D branches to nodes G and E. Node G loops back to itself. Arrows indicate the direction of flow, with numbers labeling the edges: 5 from A to C, 3 from A to D, 1 from A to B, 9 from B to D, 6 from B to E, 2 from C to F, 4 from C to D, 4 from D to G, 8 from D to E, and 1 from D to G. Node G also has a self-loop labeled 0.",
+   "tex": "tikz/DTZ00091.tex",
+   "png": "png/DTZ00091.png",
+   "rendered": "rendered/DTZ00091.png",
+   "engine": "xelatex"
+  },
+  {
+   "id": "DTZ00092",
+   "source": "arxiv",
+   "file_id": "arxiv_src_new_276_224_152_5",
+   "caption": "",
+   "vlm_description": "A network diagram illustrating a bipartite graph where workers and jobs are represented by two sets of circles. On the left side, there are four labeled circles representing workers: \"1\", \"2\", \"3\", and \"40\". These circles are connected to corresponding circles on the right side, which represent jobs, by black arrows indicating directed relationships. The worker circle labeled \"1\" is connected to job circles \"1\" and \"2\", while the worker circle labeled \"2\" is connected to job circles \"2\" and \"3\". The worker circle labeled \"3\" is connected to job circles \"3\" and \"40\", and the worker circle labeled \"40\" is connected to job circles \"40\" and \"39\". The labels for the workers are positioned above their respective circles, and the labels for the jobs are positioned below their respective circles. The diagram uses a consistent black color for the arrows and white for the labels.",
+   "tex": "tikz/DTZ00092.tex",
+   "png": "png/DTZ00092.png",
+   "rendered": "rendered/DTZ00092.png",
+   "engine": "xelatex"
+  },
+  {
+   "id": "DTZ00093",
+   "source": "arxiv",
+   "file_id": "arxiv_src_new_276_224_152_6",
+   "caption": "",
+   "vlm_description": "A diagram featuring seven circles, each labeled with Greek letters $\\psi_1$, $\\psi_2$, $\\psi_3$, $\\varphi_1$, $\\varphi_2$, $\\varphi_3$, $\\varphi_4$, $\\varphi_5$, $\\varphi_6$, and $\\varphi_7$. The circles are colored red and blue, with red circles containing $\\psi_1$, $\\psi_2$, and $\\psi_3$, and blue circles containing $\\varphi_1$, $\\varphi_2$, $\\varphi_3$, $\\varphi_4$, $\\varphi_5$, and $\\varphi_6$. Arrows connect the circles in a specific pattern: $\\varphi_1$ points to $\\psi_1$, $\\varphi_2$ points to $\\psi_1$, $\\varphi_3$ points to $\\psi_3$, $\\varphi_4$ points to $\\psi_3$, $\\varphi_5$ points to $\\psi_4$, $\\varphi_6$ points to $\\psi_4$, and $\\varphi_7$ points to $\\psi_2$. The arrows are directed towards the red circles, indicating a flow or relationship from the blue circles to the red ones. The circles are positioned in a scattered arrangement, with no specific alignment or symmetry.",
+   "tex": "tikz/DTZ00093.tex",
+   "png": "png/DTZ00093.png",
+   "rendered": "rendered/DTZ00093.png",
+   "engine": "xelatex"
+  },
+  {
+   "id": "DTZ00094",
+   "source": "arxiv",
+   "file_id": "arxiv_src_new_276_224_152_7",
+   "caption": "",
+   "vlm_description": "A network diagram is depicted with two types of nodes: red circles labeled $\\psi_1$, $\\psi_2$, $\\psi_3$, and $\\psi_4$, and blue circles labeled $\\varphi_1$, $\\varphi_2$, $\\varphi_3$, $\\varphi_4$, $\\varphi_5$, $\\varphi_6$, and $\\varphi_7$. Red circles are positioned at the center and slightly higher than the blue circles. Blue circles are arranged around the red circles, with some pointing towards the red circles and others pointing away. Arrows indicate directed connections between nodes, with blue arrows pointing from $\\varphi_1$ to $\\psi_1$, $\\varphi_2$ to $\\psi_1$, $\\varphi_3$ to $\\psi_2$, $\\varphi_4$ to $\\psi_3$, $\\varphi_5$ to $\\psi_4$, $\\varphi_6$ to $\\psi_2$, and $\\varphi_7$ to $\\psi_3$. The layout suggests a hierarchical or dependency structure among the nodes.",
+   "tex": "tikz/DTZ00094.tex",
+   "png": "png/DTZ00094.png",
+   "rendered": "rendered/DTZ00094.png",
+   "engine": "xelatex"
+  },
+  {
+   "id": "DTZ00095",
+   "source": "arxiv",
+   "file_id": "arxiv_src_new_276_224_152_8",
+   "caption": "\\labelf:optimal_flow_1",
+   "vlm_description": "A diagram consists of four nodes labeled 1, 2, 3, and 4, arranged in a triangular formation. Node 1 is positioned at the top left, node 2 is directly below node 1, node 3 is directly below node 2, and node 4 is at the rightmost position. Node 1 is connected to node 2 by a vertical line labeled \"1,\" and to node 3 by another vertical line also labeled \"1.\" Node 2 is connected to node 4 by a diagonal line labeled \"4,\" and node 3 is connected to node 4 by a diagonal line labeled \"1.\" Node 4 is highlighted in red and labeled with \"d4 = 10\" at its top right. Node 1 is circled in blue and labeled with \"s1 = 10\" at its top left.",
+   "tex": "tikz/DTZ00095.tex",
+   "png": "png/DTZ00095.png",
+   "rendered": "rendered/DTZ00095.png",
+   "engine": "xelatex"
+  },
+  {
+   "id": "DTZ00096",
+   "source": "arxiv",
+   "file_id": "arxiv_src_new_276_224_152_9",
+   "caption": "\\labelf:optimal_flow_vs_transportation_1",
+   "vlm_description": "On the left side, there is a network diagram with five nodes labeled 1 through 5. Node 1 is blue and positioned at the top left, node 2 is also blue and located below node 1, node 3 is central and white, node 4 is red and situated to the right of node 3, and node 5 is red and placed below node 3. Node 1 is connected to node 2 by a line labeled \"1\" and to node 3 by a line labeled \"5\". Node 2 is connected to node 3 by a line labeled \"1\". Node 3 is connected to node 4 by a line labeled \"1\" and to node 5 by a line labeled \"1\". On the right side, another network diagram is depicted with similar nodes but different connections. Node 1 is blue and positioned at the top left, node 2 is blue and located below node 1, node 3 is central and white, node 4 is red and situated to the right of node 3, and node 5 is red and placed below node 3. Node 1 is connected to node 2 by a line labeled \"3\", node 2 is connected to node 3 by a line labeled \"3\", node 3 is connected to node 4 by a line labeled \"2\", and node 3 is connected to node 5 by a line labeled \"2\".",
+   "tex": "tikz/DTZ00096.tex",
+   "png": "png/DTZ00096.png",
+   "rendered": "rendered/DTZ00096.png",
+   "engine": "xelatex"
+  },
+  {
+   "id": "DTZ00097",
+   "source": "arxiv",
+   "file_id": "arxiv_src_new_276_224_154_0",
+   "caption": "\\labelf:quah_graph",
+   "vlm_description": "A circular diagram consists of five nodes labeled 1 through 5, arranged in a clockwise sequence. Node 1 is connected to node 2 with a curved arrow labeled 0.97, and another curved arrow from node 2 back to node 1 labeled 0.05. Node 2 is connected to node 3 with a curved arrow labeled 0.92, and another curved arrow from node 3 back to node 2 labeled 0.04. Node 3 is connected to node 4 with a curved arrow labeled 0.92, and another curved arrow from node 4 back to node 3 labeled 0.04. Node 4 is connected to node 5 with a curved arrow labeled 0.94, and another curved arrow from node 5 back to node 4 labeled 0.02. Node 5 is connected to node 1 with a curved arrow labeled 0.99. All arrows are directed and have a slight bend, indicating a probabilistic transition between states.",
+   "tex": "tikz/DTZ00097.tex",
+   "png": "png/DTZ00097.png",
+   "rendered": "rendered/DTZ00097.png",
+   "engine": "xelatex"
+  },
+  {
+   "id": "DTZ00098",
+   "source": "arxiv",
+   "file_id": "arxiv_src_new_276_224_154_1",
+   "caption": "\\labelf:quah_graph_2",
+   "vlm_description": "A circular diagram consists of five nodes labeled 1 through 5, arranged in a clockwise sequence. Node 1 is connected to node 2 with a curved arrow labeled 0.97, and another curved arrow from node 2 back to node 1 labeled 0.03. Node 2 is connected to node 3 with a curved arrow labeled 0.89, and another curved arrow from node 3 back to node 2 labeled 0.06. Node 3 is connected to node 4 with a curved arrow labeled 0.90, and another curved arrow from node 4 back to node 3 labeled 0.05. Node 4 is connected to node 5 with a curved arrow labeled 0.90, and another curved arrow from node 5 back to node 4 labeled 0.04. Node 5 is connected to node 1 with a curved arrow labeled 0.99, and another curved arrow from node 1 back to node 5 labeled 0.01. Each node is a circle with a filled center, and the arrows are directed from the lower right of one node to the upper left of the next, forming a closed loop.",
+   "tex": "tikz/DTZ00098.tex",
+   "png": "png/DTZ00098.png",
+   "rendered": "rendered/DTZ00098.png",
+   "engine": "xelatex"
+  },
+  {
+   "id": "DTZ00099",
+   "source": "arxiv",
+   "file_id": "arxiv_src_new_276_224_154_2",
+   "caption": "\\labelf:poverty_trap_2",
+   "vlm_description": "Three oval shapes are positioned horizontally, each containing a label: \"middle class\" in the center, \"rich\" to the right, and \"poor\" at the bottom. Each oval has a curved arrow pointing back to itself, indicating a cycle within each group. A thick black arrow connects the \"middle class\" oval to the \"rich\" oval, suggesting a flow or relationship between these two groups. Another thick black arrow connects the \"rich\" oval to the \"middle class\" oval, forming a reciprocal relationship. The \"poor\" oval is isolated and not connected to any other oval.",
+   "tex": "tikz/DTZ00099.tex",
+   "png": "png/DTZ00099.png",
+   "rendered": "rendered/DTZ00099.png",
+   "engine": "xelatex"
   }
- ]
+ ],
+ "failures": []
 }

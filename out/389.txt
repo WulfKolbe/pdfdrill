@@ -1,0 +1,86 @@
+389 — the pdflatex fallback on the DTZ render path
+==================================================
+
+WHAT THE THREE FAILURES WERE
+
+All 3 unrendered rows of the first 100 failed for one reason, and it is the
+same reason for each:
+
+  DTZ00066  ! Package inputenc Error: inputenc is not designed for xetex
+  DTZ00067  ! Package inputenc Error: inputenc is not designed for xetex
+  DTZ00068  ! Package inputenc Error: inputenc is not designed for xetex
+
+A DaTikZ row is not our projection — it is an author's own standalone
+document, and these three open with \usepackage[utf8]{inputenc}, which is a
+hard error under xetex and unremarkable under pdflatex.
+
+So the report was showing "did not compile" for three documents that compile
+fine. That is a measurement of OUR ENGINE CHOICE presented as a property of
+the row, which is the same shape as every other instrument error in this
+sequence.
+
+THE FALLBACK
+
+348's rule for regions, applied to the render path: try the preamble the
+document asks for, fall back on failure. ENGINES = ("xelatex", "pdflatex"),
+xelatex first because a model carries raw Unicode pdflatex cannot set.
+
+One trap worth naming: a failed run leaves the PREVIOUS engine's pdf in the
+output directory, and the next engine is then credited with it. The pdf is
+removed before each attempt. Without that, the fallback would report success
+for whichever engine ran second, always.
+
+RESULT
+
+  before   compiled  97 of 100     failed 3
+  after    compiled 100 of 100     failed 0
+  by engine: xelatex 97, pdflatex 3
+
+All three of the previously unrendered rows compile. 3 of 3.
+
+WHAT HAD TO BE WITHDRAWN, AND WHY
+
+Those three rows already carried a residual from 386, and it had to go:
+
+  DTZ00066  C|-56   L=[74, 32, 9, 0, 9]
+  DTZ00067  C|-52   L=[74, 32, 9, 0, 9]
+  DTZ00068  C|-50   L=[74, 32, 9, 0, 9]
+
+The identical L is the giveaway. That is not three figures measuring alike —
+it is the ink of the string "did not compile: ...", which is what stood in
+the Rendered cell when the measurement ran. A class measured against a cell
+that no longer exists is not a class for the cell now in its place, and left
+alone it would have read as a genuine component difference on three rows
+that now hold real figures.
+
+Dropped by that signature rather than by an id list, so the rule says why:
+selecting on L == [74,32,9,0,9] picks exactly 3 rows, and each is asserted to
+have gained a render before it is removed. This is out/237's known-answer
+test used in the other direction — there a constant ink at a known position
+proved the alignment, here it identifies rows whose measurement is stale.
+
+They read inkUnmeasured until p022 and these three are re-measured.
+
+THE ARTEFACT
+
+  /home/wkolbe/pdfdrill-library/datikz-fixture/report.pdf
+  34 pages, 3.80 MB, 0 errors, 0 demoted
+  100 of 100 rows now carry a rendered cell — no "did not compile" remains
+  100 of 100 carry a residual bullet
+   94 of 100 carry a measured CLASS
+
+  C  component   32
+  N  noise       22
+  K  clean       18
+  S  stable      13
+  W  weak         8
+  A  absent       1
+  --              --
+     measured     94
+     no class      6   = 3 (p022, defect 3 of 386) + 3 (withdrawn above)
+
+Counted from the PDF's own text layer, not from the source that built it.
+
+The measured count went 97 -> 94 while the rendered count went 97 -> 100.
+Both moves are the same fix: three rows stopped being measured against an
+error message and started being figures worth measuring.
