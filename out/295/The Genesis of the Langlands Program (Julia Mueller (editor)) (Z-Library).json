@@ -1,0 +1,27 @@
+{
+ "doc": "The Genesis of the Langlands Program (Julia Mueller (editor)) (Z-Library)",
+ "pdf": "The Genesis of the Langlands Program (Julia Mueller (editor)) (Z-Library).pdf",
+ "rc": 0,
+ "stdout_tail": "Build stamp: report.build.json — phase=reading, 468 pages, 14823678 bytes, sha256 596f1a71790b. A measurement of this report should copy it into its output as `measured_against`.",
+ "seconds": 647.3,
+ "regions": {
+  "regions_with_latex": 0,
+  "attempted_now": 0,
+  "rendered": 0,
+  "failed": 0,
+  "has_author_preamble": false,
+  "graphics_dir": null,
+  "failures": []
+ },
+ "manifest_rows": 27,
+ "with_latex": 0,
+ "duplicated": 27,
+ "table_cols": [
+  6,
+  5,
+  7
+ ],
+ "six_col_tables": 1,
+ "region_table_cols": 7,
+ "ink_selectable": false
+}
