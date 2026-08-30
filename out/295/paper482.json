@@ -1,0 +1,32 @@
+{
+ "doc": "paper482",
+ "pdf": "paper482.pdf",
+ "rc": 0,
+ "stdout_tail": "Build stamp: report.build.json — phase=reading, 3 pages, 301408 bytes, sha256 4ba2d83fef29. A measurement of this report should copy it into its output as `measured_against`.",
+ "seconds": 3.4,
+ "regions": {
+  "regions_with_latex": 1,
+  "attempted_now": 1,
+  "rendered": 0,
+  "failed": 1,
+  "has_author_preamble": false,
+  "graphics_dir": null,
+  "failures": [
+   {
+    "id": "paper482_DIA_0002",
+    "first_error": "! Missing $ inserted."
+   }
+  ]
+ },
+ "manifest_rows": 3,
+ "with_latex": 1,
+ "duplicated": 3,
+ "table_cols": [
+  5,
+  5,
+  7
+ ],
+ "six_col_tables": 0,
+ "region_table_cols": 7,
+ "ink_selectable": false
+}
