@@ -1,0 +1,37 @@
+{
+ "doc": "Verbalizable Representations Form a Global Workspace in Language Models",
+ "pdf": "Verbalizable Representations Form a Global Workspace in Language Models.pdf",
+ "rc": 0,
+ "stdout_tail": "Build stamp: report.build.json — phase=reading, 79 pages, 5844662 bytes, sha256 06e38eed6ef7. A measurement of this report should copy it into its output as `measured_against`.",
+ "seconds": 15.1,
+ "regions": {
+  "regions_with_latex": 2,
+  "attempted_now": 2,
+  "rendered": 0,
+  "failed": 2,
+  "has_author_preamble": false,
+  "graphics_dir": null,
+  "failures": [
+   {
+    "id": "Verbalizable_Representations_Form_a_Global_Workspace_in_Language_Models_DIA_0065",
+    "first_error": "! Misplaced alignment tab character &."
+   },
+   {
+    "id": "Verbalizable_Representations_Form_a_Global_Workspace_in_Language_Models_DIA_0135",
+    "first_error": "! Misplaced alignment tab character &."
+   }
+  ]
+ },
+ "manifest_rows": 196,
+ "with_latex": 2,
+ "duplicated": 196,
+ "table_cols": [
+  5,
+  5,
+  4,
+  7
+ ],
+ "six_col_tables": 0,
+ "region_table_cols": 7,
+ "ink_selectable": false
+}
