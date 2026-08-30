@@ -83,8 +83,8 @@ def test_extract_graphics_now_finds_all_three():
     both, and the count is 3 of 3."""
     _, body = _split()
     got = ls.extract_graphics(body)
-    assert len(got) == 3
-    assert [g["env"] for g in got].count("tikzpicture") == 1
+    assert len(got) == 4          # +1: the picture inside the margin note (355)
+    assert [g["env"] for g in got].count("tikzpicture") == 2
     assert [g["env"] for g in got].count("tikz") == 2
     assert any("baseline" in g["code"] for g in got), "inline braced form"
     assert any("(0,1)" in g["code"] for g in got), "inline semicolon form"
@@ -130,8 +130,8 @@ def test_an_inputed_tikzpicture_is_invisible_until_inputs_are_expanded():
     after = ls.extract_graphics(whole.split("\\begin{document}", 1)[1])
     assert any("(1,1)" in g["code"] for g in after)
     # 2 tikzpicture (one of them \input'ed) + the 2 inline forms 352 added
-    assert len(after) == 4
-    assert [g["env"] for g in after].count("tikzpicture") == 2
+    assert len(after) == 5   # 3 tikzpicture + 2 inline (355 added the margin one)
+    assert [g["env"] for g in after].count("tikzpicture") == 3
 
 
 def test_a_custom_environment_is_neither_macro_nor_graphic():
@@ -142,3 +142,40 @@ def test_a_custom_environment_is_neither_macro_nor_graphic():
     assert "\\newenvironment{authorbox}" in pre
     assert "authorbox" not in ls.collect_macros(pre, str(FIX))
     assert not any("authorbox" in g["code"] for g in ls.extract_graphics(body))
+
+
+# --- 355: margin material -------------------------------------------------
+
+def test_margin_note_is_brace_matched_and_keeps_its_offset():
+    r"""\marginnote[-6cm]{... \begin{tikzpicture}...\end{tikzpicture} ...} is
+    the thesis construct. A regex stopping at the first `}` ends the note
+    inside the picture and takes the rest of the document as body text."""
+    _, body = _split()
+    notes = ls.extract_margin_notes(body)
+    assert len(notes) == 1
+    n = notes[0]
+    assert n["cmd"] == "marginnote"
+    assert n["offset"] == "-6cm", "the offset says WHERE in the margin"
+    assert "tikzpicture" in n["content"]
+    assert n["content"].rstrip().endswith("inside."), "truncated at an inner brace"
+
+
+def test_a_graphic_in_the_margin_is_marked_and_one_in_the_body_is_not():
+    """The gap 353 measured: 29 of the thesis's 140 graphics sit inside a
+    \marginnote and every one read as a body figure."""
+    _, body = _split()
+    got = ls.extract_graphics(body)
+    spans = ls.margin_spans(body)
+    marked = [g for g in got if ls.in_margin(spans, g["pos"])]
+    assert len(marked) == 1
+    assert "(2,2)" in marked[0]["code"]
+    assert len(got) - len(marked) == 3, "the others must stay unmarked"
+
+
+def test_a_commented_margin_note_is_not_one():
+    assert ls.extract_margin_notes("% \\marginnote{x}\n") == []
+
+
+def test_an_unbalanced_margin_note_is_refused_not_guessed():
+    """Better no object than one holding the rest of the file."""
+    assert ls.extract_margin_notes("\\marginnote{unclosed") == []

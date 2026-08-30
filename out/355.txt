@@ -1,0 +1,47 @@
+355 - margin material on the LaTeX-source path
+==============================================================
+
+WHAT WAS MISSING
+  pdfdrill HAS a Sidenote object type, built by docmodel/modules/
+  sidenote.py from PAGE GEOMETRY -- 'a line of type=column'. It exists
+  only where MathPix ran. The command \marginnote appeared nowhere in
+  src/, so a document with source and no MathPix run had no margin notes
+  at all, and a figure the author put in the margin was indistinguishable
+  from one in the body.
+
+  Now extracted from source, brace-matched, keeping the optional offset,
+  and emitted as the SAME Sidenote type so every existing projector
+  (plaintext, okf, llm_compact) carries it without change.
+
+THE THESIS
+  Sidenote objects from source   : 107
+    \marginnote                  : 77
+    \sidenote                    : 30
+    carrying an offset           : 33
+
+  Diagram/Table objects          : 140
+  GAINING THE in_margin ROLE     : 29
+    with the offset attached     : 16
+
+  The 29 is exactly what 353 measured as reading like body figures. They
+  were never lost -- extract_graphics found them all along -- so the gain
+  is the ROLE, and the offset that says where in the margin.
+
+THE CORPUS
+  documents with margin material : 44 of 463 with texsrc/
+  \marginnote                    : 557
+  \sidenote                      : 60
+  \marginpar                     : 69
+  TOTAL margin notes             : 686
+  graphics inside one            : 59
+
+NOTES
+  The note's text is blanked from the prose length-preservingly, exactly
+  as theorems already are, or it would be counted twice -- once as the
+  Sidenote and once inside the Paragraph around it.
+
+  An UNBALANCED \marginnote is refused rather than guessed at. `_balanced`
+  returns the rest of the string when braces never close and does not
+  signal failure; other callers rely on that, so the check lives at this
+  call site. Without it one unclosed note becomes an object holding
+  everything after it.

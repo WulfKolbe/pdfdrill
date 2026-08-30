@@ -34,6 +34,10 @@
   Text inside the author's own environment.
 \end{authorbox}
 
+%% the thesis construct: a margin note with an offset, holding a picture.
+%% Brace-matched or the closing } of the tikzpicture ends the note early.
+\marginnote[-6cm]{A note, with \begin{tikzpicture}\draw (0,0) -- (2,2);\end{tikzpicture} inside.}
+
 %% a tikzpicture reached only through \input
 \input{included}
 

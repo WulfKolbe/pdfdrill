@@ -1079,6 +1079,56 @@ def _inline_tikz_blocks(body: str) -> list[dict]:
     return out
 
 
+#: 355 — margin material, which the source path had no notion of. pdfdrill
+#: HAS a `Sidenote` object type, but `docmodel/modules/sidenote.py` builds it
+#: from PAGE GEOMETRY — "a line of type='column'" — so it exists only where
+#: MathPix ran. A document with source and no MathPix run had no margin notes
+#: at all, and a figure the author put in the margin was indistinguishable
+#: from one in the body: 29 of the thesis's 140 graphics sit inside a
+#: \marginnote and every one of them read as a body figure (353).
+_MARGIN_CMDS = ("marginnote", "sidenote", "marginpar")
+_MARGIN = re.compile(r"\\(" + "|".join(_MARGIN_CMDS) + r")\s*(?:\[([^\]]*)\])?\s*\{")
+
+
+def extract_margin_notes(body: str) -> list[dict]:
+    r"""Every `\marginnote[offset]{...}` / `\sidenote` / `\marginpar`.
+
+    Brace MATCHED, not regex-captured: a margin note routinely contains
+    `{...}` — a whole tikzpicture in the thesis's case — and `[^}]*` would
+    truncate at the first inner brace and take the rest of the document as
+    body text.
+
+    The optional argument is kept. `\marginnote[-6cm]{...}` places the note
+    6cm up; dropping it would record that something is in the margin while
+    losing where in the margin, which is most of what the offset is for.
+    """
+    out: list[dict] = []
+    for m in _MARGIN.finditer(body):
+        if _commented(body, m.start()):
+            continue
+        inner = _balanced(body, m.end() - 1)
+        # `_balanced` returns the REST OF THE STRING when the braces never
+        # close — it does not signal failure, and other callers rely on that,
+        # so the check belongs here. Without it an unclosed \marginnote makes
+        # one object holding everything after it.
+        if not inner or not inner.endswith("}"):
+            continue
+        end = m.end() - 1 + len(inner)
+        out.append({"cmd": m.group(1), "offset": (m.group(2) or "").strip(),
+                    "content": inner[1:-1], "pos": m.start(), "end": end,
+                    "code": body[m.start():end]})
+    return out
+
+
+def margin_spans(body: str) -> list[tuple]:
+    """(start, end) of every margin note, for asking whether a thing is in one."""
+    return [(n["pos"], n["end"]) for n in extract_margin_notes(body)]
+
+
+def in_margin(spans: list, pos: int) -> bool:
+    return any(a <= pos < z for a, z in spans)
+
+
 def extract_graphics(body: str) -> list[dict]:
     """TikZ pictures and tables in document order: {env, code, pos, caption}.
 
@@ -1743,9 +1793,21 @@ def build_source_model(tex_path: str, bibkey: str = "DOC") -> "object":
         seg = prose_body[blk["start"]:blk["end"]]
         prose_body = (prose_body[:blk["start"]]
                       + re.sub(r"[^\n]", " ", seg) + prose_body[blk["end"]:])
+    # 355 — a margin note becomes its own object, so its text must leave the
+    # prose or it is counted twice: once as the Sidenote and once inside the
+    # Paragraph that surrounds it. Blanked length-preservingly, exactly as the
+    # theorems above are, so every later position still refers to `body`.
+    for _n in extract_margin_notes(body):
+        seg = prose_body[_n["pos"]:_n["end"]]
+        prose_body = (prose_body[:_n["pos"]]
+                      + re.sub(r"[^\n]", " ", seg) + prose_body[_n["end"]:])
 
     _ab = extract_abstract(body)
-    items = ([("section", s["pos"], s) for s in extract_sections(body)]
+    # 355 — margin material, and the spans that let a graphic say it is in it
+    _margins = extract_margin_notes(body)
+    _mspans = [(n["pos"], n["end"]) for n in _margins]
+    items = ([("margin", n["pos"], n) for n in _margins]
+             + [("section", s["pos"], s) for s in extract_sections(body)]
              + [("equation", e["pos"], e) for e in extract_display_equations(body)]
              + [("graphic", g["pos"], g) for g in extract_graphics(body)]
              + ([("abstract", _ab["pos"], _ab)] if _ab else [])
@@ -1757,6 +1819,7 @@ def build_source_model(tex_path: str, bibkey: str = "DOC") -> "object":
     pending_proofs: list = []           # (proof dict, Proof object) to pair after
 
     n_sec = n_eq = n_dia = n_tab = n_para = n_formula = n_abs = n_ltx = 0
+    n_margin = n_dia_margin = 0
     fi = 0
     formula_no = 0
     formula_titles: dict[str, str] = {}    # content key -> FO title (de-dup)
@@ -1804,12 +1867,32 @@ def build_source_model(tex_path: str, bibkey: str = "DOC") -> "object":
                 "numbered": it.get("numbered"), "label": it.get("label"),
                 "env": it.get("env"), "flow_index": fi, "bibkey": bibkey}))
             n_eq += 1
+        elif kind == "margin":
+            doc.add(DocObject(type="Sidenote", props={
+                "content": it["content"].strip(),
+                "latex_original": it["code"],
+                # the offset is kept: \marginnote[-6cm] says WHERE in the
+                # margin, and recording only that something is in the margin
+                # throws away most of what the argument carries.
+                "margin_offset": it["offset"],
+                "margin_cmd": it["cmd"], "in_margin": True,
+                "flow_index": fi, "bibkey": bibkey}))
+            n_margin += 1
         elif kind == "graphic":
             code = expand_macros(it["code"], macros)
-            doc.add(DocObject(type=it["kind"], props={
-                "latex_code": code, "latex_original": it["code"],
-                "caption": it.get("caption", ""), "env": it["env"],
-                "flow_index": fi, "bibkey": bibkey}))
+            props = {"latex_code": code, "latex_original": it["code"],
+                     "caption": it.get("caption", ""), "env": it["env"],
+                     "flow_index": fi, "bibkey": bibkey}
+            # a graphic the author put in the margin is not a body figure,
+            # and until now nothing recorded the difference
+            if in_margin(_mspans, it["pos"]):
+                props["in_margin"] = True
+                for _n in _margins:
+                    if _n["pos"] <= it["pos"] < _n["end"]:
+                        props["margin_offset"] = _n["offset"]
+                        break
+                n_dia_margin += 1
+            doc.add(DocObject(type=it["kind"], props=props))
             if it["kind"] == "Diagram":
                 n_dia += 1
             else:
