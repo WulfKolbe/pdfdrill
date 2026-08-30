@@ -1,0 +1,1204 @@
+[
+ {
+  "id": "BRD2020_Table_001",
+  "file": "BRD2020_Table_001_1774200778605.tex",
+  "standalone": true,
+  "body_bytes": 191,
+  "envs": {
+   "tabular": 1
+  },
+  "includegraphics": 0,
+  "files": []
+ },
+ {
+  "id": "BRD2020_Table_002",
+  "file": "BRD2020_Table_002_1774200780498.tex",
+  "standalone": true,
+  "body_bytes": 896,
+  "envs": {
+   "tabular": 1
+  },
+  "includegraphics": 0,
+  "files": []
+ },
+ {
+  "id": "BRD2020_Table_003",
+  "file": "BRD2020_Table_003_1774200782672.tex",
+  "standalone": true,
+  "body_bytes": 183,
+  "envs": {
+   "tabular": 1
+  },
+  "includegraphics": 0,
+  "files": []
+ },
+ {
+  "id": "BRD2020_Table_004",
+  "file": "BRD2020_Table_004_1774200784573.tex",
+  "standalone": true,
+  "body_bytes": 213,
+  "envs": {
+   "tabular": 1
+  },
+  "includegraphics": 0,
+  "files": []
+ },
+ {
+  "id": "BRD2020_Table_005",
+  "file": "BRD2020_Table_005_1774200786517.tex",
+  "standalone": true,
+  "body_bytes": 352,
+  "envs": {
+   "tabular": 1
+  },
+  "includegraphics": 0,
+  "files": []
+ },
+ {
+  "id": "BRD2020_Tikz_001",
+  "file": "BRD2020_Tikz_001_1774200598885.tex",
+  "standalone": true,
+  "body_bytes": 429,
+  "envs": {
+   "tikzpicture": 1
+  },
+  "includegraphics": 1,
+  "files": [
+   "figures/ch1/concept2"
+  ]
+ },
+ {
+  "id": "BRD2020_Tikz_002",
+  "file": "BRD2020_Tikz_002_1774200601276.tex",
+  "standalone": true,
+  "body_bytes": 308,
+  "envs": {
+   "tikzpicture": 1
+  },
+  "includegraphics": 1,
+  "files": [
+   "figures/ch2/graph2"
+  ]
+ },
+ {
+  "id": "BRD2020_Tikz_003",
+  "file": "BRD2020_Tikz_003_1774200603276.tex",
+  "standalone": true,
+  "body_bytes": 247,
+  "envs": {
+   "tikzpicture": 1
+  },
+  "includegraphics": 1,
+  "files": [
+   "figures/ch1/passage"
+  ]
+ },
+ {
+  "id": "BRD2020_Tikz_004",
+  "file": "BRD2020_Tikz_004_1774200605197.tex",
+  "standalone": true,
+  "body_bytes": 210,
+  "envs": {
+   "tikzpicture": 1
+  },
+  "includegraphics": 1,
+  "files": [
+   "figures/ch2/2tensor"
+  ]
+ },
+ {
+  "id": "BRD2020_Tikz_005",
+  "file": "BRD2020_Tikz_005_1774200607138.tex",
+  "standalone": true,
+  "body_bytes": 156,
+  "envs": {
+   "tikzpicture": 1
+  },
+  "includegraphics": 0,
+  "files": []
+ },
+ {
+  "id": "BRD2020_Tikz_006",
+  "file": "BRD2020_Tikz_006_1774200608865.tex",
+  "standalone": true,
+  "body_bytes": 228,
+  "envs": {
+   "tikzpicture": 1
+  },
+  "includegraphics": 1,
+  "files": [
+   "figures/ch2/function"
+  ]
+ },
+ {
+  "id": "BRD2020_Tikz_007",
+  "file": "BRD2020_Tikz_007_1774200610711.tex",
+  "standalone": true,
+  "body_bytes": 146,
+  "envs": {
+   "tikzpicture": 1
+  },
+  "includegraphics": 1,
+  "files": [
+   "figures/ch2/2tensor"
+  ]
+ },
+ {
+  "id": "BRD2020_Tikz_008",
+  "file": "BRD2020_Tikz_008_1774200612563.tex",
+  "standalone": true,
+  "body_bytes": 745,
+  "envs": {
+   "tikzpicture": 1
+  },
+  "includegraphics": 4,
+  "files": [
+   "figures/ch2/scalar",
+   "figures/ch2/vector",
+   "figures/ch2/2tensor",
+   "figures/ch2/3tensor"
+  ]
+ },
+ {
+  "id": "BRD2020_Tikz_009",
+  "file": "BRD2020_Tikz_009_1774200614856.tex",
+  "standalone": true,
+  "body_bytes": 431,
+  "envs": {
+   "tikzpicture": 1
+  },
+  "includegraphics": 2,
+  "files": [
+   "figures/ch2/TNs/tn1",
+   "figures/ch2/TNs/tn2"
+  ]
+ },
+ {
+  "id": "BRD2020_Tikz_010",
+  "file": "BRD2020_Tikz_010_1774200616796.tex",
+  "standalone": true,
+  "body_bytes": 531,
+  "envs": {
+   "tikzpicture": 1
+  },
+  "includegraphics": 2,
+  "files": [
+   "figures/ch2/TNs/tn3",
+   "figures/ch2/TNs/tn_4"
+  ]
+ },
+ {
+  "id": "BRD2020_Tikz_011",
+  "file": "BRD2020_Tikz_011_1774200618817.tex",
+  "standalone": true,
+  "body_bytes": 241,
+  "envs": {
+   "tikzpicture": 1
+  },
+  "includegraphics": 1,
+  "files": [
+   "figures/ch2/TNs/Mv"
+  ]
+ },
+ {
+  "id": "BRD2020_Tikz_012",
+  "file": "BRD2020_Tikz_012_1774200620799.tex",
+  "standalone": true,
+  "body_bytes": 153,
+  "envs": {
+   "tikzpicture": 1
+  },
+  "includegraphics": 0,
+  "files": []
+ },
+ {
+  "id": "BRD2020_Tikz_013",
+  "file": "BRD2020_Tikz_013_1774200622523.tex",
+  "standalone": true,
+  "body_bytes": 153,
+  "envs": {
+   "tikzpicture": 1
+  },
+  "includegraphics": 0,
+  "files": []
+ },
+ {
+  "id": "BRD2020_Tikz_014",
+  "file": "BRD2020_Tikz_014_1774200624246.tex",
+  "standalone": true,
+  "body_bytes": 450,
+  "envs": {
+   "tikzpicture": 1
+  },
+  "includegraphics": 3,
+  "files": [
+   "figures/ch2/TNs/tn5",
+   "figures/ch2/TNs/tn6",
+   "figures/ch2/TNs/tn7"
+  ]
+ },
+ {
+  "id": "BRD2020_Tikz_015",
+  "file": "BRD2020_Tikz_015_1774200626166.tex",
+  "standalone": true,
+  "body_bytes": 356,
+  "envs": {
+   "tikzpicture": 1
+  },
+  "includegraphics": 2,
+  "files": [
+   "figures/ch2/TNs/tn5",
+   "figures/ch2/TNs/tn5"
+  ]
+ },
+ {
+  "id": "BRD2020_Tikz_016",
+  "file": "BRD2020_Tikz_016_1774200628138.tex",
+  "standalone": true,
+  "body_bytes": 130,
+  "envs": {
+   "tikzpicture": 1
+  },
+  "includegraphics": 1,
+  "files": [
+   "figures/ch2/TNs/tn8"
+  ]
+ },
+ {
+  "id": "BRD2020_Tikz_017",
+  "file": "BRD2020_Tikz_017_1774200629960.tex",
+  "standalone": true,
+  "body_bytes": 778,
+  "envs": {
+   "tikzpicture": 1
+  },
+  "includegraphics": 4,
+  "files": [
+   "figures/ch2/TNs/tn9",
+   "figures/ch2/TNs/tn11",
+   "figures/ch2/TNs/tn10",
+   "figures/ch2/TNs/tn10"
+  ]
+ },
+ {
+  "id": "BRD2020_Tikz_018",
+  "file": "BRD2020_Tikz_018_1774200632083.tex",
+  "standalone": true,
+  "body_bytes": 146,
+  "envs": {
+   "tikzpicture": 1
+  },
+  "includegraphics": 1,
+  "files": [
+   "figures/ch2/TNs/tn19"
+  ]
+ },
+ {
+  "id": "BRD2020_Tikz_019",
+  "file": "BRD2020_Tikz_019_1774200634049.tex",
+  "standalone": true,
+  "body_bytes": 235,
+  "envs": {
+   "tikzpicture": 1
+  },
+  "includegraphics": 2,
+  "files": [
+   "figures/ch2/TNs/tn1",
+   "figures/ch2/TNs/tn12"
+  ]
+ },
+ {
+  "id": "BRD2020_Tikz_020",
+  "file": "BRD2020_Tikz_020_1774200636026.tex",
+  "standalone": true,
+  "body_bytes": 219,
+  "envs": {
+   "tikzpicture": 1
+  },
+  "includegraphics": 1,
+  "files": [
+   "figures/ch2/TNs/tn20"
+  ]
+ },
+ {
+  "id": "BRD2020_Tikz_021",
+  "file": "BRD2020_Tikz_021_1774200638584.tex",
+  "standalone": true,
+  "body_bytes": 179,
+  "envs": {
+   "tikzpicture": 1
+  },
+  "includegraphics": 1,
+  "files": [
+   "figures/ch2/TNs/tn18"
+  ]
+ },
+ {
+  "id": "BRD2020_Tikz_022",
+  "file": "BRD2020_Tikz_022_1774200640497.tex",
+  "standalone": true,
+  "body_bytes": 340,
+  "envs": {
+   "tikzpicture": 1
+  },
+  "includegraphics": 2,
+  "files": [
+   "figures/ch2/TNs/tn13",
+   "figures/ch2/TNs/tn14"
+  ]
+ },
+ {
+  "id": "BRD2020_Tikz_023",
+  "file": "BRD2020_Tikz_023_1774200642590.tex",
+  "standalone": true,
+  "body_bytes": 308,
+  "envs": {
+   "tikzpicture": 1
+  },
+  "includegraphics": 1,
+  "files": [
+   "figures/ch2/TNs/tn17"
+  ]
+ },
+ {
+  "id": "BRD2020_Tikz_024",
+  "file": "BRD2020_Tikz_024_1774200645219.tex",
+  "standalone": true,
+  "body_bytes": 218,
+  "envs": {
+   "tikzpicture": 1
+  },
+  "includegraphics": 1,
+  "files": [
+   "figures/ch2/TNs/mps"
+  ]
+ },
+ {
+  "id": "BRD2020_Tikz_025",
+  "file": "BRD2020_Tikz_025_1774200647380.tex",
+  "standalone": true,
+  "body_bytes": 171,
+  "envs": {
+   "tikzpicture": 1
+  },
+  "includegraphics": 1,
+  "files": [
+   "figures/ch2/TNs/mps"
+  ]
+ },
+ {
+  "id": "BRD2020_Tikz_026",
+  "file": "BRD2020_Tikz_026_1774200649432.tex",
+  "standalone": true,
+  "body_bytes": 190,
+  "envs": {
+   "tikzpicture": 1
+  },
+  "includegraphics": 1,
+  "files": [
+   "figures/ch1/bothways"
+  ]
+ },
+ {
+  "id": "BRD2020_Tikz_027",
+  "file": "BRD2020_Tikz_027_1774200651215.tex",
+  "standalone": true,
+  "body_bytes": 216,
+  "envs": {
+   "tikzpicture": 1
+  },
+  "includegraphics": 1,
+  "files": [
+   "figures/ch1/covector"
+  ]
+ },
+ {
+  "id": "BRD2020_Tikz_028",
+  "file": "BRD2020_Tikz_028_1774200653530.tex",
+  "standalone": true,
+  "body_bytes": 167,
+  "envs": {
+   "tikzpicture": 1
+  },
+  "includegraphics": 1,
+  "files": [
+   "figures/ch2/zoom"
+  ]
+ },
+ {
+  "id": "BRD2020_Tikz_029",
+  "file": "BRD2020_Tikz_029_1774200656605.tex",
+  "standalone": true,
+  "body_bytes": 3180,
+  "envs": {
+   "tikzpicture": 1
+  },
+  "includegraphics": 0,
+  "files": []
+ },
+ {
+  "id": "BRD2020_Tikz_030",
+  "file": "BRD2020_Tikz_030_1774200659206.tex",
+  "standalone": true,
+  "body_bytes": 284,
+  "envs": {
+   "tikzpicture": 1
+  },
+  "includegraphics": 1,
+  "files": [
+   "figures/ch2/pt2"
+  ]
+ },
+ {
+  "id": "BRD2020_Tikz_031",
+  "file": "BRD2020_Tikz_031_1774200662354.tex",
+  "standalone": true,
+  "body_bytes": 96,
+  "envs": {
+   "tikzpicture": 1
+  },
+  "includegraphics": 0,
+  "files": []
+ },
+ {
+  "id": "BRD2020_Tikz_032",
+  "file": "BRD2020_Tikz_032_1774200664123.tex",
+  "standalone": true,
+  "body_bytes": 96,
+  "envs": {
+   "tikzpicture": 1
+  },
+  "includegraphics": 0,
+  "files": []
+ },
+ {
+  "id": "BRD2020_Tikz_033",
+  "file": "BRD2020_Tikz_033_1774200665881.tex",
+  "standalone": true,
+  "body_bytes": 169,
+  "envs": {
+   "tikzpicture": 1
+  },
+  "includegraphics": 1,
+  "files": [
+   "figures/ch2/vec_map"
+  ]
+ },
+ {
+  "id": "BRD2020_Tikz_034",
+  "file": "BRD2020_Tikz_034_1774200667843.tex",
+  "standalone": true,
+  "body_bytes": 242,
+  "envs": {
+   "tikzpicture": 1
+  },
+  "includegraphics": 1,
+  "files": [
+   "figures/ch2/svd"
+  ]
+ },
+ {
+  "id": "BRD2020_Tikz_035",
+  "file": "BRD2020_Tikz_035_1774200669890.tex",
+  "standalone": true,
+  "body_bytes": 208,
+  "envs": {
+   "tikzpicture": 1
+  },
+  "includegraphics": 1,
+  "files": [
+   "figures/ch2/svd2"
+  ]
+ },
+ {
+  "id": "BRD2020_Tikz_036",
+  "file": "BRD2020_Tikz_036_1774200672144.tex",
+  "standalone": true,
+  "body_bytes": 542,
+  "envs": {
+   "tikzpicture": 1
+  },
+  "includegraphics": 2,
+  "files": [
+   "figures/ch2/bestproof1",
+   "figures/ch2/bestproof2"
+  ]
+ },
+ {
+  "id": "BRD2020_Tikz_037",
+  "file": "BRD2020_Tikz_037_1774200675939.tex",
+  "standalone": true,
+  "body_bytes": 392,
+  "envs": {
+   "tikzpicture": 1
+  },
+  "includegraphics": 1,
+  "files": [
+   "figures/ch2/entanglement"
+  ]
+ },
+ {
+  "id": "BRD2020_Tikz_038",
+  "file": "BRD2020_Tikz_038_1774200679116.tex",
+  "standalone": true,
+  "body_bytes": 221,
+  "envs": {
+   "tikzpicture": 1
+  },
+  "includegraphics": 1,
+  "files": [
+   "figures/ch2/entanglement2"
+  ]
+ },
+ {
+  "id": "BRD2020_Tikz_039",
+  "file": "BRD2020_Tikz_039_1774200681315.tex",
+  "standalone": true,
+  "body_bytes": 137,
+  "envs": {
+   "tikzpicture": 1
+  },
+  "includegraphics": 1,
+  "files": [
+   "figures/ch2/mpsapprox"
+  ]
+ },
+ {
+  "id": "BRD2020_Tikz_040",
+  "file": "BRD2020_Tikz_040_1774200683626.tex",
+  "standalone": true,
+  "body_bytes": 135,
+  "envs": {
+   "tikzpicture": 1
+  },
+  "includegraphics": 1,
+  "files": [
+   "figures/ch3/eqpsi"
+  ]
+ },
+ {
+  "id": "BRD2020_Tikz_041",
+  "file": "BRD2020_Tikz_041_1774200685509.tex",
+  "standalone": true,
+  "body_bytes": 132,
+  "envs": {
+   "tikzpicture": 1
+  },
+  "includegraphics": 1,
+  "files": [
+   "figures/ch3/eqrho"
+  ]
+ },
+ {
+  "id": "BRD2020_Tikz_042",
+  "file": "BRD2020_Tikz_042_1774200687384.tex",
+  "standalone": true,
+  "body_bytes": 186,
+  "envs": {
+   "tikzpicture": 1
+  },
+  "includegraphics": 1,
+  "files": [
+   "figures/ch3/eqredrho"
+  ]
+ },
+ {
+  "id": "BRD2020_Tikz_043",
+  "file": "BRD2020_Tikz_043_1774200689335.tex",
+  "standalone": true,
+  "body_bytes": 329,
+  "envs": {
+   "tikzpicture": 1
+  },
+  "includegraphics": 1,
+  "files": [
+   "figures/ch2/question"
+  ]
+ },
+ {
+  "id": "BRD2020_Tikz_044",
+  "file": "BRD2020_Tikz_044_1774200691166.tex",
+  "standalone": true,
+  "body_bytes": 240,
+  "envs": {
+   "tikzpicture": 1
+  },
+  "includegraphics": 1,
+  "files": [
+   "figures/ch2/graph3"
+  ]
+ },
+ {
+  "id": "BRD2020_Tikz_045",
+  "file": "BRD2020_Tikz_045_1774200693323.tex",
+  "standalone": true,
+  "body_bytes": 275,
+  "envs": {
+   "tikzpicture": 1
+  },
+  "includegraphics": 1,
+  "files": [
+   "figures/ch2/graph4b"
+  ]
+ },
+ {
+  "id": "BRD2020_Tikz_046",
+  "file": "BRD2020_Tikz_046_1774200695463.tex",
+  "standalone": true,
+  "body_bytes": 281,
+  "envs": {
+   "tikzpicture": 1
+  },
+  "includegraphics": 1,
+  "files": [
+   "figures/ch2/graph5"
+  ]
+ },
+ {
+  "id": "BRD2020_Tikz_047",
+  "file": "BRD2020_Tikz_047_1774200697610.tex",
+  "standalone": true,
+  "body_bytes": 336,
+  "envs": {
+   "tikzpicture": 1
+  },
+  "includegraphics": 1,
+  "files": [
+   "figures/ch2/graph6"
+  ]
+ },
+ {
+  "id": "BRD2020_Tikz_048",
+  "file": "BRD2020_Tikz_048_1774200699758.tex",
+  "standalone": true,
+  "body_bytes": 255,
+  "envs": {
+   "tikzpicture": 1
+  },
+  "includegraphics": 1,
+  "files": [
+   "figures/ch2/graph7"
+  ]
+ },
+ {
+  "id": "BRD2020_Tikz_049",
+  "file": "BRD2020_Tikz_049_1774200701916.tex",
+  "standalone": true,
+  "body_bytes": 289,
+  "envs": {
+   "tikzpicture": 1
+  },
+  "includegraphics": 1,
+  "files": [
+   "figures/ch2/graph8"
+  ]
+ },
+ {
+  "id": "BRD2020_Tikz_050",
+  "file": "BRD2020_Tikz_050_1774200704056.tex",
+  "standalone": true,
+  "body_bytes": 255,
+  "envs": {
+   "tikzpicture": 1
+  },
+  "includegraphics": 1,
+  "files": [
+   "figures/ch2/graph2"
+  ]
+ },
+ {
+  "id": "BRD2020_Tikz_051",
+  "file": "BRD2020_Tikz_051_1774200706128.tex",
+  "standalone": true,
+  "body_bytes": 255,
+  "envs": {
+   "tikzpicture": 1
+  },
+  "includegraphics": 1,
+  "files": [
+   "figures/ch2/graph2"
+  ]
+ },
+ {
+  "id": "BRD2020_Tikz_052",
+  "file": "BRD2020_Tikz_052_1774200708195.tex",
+  "standalone": true,
+  "body_bytes": 272,
+  "envs": {
+   "tikzpicture": 1
+  },
+  "includegraphics": 1,
+  "files": [
+   "figures/ch1/concept2"
+  ]
+ },
+ {
+  "id": "BRD2020_Tikz_053",
+  "file": "BRD2020_Tikz_053_1774200710590.tex",
+  "standalone": true,
+  "body_bytes": 256,
+  "envs": {
+   "tikzpicture": 1
+  },
+  "includegraphics": 1,
+  "files": [
+   "figures/ch3/graph2b"
+  ]
+ },
+ {
+  "id": "BRD2020_Tikz_054",
+  "file": "BRD2020_Tikz_054_1774200712694.tex",
+  "standalone": true,
+  "body_bytes": 136,
+  "envs": {
+   "tikzpicture": 1
+  },
+  "includegraphics": 1,
+  "files": [
+   "figures/ch3/psi4"
+  ]
+ },
+ {
+  "id": "BRD2020_Tikz_055",
+  "file": "BRD2020_Tikz_055_1774200714582.tex",
+  "standalone": true,
+  "body_bytes": 131,
+  "envs": {
+   "tikzpicture": 1
+  },
+  "includegraphics": 1,
+  "files": [
+   "figures/ch3/M_31"
+  ]
+ },
+ {
+  "id": "BRD2020_Tikz_056",
+  "file": "BRD2020_Tikz_056_1774200716467.tex",
+  "standalone": true,
+  "body_bytes": 280,
+  "envs": {
+   "tikzpicture": 1
+  },
+  "includegraphics": 1,
+  "files": [
+   "figures/ch3/rho0"
+  ]
+ },
+ {
+  "id": "BRD2020_Tikz_057",
+  "file": "BRD2020_Tikz_057_1774200718436.tex",
+  "standalone": true,
+  "body_bytes": 137,
+  "envs": {
+   "tikzpicture": 1
+  },
+  "includegraphics": 1,
+  "files": [
+   "figures/ch3/rho_povm"
+  ]
+ },
+ {
+  "id": "BRD2020_Tikz_058",
+  "file": "BRD2020_Tikz_058_1774200720820.tex",
+  "standalone": true,
+  "body_bytes": 926,
+  "envs": {
+   "tikzpicture": 1
+  },
+  "includegraphics": 0,
+  "files": []
+ },
+ {
+  "id": "BRD2020_Tikz_059",
+  "file": "BRD2020_Tikz_059_1774200722844.tex",
+  "standalone": true,
+  "body_bytes": 425,
+  "envs": {
+   "tikzpicture": 1
+  },
+  "includegraphics": 0,
+  "files": []
+ },
+ {
+  "id": "BRD2020_Tikz_060",
+  "file": "BRD2020_Tikz_060_1774200724678.tex",
+  "standalone": true,
+  "body_bytes": 137,
+  "envs": {
+   "tikzpicture": 1
+  },
+  "includegraphics": 1,
+  "files": [
+   "figures/ch3/rho_xi"
+  ]
+ },
+ {
+  "id": "BRD2020_Tikz_061",
+  "file": "BRD2020_Tikz_061_1774200726740.tex",
+  "standalone": true,
+  "body_bytes": 144,
+  "envs": {
+   "tikzpicture": 1
+  },
+  "includegraphics": 1,
+  "files": [
+   "figures/ch3/rho1"
+  ]
+ },
+ {
+  "id": "BRD2020_Tikz_062",
+  "file": "BRD2020_Tikz_062_1774200729282.tex",
+  "standalone": true,
+  "body_bytes": 175,
+  "envs": {
+   "tikzpicture": 1
+  },
+  "includegraphics": 0,
+  "files": []
+ },
+ {
+  "id": "BRD2020_Tikz_063",
+  "file": "BRD2020_Tikz_063_1774200731103.tex",
+  "standalone": true,
+  "body_bytes": 171,
+  "envs": {
+   "tikzpicture": 1
+  },
+  "includegraphics": 0,
+  "files": []
+ },
+ {
+  "id": "BRD2020_Tikz_064",
+  "file": "BRD2020_Tikz_064_1774200732895.tex",
+  "standalone": true,
+  "body_bytes": 315,
+  "envs": {
+   "tikzpicture": 1
+  },
+  "includegraphics": 1,
+  "files": [
+   "figures/ch3/rho2"
+  ]
+ },
+ {
+  "id": "BRD2020_Tikz_065",
+  "file": "BRD2020_Tikz_065_1774200735576.tex",
+  "standalone": true,
+  "body_bytes": 378,
+  "envs": {
+   "tikzpicture": 1
+  },
+  "includegraphics": 1,
+  "files": [
+   "figures/ch4/mpsapprox2"
+  ]
+ },
+ {
+  "id": "BRD2020_Tikz_066",
+  "file": "BRD2020_Tikz_066_1774200737978.tex",
+  "standalone": true,
+  "body_bytes": 220,
+  "envs": {
+   "tikzpicture": 1
+  },
+  "includegraphics": 1,
+  "files": [
+   "figures/ch4/psiemp"
+  ]
+ },
+ {
+  "id": "BRD2020_Tikz_067",
+  "file": "BRD2020_Tikz_067_1774200740361.tex",
+  "standalone": true,
+  "body_bytes": 359,
+  "envs": {
+   "tikzpicture": 1
+  },
+  "includegraphics": 1,
+  "files": [
+   "figures/ch4/mpsch4"
+  ]
+ },
+ {
+  "id": "BRD2020_Tikz_068",
+  "file": "BRD2020_Tikz_068_1774200742679.tex",
+  "standalone": true,
+  "body_bytes": 155,
+  "envs": {
+   "tikzpicture": 1
+  },
+  "includegraphics": 0,
+  "files": []
+ },
+ {
+  "id": "BRD2020_Tikz_069",
+  "file": "BRD2020_Tikz_069_1774200744491.tex",
+  "standalone": true,
+  "body_bytes": 137,
+  "envs": {
+   "tikzpicture": 1
+  },
+  "includegraphics": 1,
+  "files": [
+   "figures/ch4/psi2"
+  ]
+ },
+ {
+  "id": "BRD2020_Tikz_070",
+  "file": "BRD2020_Tikz_070_1774200746510.tex",
+  "standalone": true,
+  "body_bytes": 787,
+  "envs": {
+   "tikzpicture": 1
+  },
+  "includegraphics": 1,
+  "files": [
+   "figures/ch4/getting_psi2"
+  ]
+ },
+ {
+  "id": "BRD2020_Tikz_071",
+  "file": "BRD2020_Tikz_071_1774200749829.tex",
+  "standalone": true,
+  "body_bytes": 159,
+  "envs": {
+   "tikzpicture": 1
+  },
+  "includegraphics": 1,
+  "files": [
+   "figures/ch4/rho2_ch4"
+  ]
+ },
+ {
+  "id": "BRD2020_Tikz_072",
+  "file": "BRD2020_Tikz_072_1774200752012.tex",
+  "standalone": true,
+  "body_bytes": 233,
+  "envs": {
+   "tikzpicture": 1
+  },
+  "includegraphics": 1,
+  "files": [
+   "figures/ch4/spectral"
+  ]
+ },
+ {
+  "id": "BRD2020_Tikz_073",
+  "file": "BRD2020_Tikz_073_1774200754188.tex",
+  "standalone": true,
+  "body_bytes": 157,
+  "envs": {
+   "tikzpicture": 1
+  },
+  "includegraphics": 1,
+  "files": [
+   "figures/ch4/firsttwo"
+  ]
+ },
+ {
+  "id": "BRD2020_Tikz_074",
+  "file": "BRD2020_Tikz_074_1774200756337.tex",
+  "standalone": true,
+  "body_bytes": 139,
+  "envs": {
+   "tikzpicture": 1
+  },
+  "includegraphics": 1,
+  "files": [
+   "figures/ch4/psi_3"
+  ]
+ },
+ {
+  "id": "BRD2020_Tikz_075",
+  "file": "BRD2020_Tikz_075_1774200758383.tex",
+  "standalone": true,
+  "body_bytes": 759,
+  "envs": {
+   "tikzpicture": 1
+  },
+  "includegraphics": 1,
+  "files": [
+   "figures/ch4/getting_psi3"
+  ]
+ },
+ {
+  "id": "BRD2020_Tikz_076",
+  "file": "BRD2020_Tikz_076_1774200761646.tex",
+  "standalone": true,
+  "body_bytes": 182,
+  "envs": {
+   "tikzpicture": 1
+  },
+  "includegraphics": 1,
+  "files": [
+   "figures/ch4/rho3_ch4"
+  ]
+ },
+ {
+  "id": "BRD2020_Tikz_077",
+  "file": "BRD2020_Tikz_077_1774200763988.tex",
+  "standalone": true,
+  "body_bytes": 761,
+  "envs": {
+   "tikzpicture": 1
+  },
+  "includegraphics": 1,
+  "files": [
+   "figures/ch4/getting_psi4"
+  ]
+ },
+ {
+  "id": "BRD2020_Tikz_078",
+  "file": "BRD2020_Tikz_078_1774200767308.tex",
+  "standalone": true,
+  "body_bytes": 231,
+  "envs": {
+   "tikzpicture": 1
+  },
+  "includegraphics": 1,
+  "files": [
+   "figures/ch4/mpsch4"
+  ]
+ },
+ {
+  "id": "BRD2020_Tikz_079",
+  "file": "BRD2020_Tikz_079_1774200769513.tex",
+  "standalone": true,
+  "body_bytes": 454,
+  "envs": {
+   "tikzpicture": 1
+  },
+  "includegraphics": 1,
+  "files": [
+   "figures/ch4/complete_graph"
+  ]
+ },
+ {
+  "id": "BRD2020_Tikz_080",
+  "file": "BRD2020_Tikz_080_1774200771444.tex",
+  "standalone": true,
+  "body_bytes": 194,
+  "envs": {
+   "tikzpicture": 1
+  },
+  "includegraphics": 1,
+  "files": [
+   "figures/ch4/summarize"
+  ]
+ },
+ {
+  "id": "BRD2020_Tikz_081",
+  "file": "BRD2020_Tikz_081_1774200773462.tex",
+  "standalone": true,
+  "body_bytes": 476,
+  "envs": {
+   "tikzpicture": 1
+  },
+  "includegraphics": 1,
+  "files": [
+   "figures/ch4/training_graph"
+  ]
+ },
+ {
+  "id": "BRD2020_Tikz_082",
+  "file": "BRD2020_Tikz_082_1774200775388.tex",
+  "standalone": true,
+  "body_bytes": 212,
+  "envs": {
+   "tikzpicture": 1
+  },
+  "includegraphics": 1,
+  "files": [
+   "figures/ch4/psi_N2"
+  ]
+ },
+ {
+  "id": "BRD2020_Tikz_083",
+  "file": "BRD2020_Tikz_083_1774199967863.tex",
+  "standalone": true,
+  "body_bytes": 32,
+  "envs": {
+   "tikzpicture": 1
+  },
+  "includegraphics": 0,
+  "files": []
+ },
+ {
+  "id": "BRD2020_table_006",
+  "file": "BRD2020_table_006_1774200788461.tex",
+  "standalone": true,
+  "body_bytes": 326,
+  "envs": {
+   "tabular": 1
+  },
+  "includegraphics": 0,
+  "files": []
+ },
+ {
+  "id": "BRD2020_table_007",
+  "file": "BRD2020_table_007_1774200790380.tex",
+  "standalone": true,
+  "body_bytes": 351,
+  "envs": {
+   "tabular": 1
+  },
+  "includegraphics": 0,
+  "files": []
+ },
+ {
+  "id": "BRD2020_table_008",
+  "file": "BRD2020_table_008_1774200792297.tex",
+  "standalone": true,
+  "body_bytes": 671,
+  "envs": {
+   "tabular": 1
+  },
+  "includegraphics": 0,
+  "files": []
+ },
+ {
+  "id": "BRD2020_table_009",
+  "file": "BRD2020_table_009_1774200794461.tex",
+  "standalone": true,
+  "body_bytes": 406,
+  "envs": {
+   "tabular": 1,
+   "tikzcd": 2
+  },
+  "includegraphics": 0,
+  "files": []
+ },
+ {
+  "id": "BRD2020_table_010",
+  "file": "BRD2020_table_010_1774200796484.tex",
+  "standalone": true,
+  "body_bytes": 224,
+  "envs": {
+   "tabular": 1
+  },
+  "includegraphics": 0,
+  "files": []
+ },
+ {
+  "id": "BRD2020_table_011",
+  "file": "BRD2020_table_011_1774200798408.tex",
+  "standalone": true,
+  "body_bytes": 178,
+  "envs": {
+   "tabular": 1
+  },
+  "includegraphics": 0,
+  "files": []
+ },
+ {
+  "id": "BRD2020_table_012",
+  "file": "BRD2020_table_012_1774200800300.tex",
+  "standalone": true,
+  "body_bytes": 329,
+  "envs": {
+   "tabular": 1
+  },
+  "includegraphics": 0,
+  "files": []
+ }
+]

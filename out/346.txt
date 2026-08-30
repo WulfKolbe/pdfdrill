@@ -1,0 +1,68 @@
+346 - census of ~/Downloads/2004.05631v1
+========================================
+
+WHAT THE FOLDER IS, which is not what the task assumed
+
+  878 .tex files, and they are not 878 figures. They are 95 figures
+  extracted NINE TIMES, in five runs on 21-22 March 2026:
+
+    run 1774090  03-21 11:46   285 files
+    run 1774196  03-22 17:13   190
+    run 1774198  03-22 17:46    95
+    run 1774199  03-22 18:03    95
+    run 1774200  03-22 18:20   188
+
+  Plus 25 files outside the naming pattern: the author's own chapters
+  (abstract_tufte.tex, conclusion_tufte.tex ...) in plain and -clean pairs.
+
+  Every one of the 95 is ALREADY A STANDALONE DOCUMENT --
+  \documentclass[border=0.5pt,class=report]{standalone} with the full
+  preamble inlined, not a bare fragment.
+
+THE CENSUS, on the body only
+
+  Counting the whole file gives the wrong answer and gave it first: the
+  inlined preamble carries a \newcommand that DEFINES a tikzcd shape, so
+  every file scored one tikzcd it does not draw -- 97 across 95 figures,
+  and every figure looking identical. Measured on the body between
+  \begin{document} and \end{document}:
+
+    tikzpicture   83
+    tabular       12
+    tikzcd         2
+
+  carry \includegraphics : 71   (75%)
+  PURE TeX, no image file: 24   (25%)
+
+    image + TeX        71
+    pure tikzpicture   12
+    tabular only       11
+    pure tikzcd         1
+
+THE HYPOTHESIS IS WRONG, AND THE CONCLUSION SURVIVES ANYWAY
+
+  The task expected pure TeX to be "most of them". It is 25%. Three
+  quarters of these figures DO carry an image file, so the annotation and
+  crop-pairing work applies to the majority here, not to a remainder.
+
+  But the conclusion that compile-from-source is the main route holds --
+  for a better reason than the one proposed. It is not that the images are
+  rare. It is that they are PRESENT: all 74 distinct image references
+  resolve inside the folder, and every figure is already a standalone
+  document. So compile-from-source reaches 95 of 95, not 24 of 95, and
+  needs no MiniMax, no crop pairing and no ink comparison for any of them.
+  The author's own code is the answer for all of them, images included.
+
+COMPILATION, sampled rather than assumed
+
+  13 distinct figures across all four kinds, latest copy each: 13 compiled.
+
+  The copies are not redundant. Older copies FAIL where newer ones
+  succeed: BRD2020_Table_001 at run 1774090 dies with "! LaTeX Error: Not
+  allowed in LR mode" and the same figure at run 1774200 compiles. The
+  nine copies are successive attempts, so anything reading this folder
+  must take the LATEST copy per figure id. I hit that by accident -- a
+  glob picked three copies of one figure and I nearly reported the folder
+  as failing to compile.
+
+  A full compile of all 95 is 347's measurement, not this one.

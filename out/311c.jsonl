@@ -161,3 +161,7 @@
 {"doc": "Chapter 1 - Ballistic transport and Landauer formula", "pages": 26, "outcome": "measured", "rows": 18, "convert": "converted", "seconds": 340.5}
 {"doc": "Metacognitive_Sedenion-Valued_Neural_Network_and_its_Learning_Algorithm (1)", "pages": 26, "outcome": "refused", "error": "MeasureRefused: page 3: compare returned 9 rows, reportpages expects 7", "seconds": 263.8}
 {"doc": "report", "pages": 26, "outcome": "refused", "error": "MeasureRefused: no report.tables.json and no report.tex", "seconds": 0.0}
+{"doc": "2107.03771", "pages": 27, "outcome": "measured", "rows": 195, "convert": "converted", "seconds": 1308.6}
+{"doc": "10.1007_s00006-017-0798-7", "pages": 28, "outcome": "measured", "rows": 86, "convert": "converted", "seconds": 786.9}
+{"doc": "PersDB08_proc", "pages": 28, "outcome": "measured", "rows": 47, "convert": "converted", "seconds": 417.5}
+{"doc": "Reflections_in_conics_quadrics_and_hyper (1)", "pages": 28, "outcome": "refused", "error": "MeasureRefused: page 1: compare returned 10 rows, reportpages expects 8", "seconds": 231.4}
