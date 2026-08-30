@@ -1,0 +1,28 @@
+{
+ "doc": "Streicher_BASiS_Batch_Aligned_Spectral_Embedding_Space_CVPR_2023_paper",
+ "pdf": "Streicher_BASiS_Batch_Aligned_Spectral_Embedding_Space_CVPR_2023_paper.pdf",
+ "rc": 0,
+ "stdout_tail": "Build stamp: report.build.json — phase=reading, 23 pages, 1015784 bytes, sha256 a7a5e5494ad3. A measurement of this report should copy it into its output as `measured_against`.",
+ "seconds": 6.5,
+ "regions": {
+  "regions_with_latex": 2,
+  "attempted_now": 2,
+  "rendered": 2,
+  "failed": 0,
+  "has_author_preamble": false,
+  "graphics_dir": null,
+  "failures": []
+ },
+ "manifest_rows": 10,
+ "with_latex": 2,
+ "duplicated": 8,
+ "table_cols": [
+  6,
+  5,
+  4,
+  7
+ ],
+ "six_col_tables": 1,
+ "region_table_cols": 7,
+ "ink_selectable": false
+}
