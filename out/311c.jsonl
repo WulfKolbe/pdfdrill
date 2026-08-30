@@ -165,3 +165,9 @@
 {"doc": "10.1007_s00006-017-0798-7", "pages": 28, "outcome": "measured", "rows": 86, "convert": "converted", "seconds": 786.9}
 {"doc": "PersDB08_proc", "pages": 28, "outcome": "measured", "rows": 47, "convert": "converted", "seconds": 417.5}
 {"doc": "Reflections_in_conics_quadrics_and_hyper (1)", "pages": 28, "outcome": "refused", "error": "MeasureRefused: page 1: compare returned 10 rows, reportpages expects 8", "seconds": 231.4}
+{"doc": "0210081", "pages": 29, "outcome": "measured", "rows": 102, "convert": "converted", "seconds": 1094.0}
+{"doc": "penev_A", "pages": 29, "outcome": "measured", "rows": 116, "convert": "converted", "seconds": 606.8}
+{"doc": "1611.03955 (1)", "pages": 30, "outcome": "measured", "rows": 85, "convert": "converted", "seconds": 875.1}
+{"doc": "AttachBBlocaldim", "pages": 30, "outcome": "measured", "rows": 107, "convert": "converted", "seconds": 749.4}
+{"doc": "Normalization_square_roots_and_the_exponential_and", "pages": 31, "outcome": "measured", "rows": 64, "convert": "converted", "seconds": 550.1}
+{"doc": "1-s2.0-S039304401100026X-main", "pages": 32, "outcome": "refused", "error": "MeasureRefused: page 1: compare returned 22 rows, reportpages expects 11", "seconds": 155.2}

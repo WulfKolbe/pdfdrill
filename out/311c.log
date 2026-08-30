@@ -166,3 +166,9 @@ scope: 196 documents, 7239 report pages
 [165/196] 10.1007_s00006-017-0798-7               28p measured  converted 787s
 [166/196] PersDB08_proc                           28p measured  converted 418s
 [167/196] Reflections_in_conics_quadrics_and_hyp  28p refused   -         231s
+[168/196] 0210081                                 29p measured  converted 1094s
+[169/196] penev_A                                 29p measured  converted 607s
+[170/196] 1611.03955 (1)                          30p measured  converted 875s
+[171/196] AttachBBlocaldim                        30p measured  converted 749s
+[172/196] Normalization_square_roots_and_the_exp  31p measured  converted 550s
+[173/196] 1-s2.0-S039304401100026X-main           32p refused   -         155s

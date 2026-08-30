@@ -1,0 +1,43 @@
+\documentclass{article}
+\usepackage{amsmath}
+\usepackage{tikz}
+\usepackage{xparse}
+%% LOCAL style file — collect_macros must resolve and read it
+\usepackage{authorstyle}
+
+%% --- six macro definitions, in six different forms ------------------------
+\newcommand{\newcmdMacro}[1]{\mathrm{#1}}          % 1  handled
+\def\defMacro#1{\mathit{#1}}                        % 2  handled
+\DeclareMathOperator{\opMacro}{opm}                 % 3  handled
+%% 4 is \styleMacro, defined in authorstyle.sty
+\NewDocumentCommand{\xparseMacro}{m}{\mathbb{#1}}   % 5  xparse
+\let\letMacro\newcmdMacro                           % 6  \let
+
+%% a custom environment, which is not a macro and not a graphic env
+\newenvironment{authorbox}{\begin{center}}{\end{center}}
+
+\begin{document}
+
+%% --- three graphic forms --------------------------------------------------
+% (a) the environment form
+\begin{tikzpicture}
+  \draw (0,0) circle (1);
+\end{tikzpicture}
+
+% (b) inline, braced:  \tikz[opts]{...}
+\tikz[baseline]{\draw (0,0) -- (1,0);}
+
+% (c) inline, semicolon-terminated:  \tikz ... ;
+\tikz \draw (0,0) -- (0,1);
+
+\begin{authorbox}
+  Text inside the author's own environment.
+\end{authorbox}
+
+%% a tikzpicture reached only through \input
+\input{included}
+
+Uses: \newcmdMacro{a} \defMacro{b} \opMacro \styleMacro{d}
+      \xparseMacro{e} \letMacro{f}
+
+\end{document}
