@@ -1,0 +1,108 @@
+391 — the recovery prompt on MathPix rescue crops
+=================================================
+
+20 crops, one from each of 20 DIFFERENT documents (per document, not per
+crop: 52 archives hold more than 100 rescues each and a uniform draw over
+20,833 would take most of the sample from a handful of books). Crops under
+15 KB skipped — a 2 KB strip is a rule or a page number.
+
+Same prompt as 392, same fixed preamble, minimax-m3, max_tokens 16000.
+
+THE RAW RESULT
+
+  compiled              14
+  empty reply            4      all finish_reason="length"
+  did not compile        2
+
+  compiled: d median 240, mean 1192, min 7, max 11630
+  flags: component 13, noise 1
+  WITHIN 392's NOISE BAND (d <= 7): 1 of 14
+
+Against 392's ceiling — 11 of 13 substantial figures inside d <= 7 — that is
+a collapse. And the reason is not the prompt or the model.
+
+THE POPULATION IS NOT WHAT THE PROMPT ASSUMES
+
+I looked at four of the crops. They are four different KINDS of thing, and
+only one of them is a figure a TikZ prompt can answer:
+
+  A LINE FIGURE. "Complex Analysis" — a lattice plot with labelled lambda
+  and mu axes, 10 components. The prompt's own case. d = 7, the single row
+  in the noise band, and the only one.
+
+  A MATHEMATICAL DISPLAY. 2102.11507 — an exact sequence over a table of
+  cohomology cases, 172 components. Not a picture at all. MathPix declined
+  it because it is a complex aligned display, and the prompt answered a
+  question nobody asked: it wants TikZ, and this needs align/array. d = 44,
+  and the number is meaningless because the tool is wrong.
+
+  A SHADED 3D RENDER. 2006.0218v1 — grey translucent tubes with arrows,
+  661 crop components. Those components are antialiasing and JPEG noise on
+  the shading, not structure. The model returned 4 components, i.e. gave up.
+  d = 1972, essentially all of it the crop's own noise.
+
+  A PAGE SCREENSHOT. 2409.01704v1 — a full-page image of an OCR demo showing
+  three Chinese book pages and their transcription. 3,587 crop components =
+  thousands of CJK glyphs. No TikZ reproduces this and none should try.
+  d = 11630, the largest, and it measures nothing.
+
+So the 20,833 of 390 are not 20,833 figures. They are 20,833 rectangles
+MathPix declined, and it declined them for at least four different reasons.
+Counting them as one population and sending them all one prompt is the
+defect this run found, in itself.
+
+THE COMPARISON IS ALSO BIASED, AND 392 IS WHY I CAN SAY SO
+
+392 compared a render against a render — both clean vector output, same
+engine and dpi. 391 compares a clean render against a JPEG crop of a printed
+page. Antialiasing, halftones and JPEG ringing all become components:
+
+  crop components across the sample: 10, 172, 172, 189, 195, 233, 263, 285,
+                                     358, 643, 661, 676, 1187, 3587
+
+The single-digit one is the line drawing. Everything above ~150 is carrying
+noise the model has no way to reproduce and should not. So a large distance
+here is not evidence of a bad recovery, exactly as 392 established for
+dotted strokes — the same instrument error, one step larger.
+
+WHAT CAN HONESTLY BE CLAIMED
+
+  On the one crop in the sample that is the kind of thing the prompt is for,
+  it scored d = 7 — inside the band 392 measured as this prompt's best.
+
+  n = 1. That is the finding, not a rate. A rate over a population of four
+  mixed kinds would be a number with no referent, and reporting "1 of 14
+  matched" as a success rate would be exactly that.
+
+FOUR EMPTY REPLIES, ALL "length", AT 16,000 TOKENS
+
+392 had one, on its most complex row. Here there are four in twenty. Both
+runs agree the empty reply is a BUDGET and not a refusal, and the budget
+scales with the crop's complexity. These crops are more complex than DaTikZ
+rows.
+
+TWO COMPILE FAILURES
+
+  pgfplots: "the input coordinate `0.6' has not been..." — a malformed
+  coordinate in the reply.
+  "Undefined control sequence" — a macro the fixed preamble does not load.
+
+2 of 16 non-empty replies. 392 had 0 of 19 with the same preamble, so this
+is the population again rather than a regression: these replies reach for
+more.
+
+WHAT TO DO BEFORE THIS BECOMES A REPORT
+
+  1. CLASSIFY THE RESCUE POPULATION FIRST. Line figure / mathematical
+     display / photograph or render / page image. Only the first is a TikZ
+     recovery task; the second is a LaTeX-math task with a different prompt;
+     the third and fourth are not recovery tasks at all and belong in a
+     "cannot be recovered, keep the crop" class.
+  2. Then measure the first class alone, where 392's ceiling applies.
+  3. Do not publish a distance against a JPEG crop as a quality score. It
+     carries the crop's noise, and on this sample the noise is the majority
+     of it.
+
+281 asked whether a recovery is right. 392 answered it where a reference
+exists. This run says the prior question is which rescues are recoveries at
+all, and that has not been asked yet.

@@ -1,0 +1,499 @@
+{
+ "rows": [
+  {
+   "n": 1,
+   "doc": "3572917",
+   "member": "5cd42be5-845b-4ae8-8fc3-108df9f190f2-17_445_652_715_518.jpg",
+   "crop_bytes": 31767,
+   "seconds": 7.4,
+   "finish": "stop",
+   "error": "",
+   "reply_chars": 1840,
+   "engine": "xelatex",
+   "outcome": "compiled",
+   "distance": 152,
+   "comp_delta": 29,
+   "flag": "component",
+   "model_five": [
+    218,
+    82,
+    59,
+    41,
+    18
+   ],
+   "crop_five": [
+    189,
+    125,
+    99,
+    67,
+    32
+   ],
+   "render": "/tmp/rescue391-o1xgm0h5/R01_model.png"
+  },
+  {
+   "n": 2,
+   "doc": "2006.0218v1",
+   "member": "4b9cf502-ed7d-4fde-a6f9-c2fdb16bb66d-12_382_796_796_281.jpg",
+   "crop_bytes": 33737,
+   "seconds": 10.2,
+   "finish": "stop",
+   "error": "",
+   "reply_chars": 1227,
+   "engine": "xelatex",
+   "outcome": "compiled",
+   "distance": 1972,
+   "comp_delta": 657,
+   "flag": "component",
+   "model_five": [
+    4,
+    28,
+    0,
+    0,
+    0
+   ],
+   "crop_five": [
+    661,
+    1195,
+    74,
+    22,
+    52
+   ],
+   "render": "/tmp/rescue391-o1xgm0h5/R02_model.png"
+  },
+  {
+   "n": 3,
+   "doc": "2307.13528v2",
+   "member": "f2d1b4ae-004d-4021-8a55-f534ffd42c83-13_276_756_242_249.jpg",
+   "crop_bytes": 28028,
+   "seconds": 10.6,
+   "finish": "stop",
+   "error": "",
+   "reply_chars": 1427,
+   "engine": "xelatex",
+   "outcome": "compiled",
+   "distance": 350,
+   "comp_delta": 214,
+   "flag": "component",
+   "model_five": [
+    71,
+    36,
+    55,
+    23,
+    32
+   ],
+   "crop_five": [
+    285,
+    100,
+    19,
+    8,
+    11
+   ],
+   "render": "/tmp/rescue391-o1xgm0h5/R03_model.png"
+  },
+  {
+   "n": 4,
+   "doc": "2102.11507",
+   "member": "221702b0-9c06-4ecf-bbeb-46ea260c0194-17_643_1550_392_287.jpg",
+   "crop_bytes": 56492,
+   "seconds": 9.1,
+   "finish": "stop",
+   "error": "",
+   "reply_chars": 1194,
+   "engine": "xelatex",
+   "outcome": "compiled",
+   "distance": 44,
+   "comp_delta": 28,
+   "flag": "component",
+   "model_five": [
+    144,
+    56,
+    23,
+    19,
+    4
+   ],
+   "crop_five": [
+    172,
+    40,
+    23,
+    19,
+    4
+   ],
+   "render": "/tmp/rescue391-o1xgm0h5/R04_model.png"
+  },
+  {
+   "n": 5,
+   "doc": "preprints202111.0359.v2",
+   "member": "652a5b29-bf64-41bd-ae3e-d318e1bb4f75-04_265_1268_1103_628.jpg",
+   "crop_bytes": 58235,
+   "seconds": 119.7,
+   "finish": "stop",
+   "error": "",
+   "reply_chars": 1867,
+   "engine": "xelatex",
+   "outcome": "compiled",
+   "distance": 806,
+   "comp_delta": 763,
+   "flag": "component",
+   "model_five": [
+    424,
+    46,
+    80,
+    10,
+    70
+   ],
+   "crop_five": [
+    1187,
+    51,
+    89,
+    29,
+    60
+   ],
+   "render": "/tmp/rescue391-o1xgm0h5/R05_model.png"
+  },
+  {
+   "n": 6,
+   "doc": "Complex Analysis - Peter Ebenfelt, et al., (Birkhauser, 2010) WW",
+   "member": "c1ec8e32-46ee-4385-a2a3-8e7902116925-030_754_750_1191_436.jpg",
+   "crop_bytes": 37146,
+   "seconds": 118.0,
+   "finish": "stop",
+   "error": "",
+   "reply_chars": 814,
+   "engine": "xelatex",
+   "outcome": "compiled",
+   "distance": 7,
+   "comp_delta": 1,
+   "flag": "noise",
+   "model_five": [
+    9,
+    29,
+    0,
+    0,
+    0
+   ],
+   "crop_five": [
+    10,
+    23,
+    0,
+    0,
+    0
+   ],
+   "render": "/tmp/rescue391-o1xgm0h5/R06_model.png"
+  },
+  {
+   "n": 7,
+   "doc": "AIAA2010-021-NFF-1",
+   "member": "bc601ff6-7549-48e3-b6f8-ec5e08d4dd4b-07_1633_1648_284_260.jpg",
+   "crop_bytes": 144017,
+   "seconds": 137.0,
+   "finish": "length",
+   "error": "",
+   "reply_chars": 0,
+   "outcome": "empty reply"
+  },
+  {
+   "n": 8,
+   "doc": "2210.05359",
+   "member": "22d35b6e-6c15-494d-9556-16b6385dbb75-18_559_557_568_774.jpg",
+   "crop_bytes": 38505,
+   "seconds": 89.0,
+   "finish": "length",
+   "error": "",
+   "reply_chars": 0,
+   "outcome": "empty reply"
+  },
+  {
+   "n": 9,
+   "doc": "EMNLP2014038",
+   "member": "c8c2f96c-660d-43e4-a95f-4f0b40be9dc5-06_652_786_205_233.jpg",
+   "crop_bytes": 62614,
+   "seconds": 10.2,
+   "finish": "stop",
+   "error": "",
+   "reply_chars": 1627,
+   "engine": "xelatex",
+   "outcome": "compiled",
+   "distance": 215,
+   "comp_delta": 38,
+   "flag": "component",
+   "model_five": [
+    320,
+    191,
+    86,
+    26,
+    60
+   ],
+   "crop_five": [
+    358,
+    128,
+    29,
+    18,
+    11
+   ],
+   "render": "/tmp/rescue391-o1xgm0h5/R09_model.png"
+  },
+  {
+   "n": 10,
+   "doc": "s00006-020-1046-0",
+   "member": "660e48e7-2f8b-45a4-b705-322ee20c5ae0-09_593_600_202_459.jpg",
+   "crop_bytes": 35818,
+   "seconds": 164.4,
+   "finish": "length",
+   "error": "",
+   "reply_chars": 0,
+   "outcome": "empty reply"
+  },
+  {
+   "n": 11,
+   "doc": "Infusion_of_Big_Data_Concepts_Across_the",
+   "member": "69422960-57cf-4067-9109-79337cb6775f-08_365_670_382_335.jpg",
+   "crop_bytes": 33725,
+   "seconds": 14.3,
+   "finish": "stop",
+   "error": "",
+   "reply_chars": 2002,
+   "engine": "",
+   "outcome": "did not compile",
+   "compile_error": "! Package pgfplots Error: Sorry, the input coordinate `0.6' has not been define"
+  },
+  {
+   "n": 12,
+   "doc": "2407.03203",
+   "member": "26150804-5d6a-44d5-95da-f490b8c2feae-08_425_551_507_336.jpg",
+   "crop_bytes": 24775,
+   "seconds": 18.1,
+   "finish": "stop",
+   "error": "",
+   "reply_chars": 2093,
+   "engine": "xelatex",
+   "outcome": "compiled",
+   "distance": 189,
+   "comp_delta": 102,
+   "flag": "component",
+   "model_five": [
+    70,
+    33,
+    25,
+    14,
+    11
+   ],
+   "crop_five": [
+    172,
+    30,
+    67,
+    38,
+    29
+   ],
+   "render": "/tmp/rescue391-o1xgm0h5/R12_model.png"
+  },
+  {
+   "n": 13,
+   "doc": "Dressler2011",
+   "member": "abe275df-3bb9-4124-b4d4-5766d51f0d78-02_643_719_416_281.jpg",
+   "crop_bytes": 50465,
+   "seconds": 8.9,
+   "finish": "stop",
+   "error": "",
+   "reply_chars": 1528,
+   "engine": "xelatex",
+   "outcome": "compiled",
+   "distance": 147,
+   "comp_delta": 62,
+   "flag": "component",
+   "model_five": [
+    171,
+    93,
+    97,
+    37,
+    60
+   ],
+   "crop_five": [
+    233,
+    76,
+    131,
+    50,
+    81
+   ],
+   "render": "/tmp/rescue391-o1xgm0h5/R13_model.png"
+  },
+  {
+   "n": 14,
+   "doc": "2604.22880",
+   "member": "cc28029b-af71-4b92-941e-7e9356f9e99b-19_665_1494_1773_267.jpg",
+   "crop_bytes": 105702,
+   "seconds": 11.6,
+   "finish": "stop",
+   "error": "",
+   "reply_chars": 1890,
+   "engine": "",
+   "outcome": "did not compile",
+   "compile_error": "! Undefined control sequence."
+  },
+  {
+   "n": 15,
+   "doc": "2105.04850",
+   "member": "d69c53aa-9dd8-4eaa-8f4b-dafab6b7735a-02_511_834_292_1104.jpg",
+   "crop_bytes": 66538,
+   "seconds": 16.3,
+   "finish": "stop",
+   "error": "",
+   "reply_chars": 2971,
+   "engine": "xelatex",
+   "outcome": "compiled",
+   "distance": 264,
+   "comp_delta": 157,
+   "flag": "component",
+   "model_five": [
+    486,
+    225,
+    160,
+    65,
+    95
+   ],
+   "crop_five": [
+    643,
+    162,
+    163,
+    87,
+    76
+   ],
+   "render": "/tmp/rescue391-o1xgm0h5/R15_model.png"
+  },
+  {
+   "n": 16,
+   "doc": "1602.06844",
+   "member": "f2278cf8-3885-42aa-9912-264d80cab0fa-14_432_668_314_692.jpg",
+   "crop_bytes": 31339,
+   "seconds": 11.8,
+   "finish": "stop",
+   "error": "",
+   "reply_chars": 1761,
+   "engine": "xelatex",
+   "outcome": "compiled",
+   "distance": 40,
+   "comp_delta": 7,
+   "flag": "component",
+   "model_five": [
+    188,
+    48,
+    59,
+    17,
+    42
+   ],
+   "crop_five": [
+    195,
+    43,
+    65,
+    31,
+    34
+   ],
+   "render": "/tmp/rescue391-o1xgm0h5/R16_model.png"
+  },
+  {
+   "n": 17,
+   "doc": "qt62k441m6",
+   "member": "f0b005da-1608-4d4a-9b43-066d222cafd2-14_774_1195_1026_496.jpg",
+   "crop_bytes": 90685,
+   "seconds": 16.8,
+   "finish": "stop",
+   "error": "",
+   "reply_chars": 2365,
+   "engine": "xelatex",
+   "outcome": "compiled",
+   "distance": 355,
+   "comp_delta": 34,
+   "flag": "component",
+   "model_five": [
+    229,
+    206,
+    78,
+    42,
+    36
+   ],
+   "crop_five": [
+    263,
+    503,
+    87,
+    39,
+    48
+   ],
+   "render": "/tmp/rescue391-o1xgm0h5/R17_model.png"
+  },
+  {
+   "n": 18,
+   "doc": "2210.01571",
+   "member": "e26e6d4e-b68e-4a00-826f-5825aa0b339c-18_1742_1367_330_376.jpg",
+   "crop_bytes": 530142,
+   "seconds": 145.3,
+   "finish": "length",
+   "error": "",
+   "reply_chars": 0,
+   "outcome": "empty reply"
+  },
+  {
+   "n": 19,
+   "doc": "Meta-Learning_with_Graph_Neural_Networks_Methods_a",
+   "member": "05862510-e823-455e-88c8-0be88412db67-06_520_744_260_292.jpg",
+   "crop_bytes": 60103,
+   "seconds": 36.8,
+   "finish": "stop",
+   "error": "",
+   "reply_chars": 9561,
+   "engine": "xelatex",
+   "outcome": "compiled",
+   "distance": 516,
+   "comp_delta": 266,
+   "flag": "component",
+   "model_five": [
+    410,
+    230,
+    183,
+    101,
+    80
+   ],
+   "crop_five": [
+    676,
+    374,
+    234,
+    100,
+    134
+   ],
+   "render": "/tmp/rescue391-o1xgm0h5/R19_model.png"
+  },
+  {
+   "n": 20,
+   "doc": "2409.01704v1",
+   "member": "5b73a809-95e3-4cf6-a60d-1cdc28379ade-15_975_1133_283_495.jpg",
+   "crop_bytes": 171223,
+   "seconds": 29.2,
+   "finish": "stop",
+   "error": "",
+   "reply_chars": 5802,
+   "engine": "xelatex",
+   "outcome": "compiled",
+   "distance": 11630,
+   "comp_delta": 3345,
+   "flag": "component",
+   "model_five": [
+    242,
+    27,
+    26,
+    7,
+    19
+   ],
+   "crop_five": [
+    3587,
+    3990,
+    2187,
+    678,
+    1509
+   ],
+   "render": "/tmp/rescue391-o1xgm0h5/R20_model.png"
+  }
+ ],
+ "max_tokens": 16000,
+ "model": "minimax/minimax-m3",
+ "seed": 391,
+ "min_kb": 15,
+ "work": "/tmp/rescue391-o1xgm0h5"
+}
