@@ -1,0 +1,61 @@
+382/383 - the pairs path, and what the table path was costing
+=============================================================
+
+THROUGHPUT
+
+    compare-pairs    97 pairs in 11.2 s   =  521 pairs/min
+    the table path   ~6 rows/min, ~60 s per page
+                     + 487 s lattice detection for 34 pages (14.3 s/page)
+                       before a single cell is compared
+
+  87x. None of the removed work was measurement. `compare` renders a PDF
+  page, finds the lattice, locates two cells per row and measures those —
+  correct when the two images exist only AS a printed table, pure transport
+  when the caller already holds both as files, which a generator always does
+  because it rendered them.
+
+  The measurement is byte-identical: mathstruct.pair_stats, the same
+  definition `compare` uses, and the same thresholds. A pair row and a table
+  row cannot be classified by two drifting rules.
+
+THE MANIFEST (383)
+
+  ~/pdfdrill-library/datikz-fixture/pairs.json, written by the report
+  builder at the moment the renders are made and their identifiers are still
+  in hand. 97 pairs; 3 of the 100 rows have no render and are absent rather
+  than paired with a blank.
+
+  It carries what the reader of a distance needs: which side is which, what
+  the comparison measures, the split, and the caveat below.
+
+DISTRIBUTION over the 97
+
+    class      clean 21 (22%)   noise 23 (24%)   weak 20 (21%)   component 33 (34%)
+    distance   min 0   p25 2   median 7   p75 30   p90 94   max 206
+               identical five-tuples: 21
+               at or below the noise floor of 7: 49 (51%)
+
+  READ THAT AS A CEILING ON PRECISION, NOT AS THE FLOOR 281 ASKED FOR.
+
+  It is not scale-controlled. Our renders are a MEDIAN 0.3x the dataset's
+  pixel area — the dataset fixes every image at 448x448, we render at the
+  figure's natural size — and holes resolve with resolution. The tail shows
+  it plainly: DTZ00036 has 41 components on both sides and 8 holes against
+  212; DTZ00039, 20 against 133; DTZ00037, 23 against 142. Those are not
+  rendering disagreements, they are the same drawing rasterised at different
+  sizes.
+
+  It is not uniform, which is why it took measuring rather than assuming:
+  the median holes ratio is 1.00 and only 27 of 90 pairs have more holes on
+  the dataset's side. The scale difference dominates the TAIL, not the body.
+
+  So 51% at or below the noise floor is a real result — half these figures
+  render structurally identically across two LaTeX installations — and the
+  p90 of 94 is mostly an artefact of comparing a 315x290 render against a
+  448x448 one. The honest floor needs both sides rasterised at one size, and
+  that is the next measurement rather than this one.
+
+  340's rule is what should have caught this before the run: a size
+  difference between the things being compared puts a scale difference into
+  the residual. It was written about column widths and it applies to
+  rasters.

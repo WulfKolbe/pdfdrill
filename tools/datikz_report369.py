@@ -211,6 +211,27 @@ def main() -> int:
         parts.append("%s & %s & %s & %s & %s & %s \\\\ \\hline\n"
                      % (ident, page, conf, src, rcell, scell))
     parts.append("\\end{longtable}\n\\end{document}\n")
+    # 383 — the pairs manifest is emitted HERE, when the renders are made and
+    # their identifiers are still in hand. The report PDF then presents the
+    # result; it is no longer the transport for it. inkdrill reads this file
+    # directly (comparepairs, 382) at 521 pairs/min against ~6 rows/min
+    # through the rendered table.
+    pairs = [{"id": r["id"], "image_a": rendered[r["id"]], "image_b": r["png"]}
+             for r in man["rows"]
+             if rendered.get(r["id"]) and r.get("png")]
+    (FIX / "pairs.json").write_text(json.dumps(
+        {"document": "DaTikZ-V4 first 100 rows", "split": "V4 train",
+         "measures": ("renderer versus renderer on IDENTICAL code: both sides "
+                      "render the same tikz_code, so a distance is our LaTeX "
+                      "installation differing from the dataset's, never a "
+                      "transcription error"),
+         "image_a": "our standalone compile of tikz_code",
+         "image_b": "the dataset's own 448x448 png_image",
+         "caveat": ("NOT scale-controlled: our renders are a median 0.3x the "
+                    "dataset's pixel area, and holes resolve with resolution"),
+         "pairs": pairs}, indent=1), encoding="utf-8")
+    print("  pairs.json: %d pairs (%d rows had no render)"
+          % (len(pairs), len(man["rows"]) - len(pairs)))
     dest = FIX / "report.tex"
     dest.write_text("".join(parts), encoding="utf-8")
     print("wrote %s: %d rows, %d with a rendered cell, %d degenerate"
