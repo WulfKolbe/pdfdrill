@@ -1,0 +1,24 @@
+{
+ "doc": "math_0202059",
+ "pdf": "math_0202059.pdf",
+ "rc": 0,
+ "stdout_tail": "Build stamp: report.build.json — phase=reading, 54 pages, 301301 bytes, sha256 77491b64f2b0. A measurement of this report should copy it into its output as `measured_against`.",
+ "seconds": 6.3,
+ "regions": {
+  "regions_with_latex": 0,
+  "attempted_now": 0,
+  "rendered": 0,
+  "failed": 0,
+  "has_author_preamble": true,
+  "graphics_dir": "/home/wkolbe/pdfdrill-library/math_0202059/texsrc",
+  "failures": []
+ },
+ "table_cols": [
+  5,
+  5,
+  4
+ ],
+ "six_col_tables": 0,
+ "region_table_cols": 4,
+ "ink_selectable": false
+}
