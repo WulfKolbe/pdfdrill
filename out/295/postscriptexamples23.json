@@ -1,0 +1,27 @@
+{
+ "doc": "postscriptexamples23",
+ "pdf": "postscriptexamples23.pdf",
+ "rc": 0,
+ "stdout_tail": "Build stamp: report.build.json — phase=reading, 12 pages, 497867 bytes, sha256 0b0986c0c237. A measurement of this report should copy it into its output as `measured_against`.",
+ "seconds": 3.7,
+ "regions": {
+  "regions_with_latex": 0,
+  "attempted_now": 0,
+  "rendered": 0,
+  "failed": 0,
+  "has_author_preamble": false,
+  "graphics_dir": null,
+  "failures": []
+ },
+ "manifest_rows": 77,
+ "with_latex": 0,
+ "duplicated": 77,
+ "table_cols": [
+  5,
+  5,
+  7
+ ],
+ "six_col_tables": 0,
+ "region_table_cols": 7,
+ "ink_selectable": false
+}
