@@ -2640,6 +2640,29 @@ commands:
     type: flag
     help: list only the calls whose file was not found on disk
   typed: true
+- name: figpairs
+  section: Reports and projections
+  summary: >-
+    340: harvest the hand-edited figure pairings out of report.tex. The image
+    table's Author-source column ships holding the MathPix crop's own path; a
+    row where a person typed the author's figure file over it is a pair, and it
+    is recorded once in <stem>.figpairs.json so nothing downstream re-derives a
+    join that measured 4 correct of 62. Contested rows -- one crop several rows
+    share -- are marked, since a person sees at a glance what no rule can.
+  offline_ok: true
+  requires:
+  - reporttex
+  positionals:
+  - name: pdf
+    type: pdf
+    required: true
+    help: PDF path, https URL, or bare arXiv id
+  flags:
+  - name: json
+    flag: --json
+    type: flag
+    help: emit the pairing table as JSON
+  typed: true
 - name: regionink
   section: Reporting
   summary: 'Measure the report''s two image columns with inkdrill (284). Renders each image-table page

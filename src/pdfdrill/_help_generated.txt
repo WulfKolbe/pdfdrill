@@ -165,6 +165,7 @@ Analysis (needs a built model):
 
 Reports and projections:
   pdfdrill texfigures <pdf> [--json] [--unresolved] 298: every includegraphics call in the author's own texsrc/ sources -- the file referenced, the options it carries (trim/clip change WHAT reaches the page, width/scale/angle only how big it is), whether the file resolves on disk, and the environment around it (bare, inside a figure, or a tikzpicture node placed over the page). Read-only; the author's view of a figure, beside MathPix's crop of it.
+  pdfdrill figpairs <pdf> [--json]            340: harvest the hand-edited figure pairings out of report.tex. The image table's Author-source column ships holding the MathPix crop's own path; a row where a person typed the author's figure file over it is a pair, and it is recorded once in <stem>.figpairs.json so nothing downstream re-derives a join that measured 4 correct of 62. Contested rows -- one crop several rows share -- are marked, since a person sees at a glance what no rule can.
 
 OCR / model pipeline:
   pdfdrill remath <pdf> [--pages PAGES] [--force] Keyless MathPix replacement: rebuild MathPix-quality Markdown (LaTeX math) from rendered pages via Claude delegation, so transclusion works without a MathPix key

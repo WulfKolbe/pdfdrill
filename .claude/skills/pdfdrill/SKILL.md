@@ -646,6 +646,7 @@ _Generated from `commands.yaml` by skillsync. Edit the manifest, not this sectio
 | Command | Returns |
 |---|---|
 | `pdfdrill texfigures <pdf> [--json] [--unresolved]` | 298: every includegraphics call in the author's own texsrc/ sources -- the file referenced, the options it carries (trim/clip change WHAT reaches the page, width/scale/angle only how big it is), whether the file resolves on disk, and the environment around it (bare, inside a figure, or a tikzpicture node placed over the page). Read-only; the author's view of a figure, beside MathPix's crop of it. |
+| `pdfdrill figpairs <pdf> [--json]` | 340: harvest the hand-edited figure pairings out of report.tex. The image table's Author-source column ships holding the MathPix crop's own path; a row where a person typed the author's figure file over it is a pair, and it is recorded once in <stem>.figpairs.json so nothing downstream re-derives a join that measured 4 correct of 62. Contested rows -- one crop several rows share -- are marked, since a person sees at a glance what no rule can. |
 
 ### OCR / model pipeline
 
@@ -657,6 +658,6 @@ _Generated from `commands.yaml` by skillsync. Edit the manifest, not this sectio
 <!-- COMMANDS:END -->
 
 <!-- PREFLIGHT-TOKEN:BEGIN -->
-Attestation token — the LAST line of this SKILL. If you can read this, you read the whole file. Run `pdfdrill preflight --ack DRILL-3e99677a` before any build/extract command.
-DRILL-3e99677a
+Attestation token — the LAST line of this SKILL. If you can read this, you read the whole file. Run `pdfdrill preflight --ack DRILL-a7662a84` before any build/extract command.
+DRILL-a7662a84
 <!-- PREFLIGHT-TOKEN:END -->

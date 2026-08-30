@@ -159,3 +159,5 @@
 {"doc": "1414674613", "pages": 26, "outcome": "measured", "rows": 134, "convert": "converted", "seconds": 1546.0}
 {"doc": "1605.03431", "pages": 26, "outcome": "measured", "rows": 146, "convert": "refused", "seconds": 1548.8}
 {"doc": "Chapter 1 - Ballistic transport and Landauer formula", "pages": 26, "outcome": "measured", "rows": 18, "convert": "converted", "seconds": 340.5}
+{"doc": "Metacognitive_Sedenion-Valued_Neural_Network_and_its_Learning_Algorithm (1)", "pages": 26, "outcome": "refused", "error": "MeasureRefused: page 3: compare returned 9 rows, reportpages expects 7", "seconds": 263.8}
+{"doc": "report", "pages": 26, "outcome": "refused", "error": "MeasureRefused: no report.tables.json and no report.tex", "seconds": 0.0}

@@ -1,0 +1,73 @@
+340 - the fifth column, and the sidecar that records what is typed into it
+==========================================================================
+
+THE COLUMN SPEC
+
+  The image table gains one column, fifth, between Source and Rendered:
+
+    Identifier | Page | Class | Source | AUTHOR SOURCE | Rendered | Scan
+
+    \begin{longtable}{|p{20mm}|p{7mm}|p{12mm}|p{Dmm}|p{Amm}|p{Rmm}|p{Smm}|}
+
+  where D = 22% of the free span, A = 16%, and R and S split the rest
+  equally -- the two image columns keep equal width because comparing them
+  is the point, and a Rendered cell narrower than its Scan would put a
+  scale difference into the residual.
+
+  The table is now SEVEN columns wide, not six. That is worth knowing
+  downstream: inkdrill selects a table by column count, and a 7-wide
+  region table no longer collides with a 6-wide equation table the way
+  295 recorded (six_col_tables=2 on nearly every rebuilt report).
+
+  Each cell ships as
+
+    \authorsrc{texzip/<process-id>/images/<process-id>-<page>_<h>_<w>_<y>_<x>}
+
+  which renders the MathPix crop. A person overwrites the filename with
+  the author's own figure file and recompiles. An untouched report shows
+  the crop twice, so unedited rows are visible at a glance.
+
+  \authorsrc is a MACRO, not a bare \includegraphics, so the harvester
+  looks for one thing and cannot mistake an ordinary image for an edit.
+
+THE SIDECAR
+
+  <stem>.figpairs.json, beside the PDF -- deliberately the same shape as
+  <stem>.notation.json (103), down to `present` being distinct from
+  `entries == []`. Both answer the same kind of question: editorial
+  knowledge about ONE document, recorded rather than inferred.
+
+    {"version": 1, "bibkey": "...",
+     "entries": [{"crop": "...", "base": "...", "identifier": "...",
+                  "page": "...", "contested": true}]}
+
+  `pdfdrill figpairs <pdf>` harvests report.tex into it. Absent is normal
+  and is NOT an error.
+
+ROWS AWAITING AN EDIT
+
+  2004.05631v1 -- the only document where all three legs exist:
+
+    image rows carrying an Author-source cell   135
+    edited so far                                 0
+    still the crop placeholder                  135
+    contested (one crop, several report rows)     2
+
+  Against 344's arithmetic: of the 62 distinct annotated `around` rows,
+  4 pair automatically, 43 are ambiguous because the page carries several
+  crops, and 14 are contested. Those 43 + 14 = 57 are what the editing is
+  FOR. The column offers 135 cells because it covers every image row, not
+  only the annotated ones -- a superset, and the extra cells cost nothing
+  to leave alone.
+
+  The two contested rows the report marks are counted the other way round
+  from 344's fourteen: here a crop claimed by several REPORT rows, there a
+  crop claimed by several author BASES. Both are the same defect seen from
+  opposite ends, and both are exactly what a person settles by looking.
+
+WHAT IT UNBLOCKS
+
+  4 rows are measurable today. 62 are measurable once the editing is done.
+  344 showed the seven rows measured so far were not a favourable sample
+  but the entire population; this is the one change that makes the
+  population bigger.

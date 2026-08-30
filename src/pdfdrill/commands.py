@@ -7092,6 +7092,71 @@ def cmd_texfigures(pdf: Path, json_out: bool = False,
     return "\n".join(out)
 
 
+
+def cmd_figpairs(pdf: Path, json_out: bool = False) -> str:
+    """340: harvest the hand-edited figure pairings out of report.tex.
+
+    The image table's Author-source column ships holding the MathPix crop's
+    own path. A row whose cell still holds that is UNEDITED; a row where a
+    person typed the author's figure file over it is a pair, and it is
+    recorded once in `<stem>.figpairs.json` so nothing downstream re-derives a
+    join that 339 measured at 4 of 62.
+    """
+    import re as _re
+    from . import figpair as _fp
+    sc = Sidecar(pdf)
+    d = sc.blob_dir
+    tex = d / "report.tex"
+    if not tex.is_file():
+        return (f"figpairs: no report.tex for {pdf.name} — build it with "
+                f"`pdfdrill reporttex {pdf.name}` first.")
+    body = tex.read_text(encoding="utf-8", errors="replace")
+    rows = _re.findall(
+        r"\\ident\{(.*?)\}(.*?)\\authorsrc\{([^}]*)\}(.*?)\\\\", body, _re.S)
+    if not rows:
+        return (f"figpairs: report.tex carries no Author-source column. "
+                f"Rebuild the report so the column ships.")
+    table = _fp.PairTable(bibkey=sc.get_evidence("bibkey") or pdf.stem)
+    claims: dict = {}
+    for ident, mid, cell, _tail in rows:
+        claims[cell] = claims.get(cell, 0) + 1
+    edited = 0
+    for ident, mid, cell, _tail in rows:
+        crop = _fp.Path(cell).name
+        base = ""
+        # UNEDITED means the cell still names the crop it shipped with. That
+        # test is on the NAME, not on the path, so moving the library does not
+        # turn every row into an edit.
+        looks_like_crop = bool(_re.match(r"^[0-9a-f]{8}-[0-9a-f-]{27}-\d+_", crop))
+        if not looks_like_crop:
+            base = cell.strip()
+            edited += 1
+        page = ""
+        m = _re.search(r"&\s*(\d+)\s*&", mid)
+        if m:
+            page = m.group(1)
+        table.entries.append(_fp.Pair(
+            crop=crop, base=base, identifier=_rt_clean_ident(ident),
+            page=page, contested=claims.get(cell, 0) > 1))
+    path = _fp.save(table, pdf)
+    if json_out:
+        return _jsonio.dumps(table.to_dict())
+    cont = sum(1 for e in table.entries if e.contested)
+    return (f"{pdf.name}: {len(table.entries)} image rows carry an "
+            f"Author-source cell.\n"
+            f"  edited to an author file : {edited}\n"
+            f"  still the crop placeholder: {len(table.entries) - edited}\n"
+            f"  contested (a crop several rows share): {cont}\n"
+            f"  written to {path.name} — edit the \\authorsrc{{...}} cells in "
+            f"report.tex and re-run to record them.")
+
+
+def _rt_clean_ident(raw: str) -> str:
+    """report.tex writes identifiers with \\_ and \\allowbreak{} inside."""
+    import re as _re
+    return _re.sub(r"\\allowbreak\{\}", "", raw).replace("\\_", "_").strip()
+
+
 @_writes("regionink")
 def cmd_regionink(pdf: Path, force: bool = False) -> str:
     """284: measure the report's two image columns with inkdrill.

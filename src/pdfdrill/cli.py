@@ -1903,6 +1903,15 @@ def _do_texfigures(args):
     return cmd_texfigures(_drilled(args[:1]), json_out=js, unresolved=un)
 
 
+def _do_figpairs(args):
+    """pdfdrill figpairs <pdf> [--json] — harvest the hand-edited figure
+    pairings out of report.tex into <stem>.figpairs.json (340)."""
+    from .commands import cmd_figpairs
+    js = "--json" in args
+    args = [a for a in args if a != "--json"]
+    return cmd_figpairs(_drilled(args[:1]), json_out=js)
+
+
 def _do_regionink(args):
     """pdfdrill regionink <pdf> [--force] — measure the report's Rendered and
     Scan image columns with inkdrill into report.regions.ink.json."""
@@ -2160,6 +2169,7 @@ HANDLERS = {
         "okf": _do_okf,
         "rename": _do_rename,
         "regionink": _do_regionink,
+        "figpairs": _do_figpairs,
         "texfigures": _do_texfigures,
         "occurrences": _do_occurrences,
         "context": _do_context,
