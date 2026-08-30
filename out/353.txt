@@ -1,0 +1,100 @@
+353 - three LATW modules, read rather than inferred
+===================================================
+
+Source read: ~/MX/LATW/src/latw/{MarginnoteScanner,InlineElementScanner,
+ErrorRecoveryModule}.ts. The audit table's TikZ row is why: it framed that
+gap as "env list parity (tikzcd, tabularx, longtable)", which named the
+wrong thing entirely — 352 found the real gap was the INLINE spellings,
+which no entry in an environment list can reach.
+
+--------------------------------------------------------------------------
+1. MarginnoteScanner — the one that matters, and pdfdrill has nothing
+--------------------------------------------------------------------------
+
+WHAT IT DOES. Brace-matches `\marginnote[opts]{...}` and `\sidenote[opts]{...}`
+-- a real matcher, not a regex, so nested braces survive. It lifts the body
+out as its own unit with kind="marginnote", keeps the full LaTeX including the
+optional offset, and leaves `{{key||MARGINNOTE}}` in the flow. The margin note
+becomes a first-class object and the body text keeps a pointer to it.
+
+WHAT PDFDRILL HAS. A `Sidenote` DocObject type, produced by
+`docmodel/modules/sidenote.py` — from PAGE GEOMETRY. Its own docstring: "a
+sidenote in this corpus is a line of type='column' (typically column 0 with
+text children)". It reads MathPix's layout, not LaTeX.
+
+The command `\marginnote` appears NOWHERE in src/. Fifty-two hits for
+"Sidenote" are all the object type; zero are the construct that produces it.
+
+So the two paths do not overlap: LATW knows a margin note because the AUTHOR
+wrote one; pdfdrill knows one because MathPix put a line in column 0. On a
+document with source and no MathPix run, pdfdrill has no margin notes at all.
+
+THE THESIS, measured:
+
+    \marginnote                     77
+    \sidenote                       30
+    of those containing a graphic    24
+
+    extract_graphics over the whole thesis    140 blocks
+    of those sitting INSIDE a marginnote       29
+
+The 29 are not lost — that is the part worth stating precisely. They are
+found, and they are found as ordinary body figures. A margin figure and a
+body figure are indistinguishable in the output, so nothing downstream can
+know that `\marginnote[-6cm]{...\begin{tikzpicture}...}` is set in the margin
+at a -6cm offset. The gap is the ROLE, not the ink.
+
+--------------------------------------------------------------------------
+2. InlineElementScanner — mostly covered, two gaps
+--------------------------------------------------------------------------
+
+WHAT IT DOES. Four passes, each replacing what it finds with a transclusion:
+inline and display math -> a `formula` tiddler ({{key||FO}}); `\includegraphics`
+-> an `image` tiddler ({{key||PIC}}), with base64 or SVG variants inlined;
+`\ref` -> a `reference` tiddler ({{key||REF}}); `\cite` -> a `citation`
+tiddler.
+
+WHAT PDFDRILL HAS, on the source path (build_source_model):
+
+    inline math   COVERED. Formula DocObjects, with content de-duplication,
+                  and the code says so: "LATW FormulaScanner / MathPix
+                  FormulaProcessor parity".
+    citations     COVERED. Citation DocObjects, extract_citations.
+    \ref          NOT COVERED. Zero `type="Reference"` in latex_source.py.
+                  \ref survives only as text inside a paragraph.
+    images        NOT COVERED as an object. extract_graphics returns tikz and
+                  tabular blocks; an `\includegraphics` is not a unit of its
+                  own on this path, so a figure that is only an included file
+                  produces nothing. Zero `type="Picture"`.
+
+--------------------------------------------------------------------------
+3. ErrorRecoveryModule — nothing equivalent, and the difference is repair
+--------------------------------------------------------------------------
+
+WHAT IT DOES. Four repairs before anything is parsed -- mismatched braces,
+mismatched `$`, unclosed environments, malformed commands -- and then emits an
+`error_report` tiddler carrying the error and warning counts. Damage is fixed
+and the fact of the damage is published.
+
+WHAT PDFDRILL HAS. Nothing on the source path, which the audit table already
+says. What exists is not the same shape and should not be counted as it:
+`compile_fixpoint` DEMOTES a row whose line errors to source-only and
+recompiles. That discards the row rather than repairing it, it acts on the
+generated report rather than the author's source, and it happens after
+LaTeX has already failed once.
+
+The one thing pdfdrill does better here is the reporting half: a demoted row
+is counted and named in the build output, so the damage is visible. What is
+missing is the repair.
+
+--------------------------------------------------------------------------
+Summary
+--------------------------------------------------------------------------
+
+  MarginnoteScanner    no equivalent. The role is lost; 29 thesis graphics
+                       are already extracted with no record that they are
+                       margin material.
+  InlineElementScanner formulas and citations covered; \ref and per-image
+                       units are not.
+  ErrorRecoveryModule  no equivalent. compile_fixpoint discards, it does not
+                       repair, and it works on the report not the source.
