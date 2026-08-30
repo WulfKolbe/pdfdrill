@@ -49,7 +49,11 @@ FLAG_CODE = {"clean": "K", "noise": "N", "weak": "W", "stable": "S",
              # component ratio, and `component_ratio_p90` already takes a
              # `rendered` mask for exactly this reason. A false `component`
              # inflates the number the gate reads.
-             "unrendered": "U"}
+             "unrendered": "U",
+             # 386 — a row whose Rendered AND Scan cells are both empty. Not
+             # clean (nothing was compared) and not unrendered (the report did
+             # render it); _INK_COLOUR already maps it to inkUnmeasured.
+             "absent": "A"}
 FIVE_L = ("L_comp", "L_holes", "L_stk", "L_cen", "L_off")
 FIVE_R = ("R_comp", "R_holes", "R_stk", "R_cen", "R_off")
 
@@ -170,6 +174,106 @@ def convert(tsv: Path, tex: Path, *, stamp: dict | None = None) -> dict:
         "footers_dropped": len(footers),
         "display_pages": len(pages),
         "source": tsv.name,
+    }
+    if stamp:
+        payload["measured_against"] = stamp
+    return payload
+
+
+def page_identifiers(pdf: Path) -> "dict[int, list[str]]":
+    """{page: [identifier, ...]} read from the built PDF's own text layer.
+
+    The tex gives table order but not PAGE, and page is what makes the
+    pairing containable. pdftotext is already a hard dependency of every
+    build command here.
+    """
+    import subprocess
+    out = {}
+    n = int(re.search(r"^Pages:\s+(\d+)",
+                      subprocess.run(["pdfinfo", str(pdf)], capture_output=True,
+                                     text=True).stdout, re.M).group(1))
+    for pg in range(1, n + 1):
+        txt = subprocess.run(["pdftotext", "-f", str(pg), "-l", str(pg),
+                              str(pdf), "-"], capture_output=True,
+                             text=True, errors="replace").stdout
+        seen = []
+        for m in re.finditer(r"[A-Z]{2,4}\d{3,}", txt):
+            if m.group(0) not in seen:
+                seen.append(m.group(0))
+        if seen:
+            out[pg] = seen
+    return out
+
+
+def convert_by_page(tsv: Path, pdf: Path, *, stamp: dict | None = None) -> dict:
+    """386 — the same conversion, paired PER PAGE instead of per document.
+
+    Two things forced this, both measured on the DTZ report and both real.
+
+    THE FOOTER RULE IS VALUE-BASED AND SHOULD BE STRUCTURAL. `read_tsv` calls
+    a row a footer when its five-tuple pair is all zero, and the docstring
+    above records that on the eleven this coincided exactly with the last row
+    of every page, 1232/1232. It is not an identity. DTZ page 25 holds a real
+    data row whose Rendered and Scan cells are both empty — the `absent` case
+    _INK_COLOUR already names — and the all-zero rule ate it as a footer,
+    losing a row and shifting the tail. Here the footer is the LAST row of the
+    page, which is what the longtable's endfoot actually emits.
+
+    A MISSING ROW MUST NOT COST THE WHOLE DOCUMENT. Whole-document zip is
+    all-or-nothing: one page whose lattice loses a row refuses 100 rows
+    because of 3. Pairing per page contains it — 33 of 34 DTZ pages pair
+    exactly and a page that does not is dropped whole, with its identifiers
+    named. That is the rule this file already states in another form: a wrong
+    identifier is worse than none.
+
+    Pages are dropped, never truncated. If a page's row count and identifier
+    count disagree the pairing on that page is unknown, and taking the first
+    N would be the silent zip() this converter exists to refuse.
+    """
+    import csv as _csv
+    rows = list(_csv.DictReader(tsv.open(encoding="utf-8", errors="replace"),
+                                delimiter="\t"))
+    bypage: dict = {}
+    for r in rows:
+        bypage.setdefault(int(r["report_page"]), []).append(r)
+    ids_by_page = page_identifiers(pdf)
+    out, dropped, footers = [], [], 0
+    for pg in sorted(bypage):
+        rs = sorted(bypage[pg], key=lambda r: int(r["line"]))
+        body, footers = rs[:-1], footers + 1      # the last row is the footer
+        ids = ids_by_page.get(pg, [])
+        if len(body) != len(ids):
+            dropped.append({"page": pg, "rows": len(body),
+                            "identifiers": len(ids), "ids": ids})
+            continue
+        for ident, r in zip(ids, body):
+            L = [int(r[k]) for k in FIVE_L]
+            R = [int(r[k]) for k in FIVE_R]
+            distance = sum(abs(a - b) for a, b in zip(L, R))
+            signed = R[0] - L[0]
+            # An all-zero pair is an ABSENT reading, not a clean one: it would
+            # otherwise take flag_of's first branch and the best class.
+            if not any(L) and not any(R):
+                flag = "absent"
+            else:
+                flag = flag_of(distance, abs(signed),
+                               str(r.get("A_eq_B", "")).strip().lower()
+                               in ("yes", "true", "1"))
+            out.append({
+                "id": ident, "report_page": pg, "line": int(r["line"]),
+                "L": L, "R": R, "distance": distance,
+                "comp_delta": abs(signed), "signed_delta": signed,
+                "flag": flag, "rendered": True,
+                "code": ("%s|%+d" % (FLAG_CODE[flag], signed))
+                        if flag in FLAG_CODE else "",
+            })
+    payload = {
+        "rows": out,
+        "footers_dropped": footers,
+        "display_pages": len(bypage),
+        "pages_dropped": dropped,
+        "source": tsv.name,
+        "paired": "per page",
     }
     if stamp:
         payload["measured_against"] = stamp

@@ -122,3 +122,67 @@ def test_the_report_states_it_has_no_residual_until_it_has_one():
     no_ink = rt.table_open("Rows", (20, 22, 13, 91, 106, 106), False, True)
     assert "no residual" in no_ink.lower()
     assert "\\inkbullet" not in no_ink
+
+
+def _tsv(tmp_path, pages):
+    """A compare TSV: pages is {page: [(L, R), ...]} with the footer LAST."""
+    head = ("report_page\tline\tdis\tA_eq_B\tL_comp\tL_holes\tL_stk\tL_cen\t"
+            "L_off\tR_comp\tR_holes\tR_stk\tR_cen\tR_off\tB_stable")
+    out = [head]
+    for pg, rows in sorted(pages.items()):
+        for i, (L, R) in enumerate(rows):
+            out.append("\t".join(str(x) for x in
+                                 [pg, i * 2 + 1, 0, "yes"] + L + R + ["yes"]))
+    p = tmp_path / "report.compare.tsv"
+    p.write_text("\n".join(out) + "\n")
+    return p
+
+
+def test_an_all_zero_data_row_is_not_a_footer(tmp_path, monkeypatch):
+    """386 — the footer rule was value-based and should be structural.
+
+    read_tsv calls any all-zero five-tuple pair a footer, on the measured
+    coincidence that across the eleven this was exactly the last row of every
+    page (1232/1232). DTZ page 25 broke the coincidence: a real data row whose
+    Rendered and Scan cells are both empty. Eaten as a footer, it costs a row
+    and shifts the tail onto the wrong figures.
+
+    Here the footer is the LAST row of the page. The empty data row survives
+    and is classed `absent` — not `clean`, which is what flag_of's first
+    branch would have given a distance of zero.
+    """
+    from pdfdrill import inkconvert as ic
+    Z = [0, 0, 0, 0, 0]
+    tsv = _tsv(tmp_path, {1: [([5, 2, 1, 1, 0], [5, 2, 1, 1, 0]),
+                              (Z, Z),                    # a real EMPTY row
+                              ([4, 1, 0, 0, 0], [4, 1, 0, 0, 0]),
+                              (Z, Z)]})                  # the footer
+    monkeypatch.setattr(ic, "page_identifiers",
+                        lambda pdf: {1: ["DTZ00000", "DTZ00001", "DTZ00002"]})
+    pay = ic.convert_by_page(tsv, tmp_path / "report.pdf")
+    assert [r["id"] for r in pay["rows"]] == ["DTZ00000", "DTZ00001",
+                                              "DTZ00002"]
+    assert pay["rows"][1]["flag"] == "absent"
+    assert pay["footers_dropped"] == 1
+
+
+def test_a_page_that_lost_a_row_is_dropped_whole_not_truncated(tmp_path,
+                                                               monkeypatch):
+    """386 — containment. DTZ page 22's lattice lost a row, and whole-document
+    zip refuses all 100 rows over 3. Pairing per page keeps the other 33 pages
+    and drops the bad one WHOLE: taking the first N would be exactly the
+    silent truncation this converter exists to refuse.
+    """
+    from pdfdrill import inkconvert as ic
+    Z = [0, 0, 0, 0, 0]
+    tsv = _tsv(tmp_path, {
+        1: [([5, 2, 1, 1, 0], [5, 2, 1, 1, 0]), (Z, Z)],       # 1 row, ok
+        2: [([9, 3, 2, 1, 1], [9, 3, 2, 1, 1]), (Z, Z)],       # 1 row, 2 ids
+    })
+    monkeypatch.setattr(ic, "page_identifiers",
+                        lambda pdf: {1: ["DTZ00000"],
+                                     2: ["DTZ00001", "DTZ00002"]})
+    pay = ic.convert_by_page(tsv, tmp_path / "report.pdf")
+    assert [r["id"] for r in pay["rows"]] == ["DTZ00000"]
+    assert pay["pages_dropped"] == [{"page": 2, "rows": 1, "identifiers": 2,
+                                     "ids": ["DTZ00001", "DTZ00002"]}]

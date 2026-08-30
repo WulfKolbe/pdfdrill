@@ -185,3 +185,6 @@
 {"doc": "3643027", "pages": 44, "outcome": "measured", "rows": 123, "convert": "converted", "seconds": 999.4}
 {"doc": "The_topology_and_geometry_of_random_square-tiled_s", "pages": 47, "outcome": "measured", "rows": 83, "convert": "converted", "seconds": 1028.6}
 {"doc": "A_Survey_on_Quaternion_Algebra_and_Geometric_Algebra_Applications_in_Engineering_and_Computer_Science_19952020", "pages": 54, "outcome": "measured", "rows": 65, "convert": "converted", "seconds": 862.4}
+{"doc": "Maxwell-Chains_SS2016", "pages": 63, "outcome": "measured", "rows": 134, "convert": "converted", "seconds": 3950.8}
+{"doc": "1-s2.0-S0022039622000146-main", "pages": 70, "outcome": "refused", "error": "MeasureRefused: page 1: compare returned 6 rows, reportpages expects 3", "seconds": 398.2}
+{"doc": "1306287", "pages": 172, "outcome": "refused", "error": "TimeoutExpired: Command '['python3', '/home/wkolbe/inkdrill/tools/reportpages.py', '--pdf', '/home/wkolbe/pdfdrill-library/1306287/report.pdf', '--columns', '6', '--h", "seconds": 900.1}

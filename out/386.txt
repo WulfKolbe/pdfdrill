@@ -1,0 +1,138 @@
+386 — a report.pdf that carries residuals
+=========================================
+
+STEP 1 — the DTZ measurement (inkdrill)
+---------------------------------------
+
+It DIED. All 68 renders (34 pages x 300/600 dpi) were on disk by 16:20 and
+not one p*.md existed: it died before the compare stage, having done only
+the cheap part.
+
+My first restart was wrong and is worth recording. I hand-rolled a loop over
+the surviving renders. That writes p*.md in a layout reportcompare.py does
+not read, and reportcompare.py is what writes the report.compare.tsv every
+downstream step needs. It would have run 34 minutes and left step 2 exactly
+as blocked. Killed; started the real runner.
+
+The real runner then REFUSED: "probe found no 1-column display pages
+[6col x34]". target_columns read 1 from the DTZ tex while the census saw 6
+columns on all 34 pages — the 378 column question from a third direction.
+With --columns 6 it took all 34.
+
+Ran 53 minutes for 34 pages, 4-way parallel. Per-page cost is far above
+380's 60 s: page 2 has five simple rows, and pair_stats on dense TikZ cells
+costs much more. 380's split holds for the page it measured and understates
+figure-heavy pages.
+
+  132 TSV rows = 34 footers + 98 body rows, against 100 identifiers.
+
+STEP 2 — convert and adopt (pdfdrill)
+-------------------------------------
+
+Three defects stood between the measurement and the page. All three are real
+and none was a refusal to be argued with.
+
+DEFECT 1 — inkconvert could not read this report's identifiers.
+_IDENT needs both halves of an equation report's contract: a <bib>_EQ0001
+identifier AND a bare numeric Page cell. A DTZ row has neither — DTZ00000,
+and a Page cell holding "shard 00 / row 0". identifiers() returned [],
+convert() saw 100 rows against 0 identifiers, and refused. Correct on the
+rule it was given.
+
+Fixed with a SECOND pattern, not a loosened first one. Relaxing _IDENT would
+widen the contract for the eleven published reports, whose alignment out/237
+verified 64 of 64 at offset zero. The fallback is all-or-nothing — it fires
+only when the EQ pattern matched nothing — so no document can be read by
+both and no existing pairing can move. 100 unique ids, DTZ00000..DTZ00099;
+the eleven still take the EQ path unchanged.
+
+DEFECT 2 — the footer rule is value-based and should be structural.
+read_tsv calls any all-zero five-tuple pair a footer. This file's own
+docstring records the basis: across the eleven, all-zero rows == display
+pages == last row of every page, 1232/1232/1232. That is a coincidence, not
+an identity, and DTZ page 25 breaks it — a REAL data row whose Rendered and
+Scan cells are both empty. Eaten as a footer, it costs a row and shifts the
+tail onto the wrong figures.
+
+The footer is now the LAST row of the page, which is what the longtable's
+endfoot emits. The empty row survives and is classed `absent` — not `clean`,
+which is what flag_of's first branch gives a distance of zero.
+
+DEFECT 3 — one page's lattice lost a row, and whole-document zip made that
+cost all 100. Located exactly, and it is an inkdrill defect:
+
+  reportcompare.py:390  png = d / f"p{p:03d}_r300.png"
+                        hts = {r: height of 300-dpi lattice row r}
+                  :400  if ln == 0 or hts.get(ln, 999) < 40: continue
+
+`ln` is the row index from the md, which compare produced from ITS lattice;
+`hts` is indexed by the 300 dpi lattice. They agree only when both
+resolutions find the same number of rows. Measured on p022:
+
+  p022 @300  8 rows x 6 cols        p022 @600  5 rows x 6 cols
+  p021 @300  8 rows x 6 cols        p021 @600  8 rows x 6 cols
+
+Matching the bands by position, the 600 dpi rows sit exactly on 300 dpi's
+rows 0,1,3,5,7 — the 5 REAL rows (header, 3 data, footer). At 300 dpi the
+lattice additionally finds 3 spurious thin rules INSIDE figures (6 px, 24 px),
+which the sliver filter exists to remove. So md row 2 — a real 1597 px data
+row — looked up 300-dpi row 2, a 3 px rule, and was dropped as a sliver.
+
+And compare pairs the two lattices BY INDEX when the counts differ
+(__main__.py:707, "comparing the first min"), so p022's L values are taken
+from the wrong rows. That page cannot be salvaged from the existing md; it
+must be re-measured. NOT FIXED HERE — recorded, and it is inkdrill work.
+
+The containment: pair PER PAGE. 33 of 34 pages pair exactly; a page whose
+row count and identifier count disagree is dropped WHOLE, with its
+identifiers named. Taking the first N would be the silent zip() this
+converter exists to refuse. One page dropped:
+
+  p22: 1 body row vs 3 identifiers — DTZ00062, DTZ00063, DTZ00064
+
+Adoption: the confidence half stays a dash (252 — the dataset carries no
+confidence and an absent reading is not a good one); the residual half is
+the same construction rt.row uses under form=True. Preamble, bullets and
+legend switch together on report.ink.json existing, so the measurement build
+keeps the legend saying it has none.
+
+STEP 3 — the artefact
+---------------------
+
+  /home/wkolbe/pdfdrill-library/datikz-fixture/report.pdf
+  34 pages, 3.77 MB (3,958,270 bytes), built 2026-08-30 18:25:40
+  compiled: 34 pages, 0 errors, 0 demoted
+
+  100 of 100 rows carry a residual bullet.
+  97 of 100 carry a measured CLASS; 3 carry inkUnmeasured.
+
+Distribution as it appears on the page — counted from the PDF's own text
+layer with pdftotext, not from the source that made it:
+
+  C  component   35     red
+  N  noise       22     grey
+  K  clean       18     green
+  S  stable      13     blue
+  W  weak         8     amber
+  A  absent       1     grey (unmeasured)
+  --                    ----
+     measured    97
+     no class     3     the p22 rows above
+     TOTAL      100
+
+97 codes extracted from the PDF text layer, matching the 97 in the source
+exactly. On the page a cell reads "— • C|+3": dash for the absent
+confidence, bullet for the class, code for class and signed component delta.
+
+WHAT IS STILL OPEN
+------------------
+
+p022 needs re-measuring after the inkdrill fix, which returns DTZ00062–64
+and takes the report to 100 of 100. The fix is not a tolerance: no tolerance
+gives A and B the same row count on that page. Slivers must be dropped from
+each lattice INDEPENDENTLY before the two are paired, so that row indices
+mean the same thing on both sides — and reportcompare must then take heights
+from the lattice that produced the md, not from a re-derived one.
+
+That change moves row indices in every md file, so it lands with its own
+re-measurement of the corpus, not as a patch under a running job.
