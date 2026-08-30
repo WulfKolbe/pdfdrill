@@ -1,0 +1,28 @@
+{
+ "doc": "bommes_zimmer_2009_siggraph_011",
+ "pdf": "bommes_zimmer_2009_siggraph_011.pdf",
+ "rc": 0,
+ "stdout_tail": "Build stamp: report.build.json — phase=reading, 11 pages, 1768875 bytes, sha256 7341860261d2. A measurement of this report should copy it into its output as `measured_against`.",
+ "seconds": 4.1,
+ "regions": {
+  "regions_with_latex": 1,
+  "attempted_now": 1,
+  "rendered": 1,
+  "failed": 0,
+  "has_author_preamble": false,
+  "graphics_dir": null,
+  "failures": []
+ },
+ "manifest_rows": 13,
+ "with_latex": 1,
+ "duplicated": 12,
+ "table_cols": [
+  6,
+  5,
+  4,
+  7
+ ],
+ "six_col_tables": 1,
+ "region_table_cols": 7,
+ "ink_selectable": false
+}
