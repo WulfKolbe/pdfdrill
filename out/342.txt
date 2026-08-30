@@ -1,0 +1,59 @@
+342 - where the annotation sits: around the figure, or over it
+====================================================================
+
+  annotated inclusions classified : 221
+
+  OVERLAPPING  a sibling falls INSIDE the image's rectangle : 114
+  AROUND       every sibling is outside it                  : 79
+  none placed  siblings exist but none carries a coordinate : 17
+  unparsed     non-numeric coordinates, e.g. (a.north)      : 11
+
+  Of the 193 with a verdict, 59% overlap. A prompt that says 'the text
+  is above the figure' or a detector that looks only around the border is
+  wrong for the majority, not for a fringe.
+
+HOW THE EXTENT IS COMPUTED, AND HOW IT WAS CALIBRATED
+
+  The image's rectangle is its natural size scaled by the `scale=` or
+  `width=` option, centred on its node coordinate. Two things had to be
+  measured rather than assumed, and both were wrong first:
+
+  1. The image's own \node counted itself as a sibling at distance zero,
+     so EVERY row came back overlapping -- 210 of 210. A result with no
+     second category is not a finding, it is a broken test.
+
+  2. Natural size is 1 bp per pixel -- 72 dpi -- NOT the dpi in the file.
+     bothways is a 725x538 JPEG carrying 132 dpi metadata, included at
+     scale=0.1. pdfplumber measures it at 72.5 x 53.8 pt on page 38 of
+     the author's own PDF. At 72 dpi the formula gives 72.6 x 53.9; at
+     the file's 132 it gives 39.7 x 29.5, an extent 1.83x too small that
+     biases every verdict toward 'around'. Fixing it moved the split from
+     104/89 to 114/79.
+
+  So the classifier is calibrated against a rectangle measured from the
+  compiled PDF, not against its own arithmetic.
+
+BY DOCUMENT
+  document                                  over  arnd  none  unpr
+  2004.05631                                  38    38     8     0
+  2004.05631v1                                38    38     8     0
+  2012.15581                                  38     2     0     0
+  2102.08145                                   0     0     0     4
+  2104.08926                                   0     0     0     3
+  2104.05122                                   0     0     0     2
+  2508.19773                                   0     1     1     0
+  1805.00791                                   0     0     0     1
+  2406.19108v2                                 0     0     0     1
+
+WHAT 337 SHOULD SAY
+
+  For an AROUND row the description can name a direction -- the sibling
+  coordinates give left/right/above/below relative to the image's centre,
+  and its extent gives the distance.
+
+  For an OVERLAPPING row it should say overlapping and not invent a
+  direction. 'Centred above at distance d' is false for a label sitting
+  on the figure, and a model told something false about the picture it
+  can see is worse off than one told nothing.
+
+out/342.json carries every row with its extent, origin and counts.

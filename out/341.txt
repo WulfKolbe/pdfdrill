@@ -47,10 +47,14 @@ WHAT THIS SETTLES, AND WHAT IT DOES NOT
   corroborate a pairing between a plain figure and its crop. For an
   annotated one it cannot, in either direction.
 
-  It also shows the labels sit BETWEEN the arrows -- inside the base's
-  own rectangle, not outside it. A prompt or detector that assumes
-  annotation surrounds the figure would place these two wrong. That is
-  342's question and this is one instance of it.
+  CORRECTION, made while doing 342. I wrote here that the labels sit
+  BETWEEN the arrows, inside the base's own rectangle. That was read off
+  the picture and it is wrong. Measured: pdfplumber puts the image at
+  72.5 x 53.8 pt on page 38, and the crop converts to 213 x 57 pt at
+  2125px/612pt. The image occupies the MIDDLE THIRD of the crop and the
+  two labels sit left and right of it, OUTSIDE its rectangle. bothways
+  is an `around` row, not an overlapping one. The arrows only look
+  full-width because they are the visually dominant mark.
 
 METHOD NOTE
 
