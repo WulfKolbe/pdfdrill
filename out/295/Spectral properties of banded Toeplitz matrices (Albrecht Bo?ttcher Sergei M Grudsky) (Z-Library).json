@@ -1,0 +1,12 @@
+{
+ "doc": "Spectral properties of banded Toeplitz matrices (Albrecht Bo?ttcher Sergei M Grudsky) (Z-Library)",
+ "pdf": "Spectral properties of banded Toeplitz matrices (Albrecht Bo?ttcher Sergei M Grudsky) (Z-Library).pdf",
+ "rc": 1,
+ "stdout_tail": "",
+ "error": "Error [UnicodeEncodeError]: 'utf-8' codec can't encode character '\\udca8' in position 239: surrogates not allowed",
+ "seconds": 1.9,
+ "table_cols": [],
+ "six_col_tables": 0,
+ "region_table_cols": null,
+ "ink_selectable": false
+}
