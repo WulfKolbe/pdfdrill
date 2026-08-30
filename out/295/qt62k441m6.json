@@ -1,0 +1,28 @@
+{
+ "doc": "qt62k441m6",
+ "pdf": "qt62k441m6.pdf",
+ "rc": 0,
+ "stdout_tail": "Build stamp: report.build.json — phase=reading, 9 pages, 1258627 bytes, sha256 c9f5ea39fd6c. A measurement of this report should copy it into its output as `measured_against`.",
+ "seconds": 6.3,
+ "regions": {
+  "regions_with_latex": 1,
+  "attempted_now": 1,
+  "rendered": 1,
+  "failed": 0,
+  "has_author_preamble": false,
+  "graphics_dir": null,
+  "failures": []
+ },
+ "manifest_rows": 10,
+ "with_latex": 1,
+ "duplicated": 9,
+ "table_cols": [
+  6,
+  5,
+  4,
+  7
+ ],
+ "six_col_tables": 1,
+ "region_table_cols": 7,
+ "ink_selectable": false
+}
