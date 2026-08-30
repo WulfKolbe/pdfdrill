@@ -1,0 +1,28 @@
+{
+ "doc": "Variational Approach to Gravity Field Theories From Newton to Einstein and Beyond (Alberto Vecchiato (auth.)) (Z-Library)",
+ "pdf": "Variational Approach to Gravity Field Theories From Newton to Einstein and Beyond (Alberto Vecchiato (auth.)) (Z-Library).pdf",
+ "rc": 0,
+ "stdout_tail": "Build stamp: report.build.json — phase=reading, 546 pages, 16313452 bytes, sha256 ff7be72692aa. A measurement of this report should copy it into its output as `measured_against`.",
+ "seconds": 709.7,
+ "regions": {
+  "regions_with_latex": 0,
+  "attempted_now": 0,
+  "rendered": 0,
+  "failed": 0,
+  "has_author_preamble": false,
+  "graphics_dir": null,
+  "failures": []
+ },
+ "manifest_rows": 7,
+ "with_latex": 0,
+ "duplicated": 7,
+ "table_cols": [
+  6,
+  5,
+  4,
+  7
+ ],
+ "six_col_tables": 1,
+ "region_table_cols": 7,
+ "ink_selectable": false
+}
