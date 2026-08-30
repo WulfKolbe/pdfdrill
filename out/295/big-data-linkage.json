@@ -1,0 +1,28 @@
+{
+ "doc": "big-data-linkage",
+ "pdf": "big-data-linkage.pdf",
+ "rc": 0,
+ "stdout_tail": "Build stamp: report.build.json — phase=reading, 11 pages, 797762 bytes, sha256 85df0ac5a5b0. A measurement of this report should copy it into its output as `measured_against`.",
+ "seconds": 4.3,
+ "regions": {
+  "regions_with_latex": 1,
+  "attempted_now": 1,
+  "rendered": 1,
+  "failed": 0,
+  "has_author_preamble": false,
+  "graphics_dir": null,
+  "failures": []
+ },
+ "manifest_rows": 17,
+ "with_latex": 1,
+ "duplicated": 16,
+ "table_cols": [
+  6,
+  5,
+  4,
+  7
+ ],
+ "six_col_tables": 1,
+ "region_table_cols": 7,
+ "ink_selectable": false
+}
