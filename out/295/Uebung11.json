@@ -1,0 +1,24 @@
+{
+ "doc": "Uebung11",
+ "pdf": "Uebung11.pdf",
+ "rc": 0,
+ "stdout_tail": "Build stamp: report.build.json — phase=reading, 5 pages, 311411 bytes, sha256 9d02ff42f142. A measurement of this report should copy it into its output as `measured_against`.",
+ "seconds": 2.5,
+ "regions": {
+  "regions_with_latex": 0,
+  "attempted_now": 0,
+  "rendered": 0,
+  "failed": 0,
+  "has_author_preamble": false,
+  "graphics_dir": null,
+  "failures": []
+ },
+ "table_cols": [
+  6,
+  5,
+  4
+ ],
+ "six_col_tables": 1,
+ "region_table_cols": 4,
+ "ink_selectable": false
+}
