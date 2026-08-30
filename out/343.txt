@@ -1,0 +1,66 @@
+343 - the placement split, on measured extents
+==================================================================
+
+HOW MANY DOCUMENTS NEEDED COMPILING: NONE.
+
+  The author's own compiled PDF is already in the library for all eleven
+  documents -- 4 to 135 pages each, the largest 33 MB. The rectangle can
+  be READ from it with pdfplumber instead of derived from `scale=` and the
+  file's pixel size. 337 is what made that necessary: for width=\linewidth
+  I had hardcoded 'a Tufte text block, ~12 cm', and against the real
+  rectangles mpsapprox2 was 340 pt computed against 143 measured, psi_N2
+  261 against 142, pt2 408 against 222.
+
+  The error has a DIRECTION. An extent that is too large pulls siblings
+  inside it, so computing the rectangle manufactures overlap. That is why
+  the correction moves one way.
+
+THE SPLIT
+
+                        342 computed     343 measured
+  around                       79              106
+  overlapping                 114              62
+  ------------------------------------------------
+  share overlapping           59%             37%
+
+  THE MAJORITY INVERTS. 342 reported 59% overlapping and concluded a
+  prompt assuming 'around the figure' is wrong for most rows. Measured, it
+  is right for most rows: 106 of 168, 63%, sit outside the image.
+
+WHAT MOVED
+
+  around       -> around       63
+  overlapping  -> overlapping  60
+  overlapping  -> around       28
+  around       -> overlapping  2
+
+ROWS THE MEASUREMENT CANNOT DECIDE, and they are not counted above
+
+  several sizes       33
+  none placed         10
+  no tikzpicture       6
+  unreadable base      3
+  not embedded         1
+
+  `several sizes` is the honest one: the same image file is placed at
+  DIFFERENT rectangles in different figures, so one measured extent cannot
+  stand for all of its inclusions. Resolving those needs each inclusion
+  matched to its own placement, which is a further join and is not done
+  here rather than guessed at.
+
+  `not embedded` is one row in 1805.00791, whose figure is vector rather
+  than raster, so pdfplumber's image list does not carry it.
+
+DOES IT SCALE PAST SEVEN
+
+  Yes. The recoverable population is 106 rows, not 79 -- and 337 measured
+  that population at a median ink distance of 10 against 180 for the
+  overlapping one, with the two not touching. So the set worth calling a
+  model on is a third larger than 342 implied, and it is the majority of
+  what could be decided rather than a minority.
+
+  The 33 ambiguous rows are worth resolving before that, since they are
+  the largest undecided block and would likely land mostly in `around` too
+  -- but that is a prediction, and it is written here as one.
+
+out/343.json carries every row with its measured extent and counts.

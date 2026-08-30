@@ -1,0 +1,3574 @@
+[
+ {
+  "doc": "1805.00791",
+  "base": "cheese.png",
+  "file": "cheese",
+  "source": "cheese.tex",
+  "line": 4,
+  "verdict": "not embedded"
+ },
+ {
+  "doc": "2004.05631",
+  "base": "figures/ch4/mpsapprox2.jpg",
+  "file": "figures/ch4/mpsapprox2",
+  "source": "chapters/four_tufte.tex",
+  "line": 19,
+  "extent_cm": [
+   5.061,
+   3.574
+  ],
+  "inside": 0,
+  "outside": 2,
+  "origin": [
+   0.0,
+   0.0
+  ],
+  "verdict": "around"
+ },
+ {
+  "doc": "2004.05631",
+  "base": "figures/ch4/psiemp.jpg",
+  "file": "figures/ch4/psiemp",
+  "source": "chapters/four_tufte.tex",
+  "line": 64,
+  "extent_cm": [
+   9.835,
+   1.344
+  ],
+  "inside": 3,
+  "outside": 0,
+  "origin": [
+   0.0,
+   0.0
+  ],
+  "verdict": "overlapping"
+ },
+ {
+  "doc": "2004.05631",
+  "base": "figures/ch4/mpsch4.jpg",
+  "file": "figures/ch4/mpsch4",
+  "source": "chapters/four_tufte.tex",
+  "line": 75,
+  "extent_cm": [
+   4.84,
+   1.633
+  ],
+  "inside": 0,
+  "outside": 6,
+  "origin": [
+   0.0,
+   0.0
+  ],
+  "verdict": "around"
+ },
+ {
+  "doc": "2004.05631",
+  "base": "figures/ch4/psi2.jpg",
+  "file": "figures/ch4/psi2",
+  "source": "chapters/four_tufte.tex",
+  "line": 101,
+  "extent_cm": [
+   3.471,
+   2.143
+  ],
+  "inside": 0,
+  "outside": 1,
+  "origin": [
+   0.0,
+   0.0
+  ],
+  "verdict": "around"
+ },
+ {
+  "doc": "2004.05631",
+  "base": "figures/ch4/getting_psi2.jpg",
+  "file": "figures/ch4/getting_psi2",
+  "source": "chapters/four_tufte.tex",
+  "line": 109,
+  "extent_cm": [
+   7.345,
+   6.202
+  ],
+  "inside": 0,
+  "outside": 4,
+  "origin": [
+   0.0,
+   0.0
+  ],
+  "verdict": "around"
+ },
+ {
+  "doc": "2004.05631",
+  "base": "figures/ch4/rho2_ch4.jpg",
+  "file": "figures/ch4/rho2_ch4",
+  "source": "chapters/four_tufte.tex",
+  "line": 148,
+  "extent_cm": [
+   7.075,
+   2.82
+  ],
+  "inside": 1,
+  "outside": 1,
+  "origin": [
+   0.0,
+   0.0
+  ],
+  "verdict": "overlapping"
+ },
+ {
+  "doc": "2004.05631",
+  "base": "figures/ch4/spectral.jpg",
+  "file": "figures/ch4/spectral",
+  "source": "chapters/four_tufte.tex",
+  "line": 160,
+  "extent_cm": [
+   4.921,
+   3.037
+  ],
+  "inside": 1,
+  "outside": 4,
+  "origin": [
+   0.0,
+   0.0
+  ],
+  "verdict": "overlapping"
+ },
+ {
+  "doc": "2004.05631",
+  "base": "figures/ch4/firsttwo.jpg",
+  "file": "figures/ch4/firsttwo",
+  "source": "chapters/four_tufte.tex",
+  "line": 176,
+  "extent_cm": [
+   4.84,
+   1.633
+  ],
+  "inside": 0,
+  "outside": 2,
+  "origin": [
+   0.0,
+   0.0
+  ],
+  "verdict": "around"
+ },
+ {
+  "doc": "2004.05631",
+  "base": "figures/ch4/psi_3.jpg",
+  "file": "figures/ch4/psi_3",
+  "source": "chapters/four_tufte.tex",
+  "line": 184,
+  "extent_cm": [
+   3.572,
+   2.106
+  ],
+  "inside": 0,
+  "outside": 1,
+  "origin": [
+   0.0,
+   0.0
+  ],
+  "verdict": "around"
+ },
+ {
+  "doc": "2004.05631",
+  "base": "figures/ch4/getting_psi3.jpg",
+  "file": "figures/ch4/getting_psi3",
+  "source": "chapters/four_tufte.tex",
+  "line": 192,
+  "extent_cm": [
+   7.345,
+   6.202
+  ],
+  "inside": 0,
+  "outside": 4,
+  "origin": [
+   0.0,
+   0.0
+  ],
+  "verdict": "around"
+ },
+ {
+  "doc": "2004.05631",
+  "base": "figures/ch4/rho3_ch4.jpg",
+  "file": "figures/ch4/rho3_ch4",
+  "source": "chapters/four_tufte.tex",
+  "line": 232,
+  "extent_cm": [
+   9.393,
+   3.535
+  ],
+  "inside": 2,
+  "outside": 1,
+  "origin": [
+   0.0,
+   0.0
+  ],
+  "verdict": "overlapping"
+ },
+ {
+  "doc": "2004.05631",
+  "base": "figures/ch4/getting_psi4.jpg",
+  "file": "figures/ch4/getting_psi4",
+  "source": "chapters/four_tufte.tex",
+  "line": 242,
+  "extent_cm": [
+   7.345,
+   6.202
+  ],
+  "inside": 0,
+  "outside": 4,
+  "origin": [
+   0.0,
+   0.0
+  ],
+  "verdict": "around"
+ },
+ {
+  "doc": "2004.05631",
+  "base": "figures/ch4/mpsch4.jpg",
+  "file": "figures/ch4/mpsch4",
+  "source": "chapters/four_tufte.tex",
+  "line": 279,
+  "extent_cm": [
+   4.84,
+   1.633
+  ],
+  "inside": 0,
+  "outside": 6,
+  "origin": [
+   0.0,
+   0.0
+  ],
+  "verdict": "around"
+ },
+ {
+  "doc": "2004.05631",
+  "base": "figures/ch4/complete_graph.jpg",
+  "file": "figures/ch4/complete_graph",
+  "source": "chapters/four_tufte.tex",
+  "line": 298,
+  "verdict": "several sizes"
+ },
+ {
+  "doc": "2004.05631",
+  "base": "figures/ch4/summarize.jpg",
+  "file": "figures/ch4/summarize",
+  "source": "chapters/four_tufte.tex",
+  "line": 394,
+  "extent_cm": [
+   1.841,
+   1.281
+  ],
+  "inside": 0,
+  "outside": 3,
+  "origin": [
+   0.0,
+   0.0
+  ],
+  "verdict": "around"
+ },
+ {
+  "doc": "2004.05631",
+  "base": "figures/ch4/training_graph.jpg",
+  "file": "figures/ch4/training_graph",
+  "source": "chapters/four_tufte.tex",
+  "line": 407,
+  "verdict": "several sizes"
+ },
+ {
+  "doc": "2004.05631",
+  "base": "figures/ch4/psi_N2.jpg",
+  "file": "figures/ch4/psi_N2",
+  "source": "chapters/four_tufte.tex",
+  "line": 467,
+  "extent_cm": [
+   5.024,
+   5.524
+  ],
+  "inside": 2,
+  "outside": 1,
+  "origin": [
+   0.0,
+   0.0
+  ],
+  "verdict": "overlapping"
+ },
+ {
+  "doc": "2004.05631",
+  "base": "figures/ch1/concept2.jpg",
+  "file": "figures/ch1/concept2",
+  "source": "chapters/one_tufte.tex",
+  "line": 103,
+  "verdict": "several sizes"
+ },
+ {
+  "doc": "2004.05631",
+  "base": "figures/ch2/graph2.jpg",
+  "file": "figures/ch2/graph2",
+  "source": "chapters/one_tufte.tex",
+  "line": 121,
+  "extent_cm": [
+   3.274,
+   2.716
+  ],
+  "inside": 0,
+  "outside": 5,
+  "origin": [
+   0.0,
+   0.0
+  ],
+  "verdict": "around"
+ },
+ {
+  "doc": "2004.05631",
+  "base": "figures/ch3/eqpsi.jpg",
+  "file": "figures/ch3/eqpsi",
+  "source": "chapters/three_tufte.tex",
+  "line": 51,
+  "extent_cm": [
+   2.278,
+   1.439
+  ],
+  "inside": 0,
+  "outside": 1,
+  "origin": [
+   0.0,
+   0.0
+  ],
+  "verdict": "around"
+ },
+ {
+  "doc": "2004.05631",
+  "base": "figures/ch3/eqrho.jpg",
+  "file": "figures/ch3/eqrho",
+  "source": "chapters/three_tufte.tex",
+  "line": 72,
+  "extent_cm": [
+   2.189,
+   2.798
+  ],
+  "inside": 0,
+  "outside": 1,
+  "origin": [
+   0.0,
+   0.0
+  ],
+  "verdict": "around"
+ },
+ {
+  "doc": "2004.05631",
+  "base": "figures/ch3/eqredrho.jpg",
+  "file": "figures/ch3/eqredrho",
+  "source": "chapters/three_tufte.tex",
+  "line": 87,
+  "extent_cm": [
+   7.4,
+   2.582
+  ],
+  "inside": 1,
+  "outside": 1,
+  "origin": [
+   0.0,
+   0.0
+  ],
+  "verdict": "overlapping"
+ },
+ {
+  "doc": "2004.05631",
+  "base": "figures/ch2/question.jpg",
+  "file": "figures/ch2/question.jpg",
+  "source": "chapters/three_tufte.tex",
+  "line": 457,
+  "extent_cm": [
+   4.534,
+   1.287
+  ],
+  "inside": 0,
+  "outside": 5,
+  "origin": [
+   0.0,
+   0.0
+  ],
+  "verdict": "around"
+ },
+ {
+  "doc": "2004.05631",
+  "base": "figures/ch2/graph3.jpg",
+  "file": "figures/ch2/graph3",
+  "source": "chapters/three_tufte.tex",
+  "line": 534,
+  "extent_cm": [
+   3.274,
+   2.716
+  ],
+  "verdict": "no tikzpicture"
+ },
+ {
+  "doc": "2004.05631",
+  "base": "figures/ch2/graph4b.jpg",
+  "file": "figures/ch2/graph4b",
+  "source": "chapters/three_tufte.tex",
+  "line": 563,
+  "extent_cm": [
+   3.401,
+   2.688
+  ],
+  "inside": 0,
+  "outside": 3,
+  "origin": [
+   0.0,
+   0.0
+  ],
+  "verdict": "around"
+ },
+ {
+  "doc": "2004.05631",
+  "base": "figures/ch2/graph5.jpg",
+  "file": "figures/ch2/graph5",
+  "source": "chapters/three_tufte.tex",
+  "line": 573,
+  "extent_cm": [
+   3.401,
+   2.688
+  ],
+  "inside": 0,
+  "outside": 3,
+  "origin": [
+   0.0,
+   0.0
+  ],
+  "verdict": "around"
+ },
+ {
+  "doc": "2004.05631",
+  "base": "figures/ch2/graph6.jpg",
+  "file": "figures/ch2/graph6",
+  "source": "chapters/three_tufte.tex",
+  "line": 583,
+  "extent_cm": [
+   3.274,
+   2.716
+  ],
+  "inside": 0,
+  "outside": 4,
+  "origin": [
+   0.0,
+   0.0
+  ],
+  "verdict": "around"
+ },
+ {
+  "doc": "2004.05631",
+  "base": "figures/ch2/graph7.jpg",
+  "file": "figures/ch2/graph7",
+  "source": "chapters/three_tufte.tex",
+  "line": 594,
+  "extent_cm": [
+   3.274,
+   2.716
+  ],
+  "inside": 0,
+  "outside": 2,
+  "origin": [
+   0.0,
+   0.0
+  ],
+  "verdict": "around"
+ },
+ {
+  "doc": "2004.05631",
+  "base": "figures/ch2/graph8.jpg",
+  "file": "figures/ch2/graph8",
+  "source": "chapters/three_tufte.tex",
+  "line": 603,
+  "extent_cm": [
+   3.274,
+   2.716
+  ],
+  "inside": 0,
+  "outside": 3,
+  "origin": [
+   0.0,
+   0.0
+  ],
+  "verdict": "around"
+ },
+ {
+  "doc": "2004.05631",
+  "base": "figures/ch2/graph2.jpg",
+  "file": "figures/ch2/graph2",
+  "source": "chapters/three_tufte.tex",
+  "line": 619,
+  "extent_cm": [
+   3.274,
+   2.716
+  ],
+  "inside": 0,
+  "outside": 5,
+  "origin": [
+   0.0,
+   0.0
+  ],
+  "verdict": "around"
+ },
+ {
+  "doc": "2004.05631",
+  "base": "figures/ch2/graph2.jpg",
+  "file": "figures/ch2/graph2",
+  "source": "chapters/three_tufte.tex",
+  "line": 713,
+  "extent_cm": [
+   3.274,
+   2.716
+  ],
+  "inside": 0,
+  "outside": 5,
+  "origin": [
+   0.0,
+   0.0
+  ],
+  "verdict": "around"
+ },
+ {
+  "doc": "2004.05631",
+  "base": "figures/ch1/concept2.jpg",
+  "file": "figures/ch1/concept2",
+  "source": "chapters/three_tufte.tex",
+  "line": 725,
+  "verdict": "several sizes"
+ },
+ {
+  "doc": "2004.05631",
+  "base": "figures/ch3/graph2b.jpg",
+  "file": "figures/ch3/graph2b",
+  "source": "chapters/three_tufte.tex",
+  "line": 806,
+  "extent_cm": [
+   3.274,
+   2.716
+  ],
+  "inside": 0,
+  "outside": 5,
+  "origin": [
+   0.0,
+   0.0
+  ],
+  "verdict": "around"
+ },
+ {
+  "doc": "2004.05631",
+  "base": "figures/ch3/psi4.jpg",
+  "file": "figures/ch3/psi4",
+  "source": "chapters/three_tufte.tex",
+  "line": 915,
+  "extent_cm": [
+   2.616,
+   1.672
+  ],
+  "inside": 0,
+  "outside": 1,
+  "origin": [
+   -2.0,
+   0.0
+  ],
+  "verdict": "around"
+ },
+ {
+  "doc": "2004.05631",
+  "base": "figures/ch3/M_31.jpg",
+  "file": "figures/ch3/M_31",
+  "source": "chapters/three_tufte.tex",
+  "line": 927,
+  "extent_cm": [
+   2.085,
+   1.782
+  ],
+  "inside": 0,
+  "outside": 1,
+  "origin": [
+   -1.3,
+   0.0
+  ],
+  "verdict": "around"
+ },
+ {
+  "doc": "2004.05631",
+  "base": "figures/ch3/rho0.jpg",
+  "file": "figures/ch3/rho0",
+  "source": "chapters/three_tufte.tex",
+  "line": 933,
+  "extent_cm": [
+   5.352,
+   6.41
+  ],
+  "inside": 2,
+  "outside": 0,
+  "origin": [
+   0.0,
+   0.0
+  ],
+  "verdict": "overlapping"
+ },
+ {
+  "doc": "2004.05631",
+  "base": "figures/ch3/rho_povm.jpg",
+  "file": "figures/ch3/rho_povm",
+  "source": "chapters/three_tufte.tex",
+  "line": 943,
+  "extent_cm": [
+   5.061,
+   2.14
+  ],
+  "inside": 1,
+  "outside": 0,
+  "origin": [
+   0.0,
+   0.0
+  ],
+  "verdict": "overlapping"
+ },
+ {
+  "doc": "2004.05631",
+  "base": "figures/ch3/rho_xi.jpg",
+  "file": "figures/ch3/rho_xi",
+  "source": "chapters/three_tufte.tex",
+  "line": 1057,
+  "extent_cm": [
+   1.951,
+   2.91
+  ],
+  "inside": 0,
+  "outside": 1,
+  "origin": [
+   0.0,
+   0.0
+  ],
+  "verdict": "around"
+ },
+ {
+  "doc": "2004.05631",
+  "base": "figures/ch3/rho1.jpg",
+  "file": "figures/ch3/rho1",
+  "source": "chapters/three_tufte.tex",
+  "line": 1101,
+  "extent_cm": [
+   8.809,
+   2.967
+  ],
+  "inside": 2,
+  "outside": 0,
+  "origin": [
+   0.0,
+   0.0
+  ],
+  "verdict": "overlapping"
+ },
+ {
+  "doc": "2004.05631",
+  "base": "figures/ch3/rho2.jpg",
+  "file": "figures/ch3/rho2",
+  "source": "chapters/three_tufte.tex",
+  "line": 1142,
+  "extent_cm": [
+   8.809,
+   2.967
+  ],
+  "inside": 2,
+  "outside": 3,
+  "origin": [
+   0.0,
+   0.0
+  ],
+  "verdict": "overlapping"
+ },
+ {
+  "doc": "2004.05631",
+  "base": "figures/ch1/passage.jpg",
+  "file": "figures/ch1/passage",
+  "source": "chapters/two_tufte.tex",
+  "line": 170,
+  "extent_cm": [
+   3.348,
+   2.798
+  ],
+  "inside": 3,
+  "outside": 0,
+  "origin": [
+   2.0,
+   0.0
+  ],
+  "verdict": "overlapping"
+ },
+ {
+  "doc": "2004.05631",
+  "base": "figures/ch2/2tensor.png",
+  "file": "figures/ch2/2tensor",
+  "source": "chapters/two_tufte.tex",
+  "line": 384,
+  "verdict": "several sizes"
+ },
+ {
+  "doc": "2004.05631",
+  "base": "figures/ch2/function.jpg",
+  "file": "figures/ch2/function",
+  "source": "chapters/two_tufte.tex",
+  "line": 399,
+  "extent_cm": [
+   1.946,
+   0.763
+  ],
+  "inside": 2,
+  "outside": 1,
+  "origin": [
+   0.0,
+   0.0
+  ],
+  "verdict": "overlapping"
+ },
+ {
+  "doc": "2004.05631",
+  "base": "figures/ch2/2tensor.png",
+  "file": "figures/ch2/2tensor",
+  "source": "chapters/two_tufte.tex",
+  "line": 408,
+  "verdict": "several sizes"
+ },
+ {
+  "doc": "2004.05631",
+  "base": "figures/ch2/scalar.png",
+  "file": "figures/ch2/scalar",
+  "source": "chapters/two_tufte.tex",
+  "line": 426,
+  "extent_cm": [
+   1.609,
+   0.603
+  ],
+  "inside": 0,
+  "outside": 17,
+  "origin": [
+   -2.0,
+   3.0
+  ],
+  "verdict": "around"
+ },
+ {
+  "doc": "2004.05631",
+  "base": "figures/ch2/vector.png",
+  "file": "figures/ch2/vector",
+  "source": "chapters/two_tufte.tex",
+  "line": 428,
+  "extent_cm": [
+   1.609,
+   0.705
+  ],
+  "inside": 0,
+  "outside": 17,
+  "origin": [
+   -2.0,
+   3.0
+  ],
+  "verdict": "around"
+ },
+ {
+  "doc": "2004.05631",
+  "base": "figures/ch2/2tensor.png",
+  "file": "figures/ch2/2tensor",
+  "source": "chapters/two_tufte.tex",
+  "line": 431,
+  "verdict": "several sizes"
+ },
+ {
+  "doc": "2004.05631",
+  "base": "figures/ch2/3tensor.png",
+  "file": "figures/ch2/3tensor",
+  "source": "chapters/two_tufte.tex",
+  "line": 435,
+  "extent_cm": [
+   1.609,
+   1.219
+  ],
+  "inside": 0,
+  "outside": 17,
+  "origin": [
+   -2.0,
+   3.0
+  ],
+  "verdict": "around"
+ },
+ {
+  "doc": "2004.05631",
+  "base": "figures/ch2/TNs/tn1.png",
+  "file": "figures/ch2/TNs/tn1",
+  "source": "chapters/two_tufte.tex",
+  "line": 450,
+  "verdict": "several sizes"
+ },
+ {
+  "doc": "2004.05631",
+  "base": "figures/ch2/TNs/tn2.png",
+  "file": "figures/ch2/TNs/tn2",
+  "source": "chapters/two_tufte.tex",
+  "line": 454,
+  "extent_cm": [
+   1.662,
+   0.742
+  ],
+  "inside": 0,
+  "outside": 5,
+  "origin": [
+   -2.0,
+   0.0
+  ],
+  "verdict": "around"
+ },
+ {
+  "doc": "2004.05631",
+  "base": "figures/ch2/TNs/tn3.png",
+  "file": "figures/ch2/TNs/tn3",
+  "source": "chapters/two_tufte.tex",
+  "line": 466,
+  "extent_cm": [
+   2.715,
+   0.717
+  ],
+  "inside": 0,
+  "outside": 4,
+  "origin": [
+   -0.7,
+   0.0
+  ],
+  "verdict": "around"
+ },
+ {
+  "doc": "2004.05631",
+  "base": "figures/ch2/TNs/tn_4.png",
+  "file": "figures/ch2/TNs/tn_4",
+  "source": "chapters/two_tufte.tex",
+  "line": 472,
+  "extent_cm": [
+   1.58,
+   0.683
+  ],
+  "inside": 0,
+  "outside": 4,
+  "origin": [
+   -0.7,
+   0.0
+  ],
+  "verdict": "around"
+ },
+ {
+  "doc": "2004.05631",
+  "base": "figures/ch2/TNs/Mv.jpg",
+  "file": "figures/ch2/TNs/Mv",
+  "source": "chapters/two_tufte.tex",
+  "line": 483,
+  "extent_cm": [
+   4.363,
+   0.751
+  ],
+  "inside": 1,
+  "outside": 3,
+  "origin": [
+   0.0,
+   0.0
+  ],
+  "verdict": "overlapping"
+ },
+ {
+  "doc": "2004.05631",
+  "base": "figures/ch2/TNs/tn5.png",
+  "file": "figures/ch2/TNs/tn5",
+  "source": "chapters/two_tufte.tex",
+  "line": 502,
+  "extent_cm": [
+   1.671,
+   0.686
+  ],
+  "inside": 0,
+  "outside": 2,
+  "origin": [
+   1.0,
+   0.0
+  ],
+  "verdict": "around"
+ },
+ {
+  "doc": "2004.05631",
+  "base": "figures/ch2/TNs/tn6.png",
+  "file": "figures/ch2/TNs/tn6",
+  "source": "chapters/two_tufte.tex",
+  "line": 504,
+  "extent_cm": [
+   1.473,
+   0.797
+  ],
+  "inside": 0,
+  "outside": 2,
+  "origin": [
+   1.0,
+   0.0
+  ],
+  "verdict": "around"
+ },
+ {
+  "doc": "2004.05631",
+  "base": "figures/ch2/TNs/tn7.png",
+  "file": "figures/ch2/TNs/tn7",
+  "source": "chapters/two_tufte.tex",
+  "line": 506,
+  "extent_cm": [
+   1.48,
+   0.816
+  ],
+  "inside": 0,
+  "outside": 2,
+  "origin": [
+   1.0,
+   0.0
+  ],
+  "verdict": "around"
+ },
+ {
+  "doc": "2004.05631",
+  "base": "figures/ch2/TNs/tn5.png",
+  "file": "figures/ch2/TNs/tn5",
+  "source": "chapters/two_tufte.tex",
+  "line": 520,
+  "extent_cm": [
+   1.671,
+   0.686
+  ],
+  "inside": 0,
+  "outside": 2,
+  "origin": [
+   1.0,
+   0.0
+  ],
+  "verdict": "around"
+ },
+ {
+  "doc": "2004.05631",
+  "base": "figures/ch2/TNs/tn5.png",
+  "file": "figures/ch2/TNs/tn5",
+  "source": "chapters/two_tufte.tex",
+  "line": 522,
+  "extent_cm": [
+   1.671,
+   0.686
+  ],
+  "inside": 0,
+  "outside": 2,
+  "origin": [
+   1.0,
+   0.0
+  ],
+  "verdict": "around"
+ },
+ {
+  "doc": "2004.05631",
+  "base": "figures/ch2/TNs/tn9.png",
+  "file": "figures/ch2/TNs/tn9",
+  "source": "chapters/two_tufte.tex",
+  "line": 547,
+  "extent_cm": [
+   3.085,
+   0.821
+  ],
+  "inside": 1,
+  "outside": 10,
+  "origin": [
+   -0.8,
+   0.6
+  ],
+  "verdict": "overlapping"
+ },
+ {
+  "doc": "2004.05631",
+  "base": "figures/ch2/TNs/tn11.png",
+  "file": "figures/ch2/TNs/tn11",
+  "source": "chapters/two_tufte.tex",
+  "line": 552,
+  "extent_cm": [
+   3.107,
+   0.886
+  ],
+  "inside": 1,
+  "outside": 10,
+  "origin": [
+   -0.8,
+   0.6
+  ],
+  "verdict": "overlapping"
+ },
+ {
+  "doc": "2004.05631",
+  "base": "figures/ch2/TNs/tn10.png",
+  "file": "figures/ch2/TNs/tn10",
+  "source": "chapters/two_tufte.tex",
+  "line": 558,
+  "extent_cm": [
+   2.771,
+   0.205
+  ],
+  "inside": 1,
+  "outside": 10,
+  "origin": [
+   -0.8,
+   0.6
+  ],
+  "verdict": "overlapping"
+ },
+ {
+  "doc": "2004.05631",
+  "base": "figures/ch2/TNs/tn10.png",
+  "file": "figures/ch2/TNs/tn10",
+  "source": "chapters/two_tufte.tex",
+  "line": 559,
+  "extent_cm": [
+   2.771,
+   0.205
+  ],
+  "inside": 1,
+  "outside": 10,
+  "origin": [
+   -0.8,
+   0.6
+  ],
+  "verdict": "overlapping"
+ },
+ {
+  "doc": "2004.05631",
+  "base": "figures/ch2/TNs/tn19.jpg",
+  "file": "figures/ch2/TNs/tn19",
+  "source": "chapters/two_tufte.tex",
+  "line": 567,
+  "extent_cm": [
+   5.406,
+   0.628
+  ],
+  "inside": 1,
+  "outside": 0,
+  "origin": [
+   0.0,
+   0.0
+  ],
+  "verdict": "overlapping"
+ },
+ {
+  "doc": "2004.05631",
+  "base": "figures/ch2/TNs/tn1.png",
+  "file": "figures/ch2/TNs/tn1",
+  "source": "chapters/two_tufte.tex",
+  "line": 576,
+  "verdict": "several sizes"
+ },
+ {
+  "doc": "2004.05631",
+  "base": "figures/ch2/TNs/tn12.jpg",
+  "file": "figures/ch2/TNs/tn12",
+  "source": "chapters/two_tufte.tex",
+  "line": 578,
+  "extent_cm": [
+   2.947,
+   0.765
+  ],
+  "inside": 0,
+  "outside": 2,
+  "origin": [
+   -3.0,
+   0.0
+  ],
+  "verdict": "around"
+ },
+ {
+  "doc": "2004.05631",
+  "base": "figures/ch2/TNs/tn20.jpg",
+  "file": "figures/ch2/TNs/tn20",
+  "source": "chapters/two_tufte.tex",
+  "line": 587,
+  "extent_cm": [
+   5.038,
+   2.794
+  ],
+  "inside": 2,
+  "outside": 0,
+  "origin": [
+   0.0,
+   0.0
+  ],
+  "verdict": "overlapping"
+ },
+ {
+  "doc": "2004.05631",
+  "base": "figures/ch2/TNs/tn18.jpg",
+  "file": "figures/ch2/TNs/tn18",
+  "source": "chapters/two_tufte.tex",
+  "line": 598,
+  "extent_cm": [
+   1.128,
+   0.896
+  ],
+  "inside": 0,
+  "outside": 0,
+  "origin": [
+   0.0,
+   0.0
+  ],
+  "verdict": "none placed"
+ },
+ {
+  "doc": "2004.05631",
+  "base": "figures/ch2/TNs/tn13.jpg",
+  "file": "figures/ch2/TNs/tn13",
+  "source": "chapters/two_tufte.tex",
+  "line": 608,
+  "extent_cm": [
+   1.746,
+   1.064
+  ],
+  "inside": 0,
+  "outside": 2,
+  "origin": [
+   0.5,
+   0.2
+  ],
+  "verdict": "around"
+ },
+ {
+  "doc": "2004.05631",
+  "base": "figures/ch2/TNs/tn14.jpg",
+  "file": "figures/ch2/TNs/tn14",
+  "source": "chapters/two_tufte.tex",
+  "line": 612,
+  "extent_cm": [
+   2.032,
+   1.138
+  ],
+  "inside": 0,
+  "outside": 2,
+  "origin": [
+   0.5,
+   0.2
+  ],
+  "verdict": "around"
+ },
+ {
+  "doc": "2004.05631",
+  "base": "figures/ch2/TNs/tn17.jpg",
+  "file": "figures/ch2/TNs/tn17",
+  "source": "chapters/two_tufte.tex",
+  "line": 623,
+  "extent_cm": [
+   9.515,
+   1.425
+  ],
+  "inside": 0,
+  "outside": 5,
+  "origin": [
+   0.0,
+   0.0
+  ],
+  "verdict": "around"
+ },
+ {
+  "doc": "2004.05631",
+  "base": "figures/ch2/TNs/mps.jpg",
+  "file": "figures/ch2/TNs/mps",
+  "source": "chapters/two_tufte.tex",
+  "line": 635,
+  "extent_cm": [
+   5.413,
+   1.137
+  ],
+  "verdict": "no tikzpicture"
+ },
+ {
+  "doc": "2004.05631",
+  "base": "figures/ch2/TNs/mps.jpg",
+  "file": "figures/ch2/TNs/mps",
+  "source": "chapters/two_tufte.tex",
+  "line": 646,
+  "extent_cm": [
+   5.413,
+   1.137
+  ],
+  "verdict": "no tikzpicture"
+ },
+ {
+  "doc": "2004.05631",
+  "base": "figures/ch1/bothways.jpg",
+  "file": "figures/ch1/bothways",
+  "source": "chapters/two_tufte.tex",
+  "line": 686,
+  "extent_cm": [
+   2.558,
+   1.898
+  ],
+  "inside": 0,
+  "outside": 2,
+  "origin": [
+   0.0,
+   0.0
+  ],
+  "verdict": "around"
+ },
+ {
+  "doc": "2004.05631",
+  "base": "figures/ch1/covector.jpg",
+  "file": "figures/ch1/covector",
+  "source": "chapters/two_tufte.tex",
+  "line": 795,
+  "extent_cm": [
+   5.101,
+   2.893
+  ],
+  "inside": 2,
+  "outside": 1,
+  "origin": [
+   0.0,
+   0.0
+  ],
+  "verdict": "overlapping"
+ },
+ {
+  "doc": "2004.05631",
+  "base": "figures/ch2/zoom.jpg",
+  "file": "figures/ch2/zoom",
+  "source": "chapters/two_tufte.tex",
+  "line": 873,
+  "extent_cm": [
+   4.426,
+   3.844
+  ],
+  "inside": 1,
+  "outside": 0,
+  "origin": [
+   0.0,
+   0.0
+  ],
+  "verdict": "overlapping"
+ },
+ {
+  "doc": "2004.05631",
+  "base": "figures/ch2/pt2.jpg",
+  "file": "figures/ch2/pt2.jpg",
+  "source": "chapters/two_tufte.tex",
+  "line": 1057,
+  "extent_cm": [
+   7.848,
+   4.658
+  ],
+  "inside": 0,
+  "outside": 2,
+  "origin": [
+   0.0,
+   0.0
+  ],
+  "verdict": "around"
+ },
+ {
+  "doc": "2004.05631",
+  "base": "figures/ch2/vec_map.jpg",
+  "file": "figures/ch2/vec_map",
+  "source": "chapters/two_tufte.tex",
+  "line": 1206,
+  "extent_cm": [
+   5.265,
+   2.05
+  ],
+  "inside": 2,
+  "outside": 0,
+  "origin": [
+   0.0,
+   0.0
+  ],
+  "verdict": "overlapping"
+ },
+ {
+  "doc": "2004.05631",
+  "base": "figures/ch2/svd.png",
+  "file": "figures/ch2/svd",
+  "source": "chapters/two_tufte.tex",
+  "line": 1240,
+  "extent_cm": [
+   8.27,
+   2.033
+  ],
+  "inside": 0,
+  "outside": 5,
+  "origin": [
+   0.0,
+   0.0
+  ],
+  "verdict": "around"
+ },
+ {
+  "doc": "2004.05631",
+  "base": "figures/ch2/svd2.jpg",
+  "file": "figures/ch2/svd2",
+  "source": "chapters/two_tufte.tex",
+  "line": 1256,
+  "extent_cm": [
+   3.785,
+   3.796
+  ],
+  "inside": 0,
+  "outside": 4,
+  "origin": [
+   0.0,
+   0.0
+  ],
+  "verdict": "around"
+ },
+ {
+  "doc": "2004.05631",
+  "base": "figures/ch2/bestproof1.jpg",
+  "file": "figures/ch2/bestproof1",
+  "source": "chapters/two_tufte.tex",
+  "line": 1356,
+  "extent_cm": [
+   8.031,
+   5.838
+  ],
+  "inside": 9,
+  "outside": 0,
+  "origin": [
+   0.0,
+   0.0
+  ],
+  "verdict": "overlapping"
+ },
+ {
+  "doc": "2004.05631",
+  "base": "figures/ch2/bestproof2.jpg",
+  "file": "figures/ch2/bestproof2",
+  "source": "chapters/two_tufte.tex",
+  "line": 1366,
+  "extent_cm": [
+   8.031,
+   5.838
+  ],
+  "inside": 9,
+  "outside": 0,
+  "origin": [
+   0.0,
+   0.0
+  ],
+  "verdict": "overlapping"
+ },
+ {
+  "doc": "2004.05631",
+  "base": "figures/ch2/entanglement.jpg",
+  "file": "figures/ch2/entanglement",
+  "source": "chapters/two_tufte.tex",
+  "line": 1439,
+  "extent_cm": [
+   7.899,
+   5.567
+  ],
+  "inside": 5,
+  "outside": 2,
+  "origin": [
+   0.0,
+   0.0
+  ],
+  "verdict": "overlapping"
+ },
+ {
+  "doc": "2004.05631",
+  "base": "figures/ch2/entanglement2.jpg",
+  "file": "figures/ch2/entanglement2",
+  "source": "chapters/two_tufte.tex",
+  "line": 1456,
+  "extent_cm": [
+   3.941,
+   3.627
+  ],
+  "inside": 3,
+  "outside": 0,
+  "origin": [
+   0.0,
+   0.0
+  ],
+  "verdict": "overlapping"
+ },
+ {
+  "doc": "2004.05631",
+  "base": "figures/ch2/mpsapprox.jpg",
+  "file": "figures/ch2/mpsapprox",
+  "source": "chapters/two_tufte.tex",
+  "line": 1465,
+  "extent_cm": [
+   11.582,
+   1.439
+  ],
+  "inside": 1,
+  "outside": 0,
+  "origin": [
+   0.0,
+   0.0
+  ],
+  "verdict": "overlapping"
+ },
+ {
+  "doc": "2004.05631v1",
+  "base": "figures/ch4/mpsapprox2.jpg",
+  "file": "figures/ch4/mpsapprox2",
+  "source": "chapters/four_tufte.tex",
+  "line": 19,
+  "extent_cm": [
+   5.061,
+   3.574
+  ],
+  "inside": 0,
+  "outside": 2,
+  "origin": [
+   0.0,
+   0.0
+  ],
+  "verdict": "around"
+ },
+ {
+  "doc": "2004.05631v1",
+  "base": "figures/ch4/psiemp.jpg",
+  "file": "figures/ch4/psiemp",
+  "source": "chapters/four_tufte.tex",
+  "line": 64,
+  "extent_cm": [
+   9.835,
+   1.344
+  ],
+  "inside": 3,
+  "outside": 0,
+  "origin": [
+   0.0,
+   0.0
+  ],
+  "verdict": "overlapping"
+ },
+ {
+  "doc": "2004.05631v1",
+  "base": "figures/ch4/mpsch4.jpg",
+  "file": "figures/ch4/mpsch4",
+  "source": "chapters/four_tufte.tex",
+  "line": 75,
+  "extent_cm": [
+   4.84,
+   1.633
+  ],
+  "inside": 0,
+  "outside": 6,
+  "origin": [
+   0.0,
+   0.0
+  ],
+  "verdict": "around"
+ },
+ {
+  "doc": "2004.05631v1",
+  "base": "figures/ch4/psi2.jpg",
+  "file": "figures/ch4/psi2",
+  "source": "chapters/four_tufte.tex",
+  "line": 101,
+  "extent_cm": [
+   3.471,
+   2.143
+  ],
+  "inside": 0,
+  "outside": 1,
+  "origin": [
+   0.0,
+   0.0
+  ],
+  "verdict": "around"
+ },
+ {
+  "doc": "2004.05631v1",
+  "base": "figures/ch4/getting_psi2.jpg",
+  "file": "figures/ch4/getting_psi2",
+  "source": "chapters/four_tufte.tex",
+  "line": 109,
+  "extent_cm": [
+   7.345,
+   6.202
+  ],
+  "inside": 0,
+  "outside": 4,
+  "origin": [
+   0.0,
+   0.0
+  ],
+  "verdict": "around"
+ },
+ {
+  "doc": "2004.05631v1",
+  "base": "figures/ch4/rho2_ch4.jpg",
+  "file": "figures/ch4/rho2_ch4",
+  "source": "chapters/four_tufte.tex",
+  "line": 148,
+  "extent_cm": [
+   7.075,
+   2.82
+  ],
+  "inside": 1,
+  "outside": 1,
+  "origin": [
+   0.0,
+   0.0
+  ],
+  "verdict": "overlapping"
+ },
+ {
+  "doc": "2004.05631v1",
+  "base": "figures/ch4/spectral.jpg",
+  "file": "figures/ch4/spectral",
+  "source": "chapters/four_tufte.tex",
+  "line": 160,
+  "extent_cm": [
+   4.921,
+   3.037
+  ],
+  "inside": 1,
+  "outside": 4,
+  "origin": [
+   0.0,
+   0.0
+  ],
+  "verdict": "overlapping"
+ },
+ {
+  "doc": "2004.05631v1",
+  "base": "figures/ch4/firsttwo.jpg",
+  "file": "figures/ch4/firsttwo",
+  "source": "chapters/four_tufte.tex",
+  "line": 176,
+  "extent_cm": [
+   4.84,
+   1.633
+  ],
+  "inside": 0,
+  "outside": 2,
+  "origin": [
+   0.0,
+   0.0
+  ],
+  "verdict": "around"
+ },
+ {
+  "doc": "2004.05631v1",
+  "base": "figures/ch4/psi_3.jpg",
+  "file": "figures/ch4/psi_3",
+  "source": "chapters/four_tufte.tex",
+  "line": 184,
+  "extent_cm": [
+   3.572,
+   2.106
+  ],
+  "inside": 0,
+  "outside": 1,
+  "origin": [
+   0.0,
+   0.0
+  ],
+  "verdict": "around"
+ },
+ {
+  "doc": "2004.05631v1",
+  "base": "figures/ch4/getting_psi3.jpg",
+  "file": "figures/ch4/getting_psi3",
+  "source": "chapters/four_tufte.tex",
+  "line": 192,
+  "extent_cm": [
+   7.345,
+   6.202
+  ],
+  "inside": 0,
+  "outside": 4,
+  "origin": [
+   0.0,
+   0.0
+  ],
+  "verdict": "around"
+ },
+ {
+  "doc": "2004.05631v1",
+  "base": "figures/ch4/rho3_ch4.jpg",
+  "file": "figures/ch4/rho3_ch4",
+  "source": "chapters/four_tufte.tex",
+  "line": 232,
+  "extent_cm": [
+   9.393,
+   3.535
+  ],
+  "inside": 2,
+  "outside": 1,
+  "origin": [
+   0.0,
+   0.0
+  ],
+  "verdict": "overlapping"
+ },
+ {
+  "doc": "2004.05631v1",
+  "base": "figures/ch4/getting_psi4.jpg",
+  "file": "figures/ch4/getting_psi4",
+  "source": "chapters/four_tufte.tex",
+  "line": 242,
+  "extent_cm": [
+   7.345,
+   6.202
+  ],
+  "inside": 0,
+  "outside": 4,
+  "origin": [
+   0.0,
+   0.0
+  ],
+  "verdict": "around"
+ },
+ {
+  "doc": "2004.05631v1",
+  "base": "figures/ch4/mpsch4.jpg",
+  "file": "figures/ch4/mpsch4",
+  "source": "chapters/four_tufte.tex",
+  "line": 279,
+  "extent_cm": [
+   4.84,
+   1.633
+  ],
+  "inside": 0,
+  "outside": 6,
+  "origin": [
+   0.0,
+   0.0
+  ],
+  "verdict": "around"
+ },
+ {
+  "doc": "2004.05631v1",
+  "base": "figures/ch4/complete_graph.jpg",
+  "file": "figures/ch4/complete_graph",
+  "source": "chapters/four_tufte.tex",
+  "line": 298,
+  "verdict": "several sizes"
+ },
+ {
+  "doc": "2004.05631v1",
+  "base": "figures/ch4/summarize.jpg",
+  "file": "figures/ch4/summarize",
+  "source": "chapters/four_tufte.tex",
+  "line": 394,
+  "extent_cm": [
+   1.841,
+   1.281
+  ],
+  "inside": 0,
+  "outside": 3,
+  "origin": [
+   0.0,
+   0.0
+  ],
+  "verdict": "around"
+ },
+ {
+  "doc": "2004.05631v1",
+  "base": "figures/ch4/training_graph.jpg",
+  "file": "figures/ch4/training_graph",
+  "source": "chapters/four_tufte.tex",
+  "line": 407,
+  "verdict": "several sizes"
+ },
+ {
+  "doc": "2004.05631v1",
+  "base": "figures/ch4/psi_N2.jpg",
+  "file": "figures/ch4/psi_N2",
+  "source": "chapters/four_tufte.tex",
+  "line": 467,
+  "extent_cm": [
+   5.024,
+   5.524
+  ],
+  "inside": 2,
+  "outside": 1,
+  "origin": [
+   0.0,
+   0.0
+  ],
+  "verdict": "overlapping"
+ },
+ {
+  "doc": "2004.05631v1",
+  "base": "figures/ch1/concept2.jpg",
+  "file": "figures/ch1/concept2",
+  "source": "chapters/one_tufte.tex",
+  "line": 103,
+  "verdict": "several sizes"
+ },
+ {
+  "doc": "2004.05631v1",
+  "base": "figures/ch2/graph2.jpg",
+  "file": "figures/ch2/graph2",
+  "source": "chapters/one_tufte.tex",
+  "line": 121,
+  "extent_cm": [
+   3.274,
+   2.716
+  ],
+  "inside": 0,
+  "outside": 5,
+  "origin": [
+   0.0,
+   0.0
+  ],
+  "verdict": "around"
+ },
+ {
+  "doc": "2004.05631v1",
+  "base": "figures/ch3/eqpsi.jpg",
+  "file": "figures/ch3/eqpsi",
+  "source": "chapters/three_tufte.tex",
+  "line": 51,
+  "extent_cm": [
+   2.278,
+   1.439
+  ],
+  "inside": 0,
+  "outside": 1,
+  "origin": [
+   0.0,
+   0.0
+  ],
+  "verdict": "around"
+ },
+ {
+  "doc": "2004.05631v1",
+  "base": "figures/ch3/eqrho.jpg",
+  "file": "figures/ch3/eqrho",
+  "source": "chapters/three_tufte.tex",
+  "line": 72,
+  "extent_cm": [
+   2.189,
+   2.798
+  ],
+  "inside": 0,
+  "outside": 1,
+  "origin": [
+   0.0,
+   0.0
+  ],
+  "verdict": "around"
+ },
+ {
+  "doc": "2004.05631v1",
+  "base": "figures/ch3/eqredrho.jpg",
+  "file": "figures/ch3/eqredrho",
+  "source": "chapters/three_tufte.tex",
+  "line": 87,
+  "extent_cm": [
+   7.4,
+   2.582
+  ],
+  "inside": 1,
+  "outside": 1,
+  "origin": [
+   0.0,
+   0.0
+  ],
+  "verdict": "overlapping"
+ },
+ {
+  "doc": "2004.05631v1",
+  "base": "figures/ch2/question.jpg",
+  "file": "figures/ch2/question.jpg",
+  "source": "chapters/three_tufte.tex",
+  "line": 457,
+  "extent_cm": [
+   4.534,
+   1.287
+  ],
+  "inside": 0,
+  "outside": 5,
+  "origin": [
+   0.0,
+   0.0
+  ],
+  "verdict": "around"
+ },
+ {
+  "doc": "2004.05631v1",
+  "base": "figures/ch2/graph3.jpg",
+  "file": "figures/ch2/graph3",
+  "source": "chapters/three_tufte.tex",
+  "line": 534,
+  "extent_cm": [
+   3.274,
+   2.716
+  ],
+  "verdict": "no tikzpicture"
+ },
+ {
+  "doc": "2004.05631v1",
+  "base": "figures/ch2/graph4b.jpg",
+  "file": "figures/ch2/graph4b",
+  "source": "chapters/three_tufte.tex",
+  "line": 563,
+  "extent_cm": [
+   3.401,
+   2.688
+  ],
+  "inside": 0,
+  "outside": 3,
+  "origin": [
+   0.0,
+   0.0
+  ],
+  "verdict": "around"
+ },
+ {
+  "doc": "2004.05631v1",
+  "base": "figures/ch2/graph5.jpg",
+  "file": "figures/ch2/graph5",
+  "source": "chapters/three_tufte.tex",
+  "line": 573,
+  "extent_cm": [
+   3.401,
+   2.688
+  ],
+  "inside": 0,
+  "outside": 3,
+  "origin": [
+   0.0,
+   0.0
+  ],
+  "verdict": "around"
+ },
+ {
+  "doc": "2004.05631v1",
+  "base": "figures/ch2/graph6.jpg",
+  "file": "figures/ch2/graph6",
+  "source": "chapters/three_tufte.tex",
+  "line": 583,
+  "extent_cm": [
+   3.274,
+   2.716
+  ],
+  "inside": 0,
+  "outside": 4,
+  "origin": [
+   0.0,
+   0.0
+  ],
+  "verdict": "around"
+ },
+ {
+  "doc": "2004.05631v1",
+  "base": "figures/ch2/graph7.jpg",
+  "file": "figures/ch2/graph7",
+  "source": "chapters/three_tufte.tex",
+  "line": 594,
+  "extent_cm": [
+   3.274,
+   2.716
+  ],
+  "inside": 0,
+  "outside": 2,
+  "origin": [
+   0.0,
+   0.0
+  ],
+  "verdict": "around"
+ },
+ {
+  "doc": "2004.05631v1",
+  "base": "figures/ch2/graph8.jpg",
+  "file": "figures/ch2/graph8",
+  "source": "chapters/three_tufte.tex",
+  "line": 603,
+  "extent_cm": [
+   3.274,
+   2.716
+  ],
+  "inside": 0,
+  "outside": 3,
+  "origin": [
+   0.0,
+   0.0
+  ],
+  "verdict": "around"
+ },
+ {
+  "doc": "2004.05631v1",
+  "base": "figures/ch2/graph2.jpg",
+  "file": "figures/ch2/graph2",
+  "source": "chapters/three_tufte.tex",
+  "line": 619,
+  "extent_cm": [
+   3.274,
+   2.716
+  ],
+  "inside": 0,
+  "outside": 5,
+  "origin": [
+   0.0,
+   0.0
+  ],
+  "verdict": "around"
+ },
+ {
+  "doc": "2004.05631v1",
+  "base": "figures/ch2/graph2.jpg",
+  "file": "figures/ch2/graph2",
+  "source": "chapters/three_tufte.tex",
+  "line": 713,
+  "extent_cm": [
+   3.274,
+   2.716
+  ],
+  "inside": 0,
+  "outside": 5,
+  "origin": [
+   0.0,
+   0.0
+  ],
+  "verdict": "around"
+ },
+ {
+  "doc": "2004.05631v1",
+  "base": "figures/ch1/concept2.jpg",
+  "file": "figures/ch1/concept2",
+  "source": "chapters/three_tufte.tex",
+  "line": 725,
+  "verdict": "several sizes"
+ },
+ {
+  "doc": "2004.05631v1",
+  "base": "figures/ch3/graph2b.jpg",
+  "file": "figures/ch3/graph2b",
+  "source": "chapters/three_tufte.tex",
+  "line": 806,
+  "extent_cm": [
+   3.274,
+   2.716
+  ],
+  "inside": 0,
+  "outside": 5,
+  "origin": [
+   0.0,
+   0.0
+  ],
+  "verdict": "around"
+ },
+ {
+  "doc": "2004.05631v1",
+  "base": "figures/ch3/psi4.jpg",
+  "file": "figures/ch3/psi4",
+  "source": "chapters/three_tufte.tex",
+  "line": 915,
+  "extent_cm": [
+   2.616,
+   1.672
+  ],
+  "inside": 0,
+  "outside": 1,
+  "origin": [
+   -2.0,
+   0.0
+  ],
+  "verdict": "around"
+ },
+ {
+  "doc": "2004.05631v1",
+  "base": "figures/ch3/M_31.jpg",
+  "file": "figures/ch3/M_31",
+  "source": "chapters/three_tufte.tex",
+  "line": 927,
+  "extent_cm": [
+   2.085,
+   1.782
+  ],
+  "inside": 0,
+  "outside": 1,
+  "origin": [
+   -1.3,
+   0.0
+  ],
+  "verdict": "around"
+ },
+ {
+  "doc": "2004.05631v1",
+  "base": "figures/ch3/rho0.jpg",
+  "file": "figures/ch3/rho0",
+  "source": "chapters/three_tufte.tex",
+  "line": 933,
+  "extent_cm": [
+   5.352,
+   6.41
+  ],
+  "inside": 2,
+  "outside": 0,
+  "origin": [
+   0.0,
+   0.0
+  ],
+  "verdict": "overlapping"
+ },
+ {
+  "doc": "2004.05631v1",
+  "base": "figures/ch3/rho_povm.jpg",
+  "file": "figures/ch3/rho_povm",
+  "source": "chapters/three_tufte.tex",
+  "line": 943,
+  "extent_cm": [
+   5.061,
+   2.14
+  ],
+  "inside": 1,
+  "outside": 0,
+  "origin": [
+   0.0,
+   0.0
+  ],
+  "verdict": "overlapping"
+ },
+ {
+  "doc": "2004.05631v1",
+  "base": "figures/ch3/rho_xi.jpg",
+  "file": "figures/ch3/rho_xi",
+  "source": "chapters/three_tufte.tex",
+  "line": 1057,
+  "extent_cm": [
+   1.951,
+   2.91
+  ],
+  "inside": 0,
+  "outside": 1,
+  "origin": [
+   0.0,
+   0.0
+  ],
+  "verdict": "around"
+ },
+ {
+  "doc": "2004.05631v1",
+  "base": "figures/ch3/rho1.jpg",
+  "file": "figures/ch3/rho1",
+  "source": "chapters/three_tufte.tex",
+  "line": 1101,
+  "extent_cm": [
+   8.809,
+   2.967
+  ],
+  "inside": 2,
+  "outside": 0,
+  "origin": [
+   0.0,
+   0.0
+  ],
+  "verdict": "overlapping"
+ },
+ {
+  "doc": "2004.05631v1",
+  "base": "figures/ch3/rho2.jpg",
+  "file": "figures/ch3/rho2",
+  "source": "chapters/three_tufte.tex",
+  "line": 1142,
+  "extent_cm": [
+   8.809,
+   2.967
+  ],
+  "inside": 2,
+  "outside": 3,
+  "origin": [
+   0.0,
+   0.0
+  ],
+  "verdict": "overlapping"
+ },
+ {
+  "doc": "2004.05631v1",
+  "base": "figures/ch1/passage.jpg",
+  "file": "figures/ch1/passage",
+  "source": "chapters/two_tufte.tex",
+  "line": 170,
+  "extent_cm": [
+   3.348,
+   2.798
+  ],
+  "inside": 3,
+  "outside": 0,
+  "origin": [
+   2.0,
+   0.0
+  ],
+  "verdict": "overlapping"
+ },
+ {
+  "doc": "2004.05631v1",
+  "base": "figures/ch2/2tensor.png",
+  "file": "figures/ch2/2tensor",
+  "source": "chapters/two_tufte.tex",
+  "line": 384,
+  "verdict": "several sizes"
+ },
+ {
+  "doc": "2004.05631v1",
+  "base": "figures/ch2/function.jpg",
+  "file": "figures/ch2/function",
+  "source": "chapters/two_tufte.tex",
+  "line": 399,
+  "extent_cm": [
+   1.946,
+   0.763
+  ],
+  "inside": 2,
+  "outside": 1,
+  "origin": [
+   0.0,
+   0.0
+  ],
+  "verdict": "overlapping"
+ },
+ {
+  "doc": "2004.05631v1",
+  "base": "figures/ch2/2tensor.png",
+  "file": "figures/ch2/2tensor",
+  "source": "chapters/two_tufte.tex",
+  "line": 408,
+  "verdict": "several sizes"
+ },
+ {
+  "doc": "2004.05631v1",
+  "base": "figures/ch2/scalar.png",
+  "file": "figures/ch2/scalar",
+  "source": "chapters/two_tufte.tex",
+  "line": 426,
+  "extent_cm": [
+   1.609,
+   0.603
+  ],
+  "inside": 0,
+  "outside": 17,
+  "origin": [
+   -2.0,
+   3.0
+  ],
+  "verdict": "around"
+ },
+ {
+  "doc": "2004.05631v1",
+  "base": "figures/ch2/vector.png",
+  "file": "figures/ch2/vector",
+  "source": "chapters/two_tufte.tex",
+  "line": 428,
+  "extent_cm": [
+   1.609,
+   0.705
+  ],
+  "inside": 0,
+  "outside": 17,
+  "origin": [
+   -2.0,
+   3.0
+  ],
+  "verdict": "around"
+ },
+ {
+  "doc": "2004.05631v1",
+  "base": "figures/ch2/2tensor.png",
+  "file": "figures/ch2/2tensor",
+  "source": "chapters/two_tufte.tex",
+  "line": 431,
+  "verdict": "several sizes"
+ },
+ {
+  "doc": "2004.05631v1",
+  "base": "figures/ch2/3tensor.png",
+  "file": "figures/ch2/3tensor",
+  "source": "chapters/two_tufte.tex",
+  "line": 435,
+  "extent_cm": [
+   1.609,
+   1.219
+  ],
+  "inside": 0,
+  "outside": 17,
+  "origin": [
+   -2.0,
+   3.0
+  ],
+  "verdict": "around"
+ },
+ {
+  "doc": "2004.05631v1",
+  "base": "figures/ch2/TNs/tn1.png",
+  "file": "figures/ch2/TNs/tn1",
+  "source": "chapters/two_tufte.tex",
+  "line": 450,
+  "verdict": "several sizes"
+ },
+ {
+  "doc": "2004.05631v1",
+  "base": "figures/ch2/TNs/tn2.png",
+  "file": "figures/ch2/TNs/tn2",
+  "source": "chapters/two_tufte.tex",
+  "line": 454,
+  "extent_cm": [
+   1.662,
+   0.742
+  ],
+  "inside": 0,
+  "outside": 5,
+  "origin": [
+   -2.0,
+   0.0
+  ],
+  "verdict": "around"
+ },
+ {
+  "doc": "2004.05631v1",
+  "base": "figures/ch2/TNs/tn3.png",
+  "file": "figures/ch2/TNs/tn3",
+  "source": "chapters/two_tufte.tex",
+  "line": 466,
+  "extent_cm": [
+   2.715,
+   0.717
+  ],
+  "inside": 0,
+  "outside": 4,
+  "origin": [
+   -0.7,
+   0.0
+  ],
+  "verdict": "around"
+ },
+ {
+  "doc": "2004.05631v1",
+  "base": "figures/ch2/TNs/tn_4.png",
+  "file": "figures/ch2/TNs/tn_4",
+  "source": "chapters/two_tufte.tex",
+  "line": 472,
+  "extent_cm": [
+   1.58,
+   0.683
+  ],
+  "inside": 0,
+  "outside": 4,
+  "origin": [
+   -0.7,
+   0.0
+  ],
+  "verdict": "around"
+ },
+ {
+  "doc": "2004.05631v1",
+  "base": "figures/ch2/TNs/Mv.jpg",
+  "file": "figures/ch2/TNs/Mv",
+  "source": "chapters/two_tufte.tex",
+  "line": 483,
+  "extent_cm": [
+   4.363,
+   0.751
+  ],
+  "inside": 1,
+  "outside": 3,
+  "origin": [
+   0.0,
+   0.0
+  ],
+  "verdict": "overlapping"
+ },
+ {
+  "doc": "2004.05631v1",
+  "base": "figures/ch2/TNs/tn5.png",
+  "file": "figures/ch2/TNs/tn5",
+  "source": "chapters/two_tufte.tex",
+  "line": 502,
+  "extent_cm": [
+   1.671,
+   0.686
+  ],
+  "inside": 0,
+  "outside": 2,
+  "origin": [
+   1.0,
+   0.0
+  ],
+  "verdict": "around"
+ },
+ {
+  "doc": "2004.05631v1",
+  "base": "figures/ch2/TNs/tn6.png",
+  "file": "figures/ch2/TNs/tn6",
+  "source": "chapters/two_tufte.tex",
+  "line": 504,
+  "extent_cm": [
+   1.473,
+   0.797
+  ],
+  "inside": 0,
+  "outside": 2,
+  "origin": [
+   1.0,
+   0.0
+  ],
+  "verdict": "around"
+ },
+ {
+  "doc": "2004.05631v1",
+  "base": "figures/ch2/TNs/tn7.png",
+  "file": "figures/ch2/TNs/tn7",
+  "source": "chapters/two_tufte.tex",
+  "line": 506,
+  "extent_cm": [
+   1.48,
+   0.816
+  ],
+  "inside": 0,
+  "outside": 2,
+  "origin": [
+   1.0,
+   0.0
+  ],
+  "verdict": "around"
+ },
+ {
+  "doc": "2004.05631v1",
+  "base": "figures/ch2/TNs/tn5.png",
+  "file": "figures/ch2/TNs/tn5",
+  "source": "chapters/two_tufte.tex",
+  "line": 520,
+  "extent_cm": [
+   1.671,
+   0.686
+  ],
+  "inside": 0,
+  "outside": 2,
+  "origin": [
+   1.0,
+   0.0
+  ],
+  "verdict": "around"
+ },
+ {
+  "doc": "2004.05631v1",
+  "base": "figures/ch2/TNs/tn5.png",
+  "file": "figures/ch2/TNs/tn5",
+  "source": "chapters/two_tufte.tex",
+  "line": 522,
+  "extent_cm": [
+   1.671,
+   0.686
+  ],
+  "inside": 0,
+  "outside": 2,
+  "origin": [
+   1.0,
+   0.0
+  ],
+  "verdict": "around"
+ },
+ {
+  "doc": "2004.05631v1",
+  "base": "figures/ch2/TNs/tn9.png",
+  "file": "figures/ch2/TNs/tn9",
+  "source": "chapters/two_tufte.tex",
+  "line": 547,
+  "extent_cm": [
+   3.085,
+   0.821
+  ],
+  "inside": 1,
+  "outside": 10,
+  "origin": [
+   -0.8,
+   0.6
+  ],
+  "verdict": "overlapping"
+ },
+ {
+  "doc": "2004.05631v1",
+  "base": "figures/ch2/TNs/tn11.png",
+  "file": "figures/ch2/TNs/tn11",
+  "source": "chapters/two_tufte.tex",
+  "line": 552,
+  "extent_cm": [
+   3.107,
+   0.886
+  ],
+  "inside": 1,
+  "outside": 10,
+  "origin": [
+   -0.8,
+   0.6
+  ],
+  "verdict": "overlapping"
+ },
+ {
+  "doc": "2004.05631v1",
+  "base": "figures/ch2/TNs/tn10.png",
+  "file": "figures/ch2/TNs/tn10",
+  "source": "chapters/two_tufte.tex",
+  "line": 558,
+  "extent_cm": [
+   2.771,
+   0.205
+  ],
+  "inside": 1,
+  "outside": 10,
+  "origin": [
+   -0.8,
+   0.6
+  ],
+  "verdict": "overlapping"
+ },
+ {
+  "doc": "2004.05631v1",
+  "base": "figures/ch2/TNs/tn10.png",
+  "file": "figures/ch2/TNs/tn10",
+  "source": "chapters/two_tufte.tex",
+  "line": 559,
+  "extent_cm": [
+   2.771,
+   0.205
+  ],
+  "inside": 1,
+  "outside": 10,
+  "origin": [
+   -0.8,
+   0.6
+  ],
+  "verdict": "overlapping"
+ },
+ {
+  "doc": "2004.05631v1",
+  "base": "figures/ch2/TNs/tn19.jpg",
+  "file": "figures/ch2/TNs/tn19",
+  "source": "chapters/two_tufte.tex",
+  "line": 567,
+  "extent_cm": [
+   5.406,
+   0.628
+  ],
+  "inside": 1,
+  "outside": 0,
+  "origin": [
+   0.0,
+   0.0
+  ],
+  "verdict": "overlapping"
+ },
+ {
+  "doc": "2004.05631v1",
+  "base": "figures/ch2/TNs/tn1.png",
+  "file": "figures/ch2/TNs/tn1",
+  "source": "chapters/two_tufte.tex",
+  "line": 576,
+  "verdict": "several sizes"
+ },
+ {
+  "doc": "2004.05631v1",
+  "base": "figures/ch2/TNs/tn12.jpg",
+  "file": "figures/ch2/TNs/tn12",
+  "source": "chapters/two_tufte.tex",
+  "line": 578,
+  "extent_cm": [
+   2.947,
+   0.765
+  ],
+  "inside": 0,
+  "outside": 2,
+  "origin": [
+   -3.0,
+   0.0
+  ],
+  "verdict": "around"
+ },
+ {
+  "doc": "2004.05631v1",
+  "base": "figures/ch2/TNs/tn20.jpg",
+  "file": "figures/ch2/TNs/tn20",
+  "source": "chapters/two_tufte.tex",
+  "line": 587,
+  "extent_cm": [
+   5.038,
+   2.794
+  ],
+  "inside": 2,
+  "outside": 0,
+  "origin": [
+   0.0,
+   0.0
+  ],
+  "verdict": "overlapping"
+ },
+ {
+  "doc": "2004.05631v1",
+  "base": "figures/ch2/TNs/tn18.jpg",
+  "file": "figures/ch2/TNs/tn18",
+  "source": "chapters/two_tufte.tex",
+  "line": 598,
+  "extent_cm": [
+   1.128,
+   0.896
+  ],
+  "inside": 0,
+  "outside": 0,
+  "origin": [
+   0.0,
+   0.0
+  ],
+  "verdict": "none placed"
+ },
+ {
+  "doc": "2004.05631v1",
+  "base": "figures/ch2/TNs/tn13.jpg",
+  "file": "figures/ch2/TNs/tn13",
+  "source": "chapters/two_tufte.tex",
+  "line": 608,
+  "extent_cm": [
+   1.746,
+   1.064
+  ],
+  "inside": 0,
+  "outside": 2,
+  "origin": [
+   0.5,
+   0.2
+  ],
+  "verdict": "around"
+ },
+ {
+  "doc": "2004.05631v1",
+  "base": "figures/ch2/TNs/tn14.jpg",
+  "file": "figures/ch2/TNs/tn14",
+  "source": "chapters/two_tufte.tex",
+  "line": 612,
+  "extent_cm": [
+   2.032,
+   1.138
+  ],
+  "inside": 0,
+  "outside": 2,
+  "origin": [
+   0.5,
+   0.2
+  ],
+  "verdict": "around"
+ },
+ {
+  "doc": "2004.05631v1",
+  "base": "figures/ch2/TNs/tn17.jpg",
+  "file": "figures/ch2/TNs/tn17",
+  "source": "chapters/two_tufte.tex",
+  "line": 623,
+  "extent_cm": [
+   9.515,
+   1.425
+  ],
+  "inside": 0,
+  "outside": 5,
+  "origin": [
+   0.0,
+   0.0
+  ],
+  "verdict": "around"
+ },
+ {
+  "doc": "2004.05631v1",
+  "base": "figures/ch2/TNs/mps.jpg",
+  "file": "figures/ch2/TNs/mps",
+  "source": "chapters/two_tufte.tex",
+  "line": 635,
+  "extent_cm": [
+   5.413,
+   1.137
+  ],
+  "verdict": "no tikzpicture"
+ },
+ {
+  "doc": "2004.05631v1",
+  "base": "figures/ch2/TNs/mps.jpg",
+  "file": "figures/ch2/TNs/mps",
+  "source": "chapters/two_tufte.tex",
+  "line": 646,
+  "extent_cm": [
+   5.413,
+   1.137
+  ],
+  "verdict": "no tikzpicture"
+ },
+ {
+  "doc": "2004.05631v1",
+  "base": "figures/ch1/bothways.jpg",
+  "file": "figures/ch1/bothways",
+  "source": "chapters/two_tufte.tex",
+  "line": 686,
+  "extent_cm": [
+   2.558,
+   1.898
+  ],
+  "inside": 0,
+  "outside": 2,
+  "origin": [
+   0.0,
+   0.0
+  ],
+  "verdict": "around"
+ },
+ {
+  "doc": "2004.05631v1",
+  "base": "figures/ch1/covector.jpg",
+  "file": "figures/ch1/covector",
+  "source": "chapters/two_tufte.tex",
+  "line": 795,
+  "extent_cm": [
+   5.101,
+   2.893
+  ],
+  "inside": 2,
+  "outside": 1,
+  "origin": [
+   0.0,
+   0.0
+  ],
+  "verdict": "overlapping"
+ },
+ {
+  "doc": "2004.05631v1",
+  "base": "figures/ch2/zoom.jpg",
+  "file": "figures/ch2/zoom",
+  "source": "chapters/two_tufte.tex",
+  "line": 873,
+  "extent_cm": [
+   4.426,
+   3.844
+  ],
+  "inside": 1,
+  "outside": 0,
+  "origin": [
+   0.0,
+   0.0
+  ],
+  "verdict": "overlapping"
+ },
+ {
+  "doc": "2004.05631v1",
+  "base": "figures/ch2/pt2.jpg",
+  "file": "figures/ch2/pt2.jpg",
+  "source": "chapters/two_tufte.tex",
+  "line": 1057,
+  "extent_cm": [
+   7.848,
+   4.658
+  ],
+  "inside": 0,
+  "outside": 2,
+  "origin": [
+   0.0,
+   0.0
+  ],
+  "verdict": "around"
+ },
+ {
+  "doc": "2004.05631v1",
+  "base": "figures/ch2/vec_map.jpg",
+  "file": "figures/ch2/vec_map",
+  "source": "chapters/two_tufte.tex",
+  "line": 1206,
+  "extent_cm": [
+   5.265,
+   2.05
+  ],
+  "inside": 2,
+  "outside": 0,
+  "origin": [
+   0.0,
+   0.0
+  ],
+  "verdict": "overlapping"
+ },
+ {
+  "doc": "2004.05631v1",
+  "base": "figures/ch2/svd.png",
+  "file": "figures/ch2/svd",
+  "source": "chapters/two_tufte.tex",
+  "line": 1240,
+  "extent_cm": [
+   8.27,
+   2.033
+  ],
+  "inside": 0,
+  "outside": 5,
+  "origin": [
+   0.0,
+   0.0
+  ],
+  "verdict": "around"
+ },
+ {
+  "doc": "2004.05631v1",
+  "base": "figures/ch2/svd2.jpg",
+  "file": "figures/ch2/svd2",
+  "source": "chapters/two_tufte.tex",
+  "line": 1256,
+  "extent_cm": [
+   3.785,
+   3.796
+  ],
+  "inside": 0,
+  "outside": 4,
+  "origin": [
+   0.0,
+   0.0
+  ],
+  "verdict": "around"
+ },
+ {
+  "doc": "2004.05631v1",
+  "base": "figures/ch2/bestproof1.jpg",
+  "file": "figures/ch2/bestproof1",
+  "source": "chapters/two_tufte.tex",
+  "line": 1356,
+  "extent_cm": [
+   8.031,
+   5.838
+  ],
+  "inside": 9,
+  "outside": 0,
+  "origin": [
+   0.0,
+   0.0
+  ],
+  "verdict": "overlapping"
+ },
+ {
+  "doc": "2004.05631v1",
+  "base": "figures/ch2/bestproof2.jpg",
+  "file": "figures/ch2/bestproof2",
+  "source": "chapters/two_tufte.tex",
+  "line": 1366,
+  "extent_cm": [
+   8.031,
+   5.838
+  ],
+  "inside": 9,
+  "outside": 0,
+  "origin": [
+   0.0,
+   0.0
+  ],
+  "verdict": "overlapping"
+ },
+ {
+  "doc": "2004.05631v1",
+  "base": "figures/ch2/entanglement.jpg",
+  "file": "figures/ch2/entanglement",
+  "source": "chapters/two_tufte.tex",
+  "line": 1439,
+  "extent_cm": [
+   7.899,
+   5.567
+  ],
+  "inside": 5,
+  "outside": 2,
+  "origin": [
+   0.0,
+   0.0
+  ],
+  "verdict": "overlapping"
+ },
+ {
+  "doc": "2004.05631v1",
+  "base": "figures/ch2/entanglement2.jpg",
+  "file": "figures/ch2/entanglement2",
+  "source": "chapters/two_tufte.tex",
+  "line": 1456,
+  "extent_cm": [
+   3.941,
+   3.627
+  ],
+  "inside": 3,
+  "outside": 0,
+  "origin": [
+   0.0,
+   0.0
+  ],
+  "verdict": "overlapping"
+ },
+ {
+  "doc": "2004.05631v1",
+  "base": "figures/ch2/mpsapprox.jpg",
+  "file": "figures/ch2/mpsapprox",
+  "source": "chapters/two_tufte.tex",
+  "line": 1465,
+  "extent_cm": [
+   11.582,
+   1.439
+  ],
+  "inside": 1,
+  "outside": 0,
+  "origin": [
+   0.0,
+   0.0
+  ],
+  "verdict": "overlapping"
+ },
+ {
+  "doc": "2012.15581",
+  "base": "figures/images/elasticity/res/cut/screenshot_67-sol2.png",
+  "file": "./figures/images/elasticity/res/cut/screenshot_67-sol2",
+  "source": "figures/elasticity.tex",
+  "line": 6,
+  "extent_cm": [
+   5.76,
+   7.198
+  ],
+  "inside": 0,
+  "outside": 1,
+  "origin": [
+   0.0,
+   0.0
+  ],
+  "verdict": "around"
+ },
+ {
+  "doc": "2012.15581",
+  "base": "figures/images/elasticity/res/rot/cut/elast_1.png",
+  "file": "./figures/images/elasticity/res/rot/cut/elast_1",
+  "source": "figures/elasticity.tex",
+  "line": 28,
+  "extent_cm": [
+   7.2,
+   6.893
+  ],
+  "inside": 0,
+  "outside": 1,
+  "origin": [
+   0.0,
+   0.0
+  ],
+  "verdict": "around"
+ },
+ {
+  "doc": "2012.15581",
+  "base": "figures/images/elasticity/res/cut/screenshot_67-err_f2.png",
+  "file": "./figures/images/elasticity/res/cut/screenshot_67-err_f2",
+  "source": "figures/elasticity.tex",
+  "line": 59,
+  "extent_cm": [
+   5.76,
+   7.198
+  ],
+  "inside": 0,
+  "outside": 1,
+  "origin": [
+   0.0,
+   0.0
+  ],
+  "verdict": "around"
+ },
+ {
+  "doc": "2012.15581",
+  "base": "figures/images/elasticity/res/rot/cut/elast_2.png",
+  "file": "./figures/images/elasticity/res/rot/cut/elast_2",
+  "source": "figures/elasticity.tex",
+  "line": 81,
+  "extent_cm": [
+   7.2,
+   6.893
+  ],
+  "inside": 0,
+  "outside": 1,
+  "origin": [
+   0.0,
+   0.0
+  ],
+  "verdict": "around"
+ },
+ {
+  "doc": "2012.15581",
+  "base": "figures/images/vertices_dim_2.png",
+  "file": "./figures/images/vertices_dim_2.png",
+  "source": "figures/geometric_decomposition.tex",
+  "line": 8,
+  "extent_cm": [
+   12.0,
+   6.39
+  ],
+  "inside": 2,
+  "outside": 0,
+  "origin": [
+   -0.92,
+   -0.8
+  ],
+  "verdict": "overlapping"
+ },
+ {
+  "doc": "2012.15581",
+  "base": "figures/images/lines_dim_2.png",
+  "file": "./figures/images/lines_dim_2.png",
+  "source": "figures/geometric_decomposition.tex",
+  "line": 20,
+  "extent_cm": [
+   12.0,
+   6.39
+  ],
+  "inside": 2,
+  "outside": 0,
+  "origin": [
+   -1.0,
+   0.2
+  ],
+  "verdict": "overlapping"
+ },
+ {
+  "doc": "2012.15581",
+  "base": "figures/images/face_dim_2.png",
+  "file": "./figures/images/face_dim_2.png",
+  "source": "figures/geometric_decomposition.tex",
+  "line": 32,
+  "extent_cm": [
+   12.0,
+   6.39
+  ],
+  "inside": 0,
+  "outside": 0,
+  "origin": [
+   0.15,
+   -0.3
+  ],
+  "verdict": "none placed"
+ },
+ {
+  "doc": "2012.15581",
+  "base": "figures/images/level1_simplex_dim_3.png",
+  "file": "./figures/images/level1_simplex_dim_3.png",
+  "source": "figures/incomplete_freudenthal.tex",
+  "line": 8,
+  "extent_cm": [
+   12.0,
+   6.39
+  ],
+  "inside": 2,
+  "outside": 1,
+  "origin": [
+   0.025,
+   -1.75
+  ],
+  "verdict": "overlapping"
+ },
+ {
+  "doc": "2012.15581",
+  "base": "figures/images/hodgelaplacian/2D/K2/res/screenshot_1-err_f1.png",
+  "file": "./figures/images/hodgelaplacian/2D/K2/res/screenshot_1-err_f1.png",
+  "source": "figures/lshape_error_decay_rate.tex",
+  "line": 6,
+  "verdict": "several sizes"
+ },
+ {
+  "doc": "2012.15581",
+  "base": "figures/images/hodgelaplacian/2D/K2/res/screenshot_1-err_fs.png",
+  "file": "./figures/images/hodgelaplacian/2D/K2/res/screenshot_1-err_fs.png",
+  "source": "figures/lshape_error_decay_rate.tex",
+  "line": 30,
+  "verdict": "several sizes"
+ },
+ {
+  "doc": "2012.15581",
+  "base": "figures/images/hodgelaplacian/2D/K2/res/screenshot_1-err_dec_rate.png",
+  "file": "./figures/images/hodgelaplacian/2D/K2/res/screenshot_1-err_dec_rate.png",
+  "source": "figures/lshape_error_decay_rate.tex",
+  "line": 53,
+  "verdict": "several sizes"
+ },
+ {
+  "doc": "2012.15581",
+  "base": "figures/images/hodgelaplacian/2D/K2/res/screenshot_1-sol2.png",
+  "file": "./figures/images/hodgelaplacian/2D/K2/res/screenshot_1-sol2.png",
+  "source": "figures/lshape_solution_u.tex",
+  "line": 6,
+  "extent_cm": [
+   7.84,
+   4.102
+  ],
+  "inside": 0,
+  "outside": 1,
+  "origin": [
+   0.0,
+   0.0
+  ],
+  "verdict": "around"
+ },
+ {
+  "doc": "2012.15581",
+  "base": "figures/images/hodgelaplacian/2D/K2/res/screenshot_69-sol2.png",
+  "file": "./figures/images/hodgelaplacian/2D/K2/res/screenshot_69-sol2.png",
+  "source": "figures/lshape_solution_u.tex",
+  "line": 27,
+  "extent_cm": [
+   7.84,
+   4.102
+  ],
+  "inside": 0,
+  "outside": 1,
+  "origin": [
+   0.0,
+   0.0
+  ],
+  "verdict": "around"
+ },
+ {
+  "doc": "2012.15581",
+  "base": "figures/images/hodgelaplacian/2D/K2/res/screenshot_69-wireframe.png",
+  "file": "./figures/images/hodgelaplacian/2D/K2/res/screenshot_69-wireframe.png",
+  "source": "figures/refined_laplacian_2d_k2.tex",
+  "line": 6,
+  "verdict": "several sizes"
+ },
+ {
+  "doc": "2012.15581",
+  "base": "figures/images/hodgelaplacian/2D/K2/res/screenshot_69-err_fs.png",
+  "file": "./figures/images/hodgelaplacian/2D/K2/res/screenshot_69-err_fs.png",
+  "source": "figures/refined_laplacian_2d_k2.tex",
+  "line": 29,
+  "verdict": "several sizes"
+ },
+ {
+  "doc": "2012.15581",
+  "base": "figures/images/hodgelaplacian/2D/K2/res/screenshot_69-err_dec_rate.png",
+  "file": "./figures/images/hodgelaplacian/2D/K2/res/screenshot_69-err_dec_rate.png",
+  "source": "figures/refined_laplacian_2d_k2.tex",
+  "line": 51,
+  "verdict": "several sizes"
+ },
+ {
+  "doc": "2012.15581",
+  "base": "figures/images/hodgelaplacian/2D/K2/res/screenshot_69-p_order.png",
+  "file": "./figures/images/hodgelaplacian/2D/K2/res/screenshot_69-p_order.png",
+  "source": "figures/refined_laplacian_2d_k2.tex",
+  "line": 74,
+  "verdict": "several sizes"
+ },
+ {
+  "doc": "2012.15581",
+  "base": "figures/images/elasticity/p_order_scale_1.png",
+  "file": "./figures/images/elasticity/p_order_scale_1",
+  "source": "figures/zoom.tex",
+  "line": 5,
+  "extent_cm": [
+   4.476,
+   5.5
+  ],
+  "inside": 1,
+  "outside": 4,
+  "origin": [
+   -3.5,
+   0.0
+  ],
+  "verdict": "overlapping"
+ },
+ {
+  "doc": "2012.15581",
+  "base": "figures/images/elasticity/p_order_scale_2.png",
+  "file": "./figures/images/elasticity/p_order_scale_2",
+  "source": "figures/zoom.tex",
+  "line": 7,
+  "extent_cm": [
+   3.73,
+   4.0
+  ],
+  "inside": 0,
+  "outside": 5,
+  "origin": [
+   -3.5,
+   0.0
+  ],
+  "verdict": "around"
+ },
+ {
+  "doc": "2012.15581",
+  "base": "figures/images/elasticity/p_order_scale_3.png",
+  "file": "./figures/images/elasticity/p_order_scale_3",
+  "source": "figures/zoom.tex",
+  "line": 9,
+  "extent_cm": [
+   3.216,
+   4.0
+  ],
+  "inside": 0,
+  "outside": 5,
+  "origin": [
+   -3.5,
+   0.0
+  ],
+  "verdict": "around"
+ },
+ {
+  "doc": "2012.15581",
+  "base": "figures/images/vertices_dim_2.png",
+  "file": "./figures/images/vertices_dim_2.png",
+  "source": "ms.tex",
+  "line": 384,
+  "extent_cm": [
+   12.0,
+   6.39
+  ],
+  "inside": 2,
+  "outside": 0,
+  "origin": [
+   -0.92,
+   -0.8
+  ],
+  "verdict": "overlapping"
+ },
+ {
+  "doc": "2012.15581",
+  "base": "figures/images/lines_dim_2.png",
+  "file": "./figures/images/lines_dim_2.png",
+  "source": "ms.tex",
+  "line": 396,
+  "extent_cm": [
+   12.0,
+   6.39
+  ],
+  "inside": 2,
+  "outside": 0,
+  "origin": [
+   -1.0,
+   0.2
+  ],
+  "verdict": "overlapping"
+ },
+ {
+  "doc": "2012.15581",
+  "base": "figures/images/face_dim_2.png",
+  "file": "./figures/images/face_dim_2.png",
+  "source": "ms.tex",
+  "line": 408,
+  "extent_cm": [
+   12.0,
+   6.39
+  ],
+  "inside": 0,
+  "outside": 0,
+  "origin": [
+   0.15,
+   -0.3
+  ],
+  "verdict": "none placed"
+ },
+ {
+  "doc": "2012.15581",
+  "base": "figures/images/level1_simplex_dim_3.png",
+  "file": "./figures/images/level1_simplex_dim_3.png",
+  "source": "ms.tex",
+  "line": 791,
+  "extent_cm": [
+   12.0,
+   6.39
+  ],
+  "inside": 2,
+  "outside": 1,
+  "origin": [
+   0.025,
+   -1.75
+  ],
+  "verdict": "overlapping"
+ },
+ {
+  "doc": "2012.15581",
+  "base": "figures/images/hodgelaplacian/2D/K2/res/screenshot_1-sol2.png",
+  "file": "./figures/images/hodgelaplacian/2D/K2/res/screenshot_1-sol2.png",
+  "source": "ms.tex",
+  "line": 1094,
+  "extent_cm": [
+   7.84,
+   4.102
+  ],
+  "inside": 0,
+  "outside": 1,
+  "origin": [
+   0.0,
+   0.0
+  ],
+  "verdict": "around"
+ },
+ {
+  "doc": "2012.15581",
+  "base": "figures/images/hodgelaplacian/2D/K2/res/screenshot_69-sol2.png",
+  "file": "./figures/images/hodgelaplacian/2D/K2/res/screenshot_69-sol2.png",
+  "source": "ms.tex",
+  "line": 1115,
+  "extent_cm": [
+   7.84,
+   4.102
+  ],
+  "inside": 0,
+  "outside": 1,
+  "origin": [
+   0.0,
+   0.0
+  ],
+  "verdict": "around"
+ },
+ {
+  "doc": "2012.15581",
+  "base": "figures/images/hodgelaplacian/2D/K2/res/screenshot_1-err_f1.png",
+  "file": "./figures/images/hodgelaplacian/2D/K2/res/screenshot_1-err_f1.png",
+  "source": "ms.tex",
+  "line": 1142,
+  "verdict": "several sizes"
+ },
+ {
+  "doc": "2012.15581",
+  "base": "figures/images/hodgelaplacian/2D/K2/res/screenshot_1-err_fs.png",
+  "file": "./figures/images/hodgelaplacian/2D/K2/res/screenshot_1-err_fs.png",
+  "source": "ms.tex",
+  "line": 1166,
+  "verdict": "several sizes"
+ },
+ {
+  "doc": "2012.15581",
+  "base": "figures/images/hodgelaplacian/2D/K2/res/screenshot_1-err_dec_rate.png",
+  "file": "./figures/images/hodgelaplacian/2D/K2/res/screenshot_1-err_dec_rate.png",
+  "source": "ms.tex",
+  "line": 1189,
+  "verdict": "several sizes"
+ },
+ {
+  "doc": "2012.15581",
+  "base": "figures/images/hodgelaplacian/2D/K2/res/screenshot_69-wireframe.png",
+  "file": "./figures/images/hodgelaplacian/2D/K2/res/screenshot_69-wireframe.png",
+  "source": "ms.tex",
+  "line": 1220,
+  "verdict": "several sizes"
+ },
+ {
+  "doc": "2012.15581",
+  "base": "figures/images/hodgelaplacian/2D/K2/res/screenshot_69-err_fs.png",
+  "file": "./figures/images/hodgelaplacian/2D/K2/res/screenshot_69-err_fs.png",
+  "source": "ms.tex",
+  "line": 1243,
+  "verdict": "several sizes"
+ },
+ {
+  "doc": "2012.15581",
+  "base": "figures/images/hodgelaplacian/2D/K2/res/screenshot_69-err_dec_rate.png",
+  "file": "./figures/images/hodgelaplacian/2D/K2/res/screenshot_69-err_dec_rate.png",
+  "source": "ms.tex",
+  "line": 1265,
+  "verdict": "several sizes"
+ },
+ {
+  "doc": "2012.15581",
+  "base": "figures/images/hodgelaplacian/2D/K2/res/screenshot_69-p_order.png",
+  "file": "./figures/images/hodgelaplacian/2D/K2/res/screenshot_69-p_order.png",
+  "source": "ms.tex",
+  "line": 1288,
+  "verdict": "several sizes"
+ },
+ {
+  "doc": "2012.15581",
+  "base": "figures/images/elasticity/res/cut/screenshot_67-sol2.png",
+  "file": "./figures/images/elasticity/res/cut/screenshot_67-sol2",
+  "source": "ms.tex",
+  "line": 1424,
+  "extent_cm": [
+   5.76,
+   7.198
+  ],
+  "inside": 0,
+  "outside": 1,
+  "origin": [
+   0.0,
+   0.0
+  ],
+  "verdict": "around"
+ },
+ {
+  "doc": "2012.15581",
+  "base": "figures/images/elasticity/res/rot/cut/elast_1.png",
+  "file": "./figures/images/elasticity/res/rot/cut/elast_1",
+  "source": "ms.tex",
+  "line": 1446,
+  "extent_cm": [
+   7.2,
+   6.893
+  ],
+  "inside": 0,
+  "outside": 1,
+  "origin": [
+   0.0,
+   0.0
+  ],
+  "verdict": "around"
+ },
+ {
+  "doc": "2012.15581",
+  "base": "figures/images/elasticity/res/cut/screenshot_67-err_f2.png",
+  "file": "./figures/images/elasticity/res/cut/screenshot_67-err_f2",
+  "source": "ms.tex",
+  "line": 1477,
+  "extent_cm": [
+   5.76,
+   7.198
+  ],
+  "inside": 0,
+  "outside": 1,
+  "origin": [
+   0.0,
+   0.0
+  ],
+  "verdict": "around"
+ },
+ {
+  "doc": "2012.15581",
+  "base": "figures/images/elasticity/res/rot/cut/elast_2.png",
+  "file": "./figures/images/elasticity/res/rot/cut/elast_2",
+  "source": "ms.tex",
+  "line": 1499,
+  "extent_cm": [
+   7.2,
+   6.893
+  ],
+  "inside": 0,
+  "outside": 1,
+  "origin": [
+   0.0,
+   0.0
+  ],
+  "verdict": "around"
+ },
+ {
+  "doc": "2012.15581",
+  "base": "figures/images/elasticity/p_order_scale_1.png",
+  "file": "./figures/images/elasticity/p_order_scale_1",
+  "source": "ms.tex",
+  "line": 1530,
+  "extent_cm": [
+   4.476,
+   5.5
+  ],
+  "inside": 1,
+  "outside": 4,
+  "origin": [
+   -3.5,
+   0.0
+  ],
+  "verdict": "overlapping"
+ },
+ {
+  "doc": "2012.15581",
+  "base": "figures/images/elasticity/p_order_scale_2.png",
+  "file": "./figures/images/elasticity/p_order_scale_2",
+  "source": "ms.tex",
+  "line": 1532,
+  "extent_cm": [
+   3.73,
+   4.0
+  ],
+  "inside": 0,
+  "outside": 5,
+  "origin": [
+   -3.5,
+   0.0
+  ],
+  "verdict": "around"
+ },
+ {
+  "doc": "2012.15581",
+  "base": "figures/images/elasticity/p_order_scale_3.png",
+  "file": "./figures/images/elasticity/p_order_scale_3",
+  "source": "ms.tex",
+  "line": 1534,
+  "extent_cm": [
+   3.216,
+   4.0
+  ],
+  "inside": 0,
+  "outside": 5,
+  "origin": [
+   -3.5,
+   0.0
+  ],
+  "verdict": "around"
+ },
+ {
+  "doc": "2102.08145",
+  "base": "figures/DVS_image.png",
+  "file": "figures/DVS_image.png",
+  "source": "root.tex",
+  "line": 129,
+  "verdict": "several sizes"
+ },
+ {
+  "doc": "2102.08145",
+  "base": "figures/hough_space_and_line_detection_2.png",
+  "file": "figures/hough_space_and_line_detection_2.png",
+  "source": "root.tex",
+  "line": 132,
+  "extent_cm": [
+   3.0,
+   2.242
+  ],
+  "inside": 0,
+  "outside": 0,
+  "origin": [
+   0.0,
+   0.0
+  ],
+  "verdict": "none placed"
+ },
+ {
+  "doc": "2102.08145",
+  "base": "figures/tracking_space_no_axis.png",
+  "file": "figures/tracking_space_no_axis.png",
+  "source": "root.tex",
+  "line": 135,
+  "extent_cm": [
+   3.0,
+   2.25
+  ],
+  "inside": 0,
+  "outside": 0,
+  "origin": [
+   0.0,
+   0.0
+  ],
+  "verdict": "none placed"
+ },
+ {
+  "doc": "2102.08145",
+  "base": "figures/Betriebshof_no_axis.png",
+  "file": "figures/Betriebshof_no_axis.png",
+  "source": "root.tex",
+  "line": 138,
+  "extent_cm": [
+   3.0,
+   2.25
+  ],
+  "inside": 0,
+  "outside": 0,
+  "origin": [
+   0.0,
+   0.0
+  ],
+  "verdict": "none placed"
+ },
+ {
+  "doc": "2104.05122",
+  "base": "cards_Severini_v3.pdf",
+  "file": "cards_Severini_v3.pdf",
+  "source": "36_officers_PRL_main.tex",
+  "line": 1506,
+  "verdict": "unreadable base"
+ },
+ {
+  "doc": "2104.05122",
+  "base": "ame_algorithm_seed_v3.pdf",
+  "file": "ame_algorithm_seed_v3.pdf",
+  "source": "36_officers_PRL_main.tex",
+  "line": 1563,
+  "verdict": "unreadable base"
+ },
+ {
+  "doc": "2104.08926",
+  "base": "figs/singledoc.png",
+  "file": "figs/singledoc.png",
+  "source": "Introduction.tex",
+  "line": 35,
+  "extent_cm": [
+   1.149,
+   1.149
+  ],
+  "inside": 0,
+  "outside": 0,
+  "origin": [
+   0.0,
+   0.0
+  ],
+  "verdict": "none placed"
+ },
+ {
+  "doc": "2104.08926",
+  "base": "figs/singledoc.png",
+  "file": "figs/singledoc.png",
+  "source": "Introduction.tex",
+  "line": 56,
+  "extent_cm": [
+   1.149,
+   1.149
+  ],
+  "inside": 0,
+  "outside": 0,
+  "origin": [
+   0.0,
+   0.0
+  ],
+  "verdict": "none placed"
+ },
+ {
+  "doc": "2104.08926",
+  "base": "figs/singledoc.png",
+  "file": "figs/singledoc.png",
+  "source": "Introduction.tex",
+  "line": 66,
+  "extent_cm": [
+   1.149,
+   1.149
+  ],
+  "inside": 0,
+  "outside": 0,
+  "origin": [
+   0.0,
+   0.0
+  ],
+  "verdict": "none placed"
+ },
+ {
+  "doc": "2406.19108v2",
+  "base": "img/replicator.pdf",
+  "file": "img/replicator.pdf",
+  "source": "case_study.tex",
+  "line": 26,
+  "verdict": "unreadable base"
+ },
+ {
+  "doc": "2508.19773",
+  "base": "images/before.PNG",
+  "file": "images/before.PNG",
+  "source": "papercontent.tex",
+  "line": 58,
+  "extent_cm": [
+   5.49,
+   1.43
+  ],
+  "inside": 0,
+  "outside": 1,
+  "origin": [
+   -1.0,
+   0.0
+  ],
+  "verdict": "around"
+ },
+ {
+  "doc": "2508.19773",
+  "base": "images/after.PNG",
+  "file": "images/after.PNG",
+  "source": "papercontent.tex",
+  "line": 60,
+  "extent_cm": [
+   5.49,
+   1.455
+  ],
+  "inside": 0,
+  "outside": 1,
+  "origin": [
+   -1.0,
+   0.0
+  ],
+  "verdict": "around"
+ }
+]

@@ -985,3 +985,21 @@ Traceback (most recent call last):
 UnicodeEncodeError: 'utf-8' codec can't encode character '\udca8' in position 71: surrogates not allowed
 population: 1349 documents (21 from the site, first)
 [ 472/1349] 2405.15306                           7.5s  regions=0 failed=0 selectable=False
+[ 551/1349] 2603.03072                          29.2s  regions=13 failed=1 selectable=False
+[ 571/1349] 2606.16523                           4.6s  regions=0 failed=0 selectable=False
+Traceback (most recent call last):
+  File "/home/wkolbe/MX/PDFDRILL/tools/run295.py", line 198, in <module>
+    main()
+    ~~~~^^
+  File "/home/wkolbe/MX/PDFDRILL/tools/run295.py", line 187, in main
+    print("[%4d/%4d] %-34s %5.1fs  regions=%s failed=%s selectable=%s"
+    ~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+          % (i, len(docs), name[:34], row["seconds"],
+          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+             (row.get("regions") or {}).get("rendered", "-"),
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+             (row.get("regions") or {}).get("failed", "-"),
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+             row["ink_selectable"]), flush=True)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+UnicodeEncodeError: 'utf-8' codec can't encode character '\udce8' in position 15: surrogates not allowed
