@@ -1,0 +1,23 @@
+{
+ "doc": "scan_20260530_211808",
+ "pdf": "scan_20260530_211808.pdf",
+ "rc": 0,
+ "stdout_tail": "Build stamp: report.build.json — phase=reading, 2 pages, 36774 bytes, sha256 4856c0b9aba8. A measurement of this report should copy it into its output as `measured_against`.",
+ "seconds": 2.3,
+ "regions": {
+  "regions_with_latex": 0,
+  "attempted_now": 0,
+  "rendered": 0,
+  "failed": 0,
+  "has_author_preamble": false,
+  "graphics_dir": null,
+  "failures": []
+ },
+ "table_cols": [
+  5,
+  5
+ ],
+ "six_col_tables": 0,
+ "region_table_cols": 5,
+ "ink_selectable": false
+}
