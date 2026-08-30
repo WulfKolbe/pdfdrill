@@ -1,0 +1,103 @@
+392 — the ceiling: the recovery prompt where the answer is known
+================================================================
+
+WHY THIS RUNS BEFORE 391 REPORTS ANYTHING
+
+A rescued MathPix figure has no reference. Nobody can say whether the
+recovery is right, which is where 281 has sat all week. A DaTikZ row has the
+author's own TikZ, so the same prompt can be scored against a known answer,
+and the distance distribution here is what makes a distance in 391 mean
+something.
+
+Same prompt for both, deliberately (tools/recover_prompt.py). If they
+differed, this would measure a different question.
+
+THE RUN
+
+  20 rows, minimax/minimax-m3 via Novita, max_tokens 16000
+  19 compiled, 0 failed to compile, 1 empty reply
+  engines: xelatex 19, pdflatex 0
+  seconds: median 5, max 141
+
+THE FIXED PREAMBLE DID ITS JOB. Zero compile failures in 19 replies. 337's
+one error was a missing \usepackage, and asking a model for its own preamble
+makes every reply a fresh chance to reintroduce it. Loading the libraries
+unconditionally costs nothing per reply and removes that failure class for
+all of them at once.
+
+16000 TOKENS IS STILL NOT ALWAYS ENOUGH. DTZ00000 returned empty with
+finish_reason="length" — the same shape 4000 produced, one budget up. It is
+the most complex row in the sample (352 components in 383's pair table). So
+the empty reply is a budget, not a refusal, and the budget scales with the
+figure.
+
+THE DISTANCES
+
+                 n   median  mean   max   classes
+  vs AUTHOR     19      4     8.5    90   clean 2, noise 14, weak 1, component 2
+  vs PNG        19      2     7.4    90   clean 4, noise 13, weak 1, component 1
+
+vs AUTHOR is our compile of the reply against our compile of the author's
+code — same engine, same renderer, same dpi, so the difference is the
+model's drawing. vs PNG is against the dataset's own 448x448 render and is
+looser: 383 measured our renderer against theirs on IDENTICAL code and it is
+not zero, so that column carries the renderer floor as well.
+
+THE POPULATION IS NOT ALL FIGURES, and that had to be split
+------------------------------------------------------------
+
+Many of the first DaTikZ rows are one-label fragments, not figures. DTZ00003
+is a single node reading "Prediction"; DTZ00002 is "Semantic LOSS" beside
+"Ground Truth". Reproducing those is trivial and a distance of 0 on them
+says nothing about recovering a figure.
+
+  author components <= 5   n= 6   d median 2.0   (2 clean, 4 noise)
+  author components >  5   n=13   d median 5.0   11 of 13 within d<=7
+
+The ceiling that matters is the second line: on 13 substantial figures, 11
+land inside the noise band.
+
+WHAT A DISTANCE MEANS — CHECKED BY EYE, BOTH ENDS
+--------------------------------------------------
+
+The five-tuple is a structural CENSUS (components, holes, stacked, centred,
+offset). Two different pictures with the same counts score 0, so the number
+had to be checked against the pictures before it could be used as a ceiling.
+
+  d = 4, DTZ00018 (author 96 components, model 96). Looked at both renders:
+  the same commutative diagram — four objects, three labelled arrows,
+  identical layout. A low distance IS a correct recovery here.
+
+  d = 90, DTZ00001 (author 87 -> model 169). Looked at both renders: ALSO
+  correct. Same seven nodes, same square, same triangle, same pair of dotted
+  arcs. The picture is right.
+
+  The distance is DOT DENSITY. A dotted stroke is not one component, it is
+  one component per dot, and the model chose a different dot spacing. 82 of
+  the 90 is comp_delta and essentially all of it is the dotting.
+
+So the five-tuple OVER-PENALISES dashed and dotted art, by a factor that has
+nothing to do with whether the figure was recovered. That is the same shape
+as the earlier finding that ink >= 6 with confidence >= 0.9 is a
+rendering-difference detector rather than a defect detector: the instrument
+is measuring a real difference that is not the difference being asked about.
+
+DTZ00001 is the only row in this sample where it fires — the other
+component-flagged row, DTZ00002, has comp_delta 3 on a two-label fragment.
+
+WHAT 391 MAY AND MAY NOT CONCLUDE FROM THIS
+
+  MAY: on a substantial figure, this prompt reaches d <= 7 against a known
+  answer 11 times in 13. A rescue landing in that band is doing what the
+  prompt does at its best.
+
+  MAY NOT: read a large distance as a failed recovery without looking at the
+  stroke style. A dotted figure can be recovered correctly and score 90.
+  Any 391 row flagged `component` needs an eye on it before it is called
+  wrong.
+
+  MAY NOT: read d = 0 as "identical picture". It means identical structural
+  census. On the trivial rows that is nearly free.
+
+  AND: budget for empty replies proportional to figure complexity. The one
+  row that returned nothing is the most complex one in the sample.
