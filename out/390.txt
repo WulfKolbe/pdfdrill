@@ -1,0 +1,108 @@
+390 - the rescue population: where MathPix gave up on a region
+==============================================================
+
+WHERE IT LIVES. There are no .mmd files in the library at all - 0 of 2,810
+documents. MathPix's own LaTeX output is the tex.zip archive, 1,219 of them,
+and the crops ship INSIDE it:
+
+    <uuid>/<uuid>.tex
+    <uuid>/images/<uuid>-<page>_<h>_<w>_<y>_<x>.jpg
+
+The filename encodes the rectangle, which is what makes a rescue site
+identifiable rather than merely an image. Scanned in place with zipfile; no
+archive was extracted.
+
+298 measured the AUTHOR's inclusions and explicitly set this population
+aside - "texsrc/ also holding a MathPix tex.zip extraction: 6 docs, 205
+calls (excluded below)". That exclusion was reading the 6 extracted texsrc/
+copies. Read from the archives instead, the population is a hundred times
+larger.
+
+THE COUNT
+---------
+
+  tex.zip archives scanned      1219      (0 errors)
+  total \includegraphics        20852
+  archives with at least one       934
+  archives with none               285
+
+NOT ALL OF IT IS A RESCUE, and the filename says which
+------------------------------------------------------
+
+  kind                             refs   docs   crop on disk
+  region crop                     20827    929      20827
+  image-not-found placeholder         9      8          9
+  smile- (chemical structure)         6      3          6
+  transcribed author source          10      3          0
+
+A ref that parses as <page>_<h>_<w>_<y>_<x> is MathPix naming a rectangle it
+declined to transcribe. The other three kinds are not that, and lumping them
+in would have inflated the population with things no rescue can act on:
+
+  `image-not-found` is a MARKER, not a picture. All 9 members are the same
+  427 bytes - one placeholder file. MathPix wanted a region here and could
+  not produce a crop either, so there is nothing to send a model.
+
+  `smile-<hash>` is chemistry: a rendered chemical structure. A real region
+  with a real crop, but a different recovery problem from a figure.
+
+  `myfigure`, `./shell.eps`, `router.pdf`, `curve`, `#2` are MathPix
+  TRANSCRIBING PRINTED SOURCE CODE. All 10 come from 3 documents and every
+  one is a book about LaTeX - IEEEtran_HOWTO, Kottwitz's TikZ guide,
+  latex2-script. The OCR read an \includegraphics printed as an example and
+  emitted it as an \includegraphics. Not a rescue: the picture was never
+  missing, it was never there.
+
+THE POPULATION
+--------------
+
+  a region MathPix declined, WITH a usable crop   20833 in 929 documents
+  marked but no crop (image-not-found)                9 in   8 documents
+  not rescues (transcribed source)                   10 in   3 documents
+
+  distinct base document names (dropping "(N)")     907
+
+DISTRIBUTION per archive
+------------------------
+
+  min 1   median 6   mean 22.3   max 721
+
+
+    1         123 archives
+    2-5       329 archives
+    6-20      346 archives
+    21-50      57 archives
+    51-100     27 archives
+    100+       52 archives
+
+  crops on disk: 20842, median 30.8 KB, 1030 MB in total
+
+TOP 15 DOCUMENTS by rescue count
+
+  document                                             calls  crops
+    2002.06055                                           721    721
+    DH2017-abstracts                                     550    550
+    Higher categories and homotopical algebra (Denis-C   536    536
+    An Invitation to Applied Category Theory Seven Ske   500    500
+    Seven Sketches in Composability An invitation to a   498    498
+    Higher Operads, Higher Categories (Tom Leinster) (   492    492
+    The Geometry and Topology of Three-Manifolds (Will   421    421
+    Number, Shape, Symmetry An Introduction to Number    356    356
+    Mathematics, Physics Chemistry With The Wolfram La   345    345
+    E0744EC7D2E6166F89D3B3ACE1E_70BADF72_6391A8          330    330
+    2103.01507                                           322    322
+    BirgitRichter_book                                   298    298
+    Solar Hybrid Systems Design and Application (Aktas   296    296
+    Schaums Outline of Discrete Mathematics, Revised T   285    285
+    Introduction to Linear and Matrix Algebra (Nathani   272    272
+
+WHAT THIS IS FOR
+
+Every one of the 20,833 is a rectangle MathPix saw, cropped, and handed back
+untranscribed. The crop is on disk and the region is in its name, so each is
+a self-contained recovery task with the picture already cut out.
+
+What it is NOT is a measured opportunity. Nothing here says a recovery would
+be CORRECT - a rescued figure has no reference to check against, which is
+exactly 281's position. 392 answers that on rows where the author's code is
+known; this file only says how many there are.
