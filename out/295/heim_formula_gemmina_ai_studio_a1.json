@@ -1,0 +1,27 @@
+{
+ "doc": "heim_formula_gemmina_ai_studio_a1",
+ "pdf": "heim_formula_gemmina_ai_studio_a1.pdf",
+ "rc": 0,
+ "stdout_tail": "Build stamp: report.build.json — phase=reading, 4 pages, 156420 bytes, sha256 621a5892b2f2. A measurement of this report should copy it into its output as `measured_against`.",
+ "seconds": 4.2,
+ "regions": {
+  "regions_with_latex": 1,
+  "attempted_now": 1,
+  "rendered": 1,
+  "failed": 0,
+  "has_author_preamble": false,
+  "graphics_dir": null,
+  "failures": []
+ },
+ "manifest_rows": 1,
+ "with_latex": 1,
+ "duplicated": 0,
+ "table_cols": [
+  6,
+  5,
+  7
+ ],
+ "six_col_tables": 1,
+ "region_table_cols": 7,
+ "ink_selectable": false
+}
