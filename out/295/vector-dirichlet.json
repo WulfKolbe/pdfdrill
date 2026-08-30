@@ -1,0 +1,27 @@
+{
+ "doc": "vector-dirichlet",
+ "pdf": "vector-dirichlet.pdf",
+ "rc": 0,
+ "stdout_tail": "Build stamp: report.build.json — phase=reading, 12 pages, 1284406 bytes, sha256 209788a77e18. A measurement of this report should copy it into its output as `measured_against`.",
+ "seconds": 4.3,
+ "regions": {
+  "regions_with_latex": 1,
+  "attempted_now": 1,
+  "rendered": 1,
+  "failed": 0,
+  "has_author_preamble": false,
+  "graphics_dir": null,
+  "failures": []
+ },
+ "manifest_rows": 16,
+ "with_latex": 1,
+ "duplicated": 15,
+ "table_cols": [
+  6,
+  5,
+  7
+ ],
+ "six_col_tables": 1,
+ "region_table_cols": 7,
+ "ink_selectable": false
+}
