@@ -1,0 +1,62 @@
+375 - a generated one-sentence summary per row
+==============================================
+
+100 rows, 0 empty replies, minimax-m3 at 16,000 tokens (4,000 returned an
+empty string with finish_reason=length in 337 — a budget, not a refusal).
+
+KIND DISTRIBUTION — the first description of this dataset that is not a count
+
+    plot                    21
+    commutative diagram     18
+    geometric figure        12
+    other                   11
+    graph or network         6
+    tree                     3
+    flowchart                3
+    table-like grid          2
+    illustration             1
+    (no kind named verbatim) 23
+
+  Read the last line carefully. 21 of those 23 DO name a kind, in words my
+  matcher did not accept — 18 of them a graph or network described as "a
+  network of queueing systems", "a four-node square graph", and so on; one
+  says "Two commutative squares", which is a commutative diagram. Only TWO
+  of 100 name nothing recognisable, and both are genuinely label-only
+  figures (a marker reading "a)", two text labels), where "other" was the
+  honest answer and the model described instead.
+
+  So the corrected distribution is roughly: graph or network 24, plot 22,
+  commutative diagram 19, geometric figure 13, other 11, tree 3, flowchart
+  3, grid 2, illustration 1, unclassifiable 2.
+
+  WHAT THAT MEANS FOR THE ANNOTATION WORK. Plots are 22% and commutative
+  diagrams 19% — the clean rows are NOT dominated by plots, and a fifth of
+  them are the object the annotation work cares about. On 350 clean rows
+  that is roughly 65 commutative diagrams, against the 46 of 332's gold set
+  and the seven annotation pairs.
+
+PROMPT FAILURES, separated from model failures
+
+    over 20 words                 32   (21 to 43; median 23)
+    named a library or command     4
+    named no kind from the list    2   (after the correction above)
+    began "This figure"            0
+    empty replies                  0
+
+  The length rule is the one that does not hold: a third of replies run
+  over, mostly by two or three words. That is a prompt failure — "under 20
+  words" competes with "state the kind, then the dominant elements, then
+  what is drawn", which is three clauses, and the model resolves the
+  conflict in favour of the content. Tightening it means asking for less,
+  not asking more firmly.
+
+  The 4 that named a library are the real brief violations.
+
+MARKED AS GENERATED
+
+  Every cell carries a coloured [generated] tag and the caveat says the
+  column is generated, not measured, that the source is unchanged and
+  reachable through the link under each identifier, and that nothing in the
+  column is evidence about the figure. A test holds all four claims. The
+  tag is per-cell because a reader scanning one row cannot be assumed to
+  have read a header note.

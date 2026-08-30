@@ -1,0 +1,1014 @@
+{
+ "rows": [
+  {
+   "id": "DTZ00000",
+   "summary": "Tree diagram with rectangular nodes containing quantum state decompositions, branching based on odd/even divisibility conditions, labeled with mathematical expressions and indices.",
+   "kind": "tree",
+   "violations": [
+    "over 20 words (21)"
+   ],
+   "finish": "stop",
+   "api_error": "",
+   "seconds": 1.5
+  },
+  {
+   "id": "DTZ00001",
+   "summary": "Graph or network: a four-node square graph maps via dotted curved arrows to a three-node triangle graph, with nodes and edges dominating.",
+   "kind": "graph or network",
+   "violations": [
+    "over 20 words (22)"
+   ],
+   "finish": "stop",
+   "api_error": "",
+   "seconds": 4.2
+  },
+  {
+   "id": "DTZ00002",
+   "summary": "Other (empty placeholder figure) consisting only of \"Ground Truth\" and rotated \"SemanticPOSS\" text labels with no drawn axes, curves, or shapes.",
+   "kind": "other",
+   "violations": [
+    "over 20 words (21)",
+    "named a library or command"
+   ],
+   "finish": "stop",
+   "api_error": "",
+   "seconds": 2.5
+  },
+  {
+   "id": "DTZ00003",
+   "summary": "**Kind:** other **Description:** An empty placeholder node simply labeled \"Prediction\" with no plotted content or drawn elements.",
+   "kind": "other",
+   "violations": [],
+   "finish": "stop",
+   "api_error": "",
+   "seconds": 2.5
+  },
+  {
+   "id": "DTZ00004",
+   "summary": "Text label showing rotated \"Semantic-KITTI\" text, type: other, elements: a single rotated vertical text node.",
+   "kind": "other",
+   "violations": [],
+   "finish": "stop",
+   "api_error": "",
+   "seconds": 5.9
+  },
+  {
+   "id": "DTZ00005",
+   "summary": "Other type featuring only a rotated label displaying the word \"FLORIDA\" oriented vertically.",
+   "kind": "other",
+   "violations": [],
+   "finish": "stop",
+   "api_error": "",
+   "seconds": 4.9
+  },
+  {
+   "id": "DTZ00006",
+   "summary": "Table-like grid; two text labels, \"Ground Truth\" above and rotated \"SemanticPOSS\" on the left, frame an empty central image placeholder.",
+   "kind": "table-like grid",
+   "violations": [],
+   "finish": "stop",
+   "api_error": "",
+   "seconds": 2.0
+  },
+  {
+   "id": "DTZ00007",
+   "summary": "Label-only flowchart dominated by a single \"Prediction\" text node.",
+   "kind": "flowchart",
+   "violations": [],
+   "finish": "stop",
+   "api_error": "",
+   "seconds": 0.7
+  },
+  {
+   "id": "DTZ00008",
+   "summary": "Other figure: a single rotated text label reading \"Semantic-KITTI\" serving as a vertical title.",
+   "kind": "other",
+   "violations": [],
+   "finish": "stop",
+   "api_error": "",
+   "seconds": 8.5
+  },
+  {
+   "id": "DTZ00009",
+   "summary": "Kind: other. Only a rotated \"FLORIDA\" label appears; no axes, nodes, arrows, curves, or coordinates are drawn.",
+   "kind": "other",
+   "violations": [],
+   "finish": "stop",
+   "api_error": "",
+   "seconds": 9.9
+  },
+  {
+   "id": "DTZ00010",
+   "summary": "Braid diagram illustration featuring a rectangular braid segment with two arched crossing arrows and ellipsis indicating continuation.",
+   "kind": "illustration",
+   "violations": [],
+   "finish": "stop",
+   "api_error": "",
+   "seconds": 1.4
+  },
+  {
+   "id": "DTZ00011",
+   "summary": "Geometric figure: a small rectangle with two downward arrows extending from its top edge, suggesting a connecting or branching element.",
+   "kind": "geometric figure",
+   "violations": [],
+   "finish": "stop",
+   "api_error": "",
+   "seconds": 3.6
+  },
+  {
+   "id": "DTZ00012",
+   "summary": "A small rectangle with two parallel upward arrows inside it, likely a braid diagram segment.",
+   "kind": null,
+   "violations": [
+    "named no kind from the list"
+   ],
+   "finish": "stop",
+   "api_error": "",
+   "seconds": 2.2
+  },
+  {
+   "id": "DTZ00013",
+   "summary": "Geometric figure: a single curved arrow arching upward from left to right dominates the small drawing.",
+   "kind": "geometric figure",
+   "violations": [],
+   "finish": "stop",
+   "api_error": "",
+   "seconds": 1.6
+  },
+  {
+   "id": "DTZ00014",
+   "summary": "Geometric figure of a semicircular arc with a dashed vertical line dropping to a labeled point C, and a label Y on the right.",
+   "kind": "geometric figure",
+   "violations": [
+    "over 20 words (24)"
+   ],
+   "finish": "stop",
+   "api_error": "",
+   "seconds": 2.5
+  },
+  {
+   "id": "DTZ00015",
+   "summary": "Geometric figure dominated by two arcs and a vertical line, labeled \"C\" below and \"Y\" to the right.",
+   "kind": "geometric figure",
+   "violations": [],
+   "finish": "stop",
+   "api_error": "",
+   "seconds": 1.1
+  },
+  {
+   "id": "DTZ00016",
+   "summary": "Commutative diagram showing four nodes (F(X), G(X), F(Y), G(Y)) arranged in a 2×2 grid, connected by labeled horizontal and vertical arrows representing morphisms.",
+   "kind": "commutative diagram",
+   "violations": [
+    "over 20 words (23)"
+   ],
+   "finish": "stop",
+   "api_error": "",
+   "seconds": 2.1
+  },
+  {
+   "id": "DTZ00017",
+   "summary": "Commutative diagram with four nodes (F(X), F̃(X), F(X), G(X)) connected by labeled arrows representing maps p_X, α_X, η_X, β_X, and q_X.",
+   "kind": "commutative diagram",
+   "violations": [
+    "over 20 words (21)"
+   ],
+   "finish": "stop",
+   "api_error": "",
+   "seconds": 2.3
+  },
+  {
+   "id": "DTZ00018",
+   "summary": "Commutative diagram: four nodes representing tensor products of functors F(X), F(Y), F(Z) connected by labeled arrows depicting associativity coherence maps.",
+   "kind": "commutative diagram",
+   "violations": [],
+   "finish": "stop",
+   "api_error": "",
+   "seconds": 3.0
+  },
+  {
+   "id": "DTZ00019",
+   "summary": "Commutative diagram of a 2×3 grid of math nodes connected by labeled arrows showing tensor product naturality.",
+   "kind": "commutative diagram",
+   "violations": [],
+   "finish": "stop",
+   "api_error": "",
+   "seconds": 1.7
+  },
+  {
+   "id": "DTZ00020",
+   "summary": "Commutative diagram with labeled arrows showing the hexagon axiom for a braided monoidal functor between tensor products.",
+   "kind": "commutative diagram",
+   "violations": [],
+   "finish": "stop",
+   "api_error": "",
+   "seconds": 1.4
+  },
+  {
+   "id": "DTZ00021",
+   "summary": "Geometric figure: an 8-strand braid with crossings $a_4^{-1}, a_3^{-1}, a_2^{-1}, a_5^{-1}$, labeled C below each strand end.",
+   "kind": "geometric figure",
+   "violations": [],
+   "finish": "stop",
+   "api_error": "",
+   "seconds": 9.5
+  },
+  {
+   "id": "DTZ00022",
+   "summary": "Commutative diagram: three math nodes (F(X)*⊗F(X), F(C), D) joined by labeled arrows F(ι_X), j_{F(X)}, and ζ.",
+   "kind": "commutative diagram",
+   "violations": [],
+   "finish": "stop",
+   "api_error": "",
+   "seconds": 2.9
+  },
+  {
+   "id": "DTZ00023",
+   "summary": "A flowchart with two labeled rectangular nodes (•/GI/1 and •/M/K) connected by arrows, enclosed by a partial border.",
+   "kind": "flowchart",
+   "violations": [],
+   "finish": "stop",
+   "api_error": "",
+   "seconds": 1.7
+  },
+  {
+   "id": "DTZ00024",
+   "summary": "A network of queueing systems with multiple •/GI/1/S_i nodes connected by arrows to a single •/M/K node.",
+   "kind": null,
+   "violations": [
+    "named no kind from the list"
+   ],
+   "finish": "stop",
+   "api_error": "",
+   "seconds": 1.0
+  },
+  {
+   "id": "DTZ00025",
+   "summary": "Flowchart with two labeled queue boxes (Capital good, Repair shop) connected by arrows within a rectangular border.",
+   "kind": "flowchart",
+   "violations": [],
+   "finish": "stop",
+   "api_error": "",
+   "seconds": 1.9
+  },
+  {
+   "id": "DTZ00026",
+   "summary": "Kind: graph or network. Dominant elements: nodes, edges, arrows, labels. Six small integer-labeled graphs connected by red and blue arrows illustrate a borrowing/lending algorithm's progression.",
+   "kind": "graph or network",
+   "violations": [
+    "over 20 words (25)"
+   ],
+   "finish": "stop",
+   "api_error": "",
+   "seconds": 3.1
+  },
+  {
+   "id": "DTZ00027",
+   "summary": "Commutative diagram with four tensor-product nodes arranged in a square, connected by horizontal arrows labeled $\\phi_{ij}$ and $\\phi'_{ij}$, and vertical arrows $\\alpha_i\\otimes id$ and $\\alpha_j$.",
+   "kind": "commutative diagram",
+   "violations": [
+    "over 20 words (25)"
+   ],
+   "finish": "stop",
+   "api_error": "",
+   "seconds": 1.6
+  },
+  {
+   "id": "DTZ00028",
+   "summary": "Commutative diagram showing a short exact sequence with five labeled nodes connected by horizontal arrows.",
+   "kind": "commutative diagram",
+   "violations": [],
+   "finish": "stop",
+   "api_error": "",
+   "seconds": 4.8
+  },
+  {
+   "id": "DTZ00029",
+   "summary": "**Kind:** tree **Dominant elements:** nodes, connecting lines, mathematical labels **Description:** A three-level hierarchical tree of labeled nodes ($F$, $F_P$, $F_U$, etc.) connected by straight edges.",
+   "kind": "tree",
+   "violations": [
+    "over 20 words (25)"
+   ],
+   "finish": "stop",
+   "api_error": "",
+   "seconds": 1.5
+  },
+  {
+   "id": "DTZ00030",
+   "summary": "Commutative diagram with four nodes E, E', A, A' connected by four arrows labeled φ and ψ.",
+   "kind": "commutative diagram",
+   "violations": [],
+   "finish": "stop",
+   "api_error": "",
+   "seconds": 1.4
+  },
+  {
+   "id": "DTZ00031",
+   "summary": "Commutative diagram showing four mathematical objects (hatted R_U and R_℘) arranged in a square, connected by labeled arrows representing homomorphisms and a quotient map.",
+   "kind": "commutative diagram",
+   "violations": [
+    "over 20 words (24)"
+   ],
+   "finish": "stop",
+   "api_error": "",
+   "seconds": 2.1
+  },
+  {
+   "id": "DTZ00032",
+   "summary": "Commutative diagram featuring four tensor-product nodes connected by labeled horizontal and vertical arrows representing field extension maps.",
+   "kind": "commutative diagram",
+   "violations": [],
+   "finish": "stop",
+   "api_error": "",
+   "seconds": 0.8
+  },
+  {
+   "id": "DTZ00033",
+   "summary": "Two commutative squares depict tensor product maps between rings E_U, A_U, A_{P'} and matrix rings F_{\\wp_U}, M_{p^m}, with labeled arrows.",
+   "kind": null,
+   "violations": [
+    "named a library or command",
+    "named no kind from the list"
+   ],
+   "finish": "stop",
+   "api_error": "",
+   "seconds": 27.9
+  },
+  {
+   "id": "DTZ00034",
+   "summary": "Commutative diagram consisting of two parallel squares of labeled tensor-product extensions with horizontal phi/psi arrows and vertical inclusion arrows.",
+   "kind": "commutative diagram",
+   "violations": [],
+   "finish": "stop",
+   "api_error": "",
+   "seconds": 1.8
+  },
+  {
+   "id": "DTZ00035",
+   "summary": "A commutative diagram featuring four tensor product nodes linked by horizontal homomorphisms φ, ψ and vertical inclusion arrows.",
+   "kind": "commutative diagram",
+   "violations": [],
+   "finish": "stop",
+   "api_error": "",
+   "seconds": 10.5
+  },
+  {
+   "id": "DTZ00036",
+   "summary": "Geometric figure: a regular hexagon with labeled vertices (v1–v6), edge-length annotations (l₁, l₂), a dashed axis through center O, and shaded side regions.",
+   "kind": "geometric figure",
+   "violations": [
+    "over 20 words (23)"
+   ],
+   "finish": "stop",
+   "api_error": "",
+   "seconds": 2.0
+  },
+  {
+   "id": "DTZ00037",
+   "summary": "Geometric figure of a truncated square (octagonal outline) on a gray square background, with labeled vertices, interior/exterior arcs, and dimension arrows marking side lengths.",
+   "kind": "geometric figure",
+   "violations": [
+    "over 20 words (24)"
+   ],
+   "finish": "stop",
+   "api_error": "",
+   "seconds": 1.7
+  },
+  {
+   "id": "DTZ00038",
+   "summary": "**Kind:** geometric figure **Dominant elements:** shapes, arrows, labels, shading **Description:** A central square surrounded by four irregular polygons on a gray background, with double-headed arrows labeling edge lengths $l_1$, $l_2$ and arc indicators marking angles $\\theta$ and $\\phi$.",
+   "kind": "geometric figure",
+   "violations": [
+    "over 20 words (38)",
+    "named a library or command"
+   ],
+   "finish": "stop",
+   "api_error": "",
+   "seconds": 1.4
+  },
+  {
+   "id": "DTZ00039",
+   "summary": "Geometric figure: a cross-shaped arrangement of white pentagons on a gray background, annotated with dimension arrows, angle arcs, and labeled vertices, angles, and vectors.",
+   "kind": "geometric figure",
+   "violations": [
+    "over 20 words (24)"
+   ],
+   "finish": "stop",
+   "api_error": "",
+   "seconds": 4.1
+  },
+  {
+   "id": "DTZ00040",
+   "summary": "Geometric figure: a white octagonal shape over a gray square background, labeled with dimensions, angles, and arrows indicating lengths.",
+   "kind": "geometric figure",
+   "violations": [],
+   "finish": "stop",
+   "api_error": "",
+   "seconds": 1.1
+  },
+  {
+   "id": "DTZ00041",
+   "summary": "Plot: axes, curves, labels, gridlines showing MSE versus Eb/N0 for six L/D ratios.",
+   "kind": "plot",
+   "violations": [],
+   "finish": "stop",
+   "api_error": "",
+   "seconds": 0.9
+  },
+  {
+   "id": "DTZ00042",
+   "summary": "Graph/network with labeled nodes ($a_i$, $b_i$) connected by directed arrows forming repeated triangular motifs, encircled by a dashed elliptical arc.",
+   "kind": null,
+   "violations": [
+    "named no kind from the list"
+   ],
+   "finish": "stop",
+   "api_error": "",
+   "seconds": 5.3
+  },
+  {
+   "id": "DTZ00043",
+   "summary": "Graph/network: twelve labeled vertices connected by directed edges forming a zigzag chain of triangular cycles.",
+   "kind": null,
+   "violations": [
+    "named no kind from the list"
+   ],
+   "finish": "stop",
+   "api_error": "",
+   "seconds": 1.3
+  },
+  {
+   "id": "DTZ00044",
+   "summary": "**Tree** with nodes, arrows, and labels: a binary decision tree branching from a root into Actual Real/Fake, then Pred Real/Fake, with leaf values 0 or 1 and edge probabilities $p$ and $f$.",
+   "kind": "tree",
+   "violations": [
+    "over 20 words (32)"
+   ],
+   "finish": "stop",
+   "api_error": "",
+   "seconds": 8.5
+  },
+  {
+   "id": "DTZ00045",
+   "summary": "Plot dominated by axes, curves, and shading showing EER versus documents on Reuters 21578 with SBERT and UAR labels.",
+   "kind": "plot",
+   "violations": [],
+   "finish": "stop",
+   "api_error": "",
+   "seconds": 24.7
+  },
+  {
+   "id": "DTZ00046",
+   "summary": "Plot: four colored AUC curves with shaded bands over a grid, pinned labels (SBERT, UAR, UAR23, UAR19).",
+   "kind": "plot",
+   "violations": [],
+   "finish": "stop",
+   "api_error": "",
+   "seconds": 3.6
+  },
+  {
+   "id": "DTZ00047",
+   "summary": "Line plot titled \"CDS\" showing AUC versus number of sentences, featuring four colored curves labeled SBERT, UAR, UAR23, and UAR19, each with a shaded confidence band.",
+   "kind": "plot",
+   "violations": [
+    "over 20 words (26)"
+   ],
+   "finish": "stop",
+   "api_error": "",
+   "seconds": 0.9
+  },
+  {
+   "id": "DTZ00048",
+   "summary": "Plot featuring two overlaid curves (purple and blue) peaking then declining, plotted on a grid with \"Score\" x-axis.",
+   "kind": "plot",
+   "violations": [],
+   "finish": "stop",
+   "api_error": "",
+   "seconds": 1.9
+  },
+  {
+   "id": "DTZ00049",
+   "summary": "Plot: EER versus Number of Sentences for CDS, featuring four labeled curves (SBERT, UAR, UAR23, UAR19) with shaded confidence bands on a grid.",
+   "kind": "plot",
+   "violations": [
+    "over 20 words (23)"
+   ],
+   "finish": "stop",
+   "api_error": "",
+   "seconds": 3.1
+  },
+  {
+   "id": "DTZ00050",
+   "summary": "Plot featuring axes and grid with two bell-shaped curves (purple, light blue) plotted against a Score axis.",
+   "kind": "plot",
+   "violations": [],
+   "finish": "stop",
+   "api_error": "",
+   "seconds": 3.0
+  },
+  {
+   "id": "DTZ00051",
+   "summary": "Plot with a \"Score\"-labeled x-axis, light grid background, and two overlapping bell-shaped distribution curves drawn in dark purple and light blue.",
+   "kind": "plot",
+   "violations": [
+    "over 20 words (21)"
+   ],
+   "finish": "stop",
+   "api_error": "",
+   "seconds": 2.7
+  },
+  {
+   "id": "DTZ00052",
+   "summary": "Plot featuring two overlapping bell-like curves (dark purple and light blue) on gridded axes, both peaking near x=2.3.",
+   "kind": "plot",
+   "violations": [],
+   "finish": "stop",
+   "api_error": "",
+   "seconds": 5.5
+  },
+  {
+   "id": "DTZ00053",
+   "summary": "Plot with axes and four labeled, shaded curves comparing EER against the number of documents on Reuters 21578.",
+   "kind": "plot",
+   "violations": [],
+   "finish": "stop",
+   "api_error": "",
+   "seconds": 1.1
+  },
+  {
+   "id": "DTZ00054",
+   "summary": "Plot showing EER versus number of sentences, with four descending curves (SBERT, UAR, UAR23, UAR19) and shaded confidence bands.",
+   "kind": "plot",
+   "violations": [],
+   "finish": "stop",
+   "api_error": "",
+   "seconds": 7.5
+  },
+  {
+   "id": "DTZ00055",
+   "summary": "**Plot** — A line chart with axes, gridlines, and shaded confidence bands showing AUC versus document count for four Reuters 21578 models.",
+   "kind": "plot",
+   "violations": [
+    "over 20 words (22)"
+   ],
+   "finish": "stop",
+   "api_error": "",
+   "seconds": 1.6
+  },
+  {
+   "id": "DTZ00056",
+   "summary": "Plot with labeled axes showing AUC versus number of sentences, featuring four colored curves (SBERT, UAR, UAR23, UAR19) with shaded confidence bands.",
+   "kind": "plot",
+   "violations": [
+    "over 20 words (22)"
+   ],
+   "finish": "stop",
+   "api_error": "",
+   "seconds": 2.7
+  },
+  {
+   "id": "DTZ00057",
+   "summary": "Plot featuring axes, grid, and four labeled curves showing VRAM usage versus tensor length for ActionFormer, STALE, TemporalMaxer, and TriDet.",
+   "kind": "plot",
+   "violations": [],
+   "finish": "stop",
+   "api_error": "",
+   "seconds": 3.5
+  },
+  {
+   "id": "DTZ00058",
+   "summary": "Plot with axes, dashed grid, and four labeled line series (ActionFormer, STALE, TemporalMaxer, TriDet) comparing GMACs versus tensor length.",
+   "kind": "plot",
+   "violations": [],
+   "finish": "stop",
+   "api_error": "",
+   "seconds": 1.1
+  },
+  {
+   "id": "DTZ00059",
+   "summary": "A graph/network diagram dominated by four nodes forming a quadrilateral connected by colored directed arrows labeled Link 1–4, with a matching color legend.",
+   "kind": null,
+   "violations": [
+    "over 20 words (23)",
+    "named no kind from the list"
+   ],
+   "finish": "stop",
+   "api_error": "",
+   "seconds": 4.4
+  },
+  {
+   "id": "DTZ00060",
+   "summary": "Plot (pie chart) with eight labeled grayscale-shaded slices representing software error categories and their CS/CWE counts.",
+   "kind": "plot",
+   "violations": [],
+   "finish": "stop",
+   "api_error": "",
+   "seconds": 4.7
+  },
+  {
+   "id": "DTZ00061",
+   "summary": "Pie chart with grayscale shades showing vulnerability categories and percentages (Overflow 31.3%, DoS 29%, None 24.1%, Code Execution 11.1%, etc.).",
+   "kind": null,
+   "violations": [
+    "named no kind from the list"
+   ],
+   "finish": "stop",
+   "api_error": "",
+   "seconds": 2.1
+  },
+  {
+   "id": "DTZ00062",
+   "summary": "Commutative diagram featuring boxed mathematical terms like RVT code word and Puiseux characteristic, connected by bidirectional and crossing arrows illustrating their relationships.",
+   "kind": "commutative diagram",
+   "violations": [
+    "over 20 words (22)"
+   ],
+   "finish": "stop",
+   "api_error": "",
+   "seconds": 3.5
+  },
+  {
+   "id": "DTZ00063",
+   "summary": "A complete bipartite graph with two rows of four labeled circular nodes, connected by straight edges between every pair.",
+   "kind": null,
+   "violations": [
+    "named no kind from the list"
+   ],
+   "finish": "stop",
+   "api_error": "",
+   "seconds": 3.9
+  },
+  {
+   "id": "DTZ00064",
+   "summary": "Graph/network: two rows of four labeled circular nodes connected by straight edges in a complete bipartite pattern.",
+   "kind": null,
+   "violations": [
+    "named no kind from the list"
+   ],
+   "finish": "stop",
+   "api_error": "",
+   "seconds": 0.9
+  },
+  {
+   "id": "DTZ00065",
+   "summary": "This is an **other** (label only) figure, dominated by a single white-filled text label, depicting the subfigure caption \"c)\" placed at a specific coordinate.",
+   "kind": "other",
+   "violations": [
+    "over 20 words (24)"
+   ],
+   "finish": "stop",
+   "api_error": "",
+   "seconds": 1.9
+  },
+  {
+   "id": "DTZ00066",
+   "summary": "Plot of the curve √(p(1-p)) with dotted vertical/horizontal markers at key p-values and x-axis labels.",
+   "kind": "plot",
+   "violations": [],
+   "finish": "stop",
+   "api_error": "",
+   "seconds": 2.8
+  },
+  {
+   "id": "DTZ00067",
+   "summary": "Plot: semicircular curve √(p(1−p)) drawn on axes, with dotted vertical lines and fraction labels marking specific points along the p-axis.",
+   "kind": "plot",
+   "violations": [],
+   "finish": "stop",
+   "api_error": "",
+   "seconds": 12.0
+  },
+  {
+   "id": "DTZ00068",
+   "summary": "**Plot** with axes and a curve: the square-root function √(p(1−p)) for c<1, with dotted vertical markers at ½, 1/(1+c²), and 1/(1+σ²/(L−μ)²).",
+   "kind": "plot",
+   "violations": [
+    "over 20 words (21)"
+   ],
+   "finish": "stop",
+   "api_error": "",
+   "seconds": 2.7
+  },
+  {
+   "id": "DTZ00069",
+   "summary": "Other (empty figure); only two white-filled text labels \"a)\" and \"b)\" with no other elements drawn.",
+   "kind": "other",
+   "violations": [],
+   "finish": "stop",
+   "api_error": "",
+   "seconds": 1.2
+  },
+  {
+   "id": "DTZ00070",
+   "summary": "Other: an almost empty figure containing only two labeled white text nodes \"a)\" and \"b)\" with no drawn shapes.",
+   "kind": "other",
+   "violations": [
+    "named a library or command"
+   ],
+   "finish": "stop",
+   "api_error": "",
+   "seconds": 4.8
+  },
+  {
+   "id": "DTZ00071",
+   "summary": "Label/text marker; dominant element is the label \"a)\" with a white fill, serving as a panel identifier.",
+   "kind": null,
+   "violations": [
+    "named no kind from the list"
+   ],
+   "finish": "stop",
+   "api_error": "",
+   "seconds": 2.2
+  },
+  {
+   "id": "DTZ00072",
+   "summary": "An \"other\" figure consisting of an empty area with only a single label \"b)\" drawn in the upper left.",
+   "kind": "other",
+   "violations": [],
+   "finish": "stop",
+   "api_error": "",
+   "seconds": 1.7
+  },
+  {
+   "id": "DTZ00073",
+   "summary": "Geometric figure: a small lime-green filled circle labeled \"ID\" in white with a tiny white highlight dot.",
+   "kind": "geometric figure",
+   "violations": [],
+   "finish": "stop",
+   "api_error": "",
+   "seconds": 1.6
+  },
+  {
+   "id": "DTZ00074",
+   "summary": "Two empty-labeled plot panels showing (a) a manufactured solution and (b) error scaling analysis with a vertical \"solid fraction φ\" axis label.",
+   "kind": "plot",
+   "violations": [
+    "over 20 words (22)"
+   ],
+   "finish": "stop",
+   "api_error": "",
+   "seconds": 2.0
+  },
+  {
+   "id": "DTZ00075",
+   "summary": "Plot — empty image placeholders arranged in a 2x4 grid labeled with time steps and rotated side annotations.",
+   "kind": "plot",
+   "violations": [],
+   "finish": "stop",
+   "api_error": "",
+   "seconds": 2.8
+  },
+  {
+   "id": "DTZ00076",
+   "summary": "Table-like grid legend showing \"Stopped Incident\" on the left and \"Slow-Moving Incident\" on the right with centered text labels.",
+   "kind": "table-like grid",
+   "violations": [],
+   "finish": "stop",
+   "api_error": "",
+   "seconds": 1.1
+  },
+  {
+   "id": "DTZ00077",
+   "summary": "Geometric figure: a single dashed vertical line segment drawn along the y-axis.",
+   "kind": "geometric figure",
+   "violations": [],
+   "finish": "stop",
+   "api_error": "",
+   "seconds": 1.0
+  },
+  {
+   "id": "DTZ00078",
+   "summary": "Two horizontally positioned text labels distinguishing discretionary lane changes from mandatory overtaking, forming a minimal illustrative legend.",
+   "kind": null,
+   "violations": [
+    "named no kind from the list"
+   ],
+   "finish": "stop",
+   "api_error": "",
+   "seconds": 2.4
+  },
+  {
+   "id": "DTZ00079",
+   "summary": "Commutative diagram, four nodes in a square with labeled arrows, depicting relations between indices $\\pi_{i,j}$.",
+   "kind": "commutative diagram",
+   "violations": [],
+   "finish": "stop",
+   "api_error": "",
+   "seconds": 0.8
+  },
+  {
+   "id": "DTZ00080",
+   "summary": "Commutative diagram: a 3×3 grid of numeric sequences connected by labeled directed edges indicating pattern transitions.",
+   "kind": "commutative diagram",
+   "violations": [],
+   "finish": "stop",
+   "api_error": "",
+   "seconds": 1.7
+  },
+  {
+   "id": "DTZ00081",
+   "summary": "Commutative diagram displaying a 4×5 grid of permutation nodes connected by labeled arrows (2, 3, 4) indicating multiplication steps.",
+   "kind": "commutative diagram",
+   "violations": [],
+   "finish": "stop",
+   "api_error": "",
+   "seconds": 1.0
+  },
+  {
+   "id": "DTZ00082",
+   "summary": "Commutative diagram with labeled arrows showing pullback squares of preimages mapping between $[B]^*Y_L$, $Y_L$, $x$, and $A_L$.",
+   "kind": "commutative diagram",
+   "violations": [],
+   "finish": "stop",
+   "api_error": "",
+   "seconds": 3.8
+  },
+  {
+   "id": "DTZ00083",
+   "summary": "Graph/network of four labeled circular nodes connected by curved directed edges with weights.",
+   "kind": null,
+   "violations": [
+    "named no kind from the list"
+   ],
+   "finish": "stop",
+   "api_error": "",
+   "seconds": 2.7
+  },
+  {
+   "id": "DTZ00084",
+   "summary": "Graph or network: five labeled ellipse nodes (1-5) connected by arrows from top node 1 to bottom nodes 2-5.",
+   "kind": "graph or network",
+   "violations": [],
+   "finish": "stop",
+   "api_error": "",
+   "seconds": 17.0
+  },
+  {
+   "id": "DTZ00085",
+   "summary": "Graph or network: five labeled ellipse nodes arranged in a square with a central node, connected by directed arrows from each corner to the center.",
+   "kind": "graph or network",
+   "violations": [
+    "over 20 words (25)"
+   ],
+   "finish": "stop",
+   "api_error": "",
+   "seconds": 2.0
+  },
+  {
+   "id": "DTZ00086",
+   "summary": "Graph/network: four numbered nodes in a diamond connected by directed arrows forming a cycle.",
+   "kind": null,
+   "violations": [
+    "named no kind from the list"
+   ],
+   "finish": "stop",
+   "api_error": "",
+   "seconds": 1.5
+  },
+  {
+   "id": "DTZ00087",
+   "summary": "**Kind:** graph or network. **Dominant elements:** nodes (circles), directed arrows, numeric edge labels. **Description:** A directed weighted graph with seven labeled circular nodes (A–G) connected by arrows bearing numerical weights, depicting a hierarchical network with A at the top, branching downward to G.",
+   "kind": "graph or network",
+   "violations": [
+    "over 20 words (43)"
+   ],
+   "finish": "stop",
+   "api_error": "",
+   "seconds": 3.9
+  },
+  {
+   "id": "DTZ00088",
+   "summary": "Graph/network with seven labeled circular nodes connected by weighted directed arrows, plus a highlighted red path from A through C and F to G.",
+   "kind": null,
+   "violations": [
+    "over 20 words (24)",
+    "named no kind from the list"
+   ],
+   "finish": "stop",
+   "api_error": "",
+   "seconds": 1.3
+  },
+  {
+   "id": "DTZ00089",
+   "summary": "A weighted directed graph with seven labeled circular nodes connected by labeled arrows, highlighting a path from A to G in blue.",
+   "kind": null,
+   "violations": [
+    "over 20 words (22)",
+    "named no kind from the list"
+   ],
+   "finish": "stop",
+   "api_error": "",
+   "seconds": 2.7
+  },
+  {
+   "id": "DTZ00090",
+   "summary": "Graph/network: directed graph with seven circular nodes (A–G), red numerical node labels, and directed weighted edges labeled in white.",
+   "kind": null,
+   "violations": [
+    "named no kind from the list"
+   ],
+   "finish": "stop",
+   "api_error": "",
+   "seconds": 1.2
+  },
+  {
+   "id": "DTZ00091",
+   "summary": "A directed weighted graph with seven labeled circular nodes (A–G) connected by arrows bearing numeric edge weights, including a self-loop on G.",
+   "kind": null,
+   "violations": [
+    "over 20 words (22)",
+    "named no kind from the list"
+   ],
+   "finish": "stop",
+   "api_error": "",
+   "seconds": 1.1
+  },
+  {
+   "id": "DTZ00092",
+   "summary": "Graph/network: two rows of numbered circle nodes (workers and jobs) connected by directed arrows representing a bipartite assignment.",
+   "kind": null,
+   "violations": [
+    "named no kind from the list"
+   ],
+   "finish": "stop",
+   "api_error": "",
+   "seconds": 0.7
+  },
+  {
+   "id": "DTZ00093",
+   "summary": "Graph/network type figure showing red and blue circular labeled nodes (ψ and φ) connected by directed arrows.",
+   "kind": null,
+   "violations": [
+    "named no kind from the list"
+   ],
+   "finish": "stop",
+   "api_error": "",
+   "seconds": 1.4
+  },
+  {
+   "id": "DTZ00094",
+   "summary": "Graph or network: blue φ-nodes and red ψ-nodes drawn as circles connected by directed arrows showing mappings.",
+   "kind": "graph or network",
+   "violations": [],
+   "finish": "stop",
+   "api_error": "",
+   "seconds": 5.6
+  },
+  {
+   "id": "DTZ00095",
+   "summary": "Graph/network: four labeled circular nodes (1–4) connected by weighted directed edges, including a blue source node (s₁=10) and red demand node (d₄=10).",
+   "kind": null,
+   "violations": [
+    "over 20 words (22)",
+    "named no kind from the list"
+   ],
+   "finish": "stop",
+   "api_error": "",
+   "seconds": 2.4
+  },
+  {
+   "id": "DTZ00096",
+   "summary": "A directed graph with nine labeled circular nodes (blue and red) connected by weighted arrows forming two clusters.",
+   "kind": null,
+   "violations": [
+    "named no kind from the list"
+   ],
+   "finish": "stop",
+   "api_error": "",
+   "seconds": 2.4
+  },
+  {
+   "id": "DTZ00097",
+   "summary": "Graph/network with five nodes connected by weighted bidirectional arrows and self-loops, representing a Markov chain.",
+   "kind": null,
+   "violations": [
+    "named no kind from the list"
+   ],
+   "finish": "stop",
+   "api_error": "",
+   "seconds": 3.7
+  },
+  {
+   "id": "DTZ00098",
+   "summary": "Graph/network of five labeled nodes connected by weighted directed arrows with self-loops, depicting a Markov chain's transition probabilities.",
+   "kind": null,
+   "violations": [
+    "named no kind from the list"
+   ],
+   "finish": "stop",
+   "api_error": "",
+   "seconds": 1.1
+  },
+  {
+   "id": "DTZ00099",
+   "summary": "State diagram (other): three labeled ellipse nodes—\"middle class,\" \"rich,\" \"poor\"—connected by directed arrows with self-loops and a bidirectional edge between the top two.",
+   "kind": "other",
+   "violations": [
+    "over 20 words (23)"
+   ],
+   "finish": "stop",
+   "api_error": "",
+   "seconds": 1.3
+  }
+ ]
+}

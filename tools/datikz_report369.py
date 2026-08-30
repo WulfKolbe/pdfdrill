@@ -50,7 +50,12 @@ CAVEAT = (
     "wrapper to \\texttt{standalone} and a whole-file hash therefore finds "
     "none of them. Neither release page states this. 350 V2 test rows are "
     "clean; a model measurement must use those, and this report is a "
-    "renderer measurement where it does not matter.")
+    "renderer measurement where it does not matter. "
+    "\\textbf{The LaTeX source column is GENERATED,} not measured: it holds a "
+    "one-sentence summary written by a language model from the TikZ, tagged "
+    "\\textcolor{genblue}{[generated]} in every cell. The source itself is "
+    "unchanged and reachable through the link under each identifier. Nothing "
+    "in that column is evidence about the figure; it is a reading aid.")
 
 
 _PICTURE = re.compile(r"\\\\begin\\{(?:tikzpicture|tikzcd|axis|circuitikz|forest)\\}")
@@ -116,6 +121,9 @@ def widths(usable_mm: float):
 
 def main() -> int:
     man = json.loads((FIX / "manifest.json").read_text())
+    sp = ROOT / "out" / "375.json"
+    summaries = ({r["id"]: r for r in json.loads(sp.read_text())["rows"]}
+                 if sp.is_file() else {})
     built = json.loads((ROOT / "out" / "365.json").read_text())
     rendered = {r["id"]: r.get("rendered") for r in built["rows"]}
     errors = {r["id"]: r.get("compile_error", "") for r in built["failures"]}
@@ -130,6 +138,7 @@ def main() -> int:
     parts[0] = parts[0].replace(
         "\\begin{document}",
         "\\usepackage{hyperref}\n\\hypersetup{colorlinks,urlcolor=blue}\n"
+        "\\definecolor{genblue}{RGB}{20,90,170}\n"
         "\\begin{document}")
     parts.append("\\section*{DaTikZ-V4 --- first 100 rows}\n")
     parts.append(CAVEAT + "\n\n")
@@ -158,11 +167,21 @@ def main() -> int:
                 % (shard_of(i, CACHE), i))
         conf = rt.conf_cell("")                   # absent, never invented
         code = (FIX / r["tex"]).read_text(errors="replace")
+        gen = summaries.get(rid, {})
         # Truncate from the PICTURE, not the file. Every row's first lines are
         # \documentclass and \usepackage — identical across rows and silent
         # about the figure, so the column showed the preamble and nothing else.
         head = _from_picture(code)
-        src = "{\\ttfamily\\tiny %s}" % rt.esc_text(head[:260])
+        # 375 — a generated one-sentence summary, MARKED as generated. The
+        # code is still reachable through column 1's link, so the column
+        # becomes readable without the source becoming unavailable. The
+        # marker is per-cell rather than only in the caveat: a reader
+        # scanning one row must not have to remember a header note.
+        if gen.get("summary"):
+            src = ("{\\color{genblue}\\tiny\\textbf{[generated]}}~"
+                   "{\\small %s}" % rt.esc_text(gen["summary"][:400]))
+        else:
+            src = "{\\ttfamily\\tiny %s}" % rt.esc_text(head[:260])
         rp = rendered.get(rid)
         if rp:
             # width AND height, keepaspectratio, on BOTH image cells. DTZ00077

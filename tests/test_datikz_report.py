@@ -70,3 +70,14 @@ def test_the_caveat_records_the_split_and_the_contamination():
     assert "BY PICTURE" in c
     assert "not by document" in c
     assert "Neither release page states this" in c
+
+
+def test_the_generated_column_is_marked_as_generated():
+    """375 — the summary column must never read as measured. The caveat says
+    so and every cell carries a coloured tag, because a reader scanning one
+    row cannot be assumed to have read a header note."""
+    c = _caveat()
+    assert "GENERATED" in c
+    assert "not measured" in c
+    assert "reading aid" in c
+    assert "reachable through the link" in c
