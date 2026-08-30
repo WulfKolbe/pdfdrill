@@ -1,0 +1,23 @@
+{
+ "doc": "j.nuclphysb.2018.09.006",
+ "pdf": "j.nuclphysb.2018.09.006.pdf",
+ "rc": 0,
+ "stdout_tail": "Build stamp: report.build.json — phase=reading, 43 pages, 4301488 bytes, sha256 b8582b5cc1b7. A measurement of this report should copy it into its output as `measured_against`.",
+ "seconds": 5.7,
+ "regions": {
+  "regions_with_latex": 0,
+  "attempted_now": 0,
+  "rendered": 0,
+  "failed": 0,
+  "has_author_preamble": false,
+  "graphics_dir": null,
+  "failures": []
+ },
+ "table_cols": [
+  6,
+  5
+ ],
+ "six_col_tables": 1,
+ "region_table_cols": 5,
+ "ink_selectable": false
+}
