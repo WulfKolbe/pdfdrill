@@ -1,0 +1,41 @@
+{
+ "doc": "ZZ Top Volume 1 Guitar Vocal CLASSIC Authentic Guitar-Tab Edition includes complete Solos (Hamstein Music) (z-lib.org)",
+ "pdf": "ZZ Top Volume 1 Guitar Vocal CLASSIC Authentic Guitar-Tab Edition includes complete Solos (Hamstein Music) (z-lib.org).pdf",
+ "rc": 0,
+ "stdout_tail": "Build stamp: report.build.json — phase=reading, 47 pages, 48434282 bytes, sha256 a75e34caad53. A measurement of this report should copy it into its output as `measured_against`.",
+ "seconds": 9.1,
+ "regions": {
+  "regions_with_latex": 12,
+  "attempted_now": 3,
+  "rendered": 9,
+  "failed": 3,
+  "has_author_preamble": false,
+  "graphics_dir": null,
+  "failures": [
+   {
+    "id": "ZZ_Top_Volume_1_Guitar_Vocal_CLASSIC_Authentic_Guitar-Tab_Edition_includes_complete_Solos__Hamstein_Music___z-lib.org__DIA_0022",
+    "first_error": "! Missing $ inserted."
+   },
+   {
+    "id": "ZZ_Top_Volume_1_Guitar_Vocal_CLASSIC_Authentic_Guitar-Tab_Edition_includes_complete_Solos__Hamstein_Music___z-lib.org__DIA_0052",
+    "first_error": "! Missing $ inserted."
+   },
+   {
+    "id": "ZZ_Top_Volume_1_Guitar_Vocal_CLASSIC_Authentic_Guitar-Tab_Edition_includes_complete_Solos__Hamstein_Music___z-lib.org__DIA_0093",
+    "first_error": "! Missing $ inserted."
+   }
+  ]
+ },
+ "manifest_rows": 175,
+ "with_latex": 12,
+ "duplicated": 166,
+ "table_cols": [
+  5,
+  5,
+  4,
+  7
+ ],
+ "six_col_tables": 0,
+ "region_table_cols": 7,
+ "ink_selectable": false
+}
