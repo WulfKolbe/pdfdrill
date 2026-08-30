@@ -1,0 +1,27 @@
+{
+ "doc": "loce2a79389a51_slides",
+ "pdf": "loce2a79389a51_slides.pdf",
+ "rc": 0,
+ "stdout_tail": "Build stamp: report.build.json — phase=reading, 7 pages, 754903 bytes, sha256 23469682da42. A measurement of this report should copy it into its output as `measured_against`.",
+ "seconds": 6.0,
+ "regions": {
+  "regions_with_latex": 1,
+  "attempted_now": 1,
+  "rendered": 1,
+  "failed": 0,
+  "has_author_preamble": false,
+  "graphics_dir": null,
+  "failures": []
+ },
+ "manifest_rows": 3,
+ "with_latex": 1,
+ "duplicated": 2,
+ "table_cols": [
+  6,
+  5,
+  7
+ ],
+ "six_col_tables": 1,
+ "region_table_cols": 7,
+ "ink_selectable": false
+}
