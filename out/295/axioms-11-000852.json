@@ -1,0 +1,27 @@
+{
+ "doc": "axioms-11-000852",
+ "pdf": "axioms-11-000852.pdf",
+ "rc": 0,
+ "stdout_tail": "Build stamp: report.build.json — phase=reading, 17 pages, 1425422 bytes, sha256 7ff7f7633b0d. A measurement of this report should copy it into its output as `measured_against`.",
+ "seconds": 3.5,
+ "regions": {
+  "regions_with_latex": 0,
+  "attempted_now": 0,
+  "rendered": 0,
+  "failed": 0,
+  "has_author_preamble": false,
+  "graphics_dir": null,
+  "failures": []
+ },
+ "manifest_rows": 28,
+ "with_latex": 0,
+ "duplicated": 28,
+ "table_cols": [
+  6,
+  5,
+  7
+ ],
+ "six_col_tables": 1,
+ "region_table_cols": 7,
+ "ink_selectable": false
+}
