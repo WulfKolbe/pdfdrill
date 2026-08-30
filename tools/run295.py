@@ -155,7 +155,12 @@ def main():
     done = skipped = 0
     since_push = 0
     for i, (name, pdf) in enumerate(docs, 1):
-        dest = OUT / ("%s.json" % _safe(name).replace("/", "_"))
+        # sanitise ONCE, here. The first fix cleaned the row and the output
+        # filename and left the progress print using the raw name, so the pass
+        # died again at document 950 on a different bad byte -- \udce8 rather
+        # than \udca8. The data path and the DISPLAY path both encode.
+        disp = _safe(name)
+        dest = OUT / ("%s.json" % disp.replace("/", "_"))
         if dest.is_file():
             skipped += 1
             continue
@@ -165,7 +170,7 @@ def main():
         # permanent, since the run resumes on the presence of this file.
         if "DocumentBusy" in (row.get("error") or ""):
             print("[%4d/%4d] %-34s LOCKED by another process - left for a re-run"
-                  % (i, len(docs), name[:34]), flush=True)
+                  % (i, len(docs), disp[:34]), flush=True)
             continue
         dest.write_text(json.dumps(row, indent=1, ensure_ascii=False),
                         encoding="utf-8")
@@ -185,7 +190,7 @@ def main():
                            cwd=ROOT, capture_output=True, timeout=300)
             since_push = 0
         print("[%4d/%4d] %-34s %5.1fs  regions=%s failed=%s selectable=%s"
-              % (i, len(docs), name[:34], row["seconds"],
+              % (i, len(docs), disp[:34], row["seconds"],
                  (row.get("regions") or {}).get("rendered", "-"),
                  (row.get("regions") or {}).get("failed", "-"),
                  row["ink_selectable"]), flush=True)
