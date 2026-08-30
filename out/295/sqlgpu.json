@@ -1,0 +1,28 @@
+{
+ "doc": "sqlgpu",
+ "pdf": "sqlgpu.pdf",
+ "rc": 0,
+ "stdout_tail": "Build stamp: report.build.json — phase=reading, 9 pages, 1646420 bytes, sha256 aa109ed85715. A measurement of this report should copy it into its output as `measured_against`.",
+ "seconds": 11.1,
+ "regions": {
+  "regions_with_latex": 5,
+  "attempted_now": 5,
+  "rendered": 5,
+  "failed": 0,
+  "has_author_preamble": false,
+  "graphics_dir": null,
+  "failures": []
+ },
+ "manifest_rows": 29,
+ "with_latex": 5,
+ "duplicated": 24,
+ "table_cols": [
+  6,
+  5,
+  4,
+  7
+ ],
+ "six_col_tables": 1,
+ "region_table_cols": 7,
+ "ink_selectable": false
+}
