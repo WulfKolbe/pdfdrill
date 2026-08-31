@@ -186,3 +186,27 @@ def test_a_page_that_lost_a_row_is_dropped_whole_not_truncated(tmp_path,
     assert [r["id"] for r in pay["rows"]] == ["DTZ00000"]
     assert pay["pages_dropped"] == [{"page": 2, "rows": 1, "identifiers": 2,
                                      "ids": ["DTZ00001", "DTZ00002"]}]
+
+
+def test_the_tables_cell_does_not_cross_reference_a_rare_artefact():
+    r"""426 — the empty-LaTeX cell said "see tables.html".
+
+    10,928 rows across 680 documents said it, and tables.html exists in 17 of
+    those 680: 97.5% of the pointers dangle. Where it does exist it is
+    pdfplumber's keyless extraction of the page, not that row's table
+    rendered, so even the 2.5% pointed somewhere other than a reader would
+    expect.
+
+    report.pdf is the universal artefact (1,331 documents) and tables.html is
+    a rare one (31). A cross-reference in that direction has to dangle.
+    """
+    import inspect
+    from pdfdrill import report_tex as rt
+    src = inspect.getsource(rt.build_tex if hasattr(rt, "build_tex") else rt)
+    body = src if isinstance(src, str) else ""
+    # the CELL must not name it; the comment explaining why may.
+    cell_lines = [l for l in body.splitlines()
+                  if "no LaTeX source" in l]
+    assert cell_lines, "the empty-LaTeX cell text moved; this test needs its anchor"
+    for l in cell_lines:
+        assert "tables.html" not in l, l.strip()

@@ -1438,8 +1438,8 @@ def _artref(sc: "Sidecar", p: Path) -> str:
 
 
 def cmd_artifacts(pdf: Path, all_files: bool = False) -> str:
-    """List the openable files in this doc's drill folder (report.html, the
-    extracted `<bibkey>.md`, tiddlers/semantic/llm `*.json`/`*.txt`, SVGs) with
+    """List the openable files in this doc's drill folder (formula-report.html,
+    the extracted `<bibkey>.md`, tiddlers/semantic/llm `*.json`/`*.txt`, SVGs) with
     their paths — so they're clickable in the drillui Outputs panel (the browser
     opens md/json/svg/pdf/html directly). The giant model JSON is skipped unless
     `--all`. No `fetch`, no `find`."""

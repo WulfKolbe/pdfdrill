@@ -96,20 +96,49 @@ documents.
 
 ---
 
-## `report.html` — does not exist
+## `formula-report.html` — the mathematics, in a browser
 
-**On disk: 0.** No command writes it.
+**Made by** `pdfdrill report`. **On disk** 35 documents.
+**Requires** model.
 
-`pdfdrill report` writes **`formula-report.html`** (35 on disk): a full
-inline+display math report rendered with KaTeX, `--scale N` matching each
-render to the CDN image height. Its audience is a reader who wants the
-mathematics in a browser at reading size, not a QC auditor.
+Three sections, from a real one (bh2, 1.9 MB, 5,218 rows):
 
-`cmd_artifacts`' own docstring says it lists "report.html", which is a name
-nothing has produced. Left as found and recorded here; renaming it is a
-change, and 422 is a description.
+| section | columns |
+|---|---|
+| Inline Math — MathExpression tiddlers (4,870) | Tiddler · LaTeX source · Rendered (KaTeX) |
+| Display Equations (344) | Tiddler · LaTeX source · Rendered (KaTeX) · MathPix image |
+| TikZ & Tables (1; 0 rendered to SVG) | — |
 
----
+**Audience: someone reading the mathematics**, at reading size, in a
+browser, without a LaTeX toolchain. `--scale N` matches each render to the
+CDN image height so the two can be compared at a glance.
+
+### How it differs from `report.pdf`, which is the distinction the tables section lost
+
+They are both formula surfaces over the same objects, and they answer
+different questions:
+
+| | `formula-report.html` | `report.pdf` |
+|---|---|---|
+| renderer | **KaTeX**, in the browser | **xelatex**, compiled |
+| confidence | not shown | coloured square, per row |
+| residual | not shown | coloured bullet + class code |
+| scan crop | on display equations only | every row, at pixel-exact size |
+| on disk | 35 | 1,331 |
+| question | *what does this say?* | *is this reading right?* |
+
+The renderer is the substantive difference, not the file format. KaTeX and
+xelatex fail on different inputs, so a row that renders in one and not the
+other is evidence about the LaTeX rather than about either tool — which is
+worth having, and is not what either artefact is built to report.
+
+`report.pdf` is the only one carrying two independent instruments in
+adjacent cells. `formula-report.html` carries neither, and should not: a
+reading surface that showed a confidence square would invite the reader to
+treat it as a QC surface at half the evidence.
+
+**Note.** `report.html` — the bare name — is written by nothing and exists
+nowhere. `cmd_artifacts` named it in its docstring; corrected in 427.
 
 ## Which artefact answers which question
 
@@ -121,8 +150,8 @@ change, and 422 is a description.
 | Show me the maths in a browser | `formula-report.html` |
 | Show me the diagrams as vectors | `svg/` |
 
-Two of them are cheap and rare (`tables.html` 31, `formula-report.html` 35)
-against `report.pdf`'s 1,331. That asymmetry is not a defect — they answer
+Two of them are rare (`tables.html` 31, `formula-report.html` 35) against
+`report.pdf`'s 1,331. That asymmetry is not a defect — they answer
 narrower questions — but it does mean a cross-reference from the universal
 artefact to a rare one will usually dangle, which is exactly what 10,928
 rows now do.

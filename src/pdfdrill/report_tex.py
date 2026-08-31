@@ -1863,8 +1863,26 @@ def build_report(tiddlers_path: Path, out: Path | None = None,
         for title, latex, page, dims, _region in tab:
             body = ("{\\ttfamily\\footnotesize %s}" % esc_text(latex)
                     ) if latex else (
-                "(no LaTeX source; %s\\,$\\times$\\,%s px"
-                " region — see tables.html)" % dims)
+                # 426 — NO CROSS-REFERENCE. This said "see tables.html",
+                # in 10,928 rows across 680 documents, and that file exists
+                # in 17 of them: 97.5% of the pointers dangle. Where it does
+                # exist it is pdfplumber's KEYLESS extraction of the page —
+                # a different route with a different failure mode — not this
+                # row's table rendered, so even the 2.5% pointed somewhere
+                # else than the reader would expect.
+                #
+                # report.pdf is the universal artefact (1,331 documents) and
+                # tables.html is a rare one (31). A cross-reference in that
+                # direction has to dangle, and the fix is to stop making it
+                # rather than to build the rare artefact 663 more times.
+                #
+                # The cell now states its own fact and stops. 425 measured
+                # that 85.9% of these rows have a \begin{tabular} sitting in
+                # the model's `mathpix_text`, so most of them will carry
+                # content shortly; what is left after that is a scanned table
+                # MathPix gave no tabular for, and an empty cell is the
+                # honest reading of it.
+                "(no LaTeX source; %s\\,$\\times$\\,%s px region)" % dims)
             img = crop_cell(crops, out_dir, title,
                             px_width=dims[0], px2mm=px2mm, col_mm=tim,
                             bibkey=bibkey, history=bibkey_history)
