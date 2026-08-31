@@ -1,0 +1,147 @@
+419 — the planner's actual state, and whether it resolves the chain today.
+
+Read planner.py before measuring. The hypothesis in the task was right: --ensure
+is more complete than the by-hand chaining suggests. It resolves most of the
+chain already. One edge is missing, and it is a declaration, not a planner
+defect.
+
+================================================================================
+A. Declaration coverage — 142 commands
+================================================================================
+
+  requires + done_when   8   bibliography, bibsource, cdncrops, injectlatex,
+                             inkconvert, reporttex, speak, tiddlers
+  done_when only         4   geometry, mathpix, model, size
+  requires only         57   algorithms, annotate, ask, beamer, bibfetch,
+                             citedrill, …, inkreport, inspect, latex, …
+  NEITHER               73   abstract, artifacts, attachments, bibtex, booktoc,
+                             config, crossref, dests, docos, doctor, drill,
+                             eqblobs, escalate, fetch, folder, fonts, images,
+                             links, ls, make, markdown, …
+
+The important number is not in that table:
+
+  **Commands used AS a prerequisite that have no done_when:  0**
+
+Every command another command depends on carries a detector. The 12 with
+done_when are exactly the state-producing commands; the 73 with neither are
+leaves — nothing depends on them, so a detector would have no reader. So the
+graph is not sparse where it is load-bearing. It is complete there.
+
+Caveat on the 73. "Declares neither" is not the same as "needs nothing". Six
+were spot-checked by grepping their handler's first 40 lines for model access:
+`embedimages` and `escalate` touch the model while declaring no `requires`;
+`crossref`, `eqblobs`, `identifiers`, `booktoc` do not. That is a heuristic, not
+a proof — it would miss a load deeper in the function — but two of six is enough
+to say the same under-declaration as `inkreport` (section C) is probably not
+unique to it. It is not enumerated here because the task asked what is declared,
+not an audit of what should be.
+
+================================================================================
+B. Can --ensure resolve add -> mathpix -> reporttex -> inkreport?
+================================================================================
+
+Three links, three different answers.
+
+--- add ------------------------------------------------------------------ N/A
+
+`add` is not a pdfdrill command. It is a subcommand of the docos shell —
+`pdfdrill docos add <glob>` — which manipulates the persisted working SET of
+documents. It selects which documents a later command runs against; it is not a
+step in any document's pipeline and cannot appear in a plan. The chain as
+written starts one name too early.
+
+--- mathpix -> reporttex ------------------------------------------- RESOLVES
+
+Measured on an undrilled copy (a PDF with no sidecar, so nothing was satisfied):
+
+  $ pdfdrill steps reporttex fresh.pdf
+  `reporttex` for fresh.pdf would run, in order:
+    model → geometry → mathpix → injectlatex → bibliography → tiddlers →
+    cdncrops → inkconvert → reporttex
+    (missing prerequisites: model, geometry, mathpix (paid — run
+     `pdfdrill mathpix` yourself), injectlatex, bibliography, tiddlers,
+     cdncrops (paid — run `pdfdrill cdncrops` yourself), inkconvert; --ensure
+     auto-runs the offline ones and NAMES the paid ones; already done: none)
+
+Nine steps, correctly ordered, from nothing. It also gets the hard part right:
+`mathpix` and `cdncrops` are identified as paid and named rather than run.
+
+That refusal is deliberate and load-bearing, not a limitation. `ensure()` wraps
+the whole prerequisite run in `no_paid_steps()` because of incident 159: `model`
+is offline in the manifest but calls `cmd_mathpix` directly when no lines.json
+exists, so a paid call was reachable *through an offline-looking prerequisite*
+and bought 32 pages during a run meant to spend nothing. The guard is at the
+depth of the whole chain, not the step.
+
+And the reporttex ↔ inkconvert cycle is handled: they require each other because
+the report is built twice — measure phase, then reading phase — and `plan()`
+drops the back edge so each target gets the order right for what was asked (310).
+
+--- reporttex -> inkreport ---------------------------------- DOES NOT RESOLVE
+
+  $ pdfdrill steps inkreport fresh.pdf
+  `inkreport` for fresh.pdf would run, in order:
+    model → inkreport
+    (missing prerequisites: model; already done: none)
+
+`inkreport` declares `requires: [model]` and no `done_when`. From a cold start
+the planner therefore believes a docmodel is all it needs, plans two steps, and
+would hand control to a command whose own preflight then refuses.
+
+**That is the missing link: one edge, `inkreport` → `reporttex`.** Everything
+before it already resolves.
+
+================================================================================
+C. Why the missing edge is not a one-line fix (this is 420's problem)
+================================================================================
+
+Adding `requires: [reporttex]` to `inkreport` would make the plan *print*
+correctly. It would not make the planner able to RUN the chain, because
+`cmd_inkreport` does five things the manifest cannot express:
+
+1. It calls `reporttex` TWICE — once for the measure phase, once for the
+   reading phase. `plan()` emits each command name at most once, by
+   construction (`if dep not in out`).
+
+2. The two calls take DIFFERENT arguments:
+   `cmd_reporttex(pdf, compile_pdf=True, legend=False)` for measure. The
+   `legend=False` is what stamps `phase=measure`; the handler's own docstring
+   records that this flag was once operator-facing and forgetting it caused the
+   measurement to be refused several steps later (400). `ensure()` invokes
+   handlers as `fn([pdf_arg])` — one positional argument, no options.
+
+3. It moves state between steps: `report.ink.json` is stashed to
+   `.inkreport-hold` before the measure build and restored after, so the
+   measure build cannot adopt the previous run's measurement.
+
+4. It verifies each step's own output before the next begins, and stops naming
+   the step that failed — "STOPPED at step 3 (measure): 0 rows. An empty result
+   is a defect, not a silence." The planner has no notion of a step failing
+   its own postcondition.
+
+5. It resumes: `ir.fresh_ink(doc)` skips steps 2–4 when report.ink.json already
+   post-dates the measure build.
+
+The planner's vocabulary is: an ordered list of command NAMES, each run once,
+with the pdf as the only argument, satisfaction tested by a `done_when` string.
+inkreport needs a sequence with arguments, repetition, state handling and
+per-step verification. Those are different shapes.
+
+================================================================================
+D. Conclusion
+================================================================================
+
+- The planner works, and further than by-hand chaining implies: nine ordered
+  steps from a cold start, cycle handled, paid steps named not run.
+- The chain in the task is resolvable except for its last edge and its first
+  name. `add` is not a pipeline command; `inkreport` under-declares.
+- "Nothing calls it" is not the gap. `--ensure` exists, is wired, and refuses
+  paid steps by design.
+- The gap is that `inkreport` hard-codes a sequence the manifest has no grammar
+  for. Declaring `requires: [reporttex]` is honest about the ORDER and still
+  leaves the RUN hard-coded, because the planner cannot express two phases of
+  one command with different arguments.
+
+That is what 420 has to decide: extend the grammar, or declare the order and
+leave the phase logic where it is.
