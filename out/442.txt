@@ -1,0 +1,59 @@
+442 — \longdiv, and a correction to 441
+=======================================
+
+441 SAID THIS WAS A PACKAGE GAP. IT IS NOT, AND THE WAY I GOT IT WRONG IS
+WORTH MORE THAN THE FIX.
+
+I ran `kpsewhich longdivision.sty`, it printed a path, and I concluded the
+package was installed and merely unloaded. Then I added
+
+    \IfFileExists{longdivision.sty}{\usepackage{longdivision}}{}
+
+and measured: **0 of 7 rows compiled.** The package defines `\longdivision`
+and `\intlongdivision`. Its `\def\longdiv@typeset@main@tikz` and friends are
+INTERNAL macros with an `@` in the name — my grep for `\def\longdiv` matched
+one of those and I read it as the command.
+
+Checking that a file exists is not checking that it defines the command. The
+name was one character short of the one MathPix emits, and the test that would
+have caught it took thirty seconds.
+
+WHAT \longdiv ACTUALLY IS
+
+Nothing in texmf defines a bare `\longdiv`. MathPix emits it for long-division
+notation, divisor before, dividend braced:
+
+    \lambda + 2 \longdiv { -\lambda^{3} + 0\lambda^{2} + 16\lambda … }
+
+So it is defined in the shared preamble, in the one place every report uses:
+
+    \providecommand{\longdiv}[1]{\overline{\smash{\raise.4ex\hbox{$)$}}\,#1}}
+
+`\providecommand`, not `\newcommand`: if a document's own preamble is ever
+injected and defines it, that definition wins rather than aborting the
+compile.
+
+RESULT
+
+    7 of 7 rows compile.
+
+Every one of johnston-linear-matrix-algebra's `\longdiv` demotions is gone.
+
+CORPUS-WIDE — more than one document, as expected
+
+    rows carrying \longdiv    13
+    documents                  3
+
+      Introduction to Linear and Matrix Algebra      7
+      Number, Shape, Symmetry (Herrmann & Sally)     5
+      Mathematics, Physics, Chemistry with Wolfram   1
+
+13 rows, none of which were a reading defect. They were a macro nobody had
+defined, and they demoted with "Undefined control sequence" — an error that
+names the symptom and not the cause, which is why they sat there.
+
+None of the other two documents is published, so this changes johnston's
+report today and the other two whenever they are next built.
+
+2,771 tests pass, 1 new — asserting the preamble carries the DEFINITION and
+not the package, so the wrong fix cannot come back.

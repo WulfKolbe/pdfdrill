@@ -388,3 +388,20 @@ def test_a_table_without_a_legend_adds_no_footer_row():
                          ["D_DIA_0001", "D_DIA_0002", "D_DIA_0003"])
     assert r["legend"] is False and r["endhead"] is False
     assert r["rows"] == 3 and r["columns"] == 6
+
+
+def test_longdiv_is_defined_in_the_shared_preamble():
+    r"""442 — MathPix emits \longdiv for long division and NOTHING defines it.
+
+    441 called this a package gap because `kpsewhich longdivision.sty` found a
+    file. That package provides \longdivision and \intlongdivision; its
+    `\def\longdiv@...` are internal macros with an @ in the name. Loading it
+    changed nothing — measured, 0 of 7 rows compiled. Checking that a file
+    exists is not checking that it defines the command.
+
+    \providecommand rather than \newcommand: an injected author preamble that
+    defines it should win, not abort the compile.
+    """
+    from pdfdrill import report_tex as rt
+    assert r"\providecommand{\longdiv}" in rt.PREAMBLE
+    assert r"\usepackage{longdivision}" not in rt.PREAMBLE
