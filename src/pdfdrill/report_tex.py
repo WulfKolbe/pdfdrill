@@ -1500,6 +1500,43 @@ def build_stamp(pdf_out: Path) -> dict:
             "commit": commit}
 
 
+MODEL_NAME = "model.docmodel.json"
+
+
+def model_state(doc_dir: Path) -> dict:
+    """435 — WHICH MODEL STATE a report describes.
+
+    Nothing identified one before this. The model carries no version, no hash
+    and no build time — its `meta` is bibkey, source_path, source, pages,
+    num_pages, title, authors, root_id — and `report.build.json` hashed the
+    REPORT PDF, so an artefact could not say what it was evidence ABOUT.
+
+    A content hash is the right identifier and mtime is not. mtime moves on a
+    no-op rewrite and can move BACKWARDS on a restore from backup; a sha256
+    changes if and only if the bytes change, which is the question being
+    asked. It is recorded alongside mtime and size purely so a mismatch can be
+    diagnosed rather than only detected.
+
+    A rebuild always changes it, and that is correct rather than unfortunate:
+    object ids are `uuid4().hex[:12]` (docmodel/core.py:26), so no two builds
+    of the same input agree — 430 measured 1 id in common out of 2,196. A
+    report built against the previous model is describing objects that no
+    longer exist, and should say so.
+    """
+    import hashlib
+    m = Path(doc_dir) / MODEL_NAME
+    if not m.is_file():
+        return {}
+    try:
+        b = m.read_bytes()
+    except OSError:
+        return {}
+    st = m.stat()
+    return {"model_sha256": hashlib.sha256(b).hexdigest(),
+            "model_bytes": st.st_size,
+            "model_mtime": int(st.st_mtime)}
+
+
 def write_build_stamp(pdf_out: Path, *, legend: bool, ink_adopted: bool,
                       prefer_refined: bool, filters: dict,
                       glyphs_dropped_count: int = 0) -> dict:
@@ -1518,6 +1555,7 @@ def write_build_stamp(pdf_out: Path, *, legend: bool, ink_adopted: bool,
         "filters": {k: v for k, v in (filters or {}).items() if v is not None},
         "glyphs_dropped": int(glyphs_dropped_count),
         "phase": ("measure" if (not legend and not ink_adopted) else "reading"),
+        **model_state(pdf_out.parent),
     })
     body = _json.dumps(stamp, indent=1)
     # the latest build, whatever it was

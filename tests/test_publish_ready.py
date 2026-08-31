@@ -37,6 +37,21 @@ def _doc(tmp_path, *, glyphs=False, ink=None, quarantine=None,
         (d / "DOC.md").write_text("x", encoding="utf-8")
     if inspect:
         (d / "DOC.inspect.html").write_text("<html>", encoding="utf-8")
+    # 435 — the fixture carries a MODEL and a build stamp naming it. A report
+    # with no model beside it cannot be checked against one, and publishready
+    # now says so rather than passing quietly. A fixture without a model was
+    # asserting readiness for a document shape that cannot occur in the
+    # library.
+    (d / "model.docmodel.json").write_text(
+        json.dumps({"meta": {"bibkey": "DOC"}, "objects": []}),
+        encoding="utf-8")
+    # Written by the REAL stamp writer, not hand-rolled: a hand-made stamp got
+    # the byte count wrong and failed `stamp_matches`, which is a check about
+    # the report rather than about the model.
+    from pdfdrill import report_tex as _rt
+    if (d / "report.pdf").is_file():
+        _rt.write_build_stamp(d / "report.pdf", legend=legend, ink_adopted=False,
+                              prefer_refined=False, filters={})
     (d / "DOC.tiddlers.json").write_text(json.dumps(
         [{"title": "DOC_EQ0001", "latex": "x=1"},
          {"title": "DOC_EQ0002", "latex": "y=2"}]), encoding="utf-8")

@@ -1584,7 +1584,10 @@ def _load_or_build_continuity(pdf: Path, sc: "Sidecar", force: bool = False,
 #: Written down once, here, because the pages repo's CI already checks the
 #: PUBLISHED state and this checks the state BEFORE handover. Two divergent
 #: definitions of "ready" is how a half-measured document goes up.
-PUBLISH_CHECKS = ("glyphs", "ink", "residuals", "artefacts", "index")
+#: 435 — `model` is FIRST. It asks whether the report is still true; the rest
+#: ask whether it is well formed, and a well-formed report of a model that has
+#: moved is the failure this list exists to catch.
+PUBLISH_CHECKS = ("model", "glyphs", "ink", "residuals", "artefacts", "index")
 
 
 def publish_ready(pdf: Path) -> dict:
@@ -1804,6 +1807,40 @@ def publish_ready(pdf: Path) -> dict:
                                  checks["ink"][1] + "; no `%s` stamp in the "
                                  "measurement, so the build it was taken "
                                  "against is unrecorded" % rt.MEASURED_AGAINST)
+
+    # 3b — 435: DOES THIS REPORT STILL DESCRIBE ITS MODEL?
+    #
+    # Every other check asks whether the report is well formed. This one asks
+    # whether it is still TRUE. A model change leaves every artefact built
+    # from it claiming to be evidence about objects that may no longer exist —
+    # silently, because nothing recorded which model state a report described.
+    #
+    # Compared by content hash, not mtime: mtime moves on a no-op rewrite and
+    # can move backwards on a restore. A report built before this landed has
+    # no `model_sha256` and is reported as UNKNOWN rather than as passing —
+    # an absent check is not a passed one (the rule 826 states for the join).
+    _ms = rt.model_state(d)
+    _recorded = (stamp or {}).get("model_sha256")
+    if not _ms:
+        checks["model"] = (False, "no %s beside the report — the report "
+                                  "cannot be checked against a model that is "
+                                  "not there" % rt.MODEL_NAME)
+    elif not _recorded:
+        checks["model"] = (False,
+                           "this report was built before the model hash was "
+                           "recorded (435), so which model state it describes "
+                           "is unknown; rebuild it to state one")
+    elif _recorded != _ms["model_sha256"]:
+        checks["model"] = (False,
+                           "THE MODEL HAS MOVED since this report was built: "
+                           "report says %s, model is %s. Every row may "
+                           "describe an object that no longer exists — a "
+                           "rebuild regenerates object ids (430). Rebuild the "
+                           "report."
+                           % (str(_recorded)[:12], _ms["model_sha256"][:12]))
+    else:
+        checks["model"] = (True, "matches the model it was built from (%s)"
+                           % _ms["model_sha256"][:12])
 
     # 4 — everything that travels with report.pdf
     md = next((f for f in d.glob("*.md")), None)

@@ -1,0 +1,92 @@
+435 — a report can now state which model state it describes
+===========================================================
+
+WHAT IDENTIFIED A MODEL STATE BEFORE THIS: NOTHING
+
+  model.docmodel.json  meta = bibkey, source_path, source, pages, num_pages,
+                       title, authors, root_id.
+                       No version. No hash. No build time. No run id.
+
+  report.build.json    pdf, pages, bytes, sha256, mtime, built_at, commit,
+                       legend, ink_adopted, prefer_refined, filters,
+                       glyphs_dropped, phase.
+                       The sha256 is of the REPORT PDF.
+
+So an artefact recorded what it WAS and not what it was evidence ABOUT. A
+model could change under a finished report and every row would go on claiming
+to describe objects that might no longer exist — silently, because nothing
+had written down which model state the report was built from.
+
+IS ANYTHING STABLE ENOUGH TO USE? YES — THE CONTENT HASH. NOT mtime.
+
+  mtime      moves on a no-op rewrite, and moves BACKWARDS on a restore from
+             backup. It answers "was this file touched", which is not the
+             question.
+  sha256     changes if and only if the bytes change. That IS the question.
+
+Recorded as `model_sha256`, with `model_bytes` and `model_mtime` beside it —
+those two only so a mismatch can be diagnosed rather than merely detected.
+
+A REBUILD ALWAYS MOVES THE HASH, AND THAT IS CORRECT
+
+Object ids are `uuid4().hex[:12]` (docmodel/core.py:26), so no two builds of
+the same input agree: 430 measured 1 id in common out of 2,196. There is no
+"same model, rebuilt" state to be tolerant of. A report built against the
+previous model describes objects that no longer exist, and the hash moving is
+what says so.
+
+THE GUARD
+
+`publishready` gains a `model` check, and it is FIRST in the list. The other
+five ask whether the report is well formed; this one asks whether it is still
+true, and a well-formed report of a model that has moved is exactly the
+failure the list exists to catch.
+
+Three outcomes, all named:
+
+  no model beside the report
+    "the report cannot be checked against a model that is not there"
+
+  built before this landed (no model_sha256 recorded)
+    "which model state it describes is unknown; rebuild it to state one"
+    — reported as UNKNOWN, not as passing. An absent check is not a passed
+    one, which is the rule report_tex.py:826 already states for the join.
+
+  the model has moved
+    "THE MODEL HAS MOVED since this report was built: report says 2493963f4c04,
+     model is 5cb24b21c9a3. Every row may describe an object that no longer
+     exists — a rebuild regenerates object ids (430). Rebuild the report."
+
+VERIFIED END TO END on 2608.09819
+
+  before rebuild   [  ] model   built before the hash was recorded
+  after rebuild    [ok] model   matches the model it was built from (2493963f4c04)
+                   READY
+  one byte added   [  ] model   THE MODEL HAS MOVED … report says 2493963f4c04,
+                                model is 5cb24b21c9a3
+  byte removed     READY again
+
+A FIXTURE THAT WAS ASSERTING AN IMPOSSIBLE SHAPE
+
+`tests/test_publish_ready.py` built a document with no model at all and
+asserted it READY. That shape cannot occur in the library — every drilled
+document has a model — so the fixture was certifying a state that does not
+exist. It now carries a model and a stamp written by the REAL stamp writer:
+my first hand-rolled stamp got the byte count wrong and failed
+`stamp_matches`, which is a check about the report, not about the model.
+
+2,765 tests pass, 4 new.
+
+WHY THIS HAD TO COME BEFORE 434 — and before 417 finished
+
+434 reclassifies an Equation as a diagram. Every report built from a model
+that has undergone that change is wrong about the object it names, and until
+now nothing could tell. The Cardona volume is where it would happen at
+scale — 1,012 rows, 23 of them component.
+
+417 was 12 of 22 through when this landed. It was STOPPED rather than
+finished: reports built without the model hash would have had to be rebuilt
+again to gain it, so completing the run first would have meant building all
+22 twice. Restarting now costs the 12 a fast re-run — inkreport resumes to
+the reading build when the ink is fresh — and every one of the 22 ends up
+stating the model it describes.
