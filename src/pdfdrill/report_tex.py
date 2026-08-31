@@ -57,8 +57,48 @@ def sanitize_title(t: str) -> str:
     return re.sub(r"[^A-Za-z0-9_\-\.]", "_", t)
 
 
+#: 440 — the templates the TiddlyWiki projector actually emits. ONE list, so a
+#: consumer that filters by template can say whether a marker it skipped is a
+#: template it does not handle or a template that does not exist.
+KNOWN_TEMPLATES = frozenset((
+    "ABS", "CIT", "DIA", "EQ", "EQBLOCK", "FN", "FO", "FREF", "LI", "LTX",
+    "PARA", "PIC", "PROOF", "SN", "TAB", "TOC"))
+
+#: Any transclusion, whatever its template — used to find the ones a
+#: template-filtered pattern silently walked past.
+ANY_MARKER = re.compile(r"\{\{([^}|{]+)\|\|([A-Za-z]+)\}\}")
+
+
+def unknown_markers(tiddlers: list[dict]) -> dict:
+    """{template: count} for markers naming a template nothing emits.
+
+    440. Two consumers match a FIXED SET of templates and skip everything
+    else, which means an unrecognised marker produces no error, no unhandled
+    token and no missing-content warning — just a row that stops being
+    counted. 434's type change turns an `||EQBLOCK` into a `||DIA`, so the
+    failure this makes visible is the one that change would otherwise cause.
+    """
+    seen: dict = {}
+    for t in tiddlers:
+        for m in ANY_MARKER.finditer(t.get("text", "") or ""):
+            tpl = m.group(2)
+            if tpl not in KNOWN_TEMPLATES:
+                seen[tpl] = seen.get(tpl, 0) + 1
+    return seen
+
+
 def first_pages(tiddlers: list[dict], bibkey: str) -> dict[str, str]:
-    """title -> page of the first transcluding page-bearing tiddler."""
+    """title -> page of the first transcluding page-bearing tiddler.
+
+    440 — the pattern matches FO/FOX titles ONLY, and that is deliberate: this
+    map exists as a page fallback for inline formulas, which carry no page of
+    their own. Every other kind has `page` on its own tiddler.
+
+    What it does with an unrecognised marker is therefore correct and was NOT
+    correct to leave undocumented: it skips it, silently, and the caller sees
+    a title with no page. `unknown_markers` above is what makes that visible
+    when the template is one nothing emits.
+    """
     pat = re.compile(r"\{\{(" + re.escape(sanitize_title(bibkey))
                      + r"_(?:FOX?_?\w+))\|\|")
     first: dict[str, str] = {}

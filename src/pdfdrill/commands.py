@@ -6149,7 +6149,33 @@ def cmd_formulas(pdf: Path, out: str | None = None, plain: bool = False) -> str:
             f"wrote {_artref(sc, dest)}")
 
 
+#: 440 — `cmd_spoken` renders FO/EQ/FREF into speech and leaves every other
+#: template's marker ALONE. What that did with an unrecognised marker: nothing
+#: at all. `.sub()` does not match it, so the literal `{{key||DIA}}` survives
+#: into the spoken text and is read aloud as braces and pipes — visible to a
+#: listener and invisible to the pipeline, which is the worst of both.
+#:
+#: The fix is not to widen this pattern: a table has no spoken form and
+#: pretending otherwise would be worse. It is to COUNT what was left behind
+#: and say so, which `_unrendered_markers` does below.
 _MARKER_RE = re.compile(r"\{\{([^}|]+)\|\|(FO|EQ|FREF)\}\}")
+
+
+def _unrendered_markers(text: str) -> dict:
+    """{template: count} for transclusion markers left verbatim in the output.
+
+    440. A marker this projection does not render stays in the text as
+    literal braces. That is sometimes right — a Table has no speech form —
+    but it must be REPORTED, because the alternative is a listener hearing
+    "open brace open brace" and nobody knowing why.
+    """
+    from .report_tex import ANY_MARKER
+    out: dict = {}
+    for m in ANY_MARKER.finditer(text or ""):
+        tpl = m.group(2)
+        if tpl not in ("FO", "EQ", "FREF"):
+            out[tpl] = out.get(tpl, 0) + 1
+    return out
 # `{{<bibkey>_REF_logitslens||CIT}}` — a citation transclusion. The opaque key is
 # noise to an LLM; a running number is what a reader expects.
 _CIT_RE = re.compile(r"\{\{([^}|]+)\|\|CIT\}\}")
@@ -6772,6 +6798,29 @@ def cmd_spoken(pdf: Path, out: str | None = None, as_json: bool = False,
     if unresolved:
         note += (f"\n  {len(unresolved)} marker(s) reference no object: "
                  f"{', '.join(unresolved[:5])} — a real defect in the text.")
+    # 440 — say what was LEFT BEHIND. A marker this projection does not render
+    # survives as literal braces in the spoken text: a listener hears "open
+    # brace", and nothing else reports it. Some of it is correct (a Table has
+    # no spoken form) and some of it is a template nothing emits, so the two
+    # are separated rather than merged into one number.
+    left = _unrendered_markers(text)
+    if left:
+        from .report_tex import KNOWN_TEMPLATES
+        known = {k: v for k, v in left.items() if k in KNOWN_TEMPLATES}
+        alien = {k: v for k, v in left.items() if k not in KNOWN_TEMPLATES}
+        if known:
+            note += ("\n  %d marker(s) left verbatim, of kinds this "
+                     "projection does not speak: %s. They appear in the text "
+                     "as literal braces."
+                     % (sum(known.values()),
+                        ", ".join("%s x%d" % (k, v)
+                                  for k, v in sorted(known.items()))))
+        if alien:
+            note += ("\n  %d marker(s) name a template NOTHING EMITS: %s — "
+                     "that is a defect, not an unsupported kind."
+                     % (sum(alien.values()),
+                        ", ".join("%s x%d" % (k, v)
+                                  for k, v in sorted(alien.items()))))
     preview = " ".join(text.split())[:300]
     return (f"Spoken-text projection: {len(blocks)} block(s), "
             f"{subst} spoken substitution(s), {missing} missing, "
@@ -14734,6 +14783,19 @@ def cmd_reporttex(pdf: Path, paper: str = "a3", landscape: bool = True,
              f"Layout: {paper}{' landscape' if landscape else ''}; "
              f"px2mm={'%.5f (pixel-exact scan images)' % px2mm if px2mm else 'n/a (images fill the column)'}; "
              + crop_note + "."]
+    # 440 — a transclusion naming a template NOTHING EMITS is walked past in
+    # silence by every template-filtered consumer. Reported here because this
+    # is the projection a reader checks. It changes no byte of report.tex.
+    # `tiddlers` is bound only on the path that loaded them; the autochain
+    # path reaches here without it. locals() rather than a try/except so the
+    # absence is a CHECKED condition and not a swallowed error.
+    _alien = rt.unknown_markers(locals().get("tiddlers") or [])
+    if _alien:
+        lines.append(
+            "MARKERS NAMING AN UNKNOWN TEMPLATE: %s. Nothing emits these, so "
+            "every template-filtered consumer skips them without a word — the "
+            "row simply stops being counted (440)."
+            % ", ".join("%s x%d" % (k, v) for k, v in sorted(_alien.items())))
     if min_conf is not None or max_conf is not None or want:
         bits = []
         if want: bits.append("types=" + ",".join(sorted(want)))

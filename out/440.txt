@@ -1,0 +1,79 @@
+440 — the two fixed-set parsers now say what they skipped
+=========================================================
+
+THE TWO CALL SITES, AND WHAT THEY DID WITH AN UNRECOGNISED MARKER
+
+1. `commands.py:6152` — `cmd_spoken`
+
+     _MARKER_RE = re.compile(r"\{\{([^}|]+)\|\|(FO|EQ|FREF)\}\}")
+     txt = _INLINE_MATH_RE.sub(_render_inline, _MARKER_RE.sub(_render, raw))
+
+   NOTHING AT ALL. `.sub()` does not match a marker whose template is not one
+   of the three, so the literal `{{key||DIA}}` survives into the spoken text
+   and is read aloud as braces and pipes. Visible to a listener, invisible to
+   the pipeline — the worst of both, because the person who can see it is the
+   one who cannot report it.
+
+2. `report_tex.py:62` — `first_pages`
+
+     pat = re.compile(r"\{\{(" + sanitize_title(bibkey) + r"_(?:FOX?_?\w+))\|\|")
+
+   Skips it, silently, and the caller gets a title with no page. The FO/FOX
+   restriction is CORRECT and was undocumented: this map is a page fallback
+   for inline formulas, which carry no page of their own, and every other kind
+   has `page` on its own tiddler. So the narrow pattern is right and the
+   silence about what it walked past is not.
+
+WHY IT MATTERS NOW
+
+434's type change turns `{{key_EQ0001||EQBLOCK}}` into `{{key_DIA0007||DIA}}`.
+Both sites match a FIXED SET, so the new marker is not matched at all: no
+error, no unhandled token, no missing-content warning. A row simply stops
+being counted, which is the failure this project keeps meeting from other
+directions — a filter nobody chose, silently narrowing a population.
+
+WHAT CHANGED
+
+Not the patterns. Widening `_MARKER_RE` would be wrong — a Table has no spoken
+form and pretending otherwise is worse than leaving it out — and widening
+`first_pages` would break a fallback that is correct as it stands.
+
+What changed is that both now REPORT what they left behind, and both separate
+two things that had been one:
+
+  * a template this consumer does not handle — legitimate, expected, named
+  * a template NOTHING EMITS — a defect
+
+  `report_tex.KNOWN_TEMPLATES`  the 16 the projector emits, in one place, so
+                                the distinction can be made at all
+  `report_tex.ANY_MARKER`       any `{{target||TPL}}`, whatever the template
+  `report_tex.unknown_markers`  {template: count} for templates nothing emits
+  `commands._unrendered_markers` {template: count} left verbatim by `spoken`
+
+`cmd_spoken` now says, for example:
+
+    3 marker(s) left verbatim, of kinds this projection does not speak:
+    DIA x1, TAB x2. They appear in the text as literal braces.
+    1 marker(s) name a template NOTHING EMITS: NOPE x1 — that is a defect,
+    not an unsupported kind.
+
+`reporttex` reports the second kind only, and changes no byte of report.tex.
+
+ONE THING THE TESTS HAD TO PIN
+
+`{{!!svg_tiddler}}` is a FIELD transclusion, not an object one, and a Diagram
+tiddler's entire body is that. A marker pattern that counted it would report
+every correctly rendered diagram as a defect. `ANY_MARKER` requires a `||`
+and a target without `{`, so it does not match — asserted.
+
+AND ONE DEFECT I INTRODUCED AND THE SUITE CAUGHT
+
+My first wiring read `tiddlers` in `cmd_reporttex` after checking with an AST
+walk that the name appears in the function. It appears; it is not always
+BOUND — the autochain path reaches that line without it, and the test
+`test_reporttex_autochain_sees_the_tiddlers_it_just_built` failed with
+`UnboundLocalError`. Checking that a name is used is not checking that it is
+assigned. Now guarded with `locals().get(...)`, so the absence is a checked
+condition rather than a swallowed exception.
+
+2,770 tests pass, 5 new.
