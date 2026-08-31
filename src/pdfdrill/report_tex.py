@@ -1148,6 +1148,26 @@ def download_crops(tiddlers: list[dict], dest: Path, trim: bool = True):
     Degrades cleanly when the network is blocked — the report then renders
     without the image column entries it could not fetch."""
     from .net import urlopen, NetworkBlocked
+    from .env import get as _env
+    # 396 — PDFDRILL_CDN_BASE redirects the fetch at a drop-in image source.
+    #
+    # `imageserve` is described in the manifest as "a drop-in cdn.mathpix.com
+    # (/cropped/<id>?top_left_x=… assembled from the 600-DPI tiles)", and
+    # `pyramid` builds what backs it. Nothing could be POINTED at it: every
+    # consumer read the absolute cdn.mathpix.com URI recorded on the tiddler,
+    # so the drop-in had no socket to drop into.
+    #
+    # It matters because those URIs expire. On 230209-algebraic_similarity
+    # every one of 99 crops returns HTTP 500 — the document is drilled, its
+    # model is complete, and its scan column is simply gone. The local pyramid
+    # renders the same regions from the PDF at 600 dpi, which is the same
+    # picture from a better source, and needs no key.
+    #
+    # A BASE, not a rewrite rule: only the scheme+host are replaced, so the
+    # path and the crop geometry in the query string are the ones MathPix
+    # recorded. Substituting any part of the geometry would silently crop
+    # somewhere else.
+    base = (_env("PDFDRILL_CDN_BASE", "") or "").rstrip("/")
     dest.mkdir(parents=True, exist_ok=True)
     ok = cached = failed = 0
     for t in tiddlers:
@@ -1165,8 +1185,13 @@ def download_crops(tiddlers: list[dict], dest: Path, trim: bool = True):
                 _pad_top(f)
             cached += 1
             continue
+        target = uri.replace("\\&", "&")
+        if base:
+            from urllib.parse import urlsplit
+            u = urlsplit(target)
+            target = base + u.path + (("?" + u.query) if u.query else "")
         try:
-            with urlopen(uri.replace("\\&", "&"), timeout=20) as r:
+            with urlopen(target, timeout=20) as r:
                 f.write_bytes(r.read())
             if trim:
                 _trim_left(f)
