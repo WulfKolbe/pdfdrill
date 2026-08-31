@@ -1,0 +1,345 @@
+[
+ {
+  "published": "0707.4470",
+  "library": "0707.4470",
+  "seconds": 3.0,
+  "rows": 62,
+  "dist": {
+   "noise": 29,
+   "clean": 19,
+   "weak": 11,
+   "component": 2,
+   "stable": 1
+  },
+  "ready": true,
+  "failing": [],
+  "outcome": "ready"
+ },
+ {
+  "published": "0902.0431",
+  "library": "0902.0431",
+  "seconds": 367.2,
+  "rows": null,
+  "dist": {},
+  "ready": false,
+  "failing": [],
+  "outcome": "stopped",
+  "stopped": "STOPPED at step 3 (measure): MeasureRefused: run holds 1213 data rows, the manifest expects 1219 for the equations table"
+ },
+ {
+  "published": "1510.06699",
+  "library": "1510.06699",
+  "seconds": 7.5,
+  "rows": 279,
+  "dist": {
+   "noise": 157,
+   "clean": 52,
+   "weak": 35,
+   "component": 33,
+   "stable": 2
+  },
+  "ready": true,
+  "failing": [],
+  "outcome": "ready"
+ },
+ {
+  "published": "1605.05775",
+  "library": "1605.05775",
+  "seconds": 2.6,
+  "rows": 26,
+  "dist": {
+   "noise": 21,
+   "clean": 3,
+   "weak": 2
+  },
+  "ready": true,
+  "failing": [],
+  "outcome": "ready"
+ },
+ {
+  "published": "2010.14265",
+  "library": "2010.14265",
+  "seconds": 3.8,
+  "rows": 16,
+  "dist": {
+   "unrendered": 10,
+   "noise": 3,
+   "clean": 2,
+   "weak": 1
+  },
+  "ready": true,
+  "failing": [],
+  "outcome": "ready"
+ },
+ {
+  "published": "2106.07890",
+  "library": "2106.07890",
+  "seconds": 3.0,
+  "rows": 51,
+  "dist": {
+   "noise": 35,
+   "weak": 11,
+   "component": 3,
+   "clean": 2
+  },
+  "ready": true,
+  "failing": [],
+  "outcome": "ready"
+ },
+ {
+  "published": "2501.06662",
+  "library": "2501.06662",
+  "seconds": 3.0,
+  "rows": 60,
+  "dist": {
+   "noise": 42,
+   "weak": 8,
+   "component": 6,
+   "clean": 4
+  },
+  "ready": true,
+  "failing": [],
+  "outcome": "ready"
+ },
+ {
+  "published": "BradleyGastaldiTerilla2023",
+  "library": "BradleyGastaldiTerilla2023",
+  "seconds": 2.6,
+  "rows": 8,
+  "dist": {
+   "noise": 4,
+   "weak": 3,
+   "clean": 1
+  },
+  "ready": true,
+  "failing": [],
+  "outcome": "ready"
+ },
+ {
+  "published": "bradley_spring22",
+  "library": "bradley_spring22",
+  "seconds": 3.7,
+  "rows": 16,
+  "dist": {
+   "noise": 10,
+   "weak": 3,
+   "clean": 3
+  },
+  "ready": true,
+  "failing": [],
+  "outcome": "ready"
+ },
+ {
+  "published": "cardona-qft-methods",
+  "library": "Geometric, Algebraic and Topological Methods for Quantum Field Theory (Alexander Cardona (ed.) etc.) (Z-Library)",
+  "seconds": 38.8,
+  "rows": 1012,
+  "dist": {
+   "noise": 606,
+   "clean": 278,
+   "weak": 87,
+   "component": 23,
+   "stable": 16,
+   "unrendered": 2
+  },
+  "ready": true,
+  "failing": [],
+  "outcome": "ready"
+ },
+ {
+  "published": "fong-spivak-invitation",
+  "library": "An Invitation to Applied Category Theory Seven Sketches In Compositionality (Brendan Fong, David I. Spivak) (Z-Library)",
+  "seconds": 52.7,
+  "rows": 262,
+  "dist": {
+   "noise": 97,
+   "clean": 61,
+   "component": 51,
+   "weak": 31,
+   "stable": 17,
+   "unrendered": 5
+  },
+  "ready": true,
+  "failing": [],
+  "outcome": "ready"
+ },
+ {
+  "published": "fong-spivak-seven-sketches",
+  "library": "Seven Sketches in Composability An invitation to applied category theory (Brendan Fong, David I. Spivak) (Z-Library)",
+  "seconds": 52.6,
+  "rows": 264,
+  "dist": {
+   "noise": 128,
+   "component": 42,
+   "weak": 38,
+   "clean": 32,
+   "stable": 19,
+   "unrendered": 5
+  },
+  "ready": true,
+  "failing": [],
+  "outcome": "ready"
+ },
+ {
+  "published": "gilmore-lie-groups",
+  "library": "Lie Groups, Physics and Geometry - An Intro for Physicists, Engineers and Chemists - R. Gilmore (",
+  "seconds": 2385.0,
+  "rows": 1037,
+  "dist": {
+   "noise": 532,
+   "weak": 275,
+   "clean": 98,
+   "component": 69,
+   "stable": 52,
+   "unrendered": 11
+  },
+  "ready": true,
+  "failing": [],
+  "outcome": "ready"
+ },
+ {
+  "published": "johnston-linear-matrix-algebra",
+  "library": "Introduction to Linear and Matrix Algebra (Nathaniel Johnston) (Z-Library)",
+  "seconds": 3168.6,
+  "rows": 1670,
+  "dist": {
+   "noise": 762,
+   "clean": 290,
+   "weak": 275,
+   "component": 258,
+   "stable": 70,
+   "unrendered": 15
+  },
+  "ready": true,
+  "failing": [],
+  "outcome": "ready"
+ },
+ {
+  "published": "kohlhase-omdoc",
+  "library": "OMDoc \u2013 An Open Markup Format for Mathematical Documents [version 1.2] Foreword by Allan Bundy (Michael Kohlhase (auth.)) (Z-Library)",
+  "seconds": 72.4,
+  "rows": 6,
+  "dist": {
+   "unrendered": 3,
+   "component": 1,
+   "stable": 1,
+   "noise": 1
+  },
+  "ready": true,
+  "failing": [],
+  "outcome": "ready"
+ },
+ {
+  "published": "lyche-numerical-linear-algebra",
+  "library": "Numerical Linear Algebra and Matrix Factorizations (Tom Lyche) (Z-Library)",
+  "seconds": 1891.6,
+  "rows": 1056,
+  "dist": {
+   "noise": 604,
+   "weak": 200,
+   "clean": 170,
+   "component": 42,
+   "stable": 35,
+   "unrendered": 5
+  },
+  "ready": true,
+  "failing": [],
+  "outcome": "ready"
+ },
+ {
+  "published": "mielke-geometrodynamics",
+  "library": "Geometrodynamics of Gauge Fields On the Geometry of Yang-Mills and Gravitational Gauge Theories (Eckehard W. Mielke) (Z-Library)",
+  "seconds": 2111.8,
+  "rows": 1149,
+  "dist": {
+   "noise": 750,
+   "clean": 163,
+   "weak": 144,
+   "component": 65,
+   "stable": 18,
+   "unrendered": 9
+  },
+  "ready": true,
+  "failing": [],
+  "outcome": "ready"
+ },
+ {
+  "published": "pdf-dc99cf88",
+  "library": "pdf",
+  "outcome": "preflight refused",
+  "failing": [
+   "model",
+   "lines.json",
+   "geometry",
+   "no paid step required",
+   "table ordinal/columns"
+  ],
+  "detail": [
+   "no model.docmodel.json \u2014 run `pdfdrill model` first",
+   "no pdf.lines.json beside the pdf or in the drill dir",
+   "the model carries no page geometry",
+   "would need mathpix \u2014 stopping. Run it yourself if you mean to spend.",
+   "MeasureRefused: no report.tables.json and no report.tex"
+  ]
+ },
+ {
+  "published": "penev_A",
+  "library": "penev_A",
+  "seconds": 112.9,
+  "rows": null,
+  "dist": {},
+  "ready": false,
+  "failing": [],
+  "outcome": "stopped",
+  "stopped": "STOPPED at step 5 (build/reading): phase=reading ink_adopted=False"
+ },
+ {
+  "published": "penev_B",
+  "library": "penev_B",
+  "seconds": 64.2,
+  "rows": 62,
+  "dist": {
+   "noise": 31,
+   "weak": 17,
+   "component": 7,
+   "stable": 6,
+   "clean": 1
+  },
+  "ready": true,
+  "failing": [],
+  "outcome": "ready"
+ },
+ {
+  "published": "rph8-g15q",
+  "library": "rph8-g15q",
+  "seconds": 76.1,
+  "rows": 81,
+  "dist": {
+   "noise": 40,
+   "clean": 25,
+   "weak": 10,
+   "stable": 4,
+   "unrendered": 1,
+   "component": 1
+  },
+  "ready": true,
+  "failing": [],
+  "outcome": "ready"
+ },
+ {
+  "published": "voloshin-hypergraph",
+  "library": "Introduction to Graph and Hypergraph Theory (Vitaly I. Voloshin) (Z-Library)",
+  "seconds": 394.1,
+  "rows": 266,
+  "dist": {
+   "noise": 131,
+   "clean": 106,
+   "weak": 17,
+   "component": 9,
+   "stable": 3
+  },
+  "ready": true,
+  "failing": [],
+  "outcome": "ready"
+ }
+]
