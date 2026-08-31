@@ -1,0 +1,97 @@
+432 — what a preserving rebuild would need
+==========================================
+
+Report only. Nothing built.
+
+THE TEST WAS AVAILABLE, so this is measured rather than argued: 430 left an
+enriched original and its rebuilt copy side by side, so every claim below is
+a match rate between the two.
+
+WHAT SURVIVES A REBUILD, AS A KEY
+
+  object id                 1 of 2,196 in common          0.0%
+  realization anchor        0 of 888 in common            0.0%
+  region 5-tuple            1,452 of 1,476 carriers      98.4%
+  printed identifier        182 of 182 on the one document tested
+
+Object ids and realization anchors are both regenerated. Neither is a
+candidate, and that is the whole reason a rebuild is destructive rather than
+merely lossy: even an enrichment held in a separate FILE cannot be reattached
+if it names an object.
+
+RE-KEYABLE: 1,452 of 1,476 carriers (98.4%)
+
+Across the 49 documents that now refuse a forced rebuild:
+
+  type        carriers   region 5-tuple
+  Equation       1,452   present on all 1,452
+  Formula           24   present on NONE
+
+Matched old-to-new by region on 1510.06699: 182 of 182 unique, 0 ambiguous,
+0 not found. A region is page + top_left_x/y + width/height, and MathPix
+assigns one to every display equation. 282 already uses this 5-tuple to name
+a tex.zip image, so it is an established key here rather than a new idea.
+
+So `latex_refined`, `latex_pretail`, `latex_prepunct`, `trailing_punct` and
+`edit_source` are ALL re-keyable when they sit on an Equation, which is where
+1,452 of 1,476 of them sit.
+
+NOT RE-KEYABLE: the 24 on Formula objects
+
+An inline Formula has no region. MathPix regions display equations and does
+not region inline mathematics, so there is no coordinate to match on and the
+object's identity after a rebuild is not recoverable from the model alone.
+
+That includes one of the 31 recorded refinements — 0707.4470's, a Formula
+carrying `\mathcal{J}`, which is the `\mathscr{g}` correction proven by
+counting in the MathPix correspondence. 30 of the 31 refinements are on
+Equations and re-key; that one does not.
+
+A PRINTED IDENTIFIER IS THE SECOND KEY, and it is not independent
+
+Every one of the 182 carriers tested also had a printed identifier
+(`refnum` / `eq_label`). But an identifier is assigned by the projection in
+TABLE ORDER, so it is stable only if the object SET is stable — and it is
+not: 2,196 objects became 2,282, and 472 became 462. An identifier survives
+the rebuild as a string and may name a different object afterwards, which is
+worse than not surviving.
+
+It is why `notation.json` and `figpairs.json` still join after a rebuild —
+they key on bibkey plus a printed identifier — and it is also why that join
+should not be trusted without checking the count first. Those two files
+survive by luck of their design, and the luck is thinner than it looks.
+
+WHAT WOULD BE LOST REGARDLESS
+
+  * the 24 Formula-borne enrichments, including one recorded refinement
+  * any enrichment on an object the rebuild does not produce at all — the
+    object count MOVES in both directions (472 -> 462, 2,196 -> 2,282), so a
+    carrier can simply cease to exist
+  * the realization anchors themselves: a `change` realization points into a
+    `refined` stream whose anchors are regenerated, so even a perfectly
+    re-keyed object needs its realization rebuilt rather than carried
+
+WHAT A PRESERVING REBUILD WOULD HAVE TO DO
+
+  1. before the rebuild, harvest every enrichment with its carrier's region
+     5-tuple, NOT its object id
+  2. rebuild
+  3. reattach by region, requiring a UNIQUE match — 182 of 182 were unique
+     here, and an ambiguous match must refuse rather than pick
+  4. report what did not reattach, by name, rather than counting successes
+
+Step 4 is the one that decides whether it is trustworthy. A preserving
+rebuild that reports "1,452 carried" and not "24 lost, here they are" is the
+same shape as the report that said "(no LaTeX source)" for 10,928 rows whose
+content was in the model: a number that reads as completeness.
+
+RECOMMENDATION
+
+Do not build it for the sake of 429's confidence column. 98.4% is a good rate
+and 1.6% of an irreplaceable thing is not an acceptable loss — the 24 include
+a refinement that took a MathPix correspondence to establish. The column is
+one day old and the six documents are protected by 431.
+
+If a preserving rebuild is built later, it should be for a reason that needs
+the model rebuilt, and it should refuse — as 431 now does — rather than
+report a percentage.
