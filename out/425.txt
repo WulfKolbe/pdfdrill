@@ -1,0 +1,102 @@
+425 / 428 — where table LaTeX is, and why the report cannot see it
+==================================================================
+
+ANSWER: it is in the model, on 85.9% of table objects, and the report reads
+a different prop. Nothing needs to be fetched, compiled or inferred.
+
+WHERE IT IS — 1,354 models read, 1 skipped
+
+  documents with at least one Table object      773
+  TABLE OBJECTS, corpus-wide                  5,937
+
+  props['latex'] set                              0    0.0%
+  props['mathpix_text'] holds a \begin{tabular}  5,101   85.9%
+  neither                                       836   14.1%
+
+  author texsrc/ present on 339 of the 773; 333 of those hold a
+  \begin{tabular} or \begin{table}
+
+THE PUBLISHED 22 (21 matched to a model; pdf-dc99cf88 has none)
+
+  document                          tables   latex   mathpix_text
+  kohlhase-omdoc                       103       0            103
+  fong-spivak-invitation                68       0             68
+  fong-spivak-seven-sketches            63       0             63
+  johnston-linear-matrix-algebra        43       0             43
+  gilmore-lie-groups                    38       0             38
+  cardona-qft-methods                    8       0              8
+  1510.06699                             7       0              6
+  lyche-numerical-linear-algebra         7       0              7
+  mielke-geometrodynamics                5       0              5
+  0902.0431                              3       0              3
+  penev_A                                2       0              1
+  voloshin-hypergraph                    2       0              2
+  BradleyGastaldiTerilla2023             1       0              1
+  penev_B                                1       0              0
+  TOTAL                                351       0            348
+
+  348 of 351 published table rows — 99.1% — have their LaTeX already.
+
+So 423's column CAN be filled, and 415 has its answer too: the source is
+MathPix's own output, already in the model, not the author's texsrc/ and not
+a compile.
+
+428 — WHY THE SECTION READS `latex`
+-----------------------------------
+
+`report_tex.rows_for`, one line, applied to all four kinds at once:
+
+  report_tex.py:105    latex = t.get("latex") or t.get("latex_code") or ""
+
+`latex` is set on Equation and Formula. It is set on ZERO Table objects,
+corpus-wide — not "usually unset", not "set to something else": never set.
+So the tables branch of that line can only ever produce "", and the cell
+falls through to the apology.
+
+AND THE LOSS HAPPENS ONE STEP EARLIER THAN THAT
+
+`rows_for` reads TIDDLERS, not model objects. The TAB tiddler's fields are:
+
+  created, height, modified, page, tags, text, title,
+  top_left_x, top_left_y, type, width
+
+No `latex`. No `mathpix_text`. 0 of 42 on chung2019combinatorics. The
+tabular is dropped by the TiddlyWiki projection, so by the time `rows_for`
+runs there is nothing to read under any name. Fixing `rows_for` alone would
+change nothing.
+
+DID 290's PROPS INVENTORY CATCH IT? YES. IT IS IN THERE, CORRECTLY.
+
+  | prop | objects | on types | written by | read by |
+  | `latex`        | 643,364 | Equation, Formula | … | comparison_html.py,
+                                distill_reader.py, formula_report.py +15 |
+  | `mathpix_text` |  11,119 | Table             | pdfdrill model |
+                                docmodel/modules/table.py, pdfdrill/commands.py |
+
+Both facts that would have prevented this are on those two lines:
+
+  * `latex` is on **Equation, Formula** — Table is not listed. A reader
+    asking "can I read `latex` for a Table" had the answer.
+  * `mathpix_text` is on **Table**, and its READERS are `table.py` (which
+    writes it) and `commands.py`. Neither the TiddlyWiki projector nor
+    `report_tex` appears — the inventory recorded that nothing in the
+    projection path reads it.
+
+The only reader outside table.py is `commands.py:9907`, a `_norm()`
+comparison, not a projection.
+
+So the inventory did its job and nobody consulted it. That is the failure
+CLAUDE.md names in the other direction — "a capability exists, is written
+down, and gets rebuilt anyway, because nothing in the path forces a look" —
+and here it cost 10,928 rows an apology instead of their content.
+
+WHAT WOULD HAVE TO CHANGE (not changed here; 425 is a measurement)
+
+  1. the TiddlyWiki projector carries `mathpix_text` onto the TAB tiddler
+  2. `rows_for` reads it for the tables branch, as `latex` for that kind
+  3. 423's column then has something to put in it, on 99.1% of published
+     table rows
+
+The 14.1% with neither are the honest remainder: a scanned table MathPix
+gave no tabular for. Those keep an empty cell, and 426 decides what an empty
+cell says now that it will no longer point at tables.html.
