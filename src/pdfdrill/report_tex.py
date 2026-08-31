@@ -737,6 +737,29 @@ def renderable(latex: str) -> str:
            len(re.findall(r"\\end\{%s\}" % env, lx)):
             break                          # balanced — the closer is genuine
         lx = lx[:m.start()].rstrip()
+    # 446 — THE MIRROR OF THE RULE ABOVE. MathPix glues an environment OPENER
+    # onto the front of display maths as readily as it glues a closer onto the
+    # end: `\begin{figure} \[ … \]` on 3 of johnston's rows, where the
+    # figure the equation sat in was cut away and its opener came along. The
+    # closer rule was written for `\end{itemize}` and never mirrored, so a
+    # leading opener left a `\[` MID-STRING and the delimiter gate below
+    # refused the row — 444 then sent all three to a model, which faithfully
+    # PRESERVED the wrapper every time, because a `\begin{figure}` is
+    # invisible in a crop of the equation and the prompt tells it to prefer
+    # the existing reading. No prompt reaches this; the rule does.
+    #
+    # Drop a LEADING \begin{X} only when the value carries no matching
+    # \end{X}: an environment that opens and closes inside the maths keeps
+    # its own opener.
+    while True:
+        m = re.match(r"\\begin\{(\w+\*?)\}\s*", lx)
+        if not m:
+            break
+        env = re.escape(m.group(1))
+        if len(re.findall(r"\\end\{%s\}" % env, lx)) >= \
+           len(re.findall(r"\\begin\{%s\}" % env, lx)):
+            break                          # balanced — the opener is genuine
+        lx = lx[m.end():].lstrip()
     # plain-TeX multiline macros carry \cr internally — inside a longtable
     # cell they throw "Misplaced \cr" recovery loops the row-demotion pass
     # never reaches (live hang: 0902.0431 EQ0035, \displaylines)
@@ -745,7 +768,14 @@ def renderable(latex: str) -> str:
     # display delimiters: strip a leading \[ / trailing \]; reject mid-string
     lx = re.sub(r"^\\\[\s*", "", lx)
     lx = re.sub(r"\s*\\\]$", "", lx)
-    if r"\[" in lx or r"\]" in lx or "$" in lx:
+    # 446 — `\$` is an ESCAPED dollar: currency, and legal inside maths. This
+    # check refused any `$` at all while the `%` check on the very next line
+    # strips its escape first. Two adjacent rules, one rule each, and only one
+    # of them handled the escape. 444 is the proof from outside: given
+    # `\$ 151` and the crop, the model returned `\$ 151` unchanged — it
+    # judged there was nothing to fix, and this gate refused its own input
+    # back.
+    if r"\[" in lx or r"\]" in lx or re.sub(r"\\\$", "", lx).count("$"):
         return ""
     if re.sub(r"\\%", "", lx).count("%"):
         return ""

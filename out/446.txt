@@ -1,0 +1,74 @@
+446 — the two one-liners, and the third thing they uncovered
+============================================================
+
+johnston-linear-matrix-algebra: "(not rendered)" 17 -> 4
+
+  17  before 442
+  10  after 442   \longdiv defined                    7 rows
+   6  after 443   depth-0 & renders standalone        4 rows
+   4  after 446   the escaped dollar                  2 rows
+
+ONE-LINER 1 — THE ESCAPED DOLLAR. Applied, and it is the larger of the two.
+
+    if r"\[" in lx or r"\]" in lx or re.sub(r"\\\$", "", lx).count("$"):
+
+`\$` is currency and legal inside mathematics. The gate refused any `$` at
+all, while the `%` check on the very next line strips its escape first — two
+adjacent rules, one rule each, only one of them handling the escape.
+
+  CORPUS: 303 rows carrying an escaped \$ in 68 documents.
+    2603.03072 31, 2505.02322v2 27, 2505.02322v1 25, Geothermal… 21,
+    2009.11564 15, …
+
+  Both of johnston's now render (FO2071 `\$ 151`, EQ0774's determinant).
+
+ONE-LINER 2 — THE LEADING OPENER. Applied, correct, and it does NOT rescue
+the rows I wrote it for.
+
+    while True:
+        m = re.match(r"\\begin\{(\w+\*?)\}\s*", lx)
+        …drop only when there is no matching \end{X}
+
+  CORPUS: 3 rows in 3 documents (2508.08293v1, Algebraic Geometry, Oxford
+  Solid State Basics). A real class, a small one, now handled.
+
+THE THIRD THING — WHY THE FIGURE ROWS ARE STILL REFUSED, AND SHOULD BE
+
+441 called johnston's three `\begin{figure} \[ …` a glued-on opener, by
+analogy with the 967 `\end{itemize}` closers. They are not. Measured:
+
+    \begin{figure} \[ R^{\theta}(\mathbf{e}_2)=… \]
+    \captionsetup{labelformat=empty}
+    \caption{Figure 1.19: \(R^{\theta}\) rotates the standard …}
+    \end{figure}
+
+A COMPLETE float — the equation AND its caption — captured as one "equation".
+The `\end{figure}` is present, so the opener is matched and the leading-opener
+rule correctly declines to touch it.
+
+  CORPUS: 42 such rows in 21 documents.
+    Schaum's Discrete Mathematics 7, Kottwitz TikZ guide 6,
+    Numerical Linear Algebra 4, A First Course in Modular Forms 3,
+    johnston 3, Character Theory of Finite Groups of Lie Type 3, …
+
+**These must keep failing.** Unwrapping one and typesetting it would set a
+CAPTION as mathematics. The row is mis-segmented, not mis-delimited, and the
+repair is re-segmentation — a figure object with a caption, which is 434's
+territory — not a delimiter rule. A test pins that boundary so a later
+"improvement" cannot quietly cross it.
+
+That also explains 444's result on those three rows more precisely than 444
+did. The model kept `\begin{figure}` in every proposal not merely because a
+wrapper is invisible in a crop, but because the value it was shown genuinely
+IS a figure. It was being asked to repair a float as though it were an
+equation.
+
+WHAT REMAINS ON johnston: 4 rows
+
+  EQ0114, EQ0439, EQ0575   whole floats with captions — 434's work
+  FOX_fabb4bba18           English prose segmented as an inline formula
+
+None of the four is a delimiter or a preamble problem. All four are
+segmentation, which is the one class none of 442, 443 or 446 could touch.
+
+2,775 tests pass, 3 new.

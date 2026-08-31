@@ -427,3 +427,43 @@ def test_align_only_refusal_is_exact_and_ignores_an_empty_value():
     assert f(r"x $ y") is False
     # renderable values are not refused at all
     assert f(r"a + b") is False
+
+
+def test_renderable_accepts_an_escaped_dollar_and_refuses_a_bare_one():
+    r"""446 — `\$` is currency and legal inside maths; the gate refused any `$`
+    while the `%` check on the adjacent line strips its escape first.
+
+    444 is the proof from outside: given `\$ 151` and the crop, the model
+    returned `\$ 151` unchanged, and the gate refused its own input back.
+    """
+    from pdfdrill.report_tex import renderable
+    assert renderable(r"\$ 151")
+    assert renderable(r"\begin{array}{ll} 4 & \$ \\ 7 & \$ \end{array}")
+    assert not renderable(r"a $ b")          # a BARE $ still ends the row
+
+
+def test_a_leading_unmatched_opener_is_dropped_like_a_trailing_closer():
+    r"""446 — the mirror of the \end{itemize} rule. Only an UNMATCHED opener:
+    an environment that opens and closes inside the value keeps its own.
+    """
+    from pdfdrill.report_tex import renderable
+    assert renderable(r"\begin{figure} \[ x = 1 \]")
+    assert renderable(r"\begin{aligned} a &= b \end{aligned}")
+
+
+def test_a_whole_float_with_its_caption_is_NOT_rescued():
+    r"""446 — and this is the boundary that matters.
+
+    Three johnston rows look like a glued-on opener and are not: they are a
+    complete `\begin{figure} \[ … \] \caption{…} \end{figure}` — the equation
+    AND its caption, captured as one "equation". 42 such rows across 21
+    documents.
+
+    Unwrapping one and typesetting it as mathematics would render a caption as
+    maths. The row is mis-segmented, not mis-delimited, and it must keep
+    failing the gate until it is re-segmented.
+    """
+    from pdfdrill.report_tex import renderable
+    v = (r"\begin{figure} \[ x = 1 \] \caption{Figure 1.19: \(R\) rotates "
+         r"the basis.} \end{figure}")
+    assert not renderable(v)
