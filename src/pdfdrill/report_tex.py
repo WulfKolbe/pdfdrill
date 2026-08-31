@@ -1089,8 +1089,113 @@ def refined_flag(info) -> str:
             % esc_text(info.get("basis") or info.get("verified_by") or "?"))
 
 
+#: 443 — a value refused ONLY because of a bare `&` or `\\` at brace depth 0.
+#:
+#: That check is right about the danger and wrong about the value: a `&` at
+#: depth 0 is a longtable TAB MARK and hangs the compile, so it cannot go in a
+#: cell — but the mathematics itself is fine. 441 compiled all four of
+#: johnston's rejected rows standalone and all four produced a PDF.
+#:
+#: So the row stops being demoted and starts being an IMAGE, the way 423 gave
+#: the tables section a Rendered column: compile the value as its own
+#: document, where a `&` is an array separator and nothing else, and put the
+#: result in the cell. The reader gets the mathematics rendered; the longtable
+#: never sees the tab mark.
+def refused_for_align_only(latex: str) -> bool:
+    """True when `renderable` refuses this ONLY over a depth-0 align marker.
+
+    Re-runs the gate with that one check disabled. If the value passes
+    everything else, the marker is the sole objection and the standalone route
+    is safe; if it fails something else too, it is not, and the row demotes as
+    before.
+    """
+    # An EMPTY value passes every check below and would come back True — and
+    # `standalone_math` would then compile an empty document into a blank PNG,
+    # so a row with no LaTeX would show a blank image where it should show
+    # "---". Four rows of johnston did exactly that before this guard.
+    if not (latex or "").strip():
+        return False
+    if renderable(latex):
+        return False
+    import re as _re
+    lx = _re.sub(r"\s+", " ", latex).strip()
+    lx = alphabet_safe(lx)
+    if cjk_defect(lx):
+        return False
+    while True:
+        m = _re.search(r"\\end\{(\w+\*?)\}\s*$", lx)
+        if not m:
+            break
+        env = _re.escape(m.group(1))
+        if len(_re.findall(r"\\begin\{%s\}" % env, lx)) >= \
+           len(_re.findall(r"\\end\{%s\}" % env, lx)):
+            break
+        lx = lx[:m.start()].rstrip()
+    if _re.search(r"\\(displaylines|eqalign(no)?|halign|cr)(?![a-zA-Z])", lx):
+        return False
+    lx = _re.sub(r"^\\\[\s*", "", lx)
+    lx = _re.sub(r"\s*\\\]$", "", lx)
+    if r"\[" in lx or r"\]" in lx or "$" in lx:
+        return False
+    if _re.sub(r"\\%", "", lx).count("%"):
+        return False
+    stripped = _re.sub(r"\\[{}]", "", lx.replace("\\\\", ""))
+    d = 0
+    for c in stripped:
+        if c == "{":
+            d += 1
+        elif c == "}":
+            d -= 1
+            if d < 0:
+                return False
+    if d:
+        return False
+    if len(_re.findall(r"\\left(?![a-zA-Z])", lx)) != \
+       len(_re.findall(r"\\right(?![a-zA-Z])", lx)):
+        return False
+    if sorted(_re.findall(r"\\begin\{(\w+\*?)\}", lx)) != \
+       sorted(_re.findall(r"\\end\{(\w+\*?)\}", lx)):
+        return False
+    return True                       # everything else passed: the & is it
+
+
+def standalone_math(latex: str, ident: str, out_dir, col_mm: float = 100.0,
+                    dpi: int = 400, timeout: int = 90) -> str:
+    r"""443 — the value compiled as its OWN document, returned as an
+    \includegraphics cell, or "" when it will not compile.
+
+    Used only for `refused_for_align_only` rows: the `&` that makes the value
+    illegal INSIDE a longtable cell is an ordinary array separator in a
+    document of its own.
+    """
+    from pathlib import Path as _P
+    d = _P(out_dir) / "standalone-math"
+    png = d / ("%s.png" % sanitize_title(ident))
+    if not png.is_file():
+        try:
+            from .region_standalone import render as _r
+            d.mkdir(parents=True, exist_ok=True)
+            # RAW, not $-wrapped: `region_standalone` decides the wrapper
+            # itself (`needs_math_wrapper`), and wrapping it here made every
+            # one of the four fail with "Missing $ inserted" — a double
+            # wrap, reported by the renderer as if the value were malformed.
+            got, _err = _r(sanitize_title(ident), latex, d,
+                           dpi=dpi, timeout=timeout)
+            if got is None:
+                return ""
+            png = _P(got)
+        except Exception:
+            return ""
+    if not png.is_file():
+        return ""
+    return ("\\includegraphics[width=%smm,height=48mm,keepaspectratio]{%s}"
+            % (round(col_mm - 4), png.name if png.parent.name == "" else
+               "standalone-math/" + png.name))
+
+
 def row(title, latex, page, extra="", image=None, punct="", conf="",
-        form=False, residual="inkUnmeasured", code="", refined=None) -> str:
+        form=False, residual="inkUnmeasured", code="", refined=None,
+        standalone="") -> str:
     # identifier and equation number are machine keys, not reading
     # matter: at \tiny they stop crowding the 20mm column (and stop
     # overprinting the Page column, inkdrill P16's fourth pass).
@@ -1106,7 +1211,8 @@ def row(title, latex, page, extra="", image=None, punct="", conf="",
     # looks like the scan while `latex` holds mathematics only.
     tail = esc_text(punct) if punct else ""
     math = ("\\FitMath{$\\displaystyle %s$}%s" % (safe, tail)) if safe \
-        else ("\\emph{(not rendered)}" if latex else "---")
+        else (standalone if standalone
+              else ("\\emph{(not rendered)}" if latex else "---"))
     cell = conf_cell(conf)
     if form:
         # 148/155: the code is SELECTABLE TEXT — a form field's value is an
@@ -1920,7 +2026,10 @@ def build_report(tiddlers_path: Path, out: Path | None = None,
         img = crop_cell(crops, out_dir, title, px_width=wpx,
                         px2mm=px2mm, col_mm=img_col,
                         bibkey=bibkey, history=bibkey_history) if crops else None
+        sa = (standalone_math(latex, title, out_dir, col_mm=eq_widths[4])
+              if refused_for_align_only(latex) else "")
         out_parts.append(row(title, latex, page, extra=num, image=img,
+                             standalone=sa,
                              punct=punct, conf=conf, form=form,
                              residual=residual_colour(title, ink),
                              code=((ink or {}).get(title) or {}).get("code", ""),
@@ -1936,7 +2045,9 @@ def build_report(tiddlers_path: Path, out: Path | None = None,
     out_parts.append(table_open("Inline formulas (first occurrence)",
                                 fo_widths, form, legend_on))
     for title, latex, page, punct in fo:
-        out_parts.append(row(title, latex, page, punct=punct,
+        sa = (standalone_math(latex, title, out_dir, col_mm=fo_widths[4])
+              if refused_for_align_only(latex) else "")
+        out_parts.append(row(title, latex, page, punct=punct, standalone=sa,
                              refined=refined.get(title)))
     out_parts.append("\\end{longtable}\n")
     tables_manifest.append(_table_record(

@@ -405,3 +405,25 @@ def test_longdiv_is_defined_in_the_shared_preamble():
     from pdfdrill import report_tex as rt
     assert r"\providecommand{\longdiv}" in rt.PREAMBLE
     assert r"\usepackage{longdivision}" not in rt.PREAMBLE
+
+
+def test_align_only_refusal_is_exact_and_ignores_an_empty_value():
+    r"""443 — the standalone route fires only when a depth-0 `&` is the SOLE
+    objection.
+
+    The empty case is the one that bit: an empty value passes every check and
+    came back True, so `standalone_math` compiled an empty document into a
+    blank PNG and four rows of johnston showed a blank image where they should
+    have shown "---". A row with no LaTeX is not a row whose LaTeX is
+    unrenderable.
+    """
+    from pdfdrill.report_tex import refused_for_align_only as f
+    assert f("") is False
+    assert f("   ") is False
+    # a genuine depth-0 marker, everything else well formed
+    assert f(r"\begin{array}{ll} a & b \end{array} & c") is True
+    # refused for a DIFFERENT reason -> not this route's business
+    assert f(r"\begin{figure} \[ x \] \end{figure}") is False
+    assert f(r"x $ y") is False
+    # renderable values are not refused at all
+    assert f(r"a + b") is False

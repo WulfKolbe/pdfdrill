@@ -1,0 +1,67 @@
+443 — a depth-0 `&` renders standalone instead of demoting
+==========================================================
+
+4 of 4 render.
+
+THE REASONING
+
+`renderable()` refuses a value carrying a bare `&` or `\\` at brace depth 0,
+and it is right to: in a longtable cell that `&` is a TAB MARK and hangs the
+compile in an error-recovery loop. But the check is right about the DANGER and
+wrong about the VALUE — 441 compiled all four of johnston's rejected rows
+standalone and all four produced a PDF.
+
+So the row is no longer demoted. It is compiled as its own document, where a
+`&` is an array separator and nothing else, and the result goes into the cell
+as an image — the same move 423 made for the tables section. The reader gets
+the mathematics; the longtable never sees the tab mark.
+
+`refused_for_align_only()` re-runs the gate with that ONE check disabled. If
+everything else passes, the marker is the sole objection and the standalone
+route is safe. If anything else fails, the row demotes exactly as before —
+the route is not a way around the gate, it is a way around one specific
+correct refusal.
+
+  EQ0204  align-only   EQ0218  align-only
+  EQ0947  align-only   EQ1055  align-only
+
+  the other four EQ refusals are NOT align-only and were left alone:
+  EQ0114, EQ0439, EQ0575 (nested \[) and EQ0774 (an escaped \$)
+
+THE DOCUMENT
+
+  "(not rendered)" rows   17  ->  6
+
+  17  before 442 and 443
+  10  after 442 (\longdiv defined, 7 rows)
+   6  after 443 (standalone route, 4 rows)
+
+The 6 that remain are the ones 444 is for: 3 nested `\[`, 2 escaped `\$`,
+1 prose-as-formula.
+
+TWO DEFECTS I INTRODUCED, BOTH CAUGHT BY MEASURING RATHER THAN BY A TEST
+
+**The double wrap.** My first version passed `"$\displaystyle %s$" % latex`
+to `region_standalone.render`. That function decides its own wrapper
+(`needs_math_wrapper`), so every one of the four failed with "Missing $
+inserted" — which the renderer reports as though the VALUE were malformed. 0
+of 4 rendered and the error blamed the data. Passing the raw value: 4 of 4.
+
+**The blank image.** `refused_for_align_only("")` returned True — an empty
+value passes every check in the gate — so `standalone_math` compiled an empty
+document into a blank PNG, and FOUR rows with no LaTeX at all (EQ0298,
+EQ0484, EQ0520, EQ1295 — both `latex` and `latex_code` empty) showed a blank
+image where they should show "---". That is worse than the demotion it
+replaced: a blank image asserts there is something to see.
+
+Caught because 8 standalone renders appeared where 4 were expected. The count
+not matching is what exposed it; a passing build would not have.
+
+  standalone renders   8  ->  4    after the guard
+  cells using them     8  ->  4
+
+A row with no LaTeX is not a row whose LaTeX is unrenderable, and the gate now
+says so first.
+
+2,772 tests pass, 1 new — pinning the empty case, a genuine depth-0 marker,
+and two refusals for OTHER reasons that must not take this route.
