@@ -1,0 +1,128 @@
+403 — a fixed-colour bullet plus a hidden field: is it a single-compile path?
+=============================================================================
+
+SHORT ANSWER
+
+Mechanically yes. As a display, no — and the reason is not taste, it is what
+the report is FOR. The class colour stays, so the two-phase build stays, and
+the fix is documentation, which 400 already made.
+
+But the route has one fewer objection than the record says, and the code
+does not need a field at all. Both are below.
+
+1. DOES IT GIVE A SINGLE COMPILE? Yes.
+
+A bullet whose colour is constant needs nothing from the measurement, so
+LaTeX can set it on the first pass. The class letter then travels in
+/V and is patched after compilation. Nothing in that requires a second
+compile. The mechanism works.
+
+2. ONE RECORDED OBJECTION DOES NOT SURVIVE TESTING
+
+148/155 says a form field's value is "an appearance stream that pdftotext
+cannot see, that nobody can drag-select, and that grep over the PDF misses."
+
+Built the case and measured it. xelatex + hyperref \TextField, value EMPTY at
+compile time, /V patched afterwards with pypdf, appearances NOT regenerated —
+the report's exact proposed shape:
+
+  field present, /V patched, no /AP at all     pdftotext reads "C|+81"
+
+Poppler reads /V directly; there was no appearance stream to remove (0 fields
+had one) and the text came out anyway. So the pdftotext half of 148 is false
+against current poppler.
+
+The grep half is a wash rather than an objection: `grep` over the raw PDF
+finds the code in NEITHER form, because both live in compressed streams.
+The current selectable text is no more greppable than a field would be.
+
+3. TWO OBJECTIONS DO SURVIVE
+
+156 — VIEWERS TINT FORM FIELDS PALE CYAN. Not testable here; it is viewer
+behaviour and this machine renders with poppler, not a form-aware viewer.
+But it was OBSERVED once, and it was misdiagnosed: 156 reported a
+mis-coloured confidence square and the cause turned out to be the field's
+tint. The proposal puts a tinted rectangle in the one cell whose entire
+meaning is colour, beside a coloured square and a coloured bullet. That is
+the same collision that already cost one investigation.
+
+157 — THE UPDATE CHANNEL WAS BUILT AND NEVER USED. Every reporttex run
+rebuilds from source and resets the value, so the "refresh without
+recompiling" path the field existed for was never taken once. Rebuilding it
+needs a reason the first attempt did not have.
+
+4. THE CODE DOES NOT NEED A FIELD
+
+This is the part that makes the proposal unnecessary rather than merely
+risky. The class letter is ALREADY selectable text that pdftotext reads:
+
+  chung2019combinatorics/report.pdf   411 of 411 codes read by pdftotext
+
+I have relied on that four times this week — 389, 391, 396 and 395 all
+verified "the residual is on the page" by running pdftotext over the built
+PDF and counting codes. A field would add a second channel for a value that
+already travels in a working one.
+
+So the field buys exactly one thing: patching WITHOUT recompiling. And that
+is the thing 157 measured nobody doing.
+
+5. IS THE CLASS COLOUR WHAT MAKES THE REPORT READABLE? Yes.
+
+Measured across the 18 published reports that carry residuals, 7,359 rows:
+
+  noise       3954   53.7%
+  weak        1416   19.2%
+  clean       1311   17.8%
+  component    676    9.2%     <- the actionable class
+  stable         2    0.0%
+
+  component share, median per report        11.7%
+  largest report (johnston)   1670 rows,  270 component
+
+The colour and the letter are REDUNDANT today: both encode the class. So a
+fixed-colour bullet would lose no INFORMATION. What it loses is a
+pre-attentive channel.
+
+That distinction is the whole answer. This report exists to find the ~9% of
+rows worth a human look among hundreds. Red among grey is a glance; "C"
+among 1,670 letters is a read. On johnston that is spotting 270 dots against
+reading 1,670 characters, and the reader doing it is checking someone else's
+OCR, which is exactly the task where a scan beats a read.
+
+A monochrome bullet would make the report a lookup table. It is meant to be
+a page you can skim.
+
+6. WHAT I AM NOT RECOMMENDING, BUT WHICH IS THE REAL THIRD OPTION
+
+The two-phase build exists because the class is not known until the page is
+rendered. That is a property of measuring the PAGE. Measuring the CELLS
+instead would give the class before the first compile, keep the colour, and
+remove the second pass — and the machinery exists: 382's `comparepairs` runs
+521 pairs/min against ~6 rows/min through the rendered table, and 383 already
+moved the pairs manifest out of the report for the DTZ set.
+
+The obstacle is 340: a standalone render is not the in-table render, and a
+width difference puts a scale difference into the residual — which is the
+number the report exists to produce. So that path changes what is measured
+and needs its own calibration. It is the right question to ask next; it is
+not a free swap and I am not proposing it as one.
+
+7. A SIDE FINDING, worth more than it looks
+
+  stable: 2 of 7,359 rows across every published report.
+
+`inkconvert` records that `stable` was UNREACHABLE until the A_eq_B column
+was wired up — the branch could not fire and every such row became `weak`.
+Two survivors in 7,359 is that bug's fingerprint. chung2019combinatorics,
+measured this week, has 26 stable in 411 (6.3%).
+
+So every published report's distribution predates the fix and would move on
+re-measure. That is not an argument about colour; it is a reason the 18
+published residual distributions should not be quoted as current.
+
+CONCLUSION
+
+The two-phase build stays. The fix is documentation, and 400 made it:
+`--no-legend` is declared in commands.yaml, regenerated into --help and
+SKILL.md, and a test now gates CLI-to-manifest drift in the direction that
+lost it.
