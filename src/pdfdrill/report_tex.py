@@ -123,7 +123,7 @@ def rows_for(tiddlers, bibkey, refined=None):
             # is set on 0 of 5,937 Table objects corpus-wide (425), so the
             # shared expression above can only ever yield "" for this kind.
             tab.append((title, latex or t.get("mathpix_text") or "",
-                        page, dims, region))
+                        page, dims, region, t.get("confidence", "")))
         else:
             dia.append((title, latex, page, dims, region))
     return fo, eq, tab, dia
@@ -1876,7 +1876,7 @@ def build_report(tiddlers_path: Path, out: Path | None = None,
         # sections line up column for column rather than only in count.
         tab_widths = col_widths(usable, with_image=bool(crops))
         out_parts.append(table_open("Tables", tab_widths, form, legend_on))
-        for title, latex, page, dims, _region in tab:
+        for title, latex, page, dims, _region, tconf in tab:
             src_cell = ("{\\ttfamily\\footnotesize %s}" % esc_text(latex)
                         ) if latex else (
                 # 426 — no cross-reference. This said "see tables.html", in
@@ -1895,7 +1895,7 @@ def build_report(tiddlers_path: Path, out: Path | None = None,
                 "\\emph{(not rendered)}" if latex else "---")
             out_parts.append(
                 "\\ident{%s} & %s & %s & %s & %s & %s \\\\ \\hline\n"
-                % (esc_text(title), esc_text(str(page)), conf_cell(""),
+                % (esc_text(title), esc_text(str(page)), conf_cell(tconf),
                    src_cell, rendered, img))
         out_parts.append("\\end{longtable}\n")
         tables_manifest.append(_table_record(

@@ -1,0 +1,81 @@
+429 — a table has no confidence; its cells do
+=============================================
+
+MEASURED, chung2019combinatorics, all 42 tables matched to their cells by
+region containment (42 of 42 matched)
+
+  cells per table   min 4, median 34, mean 47.5, max 423
+                    (1,924 simple_cells under the 42)
+
+  min over cells    min 0.091, median 1.000, mean 0.940
+  TABLES WITH A CELL BELOW 0.9   6 of 42 (14%)
+
+  page  cells      min     mean
+   340     14    0.091    0.790
+   399     20    0.593    0.950
+   395     28    0.630    0.972
+   406     12    0.651    0.970
+   410     47    0.808    0.995
+   408      7    0.817    0.969
+
+WHERE THE SIGNAL WAS
+
+  model Table objects           confidence prop: NONE
+  model TableCell objects       props are `text` and `bibkey` only
+  lines.json `simple_cell`      1,924 lines, ALL carrying a confidence
+
+So MathPix measures every cell and the model discarded it at build. The dash
+was honest about the container and threw away 1,924 measurements.
+
+THE DECISION: THE MINIMUM OVER CELLS
+
+Not a preference — banding the same 42 tables both ways:
+
+              red <0.5   amber 0.5-0.9   green >=0.9
+    MIN            1             5            36
+    MEAN           0             1            41
+
+The mean hides five of the six tables that contain a bad cell. The 14-cell
+table whose worst cell reads 0.091 averages to 0.790; a 119-cell table with
+one bad cell would average to 1.000 and show green. A reader scanning this
+column is hunting for the defect, so the aggregate has to be the one that
+cannot average it away.
+
+It is also MathPix's own convention for rolling child confidence up to a
+table parent, so this is their number rather than one invented here.
+
+IMPLEMENTED IN THREE PLACES, each the right one
+
+  docmodel/modules/table.py     Table.props["confidence"] = min over the
+                                child cells' confidence. Read from the
+                                MathPix line `_collect_children` stashes as
+                                `entry["line"]` — the entry itself has no
+                                confidence — and only CELL types counted, so
+                                rows do not silently contribute nothing.
+  docops/projectors/tiddlywiki  carries it onto the TAB tiddler
+  pdfdrill/report_tex           `conf_cell(tconf)` in the tables section
+
+ON 2608.09819, rebuilt end to end
+
+  Table objects            17
+  now carrying confidence  17
+  min 0.494, median 1.000, below 0.9: 4
+
+  Conf. cells in the Tables section:  13 green, 3 amber, 1 RED, 0 dashes
+
+A red square on a table row, where there was a dash for every row.
+
+A NOTE ON HOW LONG THIS TOOK
+
+I concluded twice that `TableProcessor.create_object` never ran — once from a
+monkey-patched probe, once from a debug print I could not find in the output.
+Both times the module was running correctly and I was reading the run's tail
+while the module reports at procOrder 4, near the start. The code was right
+from the first attempt; the reading of its output was not, and it cost more
+steps than the change did.
+
+EXISTING MODELS DO NOT HAVE THE PROP. It is set at model build, so a document
+gains it on the next `pdfdrill model`. 417's rebuild does not include that —
+it rebuilds reports, not models — so the tables column will show dashes on
+any document whose model predates this change, which is all of them but
+2608.09819 today.

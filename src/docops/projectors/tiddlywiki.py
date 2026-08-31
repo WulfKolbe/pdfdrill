@@ -826,6 +826,9 @@ class TiddlyWikiProjector(BaseProjector):
             # right.
             if tab.props.get("mathpix_text"):
                 t["mathpix_text"] = tab.props["mathpix_text"]
+            # 429 — the min over the table's cells; see docmodel/modules/table.py
+            if tab.props.get("confidence") is not None:
+                t["confidence"] = tab.props["confidence"]
             if svg_field:
                 t["svg_tiddler"] = svg_field
             for k in ("caption", "kind", "refnum"):
