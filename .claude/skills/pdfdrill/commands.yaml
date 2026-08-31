@@ -1590,6 +1590,14 @@ commands:
       conf | ink before | ink after | verdict, read from changes.json (needs
       no tiddlers or crops). Rejected rows are shown too — the question is what
       was tried and what happened to it, not only what changed'
+  - name: no_legend
+    flag: --no-legend
+    type: flag
+    help: 'omit the legend footer. THE ONLY WAY TO BUILD A phase=measure REPORT:
+      the stamp is `measure` iff the build has neither a legend nor an adopted
+      residual, so a build with the legend on is a reading build even with zero
+      bullets, and publishready refuses to accept a measurement taken against
+      it. Phase 1 of the two-phase build is `reporttex --no-legend --compile`.'
   - name: ink
     flag: --ink
     type: path

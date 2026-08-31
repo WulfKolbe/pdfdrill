@@ -1,0 +1,90 @@
+400 — the phase stamp: what sets it, and why a bullet-free build was "reading"
+==============================================================================
+
+WHAT SETS `phase`
+
+`report_tex.write_build_stamp`, one line:
+
+  report_tex.py:1516
+    "phase": ("measure" if (not legend and not ink_adopted) else "reading")
+
+NOT ink adoption. Two conditions, ANDed, and the legend is the one that
+caught me. Enumerated directly:
+
+  legend=False  ink_adopted=False  ->  measure
+  legend=False  ink_adopted=True   ->  reading
+  legend=True   ink_adopted=False  ->  reading      <-- my build
+  legend=True   ink_adopted=True   ->  reading
+
+I built the measure phase by moving report.ink.json aside. That gave
+ink_adopted=False and zero bullets on the page — I checked, `grep -c
+inkbullet` returned 0 — and the stamp still said `reading`, because the
+legend is on by default and nothing I ran turned it off.
+
+IS THE CHECK READING A STALE FIELD?
+
+No. `publishready` reads `report.ink.json[measured_against].phase`
+(commands.py:1765-1779) — a COPY of the build stamp taken at the moment the
+measurement ran. That is the correct provenance: it answers "what was this
+measurement taken against", which is a fact about the past and must not be
+re-read from the current build. The check is right and its message is right;
+the build it described really was a reading build.
+
+The message is also more precise than I gave it credit for: "legend and
+bullets on the page". It names legend FIRST. I read it as one thing.
+
+SO WHY COULD I NOT BUILD A MEASURE-PHASE REPORT
+
+Because the flag that does it is invisible.
+
+  `--no-legend` is accepted by cli.py:1102/1111
+  occurrences in commands.yaml   0
+  occurrences in SKILL.md        0
+  occurrences in `pdfdrill --help`  0
+
+It exists, it works, and it is mentioned exactly once anywhere in the
+project: a comment in report_tex.py:1411 recording that some earlier
+ink.json "was measured against a 20-page --min-conf 0.9 --no-legend build".
+Used once, never documented.
+
+The consequence is a two-phase build whose FIRST PHASE cannot be reached
+from the documented surface. The stamp polices a workflow that `--help` does
+not describe. Everything downstream then behaves correctly and
+incomprehensibly: the phase is right, the refusal is right, the message is
+right, and there is no documented way to satisfy it.
+
+This is the manifest rule from the other side. CLAUDE.md says a capability
+that is not in `commands.yaml` is invisible to the planner, `status` and
+`--ensure` — audit A4 said it about code in `tools/`. A FLAG can be lost the
+same way, and this one was.
+
+FIXED
+
+  - `--no-legend` declared in commands.yaml, with what it is FOR in the help
+    text: it is the only way to build a phase=measure report.
+  - `tools/skillsync.py all .` regenerated the help and SKILL.md; both now
+    carry it, as does `--help`.
+  - tests/test_skill_sync.py gains a check in the direction that lost it.
+    The existing sync tests gate manifest -> generated help. Nothing gated
+    CLI -> manifest, which is where the flag went missing.
+
+ONE NOTE ON THE TEST, because it was wrong first
+
+My first version anchored on the literal `"--no-images"` and took everything
+to the next `]`. That matched a DIFFERENT handler's flag list and reported
+`--force` as missing from reporttex — a real flag, of a real command, that
+has nothing to do with this one. A test that finds something wrong with the
+wrong thing is worse than no test: it would have been "fixed" by declaring
+`--force` on reporttex. Now scoped to the `_do_reporttex` body between its
+`def` and the next one.
+
+2,748 tests pass.
+
+WHAT THIS DOES NOT SETTLE
+
+The phase stamp exists because the report is built twice and the second
+build must not contaminate the measurement the first one feeds. If 399
+removes the second compile — a field carrying the code, a fixed-colour
+bullet carrying the class — then the stamp, the `--no-legend` phase-1 build
+and this entire class of question go with it. This file explains the
+mechanism; it does not argue that the mechanism should exist.

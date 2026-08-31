@@ -89,3 +89,45 @@ if __name__ == "__main__":
     if failed:
         print(f"\n{len(failed)} of {len(tests)} failed"); sys.exit(1)
     print(f"\nAll {len(tests)} tests passed.")
+
+
+def test_every_cli_flag_reporttex_accepts_is_in_the_manifest():
+    r"""400 — a flag the CLI accepts and the manifest does not name is invisible.
+
+    `--no-legend` was accepted by cli.py, mentioned once in a comment in
+    report_tex.py, and absent from commands.yaml, SKILL.md and `--help` — zero
+    occurrences in all three. It is not a minor flag: the build stamp records
+    `phase=measure` only when a build has NEITHER a legend NOR an adopted
+    residual, so `--no-legend` is the only way to produce the phase-1 build
+    that `publishready` requires a measurement to be taken against.
+
+    The effect was a two-phase workflow whose first phase could not be reached
+    from the documented surface. A build with the ink moved aside still
+    stamped `phase=reading`, publishready refused the measurement, and nothing
+    on the CLI said why.
+
+    The existing sync tests gate manifest -> generated help. This gates the
+    other direction, which is where the flag was lost.
+    """
+    import re
+    import yaml
+    from pathlib import Path
+    root = Path(__file__).resolve().parents[1]
+    src = (root / "src" / "pdfdrill" / "cli.py").read_text(encoding="utf-8")
+    man = yaml.safe_load(
+        (root / ".claude" / "skills" / "pdfdrill" / "commands.yaml").read_text())
+    declared = {f.get("flag")
+                for c in man["commands"] if c["name"] == "reporttex"
+                for f in (c.get("flags") or [])}
+    # SCOPED TO THE HANDLER BODY. Anchoring on a flag string alone matched a
+    # different handler's list first and reported `--force` as missing, which
+    # is a real flag of a real command and not of this one — a test that finds
+    # something wrong with the wrong thing.
+    start = src.index("def _do_reporttex(")
+    end = src.index("\ndef ", start + 1)
+    body = src[start:end]
+    accepted = set(re.findall(r'"(--[a-z][a-z-]*)"', body))
+    missing = accepted - declared
+    assert not missing, (
+        "reporttex accepts %s but commands.yaml does not declare them, so "
+        "they are absent from --help and SKILL.md" % sorted(missing))
