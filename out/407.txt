@@ -1,0 +1,87 @@
+407 — the cell route does not hold. 417 proceeds as written.
+============================================================
+
+THE QUESTION
+
+The page route builds the report, rasterises each page at 300 and 600 dpi and
+compares the two image columns as typeset. The class is not known until the
+page exists, which is what forces the two-phase build, the phase stamp and
+`--no-legend`.
+
+The cell route compares the same two things one step earlier — a standalone
+render of the row's LaTeX against the row's scan crop — so the class would be
+known before the first compile and the seven steps could be three.
+
+50 rows of chung2019combinatorics, standalone render at 400 dpi against the
+crop, classes compared against report.ink.json.
+
+ANSWER: 36 of 48 agree, 75.0%. It does not hold, for two independent reasons.
+
+MEASURED FAIRLY, AND THE FIRST RUN WAS NOT
+
+My first version passed `scale_stable=False`, so the cell route could not
+produce `stable` AT ALL — five rows misclassified by construction, and the
+75% would have been 70.8% of my own omission. The page route gets `stable`
+from one cell rasterised at 300 and 600 agreeing, so the cell route was given
+the same question: render at 400 and 800 and compare. Both numbers are below;
+the fair one is the one that decides.
+
+RECALL PER PAGE-ROUTE CLASS
+
+  class          n   kept     %   where the rest went
+  noise         34     29    85%   clean 4, stable 1
+  component      5      2    40%   noise 2, weak 1
+  stable         5      2    40%   noise 2, weak 1
+  clean          2      2   100%   —
+  weak           1      1   100%   —
+  unrendered     1      0     0%   weak 1
+
+REASON 1 — IT LOSES THE CLASS THE REPORT EXISTS FOR
+
+`component` is the actionable class: 9.2% of rows across the published set,
+and the thing a reader is scanning for. The cell route keeps 2 of 5. THREE
+ROWS STOP BEING RED.
+
+A 75% overall agreement sounds survivable until it is read by class. The
+disagreement is not spread evenly over a large `noise` majority — it is
+concentrated on the rare rows that matter, which is the worst place for it.
+A route that silently drops 60% of the findings is not a faster route to the
+same answer; it is a different answer.
+
+`unrendered` it cannot produce at all: demotion is a property of the report,
+and the cell route never builds one.
+
+REASON 2 — IT IS NOT EVEN FASTER
+
+  page route   424 s / 411 rows = 1.03 s/row    one rasterised page carries ~4 rows
+  cell route   103 s /  48 rows = 2.15 s/row    TWO xelatex compiles per row
+
+Twice as slow. 382's 521 pairs/min was comparison over images ALREADY
+rendered — it measured the comparator, not the route, and the render is the
+cost. Rasterising one page at 4.6 s and getting four rows beats compiling two
+standalone documents per row, and it beats it before any of the accuracy
+above is counted.
+
+I quoted that 521 figure myself in 403 as the argument for this route. It was
+the right number for the wrong question.
+
+WHAT THIS SETTLES
+
+  - 417 proceeds as written, through the seven-step chain.
+  - The two-phase build stays, and 403's conclusion stands for a second
+    reason: not only is the colour worth keeping, the fast route that would
+    have removed the second compile is slower and less accurate.
+  - 400's documentation fix remains the right fix. There was no architecture
+    to change.
+
+WHAT IT DOES NOT SETTLE
+
+The two rows that did not compile, and the 4 noise->clean moves, are
+scale effects — the in-table cells are 102 mm and 122 mm and a standalone
+render is a third scale (340). A cell route that rendered at the TABLE's
+width might agree far better. That is a real experiment and it is not this
+one; it would still be twice as slow, so it would need a reason other than
+speed.
+
+Cost of finding out: about an hour, against a corpus re-measurement of 22
+documents that would have had to be redone.

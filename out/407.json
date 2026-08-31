@@ -1,0 +1,1173 @@
+{
+ "doc": "/home/wkolbe/pdfdrill-library/chung2019combinatorics",
+ "bibkey": "chung2019combinatorics",
+ "dpi": 400,
+ "rows": [
+  {
+   "id": "chung2019combinatorics_EQ0001",
+   "page_flag": "unrendered",
+   "page_distance": 30,
+   "cell": "measured",
+   "cell_distance": 13,
+   "cell_comp_delta": 2,
+   "cell_a_eq_b": false,
+   "cell_flag": "weak",
+   "L": [
+    15,
+    7,
+    8,
+    8,
+    0
+   ],
+   "R": [
+    17,
+    6,
+    13,
+    12,
+    1
+   ]
+  },
+  {
+   "id": "chung2019combinatorics_EQ0002",
+   "page_flag": "noise",
+   "page_distance": 2,
+   "cell": "measured",
+   "cell_distance": 2,
+   "cell_comp_delta": 0,
+   "cell_a_eq_b": true,
+   "cell_flag": "noise",
+   "L": [
+    40,
+    17,
+    35,
+    34,
+    1
+   ],
+   "R": [
+    40,
+    17,
+    35,
+    35,
+    0
+   ]
+  },
+  {
+   "id": "chung2019combinatorics_EQ0003",
+   "page_flag": "component",
+   "page_distance": 16,
+   "cell": "measured",
+   "cell_distance": 16,
+   "cell_comp_delta": 8,
+   "cell_a_eq_b": true,
+   "cell_flag": "component",
+   "L": [
+    28,
+    17,
+    0,
+    0,
+    0
+   ],
+   "R": [
+    20,
+    9,
+    0,
+    0,
+    0
+   ]
+  },
+  {
+   "id": "chung2019combinatorics_EQ0004",
+   "page_flag": "noise",
+   "page_distance": 1,
+   "cell": "measured",
+   "cell_distance": 3,
+   "cell_comp_delta": 0,
+   "cell_a_eq_b": false,
+   "cell_flag": "noise",
+   "L": [
+    21,
+    5,
+    2,
+    2,
+    0
+   ],
+   "R": [
+    21,
+    2,
+    2,
+    2,
+    0
+   ]
+  },
+  {
+   "id": "chung2019combinatorics_EQ0005",
+   "page_flag": "noise",
+   "page_distance": 2,
+   "cell": "measured",
+   "cell_distance": 1,
+   "cell_comp_delta": 0,
+   "cell_a_eq_b": true,
+   "cell_flag": "noise",
+   "L": [
+    19,
+    3,
+    4,
+    4,
+    0
+   ],
+   "R": [
+    19,
+    4,
+    4,
+    4,
+    0
+   ]
+  },
+  {
+   "id": "chung2019combinatorics_EQ0006",
+   "page_flag": "noise",
+   "page_distance": 6,
+   "cell": "measured",
+   "cell_distance": 13,
+   "cell_comp_delta": 2,
+   "cell_a_eq_b": true,
+   "cell_flag": "stable",
+   "L": [
+    42,
+    16,
+    25,
+    13,
+    9
+   ],
+   "R": [
+    40,
+    17,
+    21,
+    9,
+    11
+   ]
+  },
+  {
+   "id": "chung2019combinatorics_EQ0007",
+   "page_flag": "component",
+   "page_distance": 20,
+   "cell": "measured",
+   "cell_distance": 2,
+   "cell_comp_delta": 1,
+   "cell_a_eq_b": true,
+   "cell_flag": "noise",
+   "L": [
+    43,
+    10,
+    29,
+    8,
+    16
+   ],
+   "R": [
+    44,
+    11,
+    29,
+    8,
+    16
+   ]
+  },
+  {
+   "id": "chung2019combinatorics_EQ0008",
+   "page_flag": "noise",
+   "page_distance": 6,
+   "cell": "did not compile",
+   "error": "! LaTeX Error: Bad math environment delimiter."
+  },
+  {
+   "id": "chung2019combinatorics_EQ0009",
+   "page_flag": "noise",
+   "page_distance": 1,
+   "cell": "measured",
+   "cell_distance": 0,
+   "cell_comp_delta": 0,
+   "cell_a_eq_b": false,
+   "cell_flag": "clean",
+   "L": [
+    15,
+    6,
+    9,
+    5,
+    4
+   ],
+   "R": [
+    15,
+    6,
+    9,
+    5,
+    4
+   ]
+  },
+  {
+   "id": "chung2019combinatorics_EQ0010",
+   "page_flag": "noise",
+   "page_distance": 3,
+   "cell": "measured",
+   "cell_distance": 3,
+   "cell_comp_delta": 1,
+   "cell_a_eq_b": false,
+   "cell_flag": "noise",
+   "L": [
+    28,
+    6,
+    23,
+    7,
+    9
+   ],
+   "R": [
+    29,
+    8,
+    23,
+    7,
+    9
+   ]
+  },
+  {
+   "id": "chung2019combinatorics_EQ0011",
+   "page_flag": "noise",
+   "page_distance": 5,
+   "cell": "measured",
+   "cell_distance": 5,
+   "cell_comp_delta": 1,
+   "cell_a_eq_b": false,
+   "cell_flag": "noise",
+   "L": [
+    52,
+    12,
+    47,
+    15,
+    20
+   ],
+   "R": [
+    53,
+    13,
+    49,
+    15,
+    21
+   ]
+  },
+  {
+   "id": "chung2019combinatorics_EQ0012",
+   "page_flag": "noise",
+   "page_distance": 1,
+   "cell": "measured",
+   "cell_distance": 2,
+   "cell_comp_delta": 0,
+   "cell_a_eq_b": false,
+   "cell_flag": "noise",
+   "L": [
+    12,
+    2,
+    6,
+    4,
+    2
+   ],
+   "R": [
+    12,
+    0,
+    6,
+    4,
+    2
+   ]
+  },
+  {
+   "id": "chung2019combinatorics_EQ0013",
+   "page_flag": "component",
+   "page_distance": 53,
+   "cell": "measured",
+   "cell_distance": 26,
+   "cell_comp_delta": 0,
+   "cell_a_eq_b": false,
+   "cell_flag": "weak",
+   "L": [
+    94,
+    27,
+    35,
+    22,
+    13
+   ],
+   "R": [
+    94,
+    27,
+    35,
+    35,
+    0
+   ]
+  },
+  {
+   "id": "chung2019combinatorics_EQ0014",
+   "page_flag": "component",
+   "page_distance": 392,
+   "cell": "measured",
+   "cell_distance": 2,
+   "cell_comp_delta": 2,
+   "cell_a_eq_b": false,
+   "cell_flag": "noise",
+   "L": [
+    159,
+    98,
+    5,
+    5,
+    0
+   ],
+   "R": [
+    157,
+    98,
+    5,
+    5,
+    0
+   ]
+  },
+  {
+   "id": "chung2019combinatorics_EQ0015",
+   "page_flag": "noise",
+   "page_distance": 1,
+   "cell": "measured",
+   "cell_distance": 1,
+   "cell_comp_delta": 0,
+   "cell_a_eq_b": true,
+   "cell_flag": "noise",
+   "L": [
+    110,
+    40,
+    17,
+    9,
+    8
+   ],
+   "R": [
+    110,
+    39,
+    17,
+    9,
+    8
+   ]
+  },
+  {
+   "id": "chung2019combinatorics_EQ0016",
+   "page_flag": "weak",
+   "page_distance": 11,
+   "cell": "measured",
+   "cell_distance": 13,
+   "cell_comp_delta": 1,
+   "cell_a_eq_b": false,
+   "cell_flag": "weak",
+   "L": [
+    42,
+    5,
+    29,
+    12,
+    14
+   ],
+   "R": [
+    43,
+    12,
+    33,
+    12,
+    15
+   ]
+  },
+  {
+   "id": "chung2019combinatorics_EQ0017",
+   "page_flag": "noise",
+   "page_distance": 3,
+   "cell": "measured",
+   "cell_distance": 2,
+   "cell_comp_delta": 0,
+   "cell_a_eq_b": true,
+   "cell_flag": "noise",
+   "L": [
+    24,
+    6,
+    4,
+    2,
+    2
+   ],
+   "R": [
+    24,
+    8,
+    4,
+    2,
+    2
+   ]
+  },
+  {
+   "id": "chung2019combinatorics_EQ0018",
+   "page_flag": "noise",
+   "page_distance": 3,
+   "cell": "measured",
+   "cell_distance": 0,
+   "cell_comp_delta": 0,
+   "cell_a_eq_b": true,
+   "cell_flag": "clean",
+   "L": [
+    12,
+    6,
+    0,
+    0,
+    0
+   ],
+   "R": [
+    12,
+    6,
+    0,
+    0,
+    0
+   ]
+  },
+  {
+   "id": "chung2019combinatorics_EQ0019",
+   "page_flag": "stable",
+   "page_distance": 11,
+   "cell": "measured",
+   "cell_distance": 1,
+   "cell_comp_delta": 0,
+   "cell_a_eq_b": true,
+   "cell_flag": "noise",
+   "L": [
+    30,
+    20,
+    0,
+    0,
+    0
+   ],
+   "R": [
+    30,
+    21,
+    0,
+    0,
+    0
+   ]
+  },
+  {
+   "id": "chung2019combinatorics_EQ0020",
+   "page_flag": "noise",
+   "page_distance": 4,
+   "cell": "measured",
+   "cell_distance": 1,
+   "cell_comp_delta": 0,
+   "cell_a_eq_b": true,
+   "cell_flag": "noise",
+   "L": [
+    16,
+    6,
+    0,
+    0,
+    0
+   ],
+   "R": [
+    16,
+    7,
+    0,
+    0,
+    0
+   ]
+  },
+  {
+   "id": "chung2019combinatorics_EQ0021",
+   "page_flag": "unrendered",
+   "page_distance": 91,
+   "cell": "did not compile",
+   "error": "! LaTeX Error: Not allowed in LR mode."
+  },
+  {
+   "id": "chung2019combinatorics_EQ0022",
+   "page_flag": "noise",
+   "page_distance": 4,
+   "cell": "measured",
+   "cell_distance": 1,
+   "cell_comp_delta": 0,
+   "cell_a_eq_b": true,
+   "cell_flag": "noise",
+   "L": [
+    12,
+    6,
+    0,
+    0,
+    0
+   ],
+   "R": [
+    12,
+    7,
+    0,
+    0,
+    0
+   ]
+  },
+  {
+   "id": "chung2019combinatorics_EQ0023",
+   "page_flag": "stable",
+   "page_distance": 13,
+   "cell": "measured",
+   "cell_distance": 5,
+   "cell_comp_delta": 0,
+   "cell_a_eq_b": true,
+   "cell_flag": "noise",
+   "L": [
+    33,
+    17,
+    5,
+    1,
+    4
+   ],
+   "R": [
+    33,
+    20,
+    5,
+    0,
+    5
+   ]
+  },
+  {
+   "id": "chung2019combinatorics_EQ0024",
+   "page_flag": "stable",
+   "page_distance": 8,
+   "cell": "measured",
+   "cell_distance": 8,
+   "cell_comp_delta": 0,
+   "cell_a_eq_b": true,
+   "cell_flag": "stable",
+   "L": [
+    30,
+    5,
+    17,
+    17,
+    0
+   ],
+   "R": [
+    30,
+    5,
+    21,
+    21,
+    0
+   ]
+  },
+  {
+   "id": "chung2019combinatorics_EQ0025",
+   "page_flag": "noise",
+   "page_distance": 4,
+   "cell": "measured",
+   "cell_distance": 4,
+   "cell_comp_delta": 0,
+   "cell_a_eq_b": true,
+   "cell_flag": "noise",
+   "L": [
+    20,
+    4,
+    9,
+    9,
+    0
+   ],
+   "R": [
+    20,
+    4,
+    11,
+    11,
+    0
+   ]
+  },
+  {
+   "id": "chung2019combinatorics_EQ0026",
+   "page_flag": "clean",
+   "page_distance": 0,
+   "cell": "measured",
+   "cell_distance": 0,
+   "cell_comp_delta": 0,
+   "cell_a_eq_b": true,
+   "cell_flag": "clean",
+   "L": [
+    37,
+    1,
+    0,
+    0,
+    0
+   ],
+   "R": [
+    37,
+    1,
+    0,
+    0,
+    0
+   ]
+  },
+  {
+   "id": "chung2019combinatorics_EQ0027",
+   "page_flag": "noise",
+   "page_distance": 2,
+   "cell": "measured",
+   "cell_distance": 2,
+   "cell_comp_delta": 0,
+   "cell_a_eq_b": true,
+   "cell_flag": "noise",
+   "L": [
+    15,
+    2,
+    1,
+    1,
+    0
+   ],
+   "R": [
+    15,
+    4,
+    1,
+    1,
+    0
+   ]
+  },
+  {
+   "id": "chung2019combinatorics_EQ0028",
+   "page_flag": "noise",
+   "page_distance": 2,
+   "cell": "measured",
+   "cell_distance": 2,
+   "cell_comp_delta": 0,
+   "cell_a_eq_b": true,
+   "cell_flag": "noise",
+   "L": [
+    26,
+    0,
+    15,
+    7,
+    7
+   ],
+   "R": [
+    26,
+    2,
+    15,
+    7,
+    7
+   ]
+  },
+  {
+   "id": "chung2019combinatorics_EQ0029",
+   "page_flag": "noise",
+   "page_distance": 2,
+   "cell": "measured",
+   "cell_distance": 2,
+   "cell_comp_delta": 0,
+   "cell_a_eq_b": true,
+   "cell_flag": "noise",
+   "L": [
+    14,
+    0,
+    1,
+    1,
+    0
+   ],
+   "R": [
+    14,
+    2,
+    1,
+    1,
+    0
+   ]
+  },
+  {
+   "id": "chung2019combinatorics_EQ0030",
+   "page_flag": "noise",
+   "page_distance": 4,
+   "cell": "measured",
+   "cell_distance": 4,
+   "cell_comp_delta": 0,
+   "cell_a_eq_b": true,
+   "cell_flag": "noise",
+   "L": [
+    24,
+    4,
+    4,
+    2,
+    2
+   ],
+   "R": [
+    24,
+    6,
+    5,
+    3,
+    2
+   ]
+  },
+  {
+   "id": "chung2019combinatorics_EQ0031",
+   "page_flag": "noise",
+   "page_distance": 4,
+   "cell": "measured",
+   "cell_distance": 4,
+   "cell_comp_delta": 0,
+   "cell_a_eq_b": true,
+   "cell_flag": "noise",
+   "L": [
+    24,
+    4,
+    4,
+    2,
+    2
+   ],
+   "R": [
+    24,
+    6,
+    5,
+    3,
+    2
+   ]
+  },
+  {
+   "id": "chung2019combinatorics_EQ0032",
+   "page_flag": "noise",
+   "page_distance": 5,
+   "cell": "measured",
+   "cell_distance": 5,
+   "cell_comp_delta": 0,
+   "cell_a_eq_b": true,
+   "cell_flag": "noise",
+   "L": [
+    61,
+    0,
+    57,
+    23,
+    24
+   ],
+   "R": [
+    61,
+    5,
+    57,
+    23,
+    24
+   ]
+  },
+  {
+   "id": "chung2019combinatorics_EQ0033",
+   "page_flag": "stable",
+   "page_distance": 9,
+   "cell": "measured",
+   "cell_distance": 8,
+   "cell_comp_delta": 0,
+   "cell_a_eq_b": false,
+   "cell_flag": "weak",
+   "L": [
+    80,
+    1,
+    66,
+    28,
+    28
+   ],
+   "R": [
+    80,
+    8,
+    67,
+    28,
+    28
+   ]
+  },
+  {
+   "id": "chung2019combinatorics_EQ0034",
+   "page_flag": "noise",
+   "page_distance": 4,
+   "cell": "measured",
+   "cell_distance": 4,
+   "cell_comp_delta": 0,
+   "cell_a_eq_b": true,
+   "cell_flag": "noise",
+   "L": [
+    28,
+    0,
+    5,
+    3,
+    2
+   ],
+   "R": [
+    28,
+    4,
+    5,
+    3,
+    2
+   ]
+  },
+  {
+   "id": "chung2019combinatorics_EQ0035",
+   "page_flag": "component",
+   "page_distance": 16,
+   "cell": "measured",
+   "cell_distance": 16,
+   "cell_comp_delta": 7,
+   "cell_a_eq_b": true,
+   "cell_flag": "component",
+   "L": [
+    147,
+    5,
+    66,
+    24,
+    33
+   ],
+   "R": [
+    140,
+    8,
+    67,
+    26,
+    30
+   ]
+  },
+  {
+   "id": "chung2019combinatorics_EQ0036",
+   "page_flag": "noise",
+   "page_distance": 1,
+   "cell": "measured",
+   "cell_distance": 0,
+   "cell_comp_delta": 0,
+   "cell_a_eq_b": true,
+   "cell_flag": "clean",
+   "L": [
+    63,
+    13,
+    27,
+    10,
+    16
+   ],
+   "R": [
+    63,
+    13,
+    27,
+    10,
+    16
+   ]
+  },
+  {
+   "id": "chung2019combinatorics_EQ0037",
+   "page_flag": "noise",
+   "page_distance": 3,
+   "cell": "measured",
+   "cell_distance": 3,
+   "cell_comp_delta": 0,
+   "cell_a_eq_b": true,
+   "cell_flag": "noise",
+   "L": [
+    27,
+    7,
+    4,
+    2,
+    2
+   ],
+   "R": [
+    27,
+    8,
+    5,
+    3,
+    2
+   ]
+  },
+  {
+   "id": "chung2019combinatorics_EQ0038",
+   "page_flag": "noise",
+   "page_distance": 5,
+   "cell": "measured",
+   "cell_distance": 5,
+   "cell_comp_delta": 0,
+   "cell_a_eq_b": true,
+   "cell_flag": "noise",
+   "L": [
+    30,
+    7,
+    3,
+    1,
+    2
+   ],
+   "R": [
+    30,
+    10,
+    4,
+    2,
+    2
+   ]
+  },
+  {
+   "id": "chung2019combinatorics_EQ0039",
+   "page_flag": "noise",
+   "page_distance": 1,
+   "cell": "measured",
+   "cell_distance": 1,
+   "cell_comp_delta": 0,
+   "cell_a_eq_b": true,
+   "cell_flag": "noise",
+   "L": [
+    14,
+    0,
+    1,
+    1,
+    0
+   ],
+   "R": [
+    14,
+    1,
+    1,
+    1,
+    0
+   ]
+  },
+  {
+   "id": "chung2019combinatorics_EQ0040",
+   "page_flag": "noise",
+   "page_distance": 1,
+   "cell": "measured",
+   "cell_distance": 1,
+   "cell_comp_delta": 0,
+   "cell_a_eq_b": false,
+   "cell_flag": "noise",
+   "L": [
+    16,
+    2,
+    1,
+    1,
+    0
+   ],
+   "R": [
+    16,
+    3,
+    1,
+    1,
+    0
+   ]
+  },
+  {
+   "id": "chung2019combinatorics_EQ0041",
+   "page_flag": "noise",
+   "page_distance": 3,
+   "cell": "measured",
+   "cell_distance": 3,
+   "cell_comp_delta": 0,
+   "cell_a_eq_b": true,
+   "cell_flag": "noise",
+   "L": [
+    27,
+    2,
+    1,
+    1,
+    0
+   ],
+   "R": [
+    27,
+    5,
+    1,
+    1,
+    0
+   ]
+  },
+  {
+   "id": "chung2019combinatorics_EQ0042",
+   "page_flag": "noise",
+   "page_distance": 4,
+   "cell": "measured",
+   "cell_distance": 4,
+   "cell_comp_delta": 1,
+   "cell_a_eq_b": true,
+   "cell_flag": "noise",
+   "L": [
+    29,
+    2,
+    1,
+    1,
+    0
+   ],
+   "R": [
+    30,
+    3,
+    2,
+    1,
+    1
+   ]
+  },
+  {
+   "id": "chung2019combinatorics_EQ0043",
+   "page_flag": "noise",
+   "page_distance": 2,
+   "cell": "measured",
+   "cell_distance": 2,
+   "cell_comp_delta": 1,
+   "cell_a_eq_b": true,
+   "cell_flag": "noise",
+   "L": [
+    19,
+    1,
+    5,
+    3,
+    2
+   ],
+   "R": [
+    18,
+    2,
+    5,
+    3,
+    2
+   ]
+  },
+  {
+   "id": "chung2019combinatorics_EQ0044",
+   "page_flag": "noise",
+   "page_distance": 1,
+   "cell": "measured",
+   "cell_distance": 1,
+   "cell_comp_delta": 0,
+   "cell_a_eq_b": true,
+   "cell_flag": "noise",
+   "L": [
+    18,
+    0,
+    7,
+    4,
+    3
+   ],
+   "R": [
+    18,
+    0,
+    8,
+    4,
+    3
+   ]
+  },
+  {
+   "id": "chung2019combinatorics_EQ0045",
+   "page_flag": "stable",
+   "page_distance": 12,
+   "cell": "measured",
+   "cell_distance": 12,
+   "cell_comp_delta": 2,
+   "cell_a_eq_b": true,
+   "cell_flag": "stable",
+   "L": [
+    60,
+    5,
+    13,
+    7,
+    6
+   ],
+   "R": [
+    58,
+    11,
+    11,
+    7,
+    4
+   ]
+  },
+  {
+   "id": "chung2019combinatorics_EQ0046",
+   "page_flag": "noise",
+   "page_distance": 5,
+   "cell": "measured",
+   "cell_distance": 4,
+   "cell_comp_delta": 0,
+   "cell_a_eq_b": true,
+   "cell_flag": "noise",
+   "L": [
+    22,
+    0,
+    5,
+    5,
+    0
+   ],
+   "R": [
+    22,
+    4,
+    5,
+    5,
+    0
+   ]
+  },
+  {
+   "id": "chung2019combinatorics_EQ0047",
+   "page_flag": "noise",
+   "page_distance": 1,
+   "cell": "measured",
+   "cell_distance": 1,
+   "cell_comp_delta": 0,
+   "cell_a_eq_b": true,
+   "cell_flag": "noise",
+   "L": [
+    21,
+    0,
+    1,
+    1,
+    0
+   ],
+   "R": [
+    21,
+    1,
+    1,
+    1,
+    0
+   ]
+  },
+  {
+   "id": "chung2019combinatorics_EQ0048",
+   "page_flag": "clean",
+   "page_distance": 0,
+   "cell": "measured",
+   "cell_distance": 0,
+   "cell_comp_delta": 0,
+   "cell_a_eq_b": true,
+   "cell_flag": "clean",
+   "L": [
+    14,
+    2,
+    1,
+    1,
+    0
+   ],
+   "R": [
+    14,
+    2,
+    1,
+    1,
+    0
+   ]
+  },
+  {
+   "id": "chung2019combinatorics_EQ0049",
+   "page_flag": "noise",
+   "page_distance": 1,
+   "cell": "measured",
+   "cell_distance": 1,
+   "cell_comp_delta": 0,
+   "cell_a_eq_b": false,
+   "cell_flag": "noise",
+   "L": [
+    31,
+    8,
+    6,
+    6,
+    0
+   ],
+   "R": [
+    31,
+    7,
+    6,
+    6,
+    0
+   ]
+  },
+  {
+   "id": "chung2019combinatorics_EQ0050",
+   "page_flag": "noise",
+   "page_distance": 3,
+   "cell": "measured",
+   "cell_distance": 0,
+   "cell_comp_delta": 0,
+   "cell_a_eq_b": false,
+   "cell_flag": "clean",
+   "L": [
+    14,
+    6,
+    2,
+    2,
+    0
+   ],
+   "R": [
+    14,
+    6,
+    2,
+    2,
+    0
+   ]
+  }
+ ]
+}
