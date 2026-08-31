@@ -1,0 +1,109 @@
+441 — the 17 unrendered rows of johnston-linear-matrix-algebra
+==============================================================
+
+COUNT FIRST. The report carries 17, not 19: 15 in Display equations, 2 in
+Inline formulas. `report.ink.json` shows 15 because it covers the equations
+table alone. If 19 came from an earlier build, that build predates 423.
+
+TWO DIFFERENT MECHANISMS, and they had to be separated before anything could
+be attributed:
+
+  rejected by `renderable()` BEFORE the compile     9
+  demoted by the COMPILE FIXPOINT afterwards        8
+
+The second group leaves no trace: the fixpoint records a count, and the log it
+leaves behind is the LAST compile's, which by construction has zero errors.
+Each was recompiled standalone to recover its error.
+
+BY REASON
+
+  reason                                        n   whose
+  \longdiv — undefined control sequence         7   OURS
+  bare & or \\ at brace depth 0                 4   OURS
+  \begin{figure} \[ … — nested display          3   MathPix's
+  a $ inside the value (both are \$)            2   OURS
+  prose segmented as an inline formula          1   MathPix's
+
+  OURS 13, MathPix's 4.
+
+That split is the finding. I expected the reverse.
+
+THE TEST THAT DECIDED IT
+
+A gate that refuses a snippet is only right if xelatex would also refuse it.
+All nine `renderable()` rejections were compiled standalone:
+
+  FO2071   $ inside the value        COMPILES
+  EQ0204   bare & at depth 0         COMPILES
+  EQ0218   bare & at depth 0         COMPILES
+  EQ0774   $ inside the value        COMPILES
+  EQ0947   bare & at depth 0         COMPILES
+  EQ1055   bare & at depth 0         COMPILES
+  EQ0114   nested \[                 fails — "You can't use `\eqno' in math mode"
+  EQ0439   nested \[                 fails — same
+  EQ0575   nested \[                 fails — same
+
+SIX OF NINE COMPILE. The gate is refusing rows xelatex accepts.
+
+OURS, IN DETAIL
+
+**\longdiv, 7 rows.** `longdivision.sty` IS INSTALLED on this machine —
+/usr/share/texmf-dist/tex/latex/longdivision/longdivision.sty — and the report
+preamble does not load it. MathPix emits `\longdiv` for long division and the
+package that defines it is sitting there unused. 14 occurrences across 3
+documents corpus-wide (this one 7, Number/Shape/Symmetry 5, Wolfram Language
+2). A one-line preamble change.
+
+**The escaped dollar, 2 rows.** Both values carry `\$` — currency, correctly
+escaped: `\$ 151`, and a matrix with `\$` in two cells. `renderable()` does
+
+    if r"\[" in lx or r"\]" in lx or "$" in lx:
+        return ""
+    if re.sub(r"\\%", "", lx).count("%"):
+        return ""
+
+The `%` check strips its escape. The `$` check on the line above does not.
+Two adjacent lines, one rule each, and only one of them handles the escape.
+
+**Bare & at brace depth 0, 4 rows.** The check is right in principle — a `&`
+at depth 0 is a longtable tab mark and hangs the compile. Its env-stripping
+loop is what fails:
+
+    re.sub(r"\\begin\{(\w+\*?)\}.*?\\end\{\1\}", " ", …)
+
+NON-GREEDY, so on a NESTED same-name environment — `array` inside `array`,
+which is every one of these four — it pairs the outer `\begin` with the INNER
+`\end` and leaves the outer `\end` and its `&`s exposed. All four are matrices
+inside matrices.
+
+MathPix's, IN DETAIL
+
+**\begin{figure} \[ …, 3 rows.** MathPix glued a `figure` environment opener
+onto display mathematics, so the value carries a `\[` that is not at the
+start. The gate refuses it and xelatex confirms the refusal — `\eqno` in math
+mode. This is the class the 967 `\end{itemize}` fragments belonged to, from
+the other end: there a closer was glued on and `renderable()` learned to drop
+it; here an opener is glued on and nothing drops it.
+
+**Prose as a formula, 1 row.** `FOX_fabb4bba18` holds
+`1 per dozen peanut butter cookies sold, \\` — English prose with a trailing
+`\\`, segmented as an inline formula. Not mathematics at all.
+
+WHAT WOULD FIX WHAT — reported, not done
+
+  \longdiv        load longdivision.sty in the report preamble.       7 rows
+  \$              strip the escape in the `$` check, as `%` already   2 rows
+                  does.
+  nested envs     iterate the stripper innermost-first, or match
+                  balanced pairs rather than non-greedy.              4 rows
+  figure-glued    extend the trailing-closer rule to a LEADING
+                  opener.                                             3 rows*
+  prose-as-FO     nothing here. A segmentation defect.                1 row
+
+  * these three would then still fail to compile — the value really is
+    malformed — but they would fail as a compile error naming `\eqno`, which
+    is a better artefact than a gate refusing them for a reason that names
+    the wrong thing.
+
+Thirteen of seventeen rows on this document are our gates and our preamble,
+not MathPix's reading.
