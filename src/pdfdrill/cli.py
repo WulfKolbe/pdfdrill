@@ -1053,6 +1053,16 @@ def _do_inkconvert(args):
                           force="--force" in args)
 
 
+def _do_inkreport(args):
+    """pdfdrill inkreport <pdf> [--preflight-only] [--timeout N]"""
+    from .commands import cmd_inkreport
+    to, args = _opt(args, "--timeout")
+    pdf_args = [a for a in args if a != "--preflight-only"]
+    return cmd_inkreport(_pdf(pdf_args),
+                         preflight_only="--preflight-only" in args,
+                         timeout=int(to) if to else 900)
+
+
 def _do_publishready(args):
     """pdfdrill publishready <pdf> [--json]"""
     from .commands import cmd_publishready
@@ -2123,6 +2133,7 @@ HANDLERS = {
         "trailingpunct": _do_trailingpunct,
         "modeldiff": _do_modeldiff,
         "refine": _do_refine,
+        "inkreport": _do_inkreport,
         "publishready": _do_publishready,
         "inkconvert": _do_inkconvert,
         "handover": _do_handover,

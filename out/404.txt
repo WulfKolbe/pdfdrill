@@ -1,0 +1,127 @@
+404 / 405 / 408 — `pdfdrill inkreport`
+=======================================
+
+ONE COMMAND, and the only supported way to produce an ink-updated report.
+
+  preflight -> build --no-legend (phase=measure) -> measure -> inkconvert
+  --force -> build with legend+ink (phase=reading) -> publishready
+
+`--no-legend` is INTERNAL now. It was accepted by the CLI, absent from the
+manifest, `--help` and SKILL.md, and forgetting it stamped the build
+phase=reading so the measurement taken against it was refused five steps
+later (400). A flag that must always be passed at one step and never at
+another is not a flag.
+
+`inkconvert` is called with --force. It refuses to overwrite, which in 396
+made me compare a file against ITSELF and report 100% agreement — the only
+answer that test could have given.
+
+RUN ON 230209-algebraic_similarity
+----------------------------------
+
+  PREFLIGHT
+    [ok] model                 .../model.docmodel.json
+    [ok] lines.json            .../230209-algebraic_similarity.lines.json
+    [ok] geometry              page geometry on the model
+    [ok] scan column           99 crops already on disk
+    [ok] no paid step required nothing paid is needed
+    [ok] table ordinal/columns ordinal 1, 6 columns, 99 rows, header=every
+    [ok] disk                  588370 MB free; the PGM pair peaks at ~84 MB
+
+  PLAN: 99 rows over ~19 pages, ~4.6 s/page = ~87 s.
+
+  2 build/measure  phase=measure, 18 pages, sha ddb51c1ad398
+  3 measure        99 rows -> report.compare.tsv
+  4 convert        99 rows; C 16, K 7, N 65, S 3, W 8
+  5 build/reading  phase=reading, 19 pages, ink_adopted=True
+
+  ROWS MEASURED: 99
+    noise        65   65.7%
+    component    16   16.2%
+    weak          8    8.1%
+    clean         7    7.1%
+    stable        3    3.0%
+
+  PUBLISHREADY: READY
+
+  111 s, against the 87 s estimated. A second run took 3 s — the resume
+  condition fired and skipped to the reading build.
+
+TWO DEFECTS FOUND BY RUNNING IT
+-------------------------------
+
+Both were found by the command's first real run, and both are the false
+alarm a check exists to raise, raised by the check itself.
+
+1. THE BIBKEY WAS THE DIRECTORY NAME. `publish_ready` called
+   `rt.ink_join(tiddlers, d.name, ...)` and `rt.rows_for(tids, d.name)`.
+   Under the self-contained layout the folder IS the bibkey, so it worked and
+   kept working. Under the legacy layout the folder is `<name>.pdf.drill`,
+   which matches no identifier — so on this document the residual check
+   reported
+
+     "NONE of 99 measured identifiers matches a row here — a join failure"
+
+   and the index check reported "cannot read equations", on a document whose
+   99 identifiers matched perfectly. Fixed with `_bibkey_of`, which reads the
+   model. Both call sites use it.
+
+2. PREFLIGHT ACCEPTED ANOTHER DOCUMENT'S EVIDENCE. The first version globbed
+   `*.lines.json` in the PDF's folder. ~/Downloads holds dozens, and it
+   passed on `Visual_analysis_of_documents_with_semantic_graphs.lines.json`.
+   A check that accepts someone else's evidence reports a readiness nobody
+   has. Now named for the document's own stem. `report-crops/` is shared in a
+   flat folder too, so crops are counted by the document's own bibkey prefix.
+
+405 — --preflight-only, AND THE CORPUS
+--------------------------------------
+
+The whole population, swept in 400 s with 16 threads and a 6 s probe:
+
+  1,329 documents with a report.pdf
+
+    would proceed        842
+    needs a paid step    374
+    blocked              113
+
+  failing checks, by count (a document can fail more than one)
+    scan column              374
+    no paid step required    374
+    table ordinal/columns    299
+    geometry                 110
+    no source pdf              2
+
+The 374 are one class: no crops on disk and no CDN answer, so `cdncrops`
+would have to run. That is the paid step, and preflight names it instead of
+running it.
+
+The 299 table failures and 110 geometry failures are the real blockers, and
+they are mostly documents that also need the paid step — hence 113 blocked
+rather than 409.
+
+ONE HONEST NOTE ON THE PROBE. A 20 s network timeout per document is not a
+corpus sweep, so `preflight` takes `probe` and `probe_timeout`. With the
+probe off the scan column is reported as UNKNOWN, not as fine: a sweep that
+assumed 200 would report a corpus ready that nobody checked.
+
+408 — THE OUTPUT IS PRESENTED
+
+Paths absolute, one per line, only files that exist. drillui's path scanner
+splits on whitespace, so a wrapped path or one followed by prose is a 404 —
+the hazard `_safe_bibkey` already records from the filename side.
+
+  /home/wkolbe/Downloads/230209-algebraic_similarity.pdf.drill/report.pdf
+  /home/wkolbe/Downloads/230209-algebraic_similarity.pdf.drill/report.ink.json
+  /home/wkolbe/Downloads/230209-algebraic_similarity.pdf.drill/230209-algebraic_similarity.inspect.html
+  /home/wkolbe/Downloads/230209-algebraic_similarity.pdf.drill/report.compare.tsv
+
+STILL OPEN
+
+`publishready` requires `*.inspect.html` and the chain does not build it, so
+a first run reports NOT READY on that one item until `pdfdrill inspect` is
+run. I did not add it to the chain: the six steps were specified and this is
+a seventh. It is a one-line offline command and folding it in would make
+`inkreport` produce a READY document unaided — worth deciding, not worth
+assuming.
+
+2,755 tests pass.

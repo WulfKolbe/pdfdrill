@@ -534,6 +534,38 @@ commands:
     type: bool
     help: replace an existing report.ink.json
   typed: true
+- name: inkreport
+  section: Reporting
+  summary: 'THE ink chain, one command, and the only supported way to produce an
+    ink-updated report: preflight (reads disk, at most ONE crop probe, spends
+    nothing) -> build --no-legend (phase=measure) -> inkdrill measure -> inkconvert
+    --force -> build with legend+ink (phase=reading) -> publishready. Each step
+    verifies its own output and the run stops at the first failure, naming it.
+    `--no-legend` is INTERNAL: forgetting it stamped phase=reading and got the
+    measurement refused five steps later (400). Refuses rather than proceeds if a
+    paid step (mathpix/cdncrops) would be needed. Resumable: a report.ink.json
+    newer than the measure-phase stamp skips to the reading build. PGM
+    intermediates are deleted per page.'
+  offline_ok: true
+  requires:
+  - model
+  positionals:
+  - name: pdf
+    type: pdf
+    required: true
+    help: PDF/Markdown drilled-doc path, URL, or arXiv id
+  flags:
+  - name: preflight_only
+    flag: --preflight-only
+    type: flag
+    help: run the preflight block and stop before the first build — spends nothing
+      and makes at most one network probe, so a whole corpus can be checked in
+      seconds
+  - name: timeout
+    flag: --timeout
+    type: int
+    help: 'per-page compare timeout in seconds (default 900)'
+  typed: true
 - name: publishready
   section: Reporting
   summary: 'Is this document''s report fit to publish? The five-item checklist,

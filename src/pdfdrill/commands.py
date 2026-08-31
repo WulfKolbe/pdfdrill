@@ -1702,9 +1702,18 @@ def publish_ready(pdf: Path) -> dict:
             if tidp is not None:
                 try:
                     import json as _j2
+                    # 404 — THE BIBKEY, not the directory name. Under the
+                    # self-contained layout the folder IS the bibkey and
+                    # `d.name` happened to work; under the legacy layout it
+                    # is "<name>.pdf.drill", which matches no identifier, so
+                    # this check reported a JOIN FAILURE on every
+                    # legacy-layout document — the exact false alarm 237c
+                    # exists to raise, raised by itself. Found by running
+                    # `inkreport` on one.
+                    _bk = _bibkey_of(d)
                     landed = rt.ink_join(
                         _j2.loads(tidp.read_text(encoding="utf-8")),
-                        d.name, rt.load_ink(ink))
+                        _bk, rt.load_ink(ink))
                 except Exception:
                     landed = None
         flat = (dist and len(dist) == 1 and len(rr) > 3
@@ -1822,13 +1831,38 @@ def publish_ready(pdf: Path) -> dict:
             "checks": checks, "fields": fields}
 
 
+def _bibkey_of(blob_dir: Path) -> str:
+    """The document's bibkey, from its model — never the directory name.
+
+    404: two checks in `publish_ready` inferred it from `blob_dir.name`. Under
+    the self-contained layout the folder IS the bibkey, so it worked and kept
+    working; under the legacy layout the folder is "<name>.pdf.drill", which
+    matches no identifier. The residual check then reported a JOIN FAILURE and
+    the index check reported "cannot read equations" — on a document whose
+    identifiers were perfectly correct. Both are the false alarm those checks
+    exist to raise, raised by themselves, and only on one of the two layouts.
+    """
+    import json as _j
+    m = Path(blob_dir) / "model.docmodel.json"
+    if m.is_file():
+        try:
+            bk = (_j.loads(m.read_text(errors="replace"))
+                  .get("meta", {}).get("bibkey"))
+            if bk:
+                return str(bk)
+        except Exception:
+            pass
+    return Path(blob_dir).name
+
+
 def _handover_fields(pdf: Path, sc, body: str, ink: Path) -> dict:
     """The one line the pages index copies from, per out/215."""
     import json as _json
     import re as _re
     from . import report_tex as rt
     d = sc.blob_dir
-    out = {"folder": str(d), "bibkey": d.name,
+    _bk = _bibkey_of(d)
+    out = {"folder": str(d), "bibkey": _bk,
            "pdf": pdf.name, "pages": None, "equations": None,
            "residual": {}, "refined_rows": 0, "refusal": ""}
     log = d / "report.log"
@@ -1846,7 +1880,7 @@ def _handover_fields(pdf: Path, sc, body: str, ink: Path) -> dict:
     if tid is not None:
         try:
             tids = _json.loads(tid.read_text(encoding="utf-8"))
-            _fo, _eq, _tab, _dia = rt.rows_for(tids, d.name)
+            _fo, _eq, _tab, _dia = rt.rows_for(tids, _bk)
             out["equations"] = len(_eq)
             out["formulas"] = len(_fo)
         except Exception as e:
@@ -2044,6 +2078,164 @@ def cmd_inkconvert(pdf: Path, force: bool = False) -> str:
         out.append("NOTE: footers_dropped != display_pages — the footer is "
                    "normally one per page and exactly the last row of each.")
     out.append(rt.stamp())
+    return "\n".join(out)
+
+
+@_writes("inkreport")
+def cmd_inkreport(pdf: Path, preflight_only: bool = False,
+                  timeout: int = 900) -> str:
+    """404 — the whole ink chain, and the only supported way to run it.
+
+    preflight -> build(measure) -> measure -> convert -> build(reading) ->
+    verify. Each step checks its OWN output before the next begins and the
+    run stops at the first failure, naming it: a partial artefact that looks
+    finished is the failure mode this command exists to remove.
+
+    `--no-legend` is used HERE, not by the operator. It was accepted by the
+    CLI, absent from the manifest and from --help, and forgetting it stamped
+    the build phase=reading so that the measurement taken against it was
+    refused several steps later (400). A flag that must always be passed at
+    one step and never at another is not a flag, it is a footgun; internal, it
+    cannot be forgotten.
+    """
+    import time as _time
+    from . import inkreport as ir
+    from . import inkmeasure as im
+    from .sidecar import blob_dir_for
+
+    doc = blob_dir_for(Path(pdf).resolve())[0]   # layout-aware, never hardcoded
+    out: list[str] = []
+
+    pre = ir.preflight(Path(pdf), doc)
+    out.append("PREFLIGHT")
+    for name, ok, why in pre["checks"]:
+        out.append("  [%s] %-24s %s" % ("ok" if ok else "  ", name, why))
+    if not pre["ok"]:
+        failed = [n for n, ok, _ in pre["checks"] if not ok]
+        out.append("")
+        out.append("REFUSED: %s. Nothing was spent and nothing was written."
+                   % ", ".join(failed))
+        return "\n".join(out)
+
+    plan = pre["plan"]
+    pages = plan.get("report_pages") or max(1, plan.get("rows", 4) // 4)
+    out.append("")
+    out.append("PLAN: %d rows over ~%d report pages; measure at ~%.1f s/page "
+               "= ~%d s. Intermediates peak at ~%d MB, one page at a time."
+               % (plan.get("rows", 0), pages, ir.SECONDS_PER_PAGE,
+                  plan.get("seconds", 0), ir.MB_PER_PAGE_PEAK))
+    if preflight_only:
+        out.append("--preflight-only: stopping before the first build.")
+        return "\n".join(out)
+
+    t0 = _time.time()
+    resumed = ir.fresh_ink(doc)
+    if resumed:
+        out.append("")
+        out.append("RESUME: report.ink.json post-dates the measure build; "
+                   "skipping steps 2-4.")
+    else:
+        # 2 — the MEASURE build. No legend, no ink: the only combination that
+        # stamps phase=measure (report_tex.py:1516).
+        held = doc / "report.ink.json"
+        stash = doc / "report.ink.json.inkreport-hold"
+        if held.is_file():
+            held.replace(stash)
+        try:
+            cmd_reporttex(pdf, compile_pdf=True, legend=False)
+        finally:
+            if stash.is_file() and not held.is_file():
+                stash.replace(held)
+        stamp = doc / "report.build.json"
+        got = {}
+        if stamp.is_file():
+            got = json.loads(stamp.read_text(encoding="utf-8"))
+        if got.get("phase") != "measure":
+            return "\n".join(out + [
+                "", "STOPPED at step 2 (build/measure): the build stamped "
+                "phase=%s, not measure. Nothing was measured."
+                % got.get("phase")])
+        out.append("")
+        out.append("2 build/measure  phase=%s, %s pages, sha %s"
+                   % (got.get("phase"), got.get("pages"),
+                      str(got.get("sha256"))[:12]))
+
+        # 3 — measure it.
+        work = doc / "inkwork"
+        try:
+            rows = im.measure(doc / "report.pdf", work, timeout=timeout)
+        except Exception as e:
+            return "\n".join(out + [
+                "", "STOPPED at step 3 (measure): %s: %s"
+                % (type(e).__name__, str(e)[:200])])
+        if not rows:
+            return "\n".join(out + [
+                "", "STOPPED at step 3 (measure): 0 rows. An empty result is "
+                "a defect, not a silence."])
+        (doc / "report.compare.tsv").write_text(im.to_tsv(rows),
+                                                encoding="utf-8")
+        out.append("3 measure        %d rows -> report.compare.tsv" % len(rows))
+
+        # 4 — convert. FORCED: inkconvert refuses to overwrite, and a stale
+        # ink.json beside a fresh measurement is the shape that made a
+        # comparison return 100% agreement against itself (396).
+        msg = cmd_inkconvert(pdf, force=True)
+        if not (doc / "report.ink.json").is_file():
+            return "\n".join(out + [
+                "", "STOPPED at step 4 (convert): %s" % msg.strip()[:200]])
+        _lines = [l for l in msg.strip().splitlines()
+                  if "report.ink.json" in l] or msg.strip().splitlines()
+        out.append("4 convert        %s" % _lines[0][:150])
+
+    # 5 — the READING build, adopting.
+    cmd_reporttex(pdf, compile_pdf=True, legend=True)
+    stamp = doc / "report.build.json"
+    got = json.loads(stamp.read_text(encoding="utf-8")) if stamp.is_file() else {}
+    if got.get("phase") != "reading" or not got.get("ink_adopted"):
+        return "\n".join(out + [
+            "", "STOPPED at step 5 (build/reading): phase=%s ink_adopted=%s"
+            % (got.get("phase"), got.get("ink_adopted"))])
+    out.append("5 build/reading   phase=%s, %s pages, ink_adopted=%s"
+               % (got.get("phase"), got.get("pages"), got.get("ink_adopted")))
+
+    # 6 — verify, and report the distribution from the artefact rather than
+    # from memory of what step 4 said.
+    import collections as _c
+    ink = json.loads((doc / "report.ink.json").read_text(encoding="utf-8"))
+    dist = _c.Counter(r.get("flag") for r in ink.get("rows", []))
+    out.append("")
+    out.append("ROWS MEASURED: %d" % len(ink.get("rows", [])))
+    for k, v in dist.most_common():
+        out.append("  %-11s %5d  %5.1f%%"
+                   % (k, v, 100.0 * v / max(1, len(ink.get("rows", [])))))
+    r = publish_ready(pdf)
+    out.append("")
+    out.append("PUBLISHREADY: %s" % ("READY" if r["ready"] else "NOT READY"))
+    for k, (ok, why) in r["checks"].items():
+        if not ok:
+            out.append("  FAILING  %-10s %s" % (k, why))
+    # 408 — PRESENT THE OUTPUT. A command that produces files and only talks
+    # about them leaves the operator to guess where they landed, and drillui's
+    # Outputs panel finds nothing to link. Paths are absolute and each sits
+    # alone on its line: drillui's path scanner splits on whitespace, so a path
+    # wrapped across lines or followed by prose becomes a 404 (_safe_bibkey
+    # records the same hazard from the filename side).
+    #
+    # Only files that EXIST are listed. Naming an artefact that was not
+    # produced is the same defect as a check that passes on absent evidence.
+    out.append("")
+    out.append("OUTPUT")
+    produced = [doc / "report.pdf", doc / "report.ink.json"]
+    produced += sorted(doc.glob("*.inspect.html"))
+    produced += [doc / "report.compare.tsv"]
+    for f in produced:
+        if f.is_file():
+            out.append("  %s" % f)
+    absent = [f.name for f in produced if not f.is_file()]
+    if absent:
+        out.append("  (not produced: %s)" % ", ".join(absent))
+    out.append("")
+    out.append("%.0f s total." % (_time.time() - t0))
     return "\n".join(out)
 
 
