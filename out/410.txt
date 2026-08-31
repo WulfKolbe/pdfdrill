@@ -1,0 +1,84 @@
+410 — drill_ui's /artifact: the doubled root, and both layouts
+==============================================================
+
+WHAT ROOT IS library/<bibkey>/… JOINED AGAINST
+
+Not one root. `safeResolve` walks ART_ROOTS in order, joining and testing
+each. On this machine the 404 now prints them itself:
+
+  path as given: library/chung2019combinatorics/report.pdf
+  roots tried, in order:
+    /home/wkolbe/MX/PDFDRILL/library/chung2019combinatorics/report.pdf
+    /home/wkolbe/pdfdrill-library/library/chung2019combinatorics/report.pdf
+    /home/wkolbe/Downloads/library/chung2019combinatorics/report.pdf
+
+DOES THAT MATCH ~/pdfdrill-library? Yes — the second root IS
+~/pdfdrill-library, read from `library_root` in
+~/.config/pdfdrill/config.json. The root is correct. The path is one segment
+too many: joined against a root that already IS the library, `library/`
+doubles it, and nothing is ever there.
+
+FIXED ON THE ROOT SIDE, and here is why that side
+
+The root is authoritative — it comes from the config. The prefix is a label a
+client puts on. Stripping it in the resolver fixes every producer at once,
+including any outside this repo; fixing it at a producer fixes one and leaves
+the UI brittle to the next.
+
+And `safeResolve` is the ONE place both artifact routes share — /artifact and
+the static server both call it — so the two cannot drift. That matters here
+specifically: 404's `d.name` defect was two layouts resolved by two rules,
+one of them wrong, and this is the same pair of layouts.
+
+The rule fires only AFTER the ordinary joins have failed, and only when the
+leading segment is the root's own basename or the logical name `library` for
+whichever root the config calls library_root. It can never redirect a path
+that already resolves.
+
+BOTH LAYOUTS RESOLVE
+
+  chung2019combinatorics/report.pdf                        200   self-contained
+  library/chung2019combinatorics/report.pdf                200   ← was 404
+  pdfdrill-library/chung2019combinatorics/report.pdf       200
+  230209-algebraic_similarity.pdf.drill/report.pdf         200   legacy
+  Downloads/230209-algebraic_similarity.pdf.drill/…        200
+  pdf-dc99cf88.pdf.drill/pdf-dc99cf88.inspect.html         200   legacy, nested
+  0111016 (1)/report.pdf                                   200   spaces + parens
+  library/nosuchdoc/report.pdf                             404   correctly
+
+ONE THING I COULD NOT REPRODUCE, and say so plainly
+
+Before the fix, every shape that maps to a real file already returned 200 —
+library-relative, absolute, bare basename, legacy `.drill/`, a document
+nested a level under the root, and names with spaces and parentheses. The
+only 404 was a path carrying `library/`, and I could not find anything in
+pdfdrill or in the bridge that emits that prefix. So the producer is
+somewhere I cannot see, and the fix is on the side that does not need to know
+who it is.
+
+THE 404 THAT NAMES WHAT IT LOOKED FOR — kept, whatever the fix
+
+"not found" for a file that exists is unfalsifiable from the browser: the
+link shows the path that failed and the roots live only in that process. The
+new body prints the path as given and every root tried, in order. It answered
+this task's own question without a tool call.
+
+LOCAL CLIENTS ONLY. The bridge binds 0.0.0.0, and absolute paths are more
+than a LAN visitor needs — they already get the bytes of a file they were
+linked to, which is not the same as a directory map.
+
+A TEST THAT A PRESENTED PATH OPENS
+
+`tools/test_drillui_artifact.ts` starts the bridge and asserts, against a
+real library document rather than a fixture: the self-contained path opens,
+the root-doubled path opens, an absent file still 404s, and the 404 names the
+roots. A test that invents its own corpus proves the resolver against
+nothing, so it SKIPS when no library document has a report.pdf.
+
+PRE-EXISTING, NOT MINE
+
+`tools/test_drillui_bridge.ts` and `tools/test_drillui_urls.ts` each have one
+failing assertion — "no Python sidecar spawned for the viewer" and "html: ws
+derives from location.pathname". Both fail identically with my change stashed,
+so they predate it. Reported, not fixed: they are separate defects and folding
+them in here would hide which change addressed which.
