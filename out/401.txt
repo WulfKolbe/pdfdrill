@@ -1,0 +1,92 @@
+401 (304) — is the published evidence still on MathPix's CDN?
+=============================================================
+
+ANSWER: NONE OF IT IS DEAD. 21 of 21 published reports whose document could
+be located return HTTP 200. The 22nd was located on a second pass and also
+returns 200. Nothing needs the pyramid to replace it today.
+
+THE POPULATION
+
+  ~/pdfdrill.github.io/reports/  holds 22 report folders, not eleven —
+  18 of them carry a report.ink.json, so 18 carry residuals. "The eleven"
+  is the count as of 234 and the set has grown since.
+
+  Mapped published folder -> library document through `sanitize_title`: the
+  published names are short bibkeys (gilmore-lie-groups) while the library
+  folders keep the original title, so a direct name match found only 12 of
+  22 and the sanitized-title match found 21. The last, `pdf-dc99cf88`, lives
+  under `pdfdrill-library/pdf/` rather than in a folder of its own.
+
+THE RESULT, one crop per document
+
+  published                        HTTP    bytes
+  0707.4470                         200    29907
+  0902.0431                         200    23754
+  1510.06699                        200     5581
+  1605.05775                        200    11177
+  2010.14265                        200    13592
+  2106.07890                        200    22485
+  2501.06662                        200    14067
+  BradleyGastaldiTerilla2023        200   117030
+  bradley_spring22                  200    14126
+  cardona-qft-methods               200    15039
+  fong-spivak-invitation            200    63965
+  fong-spivak-seven-sketches        200    41346
+  gilmore-lie-groups                200    19599
+  johnston-linear-matrix-algebra    200    50318
+  kohlhase-omdoc                    200    81163
+  lyche-numerical-linear-algebra    200    48195
+  mielke-geometrodynamics           200    73719
+  penev_A                           200   238407
+  penev_B                           200   191271
+  rph8-g15q                         200    30061
+  voloshin-hypergraph               200   133601
+  pdf-dc99cf88                      200    24525
+
+  22 of 22 alive.
+
+IS ONE PROBE PER DOCUMENT ENOUGH?
+
+It is a proxy and it was checked rather than assumed. Five crops spread
+across the model — first, quarter, half, three-quarter, last — on four
+documents chosen at random:
+
+  lyche-numerical-linear-algebra   1071 crops   200 200 200 200 200
+  1605.05775                         40 crops   200 200 200 200 200
+  johnston-linear-matrix-algebra   1853 crops   200 200 200 200 200
+  bradley_spring22                   26 crops   200 200 200 200 200
+
+And the dead document fails the same way, wholesale:
+
+  230209-algebraic_similarity       107 crops   500 500 500
+
+So expiry is per DOCUMENT, not per crop: a pdf_id is either served or it is
+not. One probe per document is therefore a sound proxy, and 22 of 22 is a
+real all-clear rather than a lucky sample.
+
+WHAT THE DEAD ONE HAS IN COMMON WITH THE LIVE ONES — nothing found
+
+  230209-algebraic_similarity  pdf_id 4482dea6   500, all 107
+  0707.4470                    pdf_id ec315bb1   200
+
+Same account, same CDN host, same URL shape. I did not find what separates
+them and am not going to guess: the honest statement is that one drilled
+document's crops are gone and twenty-two published ones' are not, and the
+mechanism is MathPix's, not visible from here.
+
+WHAT THIS CHANGES
+
+The urgency in the task does not survive the measurement. No published
+report's evidence has expired, so no republishing is needed today.
+
+What DOES stand is that the failure is possible, it is silent, and it is
+total when it happens — 107 of 107 in the one case seen. The mitigation
+built for 230209 (`pyramid` + `imageserve` + PDFDRILL_CDN_BASE, out/396)
+now exists and is proven on that document, so if a published report's
+pdf_id does expire the scan column is rebuildable from the PDF at 600 dpi
+without a key and without MathPix.
+
+That is worth more than the all-clear: the all-clear is a fact about today.
+
+RE-RUN: this file's probe is a few lines against the model's `cdn_url`
+props; the mapping through sanitize_title is the only fiddly part.
