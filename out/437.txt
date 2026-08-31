@@ -1,0 +1,117 @@
+437 / 438 — the corrections report: the design, and what exists
+===============================================================
+
+438 FIRST, because it decides whether 439 is worth building.
+
+  ACCEPTED corrections (verified_by: ink)        32
+  accepted on other evidence (verified_by: source) 1
+  proposals nobody verified                       0
+
+  by kind
+    maths corrected as maths      32
+    maths reclassified as TikZ     0
+    maths reclassified as a table  0
+
+  by document
+    0902.0431                                       10
+    Introduction to Linear and Matrix Algebra        8
+    Numerical Linear Algebra and Matrix Factorizat   8
+    Geometrodynamics of Gauge Fields                 3
+    Introduction to Graph and Hypergraph Theory      3
+    0707.4470                                        1   (verified_by: source)
+
+THIRTY-THREE ROWS, ACROSS SIX DOCUMENTS, ALL BUT ONE OF ONE KIND.
+
+That is a real artefact — a page, not three lines — and it is worth sending.
+But it is not the artefact 437 describes, and the difference matters:
+
+**THE TYPE NEVER CHANGES IN ANY EXISTING ROW.** Zero reclassifications to
+TikZ, zero to a table. The design's central difficulty — "the row's type can
+change between the halves, so the table cannot assume one shape" — is a
+requirement for rows that do not exist yet. Every row today is an Equation
+above and an Equation below.
+
+So the shape should be built for what exists and left able to carry what does
+not, rather than built around a case with no members.
+
+THE ONE THE ink FILTER WOULD DROP, and I would keep it
+
+`verified_by: ink` is 32 of 33. The one it excludes is 0707.4470's
+`\mathcal{J}` — the `\mathscr{g}` correction, verified_by `source`, and it is
+the strongest correction in the corpus: established by COUNTING (29 = 28 + 1,
+nothing unaccounted) against the author's own e-print, not by an ink distance
+falling.
+
+"A proposal nobody verified is not a solution" is right, and there are none of
+those here — all 33 carry a verification. Filtering on `ink` specifically
+would drop the one verified by the better evidence. The filter should be
+"accepted, with its basis named", and the basis should be a COLUMN.
+
+THE COLUMNS
+
+Shared across both halves, written once and spanning:
+
+  identifier   the object's key — one row is one object, not two
+  page         the same page
+  scan         THE SAME CROP, spanning both halves. This is the point of the
+               design: the reader compares two readings of one image, and a
+               second copy of the crop would invite comparing the crops.
+
+Per half:
+
+  half     conf                what it holds            rendered
+  above    MathPix confidence  what MathPix produced    its rendering
+  below    —                   what replaced it         its rendering
+
+WHAT THE SECOND HALF NEEDS THAT THE FIRST DOES NOT
+
+All of it is already on the change realization — every one of the 33 carries
+these, so nothing has to be invented:
+
+  basis          33 of 33   how the correction was reached
+  verified_by    33 of 33   `ink` (32) or `source` (1)
+  ink_before     33 of 33
+  ink_after      33 of 33
+  ink_delta      33 of 33
+  author         33 of 33   who or what proposed it
+  at             33 of 33   when
+  evidence        1 of 33   a free-text path, on the source-verified one
+
+The second half has NO MathPix confidence and must not borrow the first
+half's: they are different readings and a confidence square under the
+correction would assert MathPix measured it. It shows the ink pair instead —
+`52 → 3` — which is the number that accepted it.
+
+A sample of the criterion doing its work:
+
+    0902.0431   p85    conf 0.002    91 -> 0
+    0902.0431   p85    conf 0.002    59 -> 0
+    0902.0431   p200   conf 0.183   255 -> 72
+    Geometro…   p128   conf 0.136   106 -> 10
+    0902.0431   p125   conf 0.119   398 -> 397     <- accepted on a fall of 1
+
+That last row is worth showing rather than hiding: a correction accepted on
+an ink fall of one is a weak acceptance, and a reader can only see that if
+both numbers are on the page.
+
+WHAT 434's TYPE CHANGE WOULD ADD
+
+When a row's type does change, the second half stops being maths and becomes
+a Diagram or a Table. Then:
+
+  * the rendered cell below is an SVG, not a KaTeX/xelatex rendering, because
+    KaTeX cannot set a tikzpicture (434)
+  * the identifier below is the SUCCESSOR key, and the row shows both keys —
+    the old one is the object MathPix read, the new one is what replaced it
+  * `conf` below stays empty for the same reason it is empty now
+
+The table does not need a different shape for that. It needs the rendered
+cell to be able to hold an image as well as typeset maths, which the image
+columns of report.pdf already do.
+
+RECOMMENDATION FOR 439
+
+Build it, with 33 rows and the basis as a column. Do not filter to
+`verified_by: ink` — filter to "accepted", which is all 33, and let the
+column say which evidence each rests on. Dropping the source-verified row
+would remove the only correction in the corpus proven by counting.
