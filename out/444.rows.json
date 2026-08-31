@@ -1,0 +1,50 @@
+[
+ {
+  "title": "Introduction_to_Linear_and_Matrix_Algebra__Nathaniel_Johnston___Z-Library__EQ0114",
+  "short": "EQ0114",
+  "page": "063",
+  "conf": 0.025486,
+  "latex": "\\begin{figure} \\[ R^{\\theta}\\left(\\mathbf{e}_{2}\\right)=(-\\sin (\\theta), \\cos (\\theta)) \\overbrace{\\cos (\\theta)}^{-\\sin (\\theta)} \\overbrace{\\mathbf{e}_{1}}^{\\mathbf{e}_{2}} x \\text { - } \\underbrace{\\cos (\\theta)}_{R^{\\theta}\\left(\\mathbf{e}_{1}\\right)}=(\\cos (\\theta), \\sin (\\theta)) \\] \\captionsetup{labelformat=empty} \\caption{Figure 1.19: \\(R^{\\theta}\\) rotates the standard basis vectors \\(\\mathbf{e}_{1}\\) and \\(\\mathbf{e}_{2}\\) to \\(R^{\\theta}\\left(\\mathbf{e}_{1}\\right)=(\\cos (\\theta), \\sin (\\theta))\\) and \\(R^{\\theta}\\left(\\mathbf{e}_{2}\\right)=(-\\sin (\\theta), \\cos (\\theta))\\), respectively.} \\end{figure}",
+  "reason": "nested \\[ mid-string (compiles to: You can't use `\\eqno' in math mode)"
+ },
+ {
+  "title": "Introduction_to_Linear_and_Matrix_Algebra__Nathaniel_Johnston___Z-Library__EQ0439",
+  "short": "EQ0439",
+  "page": "170",
+  "conf": 0.131129,
+  "latex": "\\begin{figure} \\[ \\begin{aligned} {[A \\mid I] } & =\\left[\\begin{array}{cccccccc|cccc} * & * & * & * & * & * & * & * & 1 & 0 & 0 & 0 \\\\ * & * & * & * & * & * & * & * & 0 & 1 & 0 & 0 \\\\ * & * & * & * & * & * & * & * & 0 & 0 & 1 & 0 \\\\ * & * & * & * & * & * & * & * & 0 & 0 & 0 & 1 \\end{array}\\right] \\\\ \\xrightarrow{\\text { row-reduce }} & (t)\\left[\\begin{array}{llllllll|llll} \\star & * & * & * & * & * & * & * & * & * & * & * \\\\ 0 & 0 & \\star & * & * & * & * & * & * & * & * & * \\\\ 0 & 0 & 0 & 0 & 0 & \\star & * & * & * & * & * & * \\\\ 0 & 0 & 0 & 0 & 0 & 0 & 0 & 0 & * & * & * & * \\end{array}\\right]=[R \\mid E] \\leftarrow \\operatorname{null}\\left(A^{T}\\right) \\\\ & \\operatorname{range}\\left(A^{T}\\right) \\end{aligned} \\] \\captionsetup{labelformat=empty} \\caption{Figure 2.22: After we row-reduce \\([A \\mid I]\\) to a row echelon form \\([R \\mid E]\\), we can immediately read off bases of \\(\\operatorname{range}\\left(A^{T}\\right)\\) and \\(\\operatorname{null}\\left(A^{T}\\right)\\) from the rows of that matrix.} \\end{figure}",
+  "reason": "nested \\[ mid-string (compiles to: You can't use `\\eqno' in math mode)"
+ },
+ {
+  "title": "Introduction_to_Linear_and_Matrix_Algebra__Nathaniel_Johnston___Z-Library__EQ0575",
+  "short": "EQ0575",
+  "page": "224",
+  "conf": 0.323915,
+  "latex": "\\begin{figure} \\[ \\left.A=\\left[\\begin{array}{llllll} * & * & * & * & * & * \\\\ * & * & * & * & * & * \\\\ * & * & * & * & * & * \\\\ * & * & * & * & * & * \\\\ * & * & * & * & * & * \\\\ * & * & * & * & * & * \\\\ * & * & * & * & * & * \\end{array}\\right]=\\left[\\begin{array}{lll} * & * & * \\\\ * & * & * \\\\ * & * & * \\\\ * & * & * \\\\ * & * & * \\\\ * & * & * \\\\ * & * & * \\end{array}\\right]\\left[\\begin{array}{cccccc} * & * & * & * & * & * \\\\ * & * & * & * & * & * \\\\ * & * & * & * & * & * \\end{array}\\right]\\right\\} \\] \\captionsetup{labelformat=empty} \\caption{Figure 2.39: Theorem 2.C. 1 says that every matrix can be written as a product of a tall and skinny matrix and a short and fat matrix. The rank determines exactly how skinny and short the matrices in the product can be (as shown here, \\(A\\) has rank 3, so it can be written as a product of a matrix \\(C\\) with 3 columns and a matrix \\(R\\) with 3 rows).} \\end{figure}",
+  "reason": "nested \\[ mid-string (compiles to: You can't use `\\eqno' in math mode)"
+ },
+ {
+  "title": "Introduction_to_Linear_and_Matrix_Algebra__Nathaniel_Johnston___Z-Library__EQ0774",
+  "short": "EQ0774",
+  "page": "289",
+  "conf": 0.110624,
+  "latex": "\\begin{aligned} m_{1,2}=\\operatorname{det}\\left(\\left[\\begin{array}{lll} 4 & 5 & 3 \\\\ 4 & \\$ & 6 \\\\ 7 & \\$ & 9 \\end{array}\\right]\\right)=\\operatorname{det}\\left(\\left[\\begin{array}{ll} 4 & 6 \\\\ 7 & 9 \\end{array}\\right]\\right)=4 \\times 9-6 \\times 7= & 36-42 \\\\ & =-6 \\end{aligned}",
+  "reason": "the renderable() gate refuses any $, and this value contains an ESCAPED \\$"
+ },
+ {
+  "title": "Introduction_to_Linear_and_Matrix_Algebra__Nathaniel_Johnston___Z-Library__FO2071",
+  "short": "FO2071",
+  "page": null,
+  "conf": null,
+  "latex": "\\$ 151",
+  "reason": "the renderable() gate refuses any $, and this value contains an ESCAPED \\$"
+ },
+ {
+  "title": "Introduction_to_Linear_and_Matrix_Algebra__Nathaniel_Johnston___Z-Library__FOX_fabb4bba18",
+  "short": "FOX_fabb4bba18",
+  "page": null,
+  "conf": null,
+  "latex": "1 per dozen peanut butter cookies sold, \\",
+  "reason": "segmented as an inline formula but the value is English prose ending in \\\\"
+ }
+]

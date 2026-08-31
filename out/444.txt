@@ -1,0 +1,88 @@
+444 — the last six rows, with and without the error message
+===========================================================
+
+  proposed   12   (6 rows × 2 arms)
+  accepted    0
+  rejected   11
+  no proposal 1
+
+NOTHING WAS RECORDED. `basis: inferred` was to be written on acceptance and
+there were no acceptances, so no model was touched.
+
+THE DESIGN OF THE COMPARISON
+
+113 measured four prompt variants and found that only variant C — the crop
+PLUS MathPix's own reading — helped, and it warned that a run without the crop
+"is not variant C, it is a fourth thing nobody measured". So the control here
+is variant C exactly as `refine` sends it, and the treatment is variant C plus
+ONE added line naming the compile error or the gate's rejection. That isolates
+the error message and nothing else.
+
+Validated and gated as refine does: `renderable`, then compiles, then the ink
+must fall against the scan.
+
+DID THE ERROR MESSAGE HELP? ON ONE ROW OF SIX, AND NOT ENOUGH TO GENERALISE.
+
+  row              with error                    without error
+  EQ0114           rejected (renderable)         rejected (renderable)
+  EQ0439           rejected (renderable)         rejected (renderable)
+  EQ0575           rejected (renderable)         rejected (renderable)
+  EQ0774           rejected (ink does not fall)  rejected (ink does not fall)
+  FO2071           NO PROPOSAL                   rejected (renderable)
+  FOX_fabb4bba18   compiles, ungateable          rejected (does not compile)
+
+Four rows: no difference. One row worse. One row better.
+
+The one it helped is FOX_fabb4bba18 — English prose, `1 per dozen peanut
+butter cookies sold, \\`. Told the error was "Missing $ inserted", the model
+returned the same prose WITHOUT the trailing `\\`, which compiles. Without the
+error it returned the prose WITH it, which does not. A single trailing token,
+named verbatim in the message, removed. That is the shape in which an error
+message helps, and it is not a shape that generalises: the message worked
+because it pointed at one character.
+
+It could not be accepted either. An FOX synthetic tiddler has no crop, so
+there is no scan to gate against — "cannot gate: no scan reference". The
+repair is almost certainly right and the harness cannot say so.
+
+WHAT THE REJECTIONS ACTUALLY SHOW — three different things
+
+**The three nested-`\[` rows: the model is obeying the prompt.** All six
+proposals keep `\begin{figure}`. The prompt says "prefer the existing reading
+where the image does not contradict it", and a `\begin{figure}` wrapper is
+invisible in a crop of the equation — the model has no signal that it is
+wrong, and every reason to preserve it. The defect is structural, glued on
+before the model ever sees the row, and no amount of prompting about the
+compile error reaches it. This is MathPix's `\begin{figure} \[` and it wants
+the leading-opener rule 441 named, not a model.
+
+**FO2071 is the cleanest result in the run.** The value is `\$ 151` —
+currency. Asked to correct it, the model returned `\$ 151`, unchanged. It
+judged there was nothing to fix and it was right. `renderable()` then refused
+its own input back. That is proof, from the outside, that the gate is the
+defect and the value is fine: a model given the row and the image declines to
+change it, and our check still calls it unrenderable.
+
+**EQ0774 fails the gate honestly.** Both arms produced a plausible matrix and
+neither moved the ink closer to the scan. It contains `\$` in two cells — the
+same gate defect — and the model, having no reason to think a currency symbol
+belongs in a determinant, replaced those cells with digits. The ink says that
+is not what the page shows. The gate did its job.
+
+WHAT THIS DECIDES
+
+  * It does NOT generalise to the other documents' unrendered rows. One row
+    in six, and that row's error named a single character.
+  * Two of the six need no model at all. FO2071 and EQ0774 are the escaped-`\$`
+    class, and 441 measured that both COMPILE. The fix is one line in
+    `renderable()` — strip the escape in the `$` check, as the `%` check on
+    the adjacent line already does — and it is worth more than any prompt.
+  * Three need a structural rule, not a repair: extend the trailing-closer
+    rule to a leading opener, so `\begin{figure} \[` is dropped the way
+    `\end{itemize}` already is.
+  * One is a segmentation defect with no crop to gate against, and its repair
+    is sitting in this run's output unacceptable for want of a reference.
+
+Six rows, and five of them are answered by two small changes we already know
+how to make. That is the finding, and it is a better one than an acceptance
+rate would have been.
