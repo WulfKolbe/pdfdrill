@@ -1,0 +1,45 @@
+413 — inspect folded into inkreport; both documents reach READY unaided
+=======================================================================
+
+Six steps become seven: inspect sits between the reading build and
+publishready.
+
+  preflight -> build --no-legend -> measure -> inkconvert --force ->
+  build with legend+ink -> INSPECT -> publishready
+
+WHY IT BELONGS IN THE CHAIN
+
+`publishready` requires `*.inspect.html`. `inkreport` produced everything
+else it asks for and then failed its own gate on the one artefact it could
+make in a line — offline, unpaid, derived from the model it already has.
+That is 409's defect in a second place: a command refusing itself for want
+of something it can produce.
+
+Built only when absent. It is derived, so on a resumed run a rebuild is
+wasted work, and the step says which case it took.
+
+BOTH DOCUMENTS, END TO END
+
+  2608.09819                       (library layout, self-contained)
+    2 build/measure  phase=measure, 9 pages, sha 7501c3971941
+    3 measure        4 rows
+    4 convert        C 1, K 1, N 2
+    5 build/reading  phase=reading, 9 pages, ink_adopted=True
+    6 inspect        2608.09819.inspect.html
+    rows 4 — noise 2 (50.0%), component 1 (25.0%), clean 1 (25.0%)
+    PUBLISHREADY: READY          31 s
+
+  230209-algebraic_similarity      (legacy .pdf.drill layout, under ~/Downloads)
+    2 build/measure  phase=measure, 18 pages, sha 53e3136e9de1
+    3 measure        99 rows
+    4 convert        C 16, K 7, N 65, S 3, W 8
+    5 build/reading  phase=reading, 19 pages, ink_adopted=True
+    6 inspect        230209-algebraic_similarity.inspect.html
+    rows 99 — noise 65 (65.7%), component 16 (16.2%), weak 8 (8.1%),
+              clean 7 (7.1%), stable 3 (3.0%)
+    PUBLISHREADY: READY         116 s
+
+Both from a cold start — report.ink.json and inspect.html removed first, so
+neither result came from an artefact left over from an earlier run. One
+document of each LAYOUT, which is the pair that has produced a wrong answer
+twice this week (404's `d.name`, and 410 below).

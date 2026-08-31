@@ -539,8 +539,9 @@ commands:
   summary: 'THE ink chain, one command, and the only supported way to produce an
     ink-updated report: preflight (reads disk, at most ONE crop probe, spends
     nothing) -> build --no-legend (phase=measure) -> inkdrill measure -> inkconvert
-    --force -> build with legend+ink (phase=reading) -> publishready. Each step
-    verifies its own output and the run stops at the first failure, naming it.
+    --force -> build with legend+ink (phase=reading) -> inspect -> publishready.
+    Each step verifies its own output and the run stops at the first failure,
+    naming it.
     `--no-legend` is INTERNAL: forgetting it stamped phase=reading and got the
     measurement refused five steps later (400). Refuses rather than proceeds if a
     paid step (mathpix/cdncrops) would be needed. Resumable: a report.ink.json

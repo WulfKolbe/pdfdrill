@@ -185,6 +185,7 @@ const DOC_DIR = (() => {
 // `download_dir` from the pdfdrill config — a doc's artifacts live under one of
 // them, and pdfdrill now reports FOLDER-QUALIFIED paths (`<stem>/<file>`) that
 // resolve directly under the library/download root.
+let LIBRARY_ROOT: string | null = null;   // 410 — set from config below
 const CONFIG_DIRS = (() => {
   const dirs: string[] = [];
   const cands = [process.env.PDFDRILL_CONFIG,
@@ -194,7 +195,15 @@ const CONFIG_DIRS = (() => {
     try {
       const d = JSON.parse(readFileSync(c, "utf8"));
       for (const key of ["library_root", "download_dir"]) {
-        if (d && d[key]) dirs.push(resolve(String(d[key]).replace(/^~(?=$|\/)/, homedir())));
+        if (d && d[key]) {
+          const r = resolve(String(d[key]).replace(/^~(?=$|\/)/, homedir()));
+          dirs.push(r);
+          // 410 — remember WHICH root is the library, so a path written
+          // `library/<bibkey>/…` can be resolved against it. The root is named
+          // for the filesystem (`pdfdrill-library`); the prefix is the
+          // logical name a client uses. They are the same place.
+          if (key === "library_root") LIBRARY_ROOT = r;
+        }
       }
       if (dirs.length) break;                    // first config with a dir wins
     } catch { /* not present / not json */ }
@@ -284,6 +293,38 @@ function safeResolve(p: string): string | null {
     if (!abs) continue;
     if (firstValid === null) firstValid = abs;
     if (existsSync(abs)) return abs;               // existing match wins
+  }
+  // 410 — A PATH THAT ALREADY NAMES ITS ROOT.
+  //
+  // `library/<bibkey>/report.pdf` joined against ~/pdfdrill-library gives
+  // ~/pdfdrill-library/library/<bibkey>/report.pdf — the segment doubled, and
+  // nothing is ever there.
+  //
+  // FIXED ON THE ROOT SIDE, NOT THE PATH SIDE, and deliberately: the root is
+  // authoritative (it comes from `library_root` in the pdfdrill config) while
+  // the prefix is a label some client puts on. Stripping it here fixes every
+  // producer at once, including ones outside this repo; stripping it at the
+  // producer fixes one and leaves the UI brittle to the next. This is also the
+  // ONE place both artifact routes share — /artifact and the static server
+  // both call safeResolve — so the two cannot drift, which is what 404's
+  // `d.name` bug was: two layouts resolved by two rules, one of them wrong.
+  //
+  // Only fires AFTER the ordinary joins have failed, and only when the leading
+  // segment equals the root's own basename, so it can never redirect a path
+  // that resolves normally.
+  const head = p.replace(/^\/+/, "").split("/")[0];
+  if (head) {
+    for (const root of ART_ROOTS) {
+      // the root's own basename ("pdfdrill-library/…"), or the LOGICAL name
+      // "library/…" for whichever root the config calls library_root.
+      const aliases = [basename(root)];
+      if (LIBRARY_ROOT && root === LIBRARY_ROOT) aliases.push("library");
+      if (!aliases.includes(head)) continue;
+      const trimmed = p.replace(/^\/+/, "").slice(head.length + 1);
+      if (!trimmed) continue;
+      const abs = underRoot(root, trimmed);
+      if (abs && existsSync(abs)) return abs;
+    }
   }
   // pdfdrill prints MANY artifact names as a bare basename because a doc's
   // artifacts live inside its own folder, not a root:
@@ -775,10 +816,30 @@ const server = Bun.serve<{ sess: Session | null; local: boolean; ip: string | nu
 
     // serve a pdfdrill output file (under ART_ROOT only)
     if (url.pathname === "/artifact") {
-      const abs = safeResolve(url.searchParams.get("path") || "");
+      const want = url.searchParams.get("path") || "";
+      const abs = safeResolve(want);
+      // 410 — A 404 THAT SAYS WHAT IT TRIED.
+      //
+      // "not found" for a file that exists is unfalsifiable from the browser:
+      // the path shown in the link is the one that failed, and which ROOTS it
+      // was joined against is only in this process. Every shape that maps to a
+      // real file resolves today (library-relative, absolute, bare basename,
+      // nested .drill/, names with spaces and parentheses — all measured), so
+      // the next report of this needs the roots, not another guess.
+      //
+      // LOCAL CLIENTS ONLY. The bridge binds 0.0.0.0 and absolute paths are
+      // more than a LAN visitor needs; they already get the file's bytes, but
+      // that is a link they were given, not a directory map.
+      const diag = (why: string) => {
+        if (!isLocalClient(peerIp(server, req))) return new Response(why, { status: 404 });
+        const tried = ART_ROOTS.map((r) => `  ${r}/${want}`).join("\n");
+        return new Response(
+          `${why}\n\npath as given: ${want}\n\nroots tried, in order:\n${tried}\n`,
+          { status: 404, headers: { "content-type": "text/plain; charset=utf-8" } });
+      };
       if (!abs) return new Response("forbidden path", { status: 403 });
       const f = Bun.file(abs);
-      if (!(await f.exists())) return new Response("not found", { status: 404 });
+      if (!(await f.exists())) return diag("not found");
       const ct = MIME[extname(abs).toLowerCase()] ?? "application/octet-stream";
       // filename for save-as: the REAL basename (e.g. 2110.13883.tiddlers.json),
       // not "artifact" (the route). `inline` keeps the in-tab viewer; the browser's

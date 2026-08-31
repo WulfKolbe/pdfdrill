@@ -2198,7 +2198,30 @@ def cmd_inkreport(pdf: Path, preflight_only: bool = False,
     out.append("5 build/reading   phase=%s, %s pages, ink_adopted=%s"
                % (got.get("phase"), got.get("pages"), got.get("ink_adopted")))
 
-    # 6 — verify, and report the distribution from the artefact rather than
+    # 6 — inspect.html. OFFLINE, UNPAID, and required by the gate this command
+    # runs at step 7. Producing everything publishready wants except one
+    # artefact it could make, and then failing on it, is 409's defect in a
+    # second place: a command that refuses itself for want of something it can
+    # produce. Built only when absent — it is derived from the model, and a
+    # rebuild is wasted work on a resumed run.
+    insp = next((f for f in doc.glob("*.inspect.html")), None)
+    if insp is None:
+        try:
+            cmd_inspect(pdf)
+        except Exception as e:
+            return "\n".join(out + [
+                "", "STOPPED at step 6 (inspect): %s: %s"
+                % (type(e).__name__, str(e)[:200])])
+        insp = next((f for f in doc.glob("*.inspect.html")), None)
+        if insp is None:
+            return "\n".join(out + [
+                "", "STOPPED at step 6 (inspect): no *.inspect.html was "
+                "written."])
+        out.append("6 inspect         %s" % insp.name)
+    else:
+        out.append("6 inspect         %s (already present)" % insp.name)
+
+    # 7 — verify, and report the distribution from the artefact rather than
     # from memory of what step 4 said.
     import collections as _c
     ink = json.loads((doc / "report.ink.json").read_text(encoding="utf-8"))
