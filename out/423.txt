@@ -1,0 +1,70 @@
+423 — the tables section takes the same six columns
+====================================================
+
+BEFORE, four columns of its own
+
+  |p{26mm}|p{9mm}|p{ts}|p{tim}|
+  Identifier | Page | Content (LaTeX source if any) | Scan image
+
+No Conf. No Rendered. A third column that merged the source with an apology
+when there was none, and the apology pointed at tables.html (426).
+
+AFTER, the six the equations section uses, from the same width function
+
+  |p{20mm}|p{7mm}|p{13mm}|p{92mm}|p{98mm}|p{126mm}|
+  Identifier | Page | Conf. | LaTeX source | Rendered | Scan image
+
+`col_widths(usable, with_image=bool(crops))` — the same call, so the two
+sections line up column for column and not merely in count.
+
+WHAT EACH ROW CARRIES
+
+  Identifier    <bibkey>_TAB_001, unchanged
+  Page          unchanged
+  Conf.         the DASH, on every table row, and correctly so. Table
+                objects carry no confidence prop at all — 0 of 42 on
+                chung2019combinatorics against 411 of 411 for its equations
+                — and 252 says an absent reading shows a dash rather than a
+                colour, because a blank green square would assert one.
+  LaTeX source  the \begin{tabular} from the model's `mathpix_text`
+  Rendered      the table typeset, or \emph{(not rendered)}
+  Scan image    the crop, as before
+
+TWO CHANGES BEHIND THE COLUMN, because the column alone would have been empty
+
+425 found the tabular in the model's `mathpix_text` on 85.9% of table objects
+and `latex` set on none of them. But the TAB TIDDLER carried neither — its
+eleven fields have no LaTeX under any name — so `rows_for` had nothing to
+read whatever prop it asked for.
+
+  1. `docops/projectors/tiddlywiki.py` carries `mathpix_text` onto the TAB
+     tiddler. Under its OWN name: PROPS.md records `latex` as an
+     Equation/Formula prop, and writing it onto a Table would make the
+     inventory wrong in order to make one consumer right.
+  2. `report_tex.rows_for` reads it for the TAB branch only.
+
+MEASURED ON 2608.09819
+
+  TAB tiddlers                     22
+  now carrying mathpix_text        17
+  rows reading "(no LaTeX source)"  0    (was: every row)
+
+Rendered on the page: the section has its six columns, the Conf. cells show
+the dash, the LaTeX source cells hold real tabulars, and ONE row typesets its
+table — TAB_003, a Model/Arm/n/Reward table, rendered beside its source.
+
+THE REST SAY "(not rendered)", AND THAT IS THE HONEST STATE
+
+A `tabular` inside `\FitMath{$\displaystyle …$}` is not mathematics, and
+`has_bare_align_marker` refuses a cell whose `&` or `\\` sits at brace depth
+zero — which is most tabulars, since that is what a tabular IS. The guard
+fires and the row shows source-only, exactly as a malformed equation does.
+That is a state the reader already knows how to read, and it is not an
+apology: the source is right there in the column beside it.
+
+Raising that rate is 424's job — compile the tabular STANDALONE, as a
+document rather than as inline math, and put the result in the column this
+task created. The column now exists and 99.1% of published table rows have
+something to put in it.
+
+2,756 tests pass.

@@ -119,7 +119,11 @@ def rows_for(tiddlers, bibkey, refined=None):
                        t.get("width", ""), t.get("trailing_punct", ""),
                        t.get("confidence", "")))
         elif kind == "TAB":
-            tab.append((title, latex, page, dims, region))
+            # 423 — a Table's LaTeX is `mathpix_text`, never `latex`. `latex`
+            # is set on 0 of 5,937 Table objects corpus-wide (425), so the
+            # shared expression above can only ever yield "" for this kind.
+            tab.append((title, latex or t.get("mathpix_text") or "",
+                        page, dims, region))
         else:
             dia.append((title, latex, page, dims, region))
     return fo, eq, tab, dia
@@ -1850,49 +1854,52 @@ def build_report(tiddlers_path: Path, out: Path | None = None,
         [r[0] for r in fo]))
 
     if tab:
+        # 423 — THE SAME SIX COLUMNS AS THE EQUATIONS SECTION.
+        #
+        # This section had four: Identifier, Page, "Content (LaTeX source if
+        # any)", Scan image. No Conf., no Rendered, and a third column that
+        # merged the source with an apology when there was none. One section
+        # of four with its own shape meant one logic could not cover the
+        # report, and it is where the drift 422 documented began.
+        #
+        # Conf. is the DASH for every table row, and correctly: Table objects
+        # carry no confidence prop at all — 0 of 42 on chung2019combinatorics
+        # against 411 of 411 for its equations — and 252 says an absent
+        # reading shows a dash rather than a colour, because a blank green
+        # square would assert one.
+        #
+        # Rendered is the column 424 fills. It shows "(not rendered)" until
+        # then, which is the same thing an equation row says when its LaTeX
+        # will not compile — a state the reader already knows how to read.
         out_parts.append("\\clearpage\n")
-        span = usable - 20 - 26 - 9
-        ts = round(span * 0.5)
-        tim = span - ts
-        out_parts.append(
-            "\\section*{Tables}\n\\begin{longtable}"
-            "{|p{26mm}|p{9mm}|p{%smm}|p{%smm}|}\n\\hline\n" % (ts, tim) +
-            "\\textbf{Identifier} & \\textbf{Page} & "
-            "\\textbf{Content (LaTeX source if any)} & "
-            "\\textbf{Scan image} \\\\\n\\hline\\endhead\n")
+        # the SAME width function the equations section uses, so the two
+        # sections line up column for column rather than only in count.
+        tab_widths = col_widths(usable, with_image=bool(crops))
+        out_parts.append(table_open("Tables", tab_widths, form, legend_on))
         for title, latex, page, dims, _region in tab:
-            body = ("{\\ttfamily\\footnotesize %s}" % esc_text(latex)
-                    ) if latex else (
-                # 426 — NO CROSS-REFERENCE. This said "see tables.html",
-                # in 10,928 rows across 680 documents, and that file exists
-                # in 17 of them: 97.5% of the pointers dangle. Where it does
-                # exist it is pdfplumber's KEYLESS extraction of the page —
-                # a different route with a different failure mode — not this
-                # row's table rendered, so even the 2.5% pointed somewhere
-                # else than the reader would expect.
-                #
-                # report.pdf is the universal artefact (1,331 documents) and
-                # tables.html is a rare one (31). A cross-reference in that
-                # direction has to dangle, and the fix is to stop making it
-                # rather than to build the rare artefact 663 more times.
-                #
-                # The cell now states its own fact and stops. 425 measured
-                # that 85.9% of these rows have a \begin{tabular} sitting in
-                # the model's `mathpix_text`, so most of them will carry
-                # content shortly; what is left after that is a scanned table
-                # MathPix gave no tabular for, and an empty cell is the
-                # honest reading of it.
+            src_cell = ("{\\ttfamily\\footnotesize %s}" % esc_text(latex)
+                        ) if latex else (
+                # 426 — no cross-reference. This said "see tables.html", in
+                # 10,928 rows across 680 documents, and that file exists in 17
+                # of them. Where it does exist it is pdfplumber's keyless
+                # extraction of the page, not this row's table rendered.
+                # report.pdf is the universal artefact and tables.html a rare
+                # one; a reference in that direction has to dangle.
                 "(no LaTeX source; %s\\,$\\times$\\,%s px region)" % dims)
             img = crop_cell(crops, out_dir, title,
-                            px_width=dims[0], px2mm=px2mm, col_mm=tim,
+                            px_width=dims[0], px2mm=px2mm,
+                            col_mm=tab_widths[-1],
                             bibkey=bibkey, history=bibkey_history)
-            out_parts.append("\\ident{%s} & %s & %s & %s "
-                             "\\\\ \\hline\n"
-                             % (esc_text(title), esc_text(str(page)),
-                                body, img))
+            safe = renderable(latex) if latex else ""
+            rendered = ("\\FitMath{$\\displaystyle %s$}" % safe) if safe else (
+                "\\emph{(not rendered)}" if latex else "---")
+            out_parts.append(
+                "\\ident{%s} & %s & %s & %s & %s & %s \\\\ \\hline\n"
+                % (esc_text(title), esc_text(str(page)), conf_cell(""),
+                   src_cell, rendered, img))
         out_parts.append("\\end{longtable}\n")
         tables_manifest.append(_table_record(
-            "Tables", (26, 9, ts, tim), False, True, [r[0] for r in tab]))
+            "Tables", tab_widths, legend_on, True, [r[0] for r in tab]))
 
     named = unnamed = rendered = duplicated = 0
     manifest: list = []

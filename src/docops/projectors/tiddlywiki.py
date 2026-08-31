@@ -812,6 +812,20 @@ class TiddlyWikiProjector(BaseProjector):
                 t["latex_code"] = tab.props["latex_code"]
             if tab.props.get("latex_original"):
                 t["latex_original"] = tab.props["latex_original"]
+            # 425/423 — CARRY THE TABULAR. MathPix emits a complete
+            # \begin{tabular} for a table region and the model keeps it in
+            # `mathpix_text`: 5,101 of 5,937 Table objects corpus-wide (85.9%),
+            # 348 of 351 across the published set. This projection dropped it,
+            # so the TAB tiddler reached report_tex with no LaTeX under any
+            # name and the report printed "(no LaTeX source; N x M px region)"
+            # for 10,928 rows whose content was sitting in the model.
+            #
+            # Carried under its OWN name, not as `latex`: PROPS.md records
+            # `latex` as an Equation/Formula prop, and writing it onto a Table
+            # would make the inventory wrong in order to make one consumer
+            # right.
+            if tab.props.get("mathpix_text"):
+                t["mathpix_text"] = tab.props["mathpix_text"]
             if svg_field:
                 t["svg_tiddler"] = svg_field
             for k in ("caption", "kind", "refnum"):
