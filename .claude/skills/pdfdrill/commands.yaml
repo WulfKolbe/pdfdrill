@@ -660,6 +660,22 @@ commands:
     type: int
     default: 300
   - *id001
+  flags:
+  - name: force_discard_translation
+    flag: --force-discard-translation
+    type: flag
+    help: 'rebuild a TRANSLATED model anyway. The rebuild reads lines.json, which
+      never held the translation, so every translated field reverts to the source
+      language and `pdfdrill translate` (paid) must be re-run.'
+  - name: force_discard_enrichments
+    flag: --force-discard-enrichments
+    type: flag
+    help: 'rebuild over refinements anyway. A rebuild destroys change realizations,
+      latex_refined, edit_source, trailing_punct and latex_pretail — all measured
+      to zero (430) — and REGENERATES OBJECT IDS (0.0% survived: 1 of 2,196), so
+      id-keyed sidecars and the semantic graph dangle too. Not recoverable from
+      lines.json.'
+
 - name: semantic
   section: Introspection (fast, no extraction)
   summary: 'Build the semantic graph (CSP): extractors become sensors emitting evidence; entities (Company/Person/BankAccount)

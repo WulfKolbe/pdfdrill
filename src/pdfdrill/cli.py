@@ -817,11 +817,24 @@ def _opt(args, name):
 
 
 def _do_model(args):
-    """pdfdrill model <pdf> [--bibkey KEY] [--force]"""
+    """pdfdrill model <pdf> [--bibkey KEY] [--force]
+    [--force-discard-translation] [--force-discard-enrichments]
+
+    431 — BOTH overrides are wired here. `force_discard_translation` was a
+    parameter of cmd_model that no CLI path could set, so the refusal it
+    guards had no documented way past it — the same shape as 400's
+    `--no-legend`. A flag that exists only in a signature is not an override,
+    it is a dead end.
+    """
     from .commands import cmd_model
     bibkey, args = _opt(args, "--bibkey")
-    pdf_args = [a for a in args if a != "--force"]
-    return cmd_model(_pdf(pdf_args), force="--force" in args, bibkey=bibkey)
+    flags = ("--force", "--force-discard-translation",
+             "--force-discard-enrichments")
+    pdf_args = [a for a in args if a not in flags]
+    return cmd_model(
+        _pdf(pdf_args), force="--force" in args, bibkey=bibkey,
+        force_discard_translation="--force-discard-translation" in args,
+        force_discard_enrichments="--force-discard-enrichments" in args)
 
 
 def _do_compare(args):

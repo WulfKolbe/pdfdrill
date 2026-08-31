@@ -490,7 +490,7 @@ _Generated from `commands.yaml` by skillsync. Edit the manifest, not this sectio
 | `pdfdrill pageside <pdf>` | Classify each page recto/verso (book left/right) from page-number parity+position + side-note column asymmetry + sequence alternation; attaches page_side to model Pages (column roles flip with the side) |
 | `pdfdrill entities <pdf> [--force]` | Commercial entities per page: IBAN (mod-97 validated + BLZ/Konto/bank), BIC, German address, Steuer-/Kassen-/Aktenzeichen. Zero external tools |
 | `pdfdrill segment <pdf> [--force]` | Partition a scanned bundle into ordered documents (by sender/identifier + continuity number); flags duplicate copies |
-| `pdfdrill elements <pdf> [--model MODEL] [--bibkey BIBKEY] [--source SOURCE] [--lang LANG] [--ppi PPI] [--force]` | Find layout elements (postal address / BOM line) via the geometric-attention GNN over tesseract word boxes → content-addressed tiddlers (--model M.npz) |
+| `pdfdrill elements <pdf> [--force-discard-translation] [--force-discard-enrichments]` | Find layout elements (postal address / BOM line) via the geometric-attention GNN over tesseract word boxes → content-addressed tiddlers (--model M.npz) |
 | `pdfdrill semantic <pdf> [--store STORE]` | Build the semantic graph (CSP): extractors become sensors emitting evidence; entities (Company/Person/BankAccount) accumulate it. --store graph.json accumulates ACROSS documents |
 | `pdfdrill qr <pdf> [--dpi DPI] [--formats FORMATS]` | Scan QR codes & barcodes (zxing-cpp): GiroCode/EPC payment QR (creditor/IBAN/amount/reference) + Data Matrix franking marks — confirmation data outside the text layer. --dpi 300 --formats QRCode,DataMatrix |
 | `pdfdrill fontid <pdf> [--pages PAGES] [--limit LIMIT] [--ppi PPI]` | VISUAL font id for scanned/OCR input (no font layer): WORD crops → torch-free ONNX font-classify → vote WITHIN each OCR block, so font is reported per text FIELD (heading/body/fine-print), not one doc vote. Per-field confidence; weak on scanned generic sans. --limit 12 --ppi 200 |
@@ -659,6 +659,6 @@ _Generated from `commands.yaml` by skillsync. Edit the manifest, not this sectio
 <!-- COMMANDS:END -->
 
 <!-- PREFLIGHT-TOKEN:BEGIN -->
-Attestation token — the LAST line of this SKILL. If you can read this, you read the whole file. Run `pdfdrill preflight --ack DRILL-9138aafb` before any build/extract command.
-DRILL-9138aafb
+Attestation token — the LAST line of this SKILL. If you can read this, you read the whole file. Run `pdfdrill preflight --ack DRILL-1c935f25` before any build/extract command.
+DRILL-1c935f25
 <!-- PREFLIGHT-TOKEN:END -->

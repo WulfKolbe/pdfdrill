@@ -1,0 +1,82 @@
+431 — `model --force` refuses over enrichments
+==============================================
+
+THE GUARD ALREADY EXISTED AND COVERED ONE CLASS
+
+`model_rebuild_blocked` refuses a rebuild of a TRANSLATED model, and its
+docstring records why: "Three times during one week of work that destroyed
+the same document's translation, each time recovered only because a backup
+happened to exist."
+
+That lesson was learned three times and generalised to nothing. Every other
+enrichment had the identical failure with no warning at all — while
+`pdfdrill rename` refuses to rebuild for exactly this reason and says so in
+its summary. Two commands, one destructive behaviour, one warning between
+them.
+
+THE MESSAGE, on 1510.06699 (nothing was written)
+
+  Refusing to rebuild: this model carries enrichments the rebuild would
+  destroy — 181 edit_source, 181 latex_prepunct, 1 latex_pretail,
+  181 trailing_punct.
+    The model is rebuilt from lines.json, which holds none of them, and a
+    rebuild also REGENERATES OBJECT IDS: 0.0% survived on a measured document
+    (1 of 2,196), so id-keyed sidecars and the semantic graph dangle too (430).
+    • to change one thing without a rebuild, run the step that mutates in
+      place (`eqnums`, `geometry`, `clean`)
+    • to rebuild anyway, pass --force-discard-enrichments; the refinements are
+      not recoverable from lines.json and would have to be re-proposed and
+      re-verified (`pdfdrill refine`)
+
+It names the counts, the reason, the in-place alternative, and the cost of
+overriding. The id regeneration is in the message deliberately: it is the
+part that reaches outside the model, and a reader deciding whether to pass
+the flag cannot weigh it if only the props are listed.
+
+WHICH DOCUMENTS NOW REFUSE
+
+  49 of 1,354 models. The other 1,291 rebuild exactly as before — a guard
+  that stopped everything would be trained away within a week.
+
+  document                          total   markers
+  1510.06699                          544   181 edit_source, 181 prepunct, 1 pretail, 181 punct
+  1205.5935v1                         513   171 each of three
+  1411.5002                           417   139 each of three
+  1205.3463v2                         376   125 each, + 1 pretail
+  1502.02973                          167   55 each, + 2 pretail
+  0806.1585                           159
+  1603.04246v2                        159
+  1511.00652                          141
+  1306.1660 / 1306.1660v1             138 each
+  1407.7814 / 1209.3845v2             135 each
+  … 35 more
+
+  CARRYING RECORDED REFINEMENTS (233), the six that matter most:
+
+    0902.0431                                10 change realizations  [PUBLISHED]
+    Introduction to Linear and Matrix Algebra 8
+    Numerical Linear Algebra and Matrix Fact  8
+    Geometrodynamics of Gauge Fields          3
+    Introduction to Graph and Hypergraph      3
+    0707.4470                                 1 change realization   [PUBLISHED]
+
+A SECOND DEFECT, FOUND WHILE WIRING THE FIRST
+
+`cmd_model` already took `force_discard_translation` — and `cli._do_model`
+never passed it. The parameter existed, the refusal existed, and no CLI path
+could get past it: the flag was a dead end rather than an override.
+
+That is 400's shape exactly (`--no-legend` accepted by the CLI and absent
+from the manifest), arriving from the opposite direction — present in the
+signature, absent from the CLI. Both overrides are now wired, declared in
+commands.yaml, and in `--help`.
+
+CHECKED, and one thing deliberately not done
+
+The guard fires only on `--force`, which is the destructive path. An ordinary
+`pdfdrill model` on a document that already has one does not rebuild, so
+nothing changes for it.
+
+2,761 tests pass, 5 new — including one asserting a CLEAN model does not
+refuse. A guard that fires on everything is one people learn to pass with a
+flag, and then it protects nothing.

@@ -4186,9 +4186,71 @@ def model_rebuild_blocked(translated: bool, lang, allow: bool) -> str:
             f"to run `pdfdrill translate` again afterwards (a paid DeepL call)")
 
 
+#: 431 — the enrichments a rebuild destroys, and the one line that counts them.
+#:
+#: 430 measured it on copies: every marker goes to ZERO, and 0.0% of object
+#: ids survive (1 of 2,196 on 1510.06699), so anything keyed on an object id
+#: dangles as well. The model is rebuilt from lines.json, which never held any
+#: of this.
+ENRICHMENT_MARKERS = ("latex_refined", "latex_pretail", "latex_prepunct",
+                      "trailing_punct", "edit_source")
+
+
+def model_enrichments(model_path: Path) -> dict:
+    """{marker: count} for what a rebuild of this model would destroy.
+
+    Counted from the file rather than inferred from a sidecar fact: a fact can
+    be absent on a document that carries the thing, and the question here is
+    what is ON DISK about to be overwritten.
+    """
+    import json as _json
+    out: dict = {}
+    try:
+        m = _json.loads(Path(model_path).read_text(encoding="utf-8",
+                                                   errors="replace"))
+    except Exception:
+        return out
+    for o in m.get("objects", []):
+        pr = o.get("props") or {}
+        for k in ENRICHMENT_MARKERS:
+            if k in pr:
+                out[k] = out.get(k, 0) + 1
+        for r in (o.get("realizations") or []):
+            if r.get("provenance") == "change":
+                out["change realizations"] = out.get("change realizations", 0) + 1
+    return out
+
+
+def model_rebuild_blocked_by_enrichment(found: dict, allow: bool) -> str:
+    """Why a rebuild must not proceed over enrichments, or "" when it may.
+
+    The translation guard beside this one was learned three times on the same
+    document. It names ONE enrichment class, and every other class has the
+    same failure with no warning at all: `pdfdrill rename` refuses to rebuild
+    for exactly this reason and says so, while `model --force` did it
+    silently. Two commands, one destructive behaviour, one warning between
+    them.
+    """
+    if not found or allow:
+        return ""
+    lines = ", ".join("%d %s" % (v, k) for k, v in sorted(found.items()))
+    return (f"Refusing to rebuild: this model carries enrichments the rebuild "
+            f"would destroy — {lines}.\n"
+            f"  The model is rebuilt from lines.json, which holds none of "
+            f"them, and a rebuild also REGENERATES OBJECT IDS: 0.0% survived "
+            f"on a measured document (1 of 2,196), so id-keyed sidecars and "
+            f"the semantic graph dangle too (430).\n"
+            f"  • to change one thing without a rebuild, run the step that "
+            f"mutates in place (`eqnums`, `geometry`, `clean`)\n"
+            f"  • to rebuild anyway, pass --force-discard-enrichments; the "
+            f"refinements are not recoverable from lines.json and would have "
+            f"to be re-proposed and re-verified (`pdfdrill refine`)")
+
+
 @_writes("model")
 def cmd_model(pdf: Path, force: bool = False, bibkey: str | None = None,
-              force_discard_translation: bool = False) -> str:
+              force_discard_translation: bool = False,
+              force_discard_enrichments: bool = False) -> str:
     """Build the unified docmodel Document from MathPix lines.json.
 
     Auto-chains `mathpix` if the lines.json isn't there yet. Writes the
@@ -4209,6 +4271,15 @@ def cmd_model(pdf: Path, force: bool = False, bibkey: str | None = None,
     if blocked and force:
         return blocked
     model_path = _model_path(sc)
+    # 431 — the same refusal for every OTHER enrichment class. Checked only on
+    # a forced rebuild, which is the destructive case; an ordinary `model` on a
+    # document that already has one does not rebuild at all.
+    if force and Path(model_path).is_file():
+        _enr = model_enrichments(Path(model_path))
+        _blk = model_rebuild_blocked_by_enrichment(_enr,
+                                                   force_discard_enrichments)
+        if _blk:
+            return _blk
     key = resolve_bibkey(pdf, bibkey, sc)
     lines_path = _lines_json_path(pdf)
     upgraded_from_ocr = False
