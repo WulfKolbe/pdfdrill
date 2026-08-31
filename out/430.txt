@@ -1,0 +1,84 @@
+430 — what a `model --force` rebuild destroys
+=============================================
+
+MEASURED, not reasoned. Two enriched documents copied to scratch, rebuilt
+there, and diffed against the originals. The library copies were never
+touched.
+
+  0707.4470     objects 472 -> 462
+    change_realiz            1  ->  0     LOST
+    latex_refined            1  ->  0     LOST
+
+  1510.06699    objects 2196 -> 2282
+    edit_source            181  ->  0     LOST
+    latex_prepunct         181  ->  0     LOST
+    trailing_punct         181  ->  0     LOST
+    latex_pretail            1  ->  0     LOST
+    latex_original           1  ->  0     LOST
+
+EVERY ONE OF THEM. Not degraded, not partially carried: zero.
+
+THE WORSE FINDING — THE IDENTIFIERS DO NOT SURVIVE EITHER
+
+  1510.06699    objects   original 2196, rebuilt 2282
+                ids in common                    1
+                                            (0.0%)
+
+One object id of 2,196 survives a rebuild. The count also moves — 2,196 to
+2,282, and 472 to 462 on the other document — so the object SET changes, not
+only its labels.
+
+That is the part that reaches beyond the model. Everything keyed on `obj_…`
+dangles the moment the model is rebuilt, whether or not it lives in the model
+file:
+
+  report.ink.json          250 documents      keyed by report identifier
+  the semantic graph                          keyed by object id
+  refined realizations                        gone with their objects
+
+`notation.json` (1 document) and `figpairs.json` (2) survive as FILES — a
+model rebuild does not delete them — and both key on `bibkey` + a printed
+identifier rather than `obj_…`, so they are the two that would still join.
+That is luck of their design, not a property of the rebuild.
+
+WHAT THE POPULATION IS
+
+Across 1,354 models:
+
+  edit_source        4,166 stamps in  57 documents
+  trailing_punct     1,400        in  43
+  latex_refined         64        in   6
+  change realizations   33        in   6
+  latex_pretail         47        in  11
+
+63 documents carry at least one. Six carry recorded refinements — the
+provenance="change" realizations 233 exists to keep — and those six include
+0902.0431, 1510.06699, 0707.4470, and three of the Z-Library books, all of
+them published.
+
+WHY THIS ANSWERS THE QUESTION IT WAS ASKED
+
+429 set a `confidence` prop at MODEL BUILD, so a document gains it only on the
+next `pdfdrill model`. Chaining that into 417 would have rebuilt the model of
+every published document to fill one column — and on the six carrying
+refinements it would have deleted them, silently, in a run whose reported
+purpose was "rebuild the reports".
+
+That is the LLMWiki shape exactly: 105 translated units lost to a rebuild
+that was not framed as one. Here it would be 33 recorded refinements, 4,166
+edit stamps and 1,400 punctuation splits, plus every id-keyed join in the
+library.
+
+WHAT WOULD MAKE IT SAFE — not built here
+
+A rebuild that PRESERVED enrichments would have to carry them across by a key
+that survives, and today none does. The candidates are the region 5-tuple
+(page + bbox), which 282 already uses to name a tex.zip image, and the
+printed identifier, which is what notation.json and figpairs.json chose and
+why they survive. Object ids are not a candidate: they are regenerated.
+
+Until then, `model --force` on an enriched document is a destructive
+operation and should be treated as one. `pdfdrill rename` already refuses to
+rebuild for this reason and says so (275: "never rebuilds, so translations
+and in-place enrichments survive"). The model command carries no equivalent
+warning.
