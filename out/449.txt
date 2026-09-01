@@ -1,0 +1,120 @@
+449 — near-pairs: a doubted maths region beside a handled graphic
+================================================================
+
+CANDIDATES FOR INSPECTION. Nothing here is classified; the pairs are offered
+so each can be looked at side by side.
+
+THE CRITERIA, AND WHY THEY HAD TO TIGHTEN
+
+Geometry alone is nearly vacuous. Aspect within 15%, area within 30%,
+confidence below 0.5, any page:
+
+    10,401 pairs across 131 documents
+
+That is not a candidate list. Tightened to the doubted threshold and to
+neighbourhood — the pair must be somewhere a reader can compare:
+
+    conf < 0.1, aspect  8%, area 15%, any page      652 pairs, 35 documents
+    ...and within 2 pages                             23 pairs,  8 documents
+    ...and on the same page                            6 pairs,  2 documents
+
+Then deduplicated by the MATHS region: the raw 23 contained one p279 region
+paired against seven separate p278 graphics, which is one candidate reported
+seven times.
+
+    FINAL: 12 distinct low-confidence maths regions, 8 documents
+
+Each is a region MathPix read as mathematics and scored below 0.1, sitting
+within two pages of a region it handled as a diagram or picture, at
+essentially the same size and shape.
+
+THE PAIRS
+
+ 1  2002.06055
+    maths    page 64    544 x 243    conf 0.020
+             https://cdn.mathpix.com/cropped/554b0ef9-ef35-409d-a49e-77736015b87b-064.jpg?height=243&width=544&top_left_y=522&top_left_x=791
+    graphic  page 66    554 x 228     aspect +9%, area -4%
+             https://cdn.mathpix.com/cropped/554b0ef9-ef35-409d-a49e-77736015b87b-066.jpg?height=228&width=554&top_left_y=1285&top_left_x=786
+
+ 2  2002.06055
+    maths    page 283   967 x 202    conf 0.072
+             https://cdn.mathpix.com/cropped/554b0ef9-ef35-409d-a49e-77736015b87b-283.jpg?height=202&width=967&top_left_y=1848&top_left_x=578
+    graphic  page 281   926 x 202     aspect -4%, area -4%
+             https://cdn.mathpix.com/cropped/554b0ef9-ef35-409d-a49e-77736015b87b-281.jpg?height=202&width=926&top_left_y=1315&top_left_x=597
+
+ 3  2002.06055
+    maths    page 376   1055 x 365    conf 0.085
+             https://cdn.mathpix.com/cropped/554b0ef9-ef35-409d-a49e-77736015b87b-376.jpg?height=365&width=1055&top_left_y=1177&top_left_x=595
+    graphic  page 375   1046 x 376     aspect -4%, area +2%
+             https://cdn.mathpix.com/cropped/554b0ef9-ef35-409d-a49e-77736015b87b-375.jpg?height=376&width=1046&top_left_y=868&top_left_x=593
+
+ 4  2103.01507
+    maths    page 205   960 x 247    conf 0.002
+             https://cdn.mathpix.com/cropped/81ff6df2-2368-4983-80a6-d9be0b85a83d-205.jpg?height=247&width=960&top_left_y=475&top_left_x=638
+    graphic  page 204   997 x 245     aspect +5%, area +3%
+             https://cdn.mathpix.com/cropped/81ff6df2-2368-4983-80a6-d9be0b85a83d-204.jpg?height=245&width=997&top_left_y=2183&top_left_x=621
+
+ 5  30253-1526-24697-2-10-20241121
+    maths    page 8     773 x 481    conf 0.082
+             https://cdn.mathpix.com/cropped/326f9cb8-a90f-4e2b-953d-737d81cef5cb-8.jpg?height=481&width=773&top_left_y=262&top_left_x=1134
+    graphic  page 7     752 x 455     aspect +3%, area -8%
+             https://cdn.mathpix.com/cropped/326f9cb8-a90f-4e2b-953d-737d81cef5cb-7.jpg?height=455&width=752&top_left_y=266&top_left_x=1147
+
+ 6  A Visual Introduction to Differential Forms and Calculus on Manifolds (Jon Pierre Fortney) (Z-Library)
+    maths    page 135   1204 x 1406   conf 0.069
+             https://cdn.mathpix.com/cropped/95800158-e2b7-4f33-8b35-9bc004c1f85e-135.jpg?height=1406&width=1204&top_left_y=831&top_left_x=431
+    graphic  page 134   1163 x 1421    aspect -4%, area -2%
+             https://cdn.mathpix.com/cropped/95800158-e2b7-4f33-8b35-9bc004c1f85e-134.jpg?height=1421&width=1163&top_left_y=217&top_left_x=451
+
+ 7  Higher Operads, Higher Categories (Tom Leinster) (Z-Library)
+    maths    page 109   991 x 267    conf 0.065
+             https://cdn.mathpix.com/cropped/2942ba20-bbed-40fb-b497-cd6fbbb159ec-109.jpg?height=267&width=991&top_left_y=977&top_left_x=216
+    graphic  page 111   942 x 258     aspect -2%, area -8%
+             https://cdn.mathpix.com/cropped/2942ba20-bbed-40fb-b497-cd6fbbb159ec-111.jpg?height=258&width=942&top_left_y=1053&top_left_x=223
+
+ 8  Homotopical quantum field theory (Yau, Donald Ying) (Z-Library)
+    maths    page 237   437 x 218    conf 0.084
+             https://cdn.mathpix.com/cropped/8060031e-f282-49a0-b018-97d1bc077e86-237.jpg?height=218&width=437&top_left_y=284&top_left_x=557
+    graphic  page 237   420 x 216     aspect -3%, area -5%
+             https://cdn.mathpix.com/cropped/8060031e-f282-49a0-b018-97d1bc077e86-237.jpg?height=216&width=420&top_left_y=1640&top_left_x=564
+
+ 9  Mathematics, Physics Chemistry With The Wolfram Language (S. M. Blinder) (Z-Library)
+    maths    page 30    1182 x 158    conf 0.009
+             https://cdn.mathpix.com/cropped/decda945-21a1-444b-a0ce-fb7b4fa59c4c-030.jpg?height=158&width=1182&top_left_y=1331&top_left_x=159
+    graphic  page 32    1178 x 146     aspect +8%, area -8%
+             (no crop url)
+
+10  Mathematics, Physics Chemistry With The Wolfram Language (S. M. Blinder) (Z-Library)
+    maths    page 86    777 x 125    conf 0.004
+             https://cdn.mathpix.com/cropped/decda945-21a1-444b-a0ce-fb7b4fa59c4c-086.jpg?height=125&width=777&top_left_y=775&top_left_x=158
+    graphic  page 84    779 x 125     aspect +0%, area +0%
+             https://cdn.mathpix.com/cropped/decda945-21a1-444b-a0ce-fb7b4fa59c4c-084.jpg?height=125&width=779&top_left_y=333&top_left_x=156
+
+11  Seven Sketches in Composability An invitation to applied category theory (Brendan Fong, David I. Spivak) (Z-Library)
+    maths    page 279   233 x 131    conf 0.050
+             https://cdn.mathpix.com/cropped/7f1e85c6-4350-401f-a960-eb8a0176e786-279.jpg?height=131&width=233&top_left_y=326&top_left_x=443
+    graphic  page 279   229 x 129     aspect -0%, area -3%
+             https://cdn.mathpix.com/cropped/7f1e85c6-4350-401f-a960-eb8a0176e786-279.jpg?height=129&width=229&top_left_y=1025&top_left_x=765
+
+12  Seven Sketches in Composability An invitation to applied category theory (Brendan Fong, David I. Spivak) (Z-Library)
+    maths    page 279   247 x 131    conf 0.038
+             https://cdn.mathpix.com/cropped/7f1e85c6-4350-401f-a960-eb8a0176e786-279.jpg?height=131&width=247&top_left_y=326&top_left_x=1118
+    graphic  page 278   244 x 129     aspect +0%, area -3%
+             https://cdn.mathpix.com/cropped/7f1e85c6-4350-401f-a960-eb8a0176e786-278.jpg?height=129&width=244&top_left_y=2355&top_left_x=1115
+
+WHAT IS NOT CLAIMED
+
+That these are the same KIND of thing. Similar geometry is a reason to look,
+not a finding. Two regions can be the same size and shape and be a matrix and
+a commutative diagram, which are different objects that happen to occupy the
+same rectangle.
+
+450 measures whether they are close in INK, which is the part that can be
+settled without reading either.
+
+ONE PROPERTY OF THE SET WORTH NOTING BEFORE ANYONE LOOKS
+
+Six of the pairs are same-page or adjacent-page within two documents
+(Seven Sketches, Homotopical QFT). A same-page pair is the strongest kind:
+the same scan, the same rendering, the same page geometry, and two different
+classifications. Nothing about the page can explain the difference.
