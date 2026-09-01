@@ -44,13 +44,20 @@ def test_a_profile_sets_the_formula_rule_AND_NOTHING_ELSE():
         if isinstance(node, ast.Name) and node.id == "rule" and \
                 isinstance(node.ctx, ast.Load):
             uses.append(node)
-    # every load of `rule` is the value of a keyword called `formulas`,
-    # except the one that prints the PROFILE line
+    # Every load of `rule` is the value of one of these keywords:
+    #   formulas=      the two builds — what the profile SETS
+    #   formula_rule=  the resume test (463) — CONSULTING the same rule to
+    #                  decide whether a measurement of a differently-shaped
+    #                  report may be reused. Reading the rule is not setting a
+    #                  second thing.
+    # plus the one line that prints the PROFILE header.
+    ALLOWED = {"formulas", "formula_rule"}
     kw_uses = [k for n in ast.walk(fn) if isinstance(n, ast.Call)
                for k in n.keywords
-               if k.arg == "formulas" and isinstance(k.value, ast.Name)
+               if k.arg in ALLOWED and isinstance(k.value, ast.Name)
                and k.value.id == "rule"]
-    assert len(kw_uses) == 2, "both builds must take the rule, not one"
+    builds = [k for k in kw_uses if k.arg == "formulas"]
+    assert len(builds) == 2, "both builds must take the rule, not one"
     assert len(uses) == len(kw_uses) + 1, [ast.dump(u) for u in uses]
 
 

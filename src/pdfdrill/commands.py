@@ -2194,12 +2194,27 @@ def cmd_inkreport(pdf: Path, preflight_only: bool = False,
         return "\n".join(out)
 
     t0 = _time.time()
-    resumed = ir.fresh_ink(doc)
+    why: list = []
+    resumed = ir.fresh_ink(doc, formula_rule=rule, why=why)
     if resumed:
         out.append("")
-        out.append("RESUME: report.ink.json post-dates the measure build; "
-                   "skipping steps 2-4.")
+        out.append("RESUME: the stored measurement describes the report this "
+                   "run would build; skipping steps 2-4.")
     else:
+        # 463 — say why the expensive path was taken. A silent re-measure
+        # looks like the resume is broken; a silent RESUME looked like the
+        # measurement was fresh, and that one cost eleven wrong reports.
+        #
+        # THIS IS A NOTE, NOT A BRANCH. It was written as an `elif` and the
+        # `else` below then bound to it, so every document with an existing
+        # ink.json printed "NO RESUME. Re-measuring." and skipped steps 2-4
+        # entirely — the exact failure the message exists to prevent, caused
+        # by the message. Caught because a run that should have taken 15
+        # minutes took 40 seconds and printed no step 2, 3 or 4.
+        if (doc / "report.ink.json").is_file():
+            out.append("")
+            out.append("NO RESUME: %s. Re-measuring."
+                       % (why[0] if why else "?"))
         # 2 — the MEASURE build. No legend, no ink: the only combination that
         # stamps phase=measure (report_tex.py:1516).
         held = doc / "report.ink.json"

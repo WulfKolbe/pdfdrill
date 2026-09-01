@@ -221,15 +221,77 @@ def _report_pages(doc_dir: Path) -> int:
     return 0
 
 
-def fresh_ink(doc_dir: Path) -> bool:
-    """True when report.ink.json post-dates the measure-phase build.
+def fresh_ink(doc_dir: Path, *, formula_rule: str = "",
+              why: "list | None" = None) -> bool:
+    """True when the stored measurement describes the report ABOUT TO BE BUILT.
 
-    The resume condition. Compares against the SURVIVING phase=measure stamp,
-    not against report.build.json — the latter is overwritten by the reading
-    build and would make every finished document look resumable.
+    The resume condition. It exists so a run that dies after a 55-minute
+    measurement does not repeat it, and that is worth keeping — but it used to
+    ask an MTIME question where only a CONTENT question is sound:
+
+        return ink.stat().st_mtime >= stamp.stat().st_mtime
+
+    463 is what that costs. `--profile published` drops the formulas section,
+    so penev_B's report went from 20 pages to 11 — and the stored measurement,
+    taken against the 20-page build, still post-dated its own measure stamp.
+    The resume fired, steps 2-4 were skipped, and the reading build adopted a
+    residual measured on a document that no longer exists. It reported READY.
+    Eleven of twelve documents did this before it was caught.
+
+    So the test is now four content questions, each of which can be answered
+    from what is on disk:
+
+      1. the ink post-dates the measure stamp        (the original mtime test,
+                                                      kept: it is necessary)
+      2. the ink was measured against THAT BUILD     — `measured_against`
+         .sha256 equals the stamp's sha256. An ink and a stamp that merely sit
+         in the right order are not evidence about each other.
+      3. the same formula rule                       — a different rule is a
+         different set of sections and therefore a different page geometry
+      4. the same model                              — `model_state` (435); a
+         rebuilt model renumbers every object id, so a measurement joined by
+         identifier describes objects that no longer exist (430: 1 id in
+         common out of 2,196)
+
+    `why` collects the reason it said no, so the caller can print it rather
+    than silently doing the slow thing.
     """
+    import json as _json
+    say = why if why is not None else []
     ink = doc_dir / "report.ink.json"
     stamp = doc_dir / "report.build.measure.json"
-    if not ink.is_file() or not stamp.is_file():
+    if not ink.is_file():
+        say.append("no report.ink.json")
         return False
-    return ink.stat().st_mtime >= stamp.stat().st_mtime
+    if not stamp.is_file():
+        say.append("no report.build.measure.json (nothing says what was measured)")
+        return False
+    if ink.stat().st_mtime < stamp.stat().st_mtime:
+        say.append("report.ink.json predates the measure build")
+        return False
+    try:
+        ink_d = _json.loads(ink.read_text(encoding="utf-8"))
+        st_d = _json.loads(stamp.read_text(encoding="utf-8"))
+    except (OSError, ValueError) as exc:
+        say.append("unreadable (%s)" % exc)
+        return False
+    ma = (ink_d.get("measured_against") or {}).get("sha256")
+    if not ma:
+        say.append("the ink does not say which report it measured")
+        return False
+    if ma != st_d.get("sha256"):
+        say.append("the ink measured report %s, the measure build was %s"
+                   % (str(ma)[:12], str(st_d.get("sha256"))[:12]))
+        return False
+    if (st_d.get("formula_rule") or "") != (formula_rule or ""):
+        say.append("the measured report used formula rule %r, this run uses %r"
+                   % (st_d.get("formula_rule") or "", formula_rule or ""))
+        return False
+    from .report_tex import model_state
+    cur = model_state(doc_dir).get("model_sha256")
+    was = st_d.get("model_sha256")
+    if cur and was and cur != was:
+        say.append("the model changed since the measurement (%s -> %s)"
+                   % (str(was)[:12], str(cur)[:12]))
+        return False
+    return True

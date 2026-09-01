@@ -132,6 +132,10 @@ def refined_map(tiddlers) -> dict:
     return out
 
 
+#: a tiddler title that names an object kind — what `rows_for` looks for
+TYPED_TITLE = re.compile(r"_(FOX?|EQ|TAB|DIA|PIC)\d")
+
+
 def rows_for(tiddlers, bibkey, refined=None):
     fo, eq, tab, dia = [], [], [], []
     fpage = first_pages(tiddlers, bibkey)
@@ -2113,6 +2117,45 @@ def _conf_ok(conf, lo, hi) -> bool:
     return True
 
 
+def resolve_bibkey(tiddlers_path: Path) -> str:
+    r"""The bibkey for a tiddlers file: THE MODEL'S, not the filename's (463).
+
+    404 learned this for `publish_ready`, which inferred the bibkey from
+    `blob_dir.name`; there is a test named for it. The same inference sat in
+    `build_report`, reading the bibkey off the tiddlers FILENAME, and was
+    never looked at.
+
+    462 renamed nine documents' bibkeys without renaming their folders — stem
+    and bibkey have been separable since 276. So every tiddler title became
+    `voloshin-hypergraph_EQ0001` while the file went on being called
+    `Introduction to Graph and Hypergraph Theory (...).tiddlers.json`.
+    `rows_for` matches on the bibkey prefix, matched nothing, and built a
+    one-page report with no rows from a model holding 2,555 formulas and 266
+    equations. It compiled. It stamped. It did that to nine documents.
+
+    The model is the authority: `meta.bibkey` is what `renamefolder`
+    retargets and what every identifier is built from. The filename is the
+    fallback for a tiddlers file with no model beside it.
+    """
+    p = Path(tiddlers_path)
+    model = p.parent / MODEL_NAME
+    if model.is_file():
+        try:
+            import json as _json
+            meta = (_json.loads(model.read_text(encoding="utf-8",
+                                                errors="replace"))
+                    .get("meta") or {})
+            if meta.get("bibkey"):
+                return str(meta["bibkey"])
+        except (OSError, ValueError):
+            pass
+    return p.name.replace(".tiddlers.json", "")
+
+
+class ReportRefused(ValueError):
+    """The report would be empty for a reason that is a defect, not a fact."""
+
+
 def build_report(tiddlers_path: Path, out: Path | None = None,
                  crops: Path | None = None, texzip: Path | None = None,
                  paper: str = "a4", landscape: bool = False,
@@ -2134,9 +2177,24 @@ def build_report(tiddlers_path: Path, out: Path | None = None,
     import json
     path = Path(tiddlers_path)
     tiddlers = json.loads(path.read_text())
-    bibkey = path.name.replace(".tiddlers.json", "")
+    bibkey = resolve_bibkey(path)
     refined = refined_map(tiddlers) if prefer_refined else {}
     fo, eq, tab, dia = rows_for(tiddlers, bibkey, refined)
+    # 463 — AN EMPTY REPORT FROM A NON-EMPTY PROJECTION IS A DEFECT.
+    #
+    # A document with no mathematics is a fact and yields no rows. A document
+    # whose tiddlers carry thousands of typed titles and yields no rows is a
+    # bibkey that does not match them, and the old behaviour was to build the
+    # empty report, compile it, stamp it and report success.
+    if not (fo or eq or tab or dia):
+        typed = [x.get("title", "") for x in tiddlers
+                 if TYPED_TITLE.search(x.get("title", ""))]
+        if typed:
+            raise ReportRefused(
+                "no rows for bibkey %r, but %d tiddlers carry typed titles "
+                "(e.g. %r) — the bibkey and the titles disagree. Check "
+                "meta.bibkey against the projection."
+                % (bibkey, len(typed), typed[0]))
     if types is not None:
         if "equation" not in types: eq = []
         if "formula" not in types: fo = []
