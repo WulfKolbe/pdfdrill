@@ -1388,9 +1388,11 @@ commands:
   typed: true
 - name: cdncrops
   section: Introspection (fast, no extraction)
-  summary: 'The CDN-crop LAYER: fetch every EQ/TAB tiddler''s MathPix scan crop into report-crops/
-    (left-trimmed, cached) — declared as a reporttex dependency so steps/--ensure can see it. A
-    keyless model (no CDN uris) is trivially satisfied; real crops need `mathpix` first.'
+  summary: 'The scan-crop LAYER: every EQ tiddler''s MathPix crop fetched into report-crops/
+    (left-trimmed, cached), and every TAB tiddler''s crop RENDERED there from the PDF — MathPix
+    records no crop uri for a table, so 0 of 351 table rows across the published set had a scan
+    until 461. Declared as a reporttex dependency so steps/--ensure can see it. A keyless model
+    (no CDN uris) still gets its table crops; real math crops need `mathpix` first.'
   network: true
   requires:
   - mathpix

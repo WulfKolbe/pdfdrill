@@ -1357,6 +1357,116 @@ def crop_file(crops_dir: "Path | None", title: str,
     return None
 
 
+def render_crops(tiddlers: list[dict], dest: Path, pdf: Path,
+                 kinds=("_TAB",), dpi: int = 400, trim: bool = True):
+    r"""Crop the scan for every region-bearing tiddler WITHOUT a CDN uri (461).
+
+    `download_crops` filters for `_EQ` or `_TAB` and then skips anything whose
+    `canonical_uri` is not http. Across the 21 published documents that is
+    8,718 of 8,718 EQ tiddlers fetched and 0 of 351 TAB tiddlers, because
+    MathPix records no crop uri for a table. The Tables section reached 423's
+    six columns with its Scan column empty in every row of every document.
+
+    The region IS on the tiddler — page, top_left_x/y, width, height — so the
+    picture is recoverable from the PDF. This renders it.
+
+    THREE THINGS THAT ARE EASY TO GET WRONG HERE:
+
+    * MathPix regions are in ITS page-image pixels, not ours. Every coordinate
+      is scaled by (raster width / that page's MathPix page_width), which is
+      read PER PAGE: 11 of 305 documents in this corpus carry more than one
+      page_width, and a page scaled by another page's width lands on the wrong
+      part of the page and still looks like a plausible piece of it
+      (refine.mathpix_page_widths).
+
+    * A page with no recorded width is SKIPPED, not defaulted. Cropping it
+      wrongly is worse than not cropping it.
+
+    * The result is resized to the region's MathPix pixel size. `crop_cell`
+      sizes an image as jpg_width x px2mm, and px2mm is mm per MATHPIX pixel;
+      a 400-dpi crop left at its own width would compute ~1.6x too wide, hit
+      the column cap, and silently stop being pixel-exact — the one property
+      the scan column claims. Rendering high and downsampling is a better
+      picture than rendering at MathPix's ~250 dpi directly.
+
+    Returns (rendered, cached, skipped).
+    """
+    from . import pdf_reading
+    from .refine import mathpix_page_widths
+    try:
+        from PIL import Image
+    except Exception:
+        return 0, 0, 0
+    pdf = Path(pdf)
+    dest = Path(dest)
+    widths = mathpix_page_widths(pdf.parent)
+    want: dict = {}
+    rendered = cached = skipped = 0
+    for t in tiddlers:
+        title = t.get("title", "")
+        if not any(k in title for k in kinds):
+            continue
+        if str(t.get("canonical_uri", "")).startswith("http"):
+            continue          # the CDN has it; download_crops owns that row
+        f = dest / f"{title}.jpg"
+        if f.is_file() and f.stat().st_size > 500:
+            cached += 1
+            continue
+        try:
+            page = int(t.get("page"))
+            box = (int(t["top_left_x"]), int(t["top_left_y"]),
+                   int(t["width"]), int(t["height"]))
+        except (TypeError, ValueError, KeyError):
+            skipped += 1
+            continue
+        if box[2] <= 0 or box[3] <= 0 or page not in widths:
+            skipped += 1
+            continue
+        want.setdefault(page, []).append((f, box))
+    if not want:
+        return rendered, cached, skipped
+    dest.mkdir(parents=True, exist_ok=True)
+    # ONE rasterize call for the pages actually needed. kohlhase-omdoc has 103
+    # table rows; a Ghostscript run per row is 103 runs over ~40 pages.
+    pages = sorted(want)
+    shutil_rmtree_first = dest / "_pages"
+    import shutil as _sh
+    _sh.rmtree(shutil_rmtree_first, ignore_errors=True)
+    imgs = pdf_reading.rasterize(pdf, shutil_rmtree_first, pages=pages, dpi=dpi)
+    # PARSE the page out of the filename rather than zipping against the
+    # request. rasterize globs its output directory, so a stale page left by a
+    # crashed run would shift every pairing by one and crop each region from
+    # its neighbour's page — plausible-looking and wrong.
+    by_page = {}
+    for f in (imgs or []):
+        m = re.search(r"page-(\d+)\.", f.name)
+        if m:
+            by_page[int(m.group(1))] = f
+    for page, jobs in want.items():
+        src = by_page.get(page)
+        if src is None:
+            skipped += len(jobs)
+            continue
+        im = Image.open(src).convert("RGB")
+        s = im.size[0] / float(widths[page])
+        for f, (x, y, w, h) in jobs:
+            x0, y0 = max(0, int(x * s)), max(0, int(y * s))
+            x1 = min(im.size[0], int((x + w) * s))
+            y1 = min(im.size[1], int((y + h) * s))
+            if x1 <= x0 or y1 <= y0:
+                skipped += 1
+                continue
+            im.crop((x0, y0, x1, y1)).resize((w, h), Image.LANCZOS).save(
+                f, quality=92)
+            if trim:
+                _pad_top(f)
+            rendered += 1
+    # the rasterized pages are the largest thing this writes and nothing reads
+    # them afterwards
+    _sh.rmtree(dest / "_pages", ignore_errors=True)
+    return rendered, cached, skipped
+
+
 def download_crops(tiddlers: list[dict], dest: Path, trim: bool = True):
     """Fetch each EQ/TAB tiddler's CDN crop into dest/<title>.jpg (cached);
     left-trim whitespace when PIL is available. Returns (ok, cached, failed).

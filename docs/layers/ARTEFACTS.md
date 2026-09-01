@@ -39,6 +39,39 @@ column merges "LaTeX source" with an apology when there is none. That is
 423's subject. (423 gave it the equations' six columns; 429 filled its
 `Conf.` from the minimum over the table's cells.)
 
+### The Tables Scan column comes from the PDF, not the CDN (461)
+
+`download_crops` filters for `_EQ` or `_TAB` — the intent was always both —
+and then skips any tiddler whose `canonical_uri` is not http. **MathPix
+records no crop uri for a table.** Across the 21 published documents that is
+8,718 of 8,718 EQ tiddlers fetched and **0 of 351 TAB tiddlers**, so 423's
+six-column Tables section shipped with its Scan column empty in every row of
+every document.
+
+The region is on the tiddler — page, `top_left_x/y`, `width`, `height` — so
+`render_crops` crops it out of a Ghostscript render of that page. 348 of 351
+rows now carry a scan; the 3 that do not are TAB objects the model recorded
+with **no region at all** (`page: "000"`, every coordinate `None`) in
+1510.06699, penev_A and penev_B, which is a different defect and not this
+one's to fix.
+
+Three things it would be easy to get wrong, each guarded by a test:
+
+- MathPix regions are in ITS page-image pixels. Coordinates are scaled by
+  (raster width / that page's `page_width`), read **per page** — 11 of 305
+  documents carry more than one `page_width`, and a page scaled by another
+  page's width lands on the wrong part of the page and still looks plausible.
+- A page with no recorded width is **skipped, not defaulted**.
+- The crop is resized back to the region's MathPix pixel size. `crop_cell`
+  sizes an image as `jpg_width x px2mm` and `px2mm` is mm per MathPix pixel,
+  so a 400-dpi crop left at its own width would compute ~1.6x too wide, hit
+  the column cap, and stop being pixel-exact without saying so.
+
+Rendering runs in `cdncrops` (the layer that owns `report-crops/`) and again
+in `reporttex`, where it costs one stat per row once the layer has run. Cost
+for the whole published set: ~45 s for 351 rows, the largest single document
+(kohlhase-omdoc, 103 rows) 20 s.
+
 ### The formulas section is a report of problems, not a catalogue (460)
 
 `report.pdf` shows problems and their solutions. A list of every inline

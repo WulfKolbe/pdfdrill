@@ -14646,7 +14646,15 @@ def cmd_reporttex(pdf: Path, paper: str = "a3", landscape: bool = True,
         import json as _json
         tiddlers = _json.loads(tid.read_text())
         ok, cached, failed = rt.download_crops(tiddlers, crops)
+        # 461 — table crops come from the PDF, because MathPix records no crop
+        # uri for a table. Doing it here as well as in `cdncrops` costs one
+        # cached-file stat per row when the layer has already run, and means a
+        # report built without it still has its Scan column.
+        r_ok, r_cached, r_skip = rt.render_crops(tiddlers, crops, pdf)
         crop_note = f"crops: {ok} fetched, {cached} cached, {failed} failed"
+        if r_ok or r_cached or r_skip:
+            crop_note += (f"; tables {r_ok} rendered, {r_cached} cached, "
+                          f"{r_skip} skipped (local)")
         if not any(crops.glob("*.jpg")):
             crops = None                           # nothing usable → no column
     texzip = rt.find_texzip(pdf)
@@ -15155,18 +15163,32 @@ def cmd_cdncrops(pdf: Path) -> str:
     tiddlers = _json.loads(tid.read_text(encoding="utf-8", errors="replace"))
     crops = pdf.parent / "report-crops"
     ok, cached, failed = rt.download_crops(tiddlers, crops)
+    # 461 — the half the CDN cannot supply. MathPix records no crop uri for a
+    # table (0 of 351 TAB tiddlers across the 21 published documents), so the
+    # Scan column of the Tables section was empty in every row of every
+    # document. The region is on the tiddler; the picture comes from the PDF.
+    r_ok, r_cached, r_skip = rt.render_crops(tiddlers, crops, pdf)
+    n_tab = sum(1 for t in tiddlers if "_TAB" in t.get("title", ""))
     n_cdn = sum(1 for t in tiddlers if "_EQ" in t.get("title", "")
                 and str(t.get("canonical_uri", "")).startswith("http"))
+    local = ""
+    if n_tab:
+        local = (f"; {r_ok} rendered, {r_cached} cached, {r_skip} skipped of "
+                 f"{n_tab} table crops (local, from the PDF — MathPix records "
+                 f"no crop uri for a table)")
     if n_cdn == 0:
+        # 461 — say what the local half did even here. A keyless model still
+        # has table regions, and "nothing to fetch" used to mean "nothing
+        # happened", which was true and is no longer.
         return (f"cdncrops: {pdf.name} has no CDN-bearing math objects "
-                f"(keyless/source-built model) — nothing to fetch. For real "
-                f"scan crops run `pdfdrill mathpix {pdf.name}` first "
+                f"(keyless/source-built model) — nothing to fetch{local}."
+                f" For real scan crops run `pdfdrill mathpix {pdf.name}` first "
                 f"(network/paid), then rebuild the model.")
     if failed == 0:
         sc.add_fact("CDN_CROPS_BUILT")
         sc.save()
     return (f"cdncrops: {ok} fetched, {cached} cached, {failed} failed of "
-            f"{n_cdn} CDN math crops → {crops}/")
+            f"{n_cdn} CDN math crops{local} → {crops}/")
 
 
 @_writes("standalone")
