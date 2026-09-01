@@ -1,0 +1,92 @@
+447 — the evidence lands beside the document
+============================================
+
+WHERE IT WAS BEFORE (the honest answer to "where did you save it")
+
+  out/391.json, out/392.json, out/444.json   committed, and they hold the
+                                             REPLIES, outcomes and timings
+  the prompts                                NOWHERE
+  the renders and .tex                       /tmp/refine444-*, /tmp/rescue391-*,
+                                             /tmp/recover392-*  — 8 directories,
+                                             gone on reboot
+  a run id                                   none
+
+444's finding is a comparison of two prompts differing by one line, and after
+that run the replies were in git and the prompts were not. They were
+RECONSTRUCTIBLE — `PROPOSE_PROMPT_C`, my `ERR_LINE` and the stored `latex`, at
+one particular commit, if you knew which. Reconstruction is not evidence, and
+a paid call that cannot be re-read can only be re-bought.
+
+WHERE IT LANDS NOW
+
+    <blob_dir>/calls/<run_id>.jsonl
+
+    run_id = 20260901T073156Z-refine444-26b115f3
+             UTC stamp · tool · 8 hex — sortable, unique, self-naming
+
+Beside the document, never a scratchpad. One file per RUN, one JSON object per
+CALL, APPENDED as the run proceeds — a run killed half way still leaves what
+it already spent, which a buffered writer would lose.
+
+WHAT A COMPLETED RUN LEAVES
+
+  header   run_id, tool, script path, note, started, COMMIT, pid
+  call     at, subject, arm, model, max_tokens, seconds, finish, error,
+           system, prompt, reply, images
+  footer   calls, outcome, ended
+
+Verbatim. Nothing redacted, nothing truncated: a redacted prompt is not the
+prompt that was sent, and a truncated one cannot be re-sent. If a prompt must
+not be kept, it must not be sent. The API key never enters the record because
+it is never in the prompt.
+
+`arm` is the field 444 needed and did not have. Two calls about one subject
+differing by a line of prompt are a comparison only if the record says which
+was which.
+
+MEASURED, by re-running 444 through it
+
+  /home/wkolbe/pdfdrill-library/Introduction to Linear and Matrix Algebra
+    (Nathaniel Johnston) (Z-Library)/calls/
+      20260901T073156Z-refine444-26b115f3.jsonl      22 KB
+
+  12 calls, complete (footer present), outcome "0 accepted of 12"
+  arms      with_error 6, without_error 6
+  subjects  EQ0114 EQ0439 EQ0575 EQ0774 FO2071 FOX_fabb4bba18
+  images    7 crops recorded by path
+  a with_error prompt ends:
+      "…math mode)\n\nFix what that names. Do not restructure anything the
+       error does not mention."
+
+The two arms are now readable side by side. They were not, four hours ago.
+
+THE HOOK IS MODULE-LEVEL, DELIBERATELY
+
+    refine.set_call_log(blob_dir, run_id)
+
+and `_novita_chat` became a thin wrapper over `_novita_chat_raw` that logs
+every call. Not a parameter on each call site: threading an argument through
+is exactly the thing that gets forgotten, and the point is that a runner
+CANNOT forget. A logging failure is swallowed — it must never cost the paid
+answer that was just bought.
+
+TWO SMALL THINGS FOUND WHILE DOING IT
+
+A stray `v.json` appeared in the evidence directory, pretty-printed rather
+than JSONL. `callog.path_for` always appends `.jsonl`, so it cannot have come
+from here — it was a shell-quoting slip of mine on a path carrying both spaces
+and parentheses. `runs_for` globs `*.jsonl`, so it was never readable as a
+run; there is now a test saying so.
+
+And two existing tests monkeypatched `_novita_chat` with a fake whose
+signature did not admit the new `subject`/`arm`. They now take `**kw`: a fake
+standing in for a real signature has to tolerate that signature growing, or it
+pins the shape instead of the behaviour.
+
+WHAT IS NOT DONE
+
+The three 391/392 runs predate this and their prompts are still only
+reconstructible. Re-running them to capture evidence would be re-buying an
+answer already known; the tool is in place for the next one.
+
+2,781 tests pass, 6 new.

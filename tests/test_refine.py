@@ -359,7 +359,10 @@ def test_variant_C_prompt_shows_the_existing_reading():
 def test_the_crop_selects_the_variant_C_prompt(monkeypatch, tmp_path):
     seen = {}
 
-    def fake(prompt, *, system, model, max_tokens, timeout, crop=None):
+    def fake(prompt, *, system, model, max_tokens, timeout, crop=None, **kw):
+        # 447 — `**kw` absorbs `subject`/`arm`, which the logged wrapper now
+        # carries. A fake standing in for a real signature has to tolerate that
+        # signature growing, or it pins the shape rather than the behaviour.
         seen["prompt"], seen["crop"] = prompt, crop
         return "x^2", "stop", ""
 
@@ -374,7 +377,10 @@ def test_without_a_crop_it_is_NOT_variant_C(monkeypatch):
     and must not be reported as C."""
     seen = {}
 
-    def fake(prompt, *, system, model, max_tokens, timeout, crop=None):
+    def fake(prompt, *, system, model, max_tokens, timeout, crop=None, **kw):
+        # 447 — `**kw` absorbs `subject`/`arm`, which the logged wrapper now
+        # carries. A fake standing in for a real signature has to tolerate that
+        # signature growing, or it pins the shape rather than the behaviour.
         seen["prompt"], seen["crop"] = prompt, crop
         return "x^2", "stop", ""
 

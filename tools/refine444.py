@@ -18,6 +18,7 @@ ROOT = pathlib.Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "src"))
 from pdfdrill import refine as rf                              # noqa: E402
 from pdfdrill import report_tex as rt                          # noqa: E402
+from pdfdrill import callog                                    # noqa: E402
 
 ERR_LINE = """
 The previous attempt to typeset that reading FAILED. The exact reason was:
@@ -37,6 +38,12 @@ def main() -> int:
     D = pathlib.Path.home() / "pdfdrill-library" / a.doc
     rows = json.loads((ROOT / "out" / "444.rows.json").read_text())
     w = pathlib.Path(tempfile.mkdtemp(prefix="refine444-"))
+    # 447 — the evidence goes BESIDE THE DOCUMENT before a single paid call.
+    run_id = callog.open_run(D, "refine444",
+                             script=str(pathlib.Path(__file__).resolve()),
+                             note="with vs without the compile error")
+    rf.set_call_log(D, run_id)
+    print("  run %s" % run_id, flush=True)
     out = []
     for i, r in enumerate(rows, 1):
         rec = dict(r)
@@ -64,7 +71,8 @@ def main() -> int:
             try:
                 prop, err = rf.propose_one(
                     r["latex"] + prompt_extra, r.get("conf") or 0.0,
-                    crop=crop, timeout=600)
+                    crop=crop, timeout=600,
+                    subject=r["short"], arm=arm)
             except Exception as e:
                 prop, err = "", "%s: %s" % (type(e).__name__, e)
             d = {"seconds": round(time.time() - t0, 1), "error": err,
@@ -96,7 +104,12 @@ def main() -> int:
         out.append(rec)
         pathlib.Path(a.out).write_text(json.dumps(out, indent=1))
     pathlib.Path(a.out).write_text(json.dumps(out, indent=1))
+    acc = sum(1 for r in out for k in ("with_error", "without_error")
+              if str(r.get(k, {}).get("outcome", "")).startswith("accepted"))
+    log = callog.close_run(D, run_id, calls=2 * len(out),
+                           outcome="%d accepted of %d" % (acc, 2 * len(out)))
     print("wrote %s" % a.out)
+    print("evidence %s" % log)
     return 0
 
 

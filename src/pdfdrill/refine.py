@@ -501,8 +501,49 @@ SOURCE:
 """
 
 
+#: 447 — the run every model call writes itself into, set by a caller that
+#: opened one. A module-level pair rather than an argument on every call site:
+#: the point is that a runner CANNOT forget, and threading a parameter through
+#: is exactly what gets forgotten. Unset, nothing is logged and behaviour is
+#: unchanged.
+_LOG_TO: "tuple | None" = None
+
+
+def set_call_log(blob_dir, run_id: str) -> None:
+    """Send every subsequent model call in this process to that run log."""
+    global _LOG_TO
+    _LOG_TO = (blob_dir, run_id) if blob_dir and run_id else None
+
+
 def _novita_chat(prompt: str, *, system: str, model: str, max_tokens: int,
-                 timeout: float, crop=None) -> tuple[str, str, str]:
+                 timeout: float, crop=None, subject: str = "",
+                 arm: str = "") -> tuple[str, str, str]:
+    """The logged wrapper. The transport is `_novita_chat_raw` below.
+
+    Wrapped rather than instrumented in place so there is ONE point where a
+    paid call becomes a record, and no path around it.
+    """
+    import time as _t
+    t0 = _t.time()
+    out = _novita_chat_raw(prompt, system=system, model=model,
+                           max_tokens=max_tokens, timeout=timeout, crop=crop)
+    if _LOG_TO:
+        try:
+            from . import callog
+            paths = [] if crop is None else (
+                [crop] if isinstance(crop, (str, Path)) else list(crop))
+            callog.log_call(_LOG_TO[0], _LOG_TO[1], prompt=prompt,
+                            system=system, reply=out[0], model=model,
+                            max_tokens=max_tokens, finish=out[1],
+                            error=out[2], seconds=round(_t.time() - t0, 1),
+                            images=paths, subject=subject, arm=arm)
+        except Exception:
+            pass          # a logging failure must not cost the paid answer
+    return out
+
+
+def _novita_chat_raw(prompt: str, *, system: str, model: str, max_tokens: int,
+                     timeout: float, crop=None) -> tuple[str, str, str]:
     """(content, finish_reason, error) from an OpenAI-compatible endpoint.
 
     Its own transport rather than `gemma_client.chat_completion` for one
@@ -584,7 +625,8 @@ PROPOSE_WORKERS = 4
 
 def propose_one(latex: str, conf: float, *, model: str = NOVITA_MODEL,
                 timeout: float = 900.0, crop=None,
-                max_tokens: int = PROPOSE_MAX_TOKENS) -> tuple[str, str]:
+                max_tokens: int = PROPOSE_MAX_TOKENS,
+                subject: str = "", arm: str = "") -> tuple[str, str]:
     """(proposed_latex, error). Never raises.
 
     With `crop`, this is VARIANT C: the scan image AND the existing reading.
@@ -595,6 +637,7 @@ def propose_one(latex: str, conf: float, *, model: str = NOVITA_MODEL,
         conf=f"{conf:.4f}", latex=latex)
     txt, finish, err = _novita_chat(
         prompt, system=PROPOSE_SYSTEM, model=model, max_tokens=max_tokens,
+        subject=subject, arm=arm,
         timeout=timeout, crop=crop)
     if err:
         return "", err
