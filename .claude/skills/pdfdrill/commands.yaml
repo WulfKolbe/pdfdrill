@@ -556,6 +556,12 @@ commands:
     required: true
     help: PDF/Markdown drilled-doc path, URL, or arXiv id
   flags:
+  - name: profile
+    flag: --profile
+    type: str
+    help: 'internal (default; the formulas section keeps the rows that did not render)
+      or published (the section is omitted, its unresolved count still stated in the
+      header). Sets the formula rule and nothing else.'
   - name: preflight_only
     flag: --preflight-only
     type: flag

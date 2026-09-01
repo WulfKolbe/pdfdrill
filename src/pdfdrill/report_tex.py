@@ -1860,7 +1860,8 @@ def model_state(doc_dir: Path) -> dict:
 
 def write_build_stamp(pdf_out: Path, *, legend: bool, ink_adopted: bool,
                       prefer_refined: bool, filters: dict,
-                      glyphs_dropped_count: int = 0) -> dict:
+                      glyphs_dropped_count: int = 0,
+                      formula_rule: str = "") -> dict:
     """Write BUILD_STAMP beside the report and return it.
 
     `phase` is the field a reader acts on. A build with no legend and no ink is
@@ -1876,6 +1877,9 @@ def write_build_stamp(pdf_out: Path, *, legend: bool, ink_adopted: bool,
         "filters": {k: v for k, v in (filters or {}).items() if v is not None},
         "glyphs_dropped": int(glyphs_dropped_count),
         "phase": ("measure" if (not legend and not ink_adopted) else "reading"),
+        # 469 — which formula rule built this. 456 had to infer a report's
+        # shape by parsing its own .tex; a field is cheaper and does not lie.
+        "formula_rule": formula_rule or "",
         **model_state(pdf_out.parent),
     })
     body = _json.dumps(stamp, indent=1)
@@ -2155,6 +2159,7 @@ def build_report(tiddlers_path: Path, out: Path | None = None,
         raise ValueError("formulas must be one of %s, not %r"
                          % (", ".join(FORMULA_RULES), formulas))
     fo_total = len(fo)
+    fo_all = list(fo)
     if formulas == "none":
         fo = []
     elif formulas == "unresolved":
@@ -2187,12 +2192,23 @@ def build_report(tiddlers_path: Path, out: Path | None = None,
             img_col = eq_widths[5]
 
     out_parts = [None]          # preamble filled in once the body is known
+    # 469 — WHEN THE SECTION IS OMITTED, THE COUNT IS NOT.
+    #
+    # `none` is what the published profile uses, and a published report that
+    # simply dropped the section would also drop the only statement that some
+    # of its formulas do not render. Omitting the rows is a choice about what
+    # is worth a page; omitting the fact would be a claim of cleanliness the
+    # document has not earned. So the header states the unresolved count under
+    # every rule, including the one that shows nothing.
     fo_says = "%d inline formulas" % fo_total
     if fo_withheld:
-        fo_says += (" (%d shown: %s)"
-                    % (len(fo),
-                       "the ones that did not render" if formulas == "unresolved"
-                       else "section omitted"))
+        if formulas == "unresolved":
+            fo_says += " (%d shown: the ones that did not render)" % len(fo)
+        else:
+            n_un = len(unresolved_formulas(fo_all))
+            fo_says += (" (section omitted; %s)"
+                        % ("%d did not render" % n_un if n_un
+                           else "all rendered"))
     out_parts.append("\\section*{%s — formula report}\n"
                      "%s, %d display equations, %d tables, "
                      "%d unrecovered image regions.\n"

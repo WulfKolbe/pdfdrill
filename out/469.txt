@@ -1,0 +1,89 @@
+469 — inkreport --profile internal|published
+2026-09-01T14:05Z · ~/MX/PDFDRILL @ eqblobs-and-gzip-tex
+
+THE FLAG
+--------
+  pdfdrill inkreport <pdf> [--profile internal|published]
+
+  profile              formula rule   the formulas section holds
+  internal (default)   unresolved     the rows that did not render
+  published            none           nothing; the section is omitted
+
+`internal` is the default, so a hand-run gets the working view without being
+asked. `published` is what 463 and the publish path use.
+
+IT SETS THE FORMULA RULE AND NOTHING ELSE
+-----------------------------------------
+Not the paper, not the legend, not the crop column, not the confidence bounds.
+That is the claim in the name, so it is checked rather than asserted:
+`test_a_profile_sets_the_formula_rule_AND_NOTHING_ELSE` parses `cmd_inkreport`
+and fails if `rule` is ever read anywhere except as the `formulas=` argument
+of a call — twice, plus the one line that prints it. A profile that quietly
+set a second thing would turn "which profile built this" from one field into a
+question about behaviour.
+
+BOTH BUILDS TAKE THE SAME RULE, AND THAT IS NOT TIDINESS
+--------------------------------------------------------
+inkreport builds twice: step 2 is the measure build, step 3 measures its
+pages, step 4 joins the result back onto the reading build at step 5. Setting
+the rule on the reading build alone would produce a measurement of pages that
+no longer exist — the same class of defect as 400, where a forgotten
+`--no-legend` stamped the wrong phase and the measurement was refused five
+steps later. The test asserts both builds get it.
+
+OMITTING THE SECTION DOES NOT OMIT THE COUNT
+--------------------------------------------
+This is the one thing I added beyond the ask, because `none` as written would
+have hidden a fact along with the rows.
+
+Under `published` the header line now reads
+
+  4,061 inline formulas (section omitted; 1 did not render), 262 display
+  equations, 68 tables, 12 unrecovered image regions.
+
+and, when nothing is owed,
+
+  213 inline formulas (section omitted; all rendered), 62 display equations, …
+
+Dropping the rows is a judgement about what deserves a page. Dropping the fact
+would be a claim of cleanliness the document has not earned — and 7 of the 22
+documents do have unresolved formula rows (460: 1, 1, 4, 1 across four
+documents, 37,624 rows total).
+
+WHY published OMITS RATHER THAN RESTRICTS
+-----------------------------------------
+report.pdf puts two independent instruments in adjacent cells — MathPix's
+confidence and inkdrill's residual — on every equation, table and
+image-region row. A formula row carries neither: no confidence, no residual,
+no scan crop. It is the one part of the artefact that is not QC, and across
+the 22 published documents it was 37,624 rows of it.
+
+The 7 rows that do not render stay visible in the internal build, and their
+count stays in the published header. If you would rather the published report
+carry those 7 rows, `published` becomes `"unresolved"` — one word in
+`INKREPORT_PROFILES`, and the test that pins the mapping is the only other
+thing that changes.
+
+THE ARTEFACT SAYS WHICH PROFILE BUILT IT
+----------------------------------------
+`report.build.json` gained `formula_rule`. 456 had to infer a report's shape
+by parsing its own `.tex` — counting `p{` in a longtable column spec — to
+answer "does this one have six-column tables". A field is cheaper and does not
+lie.
+
+WHAT WAS CHANGED
+----------------
+  src/pdfdrill/commands.py     INKREPORT_PROFILES / _DEFAULT; cmd_inkreport
+                               takes --profile, refuses an unknown one before
+                               spending anything, prints a PROFILE line, and
+                               passes the rule to BOTH builds
+  src/pdfdrill/report_tex.py   the header states the unresolved count under
+                               every rule including `none`; write_build_stamp
+                               records formula_rule
+  src/pdfdrill/cli.py          --profile parsed
+  commands.yaml                the flag, declared in the SSOT; skillsync run
+  docs/layers/ARTEFACTS.md     both profiles written down beside the four
+                               artefacts, with the reasoning
+  tests/test_inkreport_profile.py   8 tests
+
+Full suite: 2,834 passed.

@@ -2119,8 +2119,29 @@ def cmd_inkconvert(pdf: Path, force: bool = False) -> str:
     return "\n".join(out)
 
 
+#: 469 — the two profiles, and the ONLY thing either of them sets.
+#:
+#: A profile that quietly set paper size, or the legend, or the crop column
+#: would make "which profile was this built with" a question about behaviour
+#: rather than about one field. It sets the formula rule and nothing else, and
+#: the build stamp records which profile ran, so the pair is checkable.
+INKREPORT_PROFILES = {
+    # run by hand, on a document someone is working on: show the formula rows
+    # that did not render, because those are the ones still owed work.
+    "internal": "unresolved",
+    # the publish path: omit the section. report.pdf carries confidence and
+    # residual beside every equation, table and image region; a formula row
+    # carries neither, so the section is the one part of the artefact that is
+    # not QC. The count of unresolved rows is still stated in the header line,
+    # so omitting the rows does not omit the fact (469).
+    "published": "none",
+}
+INKREPORT_PROFILE_DEFAULT = "internal"
+
+
 @_writes("inkreport")
 def cmd_inkreport(pdf: Path, preflight_only: bool = False,
+                  profile: str = INKREPORT_PROFILE_DEFAULT,
                   timeout: int = 900) -> str:
     """404 — the whole ink chain, and the only supported way to run it.
 
@@ -2141,6 +2162,10 @@ def cmd_inkreport(pdf: Path, preflight_only: bool = False,
     from . import inkmeasure as im
     from .sidecar import blob_dir_for
 
+    if profile not in INKREPORT_PROFILES:
+        return ("inkreport: --profile must be one of %s, not %r."
+                % (", ".join(sorted(INKREPORT_PROFILES)), profile))
+    rule = INKREPORT_PROFILES[profile]
     doc = blob_dir_for(Path(pdf).resolve())[0]   # layout-aware, never hardcoded
     out: list[str] = []
 
@@ -2155,6 +2180,8 @@ def cmd_inkreport(pdf: Path, preflight_only: bool = False,
                    % ", ".join(failed))
         return "\n".join(out)
 
+    out.append("")
+    out.append("PROFILE: %s (formulas: %s)" % (profile, rule))
     plan = pre["plan"]
     pages = plan.get("report_pages") or max(1, plan.get("rows", 4) // 4)
     out.append("")
@@ -2180,7 +2207,12 @@ def cmd_inkreport(pdf: Path, preflight_only: bool = False,
         if held.is_file():
             held.replace(stash)
         try:
-            cmd_reporttex(pdf, compile_pdf=True, legend=False)
+            # the SAME formula rule as step 5. A measure build with a
+            # different section set is a different document: step 3 measures
+            # THIS pdf's pages, and step 4 joins the result back onto the
+            # reading build by row. Setting the rule on one build only would
+            # produce a measurement of pages that no longer exist.
+            cmd_reporttex(pdf, compile_pdf=True, legend=False, formulas=rule)
         finally:
             if stash.is_file() and not held.is_file():
                 stash.replace(held)
@@ -2226,7 +2258,7 @@ def cmd_inkreport(pdf: Path, preflight_only: bool = False,
         out.append("4 convert        %s" % _lines[0][:150])
 
     # 5 — the READING build, adopting.
-    cmd_reporttex(pdf, compile_pdf=True, legend=True)
+    cmd_reporttex(pdf, compile_pdf=True, legend=True, formulas=rule)
     stamp = doc / "report.build.json"
     got = json.loads(stamp.read_text(encoding="utf-8")) if stamp.is_file() else {}
     if got.get("phase") != "reading" or not got.get("ink_adopted"):
@@ -14859,7 +14891,8 @@ def cmd_reporttex(pdf: Path, paper: str = "a3", landscape: bool = True,
                 prefer_refined=prefer_refined,
                 filters={"min_conf": min_conf, "max_conf": max_conf,
                          "types": types},
-                glyphs_dropped_count=(lost[0] if lost else 0))
+                glyphs_dropped_count=(lost[0] if lost else 0),
+                formula_rule=r.get("formula_rule", ""))
             lines.append(
                 f"Build stamp: {rt.BUILD_STAMP} — phase={stamp['phase']}, "
                 f"{stamp['pages']} pages, {stamp['bytes']} bytes, "

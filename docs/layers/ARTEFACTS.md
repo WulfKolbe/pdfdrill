@@ -39,6 +39,42 @@ column merges "LaTeX source" with an apology when there is none. That is
 423's subject. (423 gave it the equations' six columns; 429 filled its
 `Conf.` from the minimum over the table's cells.)
 
+### Two profiles, and the only thing either one sets (469)
+
+`report.pdf` is built twice for two audiences and the difference is one field.
+`pdfdrill inkreport --profile <internal|published>`:
+
+| profile | formula rule | the section holds |
+|---|---|---|
+| `internal` (default) | `unresolved` | the formula rows that did not render |
+| `published` | `none` | nothing — the section is omitted |
+
+**It sets the formula rule and nothing else.** Not the paper, not the legend,
+not the crop column, not the confidence bounds. A profile that quietly set a
+second thing would turn "which profile built this" from one field into a
+question about behaviour; a test parses `cmd_inkreport` and fails if `rule`
+is ever read anywhere but as the `formulas=` argument of its two builds.
+
+**Both builds take the same rule.** Step 2 is the measure build and step 3
+measures its pages; setting the rule on the reading build alone would produce
+a measurement of pages that no longer exist.
+
+**Omitting the section does not omit the count.** Under `none` the header
+still reads *"4,061 inline formulas (section omitted; 1 did not render)"*, or
+*"(section omitted; all rendered)"* when there is nothing owed. Dropping the
+rows is a judgement about what deserves a page; dropping the fact would be a
+claim of cleanliness the document has not earned.
+
+`report.build.json` records `formula_rule`, so the shape of a report is a
+field rather than something inferred by parsing its own `.tex` — which is what
+456 had to do.
+
+Why `published` omits rather than restricts: `report.pdf` puts two independent
+instruments in adjacent cells — MathPix's confidence and inkdrill's residual —
+on every equation, table and image-region row. A formula row carries neither.
+It is the one part of the artefact that is not QC, and over the 22 published
+documents it was 37,624 rows of it.
+
 ### The Tables Scan column comes from the PDF, not the CDN (461)
 
 `download_crops` filters for `_EQ` or `_TAB` — the intent was always both —

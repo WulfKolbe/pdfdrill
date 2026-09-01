@@ -1067,12 +1067,15 @@ def _do_inkconvert(args):
 
 
 def _do_inkreport(args):
-    """pdfdrill inkreport <pdf> [--preflight-only] [--timeout N]"""
-    from .commands import cmd_inkreport
+    """pdfdrill inkreport <pdf> [--preflight-only] [--timeout N]
+    [--profile internal|published]"""
+    from .commands import cmd_inkreport, INKREPORT_PROFILE_DEFAULT
     to, args = _opt(args, "--timeout")
+    profile, args = _opt(args, "--profile")
     pdf_args = [a for a in args if a != "--preflight-only"]
     return cmd_inkreport(_pdf(pdf_args),
                          preflight_only="--preflight-only" in args,
+                         profile=profile or INKREPORT_PROFILE_DEFAULT,
                          timeout=int(to) if to else 900)
 
 
