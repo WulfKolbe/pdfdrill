@@ -1,0 +1,90 @@
+477 — the report preamble, and EQ0474's first compile error
+2026-09-01T17:40Z · gilmore-lie-groups_EQ0474, page 145, confidence 0.2335
+
+YOU WERE RIGHT: `gathered` IS NOT THE SUSPECT
+---------------------------------------------
+The report preamble loads 15 packages, and amsmath is the second of them:
+
+  geometry[a3paper,landscape,margin=18mm]   amsmath    amssymb
+  longtable    array     graphicx    mathrsfs   stmaryrd
+  tikz         tikz-cd   listings    fontspec   newunicodechar
+  xcolor       bbm
+
+`gathered` and `\substack` both come from amsmath and both are available.
+`renderable()` also passes this value — it is not refused at the gate, it
+fails at the compile.
+
+THE FIRST ERROR, VERBATIM
+-------------------------
+Recompiled standalone with the report's own preamble, in a scratch directory
+(the 463 rebuild holds gilmore's folder). One `! ` line in the whole log:
+
+  ! Misplaced \noalign.
+  \hline ->\noalign
+                    {\ifnum 0=`}\fi \hrule \@height \arrayrulewidth \futurelet...
+  l.102 ...t] \\ \Re e \mathfrak{g}= \\ \left.\hline
+                                                    \begin{array}{ccc|ccc} 0 ...
+  I expect to see \noalign only after the \cr of
+  an alignment. Proceed, and I'll ignore this case.
+
+THE CAUSE
+---------
+A `\hline` sitting OUTSIDE any alignment. The value reads
+
+  ... \\ \Re e \mathfrak{g}= \\ \left.\hline \begin{array}{ccc|ccc} ...
+
+`\hline` expands to `\noalign`, which is legal only after a `\cr` inside an
+alignment. Here it sits between `\left.` and `\begin{array}` — before the
+array has been opened. The page prints a matrix with a horizontal rule in it;
+MathPix emitted the rule one token too early, outside the environment it
+belongs to.
+
+So the failing construct is `\left.\hline\begin{array}`, and `gathered` is
+only the outermost wrapper it happens to sit inside.
+
+WHICH CLASS
+-----------
+The `\noalign` / alignment class, which is already named — not a new one.
+
+  out/058: "a handful of genuine LaTeX defects (\noalign, a missing $, an
+            unmatched \right)"
+  out/056: line 41 attributes a group of unexplained demotions to "a cascade
+            from an alignment-class error"
+
+I could not find a seventeen-item class list in `out/` or `docs/`; the
+classification I can support from what is written down is the one above, and
+056's own list has three classes, not seventeen. If the seventeen live
+somewhere I did not look, this is the `\noalign` member of it.
+
+HOW COMMON THE SIGNATURE IS
+---------------------------
+A `\hline` outside any array/tabular/matrix environment, across the 21
+published documents' EQ/FO/TAB values:
+
+  cardona-qft-methods               1
+  gilmore-lie-groups                1
+  johnston-linear-matrix-algebra    2
+  ---------------------------------------
+  TOTAL                             4 rows in 3 of 21 documents
+
+Four rows. It is a real defect and a rare one, which is worth saying in both
+directions: it is not worth a general repair pass, and it is cheap to fix by
+hand or to route with the other unresolved rows.
+
+TWO THINGS IN THE SAME VALUE THAT ARE NOT THE FIRST ERROR
+---------------------------------------------------------
+Named because a reader will see them and wonder, not because they caused
+this failure — TeX stops at the first:
+
+  * `\left.` is closed by `\right]`, and the value also opens a second
+    `\left[` earlier. The delimiters do not pair the way the printed page
+    does.
+  * inside the second array, declared `{ccc|ccc}` (6 columns), one row reads
+    `-2 R & -\eta & -r` — three cells where six are declared. That is the
+    same declared-column defect as `Numerical Linear Algebra_EQ0722`, which
+    is already one of the eight sent to MathPix.
+
+The crop:
+  https://cdn.mathpix.com/cropped/d2c252f7-ecc8-4847-91aa-199c581ae8c0-145.jpg?height=657&width=880&top_left_y=990&top_left_x=316
+
+Nothing was changed. This is a reading and one standalone compile.
