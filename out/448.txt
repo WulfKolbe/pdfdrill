@@ -1,0 +1,98 @@
+448 — a revised prompt, on 444's exact six rows
+===============================================
+
+THE THREE CHANGES
+
+1. NO MATHS ASSUMPTION. The old prompt opens "The image is a crop of one
+   printed equation" and asks for "the LaTeX body". 446 measured that three of
+   these six rows are not equations: they are complete floats,
+   `\begin{figure} \[ … \] \caption{…} \end{figure}` — equation AND caption as
+   one object. The new prompt says the region "may be an equation, a
+   TikZ-style diagram, a table, or a mixture — do not assume it is
+   mathematics", and branches its instructions accordingly.
+
+2. STRUCTURAL CORRECTION PERMITTED. Out: "prefer the existing reading where
+   the image does not contradict it". In:
+
+     REMOVE ANYTHING THE IMAGE DOES NOT SHOW. The reading may carry wrappers
+     or environments the crop cannot contain — a float, a caption, a list
+     closer, a section command. If it is not visible in the image, it is
+     damage from the segmentation and does not belong in your answer.
+     Correcting structure is part of the task, not a liberty.
+
+3. FIGURE SPECIFICITY KEPT. Label strings as printed, font size when it
+   differs, node positions, arrow directions, meaningful line styles, and
+   `\usetikzlibrary{arrows.meta, positioning}` named as loaded.
+
+THE RESULT THE REVISION WAS FOR
+
+                444 with_error   444 without_error   448 revised
+  EQ0114        keeps \begin{figure}   keeps        DROPS IT
+  EQ0439        keeps                  keeps        DROPS IT
+  EQ0575        keeps                  keeps        DROPS IT
+
+**Six of six proposals kept the wrapper under the old clause. Three of three
+drop it under the new one.** 444 concluded the model was obeying the
+instruction rather than failing; this is that conclusion tested and confirmed
+by changing the instruction.
+
+OUTCOMES, same six rows
+
+  row              444 with_error        444 without_error     448 revised
+  EQ0114           rejected: gate        rejected: gate        rejected: gate
+  EQ0439           rejected: compile     rejected: gate        rejected: gate
+  EQ0575           rejected: compile     rejected: gate        ACCEPTED
+  EQ0774           rejected: ink         rejected: ink         rejected: ink
+  FO2071           rejected: gate        rejected: gate        cannot gate
+  FOX_fabb4bba18   cannot gate           rejected: compile     cannot gate
+
+  accepted   0 of 12  ->  1 of 6
+
+THE ONE ACCEPTANCE, AND WHY IT IS WEAK
+
+EQ0575 was accepted on the branch "original did not render, this does" — NOT
+on ink falling. There is no baseline to fall from: the original never
+rendered, so `ink_before` is None. Its `ink_after` is **117**, which is a long
+way from the scan; by comparison EQ0774's original sits at 10.
+
+So the gate permitted it and a human should look at it before it is trusted.
+Reporting an acceptance without that number would be the more flattering and
+less true account.
+
+The two rows that still fail the gate (EQ0114, EQ0439) fail for a NEW reason:
+having dropped the float, the model returns content the gate refuses on other
+grounds. That is progress of a kind — the structural damage is gone and what
+remains is the value itself — but it is not a render.
+
+WHAT DID NOT MOVE
+
+EQ0774 fails identically in all three arms: both prompts replace its escaped
+`\$` cells with digits, and the ink says that is not the page. FO2071 and
+FOX_fabb4bba18 have no crop (an FO/FOX tiddler carries none), so no arm can
+gate them — 448 reports "cannot gate" where 444's without_error reported a
+compile failure, because 446 fixed the `\$` gate in between.
+
+EVIDENCE, per 447
+
+  <doc>/calls/20260901T080724Z-prompt448-3cfd85cb.jsonl    20,025 bytes
+  <doc>/calls/20260901T080724Z-prompt448-3cfd85cb.script    7,479 bytes
+
+  6 calls, arm "revised", footer "1 accepted of 6", every prompt and reply
+  verbatim, the crop paths recorded.
+
+`callog` now copies the SCRIPT ITSELF beside the run, not merely its path: a
+path rots when the file is edited the next day, and the record then points at
+something that is not what ran.
+
+A CRASHED RUN IS ALSO EVIDENCE
+
+The first attempt is in that directory too —
+`20260901T080010Z-prompt448-34574a1b.jsonl`, 0 calls, no footer, INCOMPLETE —
+with its script. It died before spending anything, and the record says so.
+
+It died because `PROMPT.format(...)` read `\usetikzlibrary{arrows.meta,
+positioning}` as a format placeholder: `KeyError: 'arrows'`. A prompt naming
+the libraries could not be sent BECAUSE it named them. Now built with
+`.replace`, since every brace in a LaTeX prompt is a brace.
+
+2,781 tests pass.

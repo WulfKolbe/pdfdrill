@@ -1,0 +1,72 @@
+[
+ {
+  "short": "EQ0114",
+  "title": "Introduction_to_Linear_and_Matrix_Algebra__Nathaniel_Johnston___Z-Library__EQ0114",
+  "page": "063",
+  "ink_before": null,
+  "seconds": 217.7,
+  "finish": "stop",
+  "error": "",
+  "proposed": "```latex\n\\begin{tikzpicture}[>=stealth]\n\\def\\th{38}\n\n% Axes (teal)\n\\draw[->, very thick, teal] (-4,0) -- (5,0);\n\\draw[->, very thick, teal] (0,-0.5) -- (0,4.5);\n\n% x and y labels\n\\node[right] at (5,0) {$x$};\n\\node[above] at (0,4.5) {$y$};\n\n% e_1 and e_2 labels\n\\node[teal] at (4.3,-0.4) {$\\mathbf{e}_1$};\n\\node[teal] at (-0.5,3.9) {$\\mathbf{e}_2$};\n\n% Orange vectors\n\\draw[->, line width=1.5pt, orange] (0,0) -- ({4*cos(\\th)},{4*sin(\\th)});\n\\draw[->, line width=1.5pt, orange] (0,0) -- ({-3.5*sin(\\th)},{3.5*cos(\\th)});\n\n% Dashed projection lines\n\\draw[dashed, gray] ({4*cos(\\th)},{4*sin(\\th)}) -- ({4*cos(\\th)},0);\n\\draw[dashed, gray] ({4*cos(\\th)},{4*sin(\\th)}) -- (0,{4*sin(\\th)});\n\\draw[dashed, gray] ({-3.5*sin(\\th)},{3.5*cos(\\th)}) -- ({-3.5*sin(\\th)},0);\n\\draw[dashed, gray] ({-3.5*sin(\\th)},{3.5*cos(\\th)}) -- (0,{3.5*cos(\\th)});\n\n% Right angle marks\n\\draw ({4*cos(\\th)-0.2},0) -- ++(0,0.2) -- ++(0.2,0);\n\\draw ({-3.5*sin(\\th)+0.2},{3.5*cos(\\th)}) -- ++(0,-0.2) -- ++(-0.2,0);\n\n% Theta angle labels\n\\node at ({0.8*cos(\\th/2)},{0.8*sin(\\th/2)}) {$\\theta$};\n\\node at ({-0.4*sin(\\th/2)},{0.8*cos(\\th)}) {$\\theta$};\n\n% Brace for cos(theta) at bottom\n\\draw[decorate, decoration={brace, amplitude=5pt, mirror}, gray] \n  (0,-0.4) -- ({4*cos(\\th)},-0.4);\n\\node[below=5pt] at ({2*cos(\\th)},-0.4) {$\\cos(\\theta)$};\n\n% Brace for sin(theta) on right\n\\draw[decorate, decoration={brace, amplitude=5pt}, gray] \n  ({4*cos(\\th)+0.3},0) -- ({4*cos(\\th)+0.3},{4*sin(\\th)});\n\\node[right=5pt] at ({4*cos(\\th)+0.3},{2*sin(\\th)}) {$\\sin(\\theta)$};\n\n% Brace for -sin(theta) at top\n\\draw[decorate, decoration={brace, amplitude=5pt, mirror}, gray] \n  ({-3.5*sin(\\th)},{3.5*cos(\\th)+0.4}) -- (0,{3.5*cos(\\th)+0.4});\n\\node[above=5pt] at ({-1.75*sin(\\th)},{3.5*cos(\\th)+0.4}) {$-\\sin(\\theta)$};\n\n% Brace for cos(theta) on right side of y-axis\n\\draw[decorate, decoration={brace, amplitude=5pt}, gray] \n  ({0.3},{3.5*cos(\\th)}) -- ({0.3},0);\n\\node[left=5pt] at ({0.3},{1.75*cos(\\th)}) {$\\cos(\\theta)$};\n\n% Main equation labels\n\\node[orange, anchor=west] at ({4*cos(\\th)+0.5},{4*sin(\\th)+0.2}) \n  {$R^{\\theta}(\\mathbf{e}_1) = (\\cos(\\theta), \\sin(\\theta))$};\n\\node[orange, anchor=east] at ({-3.5*sin(\\th)-0.3},{3.5*cos(\\th)+0.3}) \n  {$R^{\\theta}(\\mathbf{e}_2) = (-\\sin(\\theta), \\cos(\\theta))$};\n\n\\end{tikzpicture}\n```",
+  "outcome": "rejected: renderable() refuses it"
+ },
+ {
+  "short": "EQ0439",
+  "title": "Introduction_to_Linear_and_Matrix_Algebra__Nathaniel_Johnston___Z-Library__EQ0439",
+  "page": "170",
+  "ink_before": null,
+  "seconds": 21.2,
+  "finish": "stop",
+  "error": "",
+  "proposed": "\\begin{tikzpicture}[>=Stealth]\n% Top matrix [A | I]\n\\node at (0,3) {$[A\\mid I] = \\left[\\begin{array}{cccccccc|cccc}\n* & * & * & * & * & * & * & * & 1 & 0 & 0 & 0 \\\\\n* & * & * & * & * & * & * & * & 0 & 1 & 0 & 0 \\\\\n* & * & * & * & * & * & * & * & 0 & 0 & 1 & 0 \\\\\n* & * & * & * & * & * & * & * & 0 & 0 & 0 & 1\n\\end{array}\\right]$};\n\n% Bottom matrix [R | E] with highlights\n\\begin{scope}[on background layer]\n  \\fill[blue!15] (-0.3,2.3) rectangle (8.6,0.15);\n  \\fill[pink!40] (8.7,0.15) rectangle (12.5,-0.65);\n\\end{scope}\n\\node at (6,-0.25) {$\\left[\\begin{array}{cccccccc|cccc}\n\\boldsymbol{\\star} & * & * & * & * & * & * & * & * & * & * & * \\\\\n0 & 0 & \\boldsymbol{\\star} & * & * & * & * & * & * & * & * & * \\\\\n0 & 0 & 0 & 0 & 0 & \\boldsymbol{\\star} & * & * & * & * & * & * \\\\\n0 & 0 & 0 & 0 & 0 & 0 & 0 & 0 & * & * & * & *\n\\end{array}\\right] = [R\\mid E]$};\n\n% row-reduce arrow\n\\node at (-4.5,1.4) {row-reduce};\n\\draw[->] (-5.7,1.4) -- (-2.6,1.4);\n\n% range(A^T) label and arrows\n\\node[blue!50!black] at (-2.5,-1.7) {$\\operatorname{range}(A^T)$};\n\\draw[blue!50!black,->] (-2.3,-1.4) to[bend left=15] (-0.5,1.4);\n\\draw[blue!50!black,->] (-2.3,-1.5) to[bend left=5] (-0.5,0.7);\n\\draw[blue!50!black,->] (-2.3,-1.6) to[bend right=5] (-0.5,0.0);\n\n% null(A^T) label\n\\node[purple!70!black,anchor=west] at (12.5,-0.25) {$\\leftarrow \\operatorname{null}(A^T)$};\n\\end{tikzpicture}",
+  "outcome": "rejected: renderable() refuses it"
+ },
+ {
+  "short": "EQ0575",
+  "title": "Introduction_to_Linear_and_Matrix_Algebra__Nathaniel_Johnston___Z-Library__EQ0575",
+  "page": "224",
+  "ink_before": null,
+  "seconds": 55.6,
+  "finish": "stop",
+  "error": "",
+  "proposed": "\\begin{array}{c}\nA = \\left[\\begin{array}{cccccc} * & * & * & * & * & * \\\\ * & * & * & * & * & * \\\\ * & * & * & * & * & * \\\\ * & * & * & * & * & * \\\\ * & * & * & * & * & * \\\\ * & * & * & * & * & * \\\\ * & * & * & * & * & * \\end{array}\\right] = \\overbrace{\\left[\\begin{array}{ccc} * & * & * \\\\ * & * & * \\\\ * & * & * \\\\ * & * & * \\\\ * & * & * \\\\ * & * & * \\\\ * & * & * \\end{array}\\right]}^{\\mathrm{rank}(A)=3} \\left[\\begin{array}{cccccc} * & * & * & * & * & * \\\\ * & * & * & * & * & * \\\\ * & * & * & * & * & * \\end{array}\\right]\n\\end{array}",
+  "ink_after": 117,
+  "outcome": "accepted: original did not render, this does"
+ },
+ {
+  "short": "EQ0774",
+  "title": "Introduction_to_Linear_and_Matrix_Algebra__Nathaniel_Johnston___Z-Library__EQ0774",
+  "page": "289",
+  "ink_before": 10,
+  "seconds": 100.4,
+  "finish": "stop",
+  "error": "",
+  "proposed": "```latex\n\\begin{aligned} m_{1,2}=\\det\\left(\\left(\\begin{matrix} 1 & 2 & 3 \\\\ 4 & 5 & 6 \\\\ 7 & 8 & 9 \\end{matrix}\\right)\\right)=\\det\\begin{pmatrix} 4 & 6 \\\\ 7 & 9 \\end{pmatrix}=4 \\times 9-6 \\times 7= & 36-42 \\\\ & =-6. \\end{aligned}\n```",
+  "ink_after": 19,
+  "outcome": "rejected: ink does not fall"
+ },
+ {
+  "short": "FO2071",
+  "title": "Introduction_to_Linear_and_Matrix_Algebra__Nathaniel_Johnston___Z-Library__FO2071",
+  "page": null,
+  "ink_before": null,
+  "seconds": 11.1,
+  "finish": "stop",
+  "error": "",
+  "proposed": "\\$151",
+  "ink_after": null,
+  "outcome": "cannot gate: no scan reference"
+ },
+ {
+  "short": "FOX_fabb4bba18",
+  "title": "Introduction_to_Linear_and_Matrix_Algebra__Nathaniel_Johnston___Z-Library__FOX_fabb4bba18",
+  "page": null,
+  "ink_before": null,
+  "seconds": 5.8,
+  "finish": "stop",
+  "error": "",
+  "proposed": "1 per dozen peanut butter cookies sold,",
+  "ink_after": null,
+  "outcome": "cannot gate: no scan reference"
+ }
+]

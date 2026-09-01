@@ -58,6 +58,16 @@ def open_run(blob_dir, tool: str, *, script: str = "",
     rid = run_id or new_run_id(tool)
     d = log_dir(blob_dir)
     d.mkdir(parents=True, exist_ok=True)
+    # 448 — the SCRIPT ITSELF, beside the run, not merely its path. A path
+    # rots: the file moves, or is edited the next day, and the record then
+    # points at something that is not what ran. The text cannot rot.
+    if script and Path(script).is_file():
+        try:
+            (d / ("%s.script" % rid)).write_text(
+                Path(script).read_text(encoding="utf-8", errors="replace"),
+                encoding="utf-8")
+        except OSError:
+            pass
     head = {
         "kind": "run",
         "run_id": rid,
