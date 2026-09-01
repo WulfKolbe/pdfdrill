@@ -1,0 +1,115 @@
+482 — the package-gap census
+2026-09-01T20:25Z · 1,349 documents · tools/pkggap482.py
+
+THE INSTRUMENT
+--------------
+An existence test, not a typeset probe:
+
+  \expandafter\ifx\csname NAME\endcsname\relax \write16{MISSING:NAME} \fi
+
+Typesetting `$\cmd$` to see whether it errors confuses three questions —
+undefined, defined-but-missing-its-argument, defined-but-illegal-here. The
+csname test asks only the one being asked, needs no arguments, and runs every
+name in one xelatex pass. (Side effect recorded rather than hidden: `\csname`
+makes an undefined name equal to `\relax`, so each name is tested once.)
+
+THE HEADLINE
+------------
+  distinct control sequences used in maths values     781
+  UNDEFINED in the report preamble                    213
+  their total occurrences                          11,624
+
+  a package would define them                17 commands,    536 occurrences
+  no candidate package defines them         196 commands, 11,088 occurrences
+     of those, used in ONE document only    167 commands,  8,470 occurrences
+     used in more than one document          29 commands,  2,618 occurrences
+
+THE FOUR KNOWN GAPS, MEASURED
+-----------------------------
+  \longdiv     ALREADY FIXED — defined by the \providecommand 442 added.
+               It does not appear in the missing list.
+  mathrsfs / stmaryrd   ALREADY FIXED — \mathscr and \llbracket both define.
+  mathtools    85 occurrences, 7 commands: \coloneqq \eqqcolon \mathclap
+               \prescript \vcentcolon \xleftrightarrow \xmapsto
+               (479 measured 83 by name; the census finds two more)
+  \overparen   15 occurrences, 5 documents — stix2
+
+WHAT A PACKAGE WOULD ACTUALLY BUY
+---------------------------------
+  package      commands  occurrences   what it defines
+  ---------------------------------------------------------------------
+  bm                  1          327   \bm                        7 docs
+  mathtools           7           85   \coloneqq \eqqcolon \mathclap
+                                       \prescript \vcentcolon \xleftrightarrow
+                                       \xmapsto
+  extarrows           2           69   \xleftrightarrow \xlongequal
+  stix2               2           19   \oiint \overparen
+  cancel              1           10   \cancel
+  wasysym             2           15   \oiint \varangle
+  mathabx             3           15   \blackdiamond \nprecsim \oiint
+  esint               1            3   \oiint
+  tipa                1            2   \s
+  esvect              1            1   \vv
+  ---------------------------------------------------------------------
+
+`\oiint` is claimed by four of them; one is enough. Deduplicated, the whole
+package-fixable population is 17 distinct commands and 536 occurrences, and
+four packages cover almost all of it:
+
+  bm + mathtools + extarrows + stix2   =  ~500 of the 536 occurrences
+
+\bm is the biggest single gap and nobody had named it: 327 occurrences across
+7 documents, more than mathtools, extarrows, stix2 and \longdiv put together.
+
+AND THE LARGER HALF IS NOT A PACKAGE GAP AT ALL
+-----------------------------------------------
+11,088 of the 11,624 occurrences — 95% — are commands no candidate package
+defines. They are the SOURCE DOCUMENT'S OWN MACROS, and the census makes that
+visible for the first time:
+
+  \psline 1003, \pscircle 571, \psset 466, \psarc 455, \rput 404,
+  \Rnode 393, \ncline 318, \pspicture 285, \endpspicture 285
+
+  — PSTricks, every one of them in a SINGLE document. 4,180 occurrences from
+    one book whose figures are PSTricks source that MathPix read as maths.
+
+  \mv 488, \on 376, \kbrowsep 252, \la 240, \g 206, \rom 203, \OO 161,
+  \mc 166, \Z 169, \C 183 — author macros, defined in that document's own
+  preamble and meaningless outside it.
+
+167 of the 196 appear in exactly one document. Loading packages cannot fix
+any of it; only injecting the author's preamble can, which is what
+`injectlatex` exists for and what out/056's 286 note already measured (author
+preamble alone took a 10-document sample from 66.7% to 52.2%, so it is not a
+free win either).
+
+THE 29 THAT SPAN DOCUMENTS ARE THE ONES WORTH A DECISION
+--------------------------------------------------------
+  \arrow          624   6 docs    tikz-cd / chemfig, depending on the document
+  \mv             488   2
+  \relax          278   2         a TeX primitive that survived into a value
+  \C              183   4         author macro for the complex numbers
+  \Perp           165  10         THE conditional-independence glyph from the
+                                  MathPix correspondence (2010.14265's six
+                                  spellings). Undefined in our preamble.
+  \ket            136   5   \bra   42   5     quantum notation — braket
+  \wt             129   2
+  \node           108   3   \draw  50   3     TikZ, inside a maths value
+  \ar              78   5         tikz-cd arrow
+  \abs             73   2
+  \captionsetup    42  21         caption — and 21 documents is the widest
+                                  spread of any, which is 481's figure-wrapper
+                                  class showing up here from the other side
+
+WHAT I RECOMMEND, AND WHAT I DID NOT DO
+---------------------------------------
+Four packages — bm, mathtools, extarrows, stix2 — cover ~500 occurrences and
+close every gap found one-at-a-time so far except the author macros. `braket`
+would add 178 more (\ket + \bra).
+
+I did not add them. The preamble is loaded by every build in the corpus and
+mathtools patches amsmath internals; the change wants its own task with a
+corpus compile behind it, which is exactly the argument for doing it once.
+This census is what that task should be sized against.
+
+Nothing was changed.
