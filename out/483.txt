@@ -1,0 +1,134 @@
+483 — the display delimiter, and the correction 481 needed
+2026-09-02T09:20Z · ~/MX/PDFDRILL @ eqblobs-and-gzip-tex
+
+FIRST, A CORRECTION TO 481
+--------------------------
+481 reported "\] inside a maths value — 1,168 rows, 178 documents" and I
+carried it forward as 1,168 rows to repair. That was a count of rows
+CONTAINING a display delimiter, not of rows BROKEN by one.
+
+`renderable()` has stripped a leading `\[` and a trailing `\]` since before
+this task. Measured against the same 1,168:
+
+  already render                821   70.3%
+  refused                       347   29.7%
+
+So the repairable population was never 1,168. It was at most 347, and the
+delimiter is the cause of only part of that.
+
+WHY EACH OF THE 347 IS REFUSED, by the FIRST gate that rejects it
+------------------------------------------------------------------
+  delimiter still mid-string          167
+  passes these, refused further on     90
+  unbalanced brace                     64
+  trailing } AFTER the \]              16
+  bare $                               10
+
+WHAT 483 FIXES: THE 16
+----------------------
+mielke EQ0190 (p080) and EQ0453 (p151), both at confidence 1.000:
+
+  \[ T_{G}: \quad T_{g} \psi(m)=D(…) \psi(g^{-1} m) . \] }
+  \[ L_{a b}^{(\star)}:=\frac{1}{2} \varepsilon_{a b c d} L^{c d}=L_{a b} . \] }
+
+The trailing-`\]` strip is anchored at the END of the string. A stray `}`
+after it means the anchor never matches, the `\]` is then mid-string, and the
+gate refuses a row whose mathematics is perfect at confidence 1.000.
+
+481 established the brace is OURS — MathPix's lines.json for those two lines
+reads `'\[\n…\n\]'` with no brace at all. `_drop_stray_closers` removes
+UNMATCHED closers from the end, by counting rather than by position, before
+the delimiter gate runs. Escaped `\}` does not count; a value unbalanced the
+other way is left alone, because that is a different defect.
+
+AND A DOWN-PAYMENT ON 485: THE FURNITURE
+-----------------------------------------
+Diagnosing the 167 mid-string rows showed 483 and 485 are the same repair
+seen twice. Their shape is
+
+  \begin{figure} \captionsetup{labelformat=empty} \caption{Table 2. …} \[ … \]
+
+446 already drops the leading `\begin{figure}`. What it left behind was the
+CAPTION, and that keeps the `\[` mid-string just as surely as the float did.
+`_drop_leading_furniture` strips `\captionsetup`, `\caption`, `\label`,
+`\subcaption`, `\captionof` and the bare `\centering`-class commands from the
+front — with braces matched by counting, since a caption can nest them.
+
+THE GUARD IS THAT A `\[` STILL FOLLOWS. A `\caption` is furniture only when
+there is a display for it to be furniture around; a value that IS a caption
+is left exactly as it is, and a caption with unbalanced braces is left alone
+rather than guessed at. Both are tested.
+
+WHAT IT ACTUALLY RECOVERS
+-------------------------
+Measured by running the gate over the same corpus rows with the two new steps
+disabled and enabled:
+
+                              before   after   recovered
+  display-delimiter rows       821      838       +17
+  figure-wrapper rows            3        4        +1
+
+  distinct rows, de-duplicated across both classes:  17, in 11 documents
+
+    Variational Approach to Gravity Field Theories   3
+    Understanding Vision                             2
+    Geometrodynamics (mielke)                        2
+    General Relativity Simplified                    2
+    Space Group Representations                      2
+    1001850, Seven Sketches, 2602.14075v1,
+    2016_Book_AdvancesInDiscreteDifferential,
+    1209.3845v2, 10.1007_s00006-017-0798-7           1 each
+
+Seventeen rows. Not 1,168, and not 347. The delimiter itself was already
+handled; what was not handled was the two things standing between the
+delimiter and the end of the string.
+
+WHAT REMAINS, ENUMERATED RATHER THAN LEFT VAGUE
+-----------------------------------------------
+Of the 38 figure-wrapper rows still refused:
+
+  7   a BALANCED float — `\begin{figure} \[ … \] \caption{…} \end{figure}`.
+      446's opener rule correctly leaves a balanced environment alone, and
+      here the furniture is TRAILING. Extracting the one display from a
+      complete float is a different repair and is 485's.
+  31  varied: a `\begin{aligned}` that never closes, two displays in one
+      value, content after the closing `\]`.
+
+Of the 347 delimiter rows still refused, 167 are mid-string for reasons the
+furniture strip does not reach — chiefly two displays in one value, which is
+a MathPix segmentation defect and not something to paper over — and 64 carry
+an unbalanced brace, which is a truncation, not a wrapper.
+
+WHY THIS IS A READ-TIME STRIP AND NOT A FIELD FIX
+--------------------------------------------------
+`docs/layers/PROPS.md` is explicit: `latex_refined` exists because "`latex` is
+never overwritten" (232). And a model rebuild is what 430 measured — object
+ids are `uuid4`, so a rebuild leaves 1 id in common out of 2,196 and every
+in-place enrichment goes with it.
+
+Stripping at read time also keeps MathPix's bytes verbatim on disk, which 465
+showed has evidentiary value: the defect reports to the vendor rest on the
+stored value being what they actually sent.
+
+WHAT WAS CHANGED
+----------------
+  src/pdfdrill/report_tex.py        _drop_leading_furniture,
+                                    _drop_stray_closers, both called before
+                                    the delimiter gate because both exist so
+                                    it can anchor
+  tests/test_display_delimiter.py   13 tests: the mielke shape, matched vs
+                                    unmatched closers, escaped braces, the
+                                    furniture guard, nested braces in a
+                                    caption, an unbalanced caption left
+                                    alone, ordering before the gate, an
+                                    ordinary value untouched, a genuine
+                                    mid-string delimiter still refused, and
+                                    the balanced float still refused as 485's
+                                    remaining work
+
+Full suite: 2,865 passed.
+
+NOT DONE
+--------
+No report was rebuilt. The 17 rows change nothing on disk until the documents
+that hold them are rebuilt, and 11 of them are outside the published 22.

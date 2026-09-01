@@ -714,6 +714,77 @@ def alphabet_safe(latex: str) -> str:
     return _ALPHABET_ARG.sub(repl, latex or "")
 
 
+#: float furniture MathPix sweeps in with a display it cut out of a figure
+#: (483/485). `\centering` and friends take no argument; the rest take one
+#: braced argument that may itself contain braces, so it is matched by
+#: counting rather than by a regex.
+FLOAT_FURNITURE_ARG = ("captionsetup", "caption", "label", "subcaption",
+                       "captionof")
+FLOAT_FURNITURE_BARE = ("centering", "raggedright", "raggedleft", "small",
+                        "footnotesize", "scriptsize", "noindent")
+
+
+def _drop_leading_furniture(lx: str) -> str:
+    r"""Strip float furniture from the FRONT of a value, while a display follows.
+
+    483/485. `\begin{figure} \captionsetup{labelformat=empty} \caption{Table 2.
+    …} \[ … \]` is one object's display with the float it was printed in swept
+    in around it. 446 already drops the leading `\begin{figure}`; what it left
+    behind was the caption, and that keeps the `\[` MID-STRING, where the
+    delimiter gate refuses it.
+
+    THE GUARD IS `\[` STILL FOLLOWS. A `\caption` is only furniture when there
+    is a display after it for it to be furniture AROUND; a value that is a
+    caption is a caption, and is left alone.
+    """
+    while True:
+        s = lx.lstrip()
+        if "\\[" not in s:
+            return lx
+        for cmd in FLOAT_FURNITURE_BARE:
+            if re.match(r"\\%s(?![a-zA-Z])\s*" % cmd, s):
+                lx = re.sub(r"^\\%s(?![a-zA-Z])\s*" % cmd, "", s)
+                break
+        else:
+            m = re.match(r"\\(%s)\s*(\[[^\]]*\])?\s*\{"
+                         % "|".join(FLOAT_FURNITURE_ARG), s)
+            if not m:
+                return lx
+            depth, i = 0, m.end() - 1
+            while i < len(s):
+                if s[i] == "{":
+                    depth += 1
+                elif s[i] == "}":
+                    depth -= 1
+                    if depth == 0:
+                        break
+                i += 1
+            if depth != 0:
+                return lx                  # unbalanced — not ours to touch
+            lx = s[i + 1:].lstrip()
+
+
+def _drop_stray_closers(lx: str) -> str:
+    r"""Drop unmatched `}` from the END of a value (483).
+
+    mielke EQ0190 and EQ0453, both at confidence 1.000, read
+    `\[ … . \] }`. MathPix's own lines.json for those lines is
+    `'\[\n…\n\]'` — the trailing brace is NOT in their text, it is ours, and
+    it is what stops the trailing-`\]` strip from anchoring. 16 rows.
+
+    Only UNMATCHED closers go: the count is what decides, not the position.
+    """
+    stripped = re.sub(r"\\[{}]", "", lx.replace("\\\\", ""))
+    excess = stripped.count("}") - stripped.count("{")
+    while excess > 0:
+        m = re.search(r"\}\s*$", lx)
+        if not m:
+            break
+        lx = lx[:m.start()].rstrip()
+        excess -= 1
+    return lx
+
+
 def renderable(latex: str) -> str:
     """Return latex safe to put inside $...$, or "" when it is not.
 
@@ -769,6 +840,13 @@ def renderable(latex: str) -> str:
     # never reaches (live hang: 0902.0431 EQ0035, \displaylines)
     if re.search(r"\\(displaylines|eqalign(no)?|halign|cr)(?![a-zA-Z])", lx):
         return ""
+    # 483/485 — what 446's opener rule left behind. Dropping the leading
+    # `\begin{figure}` is not enough when a `\captionsetup` and a `\caption`
+    # stand between it and the display; and a stray unmatched `}` after the
+    # closing `\]` stops the trailing strip from anchoring. Both run BEFORE
+    # the delimiter gate, because both exist to let it anchor.
+    lx = _drop_leading_furniture(lx)
+    lx = _drop_stray_closers(lx)
     # display delimiters: strip a leading \[ / trailing \]; reject mid-string
     lx = re.sub(r"^\\\[\s*", "", lx)
     lx = re.sub(r"\s*\\\]$", "", lx)
