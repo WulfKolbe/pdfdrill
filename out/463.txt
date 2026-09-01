@@ -1,0 +1,138 @@
+463 — all 22 rebuilt with --profile published
+2026-09-01T19:05Z · 3 hours 12 minutes wall clock
+
+WHICH REACH READY
+-----------------
+  document                         READY  pages rule   tabHTML frHTML TAB    secs
+  ------------------------------------------------------------------------------------------------
+  0707.4470                        yes    12    none   False  True   0      96
+  0902.0431                        NO     184   none   True   True   3      377
+  1510.06699                       yes    40    none   True   True   7      425
+  1605.05775                       yes    7     none   False  True   0      35
+  2010.14265                       yes    3     none   False  True   0      27
+  2106.07890                       yes    7     none   False  True   0      80
+  2501.06662                       yes    8     none   False  True   0      100
+  BradleyGastaldiTerilla2023       yes    6     none   True   True   1      18
+  bradley_spring22                 yes    4     none   False  True   0      22
+  cardona-qft-methods              yes    92    none   True   True   8      1142
+  fong-spivak-invitation           yes    104   none   True   True   68     475
+  fong-spivak-seven-sketches       yes    107   none   True   True   63     498
+  gilmore-lie-groups               yes    153   none   True   True   38     1724
+  johnston-linear-matrix-algebra   yes    284   none   True   True   43     2614
+  kohlhase-omdoc                   yes    57    none   True   True   103    124
+  lyche-numerical-linear-algebra   yes    140   none   True   True   7      1499
+  mielke-geometrodynamics          yes    108   none   True   True   5      1185
+  pdf-dc99cf88                     —      (no pdf — published only, not in the library)
+  penev_A                          yes    15    none   True   True   2      4
+  penev_B                          yes    11    none   True   True   1      60
+  rph8-g15q                        yes    8     none   False  True   0      72
+  voloshin-hypergraph              yes    64    none   True   True   2      265
+  ------------------------------------------------------------------------------------------------
+  READY on disk: 20 of 21
+
+Re-checked against `publishready` on disk after the run, not read out of the
+runner's own record. 20 of 21 READY. pdf-dc99cf88 has no library folder and
+no PDF — it exists only as published output, so it could not be rebuilt and
+is not counted either way.
+
+`tabHTML` is False on exactly the seven documents with 0 TAB objects, which
+is the condition, not a failure. `formula-report.html` is present on all 21:
+every one of them has formulas.
+
+THE ONE THAT DOES NOT: 0902.0431
+--------------------------------
+  STOPPED at step 3 (measure): run holds 1216 data rows, the manifest
+  expects 1219 for the equations table
+
+and so its report carries the old 55-row measurement, which publishready says
+plainly:
+
+  [  ] ink        MEASURES ONLY 55 of 1219 rows (5%) — 1164 carry no
+                  measurement, so the report was rebuilt after it was measured
+  [  ] residuals  every one of 55 rows is class C — a distribution with no
+                  variation is a pairing failure, not a result
+
+WHERE THE THREE ROWS GO MISSING, narrowed:
+
+  report.tables.json  "Display equations"   1,219 identifiers
+  report.tex          equations section     1,219 \ident{} rows
+  identifiers in one and not the other      0, both directions
+  the lattice run over report.pdf           1,216 data rows
+
+The manifest and the LaTeX agree exactly. The shortfall is between the .tex
+and the rasterised lattice — three rows that are written and do not produce a
+countable row in the rendered page. That is a rendering/lattice question, not
+a projection one, and it is now localised rather than merely known.
+
+456 recorded this as "off-by-6, 1,213 vs 1,219". It is off by 3 today, from a
+fresh measure. The offset is not constant, which rules out a fixed structural
+cause such as a header or footer row.
+
+WHAT THE PROFILE DID
+--------------------
+Every build stamped `formula_rule: none`. The formulas section is gone from
+all 21 and the header states the count anyway, e.g. cardona:
+
+  3,760 inline formulas (section omitted; 0 did not render), 1,012 display
+  equations, 8 tables, 40 unrecovered image regions.
+
+The page counts are the visible effect:
+
+  cardona-qft-methods     735 -> 92     lyche      595 -> 140
+  gilmore-lie-groups      739 -> 153    mielke     494 -> 108
+  johnston                801 -> 284    voloshin   310 -> 64
+  fong-spivak-invitation  705 -> 104    kohlhase   101 -> 57
+
+THREE DEFECTS THE REBUILD FOUND, AND ONE OF THEM WAS MINE
+----------------------------------------------------------
+Committed separately (c0a5bcd) before the run that produced the table above.
+None of the three would have failed a test; each produced a plausible
+artefact.
+
+  1. THE RESUME ASKED AN MTIME QUESTION. `fresh_ink` compared
+     report.ink.json's mtime with the measure stamp's. `--profile published`
+     drops the formulas section, so penev_B went 20 pages -> 11, and the
+     stored measurement of the 20-page build still post-dated its own stamp.
+     The resume fired, steps 2-4 were skipped, and the reading build adopted
+     a residual measured on a document that no longer exists. It reported
+     READY. Eleven of twelve documents did this before it was caught.
+
+     It now asks four content questions: the ink post-dates the stamp; the
+     ink's `measured_against` IS that build; the same formula rule; the same
+     model. Caught because a document with an 878-second plan finished in 3.
+
+  2. `build_report` TOOK THE BIBKEY FROM THE TIDDLERS FILENAME. 404 learned
+     this for `publish_ready` and there is a test named for it; the same
+     inference sat here unexamined. 462 renamed nine bibkeys and not their
+     folders, so every title became `voloshin-hypergraph_EQ0001` while the
+     file stayed `Introduction to Graph and Hypergraph Theory (…)`.
+     `rows_for` matched nothing and built a ONE-PAGE report with no rows from
+     a model holding 2,555 formulas and 266 equations. It compiled. It
+     stamped. Nine documents.
+
+     `resolve_bibkey` now reads `meta.bibkey`, and an empty report from a
+     projection carrying typed titles raises `ReportRefused`.
+
+  3. MY OWN NOTE BECAME A BRANCH. I added a "NO RESUME: … Re-measuring."
+     line as an `elif`, and the `else` holding steps 2-4 bound to it — so
+     every document with an existing ink.json printed the message and then
+     measured nothing. The message caused the failure it exists to report.
+     Caught because a run that should have taken fifteen minutes took forty
+     seconds and printed no step 2, 3 or 4.
+
+  19 tests across the three. 2,852 passing at the time of the run.
+
+A FOURTH THING, WHICH IS OPERATIONAL AND NOT A CODE DEFECT
+-----------------------------------------------------------
+After defect 2 had emptied nine reports, `inkreport` refused all nine at
+preflight — "equations table: 0 rows" — reading the manifest those empty
+builds had written. The build that would repair the manifest was the one
+being gated. The run does one `reporttex` first where the manifest reads 0
+rows, which is step 2 of inkreport anyway. Worth knowing that the preflight
+can deadlock on its own output; not worth changing the preflight, whose job
+is exactly to refuse a report in that state.
+
+NOT PUBLISHED
+-------------
+Nothing was copied to ~/pdfdrill.github.io. The site is still the 28 August
+set. That is 464.
