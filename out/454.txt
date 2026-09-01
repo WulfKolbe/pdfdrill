@@ -1,0 +1,74 @@
+454 — the controlled pair: same crop minus one feature
+======================================================
+
+THE HYPOTHESIS IS REFUTED, and that is the useful outcome.
+
+  2103.01507 p205, the maths side of 453's closest substantial pair
+  mask x,y,w,h = 0, 0, 238, 85 — the operator name `hocolim` and its
+  limit subscript `Tw □S VB^C_{sub,class}`, and nothing else
+
+                    confidence     confidence_rate   classified
+  original          0.01126        0.98662           maths
+  masked            0.01456        0.98468           maths
+
+Removing the upper-left text changed nothing. The region is still read as
+mathematics, and the confidence moved by three parts in a thousand — UPWARD,
+which is the opposite of the direction a "the text is confusing the
+classifier" account would predict.
+
+WHAT A REFUTATION HERE MEANS
+
+The classifier is not being tipped into "mathematics" by that text. Whatever
+makes this region read as maths at a confidence of one part in a hundred is
+somewhere else, and the near-pair with the p204 graphic — ink distance 11
+across 123 components — is not explained by the operator name.
+
+That is worth sending precisely because it closes a door. Everything sent so
+far has been "this output is wrong"; this is "this input feature is NOT the
+cause", established by a controlled pair rather than argued.
+
+WHAT THE TWO READINGS ACTUALLY SAY
+
+Both return a `\begin{array}{c}` — a two-row vertical structure, which is
+what the region is: two expressions joined by a vertical map.
+
+  original   \begin{array}{c} \underset{Tw □S VB^C_{sub,class}}{hocolim}
+             C^{*,c}_{reld}(B Ẑ_f, F_k(S^V ∧ k ; S^W ∧ k)^{mfib}) ∧ S^{T□}…
+
+  masked     \begin{array}{c} C^{*,c}_{reld}(B Ẑ_f, F_k(…)^{mfib}) ∧ S^{T□}_f-Q_f
+             \\ \underset{Tw □S VB^C_{sub,class}}{hocolim} \bigv…
+
+The masked reading drops the first `hocolim` — correctly, it is no longer
+there — and otherwise reproduces the same structure. The model is READING the
+image, not pattern-matching a template: it noticed the operator was gone.
+
+TWO CALLS, NOT ONE, AND WHY
+
+The confidence recorded on the model is 0.002 and came from a PAGE process.
+The same crop through `/v3/text` returns 0.0113. Those are different numbers
+from different endpoints for the same region, so comparing a snippet reading
+of the modified crop against the stored page confidence would have confounded
+the modification with the endpoint. Both crops went through the same call.
+The 0.002 against 0.0113 is itself worth knowing before any future comparison
+quotes one for the other.
+
+THE MASK WAS MEASURED, NOT EYEBALLED
+
+Three earlier rectangles chosen by eye each clipped `C^{*,c}_{rel∂}` or left
+the tail of the subscript behind, which would have made this "same image minus
+one feature AND part of another" — an uncontrolled pair, and a paid call spent
+on a question nobody asked. `ink_only` on the crop finds 123 components, of
+which 24 form a cluster with bounding box x 8..234, y 17..78; the next ink to
+the right begins at x=241. The mask is that cluster with three pixels of
+clearance.
+
+EVIDENCE, per 447
+
+  2103.01507/calls/20260901T084021Z-snip454-40b72f26.jsonl
+  2103.01507/calls/20260901T084021Z-snip454-40b72f26.script
+  2103.01507/calls/20260901T084021Z-snip454-40b72f26_original.jpg
+  2103.01507/calls/20260901T084021Z-snip454-40b72f26_masked.jpg
+
+Both crops, the mask geometry, both requests as sent, both responses in full,
+and the script copied rather than referenced. The pair can be re-read or
+re-sent by anyone without rebuilding anything.

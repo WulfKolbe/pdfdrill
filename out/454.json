@@ -1,0 +1,33 @@
+{
+ "pair": "2103.01507 p205",
+ "crop_url": "https://cdn.mathpix.com/cropped/81ff6df2-2368-4983-80a6-d9be0b85a83d-205.jpg?height=247&width=960&top_left_y=475&top_left_x=638",
+ "mask_xywh": [
+  0,
+  0,
+  238,
+  85
+ ],
+ "run_id": "20260901T084021Z-snip454-40b72f26",
+ "readings": {
+  "original": {
+   "seconds": 1.1,
+   "error": "",
+   "confidence": 0.01126363643960778,
+   "confidence_rate": 0.9866183419662774,
+   "is_printed": true,
+   "text": "$\\begin{array}{c}\\underset{\\mathrm{Tw} \\square S \\mathrm{VB}_{\\text {sub }, \\text { class }}^{\\mathrm{C}}}{\\operatorname{hocolim}} C_{\\text {reld }}^{*, c}\\left(B \\hat{Z}_{f}, F_{\\mathbb{k}}\\left(S^{V} \\wedge \\mathbb{k} ; S^{W} \\wedge \\mathbb{k}\\right)^{\\mathrm{mfib}}\\right) \\wedge S^{T \\square} \\square_{f}-Q_{f} \\\\ \\underset{\\mathrm{Tw} \\square S \\mathrm{VB}_{\\text {sub,class }}^{\\mathrm{h}}}{\\operatorname{hocolim}} C_{\\text {reld }}^{*, c}\\left(B \\hat{Z}_{f} ; S^{T \\square \\square_{f}-Q_{f}} \\wedge \\mathbb{k}\\right)\\left[d_{I}-d_{V}\\right]\\end{array}$",
+   "latex_styled": "\\begin{array}{c}\n\\underset{\\mathrm{Tw} \\square S \\mathrm{VB}_{\\text {sub }, \\text { class }}^{\\mathrm{C}}}{\\operatorname{hocolim}} C_{\\text {reld }}^{*, c}\\left(B \\hat{Z}_{f}, F_{\\mathbb{k}}\\left(S^{V} \\wedge \\mathbb{k} ; S^{W} \\wedge \\mathbb{k}\\right)^{\\mathrm{mfib}}\\right) \\wedge S^{T \\square} \\square_{f}-Q_{f} \\\\\n\\underset{\\mathrm{Tw} \\square S \\mathrm{VB}_{\\text {sub,class }}^{\\mathrm{h}}}{\\operatorname{hocolim}} C_{\\text {reld }}^{*, c}\\left(B \\hat{Z}_{f} ; S^{T \\square \\square_{f}-Q_{f}} \\wedge \\mathbb{k}\\right)\\left[d_{I}-d_{V}\\right]\n\\end{array}",
+   "classified": "maths"
+  },
+  "masked": {
+   "seconds": 0.8,
+   "error": "",
+   "confidence": 0.014562600206384616,
+   "confidence_rate": 0.9846831185809546,
+   "is_printed": true,
+   "text": "$\\begin{array}{c}C_{\\mathrm{reld}}^{*, c}\\left(B \\hat{Z}_{f}, F_{\\mathrm{k}}\\left(S^{V} \\wedge \\mathbb{k} ; S^{W} \\wedge \\mathbb{k}\\right)^{\\mathrm{mfib}}\\right) \\wedge S^{T \\square}{ }_{f}-Q_{f} \\\\ \\underset{\\mathrm{Tw} \\square S \\mathrm{VB}_{\\text {sub }, \\text { class }}^{\\mathrm{hocolim}}}{\\bigvee} C_{\\text {reld }}^{*, c}\\left(B \\hat{Z}_{f} ; S^{T \\square_{f}-Q_{f}} \\wedge \\mathbb{k}\\right)\\left[d_{I}-d_{V}\\right]\\end{array}$",
+   "latex_styled": "\\begin{array}{c}\nC_{\\mathrm{reld}}^{*, c}\\left(B \\hat{Z}_{f}, F_{\\mathrm{k}}\\left(S^{V} \\wedge \\mathbb{k} ; S^{W} \\wedge \\mathbb{k}\\right)^{\\mathrm{mfib}}\\right) \\wedge S^{T \\square}{ }_{f}-Q_{f} \\\\\n\\underset{\\mathrm{Tw} \\square S \\mathrm{VB}_{\\text {sub }, \\text { class }}^{\\mathrm{hocolim}}}{\\bigvee} C_{\\text {reld }}^{*, c}\\left(B \\hat{Z}_{f} ; S^{T \\square_{f}-Q_{f}} \\wedge \\mathbb{k}\\right)\\left[d_{I}-d_{V}\\right]\n\\end{array}",
+   "classified": "maths"
+  }
+ }
+}
