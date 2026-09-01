@@ -1,0 +1,89 @@
+455 — what a dataset could be built from today
+==============================================
+
+MEASURED FROM DISK: 250 documents carry a residual measurement, 20,124 rows.
+
+BY LABEL QUALITY
+
+  verified CORRECTED          33 rows
+      the accepted repairs. Basis: ink 32, author source 1. Every one carries
+      latex_refined, verified_by, ink_before, ink_after, ink_delta, basis,
+      author and a timestamp (437). This is the only class where a human
+      decision is recorded per row.
+
+  verified CORRECT         5,297 rows in 102 documents
+      ink agreed (clean or noise) AND the author's own LaTeX is on disk.
+      **This is a CEILING, not a count.** The author source being present
+      means the reading CAN be checked against it; it does not mean each row
+      HAS been. Per-row confirmation is not recorded anywhere — which is
+      itself the finding for dataset purposes, because the difference between
+      "checkable" and "checked" is the difference between a label and a hope.
+
+  UNVERIFIED               9,101 rows in 148 documents
+      ink agreed and nothing else did. The residual says the render matches
+      the scan; nothing says the reading is what the page means. 407 measured
+      what that is worth: an ink distance is a structural census, and two
+      different pictures with the same census score zero.
+
+  EXCLUDED                 6,851 rows in 102 documents
+      every measured row of a document whose author LaTeX is on disk. For a
+      dataset built from MathPix output these are the rows where a better
+      label already exists, so training on the OCR reading would be training
+      on the worse of two available answers.
+
+  the four do not partition: "verified correct" is the agreeing subset of
+  "excluded", by construction. The disjoint split is
+      33 corrected  +  9,101 unverified  +  6,851 from gold-bearing documents
+      +  4,139 measured rows that agreed on neither count (weak, component,
+         stable, unrendered on non-gold documents)
+
+WHAT THIS IS NOT
+
+  It is not 20,124 usable pairs. The honest usable core today is the 33.
+  Everything else is a candidate whose label rests on an instrument that
+  measures ink, and 407 established the ink is a structural census rather
+  than a reading.
+
+THE LICENCE POSITION, which constrains all of it
+
+  provenance of the 250 measured documents      docs      rows
+    other / unknown provenance                   120     6,395
+    arXiv e-print                                114     7,555
+    publisher DOI / Elsevier                       8       489
+    Z-Library book                                 8     5,685
+
+  These are CROPS OF PUBLISHED PAGES. The crop is a reproduction of the
+  page's typeset expression, not a description of it.
+
+  * The 8 Z-Library books — 5,685 rows, 28% of everything measured — are
+    redistributed copies of commercial textbooks. Nothing derived from them
+    can be published, and they are the single largest contiguous block: the
+    five biggest measured documents by row count are books.
+  * The 8 publisher/Elsevier documents are the same position.
+  * The 114 arXiv e-prints are the only clearly publishable subset, and only
+    where the paper's own licence permits it — arXiv's default licence grants
+    distribution of the PAPER, not automatic rights to redistribute derived
+    crops, and CC-BY / CC-BY-SA / arXiv-perpetual differ on exactly this.
+  * The 120 "other" have unknown provenance and would each have to be
+    established before any of them could be included. Unknown is not
+    permissive.
+
+  359 measured the shape of this already from the other side: DaTikZ-V4's
+  public release is 21% of its filtered set, and a licence split is the
+  likely reason. A dataset assembled here would face the same arithmetic and
+  worse, because a TikZ body is authored source under the paper's licence
+  while a crop is a reproduction of a printed page.
+
+WHAT COULD ACTUALLY BE PUBLISHED TODAY
+
+  Of the 33 corrected rows, those on arXiv e-prints with a permissive licence.
+  That is a number in the low tens at best, and every one would need its
+  paper's licence checked individually.
+
+  The 5,685 rows from books cannot be published at any label quality, and
+  they are the rows where the measurement is densest.
+
+  Nothing here says the corpus is not worth measuring. It says the
+  measurement's value is internal — finding defects to report to MathPix,
+  which is what it has been doing — and that a released dataset is a
+  different project with a licence audit at the front of it, not at the end.
