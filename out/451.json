@@ -1,0 +1,37 @@
+{
+ "experiment": "451 ablation — 2103.01507 p205",
+ "source_crop": "https://cdn.mathpix.com/cropped/81ff6df2-2368-4983-80a6-d9be0b85a83d-205.jpg?height=247&width=960&top_left_y=475&top_left_x=638",
+ "ablation": {
+  "what": "row-1 operator block (hocolim with its Tw box-S VB^C_{sub,class} subscript) filled with paper white",
+  "box_xywh": [
+   0,
+   0,
+   240,
+   96
+  ],
+  "crop_size": [
+   960,
+   247
+  ],
+  "ink_px_removed": 1449,
+  "unchanged_outside_box": "max pixel delta 8-9 (JPEG re-encode); 0 pixels >8 below y=96"
+ },
+ "arms": {
+  "A_control": {
+   "request_id": "5f0f8e67-5d2d-4df8-82a0-c6193c8834c6",
+   "confidence": 0.00640288585891288,
+   "confidence_rate": 0.9847185546250774,
+   "is_printed": true,
+   "line_type": "math",
+   "latex_styled": "\\begin{array}{c}\n\\underset{\\mathrm{Tw} \\square S \\mathrm{VB}_{\\text {sub,class }}^{\\mathrm{C}}}{\\operatorname{hocolim}} C_{\\text {reld }}^{*, c}\\left(B \\hat{Z}_{f}, F_{\\mathbb{k}}\\left(S^{V} \\wedge \\mathbb{k} ; S^{W} \\wedge \\mathbb{k}\\right)^{\\mathrm{mfib}}\\right) \\wedge S^{T \\square} \\square_{f}-Q_{f} \\\\\n\\underset{\\mathrm{Tw} \\square S \\mathrm{VB}_{\\text {sub,class }}^{\\mathrm{h}}}{\\operatorname{hocolim}} C_{\\text {reld }}^{*, c}\\left(B \\hat{Z}_{f} ; S^{T \\square} \\square_{f}-Q_{f} \\wedge \\mathbb{k}\\right)\\left[d_{I}-d_{V}\\right]\n\\end{array}"
+  },
+  "B_ablated": {
+   "request_id": "51be2a8d-cbfe-4832-ae4a-54166fb730f0",
+   "confidence": 0.02451532653502417,
+   "confidence_rate": 0.9865566659000091,
+   "is_printed": true,
+   "line_type": "math",
+   "latex_styled": "\\begin{array}{c}\nC_{\\mathrm{reld}}^{*, c}\\left(B \\hat{Z}_{f}, F_{\\mathrm{k}}\\left(S^{V} \\wedge \\mathbb{k} ; S^{W} \\wedge \\mathbb{k}\\right)^{\\mathrm{mfib}}\\right) \\wedge S^{T \\square}{ }_{f}-Q_{f} \\\\\n\\underset{\\mathrm{Tw} \\square S \\mathrm{VB}_{\\text {sub }, \\text { class }}^{\\mathrm{hocolim}}}{\\bigvee} C_{\\text {reld }}^{*, c}\\left(B \\hat{Z}_{f} ; S^{T \\square_{f}-Q_{f}} \\wedge \\mathbb{k}\\right)\\left[d_{I}-d_{V}\\right]\n\\end{array}"
+  }
+ }
+}

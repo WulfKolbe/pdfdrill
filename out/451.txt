@@ -1,0 +1,153 @@
+451 — the controlled ablation: same image minus one feature
+2026-09-01T10:35Z · two paid calls to MathPix /v3/text
+
+THE ANSWER TO THE QUESTION AS PUT
+---------------------------------
+It did NOT come back classified as a diagram. Both arms return
+line_data[0].type = "math", is_printed = true, is_handwritten = false. The
+hypothesis as stated is not demonstrated, and nothing here should be sent as
+if it were.
+
+What the pair does show is different, and I think better: THE READING IS NOT
+LOCAL. A change confined to the first line of a two-line display changed the
+reading of the second line, which was pixel-identical in both submissions.
+
+THE SETUP
+---------
+Pair chosen by 453: 2103.01507 p205, the closest of the substantial pairs in
+ink (d=11 over 123 components) and read at confidence 0.002 in the page pass.
+
+  source crop  https://cdn.mathpix.com/cropped/81ff6df2-2368-4983-80a6-d9be0b85a83d-205.jpg?height=247&width=960&top_left_y=475&top_left_x=638
+               960 x 247, a two-line display with a "≃" between the lines
+
+  arm A        the crop, unmodified
+  arm B        the same crop with the ROW-1 OPERATOR BLOCK removed —
+               "hocolim" and its subscript Tw □S VB^ℂ_{sub,class} — by
+               filling x 0..239, y 0..95 with paper white (255,255,255).
+               1,449 ink pixels removed.
+
+Both arms go through the SAME endpoint. The page-pass confidence of 0.002 is
+not a control: /v3/text and the page processor score the same crop
+differently, so a before/after across the two would compare two instruments.
+That is why there are two calls and not one.
+
+  reproducible in three lines:
+    a = numpy.array(PIL.Image.open(crop).convert("RGB"))
+    a[0:96, 0:240] = 255
+    PIL.Image.fromarray(a).save("ablated.jpg", quality=95)
+
+THE ABLATION IS CLEAN
+---------------------
+Outside the box the two submitted images are identical to within JPEG
+re-encoding:
+
+  region                          max pixel delta   pixels differing by >8
+  everything below y=96                        8                        0
+  row 1, right of x=240                        9                        1
+  the ablated box                            255                    3,319
+
+So the whole of row 2 — the line whose reading changes below — is unchanged.
+
+BOTH READINGS
+-------------
+arm A (control)   confidence 0.006403   confidence_rate 0.984719
+                  request 5f0f8e67-5d2d-4df8-82a0-c6193c8834c6
+
+  \underset{Tw □S VB_{sub,class}^{C}}{\operatorname{hocolim}}
+    C_{reld}^{*,c}(B Ẑ_f, F_𝕜(S^V ∧ 𝕜; S^W ∧ 𝕜)^{mfib}) ∧ S^{T□} □_f - Q_f
+  \\
+  \underset{Tw □S VB_{sub,class}^{h}}{\operatorname{hocolim}}
+    C_{reld}^{*,c}(B Ẑ_f; S^{T□} □_f - Q_f ∧ 𝕜)[d_I - d_V]
+
+arm B (ablated)   confidence 0.024515   confidence_rate 0.986557
+                  request 51be2a8d-cbfe-4832-ae4a-54166fb730f0
+
+  C_{reld}^{*,c}(B Ẑ_f, F_k(S^V ∧ 𝕜; S^W ∧ 𝕜)^{mfib}) ∧ S^{T□}{ }_f - Q_f
+  \\
+  \underset{Tw □S VB_{sub,class}^{hocolim}}{\bigvee}
+    C_{reld}^{*,c}(B Ẑ_f; S^{T□_f - Q_f} ∧ 𝕜)[d_I - d_V]
+
+WHAT CHANGED IN THE LINE THAT DID NOT CHANGE
+--------------------------------------------
+Row 2 is the same pixels in both. Three differences in how it was read:
+
+  1. the operator      A: \operatorname{hocolim}      B: \bigvee
+     In B the word "hocolim" migrated OUT of the operator slot and INTO the
+     superscript, and a large vee took its place. The page prints "hocolim".
+
+  2. the superscript   A: \mathrm{h}                  B: \mathrm{hocolim}
+     The page prints ℂ. Both are wrong, in different ways, from one image.
+
+  3. the exponent      A: S^{T \square} \square_{f}-Q_{f}
+                       B: S^{T \square_{f}-Q_{f}}
+     The page prints S^{T□_f − Q_f}. B IS CORRECT. A duplicated the box and
+     let the subscript escape the superscript.
+
+So removing content from row 1 FIXED one defect in row 2 and CREATED another.
+The effect runs in both directions, which is what makes it a mechanism rather
+than a threshold: the model is not reading the second line on its own terms.
+
+AND WITHIN ARM A ALONE
+----------------------
+The same construct appears twice in one image and is read two ways: the
+superscript on row 1 is \mathrm{C}, on row 2 it is \mathrm{h}. The page prints
+the same ℂ in both places. This is the shape 465 found on
+fong-spivak-seven-sketches p317, where one glyph on one line was read as ";"
+three times and as a CJK sequence once. Two documents, two constructs, same
+inconsistency-within-one-image.
+
+THE CONFIDENCE FIELDS DISAGREE BY TWO ORDERS OF MAGNITUDE
+--------------------------------------------------------
+  arm       confidence     confidence_rate
+  A          0.006403           0.984719
+  B          0.024515           0.986557
+
+Both readings are wrong in at least three places. `confidence` says so;
+`confidence_rate` says 98.5% and 98.7%. A consumer gating on
+`confidence_rate` accepts both. The correspondence already established that
+their `confidence` does more work than either side expected (the 20-row
+blind-spot check); this is the other half of that — the field NEXT to it does
+much less, and nothing in the response says which to use.
+
+Removing the feature raised confidence 3.8x, from 0.0064 to 0.0245. That is a
+real effect and it is not a fix: 0.02 is not a usable reading either.
+
+WHAT TO SEND
+------------
+Not "this feature causes misclassification" — it does not, and the type field
+is "math" in both arms.
+
+Send the controlled pair itself:
+
+  * one image, one region blanked, two readings
+  * the line that was NOT touched read differently in the two, in both
+    directions — one defect fixed, one introduced
+  * the same construct read two ways within a single image, twice over
+    (arm A rows 1 and 2; and 465's fatsemi)
+  * confidence 0.006 against confidence_rate 0.985 on the same response
+
+The admin has twice reproduced a construct himself to check a claim. This
+gives him the pair ready-made, and the recipe is three lines against a crop
+URL he can fetch from his own CDN.
+
+ARTEFACTS
+---------
+  out/451.json                 both responses, the ablation box, the pixel
+                               deltas, request ids
+  scratchpad .../451/          math.jpg, math_ablated.jpg, A_control.json,
+                               B_ablated.json, and both readings rendered
+                               (451A_control.png, 451B_ablated.png)
+
+The images are not committed: they are fragments of a third-party paper and
+the recipe reproduces them exactly from MathPix's own CDN URL.
+
+A NOTE ON THE RENDERS
+---------------------
+In 451A_control.png and 451B_ablated.png the blackboard-bold 𝕜 renders as a
+broken glyph. That is OURS, not MathPix's — msbm's \mathbb covers A-Z only,
+which is the same font gap 199 fixed for digits and did not fix for lowercase
+letters. MathPix read \mathbb{k} correctly in both arms.
+
+COST
+----
+Two calls to /v3/text.
