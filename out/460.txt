@@ -62,12 +62,16 @@ THE SEVEN THAT REMAIN
   kohlhase-omdoc               \{\,p\mid p\\{\rm and}\p+2\rm\ are\ prime\,}
   penev_A                      \Phi^{+}=\sum_{\mathbf f} \Psi_{\mathbf f} …
 
-The four kohlhase rows are one formula split across four objects by an
-unbalanced `\hbox{` — a segmentation fault upstream of the renderer, not a
-LaTeX one. The seven-sketches row carries CJK ideographs where the page
-prints a composition symbol, which is the same defect class as the eight sent
-to MathPix. Those are 458's material, and now they are the whole section
+The four kohlhase rows are 458's material, and now they are the whole section
 rather than seven rows inside 37,624.
+
+[CORRECTED BY 465] The line above originally read "one formula split across
+four objects by an unbalanced \hbox{ — a segmentation fault upstream of the
+renderer". Reading the page showed that to be wrong twice: it is two source
+lines, not one, and three of the four objects are OUR inline-math tokenizer
+splitting a $...$ span at $ characters that are literal content inside a
+typewriter code listing. Only the fourth is a whole MathPix line. The counts
+in this report are unaffected. See out/465.txt.
 
 WHAT THIS COSTS AND WHAT IT SAVES
 ---------------------------------

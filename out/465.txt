@@ -1,0 +1,144 @@
+465 — the kohlhase \hbox case and the seven-sketches CJK row
+2026-09-01T09:20Z · both crops fetched and read; all four URLs return HTTP 200
+
+FIRST, A CORRECTION TO 460
+--------------------------
+460 called the four kohlhase rows "one formula split across four objects by an
+unbalanced \hbox{ — a segmentation fault upstream of the renderer". Reading the
+page proves that wrong twice over. It is TWO source lines, not one, and the
+split is OURS, not upstream. What is upstream is a different and better defect.
+
+CASE 1 — kohlhase-omdoc, page 215: a verbatim TeX listing read as mathematics
+-----------------------------------------------------------------------------
+pdf_id 1b348de5-ed54-4a9a-aba0-06a9a89f7dc6, page 215. The page is about TeX's
+\hbox and prints three set-builder expressions AS TYPEWRITER SOURCE CODE.
+
+MathPix line 40baa92913e848dcb6bde2265381d64f  conf 0.8906
+  region top_left_x=242 top_left_y=580 width=618 height=32
+  crop  https://cdn.mathpix.com/cropped/1b348de5-ed54-4a9a-aba0-06a9a89f7dc6-215.jpg?height=32&width=618&top_left_y=580&top_left_x=242
+  page prints   $\{\,p\mid\hbox{$p$ and $p+2$ are prime}\,\}$
+  MathPix text  ${\,p\mid\hbox{$p$ and $p+2$ are prime}\,}$
+  lost          \{ -> {   and   \} -> }
+
+MathPix line 90fcd70639964f6c9f63827bd7e2ff7c  conf 0.4684
+  region top_left_x=254 top_left_y=967 width=530 height=32
+  crop  https://cdn.mathpix.com/cropped/1b348de5-ed54-4a9a-aba0-06a9a89f7dc6-215.jpg?height=32&width=530&top_left_y=967&top_left_x=254
+  page prints   $\{\,p\mid p$~ and $p+2$ are prime$\,\}$
+  MathPix text  $\{\,p\mid p$~ and $p+2$ are prime$\,}$
+  lost          \} -> }   (\{ kept here)
+
+MathPix line 9a9edbf038634c539114454bbfa18915  conf 0.4052
+  region top_left_x=242 top_left_y=1078 width=817 height=32
+  crop  https://cdn.mathpix.com/cropped/1b348de5-ed54-4a9a-aba0-06a9a89f7dc6-215.jpg?height=32&width=817&top_left_y=1078&top_left_x=242
+  page prints   $\{\,p\mid p\\ {\rm and}\ p+2\rm\ are\ prime\,\}$</phrase>'
+  MathPix text  $\{\,p\mid p\\{\rm and}\p+2\rm\ are\ prime\,}$</phrase>'
+  lost          \\ { -> \\{ , \ p+2 -> \p+2 , \} -> }
+
+THE DEFECT: the escaped CLOSING brace loses its backslash in 3 of 3 lines. The
+escaped opening brace loses it in 1 of 3. A space after a backslash is closed
+up twice. On a page whose entire subject is escaping braces in TeX, the escapes
+are what goes missing.
+
+It is not a misreading of a symbol — the model classified a typewriter code
+listing as mathematics and then normalised it as if it were. That is a
+mechanism, which is why it is worth sending: the two low confidences (0.468,
+0.405) say the model knew something was wrong on those lines, and 0.891 on the
+first says it did not.
+
+OUR FOUR OBJECTS, AND THREE OF THEM ARE OUR FAULT
+  FO0317  '{\,p\mid\hbox{'                                    <- from line 1
+  FO0319  'are prime}\,}'                                     <- from line 1
+  FO0322  '\,}'                                               <- from line 2
+  FO0323  '\{\,p\mid p\\{\rm and}\p+2\rm\ are\ prime\,}'      <- line 3, whole
+
+  full identifiers, prefix
+  OMDoc___An_Open_Markup_Format_for_Mathematical_Documents__version_1.2__Foreword_by_Allan_Bundy__Michael_Kohlhase__auth.____Z-Library__FO0317
+  ...FO0319   ...FO0322   ...FO0323
+
+Line 1 reaches our markdown as ONE $...$ span (.md line 5281). Our inline-math
+extractor then split it at the $ characters INSIDE the listing — which are
+literal typewriter characters, not delimiters — into FO0317 / FO0318 ('and') /
+FO0319. Line 2 (.md 5294) split the same way into FO0320 / FO0321 / FO0322.
+FO0320 and FO0318 and FO0321 happen to be balanced, so they render and never
+showed up. Only FO0323 is a whole MathPix line.
+
+So: three of the four unresolved rows are a pdfdrill defect in the inline-math
+tokenizer, one is MathPix's. The pdfdrill half goes on our list, not theirs.
+
+CASE 2 — fong-spivak-seven-sketches, page 317: one glyph, two wrong readings
+----------------------------------------------------------------------------
+pdf_id 7f1e85c6-4350-401f-a960-eb8a0176e786, page 317.
+
+MathPix line 89c9357ea41f49b3aa9570d7dc5f2a07  conf 0.0828
+  region top_left_x=457 top_left_y=1448 width=699 height=41
+  crop  https://cdn.mathpix.com/cropped/7f1e85c6-4350-401f-a960-eb8a0176e786-317.jpg?height=41&width=699&top_left_y=1448&top_left_x=457
+  our object  Seven_Sketches_..._Z-Library__FO3716
+
+  MathPix text
+    \(\left[f ; h ; \iota_{E}, g \circ k ; \iota_{F}\right]=(f+g) ⿱ 宀 ⿱ 一 𧰨(h+k)\) ，as required．
+
+  code points, in order of appearance
+    U+2FF1  IDEOGRAPHIC DESCRIPTION CHARACTER ABOVE TO BELOW   ⿱
+    U+5B80  CJK UNIFIED IDEOGRAPH-5B80                          宀
+    U+2FF1  IDEOGRAPHIC DESCRIPTION CHARACTER ABOVE TO BELOW   ⿱
+    U+4E00  CJK UNIFIED IDEOGRAPH-4E00                          一
+    U+27C28 CJK UNIFIED IDEOGRAPH-27C28                        𧰨
+  and outside the math, U+FF0C FULLWIDTH COMMA and U+FF0E FULLWIDTH FULL STOP.
+
+The crop reads
+
+    [ f ⨟ h ⨟ ι_E , g ⨟ k ⨟ ι_F ] = ( f + g ) ⨟ ( h + k ) , as required.
+
+FOUR occurrences of ONE glyph — Fong & Spivak's composition operator, the
+fatsemi ⨟ (U+2A1F). MathPix read three of them as ";" and the fourth as the
+five-character ideographic sequence above. Same glyph, same line, same font,
+two different wrong answers.
+
+And it never gets it right anywhere: \fatsemi and ⨟ occur ZERO times in this
+document's 14,671 lines. The correct spelling is not in the output at all,
+which is the same shape as the \not L finding — a name the model does not
+reach for.
+
+Unlike the eight, this row's confidence is 0.0828. MathPix already doubts it.
+That is the system working, and it should be sent as such: the finding is not
+"you missed one", it is "the same glyph on one line took two different wrong
+readings, and the right one is never produced."
+
+IS EITHER ALREADY IN THE EIGHT SENT?
+------------------------------------
+No. Neither document appears in the correspondence at all. The eight are
+2103.01507_EQ0383, Geometrodynamics_EQ0857 and _EQ0873, Introduction to
+Graph_EQ0010, Introduction to Linear_EQ0219, Numerical Linear Algebra_EQ1052
+and _EQ0722, Introduction to Graph & Hypergraph_EQ0133, plus 0707.4470_FO0175.
+Both cases here are new, and both are FO rows — the eight are EQ but for
+0707.4470_FO0175, so the inline stream has been under-represented throughout.
+
+Related but distinct: the CJK class is already open with them (2103.01507 at
+conf 1.000, Geometrodynamics at 0.925). This is a third instance and the first
+where the substitution is INCONSISTENT WITHIN ONE LINE.
+
+A CORPUS CHECK ON THE BRACE SIGNATURE
+-------------------------------------
+Unbalanced braces in a math value are rare: 7 of 46,332 across the 21 published
+documents. Four are the kohlhase rows above. The other three are display
+equations carrying a trailing unmatched "}" — mielke-geometrodynamics EQ0190
+and EQ0453, fong-spivak-seven-sketches EQ0097 — which is the same signature in
+a different place and has not been looked at.
+
+So the escaped-brace loss is not a one-page accident, but it is also not
+common, and I have printed evidence for one page only. Sending it as "three
+lines on one page, here are the crops" is what the evidence supports.
+
+WHAT TO SEND, AND WHAT NOT TO
+-----------------------------
+To the admin:
+  the three kohlhase lines with their crops — a verbatim listing classified as
+  mathematics, closing-brace escape lost 3 of 3. This is the mechanism one.
+  the seven-sketches line with its crop and code points — one glyph, two wrong
+  readings, correct spelling absent from 14,671 lines. Flagged as conf 0.083 so
+  it is not presented as a blind spot.
+
+Ours, not theirs:
+  the inline-math tokenizer splitting a $...$ span at $ characters that are
+  literal content inside it. Three objects in kohlhase; the corpus has not been
+  swept for others.
