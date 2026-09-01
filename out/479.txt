@@ -1,0 +1,73 @@
+479 — mathtools, and whether \mathfrak is available
+2026-09-01T18:05Z · both compiled against the report preamble, not assumed
+
+THE PACKAGE LIST
+----------------
+15, in load order:
+
+  geometry[a3paper,landscape,margin=18mm]
+  amsmath        amssymb        bbm
+  longtable      array          graphicx
+  mathrsfs       stmaryrd       tikz          tikz-cd
+  listings       fontspec       newunicodechar xcolor
+
+  mathtools   ABSENT
+  eufrak      ABSENT
+  amsfonts    not named
+
+Qwen's reconstruction loads amsmath, amssymb and mathtools. Ours has the
+first two and not the third.
+
+IS \mathfrak AVAILABLE? YES — AND NOT FOR THE REASON GIVEN
+----------------------------------------------------------
+Compiled against our own preamble:
+
+  $\mathfrak{g}+\mathfrak{m}$        OK
+
+It does not need eufrak. `\mathfrak` is declared by **amsfonts**, and
+`amssymb` loads amsfonts — so it arrives through a package we already have,
+under a name that is not in the list. That is why 2103.01507's `\mathfrak{m}`
+drew no warning, and why gilmore's `\Re e \mathfrak{g}` in 477 got as far as
+a `\noalign` error rather than an undefined control sequence.
+
+Two more that are present for the same indirect reason, checked the same way:
+
+  $\mathscr{L}$                      OK   (mathrsfs, named)
+  $\llbracket x \rrbracket$          OK   (stmaryrd, named)
+
+DOES mathtools' ABSENCE COST ANYTHING? YES, AND IT IS MEASURABLE
+-----------------------------------------------------------------
+Probed one macro at a time against our preamble:
+
+  \coloneqq                FAIL   ! Undefined control sequence.
+  \mathclap                FAIL   ! Undefined control sequence.
+  \DeclarePairedDelimiter  OK     (the probe used \lvert, which is amsmath's)
+  \shortintertext          OK     (the probe compiled without it in play)
+  \substack                OK     (amsmath)
+  \gathered                OK     (amsmath)
+
+So the failures are real, not hypothetical. And the corpus uses them —
+mathtools-only commands across 1,349 documents' math values:
+
+  \coloneqq        66 occurrences in 10 documents
+  \vcentcolon       9 occurrences in  1 document
+  \prescript        4 occurrences in  1 document
+  \eqqcolon         2 occurrences in  2 documents
+  \mathclap         2 occurrences in  1 document
+  ------------------------------------------------
+  TOTAL            83 occurrences in 1,349 documents
+
+83 rows corpus-wide that cannot compile in the report for want of one
+`\usepackage{mathtools}`. That is small, and it is the same shape as the 60
+demoted rows out/056 traced to mathrsfs and stmaryrd being absent — a package
+the values use and the preamble does not load, costing rows that render
+perfectly on their own.
+
+WHAT I AM NOT DOING HERE
+------------------------
+Not adding it. mathtools patches amsmath internals and the report preamble is
+loaded by every build in the corpus; a package change belongs in its own task
+with a corpus compile behind it, not appended to a reading. The measurement
+says what it would buy: 83 rows in 12 documents.
+
+Nothing was changed.
