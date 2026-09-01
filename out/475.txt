@@ -1,0 +1,181 @@
+475 / 478 — non-mathematics characters in maths values
+2026-09-01T18:55Z · tools/uniscan475.py, 1,349 documents
+
+THE CHECK
+---------
+A maths value may hold ASCII, Latin-1/Extended-A, Greek and Greek Extended,
+General Punctuation, super/subscripts, combining marks for symbols,
+Letterlike Symbols, Number Forms, Arrows, Mathematical Operators,
+Miscellaneous Technical, Geometric Shapes, both Misc Math Symbols blocks,
+both Supplemental Arrows blocks, Supplemental Mathematical Operators, and the
+Mathematical Alphanumeric Symbols plane. Anything else is a glyph the OCR
+could not name and reached for something that looked like it.
+
+THE COUNT
+---------
+  documents scanned                     1,349
+  documents with an offending character     87
+  offending rows                           829
+  offending characters                   1,718
+
+ALREADY FLAGGED, AND THE SILENT POPULATION
+------------------------------------------
+  refused by `renderable()` — the row already reads "(not rendered)":
+       56 rows   6.8%
+  SILENT — the value compiles and shows a wrong character:
+      773 rows  93.2%
+
+That is the number this check exists for. Fourteen in fifteen of these rows
+render, look like mathematics, and carry a character that is not mathematics.
+A compile failure finds 6.8% of them.
+
+BY UNICODE BLOCK
+   other (U+0200 block)                        442 chars    11 documents
+   Private Use Area                            329 chars     5 documents
+   other (U+2600 block)                        247 chars     9 documents
+   other (U+FF00 block)                        212 chars     1 documents
+   Halfwidth and Fullwidth Forms               104 chars    10 documents
+   CJK Unified Ideographs                       84 chars    32 documents
+   Cyrillic                                     72 chars    19 documents
+   other (U+FB00 block)                         45 chars     3 documents
+   Ideographic Description (U+2FF0-2FFB)        42 chars    15 documents
+   other (U+0900 block)                         28 chars    15 documents
+   other (U+0100 block)                         22 chars     1 documents
+   other (U+0600 block)                         16 chars    10 documents
+   other (U+0300 block)                         10 chars     6 documents
+   CJK Symbols and Punctuation                   8 chars     8 documents
+   Hiragana                                      8 chars     2 documents
+   other (U+0A00 block)                          8 chars     5 documents
+   other (U+0E00 block)                          6 chars     3 documents
+   Katakana                                      5 chars     4 documents
+   other (U+2400 block)                          5 chars     3 documents
+   other (U+2000 block)                          5 chars     2 documents
+   other (U+3100 block)                          4 chars     3 documents
+   other (U+0D00 block)                          3 chars     2 documents
+   Hangul Syllables                              3 chars     1 documents
+   Hangul Jamo                                   2 chars     2 documents
+   other (U+1E00 block)                          2 chars     1 documents
+   other (U+1000 block)                          1 chars     1 documents
+   other (U+0C00 block)                          1 chars     1 documents
+   CJK Ext B                                     1 chars     1 documents
+   other (U+0B00 block)                          1 chars     1 documents
+   Hangul Compatibility Jamo                     1 chars     1 documents
+   other (U+1C00 block)                          1 chars     1 documents
+
+U+2FF0-2FFB (478): 42 characters in 23 rows, 15 documents
+
+The four classes that are never mathematics, totalled across their blocks:
+
+  CJK (all blocks)                 202 characters in 44 documents
+  Cyrillic                          72 characters in 19 documents
+  Hangul (all blocks)                6 characters in  4 documents
+  Private Use Area                 329 characters in  5 documents
+
+Private Use is the largest single class and the most concentrated — 329
+characters in five documents. A private-use codepoint has no meaning outside
+the font that defined it, so every one is a glyph read out of a subsetted
+font by codepoint rather than by shape.
+
+478 — THE DECOMPOSITION OPERATORS ARE NOT ABOUT CHINESE
+--------------------------------------------------------
+U+2FF0–2FFB: 42 characters, 23 rows, 15 documents. All 23 rows are refused by
+`renderable()`, so none of them is silent — the reader already sees "(not
+rendered)".
+
+Your hypothesis is confirmed, and my first test of it was the wrong test.
+
+Asking "does the document contain any CJK at all" gives 14 of 15 YES, which
+looks like a refutation. It is not, because the CJK it finds is the SAME
+defect in other rows of the same document. The question that separates them
+is whether the CJK ever forms a WORD:
+
+  runs of >= 3 consecutive CJK characters, across every document with an IDC:
+
+     0902.0431 0    2002.06055 0    2104.05122 0    Arbeitsbuch 0
+     BH1org_OCR 0   Clifford_bundle 0   Elementary Diff Geom 0
+     Harmonic Maass 0    Higher Operads 0    gilmore-lie-groups 0
+     Schaums Outline 0   Seven Sketches 0    grady2010discrete 0
+     latex2-script 0     p1810-miliaraki 0
+
+  ZERO in all fifteen. Every CJK occurrence in every one of them is an
+  isolated character; `grady2010discrete` has none at all.
+
+So the decomposition path is not a Chinese-language path. It is what MathPix
+reaches for when it cannot name a glyph, in a Lie theory text with fraktur, a
+discrete mathematics outline, and a differential geometry book. That is the
+finding, and it needed the run-length test rather than the presence test.
+
+EQ0584 — THE FULL SEQUENCE, AND WHAT IT DESCRIBES
+--------------------------------------------------
+  gilmore-lie-groups_EQ0584, page 188, confidence 0.00066
+  https://cdn.mathpix.com/cropped/d2c252f7-ecc8-4847-91aa-199c581ae8c0-188.jpg?height=540&width=873&top_left_y=1575&top_left_x=286
+
+  the sequence, verbatim:
+
+    ⿱ 一 口 ⿺ ⿻ 一 ⿰ 亻 ⿱ 丶 ⿻ 工 二 十 ا ٔ
+
+    U+2FF1  IDEOGRAPHIC DESCRIPTION CHARACTER ABOVE TO BELOW
+    U+4E00  CJK UNIFIED IDEOGRAPH-4E00          (一, a horizontal stroke)
+    U+53E3  CJK UNIFIED IDEOGRAPH-53E3          (口, a box)
+    U+2FFA  IDEOGRAPHIC DESCRIPTION CHARACTER SURROUND FROM LOWER LEFT
+    U+2FFB  IDEOGRAPHIC DESCRIPTION CHARACTER OVERLAID
+    U+4E00  一
+    U+2FF0  IDEOGRAPHIC DESCRIPTION CHARACTER LEFT TO RIGHT
+    U+4EBB  亻      U+2FF1 ⿱      U+4E36 丶      U+2FFB ⿻
+    U+5DE5  工      U+4E8C 二      U+5341 十
+    U+0627  ARABIC LETTER ALEF
+    U+0654  ARABIC HAMZA ABOVE
+
+  THE PAGE, read from the crop, prints in that column:
+
+    H₁ , H₂ , H₃ , ⋮ , Hₙ ,
+    ¹⁄√2 (E_α + E_₋α) , ¹⁄√2 (E_α − E_₋α) ,
+    ¹⁄√2 (E_β + E_₋β) , ¹⁄√2 (E_β − E_₋β) , ⋮
+
+  So the sequence stands where `\frac{1}{\sqrt{2}}` is printed, and the
+  description fits it: `⿱ 一 口` is above-to-below of a horizontal stroke over
+  a box — a fraction bar with something under it — and `⿺`, SURROUND FROM
+  LOWER LEFT, is the shape of a radical sign enclosing its argument. The
+  recovery is readable out of the description, as you said it might be.
+
+  AND A SECOND DEFECT IN THE SAME ROW, which the decomposition hides.
+  MathPix's output for the column reads
+
+     H_{1} \\ H_{3} \\ \vdots \\ H_{n}
+
+  The page prints H₁, H₂, H₃. **H₂ is dropped.** That is a lost row of a
+  matrix label column, it involves no exotic character, and no Unicode check
+  would ever find it.
+
+  ALL 23 IDC ROWS
+   0902.0431                            EQ1032         p173   ⿱
+   0902.0431                            EQ1187         p200   ⿻⿱一⿱日一
+   2002.06055                           EQ1030         p411   ⿱丶⿻一亅
+   2104.05122                           FO0146         pNone  ⿻
+   2104.05122                           FO0286         pNone  ⿱八刀
+   Arbeitsbuch Höhere Mathematik in Rez EQ0934         p222   ⿱日
+   BH1org_OCR                           FO1608         pNone  ⿸
+   BH1org_OCR                           FO3011         pNone  ⿱㇒⿺丄丅八
+   BH1org_OCR                           FO3500         pNone  ⿱㇒⿺丄丅八
+   Clifford_bundle_formulation_of_BF_gr EQ0036         p006   ⿹灬
+   Clifford_bundle_formulation_of_BF_gr EQ0044         p008   ⿹勹⿺⿻十
+   Clifford_bundle_formulation_of_BF_gr EQ0051         p008   ⿱一⿱日一厶儿
+   Clifford_bundle_formulation_of_BF_gr EQ0066         p010   ⿹勹亾
+   Clifford_bundle_formulation_of_BF_gr EQ0144         p021   ⿱
+   Elementary Differential Geometry (Ch EQ0229         p085   ⿱日一⿱㇒⿺丄丅八
+   Harmonic Maass Forms and Mock Modula EQ1636         p367   ⿱一廾
+   Higher Operads, Higher Categories (T EQ0638         p380   ⿱⿱十廾
+   Lie Groups, Physics and Geometry - A EQ0584         p188   ⿱一口⿺⿻一⿰亻⿱丶⿻工二十أ
+   Schaums Outline of Discrete Mathemat EQ0906         p308   ⿱亠乂⿱一⿱㇒日木．－
+   Seven Sketches in Composability An i FO3716         pNone  ⿱宀⿱一𧰨
+   grady2010discrete                    EQ0482         p316   ⿱
+   latex2-script                        EQ0002         p005   ᄂટ॥⿻丷ḍɔレ七ɔᲰʒụ
+   p1810-miliaraki                      FO0158         pNone  ⿴
+
+WHAT WAS BUILT
+--------------
+  tools/uniscan475.py   the block check. Reads `latex` off the projections —
+                        no model, no rebuild. 1,349 documents in ~15 minutes.
+
+Nothing else was changed. 476 routes the silent population; this report is
+what it would route.
