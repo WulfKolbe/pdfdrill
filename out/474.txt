@@ -1,0 +1,169 @@
+474 — parallel terms in one expression that disagree on a symbol
+2026-09-01T18:20Z · tools/parallel474.py, 1,349 documents
+
+THE REFERENCE CASE IS FOUND
+---------------------------
+  cardona-qft-methods_EQ0654, page 261, confidence 0.167
+
+    ...\left(\frac{\overleftarrow{\delta}}{\partial x^{\mu}}
+            +\frac{\overleftarrow{口}}{\partial y^{\mu}}\right)...
+
+  term A  \frac{\overleftarrow{\delta}}{\partial x^{\mu}}
+  term B  \frac{\overleftarrow{口}}{\partial y^{\mu}}
+  symbol  \delta  vs  口 (U+53E3 CJK UNIFIED IDEOGRAPH)
+  index   1 (x vs y)
+
+THE DEFINITION, AND THE TWO THINGS IT HAD TO GET RIGHT
+-------------------------------------------------------
+The reference terms differ in TWO positions, not one: `\delta` vs `口` AND
+`x` vs `y`. The second is what parallel terms are SUPPOSED to differ in. So
+the rule separates the kinds of difference rather than counting them:
+
+  expected   both single ASCII alphanumerics; both signs; both separators
+  symbol     anything else — the signal
+
+A pair qualifies with exactly ONE symbol difference.
+
+Two corrections were needed and both changed the answer by an order of
+magnitude:
+
+  * Splitting the expression on `+` does not work. The reference `+` sits
+    inside `e^{\frac{1}{2}\left(…\right)\theta^{\mu\nu}P_{\nu}}`, so a split
+    leaves a `\frac{1}{2}\left(` prefix on the left and a `\right)\theta…`
+    suffix on the right, and the two "terms" have different lengths. The
+    window has to grow OUT from the operator. First attempt found 0 hits on
+    the reference case.
+  * Exempting only single ASCII LETTERS gave 50,837 pairs, of which 7,242
+    were `1 vs 2` and 5,117 `1 vs 3`. `x_{1}+x_{2}` is a sum, not a defect.
+    A digit varies for the same reason a subscript letter does. With digits,
+    signs and table separators exempted: 17,212.
+
+THE COUNT
+---------
+  documents scanned                     1,349  (every library folder with a
+                                                tiddlers.json)
+  documents carrying at least one pair    618
+  pairs                                17,212
+  ---------------------------------------------
+  involving a CJK token                     1
+  involving any other non-ASCII            45
+
+  the top 15 disagreeing pairs
+     1423  - vs 1
+      747  ^ vs _
+      557  \cos vs \sin
+      483  \alpha vs \beta
+      263  + vs =
+      239  & vs \end
+      206  + vs 2
+      187  - vs 2
+      171  , vs \right
+      150  \\ vs \end
+      142  , vs =
+      137  2 vs =
+      134  \cdot vs \wedge
+      126  ( vs i
+      119  \ell vs k
+
+AND THAT IS THE FINDING, IN THE DIRECTION I DID NOT EXPECT
+-----------------------------------------------------------
+Exactly ONE of 17,212 involves a CJK token, and it is the reference case.
+
+The rest are overwhelmingly correct mathematics. `\cos vs \sin` (557),
+`\alpha vs \beta` (483), `^ vs _` (747), `\cdot vs \wedge` (134) — two
+parallel terms differing in one symbol is what a textbook DOES. The
+parallelism is a real structural signal and it is not, on its own, a defect
+detector: it finds terms that differ, and an author differing on purpose
+looks exactly like an OCR differing by accident.
+
+What made EQ0654 findable was not the parallelism. It was that `口` is not a
+mathematics symbol at all. The parallelism told you WHERE in the expression
+to look; the Unicode block told you it was wrong.
+
+So for the CJK class specifically, this adds nothing a Unicode check (475)
+would not already find, and it costs a scan of 1.35 million values to say so.
+That is worth knowing before building the pipeline on it.
+
+WHERE IT DOES ADD SOMETHING
+---------------------------
+45 pairs involving a non-CJK non-ASCII character — and several of these a
+Unicode block check would NOT flag, because both characters are legitimate
+maths:
+
+  6  '+' vs '−'   ASCII HYPHEN-MINUS vs U+2212 MINUS SIGN, in one expression
+  6  '=' vs 'ε'   GREEK SMALL LETTER EPSILON
+  3  '<' vs '∧'   LOGICAL AND
+  2  'A' vs '∂'   PARTIAL DIFFERENTIAL
+  2  '(' vs 'δ'   GREEK SMALL LETTER DELTA
+  2  'x' vs 'è'   LATIN SMALL LETTER E WITH GRAVE
+
+`+ vs −` is the clearest: both are perfectly legal characters, so no Unicode
+check fires, and the same operator is spelled two ways inside one expression.
+That is the shape 465 found with the fatsemi and 451 with `hocolim`/`\bigvee`
+— one glyph, two readings, in one image — and this is a third instrument that
+finds it.
+
+  ALL 46 NON-ASCII PAIRS
+  Geometric, Algebraic and Topol EQ0654         p261   conf -        '\\delta' vs '口'   CJK UNIFIED IDEOGRAPH-53E3
+  A Visual Introduction to Diffe EQ1199         p383   conf -        'è' vs 'x'   LATIN SMALL LETTER E WITH GRAVE
+  Introduction to General Relati EQ0202         p058   conf -        'è' vs 'x'   LATIN SMALL LETTER E WITH GRAVE
+  Masterarbeit_StroblN           EQ0086         p078   conf -        'E' vs '·'   MIDDLE DOT
+  Principles_of_Model_Checking__ EQ1494         p684   conf -        'α' vs '.'   GREEK SMALL LETTER ALPHA
+  Principles_of_Model_Checking__ EQ1601         p731   conf -        '<' vs '∧'   LOGICAL AND
+  Principles_of_Model_Checking__ EQ1601         p731   conf -        '<' vs '−'   MINUS SIGN
+  Principles_of_Model_Checking__ EQ1602         p731   conf -        '<' vs '∧'   LOGICAL AND
+  Principles_of_Model_Checking__ EQ1603         p731   conf -        '<' vs '∧'   LOGICAL AND
+  Quantum_field_theory__Mark_Sre EQ0095         p049   conf -        'k' vs 'ω'   GREEK SMALL LETTER OMEGA
+  Quantum_field_theory__Mark_Sre EQ0113         p055   conf -        'ϕ' vs '−'   GREEK PHI SYMBOL; MINUS SIGN
+  Quantum_field_theory__Mark_Sre EQ0632         p172   conf -        '2' vs 'ϕ'   GREEK PHI SYMBOL
+  Quantum_field_theory__Mark_Sre EQ0885         p246   conf -        '=' vs 'σ'   GREEK SMALL LETTER SIGMA
+  Quantum_field_theory__Mark_Sre EQ1521         p349   conf -        '2' vs 'ϕ'   GREEK PHI SYMBOL
+  Quantum_field_theory__Mark_Sre EQ1539         p361   conf -        'ν' vs '2'   GREEK SMALL LETTER NU
+  Quantum_field_theory__Mark_Sre EQ1910         p446   conf -        '(' vs 'δ'   GREEK SMALL LETTER DELTA
+  Quantum_field_theory__Mark_Sre EQ1949         p457   conf -        'ν' vs '2'   GREEK SMALL LETTER NU
+  Quantum_field_theory__Mark_Sre EQ2113         p487   conf -        'α' vs 'β'   GREEK SMALL LETTER ALPHA; GREEK SMALL LETTER
+  Quantum_field_theory__Mark_Sre EQ2229         p510   conf -        '∂' vs 'A'   PARTIAL DIFFERENTIAL
+  Quantum_field_theory__Mark_Sre EQ2386         p556   conf -        'A' vs '∂'   PARTIAL DIFFERENTIAL
+  Quantum_field_theory__Mark_Sre EQ2461         p568   conf -        '−' vs '+'   MINUS SIGN
+  Quantum_field_theory__Mark_Sre EQ2801         p639   conf -        '†' vs 'A'   DAGGER
+  Tensors and Riemannian Geometr EQ0460         p048   conf -        'α' vs 'j'   GREEK SMALL LETTER ALPHA
+  Tensors and Riemannian Geometr EQ0561         p056   conf -        'ϕ' vs 'ψ'   GREEK PHI SYMBOL; GREEK SMALL LETTER PSI
+  Tensors and Riemannian Geometr EQ0752         p074   conf -        'δ' vs 'l'   GREEK SMALL LETTER DELTA
+  Tensors and Riemannian Geometr EQ1029         p103   conf -        '+' vs '−'   MINUS SIGN
+  Tensors and Riemannian Geometr EQ1703         p168   conf -        '=' vs 'ε'   GREEK SMALL LETTER EPSILON
+  Tensors and Riemannian Geometr EQ1703         p168   conf -        '=' vs 'ε'   GREEK SMALL LETTER EPSILON
+  Tensors and Riemannian Geometr EQ1733         p171   conf -        '=' vs 'ε'   GREEK SMALL LETTER EPSILON
+  Tensors and Riemannian Geometr EQ1733         p171   conf -        '=' vs 'ε'   GREEK SMALL LETTER EPSILON
+  Tensors and Riemannian Geometr EQ1733         p171   conf -        '=' vs 'ε'   GREEK SMALL LETTER EPSILON
+  Tensors and Riemannian Geometr EQ1733         p171   conf -        '=' vs 'ε'   GREEK SMALL LETTER EPSILON
+  hep-th_0604151                 EQ0128         p025   conf -        'ℓ' vs 'r'   SCRIPT SMALL L
+  qftbook                        EQ0111         p023   conf -        '−' vs 'B'   MINUS SIGN
+  qftbook                        EQ0192         p033   conf -        '(' vs 'δ'   GREEK SMALL LETTER DELTA
+  qftbook                        EQ0192         p033   conf -        ',' vs 'δ'   GREEK SMALL LETTER DELTA
+  qftbook                        EQ0461         p059   conf -        '+' vs '−'   MINUS SIGN
+  qftbook                        EQ0689         p088   conf -        '∧' vs 'z'   LOGICAL AND
+  qftbook                        EQ0716         p089   conf -        '+' vs '−'   MINUS SIGN
+  qftbook                        EQ0722         p089   conf -        '+' vs '−'   MINUS SIGN
+  qftbook                        EQ0742         p090   conf -        '−' vs '+'   MINUS SIGN
+  qftbook                        EQ0995         p154   conf -        'A' vs '−'   MINUS SIGN
+  qftbook                        EQ1134         p183   conf -        'θ' vs 'φ'   GREEK SMALL LETTER THETA; GREEK SMALL LETTER
+  qftbook                        EQ1136         p183   conf -        'θ' vs 'φ'   GREEK SMALL LETTER THETA; GREEK SMALL LETTER
+  qftbook                        EQ1175         p187   conf -        '∂' vs 'X'   PARTIAL DIFFERENTIAL
+  qftbook                        EQ1391         p216   conf -        'ˆ' vs ')'   MODIFIER LETTER CIRCUMFLEX ACCENT
+
+(`conf` is a dash because the projections carry confidence on EQ tiddlers and
+these rows were read from the `latex` field alone; EQ0654's 0.167 comes from
+its own tiddler.)
+
+WHAT WAS BUILT
+--------------
+  tools/parallel474.py   the scan. Reads `latex` off the projections — no
+                         model, no rebuild, no measurement. 1,349 documents
+                         in about 7 minutes.
+
+The MAX_K = 60 bound on the window is why: the comparison cannot be made
+incremental (growing k moves the left window's START, so every position
+re-aligns), and unbounded it was a five-hour job. Written the slow way on
+purpose, bounded instead, and the bound is documented beside the loop.
+
+Nothing else was changed.
