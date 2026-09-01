@@ -1,0 +1,140 @@
+462 — the 9 title-derived identifier stems, regenerated
+2026-09-01T15:10Z · ~/MX/PDFDRILL @ eqblobs-and-gzip-tex
+
+WHAT CHANGED, PER DOCUMENT
+--------------------------
+The BIBKEY only. The library folder still carries the long title; 276
+established that stem and bibkey are separable and 462 asked for the
+identifier stem, so the folder was left alone. `meta.bibkey_history` records
+the old key on every one, which is what `crop_file` reads (264).
+
+  new bibkey                       old stem, first 30 chars        identifiers
+  ------------------------------------------------------------------------------
+  cardona-qft-methods              Geometric__Algebraic_and_Topo…        4,820
+  fong-spivak-invitation           An_Invitation_to_Applied_Cate…        4,896
+  fong-spivak-seven-sketches       Seven_Sketches_in_Composabili…        4,859
+  gilmore-lie-groups               Lie_Groups__Physics_and_Geome…        4,598
+  johnston-linear-matrix-algebra   Introduction_to_Linear_and_Ma…        7,131
+  kohlhase-omdoc                   OMDoc___An_Open_Markup_Format…          839
+  lyche-numerical-linear-algebra   Numerical_Linear_Algebra_and_…        5,759
+  mielke-geometrodynamics          Geometrodynamics_of_Gauge_Fie…        2,966
+  voloshin-hypergraph              Introduction_to_Graph_and_Hyp…        2,999
+  ------------------------------------------------------------------------------
+                                                                       38,867
+
+The longest stem was 133 characters (kohlhase). It is now 14.
+
+A DEFECT FOUND BEFORE ANYTHING WAS RENAMED
+------------------------------------------
+`rename` retargeted model, sidecar, tiddlers, report.tex and (since 394)
+report.regions.json. It did NOT retarget:
+
+  report.ink.json     266 row ids on voloshin-hypergraph
+  report.tables.json  2,999 identifiers on the same document
+
+Both are joined against the report BY IDENTIFIER and neither is rebuilt by a
+rename. `residual_colour` matches report.ink.json's row ids against what
+report.tex emits; after a bibkey rename the ink names the old document and the
+report names the new one, so the two populations cannot intersect — 0 of 266
+matched — and a document in which every row was measured renders as one in
+which nothing could be. That is exactly the shape 394 wrote up for
+report.regions.json, in the file the colour actually comes from.
+
+`inkmeasure.equations_table` reads report.tables.json to find the Display
+equations table, and a measurement joins its `identifiers`.
+
+So `_retarget_ink` and `_retarget_tables` were written first, with six tests
+including one that asserts the ink ids and the manifest identifiers still
+INTERSECT after a rename — 0 matched being what the un-retargeted version
+gives. Then the renames ran.
+
+Found by asking what else carries the key, not by running the rename and
+auditing afterwards. 394 was found the second way and says so.
+
+WHAT THE RENAMES DID
+--------------------
+Nine documents, 0.9–3.1 s each, no rebuild.
+
+  file                    retargeted
+  tiddlers.json           38,867 typed titles, 100%
+  report.tex              38,867 \ident{}, 100%
+  report.ink.json         6,722 row ids, 100%
+  report.tables.json      38,867 identifiers, 100%
+  report.regions.json     1,895 row ids, 100%
+  report-crops/*.jpg      7,059 files moved, 0 left under the old name
+  standalone-regions/*.png  5 files moved, 0 left
+  model.docpack.json      deleted (derived; regenerated on next save)
+
+Verified per document afterwards rather than trusted: every count above is a
+recount of the files on disk, not a sum of what the command reported.
+
+THE cdncrops RE-RUN
+-------------------
+Run on all nine, as asked. Every document:
+
+  0 fetched, N cached, 0 failed
+
+Nothing was fetched and nothing failed, because `rename_bibkey_files` had
+already moved every crop. So the re-run CONFIRMED the join rather than
+repairing it — which is the outcome to want, and is only a fact because the
+counts were checked separately:
+
+  document                       EQ crops joined   TAB crops joined
+  cardona-qft-methods              1012/1012           8/8
+  fong-spivak-invitation            262/262           68/68
+  fong-spivak-seven-sketches        264/264           63/63
+  gilmore-lie-groups               1037/1037          38/38
+  johnston-linear-matrix-algebra   1670/1670          43/43
+  kohlhase-omdoc                      6/6           103/103
+  lyche-numerical-linear-algebra   1056/1056           7/7
+  mielke-geometrodynamics          1149/1149           5/5
+  voloshin-hypergraph               266/266            2/2
+  ---------------------------------------------------------------
+                                   6,722             337
+
+Joined through `crop_file(dir, title, bibkey, history)` — the function the
+report calls — not by counting files with the right prefix. Those are
+different claims and only the second one matters.
+
+WHAT STILL NAMES THE OLD KEY, ON PURPOSE
+----------------------------------------
+Two kinds, both correct as they are, and both now written into renamefolder's
+category D:
+
+  calls/*.jsonl (johnston, 3 files)
+      447 call logs. They record what was ACTUALLY SENT to MiniMax in 444 and
+      448, and the prompt really did say `Introduction_to_Linear_..._EQ0219`.
+      Retargeting them would make the record disagree with the run it
+      documents, which is the one thing a call log must never do.
+
+  standalone-regions/_outcomes.json, _failures.txt (kohlhase)
+      Reports of a render that happened under the old key. Nothing joins
+      against them, and the next `--render-regions` build regenerates them.
+
+Everything else: zero occurrences of `<old sanitised key>_(EQ|FO|TAB|DIA|PIC)`
+anywhere in any of the nine folders.
+
+A NOTE ON A CHECK THAT WAS WRONG
+--------------------------------
+My first residue check reported 27,000–68,000 "unexpected" mentions per
+document and that was my error, not a defect: I passed the folder name as the
+old stem, and the folder name is deliberately unchanged, so every legitimate
+mention of it counted. The question that could distinguish stale from
+legitimate is narrower — occurrences of the sanitised old key followed by a
+TYPE suffix — and the answer to that one is zero.
+
+WHAT WAS CHANGED
+----------------
+  src/pdfdrill/renamefolder.py    _retarget_ink, _retarget_tables, both wired
+                                  into rename_folder and reported in its
+                                  result; category D documents the call logs
+  tests/test_rename_ink_tables.py 6 tests
+
+Full suite: 2,840 passed.
+
+NOT DONE HERE
+-------------
+The reports were not rebuilt. report.tex now carries the new identifiers but
+report.pdf beside it was compiled from the old ones, so the two disagree until
+463 rebuilds. That is 463's job and doing it here would have hidden which
+change produced which effect.
