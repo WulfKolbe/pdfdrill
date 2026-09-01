@@ -1,0 +1,188 @@
+471 — inspect.html against the four ideas
+2026-09-01T16:20Z · read of src/pdfdrill/docinspect.py (2,072 lines) + measurement
+
+WHAT IS THERE TODAY
+-------------------
+Five surfaces, not three:
+
+  PAGE       the page image with one absolutely-positioned .box per DocObject
+  ELEMENTS   a two-level tree: page -> its elements, children built lazily,
+             auto-collapsed above 20 pages (TREE_EAGER)
+  INSPECTOR  the selected element's record, rendered by a per-type module
+             from a renderer registry (REG / register(), mirroring
+             src/docmodel/modules/)
+  REFLOW     reading-order HTML, chunked and hydrated on scroll
+  INK        the blob/region tree from `inktree`, when it has run
+
+And underneath them, the thing that decides three of these four questions:
+
+  /* every visible element — a reflow node, a page-overlay box, a tree row —
+     carries a LIVE hook back to its docmodel object id */
+  const NODES = {};              // obj id -> [dom nodes] across all surfaces
+  const LISTEN = {select:[], hover:[]};
+
+`attachHooks(node, e)` registers EVERY node for an object into `NODES[e.id]`
+and wires mouseenter/mouseleave/click onto one event bus.
+
+IDEA BY IDEA
+------------
+
+2 — BIDIRECTIONAL HOVER: ALREADY EXISTS, AND IS BROADER THAN THE ASK.
+
+    function onHover(id,on){ nodesOf(id).forEach(n=>n.classList.toggle('hl', on)); }
+
+    Not two surfaces — all of them. Hovering a tree row lights the page box
+    AND the reflow node; hovering the box lights the row; selecting also
+    scrolls the tree to the row, the stage to the box, and expands the page
+    node (`revealInTree`). The module docstring has said so since it was
+    written: "Hovering an element in the tree highlights its box on the page
+    (and vice versa)."
+
+    Cost: none. It is done. This is the `cmd_tiddlers` shape — a capability
+    that exists, is documented, and would have been rebuilt.
+
+3 — SHARED TYPE COLOURS: HALF EXISTS, AND THE MISSING HALF IS EXACTLY THE
+    PAGE.
+
+    Eight classes exist and carry a real palette:
+
+      .b-Section  green    .b-Formula  amber    .b-Equation  orange
+      .b-Table    violet   .b-Page     blue     .b-Abstract  pink
+      .b-Picture/.b-Diagram/.b-Chart   accent2
+
+    They are used in TWO places: the tree row badge (`badge b-'+e.type`) and
+    the inspector header badge (`badge.className='badge b-'+e.type`). So the
+    colours are already shared between tree and inspector.
+
+    The page overlay is NOT in the scheme. `.box` has one accent colour, plus
+    a second for `[data-cat="image"]` — a two-way split, not a per-type one.
+    That is the actual gap: a Formula box and a Table box look identical on
+    the page while their rows are amber and violet in the tree.
+
+    Second gap, measured on voloshin-hypergraph (4,964 elements, 13 types):
+    six types have a colour, seven do not.
+
+      with a colour   Formula 2554, Equation 266, Diagram 176, Page 303,
+                      Section 6, Table 2
+      grey            Paragraph 1117, ListItem 404, TableCell 99,
+                      TableRow 14, Sidenote 14, Reference 8, Toc 1
+
+    1,657 of 4,964 elements — a third of the document — render in the default
+    badge colour.
+
+    Cost: CSS only for the page half (`.box[data-type="Equation"]` etc.;
+    `attachHooks` already writes `node.dataset.objType`, so the selector has
+    its hook already). Seven more `.b-` rules for the second half. No JS, no
+    payload change, no new data.
+
+1 — TYPE CHIPS WITH COUNTS: THE FILTER EXISTS, THE CHIPS DO NOT, AND THE TWO
+    HALVES OF THE CHIP COST VERY DIFFERENT THINGS.
+
+    `buildTree(filter)` already filters:
+
+      kids = EL.filter(e => e.page===pn && e.type!=='Page' &&
+             (!f || e.type.toLowerCase().includes(f) || labelOf(e)...))
+
+    driven by `<input id="filter" placeholder="filter by type or text…">`. A
+    chip is a click that sets that input's value. The behaviour is built; the
+    affordance is not.
+
+    THE COUNT half needs nothing: `EL.reduce` over the array already in the
+    page. No payload change, no new computation, ~15 lines.
+
+    THE CLASS half — the `· 12 C` — needs a join, and the ids do not match:
+
+      inspector element id   obj_1b81d158c56d      (uuid4 hex, NOT stable)
+      report.ink.json row id voloshin-hypergraph_EQ0124
+      ids in common          0 of 266
+
+    There is a bridge, and both hops are exact:
+
+      model object --(page, top_left_x, top_left_y, width, height)-->
+      tiddler title --(exact string)--> ink row --> residual class
+
+    Measured, four documents, no fuzzy matching:
+
+      document                  ink rows   joined   unjoined
+      voloshin-hypergraph            266      266          0
+      kohlhase-omdoc                   6        6          0
+      1510.06699                     279      279          0
+      mielke-geometrodynamics      1,149    1,149          0
+
+    Use the FULL five-tuple. `(page, x, y)` alone over-joins — two objects
+    share a top-left corner — and returned 7 matches for 6 ink rows on
+    kohlhase and 281 for 279 on 1510.06699. The five-tuple has exactly one
+    colliding key (kohlhase) and dropping it loses no row.
+
+    AND THE FILE IT NEEDS IS ALREADY BEING HANDED IN, TO NOBODY.
+
+      build_from_paths(model_path, *, tiddlers=None, ...)
+
+    is documented ("optional, for the rendered templated content"), exposed as
+    `--tiddlers`, passed by `cmd_inspect` when the file exists — and never
+    read. `build_inspector_html` does not take the parameter at all. The one
+    input the bridge needs is already opened, already passed, and silently
+    discarded. That is worth fixing whether or not the chips are built.
+
+    Payload cost: {obj_id: "C"} for every measured object. 266 entries is
+    about 5 KB against a 57.6 MB inspect.html — four ten-thousandths.
+
+    One state to design for rather than discover: 4 of the 22 published
+    documents have NO report.ink.json (0902.0431, BradleyGastaldiTerilla2023,
+    penev_A, penev_B). Their chips must read `Equation 262` with no class
+    part — 252's rule, an absent reading shows a dash and never a colour,
+    because a green square would assert a measurement nobody took.
+
+4 — CARDS RATHER THAN A TREE: THE EXPENSIVE ONE, AND THE ONLY ONE THAT GIVES
+    SOMETHING UP.
+
+    The tree is not a list with indentation. It carries three behaviours a
+    flat card list would have to re-earn:
+
+      lazy children   `buildKids()` runs on first expand; a 303-page document
+                      never builds 4,964 rows unless asked
+      auto-collapse   `TREE_EAGER=20` — expand-all below 20 pages, collapse
+                      above, and expand-all whenever a filter is active
+      reveal          `revealInTree(id)` opens the page node when something is
+                      selected from the page or the reflow view
+
+    And it groups by PAGE, which is the axis the page view is indexed by.
+    Cards grouped by type would break the correspondence the hover bus makes
+    useful: selecting a box scrolls the tree to its row because the row is
+    under the page you are looking at.
+
+    Cost: the largest of the four. Virtualisation for up to ~8,400 elements
+    (kohlhase), a new grouping axis, and `revealInTree` rewritten. It also
+    needs a decision the other three do not: what a card is FOR, given the
+    INSPECTOR panel already shows the full record of one element.
+
+    Existing data supports it — `label`, `preview`, `type`, `page`, `bbox`,
+    `props` are all on the record — so this is a cost in code and in
+    behaviour, not in data.
+
+WHICH THE EXISTING DATA SUPPORTS WITHOUT NEW COMPUTATION
+--------------------------------------------------------
+  idea                          new data?   new computation?   status
+  2 bidirectional hover         no          no                 ALREADY BUILT
+  3 shared type colours         no          no                 half built; CSS
+  1 chips + counts              no          no                 filter built
+  1 chips + residual class      no          A JOIN, not a
+                                            measurement        needs wiring
+  4 cards rather than a tree    no          no                 largest rewrite
+
+All four are joins or presentation over data already in the page or already on
+disk. Nothing here needs a measurement to be re-run, and nothing needs the
+model rebuilt.
+
+SUGGESTED ORDER, IF ANY
+-----------------------
+  1. Wire the dead `tiddlers` parameter through to `build_inspector_html` and
+     put `ident` on each element record. It is a defect on its own, and it is
+     the bridge every other idea's interesting half runs over.
+  2. Per-type colour on the page overlay + the seven missing `.b-` rules.
+     CSS, no risk, and it makes the page legible by type at a glance.
+  3. Chips: counts first (a reduce), class second (the join).
+  4. Cards: last, and only after deciding what they add over the inspector.
+
+Nothing here was changed. 463 and 464 are the blocking work; this is a reading
+and four measurements.
