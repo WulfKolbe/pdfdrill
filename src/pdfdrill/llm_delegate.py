@@ -53,6 +53,7 @@ import time
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, Optional
+from . import prompts
 
 
 # ---------------------------------------------------------------------------
@@ -155,16 +156,8 @@ class Deferred:
 # CLI transport — synchronous `claude -p`
 # ---------------------------------------------------------------------------
 
-_SYSTEM_VISION = (
-    "You are pdfdrill's vision fallback, standing in for a hosted vision API. "
-    "Follow the user instructions EXACTLY and return ONLY the requested JSON "
-    "object — no markdown fences, no commentary."
-)
-_SYSTEM_BIB = (
-    "You are pdfdrill's bibliographic fallback, standing in for an online "
-    "search LLM. Return ONLY what the user asks for (a BibTeX entry, or URLs), "
-    "with no commentary."
-)
+_SYSTEM_VISION = prompts.load("delegate-vision")
+_SYSTEM_BIB = prompts.load("delegate-bib")
 
 
 def _cli_invoke(prompt: str, *, system: str, allow_read: bool,
@@ -228,11 +221,7 @@ def _run_cli(task: LLMTask, *, timeout: float, model: Optional[str]) -> dict:
     raise ValueError(f"unknown task kind: {task.kind!r}")
 
 
-_SYSTEM_LEAN = (
-    "You are pdfdrill's LaTeX-to-Lean4 fallback. Translate the given statement "
-    "to Lean 4 / Mathlib. Return ONLY the Lean code (a fenced ```lean block is "
-    "fine), no commentary."
-)
+_SYSTEM_LEAN = prompts.load("delegate-lean")
 
 
 def _parse_lean(text: str) -> str:

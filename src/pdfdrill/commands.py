@@ -22,6 +22,7 @@ from . import jsonio as _jsonio
 from .doclock import writer as _writes
 from .sidecar import Sidecar
 from .model_io import load_model, save_model
+from . import prompts
 
 
 # ---------------------------------------------------------------------------
@@ -11188,13 +11189,7 @@ def cmd_nlp(pdf: Path, limit: int | None = None, pages: int | None = None,
 # Phase 3 — closed self-learning loop: escalate flagged equations, relearn
 # ---------------------------------------------------------------------------
 
-_ESCALATE_PROMPT = (
-    "These equations were FLAGGED for review (low confidence or disagreement). "
-    "For each, open the image at `cdn_url` and transcribe ONLY the mathematics "
-    "as a single LaTeX string (no surrounding $; \\begin{aligned} for "
-    "multi-line). Return JSON list of {eq_id, latex}. A reading that "
-    "corroborates the existing one will resolve the flag."
-)
+_ESCALATE_PROMPT = prompts.load("escalate")
 
 
 @_writes("escalate")
@@ -11404,12 +11399,7 @@ def _format_annotations(sc: Sidecar) -> str:
 # External-provenance candidates (LLM, or any tool): export manifest + ingest
 # ---------------------------------------------------------------------------
 
-_LLM_PROMPT = (
-    "For each entry below, open the image at `cdn_url` and transcribe ONLY the "
-    "mathematics as a single LaTeX string (no surrounding $ or \\[ \\]; use "
-    "\\begin{aligned}...\\end{aligned} for multi-line). Return a JSON list of "
-    '{"eq_id": <unchanged>, "latex": <your LaTeX>}. Keep eq_id exactly as given.'
-)
+_LLM_PROMPT = prompts.load("llm-generic")
 
 
 @_writes("candidates")

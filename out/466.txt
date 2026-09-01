@@ -1,0 +1,191 @@
+466 — runtime prompts out of Python, into docs/prompts/
+2026-09-01T13:10Z · ~/MX/PDFDRILL @ eqblobs-and-gzip-tex
+
+WHAT WAS IN THE DIRECTORY
+-------------------------
+One file. `docs/prompts/2026-07-15-ocr-integration-prompt.md` — a TASK prompt:
+instructions written for a Claude Code session, integrating PDFDRILLocr. It is
+not sent to any model at run time.
+
+Two more task prompts existed outside the directory and are left where they
+are, because they are documents a person opens rather than files code loads:
+
+  docs/PROMPT_FOR_CLAUDE_AI.md          paste into a Claude.ai chat
+  docs/scandrill/PROMPT-FOR-PDFDRILL.md the SCANDRILL integration brief
+
+So before this task: 1 prompt file, 0 runtime prompts, and 19 runtime prompts
+in Python string literals.
+
+THE DIRECTORY NOW
+-----------------
+  file                                                 kind       bytes  sha256(body)
+  ----------------------------------------------------------------------------------------------
+  2025-08-12-vision-selector-original-prompt.md        history     3038  2f3a7248fe873b2a
+  2026-05-08-vision-selector-revision-prompt.md        history     4883  2c49cd71c3ef29d4
+  2026-05-29-escalate-prompt.md                        runtime      328  5d57ad9544f063ba
+  2026-05-29-llm-generic-prompt.md                     runtime      289  a1992637fbf4ef79
+  2026-06-01-vision-chem-structure-prompt.md           runtime     1129  84cd0c9477be17b3
+  2026-06-01-vision-equation-ocr-prompt.md             runtime     1231  a624658a0552a53c
+  2026-06-01-vision-graph-tikz-prompt.md               runtime      605  ab2d1cf18d4a0c8d
+  2026-06-01-vision-mathpix-md-prompt.md               runtime     1797  3df1872339bd7197
+  2026-06-01-vision-selector-prompt.md                 runtime     4966  5243b1fa790d09fc
+  2026-06-17-delegate-bib-prompt.md                    runtime      162  c3e405cad2c59a49
+  2026-06-17-delegate-lean-prompt.md                   runtime      169  1143af5472b5eb5e
+  2026-06-17-delegate-vision-prompt.md                 runtime      188  de6554bbecc7bf9a
+  2026-06-26-lean-theorem-prompt.md                    runtime      543  9f52ba1d32830b4f
+  2026-07-02-gemma-system-prompt.md                    runtime       92  91b59dd8483eb23c
+  2026-07-02-gemma-table-prompt.md                     runtime     2610  48442abfc8fc10d7
+  2026-07-15-ocr-integration-prompt.md                 task        4875  59de65bcba0537f4
+  2026-08-25-refine-propose-crop-prompt.md             runtime      594  93339a4107573ff5
+  2026-08-25-refine-propose-prompt.md                  runtime      512  fc906638ab673cbc
+  2026-08-25-refine-propose-system-prompt.md           runtime      211  54dbc803f38a0648
+  2026-08-30-datikz-summarise-prompt.md                runtime      423  e0a465920117e988
+  2026-08-30-recover-figure-prompt.md                  runtime      686  203c79ca4223a548
+  2026-09-01-revise-region-prompt.md                   runtime     1293  0e9bed9ad3104312
+
+  runtime  19  loaded by code and sent to a model
+  history   2  the vision selector's two ancestors; loadable, sent by nothing
+  task      1  written for an agent session, not for an API
+
+WHAT MOVED
+----------
+Every runtime prompt in the package and in tools/ — 19, not only the three
+named:
+
+  refine.PROPOSE_SYSTEM / PROPOSE_PROMPT / PROPOSE_PROMPT_C     the refine prompt
+  openai_vision.DEFAULT_PROMPT                                  the vision selector
+  openai_vision.GRAPH_TIKZ / CHEM_STRUCTURE / MATHPIX_MD / EQ_OCR
+  llm_delegate._SYSTEM_VISION / _SYSTEM_BIB / _SYSTEM_LEAN
+  gemma_client.SYSTEM_PROMPT / TABLE_PROMPT
+  lean_export.LEAN_THEOREM_PROMPT
+  commands._ESCALATE_PROMPT / _LLM_PROMPT
+  tools/prompt448.py PROMPT                                     448's revision
+  tools/recover_prompt.py PROMPT
+  tools/datikz_summarise.py PROMPT
+
+Each Python name survives — `PROPOSE_SYSTEM = prompts.load("refine-propose-
+system")` — so no call site changed and no substitution mechanism changed.
+448 still uses `.replace` rather than `.format`, because `\usetikzlibrary{
+arrows.meta, positioning}` in its body reads as a format placeholder and
+raises KeyError('arrows').
+
+HOW THE MOVE WAS PROVED HARMLESS
+--------------------------------
+Every value was hashed BEFORE the move. After it, all 19 load byte-identical
+to what Python held, and those 19 hashes are pinned in tests/test_prompts.py.
+A move that dropped a newline, changed an escape or truncated at a quote fails
+there. A deliberate prompt change now has to update the hash in the same
+commit as the file — which is the point.
+
+THE CONVENTION
+--------------
+  docs/prompts/YYYY-MM-DD-<name>-prompt.md
+
+The date is when the prompt was WRITTEN, taken from the first commit touching
+its defining file, not the day it was moved. Everything below the first line
+that is exactly `---` is the prompt; the prose above it is provenance and
+reaches no model. A file with no separator is entirely body, which is how the
+existing task prompt already works and how docs/PROMPT_FOR_CLAUDE_AI.md
+already separates the two.
+
+THE HASH IS OF THE BODY, NOT THE FILE. Editing a provenance header must not
+read as "the prompt changed". Tested both ways.
+
+Found in order: $PDFDRILL_PROMPTS, then <repo>/docs/prompts/, then the bundled
+copy in the package. There is deliberately NO fallback to an embedded string:
+`prompts.load` on a missing name raises and names every directory it looked
+in. A run that silently used a different prompt is what this exists to
+prevent.
+
+`tools/promptsync.py bundle` copies canonical to `src/pdfdrill/prompts_data/`
+(declared package-data), and a test fails on drift — the arrangement `skill/`
+already uses, for the reason the pyproject comment beside `scandrill.toml`
+already gives: an installed wheel has no project root to search upward to.
+
+THE CALL LOG
+------------
+`callog.log_call(..., prompt_name="refine-propose-crop")` now writes
+
+  "prompt_name":   "refine-propose-crop"
+  "prompt_file":   "2026-08-25-refine-propose-crop-prompt.md"
+  "prompt_sha256": "93339a4107573ff581c33c781084dcfbd196e7c34cb172b2ffeae443…"
+
+beside the verbatim prompt, system, reply, arm and subject 447 already kept.
+447's docstring says a paid call whose prompt is not kept can only be
+re-bought. This is the next thing along: two runs whose prompt bytes happen to
+match are the same experiment only if they were the same prompt, and two whose
+bytes differ are a comparison only if the record says which was which.
+
+Wired at the two places that log: `refine._novita_chat` (which passes
+"refine-propose-crop" or "refine-propose" — the two arms differ by exactly
+this) and tools/prompt448.py and tools/datikz_summarise.py. tools/snip454.py
+posts to MathPix /v3/text and has no prompt file, so it names none.
+
+An unknown name is RECORDED as unknown, never raised: the record gets
+prompt_sha256 "" and a prompt_identity_error, and the paid reply is still
+written. A call log must not be the thing that loses a call. Tested.
+
+THE ORIGINAL CHATGPT PROMPT — FOUND, AND NOT WHERE IT WAS ASSUMED
+-----------------------------------------------------------------
+It was not in docs/prompts/ under another name. The directory had one file.
+
+It is `~/Downloads/csp/prompt.txt`, mtime 2025-08-12, 3,038 characters,
+sha256 2f3a7248fe87…, with a byte-identical copy at
+`~/MX/parsemarkdownhtml/parsemarkdownGPT5/prompt.txt`. Both are now recorded
+in docs/prompts/2025-08-12-vision-selector-original-prompt.md.
+
+Three generations:
+
+  2025-08-12  ~/Downloads/csp/prompt.txt            field "content"    6 selectors
+  2026-05-08  ~/MX/mathpix_images/csp/prompt.txt    field "selector"   7 selectors
+  now         openai_vision.DEFAULT_PROMPT          field "selector"  16 selectors
+
+AND A COMMENT THAT HAD STOPPED BEING TRUE
+-----------------------------------------
+`openai_vision.py` carried, above the selector:
+
+    # The classification prompt (ported verbatim from mathpix_images/prompt.txt).
+
+It is not verbatim. Diffed: 123 lines. The selector list grew from
+`empty|math|commutative_diagram|gnuplot|tikzpicture|tensor` to sixteen, adding
+text, handwriting, table, annotated_math with its tikz overlay, two chemistry
+routes (mhchem and chemfig), diagram, chart, photo and logo.
+
+That is the failure this convention exists to prevent, in its purest form: a
+claim about which prompt was used, made by a comment, checked by nobody, and
+wrong. The comment is corrected and both ancestors are in the directory under
+their own dates so the lineage is readable rather than asserted.
+
+WHAT WAS CHANGED
+----------------
+  src/pdfdrill/prompts.py          new — the loader, find/load/identity/names
+  src/pdfdrill/callog.py           prompt_name -> prompt_file + prompt_sha256
+  src/pdfdrill/refine.py           prompt_name through _novita_chat; the two
+                                   arms name their two files
+  openai_vision, llm_delegate, gemma_client, lean_export, commands
+                                   16 literals -> prompts.load
+  tools/prompt448.py, recover_prompt.py, datikz_summarise.py
+                                   3 literals -> prompts.load; 448 and datikz
+                                   pass prompt_name
+  tools/promptsync.py              new — bundle / check
+  pyproject.toml                   prompts_data/* as package-data
+  docs/prompts/                    1 file -> 22
+  CLAUDE.md                        one rule
+  tests/test_prompts.py            new — 29 tests
+
+TESTS
+-----
+  19 pinned hashes, one per moved prompt
+  every moved prompt reachable by name
+  every filename matches the convention
+  a missing prompt raises, and the error names where it looked
+  the body is what is below the FIRST separator (and a second `---` is body)
+  identity = filename + sha256 of the body
+  the hash ignores the header and follows the body
+  the call log carries file and hash, and keeps the verbatim prompt
+  an unknown name does not lose the paid reply
+  NO runtime prompt is still embedded — an AST sweep of src/pdfdrill for a
+  string literal over 120 chars assigned to a *PROMPT*/_SYSTEM name
+  bundled copy matches canonical
+
+Full suite: 2,826 passed.

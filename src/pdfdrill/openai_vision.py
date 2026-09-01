@@ -23,73 +23,26 @@ from typing import Any, Optional
 
 from . import net
 from .env import get
+from . import prompts
 
 API_ENDPOINT = "https://api.openai.com/v1/chat/completions"
 DEFAULT_MODEL = "gpt-4o-2024-08-06"
 
-# The classification prompt (ported verbatim from mathpix_images/prompt.txt).
-DEFAULT_PROMPT = """You are given a base64-encoded image crop that an OCR service could NOT resolve and left as a raw image. Identify what it contains and return a JSON object with this structure:
-
-{
-  "selector": "text|handwriting|table|math|annotated_math|chemical_equation|chemical_structure|commutative_diagram|gnuplot|tikzpicture|tensor|diagram|chart|photo|logo|empty",
-  "text": "verbatim transcription of printed OR handwritten text",
-  "table": "LaTeX tabular for a data table",
-  "math": "LaTeX math expression",
-  "annotated_math": "the mathematics ONLY - the delimiter pair and its contents, e.g. \\\\left[\\\\begin{array}{ccc}...\\\\end{array}\\\\right]",
-  "annotation_overlay": "tikzpicture BODY drawing only what lies OUTSIDE the delimiters - arrows, braces, labels - positioned relative to the node named (M)",
-  "mhchem": "mhchem \\\\ce{...} expression for a chemical formula/equation",
-  "chemfig": "chemfig LaTeX code for a 2D molecular structure or reaction scheme",
-  "commutative_diagram": "tikz-cd code",
-  "gnuplot": "GnuPlot script reproducing a plot",
-  "csv_data": "extracted plot data as CSV",
-  "tikzpicture": "tikzpicture LaTeX code",
-  "tensor": "tensor diagram LaTeX code",
-  "description": "concise factual description for diagram/chart/photo/logo"
-}
-
-CLASSIFICATION RULES — fill ONLY the field named by selector.
-- "text" - printed prose/labels/numbers/addresses. Transcribe verbatim into "text".
-- "handwriting" - cursive or hand-printed writing. Transcribe your best reading into "text".
-- "table" - rows/columns of text or numbers. Fill "table" with a \\begin{tabular}...\\end{tabular} reproducing every visible cell, row by row.
-- "math" - a math expression. Fill "math" with LaTeX in $$ delimiters.
-- "annotated_math" - mathematics inside a DELIMITER PAIR (brackets, parentheses, braces, bars) with text, arrows, braces or labels positioned OUTSIDE that pair: row-operation arrows beside a matrix, an underbrace naming a block, "n columns" over a bracket, a label pointing at one entry. Fill BOTH fields, never one: "annotated_math" with the delimiter pair and its contents alone, and "annotation_overlay" with tikzpicture body code for everything outside it, positioned relative to a node called (M) which will contain the mathematics. Do NOT copy the annotation into the array - an arrow or a word inside a cell is the failure this selector exists to prevent.
-- "chemical_equation" - a chemical formula, ion, isotope, or reaction equation written as TEXT on one line (e.g. 2H2 + O2 -> 2H2O, SO4^2-, ^{227}_{90}Th, CrO4^2- <=> Cr2O7^2-). Fill "mhchem" with one \\ce{...} expression using mhchem v4 syntax: digits become subscripts automatically, charges as ^2- / ^+, arrows as ->, <-, <=>, states as (s)/(aq)/(g), precipitate v, gas ^, reaction conditions above arrows as ->[\\text{...}].
-- "chemical_structure" - a DRAWN 2D molecular structure: skeletal/bond-line formula, ring system, Lewis structure, or a reaction scheme whose participants are drawn structures. Fill "chemfig" with chemfig code: bonds - = ~ and angle bonds like -[:30]; rings as *6(...) (e.g. benzene *6(-=-=-=)); branches in parentheses; charges as \\oplus/\\ominus or ^{+}/^{-} in atom labels; Lewis electron pairs via \\charge/\\Lewis. For a multi-structure reaction scheme wrap the whole thing in \\schemestart ... \\schemestop and connect structures with \\arrow (reagents above the arrow as \\arrow{->[reagent]}). Output only body code (no preamble, no \\documentclass).
-- "commutative_diagram" - fill "commutative_diagram" with tikz-cd code.
-- "gnuplot" - a data plot: fill "csv_data" with every readable data point (CSV, header row, x in column 1) AND "gnuplot" with a complete self-contained script reading 'data.csv'.
-- "tikzpicture" - general TikZ-style line drawing. Fill "tikzpicture".
-- "tensor" - tensor network diagram. Fill "tensor".
-- "diagram" / "chart" / "photo" / "logo" - a picture with no transcribable text. Fill "description".
-- "empty" - ONLY for a genuinely blank/featureless area.
-
-ANNOTATION DISAMBIGUATION: a matrix or aligned block with NOTHING outside its delimiters is "math", not "annotated_math". A drawing whose main content is lines and nodes rather than a delimited expression is "tikzpicture". Choose "annotated_math" only when BOTH are present: real mathematics inside delimiters, AND marks outside them.
-
-CHEMISTRY DISAMBIGUATION: element symbols with stoichiometric subscripts, charges, or reaction arrows = "chemical_equation" (NOT "math"); any drawing with bond lines, rings, or wedge/dash bonds = "chemical_structure" (NOT "diagram" or "tikzpicture"). A subscripted variable like x_2 with no element symbols stays "math".
-
-IMPORTANT: faint, low-contrast, light-grey, or cursive content is NOT empty. If you can perceive ANY strokes, glyphs, lines, or marks, classify and extract them (use "handwriting" or "text" for writing, "diagram" otherwise). Reserve "empty" for a truly blank crop.
-
-Return ONLY the JSON object. No markdown fences, no explanation."""
+# THE VISION SELECTOR. 466 moved it to docs/prompts/ and checked the comment
+# that used to stand here: "ported verbatim from mathpix_images/prompt.txt".
+# It is not verbatim — 123 diff lines, and 6 selectors became 16. Both
+# ancestors are in docs/prompts/ under their own dates.
+DEFAULT_PROMPT = prompts.load("vision-selector")
 
 # Targeted prompt for images whose caption/title names a graph/subgraph — these
 # are vertex+edge drawings that reconstruct cleanly as TikZ (see cmd_vision,
 # which selects this prompt when the owning object's caption matches).
-GRAPH_TIKZ_PROMPT = """This image is a GRAPH or SUBGRAPH diagram (vertices and edges) that OCR could not resolve. Reconstruct it as a faithful, standalone TikZ picture:
-- place every vertex (node) in roughly its observed position;
-- draw every edge between the correct vertices;
-- preserve colour/emphasis (e.g. a red or highlighted complete-bipartite subgraph) using the matching TikZ colour;
-- transcribe any vertex/edge labels you can read.
-Return a JSON object: {"selector":"tikzpicture","tikzpicture":"\\\\begin{tikzpicture} ... \\\\end{tikzpicture}"} with ONLY the tikzpicture field filled. No markdown fences, no explanation."""
+GRAPH_TIKZ_PROMPT = prompts.load("vision-graph-tikz")
 
 # Targeted prompt for images whose caption/context names a molecule/compound/
 # reaction — drawn structures reconstruct cleanly as chemfig (see cmd_vision,
 # which selects this prompt when the owning object's caption matches).
-CHEM_STRUCTURE_PROMPT = """This image is a CHEMICAL STRUCTURE or REACTION SCHEME that OCR could not resolve. Reconstruct it as faithful chemfig LaTeX code:
-- skeletal/bond-line formulas with chemfig bond syntax (- single, = double, ~ triple, angled bonds -[:30], branches in parentheses);
-- ring systems with the *n(...) ring syntax (benzene: *6(-=-=-=), fused rings by chaining);
-- preserve every heteroatom, charge (\\oplus / ^{+}), wedge/dash stereo bonds (< / <:), and substituent label exactly as drawn;
-- if the image is a reaction scheme with several drawn structures, wrap everything in \\schemestart ... \\schemestop and connect the structures with \\arrow, placing reagents/conditions above the arrow as \\arrow{->[\\chemname{}{reagent}]} or ->[text];
-- if instead the content is only a line formula / reaction EQUATION in plain text (no drawn bonds), return selector "chemical_equation" with an mhchem \\ce{...} expression in "mhchem".
-Return a JSON object: {"selector":"chemical_structure","chemfig":"\\\\chemfig{...}"} (or the chemical_equation/mhchem pair) with ONLY that field filled. Body code only — no preamble. No markdown fences, no explanation."""
+CHEM_STRUCTURE_PROMPT = prompts.load("vision-chem-structure")
 
 # --------------------------------------------------------------------------- #
 # Full-page MathPix-replacement prompt.
@@ -104,62 +57,13 @@ Return a JSON object: {"selector":"chemical_structure","chemfig":"\\\\chemfig{..
 # --------------------------------------------------------------------------- #
 GIVE_UP_SENTINEL = "PDFDRILL_CANNOT_RECONSTRUCT"
 
-MATHPIX_MD_PROMPT = (
-    "You are standing in for MathPix on ONE rendered page of a document. A keyless "
-    "OCR pass produced a plain-text layer with NO LaTeX, which breaks downstream "
-    "math transclusion. Read the page IMAGE and re-emit it as MathPix-quality "
-    "GitHub Markdown so the LaTeX is recovered. Rules:\n"
-    "- EVERY mathematical expression must be LaTeX. Inline math: \\( … \\). "
-    "Display/standalone equations: a line containing only `$$`, then the LaTeX, "
-    "then a line containing only `$$`. NEVER write math as plain text or unicode "
-    "(no 'lambda', '√', '½', '≤' — use \\lambda, \\sqrt{}, \\frac{1}{2}, \\leq).\n"
-    "- PRESERVE the 2-D layout as LaTeX — do NOT linearise it. Subscripts/"
-    "superscripts become _{} / ^{}, fractions \\frac{}{}, never separate visual "
-    "fragments. WRONG (flattened): `M = m a (F + j ) (B65)` then `n` then `0` on "
-    "later lines. RIGHT: `M = m_a (F + j_0) \\tag{B65}` as one display equation. "
-    "Keep each whole equation on its own; never split one formula across lines.\n"
-    "- Keep a printed equation number as a trailing \\tag{N} inside the display "
-    "math (or '(N)' at the end of the line).\n"
-    "- Headings: #/##/### by level. Lists: '-' or '1.'. Tables: GitHub Markdown "
-    "(or a LaTeX tabular inside $$ if the table is heavily mathematical).\n"
-    "- Reproduce the page's text and structure FAITHFULLY in reading order. Do "
-    "NOT summarise, translate, add, or omit content. Skip running headers/footers, "
-    "page numbers, and watermarks.\n"
-    "- Output ONLY the Markdown for this one page. No commentary, and do NOT wrap "
-    "the whole page in a code fence.\n"
-    f"- If you cannot reconstruct it faithfully (illegible, a photo/figure with no "
-    f"recoverable text, or you are not confident the math is correct), output "
-    f"EXACTLY the single token {GIVE_UP_SENTINEL} and nothing else. Never guess or "
-    f"hallucinate mathematics — an invented equation is far worse than giving up."
-)
+MATHPIX_MD_PROMPT = prompts.load("vision-mathpix-md")
 
 # Equation-only OCR: extract just the display equations from ONE page image as
 # structured records (page/number/latex/kind) — the keyless equivalent of
 # MathPix's equation isolation. Used by `pdfdrill visionocr` to fold real
 # Equation nodes back into a tesseract lines.json without re-transcribing prose.
-EQ_OCR_PROMPT = (
-    "You are standing in for MathPix's equation OCR on ONE rendered page. A "
-    "keyless tesseract pass already captured the prose, but it CANNOT type "
-    "mathematics. Look at the page IMAGE and extract every DISPLAY equation (and "
-    "any standalone display formula). Return ONLY a JSON array — no prose, no "
-    "code fence — of objects of this exact shape:\n"
-    '  {"page": <int>, "number": <string|null>, "latex": "<LaTeX>", '
-    '"kind": "equation"|"math"}\n'
-    "Rules:\n"
-    "- One object per display equation, in top-to-bottom reading order.\n"
-    "- `latex`: faithful, COMPILABLE LaTeX. PRESERVE the 2-D structure — "
-    "subscripts _{}, superscripts ^{}, fractions \\frac{}{}, roots \\sqrt{}. "
-    "NEVER linearise. WRONG (flattened): `M = m a (F + j ) (B65)` with the "
-    "subscripts dropped onto other lines. RIGHT: `M = m_a (F + j_0)`. Do NOT put "
-    "the equation number inside `latex`.\n"
-    "- `number`: the printed equation number WITHOUT parentheses (e.g. 'B65', "
-    "'12'), or null if the equation is unnumbered.\n"
-    "- `kind`: 'equation' for a numbered/display equation, 'math' for an "
-    "unnumbered display formula.\n"
-    "- If the page has NO display mathematics, return exactly `[]`. Never invent, "
-    "guess, or fabricate an equation you cannot read clearly — omit it instead.\n"
-    "Output ONLY the JSON array for this one page."
-)
+EQ_OCR_PROMPT = prompts.load("vision-equation-ocr")
 
 # json_schema enforcing the response shape.
 _SCHEMA = {

@@ -118,6 +118,10 @@ include = ["pdfdrill*", "docmodel*", "docops*", "features*", "semantic*", "vocab
 # the skillsync-generated --help body, and the complete bundled SKILL folder
 # (commands.yaml manifest + SKILL.md) so `pdfdrill skill` works from an installed wheel.
 pdfdrill = ["font_categories.json", "_help_generated.txt", "skill/*",
+            # 466: the runtime prompts. Canonical copy is docs/prompts/; this
+            # is tools/promptsync.py's bundle, for the same reason as
+            # scandrill.toml below — an installed wheel has no project root.
+            "prompts_data/*",
             # the vendored acquisition rig's config — it documents the fixed rig
             # (ADF Duplex @300dpi, deskew on) and must travel WITH the package,
             # since there is no project root to search upward to once installed.

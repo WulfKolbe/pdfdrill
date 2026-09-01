@@ -13,6 +13,7 @@ import pathlib
 import re
 import sys
 import time
+from pdfdrill import prompts
 
 ROOT = pathlib.Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "src"))
@@ -26,12 +27,7 @@ KINDS = ("plot", "commutative diagram", "graph or network", "geometric figure",
 
 SYSTEM = "You describe scientific figures from their TikZ source. One sentence."
 
-PROMPT = """Summarise this TikZ picture in one sentence, under 20 words.
-State the kind — one of: plot, commutative diagram, graph or network, geometric figure, circuit, tree, flowchart, table-like grid, illustration, other.
-Then the elements that dominate it — axes, nodes, arrows, curves, labels, shading, coordinates.
-Describe what is drawn. Do not describe the code, do not name TikZ libraries, do not begin with "This figure".
-
-%s"""
+PROMPT = prompts.load("datikz-summarise")
 
 #: names that mean the reply talked about the CODE rather than the picture
 LIBRARIES = ("tikz", "pgfplots", "pgf", "usetikzlibrary", "\\draw", "\\node",
@@ -75,7 +71,8 @@ def main() -> int:
             # 16,000: minimax-m3 spends completion tokens reasoning before it
             # emits a character, and 4,000 returned an empty string with
             # finish_reason=length — a budget, not a refusal (337).
-            max_tokens=16000, timeout=300)
+            max_tokens=16000, timeout=300,
+            prompt_name="datikz-summarise")
         summary = re.sub(r"\s+", " ", (txt or "").strip())
         kind, bad = classify(summary)
         rows.append({"id": rid, "summary": summary, "kind": kind,

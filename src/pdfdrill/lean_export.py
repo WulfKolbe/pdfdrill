@@ -16,21 +16,10 @@ from __future__ import annotations
 
 import re
 from pathlib import Path
+from . import prompts
 
 
-LEAN_THEOREM_PROMPT = """Translate this mathematical statement from a research \
-paper into a Lean 4 (Mathlib) declaration.
-
-Output ONLY Lean 4 code (a fenced ```lean block is fine), no commentary:
-- a `theorem {name} ... : ... := by sorry` (leave the proof as `sorry`)
-- declare reasonable variables/hypotheses; prefer Mathlib names; invent nothing
-- if the statement is too informal to formalise precisely, give your best-effort
-  signature and add a `-- INFORMAL:` comment line with the original wording.
-
-{kind}{number_part}{label_part}
-LaTeX statement:
-{statement}
-"""
+LEAN_THEOREM_PROMPT = prompts.load("lean-theorem")
 
 
 def lean_name(label: str, kind: str, number, idx: int) -> str:

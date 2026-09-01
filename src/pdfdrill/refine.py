@@ -55,6 +55,7 @@ from dataclasses import dataclass
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Optional
+from . import prompts
 
 STAGES = ("select", "propose", "validate", "measure", "accept", "record")
 
@@ -454,11 +455,7 @@ def ink_gate(pdf: Path, doc, objs: list, work: Path, *,
 # stage 2 — propose
 # ---------------------------------------------------------------------------
 
-PROPOSE_SYSTEM = (
-    "You re-transcribe mathematics from OCR output. You return LaTeX and "
-    "nothing else: no prose, no code fence, no delimiters, no explanation. "
-    "Preserve the mathematical content exactly; fix only transcription damage."
-)
+PROPOSE_SYSTEM = prompts.load("refine-propose-system")
 
 #: VARIANT C (out/113). Four prompt variants were measured on 19 crops:
 #:     A  image alone                     median delta +146
@@ -470,35 +467,9 @@ PROPOSE_SYSTEM = (
 #: than MathPix's reading was, on the very rows MathPix was least sure of.
 #: So the crop and the prior are sent together, and a run without the crop is
 #: not variant C -- it is a fourth thing nobody measured.
-PROPOSE_PROMPT_C = """The image is a crop of one printed equation from a scanned page.
+PROPOSE_PROMPT_C = prompts.load("refine-propose-crop")
 
-An OCR service read it as the LaTeX below, with confidence {conf}. That reading
-may be right, or may have lost or merged rows, dropped cells from an aligned
-table, or run two columns of the page together.
-
-Correct it AGAINST THE IMAGE. Rules:
-  - return the LaTeX body only, no $ or \\[ delimiters and no code fence
-  - keep every environment balanced
-  - if it is a table of numbers, every row must have the same number of cells
-  - prefer the existing reading where the image does not contradict it
-
-THE OCR'S READING:
-{latex}
-"""
-
-PROPOSE_PROMPT = """This LaTeX came from OCR of a printed equation and its confidence is {conf}.
-It may have lost or merged rows, dropped cells from an aligned table, or run two
-columns of the page together.
-
-Return a corrected LaTeX body for the SAME equation. Rules:
-  - return the body only, with no $ or \\[ delimiters and no code fence
-  - keep every environment balanced
-  - if it is a table of numbers, every row must have the same number of cells
-  - do not invent content you cannot see in the source below
-
-SOURCE:
-{latex}
-"""
+PROPOSE_PROMPT = prompts.load("refine-propose")
 
 
 #: 447 — the run every model call writes itself into, set by a caller that
@@ -517,7 +488,7 @@ def set_call_log(blob_dir, run_id: str) -> None:
 
 def _novita_chat(prompt: str, *, system: str, model: str, max_tokens: int,
                  timeout: float, crop=None, subject: str = "",
-                 arm: str = "") -> tuple[str, str, str]:
+                 arm: str = "", prompt_name: str = "") -> tuple[str, str, str]:
     """The logged wrapper. The transport is `_novita_chat_raw` below.
 
     Wrapped rather than instrumented in place so there is ONE point where a
@@ -536,7 +507,8 @@ def _novita_chat(prompt: str, *, system: str, model: str, max_tokens: int,
                             system=system, reply=out[0], model=model,
                             max_tokens=max_tokens, finish=out[1],
                             error=out[2], seconds=round(_t.time() - t0, 1),
-                            images=paths, subject=subject, arm=arm)
+                            images=paths, subject=subject, arm=arm,
+                            prompt_name=prompt_name)
         except Exception:
             pass          # a logging failure must not cost the paid answer
     return out
@@ -633,11 +605,14 @@ def propose_one(latex: str, conf: float, *, model: str = NOVITA_MODEL,
     Without it, the model is asked to repair LaTeX it cannot see the source
     of, which is not any of the four variants out/113 measured.
     """
+    # 466 — the prompt NAME travels with the call, so the log records which
+    # file was used and its hash. The two arms differ by exactly this.
+    pname = "refine-propose-crop" if crop else "refine-propose"
     prompt = (PROPOSE_PROMPT_C if crop else PROPOSE_PROMPT).format(
         conf=f"{conf:.4f}", latex=latex)
     txt, finish, err = _novita_chat(
         prompt, system=PROPOSE_SYSTEM, model=model, max_tokens=max_tokens,
-        subject=subject, arm=arm,
+        subject=subject, arm=arm, prompt_name=pname,
         timeout=timeout, crop=crop)
     if err:
         return "", err

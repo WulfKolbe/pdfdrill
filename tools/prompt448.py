@@ -25,6 +25,7 @@ Run against the SAME six rows as 444, so the comparison means something, and
 logged beside the document (447) so this one is auditable.
 """
 import argparse, json, pathlib, sys, tempfile, time
+from pdfdrill import prompts
 
 ROOT = pathlib.Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "src"))
@@ -38,38 +39,7 @@ SYSTEM = (
     "and nothing else: no prose, no code fence, no explanation."
 )
 
-PROMPT = r"""The image is a crop of ONE region of a printed page. It may be an
-equation, a TikZ-style diagram, a table, or a mixture — do not assume it is
-mathematics.
-
-An OCR service read that region as the LaTeX below, with confidence {conf}.
-
-Return LaTeX that reproduces WHAT THE IMAGE SHOWS.
-
-REMOVE ANYTHING THE IMAGE DOES NOT SHOW. The reading may carry wrappers or
-environments the crop cannot contain — a float, a caption, a list closer, a
-section command. If it is not visible in the image, it is damage from the
-segmentation and does not belong in your answer. Correcting structure is part
-of the task, not a liberty.
-
-Keep what the image does show, and keep it exactly: every string as printed,
-every row and cell of a table, every node and edge of a diagram.
-
-If the region is a DIAGRAM, give TikZ and be specific:
-  - every label string as printed, and its font size if it differs
-  - node positions and the direction of every arrow
-  - line styles that carry meaning (dashed, dotted, double)
-  - assume \usetikzlibrary{arrows.meta, positioning} is loaded and use it
-
-If the region is a TABLE, give a tabular whose every row has the same number
-of cells.
-
-If the region is an EQUATION, give the body only — no $ or \[ delimiters —
-with every environment balanced.
-
-THE OCR'S READING:
-{latex}
-"""
+PROMPT = prompts.load("revise-region")
 
 
 def main() -> int:
@@ -117,7 +87,8 @@ def main() -> int:
         txt, finish, err = rf._novita_chat(
             prompt, system=SYSTEM, model=rf.NOVITA_MODEL,
             max_tokens=rf.PROPOSE_MAX_TOKENS, timeout=600, crop=crop,
-            subject=r["short"], arm="revised")
+            subject=r["short"], arm="revised",
+            prompt_name="revise-region")
         prop = rf._clean_proposal(txt) if hasattr(rf, "_clean_proposal") else (txt or "").strip()
         rec["seconds"] = round(time.time() - t0, 1)
         rec["finish"], rec["error"] = finish, err

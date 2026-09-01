@@ -6,26 +6,13 @@ the two used different prompts, 392's distance distribution would not say
 anything about 391's rescues, and saying something about them is the whole
 reason 392 exists.
 """
+from pdfdrill import prompts
 
 SYSTEM = ("You read an image of a figure from a mathematics or science paper "
           "and return LaTeX/TikZ that reproduces it. Return ONLY code. No "
           "explanation, no commentary, no markdown fence.")
 
-PROMPT = """The image is a figure from a paper.
-
-Reproduce it as closely as you can in TikZ/pgfplots.
-
-Return ONLY the body: \\begin{tikzpicture} ... \\end{tikzpicture}, or a
-\\begin{axis} inside one. Do not write \\documentclass, \\usepackage or
-\\begin{document} — a preamble is already supplied and yours would collide
-with it. Do not use \\includegraphics: draw the content, do not embed it.
-
-Match the STRUCTURE first — the number of nodes, edges, axes, curves and
-labels, and their arrangement. Exact colours and font sizes matter less than
-getting the right things in the right places.
-
-If part of the figure is illegible, draw what you can see and leave the rest
-out rather than inventing content."""
+PROMPT = prompts.load("recover-figure")
 
 #: 391 — the fallback preamble, and why it is fixed rather than requested.
 #:

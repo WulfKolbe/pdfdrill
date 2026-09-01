@@ -86,12 +86,22 @@ def open_run(blob_dir, tool: str, *, script: str = "",
 def log_call(blob_dir, run_id: str, *, prompt: str, system: str, reply: str,
              model: str = "", max_tokens=None, finish: str = "",
              error: str = "", seconds=None, images=(), subject: str = "",
-             arm: str = "", extra: dict | None = None) -> None:
+             arm: str = "", prompt_name: str = "",
+             extra: dict | None = None) -> None:
     """One call, VERBATIM. Appended immediately, never buffered.
 
     `arm` is the field 444 needed and did not have: two calls about the same
     subject differing by one line of prompt are only a comparison if the
     record says which was which.
+
+    `prompt_name` (466) names the FILE the prompt came from, and the record
+    gets its `prompt_file` and `prompt_sha256` beside the text. The verbatim
+    prompt is already here; what it did not have is identity. Two runs whose
+    prompt bytes happen to match are the same experiment only if they were
+    the same prompt, and two whose bytes differ are a comparison only if the
+    record says which prompt each was. An unknown name is recorded as such
+    rather than raising — a call log must never be the thing that fails a
+    paid call.
     """
     rec = {
         "kind": "call",
@@ -109,6 +119,15 @@ def log_call(blob_dir, run_id: str, *, prompt: str, system: str, reply: str,
         "reply": reply,
         "images": [str(x) for x in (images or ())],
     }
+    if prompt_name:
+        rec["prompt_name"] = prompt_name
+        try:
+            from . import prompts as _p
+            rec.update(_p.identity(prompt_name))
+        except Exception as exc:                      # never fail a paid call
+            rec["prompt_file"] = ""
+            rec["prompt_sha256"] = ""
+            rec["prompt_identity_error"] = "%s: %s" % (type(exc).__name__, exc)
     if extra:
         rec["extra"] = extra
     with path_for(blob_dir, run_id).open("a", encoding="utf-8") as fh:

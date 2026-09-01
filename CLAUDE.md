@@ -146,6 +146,14 @@ tests failing against correct source (HANDOVER-RULES rule 4).
   `.aux` yields a PDF resolved against another build's cross-references: it
   compiles, it looks right, and every `\ref` points at the wrong equation
   (297).
+- **A prompt sent to a model lives in `docs/prompts/`, never in a Python
+  string** (466). `YYYY-MM-DD-<name>-prompt.md`, body below the first `---`;
+  `prompts.load(name)` reads it, `prompts.identity(name)` returns the filename
+  and the sha256 of the body, and `callog.log_call(prompt_name=…)` records
+  both beside the verbatim text. 447 already kept every prompt and reply; what
+  it could not say was whether two runs used the SAME prompt. A missing file
+  raises rather than falling back — a run that silently used a different
+  prompt is the failure the convention exists to prevent.
 - **Verify pushes**: after any push claim, `git ls-remote origin` — commits
   must never exist only locally or in a scratch worktree (2026-08-16 incident,
   HANDOVER-RULES header).
