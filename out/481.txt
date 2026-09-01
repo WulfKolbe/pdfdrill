@@ -1,0 +1,137 @@
+481 — the five classes, censused corpus-wide, and whose each one is
+2026-09-01T20:10Z · 1,349 documents · tools/census481.py
+
+  class                    rows   docs   whose it is
+  ----------------------------------------------------------------------
+  figure wrapper             42     21   MathPix (segmentation)
+  code in a maths env         5      2   MathPix (classification)
+  unescaped underscore       85     40   MathPix (text-mode escaping)
+  \overparen                 15      5   OURS (package gap)
+  \] inside a value       1,168    178   BOTH — see below
+  ----------------------------------------------------------------------
+
+1 — FIGURE WRAPPER: 42 rows, 21 documents. MathPix's.
+--------------------------------------------------
+`\begin{figure}` (or table/wrapfigure/subfigure) inside a maths value. Known
+at 3 rows in johnston; the census finds 42.
+
+  Schaums Outline of Discrete Mathematics                  7
+  LATEX Graphics with TikZ                                 6
+  Numerical Linear Algebra (lyche)                         4
+  A First Course in Modular Forms                          3
+  Introduction to Linear and Matrix Algebra (johnston)     3
+  The Character Theory of Finite Groups of Lie Type        3
+  ... 15 more documents with 1-2 each
+
+kohlhase EQ0005 (p309, conf 0.092) is one, and it carries the wrapper AND a
+display delimiter: `\begin{figure} \[ \begin{aligned} …`.
+
+The repair is structural and needs no model: strip the float wrapper, keep
+the display. The object is the equation; the figure around it is the page
+furniture MathPix's segmentation swept in.
+
+2 — CODE IN A MATHS ENVIRONMENT: 5 rows, 2 documents. MathPix's.
+--------------------------------------------------------------
+This one cost three wrong proxies and the wrong numbers are worth recording,
+because each looked plausible:
+
+  any `\backslash` in the value          2,516 rows   WRONG
+      — 2,285 of them are `A \backslash B`, set difference. Legitimate.
+  `\backslash` before any letter           231 rows   STILL WRONG
+      — `M \backslash L` is set difference with a one-letter operand.
+  `\backslash` before `\text` or `\mathrm`  ~60 rows  STILL WRONG
+      — `\Gamma \backslash \mathrm{SL}_2(\mathbf{Z})` is a quotient, and
+        `\mathrm` is an operand font, not a prose font.
+  `\backslash` before `\text{`, or escaped braces inside `\text{}`,
+  or `\verb`/verbatim                        5 rows   the answer
+
+  OMDoc (kohlhase) EQ0004  p297  conf 0.035
+     \backslash \text { CSum\{k\}1\infty\{\Cexp\{x\}k\} instead of } …
+  2503.21383  FO0046-0049   \verb|<think>| \verb|<\think>| \verb|<answer>| …
+
+The row is not mathematics: it is TeX or markup being DISCUSSED, typeset as
+though it were an equation. Same class as 465's kohlhase p215, where three
+verbatim listings of `$\{\,p\mid\hbox{…}\,\}$` were read as maths — and note
+that those three do NOT match this signature, so 5 is a floor, not a total.
+This class has no clean corpus-wide regex; it needs the crop.
+
+3 — UNESCAPED UNDERSCORE: 85 rows, 40 documents. MathPix's.
+----------------------------------------------------------
+YES — the raw value carries `_` inside `\text{}`. kohlhase EQ0001, p060,
+confidence 0.863:
+
+  \forall M . \operatorname{magma}(M) \Leftrightarrow \exists E, F . M=(E, F)
+    \wedge \text { law_of_composition }(E, F)
+
+In text mode `_` is illegal and the row dies with "Missing $ inserted". The
+identifier `law_of_composition` is printed on the page with literal
+underscores; MathPix transcribed it faithfully into `\text{}` and did not
+escape it. Faithful and unusable.
+
+  2512.21782v1 10, 1710.04811 9, Geometrie und GPS 6, Autonomous Driving 4,
+  math_0202059 4, 2606.13669 3, … 34 more documents
+
+The repair is one substitution — `_` -> `\_` inside a text run — and needs no
+model.
+
+4 — \overparen: 15 rows, 5 documents. OURS.
+-------------------------------------------
+  Geometrodynamics (mielke)  9   — EQ0305 p103, EQ0577 p185, EQ0753 p241, …
+  1712.05204                 2
+  Homotopical quantum field theory  2
+  Burkhard Heim Elementarstrukturen 1
+  mathematics-11-03607              1
+
+Neither amsmath nor amssymb defines it. Confirmed by an existence test
+against our own preamble (482): `\overparen` is undefined, and stix2 defines
+it. A package gap, and the fourth found one document at a time — which is
+what 482 exists to stop.
+
+5 — \] INSIDE A MATHS VALUE: 1,168 rows, 178 documents. BOTH, and the split
+   is checkable.
+---------------------------------------------------------------------------
+mielke EQ0190 p080 and EQ0453 p151, both at confidence 1.000. Their values:
+
+  \[ T_{G}: \quad T_{g} \psi(m)=D(…) \psi(g^{-1} m) . \] }
+  \[ L_{a b}^{(\star)}:=\frac{1}{2} \varepsilon_{a b c d} L^{c d}=L_{a b} . \] }
+
+MathPix's own lines.json for those two lines reads, verbatim:
+
+  '\\[\nT_{G}: \\quad T_{g} \\psi(m)=D\\left(…\\right) \\psi\\left(g^{-1} m\\right) .\n\\]'
+  '\\[\nL_{a b}^{(\\star)}:=\\frac{1}{2} \\varepsilon_{a b c d} L^{c d}=L_{a b} .\n\\]'
+
+So:
+
+  the `\[` and `\]`   THEIRS. It is how MathPix delimits a display-math line
+                      in its `text` field. Not a defect on their side — it is
+                      their format.
+  carrying it into    OURS. `latex` is supposed to hold mathematics, and the
+  the `latex` field   report wraps it in `$\displaystyle …$`; `\[` inside
+                      `$…$` is illegal. Stripping the delimiter is our job
+                      and we do not do it.
+  the trailing ` }`   OURS. It is not in MathPix's text at all.
+
+out/056 already counted this as 41 rows on a 49-document sample and called it
+"nested display delimiter". Corpus-wide it is 1,168 rows in 178 documents —
+the largest of the five by a factor of 14, and the only one where the repair
+is unambiguously ours and needs no model, no crop and no call.
+
+  Arbeitsbuch Höhere Mathematik  140    Schaums Outline   95
+  2004.05631                      56    math_0202059      50
+  General Relativity Simplified   46    2002.06055        34
+
+WHAT THIS CHANGES
+-----------------
+Three of the five repair without a model, a crop or a paid call:
+
+  \] delimiter        1,168 rows   strip a delimiter our own field should
+                                   never have carried
+  underscore in text     85 rows   escape `_` inside a text run
+  figure wrapper         42 rows   strip the float, keep the display
+  ------------------------------------------------------------------
+                      1,295 rows
+
+That is larger than 475's 773 silent Unicode rows and needs no MiniMax at
+all. \overparen is 482's business. Code-as-maths is 5 rows and wants a human.
+
+Nothing was changed.
