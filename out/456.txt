@@ -1,0 +1,189 @@
+456 — the published artefact set, audited against the definition
+2026-09-01T08:14Z · ~/pdfdrill.github.io/reports (22 folders, HEAD 6a6fdaa)
+Report only. Nothing was changed.
+
+THE TABLE
+---------
+"form"/"tabl" = formula-report.html / tables.html.  "idx" = anything in the
+folder is linked from index.html.  "built" = mtime of <bibkey>.md, which the
+publish copy preserves, so it is the build date, not the publish date.
+"meas" = mtime of report.ink.json.  FO/TAB = formula and table objects in the
+document's model, i.e. whether the conditional files are owed.
+
+  document                        pdf  ink  insp md   form tabl  idx  build commit built  meas       FO   TAB
+  -------------------------------------------------------------------------------------------------------------
+  0707.4470                        OK   OK   OK   OK   --   --   yes  059c0ce88446 08-26  08-27     213     0
+  0902.0431                        OK   --   OK   OK   --   --   yes  (none)       08-24    -      3170     3
+  1510.06699                       OK   OK   OK   OK   --   --   NO   f67a9f08605d 08-28  08-28    1063     7
+  1605.05775                       OK   OK   OK   OK   --   --   yes  (none)       08-24  08-24     138     0
+  2010.14265                       OK   OK   OK   OK   --   --   yes  059c0ce88446 08-26  08-27     369     0
+  2106.07890                       OK   OK   OK   OK   --   --   yes  (none)       08-24  08-24     319     0
+  2501.06662                       OK   OK   OK   OK   --   --   yes  (none)       08-24  08-24     386     0
+  BradleyGastaldiTerilla2023       OK   --   OK   OK   --   --   yes  (none)       08-24    -       211     1
+  bradley_spring22                 OK   OK   OK   OK   --   --   yes  (none)       08-24  08-24     182     0
+  cardona-qft-methods              OK   OK   OK   OK   --   --   yes  059c0ce88446 08-26  08-27    3760     8
+  fong-spivak-invitation           OK   OK   OK   OK   --   --   yes  059c0ce88446 08-26  08-27    4061    68
+  fong-spivak-seven-sketches       OK   OK   OK   OK   --   --   yes  059c0ce88446 08-26  08-27    4029    63
+  gilmore-lie-groups               OK   OK   OK   OK   --   --   yes  059c0ce88446 08-26  08-27    3473    38
+  johnston-linear-matrix-algebra   OK   OK   OK   OK   --   --   yes  bea33bee894b 08-26  08-27    5144    43
+  kohlhase-omdoc                   OK   OK   OK   OK   --   --   yes  059c0ce88446 08-26  08-27     459   103
+  lyche-numerical-linear-algebra   OK   OK   OK   OK   --   --   yes  059c0ce88446 08-26  08-27    4638     7
+  mielke-geometrodynamics          OK   OK   OK   OK   --   --   yes  bea33bee894b 08-26  08-27    1794     5
+  pdf-dc99cf88                     OK   OK   OK   OK   --   --   yes  (none)       08-24  08-24       ?     ?
+  penev_A                          OK   --   OK   OK   --   --   yes  (none)       08-25    -       674     2
+  penev_B                          OK   --   OK   OK   --   --   yes  (none)       08-25    -       497     1
+  rph8-g15q                        OK   OK   OK   OK   --   --   yes  (none)       08-24  08-24     489     0
+  voloshin-hypergraph              OK   OK   OK   OK   --   --   yes  bea33bee894b 08-26  08-27    2555     2
+
+WHAT THE SIX-FILE DEFINITION FINDS
+----------------------------------
+report.pdf                22 / 22
+report.ink.json           18 / 22   absent: 0902.0431, BradleyGastaldiTerilla2023,
+                                    penev_A, penev_B
+<bibkey>.inspect.html      0 / 22   see LAYOUT below — the file is there, the name is not
+<bibkey>.md               22 / 22
+formula-report.html        0 / 22
+tables.html                0 / 22
+
+Two files exist that the definition does not name: report.build.json in 12
+folders, compare.html in 6 (johnston, lyche, mielke, penev_A, penev_B,
+voloshin).
+
+IS formula-report.html CONDITIONAL, OR MISSING?
+-----------------------------------------------
+Missing. It is not a conditional absence: every one of the 21 published
+documents that has a model has formulas — the smallest is 1605.05775 with 138
+FO objects, the largest johnston with 5,144. pdf-dc99cf88 has no model at all,
+so for that one the question cannot be asked (it is the same document that has
+no lines.json and no geometry).
+
+The 35 formula-report.html corpus-wide are on 35 OTHER documents. The two sets
+are disjoint: 0 of the published 22 has one, in ~/pdfdrill-library either. The
+same holds for tables.html — 31 exist corpus-wide, none on a published
+document.
+
+tables.html is genuinely conditional and the condition is met 14 times: 14 of
+the 22 have tables (1 to 103 TAB objects), 7 have none, 1 cannot be asked. So
+14 are owed a tables.html and 0 have one.
+
+THE INDEX
+---------
+21 rows, 22 folders.
+
+  linked but missing        none. Every href under reports/<slug>/ resolves.
+                            The 426 defect class is not present here.
+  exists, not linked        1510.06699 — the whole folder, all five files.
+                            Committed as 6a6fdaa "reports: add 1510.06699" and
+                            never given a row. Plus report.build.json in the 12
+                            folders that have one.
+  duplicate                 1605.05775/report.ink.json is linked twice.
+  untracked                 reports/corrections.html exists, is not in git, and
+                            is not linked from index.html.
+
+What an index row carries — columns are Document | Source | Equations |
+Residual | Size | Files:
+
+  bibkey                yes, 21 of 21
+  page count            NO SUCH COLUMN. The numeric column is Equations. No row
+                        anywhere states a page count.
+  row count             yes — and it agrees exactly with len(rows) in
+                        report.ink.json in all 18 rows that have one.
+  class distribution    17 of 21 carry C/W/N/K. The other 4 carry a prose
+                        reason: 0902.0431 "lattice under-detects — withdrawn",
+                        BradleyGastaldiTerilla2023 "lattice over-detects —
+                        refused", penev_A and penev_B "no ink pass yet". Those
+                        are exactly the 4 folders with no report.ink.json, so
+                        the index and the folder agree.
+  date measured         NO SUCH COLUMN, on any row.
+
+DATES, AND WHAT A DATE CAN MEAN HERE
+------------------------------------
+report.ink.json carries no timestamp. Its keys are rows, footers_dropped,
+display_pages, source. So "the artefact's date against report.ink.json's" has
+to come from outside the file, and the two available clocks disagree on
+purpose:
+
+  git commit date = when it was published. Four batches: 08-24 (9 documents),
+  08-25 (2), 08-27 (10), 08-28 (1). By this clock nothing is older than its
+  ink.json — each folder went in as one commit.
+
+  file mtime = when it was built, preserved by the publish copy (verified: the
+  library and published copies of cardona-qft-methods.md share mtime
+  26 Aug 13:57 and size 913,474).
+
+By the build clock there IS skew, in the 10-document 08-27 batch: <bibkey>.md
+and inspect.html were built 26 Aug, report.ink.json 27 Aug 11:47. The markdown
+and the page images published beside each measurement come from a model build
+one day older than the measurement. It is the same direction in all ten.
+
+THE LARGER STALENESS, WHICH THE PER-FILE VIEW HIDES
+---------------------------------------------------
+The published set is behind the library as a whole. Published report.pdf files
+were built at commits 059c0ce88446 (task 244), bea33bee894b (242) and
+f67a9f08605d. None of those three contains 423 (six-column tables), 429 (table
+confidence) or 446 (the escaped dollar). The library already holds rebuilt
+reports for all 21, dated 31 Aug 18:46 – 01 Sep 01:20, at commits d5912e58fff1
+/ 2cc9aef5a304 / 10c0da475460 / a37f3bc642a3, and every one of those does
+contain 423 and 429.
+
+Last commit touching reports/ is 6a6fdaa, 2026-08-28T22:59. So 417's rebuild of
+the 22 exists on disk and has not been published.
+
+LAYOUT — WHAT IT ACTUALLY IS
+----------------------------
+reports/<slug>/, and <slug> is not always the bibkey.
+
+The inspect file is named inspect.html in every one of the 22 folders, never
+<bibkey>.inspect.html. In the library it IS <bibkey>.inspect.html; the rename
+happens at publish. So the definition's name describes the library, and the
+published tree uses a fixed name. The markdown did not get the same treatment —
+it stays <bibkey>.md in both places.
+
+For 13 documents <slug> equals the library folder name. For 9 it does not: the
+library folder is still the long Z-Library title and the published folder a
+hand-chosen short name.
+
+  published slug                   library folder / identifier stem       len
+  cardona-qft-methods              Geometric__Algebraic_and_Topological…  112
+  fong-spivak-invitation           An_Invitation_to_Applied_Category_Th…  119
+  fong-spivak-seven-sketches       Seven_Sketches_in_Composability_An_i…  116
+  gilmore-lie-groups               Lie_Groups__Physics_and_Geometry_-_A…   97
+  johnston-linear-matrix-algebra   Introduction_to_Linear_and_Matrix_Al…   74
+  kohlhase-omdoc                   OMDoc___An_Open_Markup_Format_for_Ma…  133
+  lyche-numerical-linear-algebra   Numerical_Linear_Algebra_and_Matrix_…   74
+  mielke-geometrodynamics          Geometrodynamics_of_Gauge_Fields_On_…  128
+  voloshin-hypergraph              Introduction_to_Graph_and_Hypergraph…   76
+
+And the title is not only in the folder name: it is in every identifier inside
+the report. Every \ident{} in those nine report.tex files carries the long stem
+— 7,130 of them in johnston, 4,894 in fong-spivak-invitation. One stem per
+document, so there is no drift between them; the stem is simply the title.
+_Johnston___Z-Library__TAB_004 is the general case, not an exception.
+
+COMPLETE DOCUMENTS
+------------------
+Against the six-file definition, zero of 22 are complete, because
+formula-report.html is absent everywhere and the inspect file is under a
+different name everywhere.
+
+Against the four files that do exist under the names used — report.pdf,
+report.ink.json, inspect.html, <bibkey>.md — 18 of 22 are complete, and the
+four that are not are the four with no ink measurement, which the index already
+says in words.
+
+ONE MORE THING THE AUDIT TURNED UP
+----------------------------------
+The Tables section reached the six-column shape 423 asked for — all 14
+documents with tables have p{20}p{7}p{13}p{..}p{..}p{..} and a "Scan image"
+header. The column is empty in every row: 0 of 351 table rows carry an
+\includegraphics, against 8,718 of 8,718 equation rows that do.
+
+The cause is data, not layout. download_crops filters on "_EQ" or "_TAB" in the
+title — the intent is there — and then skips anything whose canonical_uri does
+not start with http. Across the 21 models, 8,718 of 8,718 EQ tiddlers carry a
+canonical_uri and 0 of 351 TAB tiddlers do. TAB tiddlers do carry page,
+top_left_x, top_left_y, width and height, so the region is known and a local
+render could fill the column; the CDN path cannot.
+
+This is stated here because it changes what a republish is worth, not because
+it was asked for.
