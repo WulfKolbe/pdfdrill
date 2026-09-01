@@ -85,12 +85,14 @@ def test_build_report_writes_all_sections(tmp_path):
     ]
     tp = tmp_path / "k.tiddlers.json"
     tp.write_text(json.dumps(tiddlers))
-    r = build_report(tp, paper="a3", landscape=True)
+    r = build_report(tp, paper="a3", landscape=True, formulas="all")
     tex = (tmp_path / "report.tex").read_text()
     for k in ("image_named", "image_unnamed", "texzip_images",
               "image_rendered", "image_rendered_kept", "image_duplicated"):
         r.pop(k, None)
     assert r == {"equations": 1, "formulas": 1, "tables": 1,
+                 # 460 — what the section shows, what the document has, why
+                 "formulas_total": 1, "formula_rule": "all",
                  "unrecovered": 1, "out": tmp_path / "report.tex"}
     assert "a3paper,landscape" in tex
     # identifiers carry break opportunities after . and _ (P16 mechanism 3)

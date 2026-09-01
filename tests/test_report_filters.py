@@ -74,7 +74,10 @@ def test_types_selects_kinds(tmp_path):
 
 
 def test_no_filter_keeps_everything(tmp_path):
-    r = build_report(_tiddlers(tmp_path), out=tmp_path / "r.tex")
+    # formulas="all": this test is about the confidence/type filters, and
+    # 460's default would withhold the one formula for a different reason.
+    r = build_report(_tiddlers(tmp_path), out=tmp_path / "r.tex",
+                     formulas="all")
     assert (r["equations"], r["formulas"], r["tables"]) == (3, 1, 1)
 
 

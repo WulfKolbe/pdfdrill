@@ -1593,6 +1593,11 @@ commands:
     flag: --no-images
     type: flag
     help: skip the CDN crop download / scan-image column
+  - name: formulas
+    flag: --formulas
+    type: str
+    help: 'inline-formulas section: unresolved (default, only rows that did not render),
+      none (omit the section), all (every first-occurrence formula)'
   - name: min_conf
     flag: --min-conf
     type: str

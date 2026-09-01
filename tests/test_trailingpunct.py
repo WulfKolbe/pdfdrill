@@ -84,7 +84,7 @@ def test_report_sets_the_mark_beside_the_math_not_inside_it(tmp_path):
         {"title": "k_EQ0001", "latex": "E = m c^{2}", "trailing_punct": ",",
          "page": "003", "equation_number": "(1)", "width": "10"},
     ]))
-    build_report(tp, paper="a3", landscape=True)
+    build_report(tp, paper="a3", landscape=True, formulas="all")
     tex = (tmp_path / "report.tex").read_text()
     # the math cell renders the mathematics, then the character as text
     assert r"\FitMath{$\displaystyle E = m c^{2}$}," in tex
@@ -110,7 +110,10 @@ def test_build_report_with_crops_consumes_every_row_field(tmp_path):
          "page": "003", "equation_number": "(1)", "width": "120"},
         {"title": "k_FO0001", "latex": "x_{5}", "trailing_punct": "."},
     ]))
-    r = build_report(tp, crops=crops, paper="a3", landscape=True, px2mm=0.1)
+    # formulas="all": the assertion below is that a RENDERED formula keeps
+    # its trailing punctuation, so the row has to be in the section.
+    r = build_report(tp, crops=crops, paper="a3", landscape=True,
+                     px2mm=0.1, formulas="all")
     assert r["equations"] == 1 and r["formulas"] == 1
     tex = (tmp_path / "report.tex").read_text()
     assert r"\FitMath{$\displaystyle E = m c^{2}$}," in tex

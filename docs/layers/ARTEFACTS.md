@@ -36,7 +36,35 @@ It has FOUR sections and they do not share a shape:
 
 The tables section is the odd one: no `Conf.`, no `Rendered`, and its third
 column merges "LaTeX source" with an apology when there is none. That is
-423's subject.
+423's subject. (423 gave it the equations' six columns; 429 filled its
+`Conf.` from the minimum over the table's cells.)
+
+### The formulas section is a report of problems, not a catalogue (460)
+
+`report.pdf` shows problems and their solutions. A list of every inline
+formula the document contains is not that. Measured over the 22 published
+documents: **37,624 formula rows, of which 7 do not render.** The section was
+99.98% inventory.
+
+`--formulas` chooses what it holds, and the default changed:
+
+| rule | what the section holds |
+|---|---|
+| `unresolved` (default) | only rows whose Rendered cell would say *(not rendered)* — and the section, with its manifest record, is omitted when none do |
+| `none` | nothing; the section is dropped outright |
+| `all` | every first-occurrence formula — the behaviour before 460 |
+
+A row qualifies as unresolved when it **has** LaTeX and `renderable` refuses
+it. A row with no LaTeX is not unresolved, it is absent, and shows as a dash.
+
+The caption states the rule (`Inline formulas that did not render (1 of
+4,061)`) and so does the header line, because a one-row table would otherwise
+read as a one-formula document. `build_report` returns `formulas` (shown),
+`formulas_total` (held) and `formula_rule` for the same reason.
+
+Omitting the section is safe for the measurement: `inkmeasure` joins on the
+`Display equations` caption alone, and that table comes first, so its page
+range does not move.
 
 ---
 

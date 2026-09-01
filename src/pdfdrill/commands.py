@@ -14588,11 +14588,18 @@ def cmd_reporttex(pdf: Path, paper: str = "a3", landscape: bool = True,
                   ink: str | None = None, legend: bool = True,
                   refined: bool = False,
                   prefer_refined: bool = False,
+                  formulas: str = "unresolved",
                   render_regions: bool = False) -> str:
     """LaTeX formula report (report.tex): every EQ/FO/TAB identifier with
     page, escaped source, rendered math, and the MathPix scan crop at its
     exact original physical size; the tex.zip's unrecovered image regions
     (the TikZ/table/failed-math candidates) as a final section.
+
+    `--formulas` (460) chooses what the inline-formulas section holds:
+    `unresolved` (default) keeps only the rows that did not render, `none`
+    drops the section, `all` is the former behaviour. Over the 22 published
+    documents the section falls from 37,624 rows to 7 — it was a catalogue,
+    not a report of problems.
 
     `--refined` builds a DIFFERENT report — refine.report.tex, one row per
     refined object with conf | ink before | ink after | verdict — from
@@ -14736,7 +14743,18 @@ def cmd_reporttex(pdf: Path, paper: str = "a3", landscape: bool = True,
                         form=form, ink=ink_map, legend_on=legend,
                         ink_state=ink_state, prefer_refined=prefer_refined,
                         bibkey_history=_bibkey_history(sc),
+                        formulas=formulas,
                         render_regions=render_regions)
+    # 460 — the formulas rule, stated where the build is reported. A section
+    # that shrank from 4,061 rows to 1 has to say so; a reader who sees only
+    # the short table will otherwise read it as a short document.
+    _ft, _fs = r.get("formulas_total", r["formulas"]), r["formulas"]
+    if _ft != _fs:
+        print("Formulas: %d of %d shown (rule %r — %s)."
+              % (_fs, _ft, r.get("formula_rule", "unresolved"),
+                 "only the rows that did not render"
+                 if r.get("formula_rule") == "unresolved"
+                 else "section omitted"))
     if r.get("unrecovered"):
         _zn = r.get("texzip_images", 0)
         _src = ("no tex.zip" if not texzip else

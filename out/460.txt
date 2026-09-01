@@ -1,0 +1,111 @@
+460 — the formulas section is a report of problems, not a catalogue
+2026-09-01T08:42Z · ~/MX/PDFDRILL @ eqblobs-and-gzip-tex
+
+THE AMENDMENT
+-------------
+`pdfdrill reporttex --formulas <rule>`, default changed from the old
+behaviour to `unresolved`:
+
+  unresolved  (default)  only the rows whose Rendered cell would say
+                         "(not rendered)". When none do, the section AND its
+                         manifest record are omitted.
+  none                   the section is dropped outright.
+  all                    every first-occurrence formula — what it did before.
+
+A row is unresolved when it HAS LaTeX and `renderable` refuses it. That is
+exactly the predicate the Rendered cell uses, so the section holds what the
+reader would have had to hunt for. A row with no LaTeX at all is not
+unresolved — it is absent, and shows as a dash; those are excluded.
+
+ROW COUNT PER DOCUMENT UNDER EACH RULE
+--------------------------------------
+  document                              all  unresolved   none withheld
+  -----------------------------------------------------------------------
+  0707.4470                             213           0      0      213
+  0902.0431                            3170           0      0     3170
+  1510.06699                           1063           0      0     1063
+  1605.05775                            138           0      0      138
+  2010.14265                            369           0      0      369
+  2106.07890                            319           0      0      319
+  2501.06662                            386           0      0      386
+  BradleyGastaldiTerilla2023            211           0      0      211
+  bradley_spring22                      182           0      0      182
+  cardona-qft-methods                  3760           0      0     3760
+  fong-spivak-invitation               4061           1      0     4060
+  fong-spivak-seven-sketches           4029           1      0     4028
+  gilmore-lie-groups                   3473           0      0     3473
+  johnston-linear-matrix-algebra       5144           0      0     5144
+  kohlhase-omdoc                        459           4      0      455
+  lyche-numerical-linear-algebra       4638           0      0     4638
+  mielke-geometrodynamics              1794           0      0     1794
+  penev_A                               674           1      0      673
+  penev_B                               497           0      0      497
+  rph8-g15q                             489           0      0      489
+  voloshin-hypergraph                  2555           0      0     2555
+  pdf-dc99cf88 (no model)                 -           -      -        -
+  -----------------------------------------------------------------------
+  TOTAL (21 documents)                37624           7      0    37617
+
+  documents whose section becomes EMPTY under `unresolved`: 17 of 21
+
+Measured with the current code, which is what 463 will build with. The
+published reports were built before 446, so their sections are larger; 446
+(the escaped dollar, 303 rows across 68 documents) is most of the difference.
+
+THE SEVEN THAT REMAIN
+---------------------
+  fong-spivak-invitation       \operatorname{cospan} … \xrightarrow{…}
+  fong-spivak-seven-sketches   [f;h;ι_E, g∘k;ι_F]=(f+g) ⿱宀⿱一𧰨 (h+k)
+  kohlhase-omdoc               {\,p\mid\hbox{
+  kohlhase-omdoc               are prime}\,}
+  kohlhase-omdoc               \,}
+  kohlhase-omdoc               \{\,p\mid p\\{\rm and}\p+2\rm\ are\ prime\,}
+  penev_A                      \Phi^{+}=\sum_{\mathbf f} \Psi_{\mathbf f} …
+
+The four kohlhase rows are one formula split across four objects by an
+unbalanced `\hbox{` — a segmentation fault upstream of the renderer, not a
+LaTeX one. The seven-sketches row carries CJK ideographs where the page
+prints a composition symbol, which is the same defect class as the eight sent
+to MathPix. Those are 458's material, and now they are the whole section
+rather than seven rows inside 37,624.
+
+WHAT THIS COSTS AND WHAT IT SAVES
+---------------------------------
+37,624 rows become 7. 17 of 21 documents lose the section entirely; the four
+that keep it keep 1, 1, 4 and 1 row.
+
+Nothing is lost that is not recoverable: `--formulas all` still builds the
+full section, and the formulas were never the artefact's subject — they carry
+no confidence, no residual, and no scan crop, so a formula row shows an
+identifier, a page, a source and a render, which is a catalogue entry.
+
+WHAT WAS CHANGED
+----------------
+  src/pdfdrill/report_tex.py   FORMULA_RULES, unresolved_formulas(),
+                               build_report(formulas=…), the section guarded
+                               and its caption stating the rule, the header
+                               line stating what was withheld, and
+                               formulas_total / formula_rule in the returned
+                               counts
+  src/pdfdrill/commands.py     cmd_reporttex(formulas=…) and a build line
+                               that says the rule when it withheld anything
+  src/pdfdrill/cli.py          --formulas parsed and passed
+  commands.yaml                the flag, declared in the SSOT; skillsync run
+  docs/layers/ARTEFACTS.md     the amendment written down beside the section
+                               shapes 423 and 429 fixed
+  tests/test_formula_rule.py   7 tests: the predicate, the three rules, the
+                               refusal of an unknown rule, the omitted
+                               manifest record, and that Display equations
+                               stays first — which is what inkmeasure joins on
+
+Three existing tests asserted the old whole-section behaviour
+(test_report_filters, test_report_tex, test_trailingpunct). Each now passes
+formulas="all" with a line saying why, because each is testing something
+else. Full suite: 2,788 passed.
+
+A NOTE ON WHAT THIS DOES NOT DO
+-------------------------------
+It does not touch formula-report.html, which is the artefact where a complete
+list of formulas belongs and where 463 will generate one. Moving the
+catalogue out of report.pdf is only half the amendment; the other half is
+that the catalogue then exists somewhere on purpose.

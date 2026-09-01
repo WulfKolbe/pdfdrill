@@ -1131,6 +1131,29 @@ def refined_flag(info) -> str:
 #: document, where a `&` is an array separator and nothing else, and put the
 #: result in the cell. The reader gets the mathematics rendered; the longtable
 #: never sees the tab mark.
+FORMULA_RULES = ("all", "unresolved", "none")
+
+
+def unresolved_formulas(fo):
+    r"""The formula rows a reader still has to do something about (460).
+
+    A row qualifies when it HAS LaTeX and `renderable` refuses it — that is
+    exactly the row whose Rendered cell says "(not rendered)". A row with no
+    LaTeX at all is not unresolved, it is absent, and shows as a dash; a row
+    that renders is done.
+
+    Measured over the 22 published documents: 37,624 formula rows, of which 7
+    qualify. The section this rule replaces was not a report of problems, it
+    was a catalogue.
+    """
+    out = []
+    for r in fo:
+        latex = r[1]
+        if latex and not renderable(latex):
+            out.append(r)
+    return out
+
+
 def refused_for_align_only(latex: str) -> bool:
     """True when `renderable` refuses this ONLY over a depth-0 align marker.
 
@@ -1985,7 +2008,8 @@ def build_report(tiddlers_path: Path, out: Path | None = None,
                  ink: "dict | None" = None, legend_on: bool = True,
                  ink_state: str = "", prefer_refined: bool = False,
                  bibkey_history: "list[str] | None" = None,
-                 render_regions: bool = False) -> dict:
+                 render_regions: bool = False,
+                 formulas: str = "unresolved") -> dict:
     """Generate report.tex; returns counts {equations, formulas, tables,
     unrecovered, out}.
 
@@ -2009,6 +2033,24 @@ def build_report(tiddlers_path: Path, out: Path | None = None,
         # a bounded run drops them rather than mixing unknowns in with doubted
         eq = [r for r in eq if _conf_ok(r[6], min_conf, max_conf)]
         fo, tab, dia = [], [], []
+    # 460 — THE FORMULAS SECTION IS NOT A CATALOGUE.
+    #
+    # `all` is what the report did until now. `unresolved` keeps only the rows
+    # whose Rendered cell would say "(not rendered)", so the section is the
+    # work still owed rather than an inventory; `none` drops it outright.
+    # Under `unresolved` an empty result omits the section AND its manifest
+    # record — inkmeasure joins on the "Display equations" caption alone, and
+    # that table comes first, so its page range does not move.
+    if formulas not in FORMULA_RULES:
+        raise ValueError("formulas must be one of %s, not %r"
+                         % (", ".join(FORMULA_RULES), formulas))
+    fo_total = len(fo)
+    if formulas == "none":
+        fo = []
+    elif formulas == "unresolved":
+        fo = unresolved_formulas(fo)
+    fo_withheld = fo_total - len(fo)
+
     dest = Path(out) if out else path.parent / "report.tex"
     crops = Path(crops).resolve() if crops else None
     out_dir = dest.resolve().parent
@@ -2035,10 +2077,16 @@ def build_report(tiddlers_path: Path, out: Path | None = None,
             img_col = eq_widths[5]
 
     out_parts = [None]          # preamble filled in once the body is known
+    fo_says = "%d inline formulas" % fo_total
+    if fo_withheld:
+        fo_says += (" (%d shown: %s)"
+                    % (len(fo),
+                       "the ones that did not render" if formulas == "unresolved"
+                       else "section omitted"))
     out_parts.append("\\section*{%s — formula report}\n"
-                     "%d inline formulas, %d display equations, %d tables, "
+                     "%s, %d display equations, %d tables, "
                      "%d unrecovered image regions.\n"
-                     % (esc_text(bibkey), len(fo), len(eq), len(tab),
+                     % (esc_text(bibkey), fo_says, len(eq), len(tab),
                         len(dia)))
     # 180: at the TOP, where a reader decides what they are looking at, not in
     # a footer they reach after reading the table as if it were complete.
@@ -2071,18 +2119,20 @@ def build_report(tiddlers_path: Path, out: Path | None = None,
     # every section starts on a FRESH page: a page mixing the 5-column
     # equations table with the 4-column formulas table defeats per-page
     # column probes (inkdrill P16, the 11 short-equation docs)
-    out_parts.append("\\clearpage\n")
-    out_parts.append(table_open("Inline formulas (first occurrence)",
-                                fo_widths, form, legend_on))
-    for title, latex, page, punct in fo:
-        sa = (standalone_math(latex, title, out_dir, col_mm=fo_widths[4])
-              if refused_for_align_only(latex) else "")
-        out_parts.append(row(title, latex, page, punct=punct, standalone=sa,
-                             refined=refined.get(title)))
-    out_parts.append("\\end{longtable}\n")
-    tables_manifest.append(_table_record(
-        "Inline formulas (first occurrence)", fo_widths, legend_on, True,
-        [r[0] for r in fo]))
+    if fo:
+        out_parts.append("\\clearpage\n")
+        caption = ("Inline formulas (first occurrence)" if formulas == "all"
+                   else "Inline formulas that did not render (%d of %d)"
+                        % (len(fo), fo_total))
+        out_parts.append(table_open(caption, fo_widths, form, legend_on))
+        for title, latex, page, punct in fo:
+            sa = (standalone_math(latex, title, out_dir, col_mm=fo_widths[4])
+                  if refused_for_align_only(latex) else "")
+            out_parts.append(row(title, latex, page, punct=punct, standalone=sa,
+                                 refined=refined.get(title)))
+        out_parts.append("\\end{longtable}\n")
+        tables_manifest.append(_table_record(
+            caption, fo_widths, legend_on, True, [r[0] for r in fo]))
 
     if tab:
         # 423 — THE SAME SIX COLUMNS AS THE EQUATIONS SECTION.
@@ -2333,6 +2383,11 @@ def build_report(tiddlers_path: Path, out: Path | None = None,
             json.dumps({"bibkey": bibkey, "rows": manifest}, indent=1),
             encoding="utf-8")
     return {"equations": len(eq), "formulas": len(fo), "tables": len(tab),
+            # 460 — `formulas` is what the section SHOWS. `formulas_total` is
+            # what the document has and `formula_rule` says why the two
+            # differ, so a caller reading only the first number cannot mistake
+            # a filtered section for a short document.
+            "formulas_total": fo_total, "formula_rule": formulas,
             "unrecovered": len(dia), "out": dest,
             # 282 — how many image rows name their tex.zip source, and how many
             # do not. `texzip_images` is 0 when the zip holds no images at all,
