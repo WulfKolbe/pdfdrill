@@ -1,0 +1,170 @@
+[
+ {
+  "short": "EQ0114",
+  "grade": "chapter",
+  "arm": "A_plain",
+  "prompt": "revise-region",
+  "seconds": 111.3,
+  "finish": "stop",
+  "error": "",
+  "context_chars": 0,
+  "context_fields": [],
+  "before": "\\begin{figure} \\[ R^{\\theta}\\left(\\mathbf{e}_{2}\\right)=(-\\sin (\\theta), \\cos (\\theta)) \\overbrace{\\cos (\\theta)}^{-\\sin (\\theta)} \\overbrace{\\mathbf{e}_{1}}^{\\mathbf{e}_{2}} x \\text { - } \\underbrace{\\cos (\\theta)}_{R^{\\theta}\\left(\\mathbf{e}_{1}\\right)}=(\\cos (\\theta), \\sin (\\theta)) \\] \\captionsetup{labelformat=empty} \\caption{Figure 1.19: \\(R^{\\theta}\\) rotates the standard basis vectors \\(\\mathbf{e}_{1}\\) and \\(\\mathbf{e}_{2}\\) to \\(R^{\\theta}\\left(\\mathbf{e}_{1}\\right)=(\\cos (\\theta), \\sin (\\theta))\\) and \\(R^{\\theta}\\left(\\mathbf{e}_{2}\\right)=(-\\sin (\\theta), \\cos (\\theta))\\), respectively.} \\end{figure}",
+  "after": "```latex\n\\begin{tikzpicture}\n\\definecolor{vecOrange}{RGB}{230,110,40}\n\\definecolor{axisTeal}{RGB}{50,140,150}\n\n% Axes\n\\draw[->, very thick, axisTeal] (-3, 0) -- (4, 0) node[right] {$x$};\n\\node[axisTeal, font=\\bfseries] at (3.7, -0.45) {$\\mathbf{e}_1$};\n\n\\draw[->, very thick, axisTeal] (0, -0.5) -- (0, 4) node[above] {$y$};\n\\node[axisTeal, font=\\bfseries] at (0.45, 3.7) {$\\mathbf{e}_2$};\n\n% Rotated basis vectors\n\\draw[->, very thick, vecOrange] (0,0) -- (3.2, 1.85);\n\\draw[->, very thick, vecOrange] (0,0) -- (-1.85, 3.2);\n\n% Equation labels\n\\node[vecOrange, anchor=west] at (5.5, 1.5) {$R^\\theta(\\mathbf{e}_1) = (\\cos(\\theta), \\sin(\\theta))$};\n\\node[vecOrange, anchor=east] at (-3.5, 3.2) {$R^\\theta(\\mathbf{e}_2) = (-\\sin(\\theta), \\cos(\\theta))$};\n\n% Angle arcs and theta labels\n\\draw (0.7, 0) arc (0:30:0.7);\n\\node at (1.0, 0.3) {$\\theta$};\n\n\\draw (-0.5, 0) arc (180:120:0.5);\n\\node at (-0.5, 0.35) {$\\theta$};\n\n% Dashed projection lines\n\\draw[dashed, gray] (3.2, 1.85) -- (3.2, 0);\n\\draw[dashed, gray] (3.2, 1.85) -- (0, 1.85);\n\\draw[dashed, gray] (-1.85, 3.2) -- (-1.85, 0);\n\\draw[dashed, gray] (-1.85, 3.2) -- (0, 3.2);\n\n% Top brace for $-\\sin(\\theta)$ — horizontal extent of left vector\n\\draw[decorate, decoration={brace, amplitude=10pt}, gray]\n  (0, 3.5) -- (-1.85, 3.5) node[midway, above=8pt] {$-\\sin(\\theta)$};\n\n% Curved arrow callout for $\\cos(\\theta)$ — vertical extent of left vector\n\\draw[->, gray] (0.8, 2.0) to[bend right=20] (-0.3, 2.8);\n\\node[gray, anchor=west] at (0.9, 2.0) {$\\cos(\\theta)$};\n\n% Bottom brace for $\\cos(\\theta)$ — horizontal extent of right vector\n\\draw[decorate, decoration={brace, mirror, amplitude=10pt}, gray]\n  (0, -0.4) -- (3.2, -0.4) node[midway, below=8pt] {$\\cos(\\theta)$};\n\n% Right brace for $\\sin(\\theta)$ — vertical extent of right vector\n\\draw[decorate, decoration={brace, amplitude=10pt}, gray]\n  (3.5, 0) -- (3.5, 1.85) node[midway, right=8pt] {$\\sin(\\theta)$};\n\n\\end{tikzpicture}\n```"
+ },
+ {
+  "short": "EQ0114",
+  "grade": "chapter",
+  "arm": "B_context",
+  "prompt": "revise-region-context",
+  "seconds": 68.1,
+  "finish": "stop",
+  "error": "",
+  "context_chars": 837,
+  "context_fields": [
+   "neighbours",
+   "section"
+  ],
+  "before": "\\begin{figure} \\[ R^{\\theta}\\left(\\mathbf{e}_{2}\\right)=(-\\sin (\\theta), \\cos (\\theta)) \\overbrace{\\cos (\\theta)}^{-\\sin (\\theta)} \\overbrace{\\mathbf{e}_{1}}^{\\mathbf{e}_{2}} x \\text { - } \\underbrace{\\cos (\\theta)}_{R^{\\theta}\\left(\\mathbf{e}_{1}\\right)}=(\\cos (\\theta), \\sin (\\theta)) \\] \\captionsetup{labelformat=empty} \\caption{Figure 1.19: \\(R^{\\theta}\\) rotates the standard basis vectors \\(\\mathbf{e}_{1}\\) and \\(\\mathbf{e}_{2}\\) to \\(R^{\\theta}\\left(\\mathbf{e}_{1}\\right)=(\\cos (\\theta), \\sin (\\theta))\\) and \\(R^{\\theta}\\left(\\mathbf{e}_{2}\\right)=(-\\sin (\\theta), \\cos (\\theta))\\), respectively.} \\end{figure}",
+  "after": "\\begin{tikzpicture}[>=stealth, scale=1.2]\n% Coordinate axes\n\\draw[->, thick, teal] (-3,0) -- (3.5,0);\n\\draw[->, thick, teal] (0,-0.5) -- (0,4.5);\n\n% Axis labels\n\\node[above] at (0,4.5) {$y$};\n\\node[right] at (3.5,0) {$x$};\n\n% Basis vector labels\n\\node[teal, right] at (0.15,4.3) {$\\mathbf{e}_2$};\n\\node[teal, below] at (3.4,-0.05) {$\\mathbf{e}_1$};\n\n% Orange vectors\n\\draw[->, very thick, orange] (0,0) -- (2.8,1.4);\n\\draw[->, very thick, orange] (0,0) -- (-1.4,2.8);\n\n% Vector labels\n\\node[orange, above right] at (2.8,1.4) {$R^{\\theta}(\\mathbf{e}_1) = (\\cos(\\theta), \\sin(\\theta))$};\n\\node[orange, left] at (-1.4,2.8) {$R^{\\theta}(\\mathbf{e}_2) = (-\\sin(\\theta), \\cos(\\theta))$};\n\n% Dashed projection lines\n\\draw[dashed, gray] (2.8,1.4) -- (2.8,0);\n\\draw[dashed, gray] (2.8,1.4) -- (0,1.4);\n\\draw[dashed, gray] (-1.4,2.8) -- (-1.4,0);\n\\draw[dashed, gray] (-1.4,2.8) -- (0,2.8);\n\n% Component labels\n\\node[below] at (1.4,0) {$\\cos(\\theta)$};\n\\node[right] at (2.8,0.7) {$\\sin(\\theta)$};\n\\node[above] at (-0.7,2.8) {$-\\sin(\\theta)$};\n\n% Curly brace for cos(theta) on y-axis\n\\draw [decorate,decoration={brace,amplitude=8pt}] (0,2.8) -- (0,1.4) node[midway, right=12pt] {$\\cos(\\theta)$};\n\n% Theta angles at origin\n\\draw (0.7,0) arc (0:30:0.7);\n\\node at (0.95,0.15) {$\\theta$};\n\\draw (0,0.7) arc (90:60:0.7);\n\\node at (-0.15,0.95) {$\\theta$};\n\\end{tikzpicture}"
+ },
+ {
+  "short": "EQ0439",
+  "grade": "chapter",
+  "arm": "A_plain",
+  "prompt": "revise-region",
+  "seconds": 87.4,
+  "finish": "stop",
+  "error": "",
+  "context_chars": 0,
+  "context_fields": [],
+  "before": "\\begin{figure} \\[ \\begin{aligned} {[A \\mid I] } & =\\left[\\begin{array}{cccccccc|cccc} * & * & * & * & * & * & * & * & 1 & 0 & 0 & 0 \\\\ * & * & * & * & * & * & * & * & 0 & 1 & 0 & 0 \\\\ * & * & * & * & * & * & * & * & 0 & 0 & 1 & 0 \\\\ * & * & * & * & * & * & * & * & 0 & 0 & 0 & 1 \\end{array}\\right] \\\\ \\xrightarrow{\\text { row-reduce }} & (t)\\left[\\begin{array}{llllllll|llll} \\star & * & * & * & * & * & * & * & * & * & * & * \\\\ 0 & 0 & \\star & * & * & * & * & * & * & * & * & * \\\\ 0 & 0 & 0 & 0 & 0 & \\star & * & * & * & * & * & * \\\\ 0 & 0 & 0 & 0 & 0 & 0 & 0 & 0 & * & * & * & * \\end{array}\\right]=[R \\mid E] \\leftarrow \\operatorname{null}\\left(A^{T}\\right) \\\\ & \\operatorname{range}\\left(A^{T}\\right) \\end{aligned} \\] \\captionsetup{labelformat=empty} \\caption{Figure 2.22: After we row-reduce \\([A \\mid I]\\) to a row echelon form \\([R \\mid E]\\), we can immediately read off bases of \\(\\operatorname{range}\\left(A^{T}\\right)\\) and \\(\\operatorname{null}\\left(A^{T}\\right)\\) from the rows of that matrix.} \\end{figure}",
+  "after": "\\begin{tikzpicture}[font=\\normalsize]\n\n% Top matrix [A|I]\n\\matrix (A) [matrix of math nodes,\n             left delimiter={[}, right delimiter={]},\n             column sep=1pt, row sep=2pt,\n             ampersand replacement=\\&] {\n  * \\& * \\& * \\& * \\& * \\& * \\& * \\& * \\& 1 \\& 0 \\& 0 \\& 0 \\\\\n  * \\& * \\& * \\& * \\& * \\& * \\& * \\& * \\& 0 \\& 1 \\& 0 \\& 0 \\\\\n  * \\& * \\& * \\& * \\& * \\& * \\& * \\& * \\& 0 \\& 0 \\& 1 \\& 0 \\\\\n  * \\& * \\& * \\& * \\& * \\& * \\& * \\& * \\& 0 \\& 0 \\& 0 \\& 1 \\\\\n};\n\\node[left=10pt of A] {$[A\\mid I] =$};\n\n% Bottom matrix [R|E]\n\\matrix (R) [matrix of math nodes,\n             left delimiter={[}, right delimiter={]},\n             column sep=1pt, row sep=2pt,\n             ampersand replacement=\\&,\n             below=1.5cm of A] {\n  \\star \\& * \\& * \\& * \\& * \\& * \\& * \\& * \\& * \\& * \\& * \\& * \\\\\n  0 \\& 0 \\& \\star \\& * \\& * \\& * \\& * \\& * \\& * \\& * \\& * \\& * \\\\\n  0 \\& 0 \\& 0 \\& 0 \\& 0 \\& \\star \\& * \\& * \\& * \\& * \\& * \\& * \\\\\n  0 \\& 0 \\& 0 \\& 0 \\& 0 \\& 0 \\& 0 \\& 0 \\& * \\& * \\& * \\& * \\\\\n};\n\\node[right=10pt of R] {$= [R\\mid E]$};\n\n% Blue background on R (top 3 rows, columns 1-8)\n\\fill[cyan!25, rounded corners=2pt]\n  ([xshift=-3pt,yshift=3pt]R-1-1.north west)\n  rectangle ([xshift=3pt,yshift=-3pt]R-3-8.south east);\n\n% Pink background on E (last row, columns 9-12)\n\\fill[purple!20, rounded corners=2pt]\n  ([xshift=-3pt,yshift=3pt]R-4-9.north west)\n  rectangle ([xshift=3pt,yshift=-3pt]R-4-12.south east);\n\n% row-reduce arrow\n\\draw[->, thick] ($(A.south west)+(-0.3,-0.5)$) --\n  ($(R.north west)+(-0.3,0.2)$)\n  node[midway, above, font=\\small] {row-reduce};\n\n% range(A^T) label and three arrows\n\\node[blue!70!black, anchor=north east, font=\\normalsize] (range)\n  at ($(R.south west)+(0,-1)$) {range$(A^T)$};\n\\draw[->, blue!70!black, thick] (range.north) to[bend right=15] (R-1-1.west);\n\\draw[->, blue!70!black, thick] (range.north) to[bend right=5] (R-2-1.west);\n\\draw[->, blue!70!black, thick] (range.north) to[bend left=5] (R-3-1.west);\n\n% null(A^T) label and arrow\n\\node[purple!70!black, anchor=west, font=\\normalsize] (null)\n  at ($(R.east)+(0.5,-0.3)$) {null$(A^T)$};\n\\draw[->, purple!70!black, thick] (null.west) -- (R-4-12.east);\n\n\\end{tikzpicture}"
+ },
+ {
+  "short": "EQ0439",
+  "grade": "chapter",
+  "arm": "B_context",
+  "prompt": "revise-region-context",
+  "seconds": 61.2,
+  "finish": "stop",
+  "error": "",
+  "context_chars": 996,
+  "context_fields": [
+   "neighbours",
+   "section"
+  ],
+  "before": "\\begin{figure} \\[ \\begin{aligned} {[A \\mid I] } & =\\left[\\begin{array}{cccccccc|cccc} * & * & * & * & * & * & * & * & 1 & 0 & 0 & 0 \\\\ * & * & * & * & * & * & * & * & 0 & 1 & 0 & 0 \\\\ * & * & * & * & * & * & * & * & 0 & 0 & 1 & 0 \\\\ * & * & * & * & * & * & * & * & 0 & 0 & 0 & 1 \\end{array}\\right] \\\\ \\xrightarrow{\\text { row-reduce }} & (t)\\left[\\begin{array}{llllllll|llll} \\star & * & * & * & * & * & * & * & * & * & * & * \\\\ 0 & 0 & \\star & * & * & * & * & * & * & * & * & * \\\\ 0 & 0 & 0 & 0 & 0 & \\star & * & * & * & * & * & * \\\\ 0 & 0 & 0 & 0 & 0 & 0 & 0 & 0 & * & * & * & * \\end{array}\\right]=[R \\mid E] \\leftarrow \\operatorname{null}\\left(A^{T}\\right) \\\\ & \\operatorname{range}\\left(A^{T}\\right) \\end{aligned} \\] \\captionsetup{labelformat=empty} \\caption{Figure 2.22: After we row-reduce \\([A \\mid I]\\) to a row echelon form \\([R \\mid E]\\), we can immediately read off bases of \\(\\operatorname{range}\\left(A^{T}\\right)\\) and \\(\\operatorname{null}\\left(A^{T}\\right)\\) from the rows of that matrix.} \\end{figure}",
+  "after": "\\begin{aligned}\n[A \\mid I] & =\\left[\\begin{array}{cccccccc|cccc} * & * & * & * & * & * & * & * & 1 & 0 & 0 & 0 \\\\ * & * & * & * & * & * & * & * & 0 & 1 & 0 & 0 \\\\ * & * & * & * & * & * & * & * & 0 & 0 & 1 & 0 \\\\ * & * & * & * & * & * & * & * & 0 & 0 & 0 & 1 \\end{array}\\right] \\\\\n\\xrightarrow{\\text{row-reduce}} & \\left[\\begin{array}{cccccccc|cccc} \\star & * & * & * & * & * & * & * & * & * & * & * \\\\ 0 & 0 & \\star & * & * & * & * & * & * & * & * & * \\\\ 0 & 0 & 0 & 0 & 0 & \\star & * & * & * & * & * & * \\\\ 0 & 0 & 0 & 0 & 0 & 0 & 0 & 0 & * & * & * & * \\end{array}\\right]=[R \\mid E] \\leftarrow \\operatorname{null}\\left(A^{T}\\right) \\\\\n& \\operatorname{range}\\left(A^{T}\\right)\n\\end{aligned}"
+ },
+ {
+  "short": "EQ0575",
+  "grade": "distant",
+  "arm": "A_plain",
+  "prompt": "revise-region",
+  "seconds": 38.0,
+  "finish": "stop",
+  "error": "",
+  "context_chars": 0,
+  "context_fields": [],
+  "before": "\\begin{figure} \\[ \\left.A=\\left[\\begin{array}{llllll} * & * & * & * & * & * \\\\ * & * & * & * & * & * \\\\ * & * & * & * & * & * \\\\ * & * & * & * & * & * \\\\ * & * & * & * & * & * \\\\ * & * & * & * & * & * \\\\ * & * & * & * & * & * \\end{array}\\right]=\\left[\\begin{array}{lll} * & * & * \\\\ * & * & * \\\\ * & * & * \\\\ * & * & * \\\\ * & * & * \\\\ * & * & * \\\\ * & * & * \\end{array}\\right]\\left[\\begin{array}{cccccc} * & * & * & * & * & * \\\\ * & * & * & * & * & * \\\\ * & * & * & * & * & * \\end{array}\\right]\\right\\} \\] \\captionsetup{labelformat=empty} \\caption{Figure 2.39: Theorem 2.C. 1 says that every matrix can be written as a product of a tall and skinny matrix and a short and fat matrix. The rank determines exactly how skinny and short the matrices in the product can be (as shown here, \\(A\\) has rank 3, so it can be written as a product of a matrix \\(C\\) with 3 columns and a matrix \\(R\\) with 3 rows).} \\end{figure}",
+  "after": "\\begin{tikzpicture}\n\\node at (0,0) {$A=\\left[\\begin{array}{cccccc} * & * & * & * & * & * \\\\ * & * & * & * & * & * \\\\ * & * & * & * & * & * \\\\ * & * & * & * & * & * \\\\ * & * & * & * & * & * \\\\ * & * & * & * & * & * \\\\ * & * & * & * & * & * \\end{array}\\right] =$};\n\\node (C) at (5,0) {$\\left[\\begin{array}{ccc} * & * & * \\\\ * & * & * \\\\ * & * & * \\\\ * & * & * \\\\ * & * & * \\\\ * & * & * \\\\ * & * & * \\end{array}\\right]$};\n\\node (R) at (7,0) {$\\left[\\begin{array}{cccccc} * & * & * & * & * & * \\\\ * & * & * & * & * & * \\\\ * & * & * & * & * & * \\end{array}\\right]$};\n\\node (rank) at (9,2) {rank($A$) = 3};\n\\draw [decorate, decoration={brace, amplitude=10pt}] (C.north west) -- (C.north east);\n\\draw [decorate, decoration={brace, amplitude=10pt, mirror}] (R.south east) -- (R.north east);\n\\draw [-{Stealth[length=2mm]}] (rank.south west) to[bend right=20] (C.north);\n\\draw [-{Stealth[length=2mm]}] (rank.west) to[bend left=15] (R.north east);\n\\end{tikzpicture}"
+ },
+ {
+  "short": "EQ0575",
+  "grade": "distant",
+  "arm": "B_context",
+  "prompt": "revise-region-context",
+  "seconds": 94.4,
+  "finish": "stop",
+  "error": "",
+  "context_chars": 705,
+  "context_fields": [
+   "neighbours",
+   "section"
+  ],
+  "before": "\\begin{figure} \\[ \\left.A=\\left[\\begin{array}{llllll} * & * & * & * & * & * \\\\ * & * & * & * & * & * \\\\ * & * & * & * & * & * \\\\ * & * & * & * & * & * \\\\ * & * & * & * & * & * \\\\ * & * & * & * & * & * \\\\ * & * & * & * & * & * \\end{array}\\right]=\\left[\\begin{array}{lll} * & * & * \\\\ * & * & * \\\\ * & * & * \\\\ * & * & * \\\\ * & * & * \\\\ * & * & * \\\\ * & * & * \\end{array}\\right]\\left[\\begin{array}{cccccc} * & * & * & * & * & * \\\\ * & * & * & * & * & * \\\\ * & * & * & * & * & * \\end{array}\\right]\\right\\} \\] \\captionsetup{labelformat=empty} \\caption{Figure 2.39: Theorem 2.C. 1 says that every matrix can be written as a product of a tall and skinny matrix and a short and fat matrix. The rank determines exactly how skinny and short the matrices in the product can be (as shown here, \\(A\\) has rank 3, so it can be written as a product of a matrix \\(C\\) with 3 columns and a matrix \\(R\\) with 3 rows).} \\end{figure}",
+  "after": "A = \\left[\\begin{array}{llllll} * & * & * & * & * & * \\\\ * & * & * & * & * & * \\\\ * & * & * & * & * & * \\\\ * & * & * & * & * & * \\\\ * & * & * & * & * & * \\\\ * & * & * & * & * & * \\\\ * & * & * & * & * & * \\end{array}\\right] = \\overbrace{\\left[\\begin{array}{lll} * & * & * \\\\ * & * & * \\\\ * & * & * \\\\ * & * & * \\\\ * & * & * \\\\ * & * & * \\\\ * & * & * \\end{array}\\right]}^{\\operatorname{rank}(A)=3} \\left[\\begin{array}{cccccc} * & * & * & * & * & * \\\\ * & * & * & * & * & * \\\\ * & * & * & * & * & * \\end{array}\\right]"
+ },
+ {
+  "short": "EQ0774",
+  "grade": "section",
+  "arm": "A_plain",
+  "prompt": "revise-region",
+  "seconds": 47.3,
+  "finish": "stop",
+  "error": "",
+  "context_chars": 0,
+  "context_fields": [],
+  "before": "\\begin{aligned} m_{1,2}=\\operatorname{det}\\left(\\left[\\begin{array}{lll} 4 & 5 & 3 \\\\ 4 & \\$ & 6 \\\\ 7 & \\$ & 9 \\end{array}\\right]\\right)=\\operatorname{det}\\left(\\left[\\begin{array}{ll} 4 & 6 \\\\ 7 & 9 \\end{array}\\right]\\right)=4 \\times 9-6 \\times 7= & 36-42 \\\\ & =-6 \\end{aligned}",
+  "after": "m_{1,2}=\\det\\left(\\begin{tikzpicture}[baseline=(m.center)]\n\\matrix[matrix of math nodes,left delimiter={[},right delimiter={]},inner sep=2pt,nodes={minimum width=2em}] (m) {\n1 & 2 & 3 \\\\\n4 & 5 & 6 \\\\\n7 & 8 & 9 \\\\\n};\n\\draw[red,very thick] ([yshift=4pt]m-1-1.north west) -- ([yshift=4pt]m-1-3.north east);\n\\draw[red,very thick] ([xshift=4pt]m-1-2.north) -- ([xshift=4pt]m-3-2.south);\n\\end{tikzpicture}\\right)=\\det\\left(\\begin{bmatrix} 4 & 6 \\\\ 7 & 9 \\end{bmatrix}\\right)=4 \\times 9-6 \\times 7=36-42=-6."
+ },
+ {
+  "short": "EQ0774",
+  "grade": "section",
+  "arm": "B_context",
+  "prompt": "revise-region-context",
+  "seconds": 7.6,
+  "finish": "stop",
+  "error": "",
+  "context_chars": 616,
+  "context_fields": [
+   "neighbours",
+   "section"
+  ],
+  "before": "\\begin{aligned} m_{1,2}=\\operatorname{det}\\left(\\left[\\begin{array}{lll} 4 & 5 & 3 \\\\ 4 & \\$ & 6 \\\\ 7 & \\$ & 9 \\end{array}\\right]\\right)=\\operatorname{det}\\left(\\left[\\begin{array}{ll} 4 & 6 \\\\ 7 & 9 \\end{array}\\right]\\right)=4 \\times 9-6 \\times 7= & 36-42 \\\\ & =-6 \\end{aligned}",
+  "after": "\\begin{aligned} m_{1,2}=\\operatorname{det}\\left(\\left[\\begin{array}{lll} 1 & 2 & 3 \\\\ 4 & 5 & 6 \\\\ 7 & 8 & 9 \\end{array}\\right]\\right)=\\operatorname{det}\\left(\\left[\\begin{array}{ll} 4 & 6 \\\\ 7 & 9 \\end{array}\\right]\\right)=4 \\times 9-6 \\times 7= & 36-42 \\\\ & =-6 \\end{aligned}"
+ },
+ {
+  "short": "FO2071",
+  "grade": "none",
+  "arm": "A_plain",
+  "prompt": "revise-region",
+  "seconds": 2.3,
+  "finish": "stop",
+  "error": "",
+  "context_chars": 0,
+  "context_fields": [],
+  "before": "\\$ 151",
+  "after": "\\$ 151"
+ },
+ {
+  "short": "FO2071",
+  "grade": "none",
+  "arm": "B_context",
+  "prompt": "revise-region-context",
+  "seconds": 12.6,
+  "finish": "stop",
+  "error": "",
+  "context_chars": 0,
+  "context_fields": [],
+  "before": "\\$ 151",
+  "after": "\\$ 151"
+ },
+ {
+  "short": "FOX_fabb4bba18",
+  "grade": "none",
+  "arm": "A_plain",
+  "prompt": "revise-region",
+  "seconds": 9.3,
+  "finish": "stop",
+  "error": "",
+  "context_chars": 0,
+  "context_fields": [],
+  "before": "1 per dozen peanut butter cookies sold, \\",
+  "after": "1 per dozen peanut butter cookies sold,"
+ },
+ {
+  "short": "FOX_fabb4bba18",
+  "grade": "none",
+  "arm": "B_context",
+  "prompt": "revise-region-context",
+  "seconds": 4.1,
+  "finish": "stop",
+  "error": "",
+  "context_chars": 0,
+  "context_fields": [],
+  "before": "1 per dozen peanut butter cookies sold, \\",
+  "after": "1 per dozen peanut butter cookies sold, \\"
+ }
+]

@@ -1,0 +1,116 @@
+507 — 487 built and measured on 448's six rows
+2026-09-02T23:40Z · 12 paid calls · run 20260902T131614Z-ctx507-4542225c
+
+WHICH ROWS QUALIFY FOR A PATH AT ALL
+-------------------------------------
+  row              page   conf      grade     section path
+  ---------------------------------------------------------------------------
+  EQ0114           063    0.0255    chapter   1.4.2 A Catalog of Linear Transf… (gap 7)
+  EQ0439           170    0.1311    chapter   2.4.2 The Fundamental Matrix Sub… (gap 6)
+  EQ0575           224    0.3239    distant   2.5 Summary and Review (gap 46)
+  EQ0774           289    0.1106    section   3.2.3 Explicit Formulas and Cofa… (gap 4)
+  FO2071           —      —         none      no page, no region, no crop
+  FOX_fabb4bba18   —      —         none      no page, no region, no crop
+  ---------------------------------------------------------------------------
+  1 section, 2 chapter, 1 distant, 2 none — as you predicted, several do not.
+
+And johnston carries ZERO Abstract objects, so the abstract half of 487's
+context could not be exercised on this bed at all. 488 said so in advance;
+this is the confirmation, not a surprise.
+
+The two `none` rows have no page, no region and therefore no crop — so arm B
+receives an EMPTY context block and the two prompts become byte-identical.
+That is not a wasted pair: it is the noise floor of the comparison.
+
+THE RESULT
+----------
+  row              grade     A (448's prompt)         B (with context)
+  ---------------------------------------------------------------------
+  EQ0114           chapter   TIKZ, code fence, refused   TIKZ, refused
+  EQ0439           chapter   TIKZ, refused               RENDERS
+  EQ0575           distant   TIKZ, refused               RENDERS
+  EQ0774           section   TIKZ, renders               RENDERS
+  FO2071           none      renders                     renders  (identical)
+  FOX_fabb4bba18   none      renders                     renders  (one space)
+
+  arm A: 4 of 4 crop-bearing rows answered with a `tikzpicture`
+  arm B: 1 of 4
+
+THE DIFFERENCE IS ONE THING, AND IT IS NOT SUBTLE
+---------------------------------------------------
+Given the crop and the existing reading alone, the model DRAWS the equation.
+All four crop-bearing rows came back as TikZ pictures — matrices rebuilt as
+`\matrix[matrix of math nodes, left delimiter={[}…]`, axes as
+`\definecolor{vecOrange}`. Two of the four then fail `renderable()`.
+
+Given the same crop plus the document context, three of four came back as
+mathematics. EQ0774 is the clearest:
+
+  before      \begin{aligned} m_{1,2}=\operatorname{det}\left(\left[\begin{array}{lll}
+                4 & 5 & 3 \\ 4 & \$ & 6 \\ 7 & \$ & 9 \end{array}\right]\right)=…
+  A_plain     m_{1,2}=\det\left(\begin{tikzpicture}[baseline=(m.center)]
+                \matrix[matrix of math nodes, left delimiter={[}…
+  B_context   \begin{aligned} m_{1,2}=\operatorname{det}\left(\left[\begin{array}{lll}
+                1 & 2 & 3 \\ 4 & 5 & 6 \\ 7 & 8 & 9 \end{array}\right]\right)=…
+
+Arm A opened a tikzpicture INSIDE a `\det(`. Arm B kept the existing
+structure and fixed the digits — 4,5,3 / 4,$,6 / 7,$,9 became 1,2,3 / 4,5,6 /
+7,8,9, which is the matrix the page prints and the one its neighbours use.
+
+The neighbour list is why. EQ0774's context carried, among its six
+neighbours, `A=\left[\begin{array}{lll} 1 & 2 & 3 \\ 4 & 5 & 6 \\ 7 & 8 & 9
+\end{array}\right]` — the same matrix, correctly read, three formulas
+earlier. The model did not have to judge the crop's digits against nothing.
+
+WHAT THIS DOES NOT ESTABLISH
+----------------------------
+Four rows. One document. One model. The effect is large and consistent — 4 of
+4 against 1 of 4 — but a bed of four is a bed of four, and 474 is the standing
+reminder that a clean pattern over a small sample is exactly what a wrong
+hypothesis looks like from close up.
+
+Two specific limits:
+
+  the abstract was never tested   johnston has none. 33% of documents have
+                                  none, and the field is untried.
+  the grades did not separate     section, chapter and distant all improved.
+                                  With one row per grade, that is not
+                                  evidence that grade does not matter — it is
+                                  no evidence about grade at all.
+
+WHAT WAS BUILT
+--------------
+  src/pdfdrill/reccontext.py    the assembler. Every field optional, none
+                                emitted as a placeholder, and a heading
+                                shorter than 40 characters is dropped rather
+                                than rendered as "the document's first
+                                section reads: Introduction".
+                                Neighbours are ordered by FLOW, not page:
+                                488 measured flow_index on 100% of math
+                                objects and page on 95.4%, and two of these
+                                six rows have no page at all.
+  docs/prompts/2026-09-02-revise-region-context-prompt.md
+                                the new prompt, per 466 — not an edit of
+                                448's. Substituted with `.replace`, for the
+                                reason 448 recorded.
+  tools/ctx507.py               the two-arm runner.
+
+THE WARNING IS IN THE PROMPT, NOT ONLY IN THE REPORT
+-----------------------------------------------------
+  "These neighbours are the SAME OCR reader's output as the value you are
+   checking. They may contain the same kinds of error. Use them for the
+   document's notation and conventions, never as evidence that a symbol is
+   correct."
+
+Without it a neighbouring `\nvdash` is an instruction to produce another. It
+is untested — none of these six rows had a defective neighbour — and it is in
+the prompt because the failure it prevents is not one you would see until it
+happened.
+
+EVIDENCE
+--------
+All 12 calls are in the document's call log with their prompt file and hash:
+`20260902T131614Z-ctx507-4542225c`. Arm B's prompt is
+`2026-09-02-revise-region-context-prompt.md`,
+sha256 e678e0ddd152656e…; arm A's is 448's `2026-09-01-revise-region-prompt.md`.
+out/507.json carries both replies per row in full.
