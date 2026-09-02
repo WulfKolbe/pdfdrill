@@ -42,20 +42,32 @@ def test_the_prop_ALONE_is_not_enough():
     value is worth projecting only because something checked it — a refinement
     whose evidence has gone is not a refinement, it is an assertion."""
     o = _Obj({"latex": "a", rf.REFINED_FIELD: "b"})          # no realization
-    assert rf.chosen_latex(o) == ("a", {})
+    # 511: the ORIGINAL is still projected — that is this test's subject and
+    # it is unchanged. What is new is that the row no longer reads as clean:
+    # the state travels with it.
+    val, ev = rf.chosen_latex(o)
+    assert val == "a"
+    assert ev["refinement_state"] == rf.ORPHANED
 
 
 def test_a_change_realization_with_no_verification_is_not_enough():
     o = _Obj({"latex": "a", rf.REFINED_FIELD: "b"},
              [_R("change", {rf.REFINED_FIELD: "b"})])        # no verified_by
-    assert rf.chosen_latex(o) == ("a", {})
+    val, ev = rf.chosen_latex(o)
+    assert val == "a"
+    assert ev["refinement_state"] == rf.UNVERIFIED
 
 
 def test_evidence_for_a_DIFFERENT_value_does_not_license_this_one():
     """The realization must vouch for the value in the prop, not merely exist."""
     o = _Obj({"latex": "a", rf.REFINED_FIELD: "b"},
              [_R("change", {rf.REFINED_FIELD: "c", "verified_by": "ink"})])
-    assert rf.chosen_latex(o) == ("a", {})
+    val, ev = rf.chosen_latex(o)
+    assert val == "a"
+    # 511 — and this one is the CONTRADICTION: two records that disagree.
+    # It used to be indistinguishable from a document never refined at all.
+    assert ev["refinement_state"] == rf.CONTRADICTED
+    assert "'b'" in ev["why"] and "'c'" in ev["why"]
 
 
 def test_an_ordinary_row_is_untouched():

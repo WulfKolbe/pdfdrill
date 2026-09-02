@@ -1,0 +1,102 @@
+511 — a contradiction is not an absence
+2026-09-03T04:30Z · src/pdfdrill/refine.py
+
+THE PROBLEM, STATED AS THE CODE HAD IT
+---------------------------------------
+`verified_change` returned a realization or None, and None meant four
+different things:
+
+  no twin prop at all                          — the ordinary case
+  a twin prop with no change realization       — evidence never written
+  a change realization with no `verified_by`   — a proposal, not a solution
+  a change realization that says something ELSE — a contradiction
+
+The fourth is a defect and it was reported by returning the same value as the
+first. 502 changed the twin prop and not the realization; for a day the
+correction was silently un-accepted, and `0707.4470_FO0175` would have
+projected `\mathscr{g}` — which renders nothing at all, because rsfs10 has no
+lowercase. Nothing said so, because there was nothing in the vocabulary to
+say it with.
+
+WHAT IT IS NOW
+--------------
+  refinement_state(obj) -> {"state": …, …}
+
+  none           no twin prop
+  verified       prop and realization agree, and something checked it
+  contradicted   BOTH exist and say DIFFERENT things — carries `prop`,
+                 `realization_value`, `verified_by` and a `why` naming both
+  unverified     a change realization carries the value but no `verified_by`
+  orphaned       a twin prop with no change realization at all
+
+`verified_change` keeps its contract exactly — a realization or None — because
+its callers use it to decide what to PROJECT and that decision has not
+changed. What changed is that None is no longer the only thing said.
+
+AND A CONTRADICTION PROJECTS THE ORIGINAL, LOUDLY
+--------------------------------------------------
+`chosen_latex` still returns the original value for every non-verified state.
+A contradiction is not a licence to guess which of the two records is right.
+But the evidence dict, which used to be `{}`, now carries
+
+  {"refinement_state": "contradicted",
+   "why": "the twin prop says 'NEW' and its evidence realization says 'OLD'"}
+
+so a projection can say there is a contradiction instead of rendering a clean
+unrefined row. The value is unchanged; the silence is what ended.
+
+THE CORPUS COUNT
+----------------
+  documents carrying any refinement      6
+  objects with a refinement             31
+  ---------------------------------------
+  verified                              31
+  contradicted                           0
+  unverified                             0
+  orphaned                               0
+
+Zero — and the zero is only meaningful because one existed yesterday. The
+0707.4470_FO0175 contradiction was found and repaired in 510; this census is
+the check that the repair took and that no other object in the corpus is in
+the same state. Had it run a day earlier it would have returned 1.
+
+A NUMBER THAT LOOKED WRONG AND IS NOT
+--------------------------------------
+`corrections.html` shows 33 rows; this census counts 31 objects. Both are
+right: two objects in 0902.0431 (obj_c10501e0945f and obj_dedd3734e03a) each
+carry TWO change realizations, so they contribute two rows each to a
+per-correction page and one object each to a per-object census. The page
+counts corrections; the census counts objects that could hold a
+contradiction.
+
+TESTS
+-----
+  tests/test_refinement_state.py   9 tests, including one that asserts the
+                                   four non-verified states are DISTINGUISHABLE
+                                   from each other — which is the whole change,
+                                   since they used to be one value
+
+  tests/test_prefer_refined.py     three existing tests asserted
+                                   `chosen_latex(o) == ("a", {})` for the
+                                   orphaned, unverified and contradicted
+                                   cases. Their subject is the VALUE, which is
+                                   still "a" in all three; the empty dict was
+                                   incidental and is exactly what 511 changes.
+                                   Each now asserts the value is unchanged AND
+                                   that the state is named — a stronger test
+                                   than the one it replaces, not a weaker one.
+
+Full suite: 2,888 passed.
+
+WHAT THIS DOES NOT DO
+---------------------
+Nothing calls `refinement_state` yet except `verified_change` and
+`chosen_latex`. The states are available and nothing surfaces them to a
+reader. Two obvious consumers:
+
+  publishready   a contradicted refinement is a reason not to publish, and it
+                 is not currently among PUBLISH_CHECKS
+  509's report   a contradicted row belongs in "Unresolved" with its own
+                 reason, not silently among the clean
+
+Both are decisions for their own tasks.

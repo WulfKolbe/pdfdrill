@@ -911,6 +911,60 @@ def record_one(doc, obj_id: str, prop: dict) -> bool:
     return True
 
 
+#: 511 — the states a refinement can be in. `record_one` writes the value
+#: TWICE, to the object's twin prop and to a provenance="change" realization,
+#: so the two can disagree — and a disagreement is a CONTRADICTION, not an
+#: absence.
+#:
+#: The old test returned None for all four of the non-verified cases alike,
+#: which meant a refinement whose two records had drifted apart was
+#: indistinguishable from a document that had never been refined. 502 changed
+#: the prop and not the realization; for a day the correction was silently
+#: un-accepted and 0707.4470_FO0175 would have projected `\mathscr{g}`, which
+#: renders nothing at all because rsfs10 has no lowercase. Nothing reported
+#: it, because there was nothing in the vocabulary to report.
+NONE = "none"                 # no twin prop — the ordinary case
+VERIFIED = "verified"         # prop and realization agree, and it was checked
+CONTRADICTED = "contradicted"  # BOTH exist and say DIFFERENT things — a defect
+UNVERIFIED = "unverified"     # a change realization with no verified_by
+ORPHANED = "orphaned"         # a twin prop with no change realization at all
+
+
+def refinement_state(obj) -> dict:
+    """Which of the five states this object's refinement is in, and why.
+
+    Always returns a dict with `state`; `realization` is set only when the
+    state is VERIFIED. CONTRADICTED, UNVERIFIED and ORPHANED each carry
+    enough to act on: a caller that treats them as NONE is making the same
+    mistake this function was split to end.
+    """
+    props = getattr(obj, "props", None) or {}
+    want = props.get(REFINED_FIELD)
+    if not want:
+        return {"state": NONE}
+    changes = [r for r in (getattr(obj, "realizations", None) or [])
+               if getattr(r, "provenance", None) == "change"]
+    if not changes:
+        return {"state": ORPHANED, "prop": want,
+                "why": "twin prop %r with no provenance=change realization"
+                       % want}
+    for r in changes:
+        rp = getattr(r, "props", None) or {}
+        if rp.get(REFINED_FIELD) == want and rp.get("verified_by"):
+            return {"state": VERIFIED, "realization": r}
+    # every change realization disagrees or is unverified — say which
+    for r in changes:
+        rp = getattr(r, "props", None) or {}
+        got = rp.get(REFINED_FIELD)
+        if got is not None and got != want:
+            return {"state": CONTRADICTED, "prop": want, "realization_value": got,
+                    "verified_by": rp.get("verified_by") or "",
+                    "why": "the twin prop says %r and its evidence "
+                           "realization says %r" % (want, got)}
+    return {"state": UNVERIFIED, "prop": want,
+            "why": "a change realization carries the value but no verified_by"}
+
+
 def verified_change(obj):
     """The provenance="change" realization behind this object's refinement.
 
@@ -919,17 +973,14 @@ def verified_change(obj):
     anything, and out/232's whole point is that the recorded value is only
     worth projecting because something checked it. A refinement whose evidence
     has gone is not a refinement, it is an assertion.
+
+    511 — this still returns a realization or None, because that is what its
+    callers need to decide what to PROJECT. What changed is that "None" is no
+    longer the only thing said about the other four states:
+    `refinement_state` names them, and `chosen_latex` passes the name on.
     """
-    props = getattr(obj, "props", None) or {}
-    if not props.get(REFINED_FIELD):
-        return None
-    for r in getattr(obj, "realizations", None) or []:
-        if getattr(r, "provenance", None) != "change":
-            continue
-        rp = getattr(r, "props", None) or {}
-        if rp.get("verified_by") and rp.get(REFINED_FIELD) == props[REFINED_FIELD]:
-            return r
-    return None
+    st = refinement_state(obj)
+    return st.get("realization") if st["state"] == VERIFIED else None
 
 
 def chosen_latex(obj) -> "tuple[str, dict]":
@@ -940,9 +991,16 @@ def chosen_latex(obj) -> "tuple[str, dict]":
     same model projects either way and `latex` stays exactly what MathPix said.
     """
     props = getattr(obj, "props", None) or {}
-    r = verified_change(obj)
-    if r is None:
-        return props.get("latex", ""), {}
+    st = refinement_state(obj)
+    if st["state"] != VERIFIED:
+        # 511 — the ORIGINAL is still what gets projected, because a
+        # contradiction is not a licence to guess which record is right. But
+        # the state travels with it, so a projection can SAY there is one
+        # instead of showing a clean unrefined row.
+        ev = {} if st["state"] == NONE else {"refinement_state": st["state"],
+                                             "why": st.get("why", "")}
+        return props.get("latex", ""), ev
+    r = st["realization"]
     rp = r.props or {}
     return props[REFINED_FIELD], {
         "original": props.get("latex", ""),
