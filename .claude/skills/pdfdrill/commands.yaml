@@ -104,6 +104,7 @@ commands:
   typed: true
   done_when: fact:SIZE_KNOWN
 - name: corrections
+  typed: true
   section: Introspection (fast, no extraction)
   summary: 'corrections.html — every ACCEPTED correction in the corpus on one page: MathPix''s
     reading above, the accepted one below, both against the SHARED scan, with the basis
