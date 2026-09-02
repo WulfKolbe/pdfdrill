@@ -103,6 +103,24 @@ commands:
     help: PDF path, https URL, or bare arXiv id
   typed: true
   done_when: fact:SIZE_KNOWN
+- name: corrections
+  section: Introspection (fast, no extraction)
+  summary: 'corrections.html — every ACCEPTED correction in the corpus on one page: MathPix''s
+    reading above, the accepted one below, both against the SHARED scan, with the basis
+    as a column and both ink numbers shown. Corpus-wide, where report.pdf is per document
+    (509). Promoted out of tools/ by 510, because a generator nobody can see ships an
+    artefact nobody rebuilds — this one went stale in a week and shipped untracked.'
+  offline_ok: true
+  positionals: []
+  flags:
+  - name: out
+    flag: -o
+    type: str
+    help: where to write it (default ./corrections.html)
+  - name: lib
+    flag: --lib
+    type: str
+    help: corpus root to scan (default ~/pdfdrill-library)
 - name: ls
   section: Introspection (fast, no extraction)
   summary: 'Shallow-scan a FOLDER: run pdfinfo (size) on every PDF, store it in each file''s sidecar,

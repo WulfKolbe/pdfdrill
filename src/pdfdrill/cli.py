@@ -428,6 +428,14 @@ def _do_route(args):
     return cmd_route(_pdf(pdf_args), run="--run" in args)
 
 
+def _do_corrections(args):
+    """pdfdrill corrections [-o OUT] [--lib DIR]"""
+    from .commands import cmd_corrections
+    out, args = _opt(args, "-o")
+    lib, args = _opt(args, "--lib")
+    return cmd_corrections(out=out, lib=lib)
+
+
 def _do_ls(args):
     """pdfdrill ls <dir> [--images] — shallow-scan a folder (pdfinfo → sidecar)."""
     from .commands import cmd_ls
@@ -2078,6 +2086,7 @@ HANDLERS = {
         "size": _do_size,
         "route": _do_route,
         "ls": _do_ls,
+        "corrections": _do_corrections,
         "abstract": _do_abstract,
         "toc": _do_toc,
         "fonts": _do_fonts,

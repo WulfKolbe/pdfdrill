@@ -1,0 +1,89 @@
+510 — corrections.html survives 509, promoted out of tools/
+2026-09-03T03:15Z
+
+THE ANSWER: KEEP IT — BUT NOT AS IT WAS
+----------------------------------------
+Both your arguments hold, and the one against had already come true. So the
+decision is not "keep or delete" but "keep on terms that stop it drifting".
+
+  FOR    the audience split is real and 509 does not close it. Under 509's
+         rule report.pdf becomes a per-document corrections document; nothing
+         then answers "everything pdfdrill has corrected". 33 corrections
+         across 6 documents on one page is a different artefact from 33
+         corrections scattered across 6 reports, and the correspondence links
+         to individual corrections, which wants a single page.
+
+  AGAINST 422's drift, which is not hypothetical here: the shipped file still
+         carried the `\mathcal{J}` reading for 0707.4470_FO0175 SEVEN DAYS
+         after 502 withdrew it.
+
+  THE CAUSE of the drift is not duplication. It is that nothing rebuilt it.
+  `tools/corrections439.py` is invisible to the planner, to `status` and to
+  `--ensure` — audit A4, and `reporttex` was promoted out of `tools/` for
+  exactly this. Deleting the artefact would have removed a real capability to
+  fix a registration defect.
+
+WHAT WAS DONE
+-------------
+  promoted      `pdfdrill corrections [-o OUT]`, registered in commands.yaml,
+                143 commands, skillsync run. It wraps the 439 generator
+                rather than reimplementing it — the generator was never the
+                problem.
+  rebuilt       33 rows over 6 documents (0902.0431 10, johnston 8, lyche 8,
+                mielke 3, voloshin 3, 0707.4470 1)
+  committed     to the site, TRACKED, and linked from index.html
+  documented    ARTEFACTS.md now carries it as the fifth artefact, with the
+                audience split stated as a table so the next reader does not
+                have to infer it
+
+AND IT FOUND A DEFECT I HAD PUT THERE
+--------------------------------------
+The rebuild still showed `\mathcal{J}`. The join was not stale — my own 502
+edit was incomplete.
+
+`refine.record_one` writes an accepted refinement in TWO places: the object's
+twin prop `latex_refined`, AND a realization with `provenance="change"`
+carrying the same value plus `verified_by`. `refine.evidence_for` requires
+BOTH and requires them to AGREE:
+
+    if rp.get("verified_by") and rp.get(REFINED_FIELD) == props[REFINED_FIELD]
+
+502 changed only the prop. So the two disagreed, `chosen_latex` found no
+matching evidence, and **the refinement had become invisible to every
+projection** — the row would have reverted to `\mathscr{g}`, which renders
+nothing at all because rsfs10 has no lowercase. A withdrawal that silently
+un-accepted the correction it was refining.
+
+Fixed: the realization now carries `\mathscr{J}` and `verified_by:
+source+ink`. `chosen_latex` returns `\mathscr{J}` and the rebuilt page shows
+it. The docpack was invalidated rather than edited, per 276.
+
+This is the failure class already on the list — a fix that covers the data
+path and not the evidence path is half a fix — and it is worth noting that
+nothing caught it for a day. `evidence_for` refuses silently: a refinement
+with a mismatched realization is treated as no refinement, not as an error.
+
+TRACKED AND UNTRACKED, AS ASKED
+--------------------------------
+Before this task, of everything in ~/pdfdrill.github.io:
+
+  untracked and not ignored     1 file — reports/corrections.html, 2.1 MB
+  deliberately ignored          .claude/, resume.sh, .pstknot-work/,
+                                figures/node_modules/
+  tracked but missing on disk   0
+
+Every other published artefact was tracked: report.pdf 22, inspect.html 22,
+report.ink.json 21, report.build.json 20, formula-report.html 20,
+tables.html 13, compare.html 6, and one `<slug>.md` each.
+
+  AFTER: untracked and not ignored — 0.
+
+WHAT 509 SHOULD DO WITH THIS
+----------------------------
+The two artefacts now have different jobs and one shared renderer's worth of
+logic. When 509 is built, the corrected-pair layout should come from the same
+code that builds a corrections.html row — same pair, same shared scan, same
+basis column — so that the divergence 422 warns about cannot happen through
+two implementations of one idea.
+
+That is a build decision for 509 and is not made here.

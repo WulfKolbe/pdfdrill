@@ -237,6 +237,39 @@ treat it as a QC surface at half the evidence.
 **Note.** `report.html` — the bare name — is written by nothing and exists
 nowhere. `cmd_artifacts` named it in its docstring; corrected in 427.
 
+## `corrections.html` — every accepted correction, corpus-wide
+
+**Made by** `pdfdrill corrections`. **On disk** one file, published at
+`reports/corrections.html`. 33 rows over 6 documents today.
+
+One row per ACCEPTED correction: MathPix's reading above, the accepted one
+below, **both against the same scan** — it is one region, so the crop spans
+both halves and the reader compares two readings of one picture rather than
+two pictures (437). The basis is a COLUMN, not a filter: 438 found 32
+corrections verified by ink and one verified against the author's e-print by
+counting, and filtering to `verified_by: ink` would have dropped the
+strongest correction in the corpus. Both ink numbers are shown, because a
+correction accepted on a fall of 398→397 can only be judged if both are on
+the page.
+
+**Audience: someone asking what pdfdrill has corrected.** That is the whole
+of the distinction from `report.pdf`, which under 509's rule is also a
+corrections document — but PER DOCUMENT. The two answer different questions:
+
+| question | artefact |
+|---|---|
+| how did this book do? | `report.pdf` |
+| everything pdfdrill has corrected, across the corpus | `corrections.html` |
+
+**It was a `tools/` script until 510, and that cost exactly what audit A4
+says it costs.** Code in `tools/` is invisible to the planner, to `status`
+and to `--ensure`, so nothing rebuilt this file and nothing published it: it
+shipped to the site UNTRACKED and went stale within a week, still showing the
+`\mathcal{J}` reading for `0707.4470_FO0175` that 502 withdrew. `reporttex`
+was promoted out of `tools/` for the same reason and is the worked example.
+
+---
+
 ## Which artefact answers which question
 
 | question | artefact |

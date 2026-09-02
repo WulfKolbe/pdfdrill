@@ -16,6 +16,7 @@ import json
 import re
 import subprocess
 import time
+import sys
 from pathlib import Path
 
 from . import jsonio as _jsonio
@@ -12143,6 +12144,42 @@ def _format_ls(rows: list, images: bool) -> str:
             cols += f"{('—' if n in (None, -1) else n):>5}  "
         lines.append(cols + prod)
     return "\n".join(lines)
+
+
+def cmd_corrections(out: str | None = None, lib: str | None = None) -> str:
+    r"""corrections.html — every accepted correction in the corpus, on one page.
+
+    510 — PROMOTED OUT OF tools/. It was `tools/corrections439.py`, which
+    CLAUDE.md's audit A4 says is invisible to the planner, to `status` and to
+    `--ensure`; `reporttex` was promoted for the same reason. The cost of
+    leaving it there was not theoretical: the file shipped to the site
+    UNTRACKED and went stale within a week, still showing the `\mathcal{J}`
+    reading for 0707.4470_FO0175 that 502 withdrew.
+
+    509 makes report.pdf a per-document corrections document. This is the
+    corpus-wide one, and the two answer different questions: "how did this
+    book do" against "everything pdfdrill has corrected". ARTEFACTS.md
+    records both audiences so the next reader does not have to infer them.
+    """
+    import subprocess as _sp
+    script = Path(__file__).resolve().parents[2] / "tools" / "corrections439.py"
+    if not script.is_file():
+        return "corrections: generator missing at %s" % script
+    dest = Path(out) if out else Path.cwd() / "corrections.html"
+    # the generator's own flag is --out, and it takes no --lib; `lib` is
+    # accepted here and refused loudly rather than silently ignored
+    if lib:
+        return "corrections: --lib is not supported by the generator"
+    cmd = [sys.executable, str(script), "--out", str(dest)]
+    r = _sp.run(cmd, capture_output=True, text=True, timeout=1800)
+    if r.returncode != 0:
+        return "corrections: FAILED\n%s" % (r.stderr or r.stdout)[-800:]
+    n = dest.stat().st_size if dest.is_file() else 0
+    return ("corrections: %s (%.1f MB). %s"
+            % (dest, n / 1e6, (r.stdout or "").strip().splitlines()[-1]
+               if r.stdout.strip() else "one row per accepted correction, "
+               "MathPix's reading above and the accepted one below, "
+               "against the shared scan."))
 
 
 def cmd_ls(directory: Path, images: bool = False) -> str:

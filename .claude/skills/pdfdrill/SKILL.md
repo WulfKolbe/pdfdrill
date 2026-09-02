@@ -469,6 +469,7 @@ _Generated from `commands.yaml` by skillsync. Edit the manifest, not this sectio
 | `pdfdrill relocate <paths> [--apply] [--library]` | Migrate legacy scattered drills into the self-contained library layout: <library>/<stem>/ holding the PDF + every X.* sibling + the flattened X.pdf.drill/ blobs (X.pdf.drill.json → X.drill.json). Dry-run by default; --apply moves. Collision-safe + idempotent. |
 | `pdfdrill artifacts <pdf> [--all]` | List the openable files in the doc's drill folder (report.html, the extracted <bibkey>.md, tiddlers/semantic/llm *.json/*.txt, SVGs) with paths — clickable in the drillui Outputs panel. Giant model JSON hidden unless --all. (`status` also lists them.) |
 | `pdfdrill size <pdf>` | File size, page count, producer |
+| `pdfdrill corrections [-o OUT] [--lib LIB]` | corrections.html — every ACCEPTED correction in the corpus on one page: MathPix's reading above, the accepted one below, both against the SHARED scan, with the basis as a column and both ink numbers shown. Corpus-wide, where report.pdf is per document (509). Promoted out of tools/ by 510, because a generator nobody can see ships an artefact nobody rebuilds — this one went stale in a week and shipped untracked. |
 | `pdfdrill ls <dir> [--images]` | Shallow-scan a FOLDER: run pdfinfo (size) on every PDF, store it in each file's sidecar, and report a compact table led by the PRODUCER (the triage signal). The cheapest rung over a whole directory; size is cached so re-running is fast. --images adds the pdfimages count. |
 | `pdfdrill route <pdf> [--run]` | Auto-pick the OCR lane and (with --run) EXECUTE it: born-digital → pdfminer/text-layer (free); scanned & ≤20 pages → Gemma 4 (5-parallel); scanned & larger → MathPix (large books). Auto-chains size. Without --run reports the decision; with --run runs the chosen lane (paid/keyed lanes degrade gracefully when creds are absent). |
 | `pdfdrill abstract <pdf>` | Abstract from first pages |
@@ -659,6 +660,6 @@ _Generated from `commands.yaml` by skillsync. Edit the manifest, not this sectio
 <!-- COMMANDS:END -->
 
 <!-- PREFLIGHT-TOKEN:BEGIN -->
-Attestation token — the LAST line of this SKILL. If you can read this, you read the whole file. Run `pdfdrill preflight --ack DRILL-20bc30fe` before any build/extract command.
-DRILL-20bc30fe
+Attestation token — the LAST line of this SKILL. If you can read this, you read the whole file. Run `pdfdrill preflight --ack DRILL-ecfcb4df` before any build/extract command.
+DRILL-ecfcb4df
 <!-- PREFLIGHT-TOKEN:END -->
