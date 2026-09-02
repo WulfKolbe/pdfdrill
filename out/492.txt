@@ -1,0 +1,109 @@
+492 / 499 — the bed is empty, and which constraint empties it
+2026-09-02T14:05Z · 491 arXiv e-prints with a model and a projection, 117,738 rows
+
+499 FIRST: THE STALL WAS REAL, AND IT HAD A NAME
+------------------------------------------------
+The first run sat at "45 e-prints, 20,728 rows" for over twenty minutes at
+99% CPU. Diagnosed from /proc rather than guessed:
+
+  elapsed 43:02   cputime 42:37   cpu 99%   RSS 16,368,212 kB  (16.4 GB)
+  rchar 5,526,355,405 and UNCHANGED over 20 s; syscr 392, unchanged
+  no model file still open;  state R
+
+So not a deadlock: it had finished READING and was burning CPU in the
+per-object loop. The document is the 46th in sorted order among those with
+both a model and a projection:
+
+  #44  1510.06699    0.03 GB
+  #45  1511.00652    0.01 GB
+  #46  1511.08771    4.96 GB      <-- this one
+  #47  1602.04650    0.00 GB
+
+**1511.08771 is 4.96 GB, fifty-five times the next largest e-print model
+(2103.01507 at 0.09 GB).** Reading it cost 5.5 GB of I/O and 16.4 GB of
+resident memory, and the loop over its object list did not finish.
+
+`MAX_MODEL_BYTES = 1 GB` now guards it, and the skip is COUNTED AND NAMED in
+the output rather than silent — a document dropped without saying so is a
+population quietly narrowed, which is the failure this project keeps paying
+for. One document skipped: 1511.08771, 4,964,452,579 bytes.
+
+492: WHICH OF THE FOUR CONSTRAINTS EMPTIES THE BED
+---------------------------------------------------
+  constraint alone                              rows of 117,738
+  ---------------------------------------------------------------
+  document carries an Abstract object                    95,733   81.3%
+  row has a page                                         21,906   18.6%
+  row joins to a model object by region                  13,248   11.3%
+  row currently does not render                             626    0.5%
+  parent_section resolves at LEVEL >= 2                     378    0.32%
+
+  the conjunction, one constraint at a time
+  ---------------------------------------------------------------
+  fails                                                     626
+  fails + abstract                                          387
+  fails + abstract + page                                   330
+  fails + abstract + page + LEVEL >= 2                        0
+
+**`level >= 2` is the constraint that empties it.** 330 rows survive the
+other three. Adding the section-depth requirement takes it to zero.
+
+AND THE REASON IS STRUCTURAL, NOT A SHORTAGE
+---------------------------------------------
+Two numbers explain it and they compound:
+
+  the region join works for 11.3% of rows. `parent_section` lives on the
+  MODEL object; a projection row reaches it only by matching its region
+  5-tuple. Most rows are inline formulas, which have no region of their own —
+  the same fact 488 recorded when it found FO rows carrying no page and no
+  confidence, and the same one that will decide whether 498's junction check
+  can see 0707.4470_FO0175 at all.
+
+  of the rows that DO join, level >= 2 holds for 378 of 13,248 — 2.9%. A
+  paper's section tree as this model represents it is flat: the parent is the
+  document's own title.
+
+Multiply the two and the level>=2 population is 0.32% of all rows, and its
+intersection with the 0.5% that fail is empty. It is not that failing rows
+avoid deep sections; it is that almost nothing is in a deep section.
+
+WHAT THIS DECIDES
+-----------------
+487 as written cannot be tested on papers, and the reason is not the test
+bed — it is that the context does not exist to add.
+
+  the abstract          available, 81% of rows, 442 of 491 documents
+  the enclosing section NOT available. 0.32% of rows corpus-wide, and zero
+                        of the rows that need help
+  the k nearest         available by flow_index (488: 100%), and by page for
+                        18.6% of rows
+
+So of the three context items 487 wanted, one is broadly available, one is
+partly available, and one is effectively absent for papers. Combined with
+488's finding that johnston's parent_section points at level 1 — whose
+caption is the book's title — the section path is unavailable for BOTH
+populations, for two different reasons.
+
+493/494 therefore stop being an enhancement. If a section path is to exist at
+all it has to come from the TOC, and for papers it may have to come from
+somewhere else again or be dropped. That is 493's question and it is now the
+load-bearing one.
+
+487 should not run until it is answered. Running it now would compare a
+prompt carrying an abstract and some neighbours against a prompt carrying an
+abstract and some neighbours, with the section line omitted in both — which
+is a test of the neighbour list, not of the change that was asked for.
+
+WHAT WAS CHANGED
+----------------
+  tools/beddiag492.py   the constraint lattice, and MAX_MODEL_BYTES with the
+                        skip counted and named
+  tools/bed492.py       the bed builder, with the region join corrected —
+                        the first version looked for props["top_left_x"] and
+                        found it on 0 of 70,000 objects, because the region
+                        lives on the object's realizations.
+                        `docinspect.object_geometry` resolves it, verified at
+                        279 of 279 on 1510.06699.
+
+No report was rebuilt and no bed was produced, because there is none to
+produce.
