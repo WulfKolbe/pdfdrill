@@ -1,0 +1,98 @@
+488 — what context is available per row, before 487 builds on it
+2026-09-02T11:40Z · 52-document random sample with a model, plus johnston in full
+
+THE ANSWER: TWO JOINS AND A SORT, AND TWO OF THE THREE ARE NOT UNIVERSAL
+------------------------------------------------------------------------
+  context item              how it is obtained              coverage
+  --------------------------------------------------------------------------
+  abstract                  find the Abstract object        67% of documents
+                            (one lookup, no join)           (35 of 52)
+  enclosing section         props.parent_section -> the     69.6% of math
+                            Section object -> props.caption objects
+                            (ONE join)                      (30,473 of 43,769)
+  k nearest formulas        sort on (page, flow_index)      flow_index 100%
+                            (NO join, no computation)       page 95.4%
+  --------------------------------------------------------------------------
+
+So 487 is not three joins. It is one join, one lookup and a sort — but two of
+the three are missing often enough that the prompt has to work without them.
+
+1 — THE ABSTRACT
+----------------
+35 of 52 sampled documents carry an Abstract object; 17 do not. johnston has
+ZERO — it is a textbook, and the six test-bed rows 487 would run on are in a
+document with no abstract at all.
+
+That matters for the test: whichever way 487 comes out on those six rows, the
+abstract half of the context will not have been exercised. The first section's
+text is the available substitute there, and it is a different thing.
+
+2 — THE ENCLOSING SECTION
+-------------------------
+`parent_section` holds a Section object id, and the Section carries `caption`
+and `level`. On johnston every one of 6,813 math objects resolves:
+
+  parent_section 'obj_a3c0094cd391' -> {'level': '1',
+                                        'caption': 'Introduction to Linear and Matrix'}
+
+Corpus-wide it resolves for 69.6% of math objects. The level it points at:
+
+  level 1  2,472    level 2  1,675    level 3  424    level 4  4
+
+So it is a real enclosing section and not always the root — but on johnston
+the samples all point at level 1, which is the book title. A prompt that says
+"the enclosing section is 'Introduction to Linear and Matrix'" is telling the
+model the name of the book. Worth knowing before it is written.
+
+AND IT IS 0% IN WHOLE DOCUMENTS, not merely thin:
+
+  1910.05241                        418 math objects, parent_section 0.0%
+  spinors                            87                              0.0%
+  gr-qc_0110026                     304                              0.0%
+  49_learning_lie_group_symmetry     139                              0.0%
+  2010.06467                        344                              0.0%
+  Uebungsblatt5LösungenGemini        185                              0.0%
+
+Six of 52 documents have no section structure on their math at all. The
+prompt must omit the line rather than emit an empty one.
+
+3 — THE K NEAREST FORMULAS
+--------------------------
+The cheapest of the three: `flow_index` is present on 100% of math objects in
+every document sampled, and `page` on 95.4%. Nearest-by-flow needs no join
+and no computation — sort the document's math objects by flow_index and take
+the k on either side. Nearest-by-page needs `page`, which 2010.06467 (344
+math objects) does not have.
+
+Recommended: order by flow_index and report the page when there is one, since
+flow_index never fails and page does.
+
+A CORRECTION TO THE ASK
+-----------------------
+The test bed is SIX rows, not seven. out/444.rows.json and out/448.json both
+hold the same six johnston rows:
+
+  EQ0114 p063 conf 0.025    EQ0439 p170 conf 0.131
+  EQ0575 p224 conf 0.324    EQ0774 p289 conf 0.111
+  FO2071 (no page, no conf) FOX_fabb4bba18 (no page, no conf)
+
+If there is a seventh somewhere I have not found it; 454's single snippet call
+was on 2103.01507 p205, a different document, and is not one of these.
+
+Two of the six carry no page and no confidence, which bears on 487 twice: the
+nearest-by-page neighbour list cannot be built for them, and the prompt's
+"confidence is {conf}" line has nothing to fill in.
+
+WHAT 487 SHOULD THEREFORE ASSUME
+--------------------------------
+  always available     flow_index, so k-nearest by flow order
+  usually available    page (95%), the enclosing section (70%)
+  often absent         the abstract (33% of documents), and absent in the
+                       very document the test bed lives in
+  absent on 2 of the 6 test rows   page, confidence
+
+Every one of these is a reason for the prompt to omit a line rather than emit
+a placeholder — a "section: (unknown)" teaches the model the section is called
+unknown.
+
+Nothing was changed.
