@@ -1,0 +1,149 @@
+505 — how accurate the TOC path is, measured against the page
+2026-09-02T20:05Z · 1,027 mapped TOC entries across the nine books
+
+FIRST, THE COMPARISON 505 ASKED FOR CANNOT BE MADE
+---------------------------------------------------
+The task was to check the TOC path against the Section objects the model
+holds. Those objects are not a ground truth:
+
+  book                      Section objects   what parent_section resolves to
+  ---------------------------------------------------------------------------
+  gilmore-lie-groups                      4   '2' (4,222 objects), and the
+                                              book's SUBTITLE
+  voloshin-hypergraph                     6   'Introduction to Graph' — the
+                                              book's own title
+  fong-spivak-invitation                 20   '7' (1,796 objects)
+  johnston-linear-matrix-algebra         17   'Remark 2.1.1' (1,569) — a
+                                              remark, not a section
+  lyche-numerical-linear-algebra         64   'Chapter 1', 'Chapter 13'
+  kohlhase-omdoc                         38   '14.3 Text Fragments and Their…'
+
+Four Section objects for a 333-page book, six for a 303-page one, and captions
+that are bare numbers, a Remark and a subtitle. Comparing a TOC path against
+that would measure the noise in the Section extraction, not the accuracy of
+the path. So the measurement below uses the PAGE ITSELF as ground truth —
+the same move 502 made when a derived statistic disagreed with the pixels.
+
+THE MEASUREMENT: DOES THE MAPPED PAGE ACTUALLY CARRY THAT HEADING?
+-------------------------------------------------------------------
+For all 1,027 mapped entries: map printed -> PDF through /PageLabels, extract
+that page's text, and look for the entry's title on it and on +-1, +2.
+
+  book                             on page   +-1/2   NOT FOUND   untestable
+  --------------------------------------------------------------------------
+  johnston-linear-matrix-algebra        55       0           0        0   100%
+  voloshin-hypergraph                   74       0           0        0   100%
+  mielke-geometrodynamics              146       0           1        0    99%
+  lyche-numerical-linear-algebra       281       0           3        6    97%
+  gilmore-lie-groups                   142       0           3        2    97%
+  fong-spivak-seven-sketches           135       2           8        1    92%
+  fong-spivak-invitation                 3       4          40        0     6%
+  kohlhase-omdoc                         4      30          84        3     3%
+  cardona-qft-methods                    — no TOC entry parses (493)
+  --------------------------------------------------------------------------
+  TOTAL                                840      36         139       12
+
+  840 of 1,027 land exactly on the mapped page — 81.8%
+
+AND 81.8% IS THE WRONG NUMBER TO ACT ON
+----------------------------------------
+It is the average of six books at 92-100% and two at 3-6%. There is no book
+anywhere near 82%. The rule must be gated per book, not applied at a corpus
+rate, and the gate is knowable in advance:
+
+  THE TWO FAILING BOOKS ARE EXACTLY THE TWO WITH NO /PageLabels.
+
+  book                          /PageLabels   first labels
+  ------------------------------------------------------------------
+  cardona                       YES           C, i, ii, iii, iv, v
+  fong-spivak-invitation        NO            1, 2, 3, 4, 5, 6
+  fong-spivak-seven-sketches    YES           i, ii, iii, iv, v, vi
+  gilmore                       YES           C, c, i, ii, iii, iv
+  johnston                      YES           C1, i, iii, iv, v, vii
+  kohlhase-omdoc                NO            1, 2, 3, 4, 5, 6
+  lyche                         YES           C1, i, ii, iii, iv, v
+  mielke                        YES           C1, i, ii, iii, iv, v
+  voloshin                      YES           cover, coverback, i, ii
+
+pypdf's `page_labels` returns a synthetic `1..N` when the PDF carries no
+/PageLabels at all, and 503 read that as "offset 0, constant" — a clean
+answer to the wrong question. The two documents 503 reported as having the
+tidiest offsets are the two with no labels at all.
+
+Checking `"/PageLabels" in reader.trailer["/Root"]` separates them exactly:
+7 books with real labels average 97.7% (833 of 853); the 2 without average
+4.2% (7 of 168).
+
+A CORRECTION TO 503
+-------------------
+503 reported "every TOC entry that parses maps — 927 of 927". The mapping
+claim is right; the arithmetic is not. 47+146+147+55+121+290+147+74 = 1,027,
+not 927. The correct figure is 1,027 of 1,027.
+
+THE DISAGREEMENTS BY CAUSE
+--------------------------
+  no /PageLabels                  124 of the 139 misses, in two books.
+                                  The printed-to-PDF map is fictional, so
+                                  every entry lands wherever the synthetic
+                                  numbering puts it. kohlhase's 30 near-misses
+                                  at +1/+2 are that fiction being nearly right
+                                  by luck, not a small offset error.
+
+  a chapter opening               johnston printed page 1 -> PDF 16 carries
+                                  "1. Vectors and Geometry", the chapter
+                                  head, while the TOC entry is "1.1 Vectors
+                                  and Vector Operations". The page is right
+                                  and the heading text is the parent's.
+                                  Counted as a hit by the automated test
+                                  when the title matches, as a miss when it
+                                  does not.
+
+  a heading one page off          voloshin "3.4 Distances in Chordal Graphs"
+                                  maps to a page whose running header reads
+                                  "Chordal Graphs 59" — the right region, the
+                                  heading itself on the neighbouring page.
+
+  a skipped printed page          the smallest cause, and not what was
+                                  expected.
+
+THE SKIPPED PAGES, REPORTED SEPARATELY AS ASKED
+------------------------------------------------
+A math object is AT RISK when a label skip falls between the entry its path
+picks and its own page — the printed numbering moved under it.
+
+  book                      skips   math objects   at risk
+  ----------------------------------------------------------
+  johnston                      7          6,813    1,679   24.6%
+  mielke                       12          2,942       32    1.1%
+  lyche                        15          5,694        4    0.1%
+  all others                    0                       0    0%
+  ----------------------------------------------------------
+  TOTAL                                   36,623    1,715    4.7%
+
+**Risk tracks TOC DENSITY, not skip count.** lyche has more than twice
+johnston's skips and 4 at-risk rows against 1,679, because lyche has 290
+mapped entries for 376 pages and johnston has 55 for 492. A dense TOC
+re-anchors the path within a page or two of any skip; a sparse one lets a
+wrong section run for fifty pages.
+
+And johnston scored 55 of 55 on the heading test. Its 1,679 at-risk rows are
+at risk from a cause the entry-level test cannot see: the entries are right
+and there are too few of them.
+
+WHAT THIS SAYS FOR 494 AND 487
+------------------------------
+  use the TOC path      where the PDF carries real /PageLabels — 7 of 9
+                        books, 97.7% of entries landing on the page they
+                        name
+  omit it               where it does not — fong-spivak-invitation,
+                        kohlhase-omdoc, and cardona which parses no entries
+  and treat as coarse   johnston, where the path is accurate per entry and
+                        sparse enough that 24.6% of math objects sit far
+                        from the entry that labels them
+
+That is a rule with a test behind it rather than a rate. Your framing was the
+right one: 82% corpus-wide would have taught the model a wrong section a
+fifth of the time, and the fix is not a better matcher but a gate that knows
+which documents to trust.
+
+Nothing was changed.
