@@ -1,0 +1,111 @@
+500 — why 1511.08771's model is 4.96 GB
+2026-09-02T15:10Z · measured by streaming; parsing it costs 16.4 GB and does not finish
+
+THE ANSWER: IT IS NOT THE OBJECTS. IT IS THE PER-CHARACTER ANCHOR STREAM.
+--------------------------------------------------------------------------
+The top-level sections, located by byte offset without parsing:
+
+  section        first byte        size      share
+  ---------------------------------------------------------
+  meta                    4      ~1 MB       0.0%
+  streams           974,225    4.06 GB      81.8%
+  objects     4,062,376,991    0.85 GB      17.2%
+  alignments  4,915,972,733      44 MB       0.9%
+
+**`streams` is 4.06 GB, 82% of the file.** Every object in the document — all
+680,000 of them — accounts for 0.85 GB.
+
+WHAT IS IN IT
+-------------
+One anchor per CHARACTER. A slice from the middle reads
+
+  "a_d66d3e7f1b19",
+  "a_8d3e2b265cb8",
+  "a_3a49fa1fbe6e",  …
+
+and counted over the whole file:
+
+  "codepoint"           30,605,554
+  "a_…" references      65,757,148      2.1 per codepoint
+  "anchors" arrays          94,426
+  "payload" blocks          94,426
+
+  30.6 million codepoints over 5,000 pages = 6,121 characters per page
+  4.06 GB / 30.6M codepoints = 132.7 bytes per character
+
+So the model stores 30.6 million character anchors, each referenced about
+twice — once where it is defined with its codepoint, once in an `anchors`
+array — and each reference is a 14-character id written as
+`        "a_xxxxxxxxxxxx",\n`. At `indent=1` that is ~26 bytes for a 14-byte
+identifier; compact separators would be ~17.
+
+This is the documented design — "anchor-based `Stream`s" — behaving exactly as
+designed on a document with 5,000 pages. It is not a defect of this document.
+It is the cost of the design multiplied by an unusual page count, and nothing
+else in the corpus comes close: the next largest e-print model is 0.09 GB.
+
+OBJECT COUNT BY TYPE
+--------------------
+  TableCell      518,253      Paragraph      23,263
+  TableRow       106,909      Picture        13,654
+  Formula         70,616      Table           6,091
+  Page             5,000      Section etc.    small
+
+  518,253 cells / 6,091 tables = 85 cells per table
+  70,616 formulas / 5,000 pages = 14 per page
+
+The cells dominate the object count, and the objects are 17% of the file.
+Even removing every cell would not change the order of magnitude.
+
+FORMULA OBJECTS INSIDE A TABLE CELL: ZERO, AND THE QUESTION IS MIS-POSED
+------------------------------------------------------------------------
+Corpus-wide over 1,355 models (1511.08771 skipped by the 499 size guard):
+
+  documents with a Formula whose parent chain reaches a TableCell:   0
+
+And the reason is structural, checked on penev_A before the zero was
+believed:
+
+  TableCell objects       54, all with a parent, NONE with children
+  parents of TableCells   Table, 54 of 54
+  parents of Formulas     (none) — 674 of 674 have NO parent at all
+
+A cell's content lives in `props.text`, not in child objects, and Formulas
+are not nested under anything. "A Formula inside a table cell" is not a
+relation this model can express, so the count is zero for a reason that has
+nothing to do with tables.
+
+A Formula could still sit inside a table's REGION geometrically. That is a
+different question, answerable by region overlap, and it is not the one that
+was asked.
+
+DISTINCT CONTENT AGAINST TOTAL: INTERNING IS NOT THE MECHANISM EITHER
+----------------------------------------------------------------------
+  key           occurrences      distinct     ratio
+  -------------------------------------------------
+  latex              71,170        70,999     1.002
+  latex_code            103             1       103
+  text            2,098,421       493,926     4.25
+
+The hypothesis was a few hundred distinct strings referenced tens of
+thousands of times. `latex` is 99.8% distinct — 70,999 different strings in
+71,170 occurrences. `text` repeats 4.25 times on average, which for a
+document of 6,091 tables is unremarkable (a column of "0" and "1" repeats).
+
+Interning would save something on `text` and almost nothing on `latex`, and
+neither touches the 82% that is the anchor stream. The docpack — which IS
+string-interned — is 1.55 GB against the model's 4.96 GB, a 3.2x saving, and
+that is the measured ceiling on what interning buys here.
+
+WHAT THIS MEANS FOR 501
+-----------------------
+501 asks what changes if a table cell's content is a cell rather than a
+Formula. On this document the answer is: **almost nothing**. There are no
+Formulas in cells to reclassify, the cells are already TableCell objects, and
+the objects are 17% of a file whose bulk is the character stream.
+
+The rule may still be right for other reasons, but it will not make this
+model smaller, and 501 should be answered against that rather than against
+the 4.96 GB.
+
+Nothing was changed.
