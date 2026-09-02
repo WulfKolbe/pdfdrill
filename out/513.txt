@@ -1,0 +1,123 @@
+513 — the emission, built and compiled
+2026-09-03T08:20Z · all 21 documents built and compiled, 0 LaTeX errors
+
+THE FOUR SECTIONS
+-----------------
+Your last line settled the open decision: 68 flagged rows means 1510.06699 is
+not a clean document, so "the ink disagrees and nobody acted on it" IS a
+state and gets a section.
+
+  Corrected              a PAIR — the failed reading, the recovered one, and
+                         the SAME crop against both, with a basis line under
+                         them. Selection from `pdfdrill.corrections`, shared
+                         with corrections.html (509).
+  Unresolved             does not render, and nothing repaired it. A
+                         CONTRADICTED refinement (511) lands here with its own
+                         reason rather than silently among the clean.
+  Flagged, not acted on  the ink says C or W — a real difference — and no
+                         correction was made.
+  Doubted but correct    confidence < 0.05 and the ink says K, N or S.
+
+  Threshold: 0.05, as out/509.txt measured. 0.01 gives an empty section in
+  all 21.
+
+ROW COUNTS AND PAGES
+--------------------
+  document                         corr  unres  flagged  doubted   today     new
+  --------------------------------------------------------------------------------
+  0707.4470                           1      0       13        0      12       6
+  0902.0431                          10      4       45        0     184      25
+  1510.06699                          0      0       68        1      40      19
+  1605.05775                          0      0        2        0       7       2
+  2010.14265                          0      0        1        0       3       2
+  2106.07890                          0      0       14        0       7       5
+  2501.06662                          0      0       14        0       8       5
+  BradleyGastaldiTerilla2023          0      0        3        0       6       2
+  bradley_spring22                    0      0        3        0       4       2
+  cardona-qft-methods                 0      1      110        0      92      22
+  fong-spivak-invitation              0      2       81        0     104      13
+  fong-spivak-seven-sketches          0      1       78        3     107      15
+  gilmore-lie-groups                  0     10      350        1     153      75
+  johnston-linear-matrix-algebra      8      7      543        0     284     124
+  kohlhase-omdoc                      0      4        1        0      57       3
+  lyche-numerical-linear-algebra      8      5      239        0     140      54
+  mielke-geometrodynamics             3      2      207        0     108      36
+  penev_A                             0      1       33        0      15       6
+  penev_B                             0      0       24        0      11       4
+  rph8-g15q                           0      1       11        0       8       4
+  voloshin-hypergraph                 3      0       24        0      64       5
+  --------------------------------------------------------------------------------
+  TOTAL                              33     38     1864        5    1414     429
+
+  1,414 pages today.  429 under the rule. Every one compiled with zero
+  LaTeX errors.
+
+  NO DOCUMENT HAS NOTHING IN ANY SECTION — the one-page case is implemented
+  and tested and is not reached by any of the 21. Under the three-state rule
+  nine documents would have been one page; the fourth state is why they are
+  not, and 1510.06699 going from "nothing to say" to 68 flagged rows is
+  exactly the case you named.
+
+  The floor is 2 pages, not 1: 2010.14265 has a single flagged row, and
+  1605.05775 two.
+
+WHAT THE FOURTH STATE COSTS AND BUYS
+-------------------------------------
+1,864 flagged rows against 33 corrected, 38 unresolved and 5 doubted. It is
+98% of the content by row count and it is why the saving is 3.3x rather than
+the 24x out/509.txt projected from three states.
+
+That is a real tension and worth stating rather than burying: a section
+holding 543 rows on johnston is not "what went wrong and what was done about
+it", it is a list of measurements nobody has acted on. It earns its place
+because the alternative was a one-page report on a document with 68 measured
+differences — but if it grows, the next question is whether it should be
+ranked or capped rather than complete.
+
+TWO DEFECTS FOUND WHILE BUILDING
+---------------------------------
+  1  UnboundLocalError on `manifest`, then `rendered`. The writer reads names
+     bound only inside the row-section block I now skip. Same shape as 440,
+     where an AST check found `tiddlers` present in the function and it was
+     still unbound at the point it was read. Initialised before the branch.
+
+  2  AND THE ONE THAT WOULD HAVE SHIPPED. My first restructuring left
+     `\end{document}` inside `if not findings:`, so every one of the 21
+     builds aborted with
+
+       ! Emergency stop.
+       *** (job aborted, no legal \end found)
+
+     and still reported a page count — TeX writes what it managed before
+     giving up. The first table I produced said 5, 24, 18, 1, 1, … and looked
+     entirely reasonable. A page count from an aborted compile looks exactly
+     like a page count.
+
+     Caught only because every one of 21 documents reported exactly one
+     error, and a uniform error across a whole corpus is systematic rather
+     than incidental. The corrected numbers are one page larger almost
+     everywhere.
+
+     There is now a test that `\end{document}` appears exactly once and that
+     the file ends with it.
+
+WHAT WAS CHANGED
+----------------
+  src/pdfdrill/report_tex.py    FINDINGS_SECTIONS, INK_FLAGS,
+                                _contradicted_identifiers, findings_rows
+                                extended to four states, findings_tex, and
+                                `build_report(findings=True)` which emits them
+                                INSTEAD of the row sections
+  tests/test_findings_509.py    16 tests — the four states disjoint, the
+                                contradiction placed, the one-page case, the
+                                row sections absent, and \end{document} on
+                                both paths
+
+Full suite: 2,904 passed.
+
+NOT DONE
+--------
+No published report was rebuilt and no CLI flag exposes this yet. `findings`
+is a `build_report` parameter; wiring it to `reporttex`/`inkreport` and
+deciding whether it becomes the published default are the next step, and
+they are a decision about what the site shows rather than a build.

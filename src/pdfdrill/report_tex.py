@@ -2264,13 +2264,21 @@ class ReportRefused(ValueError):
 #: something to say about it; a row MathPix read correctly, whose ink agrees
 #: and which nobody changed, says nothing and is already in
 #: formula-report.html and tables.html.
-FINDINGS_SECTIONS = ("Corrected", "Unresolved", "Doubted but correct")
+#: 513 — FOUR states, not three. "The ink disagrees and nobody acted on it"
+#: was invisible under the first rule, and 1510.06699 has 68 such rows: a
+#: document with 68 measured differences is not a clean document, and a
+#: one-page report saying so would have been false.
+FINDINGS_SECTIONS = ("Corrected", "Unresolved", "Flagged, not acted on",
+                     "Doubted but correct")
 
 #: "the ink says it is right": clean, below the measured noise floor, or
 #: stable across 300 and 600 dpi. W (weak) and C (component) flag a real
 #: difference and are not agreement.
 INK_AGREES = {"K", "N", "S"}
 DOUBTED_MAX_CONF = 0.05
+
+#: the classes that flag a real difference — the fourth state's population
+INK_FLAGS = {"C", "W"}
 
 
 def corrected_pairs(doc_dir, ident_of=None) -> list:
@@ -2299,7 +2307,11 @@ def findings_rows(tiddlers, bibkey, doc_dir, ink=None, refined=None) -> dict:
     ink = ink or {}
     pairs = corrected_pairs(doc_dir)
     done = {p["identifier"] for p in pairs if p.get("identifier")}
-    unresolved, doubted = [], []
+    unresolved, doubted, flagged = [], [], []
+    # 511/513 — a refinement whose two records disagree is a CONTRADICTION,
+    # and it belongs in Unresolved with its own reason rather than silently
+    # among the clean. `chosen_latex` reports the state in its evidence dict.
+    contradicted = _contradicted_identifiers(doc_dir)
     fo, eq, tab, dia = rows_for(tiddlers, bibkey, refined)
     for title, latex, page, *rest in ([(t_, l_, p_) for t_, l_, p_, *_ in fo]
                                       + [(t_, l_, p_) for t_, l_, p_, *_ in eq]):
@@ -2318,12 +2330,130 @@ def findings_rows(tiddlers, bibkey, doc_dir, ink=None, refined=None) -> dict:
                 except (TypeError, ValueError):
                     conf = None
                 break
+        code = ink.get(title, {}).get("code", "")
         if (conf is not None and conf < DOUBTED_MAX_CONF
-                and ink.get(title, {}).get("code", "")[:1] in INK_AGREES):
+                and code[:1] in INK_AGREES):
             doubted.append({"identifier": title, "page": page, "latex": latex,
-                            "conf": conf,
-                            "code": ink[title].get("code", "")})
-    return {"corrected": pairs, "unresolved": unresolved, "doubted": doubted}
+                            "conf": conf, "code": code})
+        elif code[:1] in INK_FLAGS:
+            flagged.append({"identifier": title, "page": page, "latex": latex,
+                            "conf": conf, "code": code})
+    for ident in sorted(contradicted):
+        unresolved.append({"identifier": ident, "page": contradicted[ident][0],
+                           "latex": contradicted[ident][1],
+                           "why": "a refinement whose two records disagree "
+                                  "(511) — the original is shown"})
+    return {"corrected": pairs, "unresolved": unresolved,
+            "flagged": flagged, "doubted": doubted}
+
+
+def _contradicted_identifiers(doc_dir) -> dict:
+    """{identifier: (page, latex)} for objects in a contradicted state (511)."""
+    import json as _json
+    from . import corrections as C
+    from . import refine as _rf
+    f = Path(doc_dir) / MODEL_NAME
+    if not f.is_file() or f.stat().st_size > C.MAX_MODEL_BYTES:
+        return {}
+    try:
+        model = _json.loads(f.read_text(encoding="utf-8", errors="replace"))
+    except (OSError, ValueError):
+        return {}
+
+    class _R:
+        def __init__(self, d):
+            self.provenance = d.get("provenance")
+            self.props = d.get("props") or {}
+
+    class _O:
+        def __init__(self, d):
+            self.props = d.get("props") or {}
+            self.realizations = [_R(r) for r in (d.get("realizations") or [])]
+
+    out = {}
+    for o in model.get("objects", []):
+        st = _rf.refinement_state(_O(o))
+        if st["state"] != _rf.CONTRADICTED:
+            continue
+        pr = o.get("props") or {}
+        rec = {"doc": Path(doc_dir).name, "page": pr.get("page"),
+               "region": pr.get("region") or {}, "before": pr.get("latex") or ""}
+        ident = C.identifier_for(rec, Path(doc_dir).parent) or o.get("id")
+        out[ident] = (pr.get("page"), pr.get("latex") or "")
+    return out
+
+
+def findings_tex(found: dict, widths, crops=None, out_dir=None,
+                 px2mm=None, bibkey="", history=None, form=False,
+                 legend_on=True) -> str:
+    r"""The four findings sections as LaTeX. Empty sections are not emitted.
+
+    513. A pair is TWO ROWS sharing ONE SCAN: the failed reading above, the
+    recovered one below, and the same crop against both — it is a single
+    region, so the reader compares two readings of one picture rather than
+    two pictures (437). The crop is emitted twice because it is the same
+    file; `multirow` would spare the duplication and would also be a preamble
+    change, and 484 measured what those cost.
+    """
+    parts = []
+
+    def cell(lx):
+        return ("{\\ttfamily\\footnotesize %s}" % esc_text(lx)) if lx else "---"
+
+    def rendered(lx):
+        safe = renderable(lx) if lx else ""
+        return ("\\FitMath{$\\displaystyle %s$}" % safe) if safe else (
+            "\\emph{(not rendered)}" if lx else "---")
+
+    def scan(ident):
+        return crop_cell(crops, out_dir, ident, px2mm=px2mm,
+                         col_mm=widths[-1] if len(widths) > 5 else None,
+                         bibkey=bibkey, history=history) if crops else "---"
+
+    def row(ident, page, conf, lx, note=""):
+        return ("\\ident{%s}%s & %s & %s & %s & %s%s \\\\ \\hline\n"
+                % (breakable_ident(ident), "", esc_text(str(page or "")),
+                   conf_cell(conf), cell(lx), rendered(lx),
+                   (" & " + scan(ident)) if len(widths) > 5 else ""))
+
+    if found.get("corrected"):
+        parts.append("\\clearpage\n")
+        parts.append(table_open("Corrected (%d)" % len(found["corrected"]),
+                                widths, form, legend_on))
+        for p_ in found["corrected"]:
+            ident = p_.get("identifier") or p_.get("obj") or "?"
+            basis = "%s / %s" % (p_.get("basis") or "?",
+                                 p_.get("verified_by") or "?")
+            parts.append(row(ident + " (was)", p_.get("page"), p_.get("conf"),
+                             p_.get("before")))
+            parts.append(row(ident + " (now)", p_.get("page"), None,
+                             p_.get("after"),))
+            parts.append("\\multicolumn{%d}{|p{%smm}|}{{\\scriptsize basis: %s}}"
+                         " \\\\ \\hline\n"
+                         % (len(widths), sum(widths) + 6, esc_text(basis)))
+        parts.append("\\end{longtable}\n")
+
+    for key, caption in (("unresolved", "Unresolved"),
+                         ("flagged", "Flagged, not acted on"),
+                         ("doubted", "Doubted but correct")):
+        rows_ = found.get(key) or []
+        if not rows_:
+            continue
+        parts.append("\\clearpage\n")
+        parts.append(table_open("%s (%d)" % (caption, len(rows_)),
+                                widths, form, legend_on))
+        for r_ in rows_:
+            parts.append(row(r_["identifier"], r_.get("page"), r_.get("conf"),
+                             r_.get("latex")))
+        parts.append("\\end{longtable}\n")
+
+    if not parts:
+        parts.append(
+            "\\vspace{2em}\\noindent\\textbf{Nothing to report.}\\\\[.4em]\n"
+            "Every row this document carries was read, renders, and agrees "
+            "with its scan; none was changed. The readings themselves are in "
+            "\\texttt{formula-report.html} and \\texttt{tables.html}.\n")
+    return "".join(parts)
 
 
 def build_report(tiddlers_path: Path, out: Path | None = None,
@@ -2336,6 +2466,7 @@ def build_report(tiddlers_path: Path, out: Path | None = None,
                  ink_state: str = "", prefer_refined: bool = False,
                  bibkey_history: "list[str] | None" = None,
                  render_regions: bool = False,
+                 findings: bool = False,
                  formulas: str = "unresolved") -> dict:
     """Generate report.tex; returns counts {equations, formulas, tables,
     unrecovered, out}.
@@ -2448,276 +2579,302 @@ def build_report(tiddlers_path: Path, out: Path | None = None,
         out_parts.append(unmeasured_note(ink_state or "not_run"))
     out_parts.append(refined_note(refined))
     tables_manifest = []
-    out_parts.append(table_open("Display equations", eq_widths, form, legend_on))
-    # 099: doubted rows first. Sorting by confidence ascending puts what
-    # MathPix is least sure of at the top of the table, where a reader
-    # checking the document looks first. Rows with no confidence value sort
-    # LAST rather than first: absence is not doubt.
-    eq = sorted(eq, key=lambda r: (float(r[6]) if r[6] not in (None, "") else 2.0))
-    for title, latex, page, num, wpx, punct, conf in eq:
-        img = crop_cell(crops, out_dir, title, px_width=wpx,
-                        px2mm=px2mm, col_mm=img_col,
-                        bibkey=bibkey, history=bibkey_history) if crops else None
-        sa = (standalone_math(latex, title, out_dir, col_mm=eq_widths[4])
-              if refused_for_align_only(latex) else "")
-        out_parts.append(row(title, latex, page, extra=num, image=img,
-                             standalone=sa,
-                             punct=punct, conf=conf, form=form,
-                             residual=residual_colour(title, ink),
-                             code=((ink or {}).get(title) or {}).get("code", ""),
-                             refined=refined.get(title)))
-    out_parts.append("\\end{longtable}\n")
-    tables_manifest.append(_table_record(
-        "Display equations", eq_widths, legend_on, True, [r[0] for r in eq]))
-
-    # every section starts on a FRESH page: a page mixing the 5-column
-    # equations table with the 4-column formulas table defeats per-page
-    # column probes (inkdrill P16, the 11 short-equation docs)
-    if fo:
-        out_parts.append("\\clearpage\n")
-        caption = ("Inline formulas (first occurrence)" if formulas == "all"
-                   else "Inline formulas that did not render (%d of %d)"
-                        % (len(fo), fo_total))
-        out_parts.append(table_open(caption, fo_widths, form, legend_on))
-        for title, latex, page, punct in fo:
-            sa = (standalone_math(latex, title, out_dir, col_mm=fo_widths[4])
+    # 513 — every name the writer below reads must exist on BOTH paths.
+    # 440 is the precedent: an AST check found `tiddlers` present in the
+    # function and it was still unbound at the point it was read, because it
+    # was bound inside a branch. Bind them here rather than discover it as an
+    # UnboundLocalError on the first findings build.
+    manifest = []
+    named = unnamed = rendered = duplicated = 0
+    texzip_n = 0
+    if findings:
+        # 509/513 — report.pdf says what went wrong and what was done about
+        # it. The full equation and table listings duplicate
+        # formula-report.html and tables.html, which already hold them.
+        _ink = {k: v for k, v in (ink or {}).items()} if ink else {}
+        _found = findings_rows(tiddlers, bibkey, dest.parent, ink=_ink,
+                               refined=refined)
+        out_parts.append(findings_tex(
+            _found, eq_widths, crops=crops, out_dir=out_dir, px2mm=px2mm,
+            bibkey=bibkey, history=bibkey_history, form=form,
+            legend_on=legend_on))
+        counts = {k: len(v) for k, v in _found.items()}
+    if not findings:
+        out_parts.append(table_open("Display equations", eq_widths, form, legend_on))
+        # 099: doubted rows first. Sorting by confidence ascending puts what
+        # MathPix is least sure of at the top of the table, where a reader
+        # checking the document looks first. Rows with no confidence value sort
+        # LAST rather than first: absence is not doubt.
+        eq = sorted(eq, key=lambda r: (float(r[6]) if r[6] not in (None, "") else 2.0))
+        for title, latex, page, num, wpx, punct, conf in eq:
+            img = crop_cell(crops, out_dir, title, px_width=wpx,
+                            px2mm=px2mm, col_mm=img_col,
+                            bibkey=bibkey, history=bibkey_history) if crops else None
+            sa = (standalone_math(latex, title, out_dir, col_mm=eq_widths[4])
                   if refused_for_align_only(latex) else "")
-            out_parts.append(row(title, latex, page, punct=punct, standalone=sa,
+            out_parts.append(row(title, latex, page, extra=num, image=img,
+                                 standalone=sa,
+                                 punct=punct, conf=conf, form=form,
+                                 residual=residual_colour(title, ink),
+                                 code=((ink or {}).get(title) or {}).get("code", ""),
                                  refined=refined.get(title)))
         out_parts.append("\\end{longtable}\n")
         tables_manifest.append(_table_record(
-            caption, fo_widths, legend_on, True, [r[0] for r in fo]))
+            "Display equations", eq_widths, legend_on, True, [r[0] for r in eq]))
 
-    if tab:
-        # 423 — THE SAME SIX COLUMNS AS THE EQUATIONS SECTION.
-        #
-        # This section had four: Identifier, Page, "Content (LaTeX source if
-        # any)", Scan image. No Conf., no Rendered, and a third column that
-        # merged the source with an apology when there was none. One section
-        # of four with its own shape meant one logic could not cover the
-        # report, and it is where the drift 422 documented began.
-        #
-        # Conf. is the DASH for every table row, and correctly: Table objects
-        # carry no confidence prop at all — 0 of 42 on chung2019combinatorics
-        # against 411 of 411 for its equations — and 252 says an absent
-        # reading shows a dash rather than a colour, because a blank green
-        # square would assert one.
-        #
-        # Rendered is the column 424 fills. It shows "(not rendered)" until
-        # then, which is the same thing an equation row says when its LaTeX
-        # will not compile — a state the reader already knows how to read.
-        out_parts.append("\\clearpage\n")
-        # the SAME width function the equations section uses, so the two
-        # sections line up column for column rather than only in count.
-        tab_widths = col_widths(usable, with_image=bool(crops))
-        out_parts.append(table_open("Tables", tab_widths, form, legend_on))
-        for title, latex, page, dims, _region, tconf in tab:
-            src_cell = ("{\\ttfamily\\footnotesize %s}" % esc_text(latex)
-                        ) if latex else (
-                # 426 — no cross-reference. This said "see tables.html", in
-                # 10,928 rows across 680 documents, and that file exists in 17
-                # of them. Where it does exist it is pdfplumber's keyless
-                # extraction of the page, not this row's table rendered.
-                # report.pdf is the universal artefact and tables.html a rare
-                # one; a reference in that direction has to dangle.
-                "(no LaTeX source; %s\\,$\\times$\\,%s px region)" % dims)
-            img = crop_cell(crops, out_dir, title,
-                            px_width=dims[0], px2mm=px2mm,
-                            col_mm=tab_widths[-1],
-                            bibkey=bibkey, history=bibkey_history)
-            safe = renderable(latex) if latex else ""
-            rendered = ("\\FitMath{$\\displaystyle %s$}" % safe) if safe else (
-                "\\emph{(not rendered)}" if latex else "---")
-            out_parts.append(
-                "\\ident{%s} & %s & %s & %s & %s & %s \\\\ \\hline\n"
-                % (esc_text(title), esc_text(str(page)), conf_cell(tconf),
-                   src_cell, rendered, img))
-        out_parts.append("\\end{longtable}\n")
-        tables_manifest.append(_table_record(
-            "Tables", tab_widths, legend_on, True, [r[0] for r in tab]))
+        # every section starts on a FRESH page: a page mixing the 5-column
+        # equations table with the 4-column formulas table defeats per-page
+        # column probes (inkdrill P16, the 11 short-equation docs)
+        if fo:
+            out_parts.append("\\clearpage\n")
+            caption = ("Inline formulas (first occurrence)" if formulas == "all"
+                       else "Inline formulas that did not render (%d of %d)"
+                            % (len(fo), fo_total))
+            out_parts.append(table_open(caption, fo_widths, form, legend_on))
+            for title, latex, page, punct in fo:
+                sa = (standalone_math(latex, title, out_dir, col_mm=fo_widths[4])
+                      if refused_for_align_only(latex) else "")
+                out_parts.append(row(title, latex, page, punct=punct, standalone=sa,
+                                     refined=refined.get(title)))
+            out_parts.append("\\end{longtable}\n")
+            tables_manifest.append(_table_record(
+                caption, fo_widths, legend_on, True, [r[0] for r in fo]))
 
-    named = unnamed = rendered = duplicated = 0
-    manifest: list = []
-    if dia:
-        out_parts.append("\\clearpage\n")
-        zreg, zn = ({}, 0)
-        if texzip:
-            zreg, zn = texzip_images(Path(texzip))
-        # 340 — how many rows name each tex.zip crop, so a shared one can be
-        # marked contested in the row that carries it.
-        crop_claims: dict = {}
-        for _t, _lx, _pg, _dm, _rg in dia:
-            try:
-                _f = zreg.get(tuple(int(x) for x in _rg))
-            except (TypeError, ValueError):
-                _f = None
-            if _f is not None:
-                crop_claims[_f.name] = crop_claims.get(_f.name, 0) + 1
-        span = usable - 20 - 7 - 12 - 20
-        # 284 (revised) — TWO image columns, and they are the LAST two, which
-        # is what `inkdrill compare` defaults to. They get equal width because
-        # the whole point is comparing them: a Rendered cell narrower than its
-        # Scan would put a scale difference into the residual.
-        # 340 — a fifth column, the hand-editing surface. It takes its width
-        # from the two image columns so the row still fits: the reader compares
-        # Rendered against Scan, and the new cell only has to be big enough to
-        # recognise the crop in.
-        dnote = round(span * 0.22)
-        dauth = round(span * 0.16)
-        drend = round((span - dnote - dauth) / 2)
-        dimg = span - dnote - dauth - drend
-        regdir = dest.parent / "standalone-regions"
-        # The residual class per identifier, from a previous measurement.
-        # Absent on the first pass — the class column is "---" until the
-        # regions have been measured, which is the honest state rather than a
-        # blank that looks like "clean".
-        ink_class = {}
-        try:
-            _rj = dest.parent / REGIONS_INK
-            if _rj.is_file():
-                ink_class = {r["id"]: r.get("code") or r.get("flag") or ""
-                             for r in (json.loads(_rj.read_text(
-                                 encoding="utf-8")).get("rows") or [])
-                             if r.get("id")}
-        except Exception:
+        if tab:
+            # 423 — THE SAME SIX COLUMNS AS THE EQUATIONS SECTION.
+            #
+            # This section had four: Identifier, Page, "Content (LaTeX source if
+            # any)", Scan image. No Conf., no Rendered, and a third column that
+            # merged the source with an apology when there was none. One section
+            # of four with its own shape meant one logic could not cover the
+            # report, and it is where the drift 422 documented began.
+            #
+            # Conf. is the DASH for every table row, and correctly: Table objects
+            # carry no confidence prop at all — 0 of 42 on chung2019combinatorics
+            # against 411 of 411 for its equations — and 252 says an absent
+            # reading shows a dash rather than a colour, because a blank green
+            # square would assert one.
+            #
+            # Rendered is the column 424 fills. It shows "(not rendered)" until
+            # then, which is the same thing an equation row says when its LaTeX
+            # will not compile — a state the reader already knows how to read.
+            out_parts.append("\\clearpage\n")
+            # the SAME width function the equations section uses, so the two
+            # sections line up column for column rather than only in count.
+            tab_widths = col_widths(usable, with_image=bool(crops))
+            out_parts.append(table_open("Tables", tab_widths, form, legend_on))
+            for title, latex, page, dims, _region, tconf in tab:
+                src_cell = ("{\\ttfamily\\footnotesize %s}" % esc_text(latex)
+                            ) if latex else (
+                    # 426 — no cross-reference. This said "see tables.html", in
+                    # 10,928 rows across 680 documents, and that file exists in 17
+                    # of them. Where it does exist it is pdfplumber's keyless
+                    # extraction of the page, not this row's table rendered.
+                    # report.pdf is the universal artefact and tables.html a rare
+                    # one; a reference in that direction has to dangle.
+                    "(no LaTeX source; %s\\,$\\times$\\,%s px region)" % dims)
+                img = crop_cell(crops, out_dir, title,
+                                px_width=dims[0], px2mm=px2mm,
+                                col_mm=tab_widths[-1],
+                                bibkey=bibkey, history=bibkey_history)
+                safe = renderable(latex) if latex else ""
+                rendered = ("\\FitMath{$\\displaystyle %s$}" % safe) if safe else (
+                    "\\emph{(not rendered)}" if latex else "---")
+                out_parts.append(
+                    "\\ident{%s} & %s & %s & %s & %s & %s \\\\ \\hline\n"
+                    % (esc_text(title), esc_text(str(page)), conf_cell(tconf),
+                       src_cell, rendered, img))
+            out_parts.append("\\end{longtable}\n")
+            tables_manifest.append(_table_record(
+                "Tables", tab_widths, legend_on, True, [r[0] for r in tab]))
+
+        named = unnamed = rendered = duplicated = 0
+        manifest: list = []
+        if dia:
+            out_parts.append("\\clearpage\n")
+            zreg, zn = ({}, 0)
+            if texzip:
+                zreg, zn = texzip_images(Path(texzip))
+            # 340 — how many rows name each tex.zip crop, so a shared one can be
+            # marked contested in the row that carries it.
+            crop_claims: dict = {}
+            for _t, _lx, _pg, _dm, _rg in dia:
+                try:
+                    _f = zreg.get(tuple(int(x) for x in _rg))
+                except (TypeError, ValueError):
+                    _f = None
+                if _f is not None:
+                    crop_claims[_f.name] = crop_claims.get(_f.name, 0) + 1
+            span = usable - 20 - 7 - 12 - 20
+            # 284 (revised) — TWO image columns, and they are the LAST two, which
+            # is what `inkdrill compare` defaults to. They get equal width because
+            # the whole point is comparing them: a Rendered cell narrower than its
+            # Scan would put a scale difference into the residual.
+            # 340 — a fifth column, the hand-editing surface. It takes its width
+            # from the two image columns so the row still fits: the reader compares
+            # Rendered against Scan, and the new cell only has to be big enough to
+            # recognise the crop in.
+            dnote = round(span * 0.22)
+            dauth = round(span * 0.16)
+            drend = round((span - dnote - dauth) / 2)
+            dimg = span - dnote - dauth - drend
+            regdir = dest.parent / "standalone-regions"
+            # The residual class per identifier, from a previous measurement.
+            # Absent on the first pass — the class column is "---" until the
+            # regions have been measured, which is the honest state rather than a
+            # blank that looks like "clean".
             ink_class = {}
-        out_parts.append(
-            "\\section*{Image regions — rendered against scan}\n"
-            "Two comparable cells per row. \\textbf{Rendered}: the region's "
-            "own LaTeX compiled as its OWN document, or — where no LaTeX "
-            "exists — the scan again, so every row has two cells and the ink "
-            "difference reads as a floor rather than as "
-            "missing-versus-present. A duplicated row is marked "
-            "\\emph{(dup)} and its distance is a SELF-comparison, not "
-            "agreement between two sources. \\textbf{Scan}: the "
-            "\\texttt{tex.zip} image whose filename region 5-tuple matches "
-            "this row, else the CDN crop. The Class column carries the "
-            "residual class beside MathPix's confidence, as the equation rows "
-            "do. Setting a region's LaTeX does NOT say it renders to what is "
-            "on the page — that is what the two columns are for, and 281 is "
-            "the open question they exist to let a reader answer. A region "
-            "with no LaTeX can be reconstructed with \\texttt{pdfdrill "
-            "vision}; verify any LLM result against the real ink with "
-            "inkdrill.\n"
-            "\\begin{longtable}{|p{20mm}|p{7mm}|p{12mm}|p{%smm}|p{%smm}|"
-            "p{%smm}|p{%smm}|}\n"
-            "\\hline\n\\textbf{Identifier} & \\textbf{Page} & "
-            "\\textbf{Class} & \\textbf{Source} & "
-            "\\textbf{Author source} & \\textbf{Rendered} & "
-            "\\textbf{Scan} \\\\\n"
-            # NO \endhead. The header is a 6-cell row and `inkdrill compare`
-            # reads it as data — one spurious measurement per page, offsetting
-            # every identifier after it. Printed once, exactly one row has to
-            # be dropped and the pairing can be ASSERTED rather than guessed.
-            "\\hline\n" % (dnote, dauth, drend, dimg))
-        for title, latex, page, dims, region in dia:
-            img_path = zip_name = None
             try:
-                img_path = zreg.get(tuple(int(x) for x in region))
-            except (TypeError, ValueError):
-                img_path = None
-            if img_path is not None:
-                zip_name = img_path.name
-                named += 1
-            else:
-                unnamed += 1
-            # The CROP still fills the Image column when the zip has no match:
-            # the picture is what a reader compares against, and it is
-            # available for every row (278 — the rectangle is stated on 100% of
-            # these lines). Only the SOURCE column depends on the lookup.
-            if img_path is None and crops:
-                img_path = crop_file(crops, title, bibkey, bibkey_history)
-            if img_path is not None:
-                w_mm2 = None
-                if px2mm:
-                    real = jpg_width(img_path) or dims[0]
+                _rj = dest.parent / REGIONS_INK
+                if _rj.is_file():
+                    ink_class = {r["id"]: r.get("code") or r.get("flag") or ""
+                                 for r in (json.loads(_rj.read_text(
+                                     encoding="utf-8")).get("rows") or [])
+                                 if r.get("id")}
+            except Exception:
+                ink_class = {}
+            out_parts.append(
+                "\\section*{Image regions — rendered against scan}\n"
+                "Two comparable cells per row. \\textbf{Rendered}: the region's "
+                "own LaTeX compiled as its OWN document, or — where no LaTeX "
+                "exists — the scan again, so every row has two cells and the ink "
+                "difference reads as a floor rather than as "
+                "missing-versus-present. A duplicated row is marked "
+                "\\emph{(dup)} and its distance is a SELF-comparison, not "
+                "agreement between two sources. \\textbf{Scan}: the "
+                "\\texttt{tex.zip} image whose filename region 5-tuple matches "
+                "this row, else the CDN crop. The Class column carries the "
+                "residual class beside MathPix's confidence, as the equation rows "
+                "do. Setting a region's LaTeX does NOT say it renders to what is "
+                "on the page — that is what the two columns are for, and 281 is "
+                "the open question they exist to let a reader answer. A region "
+                "with no LaTeX can be reconstructed with \\texttt{pdfdrill "
+                "vision}; verify any LLM result against the real ink with "
+                "inkdrill.\n"
+                "\\begin{longtable}{|p{20mm}|p{7mm}|p{12mm}|p{%smm}|p{%smm}|"
+                "p{%smm}|p{%smm}|}\n"
+                "\\hline\n\\textbf{Identifier} & \\textbf{Page} & "
+                "\\textbf{Class} & \\textbf{Source} & "
+                "\\textbf{Author source} & \\textbf{Rendered} & "
+                "\\textbf{Scan} \\\\\n"
+                # NO \endhead. The header is a 6-cell row and `inkdrill compare`
+                # reads it as data — one spurious measurement per page, offsetting
+                # every identifier after it. Printed once, exactly one row has to
+                # be dropped and the pairing can be ASSERTED rather than guessed.
+                "\\hline\n" % (dnote, dauth, drend, dimg))
+            for title, latex, page, dims, region in dia:
+                img_path = zip_name = None
+                try:
+                    img_path = zreg.get(tuple(int(x) for x in region))
+                except (TypeError, ValueError):
+                    img_path = None
+                if img_path is not None:
+                    zip_name = img_path.name
+                    named += 1
+                else:
+                    unnamed += 1
+                # The CROP still fills the Image column when the zip has no match:
+                # the picture is what a reader compares against, and it is
+                # available for every row (278 — the rectangle is stated on 100% of
+                # these lines). Only the SOURCE column depends on the lookup.
+                if img_path is None and crops:
+                    img_path = crop_file(crops, title, bibkey, bibkey_history)
+                if img_path is not None:
+                    w_mm2 = None
+                    if px2mm:
+                        real = jpg_width(img_path) or dims[0]
+                        try:
+                            w_mm2 = min(float(real) * px2mm, dimg)
+                        except (TypeError, ValueError):
+                            pass
+                    size = ("width=%.1fmm" % w_mm2) if w_mm2 else \
+                        "width=\\linewidth"
                     try:
-                        w_mm2 = min(float(real) * px2mm, dimg)
-                    except (TypeError, ValueError):
-                        pass
-                size = ("width=%.1fmm" % w_mm2) if w_mm2 else \
-                    "width=\\linewidth"
-                try:
-                    rel = img_path.resolve().relative_to(out_dir)
-                except ValueError:
-                    rel = img_path
-                cell = "\\includegraphics[%s]{%s}" % (
-                    size, str(rel).replace("\\", "/"))
-            else:
-                cell = ("\\emph{(image not on disk — pass --texzip or "
-                        "download the CDN crop)}")
-            # 282 — a genuine ABSENCE must not read like a failed lookup.
-            # 285 of 1,216 corpus tex.zips hold no image at all; saying
-            # "no match" there would blame the lookup for an empty container.
-            if zip_name:
-                srcnote = "{\\ttfamily\\tiny %s}" % esc_text(zip_name)
-            elif not texzip:
-                srcnote = "\\emph{no tex.zip}"
-            elif zn == 0:
-                srcnote = "\\emph{tex.zip holds no images}"
-            else:
-                srcnote = "\\emph{no image for this region (%d in zip)}" % zn
-            # RENDERED CELL. The region's own LaTeX, compiled standalone by
-            # `region_standalone.render` into standalone-regions/<ident>.png.
-            # Where there is none — 25,499 of 27,287 corpus rows — the SCAN is
-            # repeated here, so the row still has two comparable cells and the
-            # residual reads as a floor instead of missing-versus-present.
-            reg_png = regdir / ("%s.png" % title)
-            if render_regions and reg_png.is_file():
-                rcell = _img_cell(reg_png, out_dir, drend, px2mm, dims)
-                rendered += 1
-                dup = False
-            else:
-                rcell = cell                       # the scan, repeated
-                duplicated += 1
-                dup = True
-            klass = ink_class.get(title, "")
-            ccell = ("{\\tiny %s}" % esc_text(klass)) if klass else "---"
-            if dup:
-                ccell += " \\emph{\\tiny(dup)}"
-            manifest.append({
-                "id": title, "page": str(page),
-                "rendered_source": ("standalone" if not dup else "scan (duplicated)"),
-                "scan_source": (zip_name if zip_name else
-                                ("crop" if img_path is not None else "none")),
-                "duplicated": dup,
-                "has_latex": bool((latex or "").strip()),
-            })
-            # 340 — the editing cell. It ships holding the crop's OWN name,
-            # so an untouched report shows the crop twice and a reader can see
-            # at a glance which rows are still unedited. A crop claimed by
-            # several rows is marked contested here rather than left for a
-            # join to discover: two subfigures sharing one crop is obvious to
-            # a person and invisible to a rule (339 found 14 such rows).
-            if zip_name and img_path is not None:
-                # the path the SCAN cell resolves, not the bare stem: the crops
-                # live under texzip/<process-id>/images/ and \includegraphics
-                # cannot find a name without its directory. Shipping a
-                # placeholder that does not compile would make every report
-                # error five times before anyone edited anything.
-                try:
-                    arel = img_path.resolve().relative_to(out_dir)
-                except ValueError:
-                    arel = img_path
-                arel = str(arel).replace("\\", "/")
-                if arel.lower().endswith(".jpg"):
-                    arel = arel[:-4]
-                acell = "\\authorsrc{%s}" % arel
-                if crop_claims.get(zip_name, 0) > 1:
-                    acell += ("\\\\{\\tiny\\emph{contested: %d rows share "
-                              "this crop}}" % crop_claims[zip_name])
-            else:
-                acell = "{\\tiny\\emph{(no tex.zip crop for this row)}}"
-            out_parts.append("\\ident{%s} & %s & %s & %s & %s & %s & %s "
-                             "\\\\ \\hline\n"
-                             % (esc_text(title), esc_text(str(page)),
-                                ccell, srcnote, acell, rcell, cell))
-        out_parts.append("\\end{longtable}\n")
-        # NO \endhead on this one (284) — its header prints once.
-        tables_manifest.append(_table_record(
-            "Image regions — rendered against scan", (20, 7, 12, dnote,
-             drend, dimg), False, False, [r[0] for r in dia]))
+                        rel = img_path.resolve().relative_to(out_dir)
+                    except ValueError:
+                        rel = img_path
+                    cell = "\\includegraphics[%s]{%s}" % (
+                        size, str(rel).replace("\\", "/"))
+                else:
+                    cell = ("\\emph{(image not on disk — pass --texzip or "
+                            "download the CDN crop)}")
+                # 282 — a genuine ABSENCE must not read like a failed lookup.
+                # 285 of 1,216 corpus tex.zips hold no image at all; saying
+                # "no match" there would blame the lookup for an empty container.
+                if zip_name:
+                    srcnote = "{\\ttfamily\\tiny %s}" % esc_text(zip_name)
+                elif not texzip:
+                    srcnote = "\\emph{no tex.zip}"
+                elif zn == 0:
+                    srcnote = "\\emph{tex.zip holds no images}"
+                else:
+                    srcnote = "\\emph{no image for this region (%d in zip)}" % zn
+                # RENDERED CELL. The region's own LaTeX, compiled standalone by
+                # `region_standalone.render` into standalone-regions/<ident>.png.
+                # Where there is none — 25,499 of 27,287 corpus rows — the SCAN is
+                # repeated here, so the row still has two comparable cells and the
+                # residual reads as a floor instead of missing-versus-present.
+                reg_png = regdir / ("%s.png" % title)
+                if render_regions and reg_png.is_file():
+                    rcell = _img_cell(reg_png, out_dir, drend, px2mm, dims)
+                    rendered += 1
+                    dup = False
+                else:
+                    rcell = cell                       # the scan, repeated
+                    duplicated += 1
+                    dup = True
+                klass = ink_class.get(title, "")
+                ccell = ("{\\tiny %s}" % esc_text(klass)) if klass else "---"
+                if dup:
+                    ccell += " \\emph{\\tiny(dup)}"
+                manifest.append({
+                    "id": title, "page": str(page),
+                    "rendered_source": ("standalone" if not dup else "scan (duplicated)"),
+                    "scan_source": (zip_name if zip_name else
+                                    ("crop" if img_path is not None else "none")),
+                    "duplicated": dup,
+                    "has_latex": bool((latex or "").strip()),
+                })
+                # 340 — the editing cell. It ships holding the crop's OWN name,
+                # so an untouched report shows the crop twice and a reader can see
+                # at a glance which rows are still unedited. A crop claimed by
+                # several rows is marked contested here rather than left for a
+                # join to discover: two subfigures sharing one crop is obvious to
+                # a person and invisible to a rule (339 found 14 such rows).
+                if zip_name and img_path is not None:
+                    # the path the SCAN cell resolves, not the bare stem: the crops
+                    # live under texzip/<process-id>/images/ and \includegraphics
+                    # cannot find a name without its directory. Shipping a
+                    # placeholder that does not compile would make every report
+                    # error five times before anyone edited anything.
+                    try:
+                        arel = img_path.resolve().relative_to(out_dir)
+                    except ValueError:
+                        arel = img_path
+                    arel = str(arel).replace("\\", "/")
+                    if arel.lower().endswith(".jpg"):
+                        arel = arel[:-4]
+                    acell = "\\authorsrc{%s}" % arel
+                    if crop_claims.get(zip_name, 0) > 1:
+                        acell += ("\\\\{\\tiny\\emph{contested: %d rows share "
+                                  "this crop}}" % crop_claims[zip_name])
+                else:
+                    acell = "{\\tiny\\emph{(no tex.zip crop for this row)}}"
+                out_parts.append("\\ident{%s} & %s & %s & %s & %s & %s & %s "
+                                 "\\\\ \\hline\n"
+                                 % (esc_text(title), esc_text(str(page)),
+                                    ccell, srcnote, acell, rcell, cell))
+            out_parts.append("\\end{longtable}\n")
+            # NO \endhead on this one (284) — its header prints once.
+            tables_manifest.append(_table_record(
+                "Image regions — rendered against scan", (20, 7, 12, dnote,
+                 drend, dimg), False, False, [r[0] for r in dia]))
 
+    # 513 — \end{document} closes BOTH paths. My first cut left it inside the
+    # `if not findings:` block, and every one of the 21 findings builds
+    # aborted with "no legal \end found" while still reporting a page count
+    # from what TeX managed before giving up. A page count from an aborted
+    # compile looks exactly like a page count.
     out_parts.append("\\end{document}\n")
     # 090: the declarations depend on what the body actually contains, so the
     # preamble is written LAST and lists only the code points this document

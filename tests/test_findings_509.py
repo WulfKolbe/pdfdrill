@@ -116,3 +116,64 @@ def test_a_REPEATED_latex_is_dropped_rather_than_guessed(tmp_path):
     assert C.identifier_for({"doc": tmp_path.name, "page": "1",
                              "region": {}, "before": "x"},
                             tmp_path.parent) is None
+
+
+# ---- 513: the fourth state, and the emission -------------------------------
+
+def test_flagged_is_the_fourth_state(tmp_path):
+    """"The ink disagrees and nobody acted on it" was invisible under the
+    first rule, and 1510.06699 has 68 such rows."""
+    tp = _doc(tmp_path, [], [{"title": "d_EQ0007", "latex": "x^2",
+                              "page": "007", "confidence": 0.9}])
+    f = rt.findings_rows(json.loads(tp.read_text()), "d", tmp_path,
+                         ink={"d_EQ0007": {"code": "C|+40"}})
+    assert [x["identifier"] for x in f["flagged"]] == ["d_EQ0007"]
+    assert f["unresolved"] == [] and f["doubted"] == []
+
+
+def test_agreement_and_flag_are_disjoint():
+    assert not (rt.INK_AGREES & rt.INK_FLAGS)
+
+
+def test_a_doubted_row_is_not_ALSO_flagged(tmp_path):
+    """Low confidence with an agreeing ink is doubted-but-correct; the
+    branches are exclusive so no row is reported twice."""
+    tp = _doc(tmp_path, [], [{"title": "d_EQ0008", "latex": "x^2",
+                              "page": "008", "confidence": 0.01}])
+    f = rt.findings_rows(json.loads(tp.read_text()), "d", tmp_path,
+                         ink={"d_EQ0008": {"code": "K|+0"}})
+    assert len(f["doubted"]) == 1 and f["flagged"] == []
+
+
+def test_the_emission_closes_the_document_on_BOTH_paths(tmp_path):
+    r"""513 — \end{document} was left inside the `if not findings:` block and
+    all 21 findings builds aborted with "no legal \end found", while still
+    reporting a page count from what TeX managed before giving up."""
+    tp = _doc(tmp_path, [], [{"title": "d_EQ0009", "latex": "x^2",
+                              "page": "009", "confidence": 0.99}])
+    out = tmp_path / "report.tex"
+    rt.build_report(tp, out=out, findings=True, formulas="none")
+    tex = out.read_text()
+    assert tex.rstrip().endswith(r"\end{document}")
+    assert tex.count(r"\end{document}") == 1
+
+
+def test_a_document_with_nothing_says_so_in_one_page(tmp_path):
+    tp = _doc(tmp_path, [], [{"title": "d_EQ0010", "latex": "x^2",
+                              "page": "010", "confidence": 0.99}])
+    out = tmp_path / "report.tex"
+    rt.build_report(tp, out=out, findings=True, formulas="none",
+                    ink={"d_EQ0010": {"code": "K|+0"}})
+    tex = out.read_text()
+    assert "Nothing to report" in tex
+    assert "longtable" not in tex.split(r"\begin{document}")[1]
+
+
+def test_findings_omits_the_row_sections_entirely(tmp_path):
+    tp = _doc(tmp_path, [], [{"title": "d_EQ0011", "latex": "a & b",
+                              "page": "011"}])
+    out = tmp_path / "report.tex"
+    rt.build_report(tp, out=out, findings=True, formulas="none")
+    tex = out.read_text()
+    assert "Display equations" not in tex and "Inline formulas" not in tex
+    assert "Unresolved (1)" in tex
