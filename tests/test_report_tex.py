@@ -473,3 +473,52 @@ def test_a_whole_float_with_its_caption_is_NOT_rescued():
     v = (r"\begin{figure} \[ x = 1 \] \caption{Figure 1.19: \(R\) rotates "
          r"the basis.} \end{figure}")
     assert not renderable(v)
+
+
+# ---------------------------------------------------------------- 518
+
+def test_delimiter_list_accepts_the_corner_and_arrow_delimiters():
+    """\\lrcorner is as legal after \\right as ) is."""
+    from pdfdrill.report_tex import is_delimiter
+    for d in (r"\lrcorner", r"\llcorner", r"\ulcorner", r"\urcorner",
+              r"\lfloor", r"\rfloor", r"\lceil", r"\rceil",
+              r"\langle", r"\rangle", r"\vert", r"\Vert", r"\backslash",
+              r"\uparrow", r"\downarrow", r"\updownarrow",
+              r"\Uparrow", r"\Downarrow", r"\Updownarrow", ")", "|", "."):
+        assert is_delimiter(d), d
+    assert not is_delimiter(r"\lvertf")
+    assert not is_delimiter(r"\Sigma")
+
+
+def test_glued_delimiter_is_split_not_refused():
+    r"""`\left\lvertf` is one undefined control sequence to TeX; repair it."""
+    from pdfdrill.report_tex import renderable, split_glued_delimiter
+    got = split_glued_delimiter(r"\left\lvertf(1)\right\rvert")
+    assert got == r"\left\lvert f(1)\right\rvert"
+    # and the repaired form is what renderable() hands back
+    assert renderable(r"\left\lverte^{x}\right\rvert") == \
+        r"\left\lvert e^{x}\right\rvert"
+
+
+def test_a_real_delimiter_is_never_cut_down():
+    r"""\rangle must not become \rangl + e."""
+    from pdfdrill.report_tex import split_glued_delimiter
+    for s in (r"\left\langle x\right\rangle", r"\left(x\right)",
+              r"\left.\Sigma\right\lrcorner y"):
+        assert split_glued_delimiter(s) == s
+
+
+def test_mielke_eq0294_still_renders():
+    r"""517's reference row: balanced, legal, and not this gate's business."""
+    from pdfdrill.report_tex import renderable
+    eq = (r"\left.\Sigma_{\alpha}=e_{\alpha} \downharpoonleft L-\left("
+          r"e_{\alpha} \downharpoonleft D \Psi\right) \wedge \frac{\partial L}"
+          r"{\partial D \Psi}-\left(e_{\alpha}\right\lrcorner \Psi\right) "
+          r"\wedge \frac{\partial L}{\partial \Psi} .")
+    assert renderable(eq)
+
+
+def test_a_non_delimiter_after_left_is_refused():
+    """Fires on no corpus row today; it is the list doing its stated job."""
+    from pdfdrill.report_tex import renderable
+    assert renderable(r"\left\Sigma x\right\Sigma") == ""

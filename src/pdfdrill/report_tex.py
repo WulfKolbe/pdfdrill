@@ -811,6 +811,69 @@ def _drop_stray_closers(lx: str) -> str:
     return lx
 
 
+#: 518 — every token TeX and amssymb accept after \left or \right. The set is
+#: much larger than the ASCII brackets: the corner symbols, the floors and
+#: ceilings, the arrows and the extensible verts are all delimiters, and
+#: `\lrcorner` is as legal after `\right` as `)` is.
+#:
+#: WHAT THIS LIST IS FOR, measured before it was written. It does NOT let more
+#: rows render: 4 refused rows corpus-wide carry one of these, and all four are
+#: refused for something else (a bare `$`, a `\[` mid-string, CJK, an align
+#: marker). Nothing in the gate ever rejected a delimiter, because the only
+#: \left/\right rule was that the COUNTS match.
+#:
+#: It exists for the opposite fault. MathPix emits the delimiter glued to the
+#: letter that follows it — `\left\lvertf(1,\{0,3\})\right\rvert` — and TeX
+#: reads `\lvertf` as one undefined control sequence. renderable() passed 11
+#: such rows corpus-wide and xelatex failed every one of them with "Undefined
+#: control sequence", after which the compile fixpoint demoted the row. The
+#: list is what makes the glued form recognisable, and therefore repairable.
+DELIMITER_CMDS = frozenset({
+    r"\{", r"\}", r"\|", r"\.", r"\/", r"\backslash",
+    r"\lbrace", r"\rbrace", r"\lbrack", r"\rbrack", r"\lparen", r"\rparen",
+    r"\langle", r"\rangle", r"\lfloor", r"\rfloor", r"\lceil", r"\rceil",
+    r"\lvert", r"\rvert", r"\lVert", r"\rVert", r"\vert", r"\Vert",
+    r"\uparrow", r"\downarrow", r"\updownarrow",
+    r"\Uparrow", r"\Downarrow", r"\Updownarrow",
+    r"\lgroup", r"\rgroup", r"\lmoustache", r"\rmoustache",
+    r"\arrowvert", r"\Arrowvert", r"\bracevert",
+    r"\ulcorner", r"\urcorner", r"\llcorner", r"\lrcorner",
+})
+
+#: the single characters TeX accepts directly
+DELIMITER_CHARS = frozenset("()[]/.|<>")
+
+_LR_TOKEN = re.compile(r"(\\(?:left|right))(?![a-zA-Z])\s*(\\[a-zA-Z]+|\\.|.)",
+                       re.S)
+
+
+def is_delimiter(tok: str) -> bool:
+    r"""Is `tok` legal immediately after `\left` or `\right`?"""
+    return tok in DELIMITER_CMDS or (len(tok) == 1 and tok in DELIMITER_CHARS)
+
+
+def split_glued_delimiter(lx: str) -> str:
+    r"""`\left\lvertf(x)` -> `\left\lvert f(x)`.
+
+    TeX ends a control word at the first non-letter, so a delimiter command
+    written against the letter that follows it becomes a DIFFERENT, undefined
+    command. The repair is the longest legal delimiter that is a prefix of the
+    glued token; the rest is put back as ordinary maths behind a space.
+
+    Only ever splits a token that is NOT itself a delimiter, so `\rangle` is
+    never cut down to `\rangl`.
+    """
+    def fix(m):
+        head, tok = m.group(1), m.group(2)
+        if is_delimiter(tok) or not tok.startswith("\\"):
+            return m.group(0)
+        for n in range(len(tok) - 1, 1, -1):
+            if tok[:n] in DELIMITER_CMDS and tok[n:n + 1].isalpha():
+                return "%s%s %s" % (head, tok[:n], tok[n:])
+        return m.group(0)
+    return _LR_TOKEN.sub(fix, lx)
+
+
 def renderable(latex: str) -> str:
     """Return latex safe to put inside $...$, or "" when it is not.
 
@@ -899,6 +962,15 @@ def renderable(latex: str) -> str:
                 return ""
     if depth != 0:
         return ""
+    # 518 — repair a delimiter glued to the following letter BEFORE counting,
+    # then check that what follows every \left/\right is actually a delimiter.
+    # The repair fires on 11 corpus rows; the refusal on none, and it is here
+    # so that a delimiter TeX cannot use is named by the gate rather than
+    # discovered by xelatex and demoted.
+    lx = split_glued_delimiter(lx)
+    for m in _LR_TOKEN.finditer(lx):
+        if not is_delimiter(m.group(2)):
+            return ""
     if len(re.findall(r"\\left(?![a-zA-Z])", lx)) != \
        len(re.findall(r"\\right(?![a-zA-Z])", lx)):
         return ""

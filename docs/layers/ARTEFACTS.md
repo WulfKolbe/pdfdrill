@@ -1,4 +1,4 @@
-# The four HTML/PDF artefacts — what each one is for
+# The six HTML/PDF artefacts — what each one is for
 
 Written for 422, from what is on disk today rather than from what any of
 them was meant to do. Four artefacts accumulated with no written contract
@@ -270,6 +270,71 @@ was promoted out of `tools/` for the same reason and is the worked example.
 
 ---
 
+## `compare.html` — the readings side by side
+
+**Made by** `pdfdrill compare` (`docops.projectors.comparison_html`).
+**On disk** 27 of 2,818 library folders; **6 of the 21 published**
+(johnston, lyche, mielke, penev_A, penev_B, voloshin).
+
+One row per display equation that carries a MathPix crop, with a baseline of
+three columns — **LaTeX (mathpix) · KaTeX (mathpix) · MathPix image** — and
+then, for every COMPETING reading the object carries, another LaTeX + KaTeX
+pair with that candidate's score. The competing readings come from
+realizations whose provenance is not MathPix's own: `tex` (the author's
+e-print source, put there by `injectlatex`), `snip` (MathPix /v3/text),
+`llm`.
+
+**Audience: someone deciding which of two readings is right.** That is the
+whole of it, and it is why the artefact only earns its place when a second
+reading exists.
+
+### Why 6 of 21, and why that is still not a good reason
+
+The subset is not principled today, and the honest statement of it is:
+
+| documents | what compare.html shows there | count |
+|---|---|---|
+| penev_A, penev_B | a real comparison: MathPix against the author's `tex` | **2** |
+| johnston, lyche, mielke, voloshin | the baseline three columns only | 4 |
+| the other fifteen | nothing — never built | 15 |
+
+Measured, not assumed: penev_A's model carries 111 realizations of
+provenance `tex`; johnston's and voloshin's carry none (only `change` from
+accepted corrections, and `bibliography`). So on four of the six the extra
+columns are absent and the file degenerates to **LaTeX source, rendered
+maths, and the crop — which is exactly what `formula-report.html` already
+shows**. On those four it is a duplicate.
+
+**All 21 have a `tex.zip`.** The second reading is therefore *available*
+everywhere and *injected* almost nowhere: what separates penev_A/B from the
+rest is that `injectlatex` was run on them, not that anything about the
+documents differs. The subset records which command happened to be run, not
+a property of the corpus.
+
+So the artefact belongs to a subset, but to a DIFFERENT subset than the one
+that exists: it belongs to documents carrying a second reading, and that set
+currently has two members. Building it for all 21 would produce fifteen more
+files that duplicate `formula-report.html` — the fix is to inject the second
+reading, not to emit the empty comparison. Until then the four baseline-only
+files stay as they are and are not to be read as comparisons.
+
+### How it differs from `report.pdf`'s Corrected pairs
+
+Both put two readings against one scan, and they are not the same thing:
+
+| | `compare.html` | `report.pdf` Corrected |
+|---|---|---|
+| the second reading is | a CANDIDATE, unjudged | the ACCEPTED correction |
+| how many rows | every equation with a crop (3,332 for johnston) | only the corrected ones (8) |
+| what the reader does | decides which is right | sees what was already decided, and the basis |
+| carries a score | yes, per candidate | no — it carries the basis and the ink before/after |
+
+`compare.html` is the artefact you read BEFORE a decision; the Corrected
+section is the record AFTER one. A row leaves the first and enters the
+second by being accepted, and 509's rule is why the second is short.
+
+---
+
 ## Which artefact answers which question
 
 | question | artefact |
@@ -279,6 +344,8 @@ was promoted out of `tools/` for the same reason and is the worked example.
 | What do the tables say, without a key? | `tables.html` |
 | Show me the maths in a browser | `formula-report.html` |
 | Show me the diagrams as vectors | `svg/` |
+| Which of these two readings is right? | `compare.html` |
+| What has pdfdrill corrected, corpus-wide? | `corrections.html` |
 
 Two of them are rare (`tables.html` 31, `formula-report.html` 35) against
 `report.pdf`'s 1,331. That asymmetry is not a defect — they answer

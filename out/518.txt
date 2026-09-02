@@ -1,0 +1,103 @@
+518 — renderable()'s \left/\right delimiter list
+================================================
+
+THE PREMISE, CORRECTED FIRST
+-----------------------------
+The task says fix the delimiter list so the reference rows render. There
+was no delimiter list to fix, and the four mielke rows were never refused.
+
+  mielke EQ0294, EQ0306, EQ0686   ink N|+0   renderable() ACCEPTS
+  mielke EQ0579                   ink K|+0   renderable() ACCEPTS
+
+All four pass today and passed before this change. 517 established it and
+this task re-measured it: the only \left/\right rule in the gate was that
+the two COUNTS match, so `\right\lrcorner` always passed for the same
+reason `\right)` does.
+
+EQ0857 is the one mielke row with `\right\rfloor` that IS refused, and it
+is refused by `cjk_defect` for the ideograph 匕 (U+5315) — the Lie
+derivative, one of the eight sent to MathPix. The delimiter is incidental.
+
+HOW MANY REFUSED ROWS CARRY ONE — THE QUESTION AS ASKED
+--------------------------------------------------------
+Over 1,349 documents and 634,258 typed rows carrying latex:
+
+  refused by renderable()                                    1,013
+  refused rows carrying a listed (legal, non-ASCII) delimiter    4
+
+and not one of the four is refused because of it:
+
+  1811.06102_EQ0247        \langle \rangle   refused: a bare $ inside \text{}
+  21bigdata-forte_EQ0001   \lfloor \rfloor   refused: \[ mid-string (a float
+                                             caption swept in around it)
+  mielke-...._EQ0857       \rfloor           refused: CJK ideograph U+5315
+  gilmore-lie-groups_EQ0778 \langle \rangle  refused: bare align marker
+
+HOW MANY RENDER AFTER: ZERO, in that direction.
+Refused before 1,013, refused after 1,013. A delimiter list cannot make a
+row render that is refused for a bare $, and saying so is the result.
+
+THE GAP THE LIST ACTUALLY CLOSES — THE OPPOSITE DIRECTION
+----------------------------------------------------------
+Asking which tokens follow \left/\right corpus-wide turned up 11 rows the
+gate PASSES and xelatex cannot compile:
+
+  \left\lvertf(1,\{0,3\})\right\rvert
+  \left\lverte^{(b_1,d_1)}-e^{(b_2,d_2)}\right\rvert
+  \left\langle Z_{l} X_{5} Z_{1}\right\rangle   (as \langleX)
+
+MathPix writes the delimiter against the letter that follows it. TeX ends
+a control word at the first non-letter, so `\lvertf` is ONE control
+sequence, and an undefined one. Compiled standalone with the report
+preamble, 2112.12675_EQ0108 gives
+
+  ! Undefined control sequence.
+  l.128 \left\lverte
+                    ^{(b_1,d_1)}-e^{(b_2,d_2)}\right\rvert<c\varepsilon.
+  ! Missing delimiter (. inserted).
+
+renderable() passed it, so the row was emitted, xelatex failed on it, and
+the compile fixpoint demoted it to source-only. The reader loses the
+rendered column and is told nothing about why.
+
+WHAT WAS BUILT
+--------------
+`DELIMITER_CMDS` + `DELIMITER_CHARS` — every token TeX and amssymb accept
+after \left/\right, including the corner symbols, floors, ceilings, the
+extensible verts and the six arrows, exactly as 518 lists them.
+
+`is_delimiter(tok)` and `split_glued_delimiter(lx)`. The repair takes the
+LONGEST legal delimiter that is a proper prefix of an illegal glued token
+and puts the remainder back behind a space:
+
+  \left\lverte^{x}\right\rvert  ->  \left\lvert e^{x}\right\rvert
+
+It only ever splits a token that is not itself a delimiter, so `\rangle`
+is never cut down to `\rangl` + `e`. Tested.
+
+Then the list is used as a gate: a \left/\right followed by something
+that is not a delimiter is refused, so TeX's own rule is named here
+instead of being discovered by xelatex.
+
+MEASURED AFTER
+--------------
+  rows repaired                     11   (10 in 2112.12675, 1 in
+                                          PhysRevResearch.6.023294)
+  rows newly refused by the gate      0
+  refused total, before and after  1,013 (unchanged)
+  EQ0108 compile                   2 errors -> 0 errors, 1 page
+
+The new refusal fires on no corpus row today. It is kept because it is the
+list doing its stated job, and it is stated here that it is currently
+dead code rather than left to look like a result.
+
+Tests: 2,913 passing, 5 new — the delimiter set, the repair, that a real
+delimiter is never cut down, that mielke EQ0294 still renders, and that a
+non-delimiter after \left is refused.
+
+WHAT THIS DOES NOT DO
+---------------------
+It does not touch the fault 517 found. EQ0294 is wrong because an
+interior-product OPERATOR was read as a closing fence; the value is
+balanced and every delimiter in it is legal, so no delimiter list can see
+it. That defect remains unaddressed and is still the interesting one.
