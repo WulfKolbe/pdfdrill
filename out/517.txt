@@ -1,0 +1,136 @@
+517 — mielke EQ0294 compiled standalone, and the \right delimiter count
+=======================================================================
+
+1. THE COMPILE
+--------------
+mielke-geometrodynamics_EQ0294, page 101, confidence 0.510:
+
+  \left.\Sigma_{\alpha}=e_{\alpha} \downharpoonleft L-\left(e_{\alpha}
+  \downharpoonleft D \Psi\right) \wedge \frac{\partial L}{\partial D \Psi}
+  -\left(e_{\alpha}\right\lrcorner \Psi\right) \wedge
+  \frac{\partial L}{\partial \Psi} .
+
+Compiled standalone inside \[ ... \] with report_tex.PREAMBLE verbatim
+(same bbdigits, same unicode_decls, geom=a4paper), xelatex:
+
+  0 errors, 1 page.
+
+There is no first error to report. It compiles.
+
+2. WHICH GATE REFUSES IT: NONE
+-------------------------------
+The premise is wrong, and the correction is the finding.
+
+  renderable(EQ0294)  -> returns the latex unchanged
+  cjk_defect          -> ""
+  \left/\right counts -> 3 and 3, balanced
+  brace depth         -> 0
+  findings sections   -> in NONE of the four
+
+It is not in Unresolved because it renders. Not in Corrected. Not in
+Doubted (0.510 is far above 0.05). Not in Flagged, because its ink is
+`N|+0` — noise, component delta zero — and N is in INK_AGREES.
+
+mielke's two actually-refused rows are EQ0472 and EQ0857, and both are
+refused by ONE gate, `cjk_defect`:
+
+  EQ0472  CJK ideograph U+5341 (十)
+  EQ0857  CJK ideograph U+5315 (匕)   — one of the eight sent to MathPix
+
+3. WHAT EQ0294 ACTUALLY IS
+---------------------------
+The crop (report-crops/mielke-geometrodynamics_EQ0294.jpg) prints
+
+  Σ_α = e_α ⌋ L − (e_α ⌋ DΨ) ∧ ∂L/∂DΨ − (e_α ⌋ Ψ) ∧ ∂L/∂Ψ .
+
+with ⌋ used three times as a BINARY OPERATOR — the interior product.
+MathPix read the same printed glyph three different ways:
+
+  1st ⌋  ->  \downharpoonleft      wrong glyph, right arity
+  2nd ⌋  ->  \downharpoonleft      wrong glyph, right arity
+  3rd ⌋  ->  \right\lrcorner       WRONG ARITY — an operator became a fence
+
+To balance the fence it invented `\left.` at the front and moved the
+closing paren to `\right)` at the very end. So the third term's bracket
+no longer groups `(e_α ⌋ Ψ)`; it groups from the start of the equation to
+just after Ψ. The mathematics changed.
+
+The rendered image is nearly identical to the printed one — the ⌟ shrinks
+to fence size and hugs e_α, and a large `)` still appears after Ψ. That
+is why the ink measured `N|+0`: same component count, distance inside the
+noise floor. A grouping error is a small-ink error.
+
+So EQ0294 is invisible to all four gates at once: it compiles, it
+renders, the ink agrees, and the confidence is mid-range. That is a
+blind spot, not a refusal.
+
+4. DOES renderable() HAVE A DELIMITER LIST? NO.
+------------------------------------------------
+There is no delimiter list to check for corner symbols or arrows —
+neither in renderable() nor anywhere in src/. The only \left/\right rule
+in the gate is a COUNT:
+
+  len(findall(r"\\left(?![a-zA-Z])"))  ==  len(findall(r"\\right(?![a-zA-Z])"))
+
+Any token may follow \right; only the tally is checked. So `\right\lrcorner`
+passes for the same reason `\right)` does, and a delimiter list would not
+have caught EQ0294 either — the value is balanced. What is wrong is the
+arity of the symbol, which no counting rule can see.
+
+5. CORPUS COUNT
+----------------
+1,349 documents, 634,258 typed rows carrying latex.
+
+  refused by renderable()                                    1,013
+  rows with a real \right (lookahead applied)               138,601
+  rows with a NON-STANDARD delimiter after \right                35
+    of those, REFUSED                                             0
+    of those, PASSING the gate                                   35
+
+The answer to the question asked is ZERO. Not one refused row contains
+\right followed by a non-standard delimiter. All 35 pass.
+
+  symbol       rows        documents (7)
+  \lrcorner      33        Complex Analysis (Ebenfelt et al.)   14
+  \urcorner       6        Geometrodynamics (Mielke)             6
+  >               4        1-s2.0-S039304401100026X-main         5
+                           fong-spivak-invitation                4
+  (35 rows; some carry two)   1205.5935v1                        2
+                           1611.09182                            2
+                           fong-spivak-seven-sketches            2
+
+  ink: 4 measured, ALL FOUR say agrees (3x N|+0, 1x K|+0); 31 unmeasured
+       (FO rows carry no ink). Zero are flagged. Zero are doubted.
+
+26 of the 35 (74%) begin with an invented `\left.`, which is the
+signature of the fault: a fence that needs an opener it never had.
+
+  \left.\omega\right\lrcorner v^{\sharp}
+  \left.d^{*} \eta=\right\lrcorner(\nabla \eta) .
+  \left.v^{i}=v\right\lrcorner a^{i}
+
+Each is an interior-product operator turned into a closing fence.
+
+6. AN INSTRUMENT ERROR, RECORDED
+---------------------------------
+My first scan returned 24,497 rows, with `a` (28,029), `l`, `h`, `s`, `r`
+as the top "non-standard delimiters". Those are \rightarrow,
+\rightleftharpoons, \rightharpoonup, \rightsquigarrow, \rightrightarrows:
+the pattern `\\right\s*(...)` matched inside every arrow command. Fixed
+with the same `(?![a-zA-Z])` lookahead renderable() already uses; the
+count fell from 24,497 to 35 and the refused count from 28 to 0.
+
+Both numbers were plausible on their face. The tell was that `a` cannot
+be a delimiter.
+
+7. WHAT THIS SUGGESTS, NOT BUILT
+---------------------------------
+`\right` + a corner symbol is 35 rows in 7 documents and, on the four
+that have been measured, it is a real content defect that every existing
+gate passes. It is the shape 465 said the ink cannot find: the scan and
+the reading agree pixel-for-pixel because the wrong reading draws almost
+the same picture.
+
+A check would be one line and would flag 35 rows corpus-wide. It is not
+built here — 517 was a measurement — and none of the 35 has been read
+except EQ0294, which I read against its crop and which is wrong.
