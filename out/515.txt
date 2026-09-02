@@ -1,0 +1,119 @@
+515 — what johnston's 543 flagged rows are, by class and confidence
+===================================================================
+
+Population: the "Flagged, not acted on" section of johnston-findings,
+543 rows, built 2026-09-02 from report.ink.json + the tiddlers.
+
+THE PREMISE NEEDS ONE CORRECTION
+--------------------------------
+There is no noise in the 543. `INK_AGREES = {K, N, S}` — clean, noise and
+scale-stable all count as the ink AGREEING with the reading, so an N row is
+never flagged. johnston carries 763 N rows and not one of them is in the
+section. The 543 are C and W only:
+
+    class                          rows
+    component (C)                   259
+    weak      (W)                   284
+                                    ---
+                                    543
+
+So the split is not "40 component against a wall of noise". It is roughly
+half and half, and both halves are real differences by the classifier's own
+definition.
+
+BY CONFIDENCE BAND
+------------------
+    MathPix conf        C      W    total
+    0.00-0.05           0      0        0
+    0.05-0.30          11      6       17
+    0.30-0.60          40     29       69
+    0.60-0.90          61     39      100
+    0.90-1.00         147    210      357
+    (none)              0      0        0
+                      ---    ---      ---
+                      259    284      543
+
+357 of 543 (66%) sit at confidence >= 0.9. That band is already measured:
+out/465 sampled twenty rows drawn from it corpus-wide and found 18 purely
+typographic differences, 1 typographic plus a crop overrun, 1 borderline and
+ZERO unambiguous content errors. `ink flag AND conf >= 0.9` is a
+rendering-difference detector, not a defect detector. Two thirds of the
+section is therefore the class least likely to repay reading.
+
+WHAT ORDERS THE ROWS: THE COMPONENT DELTA
+------------------------------------------
+Every ink code carries a signed component delta (`C|+817`, `W|-1`). Over the
+543:
+
+    median 2, 90th percentile 10, max 817
+
+    |delta| >= 20                    37 rows
+    |delta| >= 50                    17 rows
+
+37 is the actionable number the task was reaching for — and the cut is drawn
+on magnitude, not on class.
+
+ONE THING NOT TO MISREAD AS A FINDING
+--------------------------------------
+Every row with |delta| >= 20 is component, and it would be easy to report
+that as two measures agreeing. It is not. `inkconvert.flag_of` DEFINES
+component as `comp_delta > NOISE_COMP_DELTA` (= 2). The band is a sub-range
+of C by construction. It says the delta orders the rows usefully; it does not
+say two independent signals concur.
+
+DOES THE BAND HOLD OFF johnston?
+---------------------------------
+Across every library document carrying both an ink file and a projection
+(1,101 documents, 4,998 flagged rows):
+
+    flagged                        4,998
+    component (C)                  1,749
+    weak      (W)                  3,249
+    |delta| >= 20                    320   (6.4%)
+    |delta| >= 50                    167   (3.3%)
+
+The band is a tail everywhere, not a johnston artefact. It also degrades
+sanely: most documents flag under 30 rows and show none, which is correct —
+they had no tail to show.
+
+CHANGE MADE
+-----------
+`report_tex.FLAG_SHOW_DELTA = 20`, with `flag_delta()` and `flagged_split()`.
+The flagged section now emits the band and states the rest as a count:
+
+    Flagged, not acted on — 37 of 543 shown
+    ...37 rows, largest delta first...
+    The remaining 506 flagged rows are stated as a count.
+    222 component, 284 weak. By confidence: 337 at >=0.9, 94 in 0.6-0.9,
+    75 below 0.6, 0 with none. [the 465 result, then:] every row is in
+    report.ink.json.
+
+Nothing is dropped: `test_no_flagged_row_is_silently_dropped` asserts
+shown + remainder == the population. A document whose flagged rows are all
+below the cut gets the paragraph and no table.
+
+johnston's top of the band:
+
+    EQ0040  p39   C|+817  conf 0.479
+    EQ0041  p39   C|+696  conf 0.993
+    EQ0073  p48   C|+396  conf 0.493
+    EQ0430  p167  C|+344  conf 0.989
+    EQ0429  p167  C|+314  conf 1.000
+    EQ0519  p207  C|+175  conf 0.720
+
+REBUILD
+-------
+johnston-findings, same inputs, findings=True:
+
+    sections   Corrected 8 · Unresolved 7 · Flagged 37 of 543 · Doubted 0
+    pages      41   (was 125 yesterday; 284 for today's published report)
+    size       1.7 MB  (was 14.8 MB)
+    xelatex    0 errors
+
+Tests: 2,904 + 3 new, all passing.
+
+STILL OPEN
+----------
+The band is presentation only. It does not decide whether any of the 37 is a
+defect — none has been read. The section now names 37 rows a reader can
+work through; that is the whole claim.

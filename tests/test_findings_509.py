@@ -177,3 +177,38 @@ def test_findings_omits_the_row_sections_entirely(tmp_path):
     tex = out.read_text()
     assert "Display equations" not in tex and "Inline formulas" not in tex
     assert "Unresolved (1)" in tex
+
+
+# ---------------------------------------------------------------- 515
+
+def test_flagged_split_bands_on_the_component_delta():
+    """The tail is shown; everything below the cut is counted, not listed."""
+    from pdfdrill.report_tex import flagged_split, FLAG_SHOW_DELTA
+    rows = ([{"identifier": "EQ%03d" % i, "code": "C|+%d" % (100 + i),
+              "conf": 0.95} for i in range(3)]
+            + [{"identifier": "EQ1%02d" % i, "code": "W|-1", "conf": 0.4}
+               for i in range(7)]
+            + [{"identifier": "EQ2%02d" % i, "code": "C|+3", "conf": None}
+               for i in range(5)])
+    shown, rest = flagged_split(rows)
+    assert [r["identifier"] for r in shown] == ["EQ002", "EQ001", "EQ000"]
+    assert rest["n"] == 12 and rest["C"] == 5 and rest["W"] == 7
+    assert rest["low"] == 7 and rest["none"] == 5 and rest["high"] == 0
+    assert FLAG_SHOW_DELTA == 20
+
+
+def test_flag_delta_reads_the_signed_code():
+    from pdfdrill.report_tex import flag_delta
+    assert flag_delta("C|+817") == 817
+    assert flag_delta("K|-3") == 3
+    assert flag_delta("") == 0 and flag_delta(None) == 0
+
+
+def test_no_flagged_row_is_silently_dropped():
+    """shown + remainder is the whole population — the wall is counted, not cut."""
+    from pdfdrill.report_tex import flagged_split
+    rows = [{"identifier": str(i), "code": "C|+%d" % i, "conf": 1.0}
+            for i in range(60)]
+    shown, rest = flagged_split(rows)
+    assert len(shown) + rest["n"] == 60
+    assert rest["C"] + rest["W"] == rest["n"]

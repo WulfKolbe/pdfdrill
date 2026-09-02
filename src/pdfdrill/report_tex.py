@@ -2281,6 +2281,57 @@ DOUBTED_MAX_CONF = 0.05
 INK_FLAGS = {"C", "W"}
 
 
+#: 515 — the flagged section is a WALL unless it is banded. johnston carried
+#: 543 flagged rows; a reader cannot act on 543. The band is drawn on the
+#: component delta because that is the only number in the code that orders
+#: the rows by how much ink actually differs.
+#:
+#: 20 is the tail, not a magic number: over johnston's 543 the delta's median
+#: is 2 and its 90th percentile is 10, and corpus-wide the band selects 320
+#: of 4,998 flagged rows (6.4%) across 1,101 documents.
+#:
+#: NOTE, so it is not re-derived as a discovery: `inkconvert.flag_of` DEFINES
+#: component as `comp_delta > NOISE_COMP_DELTA` (= 2), so "every row in the
+#: band is component" is true by construction. The band is a sub-range of C,
+#: not an independent agreement between two measures.
+FLAG_SHOW_DELTA = 20
+
+_FLAG_DELTA = re.compile(r"\|([+-]\d+)")
+
+
+def flag_delta(code: str) -> int:
+    """|component delta| carried in an ink code such as ``C|+817``; 0 if none."""
+    m = _FLAG_DELTA.search(code or "")
+    return abs(int(m.group(1))) if m else 0
+
+
+def flagged_split(rows: list, cut: int = FLAG_SHOW_DELTA) -> tuple:
+    """(shown, remainder) — the band worth reading, and the rest to be counted.
+
+    `remainder` is a summary, never rows: {n, C, W, conf bands}. Stating a
+    count is the point; emitting 506 more rows under a different heading
+    would be the same wall with a longer name.
+    """
+    shown = sorted((r for r in rows if flag_delta(r.get("code", "")) >= cut),
+                   key=lambda r: -flag_delta(r.get("code", "")))
+    rest = [r for r in rows if flag_delta(r.get("code", "")) < cut]
+    bands = {"high": 0, "mid": 0, "low": 0, "none": 0}
+    for r in rest:
+        c = r.get("conf")
+        if c is None:
+            bands["none"] += 1
+        elif c >= 0.9:
+            bands["high"] += 1
+        elif c >= 0.6:
+            bands["mid"] += 1
+        else:
+            bands["low"] += 1
+    return shown, {"n": len(rest),
+                   "C": sum(1 for r in rest if r.get("code", "")[:1] == "C"),
+                   "W": sum(1 for r in rest if r.get("code", "")[:1] == "W"),
+                   **bands}
+
+
 def corrected_pairs(doc_dir, ident_of=None) -> list:
     r"""The corrected pairs for one document, from the SHARED selection.
 
@@ -2439,13 +2490,26 @@ def findings_tex(found: dict, widths, crops=None, out_dir=None,
         rows_ = found.get(key) or []
         if not rows_:
             continue
+        rest = None
+        title = "%s (%d)" % (caption, len(rows_))
+        if key == "flagged":
+            # 515 — band it. The whole population is still reported, but as a
+            # count: a reader can act on the tail and cannot act on 543 rows.
+            rows_, rest = flagged_split(rows_)
+            title = ("%s — %d of %d shown" % (caption, len(rows_), len(rows_) + rest["n"])
+                     if rest["n"] else title)
+            if not rows_:
+                parts.append("\\clearpage\n")
+                parts.append(_flag_remainder_tex(rest, none_shown=True))
+                continue
         parts.append("\\clearpage\n")
-        parts.append(table_open("%s (%d)" % (caption, len(rows_)),
-                                widths, form, legend_on))
+        parts.append(table_open(title, widths, form, legend_on))
         for r_ in rows_:
             parts.append(row(r_["identifier"], r_.get("page"), r_.get("conf"),
                              r_.get("latex")))
         parts.append("\\end{longtable}\n")
+        if rest and rest["n"]:
+            parts.append(_flag_remainder_tex(rest))
 
     if not parts:
         parts.append(
@@ -2454,6 +2518,29 @@ def findings_tex(found: dict, widths, crops=None, out_dir=None,
             "with its scan; none was changed. The readings themselves are in "
             "\\texttt{formula-report.html} and \\texttt{tables.html}.\n")
     return "".join(parts)
+
+
+def _flag_remainder_tex(rest: dict, none_shown: bool = False) -> str:
+    """The stated count that replaces the rows below the band (515)."""
+    lead = ("\\vspace{1em}\\noindent\\textbf{Flagged, not acted on: %d rows, "
+            "none above the reporting threshold.}\\\\[.4em]\n" % rest["n"]
+            if none_shown else
+            "\\vspace{1em}\\noindent\\textbf{The remaining %d flagged rows "
+            "are stated as a count.}\\\\[.4em]\n" % rest["n"])
+    return (lead +
+            "Each differs from its scan by fewer than %d components, which is "
+            "the tail of the distribution rather than its bulk: %d are "
+            "component (\\texttt{C}), %d weak (\\texttt{W}). By MathPix "
+            "confidence: %d at $\\geq$0.9, %d in 0.6--0.9, %d below 0.6, %d "
+            "with none. Out/465 sampled twenty rows drawn from the "
+            "$\\geq$0.9 band corpus-wide and found eighteen purely "
+            "typographic differences, one typographic plus a crop overrun, "
+            "one borderline and \\emph{no} unambiguous content errors --- so "
+            "a high-confidence flag here is evidence of a rendering "
+            "difference, not of a defect. Every row is in "
+            "\\texttt{report.ink.json}.\n"
+            % (FLAG_SHOW_DELTA, rest["C"], rest["W"], rest["high"],
+               rest["mid"], rest["low"], rest["none"]))
 
 
 def build_report(tiddlers_path: Path, out: Path | None = None,
