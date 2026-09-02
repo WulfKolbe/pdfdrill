@@ -288,7 +288,36 @@ e-print source, put there by `injectlatex`), `snip` (MathPix /v3/text),
 whole of it, and it is why the artefact only earns its place when a second
 reading exists.
 
-### Why 6 of 21, and why that is still not a good reason
+### 521 changed these numbers — read this first
+
+521 injected the author's LaTeX into the six published documents that had a
+real e-print and lacked one, and rebuilt `compare.html` for the seven that
+now carry a second reading. **Twelve of the 21 published documents now have
+`compare.html`, and eight of those twelve show a genuine second reading.**
+
+| document | rows | `tex` candidates |
+|---|---|---|
+| `0902.0431` (withheld from the site) | 1,215 | 649 |
+| `1510.06699` | 279 | 268 |
+| `penev_A` | 232 | 111 |
+| `penev_B` | 124 | 59 |
+| `2501.06662` | 60 | 57 |
+| `0707.4470` | 62 | 53 |
+| `2106.07890` | 51 | 46 |
+| `1605.05775` | 26 | 26 |
+| `2010.14265` | 16 | 13 |
+
+The four baseline-only files (johnston, lyche, mielke, voloshin) are
+unchanged and are still duplicates of `formula-report.html`, for the reason
+below: those books have no author source, only MathPix's own `tex.zip`.
+
+Two corrections to what this section said when it was first written:
+`1510.06699` already carried 268 `tex` realizations and simply had no
+`compare.html` built, so the count was three and not two; and penev_A/B were
+injected from `penev_diss.tex` supplied explicitly with `--tex`, the
+author's dissertation, not from an arXiv e-print.
+
+### Why not all 21, and why that is a real reason now
 
 The subset is not principled today, and the honest statement of it is:
 
@@ -305,18 +334,23 @@ columns are absent and the file degenerates to **LaTeX source, rendered
 maths, and the crop — which is exactly what `formula-report.html` already
 shows**. On those four it is a duplicate.
 
-**All 21 have a `tex.zip`.** The second reading is therefore *available*
-everywhere and *injected* almost nowhere: what separates penev_A/B from the
-rest is that `injectlatex` was run on them, not that anything about the
-documents differs. The subset records which command happened to be run, not
-a property of the corpus.
+**All 21 have a `tex.zip`, and that is not the same as having a second
+reading.** `<stem>.tex.zip` is MathPix's OWN reconstruction —
+`cmd_injectlatex`'s docstring says it is "redundant with the mathpix
+column", and the source order prefers a real e-print over it precisely for
+that reason. Injecting it would fill the second column with the same
+engine's output and manufacture a comparison that cannot disagree.
 
-So the artefact belongs to a subset, but to a DIFFERENT subset than the one
-that exists: it belongs to documents carrying a second reading, and that set
-currently has two members. Building it for all 21 would produce fifteen more
-files that duplicate `formula-report.html` — the fix is to inject the second
-reading, not to emit the empty comparison. Until then the four baseline-only
-files stay as they are and are not to be read as comparisons.
+Only **7 of the 21** have an author source: the arXiv e-prints, plus
+penev_A/B whose author `.tex` was supplied by hand. The other **12** have
+nothing but MathPix's reconstruction, and that is why they get no
+`compare.html` — a stated property of the corpus, not of which command
+happened to be run.
+
+So the artefact belongs to documents carrying a second reading. 521 made
+that set as large as the corpus allows — nine documents, eight of them
+published — by injecting every author source that exists. It cannot grow
+further without author sources we do not have.
 
 ### How it differs from `report.pdf`'s Corrected pairs
 

@@ -1,0 +1,109 @@
+521 — injectlatex on the documents that have an author source, and
+      compare.html rebuilt
+=====================================================================
+
+THE GUARD: IT DID NOT FIRE ON THE SIX WITH REFINEMENTS
+-------------------------------------------------------
+Checked BEFORE writing anything. `_stale_or_absent` decides by the model's
+content-hash proof; when it is true, injectlatex and compare BOTH call
+`cmd_model`, which rebuilds and wipes the enrichment layers.
+
+All six documents carrying refinements have a VALID proof, so nothing
+rebuilt:
+
+  0707.4470  0902.0431  johnston  lyche  mielke  voloshin   proof=True
+
+CONFIRMED AFTER THE FACT, per document, by counting realizations:
+
+  document      before                     after
+  0707.4470     change 1, biblio 21        tex 53,  change 1,  biblio 21
+  0902.0431     change 10                  tex 649, change 10
+  1605.05775    (none)                     tex 26
+  2010.14265    biblio 29                  tex 13,  biblio 29
+  2106.07890    biblio 43                  tex 46,  biblio 43
+  2501.06662    biblio 22                  tex 57,  biblio 22
+
+Every `change` and every `bibliography` realization survived. 844 `tex`
+candidates added. The proof still verifies on all six afterwards, so the
+subsequent `compare` runs did not rebuild either.
+
+WHERE THE GUARD DOES FIRE: penev_A AND penev_B — STOPPED
+----------------------------------------------------------
+Not the six, but the two that already hold a second reading.
+
+  penev_A   proofs.verify = False   tex 111
+  penev_B   proofs.verify = False   tex  59
+
+Their models are newer than their lines.json by mtime, so this is the
+content-hash proof failing, not the old mtime heuristic. ANY command
+routing through `_stale_or_absent` — injectlatex or compare — would call
+`cmd_model` and destroy the 111 and 59 `tex` realizations, which are the
+only explicitly-supplied author readings in the corpus.
+
+So I did not touch them, and that includes NOT rebuilding their
+compare.html. They are the documents 521 exists to serve and they are the
+two it must not run on. Their sidecars record a `latex_source_path` under
+a DIFFERENT project's scratchpad (`-home-wkolbe-pdfdrill-github-io`), from
+2026-08-25, which is the likeliest reason the recorded inputs no longer
+hash-match.
+
+Repairing that proof is its own task: it needs the model rebuilt and the
+111/59 candidates re-injected from `penev_diss.tex`, which is not on disk
+here.
+
+SIX, NOT NINETEEN — AND THE REASON IS THE POINT
+------------------------------------------------
+`<stem>.tex.zip` is MathPix's OWN reconstruction. `cmd_injectlatex` says
+so in its own docstring — "redundant with the mathpix column" — and its
+source order prefers a real e-print over it for exactly that reason.
+
+  author source available     7 of 21   (the arXiv e-prints)
+    already injected          1         (1510.06699, 268 candidates)
+    injected by 521           6
+  penev_A/B                   2         author .tex, supplied by hand,
+                                        blocked by the proof
+  MathPix tex.zip only       12         NOT injected
+
+Injecting the tex.zip on those 12 would fill compare.html's second column
+with the same engine's output — a comparison that cannot disagree, which
+is the failure shape this project keeps catching. They are left alone.
+
+Two corrections to 519, which I got wrong:
+  - 1510.06699 ALREADY carried 268 `tex` realizations and simply had no
+    compare.html built. The set carrying a second reading was three, not
+    two.
+  - penev_A/B were injected from `penev_diss.tex` given explicitly with
+    `--tex` — the author's dissertation — not from an arXiv e-print.
+
+compare.html REBUILT — 7 DOCUMENTS
+-----------------------------------
+All seven now carry 8 columns: # · ref · p · LaTeX (mathpix) ·
+KaTeX (mathpix) · LaTeX (tex) · KaTeX (tex) · MathPix image.
+
+  document      rows    tex   size
+  0902.0431     1,215   649   1,522 KB   (withheld from the site)
+  1510.06699      279   268     388 KB
+  2501.06662       60    57      75 KB
+  0707.4470        62    53      78 KB
+  2106.07890       51    46      62 KB
+  1605.05775       26    26      31 KB
+  2010.14265       16    13      21 KB
+
+PUBLISHED
+---------
+The six published ones copied to the site and linked from
+reports/index.html, which now points at compare.html 12 times with zero
+dangling links (checked). 0902.0431 stays withheld for the reason 516
+measured — its ink covers 55 of 1,219 equations.
+
+The site now shows compare.html on 12 of 21 documents, 8 of which carry a
+real second reading. Before 521 it was 6, of which 2 did.
+
+ARTEFACTS.md updated with the corrected counts and the real reason for
+the subset, replacing 519's "the subset records which command happened to
+be run" — which was true then and is not any more.
+
+NOT DONE
+--------
+penev_A/B's proof. And the 12 tex.zip-only documents get no compare.html,
+which is now a stated property of the corpus rather than an accident.
