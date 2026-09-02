@@ -2592,7 +2592,14 @@ def build_report(tiddlers_path: Path, out: Path | None = None,
         # it. The full equation and table listings duplicate
         # formula-report.html and tables.html, which already hold them.
         _ink = {k: v for k, v in (ink or {}).items()} if ink else {}
-        _found = findings_rows(tiddlers, bibkey, dest.parent, ink=_ink,
+        # THE DOCUMENT DIRECTORY IS THE TIDDLERS FILE'S, NOT THE OUTPUT'S.
+        # `dest` may be anywhere — a scratch directory, a temp build — and
+        # with dest.parent the model lookup silently found nothing, returned
+        # no corrected pairs, and let all 8 of johnston's corrections fall
+        # through into "Flagged, not acted on" (543 -> 551). A section that
+        # loses its rows into another section is the worst kind of wrong,
+        # because both numbers still look plausible.
+        _found = findings_rows(tiddlers, bibkey, path.parent, ink=_ink,
                                refined=refined)
         out_parts.append(findings_tex(
             _found, eq_widths, crops=crops, out_dir=out_dir, px2mm=px2mm,

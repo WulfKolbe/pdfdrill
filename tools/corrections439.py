@@ -107,15 +107,33 @@ th{background:#eef;text-align:left;padding:.4em .6em;border:1px solid #99a}
 td{border:1px solid #bbb;padding:.5em .6em;vertical-align:top}
 tr.before td{border-bottom:none;background:#fff}
 tr.after  td{border-top:1px dashed #999;background:#f7fbf7}
-td.scan{background:#fafafa;text-align:center}
+td.scan{background:#fafafa;text-align:center;width:34%}
+/* 514 — the crop was squeezed into an eighth of the table and unreadable.
+   It is the EVIDENCE the two readings are being judged against, so it gets
+   the widest column, renders at full width, and links to itself at native
+   size for anything the column still cannot show. */
+td.scan img{width:100%;height:auto;display:block;border:1px solid #ddd;background:#fff}
+td.scan a{text-decoration:none}
+td.scan .full{font-size:.7em;color:#36c;display:block;margin-top:.3em;cursor:pointer;text-decoration:underline}
 .svg svg{max-width:100%;height:auto}
 .k{font-family:ui-monospace,monospace;font-size:.85em}
 .lbl{font-size:.75em;text-transform:uppercase;letter-spacing:.05em;color:#666}
 .conf{font-family:ui-monospace,monospace}
 .ink{font-family:ui-monospace,monospace;white-space:nowrap}
+.delta{font-size:.8em}.delta.good{color:#176}.delta.bad{color:#b00}.delta.flat{color:#777}
 .fail{color:#b00;font-size:.85em}
 .basis{font-size:.85em}
-</style></head><body>
+</style>
+<script>
+/* 514 — open the crop at native size without a second copy of its data URI. */
+addEventListener("click", function (e) {
+  if (!e.target.classList.contains("full")) return;
+  var img = e.target.parentNode.querySelector("img");
+  if (!img) return;
+  var w = window.open("");
+  if (w) w.document.write('<img src="' + img.src + '">');
+});
+</script></head><body>
 <h1>Accepted corrections</h1>
 <p class="lede">Each row is one region read twice: <b>above</b>, what MathPix
 produced; <b>below</b>, the correction that replaced it. The scan between them
@@ -123,17 +141,44 @@ is <b>the same crop</b> — the two halves are two readings of one image, not tw
 images. A correction appears here only if it was accepted; the
 <b>basis</b> column says on what evidence, and both ink numbers are shown so a
 weak acceptance is visible as one.</p>
+<p class="lede"><b>Reading the ink distance.</b> It is inkdrill&rsquo;s L1 distance
+between the five-tuple measured on the rendered LaTeX and the one measured on the
+scan: <b>0 is an exact match and lower is closer</b>, and a difference of 7 or
+less sits inside the measured noise floor. A <span class="delta good">fall</span>
+is an improvement. All 32 corrections that carry numbers fell &mdash; but two of
+them fell by one (398&nbsp;&rarr;&nbsp;397 and 233&nbsp;&rarr;&nbsp;232), which is
+an acceptance a reader should be able to see is weak.</p>
 <table><thead><tr>
 <th>identifier</th><th>page</th><th>conf</th><th>reading</th>
-<th>rendered</th><th>scan</th><th>basis</th><th>ink</th>
+<th>rendered</th><th>scan</th><th>basis</th>
+<th>ink distance<br><span class="lbl">lower is closer &middot; 0 is exact</span></th>
 </tr></thead><tbody>"""]
     for i, r in enumerate(rows, 1):
         crop = crop_for(r)
-        img = ('<img src="%s" style="max-width:100%%">' % crop) if crop else \
-              '<span class="lbl">no crop</span>'
+        # The data URI is emitted ONCE. Putting it in both an href and a src
+        # doubled the page from 2.1 MB to 4.2 MB for no new information; the
+        # click handler opens the image's own src instead.
+        img = ('<img src="%s"><span class="full" role="button" '
+               'tabindex="0">open at full size</span>' % crop
+               ) if crop else '<span class="lbl">no crop</span>'
         conf = ("%.3f" % r["conf"]) if isinstance(r["conf"], (int, float)) else "—"
-        ink = ("%s → %s" % (r["ink_before"], r["ink_after"])
-               if r["ink_before"] is not None else "—")
+        # 514 — a bare "398 → 397" does not say which way is better. The
+        # metric is inkdrill's L1 distance between the render's five-tuple and
+        # the scan's: 0 is an exact match, <= 7 is inside the measured noise
+        # floor, and a FALL is an improvement. All 32 corrections that carry
+        # numbers fell; two of them by 1, and a reader can only see that a
+        # 398 -> 397 acceptance is weak if the direction is stated.
+        ink = "—"
+        try:
+            b_, a_ = float(r["ink_before"]), float(r["ink_after"])
+            d = a_ - b_
+            word = ("closer" if d < 0 else "further" if d > 0 else "unchanged")
+            ink = ('%g <span class="lbl">&rarr;</span> %g'
+                   '<br><span class="delta %s">%+g &middot; %s</span>'
+                   % (b_, a_, "good" if d < 0 else "bad" if d > 0 else "flat",
+                      d, word))
+        except (TypeError, ValueError):
+            pass
         parts.append(
             '<tr class="before">'
             '<td rowspan="2"><span class="k">%s</span><br><span class="lbl">%s</span></td>'

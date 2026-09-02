@@ -1,0 +1,78 @@
+514 — the corrections row made legible, and johnston in the findings shape
+2026-09-03T09:40Z
+
+THE TWO CHANGES
+---------------
+1  THE CROP. It was `<img style="max-width:100%">` in a cell sharing the
+   table with seven other columns, so it rendered at roughly an eighth of the
+   width — unreadable, and it is the EVIDENCE the two readings are being
+   judged against. The scan column now takes 34% of the table, the image
+   renders at full column width on a white ground with a hairline border, and
+   "open at full size" beside it opens the crop at native size.
+
+   The data URI is emitted ONCE. Putting it in both an `href` and a `src` is
+   the obvious way to do the link and it doubled the page from 2.1 MB to
+   4.2 MB for no new information; a four-line click handler opens the image's
+   own `src` instead. Back to 2.1 MB.
+
+2  THE METRIC'S DIRECTION. The column read "398 → 397" and said nothing about
+   which way was better. It now says, in the header and again in the lede:
+
+     ink distance — lower is closer, 0 is exact
+
+   and every row carries its delta, coloured, with the word: `-1 · closer`.
+   The direction is not a guess — `inkconvert.flag_of` returns "clean" at
+   distance 0 and "noise" at ≤ 7, so lower is closer and 7 is the measured
+   noise floor.
+
+   All 32 corrections that carry numbers FELL. None rose. But two fell by one
+   — 398→397 and 233→232 — and that is an acceptance a reader should be able
+   to see is weak. Before this change they could not.
+
+   33 rows, 32 with a crop. The one without is 0707.4470_FO0175, whose crop
+   was never fetched because an FO tiddler carries no CDN uri.
+
+JOHNSTON, IN THE FINDINGS SHAPE
+-------------------------------
+  Corrected                 8
+  Unresolved                7
+  Flagged, not acted on   543
+  Doubted but correct       0
+
+  125 pages, against 284 today. Zero LaTeX errors.
+
+A DEFECT CAUGHT BY BUILDING IT
+-------------------------------
+The first johnston build came out with NO Corrected section and 551 flagged
+rows instead of 543.
+
+`build_report` passed `dest.parent` as the document directory, and `dest` was
+a scratch build directory. The model lookup found nothing there, returned no
+corrected pairs, and all 8 of johnston's corrections fell through into
+"Flagged, not acted on" — 543 + 8 = 551.
+
+Both numbers still looked plausible. A section that loses its rows INTO
+another section is the worst shape of wrong, because nothing is missing from
+the total. It is fixed to use the tiddlers file's own directory, which is the
+document by definition.
+
+This is the second defect in two tasks that only appeared when the artefact
+was actually built and looked at — the first being every one of 21 reports
+aborting on a missing `\end{document}` while still reporting a page count.
+
+WHAT WAS CHANGED
+----------------
+  tools/corrections439.py       the scan column, the click-to-full-size
+                                handler, the delta with its direction, and a
+                                lede paragraph explaining the metric
+  src/pdfdrill/report_tex.py    the document directory for findings_rows
+  reports/corrections.html      rebuilt, 33 rows, 2.1 MB
+
+Full suite: 2,904 passed.
+
+NOT DONE
+--------
+corrections.html is rebuilt in the working tree and NOT yet committed to the
+site — 510 committed the previous build, and this is a content change to a
+published file, so it goes in its own commit with the site's other pending
+work rather than silently.
