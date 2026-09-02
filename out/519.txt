@@ -1,0 +1,101 @@
+519 — compare.html documented as the sixth artefact
+===================================================
+
+Written into docs/layers/ARTEFACTS.md (§ `compare.html`, and two new rows
+in "Which artefact answers which question"). The file's title changes from
+"The four HTML/PDF artefacts" to "The six" — it had already grown to five
+with corrections.html in 510 and the heading was never updated.
+
+WHAT IT SHOWS
+-------------
+`pdfdrill compare` -> `docops.projectors.comparison_html`. One row per
+display equation carrying a MathPix crop. Baseline three columns:
+
+  LaTeX (mathpix) · KaTeX (mathpix) · MathPix image
+
+and then, per COMPETING reading the object carries, another LaTeX + KaTeX
+pair with that candidate's score. Competing readings are realizations
+whose provenance is not MathPix's: `tex` (the author's e-print, put there
+by `injectlatex`), `snip` (/v3/text), `llm`.
+
+WHO IT IS FOR
+-------------
+Someone deciding which of two readings is right. That is the whole of it,
+and it is why the artefact only earns its place when a second reading
+exists.
+
+WHY 6 OF 21 — AND THE REASON IS NOT A GOOD ONE
+-----------------------------------------------
+Measured, not assumed. The six are johnston, lyche, mielke, penev_A,
+penev_B, voloshin. Their column headers:
+
+  penev_A, penev_B   #·ref·p·score·LaTeX(mathpix)·KaTeX(mathpix)·
+                     LaTeX(tex)·KaTeX(tex)·MathPix image      9 columns
+  the other four     #·ref·p·LaTeX(mathpix)·KaTeX(mathpix)·
+                     MathPix image                            6 columns
+
+So on FOUR of the six there is no second reading and the file degenerates
+to LaTeX source + rendered maths + crop — which is exactly what
+formula-report.html already shows. On those four it is a duplicate.
+
+The model confirms it:
+
+  penev_A               111 realizations of provenance `tex`
+  johnston              0   (only `change` 8, `bibliography` 3)
+  voloshin-hypergraph   0   (only `change` 3, `bibliography` 8)
+
+  documents                        compare.html shows          count
+  penev_A, penev_B                 a real comparison               2
+  johnston, lyche, mielke, voloshin the baseline only               4
+  the other fifteen                nothing — never built           15
+
+Corpus-wide: 27 of 2,818 folders carry compare.html.
+
+BUILD FOR ALL 21, OR NOT
+-------------------------
+NOT — and the reason is stateable, which is what the task asked for.
+
+ALL 21 HAVE A tex.zip. The second reading is available everywhere and
+injected almost nowhere; what separates penev_A/B from the rest is that
+`injectlatex` was run on them, not any property of the documents. The
+present subset records which command happened to be run.
+
+Building it for all 21 would produce fifteen more files with the baseline
+three columns — fifteen more duplicates of formula-report.html. That is
+the same shape as the dangling "see tables.html" pointer: an artefact
+whose presence implies a comparison that is not in it.
+
+So compare.html belongs to a subset, but a DIFFERENT subset than the one
+that exists: documents carrying a second reading. That set has two
+members today. The fix is to inject the second reading (`injectlatex`,
+which is free — every one of the 21 has its e-print), not to emit the
+empty comparison. Until then the four baseline-only files stay and the
+documentation says in terms that they are not to be read as comparisons.
+
+That is a decision, not a deferral: nothing is built for the 15, and the
+reason is now written next to the artefact instead of being inferable
+only from which files exist.
+
+HOW IT DIFFERS FROM report.pdf's Corrected PAIRS
+-------------------------------------------------
+Both put two readings against one scan.
+
+                    compare.html              report.pdf Corrected
+  second reading    a CANDIDATE, unjudged     the ACCEPTED correction
+  rows              every equation with a     only corrected ones
+                    crop (johnston: 3,332)    (johnston: 8)
+  the reader        decides which is right    sees what was decided,
+                                              and on what basis
+  carries a score   yes, per candidate        no — basis + ink
+                                              before/after
+
+compare.html is read BEFORE a decision; the Corrected section is the
+record AFTER one. A row leaves the first and enters the second by being
+accepted, which is why 509's section is short and this file is long.
+
+NOT DONE
+--------
+`injectlatex` was not run on the other 19. It is free and offline and
+would turn compare.html into what it is for on all of them — but it
+writes to the model, and running it across the published set unasked is
+a change to 19 documents, not a report.
