@@ -1,0 +1,126 @@
+503 — the printed-to-PDF offset, from the PDF itself
+2026-09-02T18:30Z · the nine published books · tools/offset503.py
+
+THE ANSWER: THERE IS NO OFFSET TO DERIVE. THE PDF CARRIES THE MAP.
+-------------------------------------------------------------------
+All nine books have /PageLabels, complete, one label per page:
+
+  book                                  pages  labels  arabic  roman
+  ------------------------------------------------------------------
+  cardona-qft-methods                     378     378     367     11
+  fong-spivak-invitation                  352     352     352      0
+  fong-spivak-seven-sketches              353     353     341     12
+  gilmore-lie-groups                      333     333     319     14
+  johnston-linear-matrix-algebra          492     492     477     14
+  kohlhase-omdoc                          425     425     425      0
+  lyche-numerical-linear-algebra          376     376     356     19
+  mielke-geometrodynamics                 377     377     361     15
+  voloshin-hypergraph                     303     303     287     14
+
+  9 of 9, 100% coverage.
+
+493 framed the missing piece as "one number per book — the PDF page on which
+printed page 1 falls". That framing is wrong, and usefully so: the answer is
+not a number but a TABLE, and the publisher already wrote it. `page_labels[i]`
+gives the printed label of PDF page i; inverting it gives printed -> PDF
+directly, with no arithmetic and nothing to derive.
+
+IS THE OFFSET CONSTANT? FOR SIX OF NINE. AND IT DOES NOT MATTER.
+-----------------------------------------------------------------
+  constant      cardona 11, fong-invitation 0, seven-sketches 12,
+                gilmore 14, kohlhase 0, voloshin 16
+  NOT constant  johnston   offsets 15 (x233), 14 (x167), 11 (x34), 13 (x21)
+                lyche      14 (x53), 17 (x45), 11 (x35), 9 (x31)
+                mielke      6 (x53), 13 (x51), 14 (x43), 16 (x35)
+
+The cause is visible and is not roman front matter — that part is clean. The
+ARABIC sequence itself skips:
+
+  johnston  printed 233 -> 235 at index 248, 401 -> 403 at 415, and 5 more.
+            7 breaks in 477 arabic pages.
+  lyche     25 -> 27 at index 45, 55 -> 57 at 74, and 13 more. 15 breaks.
+  gilmore   0 breaks — perfectly monotone.
+
+So the offset is piecewise constant, stepping by one at each skipped printed
+number, and a single offset is simply the wrong model for these three books.
+The label table has no such problem: it states each page's label outright, so
+a skip is data rather than an error term.
+
+Front matter in roman was the suspected complication and is not one. Every
+book's roman prefix is contiguous and the arabic run starts cleanly after it;
+roman labels are simply excluded from the inverse map.
+
+COVERAGE: DOES A TOC PATH NOW RESOLVE?
+--------------------------------------
+Building printed -> PDF from the labels, mapping each parsed TOC entry onto a
+PDF page, and asking of every math object with a page whether some TOC entry
+precedes it:
+
+  book                                toc  mapped    math   with a path
+  ----------------------------------------------------------------------
+  cardona-qft-methods                   0       0   4,767      0    (0%)
+  fong-spivak-invitation               47      47   4,321  4,321  (100%)
+  fong-spivak-seven-sketches          146     146   4,292  4,284  (100%)
+  gilmore-lie-groups                  147     147   4,510  4,505  (100%)
+  johnston-linear-matrix-algebra       55      55   6,813  6,808  (100%)
+  kohlhase-omdoc                      121     121     464    464  (100%)
+  lyche-numerical-linear-algebra      290     290   5,694  5,639   (99%)
+  mielke-geometrodynamics             147     147   2,942  2,939  (100%)
+  voloshin-hypergraph                  74      74   2,820  2,817   (99%)
+  ----------------------------------------------------------------------
+                                      927     927  36,623 31,777
+
+**Every TOC entry that parses maps — 927 of 927.** No entry was lost in the
+conversion, in any book.
+
+Eight of nine books resolve a path for essentially every math object.
+cardona resolves none, and for the reason 493 already found: its TOC entries
+are unnumbered and paginated in roman ('Introduction ..... v', 'Part A
+LECTURES ..... 1'), so nothing parses. Its page labels are fine; there is
+simply no TOC row to attach.
+
+SO 494 BECOMES REAL
+-------------------
+  from parent_section where it resolves below level 1     0.32% of paper rows
+                                                          (492), 0% on books
+  from the TOC where the document is a book               8 of 9 books,
+                                                          31,777 of 36,623
+                                                          math objects
+  omitted where neither gives anything                    cardona, and papers
+
+That is the rule 494 asked for, and it now has a population behind it rather
+than a hope.
+
+A WARNING ABOUT WHAT THE PATH MEANS
+-----------------------------------
+"Some TOC entry precedes this page" is not the same as "this is the enclosing
+section". The number above is the coverage of a lookup, not its accuracy —
+a math object one page before a chapter break gets the previous chapter,
+correctly, and one on a page whose printed number was SKIPPED gets whatever
+the previous mapped entry was, which may be wrong by a section. johnston has
+7 such skips and lyche 15.
+
+Accuracy needs a second measurement — the section a path claims against the
+Section object the model already holds where it has one — and this report
+does not make that claim.
+
+WHAT DID NOT WORK, AND IS RECORDED SO IT IS NOT RETRIED
+--------------------------------------------------------
+Matching the OUTLINE against the TOC by title. Outlines exist on all nine
+(17 to 279 entries, nearly all with a destination page) and named
+destinations run to 3,283 on mielke — but title matching returned 0 for six
+of nine books:
+
+  outline titles carry no section number  'Preface', 'Focus',
+                                          'Notes in the Margin'
+  and sometimes a leading space           ' Contents' (gilmore)
+  while the TOC parse splits the number off into its own group
+
+It worked on the two books whose outline titles happen to include the number
+— seven-sketches (136 matched, offset 12, 94.9% agreement) and voloshin (12
+matched, offset 16, 100% agreement) — and both agree exactly with the page
+labels, which is a useful corroboration of the label route and nothing more.
+
+The outline is the worse instrument here and is not needed.
+
+Nothing was changed.
