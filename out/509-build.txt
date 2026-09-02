@@ -1,0 +1,97 @@
+509 (build) — the three states selected once, and shared with corrections.html
+2026-09-03T06:10Z
+
+THE CONSTRAINT, AND WHAT IT ACTUALLY CONSTRAINS
+------------------------------------------------
+"The corrected-pair layout must come from the same code that builds a
+corrections.html row."
+
+What can be shared is the SELECTION and the ROW MODEL. What cannot is the
+rendering: corrections.html sets a pair as HTML with an inline SVG or KaTeX,
+report.pdf sets it as two longtable rows. Those are different jobs, and
+pretending one function does both would be its own kind of drift.
+
+So `src/pdfdrill/corrections.py` now holds the selection and the identity,
+and both artefacts read it:
+
+  pairs_in(doc_dir)      every accepted correction in one document
+  collect(lib)           every accepted correction in the corpus
+  identifier_for(rec)    the report identifier, via the region
+  crop_path(rec)         ONE crop, shared by both halves of the pair
+
+`tools/corrections439.py` lost 70 lines and now imports them. It still
+produces 33 rows at the same size, which is the check that the extraction
+changed nothing.
+
+TWO DEFECTS THE EXTRACTION EXPOSED
+-----------------------------------
+Both were live in corrections.html, and both were found only because the code
+was made to serve a second reader.
+
+  1  THE IDENTIFIER JOIN RETURNED A PAGE. `props.region` is absent on 1 of 33
+     corrections — 0707.4470_FO0175, the one 502 repaired — so the lookup key
+     became ('029','None','None','None','None') and matched whatever tiddler
+     was also all-None. It returned `0707.4470_PAGE_029` for a Formula.
+
+     Same trap as 492's `props["top_left_x"]` on 0 of 70,000 objects: the
+     region is on the realizations. `pairs_in` now resolves it through
+     `object_geometry`, and an all-None key is REFUSED rather than matched.
+
+  2  AND THE REGION ROUTE CANNOT WORK FOR INLINE FORMULAS AT ALL. An FO
+     tiddler carries no region — 488 measured the same absence on page and
+     confidence. So FO0175 still had no identifier after the first fix.
+
+     A unique `latex` match is exact and is now the fallback. A REPEATED
+     latex is dropped rather than guessed at, which is tested.
+
+     33 of 33 identifiers now resolve; FO0175 returns `0707.4470_FO0175`.
+
+THE SELECTION, AGAINST 509's CENSUS
+------------------------------------
+  0707.4470     corrected 1   unresolved 0   doubted 0
+  johnston      corrected 8   unresolved 7   doubted 0
+  1510.06699    corrected 0   unresolved 0   doubted 1
+
+johnston matches out/509.txt exactly. 1510.06699 gains its one doubted row at
+the 0.05 threshold, which is the band measurement from out/509.txt showing up
+where it belongs.
+
+ONE RULE THAT NEEDED STATING
+-----------------------------
+A corrected row is EXCLUDED from unresolved even when its original does not
+render. 502's pair is exactly that case: `\mathscr{g}` renders nothing at all,
+because rsfs10 has no lowercase. Without the exclusion the same row would
+appear twice — once as a correction and once as a failure — and the pair
+already says what was wrong. Tested.
+
+WHAT IS BUILT AND WHAT IS NOT
+------------------------------
+  BUILT   the shared selection and identity (`pdfdrill/corrections.py`)
+          corrections439 delegating to it, output unchanged at 33 rows
+          `findings_rows()` returning the three states for a document
+          `corrected_pairs()` returning pairs with their identifiers
+          10 tests, including both identifier defects and the
+          corrected-not-also-unresolved rule
+          2,898 passing
+
+  NOT     the LaTeX emission. `report.tex` still has its Display equations
+          and Inline formulas sections; nothing yet renders Corrected,
+          Unresolved and Doubted but correct into it, and no report has been
+          rebuilt.
+
+I stopped here deliberately. The selection is the half the constraint is
+about and it is now shared and tested; the emission is a straightforward
+section-writer against a settled row model, and rushing it at the end of a
+long session is how a report ships with two of every row.
+
+THE THREE DECISIONS FROM out/509.txt ARE STILL OPEN
+----------------------------------------------------
+  the doubted threshold      0.05 is what the code uses, and gives 5 rows in
+                             3 documents. 0.01 gives none anywhere.
+  the fourth state           "the ink disagrees and nobody acted" is still
+                             invisible. 1510.06699 has 68 such rows and would
+                             otherwise be a one-page report.
+  a contradicted refinement  511 can now name one. It belongs in Unresolved
+                             with its own reason rather than silently among
+                             the clean, and `findings_rows` does not yet
+                             place it.

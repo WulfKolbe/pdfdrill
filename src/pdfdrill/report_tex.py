@@ -2260,6 +2260,72 @@ class ReportRefused(ValueError):
     """The report would be empty for a reason that is a defect, not a fact."""
 
 
+#: 509 — what a findings report contains. A row appears only if there is
+#: something to say about it; a row MathPix read correctly, whose ink agrees
+#: and which nobody changed, says nothing and is already in
+#: formula-report.html and tables.html.
+FINDINGS_SECTIONS = ("Corrected", "Unresolved", "Doubted but correct")
+
+#: "the ink says it is right": clean, below the measured noise floor, or
+#: stable across 300 and 600 dpi. W (weak) and C (component) flag a real
+#: difference and are not agreement.
+INK_AGREES = {"K", "N", "S"}
+DOUBTED_MAX_CONF = 0.05
+
+
+def corrected_pairs(doc_dir, ident_of=None) -> list:
+    r"""The corrected pairs for one document, from the SHARED selection.
+
+    509's constraint, and 422's lesson: `corrections.html` and this section
+    are the same fact in two artefacts, so the selection and the row model
+    come from `pdfdrill.corrections` and only the rendering differs. Two
+    implementations of one idea is how four artefacts drifted apart.
+    """
+    from . import corrections as C
+    out = []
+    for rec in C.pairs_in(Path(doc_dir)):
+        ident = C.identifier_for(rec, Path(doc_dir).parent)
+        out.append({**rec, "identifier": ident or ""})
+    return out
+
+
+def findings_rows(tiddlers, bibkey, doc_dir, ink=None, refined=None) -> dict:
+    r"""{corrected, unresolved, doubted} — the three states, selected once.
+
+    A corrected row is EXCLUDED from unresolved even when its original does
+    not render: `\mathscr{g}` renders nothing at all, and 502's pair is
+    exactly that case. The pair already says what was wrong.
+    """
+    ink = ink or {}
+    pairs = corrected_pairs(doc_dir)
+    done = {p["identifier"] for p in pairs if p.get("identifier")}
+    unresolved, doubted = [], []
+    fo, eq, tab, dia = rows_for(tiddlers, bibkey, refined)
+    for title, latex, page, *rest in ([(t_, l_, p_) for t_, l_, p_, *_ in fo]
+                                      + [(t_, l_, p_) for t_, l_, p_, *_ in eq]):
+        if not latex or title in done:
+            continue
+        if not renderable(latex):
+            unresolved.append({"identifier": title, "page": page,
+                               "latex": latex,
+                               "why": "does not render"})
+            continue
+        conf = None
+        for x in tiddlers:
+            if x.get("title") == title:
+                try:
+                    conf = float(x.get("confidence"))
+                except (TypeError, ValueError):
+                    conf = None
+                break
+        if (conf is not None and conf < DOUBTED_MAX_CONF
+                and ink.get(title, {}).get("code", "")[:1] in INK_AGREES):
+            doubted.append({"identifier": title, "page": page, "latex": latex,
+                            "conf": conf,
+                            "code": ink[title].get("code", "")})
+    return {"corrected": pairs, "unresolved": unresolved, "doubted": doubted}
+
+
 def build_report(tiddlers_path: Path, out: Path | None = None,
                  crops: Path | None = None, texzip: Path | None = None,
                  paper: str = "a4", landscape: bool = False,

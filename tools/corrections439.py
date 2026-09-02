@@ -28,98 +28,24 @@ PRE = (r"\documentclass[border=2pt,varwidth=170mm]{standalone}"
        "\n" r"\usepackage{amsmath,amssymb,amsfonts,mathrsfs,bm}" "\n")
 
 
-def collect():
-    """Every accepted correction, with both readings and the shared crop."""
-    out = []
-    for d in sorted(LIB.iterdir()):
-        f = d / "model.docmodel.json"
-        if not f.is_file():
-            continue
-        try:
-            if f.stat().st_size > 300 * 1024 * 1024:
-                continue
-            s = f.read_text(errors="replace")
-            if '"provenance": "change"' not in s:
-                continue
-            m = json.loads(s)
-        except Exception:
-            continue
-        bib = (m.get("meta") or {}).get("bibkey") or d.name
-        for o in m.get("objects", []):
-            pr = o.get("props") or {}
-            for r in (o.get("realizations") or []):
-                if r.get("provenance") != "change":
-                    continue
-                rp = r.get("props") or {}
-                if not rp.get("verified_by"):
-                    continue                      # a proposal, not a solution
-                out.append({
-                    "doc": d.name, "bibkey": bib, "obj": o["id"],
-                    "type": o.get("type"), "page": pr.get("page"),
-                    "conf": pr.get("confidence"),
-                    "before": pr.get("latex") or "",
-                    "after": rp.get("latex_refined") or "",
-                    "basis": rp.get("basis") or "",
-                    "verified_by": rp.get("verified_by"),
-                    "ink_before": rp.get("ink_before"),
-                    "ink_after": rp.get("ink_after"),
-                    "author": rp.get("author") or "",
-                    "at": rp.get("at") or "",
-                    "evidence": ("" if rp.get("evidence") is None
-                                 else str(rp["evidence"])),
-                    "region": pr.get("region") or {},
-                })
-    return out
-
-
-_TID_CACHE: dict = {}
+# 509/510 — SELECTION AND IDENTITY ARE SHARED. They used to live here, and
+# report.pdf's Corrected section would have been a second implementation of
+# the same idea; 422 was written because four artefacts had already drifted.
+# What stays here is the RENDERING, which is genuinely different: this sets a
+# pair as HTML with an inline SVG or KaTeX, and report.pdf sets it as two
+# longtable rows.
+from pdfdrill.corrections import (collect, identifier_for,       # noqa: E402
+                                  crop_path)
 
 
 def _identifier_for(rec):
-    """The report identifier of the object, via the tiddler at its REGION.
-
-    Crops are named `<bibkey>_EQnnnn.jpg` and an object id appears in no
-    filename, so the join is region -> tiddler title -> crop. Matching on the
-    region rather than on the LaTeX is what 282 established: the 5-tuple names
-    a region and the text does not.
-    """
-    doc = rec["doc"]
-    if doc not in _TID_CACHE:
-        d = LIB / doc
-        f = next((x for x in d.glob("*.tiddlers.json")), None)
-        idx = {}
-        if f is not None:
-            try:
-                t = json.loads(f.read_text(errors="replace"))
-                for x in (t if isinstance(t, list) else t.get("tiddlers", [])):
-                    k = (str(x.get("page")), str(x.get("top_left_x")),
-                         str(x.get("top_left_y")), str(x.get("width")),
-                         str(x.get("height")))
-                    idx.setdefault(k, x.get("title"))
-            except Exception:
-                pass
-        _TID_CACHE[doc] = idx
-    reg = rec.get("region") or {}
-    key = (str(rec.get("page")).zfill(3), str(reg.get("top_left_x")),
-           str(reg.get("top_left_y")), str(reg.get("width")),
-           str(reg.get("height")))
-    hit = _TID_CACHE[doc].get(key)
-    if hit is None:                       # page may be stored unpadded
-        key = (str(rec.get("page")),) + key[1:]
-        hit = _TID_CACHE[doc].get(key)
-    return hit
+    return identifier_for(rec, LIB)
 
 
 def crop_for(rec):
     """The scan crop, as a data URI. The SAME image for both halves."""
-    d = LIB / rec["doc"] / "report-crops"
-    if not d.is_dir():
-        return ""
-    ident = _identifier_for(rec)
-    if not ident:
-        return ""
-    f = d / ("%s.jpg" % ident)
-    if not f.is_file():
+    f = crop_path(rec, LIB)
+    if f is None:
         return ""
     return "data:image/jpeg;base64," + base64.b64encode(f.read_bytes()).decode()
 
