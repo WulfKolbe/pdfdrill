@@ -2674,6 +2674,7 @@ def build_report(tiddlers_path: Path, out: Path | None = None,
     manifest = []
     named = unnamed = rendered = duplicated = 0
     texzip_n = 0
+    counts = None
     if findings:
         # 509/513 — report.pdf says what went wrong and what was done about
         # it. The full equation and table listings duplicate
@@ -2692,7 +2693,11 @@ def build_report(tiddlers_path: Path, out: Path | None = None,
             _found, eq_widths, crops=crops, out_dir=out_dir, px2mm=px2mm,
             bibkey=bibkey, history=bibkey_history, form=form,
             legend_on=legend_on))
+        # 516 — the four counts are the RESULT of a findings build; computing
+        # them and dropping them left the caller reporting "1670 display
+        # equations" for a report that shows 52 rows.
         counts = {k: len(v) for k, v in _found.items()}
+        counts["flagged_shown"] = len(flagged_split(_found["flagged"])[0])
     if not findings:
         out_parts.append(table_open("Display equations", eq_widths, form, legend_on))
         # 099: doubted rows first. Sorting by confidence ascending puts what
@@ -3006,7 +3011,8 @@ def build_report(tiddlers_path: Path, out: Path | None = None,
             "image_rendered": rendered,
             "image_duplicated": duplicated,
             "image_rendered_kept": _surviving_renders(dest),
-            "texzip_images": (texzip_images(Path(texzip))[1] if texzip else 0)}
+            "texzip_images": (texzip_images(Path(texzip))[1] if texzip else 0),
+            "findings": counts}
 
 
 def main() -> None:

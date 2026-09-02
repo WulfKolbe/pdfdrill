@@ -212,3 +212,19 @@ def test_no_flagged_row_is_silently_dropped():
     shown, rest = flagged_split(rows)
     assert len(shown) + rest["n"] == 60
     assert rest["C"] + rest["W"] == rest["n"]
+
+
+def test_ink_join_uses_the_resolved_bibkey_not_the_folder_name():
+    """516 — 462 renamed stems, not folders; the folder name joins nothing."""
+    import json
+    from pathlib import Path
+    from pdfdrill import report_tex as rt
+    import tempfile
+    tids = [{"title": "goodkey_EQ0001", "latex": "x", "page": "1",
+             "type": "equation"}]
+    with tempfile.TemporaryDirectory() as td:
+        p = Path(td) / "Some Long Folder Name.tiddlers.json"
+        p.write_text(json.dumps(tids))
+        ink = {"goodkey_EQ0001": {"code": "C|+9"}}
+        assert rt.ink_join(tids, "Some Long Folder Name", ink)["matched"] == 0
+        assert rt.ink_join(tids, "goodkey", ink)["matched"] == 1

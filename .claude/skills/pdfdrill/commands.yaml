@@ -1625,6 +1625,16 @@ commands:
     type: str
     help: 'inline-formulas section: unresolved (default, only rows that did not render),
       none (omit the section), all (every first-occurrence formula)'
+  - name: findings
+    flag: --findings
+    type: flag
+    help: 'THE FINDINGS SHAPE (509/513/515): instead of every row, four sections
+      that each say why the row is there — Corrected (the accepted pair, both
+      readings against one scan), Unresolved (does not render, or a refinement
+      whose two records disagree), Flagged not acted on (the ink differs;
+      banded on the component delta, the rest stated as a count), Doubted but
+      correct (confidence < 0.05 yet the ink agrees). A document with nothing
+      in any section is one page saying so. johnston: 284 pages become 41'
   - name: min_conf
     flag: --min-conf
     type: str

@@ -93,6 +93,10 @@ def test_build_report_writes_all_sections(tmp_path):
     assert r == {"equations": 1, "formulas": 1, "tables": 1,
                  # 460 — what the section shows, what the document has, why
                  "formulas_total": 1, "formula_rule": "all",
+                 # 516 — None outside the findings shape: a build that did not
+                 # select sections has no section counts, which is a different
+                 # fact from four zeroes.
+                 "findings": None,
                  "unrecovered": 1, "out": tmp_path / "report.tex"}
     assert "a3paper,landscape" in tex
     # identifiers carry break opportunities after . and _ (P16 mechanism 3)

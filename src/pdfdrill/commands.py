@@ -14663,6 +14663,7 @@ def cmd_reporttex(pdf: Path, paper: str = "a3", landscape: bool = True,
                   refined: bool = False,
                   prefer_refined: bool = False,
                   formulas: str = "unresolved",
+                  findings: bool = False,
                   render_regions: bool = False) -> str:
     """LaTeX formula report (report.tex): every EQ/FO/TAB identifier with
     page, escaped source, rendered math, and the MathPix scan crop at its
@@ -14674,6 +14675,12 @@ def cmd_reporttex(pdf: Path, paper: str = "a3", landscape: bool = True,
     drops the section, `all` is the former behaviour. Over the 22 published
     documents the section falls from 37,624 rows to 7 — it was a catalogue,
     not a report of problems.
+
+    `--findings` (509/513/515) builds the four-section shape: a row appears
+    only when there is something to say about it. It is not a filter over the
+    full report — the sections are selected from different evidence (the
+    accepted corrections, the render, the ink, the confidence) and a row can
+    be in only one.
 
     `--refined` builds a DIFFERENT report — refine.report.tex, one row per
     refined object with conf | ink before | ink after | verdict — from
@@ -14787,8 +14794,14 @@ def cmd_reporttex(pdf: Path, paper: str = "a3", landscape: bool = True,
     if ink_map:
         import json as _j
         try:
+            # 516 — THE BIBKEY IS RESOLVED, NOT THE FOLDER NAME. 462 renamed
+            # the identifier stems without renaming the folders, so
+            # blob_dir.name stopped matching the tiddler titles and this join
+            # reported "0 rows" for every renamed document — the check that
+            # exists to catch a join failure was itself always failing. Same
+            # resolution build_report uses, so the two cannot disagree.
             join = rt.ink_join(_j.loads(Path(tid).read_text(encoding="utf-8")),
-                               sc.blob_dir.name, ink_map)
+                               rt.resolve_bibkey(Path(tid)), ink_map)
         except Exception:
             join = {}
     # Residual data implies the residual COLUMN. Without this the file is
@@ -14826,10 +14839,21 @@ def cmd_reporttex(pdf: Path, paper: str = "a3", landscape: bool = True,
                         ink_state=ink_state, prefer_refined=prefer_refined,
                         bibkey_history=_bibkey_history(sc),
                         formulas=formulas,
+                        findings=findings,
                         render_regions=render_regions)
     # 460 — the formulas rule, stated where the build is reported. A section
     # that shrank from 4,061 rows to 1 has to say so; a reader who sees only
     # the short table will otherwise read it as a short document.
+    # 516 — in the findings shape the four section counts ARE the result, and
+    # the equation/formula/table numbers below describe the projection the
+    # sections were selected from, not what the report shows.
+    _fc = r.get("findings")
+    if _fc:
+        print("Findings: corrected %d, unresolved %d, flagged %d of %d shown, "
+              "doubted %d."
+              % (_fc.get("corrected", 0), _fc.get("unresolved", 0),
+                 _fc.get("flagged_shown", 0), _fc.get("flagged", 0),
+                 _fc.get("doubted", 0)))
     _ft, _fs = r.get("formulas_total", r["formulas"]), r["formulas"]
     if _ft != _fs:
         print("Formulas: %d of %d shown (rule %r — %s)."

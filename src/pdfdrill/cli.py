@@ -1125,7 +1125,7 @@ def _do_tailsplit(args):
 def _do_reporttex(args):
     """pdfdrill reporttex <pdf> [--paper a4|a3] [--portrait] [--compile]
     [--no-images] [--min-conf F] [--max-conf F] [--types equation,formula,...]
-    [--formulas all|unresolved|none]"""
+    [--formulas all|unresolved|none] [--findings]"""
     from .commands import cmd_reporttex
     paper, args = _opt(args, "--paper")
     lo, args = _opt(args, "--min-conf")
@@ -1136,7 +1136,7 @@ def _do_reporttex(args):
     pdf_args = [a for a in args if a not in ("--compile", "--no-images",
                                              "--portrait", "--form",
                                              "--no-legend", "--refined", "--render-regions",
-                                             "--prefer-refined")]
+                                             "--prefer-refined", "--findings")]
     return cmd_reporttex(_pdf(pdf_args), paper=paper or "a3",
                          landscape="--portrait" not in args,
                          compile_pdf="--compile" in args,
@@ -1146,6 +1146,7 @@ def _do_reporttex(args):
                          types=types, form="--form" in args, ink=ink,
                          legend="--no-legend" not in args,
                          formulas=formulas or "unresolved",
+                         findings="--findings" in args,
                          render_regions="--render-regions" in args,
                          refined="--refined" in args,
                          prefer_refined="--prefer-refined" in args)
