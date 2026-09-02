@@ -1,0 +1,124 @@
+516 — the remaining 20 built in the findings shape, and published
+=================================================================
+
+Published: https://pdfdrill.github.io/reports/  (site 82e952e, 2b30374)
+corrections.html published separately first, as asked: site b5a5d1c.
+
+PER-DOCUMENT COUNTS
+-------------------
+"flag" is shown/total: the flagged section lists rows whose component
+delta is >= 20 (515) and states the rest as a count. "was" is the page
+count of the same document in the full-listing shape (464 manifest).
+
+  document                        cor  unr  flag       dbt | pages   was
+  ---------------------------------------------------------------------
+  0707.4470                         1    0     2/13     0  |     4    12
+  1510.06699                        0    0     1/68     1  |     3    40
+  1605.05775                        0    0     0/2      0  |     2     7
+  2010.14265                        0    0     0/1      0  |     2     3
+  2106.07890                        0    0     0/14     0  |     2     7
+  2501.06662                        0    0     1/14     0  |     2     8
+  BradleyGastaldiTerilla2023        0    0     0/3      0  |     2     6
+  bradley_spring22                  0    0     0/3      0  |     2     4
+  cardona-qft-methods               0    1     1/110    0  |     3    92
+  fong-spivak-invitation            0    2     7/81     0  |     4   104
+  fong-spivak-seven-sketches        0    1     3/78     3  |     4   107
+  gilmore-lie-groups                0   10     5/350    1  |     8   153
+  johnston-linear-matrix-algebra    8    7    37/543    0  |    19   284
+  kohlhase-omdoc                    0    4     0/1      0  |     3    57
+  lyche-numerical-linear-algebra    8    5     1/239    0  |     8   140
+  mielke-geometrodynamics           3    2     0/207    0  |     4   108
+  penev_A                           0    1     0/33     0  |     3    15
+  penev_B                           0    0     0/24     0  |     2    11
+  rph8-g15q                         0    1     0/11     0  |     3     8
+  voloshin-hypergraph               3    0     0/24     0  |     3    64
+  ---------------------------------------------------------------------
+  PUBLISHED (20)                   23   34    58/1819   5  |    83  1230
+
+  0902.0431 (built, WITHHELD)      10    4    29/45     0  |    24   184
+  ---------------------------------------------------------------------
+  ALL BUILT (21)                   33   38    87/1864   5  |   107  1414
+
+PAGE TOTAL: 83, against 1,230. Zero LaTeX errors across all 21.
+Eight of the twenty are two or three pages, which is the shape working:
+a document with nothing to say says so on one page and stops.
+
+WHY 0902.0431 IS STILL WITHHELD, MEASURED
+------------------------------------------
+464 withheld it as NOT READY. 516 makes the reason exact, and it is worse
+under the findings shape than under the old one.
+
+  its ink covers 55 of 1,219 display equations = 4.5%
+
+Every other published document measures 100.0% of its equations. The
+flagged section is SELECTED from the ink, so publishing this one would
+show a section describing a twentieth of the book while looking exactly
+like the other twenty. Its "45 flagged" is 45 of 55 measured, not 45 of
+1,219. Under the full-listing shape the thin measurement was visible as
+a mostly-unmeasured residual column; under this one it is invisible.
+
+pdf-dc99cf88 untouched — no library folder, cannot be rebuilt (464).
+
+THREE DEFECTS FOUND BY BUILDING THROUGH THE CLI INSTEAD OF A SCRIPT
+-------------------------------------------------------------------
+1. `--findings` did not exist on the command surface. reporttex put the
+   unknown flag into the pdf-argument list and discarded it, so the first
+   "findings build" was the full 284-page report. An unknown flag is
+   accepted and ignored, which is the failure mode that makes a wrong
+   build look like a right one.
+
+2. The ink join was computed with `sc.blob_dir.name` as the bibkey while
+   build_report used `resolve_bibkey`. Since 462 renamed the identifier
+   stems and not the folders, every renamed document printed
+
+     INK JOIN FAILED: none of the 1670 measured identifiers matches a
+     row of this report (0 rows)
+
+   on every build. The check that exists to catch a join failure was
+   itself always failing, on exactly the documents it guards. Fixed to
+   the same resolution build_report uses; johnston now joins 1,670 of
+   1,670.
+
+3. build_report computed the four section counts and dropped them, so
+   the caller reported "1670 display equations" for a report showing 52
+   rows. Returned as the `findings` key and printed first.
+
+WHAT I GOT WRONG IN THIS TASK
+------------------------------
+- Wrote "107 pages, was 1,414" into the site lede. That is all 21 built,
+  including the withheld 0902.0431. The published figure is 83 against
+  1,230. Corrected before the commit.
+- Shipped thirteen tables.md because the 464 map lists them and the
+  previous publish never delivered them. Ten are zero bytes — legitimately,
+  since tables.md is the keyless pdfplumber route and those books have no
+  ruled tables — but an empty file on the site reads as a broken artefact.
+  Removed in 2b30374; the three with content stay.
+- johnston's page count is 19, not the 41 I reported in 515. Both are
+  right: 41 was a4 portrait, 19 is a3 landscape, which is what the
+  published set uses. The 284 it replaces was also a3 landscape, so the
+  comparison in 515 understated the drop.
+
+SITE CHANGES
+------------
+- report.pdf and report.build.json refreshed for all 20.
+- reports/index.html: a Findings column (cor / unr / flag shown-over-total
+  / dbt), refreshed Pages and Size, and a rewritten lede. The old one
+  promised "Every equation, and the image it was read from", which the
+  findings shape makes false for report.pdf; it now says where the
+  catalogue lives (formula-report.html, tables.html) and states that a
+  high-confidence flag is a rendering difference and not a defect.
+- three tables.md added, completing the 464 map.
+
+Tests: 2,908 passing, plus a test that ink_join uses the resolved bibkey.
+
+STILL OPEN
+----------
+- Whether findings becomes the DEFAULT for reporttex, or stays a flag.
+  It is a flag now; the published set was built with it explicitly.
+  --profile published still sets the formula rule and nothing else (469),
+  so the publish shape is currently carried by the invocation, not by the
+  profile — which is the thing that made 463 hard to reproduce.
+- 0902.0431's lattice defect (1,216 rows vs 1,219 identifiers) is what
+  blocks its measurement and therefore its publication.
+- None of the 58 shown flagged rows has been read. The sections name what
+  is worth looking at; they make no claim that any of it is a defect.
