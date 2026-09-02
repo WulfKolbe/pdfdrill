@@ -1,0 +1,102 @@
+520 — the invented-\left. class, as its own defect
+==================================================
+
+Written for sending: docs/mathpix/2026-09-02-invented-left-dot.md
+
+THE CLASS
+---------
+26 rows, 4 documents, 3 pdf_ids. A value that BEGINS with `\left.` and
+carries a `\right\lrcorner`.
+
+`\left.` is a null delimiter — it prints nothing, so it can never
+correspond to anything on the page. Its only possible purpose is to
+balance a `\right` that should not be there. A leading `\left.` beside a
+`\right<corner>` is therefore self-evidently an invented fence.
+
+The mechanism: the interior-product operator ⌟ (U+231F) is decoded as a
+CLOSING DELIMITER instead of a binary operator. The bracket group then
+moves — the maths changes — while the rendered picture stays nearly
+identical.
+
+  rows                                   26
+  beginning with TWO invented \left.     10
+  corner symbols after \right            30, all \lrcorner
+  EQ rows (page + confidence + crop)     16
+  FO rows (our projection carries none)  10
+  confidence over the 16   min 0.351, MEDIAN 1.000, max 1.000; 11 at 1.000
+  ink                      0 flagged; the 4 measured all say agrees
+                           (3x N|+0, 1x K|+0)
+  renderable()             accepts all 26
+  xelatex                  EQ0294 compiles with 0 errors
+
+  Complex Analysis (Ebenfelt et al., Birkhauser 2010)   13
+  Geometrodynamics (Mielke)                              6
+  1-s2.0-S039304401100026X                               5
+  1205.5935v1                                            2
+
+VERIFIED AGAINST CROPS, NOT ASSERTED
+-------------------------------------
+Three rows read against their scans, in three different documents:
+
+  mielke_EQ0294 p101   page prints ⌋ as a binary operator three times;
+                       MathPix returns \downharpoonleft twice and
+                       \right\lrcorner once. Same glyph, three readings.
+
+  1-s2.0_EQ0015 p5     page prints  d*η = ⌟(∇η).
+                       returned \left.d^{*}\eta=\right\lrcorner(\nabla\eta)
+
+  Complex_..._EQ0851 p241  THE PROOF. The page prints Φ⌟∂_b v twice in one
+                       line. MathPix returns the first as \Phi\lrcorner
+                       \partial_{b} v — correct, bare operator — and the
+                       second, eight tokens later, as \Phi\right\lrcorner
+                       \partial_{b} v — a fence. Confidence 1.000.
+
+That last row is why this is neither a glyph ambiguity nor a vocabulary
+gap: the model had the right token and used it correctly in the same
+expression. It is a decoding decision that flipped mid-expression. Ten of
+the 26 needed TWO invented `\left.` to stay balanced.
+
+WHY IT IS NEW TO THEM
+----------------------
+The eight already sent are wrong SYMBOLS (CJK, \nvdash, l-for-1, dropped
+cells). This is a wrong ARITY: the symbol is right and its role is wrong.
+Every existing check on both sides misses it —
+
+  it compiles                       0 xelatex errors
+  their confidence is high          median 1.000
+  our ink cannot see it             all measured rows read as agreement
+
+A grouping error is a small-ink error. 465 already established that ink
+plus high confidence is a rendering-difference detector; here there is
+not even a rendering difference to detect.
+
+The structural check is nearly free: `^\left.` together with a
+`\right<corner>` fires 26 times in 634,258 equations across 1,349
+documents.
+
+SENDING
+-------
+NOT SENT — there is no channel from here. No support address, ticket id
+or mail transport exists in this repo or this environment, and the
+correspondence has always gone out under Wulf's own account. The
+handover already records the standing debt: "The seven attached defects
+never arrived — the ticket had no attachments. Resend, or send the report
+URLs and EQ ids."
+
+So the artefact is written to be pasted or attached as-is. It quotes the
+pdf_id-bearing CDN URLs rather than embedding crops, which is both the
+better handle (02-mathpix.md) and avoids putting images from unpublished
+copyrighted books on any public surface. Two of the four documents —
+Complex Analysis and the Elsevier article — are NOT in the published 21,
+which is why I have not published this as a web page. Say the word and I
+will.
+
+A FABRICATION CAUGHT BEFORE IT WENT OUT
+----------------------------------------
+The first draft carried a crop URL I had typed rather than read:
+`1c672004-1b53-4728-b19a-e63e5f0efe28-241.jpg`. The real one is
+`c1ec8e32-46ee-4385-a2a3-8e7902116925-241.jpg`. It is fixed, and every
+URL in the document is now checked against the tiddler data — 8 of 8
+present. A fabricated pdf_id in a vendor report would have been the worst
+possible error in this task, because the pdf_id is the handle they look
+the document up by.
