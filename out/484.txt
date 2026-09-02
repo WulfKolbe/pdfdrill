@@ -1,0 +1,126 @@
+484 — the preamble change, measured across the corpus
+2026-09-02T12:40Z · 428 affected rows and a 600-row control, each compiled twice
+
+THE CHANGE
+----------
+  \usepackage{bm}
+  \usepackage{mathtools}
+  \usepackage{extarrows}
+  \usepackage{cancel}
+  \providecommand{\Perp}{\mathrel{\perp\!\!\!\perp}}
+  \providecommand{\overparen}[1]{\overset{\frown}{#1}}
+  \providecommand{\oiint}{\oint\!\!\!\oint}
+
+STIX2 IS NOT THERE, AND CANNOT BE
+---------------------------------
+482 recommended stix2 for `\overparen` and `\oiint`. That was wrong, and the
+compiler says so in one line:
+
+  ! LaTeX Error: Too many symbol fonts declared.
+
+amssymb + bbm + mathrsfs + stmaryrd already spend TeX's sixteen math
+families. Adding stix2 produced 100 errors. So the two commands it would have
+supplied go in as `\providecommand` instead — the technique 442 used for
+`\longdiv`, and the reason it is the right one here is that a macro costs no
+font family. `\Perp` is a `\providecommand` for a different reason: no
+package defines it, and it spans 10 documents.
+
+A test asserts stix2 is absent AND that adding it really does exhaust the
+symbol fonts, so the reason is checked rather than remembered.
+
+THE MEASUREMENT
+---------------
+Two populations, each row compiled standalone under the old preamble and the
+new one. 2,056 compiles.
+
+  AFFECTED — every corpus row using one of the newly covered commands
+             428 rows in 39 documents
+             16 refused by the syntactic gate before any compiler sees them,
+                so the preamble is not the question for those
+             412 reach a compiler
+
+                                    old preamble    new preamble
+             compiled                    0 of 412      407 of 412
+             GAINED                                          407
+             LOST                                              0
+
+  CONTROL  — 600 rows drawn at random from those that already render
+
+                                    old preamble    new preamble
+             compiled                  600 of 600      600 of 600
+             GAINED                                            0
+             LOST                                              0
+
+Zero of 412 compiled before. That is the shape of an undefined control
+sequence: it is fatal, not cosmetic, and every one of these rows was being
+demoted by the report's compile fixpoint for want of a `\usepackage` line.
+
+Zero regressions in 600 control rows is the half that mattered — a preamble
+is loaded by every build in the corpus, and the risk was never the gain.
+
+WHERE THE 407 ARE
+-----------------
+  1707.08872                                   98
+  2010.14265                                   75
+  2303.17190                                   28
+  Quaternion and Clifford Fourier Transforms   27
+  2408.14035v2                                 18
+  1808.06356                                   16
+  1903.04829                                   15
+  2208.01506                                   14
+  marx19a                                      13
+  L-groups and the Langlands program           11
+  … 29 more documents
+
+2010.14265 is one of the 22 published documents, and 75 of its rows are in
+this set.
+
+THE FIVE THAT STILL FAIL
+------------------------
+  1911.08029 EQ0016, EQ0023   \begin{split} … &\vcentcolon= …
+  2303.17190 EQ0035          H\coloneqq\langle\mathcal{H}\rangle=M_{\hat\mathcal{H}}(1,0)
+  2304.14263 EQ0182          \begin{split} … &\xleftrightarrow{\hspace{1cm}} …
+  2408.14035v2 EQ0022        \begin{aligned} \begin{split}~ …
+
+Four of the five carry a bare `\begin{split}`, which amsmath allows only
+inside another display environment — a structural defect in the value, not a
+missing package. `\hat\mathcal{H}` in the fifth is an accent applied to a
+whole alphabet command. None of them is a package gap and none is fixed by
+adding one.
+
+WHAT 482 SAID AND WHAT THIS FOUND
+---------------------------------
+482 sized the package-fixable population at 536 occurrences over 17 commands
+and named four packages. Two corrections come out of actually doing it:
+
+  stix2 is impossible, for a reason no census could see — it is a property of
+  the preamble it would join, not of the commands it defines.
+
+  `cancel` earns its place (10 occurrences) and `esint`, `wasysym`, `mathabx`,
+  `tipa` and `esvect` do not: every command they would have supplied is either
+  covered by the three `\providecommand`s or occurs once or twice. Four
+  packages, not ten.
+
+And 482's larger finding stands untouched: 11,088 of the 11,624 undefined
+occurrences are the source document's own macros, 4,180 of them PSTricks from
+a single book. Nothing here touches those, and nothing should — `injectlatex`
+is the route for them, and out/056's 286 note already measured that it can
+make things worse.
+
+WHAT WAS CHANGED
+----------------
+  src/pdfdrill/report_tex.py    seven lines in PREAMBLE, with the measurement
+                                and the stix2 refusal recorded beside them
+  tests/test_preamble_484.py    6 tests: the four packages declared, stix2
+                                absent, the three providecommands present,
+                                stix2 really exhausting the symbol fonts,
+                                every newly covered command compiling, and a
+                                control row still compiling
+
+Full suite: 2,871 passed.
+
+NOT DONE
+--------
+No report was rebuilt. The 407 rows change nothing on disk until the
+documents holding them are rebuilt, and 2010.14265's 75 are the only ones
+inside the published 22.
