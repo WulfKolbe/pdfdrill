@@ -1,0 +1,112 @@
+502 — FO0175 re-measured: the letter stands, the alphabet does not
+2026-09-02T16:20Z · 0707.4470_FO0175, page 29
+
+WHAT THE PAGE ACTUALLY PRINTS
+-----------------------------
+Rasterised page 29 at 1200 dpi and cut the glyph out of the line
+
+  "Given a discrete 1-form A and dual source 3-form 𝒥, define the discrete"
+
+The glyph is 151x165 px at that resolution and carries a diagonal stroke
+crossing the bowl and a swash tail curling left below the baseline. That is
+the RSFS script J — `\mathscr` — and it is not CM calligraphic.
+
+THE MEASUREMENT
+---------------
+Each candidate compiled with the report's own preamble, rasterised at 800 dpi,
+normalised to a common height and overlapped with the printed glyph:
+
+  candidate            IoU against the print
+  -------------------------------------------
+  \mathscr{J}                     0.448
+  \mathcal{J}                     0.219
+  \mathscr{g}                     — renders NOTHING
+
+`\mathscr{J}` is 2.05x closer to the page than `\mathcal{J}`.
+
+So the alphabet half of the refinement moved the render AWAY from the ink,
+exactly as suspected, and the split is right: keep the letter, drop the
+alphabet.
+
+AND THE "BEFORE" WAS NOT A WRONG GLYPH — IT WAS A BLANK
+--------------------------------------------------------
+  ! Missing character: There is no g ("67) in font rsfs10!
+
+`mathrsfs` is uppercase-only. MathPix's `\mathscr{g}` renders as nothing at
+all, so the row was an empty cell, not a mis-set one. That changes the
+accounting in the refinement's favour:
+
+  \mathscr{g}   blank            the state before out/229
+  \mathcal{J}   IoU 0.219        the accepted refinement — a real improvement
+                                 on a blank, and still the wrong alphabet
+  \mathscr{J}   IoU 0.448        what the page prints
+
+The refinement was not a regression. It was a partial fix recorded as a whole
+one, and the half that was wrong is the half nothing measured.
+
+A FIRST MEASUREMENT THAT WAS NOT GOOD ENOUGH, AND WHY IT IS RECORDED
+---------------------------------------------------------------------
+Before the overlap test I built a five-tuple-style comparison — components,
+holes, aspect, ink fraction — and it said `\mathcal{J}` 12.42 against
+`\mathscr{J}` 13.93, i.e. the opposite of the eye and of the final answer.
+
+It was wrong because the instrument was: the printed glyph measured 4
+components and 5 holes for a single connected letterform, which is a
+threshold fragmenting a 50-px glyph upscaled 8x, not a property of the ink.
+And the distance function was one I invented, weighting aspect and ink
+fraction by numbers I chose.
+
+The fix was to stop deriving a statistic and compare the pixels: same
+normalisation, direct intersection over union. That is the measurement in the
+table above. The first numbers are here because a reader who sees 12.42 vs
+13.93 somewhere else should know it was rejected and on what grounds.
+
+WHAT WAS CHANGED
+----------------
+  model.docmodel.json   obj_0c9487434929 props.latex_refined
+                        \mathcal{J} -> \mathscr{J}
+                        refined_basis "source" -> "source+ink"
+                        refined_author out/229 -> out/502
+                        refined_note recording the IoU figures
+  model.docpack.json    deleted — a derived, string-interned cache; 276's rule
+                        is to invalidate rather than hand-edit it
+  0707.4470.tiddlers.json   the same three fields on the projection
+
+`latex` is untouched at `\mathscr{g}`, per the 232 contract: the refinement
+is a twin prop and MathPix's bytes stay verbatim on disk.
+
+FOR THE CORRESPONDENCE — THE SIXTH WITHDRAWAL
+----------------------------------------------
+The line currently reads:
+
+  Also `0707.4470_FO0175` p29: `\mathscr{g}` where the author wrote
+  `\mathcal{J}` — proven by counting (29 = 28 + 1, nothing unaccounted)
+  rather than by judging letterforms.
+
+It should come down, and the reason is precise: THE COUNTING PROVED THE
+LETTER, NOT THE ALPHABET. 29 = 28 + 1 establishes which symbol the author
+meant; it says nothing about which alphabet the page sets it in, and the page
+sets it in script, which is what MathPix wrote. MathPix's error here is a
+lowercase g for an uppercase J — a letter error, and one it made in an
+alphabet it had right.
+
+Suggested replacement, if the case is kept at all:
+
+  `0707.4470_FO0175` p29 — `\mathscr{g}` for `\mathscr{J}`. The alphabet is
+  correct; the letter is not, and `\mathscr{g}` renders as nothing because
+  rsfs10 has no lowercase. Proven by counting (29 = 28 + 1). The earlier
+  report of this row said the author wrote `\mathcal{J}`; that was our error
+  and is withdrawn.
+
+That is the sixth withdrawal, and it is worth sending for the reason the
+admin already gave: he said the withdrawal ratio was worth as much as the
+defects.
+
+THE METHODOLOGICAL POINT WORTH KEEPING
+--------------------------------------
+Three sizes looked flat; twelve found four departures between the sampled
+points. The same shape as sampling the first 24 lexicographic permutations
+and calling it a sweep — and the same shape as the first measurement in this
+report, which sampled four derived statistics and missed what the pixels
+show. A sample that is not dense enough to see the thing it is looking for
+returns "flat" and "no difference" with equal confidence either way.
