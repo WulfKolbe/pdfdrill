@@ -1,0 +1,124 @@
+486 — the mid-string rows characterised, and they are not for the mail
+2026-09-02T10:15Z · tools/midstring486.py, 1,349 documents
+
+THE ANSWER, FIRST
+-----------------
+  two complete displays glued into one value        0
+  a display that opens and never closes          152   17 documents
+  one display with content outside it             44   22 documents
+  ---------------------------------------------------------------
+                                                  196   39 documents
+
+Zero. Not one row in the corpus is two complete displays in one value. The
+hypothesis is refuted, and the population is two different things, neither of
+them new and neither of them MathPix's.
+
+(196, not 167. The 167 in 483 came from replaying the gate over the 300-
+character truncations stored in 481's scan; 486 reads the full values from the
+projections. 196 is the number.)
+
+152 — OPENS AND NEVER CLOSES. OURS, AND NOT MATHPIX'S AT ALL
+-------------------------------------------------------------
+Every one of the 152 is `\[` with no matching `\]` — all in the same
+direction, all on Equation objects, and NONE of them carries a crop URL.
+
+That last fact is the whole answer. `canonical_uri` is set on objects MathPix
+produced. These have none, because their models were not built from MathPix:
+
+  2004.05631        source_path 'thesis.tex (LaTeX source, no OCR)'      283 equations, 0 with cdn_url
+  math_0202059      source_path 'Main.tex (LaTeX source, no OCR)'        518 equations, 0 with cdn_url
+  1605.0232v1       source_path 'CCP-Arxiv.tex (LaTeX source, no OCR)'    83 equations, 0 with cdn_url
+
+  2004.05631  56 rows      math_0202059  50      1605.0232v1  17
+  preprints202505.0818.v1  6    2006.16930  4    quant-ph_0101012  4
+  2511.07378v1  3    2505.05522  2    … 9 more with 1-2 each
+
+106 of the 152 are in two documents. This is our own arXiv-LaTeX-source
+ingestion cutting the author's `.tex` at a display boundary and keeping the
+opener. MathPix never saw these documents.
+
+44 — A DISPLAY WITH CONTENT OUTSIDE IT. ALSO OURS, AND THE PROOF IS THEIR OWN LINE
+----------------------------------------------------------------------------------
+All 44 are on `source=mathpix` models and all 44 have a crop URL. What sits
+outside the display:
+
+  float furniture (caption / captionsetup / end{figure})   42
+  text or prose                                             2
+
+So they are 481's figure-wrapper class seen from the other side.
+
+The ownership question is settled the same way 481 settled the `\]`: by
+reading what MathPix actually returned. For 2005.05886_EQ0001, page 2,
+confidence 1.000, their line `e453e20fa71e` (type=math, region 756x43) is:
+
+  '\[\nR \longrightarrow P\left|P^{-} \quad B \longrightarrow A\right| \geq_{1} R \quad C \longrightarrow A \mid \geq_{n} R\n\]'
+
+That is the display and nothing else. No `\begin{figure}`, no
+`\captionsetup`, no `\caption`. And their markdown keeps them apart too —
+
+  $$\nR \longrightarrow P… \geq_{n} R\n$$\nFigure 1: Syntax of $D L$-Lite…
+
+the display as `$$…$$`, the caption as the prose line after it.
+
+Our tiddler's `latex` for that object is
+
+  \begin{figure} \[ R \longrightarrow … \] \captionsetup{labelformat=empty} \caption{Figure 1: Syntax of \(D L\)-Lite …
+
+The float furniture is not in their line, not in their markdown, and is in
+our field. OUR ASSEMBLY put it there. The 756x43 crop is one line tall; the
+value it is attached to contains a whole figure.
+
+THE THREE EXAMPLES, WITH CROPS
+------------------------------
+Kept because they are worth looking at, not because they are for sending.
+All three at confidence 1.000.
+
+  2005.05886_EQ0001  page 2
+  https://cdn.mathpix.com/cropped/dd251be7-6aa2-4155-b40e-c491341a8547-02.jpg?height=43&width=756&top_left_y=180&top_left_x=1139
+    outside: BEFORE \begin{figure} | AFTER \captionsetup{…} \caption{Figure 1: Syntax of DL-Lite…}
+
+  21bigdata-forte_EQ0001  page 1
+  https://cdn.mathpix.com/cropped/6bf8425d-5bf3-4766-b7ff-3c3a569e3bfe-01.jpg?height=185&width=771&top_left_y=975&top_left_x=1132
+    outside: BEFORE \begin{figure} \captionsetup{labelformat=empty} \caption{TABLE I: Examples of
+             scientific formulae in various domains.} | AFTER \end{figure}
+    — note the caption comes BEFORE the display here and AFTER it in the other two,
+      which is what a wrapper looks like and not what a mis-segmentation looks like
+
+  LATEX Graphics with TikZ_EQ0005  page 171
+  https://cdn.mathpix.com/cropped/1d821280-244a-423f-ac02-98b70e498450-171.jpg?height=158&width=677&top_left_y=521&top_left_x=598
+    outside: BEFORE \begin{figure} | AFTER \captionsetup{…} \caption{…}
+    value: a 3x3 matrix \xrightarrow{Transpose} its transpose
+
+WHY THIS IS NOT THE MAIL
+------------------------
+The case for sending it was that a crop showing two separate equations
+returned as one value is a segmentation error the admin can check against his
+own logs, and the mirror of 465's `\hbox{` case.
+
+It is not that. There are no such rows. And for the 44 that do involve
+MathPix, their own line and their own markdown both keep the display and the
+caption apart — the gluing happened downstream of them, in our assembly.
+Sending it would ask the admin to explain a defect his logs would show he did
+not commit, which is worse than sending nothing: the correspondence has five
+withdrawn claims already and each cost credibility.
+
+465's `\hbox{` case remains genuinely theirs. This one is genuinely ours, and
+the same instrument that found the first is what shows the difference.
+
+WHAT IT IS INSTEAD
+------------------
+Two of our own defects, now sized:
+
+  152 rows / 17 documents   LaTeX-source ingestion drops the closing `\]`.
+                            Concentrated: 106 in two documents. No model, no
+                            crop and no call is needed to fix it — the
+                            author's `.tex` is on disk.
+  42 rows / ~20 documents   our markdown assembly wraps a display in the
+                            float furniture that MathPix returned separately.
+                            This is 485, and 486 raises its count from the 7
+                            balanced floats 483 found to 42 — because 481's
+                            class required a leading `\begin{figure}` and
+                            this one asks the question that matters, which is
+                            whether anything sits outside the display.
+
+Nothing was changed.
