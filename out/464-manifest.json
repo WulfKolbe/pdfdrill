@@ -1,0 +1,539 @@
+[
+ {
+  "slug": "0707.4470",
+  "publish": true,
+  "library_folder": "0707.4470",
+  "pages": 12,
+  "equations": 62,
+  "residual": {
+   "W": 11,
+   "C": 2,
+   "K": 19,
+   "N": 29,
+   "S": 1
+  },
+  "measured": "2026-09-01",
+  "formula_rule": "none",
+  "copy": {
+   "report.pdf": "report.pdf",
+   "report.ink.json": "report.ink.json",
+   "report.build.json": "report.build.json",
+   "0707.4470.inspect.html": "inspect.html",
+   "0707.4470.md": "0707.4470.md",
+   "formula-report.html": "formula-report.html"
+  },
+  "reason": null
+ },
+ {
+  "slug": "0902.0431",
+  "publish": false,
+  "library_folder": "0902.0431",
+  "pages": 184,
+  "equations": 55,
+  "residual": {
+   "C": 55
+  },
+  "measured": "2026-08-26",
+  "formula_rule": "none",
+  "copy": {
+   "report.pdf": "report.pdf",
+   "report.ink.json": "report.ink.json",
+   "report.build.json": "report.build.json",
+   "0902.0431.inspect.html": "inspect.html",
+   "tables.md": "tables.md",
+   "formula-report.html": "formula-report.html",
+   "tables.html": "tables.html"
+  },
+  "reason": "NOT READY — see out/463.txt"
+ },
+ {
+  "slug": "1510.06699",
+  "publish": true,
+  "library_folder": "1510.06699",
+  "pages": 40,
+  "equations": 279,
+  "residual": {
+   "S": 2,
+   "N": 157,
+   "C": 33,
+   "W": 35,
+   "K": 52
+  },
+  "measured": "2026-09-01",
+  "formula_rule": "none",
+  "copy": {
+   "report.pdf": "report.pdf",
+   "report.ink.json": "report.ink.json",
+   "report.build.json": "report.build.json",
+   "1510.06699.inspect.html": "inspect.html",
+   "tables.md": "tables.md",
+   "formula-report.html": "formula-report.html",
+   "tables.html": "tables.html"
+  },
+  "reason": null
+ },
+ {
+  "slug": "1605.05775",
+  "publish": true,
+  "library_folder": "1605.05775",
+  "pages": 7,
+  "equations": 26,
+  "residual": {
+   "W": 2,
+   "N": 21,
+   "K": 3
+  },
+  "measured": "2026-09-01",
+  "formula_rule": "none",
+  "copy": {
+   "report.pdf": "report.pdf",
+   "report.ink.json": "report.ink.json",
+   "report.build.json": "report.build.json",
+   "1605.05775.inspect.html": "inspect.html",
+   "1605.05775.md": "1605.05775.md",
+   "formula-report.html": "formula-report.html"
+  },
+  "reason": null
+ },
+ {
+  "slug": "2010.14265",
+  "publish": true,
+  "library_folder": "2010.14265",
+  "pages": 3,
+  "equations": 16,
+  "residual": {
+   "U": 10,
+   "N": 3,
+   "K": 2,
+   "W": 1
+  },
+  "measured": "2026-09-01",
+  "formula_rule": "none",
+  "copy": {
+   "report.pdf": "report.pdf",
+   "report.ink.json": "report.ink.json",
+   "report.build.json": "report.build.json",
+   "2010.14265.inspect.html": "inspect.html",
+   "2010.14265.md": "2010.14265.md",
+   "formula-report.html": "formula-report.html"
+  },
+  "reason": null
+ },
+ {
+  "slug": "2106.07890",
+  "publish": true,
+  "library_folder": "2106.07890",
+  "pages": 7,
+  "equations": 51,
+  "residual": {
+   "C": 3,
+   "W": 11,
+   "N": 35,
+   "K": 2
+  },
+  "measured": "2026-09-01",
+  "formula_rule": "none",
+  "copy": {
+   "report.pdf": "report.pdf",
+   "report.ink.json": "report.ink.json",
+   "report.build.json": "report.build.json",
+   "2106.07890.inspect.html": "inspect.html",
+   "2106.07890.md": "2106.07890.md",
+   "formula-report.html": "formula-report.html"
+  },
+  "reason": null
+ },
+ {
+  "slug": "2501.06662",
+  "publish": true,
+  "library_folder": "2501.06662",
+  "pages": 8,
+  "equations": 60,
+  "residual": {
+   "C": 6,
+   "W": 8,
+   "N": 42,
+   "K": 4
+  },
+  "measured": "2026-09-01",
+  "formula_rule": "none",
+  "copy": {
+   "report.pdf": "report.pdf",
+   "report.ink.json": "report.ink.json",
+   "report.build.json": "report.build.json",
+   "2501.06662.inspect.html": "inspect.html",
+   "2501.06662.md": "2501.06662.md",
+   "formula-report.html": "formula-report.html"
+  },
+  "reason": null
+ },
+ {
+  "slug": "BradleyGastaldiTerilla2023",
+  "publish": true,
+  "library_folder": "BradleyGastaldiTerilla2023",
+  "pages": 6,
+  "equations": 8,
+  "residual": {
+   "W": 3,
+   "N": 4,
+   "K": 1
+  },
+  "measured": "2026-09-01",
+  "formula_rule": "none",
+  "copy": {
+   "report.pdf": "report.pdf",
+   "report.ink.json": "report.ink.json",
+   "report.build.json": "report.build.json",
+   "BradleyGastaldiTerilla2023.inspect.html": "inspect.html",
+   "tables.md": "tables.md",
+   "formula-report.html": "formula-report.html",
+   "tables.html": "tables.html"
+  },
+  "reason": null
+ },
+ {
+  "slug": "bradley_spring22",
+  "publish": true,
+  "library_folder": "bradley_spring22",
+  "pages": 4,
+  "equations": 16,
+  "residual": {
+   "W": 3,
+   "N": 10,
+   "K": 3
+  },
+  "measured": "2026-09-01",
+  "formula_rule": "none",
+  "copy": {
+   "report.pdf": "report.pdf",
+   "report.ink.json": "report.ink.json",
+   "report.build.json": "report.build.json",
+   "bradley_spring22.inspect.html": "inspect.html",
+   "bradley_spring22.md": "bradley_spring22.md",
+   "formula-report.html": "formula-report.html"
+  },
+  "reason": null
+ },
+ {
+  "slug": "cardona-qft-methods",
+  "publish": true,
+  "library_folder": "Geometric, Algebraic and Topological Methods for Quantum Field Theory (Alexander Cardona (ed.) etc.) (Z-Library)",
+  "pages": 92,
+  "equations": 1012,
+  "residual": {
+   "C": 24,
+   "W": 86,
+   "U": 2,
+   "N": 607,
+   "K": 275,
+   "S": 18
+  },
+  "measured": "2026-09-01",
+  "formula_rule": "none",
+  "copy": {
+   "report.pdf": "report.pdf",
+   "report.ink.json": "report.ink.json",
+   "report.build.json": "report.build.json",
+   "Geometric, Algebraic and Topological Methods for Quantum Field Theory (Alexander Cardona (ed.) etc.) (Z-Library).inspect.html": "inspect.html",
+   "tables.md": "tables.md",
+   "formula-report.html": "formula-report.html",
+   "tables.html": "tables.html"
+  },
+  "reason": null
+ },
+ {
+  "slug": "fong-spivak-invitation",
+  "publish": true,
+  "library_folder": "An Invitation to Applied Category Theory Seven Sketches In Compositionality (Brendan Fong, David I. Spivak) (Z-Library)",
+  "pages": 104,
+  "equations": 262,
+  "residual": {
+   "U": 4,
+   "C": 51,
+   "W": 32,
+   "S": 15,
+   "K": 61,
+   "N": 99
+  },
+  "measured": "2026-09-01",
+  "formula_rule": "none",
+  "copy": {
+   "report.pdf": "report.pdf",
+   "report.ink.json": "report.ink.json",
+   "report.build.json": "report.build.json",
+   "An Invitation to Applied Category Theory Seven Sketches In Compositionality (Brendan Fong, David I. Spivak) (Z-Library).inspect.html": "inspect.html",
+   "tables.md": "tables.md",
+   "formula-report.html": "formula-report.html",
+   "tables.html": "tables.html"
+  },
+  "reason": null
+ },
+ {
+  "slug": "fong-spivak-seven-sketches",
+  "publish": true,
+  "library_folder": "Seven Sketches in Composability An invitation to applied category theory (Brendan Fong, David I. Spivak) (Z-Library)",
+  "pages": 107,
+  "equations": 264,
+  "residual": {
+   "C": 42,
+   "S": 21,
+   "W": 36,
+   "U": 4,
+   "N": 128,
+   "K": 33
+  },
+  "measured": "2026-09-01",
+  "formula_rule": "none",
+  "copy": {
+   "report.pdf": "report.pdf",
+   "report.ink.json": "report.ink.json",
+   "report.build.json": "report.build.json",
+   "Seven Sketches in Composability An invitation to applied category theory (Brendan Fong, David I. Spivak) (Z-Library).inspect.html": "inspect.html",
+   "tables.md": "tables.md",
+   "formula-report.html": "formula-report.html",
+   "tables.html": "tables.html"
+  },
+  "reason": null
+ },
+ {
+  "slug": "gilmore-lie-groups",
+  "publish": true,
+  "library_folder": "Lie Groups, Physics and Geometry - An Intro for Physicists, Engineers and Chemists - R. Gilmore (",
+  "pages": 153,
+  "equations": 1037,
+  "residual": {
+   "U": 2,
+   "W": 281,
+   "S": 49,
+   "C": 78,
+   "N": 531,
+   "K": 96
+  },
+  "measured": "2026-09-01",
+  "formula_rule": "none",
+  "copy": {
+   "report.pdf": "report.pdf",
+   "report.ink.json": "report.ink.json",
+   "report.build.json": "report.build.json",
+   "Lie Groups, Physics and Geometry - An Intro for Physicists, Engineers and Chemists - R. Gilmore (.inspect.html": "inspect.html",
+   "tables.md": "tables.md",
+   "formula-report.html": "formula-report.html",
+   "tables.html": "tables.html"
+  },
+  "reason": null
+ },
+ {
+  "slug": "johnston-linear-matrix-algebra",
+  "publish": true,
+  "library_folder": "Introduction to Linear and Matrix Algebra (Nathaniel Johnston) (Z-Library)",
+  "pages": 284,
+  "equations": 1670,
+  "residual": {
+   "C": 273,
+   "U": 3,
+   "W": 285,
+   "N": 763,
+   "S": 66,
+   "K": 280
+  },
+  "measured": "2026-09-01",
+  "formula_rule": "none",
+  "copy": {
+   "report.pdf": "report.pdf",
+   "report.ink.json": "report.ink.json",
+   "report.build.json": "report.build.json",
+   "Introduction to Linear and Matrix Algebra (Nathaniel Johnston) (Z-Library).inspect.html": "inspect.html",
+   "tables.md": "tables.md",
+   "formula-report.html": "formula-report.html",
+   "tables.html": "tables.html"
+  },
+  "reason": null
+ },
+ {
+  "slug": "kohlhase-omdoc",
+  "publish": true,
+  "library_folder": "OMDoc – An Open Markup Format for Mathematical Documents [version 1.2] Foreword by Allan Bundy (Michael Kohlhase (auth.)) (Z-Library)",
+  "pages": 57,
+  "equations": 6,
+  "residual": {
+   "U": 3,
+   "C": 1,
+   "S": 1,
+   "N": 1
+  },
+  "measured": "2026-09-01",
+  "formula_rule": "none",
+  "copy": {
+   "report.pdf": "report.pdf",
+   "report.ink.json": "report.ink.json",
+   "report.build.json": "report.build.json",
+   "OMDoc – An Open Markup Format for Mathematical Documents [version 1.2] Foreword by Allan Bundy (Michael Kohlhase (auth.)) (Z-Library).inspect.html": "inspect.html",
+   "tables.md": "tables.md",
+   "formula-report.html": "formula-report.html",
+   "tables.html": "tables.html"
+  },
+  "reason": null
+ },
+ {
+  "slug": "lyche-numerical-linear-algebra",
+  "publish": true,
+  "library_folder": "Numerical Linear Algebra and Matrix Factorizations (Tom Lyche) (Z-Library)",
+  "pages": 140,
+  "equations": 1056,
+  "residual": {
+   "C": 44,
+   "S": 35,
+   "N": 602,
+   "W": 202,
+   "K": 169,
+   "U": 4
+  },
+  "measured": "2026-09-01",
+  "formula_rule": "none",
+  "copy": {
+   "report.pdf": "report.pdf",
+   "report.ink.json": "report.ink.json",
+   "report.build.json": "report.build.json",
+   "Numerical Linear Algebra and Matrix Factorizations (Tom Lyche) (Z-Library).inspect.html": "inspect.html",
+   "tables.md": "tables.md",
+   "formula-report.html": "formula-report.html",
+   "tables.html": "tables.html"
+  },
+  "reason": null
+ },
+ {
+  "slug": "mielke-geometrodynamics",
+  "publish": true,
+  "library_folder": "Geometrodynamics of Gauge Fields On the Geometry of Yang-Mills and Gravitational Gauge Theories (Eckehard W. Mielke) (Z-Library)",
+  "pages": 108,
+  "equations": 1149,
+  "residual": {
+   "W": 145,
+   "C": 64,
+   "N": 749,
+   "K": 163,
+   "S": 19,
+   "U": 9
+  },
+  "measured": "2026-09-01",
+  "formula_rule": "none",
+  "copy": {
+   "report.pdf": "report.pdf",
+   "report.ink.json": "report.ink.json",
+   "report.build.json": "report.build.json",
+   "Geometrodynamics of Gauge Fields On the Geometry of Yang-Mills and Gravitational Gauge Theories (Eckehard W. Mielke) (Z-Library).inspect.html": "inspect.html",
+   "tables.md": "tables.md",
+   "formula-report.html": "formula-report.html",
+   "tables.html": "tables.html"
+  },
+  "reason": null
+ },
+ {
+  "slug": "pdf-dc99cf88",
+  "publish": false,
+  "reason": "no library folder — cannot be rebuilt or republished"
+ },
+ {
+  "slug": "penev_A",
+  "publish": true,
+  "library_folder": "penev_A",
+  "pages": 15,
+  "equations": 116,
+  "residual": {
+   "W": 19,
+   "S": 19,
+   "N": 61,
+   "C": 14,
+   "K": 3
+  },
+  "measured": "2026-09-01",
+  "formula_rule": "none",
+  "copy": {
+   "report.pdf": "report.pdf",
+   "report.ink.json": "report.ink.json",
+   "report.build.json": "report.build.json",
+   "penev_A.inspect.html": "inspect.html",
+   "tables.md": "tables.md",
+   "formula-report.html": "formula-report.html",
+   "tables.html": "tables.html"
+  },
+  "reason": null
+ },
+ {
+  "slug": "penev_B",
+  "publish": true,
+  "library_folder": "penev_B",
+  "pages": 11,
+  "equations": 62,
+  "residual": {
+   "C": 7,
+   "N": 31,
+   "W": 17,
+   "S": 6,
+   "K": 1
+  },
+  "measured": "2026-09-01",
+  "formula_rule": "none",
+  "copy": {
+   "report.pdf": "report.pdf",
+   "report.ink.json": "report.ink.json",
+   "report.build.json": "report.build.json",
+   "penev_B.inspect.html": "inspect.html",
+   "tables.md": "tables.md",
+   "formula-report.html": "formula-report.html",
+   "tables.html": "tables.html"
+  },
+  "reason": null
+ },
+ {
+  "slug": "rph8-g15q",
+  "publish": true,
+  "library_folder": "rph8-g15q",
+  "pages": 8,
+  "equations": 81,
+  "residual": {
+   "W": 10,
+   "K": 25,
+   "C": 2,
+   "S": 4,
+   "N": 40
+  },
+  "measured": "2026-09-01",
+  "formula_rule": "none",
+  "copy": {
+   "report.pdf": "report.pdf",
+   "report.ink.json": "report.ink.json",
+   "report.build.json": "report.build.json",
+   "rph8-g15q.inspect.html": "inspect.html",
+   "rph8-g15q.md": "rph8-g15q.md",
+   "formula-report.html": "formula-report.html"
+  },
+  "reason": null
+ },
+ {
+  "slug": "voloshin-hypergraph",
+  "publish": true,
+  "library_folder": "Introduction to Graph and Hypergraph Theory (Vitaly I. Voloshin) (Z-Library)",
+  "pages": 64,
+  "equations": 266,
+  "residual": {
+   "N": 132,
+   "C": 9,
+   "K": 106,
+   "W": 15,
+   "S": 4
+  },
+  "measured": "2026-09-01",
+  "formula_rule": "none",
+  "copy": {
+   "report.pdf": "report.pdf",
+   "report.ink.json": "report.ink.json",
+   "report.build.json": "report.build.json",
+   "Introduction to Graph and Hypergraph Theory (Vitaly I. Voloshin) (Z-Library).inspect.html": "inspect.html",
+   "tables.md": "tables.md",
+   "formula-report.html": "formula-report.html",
+   "tables.html": "tables.html"
+  },
+  "reason": null
+ }
+]

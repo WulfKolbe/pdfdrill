@@ -1,0 +1,103 @@
+464 — the publish instruction, for the pages CLI
+2026-09-02T22:30Z · issued from PDFDRILL · manifest: out/464-manifest.json
+
+WHY THIS IS OVERDUE
+-------------------
+The site is the 28 August set. The library has held a rebuilt one since
+31 August. Everything built since — the six-column tables, the local scan
+crops, the identifier rename, the package change, the section-path gate, the
+FO0175 withdrawal — is invisible until this runs, and the published numbers
+currently describe an instrument with half its corrections switched off.
+
+WHAT TO PUBLISH
+---------------
+20 of 22 documents. `out/464-manifest.json` carries, per slug: the library
+folder it comes from, the file-by-file copy map, and the four index fields.
+
+  WITHHELD, and each for a stated reason, not an oversight:
+
+  0902.0431      NOT READY. Its ink measurement refuses at step 3 — the
+                 lattice finds 1,216 data rows where the manifest and
+                 report.tex both hold exactly 1,219 identifiers. The report
+                 beside it carries a 55-row measurement from an older build,
+                 which publishready calls out. Publishing it would ship a
+                 document whose residual column describes 5% of its rows.
+                 out/463.txt narrows the defect to between the .tex and the
+                 rasterised lattice.
+
+  pdf-dc99cf88   has no library folder, no PDF, no model. It exists only as
+                 published output and cannot be rebuilt. LEAVE THE EXISTING
+                 FILES IN PLACE — do not delete it, and do not refresh it.
+
+THE COPY MAP, WHICH IS NOT A STRAIGHT COPY
+-------------------------------------------
+Two renames happen at publish time and both are load-bearing:
+
+  <library folder>/<bibkey>.inspect.html   ->  reports/<slug>/inspect.html
+  <library folder>/<bibkey>.md            ->  reports/<slug>/<slug>.md
+
+456 found the site uses a fixed `inspect.html` while the library uses
+`<bibkey>.inspect.html`; the markdown keeps its bibkey in both places. The
+manifest states the source filename for each, because 462 renamed nine
+bibkeys and the library FOLDER still carries the long Z-Library title while
+the bibkey inside is now the short slug — so the source filename and the
+destination slug differ for those nine, and guessing either from the other
+will pick the wrong file.
+
+NEW ARTEFACTS THAT DID NOT EXIST ON 28 AUGUST
+----------------------------------------------
+  formula-report.html   all 20
+  tables.html           13 of 20 — exactly those with table objects. Its
+                        absence on the other 7 is the condition, not a
+                        failure (463).
+
+456 recorded both as "0 of 22" on the live site. They are now built.
+
+THE THREE INDEX DEFECTS
+-----------------------
+  1  1510.06699 has a folder and no row. Committed as 6a6fdaa
+     "reports: add 1510.06699" and never given one. Five files, zero links.
+
+  2  1605.05775/report.ink.json is linked TWICE from the same row.
+
+  3  reports/corrections.html exists, is untracked in git, and is linked from
+     nothing. Decide it: commit and link it, or delete it. It has been in
+     that state since 439.
+
+  (There are no DANGLING links — every href under reports/<slug>/ resolves.
+  456 checked, and that is the defect class 426 removed 10,928 of.)
+
+THE TWO NEW INDEX COLUMNS
+-------------------------
+The table is Document | Source | Equations | Residual | Size | Files. Add:
+
+  Pages           `report.build.json` -> "pages". NOT the PDF's page count —
+                  the REPORT's, which is what the reader is opening. It moved
+                  a long way in this rebuild: cardona 735 -> 92, johnston
+                  801 -> 284, gilmore 739 -> 153, because --profile published
+                  omits the formulas section.
+
+  Measured        the date of report.ink.json. Every one is 2026-09-01 or
+                  2026-09-02. There is no measurement date inside the file —
+                  its keys are rows, footers_dropped, display_pages, source —
+                  so the file's own mtime is the honest source, and it should
+                  be stamped at publish rather than re-derived later from a
+                  copy whose mtime the copy may not preserve.
+
+Both values are in the manifest per slug, so neither has to be re-derived.
+
+WHAT NOT TO DO
+--------------
+  Do not touch index.html's prose. Only the table.
+  Do not publish 0902.0431 or refresh pdf-dc99cf88.
+  Do not rename any published slug. 462 changed BIBKEYS inside the
+  documents; the site's URLs are unchanged and must stay so — they are
+  linked from the correspondence with MathPix.
+
+AFTER
+-----
+`git ls-remote origin` and confirm the commits exist on the remote, not only
+locally. The 2026-08-16 incident is why that is written down.
+
+Then the site describes the instrument as it now stands, and 456's audit can
+be re-run against it to confirm.
