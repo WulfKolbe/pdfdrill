@@ -1,0 +1,110 @@
+506 — 494 built as a gate
+2026-09-02T21:40Z · src/pdfdrill/sectionpath.py
+
+THE GATE
+--------
+  "/PageLabels" in reader.trailer["/Root"]
+
+That one test, and two refusals beside it. 505 measured what it is worth: 7
+books with a real label table land 833 of 853 TOC entries on the page they
+name (97.7%); the 2 without land 7 of 168 (4.2%). pypdf returns a synthetic
+1..N when the entry is absent, so "offset 0, constant" is what a MISSING
+label table looks like — which is how 503 came to report the two worst books
+as having the tidiest offsets.
+
+  book                              gate      reason
+  --------------------------------------------------------------------------
+  fong-spivak-seven-sketches        USABLE
+  gilmore-lie-groups                USABLE
+  johnston-linear-matrix-algebra    USABLE
+  lyche-numerical-linear-algebra    USABLE
+  mielke-geometrodynamics           USABLE
+  voloshin-hypergraph               USABLE
+  cardona-qft-methods               refused   no TOC entry parses
+  fong-spivak-invitation            refused   no /PageLabels
+  kohlhase-omdoc                    refused   no /PageLabels
+
+THE COVERAGE, WHICH IS LOWER AND HONEST
+----------------------------------------
+  book                             math   section  chapter  distant
+  ------------------------------------------------------------------
+  fong-spivak-seven-sketches      4,292     3,099      486      699
+  gilmore-lie-groups              4,510     4,160      345        0
+  johnston-linear-matrix-algebra  6,813     2,636    1,508    2,664
+  lyche-numerical-linear-algebra  5,694     5,637        2        0
+  mielke-geometrodynamics         2,942     2,713      226        0
+  voloshin-hypergraph             2,820     2,568      249        0
+  cardona / fong-invitation / kohlhase   9,552 — no path
+  ------------------------------------------------------------------
+  TOTAL                          36,623    20,813    2,816    3,363
+
+  any path under the gate      26,992 of 36,623      74%
+  ungated (503)                31,777 of 36,623      87%
+
+The gate costs 4,785 objects — every one of them in a document where 505
+measured the path landing correctly 3 to 6 percent of the time. They were
+never coverage; they were 4.2% signal and 95.8% confident error.
+
+And of the 26,992 that keep a path, 20,813 are section-grade. That is the
+number 487 should plan against: 57% of the corpus's book math objects get a
+section label that is within five pages of its heading.
+
+GRANULARITY IS PER OBJECT, NOT PER BOOK — AND THAT IS A CORRECTION
+-------------------------------------------------------------------
+My first cut gated coarseness on TOC DENSITY, entries per page, with the
+threshold at 0.25. It put voloshin on the wrong side at 0.244 — a book that
+scored 74 of 74 in 505.
+
+Density is a proxy for the distance between an object and the heading that
+labels it, and that distance is measurable, so it is what is used. Measured
+over the six gated books:
+
+  book                     entries   median gap   p90   max
+  ----------------------------------------------------------
+  lyche                        290          0.0     2    16
+  gilmore                      147          1.0     5    16
+  mielke                       147          1.0     5    19
+  voloshin                      74          2.0     5    17
+  seven-sketches               146          1.0    45    65
+  johnston                      55          9.0   113   140
+
+A book is not uniformly coarse — it is coarse in the stretches where its TOC
+is thin. seven-sketches has a median gap of 1 page and a p90 of 45, so
+labelling the whole book coarse would penalise the 90% of it that is fine.
+The path therefore carries its own grade:
+
+  gap <= 5 pages    section
+  gap <= 30         chapter
+  beyond            distant
+
+and every path returns `pages_since_heading` and `starts_on_pdf_page` beside
+the title, so a consumer can decline it on its own terms rather than trusting
+a flag someone else set. 3,363 objects come back "distant", 2,664 of them
+johnston's — a path that is true and too far away to be a section.
+
+WHAT WAS BUILT
+--------------
+  src/pdfdrill/sectionpath.py   has_page_labels (the gate), printed_to_pdf,
+                                toc_rows, build (the table or a refusal that
+                                names which gate closed), path_for (the
+                                deepest entry at or before a page, with its
+                                evidence)
+  tests/test_sectionpath.py     8 tests: the deepest-entry rule, a page before
+                                the first entry, per-object granularity at
+                                each boundary, the evidence fields, both
+                                refusals yielding nothing at any page, a
+                                missing page, the TOC line parser INCLUDING
+                                that cardona's 'Introduction ..... v' must
+                                not parse, and the measured constants
+
+Full suite: 2,879 passed.
+
+NOT DONE
+--------
+Nothing consumes this yet. 487 is the consumer, and it now has a defined
+input: a section path for 26,992 of 36,623 book math objects, 20,813 of them
+section-grade, and an explicit refusal — not a blank — for the rest.
+
+Papers get nothing here and 492 already said why: 0.32% of paper rows resolve
+a parent_section below level 1, and papers have no TOC object to fall back
+on. The section line stays omitted for them.
