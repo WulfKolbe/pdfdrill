@@ -1,0 +1,146 @@
+509 — what report.pdf would contain under "unresolved, or changed"
+2026-09-03T01:10Z · the 21 documents with a library folder · reporting only
+
+THE RULE AS MEASURED
+--------------------
+  corrected            the row carries an accepted refinement. A PAIR: the
+                       failed entry above, the recovered one below, both
+                       against the same scan. Two rows of space.
+  unresolved           the row does not render and nothing has repaired it.
+  doubted but correct  confidence below the threshold AND the ink says the
+                       render matches the scan.
+
+"The ink says it's right" is K (clean), N (below the measured noise floor) or
+S (stable across 300 and 600 dpi). W (weak) and C (component) flag a real
+difference and are not agreement.
+
+Everything else — read correctly, ink agrees, nothing changed — says nothing
+and is already in formula-report.html and tables.html.
+
+WHAT EACH DOCUMENT WOULD CONTAIN
+--------------------------------
+  document                         corr  unres  doubted   rows   today    est
+  ------------------------------------------------------------------------------
+  0707.4470                           1      0        0      2      12      2
+  0902.0431                           8      4        0     20     184     10
+  1510.06699                          0      0        0      0      40      1
+  1605.05775                          0      0        0      0       7      1
+  2010.14265                          0      0        0      0       3      1
+  2106.07890                          0      0        0      0       7      1
+  2501.06662                          0      0        0      0       8      1
+  BradleyGastaldiTerilla2023          0      0        0      0       6      1
+  bradley_spring22                    0      0        0      0       4      1
+  cardona-qft-methods                 0      1        0      1      92      2
+  fong-spivak-invitation              0      2        0      2     104      2
+  fong-spivak-seven-sketches          0      1        0      1     107      2
+  gilmore-lie-groups                  0     10        0     10     153      3
+  johnston-linear-matrix-algebra      8      7        0     23     284      5
+  kohlhase-omdoc                      0      4        0      4      57      2
+  lyche-numerical-linear-algebra      8      5        0     21     140      4
+  mielke-geometrodynamics             3      2        0      8     108      2
+  penev_A                             0      1        0      1      15      2
+  penev_B                             0      0        0      0      11      1
+  rph8-g15q                           0      1        0      1       8      2
+  voloshin-hypergraph                 3      0        0      6      64      2
+  ------------------------------------------------------------------------------
+  TOTAL                              31     38        0    100    1414     48
+
+  1,143 pages today.  48 under the rule.
+
+  A corrected row costs two rows of space because it is a pair. Pages are
+  estimated from rows-per-page MEASURED per document out of report.ink.json's
+  own `report_page` field, not assumed — johnston runs about 6 rows to a page,
+  0902.0431 about 7.
+
+NINE DOCUMENTS WOULD HAVE NOTHING TO SAY
+-----------------------------------------
+  1510.06699, 1605.05775, 2010.14265, 2106.07890, 2501.06662,
+  BradleyGastaldiTerilla2023, bradley_spring22, penev_B
+
+  Eight, plus penev_B. Their reports become one page saying so, which you
+  named as the right answer for a clean document and which is what the rule
+  produces without any special case. 1510.06699 loses 40 pages to say it;
+  2010.14265 loses 3.
+
+  Note what this does NOT mean. 1510.06699 has 279 equations and an ink
+  distribution of C 33, W 35, N 157, K 52, S 2 — 68 rows the ink calls a real
+  difference. It has nothing to say under this rule because none of those
+  rows was CHANGED and none FAILS TO RENDER. The rule reports what was done
+  about a defect, not that a defect was measured; the residual column in
+  formula-report.html still carries the measurement.
+
+  Whether that is what you want is worth deciding explicitly. "The ink
+  disagrees and nobody has acted on it" is arguably a fourth state, and under
+  the present rule it is invisible.
+
+"DOUBTED BUT CORRECT" IS ZERO AT 0.01, AND THAT IS NOT A BROKEN JOIN
+---------------------------------------------------------------------
+I checked, because a zero that size usually is one. The join is exact: on
+johnston, 1,670 ink rows against 1,670 EQ titles, 1,670 in common, ids like
+`johnston-linear-matrix-algebra_EQ0001` on both sides.
+
+The zero is real. Across the 21 documents, 7,548 rows carry both a confidence
+and an ink class, and the confidence bands look like this:
+
+  confidence        rows   ink agrees   share
+  -------------------------------------------
+  0.00 – 0.01         10            0      0%
+  0.01 – 0.05         27            5     19%
+  0.05 – 0.10         25            5     20%
+  0.10 – 0.30        138           33     24%
+  0.30 – 0.50        236           76     32%
+  0.50 – 0.90      1,124          662     59%
+  0.90 – 1.01      5,988        4,822     81%
+  -------------------------------------------
+  all              7,548        5,603
+
+Only TEN rows in the whole published corpus have a confidence below 0.01, and
+the ink disagrees with every one of them. johnston's single such row is
+EQ0528 at 0.000514, ink class C|+54 — MathPix doubted it and the ink says the
+doubt was justified.
+
+So at your threshold the section would be empty in all 21 documents. Move it
+to 0.05 and it holds five rows, in three documents:
+
+  fong-spivak-seven-sketches   3
+  1510.06699                   1
+  gilmore-lie-groups           1
+
+That is a real population and a small one. It is also, on this evidence, the
+opposite of a calibration failure: the share of rows the ink agrees with
+rises monotonically with confidence, 0% -> 19% -> 20% -> 24% -> 32% -> 59% ->
+81%. MathPix's confidence tracks the ink across the whole range. The
+correspondence's existing finding — that their confidence does more work than
+either side expected — is confirmed here from a second direction, and the
+"doubted but correct" section documents the exceptions to a rule that holds.
+
+Worth saying plainly before it is built: five rows across three documents is
+a section that will be absent from eighteen reports.
+
+ON THE NAME
+-----------
+Splitting it reads better than one heading, and the counts support the split:
+31 corrected rows against 38 unresolved is two populations of comparable size
+doing different work.
+
+  Corrected            31 pairs, in 6 documents
+  Unresolved           38 rows, in 11 documents
+  Doubted but correct   0 at 0.01, 5 at 0.05, in 3 documents
+
+`residual` stays the right word inside the table, on the column that carries
+the class code, because that is what the ink computes. It stops being the
+section's name.
+
+NOT BUILT
+---------
+Nothing was changed. Three things want a decision before it is:
+
+  1  the doubted threshold — 0.01 gives an empty section everywhere; 0.05
+     gives five rows in three documents
+  2  whether "the ink disagrees and nobody acted" is a fourth state or stays
+     out. 68 such rows in 1510.06699 alone, which is the difference between
+     that report being one page and being twelve
+  3  what a corrected pair shows when the failed entry does not render at all
+     — 502's FO0175 is exactly that: `\mathscr{g}` renders nothing, so the
+     "before" half of the pair is a blank cell and the scan is the only
+     evidence of what was wrong
