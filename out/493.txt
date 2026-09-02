@@ -1,0 +1,126 @@
+493 — can the TOC supply a section path for a book?
+2026-09-02T17:15Z · the nine published non-arXiv books
+
+THE Toc OBJECT, READ BEFORE ANYTHING WAS PROPOSED
+--------------------------------------------------
+  keys        children, id, parent, props, realizations, type
+  props       bibkey, entries, flow_index, next_in_flow, prev_in_flow,
+              parent_section
+  children    0
+  realizations one surface span over the mathpix_lines stream
+
+`entries` is a FLAT LIST OF STRINGS, and one printed line produces three of
+them — the whole line and both of its halves:
+
+  '1. Introduction  ..... 2'
+  '1. Introduction'
+  '..... 2'
+  '2. Almost finitely generated \(\mathcal{O}\)-mo…'
+
+There is no title field, no locator field, no level field and no child
+structure. Everything below has to be recovered from those strings.
+
+THE THREE QUESTIONS
+-------------------
+  book                                 Toc entries parse   math levels from the locator
+  --------------------------------------------------------------------------------------------------------
+  Geometric, Algebraic and Topologic     1     70     0   4767 —
+  An Invitation to Applied Category      1    175    47   4321 {1: 7, 2: 40}
+  Seven Sketches in Composability An     1    468   146   4292 {1: 7, 2: 40, 3: 99}
+  Lie Groups, Physics and Geometry -     1    451   147   4510 {1: 16, 2: 131}
+  Introduction to Linear and Matrix      1   1172    55   6813 {1: 1, 2: 15, 3: 39}
+  OMDoc – An Open Markup Format for      1    455   121    464 {1: 26, 2: 95}
+  Numerical Linear Algebra and Matri     1   1020   290   5694 {1: 16, 2: 125, 3: 149}
+  Geometrodynamics of Gauge Fields O     1    513   147   2942 {1: 16, 2: 89, 3: 42}
+  Introduction to Graph and Hypergra     1    240    74   2820 {1: 12, 2: 62}
+
+1 — TITLE AND LOCATOR: PRESENT, AS TEXT, AT A LOW YIELD.
+    All nine books carry exactly one Toc object. Eight of nine yield
+    (number, title, page) triples under a strict parse; cardona yields ZERO
+    because its entries are unnumbered and paginated in roman —
+    'Introduction  ..... v', 'Part A LECTURES  ..... 1'.
+
+    The yield is low even where it works: johnston has 1,172 entries and 55
+    parses (4.7%), because the triple-emission above means most strings are
+    fragments. lyche is the best at 290 of 1,020 (28%).
+
+2 — THE PRINTED-TO-PDF OFFSET IS NOT STORED, AND DERIVING IT DOES NOT WORK.
+    No meta key holds one. The meta keys across these books are authors,
+    bibkey, bibkey_history, folder_history, geometry, num_pages, pages,
+    publisher, root_id, source, source_path, title, year — nothing
+    offset-like, nothing page-label-like.
+
+    So it must be derived, and I tried: match each parsed TOC title against a
+    Section object's caption, and take the mode of (Section's PDF page −
+    TOC's printed page).
+
+      book        parsed   Sections with a page   matched   offset modes
+      lyche          290                     64        22   9 (x3), 20, 15
+      mielke         147                     54        21   16 (x2), 13 (x2)
+      voloshin        74                      6         3   −151, −171
+      cardona          0                     24         0   —
+
+    Three votes for an offset of 9 against single votes for 20 and 15 is not
+    a measurement, it is noise. voloshin's −151 is a title matching the wrong
+    section entirely. The Section objects that carry a page are far too few
+    (6 to 64) against hundreds of TOC entries for the match to be anything
+    but sparse and fuzzy.
+
+3 — LEVELS: YES, FROM THE LOCATOR. NOT FROM INDENTATION.
+    The dotted number gives the depth directly — 3 is level 1, 3.4 is level
+    2 — and it works wherever the entry parses. lyche resolves to
+    {1: 16, 2: 125, 3: 149}, seven-sketches to {1: 7, 2: 40, 3: 99}. This is
+    the one part that is straightforwardly available, and it is exactly the
+    part 492 found missing from parent_section, which is flat.
+
+    Indentation cannot be used: the strings are stripped, and the
+    three-way emission destroys the original line geometry anyway.
+
+COVERAGE: FOR WHAT FRACTION OF MATH OBJECTS DOES THE PATH RESOLVE?
+------------------------------------------------------------------
+  Zero, as things stand.
+
+Not because the TOC is unusable in principle — the levels are right there —
+but because a path needs THREE things and only one of them is available:
+
+  the depth       available     from the dotted locator
+  the title       available     from the parsed entry
+  WHERE IT STARTS unavailable   the printed page is known, the PDF page is
+                                not, and the offset that converts one to the
+                                other is neither stored nor derivable from
+                                what is on disk
+
+Without the offset there is no way to say which TOC entry encloses a math
+object on PDF page 214. The 34,623 math objects across these nine books get
+no path.
+
+WHAT WOULD HAVE TO EXIST
+------------------------
+One number per book, and it is obtainable but not from the model:
+
+  the PDF page on which printed page 1 falls. `pdfinfo`/pypdf expose PDF page
+  LABELS where a publisher set them, and pdfdrill already reads the
+  annotation layer for `links` and `dests` — a `dests` entry for a chapter is
+  a PDF page number for a named destination, which is the same conversion
+  from the other side.
+
+That is a measurement to run, not a model to rebuild, and it is the whole
+of what stands between the TOC and a working section path.
+
+WHAT THIS MEANS FOR 487 AND 494
+-------------------------------
+492 established that parent_section gives papers nothing (0.32% of rows at
+level >= 2) and 488 that it gives johnston the book's own title. 493
+establishes that the TOC gives the DEPTH a section path needs and cannot
+place it on a page.
+
+So 494's rule — "from parent_section where it resolves below level 1, from
+the TOC where the document is a book, omitted where neither gives anything" —
+currently reduces to "omitted", for every document measured. The combined
+coverage against 488's 69.6% is 69.6%: the TOC adds nothing until the offset
+exists.
+
+487 still waits, and now on a smaller and more specific thing than "the
+context work": one number per book.
+
+Nothing was changed.
