@@ -1,0 +1,56 @@
+548 — cardona rebuilt at --pages 10 with the bound in place
+===========================================================
+
+THE BUILD
+---------
+  4,820 rows   1,012 equation · 3,760 formula · 40 image · 8 table
+  10 pages, 0 errors, 1 demoted
+  14.3 s
+
+NO ROW EXCEEDS THE PAGE HEIGHT. NONE COMES NEAR IT.
+----------------------------------------------------
+The text block on a3 landscape with 18 mm margins is 261 mm. A longtable
+row taller than that cannot break and is dropped — that is the silent loss
+the question is about.
+
+Measured two ways, because the image is only one of a row's three cells.
+
+  1. every drawn image in B.tex, 3,850 of them, height computed as the
+     declared width times the file's own aspect ratio:
+
+       taller than the 261 mm text block          0
+       taller than half of it                     0
+       tallest                                 54.6 mm
+         (cardona-qft-methods_EQ0483, 695x513 px, drawn 74.0 mm wide)
+
+  2. the ROWS as actually rendered, measured rule-to-rule off the ten built
+     pages, which includes the LaTeX-source and Rendered cells:
+
+       rows measured                             74
+       over the text block                        0
+       over half the text block                   0
+       tallest row                             85.4 mm  (page 10)
+
+  and the compiler agrees:
+
+       Overfull \vbox in B.log                    0
+       Overfull \hbox                             0
+       Underfull \vbox                            0
+
+WHY THE HEIGHT IS BOUNDED, WHICH IS THE PART WORTH KEEPING
+-----------------------------------------------------------
+The width cap bounds the height for free, but only because of the shape of
+the evidence. A crop is drawn at min(region width x px2mm, 74 mm), so its
+drawn height is 74 mm x (h/w). The tallest ratio in this document is
+513/695 = 0.74, giving 54.6 mm.
+
+That holds because these crops are LINES AND DISPLAYS — wide and short. A
+crop with the opposite ratio would not be bounded: a 200 x 2000 px region
+drawn 74 mm wide is 740 mm tall, three times the text block, and longtable
+would drop the row in silence. Nothing in the code prevents that today; the
+corpus simply does not contain one. That is a property of the input, not a
+guarantee of the builder, and it is the thing to watch if B is ever pointed
+at a document with tall narrow figures.
+
+The `1 demoted` is the compile fixpoint demoting one malformed row to
+source-only — the mechanism working, not a height loss.
