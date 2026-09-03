@@ -1,0 +1,120 @@
+528 — four counts of one thing, and 527 was one of the wrong ones
+=================================================================
+
+EVIDENCE
+  /home/wkolbe/pdfdrill-library/2010.14265/out/528/script_corrected.py
+  /home/wkolbe/pdfdrill-library/2010.14265/out/528/corrected.json
+  /home/wkolbe/pdfdrill-library/2010.14265/out/528/script.py
+  /home/wkolbe/pdfdrill-library/2010.14265/out/528/counts.json
+  tools/perpcount528.py
+
+FIRST: 527 WAS WRONG, AND YOUR 139 IS THE RIGHT NUMBER
+--------------------------------------------------------
+527's pattern was `\\(Perp|nVdash|nvdash|measuredangle)\b`. The usage in
+this document is `\Perp_{P}`, and `_` IS A WORD CHARACTER, so `\b` failed
+on every subscripted occurrence — which is almost all of them.
+
+Everything 527 said about this document downstream of that pattern is
+withdrawn:
+
+  527 said                              actually
+  ---------------------------------     -----------------------------
+  36 occurrences in lines.json          139
+  "only \Perp survives"                 all four spellings present
+  "five of six spellings absent"        Perp 123, nVdash 8,
+                                        measuredangle 5, nvdash 3
+  "zero in lines of type math"          23 of them are in math lines
+  0 in compare.html                     46
+  0 Equation rows carry it              10 rows, 23 occurrences
+  "02-mathpix.md not reproducible"      IT IS. The 104 is the
+                                        `_P`-subscripted subset:
+                                        57+31+8+3+3+2 = 104.
+
+So the answer to the first question is: **the document was not re-drilled
+into disagreement, and the table was not computed from another artefact.**
+It was computed correctly from this lines.json. 527's counter was broken.
+
+The document WAS re-drilled on 2026-08-22 ("downloaded", then "575
+objects, 16 eq w/ cdn" in the sidecar transitions) — before that the model
+came from arXiv LaTeX source. But that re-drill is not why the numbers
+disagreed. My regex was.
+
+WHICH COUNT IS AUTHORITATIVE
+-----------------------------
+**`lines.json`, the `text` field, parsed as JSON: 139 occurrences across
+89 distinct lines.** MathPix's own returned output, one field, no
+escaping, no duplication. Everything else in the folder is derived from it.
+
+  by line type   text 104 · math 23 · list_item 9 · pseudocode 3
+  spellings      Perp 123 · nVdash 8 · measuredangle 5 · nvdash 3
+
+WHY EVERY OTHER COUNT DIFFERS — each mechanism named
+------------------------------------------------------
+  artefact                    count   why it is not 139
+  ------------------------------------------------------------------
+  lines.json, whole file        278   `text` and `text_display` carry
+                                      the same content: 139 x 2.
+  tiddlers.json, `latex`        117   the projection keeps FIRST
+                                      OCCURRENCE only for inline
+                                      formulas, so repeats collapse.
+  tiddlers.json, all fields     318   latex 117 + caption 99 + text 99
+                                      + latex_code 3. `caption` and
+                                      `text` are the transclusion
+                                      wrappers around the same value.
+  2010.14265.md                 317   prose plus every inline formula
+                                      written out where it occurs —
+                                      repeats NOT collapsed, unlike the
+                                      tiddlers.
+  formula-report.html           239   one row per FO/EQ: the LaTeX
+                                      source cell plus the KaTeX
+                                      `data-latex` attribute, so each
+                                      row's value appears twice.
+  inspect.html                 1045   embeds the page JSON, so every
+                                      value is present ESCAPED as
+                                      `\\Perp` and counted again by any
+                                      pattern that matches a single
+                                      backslash. 1045 escaped = 1045
+                                      single, the same hits twice-read.
+  compare.html                   46   display equations only, and only
+                                      those carrying a crop.
+  report.tex                      1   the findings build (see below).
+
+Four counts of one thing was the finding, and the answer is that only one
+of them counts occurrences of the symbol: **lines.json `text`, 139.** The
+others count fields, or renderings, or escapes. None of them is wrong as a
+file; they are wrong as answers to "how many times does this appear".
+
+WHAT STILL STANDS FROM 527
+---------------------------
+The corrected numbers do not rescue the artefacts. Of the 139:
+
+  reach the projection's row set    120   (94 in 369 FO rows,
+                                           23 in 16 EQ rows,
+                                           3 in 6 image regions)
+  reach compare.html                 46
+  reach the PUBLISHED report.pdf      0
+
+Still zero. The published build is the findings shape with
+`formulas="none"`, and 2010.14265's four sections are empty — corrected 0,
+unresolved 0, flagged 0 of 1, doubted 0 — so the file is two pages saying
+nothing to report, over a document containing 139 occurrences of the
+symbol MathPix has confirmed it reads six ways.
+
+That was 527's point and it survives its own arithmetic being wrong.
+
+The corpus finding also stands: it was measured with a different script
+(`tools/inlinemaths527.py`, counting `$...$` spans) that had no `\b` in
+it. 91.6% of maths items inline, 1,134 of 1,355 documents.
+
+THE LESSON, WHICH IS 525's LESSON AGAIN
+-----------------------------------------
+A word boundary after a LaTeX command name is wrong whenever the command
+takes a subscript, and every conditional-independence symbol in this
+corpus takes one. The check that would have caught it is the one this
+project keeps applying to everything else: ask whether the test COULD have
+returned a different answer. 36 of 139 looked plausible, and the count of
+DISTINCT SPELLINGS — one, where the vendor correspondence said six —
+should have been the tell. I read it as evidence the corpus had changed
+instead of evidence my pattern had.
+
+527's out/ file is corrected in place with a header pointing here.

@@ -1,3 +1,11 @@
+527 — SUPERSEDED IN PART BY 528. The \Perp counts below are WRONG:
+the pattern used `\b` after the command name, and the usage is
+`\Perp_{P}` where `_` is a word character, so every subscripted
+occurrence was skipped. Real count 139, not 36; all four spellings
+present, not one; compare.html 46, not 0. See out/528.txt.
+The corpus section (91.6% inline) used a different script and STANDS.
+========================================================================
+
 527 — 2010.14265's \Perp family, and where the corpus keeps its maths
 =====================================================================
 
