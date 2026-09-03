@@ -490,7 +490,7 @@ class TiddlyWikiProjector(BaseProjector):
         for i, p in enumerate(inv["paragraphs"]):
             title[p.id] = f"{bibkey}_PARA_{i+1:04d}"
         for i, s in enumerate(inv["sections"]):
-            title[s.id] = f"{bibkey}_H{i+1}"
+            title[s.id] = f"{bibkey}_H{i+1:04d}"   # 566 — four digits: _H10 sorted before _H2 in every document
         # EQ/FO titles come from the shared helper, so any other consumer
         # (e.g. `pdfdrill formulas`, which emits the `{{id||FO}}` placeholders
         # for an external SRE/de-macro pipeline) numbers them IDENTICALLY.
