@@ -84,3 +84,22 @@ def test_save_model_leaves_an_existing_build_stamp_alone(tmp_path):
     p = tmp_path / "model.docmodel.json"
     model_io.save_model(p, doc)
     assert json.loads(p.read_text())["meta"]["build"]["sha"] == "d" * 40
+
+
+def test_a_folder_named_like_an_arxiv_id_keeps_its_whole_name(tmp_path):
+    """`.stem` truncates `1605.05775` to `1605`, and half this library's
+    folders are titles full of dots and brackets. Names only appear in the
+    listing when the spread is more than one, so the fixture makes two."""
+    from pdfdrill.commands import cmd_generations
+    st = {"sha": "e" * 40, "dirty": False, "version": "0.1.0", "at": "x"}
+    a = tmp_path / "1605.05775"
+    a.mkdir()
+    (a / "model.docmodel.json").write_text('{"meta": {}, "objects": {}}')
+    b = tmp_path / "Some Book (Author) (Z-Library)"
+    b.mkdir()
+    (b / "model.docmodel.json").write_text(
+        json.dumps({"meta": {"build": st}, "objects": {}}))
+    out = cmd_generations([str(a), str(b)])
+    assert "SPANS 2 BUILD GENERATIONS" in out
+    assert "1605.05775" in out, "folder name truncated at the first dot"
+    assert "Some Book (Author) (Z-Library)" in out

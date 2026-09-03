@@ -1,0 +1,147 @@
+575 - a model now says which code built it, and the guard caught me with it
+
+THE ANSWER. Once rebuilt, the 21 span TWO build generations and ONE distinct sha.
+
+  634408f   14 documents, rebuilt in the library
+  unstamped  7 documents, whose library models predate 575 and were not
+             rebuilt in place because 430's guard refuses them: they carry
+             enrichments a rebuild destroys. Rebuilt on real copies, they
+             also come out at 634408f, so all 21 agree on the CODE. The
+             library's own seven do not carry the stamp, and the guard
+             refuses to pretend otherwise.
+
+A. WHAT WAS ADDED
+
+  meta['build']    written once, in docmodel.main.run, when the object graph
+                   is constructed from lines.json. Never overwritten.
+  meta['written']  written on every model_io.save_model. After an enrichment
+                   pass this is not the code that built the structure.
+
+Both are {sha, dirty, version, at}. `dirty` counts modifications to TRACKED
+files only - an untracked scratch file does not change the behaviour of
+imported code, and counting it would mark every build here dirty forever.
+The stamp is cached per process, so a 21-document sweep shells out to git
+once and every model in it carries the same sha.
+
+B. THE GUARD
+
+buildstamp.spread() groups documents by generation; guard_lines() is the
+block a report prints when the spread is not one; require_one() raises for
+code that must never emit a cross-generation number. Two rules that are not
+obvious and are both tested:
+
+  - an UNSTAMPED model is its own generation, never folded into the
+    majority. Folding it in is precisely the silent averaging that produced
+    574's 1458.
+  - a clean tree and a dirty tree at the same sha are TWO generations. The
+    sha names a commit whose code is not what ran.
+
+`pdfdrill generations <pdf|dir|model> ... [--written]` reads it. It is in
+the manifest (145 commands, typed), not in tools/, so the planner and
+`status` can see it.
+
+C. THE GUARD'S FIRST CATCH WAS MY OWN SWEEP
+
+I rebuilt the 14 with `pdfdrill model <pdf>`. All 14 returned rc=0 and all
+14 printed a line of this form:
+
+    Built unified model: 633 objects (...). Stored at model.docmodel.json.
+
+Not one of them rebuilt anything. Every library model's mtime was unchanged
+and every stamp came back UNSTAMPED.
+
+    commands.py:4529   if sc.has(MODEL_BUILT) and model_path.exists()
+                           and not force and not stale:
+                           return _format_model(sc)
+    commands.py:4495   "an ordinary `model` on a document that already has
+                        one does not rebuild at all"        (its own comment)
+    commands.py:4848   _format_model builds that past-tense sentence from the
+                        SIDECAR's stored counts
+
+So a cache hit and a real build are indistinguishable in the output and in
+the exit code. Without the stamp this task added I would have reported "21
+documents, one generation" and been wrong in the same way 574 was wrong.
+The stamp is what made the no-op visible.
+
+Re-run with --force: all 14 wrote (model mtime compared before and after,
+per document, not inferred) and all 14 stamped 634408f.
+
+I am naming this as a defect and not fixing it under this task, because
+changing that text changes what other readers and tests see:
+`_format_model` (commands.py:4813-4850) claims work that did not happen.
+
+D. THE 21, AFTER
+
+document                           sections  stamp      rebuilt
+0707.4470                                 0  unstamped  copy only - enrichments kept
+0902.0431                                 0  unstamped  copy only - enrichments kept
+1510.06699                               12  unstamped  copy only - enrichments kept
+1605.05775                               17  634408f    library (--force)
+2010.14265                               21  634408f    library (--force)
+2106.07890                                9  634408f    library (--force)
+2501.06662                                5  634408f    library (--force)
+BradleyGastaldiTerilla2023                7  634408f    library (--force)
+bradley_spring22                         15  634408f    library (--force)
+cardona-qft-methods                     259  634408f    library (--force)
+fong-spivak-invitation                  228  634408f    library (--force)
+fong-spivak-seven-sketches              168  634408f    library (--force)
+gilmore-lie-groups                      218  634408f    library (--force)
+johnston-linear-matrix-algebra           17  unstamped  copy only - enrichments kept
+kohlhase-omdoc                          270  634408f    library (--force)
+lyche-numerical-linear-algebra           64  unstamped  copy only - enrichments kept
+mielke-geometrodynamics                  54  unstamped  copy only - enrichments kept
+penev_A                                  37  634408f    library (--force)
+penev_B                                  29  634408f    library (--force)
+rph8-g15q                                22  634408f    library (--force)
+voloshin-hypergraph                       6  unstamped  copy only - enrichments kept
+
+The 14 library counts are identical to what they were before the forced
+rebuild (17, 21, 9, 5, 7, 15, 259, 228, 168, 218, 270, 37, 29, 22). They
+were already at the current generation in substance; they simply could not
+say so. That is the whole difference this task makes.
+
+The seven library models still show 574's counts (0, 0, 12, 17, 64, 54, 6)
+because they were not rebuilt in place. Their true current-code counts are
+574's copy figures - 8, 56, 70, 186, 292, 183, 115 - and the corpus total
+of 2215 stands. What has changed is that the library can now SAY the seven
+are a different generation instead of silently contributing 153 where 910
+belongs.
+
+E. THE SEVEN ENRICHED MODELS WERE NOT TOUCHED
+
+0707.4470                        mtime=2026-09-02T23:37:18    472 obj   1 latex_refined    1278 realizations
+0902.0431                        mtime=2026-09-02T23:41:59   6344 obj   8 latex_refined   16591 realizations
+1510.06699                       mtime=2026-08-21T12:16:53   2196 obj   0 latex_refined    6442 realizations
+johnston-linear-matrix-algebra   mtime=2026-09-01T14:46:42  14546 obj   8 latex_refined   37238 realizations
+lyche-numerical-linear-algebra   mtime=2026-09-01T14:46:46   9102 obj   8 latex_refined   22961 realizations
+mielke-geometrodynamics          mtime=2026-09-01T14:46:48   5897 obj   3 latex_refined   12691 realizations
+voloshin-hypergraph              mtime=2026-09-01T14:46:49   5039 obj   3 latex_refined   15722 realizations
+
+Same mtimes as before this task, same enrichments. --force was run only on
+the 14; on any of the seven it would have returned 430's refusal, not a
+rebuild.
+
+F. THE COMMAND, OVER ALL 21
+
+  rc=0
+  generations — 21 document(s), stamp 'build'
+
+  A number summed over these SPANS 2 BUILD GENERATIONS and is therefore not a single number:
+    634408f               14 documents: 1605.05775, 2010.14265, 2106.07890, 2501.06662, An Invitation to Applied Category Theory Seven Sketches In Compositionality (Brendan Fong, David I. Spivak) (Z-Library), BradleyGastaldiTerilla2023 …
+    unstamped              7 documents: 0707.4470, 0902.0431, 1510.06699, Geometrodynamics of Gauge Fields On the Geometry of Yang-Mills and Gravitational Gauge Theories (Eckehard W. Mielke) (Z-Library), Introduction to Graph and Hypergraph Theory (Vitaly I. Voloshin) (Z-Library), Introduction to Linear and Matrix Algebra (Nathaniel Johnston) (Z-Library) …
+  Report the per-generation figures, or rebuild to one generation before summing.
+
+  7 model(s) carry no stamp: built before 575, generation unknown, and counted as their own.
+
+G. WHAT IS STILL UNSTAMPED
+
+Every model in the corpus outside these 21 - the other ~1,334 drilled
+documents - carries no stamp and will not until it is next rebuilt. The
+guard reports them as unstamped rather than assuming, which is the correct
+answer and an honest one: this task did not make the corpus one generation,
+it made the corpus able to tell you it is not.
+
+2946 tests pass.
+
+---
+Evidence: /home/wkolbe/pdfdrill-library/out/575/  (INSPECT.txt lists the five paths)

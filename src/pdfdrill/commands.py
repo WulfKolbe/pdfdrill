@@ -4888,23 +4888,26 @@ def cmd_generations(targets, which: str = "build") -> str:
     measurement is as much a hole in it as a stale one.
     """
     from . import buildstamp
+
+    def _model_in(d: Path):
+        cand = d / "model.docmodel.json"
+        if cand.exists():
+            return cand
+        g = sorted(d.glob("*.docmodel.json"))
+        return g[0] if g else None
+
     items, missing = [], []
     for t in targets:
         p = Path(t)
         if p.is_dir():
-            cand = p / "model.docmodel.json"
-            if not cand.exists():
-                g = sorted(p.glob("*.docmodel.json"))
-                cand = g[0] if g else None
+            # `.stem` would truncate a folder named `1605.05775` to `1605`, and
+            # half this library's folders are titles full of dots and brackets.
+            name, cand = p.name, _model_in(p)
         elif p.suffix == ".pdf":
-            d = p.parent
-            cand = d / "model.docmodel.json"
-            if not cand.exists():
-                g = sorted(d.glob("*.docmodel.json"))
-                cand = g[0] if g else None
+            name, cand = p.stem, _model_in(p.parent)
         else:
+            name = p.parent.name or p.name
             cand = p if p.exists() else None
-        name = p.stem if p.suffix else p.name
         if cand is None:
             missing.append(name)
             continue
