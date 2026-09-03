@@ -786,3 +786,23 @@ def test_page_info_is_never_a_heading(tmp_path):
         {"type": "page_info", "text": "Inhaltsverzeichnis"},
         {"type": "text", "text": "body prose"}]}]}))
     assert [r[3] for r in rr.roles_for(p)] == [rr.BODY, rr.BODY]
+
+
+def test_the_german_branch_on_a_real_document(tmp_path):
+    """WDorg4's shape: the TOC's own entry naming the bibliography must not
+    open one, and the running header must not open a TOC."""
+    import json
+    from pdfdrill import regionrole as rr
+    p = tmp_path / "d.lines.json"
+    p.write_text(json.dumps({"pages": [{"lines": [
+        {"type": "section_header", "text": "INHALTSVERZEICHNIS"},
+        {"type": "page_info", "text": "Inhaltsverzeichnis"},
+        {"type": "table_of_contents_item", "text": "Literaturverzeichnis"},
+        {"type": "section_header", "text": "KAPITEL I"},
+        {"type": "text", "text": "prose"},
+        {"type": "section_header", "text": "LITERATURVERZEICHNIS"},
+        {"type": "text", "text": "a citation"}]}]}))
+    roles = [r[3] for r in rr.roles_for(p)]
+    assert roles == [rr.TOC, rr.TOC, rr.TOC,
+                     rr.BODY, rr.BODY,
+                     rr.BIBLIOGRAPHY, rr.BIBLIOGRAPHY], roles

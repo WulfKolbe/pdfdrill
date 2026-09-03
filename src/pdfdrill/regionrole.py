@@ -10,25 +10,24 @@ transclusion into a non-body region — and a rule that has to re-derive
 "is this the bibliography" at every call site is a rule that will disagree
 with itself. The role is decided once and read thereafter.
 
-THE GERMAN BRANCH IS WRITTEN AND UNTESTED, and this is not a formality:
+THE GERMAN BRANCH IS TESTED, on five documents in this library:
 
-  German section headings in the 21 published documents      0
-  Heim folders on disk                                      42
-  ... drilled, with a lines.json                            12
-  ... carrying a GERMAN heading in a `section_header` line   0
+  BH1, bh2, BH3FR, WDorg4, BH1org_OCR — 42,143 lines, 538 in a non-body
+  region. Every one opens with `INHALTSVERZEICHNIS` as a `section_header`,
+  and WDorg4 also carries `LITERATURVERZEICHNIS` on page 169.
 
-The Heim scans are the intended population and they cannot serve as one.
-39% of their `section_header` lines carry EMPTY TEXT — 80 of 205 — so a
-heading-based detector has nothing to read. The one structural German word
-sitting in a structural position is `Inhaltsverzeichnis` on page 11 of
-`Elementarstrukturen der Materie`, and it is in a `page_info` line: a
-RUNNING HEADER, which repeats and does not open a region. Matching it would
-mark the wrong thing. The only other hit is `Literatur` inside ordinary
-prose — "die betreffende Literatur als Metapher" — which is the false
-positive the word invites.
+Two things in those documents validate rules that were otherwise only
+asserted:
 
-So: the patterns are here, they are believed correct, and nothing in this
-corpus exercises them. That is stated rather than implied.
+  * `Inhaltsverzeichnis` ALSO appears as a `page_info` line on the page
+    after each TOC heading — the running header. It repeats and opens
+    nothing. Reading only `section_header` is what keeps it out.
+  * WDorg4 page 10 has `Literaturverzeichnis` as a
+    `table_of_contents_item`: the TOC's own entry NAMING the bibliography,
+    120 pages before the bibliography starts. Matching it would put the
+    whole book in a bibliography region.
+
+The headings are UPPERCASE, which the case-insensitive patterns take.
 """
 from __future__ import annotations
 

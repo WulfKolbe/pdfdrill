@@ -1,35 +1,52 @@
 563 — a role on the region: body | toc | bibliography | index
 =============================================================
 
-THE PRECONDITION IS NOT MET, AND THE HEIM SCANS CANNOT MEET IT
-----------------------------------------------------------------
-This is the first thing to report, because the task was issued on the
-expectation that they could.
+CORRECTION — THE PRECONDITION IS MET, AND MY FIRST ANSWER WAS WRONG
+--------------------------------------------------------------------
+I reported "not met" from the wrong population. I searched the library for
+folders matching `*eim*`, found 42, and concluded no German document had a
+section heading. The Heim books are in `bh1`, `bh2`, `BH3FR`, `WDorg4` and
+`BH1org_OCR` — none of which contains the string "heim" — so my search
+could not have found them whatever the corpus held. The 42 folders I did
+find are papers ABOUT Heim, mostly English and mostly undrilled.
 
-  German headings in the 21 published documents                0
-  Heim folders on disk                                        42
-  ... drilled, carrying a lines.json                          12
-  ... with a GERMAN heading in a `section_header` line          0
+That is the same error class as `sorted(glob)[0]` and `\b` after a LaTeX
+command: a convenient pattern that silently answers about the wrong set.
+The tell was there and I walked past it — a library with 42 Heim folders
+and zero German headings should have prompted "am I looking at the books?"
 
-Three separate reasons, each checked:
+THE GERMAN BRANCH IS TESTED
+----------------------------
+  document        lines    toc  biblio  index  non-body
+  BH1             10216     99       0      0        99
+  bh2             12266    100       0      0       100
+  BH3FR            4037    112       0      0       112
+  WDorg4           5407     86      42      0       128
+  BH1org_OCR      10217     99       0      0        99
+  ----------------------------------------------------
+  TOTAL           42143    496      42      0       538
 
-  1. 39% of the Heim documents' `section_header` lines carry EMPTY TEXT —
-     80 of 205. A heading-based detector has nothing to read on them.
-  2. The one German structural word sitting in a structural position is
-     `Inhaltsverzeichnis`, page 11 of `Elementarstrukturen der Materie`,
-     in a line of type `page_info` — a RUNNING HEADER. It repeats and it
-     does not open a region; matching it would mark the wrong pages.
-  3. The only other occurrence is `Literatur` inside prose — "die
-     betreffende Literatur als Metapher" — which is exactly the false
-     positive that word invites.
+Every one opens with `INHALTSVERZEICHNIS` as a `section_header` — uppercase,
+which the case-insensitive patterns take. WDorg4 additionally carries
+`LITERATURVERZEICHNIS` on page 169 and is the only document in this library
+exercising the German bibliography pattern.
 
-So the German patterns are written, they are believed correct, and NOTHING
-IN THIS CORPUS EXERCISES THEM. They stay marked untested, and the Heim
-scans are not the population that changes that. What would: a German
-document whose section headers carry text.
+TWO RULES THAT WERE ASSERTED ARE NOW VALIDATED ON REAL DATA
+-------------------------------------------------------------
+Both come from these books and neither could be checked before:
 
-Both facts are in the module's docstring, so the next reader does not have
-to re-derive them.
+  * `Inhaltsverzeichnis` appears AGAIN as a `page_info` line on the page
+    after each TOC heading — the running header. It repeats and opens
+    nothing. Reading only `section_header` is what keeps it out, and four
+    of the five documents show it.
+
+  * WDorg4 page 10 carries `Literaturverzeichnis` as a
+    `table_of_contents_item`: the table of contents' own entry NAMING the
+    bibliography, 159 pages before the bibliography begins. A substring
+    search, or one that read any line type, would put the whole book from
+    page 10 onward into a bibliography region.
+
+A test now encodes exactly WDorg4's shape.
 
 DETECTION OVER THE 21
 ----------------------
