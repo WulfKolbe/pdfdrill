@@ -1,0 +1,57 @@
+588 - the manifest describes what was SELECTED, not what was SHIPPED
+
+CONFIRMED. johnston-linear-matrix-algebra, findings shape, both bounds:
+
+  --pages   pdf pages   manifest rows   manifest distinct   shipped distinct
+  10        10         68              52                  24
+  0         20         68              52                  52
+
+  --pages 0 : 52 against 52 - THEY AGREE, and nothing ships that the
+              manifest does not name.
+  --pages 10: 52 against 24 - 28 identifiers named and never shipped,
+              0 shipped that are not named. One-directional, which is
+              what truncation predicts and what a producer bug would not.
+
+24 IS THE NUMBER IN THE ORIGINAL ERROR:
+    MeasureRefused: run holds 24 data rows, the manifest expects 68
+The manifest's 68 is its ROW count (24 corrected lines - 8 pairs x 3 -
+plus 7 unresolved plus 37 flagged); 52 is the distinct identifiers behind
+those rows; 24 is what a 10-page shipout leaves. inkdrill counted 24 and
+was told to expect 68.
+
+THE MECHANISM, in the code
+
+  report_tex.py ~3249-3518   tables_manifest.append(...) runs once per row
+                             as the rows are emitted - every row, no bound
+  report_tex.py 3534         pagesel_line(pages) goes into the PREAMBLE
+  report_tex.py 3539         the manifest is written from the full list
+
+And the reason the two cannot agree, already written down at
+report_tex.py:2043 in the constant's own comment:
+
+    `pagesel` discards pages at SHIPOUT, so the document is still TYPESET
+    in full
+
+So the row list is complete by construction and the PDF is not. This is
+the pages_bound class in a third place: 578 found --pages dropped by the
+CLI, then rebound by two different functions to two different wrong
+values; here it reaches the build correctly and the manifest simply does
+not know about it.
+
+WHAT FOLLOWS
+
+--pages and measurement are incompatible by construction. A bounded
+report can be read and cannot be measured: the artefact inkdrill
+rasterises is the shipout, and the record it segments by is the row list.
+Truncating the manifest to the shipped rows would make the two agree, but
+the honest form is the one already implied - phase 1 refuses a bound
+rather than producing a manifest it cannot honour.
+
+585 already made phase 1 unbounded (MEASURE_PAGES_BOUND = None), so the
+pipeline no longer creates this state. What it still does is ACCEPT a
+bound silently on any other reporttex build and write a manifest that
+disagrees with the PDF beside it. Not fixed here - this task was a
+hypothesis to check.
+
+johnston is left built at --pages 0: 20 pages, manifest and shipout in
+agreement at 52. That is the self-consistent state of the two.
