@@ -38,8 +38,15 @@ def test_every_build_inside_inkreport_gets_the_bound():
     import re
     whole = re.findall(r"cmd_reporttex\((?:[^()]|\([^()]*\))*\)", src, re.S)
     assert whole, "no cmd_reporttex call found"
-    missing = [c for c in whole if "pages=pages" not in c]
-    assert not missing, "cmd_reporttex called without the page bound: %s" % missing
+    # 585 — the MEASURE build is deliberately unbounded: it is the full
+    # listing, and a page bound there would hide every row past page N from
+    # the ink, which is the ratchet this task removed. The bound belongs to
+    # the PUBLISHED report, so every reading build must still carry it.
+    measure = [c for c in whole if "MEASURE_PAGES_BOUND" in c]
+    reading = [c for c in whole if "MEASURE_PAGES_BOUND" not in c]
+    assert len(measure) == 1, "exactly one unbounded measure build"
+    missing = [c for c in reading if "pages=pages" not in c]
+    assert not missing, "a reading build without the page bound: %s" % missing
 
 
 def test_the_stamp_records_the_bound():

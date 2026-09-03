@@ -51,18 +51,29 @@ def test_a_profile_sets_the_formula_rule_AND_NOTHING_ELSE():
     #                  report may be reused. Reading the rule is not setting a
     #                  second thing.
     # plus the one line that prints the PROFILE header.
+    # 585 — the MEASURE build no longer takes the profile's rule: it is the
+    # full listing (MEASURE_FORMULA_RULE) so the ink sees every row. `rule`
+    # now reaches only the READING build and the header line. The profile
+    # still sets one thing; it just sets it on one build.
     ALLOWED = {"formulas", "formula_rule"}
     kw_uses = [k for n in ast.walk(fn) if isinstance(n, ast.Call)
                for k in n.keywords
                if k.arg in ALLOWED and isinstance(k.value, ast.Name)
                and k.value.id == "rule"]
     builds = [k for k in kw_uses if k.arg == "formulas"]
-    # 557 — THREE builds now, not two. Phase 1, phase 2, and the RESTORE that
-    # `_bail` runs when a measurement fails: step 2 has already replaced
-    # report.pdf with a legend-off phase-1 build, and returning that as the
-    # published artefact is what the 557 sweep did to six of nine documents.
-    # The restore is a phase-2 build and must therefore take the same rule.
-    assert len(builds) == 3, "every build must take the rule, not some of them"
+    # 557 — THREE builds: phase 1, phase 2, and the RESTORE that `_bail` runs
+    # when a measurement fails (step 2 has already replaced report.pdf with a
+    # phase-1 build, and returning that as the published artefact is what the
+    # 557 sweep did to six of nine documents).
+    #
+    # 585 — TWO of the three take the profile's rule. Phase 1 is the full
+    # listing (MEASURE_FORMULA_RULE) because the findings shape selects its
+    # rows from the ink, so a measure build filtered by the profile can only
+    # ever measure what the last one happened to find. The restore is a
+    # phase-2 build and still takes the rule; so does phase 2.
+    assert len(builds) == 2, "both READING builds must take the rule"
+    assert "MEASURE_FORMULA_RULE" in (ROOT / "src" / "pdfdrill" / "commands.py") \
+        .read_text(encoding="utf-8"), "the measure build must name its own rule"
     assert len(uses) == len(kw_uses) + 1, [ast.dump(u) for u in uses]
 
 
@@ -84,12 +95,35 @@ def test_every_build_in_inkreport_takes_the_rule_AND_the_shape():
              if isinstance(n, ast.Call)
              and getattr(n.func, "id", getattr(n.func, "attr", "")) == "cmd_reporttex"]
     assert calls, "cmd_inkreport builds no report"
+    # 585 — THE TWO BUILDS ARE NOW DELIBERATELY DIFFERENT, and this test says
+    # how, rather than being deleted. 561's defect was that the shape was
+    # passed to NEITHER build and so defaulted silently; the invariant that
+    # replaces it is that each build names its shape explicitly.
+    #
+    # The measure build is the full listing (MEASURE_*) because the findings
+    # shape selects its rows FROM the ink — Stage C measured five of five
+    # completed measurements losing their flagged set. The guarantee 561 and
+    # 539 were protecting is now enforced downstream instead of by sameness:
+    # publishready requires every published findings identifier to appear in
+    # the measured row set (rt.findings_covered_by_ink).
+    seen = {"measure": 0, "reading": 0}
     for c in calls:
         kw = {k.arg: k.value for k in c.keywords}
-        assert isinstance(kw.get("formulas"), ast.Name) and kw["formulas"].id == "rule", \
-            "a build without formulas=rule"
-        assert isinstance(kw.get("findings"), ast.Name) and kw["findings"].id == "findings", \
-            "a build without findings=findings — 561"
+        f, g = kw.get("formulas"), kw.get("findings")
+        assert f is not None and g is not None, \
+            "a build that names neither its rule nor its shape — 561"
+        if isinstance(f, ast.Name) and f.id == "MEASURE_FORMULA_RULE":
+            assert isinstance(g, ast.Name) and g.id == "MEASURE_FINDINGS", \
+                "the measure build must take the measure shape too"
+            seen["measure"] += 1
+        else:
+            assert isinstance(f, ast.Name) and f.id == "rule", \
+                "a reading build without formulas=rule"
+            assert isinstance(g, ast.Name) and g.id == "findings", \
+                "a reading build without findings=findings — 561"
+            seen["reading"] += 1
+    assert seen["measure"] == 1, "exactly one measure build, the full listing"
+    assert seen["reading"] >= 1, "at least one reading build"
 
 
 def _doc(tmp_path):

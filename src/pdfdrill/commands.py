@@ -2199,6 +2199,28 @@ INKREPORT_PROFILES = {
 }
 INKREPORT_PROFILE_DEFAULT = "internal"
 
+#: 585 — THE MEASURE BUILD IS THE FULL LISTING, ALWAYS.
+#:
+#: 557 made both phases build the same shape, to stop an ink measured against
+#: a 276-page listing being attributed to a 19-page findings report. That was
+#: right about the attribution and wrong about the direction: it made phase 1
+#: the findings shape, and the findings shape SELECTS ITS ROWS FROM THE INK.
+#: A row the ink does not mention is not flagged, so it is not in the report,
+#: so the next measurement cannot mention it either. Measured over the corpus
+#: in Stage C: of the five documents whose measurement completed, five lost
+#: their flagged set — cardona 110 -> 1 with the ink falling 1012 -> 2,
+#: voloshin 24 -> 0, penev_A 33 -> 0, 2501.06662 14 -> 1, 0707.4470 13 -> 0.
+#: The other sixteen kept their numbers only because their measurement failed.
+#:
+#: So phase 1 is the full listing — every row, unbounded — because that is what
+#: the ink must see. Phase 2 selects from that ink. The attribution 557 was
+#: protecting is now made explicit instead of implied: publishready requires
+#: measured_against.sha256 to equal the MEASURE build's sha, and every findings
+#: identifier to appear in the measured row set.
+MEASURE_FORMULA_RULE = "all"
+MEASURE_FINDINGS = False
+MEASURE_PAGES_BOUND = None
+
 #: 561 — THE SHAPE IS PART OF THE PROFILE, not a separate knob.
 #:
 #: 469 made `--profile` set the formula rule and nothing else, and the rule
@@ -2291,7 +2313,12 @@ def cmd_inkreport(pdf: Path, preflight_only: bool = False,
 
     t0 = _time.time()
     why: list = []
-    resumed = ir.fresh_ink(doc, formula_rule=rule, pages_bound=pages, why=why)
+    # 585 — the measure build is fixed (full listing, unbounded), so the resume
+    # asks about ITS parameters. Phase 2's --pages and formula rule truncate
+    # and filter the PUBLISHED report; they do not change which rows the ink
+    # measured, so they can no longer invalidate it.
+    resumed = ir.fresh_ink(doc, formula_rule=MEASURE_FORMULA_RULE,
+                           pages_bound=MEASURE_PAGES_BOUND, why=why)
     if resumed:
         out.append("")
         out.append("RESUME: the stored measurement describes the report this "
@@ -2381,8 +2408,10 @@ def cmd_inkreport(pdf: Path, preflight_only: bool = False,
         # full listing while the published build was the findings shape,
         # so the ink described a 276-page report and the reader opened a
         # 19-page one. Phase 1 and phase 2 may differ only by the legend.
-        cmd_reporttex(pdf, compile_pdf=True, legend=False, formulas=rule,
-                      findings=findings, pages=pages, ink_bullets=False)
+        cmd_reporttex(pdf, compile_pdf=True, legend=False,
+                      formulas=MEASURE_FORMULA_RULE,
+                      findings=MEASURE_FINDINGS,
+                      pages=MEASURE_PAGES_BOUND, ink_bullets=False)
         # 2b — 557. NOW the manifest describes the report that exists, so
         # this is where an unmeasurable one is refused. Before the build
         # the same question could only be asked of the previous record.

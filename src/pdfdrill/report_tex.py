@@ -2134,44 +2134,104 @@ def ink_describes_published(doc_dir: Path) -> tuple:
         for chunk in iter(lambda: fh.read(1 << 20), b""):
             h.update(chunk)
     cur = h.hexdigest()
-    if ma == cur:
-        return True, "the ink measured this exact report.pdf"
+    # 585 — NO SUCCESS PATH SKIPS THE COVERAGE CHECK. This used to return
+    # True the moment the ink's sha matched report.pdf, which is the state
+    # where report.pdf IS the measure build — the phase-1 scaffolding
+    # published as the artefact, which is exactly what 557's sweep left on
+    # six of nine documents. Matching shas is necessary and never sufficient.
+    _same_file = (ma == cur)
 
     meas = _load(doc_dir / phase_stamp_name("measure"))
     read = _load(doc_dir / phase_stamp_name("reading")) or _load(doc_dir / BUILD_STAMP)
     if not meas:
-        return False, ("the ink measured %s, which is not this report.pdf, and "
-                       "no measure stamp survives to say what it was" % ma[:12])
-    if ma != meas.get("sha256"):
-        return False, ("the ink measured %s but the measure build was %s — it "
-                       "describes neither this report nor the surviving phase-1"
+        return False, ("the ink measured %s and no measure stamp survives to "
+                       "say what that was" % ma[:12])
+
+    # 585 — THE TWO BUILDS ARE NOW DELIBERATELY DIFFERENT.
+    #
+    # Phase 1 is the full listing, unbounded: every row, because the findings
+    # shape SELECTS its rows from the ink and a row the ink never saw can
+    # never be flagged. Phase 2 is the findings build, bounded by --pages.
+    # So the old checks — same formula rule, same shape, same page count —
+    # would now refuse every document always, which is not a check.
+    #
+    # What must be true instead is the thing those checks were standing in
+    # for, and it can be asked directly:
+    #
+    #   1. the ink measured the phase-1 build that is still on disk
+    #   2. every row the published report shows was IN that measured set
+    #
+    # (2) is the one that matters. It is the assertion `measured_against` was
+    # always making and never testing: a findings row whose identifier the ink
+    # does not carry is a row nobody measured.
+    if not _same_file and ma != meas.get("sha256"):
+        return False, ("the ink measured %s but the measure build was %s"
                        % (ma[:12], str(meas.get("sha256"))[:12]))
     if not read:
         return False, "no reading stamp — nothing says what this report.pdf is"
-    if read.get("sha256") != cur:
+    if not _same_file and read.get("sha256") != cur:
         return False, ("report.pdf is not the build its own stamp describes "
                        "(%s on disk, %s stamped)"
                        % (cur[:12], str(read.get("sha256"))[:12]))
-    for key, what in (("formula_rule", "formula rule"),
-                      ("model_sha256", "model")):
-        if (meas.get(key) or "") != (read.get(key) or ""):
-            return False, ("the measured build and the published build differ "
-                           "in %s (%r against %r)"
-                           % (what, meas.get(key), read.get(key)))
-    if meas.get("findings") != read.get("findings"):
-        return False, ("the measured build and the published build are "
-                       "different SHAPES (findings=%r against %r)"
-                       % (meas.get("findings"), read.get("findings")))
-    mp, rp = meas.get("pages"), read.get("pages")
-    try:
-        mp, rp = int(mp), int(rp)
-    except (TypeError, ValueError):
-        return False, "a stamp does not record its page count"
-    if mp != rp:
-        return False, ("the ink measured a %d-page build and this report is "
-                       "%d pages — a different set of rows, not a legend" % (mp, rp))
-    return True, ("the ink measured the phase-1 build of this same report "
-                  "(%d pages, rule %r)" % (rp, read.get("formula_rule")))
+    if (meas.get("model_sha256") or "") != (read.get("model_sha256") or ""):
+        return False, ("the measured build and the published build used "
+                       "different models (%s against %s)"
+                       % (str(meas.get("model_sha256"))[:12],
+                          str(read.get("model_sha256"))[:12]))
+
+    cov = findings_covered_by_ink(doc_dir)
+    # A CHECK MUST NOT PASS ON ABSENT EVIDENCE. A findings build with no
+    # tables manifest has nothing to compare, and 551 is what that costs:
+    # report.tables.json was empty in 21 of 21 and every downstream reader
+    # silently agreed with it.
+    if read.get("findings") and not cov["shown"]:
+        return False, ("this is a findings build and %s names no rows — "
+                       "there is nothing to check the ink against"
+                       % TABLES_MANIFEST)
+    if cov["shown"] and cov["missing"]:
+        return False, ("%d of %d published findings rows were never measured "
+                       "(%s%s) — the ink cannot speak for them"
+                       % (len(cov["missing"]), cov["shown"],
+                          ", ".join(sorted(cov["missing"])[:3]),
+                          " …" if len(cov["missing"]) > 3 else ""))
+    return True, ("the ink measured the phase-1 full listing (%d rows) and "
+                  "covers all %d rows this report shows"
+                  % (cov["measured"], cov["shown"]))
+
+
+def findings_covered_by_ink(doc_dir: Path) -> dict:
+    r"""585 — {measured, shown, covered, missing}: are the published rows
+    inside the measured set?
+
+    `report.tables.json` names every longtable the report emitted and the
+    identifiers in each, in row order; `report.ink.json` names every row the
+    measurement actually saw. A published identifier absent from the ink is a
+    row the report presents as measured and nobody measured.
+
+    Corrected pairs appear as `<id> (was)`, `(now)` and `(basis)`; all three
+    are the same region, so the suffix is stripped before comparing.
+    """
+    import json as _json
+    import re as _re
+    _SUFFIX = r"\s*\((?:was|now|basis)\)\s*$"
+    doc_dir = Path(doc_dir)
+
+    def _load(p):
+        try:
+            return _json.loads(Path(p).read_text(encoding="utf-8"))
+        except (OSError, ValueError):
+            return {}
+
+    ink = _load(doc_dir / "report.ink.json")
+    measured = {r.get("id") for r in (ink.get("rows") or []) if r.get("id")}
+    tabs = (_load(doc_dir / TABLES_MANIFEST) or {}).get("tables") or []
+    shown = set()
+    for t in tabs:
+        for ident in (t.get("identifiers") or []):
+            shown.add(_re.sub(_SUFFIX, "", str(ident)))
+    return {"measured": len(measured), "shown": len(shown),
+            "covered": len(shown & measured),
+            "missing": sorted(shown - measured)}
 
 
 def build_stamp(pdf_out: Path, findings: bool | None = None) -> dict:

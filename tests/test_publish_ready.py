@@ -307,46 +307,84 @@ def test_stamp_refuses_an_ink_that_names_no_build(tmp_path):
     assert "does not say which report" in r["checks"]["stamp"][1]
 
 
-def test_stamp_refuses_a_measurement_of_a_different_shape(tmp_path):
-    """516 rebuilt 21 reports into the findings shape; the ink still
-    described the full listing that preceded it."""
+def test_stamp_accepts_a_full_listing_measurement_that_covers_every_row(tmp_path):
+    """585 — the two builds are now different BY DESIGN, and this test says
+    what replaced the sameness rule.
+
+    516 rebuilt 21 reports into the findings shape while the ink still
+    described the full listing that preceded it, and 539 made publishready
+    refuse any measurement of a differently-shaped report. 585 reverses the
+    direction: the measure build IS the full listing, unbounded, because the
+    findings shape selects its rows from the ink and a row the ink never saw
+    can never be flagged (Stage C: five of five completed measurements lost
+    their flagged set).
+
+    So a shape difference is no longer the question. The question is whether
+    every row the published report SHOWS was in the measured set.
+    """
+    import json as _json
+    from pdfdrill import report_tex as _rt
+    pdf = _doc(tmp_path, ink=SPREAD)
+    d = pdf.parent
+
+    def _remeasure(shown):
+        meas = d / _rt.phase_stamp_name("measure")
+        st = _json.loads(meas.read_text())
+        st["pages"], st["findings"], st["formula_rule"] = 276, False, "all"
+        meas.write_text(_json.dumps(st))
+        payload = _json.loads((d / "report.ink.json").read_text())
+        payload[_rt.MEASURED_AGAINST] = st
+        (d / "report.ink.json").write_text(_json.dumps(payload))
+        (d / "report.pdf").write_bytes(b"%PDF-1.4\n" + b"findings" * 100)
+        _rt.write_build_stamp(d / "report.pdf", legend=True, ink_adopted=True,
+                              prefer_refined=False, filters={}, findings=True,
+                              bullets=True)
+        (d / _rt.BUILD_STAMP).replace(d / _rt.phase_stamp_name("reading"))
+        (d / _rt.TABLES_MANIFEST).write_text(_json.dumps(
+            {"bibkey": "DOC", "tables": [{"caption": "Flagged, not acted on",
+                                          "identifiers": shown}]}))
+        return _rt.ink_describes_published(d)
+
+    measured = sorted({r["id"] for r in SPREAD})
+    ok, detail = _remeasure(measured)
+    assert ok, detail
+    assert "covers all" in detail
+
+    # and the guarantee that replaced sameness: a shown row nobody measured
+    ok2, detail2 = _remeasure(measured + ["DOC_EQ9999"])
+    assert not ok2
+    assert "never measured" in detail2 and "DOC_EQ9999" in detail2
+
+
+def test_a_findings_build_with_no_tables_manifest_is_refused(tmp_path):
+    """551 — report.tables.json was empty in 21 of 21 and every reader agreed
+    with it. A coverage check with nothing to compare must not pass."""
     import json as _json
     from pdfdrill import report_tex as _rt
     pdf = _doc(tmp_path, ink=SPREAD)
     d = pdf.parent
     meas = d / _rt.phase_stamp_name("measure")
     st = _json.loads(meas.read_text())
-    st["pages"] = 276                      # the build that WAS measured
-    meas.write_text(_json.dumps(st))
-    ink = d / "report.ink.json"
-    payload = _json.loads(ink.read_text())
+    payload = _json.loads((d / "report.ink.json").read_text())
     payload[_rt.MEASURED_AGAINST] = st
-    ink.write_text(_json.dumps(payload))
-    # the PUBLISHED report is a different file from the measured one — which
-    # is the whole point of two-phase, and what the fixture's single 9-byte
-    # report.pdf would otherwise hide
-    (d / "report.pdf").write_bytes(b"%PDF-1.4\n" + b"findings" * 100)
+    (d / "report.ink.json").write_text(_json.dumps(payload))
     _rt.write_build_stamp(d / "report.pdf", legend=True, ink_adopted=True,
-                          prefer_refined=False, filters={}, findings=True)
+                          prefer_refined=False, filters={}, findings=True,
+                          bullets=True)
     (d / _rt.BUILD_STAMP).replace(d / _rt.phase_stamp_name("reading"))
+    (d / _rt.TABLES_MANIFEST).write_text(_json.dumps({"tables": []}))
     ok, detail = _rt.ink_describes_published(d)
-    assert not ok
-    # the SHAPE difference is named before the page count, because it is the
-    # cause and the page count is the symptom
-    assert "different SHAPES" in detail, detail
-
-    # and when both are the same shape, the page count is what catches it
-    st2 = _json.loads((d / _rt.phase_stamp_name("reading")).read_text())
-    st2["findings"] = False
-    st2["pages"] = 19          # pdfinfo cannot read the fixture's stub PDF
-    (d / _rt.phase_stamp_name("reading")).write_text(_json.dumps(st2))
-    (d / _rt.BUILD_STAMP).write_text(_json.dumps(st2))
-    ok2, detail2 = _rt.ink_describes_published(d)
-    assert not ok2
-    assert "276-page build" in detail2 and "not a legend" in detail2, detail2
-
+    assert not ok and "names no rows" in detail, detail
 
 def test_stamp_passes_when_the_ink_measured_this_exact_report(tmp_path):
+    """585 — still passes, but no longer by SHORT-CIRCUIT.
+
+    This used to return True the instant the ink's sha matched report.pdf.
+    That is also the state where report.pdf IS the measure build — phase-1
+    scaffolding published as the artefact, which 557's sweep left on six of
+    nine documents — so matching shas is necessary and never sufficient. The
+    coverage check now runs on every success path, and the detail says so.
+    """
     import json as _json
     from pdfdrill import report_tex as _rt
     pdf = _doc(tmp_path, ink=SPREAD)
@@ -356,4 +394,5 @@ def test_stamp_passes_when_the_ink_measured_this_exact_report(tmp_path):
     payload[_rt.MEASURED_AGAINST] = live
     (d / "report.ink.json").write_text(_json.dumps(payload))
     ok, detail = _rt.ink_describes_published(d)
-    assert ok and "this exact report.pdf" in detail
+    assert ok, detail
+    assert "covers all" in detail, detail
