@@ -1,0 +1,79 @@
+558 — who globs *.tiddlers.json, and the nine stale files removed
+=================================================================
+
+THE CONSUMERS THAT GLOB
+------------------------
+Four in production code, and the order they get is FILESYSTEM order:
+
+  src/pdfdrill/commands.py:1713   publish_ready — the ink coverage check
+  src/pdfdrill/commands.py:1925   the refined-rows / tiddler count
+  src/pdfdrill/corrections.py:117 the identifier join for corrections.html
+  src/pdfdrill/layer_detect.py:119 has_tiddlers (list(), all passed on)
+
+Plus twelve one-off scripts in tools/ (census481, parallel474, uniscan475,
+pkggap482, midstring486, bed492, beddiag492, ctx507, census509, rightdelim517,
+perp527, perpcount528) — measurement code, not the pipeline.
+
+WHICH FILE EACH GOT, ON THE NINE
+---------------------------------
+`next(d.glob(...))` is not sorted and not stable across documents. Before
+the deletion it returned:
+
+  the CURRENT bibkey file   cardona, fong-spivak-invitation,
+                            fong-spivak-seven-sketches, kohlhase, voloshin
+  the STALE folder file     gilmore-lie-groups, johnston-linear-matrix-
+                            algebra, lyche-numerical-linear-algebra,
+                            mielke-geometrodynamics
+
+So four production consumers read a 1 September array on four documents —
+`corrections.py` among them, which is the identifier join behind
+corrections.html.
+
+`sorted(glob)[0]` gets the stale file on ALL NINE, because the long folder
+name sorts before the bibkey. That is the bug in my own 550 measurement,
+which reported "the fix does nothing" for twelve documents.
+
+`_resolve_tiddlers` was never affected: it reads
+`sc.get_evidence("tiddlers_path")` first and every sidecar named the
+current file. The `<pdf.stem>.tiddlers.json` fallback IS the stale name on
+these nine, so it was one lost evidence key away from firing.
+
+THE NINE, BEFORE REMOVAL
+-------------------------
+All dated 2026-09-01 14:46, all superseded by a bibkey-named file:
+
+  document                          bytes    sha256[:16]
+  cardona-qft-methods             6,041,892  855202b7f7334639
+  fong-spivak-invitation          6,095,677  4370fdd3cd7ad362
+  fong-spivak-seven-sketches      5,989,499  fe5fd6d69f6ca69e
+  gilmore-lie-groups              5,346,722  08b37f2d1b081e43
+  johnston-linear-matrix-algebra 10,024,443  54ab7079c2ea1cbd
+  kohlhase-omdoc                  4,018,721  4c1fed63fbf7a34c
+  lyche-numerical-linear-algebra  6,198,498  91aa9e41565021d3
+  mielke-geometrodynamics         4,998,254  adb316c7d060383d
+  voloshin-hypergraph             3,608,551  6a39eca7c2d08e35
+                                 ----------
+                                  49.9 MB
+
+NOTHING REFERENCED THEM, CHECKED BEFORE DELETING
+-------------------------------------------------
+  every .json/.tsv/.tex/.html/.txt/.md/.log beside the nine documents,
+    searched for the stale filename                        0 references
+  the repo's code, yaml, tests                             0 references
+  the only repo hits are the FOLDER name and pre-rename identifiers in
+    archived out/ task records — history, not a live reference
+
+They are also reconstructible: `pdfdrill tiddlers` re-projects one from the
+model at any time, so this is not unrecoverable data.
+
+AFTER
+-----
+  deleted 9 files, 49.9 MB
+  next(glob), sorted(glob)[0] and _resolve_tiddlers now agree on 21 of 21
+
+WHAT I WOULD STILL CHANGE
+--------------------------
+The four production sites should not glob at all — they should ask
+`_tiddlers_path`, which consults the sidecar. Deleting the duplicates makes
+the glob correct today; it does not make it right. That is a separate
+change and it is not made here.

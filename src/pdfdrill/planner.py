@@ -97,6 +97,8 @@ def detect(spec: str, sc, pdf: Path, model_path: Path) -> bool:
       artifact:breport         B.tex AND B.pdf, on the same terms
       lines           a MathPix lines.json sits next to the PDF
       fact:NAME       the sidecar carries that fact
+      file:PATTERN    a NON-EMPTY file matching it sits beside the PDF;
+                      {stem} and {bibkey} expand, and a glob is allowed
 
     `model` is a PRESENCE test and `model:geometry` an ADEQUACY one. The
     distinction matters: a model built by a lane that produces no object regions
@@ -122,6 +124,26 @@ def detect(spec: str, sc, pdf: Path, model_path: Path) -> bool:
         return (pdf.parent / f"{base}.lines.json").exists()
     if spec.startswith("fact:"):
         return sc.has(spec[5:])
+    if spec.startswith("file:"):
+        # 555 — THE GENERIC ONE. Most commands are done when a file they
+        # write is there, and hand-rolling a detector per command is how 131
+        # of 144 ended up with none at all. The pattern is relative to the
+        # document's folder; `{stem}` is the PDF's stem and `{bibkey}` the
+        # sidecar's, so `file:{stem}.md` and `file:tables.json` both work.
+        # A glob is allowed.
+        #
+        # NON-EMPTY IS PART OF THE TEST. The pages repo learned it the hard
+        # way — "the guard checked names, so a zero-byte report.pdf passed
+        # it" — and a command that wrote nothing has not run.
+        base = pdf.parent
+        stem = pdf.name[:-4] if pdf.name.lower().endswith(".pdf") else pdf.name
+        pat = (spec[5:].replace("{stem}", stem)
+                       .replace("{bibkey}", str(sc.blob_dir.name)))
+        try:
+            hits = sorted(base.glob(pat))
+        except (ValueError, OSError):
+            return False
+        return any(h.is_file() and h.stat().st_size > 0 for h in hits)
     if spec == "lines:mathpix":
         # genuine MathPix geometry: lines.json exists, post-dates the PDF,
         # and IS MathPix (keyless routes stamp a `source` key; MathPix none)

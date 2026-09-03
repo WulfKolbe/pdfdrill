@@ -1,0 +1,60 @@
+559 — did the rename leave predecessors in the other families?
+==============================================================
+
+NO. The rename left duplicates in exactly one family, and 558 removed them.
+
+Surveyed across the 21 published documents: *.lines.json, *.inspect.html,
+*.md, *.drill.json, *.semantic.json, *.docmodel.json, *.tiddlers.json,
+*.coverage.tsv, *.tex.zip.
+
+  family              documents with >1 file   what it is
+  *.tiddlers.json          9  (before 558)     the rename's predecessors
+  *.md                    14                   NOT duplicates — see below
+  *.lines.json             1                   MY debris — see below
+  *.drill.json             1                   MY debris
+  everything else          0
+
+462 retargeted content and renamed the stems; only the tiddler array had a
+predecessor left beside it. `inspect.html`, `lines.json`, the model and the
+tex.zip all kept a single file per document.
+
+THE 14 *.md ARE NOT A DUPLICATE
+--------------------------------
+Every one is `<bibkey>.md` plus `tables.md` — two different artefacts that
+share a suffix. The markdown projection and the keyless pdfplumber table
+dump. A glob on `*.md` would confuse them, and nothing in the pipeline
+globs `*.md`; consumers name the file.
+
+Worth noting while looking: several `tables.md` are 0 bytes — the same
+empty files 516 withdrew from the site. They are empty because those books
+have no ruled tables, which is honest, but a zero-byte artefact sitting
+beside a real one is the shape 543's non-empty check exists for.
+
+THE TWO SINGLETONS ARE MINE, FROM 545
+--------------------------------------
+cardona carried `B.lines.json` (4.4 MB), `B.pdf.drill.json` and a
+`B.pdf.drill/` folder with its own `B.tiddlers.json` (2.2 MB). All dated
+2026-09-03 10:22 — when I ran `breport "$D"/*.pdf`, the glob sorted `B.pdf`
+first, and pdfdrill dutifully treated B.pdf as a source document and
+drilled it.
+
+IT COST NOTHING, AND THAT IS CHECKABLE RATHER THAN ASSUMED:
+
+  B.lines.json  "source": "pdfminer-chars"      the keyless route
+  B.pdf.drill.json facts    NEEDS_VISION_OCR    no math was read
+  model_equations_with_cdn  0                   no MathPix crop was fetched
+  calls/                    no entry for today
+
+`no_paid_steps()` held. The auto-chain built a keyless model and stopped,
+exactly as 159 specifies.
+
+Removed: 3 entries, 43.4 MB. B.tex, B.pdf and B.log stay — those are the
+artefact.
+
+AFTER BOTH CLEANUPS
+--------------------
+  families with more than one file per document:  *.md only, 14 of 21,
+                                                  and those are two
+                                                  different artefacts
+
+93.3 MB of duplicate and debris removed from the library in total.
