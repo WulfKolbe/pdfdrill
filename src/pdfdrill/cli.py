@@ -1076,13 +1076,18 @@ def _do_inkconvert(args):
 
 def _do_inkreport(args):
     """pdfdrill inkreport <pdf> [--preflight-only] [--timeout N]
-    [--profile internal|published]"""
+    [--profile internal|published] [--full]
+
+    561 — the PROFILE decides the shape: published builds the findings
+    shape, internal the full listing, and BOTH phases build the same one.
+    `--full` forces the full listing whatever the profile says."""
     from .commands import cmd_inkreport, INKREPORT_PROFILE_DEFAULT
     to, args = _opt(args, "--timeout")
     profile, args = _opt(args, "--profile")
-    pdf_args = [a for a in args if a != "--preflight-only"]
+    pdf_args = [a for a in args if a not in ("--preflight-only", "--full")]
     return cmd_inkreport(_pdf(pdf_args),
                          preflight_only="--preflight-only" in args,
+                         findings=(False if "--full" in args else None),
                          profile=profile or INKREPORT_PROFILE_DEFAULT,
                          timeout=int(to) if to else 900)
 

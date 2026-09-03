@@ -177,7 +177,17 @@ def preflight(pdf: Path, doc_dir: Path, *, probe: bool = True,
                    % (plan["columns"], plan["rows"], plan["header"]))
     except Exception as e:                        # MeasureRefused and friends
         tbl_why = "%s: %s" % (type(e).__name__, str(e)[:140])
-    checks.append(("table ordinal/columns", tbl_ok, tbl_why))
+    # 557 — THIS MANIFEST IS AN OUTPUT OF THE BUILD THAT FOLLOWS, not an input
+    # to it. Step 2 rewrites `report.tables.json`, so refusing here refuses on
+    # the PREVIOUS build's record: every document whose manifest 516 wrote
+    # empty was unmeasurable, and the step that would have fixed it was the
+    # one being blocked. The check stays — it is the only cheap read of the
+    # plan — but a failure is provisional, and step 2b refuses for real once
+    # the manifest describes the report actually built.
+    if not tbl_ok:
+        tbl_why += "  (provisional: step 2 rebuilds this manifest)"
+    checks.append(("table ordinal/columns", True, tbl_why))
+    plan["table_provisional"] = not tbl_ok
 
     # DISK, at the high-water mark rather than the total.
     pages = _report_pages(doc_dir)

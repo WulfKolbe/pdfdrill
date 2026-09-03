@@ -2148,9 +2148,31 @@ INKREPORT_PROFILES = {
 }
 INKREPORT_PROFILE_DEFAULT = "internal"
 
+#: 561 — THE SHAPE IS PART OF THE PROFILE, not a separate knob.
+#:
+#: 469 made `--profile` set the formula rule and nothing else, and the rule
+#: was already passed to BOTH builds on purpose: "setting the rule on one
+#: build only would make the measure build unmatchable to the reading build
+#: by row". The shape was never passed at all, so `findings` defaulted False
+#: in both — internally consistent, and not what gets published.
+#:
+#: That is exactly how 539 happened. The measure build was the full listing
+#: at 276 pages, the published one the findings shape at 19, and
+#: `formula_rule` read `none` on both sides BECAUSE IT WAS THE SAME ON BOTH
+#: SIDES. The rule matched; the shape did not, and nothing recorded a shape
+#: to compare. All 21 published documents failed 539's stamp check.
+#:
+#: So the profile decides both, and the two builds cannot disagree.
+INKREPORT_FINDINGS = {
+    "internal": False,     # working on a document: show every row
+    "published": True,     # the publish path: four sections, a row appears
+                           # only when there is something to say about it
+}
+
 
 @_writes("inkreport")
 def cmd_inkreport(pdf: Path, preflight_only: bool = False,
+                  findings: "bool | None" = None,
                   profile: str = INKREPORT_PROFILE_DEFAULT,
                   timeout: int = 900) -> str:
     """404 — the whole ink chain, and the only supported way to run it.
@@ -2176,6 +2198,10 @@ def cmd_inkreport(pdf: Path, preflight_only: bool = False,
         return ("inkreport: --profile must be one of %s, not %r."
                 % (", ".join(sorted(INKREPORT_PROFILES)), profile))
     rule = INKREPORT_PROFILES[profile]
+    # the profile decides the shape too; an explicit argument still wins, so a
+    # caller can measure the other shape deliberately rather than by accident.
+    if findings is None:
+        findings = INKREPORT_FINDINGS[profile]
     doc = blob_dir_for(Path(pdf).resolve())[0]   # layout-aware, never hardcoded
     out: list[str] = []
 
@@ -2191,7 +2217,8 @@ def cmd_inkreport(pdf: Path, preflight_only: bool = False,
         return "\n".join(out)
 
     out.append("")
-    out.append("PROFILE: %s (formulas: %s)" % (profile, rule))
+    out.append("PROFILE: %s (formulas: %s, shape: %s)"
+               % (profile, rule, "findings" if findings else "full listing"))
     plan = pre["plan"]
     pages = plan.get("report_pages") or max(1, plan.get("rows", 4) // 4)
     out.append("")
@@ -2237,7 +2264,28 @@ def cmd_inkreport(pdf: Path, preflight_only: bool = False,
             # THIS pdf's pages, and step 4 joins the result back onto the
             # reading build by row. Setting the rule on one build only would
             # produce a measurement of pages that no longer exist.
-            cmd_reporttex(pdf, compile_pdf=True, legend=False, formulas=rule)
+            # 557 — BOTH PHASES BUILD THE SAME SHAPE, and this is the
+            # defect 539 measured across all 21: the measure build was the
+            # full listing while the published build was the findings shape,
+            # so the ink described a 276-page report and the reader opened a
+            # 19-page one. Phase 1 and phase 2 may differ only by the legend.
+            cmd_reporttex(pdf, compile_pdf=True, legend=False, formulas=rule,
+                          findings=findings)
+            # 2b — 557. NOW the manifest describes the report that exists, so
+            # this is where an unmeasurable one is refused. Before the build
+            # the same question could only be asked of the previous record.
+            from . import inkmeasure as _im
+            try:
+                _t = _im.equations_table(doc)
+                if not int(_t.get("rows") or 0):
+                    return "\n".join(out + [
+                        "", "REFUSED after the measure build: %s names a table "
+                        "with no rows. There is nothing to measure — this "
+                        "document's sections are empty." % _im.Path(doc).name])
+            except Exception as _e:
+                return "\n".join(out + [
+                    "", "REFUSED after the measure build: %s: %s"
+                    % (type(_e).__name__, str(_e)[:200])])
         finally:
             if stash.is_file() and not held.is_file():
                 stash.replace(held)
@@ -2283,7 +2331,8 @@ def cmd_inkreport(pdf: Path, preflight_only: bool = False,
         out.append("4 convert        %s" % _lines[0][:150])
 
     # 5 — the READING build, adopting.
-    cmd_reporttex(pdf, compile_pdf=True, legend=True, formulas=rule)
+    cmd_reporttex(pdf, compile_pdf=True, legend=True, formulas=rule,
+                  findings=findings)          # 557 — same shape as phase 1
     stamp = doc / "report.build.json"
     got = json.loads(stamp.read_text(encoding="utf-8")) if stamp.is_file() else {}
     if got.get("phase") != "reading" or not got.get("ink_adopted"):

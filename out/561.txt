@@ -1,0 +1,85 @@
+561 — the profile decides the shape, and both builds get it
+===========================================================
+
+THE DEFECT, AS YOU DIAGNOSED IT
+--------------------------------
+`--profile` set the formula RULE and passed it to both builds on purpose —
+"setting the rule on one build only would produce a measurement of pages
+that no longer exist". `findings` was passed to NEITHER, so both defaulted
+to False: internally consistent, and not the shape that gets published.
+
+That is 539 exactly. The measure build was the full listing, the published
+build the findings shape, and `formula_rule` read `none` on both sides
+because it was the same on both sides. The rule matched; the shape did not,
+and no stamp recorded a shape to compare.
+
+  INKREPORT_FINDINGS = {"internal": False, "published": True}
+
+The profile now decides both. An explicit `findings=` still wins, so a
+caller can measure the other shape deliberately rather than by accident;
+`--full` is that override on the CLI. `build_stamp` records `findings`
+(539), so the two sides are now comparable at all — which they were not.
+
+BOTH PHASES, BOTH PROFILES, ON 0707.4470
+------------------------------------------
+  --profile published (formulas: none, shape: findings)
+    measure   pages=2   findings=True   legend=False  rule=none
+    reading   pages=2   findings=True   legend=True   rule=none
+    PAGES MATCH ✓   SHAPE MATCH ✓   RULE MATCH ✓
+
+  --profile internal (formulas: unresolved, shape: full listing)
+    measure   pages=10  findings=False  legend=False  rule=unresolved
+    STOPPED at step 3: "run holds 1 data rows, the manifest expects 62"
+
+The internal profile stops, and it stops for a real reason rather than a
+regression: its 62-row full listing needs a lattice run over ten pages that
+this document's crops no longer support. It is not the published shape and
+it is not what 557 sweeps. Reported rather than papered over.
+
+FOUR BLOCKERS CLEARED TO GET THERE
+-----------------------------------
+Each was hiding behind the one before it.
+
+  1. `report.tables.json` empty in 21 of 21 (551) — every
+     `tables_manifest.append` sat inside `if not findings:`.
+
+  2. THE PREFLIGHT REFUSED ON ITS OWN OUTPUT. `equations_table` was checked
+     before step 2, but step 2 REWRITES that manifest — so every document
+     whose manifest 516 wrote empty was unmeasurable, and the step that
+     would have fixed it was the one being blocked. The check stays as the
+     cheap read of the plan; the refusal moved to a new step 2b, after the
+     build, where the manifest describes the report that exists.
+
+  3. `inkmeasure` knew only "Display equations". A findings report has no
+     such table. It now falls back to the four findings captions in
+     emission order and concatenates them.
+
+  4. MY OWN 551 MANIFEST UNDERCOUNTED. `findings_tex` emits THREE lines per
+     corrected pair — the failed reading, the accepted one, and a `basis:`
+     multicolumn — and I recorded two. inkmeasure refused with "3 rows after
+     page 2 against 2 expected". The manifest is what the measurement
+     trusts, so an undercount there surfaces as a refusal somewhere else.
+
+0707.4470 now runs end to end: measure 2 pages -> 3 rows -> convert 2 rows
+-> reading build 2 pages, ink adopted. 6 seconds.
+
+WHAT STILL FAILS ON THAT DOCUMENT, AND WHY 557 IS NOT STARTED
+---------------------------------------------------------------
+  FAILING  stamp      the ink does not say which report it measured
+  FAILING  ink        coverage UNKNOWN — report.tex yields no row identifiers
+  FAILING  residuals  0 bullets, legend present
+
+`measured_against` is not attached: inkconvert declines when
+`report.build.json` looks newer than `report.compare.tsv`, and in the
+findings shape it does. Without it 539's stamp check cannot pass, which is
+the whole point of the sweep — so sweeping 21 documents today would produce
+21 reports that still fail the check that prompted it.
+
+`report.tex yields no row identifiers` is the same shape of problem one
+layer along: `inkconvert.identifiers()` reads the full listing's row form.
+
+So the sweep is NOT started. Three fixes stand between here and a 557 that
+means anything, and each is small and named. Starting it now would burn an
+hour to reproduce a known failure 21 times.
+
+Tests: 2,931 passing.

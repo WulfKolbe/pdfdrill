@@ -591,6 +591,15 @@ commands:
     flag: --timeout
     type: int
     help: 'per-page compare timeout in seconds (default 900)'
+  - name: full
+    flag: --full
+    type: flag
+    help: 'force the FULL listing whatever the profile says. The PROFILE normally
+      decides the shape — published builds findings, internal the full listing —
+      and both phases always build the SAME one. 539 found all 21 published
+      documents carrying an ink measured against a 276-page full build beside a
+      19-page findings report; the formula rule matched because it was passed to
+      both builds, and the shape did not because it was passed to neither'
   typed: true
 - name: publishready
   section: Reporting

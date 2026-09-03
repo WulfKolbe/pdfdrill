@@ -43,8 +43,24 @@ class MeasureRefused(RuntimeError):
     """The report cannot be measured, and saying so beats a wrong TSV."""
 
 
+#: 557 — the findings shape has no "Display equations" table. Its equation
+#: rows live in the four sections, and a measurement of the PUBLISHED report
+#: has to segment those. Order matters: Corrected first because it is the
+#: first section the builder emits, so the lattice's row order matches.
+FINDINGS_CAPTIONS = ("Corrected", "Unresolved", "Flagged, not acted on",
+                     "Doubted but correct")
+
+
 def equations_table(doc_dir: Path) -> dict:
-    """The builder's own record of its Display equations table (321)."""
+    """The builder's own record of the table whose rows are to be measured.
+
+    321 named it "Display equations", which is the full listing's section.
+    557 — a FINDINGS report has no such table: `report.tables.json` names
+    Corrected / Unresolved / Flagged / Doubted instead, and refusing on that
+    is what stopped the published shape being measurable at all. The sections
+    are concatenated in emission order, so the run reads as one sequence of
+    rows exactly as the lattice sees it.
+    """
     f = Path(doc_dir) / "report.tables.json"
     if not f.is_file():
         return _from_tex(Path(doc_dir) / "report.tex")
@@ -55,8 +71,22 @@ def equations_table(doc_dir: Path) -> dict:
     for t in tables:
         if t.get("caption") == EQUATION_CAPTION:
             return t
-    raise MeasureRefused("report.tables.json names no %r table"
-                         % EQUATION_CAPTION)
+    found = [t for cap in FINDINGS_CAPTIONS
+             for t in tables if t.get("caption") == cap]
+    if found:
+        idents = [i for t in found for i in (t.get("identifiers") or [])]
+        return {"caption": " + ".join(t["caption"] for t in found),
+                "columns": found[0].get("columns"),
+                "legend": any(t.get("legend") for t in found),
+                "endhead": any(t.get("endhead") for t in found),
+                "rows": sum(int(t.get("rows") or 0) for t in found),
+                "identifiers": idents,
+                "sections": [t["caption"] for t in found],
+                "shape": "findings"}
+    raise MeasureRefused(
+        "report.tables.json names neither %r nor any findings section (%s) — "
+        "it holds %r" % (EQUATION_CAPTION, ", ".join(FINDINGS_CAPTIONS),
+                         [t.get("caption") for t in tables]))
 
 
 def _from_tex(tex: Path) -> dict:

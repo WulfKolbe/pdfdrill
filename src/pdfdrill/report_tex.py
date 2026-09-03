@@ -3126,10 +3126,17 @@ def build_report(tiddlers_path: Path, out: Path | None = None,
         _fw = eq_widths
         _shown, _ = flagged_split(_found["flagged"])
         for _cap, _ids in (
-                ("Corrected", [p_["identifier"] + " (was)"
-                               for p_ in _found["corrected"]]
-                            + [p_["identifier"] + " (now)"
-                               for p_ in _found["corrected"]]),
+                # 557 — THREE LINES PER PAIR, not two. `findings_tex` emits
+                # the failed reading, the accepted one, AND a `basis:`
+                # \multicolumn line, and the lattice counts all three as
+                # rows. Recording two made inkmeasure refuse with "3 rows
+                # after page 2 against 2 expected" — the manifest is what the
+                # measurement trusts, so an undercount there is a refusal
+                # somewhere else.
+                ("Corrected", [x for p_ in _found["corrected"]
+                               for x in (p_["identifier"] + " (was)",
+                                         p_["identifier"] + " (now)",
+                                         p_["identifier"] + " (basis)")]),
                 ("Unresolved", [r_["identifier"] for r_ in _found["unresolved"]]),
                 ("Flagged, not acted on", [r_["identifier"] for r_ in _shown]),
                 ("Doubted but correct", [r_["identifier"] for r_ in _found["doubted"]])):
