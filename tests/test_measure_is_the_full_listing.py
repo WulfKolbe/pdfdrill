@@ -20,7 +20,10 @@ from pdfdrill import report_tex as rt
 def test_the_measure_phase_constants_are_the_full_listing():
     assert C.MEASURE_FORMULA_RULE == "all"
     assert C.MEASURE_FINDINGS is False
-    assert C.MEASURE_PAGES_BOUND is None, "phase 1 must not be page-bounded"
+    # 593 — 0, not None. `pages=None` used to become PAGES_DEFAULT (10) at the
+    # build_report call, so the "unbounded" measure build 585 thought it had
+    # built was in fact ten pages. 0 is what pagesel_line reads as every page.
+    assert C.MEASURE_PAGES_BOUND == 0, "phase 1 must not be page-bounded"
 
 
 def test_step_2_builds_the_full_listing_regardless_of_profile():

@@ -2219,7 +2219,7 @@ INKREPORT_PROFILE_DEFAULT = "internal"
 #: identifier to appear in the measured row set.
 MEASURE_FORMULA_RULE = "all"
 MEASURE_FINDINGS = False
-MEASURE_PAGES_BOUND = None
+MEASURE_PAGES_BOUND = 0        # 593 — 0 is unbounded; None meant PAGES_DEFAULT
 
 #: 561 — THE SHAPE IS PART OF THE PROFILE, not a separate knob.
 #:
@@ -2266,12 +2266,28 @@ def cmd_inkreport(pdf: Path, preflight_only: bool = False,
     import time as _time
     from . import inkreport as ir
     from . import inkmeasure as im
+    from . import report_tex as rt
     from .sidecar import blob_dir_for
 
     if profile not in INKREPORT_PROFILES:
         return ("inkreport: --profile must be one of %s, not %r."
                 % (", ".join(sorted(INKREPORT_PROFILES)), profile))
     rule = INKREPORT_PROFILES[profile]
+    # 593 — inkreport cannot bound EITHER build: both write report.tables.json.
+    # Accepting the flag and quietly dropping it is 578's defect, so it is
+    # refused by name.
+    if pages is not None:
+        try:
+            _pn = int(pages)
+        except (TypeError, ValueError):
+            _pn = 0
+        if _pn > 0:
+            return ("inkreport refuses --pages %d: both of its builds write %s, "
+                    "and a bounded build ships fewer rows than its manifest "
+                    "names (out/588). Use `pdfdrill breport <pdf> --pages %d` "
+                    "for a bounded reading copy."
+                    % (_pn, rt.TABLES_MANIFEST, _pn))
+
     # the profile decides the shape too; an explicit argument still wins, so a
     # caller can measure the other shape deliberately rather than by accident.
     if findings is None:
@@ -2369,7 +2385,7 @@ def cmd_inkreport(pdf: Path, preflight_only: bool = False,
                 _s.replace(_h)
             try:
                 cmd_reporttex(pdf, compile_pdf=True, legend=True,
-                              formulas=rule, findings=findings, pages=pages)
+                              formulas=rule, findings=findings)
                 lines = lines + [
                     "", "The reading build was restored — a failed measurement "
                     "must not leave report.pdf as the phase-1 scaffolding it "
@@ -2411,7 +2427,7 @@ def cmd_inkreport(pdf: Path, preflight_only: bool = False,
         cmd_reporttex(pdf, compile_pdf=True, legend=False,
                       formulas=MEASURE_FORMULA_RULE,
                       findings=MEASURE_FINDINGS,
-                      pages=MEASURE_PAGES_BOUND, ink_bullets=False)
+                      pages=MEASURE_PAGES_BOUND, ink_bullets=False)   # unbounded
         # 2b — 557. NOW the manifest describes the report that exists, so
         # this is where an unmeasurable one is refused. Before the build
         # the same question could only be asked of the previous record.
@@ -2470,7 +2486,7 @@ def cmd_inkreport(pdf: Path, preflight_only: bool = False,
 
     # 5 — the READING build, adopting.
     cmd_reporttex(pdf, compile_pdf=True, legend=True, formulas=rule,
-                  findings=findings, pages=pages)   # 557 — same shape as phase 1
+                  findings=findings)                # 557 — same shape as phase 1
     stamp = doc / "report.build.json"
     got = json.loads(stamp.read_text(encoding="utf-8")) if stamp.is_file() else {}
     if got.get("phase") != "reading" or not got.get("ink_adopted"):
@@ -15113,6 +15129,43 @@ def cmd_reporttex(pdf: Path, paper: str = "a3", landscape: bool = True,
     from . import report_tex as rt
     sc = Sidecar(pdf)
 
+    # 593 — A BUILD THAT WRITES report.tables.json CANNOT TAKE A BOUND.
+    #
+    # 588 measured why. `pagesel` discards pages at SHIPOUT, so the document
+    # is typeset in full and the manifest is written from the complete row
+    # list, while the PDF ships only what fits. On johnston at --pages 10 the
+    # manifest named 52 identifiers and the PDF shipped 24 — which is exactly
+    # the 24 in "run holds 24 data rows, the manifest expects 68".
+    #
+    # Truncating the manifest to the shipped rows would make the two agree and
+    # would be WRONG: a measurement of ten pages reported as a measurement of
+    # the document. So the bound is refused instead. `breport` keeps --pages,
+    # because B writes no manifest and is a reading surface.
+    #
+    # This also removes a default nobody asked for: `pages=None` used to
+    # become PAGES_DEFAULT (10) at the build_report call, so EVERY reporttex
+    # build was silently bounded — including the measure build that 585
+    # believed it had made unbounded.
+    if pages is not None:
+        try:
+            _n = int(pages)
+        except (TypeError, ValueError):
+            _n = 0
+        if _n > 0:
+            return (
+                "reporttex refuses --pages %d.\n"
+                "\n"
+                "This build writes %s, which names every row that was "
+                "SELECTED; pagesel discards pages at shipout, so a bounded PDF "
+                "ships fewer. On johnston at --pages 10 the manifest named 52 "
+                "identifiers and the PDF shipped 24 (out/588). A measurement "
+                "segmented by that manifest would be a measurement of ten "
+                "pages reported as a measurement of the document.\n"
+                "\n"
+                "For a bounded READING copy use `pdfdrill breport <pdf> "
+                "--pages %d` — B writes no manifest and is a reading surface."
+                % (_n, rt.TABLES_MANIFEST, _n))
+
     # 578 — THE REQUEST, CAPTURED BEFORE IT CAN BE CLOBBERED. Two lines below
     # (`pages, errors, demoted = res`) rebind `pages` to the number of pages
     # the compile PRODUCED, so by the time the build stamp is written the
@@ -15271,7 +15324,7 @@ def cmd_reporttex(pdf: Path, paper: str = "a3", landscape: bool = True,
                         bibkey_history=_bibkey_history(sc),
                         formulas=formulas,
                         findings=findings,
-                        pages=(rt.PAGES_DEFAULT if pages is None else pages),
+                        pages=0,          # 593 — never bounded; see above
                         render_regions=render_regions,
                         bullets=ink_bullets)
     # 460 — the formulas rule, stated where the build is reported. A section

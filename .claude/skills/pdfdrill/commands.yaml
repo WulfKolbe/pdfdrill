@@ -594,12 +594,14 @@ commands:
   - name: pages
     flag: --pages
     type: str
-    help: 'cap BOTH builds at the first N pages. It has to reach both: a measure
-      build of a different length is a measurement of a report nobody reads. The
-      bound is written into the build stamp as `pages_bound` and compared by the
-      resume, so a bounded run can never adopt an unbounded measurement — 463''s
-      defect arriving through a new flag. Until 578 the CLI accepted --pages here
-      and silently dropped it into the PDF argument list.'
+    help: 'REFUSED since 593, by name rather than silently. Both of inkreport''s
+      builds write report.tables.json, and pagesel discards pages at shipout, so
+      a bounded build ships fewer rows than its manifest names — on johnston at
+      --pages 10 the manifest named 52 identifiers and the PDF shipped 24, which
+      is the 24 in "run holds 24 data rows, the manifest expects 68" (out/588).
+      Truncating the manifest to match would report a measurement of ten pages
+      as a measurement of the document. Use `breport --pages N` for a bounded
+      reading copy: B writes no manifest.'
   - name: full
     flag: --full
     type: flag
@@ -1801,10 +1803,13 @@ commands:
   - name: pages
     flag: --pages
     type: str
-    help: 'emit only the first N pages (default 10 while the layout is being agreed;
-      --pages 0 builds every page). pagesel discards at shipout, so a page that is
-      never shipped never has its crops written: measured on cardona, 13.5s/0.59MB
-      at --pages 10 against 139.1s/17.91MB full — 10x faster and 3.3% the size'
+    help: 'REFUSED since 593. This build writes report.tables.json, which names
+      every row SELECTED, while pagesel discards pages at shipout — so a bounded
+      PDF ships fewer rows than its own manifest names (johnston at --pages 10:
+      manifest 52, shipped 24; unbounded both are 52 — out/588). The refusal is
+      the fix rather than truncating the manifest, which would report a
+      measurement of ten pages as a measurement of the document. `breport
+      --pages N` is the bounded reading copy.'
   typed: true
 - name: report
   section: Introspection (fast, no extraction)

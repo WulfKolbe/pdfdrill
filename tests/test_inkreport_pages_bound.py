@@ -28,26 +28,22 @@ def test_cmd_inkreport_takes_pages():
     assert "pages" in inspect.signature(C.cmd_inkreport).parameters
 
 
-def test_every_build_inside_inkreport_gets_the_bound():
-    """A measure build of a different length measures a report nobody reads."""
-    src = inspect.getsource(C.cmd_inkreport)
-    calls = [l for l in src.splitlines() if "cmd_reporttex(" in l]
-    assert calls, "cmd_inkreport must build"
-    # each call spans lines; check the whole source has no reporttex call that
-    # omits pages, by counting
-    import re
-    whole = re.findall(r"cmd_reporttex\((?:[^()]|\([^()]*\))*\)", src, re.S)
-    assert whole, "no cmd_reporttex call found"
-    # 585 — the MEASURE build is deliberately unbounded: it is the full
-    # listing, and a page bound there would hide every row past page N from
-    # the ink, which is the ratchet this task removed. The bound belongs to
-    # the PUBLISHED report, so every reading build must still carry it.
-    measure = [c for c in whole if "MEASURE_PAGES_BOUND" in c]
-    reading = [c for c in whole if "MEASURE_PAGES_BOUND" not in c]
-    assert len(measure) == 1, "exactly one unbounded measure build"
-    missing = [c for c in reading if "pages=pages" not in c]
-    assert not missing, "a reading build without the page bound: %s" % missing
+def test_no_build_inside_inkreport_takes_a_bound_and_the_flag_is_refused():
+    """593 supersedes this test's original claim.
 
+    It used to require every cmd_reporttex call in cmd_inkreport to carry
+    pages=pages. 588 then measured why no manifest-writing build may take a
+    bound at all: pagesel discards at shipout, so a bounded PDF ships fewer
+    rows than its manifest names (johnston: manifest 52, shipped 24). Both of
+    inkreport's builds write report.tables.json, so neither can be bounded —
+    and the flag is refused by name rather than dropped, which is the 578
+    defect this file was opened for.
+    """
+    import re
+    src = inspect.getsource(C.cmd_inkreport)
+    for call in re.findall(r"cmd_reporttex\((?:[^()]|\([^()]*\))*\)", src, re.S):
+        assert "pages=pages" not in call, "a bounded manifest build: %s" % call
+    assert "refuses --pages" in src, "the flag must be refused, not ignored"
 
 def test_the_stamp_records_the_bound():
     assert "pages_bound" in inspect.signature(rt.write_build_stamp).parameters
