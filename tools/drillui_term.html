@@ -822,7 +822,10 @@ const app = {
   /* ---- artifacts: turn pdfdrill's *.html/*.svg/*.pdf/*.md/*.json/… mentions into links ---- */
   scanArtifacts(text){
     let m, added = false;
-    const EXT = "(html|svg|pdf|md|json|txt|tex)";
+    // 544 — `log` joins the list: 543 puts the COMPILE LOG of a failed build
+    //    in INSPECT.txt, and a person opens that. It was the one path of 542's
+    //    six the line rule could not match.
+    const EXT = "(html|svg|pdf|md|json|txt|tex|log)";
     const add = (path, ext) => {
       if (/^https?:/i.test(path)) return;
       if (this._isInternalArtifact(path)) return;      // hide internal model/state JSON
@@ -834,6 +837,25 @@ const app = {
       this.artifacts.set(path, { path, ext: ext.toLowerCase() });
       added = true;
     };
+    // 0. 544 — A LINE THAT IS NOTHING BUT AN ABSOLUTE PATH IS A PATH,
+    //    spaces and all. 543 writes <library>/out/NNN/INSPECT.txt as one
+    //    absolute path per line and prints the same list; rule 2's token
+    //    regex cannot span a space, and about half this library's folders are
+    //    named "Geometric, Algebraic and Topological Methods ... (Z-Library)".
+    //    Six paths were listed for 542 and two of them were unopenable here.
+    //    A line is unambiguous — there is nothing to split on — so it is read
+    //    whole. This runs FIRST so the full path wins and the truncated-tail
+    //    guard below then discards the token-regex fragment of the same file.
+    const lineRe = new RegExp("^(\\/(?:[^\\n]*\\/)?[^\\n\\/]+\\." + EXT + ")$", "i");
+    for (const raw of String(text).split(/\r?\n/)){
+      const line = raw.replace(/\u001b\[[0-9;]*[A-Za-z]/g, "").trim();
+      const lm = lineRe.exec(line);
+      if (lm) add(lm[1], lm[2]);
+    }
+    // 0b. and when the list itself is named, READ IT — the printed block can be
+    //     scrolled off or truncated, the file cannot.
+    const insp = /^(\/[^\n]*\/INSPECT\.txt)$/im.exec(String(text));
+    if (insp) this.readInspectList(insp[1]);
     // 1. the FULL path (may contain spaces — drill dirs are named after the PDF)
     //    reported as `Open <path> in a browser|drillui`. The token regex below
     //    can't span spaces, so this bracket capture is what handles spaced names.
@@ -869,6 +891,33 @@ const app = {
       "(?<![\\w/])((?:[\\w.+~@%-]+\\/)+[\\w.+~@%-]+\\." + EXT + ")\\b(?!\\.[a-z])", "gi");
     while ((m = re.exec(text)) !== null) add(m[1], m[2]);
     if (added) this.renderArtifacts();
+  },
+
+  /* 544 — read an INSPECT.txt line by line. Each line is a whole absolute
+     path; nothing is split on whitespace, because a line already delimits it.
+     Paths that 404 are skipped in silence here — 543 already checked every one
+     for existence and non-zero size before writing it, so a miss means the
+     bridge cannot reach that root, not that the promise was empty. */
+  async readInspectList(path){
+    if (this._inspectSeen && this._inspectSeen.has(path)) return;
+    (this._inspectSeen ||= new Set()).add(path);
+    try {
+      const r = await fetch(this.artifactUrl(path));
+      if (!r.ok) return;
+      const body = await r.text();
+      let added = false;
+      for (const raw of body.split(/\r?\n/)){
+        const line = raw.trim();
+        if (!line || line.startsWith("#")) continue;
+        const ext = (line.split(".").pop() || "").toLowerCase();
+        if (!/^(html|svg|pdf|md|json|txt|tex|log)$/.test(ext)) continue;
+        if (this.artifacts.has(line)) continue;
+        if (this._isInternalArtifact(line)) continue;
+        this.artifacts.set(line, { path: line, ext });
+        added = true;
+      }
+      if (added) this.renderArtifacts();
+    } catch (e) { /* the list is a convenience; never break the terminal */ }
   },
 
   /* Internal files pdfdrill mentions in its prose (the model/packed/char/state

@@ -1,0 +1,73 @@
+544 — drillui's scanner reads INSPECT.txt line by line
+======================================================
+
+INSPECT
+  /home/wkolbe/MX/PDFDRILL/tools/drillui_term.html
+      the scanner — rule 0 reads a whole line as a path, and
+      readInspectList fetches INSPECT.txt and parses it line by line.
+  /home/wkolbe/MX/PDFDRILL/tools/test_drillui_inspect.ts
+      the regression test: 14 checks, including that the OLD rule truncated
+      every path it found and could not see a spaced one.
+  /home/wkolbe/pdfdrill-library/out/542/INSPECT.txt
+      the list this was fixed for.
+  (list: /home/wkolbe/pdfdrill-library/out/544/INSPECT.txt)
+
+WHAT WAS BROKEN, MEASURED ON 542's SIX PATHS
+---------------------------------------------
+`scanArtifacts` had three rules; the one that catches a bare path is a TOKEN
+regex, `((?:[\w.+~@%-]+\/)+[\w.+~@%-]+\.EXT)`, which cannot span a space.
+Run over 542's INSPECT.txt it captures three of six, and all three are
+TRUNCATED:
+
+  library/BradleyGastaldiTerilla2023/report.pdf
+  library/BradleyGastaldiTerilla2023/B.pdf
+  library/BradleyGastaldiTerilla2023/B.tex
+
+The leading `/home/wkolbe/pdfdrill-` is gone — the lookbehind re-anchors
+after the `-` — so none of the three would open even though the files exist.
+The two spaced paths are not seen at all, and the `.log` was not matched by
+any rule because `log` was not in the extension list.
+
+**Three of six found, zero of six openable.**
+
+THE FIX
+-------
+A LINE IS UNAMBIGUOUS — there is nothing to split on.
+
+  rule 0   a line that is nothing but an absolute path IS a path, spaces and
+           all. Runs FIRST, so the full path wins and the existing
+           truncated-tail guard then discards the token regex's fragment of
+           the same file.
+  rule 0b  when the output names an INSPECT.txt, READ IT. The printed block
+           can scroll off or be truncated; the file cannot.
+  readInspectList(path)   fetches it through the same /artifact URL the open
+           links use and adds one artifact per line. Failures are silent by
+           design: 543 already checked every path for existence and non-zero
+           size before writing it, so a 404 here means the bridge cannot
+           reach that root, not that the promise was empty.
+  EXT gains `log`, because 543 puts the compile log of a FAILED build in the
+           list and that is exactly what a person opens.
+
+Both ANSI escapes and the printed block's indentation are stripped before
+matching, since the same list appears in the terminal indented by two spaces.
+
+VERIFIED
+--------
+  the line rule over 542's real INSPECT.txt      6 of 6, exact
+  the same list indented as printed              6 of 6
+  the old token rule, for contrast               3 of 6, all truncated
+  a spaced path under the old rule               not seen
+  prose containing a path ("wrote /x/y.pdf in    not swallowed
+    3s") is not a whole-line path
+
+`tools/test_drillui_inspect.ts`, 14 checks, all passing. The Python suite is
+2,928 passing and untouched by this — the scanner is frontend JavaScript.
+
+WHAT THIS DOES NOT DO
+---------------------
+It does not make the token regex handle spaces, and it should not: a path
+found loose in prose has no delimiter, and guessing where it ends is what
+produced `library/…` in the first place. The line rule works because the
+line IS the delimiter. Paths still mentioned only in running prose remain
+subject to the old rule and its limits — which is now a stated reason to put
+anything worth opening into INSPECT.txt.
