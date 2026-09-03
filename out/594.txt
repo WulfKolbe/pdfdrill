@@ -1,0 +1,86 @@
+594 - the projection cannot be made, and the reason is not cost
+
+WHAT I SET OUT TO TIME
+
+One document's phase 1 at --pages 0, then x21 by each document's actual row
+count. The build half timed fine. The measure half does not run at all.
+
+  2501.06662, phase 1 unbounded (formulas=all, findings=false, legend off):
+      build                    2.9 s   -> 18 pages, manifest 60 eq + 386 fo
+      inkdrill segmentation    8.4 s
+      measure                  REFUSED
+
+  MeasureRefused: run holds 3 data rows, the manifest expects 60 for the
+  equations table
+
+THIS IS A THIRD CAUSE, NOT 588's
+
+588's cause was pagesel: the manifest named 52 and the shipout carried 24.
+593 removed it - the build above is genuinely unbounded (pages_bound None,
+18 pages, every row typeset AND shipped). The refusal survives that, so it
+was never the only cause and it is not this one.
+
+WHAT INKDRILL ACTUALLY SEES
+
+Nine separate runs in the 18-page report, broken by column width:
+
+    ord 1   6 cols   page 1              <- selected, holds 3 rows
+    ord 2   3 cols   page 2
+    ord 3   5 cols   page 3
+    ord 4   3 cols   page 4
+    ord 5   6 cols   pages 5-6
+    ord 6   5 cols   pages 7-8
+    ord 7   6 cols   page 9
+    ord 8   3 cols   page 10
+    ord 9   5 cols   pages 11-18
+
+`inkmeasure.measure` asks for table=1, checks only that its column count
+matches (6 == 6), and hands it to `_pages_for`, which then walks pages
+looking for 60 rows and finds 3.
+
+The Display-equations rows are spread across ordinals 1, 5 and 7 - every
+6-column run - and the Inline-formulas rows across 3, 6 and 9. The full
+listing interleaves two tables of different widths, and inkdrill breaks a run
+wherever the visual column structure changes. The manifest counts one logical
+longtable; inkdrill counts one detected run; in the findings shape those were
+the same object because the tables were short and contiguous, and in the full
+listing they are not.
+
+So this is the reason ten of twenty-one documents STOPPED at step 3 in Stage
+C, and unbounding makes it worse rather than better: more pages, more breaks,
+more fragments.
+
+THE SCALE THE MEASUREMENT WOULD HAVE TO COVER
+
+                                        eq   formula  tab+dia      ALL
+    TOTAL over 21 documents           8,718   37,624             48,762
+
+    the ink has ever measured the EQUATION rows only:
+        8,718 of 48,762 = 17.9%
+    never measured on anything: 37,624 formula rows
+
+johnston alone is 7,131 rows against the 1,670 its ink has ever held - the
+fourfold increase, and the same ratio holds corpus-wide at 5.6x.
+
+WHY I AM NOT GIVING A NUMBER
+
+I could multiply 8.4 s of segmentation and a per-page rasterise cost by 21
+and produce a figure. It would be a projection of a run that cannot happen,
+and the thing it would be projecting - the row-run join - is exactly what is
+broken. A number computed from a measurement that never completed is the
+defect this project has spent four tasks removing.
+
+What is honest: the BUILD is cheap (2.9 s for 18 pages; the largest documents
+were 20-66 s in Stage C). The measurement cost is unknown because no document
+has ever measured a full listing.
+
+WHAT WOULD MAKE IT ANSWERABLE
+
+`_pages_for` and the ordinal-1 assumption need to accept a table that arrives
+as several runs: select every run whose column count matches and whose pages
+are consistent with the manifest, rather than the first one. That is a change
+to inkmeasure, not to the report, and until it exists the full listing cannot
+be measured at any price.
+
+The alternative you named - measure the full listing on demand rather than in
+the pipeline - has the same blocker. It is not a scheduling question.
