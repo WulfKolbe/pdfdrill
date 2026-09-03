@@ -2329,12 +2329,12 @@ def cmd_inkreport(pdf: Path, preflight_only: bool = False,
             try:
                 _t = _im.equations_table(doc)
                 if not int(_t.get("rows") or 0):
-                    return "\n".join(out + [
+                    return _bail([
                         "", "REFUSED after the measure build: %s names a table "
                         "with no rows. There is nothing to measure — this "
                         "document's sections are empty." % _im.Path(doc).name])
             except Exception as _e:
-                return "\n".join(out + [
+                return _bail([
                     "", "REFUSED after the measure build: %s: %s"
                     % (type(_e).__name__, str(_e)[:200])])
         finally:
@@ -2354,16 +2354,40 @@ def cmd_inkreport(pdf: Path, preflight_only: bool = False,
                    % (got.get("phase"), got.get("pages"),
                       str(got.get("sha256"))[:12]))
 
+        # 557 — A FAILED MEASUREMENT MUST NOT LEAVE THE ARTEFACT AS
+        # SCAFFOLDING. Step 2 has just rebuilt report.pdf as a phase-1 build:
+        # legend off, no ink. Every early return between here and step 5 used
+        # to hand that back as the published report. The 557 sweep left six of
+        # nine documents in that state, five of them 1-page builds for
+        # documents that had nothing to measure in the first place — the run
+        # made them worse than it found them.
+        #
+        # The measure build is scaffolding; the reading build is the artefact.
+        def _bail(lines):
+            try:
+                cmd_reporttex(pdf, compile_pdf=True, legend=True,
+                              formulas=rule, findings=findings)
+                lines = lines + [
+                    "", "The reading build was restored — a failed measurement "
+                    "must not leave report.pdf as the phase-1 scaffolding it "
+                    "built in order to measure."]
+            except Exception as _exc:                    # noqa: BLE001
+                lines = lines + [
+                    "", "WARNING: could not restore the reading build (%s). "
+                    "report.pdf is the MEASURE build and must not be published."
+                    % _exc]
+            return "\n".join(out + lines)
+
         # 3 — measure it.
         work = doc / "inkwork"
         try:
             rows = im.measure(doc / "report.pdf", work, timeout=timeout)
         except Exception as e:
-            return "\n".join(out + [
+            return _bail([
                 "", "STOPPED at step 3 (measure): %s: %s"
                 % (type(e).__name__, str(e)[:200])])
         if not rows:
-            return "\n".join(out + [
+            return _bail([
                 "", "STOPPED at step 3 (measure): 0 rows. An empty result is "
                 "a defect, not a silence."])
         (doc / "report.compare.tsv").write_text(im.to_tsv(rows),
@@ -2375,7 +2399,7 @@ def cmd_inkreport(pdf: Path, preflight_only: bool = False,
         # comparison return 100% agreement against itself (396).
         msg = cmd_inkconvert(pdf, force=True)
         if not (doc / "report.ink.json").is_file():
-            return "\n".join(out + [
+            return _bail([
                 "", "STOPPED at step 4 (convert): %s" % msg.strip()[:200]])
         _lines = [l for l in msg.strip().splitlines()
                   if "report.ink.json" in l] or msg.strip().splitlines()

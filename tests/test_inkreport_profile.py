@@ -57,8 +57,39 @@ def test_a_profile_sets_the_formula_rule_AND_NOTHING_ELSE():
                if k.arg in ALLOWED and isinstance(k.value, ast.Name)
                and k.value.id == "rule"]
     builds = [k for k in kw_uses if k.arg == "formulas"]
-    assert len(builds) == 2, "both builds must take the rule, not one"
+    # 557 — THREE builds now, not two. Phase 1, phase 2, and the RESTORE that
+    # `_bail` runs when a measurement fails: step 2 has already replaced
+    # report.pdf with a legend-off phase-1 build, and returning that as the
+    # published artefact is what the 557 sweep did to six of nine documents.
+    # The restore is a phase-2 build and must therefore take the same rule.
+    assert len(builds) == 3, "every build must take the rule, not some of them"
     assert len(uses) == len(kw_uses) + 1, [ast.dump(u) for u in uses]
+
+
+def test_every_build_in_inkreport_takes_the_rule_AND_the_shape():
+    """561's defect, as an invariant rather than a memory.
+
+    The rule was passed to both builds on purpose and the SHAPE was passed to
+    neither, so `findings` defaulted False in both: internally consistent, and
+    not what gets published. 539 measured the result — all 21 published
+    documents had an ink measured against a differently-shaped report. A build
+    inside `cmd_inkreport` that takes one and not the other is that defect
+    coming back.
+    """
+    src = ast.parse((ROOT / "src" / "pdfdrill" / "commands.py")
+                    .read_text(encoding="utf-8"))
+    fn = next(n for n in ast.walk(src)
+              if isinstance(n, ast.FunctionDef) and n.name == "cmd_inkreport")
+    calls = [n for n in ast.walk(fn)
+             if isinstance(n, ast.Call)
+             and getattr(n.func, "id", getattr(n.func, "attr", "")) == "cmd_reporttex"]
+    assert calls, "cmd_inkreport builds no report"
+    for c in calls:
+        kw = {k.arg: k.value for k in c.keywords}
+        assert isinstance(kw.get("formulas"), ast.Name) and kw["formulas"].id == "rule", \
+            "a build without formulas=rule"
+        assert isinstance(kw.get("findings"), ast.Name) and kw["findings"].id == "findings", \
+            "a build without findings=findings — 561"
 
 
 def _doc(tmp_path):
