@@ -94,7 +94,9 @@ def test_code_diagram_in_section_body_not_imaged():
     doc.add(sec); doc.add(dia)
     tids = {t["title"]: t for t in __import__("json").loads(
         TiddlyWikiProjector(OperatorConfig(op="projector", classname="TiddlyWikiProjector")).project(doc))}
-    sec_tid = next(t for k, t in tids.items() if k.endswith("_H1"))
+    # 566 — section titles are four-digit padded now (_H0001), because _H10
+    # sorted before _H2 in every document that had one.
+    sec_tid = next(t for k, t in tids.items() if k.endswith("_H0001"))
     assert "||DIA}}" not in sec_tid["text"]            # never the image template
     dia_tid = next(t for k, t in tids.items() if "_DIA" in k)
     assert dia_tid["text"].startswith("```julia") and "function f" in dia_tid["text"]
