@@ -547,3 +547,32 @@ def test_latex_similarity_identical_is_one():
     from pdfdrill.scoring import latex_similarity
     long = r"\alpha_{1}+\beta_{2}=\gamma_{3} \quad " * 20
     assert latex_similarity(long, long) == 1.0
+
+
+# ---------------------------------------------------------------- 525
+
+def test_task_dir_shape_and_library_default(tmp_path):
+    from pdfdrill import taskout
+    d = taskout.task_dir(tmp_path, 525)
+    assert d == tmp_path / "out" / "525" and d.is_dir()
+    # a file target resolves to its directory — measurements name the doc
+    f = tmp_path / "x.pdf"; f.write_text("")
+    assert taskout.task_dir(f, "525b") == tmp_path / "out" / "525b"
+
+
+def test_task_dir_refuses_a_non_task_name(tmp_path):
+    import pytest
+    from pdfdrill import taskout
+    for bad in ("", "scratch", "../etc", "5"):
+        with pytest.raises(ValueError):
+            taskout.task_dir(tmp_path, bad)
+
+
+def test_saves_are_named_back_for_the_report(tmp_path):
+    from pdfdrill import taskout
+    taskout.save_script(tmp_path, 525, "print(1)\n")
+    taskout.save_json(tmp_path, 525, "rows", {"n": 3})
+    got = [p.name for p in taskout.paths(tmp_path, 525)]
+    assert got == ["rows.json", "script.py"]
+    assert "script.py" in taskout.report_lines(tmp_path, 525)
+    assert "nothing inspectable" in taskout.report_lines(tmp_path, 999)

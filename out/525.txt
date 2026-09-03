@@ -1,0 +1,89 @@
+525 — a measurement writes its script and its result beside the document
+========================================================================
+
+THE RULE, NOW IN CODE AND IN THE RULES FILE
+--------------------------------------------
+`src/pdfdrill/taskout.py`; HANDOVER-RULES.md rule 19.
+
+  <document>/out/<NNN>/script.py   the exact source that ran
+  <document>/out/<NNN>/*.json      what it produced
+
+`save_script`, `save_json`, `save_text`, `paths`, `report_lines`. A
+corpus-wide scan measures no one document and writes to
+`~/pdfdrill-library/out/<NNN>/` rather than picking one arbitrarily.
+
+WHY THE LIBRARY AND NOT THE REPO. The repo is public; the library is
+deny-by-default git — `.gitignore` opens with `/*`, so nothing under
+`<document>/out/` can be committed by accident. Verified, not assumed:
+
+  $ git check-ignore -v out/525/audit.json
+  .gitignore:15:/*   out/525/audit.json
+
+Measurements quote copyrighted text; reports about them do not. This puts
+the evidence where the document is and keeps it out of the public tree.
+
+447 established exactly this for LLM calls — every prompt and every reply
+kept beside the document — and it was never generalised to measurements.
+
+WHICH OF THE LAST TWENTY LEFT NOTHING INSPECTABLE
+--------------------------------------------------
+Tasks 500 502 503 505 506 507 509 510 511 513 514 515 516 517 518 519 520
+521 522 523. Audited by script, not by memory:
+
+  A  committed script (reproducible)      6   500 503 507 509 511 517
+  B  scratchpad script only               5   505 513 516 518 521
+     (dies when /tmp clears)
+  C  NO SCRIPT ANYWHERE                   9   502 506 510 514 515 519
+     (unreproducible)                         520 522 523
+
+  committed a data file                   1   (507 -> out/507.json)
+  wrote anything into the library         0
+  files left in the session scratchpad   53
+
+So **fourteen of twenty left nothing a later session can re-run**, and
+**nineteen of twenty left no data at all** — only prose in `out/NNN.txt`.
+
+Class C is the worst and it is the recent half. 502, 506, 510, 514, 515,
+519, 520, 522 and 523 ran as inline heredocs: the source existed only
+inside a shell invocation and is gone. 522's autojunk finding, 515's ink
+bands, 516's per-document counts and 523's table census are all numbers
+that cannot now be re-derived without writing the measurement again.
+
+The earlier practice was better and it decayed. Tasks 295–454 routinely
+committed JSON to `out/` — 298, 307, 308, 311, 324, 332, 335, 337, 339,
+342, 343, 344, 346, 365, 374, 375, 378, 391, 392, 407, 417, 444, 448, 449,
+451, 454. From 454 to 523, two files: `464-manifest.json` and `507.json`.
+
+WHY THIS IS NOT TIDINESS
+-------------------------
+522 found `latex_similarity` scoring one pair 0.857 in one argument order
+and 0.005 in the other, on identical strings. Every score in every
+`compare.html` was computed the broken way. Nothing in the artefact said
+so, and nothing could have: the score was a number on a page with no path
+back to the code that made it.
+
+That is the general shape. The measurements have been sound; the artefacts
+are stale or wrong; and an artefact is what gets inspected. Twenty tasks of
+findings, and the files opened were built before most of them.
+
+DOGFOODED
+---------
+525's own audit ran under the rule. The report names the paths, which is
+the half of the rule that makes the other half useful:
+
+  /home/wkolbe/pdfdrill-library/out/525/script.py   (2,025 bytes)
+  /home/wkolbe/pdfdrill-library/out/525/audit.json  (4,493 bytes)
+
+`audit.json` carries, per task, the committed script, the committed data,
+the scratchpad scripts, the scratchpad file count and whether it wrote into
+the library. Re-running `script.py` reproduces the table above.
+`tools/audit525.py` is the same script in the repo so the classification
+can be checked without the library.
+
+NOT DONE
+--------
+The 53 scratchpad files are not migrated. Most are intermediates of
+superseded runs and the rule explicitly permits intermediates; the ones
+worth keeping are the five class-B scripts, and they are worth re-running
+under the rule rather than copied, because a script whose output was never
+saved is not evidence either.

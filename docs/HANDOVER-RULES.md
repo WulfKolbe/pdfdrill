@@ -393,3 +393,40 @@ geometry/bibliography/expandmath/svg/tiddlers, copy `model_BEFORE.json`;
 - 20 raw model writes were converted to atomic `save_model` (silent
   `default=str` coercion → raised exception); 0 existing repr fossils found,
   but no test exercises every command's write path.
+
+## 19. A measurement writes its script and its result beside the document
+
+**Learned by 525, after the same complaint four times.** Nothing runs in a
+scratchpad except intermediates that can be recreated on demand. Every
+measurement writes `script.py` and its data into `<document>/out/<NNN>/` in
+the library, and the report NAMES those paths.
+
+`pdfdrill.taskout` does it: `save_script`, `save_json`, `save_text`,
+`paths`, `report_lines`. A corpus-wide scan has no single document and
+writes to `~/pdfdrill-library/out/<NNN>/`.
+
+**Why the library and not the repo.** The repo is public; the library is
+deny-by-default git — its `.gitignore` opens with `/*`, so nothing under
+`<document>/out/` can be committed by accident. Measurements quote
+copyrighted text, reports about them do not.
+
+**447 established this for LLM calls** — every prompt and reply kept beside
+the document — and it was never generalised. The audit of the twenty tasks
+before this rule:
+
+| | tasks | |
+|---|---|---|
+| A committed script | 6 | 500 503 507 509 511 517 |
+| B scratchpad script only | 5 | 505 513 516 518 521 |
+| C no script anywhere | 9 | 502 506 510 514 515 519 520 522 523 |
+
+**One of twenty committed a data file** (507). **None wrote anything into
+the library.** 53 files sat in a session-local `/tmp` scratchpad that no
+later session can read.
+
+The consequence is not tidiness. 522 found `latex_similarity` scored one
+pair 0.857 in one argument order and 0.005 in the other; every score in
+every `compare.html` was computed the broken way, and nothing in the
+artefact said so. When the evidence lives in a scratchpad, a wrong number
+cannot be traced back to the code that produced it — the report is prose
+and the prose is all there is.
