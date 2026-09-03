@@ -1,0 +1,84 @@
+530 — B is a LaTeX report. Three columns. Built for 2010.14265.
+===============================================================
+
+EVIDENCE
+  /home/wkolbe/pdfdrill-library/2010.14265/out/530/B.tex      (192,172 B)
+  /home/wkolbe/pdfdrill-library/2010.14265/out/530/B.pdf    (5,233,122 B)
+  /home/wkolbe/pdfdrill-library/2010.14265/out/530/B.log
+  /home/wkolbe/pdfdrill-library/2010.14265/out/530/summary.json
+  /home/wkolbe/pdfdrill-library/2010.14265/out/530/script.py
+  tools/buildb530.py · src/pdfdrill/inlinectx.py · report_tex.b_rows/b_tex
+
+WHY THE FORMAT CHANGED, IN ONE LINE
+------------------------------------
+KaTeX renders in a browser with no preamble. 482/484 measured what that
+costs: `\bm` 327 occurrences across 7 documents, `\Perp` defined by no
+package at all and spanning 10, and 11,088 of 11,624 undefined occurrences
+being the source document's own macros. So the HTML rendering could not be
+evidence, and 523's plan folded exactly that into B as its equations
+section. B is LaTeX, rendered through the document's own preamble.
+
+THE ROW COUNT
+-------------
+  Display equations              16
+  Inline formulas, in prose     369
+  Tables                          0   (this document has none)
+  Image regions                   6
+  ---------------------------------
+  TOTAL                         391 rows
+
+  pages                          21   (a3 landscape)
+  xelatex errors                  0
+  rows demoted by the fixpoint    1
+  build                         7.9 s
+
+Three columns and nothing else: **LaTeX source · Rendered · Image.** No
+KaTeX column, no second-reading column, no scores. Identity rides in the
+first cell — identifier, page, line confidence, and the A-state where the
+row has one — so it costs no column.
+
+WHAT THE PROSE SECTION GAINED (529, inside B)
+----------------------------------------------
+An FO row had no page, no confidence, no region and no picture. Now:
+
+  formula rows with a page                368 of 369
+  with their HOST LINE's confidence       368 of 369
+  with their host line's region           368 of 369
+  crops rendered from those regions       368
+
+The one miss is `\square`, a QED symbol MathPix emits as its own line with
+no `$` around it — reported, not defaulted.
+
+The section says in the report what it is: "The page, the confidence and
+the picture of an inline formula are its HOST LINE's — a formula has none
+of its own. A line's confidence is not a formula's." That is 147's rule:
+two instruments in adjacent cells must each be named.
+
+**369 inline formulas now have a picture.** They never had one before, in
+any artefact.
+
+A JOIN BUG FOUND BY LOOKING AT THE PAGE
+----------------------------------------
+The first build matched formulas to host lines by first containment. The
+formula `X` matched the arXiv margin stamp — `arXiv:2010.14265v2 [stat.ML]
+4 Aug 2021`, set vertically — because that line contains an X and comes
+first. B drew a 500pt-tall sidebar as the picture of a one-letter formula
+and reported the stamp's confidence as the formula's. One row, one page of
+whitespace.
+
+`host_of` now prefers a DELIMITED match (`$x$`, `\(x\)`) — the formula as
+the page actually set it — and among candidates takes the smallest region.
+22 pages became 21 and the rows are uniform. Tested.
+
+I found it by rendering page 4 and looking at it, which is the thing this
+whole sequence has been about.
+
+STILL OPEN
+----------
+- The A-state marking works but marks 1 row here, because 2010.14265's four
+  findings sections are nearly empty. The marking is exercised, not proven.
+- Tables: 0 rows in this document, so B's tables section is untested. 523's
+  point stands that a tables filter is its own task.
+- B is not yet a command. It is `report_tex.b_rows`/`b_tex` plus
+  `tools/buildb530.py`, which is the shape audit A4 says is wrong. It needs
+  a manifest entry before it is built for the other 20.

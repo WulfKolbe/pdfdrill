@@ -1,0 +1,59 @@
+531 — where the KaTeX warning lands
+===================================
+
+THE TEXT, ONE PLACE
+-------------------
+`src/docops/katex_notice.py` — `KATEX_WARNING_HTML` (a banner) and
+`KATEX_WARNING_TEXT` (the same sentence in plain text).
+
+  KaTeX renders without a preamble: it cannot use \usepackage or this
+  document's own macros. \bm alone occurs 327 times across the corpus,
+  \Perp is defined by no package and spans 10 documents, and 11,088 of
+  11,624 undefined occurrences are the source document's own macros.
+  A row that looks wrong here may be correct, and one that looks right
+  here may not compile. Judge from the LaTeX report.
+
+Every number in it is measured and sourced: 327 and 11,088 from out/482,
+the 10 documents from out/484. A test asserts all three appear in the
+string, so it cannot decay into a vague caution.
+
+WHERE IT LANDS — FIVE GENERATORS, NOT THREE
+--------------------------------------------
+The search for `katex` in the tree returns five emitters, and the warning
+is wired into all five:
+
+  src/docops/projectors/formula_report.py    formula-report.html
+  src/docops/projectors/comparison_html.py   compare.html
+  src/docops/projectors/distill_reader.py    the distill reader
+  src/pdfdrill/docinspect.py                 <bibkey>.inspect.html
+  tools/corrections439.py                    corrections.html
+
+Two of those are ones 523 said would SURVIVE consolidation —
+corrections.html (corpus-wide, so B cannot answer it) and inspect.html
+(regions that never became rows). They are the ones that most need the
+warning, because they are the HTML that is not going away.
+
+Counted in the published set: 391 katex references in
+formula-report.html, 44 in corrections.html, 23 in compare.html, 7 in
+inspect.html. index.html has none and gets no banner.
+
+VERIFIED, NOT ASSUMED
+---------------------
+Rebuilt 2010.14265's compare.html through the CLI: the banner is present
+in the emitted file. 2,922 tests pass.
+
+A DEFECT I INTRODUCED AND FIXED
+--------------------------------
+`docinspect._TEMPLATE` is a RAW string, `r"""..."""`. My first splice closed
+it and reopened it non-raw, so every backslash in the following ~1,000
+lines of JavaScript became a Python escape — `/\s+/` and friends. 35 tests
+failed with a JS syntax error at line 1190. Reopening with `r"""` fixed it.
+The lesson is small and exact: when splicing into a triple-quoted string,
+reopen it with the same prefix it had.
+
+WHAT THE WARNING DOES NOT DO
+-----------------------------
+It does not make the KaTeX column correct. It says the column is not
+evidence, and names where the evidence is. The only fix that makes an HTML
+rendering trustworthy is a preamble it cannot have — which is why B is
+LaTeX.

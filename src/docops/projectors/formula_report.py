@@ -14,6 +14,7 @@ import html
 from docmodel.core import Document
 from docmodel.mathpix import page_url
 from ..base import BaseProjector
+from ..katex_notice import KATEX_WARNING_HTML
 from .common import embed_image
 
 _KV = "0.16.11"
@@ -80,6 +81,7 @@ _HEAD = """<!DOCTYPE html>
 </head>
 <body>
   <h1>Formula Report</h1>
+  {katex_caveat}
   <p><strong>Source:</strong> {source} &nbsp;|&nbsp;
      <strong>MathExpressions:</strong> {n_formulas} &nbsp;|&nbsp;
      <strong>Equations:</strong> {n_equations}</p>
@@ -115,6 +117,7 @@ class FormulaReportProjector(BaseProjector):
             n_formulas=len(formulas),
             n_equations=len(equations),
             katex_scale=katex_scale,
+            katex_caveat=KATEX_WARNING_HTML,
         )]
 
         # ---- Inline math ----

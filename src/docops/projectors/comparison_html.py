@@ -19,6 +19,7 @@ import html
 
 from docmodel.core import Document
 from ..base import BaseProjector
+from ..katex_notice import KATEX_WARNING_HTML
 from docmodel.mathpix import page_url
 from .common import flow_ordered_content, equation_label, embed_image
 
@@ -61,6 +62,7 @@ _PAGE_TEMPLATE = """<!DOCTYPE html>
 </head>
 <body>
 <h1>LaTeX vs MathPix image — {title}</h1>
+{katex_caveat}
 <div class="meta">{source} · {count} expressions · providers: {providers}</div>
 <table>
 <thead><tr>{head_cells}</tr></thead>
@@ -168,6 +170,7 @@ class ComparisonHtmlProjector(BaseProjector):
             providers=", ".join(["mathpix"] + ordered),
             head_cells="".join(head),
             rows="\n".join(row_html),
+            katex_caveat=KATEX_WARNING_HTML,
         )
 
     @staticmethod

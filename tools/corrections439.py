@@ -135,6 +135,7 @@ addEventListener("click", function (e) {
 });
 </script></head><body>
 <h1>Accepted corrections</h1>
+""" + KATEX_WARNING_HTML + """
 <p class="lede">Each row is one region read twice: <b>above</b>, what MathPix
 produced; <b>below</b>, the correction that replaced it. The scan between them
 is <b>the same crop</b> — the two halves are two readings of one image, not two

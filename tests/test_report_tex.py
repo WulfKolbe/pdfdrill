@@ -586,3 +586,76 @@ def test_taskout_survives_a_lone_surrogate(tmp_path):
     assert p.is_file() and p.read_bytes()          # written, not raised
     q = taskout.save_text(tmp_path, 527, "note.txt", bad)
     assert q.is_file()
+
+
+# ---------------------------------------------------------------- 529/530
+
+def _lines_fixture(tmp_path):
+    import json
+    p = tmp_path / "d.lines.json"
+    p.write_text(json.dumps({"pages": [{"lines": [
+        {"type": "text", "text": r"we set $x^2$ here", "confidence": 0.91,
+         "confidence_rate": 0.99,
+         "region": {"top_left_x": 10, "top_left_y": 20,
+                    "width": 300, "height": 40}},
+        {"type": "math", "text": r"\alpha=\beta", "confidence": 0.5,
+         "region": {"top_left_x": 1, "top_left_y": 2,
+                    "width": 3, "height": 4}}]}]}))
+    return p
+
+
+def test_inline_formula_inherits_its_host_line(tmp_path):
+    from pdfdrill import inlinectx
+    lines = inlinectx.load_lines(_lines_fixture(tmp_path))
+    ctx = inlinectx.context_for(r"x^2", lines)
+    assert ctx["page"] == 1 and ctx["confidence"] == 0.91
+    assert ctx["line_type"] == "text"
+    # the region is the LINE's, in MathPix page-image pixels
+    assert (ctx["top_left_x"], ctx["width"]) == (10, 300)
+
+
+def test_an_unmatched_formula_yields_no_context(tmp_path):
+    """Absence of a host is not evidence of a confident one."""
+    from pdfdrill import inlinectx
+    lines = inlinectx.load_lines(_lines_fixture(tmp_path))
+    assert inlinectx.context_for(r"\zeta_{9}", lines) == {}
+    assert inlinectx.context_for("", lines) == {}
+
+
+def test_host_join_prefers_the_delimited_tightest_line(tmp_path):
+    r"""The arXiv margin stamp contains an X; it is not the host of `X`."""
+    import json
+    from pdfdrill import inlinectx
+    p = tmp_path / "d.lines.json"
+    p.write_text(json.dumps({"pages": [{"lines": [
+        {"type": "page_info", "text": "arXiv:2010.14265v2 [stat.ML] X 2021",
+         "confidence": 0.2,
+         "region": {"top_left_x": 0, "top_left_y": 0,
+                    "width": 40, "height": 900}},
+        {"type": "text", "text": r"the variable $X$ is observed",
+         "confidence": 0.97,
+         "region": {"top_left_x": 10, "top_left_y": 20,
+                    "width": 300, "height": 30}}]}]}))
+    ctx = inlinectx.context_for("X", inlinectx.load_lines(p))
+    assert ctx["confidence"] == 0.97 and ctx["line_type"] == "text"
+    assert ctx["height"] == 30
+
+
+# ---------------------------------------------------------------- 531
+
+def test_every_katex_generator_carries_the_caveat():
+    """One text, one place — and it must reach each emitted page."""
+    import pathlib
+    from docops.katex_notice import KATEX_WARNING_HTML
+    root = pathlib.Path(__file__).resolve().parent.parent
+    for rel in ("src/docops/projectors/formula_report.py",
+                "src/docops/projectors/comparison_html.py",
+                "src/docops/projectors/distill_reader.py",
+                "src/pdfdrill/docinspect.py",
+                "tools/corrections439.py"):
+        src = (root / rel).read_text()
+        assert "KATEX_WARNING_HTML" in src, rel
+    # the text names the three measured numbers, so it cannot drift into
+    # a vague caution
+    for n in ("327", "10 documents", "11,088"):
+        assert n in KATEX_WARNING_HTML, n

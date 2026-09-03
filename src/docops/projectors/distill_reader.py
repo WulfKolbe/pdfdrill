@@ -17,6 +17,7 @@ import re
 from docmodel.core import Document, DocObject
 from docmodel.mathpix import page_url
 from ..base import BaseProjector
+from ..katex_notice import KATEX_WARNING_HTML
 from ..transclusion_render import TW_TRANSCLUSION, num_from_title
 from .common import embed_image, flow_ordered_content
 
@@ -205,6 +206,7 @@ document.addEventListener("DOMContentLoaded", function () {{
   <h1>{title}</h1>
   <div class="byline">pdfdrill · docmodel projection · {bibkey} · {stats}</div>
 </div>
+{katex_caveat}
 <nav class="toc"><div class="head">Contents</div><div class="body"></div></nav>
 """
 
@@ -495,6 +497,7 @@ class DistillReaderProjector(BaseProjector):
             title=html.escape(str(doc_title or doc.meta.get("source_path", bibkey))),
             bibkey=html.escape(bibkey),
             stats=html.escape(stats),
+            katex_caveat=KATEX_WARNING_HTML,
         )
         self.bump("blocks", len(body))
         return head + "\n".join(body) + _FOOT

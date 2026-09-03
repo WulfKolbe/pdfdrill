@@ -46,6 +46,7 @@ CLI
 from __future__ import annotations
 
 import argparse
+from docops.katex_notice import KATEX_WARNING_HTML
 import base64
 import html
 import io
@@ -904,6 +905,7 @@ button{font:inherit;color:inherit;background:none;border:0;cursor:pointer}
 </style>
 </head>
 <body>
+""" + KATEX_WARNING_HTML + r"""
 <div class="topbar">
   <div class="brand">doc<span class="k">inspect</span></div>
   <div class="crumb"><b id="cb-key"></b> · <span id="cb-sub"></span></div>

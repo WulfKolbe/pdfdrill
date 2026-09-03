@@ -2615,6 +2615,126 @@ def _flag_remainder_tex(rest: dict, none_shown: bool = False) -> str:
                rest["mid"], rest["low"], rest["none"]))
 
 
+#: 530 — B'S THREE COLUMNS, AND WHY THERE ARE ONLY THREE.
+#:
+#: B was going to be HTML with formula-report.html as its equations section.
+#: It cannot be. KaTeX renders in a browser with NO PREAMBLE, and MathPix's
+#: own tex.zip declares packages its output needs — 484 measured `\bm` at 327
+#: occurrences, `\Perp` undefined across 10 documents, and 11,088 occurrences
+#: of author macros corpus-wide. So the HTML evidence surface shows a
+#: rendering that cannot be right: a row can look wrong there and compile, or
+#: look right there and fail.
+#:
+#: A LaTeX report renders through the SAME preamble the document's own maths
+#: needs, so its middle column is the only rendering that is evidence.
+#:
+#: Three columns, and nothing else. No KaTeX column (a second renderer whose
+#: failures are its own), no second-reading column (522: the score was
+#: computed by an asymmetric metric and is wrong on 91 rows), no scores.
+#: Identity rides in the first cell rather than as columns of its own.
+B_WIDTHS = (78, 78, 78)
+
+
+def b_rows(tiddlers, bibkey, doc_dir, lines_path=None, ink=None,
+           refined=None):
+    r"""Every row B shows, in document order, with its A-state marked.
+
+    EQ, FO, TAB and image rows in one sequence. An FO row carries the page,
+    confidence and region of the LINE it was printed in (`inlinectx`) —
+    the only ones it has — and is marked as such, because a line's
+    confidence is not a formula's.
+    """
+    from . import inlinectx
+    fo, eq, tab, dia = rows_for(tiddlers, bibkey, refined)
+    found = findings_rows(tiddlers, bibkey, doc_dir, ink=ink, refined=refined)
+    state = {}
+    for p_ in found["corrected"]:
+        if p_.get("identifier"):
+            state[p_["identifier"]] = "corrected"
+    for key in ("unresolved", "flagged", "doubted"):
+        for r_ in found[key]:
+            state.setdefault(r_["identifier"], key)
+
+    ctx = {}
+    if lines_path and Path(lines_path).is_file():
+        ctx = inlinectx.attach([r[1] for r in fo], lines_path)
+
+    out = []
+    for kind, rows in (("equation", eq), ("formula", fo),
+                       ("table", tab), ("image", dia)):
+        for r_ in rows:
+            title, latex, page = r_[0], r_[1], r_[2]
+            c = ctx.get(latex or "") or {}
+            out.append({
+                "kind": kind, "identifier": title,
+                "latex": latex,
+                "page": page if page not in (None, "") else c.get("page"),
+                "conf": c.get("confidence") if kind == "formula" else None,
+                "conf_is_host_line": bool(kind == "formula" and c.get("confidence")),
+                "line_type": c.get("line_type"),
+                "state": state.get(title, ""),
+                "region": {k: c[k] for k in
+                           ("top_left_x", "top_left_y", "width", "height")
+                           if k in c},
+            })
+    return out
+
+
+def b_tex(rows, crops=None, out_dir=None, px2mm=None, bibkey="",
+          history=None) -> str:
+    r"""The three columns: LaTeX source, its rendering, the image."""
+    parts = []
+    widths = B_WIDTHS
+    cols = "|" + "|".join("p{%smm}" % w for w in widths) + "|"
+
+    STATE = {"corrected": "corrected", "unresolved": "unresolved",
+             "flagged": "flagged", "doubted": "doubted but correct"}
+
+    for kind, caption in (("equation", "Display equations"),
+                          ("formula", "Inline formulas, in prose"),
+                          ("table", "Tables"),
+                          ("image", "Image regions")):
+        sel = [r for r in rows if r["kind"] == kind]
+        if not sel:
+            continue
+        parts.append("\\clearpage\n\\section*{%s (%d)}\n" % (caption, len(sel)))
+        if kind == "formula":
+            parts.append(
+                "\\noindent{\\small The page, the confidence and the picture "
+                "of an inline formula are its HOST LINE's --- a formula has "
+                "none of its own. A line's confidence is not a formula's.}"
+                "\\\\[.6em]\n")
+        parts.append("\\begin{longtable}{%s}\n\\hline\n" % cols +
+                     " & ".join("\\textbf{%s}" % h for h in
+                                ("LaTeX source", "Rendered", "Image")) +
+                     " \\\\\n\\hline\\endhead\n")
+        for r_ in sel:
+            lx = r_.get("latex") or ""
+            safe = renderable(lx) if lx else ""
+            label = [breakable_ident(r_["identifier"])]
+            if r_.get("page") not in (None, ""):
+                label.append("p.~%s" % esc_text(str(r_["page"])))
+            if r_.get("conf") not in (None, ""):
+                try:
+                    label.append("line conf %.3f" % float(r_["conf"]))
+                except (TypeError, ValueError):
+                    pass
+            if r_.get("state"):
+                label.append("\\textbf{%s}" % STATE.get(r_["state"],
+                                                        r_["state"]))
+            src = ("{\\scriptsize %s}\\\\[.3em]{\\ttfamily\\footnotesize %s}"
+                   % (" \\textperiodcentered{} ".join(label),
+                      esc_text(lx) if lx else "---"))
+            rend = ("\\FitMath{$\\displaystyle %s$}" % safe if safe else
+                    ("\\emph{(does not render)}" if lx else "---"))
+            img = crop_cell(crops, out_dir, r_["identifier"], px2mm=px2mm,
+                            col_mm=widths[-1], bibkey=bibkey,
+                            history=history) if crops else "---"
+            parts.append("%s & %s & %s \\\\ \\hline\n" % (src, rend, img))
+        parts.append("\\end{longtable}\n")
+    return "".join(parts)
+
+
 def build_report(tiddlers_path: Path, out: Path | None = None,
                  crops: Path | None = None, texzip: Path | None = None,
                  paper: str = "a4", landscape: bool = False,
