@@ -447,7 +447,17 @@ def crop_cell(crops_dir: Path | None, out_dir: Path, title: str,
             size = "width=%.1fmm" % w_mm
         except (TypeError, ValueError):
             pass
-    return ("\\includegraphics[%s]{%s}"
+    # 545 — A STRUT, so the image stops painting over the rule above it.
+    # The crop is a JPEG with an OPAQUE WHITE background and no descender-free
+    # top margin; set flush in a `p{}` cell its box overlaps the \hline that
+    # closes the row above, and the white ground erases that rule for exactly
+    # the image's width. Measured on cardona p3: at the rule's y the source
+    # and rendered columns are dark 0.0-80.5mm and the image column is dark
+    # only 0.0-1.3 and 75.7-80.8 — a 74.4mm gap, the image's own width. It
+    # reads as the cell being cut off at the right, which is what it was
+    # reported as; nothing is clipped, the border is erased. 0.6mm of lead
+    # is below the eye and clears the rule.
+    return ("\\rule{0pt}{0.6mm}\\\\[-0.6mm]\\includegraphics[%s]{%s}"
             % (size, str(rel).replace("\\", "/")))
 
 

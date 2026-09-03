@@ -1,0 +1,79 @@
+545 — the Image cell does not overflow. The rule under it was being erased.
+===========================================================================
+
+THE NUMBERS ASKED FOR — cardona-qft-methods_EQ0008
+---------------------------------------------------
+  column, text width            p{78mm}
+  column, rule to rule          81.0 mm   (78 + 2 x \tabcolsep)
+  drawn                         \includegraphics[width=66.3mm]
+  region                        657 x 90 MathPix px; the CDN crop is 653 x 90
+  px2mm                         0.10156
+  clearance to the right rule   ~12 mm
+
+It fits, with room. And the crop file is the COMPLETE equation — I opened
+it: `k^A_σ(x,y) = 1/(2π)^d ∫_{ℝ^d} e^{i(x−y)·ξ} k^A(x,y,ξ) dξ ,` ending in
+the comma. Nothing is cut.
+
+THE SCALING IS ALREADY THERE
+-----------------------------
+`crop_cell` has capped at `col_mm - 4` since 461. Over cardona's whole
+B.tex:
+
+  \includegraphics widths declared          4,820 rows
+  the maximum declared anywhere             74.0 mm
+  images sitting exactly at that cap        2,840
+  images wider than 74.0 mm                 0
+
+And all 1,012 EQ crops match their recorded region to within 5% — none is
+truncated on disk either.
+
+SO WHAT IS THE THING AT THE RIGHT EDGE
+---------------------------------------
+It is real, and it is not clipping. At the y of a horizontal rule on
+cardona page 3:
+
+  source column     dark 0.0 .. 80.5 mm      the rule, whole
+  rendered column   dark 0.0 .. 80.5 mm      the rule, whole
+  image column      dark 0.0 .. 1.3 mm  AND  75.7 .. 80.8 mm
+
+The rule is BROKEN in the image column, and the gap is 74.4 mm — the
+image's own width. The crop is a JPEG with an OPAQUE WHITE background;
+set flush in a `p{}` cell its box overlaps the `\hline` closing the row
+above, and the white ground paints the rule out for exactly the width of
+the picture.
+
+A cell whose border stops where the picture starts reads as a picture cut
+off at the edge. That is what was reported, and the diagnosis "drawn wider
+than the column allows" was the natural reading of it. Nothing is clipped;
+the border is erased.
+
+THE FIX
+-------
+0.6 mm of lead before the image in `crop_cell`:
+
+  \rule{0pt}{0.6mm}\\[-0.6mm]\includegraphics[...]
+
+Below the eye, and enough to clear the rule. Measured on cardona page 3:
+
+  before   13 rules on the page, 1 erased in the image column
+  after    10 rules on the page, 0 erased
+
+2,928 tests passing.
+
+A MISTAKE I MADE WHILE FIXING IT
+---------------------------------
+I rebuilt with `./pdfdrill breport "$D"/*.pdf`. The glob expands
+alphabetically and `B.pdf` sorts first, so the build ran on B's OWN output
+— 1,994 rows where cardona has 4,820 — and overwrote cardona's B.tex and
+B.pdf with a report about a report. Caught because the row count changed;
+rebuilt from the explicit source path and back to 4,820 rows. A document
+folder now contains three PDFs and a glob is no longer safe in it.
+
+WHAT I COULD NOT REPRODUCE
+---------------------------
+Clipping. Across 9 pages sampled through cardona's 274, table rows only,
+the widest image ink is 74.9 mm inside an 81.0 mm band. No row's picture
+crosses its rule. If the file in front of you shows an equation genuinely
+cut mid-expression rather than a broken border, it is a different row than
+EQ0008 and I would want its identifier — the two look alike at a glance and
+the measurements above separate them.
