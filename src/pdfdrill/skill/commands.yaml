@@ -591,6 +591,15 @@ commands:
     flag: --timeout
     type: int
     help: 'per-page compare timeout in seconds (default 900)'
+  - name: pages
+    flag: --pages
+    type: str
+    help: 'cap BOTH builds at the first N pages. It has to reach both: a measure
+      build of a different length is a measurement of a report nobody reads. The
+      bound is written into the build stamp as `pages_bound` and compared by the
+      resume, so a bounded run can never adopt an unbounded measurement — 463''s
+      defect arriving through a new flag. Until 578 the CLI accepted --pages here
+      and silently dropped it into the PDF argument list.'
   - name: full
     flag: --full
     type: flag

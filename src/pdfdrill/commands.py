@@ -2225,7 +2225,8 @@ INKREPORT_FINDINGS = {
 def cmd_inkreport(pdf: Path, preflight_only: bool = False,
                   findings: "bool | None" = None,
                   profile: str = INKREPORT_PROFILE_DEFAULT,
-                  timeout: int = 900) -> str:
+                  timeout: int = 900,
+                  pages: "int | None" = None) -> str:
     """404 — the whole ink chain, and the only supported way to run it.
 
     preflight -> build(measure) -> measure -> convert -> build(reading) ->
@@ -2271,11 +2272,18 @@ def cmd_inkreport(pdf: Path, preflight_only: bool = False,
     out.append("PROFILE: %s (formulas: %s, shape: %s)"
                % (profile, rule, "findings" if findings else "full listing"))
     plan = pre["plan"]
-    pages = plan.get("report_pages") or max(1, plan.get("rows", 4) // 4)
+    # 578 — `plan_pages`, NOT `pages`. This line used to assign to `pages`,
+    # which is the PARAMETER carrying --pages, purely to print one estimate in
+    # the PLAN line. Every later reader — the resume test, all three
+    # cmd_reporttex calls, the build stamp — then received the estimate
+    # instead of the bound the operator asked for, silently and with no error
+    # anywhere. `--pages 7` resumed a measurement stamped pages_bound=2 and
+    # said the report described it.
+    plan_pages = plan.get("report_pages") or max(1, plan.get("rows", 4) // 4)
     out.append("")
     out.append("PLAN: %d rows over ~%d report pages; measure at ~%.1f s/page "
                "= ~%d s. Intermediates peak at ~%d MB, one page at a time."
-               % (plan.get("rows", 0), pages, ir.SECONDS_PER_PAGE,
+               % (plan.get("rows", 0), plan_pages, ir.SECONDS_PER_PAGE,
                   plan.get("seconds", 0), ir.MB_PER_PAGE_PEAK))
     if preflight_only:
         out.append("--preflight-only: stopping before the first build.")
@@ -2283,7 +2291,7 @@ def cmd_inkreport(pdf: Path, preflight_only: bool = False,
 
     t0 = _time.time()
     why: list = []
-    resumed = ir.fresh_ink(doc, formula_rule=rule, why=why)
+    resumed = ir.fresh_ink(doc, formula_rule=rule, pages_bound=pages, why=why)
     if resumed:
         out.append("")
         out.append("RESUME: the stored measurement describes the report this "
@@ -2303,6 +2311,51 @@ def cmd_inkreport(pdf: Path, preflight_only: bool = False,
             out.append("")
             out.append("NO RESUME: %s. Re-measuring."
                        % (why[0] if why else "?"))
+        # 578 — DEFINED BEFORE ITS FIRST USE. `_bail` used to be defined
+        # here, forty lines below step 2b, which calls it. Python binds a
+        # name assigned anywhere in a function for the whole function, so
+        # step 2b's `return _bail([...])` raised UnboundLocalError instead
+        # of bailing — and the handler that exists to restore the reading
+        # build could not run, leaving report.pdf as the 1-page phase-1
+        # scaffolding on the one document that needed the refusal. A guard
+        # placed after the code it guards is not a guard.
+        # 557 — A FAILED MEASUREMENT MUST NOT LEAVE THE ARTEFACT AS
+        # SCAFFOLDING. Step 2 has just rebuilt report.pdf as a phase-1 build:
+        # legend off, no ink. Every early return between here and step 5 used
+        # to hand that back as the published report. The 557 sweep left six of
+        # nine documents in that state, five of them 1-page builds for
+        # documents that had nothing to measure in the first place — the run
+        # made them worse than it found them.
+        #
+        # The measure build is scaffolding; the reading build is the artefact.
+        def _bail(lines):
+            # 578 — UN-STASH FIRST. Step 2 hides report.ink.json so the measure
+            # build cannot adopt it, and restores it in a `finally`. `_bail` is
+            # called from inside that `try`, and a `return` evaluates its
+            # expression BEFORE the `finally` runs — so the restore build here
+            # ran with the ink still hidden and produced a reading build with
+            # ink_adopted=False. On BradleyGastaldiTerilla2023 that replaced a
+            # 2-page report carrying ink with a 1-page one carrying none: the
+            # handler written to stop a failed run making things worse was
+            # making them worse.
+            _h = doc / "report.ink.json"
+            _s = doc / "report.ink.json.inkreport-hold"
+            if _s.is_file() and not _h.is_file():
+                _s.replace(_h)
+            try:
+                cmd_reporttex(pdf, compile_pdf=True, legend=True,
+                              formulas=rule, findings=findings, pages=pages)
+                lines = lines + [
+                    "", "The reading build was restored — a failed measurement "
+                    "must not leave report.pdf as the phase-1 scaffolding it "
+                    "built in order to measure."]
+            except Exception as _exc:                    # noqa: BLE001
+                lines = lines + [
+                    "", "WARNING: could not restore the reading build (%s). "
+                    "report.pdf is the MEASURE build and must not be published."
+                    % _exc]
+            return "\n".join(out + lines)
+
         # 2 — the MEASURE build. No legend, no ink: the only combination that
         # stamps phase=measure (report_tex.py:1516).
         held = doc / "report.ink.json"
@@ -2321,7 +2374,7 @@ def cmd_inkreport(pdf: Path, preflight_only: bool = False,
             # so the ink described a 276-page report and the reader opened a
             # 19-page one. Phase 1 and phase 2 may differ only by the legend.
             cmd_reporttex(pdf, compile_pdf=True, legend=False, formulas=rule,
-                          findings=findings)
+                          findings=findings, pages=pages)
             # 2b — 557. NOW the manifest describes the report that exists, so
             # this is where an unmeasurable one is refused. Before the build
             # the same question could only be asked of the previous record.
@@ -2354,30 +2407,6 @@ def cmd_inkreport(pdf: Path, preflight_only: bool = False,
                    % (got.get("phase"), got.get("pages"),
                       str(got.get("sha256"))[:12]))
 
-        # 557 — A FAILED MEASUREMENT MUST NOT LEAVE THE ARTEFACT AS
-        # SCAFFOLDING. Step 2 has just rebuilt report.pdf as a phase-1 build:
-        # legend off, no ink. Every early return between here and step 5 used
-        # to hand that back as the published report. The 557 sweep left six of
-        # nine documents in that state, five of them 1-page builds for
-        # documents that had nothing to measure in the first place — the run
-        # made them worse than it found them.
-        #
-        # The measure build is scaffolding; the reading build is the artefact.
-        def _bail(lines):
-            try:
-                cmd_reporttex(pdf, compile_pdf=True, legend=True,
-                              formulas=rule, findings=findings)
-                lines = lines + [
-                    "", "The reading build was restored — a failed measurement "
-                    "must not leave report.pdf as the phase-1 scaffolding it "
-                    "built in order to measure."]
-            except Exception as _exc:                    # noqa: BLE001
-                lines = lines + [
-                    "", "WARNING: could not restore the reading build (%s). "
-                    "report.pdf is the MEASURE build and must not be published."
-                    % _exc]
-            return "\n".join(out + lines)
-
         # 3 — measure it.
         work = doc / "inkwork"
         try:
@@ -2407,7 +2436,7 @@ def cmd_inkreport(pdf: Path, preflight_only: bool = False,
 
     # 5 — the READING build, adopting.
     cmd_reporttex(pdf, compile_pdf=True, legend=True, formulas=rule,
-                  findings=findings)          # 557 — same shape as phase 1
+                  findings=findings, pages=pages)   # 557 — same shape as phase 1
     stamp = doc / "report.build.json"
     got = json.loads(stamp.read_text(encoding="utf-8")) if stamp.is_file() else {}
     if got.get("phase") != "reading" or not got.get("ink_adopted"):
@@ -15049,6 +15078,14 @@ def cmd_reporttex(pdf: Path, paper: str = "a3", landscape: bool = True,
     from . import report_tex as rt
     sc = Sidecar(pdf)
 
+    # 578 — THE REQUEST, CAPTURED BEFORE IT CAN BE CLOBBERED. Two lines below
+    # (`pages, errors, demoted = res`) rebind `pages` to the number of pages
+    # the compile PRODUCED, so by the time the build stamp is written the
+    # parameter no longer holds what the caller asked for. The stamp then
+    # recorded pages_bound=2 for a `--pages 10` run, and the resume compared a
+    # built count against a bound and called them the same question.
+    _pages_bound = pages
+
     if refined:
         from . import refine as _rf
         cp = _rf.changes_path(sc.blob_dir)
@@ -15329,7 +15366,8 @@ def cmd_reporttex(pdf: Path, paper: str = "a3", landscape: bool = True,
                          "types": types},
                 glyphs_dropped_count=(lost[0] if lost else 0),
                 formula_rule=r.get("formula_rule", ""),
-                findings=bool(findings))
+                findings=bool(findings),
+                pages_bound=_pages_bound)
             lines.append(
                 f"Build stamp: {rt.BUILD_STAMP} — phase={stamp['phase']}, "
                 f"{stamp['pages']} pages, {stamp['bytes']} bytes, "

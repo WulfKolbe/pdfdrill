@@ -2258,7 +2258,8 @@ def write_build_stamp(pdf_out: Path, *, legend: bool, ink_adopted: bool,
                       prefer_refined: bool, filters: dict,
                       glyphs_dropped_count: int = 0,
                       formula_rule: str = "",
-                      findings: bool | None = None) -> dict:
+                      findings: bool | None = None,
+                      pages_bound: "int | None" = None) -> dict:
     """Write BUILD_STAMP beside the report and return it.
 
     `phase` is the field a reader acts on. A build with no legend and no ink is
@@ -2277,6 +2278,11 @@ def write_build_stamp(pdf_out: Path, *, legend: bool, ink_adopted: bool,
         # 469 — which formula rule built this. 456 had to infer a report's
         # shape by parsing its own .tex; a field is cheaper and does not lie.
         "formula_rule": formula_rule or "",
+        # 578 — the requested PAGE BOUND, not the page count. `pages` is what
+        # the build produced and a 10-page cap on an 11-page report produces
+        # 10 either way; the bound is what the next run will ask for, and it
+        # is the only form of the question a resume can compare against.
+        "pages_bound": (int(pages_bound) if pages_bound else None),
         **model_state(pdf_out.parent),
     })
     body = _json.dumps(stamp, indent=1)

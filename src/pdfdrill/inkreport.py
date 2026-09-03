@@ -232,6 +232,7 @@ def _report_pages(doc_dir: Path) -> int:
 
 
 def fresh_ink(doc_dir: Path, *, formula_rule: str = "",
+              pages_bound: "int | None" = None,
               why: "list | None" = None) -> bool:
     """True when the stored measurement describes the report ABOUT TO BE BUILT.
 
@@ -296,6 +297,19 @@ def fresh_ink(doc_dir: Path, *, formula_rule: str = "",
     if (st_d.get("formula_rule") or "") != (formula_rule or ""):
         say.append("the measured report used formula rule %r, this run uses %r"
                    % (st_d.get("formula_rule") or "", formula_rule or ""))
+        return False
+    # 578 — a fifth content question, and the same class as the formula rule.
+    # `--pages 10` builds a different report from an unbounded one, so a
+    # measurement taken against one cannot describe the other. Without this the
+    # first bounded run on every document would resume a full-length
+    # measurement and report READY against a report it never measured — 463's
+    # defect, arriving through a new flag.
+    _want = int(pages_bound) if pages_bound else None
+    _had = st_d.get("pages_bound")
+    _had = int(_had) if _had else None
+    if _want != _had:
+        say.append("the measured report was built with pages_bound=%s, this "
+                   "run uses %s" % (_had, _want))
         return False
     from .report_tex import model_state
     cur = model_state(doc_dir).get("model_sha256")

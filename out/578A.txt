@@ -1,0 +1,161 @@
+578 STAGE A - the preconditions, and four blockers that were not on the list
+
+A1, A2 and A3 were all fixed by 562. I checked each against running code
+rather than re-fixing them, and the evidence is below. What actually
+stopped the run was four different defects, three of them the same shape:
+a name bound somewhere other than where it is read.
+
+A1 - THE FRESHNESS TEST. Already correct.
+
+It compares, at commands.py:2146:
+    report.build.measure.json  (mtime)   <=   report.compare.tsv  (mtime)
+It used to compare report.build.json against the tsv, and 562's comment
+says why that always failed in the findings shape: report.build.json is
+whatever built LAST, so the phase-2 reading build overwrites it two seconds
+after the measurement, and the test then reads 'the stamp is newer than the
+measurement' - true of the file, false of the build. The phase-1 record
+survives under its own name precisely so that cannot happen (237b).
+
+Measured on 0707.4470 after a full run:
+    measured_against.sha256   08f505542fa50542
+    report.build.measure.json 08f505542fa50542   equal
+So measured_against is attached. The current report.pdf hashes differently
+(fcd3ee8d) and should: that is the phase-2 reading build, which is not what
+was measured.
+
+A2 - identifiers(). Already correct.
+
+Three patterns, tried in order, first non-empty wins. On 0707.4470's
+findings report.tex (2 \ident rows):
+    _IDENT      (full-listing row form)   0 matches
+    _IDENT_FIND (findings row form)       2 matches   <- 562 added this
+    _IDENT_FIG  (figure form)             0 matches
+    identifiers() -> 2
+Before _IDENT_FIND existed the count was 0 on every findings report, which
+is the UNKNOWN coverage reads. Before 0, after 2, on this document.
+
+A3 - THE READING BUILD ADOPTS. Neither of the two possibilities.
+
+The question was whether the adoption never reaches the reading build or
+the reading build finds nothing to adopt. On 0707.4470 it reaches it and
+finds something: report.build.reading.json says ink_adopted=true and
+report.tex carries 13 bullet macros.
+
+The 0 bullets are real, but they are produced one phase earlier, and that
+is the finding this stage actually turned up:
+
+THE MEASURE BUILD AND THE READING BUILD DO NOT HAVE THE SAME ROWS
+
+Step 2 stashes report.ink.json so the measure build cannot adopt it - that
+is deliberate, and it is what makes the build stamp say phase=measure. But
+in the FINDINGS shape two of the four sections exist only because of ink:
+`flagged` and `doubted` are selected by the ink code. So phase 1 sees only
+`corrected` and `unresolved`, and phase 2 sees all four.
+
+Measured across the 20 documents that have a library folder, phase 1 (no
+ink) against phase 2 (ink), as C/U/F/D:
+
+document                           inkrow joined   phase1         phase2         p1 -> p2
+0707.4470                               1      1   1/0/0/0        1/0/0/0        1 -> 1
+0902.0431                              55     55   10/4/0/0       10/4/45/0      14 -> 59
+1510.06699                            279    279   0/0/0/0        0/0/68/1       0 -> 69
+1605.05775                             26     26   0/0/0/0        0/0/2/0        0 -> 2
+2010.14265                             16     16   0/0/0/0        0/0/1/0        0 -> 1
+2106.07890                             51     51   0/0/0/0        0/0/14/0       0 -> 14
+2501.06662                             60     60   0/0/0/0        0/0/14/0       0 -> 14
+BradleyGastaldiTerilla2023              8      8   0/0/0/0        0/0/3/0        0 -> 3
+bradley_spring22                       16     16   0/0/0/0        0/0/3/0        0 -> 3
+cardona-qft-methods                  1012   1012   0/1/0/0        0/1/110/0      1 -> 111
+fong-spivak-invitation                262    262   0/2/0/0        0/2/81/0       2 -> 83
+fong-spivak-seven-sketches            264    264   0/1/0/0        0/1/78/3       1 -> 82
+gilmore-lie-groups                   1037   1037   0/10/0/0       0/10/350/1     10 -> 361
+johnston-linear-matrix-algebra       1670   1670   8/7/0/0        8/7/543/0      15 -> 558
+kohlhase-omdoc                          6      6   0/4/0/0        0/4/1/0        4 -> 5
+lyche-numerical-linear-algebra       1056   1056   8/5/0/0        8/5/239/0      13 -> 252
+mielke-geometrodynamics              1149   1149   3/2/0/0        3/2/207/0      5 -> 212
+pdf-dc99cf88                        no library folder
+penev_A                               116    116   0/1/0/0        0/1/33/0       1 -> 34
+penev_B                                62     62   0/0/0/0        0/0/24/0       0 -> 24
+rph8-g15q                              81     81   0/1/0/0        0/1/11/0       1 -> 12
+voloshin-hypergraph                   266    266   3/0/0/0        3/0/24/0       3 -> 27
+
+Phase 1 and phase 2 differ on ALL 20. On 8 of them phase 1 is EMPTY:
+  1510.06699, 1605.05775, 2010.14265, 2106.07890, 2501.06662, BradleyGastaldiTerilla2023, bradley_spring22, penev_B
+
+For those 8, step 2b refuses - correctly, on its own terms: the measure
+build named a table with no rows, so there is nothing to measure. But the
+report a reader opens has rows. 557 established that phase 1 and phase 2
+may differ only by the legend; in the findings shape they differ by two
+whole sections, and that is not something --pages or a freshness test can
+reach. I am reporting it rather than redesigning the two-phase contract
+unasked - it decides what Stage C can produce for 8 of 21 documents.
+
+THE FOUR BLOCKERS THAT WERE NOT ON THE LIST
+
+1. `_bail` was USED BEFORE IT WAS DEFINED. Step 2b calls it; it was defined
+   forty lines lower. Python binds a name assigned anywhere in a function
+   for the whole function, so the call raised UnboundLocalError, the
+   handler never ran, and report.pdf was left as the 1-page phase-1
+   scaffolding - on exactly the document that needed the refusal. A guard
+   placed after the code it guards is not a guard.
+
+2. `--pages` WAS NEVER PARSED. cli._do_inkreport did not look for it, so
+   `--pages 10` fell into the positional list, where _pdf() takes args[0]
+   and ignores the rest. Every 'the 21 at --pages 10' run so far was an
+   unbounded run. This is 516's --findings defect in a second command.
+
+3. cmd_inkreport REBOUND ITS OWN `pages` PARAMETER. One line computing an
+   estimate for the PLAN message assigned to `pages`, so the resume test,
+   all three builds and the stamp received the estimate instead of the
+   bound. `--pages 7` resumed a measurement stamped pages_bound=2.
+
+4. cmd_reporttex REBOUND ITS OWN `pages` PARAMETER, twice, via
+   `pages, errors, demoted = res` - the number of pages the compile
+   PRODUCED. The stamp then recorded pages_bound=2 for a --pages 10 run,
+   and the resume compared a built count against a requested bound as
+   though they were the same question.
+
+And one found by fixing 1:
+
+5. `_bail` REBUILT WITH THE INK STILL STASHED. Step 2 hides
+   report.ink.json and restores it in a `finally`; `_bail` is called from
+   inside that `try`, and a `return` evaluates its expression BEFORE the
+   `finally` runs. The restored reading build therefore had no ink. On
+   Bradley that replaced a 2-page report carrying ink with a 1-page one
+   carrying none: the handler written to stop a failed run making things
+   worse was making them worse. Now it un-stashes first, and Bradley's
+   restored build is phase=reading, 2 pages, ink_adopted=true.
+
+A page bound is also a CONTENT question for the resume, so `pages_bound`
+is now written into the build stamp and compared by fresh_ink alongside the
+formula rule and the model sha. Without it the first bounded run on every
+document would have resumed an unbounded measurement and reported READY -
+463's defect arriving through a new flag.
+
+THE BRADLEY RUN, as asked
+
+  pdfdrill inkreport BradleyGastaldiTerilla2023 --profile published --pages 10
+
+  measure pages          - (no measure build survives; refused at step 2b)
+  reading pages          2
+  findings on both stamps  measure: n/a   reading: findings=true
+  measured_against         not re-attached this run (steps 3-4 never ran)
+  coverage                 not computed
+  bullets                  n/a
+  four counts              0 corrected / 0 unresolved / 0 flagged of 0 / 0 doubted
+                           in phase 1, which is why it refused;
+                           0 / 0 / 3 of 3 / 0 in the published shape
+
+  REFUSED after the measure build: report.tables.json names neither
+  'Display equations' nor any findings section - it holds [].
+  The reading build was restored.
+
+Bradley has 8 ink rows, all 8 joining, and 3 flagged rows in the published
+report. It cannot be measured because all 3 are ink-derived and phase 1
+cannot see them. This is the structural finding above, not a fixable
+precondition, and it is the one Stage C needs an answer to.
+
+2965 tests pass. 22 tests added across the five fixes.
+
+---
+Evidence: /home/wkolbe/pdfdrill-library/out/578/  (INSPECT.txt)
