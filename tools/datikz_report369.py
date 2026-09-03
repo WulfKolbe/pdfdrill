@@ -150,10 +150,10 @@ def main() -> int:
     # hyperref appended to OUR document only — the shared report preamble is
     # untouched, because a link column is this report's need and not every
     # report's.
-    parts = [rt.PREAMBLE % {"bbdigits": rt.MATHBB_DIGITS,
+    parts = [rt.preamble(**{"bbdigits": rt.MATHBB_DIGITS,
                             "form": rt.FORM_PREAMBLE if ink else "",
                             "geom": "a3paper,landscape,margin=8mm",
-                            "unicode": ""}]
+                            "unicode": ""})]
     parts[0] = parts[0].replace(
         "\\begin{document}",
         "\\usepackage{hyperref}\n\\hypersetup{colorlinks,urlcolor=blue}\n"

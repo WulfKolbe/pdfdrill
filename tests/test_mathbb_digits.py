@@ -13,8 +13,8 @@ def _formatted():
     """What actually reaches xelatex. PREAMBLE carries a %(bbdigits)s slot,
     not the literal block — asserting on the raw template would pass while the
     call site forgot to fill it."""
-    return rt.PREAMBLE % {"bbdigits": rt.MATHBB_DIGITS, "form": "",
-                          "geom": "a4paper", "unicode": ""}
+    return rt.preamble(**{"bbdigits": rt.MATHBB_DIGITS, "form": "",
+                          "geom": "a4paper", "unicode": ""})
 
 
 def test_report_preamble_loads_a_digit_capable_package():

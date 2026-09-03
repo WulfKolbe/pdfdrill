@@ -1133,6 +1133,7 @@ def _do_reporttex(args):
     types, args = _opt(args, "--types")
     ink, args = _opt(args, "--ink")
     formulas, args = _opt(args, "--formulas")
+    npages, args = _opt(args, "--pages")
     pdf_args = [a for a in args if a not in ("--compile", "--no-images",
                                              "--portrait", "--form",
                                              "--no-legend", "--refined", "--render-regions",
@@ -1147,6 +1148,7 @@ def _do_reporttex(args):
                          legend="--no-legend" not in args,
                          formulas=formulas or "unresolved",
                          findings="--findings" in args,
+                         pages=(int(npages) if npages is not None else None),
                          render_regions="--render-regions" in args,
                          refined="--refined" in args,
                          prefer_refined="--prefer-refined" in args)
@@ -1157,12 +1159,14 @@ def _do_breport(args):
     [--no-images]  — B: every row, three columns"""
     from .commands import cmd_breport
     paper, args = _opt(args, "--paper")
+    npages, args = _opt(args, "--pages")
     pdf_args = [a for a in args if a not in ("--portrait", "--no-compile",
                                              "--no-images")]
     return cmd_breport(_pdf(pdf_args), paper=paper or "a3",
                        landscape="--portrait" not in args,
                        compile_pdf="--no-compile" not in args,
-                       images="--no-images" not in args)
+                       images="--no-images" not in args,
+                       pages=(int(npages) if npages is not None else None))
 
 
 def _do_report(args):

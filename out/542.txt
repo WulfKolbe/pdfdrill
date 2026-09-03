@@ -1,0 +1,84 @@
+542 — --pages N on both builders, default 10
+=============================================
+
+EVIDENCE
+  ~/pdfdrill-library/Geometric...Cardona.../out/542/pages.json
+  ~/pdfdrill-library/Geometric...Cardona.../out/542/script.py
+
+THE NUMBER
+----------
+cardona-qft-methods, 4,820 rows, built twice:
+
+              time      size      pages
+  --pages 10   13.5 s    0.59 MB     10
+  full        139.1 s   17.91 MB    274
+  ------------------------------------------
+              10.3x       3.3%
+
+**A layout iteration is 13.5 seconds instead of 2 minutes 19.**
+
+I EXPECTED THIS TO BE A SIZE SAVING ONLY, AND I WAS WRONG
+----------------------------------------------------------
+`pagesel` discards pages at SHIPOUT — the document is still TYPESET in
+full — so I wrote in the constant's docstring that the saving would be in
+what reaches the PDF and "a claim that it makes the build ten times faster
+would be wrong". It is 10.3x. The embedding and PDF-writing dominate, not
+the typesetting: a page that is never shipped never has its crops written
+out. The comment now carries the measurement instead of my reasoning.
+
+WHAT WAS ADDED
+--------------
+  report_tex.PAGES_DEFAULT = 10
+  report_tex.pagesel_line(n)   -> \usepackage[1-N]{pagesel}, "" for a full
+                                  build. 0, None and negatives all mean
+                                  every page: a build that emits nothing is
+                                  never what was wanted, so there is no way
+                                  to spell it.
+  PREAMBLE gains %(pagesel)s
+  build_report(pages=...)      A
+  cmd_breport(pages=...)       B
+  --pages N on both commands, in commands.yaml, 144 commands still sync
+
+Both default to 10. `--pages 0` builds every page.
+
+B says so on the line that reports the build, because a 10-page file that
+looks complete is the failure this could introduce:
+
+  Wrote .../B.tex — 233 rows (...); EMITTING THE FIRST 10 PAGES ONLY (--pages).
+
+A SLOT THAT BROKE SEVEN CALLERS
+--------------------------------
+Adding `%(pagesel)s` to PREAMBLE broke every existing `PREAMBLE % {...}`
+with KeyError — two tests and three tools among them. A preamble slot is an
+OPTION and a caller that does not know about it should get the default, not
+a crash. `report_tex.preamble(**slots)` now fills missing slots with "" via
+a dict subclass, and the call sites route through it. The next slot added
+will not do this again.
+
+BradleyGastaldiTerilla2023 AT --pages 10
+-----------------------------------------
+  A  report.pdf   2 pages, 0 errors
+     Findings: corrected 0, unresolved 0, flagged 0 of 3 shown, doubted 0
+     (8 display equations, 1 table, 13 image regions in the projection)
+  B  B.pdf       10 pages, 0 errors, 233 rows
+     (8 equation, 211 formula, 13 image, 1 table)
+
+A is 2 pages because the findings shape has almost nothing to report on
+this document — it is under the --pages cap, not clipped by it.
+
+THE TWO LONG RUNS ARE STOPPED
+------------------------------
+The 538 B rebuild at q75/70% was at 15 of 21; the re-measure is stopped
+too. Both were producing full documents in a layout that is not agreed, and
+both would have needed redoing. Nothing from either is published.
+
+Your point about the corpus scans is taken and it is the more useful half
+of this task. 537 projected a size from ten documents when one build at
+two settings answers it — which is exactly what 542 did in 153 seconds.
+539 counted 21 to establish a state that johnston alone demonstrates. 527
+censused 1,355 documents to show that inline maths dominates, which
+2010.14265's 16 display equations against 1,008 inline spans says on its
+own. A corpus number is worth having when the QUESTION is about the corpus:
+how many documents are affected, is this one book or all of them. When the
+question is "what does this cost" or "is this broken", one document settles
+it and the other 1,354 are waiting.

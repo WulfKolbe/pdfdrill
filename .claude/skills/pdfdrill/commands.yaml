@@ -1626,6 +1626,13 @@ commands:
     type: flag
     help: 'skip the image column, including the host-line crops that give inline
       formulas a picture for the first time'
+  - name: pages
+    flag: --pages
+    type: str
+    help: 'emit only the first N pages (default 10 while the layout is being agreed;
+      --pages 0 builds every page). pagesel discards at shipout, so a page that is
+      never shipped never has its crops written: measured on cardona, 13.5s/0.59MB
+      at --pages 10 against 139.1s/17.91MB full — 10x faster and 3.3% the size'
   typed: true
 - name: reporttex
   section: Introspection (fast, no extraction)
@@ -1746,6 +1753,13 @@ commands:
       MEASURED class and prints the code as selectable text beside the field (the
       class cannot be known on the first build — inkdrill derives it FROM the
       finished PDF, so this is the second pass)'
+  - name: pages
+    flag: --pages
+    type: str
+    help: 'emit only the first N pages (default 10 while the layout is being agreed;
+      --pages 0 builds every page). pagesel discards at shipout, so a page that is
+      never shipped never has its crops written: measured on cardona, 13.5s/0.59MB
+      at --pages 10 against 139.1s/17.91MB full — 10x faster and 3.3% the size'
   typed: true
 - name: report
   section: Introspection (fast, no extraction)

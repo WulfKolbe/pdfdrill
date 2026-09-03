@@ -151,8 +151,8 @@ def probe(triples, workdir):
              for cp in sorted({c for c, _ in items})] if FORMS[form] else []
         body = ["\\typeout{PROBE %04X %s}%s\\par" % (cp, ctx, CTX[ctx] % chr(cp))
                 for cp, ctx in sorted(items)]
-        tex = rt.PREAMBLE % {"form": "", "geom": "",
-                             "unicode": "\n".join(d), "bbdigits": ""}
+        tex = rt.preamble(**{"form": "", "geom": "",
+                             "unicode": "\n".join(d), "bbdigits": ""})
         tex += "\n" + "\n".join(body) + "\n\\end{document}\n"
         p = os.path.join(workdir, "probe_%s.tex" % form)
         open(p, "w", encoding="utf-8").write(tex)

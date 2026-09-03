@@ -4751,7 +4751,8 @@ def _model_pua_note(lines_path: Path) -> str:
 
 @_writes("breport")
 def cmd_breport(pdf: Path, paper: str = "a3", landscape: bool = True,
-                compile_pdf: bool = True, images: bool = True) -> str:
+                compile_pdf: bool = True, images: bool = True,
+                pages: "int | None" = None) -> str:
     r"""B — every row of the document in three columns: the LaTeX MathPix
     returned, that LaTeX rendered through THIS DOCUMENT'S OWN PREAMBLE, and
     the picture it was read from.
@@ -4822,8 +4823,11 @@ def cmd_breport(pdf: Path, paper: str = "a3", landscape: bool = True,
                     bibkey=bibkey, history=_bibkey_history(sc),
                     px_widths=px_widths)
     geom = "%spaper%s" % (paper, ",landscape" if landscape else "")
-    pre = rt.PREAMBLE % {"bbdigits": rt.MATHBB_DIGITS, "form": "",
-                         "geom": geom, "unicode": rt.unicode_decls(body)}
+    if pages is None:
+        pages = rt.PAGES_DEFAULT
+    pre = rt.preamble(**{"bbdigits": rt.MATHBB_DIGITS, "form": "",
+                         "geom": geom, "pagesel": rt.pagesel_line(pages),
+                         "unicode": rt.unicode_decls(body)})
     title = ("\\begin{center}{\\Large\\bfseries %s}\\\\[.4em]"
              "{\\small B --- every row, three columns: the LaTeX MathPix "
              "returned, that LaTeX rendered through this document's own "
@@ -4832,9 +4836,11 @@ def cmd_breport(pdf: Path, paper: str = "a3", landscape: bool = True,
     dest = doc_dir / "B.tex"
     dest.write_text(pre + title + body + "\n\\end{document}\n")
 
-    parts = ["Wrote %s — %d rows (%s)."
+    parts = ["Wrote %s — %d rows (%s)%s."
              % (dest, len(rows),
-                ", ".join("%d %s" % (v, k) for k, v in sorted(by_kind.items())))]
+                ", ".join("%d %s" % (v, k) for k, v in sorted(by_kind.items())),
+                "" if not rt.pagesel_line(pages)
+                else "; EMITTING THE FIRST %d PAGES ONLY (--pages)" % pages)]
     if images:
         if pseudo:
             parts.append("Inline-formula crops from host-line regions: "
@@ -14775,6 +14781,7 @@ def cmd_reporttex(pdf: Path, paper: str = "a3", landscape: bool = True,
                   prefer_refined: bool = False,
                   formulas: str = "unresolved",
                   findings: bool = False,
+                  pages: "int | None" = None,
                   render_regions: bool = False) -> str:
     """LaTeX formula report (report.tex): every EQ/FO/TAB identifier with
     page, escaped source, rendered math, and the MathPix scan crop at its
@@ -14951,6 +14958,7 @@ def cmd_reporttex(pdf: Path, paper: str = "a3", landscape: bool = True,
                         bibkey_history=_bibkey_history(sc),
                         formulas=formulas,
                         findings=findings,
+                        pages=(rt.PAGES_DEFAULT if pages is None else pages),
                         render_regions=render_regions)
     # 460 — the formulas rule, stated where the build is reported. A section
     # that shrank from 4,061 rows to 1 has to say so; a reader who sees only
