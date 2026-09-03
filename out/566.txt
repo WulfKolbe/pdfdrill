@@ -1,0 +1,90 @@
+566 — Section objects. Step 1, report only.
+===========================================
+
+THE ANSWER: THEY EXIST, AND THEY ALREADY REACH TIDDLERS
+---------------------------------------------------------
+So this is neither a build task nor a projection task. It is a
+naming-and-coverage task, and the premise needs correcting before the spec
+is applied.
+
+  Section objects in the model      314, across 17 of the 21 documents
+  Section tiddlers emitted          314 — ONE FOR ONE, none lost
+
+The projection is complete. Every Section object becomes a tiddler carrying
+caption, level, page, kind, section_number and parent_section.
+
+THE TWO DOCUMENTS ASKED ABOUT
+------------------------------
+  johnston-linear-matrix-algebra   17 Sections
+  2501.06662                        0 Sections
+
+2501.06662 is one of four with none: 0707.4470, 0902.0431, 2501.06662,
+bradley_spring22. Their headers exist in `lines.json` and produce no object.
+
+FIELD COVERAGE, over the 314
+-----------------------------
+  level            314   100%
+  caption          314   100%
+  page             314   100%
+  flow_index       314   100%
+  region           215    68%
+  cmd              162    52%
+  line_index       162    52%
+  section_number   162    52%
+
+So `level`, `caption` and `page` are universal — and `line` IS NOT. Just
+over half carry `line_index`, `cmd` and `section_number`; the rest carry
+level, caption, page and a flow position only. Two producers, or one that
+takes two paths, and the second knows less.
+
+level distribution: 226 at level 1, 88 at level 2. Nothing deeper — no
+subsubsection, paragraph or subparagraph anywhere in the 21.
+
+THE NAMING DEFECT IS REAL AND UNIVERSAL
+----------------------------------------
+  titles that are NOT four-digit padded:   314 of 314
+
+Every one is `<bibkey>_H<n>` — `_H1`, `_H2`, … `_H10`. The sort defect
+named in the task is present in every document that has any section at all,
+and `_SEC<nnnn>` appears nowhere.
+
+THE DETECTION RULE IN THE SPEC WOULD FIND FAR FEWER, NOT MORE
+---------------------------------------------------------------
+This is the finding I would want before writing any code against it.
+
+  lines of type `section_header`, corpus-wide          2,215
+  of those, with a non-empty `children_ids`              153   (6.9%)
+  Section objects that exist today                       314
+
+The specified detector — `type == "section_header"` AND `children_ids`
+non-empty — matches 153 lines. The existing producer yields 314 objects,
+twice as many, so it is not using that rule. Building to the spec as
+written would REPLACE 314 sections with at most 153 and lose over half of
+them, including every section in documents whose headers carry no children.
+
+Per document the gap is stark: gilmore has 218 headers, 2 with children, 4
+Sections. cardona has 259 headers, 12 with children, 24 Sections.
+lyche 292 / 32 / 64. The ratio Section = 2 x children-bearing headers holds
+almost exactly across the corpus, which says the current producer pairs each
+such header with something — but it is not the rule in the brief.
+
+WHAT I HAVE NOT DONE, AND WHY
+------------------------------
+Not emitted anything: they are already emitted, 1:1.
+
+Not built to the spec: doing so would be a net loss of 161 sections and I
+am not going to make that change on a premise the corpus contradicts.
+
+Not computed paragraph ranges: `line` is missing on 48% of Sections, and the
+range rule in the brief is defined on (page, line). On the 152 objects
+without a line the rule cannot be evaluated at all — which is worth settling
+before the ranges are built, since the page-local defect the brief warns
+about is a real one and its replacement needs a coordinate that exists.
+
+THREE QUESTIONS THAT DECIDE THE NEXT STEP
+------------------------------------------
+  1. Is the intent to RENAME `_H<n>` to `_SEC<nnnn>` — a padding and
+     identifier change over 314 existing objects — or to rebuild detection?
+  2. If rebuild: the spec's rule finds 153 where 314 exist. Which is right?
+  3. `line` is absent on 48%. Should the range fall back to `flow_index`,
+     which is present on 100% and is already document order?
