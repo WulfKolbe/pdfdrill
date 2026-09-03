@@ -115,6 +115,20 @@ def artifact_current(paths: Iterable[Path], model_path: Path) -> bool:
 
 
 def has_tiddlers(blob_dir: Path, model_path: Path) -> bool:
+    # 560 — THE GLOB HERE IS CORRECT AND IS NOT THE 558 DEFECT.
+    #
+    # I replaced it with `tidpath.tiddlers_in` and two tests said no:
+    # `test_the_oldest_sibling_decides_not_the_newest` and
+    # `test_one_fresh_artifact_does_not_mask_a_stale_sibling`. They are about
+    # VARIANT arrays — `x.spoken.tiddlers.json`, the translated projection —
+    # not about the pre-rename predecessors 558 deleted. Every variant is a
+    # projection of the same model and they must all be current TOGETHER, so
+    # `artifact_current` takes min(mtime) on purpose and a fresh main array
+    # must not mask a stale spoken one.
+    #
+    # "Which file is this document's array" and "are all its projections
+    # current" are different questions. Only the first one was globbing for
+    # want of an answer.
     try:
         arts = list(Path(blob_dir).glob("*.tiddlers.json"))
     except OSError:

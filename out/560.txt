@@ -1,0 +1,64 @@
+560 — the production globs replaced, and one that was not a defect
+==================================================================
+
+THREE REPLACED, ONE KEPT — AND THE ONE KEPT IS THE FINDING
+------------------------------------------------------------
+  src/pdfdrill/commands.py:1713   publish_ready's ink coverage   -> tidpath
+  src/pdfdrill/commands.py:1925   _handover_fields' row count    -> tidpath
+  src/pdfdrill/corrections.py:117 the corrections identifier join-> tidpath
+  src/pdfdrill/layer_detect.py    has_tiddlers                   KEPT
+
+I replaced all four. Two tests said no:
+
+  test_the_oldest_sibling_decides_not_the_newest
+  test_one_fresh_artifact_does_not_mask_a_stale_sibling
+
+`has_tiddlers` globs on purpose. Its siblings are not the pre-rename
+predecessors 558 deleted — they are VARIANT arrays, `x.spoken.tiddlers.json`
+and the translated projection. All of them are projections of one model and
+must be current TOGETHER, so `artifact_current` takes min(mtime) and a
+freshly rebuilt main array must not mask a stale spoken one.
+
+"Which file is this document's array" and "are all its projections current"
+are different questions, and only the first was globbing for want of an
+answer. The glob stays, with that reason written beside it.
+
+`commands.py:10315` (`stale_tiddler_siblings`) also keeps its glob: finding
+siblings IS its job.
+
+WHAT REPLACED THEM
+------------------
+`src/pdfdrill/tidpath.py` — `tiddlers_in(doc_dir)`, a folder is enough,
+because the corpus-wide callers have no `pdf` and no `Sidecar`.
+
+  1. the sidecar's recorded `tiddlers_path`   the writer said where it wrote
+  2. `<bibkey>.tiddlers.json`                 the name cmd_tiddlers builds
+  3. `<stem>.tiddlers.json`                   the pre-rename name
+  4. the NEWEST `*.tiddlers.json`             never the first the filesystem
+                                              happens to hand back
+
+It picks the document's own sidecar rather than the first `*.drill.json`,
+because 545 left `B.pdf.drill.json` in cardona's folder and a stray sidecar
+is exactly the kind of thing that makes a resolver confident and wrong.
+
+Verified: resolves the bibkey file on 21 of 21. Tests 2,931 passing.
+
+THE TWELVE tools/ SCRIPTS
+--------------------------
+All twelve still glob, and NONE is reachable from a command:
+
+  bed492  beddiag492  census481  census509  ctx507  midstring486
+  parallel474  perp527  perpcount528  pkggap482  rightdelim517  uniscan475
+
+  imported by any module in src/pdfdrill/   0
+  imported by cli.py or commands.py         0
+  named in commands.yaml                    0
+
+They are one-off measurement scripts run by hand, each pinned to the corpus
+state of the task that wrote it. Left as they are: rewriting a script whose
+purpose was to record a number once would change what it recorded, and none
+of them can be reached by a user running `pdfdrill`.
+
+The distinction that matters is the one audit A4 draws — code in tools/ is
+invisible to the planner and cannot be a step. That is a reason to keep new
+capability out of tools/, and also the reason these twelve are harmless.

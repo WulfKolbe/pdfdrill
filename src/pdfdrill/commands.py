@@ -20,6 +20,7 @@ import sys
 from pathlib import Path
 
 from . import jsonio as _jsonio
+from . import tidpath as _tidpath
 from .doclock import writer as _writes
 from .sidecar import Sidecar
 from .model_io import load_model, save_model
@@ -1710,7 +1711,8 @@ def publish_ready(pdf: Path) -> dict:
         # nobody measured: every bullet reads "not measured".
         landed = None
         if ink.is_file():
-            tidp = next((f for f in d.glob("*.tiddlers.json")), None)
+            # 560 — ASK, do not glob. next(glob) is filesystem order.
+            tidp = _tidpath.tiddlers_in(d)
             if tidp is not None:
                 try:
                     import json as _j2
@@ -1922,7 +1924,7 @@ def _handover_fields(pdf: Path, sc, body: str, ink: Path) -> dict:
         # it, so `[^}]*` stops at the first brace and never reaches the EQ.
         # The tiddler array is the row set the report is built from, so ask it.
         out["refined_rows"] = body.count("[refined:")
-    tid = next((f for f in d.glob("*.tiddlers.json")), None)
+    tid = _tidpath.tiddlers_in(d)          # 560
     if tid is not None:
         try:
             tids = _json.loads(tid.read_text(encoding="utf-8"))

@@ -114,7 +114,10 @@ def identifier_for(rec, lib: Path | None = None):
     lib = Path(lib or LIB_DEFAULT)
     doc = rec["doc"]
     if doc not in _TID_CACHE:
-        f = next((x for x in (lib / doc).glob("*.tiddlers.json")), None)
+        # 560 — the identifier join read a two-day-old array on four
+        # documents while the duplicates were on disk (558).
+        from .tidpath import tiddlers_in as _tin
+        f = _tin(lib / doc)
         idx: dict = {}
         bytext: dict = {}
         if f is not None:
