@@ -1,0 +1,77 @@
+557 — the sweep, stopped at 9 of 21, and why
+============================================
+
+I stopped it. Two reasons, and the second is the one that matters.
+
+ONE DOCUMENT PASSED
+--------------------
+  doc                       pages   shape    measured_  ink   result
+                            m/r     m/r      against    rows
+  0707.4470                  2/2    T/T      OK           2   READY
+  0902.0431                 10/24   T/-      NO          55   ink,stamp,resid
+  1510.06699                38/3    -/T      OK         279   stamp
+  1605.05775                 1/2    T/-      NO          26   ink,stamp,resid
+  2010.14265                 1/2    T/-      NO          16   ink,stamp,resid
+  2106.07890                 1/2    T/-      NO          51   ink,stamp,resid
+  2501.06662                 1/2    T/-      NO          60   ink,stamp,resid
+  BradleyGastaldiTerilla…    1/2    T/T      NO           8   ink,stamp,resid
+  bradley_spring22           4/2    -/T      OK          16   ink,stamp,resid
+
+REASON 1 — THE SECTIONS ARE SEPARATE RUNS
+------------------------------------------
+  0902.0431: "run holds 30 data rows, the manifest expects 34"
+
+10 corrected pairs is 30 lines, and the manifest totals 34 across sections.
+`findings_tex` emits `\clearpage` BEFORE EACH SECTION, so the lattice sees
+one run per section and my 561 concatenation asks it for one run of 34.
+It works on 0707.4470 because that document has exactly one section.
+
+So `equations_table` returning a concatenated pseudo-table is wrong for any
+multi-section document. The measurement has to be per section, and the
+results concatenated afterwards — not the manifest.
+
+REASON 2 — A FAILED SWEEP DEGRADES THE PUBLISHED ARTEFACT
+-----------------------------------------------------------
+This is the one I should have foreseen and did not.
+
+`inkreport` step 2 rebuilds `report.pdf` as a PHASE-1 build: legend off, no
+ink. If step 3 then refuses, the run returns and **the published report.pdf
+is left as the measure build**. Six of the nine were in that state when I
+stopped:
+
+  0902.0431  1605.05775  2010.14265  2106.07890  2501.06662
+  BradleyGastaldiTerilla2023
+
+Five of those are 1-page measure builds — documents whose findings sections
+are empty, so there was never anything to measure. They were not failing a
+measurement; they had none to do, and the run left them worse than it found
+them.
+
+All six restored to a reading build with legend, verified by their stamps.
+No document is left in phase 1.
+
+WHAT THE RUN ESTABLISHED THAT IS WORTH KEEPING
+------------------------------------------------
+562's three fixes hold where the shape allows a measurement at all:
+
+  0707.4470   pages 2/2, shape True/True, measured_against OK, READY
+  1510.06699  measured_against OK
+  bradley_spring22  measured_against OK
+
+`measured_against` attaches whenever a phase-1 stamp survives beside a
+newer tsv — the pair 562 corrected. Where it reads NO, the run stopped
+before step 4 and there is no new ink to stamp.
+
+TWO FIXES BEFORE 557 RUNS AGAIN
+--------------------------------
+  1. measure each findings SECTION as its own run and concatenate the rows.
+     The manifest already names them separately; 561's concatenation
+     undid that.
+
+  2. a document with nothing to measure must still reach step 5. "No rows"
+     is a legitimate finding shape, not a failure, and the run must never
+     return leaving report.pdf as phase 1. The reading build is the artefact;
+     the measure build is scaffolding.
+
+Neither is started. The sweep is 21 documents and it should be run once,
+after both.
