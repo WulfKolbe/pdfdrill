@@ -1,99 +1,94 @@
-r"""529/530 — what an inline formula inherits from the line it was printed in.
+r"""529/535 — what an inline formula inherits from the line it was printed in.
 
-An `FO` row is the poorest row in the projection: no page, no confidence,
-no region, no crop. 527 measured the cost — 91.6% of the corpus's maths
-items are inline, so the richest signal in the document describes the
-smallest part of it.
+An `FO` row is the poorest row in the projection: no page, no confidence, no
+region, no crop. 527 measured the cost — 91.6% of the corpus's maths items
+are inline. The line the formula was printed in has all three, and its
+confidence is the only confidence such a formula will ever have.
 
-The model already knows the page (369 of 369 Formula objects carry one).
-What it does not carry is the confidence and the region, and both belong to
-the LINE the formula was printed in. A MathPix line has `confidence`,
-`confidence_rate` and a `region`; an inline formula sits inside one. That
-line's confidence is the only confidence the formula will ever have, and
-that line's region is the only picture of it there is.
+535 — THE JOIN IS BY EXACT VALUE ON THE FIRST OCCURRENCE, NOT BY SEARCH.
 
-THE JOIN IS BY CONTAINMENT, and it is checked rather than assumed: the
-formula's latex must appear inside the line's `text`. On 2010.14265 that
-matches 368 of 369 formulas; the miss is `\square`, a QED symbol that MathPix
-emits as its own line with no `$` around it.
+The first version matched by CONTAINMENT: the first line whose text contained
+the formula. That cannot work for a one-character formula and it did not.
+`P` matched a line reading "the past (Andersen, 2013...)", which contains a
+`P` in "past" and no formula at all, while the document's real `$P$` is in
+"a sample from the joint distribution P of the observed variables". A
+tie-break on the smallest region only chose a different wrong line.
 
-A line is NOT a formula. The confidence is the line's, and a report showing
-it must say so — 147's rule that two instruments in adjacent cells must each
-be named.
+A positional walk — the kth inline span is the kth Formula — does not work
+either, and the reason is a fact about the projection worth writing down:
+
+    inline spans in 2010.14265's lines     1,008
+    Formula objects in the model             369
+    DISTINCT formula values                  369
+
+**The model holds one Formula per DISTINCT VALUE, not per occurrence.** So
+the two sequences are not parallel; paired positionally they agree on 1 of
+369 and diverge at index 1.
+
+What IS exact is the value itself. A span is the formula, character for
+character, so the formula's context is that of its FIRST span in document
+order — page order, then line order, then span order within the line. That
+lookup is an equality test with no threshold and no tie-break, it lands
+`P` on the joint-distribution line, and it resolves 368 of 369 values on
+2010.14265. The one miss is `\square`, a QED symbol MathPix emits as its own
+line with no delimiters around it — reported, never defaulted.
+
+A line is NOT a formula. The confidence is the line's, and any report showing
+it must say so (147).
 """
 from __future__ import annotations
 
 import json
+import re
 from pathlib import Path
 
+#: `$...$` or `\( ... \)`. A `\$` is an escaped dollar and never a delimiter.
+INLINE = re.compile(r"(?<!\\)\$(?!\$)(.+?)(?<!\\)\$|\\\((.+?)\\\)", re.S)
 
-def load_lines(lines_path: "Path | str") -> list:
-    """[(page_number, line_dict)] in document order, 1-based pages."""
+
+def load_spans(lines_path: "Path | str") -> list:
+    """Every inline span in document order, each with its host line's data.
+
+    Lines of type `math` are display maths and are skipped: they are the
+    document's equations, which reach a report on their own terms.
+    """
     j = json.loads(Path(lines_path).read_text(encoding="utf-8",
                                               errors="replace"))
     out = []
-    for i, pg in enumerate(j.get("pages") or [], 1):
-        for ln in pg.get("lines") or []:
-            out.append((i, ln))
+    for page, pg in enumerate(j.get("pages") or [], 1):
+        for line_index, ln in enumerate(pg.get("lines") or []):
+            if ln.get("type") == "math":
+                continue
+            text = ln.get("text") or ""
+            for m in INLINE.finditer(text):
+                body = (m.group(1) or m.group(2) or "").strip()
+                if not body:
+                    continue
+                out.append({"latex": body, "page": page,
+                            "line_index": line_index,
+                            "line_type": ln.get("type"),
+                            "confidence": ln.get("confidence"),
+                            "confidence_rate": ln.get("confidence_rate"),
+                            "region": ln.get("region") or {}})
     return out
 
 
-def _area(ln) -> float:
-    r = ln.get("region") or {}
-    try:
-        return float(r.get("width") or 0) * float(r.get("height") or 0)
-    except (TypeError, ValueError):
-        return 0.0
+def first_occurrences(spans: list) -> dict:
+    """{latex: the FIRST span carrying it}. Document order decides."""
+    first = {}
+    for s in spans:
+        first.setdefault(s["latex"], s)
+    return first
 
 
-def host_of(latex: str, lines: list) -> "tuple | None":
-    r"""The line this formula was printed in, or None.
-
-    FIRST CONTAINMENT IS NOT GOOD ENOUGH, and the failure is visible rather
-    than theoretical: the formula `X` matched the arXiv margin stamp
-    (`arXiv:2010.14265v2 [stat.ML] 4 Aug 2021`, set vertically) because that
-    line contains an X and comes first. B then drew a 500pt-tall sidebar as
-    the picture of a one-letter formula and reported the stamp's confidence
-    as the formula's.
-
-    So: prefer a DELIMITED match (`$x$`, `\(x\)`) over bare containment —
-    that is the formula as the page actually set it — and among equally good
-    candidates take the SMALLEST region, which is the tightest line that
-    still contains it. A one-character formula inside a full paragraph is a
-    true containment and a useless picture.
-    """
-    if not latex:
-        return None
-    delimited, plain = [], []
-    for page, ln in lines:
-        t = ln.get("text") or ""
-        if latex not in t:
-            continue
-        if ("$%s$" % latex) in t or ("\\(%s\\)" % latex) in t:
-            delimited.append((page, ln))
-        else:
-            plain.append((page, ln))
-    for bucket in (delimited, plain):
-        if bucket:
-            return min(bucket, key=lambda pl: _area(pl[1]) or float("inf"))
-    return None
-
-
-def context_for(latex: str, lines: list) -> dict:
-    """{page, confidence, confidence_rate, line_type, region} or {} if unmatched.
-
-    `region` is in MathPix page-image pixels, the same frame
-    `report_tex.render_crops` scales from — so a row built with this can be
-    cropped from the PDF exactly as a table row is.
-    """
-    hit = host_of(latex, lines)
-    if not hit:
+def context_of(span: "dict | None") -> dict:
+    """{page, line_type, confidence, confidence_rate, region fields} or {}."""
+    if not span:
         return {}
-    page, ln = hit
-    r = ln.get("region") or {}
-    out = {"page": page, "line_type": ln.get("type"),
-           "confidence": ln.get("confidence"),
-           "confidence_rate": ln.get("confidence_rate")}
+    out = {"page": span["page"], "line_type": span.get("line_type"),
+           "confidence": span.get("confidence"),
+           "confidence_rate": span.get("confidence_rate")}
+    r = span.get("region") or {}
     for k in ("top_left_x", "top_left_y", "width", "height"):
         if r.get(k) is not None:
             out[k] = r[k]
@@ -101,10 +96,7 @@ def context_for(latex: str, lines: list) -> dict:
 
 
 def attach(formulas: list, lines_path) -> dict:
-    """{latex: context}. One pass over the lines per distinct latex value."""
-    lines = load_lines(lines_path)
-    seen = {}
-    for lx in formulas:
-        if lx and lx not in seen:
-            seen[lx] = context_for(lx, lines)
-    return seen
+    """{latex: context} for each formula value, by exact first occurrence."""
+    first = first_occurrences(load_spans(lines_path))
+    return {lx: context_of(first.get((lx or "").strip()))
+            for lx in formulas if lx}

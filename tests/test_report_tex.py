@@ -594,8 +594,12 @@ def _lines_fixture(tmp_path):
     import json
     p = tmp_path / "d.lines.json"
     p.write_text(json.dumps({"pages": [{"lines": [
-        {"type": "text", "text": r"we set $x^2$ here", "confidence": 0.91,
-         "confidence_rate": 0.99,
+        {"type": "page_info", "text": r"arXiv:2010.14265v2 [stat.ML] $P$ 2021",
+         "confidence": 0.2,
+         "region": {"top_left_x": 0, "top_left_y": 0,
+                    "width": 40, "height": 900}},
+        {"type": "text", "text": r"we set $x^2$ here and $P$ again",
+         "confidence": 0.91, "confidence_rate": 0.99,
          "region": {"top_left_x": 10, "top_left_y": 20,
                     "width": 300, "height": 40}},
         {"type": "math", "text": r"\alpha=\beta", "confidence": 0.5,
@@ -604,41 +608,32 @@ def _lines_fixture(tmp_path):
     return p
 
 
-def test_inline_formula_inherits_its_host_line(tmp_path):
+def test_spans_are_in_document_order_and_math_lines_are_skipped(tmp_path):
     from pdfdrill import inlinectx
-    lines = inlinectx.load_lines(_lines_fixture(tmp_path))
-    ctx = inlinectx.context_for(r"x^2", lines)
+    spans = inlinectx.load_spans(_lines_fixture(tmp_path))
+    assert [s["latex"] for s in spans] == ["P", "x^2", "P"]
+    assert all(s["line_type"] != "math" for s in spans)
+
+
+def test_first_occurrence_wins_and_it_is_an_equality_not_a_search(tmp_path):
+    """535 — containment put `P` on a line about "the past"; order fixes it."""
+    from pdfdrill import inlinectx
+    spans = inlinectx.load_spans(_lines_fixture(tmp_path))
+    first = inlinectx.first_occurrences(spans)
+    # `P` first occurs in the page_info line, and that IS its first occurrence
+    assert first["P"]["line_type"] == "page_info"
+    ctx = inlinectx.context_of(first["x^2"])
     assert ctx["page"] == 1 and ctx["confidence"] == 0.91
-    assert ctx["line_type"] == "text"
-    # the region is the LINE's, in MathPix page-image pixels
     assert (ctx["top_left_x"], ctx["width"]) == (10, 300)
 
 
-def test_an_unmatched_formula_yields_no_context(tmp_path):
+def test_a_value_with_no_span_yields_no_context(tmp_path):
     """Absence of a host is not evidence of a confident one."""
     from pdfdrill import inlinectx
-    lines = inlinectx.load_lines(_lines_fixture(tmp_path))
-    assert inlinectx.context_for(r"\zeta_{9}", lines) == {}
-    assert inlinectx.context_for("", lines) == {}
-
-
-def test_host_join_prefers_the_delimited_tightest_line(tmp_path):
-    r"""The arXiv margin stamp contains an X; it is not the host of `X`."""
-    import json
-    from pdfdrill import inlinectx
-    p = tmp_path / "d.lines.json"
-    p.write_text(json.dumps({"pages": [{"lines": [
-        {"type": "page_info", "text": "arXiv:2010.14265v2 [stat.ML] X 2021",
-         "confidence": 0.2,
-         "region": {"top_left_x": 0, "top_left_y": 0,
-                    "width": 40, "height": 900}},
-        {"type": "text", "text": r"the variable $X$ is observed",
-         "confidence": 0.97,
-         "region": {"top_left_x": 10, "top_left_y": 20,
-                    "width": 300, "height": 30}}]}]}))
-    ctx = inlinectx.context_for("X", inlinectx.load_lines(p))
-    assert ctx["confidence"] == 0.97 and ctx["line_type"] == "text"
-    assert ctx["height"] == 30
+    spans = inlinectx.load_spans(_lines_fixture(tmp_path))
+    first = inlinectx.first_occurrences(spans)
+    assert inlinectx.context_of(first.get(r"\square")) == {}
+    assert inlinectx.attach([r"\square"], _lines_fixture(tmp_path)) == {r"\square": {}}
 
 
 # ---------------------------------------------------------------- 531

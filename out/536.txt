@@ -1,0 +1,54 @@
+536 — the clipped crops were the same defect, not a second one
+==============================================================
+
+THE ANSWER
+----------
+The region's top_left_y/height are NOT being applied at the wrong scale,
+and each page's own page_width IS used, as 461 established.
+
+`render_crops`:
+
+    widths = mathpix_page_widths(pdf.parent)     # PER PAGE
+    ...
+    s = im.size[0] / float(widths[page])
+    x0, y0 = int(x * s), int(y * s)
+    x1, y1 = int((x + w) * s), int((y + h) * s)
+
+One scale factor, read per page, applied identically to x and y. 461's
+three hazards are all still handled: per-page width, a page with no
+recorded width skipped rather than defaulted, and the result resized to the
+region's MathPix pixel size so `crop_cell`'s px2mm stays pixel-exact.
+
+VERIFIED ON THE ROWS NAMED
+---------------------------
+2010.14265 carries one page width, 2067.0, across all 14 pages. Each
+rendered crop is exactly its region's recorded pixel size:
+
+  FO0002  'P'      region 819x41   jpg 819x41   exact
+  FO0003  'G'      region 819x39   jpg 819x39   exact
+  FO0004  'X, Z'   region 823x41   jpg 823x41   exact
+
+SO WHY WERE THEY CLIPPED
+-------------------------
+Because the rectangle was RIGHT and the LINE was wrong. The containment
+join tie-broke on the smallest region, which selects the most fragmentary
+line on the page — a two-word run like "the st" is a perfectly valid line
+with a perfectly correct bounding box. "Two half-lines" was the same:
+another line's box, drawn exactly.
+
+A correct rectangle around the wrong line looks like a cropping bug, and I
+would have gone looking for one. The join was the whole of it.
+
+PRESENTED
+---------
+One corrected page: B page 4 for 2010.14265, rebuilt with the 535 join
+after deleting the stale crops. Every row now shows a complete line, and
+the rows the task named read:
+
+  FO0002  P       "tribution P of the observed variables and try to infer
+                   the true"
+  FO0003  G       "causal graph G between them. Two standard assumptions"
+  FO0004  X, Z    "graph (a) X, Z are fair independent coins and
+                   Y := (X⊕Z)⊕E,"
+
+391 rows, 21 pages, 0 errors. Nothing else rebuilt yet.

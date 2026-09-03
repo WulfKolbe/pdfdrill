@@ -1,0 +1,79 @@
+535 — the host-line join: order, not search
+===========================================
+
+EVIDENCE
+  ~/pdfdrill-library/2010.14265/out/535/script.py
+  ~/pdfdrill-library/2010.14265/out/535/sequences.json
+
+THE OLD JOIN WAS CONTAINMENT AND IT CANNOT WORK
+------------------------------------------------
+`host_of` took the first line whose text CONTAINED the formula, tie-broken
+by smallest region. For `P` that is a line reading "the past (Andersen,
+2013...)" — which contains a P in "past" and no formula at all. The
+smallest-region tie-break made it worse: it actively preferred the most
+fragmentary line on the page, which is where 536's "clipped" crops came
+from. `{ }^{1,2}` worked only because it is distinctive.
+
+THE POSITIONAL WALK DOES NOT WORK EITHER, AND WHY IS THE FINDING
+-----------------------------------------------------------------
+Both sequences built and compared, 2010.14265:
+
+  inline spans in the lines (page, line, span order)   1,008
+  Formula objects by flow_index                          369
+  same length?                                            NO
+  paired kth-to-kth, values equal                     1 of 369
+  first divergence                     index 1: span `{ }^{3}`
+                                       against Formula `P`
+  Formula values that are an ordered subsequence
+      of the span sequence                          295 of 369
+
+  DISTINCT span values                                   372
+  DISTINCT Formula values                                369
+  Formula objects                                        369
+
+**The model holds one Formula per DISTINCT VALUE, not per occurrence.**
+369 objects, 369 distinct values. `P` occurs 21 times in the prose and is
+one object. So the nth span is NOT the nth Formula, flow_index or not, and
+no positional pairing can exist at the Formula level. That is a real
+property of the projection, not something to patch around.
+
+WHAT IS EXACT
+-------------
+The span IS the formula, character for character. So the join is an
+EQUALITY on the value, resolved to the FIRST span in document order — page
+order, then line order, then span order within the line.
+
+  Formula values with an exact span occurrence     368 of 369 (99.7%)
+  without one                                                1
+
+The miss is `\square`, a QED symbol MathPix emits as its own line with no
+delimiters — reported, never defaulted to a confident-looking blank.
+
+No threshold, no similarity, no tie-break. `first_occurrences` is built
+once per document and every lookup is a dict hit.
+
+FO0002 SPECIFICALLY
+-------------------
+  latex                    P
+  occurrences as a span    21
+  FIRST occurrence         page 1, line type `text`, confidence 1.000
+  that line                "tribution \(P\) of the observed variables and
+                            try to infer the true"
+
+Which is the joint-distribution line named in the task. Verified in the
+rebuilt B, not inferred: page 4's FO0002 row now shows that crop.
+
+CHANGED
+-------
+`inlinectx` rewritten: `load_spans`, `first_occurrences`, `context_of`,
+`attach`. `host_of` and all containment matching are GONE, not deprecated.
+Four tests replaced — span ordering with math lines skipped, first
+occurrence winning, and a value with no span yielding no context.
+
+CONSEQUENCE FOR 534
+-------------------
+The eleven B files built before this used the containment join. Every one
+of their inline-formula rows may carry the wrong line's page, confidence
+and picture. They are to be rebuilt, and the cached crops deleted first —
+`render_crops` skips a crop that already exists on disk, so a rebuild
+alone would keep the wrong pictures.
