@@ -1,0 +1,44 @@
+572 — route B's reach
+=====================
+
+THE 21
+------
+  with an AUTHOR source (arXiv e-print or a real .tex)        7
+  of those, carrying \section-family commands                 6
+  with only MathPix's <stem>.tex.zip                         14
+
+The tex.zip is not an author source — 521 established it is MathPix's own
+reconstruction — so route B cannot read those 14.
+
+  0707.4470     56 commands   7 section, 27 subsection, 22 subsubsection
+  1510.06699    69            13 / 46 / 10
+  2106.07890    25             7 / 15 / 3
+  2010.14265    21             9 / 10 / 1 + 1 paragraph
+  1605.05775    19            11 / 8
+  2501.06662    14             4 / 10
+  0902.0431      0            (an e-print with no sectioning commands)
+
+0707.4470 is the case that decides it: 56 real sectioning commands in its
+e-print, and ZERO Sections in its model.
+
+THE CORPUS
+----------
+  folders                                                 2,819
+  drilled (a lines.json on disk)                          1,355
+  with an author source                                     542   40%
+  carrying \section-family commands                         495   37%
+  with subsubsection / paragraph / subparagraph             288
+  archives that would not open                               35
+
+  16,591 sectioning commands: subsection 6,144, section 5,096,
+  paragraph 2,736, subsubsection 2,441, chapter 145, subparagraph 29
+
+THE DECISION: SUPPLEMENT, NOT REPLACE
+--------------------------------------
+860 drilled documents have no author source at all, and that set is every
+scanned book — which is where the structure is least recoverable and most
+wanted. Route B cannot serve them.
+
+But where it runs it is decisively better, and the 2,441 subsubsections and
+2,736 paragraphs are exactly the levels that appeared NOWHERE in the
+sections the models held.

@@ -183,6 +183,15 @@ def clean_heading_residuals(doc, promote: bool = True) -> int:
             c = _norm_cap(o.props.get("caption") or o.props.get("title") or "")
             if c:
                 existing.add(c)
+    # 573 — the flow positions already occupied by a Section, so a heading
+    # cannot be promoted on top of one the other producer already made.
+    _section_flows = set()
+    for o in doc.objects.values():
+        if o.type == "Section":
+            try:
+                _section_flows.add(int(o.props.get("flow_index")))
+            except (TypeError, ValueError):
+                pass
     n = 0
     add: "list[DocObject]" = []
     drop: "list[str]" = []
@@ -209,7 +218,27 @@ def clean_heading_residuals(doc, promote: bool = True) -> int:
         elif nm:
             refnum, title = nm.group(1), title[nm.end():].strip()
         norm = title.strip().lower()
-        if promote and norm and norm not in existing:
+        # 573 — DE-DUPLICATE ON POSITION, NOT ON CAPTION.
+        #
+        # The caption guard above cannot see these: the line-based producer
+        # reads the HEADER LINE and this one reads the PARAGRAPH that begins
+        # with the same heading, and the two disagree about where the caption
+        # ends. johnston flow 2 is "Introduction" and flow 3 is "Introduction
+        # to Linear and Matrix" — the same heading, normalising to different
+        # strings, so `norm not in existing` was true and a second Section was
+        # added. 152 of 152 cmd-less Sections in the corpus sat at exactly
+        # flow_index+1 after a cmd-bearing one; the pairing was total.
+        #
+        # A heading that already has a Section within one flow position is
+        # that Section. Position is the thing both producers agree on.
+        _f = o.props.get("flow_index")
+        try:
+            _f = int(_f)
+        except (TypeError, ValueError):
+            _f = None
+        _adjacent = _f is not None and (
+            _f in _section_flows or (_f - 1) in _section_flows)
+        if promote and norm and norm not in existing and not _adjacent:
             add.append(DocObject(type="Section", props={
                 "caption": title, "title": title, "kind": cmd,
                 "level": _LEVEL.get(cmd, 1), "refnum": refnum, "is_appendix": is_app,

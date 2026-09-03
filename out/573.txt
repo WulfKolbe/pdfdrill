@@ -1,0 +1,77 @@
+573 — the duplication, and a correction to 570 that matters more
+================================================================
+
+WHERE THE PAIR COMES FROM
+--------------------------
+Not one producer emitting twice. TWO producers seeing one heading:
+
+  added_by=None              the line-based producer, carrying cmd,
+                             line_index, section_number
+  added_by=heading_promote   `heading_cleanup` promoting a PARAGRAPH that
+                             begins with \section{...}
+
+`heading_promote` already guards against duplicates by normalised caption,
+and that guard CANNOT SEE THESE, because the two producers disagree about
+where the caption ends: johnston flow 2 is "Introduction" and flow 3 is
+"Introduction to Linear and Matrix". Different strings, so `norm not in
+existing` was true and a second Section was added. The pairing was total
+because the disagreement is systematic.
+
+FIXED by de-duplicating on POSITION, which is what both producers agree on:
+a heading whose flow index is already occupied by a Section, or one position
+after, is that Section. Nothing in the tree reads `added_by ==
+heading_promote`, so no consumer depended on the pair. 2,936 tests pass.
+
+THE CORRECTION — 570's NUMBERS WERE COMPUTED ON STALE MODELS
+--------------------------------------------------------------
+Forcing a rebuild changes the answer completely, and 314 was never what the
+current code produces:
+
+  Section objects, models as they sat on disk        314
+  after rebuilding the 14 that could be rebuilt    1,458
+
+  cardona-qft-methods    24 ->  259     levels: 89 at 1, 170 at 2
+  gilmore-lie-groups      4 ->  218     levels: 36 at 1, 182 at 2
+  kohlhase-omdoc         38 ->  270
+  fong-spivak-invitation 20 ->  228
+  bradley_spring22        0 ->   15
+  2010.14265              6 ->   21     "1 INTRODUCTION", "2 DAGS AND
+                                        INDEPENDENCE", "2.1 CAUSAL GRAPHS"
+
+So "226 at level 1, 88 at level 2, nothing deeper" was a fact about
+artefacts built weeks apart by older code, NOT about the detector. cardona
+alone now carries 170 level-2 sections. My 570 conclusion that route A reads
+`children_ids` and yields 153 was arithmetic on stale files: today's
+producer reads every `section_header` and assigns levels from the numbering.
+
+TWO MISTAKES OF MINE IN THIS TASK
+----------------------------------
+1. I ran 21 rebuilds with `capture_output=True` and never looked at a return
+   code or stderr. SEVEN did nothing at all, and I read their unchanged
+   counts as a measurement. Same class as everything else in this file:
+   I measured the file rather than whether the command ran.
+
+2. The seven that did nothing were REFUSED, correctly, by 430's guard:
+
+     Refusing to rebuild: this model carries enrichments the rebuild would
+     destroy — 8 change realizations, 8 latex_refined.
+
+   0707.4470, 0902.0431, 1510.06699, johnston, lyche, mielke, voloshin —
+   exactly the documents carrying accepted corrections or injected author
+   LaTeX. The guard did its job while I was not reading its output.
+
+WHAT THE REBUILD COST, STATED
+------------------------------
+14 models were rebuilt and their object ids regenerated (430: 1 of 2,196
+survived on a measured document). Beside them:
+
+  report.ink.json    14 documents — keyed by IDENTIFIER (bibkey_EQnnnn),
+                     which regenerates deterministically, so it still joins.
+                     cardona: 1,012 rows, first id cardona-qft-methods_EQ0717.
+
+No semantic graph or changes.json sits beside any of the 14, so nothing
+id-keyed dangles. The seven documents that DO carry corrections are exactly
+the seven that were refused, so no correction was touched.
+
+That is luck backed by a guard, not judgement on my part: I did not check
+before running, and the guard is why it is a report rather than an incident.
