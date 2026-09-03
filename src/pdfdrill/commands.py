@@ -4875,6 +4875,56 @@ def _model_pua_note(lines_path: Path) -> str:
     return ("\nNOTE: " + rep) if rep else ""
 
 
+def cmd_generations(targets, which: str = "build") -> str:
+    r"""575 — the guard: which build generations these documents span.
+
+    574's defect in one sentence: a corpus number summed across per-document
+    artefacts inherits the oldest generation in the set, and nothing in the
+    artefact said which generation that was. Now it does, and this is the
+    command that reads it before a number is believed.
+
+    `targets` may be PDFs, document folders, or model paths. A folder with no
+    model is named rather than skipped — a document missing from a corpus
+    measurement is as much a hole in it as a stale one.
+    """
+    from . import buildstamp
+    items, missing = [], []
+    for t in targets:
+        p = Path(t)
+        if p.is_dir():
+            cand = p / "model.docmodel.json"
+            if not cand.exists():
+                g = sorted(p.glob("*.docmodel.json"))
+                cand = g[0] if g else None
+        elif p.suffix == ".pdf":
+            d = p.parent
+            cand = d / "model.docmodel.json"
+            if not cand.exists():
+                g = sorted(d.glob("*.docmodel.json"))
+                cand = g[0] if g else None
+        else:
+            cand = p if p.exists() else None
+        name = p.stem if p.suffix else p.name
+        if cand is None:
+            missing.append(name)
+            continue
+        items.append((name, buildstamp.read_stamp(cand, which)))
+
+    sp = buildstamp.spread(items)
+    out = ["generations — %d document(s), stamp %r" % (len(items), which), ""]
+    out += buildstamp.guard_lines(sp, "A number summed over these")
+    if sp["unstamped"]:
+        out += ["", "%d model(s) carry no stamp: built before 575, generation "
+                    "unknown, and counted as their own." % len(sp["unstamped"])]
+    if sp["dirty"]:
+        out += ["", "%d model(s) were built from a DIRTY tree — the sha names "
+                    "a commit whose code is not what ran." % len(sp["dirty"])]
+    if missing:
+        out += ["", "%d target(s) have no model at all: %s"
+                % (len(missing), ", ".join(sorted(missing)[:10]))]
+    return "\n".join(out)
+
+
 @_writes("breport")
 def cmd_breport(pdf: Path, paper: str = "a3", landscape: bool = True,
                 compile_pdf: bool = True, images: bool = True,

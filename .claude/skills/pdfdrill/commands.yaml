@@ -1591,6 +1591,33 @@ commands:
     required: true
     help: PDF path, https URL, or bare arXiv id
   typed: true
+- name: generations
+  typed: true
+  section: Introspection (fast, no extraction)
+  summary: '575''s guard. Reports how many distinct BUILD GENERATIONS a set of
+    documents spans — the commit sha, dirty flag and pdfdrill version each model
+    recorded when it was built — and refuses to reduce them to one number when
+    there is more than one. 574 measured what that costs: seven of twenty-one
+    models were weeks older than the rest, and the section total summed across
+    them, 1458, was 34%% below the truth with no defect anywhere in the detection
+    code. Models built before 575 carry no stamp and are counted as their own
+    unknown generation rather than folded into the majority. Takes any number of
+    PDFs, document folders or model paths.'
+  offline_ok: true
+  requires:
+  - model
+  positionals:
+  - name: pdf
+    type: pdf
+    required: true
+    help: 'PDF path, document folder or model path; repeatable'
+  flags:
+  - name: written
+    flag: --written
+    type: flag
+    help: 'read the LAST-WRITER stamp instead of the build stamp — after an
+      enrichment pass these differ, and it is the build stamp that governs
+      structural counts'
 - name: breport
   section: Introspection (fast, no extraction)
   summary: 'B (B.tex/B.pdf): EVERY row of the document — display equations, inline

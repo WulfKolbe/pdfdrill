@@ -54,6 +54,11 @@ def run(
     # DRILLPDFse route) carries regions in PDF POINTS served from OUR local
     # pyramid. No mixing — each source stays in its own coordinate system.
     doc.meta["source"] = lines_json.get("source") or "mathpix"
+    # 575 — the code that decided this object graph. Written once, here, and
+    # never overwritten by a later save: an enrichment pass changes props, not
+    # the structure whose counts a corpus measurement sums.
+    from pdfdrill import buildstamp as _buildstamp
+    doc.meta["build"] = _buildstamp.stamp()
     ingest_lines_json(doc, lines_json)
     print(
         f"[main] ingested {len(doc.stream('mathpix_lines'))} lines "

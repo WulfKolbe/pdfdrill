@@ -85,6 +85,16 @@ def save_model(model_path, doc, *, packed: bool = True) -> None:
     plain = Path(model_path)
     plain.parent.mkdir(parents=True, exist_ok=True)
     data = doc.to_dict()
+    # 575 — who last wrote this FILE. Applied to the serialised dict, not to
+    # `doc`, so saving never mutates the caller's document. `meta["build"]`
+    # (set once by docmodel.main.run) is left exactly as it was.
+    # `to_dict()` hands back the SAME meta dict the Document holds, so it is
+    # copied before stamping — otherwise a save silently adds `written` to the
+    # caller's live document, and a later save of the same object would carry
+    # a stamp that was never true of anything.
+    from . import buildstamp
+    data["meta"] = dict(data.get("meta") or {})
+    data["meta"]["written"] = buildstamp.stamp()
     _atomic_write(plain, json.dumps(data, indent=2, ensure_ascii=False))
     sidecar = packed_path(plain)
     if packed:

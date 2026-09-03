@@ -1159,6 +1159,17 @@ def _do_reporttex(args):
                          prefer_refined="--prefer-refined" in args)
 
 
+def _do_generations(args):
+    """pdfdrill generations <pdf|dir> [...] [--written]  — 575's guard: how
+    many build generations these documents span"""
+    from .commands import cmd_generations
+    which = "written" if "--written" in args else "build"
+    targets = [a for a in args if not a.startswith("--")]
+    if not targets:
+        raise SystemExit("generations: name at least one document")
+    return cmd_generations(targets, which=which)
+
+
 def _do_breport(args):
     """pdfdrill breport <pdf> [--paper a4|a3] [--portrait] [--no-compile]
     [--no-images]  — B: every row, three columns"""
@@ -2115,6 +2126,7 @@ HANDLERS = {
         "fonts": _do_fonts,
         "docs": _do_docs,
         "breport": _do_breport,
+        "generations": _do_generations,
         "formulas": _do_formulas,
         "expandmath": _do_expandmath,
         "speak": _do_speak,

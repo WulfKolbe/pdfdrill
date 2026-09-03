@@ -44,7 +44,12 @@ def test_save_load_model_preserves_document():
         model_io.save_model(mp, _model())
         assert model_io.packed_path(mp).exists()        # sidecar written
         back = model_io.load_model(mp)                   # prefers packed
-        assert back.to_dict() == _model().to_dict()
+        got = back.to_dict()
+        # 575 — a saved model records who wrote it. That stamp is new content,
+        # not lost content: everything else must round-trip identically, and
+        # the stamp must survive the packed sidecar too.
+        assert set(got["meta"].pop("written")) == {"sha", "dirty", "version", "at"}
+        assert got == _model().to_dict()
 
 
 def test_load_model_falls_back_to_plain_when_no_sidecar():
