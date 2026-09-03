@@ -1,0 +1,155 @@
+523 — consolidate to two artefacts. Report only.
+================================================
+
+A — report.pdf   the problems, per document
+B — <bibkey>.html the whole document, per document, with A marked inside it
+
+The deciding question is the one that settles every case below: a user who
+inspects nothing needs ONE file of evidence, not four. Four files each
+answering a slice means the reader has to know which slice before opening
+anything — and 456 found that of 22 published documents, zero carried the
+complete set.
+
+A — report.pdf, AND THE TABLES FILTER IT DOES NOT HAVE
+=======================================================
+Today A filters equations and inline formulas into Corrected / Unresolved /
+Flagged / Doubted (509/513/515). Tables are NOT filtered: every table the
+document has is listed.
+
+THE FOUR FILTERS CANNOT BE COMPUTED FOR TABLES. Measured over the 351 TAB
+rows in the 21 published documents:
+
+  carrying a MathPix confidence     0 of 351   -> Doubted impossible
+  carrying an ink code              0 of 351   -> Flagged impossible
+  carrying `latex`                  0 of 351   -> Unresolved impossible
+                                                  (3 carry `latex_code`)
+  accepted table corrections        0          -> Corrected empty
+
+So "tables must gain a filter" is right, and it cannot be the same filter.
+The projection row carries a page, a region and a crop, and nothing to
+judge.
+
+WHERE THE EVIDENCE ACTUALLY IS: the model, not the projection. Table
+objects carry structure the tiddler drops — for johnston, 43 Tables, 226
+TableRows and 857 TableCells, each cell with `row`, `col`, `row_span`,
+`col_span`, `text` and its own `region`, plus `n_rows`, `n_cols`,
+`header_rows`, `columns`.
+
+Candidate signals, measured over 362 Table objects in 14 documents:
+
+  at least one empty cell                      11   3%
+  every cell empty                              0   0%
+  at least one cell carrying maths            219  60%
+  grid does not tile n_rows x n_cols          142  39%   <- SEE BELOW
+
+THE 39% IS MY INSTRUMENT, NOT A DEFECT RATE. I summed `col_span` per row
+and ignored `row_span`, so every cell spanning two rows makes the row below
+it look short. 39% of tables being malformed is not credible and the number
+should not be quoted. The check is worth building properly; it is not
+built here, and 523 is a report.
+
+The 60% carrying maths is a CLASSIFICATION, not a problem — it is 501's
+rule that a table cell's content is a cell, not a Formula.
+
+`changereq.check_declared_widths` already exists and is exactly the right
+shape — it is the "4x4 matrix declaring 3 columns" defect MathPix
+confirmed. It needs table LaTeX, which 348 of 351 rows do not have, and it
+is currently wired only as a guard inside `refine`. It is the strongest
+candidate for the tables filter and it needs a LaTeX source first.
+
+RECOMMENDATION FOR A: the tables filter is one task, not a clause of this
+one. Until it exists, A should say so on the page — "Tables: 43 present,
+no filter yet" — rather than list all 43 or silently omit them. A section
+that lists everything is the wall 515 was about.
+
+B — ONE HTML REPORT PER DOCUMENT
+=================================
+All equations, all inline formulas, all tables, all images, in document
+order, with the A rows marked in place. One file, one URL, self-contained.
+
+WHAT IT REPLACES, AND WHY
+==========================
+
+formula-report.html          BECOMES B'S EQUATIONS + FORMULAS SECTIONS.
+                             Does not survive as a file.
+  It is already exactly B's equations section: identifier, page,
+  confidence, LaTeX, KaTeX render, crop. There is no question it answers
+  that B would not. Keeping both means two files rebuilt from one
+  projection, which is how 422 drifted.
+
+tables.html                  SURVIVES AS A COLUMN, NOT AS A FILE.
+  This one is not a duplicate and must not be folded away carelessly.
+  `tables.html` is the KEYLESS pdfplumber extraction — a genuinely
+  independent second reading of the same table, the only one in the
+  system that owes nothing to MathPix. It belongs inside B's Tables
+  section as a second column beside the MathPix cells, which turns it
+  from a separate artefact into the comparison it always implicitly was.
+  Note it is thin: 31 exist corpus-wide, and 519 found 10 of 13 published
+  copies were zero bytes because those books have no ruled tables.
+
+compare.html                 BECOMES COLUMNS IN B'S EQUATIONS SECTION.
+                             Does not survive as a file.
+  Its baseline three columns (LaTeX | KaTeX | crop) are already B's
+  equations section. Its reason to exist is the extra pair — LaTeX (tex),
+  KaTeX (tex) and the score — which is a COLUMN, not a document. 521 made
+  that column real on 8 of 21 documents; on the other 13 it is empty and B
+  should simply not draw it. And 522 says the score it shows is wrong on 91
+  rows until the candidates are re-injected, so folding it in is also the
+  moment to stop publishing that number.
+
+corrections.html             SURVIVES. THE ONE EXCEPTION.
+  It is CORPUS-WIDE and cross-document: "everything pdfdrill has ever
+  corrected", 33 rows over 6 documents. B is per-document by construction,
+  so B cannot answer it — a reader would have to open 21 files and collate.
+  ARTEFACTS.md already draws this line and it is the right one:
+
+      how did this book do?                     -> A and B
+      everything corrected, across the corpus   -> corrections.html
+
+  Its rows are the same rows as A's Corrected section, rendered by the same
+  code (509's constraint). That stays.
+
+<bibkey>.inspect.html        NOT IN THE TASK, AND IT SURVIVES.
+  Stated because a consolidation that quietly drops it would be worse than
+  one that keeps it. It answers a different question — "did MathPix see
+  this region on the page at all" — at PAGE level, over regions that never
+  become rows. B is a row-level document; a region MathPix never emitted
+  has no row in B to appear on. Folding it in would mean B silently losing
+  the only view of what was missed.
+
+SO THE END STATE IS FOUR FILES, NOT TWO
+========================================
+Per document:  A (report.pdf)  +  B (<bibkey>.html)  +  inspect.html
+Corpus-wide:   corrections.html
+
+That is two more than the task asks for and I am not going to pretend
+otherwise. The reason each survives is a question B structurally cannot
+answer: inspect.html is about regions that produced no row, and
+corrections.html is about a population that spans documents. Everything
+that IS row-level and per-document — formula-report.html, tables.html,
+compare.html — folds into B, which is three files removed from every
+published document.
+
+Published-set arithmetic: 21 documents x (formula-report + tables +
+compare) = 34 files that exist today become 0, replaced by 21 copies of B.
+
+WHAT B MUST CARRY THAT NOTHING CARRIES TODAY
+=============================================
+  - images/diagrams as rows. 184 Diagram and 90 Picture objects in
+    johnston alone; today they appear only in report.pdf's image-regions
+    section and in no HTML artefact.
+  - the A marking, in place: a row that is Corrected/Unresolved/Flagged/
+    Doubted says so where it sits, so A and B cannot disagree.
+  - the ink code and MathPix confidence side by side on every row — 147's
+    point, currently true only in report.pdf.
+
+RISK, STATED
+============
+B is one file per document holding every row and every crop. johnston has
+1,670 equations, 5,143 formulas, 43 tables and 274 image regions; its
+current formula-report.html is already large and compare.html is 1.6 MB.
+B must lazy-load crops or reference the CDN rather than embed, or it will
+be a file nobody can open — which would fail the deciding question in the
+other direction.
+
+Report only. Nothing built, nothing rebuilt.
