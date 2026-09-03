@@ -1,0 +1,170 @@
+522 — the low_agreement systematic error, diagnosed
+===================================================
+
+Population: the 1,112 `tex` candidates now on the 7 published documents
+(844 injected by 521, 268 already on 1510.06699).
+
+THE COUNTS
+----------
+`low_agreement` fires at mean agreement < 0.75 (scoring.py).
+
+  document      candidates  median  low_agreement   as recorded
+  0707.4470             53   0.971              1         1.9%
+  0902.0431            649   0.882            123        19.0%
+  1510.06699           268   0.919             20         7.5%
+  1605.05775            26   0.968              1         3.8%
+  2010.14265            13   0.797              5        38.5%
+  2106.07890            46   0.996              7        15.2%
+  2501.06662            57   0.929              3         5.3%
+  ------------------------------------------------------------
+  ALL                1,112   0.907            160        14.4%
+
+It is NOT a systematic disagreement across the board — 86% agree at 0.75
+or better and the median is 0.907. It is concentrated: 0902.0431 carries
+123 of the 160.
+
+There are THREE causes, and the first one is ours.
+
+CAUSE 1 — THE COMPARISON IS WRONG. difflib autojunk.
+-----------------------------------------------------
+`latex_similarity` called `difflib.SequenceMatcher(None, na, nb)` with the
+default `autojunk=True`. That heuristic marks every element occurring in
+more than 1% of the SECOND sequence as "popular" and refuses to match on
+it — but only once that sequence reaches 200 elements.
+
+Normalized LaTeX has a tiny alphabet, so `\ _ = , - + 1 2 3 a b c` all
+cross 1% at once and the ratio collapses.
+
+Two consequences, both real:
+
+  THE FUNCTION WAS NOT SYMMETRIC. On one 0902.0431 pair:
+
+      latex_similarity(candidate, mathpix) = 0.857   <- injectlatex's order
+      latex_similarity(mathpix, candidate) = 0.005   <- the same two strings
+      with autojunk=False, either order  = 0.857
+
+  0.857 is the true value; 0.005 is the artefact. The normalized candidate
+  is 231 characters and the normalized MathPix reading is 175 — one side of
+  200, one side of the other.
+
+  IT WAS ACTIVE FOR 91 OF THE 1,112 SCORES (8.2%), every one a long
+  multi-line equation: exactly the population where the reading is hardest
+  and the score matters most.
+
+Fixed (`autojunk=False`), low_agreement falls 160 -> 125, i.e. 35 of the
+160 were the metric libelling a good match.
+
+  document      low as recorded   low with the fix
+  0707.4470                   1                  0
+  0902.0431                 123                105
+  1510.06699                 20                  6
+  1605.05775                  1                  1
+  2010.14265                  5                  5
+  2106.07890                  7                  6
+  2501.06662                  3                  2
+  ----------------------------------------------
+  ALL                       160                125  (14.4% -> 11.2%)
+
+THE JOIN IS NOT WRONG
+---------------------
+Checked directly, because a depressed score could in principle pick the
+wrong equation. For all 45 autojunk-affected candidates in 0902.0431,
+recomputing the argmax over every equation in the document with the fixed
+metric attaches each candidate to THE SAME OBJECT it already has. Zero
+would move.
+
+The reason is that the corruption depresses the correct match and its
+competitors together, so the ordering survives. What it CAN do is push a
+correct match below injectlatex's 0.55 attach threshold, which silently
+drops it — a false negative, not a mis-join. 0902.0431 attached 649 of
+1,197 source equations (54%); how many of the other 548 were lost this way
+is not knowable without re-injecting under the fixed metric.
+
+CAUSE 2 — THE AUTHOR'S MACROS ARE UNEXPANDED (the third hypothesis, and
+it is the largest)
+-----------------------------------------------------------------------
+Of the 125 rows still below 0.75 after the fix:
+
+  unexpanded \es / \J style macros    61   49%
+  plain-TeX \cr                       33   26%
+  \pmatrix                            33   26%
+  \!\!  (spacing)                     18   14%
+  \vspace                             17   14%
+  \qquad, \;                          13   10%
+  eqnarray                             2    2%
+
+`expand_macros` found 138 macro definitions in 0902.0431 and still left
+`\es`, `\J`, `\so` unexpanded in the attached candidates, so the comparison
+is between MathPix's expanded `\mathfrak{D}_{4}` and the author's
+`\text{\es {D}}_4`. Those are the same mathematics and score 0.612.
+
+CAUSE 3 — THE NORMALIZER DOES NOT FOLD PLAIN TeX
+-------------------------------------------------
+`normalize_latex` strips `\left`, `\right`, `&`, `\\` and `\begin{aligned}`
+but knows nothing of `\pmatrix{...\cr...}`, `\vspace`, `\Big`, `\!\!\!` or
+`\qquad`. A 1990s plain-TeX source therefore scores low against MathPix's
+`\begin{array}` output for reasons that are purely notational.
+
+THE THREE EXAMPLES, BOTH READINGS
+----------------------------------
+A — the metric is broken. recorded 0.857 | reversed 0.005 | fixed 0.857
+
+  MathPix \begin{aligned} \lambda_{1}-\lambda_{2} & =\alpha_{1}, &
+          \lambda_{1}-\lambda_{3} & =2 \alpha_{1}+3 \alpha_{2}, ...
+  author  \begin{array}{cccc} \lambda_1 - \lambda_2 = \alpha_1, & \;\;\;
+          \lambda_1 - \lambda_3 = 2\alpha_1 + 3\alpha_2, ...
+
+  The same equation. `aligned` vs `array`, spacing macros, and subscript
+  braces — nothing else.
+
+B — the author's macros are unexpanded. 0.612 in every order.
+
+  MathPix \mathfrak{D}_{4}=\mathfrak{s o}(8)=\mathfrak{s o}(\mathfrak{C})
+          =\left\{D \in \operatorname{Hom}_{\boldsymbol{R}}(\mathfrak{C})
+          \mid(D x, y)+(x, D y)=0
+  author  \text{\es {D}}_4 = \text{\es {so}}(8) = \text{\es {so}}(\text{\es
+          {C}}) = \{ D \in \text\mathrm{{Hom}}_{\text{${R}$}}(\text{\es {C}})
+          \, | \, (Dx, y) ...
+
+  MathPix is RIGHT and the author's side is unexpanded. `\es` is the
+  author's own macro for a fraktur alphabet.
+
+C — plain-TeX markup. 0.724.
+
+  MathPix \mathfrak{h}=\left\{\left.\left(\begin{array}{ccc} \lambda_{1} & 0
+          & 0 \\ 0 & \lambda_{2} & 0 \\ 0 & 0 & \lambda_{3}
+          \end{array}\right) \right\rvert\, ...
+  author  \text{\es {h}} = \Big\{\pmatrix{\lambda_1 & 0 & 0 \cr 0 &
+          \lambda_2 & 0 \cr 0 & 0 & \lambda_3} \Big| \, \lambda_i \in ...
+
+  Identical mathematics; `\pmatrix{...\cr}` against `\begin{array}` and
+  `\Big\{` against `\left\{`.
+
+WHAT WAS CHANGED, AND WHAT WAS NOT
+-----------------------------------
+CHANGED: `latex_similarity` now passes `autojunk=False`, with the reason
+written at the call site and two tests — one asserting symmetry on a
+>200-character pair, one that identical strings score 1.0. 2,915 passing.
+
+NOT CHANGED, deliberately: nothing was re-injected and nothing rebuilt.
+The 1,112 candidates on disk were joined under the broken metric. The join
+survives it, so compare.html is not showing the wrong equations — but the
+SCORES it displays are wrong for 91 rows, and an unknown number of source
+equations were never attached because their score fell under 0.55.
+
+WHAT 523/524 SHOULD NOT ASSUME
+-------------------------------
+`low_agreement` is not currently a defect signal. After the metric fix it
+is 125 rows, and at least 61 of those are the author's own macros left
+unexpanded — a fault on our side of the comparison, not a reading error by
+either party. Until `expand_macros` covers `\def`-style definitions and
+`normalize_latex` folds plain TeX, a low agreement score means "these two
+strings are spelled differently", not "one of them is wrong".
+
+NEXT, NOT DONE HERE
+-------------------
+1. Re-inject the 7 documents under the fixed metric and report how many
+   MORE source equations attach (0902.0431 is at 54%).
+2. Teach `expand_macros` the `\def` forms it is missing.
+3. Fold `\pmatrix`/`\cr`/`\vspace`/spacing in `normalize_latex`.
+Each changes the number, so none of them should be done inside a rebuild.

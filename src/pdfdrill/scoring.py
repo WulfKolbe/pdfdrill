@@ -55,12 +55,35 @@ def normalize_latex(s: str) -> str:
 
 
 def latex_similarity(a: str, b: str) -> float:
+    r"""Similarity of two LaTeX strings, normalized first. Symmetric.
+
+    522 — `autojunk=False` IS THE WHOLE POINT OF THIS LINE. difflib's
+    autojunk heuristic marks any element occurring in more than 1% of the
+    SECOND sequence as "popular" and refuses to match on it, but only once
+    that sequence reaches 200 elements. Normalized LaTeX is a small alphabet,
+    so every one of `\ _ = , - + 1 2 3 a b c` crosses 1% immediately and the
+    ratio collapses.
+
+    Two consequences, both live before this was fixed:
+
+    - the function was NOT SYMMETRIC. On 0902.0431 one pair scored 0.857 in
+      the order injectlatex calls it and 0.005 with the arguments swapped,
+      for identical inputs — 0.857 is the true value and 0.005 is the
+      artefact.
+    - it was scored with autojunk ACTIVE for 91 of 1,112 injected candidates
+      (8.2%), every one of them a long multi-line equation, which is exactly
+      the population where a reading is hardest and the score matters most.
+
+    A depressed score cannot misjoin — the argmax survived on all 45 affected
+    candidates in 0902.0431 — but it can fall under `injectlatex`'s 0.55
+    attach threshold, which silently drops a correct match.
+    """
     na, nb = normalize_latex(a), normalize_latex(b)
     if not na and not nb:
         return 1.0
     if not na or not nb:
         return 0.0
-    return difflib.SequenceMatcher(None, na, nb).ratio()
+    return difflib.SequenceMatcher(None, na, nb, autojunk=False).ratio()
 
 
 def score_equation(mathpix_latex: str, candidates: dict[str, dict],

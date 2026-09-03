@@ -522,3 +522,28 @@ def test_a_non_delimiter_after_left_is_refused():
     """Fires on no corpus row today; it is the list doing its stated job."""
     from pdfdrill.report_tex import renderable
     assert renderable(r"\left\Sigma x\right\Sigma") == ""
+
+
+# ---------------------------------------------------------------- 522
+
+def test_latex_similarity_is_symmetric_on_long_strings():
+    """difflib autojunk fires at 200 elements on the SECOND sequence only."""
+    from pdfdrill.scoring import latex_similarity
+    a = (r"\begin{array}{cccc} \lambda_1 - \lambda_2 = \alpha_1, & \lambda_1 - "
+         r"\lambda_3 = 2\alpha_1 + 3\alpha_2, & \lambda_2 - \lambda_3 = "
+         r"\alpha_1 + 3\alpha_2, \\ \lambda_1 = \alpha_1 + \alpha_2, & "
+         r"\lambda_2 = \alpha_2, & -\lambda_3 = \alpha_1 + 2\alpha_2 \end{array}")
+    b = (r"\begin{aligned} \lambda_{1}-\lambda_{2} & =\alpha_{1}, & "
+         r"\lambda_{1}-\lambda_{3} & =2 \alpha_{1}+3 \alpha_{2}, & "
+         r"\lambda_{2}-\lambda_{3} & =\alpha_{1}+3 \alpha_{2}, \\ \lambda_{1} "
+         r"& =\alpha_{1}+\alpha_{2}, & \lambda_{2} & =\alpha_{2} \end{aligned}")
+    ab, ba = latex_similarity(a, b), latex_similarity(b, a)
+    assert abs(ab - ba) < 1e-9, (ab, ba)
+    # and it is a real score, not the autojunk artefact near zero
+    assert ab > 0.7, ab
+
+
+def test_latex_similarity_identical_is_one():
+    from pdfdrill.scoring import latex_similarity
+    long = r"\alpha_{1}+\beta_{2}=\gamma_{3} \quad " * 20
+    assert latex_similarity(long, long) == 1.0
