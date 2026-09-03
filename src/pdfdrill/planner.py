@@ -94,6 +94,7 @@ def detect(spec: str, sc, pdf: Path, model_path: Path) -> bool:
                                model it was projected from
       artifact:report          report.tex AND report.pdf exist, the pdf is not
                                older than the tex, and neither is empty
+      artifact:breport         B.tex AND B.pdf, on the same terms
       lines           a MathPix lines.json sits next to the PDF
       fact:NAME       the sidecar carries that fact
 
@@ -114,6 +115,8 @@ def detect(spec: str, sc, pdf: Path, model_path: Path) -> bool:
         return _tiddlers_current(sc, model_path)
     if spec == "artifact:report":
         return _report_current(sc)
+    if spec == "artifact:breport":
+        return _breport_current(sc)
     if spec == "lines":
         base = pdf.name[:-4] if pdf.name.lower().endswith(".pdf") else pdf.name
         return (pdf.parent / f"{base}.lines.json").exists()
@@ -163,6 +166,21 @@ def _report_current(sc) -> bool:
     """
     tex = sc.blob_dir / "report.tex"
     pdf_out = sc.blob_dir / "report.pdf"
+    if not (tex.is_file() and pdf_out.is_file()):
+        return False
+    if tex.stat().st_size == 0 or pdf_out.stat().st_size == 0:
+        return False
+    return pdf_out.stat().st_mtime >= tex.stat().st_mtime
+
+
+def _breport_current(sc) -> bool:
+    """533 — the same pair test as `artifact:report`, for B.
+
+    B.tex written beside an OLDER B.pdf is the stale pair, and a zero-byte
+    B.pdf passes any name-only check.
+    """
+    tex = sc.blob_dir / "B.tex"
+    pdf_out = sc.blob_dir / "B.pdf"
     if not (tex.is_file() and pdf_out.is_file()):
         return False
     if tex.stat().st_size == 0 or pdf_out.stat().st_size == 0:

@@ -1,0 +1,72 @@
+533 — B is a command, with a manifest entry
+===========================================
+
+WHY, IN ONE SENTENCE
+--------------------
+`report_tex.b_rows`/`b_tex` plus `tools/buildb530.py` is invisible to the
+planner, to `status` and to `--ensure` — the exact shape that had
+corrections.html shipping a seven-day-stale reading (510), and the shape
+audit A4 named after `reporttex` had to be promoted out of `tools/`.
+
+WHAT WAS ADDED
+--------------
+  commands.yaml         `breport`, section "Introspection (fast, no
+                        extraction)", offline_ok: true, typed: true
+    requires            model · geometry · cdncrops · tiddlers · inkconvert
+    done_when           artifact:breport
+  planner.py            `artifact:breport` + `_breport_current` — B.tex and
+                        B.pdf both exist, neither empty, pdf not older than
+                        the tex. The same pair test `artifact:report` uses,
+                        for the same two reasons: a .tex beside an older
+                        .pdf is the stale pair, and a zero-byte pdf passes
+                        any name-only check.
+  commands.py           `cmd_breport`, `@_writes("breport")` so the O_EXCL
+                        lock covers it like every other document writer
+  cli.py                `_do_breport` + HANDLERS entry
+  tools/buildb530.py    DELETED. The scaffold is gone, not left beside the
+                        command to drift.
+
+  144 commands after `tools/skillsync.py all .`; skill-sync tests green.
+
+`requires` NAMES WHAT B READS, NOT WHAT IT CALLS
+-------------------------------------------------
+The layer rule, applied: B never calls mathpix, but it reads the model
+mathpix populates, the crops `cdncrops` fetches, the projection `tiddlers`
+writes and the residual `inkconvert` converts. `injectlatex` is NOT in the
+list — B has no second-reading column, so the candidates it would inject
+are not read here. That is the difference between a dependency and a hope.
+
+VERIFIED THROUGH THE PLANNER, NOT BY CALLING THE FUNCTION
+-----------------------------------------------------------
+  $ pdfdrill steps breport 2010.14265.pdf
+    tiddlers → breport
+    (missing prerequisites: tiddlers; ...)
+
+  $ pdfdrill breport 2010.14265.pdf
+    Wrote .../B.tex — 391 rows (16 equation, 369 formula, 6 image).
+    Inline-formula crops from host-line regions: 0 rendered, 368 cached,
+      0 skipped.
+    Compiled B.pdf: 21 page(s), 0 error(s), 1 demoted.
+
+  $ pdfdrill steps breport 2010.14265.pdf
+    prerequisites satisfied (... breport ...) — runs directly.
+
+`done_when` flips, which is the whole point: the planner can now see
+whether a document's B is current, so `--ensure` can reach it and a stale
+B is detectable instead of silent.
+
+TWO DEFECTS FOUND WHILE DOING IT
+---------------------------------
+1. `tools/skillsync.py` passed the generated region to `re.sub` as the
+   REPLACEMENT STRING. My summary mentions `\Perp`, and re.sub read `\P` as
+   a regex escape: `re.PatternError: bad escape \P`. Any command whose help
+   mentioned a LaTeX macro would have broken the generator, and none ever
+   had. Fixed with a `lambda _m: region` replacement, which cannot
+   interpret escapes.
+
+2. `cmd_breport` reported "crops: 0" on a re-run because it took only the
+   first element of `render_crops`'s `(rendered, cached, skipped)`. 0 of
+   368 already on disk read as nothing rendered — the opposite of the
+   truth. It now prints all three.
+
+Tests: 2,923 passing.

@@ -1152,6 +1152,19 @@ def _do_reporttex(args):
                          prefer_refined="--prefer-refined" in args)
 
 
+def _do_breport(args):
+    """pdfdrill breport <pdf> [--paper a4|a3] [--portrait] [--no-compile]
+    [--no-images]  — B: every row, three columns"""
+    from .commands import cmd_breport
+    paper, args = _opt(args, "--paper")
+    pdf_args = [a for a in args if a not in ("--portrait", "--no-compile",
+                                             "--no-images")]
+    return cmd_breport(_pdf(pdf_args), paper=paper or "a3",
+                       landscape="--portrait" not in args,
+                       compile_pdf="--no-compile" not in args,
+                       images="--no-images" not in args)
+
+
 def _do_report(args):
     """pdfdrill report <pdf> [--force] [--embed] [--scale 1.0]"""
     from .commands import cmd_report
@@ -2092,6 +2105,7 @@ HANDLERS = {
         "toc": _do_toc,
         "fonts": _do_fonts,
         "docs": _do_docs,
+        "breport": _do_breport,
         "formulas": _do_formulas,
         "expandmath": _do_expandmath,
         "speak": _do_speak,

@@ -4742,6 +4742,102 @@ def _model_pua_note(lines_path: Path) -> str:
     return ("\nNOTE: " + rep) if rep else ""
 
 
+@_writes("breport")
+def cmd_breport(pdf: Path, paper: str = "a3", landscape: bool = True,
+                compile_pdf: bool = True, images: bool = True) -> str:
+    r"""B — every row of the document in three columns: the LaTeX MathPix
+    returned, that LaTeX rendered through THIS DOCUMENT'S OWN PREAMBLE, and
+    the picture it was read from.
+
+    530. B is LaTeX and not HTML, and the reason is measured rather than
+    stylistic: KaTeX renders in a browser with no preamble, and 482/484 found
+    `\bm` at 327 occurrences across 7 documents, `\Perp` defined by no package
+    at all across 10, and 11,088 of 11,624 undefined occurrences being the
+    source document's own macros. An HTML rendering therefore cannot be
+    evidence in either direction — a row can look wrong there and compile, or
+    look right there and fail.
+
+    Three columns and no more. No KaTeX column, no second-reading column, no
+    scores: identity rides in the first cell. Rows carry their A-state
+    (corrected / unresolved / flagged / doubted) where they have one, so A and
+    B cannot disagree about a row.
+
+    INLINE FORMULAS GET THE LINE'S. An FO row has no page, no confidence and
+    no region of its own; `inlinectx` gives it the ones belonging to the line
+    it was printed in, and the section says so on the page. That is the only
+    confidence such a row will ever have, and 527 measured why it matters:
+    91.6% of the corpus's maths items are inline.
+    """
+    from . import report_tex as rt
+    sc = Sidecar(pdf)
+    tid, sc, _note = _resolve_tiddlers(pdf, sc, announce=False)
+    if tid is None:
+        return (f"No tiddler array for {pdf.name} and `tiddlers` did not "
+                f"produce one.")
+    tiddlers = json.loads(Path(tid).read_text())
+    bibkey = rt.resolve_bibkey(Path(tid))
+    doc_dir = pdf.parent
+    lines_path = _lines_json_path(pdf)
+    ink_path = doc_dir / "report.ink.json"
+    ink = rt.load_ink(ink_path) if ink_path.is_file() else {}
+
+    rows = rt.b_rows(tiddlers, bibkey, doc_dir,
+                     lines_path=lines_path if lines_path.exists() else None,
+                     ink=ink)
+    by_kind = {}
+    for r in rows:
+        by_kind[r["kind"]] = by_kind.get(r["kind"], 0) + 1
+
+    crops = doc_dir / "report-crops" if images else None
+    fo_rendered = (0, 0, 0)
+    pseudo = []
+    if images:
+        # the inline formulas' pictures are cropped from their HOST LINE's
+        # region — the only region they have. 530.
+        pseudo = [dict({"title": r["identifier"], "page": str(r["page"])},
+                       **r["region"])
+                  for r in rows
+                  if r["kind"] == "formula" and r.get("region") and r.get("page")]
+        if pseudo:
+            # (rendered, cached, skipped) — reporting only the first read as
+            # "0 crops" on any re-run, which is the opposite of the truth.
+            fo_rendered = rt.render_crops(pseudo, crops, pdf, kinds=("_FO",))
+
+    px2mm = rt.auto_px2mm(pdf)
+    body = rt.b_tex(rows, crops=crops, out_dir=doc_dir, px2mm=px2mm,
+                    bibkey=bibkey, history=_bibkey_history(sc))
+    geom = "%spaper%s" % (paper, ",landscape" if landscape else "")
+    pre = rt.PREAMBLE % {"bbdigits": rt.MATHBB_DIGITS, "form": "",
+                         "geom": geom, "unicode": rt.unicode_decls(body)}
+    title = ("\\begin{center}{\\Large\\bfseries %s}\\\\[.4em]"
+             "{\\small B --- every row, three columns: the LaTeX MathPix "
+             "returned, that LaTeX rendered through this document's own "
+             "preamble, and the picture it was read from.}\\end{center}\n"
+             % rt.esc_text(bibkey))
+    dest = doc_dir / "B.tex"
+    dest.write_text(pre + title + body + "\n\\end{document}\n")
+
+    parts = ["Wrote %s — %d rows (%s)."
+             % (dest, len(rows),
+                ", ".join("%d %s" % (v, k) for k, v in sorted(by_kind.items())))]
+    if images:
+        if pseudo:
+            parts.append("Inline-formula crops from host-line regions: "
+                         "%d rendered, %d cached, %d skipped."
+                         % tuple(fo_rendered))
+    if compile_pdf:
+        res = rt.compile_fixpoint(dest)
+        if res is None:
+            parts.append("xelatex not installed — B.tex written, not compiled.")
+        else:
+            pages, errors, demoted = res
+            parts.append("Compiled B.pdf: %d page(s), %d error(s), %d demoted."
+                         % (pages, errors, demoted))
+    sc.set_evidence("breport_path", str(dest.relative_to(pdf.parent)))
+    sc.save()
+    return "\n".join(parts)
+
+
 @_writes("compare")
 def cmd_compare(pdf: Path, force: bool = False, embed: bool = False) -> str:
     """Emit the LaTeX | KaTeX | MathPix-image comparison HTML.

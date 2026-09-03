@@ -1582,6 +1582,51 @@ commands:
     required: true
     help: PDF path, https URL, or bare arXiv id
   typed: true
+- name: breport
+  section: Introspection (fast, no extraction)
+  summary: 'B (B.tex/B.pdf): EVERY row of the document — display equations, inline
+    formulas, tables and image regions — in three columns and no more: the LaTeX
+    MathPix returned, that LaTeX rendered through THIS DOCUMENT''S OWN PREAMBLE, and
+    the picture it was read from. Rows carry their A-state (corrected / unresolved /
+    flagged / doubted) in place, so report.pdf and B cannot disagree about a row.
+    Inline formulas inherit the page, confidence and region of the LINE they were
+    printed in — the only ones they have — and the section says so. B is LaTeX and
+    not HTML because KaTeX renders with no preamble: 482/484 measured \bm at 327
+    occurrences over 7 documents, \Perp defined by no package across 10, and 11,088
+    of 11,624 undefined occurrences being the source document''s own macros, so an
+    HTML rendering cannot be evidence in either direction.'
+  offline_ok: true
+  requires:
+  - model
+  - geometry
+  - cdncrops
+  - tiddlers
+  - inkconvert
+  done_when: artifact:breport
+  positionals:
+  - name: pdf
+    type: pdf
+    required: true
+    help: PDF path, https URL, or bare arXiv id
+  flags:
+  - name: paper
+    flag: --paper
+    type: str
+    help: a4 or a3 (default a3)
+  - name: portrait
+    flag: --portrait
+    type: flag
+    help: portrait instead of landscape
+  - name: no_compile
+    flag: --no-compile
+    type: flag
+    help: write B.tex without running the xelatex fixpoint
+  - name: no_images
+    flag: --no-images
+    type: flag
+    help: 'skip the image column, including the host-line crops that give inline
+      formulas a picture for the first time'
+  typed: true
 - name: reporttex
   section: Introspection (fast, no extraction)
   summary: 'LaTeX formula report (report.tex): one boxed longtable row per EQ/FO/TAB — identifier, page,

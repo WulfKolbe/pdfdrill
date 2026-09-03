@@ -136,7 +136,12 @@ def cmd_render_skill(repo: Path) -> int:
     text = skill.read_text()
     region = render_tables(man)
     if BEGIN in text and END in text:
-        text = re.sub(re.escape(BEGIN) + r".*?" + re.escape(END), region, text, flags=re.S)
+        # 533 — the region is CONTENT, not a replacement template. Passing it
+        # as a string made re.sub read `\P` in a command summary as a regex
+        # escape and raise "bad escape \P"; any command whose help mentions a
+        # LaTeX macro would have broken the generator.
+        text = re.sub(re.escape(BEGIN) + r".*?" + re.escape(END),
+                      lambda _m: region, text, flags=re.S)
     else:
         text = text.rstrip() + "\n\n" + region + "\n"
     # The preflight ATTESTATION TOKEN must be the LAST line: a checksum of the whole
