@@ -1,0 +1,102 @@
+563 — a role on the region: body | toc | bibliography | index
+=============================================================
+
+THE PRECONDITION IS NOT MET, AND THE HEIM SCANS CANNOT MEET IT
+----------------------------------------------------------------
+This is the first thing to report, because the task was issued on the
+expectation that they could.
+
+  German headings in the 21 published documents                0
+  Heim folders on disk                                        42
+  ... drilled, carrying a lines.json                          12
+  ... with a GERMAN heading in a `section_header` line          0
+
+Three separate reasons, each checked:
+
+  1. 39% of the Heim documents' `section_header` lines carry EMPTY TEXT —
+     80 of 205. A heading-based detector has nothing to read on them.
+  2. The one German structural word sitting in a structural position is
+     `Inhaltsverzeichnis`, page 11 of `Elementarstrukturen der Materie`,
+     in a line of type `page_info` — a RUNNING HEADER. It repeats and it
+     does not open a region; matching it would mark the wrong pages.
+  3. The only other occurrence is `Literatur` inside prose — "die
+     betreffende Literatur als Metapher" — which is exactly the false
+     positive that word invites.
+
+So the German patterns are written, they are believed correct, and NOTHING
+IN THIS CORPUS EXERCISES THEM. They stay marked untested, and the Heim
+scans are not the population that changes that. What would: a German
+document whose section headers carry text.
+
+Both facts are in the module's docstring, so the next reader does not have
+to re-derive them.
+
+DETECTION OVER THE 21
+----------------------
+  document                        lines    toc  biblio  index  non-body
+  0707.4470                        1237      0     105      0      105
+  0902.0431                        5606      1     184      0      185
+  1510.06699                       6101      0     467      0      467
+  1605.05775                       1116      0       0      0        0
+  2010.14265                       1307      0      97      0       97
+  2106.07890                       1243     75     152      0      227
+  2501.06662                        896      0      98      0       98
+  BradleyGastaldiTerilla2023       1195      0       0      0        0
+  bradley_spring22                 1179      0      81      0       81
+  cardona-qft-methods             13386     75    1415      0     1490
+  fong-spivak-invitation          14682    180     275    785     1240
+  fong-spivak-seven-sketches      14671    483     282    867     1632
+  gilmore-lie-groups              12654    466     167    771     1404
+  johnston-linear-matrix-algebra  31079    369     813      0     1182
+  kohlhase-omdoc                  26042    463     820   4397     5680
+  lyche-numerical-linear-algebra  12850    838      52    508     1398
+  mielke-geometrodynamics         14738    528    2652      0     3180
+  penev_A                          3178      1       0      0        1
+  penev_B                          1943      0       0      0        0
+  rph8-g15q                        2941      0       0      0        0
+  voloshin-hypergraph              9702    249      13    591      853
+  -------------------------------------------------------------------
+  TOTAL                          177746   3728    7673   7919    19320
+
+  documents with at least one:  toc 12, bibliography 16, index 6, of 21
+  lines inside a non-body region: 19,320 of 177,746 — 10.9%
+
+FOUR DOCUMENTS HAVE NO NON-BODY REGION AT ALL: 1605.05775,
+BradleyGastaldiTerilla2023, penev_B, rph8-g15q. Three are short papers; the
+fourth is a thesis chapter.
+
+THE SOURCE CROSS-CHECK, WHICH IS WHY IT IS THERE
+--------------------------------------------------
+`tex_declares` reads the author's own `\tableofcontents` and
+`\bibliography` where a source exists. It corroborates rather than
+replaces: a heading scan finding nothing where the source declares a
+bibliography is a DETECTION FAILURE, not a document without references.
+
+  sources declaring a bibliography            3
+  of those, headings found none               1   — 1605.05775
+
+1605.05775 is the case the cross-check exists to surface: its source
+declares a bibliography and its headings show none, so its 0 above is a
+miss rather than an absence. It is reported, not patched around.
+
+THE ANCHORING MATTERS AND IS TESTED
+-------------------------------------
+The patterns match a whole heading with an optional leading number, never a
+substring:
+
+  "Index Theorems"                         -> body, not index
+  "die betreffende Literatur als Metapher" -> body, not bibliography
+  "5 Bibliography"                         -> bibliography
+
+Three tests hold it, plus one that a heading ENDS the previous region — a
+bibliography runs to the next heading, not to the end of the document — and
+one that `page_info` is never a heading, which is the German case above.
+
+Tests: 2,935 passing.
+
+NOT DONE
+--------
+The role is computed, not stored: nothing writes it onto the model or the
+tiddlers yet. 564 needs it readable at the point of transclusion, and where
+it should live — the line, the object, or a region table — is that task's
+first decision rather than one to make silently here.

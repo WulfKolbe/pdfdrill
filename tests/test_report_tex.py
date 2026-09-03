@@ -742,3 +742,47 @@ def test_a_findings_build_describes_its_own_longtables(tmp_path):
     assert "Unresolved" in caps, man
     for t in man["tables"]:
         assert t["rows"] == len(t["identifiers"]) and t["rows"] > 0
+
+
+# ---------------------------------------------------------------- 563
+
+def test_role_is_anchored_not_a_substring():
+    """`Index Theorems` is body and `Literatur` inside prose is body."""
+    from pdfdrill.regionrole import role_of_heading, BODY, TOC, BIBLIOGRAPHY, INDEX
+    assert role_of_heading("References") == BIBLIOGRAPHY
+    assert role_of_heading("5 Bibliography") == BIBLIOGRAPHY
+    assert role_of_heading("Literaturverzeichnis") == BIBLIOGRAPHY
+    assert role_of_heading("Inhaltsverzeichnis") == TOC
+    assert role_of_heading("Stichwortverzeichnis") == INDEX
+    # the two that must NOT match
+    assert role_of_heading("Index Theorems") == BODY
+    assert role_of_heading("die betreffende Literatur als Metapher") == BODY
+    assert role_of_heading("Introduction") == BODY
+
+
+def test_a_heading_ends_the_previous_region(tmp_path):
+    """A region runs to the NEXT heading, not to the end of the document."""
+    import json
+    from pdfdrill import regionrole as rr
+    p = tmp_path / "d.lines.json"
+    p.write_text(json.dumps({"pages": [{"lines": [
+        {"type": "text", "text": "prose"},
+        {"type": "section_header", "text": "References"},
+        {"type": "text", "text": "a citation"},
+        {"type": "section_header", "text": "Appendix A"},
+        {"type": "text", "text": "prose again"}]}]}))
+    roles = [r[3] for r in rr.roles_for(p)]
+    assert roles == [rr.BODY, rr.BIBLIOGRAPHY, rr.BIBLIOGRAPHY,
+                     rr.BODY, rr.BODY]
+
+
+def test_page_info_is_never_a_heading(tmp_path):
+    """The one German structural word in this library sits in a running
+    header on a page that is not the table of contents."""
+    import json
+    from pdfdrill import regionrole as rr
+    p = tmp_path / "d.lines.json"
+    p.write_text(json.dumps({"pages": [{"lines": [
+        {"type": "page_info", "text": "Inhaltsverzeichnis"},
+        {"type": "text", "text": "body prose"}]}]}))
+    assert [r[3] for r in rr.roles_for(p)] == [rr.BODY, rr.BODY]
