@@ -654,3 +654,36 @@ def test_every_katex_generator_carries_the_caveat():
     # a vague caution
     for n in ("327", "10 documents", "11,088"):
         assert n in KATEX_WARNING_HTML, n
+
+
+# ---------------------------------------------------------------- 543
+
+def test_inspect_writes_only_paths_that_exist_and_are_non_empty(tmp_path):
+    from pdfdrill import taskout
+    good = tmp_path / "B.pdf"; good.write_bytes(b"%PDF-1.4\n")
+    empty = tmp_path / "empty.pdf"; empty.write_bytes(b"")
+    missing = tmp_path / "gone.pdf"
+    r = taskout.inspect_list(tmp_path, 543, [
+        (good, "B, 10 pages"), (empty, "an empty build"), (missing, "never built")])
+    body = pathlib_read(r["path"])
+    assert body.splitlines() == [str(good.resolve())]
+    assert len(r["failed"]) == 2
+    assert "is a promise" in taskout.inspect_report(r)
+    # the reason is NOT in the file — drillui reads it
+    assert "10 pages" not in body
+    assert "10 pages" in taskout.inspect_report(r)
+
+
+def pathlib_read(p):
+    import pathlib
+    return pathlib.Path(p).read_text()
+
+
+def test_inspect_names_paths_drillui_cannot_open(tmp_path):
+    """Half this library's folders have spaces in their names."""
+    from pdfdrill import taskout
+    d = tmp_path / "Geometric, Algebraic Methods"; d.mkdir()
+    f = d / "B.pdf"; f.write_bytes(b"%PDF-1.4\n")
+    r = taskout.inspect_list(tmp_path, 543, [(f, "B")])
+    assert r["whitespace"] == [str(f.resolve())]
+    assert "splits on whitespace" in taskout.inspect_report(r)

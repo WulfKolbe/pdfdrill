@@ -97,3 +97,73 @@ def report_lines(target, task) -> str:
     if not ps:
         return "  (nothing written — this task left nothing inspectable)"
     return "\n".join("  %s  (%d bytes)" % (p, p.stat().st_size) for p in ps)
+
+
+#: 543 — the file a PERSON opens. 525 put the script and the data beside the
+#: document, which made a run re-runnable; neither is inspectable. A person
+#: opens a PDF, an HTML page, an image or a log.
+INSPECT_FILE = "INSPECT.txt"
+
+
+def inspect_list(target, task, entries) -> dict:
+    r"""Write `INSPECT.txt` — one absolute path per line, nothing else.
+
+    `entries` is [(path, reason)]. The reason does NOT go in the file: the
+    file is read by drillui's scanner, and the report carries the reasons.
+
+    A PATH IN THAT FILE IS A PROMISE. 408 established that presenting an
+    unreachable path is only half of reachable, so every path is checked for
+    existence and for a non-zero size before it is written, and one that
+    fails is NOT written — it is returned under `failed` for the report to
+    say so. A list that quietly contains a dead path is worse than a short
+    list.
+
+    Returns {"path", "written" [(abs, reason)], "failed" [(abs, why)],
+             "whitespace" [abs]}.
+
+    `whitespace` is the paths that exist and are non-empty but contain a
+    space. They are written, because the file is line-based and a line is
+    unambiguous — but drillui's scanner splits on whitespace, so it cannot
+    open them. Roughly half this library's folder names contain spaces
+    ("Geometric, Algebraic and Topological Methods ..."), so this is not an
+    edge case and it is named rather than silently dropped.
+    """
+    d = task_dir(target, task)
+    written, failed, spacey = [], [], []
+    for item in entries:
+        p, reason = (item if isinstance(item, (tuple, list)) else (item, ""))
+        ap = Path(p).resolve()
+        if not ap.exists():
+            failed.append((str(ap), "does not exist"))
+            continue
+        if ap.is_file() and ap.stat().st_size == 0:
+            failed.append((str(ap), "exists but is empty"))
+            continue
+        written.append((str(ap), reason))
+        if " " in str(ap) or "\t" in str(ap):
+            spacey.append(str(ap))
+    out = d / INSPECT_FILE
+    out.write_bytes(("\n".join(a for a, _ in written) + "\n")
+                    .encode("utf-8", "replace"))
+    return {"path": str(out), "written": written, "failed": failed,
+            "whitespace": spacey}
+
+
+def inspect_report(result: dict) -> str:
+    """The printed block: every path with the one line saying what it is for."""
+    lines = ["INSPECT — %s" % result["path"], ""]
+    for a, reason in result["written"]:
+        lines.append("  %s" % a)
+        if reason:
+            lines.append("      %s" % reason)
+    if result["failed"]:
+        lines.append("")
+        lines.append("  NOT LISTED — a path in INSPECT.txt is a promise:")
+        for a, why in result["failed"]:
+            lines.append("  %s  <-- %s" % (a, why))
+    if result["whitespace"]:
+        lines.append("")
+        lines.append("  %d path(s) contain a space: correct in this file, but "
+                     "drillui's scanner splits on whitespace and cannot open "
+                     "them." % len(result["whitespace"]))
+    return "\n".join(lines)

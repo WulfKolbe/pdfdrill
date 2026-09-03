@@ -430,3 +430,37 @@ every `compare.html` was computed the broken way, and nothing in the
 artefact said so. When the evidence lives in a scratchpad, a wrong number
 cannot be traced back to the code that produced it — the report is prose
 and the prose is all there is.
+
+## 20. Every run ends with a list of absolute paths a person can open
+
+**Learned by 543.** Rule 19 put `script.py` and the data beside the document,
+which makes a run RE-RUNNABLE. Neither is inspectable. A person opens a PDF,
+an HTML page, an image or a log.
+
+So every task also writes `<library>/out/<NNN>/INSPECT.txt`: **one absolute
+path per line and nothing else**, and prints the same list with a one-line
+reason per path. The reasons stay out of the file because drillui's scanner
+reads it; they go in the printed block and in `out/NNN.txt`.
+
+`taskout.inspect_list(target, task, [(path, reason), ...])` and
+`taskout.inspect_report(result)`.
+
+**What goes in:** artefacts built or changed (report.pdf, B.pdf, *.html);
+images the run produced or that a finding rests on (crops, renders, page
+rasters); the compile log where a build failed; the input a finding was read
+from when it is not obvious.
+
+**What stays out:** the script, the JSON, intermediates deleted on completion
+— everything only a machine reads.
+
+**A PATH IN THAT FILE IS A PROMISE.** 408 established that presenting an
+unreachable path is only half of reachable. Every path is checked for
+existence and non-zero size before it is written; one that fails is NOT
+written, and the report says which and why. A list that quietly holds a dead
+path is worse than a short list.
+
+**Known limit, named rather than worked around:** roughly half this library's
+folder names contain spaces. Such a path is correct in a line-based file and
+drillui's scanner, which splits on whitespace, cannot open it. `inspect_list`
+returns them under `whitespace` and the printed block counts them. The fix is
+in the scanner, not in the file.

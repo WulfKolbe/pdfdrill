@@ -1,0 +1,69 @@
+543 — every run ends with paths a person can open
+=================================================
+
+THE RULE
+--------
+`<library>/out/<NNN>/INSPECT.txt` — one absolute path per line, nothing
+else — plus the same list printed with a one-line reason per path.
+`taskout.inspect_list` / `taskout.inspect_report`; HANDOVER-RULES rule 20.
+
+The reasons are deliberately NOT in the file. drillui's scanner reads it;
+the reasons belong in the printed block and in out/NNN.txt. "B.pdf — 10
+pages of 233 rows, the layout under discussion" is worth more than the path
+alone, and it is what these reports have been missing whenever they named a
+file.
+
+A PATH IN THAT FILE IS A PROMISE
+---------------------------------
+Every path is checked for existence AND non-zero size before it is written.
+One that fails is not written — it is reported with the reason. 408: an
+unreachable path is only half of reachable, and a list that quietly holds a
+dead path is worse than a short list. Tested: an empty file and a missing
+file are both refused, and the reason never leaks into the file.
+
+WHAT IT DOES NOT SOLVE, NAMED
+------------------------------
+Roughly half this library's folder names contain spaces — "Geometric,
+Algebraic and Topological Methods for Quantum Field Theory (Alexander
+Cardona (ed.) etc.) (Z-Library)". Such a path is correct in a line-based
+file, and drillui's scanner, which splits on whitespace, cannot open it.
+`inspect_list` returns those under `whitespace` and the printed block says
+how many. Two of 542's six are in that state. The fix belongs in the
+scanner; dropping the paths would be losing evidence to protect a consumer.
+
+RUN ON 542, THE LAST COMPLETED TASK
+------------------------------------
+/home/wkolbe/pdfdrill-library/out/542/INSPECT.txt — six paths, all verified
+present and non-empty:
+
+  /home/wkolbe/pdfdrill-library/BradleyGastaldiTerilla2023/report.pdf
+      A at --pages 10 — 2 pages. Findings shape: 0 corrected, 0 unresolved,
+      0 of 3 flagged shown, 0 doubted. Under the cap, not clipped by it.
+
+  /home/wkolbe/pdfdrill-library/BradleyGastaldiTerilla2023/B.pdf
+      B at --pages 10 — 10 pages of 233 rows (8 equation, 211 formula, 13
+      image, 1 table), 1.17 MB. THE LAYOUT UNDER DISCUSSION.
+
+  /home/wkolbe/pdfdrill-library/BradleyGastaldiTerilla2023/B.tex
+      B's source — the three-column table shape, readable without a viewer.
+
+  /home/wkolbe/pdfdrill-library/BradleyGastaldiTerilla2023/B.log
+      B's compile log: 0 errors, 0 rows demoted.
+
+  /home/wkolbe/pdfdrill-library/Geometric, Algebraic and Topological Methods
+  for Quantum Field Theory (Alexander Cardona (ed.) etc.) (Z-Library)/B.pdf
+      cardona's FULL build — 274 pages, 17.91 MB, 139.1 s. The other side of
+      542's measurement; --pages 10 gave 10 pages, 0.59 MB, 13.5 s.
+
+  /home/wkolbe/pdfdrill-library/Geometric, Algebraic and Topological Methods
+  for Quantum Field Theory (Alexander Cardona (ed.) etc.) (Z-Library)/report.pdf
+      cardona's A, 3 pages — A against B on one document.
+
+Every page count above was read from the file with pdfinfo, not carried
+over from the build log.
+
+WHERE IT GOES
+-------------
+`<library>/out/<NNN>/`, the library root — not `<document>/out/<NNN>/`. A
+task's inspectable artefacts span documents: 542's list names two. Rule 19's
+per-document location still holds for a measurement OF that document.
