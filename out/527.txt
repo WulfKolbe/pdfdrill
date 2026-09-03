@@ -1,0 +1,132 @@
+527 — 2010.14265's \Perp family, and where the corpus keeps its maths
+=====================================================================
+
+EVIDENCE (rule 19 — these paths are the report, the prose is a summary)
+
+  /home/wkolbe/pdfdrill-library/2010.14265/out/527/script.py   (3,886 B)
+  /home/wkolbe/pdfdrill-library/2010.14265/out/527/perp.json   (1,244 B)
+  /home/wkolbe/pdfdrill-library/out/527/corpus_script.py       (2,941 B)
+  /home/wkolbe/pdfdrill-library/out/527/corpus.json          (184,585 B)
+
+Also committed as tools/perp527.py and tools/inlinemaths527.py so the
+classification can be re-run without the library.
+
+1. WHAT THE MODEL HOLDS — 2010.14265, 636 objects
+--------------------------------------------------
+  Formula     369      Page         14
+  Paragraph    83      Footnote      6
+  ListItem     45      Diagram       6
+  Citation     32      Section       6
+  Reference    29      Abstract      1
+  Sidenote     28      Document      1
+  Equation     16
+
+369 Formulas against 16 Equations. The document is 23 times more inline
+maths than display maths, by object count.
+
+2. THE \Perp FAMILY — WHERE IT IS, AND WHAT REACHES AN ARTEFACT
+----------------------------------------------------------------
+  in lines.json          36    text 22, list_item 14
+                               ZERO in lines of type `math`
+  in the model           28    Formula 17, Paragraph 11
+                               (15 distinct objects; the raw grep of 84 is
+                               realization copies of the same text)
+  in the projection      17    10 Formula rows; 0 Equation rows
+  ------------------------------------------------------------------
+  in report.pdf           0    published build is 2 pages, formulas="none"
+  in compare.html         0    display Equations only (its 44 hits are
+                               \perp, the ordinary perpendicular)
+  in formula-report.html 76
+
+**ZERO of the \Perp occurrences reach report.pdf or compare.html.** Every
+one of them is inline, so the only published artefact that shows any is
+formula-report.html — the one 523 proposed to fold into B.
+
+That is not a filter working. report.pdf shows nothing because the findings
+build passes `formulas="none"`, and compare.html shows nothing because it
+is display-equations-only by construction. The document's single most
+interesting defect class is invisible in both.
+
+ON THE 139
+----------
+I cannot reproduce 139 from anything on disk, and I am not going to round
+my number toward yours. What is there today:
+
+  lines.json           36   all one spelling, \Perp
+  tiddlers.json        43
+  model (raw grep)     84   (28 real, rest realization copies)
+  2010.14265.md        37
+  formula-report.html  76
+  author .tgz           0   of the family; 2 of \perp
+
+02-mathpix.md records 104 for this document across SIX spellings —
+\Perp_P 57, \not\Perp_P 31, \nVdash_P 8, \measuredangle_P 3, \nvdash_P 3,
+\not\measuredangle_P 2. **Five of those six spellings do not occur in the
+current lines.json at all.** It holds `\Perp` and nothing else.
+
+So either the vendor-facing table was computed from an extraction that has
+since been replaced (this lines.json is dated 2026-08-22), or it was
+computed from a different source. Either way a number we sent MathPix is
+not reproducible from the artefacts we hold, which is the same class of
+problem as 522 — and worth knowing before the next letter.
+
+3. THE GENERAL QUESTION: MATHS IN TEXT LINES vs MATH LINES
+-----------------------------------------------------------
+1,355 documents, 4,006,110 MathPix lines.
+
+  display maths (lines of type `math`)          130,074
+  inline maths ($...$ inside another line)    1,422,049
+  ----------------------------------------------------
+  total maths items                           1,552,123
+
+  **91.6% of maths ITEMS are inline.**
+  **86.3% of maths CHARACTERS are inline** (113.8M vs 18.0M).
+
+  documents where inline exceeds display: 1,134 of 1,355 (84%)
+  2010.14265 itself: 1,008 inline against 16 display — 98.4%
+
+Where the inline maths lives, by host line type:
+
+  text                 1,015,422
+  table                  184,198
+  simple_cell            137,730     367,516 spans (25.8%) sit inside
+  complex_cell            45,588     TABLE cells
+  list_item               22,742
+  pseudocode               6,478
+  figure_label, page_info, section_header, toc_item   ~6,900
+
+SO YES, B NEEDS A PROSE SECTION
+--------------------------------
+It is not a nicety. Nine maths items in ten are inline, and today they are
+reachable in exactly one artefact.
+
+And the confidence point is right and forced: **FO tiddlers carry no
+confidence and no page.** Measured on 2010.14265 — 369 FO tiddlers, 0 with
+a confidence, 0 with a page. Their fields are title, latex, text, caption,
+displayMode, trailing_punct, tags, type. Nothing to rank or filter on.
+
+The host line HAS one. Every MathPix line carries `confidence` and
+`confidence_rate`, so an inline formula can inherit its parent line's — the
+only confidence it will ever have, exactly as you put it. That also gives
+the prose section a page, which the FO row lacks, because the line has a
+region.
+
+A consequence worth stating for 523: a quarter of inline maths is inside
+table cells. B's Tables section and B's prose section are not disjoint, and
+501's rule — a table cell's content is a cell, not a Formula — decides
+which one shows those 367,516 spans.
+
+4. A DEFECT IN 525's OWN MODULE, FOUND ON ITS FIRST CORPUS RUN
+----------------------------------------------------------------
+`taskout.save_json` died with UnicodeEncodeError on `\udce8` — the 18
+CP1252 library folder names from 504. The whole corpus scan was lost at the
+write step after completing. Fixed: writes go through
+`text.encode("utf-8", "replace")`, with a test. 504's lesson is that a
+census which dies on one filename is a census with an unknown hole; rule 19
+inherited the same hole on day one.
+
+THE TAR
+-------
+Sending 2010.14265's evidence bundle rather than the whole folder: the two
+lines.json/tiddlers sources, the out/527/ results, and the three artefacts
+so the 0 / 0 / 76 split can be checked directly rather than taken from me.

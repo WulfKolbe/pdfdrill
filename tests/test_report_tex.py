@@ -576,3 +576,13 @@ def test_saves_are_named_back_for_the_report(tmp_path):
     assert got == ["rows.json", "script.py"]
     assert "script.py" in taskout.report_lines(tmp_path, 525)
     assert "nothing inspectable" in taskout.report_lines(tmp_path, 999)
+
+
+def test_taskout_survives_a_lone_surrogate(tmp_path):
+    """504: a census that dies on one filename has an unknown hole."""
+    from pdfdrill import taskout
+    bad = "caf\udce8"                      # CP1252 byte, unpaired surrogate
+    p = taskout.save_json(tmp_path, 527, "rows", {"doc": bad, "n": 1})
+    assert p.is_file() and p.read_bytes()          # written, not raised
+    q = taskout.save_text(tmp_path, 527, "note.txt", bad)
+    assert q.is_file()

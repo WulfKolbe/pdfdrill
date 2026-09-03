@@ -61,18 +61,28 @@ def save_script(target, task, source: str, name: str = "script.py") -> Path:
     return p
 
 
+def _write(p: Path, text: str) -> Path:
+    r"""Write UTF-8, surviving unpaired surrogates.
+
+    504's lesson, and it bit this module on its first corpus run: 18 library
+    folders carry CP1252 bytes that arrive as lone surrogates (`\udce8`), and
+    `write_text` raises on them. A census that dies on one filename is a
+    census with an unknown hole, so the byte is replaced and the file is
+    written rather than the run being lost.
+    """
+    p.write_bytes(text.encode("utf-8", "replace"))
+    return p
+
+
 def save_json(target, task, name: str, obj) -> Path:
     p = task_dir(target, task) / (name if name.endswith(".json")
                                   else name + ".json")
-    p.write_text(json.dumps(obj, indent=1, ensure_ascii=False,
-                            default=str), encoding="utf-8")
-    return p
+    return _write(p, json.dumps(obj, indent=1, ensure_ascii=False,
+                                default=str))
 
 
 def save_text(target, task, name: str, text: str) -> Path:
-    p = task_dir(target, task) / name
-    p.write_text(text, encoding="utf-8")
-    return p
+    return _write(task_dir(target, task) / name, text)
 
 
 def paths(target, task) -> list:
