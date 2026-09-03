@@ -1,0 +1,99 @@
+537 — B's size is 97% crops, and the set does not fit
+=====================================================
+
+EVIDENCE
+  ~/pdfdrill-library/out/537/script.py
+  ~/pdfdrill-library/out/537/size.json
+
+THE SPLIT
+---------
+Measured by summing the bytes of every image `B.tex` actually references
+(xdvipdfmx embeds a JPEG stream without recompressing it, so the files on
+disk ARE what lands in the PDF), over the ten documents built so far:
+
+  document                     rows  pages   pdf MB   img MB   img %
+  0902.0431                    4414    374     83.5     81.4   97.5%
+  cardona-qft-methods          4820    274     44.0     42.1   95.5%
+  1510.06699                   1387    103     18.9     18.3   96.6%
+  2501.06662                    446     27     10.9     10.7   97.8%
+  2106.07890                    384     25      7.5      7.3   97.2%
+  0707.4470                     287     21      5.4      5.2   96.6%
+  2010.14265                    391     21      5.2      5.0   96.2%
+  bradley_spring22              208     12      4.4      4.3   97.1%
+  BradleyGastaldiTerilla2023    233     14      3.5      3.4   96.1%
+  1605.05775                    179     13      2.2      2.1   94.5%
+  ------------------------------------------------------------------
+  TOTAL                       12,749          185.6    179.7   96.8%
+
+**96.8% of B is embedded crops. The typeset text — every LaTeX source cell
+and every rendered equation in the document — is about 3%.**
+
+At 14.6 KB per row, the picture is the artefact and the report is a
+rounding error on it.
+
+THE PROJECTED TOTAL FOR ALL 21
+-------------------------------
+Ten measured, eleven projected at 14.6 KB/row from their model object
+counts (Equation + Formula + Table + Diagram):
+
+  johnston-linear-matrix-algebra   7,040 rows    102.5 MB  (projected)
+  0902.0431                        4,414          83.5     measured
+  lyche-numerical-linear-algebra   5,746          83.6     (projected)
+  fong-spivak-invitation           4,889          71.2     (projected)
+  fong-spivak-seven-sketches       4,854          70.7     (projected)
+  gilmore-lie-groups               4,595          66.9     (projected)
+  cardona-qft-methods              4,820          44.0     measured
+  voloshin-hypergraph              2,998          43.6     (projected)
+  mielke-geometrodynamics          2,962          43.1     (projected)
+  ...the other twelve                             98.4
+  ------------------------------------------------------------------
+  TOTAL for 21                                   707.5 MB
+
+AGAINST THE LIMITS
+------------------
+  git hard limit, per file             100 MB
+  GitHub Pages published site           1 GB (recommended)
+  reports/ on disk today               776 MB
+  776 + 708                            1.45 GB
+
+Two separate failures, not one:
+
+1. **johnston's B is 102.5 MB and CANNOT BE PUSHED AT ALL.** git rejects a
+   file over 100 MB. It is not a matter of taste; the push fails.
+2. The set takes the site to 1.45 GB, half again over the recommendation,
+   on a repo already at 776 MB.
+
+WHAT RECOVERS IT — MEASURED, NOT GUESSED
+-----------------------------------------
+Crops are written at the region's MathPix pixel size (~2067 px per page
+width, so roughly 250 dpi) at JPEG quality 92. Re-encoded over a 120-crop
+sample:
+
+  setting                    of today   -> 21-doc total   johnston
+  today: region px, q92          100%        707 MB        102.5 MB
+  q75, full size                  62%        439 MB         63.6 MB
+  q60, full size                  50%        354 MB         51.3 MB
+  q75, 70% linear                 37%        262 MB         37.9 MB
+  q60, 60% linear                 26%        184 MB         26.6 MB
+  q50, 50% linear                 18%        127 MB         18.5 MB
+
+**Recommendation: q75 at 70% linear.** 262 MB for the set, johnston at
+38 MB, site total 1.04 GB. 70% of ~250 dpi is ~175 dpi, which is well
+above what a line of prose needs to be read on screen — the evidence
+surface needs the crop legible, not archival, and 461's pixel-exactness
+requirement is about the SIZING computation (px2mm), which is preserved as
+long as `crop_cell` is told the size the image was resized to.
+
+If 1.04 GB is still too close, q60 at 60% gives 184 MB and a 960 MB site.
+
+LINKING RATHER THAN EMBEDDING IS NOT AVAILABLE
+-----------------------------------------------
+A PDF cannot reference an external image; the bytes are in the file or the
+picture is not there. That option exists only for the HTML surfaces, and B
+is LaTeX for the reasons 530 measured. So the lever is dpi and quality.
+
+NOT DONE
+--------
+Nothing re-encoded and nothing rebuilt. The eleven B files already built
+also carry 535's wrong join, so the re-encode and the rebuild are one
+operation, and it should be one decision: which of the two settings above.
