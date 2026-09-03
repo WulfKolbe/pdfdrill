@@ -1,0 +1,104 @@
+539 — publishready refuses when the ink does not describe the published build
+=============================================================================
+
+EVIDENCE
+  ~/pdfdrill-library/out/539/script.py
+  ~/pdfdrill-library/out/539/stamps.json   (the three-way sha comparison)
+  ~/pdfdrill-library/out/539/gate.json     (the new gate over the 21)
+
+THE ANSWER: 21 OF 21. NOT ONE PASSES.
+--------------------------------------
+
+  ink's measured_against.sha256 == sha256(report.pdf)      0 of 21
+  ink's measured_against.sha256 == the measure stamp      20 of 21
+  the reading stamp == report.pdf                         21 of 21
+  report.build.json == report.pdf                         21 of 21
+
+  REFUSED by the new `stamp` check                        21 of 21
+
+THE LITERAL CHECK CANNOT BE THE CHECK, AND SAYING SO IS PART OF THE ANSWER
+---------------------------------------------------------------------------
+`measured_against.sha256 == sha256(report.pdf)` is 0 of 21, and it would be
+0 of 21 on a perfectly healthy corpus. 237b wrote down why: under the
+two-phase build, phase 1 is legend-off and phase 2 legend-on, so the
+measured file and the published file are DIFFERENT FILES BY CONSTRUCTION.
+A check that refuses everything always is not a check.
+
+So the gate asks the question that one was reaching for — is the measured
+build and the published build the same report? — and it answers no, for a
+reason far larger than a legend.
+
+WHAT IT ACTUALLY FOUND
+----------------------
+  document                        measured    published
+  johnston-linear-matrix-algebra   276 pp   ->   19 pp
+  gilmore-lie-groups               150      ->    8
+  lyche-numerical-linear-algebra   136      ->    8
+  mielke-geometrodynamics          104      ->    4
+  fong-spivak-seven-sketches       106      ->    4
+  fong-spivak-invitation           103      ->    4
+  cardona-qft-methods               88      ->    3
+  voloshin-hypergraph               63      ->    3
+  kohlhase-omdoc                    55      ->    3
+  1510.06699                        38      ->    3
+  ... and eleven more, every one of them smaller
+
+That is not legend-off against legend-on. **It is the full listing against
+the findings shape.** 516 rebuilt every published report.pdf into the
+four-section findings form and the ink still describes the full listing
+that preceded it. 237's defect exactly — an ink measured against one build
+sitting beside another — recurring across all 21 at a factor of ten, and
+caused by my own task.
+
+Two documents fail for their own reasons and are worth naming separately:
+
+  0902.0431   the ink does not say which report it measured at all. It is
+              the one document whose ink never carried a measured_against,
+              and the one 516 withheld.
+  0707.4470   the measured build and the published build differ in MODEL —
+              521's injectlatex changed it. The page counts never got
+              compared because the model check fires first.
+
+WHAT WAS BUILT
+--------------
+`report_tex.ink_describes_published(doc_dir)` -> (ok, detail). The chain is
+checked link by link and every link names its own reason:
+
+  1. measured_against present at all
+  2. == sha256(report.pdf)                -> ok, "measured this exact file"
+  3. else == the surviving measure stamp  -> or it describes neither
+  4. report.pdf == its own reading stamp  -> or the file is not what it says
+  5. same formula_rule, same model_sha256
+  6. same `findings` shape
+  7. same page count                      -> "a different set of rows, not
+                                             a legend"
+
+Wired into `publish_ready` as its own check named `stamp`, and added to
+PUBLISH_CHECKS so it prints. It is deliberately NOT folded into `ink`: that
+check asks whether a measurement exists and covers the rows, this one asks
+whether it was made against this build, and the second was never asked.
+
+`build_stamp` now records `findings`. The shape was the cause and the page
+count only the symptom; a stamp that cannot say which shape it is cannot
+distinguish a legend from a rebuild. On the 21 existing stamps the field is
+absent on both sides and compares equal, so today the page count is what
+catches them — the test covers both paths.
+
+TESTS
+-----
+2,926 passing, three new: an ink naming no build, a measurement of a
+different shape (and, with the shapes forced equal, of a different page
+count), and an ink that measured the exact published file.
+
+Two existing fixtures had to state their own preconditions rather than
+inherit them. `_doc` now writes a measured_against by default, because a
+fixture whose ink named no build was asserting readiness for exactly the
+state this gate exists to refuse; and `test_build_stamp._stamped`, which is
+about an ink with no provenance, now asks for that explicitly.
+
+WHAT THIS DOES NOT DO
+---------------------
+It does not re-measure anything. All 21 published documents are now NOT
+READY by a check they were always failing silently, and the fix is a
+re-measurement against the findings build — `inkreport` phase 1 on the
+current shape — not a loosening of the gate.

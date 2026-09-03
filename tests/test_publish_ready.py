@@ -12,7 +12,8 @@ from pdfdrill.commands import publish_ready, PUBLISH_CHECKS
 
 
 def _doc(tmp_path, *, glyphs=False, ink=None, quarantine=None,
-         bullets=2, legend=True, md=True, inspect=True, pdf=True):
+         bullets=2, legend=True, md=True, inspect=True, pdf=True,
+         measured_against=True):
     d = tmp_path / "DOC"
     d.mkdir(exist_ok=True)
     (d / "DOC.pdf").write_bytes(b"%PDF-1.4\n")
@@ -56,8 +57,26 @@ def _doc(tmp_path, *, glyphs=False, ink=None, quarantine=None,
         [{"title": "DOC_EQ0001", "latex": "x=1"},
          {"title": "DOC_EQ0002", "latex": "y=2"}]), encoding="utf-8")
     if ink is not None:
-        (d / "report.ink.json").write_text(
-            json.dumps({"rows": ink}), encoding="utf-8")
+        # 539 — the ink SAYS WHICH REPORT IT MEASURED, because publishready
+        # now asks. A fixture whose ink named no build was asserting
+        # readiness for a state the gate exists to refuse.
+        payload = {"rows": ink}
+        if measured_against is not False:
+            stamp_p = d / _rt.phase_stamp_name("measure")
+            if not stamp_p.is_file() and (d / "report.pdf").is_file():
+                _rt.write_build_stamp(d / "report.pdf", legend=False,
+                                      ink_adopted=False, prefer_refined=False,
+                                      filters={}, findings=False)
+                (d / _rt.BUILD_STAMP).replace(stamp_p)
+                # and re-stamp the reading build the report actually is
+                _rt.write_build_stamp(d / "report.pdf", legend=legend,
+                                      ink_adopted=False, prefer_refined=False,
+                                      filters={}, findings=False)
+            if stamp_p.is_file():
+                payload[_rt.MEASURED_AGAINST] = json.loads(
+                    stamp_p.read_text(encoding="utf-8"))
+        (d / "report.ink.json").write_text(json.dumps(payload),
+                                           encoding="utf-8")
     if quarantine:
         (d / quarantine).write_text("{}", encoding="utf-8")
     return d / "DOC.pdf"
@@ -276,3 +295,65 @@ def test_coverage_that_cannot_be_computed_fails_rather_than_passing(tmp_path):
     passed, why = r["checks"]["ink"]
     assert not passed
     assert "coverage UNKNOWN" in why
+
+
+# ---------------------------------------------------------------- 539
+
+def test_stamp_refuses_an_ink_that_names_no_build(tmp_path):
+    """An ink that cannot say what it measured is not evidence about it."""
+    r = publish_ready(_doc(tmp_path, ink=SPREAD, measured_against=False))
+    assert not r["ready"]
+    assert not r["checks"]["stamp"][0]
+    assert "does not say which report" in r["checks"]["stamp"][1]
+
+
+def test_stamp_refuses_a_measurement_of_a_different_shape(tmp_path):
+    """516 rebuilt 21 reports into the findings shape; the ink still
+    described the full listing that preceded it."""
+    import json as _json
+    from pdfdrill import report_tex as _rt
+    pdf = _doc(tmp_path, ink=SPREAD)
+    d = pdf.parent
+    meas = d / _rt.phase_stamp_name("measure")
+    st = _json.loads(meas.read_text())
+    st["pages"] = 276                      # the build that WAS measured
+    meas.write_text(_json.dumps(st))
+    ink = d / "report.ink.json"
+    payload = _json.loads(ink.read_text())
+    payload[_rt.MEASURED_AGAINST] = st
+    ink.write_text(_json.dumps(payload))
+    # the PUBLISHED report is a different file from the measured one — which
+    # is the whole point of two-phase, and what the fixture's single 9-byte
+    # report.pdf would otherwise hide
+    (d / "report.pdf").write_bytes(b"%PDF-1.4\n" + b"findings" * 100)
+    _rt.write_build_stamp(d / "report.pdf", legend=True, ink_adopted=True,
+                          prefer_refined=False, filters={}, findings=True)
+    (d / _rt.BUILD_STAMP).replace(d / _rt.phase_stamp_name("reading"))
+    ok, detail = _rt.ink_describes_published(d)
+    assert not ok
+    # the SHAPE difference is named before the page count, because it is the
+    # cause and the page count is the symptom
+    assert "different SHAPES" in detail, detail
+
+    # and when both are the same shape, the page count is what catches it
+    st2 = _json.loads((d / _rt.phase_stamp_name("reading")).read_text())
+    st2["findings"] = False
+    st2["pages"] = 19          # pdfinfo cannot read the fixture's stub PDF
+    (d / _rt.phase_stamp_name("reading")).write_text(_json.dumps(st2))
+    (d / _rt.BUILD_STAMP).write_text(_json.dumps(st2))
+    ok2, detail2 = _rt.ink_describes_published(d)
+    assert not ok2
+    assert "276-page build" in detail2 and "not a legend" in detail2, detail2
+
+
+def test_stamp_passes_when_the_ink_measured_this_exact_report(tmp_path):
+    import json as _json
+    from pdfdrill import report_tex as _rt
+    pdf = _doc(tmp_path, ink=SPREAD)
+    d = pdf.parent
+    live = _rt.build_stamp(d / "report.pdf")
+    payload = _json.loads((d / "report.ink.json").read_text())
+    payload[_rt.MEASURED_AGAINST] = live
+    (d / "report.ink.json").write_text(_json.dumps(payload))
+    ok, detail = _rt.ink_describes_published(d)
+    assert ok and "this exact report.pdf" in detail

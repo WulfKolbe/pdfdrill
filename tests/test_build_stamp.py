@@ -71,7 +71,10 @@ def test_the_stamp_lands_beside_the_report(tmp_path):
 # ------------------------------------------------------------- the gate ---
 
 def _stamped(tmp_path, *, ink_extra=None, phase="measure"):
-    pdf = _doc(tmp_path, ink=SPREAD)
+    # 539 — this helper is about an ink with NO recorded provenance, so it
+    # asks _doc not to add one. The shared fixture now supplies it by default,
+    # because publishready's `stamp` check refuses an ink that names no build.
+    pdf = _doc(tmp_path, ink=SPREAD, measured_against=False)
     d = pdf.parent
     stamp = rt.write_build_stamp(
         d / "report.pdf", legend=(phase == "reading"),

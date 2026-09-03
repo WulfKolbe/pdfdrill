@@ -1589,7 +1589,8 @@ def _load_or_build_continuity(pdf: Path, sc: "Sidecar", force: bool = False,
 #: 435 — `model` is FIRST. It asks whether the report is still true; the rest
 #: ask whether it is well formed, and a well-formed report of a model that has
 #: moved is the failure this list exists to catch.
-PUBLISH_CHECKS = ("model", "glyphs", "ink", "residuals", "artefacts", "index")
+PUBLISH_CHECKS = ("model", "glyphs", "ink", "stamp", "residuals", "artefacts",
+                  "index")
 
 
 def publish_ready(pdf: Path) -> dict:
@@ -1671,6 +1672,12 @@ def publish_ready(pdf: Path) -> dict:
         checks["ink"] = (False, "no report.ink.json — %s" %
                          (quarantined[0] + " is quarantined" if quarantined
                           else "no residual measurement has been run"))
+
+    # 2b — 539: does the ink describe THE REPORT BEING PUBLISHED? `ink`
+    # above asks whether a measurement exists and covers the rows; this asks
+    # whether it was made against this build. They are different questions and
+    # the second was never asked.
+    checks["stamp"] = rt.ink_describes_published(d)
 
     # 3 — the bullets and the full legend actually on the page
     body = tex.read_text(encoding="utf-8", errors="replace") if tex.is_file() else ""
@@ -4803,9 +4810,17 @@ def cmd_breport(pdf: Path, paper: str = "a3", landscape: bool = True,
             # "0 crops" on any re-run, which is the opposite of the truth.
             fo_rendered = rt.render_crops(pseudo, crops, pdf, kinds=("_FO",))
 
+    # 538 — B embeds DOWNSAMPLED copies, in their own directory so the
+    # originals that report.pdf and the CDN equation rows read are untouched.
+    px_widths = {}
+    if images:
+        px_widths = rt.scale_crops(crops, doc_dir / "report-crops-b",
+                                   [r["identifier"] for r in rows])
+        crops = doc_dir / "report-crops-b"
     px2mm = rt.auto_px2mm(pdf)
     body = rt.b_tex(rows, crops=crops, out_dir=doc_dir, px2mm=px2mm,
-                    bibkey=bibkey, history=_bibkey_history(sc))
+                    bibkey=bibkey, history=_bibkey_history(sc),
+                    px_widths=px_widths)
     geom = "%spaper%s" % (paper, ",landscape" if landscape else "")
     pre = rt.PREAMBLE % {"bbdigits": rt.MATHBB_DIGITS, "form": "",
                          "geom": geom, "unicode": rt.unicode_decls(body)}
@@ -15064,7 +15079,8 @@ def cmd_reporttex(pdf: Path, paper: str = "a3", landscape: bool = True,
                 filters={"min_conf": min_conf, "max_conf": max_conf,
                          "types": types},
                 glyphs_dropped_count=(lost[0] if lost else 0),
-                formula_rule=r.get("formula_rule", ""))
+                formula_rule=r.get("formula_rule", ""),
+                findings=bool(findings))
             lines.append(
                 f"Build stamp: {rt.BUILD_STAMP} — phase={stamp['phase']}, "
                 f"{stamp['pages']} pages, {stamp['bytes']} bytes, "

@@ -358,6 +358,59 @@ def jpg_width(path: Path):
         return None
 
 
+#: 538 — what B embeds. 537 measured B at 96.8% images and projected 707 MB
+#: over 21 documents, with johnston alone at 102.5 MB — over git's hard 100 MB
+#: per-file limit, so it could not be pushed at all. Re-encoding a 120-crop
+#: sample: q75 full size is 62% of today, q75 at 70% linear 37%, q60 at 60%
+#: 26%. 70% of MathPix's ~250 dpi is ~175 dpi, well above what a line of prose
+#: needs on screen, and the evidence surface needs the crop legible rather
+#: than archival.
+B_CROP_SCALE = 0.70
+B_CROP_QUALITY = 75
+
+
+def scale_crops(src_dir: Path, dst_dir: Path, titles,
+                scale: float = B_CROP_SCALE,
+                quality: int = B_CROP_QUALITY) -> dict:
+    r"""Downsampled copies for B. Returns {title: ORIGINAL pixel width}.
+
+    The originals are left alone: `report.pdf`'s tables and the CDN equation
+    crops read the same directory, and shrinking them there would silently
+    redraw every other artefact. The returned widths are what `crop_cell`
+    must be told, so the smaller file is still SET at the original size.
+    """
+    # PIL is a LAZY import in this module — the module-level `Image` is None
+    # until something binds it, and reading it here silently produced zero
+    # scaled crops behind a bare `except`. Import it locally and let a real
+    # failure be visible.
+    from PIL import Image as _Image
+    src_dir, dst_dir = Path(src_dir), Path(dst_dir)
+    if not src_dir.is_dir():
+        return {}
+    dst_dir.mkdir(parents=True, exist_ok=True)
+    widths, failed = {}, []
+    for t in titles:
+        s_ = src_dir / ("%s.jpg" % t)
+        if not s_.is_file():
+            continue
+        d_ = dst_dir / ("%s.jpg" % t)
+        try:
+            with _Image.open(s_) as im:
+                widths[t] = im.size[0]
+                if d_.is_file() and d_.stat().st_mtime >= s_.stat().st_mtime:
+                    continue
+                w = max(1, int(im.size[0] * scale))
+                h = max(1, int(im.size[1] * scale))
+                im.convert("RGB").resize((w, h), _Image.LANCZOS).save(
+                    d_, "JPEG", quality=quality, optimize=True)
+        except Exception as exc:            # noqa: BLE001 — reported below
+            failed.append("%s: %s" % (t, exc))
+    if failed:
+        print("scale_crops: %d crop(s) could not be re-encoded, e.g. %s"
+              % (len(failed), failed[0]))
+    return widths
+
+
 def crop_cell(crops_dir: Path | None, out_dir: Path, title: str,
               px_width="", px2mm=None, col_mm=None,
               bibkey: str = "", history: "list[str] | None" = None) -> str:
@@ -379,8 +432,13 @@ def crop_cell(crops_dir: Path | None, out_dir: Path, title: str,
     size = "width=\\linewidth"
     if px2mm:
         try:
-            real = jpg_width(img)
-            w_mm = float(real if real else px_width) * px2mm
+            # 538 — an EXPLICIT px_width WINS over the file's own width.
+            # B embeds crops downsampled to 70% linear to fit the set inside
+            # git's 100 MB per-file limit; the physical size on the page must
+            # still be the REGION's, or every picture is drawn 30% small.
+            # A caller that passes nothing keeps 461's behaviour exactly.
+            real = px_width or jpg_width(img)
+            w_mm = float(real) * px2mm
             # 4mm clearance: a crop flush against the column rule bridges
             # to it at raster dpi and MERGES the lattice holes (inkdrill
             # P16 third pass, 1205.3463v2 — 15 touching scanlines)
@@ -1966,8 +2024,98 @@ def phase_stamp_name(phase: str) -> str:
 MEASURED_AGAINST = "measured_against"
 
 
-def build_stamp(pdf_out: Path) -> dict:
-    """Identity of a built report: what it is, not merely that it exists."""
+def ink_describes_published(doc_dir: Path) -> tuple:
+    r"""(ok, detail) — was the ink measured against the report being published?
+
+    539. `measured_against.sha256` can never equal the published report's
+    sha256 under the two-phase build (237b): phase 1 is legend-off and phase 2
+    legend-on, so they are different files BY CONSTRUCTION. Comparing them
+    directly would refuse every document always, which is not a check.
+
+    What CAN be asked is whether the measured build and the published build
+    are the same report. They are not, today, and the numbers are not subtle:
+    johnston was measured against a 276-page build and publishes a 19-page
+    one, because 516 rebuilt every report.pdf into the findings shape while
+    the ink still describes the full listing that preceded it. That is 237's
+    defect exactly — an ink measured against one build sitting beside
+    another — recurring across all 21 at a factor of ten.
+
+    So the chain is checked link by link, and every link names its own reason.
+    """
+    import json as _json
+    doc_dir = Path(doc_dir)
+    pdf_out = doc_dir / "report.pdf"
+    ink_p = doc_dir / "report.ink.json"
+    if not pdf_out.is_file():
+        return False, "no report.pdf"
+    if not ink_p.is_file():
+        return False, "no report.ink.json"
+
+    def _load(p):
+        try:
+            return _json.loads(Path(p).read_text(encoding="utf-8"))
+        except (OSError, ValueError):
+            return {}
+
+    ink = _load(ink_p)
+    ma = (ink.get(MEASURED_AGAINST) or {}).get("sha256")
+    if not ma:
+        return False, "the ink does not say which report it measured"
+
+    import hashlib
+    h = hashlib.sha256()
+    with pdf_out.open("rb") as fh:
+        for chunk in iter(lambda: fh.read(1 << 20), b""):
+            h.update(chunk)
+    cur = h.hexdigest()
+    if ma == cur:
+        return True, "the ink measured this exact report.pdf"
+
+    meas = _load(doc_dir / phase_stamp_name("measure"))
+    read = _load(doc_dir / phase_stamp_name("reading")) or _load(doc_dir / BUILD_STAMP)
+    if not meas:
+        return False, ("the ink measured %s, which is not this report.pdf, and "
+                       "no measure stamp survives to say what it was" % ma[:12])
+    if ma != meas.get("sha256"):
+        return False, ("the ink measured %s but the measure build was %s — it "
+                       "describes neither this report nor the surviving phase-1"
+                       % (ma[:12], str(meas.get("sha256"))[:12]))
+    if not read:
+        return False, "no reading stamp — nothing says what this report.pdf is"
+    if read.get("sha256") != cur:
+        return False, ("report.pdf is not the build its own stamp describes "
+                       "(%s on disk, %s stamped)"
+                       % (cur[:12], str(read.get("sha256"))[:12]))
+    for key, what in (("formula_rule", "formula rule"),
+                      ("model_sha256", "model")):
+        if (meas.get(key) or "") != (read.get(key) or ""):
+            return False, ("the measured build and the published build differ "
+                           "in %s (%r against %r)"
+                           % (what, meas.get(key), read.get(key)))
+    if meas.get("findings") != read.get("findings"):
+        return False, ("the measured build and the published build are "
+                       "different SHAPES (findings=%r against %r)"
+                       % (meas.get("findings"), read.get("findings")))
+    mp, rp = meas.get("pages"), read.get("pages")
+    try:
+        mp, rp = int(mp), int(rp)
+    except (TypeError, ValueError):
+        return False, "a stamp does not record its page count"
+    if mp != rp:
+        return False, ("the ink measured a %d-page build and this report is "
+                       "%d pages — a different set of rows, not a legend" % (mp, rp))
+    return True, ("the ink measured the phase-1 build of this same report "
+                  "(%d pages, rule %r)" % (rp, read.get("formula_rule")))
+
+
+def build_stamp(pdf_out: Path, findings: bool | None = None) -> dict:
+    """Identity of a built report: what it is, not merely that it exists.
+
+    539 — `findings` is part of the identity. A findings build and a full
+    listing of the same document share every other field and differ by a
+    factor of ten in pages; without it the stamp cannot say which shape it
+    is, and an ink measured against one sat beside the other on all 21.
+    """
     import hashlib
     import subprocess
     st = pdf_out.stat()
@@ -1993,6 +2141,8 @@ def build_stamp(pdf_out: Path) -> dict:
         commit = "unknown"
     return {"pdf": pdf_out.name, "pages": pages, "bytes": st.st_size,
             "sha256": h.hexdigest(), "mtime": int(st.st_mtime),
+            # 539 — the SHAPE is part of the identity, not a build option
+            "findings": findings,
             # 240: which tree built this. mtime orders builds; the commit says
             # what they were built FROM, which mtime cannot.
             "built_at": __import__("datetime").datetime.now(
@@ -2041,7 +2191,8 @@ def model_state(doc_dir: Path) -> dict:
 def write_build_stamp(pdf_out: Path, *, legend: bool, ink_adopted: bool,
                       prefer_refined: bool, filters: dict,
                       glyphs_dropped_count: int = 0,
-                      formula_rule: str = "") -> dict:
+                      formula_rule: str = "",
+                      findings: bool | None = None) -> dict:
     """Write BUILD_STAMP beside the report and return it.
 
     `phase` is the field a reader acts on. A build with no legend and no ink is
@@ -2049,7 +2200,7 @@ def write_build_stamp(pdf_out: Path, *, legend: bool, ink_adopted: bool,
     build, and measuring one is the defect this exists to make visible.
     """
     import json as _json
-    stamp = build_stamp(pdf_out)
+    stamp = build_stamp(pdf_out, findings=findings)
     stamp.update({
         "legend": bool(legend),
         "ink_adopted": bool(ink_adopted),
@@ -2681,7 +2832,7 @@ def b_rows(tiddlers, bibkey, doc_dir, lines_path=None, ink=None,
 
 
 def b_tex(rows, crops=None, out_dir=None, px2mm=None, bibkey="",
-          history=None) -> str:
+          history=None, px_widths=None) -> str:
     r"""The three columns: LaTeX source, its rendering, the image."""
     parts = []
     widths = B_WIDTHS
@@ -2728,6 +2879,7 @@ def b_tex(rows, crops=None, out_dir=None, px2mm=None, bibkey="",
             rend = ("\\FitMath{$\\displaystyle %s$}" % safe if safe else
                     ("\\emph{(does not render)}" if lx else "---"))
             img = crop_cell(crops, out_dir, r_["identifier"], px2mm=px2mm,
+                            px_width=(px_widths or {}).get(r_["identifier"], ""),
                             col_mm=widths[-1], bibkey=bibkey,
                             history=history) if crops else "---"
             parts.append("%s & %s & %s \\\\ \\hline\n" % (src, rend, img))
