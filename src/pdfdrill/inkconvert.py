@@ -72,6 +72,21 @@ _IDENT = re.compile(r"\\ident\{([^&\n]*?EQ\d+)\}[^&\n]*& *(\d+) *&")
 #: not edited to accommodate it.
 _IDENT_FIG = re.compile(r"\\ident\{([^&\n]*?[A-Z]{2,4}\d{3,})\}[^&\n]*&")
 
+#: 562 — the FINDINGS row form, and a THIRD pattern rather than a looser
+#: first one, for 386's reason: relaxing `_IDENT` would widen the contract for
+#: every full-listing report too, and those are what out/237 verified 64 of 64
+#: at offset zero.
+#:
+#: Two things differ. The identifier carries a SUFFIX — `\ident{k_EQ0001
+#: (was)}`, `(now)`, `(basis)` — so `EQ\d+` is no longer flush against the
+#: closing brace. And the Page cell may be EMPTY: an inline formula row has no
+#: page of its own, which is the whole of 550. `_IDENT` requires a bare number
+#: there and matched nothing, so publishready reported "report.tex yields no
+#: row identifiers" on every findings report and its coverage check could not
+#: run.
+_IDENT_FIND = re.compile(
+    r"\\ident\{([^&\n]*?(?:EQ|FO|TAB)\d+)[^&\n}]*\}[^&\n]*&")
+
 
 class ConversionRefused(Exception):
     """The pairing cannot be established. No file is written."""
@@ -101,6 +116,9 @@ def identifiers(tex_body: str) -> list:
     partial match would be a silent re-pairing of the eleven.
     """
     ids = [clean_ident(m.group(1)) for m in _IDENT.finditer(tex_body)]
+    if ids:
+        return ids
+    ids = [clean_ident(m.group(1)) for m in _IDENT_FIND.finditer(tex_body)]
     if ids:
         return ids
     return [clean_ident(m.group(1)) for m in _IDENT_FIG.finditer(tex_body)]

@@ -1748,10 +1748,34 @@ def publish_ready(pdf: Path) -> dict:
             except Exception:
                 ratio = None
         implausible = (ratio is not None and ratio >= rt.RATIO_P90_MAX)
-        checks["residuals"] = ((bullets > 0 and legend and not flat
+        # 562 — A FINDINGS REPORT WITH NO INK-BEARING ROW HAS NO BULLET TO
+        # DRAW, and that is not a failure. Corrected, Unresolved and Doubted
+        # rows carry no ink code; only Flagged does, because the ink is what
+        # selects it. johnston prints 37 bullets for its 37 flagged rows;
+        # 0707.4470 prints none because its only section is Corrected. The
+        # bullet requirement belongs to a report that HAS an ink-bearing
+        # section, so ask that rather than assume it.
+        _flagged_rows = 0
+        _man = d / rt.TABLES_MANIFEST
+        if _man.is_file():
+            try:
+                import json as _j3
+                _flagged_rows = sum(
+                    int(t.get("rows") or 0)
+                    for t in (_j3.loads(_man.read_text(encoding="utf-8"))
+                              .get("tables") or [])
+                    if str(t.get("caption", "")).startswith("Flagged"))
+            except Exception:
+                _flagged_rows = 0
+        _needs_bullets = _flagged_rows > 0 or "Display equations" in body
+        checks["residuals"] = (((bullets > 0 or not _needs_bullets)
+                                and legend and not flat
                                 and not nojoin and not implausible),
-                               "%d bullets, legend %s%s%s%s" %
-                               (bullets, "present" if legend else "ABSENT",
+                               "%d bullets%s, legend %s%s%s%s" %
+                               (bullets,
+                                "" if _needs_bullets else
+                                " (none owed: no ink-bearing section)",
+                                "present" if legend else "ABSENT",
                                 "" if not nojoin else
                                 "; but NONE of %d measured identifiers matches "
                                 "a row here — a join failure, not a set of "
@@ -2091,7 +2115,33 @@ def cmd_inkconvert(pdf: Path, force: bool = False) -> str:
     # and it says so with a confidence the file does not have. 0707.4470 hit
     # exactly this: TSV measured 08:46, stamp written 11:38, and the gate
     # refused the result for naming a reading build.
-    stamp_file = d / rt.BUILD_STAMP
+    # 562 — THE PAIR WAS WRONG. `report.build.json` is whatever built LAST,
+    # so the reading build overwrites it two seconds after the measurement:
+    # on 0707.4470 the tsv is 12:28:13 and report.build.json 12:28:15, and
+    # the freshness test then reads "the stamp is newer, so it cannot be the
+    # build that was measured" — true of that FILE and false of the build.
+    # The measurement was made against phase 1, whose record SURVIVES under
+    # its own name precisely so a phase-2 build cannot erase it (237b).
+    # `measure_stamp()` already existed for this and nothing called it here.
+    # The question is "the stamp OF THE BUILD THAT WAS MEASURED", and either
+    # file can answer it — but only one of them is stable. Prefer the phase-1
+    # copy; fall back to report.build.json ONLY while it still says
+    # phase=measure, which is true before the reading build replaces it.
+    stamp_file = d / rt.phase_stamp_name("measure")
+    _why_no_stamp = ""
+    if not stamp_file.is_file():
+        cand = d / rt.BUILD_STAMP
+        try:
+            phase = json.loads(cand.read_text(encoding="utf-8")).get("phase") \
+                if cand.is_file() else None
+        except Exception:
+            phase = None
+        if phase == "measure":
+            stamp_file = cand
+        elif cand.is_file():
+            _why_no_stamp = ("%s records phase=%s and no %s survives"
+                             % (rt.BUILD_STAMP, phase,
+                                rt.phase_stamp_name("measure")))
     stamp = None
     if stamp_file.is_file() and stamp_file.stat().st_mtime <= tsv.stat().st_mtime:
         try:
@@ -2113,11 +2163,12 @@ def cmd_inkconvert(pdf: Path, force: bool = False) -> str:
     for r in payload["rows"]:
         c = r["code"][:1]
         by[c] = by.get(c, 0) + 1
-    if stamp is None and stamp_file.is_file():
-        out.append("build stamp NOT attached: %s is newer than %s, so it "
-                   "cannot be the build that was measured — provenance stays "
-                   "unrecorded rather than wrong."
-                   % (rt.BUILD_STAMP, tsv.name))
+    if stamp is None and (stamp_file.is_file() or _why_no_stamp):
+        why = _why_no_stamp or ("%s is newer than %s, so it cannot be the "
+                                "build that was measured"
+                                % (stamp_file.name, tsv.name))
+        out.append("build stamp NOT attached: %s — provenance stays "
+                   "unrecorded rather than wrong." % why)
     out.append("%s: %d rows, %d footer(s) dropped over %d display page(s); %s"
                % (dest.name, len(payload["rows"]), payload["footers_dropped"],
                   payload["display_pages"],

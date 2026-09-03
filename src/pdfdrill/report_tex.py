@@ -2566,6 +2566,12 @@ FINDINGS_SECTIONS = ("Corrected", "Unresolved", "Flagged, not acted on",
 INK_AGREES = {"K", "N", "S"}
 DOUBTED_MAX_CONF = 0.05
 
+#: 562 — the bullet colour per ink class, so a flagged row shows WHY it is
+#: flagged. The names are the ones the preamble already defines.
+_INK_COLOUR_BY_CODE = {"K": "inkClean", "N": "inkNoise", "W": "inkWeak",
+                       "C": "inkComponent", "S": "inkStable",
+                       "U": "inkUnmeasured", "A": "inkUnmeasured"}
+
 #: the classes that flag a real difference — the fourth state's population
 INK_FLAGS = {"C", "W"}
 
@@ -2750,9 +2756,24 @@ def findings_tex(found: dict, widths, crops=None, out_dir=None,
                          col_mm=widths[-1] if len(widths) > 5 else None,
                          bibkey=bibkey, history=history) if crops else "---"
 
-    def row(ident, page, conf, lx, note=""):
-        return ("\\ident{%s}%s & %s & %s & %s & %s%s \\\\ \\hline\n"
-                % (breakable_ident(ident), "", esc_text(str(page or "")),
+    def row(ident, page, conf, lx, note="", code=""):
+        # 562 — THE RESIDUAL, ON THE ROW. The findings shape measured the ink,
+        # adopted it in the reading build, and then showed it nowhere: the
+        # only `\inkbullet` in a built findings report was the macro's own
+        # definition in the preamble. publishready said "0 bullets, legend
+        # present" and was right — not because the adoption failed, and not
+        # because there was nothing to adopt, but because the section that
+        # EXISTS BECAUSE OF THE INK did not print it. A flagged row that does
+        # not say what flagged it is asking the reader to trust a selection
+        # they cannot see (147).
+        bullet = ""
+        if code:
+            bullet = ("~\\inkbullet{%s}\\,{\\scriptsize %s}"
+                      % (_INK_COLOUR_BY_CODE.get(code[:1], "inkUnmeasured"),
+                         esc_text(code)))
+        return ("\\ident{%s}%s%s & %s & %s & %s & %s%s \\\\ \\hline\n"
+                % (breakable_ident(ident), "", bullet,
+                   esc_text(str(page or "")),
                    conf_cell(conf), cell(lx), rendered(lx),
                    (" & " + scan(ident)) if len(widths) > 5 else ""))
 
@@ -2795,7 +2816,7 @@ def findings_tex(found: dict, widths, crops=None, out_dir=None,
         parts.append(table_open(title, widths, form, legend_on))
         for r_ in rows_:
             parts.append(row(r_["identifier"], r_.get("page"), r_.get("conf"),
-                             r_.get("latex")))
+                             r_.get("latex"), code=r_.get("code") or ""))
         parts.append("\\end{longtable}\n")
         if rest and rest["n"]:
             parts.append(_flag_remainder_tex(rest))
