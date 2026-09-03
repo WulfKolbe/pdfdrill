@@ -1,0 +1,109 @@
+574 - one build generation, and what a mixed one cost
+
+HEAD d4d4ef0  2026-09-03T15:13:52+02:00  '572/573: route B reaches 37% of the corpus'
+Newest commit touching model-building code: the same commit, d4d4ef0.
+
+A. STALENESS - 21 of 21 models predate HEAD
+
+document                           model mtime         stale 
+0707.4470                          2026-09-02T23:37:18 YES   
+0902.0431                          2026-09-02T23:41:59 YES   
+1510.06699                         2026-08-21T12:16:53 YES   
+1605.05775                         2026-09-03T15:10:05 YES   
+2010.14265                         2026-09-03T15:10:06 YES   
+2106.07890                         2026-09-03T15:10:07 YES   
+2501.06662                         2026-09-03T15:10:08 YES   
+BradleyGastaldiTerilla2023         2026-09-03T15:10:08 YES   
+bradley_spring22                   2026-09-03T15:10:09 YES   
+cardona-qft-methods                2026-09-03T15:10:14 YES   
+fong-spivak-invitation             2026-09-03T15:10:23 YES   
+fong-spivak-seven-sketches         2026-09-03T15:10:32 YES   
+gilmore-lie-groups                 2026-09-03T15:10:42 YES   
+johnston-linear-matrix-algebra     2026-09-01T14:46:42 YES   
+kohlhase-omdoc                     2026-09-03T15:10:55 YES   
+lyche-numerical-linear-algebra     2026-09-01T14:46:46 YES   
+mielke-geometrodynamics            2026-09-01T14:46:48 YES   
+penev_A                            2026-09-03T15:11:05 YES   
+penev_B                            2026-09-03T15:11:06 YES   
+rph8-g15q                          2026-09-03T15:11:08 YES   
+voloshin-hypergraph                2026-09-01T14:46:49 YES   
+
+21 of 21. Two clusters: seven models from 08-21/09-01/09-02 - exactly the
+ones 430's guard refused to rebuild - and fourteen from 09-03 15:10-15:11,
+three minutes before HEAD was committed.
+
+B. THE SEVEN REFUSED DOCUMENTS, rebuilt on a copy under --force-discard-enrichments
+
+document                            library  rebuilt  headers   rebuilt levels
+0707.4470                                 0        8        8   {'1': 8}
+0902.0431                                 0       56       56   {'1': 12, '2': 44}
+1510.06699                               12       70       70   {'1': 70}
+johnston-linear-matrix-algebra           17      186      186   {'1': 141, '2': 45}
+lyche-numerical-linear-algebra           64      292      292   {'1': 45, '2': 247}
+mielke-geometrodynamics                  54      183      183   {'1': 52, '2': 131}
+voloshin-hypergraph                       6      115      115   {'1': 53, '2': 62}
+
+All seven returned rc=0 - the return code was read this time, and is printed
+per document by the script named below. Every rebuilt count equals that
+document's section_header line count exactly.
+
+C. THE CORPUS NUMBER, BEFORE AND AFTER
+
+  mixed generation (what 570 and 572 reported):  1458 sections
+  one generation:                                2215 sections
+  section_header lines across the same 21:       2215
+
+2215 = 2215, with zero mismatches in 21 of 21 documents. The current route A
+producer emits exactly one Section per section_header line. 1458 was 34% low,
+and none of that shortfall was a detection failure - it was seven documents
+answering from an older build of the code.
+
+D. WHAT MADE THE NUMBER WRONG, AND WHY A DATE CANNOT FIX IT
+
+A model's meta block holds bibkey, source_path, source, num_pages, title,
+root_id. It records nothing about the code that built it. So the only
+generation marker available is the file's mtime - and mtime cannot tell
+'built from committed HEAD' apart from 'built from an uncommitted working
+tree that later became HEAD'. The fourteen 15:10 models are stale by
+timestamp against a commit made at 15:13, yet they were built from the tree
+that commit captured. The table in section A is therefore honest about dates
+and silent about code. A build stamp in meta - commit sha plus a dirty flag -
+is what would make the question answerable.
+
+This applies to more than sections. Any corpus number summed across
+per-document artefacts inherits the oldest generation in the set, and nothing
+in the artefact says which generation that is.
+
+E. THE LIBRARY WAS NOT TOUCHED
+
+Every rebuild ran on a real copy in the scratchpad, deleted after its count
+was read. The seven library models still carry their original mtimes and
+their enrichments:
+
+  0707.4470                       09-02 23:37    472 obj  1 latex_refined   1278 realizations
+  0902.0431                       09-02 23:41   6344 obj  8 latex_refined  16591 realizations
+  1510.06699                      08-21 12:16   2196 obj  0 latex_refined   6442 realizations
+  johnston-linear-matrix-algebra  09-01 14:46  14546 obj  8 latex_refined  37238 realizations
+  lyche-numerical-linear-algebra  09-01 14:46   9102 obj  8 latex_refined  22961 realizations
+  mielke-geometrodynamics         09-01 14:46   5897 obj  3 latex_refined  12691 realizations
+  voloshin-hypergraph             09-01 14:46   5039 obj  3 latex_refined  15722 realizations
+
+Two library sidecars show as modified in git - 1510.06699.drill.json (14:38)
+and 2010.14265.drill.json (15:10). Both predate this task's rebuilds; they are
+from the 557 sweep.
+
+F. MY OWN FAILURES IN THIS TASK
+
+Three times in this session I ran subprocesses with capture_output=True and
+never checked a return code. Twice it was this task: the first attempt
+symlinked the PDF and read the model from beside it - a copy outside the
+library uses the legacy <name>.pdf.drill/ layout, so nothing was found and
+nothing said why. The second attempt reported FAILED for two documents and
+again told me nothing. Both runs were wasted. The loop that worked prints rc
+per document.
+
+pdf-dc99cf88 has no library folder and no model. It is excluded from every
+count here and remains the open item it was.
+
+---
+Evidence: /home/wkolbe/pdfdrill-library/out/574/  (INSPECT.txt lists the four paths)
