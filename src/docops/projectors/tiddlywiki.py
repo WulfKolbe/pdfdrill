@@ -31,6 +31,7 @@ Tiddler title scheme (bibkey="DOC"):
 from __future__ import annotations
 
 import json
+from pathlib import Path
 import re
 from collections import defaultdict
 from datetime import datetime, timezone
@@ -656,6 +657,33 @@ class TiddlyWikiProjector(BaseProjector):
                 t["parent_section"] = bibkey
             out.append(t)
 
+        # 550 — THE FO ROW STOPS BEING THE POOREST ROW IN THE PROJECTION.
+        #
+        # An inline formula had no page, no confidence, no region and so no
+        # crop. 527 measured what that costs: 91.6% of the corpus's maths
+        # items are inline, so the richest signal in a document described the
+        # smallest part of it. The model carries the page; the confidence and
+        # the region belong to the LINE the formula was printed in, and
+        # `meta.source_path` is that lines.json.
+        #
+        # The join is 535's: EXACT VALUE on the FIRST occurrence in document
+        # order. Not containment — `P` matched a line about "the past" — and
+        # not a positional walk, because the model holds one Formula per
+        # DISTINCT VALUE and the two sequences are not parallel.
+        #
+        # THIS IS ONE BOUNDARY ON PURPOSE. Doing it here means report.pdf, B,
+        # formula-report.html and every other consumer of the projection get
+        # it at once, instead of each re-deriving it from lines.json.
+        _host = {}
+        try:
+            from pdfdrill import inlinectx as _ictx
+            _lines_path = doc.meta.get("source_path") or ""
+            if _lines_path and str(_lines_path).endswith(".lines.json") \
+                    and Path(_lines_path).is_file():
+                _host = _ictx.first_occurrences(_ictx.load_spans(_lines_path))
+        except Exception:
+            _host = {}
+
         # Formulas
         for f in inv["formulas"]:
             t = self._t(
@@ -680,6 +708,27 @@ class TiddlyWikiProjector(BaseProjector):
             # reader) should not have to open the model to find it.
             if f.props.get("spoken"):
                 t["spoken"] = f.props["spoken"]
+            # 550 — the page is the OBJECT's; the confidence and the region are
+            # the HOST LINE's, and `confidence_of` says so on the tiddler
+            # rather than leaving a reader to assume a formula was scored.
+            # 147: two instruments in adjacent cells must each be named.
+            if f.props.get("page") not in (None, ""):
+                t["page"] = str(f.props["page"])
+            _ctx = _host.get((f.props.get("latex") or "").strip())
+            if _ctx is not None:
+                from pdfdrill.inlinectx import context_of as _ctx_of
+                _c = _ctx_of(_ctx)
+                if _c.get("page") and not t.get("page"):
+                    t["page"] = str(_c["page"])
+                if _c.get("confidence") is not None:
+                    t["confidence"] = str(_c["confidence"])
+                    t["confidence_of"] = "host_line"
+                    t["line_type"] = str(_c.get("line_type") or "")
+                if _c.get("confidence_rate") is not None:
+                    t["confidence_rate"] = str(_c["confidence_rate"])
+                for _k in ("top_left_x", "top_left_y", "width", "height"):
+                    if _c.get(_k) is not None:
+                        t[_k] = str(_c[_k])
             _refined_fields(t, f)
             out.append(t)
 

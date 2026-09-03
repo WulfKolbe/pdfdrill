@@ -1,0 +1,78 @@
+549 — one tar of what an auditor reads
+======================================
+
+  /home/wkolbe/pdfdrill-library/out/549/pdfdrill-audit-21.tar.gz
+      24.05 MB gzipped   (261.5 MB uncompressed)
+
+  /home/wkolbe/pdfdrill-library/out/549/MANIFEST.tsv
+      also at the tar's root, and readable without unpacking it
+
+  21 documents, 262 files, built in 2.8 s.
+
+Well under the 100 MB expected, and a fraction of one B.pdf — cardona's
+full B is 17.9 MB on its own, so the whole audit set is 1.3 of them.
+
+WHAT IS IN IT
+-------------
+Per document, under `<bibkey>/`:
+
+  <bibkey>.lines.json        MathPix's own output — the only ground truth
+  <bibkey>.tiddlers.json     the projection, where confidence and page are
+                             kept or lost
+  <bibkey>.drill.json        provenance and transitions
+  report.ink.json            the measurement, with measured_against
+  report.ink.json.REFUSED    where one exists
+  report.build.json          the surviving stamp
+  report.build.measure.json  phase 1
+  report.build.reading.json  phase 2
+  report.regions.json        the region manifest
+  report.tables.json         the tables manifest
+  report.compare.tsv         the raw ink rows
+  report.tex                 A's built source
+  B.tex                      B's built source
+  tables.json                the real table data
+
+VERIFIED, NOT ASSERTED
+-----------------------
+  entries matching *.pdf, report-crops, docmodel, docpack, inspect.html,
+    texsrc/ or texzip/                                               0
+  unpacks to                                          21 document folders
+  sha256 in MANIFEST.tsv against the unpacked bytes    36 of 36 checked, 0
+                                                       mismatched
+
+THE 32 ABSENCES, WHICH IS WHY THE MANIFEST HAS A ROW FOR EVERY FILE EXPECTED
+-----------------------------------------------------------------------------
+  report.ink.json.REFUSED   19   two of the 21 have one; the other 19 do
+                                 not, which is the healthy state
+  tables.json                7   0707.4470, 1605.05775, 2010.14265,
+                                 2106.07890, 2501.06662, bradley_spring22,
+                                 rph8-g15q
+  B.tex                      5   mielke, penev_A, penev_B, rph8-g15q,
+                                 voloshin — the five 538 had not reached
+                                 when I stopped it at 15 of 21
+  report.regions.json        1   2501.06662
+
+Each carries a row with status MISSING, bytes 0 and no hash, so an absence
+is in the record rather than inferred from a gap.
+
+ONE THING THE STRUCTURE DOES NOT DO
+------------------------------------
+The tar is keyed by BIBKEY, as specified — but for 9 of the 21 the bibkey
+is NOT the folder name on disk:
+
+  cardona-qft-methods      -> Geometric, Algebraic and Topological Methods…
+  johnston-linear-matrix…  -> Introduction to Linear and Matrix Algebra (…)
+  voloshin-hypergraph      -> Introduction to Graph and Hypergraph Theory…
+  …and six more
+
+462 renamed the identifier stems and not the folders, so "a path in the tar
+is a path on disk" holds for 12 of 21 and requires the bibkey→folder map
+for the other 9. The map is derivable from each `<bibkey>.drill.json` in
+the tar, and stating it here is cheaper than an auditor discovering it.
+
+NOT COMMITTED
+-------------
+Nothing from 549 is in the repo, as instructed — not the tar, not this
+report. The tar lives in the library, which is deny-by-default git, so it
+cannot be committed by accident either. Say the word if you want out/549.txt
+in the repo record; the other 548 reports are there and this one is the gap.

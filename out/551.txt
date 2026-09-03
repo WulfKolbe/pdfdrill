@@ -1,0 +1,62 @@
+551 — report.tables.json is empty in 21 of 21
+=============================================
+
+WHY IT IS NOT BUILT FROM tables.json: THEY ARE DIFFERENT ARTEFACTS
+--------------------------------------------------------------------
+  report.tables.json   the BOUNDARIES OF THE LONGTABLES IN THE REPORT (321)
+                       — caption, column count, whether the legend repeats,
+                       whether the header repeats, and the identifier list.
+                       `inkmeasure` reads it to segment the RASTERISED
+                       REPORT into rows.
+  tables.json          the DOCUMENT's own tables, from `pdfdrill tables`,
+                       the keyless pdfplumber extraction. Up to 103 rows.
+
+Neither is derived from the other and neither should be. They describe
+different objects and the names are the whole confusion: one is about the
+report, the other about the document.
+
+WHY IT IS EMPTY
+---------------
+Every `tables_manifest.append(...)` in `build_report` sat inside the
+`if not findings:` block — lines 3132, 3150, 3198 and 3379. A findings
+build never reaches any of them, so the list stays `[]` and the manifest is
+written EMPTY over one that previously described the report's sections.
+
+516 rebuilt all 21 published documents in the findings shape. That is why
+it is 21 of 21 and not a handful.
+
+WHAT IT BROKE
+-------------
+`inkmeasure` raises
+
+    MeasureRefused("report.tables.json names no %r table")
+
+without a matching record. So a re-measurement of the published shape could
+not run — which is 540, and it was blocked by this rather than by anything
+about the measurement.
+
+THE FIX
+-------
+A findings build now records its OWN longtables: one `_table_record` per
+non-empty section, with the identifiers it actually emits. Corrected
+contributes two identifiers per pair, `<id> (was)` and `<id> (now)`,
+because that is what the section prints.
+
+  johnston, --pages 10, findings shape:
+    Corrected                 rows 16   cols 6
+    Unresolved                rows  7   cols 6
+    Flagged, not acted on     rows 37   cols 6
+    total identifier rows     60
+
+  BradleyGastaldiTerilla2023: 0 tables, correctly — all four of its
+  sections are empty, so there is no longtable to describe.
+
+A test builds a two-row findings report and asserts the manifest names its
+section and that `rows == len(identifiers)` on every record.
+
+Tests: 2,931 passing.
+
+NOT DONE
+--------
+The 21 published manifests are still empty on disk. They are rewritten by
+the rebuild in 540, not by this task.

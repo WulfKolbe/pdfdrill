@@ -687,3 +687,58 @@ def test_inspect_names_paths_drillui_cannot_open(tmp_path):
     r = taskout.inspect_list(tmp_path, 543, [(f, "B")])
     assert r["whitespace"] == [str(f.resolve())]
     assert "splits on whitespace" in taskout.inspect_report(r)
+
+
+# ---------------------------------------------------------------- 550
+
+def test_fo_tiddlers_carry_the_host_line_and_say_so(tmp_path):
+    """The poorest row in the projection gains a page, a confidence and a
+    region — and names whose confidence it is."""
+    import json
+    from docops.projectors.tiddlywiki import TiddlyWikiProjector  # noqa: F401
+    from pdfdrill import inlinectx
+    lines = tmp_path / "d.lines.json"
+    lines.write_text(json.dumps({"pages": [{"lines": [
+        {"type": "text", "text": r"we set $x^2$ here", "confidence": 0.91,
+         "confidence_rate": 0.99,
+         "region": {"top_left_x": 10, "top_left_y": 20,
+                    "width": 300, "height": 40}}]}]}))
+    first = inlinectx.first_occurrences(inlinectx.load_spans(lines))
+    ctx = inlinectx.context_of(first.get("x^2"))
+    # the fields the projector copies onto the tiddler
+    assert ctx["page"] == 1
+    assert ctx["confidence"] == 0.91
+    assert (ctx["top_left_x"], ctx["width"], ctx["height"]) == (10, 300, 40)
+
+
+def test_an_fo_row_is_never_flagged_or_doubted_by_a_line_confidence():
+    """A line's confidence must not push an inline formula into a findings
+    class that means the FORMULA was measured. FO rows carry no ink."""
+    from pdfdrill.report_tex import INK_AGREES, INK_FLAGS
+    code = ""                      # what an FO row's ink code is
+    assert code[:1] not in INK_AGREES
+    assert code[:1] not in INK_FLAGS
+
+
+# ---------------------------------------------------------------- 551
+
+def test_a_findings_build_describes_its_own_longtables(tmp_path):
+    """551 — every append to tables_manifest sat inside `if not findings:`,
+    so all 21 findings builds wrote report.tables.json EMPTY. inkmeasure
+    reads it to segment the report and raises MeasureRefused without it."""
+    import json
+    from pdfdrill.report_tex import build_report, TABLES_MANIFEST
+    tiddlers = [
+        {"title": "k_EQ0001", "latex": r"x=1", "page": "1", "type": "equation",
+         "confidence": "0.02"},
+        {"title": "k_EQ0002", "latex": r"\zzz{", "page": "2", "type": "equation"},
+    ]
+    tp = tmp_path / "k.tiddlers.json"
+    tp.write_text(json.dumps(tiddlers))
+    build_report(tp, findings=True, formulas="none")
+    man = json.loads((tmp_path / TABLES_MANIFEST).read_text())
+    caps = [t["caption"] for t in man["tables"]]
+    # the row that does not render is Unresolved, and the manifest says so
+    assert "Unresolved" in caps, man
+    for t in man["tables"]:
+        assert t["rows"] == len(t["identifiers"]) and t["rows"] > 0

@@ -3109,6 +3109,33 @@ def build_report(tiddlers_path: Path, out: Path | None = None,
         # equations" for a report that shows 52 rows.
         counts = {k: len(v) for k, v in _found.items()}
         counts["flagged_shown"] = len(flagged_split(_found["flagged"])[0])
+        # 551 — THE FINDINGS BUILD MUST DESCRIBE ITS OWN LONGTABLES.
+        #
+        # `report.tables.json` is not about the document's tables at all: it
+        # is the BOUNDARIES OF THE LONGTABLES IN THE REPORT (321), and
+        # `inkmeasure` reads it to segment the rasterised report into rows.
+        # `tables.json`, which holds up to 103 rows, is the keyless pdfplumber
+        # extraction of the DOCUMENT's tables — a different artefact with a
+        # confusingly similar name, and neither is built from the other.
+        #
+        # Every append to `tables_manifest` used to sit inside `if not
+        # findings:`, so all 21 findings builds wrote the manifest EMPTY over
+        # one that had described their sections. inkmeasure then raises
+        # MeasureRefused("report.tables.json names no ... table") — which is
+        # why a re-measurement of the published shape could not run.
+        _fw = eq_widths
+        _shown, _ = flagged_split(_found["flagged"])
+        for _cap, _ids in (
+                ("Corrected", [p_["identifier"] + " (was)"
+                               for p_ in _found["corrected"]]
+                            + [p_["identifier"] + " (now)"
+                               for p_ in _found["corrected"]]),
+                ("Unresolved", [r_["identifier"] for r_ in _found["unresolved"]]),
+                ("Flagged, not acted on", [r_["identifier"] for r_ in _shown]),
+                ("Doubted but correct", [r_["identifier"] for r_ in _found["doubted"]])):
+            if _ids:
+                tables_manifest.append(
+                    _table_record(_cap, _fw, legend_on, True, _ids))
     if not findings:
         out_parts.append(table_open("Display equations", eq_widths, form, legend_on))
         # 099: doubted rows first. Sorting by confidence ascending puts what

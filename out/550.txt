@@ -1,0 +1,54 @@
+550 — the FO projection carries the host line
+=============================================
+
+ONE BOUNDARY: `docops/projectors/tiddlywiki.py`, the Formula block.
+
+An inline formula had no page, no confidence, no region and therefore no
+crop. 527 measured the cost: 91.6% of the corpus's maths items are inline,
+so the richest signal in a document described the smallest part of it.
+
+The page is the OBJECT's — the model carries it on every Formula. The
+confidence and the region belong to the LINE the formula was printed in,
+and `meta.source_path` in the model IS that lines.json, so the projector
+can reach it without being handed anything new.
+
+The join is 535's: EXACT VALUE on the FIRST occurrence in document order.
+Not containment — `P` matched a line about "the past" — and not a
+positional walk, because the model holds one Formula per DISTINCT VALUE
+and the two sequences are not parallel (1,008 spans against 369 objects).
+
+MEASURED ON 2010.14265
+-----------------------
+  FO tiddlers          before          after
+  with a page               0            369  of 369
+  with a confidence         0            368
+  with a region             0            368
+
+  FO0002  latex P · page 1 · confidence 1 · confidence_of host_line ·
+          line_type text · top_left_x 187 · width 819 · height 41
+
+The one miss is `\square`, a QED symbol MathPix emits as its own line with
+no delimiters — absent, never defaulted.
+
+`confidence_of: host_line` IS PART OF THE FIX
+----------------------------------------------
+A line's confidence is not a formula's, and a field that did not say so
+would be worse than the empty field it replaced. 147: two instruments in
+adjacent cells must each be named. `line_type` rides along for the same
+reason — a confidence inherited from a `page_info` line is worth less than
+one inherited from `text`.
+
+A test holds the other half: an FO row carries no ink code, so `""` is in
+neither INK_AGREES nor INK_FLAGS and a host-line confidence can never push
+an inline formula into Flagged or Doubted, which would claim the FORMULA
+had been measured.
+
+Doing it at the projection means report.pdf, B, formula-report.html and
+every other consumer get it at once instead of each re-deriving it.
+
+Tests: 2,931 passing.
+
+NOT DONE
+--------
+The other 20 documents are not re-projected. `tiddlers` must be re-run for
+each before their FO rows carry anything — that is part of 540's sweep.
