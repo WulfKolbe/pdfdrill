@@ -4527,7 +4527,7 @@ def cmd_model(pdf: Path, force: bool = False, bibkey: str | None = None,
     if lines_path.exists() and model_path.exists() and not stale:
         stale = _source_model_trap(sc, lines_path)
     if sc.has(MODEL_BUILT) and model_path.exists() and not force and not stale:
-        return _format_model(sc)
+        return _format_model(sc, built=False)      # 576 — say it was a no-op
 
     # A lines.json from a WEAKER source must not shadow a better one forever. The
     # whole acquisition chain below is gated on "no lines.json yet", so a doc that
@@ -4810,7 +4810,50 @@ def _overlay_appendix_from_source(sc: "Sidecar", model_path: Path) -> int:
     return n
 
 
-def _format_model(sc: Sidecar) -> str:
+def _counts_from_model(model_path: Path):
+    r"""(total, "N Type, …") read from the MODEL, not the sidecar.
+
+    576. `model_object_counts` is written when the model is BUILT and is not
+    revised by the enrichment passes that add objects afterwards. Measured over
+    the 21 published documents, 7 sidecars disagree with their model — the same
+    7 that carry enrichments — by 2 to 640 objects (mielke-geometrodynamics:
+    5257 recorded, 5897 present, 635 of the difference being Citation).
+
+    The cache-hit sentence names the sha it read from the model, so it must
+    count the same file or it is quoting two generations in one line — 575's
+    defect at the scale of a single sentence. The model is already being opened
+    there for the stamp, so this costs no extra read.
+    """
+    import collections
+    try:
+        obj = json.loads(Path(model_path).read_text(encoding="utf-8")).get("objects") or {}
+    except Exception:
+        return None
+    objs = list(obj.values()) if isinstance(obj, dict) else obj
+    by = collections.Counter(o.get("type") for o in objs)
+    top = ", ".join(f"{n} {t}" for t, n in sorted(by.items(), key=lambda kv: -kv[1])
+                    if t in ("Equation", "Formula", "Paragraph", "Section",
+                             "Table", "Picture"))
+    return len(objs), top
+
+
+def _format_model(sc: Sidecar, built: bool = True) -> str:
+    r"""The summary line for `model`. `built=False` means NOTHING WAS REBUILT.
+
+    576, and 160 found it first. Every caller of this function used to open
+    with "Built unified model: N objects", including the branch that returns
+    early because a current model already exists. A cache hit and a real build
+    were then indistinguishable by text and by exit code, and both cost a run:
+    160 read the line as evidence of a rebuild and concluded a value was
+    unrecoverable, and 575's sweep "rebuilt" fourteen documents that were never
+    touched. It was written down in docs/handover/04-lessons.md and stayed
+    unfixed for both.
+
+    So the two cases now say different things, and the cache-hit sentence
+    carries 575's build stamp — the sha of the code that actually produced the
+    model you are being handed, which is the fact the caller wanted when they
+    asked for a build.
+    """
     counts = sc.get_evidence("model_object_counts", {}) or {}
     eq_cdn = sc.get_evidence("model_equations_with_cdn", 0)
     source = sc.get_evidence("model_source", "mathpix")
@@ -4844,10 +4887,29 @@ def _format_model(sc: Sidecar) -> str:
     lane = str(sc.get_evidence("lane_policy") or "")
     if lane:
         pua_note = "\nLANE: " + lane + pua_note
+    if built:
+        head = f"Built unified model: {total} objects ({top}). "
+        where = f"Stored at {sc.get_evidence('model_path')}."
+    else:
+        from . import buildstamp
+        _mp = _model_path(sc)
+        _c = _counts_from_model(_mp)
+        if _c:                       # the file the sha is read from, not the sidecar
+            total, top = _c
+        _st = buildstamp.read_stamp(_mp)
+        if _st and _st.get("sha"):
+            _at = "at %s%s" % (buildstamp.short(_st["sha"]),
+                               "-dirty" if _st.get("dirty") else "")
+        else:
+            _at = "(no build stamp: this model predates 575)"
+        head = (f"Already current {_at}: {total} objects ({top}). "
+                f"NOTHING WAS REBUILT. ")
+        where = (f"Model at {sc.get_evidence('model_path')}. "
+                 f"`--force` rebuilds it from lines.json.")
     return (
-        f"Built unified model: {total} objects ({top}). "
+        f"{head}"
         f"{img_line}"
-        f"bibkey={key!r}. Stored at {sc.get_evidence('model_path')}."
+        f"bibkey={key!r}. {where}"
         f"{upgrade_note}{pua_note}\n"
         f"{nxt}"
         + _bibkey_hint(key)

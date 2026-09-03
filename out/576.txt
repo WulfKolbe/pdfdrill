@@ -1,0 +1,136 @@
+576 - a cache hit says so, and it was written down twice before it was fixed
+
+BEFORE
+  Built unified model: 633 objects (386 Formula, ...). Stored at model.docmodel.json.
+AFTER, on a cache hit
+  Already current at 634408f: 633 objects (386 Formula, ...). NOTHING WAS
+  REBUILT. ... Model at model.docmodel.json. `--force` rebuilds it from lines.json.
+AFTER, on a model built before 575 and so carrying no stamp
+  Already current (no build stamp: this model predates 575): 5897 objects ...
+
+A real build is unchanged and still opens 'Built unified model:'.
+
+A. WHICH TESTS AND READERS DEPEND ON THE TEXT
+
+The full set. Nothing parses this prose programmatically; the numbers other
+code needs come from the sidecar directly (`model_object_counts` is read at
+commands.py:5277 and :8409), never from the sentence.
+
+  tests/test_visionocr.py:176        asserts 'Built unified model' in out.
+                                     A fresh temp dir with no prior model, so
+                                     it is a REAL build. Unaffected, and it
+                                     now also pins that the real form kept
+                                     its wording.
+  tests/test_inspect_requires_geometry.py:127
+                                     a stub handler that RETURNS that string
+                                     to planner.ensure. It never calls
+                                     _format_model. Unaffected.
+  data/1906.02691.pdf.harness.json:239
+                                     a recorded harness log, not a reader.
+  docs/handover/04-lessons.md:17     prose: 'pdfdrill model printing "Built
+                                     unified model" on a no-op'. This is the
+                                     defect itself, already written down.
+
+Three call sites of _format_model, and only one is a cache hit:
+
+  commands.py:4384   arXiv LaTeX-source build   REAL   -> unchanged
+  commands.py:4530   the early return           NO-OP  -> built=False
+  commands.py:4787   the main mathpix build     REAL   -> unchanged
+
+So the blast radius is one branch and zero readers. Holding it back in 575
+for a survey was right, and the survey came back clean.
+
+B. IT WAS FOUND IN 160 AND WRITTEN DOWN, AND THAT DID NOT FIX IT
+
+out/160.txt, on 1206.0238:
+
+    'A plain re-run does not recover them. It prints "Built unified model:
+     238 objects" and changes nothing - the rebuild guard declines, and the
+     summary line it prints is indistinguishable from the summary of a real
+     build. I read that line as evidence of a rebuild and concluded the
+     value was unrecoverable.'
+
+It reached docs/handover/04-lessons.md as a bullet and stopped there. 575
+then lost a fourteen-document sweep to the identical line. A lesson recorded
+in prose is not a guard; the only reason 575 caught it at all is that the
+build stamp added in that same task made the no-op measurable.
+
+C. A SECOND DEFECT INSIDE THE NEW SENTENCE, FOUND AND FIXED
+
+The new line names a sha read from the model file. The object count beside
+it came from the SIDECAR, and the two can disagree: `model_object_counts` is
+written when the model is built and is never revised by the enrichment
+passes that add objects afterwards. Measured across the 21:
+
+  0707.4470                        sidecar 446    model 472    +21 Reference, +5 Citation
+  0902.0431                        sidecar 6333   model 6344   +11 Table
+  1510.06699                       sidecar 2194   model 2196   +1 Table, +1 MathTail
+  johnston-linear-matrix-algebra   sidecar 14538  model 14546  +5 Citation, +3 Reference
+  lyche-numerical-linear-algebra   sidecar 8976   model 9102   +104 Citation, +22 Reference
+  mielke-geometrodynamics          sidecar 5257   model 5897   +635 Citation, +5 Reference
+  voloshin-hypergraph              sidecar 4957   model 5039   +74 Citation, +8 Reference
+
+7 of 21, and they are exactly the seven that carry enrichments. A sentence
+quoting a sha from one file and a count from another is 575's defect at the
+scale of one line, so the cache-hit path now counts the model it has just
+opened for the stamp - no extra read. mielke reports 5897, not 5257. The
+real-build path still uses the sidecar, which was written from that build
+and is correct there.
+
+Measured cost: 0.786s for the whole command on kohlhase-omdoc, a 48 MB
+model, the largest in the set. A corrupt or unreadable model falls back to
+the sidecar rather than breaking the summary; that is tested.
+
+D. TESTS ADDED (8, tests/test_model_cache_hit_says_so.py)
+
+  a real build still says 'Built unified model'
+  a cache hit says 'Already current at <sha>' and never 'Built'
+  a dirty stamp is named in the cache hit (aaaaaaa-dirty)
+  an unstamped model says so rather than printing a sha named 'unstamped'
+  the two forms are not string-equal
+  cmd_model's early return passes built=False  <- the defect was the CALL,
+                                                  not the formatting
+  the cache hit counts the model, not the stale sidecar
+  a corrupt model falls back to the sidecar instead of crashing
+
+2954 tests pass.
+
+E. A PAID MATHPIX CALL I MADE WITHOUT BEING ASKED
+
+Timing the cache hit on the largest document, I wrote the path as
+  "$D"/*.pdf
+That glob matched B.pdf - the three-column report artefact sitting in the
+same folder - not the source PDF. `model` found no lines.json for B.pdf,
+auto-chained `mathpix`, and OCR'd our own report: 64 pages uploaded,
+PDF ID 7a424f10-c023-4eb9-8f2c-b8dd1f52d670.
+
+The standing rule is that paid steps never run unasked. I broke it, and the
+call is spent - it cannot be undone.
+
+This is the SAME glob mistake from earlier in this session, when "$D"/*.pdf
+picked B.pdf and drilled B's own output. That time it cost nothing because
+the route was keyless, and the lesson I recorded was about the wrong thing:
+I noted the odd row counts, not that a bare *.pdf in a document folder can
+match an artefact and can reach a paid route.
+
+What it wrote, and where it is now. Five paths were created at 19:34 in the
+kohlhase-omdoc folder. None were deleted; all five were MOVED to
+  /tmp/claude-1000/-home-wkolbe-MX-PDFDRILL/ae99387a-8fcf-4b96-b9d9-5dc00cc6f8da/scratchpad/576-quarantine/
+
+  B.lines.json      13,977,854 bytes   MathPix's OCR of our own report
+  B.md                 231,085
+  B.tex.zip          1,612,960
+  B.pdf.drill/                         a model built from that OCR
+  B.pdf.drill.json       2,993         its sidecar
+
+Moved rather than deleted: a stray lines.json in a document folder is a
+hazard - it is exactly the shape a later glob picks up - but deleting the
+evidence of my own error is not mine to decide.
+
+The document's own model.docmodel.json (18:51:43, 634408f) was not touched,
+and B.pdf / B.log / B.tex (09:35, the legitimate report artefacts) are
+unchanged. The library's git status shows only the two sidecars that were
+already modified before this task.
+
+---
+Evidence: /home/wkolbe/pdfdrill-library/out/576/  (INSPECT.txt lists four paths)
