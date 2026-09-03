@@ -48,15 +48,23 @@ def test_no_local_function_in_cmd_inkreport_is_used_before_it_is_defined():
     assert not bad, "used before defined: %s" % (bad,)
 
 
-def test_bail_restores_the_stashed_ink_before_rebuilding():
-    """578 — step 2 stashes report.ink.json and un-stashes it in a `finally`.
-    `_bail` is called from inside that `try`, and a `return`'s expression is
-    evaluated BEFORE the `finally` runs, so the restore build saw no ink and
-    stamped ink_adopted=False. The reading build it restored was not the
-    reading build."""
+def test_step_2_does_not_hide_the_ink_from_its_own_build():
+    """579 — step 2 no longer stashes report.ink.json. While it did, phase 1
+    could not select `flagged` or `doubted` (they are chosen BY the ink code),
+    so the measure build was a different document from the published one, and
+    `_bail` — called from inside the stashing `try`, whose `finally` runs
+    AFTER a return is evaluated — rebuilt with the file still hidden."""
+    src = inspect.getsource(C.cmd_inkreport)
+    assert "held.replace(stash)" not in src, (
+        "step 2 still hides the ink from the measure build")
+    assert "ink_bullets=False" in src, (
+        "the measure build must read the ink and withhold only the bullet")
+
+
+def test_bail_still_recovers_a_hold_left_by_an_older_run():
+    """An interrupted pre-579 run can have left the file stashed; an upgrade
+    must not strand it."""
     src = inspect.getsource(C.cmd_inkreport)
     i = src.index("def _bail(lines):")
     j = src.index("cmd_reporttex(", i)
-    head = src[i:j]
-    assert "inkreport-hold" in head, (
-        "_bail rebuilds without restoring the stashed report.ink.json first")
+    assert "inkreport-hold" in src[i:j]

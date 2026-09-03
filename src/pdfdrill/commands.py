@@ -2329,15 +2329,13 @@ def cmd_inkreport(pdf: Path, preflight_only: bool = False,
         #
         # The measure build is scaffolding; the reading build is the artefact.
         def _bail(lines):
-            # 578 — UN-STASH FIRST. Step 2 hides report.ink.json so the measure
-            # build cannot adopt it, and restores it in a `finally`. `_bail` is
-            # called from inside that `try`, and a `return` evaluates its
-            # expression BEFORE the `finally` runs — so the restore build here
-            # ran with the ink still hidden and produced a reading build with
-            # ink_adopted=False. On BradleyGastaldiTerilla2023 that replaced a
-            # 2-page report carrying ink with a 1-page one carrying none: the
-            # handler written to stop a failed run making things worse was
-            # making them worse.
+            # 578/579 — nothing to un-stash any more: step 2 no longer hides
+            # report.ink.json. While it did, `_bail` rebuilt with the file
+            # still hidden (a `return` inside a `try` is evaluated BEFORE the
+            # `finally`), and the reading build it "restored" carried no ink —
+            # on Bradley a 1-page report replacing a 2-page one. A leftover
+            # hold from an older interrupted run is still recovered, so an
+            # upgrade cannot strand one.
             _h = doc / "report.ink.json"
             _s = doc / "report.ink.json.inkreport-hold"
             if _s.is_file() and not _h.is_file():
@@ -2356,43 +2354,50 @@ def cmd_inkreport(pdf: Path, preflight_only: bool = False,
                     % _exc]
             return "\n".join(out + lines)
 
-        # 2 — the MEASURE build. No legend, no ink: the only combination that
-        # stamps phase=measure (report_tex.py:1516).
-        held = doc / "report.ink.json"
-        stash = doc / "report.ink.json.inkreport-hold"
-        if held.is_file():
-            held.replace(stash)
+        # 2 — the MEASURE build. Legend off, BULLETS off — and the ink read,
+        # which is new in 579.
+        #
+        # This step used to hide report.ink.json at the filesystem level for
+        # the duration of the build, because the phase was derived from
+        # whether the ink had been ADOPTED. That made the measure build a
+        # different document from the one anybody reads: `flagged` and
+        # `doubted` are selected BY the ink code (findings_rows), so phase 1
+        # could only ever contain `corrected` and `unresolved`. Across the 21
+        # published documents phase 1 differed from phase 2 on every single
+        # one, and on 8 it was empty, so step 2b refused them — a measurement
+        # of a report nobody opens, or no measurement at all.
+        #
+        # Now the ink is read in both phases and only the BULLET is withheld,
+        # so the two builds have the same four sections, the same \ident
+        # order and the same report.tables.json. That identity is exactly what
+        # `measured_against` has been asserting since 237.
+        # the SAME formula rule as step 5. A measure build with a
+        # different section set is a different document: step 3 measures
+        # THIS pdf's pages, and step 4 joins the result back onto the
+        # reading build by row. Setting the rule on one build only would
+        # produce a measurement of pages that no longer exist.
+        # 557 — BOTH PHASES BUILD THE SAME SHAPE, and this is the
+        # defect 539 measured across all 21: the measure build was the
+        # full listing while the published build was the findings shape,
+        # so the ink described a 276-page report and the reader opened a
+        # 19-page one. Phase 1 and phase 2 may differ only by the legend.
+        cmd_reporttex(pdf, compile_pdf=True, legend=False, formulas=rule,
+                      findings=findings, pages=pages, ink_bullets=False)
+        # 2b — 557. NOW the manifest describes the report that exists, so
+        # this is where an unmeasurable one is refused. Before the build
+        # the same question could only be asked of the previous record.
+        from . import inkmeasure as _im
         try:
-            # the SAME formula rule as step 5. A measure build with a
-            # different section set is a different document: step 3 measures
-            # THIS pdf's pages, and step 4 joins the result back onto the
-            # reading build by row. Setting the rule on one build only would
-            # produce a measurement of pages that no longer exist.
-            # 557 — BOTH PHASES BUILD THE SAME SHAPE, and this is the
-            # defect 539 measured across all 21: the measure build was the
-            # full listing while the published build was the findings shape,
-            # so the ink described a 276-page report and the reader opened a
-            # 19-page one. Phase 1 and phase 2 may differ only by the legend.
-            cmd_reporttex(pdf, compile_pdf=True, legend=False, formulas=rule,
-                          findings=findings, pages=pages)
-            # 2b — 557. NOW the manifest describes the report that exists, so
-            # this is where an unmeasurable one is refused. Before the build
-            # the same question could only be asked of the previous record.
-            from . import inkmeasure as _im
-            try:
-                _t = _im.equations_table(doc)
-                if not int(_t.get("rows") or 0):
-                    return _bail([
-                        "", "REFUSED after the measure build: %s names a table "
-                        "with no rows. There is nothing to measure — this "
-                        "document's sections are empty." % _im.Path(doc).name])
-            except Exception as _e:
+            _t = _im.equations_table(doc)
+            if not int(_t.get("rows") or 0):
                 return _bail([
-                    "", "REFUSED after the measure build: %s: %s"
-                    % (type(_e).__name__, str(_e)[:200])])
-        finally:
-            if stash.is_file() and not held.is_file():
-                stash.replace(held)
+                    "", "REFUSED after the measure build: %s names a table "
+                    "with no rows. There is nothing to measure — this "
+                    "document's sections are empty." % _im.Path(doc).name])
+        except Exception as _e:
+            return _bail([
+                "", "REFUSED after the measure build: %s: %s"
+                % (type(_e).__name__, str(_e)[:200])])
         stamp = doc / "report.build.json"
         got = {}
         if stamp.is_file():
@@ -15052,7 +15057,8 @@ def cmd_reporttex(pdf: Path, paper: str = "a3", landscape: bool = True,
                   formulas: str = "unresolved",
                   findings: bool = False,
                   pages: "int | None" = None,
-                  render_regions: bool = False) -> str:
+                  render_regions: bool = False,
+                  ink_bullets: bool = True) -> str:
     """LaTeX formula report (report.tex): every EQ/FO/TAB identifier with
     page, escaped source, rendered math, and the MathPix scan crop at its
     exact original physical size; the tex.zip's unrecovered image regions
@@ -15237,7 +15243,8 @@ def cmd_reporttex(pdf: Path, paper: str = "a3", landscape: bool = True,
                         formulas=formulas,
                         findings=findings,
                         pages=(rt.PAGES_DEFAULT if pages is None else pages),
-                        render_regions=render_regions)
+                        render_regions=render_regions,
+                        bullets=ink_bullets)
     # 460 — the formulas rule, stated where the build is reported. A section
     # that shrank from 4,061 rows to 1 has to say so; a reader who sees only
     # the short table will otherwise read it as a short document.
@@ -15361,6 +15368,7 @@ def cmd_reporttex(pdf: Path, paper: str = "a3", landscape: bool = True,
             stamp = rt.write_build_stamp(
                 Path(r["out"]).with_suffix(".pdf"),
                 legend=legend, ink_adopted=bool(ink_map),
+                bullets=bool(ink_map) and ink_bullets,
                 prefer_refined=prefer_refined,
                 filters={"min_conf": min_conf, "max_conf": max_conf,
                          "types": types},

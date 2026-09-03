@@ -1,0 +1,184 @@
+579 - REPORT BEFORE THE BUILD
+
+WHAT STEP 2 CURRENTLY STASHES
+
+  commands.py, cmd_inkreport, step 2:
+
+      held  = doc / "report.ink.json"
+      stash = doc / "report.ink.json.inkreport-hold"
+      if held.is_file():
+          held.replace(stash)
+
+  It hides the whole ink file at the FILESYSTEM level for the duration of the
+  measure build, and restores it in a `finally`. Nothing else is stashed.
+
+  This is a blunt instrument for a narrow purpose: the only thing it is
+  trying to prevent is the measure build STAMPING itself phase=reading.
+
+THE FOUR FUNCTIONS THAT DECIDE
+
+  1. ADOPTION - commands.py, cmd_reporttex
+        ink_path = default_ink  if report.ink.json is present
+        ink_map  = rt.load_ink(ink_path) if ink_path else None
+     With the file stashed, ink_path is None and ink_map is None. This is the
+     only consumer of the stash.
+
+  2. ROW SELECTION - report_tex.findings_rows(tiddlers, bibkey, doc_dir,
+                                              ink=..., refined=...)
+        code = ink.get(title, {}).get("code", "")
+        ... doubted  if conf < DOUBTED_MAX_CONF and code[:1] in INK_AGREES
+        ... flagged  if code[:1] in INK_FLAGS
+     `corrected` comes from corrected_pairs(doc_dir) and `unresolved` from
+     renderable(latex) plus _contradicted_identifiers(doc_dir). Neither reads
+     the ink. So with ink={} exactly two of the four sections can be
+     populated, and two are empty BY CONSTRUCTION.
+
+  3. BULLET EMISSION - report_tex.findings_tex, its inner row()
+        bullet = "" ; if code: bullet = "~\inkbullet{...}{code}"
+     `code` is passed only for the flagged and doubted sections
+     (report_tex.py:2823). Corrected and unresolved rows call row() without
+     it and never carry a bullet, in either phase.
+
+  4. THE PHASE - report_tex.write_build_stamp
+        "phase": ("measure" if (not legend and not ink_adopted) else "reading")
+     where ink_adopted=bool(ink_map) is handed in by cmd_reporttex.
+
+  So the phase is currently defined by WHETHER THE INK WAS READ, and the row
+  set is a side effect of the same fact. That is the whole defect: one flag
+  is carrying two meanings, and the measurement is taken against the shape
+  produced by the wrong one.
+
+WHAT A PHASE-1 BUILD WOULD CONTAIN IF THE INK WERE READABLE FOR ROW
+SELECTION BUT NOT FOR BULLET EMISSION
+
+  Identical to phase 2 in every respect that a measurement touches:
+
+    - the same four sections, with the same captions and the same counts
+    - the same \ident{} identifiers in the same table order, which is what
+      inkconvert.identifiers() reads and what the TSV rows are paired against
+    - the same report.tables.json manifest, which is what inkmeasure reads to
+      segment the rasterised report into rows
+    - the same page geometry, modulo the legend
+
+  Differing only by:
+
+    - no \inkbullet macro on any row (~1 macro plus a short code string per
+      flagged/doubted row)
+    - no legend footer
+
+  That is what measured_against has been asserting all along: this ink was
+  measured against THAT report. It can only be true if the two builds have
+  the same rows.
+
+THE CHANGE
+
+  Separate "read the ink" from "show the ink".
+
+    - findings_tex(..., bullets=True); row() emits a bullet only when
+      `bullets and code`
+    - build_report(..., bullets=True) threads it
+    - cmd_reporttex(..., ink_bullets=True) threads it and hands it to the stamp
+    - write_build_stamp(..., bullets=None) records "bullets" and computes
+        phase = "measure" if (not legend and not bullets) else "reading"
+      falling back to ink_adopted when `bullets` is not supplied, so every
+      existing stamp and every existing caller keeps its meaning
+    - cmd_inkreport step 2 stops stashing the file and builds with
+      ink_bullets=False; step 5 and _bail build with bullets on
+
+  `ink_adopted` then keeps its plain meaning - the ink was read - and is true
+  in both phases. `phase` means what it says.
+
+==============================================================================
+
+WHAT WAS BUILT
+
+  report_tex.findings_tex(..., bullets=True)   row() emits \inkbullet only
+                                               when `bullets and code`
+  report_tex.build_report(..., bullets=True)   threads it
+  commands.cmd_reporttex(..., ink_bullets=True)threads it, and hands it
+                                               to the stamp
+  report_tex.write_build_stamp(..., bullets=None)
+        records "bullets" and computes
+            phase = measure if (not legend and not bullets) else reading
+        `bullets=None` falls back to ink_adopted, so every stamp written
+        before 579 and every caller that does not pass it keeps its phase.
+  commands.cmd_inkreport step 2  no longer stashes report.ink.json; builds
+        with ink_bullets=False. The try/finally that existed only to
+        restore the stash is gone. `_bail` still recovers a hold left by an
+        interrupted pre-579 run, so an upgrade cannot strand one.
+
+`ink_adopted` now means what it says — the ink was READ — and is true in
+both phases. `phase` is decided by the legend and the bullets.
+
+ROW-SET EQUALITY, MEASURED
+
+Both phases built for three documents, identifiers compared as
+inkconvert.identifiers() reads them — the order the TSV rows are paired in:
+
+  document                        idents p1/p2  equal  tables  bullets p1/p2
+  BradleyGastaldiTerilla2023        0 / 0        yes    0/0        0 / 0
+  2501.06662                        1 / 1        yes    1/1        0 / 1
+  0902.0431                        33 / 33       yes    3/3        0 / 29
+
+The \hline count differs (0902.0431: 69 against 75) and should: that is the
+legend footer, which is the other half of the phase difference.
+
+BRADLEYGASTALDITERILLA2023
+
+  phase 1 rows   0 corrected / 0 unresolved / 0 flagged shown / 0 doubted
+  phase 2 rows   0 corrected / 0 unresolved / 0 flagged shown / 0 doubted
+  equal          yes
+  step 2b        STILL REFUSES — but for a different reason
+
+Before 579 it refused because phase 1 could not SEE Bradley's rows. Now it
+sees them and there is still no table: all 3 of Bradley's flagged rows fall
+below FLAG_SHOW_DELTA, so 515 bands them into a stated count rather than a
+longtable, and a count has no rows to rasterise. The measure build is now 2
+pages where it was 1, phase=measure, ink_adopted=true, bullets=false.
+
+That is correct behaviour, not a defect: there is genuinely nothing to
+measure in a report whose every row is a number in a sentence.
+
+ALL 21 — the same three numbers
+
+Phase 1 and phase 2 select from the same ink, so their row sets are equal
+for every document by construction. What still varies is whether any
+longtable is emitted at all.
+
+document                             ink  C/U/Fshown/D         flag   band  step 2b
+0707.4470                              1  1/0/0/0                 0      0  runs
+0902.0431                             55  10/4/29/0              45     16  runs
+1510.06699                           279  0/0/1/1                68     67  runs
+1605.05775                            26  0/0/0/0                 2      2  REFUSES
+2010.14265                            16  0/0/0/0                 1      1  REFUSES
+2106.07890                            51  0/0/0/0                14     14  REFUSES
+2501.06662                            60  0/0/1/0                14     13  runs
+BradleyGastaldiTerilla2023             8  0/0/0/0                 3      3  REFUSES
+bradley_spring22                      16  0/0/0/0                 3      3  REFUSES
+cardona-qft-methods                 1012  0/1/1/0               110    109  runs
+fong-spivak-invitation               262  0/2/7/0                81     74  runs
+fong-spivak-seven-sketches           264  0/1/3/3                78     75  runs
+gilmore-lie-groups                  1037  0/10/5/1              350    345  runs
+johnston-linear-matrix-algebra      1670  8/7/37/0              543    506  runs
+kohlhase-omdoc                         6  0/4/0/0                 1      1  runs
+lyche-numerical-linear-algebra      1056  8/5/1/0               239    238  runs
+mielke-geometrodynamics             1149  3/2/0/0               207    207  runs
+pdf-dc99cf88                        no library folder
+penev_A                              116  0/1/0/0                33     33  runs
+penev_B                               62  0/0/0/0                24     24  REFUSES
+rph8-g15q                             81  0/1/0/0                11     11  runs
+voloshin-hypergraph                  266  3/0/0/0                24     24  runs
+
+  step 2b runs on 15, refuses on 6.
+  refuses: 1605.05775, 2010.14265, 2106.07890, BradleyGastaldiTerilla2023, bradley_spring22, penev_B
+
+Before 579: 8 refusals, every one of them because phase 1 was empty while
+the published report had rows. After 579: 6, every one of them because
+every row the document has is banded into a count. 1510.06699 and
+2501.06662 moved from refused to measurable — they each have one row above
+the band that phase 1 previously could not see.
+
+2971 tests pass; 12 added for this change.
+
+---
+Evidence: /home/wkolbe/pdfdrill-library/out/579/  (INSPECT.txt)

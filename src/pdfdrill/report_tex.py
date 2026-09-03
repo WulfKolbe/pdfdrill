@@ -2259,7 +2259,8 @@ def write_build_stamp(pdf_out: Path, *, legend: bool, ink_adopted: bool,
                       glyphs_dropped_count: int = 0,
                       formula_rule: str = "",
                       findings: bool | None = None,
-                      pages_bound: "int | None" = None) -> dict:
+                      pages_bound: "int | None" = None,
+                      bullets: "bool | None" = None) -> dict:
     """Write BUILD_STAMP beside the report and return it.
 
     `phase` is the field a reader acts on. A build with no legend and no ink is
@@ -2274,7 +2275,18 @@ def write_build_stamp(pdf_out: Path, *, legend: bool, ink_adopted: bool,
         "prefer_refined": bool(prefer_refined),
         "filters": {k: v for k, v in (filters or {}).items() if v is not None},
         "glyphs_dropped": int(glyphs_dropped_count),
-        "phase": ("measure" if (not legend and not ink_adopted) else "reading"),
+        # 579 — THE PHASE IS LEGEND + BULLETS, NOT LEGEND + ADOPTION.
+        # `ink_adopted` means the ink was READ, and phase 1 now reads it too:
+        # it selects the same four sections from it and simply prints no
+        # bullets. Deriving the phase from adoption made one flag carry two
+        # meanings, and the measurement was taken against the shape produced
+        # by the wrong one. `bullets=None` falls back to the old rule so every
+        # stamp written before this and every other caller keeps its meaning.
+        "bullets": (bool(ink_adopted) if bullets is None else bool(bullets)),
+        "phase": ("measure"
+                  if (not legend and not (bool(ink_adopted) if bullets is None
+                                          else bool(bullets)))
+                  else "reading"),
         # 469 — which formula rule built this. 456 had to infer a report's
         # shape by parsing its own .tex; a field is cheaper and does not lie.
         "formula_rule": formula_rule or "",
@@ -2737,7 +2749,7 @@ def _contradicted_identifiers(doc_dir) -> dict:
 
 def findings_tex(found: dict, widths, crops=None, out_dir=None,
                  px2mm=None, bibkey="", history=None, form=False,
-                 legend_on=True) -> str:
+                 legend_on=True, bullets: bool = True) -> str:
     r"""The four findings sections as LaTeX. Empty sections are not emitted.
 
     513. A pair is TWO ROWS sharing ONE SCAN: the failed reading above, the
@@ -2772,8 +2784,13 @@ def findings_tex(found: dict, widths, crops=None, out_dir=None,
         # EXISTS BECAUSE OF THE INK did not print it. A flagged row that does
         # not say what flagged it is asking the reader to trust a selection
         # they cannot see (147).
+        # 579 — READ THE INK, SHOW IT ONLY IN PHASE 2. The bullet is the
+        # ONLY thing the reading build adds to a row; the row itself was
+        # selected by the same ink in both phases. Separating the two is what
+        # lets the measure build carry every row without stamping itself
+        # phase=reading.
         bullet = ""
-        if code:
+        if code and bullets:
             bullet = ("~\\inkbullet{%s}\\,{\\scriptsize %s}"
                       % (_INK_COLOUR_BY_CODE.get(code[:1], "inkUnmeasured"),
                          esc_text(code)))
@@ -2992,7 +3009,8 @@ def build_report(tiddlers_path: Path, out: Path | None = None,
                  render_regions: bool = False,
                  findings: bool = False,
                  pages: "int | None" = None,
-                 formulas: str = "unresolved") -> dict:
+                 formulas: str = "unresolved",
+                 bullets: bool = True) -> dict:
     """Generate report.tex; returns counts {equations, formulas, tables,
     unrecovered, out}.
 
@@ -3130,7 +3148,7 @@ def build_report(tiddlers_path: Path, out: Path | None = None,
         out_parts.append(findings_tex(
             _found, eq_widths, crops=crops, out_dir=out_dir, px2mm=px2mm,
             bibkey=bibkey, history=bibkey_history, form=form,
-            legend_on=legend_on))
+            legend_on=legend_on, bullets=bullets))
         # 516 — the four counts are the RESULT of a findings build; computing
         # them and dropping them left the caller reporting "1670 display
         # equations" for a report that shows 52 rows.
