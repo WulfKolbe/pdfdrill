@@ -132,6 +132,34 @@ Geometrodynamics (Mielke) 6 · 1-s2.0-S039304401100026X 5 · 1205.5935v1 2.
 Ten of the 26 begin with TWO invented `\left.`. All 30 corner occurrences
 after `\right` are `\lrcorner`.
 
+## One unrelated question: the render is 250 dpi
+
+We measured this rather than asking blind, in case it has simply never come
+up. For every one of 21 documents we have both a `lines.json` and the source
+PDF for, `page_width`/`page_height` divided by the PDF's own page size in
+points comes to **250 dpi**, on both axes:
+
+| page size (pt) | lines.json (px) | implied dpi |
+|---|---|---|
+| 612.0 x 792.0 | 2125 x 2750 | 250.0 x 250.0 |
+| 595.3 x 792.0 | 2067 x 2750 | 250.0 x 250.0 |
+| 453.5 x 683.1 | 1575 x 2372 | 250.1 x 250.0 |
+| 411.4 x 619.9 | 1429 x 2153 | 250.1 x 250.1 |
+| 235.0 x 364.0 | 816 x 1264 | 250.0 x 250.0 |
+
+21 of 21, page sizes from 235 pt to 612 pt wide, every one between 250.0 and
+250.2. So it is a fixed rasterisation target, not a per-document choice.
+
+Is 250 dpi configurable, per request or per account? We are not asking you to
+change the default. We ask because the geometry we compare against is derived
+from it: our own rasteriser runs at 400 dpi and above, and every region we
+take from you is scaled by 72/250 into PDF points before it can be compared
+with anything. Knowing whether that constant is a constant — rather than
+something we have inferred from 21 documents that happen to agree — decides
+whether we can treat it as a contract or must keep re-deriving it per
+document. This is the kind of thing an admin can probably confirm in one
+line.
+
 ## What would help
 
 1. Confirm whether the decoder can emit `\right` before a symbol that the
