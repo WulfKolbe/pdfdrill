@@ -1,0 +1,79 @@
+616 — the listing delimiters, the silent package, and DIA_0008
+
+A. \( … \) INSIDE A LISTING BODY
+
+  CORPUS-WIDE, over 1,369 documents with a tiddlers file:
+
+      rows carrying an lstlisting                   464
+      ... of those, containing \(                   407   (87.7%)
+      ... of those, ALSO containing a $               1   <- the guard case
+
+  So it is the common case, not an oddity: MathPix emits the listing with
+  [mathescape=true] and then writes the inline maths as \(…\), which is not
+  what listings' mathescape reads — it reads $.
+
+  THE SUBSTITUTION IS NOT LITERAL, AND CANNOT BE. No report.tex emits the
+  lstlisting ENVIRONMENT — measured, 0 of them; `region_render` sets listing
+  bodies as escaped monospace, deliberately, because a verbatim environment
+  inside a longtable cell is fragile (the bh2_EQ0147 hang is why `renderable`
+  exists). Writing a `$` into an escaped cell would print a dollar sign, not
+  open maths. So `listing_cell` splits the \(…\) spans out and SETS them as
+  real inline maths, which is what the `$` would have meant.
+
+  THE GUARD, AND THE ONE ROW IT COSTS. A body already containing a `$` is
+  left entirely alone. In listings with mathescape the `$` is itself the
+  delimiter, so such a body is either already escaping or holds a literal
+  dollar, and substituting around it would leave the escape unbalanced. That
+  is exactly one row corpus-wide:
+
+      Geothermal heat pump and heat engine systems … (Chiasson)
+      …_DIA_0021    q_total = mdot_fluid * Cp(Brine\$,T=T_avg_fluid, …)
+
+  A span `renderable` refuses keeps its delimiters as text rather than being
+  dropped. Compiled standalone: five bodies including the guard case and a
+  refused span, 0 errors, and the maths sets — `Aₑ ← A⁰ₑ, Eₑ ← Eₑ^{1/2} // init`.
+
+B. THE SILENT PACKAGE
+
+  \IfFileExists{listings.sty}{\usepackage{listings}}{} had an EMPTY else
+  branch: a missing package produced a different report and said nothing.
+  The branch now raises a package warning in the log and defines a visible
+  marker.
+
+  AND THE THING WORTH KNOWING: the package is not used by any report. No
+  report.tex emits \begin{lstlisting} — 0 of them — because listing bodies go
+  through `listing_cell` as escaped monospace. So this branch has never once
+  changed an output, and making it unconditional would have loaded a package
+  nothing reads. It is left conditional and made loud.
+
+C. WHICH GATE DEMOTED 0707.4470_DIA_0008 — AND IT IS NOT renderable()
+
+  It is `region_render`'s final `return ""`, but the cause is upstream and the
+  LaTeX never reaches the gate at all.
+
+      the MODEL object obj_4e770506bb1e carries
+          latex_code = "\begin{lstlisting}[mathescape=true]
+                        // Initialize fields and priority queue
+                        for each spatial edge \(e\) do
+                        \(A_{e} \leftarrow A_{e}^{0}, …"
+
+      the TIDDLER for 0707.4470_DIA_0008 carries
+          latex      = "<$image source={{!!canonical_uri}} width={{!!width}}
+                        height={{!!height}}/>"
+
+  `rows_for` reads `t.get("latex") or t.get("latex_code")`, so `latex` wins —
+  and for a Diagram that field holds the TiddlyWiki <$image> WIDGET, not
+  LaTeX. `region_render` is therefore handed an image widget, finds no
+  environment, asks `renderable()` whether an <$image> tag is maths, and gets
+  "" — correctly.
+
+  So you are right that the refusal is ours and right that it compiles: the
+  listing in `latex_code` is sound. It is not renderable() again. The row is
+  demoted because the projection hands the wrong field to the renderer, and
+  A's substitution cannot help until that is fixed — a Diagram's LaTeX has to
+  come from `latex_code` when `latex` is a widget.
+
+  NOT FIXED HERE. Changing which field `rows_for` prefers changes every
+  Diagram row in every report, and 614 is mid-sweep over the 21.
+
+  2998 tests pass; 7 added.
