@@ -69,3 +69,65 @@ DEFECTS OF MINE, FOUND AND FIXED IN THIS TASK
 THE FULL LISTING STAYS. 0049 is left as the phase-1 build the manifest
 describes — not restored to the reading shape — so the manifest can be
 checked against the artefact it names.
+
+===============================================================================
+ADDENDUM — CELLCHECK RUN. It was not missing; I had looked in the wrong repo.
+
+tools/cellcheck.py is at /home/wkolbe/inkdrill/tools/cellcheck.py. I searched
+only inside PDFDRILL and concluded across three tasks (599, 605, 607) that it
+was unavailable. inkdrill's checkout has been on this machine the whole time.
+
+CELLCHECK'S FOUR SIGNED PER-EDGE DELTAS — 0049, all four pages, 300 dpi
+
+  page   cells    x0 med/min/max   y0 med/min/max   x1 med/min/max   y1 med/min/max
+     1      10      0.0 / 0 / 0      0.0 /  0 / 0     0.0 / 0 / 0      0.0 /  0 / 0
+     2     140      0.0 / 0 / 0      0.0 / -1 / 0     0.0 / 0 / 0      0.0 / -1 / 0
+     3      42      0.0 / 0 / 0      0.0 / -1 / 0     0.0 / 0 / 0      0.0 / -1 / 0
+     4       7      0.0 / 0 / 0      0.0 /  0 / 0     0.0 / 0 / 0      0.0 /  0 / 0
+
+  COMBINED, 199 cells:
+      x0   median  0.0   min  0   max 0   |d|<=1  100.0%
+      y0   median  0.0   min -1   max 0   |d|<=1  100.0%
+      x1   median  0.0   min  0   max 0   |d|<=1  100.0%
+      y1   median  0.0   min -1   max 0   |d|<=1  100.0%
+
+  Fraction within 1 px: 100% on every edge. The only non-zero deltas are a
+  single pixel on y0/y1 on pages 2 and 3.
+
+  Note what this compares: cellcheck takes the "emitted" side from the PDF's
+  own VECTOR content via tools/pdfrules.py, not from pdfdrill-rows.json. It
+  validates the rule geometry against inkdrill's raster lattice; it does not
+  read my manifest.
+
+AND THE CHECK CELLCHECK DOES NOT DO — my emitted values against those rules
+
+  Comparing rule_above_bp / rule_below_bp in pdfdrill-rows.json against the
+  horizontal rules pdfrules reads from the same PDF:
+
+      page   emitted   nearest rule   delta bp
+         1    693.05         692.85     +0.198
+         1    624.91         624.71     +0.203
+         2    753.88         753.68     +0.196
+         2    727.88         727.68     +0.200
+         2    714.23         714.03     +0.200
+         3    531.86         531.66     +0.201
+         3    413.58         413.38     +0.198
+         4    615.00         614.80     +0.201
+
+  A SYSTEMATIC +0.20 bp OFFSET, which is exactly half of rule_width_bp (0.4).
+  The savepos in \noalign lands on the rule's centreline; pdfrules reports its
+  edge. At 300 dpi that is 0.83 px, which is why cellcheck still reads 100%
+  within 1 px — but it is systematic, and cellcheck's own docstring says a
+  systematic offset is a spec bug and fixable rather than a detection
+  difference. Whether the manifest should carry the centreline (with
+  rule_width_bp to derive the edges, as now) or the edge directly is a spec
+  question for whoever owns the consumer; the number is stated so it is not
+  discovered later as noise.
+
+  Two samples are not in that table. Page 3's 693.33 reads -0.201 against its
+  nearest, the same magnitude with the sign flipped, because at that spacing
+  the nearest rule is on the other side. And 0049_DIA_0006's rule_above_bp of
+  87.08 compares against page 4 at -527.7 bp — an artefact of MY CHECK
+  SCRIPT attributing the above-rule to the row's content page. That row is
+  the page-straddling one the manifest already flags with
+  rules_on_one_page: false; the manifest is right and the check was crude.
