@@ -142,9 +142,18 @@ def convert(tsv: Path, tex: Path, *, stamp: dict | None = None) -> dict:
     from .report_tex import demoted_flags
     body, footers = read_tsv(tsv)
     tex_body = tex.read_text(encoding="utf-8", errors="replace")
-    ids = identifiers(tex_body)
     did_render = demoted_flags(tex_body)
     pages = {r.get("report_page") for r in footers}
+    # 614 — THE TSV CARRIES THE PAIRING when inkmeasure made it positionally.
+    # Re-deriving identifiers from report.tex was the only way before, and it
+    # cannot work now: a row that straddles a page break is measured by
+    # neither side, so the tex names more identifiers than the TSV has rows
+    # and zip() would pair every row with the wrong one.
+    from_tsv = [r.get("identifier") or "" for r in body]
+    if body and all(from_tsv):
+        ids = from_tsv
+    else:
+        ids = identifiers(tex_body)
     if len(body) != len(ids):
         raise ConversionRefused(
             "%d measured rows against %d identifiers — the pairing is unknown. "

@@ -2424,10 +2424,14 @@ def cmd_inkreport(pdf: Path, preflight_only: bool = False,
         # full listing while the published build was the findings shape,
         # so the ink described a 276-page report and the reader opened a
         # 19-page one. Phase 1 and phase 2 may differ only by the legend.
+        # 613 — cellrect=True: the measure build must emit pdfdrill-rows.json,
+        # because inkmeasure now claims each lattice row by the rectangle that
+        # contains it. Without the manifest every document refuses.
         cmd_reporttex(pdf, compile_pdf=True, legend=False,
                       formulas=MEASURE_FORMULA_RULE,
                       findings=MEASURE_FINDINGS,
-                      pages=MEASURE_PAGES_BOUND, ink_bullets=False)   # unbounded
+                      pages=MEASURE_PAGES_BOUND, ink_bullets=False,
+                      cellrect=True)                                  # unbounded
         # 2b — 557. NOW the manifest describes the report that exists, so
         # this is where an unmeasurable one is refused. Before the build
         # the same question could only be asked of the previous record.

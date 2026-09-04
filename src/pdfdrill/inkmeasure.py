@@ -35,9 +35,15 @@ from pathlib import Path
 from . import regionink as ri
 
 EQUATION_CAPTION = "Display equations"
+#: 614 — `identifier` is APPENDED, so every existing column keeps its index
+#: and an older reader is unaffected. It carries the pairing inkmeasure
+#: established positionally, so inkconvert does not have to guess it again
+#: from report.tex — which it cannot, now that a straddling row is measured
+#: by neither side and the two lists have different lengths.
 TSV_HEADER = ("report_page", "line", "dis", "A_eq_B",
               "L_comp", "L_holes", "L_stk", "L_cen", "L_off",
-              "R_comp", "R_holes", "R_stk", "R_cen", "R_off")
+              "R_comp", "R_holes", "R_stk", "R_cen", "R_off",
+              "identifier")
 
 
 class MeasureRefused(RuntimeError):
@@ -418,5 +424,5 @@ def to_tsv(rows: list) -> str:
         lines.append("\t".join(str(x) for x in (
             r["page"], r["line"], distance(r["L"], r["R"]),
             "YES" if r["a_eq_b"] else "NO",
-            *r["L"], *r["R"])))
+            *r["L"], *r["R"], r.get("identifier", ""))))
     return "\n".join(lines) + "\n"
