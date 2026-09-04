@@ -78,5 +78,12 @@ def test_measure_no_longer_selects_a_table_by_ordinal_or_width():
     code = "\n".join(l for l in src.splitlines() if not l.strip().startswith("#"))
     assert "table=1" not in code, "ordinal selection must be gone"
     assert "reportpages_json" not in code, "the run lattice must not select"
-    assert "identifier_pages" in src
+    # 613 — the TEXT-LAYER join this test was written for is itself
+    # superseded. 596 located each identifier by page and still reconciled by
+    # COUNTING rows on that page; 604 measured that no count correction can
+    # fix a mispairing, and the rect makes the claim positional. What must
+    # hold either way: no ordinal, no width, and every row carries the
+    # identifier it was paired with.
+    assert "rows_manifest" in code, "the rect manifest must be read"
+    assert "pair_rows" in code, "the claim must be positional"
     assert 'r["identifier"] = ident' in src, "rows must carry their identifier"

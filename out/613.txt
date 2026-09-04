@@ -1,0 +1,78 @@
+613 — the recipe landed, and the channel is closed
+
+THE THREE CHANGES
+
+  1. THE HEADER RULE. \noalign{\pdrulepos{hdr<table>p\thepage}} sits
+     immediately after the header's \hline, inside \endhead. Each repetition
+     defines its own label because \thepage expands at shipout. Read back per
+     page, and a table's first row on each page takes it as rule_above_bp in
+     place of the table's top rule.
+
+     The label carries the TABLE ORDINAL as well as the page. A bare
+     hdrule<page> would collide the moment two tables put a header on one
+     page, which 0049 does not do and a longer document will.
+
+  2. CENTRELINES, WITH THE SIGN DERIVED. Every \noalign savepos now sits
+     AFTER its \hline, so every one of them records the rule's LOWER edge and
+     one sign serves them all: + \arrayrulewidth/2. Getting there meant
+     MOVING the row marks — they used to be emitted before their \hline, on
+     the upper edge, which is why 612 needed a per-mark sign and left a
+     -0.399 outlier when one mark sat on the other side. The special case is
+     gone.
+
+  3. COLUMN RULES TOO — and these keep a derived sign, because they straddle
+     their rules rather than sitting on one side of them. A column mark
+     kerned by \tabcolsep lands on the rule's INNER edge, so the left rules
+     are half a rule high and the rightmost half a rule low. A constant
+     applied to all of them would be wrong for the last one in every table.
+
+THE THREE READINGS ON 0049
+
+  34 of 34 bounded, 0 compile errors.
+  0 violations of rule_above > rule_below among same-page rows.
+  Two first-row corrections, to the values inkdrill read from the PDF:
+      0049_EQ0001  p1  692.852 -> 680.498
+      0049_FO0001  p2  753.685 -> 741.331
+
+  RULEDIFF, 0.000 ON BOTH AXES
+      column rules   table 1: [-0.001 x5, +0.001]
+                     table 2: [-0.001 x5, +0.001]
+                     table 3: [-0.001, 0.0, -0.001, -0.001, -0.001, 0.0,
+                               -0.001, 0.0]
+      x (columns)    n 20   median -0.001   min -0.001   max +0.001
+      y (rows)       n 66   median +0.001   min  0.000   max +0.001
+      +/-0.001 is the rounding at three decimals.
+
+  PAIRING
+      page   lattice   bands   paired   unpaired
+         1         2       1        1   header y 622..671
+         2        28      27       27   header y 369..418
+         3         6       5        5   header y 568..617
+         4         0       0        0   -
+      page 1 is 2 of 2 and page 2 is 28 of 28: every lattice row accounted
+      for, every data row paired, the header unclaimed on every page, and no
+      identifier left unmatched.
+
+      There is no header rule in the code and no legend rule. Nothing claims
+      the header, so it goes.
+
+INKMEASURE NOW PAIRS POSITIONALLY
+
+  measure() no longer counts rows per page. It reads the rect manifest,
+  refuses one whose measured_against.sha256 is not the report.pdf on disk,
+  and claims each lattice row for the identifier whose band contains it.
+
+      0049          1 of 1 measured
+      2501.06662   50 of 60 measured in 74 s
+
+  THE TEN ARE A REAL GAP, NAMED RATHER THAN HIDDEN. A row broken across a
+  page bounds no rectangle on either page, so it cannot be claimed
+  positionally. Ten of 2501.06662's sixty display equations straddle a page
+  break. They are excluded by name and the expected count is reduced by
+  exactly that many — the alternative was refusing fifty measurable rows for
+  ten unmeasurable ones, or dropping them silently.
+
+  2991 tests pass. One test of mine (596) asserted the text-layer join that
+  613 supersedes; it now asserts the positional contract instead.
+
+  0049 remains the phase-1 full listing, not restored.

@@ -398,8 +398,6 @@ def _cellrect_table_open(lower_edge: bool = False) -> str:
     _CELLRECT["table"] += 1
     _CELLRECT["want_cols"] = True
     out = _rule_mark()
-    if lower_edge:
-        _CELLRECT["lower"].add(_CELLRECT["rules"][-1]["key"])
     return out
 
 
@@ -856,7 +854,7 @@ def table_open(caption: str, widths, form: bool = False,
                  "Scan image")}[len(widths)]
     return (
         "\\section*{%s}\n" % caption +
-        "\\begin{longtable}{%s}\n" % cols + _cellrect_table_open() + "\\hline\n" +
+        "\\begin{longtable}{%s}\n\\hline\n" % cols + _cellrect_table_open() +
         " & ".join("\\textbf{%s}" % h for h in heads) +
         " \\\\\n\\hline" + _cellrect_header_mark() + "\\endhead\n" +
         (legend_foot(widths, form) if legend_on else ""))
@@ -1731,7 +1729,7 @@ def row(title, latex, page, extra="", image=None, punct="", conf="",
     _below = _rule_mark()
     if _CELLRECT["on"] and _CELLRECT["map"] and _CELLRECT["rules"]:
         _CELLRECT["map"][-1]["rule_below_key"] = _CELLRECT["rules"][-1]["key"]
-    return "%s%s%s \\\\ %s\\hline\n" % (
+    return "%s%s%s \\\\ \\hline%s\n" % (
         _body, _CELLRECT.pop("pending_right", "") if _CELLRECT["on"] else "",
         _close, _below)
 
@@ -1809,10 +1807,12 @@ def cellrect_from_aux(aux_path: Path, page_height_bp: float) -> dict:
                         "why": "no savepos in the .aux"})
             rows.append(out)
             continue
-        _ka = rec.get("rule_above_key") or ""
-        _kb = rec.get("rule_below_key") or ""
-        above = ra[1] + half if _ka in _CELLRECT["lower"] else ra[1] - half
-        below = rb[1] + half if _kb in _CELLRECT["lower"] else rb[1] - half
+        # 613 — EVERY \noalign savepos now sits AFTER its \hline, so every
+        # one of them is on the rule's LOWER edge and one sign serves them
+        # all. The column marks keep a derived sign because they straddle
+        # their rules: kerned by \tabcolsep they land on the INNER edge, so
+        # the left rules are half high and the rightmost half low.
+        above, below = ra[1] + half, rb[1] + half
         out.update({
             "page": a[2],
             "page_close": (b[2] if b else a[2]),
@@ -3729,7 +3729,7 @@ def build_report(tiddlers_path: Path, out: Path | None = None,
                 # reads it as data — one spurious measurement per page, offsetting
                 # every identifier after it. Printed once, exactly one row has to
                 # be dropped and the pairing can be ASSERTED rather than guessed.
-                "\\hline\n" % (dnote, dauth, drend, dimg) + _cellrect_table_open(lower_edge=True))
+                "\\hline\n" % (dnote, dauth, drend, dimg) + _cellrect_table_open())
             for title, latex, page, dims, region in dia:
                 img_path = zip_name = None
                 try:
@@ -3843,7 +3843,7 @@ def build_report(tiddlers_path: Path, out: Path | None = None,
                            rcell, cell]
                 _dcm = _cellrect_col_marks(len(_dcells))
                 out_parts.append(
-                    "%s%s%s%s \\\\ %s\\hline\n"
+                    "%s%s%s%s \\\\ \\hline%s\n"
                     % (_da, " & ".join(m + c for m, c in zip(_dcm, _dcells)),
                        _CELLRECT.pop("pending_right", "")
                        if _CELLRECT["on"] else "", _c, _rb))

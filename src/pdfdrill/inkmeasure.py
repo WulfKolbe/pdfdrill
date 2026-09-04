@@ -331,18 +331,39 @@ def measure(report_pdf: Path, work: Path, timeout: int = 900) -> list:
             "the manifest names %d rows but no identifiers, so nothing can be "
             "joined. Rebuild the report: report.tables.json predates 596."
             % want)
-    join = identifier_pages(report_pdf, idents, timeout=timeout)
-    if join["missing"]:
+
+    # 613 — POSITIONAL SELECTION. The rect manifest gives every row the rules
+    # that bound it, so a lattice row is claimed by the identifier whose band
+    # contains it. There is no header rule and no legend rule: a header row
+    # is dropped because nothing claims it. 604 measured why counting cannot
+    # work — page 4 of 0707.4470 had three identifiers and three lattice rows
+    # that were still not the same three.
+    M = rows_manifest(Path(report_pdf).parent)
+    want_ids = set(idents)
+    bands = [r for r in (M.get("rows") or [])
+             if r.get("identifier") in want_ids
+             and r.get("rule_above_bp") is not None
+             and r.get("rules_on_one_page", True)]
+    # 613 — A ROW BROKEN ACROSS A PAGE BOUNDS NO RECTANGLE on either page,
+    # so it cannot be claimed positionally. That is a REAL GAP and it is
+    # reported by name rather than either refusing the document for it or
+    # dropping it silently: on 2501.06662 ten of sixty display equations
+    # straddle a page break.
+    straddle = {r["identifier"] for r in (M.get("rows") or [])
+                if r.get("identifier") in want_ids
+                and not r.get("rules_on_one_page", True)}
+    have = {r["identifier"] for r in bands}
+    missing = want_ids - have - straddle
+    if missing:
         raise MeasureRefused(
-            "%d of %d manifest identifiers are absent from %s's text layer "
-            "(%s%s) — the pairing would be a guess"
-            % (len(join["missing"]), len(idents), Path(report_pdf).name,
-               ", ".join(map(str, join["missing"][:4])),
-               " …" if len(join["missing"]) > 4 else ""))
-    pages = join["pages"]
-    if not pages:
-        raise MeasureRefused("no manifest identifier appears in %s"
-                             % Path(report_pdf).name)
+            "%d of %d identifiers in the %s table have no rectangle and do "
+            "not straddle a page (%s%s) — the manifest and the report "
+            "disagree about what is in it"
+            % (len(missing), len(want_ids), t.get("caption"),
+               ", ".join(sorted(missing)[:4]),
+               " …" if len(missing) > 4 else ""))
+    order = {ident: n for n, ident in enumerate(idents)}
+    pages = sorted({r["page"] for r in bands})
     out = []
     for page in pages:
         a = ri._render(report_pdf, page, 300, work)
@@ -357,42 +378,22 @@ def measure(report_pdf: Path, work: Path, timeout: int = 900) -> list:
                 _f.unlink()
             except OSError:
                 pass
-        # 596 — the expectation comes from the IDENTIFIERS on this page, not
-        # from a run the lattice happened to draw around them.
-        page_idents = join["by_page"].get(page, [])
-        expect = len(page_idents)
-        if len(rows) == expect + 1:
-            rows = rows[1:]                  # compare has no header rule
-        if t.get("legend") and len(rows) == expect + 1:
-            pass                             # the legend is dropped below
-        if len(rows) not in (expect, expect + (1 if t.get("legend") else 0)):
+        res = pair_rows(rows, M, page, dpi=300)
+        keep = [(r, i) for r, i in res["paired"] if i in want_ids]
+        if not keep and res["unpaired"]:
             raise MeasureRefused(
-                "page %d: compare returned %d rows, the manifest puts %d "
-                "identifier(s) on it (%s)"
-                % (page, len(rows), expect,
-                   ", ".join(map(str, page_idents[:3])) or "none"))
-        if t.get("legend") and rows:
-            # THE FOOTER RECONCILIATION (322). One legend row per page, and it
-            # is the LAST row: `legend_foot` emits the key as \endfoot and
-            # \endlastfoot, so LaTeX sets it at the bottom of every page.
-            #
-            # It is dropped HERE rather than left for inkconvert, whose rule is
-            # that a footer is all-zero in BOTH five-tuples. That holds only
-            # for the 6-column table, where the last two columns are Rendered
-            # and Scan and the legend fills neither. On a 5-column table they
-            # are LaTeX source and Rendered, the legend's \multicolumn covers
-            # the source cell, and the row measures L=[68,23,3,3,0] against
-            # R=[0,0,0,0,0] -- not all-zero, so inkconvert would count it as an
-            # equation and refuse the pairing. Measured on 0049.
-            rows = rows[:-1]
-        # 596 — ORDER FROM THE MANIFEST. Reading order returns the right SET
-        # in the wrong SEQUENCE, which mispairs every row while the counts
-        # look perfect. `page_idents` is already in manifest order, so the
-        # rows are attributed to it position by position.
-        for r, ident in zip(rows, page_idents):
+                "page %d: %d lattice row(s) and none claimed by an identifier "
+                "of the %s table" % (page, len(res["unpaired"]),
+                                     t.get("caption")))
+        for r, ident in keep:
             r["identifier"] = ident
-        out.extend(rows[:expect])
+        out.extend(keep)
+    # manifest order, not page order: the two agree today and the manifest is
+    # the record the pairing was made against.
+    out.sort(key=lambda ri_: order.get(ri_[1], 1 << 30))
+    out = [r for r, _ in out]
     data = len(out)
+    want = want - len(straddle)      # 613 — the straddling rows are not measurable
     if data != want:
         raise MeasureRefused(
             "%d data rows measured against %d identifiers — the pairing would "
