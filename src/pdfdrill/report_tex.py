@@ -307,7 +307,9 @@ RULE_WIDTH_BP = 0.4
 #: appends to it as it emits. Module state rather than a threaded argument
 #: because `row()` is called from six places and the alternative is six
 #: signature changes for a feature that is off by default.
-_CELLRECT = {"on": False, "n": 0, "map": [], "rects": []}
+_CELLRECT = {"on": False, "n": 0, "map": [], "rects": [],
+             "rulen": 0, "rules": [], "table": 0,
+             "want_cols": False, "cols": {}, "coln": 0}
 
 
 def cellrect_reset(on: bool) -> None:
@@ -315,6 +317,39 @@ def cellrect_reset(on: bool) -> None:
     _CELLRECT["n"] = 0
     _CELLRECT["map"] = []
     _CELLRECT["rects"] = []
+    _CELLRECT["rulen"] = 0
+    _CELLRECT["rules"] = []
+    _CELLRECT["table"] = 0
+    _CELLRECT["want_cols"] = False
+    _CELLRECT["cols"] = {}
+    _CELLRECT["coln"] = 0
+
+
+def _rule_mark() -> str:
+    r"""A savepos at a HORIZONTAL RULE, emitted inside `\noalign`.
+
+    607C — the manifest must carry the RULE form, not the content extent. A
+    savepos in a cell sits on that cell's baseline; the consumer needs the
+    rule that bounds the row, and `\noalign` is where a tabular will accept a
+    whatsit between rows. Verified under xelatex in a longtable: successive
+    marks come back with strictly descending y.
+    """
+    if not _CELLRECT["on"]:
+        return ""
+    _CELLRECT["rulen"] += 1
+    key = "rul%05d" % _CELLRECT["rulen"]
+    _CELLRECT["rules"].append({"key": key, "table": _CELLRECT["table"]})
+    return "\\noalign{\\pdrulepos{%s}}" % key
+
+
+def _cellrect_table_open() -> str:
+    """Start a table: bump the ordinal, ask the next row for column marks,
+    and lay the rule that sits above its first row."""
+    if not _CELLRECT["on"]:
+        return ""
+    _CELLRECT["table"] += 1
+    _CELLRECT["want_cols"] = True
+    return _rule_mark()
 
 
 def _cellrect_marks(title: str) -> tuple:
@@ -328,13 +363,44 @@ def _cellrect_marks(title: str) -> tuple:
         return "", ""
     _CELLRECT["n"] += 1
     key = "pdr%05d" % _CELLRECT["n"]
-    _CELLRECT["map"].append({"key": key, "identifier": title})
+    # the rule ABOVE this row is the last one laid; the rule BELOW is laid by
+    # this row's own trailing mark, so its key is known before it exists.
+    above = _CELLRECT["rules"][-1]["key"] if _CELLRECT["rules"] else None
+    _CELLRECT["map"].append({"key": key, "identifier": title,
+                             "table": _CELLRECT["table"],
+                             "rule_above_key": above,
+                             "rule_below_key": None})
     return ("\\pdrowpos{%sa}" % key, "\\pdrowpos{%sb}" % key)
+
+
+def _cellrect_col_marks(ncells: int) -> list:
+    r"""One savepos at the start of each cell, for the FIRST row of a table.
+
+    607C — `column_rules_bp` is per TABLE, so it is measured once. Every row
+    of a longtable shares the column boundaries, and marking every cell of
+    every row would multiply the .aux by the column count for nothing.
+    """
+    if not (_CELLRECT["on"] and _CELLRECT["want_cols"]):
+        return [""] * ncells
+    _CELLRECT["want_cols"] = False
+    out = []
+    for _ in range(ncells):
+        _CELLRECT["coln"] += 1
+        k = "col%05d" % _CELLRECT["coln"]
+        _CELLRECT["cols"].setdefault(_CELLRECT["table"], []).append(k)
+        out.append("\\pdrowpos{%s}" % k)
+    return out
 
 
 CELLRECT_PREAMBLE = r"""\usepackage{zref-savepos,zref-abspage}
 \makeatletter
+%% in a CELL: horizontal mode, smashed to zero size so it cannot move
+%% the layout — an unwrapped savepos cost +3 pages on 0707.4470 (605).
 \newcommand{\pdrowpos}[1]{\smash{\hbox to 0pt{\pdfsavepos\zref@labelbyprops{#1}{posx,posy,abspage}\hss}}}
+%% in \noalign: VERTICAL mode. The smashed hbox is horizontal material
+%% and starts a paragraph there, which HANGS xelatex rather than
+%% erroring — the whatsit and the label are all that may appear.
+\newcommand{\pdrulepos}[1]{\pdfsavepos\zref@labelbyprops{#1}{posx,posy,abspage}}
 \makeatother"""
 
 
@@ -713,7 +779,7 @@ def table_open(caption: str, widths, form: bool = False,
                  "Scan image")}[len(widths)]
     return (
         "\\section*{%s}\n" % caption +
-        "\\begin{longtable}{%s}\n\\hline\n" % cols +
+        "\\begin{longtable}{%s}\n" % cols + _cellrect_table_open() + "\\hline\n" +
         " & ".join("\\textbf{%s}" % h for h in heads) +
         " \\\\\n\\hline\\endhead\n" +
         (legend_foot(widths, form) if legend_on else ""))
@@ -1577,17 +1643,21 @@ def row(title, latex, page, extra="", image=None, punct="", conf="",
         # confidence square.
         txt = ("\\,\\texttt{\\tiny %s}" % esc_text(code)) if code else ""
         cell = "%s\\hspace{0.6em}\\inkbullet{%s}%s" % (cell, residual, txt)
-    if image is not None:
-        return "%s & %s & %s & %s & %s & %s%s \\\\ \\hline\n" % (
-            ident, esc_text(str(page)), cell, src, math, image, _close)
-    return "%s & %s & %s & %s & %s%s \\\\ \\hline\n" % (
-        ident, esc_text(str(page)), cell, src, math, _close)
+    _cells = [ident, esc_text(str(page)), cell, src, math] + \
+        ([image] if image is not None else [])
+    _cm = _cellrect_col_marks(len(_cells))
+    _body = " & ".join(m + c for m, c in zip(_cm, _cells))
+    # the rule BELOW this row, and the key recorded against it
+    _below = _rule_mark()
+    if _CELLRECT["on"] and _CELLRECT["map"] and _CELLRECT["rules"]:
+        _CELLRECT["map"][-1]["rule_below_key"] = _CELLRECT["rules"][-1]["key"]
+    return "%s%s \\\\ %s\\hline\n" % (_body, _close, _below)
 
 
 #: sp per bp. 1 bp = 1/72 in, 1 TeX pt = 1/72.27 in, 1 pt = 65536 sp.
 SP_PER_BP = 65536.0 * 72.27 / 72.0
 
-_ZREF = re.compile(r"\\zref@newlabel\{(pdr\d+)([ab])\}"
+_ZREF = re.compile(r"\\zref@newlabel\{([A-Za-z0-9]+)\}"
                    r"\{\\posx\{(-?\d+)\}\\posy\{(-?\d+)\}\\abspage\{(\d+)\}\}")
 
 
@@ -1604,45 +1674,55 @@ def page_height_bp(pdf: Path) -> float:
         return 0.0
 
 
-def cellrect_from_aux(aux_path: Path, page_height_bp: float) -> list:
-    r"""One rect per row, in PDF user space (bp), from the .aux.
+def cellrect_from_aux(aux_path: Path, page_height_bp: float) -> dict:
+    r"""607C — the RULE form: {"tables": [...], "rows": [...]}, all bp, y up.
 
-    TeX measures y UP from the bottom of the page; PDF user space does too,
-    so the y values pass through unchanged and `page_height_bp` is carried so
-    a consumer working from the top does not have to guess the paper.
+    Not the content extent. A savepos inside a cell sits on that cell's
+    baseline; what a consumer needs is the rule that BOUNDS the row, so the
+    marks are laid in `\noalign` at each `\hline` and each row names the rule
+    above it and the rule below it. `rule_above_bp > rule_below_bp` always,
+    because y runs UP the page.
 
-    The two points are the row's OPEN (before the identifier cell) and CLOSE
-    (after the last cell) baselines. They bound the row horizontally and give
-    its baseline band vertically; the rule that separates rows sits
-    RULE_WIDTH_BP outside them, which is why the consumer is told the rule.
+    sp -> bp is sp / 65536 * 72 / 72.27.
     """
     if not Path(aux_path).is_file():
-        return []
+        return {"tables": [], "rows": []}
     pts = {}
     for m in _ZREF.finditer(Path(aux_path).read_text(encoding="utf-8",
                                                      errors="replace")):
-        key, which, x, y, pg = m.group(1), m.group(2), int(m.group(3)), \
-            int(m.group(4)), int(m.group(5))
-        pts.setdefault(key, {})[which] = (x / SP_PER_BP, y / SP_PER_BP, pg)
-    out = []
+        pts[m.group(1)] = (int(m.group(2)) / SP_PER_BP,
+                           int(m.group(3)) / SP_PER_BP, int(m.group(4)))
+    tables = []
+    for t, keys in sorted(_CELLRECT["cols"].items()):
+        xs = [pts[k][0] for k in keys if k in pts]
+        tables.append({"table": t, "column_rules_bp": [round(x, 3) for x in xs]})
+    rows = []
     for rec in _CELLRECT["map"]:
-        a = pts.get(rec["key"], {}).get("a")
-        b = pts.get(rec["key"], {}).get("b")
-        if not a or not b:
-            out.append({"identifier": rec["identifier"], "key": rec["key"],
-                        "page": None, "rect_bp": None,
+        a = pts.get(rec["key"] + "a")
+        b = pts.get(rec["key"] + "b")
+        ra = pts.get(rec.get("rule_above_key") or "")
+        rb = pts.get(rec.get("rule_below_key") or "")
+        out = {"identifier": rec["identifier"], "key": rec["key"],
+               "table": rec.get("table")}
+        if not (a and ra and rb):
+            out.update({"page": None, "rule_above_bp": None,
+                        "rule_below_bp": None,
                         "why": "no savepos in the .aux"})
+            rows.append(out)
             continue
-        # A row that breaks across a page has its two points on different
-        # pages. That is real and is reported, not averaged away.
-        out.append({"identifier": rec["identifier"], "key": rec["key"],
-                    "page": a[2], "page_close": b[2],
-                    "spans_pages": a[2] != b[2],
-                    "x0_bp": round(min(a[0], b[0]), 3),
-                    "y0_bp": round(min(a[1], b[1]), 3),
-                    "x1_bp": round(max(a[0], b[0]), 3),
-                    "y1_bp": round(max(a[1], b[1]), 3)})
-    return out
+        above, below = ra[1], rb[1]
+        out.update({
+            "page": a[2],
+            "page_close": (b[2] if b else a[2]),
+            "spans_pages": bool(b and b[2] != a[2]),
+            "rule_above_bp": round(above, 3),
+            "rule_below_bp": round(below, 3),
+            # a row broken across a page has its two rules on different pages,
+            # so above < below there. It is reported, never reordered.
+            "rules_on_one_page": ra[2] == rb[2],
+        })
+        rows.append(out)
+    return {"tables": tables, "rows": rows}
 
 
 def stale_pdf_for(tex: Path) -> Path | None:
@@ -3528,7 +3608,7 @@ def build_report(tiddlers_path: Path, out: Path | None = None,
                 # reads it as data — one spurious measurement per page, offsetting
                 # every identifier after it. Printed once, exactly one row has to
                 # be dropped and the pairing can be ASSERTED rather than guessed.
-                "\\hline\n" % (dnote, dauth, drend, dimg))
+                "\\hline\n" % (dnote, dauth, drend, dimg) + _cellrect_table_open())
             for title, latex, page, dims, region in dia:
                 img_path = zip_name = None
                 try:
@@ -3627,10 +3707,23 @@ def build_report(tiddlers_path: Path, out: Path | None = None,
                                   "this crop}}" % crop_claims[zip_name])
                 else:
                     acell = "{\\tiny\\emph{(no tex.zip crop for this row)}}"
-                out_parts.append("\\ident{%s} & %s & %s & %s & %s & %s & %s "
-                                 "\\\\ \\hline\n"
-                                 % (esc_text(title), esc_text(str(page)),
-                                    ccell, srcnote, acell, rcell, cell))
+                # 607C — this table is hand-built and never passes through
+                # `row()`, which is why its rows carried no marks and the
+                # manifest read 28 rows in 2 tables where the document has
+                # 34 in 3.
+                _o, _c = _cellrect_marks(title)
+                _rb = _rule_mark()
+                if _CELLRECT["on"] and _CELLRECT["map"] and _CELLRECT["rules"]:
+                    _CELLRECT["map"][-1]["rule_below_key"] = \
+                        _CELLRECT["rules"][-1]["key"]
+                _dcells = [_o + "\\ident{%s}" % esc_text(title),
+                           esc_text(str(page)), ccell, srcnote, acell,
+                           rcell, cell]
+                _dcm = _cellrect_col_marks(len(_dcells))
+                out_parts.append(
+                    "%s%s \\\\ %s\\hline\n"
+                    % (" & ".join(m + c for m, c in zip(_dcm, _dcells)),
+                       _c, _rb))
             out_parts.append("\\end{longtable}\n")
             # NO \endhead on this one (284) — its header prints once.
             tables_manifest.append(_table_record(

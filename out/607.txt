@@ -1,0 +1,71 @@
+607 — three fixes and one clean run on 0049
+
+A. bibkey — FIXED AND ASSERTED
+   The manifest carried "". It now takes the build's bibkey, falling back to
+   resolve_bibkey(tiddlers) and then the sidecar, and RAISES rather than
+   writing an empty one: rowjoin builds its identifier pattern from it, and
+   an empty pattern matches nothing while the file still looks complete.
+   0049 writes bibkey '0049'.
+
+B. STALENESS — FIXED, the shape report.compare.source uses
+   The manifest records {"pdf": "report.pdf", "sha256": ...} of the file it
+   describes. On this run the recorded sha and the live report.pdf both read
+   ad131b3dd88d. A consumer that finds a mismatch is looking at a manifest
+   for a build that no longer exists and must refuse.
+
+C. THE RULE FORM — EMITTED, not the content extent
+   page_height_bp 841.89, rule_width_bp 0.4, y up, sp/65536*72/72.27.
+
+   column_rules_bp, per table:
+     table 1   60.3, 129.4, 161.6, 210.8, 676.7
+     table 2   60.3, 129.4, 161.6, 210.8, 676.7
+     table 3   57.4, 126.4, 158.6, 205.0, 421.5, 581.2, 877.0
+   Tables 1 and 2 share a geometry and table 3 is the seven-column image
+   section, which is why it is wider and starts further left.
+
+   rule_above_bp / rule_below_bp per row, from savepos marks laid in
+   \noalign at each \hline — the rule that BOUNDS the row, not a baseline
+   inside it. Consecutive rows share a rule exactly: FO0001 below 727.9 is
+   FO0002 above 727.9.
+
+THE RUN — 0049, phase-1 full listing
+   4 pages, 3 tables, 34 rows, 34 of 34 bounded.
+   per page   {1: 1, 2: 27, 3: 5, 4: 1}
+   per table  {1: 1, 2: 27, 3: 6}
+   row heights: median 12.4 bp, max 161.5 bp
+
+   above > below holds on 33 of 34. The one exception is 0049_DIA_0006,
+   whose two rules are on DIFFERENT PAGES (rules_on_one_page: false) — a row
+   broken across a page break, where above 87.1 is near the bottom of one
+   page and below 615.0 near the top of the next. The invariant holds for
+   every row whose rules are on one page; the straddling row is flagged
+   rather than reordered, because reordering it would invent a rectangle
+   that is on neither page.
+
+CELLCHECK'S FOUR SIGNED PER-EDGE DELTAS — NOT REPORTED
+   tools/cellcheck.py is still not in this repo: no commit, no file, no
+   stash, no other branch. I cannot run the acceptance test and will not
+   invent an acceptance number. Everything above is measured from the
+   manifest against the PDF it names; none of it is a residual against
+   inkdrill's own reading of the rules, which is what cellcheck computes.
+
+DEFECTS OF MINE, FOUND AND FIXED IN THIS TASK
+   1. \noalign IS VERTICAL MODE. The first rule mark reused \pdrowpos, which
+      605 had wrapped in \smash{\hbox to 0pt{...}} to stop it moving the
+      layout. Horizontal material inside \noalign starts a paragraph there,
+      and xelatex HUNG rather than erroring — a 34-row document ran past ten
+      minutes with a log frozen at the font declarations. Two macros now:
+      \pdrowpos (smashed, in a cell) and \pdrulepos (bare, in \noalign).
+   2. The _ZREF pattern still split an a/b suffix from 605's design, so the
+      new rul/col keys raised ValueError on int('a').
+   3. `+ _cellrect_table_open()` was appended OUTSIDE an out_parts.append(),
+      making it None + str.
+   4. The image-regions table is hand-built and never passes through row(),
+      so its six rows carried no marks: the manifest first read 28 rows in 2
+      tables where the document has 34 in 3. Instrumented.
+
+   2991 tests pass. cellrect defaults OFF.
+
+THE FULL LISTING STAYS. 0049 is left as the phase-1 build the manifest
+describes — not restored to the reading shape — so the manifest can be
+checked against the artefact it names.

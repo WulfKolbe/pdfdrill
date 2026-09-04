@@ -15436,20 +15436,41 @@ def cmd_reporttex(pdf: Path, paper: str = "a3", landscape: bool = True,
             # .tex, the fixpoint compiles it, and only then does the .aux
             # hold a posx/posy/abspage for every row.
             if cellrect:
-                _ph = rt.page_height_bp(Path(r["out"]).with_suffix(".pdf"))
-                _rects = rt._CELLRECT.get("rects") or []
+                _pdfp = Path(r["out"]).with_suffix(".pdf")
+                _ph = rt.page_height_bp(_pdfp)
+                _res = rt._CELLRECT.get("rects") or {"tables": [], "rows": []}
+                # 607A — the bibkey is what rowjoin builds its pattern from,
+                # and an empty one produces a pattern that matches nothing
+                # while the file still looks complete.
+                _bk = (r.get("bibkey") or rt.resolve_bibkey(Path(tid))
+                       or sc.get_evidence("bibkey") or "")
+                if not str(_bk).strip():
+                    raise ValueError(
+                        "refusing to write %s with an empty bibkey — rowjoin "
+                        "builds its identifier pattern from it" % rt.ROWS_MANIFEST)
+                # 607B — the same staleness guard report.compare.source uses:
+                # the manifest names the PDF it describes, and a consumer
+                # refuses on mismatch rather than measuring the wrong build.
+                import hashlib as _hl
+                _sha = _hl.sha256(_pdfp.read_bytes()).hexdigest() \
+                    if _pdfp.is_file() else None
                 _dest = Path(r["out"]).parent / rt.ROWS_MANIFEST
                 _dest.write_text(json.dumps(
-                    {"bibkey": r.get("bibkey") or "",
+                    {"bibkey": str(_bk),
+                     "measured_against": {"pdf": _pdfp.name, "sha256": _sha},
                      "page_height_bp": _ph,
                      "rule_width_bp": rt.RULE_WIDTH_BP,
-                     "rows": _rects}, indent=1), encoding="utf-8")
-                _ok = sum(1 for x in _rects if x.get("x0_bp") is not None)
+                     "tables": _res["tables"],
+                     "rows": _res["rows"]}, indent=1), encoding="utf-8")
+                _ok = sum(1 for x in _res["rows"]
+                          if x.get("rule_above_bp") is not None)
                 lines.append(
-                    "Cell rects: %d of %d rows located (%s); page height "
-                    "%.1f bp, rule %.1f bp."
-                    % (_ok, len(_rects), rt.ROWS_MANIFEST, _ph,
-                       rt.RULE_WIDTH_BP))
+                    "Cell rects: %d of %d rows bounded, %d table(s) "
+                    "(%s); bibkey %r, page height %.1f bp, rule %.1f bp, "
+                    "sha %s."
+                    % (_ok, len(_res["rows"]), len(_res["tables"]),
+                       rt.ROWS_MANIFEST, str(_bk), _ph, rt.RULE_WIDTH_BP,
+                       (_sha or "?")[:12]))
 
             # 155 removed the AcroForm field per 157 (nothing ever re-filled
             # it), so there is no field count to assert here any more. The
