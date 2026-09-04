@@ -1,0 +1,108 @@
+599 - the join is right, the reconciliation is not, and there is a fourth cause
+
+THE TEN ALL PROCEED. 596's identifier join resolves every equation identifier
+on every one of the 21, 0 missing:
+
+  0902.0431 1219/1219   1510.06699 279/279   fong-invitation 262/262
+  fong-seven 264/264    gilmore 1037/1037    johnston 1670/1670
+  kohlhase 6/6          lyche 1056/1056      mielke 1149/1149
+  rph8-g15q 81/81       and the other eleven likewise
+
+THE EQUATION-ROW PROJECTION
+
+  8,718 equation rows over 1,181 pages
+  measured rate: rph8-g15q 8 pages / 62.5 s = 7.81 s/page
+                 2501.06662 9 pages / 80.3 s = 8.92 s/page
+  -> 9,224-10,535 s = 154-176 minutes
+
+  Two-thirds of it is four documents: johnston 264 pages, 0902.0431 210,
+  gilmore 156, lyche 151.
+
+  THE NUMBER IS NOT ACHIEVABLE. Stage C refused on the first document, so
+  this projects a run that does not complete - the same mistake 594 named
+  and this task then made.
+
+THE FOURTH CAUSE
+
+  Stage C, 0707.4470, step 3:
+      MeasureRefused: page 1: compare returned 0 rows, the manifest puts
+      2 identifier(s) on it (0707.4470_EQ0025, 0707.4470_EQ0032)
+
+  All 17 pages of the full listing:
+
+      page   EQ identifiers   lattice rows
+         1              2              0
+         2              1              0
+         3              3              4
+         4              3              3
+         5              4              5
+         6              6              7
+         7              7              7
+         8             13             13
+         9             14             15
+        10              9             10
+     11-17              0     55,57,57,48,6,5,2
+     total             62            294
+
+  The join is correct: 62 of 62, and pages 1-10 hold exactly the right
+  identifiers. What does not reconcile is the other side, and it is three
+  separate things:
+
+  1. compare_page MEASURES THE PAGE, NOT THE TABLE. Pages 11-17 carry 230
+     lattice rows and no equation identifiers at all - those are the Inline
+     formulas rows. A per-page row count therefore includes tables nobody
+     selected, and equation-only reconciliation cannot match on any page
+     that carries another table.
+
+  2. PAGES 1-2 RETURN ZERO for three identifiers that are demonstrably
+     present - 0707.4470_EQ0025 is in page 1's text layer, quoted above.
+     Those first equations are tall aligned blocks. Why the lattice finds no
+     complete row there is NOT established and is not guessed at here.
+
+  3. A +1 ON PAGES 3, 5, 6, 9, 10 BUT NOT 4, 7, 8. Consistent with the
+     repeated \endhead header being counted on some continuation pages, and
+     incomplete as an explanation because it does not hold on all of them.
+
+  596 replaced ordinal selection with the identifier join, which was right
+  and works. It then reconciled that join against compare_page's per-page
+  row count, and the two count different populations. The old code hid the
+  same disagreement behind _pages_for's "does not end on a page boundary"
+  refusal; the new code surfaces it per page, which is better and still not
+  a measurement.
+
+WHAT I DID TO THE LIBRARY, AND UNDID
+
+  The page-count pass built all 21 as phase-1 full listings, so every
+  report.pdf on disk was scaffolding - the state 557 exists to prevent. All
+  21 have been rebuilt to the published reading shape (phase=reading,
+  bullets on). Note that they are now FULL LENGTH: 593 removed the bound, so
+  0902.0431's published report is 25 pages where it was 10.
+
+  Nothing was published. The site still carries the residuals measured
+  against a report that no longer exists, which is the problem that was
+  named and is not yet fixed.
+
+WHAT WOULD FIX IT
+
+  inkmeasure has to select rows WITHIN a page by identifier, rather than
+  counting the page's rows and hoping the count matches. The identifier's
+  position in the text layer is known; the lattice's row boxes are known;
+  the join is between those two, not between two totals. That is a change to
+  inkmeasure of the same size as 596 and it is not started.
+
+FOR 600, AND A CORRECTION
+
+  I reported that the inline-formula identifiers resolve 100%, generalising
+  from three documents. Across all 21 that is false:
+
+      fong-spivak-invitation      3,888 of 4,061 missing
+      fong-spivak-seven-sketches  3,856 of 4,029 missing
+
+  Nineteen resolve completely; those two barely resolve at all, and they are
+  the same pair that reported zero leftovers earlier - a signal I saw and
+  did not chase.
+
+  Formula scale, when it is asked for: 37,624 rows over 942 pages, FEWER
+  pages than the equations' 1,181 because five-column rows are dense. That
+  is +123-140 minutes on top, 276-316 combined - not the 5.6x the row counts
+  suggest.
