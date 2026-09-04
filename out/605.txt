@@ -1,0 +1,103 @@
+605 - the cell rect is emitted; cellcheck could not be run
+
+WHAT IS IN THIS REPO AND WHAT IS NOT
+
+  tools/cellcheck.py is NOT here, and neither is anything from 602: no
+  commit, no file, no stash, no other branch, clean tree, no out/602.txt.
+  That work is in inkdrill's workspace. So I have `rule_width_bp: 0.4` and
+  `page_height_bp` from the task text and NOT the field names, the record
+  shape, or how residual-per-edge is computed.
+
+  The LaTeX and .aux plumbing is schema-independent and is the risky part,
+  so it is built and proven. The serialiser is provisional and will change
+  to whatever cellcheck reads.
+
+THE MECHANISM, PROVEN
+
+  \zsavepos alone records posx/posy and NOT the page.
+  \zref@labelbyprops alone records the page and leaves posx/posy at ZERO,
+  because it never emits the \pdfsavepos whatsit.
+  Both, in that order, is the only form that yields all three:
+
+      \pdrowpos{#1} = \smash{\hbox to 0pt{%
+          \pdfsavepos\zref@labelbyprops{#1}{posx,posy,abspage}\hss}}
+
+  Two per row: one before the identifier cell, one after the last cell.
+  Labels are a counter (pdr00001a/b), not the identifier - identifiers carry
+  `.` and `_` and run to 60 characters. The mapping is in the manifest.
+
+  sp -> bp uses 65536 * 72.27 / 72. TeX measures y UP from the page bottom
+  and so does PDF user space, so y passes through unchanged; page_height_bp
+  is carried so a consumer working from the top need not guess the paper.
+
+ROWS EMITTED - 0707.4470, phase-1 full listing
+
+  275 of 275 rows located.  62 display equations + 213 inline formulas.
+  page_height_bp 841.89 (A3 landscape)   rule_width_bp 0.4
+  4 rows have their two points on different pages and are reported as
+  spans_pages rather than averaged into one rect.
+
+PAGINATION CHANGE - ZERO, after a defect of my own
+
+  The first version added +3 pages, 17 -> 20, an 18% change. A savepos is a
+  zero-width whatsit and should move nothing; wrapping the pair in
+  \smash{\hbox to 0pt{...\hss}} returned it to 17 pages with all 275 rows
+  still located. Measured both ways on the same document:
+
+      cellrect=False  17 pages
+      cellrect=True   17 pages     delta 0
+
+  This matters beyond tidiness: if instrumenting changed the layout, the
+  rects would describe a document nobody reads, and phase 1 and phase 2
+  would differ by more than the legend again (579).
+
+CELLCHECK RESIDUAL PER EDGE - NOT REPORTED
+
+  tools/cellcheck.py is not in this repo. Inventing an acceptance number
+  would be worse than not having one.
+
+PAGES 1-2: THE SUB-CAUSE STANDS ALONE
+
+  page   EQ rects   lattice rows   where the rects say the rows are
+     1          2              0   EQ0025 y=569-664, EQ0032 y=483-534
+     2          1              0   EQ0035 y=478-544
+     3          3              4   EQ0020 y=480-526, EQ0009 y=416-463,
+                                   EQ0029 y=188-378
+
+  Page height 841.9 bp; the text block runs roughly y=40..800, so all three
+  rows sit well inside it. The rows ARE there, at known coordinates, and the
+  lattice returns nothing on those two pages.
+
+  So positional selection does not explain pages 1-2. It ISOLATES them: this
+  is no longer "the lattice and the manifest disagree", it is "two rows exist
+  at these coordinates and inkdrill's compare found no row there". That is a
+  question for inkdrill with the evidence attached.
+
+AND A SECOND FINDING THAT BLOCKS POSITIONAL SELECTION ANYWAY
+
+  compare_page returns rows carrying only:
+
+      ['L', 'R', 'a_eq_b', 'dis', 'line', 'page']
+
+  No geometry. Pairing a lattice row to a rect needs the row's y-extent, and
+  inkdrill does not return one - `line` is an ordinal within the page. So
+  the rect makes the pdfdrill side positional and the join still cannot be
+  completed until compare_page reports each row's vertical extent.
+
+  That is the ask, and it is small: the lattice already knows where it cut.
+
+DEFECTS FOUND AND FIXED WHILE BUILDING
+
+  - The first .aux handling copied it back beside the document, which 297
+    forbids: pass N writes it and pass N+1 reads it, so a shared one resolves
+    a build's cross-references against another build's numbering. The test
+    that guards this caught it. The .aux is now parsed inside the private
+    build directory and only the RESULT leaves.
+  - A second preamble call site builds PREAMBLE from a plain dict rather
+    than through preamble(), so the new slot raised KeyError on eight tests.
+
+  2991 tests pass. cellrect defaults OFF, so no existing build changes.
+
+  0707.4470 is left in the published reading shape (phase=reading, 2 pages,
+  bullets, findings) and carries no report.aux. The 1,100 report.aux files
+  elsewhere in the library predate today and are not from this task.

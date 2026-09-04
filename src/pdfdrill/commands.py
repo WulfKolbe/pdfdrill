@@ -15103,7 +15103,8 @@ def cmd_reporttex(pdf: Path, paper: str = "a3", landscape: bool = True,
                   findings: bool = False,
                   pages: "int | None" = None,
                   render_regions: bool = False,
-                  ink_bullets: bool = True) -> str:
+                  ink_bullets: bool = True,
+                  cellrect: bool = False) -> str:
     """LaTeX formula report (report.tex): every EQ/FO/TAB identifier with
     page, escaped source, rendered math, and the MathPix scan crop at its
     exact original physical size; the tex.zip's unrecovered image regions
@@ -15326,7 +15327,8 @@ def cmd_reporttex(pdf: Path, paper: str = "a3", landscape: bool = True,
                         findings=findings,
                         pages=0,          # 593 — never bounded; see above
                         render_regions=render_regions,
-                        bullets=ink_bullets)
+                        bullets=ink_bullets,
+                        cellrect=cellrect)
     # 460 — the formulas rule, stated where the build is reported. A section
     # that shrank from 4,061 rows to 1 has to say so; a reader who sees only
     # the short table will otherwise read it as a short document.
@@ -15428,6 +15430,27 @@ def cmd_reporttex(pdf: Path, paper: str = "a3", landscape: bool = True,
             lines.append(f"Compiled report.pdf: {pages} pages, {errors} "
                          f"error(s), {demoted} malformed row(s) demoted "
                          f"to source-only.")
+            # 605 — THE CELL RECT, WRITTEN FROM THE .aux THE COMPILE LEFT.
+            # It goes here and not inside build_report because the positions
+            # do not exist until xelatex has run: build_report writes the
+            # .tex, the fixpoint compiles it, and only then does the .aux
+            # hold a posx/posy/abspage for every row.
+            if cellrect:
+                _ph = rt.page_height_bp(Path(r["out"]).with_suffix(".pdf"))
+                _rects = rt._CELLRECT.get("rects") or []
+                _dest = Path(r["out"]).parent / rt.ROWS_MANIFEST
+                _dest.write_text(json.dumps(
+                    {"bibkey": r.get("bibkey") or "",
+                     "page_height_bp": _ph,
+                     "rule_width_bp": rt.RULE_WIDTH_BP,
+                     "rows": _rects}, indent=1), encoding="utf-8")
+                _ok = sum(1 for x in _rects if x.get("x0_bp") is not None)
+                lines.append(
+                    "Cell rects: %d of %d rows located (%s); page height "
+                    "%.1f bp, rule %.1f bp."
+                    % (_ok, len(_rects), rt.ROWS_MANIFEST, _ph,
+                       rt.RULE_WIDTH_BP))
+
             # 155 removed the AcroForm field per 157 (nothing ever re-filled
             # it), so there is no field count to assert here any more. The
             # gate itself (pdf_reading.assert_form_fields) and its tests stay:
