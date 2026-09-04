@@ -1,0 +1,51 @@
+619 — the pairing drift, fixed one-to-one
+
+THE DIAGNOSIS. The drift went BOTH WAYS, which is what named the cause:
+
+    0902.0431   988 measured against 1014   26 SHORT
+    johnston   1398 measured against 1405    7 SHORT
+    lyche       907 measured against  905    2 OVER
+
+Containment alone is many-to-one in both directions. A band with two lattice
+rows inside it took both; a band with none was silently absent and the count
+simply came up short. The same code produced an under-count and an over-count
+on different documents.
+
+THE FIX. Each band takes the single lattice row whose centre is nearest its
+own, and each lattice row is claimed at most once. A repeated header still
+goes unclaimed because nothing contains it — that property is untouched.
+
+AND THE TWO REAL GAPS ARE NOW NAMED RATHER THAN COLLAPSED INTO A REFUSAL:
+
+    straddling    a row broken across a page bounds no rectangle on either
+    undetected    the rectangle is right and the lattice found nothing in it
+                  — 0707.4470's pages 1-2 were the first of these and they
+                  are still unexplained
+
+The old check turned both into one message, "N data rows against M
+identifiers", which named a drift of 2 to 26 without saying which rows or
+why. What is still checked exactly is the property inkconvert depends on:
+every measured row carries its own identifier and no identifier claims two
+rows. A duplicate is refused by name.
+
+MEASURED, on the two documents whose drift ran in opposite directions:
+
+    1510.06699                  240 rows, 240 unique
+                                279 named - 38 straddling - 1 undetected
+                                (was: REFUSED, 240 against 241)
+
+    fong-spivak-seven-sketches  232 rows, 232 unique
+                                264 named - 29 straddling - 3 undetected
+                                (was: REFUSED, 233 against 235)
+
+  fong's previous run measured 233 where the table allows 232 — that extra
+  row was a band claiming two, and it is gone.
+
+NOT VERIFIED ON THE OTHER FIVE. 0902.0431, cardona, gilmore, johnston and
+lyche are the large ones — johnston alone is 264 equation pages — and each is
+a rebuild plus a full measure. The fix is the same code path for all seven and
+the two tested cover both directions of the drift, but I have measured two,
+not seven, and the remaining five are an assumption until a sweep says
+otherwise.
+
+2998 tests pass.

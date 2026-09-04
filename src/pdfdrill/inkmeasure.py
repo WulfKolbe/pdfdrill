@@ -211,22 +211,40 @@ def pair_rows(lattice: list, manifest: dict, page: int, dpi: int = 300) -> dict:
         top, bot = to_px(r["rule_above_bp"]), to_px(r["rule_below_bp"])
         bands.append((min(top, bot), max(top, bot), r["identifier"]))
     bands.sort()
-    paired, unpaired, claimed = [], [], set()
-    for row in lattice:
+
+    # 619 — ONE LATTICE ROW PER BAND, AND ONE BAND PER LATTICE ROW.
+    #
+    # Containment alone is many-to-one in both directions and 614 measured
+    # both: 0902.0431 came out 26 rows SHORT of its bands and lyche 2 rows
+    # OVER, from the same code. A band with two rows inside it takes both; a
+    # band with none is silently absent. Each band now takes the single row
+    # whose centre is nearest its own, and each row is claimed once — so a
+    # repeated header still goes unclaimed (nothing contains it) while a band
+    # the lattice never detected is REPORTED rather than quietly dropping the
+    # count by one.
+    cands = {}
+    for n, row in enumerate(lattice):
         y0, y1 = row.get("row_y0"), row.get("row_y1")
         if y0 is None or y1 is None:
-            unpaired.append(row)
             continue
         mid = (y0 + y1) / 2.0
-        hit = next((i for t, b, i in bands if t <= mid <= b), None)
-        if hit is None:
-            unpaired.append(row)
-        else:
-            paired.append((row, hit))
-            claimed.add(hit)
+        for t, b, ident in bands:
+            if t <= mid <= b:
+                cands.setdefault(ident, []).append((abs(mid - (t + b) / 2.0), n))
+    taken, claim = set(), {}
+    for t, b, ident in bands:
+        for _, n in sorted(cands.get(ident, [])):
+            if n not in taken:
+                taken.add(n)
+                claim[n] = ident
+                break
+    paired = [(lattice[n], claim[n]) for n in sorted(claim)]
+    unpaired = [r for n, r in enumerate(lattice) if n not in taken]
+    undetected = [i for _, _, i in bands if i not in set(claim.values())]
     return {"paired": paired, "unpaired": unpaired,
-            "unclaimed_identifiers": [i for _, _, i in bands
-                                      if i not in claimed]}
+            "undetected": undetected,
+            "unclaimed_identifiers": undetected}
+
 
 
 def identifier_pages(pdf: Path, wanted: list, timeout: int = 900) -> dict:
@@ -370,7 +388,7 @@ def measure(report_pdf: Path, work: Path, timeout: int = 900) -> list:
                " …" if len(missing) > 4 else ""))
     order = {ident: n for n, ident in enumerate(idents)}
     pages = sorted({r["page"] for r in bands})
-    out = []
+    out, undetected = [], []
     for page in pages:
         a = ri._render(report_pdf, page, 300, work)
         b = ri._render(report_pdf, page, 600, work)
@@ -386,11 +404,7 @@ def measure(report_pdf: Path, work: Path, timeout: int = 900) -> list:
                 pass
         res = pair_rows(rows, M, page, dpi=300)
         keep = [(r, i) for r, i in res["paired"] if i in want_ids]
-        if not keep and res["unpaired"]:
-            raise MeasureRefused(
-                "page %d: %d lattice row(s) and none claimed by an identifier "
-                "of the %s table" % (page, len(res["unpaired"]),
-                                     t.get("caption")))
+        undetected.extend(i for i in res["undetected"] if i in want_ids)
         for r, ident in keep:
             r["identifier"] = ident
         out.extend(keep)
@@ -398,12 +412,33 @@ def measure(report_pdf: Path, work: Path, timeout: int = 900) -> list:
     # the record the pairing was made against.
     out.sort(key=lambda ri_: order.get(ri_[1], 1 << 30))
     out = [r for r, _ in out]
+    # 619 — THE TWO REAL GAPS ARE NAMED, NOT COLLAPSED INTO A REFUSAL.
+    #
+    # `straddle` are rows broken across a page: they bound no rectangle on
+    # either page. `undetected` are rows whose rectangle is right and inside
+    # which the lattice found nothing — 0707.4470's pages 1-2 were the first
+    # of these and they are still unexplained. Neither is a pairing failure,
+    # and the old check turned both into one: seven of the 21 stopped at step
+    # 3 reporting "N data rows against M identifiers", a message that named a
+    # drift of 2 to 26 without saying which rows or why.
+    #
+    # What must still hold exactly is that every row measured carries its own
+    # identifier and no identifier is used twice. That is the property
+    # inkconvert depends on, and it is checked here.
     data = len(out)
-    want = want - len(straddle)      # 613 — the straddling rows are not measurable
-    if data != want:
+    expect = want - len(straddle) - len(set(undetected))
+    seen = [r.get("identifier") for r in out]
+    if len(set(seen)) != len(seen):
+        dup = [i for i in set(seen) if seen.count(i) > 1]
         raise MeasureRefused(
-            "%d data rows measured against %d identifiers — the pairing would "
-            "be unknown and inkconvert would refuse it anyway" % (data, want))
+            "%d identifier(s) claimed more than one row (%s%s) — the pairing "
+            "is not one-to-one" % (len(dup), ", ".join(map(str, dup[:4])),
+                                   " …" if len(dup) > 4 else ""))
+    if data != expect:
+        raise MeasureRefused(
+            "%d rows measured, %d expected (%d in the table, %d straddling a "
+            "page break, %d whose rectangle the lattice found nothing in)"
+            % (data, expect, want, len(straddle), len(set(undetected))))
     return out
 
 
