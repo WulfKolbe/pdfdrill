@@ -142,6 +142,87 @@ def _key(ident: str) -> str:
     return re.sub(r"\s+", "", str(ident))
 
 
+def rows_manifest(doc_dir: Path) -> dict:
+    """611 — `pdfdrill-rows.json`, refused when it names another build.
+
+    The manifest records the sha256 of the report.pdf it describes (607B). A
+    manifest for a build that no longer exists would pair rows against
+    rectangles measured somewhere else, which is the whole class this chain
+    keeps finding.
+    """
+    import hashlib
+    f = Path(doc_dir) / "pdfdrill-rows.json"
+    if not f.is_file():
+        raise MeasureRefused("no pdfdrill-rows.json — the report was built "
+                             "without --cellrect, so no row has a rectangle")
+    try:
+        R = json.loads(f.read_text(encoding="utf-8"))
+    except Exception as exc:
+        raise MeasureRefused("pdfdrill-rows.json unreadable: %s" % exc)
+    pdf = Path(doc_dir) / "report.pdf"
+    want = ((R.get("measured_against") or {}).get("sha256") or "")
+    if pdf.is_file() and want:
+        got = hashlib.sha256(pdf.read_bytes()).hexdigest()
+        if got != want:
+            raise MeasureRefused(
+                "pdfdrill-rows.json describes report.pdf %s and the file on "
+                "disk is %s — it is a manifest for a build that no longer "
+                "exists" % (want[:12], got[:12]))
+    return R
+
+
+def pair_rows(lattice: list, manifest: dict, page: int, dpi: int = 300) -> dict:
+    r"""611 — one lattice row to the identifier whose rect CONTAINS it.
+
+    The manifest gives each row the rules that bound it, in bp with y running
+    UP from the page bottom; `compare_page` gives each lattice row a y-extent
+    in raster pixels running DOWN from the top. Both are converted to pixels
+    from the top and a lattice row is claimed by the identifier whose band
+    contains its centre.
+
+    Containment, not counting. 604 measured why: page 4 of 0707.4470 had
+    three identifiers and three lattice rows that were still not the same
+    three, because one row was a repeated header and one identifier's row was
+    elsewhere. No count correction can fix a mispairing, and a header row is
+    dropped here because nothing claims it — not by a rule that recognises
+    headers.
+
+    Returns {"paired": [(row, identifier)], "unpaired": [row],
+             "unclaimed_identifiers": [identifier]}.
+    """
+    H = float(manifest.get("page_height_bp") or 0.0)
+    k = dpi / 72.0
+
+    def to_px(y_bp):
+        return (H - float(y_bp)) * k
+
+    bands = []
+    for r in manifest.get("rows") or []:
+        if r.get("rule_above_bp") is None or r.get("page") != page:
+            continue
+        if not r.get("rules_on_one_page", True):
+            continue          # a row broken across pages bounds no rectangle
+        top, bot = to_px(r["rule_above_bp"]), to_px(r["rule_below_bp"])
+        bands.append((min(top, bot), max(top, bot), r["identifier"]))
+    bands.sort()
+    paired, unpaired, claimed = [], [], set()
+    for row in lattice:
+        y0, y1 = row.get("row_y0"), row.get("row_y1")
+        if y0 is None or y1 is None:
+            unpaired.append(row)
+            continue
+        mid = (y0 + y1) / 2.0
+        hit = next((i for t, b, i in bands if t <= mid <= b), None)
+        if hit is None:
+            unpaired.append(row)
+        else:
+            paired.append((row, hit))
+            claimed.add(hit)
+    return {"paired": paired, "unpaired": unpaired,
+            "unclaimed_identifiers": [i for _, _, i in bands
+                                      if i not in claimed]}
+
+
 def identifier_pages(pdf: Path, wanted: list, timeout: int = 900) -> dict:
     r"""Where each manifest identifier appears, and what else looks like one.
 

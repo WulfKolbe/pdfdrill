@@ -30,7 +30,12 @@ from .report_tex import REGIONS_INK, REGIONS_MANIFEST
 from .inkconvert import flag_of, FLAG_CODE, NOISE_DISTANCE, NOISE_COMP_DELTA
 
 #: inkdrill's markdown row: | page | line | label | L×5 | R×5 | A=B | B stable |…
-_ROW = re.compile(r"^\|\s*(\d+)\s*\|\s*(\d+)\s*\|([^|]*)\|" + r"([^|]*)\|" * 12)
+#: 611 — inkdrill's compare gained `row h`, `row y0`, `row y1` (606), so the
+#: table is 20 columns where it was 15. The trailing three are OPTIONAL here:
+#: an older inkdrill returns 15 and its rows simply carry no y-extent.
+_ROW = re.compile(r"^\|\s*(\d+)\s*\|\s*(\d+)\s*\|([^|]*)\|"
+                  + r"([^|]*)\|" * 14
+                  + r"(?:([^|]*)\|([^|]*)\|([^|]*)\|)?")
 _INKDRILL_HOME = Path(os.environ.get("INKDRILL_HOME", Path.home() / "inkdrill"))
 
 
@@ -170,10 +175,17 @@ def compare_page(a: Path, b: Path, page: int, timeout: int = 900) -> list:
             dis = int(cells[2])
         except ValueError:
             dis = 0                  # a non-numeric distance cell
-        rows.append({"page": int(cells[0]), "line": int(cells[1]),
-                     "dis": dis,
-                     "L": nums[:5], "R": nums[5:],
-                     "a_eq_b": cells[13].strip().lower() in ("yes", "true", "1")})
+        rec = {"page": int(cells[0]), "line": int(cells[1]),
+               "dis": dis,
+               "L": nums[:5], "R": nums[5:],
+               "a_eq_b": cells[13].strip().lower() in ("yes", "true", "1")}
+        # columns 18 and 19: the row's y-extent in raster px, top-down.
+        try:
+            rec["row_y0"] = int(cells[18])
+            rec["row_y1"] = int(cells[19])
+        except (IndexError, TypeError, ValueError):
+            rec["row_y0"] = rec["row_y1"] = None
+        rows.append(rec)
     return rows
 
 

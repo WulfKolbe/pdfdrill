@@ -1,0 +1,88 @@
+611 — the manifest wired into inkmeasure, and what the pairing shows
+
+WHAT WAS BUILT
+
+  regionink._ROW widened from 15 columns to 20. inkdrill's compare gained
+  `row h`, `row y0`, `row y1` in 606; the trailing three are captured as an
+  OPTIONAL group, so an older inkdrill returning 15 still parses and its rows
+  simply carry no y-extent.
+
+  inkmeasure.rows_manifest(doc_dir) reads pdfdrill-rows.json and REFUSES when
+  its measured_against.sha256 is not the report.pdf on disk — a manifest for a
+  build that no longer exists would pair rows against rectangles measured
+  somewhere else.
+
+  inkmeasure.pair_rows(lattice, manifest, page, dpi) converts the manifest's
+  bp (y up from the page bottom) and the lattice's px (y down from the top)
+  into one frame and claims each lattice row for the identifier whose band
+  contains its CENTRE. Containment, not counting: 604 measured that page 4 of
+  0707.4470 had three identifiers and three lattice rows that were still not
+  the same three.
+
+THE RESULT ON 0049
+
+   page   lattice   manifest   paired   unpaired   unclaimed
+      1         2          1        2          0   -
+      2        28         27       28          0   -
+      3         6          5        5          1   -
+      4         1          0        0          1   -
+
+   total 37 lattice rows, 35 paired, 2 unpaired
+
+IS THE HEADER DROPPED BECAUSE NOTHING CLAIMS IT?
+
+  ON PAGE 3, YES — and that is the mechanism working exactly as the argument
+  for the rect said it would. Page 3 has 6 lattice rows and 5 manifest bands;
+  line 0 at y 568..617 falls inside no band and is dropped. No rule
+  recognises it as a header. Nothing claims it, so it goes.
+
+  ON PAGES 1 AND 2, NO — and the reason is 608#3, which is still open. Those
+  pages pair 2 rows into 1 band and 28 into 27: the first data row of a table
+  takes the TABLE'S TOP RULE, which is above the repeated header, so its band
+  swallows the header row instead of leaving it unclaimed.
+
+  So the two count corrections 604 argued against do disappear — the header
+  needs no rule and the legend needs none — but only where the bands are
+  right. The remaining failure is not in the pairing; it is one wrong rule in
+  the emitter.
+
+  Page 4's unpaired row (y 255..945) is 0049_DIA_0006, the page-straddling
+  row. pair_rows excludes any row with rules_on_one_page false, because a row
+  whose two rules are on different pages bounds no rectangle on either — so
+  the lattice row is correctly left unclaimed rather than paired against a
+  528 bp "rectangle".
+
+608's THREE DEFECTS IN MY EMITTER — TWO FIXED, ONE ATTEMPTED AND REVERTED
+
+  1. x WAS +6.177 bp ON EVERY RULE. FIXED. A savepos at a cell's start sits
+     past \tabcolsep; the mark now carries \kern-\tabcolsep inside its
+     zero-width smashed box, so the measurement moves and the layout does
+     not. Table 1/2 now reads 54.35 against the PDF's 54.155, and 670.70
+     against 670.499 — the residual is the +0.20 rule-centre convention
+     named in 607's addendum, not 6.177.
+
+  2. THE RIGHTMOST COLUMN RULE WAS MISSING FROM EVERY TABLE. FIXED. N
+     cell-start marks give N left rules and never the right edge of the last
+     column; a \hfill-carried mark now supplies it. Table 1/2 has 6 column
+     rules where it had 5 (rightmost 1136.20 against the PDF's 1136.396) and
+     table 3 has 8 where it had 7 (1169.31 against 1169.510).
+
+  3. THE FIRST ROW OF EACH TABLE TAKES THE HEADER'S TOP RULE. ATTEMPTED AND
+     REVERTED, and this is what pages 1 and 2 above are showing.
+
+     The fix is right in principle — lay the rule at each row's OWN start
+     rather than reusing the last one laid — and LONGTABLE DISCARDS A
+     \noalign PLACED IMMEDIATELY AFTER \endhead. Measured: 0049_EQ0001 lost
+     its mark entirely ("no savepos in the .aux") and 0049_FO0001 took a
+     stale one, reading rule_above 680.3 BELOW its own rule_below 727.9 — an
+     inverted band. 33 of 34 rows bounded instead of 34.
+
+     Reverted to the previous behaviour, which is wrong for the first row of
+     each table and right for every other. The header's own bottom rule
+     cannot simply be marked either: the header lives inside \endhead and
+     repeats on every page, so one label would be defined many times.
+
+     The document is left at 34 of 34 bounded, 0 compile errors, with 1 and 2
+     fixed and 3 open.
+
+  2991 tests pass. 0049 remains the phase-1 full listing, not restored.

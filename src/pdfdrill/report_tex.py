@@ -309,7 +309,8 @@ RULE_WIDTH_BP = 0.4
 #: signature changes for a feature that is off by default.
 _CELLRECT = {"on": False, "n": 0, "map": [], "rects": [],
              "rulen": 0, "rules": [], "table": 0,
-             "want_cols": False, "cols": {}, "coln": 0}
+             "want_cols": False, "cols": {}, "coln": 0,
+             "pending_above": None, "pending_right": ""}
 
 
 def cellrect_reset(on: bool) -> None:
@@ -323,6 +324,8 @@ def cellrect_reset(on: bool) -> None:
     _CELLRECT["want_cols"] = False
     _CELLRECT["cols"] = {}
     _CELLRECT["coln"] = 0
+    _CELLRECT["pending_above"] = None
+    _CELLRECT["pending_right"] = ""
 
 
 def _rule_mark() -> str:
@@ -339,6 +342,25 @@ def _rule_mark() -> str:
     _CELLRECT["rulen"] += 1
     key = "rul%05d" % _CELLRECT["rulen"]
     _CELLRECT["rules"].append({"key": key, "table": _CELLRECT["table"]})
+    return "\\noalign{\\pdrulepos{%s}}" % key
+
+
+def _rule_above() -> str:
+    r"""The rule a row sits UNDER, laid at the row's own start.
+
+    608#3 — the first data row used to inherit the rule recorded when the
+    table opened, which is the TABLE's top rule: above the repeated header,
+    not below it. Its rect then spanned the header as well as its own row
+    (0049_EQ0001 dy0 -53) and the lattice's header row went unmatched. A rule
+    laid at the row's own start is the right one on every page, including the
+    first row after `\endhead`.
+    """
+    if not _CELLRECT["on"]:
+        return ""
+    _CELLRECT["rulen"] += 1
+    key = "rul%05d" % _CELLRECT["rulen"]
+    _CELLRECT["rules"].append({"key": key, "table": _CELLRECT["table"]})
+    _CELLRECT["pending_above"] = key
     return "\\noalign{\\pdrulepos{%s}}" % key
 
 
@@ -365,7 +387,16 @@ def _cellrect_marks(title: str) -> tuple:
     key = "pdr%05d" % _CELLRECT["n"]
     # the rule ABOVE this row is the last one laid; the rule BELOW is laid by
     # this row's own trailing mark, so its key is known before it exists.
-    above = _CELLRECT["rules"][-1]["key"] if _CELLRECT["rules"] else None
+    # 608#3 ATTEMPTED AND REVERTED. Laying the rule at the row's own start
+    # is the right idea and longtable DISCARDS a `\noalign` placed
+    # immediately after `\endhead`, so the first data row of every table
+    # either lost its mark (0049_EQ0001, no savepos in the .aux) or took a
+    # stale one (0049_FO0001, above 680.3 BELOW its own below 727.9). The
+    # rule above is therefore the last one laid, which for the first row of a
+    # table is the table's TOP rule — above the repeated header, which is
+    # 608#3 and is still open.
+    above = (_CELLRECT.get("pending_above")
+             or (_CELLRECT["rules"][-1]["key"] if _CELLRECT["rules"] else None))
     _CELLRECT["map"].append({"key": key, "identifier": title,
                              "table": _CELLRECT["table"],
                              "rule_above_key": above,
@@ -388,7 +419,18 @@ def _cellrect_col_marks(ncells: int) -> list:
         _CELLRECT["coln"] += 1
         k = "col%05d" % _CELLRECT["coln"]
         _CELLRECT["cols"].setdefault(_CELLRECT["table"], []).append(k)
-        out.append("\\pdrowpos{%s}" % k)
+        # 608#1 — a savepos at the start of a cell sits INSIDE it, past the
+        # intercolumn space, so every rule read +6.177 bp = \tabcolsep
+        # (5.977) + half the rule. The kern is inside a zero-width smashed
+        # box, so it moves the measurement and not the layout.
+        out.append("\\pdcolpos{%s}" % k)
+    # 608#2 — the RIGHTMOST rule of every table was never described, so the
+    # last column was never checked. `\hfill` carries this one to the right
+    # edge of the final p-column and the kern crosses the intercolumn space.
+    _CELLRECT["coln"] += 1
+    k = "col%05d" % _CELLRECT["coln"]
+    _CELLRECT["cols"].setdefault(_CELLRECT["table"], []).append(k)
+    _CELLRECT["pending_right"] = "\\pdcolposr{%s}" % k
     return out
 
 
@@ -401,6 +443,12 @@ CELLRECT_PREAMBLE = r"""\usepackage{zref-savepos,zref-abspage}
 %% and starts a paragraph there, which HANGS xelatex rather than
 %% erroring — the whatsit and the label are all that may appear.
 \newcommand{\pdrulepos}[1]{\pdfsavepos\zref@labelbyprops{#1}{posx,posy,abspage}}
+%% the COLUMN rule, left of the cell: a savepos at a cell's start sits past
+%% \tabcolsep, which read +6.177 bp on every rule (608#1). The kern is
+%% inside a zero-width smashed box, so it moves the measurement only.
+\newcommand{\pdcolpos}[1]{\smash{\hbox to 0pt{\kern-\tabcolsep\pdfsavepos\zref@labelbyprops{#1}{posx,posy,abspage}\hss}}}
+%% the RIGHTMOST rule, which no cell-start mark can reach (608#2).
+\newcommand{\pdcolposr}[1]{\hfill\smash{\hbox to 0pt{\kern\tabcolsep\pdfsavepos\zref@labelbyprops{#1}{posx,posy,abspage}\hss}}}
 \makeatother"""
 
 
@@ -1643,15 +1691,20 @@ def row(title, latex, page, extra="", image=None, punct="", conf="",
         # confidence square.
         txt = ("\\,\\texttt{\\tiny %s}" % esc_text(code)) if code else ""
         cell = "%s\\hspace{0.6em}\\inkbullet{%s}%s" % (cell, residual, txt)
+    _above = ""
     _cells = [ident, esc_text(str(page)), cell, src, math] + \
         ([image] if image is not None else [])
     _cm = _cellrect_col_marks(len(_cells))
     _body = " & ".join(m + c for m, c in zip(_cm, _cells))
+    _body = _above + _body
+    _cells[-1] = _cells[-1]          # (the right-edge mark rides on _close)
     # the rule BELOW this row, and the key recorded against it
     _below = _rule_mark()
     if _CELLRECT["on"] and _CELLRECT["map"] and _CELLRECT["rules"]:
         _CELLRECT["map"][-1]["rule_below_key"] = _CELLRECT["rules"][-1]["key"]
-    return "%s%s \\\\ %s\\hline\n" % (_body, _close, _below)
+    return "%s%s%s \\\\ %s\\hline\n" % (
+        _body, _CELLRECT.pop("pending_right", "") if _CELLRECT["on"] else "",
+        _close, _below)
 
 
 #: sp per bp. 1 bp = 1/72 in, 1 TeX pt = 1/72.27 in, 1 pt = 65536 sp.
@@ -3711,6 +3764,7 @@ def build_report(tiddlers_path: Path, out: Path | None = None,
                 # `row()`, which is why its rows carried no marks and the
                 # manifest read 28 rows in 2 tables where the document has
                 # 34 in 3.
+                _da = ""
                 _o, _c = _cellrect_marks(title)
                 _rb = _rule_mark()
                 if _CELLRECT["on"] and _CELLRECT["map"] and _CELLRECT["rules"]:
@@ -3721,9 +3775,10 @@ def build_report(tiddlers_path: Path, out: Path | None = None,
                            rcell, cell]
                 _dcm = _cellrect_col_marks(len(_dcells))
                 out_parts.append(
-                    "%s%s \\\\ %s\\hline\n"
-                    % (" & ".join(m + c for m, c in zip(_dcm, _dcells)),
-                       _c, _rb))
+                    "%s%s%s%s \\\\ %s\\hline\n"
+                    % (_da, " & ".join(m + c for m, c in zip(_dcm, _dcells)),
+                       _CELLRECT.pop("pending_right", "")
+                       if _CELLRECT["on"] else "", _c, _rb))
             out_parts.append("\\end{longtable}\n")
             # NO \endhead on this one (284) — its header prints once.
             tables_manifest.append(_table_record(
