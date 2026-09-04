@@ -1,0 +1,86 @@
+604 — header/legend rows by the all-zero five-tuple rule, 0707.4470
+
+ page   idents     rows  allzero rows-zero   verdict
+    1        2        0        0         0   ZERO ROWS
+    2        1        0        0         0   ZERO ROWS
+    3        3        4        0         4   differ +1
+    4        3        3        0         3   agree
+    5        4        5        0         5   differ +1
+    6        6        7        0         7   differ +1
+    7        7        7        0         7   agree
+    8       13       13        0        13   agree
+    9       14       15        0        15   differ +1
+   10        9       10        0        10   differ +1
+   11        0       55        0        55   differ +55
+   12        0       57        0        57   differ +57
+   13        0       57        0        57   differ +57
+   14        0       48        0        48   differ +48
+   15        0        6        0         6   differ +6
+   16        0        5        0         5   differ +5
+   17        0        2        0         2   differ +2
+
+pages where identifiers == rows-minus-allzero: 3 of 17
+
+What the extra row IS — first two rows of a +1 page (3), an agreeing page (4), a +1 page (5):
+  page 3 (4 rows):
+     line 0   L=[8, 6, 0, 0, 0]        R=[10, 4, 1, 1, 0]       dis=0
+     line 1   L=[11, 6, 1, 1, 0]       R=[0, 0, 0, 0, 0]        dis=0
+  page 4 (3 rows):
+     line 0   L=[8, 6, 0, 0, 0]        R=[10, 4, 1, 1, 0]       dis=0
+     line 1   L=[141, 23, 33, 33, 0]   R=[0, 0, 0, 0, 0]        dis=0
+  page 5 (5 rows):
+     line 0   L=[8, 6, 0, 0, 0]        R=[10, 4, 1, 1, 0]       dis=0
+     line 1   L=[58, 17, 4, 3, 1]      R=[0, 0, 0, 0, 0]        dis=0
+
+THE ANSWER: NO. The sub-causes do not collapse, and the rect is needed.
+
+1. THE ALL-ZERO RULE FINDS NOTHING HERE — 0 rows on all 17 pages.
+
+   That rule identifies the LEGEND footer, and a measure build is
+   `legend=False` by construction, so there is no legend row to find. 598's
+   "recognising the legend row within a page" is real and is about phase 2.
+   Phase 1 is where the reconciliation happens, and it has no legend.
+
+2. THERE *IS* A REPEATED HEADER ROW, AND IT IS DETECTABLE — but not by that
+   rule. Line 0 of pages 3, 4 and 5 is byte-identical:
+
+        L=[8, 6, 0, 0, 0]   R=[10, 4, 1, 1, 0]
+
+   That is the `\endhead` header LaTeX repeats on every continuation page.
+   It is not all-zero — it carries text, so both five-tuples are non-zero —
+   and it would be found by its CONSTANCY across pages, not by its content.
+
+3. DROPPING IT DOES NOT MAKE THE PAGES AGREE. It moves which ones do:
+
+        page 3:  3 identifiers, 4 rows, 1 header -> 3 real   AGREES
+        page 4:  3 identifiers, 3 rows, 1 header -> 2 real   BREAKS
+        page 5:  4 identifiers, 5 rows, 1 header -> 4 real   AGREES
+
+   Page 4 agreed only because it was short one row to begin with. Over pages
+   1-10: 62 identifiers against 64 lattice rows, and subtracting one header
+   per page that has rows (8 of them) gives 56 — further from 62, not closer.
+
+4. PAGES 1-2 STAY AT ZERO. Three identifiers, no rows, and the header rule
+   cannot reach a page where nothing was detected at all. That sub-cause is
+   isolated, as expected, and remains unexplained.
+
+WHAT THIS SAYS ABOUT WITHIN-PAGE SELECTION
+
+   The existing legend rule is not enough, and neither is a header rule. Both
+   are per-page COUNT corrections, and the disagreement is not a count
+   problem: page 4 has three identifiers and three rows and they are still
+   not the same three, because one of them is a header and one identifier's
+   row is elsewhere.
+
+   Selection has to be positional. The identifier's y-position in the text
+   layer and the lattice row's y-extent are both available; joining those two
+   pairs each row to the identifier that sits in it, and a header row pairs
+   with nothing and is dropped because nothing claims it — no rule needed.
+
+   So: the cell rect (or at minimum the row's vertical extent) IS required.
+   That is 586's work, and this measurement is the argument for doing it
+   rather than a cheaper thing first.
+
+COST OF THIS REPORT: one rebuild of 0707.4470's full listing to measure
+against, and one rebuild back to the published reading shape (phase=reading,
+2 pages, bullets on, findings). No other document was touched.
