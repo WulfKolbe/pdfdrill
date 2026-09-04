@@ -1923,7 +1923,21 @@ def cellrect_from_aux(aux_path: Path, page_height_bp: float) -> dict:
         xs = [pts[k][0] for k in keys if k in pts]
         if xs:
             xs = [x - half for x in xs[:-1]] + [xs[-1] + half]
-        tables.append({"table": t, "column_rules_bp": [round(x, 3) for x in xs]})
+        rec = {"table": t, "column_rules_bp": [round(x, 3) for x in xs]}
+        # 621 — COLUMN RULES MUST INCREASE. The right-edge mark rides an
+        # \hfill to the end of the last cell, and when that cell's content
+        # already fills the line the \hfill breaks instead of stretching, so
+        # the mark lands at the START of the next line. Measured on
+        # 2501.06662: [53.6, 122.7, 154.9, 204.1, 477.2, 767.4, 66.0] — the
+        # rightmost rule reported at 66 bp, left of the first. A consumer
+        # taking these in order would read every cell of that table wrong, so
+        # the disorder is RECORDED rather than shipped as if it were geometry.
+        if xs != sorted(xs):
+            rec["ordered"] = False
+            rec["why"] = ("column rules are not increasing — the right-edge "
+                          "mark broke to a new line; this table's columns "
+                          "cannot be read from this record")
+        tables.append(rec)
     rows = []
     for rec in _CELLRECT["map"]:
         a = pts.get(rec["key"] + "a")
