@@ -29,6 +29,7 @@ pdfdrill CONSUMES inkdrill: it is a subprocess, never an import.
 from __future__ import annotations
 
 import json
+import re
 from pathlib import Path
 
 from . import regionink as ri
@@ -116,6 +117,88 @@ def _from_tex(tex: Path) -> dict:
             "rows": len(idents), "identifiers": [], "derived_from": "report.tex"}
 
 
+#: 596 — identifier-shaped tokens, permissively. The MANIFEST decides which of
+#: these is a row; this pattern only has to be wide enough not to miss one.
+#: `_` is a word character, so `\w` already covers the bibkey.
+_IDENT_TOKEN = re.compile(r"[A-Za-z0-9][\w.\-+]*_(?:EQ|FO|TAB|DIA|IMG|H)\d{2,}"
+                          r"(?:\((?:was|now|basis)\))?")
+
+
+def _flat(text: str) -> str:
+    r"""Page text with every whitespace run removed.
+
+    596 — `pdftotext` WRAPS. A long bibkey pushes the identifier past the
+    column and it comes back split across two lines, so both the plain and the
+    `-layout` output match nothing at all. Removing whitespace entirely makes
+    the wrap invisible, and the identifiers carry no spaces of their own —
+    except the ` (was)` suffix, which is why `_key` strips them from the
+    manifest side too.
+    """
+    return re.sub(r"\s+", "", text)
+
+
+def _key(ident: str) -> str:
+    """The manifest identifier in the same shape `_flat` leaves the page in."""
+    return re.sub(r"\s+", "", str(ident))
+
+
+def identifier_pages(pdf: Path, wanted: list, timeout: int = 900) -> dict:
+    r"""Where each manifest identifier appears, and what else looks like one.
+
+    596 — ATTRIBUTION IS PER IDENTIFIER, NEVER PER RUN. inkdrill established
+    that neither ordinal nor column count can name a table: a run can hold
+    several tables (two adjacent 5-column tables are one run), a table can
+    span runs of different widths (one 212-row table crosses a 6-column and a
+    5-column run), 608 of 717 documents share a column count between two
+    tables, and one 6-column table sits in a run the lattice reads as 7.
+
+    So the table is not selected at all. Every identifier the manifest names
+    is located in the PDF's own text layer, and the rows follow.
+
+    Returns {"pages": [page, ...] in manifest order,
+             "by_page": {page: [identifier, ...] in MANIFEST order},
+             "missing": [identifier, ...] the text layer does not carry,
+             "leftover": [token, ...] identifier-shaped and not in the
+                         manifest — printed rather than dropped}.
+    """
+    import subprocess
+    n = int(re.search(r"^Pages:\s+(\d+)",
+                      subprocess.run(["pdfinfo", str(pdf)], capture_output=True,
+                                     text=True).stdout, re.M).group(1))
+    want_keys = [_key(i) for i in wanted]
+    want_set = set(want_keys)
+    flat_by_page, leftover = {}, []
+    for pg in range(1, n + 1):
+        # 596 — `-raw` returns the text in CONTENT order rather than the
+        # lattice's reading order. The order we use comes from the manifest
+        # either way, but -raw is the only mode whose tokens survive the wrap.
+        txt = subprocess.run(["pdftotext", "-raw", "-f", str(pg), "-l", str(pg),
+                              str(pdf), "-"], capture_output=True, text=True,
+                             errors="replace", timeout=timeout).stdout
+        flat_by_page[pg] = _flat(txt)
+        # Leftovers are scanned on the RAW text, not the flattened one: with
+        # every space removed, neighbouring words glue onto the token and the
+        # pattern reports `...ScanimageX_EQ0051021` as a stray identifier.
+        # A wrapped non-manifest identifier is therefore invisible here, which
+        # is the honest trade — the manifest hits are found either way.
+        for m in _IDENT_TOKEN.finditer(txt):
+            tok = m.group(0)
+            if _key(tok) not in want_set and tok not in leftover:
+                leftover.append(tok)
+
+    by_page, missing, order = {}, [], []
+    for ident, key in zip(wanted, want_keys):
+        hit = next((pg for pg in range(1, n + 1) if key in flat_by_page[pg]), None)
+        if hit is None:
+            missing.append(ident)
+            continue
+        by_page.setdefault(hit, []).append(ident)   # manifest order, by append
+        if hit not in order:
+            order.append(hit)
+    return {"pages": order, "by_page": by_page,
+            "missing": missing, "leftover": leftover}
+
+
 def _pages_for(rows_by_page: dict, pages: list, want: int, legend: bool):
     """The leading pages of a run that hold `want` data rows.
 
@@ -150,24 +233,35 @@ def measure(report_pdf: Path, work: Path, timeout: int = 900) -> list:
     if not want:
         return []
     work.mkdir(parents=True, exist_ok=True)
-    sel = ri.reportpages_json(report_pdf, columns=cols, table=1,
-                              header=header, timeout=timeout)
-    runs = sel.get("tables") or []
-    if not runs:
-        raise MeasureRefused("inkdrill found no table in %s" % report_pdf.name)
-    # ordinal 1 is the equations table on nearly every document; when the
-    # first run is a different width, take the first run that matches.
-    if runs[0]["columns"] != cols:
-        cand = [r for r in runs if r["columns"] == cols]
-        if not cand:
-            raise MeasureRefused(
-                "no run is %d columns wide; inkdrill saw %s"
-                % (cols, [r["columns"] for r in runs]))
-        sel = ri.reportpages_json(report_pdf, columns=cols,
-                                  table=cand[0]["ordinal"], header=header,
-                                  timeout=timeout)
-    pages = _pages_for(sel.get("rows") or {}, sel.get("pages") or [],
-                       want, bool(t.get("legend")))
+
+    # 596 — THE IDENTIFIER JOIN REPLACES ORDINAL SELECTION.
+    #
+    # This used to ask inkdrill for table=1, check that its column count
+    # matched, and then hunt `want` rows inside that one run. 594 measured
+    # what that costs on a full listing: the 18-page report of 2501.06662
+    # segments into NINE runs broken by column width, the Display-equations
+    # rows are spread over ordinals 1, 5 and 7, and the search found 3 rows
+    # where the manifest named 60. Ordinal and width are both unusable —
+    # a run can hold several tables and a table can span runs of different
+    # widths — so the table is no longer selected. Each identifier is located.
+    idents = list(t.get("identifiers") or [])
+    if not idents:
+        raise MeasureRefused(
+            "the manifest names %d rows but no identifiers, so nothing can be "
+            "joined. Rebuild the report: report.tables.json predates 596."
+            % want)
+    join = identifier_pages(report_pdf, idents, timeout=timeout)
+    if join["missing"]:
+        raise MeasureRefused(
+            "%d of %d manifest identifiers are absent from %s's text layer "
+            "(%s%s) — the pairing would be a guess"
+            % (len(join["missing"]), len(idents), Path(report_pdf).name,
+               ", ".join(map(str, join["missing"][:4])),
+               " …" if len(join["missing"]) > 4 else ""))
+    pages = join["pages"]
+    if not pages:
+        raise MeasureRefused("no manifest identifier appears in %s"
+                             % Path(report_pdf).name)
     out = []
     for page in pages:
         a = ri._render(report_pdf, page, 300, work)
@@ -182,13 +276,20 @@ def measure(report_pdf: Path, work: Path, timeout: int = 900) -> list:
                 _f.unlink()
             except OSError:
                 pass
-        expect = len((sel.get("rows") or {}).get(str(page), []))
+        # 596 — the expectation comes from the IDENTIFIERS on this page, not
+        # from a run the lattice happened to draw around them.
+        page_idents = join["by_page"].get(page, [])
+        expect = len(page_idents)
         if len(rows) == expect + 1:
             rows = rows[1:]                  # compare has no header rule
-        if len(rows) != expect:
+        if t.get("legend") and len(rows) == expect + 1:
+            pass                             # the legend is dropped below
+        if len(rows) not in (expect, expect + (1 if t.get("legend") else 0)):
             raise MeasureRefused(
-                "page %d: compare returned %d rows, reportpages expects %d"
-                % (page, len(rows), expect))
+                "page %d: compare returned %d rows, the manifest puts %d "
+                "identifier(s) on it (%s)"
+                % (page, len(rows), expect,
+                   ", ".join(map(str, page_idents[:3])) or "none"))
         if t.get("legend") and rows:
             # THE FOOTER RECONCILIATION (322). One legend row per page, and it
             # is the LAST row: `legend_foot` emits the key as \endfoot and
@@ -203,7 +304,13 @@ def measure(report_pdf: Path, work: Path, timeout: int = 900) -> list:
             # R=[0,0,0,0,0] -- not all-zero, so inkconvert would count it as an
             # equation and refuse the pairing. Measured on 0049.
             rows = rows[:-1]
-        out.extend(rows)
+        # 596 — ORDER FROM THE MANIFEST. Reading order returns the right SET
+        # in the wrong SEQUENCE, which mispairs every row while the counts
+        # look perfect. `page_idents` is already in manifest order, so the
+        # rows are attributed to it position by position.
+        for r, ident in zip(rows, page_idents):
+            r["identifier"] = ident
+        out.extend(rows[:expect])
     data = len(out)
     if data != want:
         raise MeasureRefused(
