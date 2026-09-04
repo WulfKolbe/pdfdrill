@@ -1,0 +1,72 @@
+612 — the page in the label, and rulediff at 0.000
+
+THE IDIOM WORKS, AND IT IS THE ONLY PLACE THAT RULE CAN BE MARKED
+
+  \noalign{\pdrulepos{hdr<table>p\thepage}} immediately BEFORE \endhead.
+  Each repetition of the head defines its own label because \thepage expands
+  at shipout, so one mark yields hdr1p1, hdr1p2, ... — no multiply-defined
+  label, and no discarded \noalign. 611 measured that the same mark placed
+  AFTER \endhead is dropped outright; before it, it survives.
+
+  The reader takes hdr(table, page) and gives it to the first data row of
+  that table on that page — the row whose rule_below is highest. Every other
+  row keeps the rule laid at the end of the row above it, which was always
+  correct.
+
+  On 0049 two rows were corrected, and to the exact values inkdrill's 608
+  read out of the PDF:
+
+      0049_EQ0001   p1   692.851 -> 680.498
+      0049_FO0001   p2   753.683 -> 741.331
+
+  692.851 is the table's top rule, above the header. 680.498 is the rule
+  under it. That was 608#3.
+
+ROWS BOUNDED — 34 of 34, and 0 violations of above > below among the
+same-page rows.
+
+THE PAIRING — the header is unclaimed on EVERY page now
+
+   page   lattice   bands   paired   unpaired   unclaimed identifiers
+      1         2       1        1          1   -
+      2        28      27       27          1   -
+      3         6       5        5          1   -
+      4         1       0        0          1   -
+
+   unpaired: p1 line 0 y 622..671   the header
+             p2 line 0 y 369..418   the header
+             p3 line 0 y 568..617   the header
+             p4 line 0 y 255..945   0049_DIA_0006, the page-straddling row
+
+  Every lattice row is accounted for: on page 1, 2 of 2 — one data row paired
+  and the header unclaimed; on page 2, 28 of 28 — 27 paired and the header
+  unclaimed. No identifier goes unmatched anywhere.
+
+  The header is dropped because NOTHING CLAIMS IT. There is no header rule in
+  the code, and no legend rule either. That is what the rect was for.
+
+RULEDIFF — 0.000 ON BOTH AXES
+
+    COLUMN RULES (x, bp)
+      table 1   6 emitted, 6 in pdf   [-0.001 x5, +0.001]
+      table 2   6 emitted, 6 in pdf   [-0.001 x5, +0.001]
+      table 3   8 emitted, 8 in pdf   [-0.001, 0.0, -0.001, -0.001, -0.001,
+                                       0.0, -0.001, 0.0]
+    ROW RULES (y, bp)
+      x (columns)   n 20   median -0.001   min -0.001   max +0.001
+      y (rows)      n 66   median -0.001   min -0.001   max +0.001
+
+  ±0.001 is the rounding at three decimals. It was ±0.200 — half a rule —
+  because every mark lands on a rule's EDGE and the manifest must carry
+  CENTRELINES: mutool trace gives a stroke's path, which is its centre.
+
+  The direction follows the mark's role rather than a fitted constant:
+    a column mark kerned by \tabcolsep lands on the rule's INNER edge, so
+      the left rules are half a rule high and the rightmost half a rule low;
+    a `rul` mark sits before its \hline, on the rule's upper edge;
+    a `hdr` mark sits after its \hline, on the rule's lower edge;
+    and the image table's opening mark is emitted after its \hline, so it is
+      tagged lower_edge and shifted the other way — that one was the -0.399
+      residual left after the first correction.
+
+  2991 tests pass. 0049 remains the phase-1 full listing, not restored.

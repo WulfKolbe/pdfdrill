@@ -310,7 +310,7 @@ RULE_WIDTH_BP = 0.4
 _CELLRECT = {"on": False, "n": 0, "map": [], "rects": [],
              "rulen": 0, "rules": [], "table": 0,
              "want_cols": False, "cols": {}, "coln": 0,
-             "pending_above": None, "pending_right": ""}
+             "pending_above": None, "pending_right": "", "lower": set()}
 
 
 def cellrect_reset(on: bool) -> None:
@@ -326,6 +326,7 @@ def cellrect_reset(on: bool) -> None:
     _CELLRECT["coln"] = 0
     _CELLRECT["pending_above"] = None
     _CELLRECT["pending_right"] = ""
+    _CELLRECT["lower"] = set()
 
 
 def _rule_mark() -> str:
@@ -364,14 +365,42 @@ def _rule_above() -> str:
     return "\\noalign{\\pdrulepos{%s}}" % key
 
 
-def _cellrect_table_open() -> str:
-    """Start a table: bump the ordinal, ask the next row for column marks,
-    and lay the rule that sits above its first row."""
+def _cellrect_header_mark() -> str:
+    r"""612 — the rule UNDER the repeated header, one label per page.
+
+    The header lives inside `\endhead` and is set again on every page, so a
+    single label would be defined many times and the last would win. Putting
+    `\thepage` in the label name gives each repetition its own — the standard
+    longtable idiom, and the only way to reach this rule: 611 measured that a
+    `\noalign` placed AFTER `\endhead` is discarded outright.
+
+    This is the rule a table's first data row on each page actually sits
+    under. Without it that row inherits the table's TOP rule, above the
+    header, and its band swallows the header row (608#3).
+    """
+    if not _CELLRECT["on"]:
+        return ""
+    return ("\\noalign{\\pdrulepos{hdr%dp\\thepage}}"
+            % _CELLRECT["table"])
+
+
+def _cellrect_table_open(lower_edge: bool = False) -> str:
+    r"""Start a table: bump the ordinal, ask the next row for column marks,
+    and lay the rule that sits above its first row.
+
+    612 — `lower_edge` says the mark is emitted AFTER its `\hline` rather
+    than before it, so the reader shifts it the other way to reach the
+    centreline. The image-regions table builds its own header and the mark
+    lands below that rule; every table_open table puts it above.
+    """
     if not _CELLRECT["on"]:
         return ""
     _CELLRECT["table"] += 1
     _CELLRECT["want_cols"] = True
-    return _rule_mark()
+    out = _rule_mark()
+    if lower_edge:
+        _CELLRECT["lower"].add(_CELLRECT["rules"][-1]["key"])
+    return out
 
 
 def _cellrect_marks(title: str) -> tuple:
@@ -829,7 +858,7 @@ def table_open(caption: str, widths, form: bool = False,
         "\\section*{%s}\n" % caption +
         "\\begin{longtable}{%s}\n" % cols + _cellrect_table_open() + "\\hline\n" +
         " & ".join("\\textbf{%s}" % h for h in heads) +
-        " \\\\\n\\hline\\endhead\n" +
+        " \\\\\n\\hline" + _cellrect_header_mark() + "\\endhead\n" +
         (legend_foot(widths, form) if legend_on else ""))
 
 
@@ -1745,9 +1774,26 @@ def cellrect_from_aux(aux_path: Path, page_height_bp: float) -> dict:
                                                      errors="replace")):
         pts[m.group(1)] = (int(m.group(2)) / SP_PER_BP,
                            int(m.group(3)) / SP_PER_BP, int(m.group(4)))
+    half = RULE_WIDTH_BP / 2.0
+    # 612 — the per-page header rules, `hdr<table>p<page>`.
+    hdr = {}
+    for k, v in pts.items():
+        m = re.match(r"^hdr(\d+)p(\d+)$", k)
+        if m:
+            hdr[(int(m.group(1)), int(m.group(2)))] = v[1] + half
+    # 610/612 — EVERY MARK LANDS ON A RULE'S EDGE, AND THE MANIFEST MUST
+    # CARRY CENTRELINES. `mutool trace` gives a stroke's path, which is its
+    # centreline, and rulediff measured every emitted value at exactly half a
+    # rule from it. The direction follows the mark's role, not a guess:
+    #   a column mark kerned by \tabcolsep lands on the rule's INNER edge —
+    #   the left rules are half a rule high, the rightmost half a rule low;
+    #   a `rul` mark sits before its \hline, on the rule's upper edge;
+    #   a `hdr` mark sits after its \hline, on the rule's lower edge.
     tables = []
     for t, keys in sorted(_CELLRECT["cols"].items()):
         xs = [pts[k][0] for k in keys if k in pts]
+        if xs:
+            xs = [x - half for x in xs[:-1]] + [xs[-1] + half]
         tables.append({"table": t, "column_rules_bp": [round(x, 3) for x in xs]})
     rows = []
     for rec in _CELLRECT["map"]:
@@ -1763,7 +1809,10 @@ def cellrect_from_aux(aux_path: Path, page_height_bp: float) -> dict:
                         "why": "no savepos in the .aux"})
             rows.append(out)
             continue
-        above, below = ra[1], rb[1]
+        _ka = rec.get("rule_above_key") or ""
+        _kb = rec.get("rule_below_key") or ""
+        above = ra[1] + half if _ka in _CELLRECT["lower"] else ra[1] - half
+        below = rb[1] + half if _kb in _CELLRECT["lower"] else rb[1] - half
         out.update({
             "page": a[2],
             "page_close": (b[2] if b else a[2]),
@@ -1775,6 +1824,25 @@ def cellrect_from_aux(aux_path: Path, page_height_bp: float) -> dict:
             "rules_on_one_page": ra[2] == rb[2],
         })
         rows.append(out)
+
+    # 612 — THE FIRST DATA ROW OF A TABLE ON EACH PAGE SITS UNDER THE HEADER,
+    # not under the table's top rule. Its recorded rule_above is whatever was
+    # laid last, which on a table's opening page is the rule ABOVE the header
+    # and on a continuation page belongs to the previous page entirely. The
+    # header's own rule is now marked per page, so it is used where it exists.
+    by = {}
+    for r in rows:
+        if r.get("rule_above_bp") is None:
+            continue
+        by.setdefault((r.get("table"), r.get("page")), []).append(r)
+    for (t, pg), group in by.items():
+        y = hdr.get((t, pg))
+        if y is None:
+            continue
+        top = max(group, key=lambda r: r["rule_below_bp"])
+        if abs(top["rule_above_bp"] - y) > 1e-6:
+            top["rule_above_corrected"] = top["rule_above_bp"]
+            top["rule_above_bp"] = round(y, 3)
     return {"tables": tables, "rows": rows}
 
 
@@ -3661,7 +3729,7 @@ def build_report(tiddlers_path: Path, out: Path | None = None,
                 # reads it as data — one spurious measurement per page, offsetting
                 # every identifier after it. Printed once, exactly one row has to
                 # be dropped and the pairing can be ASSERTED rather than guessed.
-                "\\hline\n" % (dnote, dauth, drend, dimg) + _cellrect_table_open())
+                "\\hline\n" % (dnote, dauth, drend, dimg) + _cellrect_table_open(lower_edge=True))
             for title, latex, page, dims, region in dia:
                 img_path = zip_name = None
                 try:
