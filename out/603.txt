@@ -1,0 +1,63 @@
+603 — all 21 restored to the published reading shape
+
+document                           phase     bullets   pages    pub   delta  ink rows
+0707.4470                          reading   True          2      4      -2  2
+0902.0431                          reading   True         25     26      -1  55
+1510.06699                         reading   True          3      3       0  279
+1605.05775                         reading   True          2      2       0  26
+2010.14265                         reading   True          2      2       0  16
+2106.07890                         reading   True          2      2       0  51
+2501.06662                         reading   True          2      2       0  1
+BradleyGastaldiTerilla2023         reading   True          2      2       0  8
+bradley_spring22                   reading   True          2      2       0  16
+cardona-qft-methods                reading   True          3      3       0  2
+fong-spivak-invitation             reading   True          4      4       0  262
+fong-spivak-seven-sketches         reading   True          4      4       0  264
+gilmore-lie-groups                 reading   True          8      8       0  1037
+johnston-linear-matrix-algebra     reading   True         20     19       1  1670
+kohlhase-omdoc                     reading   True          3      3       0  6
+lyche-numerical-linear-algebra     reading   True          8      8       0  1056
+mielke-geometrodynamics            reading   True          4      4       0  1149
+penev_A                            reading   False         2      3      -1  NO ink.json
+penev_B                            reading   True          2      2       0  62
+rph8-g15q                          reading   True          3      3       0  81
+voloshin-hypergraph                reading   True          2      3      -1  6
+
+phase=reading: 21 of 21
+bullets present: 20 of 21
+
+  EXCEPTION: ('penev_A', 'reading', False, 2, 3, -1, None)
+
+THE ONE EXCEPTION: penev_A carries no bullets because it carries no ink
+
+  report.ink.json was renamed to report.ink.json.REFUSED at 21:29, during the
+  584 Stage C run. `cmd_reporttex` does that when `ink_measurable` reports
+  dropped glyphs in report.log — a residual measured against a report whose
+  font gaps are invisible would charge the gap to the extraction (221).
+
+  The current report.log is clean (ink_measurable -> True, glyphs_dropped ->
+  None), so the refusal was against the build of the moment and the document
+  is now simply without a residual. The REFUSED file holds ONE row,
+  penev_A_FO0526, which matches the "ink 1" that run reported.
+
+  Its published version shows 0 corrected / 1 unresolved / 0 of 33 flagged /
+  0 doubted. The library copy can no longer show the flagged band at all.
+  Restoring it needs a re-measurement, which this task forbids, so it is
+  named and left.
+
+PAGE COUNTS AGAINST THE PUBLISHED ONES
+
+  16 of 21 are identical. Five differ, all small:
+
+     0707.4470     2 against 4    -2
+     0902.0431    25 against 26   -1
+     johnston     20 against 19   +1
+     penev_A       2 against 3    -1   (the missing ink: no flagged section)
+     voloshin      2 against 3    -1
+
+  These are FULL-LENGTH builds — 593 refuses a page bound on any build that
+  writes a manifest — so the closeness is not a bound matching a bound. The
+  published 0902.0431 was 26 pages because it is the old full listing; the
+  new one is 25 pages of findings.
+
+STOPPED HERE. No measurement, no publish, no further builds.
