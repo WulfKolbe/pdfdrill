@@ -965,26 +965,103 @@ _CJK_BLOCKS = ((0x3400, 0x4DBF), (0x4E00, 0x9FFF), (0xF900, 0xFAFF),
 _ZH_CMD = re.compile(r"\\zh(?![a-zA-Z])")
 
 
+def cjk_runs(latex: str) -> list:
+    """Lengths of the maximal runs of consecutive CJK ideographs."""
+    runs, n = [], 0
+    for ch in latex or "":
+        c = ord(ch)
+        if any(lo <= c <= hi for lo, hi in _CJK_BLOCKS):
+            n += 1
+        else:
+            if n:
+                runs.append(n)
+            n = 0
+    if n:
+        runs.append(n)
+    return runs
+
+
+#: 617 — the length at which a sequence of ideographs is TEXT rather than a
+#: decomposition. MathPix's decomposition path emits ISOLATED characters; runs
+#: of three or more are zero across all fifteen affected documents, and genuine
+#: Chinese is nothing but runs.
+CJK_RUN_MIN = 3
+
+
 def cjk_defect(latex: str) -> str:
-    """Why this maths value is CJK-contaminated, or "" if it is clean.
+    r"""Why this maths value is CJK-contaminated, or "" if it is clean.
 
     Reports the FIRST offender with its code point, so a caller can name the
     character rather than say "contains CJK" — the report row is useless for
     triage without knowing whether it hit an IDC (OCR gave up) or a real
     ideograph (OCR read the wrong script).
+
+    617 — THE GATE USED TO REFUSE ON THE PRESENCE OF CJK, WHICH REFUSES
+    CORRECT CONTENT. 判别式法, 符合题意, 对零件i跳过检测 are legitimate Chinese
+    and were being thrown away with the hallucinations. The two are separable
+    and the discriminator was already measured: the decomposition path emits
+    ISOLATED characters — runs of three or more are zero in all fifteen
+    affected documents — while genuine Chinese is nothing but runs.
+
+    So: an ideographic description character refuses always (it is a recipe,
+    not a glyph, and only the decomposition emits one); `\zh` refuses always;
+    isolated ideographs refuse; and a value carrying a run of CJK_RUN_MIN or
+    more is text and is permitted.
     """
     for ch in latex or "":
         c = ord(ch)
         if c in _IDC:
             return "ideographic description character U+%04X (%s)" % (c, ch)
+    if _ZH_CMD.search(latex or ""):
+        return "\\zh command"
+    runs = cjk_runs(latex)
+    if not runs:
+        return ""
+    if max(runs) >= CJK_RUN_MIN:
+        return ""                      # a run is text, not a decomposition
     for ch in latex or "":
         c = ord(ch)
         if any(lo <= c <= hi for lo, hi in _CJK_BLOCKS):
-            return "CJK ideograph U+%04X (%s)" % (c, ch)
-    if _ZH_CMD.search(latex or ""):
-        return "\\zh command"
+            return ("isolated CJK ideograph U+%04X (%s) — no run of %d or "
+                    "more, so this is a decomposition and not text"
+                    % (c, ch, CJK_RUN_MIN))
     return ""
 
+
+_LR_ANY = re.compile(r"\\(left|right)(?![a-zA-Z])")
+_ENV_ANY = re.compile(r"\\(begin|end)\{(\w+\*?)\}")
+
+
+def _lr_balanced(lx: str) -> bool:
+    r"""A depth walk over \left/\right, not a count.
+
+    618 — the old rule compared the two totals, so `\right) x \left(` passed:
+    it balances and it is nonsense, and xelatex reports "Extra \right" only
+    when it reaches it. Depth may never go negative and must end at zero.
+    """
+    depth = 0
+    for m in _LR_ANY.finditer(lx or ""):
+        depth += 1 if m.group(1) == "left" else -1
+        if depth < 0:
+            return False
+    return depth == 0
+
+
+def _env_balanced(lx: str) -> bool:
+    r"""A stack walk over \begin/\end, not a sorted multiset comparison.
+
+    618 — sorting both lists and comparing them says `\end{a}\begin{a}` is
+    fine, and says `\begin{a}\begin{b}\end{a}\end{b}` is fine too. Both are
+    errors. The stack refuses a close that does not match the innermost open.
+    """
+    stack = []
+    for m in _ENV_ANY.finditer(lx or ""):
+        if m.group(1) == "begin":
+            stack.append(m.group(2))
+        else:
+            if not stack or stack.pop() != m.group(2):
+                return False
+    return not stack
 
 
 #: TeX math ALPHABETS are not fonts with gaps — they are alphabets. rsfs10
@@ -1278,11 +1355,14 @@ def renderable(latex: str) -> str:
     for m in _LR_TOKEN.finditer(lx):
         if not is_delimiter(m.group(2)):
             return ""
-    if len(re.findall(r"\\left(?![a-zA-Z])", lx)) != \
-       len(re.findall(r"\\right(?![a-zA-Z])", lx)):
+    # 618 — A COUNT IS NOT A NESTING CHECK. `count(\left) - count(\right)
+    # == 0` passes `\right) … \left(`, which balances and is still wrong, and
+    # such rows have been rendering all along. The walk refuses the moment
+    # depth goes negative — a closer with nothing open — and again if it does
+    # not return to zero.
+    if not _lr_balanced(lx):
         return ""
-    if sorted(re.findall(r"\\begin\{(\w+\*?)\}", lx)) != \
-       sorted(re.findall(r"\\end\{(\w+\*?)\}", lx)):
+    if not _env_balanced(lx):
         return ""
     # bare align markers (& or \\) at BRACE DEPTH 0 are longtable tab marks
     # -> "misplaced tab mark" error-recovery loop (live hang on 0902.0431

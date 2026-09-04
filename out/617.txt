@@ -1,0 +1,70 @@
+617 / 618 — the CJK split and the depth walk
+
+617 — THE GATE IS SPLIT, AND THE DISCRIMINATOR HOLDS EXACTLY
+
+  Refuse: any U+2FF0–2FFB ideographic description character; \zh; and
+  isolated CJK inside a maths value. Permit: a run of three or more
+  consecutive ideographs, wherever it occurs — including inside \text{}.
+
+  CORPUS, 660,504 rows over the drilled library:
+
+      refused by the OLD gate                 51
+        still refused                         51
+        newly permitted                        0
+
+      by reason:   isolated CJK   28
+                   IDC            23
+                   \zh             0
+
+      documents with an IDC        15   <- exactly the fifteen you named
+      documents with isolated CJK  21
+
+  THE MEASUREMENT THAT MATTERS: the longest CJK run in ANY still-refused row
+  is 2. Not one refused row reaches three. That is your discriminator holding
+  on its own evidence — the decomposition path emits isolated characters and
+  never a run, so the run threshold separates the two populations cleanly and
+  does not have to be tuned.
+
+  Checked directly against the strings you quoted:
+      判别式法          runs [4]     permitted
+      符合题意          runs [4]     permitted
+      对零件i跳过检测     runs [3,4]   permitted
+      \text{判别式法}+x  runs [4]     permitted
+      x + 日 y         runs [1]     refused, isolated
+      ⿱ ⿻ 一 日        runs [1,1]   refused, IDC
+
+  I COULD NOT FIND THE BENCHMARK ROWS THEMSELVES. Rows 058, 079 and 099 are
+  not in the drilled library under those strings, and the library-wide grep
+  for them was killed at its timeout rather than completing — so that is a
+  search I did not finish, not an absence I established. The gate is verified
+  against the content you quoted; it is not verified against the pages.
+
+  Nothing is freed by this change TODAY: every one of the 51 is a genuine
+  decomposition. The change matters for the benchmark and for any Chinese
+  document drilled later, not for the corpus as it stands.
+
+618 — THE DEPTH WALK REPLACES THE COUNT, AND REFUSES NOTHING NEW
+
+  \left/\right was `count(\left) == count(\right)`. It is now a walk: +1, -1,
+  refuse the moment depth goes negative, refuse if it does not end at zero.
+  `\right) x \left(` balances by count and is now refused.
+
+  Environments were compared as SORTED MULTISETS, which is order-blind in two
+  ways, and both are now refused by a stack walk:
+      \end{a}\begin{a}                    a close before its open
+      \begin{a}\begin{b}\end{a}\end{b}    interleaved, not nested
+
+  Braces already walked depth; that was correct and is unchanged.
+
+  ROWS THE OLD CHECK PASSED AND THE NEW ONE REFUSES:
+
+      \left/\right     0   of 660,504
+      environments     0   of 660,504
+
+  So the answer to "how many rows balance and are still wrong" is ZERO. The
+  old check was unsound and the corpus never exercised the unsoundness. That
+  is worth saying plainly rather than dressing up: this is a correctness fix
+  with no observable effect on any current row, and its value is that the next
+  \right)…\left( is refused by the gate instead of reaching xelatex.
+
+  2998 tests pass.
