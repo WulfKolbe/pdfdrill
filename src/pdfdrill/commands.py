@@ -1647,7 +1647,25 @@ def publish_ready(pdf: Path) -> dict:
                 _rows = _json.loads(ink.read_text(encoding="utf-8")).get("rows") or []
                 _measured = {r.get("id") for r in _rows if r.get("id")}
                 _missing = len(_ids - _measured)
-                if not _ids and _rows:
+                # 632 — A BANDED REPORT HAS NO ROWS TO COVER. 515 bands the
+                # tail into a stated count, so a document whose every flagged
+                # row falls below the threshold shows a header line and no
+                # table — and a report with no table has no \ident to read.
+                # The ink measured the phase-1 FULL LISTING, not this build,
+                # so "no identifiers here" is the expected state and coverage
+                # is vacuously complete. Only an ABSENT manifest leaves it
+                # unknown: then nothing records what the report shows.
+                _tm = d / rt.TABLES_MANIFEST
+                _banded = False
+                if _tm.is_file():
+                    try:
+                        _banded = not (_json.loads(_tm.read_text(
+                            encoding="utf-8")).get("tables") or [])
+                    except Exception:
+                        _banded = False
+                if not _ids and _rows and _banded:
+                    cover = ""
+                elif not _ids and _rows:
                     # publish_ready's own rule: a check that cannot see its
                     # input FAILS. An empty identifier list means report.tex
                     # is not in the table shape `identifiers()` reads, so
@@ -1768,14 +1786,25 @@ def publish_ready(pdf: Path) -> dict:
             except Exception:
                 _flagged_rows = 0
         _needs_bullets = _flagged_rows > 0 or "Display equations" in body
+        # 632 — AND THE LEGEND IS NOT OWED EITHER. The legend is table
+        # furniture: `table_open` emits it, so a report with no table has
+        # nowhere to put one. Requiring it of a banded report demanded a
+        # caption for a table that correctly does not exist.
+        # …but a report that PRINTS a bullet owes the legend regardless: the
+        # bullet is unreadable without the key. Only a report with neither is
+        # excused.
+        _needs_legend = _needs_bullets or bullets > 0
         checks["residuals"] = (((bullets > 0 or not _needs_bullets)
-                                and legend and not flat
+                                and (legend or not _needs_legend)
+                                and not flat
                                 and not nojoin and not implausible),
                                "%d bullets%s, legend %s%s%s%s" %
                                (bullets,
                                 "" if _needs_bullets else
                                 " (none owed: no ink-bearing section)",
-                                "present" if legend else "ABSENT",
+                                ("present" if legend else
+                                 "absent (none owed: no table)"
+                                 if not _needs_legend else "ABSENT"),
                                 "" if not nojoin else
                                 "; but NONE of %d measured identifiers matches "
                                 "a row here — a join failure, not a set of "

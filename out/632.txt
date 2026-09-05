@@ -1,0 +1,32 @@
+632 — the banded-report gate class
+
+READY 8 -> 15 of 21. 3000 tests pass.
+
+THE SHAPE. 515 bands the flagged tail into a stated count, so a document with
+every row below the threshold shows a header line and NO TABLE. Two gates then
+demanded table furniture from a report that correctly has none.
+
+  ink        "coverage UNKNOWN — report.tex yields no row identifiers, so the
+             N measured rows cannot be matched to it"
+             A banded report has no \ident because it has no table. The ink
+             measured the phase-1 FULL LISTING, not this build, so no
+             identifiers here is the EXPECTED state and coverage is vacuously
+             complete. Only an ABSENT tables manifest leaves it unknown — then
+             nothing records what the report shows. Same distinction as 630A.
+
+  residuals  "0 bullets (none owed: no ink-bearing section), legend ABSENT"
+             The legend is emitted by table_open, so a report with no table
+             has nowhere to put one. It is no longer owed when no bullets are
+             owed — but it IS owed the moment a bullet is printed, because a
+             bullet without its key is unreadable. My first cut missed that
+             and a test caught it.
+
+STILL BLOCKED (6)
+  0902.0431, cardona, gilmore, johnston   ink: "MEASURES ONLY N of M rows —
+      the report was rebuilt after it was measured". 3 of 5, 2 of 3, 10 of 15,
+      30 of 35. A different defect: the reading build is not the build the ink
+      describes.
+  kohlhase-omdoc   residuals: p90 component ratio 3.92 >= 3.0, not credible.
+  penev_A          no report.ink.json; the .REFUSED is quarantined.
+
+NOT PUBLISHED. The 7 newly-ready are built but the site still carries the 8.
