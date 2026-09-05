@@ -1673,7 +1673,36 @@ def publish_ready(pdf: Path) -> dict:
                     cover = ("; coverage UNKNOWN — report.tex yields no row "
                              "identifiers, so the %d measured rows cannot be "
                              "matched to it" % len(_rows))
-                elif _ids and _missing:
+                # 633 — THE SUBSET CHECK. The reading build shows a SUBSET of
+                # the rows the phase-1 listing was measured on, and a row that
+                # straddles a page break bounds no rectangle on either page, so
+                # it is measured by neither side. Counting those as "the report
+                # was rebuilt after it was measured" reported staleness where
+                # there is none: johnston 30 of 35, gilmore 10 of 15. They are
+                # excluded by name and what remains is judged by 630B's rule.
+                _strad = set()
+                try:
+                    _mf = d / rt.ROWS_MANIFEST
+                    if _mf.is_file():
+                        _strad = {r["identifier"] for r in
+                                  (_json.loads(_mf.read_text(encoding="utf-8"))
+                                   .get("rows") or [])
+                                  if not r.get("rules_on_one_page", True)}
+                except Exception:
+                    _strad = set()
+                _gone = (_ids - _measured) - _strad
+                # ANY residue refuses. 630B's fraction is for rows that are
+                # unmeasurable BY NATURE — a straddling row bounds no
+                # rectangle and never will. A row that is neither measured nor
+                # straddling is a row the ink simply does not know about, and
+                # that is staleness whatever its share. Applying the tolerance
+                # to this residue too let 2 of 6 through, which a test caught.
+                if _ids and _gone:
+                    cover = ("; MEASURES ONLY %d of %d rows — %d carry no "
+                             "measurement and do not straddle a page, so the "
+                             "report was rebuilt after it was measured"
+                             % (len(_ids) - len(_gone), len(_ids), len(_gone)))
+                elif False:
                     cover = ("; MEASURES ONLY %d of %d rows (%.0f%%) — %d carry "
                              "no measurement, so the report was rebuilt after it "
                              "was measured" % (len(_ids) - _missing, len(_ids),

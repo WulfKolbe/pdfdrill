@@ -1,0 +1,29 @@
+633 — the subset check, and 17 published
+
+publishcheck: 17 identical, 4 stale. Site commit 383ae31.
+
+THE SUBSET CHECK. The reading build shows a SUBSET of the rows the phase-1
+listing was measured on, and a straddling row bounds no rectangle on either
+page so neither side measures it. Counting those as "the report was rebuilt
+after it was measured" reported staleness where there is none — johnston
+30 of 35, cardona 2 of 3. They are excluded by name.
+
+ANY RESIDUE STILL REFUSES. My first cut also applied 630B's fraction to what
+was left, which let 2 of 6 through; a test caught it. 630B's tolerance is for
+rows unmeasurable BY NATURE. A row neither measured nor straddling is one the
+ink does not know about, and that is staleness whatever its share.
+
+READY 15 -> 17. cardona and johnston cleared.
+
+STILL STALE (4)
+  0902.0431         stamp: 6 of 13 shown rows straddle (46%)
+  gilmore-lie-groups stamp: 5 of 15 (33%)
+  kohlhase-omdoc    residuals: p90 component ratio 3.92 >= 3.0
+  penev_A           no report.ink.json; .REFUSED quarantined
+
+  The first two exceed 630B's 25% because banding leaves a small denominator:
+  13 and 15 shown rows. Not a defect in the measurement — a threshold
+  question on documents whose visible row count is small.
+
+3000 tests pass. The index names the four and says their residual columns are
+not trustworthy.
