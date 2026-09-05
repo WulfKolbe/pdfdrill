@@ -1,0 +1,70 @@
+628 — the environment map fires on nothing, and the refusals are elsewhere
+
+A. THE MAP HAS NO WORK TO DO IN THIS CORPUS. 660,504 rows scanned.
+
+   environment      rows   renders  refused   class
+   aligned        17,688    17,294      394   already in-math
+   array          10,619    10,462      157   already in-math
+   gathered        1,736     1,725       11   already in-math
+   cases             970       933       37   already in-math
+   split             143       139        4   already in-math
+   bmatrix            66        55       11   already in-math
+   matrix             42        40        2   already in-math
+   pmatrix            34        30        4   already in-math
+   smallmatrix        25        25        0   already in-math
+   vmatrix             3         3        0   already in-math
+
+   align, align*, gather, gather*, eqnarray, eqnarray*, multline,
+   multline*, equation, equation*:   ZERO ROWS, all ten.
+
+   MathPix already emits the in-math forms. It writes `aligned`, not `align`;
+   `gathered`, not `gather`. So the map specified — align->aligned,
+   gather->gathered, eqnarray->aligned, multline->multlined, equation->strip
+   — would fire on not one row of this corpus. I have not added it, because
+   an untested mapping over an empty population is a claim rather than a fix.
+   It may well matter for OmniDocBench or for author-source documents, and
+   the count above is the evidence for deciding that separately.
+
+   mathtools IS loaded (report_tex.py:758, landed by 484), so `multlined`
+   would be available if the map were ever wanted.
+
+B. THE 620 REFUSED IN-MATH ROWS, BY THE GATE THAT REFUSED THEM
+
+   dollar / bracket   246   a `$` inside \text{...} — LEGITIMATE LaTeX
+                            1811.06102_EQ0243:
+                            \begin{aligned} D(d,k,N)&= \#\left\{f:F_t\to E
+                            \text{ such that $...$}\right\}
+   unattributed       219   my reproduction of the gate did not fire on any
+                            of its checks; the sample carries \cr, the TeX
+                            row separator. NOT DIAGNOSED.
+   tab-mark           134   a bare & or \\ survives the strip
+   cjk                 19
+   brace                2
+
+   ON B AS SPECIFIED: the strip ALREADY removes every \begin{X}…\end{X}
+   body, and \substack{a \\ b} is already shielded because the check tests
+   brace depth 0 — that was 0902.0431 EQ0035's fix. So the two additions
+   named would not move these 134.
+
+   What the samples show instead is NESTED SAME-NAME environments:
+       rph8-g15q_EQ0007  \begin{array}{ll} … \left[\begin{array}{ll} 1 & 0
+   The stripper is a non-greedy \begin{array}…\end{array}, so it pairs the
+   OUTER begin with the INNER end, leaves the outer \end{array} and the text
+   between them, and a bare & survives. Six iterations do not help because
+   each pass makes the same wrong pairing. That is a real defect and it is
+   the largest attributable share of the 134 — but I have measured it on two
+   samples, not counted it, and I am not changing the stripper on that basis.
+
+   THE 246 IS THE BIGGER NUMBER AND THE CLEARER ONE. `$` inside \text{} is
+   correct content refused by a gate that rejects any dollar sign. Those rows
+   have been demoted all along, exactly as the task supposed — but they are
+   not the tab-mark class.
+
+C. OMNIDOCBENCH IS NOT ON THIS MACHINE. No ~/OmniDocBench, nothing under
+   ~/MX, and nothing in out/ or tools/ references it. The 438 -> 60 run
+   cannot be reproduced here and I have not invented numbers for it.
+
+627 CONTINUES, AND IT IS THE ONE THAT UNBLOCKS PUBLISHING. Document 1 of 21
+is in and it is the fix landing: 0707.4470 reads zeroScan 0 and its flagged
+count falls from 27 of 52 to 1 of 10 — with real Scan cells most rows now
+AGREE instead of every one scoring class C.
