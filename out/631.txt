@@ -1,0 +1,29 @@
+631 — the eight published
+
+Site commit 2777b1a. publishcheck: 8 identical, 13 stale.
+
+PUBLISHED (residuals measured on display equations only)
+  0707.4470  1510.06699  fong-spivak-invitation  fong-spivak-seven-sketches
+  lyche-numerical-linear-algebra  mielke-geometrodynamics  rph8-g15q
+  voloshin-hypergraph
+
+The index carries a dated note naming the defect and saying the other
+thirteen are unchanged from 2 September and not trustworthy.
+
+WHAT WAS WRONG
+  A line break inside the report's table cell pushed every scan crop onto a
+  second line. inkdrill measured an empty cell, so every row scored as a
+  component difference. \raisebox fixes it. zeroScan is now a per-document
+  column: 0 on 21 of 21, ma_ok on 20 of 21.
+
+STILL BLOCKED (13)
+  ink 12, residuals 9, stamp 3, artefacts 1. Not bad measurements — gates
+  written for a report with a table, misfiring on the banded reports that
+  correctly have none: "coverage UNKNOWN — report.tex yields no row
+  identifiers", "0 bullets (none owed), legend ABSENT". Same class as 630A/B,
+  two gates further down.
+
+  penev_A has no ink and fails four gates. Unresolved.
+
+NEXT
+  The banded-report gate class. Report first.
