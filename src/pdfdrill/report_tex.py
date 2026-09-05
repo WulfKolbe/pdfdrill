@@ -341,6 +341,17 @@ ROWS_MANIFEST = "pdfdrill-rows.json"
 #: point sits on the baseline INSIDE the cell, not on the rule that bounds it.
 RULE_WIDTH_BP = 0.4
 
+#: 630B — the share of published findings rows that may be unmeasurable
+#: before the report is refused rather than annotated. A page-straddling row
+#: bounds no rectangle on either page, so it can never be measured.
+UNMEASURED_MAX = 0.25
+
+#: …and a fraction is meaningless on a denominator of two. 630's first cut
+#: refused "1 of 2 published rows never measured (50%)" — a report showing two
+#: rows above the band, one of which straddles a page. Both conditions must
+#: hold before a report is withheld, and both are printed on the page.
+UNMEASURED_MIN = 4
+
 #: 605 — `\zsavepos` alone records posx/posy and NOT the page, and
 #: `\zref@labelbyprops` alone records the page and leaves the coordinates at
 #: zero because it never emits the `\pdfsavepos` whatsit. Both, in that
@@ -2665,19 +2676,50 @@ def ink_describes_published(doc_dir: Path) -> tuple:
     # tables manifest has nothing to compare, and 551 is what that costs:
     # report.tables.json was empty in 21 of 21 and every downstream reader
     # silently agreed with it.
-    if read.get("findings") and not cov["shown"]:
-        return False, ("this is a findings build and %s names no rows — "
-                       "there is nothing to check the ink against"
-                       % TABLES_MANIFEST)
+    # 630A — A FINDINGS BUILD WITH NO ROWS ABOVE THE BAND IS CORRECT OUTPUT.
+    # 515 bands the tail into a stated count, so a document whose every
+    # flagged row falls below FLAG_SHOW_DELTA emits a header line and no
+    # table. That is the design working, and 585's guard refused it as if an
+    # empty manifest and a missing one were the same thing. They are not: a
+    # MISSING manifest means nothing recorded what the report shows, and an
+    # EMPTY one means the report shows nothing. Only the first is a defect.
+    if read.get("findings") and not (Path(doc_dir) / TABLES_MANIFEST).is_file():
+        return False, ("this is a findings build and %s is absent — nothing "
+                       "records what the report shows" % TABLES_MANIFEST)
+    # 630B — A PAGE-STRADDLING ROW CANNOT BE MEASURED, and that is a fact
+    # about the row rather than a fault in the report. It bounds no rectangle
+    # on either page, so no measurement of it exists to check. Refusing on any
+    # such row withheld ten documents over counts of 1 of 2 and 5 of 43.
+    #
+    # It is STATED instead, the same shape as the withheld-formula count, and
+    # refused only past a fraction that is named here and printed on the page:
+    # UNMEASURED_MAX. Above it the report is mostly unmeasured and saying so
+    # in a header line would be burying the finding.
     if cov["shown"] and cov["missing"]:
-        return False, ("%d of %d published findings rows were never measured "
-                       "(%s%s) — the ink cannot speak for them"
-                       % (len(cov["missing"]), cov["shown"],
-                          ", ".join(sorted(cov["missing"])[:3]),
-                          " …" if len(cov["missing"]) > 3 else ""))
+        frac = len(cov["missing"]) / float(cov["shown"])
+        if frac > UNMEASURED_MAX and len(cov["missing"]) >= UNMEASURED_MIN:
+            return False, ("%d of %d published findings rows were never "
+                           "measured (%.0f%%, over the %.0f%% this gate "
+                           "allows, and at least %d rows) — the report is "
+                           "mostly unmeasured"
+                           % (len(cov["missing"]), cov["shown"],
+                              100 * frac, 100 * UNMEASURED_MAX,
+                              UNMEASURED_MIN))
     return True, ("the ink measured the phase-1 full listing (%d rows) and "
                   "covers all %d rows this report shows"
                   % (cov["measured"], cov["shown"]))
+
+
+def _rows_manifest_rows(doc_dir) -> list:
+    """The rect manifest's rows, or [] — read without raising."""
+    import json as _json
+    f = Path(doc_dir) / ROWS_MANIFEST
+    if not f.is_file():
+        return []
+    try:
+        return _json.loads(f.read_text(encoding="utf-8")).get("rows") or []
+    except Exception:
+        return []
 
 
 def findings_covered_by_ink(doc_dir: Path) -> dict:
@@ -3672,6 +3714,26 @@ def build_report(tiddlers_path: Path, out: Path | None = None,
     if not form:
         out_parts.append(unmeasured_note(ink_state or "not_run"))
     out_parts.append(refined_note(refined))
+    # 630B — SAY WHAT CANNOT BE MEASURED, ON THE PAGE. A row broken across a
+    # page break bounds no rectangle on either page, so no measurement of it
+    # can exist. The count belongs beside the withheld-formula count at the
+    # top, where a reader decides what they are looking at — and the rule the
+    # gate applies is printed with it, so the number is not the only thing
+    # they have to go on.
+    if findings:
+        _sr = [r for r in (_rows_manifest_rows(path.parent) or [])
+               if not r.get("rules_on_one_page", True)]
+        if _sr:
+            _tot = len(_rows_manifest_rows(path.parent) or []) or 1
+            out_parts.append(
+                "\\vspace{.4em}\\noindent\\textbf{%d of %d rows straddle a page "
+                "break and are not measured.} A row broken across two pages "
+                "bounds no rectangle on either, so no residual for it exists. "
+                "A report is refused when more than %.0f\\%% of its rows are in "
+                "this state AND at least %d of them; this one is at "
+                "%.0f\\%%.\\\\[.4em]\n"
+                % (len(_sr), _tot, 100 * UNMEASURED_MAX, UNMEASURED_MIN,
+                   100.0 * len(_sr) / _tot))
     tables_manifest = []
     # 513 — every name the writer below reads must exist on BOTH paths.
     # 440 is the precedent: an AST check found `tiddlers` present in the

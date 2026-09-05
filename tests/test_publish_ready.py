@@ -350,13 +350,19 @@ def test_stamp_accepts_a_full_listing_measurement_that_covers_every_row(tmp_path
     assert ok, detail
     assert "covers all" in detail
 
-    # and the guarantee that replaced sameness: a shown row nobody measured
+    # 630B — A FEW unmeasured rows are STATED, not refused: a page-straddling
+    # row bounds no rectangle on either page and can never be measured.
     ok2, detail2 = _remeasure(measured + ["DOC_EQ9999"])
-    assert not ok2
-    assert "never measured" in detail2 and "DOC_EQ9999" in detail2
+    assert ok2, detail2
+
+    # …and past the named fraction it is refused, with the fraction said.
+    many = measured + ["DOC_EQ90%02d" % i for i in range(len(measured) + 2)]
+    ok3, detail3 = _remeasure(many)
+    assert not ok3
+    assert "never measured" in detail3 and "%" in detail3
 
 
-def test_a_findings_build_with_no_tables_manifest_is_refused(tmp_path):
+def test_an_empty_manifest_is_accepted_and_an_absent_one_refused(tmp_path):
     """551 — report.tables.json was empty in 21 of 21 and every reader agreed
     with it. A coverage check with nothing to compare must not pass."""
     import json as _json
@@ -372,9 +378,16 @@ def test_a_findings_build_with_no_tables_manifest_is_refused(tmp_path):
                           prefer_refined=False, filters={}, findings=True,
                           bullets=True)
     (d / _rt.BUILD_STAMP).replace(d / _rt.phase_stamp_name("reading"))
+    # 630A — an EMPTY manifest is correct output: 515 bands the tail into a
+    # stated count, so a document with nothing above the band shows no table.
+    # Only an ABSENT manifest is a defect — then nothing records what the
+    # report shows.
     (d / _rt.TABLES_MANIFEST).write_text(_json.dumps({"tables": []}))
     ok, detail = _rt.ink_describes_published(d)
-    assert not ok and "names no rows" in detail, detail
+    assert ok, detail
+    (d / _rt.TABLES_MANIFEST).unlink()
+    ok2, detail2 = _rt.ink_describes_published(d)
+    assert not ok2 and "is absent" in detail2, detail2
 
 def test_stamp_passes_when_the_ink_measured_this_exact_report(tmp_path):
     """585 — still passes, but no longer by SHORT-CIRCUIT.
