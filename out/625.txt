@@ -1,0 +1,67 @@
+625 — the lead removed, the rule kept, and R is still zero
+
+THE LEAD IS GONE. `\rule{0pt}{0.6mm}\\[-0.6mm]\includegraphics{...}` became
+`\raisebox{-0.6mm}{\includegraphics{...}}`. The `\\` was a LINE BREAK inside a
+`p{}` cell: it put the image on a second line of the cell.
+
+MEASUREMENT 1 — IMAGES IN COLUMN 5.  6 of 6 on page 2.
+
+  column rules (bp)  53.6  122.7  154.9  204.1  477.2  767.4  1136.9
+  column 5 spans     767.4 - 1136.9
+  images (mutool trace, x .. x+w)
+     773.6 -  955.8   column 5
+     773.6 - 1077.2   column 5
+     773.6 - 1119.4   column 5
+     773.6 - 1091.6   column 5
+     773.6 - 1027.5   column 5
+     773.6 - 1092.2   column 5
+
+  And the report went from 18 pages to 16 — the break was costing a line per
+  image row.
+
+  IT ALSO EXPLAINS 621. The right-edge column rule used to come back at 66.0
+  bp, left of the first; the rules now read ...767.4, 1136.9, in order. The
+  `\hfill` that carried that mark was breaking on the same line the image
+  was breaking on. One defect, two symptoms.
+
+MEASUREMENT 2 — 545's CHECK, THE \hline ABOVE EACH DATA ROW.  0 erased.
+
+  Page 2, six data rows, longest light run inside each rule: 0 px on all six.
+  545's clearance survives the change — `\raisebox` lowers the image by the
+  same 0.6mm without leaving the line.
+
+MEASUREMENT 3 — THE ONE THAT WAS SUPPOSED TO SAY IT IS FIXED.  IT DOES NOT.
+
+  page 2   line 0  L=[8,6,0,0,0]        R=[10,4,1,1,0]     the header
+           line 1  L=[93,20,23,10,13]   R=[0,0,0,0,0]
+           line 2  L=[39,11,11,6,5]     R=[0,0,0,0,0]
+           line 3  L=[49,9,12,11,1]     R=[0,0,0,0,0]
+           line 4  L=[118,19,27,8,19]   R=[0,0,0,0,0]
+           line 5  L=[100,10,19,9,10]   R=[0,0,0,0,0]
+
+  1 of 6 rows reads a non-zero R, and it is the header.
+
+  So: the images are provably inside column 5, the rule above every row is
+  unbroken, the crops carry ink at the same density as the published ones
+  (623), the lattice reports the correct 6x6 geometry — and every data row's
+  column-5 cell still measures empty. The pdfdrill-side defect was real and
+  is fixed; it was not the cause of R=0. 623's conclusion stands.
+
+ALSO FIXED, FROM THE QUEUE
+
+  rul00001 MULTIPLY DEFINED — 14 times in that build, and you were right that
+  it meant the header-label fix had not reached it. The table-open mark sits
+  INSIDE \endhead: everything before \endhead is the head block, which LaTeX
+  sets again on every page, so one fixed label was defined once per page and
+  zref kept only the last. The table's own top rule was therefore whatever
+  page was set last. It now carries \thepage like the header rule, and the
+  reader resolves a per-page key against the row's page. 0 multiply defined,
+  446 of 446 rows bounded.
+
+STILL OPEN
+
+  Page 3 reporting five columns where page 2 reports six, in the same report.
+  Not reproduced in this run — my probe of it returned nothing parseable and
+  I did not chase it further.
+
+  3000 tests pass.

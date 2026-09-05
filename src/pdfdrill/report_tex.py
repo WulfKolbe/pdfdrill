@@ -439,8 +439,17 @@ def _cellrect_table_open(lower_edge: bool = False) -> str:
         return ""
     _CELLRECT["table"] += 1
     _CELLRECT["want_cols"] = True
-    out = _rule_mark()
-    return out
+    # 625 — PAGE-UNIQUE, because this mark sits INSIDE \endhead. Everything
+    # before \endhead is the head block and LaTeX sets it again on every
+    # page, so a fixed label was defined once per page: report.log carried 14
+    # "Label `rul00001' multiply defined" and zref kept only the last, so the
+    # table's own top rule was whatever page happened to be set last. The
+    # same \thepage idiom the header rule uses makes each repetition its own.
+    _CELLRECT["rulen"] += 1
+    key = "rul%05dp" % _CELLRECT["rulen"]
+    _CELLRECT["rules"].append({"key": key, "table": _CELLRECT["table"],
+                               "per_page": True})
+    return "\\noalign{\\pdrulepos{%s\\thepage}}" % key
 
 
 def _cellrect_marks(title: str) -> tuple:
@@ -685,7 +694,14 @@ def crop_cell(crops_dir: Path | None, out_dir: Path, title: str,
     # reads as the cell being cut off at the right, which is what it was
     # reported as; nothing is clipped, the border is erased. 0.6mm of lead
     # is below the eye and clears the rule.
-    return ("\\rule{0pt}{0.6mm}\\\\[-0.6mm]\\includegraphics[%s]{%s}"
+    # 625 — A RAISE, NOT A LINE BREAK. The strut above was followed by `\\`,
+    # which inside a `p{}` cell is a LINE BREAK: the image was pushed onto a
+    # second line of the cell and no longer sat in the column the lattice
+    # reads, so every Scan cell measured R=[0,0,0,0,0] while the header row
+    # on the same page read normally. \raisebox lowers the image by the same
+    # 0.6mm and keeps it on one line, so 545's clearance survives without
+    # breaking out of the cell.
+    return ("\\raisebox{-0.6mm}{\\includegraphics[%s]{%s}}"
             % (size, str(rel).replace("\\", "/")))
 
 
@@ -1942,8 +1958,19 @@ def cellrect_from_aux(aux_path: Path, page_height_bp: float) -> dict:
     for rec in _CELLRECT["map"]:
         a = pts.get(rec["key"] + "a")
         b = pts.get(rec["key"] + "b")
-        ra = pts.get(rec.get("rule_above_key") or "")
-        rb = pts.get(rec.get("rule_below_key") or "")
+        # 625 — a per-page mark's label carries \thepage, so its key is
+        # resolved against the page the row is on.
+        def _pt(k):
+            if not k:
+                return None
+            v = pts.get(k)
+            if v is not None:
+                return v
+            pg = (pts.get(rec["key"] + "a") or (None,))[-1] if \
+                pts.get(rec["key"] + "a") else None
+            return pts.get("%s%s" % (k, pg)) if pg else None
+        ra = _pt(rec.get("rule_above_key"))
+        rb = _pt(rec.get("rule_below_key"))
         out = {"identifier": rec["identifier"], "key": rec["key"],
                "table": rec.get("table")}
         if not (a and ra and rb):
