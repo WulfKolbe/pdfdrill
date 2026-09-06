@@ -59,3 +59,16 @@ def test_all_five_present_and_matching(tmp_path):
     results = pc.compare_document(local, remote)
     assert len(results) == len(pc.gate.PUBLISHED_FILES)
     assert all(status == "same" for _, status, _ in results)
+
+
+def test_a_published_derivative_is_what_the_site_must_match(tmp_path):
+    """634 — <doc>/published/<f> (the /ebook copy) wins over the original."""
+    local, remote = tmp_path / "L", tmp_path / "R"
+    (local / "published").mkdir(parents=True)
+    remote.mkdir()
+    (local / "residuals.pdf").write_bytes(b"original")
+    (local / "published" / "residuals.pdf").write_bytes(b"derivative")
+    (remote / "residuals.pdf").write_bytes(b"derivative")
+    assert pc.compare_document(local, remote) == [("residuals.pdf", "same", "")]
+    (remote / "residuals.pdf").write_bytes(b"original")
+    assert pc.compare_document(local, remote)[0][1] == "stale"

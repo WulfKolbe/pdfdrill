@@ -46,7 +46,14 @@ def compare_document(local_dir: pathlib.Path, remote_dir: pathlib.Path,
     """
     results = []
     for fname in filenames:
-        local = sha(local_dir / fname)
+        # 634 — the site carries a Ghostscript /ebook DERIVATIVE of each file
+        # (the originals total 947 MB across 20 documents, six formula files
+        # between 66 and 94 MB; GitHub Pages caps a site near 1 GB). The
+        # derivative lives beside the original under <doc>/published/ and IS
+        # the build the site must match; the original is compared only when
+        # no derivative exists.
+        derived = local_dir / "published" / fname
+        local = sha(derived) if derived.is_file() else sha(local_dir / fname)
         if local is None:
             continue
         remote = sha(remote_dir / fname)
