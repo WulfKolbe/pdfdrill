@@ -925,11 +925,15 @@ def _table_record(caption, widths, legend: bool, endhead: bool,
 
 
 def table_open(caption: str, widths, form: bool = False,
-               legend_on: bool = True) -> str:
+               legend_on: bool = True, heads=None) -> str:
     cols = "|" + "|".join("p{%smm}" % w for w in widths) + "|"
-    heads = {5: ("Identifier", "Page", "Conf.", "LaTeX source", "Rendered"),
-             6: ("Identifier", "Page", "Conf.", "LaTeX source", "Rendered",
-                 "Scan image")}[len(widths)]
+    if heads is None:
+        heads = {5: ("Identifier", "Page", "Conf.", "LaTeX source", "Rendered"),
+                 6: ("Identifier", "Page", "Conf.", "LaTeX source", "Rendered",
+                     "Scan image")}[len(widths)]
+    elif len(heads) != len(widths):
+        raise ValueError("heads must have one entry per column (%d != %d)"
+                          % (len(heads), len(widths)))
     return (
         "\\section*{%s}\n" % caption +
         "\\begin{longtable}{%s}\n\\hline\n" % cols + _cellrect_table_open() +

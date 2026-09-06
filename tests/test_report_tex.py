@@ -12,7 +12,7 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "src"))
 
 from pdfdrill.report_tex import (build_report, renderable, texzip_images,
-                                 col_widths)
+                                 col_widths, table_open)
 
 
 def test_reporttex_is_a_registered_command_with_manifest_entry():
@@ -806,3 +806,17 @@ def test_the_german_branch_on_a_real_document(tmp_path):
     assert roles == [rr.TOC, rr.TOC, rr.TOC,
                      rr.BODY, rr.BODY,
                      rr.BIBLIOGRAPHY, rr.BIBLIOGRAPHY], roles
+
+
+def test_table_open_heads_default_unchanged_and_overridable():
+    """table_open's own six-column header is still 'Scan image' by default
+    (every existing report stays byte-identical); an explicit `heads` lets a
+    caller (pdfdrill.reports.tex) supply its own column names instead of
+    forking the function."""
+    default = table_open("x", (1, 2, 3, 4, 5, 6))
+    assert "Scan image" in default
+
+    from pdfdrill.reports import COLUMNS
+    overridden = table_open("x", (1, 2, 3, 4, 5, 6), heads=COLUMNS)
+    assert "\\textbf{Image}" in overridden
+    assert "Scan image" not in overridden

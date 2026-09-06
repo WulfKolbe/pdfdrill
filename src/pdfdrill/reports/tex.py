@@ -6,7 +6,7 @@ from pathlib import Path
 
 from .. import report_tex as rt
 from . import COLUMNS
-from .rows import EvidenceRow, FormulaRow, EquationRow, row_kind
+from .rows import EvidenceRow, EquationRow
 
 HOST_LINE_SENTENCE = (
     "The page, the confidence and the picture of an inline formula are its "
@@ -26,23 +26,13 @@ def widths_for(paper: str, landscape: bool, with_image: bool) -> tuple:
     return rt.col_widths(w_mm - 36, with_image=with_image)
 
 
-def _open(caption: str, widths, legend_on: bool, form: bool) -> str:
-    cols = "|" + "|".join("p{%smm}" % w for w in widths) + "|"
-    heads = COLUMNS if len(widths) == 6 else COLUMNS[:-1]
-    return ("\\section*{%s}\n" % caption +
-            "\\begin{longtable}{%s}\n\\hline\n" % cols +
-            " & ".join("\\textbf{%s}" % h for h in heads) +
-            " \\\\\n\\hline\\endhead\n" +
-            (rt.legend_foot(widths, form) if legend_on else ""))
-
-
-def _rendered(r: EvidenceRow, widths) -> str:
+def _rendered(r: EvidenceRow, widths, out_dir) -> str:
     safe = rt.renderable(r.latex) if r.latex else ""
     tail = rt.esc_text(r.trailing_punct) if r.trailing_punct else ""
     if safe:
         return "\\FitMath{$\\displaystyle %s$}%s" % (safe, tail)
     if r.latex and rt.refused_for_align_only(r.latex):
-        return rt.standalone_math(r.latex, r.identifier, Path("."),
+        return rt.standalone_math(r.latex, r.identifier, Path(out_dir),
                                   col_mm=widths[4])
     return "\\emph{(not rendered)}" if r.latex else "---"
 
@@ -67,7 +57,7 @@ def render_row(r: EvidenceRow, widths, *, out_dir, px2mm, bibkey,
     src = ("{\\ttfamily\\footnotesize %s}" % rt.esc_text(r.latex)
            if r.latex else "---")
     cells = [ident, rt.esc_text(r.shown_page), _conf(r, ink_bullets), src,
-             _rendered(r, widths)]
+             _rendered(r, widths, out_dir)]
     if len(widths) == 6:
         if r.crop is not None:
             cells.append(rt.crop_cell(r.crop.parent, Path(out_dir), r.crop.stem,
@@ -85,7 +75,9 @@ def render_table(rows: list, kind: str, *, widths, out_dir, px2mm, bibkey,
     parts = []
     if kind == "formula":
         parts.append("\\noindent{\\small %s}\\\\[.6em]\n" % HOST_LINE_SENTENCE)
-    parts.append(_open(caption or CAPTIONS[kind], widths, legend_on, form))
+    heads = COLUMNS if len(widths) == 6 else COLUMNS[:-1]
+    parts.append(rt.table_open(caption or CAPTIONS[kind], widths, form,
+                               legend_on, heads=heads))
     for r in rows:
         parts.append(render_row(r, widths, out_dir=out_dir, px2mm=px2mm,
                                 bibkey=bibkey, history=history,

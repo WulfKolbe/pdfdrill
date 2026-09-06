@@ -2,7 +2,7 @@
 from pathlib import Path
 
 from pdfdrill.reports import COLUMNS
-from pdfdrill.reports.rows import EquationRow, FormulaRow, HostLine, TableRow
+from pdfdrill.reports.rows import EquationRow, FormulaRow, HostLine
 from pdfdrill.reports import tex as T
 
 
@@ -58,6 +58,26 @@ def test_document_wraps_a_body_with_the_report_preamble():
         "x", paper="a3", landscape=True, pages=3)
     assert "\\newcommand{\\inkbullet}" in T.document(
         "x", paper="a3", landscape=True, form=True)
+
+
+def test_standalone_math_gets_the_real_out_dir(tmp_path, monkeypatch):
+    """The refused-for-align-only branch used to hardcode Path(".") as
+    standalone_math's out_dir, so the PNG landed relative to the process
+    cwd rather than the report's own directory and \\includegraphics broke
+    when the compile ran elsewhere."""
+    captured = {}
+    monkeypatch.setattr(T.rt, "refused_for_align_only", lambda latex: True)
+
+    def fake_standalone_math(latex, ident, out_dir, col_mm=100.0):
+        captured["out_dir"] = out_dir
+        return "SA"
+
+    monkeypatch.setattr(T.rt, "standalone_math", fake_standalone_math)
+    r = EquationRow(identifier="D_EQ0009", latex="a & b")
+    widths = T.widths_for("a3", True, True)
+    body = T.render_row(r, widths, out_dir=tmp_path, px2mm=None, bibkey="D")
+    assert captured["out_dir"] == Path(tmp_path)
+    assert "SA" in body
 
 
 def test_no_legend_and_no_bullets_by_default(tmp_path):
