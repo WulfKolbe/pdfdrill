@@ -17,7 +17,7 @@ import re
 from typing import Any, Optional
 
 from ..base_module import BaseModule
-from ..core import Document, DocObject, Realization
+from ..core import Alignment, Document, DocObject, Range, Realization
 
 
 # Matches [citekey], where citekey contains letters, digits, _, - and contains
@@ -130,3 +130,63 @@ class CitationProcessor(BaseModule):
         ))
         self.bump("citations_created")
         return obj
+
+    def process_objects(self, doc: Document) -> None:
+        """010 — a Reference stub at first citation.
+
+        `create_object` runs once per `[key]` occurrence; a paper cited 81
+        times over 52 distinct keys otherwise has no Reference at all until
+        `bibliography`/`bibsource`/`bibfetch` parses one, and until then 44
+        of those 52 keys had NO Reference object to hang anything off of.
+        Here (stage 2, after every module's stage-1 `create_object` calls
+        have run, so all this run's Citations already exist) we create ONE
+        empty Reference per distinct citekey that doesn't have one yet,
+        anchored at that key's FIRST Citation, and link every Citation with
+        that key to it exactly the way a filled Reference is linked
+        (`bibliography.link_citations`'s `cites` Alignment) -- so a
+        downstream consumer never has to special-case "no Reference yet".
+        `bibliography.py`'s three Reference creators fill this stub in place
+        (same id, same anchor) rather than creating a second Reference.
+        """
+        citations_by_key: dict[str, list[DocObject]] = {}
+        for c in doc.objects_of_type("Citation"):
+            key = c.props.get("citekey")
+            if key:
+                citations_by_key.setdefault(key, []).append(c)
+        if not citations_by_key:
+            return
+
+        existing_keys = {r.props.get("citekey") for r in doc.objects_of_type("Reference")}
+
+        for key, cites in citations_by_key.items():
+            if key in existing_keys:
+                continue
+            first_surface = next(
+                (r for r in cites[0].realizations if r.role == "surface"), None)
+            if first_surface is None:
+                continue
+            ref = DocObject(type="Reference", props={
+                "citekey": key,
+                "bibkey": self.bibkey,
+                "stub": True,
+                "ref_source": "citation",
+            })
+            ref.add_realization(Realization(
+                stream=first_surface.stream,
+                start=first_surface.start, end=first_surface.end,
+                role="surface",
+            ))
+            doc.add(ref)
+            self.bump("reference_stubs_created")
+
+            ref_range = Range(first_surface.stream, first_surface.start, first_surface.end)
+            for c in cites:
+                c_surface = next((r for r in c.realizations if r.role == "surface"), None)
+                if c_surface is None:
+                    continue
+                doc.add_alignment(Alignment(
+                    kind="cites",
+                    left=Range(c_surface.stream, c_surface.start, c_surface.end),
+                    right=ref_range,
+                    props={"citekey": key},
+                ))

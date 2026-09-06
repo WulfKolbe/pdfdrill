@@ -16,6 +16,24 @@ from __future__ import annotations
 
 import re
 
+
+def drop_dangling_cites(doc) -> None:
+    """010 — remove `cites` Alignments whose right side no longer resolves to
+    a Reference in the document (its target Reference was just dropped, e.g.
+    a `--force` rebuild or a gold `.bbl`/`.bib` ingest replacing heuristic
+    guesses). An Alignment that still resolves survives untouched -- most
+    often a citation-stub Reference (`CitationProcessor.process_objects`),
+    which keeps its id and anchor when a creator below fills it, so its
+    Citation stays linked across the rebuild instead of losing the edge and
+    waiting for a relink pass that may not run."""
+    live = {(r.stream, r.start, r.end)
+            for o in doc.objects.values() if o.type == "Reference"
+            for r in o.realizations}
+    doc.alignments = [a for a in doc.alignments
+                      if a.kind != "cites"
+                      or (a.right.stream, a.right.start, a.right.end) in live]
+
+
 # The bibliography-section heading WORD (matched on a normalized line, so a
 # \section*{}/markdown/numbered wrapper is stripped first — see _is_ref_heading).
 _HEAD = re.compile(
@@ -466,7 +484,10 @@ def load_bibtex_file(doc, bibtext: str, restrict=None) -> dict:
     Reference for any entry not already present (with a `references` surface so
     it links). When `restrict` (a set of citekeys) is given, only those entries
     are ingested — so a larger SHARED .bib yields just THIS paper's bibliography
-    (the cited subset). Returns {attached, created}."""
+    (the cited subset). A citekey already present as a citation-stub Reference
+    (010) is FILLED in place -- its id and anchor are kept, `stub` is dropped --
+    rather than a second Reference being created for the same key. Returns
+    {attached, created}."""
     from docmodel.core import DocObject, Realization
     from .perplexity_client import parse_bibtex_fields
 
@@ -494,6 +515,9 @@ def load_bibtex_file(doc, bibtext: str, restrict=None) -> dict:
             doc.add(r)
             refs[key] = r
             created += 1
+        elif r.props.get("stub"):
+            r.props.pop("stub", None)
+            r.props["ref_source"] = "bib"      # was a citation-stub -> now gold
         r.props["bibtex"] = raw
         for k in ("author", "year", "title", "entry_type"):
             if f.get(k):
@@ -521,7 +545,9 @@ def build_bibliography_from_source(doc, source_dir) -> dict:
     in `source_dir`, ingest THIS paper's bibliography (the CITED subset of a
     possibly-larger shared .bib — a compiled .bbl is already the cited set), and
     link the in-text Citations. Idempotent caller should only invoke this when no
-    References exist yet. Returns {created, linked}."""
+    non-stub References exist yet (a citation-stub Reference, 010, is filled in
+    place by `ingest_bbl`/`load_bibtex_file` rather than duplicated). Returns
+    {created, linked}."""
     from pathlib import Path
     from . import latex_source
 
@@ -623,23 +649,38 @@ def ingest_bbl(doc, bbltext: str, source: str = "bbl") -> int:
 
     `source` records WHERE the \\bibitem block came from: a compiled `.bbl`
     file (default) or an inline `\\begin{thebibliography}` in the `.tex`
-    (`source="bibitem"`) — surfaced by `status`."""
+    (`source="bibitem"`) — surfaced by `status`. A citekey already present as
+    a citation-stub Reference (010) is FILLED in place -- its id and anchor
+    (the citation's own, not a fresh `references` anchor) are kept, `stub` is
+    dropped -- rather than a second Reference being created for the same key.
+    """
     from docmodel.core import DocObject, Realization
 
     stream = doc.ensure_stream("references")
+    stubs = {(r.props.get("citekey") or ""): r
+             for r in doc.objects.values() if r.type == "Reference" and r.props.get("stub")}
     n = 0
     for e in parse_bbl(bbltext):
-        anchor = stream.append(citekey=e["citekey"], label=e["label"],
-                               number=e["number"])
-        obj = DocObject(type="Reference", props={
-            "citekey": e["citekey"], "label": e["label"], "number": e["number"],
-            "raw_text": e["text"], "author": e.get("author", ""),
-            "year": e.get("year", ""), "entry_type": "misc",
-            "ref_source": source})
-        obj.add_realization(Realization(stream="references", start=anchor,
-                                        end=anchor, role="surface",
-                                        provenance=source))
-        doc.add(obj)
+        r = stubs.get(e["citekey"])
+        if r is not None:
+            r.props.pop("stub", None)
+            r.props.update({
+                "label": e["label"], "number": e["number"], "raw_text": e["text"],
+                "author": e.get("author", ""), "year": e.get("year", ""),
+                "entry_type": "misc", "ref_source": source,
+            })
+        else:
+            anchor = stream.append(citekey=e["citekey"], label=e["label"],
+                                   number=e["number"])
+            obj = DocObject(type="Reference", props={
+                "citekey": e["citekey"], "label": e["label"], "number": e["number"],
+                "raw_text": e["text"], "author": e.get("author", ""),
+                "year": e.get("year", ""), "entry_type": "misc",
+                "ref_source": source})
+            obj.add_realization(Realization(stream="references", start=anchor,
+                                            end=anchor, role="surface",
+                                            provenance=source))
+            doc.add(obj)
         n += 1
     return n
 
@@ -687,25 +728,40 @@ def link_citations_by_label(doc) -> int:
 
 
 def add_reference_objects(doc, entries: list[dict]) -> int:
-    """Create a `Reference` DocObject per parsed entry. Returns the count."""
+    """Create a `Reference` DocObject per parsed entry. Returns the count.
+
+    A citekey already present as a citation-stub Reference (010) is FILLED in
+    place -- its id and anchor (the citation's own) are kept, `stub` is
+    dropped -- rather than a second Reference being created for the same key.
+    """
     from docmodel.core import DocObject, Realization
 
+    stubs = {(r.props.get("citekey") or ""): r
+             for r in doc.objects.values() if r.type == "Reference" and r.props.get("stub")}
     n = 0
     for e in entries:
-        obj = DocObject(type="Reference", props={
-            "citekey": e["citekey"],
-            "raw_text": e["raw_text"],
-            "year": e["year"],
-            "author": e["author"],
-            "number": e.get("number"),
-            "entry_type": "misc",          # heuristic; refined by a real grammar
-            "ref_source": "text",          # parsed from the printed/OCR'd refs
-        })
-        anchors = e.get("anchors") or []
-        if anchors:
-            obj.add_realization(Realization(
-                stream="mathpix_lines", start=anchors[0], end=anchors[-1],
-                role="surface", provenance="bibliography"))
-        doc.add(obj)
+        r = stubs.get(e["citekey"])
+        if r is not None:
+            r.props.pop("stub", None)
+            r.props.update({
+                "raw_text": e["raw_text"], "year": e["year"], "author": e["author"],
+                "number": e.get("number"), "entry_type": "misc", "ref_source": "text",
+            })
+        else:
+            obj = DocObject(type="Reference", props={
+                "citekey": e["citekey"],
+                "raw_text": e["raw_text"],
+                "year": e["year"],
+                "author": e["author"],
+                "number": e.get("number"),
+                "entry_type": "misc",          # heuristic; refined by a real grammar
+                "ref_source": "text",          # parsed from the printed/OCR'd refs
+            })
+            anchors = e.get("anchors") or []
+            if anchors:
+                obj.add_realization(Realization(
+                    stream="mathpix_lines", start=anchors[0], end=anchors[-1],
+                    role="surface", provenance="bibliography"))
+            doc.add(obj)
         n += 1
     return n

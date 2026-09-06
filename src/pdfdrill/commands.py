@@ -5464,7 +5464,7 @@ def cmd_bibsource(pdf: Path, bib_path: str | None = None,
     from docmodel.core import Document
     from .bibliography import (ingest_bbl, load_bibtex_file,
                                link_citations_by_label, link_citations,
-                               detect_author_year_in_objects)
+                               detect_author_year_in_objects, drop_dangling_cites)
 
     sc = Sidecar(pdf)
     model_path = _model_path(sc)
@@ -5504,10 +5504,14 @@ def cmd_bibsource(pdf: Path, bib_path: str | None = None,
                 "<file.bbl> and/or --bib <file.bib>.")
 
     # The author's bibliography is authoritative: drop prior (heuristic)
-    # References + their cites edges so we don't mix gold with OCR guesses.
-    for oid in [oid for oid, o in doc.objects.items() if o.type == "Reference"]:
+    # References so we don't mix gold with OCR guesses. A citation-stub
+    # Reference (010, created for every cited key at model build time) is not
+    # a guess -- keep it so ingest_bbl/load_bibtex_file below FILL it in place
+    # instead of creating a duplicate for the same key.
+    for oid in [oid for oid, o in doc.objects.items()
+                if o.type == "Reference" and not o.props.get("stub")]:
         doc.objects.pop(oid, None)
-    doc.alignments = [a for a in doc.alignments if a.kind != "cites"]
+    drop_dangling_cites(doc)
     doc.streams.pop("references", None)
 
     # The paper's bibliography = the CITED subset of a (possibly larger, shared)
@@ -11288,13 +11292,18 @@ def cmd_bibliography(pdf: Path, force: bool = False) -> str:
     with open(model_path, "r", encoding="utf-8") as f:
         doc = Document.from_dict(json.load(f))
 
-    existing = [o for o in doc.objects.values() if o.type == "Reference"]
+    # A citation-stub Reference (010, created for every cited key at model
+    # build time) is not "already parsed" -- only a filled (non-stub)
+    # Reference means this command already ran.
+    existing = [o for o in doc.objects.values()
+                if o.type == "Reference" and not o.props.get("stub")]
     if existing and not force:
         return _format_bibliography(sc)
     if force and existing:
+        from .bibliography import drop_dangling_cites
         for o in existing:
             doc.objects.pop(o.id, None)
-        doc.alignments = [a for a in doc.alignments if a.kind != "cites"]
+        drop_dangling_cites(doc)
         # drop citations we previously detected so we don't duplicate
         for o in [o for o in doc.objects.values()
                   if o.type == "Citation" and o.props.get("added_by") == "bibliography"]:
@@ -11412,6 +11421,7 @@ def cmd_bibfetch(pdf: Path, limit: int | None = None, force: bool = False) -> st
             r.props["bibtex"] = res["bibtex"]
             r.props["citations"] = " ".join(res["citations"])
             r.props["bibfetched"] = True   # web-sourced → may introduce errors
+            r.props.pop("stub", None)      # 010: a citation-stub is now filled
             for k in ("author", "year", "title", "entry_type"):
                 if res["fields"].get(k):
                     r.props[k] = res["fields"][k]
@@ -11479,6 +11489,7 @@ def _bibfetch_via_delegate(pdf: Path, doc, todo, sc, model_path, runtime) -> str
             r.props["bibtex"] = res["bibtex"]
             r.props["citations"] = " ".join(res.get("citations", []))
             r.props["bibfetched"] = True   # web-sourced → may introduce errors
+            r.props.pop("stub", None)      # 010: a citation-stub is now filled
             for k in ("author", "year", "title", "entry_type"):
                 if res.get("fields", {}).get(k):
                     r.props[k] = res["fields"][k]
