@@ -16,6 +16,7 @@ from docmodel.mathpix import page_url
 from ..base import BaseProjector
 from ..katex_notice import KATEX_WARNING_HTML
 from .common import embed_image
+from .tiddlywiki import title_for
 
 _KV = "0.16.11"
 
@@ -126,7 +127,7 @@ class FormulaReportProjector(BaseProjector):
                      "<th>Tiddler</th><th>LaTeX source</th><th>Rendered (KaTeX)</th>"
                      "</tr></thead><tbody>")
         for i, f in enumerate(formulas, 1):
-            tid = f"{bibkey}_FO{i:04d}"
+            tid = title_for(bibkey, "Formula", i)
             latex = f.props.get("latex", "")
             parts.append(
                 "<tr>"
@@ -144,7 +145,9 @@ class FormulaReportProjector(BaseProjector):
                      "<th>MathPix image</th></tr></thead><tbody>")
         for i, e in enumerate(equations, 1):
             page = int(e.props.get("page") or 0)
-            tid = f"{bibkey}_EQ{i:04d}_p{page:03d}"
+            # the `_p<NNN>` suffix disambiguates a repeat within this page;
+            # `parse_title` strips it, so the identity stays the EQ title.
+            tid = f'{title_for(bibkey, "Equation", i)}_p{page:03d}'
             latex = e.props.get("latex", "")
             eqnum = e.props.get("equation_number") or ""
             num_html = f'<span class="eq-num">{html.escape(eqnum)}</span>' if eqnum else ""

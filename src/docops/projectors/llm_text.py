@@ -41,6 +41,37 @@ def _is_empty_latex(latex) -> bool:
     return latex is None or str(latex).strip().lower() in _NULLISH
 
 
+#: The types this dump names, in the order it numbers them.
+_TITLED_TYPES = ("Paragraph", "Equation", "Formula", "Section", "Diagram",
+                 "Picture", "Table")
+
+
+def _title_map(objs, bibkey: str, key=None) -> dict:
+    """`{object id: tiddler title}` in flow order, per type.
+
+    644 — the SHAPES come from `TITLE_SHAPES` via `title_for`, not from format
+    strings here. The copy that lived here had `{b}_H{i}` for a Section, which
+    the projector stopped emitting at 566 (it pads to four digits, so `_H10`
+    sorts after `_H2`): every Section pointer this dump produced named a
+    tiddler that does not exist.
+    """
+    from .tiddlywiki import title_for
+
+    if key is None:
+        def key(o):                                  # flow_index may be str ("190")
+            try:
+                return float(o.props.get("flow_index") or 0)
+            except (TypeError, ValueError):
+                return 0.0
+    objs = list(objs)
+    out: dict = {}
+    for typ in _TITLED_TYPES:
+        for i, o in enumerate(sorted((x for x in objs if x.type == typ),
+                                     key=key), 1):
+            out[o.id] = title_for(bibkey, typ, i)
+    return out
+
+
 def build_llm_text(objects, meta, *, delimiter: str = "%%%%",
                    split_paragraphs: bool = True) -> str:
     """Pure core: render the LLM dump from any iterable of nodes exposing
@@ -56,13 +87,7 @@ def build_llm_text(objects, meta, *, delimiter: str = "%%%%",
         except (TypeError, ValueError):
             return 0.0
 
-    title: dict[str, str] = {}
-    for fmt, typ in (("{b}_PARA_{i:04d}", "Paragraph"),
-                     ("{b}_EQ{i:04d}", "Equation"), ("{b}_FO{i:04d}", "Formula"),
-                     ("{b}_H{i}", "Section"), ("{b}_DIA_{i:04d}", "Diagram"),
-                     ("{b}_PIC_{i:04d}", "Picture"), ("{b}_TAB_{i:03d}", "Table")):
-        for i, o in enumerate(sorted((x for x in objs if x.type == typ), key=flow), 1):
-            title[o.id] = fmt.format(b=bib, i=i)
+    title = _title_map(objs, bib, key=flow)
 
     units: list[tuple[float, str, str]] = []
     for o in objs:

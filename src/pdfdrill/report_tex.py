@@ -60,9 +60,14 @@ def sanitize_title(t: str) -> str:
 #: 440 — the templates the TiddlyWiki projector actually emits. ONE list, so a
 #: consumer that filters by template can say whether a marker it skipped is a
 #: template it does not handle or a template that does not exist.
-KNOWN_TEMPLATES = frozenset((
-    "ABS", "CIT", "DIA", "EQ", "EQBLOCK", "FN", "FO", "FREF", "LI", "LTX",
-    "PARA", "PIC", "PROOF", "SN", "TAB", "TOC"))
+#: 644 — read from the projector's OWN macro layer, not copied. A template
+#: added there is known here on the same commit.
+def _known_templates() -> frozenset:
+    from docops.projectors.tiddlywiki import TEMPLATES
+    return frozenset(TEMPLATES)
+
+
+KNOWN_TEMPLATES = _known_templates()
 
 #: Any transclusion, whatever its template — used to find the ones a
 #: template-filtered pattern silently walked past.
@@ -99,8 +104,14 @@ def first_pages(tiddlers: list[dict], bibkey: str) -> dict[str, str]:
     a title with no page. `unknown_markers` above is what makes that visible
     when the template is one nothing emits.
     """
+    from docops.projectors.tiddlywiki import prefix_alternation
+
+    # 644 — FO/FOX only, from the table's own prefixes. `_?\w+` covers both
+    # tails: `FO0001` (no separator, digits) and `FOX_<sha1>` (separator, hex).
     pat = re.compile(r"\{\{(" + re.escape(sanitize_title(bibkey))
-                     + r"_(?:FOX?_?\w+))\|\|")
+                     + r"_(?:" + prefix_alternation(("SyntheticFormula",
+                                                     "Formula"))
+                     + r")_?\w+)\|\|")
     first: dict[str, str] = {}
     for t in tiddlers:
         page, text = t.get("page"), t.get("text", "")
@@ -132,8 +143,25 @@ def refined_map(tiddlers) -> dict:
     return out
 
 
-#: a tiddler title that names an object kind — what `rows_for` looks for
-TYPED_TITLE = re.compile(r"_(FOX?|EQ|TAB|DIA|PIC)\d")
+#: 644 — the object kinds a report has rows for. ONE list; the prefixes come
+#: from the title scheme's table.
+REPORT_KINDS = ("Equation", "Formula", "SyntheticFormula", "Table", "Diagram",
+                "Picture")
+
+
+def _typed_title() -> "re.Pattern":
+    from docops.projectors.tiddlywiki import prefix_alternation
+    # `[_0-9]` is the SEPARATOR-OR-DIGIT that follows every prefix in the
+    # table, so `_FOO` in a bibkey cannot pass as a Formula title.
+    return re.compile(r"_(" + prefix_alternation(REPORT_KINDS) + r")[_0-9]")
+
+
+#: a tiddler title that names an object kind — what `rows_for` looks for.
+#: 644: the old `_(FOX?|EQ|TAB|DIA|PIC)\d` demanded a digit FLUSH against the
+#: prefix, so it never matched `_TAB_001`, `_DIA_0001` or `_PIC_0001` — the 463
+#: guard was blind to three of the five kinds `rows_for` reports. Both now use
+#: this one pattern.
+TYPED_TITLE = _typed_title()
 
 
 def rows_for(tiddlers, bibkey, refined=None):
@@ -141,8 +169,8 @@ def rows_for(tiddlers, bibkey, refined=None):
     fpage = first_pages(tiddlers, bibkey)
     for t in tiddlers:
         title = t.get("title", "")
-        m = re.match(re.escape(sanitize_title(bibkey))
-                     + r"_(FOX?|EQ|TAB|DIA|PIC)", title)
+        m = re.match(re.escape(sanitize_title(bibkey)) + TYPED_TITLE.pattern,
+                     title)
         if not m:
             continue
         kind = m.group(1)

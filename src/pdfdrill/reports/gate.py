@@ -36,7 +36,16 @@ FIX = "run `pdfdrill residuals --measure --pdf <pdf>`"
 #: escaped `\_\allowbreak{}` sits there) and excluded AFTER them (a suffix
 #: like ` (was)` never contains one), which is what lets the non-greedy
 #: prefix stop at the right `EQ\d+` even with `\allowbreak{}` inside it.
-_IDENT_ANY = re.compile(r"\\ident\{([^&\n]*?(?:EQ|FO|TAB)\d+[^&\n}]*)\}")
+#: 644 — same prefixes as `inkconvert._IDENT_FIND`, from the same table
+#: (`docops…tiddlywiki.TITLE_SHAPES`), so widening the scheme cannot leave one
+#: of the two behind. The character classes are unchanged.
+def _ident_any() -> "re.Pattern":
+    from ..inkconvert import _REPORT_ROW_KINDS, _prefixes
+    return re.compile(r"\\ident\{([^&\n]*?(?:" + _prefixes(_REPORT_ROW_KINDS)
+                      + r")\d+[^&\n}]*)\}")
+
+
+_IDENT_ANY = _ident_any()
 _IDENT_SUFFIX = re.compile(r" \((?:was|now|basis)\)$")
 
 

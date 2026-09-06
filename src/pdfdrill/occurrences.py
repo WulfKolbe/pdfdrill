@@ -12,22 +12,21 @@ none, and the pdfminer.six CTM chain is the intended future source of those.
 """
 from __future__ import annotations
 
-# tiddler title scheme per type (flow order) — matches tiddlywiki.py / distill so a
-# record round-trips to its tiddler by title.
-_TITLE_FMT = {
-    "Equation": "{b}_EQ{i:04d}", "Table": "{b}_TAB_{i:03d}",
-    "Picture": "{b}_PIC_{i:04d}", "Diagram": "{b}_DIA_{i:04d}",
-}
-REGION_TYPES = tuple(_TITLE_FMT)
+# 644 — the region-bearing types this module names. The SHAPES come from
+# `docops…tiddlywiki.TITLE_SHAPES` via `title_for`, so a record round-trips to
+# its tiddler by title without a second copy of the scheme living here.
+REGION_TYPES = ("Equation", "Table", "Picture", "Diagram")
 
 
 def _titles(objects: list, bibkey: str) -> dict:
+    from docops.projectors.tiddlywiki import title_for
+
     flow = lambda o: getattr(o, "props", {}).get("flow_index") or 0
     titles: dict = {}
-    for typ, fmt in _TITLE_FMT.items():
+    for typ in REGION_TYPES:
         for i, o in enumerate(sorted((o for o in objects
                                       if getattr(o, "type", "") == typ), key=flow), 1):
-            titles[getattr(o, "id", "")] = fmt.format(b=bibkey, i=i)
+            titles[getattr(o, "id", "")] = title_for(bibkey, typ, i)
     return titles
 
 

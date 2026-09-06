@@ -1760,12 +1760,14 @@ def _capture_ltx(text: str, bibkey: str, start_n: int) -> "tuple[str, list, int]
     """Replace each leaked formatting command with a `{{<bibkey>_LTX<n>||LTX}}`
     transclusion; return (text, [{title, latex_code}], next_n). The command is
     PRESERVED in the returned dict (→ an LtxCommand tiddler), never deleted."""
+    from docops.projectors.tiddlywiki import title_for
+
     objs: list = []
     n = [start_n]
 
     def repl(m):
         n[0] += 1
-        title = f"{bibkey}_LTX{n[0]}"
+        title = title_for(bibkey, "LtxCommand", n[0])
         objs.append({"title": title, "latex_code": m.group(0).strip()})
         return "{{" + title + "||LTX}}"
     out = _LTX_LEAK.sub(repl, text)
@@ -1797,6 +1799,8 @@ def build_source_model(tex_path: str, bibkey: str = "DOC") -> "object":
     (expanded) form; no cdn_url (there is no rendered crop on the source-only
     path). Returns the Document.
     """
+    from docops.projectors.tiddlywiki import title_for
+
     from docmodel.core import Document, DocObject, Realization
     from docmodel.modules.citation import ensure_reference_stub
 
@@ -1996,7 +2000,7 @@ def build_source_model(tex_path: str, bibkey: str = "DOC") -> "object":
                         "display": False, "flow_index": fi, "bibkey": bibkey}))
                     n_formula += 1
                     title = re.sub(r"[^A-Za-z0-9_\-\.]", "_",
-                                   f"{bibkey}_FO{formula_no:04d}")
+                                   title_for(bibkey, "Formula", formula_no))
                     formula_titles[key] = title
                 out.append(text[last:mm.start()])
                 out.append("{{" + title + "||FO}}")            # transclude the FO tiddler

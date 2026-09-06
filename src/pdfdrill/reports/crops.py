@@ -15,7 +15,17 @@ from .. import report_tex as rt
 from .rows import FormulaRow
 
 CROPS_DIR = "report-crops"
-KINDS_ALL = ("_EQ", "_FO", "_TAB", "_DIA", "_PIC")
+#: 644 — the substring `render_crops` filters titles by, built from the title
+#: scheme's own prefixes for the kinds a report has rows for.
+def _kinds_all() -> tuple:
+    from docops.projectors.tiddlywiki import TITLE_SHAPES
+    from .. import report_tex as _rt
+    return tuple(dict.fromkeys(
+        "_" + TITLE_SHAPES[k].prefix for k in _rt.REPORT_KINDS
+        if not TITLE_SHAPES[k].keyed))
+
+
+KINDS_ALL = _kinds_all()
 
 
 def records(rows: dict) -> list:

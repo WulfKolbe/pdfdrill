@@ -222,19 +222,21 @@ class DistillReaderProjector(BaseProjector):
     def output_extension(self) -> str:
         return ".distill.html"
 
-    # ---- tiddler-scheme title map (mirrors tiddlywiki.py / llm_text.py) ---
+    # ---- tiddler-scheme title map: shapes from `TITLE_SHAPES` (644) --------
     def _title_map(self, objs: "list[DocObject]", bibkey: str) -> "dict[str, str]":
+        """644 — the copy that lived here invented `_FN_001`, `_SN_003` and
+        `_LI_0001`: a separator and a digit width the projector never emitted,
+        so every footnote, sidenote and list-item anchor this page built named
+        a tiddler that does not exist. The shapes now come from the table."""
+        from .tiddlywiki import title_for
+
         flow = lambda o: o.props.get("flow_index") or 0
-        fmt = {"Paragraph": "{b}_PARA_{i:04d}", "Equation": "{b}_EQ{i:04d}",
-               "Formula": "{b}_FO{i:04d}", "Diagram": "{b}_DIA_{i:04d}",
-               "Picture": "{b}_PIC_{i:04d}", "Table": "{b}_TAB_{i:03d}",
-               "Footnote": "{b}_FN_{i:03d}", "Sidenote": "{b}_SN_{i:03d}",
-               "ListItem": "{b}_LI_{i:04d}"}
         titles: "dict[str, str]" = {}
-        for typ, f in fmt.items():
+        for typ in ("Paragraph", "Equation", "Formula", "Diagram", "Picture",
+                    "Table", "Footnote", "Sidenote", "ListItem"):
             for i, o in enumerate(sorted((x for x in objs if x.type == typ),
                                          key=flow), 1):
-                titles[o.id] = f.format(b=bibkey, i=i)
+                titles[o.id] = title_for(bibkey, typ, i)
         return titles
 
     # ---- references (d-cite backing) --------------------------------------

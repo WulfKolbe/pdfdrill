@@ -11,22 +11,12 @@ paragraph text. Paragraph text is reconstructed from the immutable
 mathpix_lines stream so the substitution offsets remain valid even if a
 mutator (Dehyphenate, translation, etc.) has rewritten `Paragraph.text`.
 
-Tiddler title scheme (bibkey="DOC"):
-    DOC                     — root document tiddler
-    DOC_H<n>                — Section
-    DOC_PAGE_<NNN>          — Page
-    DOC_PARA_<NNNN>         — Paragraph
-    DOC_EQ<NNNN>            — Equation (display); page is a FIELD, not the title
-    DOC_FO<NNNN>            — Formula (inline math)
-    DOC_PIC_<NNNN>          — Picture
-    DOC_DIA_<NNNN>          — Diagram
-    DOC_TAB_<NNN>           — Table; page is a FIELD, not the title
-    DOC_FN<NNNN>            — Footnote
-    DOC_SN<NNNN>            — Sidenote
-    DOC_LI<NNNN>            — ListItem
-    DOC_ABS<NN>             — Abstract
-    DOC_TOC<NN>             — Toc
-    DOC_<citekey>           — Citation placeholder (one per unique citekey)
+THE TITLE SCHEME IS `TITLE_SHAPES` BELOW — one row per object type, and the
+only place a shape is written down (644). `title_for` builds a title,
+`parse_title` reads one, and `TITLE_RE` is derived from the same table. The
+prose list that used to live here drifted from the code within a release
+(`DOC_H<n>` had been four digits since 566); the table is generated from
+nothing and read by everything, so it cannot.
 """
 from __future__ import annotations
 
@@ -35,7 +25,7 @@ from pathlib import Path
 import re
 from collections import defaultdict
 from datetime import datetime, timezone
-from typing import Optional
+from typing import NamedTuple, Optional
 
 from docmodel.core import Document, DocObject
 from ..base import BaseProjector
@@ -73,7 +63,7 @@ def code_listing_tiddlers(listings, bibkey: str) -> list[dict]:
     for i, l in enumerate(listings, 1):
         props = l.props(bibkey) if hasattr(l, "props") else dict(l)
         t = {
-            "title": f"{bibkey}_LST{i:04d}",
+            "title": title_for(bibkey, "CodeListing", i),
             "text": props.get("body", ""),      # VERBATIM, never converted
             "type": "text/plain",
             "tags": f"listing [[{bibkey}]]",
@@ -115,6 +105,231 @@ def _refined_fields(t: dict, obj) -> None:
     t["refined_author"] = ev.get("author", "")
 
 
+class TitleShape(NamedTuple):
+    """One row of the title scheme: `<bibkey>_<prefix><sep><tail>`.
+
+    `digits` is the zero-pad width of a numeric tail; 0 means "as many digits
+    as the number has". `keyed` means the tail is a sanitised KEY (a citekey, a
+    content hash), not a number.
+    """
+    prefix: str
+    sep: str
+    digits: int
+    keyed: bool = False
+
+
+#: THE title scheme. 644 — one row per emitted object type, and the ONLY place
+#: a prefix, a separator or a digit width is written down.
+#:
+#: The shapes are FROZEN as they are. Regularising them (PREFIX + four digits,
+#: no separator, everywhere) would rename every crop file in `report-crops/`,
+#: every identifier printed in the evidence PDFs, and the `REF_<citekey>`
+#: contract the LaTeX injector and `crossref` resolve against — for no gain,
+#: because one shape per object type is what the titles ALREADY satisfy. What
+#: had drifted was the consumers: every CLI carried its own copy (rule 17).
+#:
+#: Add a type here and `title_for`, `parse_title`, `TITLE_RE` and every
+#: consumer pick it up at once. `tests/test_title_scheme.py::FROZEN` pins each
+#: live shape as a literal, so a table edit that renames one fails loudly.
+TITLE_SHAPES: dict[str, TitleShape] = {
+    "Paragraph":        TitleShape("PARA",  "_", 4),
+    "Section":          TitleShape("H",     "",  4),   # 566: four digits, so _H10 sorts after _H2
+    "Equation":         TitleShape("EQ",    "",  4),   # page is a FIELD, not the title
+    "Formula":          TitleShape("FO",    "",  4),
+    "Picture":          TitleShape("PIC",   "_", 4),
+    "Diagram":          TitleShape("DIA",   "_", 4),
+    "Table":            TitleShape("TAB",   "_", 3),   # page is a FIELD, not the title
+    "Footnote":         TitleShape("FN",    "",  4),
+    "Sidenote":         TitleShape("SN",    "",  4),
+    "ListItem":         TitleShape("LI",    "",  4),
+    "Abstract":         TitleShape("ABS",   "",  2),
+    "Toc":              TitleShape("TOC",   "",  2),
+    "Page":             TitleShape("PAGE",  "_", 3),
+    "Theorem":          TitleShape("THM",   "",  4),
+    "Proof":            TitleShape("PROOF", "",  4),
+    "CodeListing":      TitleShape("LST",   "",  4),
+    "LtxCommand":       TitleShape("LTX",   "",  0),   # unpadded: _LTX1, _LTX12
+    "Reference":        TitleShape("REF",   "_", 0, keyed=True),   # tail is the citekey
+    "SyntheticFormula": TitleShape("FOX",   "_", 0, keyed=True),   # tail is a sha1 prefix
+}
+
+#: prefix -> kind. Prefixes are unique; a duplicate would make `parse_title`
+#: ambiguous, which `_check_prefixes_are_unique` refuses at import time.
+_KIND_BY_PREFIX = {s.prefix: k for k, s in TITLE_SHAPES.items()}
+if len(_KIND_BY_PREFIX) != len(TITLE_SHAPES):          # pragma: no cover - import guard
+    raise RuntimeError("TITLE_SHAPES: two kinds share one prefix")
+
+#: An equation title may carry a legacy `_p<NNN>` page suffix (`formula_report`
+#: names an equation `<bibkey>_EQ0264_p003`). It disambiguates a repeated
+#: number; it is not part of the object's identity, so the parser strips it.
+_PAGE_SUFFIX_RE = re.compile(r"_p\d+$")
+
+#: Built FROM the table: longest prefix first so `FOX` is preferred over `FO`,
+#: and the bibkey is NON-greedy so `X_REF_FO0001` reads as reference `FO0001`
+#: rather than as bibkey `X_REF` plus formula 1.
+TITLE_RE = re.compile(
+    r"^(?P<bibkey>.+?)_(?P<prefix>"
+    + "|".join(re.escape(p) for p in sorted(_KIND_BY_PREFIX, key=len,
+                                            reverse=True))
+    + r")(?P<sep>_?)(?P<tail>.+)$")
+
+
+class ParsedTitle(NamedTuple):
+    """What `parse_title` returns: a 4-tuple `(bibkey, kind, number, key)`.
+
+    Exactly one of `number` / `key` is set — a numbered shape has no key and a
+    keyed shape (Reference, synthetic FOX) has no number.
+    """
+    bibkey: str
+    kind: str
+    number: Optional[int]
+    key: Optional[str]
+
+
+def title_for(bibkey: str, kind: str, n_or_key) -> str:
+    """The tiddler title for the `n_or_key`-th object of `kind` in `bibkey`.
+
+    THE one place a title is built. `n_or_key` is a 1-based number for a
+    numbered shape and a key string for a keyed one (Reference, FOX).
+    """
+    try:
+        shape = TITLE_SHAPES[kind]
+    except KeyError:                                   # rule 5: never guess
+        raise KeyError(
+            f"{kind!r} has no row in TITLE_SHAPES — add one rather than "
+            f"formatting a title by hand") from None
+    if shape.keyed:
+        tail = str(n_or_key)
+    else:
+        tail = f"{int(n_or_key):0{shape.digits}d}" if shape.digits \
+            else str(int(n_or_key))
+    return f"{bibkey}_{shape.prefix}{shape.sep}{tail}"
+
+
+def parse_title(title: str) -> Optional[ParsedTitle]:
+    """`"penev_A_EQ0264"` -> `("penev_A", "Equation", 264, None)`; None if the
+    title is not one the scheme owns.
+
+    THE one place a title is read. A consumer that only needs "is this an
+    EQ/FO/TAB title" asks this rather than carrying its own regex — three
+    identifier regexes broke in two days by carrying their own (rule 17).
+    Returns None (never a plausible default, rule 5) for the root document
+    tiddler, a template tiddler, the rebuilt `<bibkey>_TOC` index, or any
+    string that is not a title at all.
+    """
+    m = TITLE_RE.match(_PAGE_SUFFIX_RE.sub("", title or ""))
+    if not m:
+        return None
+    kind = _KIND_BY_PREFIX[m.group("prefix")]
+    shape = TITLE_SHAPES[kind]
+    if m.group("sep") != shape.sep:
+        return None
+    tail = m.group("tail")
+    if shape.keyed:
+        return ParsedTitle(m.group("bibkey"), kind, None, tail)
+    if not tail.isdigit():
+        return None
+    if shape.digits and len(tail) != shape.digits:
+        return None
+    return ParsedTitle(m.group("bibkey"), kind, int(tail), None)
+
+
+def prefix_alternation(kinds) -> str:
+    """A regex alternation of the PREFIXES of `kinds`, longest first.
+
+    For the consumers that match a title FRAGMENT rather than a whole title —
+    `\\ident{...}` inside a generated .tex, where the identifier carries a
+    ` (was)` suffix and `\\allowbreak{}` inside it, so `parse_title` cannot be
+    used without changing what they match (rule 17: match to a stable anchor).
+    The SUBSET stays explicit at the call site; the prefixes come from here.
+    """
+    ps = sorted((TITLE_SHAPES[k].prefix for k in kinds), key=len, reverse=True)
+    return "|".join(re.escape(p) for p in ps)
+
+
+#: THE MACRO LAYER. Every `{{title||TPL}}` the projector emits names one of
+#: these; a used name that is NOT defined here renders nothing and is counted
+#: by `tiddler_integrity` as a dangling transclusion. The tiddler output
+#: defines its macros ahead of its data, which is why a rename can be absorbed
+#: here without touching a single title (644).
+#:
+#: Each renders like ordinary publication typography: a footnote as a
+#: superscript link, a sidenote as a margin note, a list item as a bullet.
+TEMPLATES: dict[str, str] = {
+    # FO — inline formula, wrapped in a link to the formula tiddler so the
+    # rendered math is clickable (navigates to its own tiddler).
+    "FO": "<$link><$latex text={{!!latex}} displayMode={{!!displayMode}}/></$link>",
+
+    # CIT — inline citation: link to the citation placeholder showing the citekey.
+    "CIT": "[<$link to={{!!title}}>{{!!citekey}}</$link>]",
+
+    # FN — footnote reference: superscript link. The number shown is the
+    # PRINTED `refnum` field, which is why the title need not carry it (644).
+    "FN": "<sup><$link to={{!!title}}>{{!!refnum}}</$link></sup>",
+
+    # PIC — inline picture (small).
+    "PIC": "<$image source={{!!canonical_uri}} width=\"320\"/>",
+
+    # PARA — paragraph body, wrapped in <p>.
+    "PARA": "<p>{{!!text}}</p>",
+
+    # EQBLOCK — display equation: numbered, centered.
+    "EQBLOCK": ("<div class=\"equation\"><$latex text={{!!latex}} displayMode=true/>"
+                " <span class=\"refnum\">{{!!refnum}}</span></div>"),
+
+    # EQ — inline equation reference ("see Equation 1.1"). Defined but not
+    # currently emitted by any substitution: kept because published wikis
+    # transclude it by hand, and an undefined template renders nothing.
+    "EQ": "<$link to={{!!title}}>{{!!kind}} {{!!refnum}}</$link>",
+
+    # FREF — equation reference: the displayed number, linked to the eq.
+    "FREF": "<$link to={{!!title}}>{{!!equation_number}}</$link>",
+
+    # TAB — table block.
+    "TAB": "<div class=\"table\">{{!!text}}</div>",
+
+    # DIA — diagram (medium size).
+    "DIA": "<$image source={{!!canonical_uri}} width=\"480\"/>",
+
+    # LI — list item.
+    "LI": "<li>{{!!text}}</li>",
+
+    # ABS — abstract block.
+    "ABS": "<div class=\"abstract\">{{!!text}}</div>",
+
+    # PROOF — a proof block transcluded under its theorem.
+    "PROOF": "<div class=\"proof\">{{!!text}}</div>",
+
+    # TOC — table of contents.
+    "TOC": "<div class=\"toc\">{{!!text}}</div>",
+
+    # SN — sidenote, in the margin.
+    "SN": "<aside>{{!!text}}</aside>",
+
+    # LTX — a leaked LaTeX command: render NOTHING (the command is kept in the
+    # target tiddler's `latex_code` field for recovery, but shows nothing in
+    # the document). An EMPTY template, not a missing one, so the transclusion
+    # is referentially valid (no dangling warning).
+    "LTX": "",
+}
+
+#: Object type -> the template a SECTION BODY transcludes it under. Every value
+#: must be a key of `TEMPLATES` and every member of `_BLOCK_TYPES_IN_SECTION`
+#: must appear here, or a child block renders as nothing; both are pinned by
+#: tests/test_title_scheme.py.
+BLOCK_TEMPLATE: dict[str, str] = {
+    "Paragraph": "PARA",
+    "Equation":  "EQBLOCK",
+    "Table":     "TAB",
+    "Picture":   "PIC",
+    "Diagram":   "DIA",
+    "ListItem":  "LI",
+    "Abstract":  "ABS",
+    "Toc":       "TOC",
+    "Sidenote":  "SN",
+}
+
+
 def math_titles(doc, bibkey: str) -> dict:
     """`{object_id: "<bibkey>_FO0007" | "<bibkey>_EQ0003"}` for every math object.
 
@@ -131,9 +346,9 @@ def math_titles(doc, bibkey: str) -> dict:
         return sorted(objs, key=lambda o: o.props.get("flow_index", 10**9))
     out: dict = {}
     for i, e in enumerate(_flow(doc.objects_of_type("Equation"))):
-        out[e.id] = f"{bibkey}_EQ{i+1:04d}"
+        out[e.id] = title_for(bibkey, "Equation", i + 1)
     for i, f in enumerate(_flow(doc.objects_of_type("Formula"))):
-        out[f.id] = f"{bibkey}_FO{i+1:04d}"
+        out[f.id] = title_for(bibkey, "Formula", i + 1)
     return out
 
 
@@ -150,11 +365,11 @@ def region_titles(doc, bibkey: str) -> dict:
         return sorted(objs, key=lambda o: o.props.get("flow_index", 10**9))
     out: dict = {}
     for i, p in enumerate(_flow(doc.objects_of_type("Picture"))):
-        out[p.id] = f"{bibkey}_PIC_{i+1:04d}"
+        out[p.id] = title_for(bibkey, "Picture", i + 1)
     for i, d in enumerate(_flow(doc.objects_of_type("Diagram"))):
-        out[d.id] = f"{bibkey}_DIA_{i+1:04d}"
+        out[d.id] = title_for(bibkey, "Diagram", i + 1)
     for i, t in enumerate(_flow(doc.objects_of_type("Table"))):
-        out[t.id] = f"{bibkey}_TAB_{i+1:03d}"
+        out[t.id] = title_for(bibkey, "Table", i + 1)
     return out
 
 
@@ -501,7 +716,7 @@ class TiddlyWikiProjector(BaseProjector):
             "pictures":   self._sort_by_flow(doc.objects_of_type("Picture")),
             "diagrams":   self._sort_by_flow(doc.objects_of_type("Diagram")),
             "tables":     self._sort_by_flow(doc.objects_of_type("Table")),
-            "footnotes":  doc.objects_of_type("Footnote"),
+            "footnotes":  self._sort_by_flow(doc.objects_of_type("Footnote")),
             "sidenotes":  self._sort_by_flow(doc.objects_of_type("Sidenote")),
             "list_items": self._sort_by_flow(doc.objects_of_type("ListItem")),
             "abstracts":  self._sort_by_flow(doc.objects_of_type("Abstract")),
@@ -516,35 +731,43 @@ class TiddlyWikiProjector(BaseProjector):
 
         title: dict[str, str] = {}
         for i, p in enumerate(inv["paragraphs"]):
-            title[p.id] = f"{bibkey}_PARA_{i+1:04d}"
+            title[p.id] = title_for(bibkey, "Paragraph", i + 1)
         for i, s in enumerate(inv["sections"]):
-            title[s.id] = f"{bibkey}_H{i+1:04d}"   # 566 — four digits: _H10 sorted before _H2 in every document
+            title[s.id] = title_for(bibkey, "Section", i + 1)
         # EQ/FO titles come from the shared helper, so any other consumer
         # (e.g. `pdfdrill formulas`, which emits the `{{id||FO}}` placeholders
         # for an external SRE/de-macro pipeline) numbers them IDENTICALLY.
         title.update(math_titles(doc, bibkey))
         title.update(region_titles(doc, bibkey))
-        for fn in inv["footnotes"]:
-            title[fn.id] = f"{bibkey}_FN{int(fn.props.get('refnum') or 0):04d}"
+        # 644 — the footnote number is the object's POSITION in the flow, not
+        # its printed `refnum`. Refnums restart on every page, so `FN<refnum>`
+        # gave ONE title to up to six Footnote objects (646 measured 17 such
+        # collisions on penev_A, 13 on penev_B): five bodies vanished into the
+        # sixth on import, and no count in the audit could see it. A title
+        # names exactly one object. The printed number is unchanged — it stays
+        # in the `refnum` FIELD, which is what the `FN` template renders.
+        for i, fn in enumerate(inv["footnotes"]):
+            title[fn.id] = title_for(bibkey, "Footnote", i + 1)
         for i, s in enumerate(inv["sidenotes"]):
-            title[s.id] = f"{bibkey}_SN{i+1:04d}"
+            title[s.id] = title_for(bibkey, "Sidenote", i + 1)
         for i, li in enumerate(inv["list_items"]):
-            title[li.id] = f"{bibkey}_LI{i+1:04d}"
+            title[li.id] = title_for(bibkey, "ListItem", i + 1)
         for i, a in enumerate(inv["abstracts"]):
-            title[a.id] = f"{bibkey}_ABS{i+1:02d}"
+            title[a.id] = title_for(bibkey, "Abstract", i + 1)
         for i, t in enumerate(inv["tocs"]):
-            title[t.id] = f"{bibkey}_TOC{i+1:02d}"
+            title[t.id] = title_for(bibkey, "Toc", i + 1)
         for pg in inv["pages"]:
-            title[pg.id] = f"{bibkey}_PAGE_{int(pg.props.get('page_number') or 0):03d}"
+            title[pg.id] = title_for(bibkey, "Page",
+                                     int(pg.props.get("page_number") or 0))
         for i, ref in enumerate(inv["references"]):
             title[ref.id] = reference_title(bibkey, ref.props.get("citekey") or "",
                                             i)
         for i, o in enumerate(inv["ltx"]):           # use the title baked at build
-            title[o.id] = o.props.get("title") or f"{bibkey}_LTX{i + 1}"
+            title[o.id] = o.props.get("title") or title_for(bibkey, "LtxCommand", i + 1)
         for i, o in enumerate(inv["theorems"]):
-            title[o.id] = f"{bibkey}_THM{i + 1:04d}"
+            title[o.id] = title_for(bibkey, "Theorem", i + 1)
         for i, o in enumerate(inv["proofs"]):
-            title[o.id] = f"{bibkey}_PROOF{i + 1:04d}"
+            title[o.id] = title_for(bibkey, "Proof", i + 1)
         return title, inv
 
     # ----- phase 2: per-line inline substitution index -----
@@ -997,6 +1220,11 @@ class TiddlyWikiProjector(BaseProjector):
         # the omission was never a decision anyone had taken.
         self._omitted_derived = sum(1 for t in inv["tocs"] if is_derived(t))
         if toc_rows:
+            # 644 — `<bibkey>_TOC` is SCAFFOLDING, not an object title: it is
+            # the rebuilt index, one per document, and `parse_title` correctly
+            # returns None for it (a `Toc` OBJECT would be `_TOC01`). The root
+            # tiddler and the 16 template tiddlers are outside the scheme the
+            # same way.
             t = self._t(f"{bibkey}_TOC", toc_body, f"toc {_bibtag(bibkey)}")
             t["format"] = "fractal_xref"
             t["derived_omitted"] = str(self._omitted_derived)
@@ -1292,7 +1520,7 @@ class TiddlyWikiProjector(BaseProjector):
             if _is_footnote_marker(latex):
                 return fallback
             h = hashlib.sha1(latex.encode("utf-8")).hexdigest()[:10]
-            title = f"{bibkey}_FOX_{h}"
+            title = title_for(bibkey, "SyntheticFormula", h)
             if title not in synthetic:
                 synthetic[title] = {"latex": latex, "display": display}
                 self.bump("synthetic_formulas")
@@ -1351,17 +1579,7 @@ class TiddlyWikiProjector(BaseProjector):
             if b.type == "Diagram" and b.props.get("subtype") == "code":
                 lines.append("{{" + t + "}}")
                 continue
-            tpl = {
-                "Paragraph": "PARA",
-                "Equation": "EQBLOCK",
-                "Table": "TAB",
-                "Picture": "PIC",
-                "Diagram": "DIA",
-                "ListItem": "LI",
-                "Abstract": "ABS",
-                "Toc": "TOC",
-                "Sidenote": "SN",
-            }.get(b.type)
+            tpl = BLOCK_TEMPLATE.get(b.type)
             if tpl:
                 lines.append("{{" + t + "||" + tpl + "}}")
             else:
@@ -1456,69 +1674,14 @@ class TiddlyWikiProjector(BaseProjector):
 
     @staticmethod
     def _templates(bibkey: str) -> list[dict]:
-        """
-        Built-in templates referenced by transclusions in paragraph and
-        section bodies. Each template renders a tiddler under a particular
-        role; the template tiddler's text uses field references on the
-        currentTiddler context.
+        """The macro layer: one tiddler per entry in `TEMPLATES`.
+
+        644 — the texts live in the module-level `TEMPLATES` map, so
+        `report_tex.KNOWN_TEMPLATES` and the block map below read the SAME
+        list instead of each keeping a copy that drifts.
         """
         now = _tw_now()
-        templates = [
-            # FO — inline formula, wrapped in a link to the formula tiddler so
-            # the rendered math is clickable (navigates to its own tiddler).
-            ("FO", "<$link><$latex text={{!!latex}} displayMode={{!!displayMode}}/></$link>"),
-
-            # CIT — inline citation: link to the citation placeholder showing the citekey.
-            ("CIT", "[<$link to={{!!title}}>{{!!citekey}}</$link>]"),
-
-            # FN — footnote reference: superscript link.
-            ("FN", "<sup><$link to={{!!title}}>{{!!refnum}}</$link></sup>"),
-
-            # PIC — inline picture (small).
-            ("PIC", "<$image source={{!!canonical_uri}} width=\"320\"/>"),
-
-            # PARA — paragraph body, wrapped in <p>.
-            ("PARA", "<p>{{!!text}}</p>"),
-
-            # EQBLOCK — display equation: numbered, centered.
-            ("EQBLOCK",
-             "<div class=\"equation\"><$latex text={{!!latex}} displayMode=true/>"
-             " <span class=\"refnum\">{{!!refnum}}</span></div>"),
-
-            # EQ — inline equation reference ("see Equation 1.1").
-            ("EQ", "<$link to={{!!title}}>{{!!kind}} {{!!refnum}}</$link>"),
-
-            # FO — already defined above; display the equation/formula latex.
-            # FREF — equation reference: the displayed number, linked to the eq.
-            ("FREF", "<$link to={{!!title}}>{{!!equation_number}}</$link>"),
-
-            # TAB — table block.
-            ("TAB", "<div class=\"table\">{{!!text}}</div>"),
-
-            # DIA — diagram (medium size).
-            ("DIA", "<$image source={{!!canonical_uri}} width=\"480\"/>"),
-
-            # LI — list item.
-            ("LI", "<li>{{!!text}}</li>"),
-
-            # ABS — abstract block.
-            ("ABS", "<div class=\"abstract\">{{!!text}}</div>"),
-
-            # PROOF — a proof block transcluded under its theorem.
-            ("PROOF", "<div class=\"proof\">{{!!text}}</div>"),
-
-            # TOC — table of contents.
-            ("TOC", "<div class=\"toc\">{{!!text}}</div>"),
-
-            # SN — sidenote.
-            ("SN", "<aside>{{!!text}}</aside>"),
-
-            # LTX — a leaked LaTeX command: render NOTHING (the command is kept in
-            # the target tiddler's `latex_code` field for recovery, but shows
-            # nothing in the document). An EMPTY template, not a missing one, so
-            # the transclusion is referentially valid (no dangling warning).
-            ("LTX", ""),
-        ]
+        templates = list(TEMPLATES.items())
         return [
             {
                 "title": name,

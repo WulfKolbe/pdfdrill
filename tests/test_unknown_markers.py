@@ -7,11 +7,15 @@ def test_the_known_set_is_what_the_projector_emits():
     """One list. A consumer that filters by template can only say whether a
     marker it skipped is unsupported or nonexistent if there is a single
     authority on what exists.
+
+    644 — this used to SCRAPE the projector's source for `("NAME", "text")`
+    pairs, which is an approximation of the list and stopped being one the
+    moment a second table of `("PREFIX", "sep")` tuples appeared in the same
+    file. `KNOWN_TEMPLATES` is now read from the projector's own `TEMPLATES`
+    map, so the identity can be asserted instead of guessed at.
     """
-    import re
-    src = open("src/docops/projectors/tiddlywiki.py").read()
-    emitted = set(re.findall(r'\("([A-Z]+)",\s*"', src))
-    assert emitted <= KNOWN_TEMPLATES, emitted - KNOWN_TEMPLATES
+    from docops.projectors.tiddlywiki import TEMPLATES
+    assert set(TEMPLATES) == set(KNOWN_TEMPLATES)
 
 
 def test_a_template_nothing_emits_is_reported():

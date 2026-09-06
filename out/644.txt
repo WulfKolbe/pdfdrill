@@ -1,0 +1,293 @@
+644 — the internal label scheme, settled
+========================================
+
+THE DECISION: LEAVE THE TITLES. SETTLE THE SCHEME IN ONE TABLE.
+  The user offered two routes — regularise every title to PREFIX + four
+  digits with no separator, or leave the titles and fix the macro layer.
+  Neither was quite the fault. What had drifted was not the titles: the
+  titles ALREADY satisfy "one shape per object type", and this run measured
+  that mechanically on both documents (0 kinds with more than one shape).
+  What had drifted were the CONSUMERS. Every CLI carried its own copy of the
+  shape — nine format strings and five regexes across eleven modules — and
+  three of the copies were already wrong (see WHAT THE COPIES HAD GOT WRONG).
+
+WHY NOT THE RENAME
+  A rename buys nothing that the titles do not already have, and it costs:
+    * every crop file on disk is named after a title
+      (`report-crops/<bibkey>_EQ0001.jpg`, `_TAB_001`, `_PIC_0001`);
+    * every identifier printed in the evidence PDFs published this week is a
+      title, and `\ident{...}` in those .tex files is what `inkconvert` and
+      `reports/gate` join measurements to;
+    * `REF_<citekey>` is a CONTRACT, not a label — the LaTeX injector and
+      `crossref` resolve against it, and `citekeys.citation_title` exists
+      because three call sites once derived it independently and disagreed
+      (46 of 46 dangling on 2209.00445v3);
+    * `renamefolder` already treats `<bibkey>_PIC_0001` as a row id it must
+      rewrite by substitution.
+  A rename is a corpus-wide migration to make a table tidier. The table can
+  hold the shapes exactly as they are.
+
+THE TABLE
+  `src/docops/projectors/tiddlywiki.py`, next to `math_titles`/`region_titles`:
+  `TITLE_SHAPES: dict[kind, TitleShape(prefix, sep, digits, keyed)]`, and
+
+    title_for(bibkey, kind, n_or_key) -> str     the ONE place a title is built
+    parse_title(title) -> ParsedTitle | None     the ONE place one is read
+                          (bibkey, kind, number|None, key|None)
+    TITLE_RE                                     built FROM the table
+    prefix_alternation(kinds) -> str             for the fragment matchers
+
+  kind             prefix  sep  digits   example
+  ---------------------------------------------------------------
+  Paragraph        PARA    _    4        DOC_PARA_0001
+  Section          H       -    4        DOC_H0001        (566: 4, so _H10 > _H2)
+  Equation         EQ      -    4        DOC_EQ0001       (page is a FIELD)
+  Formula          FO      -    4        DOC_FO0001
+  Picture          PIC     _    4        DOC_PIC_0001
+  Diagram          DIA     _    4        DOC_DIA_0001
+  Table            TAB     _    3        DOC_TAB_001      (page is a FIELD)
+  Footnote         FN      -    4        DOC_FN0001
+  Sidenote         SN      -    4        DOC_SN0001
+  ListItem         LI      -    4        DOC_LI0001
+  Abstract         ABS     -    2        DOC_ABS01
+  Toc              TOC     -    2        DOC_TOC01
+  Page             PAGE    _    3        DOC_PAGE_001
+  Theorem          THM     -    4        DOC_THM0001
+  Proof            PROOF   -    4        DOC_PROOF0001
+  CodeListing      LST     -    4        DOC_LST0001
+  LtxCommand       LTX     -    0        DOC_LTX1         (unpadded)
+  Reference        REF     _    key      DOC_REF_Atick1990
+  SyntheticFormula FOX     _    key      DOC_FOX_0a1b2c3d4e
+
+  OUTSIDE the scheme, deliberately, and `parse_title` returns None for each:
+  the root document tiddler (titled with the bare bibkey), the 16 template
+  tiddlers, and the rebuilt `<bibkey>_TOC` index — 18 titles per document.
+  Those are scaffolding, not objects. An Equation title may carry a legacy
+  `_p<NNN>` page suffix (`formula_report`); the parser strips it, because it
+  disambiguates a repeat and is not part of the identity.
+
+  The module docstring's prose shape list is DELETED in favour of the table.
+  It had already drifted: it still said `DOC_H<n>` when the projector had
+  padded Sections to four digits since 566.
+
+THE ONE DELIBERATE DIFFERENCE: FOOTNOTES (646-a)
+  646 measured 17 title collisions on penev_A and 13 on penev_B — one
+  tiddler standing for up to SIX Footnote objects. The SHAPE was never the
+  problem (`FN` + four digits is right and is unchanged); the NUMBER SOURCE
+  was. `FN<refnum>` used the PRINTED footnote number, and printed numbers
+  restart on every page, so `penev_A_FN0001` named four objects and
+  `penev_A_FN0009` named six. On import TiddlyWiki keeps one and the other
+  five bodies are gone. A title must name exactly one object, so:
+
+    the footnote number is now the object's POSITION IN THE FLOW,
+    exactly as Sidenote, ListItem and every other counted type.
+
+  The printed number is not lost — it stays in the `refnum` FIELD, which is
+  what the `FN` template renders, so the superscript a reader sees is
+  unchanged. `_substitute_footnotes` still resolves a marker through
+  `fn_by_refnum` (first footnote with that printed number wins), so no
+  transclusion dangles; what it does NOT yet do is resolve per paragraph,
+  which stays open as 646-a. This fixes the silent overwrite, not the
+  mis-targeting.
+
+  MEASURED CONSEQUENCE, both documents:
+                                    penev_A          penev_B
+    duplicate tiddler titles     32 -> 0          16 -> 0
+    distinct titles            1239 -> 1271      822 -> 838
+    tiddlers emitted           1271 = 1271       838 = 838
+    dangling transclusions        0 -> 0           0 -> 0
+
+CONSUMERS TOUCHED — 13 modules, and the regex or format string each lost
+  src/docops/projectors/tiddlywiki.py
+      nine f-strings in `_assign_titles`/`math_titles`/`region_titles`/
+      `code_listing_tiddlers`, and the FOX title — all now `title_for`.
+      `TEMPLATES` and `BLOCK_TEMPLATE` hoisted to module level (the macro
+      layer had a copy of itself inside `_templates` and another inside the
+      section-body builder).
+  src/pdfdrill/report_tex.py
+      LOST `TYPED_TITLE = re.compile(r"_(FOX?|EQ|TAB|DIA|PIC)\d")`, the
+      SECOND copy `re.match(bibkey + r"_(FOX?|EQ|TAB|DIA|PIC)")` inside
+      `rows_for`, `r"_(?:FOX?_?\w+)"` inside `first_pages`, and the 16
+      hand-typed template names in `KNOWN_TEMPLATES`. All four now come from
+      the table (`REPORT_KINDS` + `prefix_alternation`, and `TEMPLATES`).
+  src/pdfdrill/reports/crops.py     LOST `KINDS_ALL = ("_EQ","_FO","_TAB","_DIA","_PIC")`
+  src/pdfdrill/reports/gate.py      LOST the `(?:EQ|FO|TAB)` in `_IDENT_ANY`
+  src/pdfdrill/inkconvert.py        LOST the `EQ` in `_IDENT` and the
+                                    `(?:EQ|FO|TAB)` in `_IDENT_FIND`
+  src/docops/projectors/llm_text.py       LOST 7 format strings
+  src/docops/projectors/distill_reader.py LOST 9 format strings
+  src/pdfdrill/occurrences.py             LOST 4 format strings (`_TITLE_FMT`)
+  src/docops/projectors/formula_report.py LOST 2 format strings
+  src/docops/projectors/latex_pipeline.py LOST 2 format strings
+  src/pdfdrill/heading_cleanup.py         LOST `f"{bib}_PARA_{i:04d}"`
+  src/pdfdrill/latex_source.py            LOST `f"{bibkey}_LTX{n}"` and
+                                          `f"{bibkey}_FO{formula_no:04d}"`
+  src/pdfdrill/citekeys.py                LOST `f"{bibkey}_REF_{key}"`; it
+                                          stays the authority on the TAIL
+                                          (citekey sanitisation, index
+                                          fallback) and asks the table for
+                                          the shape.
+
+  `tests/test_title_scheme.py::test_no_second_shape_regex_survives_in_src`
+  fails if a prefix alternation reappears anywhere in `src/` outside the
+  table's own module (rule 17, mechanically).
+
+WHAT THE COPIES HAD GOT WRONG — three live defects, found by writing them down
+  1. `distill_reader` numbered Footnote `_FN_{i:03d}`, Sidenote `_SN_{i:03d}`
+     and ListItem `_LI_{i:04d}` — a separator and a digit width the projector
+     has NEVER emitted. Every footnote, sidenote and list-item anchor the
+     distill page built pointed at a tiddler that does not exist.
+  2. `llm_text` numbered Section `{b}_H{i}` — unpadded, which the projector
+     stopped emitting at 566. Every Section pointer in the LLM dump named a
+     title that does not exist.
+  3. `report_tex.TYPED_TITLE` demanded a digit FLUSH against the prefix
+     (`_(…|TAB|DIA|PIC)\d`), so it never matched `_TAB_001`, `_DIA_0001` or
+     `_PIC_0001`. The 463 guard — "an empty report from a non-empty
+     projection is a defect" — was blind to three of the five kinds
+     `rows_for` reports on, because `rows_for`'s own regex (the second copy,
+     without the `\d`) matched them and the guard's did not.
+  All three are fixed by construction: there is one shape and one place.
+
+CONSUMERS DELIBERATELY NOT MOVED, WITH THE REASON
+  `inkconvert._IDENT` / `_IDENT_FIND` and `reports/gate._IDENT_ANY` match an
+  identifier FRAGMENT inside `\ident{...}` in a generated .tex — it carries
+  `\allowbreak{}` inside the braces and a ` (was)`/`(now)`/`(basis)` suffix
+  after the digits. `parse_title` cannot read that without changing what they
+  match, and rule 17 was learned on exactly these three patterns. They keep
+  their character classes and their explicit SUBSET of kinds; only the
+  prefixes now come from the table, via `prefix_alternation`.
+
+  `transclusion_render.num_from_title` is NOT moved. It answers "the last
+  number in this title", which is deliberately shape-agnostic: it is called
+  on `REF_<citekey>` titles too, where `parse_title` correctly reports no
+  number at all and would change what `distill_reader._prose` renders for a
+  citation. Its behaviour is kept and this paragraph is the record.
+
+  `tools/*.py` (census481, bed492, uniscan475, parallel474, midstring486,
+  census509, pkggap482, beddiag492) each carry `_(EQ|FOX?|TAB)\d`. They are
+  frozen per-task measurement scripts under rule 19 — the exact source that
+  produced a published number — not consumers of the live scheme. Rewriting
+  them would break the reproducibility that is their only job.
+
+THE MACRO LAYER
+  DEFINED, 16 (the projector's `TEMPLATES` map, now the single source; the
+  report package reads it instead of keeping a copy):
+    ABS CIT DIA EQ EQBLOCK FN FO FREF LI LTX PARA PIC PROOF SN TAB TOC
+  USED, penev_A, 11:  FO 1051, PARA 220, EQBLOCK 116, CIT 111, FN 63, SN 45,
+                      DIA 14, PIC 11, LI 4, ABS 1, TAB 1
+  USED, penev_B, 7:   FO 829, PARA 126, EQBLOCK 49, SN 23, FN 22, DIA 9, PIC 8
+  USED BUT NOT DEFINED: 0 on both — no dangling template transclusion.
+  DEFINED BUT NOT USED: penev_A {EQ, FREF, LTX, PROOF, TOC};
+                        penev_B additionally {ABS, CIT, LI, TAB}.
+    Four of these fire on documents these two do not exercise (LTX on the
+    LaTeX-source route, PROOF under a Theorem, FREF on an in-text "(N)"
+    equation reference, TOC/TAB/ABS/LI/CIT wherever the type occurs). `EQ`
+    is used by NO emission path at all; it is kept because published wikis
+    transclude it by hand and an undefined template renders nothing.
+  `tiddler_integrity` ALREADY counted a used-but-undefined template as
+  dangling (`if tpl and tpl not in titles`). It was untested; it is now
+  pinned by `test_tiddler_integrity_counts_a_used_but_undefined_template`.
+  `BLOCK_TEMPLATE` (object type -> the template a section body transcludes it
+  under) is hoisted next to `TEMPLATES`, and two tests assert every value is
+  a defined template and every member of `_BLOCK_TYPES_IN_SECTION` has one —
+  a block type with no entry renders as a bare transclusion, silently.
+
+THE NUMBERS, BOTH DOCUMENTS, AFTER
+                                        penev_A     penev_B
+    tiddlers                              1271         838
+    kinds with more than ONE shape           0           0
+    title collisions                         0           0     (was 17 / 13)
+    dangling transclusions                   0           0
+    orphan synthetic (FOX)                   0           0
+    transclusions                         1654        1081     (unchanged)
+    titles outside the scheme               18          18     (16 templates
+                                                                + root + _TOC)
+
+  BEFORE/AFTER DIFF OF THE TIDDLER ARRAYS: on both documents the only
+  differences are the Footnote family — 20 (A) / 13 (B) FN tiddlers whose
+  title moved, and 42 (A) / 18 (B) Paragraph tiddlers. Every Paragraph
+  difference is INSIDE a `{{…||FN}}` marker and nowhere else: with the FN
+  markers masked, the arrays are identical. Nothing else in either array
+  changed — same count, same bodies, same fields.
+
+TESTS (TDD; every test confirmed failing first — the module had no such API)
+  tests/test_title_scheme.py, 21 tests:
+    * FROZEN — every live shape as a LITERAL, so a table edit that renames
+      one fails; and a check that every non-keyed kind in the table appears
+      in FROZEN, so a new type cannot be added unpinned;
+    * round trip `title_for` -> `parse_title` for all 19 kinds;
+    * `_assign_titles` on a Document with one object of every type: every
+      title parses AND its kind matches the object's type;
+    * one shape per object type, asserted mechanically;
+    * `X_REF_FO0001` parses as reference `FO0001`, not as formula 1 (the
+      non-greedy bibkey);
+    * `parse_title` returns None for the root, a template, `<bibkey>_TOC`,
+      an ill-formed number, and a non-title;
+    * three Footnotes with the same refnum get three titles;
+    * the macro-layer tests above;
+    * each moved consumer produces titles the parser accepts with the right
+      kind (llm_text, distill_reader, occurrences, citekeys, report_tex);
+    * no second prefix alternation survives anywhere in `src/`.
+  CHANGED, and why:
+    tests/test_conserve.py::test_two_objects_sharing_one_tiddler_title…
+      646 built its collision out of the FN defect itself. The scheme no
+      longer produces a collision anywhere, so the test now hands the
+      collision to `reachability` directly and additionally asserts that the
+      projector did NOT collide. The DETECTOR is still pinned; only the
+      setup changed. (646 is under review in parallel — this is the one
+      place 644 touches it.)
+    tests/test_unknown_markers.py::test_the_known_set_is_what_the_projector…
+      it SCRAPED the projector's source for `("NAME", "text")` pairs, which
+      the new `("PREFIX", "sep", …)` table also matches. `KNOWN_TEMPLATES`
+      is now read from `TEMPLATES`, so the identity is asserted instead.
+
+  FULL SUITE: PYTHONDONTWRITEBYTECODE=1 PYTHONPATH=src python3 -m pytest
+  tests/ -q -p no:cacheprovider  ->  3150 passed, 0 failed.
+
+EVIDENCE (library, deny-by-default git; never committed to this repo)
+  ~/pdfdrill-library/out/644/script.py            the exact source that ran,
+                                                  through the real CLI entry
+                                                  point (cmd_tiddlers)
+  ~/pdfdrill-library/out/644/penev_A.before.json  the projection at 38ac012,
+  ~/pdfdrill-library/out/644/penev_B.before.json  captured before the change
+                                                  (it cannot be regenerated —
+                                                  the code is gone)
+  ~/pdfdrill-library/out/644/shapes.txt           both censuses side by side
+  ~/pdfdrill-library/out/644/table.txt            the settled table, as code
+  ~/pdfdrill-library/out/644/INSPECT.txt          2 paths, both checked
+  ~/pdfdrill-library/penev_{A,B}/out/644/shapes.txt   the per-document census
+  ~/pdfdrill-library/penev_{A,B}/out/644/after.json   the array as projected
+  ~/pdfdrill-library/penev_{A,B}/out/644/INSPECT.txt  3 paths each, checked
+
+WHAT IS LEFT
+  644-a  `_substitute_footnotes` still resolves a marker by a DOCUMENT-WIDE
+         printed-number map, so all four markers printed "1" still point at
+         the first footnote numbered 1. The titles no longer overwrite each
+         other, which is what 644 owed; the per-paragraph resolution is
+         646-a and is untouched.
+  644-b  `Toc` is in `BLOCK_TEMPLATE` but not in `_BLOCK_TYPES_IN_SECTION`,
+         so the `TOC` entry there is unreachable. Harmless, and left alone
+         rather than removed: the two sets are now tested against each other
+         in the direction that matters (every block type HAS a template).
+  644-c  The `EQ` template is defined and emitted by nothing. Either a
+         substitution should produce it (an in-text "see Equation 1.1") or
+         it should be documented as hand-use only. It is the latter today.
+  644-d  `formula_report`'s `_p<NNN>` suffix is a second identity for one
+         equation. `parse_title` strips it, so nothing breaks, but the
+         suffix has no reader that needs it and could go.
+  644-e  `num_from_title` is the last shape-adjacent reader not on the
+         table, for the reason above. Moving it means deciding what a
+         citation's "number" is, which is a `distill_reader` question.
+
+CONCERNS
+  The FN change is a real change to a published artefact: anyone holding a
+  wiki built before this commit has `FN<printed number>` titles and will get
+  `FN<flow position>` on the next projection. Nothing links to a footnote
+  from outside the array (no crop file, no evidence-PDF identifier, no
+  `\ident{}` row is ever an FN), so the blast radius is inside the array —
+  but it is not zero, and it is the reason it is called out as the one
+  deliberate difference rather than folded into "byte-identical".
+  Both documents were measured; penev_B carries no Reference, Table, Toc,
+  Abstract or ListItem objects, so five rows of the table are exercised on
+  penev_A alone and four kinds (Theorem, Proof, CodeListing, LtxCommand)
+  on neither. Those four are covered by unit tests only.

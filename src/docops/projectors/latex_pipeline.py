@@ -26,6 +26,7 @@ import re
 from pathlib import Path
 
 from docmodel.core import Document
+from .tiddlywiki import title_for
 
 # a transclusion marker: {{<title>||<TPL>}} where TPL ∈ FO/FREF/FN/PIC/DIA/CIT…
 _MARKER = re.compile(r"\{\{([^|{}]+?)\|\|([A-Z]+)\}\}")
@@ -179,10 +180,10 @@ def formula_array(doc: Document) -> tuple[list[str], dict[str, int]]:
         # uses (`<bibkey>_FO<NNNN>` / `_EQ<NNNN>`, per-type, by first appearance).
         if obj.type == "Formula":
             fo_no += 1
-            title_index[_safe_title(f"{bibkey}_FO{fo_no:04d}")] = idx
+            title_index[_safe_title(title_for(bibkey, "Formula", fo_no))] = idx
         else:
             eq_no += 1
-            title_index[_safe_title(f"{bibkey}_EQ{eq_no:04d}")] = idx
+            title_index[_safe_title(title_for(bibkey, "Equation", eq_no))] = idx
     return order, title_index
 
 

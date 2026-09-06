@@ -182,21 +182,36 @@ def test_reachability_takes_the_projectors_own_title_map():
 
 
 def test_two_objects_sharing_one_tiddler_title_are_reported_as_a_collision():
-    """Footnote titles are `FN<refnum>`: two Footnotes with the same refnum
-    become ONE tiddler. Nothing is unreachable and nothing is unclaimed — the
-    content is MIXED UP, which is the other half of the claim."""
+    """Two objects, ONE tiddler title. Nothing is unreachable and nothing is
+    unclaimed — the content is MIXED UP, which is the other half of the claim.
+
+    644 CHANGED THE SETUP, NOT THE CHECK. This used to build the collision
+    from the projector itself: footnote titles were `FN<refnum>` and refnums
+    restart per page, so two Footnotes with refnum 1 became one tiddler (17
+    such collisions on penev_A). 644 numbers a footnote by its position in the
+    flow, so the scheme no longer produces a collision anywhere — see
+    `test_title_scheme.py::test_footnote_titles_are_unique_per_object`. The
+    DETECTOR still has to work, because a future scheme change or a
+    hand-written title map can still collide, so the collision is now handed
+    to `reachability` directly.
+    """
     doc = _conserved()
     mp = _lines(doc)
-    for _ in range(2):
-        a = mp.append(text="1 a note", _page=1, _line_index=9, type="text")
+    fns = []
+    for i in range(2):
+        a = mp.append(text="1 a note", _page=1, _line_index=9 + i, type="text")
         fn = DocObject(type="Footnote", props={"refnum": 1, "content": "note"})
         fn.add_realization(Realization(stream="mathpix_lines",
                                        start=a, end=a, role="surface"))
         doc.add(fn)
-    r = conserve(doc)
-    cols = r["reachability"]["collisions"]
+        fns.append(fn)
+    from docops.conserve import project_in_memory
+    tiddlers, titles, _ = project_in_memory(doc)
+    assert titles[fns[0].id] != titles[fns[1].id], "the scheme collided again"
+    titles[fns[1].id] = titles[fns[0].id]            # force ONE title
+    cols = reachability(doc, tiddlers, titles)["collisions"]
     assert len(cols) == 1, cols
-    assert cols[0]["title"] == "DOC_FN0001"
+    assert cols[0]["title"] == titles[fns[0].id]
     assert [o["type"] for o in cols[0]["objects"]] == ["Footnote", "Footnote"]
 
 

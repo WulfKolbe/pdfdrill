@@ -36,7 +36,12 @@ def citation_title(bibkey: str, citekey: str, index: int | None = None) -> str:
     `index` (1-based) names an entry whose citekey is empty — a printed
     bibliography parsed from OCR often has no key at all.
     """
+    from docops.projectors.tiddlywiki import title_for   # local: avoids a cycle
+
     key = safe_citekey(citekey)
     if not key:
         key = str(index if index is not None else 1)
-    return f"{bibkey}_REF_{key}"
+    # 644 — the `REF_` shape lives in ONE table (`TITLE_SHAPES`), not in an
+    # f-string here as well. This module stays the authority on the TAIL (what
+    # a citekey reduces to, and the index fallback for an entry with no key).
+    return title_for(bibkey, "Reference", key)

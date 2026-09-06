@@ -57,7 +57,23 @@ FLAG_CODE = {"clean": "K", "noise": "N", "weak": "W", "stable": "S",
 FIVE_L = ("L_comp", "L_holes", "L_stk", "L_cen", "L_off")
 FIVE_R = ("R_comp", "R_holes", "R_stk", "R_cen", "R_off")
 
-_IDENT = re.compile(r"\\ident\{([^&\n]*?EQ\d+)\}[^&\n]*& *(\d+) *&")
+#: 644 — the object kinds whose identifiers a report row can carry, and the
+#: prefix alternation built FROM the title scheme rather than typed again here.
+_REPORT_ROW_KINDS = ("Equation", "Formula", "Table")
+
+
+def _prefixes(kinds) -> str:
+    from docops.projectors.tiddlywiki import prefix_alternation
+    return prefix_alternation(kinds)
+
+
+#: 644 — the prefix comes from the title scheme's table (`TITLE_SHAPES`), the
+#: SUBSET stays named here. `parse_title` is not usable: this matches an
+#: identifier FRAGMENT inside `\ident{...}` in a generated .tex, which carries
+#: `\allowbreak{}` inside it and a ` (was)` suffix after it (rule 17 — match to
+#: a stable anchor, not to a brace class).
+_IDENT = re.compile(
+    r"\\ident\{([^&\n]*?" + _prefixes(("Equation",)) + r"\d+)\}[^&\n]*& *(\d+) *&")
 
 #: 386 — the DTZ figure report carries neither half of the contract above: its
 #: identifiers are DTZ00000, not <bib>_EQ0001, and its Page cell holds
@@ -85,7 +101,8 @@ _IDENT_FIG = re.compile(r"\\ident\{([^&\n]*?[A-Z]{2,4}\d{3,})\}[^&\n]*&")
 #: row identifiers" on every findings report and its coverage check could not
 #: run.
 _IDENT_FIND = re.compile(
-    r"\\ident\{([^&\n]*?(?:EQ|FO|TAB)\d+)[^&\n}]*\}[^&\n]*&")
+    r"\\ident\{([^&\n]*?(?:" + _prefixes(_REPORT_ROW_KINDS)
+    + r")\d+)[^&\n}]*\}[^&\n]*&")
 
 
 class ConversionRefused(Exception):

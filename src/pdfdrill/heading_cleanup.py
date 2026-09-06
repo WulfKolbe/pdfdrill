@@ -117,6 +117,8 @@ def materialize_transclusions(doc) -> int:
     by_title = _projected_paragraphs(doc)
     flow = lambda o: o.props.get("flow_index") or 0
     n = 0
+    from docops.projectors.tiddlywiki import title_for
+
     for i, p in enumerate(sorted(doc.objects_of_type("Paragraph"), key=flow), 1):
         # The projector builds from the IMMUTABLE SOURCE stream, i.e. the
         # document's ORIGINAL language. Writing that over a translation puts the
@@ -126,7 +128,7 @@ def materialize_transclusions(doc) -> int:
         # not. This destroyed 23 translated paragraphs before it was caught.
         if is_translated(p, "text"):
             continue
-        new = (by_title.get(f"{bib}_PARA_{i:04d}") or "").strip()
+        new = (by_title.get(title_for(bib, "Paragraph", i)) or "").strip()
         if new and new != (p.props.get("text") or "").strip():
             p.props.setdefault("text_source", p.props.get("text", ""))
             p.props["text"] = new
