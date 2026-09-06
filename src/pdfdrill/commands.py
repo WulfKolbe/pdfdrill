@@ -10048,9 +10048,23 @@ def cmd_latex(pdf: Path, force: bool = False, compile: bool = False,
         f"  NOTE: use xelatex (or lualatex), NOT pdflatex — the model can carry "
         f"raw Unicode (≥ ✓ → ℃) that inputenc/pdflatex reject.",
     ]
+    # 638 — the footnote resolution, said out loud. A marker the projector
+    # cannot pair with a body is LEFT as it stands and counted; a count nothing
+    # prints is a count nobody reads.
+    from docops.projectors import footnotes as _fnres
+    _fc = _fnres.resolve(doc).counts
+    if _fc["markers_total"] or _fc["footnotes"]:
+        lines.append(
+            f"  footnotes: {_fc['markers_resolved']}/{_fc['markers_total']} "
+            f"marker(s) resolved to a body "
+            f"({_fc['markers_unresolved']} left as they stand, "
+            f"{_fc['markers_ambiguous']} paired by order on the page); "
+            f"{_fc['footnotes_marked']}/{_fc['footnotes']} bodies marked, "
+            f"{_fc['footnotes_lacking_a_field']} lacking refnum/anchor_marker.")
     if dump_stages:
         lines.append(f"  stages  : {_artref(sc, env_dir / 'stages')}/  "
-                     f"(transclusion lookup / citations / bibliography)")
+                     f"(transclusion lookup / citations / bibliography / "
+                     f"footnote resolution)")
     if compile:
         ok, note = _xelatex_compile(main_tex)
         pdf_out = main_tex.with_suffix(".pdf")

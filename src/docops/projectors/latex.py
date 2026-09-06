@@ -20,6 +20,7 @@ from docmodel.core import Document
 from ..base import BaseProjector
 from .common import flow_ordered_content, equation_label
 from . import latex_pipeline as _pipe
+from . import footnotes as _fn
 
 # level → sectioning command (1-indexed; clamped)
 _SECTION_CMDS = ["section", "section", "subsection", "subsubsection",
@@ -47,6 +48,26 @@ def _escape_text(s: str) -> str:
     s = re.sub(r"(?<!\\)#", r"\\#", s)
     s = re.sub(r"(?<!\\)_", r"\\_", s)
     s = re.sub(r"(?<!\\)~", r"\\textasciitilde{}", s)
+    return s
+
+
+def _balance_braces(s: str) -> str:
+    """Contain a runaway brace to THIS block — the brace analogue of
+    `latex_pipeline.balance_math`, and needed for the same reason.
+
+    MEASURED, not defensive: 1 penev_A and 4 penev_B Paragraphs carry a
+    `\\footnotetext{` that MathPix left in the prose of a line the paragraph
+    ALSO claims (646's Footnote+Paragraph doubly-claimed class), and one of
+    penev_B's is never closed. Emitted verbatim it swallows the rest of the
+    file: 'File ended while scanning use of \\@footnotetext', Emergency stop,
+    and every page after it is simply absent from the PDF. 0 Footnote BODIES
+    are unbalanced on either document — the runaway is in prose."""
+    opens = len(re.findall(r"(?<!\\)\{", s))
+    closes = len(re.findall(r"(?<!\\)\}", s))
+    if opens > closes:
+        return s + "}" * (opens - closes)
+    if closes > opens:
+        return "{" * (closes - opens) + s
     return s
 
 
@@ -124,6 +145,12 @@ class LaTeXProjector(BaseProjector):
             self._order, f"{key}.formulas.dat")
         self._ref_map = _pipe.reference_map(doc)
         self._skip_ids = _pipe.reference_section_ids(doc) if self._ref_map else set()
+        # 638 — pair every running-text footnote MARKER with its Footnote body.
+        # A body that a marker takes is printed by that marker's paragraph
+        # (`\footnotetext[n]{…}`), so it must not ALSO be emitted standalone.
+        self._footnotes = _fn.resolve(doc)
+        self._doc_objects = doc.objects
+        self._skip_ids = set(self._skip_ids) | set(self._footnotes.used)
         # STAGE 3: acronyms / glossary from the named-concept layer (lazy — the
         # `semantic` package; degrade to none if unavailable).
         self._acronyms: list = []
@@ -191,12 +218,65 @@ class LaTeXProjector(BaseProjector):
         content passes through `_prose` (transclusions / citations resolve)."""
         lines = ["\\begin{itemize}"]
         for it in run:
-            content = self._prose(str(it.props.get("content") or "").strip())
+            marked, notes = self._mark_footnotes(it)
+            content = self._prose(marked.strip())
+            if notes:
+                content = " ".join([content] + notes)
             marker = str(it.props.get("marker") or "").strip()
             label = f"[{{{marker}}}]" if marker else ""
             lines.append(f"  \\item{label} {content}".rstrip())
         lines.append("\\end{itemize}")
         return "\n".join(lines)
+
+    # ── 638: footnote markers ────────────────────────────────────────────────
+
+    def _mark_footnotes(self, obj) -> tuple[str, list[str]]:
+        """`(running text with resolved markers replaced by `\\footnotemark[n]`,
+        the `\\footnotetext[n]{…}` blocks those marks owe)`.
+
+        An UNRESOLVED marker is left byte-for-byte as it was — the resolution
+        counts it (`markers_unresolved`) rather than guessing a body. When the
+        object's text no longer holds the markers the resolution was built from,
+        nothing is substituted at all: a positional edit against a text that
+        moved would replace the wrong characters."""
+        text = _fn.object_text(obj)
+        res = getattr(self, "_footnotes", None)
+        if res is None:
+            return text, []
+        marks = res.marks_for(obj.id)
+        if not marks:
+            return text, []
+        found = _fn.find_markers(text)
+        if [rn for _s, _e, rn in found] != [m.refnum for m in marks]:
+            return text, []
+        out: list[str] = []
+        notes: list[str] = []
+        last = 0
+        for (start, end, refnum), mark in zip(found, marks):
+            out.append(text[last:start])
+            if mark.footnote_id:
+                out.append(f"\\footnotemark[{refnum}]")
+                fn = self._doc_objects.get(mark.footnote_id)
+                if fn is not None:
+                    notes.append(self._footnotetext(fn))
+            else:
+                out.append(text[start:end])
+            last = end
+        out.append(text[last:])
+        return "".join(out), notes
+
+    def _footnotetext(self, fn) -> str:
+        """A Footnote body as `\\footnotetext[n]{…}` — the PRINTED number, so the
+        projection reads like the publication. Without a `refnum` the optional
+        argument is omitted rather than emitted empty (`\\footnotetext[]{}` is a
+        LaTeX error). The body goes through `_prose`, not `_escape_text`: the
+        latter escapes `_` inside maths too and turned `\\(F_{r}\\)` into
+        `\\(F\\_{r}\\)` — both of penev_A's 'Missing $ inserted' errors."""
+        body = self._prose(str(fn.props.get("content") or "").strip())
+        body = re.sub(r"\n\s*\n+", " ", body).strip()     # no \par inside a footnote
+        refnum = str(fn.props.get("refnum") or "").strip()
+        opt = f"[{refnum}]" if refnum.isdigit() else ""
+        return f"\\footnotetext{opt}{{{body}}}"
 
     def _prose(self, text: str) -> str:
         """Resolve a prose block to LaTeX: transclusion markers → `\\Expr{<index>}`
@@ -209,6 +289,7 @@ class LaTeXProjector(BaseProjector):
         # contain any runaway inline math (a dropped `\)`/`$`) to THIS block, so
         # it can't swallow the next \section ("Not allowed in LR mode").
         text = _pipe.balance_math(text)
+        text = _balance_braces(text)                  # and a runaway brace
         # headings FIRST (so a leaked `## X` still matches — escaping `#` would
         # break it), THEN escape prose specials (`#`/`%`/`&` outside math).
         lines = (_pipe.resolve_headings(ln) for ln in text.split("\n"))
@@ -226,12 +307,16 @@ class LaTeXProjector(BaseProjector):
             label = p.get("label")
             return s + (f"\n\\label{{{label}}}" if label else "")
         if t in ("Paragraph", "Abstract"):
-            text = self._prose((p.get("text") or "").strip())
+            marked, notes = self._mark_footnotes(obj)
+            text = self._prose(marked.strip())
             if not text.strip():
                 return ""
             if t == "Abstract":
-                return f"\\begin{{abstract}}\n{text}\n\\end{{abstract}}"
-            return text
+                text = f"\\begin{{abstract}}\n{text}\n\\end{{abstract}}"
+            # the bodies this paragraph's marks own, at the END of the paragraph
+            # that carries the mark (so `\footnotetext` executes on the page the
+            # mark was set on).
+            return "\n".join([text] + notes) if notes else text
         if t == "Equation":
             latex = _pipe.sanitize_math((p.get("latex") or "").strip())
             if not latex:                                 # CDN-crop-only — nothing to typeset
@@ -265,5 +350,8 @@ class LaTeXProjector(BaseProjector):
             # a lone ListItem (not part of a run) — still needs an environment
             return self._render_list([obj])
         if t == "Footnote":
-            return f"\\footnotetext{{{_escape_text(str(p.get('content') or ''))}}}"
+            # A body no marker took — emitted where it stands, but WITH its
+            # printed number: a bare `\footnotetext{…}` never steps the counter,
+            # so every one of penev_A's 54 of them printed as footnote "0".
+            return self._footnotetext(obj)
         return ""

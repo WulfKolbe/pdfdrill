@@ -681,6 +681,7 @@ def run_stages(doc: Document, bibkey: str = "DOC") -> dict:
     """Every stage's inspectable data, keyed by dump-filename stem. Stage 0 is the
     readarray formula array — the `.dat` (one formula per line) AND the
     `{title: index}` map — plus the citation list and the bibliography."""
+    from . import footnotes as _fn                     # local: avoid a cycle
     order, title_index = formula_array(doc)
     return {
         "00-formulas.dat": "\n".join(order),          # the readarray data file
@@ -688,6 +689,10 @@ def run_stages(doc: Document, bibkey: str = "DOC") -> dict:
         "01-citations": citation_keys(doc),
         "02-bibliography": bibliography_block(doc),
         "02-bib-database": bib_database(doc),
+        # 638 — which running-text marker took which Footnote body, with the
+        # page each side was on and whether the pairing needed the order
+        # tie-break. The one place the disambiguation is inspectable.
+        "03-footnotes": _fn.resolve(doc).table(),
     }
 
 

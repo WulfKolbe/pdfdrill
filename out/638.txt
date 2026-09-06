@@ -1,0 +1,351 @@
+638 — the footnote markers the LaTeX projector left as inline maths
+==================================================================
+
+THE USER'S REPORT, CHECKED FIRST RATHER THAN ASSUMED
+  "penev_A.tex still holds 94 bare ^{n} in running text, 0 \footnotemark,
+   0 \footnote{"                                        SUBSTANTIALLY TRUE.
+    On this machine at HEAD (29185c8) the .tex held 0 \footnotemark and 0
+    \footnote{, and 146 bare `\({ }^{n}\)` inline-maths spans, of which 104
+    come from Paragraph text (the running text the user counted) and 42 from
+    inside Footnote bodies. The user's 94 is the same class measured in
+    another environment. There are 220 `{ }^{n}` occurrences in all and 487
+    `^{n}`; the other 74 and 267 are REAL exponents (`\sigma_{r}{ }^{2}`,
+    `10^{12}`) and must not be touched: a `{ }^{n}` is a marker only when it
+    is the WHOLE inline-math span, which is what `marker_refnum` decides.
+
+  "the mapping is already in the model: 53 Footnote objects each carrying
+   refnum and anchor_marker"                             TRUE, with a caveat
+    that turns out to be the whole difficulty: `anchor_marker` is not a
+    LOOKUP. `FootnoteProcessor.create_object` builds it by string
+    concatenation from `refnum` (`"{ }^{" + refnum + "}"`), and `refnum`
+    itself is read off the BODY line, not off the marker. So the marker's
+    own position — page, line, offset — is recorded NOWHERE in the model.
+
+  "refnum is not unique"                                 TRUE and measured:
+    16 refnums name more than one Footnote on penev_A (9 six times, 3 five
+    times, 2/1/21/24 four times each), 12 on penev_B.
+
+  "the Formula module CLAIMS `{ }^{n}` as a Formula today" (the brief's
+    premise for 640)                                     NOT TRUE at HEAD.
+    `FormulaProcessor.find_items` already skips a body matching
+    `_is_footnote_marker`, and penev_A carries 0 Formula objects whose latex
+    is a bare superscript marker (674 Formulas, 0 of them a marker). The
+    markers reach the .tex through the PARAGRAPH'S OWN TEXT, verbatim. 640's
+    "move the claim upstream" therefore has nothing to move on these two
+    documents; what it can still do is give the marker an OBJECT.
+
+WHERE THE MARKER'S POSITION CAME FROM — NOT GUESSED, LOOKED UP
+  The model does not record it, and this task did not invent one. It is
+  recoverable EXACTLY: the marker is in the paragraph's own `mathpix_lines`
+  lines, and every line carries `_page`. `footnotes._marker_pages` walks the
+  lines the object is anchored at, finds the markers per line, and accepts
+  the page only when the refnum SEQUENCE off the lines equals the refnum
+  sequence in the object's materialised text — an exact alignment, not a
+  best guess. It holds on 63 of 63 penev_A paragraphs and every penev_B one:
+  `markers_without_a_page` is 0 on both. When it does not hold the object's
+  own page is used only if every line it covers is on ONE page; failing
+  that the marker is unresolved and counted (rule 5).
+
+THE DISAMBIGUATION, IN ONE LINE
+  A marker `{ }^{n}` on page P takes the Footnote with refnum n whose body
+  page is P (marker order on the page against body order on the page when
+  there is more than one, and every such pairing is counted AMBIGUOUS);
+  failing that, the nearest LATER page within one page; failing that the
+  marker is left byte-for-byte as it stands and counted.
+
+  THE ONE-PAGE CAP IS A DELIBERATE NARROWING OF THE BRIEF, AND IT COST 10
+  RESOLUTIONS. The brief says "the nearest LATER page (a body can spill to
+  the next page)". Implemented as written — nearest later page, unbounded —
+  penev_A resolved 31 of 104 markers. MEASURED, only ONE of those eleven
+  forward matches was a genuine +1 spill; the other ten sat 4, 4, 4, 5, 6,
+  6, 7, 8, 11 and 12 pages away. A body twelve pages later is not that
+  marker's footnote, it is the next chapter's footnote n — which is content
+  MIXED UP, the other half of the conservation claim 646 exists to measure.
+  `MAX_SPILL_PAGES = 1`; penev_A resolves 21 instead of 31 and the ten wrong
+  attachments are counted as unresolved instead of printed as fact.
+
+  A BODY IS NEVER SEARCHED BACKWARD. 23 penev_A markers have bodies only on
+  EARLIER pages; resolving backward would attach the previous chapter's n.
+
+THE CONVENTION FOR THE OUTPUT — ONE, STATED
+  `\footnotemark[n]` at the marker, `\footnotetext[n]{…}` at the END of the
+  paragraph that carries it. NOT `\footnote{…}` at the marker: `\footnote`
+  renumbers from LaTeX's own counter, and the whole point of `refnum` is the
+  number the publication printed. `\footnotemark[n]`/`\footnotetext[n]` keeps
+  it. A body no marker took is still emitted where it stands, but now as
+  `\footnotetext[n]{…}` — a bare `\footnotetext{…}` never steps the counter,
+  so all 54 penev_A / 41 penev_B of them printed as footnote "0".
+
+WHAT WAS BUILT
+  src/docops/projectors/footnotes.py   NEW. `marker_refnum` (is this whole
+      inline-math span a bare superscript marker?), `find_markers` (every
+      one in a text, with spans), `resolve(doc) -> Resolution` (the pairing,
+      the counts, `table()` for the stage dump). Pure functions over a
+      Document; 641 reuses the two recognisers for citation superscripts.
+      `RUNNING_TEXT_TYPES = (Paragraph, Abstract, ListItem)` — see WHAT IS
+      DELIBERATELY LEFT ALONE.
+  src/docops/projectors/latex.py
+      `_prepare` resolves once and adds every CONSUMED Footnote id to
+      `_skip_ids`, so a body a marker prints is not ALSO printed standalone.
+      `_mark_footnotes(obj)` rewrites the resolved markers and returns the
+      `\footnotetext[n]{…}` blocks the paragraph owes; an UNRESOLVED marker
+      is left byte-for-byte, and when the object's text no longer holds the
+      markers the resolution was built from, NOTHING is substituted (a
+      positional edit against a text that moved replaces the wrong
+      characters — 645's `citation_span_out_of_bounds` lesson).
+      `_footnotetext(fn)` renders a body through `_prose`, not
+      `_escape_text` — see THE TWO COMPILE ERRORS THAT WENT AWAY.
+      `_balance_braces` in `_prose` — see the same section.
+  src/docops/projectors/latex_pipeline.py
+      `run_stages` gains `03-footnotes`: the resolution table, every mark
+      with its page, the body it took, the body's page, and whether the
+      pairing needed the order tie-break. The one place the disambiguation
+      is inspectable (`pdfdrill latex --dump-stages`).
+  src/pdfdrill/commands.py
+      `cmd_latex` PRINTS the resolution ("21/104 marker(s) resolved to a
+      body (83 left as they stand, 16 paired by order on the page); 21/53
+      bodies marked, 2 lacking refnum/anchor_marker"). A count nothing
+      prints is a count nobody reads (645).
+
+THE NUMBERS — BOTH DOCUMENTS
+  BEFORE is the .tex as it stood at HEAD (29185c8): penev_A's frozen from
+  disk, penev_B's produced by projecting the SAME model with a clean
+  `git archive` export of 29185c8 in a subprocess (penev_B has no `latex/`
+  folder, so its before did not exist).
+
+                                             penev_A        penev_B
+    Footnote objects                            53             36
+      with refnum                               51             33
+      with anchor_marker                        51             33
+      LACKING ONE OR BOTH   <- the user asks     2              3
+    marker spellings in running text, per spelling:
+      \({ }^{n}\)                              104             55
+      \({}^{n}\)  ${ }^{n}$  \(\,^{n}\)  \(^{n}\)
+                                             0 each         0 each
+    ----------------------------------------------------------------
+    markers resolved to a body                  21             15
+      of which on a LATER page (+1)              1              0
+      of which paired by ORDER (ambiguous)      16              9
+    markers unresolved (left as they stand)     83             40
+    markers without a page                       0              0
+    footnote bodies marked                      21             15
+    footnote bodies unmarked                    32             21
+    ----------------------------------------------------------------
+    .tex, BEFORE -> AFTER
+      \({ }^{n}\) spans                  146 -> 125      86 -> 71
+      \footnotemark                        0 ->  21       0 -> 15
+      \footnotemark[n]                     0 ->  21       0 -> 15
+      \footnotetext                       54 ->  54      41 -> 41
+      \footnotetext[n]  (numbered)         0 ->  51       0 -> 33
+      \footnote{                           0 ->   0       0 ->  0
+      ANY { }^{n} (incl. real exponents) 220 -> 199     126 -> 111
+      ANY ^{n}                           487 -> 466     209 -> 194
+
+  EVERY REMAINING MARKER IS ACCOUNTED FOR, not estimated. penev_A: 125 =
+  83 unresolved running-text markers + 42 inside Footnote bodies. penev_B:
+  71 = 40 + 31. The `\footnotetext[n]` count is bodies-with-a-refnum:
+  penev_A 53 - 2 = 51, penev_B 36 - 3 = 33; the remainder of the 54 / 41
+  are 1 penev_A / 4 penev_B `\footnotetext{` MathPix left in PARAGRAPH
+  prose (638-a).
+
+WHY 83 OF 104 ARE UNRESOLVED — COUNTED, NOT REASONED (out/638/reasons.json)
+    penev_A                                                  83
+      no Footnote object with that refnum ANYWHERE           42
+      bodies for that refnum only on EARLIER pages           23
+      bodies only MORE than one page later (another
+        chapter's n — what the cap refuses)                  16
+      a +1-page body existed but an earlier marker took it    2
+    penev_B                                                  40
+      no Footnote object with that refnum ANYWHERE           37
+      a same-page body existed but an earlier marker took it  3
+
+  The dominant class is EXTRACTION, not resolution: penev_A's markers name
+  refnums 1..39 per chapter, and MathPix captured no `footnote` line at all
+  for 15 of the refnums penev_A's markers name (4, 6, 7, 10, 14, 15, 16, 19,
+  22, 26, 28, 30, 32, 34, 39) and 21 of penev_B's — 42 and 37 markers whose
+  body is simply not in the model. That is the same class as 646-a2 (36 Footnotes transcluded by
+  nothing) seen from the other side, and it is upstream of this task.
+
+THE TWO COMPILE ERRORS THAT WENT AWAY, AND THE ONE FATAL ONE
+  `_escape_text` escaped `_` across the WHOLE string, math included, so a
+  footnote body carrying `\(F_{r}^{same}\)` was emitted as `\(F\_{r}…\)`.
+  Both of penev_A's "! Missing $ inserted." errors were that, on the two
+  copies of one duplicated body. Bodies now go through `_prose`, whose
+  `escape_prose_specials` is math-aware. penev_A: 2 errors -> 0.
+
+  `_balance_braces` — the brace analogue of the projector's existing
+  `balance_math`, applied per prose block. MEASURED, not defensive: 1
+  penev_A and 4 penev_B Paragraphs carry a `\footnotetext{` MathPix left in
+  the prose of a line the paragraph ALSO claims (646's Footnote+Paragraph
+  doubly-claimed class), and ONE of penev_B's is never closed. Emitted
+  verbatim it swallowed the rest of the file — "File ended while scanning
+  use of \@footnotetext", Emergency stop — and penev_B's projection had
+  never compiled past page 22 on any run, before this task or after it.
+  0 Footnote BODIES are unbalanced on either document; the runaway is in
+  prose, which is where the containment now sits.
+
+COMPILE (xelatex, `-interaction=nonstopmode`, two passes)
+                                    penev_A          penev_B
+    BEFORE   pages                     99               22 (Emergency stop)
+             "! " lines                 2               28
+    AFTER    pages                     99               68
+             "! " lines                 0               21
+
+  penev_B's 28 -> 21: the "! File ended while scanning use of
+  \@footnotetext" and its "! Emergency stop." are gone (the brace
+  containment), and with them 2 "Not in outer par mode" and 2 "Missing
+  number, treated as zero". The 21 that remain were all in the before too
+  except one "Float(s) lost" (a consequence of the document now reaching
+  page 68 instead of stopping at 22): 6 "Missing endcsname" + 6 "Use of ???"
+  + 2 "Undefined control sequence" + 2 keyval + 2 "Cannot determine size of
+  graphic" + 2 "File `https://cdn.mathpix.com/…' not found" — one class, the
+  MathPix CDN `\includegraphics` URL, which no offline compile can resolve
+  and which this task does not touch.
+
+WHAT THE RASTERISED PAGES SHOW (Ghostscript, 400 dpi, read)
+  penev_A page 8, BEFORE and AFTER, the same page foot:
+    BEFORE  below the footnote rule, in \footnotesize: "⁰ For a recent
+            review of all these techniques see (Deco and Obradovic 1996).
+            ⁴ PCA has also been utilized…" — footnote number ZERO. The
+            counter was never stepped, so every body on every page printed
+            as 0.
+    AFTER   the same body, same rule, same size, numbered "³" — the number
+            the thesis printed. In the running text of the same page the
+            marker now sets as a footnote reference (`\footnotemark[2]` on
+            "…low-dimensional representation.²") instead of an empty-base
+            math superscript.
+    The body appears TWICE on that page in both images. That is 646-b (two
+    Footnote objects with identical content) and is untouched here; it is
+    visible in the evidence rather than cropped out of it.
+  penev_B page 8: "The algorithm works relatively quickly ⁴¹ and extremely
+    robustly in practice;" with, below the rule, "⁴¹ Note that, since the
+    algorithm is incremental, we never need to compute the inverse of the
+    matrix Q (4.65) explicitly…". Mark and body on the SAME page carrying
+    the SAME printed number — an ordinary publication footnote.
+
+WHAT IS DELIBERATELY LEFT ALONE, AND WHY
+  A marker inside a FOOTNOTE body (42 penev_A / 31 penev_B) is NOT a
+  reference. `FootnoteProcessor._parse_footnotetext` keeps only the first
+  `\footnotetext{…}` on a line, and MathPix routinely puts two footnotes on
+  one line, so 29 of penev_A's 53 bodies end with the NEXT footnote's
+  printed label and its text merged in ("…(Deco and Obradovic 1996).
+  \({ }^{4}\) PCA has also been utilized…"). Emitting `\footnotemark[4]`
+  there would assert a reference that is not there. Left, counted, named as
+  638-b.
+  A marker inside a SIDENOTE body (93 / 39) never reaches the .tex at all —
+  `LaTeXProjector._render` has no Sidenote branch. Named as 638-c.
+  The TiddlyWiki projector's own `_substitute_footnotes` is UNCHANGED. It
+  still resolves through the document-wide `fn_by_refnum` (first footnote
+  with that printed number wins), which is 644-a / 646-a. Moving it onto
+  this resolver would move every number 645 and 646 published; it is 638-d.
+
+TESTS (TDD; every one confirmed failing first — the whole module was absent
+on the first run, and the file failed to import)
+  tests/test_footnote_marks.py, 12 tests:
+    * the recogniser: `\({ }^{3}\)`, `\( { }^{12} \)`, `${ }^{4}$`,
+      `\({}^{5}\)` are markers; `\(\sigma_{r}{ }^{2}\)`, `\(x^{2}\)` and
+      plain prose are NOT (the 74 real exponents);
+    * a marker's page is the page of the LINE it sits on, looked up;
+    * two Footnotes with refnum 3 on pages 4 and 9, one marker on page 4:
+      the page-4 marker takes the page-4 body, the page-9 marker takes the
+      page-9 one, and neither pairing is ambiguous;
+    * the PROJECTION of that document: `\footnotemark[3]` on the page-4
+      line, `\footnotetext[3]{Page four body.}` after that paragraph and
+      before the page-9 one, no bare `{ }^{3}` anywhere, and no unnumbered
+      `\footnotetext{`;
+    * a marker with NO Footnote stays byte-for-byte and is counted
+      (`markers_unresolved == 2`, no `\footnotemark` emitted);
+    * a Footnote lacking a refnum is counted, is never marked, and is never
+      emitted as `\footnotemark[]` / `\footnotetext[]` — it still reaches
+      the page as an unnumbered body;
+    * two bodies with one refnum on ONE page pair in order (646-a), and
+      BOTH pairings are reported as ambiguous;
+    * a body that spilled to the next page resolves and is counted under
+      `markers_resolved_on_a_later_page`;
+    * a body MAX_SPILL_PAGES+1 later does NOT resolve — the marker stands;
+    * a body only on an EARLIER page does not resolve;
+    * a runaway `\footnotetext{` in PROSE is contained to its paragraph:
+      the whole projection's braces balance and nothing is deleted;
+    * the `03-footnotes` stage dump carries the counts and one row per mark
+      with both pages.
+
+  FULL SUITE: PYTHONDONTWRITEBYTECODE=1 PYTHONPATH=src python3 -m pytest
+  tests/ -q -p no:cacheprovider  ->  3180 passed, 0 failed
+  (3168 before this task; 12 new).
+
+EVIDENCE (library, deny-by-default git; never committed to this repo)
+  ~/pdfdrill-library/penev_{A,B}/out/638/script.py      the exact source that
+                                       ran, through the real CLI entry point
+                                       (`pdfdrill latex --force --compile
+                                       --dump-stages`)
+  ~/pdfdrill-library/penev_B/out/638/before_from_head.py  penev_B's BEFORE
+                                       .tex, projected from a clean
+                                       `git archive 29185c8` export in a
+                                       subprocess so it depends on no file
+                                       that has since been edited
+  ~/pdfdrill-library/penev_{A,B}/out/638/<bib>.before.tex   frozen
+  ~/pdfdrill-library/penev_{A,B}/out/638/<bib>.after.tex
+  ~/pdfdrill-library/penev_{A,B}/out/638/result.json    every count above
+  ~/pdfdrill-library/penev_{A,B}/out/638/reasons.py|.json  why each
+                                       unresolved marker is unresolved
+  ~/pdfdrill-library/penev_{A,B}/out/638/resolution.json    the full table
+  ~/pdfdrill-library/penev_{A,B}/latex/stages/03-footnotes.json  the same
+                                       table as the command writes it
+  ~/pdfdrill-library/penev_A/out/638/before-build/penev_A.before.pdf|.log
+  ~/pdfdrill-library/penev_B/out/638/{before,after}-build/*.log|.pdf
+  ~/pdfdrill-library/penev_A/out/638/crop-page8-foot{,-before}.png  the
+                                       before/after page foot, read
+  ~/pdfdrill-library/penev_A/out/638/crop-mark.png      the marker in
+                                       running text, read
+  ~/pdfdrill-library/penev_B/out/638/crop-page8-foot.png  read
+  ~/pdfdrill-library/penev_A/out/638/INSPECT.txt       19 paths, all checked
+  ~/pdfdrill-library/penev_B/out/638/INSPECT.txt       16 paths, all checked
+  brief   tasks/638 brief (coordinator), out/644.txt, out/645.txt, out/646.txt
+
+WHAT IS LEFT
+  638-a  1 penev_A / 4 penev_B Paragraphs carry a `\footnotetext{` in their
+         prose — a footnote line a Paragraph also claims (646 class 5). The
+         brace containment stops it destroying the document; the prose is
+         still wrong (a footnote body rendered as body text, and on penev_A
+         page 6 it prints at the page foot in body size with no rule).
+         Belongs upstream, with the doubly-claimed anchors.
+  638-b  42 penev_A / 31 penev_B markers sit inside a Footnote BODY because
+         `_parse_footnotetext` keeps only the first `\footnotetext{…}` on a
+         line that holds two. Splitting those bodies would ALSO create the
+         missing Footnote objects behind some of the 42 + 37 markers with no
+         body at all — the single biggest lever on the resolution rate.
+  638-c  A Sidenote has no branch in `LaTeXProjector._render`: 46 penev_A /
+         24 penev_B objects, and their 93 / 39 markers, reach no .tex at all.
+  638-d  `tiddlywiki._substitute_footnotes` still uses the document-wide
+         first-with-that-refnum map (644-a / 646-a). It should use
+         `footnotes.resolve`; that moves numbers 645 and 646 published, so it
+         is its own task with its own before/after.
+  638-e  The resolver consumes a body once. When two markers legitimately
+         reference the SAME footnote (a "see footnote 7" back-reference) the
+         second is counted unresolved. Not observed on either document —
+         stated because the rule has that shape, not because it fired.
+  638-f  `MAX_SPILL_PAGES = 1` is a constant justified by ONE measured spill
+         on penev_A and none on penev_B. A document that breaks footnotes
+         across two pages more often would want it re-measured, not raised.
+  638-g  640 was to move the `{ }^{n}` claim out of `FormulaProcessor`. It
+         is already out (0 marker Formulas on either document). What 640 can
+         still do is give the marker its OWN object with its OWN realization,
+         which is the thing this task had to reconstruct at projection time.
+
+CONCERNS
+  21 of 104 and 15 of 55 is a low resolution rate and it is not smoothed
+  over: 79 of the 123 unresolved markers on the two documents have no
+  Footnote object to resolve TO, which no rule can fix. The rate the
+  disambiguation itself is responsible for is 21 of 25 (penev_A) and 15 of
+  18 (penev_B) among markers that HAVE a candidate body on their own page.
+  16 penev_A and 9 penev_B pairings are AMBIGUOUS — two bodies with one
+  refnum on one page, paired by order. Order on the page is the best
+  available evidence and it is what a compositor used, but it is evidence,
+  not proof, and it is counted separately so a reader can discount it.
+  Both documents' Footnote populations are duplicated (646-b): 21 bodies
+  marked out of 53 partly because roughly half of the 53 are second copies
+  of the other half. The duplicate prints twice at the page foot, visible in
+  the evidence images. Deduplication is upstream and was not attempted here.
+  penev_B still emits one `\footnotetext[37]{}` with an empty body — a
+  Footnote whose `content` parsed to nothing. It printed empty before too;
+  it now prints empty WITH a number.
