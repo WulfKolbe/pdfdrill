@@ -11299,15 +11299,30 @@ def cmd_bibliography(pdf: Path, force: bool = False) -> str:
                 if o.type == "Reference" and not o.props.get("stub")]
     if existing and not force:
         return _format_bibliography(sc)
-    if force and existing:
+    if force:
         from .bibliography import drop_dangling_cites
-        for o in existing:
+        # 010 fix round 3 -- retract exactly what THIS command added last
+        # time, decided by PROVENANCE (`added_by == "bibliography"`), never
+        # by whether a (possibly stub) Reference exists. That used to be
+        # the gate (`existing` above), and on a document whose References
+        # were ALL still stubs -- true of every document right after a
+        # `model` build -- it was empty, so this cleanup was skipped
+        # entirely and a second `--force` duplicated Citations (81 -> 106,
+        # measured on penev_A) instead of retracting-then-redetecting.
+        # `detect_numeric_citations`/`detect_author_year_citations` mark a
+        # Citation `added_by: "bibliography"`; `ensure_reference_stub`
+        # copies that onto a NEW stub it makes for one (010 fix round 3),
+        # and `add_reference_objects` marks a Reference it creates fresh
+        # the same way -- one criterion catches both object types. A
+        # Reference whose citation came from CitationProcessor (model
+        # build) has no `added_by` of its own (`ensure_reference_stub`
+        # stamps its stub "citation" instead) and is never touched here,
+        # so it and its Citation both survive, filled or not.
+        for o in [o for o in doc.objects.values()
+                  if o.type in ("Citation", "Reference")
+                  and o.props.get("added_by") == "bibliography"]:
             doc.objects.pop(o.id, None)
         drop_dangling_cites(doc)
-        # drop citations we previously detected so we don't duplicate
-        for o in [o for o in doc.objects.values()
-                  if o.type == "Citation" and o.props.get("added_by") == "bibliography"]:
-            doc.objects.pop(o.id, None)
 
     entries = parse_bibliography(doc)
     n = add_reference_objects(doc, entries)

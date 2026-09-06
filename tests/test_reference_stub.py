@@ -256,6 +256,63 @@ def test_two_new_keys_sharing_one_line_each_get_their_own_edge():
     assert len(e_edges) == 1, "e's edge must not be dropped as a false duplicate of d's"
 
 
+def test_cmd_bibliography_force_is_idempotent_on_an_all_stub_document():
+    """010 fix round 3 -- penev_A: a SECOND `pdfdrill bibliography --force`
+    duplicated Citations (81 -> 106) instead of leaving the count unchanged,
+    because the cleanup gate decided by "does a non-stub Reference exist"
+    (empty on a document whose References are ALL still stubs, true right
+    after ANY `model` build) rather than by what the command itself added.
+    A build command must be idempotent under --force: two `--force` reruns
+    on the SAME source text must retract-then-redetect to the SAME state,
+    not pile a second detection on top of the first.
+
+    The fixture needs a REPEAT citation on a SEPARATE line, not just two
+    distinct ones: `ensure_reference_stub` anchors a new stub at its
+    citation's own line, so `ref_anchors` (the exclude-the-References'-own-
+    lines set `cmd_bibliography` builds before re-detecting) already
+    happens to exclude every FIRST-occurrence line on a rerun, whether or
+    not the cleanup gate is fixed -- a fixture with one citation per line
+    would pass even with the bug still present. A second occurrence of the
+    SAME key on a DIFFERENT line is never itself a stub's anchor, so its
+    line is never excluded, and it duplicates on rescan if the earlier
+    Citations for it were never retracted."""
+    import tempfile
+    from pdfdrill import commands as K, model_io
+    from pdfdrill.sidecar import Sidecar
+
+    doc = Document()
+    doc.meta["bibkey"] = "T"
+    mp = doc.ensure_stream("mathpix_lines")
+    mp.append(text="Building on (Asai, 2023), we begin.", _page=1, type="text")
+    mp.append(text="Later, (Asai, 2023) confirms this.", _page=1, type="text")
+    mp.append(text="Finally, (Wu, 2024) agrees.", _page=1, type="text")
+
+    with tempfile.TemporaryDirectory() as d:
+        d = Path(d)
+        pdf = d / "t.pdf"
+        pdf.write_bytes(b"%PDF-1.4")
+        sc = Sidecar(pdf)
+        model_io.save_model(K._model_path(sc), doc)
+        sc.add_fact(K.MODEL_BUILT)
+        sc.save()
+
+        def counts():
+            m = model_io.load_model(K._model_path(sc))
+            return (len(m.objects_of_type("Citation")),
+                    len(m.objects_of_type("Reference")),
+                    sum(1 for a in m.alignments if a.kind == "cites"))
+
+        K.cmd_bibliography(pdf, force=True)
+        first = counts()
+        # sanity: 3 Citations (Asai2023 twice, Wu2024 once), 2 distinct
+        # keys/stubs, 3 edges (one per Citation, none deduped away).
+        assert first == (3, 2, 3), first
+
+        K.cmd_bibliography(pdf, force=True)
+        second = counts()
+        assert second == first, (first, second)   # NOT duplicated a second time
+
+
 if __name__ == "__main__":
     for fn in [test_stub_created_at_first_citation_per_distinct_key,
                test_stub_anchored_at_first_citation_of_its_key,
@@ -263,6 +320,7 @@ if __name__ == "__main__":
                test_fill_updates_stub_in_place_others_untouched,
                test_bibsource_bib_fill_updates_stub_in_place,
                test_link_citations_is_idempotent_against_ensure_reference_stub,
-               test_two_new_keys_sharing_one_line_each_get_their_own_edge]:
+               test_two_new_keys_sharing_one_line_each_get_their_own_edge,
+               test_cmd_bibliography_force_is_idempotent_on_an_all_stub_document]:
         fn(); print(f"PASS {fn.__name__}")
     print("\nAll tests passed.")

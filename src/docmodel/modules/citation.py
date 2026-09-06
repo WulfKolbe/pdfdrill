@@ -119,8 +119,16 @@ def ensure_reference_stub(doc: Document, citation: DocObject, bibkey: str) -> Op
     ref = next((r for r in doc.objects_of_type("Reference")
                if r.props.get("citekey") == key), None)
     if ref is None:
+        # 010 fix round 3 -- the stub's `added_by` is the CITATION's, so a
+        # cleanup gate that retracts "everything a command added" (by
+        # `added_by`) retracts a bibliography-detected citation and the
+        # stub made for it TOGETHER, and never touches a stub whose
+        # citation came from CitationProcessor (model build): that one has
+        # no `added_by` of its own, so the stub's is the literal marker
+        # "citation" instead.
         ref = DocObject(type="Reference", props={
             "citekey": key, "bibkey": bibkey, "stub": True, "ref_source": "citation",
+            "added_by": citation.props.get("added_by") or "citation",
         })
         ref.add_realization(Realization(
             stream=c_surface.stream, start=c_surface.start, end=c_surface.end,

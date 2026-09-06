@@ -745,7 +745,14 @@ def add_reference_objects(doc, entries: list[dict]) -> int:
 
     A citekey already present as a citation-stub Reference (010) is FILLED in
     place -- its id and anchor (the citation's own) are kept, `stub` is
-    dropped -- rather than a second Reference being created for the same key.
+    dropped, and its `added_by` is left UNTOUCHED (010 fix round 3): a stub
+    whose citation came from CitationProcessor (model build, no `added_by`
+    of its own -- the stub's is the literal marker "citation") must survive
+    a `cmd_bibliography --force` cleanup even after this fills it, so that
+    cleanup decides purely by `added_by`, never by fill status. A FRESH
+    Reference (no matching stub) IS marked `added_by: "bibliography"` --
+    this command made it from nothing, so a `--force` rerun should retract
+    and re-derive it, same as the Citations `detect_*` creates.
     """
     from docmodel.core import DocObject, Realization
 
@@ -769,6 +776,7 @@ def add_reference_objects(doc, entries: list[dict]) -> int:
                 "number": e.get("number"),
                 "entry_type": "misc",          # heuristic; refined by a real grammar
                 "ref_source": "text",          # parsed from the printed/OCR'd refs
+                "added_by": "bibliography",    # 010 fix round 3: this command made it
             })
             anchors = e.get("anchors") or []
             if anchors:
