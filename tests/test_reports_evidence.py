@@ -67,3 +67,35 @@ def test_cmd_evidence_is_a_locked_handler():
 def test_cli_knows_evidence():
     from pdfdrill.cli import HANDLERS
     assert "evidence" in HANDLERS
+
+
+def test_evidence_line_html_has_no_pdf_parenthetical():
+    from pdfdrill.commands import _evidence_line
+    r = {"out": Path("evidence-formula.html"), "rows": 3, "pages": None,
+        "errors": 0, "demoted": 0}
+    assert _evidence_line(r, pdf_out=False, compile_pdf=True) == \
+        "Wrote evidence-formula.html: 3 rows"
+
+
+def test_evidence_line_pdf_compiled_reports_pages():
+    from pdfdrill.commands import _evidence_line
+    r = {"out": Path("evidence-equation.pdf"), "rows": 5, "pages": 2,
+        "errors": 0, "demoted": 1}
+    assert _evidence_line(r, pdf_out=True, compile_pdf=True) == \
+        "Wrote evidence-equation.pdf: 5 rows (2 pages, 0 errors, 1 demoted)"
+
+
+def test_evidence_line_no_compile_says_not_compiled_not_xelatex_missing():
+    from pdfdrill.commands import _evidence_line
+    r = {"out": Path("evidence-equation.pdf"), "rows": 5, "pages": None,
+        "errors": 0, "demoted": 0}
+    assert _evidence_line(r, pdf_out=True, compile_pdf=False) == \
+        "Wrote evidence-equation.pdf: 5 rows (not compiled; .tex written)"
+
+
+def test_evidence_line_compile_requested_but_xelatex_missing():
+    from pdfdrill.commands import _evidence_line
+    r = {"out": Path("evidence-equation.pdf"), "rows": 5, "pages": None,
+        "errors": 0, "demoted": 0}
+    assert _evidence_line(r, pdf_out=True, compile_pdf=True) == \
+        "Wrote evidence-equation.pdf: 5 rows (xelatex not installed; .tex written)"

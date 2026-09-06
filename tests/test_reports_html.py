@@ -34,3 +34,14 @@ def test_missing_values_are_dashes(tmp_path):
     page = H.render_page([FormulaRow(identifier="D_FO0002", latex="")],
                          "formula", title="D", doc_dir=tmp_path)
     assert page.count("<td>---</td>") >= 3
+
+
+def test_ink_codes_off_by_default_on_for_residuals(tmp_path):
+    row = EquationRow(identifier="D_EQ0001", latex="a", confidence=0.5,
+                      ink={"flag": "weak", "code": "W|+1"})
+    default_page = H.render_page([row], "equation", title="D", doc_dir=tmp_path)
+    assert "W|+1" not in default_page
+
+    ink_page = H.render_page([row], "equation", title="D", doc_dir=tmp_path,
+                             ink_codes=True)
+    assert "<code>W|+1</code>" in ink_page

@@ -1709,7 +1709,7 @@ commands:
     flag: --all-kinds
     type: flag
     help: build all four kinds in one call (what publishing uses)
-  - name: pdf
+  - name: pdf_out
     flag: --pdf
     type: flag
     help: LaTeX/xelatex build instead of HTML

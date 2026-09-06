@@ -5241,6 +5241,24 @@ def cmd_breport(pdf: Path, paper: str = "a3", landscape: bool = True,
     return "\n".join(parts)
 
 
+def _evidence_line(r: dict, pdf_out: bool, compile_pdf: bool) -> str:
+    """The one-line write summary for one evidence file, pulled out as a pure
+    function so its three message states (html; pdf compiled with pages; pdf
+    left uncompiled by choice or because xelatex is missing) are unit-testable
+    without building a document. Mirrors the pattern `cmd_breport` uses:
+    `compile_pdf` decides WHY it wasn't compiled, `r["pages"]` decides WHETHER
+    it was."""
+    line = "Wrote %s: %d rows" % (r["out"], r["rows"])
+    if not pdf_out:
+        return line
+    if r["pages"] is not None:
+        return line + (" (%d pages, %d errors, %d demoted)"
+                       % (r["pages"], r["errors"], r["demoted"]))
+    if not compile_pdf:
+        return line + " (not compiled; .tex written)"
+    return line + " (xelatex not installed; .tex written)"
+
+
 @_writes("evidence")
 def cmd_evidence(pdf: Path, kind: "str | None" = None, pdf_out: bool = False,
                  all_kinds: bool = False, images: bool = True,
@@ -5280,13 +5298,7 @@ def cmd_evidence(pdf: Path, kind: "str | None" = None, pdf_out: bool = False,
                      pdf=pdf, bibkey=bibkey, history=_bibkey_history(sc),
                      px2mm=px2mm, paper=paper, landscape=landscape,
                      compile_pdf=compile_pdf)
-        line = "Wrote %s: %d rows" % (r["out"], r["rows"])
-        if pdf_out and r["pages"] is not None:
-            line += " (%d pages, %d errors, %d demoted)" % (
-                r["pages"], r["errors"], r["demoted"])
-        elif pdf_out:
-            line += " (xelatex not installed; .tex written)"
-        out.append(line)
+        out.append(_evidence_line(r, pdf_out, compile_pdf))
     sc.set_evidence("evidence_kinds", list(KINDS if all_kinds else (kind,)))
     sc.save()
     return "\n".join(out)
