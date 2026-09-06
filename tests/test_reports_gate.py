@@ -89,3 +89,28 @@ def test_publish_ready_uses_the_new_surface_when_residuals_exist(tmp_path, monke
     r = publish_ready(d / "D.pdf")
     assert set(r["checks"]) >= {"artefacts", "glyphs", "ink", "timestamp", "coverage"}
     assert r["ready"], r["checks"]
+
+
+def test_handover_rows_survives_the_new_surface_and_names_its_checks(tmp_path, monkeypatch):
+    """9-fix: `handover_rows` used to index `r["checks"][k] for k in
+    PUBLISH_CHECKS` (the legacy 7-key tuple) unconditionally — a document
+    carrying residuals.pdf returns the new 5-key surface instead, which
+    shares no `model`/`stamp`/`residuals`/`index` key with it, so bulk
+    handover raised KeyError on every such document. It must instead iterate
+    whatever keys `publish_ready` actually returned.
+    """
+    from pdfdrill.commands import handover_rows
+    # an unmeasured, non-straddling row fails coverage; a model the ink was
+    # not measured against fails timestamp — both while artefacts/glyphs/ink
+    # stay green, so `blocked_by` names exactly these two checks.
+    d = _doc(tmp_path, shown=("D_EQ0001", "D_EQ0002", "D_EQ0003"),
+             measured=("D_EQ0001", "D_EQ0002"))
+    (d / "D.pdf").write_bytes(b"%PDF-1.4\n")
+    monkeypatch.setattr(G.rt, "model_state", lambda dd: {"model_sha256": "T",
+                                                         "model_mtime": 200})
+    rows = handover_rows(tmp_path)   # must not raise KeyError
+    assert len(rows) == 1
+    r = rows[0]
+    assert not r["ready"]
+    assert set(r["blocked_by"]) >= {"timestamp", "coverage"}
+    assert "timestamp" in r["blocked_by"] and "coverage" in r["blocked_by"]

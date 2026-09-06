@@ -2107,7 +2107,14 @@ def handover_rows(root: Path, *, ready_only: bool = False) -> list:
         f["path"] = str(blob_dir.resolve())
         f["title"] = meta_title(blob_dir / "model.docmodel.json")
         f["ready"] = r["ready"]
-        f["blocked_by"] = [k for k in PUBLISH_CHECKS if not r["checks"][k][0]]
+        # 9-fix: iterate the keys `publish_ready` ACTUALLY RETURNED, in
+        # insertion order — not the fixed legacy `PUBLISH_CHECKS` tuple. A
+        # document carrying residuals.pdf returns the new 5-key surface
+        # (artefacts, glyphs, ink, timestamp, coverage), which shares no
+        # `model`/`stamp`/`residuals`/`index` keys with `PUBLISH_CHECKS`;
+        # indexing those into `r["checks"]` raised KeyError on every such
+        # document handed over in bulk.
+        f["blocked_by"] = [k for k in r["checks"] if not r["checks"][k][0]]
         f["reason"] = "; ".join(r["checks"][k][1] for k in f["blocked_by"])
         if f["path"] in seen:
             raise HandoverCollision(
