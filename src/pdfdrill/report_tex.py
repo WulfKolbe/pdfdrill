@@ -2208,11 +2208,15 @@ def render_crops(tiddlers: list[dict], dest: Path, pdf: Path,
     return rendered, cached, skipped
 
 
+CDN_CROP_KINDS = ("_EQ", "_TAB", "_DIA", "_PIC")
+
+
 def download_crops(tiddlers: list[dict], dest: Path, trim: bool = True):
-    """Fetch each EQ/TAB tiddler's CDN crop into dest/<title>.jpg (cached);
-    left-trim whitespace when PIL is available. Returns (ok, cached, failed).
-    Degrades cleanly when the network is blocked — the report then renders
-    without the image column entries it could not fetch."""
+    """Fetch each EQ/TAB/DIA/PIC tiddler's CDN crop into dest/<title>.jpg
+    (cached); left-trim whitespace when PIL is available. Returns
+    (ok, cached, failed). Degrades cleanly when the network is blocked — the
+    report then renders without the image column entries it could not
+    fetch."""
     from .net import urlopen, NetworkBlocked
     from .env import get as _env
     # 396 — PDFDRILL_CDN_BASE redirects the fetch at a drop-in image source.
@@ -2239,7 +2243,7 @@ def download_crops(tiddlers: list[dict], dest: Path, trim: bool = True):
     for t in tiddlers:
         title = t.get("title", "")
         uri = t.get("canonical_uri", "")
-        if "_EQ" not in title and "_TAB" not in title:
+        if not any(k in title for k in CDN_CROP_KINDS):
             continue
         if not uri.startswith("http"):
             continue

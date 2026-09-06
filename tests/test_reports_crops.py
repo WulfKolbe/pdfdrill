@@ -74,3 +74,29 @@ def test_images_off_leaves_every_crop_none(tmp_path):
     out, note = C.ensure_crops(rows, tmp_path, tmp_path / "D.pdf",
                                bibkey="D", images=False)
     assert out["equation"][0].crop is None and note == "images: off"
+
+
+def test_download_crops_fetches_pic_and_dia_not_para(tmp_path, monkeypatch):
+    """A PIC/DIA record with an http canonical_uri is fetched; a non-crop
+    kind (PARA) with an http uri is left alone."""
+    import pdfdrill.net as net
+
+    class _FakeResp:
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *a):
+            return False
+
+        def read(self):
+            return b"\xff\xd8" + b"0" * 600
+
+    monkeypatch.setattr(net, "urlopen", lambda url, timeout=20: _FakeResp())
+    dest = tmp_path / "crops"
+    ok, cached, failed = C.rt.download_crops(
+        [{"title": "D_PIC_0001", "canonical_uri": "https://cdn/p.jpg"},
+         {"title": "D_PARA_0001", "canonical_uri": "https://cdn/x.jpg"}],
+        dest)
+    assert ok == 1 and failed == 0
+    assert (dest / "D_PIC_0001.jpg").is_file()
+    assert not (dest / "D_PARA_0001.jpg").exists()
