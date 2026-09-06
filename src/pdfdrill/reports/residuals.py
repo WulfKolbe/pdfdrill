@@ -7,7 +7,13 @@ object, so crops and host lines ride along into both renderers.
 """
 from __future__ import annotations
 
+import datetime as _dt
+import json as _json
+from pathlib import Path
+
 from .. import report_tex as rt
+from . import html as H
+from . import tex as T
 from .rows import EquationRow
 
 SECTIONS = ("corrected", "unresolved", "flagged", "lowconf", "doubted")
@@ -102,13 +108,6 @@ def select(rows_by_kind: dict, found: dict, *, conf: float = rt.CONF_THRESHOLD) 
             "flagged_rest": rest}
 
 
-import datetime as _dt
-import json as _json
-from pathlib import Path
-
-from . import html as H
-from . import tex as T
-
 OUTPUT = "residuals.%s"
 
 
@@ -153,7 +152,6 @@ def build(selected: dict, fmt: str, *, doc_dir, pdf, bibkey, history, px2mm,
     title = "%s: residuals" % bibkey
     if fmt == "html":
         parts = []
-        first = True
         for k in SECTIONS:
             if not selected[k]:
                 continue
@@ -167,21 +165,16 @@ def build(selected: dict, fmt: str, *, doc_dir, pdf, bibkey, history, px2mm,
                 parts.append("<h2>%s (%d)</h2><ul>%s</ul>\n"
                              % (CAPTIONS[k], len(selected[k]), rows_html))
                 continue
-            page = H.render_page(selected[k], "equation", title=title,
-                                 doc_dir=doc_dir, meta_lines=meta if first else (),
-                                 caption=CAPTIONS[k], ink_codes=True)
-            body = page[page.index("<h2>"):page.index("</body>")] if not first \
-                else page[:page.index("</body>")]
-            parts.append(body)
+            parts.append(H.render_section(selected[k], "equation",
+                                          doc_dir=doc_dir, caption=CAPTIONS[k],
+                                          ink_codes=True))
             if k == "flagged" and rest:
                 parts.append('<p class="note">%s</p>\n' % H._h.escape(rest))
-            first = False
-        if not parts:
-            parts.append(H.render_page([], "equation", title=title, doc_dir=doc_dir,
-                                       meta_lines=meta + ["nothing open"],
-                                       caption="Residuals")[:-len("</body></html>\n")])
+        body = "".join(parts) if parts else (
+            '<h2>Residuals</h2><p class="note">nothing open</p>')
         out = doc_dir / (OUTPUT % "html")
-        out.write_text("".join(parts) + "</body></html>\n", encoding="utf-8")
+        out.write_text(H.page_shell(title, body, meta_lines=meta),
+                       encoding="utf-8")
         return {"out": out, "rows": n, "pages": None, "errors": 0, "demoted": 0}
 
     widths = T.widths_for(paper, landscape, with_image=True)

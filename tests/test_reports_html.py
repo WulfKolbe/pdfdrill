@@ -45,3 +45,18 @@ def test_ink_codes_off_by_default_on_for_residuals(tmp_path):
     ink_page = H.render_page([row], "equation", title="D", doc_dir=tmp_path,
                              ink_codes=True)
     assert "<code>W|+1</code>" in ink_page
+
+
+def test_page_shell_wraps_a_section_once(tmp_path):
+    page = H.page_shell("T", "<p>x</p>")
+    assert page.startswith("<!DOCTYPE html>")
+    assert page.count("<!DOCTYPE") == 1 and page.count("<head>") == 1
+    assert "<p>x</p>" in page and page.rstrip().endswith("</body></html>")
+
+
+def test_render_section_has_no_doctype(tmp_path):
+    section = H.render_section(
+        [EquationRow(identifier="D_EQ0001", latex="a", confidence=0.5)],
+        "equation", doc_dir=tmp_path)
+    assert "<!DOCTYPE" not in section and "<head>" not in section
+    assert section.startswith("<h2>") and "<table>" in section

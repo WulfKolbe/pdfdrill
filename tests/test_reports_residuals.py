@@ -105,6 +105,33 @@ def test_build_html_lists_sections_worst_first(tmp_path):
     assert "1 more flagged" in body or "stated as a count" in body
 
 
+def test_build_html_is_one_shell_around_every_section(tmp_path):
+    s = R.select(_rows(), _found(), conf=0.1)
+    r = R.build(s, "html", doc_dir=tmp_path, pdf=tmp_path / "D.pdf", bibkey="D",
+                history=None, px2mm=None, paper="a3", landscape=True,
+                pages=10, compile_pdf=False)
+    body = r["out"].read_text()
+    assert body.startswith("<!DOCTYPE html>")
+    assert body.count("<!DOCTYPE") == 1
+    assert body.count("<head>") == 1
+    assert body.count("</body></html>") == 1
+    header = R.header_lines(tmp_path)[0]
+    assert body.index(header) < body.index("<h2>")
+
+
+def test_build_html_when_only_corrected_is_open(tmp_path):
+    found = {"corrected": [{"identifier": "D_EQ0009", "before": "a", "after": "b"}],
+            "unresolved": [], "flagged": [], "doubted": []}
+    s = R.select({}, found, conf=0.1)
+    r = R.build(s, "html", doc_dir=tmp_path, pdf=tmp_path / "D.pdf", bibkey="D",
+                history=None, px2mm=None, paper="a3", landscape=True,
+                pages=10, compile_pdf=False)
+    body = r["out"].read_text()
+    assert body.startswith("<!DOCTYPE html>")
+    assert R.header_lines(tmp_path)[0] in body
+    assert "<h2>Corrected (1)</h2>" in body
+
+
 def test_build_pdf_has_legend_bullets_and_a_page_bound(tmp_path, monkeypatch):
     monkeypatch.setattr(R.rt, "compile_fixpoint", lambda p: (1, 0, 0))
     monkeypatch.setattr(R.rt, "findings_tex", lambda *a, **k: "%% pairs\n")

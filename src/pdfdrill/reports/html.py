@@ -84,19 +84,40 @@ def _row(r: EvidenceRow, doc_dir: Path, display: bool, ink_codes: bool = False) 
                _img(r, doc_dir)))
 
 
-def render_page(rows: list, kind: str, *, title: str, doc_dir,
-                meta_lines=(), caption=None, ink_codes: bool = False) -> str:
+def render_section(rows: list, kind: str, *, doc_dir, caption=None,
+                   ink_codes: bool = False) -> str:
+    """`<h2>…</h2>` + `<table>…</table>` for one section — no DOCTYPE, no
+    head, no body wrapper. `page_shell` supplies those; `render_section` is
+    the part that is safe to concatenate with other sections before the
+    shell goes on once (562: slicing a full `render_page` per section put
+    the DOCTYPE/head wherever the first slice happened to end)."""
     doc_dir = Path(doc_dir)
-    meta = "".join('<p class="note">%s</p>\n' % _h.escape(m) for m in meta_lines)
-    out = [_HEAD.format(title=_h.escape(title), kv=_KV,
-                        caveat=KATEX_WARNING_HTML, meta=meta)]
-    out.append("<h2>%s (%d)</h2>\n" % (_h.escape(caption or CAPTIONS[kind]),
-                                       len(rows)))
+    out = ["<h2>%s (%d)</h2>\n" % (_h.escape(caption or CAPTIONS[kind]),
+                                   len(rows))]
     if kind == "formula":
         out.append('<p class="note">%s</p>\n' % _h.escape(HOST_LINE_SENTENCE, quote=False))
     out.append("<table>\n<thead><tr>%s</tr></thead>\n<tbody>\n"
                % "".join("<th>%s</th>" % c for c in COLUMNS))
     for r in rows:
         out.append(_row(r, doc_dir, display=(kind == "equation"), ink_codes=ink_codes))
-    out.append("</tbody></table>\n</body></html>\n")
+    out.append("</tbody></table>\n")
     return "".join(out)
+
+
+def page_shell(title: str, body: str, *, meta_lines=()) -> str:
+    """The complete document: head (KaTeX, CSS, caveat, meta lines) once,
+    `body` verbatim, then the closing tags. `body` is one or more
+    `render_section` fragments (or anything else HTML-shaped) concatenated
+    by the caller."""
+    meta = "".join('<p class="note">%s</p>\n' % _h.escape(m) for m in meta_lines)
+    return (_HEAD.format(title=_h.escape(title), kv=_KV,
+                         caveat=KATEX_WARNING_HTML, meta=meta)
+            + body + "</body></html>\n")
+
+
+def render_page(rows: list, kind: str, *, title: str, doc_dir,
+                meta_lines=(), caption=None, ink_codes: bool = False) -> str:
+    return page_shell(title, render_section(rows, kind, doc_dir=doc_dir,
+                                            caption=caption,
+                                            ink_codes=ink_codes),
+                      meta_lines=meta_lines)
