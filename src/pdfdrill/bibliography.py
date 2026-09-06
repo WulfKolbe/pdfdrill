@@ -240,10 +240,12 @@ def detect_numeric_citations(doc, max_num: int, exclude_anchors=()) -> int:
     the bibliography's own lines. Returns the number of Citations added.
     """
     from docmodel.core import DocObject, Realization
+    from docmodel.modules.citation import ensure_reference_stub
 
     mp = doc.streams.get("mathpix_lines")
     if mp is None or max_num <= 0:
         return 0
+    bibkey = doc.meta.get("bibkey") or ""
     exclude = set(exclude_anchors)
     added = 0
     for anchor in mp.anchors:
@@ -269,6 +271,7 @@ def detect_numeric_citations(doc, max_num: int, exclude_anchors=()) -> int:
                     role="surface",
                     props={"offset": m.start(), "length": m.end() - m.start()}))
                 doc.add(obj)
+                ensure_reference_stub(doc, obj, bibkey)   # 010
                 added += 1
     return added
 
@@ -290,10 +293,12 @@ def detect_author_year_citations(doc, exclude_anchors=()) -> int:
     `link_citations` matches them. Returns the number of Citations added.
     """
     from docmodel.core import DocObject, Realization
+    from docmodel.modules.citation import ensure_reference_stub
 
     mp = doc.streams.get("mathpix_lines")
     if mp is None:
         return 0
+    bibkey = doc.meta.get("bibkey") or ""
     exclude = set(exclude_anchors)
     added = 0
     for anchor in mp.anchors:
@@ -329,6 +334,7 @@ def detect_author_year_citations(doc, exclude_anchors=()) -> int:
                     stream="mathpix_lines", start=anchor, end=anchor,
                     role="surface", props={"offset": off, "length": length}))
                 doc.add(obj)
+                ensure_reference_stub(doc, obj, bibkey)   # 010
                 added += 1
     return added
 
@@ -358,7 +364,9 @@ def detect_author_year_in_objects(doc, exclude_anchors=()) -> int:
     The Citation reuses the source object's realization as its surface.
     Idempotent caller should drop prior `added_by="bibliography"` Citations."""
     from docmodel.core import DocObject, Realization
+    from docmodel.modules.citation import ensure_reference_stub
 
+    bibkey = doc.meta.get("bibkey") or ""
     added = 0
     prose = ("Paragraph", "Section", "Abstract", "ListItem", "Footnote", "Toc")
     for o in list(doc.objects.values()):
@@ -392,6 +400,7 @@ def detect_author_year_in_objects(doc, exclude_anchors=()) -> int:
                         stream=rr.stream, start=rr.start, end=rr.end, role="surface",
                         props={"offset": m.start(), "length": m.end() - m.start()}))
                 doc.add(obj)
+                ensure_reference_stub(doc, obj, bibkey)   # 010
                 added += 1
     return added
 

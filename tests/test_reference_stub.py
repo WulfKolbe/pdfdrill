@@ -2,12 +2,20 @@
 010 — a Reference stub at first citation.
 
 penev_A had 81 Citations over 52 distinct citekeys but only 8 References (the
-8 bibsource supplied): 44 cited keys had no Reference at all. This pins the
-fix: CitationProcessor creates ONE empty (`stub`) Reference per distinct
-citekey, anchored at that key's FIRST Citation and linked (a `cites`
-Alignment) to every Citation with that key; the three Reference creators in
-`pdfdrill.bibliography` FILL a stub in place (same id, same anchor) instead
-of creating a second Reference for the same key.
+8 bibsource supplied): 44 cited keys had no Reference at all. The fix,
+per the spec's own words ("Create an empty Reference on first Citation"):
+`docmodel.modules.citation.ensure_reference_stub(doc, citation, bibkey)` is
+called by EVERY Citation creator at the moment it creates a citation --
+`CitationProcessor.create_object` (`[key]`) here, and
+`detect_numeric_citations`/`detect_author_year_citations`/
+`detect_author_year_in_objects` in `pdfdrill.bibliography` -- so "first
+occurrence" falls out of creation order for free. It returns the existing
+Reference for a citekey (stub or filled) or creates a stub (`stub: True`,
+`ref_source: "citation"`) anchored at THIS citation, and links the citation
+to it (a `cites` Alignment) either way. The three Reference-CONTENT creators
+in `pdfdrill.bibliography` (parsed References section, `.bbl`, `.bib`) FILL
+a stub in place (same id, same anchor) instead of creating a second
+Reference for the same key.
 """
 import sys
 from pathlib import Path
@@ -37,8 +45,7 @@ def _doc():
 
 def _run_citation_processor(doc):
     mod = _mod(CitationProcessor)
-    mod.process_document(doc)
-    mod.process_objects(doc)
+    mod.process_document(doc)   # ensure_reference_stub runs inline, per Citation
     return mod
 
 
@@ -144,10 +151,55 @@ def test_fill_updates_stub_in_place_others_untouched():
         assert "raw_text" not in r.props
 
 
+def test_bibsource_bib_fill_updates_stub_in_place():
+    """The `.bib` creator (`load_bibtex_file`, `cmd_bibsource`'s ~line-486
+    path) must FILL a citation-stub Reference in place, not add a second
+    Reference for the same key -- pinned even though the corpus measurement
+    (penev_A) can't exercise it: no `.bbl`/`.bib` is on disk for that
+    document (see tasks/010.report.md OPEN)."""
+    doc = _doc()
+    _run_citation_processor(doc)
+
+    refs_by_key = {r.props.get("citekey"): r for r in doc.objects_of_type("Reference")}
+    stub_a_id = refs_by_key["a"].id
+    stub_a_surface = next(r for r in refs_by_key["a"].realizations if r.role == "surface")
+
+    bibtext = (
+        "@article{a,\n"
+        "  author = {A. Author},\n"
+        "  year = {2020},\n"
+        "  title = {A Paper},\n"
+        "}\n"
+    )
+    result = B.load_bibtex_file(doc, bibtext)
+    assert result["created"] == 0          # filled the stub, didn't create one
+    assert result["attached"] == 1
+
+    refs = doc.objects_of_type("Reference")
+    assert len(refs) == 3, [r.props.get("citekey") for r in refs]     # no 2nd "a"
+    refs_by_key = {r.props.get("citekey"): r for r in refs}
+
+    filled = refs_by_key["a"]
+    assert filled.id == stub_a_id                          # same object, filled
+    assert not filled.props.get("stub")
+    assert filled.props["ref_source"] == "bib"
+    assert filled.props["author"] == "A. Author"
+    assert filled.props["year"] == "2020"
+    assert "bibtex" in filled.props
+    filled_surface = next(r for r in filled.realizations if r.role == "surface")
+    assert filled_surface.start is stub_a_surface.start     # anchor kept
+
+    for key in ("b", "c"):
+        r = refs_by_key[key]
+        assert r.props.get("stub") is True
+        assert r.props.get("ref_source") == "citation"
+
+
 if __name__ == "__main__":
     for fn in [test_stub_created_at_first_citation_per_distinct_key,
                test_stub_anchored_at_first_citation_of_its_key,
                test_every_citation_links_to_its_keys_reference,
-               test_fill_updates_stub_in_place_others_untouched]:
+               test_fill_updates_stub_in_place_others_untouched,
+               test_bibsource_bib_fill_updates_stub_in_place]:
         fn(); print(f"PASS {fn.__name__}")
     print("\nAll tests passed.")
