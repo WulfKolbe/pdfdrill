@@ -129,9 +129,12 @@ THE FINDING — WHERE A CITATION'S SPAN COMES FROM, AND WHAT IS WRONG WITH IT
   It is now LOOKED UP: `_span_on_its_own_line` walks the lines the
   realization spans and returns the group's real position on the line it is
   actually on. When no line reproduces the group (a mutator rewrote the
-  object's text) NO span is recorded — the citation is still anchored, so it
-  still gets its Reference stub and its `cites` edge, and `spans_unrecorded`
-  counts it. A position is never invented (rule 5).
+  object's text) NO realization is recorded at all — no line claim (646-g),
+  no Reference stub, no `cites` edge — and `spans_unrecorded` counts it;
+  `cmd_bibliography` prints that count. A position is never invented
+  (rule 5). (Round 0 anchored such a citation at its line without a span;
+  that re-created the line claim 646 had just found, and was removed in
+  round 1.)
 
 WHAT WAS BUILT (this branch, eqblobs-and-gzip-tex)
   src/docops/projectors/tiddlywiki.py
