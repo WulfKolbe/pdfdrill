@@ -155,6 +155,36 @@ def test_bibitem_uses_reference_citekey():
     assert "\\bibitem{Nelson1965}" in bib and "\\bibitem{Kolbe2007}" in bib
 
 
+def test_stub_reference_prints_bibitem_with_visible_placeholder_body():
+    """639 -- the model now carries a stub Reference (010) for every cited
+    key that has no bibliographic entry yet. The LaTeX projector must still
+    print a `\\bibitem` for it (so every `\\cite` resolves and the document
+    compiles), with a visible placeholder body rather than the bare citekey
+    or an empty entry."""
+    d = Document(); d.meta["bibkey"] = "DOC"
+    d.add(DocObject(type="Reference", props={
+        "citekey": "unresolved2024", "stub": True, "ref_source": "citation"}))
+    bib = LP.bibliography_block(d)
+    assert "\\bibitem{unresolved2024}" in bib, bib
+    assert "\\textit{[unresolved: unresolved2024]}" in bib, bib
+
+
+def test_one_filled_and_one_stub_reference_project_two_bibitems():
+    """A filled Reference renders as today; a stub sits alongside it with its
+    placeholder body -- both must appear, so a document with a partially
+    resolved bibliography compiles with every citekey covered."""
+    d = Document(); d.meta["bibkey"] = "DOC"
+    d.add(DocObject(type="Reference", props={
+        "citekey": "smith2020", "author": "Smith, J.", "year": "2020",
+        "titlefield": "A Study", "raw_text": "Smith, J. (2020). A Study."}))
+    d.add(DocObject(type="Reference", props={
+        "citekey": "unresolved2024", "stub": True, "ref_source": "citation"}))
+    bib = LP.bibliography_block(d)
+    assert bib.count("\\bibitem{") == 2, bib
+    assert "\\bibitem{smith2020} Smith, J. (2020) A Study" in bib, bib
+    assert "\\bibitem{unresolved2024} \\textit{[unresolved: unresolved2024]}" in bib, bib
+
+
 def test_reference_section_ids_covers_section_and_its_content():
     """The References section + everything under it (the printed [1] M. Bahr …
     list) — so the projector skips them (thebibliography replaces them, and the

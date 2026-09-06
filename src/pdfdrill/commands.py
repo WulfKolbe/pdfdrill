@@ -10893,6 +10893,12 @@ def cmd_tiddlers(pdf: Path, force: bool = False, embed: bool = False,
                    params={"embed": embed}))
     result = proj.project(doc)
     count = proj.counters.get("tiddlers_emitted", 0)
+    # 639 -- the model (010) now creates a stub Reference for every cited
+    # key, so the projector's OWN placeholder mechanism should fire for
+    # NONE of them; it survives only as a fallback for a citekey with no
+    # Reference object at all. Report every time it still does, so that
+    # case is visible here rather than silently degrading.
+    placeholders_fired = proj.counters.get("citation_placeholders_fired", 0)
 
     bibkey = key
     sc.blob_dir.mkdir(parents=True, exist_ok=True)
@@ -10941,6 +10947,10 @@ def cmd_tiddlers(pdf: Path, force: bool = False, embed: bool = False,
     else:
         integ_note = (f" Integrity OK: {integ['transclusions']} transclusions, "
                       f"0 dangling, 0 orphan.")
+    placeholder_note = (f" {placeholders_fired} citation placeholder(s) fired "
+                        f"(a citekey with NO Reference object at all — "
+                        f"expected to be 0 now that the model stubs every "
+                        f"cited key)." if placeholders_fired else "")
     guard = _unrendered_graphics_note(doc.objects.values())
     # A sibling array older than the model carries the titles of a PREVIOUS
     # export. Imported beside this one it puts two naming schemes in the same
@@ -10960,7 +10970,7 @@ def cmd_tiddlers(pdf: Path, force: bool = False, embed: bool = False,
     return (f"Wrote {count} TiddlyWiki tiddlers to {rel}. Import into TiddlyWiki; "
             f"diagram SVGs render via {{{{!!svg_tiddler}}}} "
             f"({'inline' if embed_svg else 'external _canonical_uri'}).{svg_note}"
-            f"{integ_note}{guard}{stale_note}{trans_note}")
+            f"{integ_note}{placeholder_note}{guard}{stale_note}{trans_note}")
 
 
 # Tag -> the tiddler field whose prose gets translated. Math/code/image/toc
@@ -11300,7 +11310,7 @@ def cmd_bibliography(pdf: Path, force: bool = False) -> str:
     if existing and not force:
         return _format_bibliography(sc)
     if force:
-        from .bibliography import drop_dangling_cites
+        from .bibliography import drop_dangling_cites, drop_ownerless_stubs
         # 010 fix round 3 -- retract exactly what THIS command added last
         # time, decided by PROVENANCE (`added_by == "bibliography"`), never
         # by whether a (possibly stub) Reference exists. That used to be
@@ -11323,6 +11333,13 @@ def cmd_bibliography(pdf: Path, force: bool = False) -> str:
                   and o.props.get("added_by") == "bibliography"]:
             doc.objects.pop(o.id, None)
         drop_dangling_cites(doc)
+        # 639 -- a stub Reference that predates `added_by` (built between
+        # db66ff0 and daf1657) is invisible to the provenance retraction
+        # above; if nothing still cites it, it's a leftover from before
+        # that fix and is retracted too, one time, so its line stops
+        # permanently excluding itself from re-detection below.
+        if drop_ownerless_stubs(doc):
+            drop_dangling_cites(doc)
 
     entries = parse_bibliography(doc)
     n = add_reference_objects(doc, entries)
@@ -11397,9 +11414,21 @@ def cmd_bibfetch(pdf: Path, limit: int | None = None, force: bool = False) -> st
         doc = Document.from_dict(json.load(f))
 
     refs = [o for o in doc.objects.values() if o.type == "Reference"]
-    todo = [r for r in refs if force or not r.props.get("bibtex")]
+    candidates = [r for r in refs if force or not r.props.get("bibtex")]
+    # 639 -- a stub (010: created for every cited key at first Citation)
+    # with nothing but a citekey is a call Perplexity/the delegate can only
+    # search on the bare key -- a bill for a guess. Fetch it only when it
+    # carries something to search on (author, year, title, or raw_text);
+    # skip and COUNT a bare one rather than spending an API/agent call on
+    # every one of the stubs 010 now creates by default.
+    skipped_stubs = [r for r in candidates
+                     if r.props.get("stub") and not _bibfetch_has_search_material(r)]
+    skipped_ids = {r.id for r in skipped_stubs}
+    todo = [r for r in candidates if r.id not in skipped_ids]
     if limit is not None:
         todo = todo[:limit]
+    skip_note = (f" {len(skipped_stubs)} stub(s) skipped: nothing to search on."
+                if skipped_stubs else "")
 
     # Keyless fallback: with no PERPLEXITY_API_KEY, delegate the web-search BibTeX
     # task to the Claude agent running pdfdrill (CLI `claude -p` or the sandbox
@@ -11414,7 +11443,7 @@ def cmd_bibfetch(pdf: Path, limit: int | None = None, force: bool = False) -> st
                     "sandbox for the keyless web-search delegation fallback. In "
                     "the sandbox but not detected? force it: "
                     "PDFDRILL_DELEGATE=sandbox (check `pdfdrill llm <pdf> --runtime`).")
-        return _bibfetch_via_delegate(pdf, doc, todo, sc, model_path, rt)
+        return _bibfetch_via_delegate(pdf, doc, todo, sc, model_path, rt, skip_note)
 
     from .net import NetworkBlocked
     done = errors = 0
@@ -11455,10 +11484,22 @@ def cmd_bibfetch(pdf: Path, limit: int | None = None, force: bool = False) -> st
     if errors:
         msg += f" ({errors} failed)"
     msg += f". Rebuild `pdfdrill tiddlers {pdf.name}` — Reference tiddlers now carry bibtex + citations."
+    msg += skip_note
     return msg
 
 
-def _bibfetch_via_delegate(pdf: Path, doc, todo, sc, model_path, runtime) -> str:
+def _bibfetch_has_search_material(ref) -> bool:
+    """639 -- true when a Reference (stub or not) carries anything
+    Perplexity/the delegate could actually search on. A bare stub (010:
+    created for every cited key at first Citation, before bibsource/
+    bibfetch fills it) has none of these -- fetching it would be a paid
+    call searching on nothing but the citekey."""
+    p = ref.props
+    return bool((p.get("author") or "").strip() or (p.get("year") or "").strip()
+               or (p.get("title") or "").strip() or (p.get("raw_text") or "").strip())
+
+
+def _bibfetch_via_delegate(pdf: Path, doc, todo, sc, model_path, runtime, skip_note: str = "") -> str:
     """Keyless BibTeX enrichment: one delegated web-search task per Reference,
     handed perplexity_client.bibtex_prompt. CLI runtime answers synchronously;
     SANDBOX writes request files + returns the agent instruction (re-run ingests).
@@ -11466,6 +11507,9 @@ def _bibfetch_via_delegate(pdf: Path, doc, todo, sc, model_path, runtime) -> str
     from . import perplexity_client as pc, llm_delegate as D
 
     if not todo:
+        if skip_note:
+            return (f"BibTeX (delegated/{runtime.value}): nothing to do —"
+                    f"{skip_note}")
         return (f"BibTeX (delegated/{runtime.value}): nothing to do — every "
                 f"Reference already carries bibtex (use --force to redo).")
 
@@ -11523,7 +11567,8 @@ def _bibfetch_via_delegate(pdf: Path, doc, todo, sc, model_path, runtime) -> str
     return (f"Enriched {done} reference(s) with full BibTeX by delegating the "
             f"web-search to the {runtime.value} Claude agent"
             + (f" ({errors} failed)" if errors else "")
-            + f". Rebuild `pdfdrill tiddlers {pdf.name}`.")
+            + f". Rebuild `pdfdrill tiddlers {pdf.name}`."
+            + skip_note)
 
 
 @_writes("citedrill")

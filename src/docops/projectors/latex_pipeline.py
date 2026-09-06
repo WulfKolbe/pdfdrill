@@ -538,9 +538,19 @@ def _bibitem(ref) -> str:
     """A `\\bibitem` for one Reference. ALWAYS emitted (even for a ref carrying full
     `bibtex`): a `.bib` needs a 2-pass bibtex compile, so the self-contained
     `thebibliography` is the default. Formatted from the structured
-    author/year/title (from bibsource / the heuristic parse), else raw_text."""
+    author/year/title (from bibsource / the heuristic parse), else raw_text.
+
+    639 -- a `stub` Reference (010: created for every cited key at first
+    Citation, before `bibsource`/`bibliography` fills it) carries none of
+    that content. It still needs a `\\bibitem` -- every `\\cite{key}` in the
+    body must resolve or the document fails to compile -- so it prints with
+    a VISIBLE placeholder body instead of silently falling back to the bare
+    citekey, which would read as a real (if terse) entry rather than an
+    unresolved one."""
     p = ref.props
     key = str(p.get("citekey") or "ref").strip()
+    if p.get("stub"):
+        return f"\\bibitem{{{key}}} \\textit{{[unresolved: {_sanitize_bib_body(key)}]}}"
     author = str(p.get("author") or "").strip()
     year = str(p.get("year") or "").strip()
     title = str(p.get("title") or p.get("titlefield") or "").strip()

@@ -34,6 +34,53 @@ def drop_dangling_cites(doc) -> None:
                       or (a.right.stream, a.right.start, a.right.end) in live]
 
 
+def drop_ownerless_stubs(doc) -> int:
+    """639 — one-time upgrade rule for the OPEN caveat in tasks/010.report.md:
+    a stub Reference built between db66ff0 and daf1657 (010 fix round 3,
+    which is what started stamping `added_by` onto a NEW stub from its
+    creating citation) carries no `added_by` of its own. `cmd_bibliography
+    --force`'s provenance-based cleanup (retract `added_by == "bibliography"`)
+    never touches such a stub, even after every Citation that cited it is
+    gone — and left behind, its anchor (a citation's own PROSE line, not a
+    bibliography-section line) permanently excludes that line from
+    `ref_anchors`, so `--force` can never re-detect the citation that used to
+    live there again. Measured on penev_A's round-2 snapshot: stable at 26
+    Citations/52 References forever instead of climbing back to 81/52.
+
+    A stub with no `added_by` AND no `cites` Alignment whose CITING (left)
+    side still resolves to a LIVE Citation object is exactly such a leftover
+    -- it is retracted here too, freeing its line for re-detection. Checking
+    the alignment's own existence is not enough: `drop_dangling_cites` above
+    only prunes by the Alignment's RIGHT (Reference) side, so a `cites` edge
+    whose Reference still exists (this stub) survives even after its
+    Citation is popped from `doc.objects` -- Ranges aren't wired to object
+    ids, so removing an object doesn't retract its alignments. A document
+    built entirely under the current code never matches this rule (every
+    stub it makes carries `added_by` from the moment of creation), so it
+    only ever fires on legacy, pre-migration data.
+
+    Returns the number of stubs dropped."""
+    live_citations = {
+        (r.stream, r.start, r.end)
+        for o in doc.objects.values() if o.type == "Citation"
+        for r in o.realizations
+    }
+    still_cited = {
+        (a.right.stream, a.right.start, a.right.end)
+        for a in doc.alignments
+        if a.kind == "cites"
+        and (a.left.stream, a.left.start, a.left.end) in live_citations
+    }
+    to_drop = [
+        o.id for o in doc.objects.values()
+        if o.type == "Reference" and o.props.get("stub") and not o.props.get("added_by")
+        and not any((r.stream, r.start, r.end) in still_cited for r in o.realizations)
+    ]
+    for oid in to_drop:
+        doc.objects.pop(oid, None)
+    return len(to_drop)
+
+
 # The bibliography-section heading WORD (matched on a normalized line, so a
 # \section*{}/markdown/numbered wrapper is stripped first — see _is_ref_heading).
 _HEAD = re.compile(

@@ -445,6 +445,13 @@ class TiddlyWikiProjector(BaseProjector):
                 cit_title_by_key[ck] = cit_placeholders[ck] = \
                     citation_placeholder_title(bibkey, ck)
         self._cit_placeholders = cit_placeholders
+        # 639 -- the model (010) now creates a stub Reference for every
+        # cited key at first Citation, so this placeholder path should be
+        # reached for NONE of them; it survives only as a fallback for a
+        # citekey with no Reference object at all. Count every time it
+        # still fires, so a document where it fires unexpectedly is visible
+        # in the command's own report rather than silently degrading.
+        self.bump("citation_placeholders_fired", len(cit_placeholders))
 
         # Inline-picture URL → title (only for pictures that originated
         # within text lines, NOT for figure-line Pictures which are block-level).
@@ -997,16 +1004,40 @@ class TiddlyWikiProjector(BaseProjector):
 
         # References (bibliographic entries). The text leads with a {{||CIT}}
         # self-reference so the citekey link shows in front of the entry.
+        # 639 -- this now includes STUB References (010: created for every
+        # cited key at first Citation, before bibsource/bibliography fills
+        # them) — the model is the single source of the stub, and this loop
+        # is the only place a REF tiddler is emitted for a Reference object,
+        # stub or filled; the `stub` field is what lets a consumer show it
+        # differently.
         for ref in inv["references"]:
-            body = "{{||CIT}} " + (ref.props.get("raw_text") or "")
-            # tagged both `reference` and `bibentry` so existing bibentry
-            # macros / updateBibentries.ts work on this output unchanged.
-            t = self._t(title[ref.id], body, f"reference bibentry bibtex {_bibtag(bibkey)}")
+            citekey = ref.props.get("citekey") or ""
+            is_stub = bool(ref.props.get("stub"))
+            if is_stub:
+                # 639 (coordinator review of 010) -- a stub with an empty
+                # `{{||CIT}} ` body and `bibentry bibtex` tags is INDISTIN-
+                # GUISHABLE from a real, filled entry with blank fields; the
+                # old projector-side placeholder at least said "Citation
+                # placeholder for `key`". Tag it `reference stub` (never
+                # `bibentry`/`bibtex` -- those promise a TS/BibTeX-consumable
+                # entry a stub does not have) and give it a body that says,
+                # visibly, that it is unresolved.
+                body = f"{{{{||CIT}}}} Reference not yet resolved: `{citekey}`"
+                tags = f"reference stub {_bibtag(bibkey)}"
+            else:
+                body = "{{||CIT}} " + (ref.props.get("raw_text") or "")
+                # tagged both `reference` and `bibentry` so existing bibentry
+                # macros / updateBibentries.ts work on this output unchanged.
+                tags = f"reference bibentry bibtex {_bibtag(bibkey)}"
+            t = self._t(title[ref.id], body, tags)
             t["kind"] = "reference"
-            t["citekey"] = ref.props.get("citekey") or ""
+            t["citekey"] = citekey
             t["year"] = ref.props.get("year") or ""
             t["authors"] = ref.props.get("author") or ""   # plural, matches TS
             t["entry_type"] = ref.props.get("entry_type") or "misc"
+            if is_stub:
+                t["stub"] = "true"
+                t["ref_source"] = ref.props.get("ref_source") or "citation"
             if ref.props.get("title"):
                 t["titlefield"] = ref.props["title"]
             if ref.props.get("bibtex"):          # full entry from Perplexity

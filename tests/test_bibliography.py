@@ -241,6 +241,30 @@ def test_author_year_citation_detection_and_linking():
     assert sum(1 for a in doc.alignments if a.kind == "cites") == 2   # still 2, not 4
 
 
+def test_new_stub_from_author_year_citation_inherits_author_and_year():
+    """639 -- `detect_author_year_citations` already parses `author`/`year`
+    off the citing text to BUILD the citekey (`f"{surname}{year}"`) before
+    handing the Citation to `ensure_reference_stub`. That is data the
+    citation carries, not a guess -- a brand-new stub (no pre-existing
+    Reference for the key) must inherit it instead of sitting on empty
+    fields until bibsource/bibfetch runs, which also lets `cmd_bibfetch`
+    (639) tell a stub with something to search on from a bare one."""
+    doc = Document()
+    doc.meta["bibkey"] = "DOC"
+    mp = doc.ensure_stream("mathpix_lines")
+    mp.append(text="Building on (Asai, 2023), we begin.", _page=1, type="text")
+
+    n = detect_author_year_citations(doc)
+    assert n == 1
+
+    refs = [o for o in doc.objects.values() if o.type == "Reference"]
+    assert len(refs) == 1
+    ref = refs[0]
+    assert ref.props.get("stub") is True
+    assert ref.props.get("author") == "Asai"
+    assert ref.props.get("year") == "2023"
+
+
 if __name__ == "__main__":
     tests = [v for k, v in list(globals().items()) if k.startswith("test_")]
     failed = []

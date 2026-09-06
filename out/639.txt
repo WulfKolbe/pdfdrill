@@ -1,0 +1,141 @@
+639 — the Reference stub lives in the model; both projectors read it
+=====================================================================
+
+EVIDENCE (library, deny-by-default git; never committed to this repo)
+  ~/pdfdrill-library/penev_A/out/639/script.py    model --force, bibliography
+                                                  --force x2, tiddlers --force,
+                                                  latex --force via the real
+                                                  CLI entry points; re-runnable
+  ~/pdfdrill-library/penev_A/out/639/result.json  every count below
+  ~/pdfdrill-library/penev_A/out/639/INSPECT.txt  4 paths, all checked non-empty
+  brief   tasks/639 brief (coordinator), tasks/010.report.md (what 010 built)
+
+WHAT WAS BUILT (this branch, eqblobs-and-gzip-tex)
+  TiddlyWiki projector (src/docops/projectors/tiddlywiki.py)
+    - the References loop (~line 1005-1030) now emits the REF tiddler from
+      the MODEL's Reference object for a stub exactly as for a filled one —
+      the projector's OWN placeholder mechanism (citation_placeholder_title,
+      cit_placeholders) survives only as a fallback for a citekey with NO
+      Reference object at all. New counter `citation_placeholders_fired`,
+      bumped once per key that still falls through to it; `cmd_tiddlers`
+      (commands.py) prints it in its own report when nonzero.
+    - coordinator review of 010: a stub REF tiddler must be HONEST, not an
+      empty `{{||CIT}} ` body tagged `reference bibentry bibtex` that reads
+      exactly like a filled entry with blank fields. A stub now gets
+      `stub: "true"`, tags `reference stub` (never `bibentry`/`bibtex`), and
+      body `{{||CIT}} Reference not yet resolved: \`<citekey>\`. A filled
+      Reference is emitted exactly as before 639.
+  LaTeX projector (src/docops/projectors/latex_pipeline.py, `_bibitem`)
+    - a stub Reference prints `\bibitem{<citekey>} \textit{[unresolved:
+      <citekey>]}` — a VISIBLE placeholder body, not the bare citekey a
+      stub's empty author/year/title would otherwise fall back to — so
+      every `\cite{key}` in the body still resolves and the document
+      compiles. A filled Reference is unaffected.
+  Model (src/docmodel/modules/citation.py, `ensure_reference_stub`)
+    - coordinator review of 010: a brand-new stub now copies `author`/`year`
+      from the CREATING citation's own props when present — the author-year
+      detectors already parse them to BUILD the citekey
+      (`f"{surname}{year}"`), so it is data the citation carries, not a
+      guess.
+  cmd_bibfetch (src/pdfdrill/commands.py)
+    - coordinator review of 010: a stub with NOTHING to search on (no
+      author/year/title/raw_text) is skipped rather than queued for a paid
+      Perplexity/delegate call that could only search on the bare citekey.
+      Skipped count reported in the command's own message ("N stub(s)
+      skipped: nothing to search on"), both the API and keyless-delegate
+      paths.
+  Ownerless-stub cleanup (src/pdfdrill/bibliography.py `drop_ownerless_stubs`,
+  wired into `cmd_bibliography`'s --force cleanup in commands.py)
+    - the 010 OPEN caveat: a stub Reference built between db66ff0 and
+      daf1657 (before `added_by` was stamped on a stub from its creating
+      citation) is invisible to the provenance-based retraction
+      (`added_by == "bibliography"`) even after every Citation that cited it
+      is gone, and its anchor (a citation's own PROSE line) permanently
+      excludes that line from `ref_anchors` re-detection. Fix: on --force
+      cleanup, a stub with no `added_by` AND no `cites` Alignment whose
+      CITING side still resolves to a live Citation is retracted too — a
+      one-time rule that only ever fires on legacy, pre-migration data.
+  Left untouched, per the coordinator's scope: `link_citations`,
+  `link_citations_by_label`, `cmd_bibsource`, the `_auto_bibliography` gates
+  — a separate fix round.
+
+TESTS (new/updated, TDD — each confirmed failing for the stated reason first)
+  tests/test_citation_titles.py         3 new + 1 updated (stub-as-REF-tiddler,
+                                        stub honesty tags/body, filled-vs-stub
+                                        contrast, placeholder-fire counter +
+                                        CLI report)
+  tests/test_latex_pipeline.py          2 new (stub bibitem body, one filled +
+                                        one stub -> two bibitems)
+  tests/test_reference_stub.py          1 new (ownerless-stub cleanup, built
+                                        on the exact bug shape: repeat
+                                        citations on separate lines, stub
+                                        `added_by` stripped to simulate
+                                        pre-migration data)
+  tests/test_bibliography.py            1 new (stub inherits author/year from
+                                        its creating citation)
+  tests/test_bibfetch_delegate.py       1 new (bare stub skipped, data-bearing
+                                        stub still fetched, message + model
+                                        state both checked)
+
+  PYTHONDONTWRITEBYTECODE=1 PYTHONPATH=src python3 -m pytest tests/ -q -p no:cacheprovider
+  -> 3107 passed, 0 failed (full suite; 3103 after the brief's own 4 tests
+     landed, 3107 after the coordinator's follow-up review added 4 more —
+     every one of the 8 confirmed failing for its stated reason first)
+
+THE MEASUREMENT — penev_A (already in 010's 81/52/52/81 state; no restore
+needed — checked with a count first, per the brief, not assumed)
+
+  References after model --force + bibliography --force: 52
+    (all still stubs) -- the user's "References == 52 after model", reached
+    by 010's stub creation and unaffected by 639's projector-only work.
+    81 Citations / 52 distinct citekeys / 52 stub References / 81 `cites`
+    edges, STABLE across two consecutive `bibliography --force` runs
+    (81/52/52/81 both times — the ownerless-stub cleanup added this round
+    changes nothing here: this document's stubs already all carry `added_by`
+    from the current code, so the one-time rule never fires on it).
+    51 of 52 stubs now carry author/year copied from their creating citation
+    (639's `ensure_reference_stub` fix); the 52nd ("dB", a units-abbreviation
+    false positive from `CitationProcessor`'s `[key]` scan, predating the
+    author-year detectors) has neither, matching its citation.
+
+  "8 filled after bibsource": NOT MEASURABLE, unchanged from 010.
+    `find ~/pdfdrill-library/penev_A -iname "*.bib" -o -iname "*.bbl"` — no
+    match. No BIBSOURCE_BUILT fact, no bibsource_* evidence key in the
+    sidecar. The .bib/.bbl that supplied the original 8 References was lost
+    before 010 (no fact/evidence survives to reconstruct it), so this half
+    of the spec stays pinned by unit test instead of corpus measurement:
+    tests/test_reference_stub.py::test_bibsource_bib_fill_updates_stub_in_place
+    (010) plus this round's
+    tests/test_bibfetch_delegate.py::test_bibfetch_skips_a_bare_stub_with_nothing_to_search_on
+    (the fill-in-place path a real .bib/.bbl would exercise, and the new
+    skip rule for a stub with nothing to search on).
+
+  Tiddler count (pdfdrill tiddlers penev_A.pdf --force):
+    1271 total tiddlers, 52 REF tiddlers (penev_A_REF_<citekey>), all 52
+    tagged `stub` — 0 tagged `bibentry`/`bibtex` (none are filled). 0
+    placeholder tiddlers fired ("Citation placeholder for ..." — the
+    projector's own fallback, reached only for a key with NO Reference
+    object, which is none here). Integrity: 1654 transclusions, 0 dangling,
+    0 orphan.
+
+  LaTeX (pdfdrill latex penev_A.pdf --force):
+    52 \bibitem entries, 52 with the visible `\textit{[unresolved: <key>]}`
+    body (all 52 References are still stubs — no bibsource/bibfetch has run
+    against real data). xelatex compiles the WHOLE 99-page document through
+    to the bibliography section with zero errors there or nearby (the only
+    2 "Missing $" errors in the run are pre-existing math-escaping gaps
+    elsewhere in body text, unrelated to 639 — not touched here).
+
+CONCERNS / NOT DONE
+  penev_A cannot exercise the fill paths (bibsource .bib/.bbl, a real
+  bibfetch hit) or the ownerless-stub cleanup's actual retraction branch —
+  every stub on this document already carries `added_by` under current
+  code, so that rule is pinned by tests/test_reference_stub.py::
+  test_ownerless_stub_predating_added_by_is_retracted_on_force_cleanup
+  (built the pre-migration shape directly: strip `added_by`, confirmed it
+  fails without the fix — 0 Citations recovered instead of 2 — and passes
+  with it) rather than by a corpus measurement.
+  The bibliography.py linkers/gates the coordinator flagged as a separate
+  fix round (link_citations, link_citations_by_label, cmd_bibsource,
+  _auto_bibliography) are untouched, as scoped.
+  640, 641, 642 depend on this per the brief.

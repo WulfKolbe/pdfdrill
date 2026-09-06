@@ -38,6 +38,75 @@ def _make_model(d: Path) -> Path:
     return pdf
 
 
+def _make_model_with_bare_and_databearing_stub(d: Path) -> Path:
+    """639 -- a document with a BARE stub (010: created for a cited key with
+    nothing else known -- no author/year/title/raw_text) alongside a
+    data-bearing one (author/year copied from the citing text, per the
+    `ensure_reference_stub` fix in this same task). Only the second is
+    something Perplexity/the delegate has anything to search on."""
+    pdf = d / "doc.pdf"
+    pdf.write_bytes(b"%PDF-1.4")
+    doc = Document()
+    doc.meta["bibkey"] = "DOC"
+    s = doc.ensure_stream("references")
+    a1 = s.append(type="ref")
+    bare = DocObject(type="Reference", props={
+        "citekey": "bare2024", "bibkey": "DOC", "stub": True,
+        "ref_source": "citation"})
+    bare.add_realization(Realization(stream="references", start=a1, end=a1, role="surface"))
+    doc.add(bare)
+    a2 = s.append(type="ref")
+    withdata = DocObject(type="Reference", props={
+        "citekey": "asai2023", "bibkey": "DOC", "stub": True,
+        "ref_source": "citation", "author": "Asai", "year": "2023"})
+    withdata.add_realization(Realization(stream="references", start=a2, end=a2, role="surface"))
+    doc.add(withdata)
+    sc = Sidecar(pdf)
+    sc.blob_dir.mkdir(parents=True, exist_ok=True)
+    (sc.blob_dir / "model.docmodel.json").write_text(json.dumps(doc.to_dict()))
+    sc.add_fact("BIBLIOGRAPHY_BUILT")
+    sc.save()
+    return pdf
+
+
+def test_bibfetch_skips_a_bare_stub_with_nothing_to_search_on(monkeypatch):
+    """639 -- `cmd_bibfetch` used to queue EVERY Reference without `bibtex`
+    for a paid Perplexity/delegate call, including a bare stub with empty
+    author/year/title/raw_text -- a call that can only search on the
+    citekey. Ruling: a stub is fetched only when it carries something to
+    search on; a bare one is skipped and counted, never billed."""
+    monkeypatch.setattr(perplexity_client, "available", lambda: False)
+    monkeypatch.setattr(llm_delegate, "detect_runtime", lambda: llm_delegate.Runtime.CLI)
+    BIB = ("@misc{asai2023, title={Something}, author={Asai}, year={2023}}")
+
+    seen_citekeys = []
+
+    def fake_batch(tasks, **kw):
+        res = {}
+        for t in tasks:
+            seen_citekeys.append(t.meta.get("citekey"))
+            res[t.task_id] = {"bibtex": BIB, "citations": [],
+                              "fields": perplexity_client.parse_bibtex_fields(BIB)}
+        return res, None
+    monkeypatch.setattr(llm_delegate, "delegate_batch", fake_batch)
+
+    with tempfile.TemporaryDirectory() as d:
+        pdf = _make_model_with_bare_and_databearing_stub(Path(d))
+        out = cmd_bibfetch(pdf)
+        # Only the data-bearing stub was ever handed to the delegate.
+        assert seen_citekeys == ["asai2023"], seen_citekeys
+        assert "1 stub" in out and "nothing to search on" in out, out
+
+        doc = Document.from_dict(json.load(open(Sidecar(pdf).blob_dir / "model.docmodel.json")))
+        refs = {o.props["citekey"]: o for o in doc.objects.values() if o.type == "Reference"}
+        assert refs["asai2023"].props.get("bibtex") == BIB
+        assert not refs["asai2023"].props.get("stub")
+        # The bare stub is untouched -- still a stub, no bibtex conjured
+        # from nothing.
+        assert refs["bare2024"].props.get("stub") is True
+        assert "bibtex" not in refs["bare2024"].props
+
+
 def test_bibfetch_no_key_no_agent_is_graceful(monkeypatch):
     monkeypatch.setattr(perplexity_client, "available", lambda: False)
     monkeypatch.setattr(llm_delegate, "detect_runtime", lambda: llm_delegate.Runtime.NONE)

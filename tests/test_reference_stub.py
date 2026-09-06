@@ -313,6 +313,75 @@ def test_cmd_bibliography_force_is_idempotent_on_an_all_stub_document():
         assert second == first, (first, second)   # NOT duplicated a second time
 
 
+def test_ownerless_stub_predating_added_by_is_retracted_on_force_cleanup():
+    """639 -- 010's OPEN caveat: a stub Reference built between db66ff0 and
+    daf1657 (before fix round 3 started stamping `added_by` on a NEW stub
+    from its creating citation) carries no `added_by` of its own, so
+    `cmd_bibliography --force`'s provenance-based cleanup (retract
+    `added_by == "bibliography"`) never touches it -- even once every
+    Citation that cited it is gone. Left behind, its anchor (a citation's
+    OWN prose line, not a bibliography-section line) permanently excludes
+    that line from `ref_anchors`, so `--force` can never re-detect the
+    citation that used to live there again. Measured on penev_A's round-2
+    snapshot (tasks/010.report.md): stable at 26 Citations/52 References
+    forever, never climbing back to 81/52.
+
+    Fix: on `--force` cleanup, a stub Reference with no `added_by` AND no
+    `cites` Alignment whose CITING side still resolves to a live Citation
+    is a leftover from before the fix and is retracted too -- freeing its
+    line for re-detection. A document built entirely under the current
+    code never matches this (every stub it makes carries `added_by`), so
+    this only ever fires on legacy, pre-migration data."""
+    import tempfile
+    from pdfdrill import commands as K, model_io
+    from pdfdrill.sidecar import Sidecar
+
+    doc = Document()
+    doc.meta["bibkey"] = "T"
+    mp = doc.ensure_stream("mathpix_lines")
+    mp.append(text="Building on (Asai, 2023), we begin.", _page=1, type="text")
+    mp.append(text="Finally, (Wu, 2024) agrees.", _page=1, type="text")
+
+    with tempfile.TemporaryDirectory() as d:
+        d = Path(d)
+        pdf = d / "t.pdf"
+        pdf.write_bytes(b"%PDF-1.4")
+        sc = Sidecar(pdf)
+        model_io.save_model(K._model_path(sc), doc)
+        sc.add_fact(K.MODEL_BUILT)
+        sc.save()
+
+        K.cmd_bibliography(pdf, force=True)
+        built = model_io.load_model(K._model_path(sc))
+        assert len(built.objects_of_type("Citation")) == 2
+        assert len(built.objects_of_type("Reference")) == 2
+
+        # Simulate pre-migration data: strip `added_by` from both stubs, as
+        # if they were built before daf1657 ever stamped it.
+        for r in built.objects_of_type("Reference"):
+            assert r.props.get("stub") is True
+            r.props.pop("added_by", None)
+        model_io.save_model(K._model_path(sc), built)
+
+        K.cmd_bibliography(pdf, force=True)
+        healed = model_io.load_model(K._model_path(sc))
+        cites = healed.objects_of_type("Citation")
+        refs = healed.objects_of_type("Reference")
+        # Without the fix: both ownerless stubs survive (their lines stay
+        # excluded from `ref_anchors` forever) and both Citations that used
+        # to cite them are gone with nothing to replace them -- 0 Citations,
+        # 2 orphaned References. With the fix, the ownerless stubs are
+        # retracted, freeing their lines, and re-detection finds both
+        # citations again with fresh, correctly-provenanced stubs.
+        assert len(cites) == 2, [c.props.get("citekey") for c in cites]
+        assert len(refs) == 2, [(r.props.get("citekey"), r.props.get("stub"),
+                                  r.props.get("added_by")) for r in refs]
+        for r in refs:
+            assert r.props.get("added_by") == "bibliography", r.props
+        edges = [a for a in healed.alignments if a.kind == "cites"]
+        assert len(edges) == 2, len(edges)
+
+
 if __name__ == "__main__":
     for fn in [test_stub_created_at_first_citation_per_distinct_key,
                test_stub_anchored_at_first_citation_of_its_key,
@@ -321,6 +390,7 @@ if __name__ == "__main__":
                test_bibsource_bib_fill_updates_stub_in_place,
                test_link_citations_is_idempotent_against_ensure_reference_stub,
                test_two_new_keys_sharing_one_line_each_get_their_own_edge,
-               test_cmd_bibliography_force_is_idempotent_on_an_all_stub_document]:
+               test_cmd_bibliography_force_is_idempotent_on_an_all_stub_document,
+               test_ownerless_stub_predating_added_by_is_retracted_on_force_cleanup]:
         fn(); print(f"PASS {fn.__name__}")
     print("\nAll tests passed.")

@@ -126,10 +126,20 @@ def ensure_reference_stub(doc: Document, citation: DocObject, bibkey: str) -> Op
         # citation came from CitationProcessor (model build): that one has
         # no `added_by` of its own, so the stub's is the literal marker
         # "citation" instead.
-        ref = DocObject(type="Reference", props={
+        ref_props = {
             "citekey": key, "bibkey": bibkey, "stub": True, "ref_source": "citation",
             "added_by": citation.props.get("added_by") or "citation",
-        })
+        }
+        # 639 -- the author-year detectors (`detect_author_year_citations`,
+        # `detect_author_year_in_objects`) already parsed `author`/`year` off
+        # the citing text to BUILD the citekey (`f"{surname}{year}"`); that is
+        # data the citation carries, not a guess, so a fresh stub inherits it
+        # instead of sitting on empty fields until bibsource/bibfetch runs.
+        for k in ("author", "year"):
+            v = citation.props.get(k)
+            if v:
+                ref_props[k] = v
+        ref = DocObject(type="Reference", props=ref_props)
         ref.add_realization(Realization(
             stream=c_surface.stream, start=c_surface.start, end=c_surface.end,
             role="surface",

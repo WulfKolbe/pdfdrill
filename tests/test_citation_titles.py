@@ -88,10 +88,140 @@ def test_no_citation_link_dangles_when_the_bibliography_is_missing():
         "text": "As shown in {{K_REF_knn_with_lime||CIT}} this works.",
         "flow_index": 3}))
 
-    tiddlers = _json.loads(TiddlyWikiProjector(
-        OperatorConfig(op="projector", classname="TiddlyWikiProjector")).project(doc))
+    proj = TiddlyWikiProjector(OperatorConfig(op="projector", classname="TiddlyWikiProjector"))
+    tiddlers = _json.loads(proj.project(doc))
     report = tiddler_integrity(tiddlers)
     assert not report.get("dangling"), report["dangling"]
 
     titles = {t["title"] for t in tiddlers}
     assert "K_REF_knn_with_lime" in titles, sorted(titles)
+    # This document has NO Reference object at all for "knn_with_lime" -- the
+    # ONE case (639) where the projector's own placeholder must still fire.
+    assert proj.counters.get("citation_placeholders_fired", 0) == 1
+
+
+def test_stub_reference_becomes_ref_tiddler_with_stub_field():
+    """639 -- the model (010) now creates a stub Reference for every cited
+    key at first Citation. The projector must emit THAT object as the REF
+    tiddler (same title, plus a `stub` field) instead of falling back to
+    its own placeholder mechanism -- the placeholder fires only for a
+    citekey with NO Reference object behind it at all, which does not
+    happen here."""
+    import json as _json
+    from docmodel.core import Document, DocObject
+    from docops.base import OperatorConfig
+    from docops.projectors.tiddlywiki import TiddlyWikiProjector, tiddler_integrity
+
+    doc = Document()
+    doc.meta["bibkey"] = "K"
+    doc.add(DocObject(type="Citation", props={"citekey": "smith2020", "flow_index": 1}))
+    doc.add(DocObject(type="Reference", props={
+        "citekey": "smith2020", "stub": True, "ref_source": "citation"}))
+    doc.add(DocObject(type="Paragraph", props={
+        "text": "As shown in {{K_REF_smith2020||CIT}} this works.",
+        "flow_index": 2}))
+
+    proj = TiddlyWikiProjector(OperatorConfig(op="projector", classname="TiddlyWikiProjector"))
+    tiddlers = _json.loads(proj.project(doc))
+    report = tiddler_integrity(tiddlers)
+    assert not report.get("dangling"), report["dangling"]
+
+    ref_tiddlers = [t for t in tiddlers if t.get("title") == "K_REF_smith2020"]
+    assert len(ref_tiddlers) == 1, tiddlers
+    t = ref_tiddlers[0]
+    assert t.get("stub") == "true", t
+    tags = t.get("tags") or ""
+    assert "reference" in tags and "stub" in tags, t
+    # Never tagged `bibentry`/`bibtex` -- those mean a real, TS-consumable
+    # entry, and a stub is neither.
+    assert "bibentry" not in tags and "bibtex" not in tags, t
+    # A stub must be VISIBLY unresolved, not an entry that LOOKS filled
+    # (`{{||CIT}} ` with no body reads exactly like a filled reference with
+    # blank fields).
+    assert "Reference not yet resolved" in t.get("text", ""), t
+    assert "smith2020" in t.get("text", ""), t
+
+    # The projector's OWN placeholder must NOT have fired -- a Reference
+    # object (a stub, but a Reference) already exists for this key.
+    assert proj.counters.get("citation_placeholders_fired", 0) == 0
+    assert not any("Citation placeholder for" in (x.get("text") or "") for x in tiddlers)
+
+
+def test_filled_reference_still_projects_as_before_stub_unaffected():
+    """639 -- the stub-honesty fix (tags `reference stub`, a visible
+    unresolved body) must be SCOPED to stubs; a filled Reference keeps its
+    pre-639 shape (`reference bibentry bibtex`, raw_text as the body, no
+    `stub` field) exactly as `test_bibliography.py` and the TiddlyWiki
+    consumer (updateBibentries.ts) already expect."""
+    import json as _json
+    from docmodel.core import Document, DocObject
+    from docops.base import OperatorConfig
+    from docops.projectors.tiddlywiki import TiddlyWikiProjector
+
+    doc = Document()
+    doc.meta["bibkey"] = "K"
+    doc.add(DocObject(type="Reference", props={
+        "citekey": "smith2020", "author": "Smith, J.", "year": "2020",
+        "raw_text": "Smith, J. (2020). A Study."}))
+
+    proj = TiddlyWikiProjector(OperatorConfig(op="projector", classname="TiddlyWikiProjector"))
+    tiddlers = _json.loads(proj.project(doc))
+    t = next(x for x in tiddlers if x.get("title") == "K_REF_smith2020")
+    assert "stub" not in t, t
+    tags = t.get("tags") or ""
+    assert "bibentry" in tags and "bibtex" in tags, t
+    assert t.get("text") == "{{||CIT}} Smith, J. (2020). A Study.", t
+
+
+def test_cmd_tiddlers_reports_placeholder_fires():
+    """639 -- the projector's own placeholder mechanism should fire for NONE
+    of a document's cited keys once the model stubs every one (010); when it
+    still does (a citekey with no Reference object at all), `pdfdrill
+    tiddlers`'s own report must say so rather than silently degrading."""
+    import tempfile
+    from pathlib import Path as _Path
+    from pdfdrill import commands as K, model_io
+    from pdfdrill.sidecar import Sidecar
+    from docmodel.core import Document, DocObject
+
+    doc = Document()
+    doc.meta["bibkey"] = "T"
+    doc.add(DocObject(type="Citation", props={"citekey": "orphan2020", "flow_index": 1}))
+    doc.add(DocObject(type="Paragraph", props={
+        "text": "As shown in {{T_REF_orphan2020||CIT}} this works.", "flow_index": 2}))
+
+    with tempfile.TemporaryDirectory() as d:
+        d = _Path(d)
+        pdf = d / "t.pdf"
+        pdf.write_bytes(b"%PDF-1.4")
+        sc = Sidecar(pdf)
+        model_io.save_model(K._model_path(sc), doc)
+        sc.add_fact(K.MODEL_BUILT)
+        sc.add_fact(K.BIBLIOGRAPHY_BUILT)   # skip the auto-bibliography chain
+        sc.save()
+
+        out = K.cmd_tiddlers(pdf)
+        assert "1 citation placeholder(s) fired" in out, out
+
+    # Contrast: a document whose citekey DOES have a (stub) Reference must
+    # report ZERO fires -- no note at all in the message.
+    doc2 = Document()
+    doc2.meta["bibkey"] = "T"
+    doc2.add(DocObject(type="Citation", props={"citekey": "resolved2020", "flow_index": 1}))
+    doc2.add(DocObject(type="Reference", props={
+        "citekey": "resolved2020", "stub": True, "ref_source": "citation"}))
+    doc2.add(DocObject(type="Paragraph", props={
+        "text": "As shown in {{T_REF_resolved2020||CIT}} this works.", "flow_index": 2}))
+
+    with tempfile.TemporaryDirectory() as d:
+        d = _Path(d)
+        pdf = d / "t.pdf"
+        pdf.write_bytes(b"%PDF-1.4")
+        sc = Sidecar(pdf)
+        model_io.save_model(K._model_path(sc), doc2)
+        sc.add_fact(K.MODEL_BUILT)
+        sc.add_fact(K.BIBLIOGRAPHY_BUILT)
+        sc.save()
+
+        out2 = K.cmd_tiddlers(pdf)
+        assert "citation placeholder" not in out2, out2
