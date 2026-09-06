@@ -137,6 +137,27 @@ def math_titles(doc, bibkey: str) -> dict:
     return out
 
 
+def region_titles(doc, bibkey: str) -> dict:
+    """`{object_id: "<bibkey>_PIC_0001" | "_DIA_0001" | "_TAB_001"}`.
+
+    THE authoritative numbering for picture, diagram and table tiddlers, the
+    peer of `math_titles` for the region-bearing kinds: flow order, counted
+    per TYPE, 1-based. The projector uses this, and so must anything that
+    names those regions to an external consumer (a report, a crop file) — a
+    second implementation would silently drift.
+    """
+    def _flow(objs):
+        return sorted(objs, key=lambda o: o.props.get("flow_index", 10**9))
+    out: dict = {}
+    for i, p in enumerate(_flow(doc.objects_of_type("Picture"))):
+        out[p.id] = f"{bibkey}_PIC_{i+1:04d}"
+    for i, d in enumerate(_flow(doc.objects_of_type("Diagram"))):
+        out[d.id] = f"{bibkey}_DIA_{i+1:04d}"
+    for i, t in enumerate(_flow(doc.objects_of_type("Table"))):
+        out[t.id] = f"{bibkey}_TAB_{i+1:03d}"
+    return out
+
+
 def tiddler_integrity(tiddlers: list[dict]) -> dict:
     """Referential-integrity audit of a tiddler array — guards the FOX class of
     bug (a synthetic formula created but never referenced, or a transclusion
@@ -495,12 +516,7 @@ class TiddlyWikiProjector(BaseProjector):
         # (e.g. `pdfdrill formulas`, which emits the `{{id||FO}}` placeholders
         # for an external SRE/de-macro pipeline) numbers them IDENTICALLY.
         title.update(math_titles(doc, bibkey))
-        for i, p in enumerate(inv["pictures"]):
-            title[p.id] = f"{bibkey}_PIC_{i+1:04d}"
-        for i, d in enumerate(inv["diagrams"]):
-            title[d.id] = f"{bibkey}_DIA_{i+1:04d}"
-        for i, t in enumerate(inv["tables"]):
-            title[t.id] = f"{bibkey}_TAB_{i+1:03d}"
+        title.update(region_titles(doc, bibkey))
         for fn in inv["footnotes"]:
             title[fn.id] = f"{bibkey}_FN{int(fn.props.get('refnum') or 0):04d}"
         for i, s in enumerate(inv["sidenotes"]):

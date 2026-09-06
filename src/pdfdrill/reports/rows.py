@@ -1,8 +1,7 @@
 """One frozen row per object. No I/O here: a row is what a renderer sees.
 
-Source-independent by design. `from_tiddlers.py` builds these today; the
-docmodel-fed builder of approach 3 will build the same classes, and the
-renderers will not notice.
+Source-independent by design. `from_document.py` builds these from the
+`docmodel.core.Document`; the renderers do not know or care.
 """
 from __future__ import annotations
 
@@ -30,6 +29,8 @@ class EvidenceRow:
     confidence: Optional[float] = None
     crop: Optional[Path] = None
     notes: tuple = ()
+    cdn_url: str = ""
+    region: dict = field(default_factory=dict)
 
     @property
     def shown_page(self) -> str:
@@ -71,13 +72,11 @@ class FormulaRow(EvidenceRow):
 @dataclass(frozen=True)
 class TableRow(EvidenceRow):
     dims: tuple = ("", "")
-    region: tuple = ()
 
 
 @dataclass(frozen=True)
 class ImageRow(EvidenceRow):
     dims: tuple = ("", "")
-    region: tuple = ()
     texzip_crop: Optional[Path] = None
 
 
