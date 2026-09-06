@@ -1,0 +1,377 @@
+642 — the citation link is stored, and \cite points only at bibitems that exist
+==============================================================================
+
+THE USER'S FOUR CLAIMS, CHECKED FIRST RATHER THAN ASSUMED
+  "bibsource prints 22/81 in-text citations linked"     UNMEASURABLE HERE, and
+    that is a fact about this machine, not a dismissal. `penev_A.bbl`/`.bib`
+    are not on it and there is no `texsrc/`: `pdfdrill bibsource penev_A.pdf`
+    returns "No .bbl/.bib found next to the PDF or named by the LaTeX source
+    (\bibliography{}/\addbibresource{}) in texsrc/" and touches nothing. The
+    user's run cannot be repeated, so the COUNTING is measured on a unit
+    fixture instead (below) and the two library documents report what the
+    model and `pdfdrill latex` actually say.
+  "Citation props hold only citekey, page, bibkey,
+   author, year, style, added_by; no Reference id
+   appears outside its own record"                      TRUE on penev_A/B: 0
+    of 81 and 0 of 25 Citations carry `cited_reference_id`. The prop EXISTS
+    and `link_citations_by_label` writes it -- but only on the gold `.bbl`
+    path, which neither document has taken.
+  "none of the 2571 alignments carries the relation"    NO LONGER TRUE, and
+    the claim's substance is now the OTHER half. At HEAD (334a11c) penev_A
+    holds 2520 alignments of which **81 are `cites`**, one per Citation --
+    010's edge, landing on the stub Reference 010 creates. What is true is
+    that 0 of those 81 reach a NON-STUB Reference, because all 52 of
+    penev_A's References are stubs (no bibliography has ever been ingested
+    for it). Rule 12: the number moved between the report and the fix and the
+    movement is named here rather than folded into a fresh "before".
+  "penev_A.tex has 40 distinct \cite keys against 8
+   bibitems -- 32 dangle"                               THE DEFECT IS REAL AND
+    IT IS THE MIRROR IMAGE. On this machine at HEAD the .tex held **0**
+    `\cite` and **52** `\bibitem`: not 32 keys without an entry but 81
+    Citations that never reached the LaTeX body at all. 639 guarantees a
+    `\bibitem` per Reference, so on this corpus nothing CAN dangle -- what was
+    missing was the citation. Both halves are the same requirement and both
+    are implemented: emit `\cite` at every citation, and only where a
+    Reference exists.
+
+EVIDENCE (library, deny-by-default git; never committed to this repo)
+  ~/pdfdrill-library/penev_{A,B}/out/642/script.py    the exact source that
+                                       ran, through the real CLI entry point
+                                       (`cmd_latex(..., compile=True,
+                                       dump_stages=True)`)
+  ~/pdfdrill-library/penev_{A,B}/out/642/<bib>.before.tex   frozen from disk
+                                       BEFORE anything ran; byte-identical to
+                                       638's `out/638/<bib>.after.tex`
+  ~/pdfdrill-library/penev_{A,B}/out/642/<bib>.after.tex
+  ~/pdfdrill-library/penev_{A,B}/out/642/result.json    every count below
+  ~/pdfdrill-library/penev_{A,B}/out/642/lossless.py|.json   the losslessness
+                                       measurement (below)
+  ~/pdfdrill-library/penev_{A,B}/out/642/build.py|.json      the compile, both
+                                       sides, same recipe
+  ~/pdfdrill-library/penev_{A,B}/out/642/{before,after}-build/*.pdf|.log
+  ~/pdfdrill-library/penev_{A,B}/out/642/raster.py|.json     the page lookup
+  ~/pdfdrill-library/penev_A/out/642/page-6-{before,after}.png|.txt    read
+  ~/pdfdrill-library/penev_B/out/642/page-32-{before,after}.png|.txt   read
+  ~/pdfdrill-library/penev_A/out/642/crop-page6-{before,after}.png     read
+  ~/pdfdrill-library/penev_B/out/642/crop-page32-after.png             read
+  ~/pdfdrill-library/penev_A/out/642/freshaux-{one,two}pass.log  the compile
+                                       change, measured (below)
+  ~/pdfdrill-library/penev_{A,B}/out/642/project_tw.py   the TiddlyWiki A/B
+  ~/pdfdrill-library/penev_A/out/642/INSPECT.txt   25 paths, checked
+  ~/pdfdrill-library/penev_B/out/642/INSPECT.txt   22 paths, checked
+  brief   tasks/642 brief (coordinator), out/639.txt, out/645.txt, out/638.txt,
+          tasks/010.report.md
+
+THE GATE THE BRIEF SET, ANSWERED BEFORE ANYTHING ELSE
+  "If factoring 645's group logic into a shared module would change the
+  TiddlyWiki output on penev_A, stop." It does not. The FROZEN model of each
+  document was projected twice -- once with a clean `git archive` export of
+  334a11c, once with this worktree -- and the two arrays compared:
+
+    penev_A  1271 tiddlers   IDENTICAL apart from `created`/`modified`
+    penev_B   861 tiddlers   IDENTICAL apart from `created`/`modified`
+
+  (Those two fields are stamped fresh on every run of the projector, before
+  and after; they are the only difference and they are not content.) The
+  projector's own counters agree exactly: `citation_inline_subs` 81 / 25,
+  `group_text_kept` 24 / 0, `citation_span_out_of_bounds` 0 / 0. The 13
+  tests of `tests/test_citation_transclusion.py` pass UNCHANGED.
+
+WHAT WAS BUILT (this branch, eqblobs-and-gzip-tex)
+  src/docops/citation_spans.py   NEW, and it is 645's logic MOVED, not
+      re-derived: `SEP_ONLY`, `BRACKETS`, `line_text`, `groups()` (the merge,
+      the out-of-bounds drop, the bracket-flank test) and `interleave()` (the
+      lossless replacement). What is deliberately NOT here is the replacement
+      TEXT -- TiddlyWiki writes one `{{REF||CIT}}` per key with the separators
+      kept, LaTeX writes one `\cite{a,b}` for the whole group. Same groups,
+      different ink.
+  src/docops/projectors/tiddlywiki.py
+      `_citation_groups` is now four lines over `citation_spans`; the two
+      module constants are gone. Nothing else changed, and the A/B above is
+      the proof rather than the claim.
+  src/docops/projectors/citations.py   NEW. `resolve(doc) -> CiteResolution`:
+      the citation groups of every RUNNING-TEXT object (638's
+      `RUNNING_TEXT_TYPES`), as LITERAL substitutions -- the exact source
+      substring and the `\cite{…}` to put in its place -- plus the counts.
+      `apply_subs` applies them by literal search from a moving cursor.
+      A span is recorded per LINE and the projector renders an object's
+      MATERIALISED text, so the bridge is 638's: read the groups off the lines
+      the object is anchored at, then FIND that substring in the object's own
+      text. Never a positional edit against a text that may have moved -- when
+      the substring is not there the group is skipped and counted
+      (`cite_source_not_in_text`; 1 on penev_A, named below).
+      `reference_for()` is "only where a Reference exists": the STORED link
+      (`cited_reference_id`) first, then the citekey, and None -> no `\cite`,
+      the original text stands, `cite_without_reference` +1.
+  src/docops/projectors/latex.py
+      `_prepare` resolves once; `_cite(obj)` is a lookup. It runs BEFORE
+      `_mark_footnotes` and MUST: a numeric citation group is the literal
+      `[2]`, and once a footnote marker has become `\footnotemark[2]` a
+      literal search for `[2]` would find the mark's own optional argument.
+      The reverse order is safe -- `\cite{…}` carries no inline-math span, so
+      the marker sequence 638 re-derives is untouched.
+  src/pdfdrill/bibliography.py
+      `resolved_citations(doc)` -- the STORED count: Citations whose own
+      `cites` edge reaches a FILLED Reference. Which edge is whose is decided
+      by `(right Range, edge citekey)` and not by the anchor alone: a citation
+      is anchored at LINE granularity, so two citations on one line share a
+      `left` Range AND their stubs share a `right` Range (645/010), and the
+      citekey is the only thing that tells their edges apart.
+      `link_citations` now writes `cited_reference_id` when it resolves a
+      Citation to a FILLED Reference -- exactly what `link_citations_by_label`
+      already did. That is the user's "no Reference id appears outside its own
+      record", and the LaTeX projector needs it: the `\bibitem` carries the
+      REFERENCE's citekey, so an in-text label resolved to a differently-keyed
+      gold entry (`[ASV02]` -> `smith2002`) must be emitted as
+      `\cite{smith2002}` or it dangles.
+  src/pdfdrill/commands.py
+      `cmd_bibsource` prints `resolved_citations(doc)` instead of the linkers'
+      running total. `cmd_latex` prints the citation resolution, read off the
+      PROJECTOR's own resolution rather than a fresh one (`cite_source_not_in_
+      text` is bumped while APPLYING; a second `resolve(doc)` could only ever
+      report it as 0, and a counter that can only say zero is worse than none).
+      `_xelatex_compile` runs TWO passes -- see THE COMPILE, below.
+  src/docops/projectors/latex_pipeline.py
+      `run_stages` gains `04-citations`: every group, its source substring, its
+      replacement and its keys. The one place the substitution is inspectable
+      (`pdfdrill latex --dump-stages`).
+
+THE BIBSOURCE HALF, IN ONE LINE
+  The message counted matches, not links. `link_citations`/`link_citations_by_
+  label` increment `linked` the moment they FIND a non-stub Reference -- before
+  the edge is built, and whether or not either side has a surface Realization
+  to anchor one at. MEASURED on a fixture (3 Citations, 1 gold `.bbl` entry,
+  two of the three citations naming the gold key and one of those two carrying
+  no Realization): the linker's own total is **2**, the model holds **1**, and
+  the message said "2/3 in-text citations linked". It now says **1/3**, and
+  `resolved_citations` on the saved model returns 1. The message can no longer
+  exceed what the document holds.
+
+THE NUMBERS — penev_A
+  BEFORE is the `.tex` frozen from disk before anything ran (byte-identical to
+  638's after) and the model as it stands; AFTER is `pdfdrill latex --compile
+  --dump-stages` on this worktree. The MODEL is unchanged by this task on both
+  documents -- object, Reference and alignment counts are read after the run
+  and match the before.
+
+                                          BEFORE      AFTER
+    Citation objects                          81         81
+    Reference objects                         52         52
+      of which STUBS                          52         52   <- no
+                                                                bibliography
+                                                                has ever been
+                                                                ingested for
+                                                                this document
+    `cites` alignments                        81         81
+      reaching a NON-STUB Reference            0          0
+    resolved_citations (stored)                0          0
+    distinct citekeys in the model            52         52
+    ---- the projected .tex -----------------------------------
+    `\cite{…}` occurrences (body)              0         61
+    distinct `\cite` keys                      0         47
+    `\bibitem`                                52         52
+    KEYS WITH NO BIBITEM                       0          0   <- the user's
+                                                                "32 dangle"
+    ---- the resolution, as APPLIED ---------------------------
+    Citations                                            81
+      cite_without_reference                              0
+      citations_without_a_span                            0
+      cite_spans_out_of_bounds                            0
+      citations_outside_running_text                      8
+      groups whose source the object's text
+        no longer holds                                   1
+      \cite GROUPS emitted                               62
+      keys in them                                       73
+    ---- compile (xelatex, nonstopmode, TWO passes) -----------
+    pages                                     99         98
+    "! " lines                                 0          0
+    "Citation … undefined" warnings            0          0
+
+  EVERY CITATION IS ACCOUNTED FOR: 81 = 73 (in a `\cite`) + 8 (on a line no
+  running-text object covers). The 8 are 645-a exactly -- their line is owned
+  by a FOOTNOTE, whose body the LaTeX projector emits from `props["content"]`
+  verbatim, the same boundary that leaves 4 penev_A REF tiddlers unlinked in
+  TiddlyWiki. 73 keys in 62 groups because 11 groups carry more than one key.
+  61 `\cite` in the body and 62 groups because of the ONE group below.
+
+  THE ONE GROUP THAT DID NOT REACH THE PAGE, named rather than rounded off:
+  `(Feigenbaum 1997)` on page 6. Its line is claimed by a Paragraph whose
+  realization spans 13 lines but whose materialised `text` is only the last of
+  them -- 646's Footnote+Paragraph doubly-claimed class. The substring is not
+  in the object's text, so nothing was substituted and it was counted. That is
+  the guard doing its job: a positional edit there would have replaced 17
+  characters of a different sentence.
+
+  THE PAGE COUNT FALLS BY ONE and it is not a loss: `\cite` sets as `[44]`
+  where the prose said `(Shannon and Weaver 1949)`. 1305 characters of citation
+  text became 1157 characters of `\cite` (net -148), which is one page of body.
+  Proved LOSSLESS, not argued -- see below.
+
+THE NUMBERS — penev_B
+                                          BEFORE      AFTER
+    Citation objects                          25         25
+    Reference objects (all stubs)             23         23
+    `cites` alignments                        25         25
+      reaching a NON-STUB Reference            0          0
+    resolved_citations (stored)                0          0
+    ---- the projected .tex -----------------------------------
+    `\cite{…}` occurrences (body)              0         20
+    distinct `\cite` keys                      0         18
+    `\bibitem`                                23         23
+    KEYS WITH NO BIBITEM                       0          0
+    ---- the resolution, as APPLIED ---------------------------
+    Citations                                            25
+      cite_without_reference                              0
+      citations_without_a_span                            0
+      cite_spans_out_of_bounds                            0
+      citations_outside_running_text                      5
+      groups whose source is not in the text               0
+      \cite GROUPS emitted                               20
+      keys in them                                       20
+    ---- compile (xelatex, nonstopmode, TWO passes) -----------
+    pages                                     68         68
+    "! " lines                                21         21
+    "Citation … undefined" warnings            0          0
+
+  25 = 20 + 5, the same accounting. penev_B's 21 compile errors are 638's
+  seven classes unchanged (the MathPix CDN `\includegraphics` URL and its
+  keyval/graphic consequences); no error is added and none is removed, and the
+  page count does not move.
+
+LOSSLESS, MEASURED — not a diff of two different code states
+  A before/after diff of the `.tex` cannot answer this: the BEFORE file is the
+  same model through OLDER code, so a difference there is not necessarily this
+  task's. Instead the SAME model is projected TWICE at the SAME code state --
+  once with `_cite` disabled, once enabled -- and the two outputs are walked in
+  LOCKSTEP: every character outside a `\cite` must be byte-identical, and at
+  each `\cite` the other side must hold one of the source strings the
+  resolution recorded for that replacement.
+
+                                          penev_A     penev_B
+    characters, citations OFF               290512      203300
+    characters, citations ON                290364      203238
+    `\cite` occurrences                         61          20
+    matched to a RECORDED source            61 / 61     20 / 20
+    prose outside a citation byte-identical    YES         YES
+    characters of source replaced             1305         408
+    characters of `\cite` emitted             1157         346
+
+  So the .tex changed in exactly the 61 (resp. 20) recorded places and nowhere
+  else. Nothing was deleted that a key does not cover, which is 645's rule
+  carried into the second projector.
+
+THE COMPILE — A SECOND PASS, AND WHY IT IS PART OF THIS TASK
+  `_xelatex_compile` ran ONE pass. A `\cite` resolves against the `\bibcite`
+  lines the PREVIOUS pass wrote into the `.aux`, so a one-pass compile of a
+  document that has never been compiled prints every citation as a bold `?` --
+  the exact symptom this task exists to remove, re-created by the compile step.
+  MEASURED on penev_A with the `.aux` deleted first:
+
+    one pass,  fresh .aux    72 "Citation … undefined" warnings
+    two passes, fresh .aux    0
+
+  (`freshaux-onepass.log` / `freshaux-twopass.log`.) `-halt-on-error` is
+  UNCHANGED -- it is 638's, it is why penev_B's in-place PDF stops at its
+  pre-existing keyval error on page 8, and moving it is not this task.
+
+WHAT THE RASTERISED PAGES SHOW (Ghostscript, 400 dpi, read)
+  The page is LOOKED UP, never guessed: the phrase a recorded group replaced is
+  found in the BEFORE pdf's own text and the SAME page number is rendered from
+  both builds.
+
+  penev_A page 6, BEFORE and AFTER, the same paragraphs:
+    BEFORE  "…in the context of Information Theory (Shannon and Weaver 1949)
+            given by the negative logarithm…" and "Moreover, it was suggested
+            (Barlow 1989) that if the ”strength”…" and "…spacio-temporal LGN
+            (Dong and Atick 1995b; Dan et al. 1996) and color retinal (Atick
+            et al. 1992)…"
+    AFTER   "…in the context of Information Theory [44] given by the negative
+            logarithm…", "Moreover, it was suggested [7] that…", and
+            "…spacio-temporal LGN [18, 15] and color retinal [1] and color
+            early cortical [2] processing." Ordinary numbered citations set in
+            the running text. **No bold `?` anywhere on the page**, and the
+            two-key group `(Dong and Atick 1995b; Dan et al. 1996)` is ONE
+            `\cite{Dong1995b,Dan1996}` printing as `[18, 15]` -- LaTeX's own
+            separator, not ours.
+    CHECKED, not assumed: `\bibitem` #44 in that .tex IS `Shannon1949`. The
+    printed number names the entry the citation meant.
+  penev_B page 32:
+    AFTER   "…slightly closer that third (Fig. 3.5), more like the one used in
+            [21], so that other strong irrelevant modes…" -- and `\bibitem`
+            #21 IS `Sirovich1987`, the Sirovich and Kirby 1987 entry the prose
+            named. The footnote marker `11` set by 638 is on the same lines,
+            unharmed.
+
+A SECOND FINDING, NAMED NOT FIXED — 642-a
+  A citation group broken by a LINE BREAK is not detected at all, upstream of
+  this task. penev_A's `(Barlow et al. 1989; Linsker 1988; Atick and Redlich
+  1992; Redlich 1993a)` starts on one line and continues on the next; the
+  continuation line ` 1989; Linsker 1988; Atick and Redlich 1992; Redlich
+  1993a)-representations` carries **0 Citation objects**, because
+  `detect_author_year_citations` scans one line at a time and the surname and
+  the year of the first pair straddle the break. It is visible in the
+  rasterised page 6 above as prose standing next to `[44]` and `[7]`, which is
+  the right failure mode -- 645's losslessness means an undetected citation
+  stays on the page as the words the author wrote, instead of vanishing. Fixing
+  it is a change to the detectors and deserves its own measurement.
+
+TESTS (TDD; every one confirmed failing first, against a clean state with the
+two new modules removed and the four edits stashed — the reasons are the stated
+ones and are recorded per test, not as one import error)
+  tests/test_cite_projection.py, 9 tests:
+    * the shared logic: `tw._citation_groups` and `citations.resolve` return
+      the SAME extents for one line — the check that stops the two projectors
+      drifting (failed: `docops.projectors.citations` absent);
+    * `[a, b]` -> `\cite{a,b}`, brackets swallowed, the whole sentence asserted
+      as a literal (failed: `Prior work [a, b] shows this.`);
+    * `(Smith 1999; Foldiak 1990; Jones 2001)` with no Reference for Foldiak ->
+      `(\cite{Smith1999}; Foldiak 1990; \cite{Jones2001})`, the parentheses
+      KEPT because the group does not wrap the whole of what is inside them
+      (failed: the line unchanged);
+    * a Citation with NO Reference: no `\cite`, original text kept,
+      `cite_without_reference == 1`;
+    * every `\cite` key in a projection has a `\bibitem` — the user's
+      40-against-8 report, as an assertion (failed: 0 keys);
+    * an in-text label resolved to a differently-keyed gold Reference emits
+      `\cite{smith2002}`, not `\cite{ASV02}`;
+    * `resolved_citations` on a document with two stubs and two edges is 0, and
+      becomes 1 the moment ONE Reference stops being a stub — the two stubs
+      share a Range, so this is the test that pins the citekey half of the
+      identity;
+    * the brief's fixture: 3 citations, 1 gold entry -> "1/3", and the saved
+      model holds exactly 1;
+    * the DEFECT: 3 citations of which one is unanchored, the linker's own
+      total is 2, the model holds 1, the message says 1/3 (measured saying
+      "2/3" on 334a11c).
+  UNCHANGED and passing: tests/test_citation_transclusion.py (645's 13),
+  tests/test_footnote_marks.py (638's 12), tests/test_latex_projector.py,
+  tests/test_latex_pipeline.py, tests/test_bibsource.py.
+
+  FULL SUITE: PYTHONDONTWRITEBYTECODE=1 PYTHONPATH=src python3 -m pytest
+  tests/ -q -p no:cacheprovider  ->  3189 passed, 0 failed
+  (3180 before this task; 9 new).
+
+CONCERNS
+  `resolved_citations` is 0 on BOTH library documents and that is correct, not
+  a null result: every Reference on penev_A and penev_B is a 010 stub, so no
+  citation reaches a filled entry and the honest stored count is zero. The
+  number the user actually saw ("22/81") comes from a machine that has
+  penev_A's gold `.bbl`/`.bib`; the counting change is therefore measured on a
+  fixture, and the two library documents test the OTHER half — that a stub's
+  `\bibitem` (`[unresolved: key]`, 639) means a `\cite` at every citation is
+  safe even with no bibliography at all. On a document with a gold bibliography
+  the same 47 keys would print the author and year instead of the key. Nothing
+  here demonstrates that path end to end.
+  `citations_outside_running_text` (8 penev_A / 5 penev_B) is the SAME class as
+  645-a and 638's untouched sidenote markers: a footnote body is emitted
+  verbatim, so no citation, formula or marker inside one has ever become
+  anything on any projection. It is counted now on the LaTeX side too, which
+  makes it three tasks that have measured it and none that has fixed it.
+  The one-group miss on penev_A (`Feigenbaum1997`) is a symptom of 646's
+  Paragraph+Footnote doubly-claimed anchors, not of the substitution: the
+  Paragraph claims 13 lines and materialises 1. Until that claim is fixed the
+  guard is the right behaviour and the count is the right report.
+  `_xelatex_compile`'s second pass doubles the compile time of every
+  `--compile` run (penev_A ~2 x 30 s). That is the price of a citation that
+  resolves; a `bibtex`-style "run until the .aux stops changing" loop would be
+  the cheaper answer on a document with no citations and is not built.

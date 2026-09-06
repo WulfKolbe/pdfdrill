@@ -682,6 +682,7 @@ def run_stages(doc: Document, bibkey: str = "DOC") -> dict:
     readarray formula array — the `.dat` (one formula per line) AND the
     `{title: index}` map — plus the citation list and the bibliography."""
     from . import footnotes as _fn                     # local: avoid a cycle
+    from . import citations as _cit                    # local: avoid a cycle
     order, title_index = formula_array(doc)
     return {
         "00-formulas.dat": "\n".join(order),          # the readarray data file
@@ -693,6 +694,10 @@ def run_stages(doc: Document, bibkey: str = "DOC") -> dict:
         # page each side was on and whether the pairing needed the order
         # tie-break. The one place the disambiguation is inspectable.
         "03-footnotes": _fn.resolve(doc).table(),
+        # 642 — which citation GROUP became which `\cite`, with the exact source
+        # substring it replaced. The one place the group substitution is
+        # inspectable, and the counts that say what did NOT become a `\cite`.
+        "04-citations": _cit.resolve(doc).table(),
     }
 
 

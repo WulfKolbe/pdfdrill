@@ -21,6 +21,7 @@ from ..base import BaseProjector
 from .common import flow_ordered_content, equation_label
 from . import latex_pipeline as _pipe
 from . import footnotes as _fn
+from . import citations as _cit
 
 # level → sectioning command (1-indexed; clamped)
 _SECTION_CMDS = ["section", "section", "subsection", "subsubsection",
@@ -149,6 +150,10 @@ class LaTeXProjector(BaseProjector):
         # A body that a marker takes is printed by that marker's paragraph
         # (`\footnotetext[n]{…}`), so it must not ALSO be emitted standalone.
         self._footnotes = _fn.resolve(doc)
+        # 642 — every in-text Citation back into the running text as `\cite`,
+        # by GROUP, through the same `docops.citation_spans` the TiddlyWiki
+        # projector reads. Resolved once here so `_cite` is a lookup.
+        self._citations = _cit.resolve(doc)
         self._doc_objects = doc.objects
         self._skip_ids = set(self._skip_ids) | set(self._footnotes.used)
         # STAGE 3: acronyms / glossary from the named-concept layer (lazy — the
@@ -218,7 +223,7 @@ class LaTeXProjector(BaseProjector):
         content passes through `_prose` (transclusions / citations resolve)."""
         lines = ["\\begin{itemize}"]
         for it in run:
-            marked, notes = self._mark_footnotes(it)
+            marked, notes = self._mark_footnotes(it, self._cite(it))
             content = self._prose(marked.strip())
             if notes:
                 content = " ".join([content] + notes)
@@ -228,9 +233,33 @@ class LaTeXProjector(BaseProjector):
         lines.append("\\end{itemize}")
         return "\n".join(lines)
 
+    # ── 642: citations ───────────────────────────────────────────────────────
+
+    def _cite(self, obj) -> str:
+        """The object's running text with each citation GROUP replaced by one
+        `\\cite{a,b}`.
+
+        Runs BEFORE `_mark_footnotes`, and must: a numeric citation group is the
+        literal `[2]`, and once a footnote marker has become `\\footnotemark[2]`
+        a literal search for `[2]` would find the mark's own optional argument.
+        The reverse order is safe — `\\cite{…}` carries no inline-math span, so
+        the marker sequence `_mark_footnotes` re-derives is untouched by it."""
+        text = _fn.object_text(obj)
+        res = getattr(self, "_citations", None)
+        if res is None:
+            return text
+        subs = res.subs_for(obj.id)
+        if not subs:
+            return text
+        return _cit.apply_subs(
+            text, subs,
+            on_missing=lambda s: res.counts.__setitem__(
+                "cite_source_not_in_text",
+                res.counts["cite_source_not_in_text"] + 1))
+
     # ── 638: footnote markers ────────────────────────────────────────────────
 
-    def _mark_footnotes(self, obj) -> tuple[str, list[str]]:
+    def _mark_footnotes(self, obj, text: str | None = None) -> tuple[str, list[str]]:
         """`(running text with resolved markers replaced by `\\footnotemark[n]`,
         the `\\footnotetext[n]{…}` blocks those marks owe)`.
 
@@ -238,8 +267,12 @@ class LaTeXProjector(BaseProjector):
         counts it (`markers_unresolved`) rather than guessing a body. When the
         object's text no longer holds the markers the resolution was built from,
         nothing is substituted at all: a positional edit against a text that
-        moved would replace the wrong characters."""
-        text = _fn.object_text(obj)
+        moved would replace the wrong characters.
+
+        `text` defaults to the object's own text; 642 passes the text its
+        citation groups have already been substituted into."""
+        if text is None:
+            text = _fn.object_text(obj)
         res = getattr(self, "_footnotes", None)
         if res is None:
             return text, []
@@ -307,7 +340,7 @@ class LaTeXProjector(BaseProjector):
             label = p.get("label")
             return s + (f"\n\\label{{{label}}}" if label else "")
         if t in ("Paragraph", "Abstract"):
-            marked, notes = self._mark_footnotes(obj)
+            marked, notes = self._mark_footnotes(obj, self._cite(obj))
             text = self._prose(marked.strip())
             if not text.strip():
                 return ""

@@ -5591,6 +5591,17 @@ def cmd_bibsource(pdf: Path, bib_path: str | None = None,
     # longer has.
     n_refs = sum(1 for o in doc.objects.values() if o.type == "Reference")
 
+    # 642 -- the message reads the STORED state, not the linkers' running
+    # total. `linked` above is incremented the moment a non-stub Reference is
+    # MATCHED, before the edge is built and whether or not either side has a
+    # surface to anchor one at -- so it could name links the model does not
+    # hold ("22/81 in-text citations linked" against a model whose alignments
+    # carried the relation for fewer). `resolved_citations` counts Citations
+    # whose stored `cites` edge reaches a filled Reference, so the number the
+    # user reads can never exceed what the saved document says.
+    from .bibliography import resolved_citations
+    linked = resolved_citations(doc)
+
     save_model(model_path, doc)
 
     sc.set_evidence("bibsource_references", n_refs)
@@ -9906,15 +9917,24 @@ def _format_algorithms(doc) -> str:
 
 def _xelatex_compile(main_tex: Path) -> "tuple[bool, str]":
     """Compile `main_tex` with **xelatex** (Unicode-native — MathPix LaTeX emits
-    raw `≥ ✓ → ℃` that pdflatex/inputenc cannot map). Returns (ok, note)."""
+    raw `≥ ✓ → ℃` that pdflatex/inputenc cannot map). Returns (ok, note).
+
+    TWO passes (642). A `\\cite` resolves against the `\\bibcite` lines the
+    previous pass wrote into the `.aux`, so a one-pass compile of a document
+    that has never been compiled prints EVERY citation as a bold `?` — which is
+    exactly the symptom 642 exists to remove, re-created by the compile step.
+    The second pass is skipped when the first produced no PDF at all."""
     import shutil
     import subprocess
     if not shutil.which("xelatex"):
         return False, "xelatex not on PATH (install texlive-xetex)"
     try:
-        subprocess.run(["xelatex", "-interaction=nonstopmode", "-halt-on-error",
-                        main_tex.name], cwd=str(main_tex.parent),
-                       capture_output=True, timeout=180)
+        for _pass in range(2):
+            subprocess.run(["xelatex", "-interaction=nonstopmode", "-halt-on-error",
+                            main_tex.name], cwd=str(main_tex.parent),
+                           capture_output=True, timeout=180)
+            if not main_tex.with_suffix(".pdf").exists():
+                break
     except Exception as exc:                              # noqa: BLE001
         return False, f"xelatex failed: {type(exc).__name__}"
     pdf_out = main_tex.with_suffix(".pdf")
@@ -10022,8 +10042,9 @@ def cmd_latex(pdf: Path, force: bool = False, compile: bool = False,
     from docops.base import OperatorConfig
     from docops.projectors.latex import LaTeXProjector
     from docops.projectors import latex_pipeline as _pipe
-    tex = LaTeXProjector(
-        OperatorConfig(op="projector", classname="LaTeXProjector")).project(doc)
+    projector = LaTeXProjector(
+        OperatorConfig(op="projector", classname="LaTeXProjector"))
+    tex = projector.project(doc)
     env_dir.mkdir(parents=True, exist_ok=True)
     main_tex = env_dir / f"{key}.tex"
     main_tex.write_text(tex, encoding="utf-8")
@@ -10061,10 +10082,29 @@ def cmd_latex(pdf: Path, force: bool = False, compile: bool = False,
             f"{_fc['markers_ambiguous']} paired by order on the page); "
             f"{_fc['footnotes_marked']}/{_fc['footnotes']} bodies marked, "
             f"{_fc['footnotes_lacking_a_field']} lacking refnum/anchor_marker.")
+    # 642 — the citation substitution, said out loud. A Citation with no
+    # Reference is NOT emitted as `\cite` (it would print as a bold `?`); a
+    # citation on a line no running-text object covers is never substituted at
+    # all (645-a). Both are counted, and a count nothing prints is a count
+    # nobody reads.
+    # Read off the PROJECTOR's own resolution, not a fresh one: `cite_source_
+    # not_in_text` is bumped while the substitution is APPLIED, so a second
+    # `resolve(doc)` would report it as permanently 0 — a counter that can only
+    # ever say zero is worse than no counter.
+    _cc = projector._citations.counts
+    if _cc["citations"]:
+        lines.append(
+            f"  citations: {_cc['cite_keys']} key(s) in {_cc['cite_groups']} "
+            f"\\cite group(s) from {_cc['citations']} Citation(s) "
+            f"({_cc['cite_without_reference']} with no Reference left as they "
+            f"stand, {_cc['citations_without_a_span']} without a span, "
+            f"{_cc['citations_outside_running_text']} on a footnote/sidenote "
+            f"line, {_cc['cite_source_not_in_text']} group(s) whose source the "
+            f"object's text no longer holds).")
     if dump_stages:
         lines.append(f"  stages  : {_artref(sc, env_dir / 'stages')}/  "
                      f"(transclusion lookup / citations / bibliography / "
-                     f"footnote resolution)")
+                     f"footnote + citation resolution)")
     if compile:
         ok, note = _xelatex_compile(main_tex)
         pdf_out = main_tex.with_suffix(".pdf")

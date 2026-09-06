@@ -29,6 +29,7 @@ from typing import NamedTuple, Optional
 
 from docmodel.core import Document, DocObject
 from ..base import BaseProjector
+from .. import citation_spans as _cspans
 from .common import embed_image, is_derived
 
 
@@ -43,14 +44,9 @@ def _sanitize_title(t: str) -> str:
 
 _TRANSCLUDE_RE = re.compile(r"\{\{([^{}]+?)\}\}")
 
-#: 645 — what may sit BETWEEN two citations of one group (`[a, b]`,
-#: `(Smith 1999; Jones 2001)`) without breaking it in two.
-_CIT_SEP_ONLY = re.compile(r"[\s,;]*")
-
-#: 645 — the bracket pairs a citation group may be wrapped in. The `CIT`
-#: template renders `[<$link …>key</$link>]`, so a group that is wrapped
-#: must swallow its wrapper or the reader gets `[[a], [b]]`.
-_CIT_BRACKETS = {"[": "]", "(": ")"}
+#: 645/642 — what may sit BETWEEN two citations of one group, and the bracket
+#: pairs a group may be wrapped in, both now live in `docops.citation_spans`
+#: (`SEP_ONLY` / `BRACKETS`) because the LaTeX projector reads the same groups.
 
 
 def code_listing_tiddlers(listings, bibkey: str) -> list[dict]:
@@ -896,73 +892,24 @@ class TiddlyWikiProjector(BaseProjector):
         """Merge one line's citation spans into GROUPS and build a LOSSLESS
         replacement for each.
 
-        Yields `(offset, length, replacement, distinct keys)`. Two spans
-        belong to one group when they are identical, when they overlap, or
-        when only whitespace/`,`/`;` separates them — the shapes a multi-key
-        citation takes.
-
-        THE REPLACEMENT IS LOSSLESS. It holds one `{{<REF title>||CIT}}` per
-        distinct key in source order and emits every character BETWEEN the
-        recognised spans VERBATIM, so the only text a group ever loses is the
-        citation spans themselves and a bracket pair that wraps nothing else.
-        `(Linsker 1988; Oja 1989; Sanger 1989; Földiák 1990; Plumbey 1991)`
-        keeps `Földiák 1990` — no detector recognises that surname (645-b),
-        and a substitution that swallowed the whole parenthetical would delete
-        a reference the document actually makes. The kept characters are
-        counted in `group_text_kept`.
-
-        A group whose extent is flanked by a matching `[...]`/`(...)` pair
-        swallows the pair, because the `CIT` template renders the brackets
-        itself; a group sitting inside a longer parenthetical
-        (`(see Smith 1999 for a review)`) is not flanked by one and keeps it.
+        Yields `(offset, length, replacement, distinct keys)`. The grouping, the
+        bracket-flank test and the lossless interleave live in
+        `docops.citation_spans` — 642 moved them there so the LaTeX projector
+        reads the SAME groups off the same line instead of deriving them a
+        second time. What stays here is what is written OVER a group: one
+        `{{<REF title>||CIT}}` per distinct key, with every character between
+        the recognised spans emitted verbatim (`group_text_kept`), and the
+        flanking `[...]`/`(...)` pair swallowed because the `CIT` template
+        renders the brackets itself.
         """
-        stream = doc.streams.get("mathpix_lines")
-        payload = (stream.payload.get(line_anchor) or {}) if stream else {}
-        text = payload.get("text_display") or payload.get("text") or ""
-
-        usable = []
-        for off, length, ct in spans:
-            if off < 0 or length < 0 or off + length > len(text):
-                # The span names characters this line does not have. It is
-                # DROPPED and counted, never clamped and never merged into a
-                # neighbour: a clamped span replaces the wrong characters and
-                # says nothing about it.
-                self.bump("citation_span_out_of_bounds")
-                continue
-            usable.append((off, length, ct))
-
-        groups: list[list] = []
-        for off, length, ct in sorted(usable, key=lambda s: (s[0], s[1])):
-            end = off + length
-            if groups:
-                g = groups[-1]
-                gap = text[g[1]:off] if off >= g[1] else ""
-                if off <= g[1] or _CIT_SEP_ONLY.fullmatch(gap):
-                    g[1] = max(g[1], end)
-                    g[2].append((off, length, ct))
-                    continue
-            groups.append([off, end, [(off, length, ct)]])
-
-        for inner_start, inner_end, members in groups:
-            start, end = inner_start, inner_end
-            if 0 < inner_start and inner_end < len(text) \
-                    and _CIT_BRACKETS.get(text[inner_start - 1]) == text[inner_end]:
-                start, end = inner_start - 1, inner_end + 1
-            out: list[str] = []
-            cursor = inner_start
-            seen: set[str] = set()
-            for off, length, ct in members:
-                if off > cursor:
-                    out.append(text[cursor:off])
-                    self.bump("group_text_kept", off - cursor)
-                if ct not in seen:
-                    seen.add(ct)
-                    out.append("{{" + ct + "||CIT}}")
-                cursor = max(cursor, off + length)
-            if cursor < inner_end:
-                out.append(text[cursor:inner_end])
-                self.bump("group_text_kept", inner_end - cursor)
-            yield start, end - start, "".join(out), len(seen)
+        text = _cspans.line_text(doc, line_anchor)
+        for g in _cspans.groups(
+                text, spans,
+                on_out_of_bounds=lambda: self.bump("citation_span_out_of_bounds")):
+            repl = _cspans.interleave(
+                text, g, lambda ct: "{{" + ct + "||CIT}}",
+                on_text_kept=lambda n: self.bump("group_text_kept", n))
+            yield g.start, g.length, repl, len(g.payloads)
 
     # ----- phase 3: tiddler emission -----
 

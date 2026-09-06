@@ -135,6 +135,67 @@ def filled_cites_edges(doc) -> int:
                and (a.right.stream, a.right.start, a.right.end) in live)
 
 
+def resolved_citations(doc) -> int:
+    """642 — how many Citations the SAVED MODEL says are linked to a real
+    bibliography entry.
+
+    `link_citations` / `link_citations_by_label` return a `linked` total counted
+    while they MATCH: incremented the moment a non-stub Reference is found, and
+    before (indeed regardless of whether) an edge is built — a Citation with no
+    surface Realization has nowhere to anchor one, so the pass reports a link
+    the document does not hold. `cmd_bibsource` printed that number. This reads
+    the state instead.
+
+    A Citation counts when a stored `cites` Alignment runs from ITS surface to
+    the surface of a FILLED (non-stub) Reference. Which edge is whose is decided
+    by the citekey and not by the anchor: a citation is anchored at LINE
+    granularity, so two citations on one line share a `left` Range and their
+    stubs share a `right` Range (see `add_cites_alignment`). The pair
+    `(right range, edge citekey)` is what names the Reference an edge actually
+    reaches. When a linker resolved an in-text label to a differently-keyed gold
+    entry (`[ASV02]` -> `smith2002`) the edge carries the REFERENCE's key, and
+    the Citation's stored `cited_reference_id` is what ties the two together.
+    """
+    filled = {o.id: o for o in doc.objects.values()
+              if o.type == "Reference" and not o.props.get("stub")}
+    live: dict = {}
+    for ref in filled.values():
+        for r in ref.realizations:
+            if r.start is not None:
+                live[((r.stream, r.start, r.end),
+                      (ref.props.get("citekey") or "").strip())] = ref.id
+    if not live:
+        return 0
+
+    edges_by_left: dict = {}
+    for a in doc.alignments:
+        if a.kind == "cites" and a.left is not None and a.right is not None:
+            edges_by_left.setdefault(
+                (a.left.stream, a.left.start, a.left.end), []).append(a)
+
+    n = 0
+    for c in doc.objects.values():
+        if c.type != "Citation":
+            continue
+        ls = next((r for r in c.realizations
+                   if r.role == "surface" and r.start is not None), None)
+        if ls is None:
+            ls = next((r for r in c.realizations if r.start is not None), None)
+        if ls is None:
+            continue
+        key = (c.props.get("citekey") or "").strip()
+        rid = c.props.get("cited_reference_id")
+        for a in edges_by_left.get((ls.stream, ls.start, ls.end), ()):
+            target = live.get(((a.right.stream, a.right.start, a.right.end),
+                               (a.props.get("citekey") or "").strip()))
+            if target is None:
+                continue
+            if (a.props.get("citekey") or "").strip() == key or target == rid:
+                n += 1
+                break
+    return n
+
+
 def bibliography_section_anchors(doc) -> set:
     """The `mathpix_lines` anchors where the References SECTION itself lives.
 
@@ -733,6 +794,15 @@ def link_citations(doc) -> dict:
             continue
         if not r.props.get("stub"):
             linked += 1
+            # 642 — PERSIST the link on the Citation itself, exactly as
+            # `link_citations_by_label` already does. The user's report is that
+            # "no Reference id appears outside its own record": a resolution
+            # that lives only in a Range-anchored Alignment cannot be read back
+            # per object, and the LaTeX projector needs it to emit the
+            # REFERENCE's citekey (which is what the `\bibitem` carries) rather
+            # than the in-text label. Only a FILLED Reference is recorded: a
+            # stub is a placeholder, not an answer.
+            c.props["cited_reference_id"] = r.id
             stub = stub_for(doc, key)
             if stub is not None and stub is not r:
                 absorb_stub(doc, stub, r)
