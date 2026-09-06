@@ -27,10 +27,16 @@ def test_reporttex_refuses_a_bound(tmp_path):
 
 
 def test_inkreport_refuses_a_bound_rather_than_dropping_it(tmp_path):
-    """578's defect was a flag accepted and silently ignored."""
+    """578's defect was a flag accepted and silently ignored.
+
+    task 10 — re-pointed at `_inkreport_chain`: `cmd_inkreport` is now a thin
+    alias and a `pages=10` call still reaches this same refusal (it is one of
+    the arguments `cmd_residuals` cannot carry, so the alias routes straight
+    here), but the refusal itself is the chain's, not the alias's.
+    """
     pdf = tmp_path / "x.pdf"
     pdf.write_bytes(b"%PDF-1.4\n")
-    out = C.cmd_inkreport(pdf, pages=10)
+    out = C._inkreport_chain(pdf, pages=10)
     assert "refuses --pages 10" in out and "breport" in out
 
 
@@ -62,8 +68,9 @@ def test_the_measure_bound_is_zero_not_none():
 
 
 def test_no_manifest_writing_build_inside_inkreport_takes_a_bound():
+    """task 10 — re-pointed at `_inkreport_chain`, where these calls live now."""
     import re
-    src = inspect.getsource(C.cmd_inkreport)
+    src = inspect.getsource(C._inkreport_chain)
     for call in re.findall(r"cmd_reporttex\((?:[^()]|\([^()]*\))*\)", src, re.S):
         assert "pages=pages" not in call, "a bounded manifest build: %s" % call
 

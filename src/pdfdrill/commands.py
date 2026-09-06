@@ -1593,6 +1593,28 @@ def _load_or_build_continuity(pdf: Path, sc: "Sidecar", force: bool = False,
 PUBLISH_CHECKS = ("model", "glyphs", "ink", "stamp", "residuals", "artefacts",
                   "index")
 
+#: spec 2026-09-06 — the old report commands are thin aliases; removal is a
+#: later task. Each prints one line naming what it ran. `report` and
+#: `breport` route there fully; `inkreport`'s default call does too — see its
+#: docstring for the arguments `residuals` cannot carry, which still go
+#: straight to `_inkreport_chain`. `reporttex` stays its own full
+#: implementation: `_inkreport_chain` calls it three times for the legend/
+#: formula-rule/findings/pages-refusal/ink_bullets/cellrect behaviour that IS
+#: the ink-measurement chain, and `evidence` has no equivalent — aliasing it
+#: would silently drop every one of those arguments and stop `inkreport`/
+#: `residuals --measure` from building report.pdf at all. Its manifest entry
+#: is still marked ALIAS OF per this task's instructions; that is a
+#: documentation statement of intent, not yet true of the code.
+ALIASES = {"report": "evidence --kind formula / --kind equation",
+           "reporttex": "evidence --all-kinds --pdf",
+           "breport": "residuals --pdf",
+           "inkreport": "residuals --measure --pdf"}
+
+
+def alias_note(name: str) -> str:
+    return "%s is an alias of %s (spec 2026-09-06); the new command is the code path." % (
+        name, ALIASES[name])
+
 
 def publish_ready(pdf: Path) -> dict:
     """{ready, checks, fields} — the checklist, evaluated on what is on disk.
@@ -2321,13 +2343,21 @@ INKREPORT_FINDINGS = {
 }
 
 
-@_writes("inkreport")
-def cmd_inkreport(pdf: Path, preflight_only: bool = False,
-                  findings: "bool | None" = None,
-                  profile: str = INKREPORT_PROFILE_DEFAULT,
-                  timeout: int = 900,
-                  pages: "int | None" = None) -> str:
+def _inkreport_chain(pdf: Path, preflight_only: bool = False,
+                     findings: "bool | None" = None,
+                     profile: str = INKREPORT_PROFILE_DEFAULT,
+                     timeout: int = 900,
+                     pages: "int | None" = None) -> str:
     """404 — the whole ink chain, and the only supported way to run it.
+
+    spec 2026-09-06 (task 10) — renamed from `cmd_inkreport`. `cmd_residuals`
+    (`--measure`) calls this directly; the public `cmd_inkreport` is a thin
+    alias of `residuals --measure --pdf` for the plain case, routing here
+    directly only for the arguments `cmd_residuals` cannot carry (see its
+    docstring). Not `cmd_`-prefixed on purpose: the `@_writes` AST scan in
+    test_doclock.py only walks `cmd_*` top-level defs, and this function is
+    always reached through a `cmd_*` caller that already holds the lock
+    (doclock's `_HELD` is re-entrant in-process).
 
     preflight -> build(measure) -> measure -> convert -> build(reading) ->
     verify. Each step checks its OWN output before the next begins and the
@@ -2640,6 +2670,31 @@ def cmd_inkreport(pdf: Path, preflight_only: bool = False,
     out.append("")
     out.append("%.0f s total." % (_time.time() - t0))
     return "\n".join(out)
+
+
+@_writes("inkreport")
+def cmd_inkreport(pdf: Path, preflight_only: bool = False,
+                  findings: "bool | None" = None,
+                  profile: str = INKREPORT_PROFILE_DEFAULT,
+                  timeout: int = 900,
+                  pages: "int | None" = None) -> str:
+    """ALIAS of `residuals --measure --pdf` (spec 2026-09-06) for a plain
+    call. `cmd_residuals` cannot carry `preflight_only`, `findings`, a
+    non-default `profile`, or a page bound — its own `pages` bounds the
+    RESIDUALS listing, not the ink chain (which refuses any bound at all,
+    588/593), so the two cannot be the same argument. Any call that uses one
+    of those goes straight to `_inkreport_chain`, exercising exactly the code
+    path a plain call to this function used to run; a call with none of them
+    goes through `cmd_residuals`, exercising the same path `residuals
+    --measure --pdf` does.
+    """
+    if (preflight_only or findings is not None
+            or profile != INKREPORT_PROFILE_DEFAULT or pages is not None):
+        return _inkreport_chain(pdf, preflight_only=preflight_only,
+                                findings=findings, profile=profile,
+                                timeout=timeout, pages=pages)
+    out = cmd_residuals(pdf, pdf_out=True, measure=True, timeout=timeout)
+    return out + "\n" + alias_note("inkreport")
 
 
 def cmd_publishready(pdf: Path, as_json: bool = False) -> str:
@@ -5154,110 +5209,11 @@ def cmd_generations(targets, which: str = "build") -> str:
 def cmd_breport(pdf: Path, paper: str = "a3", landscape: bool = True,
                 compile_pdf: bool = True, images: bool = True,
                 pages: "int | None" = None) -> str:
-    r"""B — every row of the document in three columns: the LaTeX MathPix
-    returned, that LaTeX rendered through THIS DOCUMENT'S OWN PREAMBLE, and
-    the picture it was read from.
-
-    530. B is LaTeX and not HTML, and the reason is measured rather than
-    stylistic: KaTeX renders in a browser with no preamble, and 482/484 found
-    `\bm` at 327 occurrences across 7 documents, `\Perp` defined by no package
-    at all across 10, and 11,088 of 11,624 undefined occurrences being the
-    source document's own macros. An HTML rendering therefore cannot be
-    evidence in either direction — a row can look wrong there and compile, or
-    look right there and fail.
-
-    Three columns and no more. No KaTeX column, no second-reading column, no
-    scores: identity rides in the first cell. Rows carry their A-state
-    (corrected / unresolved / flagged / doubted) where they have one, so A and
-    B cannot disagree about a row.
-
-    INLINE FORMULAS GET THE LINE'S. An FO row has no page, no confidence and
-    no region of its own; `inlinectx` gives it the ones belonging to the line
-    it was printed in, and the section says so on the page. That is the only
-    confidence such a row will ever have, and 527 measured why it matters:
-    91.6% of the corpus's maths items are inline.
-    """
-    from . import report_tex as rt
-    sc = Sidecar(pdf)
-    tid, sc, _note = _resolve_tiddlers(pdf, sc, announce=False)
-    if tid is None:
-        return (f"No tiddler array for {pdf.name} and `tiddlers` did not "
-                f"produce one.")
-    tiddlers = json.loads(Path(tid).read_text())
-    bibkey = rt.resolve_bibkey(Path(tid))
-    doc_dir = pdf.parent
-    lines_path = _lines_json_path(pdf)
-    ink_path = doc_dir / "report.ink.json"
-    ink = rt.load_ink(ink_path) if ink_path.is_file() else {}
-
-    rows = rt.b_rows(tiddlers, bibkey, doc_dir,
-                     lines_path=lines_path if lines_path.exists() else None,
-                     ink=ink)
-    by_kind = {}
-    for r in rows:
-        by_kind[r["kind"]] = by_kind.get(r["kind"], 0) + 1
-
-    crops = doc_dir / "report-crops" if images else None
-    fo_rendered = (0, 0, 0)
-    pseudo = []
-    if images:
-        # the inline formulas' pictures are cropped from their HOST LINE's
-        # region — the only region they have. 530.
-        pseudo = [dict({"title": r["identifier"], "page": str(r["page"])},
-                       **r["region"])
-                  for r in rows
-                  if r["kind"] == "formula" and r.get("region") and r.get("page")]
-        if pseudo:
-            # (rendered, cached, skipped) — reporting only the first read as
-            # "0 crops" on any re-run, which is the opposite of the truth.
-            fo_rendered = rt.render_crops(pseudo, crops, pdf, kinds=("_FO",))
-
-    # 538 — B embeds DOWNSAMPLED copies, in their own directory so the
-    # originals that report.pdf and the CDN equation rows read are untouched.
-    px_widths = {}
-    if images:
-        px_widths = rt.scale_crops(crops, doc_dir / "report-crops-b",
-                                   [r["identifier"] for r in rows])
-        crops = doc_dir / "report-crops-b"
-    px2mm = rt.auto_px2mm(pdf)
-    body = rt.b_tex(rows, crops=crops, out_dir=doc_dir, px2mm=px2mm,
-                    bibkey=bibkey, history=_bibkey_history(sc),
-                    px_widths=px_widths)
-    geom = "%spaper%s" % (paper, ",landscape" if landscape else "")
-    if pages is None:
-        pages = rt.PAGES_DEFAULT
-    pre = rt.preamble(**{"bbdigits": rt.MATHBB_DIGITS, "form": "",
-                         "geom": geom, "pagesel": rt.pagesel_line(pages),
-                         "unicode": rt.unicode_decls(body)})
-    title = ("\\begin{center}{\\Large\\bfseries %s}\\\\[.4em]"
-             "{\\small B --- every row, three columns: the LaTeX MathPix "
-             "returned, that LaTeX rendered through this document's own "
-             "preamble, and the picture it was read from.}\\end{center}\n"
-             % rt.esc_text(bibkey))
-    dest = doc_dir / "B.tex"
-    dest.write_text(pre + title + body + "\n\\end{document}\n")
-
-    parts = ["Wrote %s — %d rows (%s)%s."
-             % (dest, len(rows),
-                ", ".join("%d %s" % (v, k) for k, v in sorted(by_kind.items())),
-                "" if not rt.pagesel_line(pages)
-                else "; EMITTING THE FIRST %d PAGES ONLY (--pages)" % pages)]
-    if images:
-        if pseudo:
-            parts.append("Inline-formula crops from host-line regions: "
-                         "%d rendered, %d cached, %d skipped."
-                         % tuple(fo_rendered))
-    if compile_pdf:
-        res = rt.compile_fixpoint(dest)
-        if res is None:
-            parts.append("xelatex not installed — B.tex written, not compiled.")
-        else:
-            pages, errors, demoted = res
-            parts.append("Compiled B.pdf: %d page(s), %d error(s), %d demoted."
-                         % (pages, errors, demoted))
-    sc.set_evidence("breport_path", str(dest.relative_to(pdf.parent)))
-    sc.save()
-    return "\n".join(parts)
+    """ALIAS of `residuals --pdf` (spec 2026-09-06). B's three-column
+    LaTeX/rendering/picture reading is now residuals.pdf's job."""
+    out = cmd_residuals(pdf, pdf_out=True, paper=paper, landscape=landscape,
+                        compile_pdf=compile_pdf, images=images, pages=pages)
+    return out + "\n" + alias_note("breport")
 
 
 def _evidence_line(r: dict, pdf_out: bool, compile_pdf: bool) -> str:
@@ -5338,8 +5294,8 @@ def cmd_residuals(pdf: Path, pdf_out: bool = False, measure: bool = False,
     from .reports.from_document import build_rows
     out = []
     if measure:
-        out.append(cmd_inkreport(pdf, timeout=timeout, profile="internal",
-                                 findings=False))
+        out.append(_inkreport_chain(pdf, timeout=timeout, profile="internal",
+                                    findings=False))
     sc = Sidecar(pdf)
     model_path = _model_path(sc)
     if _stale_or_absent(sc, model_path, _lines_json_path(pdf)):
@@ -9268,66 +9224,22 @@ def cmd_distill(pdf: Path, embed: bool = False) -> str:
 @_writes("report")
 def cmd_report(pdf: Path, force: bool = False, embed: bool = False,
                scale: float = 1.0) -> str:
-    """Emit a full inline+display math report (formula-report.html).
-
-    Lists every inline Formula (LaTeX + KaTeX) and every display Equation
-    (+ MathPix CDN image + equation number). Auto-chains `model`. `scale` sets
-    the KaTeX-to-CDN-image height multiplier (1.0 = same height, 2.0 = 200%).
+    """ALIAS of `evidence --kind formula` / `evidence --kind equation` (spec
+    2026-09-06). `force`, `embed`, `scale` are accepted so the CLI keeps
+    parsing old invocations and are otherwise ignored — evidence has no
+    equivalent knob. `formula-report.html` is kept as a copy of the new
+    `evidence-formula.html` under its old name, for anything still looking
+    for it.
     """
-    from docmodel.core import Document
-    from docops.base import OperatorConfig
-    from docops.projectors.formula_report import FormulaReportProjector
-
-    sc = Sidecar(pdf)
-    model_path = _model_path(sc)
-    if _stale_or_absent(sc, model_path, _lines_json_path(pdf)):
-        cmd_model(pdf)
-        sc = Sidecar(pdf)
-        model_path = _model_path(sc)
-    if not model_path.exists():
-        return f"No model for {pdf.name} (run `pdfdrill model` first)."
-
-    with open(model_path, "r", encoding="utf-8") as f:
-        doc = Document.from_dict(json.load(f))
-
-    proj = FormulaReportProjector(
-        OperatorConfig(op="projector", classname="FormulaReportProjector",
-                   params={"embed": embed, "katex_scale": scale}))
-    result = proj.project(doc)
-    inline = proj.counters.get("inline_rows", 0)
-    eqs = proj.counters.get("equation_rows", 0)
-
-    sc.blob_dir.mkdir(parents=True, exist_ok=True)
-    out_path = sc.blob_dir / "formula-report.html"
-    out_path.write_text(result, encoding="utf-8")
-
-    sc.set_evidence("report_path", str(out_path.relative_to(sc.pdf_path.parent)))
-    prev = ",".join(sorted(sc.facts - {REPORT_BUILT})) or "INIT"
-    sc.add_fact(REPORT_BUILT)
-    sc.log_transition("report", prev, REPORT_BUILT, detail=f"{inline} inline, {eqs} equations")
-    sc.save()
-    rel = _artref(sc, out_path)
-    msg = (f"Formula report: {inline} inline formulas + {eqs} display equations "
-           f"(LaTeX | KaTeX | image). Open {rel} in a browser.")
-    # If the report is EMPTY of math, don't leave the user guessing — say WHY and
-    # WHAT to do. A keyless (tesseract) build types no equations; the gate sets
-    # NEEDS_VISION_OCR. Steer to the right recovery, arXiv-gold first.
-    if inline == 0 and eqs == 0:
-        from . import mathqc
-        bearing, why = (True, "math-bearing") if sc.has(NEEDS_VISION_OCR) \
-            else mathqc.is_math_bearing(pdf, sc)
-        if bearing:
-            aid = _arxiv_id_for(pdf, sc)
-            routes = []
-            if aid:
-                routes.append(f"`pdfdrill injectlatex {pdf.name}` (FREE: the author's gold "
-                              f"arXiv equations → real Equation objects)")
-            routes.append(f"`pdfdrill visionocr {pdf.name}` (keyless: an LLM reads each page)")
-            routes.append(f"`pdfdrill mathpix {pdf.name} --force` (paid MathPix)")
-            msg += ("\n⚠ 0 formulas because the model was built from keyless "
-                    f"tesseract OCR, which cannot type equations ({why}). Recover them with:\n  - "
-                    + "\n  - ".join(routes) + "\nthen re-run `report`.")
-    return msg
+    import shutil as _sh
+    out = [cmd_evidence(pdf, kind="formula", pdf_out=False),
+           cmd_evidence(pdf, kind="equation", pdf_out=False)]
+    src = pdf.parent / "evidence-formula.html"
+    if src.is_file():
+        _sh.copyfile(src, pdf.parent / "formula-report.html")
+        out.append("formula-report.html kept as a copy of evidence-formula.html")
+    out.append(alias_note("report"))
+    return "\n".join(out)
 
 
 def _inspect_pages_dir(pdf: Path, sc: "Sidecar", pages: str | None,

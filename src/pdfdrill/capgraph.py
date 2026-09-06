@@ -47,12 +47,17 @@ GATE_FACTS = frozenset({"NEEDS_VISION_OCR", "ABSTRACT_ABSENT", "TOC_ABSENT"})
 # the sidecar/OCR-layer facts that don't live in the docmodel (fonts/images/tsv/
 # links/urls/dests/attachments/formfields/tables/qr/rasterized/continuity/
 # entities/segmented/md — independent of a model rebuild).
+#: REPORT_BUILT dropped (spec 2026-09-06, task 10): `report` is now a thin
+#: alias of `evidence`, which tracks its output via `set_evidence`, not
+#: `add_fact` — no command produces REPORT_BUILT any more, so a model rebuild
+#: has nothing left under that name to invalidate. `evidence`/`residuals`
+#: gaining their own fact (and this list gaining theirs) is future work.
 _MODEL_DERIVED = (
     "LATEX_INGESTED", "GEOMETRY_FUSED", "EQNUMS_FUSED", "NLP_ENHANCED",
     "LISTS_BUILT", "ALGORITHMS_BUILT", "ANNOTATIONS_BUILT", "SCORED",
     "ESCALATION_OPEN", "BIBLIOGRAPHY_BUILT", "BIBFETCH_DONE", "BIBSOURCE_BUILT",
     "EMBEDDED_IMAGES_BUILT", "SEMANTIC_BUILT", "ELEMENTS_BUILT",
-    "TIDDLERS_BUILT", "COMPARE_BUILT", "REPORT_BUILT", "VISION_DONE",
+    "TIDDLERS_BUILT", "COMPARE_BUILT", "VISION_DONE",
     "SNIP_RAN", "TRANSLATED", "SPELLQC_BUILT", "FONTID_BUILT",
 )
 

@@ -198,13 +198,16 @@ def test_the_output_block_lists_only_files_that_exist(tmp_path):
     name one it did not produce. Naming an absent artefact is the same defect
     as a check that passes on absent evidence.
 
-    Asserted on the SOURCE because the block is the last thing cmd_inkreport
-    does and reaching it needs a full chain; what matters is the rule, which
-    is `if f.is_file()`.
+    Asserted on the SOURCE because the block is the last thing
+    `_inkreport_chain` does and reaching it needs a full chain; what matters
+    is the rule, which is `if f.is_file()`.
+
+    task 10 — re-pointed at `_inkreport_chain` (renamed from `cmd_inkreport`,
+    now a thin alias of `residuals --measure --pdf`).
     """
     import inspect
     from pdfdrill import commands
-    src = inspect.getsource(commands.cmd_inkreport)
+    src = inspect.getsource(commands._inkreport_chain)
     assert "OUTPUT" in src
     assert "if f.is_file():" in src
     assert "not produced" in src
@@ -217,13 +220,15 @@ def test_no_resume_still_reaches_the_measure_step(monkeypatch, tmp_path):
     it, so every document with an existing ink.json printed "NO RESUME.
     Re-measuring." and then measured nothing. The message caused the failure
     it exists to report.
+
+    task 10 — re-pointed at `_inkreport_chain`, where this logic lives now.
     """
     import ast
     import pathlib
     src = (pathlib.Path(__file__).resolve().parents[1]
            / "src" / "pdfdrill" / "commands.py").read_text(encoding="utf-8")
     fn = next(n for n in ast.walk(ast.parse(src))
-              if isinstance(n, ast.FunctionDef) and n.name == "cmd_inkreport")
+              if isinstance(n, ast.FunctionDef) and n.name == "_inkreport_chain")
     # the `if resumed:` statement, and the branch that is NOT the resume
     node = next(n for n in ast.walk(fn)
                 if isinstance(n, ast.If) and isinstance(n.test, ast.Name)

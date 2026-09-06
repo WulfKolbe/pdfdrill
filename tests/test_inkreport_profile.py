@@ -30,15 +30,18 @@ def test_an_unknown_profile_is_refused_before_anything_is_spent(tmp_path):
 def test_a_profile_sets_the_formula_rule_AND_NOTHING_ELSE():
     """The claim in the name, checked against the source rather than trusted.
 
-    `cmd_inkreport` must use `rule` only as the `formulas=` argument of its two
-    builds. A profile that also reached for the paper size or the legend would
-    make "which profile built this" a question about behaviour instead of one
-    field.
+    `_inkreport_chain` must use `rule` only as the `formulas=` argument of its
+    two builds. A profile that also reached for the paper size or the legend
+    would make "which profile built this" a question about behaviour instead
+    of one field.
+
+    task 10 — re-pointed at `_inkreport_chain` (renamed from `cmd_inkreport`,
+    now a thin alias of `residuals --measure --pdf`).
     """
     src = ast.parse((ROOT / "src" / "pdfdrill" / "commands.py")
                     .read_text(encoding="utf-8"))
     fn = next(n for n in ast.walk(src)
-              if isinstance(n, ast.FunctionDef) and n.name == "cmd_inkreport")
+              if isinstance(n, ast.FunctionDef) and n.name == "_inkreport_chain")
     uses = []
     for node in ast.walk(fn):
         if isinstance(node, ast.Name) and node.id == "rule" and \
@@ -86,15 +89,17 @@ def test_every_build_in_inkreport_takes_the_rule_AND_the_shape():
     documents had an ink measured against a differently-shaped report. A build
     inside `cmd_inkreport` that takes one and not the other is that defect
     coming back.
+
+    task 10 — re-pointed at `_inkreport_chain`, where these builds live now.
     """
     src = ast.parse((ROOT / "src" / "pdfdrill" / "commands.py")
                     .read_text(encoding="utf-8"))
     fn = next(n for n in ast.walk(src)
-              if isinstance(n, ast.FunctionDef) and n.name == "cmd_inkreport")
+              if isinstance(n, ast.FunctionDef) and n.name == "_inkreport_chain")
     calls = [n for n in ast.walk(fn)
              if isinstance(n, ast.Call)
              and getattr(n.func, "id", getattr(n.func, "attr", "")) == "cmd_reporttex"]
-    assert calls, "cmd_inkreport builds no report"
+    assert calls, "_inkreport_chain builds no report"
     # 585 — THE TWO BUILDS ARE NOW DELIBERATELY DIFFERENT, and this test says
     # how, rather than being deleted. 561's defect was that the shape was
     # passed to NEITHER build and so defaulted silently; the invariant that

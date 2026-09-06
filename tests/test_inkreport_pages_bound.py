@@ -38,9 +38,12 @@ def test_no_build_inside_inkreport_takes_a_bound_and_the_flag_is_refused():
     inkreport's builds write report.tables.json, so neither can be bounded —
     and the flag is refused by name rather than dropped, which is the 578
     defect this file was opened for.
+
+    task 10 — re-pointed at `_inkreport_chain`, where these builds live now.
+    `cmd_inkreport` is a thin alias and no longer builds anything itself.
     """
     import re
-    src = inspect.getsource(C.cmd_inkreport)
+    src = inspect.getsource(C._inkreport_chain)
     for call in re.findall(r"cmd_reporttex\((?:[^()]|\([^()]*\))*\)", src, re.S):
         assert "pages=pages" not in call, "a bounded manifest build: %s" % call
     assert "refuses --pages" in src, "the flag must be refused, not ignored"
@@ -76,9 +79,13 @@ def test_the_pages_parameter_is_never_rebound_inside_cmd_inkreport():
     """578 — one line assigned the PLAN's page estimate to `pages`, the
     parameter carrying --pages, so the resume test, all three builds and the
     stamp received an estimate instead of the bound. No error anywhere: the
-    run simply measured a different report from the one requested."""
+    run simply measured a different report from the one requested.
+
+    task 10 — re-pointed at `_inkreport_chain`, where the plan/resume/build
+    logic this guards now lives.
+    """
     import ast
-    tree = ast.parse(inspect.getsource(C.cmd_inkreport).lstrip())
+    tree = ast.parse(inspect.getsource(C._inkreport_chain).lstrip())
     fn = tree.body[0]
     params = {a.arg for a in fn.args.args} | {a.arg for a in fn.args.kwonlyargs}
     assert "pages" in params
@@ -89,7 +96,7 @@ def test_the_pages_parameter_is_never_rebound_inside_cmd_inkreport():
                if isinstance(n, ast.Name) and isinstance(n.ctx, ast.Store)
                and n.id == "pages"]
     assert not rebound, (
-        "cmd_inkreport rebinds `pages` at line(s) %s of the function — every "
+        "_inkreport_chain rebinds `pages` at line(s) %s of the function — every "
         "later reader gets the new value silently." % rebound)
 
 

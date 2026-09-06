@@ -27,8 +27,10 @@ def test_the_measure_phase_constants_are_the_full_listing():
 
 
 def test_step_2_builds_the_full_listing_regardless_of_profile():
+    """task 10 — re-pointed at `_inkreport_chain`, where step 2 lives now
+    (`cmd_inkreport` is a thin alias of `residuals --measure --pdf`)."""
     import inspect
-    src = inspect.getsource(C.cmd_inkreport)
+    src = inspect.getsource(C._inkreport_chain)
     i = src.index("2 — the MEASURE build")
     j = src.index("2b —", i)
     call = src[i:j]

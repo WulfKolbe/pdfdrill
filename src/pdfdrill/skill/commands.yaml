@@ -555,7 +555,8 @@ commands:
   typed: true
 - name: inkreport
   section: Reporting
-  summary: 'THE ink chain, one command, and the only supported way to produce an
+  summary: 'ALIAS of residuals --measure --pdf. THE ink chain, one command, and
+    the only supported way to produce an
     ink-updated report: preflight (reads disk, at most ONE crop probe, spends
     nothing) -> build --no-legend (phase=measure) -> inkdrill measure -> inkconvert
     --force -> build with legend+ink (phase=reading) -> inspect -> publishready.
@@ -1631,7 +1632,7 @@ commands:
       structural counts'
 - name: breport
   section: Introspection (fast, no extraction)
-  summary: 'B (B.tex/B.pdf): EVERY row of the document — display equations, inline
+  summary: 'ALIAS of residuals --pdf. B (B.tex/B.pdf): EVERY row of the document — display equations, inline
     formulas, tables and image regions — in three columns and no more: the LaTeX
     MathPix returned, that LaTeX rendered through THIS DOCUMENT''S OWN PREAMBLE, and
     the picture it was read from. Rows carry their A-state (corrected / unresolved /
@@ -1792,7 +1793,7 @@ commands:
   typed: true
 - name: reporttex
   section: Introspection (fast, no extraction)
-  summary: 'LaTeX formula report (report.tex): one boxed longtable row per EQ/FO/TAB — identifier, page,
+  summary: 'ALIAS of evidence --all-kinds --pdf. LaTeX formula report (report.tex): one boxed longtable row per EQ/FO/TAB — identifier, page,
     escaped source, rendered math, and the MathPix scan crop at pixel-exact original size (px2mm derived
     from pdfinfo + lines.json); the tex.zip unrecovered image regions (TikZ/table/failed-math candidates)
     close the report. --compile runs the xelatex fixpoint (malformed OCR rows demoted to source-only,
@@ -1922,8 +1923,8 @@ commands:
   typed: true
 - name: report
   section: Introspection (fast, no extraction)
-  summary: Full inline+display math report (formula-report.html). --scale N scales each KaTeX render to
-    the CDN image height (1.0=same, 2.0=200%); --embed
+  summary: 'ALIAS of evidence --kind formula. Full inline+display math report (formula-report.html). --scale N scales each KaTeX render to
+    the CDN image height (1.0=same, 2.0=200%); --embed'
   offline_ok: true
   positionals:
   - name: pdf
