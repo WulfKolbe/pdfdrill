@@ -10963,6 +10963,9 @@ def cmd_tiddlers(pdf: Path, force: bool = False, embed: bool = False,
     # Reference object at all. Report every time it still does, so that
     # case is visible here rather than silently degrading.
     placeholders_fired = proj.counters.get("citation_placeholders_fired", 0)
+    # 645 -- a Citation with no sub-anchor offset/length cannot be put back
+    # into the prose; the projector never invents one, it counts them.
+    cits_no_span = proj.counters.get("citations_without_a_span", 0)
 
     bibkey = key
     sc.blob_dir.mkdir(parents=True, exist_ok=True)
@@ -10999,7 +11002,7 @@ def cmd_tiddlers(pdf: Path, force: bool = False, embed: bool = False,
     # "double bug" class. Report it so it can't hide.
     from docops.projectors.tiddlywiki import tiddler_integrity
     integ = tiddler_integrity(json.loads(result))
-    if integ["dangling"] or integ["orphan_synthetic"]:
+    if integ["dangling"] or integ["orphan_synthetic"] or integ["unreferenced"]:
         bits = []
         if integ["dangling"]:
             bits.append(f"{len(integ['dangling'])} DANGLING transclusion(s) "
@@ -11007,14 +11010,30 @@ def cmd_tiddlers(pdf: Path, force: bool = False, embed: bool = False,
         if integ["orphan_synthetic"]:
             bits.append(f"{len(integ['orphan_synthetic'])} ORPHAN synthetic "
                         f"formula(s) (e.g. {', '.join(integ['orphan_synthetic'][:3])})")
+        # 645 — a tiddler nothing points at is in the file and invisible in the
+        # wiki. Reported BY PREFIX so the class is readable at a glance, with
+        # the bibliography entries (REF) named first: a REF tiddler no
+        # paragraph links to is a citation that never reached the page.
+        if integ["orphan_ref"]:
+            bits.append(f"{len(integ['orphan_ref'])} REF tiddler(s) linked from "
+                        f"NOTHING (e.g. {', '.join(integ['orphan_ref'][:3])})")
+        others = {k: v for k, v in integ["unreferenced_by_prefix"].items()
+                  if k != "REF"}
+        if others:
+            bits.append("unreferenced: "
+                        + ", ".join(f"{v} {k}" for k, v in others.items()))
         integ_note = " ⚠ integrity: " + "; ".join(bits) + "."
     else:
         integ_note = (f" Integrity OK: {integ['transclusions']} transclusions, "
-                      f"0 dangling, 0 orphan.")
+                      f"0 dangling, 0 orphan, 0 unreferenced.")
     placeholder_note = (f" {placeholders_fired} citation placeholder(s) fired "
                         f"(a citekey with NO Reference object at all — "
                         f"expected to be 0 now that the model stubs every "
                         f"cited key)." if placeholders_fired else "")
+    span_note = (f" {cits_no_span} citation(s) carry NO span (offset/length) "
+                 f"and so reach no paragraph — the detector that made them "
+                 f"did not record the match position."
+                 if cits_no_span else "")
     guard = _unrendered_graphics_note(doc.objects.values())
     # A sibling array older than the model carries the titles of a PREVIOUS
     # export. Imported beside this one it puts two naming schemes in the same
@@ -11034,7 +11053,8 @@ def cmd_tiddlers(pdf: Path, force: bool = False, embed: bool = False,
     return (f"Wrote {count} TiddlyWiki tiddlers to {rel}. Import into TiddlyWiki; "
             f"diagram SVGs render via {{{{!!svg_tiddler}}}} "
             f"({'inline' if embed_svg else 'external _canonical_uri'}).{svg_note}"
-            f"{integ_note}{placeholder_note}{guard}{stale_note}{trans_note}")
+            f"{integ_note}{placeholder_note}{span_note}{guard}{stale_note}"
+            f"{trans_note}")
 
 
 # Tag -> the tiddler field whose prose gets translated. Math/code/image/toc

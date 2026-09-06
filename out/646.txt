@@ -164,7 +164,8 @@ WHAT MOVED SINCE ROUND 0, AND WHY — THE REVIEWER EXPECTED NOTHING TO
 
   THE WALK HALF. penev_A: 0 objects change class, flat and walk agree on all
   266 unreachable and all 121 multi-parent. penev_B: 14 more unreachable and
-  4 fewer multi-parent. All 14 are FORMULAS whose only transcluding
+  2 fewer multi-parent (the other 2 belong to 644's Footnote renumbering,
+  credited one paragraph earlier). All 14 are FORMULAS whose only transcluding
   paragraphs are themselves unreachable (penev_B's 15 page-1 orphan
   paragraphs) — FO0001, FO0002, FO0004, FO0005, FO0006, FO0029 among them.
   Under a flat scan they had a parent and looked present; they are not in the

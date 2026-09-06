@@ -1,0 +1,284 @@
+645 — citations reach the page; the integrity check sees an unreferenced REF
+============================================================================
+
+THE USER'S THREE CLAIMS, CHECKED FIRST RATHER THAN ASSUMED
+  "penev_A has 81 Citation objects"                     TRUE, still 81.
+  "the array contains 0 CIT tiddlers and CIT appears
+   in none of the 1609 transclusion calls"              NO LONGER TRUE. It
+    was true when it was measured. 639 (the stub REF tiddler) and 644 (the
+    title table) landed after, and at HEAD (dda4acf) the penev_A array
+    already held 1654 transclusions of which 111 were `CIT` — 52 the empty
+    `{{||CIT}}` that leads every stub REF body, and 59 real links from
+    prose. The claim's SUBSTANCE was still right: 22 of 81 citations
+    reached no paragraph and 12 of 52 REF tiddlers were linked from
+    nothing.
+  "the projector reports 0 dangling, 0 orphan"          TRUE, and the
+    reason is the second half of this task: `tiddler_integrity` counted a
+    SYNTHETIC (FOX) tiddler nobody names and nothing else, so 12 unlinked
+    bibliography entries were invisible to it.
+
+  Rule 12: the numbers moved between the report and the fix, and the
+  movement is named here rather than folded into a fresh "before".
+
+EVIDENCE (library, deny-by-default git; never committed to this repo)
+  ~/pdfdrill-library/penev_A/out/645/script.py   the exact source that ran,
+  ~/pdfdrill-library/penev_B/out/645/script.py   through the real CLI entry
+  ~/pdfdrill-library/out/645/script.py           points (cmd_model,
+                                                 cmd_bibliography,
+                                                 cmd_tiddlers, cmd_conserve)
+  ~/pdfdrill-library/penev_{A,B}/out/645/model.before.docmodel.json
+                                       the model AS IT STOOD at dda4acf,
+                                       frozen. Every BEFORE number is read
+                                       from a frozen artefact — this file,
+                                       644's `out/644/after.json` array and
+                                       646's `out/646/conserve.json` — never
+                                       recomputed, so a second run of the
+                                       script cannot report its own output.
+  ~/pdfdrill-library/penev_{A,B}/out/645/result.json      every count below
+  ~/pdfdrill-library/penev_{A,B}/out/645/after.tiddlers.json  the projection
+  ~/pdfdrill-library/penev_{A,B}/out/645/conserve.txt     the claim audit
+  ~/pdfdrill-library/out/645/pair.json                    both side by side
+  ~/pdfdrill-library/penev_{A,B}/out/645/INSPECT.txt  6 paths each, checked
+  ~/pdfdrill-library/out/645/INSPECT.txt              1 path, checked
+  brief   tasks/645 brief (coordinator), out/639.txt, out/644.txt, out/646.txt
+
+THE FINDING — WHERE A CITATION'S SPAN COMES FROM, AND WHAT IS WRONG WITH IT
+  The brief suspected the three `bibliography.py` detectors record no span at
+  creation. They DO — all three write `offset`/`length` on a `surface`
+  Realization, and on penev_A **0 of 81 citations lacked a span**, before or
+  after. The defect is a different one and it is the reason citations did not
+  reach the prose:
+
+  A CITATION GROUP IS N OBJECTS SHARING ONE SPAN.
+    `detect_numeric_citations` (`[1,2,3]`), `detect_author_year_citations`
+    (`(Oja 1989; Sanger 1989)`) and `detect_author_year_in_objects` each
+    create one Citation per key and give EVERY one of them the span of the
+    WHOLE GROUP. The projector then substituted them one at a time, and
+    `_apply_line_substitutions` (correctly, defensively) drops a substitution
+    that overlaps one already accepted — so one key won and the rest were
+    dropped on the floor. penev_A: 11 spans hold 25 citations; 14 citations
+    were lost that way and with them 12 of 52 REF tiddlers' only inbound
+    link. `(Linsker 1988; Oja 1989; Sanger 1989; Földiák 1990; Plumbey 1991)`
+    is one span at offset 1, length 65 carrying four Citations; one survived.
+    This is 646-c, measured and now fixed.
+
+  AND `CitationProcessor` (model build, the `[key]` scan) does the opposite:
+    `_split_offsets` gives each key in `[a, b]` its OWN sub-span. Nothing was
+    dropped there — but each key was replaced separately INSIDE the source
+    brackets, and the `CIT` template renders `[<$link…>key</$link>]`, so the
+    reader got `[[a], [b]]`.
+
+  Both shapes are the same fact: a citation group is ONE piece of prose, so
+  it is ONE substitution.
+
+  AND ONE SPAN WAS BEING GUESSED. `detect_author_year_in_objects` reads an
+  OBJECT's joined text and recorded `m.start()` — a position in THAT text —
+  against the object's own Realization, whose `start` is the object's FIRST
+  line. On any paragraph longer than one line that offset names a character
+  position that does not exist on that line: the projector substitutes the
+  wrong stretch of prose, or (once the offset runs past the line) nothing.
+  It is now LOOKED UP: `_span_on_its_own_line` walks the lines the
+  realization spans and returns the group's real position on the line it is
+  actually on. When no line reproduces the group (a mutator rewrote the
+  object's text) NO span is recorded — the citation is still anchored, so it
+  still gets its Reference stub and its `cites` edge, and `spans_unrecorded`
+  counts it. A position is never invented (rule 5).
+
+WHAT WAS BUILT (this branch, eqblobs-and-gzip-tex)
+  src/docops/projectors/tiddlywiki.py
+    - `_build_inline_subs` collects every citation span on a line and hands
+      them to the new `_citation_groups`, which merges spans that are
+      identical, that overlap, or that are separated only by whitespace/`,`/
+      `;` — the three shapes a multi-key citation takes — and yields ONE
+      substitution per group holding one `{{<REF title>||CIT}}` per distinct
+      key in source order. A finished group flanked by a matching `[...]` or
+      `(...)` swallows the pair, because the `CIT` template supplies the
+      brackets; a group whose span already includes them (what the
+      author-year detectors record) is left alone. `_maybe_extend_brackets`
+      is DELETED — the new method subsumes it exactly, including its "solo,
+      comma-free" case.
+    - a Citation with no `offset`/`length` at all bumps the new counter
+      `citations_without_a_span`; `cmd_tiddlers` prints it. Nothing guesses.
+    - `tiddler_integrity` gains `orphan_ref`, `unreferenced` and
+      `unreferenced_by_prefix`; `dangling` and `orphan_synthetic` are
+      untouched. `UNREFERENCED_KINDS` is the eight kinds that reach a reader
+      ONLY through a transclusion (Formula, Equation, Footnote, Sidenote,
+      Table, Diagram, Picture, Reference). Paragraph/Section/Abstract/
+      ListItem/Page/Toc are text and are reachable by navigation; the 16
+      templates and the root are scaffolding. The kind of a title is read
+      with 644's `parse_title` — a prefix regex here would have been the
+      fourteenth copy of the scheme (rule 17).
+  src/docmodel/modules/citation.py (`ensure_reference_stub`)
+    - 646-g. A stub Reference is INLINE, exactly like the citation it was
+      made from, so it copies that citation's `offset`/`length` sub-anchor
+      instead of carrying a bare `surface` Realization that CLAIMS the whole
+      citing prose line. The ROLE stays `"surface"`: three consumers select
+      on it or on the (stream, start, end) triple —
+      `bibliography_section_anchors` (role/provenance == "bibliography"),
+      `absorb_stub` and `_count_resolved` — and a role of its own would make
+      the stub invisible to all three.
+  src/pdfdrill/bibliography.py
+    - `_span_on_its_own_line` (the lookup above) and `spans_unrecorded(doc)`,
+      the measurement: how many Citations carry no sub-anchor span.
+    - `detect_author_year_in_objects` uses both.
+  src/pdfdrill/commands.py (`cmd_tiddlers`)
+    - the integrity line now names REF tiddlers linked from nothing and
+      counts the rest by prefix ("unreferenced: 36 FN, 41 FO, 1 SN"), and the
+      OK line reads "0 dangling, 0 orphan, 0 unreferenced".
+  docs/TRANSCLUSION.md
+    - a new section, "The third shape: a tiddler nothing points at" — the
+      dangling/unreferenced pair, the five keys `tiddler_integrity` returns,
+      and the fact that inline substitution runs on PARAGRAPH bodies only
+      (below).
+
+THE NUMBERS — penev_A
+  BEFORE is 644's frozen array (`out/644/after.json`) and 646's frozen claim
+  audit; AFTER is `model --force` -> `bibliography --force` -> `tiddlers
+  --force` -> `conserve` on this worktree.
+
+                                          BEFORE      AFTER
+    Citation objects                          81         81
+    citations WITHOUT a span                   0          0    <- the brief's
+                                                                  suspected
+                                                                  cause; not
+                                                                  this one
+    CIT transclusions, total                 111        124
+      of which the stub bodies' `{{||CIT}}`   52         52
+      of which links FROM PROSE               59         72
+    REF tiddlers                              52         52
+    REF tiddlers with an inbound link         40         48
+    orphan_ref                                12          4
+    dangling                                   0          0
+    orphan_synthetic                           0          0
+    transclusions                           1654       1667
+    ---- pdfdrill conserve ---------------------------------
+    doubly-claimed anchors                    83         42
+      Paragraph + Reference (1..4 refs)       37          0
+      Footnote + Reference                     4          0
+      Footnote + Paragraph                    34         35
+    unreachable objects                      266        258
+      of which Reference                      12          4
+    unclaimed anchors                        243        243
+
+  Every delta accounted for, and counted rather than reasoned: 11 spans on
+  penev_A carry more than one Citation and hold 25 of the 81. TEN of the 11
+  sit on a line a Paragraph covers and hold 23 citations, so the group fix
+  adds 23 - 10 = 13 transclusions — exactly the +13. The eleventh
+  (`Mumford1991`, `Mumford1992`) sits on a FOOTNOTE line, which is why both
+  Mumfords are still in `orphan_ref` (645-a below). +8 REF with an inbound
+  link is exactly the 8 References that
+  stop being unreachable (12 -> 4). The 42 anchors a Reference used to
+  co-claim drop to 0; the one anchor that was `Footnote + Paragraph +
+  Reference` becomes `Footnote + Paragraph`, which is why that pair reads 35
+  and not 34.
+
+THE NUMBERS — penev_B, AND A CHANGE OF STATE THAT IS NOT 645's
+  646 recorded that penev_B "carries no Citation, Reference, Table or Toc
+  objects at all". That was true of the MODEL as it stood, not of the
+  document: `pdfdrill bibliography` had never been run on it. Running it
+  (this task's rebuild does) finds 25 Citations and creates 23 stub
+  References. So penev_B's before/after is not a like-for-like comparison of
+  the same population, and it is not presented as one.
+
+                                          BEFORE      AFTER
+    Citation objects                           0         25
+    citations WITHOUT a span                   0          0
+    Reference objects / REF tiddlers           0         23
+    CIT transclusions from prose               0         20
+    REF tiddlers with an inbound link          0         18
+    orphan_ref                                 0          5
+    dangling / orphan_synthetic              0/0        0/0
+    doubly-claimed anchors                    51         51
+      Paragraph + Reference                     0          0   <- 23 stubs
+                                                                  created, 0
+                                                                  claims: the
+                                                                  646-g fix,
+                                                                  on a
+                                                                  population
+                                                                  646 could
+                                                                  not test
+    unreachable objects                      108        138    (+25 Citations
+                                                                with no
+                                                                tiddler, +5
+                                                                unreached
+                                                                References)
+
+  This is the citation-bearing second document 646's CONCERNS asked for, and
+  it agrees with penev_A on every class.
+
+WHAT IS STILL ORPHANED, AND WHY — 645-a
+  4 of 52 penev_A REF tiddlers and 5 of 23 penev_B ones have no inbound link
+  after the fix. Every one of them was checked, not assumed: the citation's
+  line is owned by a FOOTNOTE, and a Footnote tiddler's body is copied from
+  `props["content"]` VERBATIM. Inline substitution (`FO`, `CIT`, `FN`, the
+  picture URLs) runs on PARAGRAPH bodies only — `_transclude_paragraph` is
+  the one place `subs_by_line` is applied. So no formula and no citation
+  inside a footnote, sidenote, list item or abstract has EVER become a
+  transclusion, on any document. That is a bigger class than these 9 links
+  (it is the same mechanism behind the 36 penev_A / 20 penev_B unreachable
+  Footnotes, 646-a2) and it is named rather than half-fixed here: the
+  footnote body is a JOINED string and the offsets are per-line, so wiring it
+  up is its own measurement.
+
+A SECOND FINDING, NAMED NOT FIXED — 645-b
+  `detect_author_year_citations` (the mathpix-lines detector, which produced
+  80 of penev_A's 81 citations) matches a surname with
+  `\b([A-Z][A-Za-z\-']{1,})` — ASCII only. `detect_author_year_in_objects`,
+  the same job on the object path, uses `_AY_SURNAME`
+  (`[A-ZÀ-Þ][A-Za-zÀ-ſ\-']{1,}`) plus `_fold_key`. So the group
+  `(Linsker 1988; Oja 1989; Sanger 1989; Földiák 1990; Plumbey 1991)`
+  produces FOUR citations on penev_A and not five: `Földiák` matches
+  nothing and the reference is silently absent from the model. Confirmed by
+  running both patterns against the string. Not fixed here — a surname class
+  change alters citekeys corpus-wide and deserves its own measurement, not a
+  line inside a task about transclusion.
+
+TESTS (TDD; every one confirmed failing for its stated reason first)
+  tests/test_citation_transclusion.py, 9 tests:
+    * `[a, b]` at one shared span -> `{{D_REF_a||CIT}}` then
+      `{{D_REF_b||CIT}}`, in that order (was: only `D_REF_a`);
+    * the group's own brackets are consumed, not doubled — the whole
+      replacement is asserted as a literal, so `[[a], [b]]` fails it;
+    * a key repeated inside one group is transcluded once;
+    * `tiddler_integrity` on the emitted array: `orphan_ref == []` and
+      `unreferenced == []`, with `dangling`/`orphan_synthetic` unchanged;
+    * remove ONE transclusion from the PARA text and the check names that
+      REF — `orphan_ref == ["D_REF_b"]`, `dangling == []` (the tiddler
+      exists; nothing points at it, which is the shape that used to hide);
+    * a Formula tiddler nobody names is reported under `FO`, and no
+      PARA/H title is ever reported;
+    * `ensure_reference_stub` -> `docops.conserve.anchor_claims(doc)` reports
+      0 doubly-claimed anchors on the citation's line, AND the stub is still
+      anchored there with the citation's own offset/length;
+    * `detect_author_year_in_objects` on a TWO-LINE paragraph records the
+      span on the line the group is actually on, verified by slicing that
+      line's text and comparing it to `(Smith 1999)`;
+    * an object whose text no line reproduces gets NO offset and
+      `spans_unrecorded` returns 1.
+
+  FULL SUITE: PYTHONDONTWRITEBYTECODE=1 PYTHONPATH=src python3 -m pytest
+  tests/ -q -p no:cacheprovider  ->  3164 passed, 0 failed
+  (3155 before this task; 9 new).
+
+CARRIED INTO out/646.txt
+  "THE WALK HALF": "14 more unreachable and 4 fewer multi-parent" now reads
+  "2 fewer multi-parent (the other 2 belong to 644's Footnote renumbering,
+  credited one paragraph earlier)". One sentence, no other change.
+
+CONCERNS
+  penev_B's model changed materially in this run — 25 Citations and 23
+  Reference stubs that were not there before, because `bibliography` had
+  never been run on that document. That is a real improvement to the
+  document and it is also the reason penev_B's before/after is not a
+  like-for-like delta; it is labelled as such above and nothing is inferred
+  from it that penev_A does not also show.
+  `model --force` was run on penev_A to reach the LAST stub the fix had not
+  touched: `CitationProcessor` creates stubs at model-build time (the one
+  `[dB]` citation), so `bibliography --force` alone left that stub claiming
+  its line and the Paragraph+Reference count read 1 instead of 0. Both
+  documents were therefore rebuilt from `lines.json`; penev_A's object count
+  (1405), anchor count (3178) and unclaimed count (243) are unchanged by the
+  rebuild, which is the check that it changed nothing else.
+  The residue is 645-a and it is the honest answer to the brief's "expect 52
+  of 52": 48 of 52 on penev_A, and the four that are missing are missing for
+  a reason that is written down and measured, not for an unknown one.

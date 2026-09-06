@@ -484,6 +484,63 @@ def _fold_key(s: str) -> str:
     return "".join(c for c in s if not _ud.combining(c)).lower()
 
 
+def spans_unrecorded(doc) -> int:
+    """645 — how many Citation objects carry NO sub-anchor span.
+
+    A citation without an `offset`/`length` on a `surface` Realization cannot
+    be put back into the prose: the TiddlyWiki projector substitutes inline
+    elements by per-line offset+length, so such a citation reaches no page and
+    the Reference behind it is linked from nothing. The number is MEASURED
+    rather than assumed — a span is never invented to make it zero (rule 5).
+    """
+    n = 0
+    for o in doc.objects.values():
+        if o.type != "Citation":
+            continue
+        if not any(r.role == "surface"
+                   and isinstance(r.props.get("offset"), int)
+                   and isinstance(r.props.get("length"), int)
+                   for r in o.realizations):
+            n += 1
+    return n
+
+
+def _span_on_its_own_line(doc, rr, needle: str, cursors: dict):
+    """645 — locate `needle` on the LINE it actually sits on.
+
+    `detect_author_year_in_objects` reads an OBJECT's joined text and had been
+    recording `m.start()` — a position in THAT text — against the object's own
+    Realization, whose `start` is the object's FIRST line. On any paragraph
+    longer than one line the offset then names a character position that does
+    not exist on that line, and the projector either substitutes the wrong
+    stretch of prose or (once the offset runs past the line) nothing at all.
+
+    Returns `(anchor, offset, length)` by LOOKING the group up in the lines the
+    realization spans — not a guess — or None when no line reproduces it (a
+    mutator rewrote the object's text), in which case the caller records no
+    span at all and `spans_unrecorded` counts it.
+
+    `cursors` carries a per-anchor search position so a group that occurs twice
+    on one line gets two distinct spans instead of two copies of the first.
+    """
+    st = doc.streams.get(rr.stream)
+    if st is None:
+        return None
+    try:
+        anchors = st.slice_anchors(rr.start,
+                                   rr.end if rr.end is not None else rr.start)
+    except KeyError:
+        anchors = [rr.start]
+    for a in anchors:
+        pay = st.payload.get(a) or {}
+        text = pay.get("text_display") or pay.get("text") or ""
+        i = text.find(needle, cursors.get(a, 0))
+        if i >= 0:
+            cursors[a] = i + len(needle)
+            return a, i, len(needle)
+    return None
+
+
 def detect_author_year_in_objects(doc, exclude_anchors=()) -> int:
     """Stream-agnostic author-year citation detector over the prose OBJECTS'
     text (Paragraph/Section/Abstract/ListItem/Footnote `text`/`caption`/
@@ -507,12 +564,18 @@ def detect_author_year_in_objects(doc, exclude_anchors=()) -> int:
             continue
         math = _math_ranges(text)
         rr = next((x for x in o.realizations if x.start is not None), None)
+        cursors: dict = {}
         for m in _AY_GROUP.finditer(text):
             if _in_math(m.start(), math):
                 continue
             content = m.group(1)
             if not _YEAR.search(content):
                 continue                       # not a year-bearing group → skip
+            # 645 — the span is the group's position on ITS OWN LINE, found by
+            # lookup. `m.start()` is a position in the object's joined text and
+            # is meaningless against a line anchor; see `_span_on_its_own_line`.
+            span = _span_on_its_own_line(doc, rr, m.group(0), cursors) \
+                if rr is not None else None
             for part in content.split(";"):
                 ym = _YEAR.search(part)
                 if not ym:
@@ -525,10 +588,20 @@ def detect_author_year_in_objects(doc, exclude_anchors=()) -> int:
                     "author": sm.group(1), "year": ym.group(0),
                     "style": "author-year", "added_by": "bibliography",
                     "page": o.props.get("page")})
-                if rr is not None:
+                if span is not None:
+                    anchor, off, length = span
                     obj.add_realization(Realization(
-                        stream=rr.stream, start=rr.start, end=rr.end, role="surface",
-                        props={"offset": m.start(), "length": m.end() - m.start()}))
+                        stream=rr.stream, start=anchor, end=anchor,
+                        role="surface",
+                        props={"offset": off, "length": length}))
+                elif rr is not None:
+                    # The group is real but no line reproduces it. Anchor the
+                    # citation so it still gets its Reference stub and its
+                    # `cites` edge, and record NO span rather than a fabricated
+                    # one — `spans_unrecorded` is what makes this visible.
+                    obj.add_realization(Realization(
+                        stream=rr.stream, start=rr.start, end=rr.end,
+                        role="surface"))
                 doc.add(obj)
                 ensure_reference_stub(doc, obj, bibkey)   # 010
                 added += 1

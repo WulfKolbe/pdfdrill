@@ -213,9 +213,23 @@ def ensure_reference_stub(doc: Document, citation: DocObject, bibkey: str) -> Op
             if v:
                 ref_props[k] = v
         ref = DocObject(type="Reference", props=ref_props)
+        # 645 (646-g) -- the stub is INLINE, exactly like the citation it was
+        # made from. A `surface` Realization with no sub-anchor CLAIMS every
+        # line it spans, so a stub anchored on the CITING prose line claimed a
+        # line the Paragraph already owns: 37 doubly-claimed Paragraph+
+        # Reference anchors on penev_A, and `pdfdrill conserve` reads that as
+        # the same OCR text living in two objects. The citation's own
+        # `offset`/`length` say where inside the line it sits; the stub copies
+        # them rather than inventing a span of its own (rule 5). The ROLE
+        # stays "surface": `bibliography_section_anchors` selects on
+        # role/provenance == "bibliography", `absorb_stub` and
+        # `_count_resolved` on (stream, start, end), and a role of its own
+        # would make the stub invisible to all three.
         ref.add_realization(Realization(
             stream=c_surface.stream, start=c_surface.start, end=c_surface.end,
             role="surface",
+            props={k: c_surface.props[k] for k in ("offset", "length")
+                   if isinstance(c_surface.props.get(k), int)},
         ))
         doc.add(ref)
 

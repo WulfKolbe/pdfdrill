@@ -43,6 +43,15 @@ def _sanitize_title(t: str) -> str:
 
 _TRANSCLUDE_RE = re.compile(r"\{\{([^{}]+?)\}\}")
 
+#: 645 — what may sit BETWEEN two citations of one group (`[a, b]`,
+#: `(Smith 1999; Jones 2001)`) without breaking it in two.
+_CIT_SEP_ONLY = re.compile(r"[\s,;]*")
+
+#: 645 — the bracket pairs a citation group may be wrapped in. The `CIT`
+#: template renders `[<$link …>key</$link>]`, so a group that is wrapped
+#: must swallow its wrapper or the reader gets `[[a], [b]]`.
+_CIT_BRACKETS = {"[": "]", "(": ")"}
+
 
 def code_listing_tiddlers(listings, bibkey: str) -> list[dict]:
     """082 — one tiddler per CodeListing, body verbatim.
@@ -378,15 +387,36 @@ def region_titles(doc, bibkey: str) -> dict:
     return out
 
 
+#: 645 — the kinds `tiddler_integrity` reports as UNREFERENCED. These reach a
+#: reader ONLY through a transclusion: a Formula, an Equation, a Footnote, a
+#: Sidenote, a Table, a Diagram, a Picture or a Reference that no text names is
+#: content in the array and invisible in the wiki. Paragraph/Section/Abstract/
+#: ListItem/Page/Toc are TEXT — a reader navigates to them — and the templates
+#: and the root document tiddler are scaffolding (`parse_title` returns None).
+UNREFERENCED_KINDS: tuple[str, ...] = (
+    "Formula", "Equation", "Footnote", "Sidenote",
+    "Table", "Diagram", "Picture", "Reference",
+)
+
+
 def tiddler_integrity(tiddlers: list[dict]) -> dict:
     """Referential-integrity audit of a tiddler array — guards the FOX class of
     bug (a synthetic formula created but never referenced, or a transclusion
     target/template that doesn't exist, so the formula silently doesn't render).
 
-    Returns {transclusions, dangling:[...], orphan_synthetic:[...]}:
+    Returns {transclusions, dangling, orphan_synthetic, orphan_ref,
+    unreferenced, unreferenced_by_prefix}:
       - dangling: `{{target}}` / `{{target||tpl}}` whose target OR template tiddler
         is missing (the transclusion would render nothing);
-      - orphan_synthetic: `synthetic` (FOX) tiddlers that no text references.
+      - orphan_synthetic: `synthetic` (FOX) tiddlers that no text references;
+      - orphan_ref (645): REF tiddlers no transclusion names. A REF tiddler
+        that EXISTS but that no paragraph points at is not dangling and is not
+        synthetic, so before 645 the report on penev_A read "0 dangling, 0
+        orphan" while 12 of 52 bibliography entries were reachable from
+        nothing. It is a subset of `unreferenced`, named separately because
+        the citation path is the one this check was blind to;
+      - unreferenced (645): every `UNREFERENCED_KINDS` tiddler nobody points
+        at, with `unreferenced_by_prefix` counting them by title prefix.
     `{{!!field}}` (current-tiddler field) is correctly ignored.
     """
     titles = {t.get("title") for t in tiddlers}
@@ -413,8 +443,29 @@ def tiddler_integrity(tiddlers: list[dict]) -> dict:
     orphan_synthetic = sorted(
         t.get("title") for t in tiddlers
         if "synthetic" in (t.get("tags") or "") and t.get("title") not in targets_seen)
+
+    # 645 — a tiddler nothing points at. `parse_title` is the ONE reader of the
+    # title scheme (644); a prefix regex here would be the fourteenth copy.
+    unreferenced: list[str] = []
+    orphan_ref: list[str] = []
+    by_prefix: dict[str, int] = {}
+    for t in tiddlers:
+        tt = t.get("title")
+        if not tt or tt in targets_seen:
+            continue
+        parsed = parse_title(tt)
+        if parsed is None or parsed.kind not in UNREFERENCED_KINDS:
+            continue
+        unreferenced.append(tt)
+        prefix = TITLE_SHAPES[parsed.kind].prefix
+        by_prefix[prefix] = by_prefix.get(prefix, 0) + 1
+        if parsed.kind == "Reference":
+            orphan_ref.append(tt)
     return {"transclusions": n, "dangling": sorted(dangling),
-            "orphan_synthetic": orphan_synthetic}
+            "orphan_synthetic": orphan_synthetic,
+            "orphan_ref": sorted(orphan_ref),
+            "unreferenced": sorted(unreferenced),
+            "unreferenced_by_prefix": dict(sorted(by_prefix.items()))}
 
 
 def _bibtag(bibkey: str) -> str:
@@ -799,26 +850,85 @@ class TiddlyWikiProjector(BaseProjector):
                         subs_by_line[r.start].append((off, ln, replacement))
                         self.bump("formula_inline_subs")
 
+        # 645 — CITATIONS ARE SUBSTITUTED BY GROUP, not one at a time.
+        # A citation group (`[a, b]`, `(Smith 1999; Jones 2001)`) is several
+        # Citation objects over ONE stretch of prose. Substituting each on its
+        # own is wrong twice over: the three `bibliography.py` detectors give
+        # EVERY key in a group the span of the whole group, so
+        # `_apply_line_substitutions` accepted the first and dropped the rest
+        # as overlaps (14 of 81 penev_A citations lost, 12 of 52 REF tiddlers
+        # linked from nothing — 646-c); and `CitationProcessor`, which does
+        # give each key its own sub-span, left the source brackets standing
+        # around each one, so the CIT template's own `[...]` doubled them
+        # (`[[a], [b]]`). One group, one substitution, one `{{REF||CIT}}` per
+        # distinct key in source order.
+        cit_spans: dict = defaultdict(list)
         for c in inv["citations"]:
             ck = (c.props.get("citekey") or "").strip()
             ct = cit_title_by_key.get(ck)
             if not ct:
                 continue
-            replacement = "{{" + ct + "||CIT}}"
+            placed = False
             for r in c.realizations:
                 if (r.stream == "mathpix_lines" and r.role == "surface"
                         and r.start is not None):
                     off = r.props.get("offset")
                     ln = r.props.get("length")
                     if isinstance(off, int) and isinstance(ln, int):
-                        # Optionally extend to consume the surrounding [ ]
-                        new_off, new_len = self._maybe_extend_brackets(
-                            doc, r.start, off, ln)
-                        subs_by_line[r.start].append(
-                            (new_off, new_len, replacement))
-                        self.bump("citation_inline_subs")
+                        cit_spans[r.start].append((off, ln, ct))
+                        placed = True
+            if not placed:
+                # Rule 5 — a Citation with no sub-anchor span cannot be put
+                # back into the prose and a position is never invented for it.
+                # It is COUNTED so a document where this happens says so.
+                self.bump("citations_without_a_span")
+
+        for anchor, spans in cit_spans.items():
+            for off, length, titles in self._citation_groups(doc, anchor, spans):
+                subs_by_line[anchor].append(
+                    (off, length,
+                     "".join("{{" + t + "||CIT}}" for t in titles)))
+                self.bump("citation_inline_subs", len(titles))
 
         return subs_by_line
+
+    @staticmethod
+    def _citation_groups(doc: Document, line_anchor, spans):
+        """Merge one line's citation spans into GROUPS, brackets and all.
+
+        Yields `(offset, length, [tiddler title, ...])`. Two spans belong to
+        one group when they are identical, when they overlap, or when only
+        whitespace/`,`/`;` separates them — the three shapes a multi-key
+        citation actually takes. A finished group that is flanked by a
+        matching `[...]`/`(...)` pair swallows the pair, because the `CIT`
+        template supplies the brackets itself; a group that is not flanked
+        (the detectors' spans already include the parentheses) is left alone.
+        Titles are deduplicated keeping first-seen order, which is source
+        order: `inv["citations"]` is flow-sorted and a group's keys are
+        created left to right.
+        """
+        stream = doc.streams.get("mathpix_lines")
+        payload = (stream.payload.get(line_anchor) or {}) if stream else {}
+        text = payload.get("text_display") or payload.get("text") or ""
+
+        groups: list[list] = []
+        for off, length, ct in sorted(spans, key=lambda s: s[0]):
+            end = off + length
+            if groups:
+                g = groups[-1]
+                gap = text[g[1]:off] if off >= g[1] else ""
+                if off <= g[1] or _CIT_SEP_ONLY.fullmatch(gap):
+                    g[1] = max(g[1], end)
+                    if ct not in g[2]:
+                        g[2].append(ct)
+                    continue
+            groups.append([off, end, [ct]])
+
+        for start, end, titles in groups:
+            if 0 < start and end < len(text) \
+                    and _CIT_BRACKETS.get(text[start - 1]) == text[end]:
+                start, end = start - 1, end + 1
+            yield start, end - start, titles
 
     # ----- phase 3: tiddler emission -----
 
@@ -1445,26 +1555,6 @@ class TiddlyWikiProjector(BaseProjector):
         for off, length, repl in sorted(accepted, key=lambda s: s[0], reverse=True):
             text = text[:off] + repl + text[off + length:]
         return text
-
-    @staticmethod
-    def _maybe_extend_brackets(
-        doc: Document, line_anchor, offset: int, length: int,
-    ) -> tuple[int, int]:
-        """
-        Extend a citation's offset/length to consume surrounding `[` `]` if:
-          - those characters are actually `[` and `]`,
-          - and the span itself contains no comma (solo, not multi-cite).
-        """
-        stream = doc.stream("mathpix_lines")
-        text = stream.payload[line_anchor].get("text_display") \
-            or stream.payload[line_anchor].get("text") or ""
-        if offset <= 0 or offset + length >= len(text):
-            return offset, length
-        if text[offset - 1] != "[" or text[offset + length] != "]":
-            return offset, length
-        if "," in text[offset:offset + length]:
-            return offset, length
-        return offset - 1, length + 2
 
     @staticmethod
     def _substitute_footnotes(text: str, fn_by_refnum: dict[str, str]) -> str:

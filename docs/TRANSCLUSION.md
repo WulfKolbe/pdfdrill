@@ -78,6 +78,45 @@ table, figure and list has silently disappeared.
 That is exactly what happened: 14 of 16 templates were never emitted, because
 `build_source_model` bypassed the pass that fills `children`.
 
+**Mechanism 1 runs on PARAGRAPH bodies only.** A Footnote, Sidenote, ListItem
+or Abstract tiddler's body is copied from the object's `content`/`text` prop
+verbatim, so a formula or a citation that occurs *inside a footnote* is never
+substituted and never becomes a transclusion. On penev_A that is the whole of
+the residue after 645: 4 of 52 bibliography entries are linked from nothing
+because their only citation sits in a footnote body (645-a).
+
+## The third shape: a tiddler nothing points at
+
+A transclusion can fail in two directions and the second one is silent.
+
+| shape | what it looks like | who sees it |
+|---|---|---|
+| **dangling** | `{{X\|\|FO}}` and no tiddler `X` | `tiddler_integrity()["dangling"]` |
+| **unreferenced** | tiddler `X` exists and no text names it | `tiddler_integrity()["unreferenced"]` |
+
+The second is the one that hides. Nothing renders wrongly — the tiddler is in
+the file, it is well-formed, and no link is broken. It simply cannot be
+reached, so its content is not in the document a reader sees. Before 645 the
+check counted only *synthetic* (FOX) tiddlers this way, so penev_A reported
+"0 dangling, 0 orphan" while 12 of its 52 `REF` tiddlers were named by no
+paragraph at all.
+
+`tiddler_integrity` now reports both, and `orphan_ref` separately because the
+citation path is the one it was blind to:
+
+```python
+from docops.projectors.tiddlywiki import tiddler_integrity
+r = tiddler_integrity(tiddlers)
+r["dangling"]                # targets/templates that do not exist
+r["orphan_synthetic"]        # FOX tiddlers nobody references
+r["orphan_ref"]              # REF tiddlers no paragraph links to
+r["unreferenced"]            # every FO/EQ/FN/SN/TAB/DIA/PIC/REF nobody names
+r["unreferenced_by_prefix"]  # the same, counted by title prefix
+```
+
+`pdfdrill tiddlers` prints all of them; `pdfdrill conserve` is the wider
+version of the same question (is every OBJECT reachable from the roots).
+
 ## How to check it — the assertions that matter
 
 Run these against the model and the tiddlers, not against the rendered page.
