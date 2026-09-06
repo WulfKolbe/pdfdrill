@@ -1,207 +1,113 @@
 # HANDOVER
 
-Read this first. The 18 working rules, each learned by a defect, and the
-non-obvious environment facts (LgEval pin, preflight, dictionaries) moved to
-**`docs/HANDOVER-RULES.md`** — unchanged, still canonical, just no longer in
-the way of the state of play.
+Current state, current blocker, next task. Nothing else — the per-task
+evidence lives in `out/NNN.txt` and `~/pdfdrill-library/out/NNN/`, and the
+rules learned by defect are in **`docs/HANDOVER-RULES.md`**.
 
-## Working surface
+Last updated 2026-09-06, after 633.
 
-**PDFDRILL** — quality control of PDF→LaTeX OCR. `src/pdfdrill/` (flat CLI,
-`.drill/` sidecar), `src/docmodel/` (typed `Document`), `src/docops/`
-(mutators + projectors). **133 commands** in `.claude/skills/pdfdrill/commands.yaml`,
-matching `cli.HANDLERS` exactly. **2,109 tests** (`PYTHONDONTWRITEBYTECODE=1
-python3 -m pytest tests/ -q -p no:cacheprovider` — the env var is not optional).
+---
 
-Branch `eqblobs-and-gzip-tex`; `main`/`master` are behind it. Corpus is 49 arXiv
-documents in `~/pdfdrill-library`, rostered in `P13-arxiv-reports.txt` (which
-lists 50 — see open item 1). Analysis output is `out/NNN.txt`, one per task.
+## Where the 21 published documents stand
 
-## Measured constants — each with the population it came from
+**17 of 21 are published and current.** Site commit `383ae31`. Verify with:
 
-Quoting one of these without its population produces a different number that
-looks like the same one.
+    python3 tools/publishcheck.py --list ~/pdfdrill-library/out/documents.json
 
-| Constant | Value | Population |
+Exit 0 only when every document on the site is the build on disk. It reads
+17 identical / 4 stale today. Run it before believing anything below.
+
+Residuals on those 17 are **measured on display equations only**. Inline
+formula rows are not measured — the selection for them is not built. The
+index says so.
+
+### The four still stale
+
+| document | gate | why |
 |---|---|---|
-| SLT distance-zero | 497 (37.4%) | 1,328 comparable pairs, 20 docs with BOTH e-print and MathPix; median 2 |
-| Demoted rows | 51 (49 EQ-only) | 49-doc corpus, 10 docs; `0902.0431` alone holds 31 |
-| Ink noise floor | 6 | p95 of 208 expressions through two rasterizers (consumer's `noisefloor.py`) |
-| Render≠scan at high confidence | 725 (21.4%) | 3,392 equations with ink≥6, confidence≥0.9, not demoted |
-| Confidence flag | 19 (0.4%) | 4,338 of 4,342 equations carry a value; threshold 0.1; median exactly 1.000, p05 0.515 |
-| Shading detector | ≥0.50 mid-grey | shaded crops 0.884–0.942, all others ≤0.225; 3 of 4,342 crops, all `1211.3375` |
-| trailing_punct A/B parity | 2 differing of 10,434 cells | `bh2` PRE vs POST, last two report columns; PRE reconstructed from `latex_prepunct` after the original build was deleted and it reproduced the first run cell for cell |
-| Sign-filter precision | 7 of 11 | unshaded, both symbol deltas negative, symbol half ≥15 → 7 content / 2 artifact / 2 typography |
+| 0902.0431 | stamp | 6 of 13 shown rows straddle a page break (46% > 25%) |
+| gilmore-lie-groups | stamp | 5 of 15 (33% > 25%) |
+| kohlhase-omdoc | residuals | p90 component ratio 3.92, over the 3.0 max |
+| penev_A | ink, stamp, artefacts | no `report.ink.json`; `.REFUSED` quarantined |
 
-`confidence_rate` is **not** a usable flag: it never drops below 0.9306
-corpus-wide, and `EQ0516` scores 0.9921 while being 60% wrong.
+The first two are a **threshold question, not a defect**: banding leaves a
+small denominator, so a handful of unmeasurable rows is a large share.
+`UNMEASURED_MAX` (0.25) and `UNMEASURED_MIN` (4) are in `report_tex.py` and
+both are printed on the report page.
 
-The sign filter is the useful instrument: it needs no author LaTeX, no gold and
-no e-print, so it reaches the ~99% of documents where no comparison is possible.
+---
 
-## Open items
+## The measurement chain, as it now works
 
-1. **Roster.** `1511.08771` is listed in `P13-arxiv-reports.txt` (50 entries)
-   but excluded at use by every consumer (corpus runs 49). Leave it listed and
-   filter, or drop the line so the roster means the operative corpus. **Both
-   sessions read this file — the user's call, unilateral edit diverges us.**
-2. **Temp-dir leak, ongoing.** 1,763 `tempfile.mkdtemp` directories accumulated
-   in ~5 days; whoever calls it never removes them. Swept once (075); it will
-   refill.
-3. **Silent glyph loss in standalone renders.** xelatex drops U+21D2 and CJK/
-   Devanagari with a *warning*, so the compile fixpoint's `^! ` regex never
-   demotes the row. 5 equations corpus-wide, 4 of them junk readings; needs a
-   fallback font or a pre-compile map to `\Rightarrow`.
-4. **117 uninspected rows** of the sign filter (128 both-negative, 11 inspected).
-5. **Equation-number pairing** on `1306.1660` p6: numbers do not increase with
-   y, `(63)`/`(69)` absent from the model. Nearest-y pairing is unreliable there.
-6. **Doc fixes from out/076:** CLAUDE.md says 125 commands (133), HANDOVER-RULES
-   says 1745 tests (2,104), four layer docs point at modules that moved to
-   `src/pdfdrill/nodes/`.
-7. **Consumer's findings file is one regeneration stale** — the 42 rows 058
-   recovered are not in it. Their cadence, not ours.
-8. **What in 064's tiddlers regeneration costs `0902.0431` a page** is not
-   isolated. The generator is excluded by measurement (`a0ff8a9` and HEAD both
-   give 231 from the current tiddlers); the remaining variable is the tiddlers
-   themselves. Nothing depends on the answer — the consumer retired the figure
-   that did — so this is a real experiment, not a check.
+    reporttex --cellrect   phase 1: full listing, unbounded, legend off,
+                           bullets off. Emits pdfdrill-rows.json — one rect
+                           per row, in bp, y up.
+    inkdrill compare       per page, 300 vs 600 dpi
+    inkmeasure.measure     claims each lattice row by the rect that CONTAINS
+                           it. No header rule, no legend rule — an unclaimed
+                           row is dropped because nothing claims it.
+    inkconvert             pairs by the identifier the TSV now carries
+    reporttex              phase 2: findings shape, legend on, bullets on
+    publishready           five gates
 
-   *(The staleness that caused it is fixed on both sides: `reporttex` now says
-   STALE when it leaves a PDF older than the .tex it just wrote, and the
-   consumer's `reportcompare.py` refuses such a report outright.)*
+Two invariants worth keeping:
 
-9. **The tail-split separates the text and not the geometry.** `text_tail`
-   moves trailing prose into a `MathTail` object, but the Equation keeps its
-   ORIGINAL region and the MathTail gets `region=None`. So the latex loses the
-   words and the crop still contains them: the scan cell carries ink the
-   render cannot, and the consumer's metric correctly reports a disagreement
-   that our own split created. 22 MathTails across the flagged documents, 100%
-   without a region, 14 of the 724 flagged rows on a page with one. Confirmed
-   by eye on four crops (`0902.0431_EQ0253/0459/0905`, `1101.4542_EQ0066`),
-   all of which show 0% overlap with any other object's region — so it is NOT
-   a crop overrunning a neighbour, which is a separate and larger class (99 of
-   724, mostly Sidenote and Paragraph). Fix is to narrow the Equation's
-   rectangle or give the MathTail the tail's; unfixed because it changes every
-   affected crop under a consumer holding a frozen raster.
+- **`zeroScan` must be 0.** It counts data rows whose Scan cell measured
+  empty. It is 0 on 21 of 21 and it is the column that would have caught the
+  625 defect in a day instead of three.
+- **`ma_ok` must be true.** The ink's `measured_against.sha256` equals the
+  measure build's. 20 of 21 (penev_A has no ink).
 
-## Known failure classes — what actually costs time here
+---
 
-- **An instrument correct on its sample and wrong on the corpus.** Three
-  identifier regexes in two days, each verified against a sample that lacked
-  the disambiguating case (`~\eqnum{}`, `\allowbreak{}`). Check the residue
-  bucket: 93 rows landing in "other" is a broken pattern announcing itself.
-- **A comparison that structurally cannot show a difference, returning the
-  answer you hoped for.** `parse_latex_slt` collapsed `\begin{aligned}` to one
-  `UNRESOLVED` node, so unrelated equations scored distance 0 — a retracted
-  floor and 44.5% of a result. Same family: rebuilding the trailing_punct A/B
-  pair by re-projecting would have produced two IDENTICAL builds, because
-  `latex_prepunct` lives in the docmodel and never reaches the tiddlers
-  `reporttex` reads; the diff would have reported 0 differing cells and looked
-  like a pass. The consumer could not have told that apart from a real one.
-  Reconstruct from the field that actually holds the old state, not from the
-  pipeline that dropped it.
-- **An artifact stale against its own source.** A `.tex` regenerated without
-  `--compile` leaves a `.pdf` that still looks current by every check anyone
-  runs — page count, mtime freshness relative to the corpus, presence on disk.
-  Two sessions measured it for half a day. Compare the derived file's mtime
-  against the source's, not against the clock.
-- **Masked success.** A warning is not an error; a summary counter is not the
-  artifact. `reporttex` reports 5 demoted while the .tex files show 51 — the 46
-  generation-time rejections no compile counter can see.
-- **Population mismatch dressed as agreement.** Two subtractions of 21 made
-  93→72→51 arithmetically consistent for unrelated reasons. Reconcile term by
-  term, never by landing on the same total.
-- **Provenance confusion.** `<stem>.tex.zip` is MathPix's own reconstruction,
-  named by the `image_id`; comparing against it compares MathPix with itself.
-  Guarded now (`author_source.py`), but the e-print may be a bare gzipped
-  `.tex`, not a tar.
-- **Attributing to the data what the tooling did.** I recorded that MathPix
-  dropped three `⇒`; the LaTeX had them and our renderer could not set the
-  glyph. A picture shows what was drawn, not what was read.
-- **Declaring a scope and not enforcing it.** 075 deleted 36 directories 074
-  had ruled out of scope, because the cutoff constant read 2025 not 2026 and
-  the counter that would have caught it printed 0 and went unread.
+## Current blocker
 
-- **A batch running against source you are editing produces torn artifacts.**
-  The confidence column landed in three edits — `row()`, then `col_widths`,
-  then `table_open`. Two background batches were invoking `./pdfdrill` per
-  document throughout, so every report generated between the first and second
-  edit got a six-cell row in a five-column table: LaTeX absorbed the surplus
-  cell, the source moved under "Rendered", the crop was drawn outside the
-  table, and the compile fixpoint then demoted 5,247 of 5,248 rows. The code
-  was never wrong at rest; it was READ while half-written. Stop the batch, or
-  land the change as one edit.
+**Nothing is blocking the 17.** They are published and current.
 
-- **A detector built to size a defect must first reproduce the one case whose
-  answer you already know.** Scoping the torn build produced two wrong numbers
-  in an hour — 268 reports, then 5 — against an actual count of 1. The 268
-  came from `begin{longtable}{[^}]*}`, where the class stops at the first `}`
-  inside `p{20mm}` so every file reported one column; the 5 came from testing
-  `includegraphics` per FILE for a property that is per TABLE. Both would have
-  died on contact with `BH1org_OCR`, the single document already in hand,
-  whose table I had just read as five columns and whose answer was known
-  before either detector existed. Note what this rule is NOT: the batch was
-  already stopped when I counted 268, so "artifacts made mid-edit are suspect"
-  explains the torn file and neither wrong number. The mechanism was the brace
-  trap; the reason it reached a conclusion was an unvalidated instrument.
+For the remaining four, in the order I would take them:
 
-- **Anchor a match on the part that cannot break.** Report identifiers wrap:
-  `breakable_ident` inserts `\allowbreak` after every dot and underscore, so
-  `pdftotext` returns the bibkey in fragments with the Page column interleaved
-  between them — `0902.0431_ 173 EQ1032`. Matching the whole identifier
-  recovered 94.7% and the loss was CORRELATED with identifier length, which is
-  a selection rule rather than a coverage figure. `EQ1032` contains no dot and
-  no underscore, so the token never wraps: anchoring on it took coverage to
-  99.66% with the residue scattered instead of concentrated. Both boundary
-  assertions tried on the way — a leading `(?<![A-Za-z0-9])` and a trailing
-  `(?![0-9])` — cut one document from 307 rows to 18 and to 2 per page, because
-  the token is surrounded by interleaved digits on both sides. A guard correct
-  in general and wrong on the population it was built for is its own shape.
+1. **penev_A** — one document, no ink. Its `report.ink.json` was renamed
+   `.REFUSED` against a build that no longer exists. Re-measure it; that is
+   the whole fix.
+2. **0902.0431 and gilmore** — decide whether `UNMEASURED_MAX` should scale
+   with the denominator, or whether these two should publish with the count
+   stated. Both are defensible; neither is a code defect.
+3. **kohlhase** — p90 3.92 against a 3.0 max, on 1 bullet. Look at whether a
+   ratio over one row means anything before changing the constant.
 
-- **Verify a repair by what it CHANGED, not only by what it added.** The
-  aggressive matcher added 4,698 located rows and re-mapped 0 to a different
-  page. Coverage says how much was found; re-mappings say whether what was
-  already right survived the change, and a matcher that had begun inventing
-  pairings would surface there as disagreement with its own earlier output. A
-  coverage number cannot detect that failure at all.
+---
 
-- **When joining two sources, take from each only what it alone knows.** The
-  report-row manifest maps report page -> identifiers. Page MEMBERSHIP can
-  only come from the rendered PDF, because only the raster knows where the
-  typesetter broke the table; row ORDER can only come from the `.tex`, because
-  `pdftotext` returns a wide table in an unreliable reading order and put
-  `FO0120` before `FO0111` on one page. Taking both from the PDF looks simpler
-  and produces a scrambled order — the same mislabelling the manifest exists
-  to prevent, arriving by another route. Ask of each source what it is
-  authoritative for, not what it is willing to answer.
+## Next task
 
-- **A pooled ratio and a per-unit paired test can point opposite ways.**
-  out/117 asked whether a scan's missing components sit near rules. Pooled:
-  73 of 425 in a rule zone, 17.2%, against a null of 11.5% — 1.5x enrichment.
-  Paired per row against each row's OWN rule density: 29 rows above their
-  null, 80 below, sign test z = -4.88. The pooled figure was carried by 16
-  rows holding 10% of the deficit and 60% of the near count; a row with one
-  rule and two missing marks scores 1.000 by arithmetic. Pool only when the
-  units are exchangeable, and when they are not, say which test you ran.
+None outstanding. The queue below is real but unstarted, and none of it is on
+the critical path to publishing:
 
-- **A ratio whose denominator excludes most of the population is a subgroup,
-  not a rate.** 316 of 426 negative-delta rows had no rule in the cell at all
-  — 74% could not answer the question being asked of them. Reporting 17.2%
-  without that would have been a number about rules over a three-quarters
-  ruleless population. Count and name the units that cannot answer.
+- **Inline formula measurement.** 37,624 formula rows across the 21 have
+  never been measured on anything. `equations_table()` returns only the
+  "Display equations" table; the manifest names the formulas table with
+  identifiers and they resolve on 19 of 21 (fong-spivak-invitation and
+  -seven-sketches miss ~96%, undiagnosed). Scale: +942 pages, roughly
+  +2 hours on top of the equations.
+- **629, measured and unapplied.** A depth-walk environment stripper clears
+  134 of 134 tab-mark refusals; permitting `$` inside `\text{}` clears 56.
+  Both were held while 627 ran and were never applied.
+- **DIA rows take the wrong field.** `rows_for` reads `latex` before
+  `latex_code`, and for a Diagram `latex` holds the TiddlyWiki `<$image>`
+  widget, so the real source is never rendered (`out/616.txt`).
+- **inkdrill's R column** was the 625 defect and is fixed on our side; the
+  histogram work in `out/623.txt` is the evidence if it recurs.
 
-- **A summary line is only as honest as its smallest category.** A forced
-  regeneration reported `104 OK / 0 FAIL / 160 SKIP` and read as a clean run.
-  The skips were a harness bug — `next(iter(d.glob("*.pdf")))` took the first
-  filesystem entry and then tested it, so any folder where `report.pdf` sorted
-  first lost its source and was logged "nopdf" with the real PDF present. 163
-  of 167 skips were wrong, and the pass silently did 40% of its job. Exclude by
-  name over a SORTED glob; unsorted globs make the same command measure
-  different files on different machines with nothing in the output to show it.
+---
 
-Four of these — the residue bucket reading 0, the `(page,row)` key, the
-skipped-count reading 0, and `160 SKIP` — are one failure: **trusting a
-check's summary over its data**. The check ran, the aggregate agreed with the
-expectation, and nobody read the rows. A zero in a class you have just
-declared non-empty is not a result, it is a symptom; and a category you do not
-read is one you have declared uninteresting in advance.
+## Two things that cost the most time here
+
+**Report first, build second.** Every defect that cost a full run came from
+specifying against data nobody had read. The environment map in 628 fired on
+zero rows of 660,504. Three predictions about the R column were all wrong;
+the cause was a `\\` in `crop_cell`.
+
+**A number computed across build generations is not a measurement.** 575 put
+a build stamp in every model for this reason. The same class recurred as a
+manifest describing a build that no longer existed — hence
+`measured_against.sha256` on `pdfdrill-rows.json`, and `publishcheck` for the
+site.
