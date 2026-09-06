@@ -126,8 +126,29 @@ def _from_tex(tex: Path) -> dict:
 #: 596 — identifier-shaped tokens, permissively. The MANIFEST decides which of
 #: these is a row; this pattern only has to be wide enough not to miss one.
 #: `_` is a word character, so `\w` already covers the bibkey.
-_IDENT_TOKEN = re.compile(r"[A-Za-z0-9][\w.\-+]*_(?:EQ|FO|TAB|DIA|IMG|H)\d{2,}"
-                          r"(?:\((?:was|now|basis)\))?")
+#: 644 — the kinds this token accepts, and the prefixes read off the title
+#: scheme's table instead of typed again. The alternation is byte-identical to
+#: the hand-written `(?:EQ|FO|TAB|DIA|IMG|H)` (no prefix here is a prefix of
+#: another, so order does not change the match set).
+#:
+#: `IMG` IS A DEAD PREFIX. No projector has ever emitted `<bibkey>_IMG<NN>` —
+#: a picture is `_PIC_0001` — and a scan of the whole library (1336 report.tex
+#: files and every tiddlers.json) finds zero occurrences. It is kept because
+#: 596's contract is "wide enough not to miss a row" and narrowing it is a
+#: behaviour change this task did not measure; it is declared here rather than
+#: hidden inside a regex, which is the whole of `extra`.
+_TOKEN_KINDS = ("Equation", "Formula", "Table", "Diagram", "Section")
+_DEAD_PREFIXES = ("IMG",)
+
+
+def _ident_token() -> "re.Pattern":
+    from docops.projectors.tiddlywiki import prefix_alternation
+    return re.compile(r"[A-Za-z0-9][\w.\-+]*_(?:"
+                      + prefix_alternation(_TOKEN_KINDS, extra=_DEAD_PREFIXES)
+                      + r")\d{2,}(?:\((?:was|now|basis)\))?")
+
+
+_IDENT_TOKEN = _ident_token()
 
 
 def _flat(text: str) -> str:

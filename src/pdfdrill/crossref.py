@@ -138,7 +138,13 @@ def entries_from_tiddlers(tiddlers_path: Path, bibkey: str) -> tuple[list, int]:
     latex yields an SLT signature."""
     tiddlers = json.loads(Path(tiddlers_path).read_text(encoding="utf-8"))
     entries, unparsed = [], 0
-    pat = re.compile(re.escape(bibkey) + r"_(EQ|FOX?)")
+    # 644 — EQ/FO/FOX titles only, prefixes from the title scheme's table
+    # (`docops…tiddlywiki.TITLE_SHAPES`). `_(FOX|EQ|FO)` matches exactly what
+    # the hand-written `_(EQ|FOX?)` matched; the SUBSET stays named here.
+    from docops.projectors.tiddlywiki import prefix_alternation
+    pat = re.compile(re.escape(bibkey) + r"_("
+                     + prefix_alternation(("Equation", "Formula",
+                                           "SyntheticFormula")) + r")")
     for t in tiddlers:
         title = t.get("title", "")
         if not pat.match(title):

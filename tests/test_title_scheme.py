@@ -10,6 +10,7 @@ same shape is the defect, so these tests pin (a) the frozen shapes as literals,
 (b) the round trip through the table, and (c) that each consumer that used to
 carry its own copy now asks the table.
 """
+import ast
 import re
 import sys
 from pathlib import Path
@@ -253,12 +254,196 @@ def test_citation_title_and_the_table_agree():
     assert citation_title("DOC", "", 4) == title_for("DOC", "Reference", "4")
 
 
-def test_no_second_shape_regex_survives_in_src():
-    """Rule 17, mechanically. A regex alternation of the scheme's own prefixes
-    may live in exactly one module — the table's."""
-    root = Path(__file__).resolve().parent.parent / "src"
-    pat = re.compile(r"\(\?:?(?:FOX\?|FOX\|FO)")
-    offenders = [str(p) for p in root.rglob("*.py")
-                 if pat.search(p.read_text(encoding="utf-8", errors="replace"))
-                 and p.name != "tiddlywiki.py"]
-    assert offenders == [], offenders
+# --------------------------------------------------- rule 17, mechanically
+
+#: Frozen per-task measurement scripts (rule 19): the exact source that
+#: produced a published number. Rewriting one breaks the reproducibility that
+#: is its only job, so each is whitelisted BY NAME with its reason rather than
+#: by a blanket `tools/` exemption.
+_FROZEN_SCRIPTS = {
+    "tools/census481.py":   "481 — the identifier census behind out/481",
+    "tools/parallel474.py": "474 — the parallel-corpus scan behind out/474",
+    "tools/uniscan475.py":  "475 — the Unicode scan behind out/475",
+    "tools/pkggap482.py":   "482 — the package-gap scan behind out/482",
+    "tools/bed492.py":      "492 — the bedding measurement behind out/492",
+    "tools/beddiag492.py":  "492 — the bedding diagnosis beside bed492",
+    "tools/midstring486.py": "486 — the mid-string scan behind out/486",
+    "tools/census509.py":   "509 — the second identifier census, out/509",
+}
+
+_ALTERNATION_RUN = re.compile(r"[A-Za-z0-9?]+(?:\|[A-Za-z0-9?]+)+")
+
+
+def _second_scheme_regexes(text: str) -> list:
+    """Every `A|B(|C…)` run in a string literal that is a TITLE-PREFIX
+    alternation: two or more of `TITLE_SHAPES`' own prefixes, sitting where a
+    title's prefix sits — immediately after the `_` that follows the bibkey.
+
+    The `_` anchor is what separates a TITLE alternation from a TEMPLATE one:
+    `{{…||(FO|EQ|FREF)}}` names templates, not shapes, and FO/EQ are both.
+    `FOX?` counts once (it encodes FO and FOX at the same time).
+    """
+    prefixes = {s.prefix for s in TITLE_SHAPES.values()}
+    out = []
+    for m in _ALTERNATION_RUN.finditer(text):
+        j = m.start()
+        while j > 0 and text[j - 1] in "(?:":        # step back over `(?:`
+            j -= 1
+        if j == 0 or text[j - 1] != "_":
+            continue
+        n = sum(1 for part in m.group(0).split("|")
+                if (part[:-1] if part.endswith("?") else part) in prefixes)
+        if n >= 2:
+            out.append(m.group(0))
+    return out
+
+
+def test_no_second_title_prefix_regex_survives_in_src_or_tools():
+    """Rule 17, built FROM the table rather than from one spelling of it.
+
+    The first version of this guard matched the literal text `(?:FOX?` /
+    `(?:FOX|FO` and so could not see a capturing group, or an alternation
+    where FO is not first. It passed while FOUR live shape regexes stood:
+    `crossref` (`_(EQ|FOX?)`), `inkmeasure._IDENT_TOKEN`
+    (`_(?:EQ|FO|TAB|DIA|IMG|H)\\d{2,}`), the dead `reccontext.TYPED`
+    (`_(EQ|FOX?|TAB)\\d`) and `commands` (`_(DIA|PIC)_\\d+$`). This version
+    parses every string literal in `src/` and `tools/` and asks the table.
+    """
+    root = Path(__file__).resolve().parent.parent
+    offenders = {}
+    for sub in ("src", "tools"):
+        for f in sorted((root / sub).rglob("*.py")):
+            rel = f.relative_to(root).as_posix()
+            if rel in _FROZEN_SCRIPTS:
+                continue
+            try:
+                tree = ast.parse(f.read_text(encoding="utf-8",
+                                             errors="replace"))
+            except SyntaxError:                      # not our problem here
+                continue
+            runs = [r for node in ast.walk(tree)
+                    if isinstance(node, ast.Constant)
+                    and isinstance(node.value, str)
+                    for r in _second_scheme_regexes(node.value)]
+            if runs:
+                offenders[rel] = sorted(set(runs))
+    assert offenders == {}, offenders
+
+
+def test_the_guard_actually_fires():
+    """Rule 11: a detector that can only see success sees nothing. Each of the
+    four real spellings it missed before must trip it, and a TEMPLATE
+    alternation must not."""
+    for pat in (r"_(EQ|FOX?)", r"_(?:EQ|FO|TAB|DIA|IMG|H)\d{2,}",
+                r"_(EQ|FOX?|TAB)\d", r"_(DIA|PIC)_\d+$"):
+        assert _second_scheme_regexes(pat), pat
+    assert not _second_scheme_regexes(r"\{\{([^}|]+)\|\|(FO|EQ|FREF)\}\}")
+    assert not _second_scheme_regexes(r"(cat|dog|EQ)")
+
+
+def test_the_whitelist_names_only_files_that_exist_and_still_offend():
+    """A whitelist entry that no longer applies is a hole. Every frozen script
+    must exist AND still carry the pattern it is excused for — otherwise it
+    should be off the list."""
+    root = Path(__file__).resolve().parent.parent
+    for rel, reason in _FROZEN_SCRIPTS.items():
+        f = root / rel
+        assert f.is_file(), rel
+        assert reason
+        tree = ast.parse(f.read_text(encoding="utf-8", errors="replace"))
+        runs = [r for node in ast.walk(tree)
+                if isinstance(node, ast.Constant)
+                and isinstance(node.value, str)
+                for r in _second_scheme_regexes(node.value)]
+        assert runs, f"{rel} no longer offends — drop it from the whitelist"
+
+
+# ------------------------------------- the marker -> body invariant (644-a)
+
+def test_each_footnote_marker_resolves_to_the_body_with_that_refnum():
+    """644 renumbered footnote TITLES by flow position. The marker `{ }^{N}` in
+    a paragraph must still reach the footnote whose printed refnum is N, with
+    that body's text, on that paragraph's page.
+
+    Creation order and flow order DIVERGE here on purpose — the footnotes are
+    added in the order 3, 7, 11 while their `flow_index` orders them 7, 3, 11 —
+    so a title assigned from either order is a different title, and the marker
+    still has to land on the right body.
+
+    WHAT IT DISCRIMINATES, measured by mutation rather than asserted:
+      * re-deriving the marker target from the PRINTED refnum
+        (`title_for(bibkey, "Footnote", int(rn))`, the pre-644 assumption)
+        FAILS it — every marker dangles. That is the regression a reader of
+        the 644 diff would most plausibly write.
+      * swapping the numbering back to insertion order does NOT fail it, and
+        the docstring says so rather than implying otherwise:
+        `fn_by_refnum` maps a printed number to that footnote's OWN title, so
+        the marker->body wiring is independent of which order the numbers came
+        from. The numbering is pinned by
+        `test_footnote_titles_are_unique_per_object`; this test pins the
+        wiring.
+
+    NOT COVERED, and it is 646-a: two footnotes sharing one printed refnum on
+    different pages. `fn_by_refnum` is document-wide and first-wins, so both
+    markers reach the FIRST body. 644 stopped the two bodies overwriting each
+    other; it did not make the marker resolve per paragraph.
+    """
+    doc = Document()
+    doc.meta["bibkey"] = "DOC"
+    mp = doc.ensure_stream("mathpix_lines")
+
+    # (page, printed refnum, flow position) — added to the doc out of order
+    spec = [(1, 7), (2, 3), (3, 11)]
+    para_anchor = {}
+    for page, refnum in spec:
+        a = mp.append(text=fr"See it \({{ }}^{{{refnum}}}\) here.",
+                      _page=page, _line_index=0, type="text")
+        para_anchor[refnum] = a
+        par = DocObject(type="Paragraph", props={
+            "text": f"See it here.", "page": page, "flow_index": page * 10})
+        par.add_realization(Realization(stream="mathpix_lines", start=a, end=a,
+                                        role="surface"))
+        doc.add(par)
+
+    fn_anchor = {}
+    for page, refnum in spec:
+        b = mp.append(text=fr"\({{ }}^{{{refnum}}}\) Body {refnum}.",
+                      _page=page, _line_index=1, type="footnote")
+        fn_anchor[refnum] = b
+
+    for page, refnum in [spec[1], spec[0], spec[2]]:      # 3, 7, 11 — shuffled
+        fn = DocObject(type="Footnote", props={
+            "refnum": refnum, "content": f"Body {refnum}", "page": page,
+            "flow_index": page * 10 + 1})
+        fn.add_realization(Realization(stream="mathpix_lines",
+                                       start=fn_anchor[refnum],
+                                       end=fn_anchor[refnum], role="surface"))
+        doc.add(fn)
+
+    from docops.conserve import project_in_memory
+    tiddlers, titles, _ = project_in_memory(doc)
+    by_title = {t["title"]: t for t in tiddlers}
+
+    marker = re.compile(r"\{\{([^{}|]+)\|\|FN\}\}")
+    seen = 0
+    for t in tiddlers:
+        if "paragraph" not in (t.get("tags") or ""):
+            continue
+        for m in marker.finditer(t.get("text") or ""):
+            assert m.group(1) in by_title, m.group(1)   # never dangles
+            seen += 1
+    assert seen == len(spec), f"expected {len(spec)} markers, saw {seen}"
+
+    # the real assertion: the marker's PRINTED number, the body's refnum and
+    # the page all agree, for every marker.
+    for page, refnum in spec:
+        par = next(t for t in tiddlers
+                   if "paragraph" in (t.get("tags") or "")
+                   and str(t.get("page") or "").lstrip("0") == str(page))
+        m = marker.search(par["text"])
+        assert m, par["text"]
+        body = by_title[m.group(1)]
+        assert str(body.get("refnum")) == str(refnum), (page, refnum, body)
+        assert str(body.get("page") or "").lstrip("0") == str(page), \
+            (page, refnum, body.get("page"))
+        assert f"Body {refnum}" in (body.get("text") or ""), body.get("text")

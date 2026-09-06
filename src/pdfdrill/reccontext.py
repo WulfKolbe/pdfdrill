@@ -17,10 +17,7 @@ offered as context without a warning it is an instruction to produce another.
 from __future__ import annotations
 
 import json
-import re
 from pathlib import Path
-
-TYPED = re.compile(r"_(EQ|FOX?|TAB)\d")
 
 #: shorter than this and the "prose" is a heading, not a description
 MIN_PROSE = 40

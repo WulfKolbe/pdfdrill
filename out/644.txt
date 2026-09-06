@@ -97,7 +97,7 @@ THE ONE DELIBERATE DIFFERENCE: FOOTNOTES (646-a)
     tiddlers emitted           1271 = 1271       838 = 838
     dangling transclusions        0 -> 0           0 -> 0
 
-CONSUMERS TOUCHED — 13 modules, and the regex or format string each lost
+CONSUMERS TOUCHED — 17 modules, and the regex or format string each lost
   src/docops/projectors/tiddlywiki.py
       nine f-strings in `_assign_titles`/`math_titles`/`region_titles`/
       `code_listing_tiddlers`, and the FOX title — all now `title_for`.
@@ -128,9 +128,81 @@ CONSUMERS TOUCHED — 13 modules, and the regex or format string each lost
                                           fallback) and asks the table for
                                           the shape.
 
-  `tests/test_title_scheme.py::test_no_second_shape_regex_survives_in_src`
-  fails if a prefix alternation reappears anywhere in `src/` outside the
-  table's own module (rule 17, mechanically).
+  FOUND IN FIX ROUND 1, AFTER THE FIRST GUARD FAILED TO SEE THEM (below):
+  src/pdfdrill/crossref.py     LOST `re.escape(bibkey) + r"_(EQ|FOX?)"` in
+                               `entries_from_tiddlers` — live: it is how a
+                               drilled book's formulas are harvested into the
+                               cross-reference index. Now
+                               `prefix_alternation(("Equation", "Formula",
+                               "SyntheticFormula"))`; `_(FOX|EQ|FO)` matches
+                               exactly what `_(EQ|FOX?)` matched.
+  src/pdfdrill/inkmeasure.py   LOST the `(?:EQ|FO|TAB|DIA|IMG|H)` inside
+                               `_IDENT_TOKEN` — live in the ink pipeline (596:
+                               identifier-shaped tokens, permissively; the
+                               MANIFEST decides which is a row). Now built by
+                               `prefix_alternation(_TOKEN_KINDS,
+                               extra=_DEAD_PREFIXES)`. Byte-identical on a
+                               discriminating sample: `_EQ0001`, `_FO0139`,
+                               `_H0007`, `_IMG12`, ` (was)`/`(was)` suffixes
+                               all match as before, and `_TAB_001`,
+                               `_DIA_0001`, `_PIC_0001`, `_FOX_ab12` all still
+                               match NOTHING (596's token demands digits flush
+                               against the prefix, so a separated shape never
+                               reached it — pre-existing, unchanged here).
+  src/pdfdrill/commands.py     LOST `r"_(DIA|PIC)_\d+$"` in the figure-render
+                               loop — a FOURTH copy the review had not named;
+                               the rebuilt guard found it. It asks
+                               `parse_title` now (`kind in ("Diagram",
+                               "Picture")`), which is stricter by exactly the
+                               scheme's digit width — four, which every title
+                               the projector emits has.
+  src/pdfdrill/reccontext.py   DELETED `TYPED = re.compile(r"_(EQ|FOX?|TAB)\d")`
+                               and the now-unused `import re`. Dead code: no
+                               reader in src/ or tests/.
+
+  `IMG` IS A DEAD PREFIX, and is declared as one rather than quietly kept. No
+  projector has ever emitted `<bibkey>_IMG<NN>` — a picture is `_PIC_0001` —
+  and a scan of the whole library (1336 `report.tex` files and every
+  `tiddlers.json`) finds zero occurrences. It stays ACCEPTED because 596's
+  contract is "wide enough not to miss a row" and narrowing it is a behaviour
+  change this task did not measure. It lives in `inkmeasure._DEAD_PREFIXES`
+  and reaches the pattern through `prefix_alternation(..., extra=...)`, whose
+  docstring says that every use of `extra` is a claim that a prefix is dead.
+
+THE GUARD — REBUILT IN FIX ROUND 1, BECAUSE THE FIRST ONE COULD NOT SEE
+  `test_no_second_shape_regex_survives_in_src` matched the literal text
+  `(?:FOX?` / `(?:FOX|FO`. It could not see a CAPTURING group, and it could
+  not see an alternation in which FO is not first — so it passed, green, while
+  four live shape regexes stood. A guard that cannot fail is rule 11 in its
+  purest form, and it was mine.
+
+  `test_no_second_title_prefix_regex_survives_in_src_or_tools` is built FROM
+  the table: it parses every string literal in `src/` and `tools/` with `ast`
+  and flags any `A|B(|C…)` run holding two or more of `TITLE_SHAPES`' own
+  prefixes AND sitting where a title's prefix sits — immediately after the `_`
+  that follows the bibkey. That `_` anchor is what separates a TITLE
+  alternation from a TEMPLATE one: `{{…||(FO|EQ|FREF)}}` in `commands.py`
+  names templates, and FO and EQ are both a template and a prefix. Without
+  the anchor the threshold has to be raised to 3 to avoid that false
+  positive, and at 3 `crossref`'s two-prefix `_(EQ|FOX?)` slips through. The
+  anchor buys the threshold of 2, which is what catches it.
+
+  PROVEN TO FAIL ON HEAD. Run against a clean export of the tree as it stood
+  before this round (4ddfe33 — 644's first commit 5cf54eb plus 646 fix round
+  1, neither of which touches these four files) the guard reports:
+      src/pdfdrill/commands.py    ['DIA|PIC']
+      src/pdfdrill/crossref.py    ['EQ|FOX?']
+      src/pdfdrill/inkmeasure.py  ['EQ|FO|TAB|DIA|IMG|H']
+      src/pdfdrill/reccontext.py  ['EQ|FOX?|TAB']
+  — the three the review named plus the one it did not. On the worktree it
+  reports nothing.
+
+  Two tests stand beside it, because a whitelist and a detector both rot
+  silently: `test_the_guard_actually_fires` asserts all four real spellings
+  trip it and that a template alternation does not, and
+  `test_the_whitelist_names_only_files_that_exist_and_still_offend` asserts
+  every frozen script still exists AND still carries the pattern it is
+  excused for — an entry that no longer applies is a hole in the guard.
 
 WHAT THE COPIES HAD GOT WRONG — three live defects, found by writing them down
   1. `distill_reader` numbered Footnote `_FN_{i:03d}`, Sidenote `_SN_{i:03d}`
@@ -167,7 +239,10 @@ CONSUMERS DELIBERATELY NOT MOVED, WITH THE REASON
   census509, pkggap482, beddiag492) each carry `_(EQ|FOX?|TAB)\d`. They are
   frozen per-task measurement scripts under rule 19 — the exact source that
   produced a published number — not consumers of the live scheme. Rewriting
-  them would break the reproducibility that is their only job.
+  them would break the reproducibility that is their only job. All eight are
+  whitelisted BY NAME with the task each belongs to in
+  `tests/test_title_scheme.py::_FROZEN_SCRIPTS`, never by a blanket `tools/`
+  exemption, and a test asserts each still exists and still offends.
 
 THE MACRO LAYER
   DEFINED, 16 (the projector's `TEMPLATES` map, now the single source; the
@@ -227,7 +302,27 @@ TESTS (TDD; every test confirmed failing first — the module had no such API)
     * the macro-layer tests above;
     * each moved consumer produces titles the parser accepts with the right
       kind (llm_text, distill_reader, occurrences, citekeys, report_tex);
-    * no second prefix alternation survives anywhere in `src/`.
+    * no second TITLE-PREFIX alternation survives anywhere in `src/` or
+      `tools/` (rebuilt in fix round 1 — see THE GUARD above; the first
+      version of this test could not see three of the four regexes that
+      were standing when it passed);
+    * `test_the_guard_actually_fires` and
+      `test_the_whitelist_names_only_files_that_exist_and_still_offend`;
+    * `test_each_footnote_marker_resolves_to_the_body_with_that_refnum` —
+      creation order and flow order diverge on purpose (footnotes added 3, 7,
+      11 while flow orders them 7, 3, 11) and every `{{…||FN}}` marker must
+      reach the body with that printed refnum, on that page, with that text.
+      WHAT IT DISCRIMINATES, measured by mutation, not asserted: re-deriving
+      the marker target from the printed refnum
+      (`title_for(bibkey, "Footnote", int(rn))` — the pre-644 assumption, and
+      the regression a reader of this diff would most plausibly write) FAILS
+      it, every marker dangling. Swapping the numbering back to insertion
+      order does NOT fail it, and the test says so in its own docstring
+      rather than implying otherwise: `fn_by_refnum` maps a printed number to
+      that footnote's OWN title, so the marker->body wiring is independent of
+      which order the numbers came from. Uniqueness is pinned separately.
+      NOT covered, and it is 646-a: two footnotes sharing a printed refnum on
+      different pages still both resolve to the first body.
   CHANGED, and why:
     tests/test_conserve.py::test_two_objects_sharing_one_tiddler_title…
       646 built its collision out of the FN defect itself. The scheme no
@@ -242,7 +337,8 @@ TESTS (TDD; every test confirmed failing first — the module had no such API)
       is now read from `TEMPLATES`, so the identity is asserted instead.
 
   FULL SUITE: PYTHONDONTWRITEBYTECODE=1 PYTHONPATH=src python3 -m pytest
-  tests/ -q -p no:cacheprovider  ->  3150 passed, 0 failed.
+  tests/ -q -p no:cacheprovider  ->  3155 passed, 0 failed (fix round 1;
+  3150 at the first commit).
 
 EVIDENCE (library, deny-by-default git; never committed to this repo)
   ~/pdfdrill-library/out/644/script.py            the exact source that ran,
@@ -278,6 +374,14 @@ WHAT IS LEFT
   644-e  `num_from_title` is the last shape-adjacent reader not on the
          table, for the reason above. Moving it means deciding what a
          citation's "number" is, which is a `distill_reader` question.
+  644-f  `IMG` is accepted by `inkmeasure._IDENT_TOKEN` and emitted by
+         nothing (zero occurrences in 1336 library `report.tex` files).
+         Removing it is a one-line change to a measured-zero population; it
+         was left because 596's contract is deliberately permissive and
+         narrowing it belongs with a re-measurement of that pipeline.
+  644-g  The guard reads STRING LITERALS. A shape alternation assembled at
+         runtime from pieces ("EQ" + "|" + "FO") is invisible to it. Nothing
+         in the tree does that today; if one appears, the guard will pass.
 
 CONCERNS
   The FN change is a real change to a published artefact: anyone holding a

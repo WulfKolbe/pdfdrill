@@ -8103,9 +8103,19 @@ def _render_regions(sc, tiddlers) -> tuple:
             if d.is_dir():
                 src_dir = d
                 break
+    # 644 — "is this a Diagram or a Picture title" is a question the title
+    # scheme answers; the hand-written `_(DIA|PIC)_\d+$` was a fourth copy of
+    # the shape. `parse_title` is stricter by exactly the scheme's digit width
+    # (four), which every title the projector emits has.
+    from docops.projectors.tiddlywiki import parse_title as _parse_title
+
+    def _is_figure(title: str) -> bool:
+        p = _parse_title(str(title or ""))
+        return p is not None and p.kind in ("Diagram", "Picture")
+
     rows = [(t.get("title", ""), (t.get("latex") or t.get("latex_code") or ""))
             for t in tiddlers if isinstance(t, dict)
-            and _re.search(r"_(DIA|PIC)_\d+$", str(t.get("title", "")))]
+            and _is_figure(t.get("title", ""))]
     todo = [(i, lx) for i, lx in rows if lx.strip()
             and not (out_dir / f"{i}.png").is_file()]
     done = sum(1 for i, lx in rows if lx.strip()

@@ -234,7 +234,7 @@ def parse_title(title: str) -> Optional[ParsedTitle]:
     return ParsedTitle(m.group("bibkey"), kind, int(tail), None)
 
 
-def prefix_alternation(kinds) -> str:
+def prefix_alternation(kinds, extra=()) -> str:
     """A regex alternation of the PREFIXES of `kinds`, longest first.
 
     For the consumers that match a title FRAGMENT rather than a whole title —
@@ -242,9 +242,14 @@ def prefix_alternation(kinds) -> str:
     ` (was)` suffix and `\\allowbreak{}` inside it, so `parse_title` cannot be
     used without changing what they match (rule 17: match to a stable anchor).
     The SUBSET stays explicit at the call site; the prefixes come from here.
+
+    `extra` carries literal prefixes that are NOT in the table — a pattern that
+    historically accepted a token no projector emits and must keep accepting
+    it byte for byte. Every use of `extra` is a claim that the prefix is DEAD,
+    and has to say so at the call site.
     """
-    ps = sorted((TITLE_SHAPES[k].prefix for k in kinds), key=len, reverse=True)
-    return "|".join(re.escape(p) for p in ps)
+    ps = [TITLE_SHAPES[k].prefix for k in kinds] + [str(e) for e in extra]
+    return "|".join(re.escape(p) for p in sorted(ps, key=len, reverse=True))
 
 
 #: THE MACRO LAYER. Every `{{title||TPL}}` the projector emits names one of
