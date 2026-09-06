@@ -2196,6 +2196,33 @@ commands:
     required: true
     help: PDF path, https URL, or bare arXiv id
   typed: true
+- name: conserve
+  section: Introspection (fast, no extraction)
+  summary: 'CONSERVATION CHECK of the emitted projection (read-only, fixes nothing): three
+    counts — objects the TiddlyWiki projection never places under a parent, mathpix_lines
+    anchors no object claims, and anchors two or more objects both claim (the "this
+    footnote carries its neighbour''s text" class). The projection is built IN MEMORY
+    from the model, never read from disk. Per-type breakdown + named examples; --json
+    for the full record. Pairs with `residuals`, which measures the input side.'
+  offline_ok: true
+  positionals:
+  - name: pdf
+    type: pdf
+    required: true
+    help: PDF/Markdown drilled-doc path, URL, or arXiv id
+  flags:
+  - name: json
+    flag: --json
+    type: flag
+    help: emit the full audit as JSON instead of the prose report
+  - name: limit
+    flag: --limit
+    type: int
+    default: 10
+    help: named examples per finding class
+  typed: true
+  requires:
+  - model
 - name: gaps
   section: Introspection (fast, no extraction)
   summary: 'Report MISSING information (cohomology-as-linter): acronyms used but never expanded, undeclared

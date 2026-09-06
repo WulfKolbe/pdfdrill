@@ -1,0 +1,298 @@
+646 — pdfdrill conserve: the conservation check
+===============================================
+
+"No content lost, none mixed up" is the whole claim, and nothing tested it.
+`pdfdrill conserve <pdf>` states it as three numbers. It is READ-ONLY: it
+makes the failure visible and fixes nothing it finds. Everything below is
+what IS, on the two documents, today.
+
+ASSUMPTION, STATED AS THE BRIEF ASKS
+  "Both documents" = penev_A and penev_B, the user's two drilled documents,
+  both present in ~/pdfdrill-library. No third document was consulted.
+
+EVIDENCE (library, deny-by-default git; never committed to this repo)
+  ~/pdfdrill-library/penev_A/out/646/script.py     the exact source that ran,
+  ~/pdfdrill-library/penev_B/out/646/script.py     through the real CLI entry
+  ~/pdfdrill-library/out/646/script.py             point (cmd_conserve)
+  ~/pdfdrill-library/penev_{A,B}/out/646/conserve.txt   the prose report
+  ~/pdfdrill-library/penev_{A,B}/out/646/conserve.json  the full audit, by id
+  ~/pdfdrill-library/out/646/pair.json             both documents side by side
+  ~/pdfdrill-library/penev_{A,B}/out/646/INSPECT.txt    4 paths each, checked
+  ~/pdfdrill-library/out/646/INSPECT.txt                3 paths, checked
+
+WHAT WAS BUILT
+  src/docops/conserve.py   pure functions over (Document, tiddler array,
+                           title map): `project_in_memory`, `reachability`,
+                           `anchor_claims`, `conserve`, `format_report`.
+                           It lives in docops because it audits a projection.
+  src/semantic/compiler.py one-line pointer in the docstring: the semantic
+                           validator does NOT check conservation; the
+                           conservation check is `docops.conserve`.
+  cmd_conserve             src/pdfdrill/commands.py — no `@_writes`, no
+                           sidecar fact, no artefact. Rebuilds a stale model
+                           through `_stale_or_absent` like `cmd_evidence`.
+  _do_conserve + HANDLERS  src/pdfdrill/cli.py
+  manifest                 .claude/skills/pdfdrill/commands.yaml,
+                           `requires: [model]`, no `done_when` (it produces
+                           no artefact — the shape 57 other read-only
+                           commands already use); `skillsync all .` run,
+                           148 commands, manifest <-> HANDLERS in sync.
+
+DEFINITIONS AS IMPLEMENTED
+  THE EMITTED PROJECTION is the TiddlyWiki array, built IN MEMORY from the
+  Document (`TiddlyWikiProjector.project` + its own `_assign_titles`). No
+  `.tiddlers.json` is read: a stale artefact would make the audit measure
+  the wrong document. Titles are compared after the projector's own
+  `_sanitize_title`.
+
+  A PARENT is a CONTENT transclusion `{{title}}` / `{{title||TPL}}` in some
+  OTHER tiddler's text. That is the only containment edge TiddlyWiki has.
+
+  REACHABLE = one or more parents, OR named by a LISTING. The listings are
+  the document root tiddler (titled with the bibkey, tagged `document`),
+  which lists its top-level sections as `<$link to=...>`, and the rebuilt TOC
+  index `<bibkey>_TOC` (tagged `toc`), which lists every section the same
+  way; a section lists its subsections as `- <$link to="S">{{S!!caption}}`,
+  whose field transclusion `{{S!!caption}}` is also a listing. Those two
+  tiddlers are the ROOTS. The 16 `template` tiddlers and the root are the
+  wiki's scaffolding and are not objects, so they never enter the population.
+
+  A listing makes a tiddler reachable but is NEVER a parent. Both the root
+  and the TOC list every section, so counting a listing as a parent would
+  report every section in every document as multi-parent — a number that
+  means nothing.
+
+  UNREACHABLE = 0 parents and not listed. `reason` is "no tiddler" when the
+  projector emits nothing at all for the object, else "no parent".
+  MULTI_PARENT = 2+ distinct parent tiddlers.
+
+  CLAIMED: a `mathpix_lines` anchor is claimed by an object with a `surface`
+  Realization on that stream whose [start, end] contains the anchor and which
+  carries no sub-anchor offset/length. An inline object (Formula, Citation,
+  footnote marker) lives INSIDE a line and does not claim it — 1354 such
+  inline realizations on penev_A, 996 on penev_B, correctly not counted.
+
+DEVIATION FROM THE BRIEF, WITH THE REASON (one)
+  `CONTAINER_TYPES = ("Page", "List")` do not claim. Read literally, the
+  brief's claim rule makes a Page a claimant: `PageProcessor` gives every
+  Page a `surface` realization spanning EVERY line of the page with no
+  offset. All 3178 penev_A anchors would then be doubly claimed (Page + the
+  real owner) and the measure would say nothing. A Page's range is a
+  container by construction, not a claim on content. The exclusion is
+  reported in the command's own output (`container types not claiming:
+  Page, List`) rather than hidden in the code, and is pinned by
+  tests/test_conserve.py::test_page_containers_do_not_claim_the_lines_they_span.
+
+TWO MEASURES ADDED BEYOND THE BRIEF'S THREE (both cheap, both in scope)
+  TITLE COLLISIONS — 2+ objects assigned ONE tiddler title. Nothing is lost
+  and nothing is unreachable; the content is MIXED UP, which is the other
+  half of the claim, and none of the three headline counts can see it.
+  DARK ANCHORS — lines whose EVERY claimant is an unreachable object. The
+  line is claimed, so the unclaimed count does not see it, and it still
+  reaches no tiddler. This is the number that joins the two halves.
+
+THE COUNTS
+                                    penev_A        penev_B
+  objects                             1405            821
+  tiddlers emitted                    1271            838
+  mathpix_lines anchors               3178           1943
+  ---------------------------------------------------------
+  unreachable objects                  238   (16.9%)   83   (10.1%)
+  unclaimed anchors                    243   ( 7.6%)  115   ( 5.9%)
+  doubly-claimed anchors                83   ( 2.6%)   51   ( 2.6%)
+  ---------------------------------------------------------
+  title collisions                      17             13
+  dark anchors                         434   (13.7%)  131   ( 6.7%)
+
+  Neither document conserves. `conserved: false` on both.
+
+PER TYPE — objects / unreachable / multi-parent
+
+  penev_A                            penev_B
+  Formula     674   41   93          Formula    497   30  102
+  Paragraph   222    2    0          Paragraph  141   15    0
+  Equation    116    0    0          Equation    62   13    0
+  Citation     81   81    0          Footnote    36    9   10
+  TableCell    54   54    0          Section     29    0    0
+  Footnote     53    8   44          Sidenote    24    1    0
+  Reference    52   12   12          Page        14   14    0
+  Sidenote     46    1    0          Diagram      9    0    0
+  Section      37    0    0          Picture      8    0    0
+  Page         22   22    0          Document     1    1    0
+  TableRow     15   15    0
+  Diagram      14    0    0          (penev_B carries no Citation, Reference,
+  Picture      11    0    0           Table or Toc objects at all — it is a
+  ListItem      4    0    0           chapter extract, so the citation classes
+  Table         1    0    0           below simply do not arise there.)
+  Toc           1    1    0
+  Abstract      1    0    0
+  Document      1    1    0
+
+  Equation, Section, Diagram, Picture, ListItem, Table and Abstract are
+  fully reachable on penev_A — the check is not reporting everything, which
+  is what makes the classes it DOES report worth reading (rule 11: it was
+  built against a real success and a real failure, tests (a)–(e)).
+
+THE BIGGEST CLASSES, WITH EXAMPLES
+
+  1. Citation: 81 of 81, "no tiddler" (penev_A).
+     EXACTLY the user's number, and unchanged by 010/639. The projector
+     assigns no title to a Citation object at all: the in-text marker is
+     rewritten to point at the REFERENCE tiddler (`{{penev_A_REF_key||CIT}}`)
+     and the Citation itself is never emitted. This is arguably correct by
+     design — the citation IS the marker — but by the definition it is 81
+     model objects with no image in the projection, and nothing said so
+     before. Example: the `dB` Citation on p8 (a units-abbreviation false
+     positive from `CitationProcessor`'s `[key]` scan, already named in 639).
+
+  2. Formula: 41 (penev_A) / 30 (penev_B), "no parent".
+     A Formula tiddler is emitted but no paragraph transcludes it, because
+     the Formula has no offset/length realization to substitute at. 8 of
+     penev_A's 41 are on page 2 — the Contents pages: `(T=87)`,
+     `3.11 S-U`, `1(T=1038`, `3.13 \log`. This is the user's "the Contents
+     region reaching nothing but orphan maths", and see class 4.
+
+  3. Footnote: 44 multi-parent (penev_A) / 10 (penev_B), 17 / 13 title
+     collisions. Footnote titles are `FN<refnum:04d>` and refnums repeat per
+     page, so `penev_A_FN0001` is FOUR Footnote objects and
+     `penev_A_FN0009` is SIX. The inline substitution then rewrites the
+     marker `1` in every paragraph that has one to the same tiddler, so one
+     footnote body appears under four different markers and the other three
+     objects behind that title are invisible. 8 penev_A Footnotes and 9
+     penev_B Footnotes reach nothing at all. The model also holds duplicate
+     Footnote objects (identical `content`, e.g. FN0008/FN0009/FN0011/FN0012
+     on penev_B appear exactly twice each).
+
+  4. Toc: 1 object, "no tiddler" — 288 DARK ANCHORS (penev_A).
+     The single Toc object claims lines 71..361 (pages 2–3, 291 lines) and
+     the projector deliberately emits nothing for a Toc (262: the objects
+     are `derived`, and one rebuilt `penev_A_TOC` index is emitted from the
+     Sections instead). Those 288 lines are claimed — so `unclaimed` cannot
+     see them — and reach no tiddler. 23 Formulas are hosted on those lines.
+     This is the third of the user's three day-one findings, confirmed and
+     now measured: the Contents region really does reach nothing, and the
+     maths in it really is orphaned.
+
+  5. Footnote+Paragraph: 34 (penev_A) / 51 (penev_B) doubly-claimed anchors.
+     The user's "29 footnote bodies carry a neighbour's text", measured:
+     34 and 51. A Footnote's `surface` realization and a Paragraph's cover
+     the same line, so the same OCR text is in two objects.
+     penev_B's doubly-claimed set is ONLY this pair — 51 of 51.
+
+  6. Paragraph+Reference: 31 + 4 + 1 + 1 = 37 anchors (penev_A only).
+     NEW SINCE THE USER MEASURED. 010 anchors a stub Reference on the
+     CITING prose line, so 37 body lines are now claimed by a Paragraph and
+     by one to four Reference stubs at once. Not a regression in the
+     bibliography — a consequence of putting the stub in the model — but it
+     is content mixed up by the definition, and it did not exist before 010.
+
+  7. Reference: 12 of 52 "no parent" (penev_A).
+     All 12 are stubs whose citekey is never substituted into any paragraph.
+     Cause, read off the model: a multi-key citation group produces several
+     Citation objects at the SAME character span, and
+     `_apply_line_substitutions` accepts one and drops the overlapping rest
+     (tiddlywiki.py, "Drop substitutions that overlap with an
+     already-accepted one"). Oja1989, Sanger1989 and Plumbey1991 all sit at
+     offset 1, length 65 on one line; Mumford1991 and Mumford1992 both at
+     (34, 28). One wins, the others' REF tiddlers are never linked.
+
+  8. Unclaimed anchors by line type:
+     penev_A  equation_number 116, page_info 55, text 40, figure_label 26,
+              table_column 4, authors 1, simple_cell 1
+     penev_B  equation_number 61, page_info 34, figure_label 17, text 2,
+              footnote 1
+     The two dominant kinds are BY DESIGN — an equation number is folded
+     into its Equation's props, a running header/page number is furniture —
+     but 40 (penev_A) and 2 (penev_B) `text` lines are body prose no object
+     covers at all, and 26 + 17 `figure_label` lines are caption text.
+
+  9. TableCell 54 + TableRow 15, "no tiddler" (penev_A).
+     The projector emits ONE Table tiddler; the cell/row objects the model
+     builds have no image in the projection. 69 objects, 69 dark anchors.
+
+WHAT CHANGED SINCE THE USER MEASURED (tasks 010 and 639, db66ff0..d7def83)
+  81 Citations unreachable — UNCHANGED, and exactly the user's number.
+  8 References unreachable — NO LONGER THE SAME POPULATION. Before 010 the
+    document had ~8 filled References from a .bib/.bbl that is now lost
+    (639: not measurable, no BIBSOURCE_BUILT fact survives). 010 creates a
+    stub Reference for every cited key, so the population is now 52, of
+    which 12 are unreachable — a different denominator, not a movement of
+    the same number. What 010/639 DID fix is the dangling side: 639 measured
+    0 dangling transclusions and 0 orphans, and this audit agrees (every
+    emitted REF tiddler exists; 12 simply have nothing pointing at them).
+  29 footnote bodies with a neighbour's text — now 34 on penev_A, 51 on
+    penev_B. The user's 29 was of the right order and the class is real.
+  The Contents region reaching only orphan maths — CONFIRMED and quantified:
+    288 dark anchors, 23 Formulas hosted there.
+  NEW, created by 010: Paragraph+Reference doubly-claimed anchors, 37 on
+    penev_A, 0 before.
+
+TESTS (TDD; the module did not exist, every test confirmed failing first)
+  tests/test_conserve.py, 9 tests:
+    (a) a conserved document -> three zeros, on a NON-EMPTY population
+        (a check that measures nothing passes vacuously — rule 11);
+    (b) an object the projector emits no tiddler for -> unreachable 1,
+        reason "no tiddler", and its inline marker does not claim its line;
+    (c) one paragraph in two sections' children -> multi_parent 1, 2 parents;
+    (d) one line covered by a Paragraph and a Footnote -> doubly_claimed 1,
+        pair ("Footnote", "Paragraph");
+    (e) one line no object covers -> unclaimed 1, and `conserved` false;
+    plus the Page-container deviation, the (doc, tiddlers, titles) signature,
+    the title-collision finding, and the dark-anchor finding.
+  Rule 11 is satisfied by construction: (a) is a real success and (b)–(e)
+  are real failures of the same summariser.
+
+  FULL SUITE: PYTHONDONTWRITEBYTECODE=1 PYTHONPATH=src python3 -m pytest
+  tests/ -q -p no:cacheprovider  ->  3129 passed, 0 failed
+  (test_skill_sync 148 commands in sync, test_doclock green — `conserve`
+  holds no lock because it writes nothing).
+
+FOLLOW-UPS — NAMED, NOT FIXED (this task's job was to make them visible)
+
+  646-a  Footnote titles collide. `FN<refnum>` is not unique: refnums repeat
+         per page. 17 collisions on penev_A, 13 on penev_B; one tiddler
+         stands for up to six Footnote objects and the inline substitution
+         wires every matching marker to it. The title needs the page (or the
+         flow index) in it, and `_substitute_footnotes` needs to resolve per
+         paragraph, not by a document-wide refnum map.
+  646-b  Duplicate Footnote objects in the model. Several Footnotes appear
+         twice with identical `content` (penev_B FN0008/9/11/12, penev_A
+         FN0029/31/33). Deduplication belongs upstream of the projector.
+  646-c  Overlapping citations lose their References. A multi-key group
+         gives N Citations at one span; the projector keeps one. 12 of 52
+         penev_A REF tiddlers are consequently unlinked. Either the model
+         should give each key its own sub-span, or the projector should
+         emit a combined marker for a shared span.
+  646-d  The Toc region is dark. 288 claimed lines and 23 Formulas reach
+         nothing because Toc objects are omitted (262) and nothing else
+         covers those lines. Either the Toc's Formulas should not be
+         extracted at all, or the omitted region should be reachable from
+         the rebuilt `_TOC` index.
+  646-e  TableCell/TableRow have no image in the projection (69 objects,
+         69 dark anchors on penev_A). Decide: emit them, or mark them
+         derived so the audit can exclude them by provenance rather than
+         reporting them as loss.
+  646-f  Citation objects have no tiddler by design. Either give them one,
+         or mark the type as intentionally marker-only so `conserve` can
+         say "by design" instead of "unreachable" — the same shape as 646-e.
+  646-g  Stub References anchored on the citing prose line (010) make 37
+         penev_A body lines doubly claimed. A stub has no printed surface;
+         it should probably carry no `mathpix_lines` surface realization at
+         all, or one with a sub-anchor offset so it does not claim the line.
+  646-h  40 penev_A `text` lines and 2 penev_B `text` lines are body prose
+         no object covers. That is the pure "content lost" class and the
+         one worth chasing first.
+  646-i  Formulas with no offset realization (41 / 30) are emitted and never
+         transcluded. Some are TOC residue (646-d); the rest need either an
+         offset or suppression.
+
+CONCERNS
+  penev_B carries no Citation, Reference, Table or Toc objects, so five of
+  the nine classes above rest on penev_A alone. A second citation-bearing
+  document would test them; none was in scope here.
+  `dark anchors` and `title collisions` are measures I added beyond the
+  brief's three. They are reported separately and are not folded into
+  `conserved`, which stays exactly the brief's three counts.
+  The command was run on the models AS THEY STAND; no `--force` rebuild was
+  done, so these numbers describe the current library state, not a fresh
+  extraction.

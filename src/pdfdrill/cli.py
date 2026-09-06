@@ -1505,6 +1505,17 @@ def _do_booktoc(args):
     return cmd_booktoc(_pdf(args))
 
 
+def _do_conserve(args):
+    """pdfdrill conserve <pdf> [--json] [--limit N]  — conservation audit of the projection"""
+    from .commands import cmd_conserve
+    lim, rest = _opt(args, "--limit")
+    rest = [a for a in rest if a != "--json"]
+    if not rest:
+        raise ValueError("No file specified.")
+    return cmd_conserve(_drilled(rest), json_out="--json" in args,
+                        limit=int(lim) if lim else 10)
+
+
 def _do_gaps(args):
     """pdfdrill gaps <pdf|md>"""
     from .commands import cmd_gaps
@@ -2257,6 +2268,7 @@ HANDLERS = {
         "identifiers": _do_identifiers,
         "booktoc": _do_booktoc,
         "gaps": _do_gaps,
+        "conserve": _do_conserve,
         "llmtext": _do_llmtext,
         "mathcheck": _do_mathcheck,
         "quantities": _do_quantities,

@@ -5265,6 +5265,43 @@ def _keyless_math_steering(pdf_name: str, inline: int, eqs: int, bearing: bool,
            + "\n  - ".join(routes) + "\nthen re-run `evidence`.")
 
 
+# 646 -- THE CONSERVATION CHECK. Read-only by construction: no `@_writes`,
+# no sidecar fact, no artefact. Its job is to make the failure VISIBLE, not
+# to fix anything it finds. The three counts are the whole claim the
+# pipeline makes ("no content lost, none mixed up") stated as a number.
+def cmd_conserve(pdf: Path, json_out: bool = False, limit: int = 10) -> str:
+    """Conservation audit of the emitted projection.
+
+    unreachable objects  — DocObjects the TiddlyWiki projection never places
+                           under a parent (no tiddler at all, or a tiddler
+                           nothing transcludes and no root lists);
+    unclaimed anchors    — `mathpix_lines` lines no object covers;
+    doubly-claimed       — lines two or more objects both cover.
+
+    The projection is built IN MEMORY from the model, never read from disk:
+    a stale `.tiddlers.json` would make the audit measure the wrong thing.
+    Pairs with 634, which measures the same surface from the input side.
+    """
+    from docmodel.core import Document
+    from docops.conserve import conserve, format_report
+
+    sc = Sidecar(pdf)
+    model_path = _model_path(sc)
+    if _stale_or_absent(sc, model_path, _lines_json_path(pdf)):
+        cmd_model(pdf)
+        sc = Sidecar(pdf)
+        model_path = _model_path(sc)
+    if not model_path.exists():
+        return f"No model for {pdf.name} (run `pdfdrill model` first)."
+
+    with open(model_path, "r", encoding="utf-8") as f:
+        doc = Document.from_dict(json.load(f))
+    res = conserve(doc)
+    if json_out:
+        return _jsonio.dumps(res, indent=1)
+    return format_report(res, limit=limit)
+
+
 @_writes("evidence")
 def cmd_evidence(pdf: Path, kind: "str | None" = None, pdf_out: bool = False,
                  all_kinds: bool = False, images: bool = True,

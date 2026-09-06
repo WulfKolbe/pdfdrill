@@ -12,6 +12,13 @@ trusted to do reliably:
   * flag contradictory functional relations (a document with two issuers).
 
 Returns validity + graded warnings. Pure (graph in, result out); blocks optional.
+
+WHAT THIS GATE DOES NOT CHECK: conservation. Nothing here says that every
+DocObject arrived in the projection under exactly one parent, or that every
+`mathpix_lines` anchor landed in exactly one object — the "no content lost,
+none mixed up" claim. THE CONSERVATION CHECK IS `docops.conserve`
+(`pdfdrill conserve <pdf>`, 646); this validator checks the semantic graph,
+that one checks the document→projection mapping.
 """
 from __future__ import annotations
 
