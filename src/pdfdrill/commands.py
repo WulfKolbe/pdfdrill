@@ -1597,18 +1597,22 @@ PUBLISH_CHECKS = ("model", "glyphs", "ink", "stamp", "residuals", "artefacts",
 #: later task. Each prints one line naming what it ran. `report` and
 #: `breport` route there fully; `inkreport`'s default call does too — see its
 #: docstring for the arguments `residuals` cannot carry, which still go
-#: straight to `_inkreport_chain`. `reporttex` stays its own full
-#: implementation: `_inkreport_chain` calls it three times for the legend/
-#: formula-rule/findings/pages-refusal/ink_bullets/cellrect behaviour that IS
-#: the ink-measurement chain, and `evidence` has no equivalent — aliasing it
-#: would silently drop every one of those arguments and stop `inkreport`/
-#: `residuals --measure` from building report.pdf at all. Its manifest entry
-#: is still marked ALIAS OF per this task's instructions; that is a
-#: documentation statement of intent, not yet true of the code.
+#: straight to `_inkreport_chain`.
 ALIASES = {"report": "evidence --kind formula / --kind equation",
-           "reporttex": "evidence --all-kinds --pdf",
            "breport": "residuals --pdf",
            "inkreport": "residuals --measure --pdf"}
+
+#: spec 2026-09-06 (task 10 fix round) — `reporttex` is NOT an alias, and
+#: saying so is more honest than pretending it will become a 3-line wrapper.
+#: `_inkreport_chain` calls it three times (measure build, reading build,
+#: `_bail` restore) for the legend/formula-rule/findings/pages-refusal/
+#: ink_bullets/cellrect behaviour that IS the ink-measurement chain — the
+#: `--no-legend`, cell-rect-marked MEASURE build of report.pdf (613) that
+#: inkmeasure reads pixel-for-pixel. `evidence` has no equivalent for any of
+#: it, so reporttex keeps its full implementation until the measure build
+#: itself moves onto `evidence-equation.pdf` (a separate, larger task). For
+#: READING (a human opening a report), use `evidence --all-kinds --pdf`.
+SUPERSEDED = {"reporttex": "evidence --all-kinds --pdf"}
 
 
 def alias_note(name: str) -> str:
@@ -5266,6 +5270,11 @@ def cmd_evidence(pdf: Path, kind: "str | None" = None, pdf_out: bool = False,
                       lines_path=lines_path if lines_path.exists() else None)
     rows, crop_note = ensure_crops(rows, doc_dir, pdf, bibkey=bibkey,
                                    history=_bibkey_history(sc), images=images)
+    # counted from the FULL row dict, independent of which kind(s) this call
+    # actually renders — the old cmd_report's FormulaReportProjector counted
+    # every inline Formula / display Equation in the document the same way.
+    inline = len(rows.get("formula", []))
+    eqs = len(rows.get("equation", []))
     px2mm = rt.auto_px2mm(pdf)
     out = [crop_note]
     for k in (KINDS if all_kinds else (kind,)):
@@ -5275,7 +5284,38 @@ def cmd_evidence(pdf: Path, kind: "str | None" = None, pdf_out: bool = False,
                      compile_pdf=compile_pdf)
         out.append(_evidence_line(r, pdf_out, compile_pdf))
     sc.set_evidence("evidence_kinds", list(KINDS if all_kinds else (kind,)))
+    # spec 2026-09-06 (task 10 fix round) — `cmd_report`'s old body was the
+    # only producer of REPORT_BUILT (a fact `capgraph._MODEL_DERIVED` still
+    # claims a model rebuild destroys); `report` is now a thin alias of this
+    # function, so REPORT_BUILT's producer moves here. Ported verbatim from
+    # the pre-alias `cmd_report` (bfcc0d0): a formula-kind HTML build is what
+    # the old formula-report.html was.
+    if (kind == "formula" or all_kinds) and not pdf_out:
+        prev = ",".join(sorted(sc.facts - {REPORT_BUILT})) or "INIT"
+        sc.add_fact(REPORT_BUILT)
+        sc.log_transition("evidence", prev, REPORT_BUILT,
+                          detail=f"{inline} inline, {eqs} equations")
     sc.save()
+    # 2026-09-06 (task 10 fix round) — ported verbatim from the pre-alias
+    # `cmd_report` (bfcc0d0). If the equation kind was built and found
+    # nothing, don't leave the user guessing — say WHY and WHAT to do. A
+    # keyless (tesseract) build types no equations; the gate sets
+    # NEEDS_VISION_OCR. Steer to the right recovery, arXiv-gold first.
+    if (kind == "equation" or all_kinds) and eqs == 0:
+        from . import mathqc
+        bearing, why = (True, "math-bearing") if sc.has(NEEDS_VISION_OCR) \
+            else mathqc.is_math_bearing(pdf, sc)
+        if bearing:
+            aid = _arxiv_id_for(pdf, sc)
+            routes = []
+            if aid:
+                routes.append(f"`pdfdrill injectlatex {pdf.name}` (FREE: the author's gold "
+                              f"arXiv equations → real Equation objects)")
+            routes.append(f"`pdfdrill visionocr {pdf.name}` (keyless: an LLM reads each page)")
+            routes.append(f"`pdfdrill mathpix {pdf.name} --force` (paid MathPix)")
+            out.append("⚠ 0 formulas because the model was built from keyless "
+                       f"tesseract OCR, which cannot type equations ({why}). Recover them with:\n  - "
+                       + "\n  - ".join(routes) + "\nthen re-run `report`.")
     return "\n".join(out)
 
 

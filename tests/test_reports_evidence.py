@@ -99,3 +99,29 @@ def test_evidence_line_compile_requested_but_xelatex_missing():
         "errors": 0, "demoted": 0}
     assert _evidence_line(r, pdf_out=True, compile_pdf=True) == \
         "Wrote evidence-equation.pdf: 5 rows (xelatex not installed; .tex written)"
+
+
+def test_cmd_evidence_produces_report_built():
+    """task 10 fix round — REPORT_BUILT's producer moved from the old
+    `cmd_report` body to `cmd_evidence` (`report` is now a thin alias of it).
+    `capgraph._MODEL_DERIVED` still claims a model rebuild destroys
+    REPORT_BUILT, so something must still produce it."""
+    import ast, inspect
+    from pdfdrill import commands
+    src = inspect.getsource(commands.cmd_evidence)
+    tree = ast.parse(src)
+    names = {n.id for n in ast.walk(tree) if isinstance(n, ast.Name)}
+    assert "REPORT_BUILT" in names, "cmd_evidence no longer names REPORT_BUILT"
+    assert "add_fact" in src, "cmd_evidence must call add_fact(REPORT_BUILT)"
+
+
+def test_cmd_evidence_steers_to_recovery_when_math_bearing_and_keyless():
+    """task 10 fix round — the keyless-math steering message (arXiv gold ->
+    visionocr -> mathpix), ported verbatim from the pre-alias `cmd_report`
+    (bfcc0d0), must still exist once `report` no longer builds it itself."""
+    import inspect
+    from pdfdrill import commands
+    src = inspect.getsource(commands.cmd_evidence)
+    assert "NEEDS_VISION_OCR" in src
+    assert "visionocr" in src
+    assert "injectlatex" in src and "mathpix" in src

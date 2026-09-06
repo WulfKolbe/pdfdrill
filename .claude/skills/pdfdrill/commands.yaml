@@ -1793,7 +1793,7 @@ commands:
   typed: true
 - name: reporttex
   section: Introspection (fast, no extraction)
-  summary: 'ALIAS of evidence --all-kinds --pdf. LaTeX formula report (report.tex): one boxed longtable row per EQ/FO/TAB — identifier, page,
+  summary: 'SUPERSEDED for reading by evidence --all-kinds --pdf; kept as the ink chain''s measure build. LaTeX formula report (report.tex): one boxed longtable row per EQ/FO/TAB — identifier, page,
     escaped source, rendered math, and the MathPix scan crop at pixel-exact original size (px2mm derived
     from pdfinfo + lines.json); the tex.zip unrecovered image regions (TikZ/table/failed-math candidates)
     close the report. --compile runs the xelatex fixpoint (malformed OCR rows demoted to source-only,
