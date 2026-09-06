@@ -81,6 +81,46 @@ def drop_ownerless_stubs(doc) -> int:
     return len(to_drop)
 
 
+def has_filled_references(doc) -> bool:
+    """010 fix round 4 — "are there References yet?" must mean FILLED ones.
+
+    Since 010 every cited key gets a stub Reference at model-build time, so
+    `any(o.type == "Reference")` is permanently TRUE and three gates that used
+    it stopped firing: `_auto_bibliography` (a projection that needs References
+    never built them), the same gate in `cmd_tiddlers`, and `CitationPass`
+    (which then never discovered the source bib). A stub is a placeholder for
+    a Reference, not one; only a non-stub Reference means the bibliography has
+    actually been built.
+    """
+    return any(o.type == "Reference" and not o.props.get("stub")
+               for o in doc.objects.values())
+
+
+def filled_cites_edges(doc) -> int:
+    """`cites` Alignments whose target is a FILLED (non-stub) Reference.
+
+    `CitationPass`'s "already linked, nothing to do" short-circuit counted
+    every `cites` edge, and after 010 a stub-only document has one per
+    Citation -- so it reported "already linked" on a document with no
+    bibliography at all."""
+    live = {(r.stream, r.start, r.end)
+            for o in doc.objects.values()
+            if o.type == "Reference" and not o.props.get("stub")
+            for r in o.realizations if r.start is not None}
+    return sum(1 for a in doc.alignments if a.kind == "cites"
+               and (a.right.stream, a.right.start, a.right.end) in live)
+
+
+def stub_for(doc, citekey: str):
+    """The citation-stub Reference for `citekey`, if one is still around."""
+    ck = (citekey or "").strip()
+    if not ck:
+        return None
+    return next((r for r in doc.objects.values()
+                 if r.type == "Reference" and r.props.get("stub")
+                 and (r.props.get("citekey") or "") == ck), None)
+
+
 # The bibliography-section heading WORD (matched on a normalized line, so a
 # \section*{}/markdown/numbered wrapper is stripped first — see _is_ref_heading).
 _HEAD = re.compile(
@@ -452,18 +492,32 @@ def detect_author_year_in_objects(doc, exclude_anchors=()) -> int:
     return added
 
 
-def link_citations(doc) -> int:
+def link_citations(doc) -> dict:
     """Add `cites` Alignments from in-text Citations to their Reference.
 
     Matches a citation's key to a reference citekey exactly, or by surname
     prefix (in-text `[Asai]` -> reference `Asai2023`). Idempotent: a Citation
     `ensure_reference_stub` (010) already linked at creation time is skipped
-    rather than re-linked with a second, identical edge. Returns edges
-    ADDED (not the total already-linked count). Surface is taken from the
-    citation's/reference's realization in ANY stream (so markdown/source
-    models link, not just mathpix_lines)."""
+    rather than re-linked with a second, identical edge. Surface is taken from
+    the citation's/reference's realization in ANY stream (so markdown/source
+    models link, not just mathpix_lines).
+
+    Returns `{"linked": …, "added": …}` (010 fix round 4). `linked` is the
+    TOTAL number of Citations that resolve to a FILLED (non-stub) Reference --
+    what a caller asking "is this document's bibliography wired up?" means;
+    `added` is how many edges this call actually created. Returning only
+    `added` (rounds 2-3) read as 0 on a correctly linked document and sent
+    `cmd_bibsource` into its destructive wipe-and-redetect branch.
+
+    A Citation linked only to its own STUB counts as UNRESOLVED here (010 fix
+    round 4, item 4): the exact-citekey stub match otherwise pre-empted the
+    fuzzy surname+year prefix match, which is the whole point of this pass.
+    When the fuzzy match (or the reference NUMBER) lands on a real Reference,
+    the stub is MERGED into it (`absorb_stub`) rather than left behind as a
+    permanent duplicate.
+    """
     from docmodel.core import Range
-    from docmodel.modules.citation import add_cites_alignment
+    from docmodel.modules.citation import add_cites_alignment, absorb_stub
 
     by_key = {}
     by_number = {}
@@ -473,15 +527,23 @@ def link_citations(doc) -> int:
             if ck:
                 by_key[ck] = r
             num = r.props.get("number")
-            if num is not None:
+            if num is not None and not r.props.get("stub"):
                 by_number[num] = r
 
     def find_ref(citekey: str):
         c = (citekey or "").lower().strip()
         if not c:
             return None
-        if c in by_key:
-            return by_key[c]
+        exact = by_key.get(c)
+        if exact is not None and not exact.props.get("stub"):
+            return exact
+        # A stub is not an answer while a FILLED Reference may still prefix-match.
+        if len(c) >= 3:
+            for ck, r in by_key.items():
+                if ck.startswith(c) and not r.props.get("stub"):
+                    return r
+        if exact is not None:
+            return exact                          # the citation's own stub
         for ck, r in by_key.items():
             if len(c) >= 3 and ck.startswith(c):
                 return r
@@ -494,21 +556,31 @@ def link_citations(doc) -> int:
             rr = next((x for x in o.realizations if x.start is not None), None)
         return Range(rr.stream, rr.start, rr.end) if rr else None
 
-    n = 0
-    for c in doc.objects.values():
+    added = linked = 0
+    for c in list(doc.objects.values()):
         if c.type != "Citation":
             continue
         num = c.props.get("number")
-        r = by_number.get(num) if num is not None else find_ref(c.props.get("citekey") or "")
+        key = c.props.get("citekey") or ""
+        r = by_number.get(num) if num is not None else None
+        if r is None:
+            r = find_ref(key)
         if r is None:
             continue
+        if not r.props.get("stub"):
+            linked += 1
+            stub = stub_for(doc, key)
+            if stub is not None and stub is not r:
+                absorb_stub(doc, stub, r)
+                # the stub is gone; the key now resolves to what absorbed it,
+                # so a LATER citation of the same key links there directly.
+                by_key[(key or "").lower()] = r
         ls, rs = surface(c), surface(r)
         if ls and rs:
-            added = add_cites_alignment(doc, ls, rs, {
-                "citekey": r.props.get("citekey"), "number": num})
-            if added is not None:
-                n += 1
-    return n
+            if add_cites_alignment(doc, ls, rs, {
+                    "citekey": r.props.get("citekey"), "number": num}) is not None:
+                added += 1
+    return {"linked": linked, "added": added}
 
 
 def _split_bib_entries(text: str) -> list[tuple[str, str]]:
@@ -607,7 +679,9 @@ def build_bibliography_from_source(doc, source_dir) -> dict:
     link the in-text Citations. Idempotent caller should only invoke this when no
     non-stub References exist yet (a citation-stub Reference, 010, is filled in
     place by `ingest_bbl`/`load_bibtex_file` rather than duplicated). Returns
-    {created, linked}."""
+    {created, filled, linked, added} -- `filled` counts stubs turned into gold
+    (a fill leaves `created` at 0), `linked` is the TOTAL citations resolved to
+    a filled Reference, `added` the edges this call created."""
     from pathlib import Path
     from . import latex_source
 
@@ -615,6 +689,14 @@ def build_bibliography_from_source(doc, source_dir) -> dict:
     cited = {(c.props.get("citekey") or "").strip()
              for c in doc.objects.values() if c.type == "Citation"}
     cited.discard("")
+    # 010 fix round 4 -- `created` alone under-reports: `load_bibtex_file`
+    # FILLS a citation stub in place (created 0) rather than making a second
+    # Reference for the same key, so a run that turned every stub into gold
+    # looked like it had done nothing. Count the stub->filled transition too.
+    def _filled():
+        return sum(1 for o in doc.objects.values()
+                   if o.type == "Reference" and not o.props.get("stub"))
+    filled_before = _filled()
     created = 0
     if res["bbl"]:
         created += ingest_bbl(doc, Path(res["bbl"][0]).read_text(errors="replace"))
@@ -636,8 +718,9 @@ def build_bibliography_from_source(doc, source_dir) -> dict:
                 created += ingest_bbl(doc, m.group(0), source="bibitem")
                 if created:
                     break
-    linked = link_citations(doc)
-    return {"created": created, "linked": linked}
+    res = link_citations(doc)
+    return {"created": created, "filled": _filled() - filled_before,
+            "linked": res["linked"], "added": res["added"]}
 
 
 def _clean_bbl(body: str) -> str:
@@ -755,36 +838,51 @@ def _ref_range(o):
     return None
 
 
-def link_citations_by_label(doc) -> int:
+def link_citations_by_label(doc) -> dict:
     """Link in-text Citations to References by alpha LABEL (OCR-tolerant).
 
     The thesis's printed citations are alpha labels (`[ASV02]`); MathPix OCRs
     them as the Citation citekey. Match each to the `.bbl` Reference whose label
-    normalizes equally, adding a `cites` Alignment. Returns edges added.
+    normalizes equally, adding a `cites` Alignment.
+
+    Returns `{"linked": …, "added": …}` (010 fix round 4) — `linked` counts the
+    Citations resolved to a filled Reference in TOTAL, `added` the edges this
+    call created. Edges go through `add_cites_alignment` (never
+    `doc.add_alignment` directly), and the Citation's own citation-stub
+    Reference is MERGED into the gold one it resolves to (`absorb_stub`): a
+    Citation `[ASV02]` used to end this pass with two edges to two References
+    (its stub `ASV02` and the gold `smith2002` labelled ASV02), the stub
+    permanent.
     """
-    from docmodel.core import Alignment
+    from docmodel.modules.citation import add_cites_alignment, absorb_stub
 
     by_label = {}
     for r in doc.objects.values():
-        if r.type == "Reference":
+        if r.type == "Reference" and not r.props.get("stub"):
             lab = _norm_label(r.props.get("label") or "")
             if lab:
                 by_label[lab] = r
 
-    n = 0
-    for c in doc.objects.values():
+    added = linked = 0
+    for c in list(doc.objects.values()):
         if c.type != "Citation":
             continue
-        r = by_label.get(_norm_label(c.props.get("citekey") or ""))
+        key = c.props.get("citekey") or ""
+        r = by_label.get(_norm_label(key))
         if r is None:
             continue
+        linked += 1
+        stub = stub_for(doc, key)
+        if stub is not None and stub is not r:
+            absorb_stub(doc, stub, r, {"label": r.props.get("label")})
         ls, rs = _ref_range(c), _ref_range(r)
         if ls and rs:
-            doc.add_alignment(Alignment(kind="cites", left=ls, right=rs, props={
-                "citekey": r.props.get("citekey"), "label": r.props.get("label")}))
+            if add_cites_alignment(doc, ls, rs, {
+                    "citekey": r.props.get("citekey"),
+                    "label": r.props.get("label")}) is not None:
+                added += 1
             c.props["cited_reference_id"] = r.id
-            n += 1
-    return n
+    return {"linked": linked, "added": added}
 
 
 def add_reference_objects(doc, entries: list[dict]) -> int:

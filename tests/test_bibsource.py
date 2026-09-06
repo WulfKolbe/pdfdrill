@@ -80,7 +80,7 @@ def test_ingest_bbl_and_enrich_and_link():
 
     # The garbled "ASVo2" citation links to the ASV02 reference.
     linked = B.link_citations_by_label(doc)
-    assert linked == 1
+    assert linked == {"linked": 1, "added": 1}       # 010 round 4: {linked, added}
     assert cit.props.get("cited_reference_id") == asv.id
     assert any(al.kind == "cites" for al in doc.alignments)
 
@@ -137,12 +137,8 @@ def test_detect_author_year_in_objects_square_brackets_and_folding():
     # ensure_reference_stub AS it creates it (exact-citekey match only).
     # "gardenfors2000"/"kivela2014" match an existing gold Reference exactly
     # and link straight to it. "carlsson2009" has no EXACT match (the gold
-    # key is "carlsson2009topology") -- ensure_reference_stub can't see the
-    # fuzzy surname+year prefix match link_citations does, so it makes a
-    # SPARE stub Reference and links to that instead. A known gap (010
-    # fix-round-2 report, OPEN): the abbreviated citekey never reaches the
-    # fuller gold key, because ensure_reference_stub runs first and exact-
-    # matches (or creates) before link_citations' prefix fallback gets a turn.
+    # key is "carlsson2009topology"), so at creation time it gets a SPARE
+    # stub Reference of its own.
     refs = [o for o in doc.objects.values() if o.type == "Reference"]
     assert sorted(r.props.get("citekey") for r in refs) == [
         "carlsson2009", "carlsson2009topology", "gardenfors2000", "kivela2014"]
@@ -152,9 +148,19 @@ def test_detect_author_year_in_objects_square_brackets_and_folding():
     cites_before = sum(1 for a in doc.alignments if a.kind == "cites")
     assert cites_before == 3               # already linked, one per Citation
 
+    # 010 fix round 4 (item 4): that spare stub is no longer permanent. A
+    # stub-linked Citation counts as UNRESOLVED, so link_citations' fuzzy
+    # surname+year PREFIX match gets its turn after all -- "carlsson2009"
+    # reaches the fuller gold key "carlsson2009topology", and the stub is
+    # MERGED into it (absorb_stub) instead of surviving as a duplicate
+    # Reference for a work the bibliography already has.
     linked = B.link_citations(doc)                  # stream-agnostic surface()
-    assert linked == 0                              # idempotent: nothing new to add
+    assert linked == {"linked": 3, "added": 0}      # all 3 on gold; no new edges
     assert sum(1 for a in doc.alignments if a.kind == "cites") == 3   # unchanged
+    refs = [o for o in doc.objects.values() if o.type == "Reference"]
+    assert sorted(r.props.get("citekey") for r in refs) == [
+        "carlsson2009topology", "gardenfors2000", "kivela2014"]
+    assert not any(r.props.get("stub") for r in refs)
 
 
 def test_extract_citations_all_variants():

@@ -217,6 +217,7 @@ def build_markdown_model(text: str, bibkey: str = "DOC",
                          source_path: str = "") -> "object":
     """Markdown text -> docmodel Document (source-only; latexbook pattern)."""
     from docmodel.core import Document, DocObject, Stream, Realization, Range, Alignment
+    from docmodel.modules.citation import add_cites_alignment, ensure_reference_stub
 
     parsed = parse_markdown(text)
     doc = Document()
@@ -279,14 +280,23 @@ def build_markdown_model(text: str, bibkey: str = "DOC",
                 counts["citations"] += 1
                 r = refs_by_key.get(key)
                 if r is not None:
+                    # 010 fix round 4 -- through the shared, idempotent
+                    # creator, never `doc.add_alignment` directly.
                     ls = Range("markdown_source", c.realizations[0].start,
                                c.realizations[0].end)
                     rs = Range("markdown_source", r.realizations[0].start,
                                r.realizations[0].end)
-                    doc.add_alignment(Alignment(
-                        kind="cites", left=ls, right=rs,
-                        props={"citekey": key, "citation_id": c.id,
-                               "reference_id": r.id}))
+                    add_cites_alignment(doc, ls, rs,
+                                        {"citekey": key, "citation_id": c.id,
+                                         "reference_id": r.id})
+                else:
+                    # No gold Reference for this key: mint the stub every other
+                    # Citation creator mints (010), so the key is not simply
+                    # invisible downstream. `ensure_reference_stub` also links
+                    # it; when a Reference DOES exist it is found by citekey,
+                    # which is why the gold branch above stays explicit -- its
+                    # edge carries `citation_id`/`reference_id` too.
+                    ensure_reference_stub(doc, c, bibkey)
 
     for b in parsed["blocks"]:
         fi += 1

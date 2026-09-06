@@ -157,8 +157,10 @@ def test_link_citations_to_references_by_surname_prefix():
     ref.add_realization(Realization(stream="mathpix_lines", start=ra, end=ra, role="surface"))
     doc.add(ref)
 
-    n = link_citations(doc)
-    assert n == 1
+    # 010 fix round 4: `link_citations` returns {"linked": total citations
+    # resolved to a FILLED Reference, "added": edges created this call}.
+    res = link_citations(doc)
+    assert res == {"linked": 1, "added": 1}
     assert any(a.kind == "cites" for a in doc.alignments)
 
 
@@ -208,7 +210,9 @@ def test_numeric_citation_detection_and_linking():
     assert sorted(c.props["number"] for c in cites) == [1, 3, 4]
 
     edges = link_citations(doc)
-    assert edges == 3
+    # already linked by ensure_reference_stub at detection time; all 3
+    # resolve to the real (non-stub) References, so nothing new is added.
+    assert edges == {"linked": 3, "added": 0}
     assert all(a.props.get("number") in (1, 3, 4) for a in doc.alignments if a.kind == "cites")
 
 
@@ -237,7 +241,7 @@ def test_author_year_citation_detection_and_linking():
     # finds nothing new to ADD, but the edges are there.
     cites_before = sum(1 for a in doc.alignments if a.kind == "cites")
     assert cites_before == 2                        # both match references by citekey
-    assert link_citations(doc) == 0                  # already linked, not re-added
+    assert link_citations(doc) == {"linked": 2, "added": 0}   # already linked
     assert sum(1 for a in doc.alignments if a.kind == "cites") == 2   # still 2, not 4
 
 

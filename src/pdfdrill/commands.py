@@ -5530,16 +5530,23 @@ def cmd_bibsource(pdf: Path, bib_path: str | None = None,
 
     n_refs = sum(1 for o in doc.objects.values() if o.type == "Reference")
     n_cits = sum(1 for o in doc.objects.values() if o.type == "Citation")
-    linked = link_citations_by_label(doc)        # primary: alpha label
+    # 010 fix round 4 -- `linked` is the TOTAL number of Citations resolved to
+    # a FILLED Reference, never "edges added by this call". The linkers are
+    # idempotent (`ensure_reference_stub` already linked every Citation at
+    # creation time), so "added" is 0 on a correctly linked document -- and
+    # reading THAT as "nothing is linked" dropped every bibliography-detected
+    # Citation on the floor and re-detected from scratch, on a document that
+    # was already right.
+    linked = link_citations_by_label(doc)["linked"]   # primary: alpha label
     if not linked:                               # no labeled links → citekey/number
-        linked = link_citations(doc)
+        linked = link_citations(doc)["linked"]
     if not linked:                               # still none: detect author-year
         # MathPix renders natbib as [Surname, year]; mine them from object text
         doc.objects = {k: v for k, v in doc.objects.items()
                        if not (v.type == "Citation"
                                and v.props.get("added_by") == "bibliography")}
         detect_author_year_in_objects(doc)
-        linked = link_citations(doc)
+        linked = link_citations(doc)["linked"]
         n_cits = sum(1 for o in doc.objects.values() if o.type == "Citation")
 
     save_model(model_path, doc)
@@ -9893,7 +9900,11 @@ def _auto_bibliography(pdf: Path, sc, doc):
     both offline-safe: the AUTHOR's gold `.bbl`/`.bib` from the arXiv e-print
     (`bibsource`) preferred, else the heuristic References-section parse
     (`bibliography`). Returns the (possibly reloaded) doc."""
-    if any(o.type == "Reference" for o in doc.objects.values()):
+    # 010 fix round 4: a citation STUB is a placeholder for a Reference, not
+    # one -- since 010 every cited key has one, so "any Reference exists" was
+    # permanently true and this gate never fired again.
+    from .bibliography import has_filled_references
+    if has_filled_references(doc):
         return doc
     # 1) arXiv e-print: the author's own bibliography is the gold source
     eprint = (pdf.parent / f"{pdf.stem}.tgz").exists() or \
@@ -10866,9 +10877,10 @@ def cmd_tiddlers(pdf: Path, force: bool = False, embed: bool = False,
     # If a LaTeX-source model has in-text Citations but NO References yet, build the
     # bibliography from the source bib (.bbl/.bib) so citations resolve to Reference
     # tiddlers (carrying the .bbl text) instead of "Citation placeholder for …".
+    from .bibliography import has_filled_references     # 010 round 4: stub != Reference
     if (not sc.has(BIBLIOGRAPHY_BUILT)
             and any(o.type == "Citation" for o in doc.objects.values())
-            and not any(o.type == "Reference" for o in doc.objects.values())):
+            and not has_filled_references(doc)):
         cmd_bibliography(pdf)
         sc = Sidecar(pdf)
         with open(model_path, "r", encoding="utf-8") as f:
@@ -11328,9 +11340,27 @@ def cmd_bibliography(pdf: Path, force: bool = False) -> str:
         # build) has no `added_by` of its own (`ensure_reference_stub`
         # stamps its stub "citation" instead) and is never touched here,
         # so it and its Citation both survive, filled or not.
+        def _retract(o):
+            # 010 fix round 4 -- provenance alone over-reached. A stub minted
+            # for a `detect_*` Citation inherits `added_by: "bibliography"`;
+            # once bibsource (.bbl/.bib) or bibfetch FILLS that stub it is
+            # gold, and deleting it here threw away the author's own
+            # bibliography on the next `bibliography --force`. Retract a
+            # Reference only while it is still a stub, or when the fill
+            # provenance says THIS command filled it (`ref_source: "text"` --
+            # the heuristic References-section parse it will redo in a moment).
+            if o.props.get("added_by") != "bibliography":
+                return False
+            if o.type == "Citation":
+                return True
+            if o.props.get("stub"):
+                return True
+            if o.props.get("bibfetched"):
+                return False
+            return (o.props.get("ref_source") or "text") == "text"
+
         for o in [o for o in doc.objects.values()
-                  if o.type in ("Citation", "Reference")
-                  and o.props.get("added_by") == "bibliography"]:
+                  if o.type in ("Citation", "Reference") and _retract(o)]:
             doc.objects.pop(o.id, None)
         drop_dangling_cites(doc)
         # 639 -- a stub Reference that predates `added_by` (built between
@@ -11372,7 +11402,7 @@ def cmd_bibliography(pdf: Path, force: bool = False) -> str:
                        for r in o.realizations if r.stream == "mathpix_lines" and r.start}
         numeric = detect_numeric_citations(doc, max_num=n, exclude_anchors=ref_anchors)
         authyear = detect_author_year_citations(doc, exclude_anchors=ref_anchors)
-        cites = link_citations(doc)
+        cites = link_citations(doc)["linked"]
 
     save_model(model_path, doc)
 
@@ -12083,7 +12113,15 @@ def cmd_annotate(pdf: Path, force: bool = False) -> str:
         ids = {o.id for o in existing}
         for o in existing:
             doc.objects.pop(o.id, None)
-        doc.alignments = [a for a in doc.alignments if a.kind not in ("cites", "xref")]
+        # 010 fix round 4 -- retract only THIS command's own edges. `annotate`'s
+        # `cites` edges run Link -> Citation and are anchored on the `links`
+        # stream; the model-build Citation -> Reference `cites` edges are a
+        # different relation that happens to share the kind name, and are a
+        # model-build invariant now (010). Clearing both destroyed every
+        # citation link in the document and re-created only the annotation half.
+        doc.alignments = [a for a in doc.alignments
+                          if not (a.kind in ("cites", "xref")
+                                  and a.left.stream == "links")]
 
     created = add_link_objects(doc, records)
     xref = link_xref_alignments(doc, created)

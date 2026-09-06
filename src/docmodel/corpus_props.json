@@ -3,7 +3,8 @@
   "scanned": "1350 model.docmodel.json under ~/pdfdrill-library",
   "object_types": 26,
   "method": "full json.load of every model; every key of every object's props dict counted, with the number of distinct documents it appears in",
-  "task": "290"
+  "task": "290",
+  "stub": "010 round 4: `stub` re-walked from ~/pdfdrill-library (1365 models) and merged into this 290 snapshot -- 52 Reference objects in 1 document. The same walk found 17 OTHER props the 290 snapshot predates (derived, derived_from, file, font_size, labels, level_basis, line_count, mathpix_subtype, options, parent_id, parent_type, quad, refined_author, refined_basis, refined_note, resolved, rows), none of which has a reader: admitting them needs a researched NO_READER_REASON each, which is a corpus-refresh task, not this one."
  },
  "object_counts": {
   "Page": 72722,
@@ -918,6 +919,10 @@
    "ref_source": {
     "n": 14974,
     "docs": 366
+   },
+   "stub": {
+    "n": 52,
+    "docs": 1
    },
    "title": {
     "n": 1950,

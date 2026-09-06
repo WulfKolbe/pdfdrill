@@ -92,12 +92,19 @@ class CitationPass(EnhancementPass):
                             f"{genre.get('confidence', 0):.2f}) — bracketed "
                             f"tokens are concept codes, not citations")
 
-        if not _has_type(doc, ("Reference",)):
+        # 010 fix round 4: a citation STUB is a placeholder for a Reference,
+        # not one. Since 010 every cited key has a stub at model-build time, so
+        # `_has_type(doc, ("Reference",))` was permanently true and this pass
+        # never discovered the source bib again -- and the `already` count
+        # below saw one stub edge per Citation and reported "already linked" on
+        # a document with no bibliography at all.
+        if not bibliography.has_filled_references(doc):
             src = self._source_dir(ctx)
             if src:
                 r = bibliography.build_bibliography_from_source(doc, src)
                 return PassResult(self.name, "ran",
-                                  changed=(r["created"] or r["linked"]) > 0,
+                                  changed=(r["created"] or r["filled"]
+                                           or r["added"]) > 0,
                                   summary=f"{r['linked']} citations linked; "
                                           f"{r['created']} refs built from the "
                                           f"source bib (cited subset)",
@@ -106,14 +113,15 @@ class CitationPass(EnhancementPass):
                               summary="citations present but no references / "
                                       "source bib to build from")
 
-        already = sum(1 for a in getattr(doc, "alignments", []) if a.kind == "cites")
+        already = bibliography.filled_cites_edges(doc)
         if already:
             return PassResult(self.name, "ran", changed=False,
                               summary=f"already linked ({already} cites edges)")
-        n = bibliography.link_citations(doc)
-        return PassResult(self.name, "ran", changed=n > 0,
-                          summary=f"{n} in-text citations linked to references",
-                          stats={"linked": n})
+        r = bibliography.link_citations(doc)
+        return PassResult(self.name, "ran", changed=r["added"] > 0,
+                          summary=f"{r['linked']} in-text citations linked to "
+                                  f"references",
+                          stats=r)
 
 
 class ConceptsPass(EnhancementPass):

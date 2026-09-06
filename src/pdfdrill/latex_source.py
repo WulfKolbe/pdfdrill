@@ -1798,6 +1798,7 @@ def build_source_model(tex_path: str, bibkey: str = "DOC") -> "object":
     path). Returns the Document.
     """
     from docmodel.core import Document, DocObject, Realization
+    from docmodel.modules.citation import ensure_reference_stub
 
     full, main = read_source(tex_path)
     pre, body = split_preamble(full)
@@ -2044,6 +2045,11 @@ def build_source_model(tex_path: str, bibkey: str = "DOC") -> "object":
                                              end=anchor, role="surface",
                                              provenance="latex"))
             doc.add(cobj)
+            # 010 fix round 4 -- every Citation creator mints the stub
+            # Reference for its key; this lane (and markdown_source) were the
+            # two the original round missed, so a LaTeX-source model had
+            # Citations and no References at all until bibsource ran.
+            ensure_reference_stub(doc, cobj, bibkey)
             n_cit += 1
 
     # Algorithms: each is an Algorithm DocObject with AlgorithmStep children

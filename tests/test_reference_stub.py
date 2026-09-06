@@ -208,8 +208,10 @@ def test_link_citations_is_idempotent_against_ensure_reference_stub():
     cites_before = [a for a in doc.alignments if a.kind == "cites"]
     assert len(cites_before) == 4          # one per Citation, from stub creation
 
-    added = B.link_citations(doc)
-    assert added == 0                       # every key already linked, by citekey exact match
+    # 010 fix round 4: the return is {"linked": citations on a FILLED
+    # Reference, "added": edges created this call}. Every Reference here is
+    # still a stub, so nothing counts as linked -- and nothing is added.
+    assert B.link_citations(doc) == {"linked": 0, "added": 0}
 
     cites_after = [a for a in doc.alignments if a.kind == "cites"]
     assert len(cites_after) == 4            # unchanged -- exactly one per Citation, not 8

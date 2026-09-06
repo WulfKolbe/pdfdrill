@@ -1,7 +1,7 @@
 {
  "_provenance": {
   "method": "regex over src/**/*.py: readers are props.get(\"x\") or props[\"x\"]; writers are props[\"x\"]= and keys of a props={...} literal. A prop reached through a VARIABLE key is invisible to this scan and is not claimed either way.",
-  "files": 303,
+  "files": 331,
   "task": "290"
  },
  "readers": {
@@ -10,7 +10,9 @@
    "pdfdrill/commands.py"
   ],
   "added_by": [
+   "docmodel/modules/citation.py",
    "docops/projectors/distill_reader.py",
+   "pdfdrill/bibliography.py",
    "pdfdrill/commands.py"
   ],
   "anchor_marker": [
@@ -83,6 +85,7 @@
    "semantic/gaps.py"
   ],
   "citekey": [
+   "docmodel/modules/citation.py",
    "docops/projectors/distill_reader.py",
    "docops/projectors/latex_pipeline.py",
    "docops/projectors/scikgtex.py",
@@ -109,6 +112,7 @@
    "pdfdrill/nodes/tokenizer.py"
   ],
   "confidence": [
+   "docmodel/modules/table.py",
    "docops/projectors/tiddlywiki.py",
    "pdfdrill/refine.py"
   ],
@@ -199,6 +203,7 @@
    "pdfdrill/latex_source.py",
    "pdfdrill/lean_export.py",
    "pdfdrill/merge_latex.py",
+   "pdfdrill/reports/from_document.py",
    "semantic/build.py",
    "semantic/claims.py",
    "semantic/concepts.py",
@@ -221,6 +226,9 @@
   ],
   "image_id": [
    "docops/projectors/tiddlywiki.py"
+  ],
+  "in_margin": [
+   "pdfdrill/latex_source.py"
   ],
   "is_appendix": [
    "docops/projectors/tiddlywiki.py",
@@ -265,6 +273,7 @@
    "pdfdrill/mathqc.py",
    "pdfdrill/nodes/math_assembler.py",
    "pdfdrill/refine.py",
+   "pdfdrill/reports/from_document.py",
    "semantic/build.py",
    "semantic/gaps.py",
    "semantic/quantities.py"
@@ -322,6 +331,9 @@
   "macros_unresolved": [
    "pdfdrill/commands.py"
   ],
+  "margin_offset": [
+   "pdfdrill/latex_source.py"
+  ],
   "marker": [
    "docops/nlp_stanza.py",
    "docops/projectors/latex.py",
@@ -342,6 +354,7 @@
   ],
   "mathpix_text": [
    "docmodel/modules/table.py",
+   "docops/projectors/tiddlywiki.py",
    "pdfdrill/commands.py"
   ],
   "meas": [
@@ -378,6 +391,7 @@
    "pdfdrill/commands.py"
   ],
   "number": [
+   "docmodel/modules/citation.py",
    "docops/projectors/distill_reader.py",
    "docops/projectors/latex_pipeline.py",
    "docops/projectors/tiddlywiki.py",
@@ -478,6 +492,11 @@
    "pdfdrill/commands.py",
    "semantic/build.py"
   ],
+  "ref_source": [
+   "docops/projectors/tiddlywiki.py",
+   "pdfdrill/bibliography.py",
+   "pdfdrill/commands.py"
+  ],
   "reference_number": [
    "semantic/gaps.py"
   ],
@@ -504,6 +523,7 @@
    "pdfdrill/eqnums.py",
    "pdfdrill/heading_cleanup.py",
    "pdfdrill/image_model.py",
+   "pdfdrill/reports/from_document.py",
    "semantic/build.py"
   ],
   "region_source": [
@@ -544,6 +564,12 @@
   ],
   "stratum": [
    "semantic/layers/sqlite_view.py"
+  ],
+  "stub": [
+   "docmodel/modules/citation.py",
+   "docops/projectors/tiddlywiki.py",
+   "pdfdrill/bibliography.py",
+   "pdfdrill/commands.py"
   ],
   "subtype": [
    "docops/projectors/distill_reader.py",
@@ -602,9 +628,15 @@
    "pdfdrill/heading_cleanup.py",
    "semantic/build.py"
   ],
+  "top_left_x": [
+   "pdfdrill/corrections.py"
+  ],
   "trailing_punct": [
    "docops/projectors/tiddlywiki.py",
    "pdfdrill/commands.py"
+  ],
+  "trimmed": [
+   "pdfdrill/latex_source.py"
   ],
   "unit": [
    "semantic/compiler.py"
@@ -628,6 +660,9 @@
   "visual_size": [
    "pdfdrill/commands.py"
   ],
+  "x": [
+   "docmodel/prop_contract.py"
+  ],
   "y0_pdf": [
    "pdfdrill/image_model.py"
   ],
@@ -648,6 +683,7 @@
    "pdfdrill/blocks.py"
   ],
   "added_by": [
+   "docmodel/modules/citation.py",
    "pdfdrill/bibliography.py",
    "pdfdrill/commands.py",
    "pdfdrill/heading_cleanup.py",
@@ -721,9 +757,6 @@
    "docmodel/modules/equation.py",
    "pdfdrill/commands.py"
   ],
-  "citation_id": [
-   "pdfdrill/markdown_source.py"
-  ],
   "citations": [
    "pdfdrill/commands.py"
   ],
@@ -752,6 +785,7 @@
   ],
   "confidence": [
    "docmodel/modules/equation.py",
+   "docmodel/modules/table.py",
    "pdfdrill/commands.py",
    "pdfdrill/nodes/flagger.py",
    "pdfdrill/nodes/math_detector.py",
@@ -766,6 +800,7 @@
    "docmodel/modules/sidenote.py",
    "pdfdrill/blocks.py",
    "pdfdrill/heading_cleanup.py",
+   "pdfdrill/latex_source.py",
    "pdfdrill/markdown_source.py"
   ],
   "context": [
@@ -851,6 +886,9 @@
   "evidence": [
    "pdfdrill/refine.py"
   ],
+  "file": [
+   "pdfdrill/latex_source.py"
+  ],
   "first_section_id": [
    "docmodel/modules/document_structure.py"
   ],
@@ -891,6 +929,9 @@
    "docmodel/modules/diagram.py",
    "docmodel/modules/equation.py",
    "docmodel/modules/page.py"
+  ],
+  "in_margin": [
+   "pdfdrill/latex_source.py"
   ],
   "indent_norm": [
    "pdfdrill/commands.py",
@@ -1020,6 +1061,12 @@
   "macros_unresolved": [
    "pdfdrill/commands.py"
   ],
+  "margin_cmd": [
+   "pdfdrill/latex_source.py"
+  ],
+  "margin_offset": [
+   "pdfdrill/latex_source.py"
+  ],
   "marker": [
    "docmodel/modules/list_items.py",
    "pdfdrill/blocks.py"
@@ -1065,6 +1112,7 @@
    "docmodel/modules/paragraph.py"
   ],
   "number": [
+   "docmodel/modules/citation.py",
    "pdfdrill/bibliography.py",
    "pdfdrill/commands.py",
    "pdfdrill/eqnums.py",
@@ -1085,6 +1133,9 @@
    "docmodel/modules/citation.py",
    "docmodel/modules/formula.py",
    "pdfdrill/bibliography.py"
+  ],
+  "options": [
+   "pdfdrill/latex_source.py"
   ],
   "original": [
    "pdfdrill/nodes/flagger.py",
@@ -1194,10 +1245,8 @@
    "pdfdrill/markdown_source.py"
   ],
   "ref_source": [
+   "docmodel/modules/citation.py",
    "pdfdrill/bibliography.py"
-  ],
-  "reference_id": [
-   "pdfdrill/markdown_source.py"
   ],
   "refnum": [
    "docmodel/modules/diagram.py",
@@ -1222,6 +1271,9 @@
   ],
   "region_source": [
    "pdfdrill/commands.py"
+  ],
+  "resolved": [
+   "pdfdrill/latex_source.py"
   ],
   "rows": [
    "docmodel/modules/toc.py"
@@ -1262,6 +1314,9 @@
   ],
   "statement": [
    "pdfdrill/latex_source.py"
+  ],
+  "stub": [
+   "docmodel/modules/citation.py"
   ],
   "style": [
    "pdfdrill/bibliography.py",
@@ -1328,6 +1383,9 @@
   "trailing_punct": [
    "pdfdrill/commands.py"
   ],
+  "trimmed": [
+   "pdfdrill/latex_source.py"
+  ],
   "type": [
    "pdfdrill/nodes/stub_nlp.py"
   ],
@@ -1371,6 +1429,7 @@
  },
  "mentions": {
   "added_by": [
+   "docmodel/modules/citation.py",
    "docops/projectors/distill_reader.py",
    "pdfdrill/bibliography.py",
    "pdfdrill/commands.py",
@@ -1384,11 +1443,13 @@
    "pdfdrill/heading_cleanup.py"
   ],
   "anchor_text": [
+   "docmodel/prop_contract.py",
    "pdfdrill/annotations.py",
    "pdfdrill/commands.py",
    "pdfdrill/links_layer.py"
   ],
   "author": [
+   "docmodel/modules/citation.py",
    "docops/projectors/distill_reader.py",
    "docops/projectors/latex_pipeline.py",
    "docops/projectors/llm_compact.py",
@@ -1400,6 +1461,7 @@
    "pdfdrill/cli.py",
    "pdfdrill/commands.py",
    "pdfdrill/continuity_scorer.py",
+   "pdfdrill/corrections.py",
    "pdfdrill/docinspect.py",
    "pdfdrill/heading_cleanup.py",
    "pdfdrill/identifiers.py",
@@ -1449,13 +1511,17 @@
    "docops/projectors/scikgtex.py",
    "docops/projectors/tiddlywiki.py",
    "passes/builtin.py",
+   "pdfdrill/bibliography.py",
    "pdfdrill/blocks.py",
    "pdfdrill/commands.py",
+   "pdfdrill/corrections.py",
    "pdfdrill/crossref.py",
    "pdfdrill/docinspect.py",
    "pdfdrill/docpack.py",
+   "pdfdrill/figpair.py",
    "pdfdrill/heading_cleanup.py",
    "pdfdrill/image_model.py",
+   "pdfdrill/inkreport.py",
    "pdfdrill/latex_source.py",
    "pdfdrill/lean_export.py",
    "pdfdrill/markdown_source.py",
@@ -1463,6 +1529,7 @@
    "pdfdrill/renamefolder.py",
    "pdfdrill/repo_publish.py",
    "pdfdrill/report_tex.py",
+   "pdfdrill/tidpath.py",
    "semantic/aggregate.py",
    "semantic/build.py",
    "semantic/claims.py",
@@ -1521,11 +1588,15 @@
    "pdfdrill/docpack.py",
    "pdfdrill/heading_cleanup.py",
    "pdfdrill/identifiers.py",
+   "pdfdrill/inkmeasure.py",
    "pdfdrill/latex_source.py",
    "pdfdrill/markdown_source.py",
    "pdfdrill/pdfminer_layer.py",
    "pdfdrill/projection.py",
+   "pdfdrill/reccontext.py",
+   "pdfdrill/report_tex.py",
    "pdfdrill/retrieve.py",
+   "pdfdrill/texgraphics.py",
    "semantic/build.py",
    "semantic/concepts.py",
    "semantic/gaps.py",
@@ -1534,6 +1605,7 @@
    "semantic/stex.py"
   ],
   "caption_source": [
+   "docmodel/prop_contract.py",
    "pdfdrill/classify.py"
   ],
   "cdn_url": [
@@ -1545,7 +1617,9 @@
    "docops/projectors/llm_text.py",
    "docops/projectors/tiddlywiki.py",
    "pdfdrill/commands.py",
-   "pdfdrill/docinspect.py"
+   "pdfdrill/docinspect.py",
+   "pdfdrill/inkreport.py",
+   "pdfdrill/reports/from_document.py"
   ],
   "cells": [
    "docops/projectors/distill_reader.py",
@@ -1591,6 +1665,7 @@
    "docmodel/modules/header.py",
    "docops/projectors/tiddlywiki.py",
    "mathgold/slt.py",
+   "pdfdrill/latex_source.py",
    "pdfdrill/scandrill/cli.py",
    "pdfdrill/symbolfreq.py",
    "pdfdrill/tsv_gcn.py"
@@ -1614,6 +1689,8 @@
    "pdfdrill/markdown_source.py",
    "pdfdrill/regionink.py",
    "pdfdrill/report_tex.py",
+   "pdfdrill/reports/residuals.py",
+   "pdfdrill/reports/rows.py",
    "semantic/compiler.py",
    "semantic/render.py"
   ],
@@ -1622,18 +1699,24 @@
    "pdfdrill/commands.py",
    "pdfdrill/eqblobs.py",
    "pdfdrill/ink_tables.py",
-   "pdfdrill/pdf_reading.py"
+   "pdfdrill/inkmeasure.py",
+   "pdfdrill/inkreport.py",
+   "pdfdrill/pdf_reading.py",
+   "pdfdrill/report_tex.py"
   ],
   "confidence": [
    "docmodel/modules/equation.py",
+   "docmodel/modules/table.py",
    "docmodel/type_contract.py",
    "docops/projectors/tiddlywiki.py",
    "features/extract_language.py",
    "passes/builtin.py",
    "passes/genre.py",
    "pdfdrill/commands.py",
+   "pdfdrill/corrections.py",
    "pdfdrill/docpack.py",
    "pdfdrill/gemma_client.py",
+   "pdfdrill/inlinectx.py",
    "pdfdrill/mathpix_client.py",
    "pdfdrill/mathpix_snip.py",
    "pdfdrill/nodes/flagger.py",
@@ -1642,6 +1725,7 @@
    "pdfdrill/proofs.py",
    "pdfdrill/refine.py",
    "pdfdrill/report_tex.py",
+   "pdfdrill/reports/from_document.py",
    "pdfdrill/vision_router.py",
    "semantic/bundles.py",
    "semantic/evidence.py",
@@ -1655,6 +1739,7 @@
    "docmodel/type_contract.py",
    "docops/projectors/tiddlywiki.py",
    "pdfdrill/docpack.py",
+   "pdfdrill/inlinectx.py",
    "pdfdrill/mathpix_client.py",
    "pdfdrill/mathpix_snip.py"
   ],
@@ -1678,6 +1763,7 @@
    "pdfdrill/gemma_client.py",
    "pdfdrill/heading_cleanup.py",
    "pdfdrill/identifiers.py",
+   "pdfdrill/latex_source.py",
    "pdfdrill/markdown_source.py",
    "pdfdrill/openai_vision.py",
    "pdfdrill/perplexity_client.py",
@@ -1691,9 +1777,11 @@
    "semantic/quantities.py"
   ],
   "content_source": [
+   "docmodel/prop_contract.py",
    "pdfdrill/classify.py"
   ],
   "context": [
+   "docmodel/prop_contract.py",
    "pdfdrill/annotations.py",
    "pdfdrill/cli.py",
    "pdfdrill/commands.py",
@@ -1716,7 +1804,8 @@
    "pdfdrill/links_layer.py"
   ],
   "detected_by": [
-   "docmodel/modules/list_items.py"
+   "docmodel/modules/list_items.py",
+   "docmodel/prop_contract.py"
   ],
   "display": [
    "docmodel/modules/formula.py",
@@ -1737,7 +1826,9 @@
    "docops/projectors/plaintext.py",
    "pdfdrill/commands.py",
    "pdfdrill/crossref.py",
-   "pdfdrill/notation.py"
+   "pdfdrill/figpair.py",
+   "pdfdrill/notation.py",
+   "pdfdrill/sectionpath.py"
   ],
   "entry_type": [
    "docops/projectors/okf.py",
@@ -1751,6 +1842,7 @@
   ],
   "env": [
    "docmodel/algorithm.py",
+   "pdfdrill/changereq.py",
    "pdfdrill/commands.py",
    "pdfdrill/latex_source.py"
   ],
@@ -1774,10 +1866,12 @@
    "pdfdrill/eqnums.py",
    "pdfdrill/occurrences.py",
    "pdfdrill/report_tex.py",
+   "pdfdrill/reports/from_document.py",
    "semantic/build.py"
   ],
   "first_section_id": [
    "docmodel/modules/document_structure.py",
+   "docmodel/prop_contract.py",
    "pdfdrill/docgraph.py"
   ],
   "flow_index": [
@@ -1800,6 +1894,8 @@
    "pdfdrill/markdown_source.py",
    "pdfdrill/merge_latex.py",
    "pdfdrill/occurrences.py",
+   "pdfdrill/reccontext.py",
+   "pdfdrill/reports/from_document.py",
    "semantic/build.py",
    "semantic/claims.py",
    "semantic/concepts.py",
@@ -1807,7 +1903,8 @@
    "semantic/quantities.py"
   ],
   "from_line_index": [
-   "docmodel/modules/paragraph.py"
+   "docmodel/modules/paragraph.py",
+   "docmodel/prop_contract.py"
   ],
   "from_line_type": [
    "docmodel/modules/picture.py",
@@ -1833,6 +1930,7 @@
    "pdfdrill/ocr_lines.py"
   ],
   "indent_norm": [
+   "docmodel/prop_contract.py",
    "pdfdrill/commands.py",
    "pdfdrill/geometry.py"
   ],
@@ -1857,6 +1955,7 @@
    "passes/quantity.py",
    "pdfdrill/annotations.py",
    "pdfdrill/blocks.py",
+   "pdfdrill/callog.py",
    "pdfdrill/citedrill.py",
    "pdfdrill/commands.py",
    "pdfdrill/continuity.py",
@@ -1874,9 +1973,9 @@
    "pdfdrill/llm_delegate.py",
    "pdfdrill/markdown_source.py",
    "pdfdrill/mathqc.py",
-   "pdfdrill/openai_vision.py",
    "pdfdrill/pdfinfo_layers.py",
    "pdfdrill/pdfminer_layer.py",
+   "pdfdrill/report_tex.py",
    "pdfdrill/scandrill/handoff.py",
    "pdfdrill/scandrill/ingest.py",
    "pdfdrill/scandrill/manifest.py",
@@ -1910,6 +2009,7 @@
    "pdfdrill/la2speech/latexproject.py",
    "pdfdrill/latex_source.py",
    "pdfdrill/lean_export.py",
+   "pdfdrill/report_tex.py",
    "pdfdrill/segment.py",
    "pdfdrill/tsv_gcn.py",
    "pdfdrill/vendor/blobcc.py",
@@ -1930,7 +2030,8 @@
    "pdfdrill/commands.py"
   ],
   "languages_detected": [
-   "docmodel/modules/page.py"
+   "docmodel/modules/page.py",
+   "docmodel/prop_contract.py"
   ],
   "latex": [
    "docmodel/modules/equation.py",
@@ -1952,10 +2053,12 @@
    "pdfdrill/classify.py",
    "pdfdrill/cli.py",
    "pdfdrill/commands.py",
+   "pdfdrill/corrections.py",
    "pdfdrill/crossref.py",
    "pdfdrill/docinspect.py",
    "pdfdrill/env_balance.py",
    "pdfdrill/gemma_client.py",
+   "pdfdrill/inlinectx.py",
    "pdfdrill/la2speech/latex2speech.py",
    "pdfdrill/la2speech/projections.py",
    "pdfdrill/la2speech/tiddlerpipe.py",
@@ -1967,12 +2070,14 @@
    "pdfdrill/merge_latex.py",
    "pdfdrill/nodes/math_assembler.py",
    "pdfdrill/occurrences.py",
-   "pdfdrill/openai_vision.py",
    "pdfdrill/projection.py",
    "pdfdrill/projectors/markdown.py",
+   "pdfdrill/reccontext.py",
    "pdfdrill/reconcile.py",
    "pdfdrill/refine.py",
    "pdfdrill/report_tex.py",
+   "pdfdrill/reports/from_document.py",
+   "pdfdrill/reports/residuals.py",
    "pdfdrill/retrieve.py",
    "pdfdrill/scandrill/handoff.py",
    "pdfdrill/scoring.py",
@@ -1999,6 +2104,7 @@
    "pdfdrill/latex_source.py",
    "pdfdrill/mathqc.py",
    "pdfdrill/report_tex.py",
+   "pdfdrill/reports/from_document.py",
    "pdfdrill/vision_router.py",
    "semantic/build.py"
   ],
@@ -2007,6 +2113,7 @@
    "pdfdrill/layer_detect.py"
   ],
   "latex_fragment": [
+   "docmodel/prop_contract.py",
    "pdfdrill/commands.py"
   ],
   "latex_original": [
@@ -2032,10 +2139,13 @@
   ],
   "latex_raw": [
    "docmodel/modules/equation.py",
+   "docmodel/prop_contract.py",
    "pdfdrill/commands.py"
   ],
   "latex_refined": [
+   "docmodel/prop_contract.py",
    "docops/projectors/tiddlywiki.py",
+   "pdfdrill/commands.py",
    "pdfdrill/refine.py",
    "pdfdrill/report_tex.py"
   ],
@@ -2059,6 +2169,7 @@
    "pdfdrill/layout_elements.py",
    "pdfdrill/markdown_source.py",
    "pdfdrill/ocr_lines.py",
+   "pdfdrill/reccontext.py",
    "pdfdrill/text_layers.py",
    "pdfdrill/tsv_gcn.py",
    "semantic/build.py"
@@ -2067,12 +2178,15 @@
    "docmodel/modules/header.py",
    "docmodel/modules/list_items.py",
    "pdfdrill/blocks.py",
-   "pdfdrill/commands.py"
+   "pdfdrill/commands.py",
+   "pdfdrill/inlinectx.py"
   ],
   "list_index": [
-   "docmodel/modules/list_items.py"
+   "docmodel/modules/list_items.py",
+   "docmodel/prop_contract.py"
   ],
   "list_type": [
+   "docmodel/prop_contract.py",
    "pdfdrill/commands.py"
   ],
   "macros_unresolved": [
@@ -2090,7 +2204,10 @@
   ],
   "mathpix_text": [
    "docmodel/modules/table.py",
-   "pdfdrill/commands.py"
+   "docops/projectors/tiddlywiki.py",
+   "pdfdrill/commands.py",
+   "pdfdrill/report_tex.py",
+   "pdfdrill/reports/from_document.py"
   ],
   "n_cols": [
    "docops/projectors/distill_reader.py",
@@ -2163,9 +2280,11 @@
    "pdfdrill/docgraph.py"
   ],
   "num_lines": [
-   "docmodel/modules/paragraph.py"
+   "docmodel/modules/paragraph.py",
+   "docmodel/prop_contract.py"
   ],
   "number": [
+   "docmodel/modules/citation.py",
    "docops/projectors/distill_reader.py",
    "docops/projectors/latex_pipeline.py",
    "docops/projectors/tiddlywiki.py",
@@ -2181,21 +2300,25 @@
    "pdfdrill/lean_export.py",
    "pdfdrill/llm_delegate.py",
    "pdfdrill/markdown_source.py",
-   "pdfdrill/openai_vision.py",
+   "pdfdrill/reccontext.py",
+   "pdfdrill/sectionpath.py",
    "semantic/build.py",
    "semantic/gaps.py",
    "semantic/quantities.py"
   ],
   "numbered": [
+   "docmodel/prop_contract.py",
    "pdfdrill/blocks.py",
    "pdfdrill/commands.py",
    "pdfdrill/latex_source.py",
    "pdfdrill/nodes/reference_detector.py"
   ],
   "numeric": [
+   "docmodel/prop_contract.py",
    "pdfdrill/bibliography.py"
   ],
   "of_label": [
+   "docmodel/prop_contract.py",
    "pdfdrill/latex_source.py"
   ],
   "page": [
@@ -2231,11 +2354,13 @@
    "pdfdrill/cli.py",
    "pdfdrill/commands.py",
    "pdfdrill/continuity.py",
+   "pdfdrill/corrections.py",
    "pdfdrill/crossref.py",
    "pdfdrill/docinspect.py",
    "pdfdrill/eqblobs.py",
    "pdfdrill/eqcrop.py",
    "pdfdrill/eqnums.py",
+   "pdfdrill/figpair.py",
    "pdfdrill/font_classify.py",
    "pdfdrill/font_image_layers.py",
    "pdfdrill/geometry.py",
@@ -2244,13 +2369,15 @@
    "pdfdrill/image_model.py",
    "pdfdrill/ink_coverage.py",
    "pdfdrill/ink_tables.py",
+   "pdfdrill/inkconvert.py",
+   "pdfdrill/inkmeasure.py",
+   "pdfdrill/inlinectx.py",
    "pdfdrill/latex_source.py",
    "pdfdrill/links_layer.py",
    "pdfdrill/llm_delegate.py",
    "pdfdrill/occurrences.py",
    "pdfdrill/ocr_lines.py",
    "pdfdrill/ocr_router.py",
-   "pdfdrill/openai_vision.py",
    "pdfdrill/pdf_reading.py",
    "pdfdrill/pdfimg_locate.py",
    "pdfdrill/pdfinfo_layers.py",
@@ -2258,10 +2385,14 @@
    "pdfdrill/projection.py",
    "pdfdrill/pyramid.py",
    "pdfdrill/qrscan.py",
+   "pdfdrill/reccontext.py",
    "pdfdrill/reconcile.py",
    "pdfdrill/refine.py",
    "pdfdrill/regionink.py",
    "pdfdrill/report_tex.py",
+   "pdfdrill/reports/crops.py",
+   "pdfdrill/reports/from_document.py",
+   "pdfdrill/reports/residuals.py",
    "pdfdrill/scandrill/producers/upload.py",
    "pdfdrill/symbolfreq.py",
    "pdfdrill/text_layers.py",
@@ -2278,10 +2409,12 @@
    "semantic/stex.py"
   ],
   "page_before_repair": [
+   "docmodel/prop_contract.py",
    "pdfdrill/heading_cleanup.py"
   ],
   "page_height": [
    "docmodel/modules/page.py",
+   "docmodel/prop_contract.py",
    "pdfdrill/blocks.py",
    "pdfdrill/commands.py",
    "pdfdrill/docinspect.py",
@@ -2312,6 +2445,7 @@
   ],
   "page_width": [
    "docmodel/modules/page.py",
+   "docmodel/prop_contract.py",
    "pdfdrill/commands.py",
    "pdfdrill/docinspect.py",
    "pdfdrill/image_model.py",
@@ -2322,7 +2456,8 @@
    "pdfdrill/report_tex.py"
   ],
   "paragraph_index": [
-   "docmodel/modules/paragraph.py"
+   "docmodel/modules/paragraph.py",
+   "docmodel/prop_contract.py"
   ],
   "parent_section": [
    "docmodel/modules/document_structure.py",
@@ -2343,6 +2478,7 @@
    "semantic/measurements.py"
   ],
   "position": [
+   "docmodel/prop_contract.py",
    "pdfdrill/commands.py",
    "pdfdrill/qrscan.py"
   ],
@@ -2388,6 +2524,9 @@
    "semantic/build.py"
   ],
   "ref_source": [
+   "docmodel/modules/citation.py",
+   "docmodel/prop_contract.py",
+   "docops/projectors/tiddlywiki.py",
    "pdfdrill/bibliography.py",
    "pdfdrill/commands.py",
    "pdfdrill/docinspect.py"
@@ -2412,6 +2551,7 @@
    "pdfdrill/heading_cleanup.py",
    "pdfdrill/occurrences.py",
    "pdfdrill/projection.py",
+   "pdfdrill/reports/from_document.py",
    "semantic/build.py"
   ],
   "refnum_anchor": [
@@ -2431,15 +2571,18 @@
    "mathgold/floor.py",
    "pdfdrill/blocks.py",
    "pdfdrill/commands.py",
+   "pdfdrill/corrections.py",
    "pdfdrill/docinspect.py",
    "pdfdrill/docpack.py",
    "pdfdrill/eqnums.py",
+   "pdfdrill/figurejoin.py",
    "pdfdrill/geometry.py",
    "pdfdrill/heading_cleanup.py",
    "pdfdrill/image_model.py",
    "pdfdrill/ink_coverage.py",
    "pdfdrill/ink_crosscheck.py",
    "pdfdrill/ink_tables.py",
+   "pdfdrill/inlinectx.py",
    "pdfdrill/occurrences.py",
    "pdfdrill/ocr_lines.py",
    "pdfdrill/pdfimg_locate.py",
@@ -2448,7 +2591,10 @@
    "pdfdrill/reconcile.py",
    "pdfdrill/rectoverso.py",
    "pdfdrill/refine.py",
+   "pdfdrill/report_tex.py",
+   "pdfdrill/reports/from_document.py",
    "pdfdrill/table_structure.py",
+   "pdfdrill/texgraphics.py",
    "semantic/attribution.py",
    "semantic/build.py",
    "semantic/geometry_columns.py"
@@ -2476,6 +2622,7 @@
    "semantic/stex.py"
   ],
   "source_object": [
+   "docmodel/prop_contract.py",
    "pdfdrill/commands.py"
   ],
   "spoken": [
@@ -2492,6 +2639,7 @@
    "pdfdrill/commands.py"
   ],
   "starred": [
+   "docmodel/prop_contract.py",
    "pdfdrill/latex_source.py"
   ],
   "statement": [
@@ -2501,6 +2649,7 @@
    "pdfdrill/lean_export.py"
   ],
   "style": [
+   "docmodel/prop_contract.py",
    "pdfdrill/bibliography.py",
    "pdfdrill/la2speech/latex2speech.py",
    "pdfdrill/latex_source.py",
@@ -2595,6 +2744,7 @@
    "pdfdrill/geometry.py",
    "pdfdrill/heading_cleanup.py",
    "pdfdrill/identifiers.py",
+   "pdfdrill/inlinectx.py",
    "pdfdrill/la2speech/latex2speech.py",
    "pdfdrill/la2speech/latexproject.py",
    "pdfdrill/la2speech/projections.py",
@@ -2616,14 +2766,17 @@
    "pdfdrill/pdfminer_layer.py",
    "pdfdrill/projection.py",
    "pdfdrill/qrscan.py",
+   "pdfdrill/reccontext.py",
    "pdfdrill/rectoverso.py",
    "pdfdrill/refine.py",
+   "pdfdrill/regionrole.py",
    "pdfdrill/renamefolder.py",
    "pdfdrill/repo_publish.py",
    "pdfdrill/report_tex.py",
    "pdfdrill/retrieve.py",
    "pdfdrill/symbolfreq.py",
    "pdfdrill/table_structure.py",
+   "pdfdrill/texgraphics.py",
    "pdfdrill/text_layers.py",
    "pdfdrill/tsv_gcn.py",
    "pdfdrill/vendor/blobcc.py",
@@ -2644,6 +2797,7 @@
    "semantic/render.py"
   ],
   "text_source": [
+   "docmodel/prop_contract.py",
    "pdfdrill/classify.py",
    "pdfdrill/heading_cleanup.py",
    "pdfdrill/merge_latex.py"
@@ -2676,6 +2830,7 @@
    "pdfdrill/classify.py",
    "pdfdrill/commands.py",
    "pdfdrill/continuity_scorer.py",
+   "pdfdrill/corrections.py",
    "pdfdrill/crossref.py",
    "pdfdrill/docinspect.py",
    "pdfdrill/docpack.py",
@@ -2691,11 +2846,14 @@
    "pdfdrill/perplexity_client.py",
    "pdfdrill/planner.py",
    "pdfdrill/projection.py",
+   "pdfdrill/reccontext.py",
    "pdfdrill/renamefolder.py",
    "pdfdrill/repo_publish.py",
    "pdfdrill/report_tex.py",
+   "pdfdrill/reports/crops.py",
    "pdfdrill/retrieve.py",
    "pdfdrill/scandrill/cli.py",
+   "pdfdrill/sectionpath.py",
    "pdfdrill/sources.py",
    "pdfdrill/tsv_gcn.py",
    "pdfdrill/vendor/blobcc.py",
@@ -2714,26 +2872,32 @@
    "vocabnet/sources.py"
   ],
   "to_line_index": [
-   "docmodel/modules/paragraph.py"
+   "docmodel/modules/paragraph.py",
+   "docmodel/prop_contract.py"
   ],
   "total_pages": [
    "docmodel/modules/document_structure.py",
+   "docmodel/prop_contract.py",
    "pdfdrill/chars_to_lines.py",
    "pdfdrill/commands.py",
    "pdfdrill/nodes/poppler.py"
   ],
   "total_paragraphs": [
-   "docmodel/modules/document_structure.py"
+   "docmodel/modules/document_structure.py",
+   "docmodel/prop_contract.py"
   ],
   "total_sections": [
-   "docmodel/modules/document_structure.py"
+   "docmodel/modules/document_structure.py",
+   "docmodel/prop_contract.py"
   ],
   "trailing_punct": [
    "docops/projectors/tiddlywiki.py",
    "pdfdrill/commands.py",
-   "pdfdrill/report_tex.py"
+   "pdfdrill/report_tex.py",
+   "pdfdrill/reports/from_document.py"
   ],
   "uri": [
+   "docmodel/prop_contract.py",
    "pdfdrill/annotations.py",
    "pdfdrill/commands.py",
    "pdfdrill/links_layer.py"
@@ -2754,10 +2918,12 @@
    "pdfdrill/openai_vision.py",
    "pdfdrill/pdfinfo_layers.py",
    "pdfdrill/refine.py",
+   "pdfdrill/reports/from_document.py",
    "pdfdrill/sources.py",
    "semantic/build.py"
   ],
   "year": [
+   "docmodel/modules/citation.py",
    "docmodel/modules/page.py",
    "docops/projectors/distill_reader.py",
    "docops/projectors/latex_pipeline.py",

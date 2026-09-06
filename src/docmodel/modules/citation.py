@@ -62,6 +62,15 @@ def add_cites_alignment(doc: Document, left: Range, right: Range, props: dict) -
     both add the same edge. Skips (returns `None`) when an identical one --
     same `left`, same `right`, same `citekey` -- already exists.
 
+    010 fix round 4 made the claim true rather than aspirational: every
+    Citation->Reference edge in the codebase now comes through here --
+    `ensure_reference_stub`, `bibliography.link_citations`,
+    `bibliography.link_citations_by_label`, `absorb_stub` and
+    `markdown_source.cite_objects`. (`annotations.link_xref_alignments` also
+    emits `kind="cites"`, but its edges run Link->Citation on the `links`
+    stream: a different relation that happens to share the kind name, not a
+    second creator of this one.)
+
     `citekey` has to be part of that identity, not just `left`+`right`: a
     citation is anchored at LINE granularity (`start == end == the line's
     anchor`, sub-position tracked separately via `offset`/`length` props,
@@ -85,6 +94,70 @@ def add_cites_alignment(doc: Document, left: Range, right: Range, props: dict) -
     a = Alignment(kind="cites", left=left, right=right, props=props)
     doc.add_alignment(a)
     return a
+
+
+def _surface_range(obj: DocObject) -> Optional[Range]:
+    r = next((x for x in obj.realizations
+              if x.role == "surface" and x.start is not None), None)
+    if r is None:
+        r = next((x for x in obj.realizations if x.start is not None), None)
+    return Range(r.stream, r.start, r.end) if r is not None else None
+
+
+def absorb_stub(doc: Document, stub: DocObject, into: DocObject,
+                extra_props: Optional[dict] = None) -> int:
+    """010 fix round 4 — MERGE a citation stub into the REAL Reference a linker
+    just resolved its Citation to, and drop the stub.
+
+    `ensure_reference_stub` links a Citation to a stub at creation time, by
+    EXACT citekey. A linker that later resolves the same Citation by a
+    different criterion -- the alpha `.bbl` label (`link_citations_by_label`:
+    in-text `[ASV02]` -> gold `smith2002`), the reference NUMBER, or the fuzzy
+    surname+year prefix (`link_citations`: `[Asai]` -> `Asai2023`) -- reaches a
+    Reference that is NOT that stub. Adding its edge and walking away left the
+    Citation with TWO edges to TWO References and the stub permanent (measured
+    on the gold `.bbl` path). So: every `cites` edge that pointed at the stub
+    is re-pointed at `into` (keeping `into`'s OWN anchor -- a gold Reference's
+    `references`-stream anchor, not the citation prose line the stub borrowed),
+    the moved edge's `citekey` becomes `into`'s so the linker's own
+    `add_cites_alignment` call dedupes against it instead of adding a second,
+    and the stub object is dropped.
+
+    Only edges carrying the STUB's citekey are moved: a stub is anchored at its
+    citation's LINE, so two stubs born on one line share a Range and `citekey`
+    is the only thing that tells their edges apart (see `add_cites_alignment`).
+
+    `extra_props` is merged onto each moved edge -- the calling linker's own
+    edge props (e.g. `link_citations_by_label`'s `label`), which would
+    otherwise be lost: the linker's follow-up `add_cites_alignment` dedupes
+    against the moved edge and never gets to attach them.
+
+    Returns the number of edges moved. A no-op (0) when `stub is into`, when
+    `stub` is not a stub, or when it is already gone from the document.
+    """
+    if stub is into or stub.id not in doc.objects or not stub.props.get("stub"):
+        return 0
+    stub_range = _surface_range(stub)
+    target = _surface_range(into)
+    if stub_range is None or target is None:
+        return 0
+    key = stub.props.get("citekey")
+    into_key = into.props.get("citekey")
+    stale = [a for a in doc.alignments
+             if a.kind == "cites" and a.right == stub_range
+             and a.props.get("citekey") == key]
+    if stale:                                   # detach BEFORE re-adding, so
+        drop = {id(a) for a in stale}           # the new edge can't be deduped
+        doc.alignments = [a for a in doc.alignments if id(a) not in drop]
+    moved = 0
+    for a in stale:
+        props = dict(a.props)
+        props.update(extra_props or {})
+        props["citekey"] = into_key
+        if add_cites_alignment(doc, a.left, target, props) is not None:
+            moved += 1
+    doc.objects.pop(stub.id, None)
+    return moved
 
 
 def ensure_reference_stub(doc: Document, citation: DocObject, bibkey: str) -> Optional[DocObject]:
