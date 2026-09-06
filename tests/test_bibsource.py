@@ -115,10 +115,17 @@ def test_detect_author_year_in_objects_square_brackets_and_folding():
     citekey, and link_citations connects to the gold references."""
     doc = Document()
     s = doc.ensure_stream("markdown_source")
-    a1 = s.append(type="text", text="x")
-    p = DocObject(type="Paragraph", props={
-        "text": "a conceptual space [Gärdenfors, 2000] and multilayer "
-                "networks [Kivelä et al., 2014]; see also (Carlsson, 2009)."})
+    # 645 fix round 1 -- the block payload carries the paragraph's OWN text,
+    # exactly as `markdown_source.anchored` writes it ({"kind": "paragraph",
+    # "text": b["text"]}). The detector locates each citation group in the
+    # line it is anchored at rather than trusting an object-text offset, so a
+    # fixture whose payload does not reproduce the text is not the shape this
+    # path ever has in production -- and would exercise the branch where NO
+    # span can be found instead.
+    para_text = ("a conceptual space [Gärdenfors, 2000] and multilayer "
+                 "networks [Kivelä et al., 2014]; see also (Carlsson, 2009).")
+    a1 = s.append(type="text", text=para_text)
+    p = DocObject(type="Paragraph", props={"text": para_text})
     p.add_realization(Realization(stream="markdown_source", start=a1, end=a1, role="surface"))
     doc.add(p)
     # gold references (bibtex keys, as bibsource ingests them)

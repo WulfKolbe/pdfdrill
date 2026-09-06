@@ -768,7 +768,7 @@ class TiddlyWikiProjector(BaseProjector):
             "sections":   self._sort_by_flow(doc.objects_of_type("Section")),
             "equations":  self._sort_by_flow(doc.objects_of_type("Equation")),
             "formulas":   self._sort_by_flow(doc.objects_of_type("Formula")),
-            "citations":  doc.objects_of_type("Citation"),
+            "citations":  self._sort_by_flow(doc.objects_of_type("Citation")),
             "pictures":   self._sort_by_flow(doc.objects_of_type("Picture")),
             "diagrams":   self._sort_by_flow(doc.objects_of_type("Diagram")),
             "tables":     self._sort_by_flow(doc.objects_of_type("Table")),
@@ -853,15 +853,16 @@ class TiddlyWikiProjector(BaseProjector):
         # 645 — CITATIONS ARE SUBSTITUTED BY GROUP, not one at a time.
         # A citation group (`[a, b]`, `(Smith 1999; Jones 2001)`) is several
         # Citation objects over ONE stretch of prose. Substituting each on its
-        # own is wrong twice over: the three `bibliography.py` detectors give
-        # EVERY key in a group the span of the whole group, so
-        # `_apply_line_substitutions` accepted the first and dropped the rest
-        # as overlaps (14 of 81 penev_A citations lost, 12 of 52 REF tiddlers
-        # linked from nothing — 646-c); and `CitationProcessor`, which does
-        # give each key its own sub-span, left the source brackets standing
-        # around each one, so the CIT template's own `[...]` doubled them
-        # (`[[a], [b]]`). One group, one substitution, one `{{REF||CIT}}` per
-        # distinct key in source order.
+        # own left the source brackets standing around every key, and the
+        # `CIT` template renders its own, so the reader got `[[a], [b]]`.
+        # (Before 645 the three `bibliography.py` detectors also gave EVERY
+        # key in a group the span of the WHOLE group; `_apply_line_substitu-
+        # tions` then accepted one and dropped the rest as overlaps — 14 of
+        # penev_A's 81 citations lost, 12 of 52 REF tiddlers linked from
+        # nothing, 646-c. They record a per-key span now, so the overlap rule
+        # no longer fires on a group at all.) One group, one substitution,
+        # one `{{REF||CIT}}` per distinct key in source order, and everything
+        # between them kept verbatim — see `_citation_groups`.
         cit_spans: dict = defaultdict(list)
         for c in inv["citations"]:
             ck = (c.props.get("citekey") or "").strip()
@@ -884,51 +885,84 @@ class TiddlyWikiProjector(BaseProjector):
                 self.bump("citations_without_a_span")
 
         for anchor, spans in cit_spans.items():
-            for off, length, titles in self._citation_groups(doc, anchor, spans):
-                subs_by_line[anchor].append(
-                    (off, length,
-                     "".join("{{" + t + "||CIT}}" for t in titles)))
-                self.bump("citation_inline_subs", len(titles))
+            for off, length, repl, n_keys in self._citation_groups(
+                    doc, anchor, spans):
+                subs_by_line[anchor].append((off, length, repl))
+                self.bump("citation_inline_subs", n_keys)
 
         return subs_by_line
 
-    @staticmethod
-    def _citation_groups(doc: Document, line_anchor, spans):
-        """Merge one line's citation spans into GROUPS, brackets and all.
+    def _citation_groups(self, doc: Document, line_anchor, spans):
+        """Merge one line's citation spans into GROUPS and build a LOSSLESS
+        replacement for each.
 
-        Yields `(offset, length, [tiddler title, ...])`. Two spans belong to
-        one group when they are identical, when they overlap, or when only
-        whitespace/`,`/`;` separates them — the three shapes a multi-key
-        citation actually takes. A finished group that is flanked by a
-        matching `[...]`/`(...)` pair swallows the pair, because the `CIT`
-        template supplies the brackets itself; a group that is not flanked
-        (the detectors' spans already include the parentheses) is left alone.
-        Titles are deduplicated keeping first-seen order, which is source
-        order: `inv["citations"]` is flow-sorted and a group's keys are
-        created left to right.
+        Yields `(offset, length, replacement, distinct keys)`. Two spans
+        belong to one group when they are identical, when they overlap, or
+        when only whitespace/`,`/`;` separates them — the shapes a multi-key
+        citation takes.
+
+        THE REPLACEMENT IS LOSSLESS. It holds one `{{<REF title>||CIT}}` per
+        distinct key in source order and emits every character BETWEEN the
+        recognised spans VERBATIM, so the only text a group ever loses is the
+        citation spans themselves and a bracket pair that wraps nothing else.
+        `(Linsker 1988; Oja 1989; Sanger 1989; Földiák 1990; Plumbey 1991)`
+        keeps `Földiák 1990` — no detector recognises that surname (645-b),
+        and a substitution that swallowed the whole parenthetical would delete
+        a reference the document actually makes. The kept characters are
+        counted in `group_text_kept`.
+
+        A group whose extent is flanked by a matching `[...]`/`(...)` pair
+        swallows the pair, because the `CIT` template renders the brackets
+        itself; a group sitting inside a longer parenthetical
+        (`(see Smith 1999 for a review)`) is not flanked by one and keeps it.
         """
         stream = doc.streams.get("mathpix_lines")
         payload = (stream.payload.get(line_anchor) or {}) if stream else {}
         text = payload.get("text_display") or payload.get("text") or ""
 
+        usable = []
+        for off, length, ct in spans:
+            if off < 0 or length < 0 or off + length > len(text):
+                # The span names characters this line does not have. It is
+                # DROPPED and counted, never clamped and never merged into a
+                # neighbour: a clamped span replaces the wrong characters and
+                # says nothing about it.
+                self.bump("citation_span_out_of_bounds")
+                continue
+            usable.append((off, length, ct))
+
         groups: list[list] = []
-        for off, length, ct in sorted(spans, key=lambda s: s[0]):
+        for off, length, ct in sorted(usable, key=lambda s: (s[0], s[1])):
             end = off + length
             if groups:
                 g = groups[-1]
                 gap = text[g[1]:off] if off >= g[1] else ""
                 if off <= g[1] or _CIT_SEP_ONLY.fullmatch(gap):
                     g[1] = max(g[1], end)
-                    if ct not in g[2]:
-                        g[2].append(ct)
+                    g[2].append((off, length, ct))
                     continue
-            groups.append([off, end, [ct]])
+            groups.append([off, end, [(off, length, ct)]])
 
-        for start, end, titles in groups:
-            if 0 < start and end < len(text) \
-                    and _CIT_BRACKETS.get(text[start - 1]) == text[end]:
-                start, end = start - 1, end + 1
-            yield start, end - start, titles
+        for inner_start, inner_end, members in groups:
+            start, end = inner_start, inner_end
+            if 0 < inner_start and inner_end < len(text) \
+                    and _CIT_BRACKETS.get(text[inner_start - 1]) == text[inner_end]:
+                start, end = inner_start - 1, inner_end + 1
+            out: list[str] = []
+            cursor = inner_start
+            seen: set[str] = set()
+            for off, length, ct in members:
+                if off > cursor:
+                    out.append(text[cursor:off])
+                    self.bump("group_text_kept", off - cursor)
+                if ct not in seen:
+                    seen.add(ct)
+                    out.append("{{" + ct + "||CIT}}")
+                cursor = max(cursor, off + length)
+            if cursor < inner_end:
+                out.append(text[cursor:inner_end])
+                self.bump("group_text_kept", inner_end - cursor)
+            yield start, end - start, "".join(out), len(seen)
 
     # ----- phase 3: tiddler emission -----
 

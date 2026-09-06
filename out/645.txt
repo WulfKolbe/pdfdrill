@@ -1,5 +1,11 @@
 645 — citations reach the page; the integrity check sees an unreferenced REF
 ============================================================================
+(fix round 1 folded in: the substitution is LOSSLESS — the three detectors
+record a PER-KEY span and everything between the keys is emitted verbatim, so
+`(Linsker 1988; Oja 1989; Sanger 1989; Földiák 1990; Plumbey 1991)` keeps
+`Földiák 1990` instead of deleting it. 158 characters of penev_A prose that
+round 0 dropped are back, 0 lost in the other direction. Every count below is
+post-round-1.)
 
 THE USER'S THREE CLAIMS, CHECKED FIRST RATHER THAN ASSUMED
   "penev_A has 81 Citation objects"                     TRUE, still 81.
@@ -38,7 +44,26 @@ EVIDENCE (library, deny-by-default git; never committed to this repo)
   ~/pdfdrill-library/penev_{A,B}/out/645/after.tiddlers.json  the projection
   ~/pdfdrill-library/penev_{A,B}/out/645/conserve.txt     the claim audit
   ~/pdfdrill-library/out/645/pair.json                    both side by side
-  ~/pdfdrill-library/penev_{A,B}/out/645/INSPECT.txt  6 paths each, checked
+  ~/pdfdrill-library/penev_A/out/645/round0.tiddlers.json  the SAME frozen
+                                       model projected with the round-0 code
+                                       (a clean export of d20ce48) — the
+                                       other half of the 158-character diff
+  ~/pdfdrill-library/penev_A/out/645/lossless.txt   the diff itself: 11
+                                       paragraphs, 158 characters recovered,
+                                       0 lost, with the fragments named
+  ~/pdfdrill-library/penev_A/out/645/lossless.py     the losslessness
+                                       measurement (fix round 1), a sibling
+                                       script: it exports d20ce48 with
+                                       `git archive` and projects the frozen
+                                       model with it in a subprocess, so it
+                                       depends on no file that has since been
+                                       edited
+  ~/pdfdrill-library/penev_A/out/645/INSPECT.txt      8 paths, checked
+  ~/pdfdrill-library/penev_B/out/645/INSPECT.txt      6 paths, checked (the
+                                       two lossless files are penev_A only
+                                       and are correctly reported as NOT
+                                       LISTED for penev_B rather than
+                                       written as dead paths)
   ~/pdfdrill-library/out/645/INSPECT.txt              1 path, checked
   brief   tasks/645 brief (coordinator), out/639.txt, out/644.txt, out/646.txt
 
@@ -49,10 +74,10 @@ THE FINDING — WHERE A CITATION'S SPAN COMES FROM, AND WHAT IS WRONG WITH IT
   after. The defect is a different one and it is the reason citations did not
   reach the prose:
 
-  A CITATION GROUP IS N OBJECTS SHARING ONE SPAN.
+  A CITATION GROUP WAS N OBJECTS SHARING ONE SPAN.
     `detect_numeric_citations` (`[1,2,3]`), `detect_author_year_citations`
     (`(Oja 1989; Sanger 1989)`) and `detect_author_year_in_objects` each
-    create one Citation per key and give EVERY one of them the span of the
+    create one Citation per key and gave EVERY one of them the span of the
     WHOLE GROUP. The projector then substituted them one at a time, and
     `_apply_line_substitutions` (correctly, defensively) drops a substitution
     that overlaps one already accepted — so one key won and the rest were
@@ -62,6 +87,18 @@ THE FINDING — WHERE A CITATION'S SPAN COMES FROM, AND WHAT IS WRONG WITH IT
     is one span at offset 1, length 65 carrying four Citations; one survived.
     This is 646-c, measured and now fixed.
 
+    FIX ROUND 1: all three detectors now record the span of the KEY, not of
+    the group — the part's own `Surname … year` extent for the author-year
+    pair (`_AY_STOP`, `_YEAR` and the surname match already give it), and
+    `_numlist_spans` for the numeric one (`_expand_numlist`'s split and range
+    guard, with positions; numbers expanded out of `3-5` share the range
+    token's span, which is the truth — `4` has no text of its own). Grouping
+    a shared span in the projector, which is what round 0 did, is the same
+    fix seen from one step too far downstream: it makes the KEYS reach the
+    page and still has to delete every character between them, because with
+    one span covering the whole parenthetical the projector cannot know where
+    a key ends. That is the content loss below.
+
   AND `CitationProcessor` (model build, the `[key]` scan) does the opposite:
     `_split_offsets` gives each key in `[a, b]` its OWN sub-span. Nothing was
     dropped there — but each key was replaced separately INSIDE the source
@@ -70,6 +107,18 @@ THE FINDING — WHERE A CITATION'S SPAN COMES FROM, AND WHAT IS WRONG WITH IT
 
   Both shapes are the same fact: a citation group is ONE piece of prose, so
   it is ONE substitution.
+
+  AND THE SUBSTITUTION HAS TO BE LOSSLESS (fix round 1). A group is replaced
+  by one `{{REF||CIT}}` per key with every character BETWEEN the recognised
+  spans emitted verbatim, and only a bracket pair that wraps nothing else is
+  swallowed. Round 0 replaced the whole group extent and deleted what no key
+  covered: on penev_A that was `Földiák 1990` (a reference the paper makes,
+  which no detector recognises — 645-b), the phrase `(see the review by )`,
+  and every `; ` separator — 158 characters across 11 paragraphs, MEASURED by
+  projecting the frozen before-model with the round-0 code and diffing the
+  paragraph prose with transclusions stripped. 0 characters go the other way.
+  A group that is NOT wrapped by a bracket pair of its own keeps its
+  parentheses, so `(see Smith 1999 for a review)` stays a parenthetical.
 
   AND ONE SPAN WAS BEING GUESSED. `detect_author_year_in_objects` reads an
   OBJECT's joined text and recorded `m.start()` — a position in THAT text —
@@ -91,14 +140,25 @@ WHAT WAS BUILT (this branch, eqblobs-and-gzip-tex)
       identical, that overlap, or that are separated only by whitespace/`,`/
       `;` — the three shapes a multi-key citation takes — and yields ONE
       substitution per group holding one `{{<REF title>||CIT}}` per distinct
-      key in source order. A finished group flanked by a matching `[...]` or
-      `(...)` swallows the pair, because the `CIT` template supplies the
-      brackets; a group whose span already includes them (what the
-      author-year detectors record) is left alone. `_maybe_extend_brackets`
-      is DELETED — the new method subsumes it exactly, including its "solo,
-      comma-free" case.
+      key in source order WITH EVERY CHARACTER BETWEEN THEM EMITTED VERBATIM
+      (`group_text_kept` counts them: 24 on penev_A, 0 on penev_B). A group
+      flanked by a matching `[...]`/`(...)` pair swallows the pair, because
+      the `CIT` template supplies the brackets; a group that only sits inside
+      a longer parenthetical does not, and keeps it.
+      `_maybe_extend_brackets` is DELETED. The new method does NOT subsume it
+      exactly: `_maybe_extend_brackets` refused to swallow a bracket whose
+      span contained a comma, a guard against exactly the `[a, b]` group it
+      could not otherwise handle one key at a time. `_citation_groups` sees
+      the whole group, so the guard has nothing left to protect and its
+      absence is what lets `[a, b]` become `[a], [b]` instead of `[[a], [b]]`.
+    - a span the line is too short for is DROPPED and counted
+      (`citation_span_out_of_bounds`), never clamped and never merged into a
+      neighbour: a clamped span replaces the wrong characters silently.
     - a Citation with no `offset`/`length` at all bumps the new counter
       `citations_without_a_span`; `cmd_tiddlers` prints it. Nothing guesses.
+    - `_build_inventory` sorts Citations by flow like every other type, so
+      "source order" in `_citation_groups` is a property of the code and not
+      of dict insertion order.
     - `tiddler_integrity` gains `orphan_ref`, `unreferenced` and
       `unreferenced_by_prefix`; `dangling` and `orphan_synthetic` are
       untouched. `UNREFERENCED_KINDS` is the eight kinds that reach a reader
@@ -118,13 +178,28 @@ WHAT WAS BUILT (this branch, eqblobs-and-gzip-tex)
       `absorb_stub` and `_count_resolved` — and a role of its own would make
       the stub invisible to all three.
   src/pdfdrill/bibliography.py
-    - `_span_on_its_own_line` (the lookup above) and `spans_unrecorded(doc)`,
-      the measurement: how many Citations carry no sub-anchor span.
-    - `detect_author_year_in_objects` uses both.
-  src/pdfdrill/commands.py (`cmd_tiddlers`)
-    - the integrity line now names REF tiddlers linked from nothing and
-      counts the rest by prefix ("unreferenced: 36 FN, 41 FO, 1 SN"), and the
-      OK line reads "0 dangling, 0 orphan, 0 unreferenced".
+    - `_span_on_its_own_line` (the lookup above), `_numlist_spans`
+      (`_expand_numlist` with positions) and `spans_unrecorded(doc)`, the
+      measurement: how many Citations carry no sub-anchor span.
+    - all three detectors record a PER-KEY span (fix round 1).
+    - when no line reproduces the group, `detect_author_year_in_objects` adds
+      NO realization at all (fix round 1). Round 0 anchored the Citation at
+      the object's own range with no sub-anchor — which is a CLAIM on every
+      line the paragraph covers, and `ensure_reference_stub` would have
+      copied that claim onto the stub, undoing 646-g on the very path this
+      task created. The Citation stands unanchored, gets no stub, and
+      `spans_unrecorded` counts it.
+  src/pdfdrill/commands.py
+    - `cmd_tiddlers`: the ⚠ fires on `dangling`/`orphan_synthetic`/
+      `orphan_ref` — a BROKEN reference — and `unreferenced` at large is
+      printed as an informational count beside it ("Unreferenced (emitted,
+      nothing points at them): 36 FN, 41 FO, 1 SN."). Warning on
+      `unreferenced` would make the ⚠ permanent on every real document (41
+      Contents-page formulas, 36 footnotes whose marker was never matched)
+      and therefore unreadable.
+    - `cmd_bibliography` prints `spans_unrecorded` when it is nonzero. The
+      measurement had NO production caller before fix round 1 — a number
+      nothing prints is a number nobody reads.
   docs/TRANSCLUSION.md
     - a new section, "The third shape: a tiddler nothing points at" — the
       dangling/unreferenced pair, the five keys `tiddler_integrity` returns,
@@ -151,6 +226,11 @@ THE NUMBERS — penev_A
     dangling                                   0          0
     orphan_synthetic                           0          0
     transclusions                           1654       1667
+    characters of prose the group substitution deletes that
+      no key covers                          158          0
+    group_text_kept (characters emitted verbatim
+      inside a replaced group)                 0         24
+    citation spans out of bounds               -          0
     ---- pdfdrill conserve ---------------------------------
     doubly-claimed anchors                    83         42
       Paragraph + Reference (1..4 refs)       37          0
@@ -160,7 +240,19 @@ THE NUMBERS — penev_A
       of which Reference                      12          4
     unclaimed anchors                        243        243
 
-  Every delta accounted for, and counted rather than reasoned: 11 spans on
+  THE 158 CHARACTERS are measured, not argued: the frozen before-model is
+  projected with the ROUND-0 code (a clean export of d20ce48) and with this
+  worktree's, transclusions are stripped from both PARA bodies, and the two
+  are diffed. 11 of 222 paragraphs differ; 158 characters appear only in the
+  round-1 text and 0 appear only in the round-0 text. Named in full in
+  `lossless.txt`; the ones that are not a `; ` separator are `Földiák 1990`,
+  `(see the review by )`, `( and references therein)`, `(or Princeton, New
+  Jersey, for that matter; )` and `(Wässle and )` — `Wässle` is 645-b again.
+  Each side is the WHOLE pipeline as it stood, code and detectors together,
+  because the fix is in both; the only paragraphs that differ are ones
+  carrying a citation.
+
+  Every other delta accounted for, and counted rather than reasoned: 11 spans on
   penev_A carry more than one Citation and hold 25 of the 81. TEN of the 11
   sit on a line a Paragraph covers and hold 23 citations, so the group fix
   adds 23 - 10 = 13 transclusions — exactly the +13. The eleventh
@@ -207,8 +299,12 @@ THE NUMBERS — penev_B, AND A CHANGE OF STATE THAT IS NOT 645's
   it agrees with penev_A on every class.
 
 WHAT IS STILL ORPHANED, AND WHY — 645-a
-  4 of 52 penev_A REF tiddlers and 5 of 23 penev_B ones have no inbound link
-  after the fix. Every one of them was checked, not assumed: the citation's
+  4 of 52 penev_A REF tiddlers have no inbound link after the fix —
+  `penev_A_REF_Deco1996`, `penev_A_REF_Gonzalez1992`, `penev_A_REF_Mumford1991`
+  and `penev_A_REF_Mumford1992` — and 5 of 23 penev_B ones:
+  `penev_B_REF_Felleman1991`, `penev_B_REF_Li1994`, `penev_B_REF_Mumford1991`,
+  `penev_B_REF_Rieke1992` and `penev_B_REF_Warland1991`. Every one of the nine
+  was checked, not assumed: the citation's
   line is owned by a FOOTNOTE, and a Footnote tiddler's body is copied from
   `props["content"]` VERBATIM. Inline substitution (`FO`, `CIT`, `FN`, the
   picture URLs) runs on PARAGRAPH bodies only — `_transclude_paragraph` is
@@ -228,13 +324,20 @@ A SECOND FINDING, NAMED NOT FIXED — 645-b
   (`[A-ZÀ-Þ][A-Za-zÀ-ſ\-']{1,}`) plus `_fold_key`. So the group
   `(Linsker 1988; Oja 1989; Sanger 1989; Földiák 1990; Plumbey 1991)`
   produces FOUR citations on penev_A and not five: `Földiák` matches
-  nothing and the reference is silently absent from the model. Confirmed by
-  running both patterns against the string. Not fixed here — a surname class
-  change alters citekeys corpus-wide and deserves its own measurement, not a
-  line inside a task about transclusion.
+  nothing and the reference is silently absent from the model. `Wässle` is
+  the same miss on two more penev_A lines. Confirmed by running both patterns
+  against the strings. Not fixed here — a surname class change alters
+  citekeys corpus-wide and deserves its own measurement, not a line inside a
+  task about transclusion. What fix round 1 DOES guarantee is that the
+  unrecognised name is no longer DELETED from the page: it stands as prose
+  next to the keys that were recognised, which is what makes the gap visible
+  to a reader instead of silent.
 
-TESTS (TDD; every one confirmed failing for its stated reason first)
-  tests/test_citation_transclusion.py, 9 tests:
+TESTS (TDD; every one confirmed failing for its stated reason first —
+fix round 1's seven were run against a clean export of d20ce48 and all seven
+fail there, the end-to-end one with `Földiák 1990` visibly absent from the
+projected paragraph)
+  tests/test_citation_transclusion.py, 13 tests:
     * `[a, b]` at one shared span -> `{{D_REF_a||CIT}}` then
       `{{D_REF_b||CIT}}`, in that order (was: only `D_REF_a`);
     * the group's own brackets are consumed, not doubled — the whole
@@ -253,12 +356,32 @@ TESTS (TDD; every one confirmed failing for its stated reason first)
     * `detect_author_year_in_objects` on a TWO-LINE paragraph records the
       span on the line the group is actually on, verified by slicing that
       line's text and comparing it to `(Smith 1999)`;
-    * an object whose text no line reproduces gets NO offset and
-      `spans_unrecorded` returns 1.
+    * an object whose text no line reproduces gets NO realization at all,
+      no Reference stub is made from it, and `spans_unrecorded` returns 1;
+    * (fix round 1) `(Linsker 1988; Oja 1989; Földiák 1990; Plumbey 1991)`
+      keeps `Földiák 1990`, and the whole replacement is asserted as a
+      literal so a substitution that swallowed the parenthetical fails;
+    * (fix round 1) THE SAME LINE END TO END through the real detector —
+      `detect_author_year_citations` on penev_A's actual sentence, then the
+      projector: 4 citations detected (Földiák is missed, 645-b), 0 without
+      a span, all four linked, `Földiák 1990` still in the prose. This is
+      the one that fails on d20ce48 with the text simply gone;
+    * (fix round 1) a span the line is too short for is dropped, counted,
+      and does not drag its neighbour's bracket with it;
+    * (fix round 1) `group_text_kept` counts the characters emitted verbatim.
+  CHANGED, and why:
+    tests/test_bibsource.py::test_detect_author_year_in_objects_square_…
+      its fixture anchored a paragraph at a stream block whose payload text
+      was the single character `"x"`. `markdown_source.anchored` writes the
+      block's OWN text into the payload ({"kind": "paragraph", "text":
+      b["text"]}), so no model has that shape; with the detector now LOOKING
+      the group up in the line it is anchored at, the fixture exercised the
+      "no line reproduces it" branch instead of the path it is named for.
+      The payload now carries the paragraph text, as production does.
 
   FULL SUITE: PYTHONDONTWRITEBYTECODE=1 PYTHONPATH=src python3 -m pytest
-  tests/ -q -p no:cacheprovider  ->  3164 passed, 0 failed
-  (3155 before this task; 9 new).
+  tests/ -q -p no:cacheprovider  ->  3168 passed, 0 failed
+  (3155 before this task; 13 new).
 
 CARRIED INTO out/646.txt
   "THE WALK HALF": "14 more unreachable and 4 fewer multi-parent" now reads
@@ -266,6 +389,11 @@ CARRIED INTO out/646.txt
   credited one paragraph earlier)". One sentence, no other change.
 
 CONCERNS
+  `group_text_kept` counts characters in the substitution INDEX, which is
+  built for every line that carries a citation — including the footnote lines
+  no paragraph body reads (645-a). It is therefore an upper bound on what
+  reaches the page, not a count of characters in the output; the 158-character
+  figure above IS a count of the output, taken by diffing two projections.
   penev_B's model changed materially in this run — 25 Citations and 23
   Reference stubs that were not there before, because `bibliography` had
   never been run on that document. That is a real improvement to the

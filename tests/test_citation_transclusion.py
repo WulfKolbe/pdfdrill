@@ -26,6 +26,11 @@ from docops.projectors.tiddlywiki import TiddlyWikiProjector, tiddler_integrity
 # ---------------------------------------------------------------- fixtures
 
 LINE = "Prior work [a, b] shows this."
+#: each key's OWN span, which is what the detectors record after 645 fix
+#: round 1. `SPAN` is the whole bracket — the shape a stub Reference inherits
+#: and the shape the pre-645 detectors recorded on every key in a group.
+SPAN_A = (LINE.index("[a") + 1, 1)
+SPAN_B = (LINE.index("b]"), 1)
 SPAN = (LINE.index("["), len("[a, b]"))
 
 
@@ -52,12 +57,12 @@ def _grouped_citation_doc() -> Document:
                                     start=body, end=body, role="surface"))
     doc.add_child(sec, par)
 
-    for i, key in enumerate(("a", "b")):
+    for i, (key, span) in enumerate((("a", SPAN_A), ("b", SPAN_B))):
         cit = DocObject(type="Citation", props={
             "citekey": key, "page": 1, "flow_index": 2 + i})
         cit.add_realization(Realization(
             stream="mathpix_lines", start=body, end=body, role="surface",
-            props={"offset": SPAN[0], "length": SPAN[1]}))
+            props={"offset": span[0], "length": span[1]}))
         doc.add(cit)
         ref = DocObject(type="Reference", props={
             "citekey": key, "bibkey": "D", "stub": True,
@@ -99,7 +104,10 @@ def test_the_group_brackets_are_consumed_not_doubled():
     `[[a][b]]`."""
     text = _para_text(_project(_grouped_citation_doc()))
     assert "[a, b]" not in text, text
-    assert "Prior work {{D_REF_a||CIT}}{{D_REF_b||CIT}} shows this." in text, text
+    # LOSSLESS: the `, ` between the keys is kept; only the two recognised
+    # spans and the bracket pair that wraps nothing else are replaced.
+    assert "Prior work {{D_REF_a||CIT}}, {{D_REF_b||CIT}} shows this." in text, \
+        text
 
 
 def test_a_repeated_key_in_one_group_is_transcluded_once():
@@ -109,7 +117,7 @@ def test_a_repeated_key_in_one_group_is_transcluded_once():
         "citekey": "a", "page": 1, "flow_index": 4})
     dup.add_realization(Realization(
         stream="mathpix_lines", start=body, end=body, role="surface",
-        props={"offset": SPAN[0], "length": SPAN[1]}))
+        props={"offset": SPAN_A[0], "length": SPAN_A[1]}))
     doc.add(dup)
     text = _para_text(_project(doc))
     assert text.count("{{D_REF_a||CIT}}") == 1, text
@@ -232,7 +240,9 @@ def test_detect_author_year_in_objects_records_the_span_on_the_right_line():
     assert r.start == l1, "the span must name the line the group is ON"
     line = mp.payload[l1]["text"]
     off, length = r.props["offset"], r.props["length"]
-    assert line[off:off + length] == "(Smith 1999)", line[off:off + length]
+    # the KEY's own extent, not the whole parenthetical — a shared span makes
+    # the projector replace the group as one blob (see the Földiák test)
+    assert line[off:off + length] == "Smith 1999", line[off:off + length]
 
 
 def test_a_span_that_cannot_be_located_is_left_unrecorded_and_counted():
@@ -256,5 +266,123 @@ def test_a_span_that_cannot_be_located_is_left_unrecorded_and_counted():
     assert B.detect_author_year_in_objects(doc) == 1
     assert B.spans_unrecorded(doc) == 1
     cit = doc.objects_of_type("Citation")[0]
-    r = next((x for x in cit.realizations if x.role == "surface"), None)
-    assert r is None or r.props.get("offset") is None, r
+    # NO realization at all. A `surface` Realization with no sub-anchor is a
+    # CLAIM on every line the paragraph covers, and `ensure_reference_stub`
+    # would copy that claim onto the stub — undoing 646-g on the path 645
+    # created. So the stub is not made either.
+    assert cit.realizations == [], cit.realizations
+    assert doc.objects_of_type("Reference") == []
+
+
+def test_a_group_keeps_the_text_no_key_covers():
+    """LOSSLESS. `(Linsker 1988; Oja 1989; Földiák 1990; Plumbey 1991)` is
+    the real penev_A line: `Földiák` never becomes a Citation, because
+    `detect_author_year_citations`'s surname class is ASCII-only (645-b). A
+    substitution that replaced the whole parenthetical would DELETE a
+    reference the document actually makes. Every character between the
+    recognised spans is emitted verbatim.
+    """
+    line = "as in (Linsker 1988; Oja 1989; Földiák 1990; Plumbey 1991) above."
+    doc = Document()
+    doc.meta["bibkey"] = "D"
+    mp = doc.ensure_stream("mathpix_lines")
+    head = mp.append(text="1 Introduction", _page=1, _line_index=0,
+                     type="section_header")
+    body = mp.append(text=line, _page=1, _line_index=1, type="text")
+    sec = DocObject(type="Section", props={"caption": "Introduction",
+                                           "level": 1, "flow_index": 0})
+    sec.add_realization(Realization(stream="mathpix_lines", start=head,
+                                    end=head, role="surface"))
+    doc.add(sec)
+    par = DocObject(type="Paragraph", props={"text": line, "page": 1,
+                                             "flow_index": 1})
+    par.add_realization(Realization(stream="mathpix_lines", start=body,
+                                    end=body, role="surface"))
+    doc.add_child(sec, par)
+    for i, key in enumerate(("Linsker 1988", "Oja 1989", "Plumbey 1991")):
+        ck = key.replace(" ", "")
+        cit = DocObject(type="Citation", props={
+            "citekey": ck, "page": 1, "flow_index": 2 + i})
+        cit.add_realization(Realization(
+            stream="mathpix_lines", start=body, end=body, role="surface",
+            props={"offset": line.index(key), "length": len(key)}))
+        doc.add(cit)
+        ref = DocObject(type="Reference", props={"citekey": ck, "bibkey": "D",
+                                                 "stub": True})
+        ref.add_realization(Realization(
+            stream="mathpix_lines", start=body, end=body, role="surface",
+            props={"offset": line.index(key), "length": len(key)}))
+        doc.add(ref)
+
+    text = _para_text(_project(doc))
+    assert "Földiák 1990" in text, text
+    assert ("as in ({{D_REF_Linsker1988||CIT}}; {{D_REF_Oja1989||CIT}}; "
+            "Földiák 1990; {{D_REF_Plumbey1991||CIT}}) above.") in text, text
+    # the parentheses are KEPT here: they wrap text no key covers, so
+    # swallowing them would drop characters too.
+
+
+def test_a_span_the_line_is_too_short_for_is_dropped_not_clamped():
+    """A clamped span replaces the wrong characters and says nothing."""
+    doc = _grouped_citation_doc()
+    body = doc.streams["mathpix_lines"].anchors[1]
+    for c in doc.objects_of_type("Citation"):
+        if c.props.get("citekey") == "b":
+            c.realizations[0].props["offset"] = len(LINE) + 5
+    proj = TiddlyWikiProjector(
+        OperatorConfig(op="projector", classname="TiddlyWikiProjector"))
+    tiddlers = json.loads(proj.project(doc))
+    text = next(t["text"] for t in tiddlers if t["title"] == "D_PARA_0001")
+    assert proj.counters.get("citation_span_out_of_bounds") == 1
+    assert "{{D_REF_b||CIT}}" not in text, text
+    # the in-bounds key is unaffected, and it does NOT swallow `b]` with it
+    assert "{{D_REF_a||CIT}}, b]" in text, text
+
+
+def test_the_kept_characters_are_counted():
+    proj = TiddlyWikiProjector(
+        OperatorConfig(op="projector", classname="TiddlyWikiProjector"))
+    json.loads(proj.project(_grouped_citation_doc()))
+    assert proj.counters.get("group_text_kept") == len(", "), proj.counters
+
+
+def test_end_to_end_the_real_penev_A_line_keeps_the_unrecognised_reference():
+    """The defect exactly as the corpus has it, through the real detector.
+
+    Before 645 fix round 1 `detect_author_year_citations` gave all four keys
+    the span of the WHOLE parenthetical, so the projector replaced it entire
+    and `Földiák 1990` — a reference the paper makes, which no detector
+    recognises because the surname class is ASCII-only (645-b) — was deleted
+    from the page along with the semicolons.
+    """
+    from pdfdrill import bibliography as B
+
+    line = ("Principal Component Analysis (Linsker 1988; Oja 1989; "
+            "Sanger 1989; Földiák 1990; Plumbey 1991), and so on.")
+    doc = Document()
+    doc.meta["bibkey"] = "D"
+    mp = doc.ensure_stream("mathpix_lines")
+    head = mp.append(text="1 Introduction", _page=1, _line_index=0,
+                     type="section_header")
+    body = mp.append(text=line, _page=1, _line_index=1, type="text")
+    sec = DocObject(type="Section", props={"caption": "Introduction",
+                                           "level": 1, "flow_index": 0})
+    sec.add_realization(Realization(stream="mathpix_lines", start=head,
+                                    end=head, role="surface"))
+    doc.add(sec)
+    par = DocObject(type="Paragraph", props={"text": line, "page": 1,
+                                             "flow_index": 1})
+    par.add_realization(Realization(stream="mathpix_lines", start=body,
+                                    end=body, role="surface"))
+    doc.add_child(sec, par)
+
+    assert B.detect_author_year_citations(doc) == 4      # Földiák is missed
+    assert B.spans_unrecorded(doc) == 0
+
+    text = _para_text(_project(doc))
+    assert "Földiák 1990" in text, text
+    for key in ("Linsker1988", "Oja1989", "Sanger1989", "Plumbey1991"):
+        assert "{{D_REF_%s||CIT}}" % key in text, text
+    # the parenthetical is kept, because it wraps text no key covers
+    assert "({{D_REF_Linsker1988||CIT}}; " in text, text
+    assert "; Földiák 1990; {{D_REF_Plumbey1991||CIT}}), and so on." in text, text

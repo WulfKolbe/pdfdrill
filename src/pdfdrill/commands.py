@@ -11002,7 +11002,19 @@ def cmd_tiddlers(pdf: Path, force: bool = False, embed: bool = False,
     # "double bug" class. Report it so it can't hide.
     from docops.projectors.tiddlywiki import tiddler_integrity
     integ = tiddler_integrity(json.loads(result))
-    if integ["dangling"] or integ["orphan_synthetic"] or integ["unreferenced"]:
+    # 645 fix round 1 — the ⚠ is for a BROKEN reference (a target that does
+    # not exist, a synthetic formula nobody made, a bibliography entry no
+    # paragraph links to). `unreferenced` at large is a standing property of
+    # every real document — 41 formulas on the Contents pages, 36 footnotes
+    # whose marker was never matched — and warning on it would make the ⚠
+    # permanent and therefore unreadable. It is reported as a count.
+    unref_note = ""
+    others = {k: v for k, v in integ["unreferenced_by_prefix"].items()
+              if k != "REF"}
+    if others:
+        unref_note = (" Unreferenced (emitted, nothing points at them): "
+                      + ", ".join(f"{v} {k}" for k, v in others.items()) + ".")
+    if integ["dangling"] or integ["orphan_synthetic"] or integ["orphan_ref"]:
         bits = []
         if integ["dangling"]:
             bits.append(f"{len(integ['dangling'])} DANGLING transclusion(s) "
@@ -11017,15 +11029,10 @@ def cmd_tiddlers(pdf: Path, force: bool = False, embed: bool = False,
         if integ["orphan_ref"]:
             bits.append(f"{len(integ['orphan_ref'])} REF tiddler(s) linked from "
                         f"NOTHING (e.g. {', '.join(integ['orphan_ref'][:3])})")
-        others = {k: v for k, v in integ["unreferenced_by_prefix"].items()
-                  if k != "REF"}
-        if others:
-            bits.append("unreferenced: "
-                        + ", ".join(f"{v} {k}" for k, v in others.items()))
-        integ_note = " ⚠ integrity: " + "; ".join(bits) + "."
+        integ_note = " ⚠ integrity: " + "; ".join(bits) + "." + unref_note
     else:
         integ_note = (f" Integrity OK: {integ['transclusions']} transclusions, "
-                      f"0 dangling, 0 orphan, 0 unreferenced.")
+                      f"0 dangling, 0 orphan, 0 orphan REF.") + unref_note
     placeholder_note = (f" {placeholders_fired} citation placeholder(s) fired "
                         f"(a citekey with NO Reference object at all — "
                         f"expected to be 0 now that the model stubs every "
@@ -11488,7 +11495,17 @@ def cmd_bibliography(pdf: Path, force: bool = False) -> str:
     sc.log_transition("bibliography", prev, BIBLIOGRAPHY_BUILT,
                       detail=f"{n} entries, {numeric}+{authyear} cites detected, {cites} linked")
     sc.save()
-    return _format_bibliography(sc) + source_note
+    # 645 — a Citation with no sub-anchor span reaches no paragraph: the
+    # TiddlyWiki projector substitutes inline elements by per-line
+    # offset+length, so such a citation is in the model and on no page. A
+    # detector never invents a position to make this zero, so the number has
+    # to be SAID — the measurement had no production caller before this.
+    from .bibliography import spans_unrecorded
+    no_span = spans_unrecorded(doc)
+    span_note = (f" ⚠ {no_span} citation(s) carry NO span (offset/length): "
+                 f"no line reproduces the citing text, so they reach no "
+                 f"paragraph and get no Reference stub." if no_span else "")
+    return _format_bibliography(sc) + source_note + span_note
 
 
 @_writes("bibfetch")

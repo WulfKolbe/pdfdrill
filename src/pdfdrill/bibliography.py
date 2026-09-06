@@ -362,6 +362,34 @@ def _expand_numlist(s: str) -> list[int]:
     return nums
 
 
+def _numlist_spans(s: str, base: int) -> list[tuple[int, int, int]]:
+    """`_expand_numlist` WITH POSITIONS: `(number, offset, length)`.
+
+    645 fix round 1. Every key in `[1,3-5]` used to be given the span of the
+    whole bracket, so the projector could not tell where one citation ended
+    and the next began and had to replace the lot — deleting any text in
+    between. Same split, same range guard, same `isdigit` test as
+    `_expand_numlist`; the offsets are of the PART, so the numbers expanded
+    out of a range share the range token's own span (which is the truth: `4`
+    in `3-5` has no text of its own).
+    """
+    out: list[tuple[int, int, int]] = []
+    for pm in re.finditer(r"[^,;]+", s):
+        raw = pm.group(0)
+        part = raw.strip()
+        if not part:
+            continue
+        off = base + pm.start() + (len(raw) - len(raw.lstrip()))
+        m = re.match(r"(\d+)\s*[-–]\s*(\d+)$", part)
+        if m:
+            lo, hi = int(m.group(1)), int(m.group(2))
+            if hi - lo <= 50:              # guard against absurd ranges
+                out.extend((n, off, len(part)) for n in range(lo, hi + 1))
+        elif part.isdigit():
+            out.append((int(part), off, len(part)))
+    return out
+
+
 def detect_numeric_citations(doc, max_num: int, exclude_anchors=()) -> int:
     """Detect in-text numeric citations [N], [N,M], [N-M] and add Citations.
 
@@ -389,17 +417,23 @@ def detect_numeric_citations(doc, max_num: int, exclude_anchors=()) -> int:
         for m in _NUMCITE.finditer(text):
             if _in_math(m.start(), math):       # `[1,2]` inside math is not a cite
                 continue
-            nums = [x for x in _expand_numlist(m.group(1)) if 1 <= x <= max_num]
+            # 645 — each key gets ITS OWN span inside the bracket, not the
+            # span of the whole bracket. A shared span forces the projector to
+            # replace the group as one blob and delete whatever sits between
+            # the keys.
+            nums = [(x, o, l) for x, o, l in _numlist_spans(m.group(1),
+                                                            m.start() + 1)
+                    if 1 <= x <= max_num]
             if not nums:
                 continue
-            for num in nums:
+            for num, off, length in nums:
                 obj = DocObject(type="Citation", props={
                     "citekey": str(num), "number": num, "numeric": True,
                     "added_by": "bibliography", "page": p.get("_page")})
                 obj.add_realization(Realization(
                     stream="mathpix_lines", start=anchor, end=anchor,
                     role="surface",
-                    props={"offset": m.start(), "length": m.end() - m.start()}))
+                    props={"offset": off, "length": length}))
                 doc.add(obj)
                 ensure_reference_stub(doc, obj, bibkey)   # 010
                 added += 1
@@ -445,8 +479,13 @@ def detect_author_year_citations(doc, exclude_anchors=()) -> int:
             content = m.group(1)
             if not _YEAR.search(content):
                 continue
-            off, length = m.start(), m.end() - m.start()
+            # 645 — the span is the PART's own `Surname … year` extent, not the
+            # whole parenthetical. `(Linsker 1988; Oja 1989; Földiák 1990)` is
+            # three positions, and a shared span made the projector replace the
+            # lot — deleting `Földiák 1990`, which no detector recognises.
+            base, cursor = m.start() + 1, 0
             for part in content.split(";"):
+                part_base, cursor = base + cursor, cursor + len(part) + 1
                 ym = _YEAR.search(part)
                 if not ym:
                     continue
@@ -456,13 +495,16 @@ def detect_author_year_citations(doc, exclude_anchors=()) -> int:
                 surname = sm.group(1)
                 if surname.lower() in _AY_STOP:
                     continue
+                lo = min(sm.start(), ym.start())
+                hi = max(sm.end(), ym.end())
                 obj = DocObject(type="Citation", props={
                     "citekey": f"{surname}{ym.group(0)}", "author": surname,
                     "year": ym.group(0), "style": "author-year",
                     "added_by": "bibliography", "page": p.get("_page")})
                 obj.add_realization(Realization(
                     stream="mathpix_lines", start=anchor, end=anchor,
-                    role="surface", props={"offset": off, "length": length}))
+                    role="surface",
+                    props={"offset": part_base + lo, "length": hi - lo}))
                 doc.add(obj)
                 ensure_reference_stub(doc, obj, bibkey)   # 010
                 added += 1
@@ -576,7 +618,12 @@ def detect_author_year_in_objects(doc, exclude_anchors=()) -> int:
             # is meaningless against a line anchor; see `_span_on_its_own_line`.
             span = _span_on_its_own_line(doc, rr, m.group(0), cursors) \
                 if rr is not None else None
+            # The located span is of the WHOLE group (`m.group(0)`, brackets
+            # included), so a part's own offset inside `content` maps straight
+            # onto the line: content starts one character past the bracket.
+            base, cursor = ((span[1] + 1) if span else 0), 0
             for part in content.split(";"):
+                part_base, cursor = base + cursor, cursor + len(part) + 1
                 ym = _YEAR.search(part)
                 if not ym:
                     continue
@@ -589,19 +636,20 @@ def detect_author_year_in_objects(doc, exclude_anchors=()) -> int:
                     "style": "author-year", "added_by": "bibliography",
                     "page": o.props.get("page")})
                 if span is not None:
-                    anchor, off, length = span
+                    lo = min(sm.start(), ym.start())
+                    hi = max(sm.end(), ym.end())
                     obj.add_realization(Realization(
-                        stream=rr.stream, start=anchor, end=anchor,
+                        stream=rr.stream, start=span[0], end=span[0],
                         role="surface",
-                        props={"offset": off, "length": length}))
-                elif rr is not None:
-                    # The group is real but no line reproduces it. Anchor the
-                    # citation so it still gets its Reference stub and its
-                    # `cites` edge, and record NO span rather than a fabricated
-                    # one — `spans_unrecorded` is what makes this visible.
-                    obj.add_realization(Realization(
-                        stream=rr.stream, start=rr.start, end=rr.end,
-                        role="surface"))
+                        props={"offset": part_base + lo, "length": hi - lo}))
+                # 645 fix round 1 — when no line reproduces the group the
+                # Citation gets NO realization at all. Anchoring it at the
+                # object's own range would be a `surface` Realization with no
+                # sub-anchor, i.e. a CLAIM on every line the paragraph covers
+                # — and `ensure_reference_stub` would copy that claim onto the
+                # stub, undoing 646-g on the very path this task created. The
+                # Citation stands unanchored and `spans_unrecorded` counts it;
+                # `cmd_bibliography` prints the count.
                 doc.add(obj)
                 ensure_reference_stub(doc, obj, bibkey)   # 010
                 added += 1
