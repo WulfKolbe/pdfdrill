@@ -25,22 +25,26 @@ The user's reasoning, which this spec follows:
    changed. There is no measurement of inline formulas today; that is a
    later task.
 
-Approach 1 (a `reports` package over the tiddlers) is built now. Approach 3
-(the same renderers fed from the `Document` through docops projectors) is
-the agreed next step once the tests pass; the row model is source-independent
-so that only `from_tiddlers.py` is replaced.
+**Amended 2026-09-06 (user correction, during implementation).** The
+reports read `docmodel.core.Document` directly, as every projector in this
+repo does; `tiddlers.json` is not materialised in drilled documents and is
+not an upstream stage. The TiddlyWiki projector is the NAMING AUTHORITY —
+`math_titles` for EQ/FO, and the TAB/DIA/PIC numbering extracted from its
+`_assign_titles` into a public `region_titles` — which the reports import,
+never re-implement. Approach 3 is therefore built now; the row model is
+source-independent and `from_document.py` is its only model-aware module.
 
 ## Package: `src/pdfdrill/reports/`
 
 | module | responsibility | reads |
 |---|---|---|
 | `rows.py` | frozen dataclasses `EvidenceRow` (identifier, page, latex, trailing_punct, confidence, crop, notes) and per-kind `EquationRow` (+eqnum, ink), `FormulaRow` (+host_line: page, line_type, confidence, region), `TableRow` (+dims), `ImageRow` (+texzip crop) | nothing |
-| `from_tiddlers.py` | builds the four row lists from `tiddlers.json` via `report_tex.rows_for`, `first_pages`, `inlinectx.attach`, `load_ink` | tiddlers, lines.json, report.ink.json |
+| `from_document.py` | builds the four row lists from the `Document` via `objects_of_type`, named by `tiddlywiki.math_titles`/`region_titles`; host lines via `inlinectx` from `doc.meta.source_path` | model, lines.json, report.ink.json |
 | `crops.py` | `ensure_crops(rows, doc_dir, pdf)`: CDN download (equations), PDF region render (tables, images), host-line render (formulas); moved from `report_tex` and the B command; cached files reused | report-crops/ |
 | `html.py` | `render(rows, kind, meta) -> str`, KaTeX client-side, relative image links, the existing caveat banner | — |
 | `tex.py` | `render(rows, kind, meta, widths) -> str`, imports `report_tex` cell helpers (`esc_text`, `renderable`, `crop_cell`, `breakable_ident`, `preamble`) | — |
 | `evidence.py` | `build(pdf, kind, fmt)`; full listing, unbounded, six columns | rows, crops |
-| `residuals.py` | selection and ordering of open points; `--measure` runs the ink chain against `evidence-equation.pdf` | rows, ink |
+| `residuals.py` | findings classes ported over rows, selection and ordering of open points; `--measure` runs the existing ink chain (measure build stays `report.pdf`; the evidence-equation measure build is deferred with inline-formula measurement) | rows, ink |
 | `gate.py` | the timestamp gate and the row-subset check for `publishready` | ink, model stamp |
 
 The six columns, in both renderers and every kind: Identifier, Page, Conf.,
@@ -132,5 +136,5 @@ with `INSPECT.txt`.
 
 ## Next
 
-Approach 3: `from_document.py` fed by the docmodel through docops projectors;
-`from_tiddlers.py` retires. Inline-formula measurement is a separate task.
+Inline-formula measurement, and moving the ink chain's measure build from
+`report.pdf` to `evidence-equation.pdf`, are separate tasks.

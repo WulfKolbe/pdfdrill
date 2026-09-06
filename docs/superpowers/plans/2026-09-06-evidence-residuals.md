@@ -30,7 +30,7 @@
 |---|---|
 | `src/pdfdrill/reports/__init__.py` | package marker, `KINDS = ("equation", "formula", "table", "image")` |
 | `src/pdfdrill/reports/rows.py` | frozen dataclasses; no I/O |
-| `src/pdfdrill/reports/from_tiddlers.py` | tiddlers + lines.json + ink → rows |
+| `src/pdfdrill/reports/from_document.py` | Document + lines.json + ink → rows; names from the TiddlyWiki projector's `math_titles`/`region_titles` |
 | `src/pdfdrill/reports/crops.py` | `ensure_crops(rows, doc_dir, pdf, bibkey, history)` fills `row.crop` |
 | `src/pdfdrill/reports/tex.py` | `render_table(rows, kind, meta) -> str` LaTeX longtable |
 | `src/pdfdrill/reports/html.py` | `render_page(rows, kind, meta) -> str` full HTML page |
@@ -41,7 +41,7 @@
 | `src/pdfdrill/cli.py` | `_do_evidence`, `_do_residuals`, HANDLERS entries |
 | `.claude/skills/pdfdrill/commands.yaml` | two entries; "alias of" notes on four |
 | `tools/publishcheck.py` | compares the five files |
-| `tests/test_reports_rows.py`, `tests/test_reports_from_tiddlers.py`, `tests/test_reports_crops.py`, `tests/test_reports_tex.py`, `tests/test_reports_html.py`, `tests/test_reports_evidence.py`, `tests/test_reports_residuals.py`, `tests/test_reports_gate.py`, `tests/test_reports_aliases.py` | one test file per module |
+| `tests/test_reports_rows.py`, `tests/test_reports_from_document.py`, `tests/test_region_titles.py`, `tests/test_reports_crops.py`, `tests/test_reports_tex.py`, `tests/test_reports_html.py`, `tests/test_reports_evidence.py`, `tests/test_reports_residuals.py`, `tests/test_reports_gate.py`, `tests/test_reports_aliases.py` | one test file per module |
 
 ---
 
@@ -135,7 +135,7 @@ COLUMNS = ("Identifier", "Page", "Conf.", "LaTeX source", "Rendered", "Image")
 # src/pdfdrill/reports/rows.py
 """One frozen row per object. No I/O here: a row is what a renderer sees.
 
-Source-independent by design. `from_tiddlers.py` builds these today; the
+Source-independent by design. `from_document.py` builds these; the
 docmodel-fed builder of approach 3 will build the same classes, and the
 renderers will not notice.
 """
@@ -238,42 +238,93 @@ git commit -m "reports: the row model, source-independent and frozen"
 
 ---
 
-### Task 2: rows from the tiddlers
+### Task 2: rows from the Document
+
+**Amended 2026-09-06 (user correction).** Every projector in this repo takes
+`docmodel.core.Document`; `tiddlers.json` is not materialised in drilled
+documents; the TiddlyWiki projector is the NAMING AUTHORITY (its `math_titles`
+docstring says any consumer must import it, never re-implement). So the row
+builder reads the Document, and the TAB/DIA/PIC numbering that today sits
+privately in `TiddlyWikiProjector._assign_titles` becomes a public peer of
+`math_titles`. `from_tiddlers.py` (commit 793899a) is deleted in this task.
 
 **Files:**
-- Create: `src/pdfdrill/reports/from_tiddlers.py`
-- Test: `tests/test_reports_from_tiddlers.py`
+- Modify: `src/docops/projectors/tiddlywiki.py` (add `region_titles`, use it in `_assign_titles`)
+- Create: `src/pdfdrill/reports/from_document.py`
+- Delete: `src/pdfdrill/reports/from_tiddlers.py`, `tests/test_reports_from_document.py`, `tests/test_region_titles.py`
+- Modify: `src/pdfdrill/reports/rows.py` (add `cdn_url: str = ""` and `region: dict` to `EvidenceRow`; drop `region: tuple` from `TableRow`/`ImageRow`)
+- Test: `tests/test_reports_from_document.py`, `tests/test_region_titles.py`
 
 **Interfaces:**
-- Consumes: `report_tex.rows_for(tiddlers, bibkey, refined)` (tuples: fo `(title, latex, page, punct)`, eq `(title, latex, page, num, wpx, punct, conf)`, tab `(title, latex, page, dims, region, conf)`, dia `(title, latex, page, dims, region)`), `inlinectx.attach(latexes, lines_path) -> {latex: ctx}` where ctx has `page, line_type, confidence, top_left_x, top_left_y, width, height`, `report_tex.load_ink(path) -> {id: {flag, code}}`.
-- Produces: `build_rows(tiddlers, bibkey, *, lines_path=None, ink=None, refined=None) -> dict[str, list]` keyed by kind.
+- Consumes: `docmodel.core.Document` (`doc.objects_of_type(t)`, `doc.meta` dict with `source_path`), `DocObject.props` (Equation: `latex`, `trailing_punct`, `equation_number`/`refnum`, `page`, `confidence`, `cdn_url`, `region` dict with `height,width,top_left_x,top_left_y`; Formula: `latex`, `trailing_punct`, optional `page`; Table: `latex_code`, `mathpix_text`, `page`, `confidence`, `cdn_url`, `region`; Diagram/Picture: `latex_code`, `page`, `cdn_url`, `region`, `subtype`, Picture `url`), `docops.projectors.tiddlywiki.math_titles(doc, bibkey) -> {id: title}`, `pdfdrill.inlinectx.load_spans/first_occurrences/context_of`.
+- Produces: `tiddlywiki.region_titles(doc, bibkey) -> {id: "<bibkey>_PIC_0001" | "_DIA_0001" | "_TAB_001"}`; `from_document.build_rows(doc, bibkey, *, ink=None, lines_path=None) -> {kind: [rows]}` (image kind = Diagrams then Pictures, each in flow order; `lines_path` defaults to `doc.meta["source_path"]` when it ends with `.lines.json`).
 
-- [ ] **Step 1: Write the failing test**
+- [ ] **Step 1: Write the failing tests**
 
 ```python
-# tests/test_reports_from_tiddlers.py
+# tests/test_region_titles.py
+"""The projector's own numbering and the public helper must agree — one
+implementation, imported, never re-derived (math_titles' rule)."""
+from docmodel.core import Document, DocObject
+from docops.projectors.tiddlywiki import TiddlyWikiProjector, region_titles, math_titles
+from docops.base import OperatorConfig
+
+
+def _doc():
+    doc = Document(meta={"bibkey": "D"})
+    for i, (t, flow) in enumerate([("Table", 5), ("Diagram", 2), ("Picture", 9),
+                                   ("Diagram", 1), ("Table", 3)]):
+        doc.add(DocObject(id="o%d" % i, type=t, props={"flow_index": flow}))
+    return doc
+
+
+def test_region_titles_number_per_type_in_flow_order():
+    t = region_titles(_doc(), "D")
+    assert t["o3"] == "D_DIA_0001" and t["o1"] == "D_DIA_0002"
+    assert t["o4"] == "D_TAB_001" and t["o0"] == "D_TAB_002"
+    assert t["o2"] == "D_PIC_0001"
+
+
+def test_projector_uses_the_same_numbering():
+    doc = _doc()
+    proj = TiddlyWikiProjector(OperatorConfig(op="projector",
+                                              classname="TiddlyWikiProjector"))
+    title, _inv = proj._assign_titles(doc, "D")
+    for k, v in region_titles(doc, "D").items():
+        assert title[k] == v
+```
+
+Check `Document`'s constructor and `add` method names in `src/docmodel/core.py` before running; adapt the fixture to the real API (not the code under test). Check `_assign_titles`'s real name and signature at tiddlywiki.py:~458.
+
+```python
+# tests/test_reports_from_document.py
 import json
 
-from pdfdrill.reports.from_tiddlers import build_rows
+from docmodel.core import Document, DocObject
+from pdfdrill.reports.from_document import build_rows
 from pdfdrill.reports.rows import EquationRow, FormulaRow, TableRow, ImageRow
 
 BK = "DOC"
 
 
-def _tiddlers():
-    return [
-        {"title": "DOC_EQ0001", "latex": "a=b", "page": "2",
-         "equation_number": "(1)", "width": "300", "confidence": "0.91",
-         "trailing_punct": "."},
-        {"title": "DOC_FO0001", "latex": "P"},
-        {"title": "DOC_FO0002", "latex": "\\square"},
-        {"title": "DOC_TAB0001", "mathpix_text": "\\begin{tabular}{c}1\\end{tabular}",
-         "page": "5", "width": "400", "height": "80", "top_left_x": "1",
-         "top_left_y": "2", "confidence": "0.7"},
-        {"title": "DOC_DIA0001", "latex": "", "page": "6", "width": "100",
-         "height": "50", "top_left_x": "3", "top_left_y": "4"},
-        {"title": "prose", "page": "1", "text": "see {{DOC_FO0001||formula}}"},
-    ]
+def _doc():
+    doc = Document(meta={"bibkey": BK})
+    doc.add(DocObject(id="e1", type="Equation", props={
+        "flow_index": 3, "latex": "a=b", "page": 2, "equation_number": "(1)",
+        "confidence": 0.91, "trailing_punct": ".", "cdn_url": "https://cdn/x.jpg",
+        "region": {"top_left_x": 1, "top_left_y": 2, "width": 300, "height": 40}}))
+    doc.add(DocObject(id="f1", type="Formula", props={"flow_index": 1, "latex": "P"}))
+    doc.add(DocObject(id="f2", type="Formula", props={"flow_index": 2, "latex": "\\square"}))
+    doc.add(DocObject(id="t1", type="Table", props={
+        "flow_index": 4, "mathpix_text": "\\begin{tabular}{c}1\\end{tabular}",
+        "page": 5, "confidence": 0.7,
+        "region": {"top_left_x": 1, "top_left_y": 2, "width": 400, "height": 80}}))
+    doc.add(DocObject(id="d1", type="Diagram", props={
+        "flow_index": 5, "page": 6,
+        "region": {"top_left_x": 3, "top_left_y": 4, "width": 100, "height": 50}}))
+    doc.add(DocObject(id="p1", type="Picture", props={"flow_index": 6, "page": 7,
+                                                        "url": "https://cdn/p.jpg"}))
+    return doc
 
 
 def _lines(tmp_path):
@@ -286,72 +337,110 @@ def _lines(tmp_path):
     return p
 
 
-def test_every_kind_is_typed():
-    rows = build_rows(_tiddlers(), BK)
-    assert [type(r) for r in rows["equation"]] == [EquationRow]
-    assert [type(r) for r in rows["formula"]] == [FormulaRow, FormulaRow]
-    assert [type(r) for r in rows["table"]] == [TableRow]
-    assert [type(r) for r in rows["image"]] == [ImageRow]
+def test_every_kind_is_typed_and_named_by_the_projector_authority():
+    rows = build_rows(_doc(), BK)
+    assert [(type(r), r.identifier) for r in rows["equation"]] == [(EquationRow, "DOC_EQ0001")]
+    assert [r.identifier for r in rows["formula"]] == ["DOC_FO0001", "DOC_FO0002"]
+    assert [(type(r), r.identifier) for r in rows["table"]] == [(TableRow, "DOC_TAB_001")]
+    assert [(type(r), r.identifier) for r in rows["image"]] == [
+        (ImageRow, "DOC_DIA_0001"), (ImageRow, "DOC_PIC_0001")]
 
 
 def test_equation_fields():
-    (r,) = build_rows(_tiddlers(), BK)["equation"]
-    assert (r.identifier, r.latex, r.page, r.eqnum, r.px_width,
-            r.trailing_punct, r.confidence) == (
-        "DOC_EQ0001", "a=b", "2", "(1)", "300", ".", 0.91)
+    (r,) = build_rows(_doc(), BK)["equation"]
+    assert (r.latex, r.page, r.eqnum, r.px_width, r.trailing_punct, r.confidence,
+            r.cdn_url) == ("a=b", "2", "(1)", "300", ".", 0.91, "https://cdn/x.jpg")
+    assert r.region == {"top_left_x": 1, "top_left_y": 2, "width": 300, "height": 40}
 
 
 def test_equation_carries_ink_when_given():
     ink = {"DOC_EQ0001": {"flag": "weak", "code": "W|+1"}}
-    (r,) = build_rows(_tiddlers(), BK, ink=ink)["equation"]
+    (r,) = build_rows(_doc(), BK, ink=ink)["equation"]
     assert r.ink_code == "W|+1"
 
 
 def test_formula_takes_its_host_line_from_lines_json(tmp_path):
-    rows = build_rows(_tiddlers(), BK, lines_path=_lines(tmp_path))
+    rows = build_rows(_doc(), BK, lines_path=_lines(tmp_path))
     p, sq = rows["formula"]
     assert p.host_line.page == 1 and p.host_line.confidence == 0.98
-    assert p.host_line.region == {"top_left_x": 10, "top_left_y": 20,
-                                  "width": 800, "height": 40}
-    assert sq.host_line is None          # \square has no span: reported, not defaulted
+    assert p.host_line.region["width"] == 800
+    assert sq.host_line is None
 
 
-def test_formula_page_falls_back_to_first_transcluding_page():
-    p, _ = build_rows(_tiddlers(), BK)["formula"]
-    assert p.page == "1" and p.shown_page == "1"
+def test_lines_path_defaults_to_the_models_source_path(tmp_path):
+    doc = _doc()
+    doc.meta["source_path"] = str(_lines(tmp_path))
+    p, _ = build_rows(doc, BK)["formula"]
+    assert p.host_line is not None
 
 
-def test_table_latex_is_mathpix_text():
-    (t,) = build_rows(_tiddlers(), BK)["table"]
-    assert t.latex.startswith("\\begin{tabular}")
-    assert t.dims == ("400", "80") and t.confidence == 0.7
+def test_table_latex_is_mathpix_text_and_picture_url_is_its_cdn():
+    rows = build_rows(_doc(), BK)
+    (t,) = rows["table"]
+    assert t.latex.startswith("\\begin{tabular}") and t.dims == ("400", "80")
+    dia, pic = rows["image"]
+    assert pic.cdn_url == "https://cdn/p.jpg" and dia.cdn_url == ""
 
 
 def test_missing_lines_json_is_not_an_error(tmp_path):
-    rows = build_rows(_tiddlers(), BK, lines_path=tmp_path / "nope.json")
+    rows = build_rows(_doc(), BK, lines_path=tmp_path / "nope.json")
     assert all(r.host_line is None for r in rows["formula"])
 ```
 
-- [ ] **Step 2: Run test to verify it fails**
+- [ ] **Step 2: Run to verify they fail**
 
-Run: `PYTHONDONTWRITEBYTECODE=1 PYTHONPATH=src python3 -m pytest tests/test_reports_from_tiddlers.py -q -p no:cacheprovider`
-Expected: FAIL with `ModuleNotFoundError`
+Run: `PYTHONDONTWRITEBYTECODE=1 PYTHONPATH=src python3 -m pytest tests/test_region_titles.py tests/test_reports_from_document.py -q -p no:cacheprovider`
+Expected: FAIL with `ImportError: cannot import name 'region_titles'` and `ModuleNotFoundError`
 
-- [ ] **Step 3: Write the builder**
+- [ ] **Step 3: `region_titles` in the projector**
+
+Add directly after `math_titles` in `src/docops/projectors/tiddlywiki.py`:
 
 ```python
-# src/pdfdrill/reports/from_tiddlers.py
-"""Rows from the tiddler projection. The ONLY tiddler-aware code in the
-package; approach 3 replaces this module with a docmodel-fed one.
+def region_titles(doc, bibkey: str) -> dict:
+    """`{object_id: "<bibkey>_PIC_0001" | "_DIA_0001" | "_TAB_001"}`.
 
-Reuses report_tex.rows_for so the row selection cannot drift from the
-report the 21 documents were built with.
+    THE authoritative numbering for picture, diagram and table tiddlers, the
+    peer of `math_titles` for the region-bearing kinds: flow order, counted
+    per TYPE, 1-based. The projector uses this, and so must anything that
+    names those regions to an external consumer (a report, a crop file) — a
+    second implementation would silently drift.
+    """
+    def _flow(objs):
+        return sorted(objs, key=lambda o: o.props.get("flow_index", 10**9))
+    out: dict = {}
+    for i, p in enumerate(_flow(doc.objects_of_type("Picture"))):
+        out[p.id] = f"{bibkey}_PIC_{i+1:04d}"
+    for i, d in enumerate(_flow(doc.objects_of_type("Diagram"))):
+        out[d.id] = f"{bibkey}_DIA_{i+1:04d}"
+    for i, t in enumerate(_flow(doc.objects_of_type("Table"))):
+        out[t.id] = f"{bibkey}_TAB_{i+1:03d}"
+    return out
+```
+
+In `_assign_titles`, replace the three loops over `inv["pictures"]`, `inv["diagrams"]`, `inv["tables"]` that assign `_PIC_`, `_DIA_`, `_TAB_` titles with one line: `title.update(region_titles(doc, bibkey))`. The `inv` lists stay (the emission phase uses them).
+
+- [ ] **Step 4: rows.py additions**
+
+In `EvidenceRow` add `cdn_url: str = ""` and `region: dict = field(default_factory=dict)` after `notes`. In `TableRow` and `ImageRow` remove the `region: tuple = ()` field (keep `dims`). Update `tests/test_reports_rows.py` only if a test constructed `region=` as a tuple (none do).
+
+- [ ] **Step 5: the builder**
+
+```python
+# src/pdfdrill/reports/from_document.py
+"""Rows from the Document. The ONLY model-aware module in the package.
+
+Identity comes from the TiddlyWiki projector — `math_titles` for EQ/FO and
+`region_titles` for TAB/DIA/PIC — because it is the naming authority every
+other consumer imports (its docstring: a second implementation would
+silently drift). The projector is a peer this module depends on for
+identity, not an upstream stage whose output it reads.
 """
 from __future__ import annotations
 
 from pathlib import Path
 
-from ..report_tex import rows_for
+from docops.projectors.tiddlywiki import math_titles, region_titles
 from .rows import (EquationRow, FormulaRow, TableRow, ImageRow, HostLine)
 
 
@@ -362,78 +451,126 @@ def _float(v):
         return None
 
 
-def _host_line(ctx: dict) -> "HostLine | None":
-    if not ctx:
-        return None
-    region = {k: ctx[k] for k in ("top_left_x", "top_left_y", "width",
-                                  "height") if k in ctx}
-    return HostLine(page=ctx.get("page"), line_type=ctx.get("line_type"),
-                    confidence=_float(ctx.get("confidence")), region=region)
+def _flow(objs):
+    return sorted(objs, key=lambda o: o.props.get("flow_index", 10**9))
 
 
-def build_rows(tiddlers: list, bibkey: str, *, lines_path=None,
-               ink: "dict | None" = None, refined=None) -> dict:
-    """{kind: [rows]} in the order rows_for yields them."""
-    fo, eq, tab, dia = rows_for(tiddlers, bibkey, refined)
+def _region(props: dict) -> dict:
+    r = props.get("region") or {}
+    return {k: r[k] for k in ("top_left_x", "top_left_y", "width", "height")
+            if r.get(k) is not None}
+
+
+def _dims(region: dict) -> tuple:
+    return (str(region.get("width", "")), str(region.get("height", "")))
+
+
+def _page(v):
+    return None if v in (None, "") else str(v)
+
+
+def _host_lines(formulas, lines_path) -> dict:
+    """{latex: HostLine} by exact first occurrence, or {} without lines.json."""
+    if not lines_path or not Path(lines_path).is_file():
+        return {}
+    from pdfdrill import inlinectx
+    first = inlinectx.first_occurrences(inlinectx.load_spans(lines_path))
+    out = {}
+    for f in formulas:
+        lx = (f.props.get("latex") or "").strip()
+        ctx = inlinectx.context_of(first.get(lx)) if lx else {}
+        if ctx:
+            out[lx] = HostLine(
+                page=ctx.get("page"), line_type=ctx.get("line_type"),
+                confidence=_float(ctx.get("confidence")),
+                region={k: ctx[k] for k in ("top_left_x", "top_left_y",
+                                            "width", "height") if k in ctx})
+    return out
+
+
+def build_rows(doc, bibkey: str, *, ink: "dict | None" = None,
+               lines_path=None) -> dict:
+    """{kind: [rows]} in flow order, named by the projector's authority."""
     ink = ink or {}
-
-    ctx: dict = {}
-    if lines_path and Path(lines_path).is_file():
-        from .. import inlinectx
-        ctx = inlinectx.attach([r[1] for r in fo], lines_path)
+    names = dict(math_titles(doc, bibkey))
+    names.update(region_titles(doc, bibkey))
+    if lines_path is None:
+        sp = str((doc.meta or {}).get("source_path") or "")
+        lines_path = sp if sp.endswith(".lines.json") else None
+    formulas = _flow(doc.objects_of_type("Formula"))
+    hosts = _host_lines(formulas, lines_path)
 
     out = {"equation": [], "formula": [], "table": [], "image": []}
-    for title, latex, page, num, wpx, punct, conf in eq:
+    for e in _flow(doc.objects_of_type("Equation")):
+        p = e.props
+        eqn = p.get("equation_number") or (
+            "(%s)" % p["refnum"] if p.get("refnum") else "")
+        reg = _region(p)
         out["equation"].append(EquationRow(
-            identifier=title, latex=latex, page=page or None,
-            trailing_punct=punct or "", confidence=_float(conf),
-            eqnum=num or "", px_width=str(wpx or ""),
-            ink=ink.get(title)))
-    for title, latex, page, punct in fo:
+            identifier=names[e.id], latex=p.get("latex") or "",
+            page=_page(p.get("page")), trailing_punct=p.get("trailing_punct") or "",
+            confidence=_float(p.get("confidence")), cdn_url=p.get("cdn_url") or "",
+            region=reg, eqnum=eqn, px_width=str(reg.get("width", "")),
+            ink=ink.get(names[e.id])))
+    for f in formulas:
+        p = f.props
+        lx = p.get("latex") or ""
         out["formula"].append(FormulaRow(
-            identifier=title, latex=latex, page=page or None,
-            trailing_punct=punct or "",
-            host_line=_host_line(ctx.get(latex or ""))))
-    for title, latex, page, dims, region, conf in tab:
+            identifier=names[f.id], latex=lx, page=_page(p.get("page")),
+            trailing_punct=p.get("trailing_punct") or "",
+            host_line=hosts.get(lx.strip())))
+    for t in _flow(doc.objects_of_type("Table")):
+        p = t.props
+        reg = _region(p)
         out["table"].append(TableRow(
-            identifier=title, latex=latex, page=page or None,
-            confidence=_float(conf), dims=tuple(dims), region=tuple(region)))
-    for title, latex, page, dims, region in dia:
-        out["image"].append(ImageRow(
-            identifier=title, latex=latex, page=page or None,
-            dims=tuple(dims), region=tuple(region)))
+            identifier=names[t.id],
+            latex=p.get("latex_code") or p.get("mathpix_text") or "",
+            page=_page(p.get("page")), confidence=_float(p.get("confidence")),
+            cdn_url=p.get("cdn_url") or "", region=reg, dims=_dims(reg)))
+    for kind in ("Diagram", "Picture"):
+        for o in _flow(doc.objects_of_type(kind)):
+            p = o.props
+            reg = _region(p)
+            out["image"].append(ImageRow(
+                identifier=names[o.id], latex=p.get("latex_code") or "",
+                page=_page(p.get("page")),
+                cdn_url=p.get("cdn_url") or p.get("url") or "",
+                region=reg, dims=_dims(reg)))
     return out
 ```
 
-- [ ] **Step 4: Run test to verify it passes**
+`git rm src/pdfdrill/reports/from_tiddlers.py tests/test_reports_from_tiddlers.py`.
 
-Run: `PYTHONDONTWRITEBYTECODE=1 PYTHONPATH=src python3 -m pytest tests/test_reports_from_tiddlers.py -q -p no:cacheprovider`
-Expected: 7 passed
+- [ ] **Step 6: Run the tests**
 
-- [ ] **Step 5: Commit**
+Run: `PYTHONDONTWRITEBYTECODE=1 PYTHONPATH=src python3 -m pytest tests/test_region_titles.py tests/test_reports_from_document.py tests/test_reports_rows.py -q -p no:cacheprovider` then the whole suite once (the projector change must not move any existing tiddlywiki test).
+Expected: all pass
+
+- [ ] **Step 7: Commit**
 
 ```bash
-git add src/pdfdrill/reports/from_tiddlers.py tests/test_reports_from_tiddlers.py
-git commit -m "reports: rows from the tiddlers, the one source-aware module"
+git add -A src/docops/projectors/tiddlywiki.py src/pdfdrill/reports/ tests/test_region_titles.py tests/test_reports_from_document.py tests/test_reports_from_tiddlers.py tests/test_reports_rows.py
+git commit -m "reports: rows from the Document; region_titles joins math_titles as the naming authority"
 ```
 
 ---
 
 ### Task 3: crops for every kind
 
+**Amended:** crops take ROWS only. `download_crops`/`render_crops` in `report_tex.py` consume dict records (`title`, `canonical_uri`, `page`, `top_left_x`, `top_left_y`, `width`, `height`); this module builds those records from rows, the way the B command already built pseudo-records for host lines.
+
 **Files:**
 - Create: `src/pdfdrill/reports/crops.py`
 - Test: `tests/test_reports_crops.py`
 
 **Interfaces:**
-- Consumes: `report_tex.download_crops(tiddlers, dest) -> (ok, cached, failed)`, `report_tex.render_crops(tiddlers, dest, pdf, kinds=(...)) -> (rendered, cached, skipped)`, `report_tex.crop_file(crops_dir, title, bibkey, history) -> Path|None`, `report_tex.find_texzip(pdf)`, `report_tex.texzip_images(dir) -> (registry, n)`.
-- Produces: `ensure_crops(rows_by_kind, tiddlers, doc_dir, pdf, *, bibkey, history=None, images=True) -> (rows_by_kind, note)`; returns NEW row objects with `crop` set (rows are frozen).
+- Consumes: `report_tex.download_crops(records, dest) -> (ok, cached, failed)` (skips records whose `canonical_uri` is not http), `report_tex.render_crops(records, dest, pdf, kinds=(...)) -> (rendered, cached, skipped)` (skips records whose `canonical_uri` IS http; needs `page` and the four region keys), `report_tex.crop_file(crops_dir, title, bibkey, history) -> Path|None`.
+- Produces: `ensure_crops(rows_by_kind, doc_dir, pdf, *, bibkey, history=None, images=True) -> (rows_by_kind, note)`; returns NEW row objects with `crop` set.
 
 - [ ] **Step 1: Write the failing test**
 
 ```python
 # tests/test_reports_crops.py
-import dataclasses
 from pathlib import Path
 
 import pdfdrill.reports.crops as C
@@ -445,63 +582,73 @@ def _jpg(d: Path, name: str):
     (d / name).write_bytes(b"\xff\xd8" + b"0" * 600)
 
 
-def test_formula_crop_is_rendered_from_the_host_line_region(tmp_path, monkeypatch):
-    calls = []
-
-    def fake_render(tiddlers, dest, pdf, kinds=("_TAB",), **kw):
-        calls.append((list(tiddlers), kinds))
-        for t in tiddlers:
-            _jpg(dest, t["title"] + ".jpg")
-        return len(tiddlers), 0, 0
-
-    monkeypatch.setattr(C.rt, "render_crops", fake_render)
-    monkeypatch.setattr(C.rt, "download_crops", lambda t, d, **kw: (0, 0, 0))
-    h = HostLine(page=3, confidence=0.9, region={"top_left_x": 1,
-                 "top_left_y": 2, "width": 30, "height": 4})
-    rows = {"equation": [], "table": [], "image": [],
+def test_records_are_built_from_rows():
+    h = HostLine(page=3, confidence=0.9, region={"top_left_x": 1, "top_left_y": 2,
+                                                 "width": 30, "height": 4})
+    rows = {"equation": [EquationRow(identifier="D_EQ0001", latex="x", page="2",
+                                     cdn_url="https://cdn/x.jpg",
+                                     region={"top_left_x": 5, "top_left_y": 6,
+                                             "width": 7, "height": 8})],
             "formula": [FormulaRow(identifier="D_FO0001", latex="P", host_line=h),
-                        FormulaRow(identifier="D_FO0002", latex="\\square")]}
-    out, note = C.ensure_crops(rows, [], tmp_path, tmp_path / "D.pdf", bibkey="D")
-    (pseudo, kinds), = [c for c in calls if "_FO" in c[1]]
-    assert pseudo == [{"title": "D_FO0001", "page": "3", "top_left_x": 1,
-                       "top_left_y": 2, "width": 30, "height": 4}]
-    assert out["formula"][0].crop == tmp_path / "report-crops" / "D_FO0001.jpg"
-    assert out["formula"][1].crop is None
-    assert "1 rendered" in note
+                        FormulaRow(identifier="D_FO0002", latex="\\square")],
+            "table": [TableRow(identifier="D_TAB_001", latex="", page="5",
+                               region={"top_left_x": 1, "top_left_y": 1,
+                                       "width": 9, "height": 9})],
+            "image": []}
+    recs = C.records(rows)
+    assert {"title": "D_EQ0001", "canonical_uri": "https://cdn/x.jpg", "page": "2",
+            "top_left_x": 5, "top_left_y": 6, "width": 7, "height": 8} in recs
+    assert {"title": "D_FO0001", "canonical_uri": "", "page": "3",
+            "top_left_x": 1, "top_left_y": 2, "width": 30, "height": 4} in recs
+    assert all(r["title"] != "D_FO0002" for r in recs)     # no host line, no record
+    assert any(r["title"] == "D_TAB_001" and r["canonical_uri"] == "" for r in recs)
 
 
-def test_equation_crops_come_from_the_cdn_download(tmp_path, monkeypatch):
-    def fake_download(tiddlers, dest, **kw):
+def test_ensure_crops_calls_download_then_render_and_fills_crop(tmp_path, monkeypatch):
+    seen = {}
+
+    def fake_download(records, dest, **kw):
+        seen["download"] = [r["title"] for r in records]
         _jpg(dest, "D_EQ0001.jpg")
         return 1, 0, 0
+
+    def fake_render(records, dest, pdf, kinds=("_TAB",), **kw):
+        seen["render"] = ([r["title"] for r in records], kinds)
+        for r in records:
+            if not r["canonical_uri"]:
+                _jpg(dest, r["title"] + ".jpg")
+        return 2, 0, 0
+
     monkeypatch.setattr(C.rt, "download_crops", fake_download)
-    monkeypatch.setattr(C.rt, "render_crops", lambda *a, **k: (0, 0, 0))
-    rows = {"equation": [EquationRow(identifier="D_EQ0001", latex="x")],
-            "formula": [], "table": [], "image": []}
-    out, _ = C.ensure_crops(rows, [], tmp_path, tmp_path / "D.pdf", bibkey="D")
-    assert out["equation"][0].crop.name == "D_EQ0001.jpg"
-
-
-def test_table_and_image_regions_are_rendered_from_the_pdf(tmp_path, monkeypatch):
-    seen = []
-    monkeypatch.setattr(C.rt, "download_crops", lambda t, d, **kw: (0, 0, 0))
-    monkeypatch.setattr(C.rt, "render_crops",
-                        lambda t, d, p, kinds=("_TAB",), **kw: seen.append(kinds) or (0, 0, 0))
-    rows = {"equation": [], "formula": [],
-            "table": [TableRow(identifier="D_TAB0001", latex="")], "image": []}
-    C.ensure_crops(rows, [], tmp_path, tmp_path / "D.pdf", bibkey="D")
-    assert ("_TAB", "_DIA", "_PIC") in seen
+    monkeypatch.setattr(C.rt, "render_crops", fake_render)
+    h = HostLine(page=3, confidence=0.9, region={"top_left_x": 1, "top_left_y": 2,
+                                                 "width": 30, "height": 4})
+    rows = {"equation": [EquationRow(identifier="D_EQ0001", latex="x", page="2",
+                                     cdn_url="https://cdn/x.jpg")],
+            "formula": [FormulaRow(identifier="D_FO0001", latex="P", host_line=h),
+                        FormulaRow(identifier="D_FO0002", latex="\\square")],
+            "table": [TableRow(identifier="D_TAB_001", latex="", page="5",
+                               region={"top_left_x": 1, "top_left_y": 1,
+                                       "width": 9, "height": 9})],
+            "image": []}
+    out, note = C.ensure_crops(rows, tmp_path, tmp_path / "D.pdf", bibkey="D")
+    assert seen["render"][1] == ("_EQ", "_FO", "_TAB", "_DIA", "_PIC")
+    assert out["equation"][0].crop == tmp_path / "report-crops" / "D_EQ0001.jpg"
+    assert out["formula"][0].crop == tmp_path / "report-crops" / "D_FO0001.jpg"
+    assert out["formula"][1].crop is None
+    assert out["table"][0].crop == tmp_path / "report-crops" / "D_TAB_001.jpg"
+    assert "1 fetched" in note and "2 rendered" in note
 
 
 def test_images_off_leaves_every_crop_none(tmp_path):
     rows = {"equation": [EquationRow(identifier="D_EQ0001", latex="x")],
             "formula": [], "table": [], "image": []}
-    out, note = C.ensure_crops(rows, [], tmp_path, tmp_path / "D.pdf",
+    out, note = C.ensure_crops(rows, tmp_path, tmp_path / "D.pdf",
                                bibkey="D", images=False)
     assert out["equation"][0].crop is None and note == "images: off"
 ```
 
-- [ ] **Step 2: Run test to verify it fails**
+- [ ] **Step 2: Run to verify it fails**
 
 Run: `PYTHONDONTWRITEBYTECODE=1 PYTHONPATH=src python3 -m pytest tests/test_reports_crops.py -q -p no:cacheprovider`
 Expected: FAIL with `ModuleNotFoundError`
@@ -512,11 +659,11 @@ Expected: FAIL with `ModuleNotFoundError`
 # src/pdfdrill/reports/crops.py
 """One entry point fills `row.crop` for every kind.
 
-Equations: the MathPix CDN crop (download_crops, cached in report-crops/).
-Tables and images: the region rendered from the PDF (render_crops, 461).
-Formulas: the HOST LINE's region rendered from the PDF, exactly as the B
-command did it (530), so the 15 documents that already hold FO crops build
-without rendering anything.
+The crop functions in report_tex take dict records (title, canonical_uri,
+page, region keys). Those records are built HERE from rows — the package
+never reads a tiddler. Equations with a CDN uri are downloaded; anything
+without one (tables, images, a formula's HOST LINE) is rendered from the
+PDF (461, 530). Cached files are reused.
 """
 from __future__ import annotations
 
@@ -527,56 +674,67 @@ from .. import report_tex as rt
 from .rows import FormulaRow
 
 CROPS_DIR = "report-crops"
+KINDS_ALL = ("_EQ", "_FO", "_TAB", "_DIA", "_PIC")
 
 
-def _pseudo_tiddlers(formulas: list) -> list:
+def records(rows: dict) -> list:
+    """The dict records download_crops/render_crops read, one per row that
+    has somewhere to crop from. A formula uses its host line's page and
+    region; without one it has no record."""
     out = []
-    for r in formulas:
-        h = r.host_line
-        if h is None or h.page is None or not h.region:
-            continue
-        out.append(dict({"title": r.identifier, "page": str(h.page)},
-                        **h.region))
+    for lst in rows.values():
+        for r in lst:
+            if isinstance(r, FormulaRow):
+                h = r.host_line
+                if h is None or h.page is None or not h.region:
+                    continue
+                page, region, uri = str(h.page), h.region, ""
+            else:
+                page, region, uri = r.page, r.region, r.cdn_url
+            if not region and not uri:
+                continue
+            rec = {"title": r.identifier, "canonical_uri": uri or "",
+                   "page": page}
+            rec.update({k: region[k] for k in ("top_left_x", "top_left_y",
+                                               "width", "height") if k in region})
+            out.append(rec)
     return out
 
 
-def ensure_crops(rows: dict, tiddlers: list, doc_dir: Path, pdf: Path, *,
-                 bibkey: str, history=None, images: bool = True):
+def ensure_crops(rows: dict, doc_dir: Path, pdf: Path, *, bibkey: str,
+                 history=None, images: bool = True):
     """Returns (rows with `crop` set, one-line note)."""
     if not images:
         return rows, "images: off"
     doc_dir = Path(doc_dir)
     crops = doc_dir / CROPS_DIR
-    ok, cached, failed = rt.download_crops(tiddlers, crops)
-    r_ok, r_cached, r_skip = rt.render_crops(tiddlers, crops, Path(pdf),
-                                             kinds=("_TAB", "_DIA", "_PIC"))
-    pseudo = _pseudo_tiddlers(rows.get("formula", []))
-    f_ok = f_cached = f_skip = 0
-    if pseudo:
-        f_ok, f_cached, f_skip = rt.render_crops(pseudo, crops, Path(pdf),
-                                                 kinds=("_FO",))
+    recs = records(rows)
+    ok, cached, failed = rt.download_crops(recs, crops)
+    r_ok, r_cached, r_skip = rt.render_crops(recs, crops, Path(pdf),
+                                             kinds=KINDS_ALL)
     out = {}
     for kind, lst in rows.items():
         out[kind] = [dataclasses.replace(
             r, crop=rt.crop_file(crops, r.identifier, bibkey, history))
             for r in lst]
-    note = ("crops: %d fetched, %d cached, %d failed; regions %d rendered, "
-            "%d cached, %d skipped; host lines %d rendered, %d cached, "
-            "%d skipped" % (ok, cached, failed, r_ok, r_cached, r_skip,
-                            f_ok, f_cached, f_skip))
+    note = ("crops: %d fetched, %d cached, %d failed; %d rendered from the "
+            "PDF, %d cached, %d skipped" % (ok, cached, failed, r_ok, r_cached,
+                                            r_skip))
     return out, note
 ```
 
-- [ ] **Step 4: Run test to verify it passes**
+Verify against `report_tex.download_crops` that it reads `canonical_uri` and `title` from each record and filters on `_EQ`/`_TAB` in the title (it does: "filters for `_EQ` or `_TAB`"), and that `render_crops` reads `page` as int-able and the four region keys. If `download_crops` refuses `_FO`/`_DIA`/`_PIC` titles that carry an http uri (Pictures do), note it in the report; the rendering path still covers them when the uri is absent.
+
+- [ ] **Step 4: Run the tests**
 
 Run: `PYTHONDONTWRITEBYTECODE=1 PYTHONPATH=src python3 -m pytest tests/test_reports_crops.py -q -p no:cacheprovider`
-Expected: 4 passed
+Expected: 3 passed
 
 - [ ] **Step 5: Commit**
 
 ```bash
 git add src/pdfdrill/reports/crops.py tests/test_reports_crops.py
-git commit -m "reports: one crop filler for four kinds, host lines included"
+git commit -m "reports: one crop filler for four kinds, records built from rows"
 ```
 
 ---
@@ -982,7 +1140,7 @@ git commit -m "reports: the HTML renderer over the same rows"
 - Test: `tests/test_reports_evidence.py`
 
 **Interfaces:**
-- Consumes: Tasks 2 to 5; `commands._resolve_tiddlers(pdf, sc, announce=False) -> (tid_path, sc, note)`, `_lines_json_path(pdf)`, `_bibkey_history(sc)`, `report_tex.resolve_bibkey(tid_path)`, `report_tex.auto_px2mm(pdf)`, `report_tex.compile_fixpoint(tex_path) -> (pages, errors, demoted) | None`, `report_tex.glyphs_dropped(log)`.
+- Consumes: Tasks 2 to 5; `commands._model_path(sc)`, `commands._stale_or_absent(sc, model_path, lines_path)`, `commands.cmd_model(pdf)`, `model_io.load_model(model_path) -> Document` (already imported in commands.py as `load_model`), `_lines_json_path(pdf)`, `_bibkey_history(sc)`, `report_tex.auto_px2mm(pdf)`, `report_tex.compile_fixpoint(tex_path) -> (pages, errors, demoted) | None`, `report_tex.glyphs_dropped(log)`.
 - Produces: `evidence.OUTPUT = "evidence-%s.%s"`, `evidence.build(rows_by_kind, kind, fmt, *, doc_dir, pdf, bibkey, history, px2mm, paper, landscape, compile_pdf) -> dict(out, rows, pages, errors, demoted)`, `cmd_evidence(pdf, kind=None, pdf_out=False, all_kinds=False, images=True, paper="a3", landscape=True, compile_pdf=True) -> str`.
 
 - [ ] **Step 1: Write the failing test**
@@ -1137,25 +1295,25 @@ def cmd_evidence(pdf: Path, kind: "str | None" = None, pdf_out: bool = False,
     from .reports import KINDS
     from .reports import evidence as EV
     from .reports.crops import ensure_crops
-    from .reports.from_tiddlers import build_rows
+    from .reports.from_document import build_rows
     if not all_kinds and kind not in KINDS:
         return ("evidence: --kind must be one of %s (or --all-kinds)."
                 % ", ".join(KINDS))
     sc = Sidecar(pdf)
-    tid, sc, _note = _resolve_tiddlers(pdf, sc, announce=False)
-    if tid is None:
-        return (f"No tiddler array for {pdf.name} and `tiddlers` did not "
-                f"produce one.")
-    tiddlers = json.loads(Path(tid).read_text())
-    bibkey = rt.resolve_bibkey(Path(tid))
+    model_path = _model_path(sc)
+    if _stale_or_absent(sc, model_path, _lines_json_path(pdf)):
+        cmd_model(pdf)
+        sc = Sidecar(pdf)
+        model_path = _model_path(sc)
+    doc = load_model(model_path)
+    bibkey = sc.get_evidence("bibkey") or doc.meta.get("bibkey") or pdf.stem
     doc_dir = pdf.parent
     lines_path = _lines_json_path(pdf)
     ink_path = doc_dir / "report.ink.json"
     ink = rt.load_ink(ink_path) if ink_path.is_file() else {}
-    rows = build_rows(tiddlers, bibkey,
-                      lines_path=lines_path if lines_path.exists() else None,
-                      ink=ink)
-    rows, crop_note = ensure_crops(rows, tiddlers, doc_dir, pdf, bibkey=bibkey,
+    rows = build_rows(doc, bibkey, ink=ink,
+                      lines_path=lines_path if lines_path.exists() else None)
+    rows, crop_note = ensure_crops(rows, doc_dir, pdf, bibkey=bibkey,
                                    history=_bibkey_history(sc), images=images)
     px2mm = rt.auto_px2mm(pdf)
     out = [crop_note]
@@ -1211,7 +1369,6 @@ def _do_evidence(args):
   offline_ok: true
   requires:
   - model
-  - tiddlers
   - cdncrops
   done_when: artifact:evidence
   positionals:
@@ -1279,7 +1436,8 @@ git commit -m "evidence: one listing per kind, six columns, host-line crops for 
 - Test: `tests/test_reports_residuals.py`
 
 **Interfaces:**
-- Consumes: `report_tex.findings_rows(tiddlers, bibkey, doc_dir, ink, refined) -> {corrected: [pairs], unresolved: [{identifier, page, latex, why}], flagged: [{identifier, page, latex, conf, code}], doubted: [...]}`, `report_tex.flagged_split(rows) -> (shown, summary)`, `report_tex.CONF_THRESHOLD`.
+- Consumes: `report_tex.corrected_pairs(doc_dir) -> [pairs with 'identifier']`, `report_tex._contradicted_identifiers(doc_dir) -> {identifier: (page, latex)}`, `report_tex.renderable(latex)`, `report_tex.DOUBTED_MAX_CONF`, `INK_AGREES`, `INK_FLAGS`, `report_tex.flagged_split(rows) -> (shown, summary)`, `report_tex.CONF_THRESHOLD`.
+- Produces ALSO: `findings(rows_by_kind, doc_dir) -> {corrected, unresolved, flagged, doubted}` — the same classes `report_tex.findings_rows` computes (509/513/515), ported over ROW OBJECTS so no tiddler is read: iterate equation then formula rows; skip a row whose identifier is in a corrected pair; `not renderable(latex)` → unresolved `{identifier, page, latex, why: "does not render"}`; else with `conf = row.confidence` (EquationRow only; a FormulaRow contributes None) and `code = row.ink_code` (EquationRow only): `conf < DOUBTED_MAX_CONF and code[:1] in INK_AGREES` → doubted `{identifier, page, latex, conf, code}`; `code[:1] in INK_FLAGS` → flagged; then append `_contradicted_identifiers` as unresolved with why "a refinement whose two records disagree (511) — the original is shown". Add a test that `findings()` on the `_rows()` fixture with a temp doc_dir (no corrections file) yields unresolved D_EQ0005 and D_FO0001, flagged D_EQ0002, doubted D_EQ0001.
 - Produces: `SECTIONS = ("corrected", "unresolved", "flagged", "lowconf", "doubted")`, `select(rows_by_kind, found, *, conf=CONF_THRESHOLD) -> dict[str, list]` where every non-corrected section holds row objects from `rows_by_kind` (so crops and host lines ride along), and `corrected` holds the pairs unchanged; `select` also returns `"flagged_rest"` (the banded summary).
 
 - [ ] **Step 1: Write the failing test**
@@ -1646,27 +1804,28 @@ def cmd_residuals(pdf: Path, pdf_out: bool = False, measure: bool = False,
     from . import report_tex as rt
     from .reports import residuals as RS
     from .reports.crops import ensure_crops
-    from .reports.from_tiddlers import build_rows
+    from .reports.from_document import build_rows
     out = []
     if measure:
         out.append(cmd_inkreport(pdf, timeout=timeout, profile="internal",
                                  findings=False))
     sc = Sidecar(pdf)
-    tid, sc, _note = _resolve_tiddlers(pdf, sc, announce=False)
-    if tid is None:
-        return "\n".join(out + [f"No tiddler array for {pdf.name}."])
-    tiddlers = json.loads(Path(tid).read_text())
-    bibkey = rt.resolve_bibkey(Path(tid))
+    model_path = _model_path(sc)
+    if _stale_or_absent(sc, model_path, _lines_json_path(pdf)):
+        cmd_model(pdf)
+        sc = Sidecar(pdf)
+        model_path = _model_path(sc)
+    doc = load_model(model_path)
+    bibkey = sc.get_evidence("bibkey") or doc.meta.get("bibkey") or pdf.stem
     doc_dir = pdf.parent
     lines_path = _lines_json_path(pdf)
     ink_path = doc_dir / "report.ink.json"
     ink = rt.load_ink(ink_path) if ink_path.is_file() else {}
-    rows = build_rows(tiddlers, bibkey,
-                      lines_path=lines_path if lines_path.exists() else None,
-                      ink=ink)
-    rows, crop_note = ensure_crops(rows, tiddlers, doc_dir, pdf, bibkey=bibkey,
+    rows = build_rows(doc, bibkey, ink=ink,
+                      lines_path=lines_path if lines_path.exists() else None)
+    rows, crop_note = ensure_crops(rows, doc_dir, pdf, bibkey=bibkey,
                                    history=_bibkey_history(sc), images=images)
-    found = rt.findings_rows(tiddlers, bibkey, doc_dir, ink=ink)
+    found = RS.findings(rows, doc_dir)
     selected = RS.select(rows, found,
                          conf=conf if conf is not None else rt.CONF_THRESHOLD)
     r = RS.build(selected, "pdf" if pdf_out else "html", doc_dir=doc_dir,
@@ -1730,7 +1889,6 @@ Manifest entry (after `evidence`):
   offline_ok: true
   requires:
   - model
-  - tiddlers
   - cdncrops
   - inkconvert
   done_when: artifact:residuals
