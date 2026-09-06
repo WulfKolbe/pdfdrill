@@ -1605,6 +1605,19 @@ def publish_ready(pdf: Path) -> dict:
     from . import report_tex as rt
     sc = Sidecar(pdf)
     d = sc.blob_dir
+
+    # the redrawn surface (spec 2026-09-06): when residuals.pdf exists the
+    # five-file checklist applies and the report.pdf checklist below is the
+    # legacy path kept for documents not yet rebuilt.
+    if (d / "residuals.pdf").is_file():
+        from .reports import gate as G
+        checks = G.checklist(d)
+        fields = {"bibkey": sc.get_evidence("bibkey") or pdf.stem,
+                  "folder": d.name, "pages": None, "equations": None,
+                  "residual": None, "refined_rows": 0}
+        return {"ready": all(v[0] for v in checks.values()),
+                "checks": checks, "fields": fields}
+
     tex, log, rep = d / "report.tex", d / "report.log", d / "report.pdf"
     ink = d / "report.ink.json"
     checks: dict[str, tuple[bool, str]] = {}
@@ -2639,11 +2652,10 @@ def cmd_publishready(pdf: Path, as_json: bool = False) -> str:
     lines = [rt.stamp(_t0),
              "%s: %s" % (r["fields"]["bibkey"],
                          "READY" if r["ready"] else "NOT READY")]
-    for k in PUBLISH_CHECKS:
-        ok, detail = r["checks"][k]
+    for k, (ok, detail) in r["checks"].items():
         lines.append("  [%s] %-10s %s" % ("ok" if ok else "  ", k, detail))
     f = r["fields"]
-    if r["ready"]:
+    if r["ready"] and f.get("pages") is not None:
         lines.append("  handover: %s | %s | %s pages | %s equations | %s | "
                      "%d refined"
                      % (f["folder"], f["bibkey"], f["pages"], f["equations"],

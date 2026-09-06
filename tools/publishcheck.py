@@ -2,9 +2,11 @@
 """621 — did the site actually get the new reports?
 
 A check that answers ONE question with evidence: is what is published the
-same artefact as what is on disk here, per document. It compares the sha256
-of each library report.pdf against the one on the live site, so "we published
-overnight" becomes a fact rather than a belief.
+same artefact as what is on disk here, per document. It used to compare only
+`report.pdf`; the redrawn surface (gate.py, spec 2026-09-06) publishes FIVE
+files per document — the four evidence PDFs and residuals.pdf — so this now
+hashes every one of `gate.PUBLISHED_FILES` that exists locally and compares
+each against the site.
 
     python3 tools/publishcheck.py                 # clone and compare
     python3 tools/publishcheck.py --site DIR      # compare against a clone
@@ -22,11 +24,40 @@ import subprocess
 import sys
 import tempfile
 
+sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent.parent / "src"))
+from pdfdrill.reports import gate  # noqa: E402 — path set up above
+
 SITE_URL = "https://github.com/PDFDRILL/PDFDRILL.github.io.git"
 
 
 def sha(p: pathlib.Path) -> str | None:
     return hashlib.sha256(p.read_bytes()).hexdigest() if p.is_file() else None
+
+
+def compare_document(local_dir: pathlib.Path, remote_dir: pathlib.Path,
+                     filenames=gate.PUBLISHED_FILES) -> list[tuple[str, str, str]]:
+    """(filename, status, detail) for every FILE PRESENT LOCALLY.
+
+    A file absent locally is not this document's build and is not compared —
+    there is nothing on disk here to check the site against. status is one of
+    "same", "stale" (both sides have it, bytes differ) or "not_published"
+    (the site lacks a file this build has). Pure — no network, no git — so it
+    can be unit tested directly.
+    """
+    results = []
+    for fname in filenames:
+        local = sha(local_dir / fname)
+        if local is None:
+            continue
+        remote = sha(remote_dir / fname)
+        if remote is None:
+            results.append((fname, "not_published", ""))
+        elif local == remote:
+            results.append((fname, "same", ""))
+        else:
+            results.append((fname, "stale",
+                           "site %s, local %s" % (remote[:12], local[:12])))
+    return results
 
 
 def main() -> int:
@@ -65,18 +96,22 @@ def main() -> int:
     same = diff = missing_local = missing_site = 0
     lines = []
     for key in sorted(docs):
-        local = sha(docs[key] / "report.pdf")
-        remote = sha(reports / key / "report.pdf")
-        if remote is None:
-            missing_site += 1; lines.append(("NOT PUBLISHED", key, "")); continue
-        if local is None:
+        local_present = [f for f in gate.PUBLISHED_FILES
+                         if sha(docs[key] / f) is not None]
+        if not local_present:
             missing_local += 1; lines.append(("NO LOCAL BUILD", key, "")); continue
-        if local == remote:
+        results = compare_document(docs[key], reports / key)
+        bad = [r for r in results if r[1] != "same"]
+        if not bad:
             same += 1
+            continue
+        if any(status == "not_published" for _, status, _ in bad):
+            missing_site += 1
         else:
             diff += 1
-            lines.append(("STALE ON SITE", key,
-                          "site %s, local %s" % (remote[:12], local[:12])))
+        for fname, status, detail in bad:
+            label = "NOT PUBLISHED" if status == "not_published" else "STALE ON SITE"
+            lines.append((label, "%s/%s" % (key, fname), detail))
     print("publishcheck — %d documents" % len(docs))
     print("  published and identical : %d" % same)
     print("  published but STALE     : %d" % diff)
