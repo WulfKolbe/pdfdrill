@@ -10098,9 +10098,10 @@ def cmd_latex(pdf: Path, force: bool = False, compile: bool = False,
             f"\\cite group(s) from {_cc['citations']} Citation(s) "
             f"({_cc['cite_without_reference']} with no Reference left as they "
             f"stand, {_cc['citations_without_a_span']} without a span, "
-            f"{_cc['citations_outside_running_text']} on a footnote/sidenote "
-            f"line, {_cc['cite_source_not_in_text']} group(s) whose source the "
-            f"object's text no longer holds).")
+            f"{_cc['citations_outside_running_text']} on a line no emitted "
+            f"block covers, {_cc['cite_source_not_in_text']} group(s) whose "
+            f"source the object's text no longer holds); "
+            f"{_cc['cite_in_footnote']} of the groups are in a footnote body.")
     if dump_stages:
         lines.append(f"  stages  : {_artref(sc, env_dir / 'stages')}/  "
                      f"(transclusion lookup / citations / bibliography / "

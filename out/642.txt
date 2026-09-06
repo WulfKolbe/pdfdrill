@@ -13,6 +13,16 @@ runs the old pass on a block the resolver owned. Also: the two-pass compile is
 said out loud, and the TiddlyWiki A/B proof is now an artefact rather than a
 sentence. Details under FIX ROUND 1 at the end.)
 
+(FIX ROUND 2 folded in, and it DID move the numbers — upward. The same mis-wire
+was still live on the two paths round 1 left on the old pass: `_footnotetext`
+and the beamer Abstract override, and Citations DO sit on footnote lines. The
+resolver now owns EVERY block of prose the projector emits, which fixes the
+mis-wire there and closes 645-a for the LaTeX lane at the same time: a
+footnote-body citation now reaches the page. penev_A `\cite` 61 -> 70 and
+distinct keys 47 -> **52 of 52**; penev_B 20 -> 25 and 18 -> **23 of 23**.
+`citations_outside_running_text` is 0 on both. Every count in THE NUMBERS below
+is the round-2 count. Details under FIX ROUND 2 at the end.)
+
 THE USER'S FOUR CLAIMS, CHECKED FIRST RATHER THAN ASSUMED
   "bibsource prints 22/81 in-text citations linked"     UNMEASURABLE HERE, and
     that is a fact about this machine, not a dismissal. `penev_A.bbl`/`.bib`
@@ -73,7 +83,11 @@ EVIDENCE (library, deny-by-default git; never committed to this repo)
                                        A/B proof (fix round 1): both arrays,
                                        their sha256s, the field-level diff
   ~/pdfdrill-library/out/642/penev_{A,B}.tiddlers.{before,after}.json
-  ~/pdfdrill-library/penev_A/out/642/INSPECT.txt   26 paths, checked
+  ~/pdfdrill-library/penev_A/out/642/raster_footnote.py|raster-footnote.json
+                                       the FOOTNOTE-body citation page (round 2)
+  ~/pdfdrill-library/penev_A/out/642/page-8-{before,after}.png|.txt    read
+  ~/pdfdrill-library/penev_A/out/642/crop-page8-foot-{before,after}.png read
+  ~/pdfdrill-library/penev_A/out/642/INSPECT.txt   34 paths, checked
   ~/pdfdrill-library/penev_B/out/642/INSPECT.txt   23 paths, checked
   ~/pdfdrill-library/out/642/INSPECT.txt            7 paths, checked
   brief   tasks/642 brief (coordinator), out/639.txt, out/645.txt, out/638.txt,
@@ -184,8 +198,10 @@ THE NUMBERS — penev_A
     resolved_citations (stored)                0          0
     distinct citekeys in the model            52         52
     ---- the projected .tex -----------------------------------
-    `\cite{…}` occurrences (body)              0         61
-    distinct `\cite` keys                      0         47
+    `\cite{…}` occurrences (body)              0         70
+    distinct `\cite` keys                      0         52   <- ALL 52
+                                                                References are
+                                                                now cited
     `\bibitem`                                52         52
     KEYS WITH NO BIBITEM                       0          0   <- the user's
                                                                 "32 dangle"
@@ -194,22 +210,24 @@ THE NUMBERS — penev_A
       cite_without_reference                              0
       citations_without_a_span                            0
       cite_spans_out_of_bounds                            0
-      citations_outside_running_text                      8
+      citations_outside_running_text                      0
       groups whose source the object's text
         no longer holds                                   1
-      \cite GROUPS emitted                               62
-      keys in them                                       73
+      \cite GROUPS emitted                               71
+        of them in a FOOTNOTE body                        9
+      keys in them                                       83
     ---- compile (xelatex, nonstopmode, TWO passes) -----------
     pages                                     99         98
     "! " lines                                 0          0
     "Citation … undefined" warnings            0          0
 
-  EVERY CITATION IS ACCOUNTED FOR: 81 = 73 (in a `\cite`) + 8 (on a line no
-  running-text object covers). The 8 are 645-a exactly -- their line is owned
-  by a FOOTNOTE, whose body the LaTeX projector emits from `props["content"]`
-  verbatim, the same boundary that leaves 4 penev_A REF tiddlers unlinked in
-  TiddlyWiki. 73 keys in 62 groups because 11 groups carry more than one key.
-  61 `\cite` in the body and 62 groups because of the ONE group below.
+  EVERY CITATION IS ACCOUNTED FOR, and the accounting is per (line, key), not
+  per emission: the 71 groups carry 83 key emissions over exactly **81 distinct
+  (line, key) pairs** -- the 81 Citations -- because TWO lines are claimed by
+  two emitted blocks at once (646's doubly-claimed anchors), so those citations
+  are emitted in both. Nothing is invented and nothing is missing:
+  `citations_outside_running_text` is 0. 70 `\cite` in the .tex against 71
+  groups because of the ONE group below.
 
   THE ONE GROUP THAT DID NOT REACH THE PAGE, named rather than rounded off:
   `(Feigenbaum 1997)` on page 6. Its line is claimed by a Paragraph whose
@@ -220,8 +238,8 @@ THE NUMBERS — penev_A
   characters of a different sentence.
 
   THE PAGE COUNT FALLS BY ONE and it is not a loss: `\cite` sets as `[44]`
-  where the prose said `(Shannon and Weaver 1949)`. 1305 characters of citation
-  text became 1157 characters of `\cite` (net -148), which is one page of body.
+  where the prose said `(Shannon and Weaver 1949)`. 1505 characters of citation
+  text became 1324 characters of `\cite` (net -181), which is one page of body.
   Proved LOSSLESS, not argued -- see below.
 
 THE NUMBERS — penev_B
@@ -232,8 +250,8 @@ THE NUMBERS — penev_B
       reaching a NON-STUB Reference            0          0
     resolved_citations (stored)                0          0
     ---- the projected .tex -----------------------------------
-    `\cite{…}` occurrences (body)              0         20
-    distinct `\cite` keys                      0         18
+    `\cite{…}` occurrences (body)              0         25
+    distinct `\cite` keys                      0         23   <- ALL 23
     `\bibitem`                                23         23
     KEYS WITH NO BIBITEM                       0          0
     ---- the resolution, as APPLIED ---------------------------
@@ -241,16 +259,21 @@ THE NUMBERS — penev_B
       cite_without_reference                              0
       citations_without_a_span                            0
       cite_spans_out_of_bounds                            0
-      citations_outside_running_text                      5
-      groups whose source is not in the text               0
-      \cite GROUPS emitted                               20
-      keys in them                                       20
+      citations_outside_running_text                      0
+      groups whose source is not in the text               1
+      \cite GROUPS emitted                               26
+        of them in a FOOTNOTE body                        6
+      keys in them                                       26
     ---- compile (xelatex, nonstopmode, TWO passes) -----------
     pages                                     68         68
     "! " lines                                21         21
     "Citation … undefined" warnings            0          0
 
-  25 = 20 + 5, the same accounting. penev_B's 21 compile errors are 638's
+  26 emissions over 25 distinct (line, key) pairs -- the 25 Citations -- with
+  ONE line claimed by two emitted blocks, and 25 `\cite` in the .tex because of
+  the one group whose source its object's text no longer holds (a Footnote on
+  page 2 whose body does not reproduce `(Shannon and Weaver 1949)`; the same
+  646 class as penev_A's). penev_B's 21 compile errors are 638's
   seven classes unchanged (the MathPix CDN `\includegraphics` URL and its
   keyval/graphic consequences); no error is added and none is removed, and the
   page count does not move.
@@ -266,14 +289,14 @@ LOSSLESS, MEASURED — not a diff of two different code states
 
                                           penev_A     penev_B
     characters, citations OFF               290512      203300
-    characters, citations ON                290364      203238
-    `\cite` occurrences                         61          20
-    matched to a RECORDED source            61 / 61     20 / 20
+    characters, citations ON                290331      203224
+    `\cite` occurrences                         70          25
+    matched to a RECORDED source            70 / 70     25 / 25
     prose outside a citation byte-identical    YES         YES
-    characters of source replaced             1305         408
-    characters of `\cite` emitted             1157         346
+    characters of source replaced             1505         506
+    characters of `\cite` emitted             1324         430
 
-  So the .tex changed in exactly the 61 (resp. 20) recorded places and nowhere
+  So the .tex changed in exactly the 70 (resp. 25) recorded places and nowhere
   else. Nothing was deleted that a key does not cover, which is 645's rule
   carried into the second projector.
 
@@ -312,6 +335,17 @@ WHAT THE RASTERISED PAGES SHOW (Ghostscript, 400 dpi, read)
             separator, not ours.
     CHECKED, not assumed: `\bibitem` #44 in that .tex IS `Shannon1949`. The
     printed number names the entry the citation meant.
+  penev_A page 8 (fix round 2 — a FOOTNOTE-BODY citation, the thing that had
+  never reached the page on any projection), the page foot, AFTER:
+    Two footnote-3 bodies stand one above the other — 646-b, two Footnote
+    objects with identical content, which 638 photographed on this same page.
+    The FIRST still reads "For a recent review of all these techniques see
+    (Deco and Obradovic 1996)."; the SECOND reads "For a recent review of all
+    these techniques see **[16]**." That is exactly right and it is why the
+    duplicate is left in the frame rather than cropped out: the substitution
+    reaches the body whose line carries the recorded Citation span, and the
+    646-b duplicate — which carries none — is visibly untouched. `\bibitem`
+    #16 IS `Deco1996`.
   penev_B page 32:
     AFTER   "…slightly closer that third (Fig. 3.5), more like the one used in
             [21], so that other strong irrelevant modes…" -- and `\bibitem`
@@ -474,3 +508,73 @@ FIX ROUND 1 — THE MIS-WIRE, THE RECIPE, AND THE PROOF
   the previous run's content. Renamed `inspect_paths.py`; the docstring of each
   copy says why. Same family as HANDOVER-RULES rule 4 (a stale artefact read as
   a fresh measurement).
+
+FIX ROUND 2 — THE RESOLVER OWNS EVERY BLOCK OF PROSE THE PROJECTOR EMITS
+  Round 1 moved the numeric fallback behind the claim for Paragraph/Abstract/
+  ListItem and left `_prose`'s old pass running "only for blocks the resolver
+  does NOT cover (a Footnote body, a beamer Abstract)". That sentence was the
+  defect: Citations DO sit on footnote lines — 8 on penev_A, 5 on penev_B — and
+  `_footnotetext` (latex.py) and `BeamerProjector._render`'s Abstract branch
+  both called `_prose` directly. REPRODUCED on a fixture: a footnote body
+  "See earlier discussion [5]" with a Citation `NoSuchKey` (no Reference,
+  `cite_without_reference == 1`) beside an unrelated Reference numbered 5
+  emitted `\footnotetext[1]{See earlier discussion \cite{Realname2001}}`.
+
+  Both now go through `self._cite(obj, text)` like every other block, and
+  `_prose` has NO citation branch left at all — the `numeric_cites` parameter
+  round 1 added is gone, because every caller passes text the resolver has
+  already seen. `latex_pipeline.resolve_citations` keeps its tests and its ONE
+  production caller: `citations._numeric_fallback` invokes it on a single
+  bracket the claim allows, so the rule has one implementation and one gate.
+  GREPPED: `resolve_citations(` and `_prose(` across `src/docops/projectors/`
+  now have exactly five call sites — one in the fallback, four `self._prose`
+  calls whose text came from `_cite`. (`distill_reader._prose` is an unrelated
+  method of the HTML projector with a different signature and no number map.)
+
+  AND IT CLOSES 645-a FOR THIS LANE. `CITED_TEXT_TYPES` is 638's running-text
+  set PLUS `Footnote`, so a footnote-body citation now reaches the page:
+
+                                          penev_A     penev_B
+    `\cite` occurrences, round 1 -> round 2   61 -> 70    20 -> 25
+    distinct `\cite` keys                     47 -> 52    18 -> 23
+      References in the document                    52          23
+      => every bibitem is now CITED                YES         YES
+    groups in a FOOTNOTE body                        9           6
+    citations_outside_running_text             8 -> 0      5 -> 0
+    compile pages / "! " lines                 98 / 0     68 / 21
+    "Citation … undefined" warnings                  0           0
+    lossless: replacements matched               70/70       25/25
+              prose outside a `\cite` identical    YES         YES
+
+  `Sidenote` is deliberately NOT in the set: `_render` has no Sidenote branch,
+  so a sidenote body never reaches the .tex on any path (638-c), and counting a
+  substitution into a block nobody prints would overstate what the reader gets.
+
+  THE KEY EMISSIONS EXCEED THE CITATIONS, and the reason is measured rather
+  than smoothed: 83 emissions on penev_A over 81 distinct (line, key) pairs, 26
+  over 25 on penev_B. Two penev_A lines and one penev_B line are claimed by TWO
+  emitted blocks at once — 646's doubly-claimed anchors — so the citation is
+  substituted in both bodies. The reader sees the citation twice because the
+  document holds the text twice; that is 646's defect showing through, not this
+  one's.
+
+  `cite_source_not_in_text` is now 1 on BOTH documents (penev_B gained one): a
+  Footnote on penev_B page 2 whose materialised `content` does not reproduce
+  `(Shannon and Weaver 1949)`. Same class as penev_A's `(Feigenbaum 1997)` and
+  the same guard: no positional edit against a text that moved.
+
+  TESTS ADDED (4, each confirmed failing first):
+    * the reviewer's footnote fixture — `\footnotetext[1]{See earlier discussion
+      [5]}` with `cite_without_reference == 1` and `Realname2001` nowhere in the
+      body (failed with `\footnotetext[1]{See earlier discussion
+      \cite{Realname2001}}`);
+    * a footnote-body Citation WHOSE Reference exists ->
+      `\footnotetext[1]{See earlier discussion \cite{Smith1999}}`,
+      `cite_in_footnote == 1` (failed: the counter did not exist);
+    * the beamer Abstract, both ways — the claimed bracket stays verbatim, and a
+      bracket whose Citation has a Reference still cites.
+  FULL SUITE: 3196 passed, 0 failed (3192 after round 1; 4 new).
+
+  `cmd_latex` prints the footnote share ("… 9 of the groups are in a footnote
+  body") and the outside-count now reads "on a line no emitted block covers",
+  because "footnote/sidenote line" stopped being true of footnotes.

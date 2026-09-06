@@ -387,3 +387,118 @@ def test_a_bracket_whose_numbers_are_not_all_references_stays_raw():
     assert "[0, 1]" in body, body
     assert "[5, 9]" in body, body          # 9 is no Reference
     assert "\\cite" not in body, body
+
+
+# ------------------------- 5. the resolver owns citations EVERYWHERE (round 2)
+
+def _footnote_doc(body: str, cite: tuple[str, str] | None, ref_key: str,
+                  ref_number: int | None, ref_stub: bool):
+    """A paragraph, a Footnote whose BODY carries `body`, one Citation over a
+    span of that body, and one Reference. `_footnotetext` renders the body, and
+    before round 2 it went through the number map with no idea of the claim."""
+    doc = Document()
+    doc.meta["bibkey"] = "D"
+    mp = doc.ensure_stream("mathpix_lines")
+    head = mp.append(text="1 Introduction", _page=1, _line_index=0,
+                     type="section_header")
+    para = mp.append(text="Body text here.", _page=1, _line_index=1, type="text")
+    fnl = mp.append(text=body, _page=1, _line_index=2, type="footnote")
+
+    sec = DocObject(type="Section", props={
+        "caption": "Introduction", "level": 1, "flow_index": 0, "page": 1})
+    sec.add_realization(Realization(stream="mathpix_lines",
+                                    start=head, end=head, role="surface"))
+    doc.add(sec)
+    p = DocObject(type="Paragraph", props={
+        "text": "Body text here.", "page": 1, "flow_index": 1})
+    p.add_realization(Realization(stream="mathpix_lines",
+                                  start=para, end=para, role="surface"))
+    doc.add_child(sec, p)
+
+    fn = DocObject(type="Footnote", props={
+        "content": body, "refnum": "1", "anchor_marker": "{ }^{1}",
+        "page": 1, "flow_index": 2})
+    fn.add_realization(Realization(stream="mathpix_lines",
+                                   start=fnl, end=fnl, role="surface"))
+    doc.add(fn)
+
+    if cite is not None:
+        key, surface = cite
+        off = body.index(surface)
+        c = DocObject(type="Citation", props={
+            "citekey": key, "page": 1, "flow_index": 3})
+        c.add_realization(Realization(
+            stream="mathpix_lines", start=fnl, end=fnl, role="surface",
+            props={"offset": off, "length": len(surface)}))
+        doc.add(c)
+
+    props = {"citekey": ref_key, "bibkey": "D"}
+    if ref_number is not None:
+        props["number"] = ref_number
+    if ref_stub:
+        props["stub"] = True
+    else:
+        props.update({"author": "Realname", "year": "2001"})
+    refs = doc.ensure_stream("references")
+    ra = refs.append(text=ref_key)
+    ref = DocObject(type="Reference", props=props)
+    ref.add_realization(Realization(stream="references", start=ra, end=ra,
+                                    role="bibliography"))
+    doc.add(ref)
+    return doc
+
+
+def test_a_footnote_body_citation_is_not_rewritten_by_the_number_map():
+    """FIX ROUND 2 — the same mis-wire on the path round 1 left behind.
+    `_footnotetext` still ran `_pipe.resolve_citations`, and Citations DO sit on
+    footnote lines (8 on penev_A, 5 on penev_B). A Citation `NoSuchKey` over
+    `[5]` in a footnote body, beside an unrelated Reference numbered 5, was
+    emitted as `\\footnotetext[1]{… \\cite{Realname2001} …}`."""
+    doc = _footnote_doc("See earlier discussion [5]", ("NoSuchKey", "[5]"),
+                        "Realname2001", 5, ref_stub=False)
+    res = cite_res.resolve(doc)
+    assert res.counts["cite_without_reference"] == 1, res.counts
+    tex = _tex(doc)
+    assert "\\footnotetext[1]{See earlier discussion [5]}" in tex, tex
+    assert "Realname2001" not in _body(tex), _body(tex)
+
+
+def test_a_citation_in_a_footnote_body_becomes_a_cite():
+    """The other half: a footnote-body Citation WHOSE Reference exists now
+    reaches the page as `\\cite`. Part of 645-a closed for the LaTeX lane, and
+    counted (`cite_in_footnote`)."""
+    doc = _footnote_doc("See earlier discussion (Smith 1999)",
+                        ("Smith1999", "(Smith 1999)"),
+                        "Smith1999", None, ref_stub=True)
+    res = cite_res.resolve(doc)
+    assert res.counts["cite_in_footnote"] == 1, res.counts
+    tex = _tex(doc)
+    assert "\\footnotetext[1]{See earlier discussion \\cite{Smith1999}}" in tex, tex
+
+
+def _beamer(doc) -> str:
+    from docops.projectors.beamer import BeamerProjector
+    return BeamerProjector(
+        OperatorConfig(op="projector", classname="BeamerProjector")).project(doc)
+
+
+def test_the_beamer_abstract_follows_the_same_claim():
+    """`BeamerProjector._render` renders an Abstract itself (beamer has no
+    `abstract` environment) and called `_prose` directly — the third path the
+    number map could act on without the claim."""
+    line = "Prior work [5] shows this."
+    doc = _numbered_ref_doc(line, ("NoSuchKey", "[5]"))
+    par = next(o for o in doc.objects.values() if o.type == "Paragraph")
+    par.type = "Abstract"
+    deck = _beamer(doc)
+    assert "Realname2001" not in deck.split("\\begin{thebibliography}")[0], deck
+    assert "Prior work [5] shows this." in deck, deck
+
+
+def test_the_beamer_abstract_still_cites_when_the_reference_exists():
+    line = "Prior work [5] shows this."
+    doc = _numbered_ref_doc(line, ("Realname2001", "[5]"))
+    par = next(o for o in doc.objects.values() if o.type == "Paragraph")
+    par.type = "Abstract"
+    deck = _beamer(doc)
+    assert "Prior work \\cite{Realname2001} shows this." in deck, deck

@@ -31,13 +31,22 @@ a differently-keyed gold entry (`[ASV02]` -> `smith2002`) the stored link
 (`cited_reference_id`) is what the projector follows; the in-text label would
 dangle.
 
-RUNNING TEXT ONLY. `RUNNING_TEXT_TYPES` (Paragraph, Abstract, ListItem) is
-638's set and it is the same boundary 645-a names for TiddlyWiki: a citation
-whose line is owned by a Footnote or Sidenote body is not substituted, because
-those bodies are emitted from `props["content"]` verbatim. Those citations are
-counted (`citations_outside_running_text`) rather than silently absent.
+EVERY BLOCK OF PROSE THE PROJECTOR EMITS (fix round 2). `CITED_TEXT_TYPES` is
+638's `RUNNING_TEXT_TYPES` (Paragraph, Abstract, ListItem) PLUS `Footnote`,
+because `LaTeXProjector._footnotetext` renders a footnote body and Citations do
+sit on footnote lines — 8 on penev_A, 5 on penev_B. Round 1 left that path on
+the old number map and the mis-wire below was still reachable there; it also
+meant a footnote-body citation reached the page as nothing at all (645-a). Both
+are fixed at once: the resolver owns the footnote body too, and a group emitted
+in one is counted (`cite_in_footnote`).
 
-ONE RESOLVER OWNS CITATIONS (fix round 1). `latex_pipeline.resolve_citations`
+`Sidenote` is deliberately NOT in the set: `LaTeXProjector._render` has no
+Sidenote branch, so a sidenote body never reaches the .tex on any path (638-c),
+and claiming to have substituted a citation into a block nobody prints would be
+a count that overstates what the reader gets. Those citations stay under
+`citations_outside_running_text`.
+
+ONE RESOLVER OWNS CITATIONS (fix rounds 1 and 2). `latex_pipeline.resolve_citations`
 predates this module: it rewrites any `[N]`/`[N,M]` bracket through
 `{Reference.number: citekey}` and knows nothing about which Citation owns the
 bracket. Left running after this resolver in `_prose`, it UNDID the decision
@@ -51,8 +60,9 @@ covers may still resolve by number (`numeric_brackets_resolved`) — the pass's
 legitimate case, which is a `[12]`-style document whose brackets no detector
 turned into Citation objects. A Citation that was left verbatim CLAIMS its
 bracket even though it produced no substitution; that claim is the whole point.
-`LaTeXProjector._prose` no longer runs the old pass on an object this resolver
-owned, so the two can never disagree.
+`LaTeXProjector._prose` no longer runs the old pass AT ALL — every block of
+prose it emits comes from a caller that ran the resolver first, so there is no
+path left on which the number map can act without the claim.
 """
 from __future__ import annotations
 
@@ -63,6 +73,11 @@ from typing import Optional
 from docmodel.core import Document, DocObject
 from .. import citation_spans as _cspans
 from .footnotes import RUNNING_TEXT_TYPES, _flow, object_text
+
+#: The object types whose prose the LaTeX projector emits AND whose citations it
+#: therefore owns. 638's running-text set plus `Footnote` (rendered by
+#: `_footnotetext`); NOT `Sidenote`, which `_render` never emits at all (638-c).
+CITED_TEXT_TYPES = RUNNING_TEXT_TYPES + ("Footnote",)
 
 
 @dataclass(frozen=True)
@@ -143,6 +158,7 @@ def resolve(doc: Document) -> CiteResolution:
         "cite_keys": 0,
         "cite_source_not_in_text": 0,
         "numeric_brackets_resolved": 0,
+        "cite_in_footnote": 0,
     }
 
     spans_by_line: dict = {}
@@ -182,7 +198,7 @@ def resolve(doc: Document) -> CiteResolution:
 
     reached: set = set()
     ordered = sorted((o for o in doc.objects.values()
-                      if o.type in RUNNING_TEXT_TYPES), key=_flow)
+                      if o.type in CITED_TEXT_TYPES), key=_flow)
     for obj in ordered:
         surface = next((r for r in obj.realizations
                         if r.stream == "mathpix_lines" and r.role == "surface"
@@ -224,10 +240,13 @@ def resolve(doc: Document) -> CiteResolution:
             cits = [s for s in subs if s.kind == "citation"]
             res.counts["cite_groups"] += len(cits)
             res.counts["cite_keys"] += sum(len(s.keys) for s in cits)
+            if obj.type == "Footnote":
+                res.counts["cite_in_footnote"] += len(cits)
 
     # 645-a, counted rather than left to be rediscovered: a citation on a line
-    # no running-text object covers (a Footnote or Sidenote body) is never
-    # substituted, because those bodies are emitted verbatim.
+    # no object in `CITED_TEXT_TYPES` covers — a Sidenote body (`_render` has no
+    # branch for it, 638-c), or a line no object claims at all — is never
+    # substituted.
     res.counts["citations_outside_running_text"] = sum(
         len(ids) for anchor, ids in placed_lines.items() if anchor not in reached)
     return res
@@ -251,7 +270,7 @@ def _numeric_fallback(text: str, taken: list, ref_map: dict, anchor,
     """
     if not ref_map:
         return []
-    from .latex_pipeline import _expand_bracket_numbers
+    from .latex_pipeline import _expand_bracket_numbers, resolve_citations
     out: list[Sub] = []
     for m in _BRACKET.finditer(text):
         if any(m.start() < end and start < m.end() for start, end in taken):
@@ -259,11 +278,17 @@ def _numeric_fallback(text: str, taken: list, ref_map: dict, anchor,
         nums = _expand_bracket_numbers(m.group(1))
         if not nums or any(n not in ref_map for n in nums):
             continue
+        # The RULE stays `latex_pipeline.resolve_citations` — the one text-level
+        # implementation, with its own tests. What changed is that it is now
+        # reached ONLY here, on a bracket the claim allows, instead of being run
+        # over whole blocks of prose after the resolver had already decided.
+        repl = resolve_citations(m.group(0), ref_map)
+        if repl == m.group(0):
+            continue
         keys = tuple(dict.fromkeys(ref_map[n] for n in nums))
         out.append(Sub(anchor=anchor, offset=m.start(),
                        length=m.end() - m.start(), source=m.group(0),
-                       replacement="\\cite{" + ",".join(keys) + "}",
-                       keys=keys, kind="numeric-bracket"))
+                       replacement=repl, keys=keys, kind="numeric-bracket"))
         res.counts["numeric_brackets_resolved"] += 1
     return out
 

@@ -84,7 +84,10 @@ class BeamerProjector(LaTeXProjector):
         emits `\\begin{abstract}` → 'Environment abstract undefined'). Render an
         Abstract as a plain `block`; everything else uses the shared renderer."""
         if obj.type == "Abstract":
-            text = self._prose(str(obj.props.get("text") or "").strip())
+            # fix round 2 — through `_cite` like every other prose block, so the
+            # numeric map can never act on a bracket a Citation claims.
+            text = self._prose(
+                self._cite(obj, str(obj.props.get("text") or "")).strip())
             if not text.strip():
                 return ""
             return "\\begin{block}{Abstract}\n%s\n\\end{block}" % text

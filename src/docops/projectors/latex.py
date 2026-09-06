@@ -224,7 +224,7 @@ class LaTeXProjector(BaseProjector):
         lines = ["\\begin{itemize}"]
         for it in run:
             marked, notes = self._mark_footnotes(it, self._cite(it))
-            content = self._prose(marked.strip(), numeric_cites=False)
+            content = self._prose(marked.strip())
             if notes:
                 content = " ".join([content] + notes)
             marker = str(it.props.get("marker") or "").strip()
@@ -235,16 +235,22 @@ class LaTeXProjector(BaseProjector):
 
     # ── 642: citations ───────────────────────────────────────────────────────
 
-    def _cite(self, obj) -> str:
-        """The object's running text with each citation GROUP replaced by one
-        `\\cite{a,b}`.
+    def _cite(self, obj, text: str | None = None) -> str:
+        """`text` (default: the object's own) with each citation GROUP replaced
+        by one `\\cite{a,b}`.
 
         Runs BEFORE `_mark_footnotes`, and must: a numeric citation group is the
         literal `[2]`, and once a footnote marker has become `\\footnotemark[2]`
         a literal search for `[2]` would find the mark's own optional argument.
         The reverse order is safe — `\\cite{…}` carries no inline-math span, so
-        the marker sequence `_mark_footnotes` re-derives is untouched by it."""
-        text = _fn.object_text(obj)
+        the marker sequence `_mark_footnotes` re-derives is untouched by it.
+
+        EVERY caller that emits prose goes through here (fix round 2). A block
+        this cannot resolve — no object to resolve against — gets NO citation
+        rewriting at all rather than the number map's, because the number map
+        does not know which Citation owns a bracket."""
+        if text is None:
+            text = _fn.object_text(obj)
         res = getattr(self, "_citations", None)
         if res is None:
             return text
@@ -305,32 +311,36 @@ class LaTeXProjector(BaseProjector):
         LaTeX error). The body goes through `_prose`, not `_escape_text`: the
         latter escapes `_` inside maths too and turned `\\(F_{r}\\)` into
         `\\(F\\_{r}\\)` — both of penev_A's 'Missing $ inserted' errors."""
-        body = self._prose(str(fn.props.get("content") or "").strip())
+        # fix round 2 — the body's citations go through the RESOLVER, like every
+        # other block of prose. It was the last caller on the old number map,
+        # and Citations do sit on footnote lines (8 penev_A / 5 penev_B), so the
+        # mis-wire was live here AND a footnote-body citation reached the page
+        # as nothing at all (645-a, closed for this lane).
+        body = self._prose(
+            self._cite(fn, str(fn.props.get("content") or "")).strip())
         body = re.sub(r"\n\s*\n+", " ", body).strip()     # no \par inside a footnote
         refnum = str(fn.props.get("refnum") or "").strip()
         opt = f"[{refnum}]" if refnum.isdigit() else ""
         return f"\\footnotetext{opt}{{{body}}}"
 
-    def _prose(self, text: str, *, numeric_cites: bool = True) -> str:
+    def _prose(self, text: str) -> str:
         """Resolve a prose block to LaTeX: transclusion markers → `\\Expr{<index>}`
         (readarray lookup), leaked Markdown headings → `\\section`. Line-wise so a
         heading mid-paragraph still converts.
 
-        `numeric_cites=False` for a block 642's resolver already owned. ONE
-        resolver owns citations: `_pipe.resolve_citations` rewrites any `[N]`
-        bracket through `{Reference.number: citekey}` with no idea which
-        Citation owns it, so run after `_cite` it UNDOES the "only where a
-        Reference exists" decision — a Citation `NoSuchKey` over `[5]`, left
-        verbatim and counted, became `\\cite{Realname2001}` because an unrelated
-        Reference was numbered 5. It compiles, and it cites the wrong paper. The
-        numeric fallback now lives in `projectors.citations`, behind the claim;
-        this pass stays only for blocks the resolver does NOT cover (a Footnote
-        body, a beamer Abstract)."""
+        IT DOES NOT TOUCH CITATIONS. `_pipe.resolve_citations` used to run here,
+        rewriting any `[N]` bracket through `{Reference.number: citekey}` with no
+        idea which Citation owns it — so after `_cite` had decided, it UNDID the
+        decision: a Citation `NoSuchKey` over `[5]`, left verbatim and counted,
+        became `\\cite{Realname2001}` because an unrelated Reference was numbered
+        5. It compiles, and it cites the wrong paper. Every caller now runs
+        `_cite` first (Paragraph/Abstract, ListItem, Footnote body, the beamer
+        Abstract), and the numeric fallback lives in `projectors.citations`
+        behind the claim, so this method has no citation branch left to
+        disagree with."""
         ti = getattr(self, "_title_index", {})
         text = _pipe.clean_prose(text)                # ligatures + leaked \bibliography
         text = _pipe.resolve_transclusions(text, ti)
-        if numeric_cites:
-            text = _pipe.resolve_citations(text, getattr(self, "_ref_map", {}))
         # contain any runaway inline math (a dropped `\)`/`$`) to THIS block, so
         # it can't swallow the next \section ("Not allowed in LR mode").
         text = _pipe.balance_math(text)
@@ -353,7 +363,7 @@ class LaTeXProjector(BaseProjector):
             return s + (f"\n\\label{{{label}}}" if label else "")
         if t in ("Paragraph", "Abstract"):
             marked, notes = self._mark_footnotes(obj, self._cite(obj))
-            text = self._prose(marked.strip(), numeric_cites=False)
+            text = self._prose(marked.strip())
             if not text.strip():
                 return ""
             if t == "Abstract":
