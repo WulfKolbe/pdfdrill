@@ -195,11 +195,74 @@ def test_bibsource_bib_fill_updates_stub_in_place():
         assert r.props.get("ref_source") == "citation"
 
 
+def test_link_citations_is_idempotent_against_ensure_reference_stub():
+    """010 fix round 2 — penev_A had 162 `cites` Alignments for 81 Citations:
+    `ensure_reference_stub` links each Citation to its Reference at creation
+    time, and `cmd_bibliography` unconditionally calls `link_citations`
+    afterward, which used to add a SECOND, identical edge for every citekey
+    already linked. `link_citations` must skip an edge that already exists
+    (`docmodel.modules.citation.add_cites_alignment`, shared by both)."""
+    doc = _doc()
+    _run_citation_processor(doc)   # ensure_reference_stub links all 4 already
+
+    cites_before = [a for a in doc.alignments if a.kind == "cites"]
+    assert len(cites_before) == 4          # one per Citation, from stub creation
+
+    added = B.link_citations(doc)
+    assert added == 0                       # every key already linked, by citekey exact match
+
+    cites_after = [a for a in doc.alignments if a.kind == "cites"]
+    assert len(cites_after) == 4            # unchanged -- exactly one per Citation, not 8
+
+
+def test_two_new_keys_sharing_one_line_each_get_their_own_edge():
+    """Found while measuring penev_A for fix round 2: a citation is anchored
+    at LINE granularity (`start == end == the line`, sub-position is a
+    prop, not part of the Range), so two DIFFERENT, never-seen-before
+    citekeys parsed off the SAME line (`[d, e]`) share one `left` Range --
+    and each gets its own brand-new stub anchored at THAT line, so their
+    `right` Ranges collide too. Deduping `add_cites_alignment` on
+    `(left, right)` alone (round 2's first cut) silently dropped one of
+    these as "already linked" when it was a distinct edge to a distinct
+    Reference (10 of penev_A's 81 Citations lost this way); `citekey` has
+    to be part of the identity check."""
+    doc = Document()
+    ingest_lines_json(doc, {"pages": [{"page": 1, "image_id": "i", "lines": [
+        {"id": "l1", "type": "text", "text": "First [a].", "text_display": "First [a]."},
+        {"id": "l2", "type": "text", "text": "Then [b].", "text_display": "Then [b]."},
+        {"id": "l3", "type": "text", "text": "Then [a, c].", "text_display": "Then [a, c]."},
+        {"id": "l4", "type": "text", "text": "Also [d, e].", "text_display": "Also [d, e]."},
+    ]}]})
+    _run_citation_processor(doc)
+
+    d_cite = next(c for c in doc.objects_of_type("Citation") if c.props.get("citekey") == "d")
+    e_cite = next(c for c in doc.objects_of_type("Citation") if c.props.get("citekey") == "e")
+    d_surface = next(r for r in d_cite.realizations if r.role == "surface")
+    e_surface = next(r for r in e_cite.realizations if r.role == "surface")
+    assert (d_surface.start, d_surface.end) == (e_surface.start, e_surface.end)  # same line anchor
+
+    refs_by_key = {r.props.get("citekey"): r for r in doc.objects_of_type("Reference")}
+    assert "d" in refs_by_key and "e" in refs_by_key
+    d_ref_surface = next(r for r in refs_by_key["d"].realizations if r.role == "surface")
+    e_ref_surface = next(r for r in refs_by_key["e"].realizations if r.role == "surface")
+    # each stub is anchored at its OWN citation, which is the shared line --
+    # so the two References' Ranges collide too; only `citekey` tells them apart.
+    assert (d_ref_surface.start, d_ref_surface.end) == (e_ref_surface.start, e_ref_surface.end)
+
+    cites = [a for a in doc.alignments if a.kind == "cites"]
+    d_edges = [a for a in cites if a.props.get("citekey") == "d"]
+    e_edges = [a for a in cites if a.props.get("citekey") == "e"]
+    assert len(d_edges) == 1, "d's edge must not be dropped as a false duplicate of e's"
+    assert len(e_edges) == 1, "e's edge must not be dropped as a false duplicate of d's"
+
+
 if __name__ == "__main__":
     for fn in [test_stub_created_at_first_citation_per_distinct_key,
                test_stub_anchored_at_first_citation_of_its_key,
                test_every_citation_links_to_its_keys_reference,
                test_fill_updates_stub_in_place_others_untouched,
-               test_bibsource_bib_fill_updates_stub_in_place]:
+               test_bibsource_bib_fill_updates_stub_in_place,
+               test_link_citations_is_idempotent_against_ensure_reference_stub,
+               test_two_new_keys_sharing_one_line_each_get_their_own_edge]:
         fn(); print(f"PASS {fn.__name__}")
     print("\nAll tests passed.")

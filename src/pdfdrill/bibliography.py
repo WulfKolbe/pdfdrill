@@ -409,10 +409,14 @@ def link_citations(doc) -> int:
     """Add `cites` Alignments from in-text Citations to their Reference.
 
     Matches a citation's key to a reference citekey exactly, or by surname
-    prefix (in-text `[Asai]` -> reference `Asai2023`). Returns edges added.
-    Surface is taken from the citation's/reference's realization in ANY stream
-    (so markdown/source models link, not just mathpix_lines)."""
-    from docmodel.core import Range, Alignment
+    prefix (in-text `[Asai]` -> reference `Asai2023`). Idempotent: a Citation
+    `ensure_reference_stub` (010) already linked at creation time is skipped
+    rather than re-linked with a second, identical edge. Returns edges
+    ADDED (not the total already-linked count). Surface is taken from the
+    citation's/reference's realization in ANY stream (so markdown/source
+    models link, not just mathpix_lines)."""
+    from docmodel.core import Range
+    from docmodel.modules.citation import add_cites_alignment
 
     by_key = {}
     by_number = {}
@@ -453,10 +457,10 @@ def link_citations(doc) -> int:
             continue
         ls, rs = surface(c), surface(r)
         if ls and rs:
-            doc.add_alignment(Alignment(kind="cites", left=ls, right=rs,
-                                        props={"citekey": r.props.get("citekey"),
-                                               "number": num}))
-            n += 1
+            added = add_cites_alignment(doc, ls, rs, {
+                "citekey": r.props.get("citekey"), "number": num})
+            if added is not None:
+                n += 1
     return n
 
 

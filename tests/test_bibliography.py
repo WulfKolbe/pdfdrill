@@ -231,7 +231,14 @@ def test_author_year_citation_detection_and_linking():
     keys = sorted(c.props["citekey"] for c in doc.objects.values() if c.type == "Citation")
     assert keys == ["Asai2023", "Wu2024"]          # "(the year 2020)" -> "the" is a stopword
     assert n == 2
-    assert link_citations(doc) == 2                 # both match references by citekey
+    # 010: detect_author_year_citations already links each Citation to its
+    # (pre-existing) Reference via ensure_reference_stub as it creates it, so
+    # both are linked before link_citations ever runs -- it (idempotently)
+    # finds nothing new to ADD, but the edges are there.
+    cites_before = sum(1 for a in doc.alignments if a.kind == "cites")
+    assert cites_before == 2                        # both match references by citekey
+    assert link_citations(doc) == 0                  # already linked, not re-added
+    assert sum(1 for a in doc.alignments if a.kind == "cites") == 2   # still 2, not 4
 
 
 if __name__ == "__main__":

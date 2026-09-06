@@ -56,6 +56,37 @@ def _is_valid_citekey(citekey: str) -> bool:
     return True
 
 
+def add_cites_alignment(doc: Document, left: Range, right: Range, props: dict) -> Optional[Alignment]:
+    """010 fix round 2 — the one place a `cites` Alignment gets added, so
+    `ensure_reference_stub` (below) and `bibliography.link_citations` can't
+    both add the same edge. Skips (returns `None`) when an identical one --
+    same `left`, same `right`, same `citekey` -- already exists.
+
+    `citekey` has to be part of that identity, not just `left`+`right`: a
+    citation is anchored at LINE granularity (`start == end == the line's
+    anchor`, sub-position tracked separately via `offset`/`length` props,
+    not the Range), so two DIFFERENT citekeys parsed off the SAME line
+    (`(Oja, 1989; Sanger, 1989)`) share one `left` Range -- and each gets
+    its own brand-new stub anchored at THAT SAME line, so their `right`
+    Ranges collide too. Deduping on `(left, right)` alone silently dropped
+    10 of those as "already linked" when they were two distinct edges to
+    two distinct References; `citekey` is what actually tells them apart.
+
+    penev_A had 162 `cites` Alignments for 81 Citations before this fix:
+    every citekey `ensure_reference_stub` had already linked at creation
+    time got a SECOND, identical edge from `cmd_bibliography`'s
+    unconditional `link_citations(doc)` call afterward.
+    """
+    key = props.get("citekey")
+    for a in doc.alignments:
+        if (a.kind == "cites" and a.left == left and a.right == right
+                and a.props.get("citekey") == key):
+            return None
+    a = Alignment(kind="cites", left=left, right=right, props=props)
+    doc.add_alignment(a)
+    return a
+
+
 def ensure_reference_stub(doc: Document, citation: DocObject, bibkey: str) -> Optional[DocObject]:
     """010 — the spec's own words: "Create an empty Reference on first
     Citation". Called by EVERY Citation creator at the moment it creates a
@@ -105,12 +136,12 @@ def ensure_reference_stub(doc: Document, citation: DocObject, bibkey: str) -> Op
         props = {"citekey": key}
         if citation.props.get("number") is not None:
             props["number"] = citation.props["number"]
-        doc.add_alignment(Alignment(
-            kind="cites",
-            left=Range(c_surface.stream, c_surface.start, c_surface.end),
-            right=Range(ref_surface.stream, ref_surface.start, ref_surface.end),
-            props=props,
-        ))
+        add_cites_alignment(
+            doc,
+            Range(c_surface.stream, c_surface.start, c_surface.end),
+            Range(ref_surface.stream, ref_surface.start, ref_surface.end),
+            props,
+        )
     return ref
 
 
