@@ -19,26 +19,34 @@ object. A line no object covers is content the model dropped; a line two
 objects both cover is content the model mixed up (the "footnote body carries
 its neighbour's text" class).
 
-WHAT COUNTS AS A PARENT
------------------------
-A CONTENT TRANSCLUSION `{{title}}` / `{{title||TPL}}` in some OTHER tiddler's
-text. That is the only containment edge TiddlyWiki has: the section body
-emits one per child block, and the paragraph text carries one per inline
-formula/citation/footnote marker.
+REACHABILITY IS A WALK, NOT A SCAN
+----------------------------------
+`reachability` runs a BFS from the roots. Asking only "is this title named
+anywhere?" — which is what fix round 1 replaced — calls an island of two
+tiddlers that transclude each other reachable, and calls every paragraph
+under an unreachable section reachable. Neither is in the document.
 
-A LISTING is not a parent, but it does make a tiddler REACHABLE: the root
-document tiddler lists its top-level sections as `<$link to="...">`, the
-rebuilt TOC index lists every section the same way, and a section lists its
-subsections as `- <$link to="S">{{S!!caption}}</$link>`. Those are how a
-reader walks down from the roots, so a tiddler named by one is reachable —
-but they are one-to-many by design, so they never make an object
-multi-parent. Counting them as parents would flag every section in every
-document.
+THE ROOTS, as `TiddlyWikiProjector._emit_tiddlers` writes them: the DOCUMENT
+tiddler (titled with the bibkey, tagged `document`), whose body lists every
+top-level section, and the TOC INDEX `<bibkey>_TOC` (tagged `toc`), the
+rebuilt fractal xref whose rows list every captioned section (262). The
+`template` tiddlers are scaffolding; none of the three is an object's
+tiddler, so none enters the object population.
 
-The ROOTS are the document tiddler (titled with the bibkey, tagged
-`document`) and the rebuilt TOC index (`<bibkey>_TOC`, tagged `toc`); the
-`template` tiddlers are the wiki's scaffolding. None of the three is an
-object's tiddler, so none appears in the object population at all.
+A PARENT is a CONTENT TRANSCLUSION `{{title}}` / `{{title||TPL}}` in some
+REACHED tiddler's text. That is the only containment edge TiddlyWiki has:
+the section body emits one per child block, the paragraph text one per
+inline formula/citation/footnote marker.
+
+A LISTING carries the walk downwards but is never a parent: the root's and
+the TOC's `- <$link to="H">`, and a section's
+`- <$link to="S">{{S!!caption}}</$link>`. The root and the TOC each list
+EVERY section, so counting a listing as a parent would report every section
+in every document as multi-parent. `<$link to="…">` with a literal title is
+followed only out of a `document`, `toc` or `section` tiddler — the only
+three places the projector emits that form; a `\ref`-resolved `<$link>`
+lives in a section's `caption` FIELD, never in `text`, so a cross-reference
+cannot parent anything.
 
 MULTI-PARENT IS NOT ALWAYS A DEFECT. Transclusion exists so that one formula
 is stored once and referenced N times (docs/TRANSCLUSION.md). For Formula and
@@ -46,9 +54,18 @@ Reference, 2+ parents is the design working. For Paragraph, Table, Picture,
 ListItem it is duplication. The count is reported PER TYPE so the reader can
 tell the two apart rather than being handed one number that mixes them.
 
-DEVIATION FROM THE BRIEF'S LITERAL CLAIM RULE, AND WHY
-------------------------------------------------------
-The brief defines a claim as a `surface` realization on `mathpix_lines`
+TWO DEVIATIONS FROM THE BRIEF'S LITERAL DEFINITIONS, WITH REASONS
+-----------------------------------------------------------------
+1. THE WALK (above). The brief says "reachable when the tiddler ... is named
+by exactly one transclusion in some OTHER tiddler's text, walking down from
+the roots". The two halves of that sentence disagree when a naming tiddler is
+itself unreached, and the walk is what the definition is FOR, so the walk
+wins: `unreachable` = the object's tiddler was never reached, `multi_parent`
+= reached from 2+ distinct reached parents. Each entry carries `named_by`,
+the count a flat scan would have reported, so nothing is hidden by the
+choice.
+
+2. CONTAINER_TYPES. The brief defines a claim as a `surface` realization on `mathpix_lines`
 whose [start, end] contains the anchor and which carries no sub-anchor
 offset/length. Read literally that makes a Page a claimant: `PageProcessor`
 gives every Page a surface realization spanning every line of the page, so
@@ -57,23 +74,29 @@ doubly-claimed count would equal the anchor count. A measure that reports
 3178 of 3178 says nothing. `CONTAINER_TYPES` names the types whose range is
 a container by construction rather than a claim on content; they are listed
 in the result under `containers_excluded` so the exclusion is visible in the
-output, not hidden in the code.
+output, not hidden in the code. It holds `Page` ALONE: `List` was in it until
+fix round 1 and excluded nothing, because `cmd_lists` builds a List DocObject
+with no realization of any kind — an exclusion asserting a shape that does
+not exist is worse than no exclusion, since a reader takes it for a measured
+fact.
 """
 from __future__ import annotations
 
 import re
-from collections import Counter, defaultdict
+from collections import Counter, defaultdict, deque
 from typing import Any
 
 from docmodel.core import Document
 
 #: Types whose `mathpix_lines` surface range is a CONTAINER, not a claim.
-#: A Page spans every line it holds; a List spans every item it nests.
-CONTAINER_TYPES = ("Page", "List")
-
-#: Tiddlers that list rather than contain. `<$link to="X">` inside one of
-#: these makes X reachable without making it X's parent.
-_LISTING_TAGS = ("document", "toc")
+#: A Page's `surface` realization spans every line of the page by
+#: construction (`docmodel.modules.page`), so counting it as a claim makes
+#: every anchor doubly claimed. Only types that ACTUALLY carry such a
+#: realization belong here: `List` was in this tuple until fix round 1 and
+#: was inert — `cmd_lists` creates a List DocObject with no realization at
+#: all, so the exclusion excluded nothing and asserted a shape that does not
+#: exist.
+CONTAINER_TYPES = ("Page",)
 
 _TRANSCLUDE = re.compile(r"\{\{([^{}]+?)\}\}")
 _LINK_TO = re.compile(r"<\$link\s+to=\"([^\"]+)\"")
@@ -121,52 +144,113 @@ def project_in_memory(doc: Document) -> tuple[list[dict], dict[str, str], str]:
 
 # ------------------------------------------------------------- reachability
 
+def _edges(text: str, src: str, follow_links: bool) -> tuple[set[str], set[str]]:
+    """(content children, listing children) named by one tiddler's text.
+
+    CONTENT — `{{T}}` / `{{T||TPL}}`: containment, and the only thing that
+    makes `src` a PARENT of T.
+    LISTING — `{{T!!field}}` (a section's subsection list transcludes the
+    subsection's caption field) and `<$link to="T">`. Navigation: it carries
+    the walk downwards but confers no parenthood, because the root and the
+    TOC index each list every section and one-to-many is their whole job.
+    `{{!!field}}` addresses the current tiddler and names nobody.
+    """
+    content: set[str] = set()
+    listing: set[str] = set()
+    for m in _TRANSCLUDE.finditer(text):
+        inner = m.group(1).strip()
+        if inner.startswith("!!"):
+            continue
+        head = inner.split("||")[0]
+        target = head.split("!!")[0].strip()
+        if not target or target == src:
+            continue
+        (listing if "!!" in head else content).add(target)
+    if follow_links:
+        for m in _LINK_TO.finditer(text):
+            t = m.group(1).strip()
+            if t and t != src:
+                listing.add(t)
+    return content, listing
+
+
 def reachability(doc: Document, tiddlers: list[dict],
                  titles: dict[str, str]) -> dict:
-    """Every DocObject reachable from exactly one parent in the projection?
+    """Every DocObject reached from exactly one parent, WALKING FROM THE ROOTS.
 
-    `unreachable` — 0 parents and not listed from a root. `reason` is
-    "no tiddler" when the projector emits nothing at all for the object
-    (its title is unassigned, or assigned but never emitted), else
-    "no parent".
-    `multi_parent` — named by a content transclusion in 2+ OTHER tiddlers.
+    THIS IS A BFS, NOT A SCAN. "Is this title named anywhere?" counts an
+    island of two tiddlers that transclude each other as reachable, and
+    counts every paragraph under an unreachable section as reachable. Both
+    are content that is not in the document. So the walk starts at the roots
+    the projector actually emits and only what it reaches is reachable.
+
+    THE ROOTS, as `TiddlyWikiProjector._emit_tiddlers` writes them:
+      * the DOCUMENT tiddler — titled with the bibkey, tagged `document`,
+        whose body lists every TOP-LEVEL section as `- <$link to="H">cap`;
+      * the TOC INDEX `<bibkey>_TOC` — tagged `toc`, the rebuilt fractal
+        xref, whose rows list EVERY captioned section the same way (262).
+    From a section the walk continues through its body: one content
+    transclusion per child block (`{{P||PARA}}`, `{{E||EQBLOCK}}`, …) and
+    `- <$link to="S">{{S!!caption}}` per subsection. From a paragraph it
+    continues through the inline markers baked into its text
+    (`{{F||FO}}`, `{{R||CIT}}`, `{{N||FN}}`).
+
+    `<$link to="…">` with a literal title is followed only out of the root,
+    a `toc` tiddler and a `section` tiddler — the only three places the
+    projector emits that form (root body, TOC rows, the `## Subsections`
+    list). A `\ref`-resolved `<$link>` lives in a section's `caption` FIELD,
+    never in `text`, so it is not an edge here and a cross-reference cannot
+    parent anything.
+
+    `unreachable` — the object's tiddler was never reached: `reason`
+    "no tiddler" when the projector emits nothing at all for it, else
+    "not reached". `named_by` says how many tiddlers name it REGARDLESS of
+    whether they were reached, so "nothing names it" and "only unreached
+    things name it" are distinguishable in the output.
+    `multi_parent` — content-transcluded by 2+ distinct REACHED tiddlers.
     """
     bibkey = doc.meta.get("bibkey", "DOC")
     root_title = _sanitize_title(bibkey)
-    emitted = {t.get("title") for t in tiddlers}
+    by_title_tiddler = {t.get("title"): t for t in tiddlers}
+    emitted = set(by_title_tiddler)
 
-    # title -> set of tiddler titles that CONTAIN it (content transclusion)
-    parents: dict[str, set[str]] = defaultdict(set)
-    # titles a root/TOC listing (or a `{{X!!field}}` field transclusion)
-    # points at — reachable, but not parented
-    listed: set[str] = {root_title}
+    roots = [root_title] if root_title in emitted else []
+    roots += sorted(t.get("title") for t in tiddlers
+                    if "toc" in _tags(t) and t.get("title") != root_title)
 
+    # Every naming, reached or not — the number a flat scan would report.
+    named_by: Counter = Counter()
     for t in tiddlers:
-        src = t.get("title")
-        text = t.get("text") or ""
-        is_listing = any(g in _LISTING_TAGS for g in _tags(t))
-        for m in _TRANSCLUDE.finditer(text):
-            inner = m.group(1).strip()
-            if inner.startswith("!!"):              # {{!!field}} — this tiddler
-                continue
-            head = inner.split("||")[0]
-            target = head.split("!!")[0].strip()
-            if not target or target == src:
-                continue
-            if "!!" in head:                        # {{X!!caption}} — a listing
-                listed.add(target)
-            else:
-                parents[target].add(src)
-        if is_listing:
-            for m in _LINK_TO.finditer(text):
-                listed.add(m.group(1).strip())
+        c, l = _edges(t.get("text") or "", t.get("title"), follow_links=True)
+        for tgt in c | l:
+            named_by[tgt] += 1
 
-    unreachable: list[dict] = []
-    multi_parent: list[dict] = []
-    by_type: dict[str, dict[str, int]] = {}
+    # THE WALK.
+    parents: dict[str, set[str]] = defaultdict(set)
+    reached: set[str] = set(roots)
+    queue: deque = deque(roots)
+    while queue:
+        src = queue.popleft()
+        t = by_title_tiddler.get(src)
+        if t is None:
+            continue
+        follow = bool({"document", "toc", "section"} & set(_tags(t))) \
+            or src == root_title
+        content, listing = _edges(t.get("text") or "", src, follow)
+        for tgt in content:
+            if tgt in emitted:
+                parents[tgt].add(src)          # only REACHED sources parent
+                if tgt not in reached:
+                    reached.add(tgt)
+                    queue.append(tgt)
+        for tgt in listing:
+            if tgt in emitted and tgt not in reached:
+                reached.add(tgt)
+                queue.append(tgt)
+
     # Two objects that share ONE tiddler title are one object in the
     # projection: content is not lost but it IS mixed up, and neither of the
-    # three headline counts can see it (the title is reachable exactly once).
+    # three headline counts can see it (the title is reached exactly once).
     by_title: dict[str, list] = defaultdict(list)
     for o in doc.objects.values():
         raw = titles.get(o.id)
@@ -178,39 +262,46 @@ def reachability(doc: Document, tiddlers: list[dict],
                                  for o in objs]}
         for t, objs in sorted(by_title.items()) if len(objs) > 1]
 
+    unreachable: list[dict] = []
+    multi_parent: list[dict] = []
+    by_type: dict[str, dict[str, int]] = {}
     for obj in doc.objects.values():
         bucket = by_type.setdefault(
             obj.type, {"objects": 0, "unreachable": 0, "multi_parent": 0})
         bucket["objects"] += 1
         raw = titles.get(obj.id)
         title = _sanitize_title(raw) if raw else None
+        page = obj.props.get("page") or obj.props.get("page_number")
         if not title or title not in emitted:
             bucket["unreachable"] += 1
             unreachable.append({"id": obj.id, "type": obj.type,
                                 "title": title, "reason": "no tiddler",
-                                "page": obj.props.get("page") or obj.props.get("page_number"),
+                                "named_by": named_by.get(title, 0) if title else 0,
+                                "page": page,
+                                "text": _excerpt(_describe(obj))})
+            continue
+        if title not in reached:
+            bucket["unreachable"] += 1
+            unreachable.append({"id": obj.id, "type": obj.type,
+                                "title": title, "reason": "not reached",
+                                "named_by": named_by.get(title, 0),
+                                "page": page,
                                 "text": _excerpt(_describe(obj))})
             continue
         ps = sorted(parents.get(title, ()))
-        if len(ps) == 0 and title not in listed:
-            bucket["unreachable"] += 1
-            unreachable.append({"id": obj.id, "type": obj.type,
-                                "title": title, "reason": "no parent",
-                                "page": obj.props.get("page") or obj.props.get("page_number"),
-                                "text": _excerpt(_describe(obj))})
-        elif len(ps) > 1:
+        if len(ps) > 1:
             bucket["multi_parent"] += 1
             multi_parent.append({"id": obj.id, "type": obj.type,
                                  "title": title, "parents": ps,
-                                 "page": obj.props.get("page") or obj.props.get("page_number"),
+                                 "named_by": named_by.get(title, 0),
+                                 "page": page,
                                  "text": _excerpt(_describe(obj))})
 
     return {
         "objects": len(doc.objects),
         "tiddlers": len(tiddlers),
-        "roots": sorted(
-            t.get("title") for t in tiddlers
-            if any(g in _LISTING_TAGS for g in _tags(t))),
+        "roots": roots,
+        "reached": len(reached),
         "templates": sum(1 for t in tiddlers if "template" in _tags(t)),
         "unreachable": unreachable,
         "multi_parent": multi_parent,
@@ -407,7 +498,9 @@ def format_report(res: dict, limit: int = _MAX_EXAMPLES) -> str:
              f"  (lines 2+ objects both cover)")
     L.append("")
     L.append(f"projection: {reach['tiddlers']} tiddlers, "
-             f"{reach['templates']} templates, roots {', '.join(reach['roots'])}")
+             f"{reach['templates']} templates, "
+             f"{reach.get('reached', 0)} reached by the walk from "
+             f"roots {', '.join(reach['roots']) or '(none)'}")
     dark = (anch.get("dark") or {}).get("count", 0)
     if dark:
         L.append(f"dark anchors:         {dark} of {anch['total']}"
@@ -436,7 +529,8 @@ def format_report(res: dict, limit: int = _MAX_EXAMPLES) -> str:
                  f"(one per type in turn):")
         for e in ex:
             L.append(f"  {e['type']:<10} {e['title'] or '(no title)':<22} "
-                     f"{e['reason']:<11} p{e['page']}  {e['text']}")
+                     f"{e['reason']:<11} named_by={e['named_by']} "
+                     f"p{e['page']}  {e['text']}")
     if reach["multi_parent"]:
         L.append("")
         ex = _round_robin(reach["multi_parent"], limit)

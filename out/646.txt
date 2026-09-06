@@ -1,5 +1,7 @@
 646 — pdfdrill conserve: the conservation check
 ===============================================
+(fix round 1 folded in: reachability is now a WALK from the roots, and
+`CONTAINER_TYPES` holds `Page` alone. Both counts below are post-644.)
 
 "No content lost, none mixed up" is the whole claim, and nothing tested it.
 `pdfdrill conserve <pdf>` states it as three numbers. It is READ-ONLY: it
@@ -36,7 +38,7 @@ WHAT WAS BUILT
                            `requires: [model]`, no `done_when` (it produces
                            no artefact — the shape 57 other read-only
                            commands already use); `skillsync all .` run,
-                           148 commands, manifest <-> HANDLERS in sync.
+                           manifest <-> HANDLERS in sync.
 
 DEFINITIONS AS IMPLEMENTED
   THE EMITTED PROJECTION is the TiddlyWiki array, built IN MEMORY from the
@@ -45,26 +47,38 @@ DEFINITIONS AS IMPLEMENTED
   the wrong document. Titles are compared after the projector's own
   `_sanitize_title`.
 
+  REACHABILITY IS A BFS FROM THE ROOTS, not a scan of every tiddler's text.
+  THE ROOTS, as `TiddlyWikiProjector._emit_tiddlers` writes them:
+    * the DOCUMENT tiddler — titled with the bibkey, tagged `document`,
+      whose body lists every TOP-LEVEL section as `- <$link to="H">cap`;
+    * the TOC INDEX `<bibkey>_TOC` — tagged `toc`, the rebuilt fractal xref,
+      whose rows list EVERY captioned section the same way (262).
+  From a section the walk continues through its body — one content
+  transclusion per child block (`{{P||PARA}}`, `{{E||EQBLOCK}}`, `{{T||TAB}}`
+  …) and `- <$link to="S">{{S!!caption}}</$link>` per subsection. From a
+  paragraph it continues through the inline markers baked into its text
+  (`{{F||FO}}`, `{{R||CIT}}`, `{{N||FN}}`). Reached: 1141 of 1271 tiddlers on
+  penev_A, 715 of 838 on penev_B.
+
   A PARENT is a CONTENT transclusion `{{title}}` / `{{title||TPL}}` in some
-  OTHER tiddler's text. That is the only containment edge TiddlyWiki has.
+  REACHED tiddler's text. That is the only containment edge TiddlyWiki has.
 
-  REACHABLE = one or more parents, OR named by a LISTING. The listings are
-  the document root tiddler (titled with the bibkey, tagged `document`),
-  which lists its top-level sections as `<$link to=...>`, and the rebuilt TOC
-  index `<bibkey>_TOC` (tagged `toc`), which lists every section the same
-  way; a section lists its subsections as `- <$link to="S">{{S!!caption}}`,
-  whose field transclusion `{{S!!caption}}` is also a listing. Those two
-  tiddlers are the ROOTS. The 16 `template` tiddlers and the root are the
-  wiki's scaffolding and are not objects, so they never enter the population.
+  A LISTING carries the walk downwards but is NEVER a parent: the root's and
+  the TOC's `- <$link to="H">`, and a section's subsection list (whose
+  `{{S!!caption}}` field transclusion is the same kind of edge). The root and
+  the TOC each list EVERY section, so counting a listing as a parent would
+  report every section in every document as multi-parent. `<$link to="…">`
+  with a literal title is followed only out of a `document`, `toc` or
+  `section` tiddler — the only three places the projector emits that form; a
+  `\ref`-resolved `<$link>` lives in a section's `caption` FIELD, never in
+  `text`, so a cross-reference cannot parent anything.
 
-  A listing makes a tiddler reachable but is NEVER a parent. Both the root
-  and the TOC list every section, so counting a listing as a parent would
-  report every section in every document as multi-parent — a number that
-  means nothing.
-
-  UNREACHABLE = 0 parents and not listed. `reason` is "no tiddler" when the
-  projector emits nothing at all for the object, else "no parent".
-  MULTI_PARENT = 2+ distinct parent tiddlers.
+  UNREACHABLE = the object's tiddler was never reached. `reason` is
+  "no tiddler" when the projector emits nothing at all for it, else
+  "not reached". Every entry also carries `named_by` — how many tiddlers
+  name it regardless of whether THEY were reached — so "nothing names it"
+  and "only unreached things name it" stay distinguishable.
+  MULTI_PARENT = content-transcluded by 2+ distinct REACHED tiddlers.
 
   CLAIMED: a `mathpix_lines` anchor is claimed by an object with a `surface`
   Realization on that stream whose [start, end] contains the anchor and which
@@ -72,49 +86,100 @@ DEFINITIONS AS IMPLEMENTED
   footnote marker) lives INSIDE a line and does not claim it — 1354 such
   inline realizations on penev_A, 996 on penev_B, correctly not counted.
 
-DEVIATION FROM THE BRIEF, WITH THE REASON (one)
-  `CONTAINER_TYPES = ("Page", "List")` do not claim. Read literally, the
-  brief's claim rule makes a Page a claimant: `PageProcessor` gives every
-  Page a `surface` realization spanning EVERY line of the page with no
-  offset. All 3178 penev_A anchors would then be doubly claimed (Page + the
-  real owner) and the measure would say nothing. A Page's range is a
-  container by construction, not a claim on content. The exclusion is
-  reported in the command's own output (`container types not claiming:
-  Page, List`) rather than hidden in the code, and is pinned by
+TWO DEVIATIONS FROM THE BRIEF'S DEFINITIONS, WITH REASONS
+
+  1. THE WALK. The brief says "reachable when the tiddler ... is named by
+  exactly one transclusion ... in some OTHER tiddler's text, walking down
+  from the roots". The two halves of that sentence disagree whenever the
+  naming tiddler is itself unreached, and the walk is what the definition is
+  FOR, so the walk wins. Round 0 implemented the flat half and it was wrong
+  in both directions the reviewer named: an island of two tiddlers naming
+  each other counted as reachable, and every paragraph under an unreachable
+  section counted as reachable. Both are now failing-first tests
+  (test_f_an_island…, test_g_a_paragraph_under_an_unreachable_section…).
+  Nothing is hidden by the choice: `named_by` on every entry is exactly the
+  number the flat rule would have reported.
+
+  2. CONTAINER_TYPES = ("Page",). Read literally, the brief's claim rule
+  makes a Page a claimant: `PageProcessor` gives every Page a `surface`
+  realization spanning EVERY line of the page with no offset. All 3178
+  penev_A anchors would then be doubly claimed (Page + the real owner) and
+  the measure would say nothing. A Page's range is a container by
+  construction, not a claim on content. The exclusion is printed in the
+  command's own output (`container types not claiming: Page`) rather than
+  hidden in the code, and is pinned by
   tests/test_conserve.py::test_page_containers_do_not_claim_the_lines_they_span.
+  `List` was in this tuple in round 0 and EXCLUDED NOTHING: `cmd_lists`
+  (commands.py ~9751) builds a List DocObject with no realization of any
+  kind, so the entry asserted a shape that does not exist. Dropped — an
+  inert exclusion is worse than none, because a reader takes it for a
+  measured fact.
 
 TWO MEASURES ADDED BEYOND THE BRIEF'S THREE (both cheap, both in scope)
   TITLE COLLISIONS — 2+ objects assigned ONE tiddler title. Nothing is lost
   and nothing is unreachable; the content is MIXED UP, which is the other
   half of the claim, and none of the three headline counts can see it.
+  644 fixed the only producer (see the delta below), so this now reads 0 on
+  both documents — the measure is exercised on a healthy document here and
+  on a colliding one in the unit test.
   DARK ANCHORS — lines whose EVERY claimant is an unreachable object. The
   line is claimed, so the unclaimed count does not see it, and it still
   reaches no tiddler. This is the number that joins the two halves.
 
-THE COUNTS
+THE COUNTS (post-644, post-walk)
                                     penev_A        penev_B
   objects                             1405            821
   tiddlers emitted                    1271            838
+  tiddlers reached by the walk        1141            715
   mathpix_lines anchors               3178           1943
   ---------------------------------------------------------
-  unreachable objects                  238   (16.9%)   83   (10.1%)
+  unreachable objects                  266   (18.9%)  108   (13.2%)
   unclaimed anchors                    243   ( 7.6%)  115   ( 5.9%)
   doubly-claimed anchors                83   ( 2.6%)   51   ( 2.6%)
   ---------------------------------------------------------
-  title collisions                      17             13
-  dark anchors                         434   (13.7%)  131   ( 6.7%)
+  title collisions                       0              0
+  dark anchors                         587   (18.5%)  208   (10.7%)
 
   Neither document conserves. `conserved: false` on both.
+
+WHAT MOVED SINCE ROUND 0, AND WHY — THE REVIEWER EXPECTED NOTHING TO
+  The reviewer expected the walk to change no number today. On penev_A that
+  held exactly; on penev_B it did not, and both halves of the delta are
+  named here rather than reported as one movement.
+
+  unreachable objects        penev_A          penev_B
+  round 0 (pre-644 titles)     238               83
+  + 644 (the title scheme)     266  (+28)        94  (+11)
+  + the walk (this round)      266  (+0)        108  (+14)
+
+  THE 644 HALF. 644 numbers a Footnote by its position in the flow instead
+  of by its printed refnum, so 17 penev_A / 13 penev_B title collisions
+  became 0. A collision had been HIDING loss: several Footnote objects
+  shared one tiddler, that one tiddler was transcluded, and every object
+  behind it counted as reachable. Given its own title, each is now measured
+  on its own: unreachable Footnotes 8 -> 36 (A) and 9 -> 20 (B), multi-parent
+  Footnotes 44 -> 16 (A) and 10 -> 4 (B). The loss did not appear in 644; it
+  became visible. This is HANDOVER-RULES rule 12 in the good direction — an
+  explained delta.
+
+  THE WALK HALF. penev_A: 0 objects change class, flat and walk agree on all
+  266 unreachable and all 121 multi-parent. penev_B: 14 more unreachable and
+  4 fewer multi-parent. All 14 are FORMULAS whose only transcluding
+  paragraphs are themselves unreachable (penev_B's 15 page-1 orphan
+  paragraphs) — FO0001, FO0002, FO0004, FO0005, FO0006, FO0029 among them.
+  Under a flat scan they had a parent and looked present; they are not in the
+  document. That is precisely the class the walk exists to catch, confirmed
+  on real data rather than only in the unit test.
 
 PER TYPE — objects / unreachable / multi-parent
 
   penev_A                            penev_B
-  Formula     674   41   93          Formula    497   30  102
+  Formula     674   41   93          Formula    497   44  100
   Paragraph   222    2    0          Paragraph  141   15    0
   Equation    116    0    0          Equation    62   13    0
-  Citation     81   81    0          Footnote    36    9   10
+  Citation     81   81    0          Footnote    36   20    4
   TableCell    54   54    0          Section     29    0    0
-  Footnote     53    8   44          Sidenote    24    1    0
+  Footnote     53   36   16          Sidenote    24    1    0
   Reference    52   12   12          Page        14   14    0
   Sidenote     46    1    0          Diagram      9    0    0
   Section      37    0    0          Picture      8    0    0
@@ -131,37 +196,32 @@ PER TYPE — objects / unreachable / multi-parent
   Equation, Section, Diagram, Picture, ListItem, Table and Abstract are
   fully reachable on penev_A — the check is not reporting everything, which
   is what makes the classes it DOES report worth reading (rule 11: it was
-  built against a real success and a real failure, tests (a)–(e)).
+  built against a real success and real failures, tests (a)–(g)).
 
 THE BIGGEST CLASSES, WITH EXAMPLES
 
   1. Citation: 81 of 81, "no tiddler" (penev_A).
-     EXACTLY the user's number, and unchanged by 010/639. The projector
+     EXACTLY the user's number, and unchanged by 010/639/644. The projector
      assigns no title to a Citation object at all: the in-text marker is
      rewritten to point at the REFERENCE tiddler (`{{penev_A_REF_key||CIT}}`)
-     and the Citation itself is never emitted. This is arguably correct by
-     design — the citation IS the marker — but by the definition it is 81
-     model objects with no image in the projection, and nothing said so
-     before. Example: the `dB` Citation on p8 (a units-abbreviation false
-     positive from `CitationProcessor`'s `[key]` scan, already named in 639).
+     and the Citation itself is never emitted. Arguably correct by design —
+     the citation IS the marker — but by the definition it is 81 model
+     objects with no image in the projection, and nothing said so before.
+     Example: the `dB` Citation on p8 (a units-abbreviation false positive
+     from `CitationProcessor`'s `[key]` scan, already named in 639).
 
-  2. Formula: 41 (penev_A) / 30 (penev_B), "no parent".
-     A Formula tiddler is emitted but no paragraph transcludes it, because
-     the Formula has no offset/length realization to substitute at. 8 of
-     penev_A's 41 are on page 2 — the Contents pages: `(T=87)`,
-     `3.11 S-U`, `1(T=1038`, `3.13 \log`. This is the user's "the Contents
-     region reaching nothing but orphan maths", and see class 4.
+  2. Footnote: 36 (penev_A) / 20 (penev_B) unreachable, `named_by == 0` for
+     every one of them. Post-644 each Footnote has its own tiddler, and two
+     thirds of them are transcluded by NOTHING AT ALL: the marker the body
+     belongs to was never matched in any paragraph. 200 (A) / 144 (B) dark anchors — the
+     largest single block of lost body text on both documents.
 
-  3. Footnote: 44 multi-parent (penev_A) / 10 (penev_B), 17 / 13 title
-     collisions. Footnote titles are `FN<refnum:04d>` and refnums repeat per
-     page, so `penev_A_FN0001` is FOUR Footnote objects and
-     `penev_A_FN0009` is SIX. The inline substitution then rewrites the
-     marker `1` in every paragraph that has one to the same tiddler, so one
-     footnote body appears under four different markers and the other three
-     objects behind that title are invisible. 8 penev_A Footnotes and 9
-     penev_B Footnotes reach nothing at all. The model also holds duplicate
-     Footnote objects (identical `content`, e.g. FN0008/FN0009/FN0011/FN0012
-     on penev_B appear exactly twice each).
+  3. Formula: 41 (penev_A) / 44 (penev_B) "not reached".
+     A Formula tiddler is emitted but nothing reached transcludes it. On
+     penev_A all 41 have `named_by == 0`, and 8 are on page 2 — the Contents pages: `(T=87)`,
+     `3.11 S-U`, `1(T=1038`, `3.13 \log` (see class 4). On penev_B 30 have `named_by == 0` and
+     the other 14 have `named_by == 1` — named only by an unreachable
+     paragraph, which is the walk's own finding above.
 
   4. Toc: 1 object, "no tiddler" — 288 DARK ANCHORS (penev_A).
      The single Toc object claims lines 71..361 (pages 2–3, 291 lines) and
@@ -186,7 +246,7 @@ THE BIGGEST CLASSES, WITH EXAMPLES
      bibliography — a consequence of putting the stub in the model — but it
      is content mixed up by the definition, and it did not exist before 010.
 
-  7. Reference: 12 of 52 "no parent" (penev_A).
+  7. Reference: 12 of 52 "not reached", `named_by=0` (penev_A).
      All 12 are stubs whose citekey is never substituted into any paragraph.
      Cause, read off the model: a multi-key citation group produces several
      Citation objects at the SAME character span, and
@@ -210,7 +270,7 @@ THE BIGGEST CLASSES, WITH EXAMPLES
      The projector emits ONE Table tiddler; the cell/row objects the model
      builds have no image in the projection. 69 objects, 69 dark anchors.
 
-WHAT CHANGED SINCE THE USER MEASURED (tasks 010 and 639, db66ff0..d7def83)
+WHAT CHANGED SINCE THE USER MEASURED (010, 639, 644)
   81 Citations unreachable — UNCHANGED, and exactly the user's number.
   8 References unreachable — NO LONGER THE SAME POPULATION. Before 010 the
     document had ~8 filled References from a .bib/.bbl that is now lost
@@ -226,9 +286,11 @@ WHAT CHANGED SINCE THE USER MEASURED (tasks 010 and 639, db66ff0..d7def83)
     288 dark anchors, 23 Formulas hosted there.
   NEW, created by 010: Paragraph+Reference doubly-claimed anchors, 37 on
     penev_A, 0 before.
+  644 (646-a, below, already fixed): footnote title collisions 17/13 -> 0/0,
+    and with them 28 (A) / 11 (B) previously hidden unreachable Footnotes.
 
-TESTS (TDD; the module did not exist, every test confirmed failing first)
-  tests/test_conserve.py, 9 tests:
+TESTS (TDD; every case confirmed failing for its stated reason first)
+  tests/test_conserve.py, 11 tests:
     (a) a conserved document -> three zeros, on a NON-EMPTY population
         (a check that measures nothing passes vacuously — rule 11);
     (b) an object the projector emits no tiddler for -> unreachable 1,
@@ -237,24 +299,30 @@ TESTS (TDD; the module did not exist, every test confirmed failing first)
     (d) one line covered by a Paragraph and a Footnote -> doubly_claimed 1,
         pair ("Footnote", "Paragraph");
     (e) one line no object covers -> unclaimed 1, and `conserved` false;
-    plus the Page-container deviation, the (doc, tiddlers, titles) signature,
-    the title-collision finding, and the dark-anchor finding.
-  Rule 11 is satisfied by construction: (a) is a real success and (b)–(e)
+    (f) two paragraphs transcluding each other and nothing else -> BOTH
+        unreachable, each with named_by == 1 (the flat rule said 0 of 2);
+    (g) a paragraph under an unreachable subsection -> unreachable, named_by
+        == 1, while the section itself has named_by == 0 (the flat rule
+        reported the section only);
+    plus the Page-container deviation, the (doc, tiddlers, titles)
+    signature, the title-collision finding and the dark-anchor finding.
+  Rule 11 is satisfied by construction: (a) is a real success and (b)–(g)
   are real failures of the same summariser.
 
   FULL SUITE: PYTHONDONTWRITEBYTECODE=1 PYTHONPATH=src python3 -m pytest
-  tests/ -q -p no:cacheprovider  ->  3129 passed, 0 failed
-  (test_skill_sync 148 commands in sync, test_doclock green — `conserve`
-  holds no lock because it writes nothing).
+  tests/ -q -p no:cacheprovider  ->  3152 passed, 0 failed
+  (test_skill_sync in sync, test_doclock green — `conserve` holds no lock
+  because it writes nothing).
 
 FOLLOW-UPS — NAMED, NOT FIXED (this task's job was to make them visible)
 
-  646-a  Footnote titles collide. `FN<refnum>` is not unique: refnums repeat
-         per page. 17 collisions on penev_A, 13 on penev_B; one tiddler
-         stands for up to six Footnote objects and the inline substitution
-         wires every matching marker to it. The title needs the page (or the
-         flow index) in it, and `_substitute_footnotes` needs to resolve per
-         paragraph, not by a document-wide refnum map.
+  646-a  DONE IN 644. Footnote titles collided (`FN<refnum>`, refnums
+         restart per page). 644 numbers by flow position; collisions 17/13
+         -> 0/0. What it revealed is 646-a2.
+  646-a2 36 (A) / 20 (B) Footnotes are now transcluded by nothing at all —
+         `_substitute_footnotes` never matched a marker for them. 200 / 144
+         dark anchors. The largest block of lost body text on either
+         document and the first thing to chase.
   646-b  Duplicate Footnote objects in the model. Several Footnotes appear
          twice with identical `content` (penev_B FN0008/9/11/12, penev_A
          FN0029/31/33). Deduplication belongs upstream of the projector.
@@ -280,17 +348,19 @@ FOLLOW-UPS — NAMED, NOT FIXED (this task's job was to make them visible)
          it should probably carry no `mathpix_lines` surface realization at
          all, or one with a sub-anchor offset so it does not claim the line.
   646-h  40 penev_A `text` lines and 2 penev_B `text` lines are body prose
-         no object covers. That is the pure "content lost" class and the
-         one worth chasing first.
-  646-i  Formulas with no offset realization (41 / 30) are emitted and never
-         transcluded. Some are TOC residue (646-d); the rest need either an
-         offset or suppression.
+         no object covers. That is the pure "content lost" class.
+  646-i  Formulas with no reached parent (41 / 44). Some are TOC residue
+         (646-d), 14 on penev_B are under unreachable paragraphs (646-j);
+         the rest need either an offset or suppression.
+  646-j  15 penev_B Paragraphs (page 1) are in no section's children, so
+         nothing reaches them — and they take 14 Formulas down with them.
+         The section tree does not cover the first page of that extract.
 
 CONCERNS
   penev_B carries no Citation, Reference, Table or Toc objects, so five of
-  the nine classes above rest on penev_A alone. A second citation-bearing
+  the classes above rest on penev_A alone. A second citation-bearing
   document would test them; none was in scope here.
-  `dark anchors` and `title collisions` are measures I added beyond the
+  `dark anchors` and `title collisions` are measures added beyond the
   brief's three. They are reported separately and are not folded into
   `conserved`, which stays exactly the brief's three counts.
   The command was run on the models AS THEY STAND; no `--force` rebuild was

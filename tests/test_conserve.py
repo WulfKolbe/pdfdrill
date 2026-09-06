@@ -234,3 +234,57 @@ def test_dark_anchors_are_lines_whose_every_claimant_is_unreachable():
     assert r["counts"]["doubly_claimed"] == 0
     assert r["anchors"]["dark"]["count"] == 2   # …by an object reaching nothing
     assert r["anchors"]["dark"]["by_type"][0]["types"] == ["Toc"]
+
+
+# ------------- (f)/(g) reachability is a WALK FROM THE ROOTS, not a scan
+
+def test_f_an_island_of_tiddlers_naming_each_other_is_unreachable():
+    """Two paragraphs that transclude each other and nothing else.
+
+    A flat "is this title named anywhere?" scan calls both reachable — each
+    has a parent. Neither is reachable from a root, so neither is in the
+    document: the walk is the whole point of the definition.
+    """
+    doc = _conserved()
+    mp = _lines(doc)
+    a = mp.append(text="see {{DOC_PARA_0003||PARA}}", _page=3, _line_index=20,
+                  type="text")
+    b = mp.append(text="see {{DOC_PARA_0002||PARA}}", _page=3, _line_index=21,
+                  type="text")
+    for anchor, fi in ((a, 5), (b, 6)):
+        p = DocObject(type="Paragraph", props={"page": 3, "flow_index": fi})
+        p.add_realization(Realization(stream="mathpix_lines", start=anchor,
+                                      end=anchor, role="surface"))
+        doc.add(p)
+
+    r = conserve(doc)
+    titles = sorted(e["title"] for e in r["reachability"]["unreachable"])
+    assert titles == ["DOC_PARA_0002", "DOC_PARA_0003"], titles
+    # each IS named by the other — the count that a flat scan would report
+    assert all(e["named_by"] == 1 for e in r["reachability"]["unreachable"])
+
+
+def test_g_a_paragraph_under_an_unreachable_section_is_unreachable():
+    """A subsection no root lists and no section lists (empty caption, so the
+    rebuilt TOC skips it; a parent_section, so the root skips it) is itself
+    unreachable — and so is every paragraph it lists."""
+    doc = _conserved()
+    mp = _lines(doc)
+    top = doc.objects_of_type("Section")[0]
+    hidden = DocObject(type="Section", props={
+        "caption": "", "level": 2, "flow_index": 5, "page": 3,
+        "parent_section": top.id})
+    doc.add(hidden)
+    anchor = mp.append(text="orphaned body text", _page=3, _line_index=20,
+                       type="text")
+    child = DocObject(type="Paragraph", props={"page": 3, "flow_index": 6})
+    child.add_realization(Realization(stream="mathpix_lines", start=anchor,
+                                      end=anchor, role="surface"))
+    doc.add_child(hidden, child)
+
+    r = conserve(doc)
+    got = {e["type"]: e for e in r["reachability"]["unreachable"]}
+    assert set(got) == {"Section", "Paragraph"}, r["reachability"]["unreachable"]
+    assert got["Section"]["named_by"] == 0          # nothing names it at all
+    assert got["Paragraph"]["named_by"] == 1        # its unreached section does
+    assert r["reachability"]["by_type"]["Paragraph"]["unreachable"] == 1
