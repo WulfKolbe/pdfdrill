@@ -4,98 +4,110 @@ Current state, current blocker, next task. Nothing else — the per-task
 evidence lives in `out/NNN.txt` and `~/pdfdrill-library/out/NNN/`, and the
 rules learned by defect are in **`docs/HANDOVER-RULES.md`**.
 
-Last updated 2026-09-06, after 633.
+Last updated 2026-09-06, after 634.
 
 ---
 
 ## Where the 21 published documents stand
 
-**17 of 21 are published and current.** Site commit `383ae31`. Verify with:
+**20 of 21 are published and current on the NEW surface.** Site commit
+`b8b71e1`. Verify with:
 
     python3 tools/publishcheck.py --list ~/pdfdrill-library/out/documents.json
 
-Exit 0 only when every document on the site is the build on disk. It reads
-17 identical / 4 stale today. Run it before believing anything below.
+It reads 20 identical / 1 not published (penev_A) today. Run it before
+believing anything below.
 
-Residuals on those 17 are **measured on display equations only**. Inline
-formula rows are not measured — the selection for them is not built. The
-index says so.
+**The surface changed in 634** (spec `docs/superpowers/specs/2026-09-06-
+evidence-residuals-design.md`, evidence `out/634.txt`). Per document the
+site carries five files:
 
-### The four still stale
+    evidence-equation.pdf   every display equation, six columns, unbounded
+    evidence-formula.pdf    every inline formula; Page/Conf./Image are the
+                            HOST LINE's, and the file says so
+    evidence-table.pdf      every table, region rendered from the PDF
+    evidence-image.pdf      every image region
+    residuals.pdf           the action list: Corrected, Unresolved, Flagged,
+                            Low confidence, Doubted — worst first, 10 pages
+
+Evidence is for lookup, residuals for reading. The site copies are
+Ghostscript /ebook derivatives kept under `<doc>/published/` (the originals
+total 947 MB; the site cap is ~1 GB); `publishcheck` compares against
+`published/` when it exists. `report.pdf` is retired from the site.
+
+    pdfdrill evidence <pdf> --all-kinds --pdf
+    pdfdrill residuals <pdf> --pdf
+    pdfdrill publishready <pdf>
+
+`report`, `breport`, `inkreport` are aliases; `reporttex` is superseded for
+reading and kept as the ink chain's measure build. The reports read the
+Document (`src/pdfdrill/reports/from_document.py`), never tiddlers, and take
+identifiers from `tiddlywiki.math_titles` / `region_titles`.
+
+Residuals on those 20 are **measured on display equations only**. Inline
+formula rows are not measured; the residuals header states when the
+equations were measured and against which model.
+
+### The one still out
 
 | document | gate | why |
 |---|---|---|
-| 0902.0431 | stamp | 6 of 13 shown rows straddle a page break (46% > 25%) |
-| gilmore-lie-groups | stamp | 5 of 15 (33% > 25%) |
-| kohlhase-omdoc | residuals | p90 component ratio 3.92, over the 3.0 max |
-| penev_A | ink, stamp, artefacts | no `report.ink.json`; `.REFUSED` quarantined |
+| penev_A | ink, timestamp, glyphs | no `report.ink.json` (the `.REFUSED` quarantine, 603); one dropped glyph in evidence-formula.pdf |
 
-The first two are a **threshold question, not a defect**: banding leaves a
-small denominator, so a handful of unmeasurable rows is a large share.
-`UNMEASURED_MAX` (0.25) and `UNMEASURED_MIN` (4) are in `report_tex.py` and
-both are printed on the report page.
+The old stamp gate (checksum of the measure build) is gone: `publishready`
+now asks whether the ink's recorded model sha/mtime match the model on
+disk, and whether every equation row shown carries an ink row (straddlers
+excepted). A layout change never invalidates a measurement again.
 
 ---
 
 ## The measurement chain, as it now works
 
-    reporttex --cellrect   phase 1: full listing, unbounded, legend off,
-                           bullets off. Emits pdfdrill-rows.json — one rect
-                           per row, in bp, y up.
+    reporttex --cellrect   phase 1 (the MEASURE build, still report.pdf):
+                           full listing, legend off, bullets off. Emits
+                           pdfdrill-rows.json.
     inkdrill compare       per page, 300 vs 600 dpi
-    inkmeasure.measure     claims each lattice row by the rect that CONTAINS
-                           it. No header rule, no legend rule — an unclaimed
-                           row is dropped because nothing claims it.
-    inkconvert             pairs by the identifier the TSV now carries
-    reporttex              phase 2: findings shape, legend on, bullets on
-    publishready           five gates
+    inkmeasure.measure     claims each lattice row by the rect that CONTAINS it
+    inkconvert             pairs by identifier; report.ink.json carries
+                           measured_against {built_at, model_sha256, model_mtime}
+    residuals              reads the ink as it stands; --measure runs the
+                           chain above first
+    publishready           artefacts, glyphs (+ remaining xelatex errors),
+                           ink, timestamp, coverage
 
 Two invariants worth keeping:
 
-- **`zeroScan` must be 0.** It counts data rows whose Scan cell measured
-  empty. It is 0 on 21 of 21 and it is the column that would have caught the
-  625 defect in a day instead of three.
-- **`ma_ok` must be true.** The ink's `measured_against.sha256` equals the
-  measure build's. 20 of 21 (penev_A has no ink).
+- **`zeroScan` must be 0** on the measure build (it is, 20 of 20 measured).
+- **The ink's `model_sha256` equals the model's.** That is the timestamp
+  gate; a rebuilt model is the only thing that invalidates a measurement.
 
 ---
 
 ## Current blocker
 
-**Nothing is blocking the 17.** They are published and current.
+**Nothing is blocking the 20.**
 
-For the remaining four, in the order I would take them:
-
-1. **penev_A** — one document, no ink. Its `report.ink.json` was renamed
-   `.REFUSED` against a build that no longer exists. Re-measure it; that is
-   the whole fix.
-2. **0902.0431 and gilmore** — decide whether `UNMEASURED_MAX` should scale
-   with the denominator, or whether these two should publish with the count
-   stated. Both are defensible; neither is a code defect.
-3. **kohlhase** — p90 3.92 against a 3.0 max, on 1 bullet. Look at whether a
-   ratio over one row means anything before changing the constant.
+1. **penev_A** — re-measure it (`residuals --measure --pdf`); that is the
+   whole fix. Its one dropped glyph in evidence-formula.pdf is the second.
 
 ---
 
 ## Next task
 
-None outstanding. The queue below is real but unstarted, and none of it is on
-the critical path to publishing:
+Agreed next steps, in order:
 
-- **Inline formula measurement.** 37,624 formula rows across the 21 have
-  never been measured on anything. `equations_table()` returns only the
-  "Display equations" table; the manifest names the formulas table with
-  identifiers and they resolve on 19 of 21 (fong-spivak-invitation and
-  -seven-sketches miss ~96%, undiagnosed). Scale: +942 pages, roughly
-  +2 hours on top of the equations.
+- **010 — Reference stub at first citation** (running as of 2026-09-06):
+  a Reference is created at a citekey's first Citation and filled by
+  bibliography/bibsource/bibfetch. Report `tasks/010.report.md`.
+- **Inline formula measurement**, and with it moving the measure build
+  from `report.pdf` to `evidence-equation.pdf`. 37,624 formula rows across
+  the 21 have never been measured.
 - **629, measured and unapplied.** A depth-walk environment stripper clears
   134 of 134 tab-mark refusals; permitting `$` inside `\text{}` clears 56.
-  Both were held while 627 ran and were never applied.
-- **DIA rows take the wrong field.** `rows_for` reads `latex` before
-  `latex_code`, and for a Diagram `latex` holds the TiddlyWiki `<$image>`
-  widget, so the real source is never rendered (`out/616.txt`).
-- **inkdrill's R column** was the 625 defect and is fixed on our side; the
-  histogram work in `out/623.txt` is the evidence if it recurs.
+- **Retire the aliases** once nothing scripts against `report`/`breport`/
+  `inkreport`.
+- **Corrected pairs show a dash in the Scan column** although the crop
+  exists (pre-existing; `findings_tex.scan()`).
 
 ---
 

@@ -1,0 +1,70 @@
+634 — the evidence/residuals surface: 21 rebuilt, 20 published
+================================================================
+
+EVIDENCE
+  ~/pdfdrill-library/out/634/script.py     evidence --all-kinds --pdf, residuals --pdf,
+                                           publishready per document; re-runnable by key
+  ~/pdfdrill-library/out/634/check.py      row counts against the measured builds
+  ~/pdfdrill-library/out/634/compress.py   the /ebook derivatives under <doc>/published/
+  ~/pdfdrill-library/out/634/publish.py    the site copy + index rewrite (--apply)
+  ~/pdfdrill-library/out/634/counts.json, check.json, run.log, compress.log, INSPECT.txt
+  spec  docs/superpowers/specs/2026-09-06-evidence-residuals-design.md
+  plan  docs/superpowers/plans/2026-09-06-evidence-residuals.md
+
+WHAT WAS BUILT (commits 461ba4e..fd8477c on eqblobs-and-gzip-tex)
+  src/pdfdrill/reports/  rows, from_document, crops, tex, html, evidence,
+                         residuals, gate — the Document in, five files out.
+  pdfdrill evidence <pdf> --kind equation|formula|table|image [--pdf] [--all-kinds]
+  pdfdrill residuals <pdf> [--pdf] [--measure] [--conf F]
+  report / breport / inkreport are aliases; reporttex is SUPERSEDED for reading
+  and kept as the ink chain's measure build.
+  tiddlywiki.region_titles joins math_titles as the naming authority (the
+  reports import both; nothing re-derives an identifier).
+  publishready: artefacts (five files), glyphs (dropped glyphs AND remaining
+  xelatex errors, paired "! "/l.N), ink, timestamp (the ink's recorded model
+  sha/mtime against the model on disk — the PDF checksum is never compared),
+  coverage (every EQ row shown, straddlers excepted, reading every \ident form).
+
+THE 21, MEASURED (out/634/check.json)
+  equations   21 of 21 equal the phase-1 measured count (report.tables.json)
+  formulas    10 of 21 short by exactly that document's FOX count (1..5):
+              synthetic formulas are TiddlyWiki projector artefacts, not
+              Document objects. Not a defect; the evidence lists the Document.
+  READY       20 of 21. penev_A NOT READY: no ink (known since 603) and one
+              dropped glyph in evidence-formula.pdf.
+  time        49 min for all 21 (0902.0431 130 s; the two Fong-Spivak books
+              426/461 s before the fix below)
+
+FINDING — the two Fong-Spivak books (the handover's "~96% missing")
+  evidence-formula.pdf came out at 22 and 7 pages for 4,059 and 4,028 rows,
+  with 100/105 xelatex errors left. Every failing row is
+  \boldsymbol{\operatorname{...}}, which under `bm` raises "Improper
+  alphabetic constant" and then a fatal \@savebox error that truncates the
+  document. compile_fixpoint demoted one such row per pass and its cap of 6
+  left the seventh. Fixed at the source (a79e0e7): renderable() rewrites the
+  form to \operatorname{\mathbf{...}} (0 errors, verified standalone); the cap
+  is 40; the gate refuses a log with remaining errors. After: 156 and 157
+  pages, 0 errors, both READY.
+  A second lesson from the same log: a bare "^! " count is not an error
+  count — an Underfull \hbox trace wrapped a row's "yes!" onto a line start.
+  The gate pairs "! " with an l.N line within 8 lines (rule 11).
+
+THE SITE (PDFDRILL.github.io b8b71e1)
+  The originals total 947 MB (six formula files 66..94 MB) against a Pages
+  cap near 1 GB, so the site carries Ghostscript /ebook derivatives kept
+  under <doc>/published/ (933 -> 214 MB; seven-sketches 94.4 -> 16.3 MB,
+  crops legible at 110 dpi). publishcheck compares against published/ when
+  present (fd8477c). report.pdf retired from the 20 folders; penev_A
+  untouched. publishcheck: 20 identical, 1 not published (penev_A).
+
+NOT DONE, BY DESIGN
+  No re-measurement. --measure still runs the existing chain against
+  report.pdf; moving the measure build to evidence-equation.pdf goes with
+  inline-formula measurement.
+  penev_A stays off the site until it is measured.
+
+DEFERRED (ledger minors, for a follow-up)
+  Corrected pairs show a dash in the Scan column although the crop exists
+  (pre-existing in report.pdf too; findings_tex.scan()).
+  from_document has no test for the refnum-only equation_number branch.
+  cmd_evidence/cmd_residuals share a duplicated model/ink/crop preamble.
