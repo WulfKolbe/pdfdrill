@@ -124,7 +124,33 @@ def artefacts_gate(doc_dir) -> tuple:
     return True, "all five present"
 
 
-def glyphs_gate(doc_dir) -> tuple:
+#: 634 — a genuine xelatex error always has the source line number printed a
+#: few lines after it (`l.<N> ...`); a `! ` at the start of a line is not
+#: enough by itself. Measured false positive: fong-spivak-seven-sketches'
+#: evidence-table.log line 2270 is an Underfull \hbox trace that wraps a
+#: row's own text — `yes! \\` — across the line break, leaving `! \\` sitting
+#: at column 0 with no `l.N` anywhere near it (the box warning prints `[]`
+#: and blank lines instead). A bare `^! ` count would have refused a file
+#: that xelatex built clean. Paired within 8 lines catches every real error
+#: seen (fong's `\boldsymbol{\operatorname{...}}` failures each print their
+#: `l.736` on the third line after the `! `) and none of the wraps.
+_TEX_LINENO = re.compile(r"^l\.\d+")
+
+
+def tex_errors(log_text: str) -> int:
+    r"""Count REAL xelatex errors in a .log's text — see the note above
+    `_TEX_LINENO` for why a bare `^! ` count is wrong."""
+    lines = log_text.splitlines()
+    n = 0
+    for i, line in enumerate(lines):
+        if not line.startswith("! "):
+            continue
+        if any(_TEX_LINENO.match(l) for l in lines[i + 1:i + 9]):
+            n += 1
+    return n
+
+
+def compile_gate(doc_dir) -> tuple:
     bad = []
     for f in PUBLISHED_FILES:
         log = (Path(doc_dir) / f).with_suffix(".log")
@@ -134,7 +160,19 @@ def glyphs_gate(doc_dir) -> tuple:
         lost = rt.glyphs_dropped(log)
         if lost is not None:
             bad.append("%s: %d dropped" % (f, lost[0]))
+        # 634 — a fatal error (e.g. the `\boldsymbol{\operatorname{...}}`
+        # class that truncated fong-spivak-invitation to 22 pages and
+        # fong-spivak-seven-sketches to 7) can leave the document short with
+        # no dropped glyph in sight; this is what would have caught it before
+        # the page count did.
+        n = tex_errors(log.read_text(encoding="utf-8", errors="replace"))
+        if n:
+            bad.append("%s: %d xelatex errors remain" % (f, n))
     return (not bad), ("clean" if not bad else "; ".join(bad))
+
+
+#: back-compat: the name every existing caller/import used before 634.
+glyphs_gate = compile_gate
 
 
 def checklist(doc_dir) -> dict:
@@ -145,7 +183,7 @@ def checklist(doc_dir) -> dict:
             and (doc_dir / n).stat().st_mtime >= ink_p.stat().st_mtime]
     return {
         "artefacts": artefacts_gate(doc_dir),
-        "glyphs": glyphs_gate(doc_dir),
+        "glyphs": compile_gate(doc_dir),
         "ink": ((ink_p.is_file() and not live),
                 "present" if ink_p.is_file() and not live else
                 ("%s is newer: the last attempt failed to pair" % live[0]

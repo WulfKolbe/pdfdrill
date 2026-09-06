@@ -115,6 +115,60 @@ def test_artefacts_and_glyphs(tmp_path):
     assert G.glyphs_gate(d2)[0] is False
 
 
+# ---------------------------------------------------------------- 634
+
+def test_tex_errors_pairs_a_bang_line_with_its_source_line_number():
+    r"""A real error: fong-spivak-seven-sketches evidence-formula.log's
+    `\boldsymbol{\operatorname{...}}` failure — the `! ` line and its
+    `l.736` both present, a few lines apart."""
+    real = ("! Missing } inserted.\n"
+            "<inserted text> \n"
+            "                }\n"
+            "l.736 ...oldsymbol{\\operatorname { R e l }}(S)$} &\n")
+    assert G.tex_errors(real) == 1
+
+
+def test_tex_errors_ignores_the_underfull_hbox_wrap():
+    r"""Measured false positive: fong-spivak-seven-sketches
+    evidence-table.log line 2270. An Underfull \hbox trace wraps a row's own
+    text (`yes!`) across the line break, leaving `! \\` at the start of a
+    line with no `l.N` anywhere near it — only `[]` and blank lines follow,
+    the box-warning's own furniture. A bare `^! ` count would refuse a file
+    xelatex built clean; the paired rule must not.
+    """
+    text = ("Underfull \\hbox (badness 10000) in paragraph at lines "
+            "503--518\n"
+            "\\TU/DejaVuSansMono(0)/m/n/8 no & yes! \\\\ \\hline 2 & 2 & 2 & "
+            "2 & yes & yes & yes\n"
+            "! \\\\ \n"
+            " []\n"
+            "\n")
+    assert G.tex_errors(text) == 0
+
+
+def test_tex_errors_counts_two_real_errors():
+    text = ("! Missing } inserted.\n"
+            "<inserted text> \n"
+            "l.100 foo\n"
+            "! Undefined control sequence.\n"
+            "l.200 bar\n")
+    assert G.tex_errors(text) == 2
+
+
+def test_compile_gate_refuses_a_log_with_a_remaining_xelatex_error(tmp_path):
+    d = _doc(tmp_path)
+    log = d / "evidence-formula.log"
+    log.write_text(log.read_text() +
+                   "! Missing } inserted.\n<inserted text> \nl.736 ...\n")
+    ok, detail = G.compile_gate(d)
+    assert not ok
+    assert "evidence-formula.pdf" in detail and "1 xelatex error" in detail
+
+
+def test_compile_gate_is_the_new_name_glyphs_gate_stays_an_alias():
+    assert G.glyphs_gate is G.compile_gate
+
+
 def test_publish_ready_uses_the_new_surface_when_residuals_exist(tmp_path, monkeypatch):
     from pdfdrill.commands import publish_ready
     d = _doc(tmp_path)

@@ -1289,6 +1289,26 @@ def split_glued_delimiter(lx: str) -> str:
     return _LR_TOKEN.sub(fix, lx)
 
 
+#: 634 — `\boldsymbol{\operatorname{X}}` under `bm` (this report's own
+#: preamble) is not "renders oddly", it is FATAL: TeX raises "Improper
+#: alphabetic constant", then "Forbidden control sequence found while
+#: scanning use of \@savebox", which truncates the whole document rather than
+#: just the row. Measured on fong-spivak-invitation (4,059 formula rows, cut
+#: to 22 pages) and fong-spivak-seven-sketches (4,028 rows, cut to 7 pages):
+#: every one of ~100 remaining xelatex errors was this exact shape,
+#: `\boldsymbol{\operatorname { R e l }}(S)`. `compile_fixpoint` demotes one
+#: fatal row per pass — each hides the next until the previous is gone — so
+#: the cap ran out before the document did.
+#:
+#: `\operatorname{\mathbf{X}}` sets identically and compiles clean (verified
+#: on a minimal document: `\boldsymbol{\operatorname{Rel}}` -> 32 errors;
+#: `\operatorname{\mathbf{Rel}}`, `\boldsymbol{\mathrm{Rel}}`,
+#: `\mathbf{\operatorname{Rel}}` -> 0). X is kept VERBATIM — it may carry
+#: interior spaces MathPix inserted (`R e l`) — matched with a single level
+#: of braces, which is the only shape ever seen.
+_BOLD_OPERATORNAME = re.compile(r"\\boldsymbol\{\\operatorname\s*\{([^{}]*)\}\}")
+
+
 def renderable(latex: str) -> str:
     """Return latex safe to put inside $...$, or "" when it is not.
 
@@ -1298,6 +1318,12 @@ def renderable(latex: str) -> str:
     """
     lx = re.sub(r"\s+", " ", latex).strip()
     lx = alphabet_safe(lx)
+    # 634 — see _BOLD_OPERATORNAME above: rewrite before anything else looks
+    # at braces, since the rewrite is brace-neutral (one `{X}` pair in, one
+    # `{\mathbf{X}}` pair out) and must run whether or not the row goes on to
+    # pass every other check.
+    lx = _BOLD_OPERATORNAME.sub(
+        lambda m: r"\operatorname{\mathbf{%s}}" % m.group(1), lx)
     if cjk_defect(lx):
         return ""              # 128: hallucinated script never reaches xelatex
     # MathPix glues a stray environment CLOSER onto the end of display math when
@@ -2986,11 +3012,21 @@ def _demote_line(line: str) -> str:
     return line[:i] + "\\emph{(not rendered)}" + line[k:]
 
 
-def compile_fixpoint(tex_path: Path, max_iter: int = 6):
+def compile_fixpoint(tex_path: Path, max_iter: int = 40):
     """xelatex the report; demote rows whose lines error to source-only and
     recompile until 0 errors (a malformed OCR snippet must cost its own row,
     never the document). Returns (pages, errors, demoted_rows) or None when
     xelatex is absent.
+
+    634 — the cap was 6. Every one of the ~100 `\\boldsymbol{\\operatorname}`
+    rows measured on fong-spivak-invitation and fong-spivak-seven-sketches is
+    FATAL (renderable() now rewrites the form itself, but the cap still needs
+    to survive whatever the next fatal shape turns out to be), and a fatal row
+    is invisible to this loop until the one before it has been demoted — one
+    row costs one pass. 6 iterations covers 6 such rows; a document with more
+    stopped with the rest still in place. The "break when nothing changed"
+    exit below is what keeps a normal document — one or two passes — from
+    paying for the higher cap.
 
     297 — the compile runs in a PRIVATE directory. The .tex is copied there and
     the demote loop rewrites the COPY; `-output-directory` sends .aux, .log,

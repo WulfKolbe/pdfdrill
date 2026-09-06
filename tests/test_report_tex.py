@@ -350,6 +350,20 @@ def test_compile_rewrites_the_tex_only_when_it_demoted_a_row(tmp_path):
     assert tex.stat().st_mtime_ns == before
 
 
+def test_compile_fixpoint_default_cap_is_40():
+    r"""634 — fong-spivak-invitation and fong-spivak-seven-sketches each had
+    ~100 fatal `\boldsymbol{\operatorname{...}}` rows still in place after 6
+    passes: the loop demotes exactly one fatal row per pass (a fatal row is
+    invisible until the row before it is gone), so 6 was never enough. A
+    normal document still exits after one or two passes via the "nothing
+    changed" break below — the cap only matters when there IS something
+    left to demote.
+    """
+    import inspect
+    from pdfdrill import report_tex as rt
+    assert inspect.signature(rt.compile_fixpoint).parameters["max_iter"].default == 40
+
+
 # --- 321: the builder states its own table boundaries -----------------------
 
 def test_table_record_carries_what_a_measurement_needs():
@@ -522,6 +536,28 @@ def test_a_non_delimiter_after_left_is_refused():
     """Fires on no corpus row today; it is the list doing its stated job."""
     from pdfdrill.report_tex import renderable
     assert renderable(r"\left\Sigma x\right\Sigma") == ""
+
+
+# ---------------------------------------------------------------- 634
+
+def test_renderable_rewrites_boldsymbol_operatorname():
+    r"""`\boldsymbol{\operatorname{X}}` is fatal under `bm`: "Improper
+    alphabetic constant", then "Forbidden control sequence found while
+    scanning use of \@savebox", which truncates the whole document rather
+    than costing just this row. Measured: every one of ~100 remaining
+    xelatex errors on fong-spivak-invitation and fong-spivak-seven-sketches
+    was this exact shape. `\operatorname{\mathbf{X}}` renders identically and
+    compiles clean.
+    """
+    from pdfdrill.report_tex import renderable
+    out = renderable(r"\boldsymbol{\operatorname { R e l }}(S)")
+    assert r"\operatorname{\mathbf{ R e l }}" in out
+    assert r"\boldsymbol{\operatorname" not in out
+
+
+def test_renderable_leaves_plain_boldsymbol_alone():
+    from pdfdrill.report_tex import renderable
+    assert renderable(r"\boldsymbol{x}") == r"\boldsymbol{x}"
 
 
 # ---------------------------------------------------------------- 522
