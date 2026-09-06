@@ -100,3 +100,120 @@ def select(rows_by_kind: dict, found: dict, *, conf: float = rt.CONF_THRESHOLD) 
     return {"corrected": corrected, "unresolved": unresolved,
             "flagged": flagged, "lowconf": lowconf, "doubted": doubted,
             "flagged_rest": rest}
+
+
+import datetime as _dt
+import json as _json
+from pathlib import Path
+
+from . import html as H
+from . import tex as T
+
+OUTPUT = "residuals.%s"
+
+
+def _ink_meta(doc_dir) -> dict:
+    p = Path(doc_dir) / "report.ink.json"
+    if not p.is_file():
+        return {}
+    try:
+        return (_json.loads(p.read_text(encoding="utf-8"))
+                .get(rt.MEASURED_AGAINST) or {})
+    except Exception:
+        return {}
+
+
+def header_lines(doc_dir) -> list:
+    ma = _ink_meta(doc_dir)
+    if not ma.get("built_at"):
+        return ["no ink measurement for this document: the Flagged and "
+                "Doubted sections cannot be filled; run `residuals --measure`"]
+    mt = ma.get("model_mtime")
+    when = (_dt.datetime.fromtimestamp(int(mt), _dt.timezone.utc)
+            .strftime("%Y-%m-%d") if mt else "unknown date")
+    return ["equations measured %s against the model of %s"
+            % (ma["built_at"], when)]
+
+
+def _rest_line(rest: dict) -> str:
+    if not rest or not rest.get("n"):
+        return ""
+    return ("%d more flagged rows below the band, stated as a count: "
+            "%d component, %d weak; confidence high %d, mid %d, low %d, none %d"
+            % (rest["n"], rest["C"], rest["W"], rest["high"], rest["mid"],
+               rest["low"], rest["none"]))
+
+
+def build(selected: dict, fmt: str, *, doc_dir, pdf, bibkey, history, px2mm,
+          paper, landscape, pages, compile_pdf) -> dict:
+    doc_dir = Path(doc_dir)
+    meta = header_lines(doc_dir)
+    rest = _rest_line(selected.get("flagged_rest") or {})
+    n = sum(len(selected[k]) for k in SECTIONS)
+    title = "%s: residuals" % bibkey
+    if fmt == "html":
+        parts = []
+        first = True
+        for k in SECTIONS:
+            if not selected[k]:
+                continue
+            if k == "corrected":
+                rows_html = "".join(
+                    "<li>%s: <code>%s</code> \u2192 <code>%s</code></li>"
+                    % (H._h.escape(p.get("identifier", "")),
+                       H._h.escape(p.get("before", "")),
+                       H._h.escape(p.get("after", "")))
+                    for p in selected[k])
+                parts.append("<h2>%s (%d)</h2><ul>%s</ul>\n"
+                             % (CAPTIONS[k], len(selected[k]), rows_html))
+                continue
+            page = H.render_page(selected[k], "equation", title=title,
+                                 doc_dir=doc_dir, meta_lines=meta if first else (),
+                                 caption=CAPTIONS[k], ink_codes=True)
+            body = page[page.index("<h2>"):page.index("</body>")] if not first \
+                else page[:page.index("</body>")]
+            parts.append(body)
+            if k == "flagged" and rest:
+                parts.append('<p class="note">%s</p>\n' % H._h.escape(rest))
+            first = False
+        if not parts:
+            parts.append(H.render_page([], "equation", title=title, doc_dir=doc_dir,
+                                       meta_lines=meta + ["nothing open"],
+                                       caption="Residuals")[:-len("</body></html>\n")])
+        out = doc_dir / (OUTPUT % "html")
+        out.write_text("".join(parts) + "</body></html>\n", encoding="utf-8")
+        return {"out": out, "rows": n, "pages": None, "errors": 0, "demoted": 0}
+
+    widths = T.widths_for(paper, landscape, with_image=True)
+    body = ["\\noindent{\\small %s}\\\\[.6em]\n" % rt.esc_text("; ".join(meta))]
+    if selected["corrected"]:
+        body.append(rt.findings_tex(
+            {"corrected": selected["corrected"], "unresolved": [],
+             "flagged": [], "doubted": []},
+            widths, crops=doc_dir / "report-crops", out_dir=doc_dir,
+            px2mm=px2mm, bibkey=bibkey, history=history, form=True,
+            legend_on=True, bullets=True))
+    for k in SECTIONS[1:]:
+        if not selected[k]:
+            continue
+        body.append("\\clearpage\n")
+        body.append(T.render_table(selected[k], "equation", widths=widths,
+                                   out_dir=doc_dir, px2mm=px2mm, bibkey=bibkey,
+                                   history=history, caption=CAPTIONS[k],
+                                   legend_on=True, form=True, ink_bullets=True))
+        if k == "flagged" and rest:
+            body.append("\\noindent{\\small %s}\n" % rt.esc_text(rest))
+    if n == 0:
+        body.append("\\section*{Residuals}\\noindent Nothing open.\n")
+    tex_path = doc_dir / (OUTPUT % "tex")
+    tex_path.write_text(T.document("".join(body), paper=paper,
+                                   landscape=landscape, pages=pages, title=title,
+                                   form=True),
+                        encoding="utf-8")
+    res = {"out": tex_path.with_suffix(".pdf"), "rows": n, "pages": None,
+           "errors": 0, "demoted": 0}
+    if compile_pdf:
+        c = rt.compile_fixpoint(tex_path)
+        if c is not None:
+            res["pages"], res["errors"], res["demoted"] = c
+    return res

@@ -71,3 +71,58 @@ def test_findings_classifies_from_row_objects(tmp_path):
     assert [r["identifier"] for r in found["unresolved"]] == ["D_EQ0005", "D_FO0001"]
     assert [r["identifier"] for r in found["flagged"]] == ["D_EQ0002"]
     assert [r["identifier"] for r in found["doubted"]] == ["D_EQ0001"]
+
+
+import json
+
+
+def test_header_names_the_measurement_time_and_the_model(tmp_path):
+    (tmp_path / "report.ink.json").write_text(json.dumps({
+        "rows": [], "measured_against": {"built_at": "2026-09-05T10:57:49Z",
+                                         "model_mtime": 1788385038,
+                                         "model_sha256": "abc"}}))
+    lines = R.header_lines(tmp_path)
+    assert any("measured 2026-09-05T10:57:49Z" in l for l in lines)
+    assert any("model of 2026-09-02" in l for l in lines)
+
+
+def test_header_says_so_when_nothing_was_measured(tmp_path):
+    assert any("no ink measurement" in l for l in R.header_lines(tmp_path))
+
+
+def test_build_html_lists_sections_worst_first(tmp_path):
+    found = _found()
+    found["flagged"].append({"identifier": "D_EQ0004", "page": "1", "latex": "w",
+                             "conf": 0.99, "code": "W|+1"})
+    s = R.select(_rows(), found, conf=0.1)
+    r = R.build(s, "html", doc_dir=tmp_path, pdf=tmp_path / "D.pdf", bibkey="D",
+                history=None, px2mm=None, paper="a3", landscape=True,
+                pages=10, compile_pdf=False)
+    body = r["out"].read_text()
+    assert r["out"].name == "residuals.html"
+    order = [body.index(R.CAPTIONS[k]) for k in R.SECTIONS if s[k]]
+    assert order == sorted(order)
+    assert "1 more flagged" in body or "stated as a count" in body
+
+
+def test_build_pdf_has_legend_bullets_and_a_page_bound(tmp_path, monkeypatch):
+    monkeypatch.setattr(R.rt, "compile_fixpoint", lambda p: (1, 0, 0))
+    monkeypatch.setattr(R.rt, "findings_tex", lambda *a, **k: "%% pairs\n")
+    s = R.select(_rows(), _found(), conf=0.1)
+    R.build(s, "pdf", doc_dir=tmp_path, pdf=tmp_path / "D.pdf", bibkey="D",
+            history=None, px2mm=None, paper="a3", landscape=True,
+            pages=10, compile_pdf=True)
+    tex = (tmp_path / "residuals.tex").read_text()
+    assert "\\usepackage[1-10]{pagesel}" in tex
+    assert "\\endfoot" in tex and "\\inkbullet{" in tex
+    assert "Low confidence" in tex
+
+
+def test_cli_and_lock():
+    import ast, inspect
+    from pdfdrill import commands
+    from pdfdrill.cli import HANDLERS
+    assert "residuals" in HANDLERS
+    fn = ast.parse(inspect.getsource(commands.cmd_residuals)).body[0]
+    assert any(getattr(d.func, "id", "") == "_writes" for d in fn.decorator_list
+               if isinstance(d, ast.Call))

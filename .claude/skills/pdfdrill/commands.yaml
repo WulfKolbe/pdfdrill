@@ -1730,6 +1730,66 @@ commands:
     type: flag
     help: with --pdf, write the .tex without running xelatex
   typed: true
+- name: residuals
+  section: Reporting
+  summary: 'THE ACTION LIST (residuals.html, or .pdf with --pdf): only rows with
+    something open, worst first — Corrected (both readings against one scan),
+    Unresolved (does not render through the document''s own preamble), Flagged
+    (ink differs, banded on the component delta, the rest stated as a count), Low
+    confidence (MathPix confidence under --conf, default 0.1), Doubted but correct.
+    Six columns plus the ink bullet and code, legend on every page, bounded at 10
+    pages. The header states WHEN the equations were measured and against which
+    model. --measure runs the ink chain first (the existing inkreport chain; no
+    measurement of inline formulas exists yet). Reads report.ink.json as it stands.'
+  offline_ok: true
+  requires:
+  - model
+  - cdncrops
+  - inkconvert
+  done_when: artifact:residuals
+  positionals:
+  - name: pdf
+    type: pdf
+    required: true
+    help: PDF path, https URL, or bare arXiv id
+  flags:
+  - name: pdf_out
+    flag: --pdf
+    type: flag
+    help: LaTeX/xelatex build instead of HTML
+  - name: measure
+    flag: --measure
+    type: flag
+    help: run the ink chain (measure build, inkdrill compare, inkconvert) before selecting
+  - name: conf
+    flag: --conf
+    type: str
+    help: Low-confidence threshold (default 0.1)
+  - name: pages
+    flag: --pages
+    type: str
+    help: emit only the first N pages of the PDF (default 10; 0 for every page)
+  - name: no_images
+    flag: --no-images
+    type: flag
+    help: skip the Image column
+  - name: paper
+    flag: --paper
+    type: str
+    help: a4 or a3 (default a3)
+  - name: portrait
+    flag: --portrait
+    type: flag
+    help: portrait instead of landscape
+  - name: no_compile
+    flag: --no-compile
+    type: flag
+    help: with --pdf, write the .tex without running xelatex
+  - name: timeout
+    flag: --timeout
+    type: int
+    help: with --measure, per-page compare timeout in seconds (default 900)
+  typed: true
 - name: reporttex
   section: Introspection (fast, no extraction)
   summary: 'LaTeX formula report (report.tex): one boxed longtable row per EQ/FO/TAB — identifier, page,

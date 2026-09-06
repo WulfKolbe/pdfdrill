@@ -1204,6 +1204,27 @@ def _do_evidence(args):
                         compile_pdf="--no-compile" not in args)
 
 
+def _do_residuals(args):
+    """pdfdrill residuals <pdf> [--pdf] [--measure] [--conf F] [--pages N]
+    [--no-images] [--paper a4|a3] [--portrait] [--no-compile] [--timeout S]"""
+    from .commands import cmd_residuals
+    conf, args = _opt(args, "--conf")
+    npages, args = _opt(args, "--pages")
+    paper, args = _opt(args, "--paper")
+    timeout, args = _opt(args, "--timeout")
+    pdf_args = [a for a in args if a not in ("--pdf", "--measure", "--no-images",
+                                             "--portrait", "--no-compile")]
+    return cmd_residuals(_pdf(pdf_args), pdf_out="--pdf" in args,
+                         measure="--measure" in args,
+                         conf=float(conf) if conf is not None else None,
+                         pages=int(npages) if npages is not None else None,
+                         images="--no-images" not in args,
+                         paper=paper or "a3",
+                         landscape="--portrait" not in args,
+                         compile_pdf="--no-compile" not in args,
+                         timeout=int(timeout) if timeout is not None else 900)
+
+
 def _do_report(args):
     """pdfdrill report <pdf> [--force] [--embed] [--scale 1.0]"""
     from .commands import cmd_report
@@ -2146,6 +2167,7 @@ HANDLERS = {
         "docs": _do_docs,
         "breport": _do_breport,
         "evidence": _do_evidence,
+        "residuals": _do_residuals,
         "generations": _do_generations,
         "formulas": _do_formulas,
         "expandmath": _do_expandmath,

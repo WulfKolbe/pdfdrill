@@ -98,6 +98,8 @@ def detect(spec: str, sc, pdf: Path, model_path: Path) -> bool:
       artifact:evidence        at least one evidence-<kind>.html or
                                evidence-<kind>.pdf, non-empty, and a .pdf not
                                older than its .tex
+      artifact:residuals       residuals.html or residuals.pdf, non-empty, and
+                               a .pdf not older than its .tex
       lines           a MathPix lines.json sits next to the PDF
       fact:NAME       the sidecar carries that fact
       file:PATTERN    a NON-EMPTY file matching it sits beside the PDF;
@@ -124,6 +126,8 @@ def detect(spec: str, sc, pdf: Path, model_path: Path) -> bool:
         return _breport_current(sc)
     if spec == "artifact:evidence":
         return _evidence_current(sc)
+    if spec == "artifact:residuals":
+        return _residuals_current(sc)
     if spec == "lines":
         base = pdf.name[:-4] if pdf.name.lower().endswith(".pdf") else pdf.name
         return (pdf.parent / f"{base}.lines.json").exists()
@@ -232,6 +236,24 @@ def _evidence_current(sc) -> bool:
             continue
         return True
     return False
+
+
+def _residuals_current(sc) -> bool:
+    """`residuals` writes ONE of residuals.html or residuals.pdf per run
+    (--pdf selects the PDF path), not a fixed pair like report/breport — so
+    current means either sits beside the PDF, non-empty, and for the .pdf,
+    not older than its own .tex (the same stale-pair guard as
+    artifact:report/artifact:evidence)."""
+    html = sc.blob_dir / "residuals.html"
+    if html.is_file() and html.stat().st_size > 0:
+        return True
+    pdf_out = sc.blob_dir / "residuals.pdf"
+    if not (pdf_out.is_file() and pdf_out.stat().st_size > 0):
+        return False
+    tex = sc.blob_dir / "residuals.tex"
+    if tex.is_file() and tex.stat().st_mtime > pdf_out.stat().st_mtime:
+        return False
+    return True
 
 
 def _cdncrops_done(sc, pdf: Path) -> bool:
