@@ -69,11 +69,13 @@ section, confidence ascending. Same six columns plus the ink bullet and code in
 the Conf. cell, plus the legend. Page-bounded at 10 by default. A formula row
 can reach Unresolved only.
 
-`--measure`: builds `evidence-equation.pdf` with cell-rect marks (emits
-`pdfdrill-rows.json`), then inkdrill compare → inkmeasure → inkconvert →
-`report.ink.json` whose `measured_against` carries `built_at`, the model's
-sha256 and mtime, and the PDF name. Without `--measure` the existing ink is
-used as it stands. **Nothing re-measures the 21 documents in this task.**
+`--measure`: runs the existing ink chain (measure build of `report.pdf` with
+cell-rect marks, inkdrill compare, inkmeasure, inkconvert) and then selects
+from the resulting `report.ink.json`, whose `measured_against` carries
+`built_at`, the model's sha256 and mtime. Moving the measure build to
+`evidence-equation.pdf` is deferred with inline-formula measurement. Without
+`--measure` the existing ink is used as it stands. **Nothing re-measures the
+21 documents in this task.**
 
 ### Aliases (thin, removal is a later task)
 
@@ -90,9 +92,9 @@ Each alias prints one line naming the command it ran. Old artefacts on disk
 ### Manifest
 
 `evidence` and `residuals` join `commands.yaml` with `requires:` naming what
-they READ (`tiddlers`; `cdncrops` as a declared network layer; `mathpix`
+they READ (`model`; `cdncrops` as a declared network layer; `mathpix`
 declared, never auto-run; `residuals` also the ink) and `done_when:` the output
-present and newer than the tiddlers. `tools/skillsync.py all .` regenerates
+present and newer than the model. `tools/skillsync.py all .` regenerates
 the help. Alias entries stay and gain an "alias of" note.
 
 ## The gate
