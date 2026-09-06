@@ -5241,6 +5241,57 @@ def cmd_breport(pdf: Path, paper: str = "a3", landscape: bool = True,
     return "\n".join(parts)
 
 
+@_writes("evidence")
+def cmd_evidence(pdf: Path, kind: "str | None" = None, pdf_out: bool = False,
+                 all_kinds: bool = False, images: bool = True,
+                 paper: str = "a3", landscape: bool = True,
+                 compile_pdf: bool = True) -> str:
+    """Evidence listing: every object of one kind in six columns, HTML by
+    default, --pdf for the xelatex build through the document's own preamble.
+    Inline formulas show their HOST LINE's page, confidence and picture."""
+    from . import report_tex as rt
+    from .reports import KINDS
+    from .reports import evidence as EV
+    from .reports.crops import ensure_crops
+    from .reports.from_document import build_rows
+    if not all_kinds and kind not in KINDS:
+        return ("evidence: --kind must be one of %s (or --all-kinds)."
+                % ", ".join(KINDS))
+    sc = Sidecar(pdf)
+    model_path = _model_path(sc)
+    if _stale_or_absent(sc, model_path, _lines_json_path(pdf)):
+        cmd_model(pdf)
+        sc = Sidecar(pdf)
+        model_path = _model_path(sc)
+    doc = load_model(model_path)
+    bibkey = resolve_bibkey(pdf, None, sc)
+    doc_dir = pdf.parent
+    lines_path = _lines_json_path(pdf)
+    ink_path = doc_dir / "report.ink.json"
+    ink = rt.load_ink(ink_path) if ink_path.is_file() else {}
+    rows = build_rows(doc, bibkey, ink=ink,
+                      lines_path=lines_path if lines_path.exists() else None)
+    rows, crop_note = ensure_crops(rows, doc_dir, pdf, bibkey=bibkey,
+                                   history=_bibkey_history(sc), images=images)
+    px2mm = rt.auto_px2mm(pdf)
+    out = [crop_note]
+    for k in (KINDS if all_kinds else (kind,)):
+        r = EV.build(rows, k, "pdf" if pdf_out else "html", doc_dir=doc_dir,
+                     pdf=pdf, bibkey=bibkey, history=_bibkey_history(sc),
+                     px2mm=px2mm, paper=paper, landscape=landscape,
+                     compile_pdf=compile_pdf)
+        line = "Wrote %s: %d rows" % (r["out"], r["rows"])
+        if pdf_out and r["pages"] is not None:
+            line += " (%d pages, %d errors, %d demoted)" % (
+                r["pages"], r["errors"], r["demoted"])
+        elif pdf_out:
+            line += " (xelatex not installed; .tex written)"
+        out.append(line)
+    sc.set_evidence("evidence_kinds", list(KINDS if all_kinds else (kind,)))
+    sc.save()
+    return "\n".join(out)
+
+
 @_writes("compare")
 def cmd_compare(pdf: Path, force: bool = False, embed: bool = False) -> str:
     """Emit the LaTeX | KaTeX | MathPix-image comparison HTML.

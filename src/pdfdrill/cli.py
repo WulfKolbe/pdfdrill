@@ -1187,6 +1187,23 @@ def _do_breport(args):
                        pages=(int(npages) if npages is not None else None))
 
 
+def _do_evidence(args):
+    """pdfdrill evidence <pdf> --kind equation|formula|table|image [--pdf]
+    [--all-kinds] [--no-images] [--paper a4|a3] [--portrait] [--no-compile]"""
+    from .commands import cmd_evidence
+    kind, args = _opt(args, "--kind")
+    paper, args = _opt(args, "--paper")
+    pdf_args = [a for a in args if a not in ("--pdf", "--all-kinds",
+                                             "--no-images", "--portrait",
+                                             "--no-compile")]
+    return cmd_evidence(_pdf(pdf_args), kind=kind, pdf_out="--pdf" in args,
+                        all_kinds="--all-kinds" in args,
+                        images="--no-images" not in args,
+                        paper=paper or "a3",
+                        landscape="--portrait" not in args,
+                        compile_pdf="--no-compile" not in args)
+
+
 def _do_report(args):
     """pdfdrill report <pdf> [--force] [--embed] [--scale 1.0]"""
     from .commands import cmd_report
@@ -2128,6 +2145,7 @@ HANDLERS = {
         "fonts": _do_fonts,
         "docs": _do_docs,
         "breport": _do_breport,
+        "evidence": _do_evidence,
         "generations": _do_generations,
         "formulas": _do_formulas,
         "expandmath": _do_expandmath,

@@ -1681,6 +1681,55 @@ commands:
       never shipped never has its crops written: measured on cardona, 13.5s/0.59MB
       at --pages 10 against 139.1s/17.91MB full — 10x faster and 3.3% the size'
   typed: true
+- name: evidence
+  section: Reporting
+  summary: 'EVIDENCE listing, one file per kind (evidence-<kind>.html, or .pdf with
+    --pdf): every display equation, inline formula, table or image region of the
+    document in six columns — Identifier, Page, Conf., LaTeX source, Rendered, Image —
+    unbounded, for lookup rather than reading. Inline formulas show their HOST LINE''s
+    page, confidence and picture, and the file says so. The PDF renders through the
+    document''s own preamble, which is the rendering that counts as evidence; the HTML
+    is KaTeX and carries the caveat. No ink, no legend, no findings: those are `residuals`.'
+  offline_ok: true
+  requires:
+  - model
+  - cdncrops
+  done_when: artifact:evidence
+  positionals:
+  - name: pdf
+    type: pdf
+    required: true
+    help: PDF path, https URL, or bare arXiv id
+  flags:
+  - name: kind
+    flag: --kind
+    type: str
+    help: equation, formula, table or image
+  - name: all_kinds
+    flag: --all-kinds
+    type: flag
+    help: build all four kinds in one call (what publishing uses)
+  - name: pdf
+    flag: --pdf
+    type: flag
+    help: LaTeX/xelatex build instead of HTML
+  - name: no_images
+    flag: --no-images
+    type: flag
+    help: skip the Image column and every crop fetch or render
+  - name: paper
+    flag: --paper
+    type: str
+    help: a4 or a3 (default a3)
+  - name: portrait
+    flag: --portrait
+    type: flag
+    help: portrait instead of landscape
+  - name: no_compile
+    flag: --no-compile
+    type: flag
+    help: with --pdf, write the .tex without running xelatex
+  typed: true
 - name: reporttex
   section: Introspection (fast, no extraction)
   summary: 'LaTeX formula report (report.tex): one boxed longtable row per EQ/FO/TAB — identifier, page,

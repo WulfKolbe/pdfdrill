@@ -95,6 +95,9 @@ def detect(spec: str, sc, pdf: Path, model_path: Path) -> bool:
       artifact:report          report.tex AND report.pdf exist, the pdf is not
                                older than the tex, and neither is empty
       artifact:breport         B.tex AND B.pdf, on the same terms
+      artifact:evidence        at least one evidence-<kind>.html or
+                               evidence-<kind>.pdf, non-empty, and a .pdf not
+                               older than its .tex
       lines           a MathPix lines.json sits next to the PDF
       fact:NAME       the sidecar carries that fact
       file:PATTERN    a NON-EMPTY file matching it sits beside the PDF;
@@ -119,6 +122,8 @@ def detect(spec: str, sc, pdf: Path, model_path: Path) -> bool:
         return _report_current(sc)
     if spec == "artifact:breport":
         return _breport_current(sc)
+    if spec == "artifact:evidence":
+        return _evidence_current(sc)
     if spec == "lines":
         base = pdf.name[:-4] if pdf.name.lower().endswith(".pdf") else pdf.name
         return (pdf.parent / f"{base}.lines.json").exists()
@@ -208,6 +213,25 @@ def _breport_current(sc) -> bool:
     if tex.stat().st_size == 0 or pdf_out.stat().st_size == 0:
         return False
     return pdf_out.stat().st_mtime >= tex.stat().st_mtime
+
+
+def _evidence_current(sc) -> bool:
+    """`evidence` writes one file PER KIND and per format
+    (evidence-<kind>.html or evidence-<kind>.pdf), not a fixed pair like
+    report/breport, so current means at least one of either sits beside the
+    PDF, non-empty — and, for a .pdf, not older than its own .tex (the same
+    stale-pair guard as artifact:report/artifact:breport)."""
+    for f in sorted(sc.blob_dir.glob("evidence-*.html")):
+        if f.is_file() and f.stat().st_size > 0:
+            return True
+    for f in sorted(sc.blob_dir.glob("evidence-*.pdf")):
+        if not (f.is_file() and f.stat().st_size > 0):
+            continue
+        tex = f.with_suffix(".tex")
+        if tex.is_file() and tex.stat().st_mtime > f.stat().st_mtime:
+            continue
+        return True
+    return False
 
 
 def _cdncrops_done(sc, pdf: Path) -> bool:
