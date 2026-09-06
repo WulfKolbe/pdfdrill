@@ -115,13 +115,55 @@ def test_cmd_evidence_produces_report_built():
     assert "add_fact" in src, "cmd_evidence must call add_fact(REPORT_BUILT)"
 
 
-def test_cmd_evidence_steers_to_recovery_when_math_bearing_and_keyless():
-    """task 10 fix round — the keyless-math steering message (arXiv gold ->
-    visionocr -> mathpix), ported verbatim from the pre-alias `cmd_report`
-    (bfcc0d0), must still exist once `report` no longer builds it itself."""
+def test_cmd_evidence_wires_up_keyless_math_steering():
+    """task 10 fix round 1 — `cmd_evidence` must still reach for
+    `_keyless_math_steering` (extracted so the GATE is unit-testable without
+    stubbing Sidecar/mathqc; see the behavioural tests below) and still gate
+    computing it on the equation kind having been asked for."""
     import inspect
     from pdfdrill import commands
     src = inspect.getsource(commands.cmd_evidence)
+    assert "_keyless_math_steering" in src
     assert "NEEDS_VISION_OCR" in src
-    assert "visionocr" in src
-    assert "injectlatex" in src and "mathpix" in src
+
+
+def test_keyless_math_steering_fires_when_nothing_rendered_at_all():
+    """task 10 fix round 1 — the old `cmd_report` gate was `inline == 0 and eqs
+    == 0`; the ported version briefly regressed to `eqs == 0` alone, which
+    fired spuriously on a document with inline formulas but no display
+    equations. Both counts must be zero."""
+    from pdfdrill.commands import _keyless_math_steering
+    msg = _keyless_math_steering("D.pdf", inline=0, eqs=0, bearing=True,
+                                 why="math-bearing")
+    assert "visionocr" in msg
+    assert "injectlatex" not in msg          # no arxiv id passed
+    assert "then re-run `evidence`." in msg
+    assert "then re-run `report`." not in msg
+
+
+def test_keyless_math_steering_silent_when_inline_formulas_exist():
+    """The exact regression this fix round addresses: inline formulas present,
+    zero equations — must NOT print the keyless-tesseract warning."""
+    from pdfdrill.commands import _keyless_math_steering
+    assert _keyless_math_steering("D.pdf", inline=3, eqs=0, bearing=True,
+                                  why="math-bearing") == ""
+
+
+def test_keyless_math_steering_silent_when_equations_exist():
+    from pdfdrill.commands import _keyless_math_steering
+    assert _keyless_math_steering("D.pdf", inline=0, eqs=2, bearing=True,
+                                  why="math-bearing") == ""
+
+
+def test_keyless_math_steering_silent_when_not_math_bearing():
+    from pdfdrill.commands import _keyless_math_steering
+    assert _keyless_math_steering("D.pdf", inline=0, eqs=0, bearing=False,
+                                  why="") == ""
+
+
+def test_keyless_math_steering_names_injectlatex_only_with_an_arxiv_id():
+    from pdfdrill.commands import _keyless_math_steering
+    msg = _keyless_math_steering("D.pdf", inline=0, eqs=0, bearing=True,
+                                 why="math-bearing", aid="2010.14265")
+    assert "injectlatex D.pdf" in msg
+    assert "mathpix" in msg

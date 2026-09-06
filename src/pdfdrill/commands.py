@@ -5238,6 +5238,33 @@ def _evidence_line(r: dict, pdf_out: bool, compile_pdf: bool) -> str:
     return line + " (xelatex not installed; .tex written)"
 
 
+def _keyless_math_steering(pdf_name: str, inline: int, eqs: int, bearing: bool,
+                           why: str = "", aid: "str | None" = None) -> str:
+    """The keyless-math recovery message, ported verbatim from the pre-alias
+    `cmd_report` (bfcc0d0) into `cmd_evidence`. Pulled out as a pure function
+    so the GATE (task 10 fix round 1: it must fire only when there is NO math
+    at all, `inline == 0 and eqs == 0` — a document with inline formulas but
+    no display equations must not see it) is unit-testable without stubbing
+    Sidecar/mathqc. `bearing`/`why` come from `sc.has(NEEDS_VISION_OCR)`
+    (why="math-bearing") or `mathqc.is_math_bearing(pdf, sc)`; `aid` from
+    `_arxiv_id_for` — its presence decides whether the FREE `injectlatex`
+    route is worth naming.
+
+    Returns "" when the gate does not fire (caller appends only if non-empty).
+    """
+    if not (inline == 0 and eqs == 0 and bearing):
+        return ""
+    routes = []
+    if aid:
+        routes.append(f"`pdfdrill injectlatex {pdf_name}` (FREE: the author's gold "
+                      f"arXiv equations → real Equation objects)")
+    routes.append(f"`pdfdrill visionocr {pdf_name}` (keyless: an LLM reads each page)")
+    routes.append(f"`pdfdrill mathpix {pdf_name} --force` (paid MathPix)")
+    return ("⚠ 0 formulas because the model was built from keyless "
+           f"tesseract OCR, which cannot type equations ({why}). Recover them with:\n  - "
+           + "\n  - ".join(routes) + "\nthen re-run `evidence`.")
+
+
 @_writes("evidence")
 def cmd_evidence(pdf: Path, kind: "str | None" = None, pdf_out: bool = False,
                  all_kinds: bool = False, images: bool = True,
@@ -5296,26 +5323,19 @@ def cmd_evidence(pdf: Path, kind: "str | None" = None, pdf_out: bool = False,
         sc.log_transition("evidence", prev, REPORT_BUILT,
                           detail=f"{inline} inline, {eqs} equations")
     sc.save()
-    # 2026-09-06 (task 10 fix round) — ported verbatim from the pre-alias
-    # `cmd_report` (bfcc0d0). If the equation kind was built and found
-    # nothing, don't leave the user guessing — say WHY and WHAT to do. A
-    # keyless (tesseract) build types no equations; the gate sets
-    # NEEDS_VISION_OCR. Steer to the right recovery, arXiv-gold first.
-    if (kind == "equation" or all_kinds) and eqs == 0:
+    # 2026-09-06 (task 10 fix round 1) — ported from the pre-alias
+    # `cmd_report` (bfcc0d0); the kind filter is an ADDITIONAL condition
+    # (a `--kind table` run must not compute/print this) around the real
+    # gate, which is `inline == 0 and eqs == 0` — see `_keyless_math_
+    # steering`'s docstring for why that must be BOTH counts, not just eqs.
+    if kind == "equation" or all_kinds:
         from . import mathqc
         bearing, why = (True, "math-bearing") if sc.has(NEEDS_VISION_OCR) \
             else mathqc.is_math_bearing(pdf, sc)
-        if bearing:
-            aid = _arxiv_id_for(pdf, sc)
-            routes = []
-            if aid:
-                routes.append(f"`pdfdrill injectlatex {pdf.name}` (FREE: the author's gold "
-                              f"arXiv equations → real Equation objects)")
-            routes.append(f"`pdfdrill visionocr {pdf.name}` (keyless: an LLM reads each page)")
-            routes.append(f"`pdfdrill mathpix {pdf.name} --force` (paid MathPix)")
-            out.append("⚠ 0 formulas because the model was built from keyless "
-                       f"tesseract OCR, which cannot type equations ({why}). Recover them with:\n  - "
-                       + "\n  - ".join(routes) + "\nthen re-run `report`.")
+        aid = _arxiv_id_for(pdf, sc) if bearing else None
+        msg = _keyless_math_steering(pdf.name, inline, eqs, bearing, why, aid)
+        if msg:
+            out.append(msg)
     return "\n".join(out)
 
 
