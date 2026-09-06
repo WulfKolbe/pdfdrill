@@ -224,7 +224,7 @@ class LaTeXProjector(BaseProjector):
         lines = ["\\begin{itemize}"]
         for it in run:
             marked, notes = self._mark_footnotes(it, self._cite(it))
-            content = self._prose(marked.strip())
+            content = self._prose(marked.strip(), numeric_cites=False)
             if notes:
                 content = " ".join([content] + notes)
             marker = str(it.props.get("marker") or "").strip()
@@ -311,14 +311,26 @@ class LaTeXProjector(BaseProjector):
         opt = f"[{refnum}]" if refnum.isdigit() else ""
         return f"\\footnotetext{opt}{{{body}}}"
 
-    def _prose(self, text: str) -> str:
+    def _prose(self, text: str, *, numeric_cites: bool = True) -> str:
         """Resolve a prose block to LaTeX: transclusion markers → `\\Expr{<index>}`
         (readarray lookup), leaked Markdown headings → `\\section`. Line-wise so a
-        heading mid-paragraph still converts."""
+        heading mid-paragraph still converts.
+
+        `numeric_cites=False` for a block 642's resolver already owned. ONE
+        resolver owns citations: `_pipe.resolve_citations` rewrites any `[N]`
+        bracket through `{Reference.number: citekey}` with no idea which
+        Citation owns it, so run after `_cite` it UNDOES the "only where a
+        Reference exists" decision — a Citation `NoSuchKey` over `[5]`, left
+        verbatim and counted, became `\\cite{Realname2001}` because an unrelated
+        Reference was numbered 5. It compiles, and it cites the wrong paper. The
+        numeric fallback now lives in `projectors.citations`, behind the claim;
+        this pass stays only for blocks the resolver does NOT cover (a Footnote
+        body, a beamer Abstract)."""
         ti = getattr(self, "_title_index", {})
         text = _pipe.clean_prose(text)                # ligatures + leaked \bibliography
         text = _pipe.resolve_transclusions(text, ti)
-        text = _pipe.resolve_citations(text, getattr(self, "_ref_map", {}))
+        if numeric_cites:
+            text = _pipe.resolve_citations(text, getattr(self, "_ref_map", {}))
         # contain any runaway inline math (a dropped `\)`/`$`) to THIS block, so
         # it can't swallow the next \section ("Not allowed in LR mode").
         text = _pipe.balance_math(text)
@@ -341,7 +353,7 @@ class LaTeXProjector(BaseProjector):
             return s + (f"\n\\label{{{label}}}" if label else "")
         if t in ("Paragraph", "Abstract"):
             marked, notes = self._mark_footnotes(obj, self._cite(obj))
-            text = self._prose(marked.strip())
+            text = self._prose(marked.strip(), numeric_cites=False)
             if not text.strip():
                 return ""
             if t == "Abstract":

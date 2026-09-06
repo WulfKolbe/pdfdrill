@@ -1,5 +1,17 @@
 642 — the citation link is stored, and \cite points only at bibitems that exist
 ==============================================================================
+(FIX ROUND 1 folded in, and it changed no number below. ONE resolver owns
+citations: `_prose` was still running the pre-existing
+`latex_pipeline.resolve_citations` AFTER this task's resolver had decided, and
+that pass knows only `{Reference.number: citekey}` — not which Citation owns a
+bracket, and not that the resolver deliberately left one alone. Reproduced: a
+Citation `NoSuchKey` over `[5]`, correctly counted `cite_without_reference=1`,
+emitted `\cite{Realname2001}` because an unrelated filled Reference happened to
+be numbered 5. It compiles, and it cites the wrong paper. The numeric fallback
+now lives inside `projectors.citations` behind the claim, and `_prose` no longer
+runs the old pass on a block the resolver owned. Also: the two-pass compile is
+said out loud, and the TiddlyWiki A/B proof is now an artefact rather than a
+sentence. Details under FIX ROUND 1 at the end.)
 
 THE USER'S FOUR CLAIMS, CHECKED FIRST RATHER THAN ASSUMED
   "bibsource prints 22/81 in-text citations linked"     UNMEASURABLE HERE, and
@@ -57,8 +69,13 @@ EVIDENCE (library, deny-by-default git; never committed to this repo)
   ~/pdfdrill-library/penev_A/out/642/freshaux-{one,two}pass.log  the compile
                                        change, measured (below)
   ~/pdfdrill-library/penev_{A,B}/out/642/project_tw.py   the TiddlyWiki A/B
-  ~/pdfdrill-library/penev_A/out/642/INSPECT.txt   25 paths, checked
-  ~/pdfdrill-library/penev_B/out/642/INSPECT.txt   22 paths, checked
+  ~/pdfdrill-library/out/642/tiddlers_ab.py|tiddlers-ab.json   the TiddlyWiki
+                                       A/B proof (fix round 1): both arrays,
+                                       their sha256s, the field-level diff
+  ~/pdfdrill-library/out/642/penev_{A,B}.tiddlers.{before,after}.json
+  ~/pdfdrill-library/penev_A/out/642/INSPECT.txt   26 paths, checked
+  ~/pdfdrill-library/penev_B/out/642/INSPECT.txt   23 paths, checked
+  ~/pdfdrill-library/out/642/INSPECT.txt            7 paths, checked
   brief   tasks/642 brief (coordinator), out/639.txt, out/645.txt, out/638.txt,
           tasks/010.report.md
 
@@ -375,3 +392,85 @@ CONCERNS
   `--compile` run (penev_A ~2 x 30 s). That is the price of a citation that
   resolves; a `bibtex`-style "run until the .aux stops changing" loop would be
   the cheaper answer on a document with no citations and is not built.
+
+FIX ROUND 1 — THE MIS-WIRE, THE RECIPE, AND THE PROOF
+  1. CRITICAL, and it is the same class as the bug this task exists to fix.
+     `LaTeXProjector._prose` ran `_pipe.resolve_citations(text, self._ref_map)`
+     AFTER `_cite`/`_mark_footnotes`. That pass rewrites any surviving
+     `[N]`/`[N,M]` bracket through `{Reference.number: citekey}` and has no idea
+     which Citation owns the bracket. So the "only where a Reference exists"
+     decision was UNDONE one step downstream: a Citation `NoSuchKey` over `[5]`,
+     left verbatim and counted, became `\cite{Realname2001}` because an
+     unrelated filled Reference was numbered 5. Not a dangling key — a SILENT
+     MIS-WIRE that compiles clean and cites the wrong paper, which is worse than
+     the bold `?` the task set out to remove.
+
+     ONE RESOLVER OWNS CITATIONS. The numeric fallback moved INTO
+     `projectors.citations` (`_numeric_fallback`, `numeric_brackets_resolved`)
+     behind two guards:
+       * a bracket that overlaps ANY Citation span is never touched — and a
+         Citation claims its bracket whatever was decided about it, so a
+         citation left verbatim protects its own text (`claimed_by_line` is
+         built from EVERY Citation span, `spans_by_line` only from the resolved
+         ones);
+       * every number in the bracket must be a Reference, or it is an array
+         index / an interval and stays raw (the old pass's own rule, kept).
+     `_prose` gained `numeric_cites: bool = True` and the two callers the
+     resolver owns (Paragraph/Abstract, ListItem) pass False. The old pass still
+     runs where the resolver does NOT reach — a Footnote body, a beamer Abstract
+     — so nothing was dropped.
+
+     THE FALLBACK'S LEGITIMATE CASE IS KEPT AND TESTED: a bare `[5]` that no
+     Citation covers, with a Reference numbered 5, still becomes
+     `\cite{Realname2001}`.
+
+     On penev_A and penev_B `numeric_brackets_resolved` is **0** and no number
+     in this report moves: every Reference on both documents is a 010 stub and a
+     stub carries no `number`, so `reference_map` is empty and the fallback
+     cannot fire. The defect was reachable only on a document with numbered
+     References — which is precisely why it needed a fixture and not a corpus.
+
+  2. THE RECIPE IS SAID OUT LOUD. `--compile` now reports
+     "(xelatex, 2 passes)" on the `compiled:` line, and `commands.yaml` says so
+     in both the `latex`/`beamer` summaries and the `--compile` flag help
+     ("TWO xelatex passes (so each cite resolves against the first pass's
+     .aux)"). `python3 tools/skillsync.py all .` regenerated
+     `SKILL.md`/`_help_generated.txt`; `tests/test_skill_sync.py` passes.
+
+  3. THE TIDDLYWIKI PROOF IS AN ARTEFACT. It lived in a scratchpad; it is now
+     `~/pdfdrill-library/out/642/` — `tiddlers_ab.py` (exports 334a11c with
+     `git archive`, projects the frozen model with both trees in a subprocess),
+     the four arrays, and `tiddlers-ab.json` carrying the sha256 of each and the
+     field-level comparison:
+
+       penev_A  1271 tiddlers, 1079661 bytes BOTH sides
+                48bbc37a17be8f86… (before)  039cdec33b590fb5… (after)
+       penev_B   861 tiddlers,  735840 bytes BOTH sides
+                170898c3c2b95af0… (before)  d1953d2df6ac85ec… (after)
+       fields that differ, raw:              ["created", "modified"]
+       fields that differ, timestamps removed: []   <- on both documents
+
+     The sha256s differ and the CONTENT does not: the projector stamps
+     `created`/`modified` fresh on every run, before this task and after it.
+     That is recorded as `identical_raw: false` /
+     `identical_without_timestamps: true` rather than smoothed into one claim.
+
+  TESTS ADDED (3, each confirmed failing first):
+    * the reviewer's exact fixture — Citation `NoSuchKey` over `[5]` beside a
+      filled Reference number=5: `[5]` stays verbatim, `cite_without_reference
+      == 1`, and `Realname2001` appears nowhere in the body (failed with
+      `\cite{Realname2001}` emitted);
+    * a bare `[5]` NO Citation covers, with Reference 5: still
+      `\cite{Realname2001}`, `numeric_brackets_resolved == 1`;
+    * `[0, 1]` and `[5, 9]` stay raw — a bracket resolves only when every
+      number in it is a Reference.
+  FULL SUITE: 3192 passed, 0 failed (3189 after round 0; 3 new).
+
+  AN ENVIRONMENT NOTE, because it cost a re-run: the evidence lister was called
+  `inspect.py`. A script run from that directory puts it on `sys.path[0]` and
+  SHADOWS the stdlib `inspect`, which `dataclasses` imports — so every other
+  evidence script in the folder died on `module 'inspect' has no attribute
+  'signature'` and the `result.json` it should have rewritten silently stayed at
+  the previous run's content. Renamed `inspect_paths.py`; the docstring of each
+  copy says why. Same family as HANDOVER-RULES rule 4 (a stale artefact read as
+  a fresh measurement).

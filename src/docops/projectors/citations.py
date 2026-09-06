@@ -1,4 +1,4 @@
-"""642 — put every in-text Citation back into the LaTeX running text as `\\cite`.
+r"""642 — put every in-text Citation back into the LaTeX running text as `\\cite`.
 
 639 prints one `\\bibitem` per Reference, so no key CAN dangle — as long as the
 body emits `\\cite` at all, and it did not. penev_A's projected `.tex` held 81
@@ -36,9 +36,27 @@ RUNNING TEXT ONLY. `RUNNING_TEXT_TYPES` (Paragraph, Abstract, ListItem) is
 whose line is owned by a Footnote or Sidenote body is not substituted, because
 those bodies are emitted from `props["content"]` verbatim. Those citations are
 counted (`citations_outside_running_text`) rather than silently absent.
+
+ONE RESOLVER OWNS CITATIONS (fix round 1). `latex_pipeline.resolve_citations`
+predates this module: it rewrites any `[N]`/`[N,M]` bracket through
+`{Reference.number: citekey}` and knows nothing about which Citation owns the
+bracket. Left running after this resolver in `_prose`, it UNDID the decision
+above — a Citation `NoSuchKey` over `[5]`, correctly left verbatim and counted,
+was rewritten to `\cite{Realname2001}` because an unrelated Reference happened
+to be numbered 5. It compiles, it looks right, and it cites the wrong paper.
+
+So the numeric fallback lives HERE, behind the claim: a bracket that a Citation
+object covers follows the CITATION's decision, always; a bracket NO Citation
+covers may still resolve by number (`numeric_brackets_resolved`) — the pass's
+legitimate case, which is a `[12]`-style document whose brackets no detector
+turned into Citation objects. A Citation that was left verbatim CLAIMS its
+bracket even though it produced no substitution; that claim is the whole point.
+`LaTeXProjector._prose` no longer runs the old pass on an object this resolver
+owned, so the two can never disagree.
 """
 from __future__ import annotations
 
+import re
 from dataclasses import dataclass, field
 from typing import Optional
 
@@ -56,6 +74,7 @@ class Sub:
     source: str                        # the exact source substring
     replacement: str                   # `\cite{a,b}`
     keys: tuple[str, ...]
+    kind: str = "citation"             # "citation" | "numeric-bracket"
 
 
 @dataclass
@@ -123,9 +142,11 @@ def resolve(doc: Document) -> CiteResolution:
         "cite_groups": 0,
         "cite_keys": 0,
         "cite_source_not_in_text": 0,
+        "numeric_brackets_resolved": 0,
     }
 
     spans_by_line: dict = {}
+    claimed_by_line: dict = {}       # EVERY Citation span, resolved or not
     placed_lines: dict = {}          # line anchor -> [citation ids] (for 645-a)
     for cit in doc.objects.values():
         if cit.type != "Citation":
@@ -135,6 +156,10 @@ def resolve(doc: Document) -> CiteResolution:
         if not spans:
             res.counts["citations_without_a_span"] += 1
             continue
+        for anchor, off, ln in spans:
+            # A Citation CLAIMS its bracket whatever is decided about it. The
+            # numeric fallback below never touches a claimed one.
+            claimed_by_line.setdefault(anchor, []).append((off, off + ln))
         ref = reference_for(doc, cit)
         if ref is None:
             # "Only where a Reference exists": a `\cite` with no `\bibitem`
@@ -152,6 +177,8 @@ def resolve(doc: Document) -> CiteResolution:
     stream = doc.streams.get("mathpix_lines")
     if stream is None:
         return res
+    from .latex_pipeline import reference_map      # local: avoid an import cycle
+    ref_map = reference_map(doc)
 
     reached: set = set()
     ordered = sorted((o for o in doc.objects.values()
@@ -165,24 +192,38 @@ def resolve(doc: Document) -> CiteResolution:
         subs: list[Sub] = []
         for anchor in stream.slice_anchors(surface.start, surface.end):
             spans = spans_by_line.get(anchor)
-            if not spans:
-                continue
+            claimed = claimed_by_line.get(anchor, ())
+            if not spans and not ref_map:
+                continue                       # nothing to substitute here
             text = _cspans.line_text(doc, anchor)
-            for g in _cspans.groups(
-                    text, spans,
-                    on_out_of_bounds=lambda: res.counts.__setitem__(
-                        "cite_spans_out_of_bounds",
-                        res.counts["cite_spans_out_of_bounds"] + 1)):
-                keys = tuple(g.payloads)
-                subs.append(Sub(anchor=anchor, offset=g.start, length=g.length,
-                                source=text[g.start:g.end],
-                                replacement="\\cite{" + ",".join(keys) + "}",
-                                keys=keys))
-            reached.add(anchor)
+            on_line: list[Sub] = []
+            taken: list[tuple[int, int]] = list(claimed)
+            if spans:
+                for g in _cspans.groups(
+                        text, spans,
+                        on_out_of_bounds=lambda: res.counts.__setitem__(
+                            "cite_spans_out_of_bounds",
+                            res.counts["cite_spans_out_of_bounds"] + 1)):
+                    keys = tuple(g.payloads)
+                    on_line.append(Sub(
+                        anchor=anchor, offset=g.start, length=g.length,
+                        source=text[g.start:g.end],
+                        replacement="\\cite{" + ",".join(keys) + "}",
+                        keys=keys))
+                    taken.append((g.start, g.end))
+                reached.add(anchor)
+            on_line += _numeric_fallback(text, taken, ref_map, anchor, res)
+            on_line.sort(key=lambda s: s.offset)
+            subs += on_line
         if subs:
             res.subs[obj.id] = subs
-            res.counts["cite_groups"] += len(subs)
-            res.counts["cite_keys"] += sum(len(s.keys) for s in subs)
+            # `cite_groups`/`cite_keys` count the CITATION groups, so the
+            # accounting identity (citations = keys emitted + citations on a
+            # line no running-text object covers) still holds; the numeric
+            # fallback has its own counter.
+            cits = [s for s in subs if s.kind == "citation"]
+            res.counts["cite_groups"] += len(cits)
+            res.counts["cite_keys"] += sum(len(s.keys) for s in cits)
 
     # 645-a, counted rather than left to be rediscovered: a citation on a line
     # no running-text object covers (a Footnote or Sidenote body) is never
@@ -190,6 +231,41 @@ def resolve(doc: Document) -> CiteResolution:
     res.counts["citations_outside_running_text"] = sum(
         len(ids) for anchor, ids in placed_lines.items() if anchor not in reached)
     return res
+
+
+#: A numeric in-text citation bracket, the shape `latex_pipeline` has always
+#: recognised: `[11]`, `[11, 12]`, `[11-13]`.
+_BRACKET = re.compile(r"\[(\d+(?:\s*[,\-\u2013]\s*\d+)*)\]")
+
+
+def _numeric_fallback(text: str, taken: list, ref_map: dict, anchor,
+                      res: "CiteResolution") -> list[Sub]:
+    """`[N]` brackets on this line that NO Citation object covers, resolved
+    through `{Reference.number: citekey}`.
+
+    Two guards, both load-bearing. The bracket must overlap NOTHING a Citation
+    claims — a Citation left verbatim because its key has no Reference still
+    claims its bracket, and rewriting that one by number is the mis-wire this
+    fix exists to remove. And EVERY number in the bracket must be a Reference,
+    or it is an array index / an interval (`[0,1]`) and stays raw.
+    """
+    if not ref_map:
+        return []
+    from .latex_pipeline import _expand_bracket_numbers
+    out: list[Sub] = []
+    for m in _BRACKET.finditer(text):
+        if any(m.start() < end and start < m.end() for start, end in taken):
+            continue
+        nums = _expand_bracket_numbers(m.group(1))
+        if not nums or any(n not in ref_map for n in nums):
+            continue
+        keys = tuple(dict.fromkeys(ref_map[n] for n in nums))
+        out.append(Sub(anchor=anchor, offset=m.start(),
+                       length=m.end() - m.start(), source=m.group(0),
+                       replacement="\\cite{" + ",".join(keys) + "}",
+                       keys=keys, kind="numeric-bracket"))
+        res.counts["numeric_brackets_resolved"] += 1
+    return out
 
 
 def apply_subs(text: str, subs: list[Sub], *,

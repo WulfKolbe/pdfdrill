@@ -297,3 +297,93 @@ def test_the_message_cannot_exceed_what_the_model_stores():
         assert B.link_citations_by_label(saved)["linked"] == 2
         assert B.resolved_citations(saved) == 1
         assert "1/3 in-text citations linked" in out, out
+
+
+# ------------------------------------------- 4. ONE resolver owns citations
+
+def _numbered_ref_doc(line: str, cite: tuple[str, str] | None,
+                      ref_key: str = "Realname2001", ref_number: int = 5):
+    """A line, optionally one Citation over a span of it, and one FILLED
+    Reference carrying `number` — the map `latex_pipeline.reference_map` builds
+    and the numeric `[N]` fallback resolves through."""
+    doc = Document()
+    doc.meta["bibkey"] = "D"
+    mp = doc.ensure_stream("mathpix_lines")
+    head = mp.append(text="1 Introduction", _page=1, _line_index=0,
+                     type="section_header")
+    body = mp.append(text=line, _page=1, _line_index=1, type="text")
+    refs = doc.ensure_stream("references")
+    ra = refs.append(text=ref_key)
+
+    sec = DocObject(type="Section", props={
+        "caption": "Introduction", "level": 1, "flow_index": 0, "page": 1})
+    sec.add_realization(Realization(stream="mathpix_lines",
+                                    start=head, end=head, role="surface"))
+    doc.add(sec)
+    par = DocObject(type="Paragraph", props={
+        "text": line, "page": 1, "flow_index": 1})
+    par.add_realization(Realization(stream="mathpix_lines",
+                                    start=body, end=body, role="surface"))
+    doc.add_child(sec, par)
+
+    if cite is not None:
+        key, surface = cite
+        off = line.index(surface)
+        c = DocObject(type="Citation", props={
+            "citekey": key, "page": 1, "flow_index": 2})
+        c.add_realization(Realization(
+            stream="mathpix_lines", start=body, end=body, role="surface",
+            props={"offset": off, "length": len(surface)}))
+        doc.add(c)
+
+    ref = DocObject(type="Reference", props={
+        "citekey": ref_key, "bibkey": "D", "number": ref_number,
+        "author": "Realname", "year": "2001", "title": "A real entry"})
+    ref.add_realization(Realization(stream="references", start=ra, end=ra,
+                                    role="bibliography"))
+    doc.add(ref)
+    return doc
+
+
+def test_a_bracket_a_citation_claims_is_never_rewritten_by_the_number_map():
+    """THE MIS-WIRE. `_prose` used to run `latex_pipeline.resolve_citations`
+    AFTER the citation resolver had already decided. That pass knows only
+    `{Reference.number: citekey}` — not which Citation owns the bracket, and not
+    that the resolver deliberately left this one alone. A Citation `NoSuchKey`
+    over `[5]` (no Reference: `cite_without_reference == 1`) sat beside an
+    unrelated Reference numbered 5, and the document silently cited
+    `Realname2001` in its place. It compiles, and it is wrong.
+
+    ONE resolver owns citations: a bracket a Citation covers follows the
+    CITATION's decision."""
+    line = "Prior work [5] shows this."
+    doc = _numbered_ref_doc(line, ("NoSuchKey", "[5]"))
+    res = cite_res.resolve(doc)
+    assert res.counts["cite_without_reference"] == 1, res.counts
+    body = _body(_tex(doc))
+    assert "Realname2001" not in body, body
+    assert "\\cite" not in body, body
+    assert "Prior work [5] shows this." in body, body
+
+
+def test_a_bare_numeric_bracket_no_citation_claims_still_resolves():
+    """The fallback's LEGITIMATE case, kept: `[5]` that no Citation object
+    covers, with a Reference numbered 5, still becomes `\\cite{Realname2001}`.
+    Removing the old pass without this would have dropped a real capability."""
+    line = "Prior work [5] shows this."
+    doc = _numbered_ref_doc(line, None)
+    res = cite_res.resolve(doc)
+    assert res.counts["numeric_brackets_resolved"] == 1, res.counts
+    body = _body(_tex(doc))
+    assert "Prior work \\cite{Realname2001} shows this." in body, body
+
+
+def test_a_bracket_whose_numbers_are_not_all_references_stays_raw():
+    """An array index / an interval `[0,1]` is not a citation. The fallback
+    resolves a bracket only when EVERY number in it is a Reference."""
+    line = "The interval [0, 1] and the ratio [5, 9] are shown."
+    doc = _numbered_ref_doc(line, None)
+    body = _body(_tex(doc))
+    assert "[0, 1]" in body, body
+    assert "[5, 9]" in body, body          # 9 is no Reference
+    assert "\\cite" not in body, body

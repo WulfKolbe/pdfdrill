@@ -1989,7 +1989,8 @@ commands:
     the unified Document, so the SOURCE that built it (MathPix/arXiv/tesseract/textscan) is IRRELEVANT.
     Resolves transclusion markers ({{id||FO}}→$..$ by array lookup), emits cite commands, builds the
     bibliography from References (+ a .bib). Compile with XELATEX (not pdflatex — the model can carry raw Unicode
-    ≥ ✓ → ℃); --compile runs it, --dump-stages writes the inspectable stages. OUTPUT direction — for a
+    ≥ ✓ → ℃); --compile runs it in TWO xelatex passes (so each cite resolves against the first pass''s
+    .aux), --dump-stages writes the inspectable stages. OUTPUT direction — for a
     source use `injectlatex`; for enriched LaTeX (glossary/index, ORKG) use `stex`/`scikgtex`.'
   offline_ok: true
   requires:
@@ -2007,18 +2008,21 @@ commands:
   - name: compile
     type: flag
     flag: --compile
-    help: compile the environment with xelatex and report the produced PDF
+    help: compile the environment with xelatex and report the produced PDF (TWO xelatex passes, so each
+      cite resolves against the bibitem labels the first pass writes to the .aux)
   - name: dump_stages
     type: flag
     flag: --dump-stages
-    help: 'write the inspectable generation stages (transclusion lookup / citations / bibliography) to <drill>/latex/stages/'
+    help: 'write the inspectable generation stages (transclusion lookup / citations / bibliography / footnote
+      + citation resolution) to <drill>/latex/stages/'
   typed: true
 - name: beamer
   section: Projection / export
   summary: 'PROJECT the docmodel to a LaTeX **beamer** slide deck (<drill>/latex/<bibkey>.beamer.tex) —
     one frame per Section (allowframebreaks so long content auto-continues), a title + outline + References
     frame. Same source-agnostic docmodel projection as `latex` (transclusions, cite commands, lists all
-    resolve), a deck instead of an article. Compile with XELATEX; --compile runs it.'
+    resolve), a deck instead of an article. Compile with XELATEX; --compile runs it in TWO passes (so
+    each cite resolves against the first pass''s .aux).'
   offline_ok: true
   requires:
   - model
@@ -2035,7 +2039,8 @@ commands:
   - name: compile
     type: flag
     flag: --compile
-    help: compile the deck with xelatex and report the produced PDF
+    help: compile the deck with xelatex and report the produced PDF (TWO xelatex passes, so each
+      cite resolves against the bibitem labels the first pass writes to the .aux)
   typed: true
 - name: injectlatex
   requires:

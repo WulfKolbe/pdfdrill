@@ -10108,7 +10108,10 @@ def cmd_latex(pdf: Path, force: bool = False, compile: bool = False,
     if compile:
         ok, note = _xelatex_compile(main_tex)
         pdf_out = main_tex.with_suffix(".pdf")
-        lines.append(f"  compiled: {'✓ ' + _artref(sc, pdf_out) if ok else '✗ ' + note}")
+        # "2 passes" is said out loud: a `\cite` resolves against the `\bibcite`
+        # labels the FIRST pass writes to the `.aux`, so the recipe is part of
+        # the result and not an implementation detail (642 fix round 1).
+        lines.append(f"  compiled: {'✓ ' + _artref(sc, pdf_out) + ' (xelatex, 2 passes)' if ok else '✗ ' + note}")
     lines.append("  (`injectlatex` pulls a source INTO the model; `stex`/`scikgtex` "
                  "for enriched LaTeX.)")
     return "\n".join(lines)
@@ -10156,7 +10159,7 @@ def cmd_beamer(pdf: Path, force: bool = False, compile: bool = False) -> str:
     if compile:
         ok, note = _xelatex_compile(out)
         pdf_out = out.with_suffix(".pdf")
-        lines.append(f"  compiled: {'✓ ' + _artref(sc, pdf_out) if ok else '✗ ' + note}")
+        lines.append(f"  compiled: {'✓ ' + _artref(sc, pdf_out) + ' (xelatex, 2 passes)' if ok else '✗ ' + note}")
     return "\n".join(lines)
 
 
