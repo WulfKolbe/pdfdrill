@@ -70,6 +70,41 @@ def test_coverage_excepts_straddlers_and_refuses_unknown_rows(tmp_path):
     assert G.coverage_gate(d2)[0]
 
 
+def test_shown_identifiers_reads_every_ident_form_at_once():
+    """fix round 1 — the plain row, the (was)/(now) pair (with its `basis:`
+    multicolumn line, which carries no `\\ident` and must contribute
+    nothing), and an identifier carrying `\\allowbreak{}` collapse to their
+    three bare identifiers, not two (a `(was)`/`(now)` pair is ONE shown
+    identifier) and not fewer (the pair must not be dropped)."""
+    tex = (
+        "\\ident{D_EQ0001} & 1 & x \\\\ \\hline\n"
+        "\\ident{D_EQ0002 (was)} & 2 & y \\\\ \\hline\n"
+        "\\ident{D_EQ0002 (now)} & 2 & z \\\\ \\hline\n"
+        "\\multicolumn{5}{|p{10mm}|}{{\\scriptsize basis: x / y}} \\\\ \\hline\n"
+        "\\ident{D\\_\\allowbreak{}EQ0003} & 3 & w \\\\ \\hline\n"
+    )
+    assert G.shown_identifiers(tex) == {"D_EQ0001", "D_EQ0002", "D_EQ0003"}
+
+
+def test_coverage_gate_catches_an_unmeasured_corrected_pair(tmp_path):
+    """The minimal repro: a residuals.tex with a PLAIN row (which used to
+    make `inkconvert.identifiers()` return early on its EQ pattern, per its
+    own first-match contract) AND a Corrected `(was)`/`(now)` pair for an
+    identifier that is neither measured nor a straddler. The old
+    `coverage_gate` (built on `identifiers()`) never saw the pair at all and
+    passed; this must fail and name it.
+    """
+    d = _doc(tmp_path, shown=(), measured=("D_EQ0001",))
+    (d / "residuals.tex").write_text(
+        "\\ident{D_EQ0001} & 1 & x \\\\ \\hline\n"
+        "\\ident{D_EQ0002 (was)} & 2 & y \\\\ \\hline\n"
+        "\\ident{D_EQ0002 (now)} & 2 & z \\\\ \\hline\n"
+        "\\multicolumn{5}{|p{10mm}|}{{\\scriptsize basis: x / y}} \\\\ \\hline\n"
+    )
+    ok, detail = G.coverage_gate(d)
+    assert not ok and "D_EQ0002" in detail
+
+
 def test_artefacts_and_glyphs(tmp_path):
     d = _doc(tmp_path)
     assert G.artefacts_gate(d)[0] and G.glyphs_gate(d)[0]

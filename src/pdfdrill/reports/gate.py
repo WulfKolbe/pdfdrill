@@ -9,6 +9,7 @@ checksum is recorded and never compared.
 from __future__ import annotations
 
 import json
+import re
 from pathlib import Path
 
 from .. import report_tex as rt
@@ -16,6 +17,41 @@ from .. import report_tex as rt
 PUBLISHED_FILES = ("evidence-equation.pdf", "evidence-formula.pdf",
                    "evidence-table.pdf", "evidence-image.pdf", "residuals.pdf")
 FIX = "run `pdfdrill residuals --measure --pdf <pdf>`"
+
+#: fix round 1 (reviewer-found) — `inkconvert.identifiers()` tries its EQ
+#: pattern FIRST and returns as soon as it matches ANYTHING, by design (its
+#: own docstring: "no existing report's pairing can change"). A residuals.tex
+#: with plain rows AND a Corrected section never falls through to the
+#: pattern that reads `\ident{ID (was)}` / `(now)`, because the plain rows
+#: already satisfied the first one — on johnston that returned 35 of 43
+#: identifiers and silently dropped all 8 corrected ones, so an unmeasured,
+#: non-straddling equation shown only in Corrected passed coverage.
+#:
+#: This gate does not need "the one true pairing order" `identifiers()`
+#: exists to guarantee — it only needs the SET of identifiers a report
+#: SHOWS, from every form at once. Built from `_IDENT`/`_IDENT_FIND`'s own
+#: character classes (HANDOVER-RULES rule 17: a brace class not anchored on
+#: the identifier's own shape is unverified on the case that would break
+#: it) rather than a new one: braces are allowed BEFORE the digits (an
+#: escaped `\_\allowbreak{}` sits there) and excluded AFTER them (a suffix
+#: like ` (was)` never contains one), which is what lets the non-greedy
+#: prefix stop at the right `EQ\d+` even with `\allowbreak{}` inside it.
+_IDENT_ANY = re.compile(r"\\ident\{([^&\n]*?(?:EQ|FO|TAB)\d+[^&\n}]*)\}")
+_IDENT_SUFFIX = re.compile(r" \((?:was|now|basis)\)$")
+
+
+def shown_identifiers(tex_text: str) -> set:
+    """Every identifier a report.tex SHOWS, from every `\\ident{...}` form at
+    once — plain rows, findings rows, and Corrected `(was)`/`(now)` pairs —
+    unlike `inkconvert.identifiers()`, which is deliberately single-pattern
+    (that contract stays; other callers depend on it, see its docstring).
+    """
+    from ..inkconvert import clean_ident
+    ids = set()
+    for m in _IDENT_ANY.finditer(tex_text):
+        ident = _IDENT_SUFFIX.sub("", clean_ident(m.group(1)))
+        ids.add(ident)
+    return ids
 
 
 def _ink(doc_dir: Path) -> dict:
@@ -59,8 +95,7 @@ def coverage_gate(doc_dir) -> tuple:
     tex = doc_dir / "residuals.tex"
     if not tex.is_file():
         return False, "no residuals.tex to read row identifiers from"
-    from ..inkconvert import identifiers
-    shown = {i for i in identifiers(tex.read_text(encoding="utf-8", errors="replace"))
+    shown = {i for i in shown_identifiers(tex.read_text(encoding="utf-8", errors="replace"))
              if "_EQ" in i}
     measured = {r.get("id") for r in (_ink(doc_dir).get("rows") or []) if r.get("id")}
     straddle = set()
