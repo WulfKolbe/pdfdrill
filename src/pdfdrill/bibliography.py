@@ -18,20 +18,44 @@ import re
 
 
 def drop_dangling_cites(doc) -> None:
-    """010 — remove `cites` Alignments whose right side no longer resolves to
-    a Reference in the document (its target Reference was just dropped, e.g.
-    a `--force` rebuild or a gold `.bbl`/`.bib` ingest replacing heuristic
-    guesses). An Alignment that still resolves survives untouched -- most
-    often a citation-stub Reference (`CitationProcessor.process_objects`),
-    which keeps its id and anchor when a creator below fills it, so its
-    Citation stays linked across the rebuild instead of losing the edge and
-    waiting for a relink pass that may not run."""
-    live = {(r.stream, r.start, r.end)
-            for o in doc.objects.values() if o.type == "Reference"
-            for r in o.realizations}
+    """010 — remove `cites` Alignments that no longer connect two live objects.
+
+    A `cites` edge is dropped when EITHER side dangles (010 fix round 5).
+    Pruning by the RIGHT side alone left an edge whose CITATION had just been
+    retracted -- `cmd_bibliography --force` drops every `added_by ==
+    "bibliography"` Citation before re-detecting, and Ranges are not wired to
+    object ids, so removing the object leaves its edges behind. The model then
+    carried an edge from nothing to a Reference and the edge count outran the
+    Citation count.
+
+    An edge that still connects two live objects survives untouched -- most
+    often to a citation-stub Reference (010), which keeps its id and anchor
+    when a creator below fills it, so its Citation stays linked across the
+    rebuild instead of losing the edge and waiting for a relink pass that may
+    not run.
+
+    Two edge shapes share the kind name and both are honoured: the model-build
+    Citation -> Reference edge, and `annotations.link_xref_alignments`' Link ->
+    Citation edge (left on the `links` stream). Deciding by range alone cannot
+    tell them apart -- a stub Reference is anchored at its citation's own line,
+    so the two sides of a Citation -> Reference edge can be the SAME range.
+    """
+    def ranges(t):
+        return {(r.stream, r.start, r.end)
+                for o in doc.objects.values() if o.type == t
+                for r in o.realizations}
+
+    refs, cits, links = ranges("Reference"), ranges("Citation"), ranges("Link")
+
+    def alive(a):
+        left = (a.left.stream, a.left.start, a.left.end)
+        right = (a.right.stream, a.right.start, a.right.end)
+        if a.left.stream == "links":            # annotate's Link -> Citation
+            return left in links and right in cits
+        return left in cits and right in refs   # model-build Citation -> Reference
+
     doc.alignments = [a for a in doc.alignments
-                      if a.kind != "cites"
-                      or (a.right.stream, a.right.start, a.right.end) in live]
+                      if a.kind != "cites" or alive(a)]
 
 
 def drop_ownerless_stubs(doc) -> int:
@@ -109,6 +133,25 @@ def filled_cites_edges(doc) -> int:
             for r in o.realizations if r.start is not None}
     return sum(1 for a in doc.alignments if a.kind == "cites"
                and (a.right.stream, a.right.start, a.right.end) in live)
+
+
+def bibliography_section_anchors(doc) -> set:
+    """The `mathpix_lines` anchors where the References SECTION itself lives.
+
+    010 fix round 5. `cmd_bibliography` excludes these from citation
+    re-detection so a bibliography entry is not read as an in-text citation.
+    It used to take EVERY Reference realization on `mathpix_lines` -- but
+    since 010 a Reference may be a stub anchored at a citation's own PROSE
+    line, and round 4 (correctly) keeps such a Reference once bibsource or
+    bibfetch has filled it. Excluding that line meant the Citation retracted
+    by `--force` was never re-detected: force#1 found [Asai2023, Wu2024],
+    force#2 found [Wu2024]. Only a realization the References-section parser
+    placed (role/provenance "bibliography") counts.
+    """
+    return {r.start for o in doc.objects.values() if o.type == "Reference"
+            for r in o.realizations
+            if r.stream == "mathpix_lines" and r.start
+            and (r.role == "bibliography" or r.provenance == "bibliography")}
 
 
 def stub_for(doc, citekey: str):
@@ -912,6 +955,18 @@ def add_reference_objects(doc, entries: list[dict]) -> int:
                 "raw_text": e["raw_text"], "year": e["year"], "author": e["author"],
                 "number": e.get("number"), "entry_type": "misc", "ref_source": "text",
             })
+            # 010 fix round 5 -- record WHERE in the document this entry was
+            # parsed from, as a SECOND realization with role "bibliography".
+            # The stub's own (role "surface") realization is a citation PROSE
+            # line, and `cmd_bibliography`'s `ref_anchors` must exclude the
+            # bibliography section from re-detection without excluding the
+            # citation lines. The surface realization is left first and
+            # untouched, so every existing `cites` edge keeps resolving.
+            anchors = e.get("anchors") or []
+            if anchors and not any(z.role == "bibliography" for z in r.realizations):
+                r.add_realization(Realization(
+                    stream="mathpix_lines", start=anchors[0], end=anchors[-1],
+                    role="bibliography", provenance="bibliography"))
         else:
             obj = DocObject(type="Reference", props={
                 "citekey": e["citekey"],
@@ -928,6 +983,12 @@ def add_reference_objects(doc, entries: list[dict]) -> int:
                 obj.add_realization(Realization(
                     stream="mathpix_lines", start=anchors[0], end=anchors[-1],
                     role="surface", provenance="bibliography"))
+                # 010 fix round 5 -- the same marker the FILL branch above
+                # stamps, so `ref_anchors` has ONE criterion for "this
+                # Reference is anchored in the bibliography SECTION".
+                obj.add_realization(Realization(
+                    stream="mathpix_lines", start=anchors[0], end=anchors[-1],
+                    role="bibliography", provenance="bibliography"))
             doc.add(obj)
         n += 1
     return n

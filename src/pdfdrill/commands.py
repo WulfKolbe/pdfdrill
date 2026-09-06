@@ -5528,7 +5528,6 @@ def cmd_bibsource(pdf: Path, bib_path: str | None = None,
         enriched = load_bibtex_file(doc, Path(bib).read_text(encoding="utf-8"),
                                     restrict=(cited or None))["attached"]
 
-    n_refs = sum(1 for o in doc.objects.values() if o.type == "Reference")
     n_cits = sum(1 for o in doc.objects.values() if o.type == "Citation")
     # 010 fix round 4 -- `linked` is the TOTAL number of Citations resolved to
     # a FILLED Reference, never "edges added by this call". The linkers are
@@ -5548,6 +5547,12 @@ def cmd_bibsource(pdf: Path, bib_path: str | None = None,
         detect_author_year_in_objects(doc)
         linked = link_citations(doc)["linked"]
         n_cits = sum(1 for o in doc.objects.values() if o.type == "Citation")
+
+    # 010 fix round 5 -- counted AFTER the linkers, not before: a linker MERGES
+    # a citation stub into the gold Reference it resolves to (`absorb_stub`,
+    # round 4), so a count taken beforehand reports References the document no
+    # longer has.
+    n_refs = sum(1 for o in doc.objects.values() if o.type == "Reference")
 
     save_model(model_path, doc)
 
@@ -11398,8 +11403,8 @@ def cmd_bibliography(pdf: Path, force: bool = False) -> str:
     if not source_note:
         # In-text citations resolve against the references; skip the bibliography's
         # own lines. Numeric ([N]) and parenthetical author-year ((Asai, 2023)).
-        ref_anchors = {r.start for o in doc.objects.values() if o.type == "Reference"
-                       for r in o.realizations if r.stream == "mathpix_lines" and r.start}
+        from .bibliography import bibliography_section_anchors
+        ref_anchors = bibliography_section_anchors(doc)   # 010 round 5
         numeric = detect_numeric_citations(doc, max_num=n, exclude_anchors=ref_anchors)
         authyear = detect_author_year_citations(doc, exclude_anchors=ref_anchors)
         cites = link_citations(doc)["linked"]

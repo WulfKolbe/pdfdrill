@@ -216,7 +216,7 @@ def parse_markdown(text: str) -> dict[str, Any]:
 def build_markdown_model(text: str, bibkey: str = "DOC",
                          source_path: str = "") -> "object":
     """Markdown text -> docmodel Document (source-only; latexbook pattern)."""
-    from docmodel.core import Document, DocObject, Stream, Realization, Range, Alignment
+    from docmodel.core import Document, DocObject, Stream, Realization, Range
     from docmodel.modules.citation import add_cites_alignment, ensure_reference_stub
 
     parsed = parse_markdown(text)

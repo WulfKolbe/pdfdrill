@@ -303,8 +303,28 @@ def test_bibliography_force_keeps_a_gold_filled_reference():
         gold_id = asai.id
         model_io.save_model(K._model_path(sc), built)
 
+        def state():
+            m = model_io.load_model(K._model_path(sc))
+            return (sorted(c.props.get("citekey")
+                           for c in m.objects_of_type("Citation")),
+                    sum(1 for a in m.alignments if a.kind == "cites"),
+                    m)
+
         K.cmd_bibliography(pdf, force=True)
-        after = model_io.load_model(K._model_path(sc))
+        cits2, edges2, after = state()
+        # 010 fix round 5 -- and again, and again: keeping the gold Reference
+        # (round 4) must not cost the Citation that cites it. `ref_anchors`
+        # excluded EVERY Reference realization on mathpix_lines, and a stub
+        # filled in place keeps its CITATION's line anchor -- so that line was
+        # excluded from re-detection, the Citation (retracted as
+        # `added_by == "bibliography"`) never came back, and its `cites` edge
+        # survived pointing at a dead left side.
+        K.cmd_bibliography(pdf, force=True)
+        cits3, edges3, _ = state()
+
+    assert cits2 == ["Asai2023", "Wu2024"], cits2
+    assert cits3 == cits2, (cits2, cits3)
+    assert edges3 == edges2 == 2, (edges2, edges3)
 
     survivor = after.objects.get(gold_id)
     assert survivor is not None, "a gold-filled Reference must survive --force"
@@ -313,6 +333,24 @@ def test_bibliography_force_keeps_a_gold_filled_reference():
     # and its citation is re-detected and re-linked to it, not to a new stub
     assert len([r for r in after.objects_of_type("Reference")
                 if r.props.get("citekey") == "Asai2023"]) == 1
+
+
+# --------------------------------------------------------------- item 10
+def test_drop_dangling_cites_drops_an_edge_with_a_dead_left_side():
+    """010 fix round 5 — `drop_dangling_cites` pruned by the RIGHT side only,
+    so an edge whose CITATION had just been retracted survived: the model then
+    carried a `cites` Alignment from nothing to a Reference, and the edge count
+    outran the Citation count. Either dead side now prunes the edge."""
+    doc, cit = _cited_doc()
+    assert len(_cites(doc)) == 1
+    doc.objects.pop(cit.id)                    # retract the Citation only
+    B.drop_dangling_cites(doc)
+    assert _cites(doc) == []
+
+    # the live case is untouched
+    doc2, _ = _cited_doc()
+    B.drop_dangling_cites(doc2)
+    assert len(_cites(doc2)) == 1
 
 
 # --------------------------------------------------------------- item 6
