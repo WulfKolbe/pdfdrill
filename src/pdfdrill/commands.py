@@ -8166,8 +8166,16 @@ def _render_regions(sc, tiddlers) -> tuple:
 
 
 
-def _texsrc_dir(sc) -> "Path | None":
-    """The author's unpacked sources, wherever this document keeps them."""
+def _author_texsrc_dir(sc) -> "Path | None":
+    """The author's unpacked sources, wherever this document keeps them.
+
+    Takes a SIDECAR. Not to be confused with `_texsrc_dir(doc, pdf)` 1400 lines
+    above, which answers the same question from a Document — until 647 both
+    were called `_texsrc_dir`, this one shadowed the other for the whole
+    module, and every caller of the (doc, pdf) form died with
+    "_texsrc_dir() takes 1 positional argument but 2 were given". That was
+    `expandmath` and `formulas`, on every document.
+    """
     for cand in ("texsrc", "eprint", "latex_source"):
         d = sc.blob_dir / cand
         if d.is_dir():
@@ -8193,7 +8201,7 @@ def cmd_texfigures(pdf: Path, json_out: bool = False,
     """
     from . import texgraphics as tg
     sc = Sidecar(pdf)
-    src = _texsrc_dir(sc)
+    src = _author_texsrc_dir(sc)
     if src is None:
         return (f"texfigures: no author sources for {pdf.name} — run "
                 f"`pdfdrill latex {pdf.name}` (free for arXiv) or "

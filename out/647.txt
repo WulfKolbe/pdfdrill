@@ -1,0 +1,269 @@
+647 — the harness must not degrade silently; and the two crashes it was hiding
+==============================================================================
+
+THE PREMISE, CHECKED FIRST
+  "expandmath and formulas crash, and the script does not use -e, so
+   everything after them degrades silently."          TRUE, both halves, and
+  the second half is why the first was never fixed. On the Steerable document
+  at 4d6c480 the harness ran 22 steps, TWO of them exited 1 with a Python
+  TypeError, and the script exited 0. Nothing in the output distinguished that
+  run from a clean one except two lines of `Error [...]` twenty screens up.
+  HANDOVER-RULES rule 11 in its purest form: a masked success reads exactly
+  like a masked failure.
+
+--------------------------------------------------------------------------
+1. WHAT CHANGED IN THE SCRIPTS
+--------------------------------------------------------------------------
+
+  647a (4d6c480) installs `~/Downloads/drill_full_sandbox.sh` as
+  `tools/drill_full_sandbox.sh` BYTE-FOR-BYTE, in its own commit, so the diff
+  the chat actually made is in the history:
+
+      $ git diff 4d6c480^..4d6c480 -- ...   (two hunks, 17 lines)
+        + source $REPO/.env into the SHELL   (the script's own guards test the
+          shell environment; pdfdrill reading .env internally cannot help
+          `[ -n "${MATHPIX_APP_ID:-}" ]`)
+        + never `mathpix --force` when <doc>.lines.json is already cached
+
+  647b then collapses it. THE SANDBOX SCRIPT IS NOW A 27-LINE WRAPPER, not a
+  copy: it exports two knobs and execs `tools/drill_full.sh`.
+
+      DRILL_LOAD_ENV=1            source $REPO/.env into the shell
+      DRILL_MATHPIX_NO_FORCE=1    cached lines.json => `mathpix` without --force
+
+  WHY WRAPPING AND NOT "KEEPING THEM IN STEP". The brief allowed either. Two
+  ~200-line scripts kept in step by discipline is precisely the drift class
+  this task exists to close: the failure recording could be right in one and
+  absent in the other, and a run of the wrong one would read clean either way.
+  With a wrapper the recording machinery physically cannot differ, and
+  `test_sandbox_wrapper_is_the_same_script` fails if the copy ever grows back.
+  It is also the smaller diff: -200 lines against +2 knobs.
+
+  THE RECORDING, in `tools/drill_full.sh`:
+
+    * `set -uo pipefail` and continue-on-failure are UNCHANGED. A document
+      without tables must still not abort the run — that was never the defect.
+    * every step is teed to `<doc_dir>/drill_full.log` under its label
+      (`----- <label> (rc=N) -----`), append, both directions. A traceback that
+      scrolls past is a traceback that is gone; now it is on disk beside the
+      document. Clean steps go in too — a log that holds only failures cannot
+      tell you what a step printed just before the one that died.
+    * the step's exit code is `${PIPESTATUS[0]}`, not `$?`. `$?` after a pipe
+      is the tee's status, which is the exact exit-code-masking that bit the
+      inkdrill session twice (rule 11).
+    * every step is timed, and the run ends with a STEP TABLE (label / rc /
+      seconds) — the ONLY view in which a 22-step run is inspectable at a
+      glance.
+    * a run with any failure prints `== FAILED STEPS (n of m) ==` with each
+      label, its rc, and the last 3 lines of its output, and EXITS 1.
+    * `artifacts` and `status` became steps too, so a failure in either is
+      recorded rather than printed and forgotten.
+
+  TESTED ON A REAL SUCCESS AND A REAL FAILURE (rule 11: a summariser tested on
+  only one of them sees neither). `tests/test_drill_full_sh.py` runs the REAL
+  script against a stub `python3` on PATH:
+
+      test_clean_run_exits_zero_and_prints_every_step
+      test_failed_steps_are_named_with_rc_and_tail_and_exit_nonzero
+      test_traceback_survives_in_the_doc_folder_log
+      test_sandbox_wrapper_never_forces_mathpix_when_lines_json_is_cached
+      test_sandbox_wrapper_is_the_same_script
+      test_plain_script_still_forces_when_nothing_is_cached
+
+  The fourth is the money guard: a cached `lines.json` must take the
+  "cached — no re-upload" branch and `mathpix` must be called WITHOUT --force.
+
+--------------------------------------------------------------------------
+2. THE CRASHES — ONE CAUSE, NOT TWO
+--------------------------------------------------------------------------
+
+  TRACEBACK HEAD (captured with PDFDRILL_DEBUG=1 against the pre-fix tree;
+  without it the CLI prints only the one-line `Error [...]`, which is all the
+  harness log had):
+
+      File "src/pdfdrill/cli.py", line 492, in _do_expandmath
+        return cmd_expandmath(_pdf(args), force="--force" in args)
+      File "src/pdfdrill/commands.py", line 7623, in cmd_expandmath
+        macros = _document_macros(doc, pdf)
+      File "src/pdfdrill/commands.py", line 6769, in _document_macros
+        d = _texsrc_dir(doc, pdf)
+      TypeError: _texsrc_dir() takes 1 positional argument but 2 were given
+
+  CAUSE. `src/pdfdrill/commands.py` bound the name `_texsrc_dir` TWICE at
+  module level:
+
+      line 6743   _texsrc_dir(doc, pdf)   the Document form — the cached
+                  e-print dir from `meta['latex_source_dir']` with a fallback
+                  to the doc's CURRENT drill folder. Called by
+                  `_document_macros` and `_document_macro_names`, which is
+                  what `cmd_expandmath` and `cmd_formulas` call.
+      line 8169   _texsrc_dir(sc)         the Sidecar form — texsrc/eprint/
+                  latex_source under `sc.blob_dir`. Called once, by
+                  `cmd_texfigures`.
+
+  Python keeps the LAST binding. The second definition, 1,426 lines below the
+  first, silently replaced it for the whole module, so EVERY caller of the
+  two-argument form died on its first call — on every document, not just
+  these two. `cmd_texfigures` was unaffected, which is why nothing looked
+  broken from that side.
+
+  WHY 3,202 TESTS DID NOT SEE IT. `tests/test_expandmath.py` monkeypatches
+  `_document_macros` (`monkeypatch.setattr(C, "_document_macros", lambda ...)`)
+  — the whole point of that patch is to control the macro table, and its
+  side effect is that the real function is never called in the suite. The
+  crash lived in the one line the tests replaced.
+
+  FIX. The Sidecar form is renamed `_author_texsrc_dir(sc)` — its own
+  docstring already called it "the author's unpacked sources" — and its single
+  caller updated. Nothing else moved: the Document form is byte-identical, so
+  `expandmath`/`formulas` get back exactly the behaviour they were written
+  with, not a new one.
+
+  TESTS (`tests/test_texsrc_dir_no_shadowing.py`), at two levels:
+
+    THE CAUSE   test_no_module_defines_the_same_top_level_name_twice
+                AST-parses every `src/**/*.py` and fails on any top-level
+                name bound twice. It found exactly one collision in the tree
+                (this one), so the guard is cheap and it closes the CLASS: a
+                redefinition is invisible in a 10,000-line module and does not
+                fail at import, only at the first call with a signature the
+                surviving definition does not have.
+    THE SYMPTOM test_document_macros_takes_doc_and_pdf
+                test_document_macro_names_takes_doc_and_pdf
+                test_texsrc_dir_resolves_from_the_document
+                test_author_texsrc_dir_still_takes_a_sidecar
+                test_expandmath_reaches_the_macro_table_without_a_typeerror
+                — the last one runs `cmd_expandmath` against a real on-disk
+                `texsrc/` WITHOUT patching `_document_macros`, which is the
+                gap the old test file left.
+
+  VERIFIED IN BOTH DIRECTIONS. With `src/pdfdrill/commands.py` stashed back to
+  4d6c480 all 6 fail (5 with the TypeError, 1 with AttributeError on the new
+  name); with the fix all 6 pass.
+
+  AFTER THE FIX, on the Steerable document:
+      expandmath  rc 0  "No LaTeX source cached … run `pdfdrill injectlatex`"
+      formulas    rc 0  "Math projection: 485 unit(s) (70 equation, 415
+                         formula …). macro table: unavailable."
+  Both are the GRACEFUL answers the commands were written to give when a
+  document has no author e-print — which Steerable has not (see §3). Not a
+  crash, and not a silent success either.
+
+--------------------------------------------------------------------------
+3. THE RUN — Steerable, at 4d6c480 (the crash run this task was given)
+--------------------------------------------------------------------------
+
+  bash tools/drill_full_sandbox.sh SteerableWaveletFramesBasedontheRieszTransform.pdf
+  exit 1                        <- the point of the task
+
+  STEP                                                       RC   SECS
+  size                                                        0     0
+  route                                                       0     0
+  mathpix (cached — no re-upload)                             0     0
+  model                                                       0     1
+  injectlatex (free arXiv e-print; gold equations + macro table)  0  0
+  eqnums     (equation numbers)                               0     2
+  lists      (nested list objects)                            0     1
+  algorithms (pseudocode blocks)                              0     0
+  annotate   (link annotations)                               0     1
+  bibsource   (author .bbl/.bib — authoritative)              0     0
+  bibliography (heuristic fallback + citation linking)        0     1
+  clean                                                       0     0
+  expandmath (persist expanded + original LaTeX)              1     1
+  speak      (math -> spoken, stored on each object)          0     5
+  svg (TikZ/tables -> SVG; needs latex + dvisvgm)             0     0
+  md       (canonical Markdown)                               0     1
+  tiddlers (the wiki)                                         0     0
+  spoken   (the LLM INPUT text)                               0     0
+  formulas (math projection)                                  1     1
+  report   (formula report)                                   0    72
+  artifacts                                                   0     0
+  status                                                      0     1
+
+  == FAILED STEPS (2 of 22) ==
+    expandmath …   (rc=1) | Error [TypeError]: _texsrc_dir() takes 1 …
+    formulas   …   (rc=1) | Error [TypeError]: _texsrc_dir() takes 1 …
+
+  THE MATHPIX BRANCH WAS VERIFIED BEFORE THE RUN, NOT AFTER. `--force`
+  re-uploads and re-charges, so the cached branch was proved first:
+  `_is_mathpix_output` returns True for all three of Steerable's cached
+  outputs (lines.json / md / tex.zip), which is the exact predicate
+  `fetch_mathpix(force=False)` uses to return `{"status": "cached"}` without a
+  network call. The step label in the table says which branch ran.
+
+  THREE STEPS RETURNED "NOTHING TO DO", AND THAT IS NOT A FAILURE
+    injectlatex  refuses Steerable's `.tex.zip`: its .tex is named
+                 `7f63398d-….tex`, this document's MathPix image_id —
+                 comparing against it would compare MathPix with itself. So
+                 Steerable has NO author e-print, and no macro table.
+    bibsource    no .bbl/.bib anywhere (nothing for it to be authoritative
+                 about); `bibliography` then parsed 29 entries heuristically.
+    svg          0 graphic objects on this document.
+  Each exits 0 with prose saying so. The step table shows them as 0, which is
+  correct: "there was nothing here" is an answer, "it blew up" is not, and
+  before 647 they printed identically.
+
+--------------------------------------------------------------------------
+4. THE LIBRARY IMPORT (Steerable), AND THE LAYOUT DECISION
+--------------------------------------------------------------------------
+
+  `~/Downloads/` held the OLD sidecar layout:
+      SteerableWaveletFramesBasedontheRieszTransform.pdf.drill.json
+      SteerableWaveletFramesBasedontheRieszTransform.pdf.drill/   (blob_dir)
+
+  `sidecar.blob_dir_for` resolves the SELF-CONTAINED library layout when the
+  PDF sits in a folder named after it (`<stem>/<stem>.pdf`): blob_dir IS the
+  folder and the sidecar is `<stem>.drill.json`. So the migration is exactly:
+  the legacy blob dir's contents move UP one level, and the sidecar loses its
+  `<stem>.pdf.drill/` path prefixes.
+
+      ~/pdfdrill-library/SteerableWaveletFramesBasedontheRieszTransform/
+        <stem>.pdf .lines.json .md .tex.zip     (copied from ~/Downloads)
+        <stem>.drill.json                       (migrated: 5 paths rewritten —
+                                                 4 `<stem>.pdf.drill/` prefixes
+                                                 stripped, 1 absolute
+                                                 `/home/wkolbe/Downloads` →
+                                                 the library folder)
+        formula-report.html tables.{json,html,md} probe-*.{txt,json}
+        <stem>.inspect.html inspect/            (flattened out of the legacy
+                                                 blob dir)
+
+  THE MODEL WAS DELIBERATELY NOT COPIED. `model.docmodel.json` /
+  `model.docpack.json` were built while the document lived in ~/Downloads; the
+  drill's `model` step rebuilds them in place from the cached lines.json, which
+  is what a full drill is for. Copying them would have carried a model whose
+  provenance names a path that no longer exists, and `_stale_or_absent` would
+  have had to decide about it — a decision nobody needs to make.
+  Nothing under ~/Downloads was moved or deleted; the originals stand.
+
+  CONFIRMED BEFORE THE HARNESS RAN:
+      Sidecar(pdf).blob_dir  = …/SteerableWaveletFramesBasedontheRieszTransform
+      Sidecar(pdf).json_path = …/<stem>.drill.json
+      facts = {MATHPIX_KNOWN, MODEL_BUILT, TABLES_KNOWN, REPORT_BUILT}
+      `pdfdrill status` lists the cached lines.json / md / tex.zip.
+
+--------------------------------------------------------------------------
+5. TESTS
+--------------------------------------------------------------------------
+
+  PYTHONDONTWRITEBYTECODE=1 PYTHONPATH=src python3 -m pytest tests/ -q -p no:cacheprovider
+  -> 3208 passed, 0 failed, 0 skipped   (3202 before; +6 test_drill_full_sh,
+     +6 test_texsrc_dir_no_shadowing, and 3 pre-existing files pick up the new
+     AST guard's warning group only)
+
+--------------------------------------------------------------------------
+6. WHAT IS STILL OPEN OUT OF THIS TASK
+--------------------------------------------------------------------------
+
+  647-a  The CLI prints `Error [<Type>]: <msg>` and swallows the traceback
+         unless PDFDRILL_DEBUG=1. The harness log therefore preserves the
+         message but not the frames — the frames in §2 had to be re-obtained by
+         re-running with the flag. The harness could export PDFDRILL_DEBUG=1
+         for its own runs; it does not, because that would change what every
+         step prints. Named, not fixed.
+  647-b  `_document_macros` returning None ("no source cached") and returning
+         `{}` ("source present, defines no macros") are deliberately different
+         answers, but `expandmath` and `formulas` phrase the first as an
+         instruction to run `injectlatex` even on a document where injectlatex
+         has already refused for a good reason (Steerable). The advice is
+         unactionable there. Named, not fixed.
