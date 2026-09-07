@@ -10236,6 +10236,23 @@ def cmd_latex(pdf: Path, force: bool = False, compile: bool = False,
             "  toc_region_suppressed: "
             + ", ".join(f"{v} {k}" for k, v in sorted(_trs.items()))
             + " (in the projection; the model keeps them)")
+    # 635 fix round 1 — the two counters review findings #2/#3 added, so a
+    # kept-but-checked object is never silent either: a caption match that
+    # failed the position bound, and a shared-text object whose FLOW
+    # realization was not the TOC's.
+    _twtk = getattr(projector, "_toc_wreckage_title_kept", {}) or {}
+    if _twtk:
+        lines.append(
+            "  toc_wreckage_title_kept: "
+            + ", ".join(f"{v} {k}" for k, v in sorted(_twtk.items()))
+            + " (caption matched but outside the Toc's pages/precede bound; kept)")
+    _tfs = getattr(projector, "_toc_fragment_shared", {}) or {}
+    if _tfs:
+        lines.append(
+            "  toc_fragment_shared: "
+            + ", ".join(f"{v} {k}" for k, v in sorted(_tfs.items()))
+            + " (a secondary realization touches the Toc region; the FLOW "
+              "realization does not, so it is kept)")
     if dump_stages:
         lines.append(f"  stages  : {_artref(sc, env_dir / 'stages')}/  "
                      f"(transclusion lookup / citations / bibliography / "

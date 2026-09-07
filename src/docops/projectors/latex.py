@@ -51,7 +51,21 @@ _TRANSCLUDED_STANDALONE = {
 #: no evidence to emit `\listoffigures`/`\listoftables` from; their entries
 #: stay dropped-and-counted under `toc_region_suppressed` like every other
 #: TOC-line fragment.
+#:
+#: NAME ALONE IS NOT ENOUGH (635 fix round 1 — review finding #2). A caption
+#: match with no positional bound would drop a REAL "Contents" section
+#: anywhere in the document, not just the wreckage beside this Toc. A
+#: wreckage Section must ALSO sit where the wreckage measurably is: on one
+#: of the Toc's own pages, or immediately before the Toc's own span start.
+#: "Immediately" is a MEASURED bound, not a guess: on penev_A, "List of
+#: Figures" precedes the Toc's first TOC-typed anchor by 1 line and
+#: "Contents" by 2 — both of which are ALSO on the Toc's own first page (its
+#: span is pages 2-3), so the page check alone already catches penev_A's
+#: real case; the line-gap check is the stated fallback for a document where
+#: the preceding heading's page is missing/None. A Section with this caption
+#: that fails BOTH checks is kept and counted (`toc_wreckage_title_kept`).
 _TOC_WRECKAGE_TITLES = {"Contents", "List of Figures", "List of Tables"}
+_TOC_HEADER_PRECEDE_BOUND = 2
 
 # level → sectioning command (1-indexed; clamped)
 _SECTION_CMDS = ["section", "section", "subsection", "subsubsection",
@@ -235,46 +249,63 @@ class LaTeXProjector(BaseProjector):
         # document); `_render`'s "Toc" branch emits `\tableofcontents` from it
         # once, at its own flow position. What has to leave the projection is
         # (a) the wreckage Section objects titled Contents / List of Figures /
-        # List of Tables — a publication does not print its own table of
-        # contents twice, by NAME, exactly as the brief states it — and (b)
-        # every OTHER object anchored on a line the Toc's own realization
-        # spans. (b) is NOT 634/646's block/inline "claim" rule — that rule
-        # exists to stop a Formula NESTED inside a paragraph's line from
-        # looking like a second consumption of that line, which is a
-        # question about the INPUT side. Here the question is the OUTPUT
-        # side: does this object print standalone in the flow at all? And it
-        # measurably does — penev_A's 23 orphan `$T=15$`-shaped Formulas
-        # carry ONLY inline (sub-anchor) realizations on their TOC lines (no
-        # Paragraph claims a TOC line to transclude them FROM), so under the
+        # List of Tables, BOUNDED to where the wreckage measurably is (see
+        # `_TOC_WRECKAGE_TITLES`'s docstring — NAME ALONE is not a bound; a
+        # real "Contents" section on some other page is KEPT and counted
+        # under `toc_wreckage_title_kept`) — and (b) every OTHER object whose
+        # FLOW realization (the one `document_flow.DocumentFlowProcessor`
+        # places it by: `[r for r in obj.realizations if r.stream ==
+        # LINES_STREAM and r.start is not None][0]`) lies on a line the Toc's
+        # own realization spans.
+        #
+        # (b) is NOT 634/646's block/inline "claim" rule — that rule exists
+        # to stop a Formula NESTED inside a paragraph's line from looking
+        # like a second consumption of that line, which is a question about
+        # the INPUT side. Here the question is the OUTPUT side: does this
+        # object print standalone in the flow at all? And it measurably
+        # does — penev_A's 23 orphan `$T=15$`-shaped Formulas carry ONLY
+        # inline (sub-anchor) realizations on their TOC lines (no Paragraph
+        # claims a TOC line to transclude them FROM), so under the
         # block-only rule they were never caught and kept printing (out/635
-        # first run). A Formula's flow position is its EARLIEST realization
-        # (`document_flow.DocumentFlowProcessor`, `surface[0]`); measured on
-        # penev_A, every object touching the Toc's span at all has that
-        # earliest realization INSIDE the span too (0 counterexamples), so an
-        # object suppressed here never had a legitimate rendering anywhere
-        # else — it is printed exactly once, and that once is the TOC.
+        # first run).
+        #
+        # (b) is bound to the FLOW realization specifically, not "any
+        # realization touches" — 635 fix round 1, review finding #3:
+        # `FormulaProcessor` dedupes identical LaTeX into ONE object carrying
+        # SEVERAL realizations (penev_A's "T=87" is one object realized six
+        # times across the document), so an object whose flow position is a
+        # real body occurrence but which ALSO happens to repeat inside the
+        # TOC text must be suppressed, and one whose flow position IS the TOC
+        # occurrence but which also recurs in real prose elsewhere must not
+        # be kept-and-silent either — its only STANDALONE rendering slot
+        # (flow_index is one property, one slot) is the TOC one, so keeping
+        # it there would still print the wreckage. Checked on penev_A: every
+        # object touching the Toc's span at all has its FLOW realization
+        # inside the span too (0 counterexamples) — this task's real corpus
+        # exercises the "suppress" arm; a fixture below exercises the "keep,
+        # a secondary realization only" arm, counted under
+        # `toc_fragment_shared` rather than silently ignored.
+        #
         # CONTAINER_TYPES (`Page`, 634/646's own exclusion) are skipped: a
         # Page's realization spans its whole page BY CONSTRUCTION, not by
         # claim, and it is not a flow content type in the first place — never
         # rendered standalone regardless, so counting it as "suppressed"
         # would report an action that never happens (rule 11).
-        # Evidence off the Toc's own anchors, never a guess by position or by
-        # title: on penev_A the "Contents" and "List of Figures"
-        # section_header lines sit just OUTSIDE the Toc's own claimed range
-        # (`TocProcessor` only walks `table_of_contents_*`-typed lines, so its
-        # first/last anchor is never a `section_header`), which is exactly
-        # why (a) is a separate, title-driven rule and not derived from (b) —
-        # see out/635.txt.
+        #
         # Gated on a Toc actually existing: with none, nothing here fires, and
         # a Section that happens to be titled "Contents" is left exactly as
         # the model states it (there is no `\tableofcontents` to justify
         # dropping it).
         self._toc_region_suppressed: dict[str, int] = {}
+        self._toc_wreckage_title_kept: dict[str, int] = {}
+        self._toc_fragment_shared: dict[str, int] = {}
         self._toc_emitted = False
         tocs = doc.objects_of_type("Toc")
         if tocs:
             lines_stream = doc.streams.get("mathpix_lines")
             toc_span: set = set()
+            toc_pages: set = set()
+            toc_start_idx = None
             if lines_stream is not None:
                 for toc in tocs:
                     for r in toc.realizations:
@@ -283,35 +314,70 @@ class LaTeXProjector(BaseProjector):
                             continue
                         end = r.end if r.end is not None else r.start
                         try:
-                            toc_span.update(a.id for a in
-                                            lines_stream.slice_anchors(r.start, end))
+                            span = lines_stream.slice_anchors(r.start, end)
                         except KeyError:
                             continue
+                        toc_span.update(a.id for a in span)
+                        toc_pages.update(lines_stream.payload[a].get("_page")
+                                         for a in span
+                                         if lines_stream.payload[a].get("_page")
+                                         is not None)
+                        i0 = lines_stream.index_of(r.start)
+                        i1 = lines_stream.index_of(end)
+                        lo = min(i0, i1)
+                        toc_start_idx = lo if toc_start_idx is None \
+                            else min(toc_start_idx, lo)
+
+            def _touches(r) -> bool:
+                if r.stream != "mathpix_lines" or r.role != "surface" \
+                        or r.start is None:
+                    return False
+                end = r.end if r.end is not None else r.start
+                try:
+                    return any(a.id in toc_span
+                              for a in lines_stream.slice_anchors(r.start, end))
+                except KeyError:
+                    return False
+
             for obj in doc.objects.values():
                 if obj.id in self._skip_ids or obj.type == "Toc" \
                         or obj.type in _CONTAINER_TYPES:
                     continue
-                bump = None
                 cap = str(obj.props.get("caption") or "").strip()
                 if obj.type == "Section" and cap in _TOC_WRECKAGE_TITLES:
-                    bump = obj.type
-                elif toc_span:
-                    for r in obj.realizations:
-                        if r.stream != "mathpix_lines" or r.role != "surface" \
-                                or r.start is None:
-                            continue
-                        end = r.end if r.end is not None else r.start
-                        try:
-                            span = lines_stream.slice_anchors(r.start, end)
-                        except KeyError:
-                            continue
-                        if any(a.id in toc_span for a in span):
-                            bump = obj.type
-                            break
-                if bump is not None:
+                    sec_r = next((r for r in obj.realizations
+                                 if r.stream == "mathpix_lines"
+                                 and r.role == "surface" and r.start is not None),
+                                None)
+                    on_toc_pages = False
+                    precedes = False
+                    if sec_r is not None and lines_stream is not None:
+                        pg = lines_stream.payload[sec_r.start].get("_page")
+                        on_toc_pages = pg is not None and pg in toc_pages
+                        if toc_start_idx is not None:
+                            idx = lines_stream.index_of(sec_r.start)
+                            gap = toc_start_idx - idx
+                            precedes = 0 <= gap <= _TOC_HEADER_PRECEDE_BOUND
+                    if on_toc_pages or precedes:
+                        self._skip_ids.add(obj.id)
+                        self._toc_region_suppressed[obj.type] = \
+                            self._toc_region_suppressed.get(obj.type, 0) + 1
+                    else:
+                        self._toc_wreckage_title_kept[obj.type] = \
+                            self._toc_wreckage_title_kept.get(obj.type, 0) + 1
+                    continue
+                if not toc_span:
+                    continue
+                flow_r = next((r for r in obj.realizations
+                              if r.stream == "mathpix_lines" and r.start is not None),
+                             None)
+                if flow_r is not None and _touches(flow_r):
                     self._skip_ids.add(obj.id)
-                    self._toc_region_suppressed[bump] = \
-                        self._toc_region_suppressed.get(bump, 0) + 1
+                    self._toc_region_suppressed[obj.type] = \
+                        self._toc_region_suppressed.get(obj.type, 0) + 1
+                elif any(_touches(r) for r in obj.realizations if r is not flow_r):
+                    self._toc_fragment_shared[obj.type] = \
+                        self._toc_fragment_shared.get(obj.type, 0) + 1
         # STAGE 3: acronyms / glossary from the named-concept layer (lazy — the
         # `semantic` package; degrade to none if unavailable).
         self._acronyms: list = []

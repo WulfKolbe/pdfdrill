@@ -9,7 +9,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "src"))
 
-from docmodel.core import Document, DocObject
+from docmodel.core import Document, DocObject, Realization
 from docops.base import OperatorConfig
 from docops.projectors.beamer import BeamerProjector
 
@@ -103,3 +103,25 @@ def test_content_before_first_section_gets_a_frame():
     assert "orphan intro" in tex
     # it is inside a frame (not loose in the document body)
     assert tex.index("orphan intro") > tex.index("\\begin{frame}")
+
+
+def test_a_toc_object_does_not_double_print_the_outline():
+    """635 — beamer already hard-codes its own Outline frame's
+    `\\tableofcontents` (line 69 of beamer.py). A Toc object in the model
+    must not ALSO render through the shared `LaTeXProjector._render`'s "Toc"
+    branch inside some content frame — that would print a SECOND
+    `\\tableofcontents` and, worse, drop the Toc's own frame boundary."""
+    d = Document(); d.meta["bibkey"] = "x"
+    mp = d.ensure_stream("mathpix_lines")
+    a_container = mp.append(text="", type="table_of_contents_container")
+    a_item = mp.append(text="1 Introduction", type="table_of_contents_item")
+    toc = DocObject(type="Toc", props={"entries": ["1 Introduction"], "flow_index": 0})
+    toc.add_realization(Realization(
+        stream="mathpix_lines", start=a_container, end=a_item, role="surface"))
+    d.add(toc)
+    d.add(DocObject(type="Section", props={"level": 1, "caption": "Introduction",
+                                           "flow_index": 1}))
+    tex = _proj().project(d)
+    assert tex.count("\\tableofcontents") == 1                # the Outline frame's only
+    assert "\\begin{frame}{Outline}" in tex
+    assert "\\section{Introduction}" in tex

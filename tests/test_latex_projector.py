@@ -393,3 +393,118 @@ def test_no_toc_object_means_no_tableofcontents_and_nothing_suppressed():
     assert "\\tableofcontents" not in tex
     assert "\\section{Contents}" in tex
     assert p._toc_region_suppressed == {}
+
+
+# ---------------------------------------------------------------------------
+# 635 fix round 1 — review findings #2 and #3.
+# ---------------------------------------------------------------------------
+
+def test_a_real_contents_section_far_from_the_toc_is_kept_and_counted():
+    """#2 — a caption match alone is not a bound. A Section titled "Contents"
+    on page 40 of a document whose Toc sits on page 2 is a REAL section (a
+    thesis chapter literally called "Contents", or a mis-titled but genuine
+    heading) and must NOT vanish just because some OTHER Toc exists far
+    upstream. Kept, and counted under `toc_wreckage_title_kept` so the drop
+    is never silent in either direction."""
+    d = Document()
+    d.meta["bibkey"] = "demo"
+    mp = d.ensure_stream("mathpix_lines")
+    a_container = mp.append(text="", type="table_of_contents_container", _page=2)
+    a_item = mp.append(text="1 Introduction", type="table_of_contents_item", _page=2)
+
+    toc = DocObject(type="Toc", props={"entries": ["1 Introduction"]})
+    toc.add_realization(Realization(
+        stream="mathpix_lines", start=a_container, end=a_item, role="surface"))
+    d.add(toc)
+
+    # 37 filler lines put the real section far past the precede-bound AND on
+    # a different page — both checks must fail for it to be kept.
+    for _ in range(37):
+        mp.append(text="filler", type="text", _page=39)
+    a_real = mp.append(text="Contents", type="section_header", _page=40)
+    real_sec = DocObject(type="Section", props={
+        "level": 1, "caption": "Contents", "flow_index": 1})
+    real_sec.add_realization(Realization(
+        stream="mathpix_lines", start=a_real, end=a_real, role="surface"))
+    d.add(real_sec)
+
+    p = _proj()
+    tex = p.project(d)
+    assert "\\tableofcontents" in tex
+    assert "\\section{Contents}" in tex          # kept, not dropped
+    assert p._toc_wreckage_title_kept.get("Section") == 1
+    assert "Contents" not in p._toc_region_suppressed \
+        or p._toc_region_suppressed.get("Section", 0) == 0
+
+
+def test_a_shared_formula_flow_position_outside_the_toc_is_kept():
+    """#3 — `FormulaProcessor` dedupes identical LaTeX into ONE object with
+    SEVERAL realizations. A Formula whose FLOW realization (the one
+    `DocumentFlowProcessor` actually places it by — its first
+    mathpix_lines realization) is real body text, but which ALSO happens to
+    repeat inside the TOC's raw text, must keep its only rendering — an
+    "any realization touches" rule would silently delete a real formula's
+    sole printed occurrence. Counted under `toc_fragment_shared`, never
+    silently dropped."""
+    d = Document()
+    d.meta["bibkey"] = "demo"
+    mp = d.ensure_stream("mathpix_lines")
+    a_body = mp.append(text="T=87 units", type="text")           # real, FIRST
+    a_container = mp.append(text="", type="table_of_contents_container")
+    a_toc_frag = mp.append(text="3.7 SNR with the T=87 Ensemble",
+                           type="table_of_contents_row")
+
+    toc = DocObject(type="Toc", props={"entries": ["3.7 SNR with the T=87 Ensemble"]})
+    toc.add_realization(Realization(
+        stream="mathpix_lines", start=a_container, end=a_toc_frag, role="surface"))
+    d.add(toc)
+
+    shared = DocObject(type="Formula", props={"latex": "T=87", "flow_index": 0})
+    shared.add_realization(Realization(               # FLOW realization: real body
+        stream="mathpix_lines", start=a_body, end=a_body, role="surface",
+        props={"offset": 0, "length": 4}))
+    shared.add_realization(Realization(               # secondary: repeats in the TOC
+        stream="mathpix_lines", start=a_toc_frag, end=a_toc_frag, role="surface",
+        props={"offset": 14, "length": 4}))
+    d.add(shared)
+
+    p = _proj()
+    tex = p.project(d)
+    assert "$T=87$" in tex                             # kept — its only rendering
+    assert p._toc_fragment_shared.get("Formula") == 1
+    assert "Formula" not in p._toc_region_suppressed
+
+
+def test_a_shared_formula_flow_position_inside_the_toc_is_suppressed():
+    """The mirror case: the FLOW realization (first in the list) IS the TOC
+    occurrence, even though a later realization is real body text elsewhere.
+    flow_index is ONE property/ONE slot — that slot is the TOC's, so keeping
+    the object would still print the wreckage; suppressed and counted under
+    `toc_region_suppressed`, not `toc_fragment_shared`."""
+    d = Document()
+    d.meta["bibkey"] = "demo"
+    mp = d.ensure_stream("mathpix_lines")
+    a_container = mp.append(text="", type="table_of_contents_container")
+    a_toc_frag = mp.append(text="3.7 SNR with the T=87 Ensemble",
+                           type="table_of_contents_row")
+    a_body = mp.append(text="T=87 units", type="text")
+
+    toc = DocObject(type="Toc", props={"entries": ["3.7 SNR with the T=87 Ensemble"]})
+    toc.add_realization(Realization(
+        stream="mathpix_lines", start=a_container, end=a_toc_frag, role="surface"))
+    d.add(toc)
+
+    shared = DocObject(type="Formula", props={"latex": "T=87", "flow_index": 0})
+    shared.add_realization(Realization(               # FLOW realization: the TOC
+        stream="mathpix_lines", start=a_toc_frag, end=a_toc_frag, role="surface",
+        props={"offset": 14, "length": 4}))
+    shared.add_realization(Realization(               # secondary: real body, later
+        stream="mathpix_lines", start=a_body, end=a_body, role="surface",
+        props={"offset": 0, "length": 4}))
+    d.add(shared)
+
+    p = _proj()
+    tex = p.project(d)
+    assert "$T=87$" not in tex
+    assert p._toc_region_suppressed.get("Formula") == 1
+    assert "Formula" not in p._toc_fragment_shared
