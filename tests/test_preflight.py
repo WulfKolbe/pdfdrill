@@ -107,3 +107,23 @@ def test_bundled_skill_token_is_not_stale():
 if __name__ == "__main__":
     import pytest
     raise SystemExit(pytest.main([__file__, "-q"]))
+
+
+# ------------------------------------ 634 fix round 1: read-only flag forms
+
+def test_a_read_only_flag_form_of_a_gated_command_is_not_blocked(monkeypatch):
+    """`model` builds and can chain a paid MathPix call, so it is gated.
+    `model --ledger` refuses a stale model instead of rebuilding it, so there
+    is no path from it to a spend and the attestation must not stand in front
+    of a read."""
+    from pdfdrill import preflight as P
+    monkeypatch.delenv("PDFDRILL_NO_PREFLIGHT", raising=False)
+    monkeypatch.delenv("PDFDRILL_PREFLIGHT_TOKEN", raising=False)
+    monkeypatch.setattr(P, "is_attested", lambda: False)
+    assert P.blocks("model", ["doc.pdf"]) is True
+    assert P.blocks("model", ["doc.pdf", "--ledger"]) is False
+    # a command with no read-only form is unaffected by the flag's presence
+    assert P.blocks("mathpix", ["doc.pdf", "--ledger"]) is True
+    # and the default (no args) keeps the old behaviour exactly
+    assert P.blocks("model") is True
+    assert P.blocks("status") is False

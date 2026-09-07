@@ -157,14 +157,31 @@ def enforced() -> bool:
     return os.environ.get("PDFDRILL_NO_PREFLIGHT", "").lower() not in ("1", "true", "yes")
 
 
-def is_gated(cmd: str) -> bool:
-    """True for build/mutate/cost commands (everything not in EXEMPT)."""
-    return cmd not in EXEMPT
+#: 634 fix round 1 — a GATED command whose FLAG makes the invocation
+#: read-only. The gate exists so a half-read SKILL cannot spend money or write
+#: an artefact; `pdfdrill model --ledger` does neither — it REFUSES a stale or
+#: absent model rather than rebuilding it, so there is no path from it to
+#: MathPix. Named here rather than by putting `model` in EXEMPT, which would
+#: open the build too. Every entry is a promise about the flag's code path,
+#: not about its name: `model_ledger` must stay unable to write.
+READ_ONLY_FORMS: dict = {"model": ("--ledger",)}
 
 
-def blocks(cmd: str) -> bool:
+def is_read_only_form(cmd: str, args=()) -> bool:
+    """True when this INVOCATION of a gated command cannot write or spend."""
+    flags = READ_ONLY_FORMS.get(cmd)
+    return bool(flags) and any(f in tuple(args) for f in flags)
+
+
+def is_gated(cmd: str, args=()) -> bool:
+    """True for build/mutate/cost commands (everything not in EXEMPT, and not
+    a read-only flag form of one)."""
+    return cmd not in EXEMPT and not is_read_only_form(cmd, args)
+
+
+def blocks(cmd: str, args=()) -> bool:
     """The hard-stop decision: this command must be refused right now."""
-    return enforced() and is_gated(cmd) and not is_attested()
+    return enforced() and is_gated(cmd, args) and not is_attested()
 
 
 # ── prose ────────────────────────────────────────────────────────────────────

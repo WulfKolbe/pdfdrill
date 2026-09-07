@@ -74,7 +74,7 @@ def main():
     # bootstrap commands stay open. Bypass with PDFDRILL_NO_PREFLIGHT=1.
     try:
         from . import preflight
-        if preflight.blocks(cmd):
+        if preflight.blocks(cmd, rest):
             print(preflight.gate_message(cmd), file=sys.stderr)
             return 2
     except Exception:
@@ -104,8 +104,14 @@ def main():
     try:
         from docmodel import ledger as _ledger
         _ledger.start_recording()
-    except Exception:
-        pass                                # a measurement never bricks the CLI
+    except Exception as _e:                 # a measurement never bricks the CLI
+        # ...but it does not fail SILENTLY either: without the recorder every
+        # claim this command makes reads `unattributed` in the model's ledger,
+        # and a reader would have no way to tell that from a document whose
+        # modules genuinely claimed nothing.
+        _emit(f"[ledger] claim recording is OFF for this command "
+              f"({type(_e).__name__}: {_e}); claims will be unattributed",
+              sys.stderr)
 
     try:
         result = HANDLERS[cmd](rest)
@@ -846,16 +852,22 @@ def _do_model(args):
     `--no-legend`. A flag that exists only in a signature is not an override,
     it is a dead end.
     """
-    from .commands import cmd_model
+    from .commands import cmd_model, model_ledger
     bibkey, args = _opt(args, "--bibkey")
     flags = ("--force", "--force-discard-translation",
              "--force-discard-enrichments", "--ledger")
     pdf_args = [a for a in args if a not in flags]
+    # 634 fix round 1 — `--ledger` is READ-ONLY and is routed BEFORE
+    # `cmd_model`, so the `@_writes` document lock is never taken (a read must
+    # not lock out a build) and no code path exists from here to a rebuild.
+    # The first version reached the ledger THROUGH cmd_model and an accidental
+    # run on a model-less PDF bought an 8-page MathPix extraction.
+    if "--ledger" in args:
+        return model_ledger(_pdf(pdf_args))
     return cmd_model(
         _pdf(pdf_args), force="--force" in args, bibkey=bibkey,
         force_discard_translation="--force-discard-translation" in args,
-        force_discard_enrichments="--force-discard-enrichments" in args,
-        ledger="--ledger" in args)
+        force_discard_enrichments="--force-discard-enrichments" in args)
 
 
 def _do_compare(args):

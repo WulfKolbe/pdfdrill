@@ -84,11 +84,15 @@ WHAT WAS BUILT — ONE HOOK, NOT FIFTY-FOUR
       contract: a measurement must never be able to fail a save, and a
       failure keeps whatever ledger was there rather than dropping it.
 
-  src/pdfdrill/commands.py `cmd_model(..., ledger=True)` via `_model_ledger`.
-      Read-only; it rebuilds only when `_stale_or_absent` says so, through
-      this same command (the document lock is re-entrant within one process,
-      so the nested call is a pass-through and not a second lock). On a
-      current model nothing is written.
+  src/pdfdrill/commands.py `model_ledger` — READ-ONLY. It never rebuilds: a
+      stale or absent model is REFUSED, naming the exact `pdfdrill model
+      <pdf>` that fixes it. `cli._do_model` routes `--ledger` BEFORE
+      `cmd_model`, so the `@_writes` document lock is never taken and no code
+      path from the flag to a build exists. `preflight.READ_ONLY_FORMS` lets
+      the read through the attestation gate while the bare `model` build
+      stays gated. It does open the document's sidecar (a `pdfinfo` probe),
+      which every command does. See THE SPEND below for why the refusal is
+      there instead of a convenient auto-rebuild.
 
   manifest  `.claude/skills/pdfdrill/commands.yaml`, `--ledger` on `model`;
       `python3 tools/skillsync.py all .` run; manifest <-> HANDLERS in sync
@@ -120,8 +124,9 @@ on the models on disk and attribution cannot be recovered after the fact.
 Both were rebuilt in the harness order of out/647b.txt — `pdfdrill model
 --force` then `bash tools/drill_full_sandbox.sh <pdf>`, 22 of 22 steps rc 0
 on each, MathPix CACHED on both (`DRILL_MATHPIX_NO_FORCE=1`; no `mathpix
---force`, no extraction re-purchased). The rebuild reproduced 636's state
-exactly — penev_A 1448 objects, 93 Footnotes, unclaimed 243, doubly-claimed
+--force`). NEITHER REBUILD RE-PURCHASED ANYTHING — but this task DID buy one
+extraction, elsewhere and by accident; THE SPEND, below, is the whole of it.
+The rebuild reproduced 636's state exactly — penev_A 1448 objects, 93 Footnotes, unclaimed 243, doubly-claimed
 42, unreachable 295, dark 579 — so the ledger's numbers are like for like
 with out/636.txt and the rebuild moved nothing.
 
@@ -276,6 +281,60 @@ WHAT THE LEDGER FOUND THAT NOTHING ELSE SAID
          two Sidenotes and one Section header that also claim their own line.
 
 --------------------------------------------------------------------------
+THE SPEND — ONE 8-PAGE MATHPIX EXTRACTION, BOUGHT BY ACCIDENT (fix round 1)
+--------------------------------------------------------------------------
+WHAT WAS BOUGHT. One MathPix extraction of `evidence-equation.pdf`, 8 pages,
+in `~/pdfdrill-library/penev_A/`. Nobody asked for it. It is the only spend
+this task caused, and the round-0 report's "no extraction re-purchased" was
+true of the two rebuilds and false of the task; it is corrected above.
+
+HOW. The evidence capture ran
+
+    pdfdrill model --ledger $DOC/*.pdf > $DOC/out/634/model-ledger.txt
+    pdfdrill conserve        $DOC/*.pdf > $DOC/out/634/conserve.txt
+
+and EVERY PUBLISHED DOCUMENT FOLDER HOLDS SIX PDFs — the document plus
+`evidence-formula.pdf`, `evidence-equation.pdf`, `evidence-image.pdf`,
+`evidence-table.pdf`, `report.pdf` and `residuals.pdf`, written by earlier
+tasks. The glob sorted `evidence-equation.pdf` first. Both captures were
+therefore of the WRONG DOCUMENT — and because that document had no model,
+round 0's `--ledger` (which rebuilt "only if stale") chained
+`cmd_model` -> `cmd_mathpix` and paid for the extraction. Three failures in
+one line, and each has its own fix:
+
+  THE GLOB. `out/634/capture.py` derives the PDF from the FOLDER NAME, never
+    globs, refuses the six by name, refuses more than one argument, and
+    checks each capture's first line before writing it. Both captures were
+    retaken; their first lines now read
+      `CLAIM LEDGER — penev_A  (stream mathpix_lines)`
+      `conserve penev_A: NOT CONSERVED`
+
+  THE REBUILD. `model --ledger` is READ-ONLY and REFUSES a stale or absent
+    model, naming `pdfdrill model <pdf>`. A command whose purpose is to
+    report on what exists must not be able to create it, and the spend
+    decision stays with the caller. `cli._do_model` routes the flag before
+    `cmd_model`, so no path from it to a build survives — pinned as SOURCE
+    (`test_no_path_from_the_ledger_flag_to_a_build_or_a_purchase`), because
+    the failure was a call chain and no fixture reproduces a purchase.
+
+  THE CERTIFICATION. INSPECT.txt listed both wrong files as penev_A's own.
+    408's rule — a path in INSPECT.txt is a promise — checked existence and
+    non-emptiness, and both files were perfectly real. `taskout.inspect_list`
+    now takes an `expect` and holds the file's FIRST LINE to NAMING the
+    document. "Naming", not "containing": the bad capture's first line was
+      `Uploading /home/wkolbe/pdfdrill-library/penev_A/evidence-equation.pdf...`
+    which CONTAINS "penev_A", inside the folder path — a substring test
+    passes it, and the check would have been written and still missed the
+    defect it exists for. A token holding a path separator is not a name.
+
+WHAT WAS DONE WITH THE ARTEFACTS. Kept, not deleted — they were paid for —
+and moved out of the document folder into
+`~/pdfdrill-library/penev_A/out/634/accidental/`, where `status` and every
+glob will not find them and treat them as penev_A's:
+  evidence-equation.lines.json, .md, .tex.zip, .pdf.drill.json, .pdf.drill/
+  (the last holding the model built from that purchase).
+
+--------------------------------------------------------------------------
 TESTS (TDD; the first run failed at import — the module did not exist)
 --------------------------------------------------------------------------
   tests/test_claim_ledger.py, 15 tests:
@@ -305,14 +364,37 @@ TESTS (TDD; the first run failed at import — the module did not exist)
       and a corrupted sum prints MISMATCH, so the checker has been seen to
       fail as well as to pass (rule 11).
 
+  FIX ROUND 1 adds 4 more to that file and a new tests/test_taskout_inspect.py
+  (8 tests) plus one in tests/test_preflight.py:
+    `--ledger` refuses a missing model, names the command, and writes no
+      model / lines.json / tex.zip / md (it names the artefacts that matter
+      rather than claiming a directory stayed empty — the sidecar probe every
+      command makes does appear, and pretending otherwise is the same class
+      of false claim this round is fixing);
+    NO PATH from the flag to a build or a purchase, asserted on the SOURCE:
+      `model_ledger` contains no `cmd_model(`, `cmd_mathpix(` or
+      `save_model(`, and `cli._do_model` reaches `model_ledger(` before
+      `cmd_model(`;
+    the flag is a read-only form for the preflight gate, and the bare `model`
+      build is still gated;
+    a rebuild resets the recorder before `build_model`;
+    inspect_list: the wrong-document capture is refused and NOT listed;
+      the two real correct first lines pass (rule 11 — a check that can only
+      refuse has not been tested); the REAL bad first line, which contains
+      "penev_A" inside a path, is refused; extensions and punctuation still
+      name; several expectations at once; the old 2-tuple and bare-path forms
+      are untouched; a missing file is still "does not exist"; the read is
+      bounded.
+
   An autouse fixture resets the recorder around every test. That exists
   because of a real defect this task hit: the recorder is process-global by
   design, `pdfdrill.cli` switches it on and never off, and one test then
   inherited another's recorder — the suite disagreed with the file run alone.
 
   FULL SUITE: PYTHONDONTWRITEBYTECODE=1 PYTHONPATH=src python3 -m pytest
-  tests/ -q -p no:cacheprovider  ->  3271 passed, 0 failed
-  (3256 before this task; 15 new. test_skill_sync green, manifest 148/148.)
+  tests/ -q -p no:cacheprovider  ->  3284 passed, 0 failed
+  (3256 before this task; 15 in round 0 and 13 in fix round 1.
+  test_skill_sync green, manifest 148/148.)
 
 --------------------------------------------------------------------------
 EVIDENCE (library, deny-by-default git; never committed to this repo)
@@ -320,17 +402,25 @@ EVIDENCE (library, deny-by-default git; never committed to this repo)
   ~/pdfdrill-library/penev_A/out/634/
   ~/pdfdrill-library/SteerableWaveletFramesBasedontheRieszTransform/out/634/
       script.py          the census, runnable from either place
+      capture.py         the capture, which NAMES the PDF and never globs
       ledger.json        the full ledger, every 0-claim and >1-claim anchor
       result.json        the numbers + the anchor-by-anchor cross-check
       report.txt         `format_ledger` at limit 60
       model-ledger.txt   `pdfdrill model --ledger <pdf>`, as it prints
       conserve.txt       `pdfdrill conserve <pdf>`, the other instrument
       rebuild.log        `model --force` + the 22-step drill, rc 0
-      INSPECT.txt        every path, checked
+      INSPECT.txt        `taskout.inspect_list`'s machine-readable list —
+                         one absolute path per line, each checked to exist,
+                         to be non-empty, and to NAME this document on its
+                         first line
+      INSPECT-NOTES.txt  the same list with the reasons, the capture rule,
+                         the rebuild, and (penev_A) what is in accidental/
+      accidental/        penev_A only: the artefacts of the accidental
+                         purchase, kept and moved out of the document folder
   ~/pdfdrill-library/out/634/
       script.py pair.json pair.txt INSPECT.txt
 
-  In this repo: out/634/script.py (the same census).
+  In this repo: out/634/script.py (the census) and out/634/capture.py.
 
 --------------------------------------------------------------------------
 WHAT IS OPEN
@@ -350,3 +440,10 @@ WHAT IS OPEN
     counter (`overflow`, printed when set), not a measured population.
   The ledger is not in `docs/layers/`. It is a flag on `model`, declared in
     the manifest; if it grows a layer of its own it needs a doc.
+  `preflight.READ_ONLY_FORMS` holds one entry and it is a PROMISE ABOUT A
+    CODE PATH, not about a flag name: `model_ledger` must stay unable to
+    write or spend. The source-level test asserts that today; a second entry
+    added without the same test would reopen the gate quietly.
+  Every other task's evidence capture in this library was taken the same way
+    round 0's was — by hand, often with a glob. `inspect_list` can now check
+    them, and none of them has been rechecked.

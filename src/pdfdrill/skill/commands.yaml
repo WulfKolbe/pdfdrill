@@ -986,9 +986,11 @@ commands:
       for the doubly-claimed and the 0-claim lines grouped by page and MathPix
       line type. A claim is recorded where a realization is attached; BLOCK
       claims (whole line) are counted, INLINE ones (a Formula inside a line)
-      reported separately. Rebuilds only when the model is stale or absent.
-      Pairs with `conserve`, which measures the same surface from the output
-      side.'
+      reported separately. READ-ONLY: it never rebuilds and never writes —
+      it REFUSES when the model is stale or absent and names the `pdfdrill
+      model <pdf>` that fixes it, because a rebuild can chain MathPix and
+      spend money. Pairs with `conserve`, which measures the same surface
+      from the output side.'
   typed: true
   done_when: model
 - name: compare

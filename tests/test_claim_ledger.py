@@ -327,3 +327,66 @@ def test_a_mismatched_sum_is_printed_as_a_mismatch_not_hidden():
     led = _led(doc)
     led["counts"]["claimed_1"] += 1              # corrupt it on purpose
     assert "MISMATCH" in L.format_ledger(led)
+
+
+# ------------------------------------- FIX ROUND 1: --ledger is READ-ONLY
+
+def test_ledger_refuses_a_missing_model_and_names_the_command(tmp_path):
+    """The defect: `--ledger` rebuilt "only if stale", so running it on a PDF
+    with no model chained cmd_model -> cmd_mathpix and BOUGHT an 8-page
+    extraction. A command that reports on what exists must not be able to
+    create it."""
+    from pdfdrill.commands import model_ledger
+    pdf = tmp_path / "nothing.pdf"
+    pdf.write_bytes(b"%PDF-1.4\n%%EOF\n")
+    out = model_ledger(pdf)
+    assert out.startswith("REFUSED")
+    assert "has no model" in out
+    assert f"pdfdrill model {pdf}" in out
+    assert "SPEND MONEY" in out
+    # NOTHING THAT COSTS OR PERSISTS A MODEL was written. The document's
+    # sidecar may appear — every command opens one, `size` and `status`
+    # included — so the assertion names the artefacts that matter instead of
+    # claiming a directory stayed empty, which would pass here only because
+    # this stub is not a real PDF the probe can read.
+    made = {p.name for p in tmp_path.rglob("*")}
+    for costly in ("model.docmodel.json", "model.docpack.json",
+                   "nothing.lines.json", "nothing.tex.zip", "nothing.md"):
+        assert costly not in made, costly
+
+
+def test_no_path_from_the_ledger_flag_to_a_build_or_a_purchase():
+    """Pinned as source, because the failure was a CALL CHAIN and no fixture
+    reproduces a MathPix purchase. `model_ledger` must not reach `cmd_model`,
+    `cmd_mathpix` or `save_model`, and `cli._do_model` must route `--ledger`
+    before it calls `cmd_model` at all."""
+    import inspect
+    from pdfdrill import cli
+    from pdfdrill.commands import model_ledger
+    body = inspect.getsource(model_ledger)
+    for forbidden in ("cmd_model(", "cmd_mathpix(", "save_model("):
+        assert forbidden not in body, forbidden
+    src = inspect.getsource(cli._do_model)
+    assert src.index("model_ledger(") < src.index("return cmd_model("), src
+
+
+def test_the_ledger_flag_is_a_read_only_form_for_the_preflight_gate():
+    """A read must not be gated by the attestation that exists to stop spends
+    — and the bare `model` build must stay gated."""
+    from pdfdrill import preflight
+    assert preflight.is_read_only_form("model", ["x.pdf", "--ledger"])
+    assert not preflight.is_read_only_form("model", ["x.pdf"])
+    assert not preflight.is_gated("model", ["x.pdf", "--ledger"])
+    assert preflight.is_gated("model", ["x.pdf"])
+    assert preflight.is_gated("mathpix", ["x.pdf", "--ledger"])
+
+
+def test_a_rebuild_forgets_the_previous_documents_claims():
+    """The recorder is process-global; a batch building many documents would
+    otherwise carry one document's attribution and a sticky overflow into the
+    next one's ledger."""
+    import inspect
+    from pdfdrill.commands import cmd_model
+    src = inspect.getsource(cmd_model)
+    assert "_ledger_mod.reset()" in src
+    assert src.index("_ledger_mod.reset()") < src.index("out = build_model(")

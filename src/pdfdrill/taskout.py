@@ -108,8 +108,35 @@ INSPECT_FILE = "INSPECT.txt"
 def inspect_list(target, task, entries) -> dict:
     r"""Write `INSPECT.txt` — one absolute path per line, nothing else.
 
-    `entries` is [(path, reason)]. The reason does NOT go in the file: the
-    file is read by drillui's scanner, and the report carries the reasons.
+    `entries` is [(path, reason)] or [(path, reason, expect)]. The reason does
+    NOT go in the file: the file is read by drillui's scanner, and the report
+    carries the reasons.
+
+    `expect` — 634 fix round 1 — is a string (or list of strings) the file's
+    FIRST LINE must NAME, and it exists because existence is not enough. A capture of `pdfdrill model --ledger` and `pdfdrill conserve` was
+    taken with a `*.pdf` GLOB in a document folder holding six PDFs
+    (`evidence-formula.pdf`, `evidence-equation.pdf`, `evidence-image.pdf`,
+    `evidence-table.pdf`, `report.pdf`, `residuals.pdf` sit beside the
+    document in every published folder). The glob matched
+    `evidence-equation.pdf`; both captures were of the WRONG DOCUMENT, both
+    existed, both were non-empty, and INSPECT.txt certified them as the
+    document's own. Every command whose output names its subject on line one
+    can now be held to it, and a file that names something else is NOT
+    written — it goes to `failed` like a missing path, because a path that
+    describes another document is a broken promise in the same way.
+
+    NAMES, NOT CONTAINS. The wrong capture's real first line was
+    `Uploading /home/wkolbe/pdfdrill-library/penev_A/evidence-equation.pdf...`
+    — which CONTAINS "penev_A", inside the folder path. A substring test
+    passes it, so the first version of this check would not have caught the
+    defect it was written for. The rule is therefore: the first line names X
+    when some WHITESPACE-SEPARATED TOKEN of it, minus surrounding punctuation
+    and minus any extension, IS X — and a token holding a path separator is
+    not a name (`conserve penev_A: NOT CONSERVED` and `CLAIM LEDGER — penev_A
+    (stream mathpix_lines)` name it; a path mentioning the folder does not).
+    A command that identifies its subject only by full path cannot be checked
+    this way, and should not pass `expect` rather than being given a weaker
+    rule.
 
     A PATH IN THAT FILE IS A PROMISE. 408 established that presenting an
     unreachable path is only half of reachable, so every path is checked for
@@ -131,7 +158,7 @@ def inspect_list(target, task, entries) -> dict:
     d = task_dir(target, task)
     written, failed, spacey = [], [], []
     for item in entries:
-        p, reason = (item if isinstance(item, (tuple, list)) else (item, ""))
+        p, reason, expect = _entry(item)
         ap = Path(p).resolve()
         if not ap.exists():
             failed.append((str(ap), "does not exist"))
@@ -139,6 +166,11 @@ def inspect_list(target, task, entries) -> dict:
         if ap.is_file() and ap.stat().st_size == 0:
             failed.append((str(ap), "exists but is empty"))
             continue
+        if expect:
+            missing = _first_line_missing(ap, expect)
+            if missing is not None:
+                failed.append((str(ap), missing))
+                continue
         written.append((str(ap), reason))
         if " " in str(ap) or "\t" in str(ap):
             spacey.append(str(ap))
@@ -147,6 +179,69 @@ def inspect_list(target, task, entries) -> dict:
                     .encode("utf-8", "replace"))
     return {"path": str(out), "written": written, "failed": failed,
             "whitespace": spacey}
+
+
+def _entry(item):
+    """(path, reason, expect) from a bare path, a 2-tuple or a 3-tuple."""
+    if not isinstance(item, (tuple, list)):
+        return item, "", None
+    if len(item) >= 3:
+        return item[0], item[1], item[2]
+    if len(item) == 2:
+        return item[0], item[1], None
+    return item[0], "", None
+
+
+#: How much of a file to read when checking its first line. Bounded so a
+#: 1.7 MB lines.json listed by mistake costs a read of 8 KB, not of all of it.
+_FIRST_LINE_BYTES = 8192
+
+
+def _first_line_missing(ap: Path, expect) -> "str | None":
+    """None when the file's first line names everything `expect` asks for;
+    otherwise the sentence `failed` should carry.
+
+    Read as bytes and decoded with `errors="replace"` for the same reason
+    `_write` encodes that way: 18 library folders carry CP1252 bytes, and a
+    check that raises on one of them is a check with an unknown hole.
+    """
+    wants = [expect] if isinstance(expect, str) else list(expect)
+    try:
+        with ap.open("rb") as f:
+            head = f.read(_FIRST_LINE_BYTES)
+    except OSError as exc:
+        return f"could not be read to check its first line ({exc})"
+    first = head.decode("utf-8", "replace").splitlines()
+    first = first[0] if first else ""
+    names = _names_in(first)
+    absent = [w for w in wants if w not in names]
+    if not absent:
+        return None
+    return ("first line does not name %s — it reads %r. A file that describes "
+            "another document is a broken promise, not a present path."
+            % (", ".join(repr(a) for a in absent), first[:120]))
+
+
+#: Punctuation a name may be wrapped in on a report's first line
+#: (`conserve penev_A:`, `— penev_A`, `(penev_A)`).
+_EDGE = " \t.,:;()[]{}<>\"'`—–-"
+
+
+def _names_in(line: str) -> set:
+    """The set of things this line NAMES: whitespace tokens, minus surrounding
+    punctuation, minus any extension — and never a token holding a path
+    separator, because mentioning a folder is not naming the document."""
+    out = set()
+    for tok in line.split():
+        if "/" in tok or "\\" in tok:
+            continue                       # a path mentions; it does not name
+        t = tok.strip(_EDGE)
+        if not t:
+            continue
+        out.add(t)
+        if "." in t:
+            out.add(t.split(".", 1)[0])    # `penev_A.tex` names `penev_A`
+    return out
 
 
 def inspect_report(result: dict) -> str:

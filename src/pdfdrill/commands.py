@@ -4685,34 +4685,58 @@ def model_rebuild_blocked_by_enrichment(found: dict, allow: bool) -> str:
             f"to be re-proposed and re-verified (`pdfdrill refine`)")
 
 
-def _model_ledger(pdf: Path, bibkey: str | None = None) -> str:
+def model_ledger(pdf: Path) -> str:
     """`pdfdrill model --ledger <pdf>` — the 634 claim ledger for the model on
-    disk. The listings are recomputed from the document every time; only the
-    ATTRIBUTION (which module attached which realization) comes from the model,
-    because that is the one thing a later process cannot recover."""
+    disk. READ-ONLY: it never rebuilds, never writes a model, a lines.json or
+    any derived artefact, and never buys an extraction; it takes no document
+    lock either (`cli._do_model` routes here BEFORE `cmd_model`, so the
+    `@_writes` decorator is never entered). It does OPEN the document's
+    sidecar, which creates `<pdf>.drill.json` and a `pdfinfo`/`pdffonts`
+    probe on first sight of a document — that is what every command does,
+    `size` and `status` included, and it is stated here rather than hidden
+    behind the word "never".
+
+    634 FIX ROUND 1, and the reason the refusal below exists rather than a
+    convenient auto-rebuild. The first version rebuilt "only if stale". An
+    evidence capture then ran it on the WRONG PDF — an `*.pdf` glob in a
+    folder holding six of them — and because that document had no model, the
+    chain went `--ledger` -> `cmd_model` -> `cmd_mathpix` and BOUGHT an
+    8-page MathPix extraction. Nobody asked for an extraction; a command
+    whose whole purpose is to report on what exists must not be able to
+    create it. So: a stale or absent model is REFUSED, with the exact command
+    that fixes it named, and the spend decision stays with the caller.
+
+    The listings are recomputed from the document every time; only the
+    ATTRIBUTION (which module attached which realization) comes from the
+    model, because that is the one thing a later process cannot recover.
+    """
     from docmodel import ledger as _L
     from .model_io import load_model as _load_model
 
     sc = Sidecar(pdf)
     model_path = _model_path(sc)
-    note = ""
-    if _stale_or_absent(sc, model_path, _lines_json_path(pdf)):
-        note = cmd_model(pdf, bibkey=bibkey).rstrip() + "\n\n"
-        sc = Sidecar(pdf)
-        model_path = _model_path(sc)
     if not model_path.exists():
-        return note + f"No model for {pdf.name} (run `pdfdrill model` first)."
+        why = "has no model"
+    elif _stale_or_absent(sc, model_path, _lines_json_path(pdf)):
+        why = "has a STALE model (its recorded inputs no longer hash-match)"
+    else:
+        why = ""
+    if why:
+        return (f"REFUSED: {pdf.name} {why}, and `model --ledger` is read-only "
+                f"— it never rebuilds. A rebuild can chain MathPix and SPEND "
+                f"MONEY, which is exactly what a read must not do. Build it "
+                f"yourself, then read the ledger:\n"
+                f"    pdfdrill model {pdf}\n"
+                f"    pdfdrill model --ledger {pdf}")
     doc = _load_model(model_path)
     led = _L.materialize(doc)
-    return note + _L.format_ledger(
-        led, title=str(doc.meta.get("bibkey") or pdf.stem))
+    return _L.format_ledger(led, title=str(doc.meta.get("bibkey") or pdf.stem))
 
 
 @_writes("model")
 def cmd_model(pdf: Path, force: bool = False, bibkey: str | None = None,
               force_discard_translation: bool = False,
-              force_discard_enrichments: bool = False,
-              ledger: bool = False) -> str:
+              force_discard_enrichments: bool = False) -> str:
     """Build the unified docmodel Document from MathPix lines.json.
 
     Auto-chains `mathpix` if the lines.json isn't there yet. Writes the
@@ -4725,14 +4749,6 @@ def cmd_model(pdf: Path, force: bool = False, bibkey: str | None = None,
     filename stem (preserving clean arXiv ids like `2004.05631v1`).
     """
     from docmodel.main import run as build_model, DEFAULT_CONFIG_PATH
-
-    # 634 — READ the claim ledger: which `mathpix_lines` anchors were claimed
-    # by nobody, which by more than one module. Read-only; it rebuilds only
-    # when the model is stale or absent, through this same command (the doc
-    # lock is re-entrant within one process, so the nested call is a
-    # pass-through and not a second lock).
-    if ledger:
-        return _model_ledger(pdf, bibkey)
 
     sc = Sidecar(pdf)
     blocked = model_rebuild_blocked(
@@ -4863,6 +4879,13 @@ def cmd_model(pdf: Path, force: bool = False, bibkey: str | None = None,
 
     sc.blob_dir.mkdir(parents=True, exist_ok=True)
     t0 = time.monotonic()
+    # 634 — the claim recorder is process-global, and a batch that builds many
+    # documents in one process would otherwise carry the previous document's
+    # attribution and a sticky `overflow` flag into this one's ledger. A full
+    # rebuild replaces every object anyway, so nothing true is lost by
+    # forgetting here. `build_model` switches recording back on.
+    from docmodel import ledger as _ledger_mod
+    _ledger_mod.reset()
     out = build_model(
         lines_path=str(lines_path),
         config_path=DEFAULT_CONFIG_PATH,
