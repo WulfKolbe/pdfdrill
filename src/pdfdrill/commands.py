@@ -13819,6 +13819,7 @@ def _model_status_lines(sc: "Sidecar") -> list[str]:
         lines += _format_bibliography_state(
             [r.props for r in g.of_type("Reference")], cites)
     lines += _format_environments(g.meta.get("environments") or {})
+    lines += _format_footnote_refusals(g.meta)
     lines += _math_capture_status(sc, sc.pdf_path, g)
     try:
         from . import planner as _pl
@@ -13830,6 +13831,32 @@ def _model_status_lines(sc: "Sidecar") -> list[str]:
     except Exception:                                          # noqa: BLE001
         pass
     return lines
+
+
+def _format_footnote_refusals(meta: dict) -> list[str]:
+    """636's two refusals, for `status` (pure). Silent when both are 0.
+
+    `footnote_orphan_tail` — a footnote body that ran on past a number
+    REPEATING one already emitted from the same block. A second object would
+    give two bodies one printed number on one page (the collision 644
+    removed), so the tail stays on the body before it, marked
+    `tail_unassigned`.
+    `footnote_span_not_located` — a lifted footnote whose number is on no
+    single line of its paragraph, so it keeps the paragraph's own claim
+    instead of an invented sub-anchor.
+
+    Both were written to `doc.meta` and read by nothing, which is the shape
+    645 named: a count nothing prints is a count nobody reads."""
+    orphan = int((meta or {}).get("footnote_orphan_tail") or 0)
+    unloc = int((meta or {}).get("footnote_span_not_located") or 0)
+    if not orphan and not unloc:
+        return []
+    bits = []
+    if orphan:
+        bits.append(f"{orphan} tail(s) kept on the body before a repeated number")
+    if unloc:
+        bits.append(f"{unloc} body(ies) with no locatable line")
+    return ["  footnote split refusals: " + "; ".join(bits)]
 
 
 def _format_genre(genre: dict) -> list[str]:

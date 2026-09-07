@@ -74,6 +74,13 @@ def split_bodies(text: str) -> list[Segment]:
     first number is a body that began earlier (a footnote spilling from the
     previous page), and this function invents no owner for it — it stays where
     it already was, which is what the block's own Footnote has always held.
+
+    A REPEATED number parks its tail on the segment IMMEDIATELY BEFORE it —
+    the body the text physically runs on from — NOT on the earlier segment
+    that carries the same number. Position is what the block tells us;
+    matching by number would be a guess about which footnote the text belongs
+    to, and the repeat is the reason to distrust the number in the first
+    place.
     """
     labels = find_labels(text)
     if not labels:

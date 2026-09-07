@@ -109,16 +109,26 @@ def _footnote_extents(doc, para, refnums: list[str], heads=(0,)):
     # previous page, and split_bodies keeps it on this body (it invents no owner
     # for it). Two penev_A blocks are that shape — 11 lines that would otherwise
     # be claimed by nothing while their text sits in a Footnote.
-    prev = 0
-    for h in sorted(heads):
-        if h >= len(found) or found[h] is None:
+    #
+    # THE BACK-OFF MAY NOT REACH INTO A PREVIOUS GROUP. A paragraph can carry
+    # two `\footnotetext{…}` groups; searching from the previous group's HEAD
+    # found that group's own opener again, so group 2 claimed group 1's lines
+    # whole and the two overlapped (a Footnote+Footnote pair in `conserve`).
+    # The floor is just past the previous group's LAST located label.
+    ordered = [h for h in sorted(heads) if h < len(found)]
+    for gi, h in enumerate(ordered):
+        if found[h] is None:
             continue
-        for j in range(prev, found[h][0] + 1):
-            m = _FOOTNOTETEXT.search(lines[j][1])
+        lo_line, lo_col = 0, 0
+        if gi:
+            prior = [f for f in found[ordered[gi - 1]:h] if f is not None]
+            if prior:
+                lo_line, lo_col = max(prior)[0], max(prior)[1] + 1
+        for j in range(lo_line, found[h][0] + 1):
+            m = _FOOTNOTETEXT.search(lines[j][1], lo_col if j == lo_line else 0)
             if m and (j, m.start()) <= found[h]:
                 found[h] = (j, m.start())
                 break
-        prev = found[h][0]
     out = []
     for k, hit in enumerate(found):
         if hit is None:

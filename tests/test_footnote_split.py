@@ -249,6 +249,46 @@ def test_a_body_spilling_in_from_the_previous_page_is_still_claimed():
     assert rep["counts"]["doubly_claimed"] == 0, rep["anchors"]["pairs"]
 
 
+def test_two_footnotetext_groups_in_one_paragraph_do_not_overlap():
+    """A group's claim starts at ITS OWN `\\footnotetext{`. Searching back from
+    the previous group's head found that group's opener again, so the second
+    group claimed the first group's lines whole and the two overlapped — a
+    Footnote+Footnote pair in `conserve`, on a paragraph carrying two groups."""
+    doc = _doc([
+        {"id": "l1", "type": "text",
+         "text_display": "\\footnotetext{\\({ }^{1}\\) first note."},
+        {"id": "l2", "type": "text", "text_display": " continued here.}"},
+        {"id": "l3", "type": "text",
+         "text_display": "\\footnotetext{\\({ }^{2}\\) second note."},
+        {"id": "l4", "type": "text", "text_display": " also continued.}"},
+    ])
+    for cls in (PageProcessor, ParagraphProcessor):
+        _module(cls).process_document(doc)
+    hc.extract_footnote_paragraphs(doc)
+    fns = _fn(doc)
+    assert [f.props["refnum"] for f in fns] == ["1", "2"]
+    st = doc.streams["mathpix_lines"]
+    covered = []
+    for f in fns:
+        lines = set()
+        for r in f.realizations:
+            if r.stream != "mathpix_lines" or r.role != "surface":
+                continue
+            if isinstance(r.props.get("offset"), int):
+                continue                                # inline: claims nothing
+            lines |= {st.payload[a].get("id")
+                      for a in st.slice_anchors(r.start, r.end or r.start)}
+        covered.append(lines)
+    # each group owns ITS OWN lines. Searching back from the previous group's
+    # head gave note 1 nothing at all and note 2 all four lines.
+    assert covered[0] == {"l1", "l2"}, covered
+    assert covered[1] == {"l3", "l4"}, covered
+    assert not (covered[0] & covered[1]), covered       # no overlap
+    from docops import conserve as C
+    pairs = C.conserve(doc)["anchors"]["pairs"]
+    assert not [e for e in pairs if e["types"] == ["Footnote", "Footnote"]], pairs
+
+
 def test_a_paragraph_footnote_that_cannot_be_located_keeps_its_shared_claim():
     """No sub-anchor is invented. When the label is in no single line of the
     paragraph's span, the realizations stay as they were and the refusal is
@@ -291,6 +331,34 @@ def test_the_projection_of_a_split_block_carries_both_bodies_once():
     assert any("first body." in b for b in bodies)
     assert any("second body." in b for b in bodies)
     assert not any("{ }^{4}" in b and "first body." in b for b in bodies)
+
+
+def test_an_orphan_tail_reaches_the_status_output():
+    """`footnote_orphan_tail` was written to the model and read by NOTHING.
+    A count nothing prints is a count nobody reads (645), so `status` prints
+    it — and `conserve`, whose reader is the one who wants it, lists it."""
+    from pdfdrill.commands import (_format_footnote_refusals,
+                                   _model_status_lines, cmd_status)
+    doc = Document()
+    doc.meta["bibkey"] = "T"
+    doc.add(DocObject(type="Paragraph", id="p1", props={
+        "text": "\\footnotetext{\\({ }^{3}\\) first.\\({ }^{3}\\) repeat.}",
+        "flow_index": 1}))
+    hc.extract_footnote_paragraphs(doc)
+    assert doc.meta["footnote_orphan_tail"] == 1        # the refusal happened
+    line = _format_footnote_refusals(doc.meta)
+    assert len(line) == 1 and "orphan" not in line[0].lower()
+    assert "footnote split refusals: 1 tail(s) kept" in line[0]
+    assert _format_footnote_refusals({}) == []          # silent when there is none
+    assert _format_footnote_refusals({"footnote_span_not_located": 2})[0] \
+        .endswith("2 body(ies) with no locatable line")
+    # wired in, not merely defined
+    import inspect
+    assert "_format_footnote_refusals" in inspect.getsource(_model_status_lines)
+    assert "_model_status_lines" in inspect.getsource(cmd_status)
+    from docops import conserve as C
+    assert C.conserve(doc)["footnote_refusals"]["orphan_tail"] == 1
+    assert "footnote split refusals" in C.format_report(C.conserve(doc))
 
 
 if __name__ == "__main__":

@@ -1,5 +1,11 @@
 636 — cut each footnote body at the next anchor
 ===============================================
+(FIX ROUND 1 folded in: the second `\footnotetext{…}` group in one paragraph
+no longer reaches back into the first; the two refusal counters are printed by
+`status` and by `conserve`; `split_bodies` says where a repeated number's tail
+actually goes. §FIX ROUND 1 at the foot. Every number below is post-fix and
+was re-measured on a fresh rebuild of both documents — none of them moved,
+because neither document has a paragraph carrying two groups.)
 
 THE USER'S REPORT, CHECKED FIRST (rule 14: measured before anything changed)
   "29 of penev_A's 53 Footnote objects have content that runs past their own
@@ -268,6 +274,16 @@ WHAT IS OPEN
          rebuilds paragraph text from those lines) and orphans the Formulas
          hosted there. Its own task. 638-a is the same defect seen in the
          prose.
+  636-d  A CONTINUATION SPILLING IN FROM THE PREVIOUS PAGE PRINTS UNDER THE
+         NEXT FOOTNOTE'S NUMBER. `split_bodies` keeps the text before a
+         block's first label on that block's first body (it invents no owner
+         for it, which is right), but the body then carries that label's
+         number, so the projection prints the previous page's tail as the
+         opening of footnote n. Two penev_A blocks are that shape: the page-5
+         body numbered 3 opens "should have this in mind. Nevertbeless, many
+         of the facts of Linear Algebra…", which is footnote 2 finishing.
+         Naming the true owner needs the PREVIOUS page's block, which is a
+         cross-page rule and not this cut.
   636-c  34 of the 40 new bodies are transcluded by nothing: their printed
          number is never matched to a marker in running text. That is
          638-b/646-a2, and it is now VISIBLE — the bodies used to hide inside
@@ -301,3 +317,52 @@ CONCERNS
   them up. The contract tests are green as they stand.
   Both documents' models were rebuilt from CACHED MathPix output. No
   extraction was re-purchased and no `mathpix --force` was run.
+
+FIX ROUND 1
+-----------
+  RULING ON THE CONSERVE DEVIATION, RECORDED: the footnote claiming its REAL
+  EXTENT is ACCEPTED. Claiming only the label's line drops the 36 Footnote
+  doubly-claimed anchors but produces 193 FALSE unclaimed lines — loss
+  reported where there is none. 636-b (a Paragraph still claiming lines whose
+  text it no longer carries) stays the follow-up, and it is the thing that
+  will drop the 35 pairs honestly.
+
+  1. A SECOND `\footnotetext{…}` GROUP IN ONE PARAGRAPH WAS MIS-ANCHORED.
+     `_footnote_extents` walks each group's first body back to that group's
+     own `\footnotetext{`. The floor of that search was the PREVIOUS GROUP'S
+     HEAD, so group 2's search found group 1's opener again: group 1's first
+     body then owned no line at all and group 2 owned all of them. The floor
+     is now just past the previous group's LAST LOCATED label (line AND
+     column, so two groups on one line stay apart).
+     NEITHER DOCUMENT HAS A PARAGRAPH WITH TWO GROUPS — every number in this
+     file is byte-identical after the fix, on a fresh rebuild of both. The
+     class is real, it is carried by
+     `test_two_footnotetext_groups_in_one_paragraph_do_not_overlap`, and that
+     test was confirmed failing against the old floor: `[set(), {l1,l2,l3,l4}]`
+     where it must be `[{l1,l2}, {l3,l4}]`.
+
+  2. THE TWO REFUSAL COUNTERS WERE WRITTEN AND READ BY NOTHING (645's shape).
+     `doc.meta["footnote_orphan_tail"]` and `["footnote_span_not_located"]`
+     now reach a reader in the two places one would meet them:
+       * `pdfdrill status` — `_format_footnote_refusals(meta)`, a pure
+         formatter beside `_format_genre`/`_format_environments`, called from
+         `_model_status_lines`; silent when both are 0, which is why penev_A
+         and Steerable print nothing today.
+       * `pdfdrill conserve` — `footnote_refusals` in the result dict and a
+         line in `format_report`, under the counts. They are NOT folded into
+         `conserved`: they are decisions about content that was KEPT, not
+         content lost.
+     Pinned by `test_an_orphan_tail_reaches_the_status_output`, which builds
+     a repeated-number fixture, asserts the count, the wording, the silence
+     at 0, that `_model_status_lines` calls the formatter and `cmd_status`
+     calls that, and that `conserve`'s report carries the line.
+
+  3. `split_bodies`'s docstring said a repeated number's tail stays on "the
+     earlier footnote", which reads as the earlier footnote WITH THAT NUMBER.
+     It stays on the segment IMMEDIATELY BEFORE it — the body the text
+     physically runs on from. Position is what the block tells us; matching
+     by number would be a guess, and the repeat is the reason to distrust the
+     number. Said so.
+
+  FULL SUITE after fix round 1: 3256 passed, 0 failed (20 tests in
+  tests/test_footnote_split.py; 3236 before the task).

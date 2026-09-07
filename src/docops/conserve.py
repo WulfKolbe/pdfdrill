@@ -439,6 +439,14 @@ def conserve(doc: Document) -> dict:
         "conserved": not any(counts.values()),
         "reachability": reach,
         "anchors": claims,
+        # 636's two refusals. They are NOT folded into `conserved` — they are
+        # decisions the split made about content it kept, not content lost —
+        # but a reader of the conservation report is the reader who wants
+        # them, and they were written to the model and read by nothing.
+        "footnote_refusals": {
+            "orphan_tail": int(doc.meta.get("footnote_orphan_tail") or 0),
+            "span_not_located": int(doc.meta.get("footnote_span_not_located") or 0),
+        },
     }
 
 
@@ -507,6 +515,14 @@ def format_report(res: dict, limit: int = _MAX_EXAMPLES) -> str:
                  f"  (claimed, but every claimant is unreachable: "
                  + ", ".join(f"{'+'.join(e['types'])}={e['count']}"
                              for e in anch["dark"]["by_type"][:6]) + ")")
+    ref = res.get("footnote_refusals") or {}
+    if ref.get("orphan_tail") or ref.get("span_not_located"):
+        L.append(f"footnote split refusals: "
+                 f"orphan_tail={ref.get('orphan_tail', 0)} "
+                 f"(a tail kept on the body before a REPEATED number, marked "
+                 f"tail_unassigned), span_not_located="
+                 f"{ref.get('span_not_located', 0)} (a lifted footnote whose "
+                 f"number is on no single line, keeping its paragraph's claim)")
     L.append(f"claims: {anch['claims']} covering, {anch['inline_skipped']} inline "
              f"(sub-anchor offset — does not claim its line); "
              f"container types not claiming: {', '.join(anch['containers_excluded'])}")
