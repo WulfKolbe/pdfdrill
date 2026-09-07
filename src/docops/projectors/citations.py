@@ -46,6 +46,20 @@ and claiming to have substituted a citation into a block nobody prints would be
 a count that overstates what the reader gets. Those citations stay under
 `citations_outside_running_text`.
 
+`Picture`/`Diagram` ARE in the set (640). A figure caption is prose exactly
+like a footnote body — MathPix's own `\caption{…}` can carry `[N]` the same
+way a paragraph does (`Adelson's checkerboard illusion [29]`) — and
+`LaTeXProjector._render` DOES have a branch for both, so the substitution
+reaches the page (or, when there is no `latex_code`, the `% figure pN: …`
+comment `_render` falls back to). `Table` is deliberately NOT in the set: a
+`Table` with no `latex_code` renders its `raw_text` inside
+`\begin{verbatim}…\end{verbatim}`, where LaTeX does not interpret `\cite{…}`
+at all — substituting there would print the literal command text instead of a
+number. A table-cell citation still gets a Citation object (`bibliography.
+detect_numeric_citations` scans cell lines, 640), so the model records it
+correctly; it is counted under `citations_outside_running_text` on the LaTeX
+side like the Sidenote case, because no emitted block covers it.
+
 ONE RESOLVER OWNS CITATIONS (fix rounds 1 and 2). `latex_pipeline.resolve_citations`
 predates this module: it rewrites any `[N]`/`[N,M]` bracket through
 `{Reference.number: citekey}` and knows nothing about which Citation owns the
@@ -77,7 +91,7 @@ from .footnotes import RUNNING_TEXT_TYPES, _flow, object_text
 #: The object types whose prose the LaTeX projector emits AND whose citations it
 #: therefore owns. 638's running-text set plus `Footnote` (rendered by
 #: `_footnotetext`); NOT `Sidenote`, which `_render` never emits at all (638-c).
-CITED_TEXT_TYPES = RUNNING_TEXT_TYPES + ("Footnote",)
+CITED_TEXT_TYPES = RUNNING_TEXT_TYPES + ("Footnote", "Picture", "Diagram")
 
 
 @dataclass(frozen=True)
@@ -312,6 +326,32 @@ def _numeric_fallback(text: str, taken: list, ref_map: dict, anchor,
     return out
 
 
+#: A citation source that is nothing but a digit (or a `_numlist_spans` range
+#: token, `3-5`) — the LOCANT/table/diagram classes (640) are all keyed this
+#: way. Short and content-free, so it can occur ANYWHERE in an object's
+#: materialised text by coincidence: `clean` may have already spent the
+#: citation's own bracket on a `{{…_REF_Stein1970||CIT}}` token whose NAME
+#: contains the same digit, or the object may carry an unrelated bare number
+#: (`-1`, a page or equation number) earlier in the same paragraph. An
+#: author-year or multi-key source is never this short, so the guard below
+#: is scoped to exactly the shape that needs it.
+_BARE_NUMERIC_SOURCE = re.compile(r"\d+(?:\s*[-–]\s*\d+)?$")
+
+#: What may sit immediately before a numeric citation's OWN digit: the
+#: bracket that opens it, or the `,`/`;` that separates it from the key
+#: before it — the exact set `_numlist_spans` splits on. Nothing else does;
+#: this is what tells a real `[1` from a coincidental `-1` or the `1` inside
+#: `Stein1970`.
+_CITE_OPENERS = "[,;"
+
+
+def _numeric_source_in_context(text: str, at: int) -> bool:
+    j = at
+    while j > 0 and text[j - 1] in " \t":
+        j -= 1
+    return j == 0 or text[j - 1] in _CITE_OPENERS
+
+
 def apply_subs(text: str, subs: list[Sub], *,
                on_missing=None) -> str:
     """Apply `subs` to `text` by LITERAL search, in order, from a moving cursor.
@@ -320,13 +360,26 @@ def apply_subs(text: str, subs: list[Sub], *,
     SKIPPED and reported through `on_missing` — the object's materialised text
     and its lines disagree (a mutator rewrote it), and a positional edit against
     a text that moved replaces the wrong characters.
+
+    640 — a bare-numeric source (`_BARE_NUMERIC_SOURCE`) additionally REQUIRES
+    `_numeric_source_in_context` at the position `find` returns, and keeps
+    searching forward past a match that fails it. Without this a Citation
+    keyed `"1"` corrupted `{{…_REF_Stein1970||CIT}}` (the `1` inside
+    `Stein1970`) and turned a bare `-1` in running prose into `-\\cite{…}` —
+    both reproduced end to end and pinned by
+    `test_a_bare_numeric_source_skips_a_coincidental_digit_inside_a_token`
+    and `..._skips_a_coincidental_bare_digit_in_prose`.
     """
     out: list[str] = []
     cursor = 0
     for s in subs:
         if not s.source:
             continue
+        numeric = bool(_BARE_NUMERIC_SOURCE.fullmatch(s.source.strip()))
         at = text.find(s.source, cursor)
+        if numeric:
+            while at >= 0 and not _numeric_source_in_context(text, at):
+                at = text.find(s.source, at + 1)
         if at < 0:
             if on_missing is not None:
                 on_missing(s)

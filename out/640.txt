@@ -1,0 +1,301 @@
+640 — the numeric citations the citation stage misses (Steerable)
+==================================================================
+
+THE USER'S WORDS, CHECKED FIRST (rule 14)
+  "Steerable emits 49 \cite but leaves 17 literal [n] in the body — refs 1,
+  5, 6, 10, 12, 13, 14, 15, 17, 20, 21, 28, 29." MEASURED AT HEAD (980d906,
+  before any code change here) rather than assumed: 50 \cite (not 49 — 637/
+  642/645/647b moved it since the user's report) and 12 literal citation-
+  shaped brackets (not 17): refs 5 and 20 had ALREADY been resolved by those
+  intervening tasks (637's footnote-dedup merge folded the "[20] and [21]"
+  footnote text into `\cite{Brackx1982}`/`\cite{Grlebeck2007}`). The
+  remaining 12, walked one at a time against the model's own Citation
+  population (does one exist, by line anchor + span — brief item 1), fall
+  into exactly THREE classes, none of which the brief's own example list
+  (a bare-math citation, a line-break split) anticipated. Both of those
+  anticipated shapes were checked and are 0 on this document — see CONCERNS.
+
+MEASURE FIRST, ON THE CURRENT MODEL AND .tex (HEAD 980d906)
+  \cite occurrences                                    50
+  distinct \cite keys                                  29
+  \bibitem                                             30  (29 numbered, 1
+                                                             `Online` — no
+                                                             printed number,
+                                                             never cited;
+                                                             647b's "29 of 30
+                                                             References carry
+                                                             a number")
+  literal `[n...]` in body (citation-shaped, before
+    \begin{thebibliography}, false positives excluded)  12
+
+THE CLASSIFICATION (brief item 1 — "say what the 49 have that they lack")
+  Every one of the 12 was checked directly against the model: does a
+  Citation object exist over it (by line anchor + span)? For ALL 12, NO —
+  confirmed by dumping every Citation whose citekey matched the ref number
+  and checking its anchored text against the 12 locations; none matched.
+
+  CLASS 1 — TABLE CELL (7: refs 6, 10, 12, 13, 14, 15, 17)
+    "Forster et al. [10]", "Tensor products of Hilbert transforms [6]", etc.
+    — MathPix Table I's own cells, line type `simple_cell`/`complex_cell`.
+    CAUSE: `detect_numeric_citations` filtered `p.get("type") not in
+    ("text", "title")` — a cell is neither, so the line was never looked at,
+    not a regex miss. Confirmed: the IDENTICAL phrase also exists as a
+    duplicate `text`-type Paragraph elsewhere (`Tensor products of Hilbert
+    transforms \cite{Chan2004}` at a different line), which WAS scanned and
+    IS cited — the citekey the table cell lacks is sitting right next to it
+    in the model, under a different object.
+
+  CLASS 2 — DIAGRAM CAPTION (2: refs 28, 29)
+    "Adelson's checkerboard illusion [29]", "(compare also [28])" — MathPix's
+    OWN `\caption{…}` text, embedded inside a `diagram`-type line's
+    `text_display` (a full `\begin{figure}…\caption{…}…\end{figure}` block).
+    CAUSE: same type filter (`diagram` excluded). Same duplicate-text pattern
+    as Class 1: an identical "text"-type Paragraph carries the SAME caption
+    and IS cited (`\cite{Adelson2006}` already printed on a nearby page) —
+    only the Diagram object's OWN copy of the text was blind to it.
+
+  CLASS 3 — LOCANT (3: refs 1, 1, 21 — one inside a Footnote body)
+    `[1, Ch. III.1]`, `[1, Ch. III]`, and (inside the monogenic-function
+    footnote) `[21, Ch. II.5]`. CAUSE: `_NUMCITE = re.compile(r"\[(\d[\d,\s
+    \-–]*)\]")` required the WHOLE bracket to be digits/commas/dashes/
+    whitespace; a trailing ", Ch. III" locant is not in that character class,
+    so the match fails and NOTHING is created — even though the line type
+    IS `text`/`title` and even though `_numlist_spans` (645/642) already
+    gives a LEADING digit-list its own span and silently drops anything
+    after it that isn't a digit or a range. This is the one class the brief
+    anticipated correctly ("the detector's regex misses the shape").
+
+  A "NEW RULE THE BRIEF DID NOT ANTICIPATE" (Before-You-Begin instruction):
+  Classes 1 and 2 are not the shapes item 1 listed (inline maths, a line
+  break, `[1,5]`/`[10-12]`/`[1]-[3]`) — they are "the surrounding text is
+  not a Paragraph (a caption, a table cell...)", which item 1 DOES name as a
+  possible cause, just not with these exact MathPix type strings. The rule I
+  chose: extend `detect_numeric_citations`'s line-type filter from
+  `("text","title")` to also include the four table-cell types
+  (`simple_cell`, `complex_cell`, `table_spanning_cell`, `table_split_cell`
+  — `docmodel.modules.table._CELL_TYPES`'s own set) and `diagram`
+  (`docmodel.modules.picture._SKIP_TYPES`). Reasoned from the SAME kind of
+  evidence 645/638 used elsewhere: a citation's text does not stop being a
+  citation because MathPix classified its LINE as something other than
+  prose.
+
+THE FIX, PER CLASS, AT THE DETECTOR (never a projector patch on the symptom)
+  src/pdfdrill/bibliography.py
+    `_NUMCITE` gains an optional locant tail: `(?:,\s*[^\]\d][^\]]*)?` after
+    the digit-list — requires a literal `,` (so `[1,2]`/`[10-12]` are
+    unaffected: the base pattern already consumes them) and a non-digit
+    first character after it (so `[1,2,3]` cannot misparse as "1" + locant
+    "2,3"). `_numlist_spans` needed NO change: it already walks the group by
+    splitting on `,`/`;` and silently drops any part that is not a digit or
+    a range, so the locant text is automatically excluded from the span —
+    only the leading number gets one, exactly as the group logic requires.
+    `_CAPTION_CELL_TYPES = ("simple_cell", "complex_cell",
+    "table_spanning_cell", "table_split_cell", "diagram")` added to the type
+    filter in `detect_numeric_citations`.
+  src/docops/projectors/citations.py
+    `CITED_TEXT_TYPES` gains `"Picture"`, `"Diagram"` — `LaTeXProjector._render`
+    DOES have a branch for both (the `% figure pN: …` comment when there is
+    no `latex_code`), so the substitution reaches wherever that branch
+    prints. `"Table"` is deliberately NOT added: a `Table` with no
+    `latex_code` renders `raw_text` inside `\begin{verbatim}…\end{verbatim}`,
+    where LaTeX never interprets `\cite{…}` — substituting there would print
+    the literal command text instead of a citation. This is the ONE class
+    left un-surfaced by design; see RESULTS below and CONCERNS.
+  src/docops/projectors/latex.py
+    The Picture/Diagram branch now calls `self._cite(obj, caption)` on the
+    RAW caption (same order as every other caller: before `_escape_text`,
+    so a citekey is never re-escaped) before falling back to the comment.
+
+  A REGRESSION FOUND AND FIXED IN THE SAME TASK (not anticipated by the
+  brief, found by rebuilding and reading the actual .tex — rule 14 twice
+  over). `apply_subs`'s literal, cursor-based search for a BARE DIGIT source
+  (`"1"`, `"21"`) is exactly what the LOCANT and DIAGRAM classes need, and it
+  is unsafe: on the FIRST rebuild, `(see [1, Ch. III.1])` came out as
+  `(see [{{…_REF_Stein\cite{Stein1970}970||CIT}}, Ch. III.1])` — the digit
+  "1" INSIDE the token name `Stein1970` (a `{{…||CIT}}` token `clean` had
+  ALREADY materialised for a DIFFERENT `[1]` on the same line) won the
+  search before the real bracket was reached — and a genuinely unrelated
+  `-1` in running prose ("...exactly two choices: ... and -1, i.e., the
+  identity...") became `-\cite{Stein1970}`. Both reproduced exactly and
+  fixed with `_numeric_source_in_context`: a bare-numeric `Sub.source` is
+  only accepted at a position immediately preceded (after whitespace) by
+  `[`, `,`, or `;` — precisely what `_numlist_spans` requires to split one
+  out in the first place. A failing match keeps searching forward instead of
+  giving up. Scoped to bare-numeric sources only (a fullmatch on
+  `\d+(-\d+)?`) — an author-year source is never this short, so ordinary
+  `(Smith 1999)`-style matches are untouched.
+
+TESTS (TDD; every one confirmed failing first)
+  tests/test_numeric_citation_gaps.py, 5 tests: the LOCANT span (leading
+    digit only, locant dropped silently), the LOCANT bracket end to end
+    (`[\cite{Grlebeck2007}, Ch. II.5]`, bracket and locant both kept
+    verbatim), the TABLE CELL type extension (both cell types now scanned),
+    a control that a plain `text` line is unaffected, the DIAGRAM CAPTION
+    type extension.
+  tests/test_cite_projection.py, +6 tests: a Diagram caption citation with
+    no Reference stays literal and is counted (`cite_without_reference`); a
+    Diagram caption citation WITH a Reference becomes `\cite{…}` inside the
+    `% figure pN: …` comment; a Table-cell citation is NEVER rewritten
+    inside `\begin{verbatim}` (documents the architectural limit, counted
+    under `citations_outside_running_text`); the two exact corruption
+    reproductions (token-name collision, bare "-1" in prose) against
+    `apply_subs` directly, confirmed failing against the pre-guard function
+    inline; a control that a genuine, unambiguous `[6]` still resolves.
+  FULL SUITE: PYTHONDONTWRITEBYTECODE=1 PYTHONPATH=src python3 -m pytest
+  tests/ -q -p no:cacheprovider  ->  3319 passed, 0 failed
+  (3308 before this task; 11 new — 5 + 6).
+
+REBUILD, IN THE HARNESS ORDER (never `mathpix --force`)
+  `pdfdrill model SteerableWaveletFramesBasedontheRieszTransform.pdf --force`
+  -> `bash tools/drill_full_sandbox.sh SteerableWaveletFramesBasedontheRieszTransform.pdf`
+  (22/22 steps rc 0; "mathpix (cached — no re-upload)"; bibliography step:
+  "62 in-text citations detected (62 numeric, 0 author-year), 62 linked to
+  references" — 50 + 12, all twelve now resolve to a real Reference)
+  -> `pdfdrill latex SteerableWaveletFramesBasedontheRieszTransform.pdf
+  --force --compile`.
+  Run TWICE: once before the `apply_subs` guard (the corruption above, kept
+  as evidence), once after.
+
+THE NUMBERS, BEFORE -> AFTER (this task, on the .tex the final rebuild wrote)
+                                          BEFORE      AFTER
+  Citation objects                           52          64   <- +12, the
+                                                                  three classes
+  literal citation-shaped brackets in body    12           7   <- TABLE only,
+                                                                  by design
+    TABLE CELL                                 7           7   (unchanged —
+                                                                 architectural)
+    DIAGRAM CAPTION                            2           0   <- FIXED
+    LOCANT                                     3           0   <- FIXED
+  \cite occurrences                           50          55   <- +5 (3
+                                                                  LOCANT + 2
+                                                                  DIAGRAM;
+                                                                  TABLE's 7
+                                                                  never
+                                                                  reach \cite)
+  distinct \cite keys                         29          29   <- unchanged;
+                                                                  every
+                                                                  numbered
+                                                                  Reference
+                                                                  was ALREADY
+                                                                  cited
+                                                                  somewhere
+                                                                  else
+  \bibitem (total / numbered)             30 / 29     30 / 29   <- UNCHANGED,
+                                                                  as required
+  cite_without_reference                       0           0
+  citations_outside_running_text               -           7   <- the TABLE
+                                                                  class,
+                                                                  counted
+                                                                  honestly
+                                                                  rather than
+                                                                  silently 0
+  compile (xelatex, 2 passes)          41 pp, 1 "! "  41 pp, 1 "! "  <- SAME
+                                                                  pre-existing
+                                                                  error
+                                                                  (640-f,
+                                                                  `\bibitem
+                                                                  {Unser2008}`
+                                                                  brace
+                                                                  balance,
+                                                                  named in
+                                                                  647b, present
+                                                                  before this
+                                                                  task and
+                                                                  unrelated to
+                                                                  citations)
+
+  AGAINST THE USER'S "66": not reached, and the gap is accounted for rather
+  than rounded off. 66 = 49 + 17 was arithmetic on a DOCUMENT STATE that no
+  longer exists — 5 of the user's 17 were already fixed by 637/642/645/647b
+  before this task started (baseline here was 50/12, not 49/17). Of the 12
+  that remained, 5 (LOCANT + DIAGRAM) are now `\cite`, and 7 (TABLE) cannot
+  become `\cite` without breaking `\begin{verbatim}` — a genuinely different
+  fix (restructuring how a raw-text Table renders), named here and left
+  open rather than attempted as a symptom patch. 50 + 5 = 55, and every one
+  of those 5 is traced above.
+
+WHAT THE RASTERISED PAGE SHOWS (Ghostscript, 400 dpi, read)
+  Page 3 of the PROJECTED, COMPILED PDF (`pdfdrill rasterize … --pages 3
+  --dpi 400`), the LOCANT class: "Then it follows that if and if (see
+  [[24], Ch. III.1]). The complex-valued signal can be represented..." — the
+  literal `1` is gone; `\cite{Stein1970}` is there, printing as `[24]`
+  (LaTeX's own `\bibitem` position — the 30 entries are alphabetised, and
+  Stein1970 is 24th; UNRELATED to the original printed "[1]", which is a
+  fact about `\bibitem` ordering, not a defect), and the locant ", Ch.
+  III.1]" survives verbatim, exactly as the group-flanking rule intends
+  (the bracket holds more than the citation, so it is not swallowed).
+  Page 30 (the DIAGRAM class's DUPLICATE Paragraph, since the comment form
+  never renders): "Fig. 11. (a) Adelson's checkerboard illusion
+  \cite{Adelson2006}: ..." prints correctly — confirming the underlying key
+  is right even though this specific page is the sibling text, not the
+  Diagram's own (invisible, commented-out) copy.
+
+penev_A — MEASURED, NOTHING TO CONVERT (brief item 4)
+  ANALYTICAL check only; NOT rebuilt with `--force` (see CONCERNS for why).
+  Every literal `[n...]` before `\begin{thebibliography}` in the CURRENT
+  `latex/penev_A.tex` (19 raw matches with a digit) is a false positive
+  already excluded elsewhere in the pipeline: 15 are `\footnotemark[N]`/
+  `\footnotetext[N]{` arguments (footnote numbers, not citations), 3 are
+  math intervals (`[0,1]`, `[16,3098]`, `[300,400]`) inside inline math
+  (`_in_math` already skips these), 1 is a `\newcommand{...}[1]{...}`
+  preamble macro the LaTeX projector itself emits. 0 genuine citation-shaped
+  brackets. `\cite` 82 and `\bibitem` 52, BOTH UNCHANGED from 647b — matches
+  the brief's expectation exactly: penev_A has 0 numbered References (all
+  52 are citekey-derived stubs; `penev_A.bib` is not on this machine, 640-c),
+  so the class this task fixes has nothing to act on here.
+
+CONCERNS
+  penev_A was NOT rebuilt with `--force`, on purpose. `cmd_bibliography`
+  passes `max_num=n` where `n` is the COUNT of parsed bibliography entries
+  (52), not the count of NUMBERED references (0) — a pre-existing,
+  UNRELATED quirk that means `detect_numeric_citations` would actually run
+  on penev_A's full range 1..52, and a stray in-range bracket that is NOT a
+  bibliography citation (a footnote cross-reference like the literal "[16]"
+  637's own evidence photographed, referring to a FOOTNOTE refnum, not a
+  Reference number) could create a bogus new stub Reference. This is not
+  one of this task's three classes and touching it was out of scope; it is
+  named here rather than risked on penev_A's frozen 637/642/645/647b
+  evidence.
+  The TABLE class is measured, fixed at the detector (a Citation object now
+  exists, correctly linked), and DELIBERATELY left unsurfaced in the .tex —
+  `\begin{verbatim}` cannot carry a `\cite`. Making it reach the page would
+  mean changing how a raw-text Table renders at all, which is a different,
+  larger task and was not attempted here as a symptom patch.
+  The `apply_subs` corruption was NOT part of the brief's anticipated
+  classes; it was found only because the fix was actually rebuilt and the
+  .tex actually read (rule 14). It is a latent risk for ANY bare single-
+  digit numeric citation sharing an object with an earlier coincidental
+  digit, not specific to this task's 3 classes — fixed generally
+  (`_numeric_source_in_context`), not patched for these 3 occurrences only.
+  `\Földiák`/`\Wässle`-class ASCII-surname misses (645-b) and the line-break
+  citation class (642-a) are UNRELATED prior findings for the AUTHOR-YEAR
+  detector; Steerable is IEEE-numeric (0 author-year citations), so neither
+  applies here and neither was touched.
+
+EVIDENCE (library, deny-by-default git; never committed to this repo)
+  ~/pdfdrill-library/SteerableWaveletFramesBasedontheRieszTransform/out/640/
+      script.py                    the classification/measurement, runnable
+      result.before.json           the HEAD-980d906 baseline, classified
+      result.after.json            the final state, classified
+      model_force_1.log / drill_full_1_pre_model_force.log
+      drill_full_2_corrupted_before_apply_subs_guard.log
+      latex_force_compile_1_corrupted.log   the CORRUPTION, kept as evidence
+      model_force_2_final.log / drill_full_3_final.log
+      latex_force_compile_2_final.log       the final, correct rebuild
+      SteerableWaveletFramesBasedontheRieszTransform.after.tex / .after.log
+      page-0003-locant.png         read, above (LOCANT class)
+      page-0030-diagram-caption-duplicate.png   read, above (DIAGRAM class)
+      INSPECT.txt                  14 paths, checked
+  ~/pdfdrill-library/penev_A/out/640/
+      result.json                  the analytical check
+      INSPECT.txt                  1 path, checked
+  In this repo: out/640/script.py
+
+  COMMANDS THAT RAN, in this order (never `mathpix --force`):
+      pdfdrill model SteerableWaveletFramesBasedontheRieszTransform.pdf --force
+      bash tools/drill_full_sandbox.sh SteerableWaveletFramesBasedontheRieszTransform.pdf
+      pdfdrill latex SteerableWaveletFramesBasedontheRieszTransform.pdf --force --compile
+      pdfdrill rasterize latex/SteerableWaveletFramesBasedontheRieszTransform.pdf --pages 3 --dpi 400
+      pdfdrill rasterize latex/SteerableWaveletFramesBasedontheRieszTransform.pdf --pages 30 --dpi 400
+  Twice (once before the `apply_subs` guard, once after). NOTHING WAS
+  RE-PURCHASED — mathpix answered "cached" both times.

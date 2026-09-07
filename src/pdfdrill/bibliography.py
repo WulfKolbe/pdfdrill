@@ -393,7 +393,17 @@ def parse_bibliography(doc) -> list[dict]:
     return out
 
 
-_NUMCITE = re.compile(r"\[(\d[\d,\s\-–]*)\]")
+# 640 — a numeric bracket followed by a LOCANT: `[1, Ch. III]`, `[21, Ch.
+# II.5]`. The bracket is still a citation to the leading number(s); the tail
+# is a page/chapter pointer INTO that reference, not a second reference and
+# not noise to swallow. The tail clause requires a literal `,` (so a pure
+# digit/range list like `[1,2]` or `[10-12]` is untouched — it never reaches
+# this branch) and its first character must not be a digit (so `[1,2,3]`
+# cannot be misread as "1" plus a locant "2,3"). `_numlist_spans` below reads
+# only the leading digit-list part of the captured group; the locant is not a
+# digit or a range and is silently skipped there, so no span is ever recorded
+# for it and it is left exactly where it stands.
+_NUMCITE = re.compile(r"\[(\d[\d,\s\-–]*(?:,\s*[^\]\d][^\]]*)?)\]")
 
 # Inline/display math spans — a `[1,2]`/`(…)` inside one is math, not a cite.
 _MATH_SPAN = re.compile(
@@ -451,12 +461,30 @@ def _numlist_spans(s: str, base: int) -> list[tuple[int, int, int]]:
     return out
 
 
+# 640 — the two shapes a bracket citation shows up in besides running prose.
+# `docmodel.modules.table._CELL_TYPES` is a table cell (`simple_cell`/
+# `complex_cell`/`table_spanning_cell`/`table_split_cell`); `"diagram"` is a
+# MathPix figure block whose `text_display` carries the figure's own
+# `\caption{…}` LaTeX (`docmodel.modules.picture._SKIP_TYPES`,
+# `docmodel.modules.diagram`). Neither is `"text"`/`"title"`, so a citation
+# printed inside a table cell ("Forster et al. [10]") or a figure caption
+# ("checkerboard illusion [29]") was never scanned at all — not a regex miss,
+# a line the detector never looked at. Listed here rather than imported: the
+# two source sets are private to their own modules and this is a citation
+# concern, not a table/picture one.
+_CAPTION_CELL_TYPES = ("simple_cell", "complex_cell", "table_spanning_cell",
+                       "table_split_cell", "diagram")
+
+
 def detect_numeric_citations(doc, max_num: int, exclude_anchors=()) -> int:
     """Detect in-text numeric citations [N], [N,M], [N-M] and add Citations.
 
     Only brackets whose numbers all fall in 1..max_num are accepted (filters
     intervals like [0,1] and out-of-range brackets). `exclude_anchors` skips
-    the bibliography's own lines. Returns the number of Citations added.
+    the bibliography's own lines. Scans running-text lines (`text`/`title`)
+    AND `_CAPTION_CELL_TYPES` (640) — a table cell or a figure caption can
+    carry the identical `[N]` a paragraph does. Returns the number of
+    Citations added.
     """
     from docmodel.core import DocObject, Realization
     from docmodel.modules.citation import ensure_reference_stub
@@ -471,7 +499,7 @@ def detect_numeric_citations(doc, max_num: int, exclude_anchors=()) -> int:
         if anchor in exclude:
             continue
         p = mp.payload[anchor]
-        if p.get("type") not in ("text", "title"):
+        if p.get("type") not in ("text", "title") + _CAPTION_CELL_TYPES:
             continue
         text = p.get("text_display") or p.get("text") or ""
         math = _math_ranges(text)

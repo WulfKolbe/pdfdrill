@@ -502,3 +502,146 @@ def test_the_beamer_abstract_still_cites_when_the_reference_exists():
     par.type = "Abstract"
     deck = _beamer(doc)
     assert "Prior work \\cite{Realname2001} shows this." in deck, deck
+
+
+# ------------------------------------------- 640: a Picture/Diagram caption
+
+def _diagram_doc(caption: str, cite: tuple[str, str] | None, ref_key: str,
+                 ref_number: int | None):
+    """A Diagram with no `latex_code`, so `_render` falls back to the
+    `% figure pN: {caption}` comment — the class 640 measured on Steerable
+    (`Adelson's checkerboard illusion [29]`, MathPix's own `\\caption{…}`,
+    never scanned because its line type is `diagram`, not `text`/`title`)."""
+    doc = Document()
+    doc.meta["bibkey"] = "D"
+    mp = doc.ensure_stream("mathpix_lines")
+    dl = mp.append(text=caption, text_display=caption, _page=1,
+                   _line_index=0, type="diagram")
+
+    dia = DocObject(type="Diagram", props={
+        "caption": caption, "page": 1, "flow_index": 0})
+    dia.add_realization(Realization(stream="mathpix_lines",
+                                    start=dl, end=dl, role="surface"))
+    doc.add(dia)
+
+    if cite is not None:
+        key, surface = cite
+        off = caption.index(surface)
+        c = DocObject(type="Citation", props={
+            "citekey": key, "page": 1, "flow_index": 1})
+        c.add_realization(Realization(
+            stream="mathpix_lines", start=dl, end=dl, role="surface",
+            props={"offset": off, "length": len(surface)}))
+        doc.add(c)
+
+    ref = DocObject(type="Reference", props={
+        "citekey": ref_key, "bibkey": "D",
+        **({"number": ref_number} if ref_number is not None else {})})
+    refs = doc.ensure_stream("references")
+    ra = refs.append(text=ref_key)
+    ref.add_realization(Realization(stream="references", start=ra, end=ra,
+                                    role="bibliography"))
+    doc.add(ref)
+    return doc
+
+
+def test_a_diagram_caption_citation_is_not_rewritten_by_the_number_map():
+    doc = _diagram_doc("Illusion (compare also [5]).", ("NoSuchKey", "[5]"),
+                       "Realname2001", 5)
+    res = cite_res.resolve(doc)
+    assert res.counts["cite_without_reference"] == 1, res.counts
+    tex = _tex(doc)
+    assert "% figure p1: Illusion (compare also [5])." in tex, tex
+    assert "Realname2001" not in _body(tex), _body(tex)
+
+
+def test_a_diagram_caption_citation_becomes_a_cite_in_the_comment():
+    """The other half — closes 640's DIAGRAM class: a caption citation whose
+    Reference exists reaches the `.tex`, even though it prints inside a `%`
+    comment rather than the body (`Picture`/`Diagram` is in `CITED_TEXT_TYPES`
+    for exactly this)."""
+    doc = _diagram_doc("Illusion (compare also [29]).", ("Adelson2006", "[29]"),
+                       "Adelson2006", 29)
+    res = cite_res.resolve(doc)
+    assert res.counts["cite_without_reference"] == 0, res.counts
+    tex = _tex(doc)
+    assert "% figure p1: Illusion (compare also \\cite{Adelson2006})." in tex, tex
+    assert "[29]" not in tex, tex
+
+
+def test_a_table_cell_citation_is_never_rewritten_inside_verbatim():
+    """`Table` is deliberately NOT in `CITED_TEXT_TYPES`: a `Table` with no
+    `latex_code` renders `raw_text` inside `\\begin{verbatim}…\\end{verbatim}`,
+    where LaTeX never interprets `\\cite{…}` — substituting there would print
+    the literal command text instead of a citation. The Citation object still
+    exists (`bibliography.detect_numeric_citations` now scans cell lines,
+    640) and the count says so honestly: `citations_outside_running_text`,
+    not a silent 0."""
+    doc = Document()
+    doc.meta["bibkey"] = "D"
+    mp = doc.ensure_stream("mathpix_lines")
+    cell = mp.append(text="Forster et al. [10]", text_display="Forster et al. [10]",
+                     _page=1, type="simple_cell")
+    tab = DocObject(type="Table", props={
+        "raw_text": "Forster et al. [10]", "page": 1, "flow_index": 0})
+    tab.add_realization(Realization(stream="mathpix_lines", start=cell, end=cell,
+                                    role="surface"))
+    doc.add(tab)
+    c = DocObject(type="Citation", props={"citekey": "Forster2008", "page": 1})
+    c.add_realization(Realization(stream="mathpix_lines", start=cell, end=cell,
+                                  role="surface", props={"offset": 16, "length": 4}))
+    doc.add(c)
+    ref = DocObject(type="Reference", props={"citekey": "Forster2008", "bibkey": "D",
+                                              "number": 10})
+    refs = doc.ensure_stream("references")
+    ra = refs.append(text="Forster2008")
+    ref.add_realization(Realization(stream="references", start=ra, end=ra,
+                                    role="bibliography"))
+    doc.add(ref)
+
+    res = cite_res.resolve(doc)
+    assert res.counts["citations_outside_running_text"] == 1, res.counts
+    tex = _tex(doc)
+    assert "\\begin{verbatim}\nForster et al. [10]\n\\end{verbatim}" in tex, tex
+    assert "\\cite{Forster2008}" not in tex, tex
+
+
+# --------------------------- 640: a bare-numeric source is short and risky
+
+def _num_sub(source: str, replacement: str) -> cite_res.Sub:
+    return cite_res.Sub(anchor=None, offset=0, length=len(source), source=source,
+                        replacement=replacement, keys=("Stein1970",))
+
+
+def test_a_bare_numeric_source_skips_a_coincidental_digit_inside_a_token():
+    """Reproduced end to end on Steerable: a LOCANT citation (640) keyed `"1"`
+    landed on `{{…_REF_Stein1970||CIT}}` — a token `clean` had ALREADY
+    materialised for a DIFFERENT `[1]` on the same line — because plain
+    `str.find` took the `1` inside `Stein1970` as its match. `[1, Ch. III]`
+    became the corrupt `[{{…_REF_Stein\\cite{Stein1970}970||CIT}}, Ch. III]`."""
+    text = "Here starts {{D_REF_Stein1970||CIT}} and later (see [1, Ch. III])."
+    out = cite_res.apply_subs(text, [_num_sub("1", "\\cite{Stein1970}")])
+    assert out == ("Here starts {{D_REF_Stein1970||CIT}} and later "
+                   "(see [\\cite{Stein1970}, Ch. III]).")
+
+
+def test_a_bare_numeric_source_skips_a_coincidental_bare_digit_in_prose():
+    """The other reproduction: two ORIGINAL paragraphs merged into one object
+    put an unrelated `-1` (a plain prose value, not a citation) before the
+    real `[1, Ch. III]` — `-1` turned into the nonsensical `-\\cite{Stein1970}`
+    while the intended bracket was left untouched."""
+    text = "exactly two choices: -1 , i.e., the identity (see [1, Ch. III])."
+    out = cite_res.apply_subs(text, [_num_sub("1", "\\cite{Stein1970}")])
+    assert out == ("exactly two choices: -1 , i.e., the identity "
+                   "(see [\\cite{Stein1970}, Ch. III]).")
+
+
+def test_a_genuine_bracket_digit_still_resolves_normally():
+    """The guard must not turn INTO a new miss: a plain `[6]` with nothing
+    ambiguous before it in the text still matches on the first try. (Whether
+    the flanking brackets are themselves swallowed is `citation_spans.groups`'s
+    job, not `apply_subs`'s — this test calls `apply_subs` directly, as the
+    two reproductions above do, so the brackets are left standing.)"""
+    text = "Tensor products of Hilbert transforms [6]"
+    out = cite_res.apply_subs(text, [_num_sub("6", "\\cite{Chan2004}")])
+    assert out == "Tensor products of Hilbert transforms [\\cite{Chan2004}]"

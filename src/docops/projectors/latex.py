@@ -659,7 +659,12 @@ class LaTeXProjector(BaseProjector):
             code = (p.get("latex_code") or "").strip()
             if code:
                 return code
-            cap = _escape_text(str(p.get("caption") or "").strip())
+            # 640 — a figure caption can carry a numeric citation exactly as a
+            # paragraph does (`Adelson's checkerboard illusion [29]`), and
+            # Picture/Diagram is in `CITED_TEXT_TYPES` for that reason. `_cite`
+            # runs on the RAW caption, same order as every other caller
+            # (before `_escape_text`, so a citekey is never re-escaped).
+            cap = _escape_text(self._cite(obj, str(p.get("caption") or "").strip()))
             return f"% figure p{p.get('page')}" + (f": {cap}" if cap else "")
         if t == "ListItem":
             # a lone ListItem (not part of a run) — still needs an environment
