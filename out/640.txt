@@ -1,0 +1,302 @@
+640 — the full drill on both documents, and what it does to the superscripts
+=============================================================================
+
+Both documents were drilled with `bash tools/drill_full_sandbox.sh <pdf>` at
+63c028b (647's loud harness), then projected with `pdfdrill latex <pdf>
+--dump-stages`. Every number below is a count off the artefacts that run
+produced — `latex/<key>.tex`, `model.docmodel.json`, `latex/stages/*` — taken
+by `out/640/script.py`, which is committed as evidence beside each document
+together with its `result.json`.
+
+THE HEADLINE, BEFORE THE TABLES: the full drill CHANGES the thing 641 was
+scoped against, and changes it for the worse. `clean` is the step. On penev_A
+it took the .tex from 21 `\footnotemark[n]` (642, yesterday) to 0, and put 63
+literal `(?penev_A_FN0003)` placeholders into the document instead. 641's
+premise — a body superscript whose n matches a bibitem number — has ZERO
+instances on either document, for two different reasons. Both are §4.
+
+--------------------------------------------------------------------------
+1. THE HARNESS — WHAT IT PRODUCED
+--------------------------------------------------------------------------
+
+  BOTH DOCUMENTS: 22 of 22 steps rc 0, script exit 0.
+  ("All 22 steps succeeded" is now a sentence the script is entitled to print;
+  before 647 it printed nothing and exited 0 either way.)
+
+  Steerable (…RieszTransform.pdf, 15 pp, 5.3 MB, born-digital)
+    mathpix took the CACHED branch — verified before the run, not after:
+    `_is_mathpix_output` is True for all three cached outputs, which is the
+    predicate `fetch_mathpix(force=False)` uses to answer "cached" with no
+    network call. Slowest step: `report` at 72 s on the first (crash) run,
+    1 s on the second — the crops were then cached.
+    17 artefacts: <key>.{md,tiddlers.json,spoken.txt,formulas.json,lines.json,
+    drill.json}, <key>.inspect.html, evidence-{formula,equation}.html,
+    formula-report.html, tables.{json,html,md}, probe-*.
+    Model REBUILT from the cached lines.json: 950 objects (415 Formula, 167
+    Paragraph, 70 Equation, 17 Section, 3 Table, 1 Picture), 70 equations with
+    a MathPix CDN image.
+
+  penev_A (22 pp of PDF, 33.5 MB, scanned)
+    mathpix CACHED. Slowest step: `speak` at 6 s.
+    36 artefacts (the folder already carried 642/645/646 output).
+    Model NOT REBUILT — `model` answered "Already current at d20ce48-dirty:
+    1405 objects … NOTHING WAS REBUILT". So penev_A's object population is
+    still the one 638/642 measured; every delta below is the work of the
+    LATER steps in the drill, not of a new extraction. That distinction is the
+    whole of §3.
+
+  THREE STEPS THAT SAID "NOTHING TO DO" ON BOTH DOCUMENTS, AND ARE NOT FAILURES
+    injectlatex  refuses both `.tex.zip`s: each holds one .tex named after the
+                 document's own MathPix image_id (`7f63398d-….tex`,
+                 `4543005f-….tex`), so ingesting it would compare MathPix with
+                 itself. NEITHER DOCUMENT HAS AN AUTHOR E-PRINT. Consequences:
+                 no macro table, so `expandmath` returns "no macro table" and
+                 `formulas` reports "macro table: unavailable" — the graceful
+                 answers, rc 0, and the ones 647 unmasked.
+    bibsource    no .bbl/.bib for either. **penev_A.bib IS ABSENT ON THIS
+                 MACHINE** — `bibsource` ran with no gold input at all, so
+                 every penev_A Reference below is heuristic. Any statement
+                 about penev_A's bibliography is a statement about
+                 `bibliography`'s guesses, not about the author's file.
+    svg          0 graphic objects on either document.
+
+--------------------------------------------------------------------------
+2. THE NUMBERS FOR 641
+--------------------------------------------------------------------------
+
+                                              Steerable      penev_A
+  SUPERSCRIPT SPELLINGS IN THE PROJECTED .tex   (the five 638 listed)
+    \({ }^{n}\)                                     0            42
+    \({}^{n}\)  ${ }^{n}$  \(\,^{n}\)  \(^{n}\)  0 each        0 each
+    ------------------------------------------------------------------
+    TOTAL                                           0            42
+      in BODY                                       0             0
+      in BIBLIOGRAPHY                               0             0
+      in FOOTNOTE lines (\footnotetext[n]{…})       0            42
+    ANY `{ }^{n}` (markers + real exponents)        2            94
+    ANY `^{n}`                                    240           290
+    \footnotemark / \footnotemark[n]              0 / 0         0 / 0
+    \footnotetext / \footnotetext[n]              2 / 2        56 / 51
+    \footnote{                                      0             0
+    \bibitem                                       30            52
+    \cite…{                                        50            82
+    UNRESOLVED `(?<tiddler>)` placeholders           0            63   <- NEW
+
+  THE MODEL — MARKER-SHAPED FORMULA OBJECTS
+    math objects (Formula + Equation)             485           790
+    Formulas whose latex is a bare `{ }^{n}`        0             0
+      (by `formula._is_footnote_marker`)
+      (by `footnotes.marker_refnum`)                0             0
+  638 asked: "does a FULL drill change that?" ANSWER: NO. Steerable's model
+  was rebuilt from scratch in this run and still carries 0 marker Formulas;
+  `FormulaProcessor.find_items` skips them at creation, as 638 found. There is
+  nothing for 641 to "move upstream" out of the Formula layer on either
+  document.
+
+  THE MODEL — WHERE THE MARKERS ARE INSTEAD
+    running-text objects (Paragraph/Abstract/ListItem)  218       227
+    raw markers in props["text"]                          0         0
+    `{{…||FN}}` transclusion tokens in props["text"]      0        63
+    `{{…||FO}}`                                         565      1051
+    `{{…||CIT}}`                                         50        72
+    objects carrying props["text_source"]               127       185
+    raw markers in props["text_source"]                   0       104   <- the
+                                                                   638 number
+    markers inside Footnote bodies                        0        42
+    markers inside Sidenote bodies                        0        93
+
+  FOOTNOTE OBJECTS
+    total                                             2            53
+    with refnum                                       2            51
+    with anchor_marker                                2            51
+    lacking one or both                               0             2
+    bodies marked by the projector                    0             0   <- was
+                                                                21 on penev_A
+                                                                yesterday
+
+  REFERENCES / BIBITEMS  — the number 641's rule depends on
+    Reference objects                                30            52
+      carrying props["number"]                       29             0   <-
+      numbers present                             1 … 29          none
+      stubs (no bibliographic text)                   1            52
+      source: parsed from the reference TEXT         29             0
+      source: invented from a citation                1            52
+    Citation objects                                 52           161
+    \bibitem emitted                                 30            52
+    numeric bracket citations resolved to \cite      30             0
+
+  penev_A is an AUTHOR-YEAR document (`(Deco and Obradovic 1996)`), 80
+  author-year in-text citations and 0 numeric ones; its 52 References are all
+  stubs the citation pass invented from citekeys, none carries a printed
+  number, and penev_A.bib — which could have supplied them — is not on this
+  machine. Steerable is IEEE-numeric: 29 of its 30 References carry a printed
+  number 1…29, read off the reference text.
+
+--------------------------------------------------------------------------
+3. THE DELTA THE FULL DRILL INTRODUCED — penev_A, MEASURED AGAINST 642
+--------------------------------------------------------------------------
+
+  `out/642/penev_A.after.tex` (yesterday, 6 Sep) against `latex/penev_A.tex`
+  (today, after the drill). The MODEL WAS NOT REBUILT between them, so this is
+  purely the effect of the drill's later steps.
+
+                                    642        640      delta
+    \({ }^{n}\) spans               125         42       -83
+    \footnotemark                    21          0       -21
+    \footnotemark[n]                 21          0       -21
+    \footnotetext                    54         56        +2
+    ANY `{ }^{n}`                   199         94      -105
+    `(?penev_A_FN…)` placeholders     0         63       +63
+    cmd_latex footnote line:
+      642:  21/104 marker(s) resolved to a body … 21/53 bodies marked
+      640:   0/0   marker(s) resolved to a body …  0/53 bodies marked
+
+  -83 is exactly 638's count of UNRESOLVED running-text markers, and -21 is
+  exactly its count of resolved ones: all 104 running-text markers left the
+  .tex together. Nothing about the footnote resolver changed.
+
+  THE CAUSE, READ OUT OF THE CODE AND CONFIRMED IN THE MODEL. `clean` →
+  `heading_cleanup.materialize_transclusions` writes the TiddlyWiki
+  PROJECTION of each paragraph back into `props["text"]`, so the raw
+  `\({ }^{3}\)` a paragraph carried becomes `{{penev_A_FN0003||FN}}`. It
+  preserves the pre-materialisation text under `props["text_source"]` (185
+  paragraphs have one; all 185 differ from `text`; they hold all 104 markers).
+
+  `footnotes.object_text` reads `props["text"]` — it tries "text", then
+  "content" — so `resolve()` now sees tokens where it expects markers and
+  reports 0 markers of 0. And the LaTeX projector's transclusion resolver
+  handles `||FO` by array lookup but has no `||FN` branch, so each of the 63
+  FN tokens is emitted as its fallback: the literal string
+  `(?penev_A_FN0003)`. In the .tex, where 642 had
+
+      … expectation for finding a low-dimensional representation. \footnotemark[2] Indeed, …
+
+  today stands
+
+      … expectation for finding a low-dimensional representation. (?penev_A_FN0003) Indeed, …
+
+  This is a REGRESSION IN THE OUTPUT, not a bookkeeping difference: the string
+  prints. It is filed as 640-a. Two candidate fixes, neither taken here (this
+  task measures):
+    (i)  `footnotes.resolve` reads `text_source` when it exists — the markers
+         are still there, exactly, and it is a one-line change to
+         `object_text`; or
+    (ii) the LaTeX projector grows a `||FN` branch and resolves the token to
+         `\footnotemark[n]` / `\footnotetext[n]{…}` directly, which is
+         strictly better because the token already NAMES the Footnote object
+         and needs no page/order disambiguation at all — 638's whole
+         resolution apparatus becomes unnecessary on a cleaned document.
+  (ii) is the one to prefer, and it is worth noticing that `clean` did 638's
+  hard job for it: the marker→body pairing 638 recovered from page geometry
+  with a 21-of-104 hit rate is, after materialisation, a stated identity.
+
+  638-c UNCHANGED AND UNCOUNTED ELSEWHERE: 93 markers sit inside Sidenote
+  bodies on penev_A, and `LaTeXProjector._render` still has no Sidenote
+  branch, so none of that text reaches the .tex at all.
+
+--------------------------------------------------------------------------
+4. THE 641 TARGETS, AS MEASURED, BEFORE ANY CHANGE
+--------------------------------------------------------------------------
+
+  THE BRIEF'S TARGETS         Steerable "3 superscript citations in the body"
+                              penev_A   "94"
+  WHAT I COUNT                Steerable  0        penev_A  0
+
+  NEITHER TARGET IS REPRODUCIBLE ON THIS MACHINE, and the two documents fail
+  it for different reasons. Both are measured, not argued.
+
+  STEERABLE HAS ONE `{ }^{n}` IN THE WHOLE DOCUMENT, and it is not a citation.
+  The raw MathPix markdown holds exactly two occurrences:
+
+      The monogenic signal ${ }^{1} f_{m}$ is defined as …      (running text)
+      [^0]:    ${ }^{1}$ A monogenic function in Clifford …     (the body)
+
+  The first is NOT a bare marker — the superscript shares its math span with
+  `f_{m}` — so `marker_refnum` and `_is_footnote_marker` both correctly reject
+  it, and it reaches the .tex as `${ }^{1} f_{m}$`. The second became one of
+  the document's 2 Footnote objects. Steerable cites as `[n]` (52 Citations,
+  30 numeric brackets resolved to `\cite`), carries 0 `\textsuperscript` and 0
+  superscript citation LISTS (`^{1,2}`, `^{3-5}`) anywhere. There are no
+  superscript citations in this document to convert; the "3" is a count from
+  somewhere else.
+
+  penev_A HAS 104 SUPERSCRIPT MARKERS AND NO NUMBERED BIBITEM. Asked of the
+  population 641 would actually work on — the 104 markers `clean` preserved in
+  `text_source`:
+
+      markers whose n matches a numbered bibitem            0   of 104
+      markers whose n matches a Footnote refnum            62   of 104
+      markers whose n matches neither                      42   of 104
+
+  The 0 is structural, not a near miss: penev_A has 0 numbered References
+  (§2), so the rule "convert a superscript to \cite when n matches a bibitem
+  number" cannot fire on this document under any threshold. The 42 that match
+  nothing are 638's dominant class re-measured — MathPix captured no footnote
+  line for 15 of the refnums the markers name — and they are an EXTRACTION
+  gap, upstream of both 638 and 641.
+
+  THE USER'S "94" HAS AN EXACT MATCH TODAY, AND IT IS A COINCIDENCE WORTH
+  NAMING. `latex/penev_A.tex` holds exactly 94 `{ }^{n}` occurrences — but
+  they are 42 markers inside `\footnotetext` bodies plus 52 real exponents
+  (`\sigma_{r}{ }^{2}`), and 0 of them are in the body. Yesterday the same
+  count was 199. A rule that rewrote "the 94" today would rewrite 52 genuine
+  exponents and 42 footnote-body labels and not one citation. 638 recorded the
+  same trap at 220/146; the arithmetic moved, the trap did not.
+
+  SO 641 HAS NO WORK ON THESE TWO DOCUMENTS AS SCOPED. What it does have,
+  measured and waiting, is 640-a: 63 placeholders printing into penev_A's
+  LaTeX and 21 `\footnotemark[n]` lost since yesterday.
+
+--------------------------------------------------------------------------
+5. WHAT IS OPEN
+--------------------------------------------------------------------------
+
+  640-a  `clean` materialises footnote markers to `{{…||FN}}`; the LaTeX
+         projector has no `||FN` branch and prints `(?<title>)`. penev_A: 63
+         placeholders, 21 `\footnotemark[n]` lost. Cause located, fix not
+         taken. THE HIGHEST-VALUE ITEM HERE.
+  640-b  `pdfdrill model` reports "Already current" against the lines.json
+         mtime and the code version it was built at (`d20ce48-dirty`), and a
+         full drill therefore does NOT rebuild a model built by an older
+         tree. penev_A's population in this report is d20ce48's. Whether that
+         is the intended contract for a drill is not settled here; it is at
+         least invisible in the step table, which shows `model  rc 0  0s`.
+  640-c  penev_A.bib IS NOT ON THIS MACHINE. `bibsource` ran with no gold
+         input, so penev_A's 52 References are all citation-derived stubs and
+         its 0 numbered bibitems may be an artefact of that absence rather
+         than of the document. Every penev_A bibliography number in §2 carries
+         that caveat.
+  640-d  Neither document has an author e-print (both `.tex.zip`s are
+         MathPix's own output), so neither has a macro table, and
+         `expandmath`'s advice to "run injectlatex" is unactionable on both —
+         injectlatex has already refused, for a good reason. (Also 647-b.)
+  640-e  The `clean` → `latex` interaction has no test. A projector that emits
+         `(?…)` for a token kind it does not know is silent in exactly the way
+         647 just closed for the harness: it compiles, it looks like prose,
+         and the artefact is 17 characters of internal identifier in the middle
+         of a sentence.
+
+--------------------------------------------------------------------------
+6. EVIDENCE
+--------------------------------------------------------------------------
+
+  ~/pdfdrill-library/penev_A/out/640/
+  ~/pdfdrill-library/SteerableWaveletFramesBasedontheRieszTransform/out/640/
+      script.py            the census, runnable: PYTHONPATH=<repo>/src
+                           python3 out/640/script.py <key>   (cwd = doc folder)
+      result.json          every number in §2 and §4
+      drill_full.log       the harness log 647 added, all 22 steps
+      drill_full_run.txt   the run as it appeared on the terminal
+      step-table.txt       the STEP TABLE + verdict
+      artifacts.txt        step 11 of the script (what was produced)
+      stages/              the --dump-stages output (00-formula-index,
+                           00-formulas.dat, 01/04-citations, 02-bibliography,
+                           03-footnotes)
+      INSPECT.txt          the path list, checked
+
+  ~/pdfdrill-library/out/647/
+      steerable-run-4d6c480.txt   the CRASH run (2 failed steps, exit 1)
+      steerable-step-table.txt
+
+  Also on disk, unmodified and used as the "before" in §3:
+      ~/pdfdrill-library/penev_A/out/642/penev_A.after.tex
