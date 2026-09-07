@@ -1,13 +1,13 @@
-634 — the evidence/residuals surface: 21 rebuilt, 20 published
+633b (filed as 634 until 2026-09-07; the chat's 634 is the claim ledger) — the evidence/residuals surface: 21 rebuilt, 20 published
 ================================================================
 
 EVIDENCE
-  ~/pdfdrill-library/out/634/script.py     evidence --all-kinds --pdf, residuals --pdf,
+  ~/pdfdrill-library/out/633b/script.py     evidence --all-kinds --pdf, residuals --pdf,
                                            publishready per document; re-runnable by key
-  ~/pdfdrill-library/out/634/check.py      row counts against the measured builds
-  ~/pdfdrill-library/out/634/compress.py   the /ebook derivatives under <doc>/published/
-  ~/pdfdrill-library/out/634/publish.py    the site copy + index rewrite (--apply)
-  ~/pdfdrill-library/out/634/counts.json, check.json, run.log, compress.log, INSPECT.txt
+  ~/pdfdrill-library/out/633b/check.py      row counts against the measured builds
+  ~/pdfdrill-library/out/633b/compress.py   the /ebook derivatives under <doc>/published/
+  ~/pdfdrill-library/out/633b/publish.py    the site copy + index rewrite (--apply)
+  ~/pdfdrill-library/out/633b/counts.json, check.json, run.log, compress.log, INSPECT.txt
   spec  docs/superpowers/specs/2026-09-06-evidence-residuals-design.md
   plan  docs/superpowers/plans/2026-09-06-evidence-residuals.md
 
@@ -25,7 +25,7 @@ WHAT WAS BUILT (commits 461ba4e..fd8477c on eqblobs-and-gzip-tex)
   sha/mtime against the model on disk — the PDF checksum is never compared),
   coverage (every EQ row shown, straddlers excepted, reading every \ident form).
 
-THE 21, MEASURED (out/634/check.json)
+THE 21, MEASURED (out/633b/check.json)
   equations   21 of 21 equal the phase-1 measured count (report.tables.json)
   formulas    10 of 21 short by exactly that document's FOX count (1..5):
               synthetic formulas are TiddlyWiki projector artefacts, not

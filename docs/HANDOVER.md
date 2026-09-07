@@ -4,7 +4,7 @@ Current state, current blocker, next task. Nothing else — the per-task
 evidence lives in `out/NNN.txt` and `~/pdfdrill-library/out/NNN/`, and the
 rules learned by defect are in **`docs/HANDOVER-RULES.md`**.
 
-Last updated 2026-09-06, after 634.
+Last updated 2026-09-07. Task numbers 634-648 are the chat's projection defect set (definitions in the user's 6NN.md files); the evidence/residuals surface is filed as 633b, the full-drill run as 647b.
 
 ---
 
@@ -18,8 +18,8 @@ Last updated 2026-09-06, after 634.
 It reads 20 identical / 1 not published (penev_A) today. Run it before
 believing anything below.
 
-**The surface changed in 634** (spec `docs/superpowers/specs/2026-09-06-
-evidence-residuals-design.md`, evidence `out/634.txt`). Per document the
+**The surface changed in 633b** (spec `docs/superpowers/specs/2026-09-06-
+evidence-residuals-design.md`, evidence `out/633b.txt`). Per document the
 site carries five files:
 
     evidence-equation.pdf   every display equation, six columns, unbounded

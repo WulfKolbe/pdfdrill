@@ -1,11 +1,11 @@
-640 — the full drill on both documents, and what it does to the superscripts
+647b (filed as 640 until 2026-09-07; the chat's 640 is the literal-[n] citations) — the full drill on both documents, and what it does to the superscripts
 =============================================================================
 
 Both documents were drilled with `bash tools/drill_full_sandbox.sh <pdf>` at
 63c028b (647's loud harness), then projected with `pdfdrill latex <pdf>
 --dump-stages`. Every number below is a count off the artefacts that run
 produced — `latex/<key>.tex`, `model.docmodel.json`, `latex/stages/*` — taken
-by `out/640/script.py`, which is committed as evidence beside each document
+by `out/647b/script.py`, which is committed as evidence beside each document
 together with its `result.json`.
 
 THE HEADLINE, BEFORE THE TABLES: the full drill CHANGES the thing 641 was
@@ -307,7 +307,7 @@ on purpose: they are what the ruling was made on.
         AFTER  the fix  97 pages, 0 errors
 
   The pre-fix .tex and its log are kept as the control at
-  `penev_A/out/640/penev_A.prefix.{tex,log}` — projected from the SAME model,
+  `penev_A/out/647b/penev_A.prefix.{tex,log}` — projected from the SAME model,
   in a `git stash`-ed working tree at 91057ba, so the only difference is this
   change.
 
@@ -453,10 +453,10 @@ on purpose: they are what the ruling was made on.
 7. EVIDENCE
 --------------------------------------------------------------------------
 
-  ~/pdfdrill-library/penev_A/out/640/
-  ~/pdfdrill-library/SteerableWaveletFramesBasedontheRieszTransform/out/640/
+  ~/pdfdrill-library/penev_A/out/647b/
+  ~/pdfdrill-library/SteerableWaveletFramesBasedontheRieszTransform/out/647b/
       script.py            the census, runnable: PYTHONPATH=<repo>/src
-                           python3 out/640/script.py <key>   (cwd = doc folder)
+                           python3 out/647b/script.py <key>   (cwd = doc folder)
       result.json          every number in §2 and §4
       drill_full.log       the harness log 647 added, all 22 steps
       drill_full_run.txt   the run as it appeared on the terminal
