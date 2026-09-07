@@ -24,6 +24,7 @@ import os
 import sys
 from typing import Any
 
+from . import ledger as _ledger
 from .core import Document
 from .loader import load_config, load_modules
 from .modules.page import ingest_lines_json
@@ -66,6 +67,14 @@ def run(
         file=sys.stderr,
     )
 
+    # 634 — from here on every realization attached to an object records the
+    # module that attached it (the claim ledger). Switched on for the rest of
+    # the process, NOT just for the module loop: `cmd_model` runs
+    # `heading_cleanup` after this function returns and saves the result, and a
+    # recording thrown away at the end of the build would be a ledger thrown
+    # away before anything could store it.
+    _ledger.start_recording()
+
     # ----- Step 3: load modules from config -----
     raw = load_config(config_path)
     modules = load_modules(raw, bibkey, debug_modules=debug_modules)
@@ -86,6 +95,11 @@ def run(
         m.process_objects(doc)
 
     # ----- Step 7: serialize -----
+    # 634 — the claim ledger reaches the file this function writes itself (it
+    # does not go through `model_io.save_model`, which carries the same hook).
+    _led = _ledger.for_save(doc)
+    if _led is not None:
+        doc.meta["ledger"] = _led
     out = doc.to_dict()
     with open(out_path, "w", encoding="utf-8") as f:
         _jsonio.dump(out, f, indent=2)   # utf-8-safe (non-UTF-8 filenames)

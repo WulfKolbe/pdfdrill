@@ -95,6 +95,14 @@ def save_model(model_path, doc, *, packed: bool = True) -> None:
     from . import buildstamp
     data["meta"] = dict(data.get("meta") or {})
     data["meta"]["written"] = buildstamp.stamp()
+    # 634 — the claim ledger, recomputed from THIS document and merged with the
+    # attribution the previous process recorded. Applied to the serialised dict
+    # for the same reason `written` is: saving must not mutate the caller's
+    # Document. Best-effort by contract — a measurement never fails a save.
+    from docmodel import ledger as _ledger
+    _led = _ledger.for_save(doc)
+    if _led is not None:                       # None = no stream, or a failure:
+        data["meta"]["ledger"] = _led          # keep what was there, never drop it
     _atomic_write(plain, json.dumps(data, indent=2, ensure_ascii=False))
     sidecar = packed_path(plain)
     if packed:

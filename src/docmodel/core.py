@@ -19,6 +19,10 @@ from dataclasses import dataclass, field
 from typing import Any, Iterable, Optional
 from uuid import uuid4
 
+# 634 — the claim ledger. `ledger` imports nothing from this module at runtime
+# (its type hints are `Any`), so the import is one-way and there is no cycle.
+from . import ledger as _ledger
+
 
 # ---------- IDs ----------
 
@@ -250,7 +254,18 @@ class DocObject:
     parent: Optional[str] = None                         # parent object ID
 
     def add_realization(self, r: Realization) -> None:
+        """THE one place a realization is attached to an object.
+
+        Every one of the 54 attach sites in the codebase goes through here;
+        the only other way a realization comes into being is
+        `Document.from_dict`, which is a reload and not a claim. That is what
+        makes 634's claim ledger a single hook instead of 54 chances to
+        forget. `RECORDING` is False unless a build or a CLI command switched
+        it on, so a read-only process pays one attribute lookup.
+        """
         self.realizations.append(r)
+        if _ledger.RECORDING:
+            _ledger.note(self, r)
 
     def realizations_in(self, stream: str) -> list[Realization]:
         return [r for r in self.realizations if r.stream == stream]

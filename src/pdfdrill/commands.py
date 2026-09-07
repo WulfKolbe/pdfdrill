@@ -4685,10 +4685,34 @@ def model_rebuild_blocked_by_enrichment(found: dict, allow: bool) -> str:
             f"to be re-proposed and re-verified (`pdfdrill refine`)")
 
 
+def _model_ledger(pdf: Path, bibkey: str | None = None) -> str:
+    """`pdfdrill model --ledger <pdf>` — the 634 claim ledger for the model on
+    disk. The listings are recomputed from the document every time; only the
+    ATTRIBUTION (which module attached which realization) comes from the model,
+    because that is the one thing a later process cannot recover."""
+    from docmodel import ledger as _L
+    from .model_io import load_model as _load_model
+
+    sc = Sidecar(pdf)
+    model_path = _model_path(sc)
+    note = ""
+    if _stale_or_absent(sc, model_path, _lines_json_path(pdf)):
+        note = cmd_model(pdf, bibkey=bibkey).rstrip() + "\n\n"
+        sc = Sidecar(pdf)
+        model_path = _model_path(sc)
+    if not model_path.exists():
+        return note + f"No model for {pdf.name} (run `pdfdrill model` first)."
+    doc = _load_model(model_path)
+    led = _L.materialize(doc)
+    return note + _L.format_ledger(
+        led, title=str(doc.meta.get("bibkey") or pdf.stem))
+
+
 @_writes("model")
 def cmd_model(pdf: Path, force: bool = False, bibkey: str | None = None,
               force_discard_translation: bool = False,
-              force_discard_enrichments: bool = False) -> str:
+              force_discard_enrichments: bool = False,
+              ledger: bool = False) -> str:
     """Build the unified docmodel Document from MathPix lines.json.
 
     Auto-chains `mathpix` if the lines.json isn't there yet. Writes the
@@ -4701,6 +4725,14 @@ def cmd_model(pdf: Path, force: bool = False, bibkey: str | None = None,
     filename stem (preserving clean arXiv ids like `2004.05631v1`).
     """
     from docmodel.main import run as build_model, DEFAULT_CONFIG_PATH
+
+    # 634 — READ the claim ledger: which `mathpix_lines` anchors were claimed
+    # by nobody, which by more than one module. Read-only; it rebuilds only
+    # when the model is stale or absent, through this same command (the doc
+    # lock is re-entrant within one process, so the nested call is a
+    # pass-through and not a second lock).
+    if ledger:
+        return _model_ledger(pdf, bibkey)
 
     sc = Sidecar(pdf)
     blocked = model_rebuild_blocked(

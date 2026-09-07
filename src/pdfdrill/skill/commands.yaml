@@ -978,6 +978,17 @@ commands:
     type: str
     flag: --bibkey
     help: tiddler prefix (persisted)
+  - name: ledger
+    flag: --ledger
+    type: flag
+    help: '634 CLAIM LEDGER (read-only): how many `mathpix_lines` anchors were
+      claimed by NO module and how many by more than one, with the module pairs
+      for the doubly-claimed and the 0-claim lines grouped by page and MathPix
+      line type. A claim is recorded where a realization is attached; BLOCK
+      claims (whole line) are counted, INLINE ones (a Formula inside a line)
+      reported separately. Rebuilds only when the model is stale or absent.
+      Pairs with `conserve`, which measures the same surface from the output
+      side.'
   typed: true
   done_when: model
 - name: compare

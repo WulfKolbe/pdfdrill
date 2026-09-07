@@ -95,6 +95,18 @@ def main():
         except Exception as e:
             _emit(f"[ensure] skipped ({e})", sys.stderr)        # stderr only
 
+    # 634 — the claim ledger. Every command that adds objects to a model does
+    # it in its OWN process (a drill is 22 of them), so recording has to be on
+    # for the command, not only for the build: `bibliography`, `lists`,
+    # `annotate` and `clean` all attach realizations to a model `model` built,
+    # and their claims belong in the same ledger. `save_model` merges what this
+    # process recorded with the attribution the previous one persisted.
+    try:
+        from docmodel import ledger as _ledger
+        _ledger.start_recording()
+    except Exception:
+        pass                                # a measurement never bricks the CLI
+
     try:
         result = HANDLERS[cmd](rest)
         if result:
@@ -825,7 +837,7 @@ def _opt(args, name):
 
 
 def _do_model(args):
-    """pdfdrill model <pdf> [--bibkey KEY] [--force]
+    """pdfdrill model <pdf> [--bibkey KEY] [--force] [--ledger]
     [--force-discard-translation] [--force-discard-enrichments]
 
     431 — BOTH overrides are wired here. `force_discard_translation` was a
@@ -837,12 +849,13 @@ def _do_model(args):
     from .commands import cmd_model
     bibkey, args = _opt(args, "--bibkey")
     flags = ("--force", "--force-discard-translation",
-             "--force-discard-enrichments")
+             "--force-discard-enrichments", "--ledger")
     pdf_args = [a for a in args if a not in flags]
     return cmd_model(
         _pdf(pdf_args), force="--force" in args, bibkey=bibkey,
         force_discard_translation="--force-discard-translation" in args,
-        force_discard_enrichments="--force-discard-enrichments" in args)
+        force_discard_enrichments="--force-discard-enrichments" in args,
+        ledger="--ledger" in args)
 
 
 def _do_compare(args):

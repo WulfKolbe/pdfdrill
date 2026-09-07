@@ -1,0 +1,352 @@
+634 — the claim ledger: every module records the anchors it consumed
+====================================================================
+
+`pdfdrill model --ledger <pdf>` prints how many `mathpix_lines` anchors were
+claimed zero times and how many more than once. THIS IS THE MEASUREMENT, NOT
+THE FIX. Object counts, props and projections are byte-identical with the
+ledger present; the only change to any artefact is one new key under
+`meta` in the model file.
+
+The pipeline is ADDITIVE, so nothing in it could say that the Contents region
+was claimed by nobody or that a line was claimed twice. Both were already
+true and both were invisible. They are now two integers that add up.
+
+--------------------------------------------------------------------------
+THE BLOCK / INLINE RULE, SAID OUT LOUD (the brief asks for it here)
+--------------------------------------------------------------------------
+A CLAIM is a `surface` Realization on `mathpix_lines`.
+
+  BLOCK      it carries NO sub-anchor offset/length: the object consumed the
+             whole line. THE USER'S TWO COUNTS ARE ABOUT BLOCK CLAIMS ALONE.
+  INLINE     it carries offset AND length: the object lives INSIDE the line.
+             A Formula inside a paragraph line is NESTING, not a second
+             consumption — counting it would make every prose line carrying
+             maths look mixed up (1426 such realizations on penev_A, 755 on
+             Steerable). Recorded, reported separately, never counted.
+  CONTAINER  the object's type is in `CONTAINER_TYPES` — `Page` alone.
+             `PageProcessor` gives every Page a surface realization spanning
+             EVERY line of its page, by construction rather than by claim.
+             646 measured what counting them does: all 3178 penev_A anchors
+             become doubly claimed and the measure says nothing. Recorded and
+             reported (3178 / 1437 container claims below), never counted.
+             The exclusion is printed in the command's own output.
+
+The rule is `docops.conserve`'s rule, adopted deliberately and not
+reinvented: the two instruments have to be comparable ANCHOR BY ANCHOR, and a
+private definition here would make a divergence look like a finding.
+
+--------------------------------------------------------------------------
+WHY IT IS RECORDED AND NOT DERIVED — the measurement that decided it
+--------------------------------------------------------------------------
+646's `anchor_claims` already derives claims from the finished Document. It
+can say a line is claimed twice and name the two TYPES. It cannot name the
+two MODULES, because the finished document does not carry that:
+
+    penev_A, model on disk: 1448 objects, of which
+        1271 carry NO `added_by` prop at all   (the base build's modules)
+         131 `bibliography`,  45 `footnote_cleanup`,  1 `citation`
+
+"A Footnote and a Paragraph both claim this line" is a symptom.
+"footnote_cleanup and paragraph both claim this line" is the address of the
+code that has to change. That is the whole reason 634 is a second instrument
+and not a second report.
+
+--------------------------------------------------------------------------
+WHAT WAS BUILT — ONE HOOK, NOT FIFTY-FOUR
+--------------------------------------------------------------------------
+  src/docmodel/core.py         `DocObject.add_realization` is THE one place a
+      realization is attached to an object. All 54 attach sites in the
+      codebase go through it (checked: `realizations=` appears as a
+      constructor argument exactly once, in `Document.from_dict`, which is a
+      reload and not a claim). So the claim is recorded there, in three
+      lines, guarded by a module-level bool that is False in a read-only
+      process. Nothing in `src/docmodel/modules/` had to be edited, and a
+      module added tomorrow is in the ledger the day it lands.
+
+  src/docmodel/ledger.py  NEW. `note` (the hook), `realization_key`,
+      `recording`/`start_recording`/`reset`, `materialize`, `persistable`,
+      `for_save`, `format_ledger`. The recording SITE is read off the calling
+      frame (`sys._getframe`), which is why no call site needed a parameter.
+
+  src/docmodel/main.py    switches recording on for the rest of the process
+      (not just the module loop — `cmd_model` runs `heading_cleanup` after
+      the build returns and saves the result), and writes the ledger into the
+      file it serialises itself.
+
+  src/pdfdrill/cli.py     switches recording on for every command. A drill is
+      22 separate processes; `lists`, `annotate`, `bibliography` and `clean`
+      each add objects to a model `model` built, and their claims belong in
+      the same ledger.
+
+  src/pdfdrill/model_io.py `save_model` writes `meta["ledger"]` into the
+      SERIALISED dict, never into the caller's Document — the same shape
+      `written` already uses, and for the same reason. Best-effort by
+      contract: a measurement must never be able to fail a save, and a
+      failure keeps whatever ledger was there rather than dropping it.
+
+  src/pdfdrill/commands.py `cmd_model(..., ledger=True)` via `_model_ledger`.
+      Read-only; it rebuilds only when `_stale_or_absent` says so, through
+      this same command (the document lock is re-entrant within one process,
+      so the nested call is a pass-through and not a second lock). On a
+      current model nothing is written.
+
+  manifest  `.claude/skills/pdfdrill/commands.yaml`, `--ledger` on `model`;
+      `python3 tools/skillsync.py all .` run; manifest <-> HANDLERS in sync
+      (148/148). Not a new verb and not a tool: a flag on the layer that owns
+      the model.
+
+WHAT PERSISTS, AND WHY ONLY THAT
+  `meta["ledger"]` carries the ATTRIBUTION map (object id -> realization key
+  -> recording site) plus the summary. The 0-claim and >1-claim LISTINGS are
+  not persisted: they are recomputed from the live document on every read, so
+  a stored ledger can never describe a document the model no longer holds.
+  The attribution is the one thing that cannot be recomputed — it is the
+  memory of who attached what, in a process that has since exited. That is
+  what makes the ledger read the same for a fresh build and for a full drill:
+  `save_model` merges what THIS process recorded with what the previous one
+  persisted, and where an object carries `added_by`, that wins.
+
+  Cost on penev_A: 180,908 bytes of ledger in an 11.4 MB model (+2.0% on the
+  file; 1444 objects attributed, 2043 realizations).
+
+  A model built before this code exists is entirely `unattributed`, and the
+  report SAYS so rather than guessing a module from the type.
+
+--------------------------------------------------------------------------
+THE NUMBERS — BOTH DOCUMENTS
+--------------------------------------------------------------------------
+Both models were REBUILT for these numbers, because the ledger did not exist
+on the models on disk and attribution cannot be recovered after the fact.
+Both were rebuilt in the harness order of out/647b.txt — `pdfdrill model
+--force` then `bash tools/drill_full_sandbox.sh <pdf>`, 22 of 22 steps rc 0
+on each, MathPix CACHED on both (`DRILL_MATHPIX_NO_FORCE=1`; no `mathpix
+--force`, no extraction re-purchased). The rebuild reproduced 636's state
+exactly — penev_A 1448 objects, 93 Footnotes, unclaimed 243, doubly-claimed
+42, unreachable 295, dark 579 — so the ledger's numbers are like for like
+with out/636.txt and the rebuild moved nothing.
+
+                                            penev_A     Steerable
+  objects                                      1448          1048
+  mathpix_lines anchors (stream length)        3178          1437
+  ------------------------------------------------------------------
+  claimed 0 times                               243           132
+  claimed 1 time                               2893          1169
+  claimed more than once                         42           136
+  0 + 1 + >1                                   3178          1437
+    == stream length                            YES           YES
+  ------------------------------------------------------------------
+  block claims (anchors)                       2977          1441
+  inline claims (nesting, not counted)         1426           755
+  container claims (Page spans, not counted)   3178          1437
+  block claims with NO module attributed          0             0
+
+BLOCK CLAIMS BY MODULE (anchors — a module claiming a 12-line paragraph
+counts 12, so the column sums to more than the anchor count wherever a line
+is claimed twice)
+
+  penev_A                          Steerable
+    paragraph          2130          paragraph          952
+    toc                 291          table              164
+    footnote_cleanup    229          bibliography       130
+    equation            116          equation            70
+    table                70          list_items          48
+    sidenote             46          sidenote            30
+    header               37          header              17
+    footnote             28          diagram             16
+    diagram              14          footnote_cleanup     9
+    picture              11          blocks               2
+    list_items            4          footnote             1
+    abstract              1          abstract             1
+                                     picture              1
+
+  INLINE, penev_A: formula 1273, bibliography 131, footnote 20, citation 2
+  INLINE, Steerable: formula 702, bibliography 50, citation 3
+  CONTAINER: page 3178 / 1437.
+
+  `blocks` is `pdfdrill/blocks.py` reached from `cmd_lists`, and `footnote` /
+  `footnote_cleanup` are 636's two creators, each visible separately for the
+  first time. `abstract` claims ONE anchor on each document, which is finding
+  634-a below.
+
+ANCHORS CLAIMED MORE THAN ONCE — BY MODULE PAIR, with 646's type pair beside
+it (the same anchors, the two instruments' two vocabularies)
+
+  penev_A, 42
+    footnote_cleanup + paragraph      35    Footnote + Paragraph
+    list_items       + paragraph       3    ListItem + Paragraph
+    sidenote         + toc             2    Sidenote + Toc
+    header           + toc             1    Section  + Toc
+    footnote_cleanup + list_items      1    Footnote + ListItem
+
+  Steerable, 136
+    bibliography     + paragraph     124    Paragraph + Reference
+    list_items       + paragraph       4    ListItem  + Paragraph
+    bibliography     + diagram         4    Diagram   + Reference
+    blocks           + list_items      2    ListItem  + ListItem
+    bibliography     + list_items      1    ListItem  + Reference
+    bibliography     + sidenote        1    Reference + Sidenote
+
+  The 35 `footnote_cleanup+paragraph` are out/636.txt's 35 `Footnote+
+  Paragraph`, exactly, and 636-b now has an address: it is
+  `heading_cleanup.extract_footnote_paragraphs` and
+  `docmodel.modules.paragraph` claiming the same lines, not "a Footnote type
+  and a Paragraph type".
+
+CLAIMED BY NOBODY — BY MATHPIX LINE TYPE
+
+  penev_A  equation_number 116, page_info 55, text 40, figure_label 26,
+           table_column 4, authors 1, simple_cell 1
+  Steerable page_info 46, equation_number 29, table_column 25,
+           figure_label 16, text 12, qed_symbol 3, authors 1
+
+  BY PAGE, penev_A: p3:42 p22:22 p7:21 p8:20 p18:20 p6:18 p14:16 p20:11
+    p12:7 p15:7 p17:7 p19:7 p13:6 p16:6 p21:6 p1:5 p10:5 p11:5 p9:4 p4:3
+    p5:3 p2:2
+  BY PAGE, Steerable: p1:19 p8:17 p3:15 p10:13 p9:11 p13:9 p14:7 p2:6 p4:6
+    p6:6 p12:6 p7:5 p11:5 p5:4 p15:3
+
+  `equation_number` and `page_info` are BY DESIGN (an equation number is
+  folded into its Equation's props; a running header is furniture), and 646
+  said so. What the grouping adds is 634-a.
+
+THE CONTENTS REGION, the user's third day-one finding, from the input side:
+  `toc` claims 291 penev_A anchors — the whole Contents block, pages 2–3.
+  They are CLAIMED, so they are not in the 243, and 646 measures them as 288
+  DARK anchors because the projector emits nothing for a Toc. Both
+  instruments now say the same thing about the same lines in their own
+  vocabulary: the region is consumed by exactly one module and reaches
+  nothing. Steerable has no Toc object at all.
+
+--------------------------------------------------------------------------
+THE CONSERVE CROSS-CHECK — ANCHOR BY ANCHOR, NOT COUNT BY COUNT
+--------------------------------------------------------------------------
+Two instruments can agree on "243" and disagree about WHICH 243, and that
+agreement would be worthless. The check is set equality on the anchor ids.
+
+                                              penev_A     Steerable
+  ledger claimed 0        vs conserve unclaimed  243=243     132=132
+  ledger claimed >1  vs conserve doubly_claimed    42= 42     136=136
+  ledger block claims     vs conserve claims     2977=2977   1441=1441
+  ledger inline      vs conserve inline_skipped  1426=1426    755= 755
+  SAME ANCHORS (0-claim set)                        YES         YES
+  SAME ANCHORS (>1-claim set)                       YES         YES
+  only in ledger / only in conserve                0 / 0       0 / 0
+
+  NOTHING TO RECONCILE. The two agree exactly, on both documents, on every
+  anchor, and they were built to be able to disagree — the ledger walks the
+  objects in its own loop, groups by MODULE rather than by type, and counts
+  container spans that `conserve` skips before it reaches the inline test.
+  Both numbers also match out/636.txt's control (penev_A 243 / 42 with
+  Footnote+Paragraph 35; Steerable 132 / 136), so the rebuild is confirmed
+  like for like and no number moved.
+
+  ONE DEVIATION, INHERITED AND STATED: `CONTAINER_TYPES = ("Page",)`. Read
+  literally, the brief's claim rule makes a Page a claimant and every anchor
+  doubly claimed. 646 ruled on that and this task adopts the ruling rather
+  than making a second one; the container claims are REPORTED (3178 / 1437)
+  so nothing is hidden by it, and a test pins that a Page claims nothing.
+
+--------------------------------------------------------------------------
+WHAT THE LEDGER FOUND THAT NOTHING ELSE SAID
+--------------------------------------------------------------------------
+  634-a  THE ABSTRACT IS CLAIMED BY NOBODY, ON BOTH DOCUMENTS. Every one of
+         penev_A's 40 unclaimed `text` lines is one contiguous run, anchors
+         364–403 — the whole Abstract page. Every one of Steerable's 12 is
+         the run 8–19, that paper's abstract. `AbstractProcessor` claims
+         exactly ONE anchor on each document (the heading line); the
+         Abstract object HOLDS the text in its `text` prop, but its
+         realization is a POINT, not the extent it read. So this is not lost
+         content — it is content whose lines no object covers, which is why
+         646's "40 text lines are body prose no object covers" (646-h) read
+         as pure loss. It is one module and one realization span. Not fixed
+         here: 634 is the measurement.
+  634-b  THE 35 penev_A DOUBLE CLAIMS ARE `footnote_cleanup` + `paragraph`,
+         and the 1 remaining is `footnote_cleanup` + `list_items`. 636-b
+         named the class; this names the two functions.
+  634-c  ON STEERABLE, 124 OF THE 136 DOUBLE CLAIMS ARE `bibliography` +
+         `paragraph` — 646-g's stub References anchored on the citing prose
+         line, at four times the size 646 measured on penev_A. On penev_A
+         after this rebuild that class is now ZERO: penev_A's 131
+         bibliography claims are all INLINE (a sub-anchor), Steerable's 130
+         are BLOCK. Two documents, one module, two anchoring behaviours —
+         which is a finding about `bibliography`, not about the documents,
+         and it is 646-g's real shape.
+  634-d  `toc` and `sidenote`/`header` overlap on 3 penev_A anchors
+         (sidenote+toc 2, header+toc 1). The Toc's 291-line block swallows
+         two Sidenotes and one Section header that also claim their own line.
+
+--------------------------------------------------------------------------
+TESTS (TDD; the first run failed at import — the module did not exist)
+--------------------------------------------------------------------------
+  tests/test_claim_ledger.py, 15 tests:
+    the counts: two modules claiming one line -> 1 anchor >1, with BOTH
+      module names and the type pair; 0+1+>1 == stream length; an inline
+      Formula on a claimed line adds an INLINE claim and does not move the
+      >1 count; a Page container is recorded (2 container claims) and claims
+      nothing, and the exclusion is in the result;
+    the 0-claim regions grouped by MathPix line type and by page (the `toc`
+      line shows as `toc`);
+    the recorder: three REAL modules (PageProcessor, ParagraphProcessor,
+      FootnoteProcessor) run under it, and the ledger names `paragraph`,
+      `footnote` and `page` — not a stub;
+    the recorder is off by default and records nothing then; it is
+      process-global and survives the block that switched it on (which is
+      what `cmd_model` needs, since `heading_cleanup` runs after the build);
+    round trip through `save_model`/`load_model` — the stored ledger and the
+      ATTRIBUTION both survive, and the reader does not need the recorder
+      (test_model_write_roundtrip's convention, rule 7);
+    the JSON on disk is plain data, no live objects;
+    THE CROSS-CHECK as a unit test: same 0-set, same >1-set, same inline
+      count as `docops.conserve.anchor_claims` on one fixture carrying an
+      inline Formula and a Page container;
+    NO BEHAVIOUR CHANGE: the same fixture built with the recorder on and off
+      gives identical objects, types and prop key sets;
+    the report names the counts, the sum, the module pairs and the rule —
+      and a corrupted sum prints MISMATCH, so the checker has been seen to
+      fail as well as to pass (rule 11).
+
+  An autouse fixture resets the recorder around every test. That exists
+  because of a real defect this task hit: the recorder is process-global by
+  design, `pdfdrill.cli` switches it on and never off, and one test then
+  inherited another's recorder — the suite disagreed with the file run alone.
+
+  FULL SUITE: PYTHONDONTWRITEBYTECODE=1 PYTHONPATH=src python3 -m pytest
+  tests/ -q -p no:cacheprovider  ->  3271 passed, 0 failed
+  (3256 before this task; 15 new. test_skill_sync green, manifest 148/148.)
+
+--------------------------------------------------------------------------
+EVIDENCE (library, deny-by-default git; never committed to this repo)
+--------------------------------------------------------------------------
+  ~/pdfdrill-library/penev_A/out/634/
+  ~/pdfdrill-library/SteerableWaveletFramesBasedontheRieszTransform/out/634/
+      script.py          the census, runnable from either place
+      ledger.json        the full ledger, every 0-claim and >1-claim anchor
+      result.json        the numbers + the anchor-by-anchor cross-check
+      report.txt         `format_ledger` at limit 60
+      model-ledger.txt   `pdfdrill model --ledger <pdf>`, as it prints
+      conserve.txt       `pdfdrill conserve <pdf>`, the other instrument
+      rebuild.log        `model --force` + the 22-step drill, rc 0
+      INSPECT.txt        every path, checked
+  ~/pdfdrill-library/out/634/
+      script.py pair.json pair.txt INSPECT.txt
+
+  In this repo: out/634/script.py (the same census).
+
+--------------------------------------------------------------------------
+WHAT IS OPEN
+--------------------------------------------------------------------------
+  634-a is the first thing to fix and it is small: give the Abstract the
+    extent it read. 40 + 12 lines stop being "covered by no object" on the
+    two documents in hand, and 646-h's pure-loss class shrinks to whatever
+    is left after it.
+  634-c wants a ruling, not a patch: should a stub Reference carry a
+    `mathpix_lines` surface realization at all? penev_A's and Steerable's
+    `bibliography` disagree with each other today.
+  The recorder attributes a realization by (role, span, offset, length) on
+    its object. A pass that MUTATES `props["offset"]` after attaching would
+    move the key and lose the attribution — it would read `unattributed`,
+    never wrong. No pass does that today; it is not asserted anywhere.
+  `MAX_RECORDED_OBJECTS` is 200,000 and has never fired. It is a rule with a
+    counter (`overflow`, printed when set), not a measured population.
+  The ledger is not in `docs/layers/`. It is a flag on `model`, declared in
+    the manifest; if it grows a layer of its own it needs a doc.
