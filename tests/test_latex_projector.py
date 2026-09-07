@@ -9,7 +9,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "src"))
 
-from docmodel.core import Document, DocObject
+from docmodel.core import Document, DocObject, Realization
 from docops.base import OperatorConfig
 from docops.projectors.latex import LaTeXProjector
 
@@ -200,3 +200,196 @@ def test_normal_article_preamble_is_kept():
     d.add(DocObject(type="Paragraph", props={"text": "hi", "flow_index": 0}))
     tex = _proj().project(d)
     assert "\\usepackage{mymacros}" in tex          # author preamble kept
+
+
+# ---------------------------------------------------------------------------
+# 635 — emit the table of contents as a command, not as its wreckage.
+#
+# The model already holds a Toc object (`docmodel.modules.toc.TocProcessor`)
+# the projector used to never read (`_render` had no "Toc" branch, so a Toc
+# in flow rendered ""). Real evidence (out/646.txt, out/634.txt on penev_A):
+# a Toc's realization covers its own TOC-type lines block-claim-exactly, and
+# any object whose ENTIRE surface realization sits inside that span is a
+# fragment MathPix cut out of a contents line, never real content — the
+# orphan `$T=15$` Formulas the user named. Suppressed in the PROJECTION only
+# (634/646's ruling): never deleted from the model, always counted.
+# ---------------------------------------------------------------------------
+
+def _toc_doc():
+    """A Toc object claiming lines 1..3 (block realization, 634/646's rule),
+    a wreckage Section "Contents" OUTSIDE the Toc's own claimed range (line 0
+    — exactly the boundary penev_A itself shows: TocProcessor's anchors are
+    only the `table_of_contents_*`-typed lines, so a `section_header` line
+    immediately before the first one falls outside the Toc's own realization
+    even though it is the wreckage the user named — dropped by TITLE per the
+    brief's own rule, not by Toc coverage), a Formula fragment INSIDE the
+    Toc's range (line 3, no sub-anchor offset/length: a BLOCK claim, exactly
+    what MathPix produces for a bare `$T=15$` TOC-line remnant), and real
+    content (a genuine Section + Paragraph) after it, untouched."""
+    d = Document()
+    d.meta["bibkey"] = "demo"
+    mp = d.ensure_stream("mathpix_lines")
+    a_contents = mp.append(text="Contents", type="section_header")
+    a_container = mp.append(text="", type="table_of_contents_container")
+    a_item = mp.append(text="1 Introduction", type="table_of_contents_item")
+    a_frag = mp.append(text="T=15", type="table_of_contents_number")
+    a_head = mp.append(text="Introduction", type="section_header")
+    a_body = mp.append(text="Real prose.", type="text")
+
+    sec_contents = DocObject(type="Section", props={
+        "level": 1, "caption": "Contents", "flow_index": 0})
+    sec_contents.add_realization(Realization(
+        stream="mathpix_lines", start=a_contents, end=a_contents,
+        role="surface"))
+    d.add(sec_contents)
+
+    toc = DocObject(type="Toc", props={
+        "entries": ["1 Introduction"], "derived": True})
+    toc.add_realization(Realization(
+        stream="mathpix_lines", start=a_container, end=a_frag,
+        role="surface"))
+    d.add(toc)
+
+    frag = DocObject(type="Formula", props={"latex": "T=15", "flow_index": 1})
+    frag.add_realization(Realization(
+        stream="mathpix_lines", start=a_frag, end=a_frag, role="surface"))
+    d.add(frag)
+
+    sec_real = DocObject(type="Section", props={
+        "level": 1, "caption": "Introduction", "flow_index": 2})
+    sec_real.add_realization(Realization(
+        stream="mathpix_lines", start=a_head, end=a_head, role="surface"))
+    d.add(sec_real)
+
+    para = DocObject(type="Paragraph", props={
+        "text": "Real prose.", "flow_index": 3})
+    para.add_realization(Realization(
+        stream="mathpix_lines", start=a_body, end=a_body, role="surface"))
+    d.add_child(sec_real, para)
+    return d
+
+
+def test_a_toc_object_emits_tableofcontents_once():
+    tex = _proj().project(_toc_doc())
+    assert tex.count("\\tableofcontents") == 1
+
+
+def test_the_wreckage_contents_section_is_dropped_from_the_projection():
+    tex = _proj().project(_toc_doc())
+    assert "\\section{Contents}" not in tex
+    # but the model itself must be untouched — 634/646's ruling
+    doc = _toc_doc()
+    assert any(o.props.get("caption") == "Contents"
+               for o in doc.objects_of_type("Section"))
+
+
+def test_the_toc_line_formula_fragment_is_not_emitted_standalone():
+    tex = _proj().project(_toc_doc())
+    assert "$T=15$" not in tex
+
+
+def test_real_content_after_the_toc_region_is_untouched():
+    tex = _proj().project(_toc_doc())
+    assert "\\section{Introduction}" in tex
+    assert "Real prose." in tex
+
+
+def test_toc_region_suppressed_counts_the_section_and_the_formula():
+    p = _proj()
+    p.project(_toc_doc())
+    counts = p._toc_region_suppressed
+    assert counts.get("Section") == 1, counts
+    assert counts.get("Formula") == 1, counts
+
+
+def test_a_formula_outside_the_toc_range_is_not_suppressed():
+    """A Formula anchored on a line the Toc's own realization does NOT span
+    must render normally — suppression is evidence (Toc's claimed anchors),
+    never a guess by position or by neighbouring title."""
+    d = _toc_doc()
+    other = d.ensure_stream("mathpix_lines").append(text="x^2", type="text")
+    real_formula = DocObject(type="Formula", props={"latex": "x^2", "flow_index": 4})
+    real_formula.add_realization(Realization(
+        stream="mathpix_lines", start=other, end=other, role="surface"))
+    d.add(real_formula)
+    tex = _proj().project(d)
+    assert "$x^2$" in tex
+
+
+def test_an_inline_toc_line_formula_is_also_suppressed():
+    """penev_A's real shape: a Formula on a TOC line usually carries only an
+    INLINE (sub-anchor offset/length) realization — no Paragraph claims a
+    TOC line to transclude it FROM. 634/646's block-only "claim" rule does
+    not apply here (a different question, the INPUT side); the OUTPUT-side
+    question is only "does this print standalone in the flow", and an inline
+    fragment on a TOC line does exactly that unless suppressed too."""
+    d = Document()
+    d.meta["bibkey"] = "demo"
+    mp = d.ensure_stream("mathpix_lines")
+    a_container = mp.append(text="", type="table_of_contents_container")
+    # a merged TOC row carrying a fused title+formula, MathPix-style, with
+    # the Formula as an INLINE sub-span of that one line
+    a_row = mp.append(text="3.7 SNR with the T=87 Ensemble",
+                      type="table_of_contents_row")
+    a_head = mp.append(text="Introduction", type="section_header")
+    a_body = mp.append(text="Real prose.", type="text")
+
+    toc = DocObject(type="Toc", props={"entries": ["3.7 SNR with the T=87 Ensemble"]})
+    toc.add_realization(Realization(
+        stream="mathpix_lines", start=a_container, end=a_row, role="surface"))
+    d.add(toc)
+
+    inline_frag = DocObject(type="Formula", props={"latex": "T=87", "flow_index": 0})
+    inline_frag.add_realization(Realization(
+        stream="mathpix_lines", start=a_row, end=a_row, role="surface",
+        props={"offset": 14, "length": 4}))
+    d.add(inline_frag)
+
+    sec = DocObject(type="Section", props={"level": 1, "caption": "Introduction",
+                                           "flow_index": 1})
+    sec.add_realization(Realization(
+        stream="mathpix_lines", start=a_head, end=a_head, role="surface"))
+    d.add(sec)
+    para = DocObject(type="Paragraph", props={"text": "Real prose.", "flow_index": 2})
+    para.add_realization(Realization(
+        stream="mathpix_lines", start=a_body, end=a_body, role="surface"))
+    d.add_child(sec, para)
+
+    p = _proj()
+    tex = p.project(d)
+    assert "$T=87$" not in tex
+    assert p._toc_region_suppressed.get("Formula") == 1
+    assert "\\section{Introduction}" in tex and "Real prose." in tex
+
+
+def test_a_page_container_touching_the_toc_span_is_never_counted():
+    """`Page` is 634/646's own CONTAINER exclusion (a Page's realization spans
+    its whole page BY CONSTRUCTION, not by claim) reused here. A Page is also
+    not a flow content type at all (`common.CONTENT_TYPES`), so it was never
+    going to render standalone — counting it as suppressed would report an
+    action that never happens (rule 11)."""
+    d = _toc_doc()
+    mp = d.streams["mathpix_lines"]
+    page = DocObject(type="Page", props={"page": 1})
+    page.add_realization(Realization(
+        stream="mathpix_lines", start=mp.anchors[0], end=mp.anchors[-1],
+        role="surface"))
+    d.add(page)
+    p = _proj()
+    p.project(d)
+    assert "Page" not in p._toc_region_suppressed
+
+
+def test_no_toc_object_means_no_tableofcontents_and_nothing_suppressed():
+    """No Toc in the model: the projector must not invent one, and a Section
+    literally titled 'Contents' — with no Toc to justify replacing it — is
+    left exactly as the model states it."""
+    d = Document(); d.meta["bibkey"] = "x"
+    sec = DocObject(type="Section", props={
+        "level": 1, "caption": "Contents", "flow_index": 0})
+    d.add(sec)
+    p = _proj()
+    tex = p.project(d)
+    assert "\\tableofcontents" not in tex
+    assert "\\section{Contents}" in tex
+    assert p._toc_region_suppressed == {}

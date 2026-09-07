@@ -83,6 +83,13 @@ class BeamerProjector(LaTeXProjector):
         """Beamer has NO `abstract` environment (the inherited article renderer
         emits `\\begin{abstract}` → 'Environment abstract undefined'). Render an
         Abstract as a plain `block`; everything else uses the shared renderer."""
+        if obj.type == "Toc":
+            # 635 — beamer already hard-codes its own Outline frame
+            # (`\tableofcontents` above, unconditionally). The shared
+            # `LaTeXProjector._render`'s "Toc" branch would print a SECOND
+            # one wherever the Toc object's own flow position lands it; a
+            # deck needs exactly the one it already has.
+            return ""
         if obj.type == "Abstract":
             # fix round 2 — through `_cite` like every other prose block, so the
             # numeric map can never act on a bracket a Citation claims.

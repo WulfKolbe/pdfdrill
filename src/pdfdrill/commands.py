@@ -10224,6 +10224,18 @@ def cmd_latex(pdf: Path, force: bool = False, compile: bool = False,
             + (" resolved" if res else "0 resolved")
             + ("; UNHANDLED " + ", ".join(f"{v} {k}" for k, v in sorted(bad.items()))
                if bad else "; 0 unhandled"))
+    # 635 — the Toc object read, not skipped: `\tableofcontents` from it, the
+    # wreckage Section objects (Contents / List of Figures / List of Tables)
+    # and every object anchored on the lines the Toc's own realization covers
+    # dropped from the PROJECTION only (634/646's ruling — never deleted from
+    # the model) and counted by type, so a count nothing prints is never a
+    # count nobody reads.
+    _trs = getattr(projector, "_toc_region_suppressed", {}) or {}
+    if _trs:
+        lines.append(
+            "  toc_region_suppressed: "
+            + ", ".join(f"{v} {k}" for k, v in sorted(_trs.items()))
+            + " (in the projection; the model keeps them)")
     if dump_stages:
         lines.append(f"  stages  : {_artref(sc, env_dir / 'stages')}/  "
                      f"(transclusion lookup / citations / bibliography / "

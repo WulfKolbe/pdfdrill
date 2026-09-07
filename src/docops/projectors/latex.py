@@ -18,12 +18,20 @@ import re
 
 from docmodel.core import Document
 from ..base import BaseProjector
+from ..conserve import CONTAINER_TYPES as _CONTAINER_TYPES_TUPLE
 from .common import flow_ordered_content, equation_label
 from . import latex_pipeline as _pipe
 from . import footnotes as _fn
 from . import citations as _cit
 from .tiddlywiki import titles_by_id as _titles_by_id
 from .tiddlywiki import parse_title as _parse_title
+
+#: 635 — reuse 634/646's container exclusion (`Page` spans its page BY
+#: CONSTRUCTION, never by claim) rather than reinventing it: a Page is never
+#: a flow content type either (see `common.CONTENT_TYPES`), so it could never
+#: have rendered standalone, and counting it as "suppressed" would report an
+#: action that never happens.
+_CONTAINER_TYPES = frozenset(_CONTAINER_TYPES_TUPLE)
 
 #: 640-a — templates whose target ALSO renders as a standalone block, so a
 #: materialised transclusion of it means "printed here, not there". Keyed by
@@ -33,6 +41,17 @@ _TRANSCLUDED_STANDALONE = {
     "TAB": "Table", "LI": "ListItem", "PARA": "Paragraph", "ABS": "Abstract",
     "PROOF": "Proof", "TOC": "Toc",
 }
+
+#: 635 — the manual TOC headings a `\tableofcontents` supersedes. Dropped by
+#: NAME, per the brief: a document with a Toc object does not also print a
+#: hand-written "Contents" section holding nothing (or the orphan maths
+#: MathPix cut out of a contents line). Measure/List of Figures/List of
+#: Tables are NOT separately represented in the model (one flat Toc
+#: `entries`/`rows` list, no sub-region boundary — out/635.txt) so there is
+#: no evidence to emit `\listoffigures`/`\listoftables` from; their entries
+#: stay dropped-and-counted under `toc_region_suppressed` like every other
+#: TOC-line fragment.
+_TOC_WRECKAGE_TITLES = {"Contents", "List of Figures", "List of Tables"}
 
 # level → sectioning command (1-indexed; clamped)
 _SECTION_CMDS = ["section", "section", "subsection", "subsubsection",
@@ -210,6 +229,89 @@ class LaTeXProjector(BaseProjector):
                     o = self._by_title.get(t)
                     if o is not None and o.type == want and o.id != obj.id:
                         self._skip_ids.add(o.id)
+        # 635 — the table of contents as a COMMAND, not as its wreckage. A Toc
+        # object (`docmodel.modules.toc.TocProcessor`) is `derived: True`
+        # (262: every entry duplicates a `section_header` elsewhere in the
+        # document); `_render`'s "Toc" branch emits `\tableofcontents` from it
+        # once, at its own flow position. What has to leave the projection is
+        # (a) the wreckage Section objects titled Contents / List of Figures /
+        # List of Tables — a publication does not print its own table of
+        # contents twice, by NAME, exactly as the brief states it — and (b)
+        # every OTHER object anchored on a line the Toc's own realization
+        # spans. (b) is NOT 634/646's block/inline "claim" rule — that rule
+        # exists to stop a Formula NESTED inside a paragraph's line from
+        # looking like a second consumption of that line, which is a
+        # question about the INPUT side. Here the question is the OUTPUT
+        # side: does this object print standalone in the flow at all? And it
+        # measurably does — penev_A's 23 orphan `$T=15$`-shaped Formulas
+        # carry ONLY inline (sub-anchor) realizations on their TOC lines (no
+        # Paragraph claims a TOC line to transclude them FROM), so under the
+        # block-only rule they were never caught and kept printing (out/635
+        # first run). A Formula's flow position is its EARLIEST realization
+        # (`document_flow.DocumentFlowProcessor`, `surface[0]`); measured on
+        # penev_A, every object touching the Toc's span at all has that
+        # earliest realization INSIDE the span too (0 counterexamples), so an
+        # object suppressed here never had a legitimate rendering anywhere
+        # else — it is printed exactly once, and that once is the TOC.
+        # CONTAINER_TYPES (`Page`, 634/646's own exclusion) are skipped: a
+        # Page's realization spans its whole page BY CONSTRUCTION, not by
+        # claim, and it is not a flow content type in the first place — never
+        # rendered standalone regardless, so counting it as "suppressed"
+        # would report an action that never happens (rule 11).
+        # Evidence off the Toc's own anchors, never a guess by position or by
+        # title: on penev_A the "Contents" and "List of Figures"
+        # section_header lines sit just OUTSIDE the Toc's own claimed range
+        # (`TocProcessor` only walks `table_of_contents_*`-typed lines, so its
+        # first/last anchor is never a `section_header`), which is exactly
+        # why (a) is a separate, title-driven rule and not derived from (b) —
+        # see out/635.txt.
+        # Gated on a Toc actually existing: with none, nothing here fires, and
+        # a Section that happens to be titled "Contents" is left exactly as
+        # the model states it (there is no `\tableofcontents` to justify
+        # dropping it).
+        self._toc_region_suppressed: dict[str, int] = {}
+        self._toc_emitted = False
+        tocs = doc.objects_of_type("Toc")
+        if tocs:
+            lines_stream = doc.streams.get("mathpix_lines")
+            toc_span: set = set()
+            if lines_stream is not None:
+                for toc in tocs:
+                    for r in toc.realizations:
+                        if r.stream != "mathpix_lines" or r.role != "surface" \
+                                or r.start is None:
+                            continue
+                        end = r.end if r.end is not None else r.start
+                        try:
+                            toc_span.update(a.id for a in
+                                            lines_stream.slice_anchors(r.start, end))
+                        except KeyError:
+                            continue
+            for obj in doc.objects.values():
+                if obj.id in self._skip_ids or obj.type == "Toc" \
+                        or obj.type in _CONTAINER_TYPES:
+                    continue
+                bump = None
+                cap = str(obj.props.get("caption") or "").strip()
+                if obj.type == "Section" and cap in _TOC_WRECKAGE_TITLES:
+                    bump = obj.type
+                elif toc_span:
+                    for r in obj.realizations:
+                        if r.stream != "mathpix_lines" or r.role != "surface" \
+                                or r.start is None:
+                            continue
+                        end = r.end if r.end is not None else r.start
+                        try:
+                            span = lines_stream.slice_anchors(r.start, end)
+                        except KeyError:
+                            continue
+                        if any(a.id in toc_span for a in span):
+                            bump = obj.type
+                            break
+                if bump is not None:
+                    self._skip_ids.add(obj.id)
+                    self._toc_region_suppressed[bump] = \
+                        self._toc_region_suppressed.get(bump, 0) + 1
         # STAGE 3: acronyms / glossary from the named-concept layer (lazy — the
         # `semantic` package; degrade to none if unavailable).
         self._acronyms: list = []
@@ -674,4 +776,16 @@ class LaTeXProjector(BaseProjector):
             # printed number: a bare `\footnotetext{…}` never steps the counter,
             # so every one of penev_A's 54 of them printed as footnote "0".
             return self._footnotetext(obj)
+        if t == "Toc":
+            # 635 — read the Toc, don't skip it. `\tableofcontents` needs two
+            # xelatex passes (642 already made the compile two-pass) and a
+            # real `\section` per entry, which `_render`'s Section branch
+            # already emits — no separate rebuild of the table is needed.
+            # Emitted ONCE, at THIS object's flow position (`flow_ordered_
+            # content` already put it there); a second Toc object (should one
+            # ever exist) renders nothing rather than a second command.
+            if self._toc_emitted:
+                return ""
+            self._toc_emitted = True
+            return "\\tableofcontents"
         return ""
