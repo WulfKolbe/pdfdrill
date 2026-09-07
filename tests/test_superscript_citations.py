@@ -258,12 +258,82 @@ def test_one_rule_behind_both_spellings():
     """The bare `{ }^{7}` and the materialised `<sup>7</sup>` reach the SAME
     decision on the SAME document — that is the whole point of extracting it.
     """
-    from docops.projectors.footnotes import decide, marker_lookups
+    from docops.projectors.footnotes import BY_LOOKUP, decide, marker_lookups
     for maker in (_doc, _doc_sup):
         for kwargs, expected in ((dict(), "cite"),
                                  (dict(footnote_on_page=True), "footnote"),
                                  (dict(numbered=False), "unresolved")):
             doc = maker(**kwargs)
             look = marker_lookups(doc)
-            d = decide("7", 4, look)
+            d = decide("7", 4, look, rule_a=BY_LOOKUP)
             assert d.outcome == expected, (maker.__name__, kwargs, d)
+
+
+# ─────────── fix round 2: the two callers mean different things by "no body"
+
+def _doc_back_reference() -> Document:
+    """638-e, with a numbered bibliography over it. TWO bare markers `{ }^{7}`
+    on page 4 and ONE Footnote 7 whose body is on that page, plus Reference 7
+    (`key7`). The first marker takes the body; the second is a back-reference
+    to the SAME footnote and there is no second body for it."""
+    doc = _doc(footnote_on_page=True)
+    par = _par(doc)
+    line = par.props["text"] + " And again\\({ }^{7}\\) later."
+    par.props["text"] = line
+    mp = doc.streams["mathpix_lines"]
+    for anchor in list(mp.anchors):
+        if mp.payload[anchor].get("_line_index") == 1:
+            mp.payload[anchor]["text"] = line
+    return doc
+
+
+def test_a_consumed_body_is_not_offered_to_the_second_marker():
+    """The bug fix round 2 exists for: pass 1 correctly gave the ONE body to the
+    first marker and left the second unresolved, and `decide` then re-derived
+    the CONSUMED body for it — setting `both` and counting `marker_both` twice.
+    A body belongs to one marker."""
+    res = fnres.resolve(_doc_back_reference())
+    marks = res.marks_for(_par(_doc_back_reference()).id) or \
+        next(iter(res.marks.values()))
+    assert len(marks) == 2, marks
+    first, second = marks
+    assert first.outcome == "footnote" and first.both is True
+    assert second.footnote_id is None
+    assert second.both is False
+    assert second.outcome == "unresolved", second
+    assert res.counts["marker_both"] == 1
+    assert res.counts["markers_resolved"] == 1
+    assert res.counts["markers_unresolved"] == 1
+    assert res.counts["markers_cited"] == 0
+
+
+def test_the_bare_walk_never_asks_decide_to_re_derive_rule_a():
+    """The handoff itself: `BY_CALLER` means `footnote_id` is the caller's WHOLE
+    answer, so None there is `tried, none` — never `look it up`. Asked of
+    `decide` directly, on the fixture whose body IS on the page."""
+    from docops.projectors import footnotes as f
+    doc = _doc(footnote_on_page=True)
+    look = f.marker_lookups(doc)
+    by_caller = f.decide("7", 4, look, rule_a=f.BY_CALLER, footnote_id=None)
+    assert by_caller.footnote_id is None and by_caller.both is False
+    assert by_caller.outcome == "unresolved"          # a taken body is evidence
+    by_lookup = f.decide("7", 4, look, rule_a=f.BY_LOOKUP)
+    assert by_lookup.outcome == "footnote"
+    import pytest
+    with pytest.raises(ValueError):
+        f.decide("7", 4, look, rule_a="whatever")
+
+
+def test_a_sup_marker_is_only_emitted_when_no_footnote_has_that_refnum():
+    """THE CROSS-FILE INVARIANT `decide`'s BY_LOOKUP branch leans on: the
+    tiddler projector emits `<sup>n</sup>` only where its DOCUMENT-WIDE
+    `fn_by_refnum` has no Footnote with that refnum (644-a). If that map is ever
+    scoped to a page, the `<sup>` lane starts resolving footnotes and
+    `latex._sup_page` becomes load-bearing (641-c) — this test fails first."""
+    from docops.projectors.tiddlywiki import TiddlyWikiProjector as TW
+    text = "See\\({ }^{3}\\) and also\\({ }^{4}\\)."
+    out = TW._substitute_footnotes(text, {"3": "D_FN0003"})
+    assert "{{D_FN0003||FN}}" in out, out
+    assert "<sup>4</sup>" in out, out
+    assert "<sup>3</sup>" not in out, out
+    assert "{ }^{" not in out, out

@@ -34,8 +34,11 @@ does, and the ordered rule is:
   a. a Footnote with refnum n whose body page is the marker's page (or +1
      within `MAX_SPILL_PAGES`)                   ->  `\\footnotemark[n]`   (638)
   b. else, when the reference list is NUMBERED at all, a Reference with
-     `props["number"] == n`                      ->  `\\cite{<citekey>}`   (641)
-  c. else the marker stands, byte-for-byte, and is counted.
+     `props["number"] == n` AND no body with that refnum on the marker's page
+     at all                                      ->  `\\cite{<citekey>}`   (641)
+  c. else the marker stands, byte-for-byte, and is counted — including the
+     638-e back-reference, a second `{ }^{n}` whose page's only body an earlier
+     marker already took.
 
 THE DISAMBIGUATION IN ONE SENTENCE: a footnote marker has a BODY on its own
 page; a citation superscript has a NUMBERED BIBITEM and no such body — and when
@@ -132,6 +135,16 @@ def object_text(obj: DocObject) -> str:
     return ""
 
 
+#: `decide(rule_a=…)`: WHO decided rule (a). The two callers mean different
+#: things by "no footnote id", and fix round 2 makes them say which.
+#: `BY_CALLER` — the caller ran rule (a) itself and `footnote_id` is its whole
+#: answer; None there means "tried, found none", NOT "look it up".
+#: `BY_LOOKUP` — the caller has no pairing and `decide` runs rule (a) from
+#: `look`, which must therefore already exclude bodies another marker consumed.
+BY_CALLER = "by_caller"
+BY_LOOKUP = "by_lookup"
+
+
 @dataclass(frozen=True)
 class MarkerLookups:
     """The two document-level lookups THE RULE needs, built once per document.
@@ -171,31 +184,64 @@ def marker_lookups(doc: Document) -> MarkerLookups:
     return MarkerLookups(by_page_refnum=by_page, numbered=reference_map(doc))
 
 
-def decide(refnum: str, page, look: MarkerLookups, *,
-           footnote_id: Optional[str] = None) -> Decision:
+def decide(refnum: str, page, look: MarkerLookups, *, rule_a: str,
+           footnote_id: Optional[str] = None, used=()) -> Decision:
     """THE ORDERED RULE — one implementation, called from BOTH spellings of the
     same marker (the bare `\\({ }^{n}\\)` walk below, and the materialised
     `<sup>n</sup>` the LaTeX projector meets after `clean`).
 
       a. a Footnote body with this refnum on this page  ->  footnote
-      b. else, a Reference whose printed number is n    ->  cite
+      b. else, a Reference whose printed number is n, AND no body with this
+         refnum on this page at all                     ->  cite
       c. else                                           ->  unresolved
+
+    RULE (b)'s SECOND CONDITION IS FIX ROUND 2's, and it is what 638-e costs: a
+    body belongs to ONE marker, so a second `{ }^{7}` on a page whose only
+    footnote 7 an earlier marker already took gets no body — but it is a
+    back-reference to that footnote, not a citation. The presence of a body
+    with that refnum ON THAT PAGE is evidence about what the marker IS;
+    consumption is bookkeeping about which body PRINTS. So an unresolved marker
+    beside a taken body stands (c) instead of becoming `\\cite`.
 
     BOTH is a footnote, and the Decision says so (`both=True`) so the caller can
     count it: the body being physically on the page is stronger evidence than a
     bibliography entry that merely carries the same integer.
 
-    `footnote_id` is the caller's OWN pairing when it did one — the bare walk
-    pairs by marker-order-against-body-order on the page, allows a one-page
-    spill and consumes a body once, none of which a lookup can express. Passing
-    it means "rule (a) already fired, and this is the body"; passing None means
-    "decide rule (a) here too, from the lookup".
+    `rule_a` says WHO decided rule (a), and it is required because the two
+    callers mean different things by "no footnote id" (fix round 2 — the bug it
+    fixes counted `marker_both` 2 where it must be 1):
+
+      BY_CALLER  the caller ran rule (a) itself and `footnote_id` is its WHOLE
+                 answer — None means "tried, none", and rule (a) is NOT
+                 re-derived here. The bare walk pairs by marker-order-against-
+                 body-order on the page, allows a one-page spill and consumes a
+                 body once; none of that is expressible as a lookup, and a mark
+                 it correctly left unresolved must not be handed the body an
+                 earlier mark already took (638-e's back-reference).
+      BY_LOOKUP  the caller has no pairing, so rule (a) is decided here from
+                 `look`, skipping every body in `used` — that branch has no
+                 consumption bookkeeping of its own and would otherwise hand a
+                 second marker a body the first already took.
+
+    THE CROSS-FILE INVARIANT the `<sup>n</sup>` caller relies on, named here so
+    a change over there is caught here: `tiddlywiki._substitute_footnotes`
+    emits `<sup>n</sup>` ONLY when `fn_by_refnum` — a DOCUMENT-WIDE map — has no
+    Footnote with that refnum, so rule (a) can never fire for that lane today.
+    If that map is ever scoped to a page, this branch starts resolving
+    footnotes and `latex._sup_page` (the rendered OBJECT's page, not the
+    marker's line — 641-c) becomes load-bearing.
+    `test_a_sup_marker_is_only_emitted_when_no_footnote_has_that_refnum` pins
+    the invariant.
     """
+    if rule_a not in (BY_CALLER, BY_LOOKUP):
+        raise ValueError(f"decide(): rule_a must be BY_CALLER or BY_LOOKUP, "
+                         f"got {rule_a!r}")
+    on_page = list(look.by_page_refnum.get((page, str(refnum)), ()))
     fid = footnote_id
-    if fid is None and page is not None:
-        cands = look.by_page_refnum.get((page, str(refnum)))
-        if cands:
-            fid = cands[0]
+    if fid is None and rule_a == BY_LOOKUP:
+        free = [i for i in on_page if i not in set(used or ())]
+        if free:
+            fid = free[0]
     try:
         key = look.numbered.get(int(refnum))
     except (TypeError, ValueError):
@@ -203,7 +249,7 @@ def decide(refnum: str, page, look: MarkerLookups, *,
     if fid:
         return Decision("footnote", str(refnum), footnote_id=fid,
                         both=key is not None)
-    if key:
+    if key and not on_page:
         return Decision("cite", str(refnum), citekey=key)
     return Decision("unresolved", str(refnum))
 
@@ -421,7 +467,8 @@ def resolve(doc: Document) -> Resolution:
         # Passes 1 and 2 already did rule (a) — with the order tie-break, the
         # one-page spill and the one-body-per-marker consumption a lookup cannot
         # express — so their answer is handed IN rather than re-derived.
-        d = decide(mk.refnum, mk.page, look, footnote_id=mk.footnote_id)
+        d = decide(mk.refnum, mk.page, look, rule_a=BY_CALLER,
+                   footnote_id=mk.footnote_id)
         mk.citekey = d.citekey
         mk.both = d.both
         if d.both:

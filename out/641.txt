@@ -1,5 +1,12 @@
 641 — a superscript citation becomes \cite, and how it differs from a footnote marker
 ====================================================================================
+(FIX ROUND 2 folded in — one Critical from review, reproduced by execution:
+`decide()` re-derived rule (a) for a marker the bare walk had correctly left
+unresolved, so 638-e's back-reference counted `marker_both` twice. The two
+callers now say which of them decided rule (a), and rule (b) no longer fires
+beside a body its own page holds. The .tex is unchanged on both documents.
+Details under FIX ROUND 2 at the end.)
+
 (FIX ROUND 1 folded in, ruled from this report's own 641-a, and it changed no
 number on either document. The rule was implemented in the BARE marker walk and
 the MATERIALISED `<sup>n</sup>` lane still turned every body-less superscript
@@ -18,8 +25,12 @@ THE ANSWER TO "HOW DID YOU TELL THEM APART", FIRST, BECAUSE IT IS THE TASK
     a. a Footnote with refnum n whose body page is the marker's page (or +1,
        within MAX_SPILL_PAGES)              ->  \footnotemark[n]        (638)
     b. else, and only when the reference list is NUMBERED at all, a Reference
-       with props["number"] == n            ->  \cite{<citekey>}        (641)
+       with props["number"] == n AND no body with refnum n on the marker's own
+       page at all                          ->  \cite{<citekey>}        (641)
     c. else the marker stands byte-for-byte and is counted.
+
+  (b)'s second condition is FIX ROUND 2's; see there. It costs nothing on this
+  corpus and it is what keeps 638-e's back-reference out of the bibliography.
 
   A marker that matches BOTH is a FOOTNOTE. A numbered reference list and
   footnotes on the same page both exist in one document, so the collision is
@@ -416,3 +427,86 @@ FIX ROUND 1 — ONE ORDERED RULE, CALLED FROM BOTH SPELLINGS
            text. It costs nothing today (0 rule-(a) hits in this lane on either
            document) and it is the first thing to fix if the lane ever resolves
            a footnote.
+
+--------------------------------------------------------------------------
+FIX ROUND 2 — THE TWO CALLERS MEAN DIFFERENT THINGS BY "NO FOOTNOTE ID"
+--------------------------------------------------------------------------
+
+  ONE CRITICAL FROM REVIEW, REPRODUCED BY EXECUTION BEFORE IT WAS FIXED.
+  Fix round 1's `decide(refnum, page, look, footnote_id=None)` read a None
+  `footnote_id` as "look it up yourself", and `by_page_refnum` is built from
+  ALL Footnotes — `res.used` is not in it. So on 638-e's shape (two bare
+  `{ }^{7}` on one page, ONE body, and 7 also numbering a bibitem) the second
+  marker — which passes 1 and 2 had correctly left unresolved, because a body
+  belongs to one marker — was handed the CONSUMED body inside `decide`, `both`
+  came back True, and `marker_both` counted 2 where it must be 1. The .tex was
+  unaffected (pass 3 reads `citekey` and `both`, not `outcome`); the counter
+  the round-1 ruling exists to produce was wrong. Reproduced as a failing test
+  first (`assert True is False` on `second.both`), not reasoned about.
+
+  THE FIX — the mode is EXPLICIT and required, so neither caller can be read
+  as the other:
+
+    BY_CALLER   the caller ran rule (a) itself and `footnote_id` is its WHOLE
+                answer; None means "tried, none found". `decide` never
+                re-derives rule (a) on this path. The bare walk passes this,
+                because its pairing (order on the page, the one-page spill, and
+                one body per marker) is not expressible as a lookup.
+    BY_LOOKUP   the caller has no pairing, so `decide` runs rule (a) from
+                `look`, SKIPPING every body in `used`. Only the `<sup>n</sup>`
+                lane passes this, and it passes `res.used`.
+
+  `rule_a` is keyword-ONLY and has no default: a third caller has to choose,
+  and a wrong value raises rather than silently picking one (tested).
+
+  AND RULE (b) GAINED ITS SECOND CONDITION. Excluding the consumed body is not
+  enough on its own: the second marker would then have no body AND a numbered
+  bibitem, and would become `\cite{key7}` — a back-reference to footnote 7
+  turned into a citation of reference 7, which is 638-e's failure wearing a new
+  hat. The presence of a body with that refnum ON THAT PAGE is evidence about
+  what the marker IS; consumption is bookkeeping about which body PRINTS. So
+  rule (b) requires `not on_page`, and the back-reference stands (c) and is
+  counted. On this corpus the extra condition fires 0 times.
+
+  THE CROSS-FILE INVARIANT, NAMED IN THE CODE AND PINNED BY A TEST. The
+  BY_LOOKUP branch is dead on real documents today for a reason that lives in
+  another file: `tiddlywiki._substitute_footnotes` emits `<sup>n</sup>` ONLY
+  where its DOCUMENT-WIDE `fn_by_refnum` has no Footnote with that refnum
+  (644-a), so rule (a) can never fire for that lane. `decide`'s docstring says
+  so, and `test_a_sup_marker_is_only_emitted_when_no_footnote_has_that_refnum`
+  fails if that map is ever scoped to a page — which is the moment 641-c
+  (`_sup_page` is the rendered OBJECT's page, not the marker's line) stops
+  being free.
+
+  STALE PAGE, CLOSED. `_sup_page` was set in `_render` and `_render_list` only,
+  so a `<sup>n</sup>` inside a footnote body (`_footnotetext`) or a sidenote
+  (`_sidenote_token`) was decided against whatever block happened to be
+  rendered last. Both now set it to their own object's page and restore it in a
+  `finally`. 0 such markers on either document; it is a correctness hole that
+  costs nothing today and would have been invisible when it did.
+
+  TESTS ADDED (3; the two behavioural ones confirmed failing first at aa9947a,
+  the third is a guard that passes and says so)
+    * the 638-e fixture through `resolve()`, not `decide()` alone — two markers,
+      one body, 7 also a bibitem: first `footnote` with `both`, second
+      `unresolved` with `both` False, `marker_both == 1`, `markers_cited == 0`
+      (failed: `second.both` was True and `marker_both` was 2);
+    * the handoff itself: BY_CALLER with `footnote_id=None` yields
+      `unresolved`, BY_LOOKUP on the same document yields `footnote`, and a
+      bad mode raises `ValueError` (failed: `BY_CALLER` did not exist);
+    * the cross-file invariant on `tiddlywiki._substitute_footnotes` (passes at
+      aa9947a — a guard on behaviour that is already correct, written down as
+      one).
+
+  THE NUMBERS DID NOT MOVE, re-measured on both documents after the fix:
+
+                                          penev_A        Steerable
+    bare markers, all outcomes                 0                0
+    `<sup>n</sup>` markers                    44                0
+      cite / footnote / both / default    0/0/0/44         0/0/0/0
+    marker_both                                0                0
+    compile pages / "! " lines             97 / 0           41 / 1
+    .tex sha256  014a24574e47eb1b…       identical
+                 ca5c7a46657da6bf…                      identical
+
+  FULL SUITE: 3236 passed, 0 failed (3233 after round 1; 3 new).

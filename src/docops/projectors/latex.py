@@ -383,7 +383,11 @@ class LaTeXProjector(BaseProjector):
         res = getattr(self, "_footnotes", None)
         if res is None:
             return None
-        d = _fn.decide(n, getattr(self, "_sup_page", None), res.lookups)
+        # `used` — the bodies the BARE walk already consumed. This lane asks
+        # `decide` to run rule (a) itself, so it must not be handed a body an
+        # earlier marker took (638-e; fix round 2).
+        d = _fn.decide(n, getattr(self, "_sup_page", None), res.lookups,
+                       rule_a=_fn.BY_LOOKUP, used=res.used)
         res.counts["sup_markers"] += 1
         if d.outcome == "cite":
             res.counts["sup_marker_cited"] += 1
@@ -411,12 +415,17 @@ class LaTeXProjector(BaseProjector):
         # mis-wire was live here AND a footnote-body citation reached the page
         # as nothing at all (645-a, closed for this lane).
         was = getattr(self, "_in_footnote_body", False)
+        was_page = getattr(self, "_sup_page", None)
         self._in_footnote_body = True                     # no \footnotetext nesting
+        # the page this BODY is on — otherwise a `<sup>n</sup>` inside it would
+        # be decided against whatever block was rendered last (fix round 2).
+        self._sup_page = fn.props.get("page")
         try:
             body = self._prose(
                 self._cite(fn, str(fn.props.get("content") or "")).strip())
         finally:
             self._in_footnote_body = was
+            self._sup_page = was_page
         body = re.sub(r"\n\s*\n+", " ", body).strip()     # no \par inside a footnote
         refnum = str(fn.props.get("refnum") or "").strip()
         opt = f"[{refnum}]" if refnum.isdigit() else ""
@@ -512,8 +521,15 @@ class LaTeXProjector(BaseProjector):
         sn = self._by_title.get(title)
         if sn is None:
             return None
-        body = self._prose(str(sn.props.get("text")
-                               or sn.props.get("content") or "").strip())
+        # the page of the SIDENOTE, not of whatever block was rendered last —
+        # a `<sup>n</sup>` inside this body is decided against it (fix round 2).
+        was_page = getattr(self, "_sup_page", None)
+        self._sup_page = sn.props.get("page")
+        try:
+            body = self._prose(str(sn.props.get("text")
+                                   or sn.props.get("content") or "").strip())
+        finally:
+            self._sup_page = was_page
         body = re.sub(r"\n\s*\n+", " ", body).strip()
         if not body:
             return None
