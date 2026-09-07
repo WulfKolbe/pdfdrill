@@ -186,7 +186,8 @@ def _extent_anchors(ext) -> set:
     return out
 
 
-def _fill_footnote(host, body: str, ext_rs) -> None:
+def _fill_footnote(host, body: str, ext_rs, *, tail_unassigned: bool = False,
+                    split_index=None) -> None:
     r"""637 — the LATER creator ADOPTS an existing Footnote instead of building
     a second one for the same body.
 
@@ -196,10 +197,23 @@ def _fill_footnote(host, body: str, ext_rs) -> None:
     spelling); the extent this pass located is added, so the lines the cleanup
     claimed stay claimed by the same module (634's ledger reads the CALL, so
     the attribution follows the fill); and `filled_by` records who did it.
+
+    637 fix round 1 — A REFUSAL FLAG IS NEVER LOST ON ADOPTION. The adopting
+    segment may carry `tail_unassigned` (636's refusal marker) or a
+    `split_index`; before this fix both were dropped on the floor when the
+    segment filled an existing host instead of building its own object. The
+    rule: `tail_unassigned` on the HOST becomes the OR of the host's own flag
+    and the segment's (never cleared by a fill that happens to lack it); the
+    segment's `split_index` is recorded on the host only when the host does
+    not already have one.
     """
     from docmodel.core import Realization
     host.props["content"] = body
     host.props["filled_by"] = "footnote_cleanup"
+    if tail_unassigned:
+        host.props["tail_unassigned"] = True
+    if split_index is not None and host.props.get("split_index") is None:
+        host.props["split_index"] = split_index
     seen = {(r.start, r.end, r.props.get("offset"), r.props.get("length"))
             for r in host.realizations
             if r.stream == "mathpix_lines" and r.role == "surface"}
@@ -311,7 +325,9 @@ def extract_footnote_paragraphs(doc) -> int:
                 host = _fx.adopt_target(doc, o.props.get("page"), refnum,
                                         _extent_anchors(ext), taken)
                 if host is not None:
-                    _fill_footnote(host, body, ext_rs)
+                    _fill_footnote(host, body, ext_rs,
+                                   tail_unassigned=seg.tail_unassigned,
+                                   split_index=i if i else None)
                     taken.add(host.id)
                     adopted += 1
                     n += 1

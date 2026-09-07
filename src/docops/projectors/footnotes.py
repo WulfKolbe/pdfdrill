@@ -144,7 +144,21 @@ def body_text(fn: DocObject) -> str:
     Footnote in a rebuilt document; the prop is the answer for a model built
     before that, which is why the fallback is not defensive but a version
     contract.
+
+    637 fix round 1 — TRANSLATION OVERRIDES THE REALIZATION. `pdfdrill
+    translate` (`commands.translate_model_prose`) translates `props["content"]`
+    in place and keeps the original under `content_source`; it never touches a
+    realization, which is why the `cleaned` one still holds the
+    PRE-translation text after a translate run. Preferring it, as before,
+    silently prints every footnote body in the source language. When
+    `heading_cleanup.is_translated(fn, "content")` is true, `content` — the
+    translated text — is the answer; the cleaned-realization-else-content order
+    applies only when the document was never translated.
     """
+    from pdfdrill.heading_cleanup import is_translated
+
+    if is_translated(fn, "content"):
+        return str(fn.props.get("content") or "")
     for r in fn.realizations:
         if r.role != "cleaned":
             continue

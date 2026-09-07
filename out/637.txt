@@ -389,6 +389,23 @@ WHAT IS OPEN
          The cleanup's `flow_index` is discarded on adoption. No penev_A
          footnote moved visibly, but nothing pins that the two orderings
          agree.
+  637-f  The same-page same-refnum in-block adoption (`taken`, keeping one
+         host from being filled twice by a paragraph carrying two groups)
+         rests on ITERATION ORDER over the paragraph's groups and segments,
+         not on extent. Two segments of the same (page, refnum) with
+         genuinely different, non-overlapping extents would still be
+         resolved by which one is walked first, not by which one the extent
+         rule would pick. 0 on penev_A and Steerable — every (page, refnum)
+         pair in this corpus that reaches `_fill_footnote` has exactly one
+         candidate segment.
+  637-g  A one-character `latex` on a line shared with a paragraph can FALSE-
+         FOLD in `body_math_ids`: the substring test (637's own stated
+         limitation, see CONCERNS) is most exposed exactly where the maths is
+         shortest — a single-character Formula's `latex` (e.g. "x") is a
+         substring of nearly any body text, so a Formula that merely shares a
+         line with a footnote paragraph, rather than being named by its body,
+         could be folded as if it were. 0 on this corpus — penev_A and
+         Steerable carry no one-character Formula on a footnote-covered line.
 
 CONCERNS
   The ruling names the cleaned body and the cleaned body is not uniformly

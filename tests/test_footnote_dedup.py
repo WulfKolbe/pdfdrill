@@ -146,6 +146,33 @@ def test_the_adoption_records_who_filled_it():
     assert _fn(doc)[0].props["filled_by"] == "footnote_cleanup"
 
 
+def test_the_adoption_keeps_a_refusal_flag_the_host_did_not_have():
+    r"""637 fix round 1 — `_fill_footnote` used to copy content, extents and
+    `filled_by` onto the host and drop the adopting segment's
+    `tail_unassigned` (636's refusal marker) and `split_index`. The rule: the
+    host's `tail_unassigned` is the OR of both — never cleared by a fill that
+    happens to lack it — and a `split_index` the segment carries is recorded
+    on the host only when the host has none of its own."""
+    host = DocObject(type="Footnote", props={
+        "refnum": "3", "page": 4, "content": "old"})
+    hc._fill_footnote(host, "new body", [], tail_unassigned=True)
+    assert host.props["tail_unassigned"] is True
+
+
+def test_the_adoption_records_a_split_index_the_host_lacked():
+    host = DocObject(type="Footnote", props={
+        "refnum": "3", "page": 4, "content": "old"})
+    hc._fill_footnote(host, "new body", [], split_index=2)
+    assert host.props["split_index"] == 2
+
+
+def test_the_adoption_never_overwrites_the_host_s_own_split_index():
+    host = DocObject(type="Footnote", props={
+        "refnum": "3", "page": 4, "content": "old", "split_index": 1})
+    hc._fill_footnote(host, "new body", [], split_index=5)
+    assert host.props["split_index"] == 1
+
+
 def test_the_adoption_keeps_the_claim_on_the_paragraph_s_lines():
     """The cleanup's extent is what claims the child lines (634: the 35
     `footnote_cleanup+paragraph` doubly-claimed anchors are its work). Adoption
@@ -231,6 +258,30 @@ def test_body_text_falls_back_to_the_content_prop():
     assert fnres.body_text(fn) == "only this"
     fn.add_realization(Realization(stream="d", role="cleaned", props={}))
     assert fnres.body_text(fn) == "only this"   # a cleaned realization with no text
+
+
+def test_body_text_prefers_the_translated_content_over_the_stale_cleaned_realization():
+    r"""637 fix round 1 — `pdfdrill translate` translates `props['content']`
+    and keeps the pre-translation text under `content_source`; it never
+    touches a realization. Preferring the cleaned realization, as before,
+    silently prints every translated footnote body in the source language."""
+    fn = DocObject(type="Footnote", props={
+        "refnum": "3", "page": 4,
+        "content": "Uebersetzter Text.",
+        "content_source": "Translated text."})
+    fn.add_realization(Realization(stream="derived", role="cleaned",
+                                   props={"text": "Translated text."}))
+    assert fnres.body_text(fn) == "Uebersetzter Text."
+
+
+def test_body_text_without_content_source_still_returns_the_cleaned_realization():
+    """No `content_source` twin -> not translated -> the ordinary
+    cleaned-else-content order applies."""
+    fn = DocObject(type="Footnote", props={
+        "refnum": "3", "page": 4, "content": "something else"})
+    fn.add_realization(Realization(stream="derived", role="cleaned",
+                                   props={"text": "Translated text."}))
+    assert fnres.body_text(fn) == "Translated text."
 
 
 # --------------------------------------------------------------- the projection
