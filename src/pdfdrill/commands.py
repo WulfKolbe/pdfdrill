@@ -11672,7 +11672,13 @@ def cmd_bibliography(pdf: Path, force: bool = False) -> str:
     numeric = authyear = cites = 0
     source_note = ""
 
-    if n == 0:
+    # 648 fix round 1 — `n == 0` alone conflates "the heuristic found nothing"
+    # with "it found entries, but every one already named a FILLED Reference"
+    # (`add_reference_objects`'s gold-skip, above, returns 0 for the latter
+    # too). Only the FORMER means there is no INLINED References section to
+    # read at all; the latter already has full gold coverage and gains
+    # nothing from re-deriving the bibliography from the e-print source.
+    if n == 0 and not entries:
         # Heuristic found no INLINED references — the keyless arXiv LaTeX-source
         # case: the entries live in biblio.bib (named by \bibliography{}), not in
         # the prose. Build THIS paper's bibliography from that GOLD source (full

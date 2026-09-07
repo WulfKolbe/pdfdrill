@@ -142,6 +142,60 @@ confirmed failing first)
   already green before any fix — the accidental-safety half of the
   bifurcation; no regressions).
 
+FIX ROUND 1 — two findings from review, both ruled real
+  1. IMPORTANT. The gold-collision `continue` (item 3 above) skipped the
+     `role="bibliography"` section-anchor realization too, so
+     `bibliography_section_anchors` no longer excluded the printed line and
+     a `--force` re-detect read the bibliography's own line as an in-text
+     Citation. REPRODUCED (test_gold_collision_still_excludes_the_printed_
+     line_from_redetection, confirmed failing first — 0 anchors, `ref_anchor
+     not in anchors`): gold `Asai2023` + a printed "Asai, T. ... 2023 ...
+     (Redlich, 1993) ..." line — the SAME citekey collides with gold, and
+     the SAME line separately names "(Redlich, 1993)", which
+     `detect_author_year_citations` mints as a spurious Citation whenever
+     the line is not excluded. Fixed: on a filled collision,
+     `add_reference_objects` still attaches the `role="bibliography"`
+     realization to the FILLED Reference (guarded by `not any(z.role ==
+     "bibliography" ...)`, same as the fill branch), and skips only the
+     object creation/fill. After the fix: `bibliography_section_anchors`
+     contains the printed line's anchor, and `detect_author_year_citations`
+     with that exclusion set adds 0.
+  2. IMPORTANT. `add_reference_objects`'s gold-skip can leave `n == 0` even
+     when `parse_bibliography` found real entries (every one collided with
+     gold) — a case `cmd_bibliography`'s `if n == 0:` gate conflated with
+     "the heuristic found nothing at all", wrongly falling into
+     `build_bibliography_from_source` (the keyless-arXiv path) and ingesting
+     an UNRELATED `texsrc/*.bib` that has nothing to do with this citekey.
+     REPRODUCED (test_collision_only_entries_do_not_wrongly_trigger_the_
+     source_fallback, confirmed failing first — an unrelated
+     `Someoneelse2050` Reference appeared). Fixed: the gate is now `if n ==
+     0 and not entries:` — only fires when the heuristic parse found
+     nothing, not when it found entries that all already had gold coverage.
+  MINOR. `_existing_citation_spans`'s degenerate `(stream, anchor, None,
+  None, citekey)` key (a Citation with no offset/length — a whole-line
+  claim from `latex_source`/`markdown_source`) is documented as currently
+  unreachable as a bug: `detect_numeric_citations`/`detect_author_year_
+  citations`, its only callers, always construct a real `(offset, length)`
+  pair for every candidate, so their own identity tuples never collide with
+  a degenerate one.
+
+  Both fixes verified by reverting each hunk in isolation and re-running its
+  test (failed for the stated reason), then restoring.
+
+  FULL SUITE (fix round 1): PYTHONDONTWRITEBYTECODE=1 PYTHONPATH=src
+  python3 -m pytest tests/ -q -p no:cacheprovider  ->  3345 passed, 0
+  failed (3343 before this round's 2 new tests; no regressions).
+
+  The three out/648/ INSPECT.txt files were regenerated through
+  `taskout.inspect_list(..., expect=...)` (previously written by hand
+  without it): each script now writes its own `messages.txt` with a first
+  line naming its document (`penev_A`, `SteerableWaveletFramesBasedonthe
+  RieszTransform`) or the fixture (`fixture648`), and `inspect_list`'s
+  `expect` check passed on all three (no entries under "NOT LISTED"). Numbers
+  unchanged by re-running (fix round 1 touches only the gold-collision and
+  `n==0` paths, neither reachable on penev_A/Steerable's bare-call corpus
+  check).
+
 THE CORPUS CHECK (bibliography twice on penev_A and Steerable — nothing
 moves), AFTER the fix
   penev_A (no gold; `existing` permanently empty — the SAME shape that

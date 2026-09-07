@@ -522,6 +522,18 @@ def _existing_citation_spans(doc) -> set:
     `bibliography` calls, no `--force`). `--force`'s own cleanup avoids this
     by dropping every `added_by == "bibliography"` Citation before
     re-detecting; a bare call drops nothing.
+
+    A Citation whose surface Realization carries no `offset`/`length` (a
+    whole-line claim — `latex_source`/`markdown_source`'s Citations, which
+    have no sub-line position) collapses to the DEGENERATE key `(stream,
+    anchor, None, None, citekey)`; two such Citations on the same anchor
+    with the same citekey are indistinguishable here. Currently unreachable
+    as a bug: the only callers of this function
+    (`detect_numeric_citations`/`detect_author_year_citations`) always
+    construct a real `(offset, length)` pair for every Citation they mint,
+    so their own identity tuples never collide with a degenerate one or
+    with each other's — this set only needs to tell THEIR candidates apart
+    from what already exists, not from each other in general.
     """
     spans = set()
     for c in doc.objects.values():
@@ -1244,6 +1256,16 @@ def add_reference_objects(doc, entries: list[dict]) -> int:
     same author+year the gold entry covers. Before this, only STUB
     references were checked, so such a collision fell to the `else` branch
     and created a SECOND Reference object for the same work.
+
+    648 FIX ROUND 1 — the skip must not skip the SECTION ANCHOR too. The
+    filled Reference still gets the same `role="bibliography"` realization
+    the fill/create branches below stamp (guarded the same way -- never
+    twice), because `bibliography_section_anchors` selects on THAT marker to
+    exclude the printed line from re-detection. Skipping it entirely (this
+    round's own first attempt) left the printed line looking like ordinary
+    prose, so a `--force` re-detect read the bibliography's own line as
+    in-text and minted a spurious Citation from it -- reproduced: gold
+    `Asai2023` + a printed "Asai, T. ... 2023 ... (Redlich, 1993) ..." line.
     """
     from docmodel.core import DocObject, Realization
 
@@ -1255,6 +1277,13 @@ def add_reference_objects(doc, entries: list[dict]) -> int:
     n = 0
     for e in entries:
         if e["citekey"] in filled:
+            gold = filled[e["citekey"]]
+            anchors = e.get("anchors") or []
+            if anchors and not any(z.role == "bibliography"
+                                   for z in gold.realizations):
+                gold.add_realization(Realization(
+                    stream="mathpix_lines", start=anchors[0], end=anchors[-1],
+                    role="bibliography", provenance="bibliography"))
             continue
         r = stubs.get(e["citekey"])
         if r is not None:

@@ -586,6 +586,104 @@ def test_bibliography_force_never_duplicates_a_gold_reference_from_the_heuristic
     assert asai_refs[0].props.get("raw_text") == "Asai, T. The Original Gold Entry. 2023."
 
 
+def test_gold_collision_still_excludes_the_printed_line_from_redetection():
+    """648 fix round 1 — the reviewer's finding: the gold-collision `continue`
+    (previous test) skipped the `role="bibliography"` section-anchor
+    realization TOO, so `bibliography_section_anchors` no longer excluded the
+    printed line, and a re-detect read the bibliography's own line as an
+    in-text citation. Reproduced with a printed entry that both (a) generates
+    the SAME citekey as an existing gold Reference ('Asai, T.' + '2023' ->
+    'Asai2023') and (b) separately names another work in passing ('(Redlich,
+    1993)') that `detect_author_year_citations` would mint as a spurious
+    Citation if this line were not excluded."""
+    from pdfdrill.bibliography import (parse_bibliography, add_reference_objects,
+                                       bibliography_section_anchors,
+                                       detect_author_year_citations)
+
+    doc = Document()
+    doc.meta["bibkey"] = "T"
+    mp = doc.ensure_stream("mathpix_lines")
+    mp.append(text="References", _page=2, type="section_header")
+    ref_anchor = mp.append(
+        text="Asai, T. A Real Entry. 2023. See also (Redlich, 1993) for details.",
+        _page=2, type="text")
+
+    gold = DocObject(type="Reference", props={
+        "citekey": "Asai2023", "ref_source": "bbl", "author": "Asai, T.",
+        "year": "2023", "raw_text": "Asai, T. The Original Gold Entry. 2023.",
+    })
+    rstream = doc.ensure_stream("references")
+    ra = rstream.append(citekey="Asai2023")
+    gold.add_realization(Realization(stream="references", start=ra, end=ra,
+                                     role="surface", provenance="bbl"))
+    doc.add(gold)
+
+    entries = parse_bibliography(doc)
+    assert [e["citekey"] for e in entries] == ["Asai2023"]   # collides with gold
+    n = add_reference_objects(doc, entries)
+    assert n == 0                              # neither created nor filled
+    assert len(doc.objects_of_type("Reference")) == 1        # still just the gold one
+
+    anchors = bibliography_section_anchors(doc)
+    assert ref_anchor in anchors, (ref_anchor, anchors)
+
+    added = detect_author_year_citations(doc, exclude_anchors=anchors)
+    assert added == 0, [c.props for c in doc.objects_of_type("Citation")]
+    assert doc.objects_of_type("Citation") == []
+
+
+def test_collision_only_entries_do_not_wrongly_trigger_the_source_fallback():
+    """648 fix round 1 (minor) -- `n == 0` used to mean ONE thing: "the
+    heuristic References-section parse found nothing at all", the signal
+    `cmd_bibliography` uses to fall back to `build_bibliography_from_source`
+    (the keyless arXiv e-print case). The gold-skip above can now ALSO leave
+    `n == 0` when the parse found entries but every one already named a
+    FILLED Reference -- a different situation (full gold coverage, nothing
+    to gain from the source) that must not trigger the same fallback. Proven
+    end to end: a `texsrc/` dir with an UNRELATED .bib entry must not get
+    ingested when the only heuristic entry collided with gold."""
+    from pdfdrill import commands as K, model_io
+    from pdfdrill.sidecar import Sidecar
+
+    doc = Document()
+    doc.meta["bibkey"] = "T"
+    mp = doc.ensure_stream("mathpix_lines")
+    mp.append(text="References", _page=2, type="section_header")
+    mp.append(text="Asai, T. A Real Entry. 2023.", _page=2, type="text")
+
+    gold = DocObject(type="Reference", props={
+        "citekey": "Asai2023", "ref_source": "bbl", "author": "Asai, T.",
+        "year": "2023", "raw_text": "Asai, T. The Original Gold Entry. 2023.",
+    })
+    rstream = doc.ensure_stream("references")
+    ra = rstream.append(citekey="Asai2023")
+    gold.add_realization(Realization(stream="references", start=ra, end=ra,
+                                     role="surface", provenance="bbl"))
+    doc.add(gold)
+
+    with tempfile.TemporaryDirectory() as d:
+        d = Path(d)
+        pdf = d / "t.pdf"
+        pdf.write_bytes(b"%PDF-1.4")
+        texsrc = d / "texsrc"
+        texsrc.mkdir()
+        (texsrc / "shared.bib").write_text(
+            "@article{Someoneelse2050, title={Unrelated}, author={Else}, "
+            "year={2050}}\n")
+        sc = Sidecar(pdf)
+        doc.meta["latex_source_dir"] = str(texsrc)
+        model_io.save_model(K._model_path(sc), doc)
+        sc.add_fact(K.MODEL_BUILT)
+        sc.save()
+
+        out = K.cmd_bibliography(pdf, force=True)
+        after = model_io.load_model(K._model_path(sc))
+
+    keys = sorted(r.props.get("citekey") for r in after.objects_of_type("Reference"))
+    assert keys == ["Asai2023"], keys       # the unrelated .bib was NOT ingested
+    assert "source bibliography" not in out, out
+
+
 def test_bare_bibliography_is_idempotent_when_no_reference_is_ever_filled():
     """648/010's OPEN item -- REPRODUCED LIVE on the real corpus while
     measuring this task (penev_A: 81 -> 161 -> 241 Citation objects across
