@@ -10097,6 +10097,16 @@ def cmd_latex(pdf: Path, force: bool = False, compile: bool = False,
             f"{_fc['markers_ambiguous']} paired by order on the page); "
             f"{_fc['footnotes_marked']}/{_fc['footnotes']} bodies marked, "
             f"{_fc['footnotes_lacking_a_field']} lacking refnum/anchor_marker.")
+        # 641 — the OTHER thing a bare `{ }^{n}` can be. Printed beside the
+        # footnote line because it is the same marker population: a superscript
+        # citation and a footnote reference are identical maths, and only the
+        # document tells them apart.
+        lines.append(
+            f"  superscript citations: {_fc['markers_cited']} marker(s) became "
+            f"\\cite (no footnote body on the page, and the number names a "
+            f"bibitem); {_fc['marker_both']} matched BOTH and stayed a footnote; "
+            f"{_fc['references_numbered']} numbered Reference(s) in the "
+            f"document (0 = rule (b) cannot fire at all).")
     # 642 — the citation substitution, said out loud. A Citation with no
     # Reference is NOT emitted as `\cite` (it would print as a bold `?`); a
     # citation on a line no running-text object covers is never substituted at

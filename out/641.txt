@@ -1,0 +1,281 @@
+641 — a superscript citation becomes \cite, and how it differs from a footnote marker
+====================================================================================
+
+THE ANSWER TO "HOW DID YOU TELL THEM APART", FIRST, BECAUSE IT IS THE TASK
+  A footnote marker has a BODY on its own page. A citation superscript has a
+  NUMBERED BIBITEM and no such body. The maths is identical — MathPix writes
+  both as an empty-base `\({ }^{n}\)`, and nothing in that string distinguishes
+  them — so the document decides, in this order, first rule wins:
+
+    a. a Footnote with refnum n whose body page is the marker's page (or +1,
+       within MAX_SPILL_PAGES)              ->  \footnotemark[n]        (638)
+    b. else, and only when the reference list is NUMBERED at all, a Reference
+       with props["number"] == n            ->  \cite{<citekey>}        (641)
+    c. else the marker stands byte-for-byte and is counted.
+
+  A marker that matches BOTH is a FOOTNOTE. A numbered reference list and
+  footnotes on the same page both exist in one document, so the collision is
+  real; the footnote body being physically on that page is the stronger
+  evidence than a bibliography entry that merely carries the same integer. The
+  collision is COUNTED (`marker_both`), not decided in silence.
+
+  Rule (b) is gated on the document, not on the marker: it cannot fire unless
+  at least one Reference carries a printed `number`. penev_A is author-year —
+  52 References, 0 numbered — so on that document rule (b) never fires, which
+  is the designed outcome and is why `references_numbered` is printed beside
+  the counts (0 = the rule cannot fire at all).
+
+THE USER'S TWO TARGETS, CHECKED FIRST RATHER THAN ASSUMED — NEITHER REPRODUCES
+  "The three superscript citations in Steerable's body. ^{n} appears twice
+   outside the bibliography, and 94 times in penev_A."
+
+  640 measured this on this machine and 641 re-measured it after its own run.
+  Both counts stand, and they fail for two DIFFERENT reasons:
+
+    Steerable    bare superscripts in the .tex body            0
+                 the only `{ }^{n}` in the document is `${ }^{1} f_{m}$`,
+                 which is a REAL EXPONENT — the superscript shares its math
+                 span with `f_{m}`, so `marker_refnum` and
+                 `formula._is_footnote_marker` both correctly refuse it.
+                 Steerable cites as `[n]` (52 Citations, 30 numeric brackets
+                 resolved to `\cite`) and carries 0 `\textsuperscript` and 0
+                 superscript citation lists. There are no superscript
+                 citations in this document to convert. The gate is OPEN here
+                 (29 numbered References) and there is nothing for it to act
+                 on.
+    penev_A      bare superscripts in the .tex body            0
+                 the 94 `{ }^{n}` in `latex/penev_A.tex` are 42 markers inside
+                 `\footnotetext` bodies plus 52 real exponents
+                 (`\sigma_{r}{ }^{2}`). A rule that rewrote "the 94" would
+                 rewrite 52 genuine exponents and 42 footnote-body labels and
+                 not one citation.
+                 The marker population that IS there sits in
+                 `props["text_source"]`, which `clean` preserves: 104 markers,
+                 and asked 641's question they answer
+
+                     match a Footnote refnum                  62 of 104
+                     match a numbered bibitem                  0 of 104
+                     match neither                            42 of 104
+
+                 The 0 is STRUCTURAL, not a near miss: penev_A has 0 numbered
+                 References, so rule (b)'s gate is CLOSED on this document
+                 under any threshold. The 42 that match nothing are 638's
+                 dominant class (MathPix captured no footnote line for 15 of
+                 the refnums the markers name) — an extraction gap, upstream.
+
+  So 0 remaining bare superscripts in body text on both documents, and 0
+  conversions, because there were 0 to convert. The rule, the disambiguation
+  and the counts are the deliverable; the corpus is the reason the numbers are
+  zero, and it is stated rather than smoothed.
+
+WHAT WAS BUILT
+  src/docops/projectors/footnotes.py   638's marker walk gains PASS 3 and the
+      three counts. There is no second walker: rule (b) reads the SAME
+      `all_marks` list that passes 1 and 2 built, after they have had their
+      say, so the ordering is the code's shape and not a convention.
+        * `_numbered_references(doc)` — `{printed number: citekey}`, and it is
+          `latex_pipeline.reference_map`, not a second implementation of it
+          (imported locally; a top-level import closes a cycle).
+        * `Mark.citekey` / `Mark.both`, and `Mark.outcome` — one word per
+          marker, `footnote` | `cite` | `unresolved`.
+        * counts `references_numbered`, `markers_cited`, `marker_both`;
+          `markers_unresolved` no longer counts a marker rule (b) took.
+        * `Resolution.table()` carries `citekey`, `both` and `outcome`, so the
+          `03-footnotes` stage dump is the place the decision is inspectable.
+  src/docops/projectors/latex.py   `_mark_footnotes` — ONE walk, three
+      outcomes, all decided by the resolver and only read here: a resolved
+      footnote emits `\footnotemark[n]` and its `\footnotetext[n]{…}`; a
+      marker with `citekey` emits `\cite{<citekey>}`; anything else is copied
+      byte-for-byte. The key comes from the numbered Reference, so 639's
+      `\bibitem` for that Reference exists BY CONSTRUCTION and the key cannot
+      dangle — asserted in the tests, not assumed.
+      The guard 638 built is untouched: when the object's materialised text no
+      longer holds the marker sequence the resolution was built from, NOTHING
+      is substituted (645's `citation_span_out_of_bounds` lesson).
+  src/pdfdrill/commands.py   `cmd_latex` prints the 641 line beside 638's,
+      because it is the same marker population:
+
+        superscript citations: 0 marker(s) became \cite (no footnote body on
+        the page, and the number names a bibitem); 0 matched BOTH and stayed a
+        footnote; 29 numbered Reference(s) in the document (0 = rule (b)
+        cannot fire at all).
+
+      A count nothing prints is a count nobody reads (645). The
+      `references_numbered` term is in the sentence precisely so a reader of a
+      zero can tell "no such marker" from "the gate is shut".
+
+  NOT BUILT, DELIBERATELY: a third marker walker. 640 added the MATERIALISED
+  lane (`latex_pipeline.TEMPLATE_ACTIONS` + the object-aware handlers), where a
+  marker arrives as `{{<title>||FN}}` and names its body by identity. That lane
+  needs no disambiguation and got none. See 641-a for the one place the two
+  lanes disagree.
+
+THE NUMBERS — BOTH DOCUMENTS
+  `pdfdrill latex --compile --dump-stages` through the real CLI entry point on
+  the CURRENT models (neither was rebuilt; both are the ones 640 drilled).
+  BEFORE is the .tex frozen from disk before the run — 640 fix round 1's
+  output.
+
+                                          penev_A        Steerable
+    ---- the marker walk (03-footnotes) -----------------------------
+    markers in running text                    0                0
+      outcome FOOTNOTE (\footnotemark[n])      0                0
+      outcome CITE     (\cite{key})            0                0
+      matched BOTH     (footnote kept)         0                0
+      UNRESOLVED       (left as they stand)    0                0
+    numbered References (rule (b)'s gate)      0               29
+    Footnote objects                          53                2
+    Reference objects                         52               30
+    Citation objects                         161               52
+    ---- the .tex, BEFORE -> AFTER ----------------------------------
+    bare superscripts, TOTAL             42 -> 42          0 -> 0
+      in BODY                              0 ->  0          0 -> 0
+      in BIBLIOGRAPHY                      0 ->  0          0 -> 0
+      in FOOTNOTE lines                   42 -> 42          0 -> 0
+    ANY `{ }^{n}` (incl. real exponents) 94 -> 94          2 -> 2
+    \footnotemark[n]                   107 -> 107          0 -> 0
+    \footnotetext / [n]              56/51 -> 56/51      2/2 -> 2/2
+    \cite{ occurrences                   82 -> 82        50 -> 50
+    distinct \cite keys                  52 -> 52        29 -> 29
+    \bibitem                             52 -> 52        30 -> 30
+    KEYS WITH NO BIBITEM                  0 ->  0          0 -> 0
+    unresolved `(?…)` placeholders        0 ->  0          0 -> 0
+    ---- compile (xelatex, 2 passes) --------------------------------
+    pages                                97 -> 97        41 -> 41
+    "! " lines                            0 ->  0          1 -> 1
+
+  THE PROJECTION IS BYTE-IDENTICAL BEFORE AND AFTER, on both documents, and
+  that is checked rather than inferred:
+
+    penev_A    sha256 014a24574e47eb1b027fb41828feafacf41684f23ee09acfc65b9c9579db7d5c   both sides
+    Steerable  sha256 ca5c7a46657da6bf14377e3c02f6163ba3f147992efb23d07ba64c42bc45482b   both sides
+
+  Steerable's one remaining "! " is 640-f, pre-existing and unrelated
+  (`! Missing { inserted.` at `\bibitem{Unser2008}`; `bibliography_block` puts
+  a `\bibitem` body through neither `balance_math` nor `_balance_braces`).
+
+  WHY `markers_total` IS 0 ON penev_A AND NOT 638's 104: `clean` materialised
+  every marker into a `{{penev_A_FN…||FN}}` token or a `<sup>N</sup>`, and the
+  bare-marker walk reads `props["text"]`. That is 640 §3, closed by 640's fix
+  round 1 in the OTHER lane — the .tex holds 107 `\footnotemark[n]`, not 104
+  bare markers. The bare walk is empty on a cleaned document by construction,
+  and rule (b) lives in the bare walk, which is the brief's instruction and is
+  also where the disambiguation is actually needed.
+
+WHAT REACHES THE WALK AT ALL — THE FORMULA HALF, RE-CHECKED
+  `FormulaProcessor.find_items` skips a body matching `_is_footnote_marker`,
+  so a bare `{ }^{n}` never becomes a Formula and never disappears from the
+  paragraph's text. MEASURED again on both models after this run:
+
+    math objects (Formula + Equation)        790           485
+    of them a bare marker, by `_is_footnote_marker`   0       0
+    of them a bare marker, by `marker_refnum`         0       0
+
+  And a REGRESSION TEST now pins both halves at once
+  (`test_a_bare_marker_is_no_formula_and_stays_in_the_paragraph_text`): a
+  `\({ }^{3}\)` beside a real `\(x_{0}{ }^{2}\)` produces NO marker Formula,
+  keeps the real exponent as one, AND leaves the marker findable by
+  `find_markers` in the Paragraph's own text. It PASSED on first run — it is a
+  guard on behaviour that is already correct, not a fix, and it is written down
+  that way. A Formula claiming the marker would hide it from the walk; a
+  paragraph dropping it would too, and neither was true.
+
+TESTS (TDD; 5 of the 6 confirmed failing first, on the stated reason)
+  tests/test_superscript_citations.py, 6 tests:
+    * a marker `{ }^{7}` with NO footnote 7 and a Reference numbered 7 ->
+      `mark.citekey == "key7"`, `markers_cited == 1`, the projection holds
+      `\cite{key7}`, no `{ }^{7}` survives, and `\bibitem{key7}` is there
+      (failed: `'Mark' object has no attribute 'citekey'`);
+    * the stage table carries `citekey` and `outcome == "cite"`
+      (failed: `KeyError: 'citekey'`);
+    * THE DISAMBIGUATION: the same document plus a Footnote 7 whose body is on
+      the marker's page -> `\footnotemark[7]` + `\footnotetext[7]{Body 7.}`,
+      `marker_both == 1`, `markers_cited == 0`, and `\cite{key7}` appears
+      NOWHERE (failed on the attribute; the branch did not exist);
+    * a marker matching neither stands byte-for-byte and is counted
+      `markers_unresolved`;
+    * an UN-NUMBERED reference list (penev_A's shape — References with a
+      citekey, none with a `number`): `references_numbered == 0`, rule (b)
+      never fires, the marker stands;
+    * the Formula/paragraph-text guard above (passed first run, noted).
+
+  FULL SUITE: PYTHONDONTWRITEBYTECODE=1 PYTHONPATH=src python3 -m pytest
+  tests/ -q -p no:cacheprovider  ->  3229 passed, 0 failed
+  (3223 before this task; 6 new). 638's 12 marker tests, 642's 16 citation
+  tests and 640's 15 template tests all pass unchanged — the ordering
+  (footnote first) is what keeps 638's numbers where they were.
+
+EVIDENCE (library, deny-by-default git; never committed to this repo)
+  ~/pdfdrill-library/penev_A/out/641/
+  ~/pdfdrill-library/SteerableWaveletFramesBasedontheRieszTransform/out/641/
+      script.py          the census, runnable: PYTHONPATH=<repo>/src python3
+                         out/641/script.py <key>   (cwd = doc folder). It runs
+                         the REAL entry point, `cmd_latex(..., compile=True,
+                         dump_stages=True)`.
+      <key>.before.tex   frozen from disk BEFORE the run (640 fix round 1's)
+      <key>.after.tex    after — byte-identical, sha256 in INSPECT.txt
+      <key>.after.log    the xelatex log, 2 passes
+      cmd_latex.txt      the CLI output, incl. the new `superscript citations:`
+      resolution.json    the marker table by OUTCOME
+      03-footnotes.json  the same table as `--dump-stages` writes it
+      result.json        every number above
+      INSPECT.txt        10 / 8 paths, all checked, with the two sha256s
+  ~/pdfdrill-library/penev_A/out/641/sup_lane.json|.txt   641-a, measured
+  brief   tasks/641 brief (coordinator), out/638.txt, out/640.txt, out/642.txt
+
+WHAT IS OPEN
+  641-a  THE MATERIALISED LANE DOES NOT ASK 641's QUESTION. After `clean`, a
+         marker whose refnum names a Footnote becomes `{{…||FN}}` (identity —
+         no disambiguation needed, correct) and a marker whose refnum names
+         NOTHING becomes `<sup>N</sup>`, which `latex_pipeline.
+         resolve_sup_markers` turns into `\footnotemark[N]` unconditionally
+         (640's ruling: "a mark with no body IS \footnotemark[n]"). That
+         second population is exactly rule (b)'s: a marker with no footnote
+         body. On a cleaned NUMERIC-citation document a citation superscript
+         would therefore print as a footnote mark and rule (b) would never see
+         it. MEASURED on penev_A: 44 `<sup>N</sup>` in running text over the
+         numbers 4, 6, 7, 10, 14, 15, 16, 19, 22, 26, 28, 30, 32, 34, 39, of
+         which **0** name a numbered bibitem — because penev_A has none. So
+         extending the rule there changes nothing on this corpus today, which
+         is why it was not done under a brief that says "do not add a third
+         marker walker". It needs a cleaned document with a numbered
+         bibliography to be worth anything, and there is not one here.
+  641-b  NEITHER DOCUMENT EXERCISES RULE (b) END TO END. Steerable has the
+         gate open (29 numbered References) and no bare markers; penev_A has
+         the markers and the gate shut. The rule is therefore demonstrated on
+         fixtures only. That is stated, not disguised: the corpus number is 0
+         and the reason is the corpus.
+  640-c  penev_A.bib IS STILL NOT ON THIS MACHINE. `bibsource` ran with no
+         gold input, so penev_A's 52 References are citation-derived stubs and
+         its 0 numbered bibitems may be an artefact of that absence rather
+         than of the document. If the .bib arrived and carried numbers, rule
+         (b) would have a population on penev_A for the first time — and, per
+         641-a, it would still not reach the 44 `<sup>N</sup>` markers.
+  638-e  A back-reference ("see footnote 7") is still consumed once: the
+         second marker on the same body is counted unresolved. Rule (b) now
+         gives such a marker a SECOND chance to be read as a citation, which
+         on a numbered document is a new way to be wrong — but only where the
+         same integer is both a live footnote number and a bibitem number,
+         which is the `marker_both` case and is counted. Not observed.
+  640-f  Steerable's one compile error, unchanged and unrelated.
+
+CONCERNS
+  The headline number of this task is zero on both documents, and it is a
+  zero of two kinds that must not be read as one: Steerable has no superscript
+  citations to convert, and penev_A has no numbered bibliography to convert
+  them against. Only the second would move if the corpus changed.
+  The `marker_both` tie-break is a judgement, and it is the one thing here
+  that could be wrong on a document neither of these two resembles: a paper
+  that numbers its references AND footnotes its pages will hand a marker whose
+  n is both, and this rule always calls it a footnote. The reason is stated
+  (the body is physically on the page; the bibliography number is only an
+  integer) and the case is counted so a reader can see how often the tie-break
+  was needed. On this corpus it was needed 0 times, so the rule is untested
+  against reality.
+  Rule (b) does no page reasoning at all — a bibitem has no page — so it is
+  strictly weaker evidence than rule (a), which is why it runs second and only
+  on what rule (a) declined. A document whose footnote bodies MathPix failed
+  to capture (penev_A's 42-marker class) would, with a numbered bibliography,
+  see those markers become `\cite` on the strength of a matching integer
+  alone. That is the failure mode to watch, and the gate plus the ordering are
+  the only things holding it: it is not a proof, it is a priority.

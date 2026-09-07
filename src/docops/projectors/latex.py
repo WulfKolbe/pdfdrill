@@ -314,8 +314,15 @@ class LaTeXProjector(BaseProjector):
     # ── 638: footnote markers ────────────────────────────────────────────────
 
     def _mark_footnotes(self, obj, text: str | None = None) -> tuple[str, list[str]]:
-        """`(running text with resolved markers replaced by `\\footnotemark[n]`,
-        the `\\footnotetext[n]{…}` blocks those marks owe)`.
+        """`(running text with each resolved marker replaced, the
+        `\\footnotetext[n]{…}` blocks those marks owe)`.
+
+        One walk, three outcomes, decided by `footnotes.resolve` and only read
+        here: a marker with a Footnote body on its page becomes
+        `\\footnotemark[n]` (638); a marker with none whose number names a
+        NUMBERED bibitem becomes `\\cite{<citekey>}` (641 — a superscript
+        citation is the same maths as a footnote marker, and the document, not
+        the maths, tells them apart); anything else stands.
 
         An UNRESOLVED marker is left byte-for-byte as it was — the resolution
         counts it (`markers_unresolved`) rather than guessing a body. When the
@@ -346,6 +353,11 @@ class LaTeXProjector(BaseProjector):
                 fn = self._doc_objects.get(mark.footnote_id)
                 if fn is not None:
                     notes.append(self._footnotetext(fn))
+            elif mark.citekey:
+                # 641 — the key comes from the numbered Reference, so the
+                # `\bibitem` 639 emits for that Reference exists by
+                # construction and the key cannot dangle.
+                out.append("\\cite{" + mark.citekey + "}")
             else:
                 out.append(text[start:end])
             last = end

@@ -26,7 +26,27 @@ more than one Footnote (9 six times, 3 five times), which is why the
 document-wide `first-with-that-refnum-wins` map the TiddlyWiki projector still
 uses (644-a / 646-a) is not enough here.
 
-641 will reuse `find_markers` / `marker_refnum` for the citation superscripts.
+641 — THE SAME MARKER MAY BE A CITATION. A numeric superscript citation and a
+footnote reference are the SAME inline maths: MathPix writes both as an
+empty-base `{ }^{n}`, so nothing in the maths tells them apart. The DOCUMENT
+does, and the ordered rule is:
+
+  a. a Footnote with refnum n whose body page is the marker's page (or +1
+     within `MAX_SPILL_PAGES`)                   ->  `\\footnotemark[n]`   (638)
+  b. else, when the reference list is NUMBERED at all, a Reference with
+     `props["number"] == n`                      ->  `\\cite{<citekey>}`   (641)
+  c. else the marker stands, byte-for-byte, and is counted.
+
+THE DISAMBIGUATION IN ONE SENTENCE: a footnote marker has a BODY on its own
+page; a citation superscript has a NUMBERED BIBITEM and no such body — and when
+a marker matches both (a numbered reference list and footnotes on the same page
+both exist) the footnote wins, because the body being physically on that page is
+the stronger evidence, and that collision is counted (`marker_both`) rather than
+silently decided.
+
+Rule (b) is GATED on the document: it fires only where at least one Reference
+carries a printed `number`. penev_A is author-year — 52 References, 0 numbered —
+so it never fires there, which is the designed outcome and not a failure.
 """
 from __future__ import annotations
 
@@ -122,6 +142,17 @@ class Mark:
     footnote_id: Optional[str] = None
     later_page: bool = False
     ambiguous: bool = False
+    citekey: Optional[str] = None    # 641 — rule (b): a numbered bibitem
+    both: bool = False               # matched a footnote AND a bibitem number
+
+    @property
+    def outcome(self) -> str:
+        """`footnote` | `cite` | `unresolved` — one word per marker."""
+        if self.footnote_id:
+            return "footnote"
+        if self.citekey:
+            return "cite"
+        return "unresolved"
 
 
 @dataclass
@@ -149,6 +180,9 @@ class Resolution:
                     "footnote_page": self.page_of.get(mk.footnote_id),
                     "later_page": mk.later_page,
                     "ambiguous": mk.ambiguous,
+                    "citekey": mk.citekey,
+                    "both": mk.both,
+                    "outcome": mk.outcome,
                 })
         rows.sort(key=lambda r: (r["marker_page"] if r["marker_page"] is not None
                                  else 10 ** 9, r["object"], r["index"]))
@@ -198,8 +232,18 @@ def _marker_pages(doc: Document, obj: DocObject,
     return [None] * len(refnums)
 
 
+def _numbered_references(doc: Document) -> dict[int, str]:
+    """`{printed number: citekey}` for the References that carry BOTH — 641's
+    rule (b) lookup, and the same map `latex_pipeline.reference_map` builds for
+    numeric `[N]` brackets. Imported locally: `latex_pipeline` imports this
+    module's siblings and a top-level import would close the cycle."""
+    from .latex_pipeline import reference_map
+    return reference_map(doc)
+
+
 def resolve(doc: Document) -> Resolution:
-    """Pair every running-text footnote marker with its Footnote body."""
+    """Pair every running-text footnote marker with its Footnote body, and —
+    641 — every marker no body claimed with the numbered bibitem it names."""
     res = Resolution()
     res.counts = {
         "footnotes": 0,
@@ -214,6 +258,10 @@ def resolve(doc: Document) -> Resolution:
         "markers_unresolved": 0,
         "markers_ambiguous": 0,
         "markers_without_a_page": 0,
+        # 641 — the citation half of the same marker population.
+        "references_numbered": 0,
+        "markers_cited": 0,
+        "marker_both": 0,
     }
 
     footnotes = sorted(
@@ -283,6 +331,30 @@ def resolve(doc: Document) -> Resolution:
         mk.later_page = True
         res.used.add(cands[0].id)
 
+    # PASS 3 — 641, rule (b). A marker no Footnote body claimed, whose number
+    # names a NUMBERED bibitem, is a citation superscript. Gated on the document
+    # having a numbered reference list at all: on an author-year document
+    # (penev_A: 52 References, 0 with a `number`) `numbered` is empty and this
+    # pass cannot fire, which is the designed outcome.
+    numbered = _numbered_references(doc)
+    res.counts["references_numbered"] = len(numbered)
+    for mk in all_marks:
+        try:
+            n = int(mk.refnum)
+        except (TypeError, ValueError):
+            continue
+        key = numbered.get(n)
+        if key is None:
+            continue
+        if mk.footnote_id:
+            # BOTH. The footnote keeps it — the body is physically on the page,
+            # a bibitem number is only a number — and the collision is counted
+            # rather than decided in silence.
+            mk.both = True
+            res.counts["marker_both"] += 1
+            continue
+        mk.citekey = key
+
     for mk in all_marks:
         if mk.footnote_id:
             res.counts["markers_resolved"] += 1
@@ -290,6 +362,8 @@ def resolve(doc: Document) -> Resolution:
                 res.counts["markers_resolved_on_a_later_page"] += 1
             if mk.ambiguous:
                 res.counts["markers_ambiguous"] += 1
+        elif mk.citekey:
+            res.counts["markers_cited"] += 1
         else:
             res.counts["markers_unresolved"] += 1
     res.counts["footnotes_marked"] = len(res.used)
