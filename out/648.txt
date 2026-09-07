@@ -1,0 +1,215 @@
+648 — what `bibliography` may do after `bibsource`
+====================================================
+
+BEFORE ANYTHING ELSE: the fixture COULD reproduce "22/81 linked then 0
+linked", but not in the shape the user saw. It surfaces two DISTINCT defects
+depending on whether bibsource left any FILLED (non-stub) Reference behind:
+
+  A. bibsource fills SOME gold refs (the fixture, built per the brief).
+     `cmd_bibliography`'s bare early-return gate correctly fires (a filled
+     Reference exists) and detection does NOT run twice — Citation ids,
+     count, `added_by` all unchanged. But the MESSAGE it returns is wrong: it
+     is the generic `_format_bibliography(sc)`, reading `bibliography_*`
+     sidecar evidence that was never set on this document (bibliography's
+     own heuristic parse never got a turn), so it prints "Parsed 0
+     bibliography entries (0 with a year)" with no mention that the document
+     already holds 80 citations, 22 of them linked. The objects are right;
+     the count is simply wrong.
+
+  B. bibsource fills NO reference at all — measured LIVE on penev_A, which
+     is on this machine and needed no fixture. `existing` (non-stub
+     References) is permanently empty on this document (its heuristic
+     References-section parse finds 0 entries, same as every corpus
+     document with no `.bbl`/`.bib` and no printed reference list MathPix
+     segments), so the early-return gate NEVER fires. A bare `bibliography`
+     call always re-runs `detect_numeric_citations`/`detect_author_year_
+     citations` unconditionally, and neither checked whether a Citation
+     already covered the span it just found. Two bare calls in a row: 81 ->
+     161 -> 241 Citations. This is 010's own OPEN item ("cmd_bibliography's
+     ... early-return gate ... would redetect and duplicate WITHOUT
+     --force, the same way --force did before this round") — reached, live,
+     while measuring this task. Restored from backup; never committed.
+     Detection really does run twice here.
+
+Both halves of the ruling's bifurcation ("if the count is simply wrong ...;
+if detection really runs twice ...") turned out true, on two different
+corpus shapes. Both are fixed.
+
+THE FIXTURE (rule 14 — measured before deciding)
+  ~/pdfdrill-library/out/648/script.py — a Document with 80 detectable
+  author-year citations across 80 paragraphs (010 test-fixture pattern: a
+  Paragraph object per citation, `text` prop == its own mathpix_lines
+  anchor's text, no Citation exists yet) and a `.bib` with 8 entries keyed
+  to 8 of the 40 distinct citekeys (22 of the 80 occurrences; the other 32
+  keys/58 occurrences have no gold entry) — run through the real CLI:
+  `cmd_bibsource(pdf, bib_path=...)` then `cmd_bibliography(pdf)` twice,
+  exactly `drill_full.sh`'s own order and flags (bare, no `--force` on
+  either step).
+
+  after bibsource:      80 Citations, 40 References (8 filled + 32 stubs),
+                         80 `cites` edges. Message: "22/80 in-text citations
+                         linked to a reference" (642's fix: reads
+                         `resolved_citations(doc)`, the stored state).
+  after bibliography:   UNCHANGED — 80/40/8/32/80, same Citation ids.
+                         Message (fixed this task): "Parsed 0 bibliography
+                         entries (0 with a year) into Reference nodes ...
+                         80 citations, 22 linked to filled references, 58
+                         to stubs. ..." — the exact numbers the brief
+                         suggested.
+  after a second bibliography: identical to the first — object state and
+                         message both byte-identical.
+
+  Evidence: ~/pdfdrill-library/out/648/script.py, result.json,
+  messages.txt, fixture/fixture648.bib, INSPECT.txt (2 paths, checked).
+
+THE DECISION (rule 10)
+  Ship BOTH fixes the measurement demanded, and reject one alternative:
+
+  1. `_format_bibliography` (src/pdfdrill/commands.py) now takes `doc` and
+     reads `bibliography.citation_link_breakdown(doc)` — "N citations, K
+     linked to filled references, S to stubs" — computed fresh from the
+     SAVED model every time, at both call sites (the early-return AND the
+     normal end-of-run return). It no longer trusts `bibliography_cites`/
+     `bibliography_numeric_citations`/`bibliography_authoryear_citations`
+     sidecar evidence for the citation-linkage half of the message (only
+     `bibliography_entries`/`bibliography_with_year` — what THIS command's
+     own References-section parse found — still come from evidence, since
+     `citation_link_breakdown` cannot recover that after the fact).
+  2. `detect_numeric_citations`/`detect_author_year_citations`
+     (src/pdfdrill/bibliography.py) now check a new
+     `_existing_citation_spans(doc)` — identity = (stream, anchor, offset,
+     length, citekey), the brief's own definition — before minting a
+     Citation, and skip a group that identity already covers. A repeat bare
+     call adds nothing new. `detect_author_year_in_objects` (bibsource's
+     fallback) was NOT touched: its one call site always drops every
+     `added_by == "bibliography"` Citation immediately before calling it, so
+     it was already effectively idempotent by deletion-then-recreate.
+  3. `add_reference_objects` (src/pdfdrill/bibliography.py) now skips a
+     heuristic entry whose citekey already names a FILLED (non-stub)
+     Reference — gold (or an earlier fill) wins; the heuristic References-
+     SECTION parse never overwrites or duplicates it. Reachable via
+     `cmd_bibliography --force`, whose cleanup deliberately KEEPS a
+     gold-filled Reference (010 fix round 4) and then re-runs this parse
+     unconditionally; the heuristic's own citekey generator (surname+year)
+     can independently produce the exact string a gold citekey already has.
+     Confirmed with a fixture where the printed References section names
+     the same author+year an existing gold Reference covers
+     (`test_bibliography_force_never_duplicates_a_gold_reference_from_the_
+     heuristic_section`): before this fix, two Reference objects for
+     "Asai2023"; after, one, untouched.
+
+  REJECTED: changing the `if existing and not force: return` gate itself
+  from "any filled Reference exists" to a PROVENANCE signal (e.g. the
+  `BIBLIOGRAPHY_BUILT` sidecar fact, or "a Reference with `ref_source ==
+  'text'` exists") so that `parse_bibliography`/`add_reference_objects`
+  gets a turn to fill in citekeys bibsource's gold subset didn't cover, as
+  the ruling's clause 1 ("MAY parse ... only for citekeys that have NO
+  filled Reference") invites. Rejected for now: item 3 above already makes
+  that parse SAFE whenever it does run (gold never gets duplicated), and
+  the fixture's own `add_reference_objects` protection plus item 2's
+  idempotent detection make a gate change low-risk in THIS repo's own
+  detector family — but `detect_author_year_in_objects` (bibsource's
+  detector, case-FOLDED citekeys, e.g. "smith2001") and
+  `detect_author_year_citations` (bibliography's detector, case-PRESERVED,
+  e.g. "Smith2001") mint DIFFERENT citekey strings for the textually
+  IDENTICAL citation. The brief's own idempotency identity includes the
+  citekey, so a same-span, different-case re-detection would NOT be caught
+  by item 2's guard and would still duplicate. Opening the gate was not
+  measured safe against this cross-detector mismatch, and "MAY" leaves it
+  optional. What would change my mind: a citekey-normalisation fix (fold
+  both detectors' citekey generation to one canonical form) landing first,
+  or a real corpus document where bibsource's gold subset is a strict,
+  incomplete subset of a printed References section AND the missing
+  entries are needed (not observed here — penev_A and Steerable both carry
+  no gold at all, so bibsource never gets a chance to leave a PARTIAL gold
+  set for `--force` scoping doesn't even apply to the bare gate).
+
+FIXES, WITH TESTS (tests/test_reference_stub_linkers.py, appended; each
+confirmed failing first)
+  test_bibliography_message_reads_stored_state_after_bibsource_fills_gold
+  test_bibliography_is_idempotent_a_second_bare_call_after_bibsource
+    (already passed before any fix — the accidental-safety half; kept as a
+    regression pin)
+  test_bare_bibliography_is_idempotent_when_no_reference_is_ever_filled
+    (reproduces the LIVE penev_A defect at unit scale)
+  test_bibliography_force_never_duplicates_a_gold_reference_from_the_
+    heuristic_section
+  test_citation_link_breakdown_counts_filled_stub_and_unlinked
+
+  FULL SUITE: PYTHONDONTWRITEBYTECODE=1 PYTHONPATH=src python3 -m pytest
+  tests/ -q -p no:cacheprovider  ->  3343 passed, 0 failed (3338 at HEAD
+  66e5997; 5 new tests, one of which (the idempotency regression pin) was
+  already green before any fix — the accidental-safety half of the
+  bifurcation; no regressions).
+
+THE CORPUS CHECK (bibliography twice on penev_A and Steerable — nothing
+moves), AFTER the fix
+  penev_A (no gold; `existing` permanently empty — the SAME shape that
+  duplicated before the fix):
+    run 1: "Parsed 0 bibliography entries (0 with a year) ... 81 citations,
+           0 linked to filled references, 81 to stubs. ..."
+    run 2: byte-identical message. Citation ids identical (81, same ids,
+           checked by id — not just count). References 52 (52 stubs),
+           `cites` edges 81, both runs.
+  Steerable (no gold; 29 heuristic-filled References protect the
+  early-return gate — the OTHER shape):
+    run 1 == run 2: "Parsed 29 bibliography entries (24 with a year) ... 64
+           citations, 62 linked to filled references, 2 to stubs. ..."
+    model.docmodel.json is BYTE-IDENTICAL before/after both runs (early
+    return never calls `save_model`) — sha256
+    afd002cd7edca87178be3536ed386666bf747fd78ccca2553185ebfcf9abc62d,
+    unchanged across the whole task.
+
+  penev_A's own model.docmodel.json content-hash DOES change on each save
+  (a fresh `written` build-stamp is stamped by `save_model` every time,
+  unrelated to this task) but the OBJECTS are stable: same 81 Citation
+  ids, same 52 References (52 stubs), same 81 `cites` edges, both runs.
+
+  INCIDENT, NAMED (rule 12 — an unexplained delta is a finding): running
+  this corpus check on UNFIXED code (before the idempotent-detection patch
+  landed) duplicated penev_A's Citations live — 81 -> 161 -> 241 across two
+  bare `bibliography` calls. Caught immediately (sha256 mismatch against
+  the pre-check backup), restored from
+  ~/pdfdrill-library/penev_A/out/648/model.before.json (also had to delete
+  the now-stale `model.docpack.json` sidecar, since `load_model` prefers it
+  whenever its mtime is >= the plain file's — restoring the plain file
+  alone left the packed cache serving the buggy 241-citation state). Verified
+  restored to 81/52/52/81 before re-running with the fix in place.
+
+  Evidence: ~/pdfdrill-library/penev_A/out/648/{script.py,result.json,
+  messages.txt,model.before.json,model.before.sha256,INSPECT.txt}
+  ~/pdfdrill-library/SteerableWaveletFramesBasedontheRieszTransform/out/648/
+  {script.py,result.json,messages.txt,model.before.json,model.before.sha256,
+  INSPECT.txt}
+
+CONCERNS
+  The cross-detector citekey case mismatch named above
+  (`detect_author_year_in_objects` folds to lowercase, `detect_author_year_
+  citations` preserves case) is real and unfixed — it is the reason the
+  provenance-gate alternative was rejected rather than shipped, and it would
+  also let `link_citations`'s exact-key fast path miss a citation bibsource
+  detected but bibliography's own detector would independently re-derive
+  under a different-case key, on any document where BOTH detectors ever run
+  against the same text. Not encountered on penev_A/Steerable (bibsource
+  never detects on either — no `.bbl`/`.bib`), so not measured end-to-end;
+  named rather than guessed at.
+  `add_reference_objects`'s gold-skip changes `n` (the "Parsed N bibliography
+  entries" count) to exclude entries that collided with an existing filled
+  Reference — a legitimate, if forceful, mid-flight — no production call site
+  or existing test depended on the old (always-`len(entries)`) semantics.
+  The penev_A/Steerable library documents were left in the POST-FIX,
+  freshly-verified state (matching 010's own precedent — the library is
+  regenerable, backups are at `out/648/`), not reverted to the pre-task
+  snapshot.
+
+DECISION IN ONE LINE
+  `bibliography` after `bibsource` prints the stored citation-link state
+  (not a stale or this-run-only count) at both its early-return and its
+  completed-run exits, never re-detects a citation it already has (identity
+  = anchor+span+citekey), and never lets its own heuristic References-
+  section parse duplicate a Reference that is already filled — the gate
+  that decides whether to run the heuristic parse at all is left as "does a
+  filled Reference exist", not switched to provenance, because the fixture
+  and the corpus check together prove ONLY the count/duplication fixes were
+  needed to make nothing move, and opening the gate further was not
+  measured safe against the cross-detector citekey mismatch named above.

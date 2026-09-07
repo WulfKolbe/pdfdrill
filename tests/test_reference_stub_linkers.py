@@ -417,6 +417,253 @@ def test_markdown_cite_without_a_reference_mints_a_stub():
     assert len(_cites(doc)) == 1
 
 
+# --------------------------------------------------------------- 648
+def _prose_doc(pairs, bibkey="T"):
+    """One Paragraph per (surname, year) parenthetical citation -- the shape
+    `bibliography.detect_author_year_in_objects` (bibsource's own fallback
+    detector) scans: a Paragraph object whose `text` prop reproduces its own
+    `mathpix_lines` anchor's text exactly, so `_span_on_its_own_line` can
+    locate the group. No Citation exists yet -- these are DETECTABLE, not
+    detected."""
+    doc = Document()
+    doc.meta["bibkey"] = bibkey
+    mp = doc.ensure_stream("mathpix_lines")
+    for i, (surname, year) in enumerate(pairs):
+        text = f"Building on ({surname}, {year}), we continue the argument."
+        a = mp.append(type="text", text=text, text_display=text, _page=1)
+        p = DocObject(type="Paragraph", props={"text": text, "flow_index": i})
+        p.add_realization(Realization(stream="mathpix_lines", start=a, end=a,
+                                      role="surface"))
+        doc.add(p)
+    return doc
+
+
+def test_bibliography_message_reads_stored_state_after_bibsource_fills_gold():
+    """648 -- measured on a fixture built for this task: `pdfdrill bibsource
+    --bib` fills 1 of 3 detected author-year citations from gold, leaving 2
+    citation-stubs; `pdfdrill bibliography` then runs bare (drill_full's own
+    order and its own flags -- no --force on either step). The OBJECTS are
+    exactly right (010/642 already deliver this: 3 Citations, 1 filled + 2
+    stub References, 3 `cites` edges, unchanged by the bibliography call) --
+    but the MESSAGE was wrong: `cmd_bibliography`'s early-return path printed
+    the SIDECAR's stale `bibliography_*` evidence (never set on this
+    document, since bibliography's own heuristic parse never got a turn),
+    literally 'Parsed 0 bibliography entries (0 with a year)' with no mention
+    that the document already holds 3 citations, 1 of them linked to a filled
+    Reference. The fix is the count (rule 10): the message now reads the
+    STORED state, exactly as 642 made `bibsource`'s message do."""
+    from pdfdrill import commands as K, model_io
+    from pdfdrill.sidecar import Sidecar
+
+    doc = _prose_doc([("Asai", "2023"), ("Wu", "2024"), ("Lee", "2025")])
+    bib = "@article{asai2023, title={T}, author={Asai}, year={2023}}\n"
+
+    with tempfile.TemporaryDirectory() as d:
+        d = Path(d)
+        pdf = d / "t.pdf"
+        pdf.write_bytes(b"%PDF-1.4")
+        bib_path = d / "t.bib"
+        bib_path.write_text(bib)
+        sc = Sidecar(pdf)
+        model_io.save_model(K._model_path(sc), doc)
+        sc.add_fact(K.MODEL_BUILT)
+        sc.save()
+
+        out_bibsource = K.cmd_bibsource(pdf, bib_path=str(bib_path))
+        after_bibsource = model_io.load_model(K._model_path(sc))
+        cits = after_bibsource.objects_of_type("Citation")
+        refs = after_bibsource.objects_of_type("Reference")
+        assert len(cits) == 3, [c.props.get("citekey") for c in cits]
+        assert len(refs) == 3, [r.props.get("citekey") for r in refs]
+        assert sum(1 for r in refs if not r.props.get("stub")) == 1
+        cites_before = sorted((c.id, c.props.get("citekey")) for c in cits)
+
+        out_bibliography = K.cmd_bibliography(pdf)
+        after_bibliography = model_io.load_model(K._model_path(sc))
+
+    # the objects: untouched by the bibliography call (early return, or a
+    # real run that MUST NOT re-detect what already exists -- either way).
+    cits2 = after_bibliography.objects_of_type("Citation")
+    assert sorted((c.id, c.props.get("citekey")) for c in cits2) == cites_before
+    assert len(after_bibliography.objects_of_type("Reference")) == 3
+
+    # the message: reads the STORED state, not a stale/empty cache.
+    assert "3 citations" in out_bibliography, out_bibliography
+    assert "1 linked to filled references" in out_bibliography, out_bibliography
+    assert "2 to stubs" in out_bibliography, out_bibliography
+
+
+def test_bibliography_is_idempotent_a_second_bare_call_after_bibsource():
+    """648 -- a second bare `bibliography` call (drill_full never issues one,
+    but a re-run of the tool, or a retry, might) changes nothing: same
+    Citation ids, same count, same message."""
+    from pdfdrill import commands as K, model_io
+    from pdfdrill.sidecar import Sidecar
+
+    doc = _prose_doc([("Asai", "2023"), ("Wu", "2024"), ("Lee", "2025")])
+    bib = "@article{asai2023, title={T}, author={Asai}, year={2023}}\n"
+
+    with tempfile.TemporaryDirectory() as d:
+        d = Path(d)
+        pdf = d / "t.pdf"
+        pdf.write_bytes(b"%PDF-1.4")
+        bib_path = d / "t.bib"
+        bib_path.write_text(bib)
+        sc = Sidecar(pdf)
+        model_io.save_model(K._model_path(sc), doc)
+        sc.add_fact(K.MODEL_BUILT)
+        sc.save()
+
+        K.cmd_bibsource(pdf, bib_path=str(bib_path))
+        out1 = K.cmd_bibliography(pdf)
+        state1 = model_io.load_model(K._model_path(sc))
+        out2 = K.cmd_bibliography(pdf)
+        state2 = model_io.load_model(K._model_path(sc))
+
+    ids1 = sorted((c.id, c.props.get("citekey"))
+                 for c in state1.objects_of_type("Citation"))
+    ids2 = sorted((c.id, c.props.get("citekey"))
+                 for c in state2.objects_of_type("Citation"))
+    assert ids1 == ids2, (ids1, ids2)
+    assert len(state1.objects_of_type("Reference")) == len(state2.objects_of_type("Reference")) == 3
+    assert out1 == out2, (out1, out2)
+
+
+def test_bibliography_force_never_duplicates_a_gold_reference_from_the_heuristic_section():
+    """648 -- ruling item 1: 'bibliography MAY parse the References SECTION
+    only for citekeys that have NO filled Reference (gold wins; a heuristic
+    entry never overwrites a gold one)'. `cmd_bibliography --force`'s
+    cleanup deliberately KEEPS a gold-filled Reference (010 fix round 4) and
+    then unconditionally re-runs `parse_bibliography`/`add_reference_objects`
+    -- and the heuristic's OWN citekey generator (`_citekey`: surname + year)
+    produces the exact same string a gold `.bbl`/`.bib` citekey has whenever
+    the printed References section names the same author+year the gold entry
+    already covers ('Asai, T.' + '2023' -> 'Asai2023' either way). Before
+    this fix `add_reference_objects` only checked STUB references by citekey
+    -- a citekey that already named a FILLED (non-stub) Reference fell
+    through to its `else` branch and created a SECOND Reference object for
+    the same work."""
+    from pdfdrill import commands as K, model_io
+    from pdfdrill.sidecar import Sidecar
+
+    doc = Document()
+    doc.meta["bibkey"] = "T"
+    mp = doc.ensure_stream("mathpix_lines")
+    mp.append(text="Building on (Asai, 2023), we begin.", _page=1, type="text")
+    mp.append(text="References", _page=2, type="section_header")
+    mp.append(text="Asai, T. A Real Entry Reprinted. 2023.", _page=2, type="text")
+
+    # A gold Reference already FILLED (as bibsource/bibfetch would leave it),
+    # same citekey the heuristic parse below will independently generate.
+    gold = DocObject(type="Reference", props={
+        "citekey": "Asai2023", "ref_source": "bbl", "author": "Asai, T.",
+        "year": "2023", "raw_text": "Asai, T. The Original Gold Entry. 2023.",
+        "added_by": "bibliography",
+    })
+    rstream = doc.ensure_stream("references")
+    ra = rstream.append(citekey="Asai2023")
+    gold.add_realization(Realization(stream="references", start=ra, end=ra,
+                                     role="surface", provenance="bbl"))
+    doc.add(gold)
+
+    with tempfile.TemporaryDirectory() as d:
+        d = Path(d)
+        pdf = d / "t.pdf"
+        pdf.write_bytes(b"%PDF-1.4")
+        sc = Sidecar(pdf)
+        model_io.save_model(K._model_path(sc), doc)
+        sc.add_fact(K.MODEL_BUILT)
+        sc.save()
+
+        K.cmd_bibliography(pdf, force=True)
+        after = model_io.load_model(K._model_path(sc))
+
+    asai_refs = [r for r in after.objects_of_type("Reference")
+                if r.props.get("citekey") == "Asai2023"]
+    assert len(asai_refs) == 1, [r.props for r in asai_refs]
+    assert asai_refs[0].id == gold.id
+    assert asai_refs[0].props.get("ref_source") == "bbl"
+    assert asai_refs[0].props.get("raw_text") == "Asai, T. The Original Gold Entry. 2023."
+
+
+def test_bare_bibliography_is_idempotent_when_no_reference_is_ever_filled():
+    """648/010's OPEN item -- REPRODUCED LIVE on the real corpus while
+    measuring this task (penev_A: 81 -> 161 -> 241 Citation objects across
+    two bare `pdfdrill bibliography` calls; restored from
+    `out/648/model.before.json` after the fact, never committed). penev_A's
+    heuristic References-section parse finds 0 entries (no heading MathPix
+    segments), so every Reference it ever gets is a citekey stub
+    (`ensure_reference_stub`, 010) -- `existing` (non-stub References) is
+    permanently empty, the `if existing and not force: return` gate never
+    fires, and a bare call always re-runs `detect_numeric_citations`/
+    `detect_author_year_citations` unconditionally. Without an identity
+    check tying a detected span to a Citation that already covers it, they
+    mint a SECOND Citation for the SAME text on every call -- unbounded
+    duplication, no `--force` required."""
+    from pdfdrill import commands as K, model_io
+    from pdfdrill.sidecar import Sidecar
+
+    doc = Document()
+    doc.meta["bibkey"] = "T"
+    mp = doc.ensure_stream("mathpix_lines")
+    mp.append(text="Building on (Asai, 2023), we begin.", _page=1, type="text")
+    mp.append(text="Finally, (Wu, 2024) agrees.", _page=1, type="text")
+
+    with tempfile.TemporaryDirectory() as d:
+        d = Path(d)
+        pdf = d / "t.pdf"
+        pdf.write_bytes(b"%PDF-1.4")
+        sc = Sidecar(pdf)
+        model_io.save_model(K._model_path(sc), doc)
+        sc.add_fact(K.MODEL_BUILT)
+        sc.save()
+
+        K.cmd_bibliography(pdf)
+        first = model_io.load_model(K._model_path(sc))
+        keys1 = sorted(c.props.get("citekey")
+                       for c in first.objects_of_type("Citation"))
+
+        K.cmd_bibliography(pdf)
+        second = model_io.load_model(K._model_path(sc))
+        keys2 = sorted(c.props.get("citekey")
+                       for c in second.objects_of_type("Citation"))
+
+        K.cmd_bibliography(pdf)
+        third = model_io.load_model(K._model_path(sc))
+        keys3 = sorted(c.props.get("citekey")
+                       for c in third.objects_of_type("Citation"))
+
+    assert keys1 == ["Asai2023", "Wu2024"], keys1
+    assert keys2 == keys1, (keys1, keys2)          # NOT duplicated
+    assert keys3 == keys1, (keys1, keys3)          # NOT duplicated a 2nd time
+    assert sum(1 for a in third.alignments if a.kind == "cites") == 2
+
+
+def test_citation_link_breakdown_counts_filled_stub_and_unlinked():
+    """648 -- the STORED-state breakdown a message reports: total Citations,
+    how many resolve (via a stored `cites` edge) to a FILLED Reference, how
+    many to a stub."""
+    doc, _ = _cited_doc(citekey="Asai2023")   # 1 Citation, 1 stub
+    doc2, cit2 = _cited_doc(citekey="Wu2024")
+    # merge doc2's objects/alignments into doc so there are 2 Citations
+    for o in doc2.objects.values():
+        doc.objects[o.id] = o
+    doc.streams["mathpix_lines"].anchors.extend(
+        a for a in doc2.streams["mathpix_lines"].anchors
+        if a not in doc.streams["mathpix_lines"].anchors)
+    doc.streams["mathpix_lines"].payload.update(doc2.streams["mathpix_lines"].payload)
+    doc.alignments.extend(doc2.alignments)
+
+    breakdown = B.citation_link_breakdown(doc)
+    assert breakdown == {"total": 2, "filled": 0, "stub": 2, "unlinked": 0}, breakdown
+
+    asai = next(r for r in doc.objects_of_type("Reference")
+               if r.props.get("citekey") == "Asai2023")
+    asai.props.pop("stub")                    # bibsource fills it
+    breakdown = B.citation_link_breakdown(doc)
+    assert breakdown == {"total": 2, "filled": 1, "stub": 1, "unlinked": 0}, breakdown
+
+
 if __name__ == "__main__":
     import inspect
     mod = sys.modules[__name__]

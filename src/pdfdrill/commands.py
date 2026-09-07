@@ -11615,7 +11615,7 @@ def cmd_bibliography(pdf: Path, force: bool = False) -> str:
     existing = [o for o in doc.objects.values()
                 if o.type == "Reference" and not o.props.get("stub")]
     if existing and not force:
-        return _format_bibliography(sc)
+        return _format_bibliography(sc, doc)
     if force:
         from .bibliography import drop_dangling_cites, drop_ownerless_stubs
         # 010 fix round 3 -- retract exactly what THIS command added last
@@ -11721,7 +11721,7 @@ def cmd_bibliography(pdf: Path, force: bool = False) -> str:
     span_note = (f" ⚠ {no_span} citation(s) carry NO span (offset/length): "
                  f"no line reproduces the citing text, so they reach no "
                  f"paragraph and get no Reference stub." if no_span else "")
-    return _format_bibliography(sc) + source_note + span_note
+    return _format_bibliography(sc, doc) + source_note + span_note
 
 
 @_writes("bibfetch")
@@ -12004,16 +12004,25 @@ def _has_references(model_path: Path) -> bool:
         return False
 
 
-def _format_bibliography(sc: Sidecar) -> str:
+def _format_bibliography(sc: Sidecar, doc) -> str:
+    """648 -- the citation half reads the STORED state of `doc` (exactly as
+    642 made `cmd_bibsource`'s message do), not this-call-only detection
+    counts read from sidecar evidence. Before this, the early-return path
+    (a filled Reference already exists -- e.g. `bibsource` ran first) fell
+    through to THIS function with `bibliography_*` evidence never set on this
+    sidecar, printing 'Parsed 0 bibliography entries' with no mention that
+    the document already holds citations, some linked, some still stubs --
+    an empty-looking report of a document that is not empty. The heuristic
+    entry count (`n`/`y`) is still read from sidecar evidence: it describes
+    what THIS command's own References-SECTION parse found/filled, which
+    `citation_link_breakdown` cannot recover after the fact."""
+    from .bibliography import citation_link_breakdown
+
     n = sc.get_evidence("bibliography_entries", 0)
     y = sc.get_evidence("bibliography_with_year", 0)
-    cites = sc.get_evidence("bibliography_cites", 0)
-    numeric = sc.get_evidence("bibliography_numeric_citations", 0)
-    authyear = sc.get_evidence("bibliography_authoryear_citations", 0)
-    det = numeric + authyear
-    det_s = (f" {det} in-text citations detected ({numeric} numeric, "
-             f"{authyear} author-year), {cites} linked to references." if det else "")
-    cite_s = det_s
+    b = citation_link_breakdown(doc)
+    cite_s = (f" {b['total']} citations, {b['filled']} linked to filled "
+             f"references, {b['stub']} to stubs." if b["total"] else "")
     return (f"Parsed {n} bibliography entries ({y} with a year) into Reference "
             f"nodes (citekey + author + year + original text; heuristic).{cite_s} "
             f"TiddlyWiki renders each as a bib tiddler led by {{{{||CIT}}}}. "

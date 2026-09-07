@@ -135,6 +135,71 @@ def filled_cites_edges(doc) -> int:
                and (a.right.stream, a.right.start, a.right.end) in live)
 
 
+def citation_link_breakdown(doc) -> dict:
+    """648 — 'N citations, K linked to filled References, S to stubs': the
+    STORED state a message reports, rather than what a detector found or
+    matched THIS run (`cmd_bibsource`'s "22/81 linked" was the latter and
+    could name links the model does not hold — see `resolved_citations`,
+    which this generalises).
+
+    Classifies EVERY Citation by walking its stored `cites` Alignment(s) the
+    same way `resolved_citations` does: the pair `(right range, edge
+    citekey)` is what names the Reference an edge actually reaches (a
+    citation is anchored at LINE granularity, so two citations on one line
+    share a `left` Range and their stubs share a `right` Range — see
+    `add_cites_alignment`). `filled` = resolves to a non-stub Reference;
+    `stub` = resolves to a stub; `unlinked` = neither (no surface Realization
+    to anchor an edge at, or no edge names a Reference this document still
+    holds) — 010 does not guarantee every Citation gets an edge
+    (`ensure_reference_stub` no-ops on a citekey-less or surface-less
+    Citation), so this is measured rather than assumed to be zero (rule 5).
+    """
+    live: dict = {}
+    for ref in doc.objects.values():
+        if ref.type != "Reference":
+            continue
+        for r in ref.realizations:
+            if r.start is not None:
+                live[((r.stream, r.start, r.end),
+                      (ref.props.get("citekey") or "").strip())] = ref
+
+    edges_by_left: dict = {}
+    for a in doc.alignments:
+        if a.kind == "cites" and a.left is not None and a.right is not None:
+            edges_by_left.setdefault(
+                (a.left.stream, a.left.start, a.left.end), []).append(a)
+
+    total = filled = stub = 0
+    for c in doc.objects.values():
+        if c.type != "Citation":
+            continue
+        total += 1
+        ls = next((r for r in c.realizations
+                   if r.role == "surface" and r.start is not None), None)
+        if ls is None:
+            ls = next((r for r in c.realizations if r.start is not None), None)
+        target = None
+        if ls is not None:
+            key = (c.props.get("citekey") or "").strip()
+            rid = c.props.get("cited_reference_id")
+            for a in edges_by_left.get((ls.stream, ls.start, ls.end), ()):
+                cand = live.get(((a.right.stream, a.right.start, a.right.end),
+                                 (a.props.get("citekey") or "").strip()))
+                if cand is None:
+                    continue
+                if (a.props.get("citekey") or "").strip() == key or cand.id == rid:
+                    target = cand
+                    break
+        if target is None:
+            continue
+        if target.props.get("stub"):
+            stub += 1
+        else:
+            filled += 1
+    return {"total": total, "filled": filled, "stub": stub,
+            "unlinked": total - filled - stub}
+
+
 def resolved_citations(doc) -> int:
     """642 — how many Citations the SAVED MODEL says are linked to a real
     bibliography entry.
@@ -144,56 +209,10 @@ def resolved_citations(doc) -> int:
     before (indeed regardless of whether) an edge is built — a Citation with no
     surface Realization has nowhere to anchor one, so the pass reports a link
     the document does not hold. `cmd_bibsource` printed that number. This reads
-    the state instead.
-
-    A Citation counts when a stored `cites` Alignment runs from ITS surface to
-    the surface of a FILLED (non-stub) Reference. Which edge is whose is decided
-    by the citekey and not by the anchor: a citation is anchored at LINE
-    granularity, so two citations on one line share a `left` Range and their
-    stubs share a `right` Range (see `add_cites_alignment`). The pair
-    `(right range, edge citekey)` is what names the Reference an edge actually
-    reaches. When a linker resolved an in-text label to a differently-keyed gold
-    entry (`[ASV02]` -> `smith2002`) the edge carries the REFERENCE's key, and
-    the Citation's stored `cited_reference_id` is what ties the two together.
+    the state instead — `citation_link_breakdown`'s `filled` count, the same
+    walk generalised (648) to also classify a stub-linked Citation.
     """
-    filled = {o.id: o for o in doc.objects.values()
-              if o.type == "Reference" and not o.props.get("stub")}
-    live: dict = {}
-    for ref in filled.values():
-        for r in ref.realizations:
-            if r.start is not None:
-                live[((r.stream, r.start, r.end),
-                      (ref.props.get("citekey") or "").strip())] = ref.id
-    if not live:
-        return 0
-
-    edges_by_left: dict = {}
-    for a in doc.alignments:
-        if a.kind == "cites" and a.left is not None and a.right is not None:
-            edges_by_left.setdefault(
-                (a.left.stream, a.left.start, a.left.end), []).append(a)
-
-    n = 0
-    for c in doc.objects.values():
-        if c.type != "Citation":
-            continue
-        ls = next((r for r in c.realizations
-                   if r.role == "surface" and r.start is not None), None)
-        if ls is None:
-            ls = next((r for r in c.realizations if r.start is not None), None)
-        if ls is None:
-            continue
-        key = (c.props.get("citekey") or "").strip()
-        rid = c.props.get("cited_reference_id")
-        for a in edges_by_left.get((ls.stream, ls.start, ls.end), ()):
-            target = live.get(((a.right.stream, a.right.start, a.right.end),
-                               (a.props.get("citekey") or "").strip()))
-            if target is None:
-                continue
-            if (a.props.get("citekey") or "").strip() == key or target == rid:
-                n += 1
-                break
-    return n
+    return citation_link_breakdown(doc)["filled"]
 
 
 def bibliography_section_anchors(doc) -> set:
@@ -487,6 +506,35 @@ _CAPTION_CELL_TYPES = ("simple_cell", "complex_cell", "table_spanning_cell",
                        "table_split_cell", "diagram")
 
 
+def _existing_citation_spans(doc) -> set:
+    """648/010's OPEN item — identity for detection idempotency: a Citation is
+    identified by its anchor+span+citekey (the ruling this measures against).
+    `detect_numeric_citations`/`detect_author_year_citations` consult this
+    before minting a new Citation so a REPEAT bare `cmd_bibliography` call
+    does not duplicate what an earlier call already found.
+
+    Needed because no gate protects this: `existing` (non-stub References)
+    is the ONLY thing standing between a bare call and a full re-detection,
+    and it is permanently empty on any document whose heuristic
+    References-section parse finds 0 entries — true whenever there is no
+    heading MathPix can segment (penev_A, measured live while building this
+    task's evidence: 81 -> 161 -> 241 Citations across two bare
+    `bibliography` calls, no `--force`). `--force`'s own cleanup avoids this
+    by dropping every `added_by == "bibliography"` Citation before
+    re-detecting; a bare call drops nothing.
+    """
+    spans = set()
+    for c in doc.objects.values():
+        if c.type != "Citation":
+            continue
+        key = (c.props.get("citekey") or "").strip()
+        for r in c.realizations:
+            if r.role == "surface" and r.start is not None:
+                spans.add((r.stream, r.start, r.props.get("offset"),
+                          r.props.get("length"), key))
+    return spans
+
+
 def detect_numeric_citations(doc, max_num: int, exclude_anchors=()) -> int:
     """Detect in-text numeric citations [N], [N,M], [N-M] and add Citations.
 
@@ -505,6 +553,7 @@ def detect_numeric_citations(doc, max_num: int, exclude_anchors=()) -> int:
         return 0
     bibkey = doc.meta.get("bibkey") or ""
     exclude = set(exclude_anchors)
+    seen = _existing_citation_spans(doc)   # 648 — idempotent re-detection
     added = 0
     for anchor in mp.anchors:
         if anchor in exclude:
@@ -527,6 +576,9 @@ def detect_numeric_citations(doc, max_num: int, exclude_anchors=()) -> int:
             if not nums:
                 continue
             for num, off, length in nums:
+                identity = ("mathpix_lines", anchor, off, length, str(num))
+                if identity in seen:            # 648 — already detected
+                    continue
                 obj = DocObject(type="Citation", props={
                     "citekey": str(num), "number": num, "numeric": True,
                     "added_by": "bibliography", "page": p.get("_page")})
@@ -536,6 +588,7 @@ def detect_numeric_citations(doc, max_num: int, exclude_anchors=()) -> int:
                     props={"offset": off, "length": length}))
                 doc.add(obj)
                 ensure_reference_stub(doc, obj, bibkey)   # 010
+                seen.add(identity)
                 added += 1
     return added
 
@@ -564,6 +617,7 @@ def detect_author_year_citations(doc, exclude_anchors=()) -> int:
         return 0
     bibkey = doc.meta.get("bibkey") or ""
     exclude = set(exclude_anchors)
+    seen = _existing_citation_spans(doc)   # 648 — idempotent re-detection
     added = 0
     for anchor in mp.anchors:
         if anchor in exclude:
@@ -597,16 +651,22 @@ def detect_author_year_citations(doc, exclude_anchors=()) -> int:
                     continue
                 lo = min(sm.start(), ym.start())
                 hi = max(sm.end(), ym.end())
+                citekey = f"{surname}{ym.group(0)}"
+                off, length = part_base + lo, hi - lo
+                identity = ("mathpix_lines", anchor, off, length, citekey)
+                if identity in seen:             # 648 — already detected
+                    continue
                 obj = DocObject(type="Citation", props={
-                    "citekey": f"{surname}{ym.group(0)}", "author": surname,
+                    "citekey": citekey, "author": surname,
                     "year": ym.group(0), "style": "author-year",
                     "added_by": "bibliography", "page": p.get("_page")})
                 obj.add_realization(Realization(
                     stream="mathpix_lines", start=anchor, end=anchor,
                     role="surface",
-                    props={"offset": part_base + lo, "length": hi - lo}))
+                    props={"offset": off, "length": length}))
                 doc.add(obj)
                 ensure_reference_stub(doc, obj, bibkey)   # 010
+                seen.add(identity)
                 added += 1
     return added
 
@@ -1159,7 +1219,8 @@ def link_citations_by_label(doc) -> dict:
 
 
 def add_reference_objects(doc, entries: list[dict]) -> int:
-    """Create a `Reference` DocObject per parsed entry. Returns the count.
+    """Create a `Reference` DocObject per parsed entry. Returns the count of
+    entries CREATED or FILLED (648 — a gold-skip, below, is neither).
 
     A citekey already present as a citation-stub Reference (010) is FILLED in
     place -- its id and anchor (the citation's own) are kept, `stub` is
@@ -1171,13 +1232,30 @@ def add_reference_objects(doc, entries: list[dict]) -> int:
     Reference (no matching stub) IS marked `added_by: "bibliography"` --
     this command made it from nothing, so a `--force` rerun should retract
     and re-derive it, same as the Citations `detect_*` creates.
+
+    648 — a citekey that already names a FILLED (non-stub) Reference is
+    SKIPPED entirely: gold (or an earlier fill) wins, and the heuristic
+    References-SECTION parse never overwrites or duplicates it. Reachable
+    via `cmd_bibliography --force`, whose cleanup deliberately KEEPS a
+    gold-filled Reference (010 fix round 4) and then re-runs this parse
+    unconditionally -- the heuristic's own citekey generator (`_citekey`:
+    surname + year) can independently produce the SAME string a gold
+    `.bbl`/`.bib` citekey already has when the printed section names the
+    same author+year the gold entry covers. Before this, only STUB
+    references were checked, so such a collision fell to the `else` branch
+    and created a SECOND Reference object for the same work.
     """
     from docmodel.core import DocObject, Realization
 
     stubs = {(r.props.get("citekey") or ""): r
              for r in doc.objects.values() if r.type == "Reference" and r.props.get("stub")}
+    filled = {(r.props.get("citekey") or ""): r
+              for r in doc.objects.values()
+              if r.type == "Reference" and not r.props.get("stub")}
     n = 0
     for e in entries:
+        if e["citekey"] in filled:
+            continue
         r = stubs.get(e["citekey"])
         if r is not None:
             r.props.pop("stub", None)
