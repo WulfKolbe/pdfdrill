@@ -469,6 +469,24 @@ def test_sanitize_bib_body_makes_broken_entries_compile_safe():
         assert not _re.search(r"(?<!\\)&", out), (raw, out)
 
 
+def test_sanitize_bib_body_balances_a_runaway_inline_math_span():
+    """640-f -- the real Steerable compile error: `\\bibitem{Unser16}`'s body
+    ends with an unclosed `\\(` ('Steerable Wavelet Frames and Pyramids in
+    \\(L^'), and an unbalanced inline-math span swallows everything up to the
+    NEXT command -- here the following `\\bibitem{Unser2008}`, which TeX then
+    reads as an argument of the runaway math and reports on as 'Missing {
+    inserted'. Every other prose block is routed through `balance_math` in
+    `_prose`; a bibliography body is prose too. A body with balanced `\\(...\\)`
+    is untouched."""
+    raw = "M. Unser and D. Van de Ville, Steerable Wavelet Frames and Pyramids in \\(L^"
+    out = LP._sanitize_bib_body(raw)
+    assert out.count("\\(") == out.count("\\)"), out
+    assert out.startswith("M. Unser")
+
+    balanced = "See \\(x^2\\) for details."
+    assert LP._sanitize_bib_body(balanced) == balanced
+
+
 def test_glossary_block_renders_acronyms():
     """Acronyms → a single-pass `description` list (Acronyms section), specials
     escaped. Empty records → empty string."""

@@ -447,3 +447,44 @@ def test_a_back_matter_toc_row_loses_to_the_real_heading():
         ("table_of_contents_number", "169"),
     ])
     assert [e["number"] for e in parse_bibliography(doc)] == [1]
+
+
+# --------------------------------------------------- 643: the printed label
+# must not survive into raw_text/author (it is recorded once as `number`)
+
+def test_parsed_entry_strips_its_own_printed_label_from_raw_text():
+    """The real Steerable leak: unenriched (no bibfetch/bibsource), every
+    printed `[N]` heuristic entry kept the label IN the body, so `\\bibitem`
+    (auto-numbered by LaTeX) and TiddlyWiki's `{{||CIT}}` both print a number
+    of their own in front of it -- "[1] [1] E. M. Stein" instead of "[1] E.
+    M. Stein". The label is recognised here (it sets `number`); it must be
+    gone from `raw_text` and `author`, once, at the point that recognised it."""
+    from pdfdrill.bibliography import parse_bibliography
+
+    doc = _stream_doc([
+        ("section_header", "References"),
+        ("text", "[1] E. M. Stein, Singular Integrals and Differentiability "
+                 "Properties of Functions. Princeton, NJ: Princeton Univ. "
+                 "Press 1970."),
+    ])
+    got = parse_bibliography(doc)
+    assert len(got) == 1
+    e = got[0]
+    assert e["number"] == 1
+    assert e["raw_text"].startswith("E. M. Stein"), e["raw_text"]
+    assert "[1]" not in e["raw_text"]
+    assert "[1]" not in e["author"]
+
+
+def test_strip_own_label_leaves_a_mismatched_leading_bracket_alone():
+    """A leading `[N]` that does NOT name this entry's own number is not this
+    entry's label -- e.g. a stray in-text citation glued onto the front of a
+    line by a mis-segmentation elsewhere. Stripping it would lose real text
+    that happens to look like a label; the rule is to strip ONLY the entry's
+    own number, never merely 'the text starts with a bracket'."""
+    from pdfdrill.bibliography import _strip_own_label
+
+    kept = "[2] E. M. Stein, Singular Integrals, 1970."
+    assert _strip_own_label(kept, 5) == kept                  # 2 != 5: untouched
+    stripped = _strip_own_label(kept, 2)
+    assert stripped == "E. M. Stein, Singular Integrals, 1970."  # 2 == 2: stripped

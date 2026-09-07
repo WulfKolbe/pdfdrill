@@ -1,0 +1,125 @@
+643 — the OCR'd label in bibitem bodies on the no-bibfetch path
+================================================================
+
+JUDGE FIRST (rule 9/10) — THE TASK IS LIVE
+  `tools/drill_full.sh` runs `bibsource` (author .bbl/.bib, only when cached)
+  then `bibliography` (heuristic fallback), and NEVER `bibfetch` (paid,
+  `network: true`, never auto-run per CLAUDE.md) -- confirmed by reading the
+  script (lines 152-158). Steerable has no `.bbl`/`.bib` on this machine (647b
+  §1: "no .bbl/.bib for either" document in this library), so its 29
+  References come from `bibliography`'s heuristic References-section parse --
+  the UNENRICHED path is the harness's NORMAL path here, not a corner case.
+  penev_A also never took bibsource (`penev_A.bib` absent on this machine,
+  647b) — its 52 References are citation-invented STUBS printing
+  `[unresolved: key]`, a different mechanism, not an OCR'd label; measured
+  anyway per the brief and unaffected by this fix (0 leading-label bibitems
+  before or after). Neither document in this library has bibfetch evidence.
+  DECISION: fix it.
+
+WHERE THE LEAK LIVED (Before You Begin — which layer owns it)
+  NOT already stripped at parse time. `pdfdrill.bibliography.parse_bibliography`
+  recognised the printed label (`[N]`/`N.`/`N)`) to compute `number` (the
+  `lead` regex, pre-existing) but stored the FULL joined line — label intact —
+  into both `raw_text` AND, via `_author_block(text)`, into `author`. The
+  `_bibitem` projector's fallback body is `"author (year) title"` when any of
+  those is non-empty; the heuristic path always sets `author`+`year`, so the
+  rendered body was `author` (still carrying "[1] ") + " (year)" — the exact
+  string in the compiled PDF. The SAME `raw_text`/`author` also feed
+  TiddlyWiki's `{{||CIT}} <raw_text>` line (`tiddlywiki.py:1408`), so the
+  identical leak existed there too, undetected until now.
+  FIX LOCATION: `parse_bibliography` in `src/pdfdrill/bibliography.py` — the
+  one place that PARSES the label (rule: strip where you parse), not
+  `bibliography_block`/`_bibitem` in `latex_pipeline.py`, which only
+  re-prints what the parser decided and never re-derives a number itself.
+  One fix now correctness-fixes both the LaTeX and the TiddlyWiki projections.
+
+THE FIX
+  `src/pdfdrill/bibliography.py::parse_bibliography` — `number` is computed
+  from the leading-label match exactly as before, then a new
+  `_strip_own_label(text, number)` drops that label from the text BEFORE
+  `year`/`author`/`citekey` are derived from it, so `raw_text` and `author`
+  both come out clean. `_strip_own_label` only strips when the matched
+  digits equal the entry's OWN number; a leading bracket that names a
+  DIFFERENT number is left untouched (`bibitem_label_mismatch` — tested
+  directly, not reachable through the current parse flow since `number`
+  and the label come from the same regex match, but kept as a guard against
+  stripping the wrong text under a future caller).
+  `src/docops/projectors/latex_pipeline.py::_sanitize_bib_body` (640-f) — now
+  routes the body through `balance_math` (the same runaway-`\(`/`$` guard
+  every OTHER prose block gets in `_prose`, `latex.py:770`) before
+  `_balance_braces`. This was the one remaining Steerable compile error:
+  `\bibitem{Unser16}`'s OCR'd body ends "...in \(L^" (an unclosed inline-math
+  span) which swallowed the NEXT `\bibitem{Unser2008}` and TeX reported
+  "Missing { inserted" there instead of at its real source.
+
+TESTS (failing before the fix, passing after — TDD)
+  tests/test_bibliography.py
+    test_parsed_entry_strips_its_own_printed_label_from_raw_text
+    test_strip_own_label_leaves_a_mismatched_leading_bracket_alone
+  tests/test_latex_pipeline.py
+    test_sanitize_bib_body_balances_a_runaway_inline_math_span
+  Full suite: PYTHONDONTWRITEBYTECODE=1 PYTHONPATH=src python3 -m pytest
+  tests/ -q -p no:cacheprovider -> 3348 passed (0 failed), before AND after
+  the rebuild below.
+
+MEASURED — Steerable (…RieszTransform.pdf, folder-derived, 15pp source)
+  BEFORE (frozen `out/643/steerable.before.tex`, HEAD 885da90, 640-f/642 state):
+    \bibitem total ................ 30
+    leading OCR'd "[n]" labels ..... 29 of 29 numbered bibitems (all of them)
+    \cite occurrences .............. 55
+    distinct \cite keys ............ 29
+    compile errors (log "^!") ...... 1  (Missing { inserted, at \bibitem{Unser2008},
+                                          caused by the unbalanced math in the
+                                          PRECEDING \bibitem{Unser16} body)
+  Rebuild: `pdfdrill bibliography --force` (re-parses the References section
+  at the fixed code; 648's idempotence and gold-skip untouched — citekeys,
+  filled/stub status not disturbed) then `pdfdrill latex --force --compile`,
+  both via the real CLI entry points (`cmd_bibliography`, `cmd_latex`),
+  never `--force` on mathpix, never bibfetch.
+  AFTER:
+    \bibitem total .................. 30   (unchanged)
+    leading OCR'd "[n]" labels ....... 0 of 29   <- the fix
+    \cite occurrences ................ 55   (unchanged from 640/642)
+    distinct \cite keys .............. 29   (unchanged)
+    compile errors (log "^!") ........ 0   (was 1 — 640-f closed)
+    PDF pages ......................... 42, compiled ✓ (xelatex, 2 passes)
+
+  ONE RASTERISED BIBLIOGRAPHY PAGE, READ: page 41 of the rebuilt PDF shows
+  entries [11]-[24], each with its LaTeX auto-number printed ONCE — e.g.
+  "[24] E. M. Stein, Singular Integrals and Differentiability Properties of
+  Functions. Princeton, NJ: Princeton Univ. Press (1970)" — no doubled
+  "[24] [24]" anywhere on the page.
+
+MEASURED — penev_A (READ-ONLY, no rebuild, no --force; "one document at a
+                     time" — this task's rebuild is Steerable only)
+  \bibitem total .................... 52
+  `[unresolved: key]` stub bodies .... 52   (010's citation-invented stubs —
+                                              never had a printed label to leak)
+  leading OCR'd "[n]" labels ......... 0    (nothing to fix here; unaffected
+                                              before and after)
+
+EVIDENCE (library, deny-by-default git; never committed to this repo)
+  ~/pdfdrill-library/SteerableWaveletFramesBasedontheRieszTransform/out/643/
+    script.py            the exact source that ran, through the real CLI
+                          entry points (cmd_bibliography, cmd_latex)
+    steerable.before.tex / steerable.before.log   frozen pre-fix snapshot
+    result.json           every count above
+    bibliography-page.png the rasterised page 41 (Ghostscript, >=400 DPI,
+                          `pdfdrill.pdf_reading.render_page`), Read
+    INSPECT.txt           5 paths, all checked and non-empty
+
+WHAT THIS DOES NOT TOUCH
+  `\bibitem` count (30) and `\cite` count (55) are byte-for-byte unchanged
+  from before this task — the fix removes text from inside an existing
+  bibitem body, it creates no bibitem and resolves no new citation.
+  penev_A's 52 stub bodies are a different code path (010's citation-invented
+  Reference, `bibliography_block`'s `if p.get("stub")` branch) and were never
+  in scope.
+
+CONCERNS
+  `_strip_own_label`'s mismatch branch is untested BY THE PRODUCTION FLOW —
+  `number` and the stripped label always come from the same regex match in
+  `parse_bibliography`, so `bibitem_label_mismatch` cannot currently fire.
+  It is exercised directly (unit test) as a guard for a future caller that
+  passes a `number` from elsewhere (e.g. a gold `.bib` renumbering a printed
+  entry) — named here rather than left silent.

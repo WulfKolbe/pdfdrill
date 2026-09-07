@@ -639,14 +639,21 @@ _BROKEN_ACCENT = re.compile(r"\{\\(?=[\s{}(),.;:]|$)")
 def _sanitize_bib_body(s: str) -> str:
     """Make a heuristic/OCR bibliography body COMPILE-SAFE, from the RAW body.
     Such a body can carry a truncated accent that leaves an unbalanced brace
-    (`Van Merri{\\ (2014)`), OCR forced line breaks (`\\\\`), or an unescaped `&` —
-    all fatal in `thebibliography`. Order matters: collapse the `\\\\` breaks and
-    drop the broken accent FIRST, THEN escape specials (so a collapsed `\\\\&`
-    becomes ` &` → `\\&`, never a bare `&`), then balance braces."""
+    (`Van Merri{\\ (2014)`), OCR forced line breaks (`\\\\`), an unescaped `&` —
+    all fatal in `thebibliography` — or a dropped `\\)`/`$` closing an inline-math
+    span (640-f: `Steerable Wavelet Frames and Pyramids in \\(L^` (Unser16), the
+    one remaining compile error on Steerable — 'Missing { inserted' on the
+    NEXT `\\bibitem`, because the runaway span swallowed it). Order matters:
+    collapse the `\\\\` breaks and drop the broken accent FIRST, THEN escape
+    specials (so a collapsed `\\\\&` becomes ` &` → `\\&`, never a bare `&`),
+    THEN balance math (every OTHER paragraph is routed through
+    `balance_math` in `_prose`; a `\\bibitem` body is prose too and was the
+    one block that skipped it), then balance braces."""
     s = s.replace("\\\\", " ")                    # OCR forced line breaks first
     s = _BROKEN_ACCENT.sub("", s)                 # truncated `{\` accent → drop
     s = _bib_escape(s)                            # escape unescaped &/%/#/_/~
     s = re.sub(r"[ \t]{2,}", " ", s).strip()
+    s = balance_math(s)                           # 640-f: a runaway `\(`/`$`
     return _balance_braces(s)
 
 

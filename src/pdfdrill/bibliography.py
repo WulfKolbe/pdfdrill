@@ -388,21 +388,32 @@ def parse_bibliography(doc) -> list[dict]:
     seen: dict[str, int] = {}
     for idx, ent in enumerate(entries):
         text = " ".join(t for _, t in ent)
-        ym = _YEAR.search(text)
+        # The reference number: a leading [N]/N. if printed, else sequential
+        # position (numeric in-text citations [N] resolve against this).
+        # Computed BEFORE stripping -- `_strip_own_label` needs the number
+        # to decide whether the leading bracket IS this entry's own label.
+        lead = re.match(r"\s*\[?(\d{1,3})\]?[.\)]?\s", text)
+        number = int(lead.group(1)) if lead else idx + 1
+        # 643 -- the printed label this line just recognised (`[N]`/`N.`/`(N)`)
+        # is recorded above as `number`; it must not ALSO survive into the
+        # entry's own text, or every consumer of `raw_text`/`author` (the
+        # LaTeX `\bibitem` body, the TiddlyWiki `{{||CIT}} <raw_text>` line)
+        # prints it a second time next to the number the renderer adds on its
+        # own -- "[1] [1] E. M. Stein" instead of "[1] E. M. Stein". Strip
+        # here, at the one place that PARSES the label, not in each projector
+        # that only re-prints what this function already decided.
+        body = _strip_own_label(text, number)
+        ym = _YEAR.search(body)
         year = ym.group(0) if ym else ""
-        author = _author_block(text)
+        author = _author_block(body)
         key = _citekey(author, year, idx)
         if key in seen:                    # disambiguate duplicate keys
             seen[key] += 1
             key = f"{key}{chr(ord('a') + seen[key])}"
         else:
             seen[key] = 0
-        # The reference number: a leading [N]/N. if printed, else sequential
-        # position (numeric in-text citations [N] resolve against this).
-        lead = re.match(r"\s*\[?(\d{1,3})\]?[.\)]?\s", text)
-        number = int(lead.group(1)) if lead else idx + 1
         out.append({
-            "raw_text": text,
+            "raw_text": body,
             "year": year,
             "author": author,
             "citekey": key,
@@ -410,6 +421,28 @@ def parse_bibliography(doc) -> list[dict]:
             "anchors": [a for a, _ in ent],
         })
     return out
+
+
+#: The same shape `_REF_START`/the `lead` match above recognise: `[N]`/`N.`/
+#: `N)`, optionally bracketed, followed by the entry's own text.
+_LEAD_LABEL = re.compile(r"^\s*\[?(\d{1,3})\]?[.\)]?\s+")
+
+
+def _strip_own_label(text: str, number: int) -> str:
+    """Drop a leading printed label from `text` when it names `number` -- this
+    entry's OWN number, already parsed out by the caller. `\\bibitem` (LaTeX)
+    and `{{||CIT}}` (TiddlyWiki) both print a number of their own in front of
+    whatever this returns, so a label left in would double: "[1] [1] E. M.
+    Stein" rather than "[1] E. M. Stein".
+
+    A leading bracket that does NOT equal this entry's number is left
+    untouched -- counted by a caller as `bibitem_label_mismatch`, never
+    silently eaten, because a mismatch means the two numbers disagree about
+    which entry this is and stripping the wrong one would lose real text."""
+    m = _LEAD_LABEL.match(text)
+    if not m or int(m.group(1)) != number:
+        return text
+    return text[m.end():]
 
 
 # 640 — a numeric bracket followed by a LOCANT: `[1, Ch. III]`, `[21, Ch.
