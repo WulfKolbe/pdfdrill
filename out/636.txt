@@ -1,0 +1,303 @@
+636 — cut each footnote body at the next anchor
+===============================================
+
+THE USER'S REPORT, CHECKED FIRST (rule 14: measured before anything changed)
+  "29 of penev_A's 53 Footnote objects have content that runs past their own
+   text into the following footnote"                        EXACTLY TRUE — 29.
+    Measured on the model as the 647b (ex-640) drill left it: 53 Footnote
+    objects, 29 of them carrying a footnote LABEL at a position > 0 in
+    `content`. The looser rule "any `{ }^{n}` after position 0" gives 30; the
+    extra one is `\(\sigma_{r}{ }^{2}\)` inside a body — a real exponent that
+    must never be cut at. The user's number lands on the exact rule.
+
+  "refnum 3 ends '...(Deco and Obradovic 1996).44 PCA'"     TRUE, verbatim:
+      'For a recent review of all these techniques see (Deco and Obradovic
+       1996).\n\({ }^{4}\) PCA has also been utilized, albeit implicitly, in
+       the redundancy-reducing factorial codes described in Section 4.2,
+       where it can be identified as their first step.'
+    AFTER:
+      'For a recent review of all these techniques see (Deco and Obradovic
+       1996).'
+
+  "whether the Steerable paper shows the same bleed"        IT DOES NOT.
+    2 Footnote objects, 0 with an interior label, before and after; its
+    conserve report holds no Footnote pair either way; and its projected .tex
+    is IDENTICAL byte for byte before and after this change. One footnote per
+    page is the shape the old code got right.
+
+WHY IT HAPPENED — READ OFF THE DATA, NOT GUESSED
+  MathPix puts EVERY footnote of a page into ONE `\footnotetext{...}` group.
+  penev_A's page-4 block is one `footnote` line with three CHILD lines:
+      c1  "\n\n\footnotetext{\n\({ }^{3}\) For a recent review ... 1996)."
+      c2  "\n\({ }^{4}\) PCA has also been utilized, albeit implicitly, ..."
+      c3  " described in Section 4.2, ... their first step.\n}"
+  `FootnoteProcessor._parse_footnotetext` took the whole balanced group as ONE
+  body, so footnote 4's printed number and its text were inside footnote 3.
+  28 blocks hold 51 labels — 23 footnotes had no object of their own.
+
+  THE SECOND CREATOR, WHICH THE BRIEF DID NOT NAME AND WHICH BLED AS BADLY.
+  25 of the 53 are made by `heading_cleanup.extract_footnote_paragraphs`
+  (`added_by: footnote_cleanup`) from a `\footnotetext{...}` MathPix left in a
+  Paragraph. Split by creator, the 29 interior labels are 14 from the
+  processor and 15 from the cleanup. Fixing only `footnote.py` would have left
+  half the defect standing, so both call ONE splitter.
+
+THE RULE — EXACT, NEVER A GUESS (src/docmodel/footnote_split.py)
+  A footnote LABEL is `{ }^{n}` at the HEAD of an inline-math span (`\(` or
+  `$`): a superscript with an EMPTY BASE, which is how a printed footnote
+  number reaches MathPix. In `\(\sigma_{r}{ }^{2}\)` a base precedes the
+  superscript, so it is not a label and is never a cut point — penev_A carries
+  52 of those, and after this change the .tex holds exactly those 52 and no
+  other `{ }^{n}` at all.
+  A body runs from just after its own label to just before the NEXT label, or
+  to the end of the block. The first body starts at the GROUP, not at its own
+  label: text before the first number is a footnote spilling in from the
+  previous page and the splitter invents no owner for it.
+  A label whose number REPEATS one already emitted from the same block is
+  refused — a second object would give two bodies one printed number on one
+  page, the title collision 644 removed. The tail then stays on the earlier
+  body, which is marked `tail_unassigned`, and is counted `orphan_tail`.
+  ORPHAN_TAIL IS 0 ON BOTH DOCUMENTS. 28 penev_A blocks, 51 labels, no repeat;
+  the refusal is exercised by a unit test, not by these two documents, and it
+  is reported as 0 rather than left unstated.
+
+  The body's own number is stripped exactly as bodies have always stripped it:
+  only the CLOSED spelling `\({ }^{n}\)`. When the number shares its span with
+  the body's maths (`\({ }^{21} \mathbf{K}^{2} \equiv ...\)`, two such blocks)
+  nothing is removed — cutting inside that span would unbalance it.
+
+THE CLAIM — AND THE TRADE, MEASURED BOTH WAYS AND WRITTEN DOWN
+  646 sees the same defect from the anchor side. The brief asked for a
+  sub-anchor so the claim is inline and the doubly-claimed anchors drop. BOTH
+  arrangements were built and measured on the real document:
+
+    (a) the footnote claims ONLY its label's line, inline
+          doubly-claimed  42 -> 6   (all 36 Footnote pairs gone)
+          unclaimed      243 -> 436 (+193)
+        The 193 are lines whose ONLY claimant was a cleanup Footnote (two
+        thirds of these paragraphs are pure footnote text). Their text is in
+        a Footnote object; reporting them as "covered by no object" is loss
+        that is not there. REFUSED.
+
+    (b) the footnote claims its real EXTENT — the lines it owns WHOLE, plus
+        an inline sub-anchor for a line it SHARES (prose before it, or the
+        next number after it). `\footnotetext{` and whitespace are markup,
+        not another object's content, so a line carrying only those before
+        the label is still owned whole.
+          doubly-claimed  42 -> 42  unclaimed 243 -> 243   TAKEN.
+
+  SO THE 35 `Footnote+Paragraph` PAIRS DO NOT DROP, AND THE REASON IS
+  MEASURED, NOT ASSUMED: `extract_footnote_paragraphs` narrows the
+  paragraph's TEXT and never its REALIZATION, so the Paragraph still claims
+  lines whose text it no longer holds. Narrowing it is what would drop them —
+  and the TiddlyWiki projector rebuilds paragraph text FROM those lines, so
+  that moves every paragraph tiddler on the document and takes the formulas
+  hosted on those lines with it. That is 636-b, its own task with its own
+  before/after. What this task did not do is buy the pair count with 193
+  false "unclaimed".
+
+THE NUMBERS — penev_A, LIKE FOR LIKE
+  BEFORE here is a FULL REBUILD AT HEAD (26cf8bd) WITH 636 STASHED
+  (`model --force` then all 22 steps of `tools/drill_full_sandbox.sh`, the
+  647b step order), not the model on disk — that one was built by an older
+  tree (d20ce48, 647b's 640-b). The two agree on every footnote number (53,
+  29, 243, 42, the same .tex counts), which is what makes the delta 636's.
+
+                                          BEFORE (control)      AFTER
+    Footnote objects                            53                93
+      from FootnoteProcessor                    28                48
+      from heading_cleanup                      25                45
+      bodies cut out of a block                  0                40
+    WITH AN INTERIOR LABEL                      29                 0   <- ask
+    orphan_tail / tail_unassigned              0 / 0             0 / 0
+    lacking refnum or anchor_marker              2                 0
+    ------------------------------------------------------------------
+    conserve (pdfdrill conserve penev_A)
+      unclaimed anchors                        243               243
+      doubly-claimed anchors                    42                42
+        Footnote+Paragraph                      35                35
+        Footnote+ListItem                        1                 1
+        Footnote+Footnote                        0                 0
+      unreachable objects                      261               295
+        of which Footnote                       36                70
+      dark anchors                             588               579
+        of which Footnote                      204               195
+    ------------------------------------------------------------------
+    latex/penev_A.tex
+      \({ }^{n}\) marker spans                  42                 0
+      ANY `{ }^{n}` (markers + exponents)       94                52
+      \footnotemark / \footnotemark[n]      107 / 107         107 / 107
+      \footnotetext / \footnotetext[n]       56 / 51            96 / 93
+      `(?…)` placeholders / <sup>n</sup>       0 / 0             0 / 0
+      transclusions: FN / SUP                63 / 44           81 / 26
+    compile (xelatex, 2 passes)          97 pp, 0 "! "     97 pp, 0 "! "
+
+  EVERY NUMBER THAT MOVED, ACCOUNTED FOR (rule 12)
+    53 -> 93 is +40, and the 40 are the cut-out bodies: 20 from the 28
+      footnote blocks (51 labels, minus one block whose group never closes —
+      636-a) and 20 from the 25 paragraph groups. No object was removed.
+    29 -> 0 is the task.
+    2 -> 0 lacking a refnum: both were cleanup bodies whose printed number sat
+      AFTER a spilled-in head, and `_FN_ANCHOR` only ever matched a number at
+      position 0. The splitter reads the group's number from its first LABEL,
+      wherever it sits — which is what FootnoteProcessor already did, so the
+      two creators now agree.
+    unreachable 261 -> 295 is +34, all Footnote: of the 40 new bodies, 6 are
+      transcluded by a marker and 34 are not, because their printed number is
+      never matched in running text. That is 638-b/646-a2 — the bodies existed
+      before too, inside another footnote, where the audit could not see them.
+      Dark Footnote anchors fall 204 -> 195 in the same movement.
+    \footnotetext[n] 51 -> 93 = bodies with a refnum, and now every body has
+      one. \footnotemark stays 107: the marks did not change, only what they
+      point at (FN 63 -> 81, SUP 44 -> 26 — 18 marks that had no body now
+      have one).
+    42 -> 0 `\({ }^{n}\)` spans in the .tex: every one of them was a footnote
+      label inside a `\footnotetext{…}` body (647b §2 counted 42 in FOOTNOTE
+      lines and 0 in the body). Each is now its own numbered footnote. The 52
+      that remain are exactly 647b's 52 real exponents.
+    unclaimed and doubly-claimed do not move at all — see THE TRADE.
+
+THE NUMBERS — Steerable (…RieszTransform)
+    Footnote objects 2 (1 processor, 1 cleanup), interior labels 0 -> 0,
+    orphan_tail 0, conserve Footnote pairs 0 -> 0, unclaimed 132 -> 132,
+    doubly-claimed 136 -> 136, .tex `\footnotetext[n]` 2 -> 2, compile 41 pp
+    with the one pre-existing `\bibitem{Unser2008}` error (640-f).
+    `diff Steerable.control.tex Steerable.after.tex` is EMPTY.
+
+WHAT THE RASTERISED PAGE SHOWS (Ghostscript, 400 dpi, read)
+  penev_A page 8 of the projected LaTeX, the same page foot, both builds
+  compiled the same way (97 pages, 0 errors each):
+    BEFORE  one footnote numbered 3 whose body runs on —
+            "³For a recent review of all these techniques see (Deco and
+             Obradovic 1996).  ⁴ PCA has also been utilized, albeit
+             implicitly, ... their first step."
+            Footnote 4's printed number is set as an inline superscript in
+            the middle of footnote 3's body, and footnote 4 has no entry.
+    AFTER   two footnotes, each with its own number under the rule —
+            "³For a recent review of all these techniques see (Deco and
+             Obradovic 1996)."
+            "⁴PCA has also been utilized, albeit implicitly, ... first step."
+    In BOTH images the pair appears TWICE (the second copy citing "[16]"
+    where the first prints "(Deco and Obradovic 1996)"): that is 646-b, the
+    duplicate Footnote population, and it is 637's job. It is left visible in
+    the evidence rather than cropped out of it.
+
+WHAT WAS BUILT
+  src/docmodel/footnote_split.py   NEW. `LABEL`, `find_labels`,
+      `split_bodies(text) -> [Segment]`, `orphan_tails`. Pure functions over a
+      string; the rule and its measurement live in the module docstring.
+  src/docmodel/modules/footnote.py `find_items` now walks the block as
+      (anchor, text) PIECES in children order, finds the `\footnotetext{…}`
+      span, splits it, and emits one item per label. Item 0 keeps the block
+      anchor exactly as before — nothing that was claimed stops being claimed;
+      a cut-out body carries a sub-anchor (offset/length) on the child line it
+      starts on, which `conserve` counts as inline and not as a claim.
+  src/pdfdrill/heading_cleanup.py  `extract_footnote_paragraphs` splits the
+      same way, and `_footnote_extents` computes each body's real line extent
+      in ONE ordered scan of the paragraph's lines (all its groups at once, so
+      a second group's numbers cannot match the first group's lines). A body
+      whose label is on no line of the paragraph keeps the realizations it had
+      and the refusal is counted (`footnote_span_not_located`), never guessed.
+      Also: `flow_index` is now only set when the paragraph HAS one — a key
+      present and None makes two Footnotes incomparable in `_sort_by_flow`
+      and the projection raises, which two footnotes from one paragraph
+      reached for the first time.
+
+TESTS (TDD; the first run failed at import — the module did not exist)
+  tests/test_footnote_split.py, 18 tests:
+    the recogniser: `\({ }^{3}\)`, `${ }^{12}$` and the glued
+      `\({ }^{13}(\Phi\hat x,\Phi\hat y)\)` are labels; `\(\sigma_{r}{ }^{2}\)`
+      and `\(x_{0}{ }^{-1} g_{ik}\)` are not; no label -> no split;
+    the cut: "{ }^{3} first body.{ }^{4} PCA second body." -> "first body." /
+      "PCA second body.", no interior label in either; the glued label keeps
+      its own math span; a repeated number gives `orphan_tail` 1,
+      `tail_unassigned`, and the tail is still in the body;
+    FootnoteProcessor: a footnote line with two numbers yields two Footnotes;
+      a body spanning two CHILD lines is cut at the label on line 2; the
+      cut-out body's realization carries offset/length and the offset points
+      at its own label; the FIRST body keeps the block line it always claimed;
+      one footnote per line is unchanged;
+    heading_cleanup: a paragraph group with two numbers yields two Footnotes
+      with the right bodies; a paragraph that is PURE footnote text still has
+      every line claimed exactly once (0 unclaimed, 0 doubly-claimed — the
+      (a)/(b) trade above, pinned); a body spilling in from the previous page
+      is still claimed; a footnote sharing its line with prose claims nothing
+      of the line, so `conserve` reports no Footnote pair; a label on no line
+      keeps the shared claim; the pass is still idempotent;
+    the projection of a split block carries both bodies once.
+
+  FULL SUITE: PYTHONDONTWRITEBYTECODE=1 PYTHONPATH=src python3 -m pytest
+  tests/ -q -p no:cacheprovider  ->  3254 passed, 0 failed
+  (3236 before this task; 18 new).
+
+EVIDENCE (library, deny-by-default git; never committed to this repo)
+  ~/pdfdrill-library/penev_A/out/636/
+      script.py                 the census, runnable
+      model.{before,control,after}.docmodel.json   the three states
+      result.{before,control,after}.json + result.json
+      penev_A.{before,control,after}.tex, penev_A.after.log
+      control-build/            the control .tex compiled the same way
+      page8{,-before}.png, crop-page8-foot{,-before}.png   read, above
+      conserve.{before,after}.txt
+      drill_{control,after}.txt the two full-drill runs, 22/22 steps rc 0
+      INSPECT.txt               every path, checked
+  ~/pdfdrill-library/SteerableWaveletFramesBasedontheRieszTransform/out/636/
+      the same set; INSPECT.txt, 0 change on that document.
+
+  COMMANDS THAT RAN, per document, in this order (never `mathpix --force`):
+      pdfdrill model <pdf> --force
+      bash tools/drill_full_sandbox.sh <pdf>     (all 22 steps, 647b's order:
+          size route mathpix[CACHED] model injectlatex eqnums lists algorithms
+          annotate bibsource bibliography clean expandmath speak svg md
+          tiddlers spoken formulas report artifacts status)
+      pdfdrill latex <pdf> --force --compile
+  and the same three with the change stashed, for the control.
+
+WHAT IS OPEN
+  636-a  ONE penev_A block (page 6, footnotes 11–14) has a `\footnotetext{`
+         whose braces never balance, so it has no body span at all. Its
+         Footnote's content is "" — before this task and after it. Four
+         printed footnotes of real text are simply not in the model. The cut
+         cannot help: there is no group to cut. Recovering it means deciding
+         a body extent for an unbalanced group, which is a different rule and
+         needs its own before/after.
+  636-b  The 35 `Footnote+Paragraph` doubly-claimed anchors stand, because a
+         Paragraph still claims lines whose text `extract_footnote_paragraphs`
+         removed. Narrowing the Paragraph's realization is the fix and it
+         changes every paragraph tiddler on the document (the projector
+         rebuilds paragraph text from those lines) and orphans the Formulas
+         hosted there. Its own task. 638-a is the same defect seen in the
+         prose.
+  636-c  34 of the 40 new bodies are transcluded by nothing: their printed
+         number is never matched to a marker in running text. That is
+         638-b/646-a2, and it is now VISIBLE — the bodies used to hide inside
+         another footnote. It is the largest remaining block of unreached
+         footnote text.
+  637 IS NEXT, and this task was deliberately done first: penev_A's Footnote
+         population is duplicated (the same body extracted once from the
+         `footnote` line and once from the Paragraph — 48 + 45). Deduplicating
+         before the cut would only have made the overrun consistent across
+         both copies. The page-8 image shows both copies, correctly numbered.
+
+CONCERNS
+  93 Footnote objects on a document that prints far fewer is not a clean
+  number, and it is not smoothed over: roughly half are second copies
+  (646-b), which is 637's task. What 636 can say is that both copies now
+  carry ONE footnote each instead of up to four merged.
+  `orphan_tail` is 0 on both documents. The refusal it counts is real and
+  unit-tested, but it did not fire here; a reader should treat it as a rule
+  with a counter, not as a measured population.
+  The `_footnote_extents` scan matches a group's numbers against the
+  paragraph's lines in reading order. That is exact while the numbers appear
+  in the lines in the same order as in the text, which held on all 25 penev_A
+  paragraphs; a document where MathPix reorders them would fall back to the
+  copied realization and be counted, not mis-anchored.
+  Two new props reach the model — `split_index` (which body of its block this
+  is) and `tail_unassigned` — and `docs/layers/PROPS.md` does not yet name
+  them. That table is GENERATED from `corpus_props.json` (a walk of every
+  model in the library) plus `props_code.json`; regenerating it here would
+  fold in every other document's props and produce a diff that has nothing to
+  do with 636. `python3 tools/propstable.py` after the next corpus walk picks
+  them up. The contract tests are green as they stand.
+  Both documents' models were rebuilt from CACHED MathPix output. No
+  extraction was re-purchased and no `mathpix --force` was run.

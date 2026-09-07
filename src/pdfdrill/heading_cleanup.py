@@ -45,6 +45,96 @@ _FOOTNOTETEXT = re.compile(r"\\footnotetext\s*\{")
 _FN_ANCHOR = re.compile(r"^\s*\\?\(?\s*\{\s*\}\s*\^\s*\{?(\d+)\}?\s*\\?\)?\s*")
 
 
+def _para_lines(doc, para):
+    """[(anchor, text)] for the mathpix lines the paragraph's surface covers."""
+    st = doc.streams.get("mathpix_lines")
+    if st is None:
+        return []
+    out = []
+    for r in para.realizations:
+        if r.stream != "mathpix_lines" or r.role != "surface" or r.start is None:
+            continue
+        try:
+            span = st.slice_anchors(r.start, r.end if r.end is not None else r.start)
+        except KeyError:
+            continue
+        for a in span:
+            p = st.payload[a]
+            out.append((a, p.get("text_display") or p.get("text") or ""))
+    return out
+
+
+def _footnote_extents(doc, para, refnums: list[str], heads=(0,)):
+    """Where each footnote of one group actually sits, line by line.
+
+    Returns one entry per refnum, in reading order, or None for a refnum whose
+    label is not on any line of the paragraph (nothing is then guessed):
+
+        {"line": i, "offset": o, "own": (first, last) | None}
+
+    636: the cleanup used to copy the PARAGRAPH's realizations onto every
+    Footnote it made, so one line was claimed by a Paragraph and by up to four
+    Footnotes at once — all 35 `Footnote+Paragraph` doubly-claimed anchors on
+    penev_A. Claiming only the label's own line instead traded that for 193
+    lines claimed by NOTHING: two thirds of these paragraphs are pure footnote
+    text and the Footnote was the only claimant they had. So the claim is the
+    footnote's real extent: the lines it owns WHOLE (covering), and an inline
+    sub-anchor for a line it SHARES — with prose before it, or with the next
+    footnote's number after it. `\\footnotetext{` and whitespace are markup,
+    not another object's content, so a line carrying only those before the
+    label is still owned whole.
+    """
+    from docmodel.footnote_split import LABEL
+    lines = _para_lines(doc, para)
+    if not lines:
+        return [None] * len(refnums)
+    found: list = []
+    li, ci = 0, 0                                  # scan cursor: line, column
+    for refnum in refnums:
+        hit = None
+        for j in range(li, len(lines)):
+            for m in LABEL.finditer(lines[j][1]):
+                if m.group(1) == refnum and (j > li or m.start() >= ci):
+                    hit = (j, m.start())
+                    break
+            if hit:
+                break
+        if hit is None:
+            found.append(None)
+            continue
+        li, ci = hit[0], hit[1] + 1
+        found.append(hit)
+    # A group's FIRST body starts where the GROUP starts, not at its number:
+    # whatever precedes the first label is a footnote spilling in from the
+    # previous page, and split_bodies keeps it on this body (it invents no owner
+    # for it). Two penev_A blocks are that shape — 11 lines that would otherwise
+    # be claimed by nothing while their text sits in a Footnote.
+    prev = 0
+    for h in sorted(heads):
+        if h >= len(found) or found[h] is None:
+            continue
+        for j in range(prev, found[h][0] + 1):
+            m = _FOOTNOTETEXT.search(lines[j][1])
+            if m and (j, m.start()) <= found[h]:
+                found[h] = (j, m.start())
+                break
+        prev = found[h][0]
+    out = []
+    for k, hit in enumerate(found):
+        if hit is None:
+            out.append(None)
+            continue
+        i, off = hit
+        prefix = _FOOTNOTETEXT.sub("", lines[i][1][:off]).strip()
+        nxt = next((h for h in found[k + 1:] if h is not None), None)
+        last = (nxt[0] - 1) if nxt else len(lines) - 1
+        first = i if not prefix else i + 1
+        own = (first, last) if first <= last else None
+        out.append({"line": i, "offset": off, "own": own,
+                    "shared": bool(prefix), "lines": lines})
+    return out
+
+
 def extract_footnote_paragraphs(doc) -> int:
     """Lift `\\footnotetext{...}` that MathPix left inside a Paragraph (a plain
     `text` line, so the FootnoteProcessor never saw it) into proper Footnote
@@ -52,9 +142,18 @@ def extract_footnote_paragraphs(doc) -> int:
 
     Parses the `\\({ }^{N}\\)` anchor for `refnum`, strips it from the content,
     and removes the `\\footnotetext{...}` span from the paragraph (the paragraph
-    is dropped if nothing else remains). Idempotent. Returns the count."""
+    is dropped if nothing else remains). Idempotent. Returns the count.
+
+    636: MathPix puts every footnote of a page into ONE group, so one object
+    used to take the lot — 15 of the 25 penev_A bodies this made ended with the
+    NEXT footnote's printed number and its first words. Each label now closes
+    the body before it (`docmodel.footnote_split`), and each body claims its
+    line inline instead of the paragraph's whole span."""
     from docmodel.core import DocObject
+    from docmodel import footnote_split as fsplit
     n = 0
+    orphan = 0
+    unlocated = 0
     drop: list[str] = []
     add: list[DocObject] = []
     for o in doc.objects.values():
@@ -65,6 +164,7 @@ def extract_footnote_paragraphs(doc) -> int:
             continue
         new_parts: list[str] = []
         pos = 0
+        groups: list[list] = []
         for m in _FOOTNOTETEXT.finditer(text):
             new_parts.append(text[pos:m.start()])
             brace = m.end() - 1
@@ -73,21 +173,82 @@ def extract_footnote_paragraphs(doc) -> int:
                 new_parts.append(text[m.start():])
                 pos = len(text)
                 break
-            body = text[brace + 1:end - 1].strip()
+            group = text[brace + 1:end - 1]
             pos = end
-            am = _FN_ANCHOR.match(body)
-            refnum = am.group(1) if am else ""
-            if am:
-                body = body[am.end():].strip()
-            fn = DocObject(type="Footnote", props={
-                "refnum": refnum, "anchor_marker": f"{{ }}^{{{refnum}}}" if refnum else "",
-                "content": body, "page": o.props.get("page"),
-                "flow_index": o.props.get("flow_index"),
-                "bibkey": o.props.get("bibkey"), "added_by": "footnote_cleanup"})
-            for r in o.realizations:           # share provenance to the source
-                fn.add_realization(r)
-            add.append(fn)
-            n += 1
+            segs = fsplit.split_bodies(group)
+            if not segs:                       # no label — one body, as before
+                segs = [fsplit.Segment(refnum="", start=0, end=len(group),
+                                       body=group.strip())]
+            groups.append(segs)
+        # One ordered scan of the paragraph's lines for ALL its groups, so a
+        # second group's numbers cannot match the first group's lines.
+        flat = [s.refnum for segs in groups for s in segs]
+        heads = {0}
+        k = 0
+        for segs in groups[:-1]:
+            k += len(segs)
+            heads.add(k)
+        extents_flat = _footnote_extents(doc, o, flat, heads)
+        base = 0
+        for segs in groups:
+            extents = extents_flat[base:base + len(segs)]
+            base += len(segs)
+            for i, seg in enumerate(segs):
+                body = seg.body
+                refnum = seg.refnum
+                if i == 0:                     # the loose leading spellings, as before
+                    am = _FN_ANCHOR.match(body)
+                    if am:
+                        refnum = refnum or am.group(1)
+                        body = body[am.end():].strip()
+                orphan += 1 if seg.tail_unassigned else 0
+                props = {
+                    "refnum": refnum,
+                    "anchor_marker": f"{{ }}^{{{refnum}}}" if refnum else "",
+                    "content": body, "page": o.props.get("page"),
+                    "bibkey": o.props.get("bibkey"), "added_by": "footnote_cleanup"}
+                # Only when the paragraph HAS one: `_sort_by_flow` defaults an
+                # ABSENT flow_index to 10**9, but a key present and None makes
+                # two footnotes incomparable and the projection raises.
+                if o.props.get("flow_index") is not None:
+                    props["flow_index"] = o.props["flow_index"]
+                if i:
+                    props["split_index"] = i
+                if seg.tail_unassigned:
+                    props["tail_unassigned"] = True
+                fn = DocObject(type="Footnote", props=props)
+                ext = extents[i] if i < len(extents) else None
+                for r in o.realizations:       # share provenance to the source
+                    if ext is not None and r.stream == "mathpix_lines" \
+                            and r.role == "surface":
+                        continue               # replaced by the footnote's own extent
+                    fn.add_realization(r)
+                if ext is None:
+                    unlocated += 1
+                else:
+                    from docmodel.core import Realization
+                    lines = ext["lines"]
+                    if ext["shared"]:          # prose before it on that line
+                        li, off = ext["line"], ext["offset"]
+                        fn.add_realization(Realization(
+                            stream="mathpix_lines", start=lines[li][0],
+                            end=lines[li][0], role="surface",
+                            props={"offset": off,
+                                   "length": len(lines[li][1]) - off}))
+                    if ext["own"]:             # the lines it owns whole
+                        a, b = ext["own"]
+                        fn.add_realization(Realization(
+                            stream="mathpix_lines", start=lines[a][0],
+                            end=lines[b][0], role="surface"))
+                    elif not ext["shared"]:    # shares its line with the NEXT number
+                        li, off = ext["line"], ext["offset"]
+                        fn.add_realization(Realization(
+                            stream="mathpix_lines", start=lines[li][0],
+                            end=lines[li][0], role="surface",
+                            props={"offset": off,
+                                   "length": len(lines[li][1]) - off}))
+                add.append(fn)
+                n += 1
         new_parts.append(text[pos:])
         remaining = re.sub(r"\s+", " ", "".join(new_parts)).strip()
         if remaining:
@@ -98,6 +259,12 @@ def extract_footnote_paragraphs(doc) -> int:
         doc.add(fn)
     for pid in drop:
         doc.objects.pop(pid, None)
+    if orphan:
+        doc.meta["footnote_orphan_tail"] = \
+            int(doc.meta.get("footnote_orphan_tail") or 0) + orphan
+    if unlocated:
+        doc.meta["footnote_span_not_located"] = \
+            int(doc.meta.get("footnote_span_not_located") or 0) + unlocated
     return n
 
 
