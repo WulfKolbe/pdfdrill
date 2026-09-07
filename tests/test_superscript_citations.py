@@ -324,16 +324,58 @@ def test_the_bare_walk_never_asks_decide_to_re_derive_rule_a():
         f.decide("7", 4, look, rule_a="whatever")
 
 
+def _doc_marker_far_from_its_body(*, with_footnote: bool) -> Document:
+    """A paragraph on page 2 carrying `{ }^{3}`, and (optionally) the ONLY
+    Footnote with refnum 3 seven pages away on page 9. A page-scoped map would
+    not find it; the document-wide one does."""
+    doc = Document()
+    doc.meta["bibkey"] = "D"
+    mp = doc.ensure_stream("mathpix_lines")
+    line = "The code lengths\\({ }^{3}\\) are proportional."
+    body = mp.append(text=line, _page=2, _line_index=0, type="text")
+    par = DocObject(type="Paragraph", props={
+        "text": line, "page": 2, "flow_index": 0})
+    par.add_realization(Realization(stream="mathpix_lines",
+                                    start=body, end=body, role="surface"))
+    doc.add(par)
+    if with_footnote:
+        fnl = mp.append(text="\\footnotetext{Page nine body.}", _page=9,
+                        _line_index=1, type="footnote")
+        foot = DocObject(type="Footnote", props={
+            "refnum": "3", "anchor_marker": "{ }^{3}", "page": 9,
+            "content": "Page nine body.", "flow_index": 1})
+        foot.add_realization(Realization(stream="mathpix_lines",
+                                         start=fnl, end=fnl, role="surface"))
+        doc.add(foot)
+    return doc
+
+
+def _paragraph_tiddler_text(doc: Document) -> str:
+    import json
+    from docops.projectors.tiddlywiki import TiddlyWikiProjector
+    arr = json.loads(TiddlyWikiProjector(
+        OperatorConfig(op="projector",
+                       classname="TiddlyWikiProjector")).project(doc))
+    return next(t["text"] for t in arr if "paragraph" in (t.get("tags") or ""))
+
+
 def test_a_sup_marker_is_only_emitted_when_no_footnote_has_that_refnum():
     """THE CROSS-FILE INVARIANT `decide`'s BY_LOOKUP branch leans on: the
     tiddler projector emits `<sup>n</sup>` only where its DOCUMENT-WIDE
     `fn_by_refnum` has no Footnote with that refnum (644-a). If that map is ever
     scoped to a page, the `<sup>` lane starts resolving footnotes and
-    `latex._sup_page` becomes load-bearing (641-c) — this test fails first."""
-    from docops.projectors.tiddlywiki import TiddlyWikiProjector as TW
-    text = "See\\({ }^{3}\\) and also\\({ }^{4}\\)."
-    out = TW._substitute_footnotes(text, {"3": "D_FN0003"})
-    assert "{{D_FN0003||FN}}" in out, out
-    assert "<sup>4</sup>" in out, out
-    assert "<sup>3</sup>" not in out, out
-    assert "{ }^{" not in out, out
+    `latex._sup_page` becomes load-bearing (641-c).
+
+    Exercised through the REAL construction — `project()` builds the map — and
+    across a SEVEN-page gap, so a page-scoped map fails the first assertion
+    rather than quietly agreeing with a hand-built dict."""
+    with_body = _paragraph_tiddler_text(
+        _doc_marker_far_from_its_body(with_footnote=True))
+    assert "||FN}}" in with_body, with_body          # document-wide map found it
+    assert "<sup>3</sup>" not in with_body, with_body
+    assert "{ }^{" not in with_body, with_body
+
+    without = _paragraph_tiddler_text(
+        _doc_marker_far_from_its_body(with_footnote=False))
+    assert "<sup>3</sup>" in without, without        # no Footnote 3 anywhere
+    assert "||FN}}" not in without, without

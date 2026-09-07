@@ -195,6 +195,10 @@ def decide(refnum: str, page, look: MarkerLookups, *, rule_a: str,
          refnum on this page at all                     ->  cite
       c. else                                           ->  unresolved
 
+    THE PRICE OF RULE (b)'s SECOND CONDITION (641-d): on a page whose footnote
+    numbering happens to collide with a reference number it suppresses a genuine
+    citation superscript, which then stands instead of citing.
+
     RULE (b)'s SECOND CONDITION IS FIX ROUND 2's, and it is what 638-e costs: a
     body belongs to ONE marker, so a second `{ }^{7}` on a page whose only
     footnote 7 an earlier marker already took gets no body — but it is a
