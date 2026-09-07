@@ -6227,7 +6227,11 @@ def cmd_clean(pdf: Path) -> str:
     sp = heading_cleanup.repair_section_pages(doc)
     if fn or nh or mt or fm or sp:
         save_model(model_path, doc)
-    return (f"Cleaned: {fn} footnote(s) lifted into Footnote objects, {nh} leading "
+    ad = int(doc.meta.get("footnote_adopted") or 0)
+    return (f"Cleaned: {fn} footnote(s) lifted into Footnote objects"
+            + (f" ({ad} adopted by the Footnote that already held that body — "
+               f"637)" if (ad and fn) else "")
+            + f", {nh} leading "
             f"LaTeX sectioning command(s) stripped (title + kind/refnum), {mt} "
             f"paragraph(s) materialized with transclusion tokens ({{{{||FO}}}}/"
             f"{{{{||FN}}}}) so semantic/llmtext read transcluded text, {fm} "
@@ -10155,6 +10159,15 @@ def cmd_latex(pdf: Path, force: bool = False, compile: bool = False,
             f"{_fc['markers_ambiguous']} paired by order on the page); "
             f"{_fc['footnotes_marked']}/{_fc['footnotes']} bodies marked, "
             f"{_fc['footnotes_lacking_a_field']} lacking refnum/anchor_marker.")
+        # 637 — the maths a body already prints, folded into it instead of being
+        # emitted a second time as a standalone `$…$`. Printed for the same
+        # reason as the line above it: a count nothing prints is a count nobody
+        # reads (645).
+        if _fc.get("footnote_body_math_folded"):
+            lines.append(
+                f"    {_fc['footnote_body_math_folded']} inline Formula(s) "
+                f"inside a footnote body were folded into it (emitted once, in "
+                f"the \\footnotetext block, not again standalone).")
         # 641 — the OTHER thing a bare `{ }^{n}` can be. Printed beside the
         # footnote line because it is the same marker population: a superscript
         # citation and a footnote reference are identical maths, and only the
@@ -13889,7 +13902,8 @@ def _model_status_lines(sc: "Sidecar") -> list[str]:
 
 
 def _format_footnote_refusals(meta: dict) -> list[str]:
-    """636's two refusals, for `status` (pure). Silent when both are 0.
+    """636's two refusals and 637's adoptions, for `status` (pure). Silent
+    when all three are 0.
 
     `footnote_orphan_tail` — a footnote body that ran on past a number
     REPEATING one already emitted from the same block. A second object would
@@ -13904,14 +13918,24 @@ def _format_footnote_refusals(meta: dict) -> list[str]:
     645 named: a count nothing prints is a count nobody reads."""
     orphan = int((meta or {}).get("footnote_orphan_tail") or 0)
     unloc = int((meta or {}).get("footnote_span_not_located") or 0)
-    if not orphan and not unloc:
-        return []
-    bits = []
-    if orphan:
-        bits.append(f"{orphan} tail(s) kept on the body before a repeated number")
-    if unloc:
-        bits.append(f"{unloc} body(ies) with no locatable line")
-    return ["  footnote split refusals: " + "; ".join(bits)]
+    adopted = int((meta or {}).get("footnote_adopted") or 0)
+    out = []
+    if orphan or unloc:
+        bits = []
+        if orphan:
+            bits.append(
+                f"{orphan} tail(s) kept on the body before a repeated number")
+        if unloc:
+            bits.append(f"{unloc} body(ies) with no locatable line")
+        out.append("  footnote split refusals: " + "; ".join(bits))
+    # 637 — the cleanup filling a Footnote the processor had already built,
+    # instead of creating a second object for the same body. Printed here for
+    # the same reason as the refusals: it is a decision the model carries and
+    # nothing else says out loud.
+    if adopted:
+        out.append(f"  footnote bodies adopted by an existing Footnote: "
+                   f"{adopted} (one object per footnote, not two — 637)")
+    return out
 
 
 def _format_genre(genre: dict) -> list[str]:

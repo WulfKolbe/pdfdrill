@@ -446,6 +446,10 @@ def conserve(doc: Document) -> dict:
         "footnote_refusals": {
             "orphan_tail": int(doc.meta.get("footnote_orphan_tail") or 0),
             "span_not_located": int(doc.meta.get("footnote_span_not_located") or 0),
+            # 637 — not a refusal but the same kind of fact: how many bodies the
+            # cleanup filled into a Footnote that already existed rather than
+            # creating a second object for.
+            "adopted": int(doc.meta.get("footnote_adopted") or 0),
         },
     }
 
@@ -523,6 +527,10 @@ def format_report(res: dict, limit: int = _MAX_EXAMPLES) -> str:
                  f"tail_unassigned), span_not_located="
                  f"{ref.get('span_not_located', 0)} (a lifted footnote whose "
                  f"number is on no single line, keeping its paragraph's claim)")
+    if ref.get("adopted"):
+        L.append(f"footnote bodies adopted: {ref['adopted']} filled into a "
+                 f"Footnote that already held that body (one object per "
+                 f"footnote, not two — 637)")
     L.append(f"claims: {anch['claims']} covering, {anch['inline_skipped']} inline "
              f"(sub-anchor offset — does not claim its line); "
              f"container types not claiming: {', '.join(anch['containers_excluded'])}")

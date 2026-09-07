@@ -167,6 +167,13 @@ class LaTeXProjector(BaseProjector):
         self._citations = _cit.resolve(doc)
         self._doc_objects = doc.objects
         self._skip_ids = set(self._skip_ids) | set(self._footnotes.used)
+        # 637 — the maths a footnote body already prints. MathPix extracts the
+        # maths INSIDE a footnote body as its own Formula on the body's line, so
+        # the projection printed it inside the `\footnotetext{…}` AND again as a
+        # standalone `$…$` block. Only a Formula whose latex the body actually
+        # carries is folded; see `footnotes.body_math_ids` for why 'inside a
+        # body' alone would be loss.
+        self._skip_ids |= set(self._footnotes.body_math)
         # 640-a — the MATERIALISED lane. After `clean`, a paragraph's prose is
         # the TiddlyWiki projection, so its footnote markers and citations are
         # `{{<title>||FN}}` / `{{<title>||CIT}}` rather than raw LaTeX. Build
@@ -408,7 +415,11 @@ class LaTeXProjector(BaseProjector):
         argument is omitted rather than emitted empty (`\\footnotetext[]{}` is a
         LaTeX error). The body goes through `_prose`, not `_escape_text`: the
         latter escapes `_` inside maths too and turned `\\(F_{r}\\)` into
-        `\\(F\\_{r}\\)` — both of penev_A's 'Missing $ inserted' errors."""
+        `\\(F\\_{r}\\)` — both of penev_A's 'Missing $ inserted' errors.
+
+        637 — the body is `footnotes.body_text(fn)`: the CLEANED realization
+        when the object has one, else the `content` prop. ONE of them, never
+        both."""
         # fix round 2 — the body's citations go through the RESOLVER, like every
         # other block of prose. It was the last caller on the old number map,
         # and Citations do sit on footnote lines (8 penev_A / 5 penev_B), so the
@@ -422,7 +433,7 @@ class LaTeXProjector(BaseProjector):
         self._sup_page = fn.props.get("page")
         try:
             body = self._prose(
-                self._cite(fn, str(fn.props.get("content") or "")).strip())
+                self._cite(fn, _fn.body_text(fn)).strip())
         finally:
             self._in_footnote_body = was
             self._sup_page = was_page

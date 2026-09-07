@@ -135,6 +135,76 @@ def object_text(obj: DocObject) -> str:
     return ""
 
 
+def body_text(fn: DocObject) -> str:
+    r"""637 — the ONE body a Footnote projects: its CLEANED realization when it
+    has one, else the `content` prop. Never both, and never a concatenation.
+
+    `FootnoteProcessor` attaches a `cleaned` realization beside the surface one
+    and `heading_cleanup` now does the same, so this is a lookup on every
+    Footnote in a rebuilt document; the prop is the answer for a model built
+    before that, which is why the fallback is not defensive but a version
+    contract.
+    """
+    for r in fn.realizations:
+        if r.role != "cleaned":
+            continue
+        text = r.props.get("text")
+        if isinstance(text, str) and text.strip():
+            return text
+    return str(fn.props.get("content") or "")
+
+
+#: The types folded into a footnote body. A `Formula` is INLINE maths and is
+#: reprinted inside the body verbatim; an `Equation` carries a `\label` that
+#: `\ref` resolves against, so folding one away would break every
+#: cross-reference to it. The narrowing is stated, not assumed.
+BODY_MATH_TYPES = ("Formula",)
+
+
+def body_math_ids(doc: Document) -> set:
+    r"""The maths objects a Footnote body already prints, so the projector does
+    not ALSO emit them standalone.
+
+    MathPix extracts the maths of a footnote body as its own `Formula`, on the
+    body's own line. The body text carries the same maths verbatim, so the
+    projection printed it twice — the "third time, as standalone `$…$`
+    fragments" of the 637 report. 31 penev_A Formulas are that shape.
+
+    THE RULE IS 'INSIDE A BODY **AND** NAMED BY IT', never 'inside a body'.
+    penev_A's page-6 block has a `\footnotetext{` whose braces never balance, so
+    its Footnote's content is empty (636-a) while 15 Formulas sit on its lines:
+    skipping those would be pure loss with nothing to show it. The latex has to
+    appear in the body that would print it.
+    """
+    from docmodel import footnote_extent as _fx
+
+    bodies: list[tuple[set, str]] = []
+    for fn in doc.objects.values():
+        if fn.type != "Footnote":
+            continue
+        anchors = _fx.covered_anchors(doc, fn)
+        text = body_text(fn)
+        if anchors and text:
+            bodies.append((anchors, text))
+    if not bodies:
+        return set()
+    out: set = set()
+    for obj in doc.objects.values():
+        if obj.type not in BODY_MATH_TYPES:
+            continue
+        latex = str(obj.props.get("latex") or "").strip()
+        if not latex:
+            continue
+        anchors = _fx.covered_anchors(doc, obj, expand=False)
+        if not anchors:
+            continue
+        for body_anchors, text in bodies:
+            if anchors <= body_anchors and latex in text:
+                out.add(obj.id)
+                break
+    return out
+
+
 #: `decide(rule_a=…)`: WHO decided rule (a). The two callers mean different
 #: things by "no footnote id", and fix round 2 makes them say which.
 #: `BY_CALLER` — the caller ran rule (a) itself and `footnote_id` is its whole
@@ -291,6 +361,10 @@ class Resolution:
     #: the two lookups THE RULE reads — kept so the projector's `<sup>n</sup>`
     #: lane decides through the SAME `decide()` on the SAME document state.
     lookups: MarkerLookups = field(default_factory=MarkerLookups)
+    #: 637 — the maths objects a footnote body already prints. Resolved HERE so
+    #: the projector reads one answer and `cmd_latex` can print its size: a
+    #: count nothing prints is a count nobody reads (645).
+    body_math: set = field(default_factory=set)
 
     def marks_for(self, obj_id: str) -> list[Mark]:
         return self.marks.get(obj_id, [])
@@ -390,7 +464,11 @@ def resolve(doc: Document) -> Resolution:
         "sup_marker_cited": 0,
         "sup_marker_both": 0,
         "sup_marker_default": 0,
+        # 637 — inline Formulas folded into the footnote body that prints them.
+        "footnote_body_math_folded": 0,
     }
+    res.body_math = body_math_ids(doc)
+    res.counts["footnote_body_math_folded"] = len(res.body_math)
 
     footnotes = sorted(
         (o for o in doc.objects.values() if o.type == "Footnote"), key=_flow)

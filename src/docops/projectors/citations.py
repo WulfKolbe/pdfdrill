@@ -200,13 +200,32 @@ def resolve(doc: Document) -> CiteResolution:
     ordered = sorted((o for o in doc.objects.values()
                       if o.type in CITED_TEXT_TYPES), key=_flow)
     for obj in ordered:
-        surface = next((r for r in obj.realizations
-                        if r.stream == "mathpix_lines" and r.role == "surface"
-                        and r.start is not None), None)
-        if surface is None:
+        # EVERY surface realization, not the first. 637 gave a Footnote more
+        # than one: the object built off MathPix's `footnote` PARENT line now
+        # also carries the extent on the CHILD lines the cleanup located, and
+        # the citations are on the children. Reading only the first realization
+        # took the parent line alone and left 8 penev_A footnote-body citations
+        # as plain text — counted as `citations_outside_running_text`, which is
+        # how it was seen.
+        anchors: list = []
+        seen: set = set()
+        for r in obj.realizations:
+            if r.stream != "mathpix_lines" or r.role != "surface" \
+                    or r.start is None:
+                continue
+            end = r.end if r.end is not None else r.start
+            try:
+                span = stream.slice_anchors(r.start, end)
+            except KeyError:
+                continue
+            for a in span:
+                if a not in seen:
+                    seen.add(a)
+                    anchors.append(a)
+        if not anchors:
             continue
         subs: list[Sub] = []
-        for anchor in stream.slice_anchors(surface.start, surface.end):
+        for anchor in anchors:
             spans = spans_by_line.get(anchor)
             claimed = claimed_by_line.get(anchor, ())
             if not spans and not ref_map:

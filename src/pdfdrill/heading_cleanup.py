@@ -145,6 +145,78 @@ def _footnote_extents(doc, para, refnums: list[str], heads=(0,)):
     return out
 
 
+def _extent_realizations(ext):
+    """The footnote's OWN surface realizations for a located extent — the lines
+    it owns whole, plus an inline sub-anchor for a line it shares (636)."""
+    from docmodel.core import Realization
+    if ext is None:
+        return []
+    out = []
+    lines = ext["lines"]
+    li, off = ext["line"], ext["offset"]
+    if ext["shared"]:                          # prose before it on that line
+        out.append(Realization(
+            stream="mathpix_lines", start=lines[li][0], end=lines[li][0],
+            role="surface",
+            props={"offset": off, "length": len(lines[li][1]) - off}))
+    if ext["own"]:                             # the lines it owns whole
+        a, b = ext["own"]
+        out.append(Realization(
+            stream="mathpix_lines", start=lines[a][0], end=lines[b][0],
+            role="surface"))
+    elif not ext["shared"]:                    # shares its line with the NEXT number
+        out.append(Realization(
+            stream="mathpix_lines", start=lines[li][0], end=lines[li][0],
+            role="surface",
+            props={"offset": off, "length": len(lines[li][1]) - off}))
+    return out
+
+
+def _extent_anchors(ext) -> set:
+    """Every line the extent sits on — what `footnote_extent.adopt_target`
+    compares. Empty when the body was not located, which is what makes an
+    adoption on (page, refnum) alone impossible."""
+    if ext is None:
+        return set()
+    lines = ext["lines"]
+    out = {lines[ext["line"]][0]}
+    if ext["own"]:
+        a, b = ext["own"]
+        out |= {lines[j][0] for j in range(a, b + 1)}
+    return out
+
+
+def _fill_footnote(host, body: str, ext_rs) -> None:
+    r"""637 — the LATER creator ADOPTS an existing Footnote instead of building
+    a second one for the same body.
+
+    Three things happen and no more: the CLEANED body replaces the host's
+    content AND its `cleaned` realization (a fresh prop beside a stale
+    realization is the same "both reach the output" defect in another
+    spelling); the extent this pass located is added, so the lines the cleanup
+    claimed stay claimed by the same module (634's ledger reads the CALL, so
+    the attribution follows the fill); and `filled_by` records who did it.
+    """
+    from docmodel.core import Realization
+    host.props["content"] = body
+    host.props["filled_by"] = "footnote_cleanup"
+    seen = {(r.start, r.end, r.props.get("offset"), r.props.get("length"))
+            for r in host.realizations
+            if r.stream == "mathpix_lines" and r.role == "surface"}
+    for r in ext_rs:
+        key = (r.start, r.end, r.props.get("offset"), r.props.get("length"))
+        if key in seen:
+            continue
+        host.add_realization(r)
+        seen.add(key)
+    for r in host.realizations:
+        if r.role == "cleaned":
+            r.props["text"] = body
+            return
+    host.add_realization(Realization(stream="derived", role="cleaned",
+                                     props={"text": body}))
+
+
 def extract_footnote_paragraphs(doc) -> int:
     """Lift `\\footnotetext{...}` that MathPix left inside a Paragraph (a plain
     `text` line, so the FootnoteProcessor never saw it) into proper Footnote
@@ -161,9 +233,12 @@ def extract_footnote_paragraphs(doc) -> int:
     line inline instead of the paragraph's whole span."""
     from docmodel.core import DocObject
     from docmodel import footnote_split as fsplit
+    from docmodel import footnote_extent as _fx
     n = 0
     orphan = 0
     unlocated = 0
+    adopted = 0
+    taken: set[str] = set()
     drop: list[str] = []
     add: list[DocObject] = []
     for o in doc.objects.values():
@@ -226,37 +301,40 @@ def extract_footnote_paragraphs(doc) -> int:
                     props["split_index"] = i
                 if seg.tail_unassigned:
                     props["tail_unassigned"] = True
-                fn = DocObject(type="Footnote", props=props)
                 ext = extents[i] if i < len(extents) else None
-                for r in o.realizations:       # share provenance to the source
-                    if ext is not None and r.stream == "mathpix_lines" \
-                            and r.role == "surface":
-                        continue               # replaced by the footnote's own extent
-                    fn.add_realization(r)
                 if ext is None:
                     unlocated += 1
-                else:
-                    from docmodel.core import Realization
-                    lines = ext["lines"]
-                    if ext["shared"]:          # prose before it on that line
-                        li, off = ext["line"], ext["offset"]
-                        fn.add_realization(Realization(
-                            stream="mathpix_lines", start=lines[li][0],
-                            end=lines[li][0], role="surface",
-                            props={"offset": off,
-                                   "length": len(lines[li][1]) - off}))
-                    if ext["own"]:             # the lines it owns whole
-                        a, b = ext["own"]
-                        fn.add_realization(Realization(
-                            stream="mathpix_lines", start=lines[a][0],
-                            end=lines[b][0], role="surface"))
-                    elif not ext["shared"]:    # shares its line with the NEXT number
-                        li, off = ext["line"], ext["offset"]
-                        fn.add_realization(Realization(
-                            stream="mathpix_lines", start=lines[li][0],
-                            end=lines[li][0], role="surface",
-                            props={"offset": off,
-                                   "length": len(lines[li][1]) - off}))
+                ext_rs = _extent_realizations(ext)
+                # 637 — the SAME footnote may already be an object, built by
+                # `FootnoteProcessor` off MathPix's `footnote` PARENT line while
+                # this pass reads the Paragraph over its CHILD lines. Adopt it.
+                host = _fx.adopt_target(doc, o.props.get("page"), refnum,
+                                        _extent_anchors(ext), taken)
+                if host is not None:
+                    _fill_footnote(host, body, ext_rs)
+                    taken.add(host.id)
+                    adopted += 1
+                    n += 1
+                    continue
+                fn = DocObject(type="Footnote", props=props)
+                for r in o.realizations:       # share provenance to the source
+                    if r.stream == "mathpix_lines" and r.role == "surface" \
+                            and ext is not None:
+                        continue               # replaced by the footnote's own extent
+                    if r.role == "cleaned":
+                        # The paragraph's cleaned realization spans the WHOLE
+                        # paragraph and carries no text of its own; copied onto
+                        # a Footnote it names another object's extent. The
+                        # footnote gets its OWN, the shape FootnoteProcessor
+                        # already writes, so `footnotes.body_text` has one
+                        # answer for every Footnote in the document.
+                        continue
+                    fn.add_realization(r)
+                for r in ext_rs:
+                    fn.add_realization(r)
+                from docmodel.core import Realization as _R
+                fn.add_realization(_R(stream="derived", role="cleaned",
+                                      props={"text": body}))
                 add.append(fn)
                 n += 1
         new_parts.append(text[pos:])
@@ -275,6 +353,9 @@ def extract_footnote_paragraphs(doc) -> int:
     if unlocated:
         doc.meta["footnote_span_not_located"] = \
             int(doc.meta.get("footnote_span_not_located") or 0) + unlocated
+    if adopted:
+        doc.meta["footnote_adopted"] = \
+            int(doc.meta.get("footnote_adopted") or 0) + adopted
     return n
 
 

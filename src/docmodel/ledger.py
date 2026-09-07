@@ -83,6 +83,21 @@ LEDGER_STREAM = "mathpix_lines"
 #: would make a divergence look like a finding.
 CONTAINER_TYPES = ("Page",)
 
+#: 637 — A PASS WHOSE OWN NAME FOR ITSELF IS NOT ITS MODULE FILE.
+#: The module is normally read off `added_by` (the pass's own name, on the
+#: object) and only falls back to the recording SITE. That works while every
+#: claim a pass makes lands on an object it CREATED. 637 broke the assumption:
+#: `heading_cleanup.extract_footnote_paragraphs` now FILLS a Footnote that
+#: `FootnoteProcessor` built, so the claim's object carries `added_by:
+#: "footnote"` — or none at all — and the site is the only witness. Without
+#: this map the same 35 anchors would be reported as `heading_cleanup+paragraph`
+#: where out/634.txt reports `footnote_cleanup+paragraph`: a rename that reads
+#: as a finding. The map is the pass's own `added_by` value, written down.
+SITE_MODULE = {
+    "heading_cleanup.extract_footnote_paragraphs": "footnote_cleanup",
+    "heading_cleanup._fill_footnote": "footnote_cleanup",
+}
+
 #: Beyond this many recorded objects the recorder stops and says so, rather
 #: than growing without bound in a process that builds a whole corpus. A
 #: truncated ledger that announces itself is recoverable; one that quietly
@@ -228,7 +243,8 @@ def materialize(doc: Any, stream: str = LEDGER_STREAM) -> dict | None:
                 any_recorded = True
                 attribution.setdefault(obj.id, {})[key] = site
             added = obj.props.get("added_by")
-            module = added or (site.split(".", 1)[0] if site else None) \
+            module = added or SITE_MODULE.get(site or "") \
+                or (site.split(".", 1)[0] if site else None) \
                 or "unattributed"
 
             kind = _kind(obj, r)

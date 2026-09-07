@@ -1,0 +1,409 @@
+637 — one \footnotetext per Footnote object, not two
+====================================================
+
+THE USER'S REPORT, CHECKED FIRST (rule 14: measured before anything changed)
+  "penev_A.tex emits 54 blocks for 53 objects"          TRUE OF ITS DAY, and
+    re-measured after 636 landed it is 96 BLOCKS FOR 93 OBJECTS. Same defect,
+    grown with the population 636 recovered.
+
+  "23 openings appear twice"                            42 DO, on this tree.
+    42 first-60-character openings each appear in exactly two `\footnotetext`
+    blocks — 84 of the 96 blocks. In the MODEL, 45 (page, refnum) pairs hold
+    TWO Footnote objects and 43 of those pairs share their first 60
+    characters; the .tex says 42 because a body goes through `_prose` on the
+    way out and one pair's citation resolves differently in the two copies.
+
+  "once dehyphenated, once not"                         THE MECHANISM IS REAL
+    AND THE SYMPTOM IS NOT HYPHENS HERE. The cleanup's Footnote inherits the
+    PARAGRAPH's `cleaned` realization — stream `dehyphenated_para_NNNN`, the
+    Dehyphenation processor's — while the processor's Footnote carries its own
+    `derived`/`cleaned` one. So one body has been through the paragraph text
+    pipeline and one has not, exactly as reported. On penev_A that pipeline
+    applied ZERO joins (`dehyphenate_joins` is 0 on all 245 paragraphs, and
+    the two bodies of all 45 pairs contain the same number of hyphens), so
+    what the difference actually looks like here is:
+        26 of 45 pairs   byte-identical
+        19 of 45 pairs   differ, of which
+            15  the cleanup body has a DOUBLED SPACE the processor's has not
+                (the paragraph joins its lines with a space; the processor
+                concatenates the block's child lines)
+             2  the processor body keeps a glued printed number
+                (`\({ }^{13}(\Phi\hat x,…\)`) the cleanup strips
+             1  the cleanup body splits a word MathPix broke across lines
+                ("exam ples")
+    Said plainly rather than repeated: on THIS document the difference is
+    whitespace and a printed number, not hyphenation.
+
+  "Both the surface and the cleaned realization are reaching the output"
+                                        NOT AS TWO REALIZATIONS ON ONE OBJECT.
+    THE BRIEF ASKED FOR THIS TO BE MEASURED BEFORE CHOOSING A RULING, AND IT
+    WAS. Every one of the 93 Footnotes carries exactly ONE `surface` and ONE
+    `cleaned` realization (`{cleaned+surface: 93}`), and the LaTeX projector
+    reads a body TEXT (`props["content"]`) — never a realization — so a second
+    realization on one object could not reach the .tex at all. The duplication
+    is TWO OBJECTS, one per creator, and the OBJECT ruling is the one that
+    applies. The realization half is still real and is closed too: `body_text`
+    now defines the ONE body a Footnote projects, and the cleanup no longer
+    copies the paragraph's `cleaned` realization onto a Footnote.
+
+  "the maths inside them is then emitted a third time as standalone $...$"
+                                                        TRUE — 31 FRAGMENTS.
+    MathPix extracts the maths of a footnote body as its own Formula, on the
+    body's own line; the body prints it and `flow_ordered_content` prints it
+    again as a standalone `$…$` block.
+
+THE SHAPE, READ OFF THE DATA
+  MathPix hangs a page's footnote text off a `footnote` PARENT line as CHILD
+  `text` lines. `FootnoteProcessor` reads the parent. `ParagraphProcessor`
+  builds a Paragraph over the children, and
+  `heading_cleanup.extract_footnote_paragraphs` reads the `\footnotetext{…}`
+  MathPix left in THAT. So the two objects for one footnote NEVER SHARE A
+  LINE — which is why 636 could report `Footnote+Footnote = 0` while the page
+  foot printed everything twice, and why plain extent overlap identifies only
+  20 of the 45 pairs. Expanding a `footnote` line to its own children
+  identifies ALL 45 and joins nothing else: the 3 footnotes with one object
+  stay single.
+
+THE RULE — EXACT, ALL THREE CONDITIONS (src/docmodel/footnote_extent.py)
+  A Footnote already in the document IS this footnote when
+      (1) `page` is equal, AND
+      (2) `refnum` is equal and non-empty, AND
+      (3) its extent overlaps this body's extent once a `footnote` line has
+          been grown to its own children.
+  `refnum` alone is not a key (16 penev_A refnums name more than one
+  Footnote — 638); `(page, refnum)` alone is not either (644's within-page
+  collision). Where the body's lines were NOT located the extent is empty and
+  NOTHING IS ADOPTED — an adoption on (page, refnum) alone would be a guess,
+  and 638 refuses the same guess for a marker. The expansion is applied ONLY
+  to a line MathPix typed `footnote`: growing a prose line to its children
+  would let a paragraph swallow whatever MathPix hung off it.
+
+WHAT ADOPTION DOES, AND WHAT IT DOES NOT
+  The cleanup fills the existing Footnote and creates no second object:
+    * `content` AND the `cleaned` realization both take the cleaned body — a
+      fresh prop beside a stale realization is the "both reach the output"
+      defect in another spelling;
+    * the extent this pass located is ADDED, so the lines the cleanup claimed
+      stay claimed (dropping them would report lines as covered by nobody
+      while their text sits in a Footnote — the 193-false-unclaimed trade 636
+      already refused);
+    * `filled_by: "footnote_cleanup"` records who filled it.
+  The host keeps its ID (every marker and transclusion pointing at it
+  survives) and its own flow position — it is anchored on MathPix's footnote
+  line, which is where the footnote is.
+
+  WHICH BODY WINS IS THE RULING'S, NOT A PREFERENCE: the CLEANED one. It is
+  measurably better on the two things that matter to the projection — its
+  citations resolve (`\cite{Deco1996}` rather than the literal "(Deco and
+  Obradovic 1996)") and it names more of its own maths (29 of the folded
+  Formulas against 23 for the surface body) — and measurably worse on
+  whitespace (15 doubled spaces, one split word). Both halves are above.
+
+THE THIRD COPY — THE MATHS (src/docops/projectors/footnotes.body_math_ids)
+  A Formula whose lines lie ENTIRELY inside a Footnote's extent AND whose
+  latex the body actually carries is folded into the body: emitted once,
+  inside the `\footnotetext`, never again standalone.
+  'INSIDE A BODY **AND** NAMED BY IT', never 'inside a body'. penev_A's
+  page-6 block has a `\footnotetext{` whose braces never balance, so its
+  Footnote's content is "" (636-a) while 15 Formulas sit on its lines:
+  skipping those would be pure loss with nothing to show it. They are left,
+  and the difference is the whole reason the rule has two clauses.
+  ONLY `Formula` — not `Equation`. An Equation carries a `\label` that `\ref`
+  resolves against, and folding one away would break every cross-reference to
+  it. Stated in `BODY_MATH_TYPES`, not assumed.
+
+THE NUMBERS — penev_A, LIKE FOR LIKE
+  CONTROL is a FULL REBUILD OF THIS TREE WITH 637 STASHED (`git stash push --
+  src/`, then `model --force` + all 22 steps of `tools/drill_full_sandbox.sh`
+  + `latex --force --compile`), not the model that was on disk. It reproduces
+  out/636.txt and out/634.txt exactly — 1448 objects, 93 Footnotes, unclaimed
+  243, doubly-claimed 42 with Footnote+Paragraph 35, ledger 243/2893/42,
+  \footnotemark 107 — which is what makes every delta below 637's.
+
+                                          CONTROL           AFTER
+    objects                                 1448             1403
+    Footnote objects                          93               48   <- ask
+      from FootnoteProcessor                  48               48
+      from heading_cleanup                    45                0
+      filled by the cleanup                    0               45
+    (page, refnum) pairs with 2 objects        45                0
+    realization roles         {cleaned+surface: 93}  {cleaned+surface+
+                                                      surface: 45,
+                                                     cleaned+surface: 3}
+    ------------------------------------------------------------------
+    latex/penev_A.tex
+      \footnotetext blocks                      96               51
+        of them numbered `[n]`                  93               48   <- ask
+        bare, from paragraph prose               3                3
+      OPENINGS (first 60 ch) REPEATING          42                0   <- ask
+        blocks in a repeated opening            84                0
+      \footnotemark / \footnotemark[n]     107 / 107        107 / 107  <- ask
+      any `{ }^{n}`                             52               50
+      words                                  36098            32956
+      citations: keys / groups / outside     83/71/0          83/71/0
+      transclusions   72 CIT 81 FN 1051 FO 188 FREF 26 SUP — IDENTICAL
+      inline Formulas folded into a body          -               29
+    compile (xelatex, 2 passes)      97 pp, 0 "! "     91 pp, 0 "! "
+    ------------------------------------------------------------------
+    conserve (pdfdrill conserve penev_A)
+      unclaimed anchors                        243              243
+      doubly-claimed anchors                    42               42
+        Footnote+Paragraph                      35               35
+        Footnote+ListItem                        1                1
+        Footnote+Footnote                        0                0
+      >1 with a Footnote among the claimants    36               36   <- ask
+      unreachable objects                      295              250
+    ------------------------------------------------------------------
+    claim ledger (pdfdrill model --ledger penev_A)
+      claimed 0 / 1 / >1              243/2893/42      243/2893/42
+      block / inline claims             2977/1426        2977/1426
+      >1 with a FOOTNOTE CREATOR                36               36   <- ask
+        footnote_cleanup+paragraph              35               35
+        footnote_cleanup+list_items              1                1
+      footnote_cleanup / footnote block claims  229/28          229/28
+      SAME 0-CLAIM LINES / SAME >1 LINES        YES              YES
+
+  THE LEDGER'S FIRST REAL TEST, AND ITS ANSWER. The >1 count for the footnote
+  anchors DOES NOT MOVE, and that is the finding, not a disappointment: the
+  duplication was never a double CLAIM. The processor claims the parent
+  `footnote` line; the cleanup claims the children. 45 objects vanished and
+  not one anchor changed hands — the two instruments agree on that anchor by
+  anchor (SAME 0-CLAIM LINES, SAME >1 LINES, compared by MathPix line id and
+  not by anchor id, which is minted fresh on every build). What 646's
+  `Footnote+Footnote = 0` was already saying, the ledger now says with the
+  module names beside it.
+
+  EVERY NUMBER THAT MOVED, ACCOUNTED FOR (rule 12)
+    93 -> 48 is -45, the 45 adopted duplicates. No footnote lost a body: 45
+      of 45 duplicated pairs were adopted and the 3 single ones were left
+      alone.
+    96 -> 51 blocks is the same -45. THE NUMBERED BLOCKS ARE NOW EQUAL TO THE
+      OBJECT COUNT (48 = 48). The 3 that remain are NOT emitted from a
+      Footnote object: they are raw `\footnotetext{` groups MathPix left in
+      three page-6 Paragraphs, printed as prose. That is 636-a and it is
+      637-a below.
+    42 -> 0 repeated openings is the task.
+    unreachable 295 -> 250 is the same -45 (a duplicate body no marker took
+      was unreachable; it is now one body, still unreachable — 636-c).
+    52 -> 50 `{ }^{n}`: the two are footnotes 13 and 21, whose PROCESSOR body
+      kept its own printed number glued inside a maths span (636's stated
+      non-cut). The cleaned body has it stripped, so the number no longer
+      prints twice at the head of its own footnote.
+    36098 -> 32956 words is the duplicated bodies and the 29 folded formulas.
+    97 -> 91 pages, 0 errors either way, for the same reason.
+    conserve and the ledger do not move at all — see above.
+    citations and transclusions are IDENTICAL, which was not free: see
+    THE ONE REGRESSION.
+
+THE NUMBERS — Steerable (…RieszTransform)
+  636 said "one footnote per page is the shape the old code got right". The
+  DUPLICATION was there too, on its single footnote:
+    Footnote objects 2 -> 1 (1 processor + 1 cleanup -> 1 filled), objects
+    1048 -> 1047, `\footnotetext[n]` 2 -> 1, repeated openings 1 -> 0,
+    4 inline Formulas folded, unclaimed 132 -> 132, doubly-claimed 136 -> 136
+    (no Footnote in any pair, before or after), unreachable 292 -> 291,
+    ledger 132/1169/136 unchanged with the same module pairs and the SAME
+    0-claim and >1 line sets, compile 41 pp with the one pre-existing
+    `\bibitem{Unser2008}` error (640-f), before and after.
+  Its 14-line diff is the whole task in one place: two identical
+  `\footnotetext[1]{A monogenic function…}` blocks — one citing "[20] and
+  [21]" literally, one with `\cite{Brackx1982}` and `\cite{Grlebeck2007}` —
+  plus `$f: \mathbb{C} \rightarrow \mathbb{C}$`, `$f(z+h)-f(z)=$`,
+  `$h A(z)+o(|h|)$` and `$A(z)$` standing alone under them, become ONE block
+  with the citations resolved and the four fragments inside it.
+
+WHAT THE RASTERISED PAGE SHOWS (Ghostscript, 400 dpi, read)
+  penev_A page 8 of the projected LaTeX, the same page foot, both builds
+  compiled the same way:
+    CONTROL  FOUR entries under the rule, the pair printed TWICE —
+             "³For a recent review of all these techniques see (Deco and
+              Obradovic 1996)."
+             "⁴PCA has also been utilized, albeit implicitly, … first step."
+             "³For a recent review of all these techniques see [16]."
+             "⁴PCA has also been utilized, albeit implicitly, … first step."
+    AFTER    TWO entries, each once —
+             "³For a recent review of all these techniques see [16]."
+             "⁴PCA has also been utilized, albeit implicitly, in the
+              redundancy-reducing factorial codes described in Section 4.2,
+              where it can be identified as their first step."
+  This is 636's own page-8 image, whose caption ended "that is 646-b, the
+  duplicate Footnote population, and it is 637's job. It is left visible in
+  the evidence rather than cropped out of it." It is closed.
+
+THE ONE REGRESSION, FOUND BY MEASURING AND CLOSED IN THE SAME TASK
+  The first projection after the adoption read
+      "citations: 73 key(s) in 62 \cite group(s) … 8 on a line no emitted
+       block covers … 0 of the groups are in a footnote body"
+  against the control's 83 / 71 / 0 / 9. `citations.resolve` took the FIRST
+  `mathpix_lines` surface realization of each object. Before 637 a Footnote
+  had one; now it has two — the parent `footnote` line and the extent on the
+  child lines — and the citations are on the CHILDREN. Reading only the first
+  realization left 8 footnote-body citations as plain text, counted (645's
+  own counter is what showed it) rather than silent. `resolve` now walks
+  EVERY surface realization, deduplicated and in order, and the four numbers
+  are identical to the control. Pinned by
+  `test_a_citation_on_the_second_realization_of_a_footnote_still_resolves`,
+  confirmed failing against the old code.
+
+THE LEDGER'S VOCABULARY, KEPT (src/docmodel/ledger.SITE_MODULE)
+  634 reads a claim's module off the object's `added_by`, falling back to the
+  recording SITE. That works while every claim a pass makes lands on an object
+  it CREATED. 637 is the first task where it does not: the fill lands on a
+  Footnote the PROCESSOR built, so `added_by` cannot speak for it and the site
+  says `heading_cleanup`. Measured: out/634.txt's 35 `footnote_cleanup+
+  paragraph` anchors silently became 35 `heading_cleanup+paragraph`, and the
+  229 `footnote_cleanup` block claims became 229 `heading_cleanup` — a RENAME
+  THAT READS AS A FINDING, on anchors that had not moved at all. `SITE_MODULE`
+  maps the two sites of that pass to the name the pass gives itself in
+  `added_by`, so the ledger says the same thing before and after. Pinned by
+  `test_the_ledger_still_names_the_pass_footnote_cleanup_after_an_adoption`.
+
+WHAT WAS BUILT
+  src/docmodel/footnote_extent.py   NEW. `covered_anchors(doc, obj, expand)`
+      and `adopt_target(doc, page, refnum, want, exclude)` — the rule above,
+      and the measurement that decided it, in the module docstring. Both
+      creators' vocabulary in ONE place; `heading_cleanup` and the LaTeX
+      projector are its two readers.
+  src/pdfdrill/heading_cleanup.py   `_extent_realizations` / `_extent_anchors`
+      (the extent, lifted out of the creation loop so the adoption can use the
+      same one) and `_fill_footnote`. `extract_footnote_paragraphs` looks for
+      a host before it builds; `taken` keeps one host from being filled twice
+      by a paragraph carrying two groups. A Footnote it DOES create now gets
+      its own `derived`/`cleaned` realization instead of copying the
+      paragraph's `dehyphenated_para_NNNN` one, which spans the whole
+      paragraph and carries no text.
+  src/docops/projectors/footnotes.py  `body_text(fn)` — the ONE body a
+      Footnote projects; `body_math_ids(doc)` + `BODY_MATH_TYPES`; both on
+      `Resolution` (`body_math`, `footnote_body_math_folded`) so the projector
+      reads one answer and `cmd_latex` can print its size.
+  src/docops/projectors/latex.py   `_footnotetext` goes through `body_text`;
+      `_prepare` adds `body_math` to `_skip_ids`, beside the two skips that
+      were already there.
+  src/docops/projectors/citations.py  every surface realization, not the
+      first — THE ONE REGRESSION above.
+  src/docmodel/ledger.py  `SITE_MODULE` — THE LEDGER'S VOCABULARY above.
+  src/pdfdrill/commands.py  `cmd_clean` names the adoptions;
+      `_format_footnote_refusals` prints "footnote bodies adopted by an
+      existing Footnote: 45" in `status`.
+  src/docops/conserve.py  the same count in the conservation report.
+      A count nothing prints is a count nobody reads (645).
+
+TESTS (TDD; the first run failed at import — the module did not exist)
+  tests/test_footnote_dedup.py, 19 tests:
+    the relation: a `footnote` line covers its own children, a prose line is
+      never grown by the rule;
+    the adoption: one object not two, the SAME object id, `footnote_adopted`
+      counted; the body is the CLEANED one and reaches both the prop and the
+      realization; `filled_by` recorded; the claim on the child lines kept;
+      another page, another number, and a non-overlapping extent are each
+      NEVER adopted; a body with no locatable extent is created, not adopted,
+      and the host is left untouched; still idempotent;
+    the body: `body_text` prefers the cleaned realization, never both, and
+      falls back to the prop (including when a cleaned realization carries no
+      text);
+    the projection: ONE `\footnotetext` per object; a Formula inside a body
+      appears once, inside the block; a Formula the body does NOT name is
+      still emitted (the 636-a empty-body class); an Equation is left alone;
+    the regression: a citation on the SECOND realization still resolves;
+    the ledger still names the pass `footnote_cleanup` after an adoption.
+  11 of the 19 were confirmed failing against the tree with `src/` stashed,
+  and the two regression tests against their own fix alone (rule 11).
+
+  FULL SUITE: PYTHONDONTWRITEBYTECODE=1 PYTHONPATH=src python3 -m pytest
+  tests/ -q -p no:cacheprovider  ->  3303 passed, 0 failed
+  (3284 before this task; 19 new.)
+
+EVIDENCE (library, deny-by-default git; never committed to this repo)
+  ~/pdfdrill-library/penev_A/out/637/
+      script.py                 the census, runnable from here or the repo
+      capture.py                the capture, which NAMES the PDF and never globs
+      result.control.json / result.after.json     every number above
+      model.control.docmodel.json / model.after.docmodel.json
+      control/model.docmodel.json                 (so the census can be re-run)
+      penev_A.control.tex / penev_A.after.tex / penev_A.after.log
+      control-build/            the control .tex compiled the same way, 97 pp
+      drill_control.txt / drill_after.txt    22/22 steps rc 0, MathPix CACHED
+      latex_control.txt / latex_after.txt
+      conserve.after.txt        `pdfdrill conserve penev_A`
+      model-ledger.after.txt    `pdfdrill model --ledger penev_A`
+      conserve.before.txt / model-ledger.before.txt / result.before.json
+                                the model as 634 left it on disk, before any
+                                rebuild — the same numbers as the control
+      page8.png / page8-before.png / crop-page8-foot{,-before}.png   read, above
+      INSPECT.txt               one absolute path per line, each checked to
+                                exist, to be non-empty, and (the two command
+                                captures) to NAME this document on line one
+      INSPECT-NOTES.txt         the same list with the reasons
+  ~/pdfdrill-library/SteerableWaveletFramesBasedontheRieszTransform/out/637/
+      the same set, without the page images.
+
+  In this repo: out/637/script.py and out/637/capture.py.
+
+  COMMANDS THAT RAN, per document, in this order (never `mathpix --force`):
+      pdfdrill model <pdf> --force
+      bash tools/drill_full_sandbox.sh <pdf>     (22/22 steps rc 0, 647b's
+          order; the step table says "mathpix (cached — no re-upload)")
+      pdfdrill latex <pdf> --force --compile
+  once with `git stash push -- src/` for the control and once with it
+  restored. NOTHING WAS RE-PURCHASED.
+
+WHAT IS OPEN
+  637-a  THE THREE BARE `\footnotetext{` BLOCKS. penev_A's .tex still emits 3
+         `\footnotetext{…}` groups that come from no Footnote object: MathPix
+         left them in three page-6 Paragraphs and `extract_footnote_paragraphs`
+         could not lift them, so they print as prose — and the bodies they
+         hold (footnotes 9, 10, 13, 14) ARE ALSO Footnote objects, so that
+         text is on the page twice. This is the SURFACE reaching the output in
+         its most literal form and it is the residue of 636-a. Measured here:
+         `_balanced` returns -1 on the paragraph's text at extraction time,
+         but on TODAY'S text — after `materialize_transclusions` replaced the
+         maths with `{{…||FO}}` tokens — two of the three balance and a second
+         `extract_footnote_paragraphs` lifts them. `cmd_clean` extracts BEFORE
+         it materialises, so it never sees that. Re-running the pass after
+         materialisation is NOT the fix: `split_bodies` finds no `\({ }^{n}\)`
+         labels in materialised text, so it would produce unnumbered bodies
+         duplicating the numbered ones. The real fix is a brace counter that
+         survives the maths, and it needs its own before/after.
+  637-b  The cleaned body is the projection's body, and on 15 of penev_A's 45
+         footnotes it carries a doubled space and on one a word MathPix split
+         across lines ("exam ples"). LaTeX collapses the spaces; the split
+         word it does not. That is the paragraph text pipeline's defect, not
+         the footnote's, and it is visible in every Paragraph too — the same
+         "impair ments", "re dundancy" the page-8 image shows in running
+         prose.
+  637-c  `SITE_MODULE` holds two entries and is a PROMISE ABOUT A NAME: a pass
+         whose `added_by` differs from its module file must be in it, or the
+         ledger renames its claims the first time one of them lands on another
+         module's object. The alternative — attributing every claim by SITE
+         and dropping `added_by` — would move 634's whole table and was not
+         made here.
+  637-d  A model's proof is verified against the recorded input paths, and
+         `pdfdrill model --ledger` REFUSED a perfectly fresh model when run
+         with the repo as the working directory and answered normally from the
+         document's folder. The evidence capture is run from the document
+         folder for that reason. Nothing was diagnosed beyond reproducing it;
+         it is a staleness verdict that depends on cwd, which is worth one
+         task of its own.
+  637-e  The 3 remaining single Footnotes and the 45 filled ones all keep the
+         PROCESSOR's flow position (its anchor is MathPix's footnote line).
+         The cleanup's `flow_index` is discarded on adoption. No penev_A
+         footnote moved visibly, but nothing pins that the two orderings
+         agree.
+
+CONCERNS
+  The ruling names the cleaned body and the cleaned body is not uniformly
+  better. It resolves its citations and names more of its own maths; it also
+  carries the paragraph pipeline's whitespace damage. Both halves are
+  measured above rather than one of them being quietly preferred.
+  `body_math_ids` compares a Formula's `latex` to the body text as a
+  SUBSTRING. That is exact for the 29 it folds and it is why the 15 formulas
+  of the empty-body block are left; it would miss a body whose maths the
+  paragraph pipeline had reflowed, and such a formula is emitted standalone —
+  the safe direction, and not counted separately.
+  `footnote_adopted` accumulates in `doc.meta` across runs, like
+  `footnote_orphan_tail`. `cmd_clean` prints it only when that run lifted
+  something; `status` and `conserve` print the total, which is the model's
+  total and not the run's.
+  Both documents' models were rebuilt FOUR times between them, always from
+  CACHED MathPix output. No extraction was re-purchased and `mathpix --force`
+  was never run.
