@@ -658,6 +658,16 @@ def latex_sectioning_to_wikitext(text: str) -> str:
 
 # Footnote anchor patterns (MathPix produces variations like \({ }^{1}\) or { }^{1}).
 _FN_REF_RE = re.compile(r"\\\(\s*\{\s*\}\s*\^\s*\{\s*(\d+)\s*\}\s*\\\)|\{\s*\}\s*\^\s*\{\s*(\d+)\s*\}")
+
+#: 640 fix round 1 — a mathpix line type NO Paragraph is ever built from
+#: (`ParagraphProcessor._BREAK_TYPES` stops a paragraph at every one), so a
+#: Citation anchored here is never a Paragraph's OWN line. See
+#: `_build_inline_subs` for why a substitution recorded on one is refused
+#: rather than merely unused. Kept in sync by hand with
+#: `pdfdrill.bibliography._CAPTION_CELL_TYPES`, the set 640 taught
+#: `detect_numeric_citations` to scan — this is the other side of that fix.
+_NON_PROSE_LINE_TYPES = ("simple_cell", "complex_cell", "table_spanning_cell",
+                         "table_split_cell", "diagram")
 _INCLUDEGRAPHICS_RE = re.compile(r"\\includegraphics(?:\[[^\]]*\])?\{([^}]+)\}")
 _MD_IMG_RE = re.compile(r"!\[[^\]]*\]\((https?://[^\s)]+)\)")
 _CDN_URL_RE = re.compile(r"https?://cdn\.mathpix\.com/cropped/[^\s)\]\}\"<>]+")
@@ -878,25 +888,53 @@ class TiddlyWikiProjector(BaseProjector):
         # one `{{REF||CIT}}` per distinct key in source order, and everything
         # between them kept verbatim — see `_citation_groups`.
         cit_spans: dict = defaultdict(list)
+        mp_stream = doc.streams.get("mathpix_lines")
         for c in inv["citations"]:
             ck = (c.props.get("citekey") or "").strip()
             ct = cit_title_by_key.get(ck)
             if not ct:
                 continue
             placed = False
+            blocked = False
             for r in c.realizations:
                 if (r.stream == "mathpix_lines" and r.role == "surface"
                         and r.start is not None):
                     off = r.props.get("offset")
                     ln = r.props.get("length")
                     if isinstance(off, int) and isinstance(ln, int):
+                        # 640 fix round 1 — a citation anchored on a line
+                        # whose OWN type is a table cell or a figure caption
+                        # (`bibliography.detect_numeric_citations` scans
+                        # these too, 640) is never placed here. TW has no
+                        # mechanism that consumes a substitution recorded on
+                        # one — a Table's `raw_text` and a Picture/Diagram's
+                        # `caption` are copied RAW, unlike LaTeX's `_cite` —
+                        # so the only way it could ever be APPLIED is by
+                        # riding along inside `_transclude_paragraph`'s
+                        # `slice_anchors(start, end)` sweep of an unrelated,
+                        # wider Paragraph span (the 646 doubly-claimed-anchor
+                        # shape): a citation on a `simple_cell` line spliced
+                        # into a Paragraph whose realization happens to
+                        # include that anchor. Recording it here is pure risk
+                        # with no payoff.
+                        payload = (mp_stream.payload.get(r.start, {})
+                                  if mp_stream else {})
+                        if payload.get("type") in _NON_PROSE_LINE_TYPES:
+                            blocked = True
+                            continue
                         cit_spans[r.start].append((off, ln, ct))
                         placed = True
             if not placed:
-                # Rule 5 — a Citation with no sub-anchor span cannot be put
-                # back into the prose and a position is never invented for it.
-                # It is COUNTED so a document where this happens says so.
-                self.bump("citations_without_a_span")
+                if blocked:
+                    # Counted exactly like the LaTeX projector's
+                    # `citations_outside_running_text`: a real span exists,
+                    # but on a line no emitted block legitimately owns.
+                    self.bump("citations_outside_running_text")
+                else:
+                    # Rule 5 — a Citation with no sub-anchor span cannot be put
+                    # back into the prose and a position is never invented for it.
+                    # It is COUNTED so a document where this happens says so.
+                    self.bump("citations_without_a_span")
 
         for anchor, spans in cit_spans.items():
             for off, length, repl, n_keys in self._citation_groups(

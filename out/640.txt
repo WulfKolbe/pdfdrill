@@ -272,23 +272,137 @@ CONCERNS
   detector; Steerable is IEEE-numeric (0 author-year citations), so neither
   applies here and neither was touched.
 
+FIX ROUND 1 (coordinator review — three findings, all ruled real)
+
+  1. CRITICAL — the widened `_NUMCITE` locant tail was too permissive.
+     `(?:,\s*[^\]\d][^\]]*)?`: `\s*` can match ZERO characters, so the SPACE
+     right after the comma itself satisfied `[^\]\d]` (a non-digit,
+     non-bracket character), and the trailing `[^\]]*` then swallowed
+     everything up to the closing bracket — digits, commas, SEMICOLONS
+     included. `[1, 2; 3, 4]` (a matrix) matched WHOLE and `_numlist_spans`
+     minted four Citations from it — reachable on exactly the table-cell
+     lines this task added scanning to (a matrix in a table cell is a
+     realistic shape this corpus does not happen to have, but the NEXT
+     document could). FIX: the tail must START with a recognisable LOCANT
+     WORD right after the comma, built from what actually occurs on both
+     documents (measured: every locant on Steerable is `Ch.` — `, Ch. III`,
+     `, Ch. III.1`, `, Ch. II.5`; penev_A has none) plus the obvious
+     siblings a numbered reference's own text uses the same way: `Ch.`,
+     `Chap(ter)?`, `Sec.`, `Sect(ion)?`, `§`, `p.`, `pp.`, `Thm.`,
+     `Theorem`, `Lemma`, `Prop.`, `Eq.`, `Fig.`, `Table`, `App(endix)?`.
+     Tests: `[1, 2; 3, 4]` -> 0 Citations; `[0, 1]` -> governed by the
+     PRE-EXISTING per-number range filter unchanged (0 is never accepted,
+     `1` is, regardless of the locant change — same rule
+     `test_numeric_citation_detection_and_linking` already pins for `[0,9]`);
+     `[24, Ch. III.1]` -> one Citation 24, locant kept verbatim in the prose.
+
+  2. IMPORTANT — `_numeric_source_in_context`'s `j == 0` branch accepted a
+     bare digit at the very START of an object's own text (or after only
+     whitespace) unconditionally, contradicting its own docstring ("the
+     bracket that opens it"): a Footnote or caption whose OWN text happens
+     to start with a coincidental number ("1970 was the year...") reopened
+     THIS TASK'S OWN CORRUPTION at position 0 instead of mid-text. FIX:
+     position 0 is accepted only when the RECORDED SOURCE ITSELF begins
+     with `[` — true for `_numeric_fallback`'s bracket-inclusive sources
+     (`"[12]"`, where there is nothing before the match to check because the
+     bracket IS the match), never true for a bare-digit source (`"1"`),
+     which now keeps searching forward exactly like any other coincidental
+     match. Tests: a bare digit opening the text is skipped in favour of
+     the real bracket later in the same text (reproduced against the
+     pre-fix helper inline, confirmed failing); the helper accepts position
+     0 directly for a `"[12]"`-shaped source and refuses it for a bare `"12"`.
+
+  3. IMPORTANT — `tiddlywiki.py`'s `_build_inline_subs` placed EVERY
+     Citation into `subs_by_line` with no ownership check, and
+     `_transclude_paragraph` walks `stream.slice_anchors(surface.start,
+     surface.end)` — a POSITIONAL range, not the set of lines the Paragraph
+     actually claims. A Paragraph whose realization happens to SPAN a
+     `simple_cell`/`diagram` anchor in between (the 646 doubly-claimed-
+     anchor shape) would splice that line's OWN citation into the
+     Paragraph's tiddler text — reproduced directly and confirmed failing
+     against the pre-fix code (`{{D_REF_Forster2008||CIT}}` spliced into an
+     unrelated Paragraph carrying a table cell it merely spans over). FIX:
+     TW gets the same ownership gate as LaTeX: a citation anchored on a
+     line whose OWN mathpix type is `simple_cell`/`complex_cell`/
+     `table_spanning_cell`/`table_split_cell`/`diagram`
+     (`_NON_PROSE_LINE_TYPES`, hand-kept in sync with `bibliography.
+     _CAPTION_CELL_TYPES`) is never placed into `subs_by_line` at all, and
+     is counted under a new `citations_outside_running_text` — the SAME
+     name LaTeX's resolver uses for the identical class. The "TW-specific
+     caption handling" the brief allowed for did not apply: TW's PIC/DIA/TAB
+     `caption`/`raw_text` fields are copied RAW today with NO substitution
+     mechanism at all (unlike LaTeX's `_cite` on the caption, 640's earlier
+     fix) — there is nothing to wire the gate INTO on the TW side beyond
+     refusing the leak, so nothing further was built. Test: a Citation on a
+     `simple_cell` line does not get spliced into a Paragraph whose span
+     happens to include that anchor.
+
+  RE-VERIFIED, NOT REBUILT. Measured directly against Steerable's raw
+  `lines.json`: the OLD (buggy) and NEW (word-gated) `_NUMCITE` regexes
+  produce IDENTICAL matches on EVERY line of this document (0 diffs) — no
+  matrix-shaped bracket exists here, so finding 1 changes nothing on this
+  corpus and no `model --force` was needed. Confirmed a second, independent
+  way: `pdfdrill latex --force --compile` (no model rebuild) produced a
+  `.tex` BYTE-IDENTICAL to the pre-round-1 one (findings 1 and 2 are both
+  no-ops on Steerable's actual content). penev_A's analytical check is
+  likewise unaffected (0 numbered References; the regex/gate changes are
+  moot there too).
+
+  THE TW A/B PROOF (finding 3), the SAME frozen model projected twice — once
+  with a clean `git archive` export of 3d9e066 (this task's PRE-round-1
+  commit), once with round-1's code:
+                                    Steerable         penev_A
+    tiddlers                       834 both sides    1266 both sides
+    field diffs (excl. timestamps)          0                0
+  BYTE-IDENTICAL beyond `created`/`modified`, on BOTH documents. The gate
+  closes a LATENT risk — neither document's Paragraphs actually happen to
+  span a table-cell/diagram anchor today — it does not change either
+  document's current tiddler content. No caption anywhere carries
+  `{{…||CIT}}`, on either side: TW never substituted into a caption before
+  this fix and does not after it either (see finding 3 above); the diff
+  that "would" show one, per the brief's conditional, does not exist to show
+  because the mechanism it would show doesn't exist.
+
+TESTS, FIX ROUND 1 (TDD; every one confirmed failing first against the
+pre-round-1 code, inline where a full stash/restore was impractical — the
+reproduction functions ARE the pre-fix code, run side by side)
+  tests/test_numeric_citation_gaps.py, +4: the matrix rejection, the `[0,1]`
+    regression guard, a locant-word bracket still resolving, the TW
+    ownership-gate splice reproduction (confirmed failing by reverting just
+    `tiddlywiki.py`'s diff and re-running).
+  tests/test_cite_projection.py, +2: a bare digit opening an object's own
+    text is skipped for the real bracket later on (confirmed failing
+    against an inlined copy of the pre-fix helper); `_numeric_source_in_
+    context` accepts position 0 for a bracket-inclusive source and refuses
+    it for a bare one.
+  FULL SUITE: PYTHONDONTWRITEBYTECODE=1 PYTHONPATH=src python3 -m pytest
+  tests/ -q -p no:cacheprovider  ->  3325 passed, 0 failed
+  (3319 after the base task; 6 new).
+
 EVIDENCE (library, deny-by-default git; never committed to this repo)
   ~/pdfdrill-library/SteerableWaveletFramesBasedontheRieszTransform/out/640/
       script.py                    the classification/measurement, runnable
       result.before.json           the HEAD-980d906 baseline, classified
       result.after.json            the final state, classified
+      result.round1.json           the 3 findings, the regex-impact
+                                    measurement, the TW A/B proof
       model_force_1.log / drill_full_1_pre_model_force.log
       drill_full_2_corrupted_before_apply_subs_guard.log
       latex_force_compile_1_corrupted.log   the CORRUPTION, kept as evidence
       model_force_2_final.log / drill_full_3_final.log
       latex_force_compile_2_final.log       the final, correct rebuild
+      latex_force_compile_3_round1.log      AFTER round 1, no model rebuild
+                                    — byte-identical .tex to compile_2
       SteerableWaveletFramesBasedontheRieszTransform.after.tex / .after.log
       page-0003-locant.png         read, above (LOCANT class)
       page-0030-diagram-caption-duplicate.png   read, above (DIAGRAM class)
-      INSPECT.txt                  14 paths, checked
+      tiddlers_ab_before.json / tiddlers_ab_after.json   the TW A/B proof
+      INSPECT.txt                  18 paths, checked
   ~/pdfdrill-library/penev_A/out/640/
       result.json                  the analytical check
-      INSPECT.txt                  1 path, checked
+      result.round1.json           the TW A/B proof (penev_A side)
+      tiddlers_ab_before.json / tiddlers_ab_after.json
+      INSPECT.txt                  4 paths, checked
   In this repo: out/640/script.py
 
   COMMANDS THAT RAN, in this order (never `mathpix --force`):
@@ -297,5 +411,7 @@ EVIDENCE (library, deny-by-default git; never committed to this repo)
       pdfdrill latex SteerableWaveletFramesBasedontheRieszTransform.pdf --force --compile
       pdfdrill rasterize latex/SteerableWaveletFramesBasedontheRieszTransform.pdf --pages 3 --dpi 400
       pdfdrill rasterize latex/SteerableWaveletFramesBasedontheRieszTransform.pdf --pages 30 --dpi 400
-  Twice (once before the `apply_subs` guard, once after). NOTHING WAS
-  RE-PURCHASED — mathpix answered "cached" both times.
+  Twice before fix round 1 (once before the `apply_subs` guard, once after)
+  and once more after fix round 1 (`latex --force --compile` only — no
+  `model --force`, per the measurement above). NOTHING WAS RE-PURCHASED —
+  mathpix answered "cached" every time.

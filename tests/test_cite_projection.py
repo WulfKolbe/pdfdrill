@@ -645,3 +645,34 @@ def test_a_genuine_bracket_digit_still_resolves_normally():
     text = "Tensor products of Hilbert transforms [6]"
     out = cite_res.apply_subs(text, [_num_sub("6", "\\cite{Chan2004}")])
     assert out == "Tensor products of Hilbert transforms [\\cite{Chan2004}]"
+
+
+# ------------------- FIX ROUND 1: position 0 is not automatically a citation
+
+def test_a_bare_digit_at_the_very_start_of_the_text_is_not_a_citation():
+    """Coordinator review, finding 2. `_numeric_source_in_context`'s
+    `j == 0` branch used to accept ANY match with nothing but whitespace
+    before it — including position 0 of the WHOLE text — contradicting its
+    own docstring ("the bracket that opens it"). A Footnote or caption whose
+    OWN text happens to start with a coincidental number ("1970 was...")
+    reopened the exact corruption this guard exists to close, at position 0
+    instead of mid-text. The real bracket later in the same text must still
+    be found."""
+    text = "1970 was the year Stein published the result (see [1, Ch. III])."
+    out = cite_res.apply_subs(text, [_num_sub("1", "\\cite{Stein1970}")])
+    assert out == ("1970 was the year Stein published the result "
+                   "(see [\\cite{Stein1970}, Ch. III]).")
+
+
+def test_bracket_inclusive_source_at_position_zero_is_accepted_by_the_helper():
+    """The other half, on `_numeric_source_in_context` directly: position 0
+    IS valid when the OPENING BRACKET is itself part of the recorded source
+    (the `_numeric_fallback` bracket-inclusive sources, e.g. `"[12]"`) —
+    there is nothing before it to check because the bracket IS what is being
+    matched, not what precedes it. (`apply_subs`'s own `numeric` gate never
+    reaches this branch today — `_BARE_NUMERIC_SOURCE` does not match a
+    bracket-inclusive source at all — so the helper is exercised directly,
+    the way the bare-digit branch above is exercised through `apply_subs`.)"""
+    text = "[12] is the first citation in this footnote body."
+    assert cite_res._numeric_source_in_context(text, 0, "[12]") is True
+    assert cite_res._numeric_source_in_context(text, 0, "12") is False

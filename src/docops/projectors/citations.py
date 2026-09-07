@@ -345,11 +345,22 @@ _BARE_NUMERIC_SOURCE = re.compile(r"\d+(?:\s*[-–]\s*\d+)?$")
 _CITE_OPENERS = "[,;"
 
 
-def _numeric_source_in_context(text: str, at: int) -> bool:
+def _numeric_source_in_context(text: str, at: int, source: str) -> bool:
+    """640 fix round 1 — `j == 0` (nothing but whitespace before the match)
+    used to be accepted unconditionally, on the theory that a citation can
+    open an object's own text. That is true only when the OPENING BRACKET is
+    itself part of `source` (the `_numeric_fallback` bracket-inclusive
+    sources, e.g. `"[12]"`) — a bare-digit source (`"1"`, never `"[1"`)
+    starting the text has NO bracket before it AT ALL, so position 0 is a
+    Footnote/caption/table body that happens to begin with a number
+    ("1970 was..."), not a citation, and must keep searching forward exactly
+    like any other coincidental match."""
     j = at
     while j > 0 and text[j - 1] in " \t":
         j -= 1
-    return j == 0 or text[j - 1] in _CITE_OPENERS
+    if j == 0:
+        return source.startswith("[")
+    return text[j - 1] in _CITE_OPENERS
 
 
 def apply_subs(text: str, subs: list[Sub], *,
@@ -378,7 +389,7 @@ def apply_subs(text: str, subs: list[Sub], *,
         numeric = bool(_BARE_NUMERIC_SOURCE.fullmatch(s.source.strip()))
         at = text.find(s.source, cursor)
         if numeric:
-            while at >= 0 and not _numeric_source_in_context(text, at):
+            while at >= 0 and not _numeric_source_in_context(text, at, s.source):
                 at = text.find(s.source, at + 1)
         if at < 0:
             if on_missing is not None:

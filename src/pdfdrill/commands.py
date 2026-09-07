@@ -11221,6 +11221,13 @@ def cmd_tiddlers(pdf: Path, force: bool = False, embed: bool = False,
                  f"and so reach no paragraph — the detector that made them "
                  f"did not record the match position."
                  if cits_no_span else "")
+    # 640 fix round 1 — a citation on a table cell or figure caption line: a
+    # real span, but not a Paragraph's own line, so it is never substituted
+    # (never a symptom-patch into a Table's raw_text or a caption field).
+    cits_outside = proj.counters.get("citations_outside_running_text", 0)
+    outside_note = (f" {cits_outside} citation(s) sit on a table-cell or "
+                    f"figure-caption line no tiddler transcludes (640)."
+                    if cits_outside else "")
     guard = _unrendered_graphics_note(doc.objects.values())
     # A sibling array older than the model carries the titles of a PREVIOUS
     # export. Imported beside this one it puts two naming schemes in the same
@@ -11240,8 +11247,8 @@ def cmd_tiddlers(pdf: Path, force: bool = False, embed: bool = False,
     return (f"Wrote {count} TiddlyWiki tiddlers to {rel}. Import into TiddlyWiki; "
             f"diagram SVGs render via {{{{!!svg_tiddler}}}} "
             f"({'inline' if embed_svg else 'external _canonical_uri'}).{svg_note}"
-            f"{integ_note}{placeholder_note}{span_note}{guard}{stale_note}"
-            f"{trans_note}")
+            f"{integ_note}{placeholder_note}{span_note}{outside_note}{guard}"
+            f"{stale_note}{trans_note}")
 
 
 # Tag -> the tiddler field whose prose gets translated. Math/code/image/toc

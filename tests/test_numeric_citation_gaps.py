@@ -38,12 +38,15 @@ projector can use it; `citations.py` counts it under
 never reaches the reader. See `tests/test_cite_projection.py` for the
 DIAGRAM class reaching the `.tex`.
 """
+import json
 import sys
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "src"))
 
 from docmodel.core import Document, DocObject, Realization
+from docops.base import OperatorConfig
+from docops.projectors.tiddlywiki import TiddlyWikiProjector
 from pdfdrill.bibliography import detect_numeric_citations, link_citations
 
 
@@ -154,6 +157,104 @@ def test_diagram_caption_line_gets_a_numeric_citation():
     assert n == 2
     nums = sorted(c.props["number"] for c in doc.objects_of_type("Citation"))
     assert nums == [28, 29]
+
+
+# ----------------------- FIX ROUND 1: the locant tail was too permissive
+
+def test_a_matrix_is_never_mistaken_for_a_locant():
+    """`_NUMCITE`'s tail was `[^\\]\\d]` — a NON-digit first character after
+    the comma — and `\\s*` can match zero characters, so the SPACE after the
+    comma satisfied it and `[^\\]]*` then swallowed the rest, digits,
+    semicolons and all: `[1, 2; 3, 4]` (a matrix) matched WHOLE and minted
+    four bogus Citations, on exactly the table-cell lines this task added
+    scanning to. A locant tail must START with a recognisable locant WORD."""
+    doc = _doc_with_refs([1, 2, 3, 4])
+    _line(doc, "text", "the matrix [1, 2; 3, 4] has four entries.")
+    n = detect_numeric_citations(doc, max_num=4)
+    assert n == 0, "a matrix is not a citation list"
+    assert list(doc.objects_of_type("Citation")) == []
+
+
+def test_a_plain_two_item_bracket_is_still_the_existing_numeric_list_rule():
+    """`[0, 1]` is unaffected by the locant change either way — it has no
+    comma-then-word tail, so it never reaches the new branch at all and is
+    governed entirely by the PRE-EXISTING per-number range filter
+    (`1 <= x <= max_num`, `_numlist_spans`): `0` is never accepted (the
+    hardcoded lower bound, "filters intervals like [0,1]" per the
+    docstring), regardless of whether a Reference happens to be numbered 0;
+    `1` is accepted when it is in range. Same as `test_numeric_citation_
+    detection_and_linking`'s `[0,9]` case in test_bibliography.py, one
+    number valid instead of zero."""
+    doc = _doc_with_refs([1])
+    _line(doc, "text", "the interval [0, 1] appears here.")
+    n = detect_numeric_citations(doc, max_num=1)
+    assert n == 1, "1 is in range; 0 never is, regardless of any Reference"
+    nums = [c.props["number"] for c in doc.objects_of_type("Citation")]
+    assert nums == [1]
+
+
+def test_a_locant_bracket_still_resolves_with_the_word_gated_tail():
+    doc = _doc_with_refs([24])
+    line = "can be found in [24, Ch. III.1] and elsewhere."
+    _line(doc, "text", line)
+    n = detect_numeric_citations(doc, max_num=24)
+    assert n == 1
+    c = next(iter(doc.objects_of_type("Citation")))
+    assert c.props["number"] == 24
+    r = c.realizations[0]
+    off, ln = r.props["offset"], r.props["length"]
+    assert line[off:off + ln] == "24"
+
+
+# --------- FIX ROUND 1, finding 3: TiddlyWiki gets the same ownership gate
+
+def test_a_table_cell_citation_is_never_spliced_into_a_paragraph():
+    """Coordinator review, finding 3. `_build_inline_subs` took every
+    Citation with no owning-type check, and `_transclude_paragraph` walks
+    `stream.slice_anchors(surface.start, surface.end)` — a POSITIONAL range,
+    not a set of lines the Paragraph actually claims. A Paragraph whose
+    realization happens to SPAN a `simple_cell` anchor in between (the 646
+    doubly-claimed-anchor shape) would splice the cell's own citation into
+    the Paragraph's tiddler text. Reproduced directly: a Paragraph realized
+    from line 1 THROUGH line 3, with a `simple_cell` line 2 in between
+    carrying a Citation."""
+    doc = Document(meta={"bibkey": "D"})
+    mp = doc.ensure_stream("mathpix_lines")
+    l1 = mp.append(type="text", text="Intro text.", text_display="Intro text.",
+                   _page=1)
+    l2 = mp.append(type="simple_cell", text="Forster et al. [10]",
+                   text_display="Forster et al. [10]", _page=1)
+    l3 = mp.append(type="text", text="More text.", text_display="More text.",
+                   _page=1)
+
+    par = DocObject(type="Paragraph", props={
+        "text": "Intro text. Forster et al. [10] More text.",
+        "page": 1, "flow_index": 0})
+    par.add_realization(Realization(stream="mathpix_lines", start=l1, end=l3,
+                                    role="surface"))
+    doc.add(par)
+
+    cit = DocObject(type="Citation", props={"citekey": "Forster2008", "page": 1})
+    off = "Forster et al. [".__len__()
+    cit.add_realization(Realization(
+        stream="mathpix_lines", start=l2, end=l2, role="surface",
+        props={"offset": off, "length": 2}))
+    doc.add(cit)
+
+    ref = DocObject(type="Reference", props={"citekey": "Forster2008",
+                                             "bibkey": "D"})
+    ref.add_realization(Realization(stream="mathpix_lines", start=l2, end=l2,
+                                    role="surface", props={"offset": off,
+                                                           "length": 2}))
+    doc.add(ref)
+
+    proj = TiddlyWikiProjector(
+        OperatorConfig(op="projector", classname="TiddlyWikiProjector"))
+    tiddlers = json.loads(proj.project(doc))
+    para_tiddler = next(t for t in tiddlers if t.get("title") == "D_PARA_0001")
+    assert "||CIT}}" not in para_tiddler["text"], para_tiddler["text"]
+    assert "[10]" in para_tiddler["text"], para_tiddler["text"]
+    assert proj.counters.get("citations_outside_running_text") == 1, proj.counters
 
 
 if __name__ == "__main__":

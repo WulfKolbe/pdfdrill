@@ -396,14 +396,25 @@ def parse_bibliography(doc) -> list[dict]:
 # 640 — a numeric bracket followed by a LOCANT: `[1, Ch. III]`, `[21, Ch.
 # II.5]`. The bracket is still a citation to the leading number(s); the tail
 # is a page/chapter pointer INTO that reference, not a second reference and
-# not noise to swallow. The tail clause requires a literal `,` (so a pure
-# digit/range list like `[1,2]` or `[10-12]` is untouched — it never reaches
-# this branch) and its first character must not be a digit (so `[1,2,3]`
-# cannot be misread as "1" plus a locant "2,3"). `_numlist_spans` below reads
-# only the leading digit-list part of the captured group; the locant is not a
-# digit or a range and is silently skipped there, so no span is ever recorded
-# for it and it is left exactly where it stands.
-_NUMCITE = re.compile(r"\[(\d[\d,\s\-–]*(?:,\s*[^\]\d][^\]]*)?)\]")
+# not noise to swallow. `_numlist_spans` below reads only the leading
+# digit-list part of the captured group; the locant is not a digit or a
+# range and is silently skipped there, so no span is ever recorded for it
+# and it is left exactly where it stands.
+#
+# 640 FIX ROUND 1 — `[^\]\d]` as "the tail is not a citation list" was wrong:
+# `\s*` can match ZERO characters, so `[^\]\d]` was free to consume the SPACE
+# after the comma instead of a real locant word, and `[^\]]*` then swallowed
+# everything after it — digits, commas, semicolons included. `[1, 2; 3, 4]`
+# (a matrix) matched WHOLE and minted four bogus Citations, on exactly the
+# table-cell lines this task added scanning to. A locant tail must instead
+# START with a recognisable locant WORD, not merely "not a digit". Built
+# from what actually occurs on Steerable/penev_A (`, Ch. III`, `, Ch. II.5`,
+# `, Ch. III.1` — every occurrence in both documents is `Ch.`) plus the
+# obvious siblings a numbered reference's own text uses the same way.
+_LOCANT_WORD = (r"Ch\.|Chap(?:ter)?\.?|Sec\.|Sect(?:ion)?\.?|§|p\.|pp\.|"
+               r"Thm\.|Theorem|Lemma|Prop\.|Eq\.|Fig\.|Table|App(?:endix)?\.?")
+_NUMCITE = re.compile(
+    r"\[(\d[\d,\s\-–]*(?:,\s*(?:" + _LOCANT_WORD + r")[^\]]*)?)\]")
 
 # Inline/display math spans — a `[1,2]`/`(…)` inside one is math, not a cite.
 _MATH_SPAN = re.compile(
