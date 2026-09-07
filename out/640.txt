@@ -9,11 +9,19 @@ by `out/640/script.py`, which is committed as evidence beside each document
 together with its `result.json`.
 
 THE HEADLINE, BEFORE THE TABLES: the full drill CHANGES the thing 641 was
-scoped against, and changes it for the worse. `clean` is the step. On penev_A
-it took the .tex from 21 `\footnotemark[n]` (642, yesterday) to 0, and put 63
-literal `(?penev_A_FN0003)` placeholders into the document instead. 641's
-premise — a body superscript whose n matches a bibitem number — has ZERO
-instances on either document, for two different reasons. Both are §4.
+scoped against, and changed it for the worse. `clean` is the step. On penev_A
+it took the .tex from 21 `\footnotemark[n]` (642, yesterday) to 0, put 63
+literal `(?penev_A_FN0003)` placeholders and 44 `<sup>N</sup>` HTML tags into
+the document instead, and the underscore in those identifiers stopped the
+compile at page 5 of 97. §3 measures it; §6 is FIX ROUND 1, which closes it —
+the projector now resolves every template the TiddlyWiki projector emits, from
+one table, and penev_A goes to 107 `\footnotemark[n]`, 0 placeholders and 97
+pages with 0 errors. 641's own premise — a body superscript whose n matches a
+bibitem number — has ZERO instances on either document, for two different
+reasons. Both are §4.
+
+§2 and §3 are the state AS MEASURED BEFORE FIX ROUND 1, and are left that way
+on purpose: they are what the ruling was made on.
 
 --------------------------------------------------------------------------
 1. THE HARNESS — WHAT IT PRODUCED
@@ -32,9 +40,15 @@ instances on either document, for two different reasons. Both are §4.
     17 artefacts: <key>.{md,tiddlers.json,spoken.txt,formulas.json,lines.json,
     drill.json}, <key>.inspect.html, evidence-{formula,equation}.html,
     formula-report.html, tables.{json,html,md}, probe-*.
-    Model REBUILT from the cached lines.json: 950 objects (415 Formula, 167
-    Paragraph, 70 Equation, 17 Section, 3 Table, 1 Picture), 70 equations with
-    a MathPix CDN image.
+    Model NOT rebuilt in THIS run: `model` answered "Already current at
+    4d6c480-dirty: 1048 objects (415 Formula, 167 Paragraph, 70 Equation, 17
+    Section, 3 Table, 1 Picture). NOTHING WAS REBUILT", 70 equations with a
+    MathPix CDN image. It was BUILT FROM SCRATCH out of the cached lines.json
+    during 647 — the crash run, at 4d6c480 — which reported 950 objects; the
+    drill's later steps (eqnums/lists/bibliography/clean) took it to 1048. The
+    Formula/Equation counts that matter here, 415 and 70, are the same either
+    way. (An earlier draft of this file said the 640 run rebuilt it; the run's
+    own drill_full.log says otherwise, and the log is right.)
 
   penev_A (22 pp of PDF, 33.5 MB, scanned)
     mathpix CACHED. Slowest step: `speak` at 6 s.
@@ -88,10 +102,10 @@ instances on either document, for two different reasons. Both are §4.
       (by `formula._is_footnote_marker`)
       (by `footnotes.marker_refnum`)                0             0
   638 asked: "does a FULL drill change that?" ANSWER: NO. Steerable's model
-  was rebuilt from scratch in this run and still carries 0 marker Formulas;
-  `FormulaProcessor.find_items` skips them at creation, as 638 found. There is
-  nothing for 641 to "move upstream" out of the Formula layer on either
-  document.
+  was built from scratch out of the cached lines.json during the 647 run and
+  carries 0 marker Formulas; `FormulaProcessor.find_items` skips them at
+  creation, as 638 found. There is nothing for 641 to "move upstream" out of
+  the Formula layer on either document.
 
   THE MODEL — WHERE THE MARKERS ARE INSTEAD
     running-text objects (Paragraph/Abstract/ListItem)  218       227
@@ -251,10 +265,7 @@ instances on either document, for two different reasons. Both are §4.
 5. WHAT IS OPEN
 --------------------------------------------------------------------------
 
-  640-a  `clean` materialises footnote markers to `{{…||FN}}`; the LaTeX
-         projector has no `||FN` branch and prints `(?<title>)`. penev_A: 63
-         placeholders, 21 `\footnotemark[n]` lost. Cause located, fix not
-         taken. THE HIGHEST-VALUE ITEM HERE.
+  640-a  CLOSED by fix round 1 — see §6.
   640-b  `pdfdrill model` reports "Already current" against the lines.json
          mtime and the code version it was built at (`d20ce48-dirty`), and a
          full drill therefore does NOT rebuild a model built by an older
@@ -277,7 +288,169 @@ instances on either document, for two different reasons. Both are §4.
          of a sentence.
 
 --------------------------------------------------------------------------
-6. EVIDENCE
+6. FIX ROUND 1 — ONE BRANCH TABLE, AND 640-a IS CLOSED
+--------------------------------------------------------------------------
+
+  RULING: the LaTeX projector resolves EVERY template the TiddlyWiki projector
+  emits, from ONE table.
+
+  WHAT THE PLACEHOLDER ACTUALLY COST — MEASURED, AND IT IS NOT COSMETIC.
+  §3 filed 63 literal `(?penev_A_FN0003)` strings as an output regression. It
+  is worse than that: the identifier carries an underscore, `_` is a subscript
+  in text mode, and the compile stops.
+
+      penev_A, the .tex the full drill produced, xelatex 2 passes:
+        BEFORE the fix   5 pages, 1 error
+                         ! Missing $ inserted.
+                         l.941 …signaled with codes whose lengths (?penev_
+                                                                  A_FN0007)…
+        AFTER  the fix  97 pages, 0 errors
+
+  The pre-fix .tex and its log are kept as the control at
+  `penev_A/out/640/penev_A.prefix.{tex,log}` — projected from the SAME model,
+  in a `git stash`-ed working tree at 91057ba, so the only difference is this
+  change.
+
+  THE TABLE. `latex_pipeline.TEMPLATE_ACTIONS` gives every key of
+  `tiddlywiki.TEMPLATES` (644's macro layer) exactly one of three actions:
+
+    ARRAY    FO FREF EQ EQBLOCK      the readarray lookup, `\Expr{i}`
+    HANDLER  CIT FN SN PIC DIA TAB   the projector supplies an object-aware
+             LI PARA ABS PROOF TOC   renderer (it has the Document; the
+                                     pipeline module does not — which is why
+                                     the table is split in two)
+    DROP     LTX                     renders nothing, deliberately, matching
+                                     the empty TiddlyWiki template
+
+  `test_every_tiddlywiki_template_has_a_latex_branch` fails when a template is
+  added to TEMPLATES without a row here, and
+  `test_every_handler_template_has_a_handler_on_the_projector` fails when a row
+  says HANDLER and no handler exists. A template with no branch at the call
+  site is a REFUSAL: it renders nothing and is COUNTED
+  (`template_unhandled:<TPL>`). It is never a literal placeholder again.
+
+  THE BRANCHES, and the one judgement call each needed
+    ||FN   → `\footnotemark[n]` at the mark, `\footnotetext[n]{…}` at the end
+             of the block that carries it (638's convention, unchanged).
+             A MATERIALISED marker names its Footnote by TITLE, so there is no
+             disambiguation to do at all — 638's page/refnum rule exists for a
+             BARE `{ }^{n}`, which carries no identity. The two lanes now live
+             side by side: `_mark_footnotes` still owns the bare markers,
+             `_footnote_token` owns the materialised ones. Inside a footnote
+             body a nested mark emits the superscript ONLY (`\footnotetext`
+             inside `\footnotetext` is a LaTeX error, and 638 measured that a
+             marker inside a body is usually the next body's printed label).
+    ||CIT  → `\cite{key}`: the object's own `citekey` when the title names a
+             Reference, else `parse_title(...).key`. Exact, and it needs none
+             of 642's span arithmetic.
+    ||SN   → `\marginpar{\footnotesize …}`. STATED CHOICE: a margin note, not a
+             footnote. The TiddlyWiki template is `<aside>` — margin
+             typography — and folding a sidenote into the footnote stream would
+             renumber the footnotes the publication printed, which is the one
+             thing 638 exists to preserve. (0 SN tokens on either document
+             today; the branch exists so the next document does not print
+             `(?…)`.)
+    BLOCKS → PIC/DIA/TAB/LI/PARA/ABS/PROOF/TOC render through the projector's
+             OWN `_render` for that object, so there is one renderer per type
+             and not two. Depth-guarded at 3.
+    `<sup>N</sup>` → `\footnotemark[N]`. Not a template: it is what
+             `_substitute_footnotes` emits when a marker's refnum names no
+             Footnote object (44 of them on penev_A — 638's extraction gap seen
+             from the projection side). Left alone the HTML tag printed into
+             the .tex. A mark with no body IS `\footnotemark[n]`.
+
+  THE TITLE→OBJECT INDEX IS THE TIDDLER PROJECTOR'S OWN NUMBERING, not a copy:
+  `tiddlywiki.titles_by_id(doc, bibkey)` delegates to `_assign_titles`. 644's
+  six-bodies-one-title collision came from a second implementation of "the i-th
+  Footnote in flow order"; there is not going to be a third.
+
+  DOUBLE-PRINTING. An object a materialised marker transcludes must not ALSO be
+  emitted standalone. `_skip_ids` is read ONCE, before the first block, so the
+  decision is pre-computed in `_prepare` — an in-render `add` comes too late
+  for anything earlier in the flow, which is exactly the case on penev_A (the
+  Footnote bodies precede the paragraphs that mark them).
+
+  THE NUMBERS AFTER THE FIX
+                                        penev_A              Steerable
+    literal `(?…)` placeholders     63 ->  0              0 ->  0
+    literal `<sup>N</sup>`          44 ->  0              0 ->  0
+    leftover `{{…||…}}`              0 ->  0              0 ->  0
+    \footnotemark[n]                 0 -> 107             0 ->  0
+    \footnotetext / [n]          56/51 -> 56/51        2/2 -> 2/2
+    \cite…{                         82 -> 82             50 -> 50
+    \marginpar                       0 ->  0              0 ->  0
+    compile pages                    5 -> 97             41 -> 41
+    compile "! " lines               1 ->  0              1 ->  1
+    template_unhandled               —      0             —      0
+
+    transclusions resolved, by template (the `05-templates` stage):
+      penev_A    72 CIT, 63 FN, 1051 FO, 188 FREF, 44 SUP; 0 unhandled
+      Steerable  48 CIT, 563 FO, 31 FREF;               0 unhandled
+
+  EVERY NUMBER THAT MOVED, ACCOUNTED FOR — none is left as "benign" (rule 12):
+
+    107 `\footnotemark[n]` = 63 (materialised `{{…||FN}}`) + 44 (`<sup>N</sup>`).
+      Against 638's 21 this is +86, and the 86 are markers 638 COULD NOT PAIR:
+      63 now pair exactly because the token names the body, and 44 are marks
+      whose body is genuinely absent from the model — printed as a mark with no
+      text, which is what the publication shows and what 638 counted as
+      "unresolved". It is ≥ 638's 21 as required.
+    `\footnotetext[n]` stays 51 — that is bodies-with-a-refnum (53 - 2), and
+      the fix changes WHERE a body prints, not how many exist. ≥ 638's 51.
+    `\cite…{` is 82, not 642's 70. The fix did not move it: the pre-fix .tex of
+      the same drilled model also holds 82. The +12 is the FULL DRILL's doing —
+      `clean` materialised 72 exact `{{…||CIT}}` tokens, and 642's span
+      resolver still applies 10 of its 71 groups (61 are counted
+      `cite_source_not_in_text`, because `clean` moved the prose the spans were
+      measured against). 72 + 10 = 82, exactly. Every one names a Reference
+      that exists (`cite_without_reference` 0), so this is 12 citations that
+      644/645/646 were losing, not 12 invented ones.
+    Steerable resolves 48 CIT and 563 FO where the model holds 50 and 565. The
+      missing 2 + 2 sit in the 70 reference-section objects the projector
+      deliberately skips (they are replaced by `thebibliography`). Counted, not
+      lost.
+    penev_A 97 pages against 642's 98: ~1.6 KB of literal placeholder text
+      (63 x 17 chars + 44 x 11) left the body and 107 marks set as superscripts.
+    Steerable's 1 remaining "! " is PRE-EXISTING and unrelated — verified by
+      projecting and compiling the same model from a stashed working tree at
+      91057ba: 41 pages / 1 error, identical. It is
+      `! Missing { inserted.` at `\bibitem{Unser2008}`, caused by the previous
+      `\bibitem`'s `\(L^…` running unbalanced out of the bibliography block —
+      `bibliography_block` does not put a `\bibitem` body through `_prose`, so
+      it gets neither `balance_math` nor `_balance_braces`. Filed 640-f.
+
+  TESTS — `tests/test_latex_templates.py`, 15:
+    the GUARD    every TEMPLATES key has an action; no action names a template
+                 that does not exist; every HANDLER row has a handler.
+    the BRANCHES `see {{D_FN0003||FN}} and {{D_REF_a||CIT}}` projects to
+                 `\footnotemark[3]` + `\footnotetext[3]{body 3}` + `\cite{a}`;
+                 `<sup>7</sup>` → `\footnotemark[7]`; SN → `\marginpar`; a TAB
+                 transclusion renders the table ONCE; a marked body prints once
+                 even though it precedes its marker in the flow; a mark inside a
+                 footnote body does not nest.
+    the REFUSAL  an unknown template, an unindexed array title and a DROP
+                 template each render nothing and are COUNTED by name; the bare
+                 pipeline still resolves a CIT with no handler.
+
+  SAID OUT LOUD. `cmd_latex` prints a `transclusions:` line (resolved by
+  template, then UNHANDLED by template) and `--dump-stages` writes
+  `stages/05-templates.json` with the action table and the counts from the
+  projection that actually ran. A count nothing prints is a count nobody reads
+  (645).
+
+  STILL OPEN AFTER THIS ROUND
+    640-f  `bibliography_block` emits a `\bibitem` body raw — no `balance_math`,
+           no `_balance_braces`. Steerable's one compile error is that, and it
+           was there before this task.
+    640-c  penev_A.bib still absent; every penev_A bibliography number carries
+           that caveat.
+    638-c  93 markers inside penev_A Sidenote bodies still never reach the .tex
+           at all — `_render` has no Sidenote branch. The `||SN` template now
+           has one, so a TRANSCLUDED sidenote renders; a standalone one still
+           does not.
+
+--------------------------------------------------------------------------
+7. EVIDENCE
 --------------------------------------------------------------------------
 
   ~/pdfdrill-library/penev_A/out/640/
@@ -293,6 +466,12 @@ instances on either document, for two different reasons. Both are §4.
                            00-formulas.dat, 01/04-citations, 02-bibliography,
                            03-footnotes)
       INSPECT.txt          the path list, checked
+      penev_A.prefix.tex   fix round 1's CONTROL: the .tex the full drill
+      penev_A.prefix.log   produced BEFORE the branch table, from the same
+                           model in a stashed tree at 91057ba — 5 pages,
+                           `! Missing $ inserted.` on `(?penev_A_FN0007)`
+      <key>.postfix.log    the compile after the fix
+      stages/05-templates.json   the branch table's actions and its verdict
 
   ~/pdfdrill-library/out/647/
       steerable-run-4d6c480.txt   the CRASH run (2 failed steps, exit 1)

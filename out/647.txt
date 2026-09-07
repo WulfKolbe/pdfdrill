@@ -247,9 +247,10 @@ THE PREMISE, CHECKED FIRST
 --------------------------------------------------------------------------
 
   PYTHONDONTWRITEBYTECODE=1 PYTHONPATH=src python3 -m pytest tests/ -q -p no:cacheprovider
-  -> 3208 passed, 0 failed, 0 skipped   (3202 before; +6 test_drill_full_sh,
-     +6 test_texsrc_dir_no_shadowing, and 3 pre-existing files pick up the new
-     AST guard's warning group only)
+  -> 3208 passed, 0 failed, 0 skipped   (3196 at 0d5493a before this work;
+     +6 test_drill_full_sh, +6 test_texsrc_dir_no_shadowing = 3208. An earlier
+     draft of this file said 3202 before, which was wrong arithmetic on the
+     same run, not a different run.)
 
 --------------------------------------------------------------------------
 6. WHAT IS STILL OPEN OUT OF THIS TASK

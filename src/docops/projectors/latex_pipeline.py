@@ -220,23 +220,124 @@ def formula_preamble(order: list[str], dat_name: str) -> str:
     )
 
 
-def resolve_transclusions(text: str, title_index: dict[str, int]) -> str:
-    """Rewrite each `{{id||FO}}` / `{{id||FREF}}` marker to `\\Expr{<index>}`
-    (array lookup — `\\Expr` is `\\ensuremath`-wrapped, so it works in text). An
-    unknown id degrades to a readable placeholder, never raw `{{…}}`."""
+# ── THE BRANCH TABLE (640-a) ────────────────────────────────────────────────
+#
+# `clean` → `heading_cleanup.materialize_transclusions` writes the TiddlyWiki
+# PROJECTION of every paragraph back into `props["text"]`, so after a full
+# drill a paragraph's prose is not raw LaTeX any more: it is
+# `see {{D_FN0003||FN}} and {{D_REF_a||CIT}}`. Until 640 this projector knew
+# only the array templates and the CIT tail, and EVERY other template fell
+# through to a literal `(?D_FN0003)` printed into the document — 63 of them on
+# penev_A, together with the 21 `\footnotemark[n]` 638 had won. A projection
+# that prints a placeholder is the transclusion failure docs/TRANSCLUSION.md
+# describes, and it is invisible: it compiles and it reads like prose.
+#
+# So: ONE table, keyed by `tiddlywiki.TEMPLATES`, and
+# `tests/test_latex_templates.py` fails when a template is added there without
+# a row here. Three actions:
+#
+#   ARRAY    the readarray lookup (`\Expr{i}`) — the math templates.
+#   HANDLER  the projector supplies an object-aware renderer (it has the
+#            Document; this module does not).
+#   DROP     renders nothing, deliberately, matching the empty TiddlyWiki
+#            template. Counted as `dropped:<TPL>`, never silent.
+#
+# A template with no handler at the call site is a REFUSAL, and a refusal is
+# COUNTED (`template_unhandled:<TPL>`) and renders nothing. It is never a
+# literal placeholder again.
+ARRAY = "array"
+HANDLER = "handler"
+DROP = "drop"
+
+TEMPLATE_ACTIONS: dict[str, str] = {
+    "FO":      ARRAY,      # inline formula   → \Expr{i}
+    "FREF":    ARRAY,      # equation ref     → \Expr{i} (the number's own entry)
+    "EQ":      ARRAY,      # inline eq ref
+    "EQBLOCK": ARRAY,      # display equation
+    "CIT":     HANDLER,    # → \cite{key}          (642's resolver / title tail)
+    "FN":      HANDLER,    # → \footnotemark[n] + \footnotetext[n]{…}  (638)
+    "SN":      HANDLER,    # → \marginpar{\footnotesize …}
+    "PIC":     HANDLER,    # → whatever the projector renders for the object
+    "DIA":     HANDLER,
+    "TAB":     HANDLER,
+    "LI":      HANDLER,
+    "PARA":    HANDLER,
+    "ABS":     HANDLER,
+    "PROOF":   HANDLER,
+    "TOC":     HANDLER,
+    "LTX":     DROP,       # a leaked LaTeX command renders nothing in the wiki
+}
+
+#: `<sup>N</sup>` is not a template — it is what
+#: `TiddlyWikiProjector._substitute_footnotes` emits for a marker whose refnum
+#: names NO Footnote object (44 of them on penev_A, the 638-measured extraction
+#: gap). Left alone it printed the literal HTML tag into the .tex. A mark with
+#: no body is exactly `\footnotemark[n]`.
+_SUP_MARKER = re.compile(r"<sup>\s*(\d{1,3})\s*</sup>")
+
+
+def marker_titles(text: str, tpl: str) -> list[str]:
+    """Every `{{<title>||<tpl>}}` title in `text`, in order. Used to decide,
+    BEFORE rendering, which objects a materialised block will print itself."""
+    return [m.group(1) for m in _MARKER.finditer(text or "") if m.group(2) == tpl]
+
+
+def _bump(counts, key: str) -> None:
+    if counts is not None:
+        counts[key] = counts.get(key, 0) + 1
+
+
+def resolve_sup_markers(text: str, counts: dict | None = None) -> str:
+    """`<sup>3</sup>` → `\\footnotemark[3]`. See `_SUP_MARKER`."""
+    def sub(m: re.Match) -> str:
+        _bump(counts, "resolved:SUP")
+        return f"\\footnotemark[{m.group(1)}]"
+    return _SUP_MARKER.sub(sub, text)
+
+
+def resolve_transclusions(text: str, title_index: dict[str, int],
+                          handlers: dict | None = None,
+                          counts: dict | None = None) -> str:
+    """Rewrite every `{{<title>||TPL}}` marker through the branch table above.
+
+    `handlers` maps a template name to `f(title) -> str | None`; returning None
+    means "this handler cannot render that title", and the marker then falls
+    through to the table. `counts` (mutated in place) records what happened by
+    template name, so a refusal is a NUMBER somebody reads rather than a
+    character somebody finds in the PDF.
+    """
+    handlers = handlers or {}
+
     def sub(m: re.Match) -> str:
         title, tpl = m.group(1), m.group(2)
+        h = handlers.get(tpl)
+        if h is not None:
+            out = h(title)
+            if out is not None:
+                _bump(counts, f"resolved:{tpl}")
+                return out
+        action = TEMPLATE_ACTIONS.get(tpl)
+        if action == DROP:
+            _bump(counts, f"dropped:{tpl}")
+            return ""
+        if action == ARRAY:
+            idx = title_index.get(title)
+            if idx is not None:
+                _bump(counts, f"resolved:{tpl}")
+                return f"\\Expr{{{idx}}}"
+            _bump(counts, f"unresolved_title:{tpl}")
+            return ""
         if tpl == "CIT":
-            # a citation transclusion `{{<bibkey>_REF_<citekey>||CIT}}` — the
-            # citekey is the tail; emit `\cite{<citekey>}` (matches the \bibitem).
+            # No handler (a bare pipeline call): the citekey is the title tail.
+            # `{{<bibkey>_REF_<citekey>||CIT}}` → `\cite{<citekey>}`, which is
+            # the key the `\bibitem` carries.
+            _bump(counts, "resolved:CIT")
             for sep in ("_REF_", "_CIT_", "_BIB_"):
                 if sep in title:
                     return f"\\cite{{{title.split(sep, 1)[-1]}}}"
             return f"\\cite{{{title}}}"
-        idx = title_index.get(title)
-        if idx is None:
-            return f"(?{title})"                      # unknown — readable, no braces
-        return f"\\Expr{{{idx}}}"
+        _bump(counts, f"template_unhandled:{tpl}")
+        return ""
     return _MARKER.sub(sub, text)
 
 

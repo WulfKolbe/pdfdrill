@@ -22,6 +22,17 @@ from .common import flow_ordered_content, equation_label
 from . import latex_pipeline as _pipe
 from . import footnotes as _fn
 from . import citations as _cit
+from .tiddlywiki import titles_by_id as _titles_by_id
+from .tiddlywiki import parse_title as _parse_title
+
+#: 640-a — templates whose target ALSO renders as a standalone block, so a
+#: materialised transclusion of it means "printed here, not there". Keyed by
+#: template, valued by the object type the title must name.
+_TRANSCLUDED_STANDALONE = {
+    "FN": "Footnote", "SN": "Sidenote", "PIC": "Picture", "DIA": "Diagram",
+    "TAB": "Table", "LI": "ListItem", "PARA": "Paragraph", "ABS": "Abstract",
+    "PROOF": "Proof", "TOC": "Toc",
+}
 
 # level → sectioning command (1-indexed; clamped)
 _SECTION_CMDS = ["section", "section", "subsection", "subsubsection",
@@ -156,6 +167,42 @@ class LaTeXProjector(BaseProjector):
         self._citations = _cit.resolve(doc)
         self._doc_objects = doc.objects
         self._skip_ids = set(self._skip_ids) | set(self._footnotes.used)
+        # 640-a — the MATERIALISED lane. After `clean`, a paragraph's prose is
+        # the TiddlyWiki projection, so its footnote markers and citations are
+        # `{{<title>||FN}}` / `{{<title>||CIT}}` rather than raw LaTeX. Build
+        # the title→object index ONCE (from the tiddler projector's own
+        # numbering, not a second copy of it) and a handler per template.
+        self._by_title = {}
+        try:
+            for oid, t in _titles_by_id(doc, key).items():
+                obj = doc.objects.get(oid)
+                if obj is not None:
+                    self._by_title[t] = obj
+        except Exception:                                 # noqa: BLE001
+            self._by_title = {}
+        self._template_counts: dict[str, int] = {}
+        self._notes_emitted: set = set()
+        self._tpl_handlers = self._template_handlers()
+        self._pending_notes: list[str] = []
+        self._in_footnote_body = False
+        self._tpl_depth = 0
+        # An object a materialised marker TRANSCLUDES is printed by the block
+        # that carries the marker, so it must not ALSO be emitted standalone.
+        # Pre-computed here and not while rendering: `_skip_ids` is read ONCE,
+        # before the first block, so an in-render `add` would come too late for
+        # anything earlier in the flow and would silently double-print it.
+        # Only the templates whose handler is guaranteed to render (the object
+        # exists, of the right type) are pre-skipped — skipping an object whose
+        # handler then returns None would DROP it.
+        for obj in doc.objects.values():
+            if obj.type not in _fn.RUNNING_TEXT_TYPES:
+                continue
+            text = _fn.object_text(obj)
+            for tpl, want in _TRANSCLUDED_STANDALONE.items():
+                for t in _pipe.marker_titles(text, tpl):
+                    o = self._by_title.get(t)
+                    if o is not None and o.type == want and o.id != obj.id:
+                        self._skip_ids.add(o.id)
         # STAGE 3: acronyms / glossary from the named-concept layer (lazy — the
         # `semantic` package; degrade to none if unavailable).
         self._acronyms: list = []
@@ -224,7 +271,8 @@ class LaTeXProjector(BaseProjector):
         lines = ["\\begin{itemize}"]
         for it in run:
             marked, notes = self._mark_footnotes(it, self._cite(it))
-            content = self._prose(marked.strip())
+            content, owed = self._prose_notes(marked.strip())
+            notes = notes + owed                  # 640-a: materialised {{…||FN}}
             if notes:
                 content = " ".join([content] + notes)
             marker = str(it.props.get("marker") or "").strip()
@@ -316,12 +364,140 @@ class LaTeXProjector(BaseProjector):
         # and Citations do sit on footnote lines (8 penev_A / 5 penev_B), so the
         # mis-wire was live here AND a footnote-body citation reached the page
         # as nothing at all (645-a, closed for this lane).
-        body = self._prose(
-            self._cite(fn, str(fn.props.get("content") or "")).strip())
+        was = getattr(self, "_in_footnote_body", False)
+        self._in_footnote_body = True                     # no \footnotetext nesting
+        try:
+            body = self._prose(
+                self._cite(fn, str(fn.props.get("content") or "")).strip())
+        finally:
+            self._in_footnote_body = was
         body = re.sub(r"\n\s*\n+", " ", body).strip()     # no \par inside a footnote
         refnum = str(fn.props.get("refnum") or "").strip()
         opt = f"[{refnum}]" if refnum.isdigit() else ""
         return f"\\footnotetext{opt}{{{body}}}"
+
+    # ── 640-a: one branch per TiddlyWiki template ────────────────────────────
+
+    def _template_handlers(self) -> dict:
+        """`{TPL: f(title) -> str | None}` — the object-aware half of
+        `latex_pipeline.TEMPLATE_ACTIONS`. This module has the Document; the
+        pipeline module does not, which is the whole reason the table is split.
+
+        Returning None means "not renderable from that title", and the pipeline
+        then COUNTS the marker instead of printing it. Nothing here may return a
+        literal `(?…)` — that placeholder is what 640-a is.
+        """
+        block = lambda title: self._transcluded_block(title)      # noqa: E731
+        return {
+            "FO": self._math_token, "FREF": self._math_token,
+            "EQ": self._math_token, "EQBLOCK": self._math_token,
+            "CIT": self._cite_token,
+            "FN": self._footnote_token,
+            "SN": self._sidenote_token,
+            "PIC": block, "DIA": block, "TAB": block, "LI": block,
+            "PARA": block, "ABS": block, "PROOF": block, "TOC": block,
+        }
+
+    def _math_token(self, title: str) -> str | None:
+        """The array lookup first (`\\Expr{i}` — one slot per distinct body);
+        failing that the object's own LaTeX inline, so an unindexed formula is
+        still typeset rather than dropped."""
+        idx = getattr(self, "_title_index", {}).get(title)
+        if idx is not None:
+            return f"\\Expr{{{idx}}}"
+        obj = self._by_title.get(title)
+        if obj is None:
+            return None
+        latex = _pipe.sanitize_math(str(obj.props.get("latex") or "").strip())
+        return f"${latex}$" if latex else None
+
+    def _cite_token(self, title: str) -> str | None:
+        """`{{<bibkey>_REF_<citekey>||CIT}}` → `\\cite{<citekey>}`.
+
+        The citekey comes from `parse_title` (the ONE title reader) when the
+        title parses, and from the object's own `citekey` prop otherwise — a
+        materialised CIT names its REF tiddler, so this is exact and needs none
+        of 642's span arithmetic."""
+        obj = self._by_title.get(title)
+        if obj is not None and obj.type == "Reference":
+            key = str(obj.props.get("citekey") or "").strip()
+            if key:
+                return f"\\cite{{{key}}}"
+        parsed = _parse_title(title)
+        if parsed is not None and parsed.key:
+            return f"\\cite{{{parsed.key}}}"
+        return None
+
+    def _footnote_token(self, title: str) -> str | None:
+        """`{{<bibkey>_FN0003||FN}}` → `\\footnotemark[n]`, and the body is owed
+        as `\\footnotetext[n]{…}` at the end of the block that carries the mark.
+
+        A MATERIALISED marker names its Footnote by TITLE, so there is no
+        disambiguation to do: 638's page/refnum rule exists for a BARE
+        `{ }^{n}` marker, which carries no identity at all. The two lanes live
+        side by side — `_mark_footnotes` still owns the bare ones.
+
+        Inside a footnote body a nested mark emits the SUPERSCRIPT only:
+        `\\footnotetext` inside `\\footnotetext` is a LaTeX error, and 638
+        measured that a marker inside a body is usually the next body's printed
+        label rather than a reference."""
+        fn = self._by_title.get(title)
+        if fn is None or fn.type != "Footnote":
+            return None
+        refnum = str(fn.props.get("refnum") or "").strip()
+        mark = f"\\footnotemark[{refnum}]" if refnum.isdigit() else "\\footnotemark"
+        if self._in_footnote_body:
+            return mark
+        if fn.id not in self._notes_emitted:
+            self._notes_emitted.add(fn.id)
+            self._pending_notes.append(self._footnotetext(fn))
+        return mark
+
+    def _sidenote_token(self, title: str) -> str | None:
+        """`{{…||SN}}` → `\\marginpar{\\footnotesize …}`.
+
+        STATED CHOICE: a margin note, not a footnote. The TiddlyWiki template is
+        `<aside>` — margin typography — and the model keeps Sidenote and
+        Footnote apart on purpose; collapsing a sidenote into the footnote
+        stream would renumber the footnotes the publication printed, which is
+        the one thing 638 exists to preserve. `\\marginpar` is the article
+        class's own margin note, so the result reads like the publication.
+        """
+        sn = self._by_title.get(title)
+        if sn is None:
+            return None
+        body = self._prose(str(sn.props.get("text")
+                               or sn.props.get("content") or "").strip())
+        body = re.sub(r"\n\s*\n+", " ", body).strip()
+        if not body:
+            return None
+        return f"\\marginpar{{\\footnotesize {body}}}"
+
+    def _transcluded_block(self, title: str) -> str | None:
+        """A BLOCK template (PIC/DIA/TAB/LI/PARA/ABS/PROOF/TOC) transcluded into
+        prose: render the object exactly as it would render standalone, so
+        there is one renderer per type and not two. Depth-guarded — a paragraph
+        that transcludes itself would otherwise recurse forever."""
+        obj = self._by_title.get(title)
+        if obj is None or self._tpl_depth >= 3:
+            return None
+        self._tpl_depth += 1
+        try:
+            out = self._render(obj)
+        finally:
+            self._tpl_depth -= 1
+        if not out.strip():
+            return None
+        return out
+
+    def _prose_notes(self, text: str) -> tuple[str, list[str]]:
+        """`_prose`, plus the `\\footnotetext[n]{…}` blocks that the materialised
+        `{{…||FN}}` markers inside `text` owe to the block carrying them."""
+        before = len(self._pending_notes) if hasattr(self, "_pending_notes") else 0
+        out = self._prose(text)
+        owed = self._pending_notes[before:]
+        del self._pending_notes[before:]
+        return out, owed
 
     def _prose(self, text: str) -> str:
         """Resolve a prose block to LaTeX: transclusion markers → `\\Expr{<index>}`
@@ -340,7 +516,13 @@ class LaTeXProjector(BaseProjector):
         disagree with."""
         ti = getattr(self, "_title_index", {})
         text = _pipe.clean_prose(text)                # ligatures + leaked \bibliography
-        text = _pipe.resolve_transclusions(text, ti)
+        text = _pipe.resolve_transclusions(
+            text, ti, handlers=getattr(self, "_tpl_handlers", None),
+            counts=getattr(self, "_template_counts", None))
+        # `<sup>N</sup>` — what the tiddler projector emits for a marker whose
+        # refnum names no Footnote. A mark with no body IS `\footnotemark[N]`.
+        text = _pipe.resolve_sup_markers(
+            text, getattr(self, "_template_counts", None))
         # contain any runaway inline math (a dropped `\)`/`$`) to THIS block, so
         # it can't swallow the next \section ("Not allowed in LR mode").
         text = _pipe.balance_math(text)
@@ -363,7 +545,8 @@ class LaTeXProjector(BaseProjector):
             return s + (f"\n\\label{{{label}}}" if label else "")
         if t in ("Paragraph", "Abstract"):
             marked, notes = self._mark_footnotes(obj, self._cite(obj))
-            text = self._prose(marked.strip())
+            text, owed = self._prose_notes(marked.strip())
+            notes = notes + owed                  # 640-a: materialised {{…||FN}}
             if not text.strip():
                 return ""
             if t == "Abstract":

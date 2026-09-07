@@ -239,6 +239,24 @@ def parse_title(title: str) -> Optional[ParsedTitle]:
     return ParsedTitle(m.group("bibkey"), kind, int(tail), None)
 
 
+def titles_by_id(doc, bibkey: str) -> dict:
+    """`{object id: tiddler title}` for EVERY object this projector titles.
+
+    THE one place another projector can invert a `{{<title>||TPL}}` marker back
+    to the object it names. It delegates to `_assign_titles`, so the numbering
+    is not merely "the same rule" as the emitted tiddlers — it is the SAME
+    CODE. A second implementation of "the i-th Footnote in flow order" is how
+    644's six-bodies-one-title collision happened; there is not going to be a
+    third numbering.
+
+    Cheap: `_assign_titles` sorts, it does not render.
+    """
+    from docops.base import OperatorConfig
+    proj = TiddlyWikiProjector(
+        OperatorConfig(op="projector", classname="TiddlyWikiProjector"))
+    return proj._assign_titles(doc, bibkey)[0]
+
+
 def prefix_alternation(kinds, extra=()) -> str:
     """A regex alternation of the PREFIXES of `kinds`, longest first.
 

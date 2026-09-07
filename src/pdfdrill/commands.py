@@ -10062,7 +10062,14 @@ def cmd_latex(pdf: Path, force: bool = False, compile: bool = False,
     if bib_db.strip():
         (env_dir / f"{key}.bib").write_text(bib_db, encoding="utf-8")
     if dump_stages:
-        _pipe.dump_stages(_pipe.run_stages(doc, key), env_dir / "stages")
+        stages = _pipe.run_stages(doc, key)
+        # 640-a — the branch table's verdict, from the projection that actually
+        # ran (a fresh one would report every counter as 0).
+        stages["05-templates"] = {
+            "actions": dict(_pipe.TEMPLATE_ACTIONS),
+            "counts": dict(getattr(projector, "_template_counts", {}) or {}),
+        }
+        _pipe.dump_stages(stages, env_dir / "stages")
 
     n_eq = len(doc.objects_of_type("Equation")) + len(doc.objects_of_type("Formula"))
     n_ref = len(doc.objects_of_type("Reference"))
@@ -10110,10 +10117,27 @@ def cmd_latex(pdf: Path, force: bool = False, compile: bool = False,
             f"block covers, {_cc['cite_source_not_in_text']} group(s) whose "
             f"source the object's text no longer holds); "
             f"{_cc['cite_in_footnote']} of the groups are in a footnote body.")
+    # 640-a — the MATERIALISED transclusions, said out loud. After `clean` a
+    # paragraph's prose is the TiddlyWiki projection, so its footnote markers
+    # and citations are `{{<title>||FN}}` / `{{…||CIT}}`. A template with no
+    # LaTeX branch used to print a literal `(?<title>)` INTO the document; it is
+    # now a refusal with a name and a number.
+    _tc = getattr(projector, "_template_counts", {}) or {}
+    if _tc:
+        res = {k.split(":", 1)[1]: v for k, v in _tc.items()
+               if k.startswith("resolved:")}
+        bad = {k.split(":", 1)[0] + " " + k.split(":", 1)[1]: v
+               for k, v in _tc.items() if not k.startswith("resolved:")}
+        lines.append(
+            "  transclusions: "
+            + ", ".join(f"{v} {k}" for k, v in sorted(res.items()))
+            + (" resolved" if res else "0 resolved")
+            + ("; UNHANDLED " + ", ".join(f"{v} {k}" for k, v in sorted(bad.items()))
+               if bad else "; 0 unhandled"))
     if dump_stages:
         lines.append(f"  stages  : {_artref(sc, env_dir / 'stages')}/  "
                      f"(transclusion lookup / citations / bibliography / "
-                     f"footnote + citation resolution)")
+                     f"footnote + citation resolution + template branches)")
     if compile:
         ok, note = _xelatex_compile(main_tex)
         pdf_out = main_tex.with_suffix(".pdf")
