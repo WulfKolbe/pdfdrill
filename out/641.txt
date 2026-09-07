@@ -1,5 +1,13 @@
 641 — a superscript citation becomes \cite, and how it differs from a footnote marker
 ====================================================================================
+(FIX ROUND 1 folded in, ruled from this report's own 641-a, and it changed no
+number on either document. The rule was implemented in the BARE marker walk and
+the MATERIALISED `<sup>n</sup>` lane still turned every body-less superscript
+into `\footnotemark[n]` before rule (b) could look at it — so a cleaned
+numeric-citation document would have printed its citations as footnote marks.
+The decision is now ONE function, `footnotes.decide`, called from both
+spellings. Details under FIX ROUND 1 at the end; the tables below are the
+post-fix measurement.)
 
 THE ANSWER TO "HOW DID YOU TELL THEM APART", FIRST, BECAUSE IT IS THE TASK
   A footnote marker has a BODY on its own page. A citation superscript has a
@@ -108,7 +116,9 @@ WHAT WAS BUILT
   lane (`latex_pipeline.TEMPLATE_ACTIONS` + the object-aware handlers), where a
   marker arrives as `{{<title>||FN}}` and names its body by identity. That lane
   needs no disambiguation and got none. See 641-a for the one place the two
-  lanes disagree.
+  lanes disagreed — and FIX ROUND 1, which closes it by extracting the DECISION
+  (`footnotes.decide`) and calling it from both spellings. Still no second
+  walker: the sup lane has no walk of its own, it asks the same function.
 
 THE NUMBERS — BOTH DOCUMENTS
   `pdfdrill latex --compile --dump-stages` through the real CLI entry point on
@@ -181,7 +191,8 @@ WHAT REACHES THE WALK AT ALL — THE FORMULA HALF, RE-CHECKED
   paragraph dropping it would too, and neither was true.
 
 TESTS (TDD; 5 of the 6 confirmed failing first, on the stated reason)
-  tests/test_superscript_citations.py, 6 tests:
+  tests/test_superscript_citations.py, 6 tests in this round (10 after fix
+  round 1, whose four are listed with it):
     * a marker `{ }^{7}` with NO footnote 7 and a Reference numbered 7 ->
       `mark.citekey == "key7"`, `markers_cited == 1`, the projection holds
       `\cite{key7}`, no `{ }^{7}` survives, and `\bibitem{key7}` is there
@@ -224,7 +235,9 @@ EVIDENCE (library, deny-by-default git; never committed to this repo)
   brief   tasks/641 brief (coordinator), out/638.txt, out/640.txt, out/642.txt
 
 WHAT IS OPEN
-  641-a  THE MATERIALISED LANE DOES NOT ASK 641's QUESTION. After `clean`, a
+  641-a  CLOSED by fix round 1 — see the last section. The text below is what
+         it said, and is left as the ruling was made on it.
+         THE MATERIALISED LANE DOES NOT ASK 641's QUESTION. After `clean`, a
          marker whose refnum names a Footnote becomes `{{…||FN}}` (identity —
          no disambiguation needed, correct) and a marker whose refnum names
          NOTHING becomes `<sup>N</sup>`, which `latex_pipeline.
@@ -279,3 +292,127 @@ CONCERNS
   see those markers become `\cite` on the strength of a matching integer
   alone. That is the failure mode to watch, and the gate plus the ordering are
   the only things holding it: it is not a proof, it is a priority.
+
+--------------------------------------------------------------------------
+FIX ROUND 1 — ONE ORDERED RULE, CALLED FROM BOTH SPELLINGS
+--------------------------------------------------------------------------
+
+  RULING (from 641-a, above): the decision is ONE function and both lanes call
+  it. This is not a third walker — it is the same decision behind two spellings
+  of the same marker.
+
+  THE DEFECT, STATED PLAINLY. A marker reaches the LaTeX projector as one of
+  two strings, and which one depends only on whether `clean` has run:
+
+      raw model        \({ }^{7}\)        -> `footnotes.resolve`, rule a/b/c
+      after `clean`    <sup>7</sup>       -> `latex_pipeline.resolve_sup_markers`
+
+  The second is what the TiddlyWiki projector emits for a marker whose refnum
+  names no Footnote object, and 640 made every one of them `\footnotemark[7]`
+  unconditionally ("a mark with no body IS \footnotemark[n]"). That is right for
+  a mark whose body MathPix failed to capture and WRONG for a numeric citation
+  superscript: rule (b)'s whole population is markers with no footnote body, and
+  on a cleaned document that population arrives here and was decided before the
+  rule could see it. penev_A carries 44 such markers; a cleaned document with a
+  numbered bibliography would have printed its citations as footnote marks.
+
+  WHAT WAS BUILT
+    src/docops/projectors/footnotes.py
+        `MarkerLookups` — the two lookups THE RULE needs and nothing else:
+          `by_page_refnum` {(page, refnum) -> [Footnote id]}  (rule a)
+          `numbered`       {printed number -> citekey}        (rule b), which
+          IS `latex_pipeline.reference_map`, not a second copy of it.
+        `marker_lookups(doc)` builds them once; `Resolution.lookups` keeps them
+        so the projector decides against the SAME document state, not a re-read.
+        `decide(refnum, page, lookups, *, footnote_id=None) -> Decision` — the
+        ordered rule, one implementation:
+            a. a Footnote body with that refnum on that page  -> footnote
+            b. else a Reference whose printed number is n     -> cite
+            c. else                                          -> unresolved
+          and `both=True` on a footnote that ALSO names a bibitem.
+        `footnote_id` is the seam, and it is deliberate: the bare walk pairs by
+        marker-order-against-body-order on the page, allows a one-page spill and
+        consumes a body once — none of which a lookup can express — so it hands
+        its answer IN. A caller with no pairing (the `<sup>` lane) passes None
+        and rule (a) is decided from the lookup. 638's numbers cannot move,
+        because on that lane `decide` never runs its own rule (a).
+        Pass 3 of `resolve` is now three lines over `decide`.
+    src/docops/projectors/latex_pipeline.py
+        `resolve_sup_markers(text, counts, handler=None)` — the same injection
+        `resolve_transclusions` already uses for the templates. This module has
+        no Document; the projector does. Returning None keeps the default, and
+        the default is still `\footnotemark[n]`.
+    src/docops/projectors/latex.py
+        `_sup_marker(n)` — the handler, sitting beside `_mark_footnotes` because
+        it is the same rule on the other spelling. `_render` and `_render_list`
+        set `self._sup_page` to the page of the block being emitted, which is
+        where that marker is printed.
+        `\footnotemark[n]` is this spelling's "STANDS", and that is a decision
+        with a reason: the tiddler projector has already ruled it a mark, and
+        emitting a literal `<sup>` tag instead is 640-a, which printed 44 HTML
+        tags into penev_A's .tex. Counted (`sup_marker_default`) so the default
+        is visible rather than assumed.
+    src/pdfdrill/commands.py
+        `cmd_latex` now reads the PROJECTOR's own resolution instead of a fresh
+        `resolve(doc)`. The `sup_*` counters are bumped while RENDERING, so a
+        second resolve could only ever report them as 0 — a counter that can
+        only say zero is worse than no counter (642). And it prints the lane:
+
+          superscript citations: 0 marker(s) became \cite …; 0 numbered
+          Reference(s) in the document (0 = rule (b) cannot fire at all).
+            of those, 44 came from materialised <sup>n</sup> markers: 0 \cite,
+            0 footnote body on the page (0 of them matching a bibitem too),
+            44 \footnotemark[n] by default.
+
+  THE NUMBERS AFTER THE FIX — the `<sup>` lane, by outcome
+
+                                          penev_A        Steerable
+    materialised `<sup>n</sup>` markers        44                0
+      -> \cite (rule b)                         0                0
+      -> footnote body on the page (rule a)     0                0
+         of them matching a bibitem too         0                0
+      -> \footnotemark[n] by default (rule c)  44                0
+    numbered References (the gate)              0               29
+
+  All 44 take the default, and the reason is structural on both counts: a
+  `<sup>n</sup>` exists precisely because refnum n names no Footnote object, so
+  rule (a) cannot fire; and penev_A has 0 numbered References, so rule (b)
+  cannot either. Steerable has never been through `clean`'s FN materialisation
+  and carries 0 of them.
+
+  THE .tex IS STILL BYTE-IDENTICAL on both documents, re-checked after the fix:
+
+    penev_A    sha256 014a24574e47eb1b027fb41828feafacf41684f23ee09acfc65b9c9579db7d5c   both sides
+    Steerable  sha256 ca5c7a46657da6bf14377e3c02f6163ba3f147992efb23d07ba64c42bc45482b   both sides
+
+    compile   penev_A 97 pages / 0 errors    Steerable 41 pages / 1 (640-f)
+
+  TESTS ADDED (4, each confirmed failing first on the stated reason)
+    * a materialised `<sup>7</sup>` with Reference 7 numbered and NO footnote 7
+      -> `\cite{key7}`, no `\footnotemark[7]`, no `<sup>` in the output, and
+      `\bibitem{key7}` present (failed: the projection held `\footnotemark[7]`);
+    * the same with a Footnote 7 whose body is on that page -> `\footnotemark[7]`,
+      no `\cite{key7}`, `marker_both == 1` and `sup_marker_both == 1`
+      (failed: `marker_both` 0 — the lane never consulted the rule);
+    * neither -> `\footnotemark[7]` and `sup_marker_default == 1`, with the
+      reading of "stands" for this spelling written into the test's docstring
+      (failed: `KeyError: 'sup_marker_default'`);
+    * ONE RULE, BOTH SPELLINGS: the bare `{ }^{7}` document and the
+      `<sup>7</sup>` document reach the SAME `decide()` outcome in all three
+      configurations (failed: `cannot import name 'decide'`).
+
+  FULL SUITE: 3233 passed, 0 failed (3229 after round 0; 4 new).
+
+  STILL OPEN
+    641-b  Unchanged and now sharper: BOTH lanes are demonstrated on fixtures
+           only. penev_A has the markers and no numbered bibliography;
+           Steerable has the numbered bibliography and no markers of either
+           spelling. Nothing on this machine exercises rule (b) end to end.
+    641-c  `_sup_page` is the page of the OBJECT being rendered, not of the line
+           the `<sup>` sits on. For a paragraph spanning a page break the two
+           differ, and rule (a) would then look on the wrong page. The bare walk
+           does better (`_marker_pages` reads the LINE's `_page`), but a
+           materialised marker has no line left to read — `clean` rewrote the
+           text. It costs nothing today (0 rule-(a) hits in this lane on either
+           document) and it is the first thing to fix if the lane ever resolves
+           a footnote.

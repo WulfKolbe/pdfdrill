@@ -202,3 +202,68 @@ def test_a_bare_marker_is_no_formula_and_stays_in_the_paragraph_text():
     par = next(o for o in doc.objects.values() if o.type == "Paragraph")
     text = fnres.object_text(par)
     assert [rn for _s, _e, rn in fnres.find_markers(text)] == ["3"], text
+
+
+# ───────────────────── fix round 1: the SAME rule behind the other spelling
+
+def _doc_sup(*, numbered: bool = True, footnote_on_page: bool = False,
+             n: str = "7") -> Document:
+    """The MATERIALISED spelling of the same marker. After `clean`, a marker
+    whose refnum named no Footnote is `<sup>N</sup>` in the paragraph's own
+    text (644's `_substitute_footnotes`), and 640 turned every one of those
+    into `\\footnotemark[N]` before rule (b) could look at it."""
+    doc = _doc(numbered=numbered, footnote_on_page=footnote_on_page, refnum=n)
+    par = _par(doc)
+    par.props["text"] = f"Sparse coding<sup>{n}</sup> predates the transform."
+    return doc
+
+
+def test_a_materialised_sup_marker_naming_a_numbered_bibitem_becomes_a_cite():
+    tex = _project(_doc_sup())
+    assert "\\cite{key7}" in tex, tex
+    assert "<sup>" not in tex, tex
+    assert "\\footnotemark[7]" not in tex, tex
+    assert "\\bibitem{key7}" in tex, tex
+
+
+def test_a_materialised_sup_marker_with_a_footnote_on_its_page_stays_a_mark():
+    doc = _doc_sup(footnote_on_page=True)
+    proj = LaTeXProjector(
+        OperatorConfig(op="projector", classname="LaTeXProjector"))
+    tex = proj.project(doc)
+    assert "\\footnotemark[7]" in tex, tex
+    assert "\\cite{key7}" not in tex, tex
+    assert "<sup>" not in tex, tex
+    assert proj._footnotes.counts["marker_both"] == 1
+    assert proj._footnotes.counts["sup_marker_both"] == 1
+
+
+def test_a_materialised_sup_marker_matching_neither_stands_as_a_mark():
+    """`stands` in THIS spelling is `\\footnotemark[N]` — 640's ruling, "a mark
+    with no body IS \\footnotemark[n]". Reverting to the literal `<sup>` tag
+    would re-open 640-a, which put 44 HTML tags into penev_A's .tex. It is
+    counted so the default is visible."""
+    doc = _doc_sup(numbered=False)
+    proj = LaTeXProjector(
+        OperatorConfig(op="projector", classname="LaTeXProjector"))
+    tex = proj.project(doc)
+    assert "\\footnotemark[7]" in tex, tex
+    assert "\\cite{" not in tex, tex
+    assert proj._footnotes.counts["sup_marker_default"] == 1
+    assert proj._footnotes.counts["sup_markers"] == 1
+    assert proj._footnotes.counts["markers_cited"] == 0
+
+
+def test_one_rule_behind_both_spellings():
+    """The bare `{ }^{7}` and the materialised `<sup>7</sup>` reach the SAME
+    decision on the SAME document — that is the whole point of extracting it.
+    """
+    from docops.projectors.footnotes import decide, marker_lookups
+    for maker in (_doc, _doc_sup):
+        for kwargs, expected in ((dict(), "cite"),
+                                 (dict(footnote_on_page=True), "footnote"),
+                                 (dict(numbered=False), "unresolved")):
+            doc = maker(**kwargs)
+            look = marker_lookups(doc)
+            d = decide("7", 4, look)
+            assert d.outcome == expected, (maker.__name__, kwargs, d)

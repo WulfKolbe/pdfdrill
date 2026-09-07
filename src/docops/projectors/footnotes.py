@@ -132,6 +132,82 @@ def object_text(obj: DocObject) -> str:
     return ""
 
 
+@dataclass(frozen=True)
+class MarkerLookups:
+    """The two document-level lookups THE RULE needs, built once per document.
+
+    `by_page_refnum` answers rule (a) — "is there a Footnote body with this
+    refnum on this page?" — and `numbered` answers rule (b) — "does this number
+    name a bibitem?". Nothing else about the document is consulted.
+    """
+    by_page_refnum: dict = field(default_factory=dict)   # (page, refnum) → [id]
+    numbered: dict = field(default_factory=dict)         # number → citekey
+
+
+@dataclass(frozen=True)
+class Decision:
+    """What ONE marker is, whichever spelling it arrived in."""
+    outcome: str                     # "footnote" | "cite" | "unresolved"
+    refnum: str
+    footnote_id: Optional[str] = None
+    citekey: Optional[str] = None
+    both: bool = False               # matched a footnote AND a bibitem number
+
+
+def marker_lookups(doc: Document) -> MarkerLookups:
+    """Build the two lookups once. `numbered` is `latex_pipeline.reference_map`
+    — the same map the numeric `[N]` brackets resolve through, not a second
+    implementation of it (imported locally: a top-level import closes a cycle).
+    """
+    from .latex_pipeline import reference_map
+    by_page: dict = {}
+    for o in doc.objects.values():
+        if o.type != "Footnote":
+            continue
+        rn = str(o.props.get("refnum") or "").strip()
+        pg = o.props.get("page")
+        if rn and pg is not None:
+            by_page.setdefault((pg, rn), []).append(o.id)
+    return MarkerLookups(by_page_refnum=by_page, numbered=reference_map(doc))
+
+
+def decide(refnum: str, page, look: MarkerLookups, *,
+           footnote_id: Optional[str] = None) -> Decision:
+    """THE ORDERED RULE — one implementation, called from BOTH spellings of the
+    same marker (the bare `\\({ }^{n}\\)` walk below, and the materialised
+    `<sup>n</sup>` the LaTeX projector meets after `clean`).
+
+      a. a Footnote body with this refnum on this page  ->  footnote
+      b. else, a Reference whose printed number is n    ->  cite
+      c. else                                           ->  unresolved
+
+    BOTH is a footnote, and the Decision says so (`both=True`) so the caller can
+    count it: the body being physically on the page is stronger evidence than a
+    bibliography entry that merely carries the same integer.
+
+    `footnote_id` is the caller's OWN pairing when it did one — the bare walk
+    pairs by marker-order-against-body-order on the page, allows a one-page
+    spill and consumes a body once, none of which a lookup can express. Passing
+    it means "rule (a) already fired, and this is the body"; passing None means
+    "decide rule (a) here too, from the lookup".
+    """
+    fid = footnote_id
+    if fid is None and page is not None:
+        cands = look.by_page_refnum.get((page, str(refnum)))
+        if cands:
+            fid = cands[0]
+    try:
+        key = look.numbered.get(int(refnum))
+    except (TypeError, ValueError):
+        key = None
+    if fid:
+        return Decision("footnote", str(refnum), footnote_id=fid,
+                        both=key is not None)
+    if key:
+        return Decision("cite", str(refnum), citekey=key)
+    return Decision("unresolved", str(refnum))
+
+
 @dataclass
 class Mark:
     """One marker occurrence in one object's running text."""
@@ -162,6 +238,9 @@ class Resolution:
     refnum_of: dict[str, str] = field(default_factory=dict)   # footnote id → refnum
     page_of: dict[str, object] = field(default_factory=dict)  # footnote id → page
     counts: dict[str, int] = field(default_factory=dict)
+    #: the two lookups THE RULE reads — kept so the projector's `<sup>n</sup>`
+    #: lane decides through the SAME `decide()` on the SAME document state.
+    lookups: MarkerLookups = field(default_factory=MarkerLookups)
 
     def marks_for(self, obj_id: str) -> list[Mark]:
         return self.marks.get(obj_id, [])
@@ -232,15 +311,6 @@ def _marker_pages(doc: Document, obj: DocObject,
     return [None] * len(refnums)
 
 
-def _numbered_references(doc: Document) -> dict[int, str]:
-    """`{printed number: citekey}` for the References that carry BOTH — 641's
-    rule (b) lookup, and the same map `latex_pipeline.reference_map` builds for
-    numeric `[N]` brackets. Imported locally: `latex_pipeline` imports this
-    module's siblings and a top-level import would close the cycle."""
-    from .latex_pipeline import reference_map
-    return reference_map(doc)
-
-
 def resolve(doc: Document) -> Resolution:
     """Pair every running-text footnote marker with its Footnote body, and —
     641 — every marker no body claimed with the numbered bibitem it names."""
@@ -258,10 +328,18 @@ def resolve(doc: Document) -> Resolution:
         "markers_unresolved": 0,
         "markers_ambiguous": 0,
         "markers_without_a_page": 0,
-        # 641 — the citation half of the same marker population.
+        # 641 — the citation half of the same marker population. `markers_*`
+        # and `marker_both` count BOTH spellings: the bare walk fills them here,
+        # the projector's `<sup>n</sup>` lane adds to them as it renders (fix
+        # round 1), and the `sup_*` rows are that lane's own breakdown.
         "references_numbered": 0,
         "markers_cited": 0,
         "marker_both": 0,
+        "sup_markers": 0,
+        "sup_marker_footnote": 0,
+        "sup_marker_cited": 0,
+        "sup_marker_both": 0,
+        "sup_marker_default": 0,
     }
 
     footnotes = sorted(
@@ -336,24 +414,18 @@ def resolve(doc: Document) -> Resolution:
     # having a numbered reference list at all: on an author-year document
     # (penev_A: 52 References, 0 with a `number`) `numbered` is empty and this
     # pass cannot fire, which is the designed outcome.
-    numbered = _numbered_references(doc)
-    res.counts["references_numbered"] = len(numbered)
+    look = marker_lookups(doc)
+    res.lookups = look
+    res.counts["references_numbered"] = len(look.numbered)
     for mk in all_marks:
-        try:
-            n = int(mk.refnum)
-        except (TypeError, ValueError):
-            continue
-        key = numbered.get(n)
-        if key is None:
-            continue
-        if mk.footnote_id:
-            # BOTH. The footnote keeps it — the body is physically on the page,
-            # a bibitem number is only a number — and the collision is counted
-            # rather than decided in silence.
-            mk.both = True
+        # Passes 1 and 2 already did rule (a) — with the order tie-break, the
+        # one-page spill and the one-body-per-marker consumption a lookup cannot
+        # express — so their answer is handed IN rather than re-derived.
+        d = decide(mk.refnum, mk.page, look, footnote_id=mk.footnote_id)
+        mk.citekey = d.citekey
+        mk.both = d.both
+        if d.both:
             res.counts["marker_both"] += 1
-            continue
-        mk.citekey = key
 
     for mk in all_marks:
         if mk.footnote_id:

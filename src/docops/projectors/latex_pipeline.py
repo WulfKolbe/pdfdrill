@@ -287,10 +287,24 @@ def _bump(counts, key: str) -> None:
         counts[key] = counts.get(key, 0) + 1
 
 
-def resolve_sup_markers(text: str, counts: dict | None = None) -> str:
-    """`<sup>3</sup>` → `\\footnotemark[3]`. See `_SUP_MARKER`."""
+def resolve_sup_markers(text: str, counts: dict | None = None,
+                        handler=None) -> str:
+    """`<sup>3</sup>` → `\\footnotemark[3]`. See `_SUP_MARKER`.
+
+    641 fix round 1 — `handler(n) -> str | None` lets the PROJECTOR decide,
+    because a `<sup>n</sup>` is the materialised spelling of the same marker the
+    bare `\\({ }^{n}\\)` walk resolves, and the rule behind both is one function
+    (`footnotes.decide`). This module has no Document, which is why the decision
+    is injected here exactly as `resolve_transclusions` injects its handlers.
+    Returning None keeps the default, and the default is `\\footnotemark[n]`:
+    640's ruling that a mark with no body IS a mark. A literal `<sup>` tag is
+    never emitted — that is 640-a, and it printed 44 times into penev_A."""
     def sub(m: re.Match) -> str:
         _bump(counts, "resolved:SUP")
+        if handler is not None:
+            out = handler(m.group(1))
+            if out is not None:
+                return out
         return f"\\footnotemark[{m.group(1)}]"
     return _SUP_MARKER.sub(sub, text)
 

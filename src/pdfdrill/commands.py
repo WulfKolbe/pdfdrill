@@ -10087,9 +10087,12 @@ def cmd_latex(pdf: Path, force: bool = False, compile: bool = False,
     # 638 — the footnote resolution, said out loud. A marker the projector
     # cannot pair with a body is LEFT as it stands and counted; a count nothing
     # prints is a count nobody reads.
-    from docops.projectors import footnotes as _fnres
-    _fc = _fnres.resolve(doc).counts
-    if _fc["markers_total"] or _fc["footnotes"]:
+    # Read off the PROJECTOR's own resolution, not a fresh one: the
+    # `<sup>n</sup>` lane bumps `sup_*` / `markers_cited` / `marker_both` while
+    # RENDERING, so a second `resolve(doc)` could only ever report those as 0 —
+    # a counter that can only say zero is worse than no counter (642).
+    _fc = projector._footnotes.counts
+    if _fc["markers_total"] or _fc["footnotes"] or _fc["sup_markers"]:
         lines.append(
             f"  footnotes: {_fc['markers_resolved']}/{_fc['markers_total']} "
             f"marker(s) resolved to a body "
@@ -10107,6 +10110,15 @@ def cmd_latex(pdf: Path, force: bool = False, compile: bool = False,
             f"bibitem); {_fc['marker_both']} matched BOTH and stayed a footnote; "
             f"{_fc['references_numbered']} numbered Reference(s) in the "
             f"document (0 = rule (b) cannot fire at all).")
+        # The SAME rule, the other spelling. After `clean` a marker is
+        # `<sup>n</sup>`, not `\({ }^{n}\)`; both go through `footnotes.decide`.
+        if _fc["sup_markers"]:
+            lines.append(
+                f"    of those, {_fc['sup_markers']} came from materialised "
+                f"<sup>n</sup> markers: {_fc['sup_marker_cited']} \\cite, "
+                f"{_fc['sup_marker_footnote']} footnote body on the page "
+                f"({_fc['sup_marker_both']} of them matching a bibitem too), "
+                f"{_fc['sup_marker_default']} \\footnotemark[n] by default.")
     # 642 — the citation substitution, said out loud. A Citation with no
     # Reference is NOT emitted as `\cite` (it would print as a bold `?`); a
     # citation on a line no running-text object covers is never substituted at

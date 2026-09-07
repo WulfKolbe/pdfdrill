@@ -270,6 +270,7 @@ class LaTeXProjector(BaseProjector):
         content passes through `_prose` (transclusions / citations resolve)."""
         lines = ["\\begin{itemize}"]
         for it in run:
+            self._sup_page = it.props.get("page")
             marked, notes = self._mark_footnotes(it, self._cite(it))
             content, owed = self._prose_notes(marked.strip())
             notes = notes + owed                  # 640-a: materialised {{…||FN}}
@@ -363,6 +364,39 @@ class LaTeXProjector(BaseProjector):
             last = end
         out.append(text[last:])
         return "".join(out), notes
+
+    def _sup_marker(self, n: str) -> str | None:
+        """`<sup>n</sup>` — the MATERIALISED spelling of the bare `{ }^{n}`
+        `_mark_footnotes` walks, and it goes through the SAME rule
+        (`footnotes.decide`) so the two spellings cannot disagree.
+
+        641 fix round 1, ruled from 641-a: 640 turned every `<sup>n</sup>` into
+        `\\footnotemark[n]` unconditionally, which is right for a mark whose body
+        is merely missing and WRONG for a numeric citation superscript on a
+        cleaned document — rule (b) never got a look. It gets one here, second,
+        after the page lookup, exactly as it does in the bare walk.
+
+        `\\footnotemark[n]` is this spelling's "stands": the tiddler projector
+        already decided it is a mark, and reverting to the literal `<sup>` tag is
+        640-a. The three outcomes are counted on the resolution the projector
+        printed, so the lane is visible rather than inferred."""
+        res = getattr(self, "_footnotes", None)
+        if res is None:
+            return None
+        d = _fn.decide(n, getattr(self, "_sup_page", None), res.lookups)
+        res.counts["sup_markers"] += 1
+        if d.outcome == "cite":
+            res.counts["sup_marker_cited"] += 1
+            res.counts["markers_cited"] += 1
+            return "\\cite{" + d.citekey + "}"
+        if d.outcome == "footnote":
+            res.counts["sup_marker_footnote"] += 1
+            if d.both:
+                res.counts["sup_marker_both"] += 1
+                res.counts["marker_both"] += 1
+            return None                        # the default IS \footnotemark[n]
+        res.counts["sup_marker_default"] += 1
+        return None
 
     def _footnotetext(self, fn) -> str:
         """A Footnote body as `\\footnotetext[n]{…}` — the PRINTED number, so the
@@ -534,7 +568,8 @@ class LaTeXProjector(BaseProjector):
         # `<sup>N</sup>` — what the tiddler projector emits for a marker whose
         # refnum names no Footnote. A mark with no body IS `\footnotemark[N]`.
         text = _pipe.resolve_sup_markers(
-            text, getattr(self, "_template_counts", None))
+            text, getattr(self, "_template_counts", None),
+            handler=self._sup_marker)
         # contain any runaway inline math (a dropped `\)`/`$`) to THIS block, so
         # it can't swallow the next \section ("Not allowed in LR mode").
         text = _pipe.balance_math(text)
@@ -546,6 +581,9 @@ class LaTeXProjector(BaseProjector):
 
     def _render(self, obj) -> str:
         t, p = obj.type, obj.props
+        # the page the `<sup>n</sup>` handler resolves against — the block being
+        # emitted, which is where that marker is printed.
+        self._sup_page = p.get("page")
         if t == "Section":
             lvl = int(p.get("level", 1) or 1) - getattr(self, "_level_shift", 0)
             cmd = _SECTION_CMDS[max(1, min(len(_SECTION_CMDS) - 1, lvl))]
