@@ -280,10 +280,63 @@ def test_no_lines_json_yields_no_widths(tmp_path):
     assert rf.mathpix_page_widths(tmp_path) == {}
 
 
+# --------------------------------------------- 654: page DIMS (both axes) ---
+
+def test_page_dims_are_read_per_page_not_once(tmp_path):
+    d = _lines(tmp_path, [{"page": 1, "page_width": 2066, "page_height": 2900},
+                          {"page": 2, "page_width": 2125, "page_height": 3010}])
+    assert rf.mathpix_page_dims(d) == {1: (2066.0, 2900.0), 2: (2125.0, 3010.0)}
+
+
+def test_page_dims_need_both_axes_missing_height_is_absent(tmp_path):
+    """Unlike `mathpix_page_widths`, `mathpix_page_dims` needs BOTH axes
+    (654's crop map scales x and y independently) — a page with only a
+    width recorded is absent, not half-defaulted."""
+    d = _lines(tmp_path, [{"page": 1, "page_width": 2066, "page_height": 2900},
+                          {"page": 2, "page_width": 2125}])
+    assert 2 not in rf.mathpix_page_dims(d)
+
+
+def test_no_lines_json_yields_no_dims(tmp_path):
+    assert rf.mathpix_page_dims(tmp_path) == {}
+
+
 def test_scan_crop_refuses_without_a_page_width(tmp_path):
     assert rf.scan_crop(tmp_path / "x.pdf", 1, {"top_left_x": 0, "top_left_y": 0,
                                                 "width": 10, "height": 10},
-                        tmp_path / "o.png", page_width=0) is None
+                        tmp_path / "o.png", page_width=0, page_height=100) is None
+
+
+def test_scan_crop_refuses_without_a_page_height(tmp_path):
+    assert rf.scan_crop(tmp_path / "x.pdf", 1, {"top_left_x": 0, "top_left_y": 0,
+                                                "width": 10, "height": 10},
+                        tmp_path / "o.png", page_width=100, page_height=0) is None
+
+
+def test_scan_crop_uses_the_cropbox_and_scales_axes_independently(tmp_path):
+    """Real Ghostscript, real pypdf-built PDF (gilmore-lie-groups p15's own
+    box numbers): the FO0006 region must land on 'four standard operations
+    of arithmetic', not five lines below it."""
+    import shutil
+    if not any(shutil.which(t) for t in ("gs", "gswin64c", "gswin32c")):
+        print("SKIP scan_crop cropbox (no ghostscript)"); return
+    from pypdf import PdfWriter
+    from pypdf.generic import RectangleObject
+    pdf = tmp_path / "x.pdf"
+    w = PdfWriter()
+    p = w.add_blank_page(width=493, height=700)
+    p.cropbox = RectangleObject((13.68, 30.24, 452.68, 692.80))
+    with open(pdf, "wb") as f:
+        w.write(f)
+    region = {"top_left_x": 136, "top_left_y": 1599, "width": 1254, "height": 43}
+    out = rf.scan_crop(pdf, 1, region, tmp_path / "o.png",
+                       page_width=1525, page_height=2301, dpi=400)
+    assert out is not None and out.is_file()
+    from PIL import Image
+    im = Image.open(out)
+    # correct crop (measured 654): scaled to the raster px, per axis
+    assert abs(im.size[0] - int(1254 * 2439 / 1525)) <= 2
+    assert abs(im.size[1] - int(43 * 3681 / 2301)) <= 2
 
 
 # --------------------------------------------- cross-boundary schema ---

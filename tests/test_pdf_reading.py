@@ -211,6 +211,96 @@ def test_rasterize_uses_ghostscript_at_400_floor():
         pr.shutil.which, pr.subprocess.run = owhich, orun
 
 
+# ---- 654: MathPix pixel -> raster pixel, and the -dUseCropBox raster ------
+
+def _pdf_with_cropbox(path: Path, *, mediabox=(493, 700),
+                      cropbox=(13.68, 30.24, 452.68, 692.80)):
+    """A two-page PDF: page 1 has an inset CropBox (gilmore-lie-groups p15's
+    own numbers), page 2 has none (CropBox == MediaBox)."""
+    from pypdf import PdfWriter
+    from pypdf.generic import RectangleObject
+    w = PdfWriter()
+    p1 = w.add_blank_page(width=mediabox[0], height=mediabox[1])
+    p1.cropbox = RectangleObject(cropbox)
+    w.add_blank_page(width=mediabox[0], height=mediabox[1])   # equal boxes
+    with open(path, "wb") as f:
+        w.write(f)
+
+
+def test_mathpix_to_raster_scales_axes_independently():
+    # raster 2439 x 3681 (gilmore p15's own -dUseCropBox render at 400 dpi),
+    # MathPix page 1525 x 2301 (its lines.json) — the FO0006 region.
+    box = pr.mathpix_to_raster(136, 1599, 1254, 43,
+                               raster_size=(2439, 3681),
+                               mathpix_size=(1525, 2301))
+    assert box == (217, 2557, 2223, 2626)
+
+
+def test_mathpix_to_raster_a_single_factor_would_get_wrong():
+    # width and height scale by DIFFERENT factors here (2x vs 3x): a
+    # single width-derived factor (the pre-654 bug) would place y at
+    # 10*2=20, not 10*3=30.
+    box = pr.mathpix_to_raster(10, 10, 5, 5,
+                               raster_size=(200, 300),
+                               mathpix_size=(100, 100))
+    assert box == (20, 30, 30, 45)
+
+
+def test_mathpix_to_raster_refuses_without_mathpix_dims():
+    assert pr.mathpix_to_raster(0, 0, 10, 10, raster_size=(100, 100),
+                                mathpix_size=(0, 100)) is None
+    assert pr.mathpix_to_raster(0, 0, 10, 10, raster_size=(100, 100),
+                                mathpix_size=(100, 0)) is None
+
+
+def test_mathpix_to_raster_refuses_an_empty_result():
+    # a region entirely past the raster's edge clamps to nothing
+    assert pr.mathpix_to_raster(999, 999, 10, 10, raster_size=(100, 100),
+                                mathpix_size=(100, 100)) is None
+
+
+def test_gs_base_use_cropbox_flag():
+    assert "-dUseCropBox" not in pr._gs_base("gs", 400, "png")
+    assert "-dUseCropBox" in pr._gs_base("gs", 400, "png", use_cropbox=True)
+
+
+def test_use_cropbox_renders_the_smaller_box():
+    """Real Ghostscript: page 1's CropBox (439x662.56pt) rasterizes smaller
+    than its MediaBox (493x700pt) at the same dpi when use_cropbox=True."""
+    if not any(shutil.which(t) for t in ("gs", "gswin64c", "gswin32c")):
+        print("SKIP use_cropbox (no ghostscript)"); return
+    from PIL import Image
+    with tempfile.TemporaryDirectory() as d:
+        pdf = Path(d) / "x.pdf"
+        _pdf_with_cropbox(pdf)
+        cropped = pr.rasterize(pdf, Path(d) / "crop", pages=[1], dpi=400,
+                               use_cropbox=True)
+        full = pr.rasterize(pdf, Path(d) / "full", pages=[1], dpi=400,
+                            use_cropbox=False)
+        wc, hc = Image.open(cropped[0]).size
+        wf, hf = Image.open(full[0]).size
+        assert (wc, hc) == (2439, 3681)          # 439 x 662.56 pt @ 400dpi
+        assert (wf, hf) == (2739, 3889)          # 493 x 700 pt @ 400dpi
+        assert (wc, hc) != (wf, hf)
+
+
+def test_use_cropbox_is_byte_identical_when_boxes_agree():
+    """The 'Before You Begin' gate: a page whose CropBox equals its MediaBox
+    must rasterize identically with and without -dUseCropBox — required
+    before this flag can touch the shared rasterizer the ink chain also
+    uses (regionink's report.pdf pages always have equal boxes)."""
+    if not any(shutil.which(t) for t in ("gs", "gswin64c", "gswin32c")):
+        print("SKIP use_cropbox byte-identity (no ghostscript)"); return
+    with tempfile.TemporaryDirectory() as d:
+        pdf = Path(d) / "x.pdf"
+        _pdf_with_cropbox(pdf)                    # page 2 has equal boxes
+        cropped = pr.rasterize(pdf, Path(d) / "crop", pages=[2], dpi=400,
+                               use_cropbox=True)
+        full = pr.rasterize(pdf, Path(d) / "full", pages=[2], dpi=400,
+                            use_cropbox=False)
+        assert cropped[0].read_bytes() == full[0].read_bytes()
+
+
 def test_list_attachments_none():
     with tempfile.TemporaryDirectory() as d:
         pdf = Path(d) / "x.pdf"; _blank_pdf(pdf)

@@ -2170,17 +2170,17 @@ def render_crops(tiddlers: list[dict], dest: Path, pdf: Path,
     The region IS on the tiddler — page, top_left_x/y, width, height — so the
     picture is recoverable from the PDF. This renders it.
 
-    THREE THINGS THAT ARE EASY TO GET WRONG HERE:
+    FOUR THINGS THAT ARE EASY TO GET WRONG HERE:
 
     * MathPix regions are in ITS page-image pixels, not ours. Every coordinate
-      is scaled by (raster width / that page's MathPix page_width), which is
+      is scaled by (raster / that page's MathPix page dimensions), which is
       read PER PAGE: 11 of 305 documents in this corpus carry more than one
       page_width, and a page scaled by another page's width lands on the wrong
       part of the page and still looks like a plausible piece of it
-      (refine.mathpix_page_widths).
+      (refine.mathpix_page_dims).
 
-    * A page with no recorded width is SKIPPED, not defaulted. Cropping it
-      wrongly is worse than not cropping it.
+    * A page with no recorded width/height is SKIPPED, not defaulted.
+      Cropping it wrongly is worse than not cropping it.
 
     * The result is resized to the region's MathPix pixel size. `crop_cell`
       sizes an image as jpg_width x px2mm, and px2mm is mm per MATHPIX pixel;
@@ -2189,17 +2189,29 @@ def render_crops(tiddlers: list[dict], dest: Path, pdf: Path,
       the scan column claims. Rendering high and downsampling is a better
       picture than rendering at MathPix's ~250 dpi directly.
 
+    * MathPix's own page image is the PDF's CropBox, not its MediaBox (654).
+      4 of 21 published documents carry a CropBox inset from the MediaBox on
+      most pages, and rasterizing the MediaBox with ONE scale factor read off
+      the width lands a table/image/formula-host-line crop up to five text
+      lines off the line it names — the error is proportional to y, so it
+      grows down the page. This renders the CropBox (`use_cropbox=True`, a
+      byte-identical no-op when the page declares none) and maps through
+      `pdf_reading.mathpix_to_raster`, which scales x and y INDEPENDENTLY —
+      a single factor is only right when the two images' aspects agree, and
+      here they merely have to be close (measured 1.5089 vs 1.5092 on
+      gilmore-lie-groups p15, not identical).
+
     Returns (rendered, cached, skipped).
     """
     from . import pdf_reading
-    from .refine import mathpix_page_widths
+    from .refine import mathpix_page_dims
     try:
         from PIL import Image
     except Exception:
         return 0, 0, 0
     pdf = Path(pdf)
     dest = Path(dest)
-    widths = mathpix_page_widths(pdf.parent)
+    dims = mathpix_page_dims(pdf.parent)
     want: dict = {}
     rendered = cached = skipped = 0
     for t in tiddlers:
@@ -2219,7 +2231,7 @@ def render_crops(tiddlers: list[dict], dest: Path, pdf: Path,
         except (TypeError, ValueError, KeyError):
             skipped += 1
             continue
-        if box[2] <= 0 or box[3] <= 0 or page not in widths:
+        if box[2] <= 0 or box[3] <= 0 or page not in dims:
             skipped += 1
             continue
         want.setdefault(page, []).append((f, box))
@@ -2232,7 +2244,8 @@ def render_crops(tiddlers: list[dict], dest: Path, pdf: Path,
     shutil_rmtree_first = dest / "_pages"
     import shutil as _sh
     _sh.rmtree(shutil_rmtree_first, ignore_errors=True)
-    imgs = pdf_reading.rasterize(pdf, shutil_rmtree_first, pages=pages, dpi=dpi)
+    imgs = pdf_reading.rasterize(pdf, shutil_rmtree_first, pages=pages, dpi=dpi,
+                                 use_cropbox=True)
     # PARSE the page out of the filename rather than zipping against the
     # request. rasterize globs its output directory, so a stale page left by a
     # crashed run would shift every pairing by one and crop each region from
@@ -2248,16 +2261,13 @@ def render_crops(tiddlers: list[dict], dest: Path, pdf: Path,
             skipped += len(jobs)
             continue
         im = Image.open(src).convert("RGB")
-        s = im.size[0] / float(widths[page])
         for f, (x, y, w, h) in jobs:
-            x0, y0 = max(0, int(x * s)), max(0, int(y * s))
-            x1 = min(im.size[0], int((x + w) * s))
-            y1 = min(im.size[1], int((y + h) * s))
-            if x1 <= x0 or y1 <= y0:
+            box = pdf_reading.mathpix_to_raster(
+                x, y, w, h, raster_size=im.size, mathpix_size=dims[page])
+            if box is None:
                 skipped += 1
                 continue
-            im.crop((x0, y0, x1, y1)).resize((w, h), Image.LANCZOS).save(
-                f, quality=92)
+            im.crop(box).resize((w, h), Image.LANCZOS).save(f, quality=92)
             if trim:
                 _pad_top(f)
             rendered += 1

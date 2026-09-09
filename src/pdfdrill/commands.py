@@ -16773,15 +16773,15 @@ def cmd_refine(pdf: Path, max_conf: float = 0.5, limit: int | None = None,
 
     # ---------------- select ----------------------------------------------
     if "select" in want:
-        widths = _rf.mathpix_page_widths(sc.blob_dir)
-        if not widths:
+        dims = _rf.mathpix_page_dims(sc.blob_dir)
+        if not dims:
             return ("No MathPix lines.json beside the model, so regions cannot "
                     "be scaled to the raster and no crop can be trusted. "
                     f"Run: pdfdrill mathpix {pdf}")
         cands = _rf.candidates(doc, max_conf=max_conf, limit=limit)
         idents = _rf.identifiers(doc, data.get("bibkey") or "")
         gate = _rf.ink_gate(pdf, doc, cands, work,
-                            page_widths=widths, dpi=dpi)
+                            page_dims=dims, dpi=dpi)
         for o in gate.kept:
             base = gate.baseline.get(o.id, {})
             rec = index.get(o.id) or {"id": o.id}
@@ -16909,7 +16909,7 @@ def cmd_refine(pdf: Path, max_conf: float = 0.5, limit: int | None = None,
 
     # ---------------- measure ---------------------------------------------
     if "measure" in want:
-        widths = _rf.mathpix_page_widths(sc.blob_dir)
+        dims = _rf.mathpix_page_dims(sc.blob_dir)
         todo = [p for p in data["proposals"]
                 if p.get("status") == "proposed" and p.get("validated")]
         done = unmeasured = 0
@@ -16919,9 +16919,10 @@ def cmd_refine(pdf: Path, max_conf: float = 0.5, limit: int | None = None,
             stem = work / p["id"]
             crop = stem.with_suffix(".scan.png")
             if not crop.is_file() and pr.get("region") and pr.get("page"):
+                pw, ph = dims.get(int(pr["page"]), (0, 0))
                 try:
                     crop = _rf.scan_crop(pdf, int(pr["page"]), pr["region"], crop,
-                                         page_width=widths.get(int(pr["page"]), 0),
+                                         page_width=pw, page_height=ph,
                                          dpi=dpi)
                 except Exception:                      # noqa: BLE001
                     crop = None

@@ -144,12 +144,25 @@ def gs_render_args() -> list[str]:
 _DEVICE = {"jpg": "jpeg", "png": "png16m", "pgm": "pgmraw"}
 
 
-def _gs_base(gs: str, dpi: int, ext: str, *, gray: bool = False) -> list[str]:
+def _gs_base(gs: str, dpi: int, ext: str, *, gray: bool = False,
+             use_cropbox: bool = False) -> list[str]:
     device = _DEVICE.get(ext, "png16m")
     if gray and device == "png16m":
         device = "pnggray"
     base = [gs, "-q", "-dNOPAUSE", "-dBATCH", "-dSAFER", *gs_render_args(),
             f"-sDEVICE={device}", f"-r{max(int(dpi), RASTER_MIN_DPI)}"]
+    # 654 — `use_cropbox=True` renders the page's CropBox, not its MediaBox.
+    # A page with no declared CropBox has CropBox == MediaBox, so this is a
+    # byte-identical no-op there (measured: gilmore page 1 and pdfdrill's own
+    # report.pdf, both equal-box, `cmp` clean with and without the flag).
+    # Opt-in, not the default, because every OTHER raster consumer (OCR,
+    # vision, inspect, image extraction, eqblobs' own ink-blob pass) has never
+    # assumed anything about CropBox and a blanket flip is more surface than
+    # this defect needs; see report_tex.render_crops / refine.scan_crop for
+    # the two callers that DO need it (they map MathPix's own page-image
+    # pixels, which are drawn from the CropBox, onto this raster).
+    if use_cropbox:
+        base.append("-dUseCropBox")
     return base + (["-dJPEGQ=95"] if ext == "jpg" else [])
 
 
@@ -262,7 +275,7 @@ def _render_shard(gs_base: "list[str]", pdf: Path, shard: "list[int]",
 
 def rasterize(pdf: Path, out_dir: Path, *, pages: Optional[list[int]] = None,
               dpi: int = RASTER_MIN_DPI, fmt: str = "png",
-              gray: bool = False) -> list[Path]:
+              gray: bool = False, use_cropbox: bool = False) -> list[Path]:
     """Render pages to images via Ghostscript at >= 400 DPI (gs is the only
     rasterizer — see RASTER_MIN_DPI). `pages=None` → all pages. Files are named
     page-<N>.<ext> (N = actual page number) so callers can parse the page.
@@ -272,12 +285,17 @@ def rasterize(pdf: Path, out_dir: Path, *, pages: Optional[list[int]] = None,
     `fmt="pgm"` renders raw grayscale (no encoder) for a consumer that only
     turns the page into numbers — 7.8x faster to produce and read, but 14.75
     MB/page, so prefer `stream_pages` over rasterizing a whole document raw.
-    `gray=True` keeps PNG but drops colour (2.5x, half the bytes)."""
+    `gray=True` keeps PNG but drops colour (2.5x, half the bytes).
+
+    `use_cropbox=True` (654) renders the CropBox rather than the MediaBox —
+    what a PDF viewer shows, and what MathPix's own page image is. A page
+    with no declared CropBox is unaffected (CropBox == MediaBox there); see
+    `_gs_base`."""
     out_dir.mkdir(parents=True, exist_ok=True)
     gs = _require_gs()
     ext = {"jpg": "jpg", "jpeg": "jpg", "pgm": "pgm"}.get(fmt, "png")
     pad = 4                                              # page-0001.png (sorts + parses)
-    base = _gs_base(gs, dpi, ext, gray=gray)
+    base = _gs_base(gs, dpi, ext, gray=gray, use_cropbox=use_cropbox)
     if pages is None:                                   # all pages
         pages = list(range(1, _page_count(pdf) + 1))
     if not pages:
@@ -341,19 +359,21 @@ def stream_pages(pdf: Path, pages: "list[int]", *, dpi: int = RASTER_MIN_DPI,
 
 
 def render_page(pdf: Path, page: int, out_png: Path, *,
-                dpi: int = RASTER_MIN_DPI) -> Path:
+                dpi: int = RASTER_MIN_DPI, use_cropbox: bool = False) -> Path:
     """Render ONE page to an exact PNG path via Ghostscript (>= 400 DPI). For
     callers that need a specific filename (image-locate, snip/vision crops).
 
     Goes through a relative template in a temp dir for the same reason as
     `_render_shard`: a caller path containing `%` is parsed by gs as a format
-    specifier and silently yields no file (see that docstring)."""
+    specifier and silently yields no file (see that docstring).
+
+    `use_cropbox` — see `rasterize`."""
     out_png = Path(out_png)
     out_png.parent.mkdir(parents=True, exist_ok=True)
     gs = _require_gs()
     with tempfile.TemporaryDirectory(dir=str(out_png.parent)) as td:
         proc = subprocess.run(
-            _gs_base(gs, dpi, "png") + [f"-dFirstPage={page}",
+            _gs_base(gs, dpi, "png", use_cropbox=use_cropbox) + [f"-dFirstPage={page}",
             f"-dLastPage={page}", "-sOutputFile=s.png", str(Path(pdf).resolve())],
             check=True, capture_output=True, timeout=300, cwd=td)
         src = Path(td) / "s.png"
@@ -364,6 +384,49 @@ def render_page(pdf: Path, page: int, out_png: Path, *,
                 f"(exit {proc.returncode})" + (f": {detail}" if detail else ""))
         src.replace(out_png)
     return out_png
+
+
+# ---------------------------------------------------------------------------
+# 1b. MathPix pixel -> raster pixel (654)
+# ---------------------------------------------------------------------------
+
+def mathpix_to_raster(x: float, y: float, w: float, h: float, *,
+                      raster_size: "tuple[int, int]",
+                      mathpix_size: "tuple[float, float]"
+                      ) -> "tuple[int, int, int, int] | None":
+    """A MathPix pixel region `(x, y, w, h)` -> `(x0, y0, x1, y1)` on a raster
+    of `raster_size`, GIVEN THAT the raster was rendered from the page's
+    CropBox (`rasterize(..., use_cropbox=True)` / `render_page(...,
+    use_cropbox=True)`) — which is what MathPix's own page image already is
+    (measured 2026-09-09, gilmore-lie-groups p15: MathPix h/w 1.5089, CropBox
+    h/w 1.5092, MediaBox h/w 1.4199 — MathPix matches the CropBox, not the
+    MediaBox pdfdrill used to rasterize).
+
+    Because the raster's origin now coincides with MathPix's own origin (both
+    are the CropBox's top-left corner), the mapping needs no offset — only a
+    per-axis scale, `raster_size[i] / mathpix_size[i]`. That is deliberately
+    NOT one shared factor read off the width: `render_crops` did that
+    (`s = raster_width / mathpix_width`, applied to both x and y) and it is
+    only correct when the two images' aspect ratios agree. They are close
+    here (1.5089 vs 1.5092 above) but not identical, and on a page whose
+    CropBox is NOT proportional to MathPix's rounding a shared factor drifts
+    further down the page — which is exactly how a five-line, 274px error
+    grew from a page that "looked" only one line off nearer the top (654).
+
+    Returns None when either MathPix dimension is falsy (nothing to scale
+    against — refusing beats guessing) or when the resulting box is empty
+    after clamping to the raster.
+    """
+    mw, mh = mathpix_size
+    if not mw or not mh:
+        return None
+    rw, rh = raster_size
+    sx, sy = rw / float(mw), rh / float(mh)
+    x0, y0 = max(0, int(x * sx)), max(0, int(y * sy))
+    x1, y1 = min(rw, int((x + w) * sx)), min(rh, int((y + h) * sy))
+    if x1 <= x0 or y1 <= y0:
+        return None
+    return x0, y0, x1, y1
 
 
 # ---------------------------------------------------------------------------

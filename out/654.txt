@@ -1,0 +1,396 @@
+654 — the locally rendered crops were drawn from the wrong page box
+=====================================================================
+
+THE USER'S REPORT, CHECKED FIRST (rule 14): gilmore-lie-groups_FO0006's crop
+does not capture its line. It does not. Reproduced independently before any
+code changed (scratchpad/g15_fo0006.png, drawn by the controller): the
+recorded region for FO0006 — page 15, latex `(+,-, \times, \div)`, host line
+"four standard operations of arithmetic \((+,-, \times, \div)\) as well as
+extraction of the nth" — lands the crop five text lines below that line.
+
+THE MECHANISM. MathPix's own page image is the PDF's CropBox, not its
+MediaBox. `pdf_reading.rasterize` renders the MediaBox (no `-dUseCropBox`),
+and `report_tex.render_crops` mapped MathPix pixels onto that raster with
+ONE scale factor read off the width (`s = raster_width / mathpix_page_width`)
+and no origin offset for the CropBox's inset. On a page whose CropBox equals
+its MediaBox this is a no-op; on a page whose CropBox is inset, it is wrong
+on both axes, and the y error is PROPORTIONAL to y, so it grows down the
+page — about one line near the top, five lines by y=1599 on gilmore p15.
+
+THE DECISIVE PROOF (this is stronger than eyeballing an aspect ratio, and it
+needs no assumption about scanner resolution or physical page size — see the
+final section). A single rendering produces ONE dpi, not two. Compute the
+implied dpi on each axis two ways — MathPix's page_width/page_height against
+the CropBox extent, and against the MediaBox extent:
+
+    gilmore-lie-groups p15
+      MediaBox  (0, 0, 493, 700) pt          = 493.00 x 700.00 pt
+      CropBox   (13.68, 30.24, 452.68, 692.80) pt = 439.00 x 662.56 pt
+      MathPix   1525 x 2301 px
+      dpi against CropBox : 250.11 (x)  250.05 (y)   <- agree to 0.02%
+      dpi against MediaBox: 222.72 (x)  236.67 (y)   <- disagree by 6.3%
+
+    cardona-qft-methods p8
+      MediaBox 595.00 x 842.00 pt   CropBox 410.68 x 619.50 pt
+      MathPix  1426 x 2152 px
+      dpi against CropBox : 250.00 (x)  250.11 (y)
+      dpi against MediaBox: 172.56 (x)  184.02 (y)   <- disagree by 6.6%
+
+    kohlhase-omdoc p10
+      MediaBox 595.00 x 842.00 pt   CropBox 430.00 x 660.00 pt
+      MathPix  1494 x 2292 px
+      dpi against CropBox : 250.16 (x)  250.04 (y)
+      dpi against MediaBox: 180.79 (x)  195.99 (y)   <- disagree by 8.4%
+
+The CropBox reading lands the two axes within 0.16 dpi of each other and
+within 0.16 dpi of a round 250; the MediaBox reading forces them 6-8 dpi
+apart, which no single Ghostscript/MathPix render can produce. MathPix
+rendered the CropBox. `pdf_reading` never asked it to.
+
+THE POPULATION-LEVEL VERSION OF THE SAME PROOF, every published document
+(20 documents, 3,835 pages; per page: lines.json page_width/page_height
+paired with that page's CropBox/MediaBox from pypdf; skewC/skewM = the
+largest |dpi_x - dpi_y| against each box):
+
+    document                               pp inset  dpi/CropBox  skewC  skewM
+    0707.4470                              37     0          250    0.0    0.0
+    0902.0431                             209     0          250    0.0    0.0
+    1510.06699                             57     0          250    0.0    0.0
+    1605.05775                             12     0          250    0.0    0.0
+    2010.14265                             14     0          250   0.01   0.01
+    2106.07890                             29     0          250    0.0    0.0
+    2501.06662                             26     0          250    0.0    0.0
+    An Invitation to Applied Category     352     0          250   0.03   0.03
+    BradleyGastaldiTerilla2023             12     0          250   0.01   0.01
+    Geometric, Algebraic and Topologic    378   377          250   0.11  11.61
+    Geometrodynamics of Gauge Fields O    377     0          250   0.04   0.04
+    Introduction to Graph and Hypergra    303   302          250   0.06  20.81
+    Introduction to Linear and Matrix     492     0          250   0.02   0.02
+    Lie Groups, Physics and Geometry -    333   332          250   0.07  13.96
+    Numerical Linear Algebra and Matri    376     0          250   0.06   0.06
+    OMDoc – An Open Markup Format for     425   422          250   0.12   15.2
+    Seven Sketches in Composability An    353     0          250    0.0    0.0
+    bradley_spring22                       32     0          250   0.07   0.07
+    penev_B                                14     0          250   0.03   0.03
+    rph8-g15q                              25     0          250   0.01   0.01
+
+Three things this settles:
+
+1. MathPix renders every page of every one of these 20 documents at 250 dpi
+   OF THE CROPBOX. skewC never exceeds 0.12 dpi across 3,835 pages. It is a
+   constant, not a per-document choice — at least across this corpus.
+2. Exactly four documents carry an inset CropBox (cardona-qft-methods 377/378
+   pages, gilmore-lie-groups 332/333, kohlhase-omdoc 422/425,
+   voloshin-hypergraph 302/303), and they are exactly the four whose local
+   crops were wrong. The other sixteen have CropBox == MediaBox on every
+   page, which is why the fix is a byte-identical no-op for them (measured
+   below, both synthetically and on a real published document).
+3. On the four, the MediaBox reading forces the two axes 11.6-20.8 dpi apart
+   — an impossibility for one rendering — which is the arithmetic version of
+   the same five-line visible error.
+
+WHY THIS SURVIVED: on every one of the four affected documents, PAGE 1's
+CropBox equals its MediaBox (skew 0 there even under the MediaBox reading).
+An inspection that only ever looked at page 1 — the natural first page to
+check — saw nothing wrong. The defect only shows once a real inset CropBox
+page is checked (verified on gilmore p18 and p15 in this task).
+
+THE METHOD PITFALL, HIT ONCE HERE TOO: a first draft of the corpus-wide dpi
+table opened `report.pdf`/`residuals.pdf` by a `*.pdf` glob inside the
+document folders and produced nonsense figures — the same mistake 634 named
+("six PDFs sit beside every document"). The reliable rule, used throughout
+this task's scripts: derive the PDF from `<lines.json stem>.pdf` /
+`<folder name>.pdf`, never glob.
+
+WHAT THE DPI FIGURE IS NOT NEEDED FOR. The user separately asked how
+MathPix's own render resolution is defined — it is not a documented
+constant, and for a scanned book the PHYSICAL page size can only come from
+outside the PDF (the Gilmore hardcover measures 25.0 x 18.4 cm, close to
+this page's MediaBox — 493 x 700 pt = 17.39 x 24.69 cm at 72 pt/in — so the
+MediaBox here is close to the scanned sheet and the CropBox is the trimmed
+content area within it; the two are not simply proportional, which is
+exactly why a shared scale factor is the wrong tool). The 654 fix itself
+needs NEITHER a dpi NOR a physical page size: the mapping is
+`raster_px / mathpix_px`, per axis, and BOTH are measured directly off the
+artefacts on disk — the rendered raster's own pixel dimensions and MathPix's
+own page_width/page_height in lines.json. Nothing is assumed or looked up.
+That is why the fix is robust to whatever resolution MathPix picks per
+document — 250 dpi is an observed constant across this corpus (see above),
+not something the code depends on.
+
+---
+
+THE DECISION (step 1 of the brief).
+
+(a) rasterize with `-dUseCropBox` so the raster IS MathPix's page, then scale
+    x by width and y by height independently.
+(b) keep the MediaBox raster and map through the CropBox offset.
+
+CHOSE (a). Reasons:
+
+  * Fewer moving parts: no offset arithmetic anywhere. Once the raster's
+    origin coincides with MathPix's own origin (both are the CropBox's
+    top-left corner), the mapping needs only two per-axis ratios,
+    `raster_size[i] / mathpix_size[i]`.
+  * It makes the raster mean what every consumer already assumes ("the
+    raster is the page") — matching what a PDF viewer shows by default for a
+    page with a CropBox, and what MathPix's own page image already is.
+  * PROVEN SAFE for the shared rasterizer before it was touched (the "Before
+    You Begin" gate): a page whose CropBox equals its MediaBox renders
+    BYTE-IDENTICAL with and without `-dUseCropBox`. Measured directly (not
+    assumed) on:
+      - gilmore-lie-groups page 1 (equal boxes) — `cmp` clean.
+      - pdfdrill's own report.pdf page 1 (A3, equal boxes, the ink chain's
+        input) — `cmp` clean.
+      - Programmatically, in `tests/test_pdf_reading.py::
+        test_use_cropbox_is_byte_identical_when_boxes_agree` (real
+        Ghostscript, not mocked).
+      - On the real corpus: `refine.render_crops` re-run on the UNAFFECTED
+        published document 1605.05775 (12 pages, equal boxes throughout) —
+        138 of 138 crops byte-identical to what the pre-654 code had already
+        written (script + result:
+        ~/pdfdrill-library/1605.05775/out/654/{script.py,result.txt}).
+  * NOT chosen (b) because it needs the CropBox origin as a live input to
+    EVERY call site doing the mapping, and a mistake there (as this defect
+    itself was) is silent — (a) needs no offset at all, so there is nothing
+    to get backwards.
+
+CropBox/MediaBox for the mapping itself: NOT read (see "what the dpi figure
+is not needed for" above) — `-dUseCropBox` performs the alignment inside
+Ghostscript; the code only needs to measure the rendered raster's own pixel
+size afterwards. `pdfinfo -box` is used only for the diagnosis/proof above
+and for the byte-identity gate, never inside the mapping formula.
+
+Implementation: `pdf_reading._gs_base`/`rasterize`/`render_page` gained an
+opt-in `use_cropbox: bool = False` parameter (default off — every OTHER
+raster consumer in the codebase is untouched by default). A new pure
+function, `pdf_reading.mathpix_to_raster(x, y, w, h, *, raster_size,
+mathpix_size)`, does the per-axis scale + clamp and returns `None` rather
+than a plausible-looking wrong box when either MathPix dimension is falsy or
+the result is empty (rule 5). `report_tex.render_crops` and
+`refine.scan_crop` now call `rasterize(..., use_cropbox=True)` and route
+through this one function; nobody else computes the mapping by hand.
+
+---
+
+STEP 2 — render_crops. Docstring's "THREE THINGS" -> "FOUR THINGS" (the
+CropBox mismatch, with the numbers above). Scales x and y independently
+unconditionally now (no code path left computing one shared factor).
+
+---
+
+STEP 3 — THE CONSUMER SWEEP (`grep -rn "page_width\|mathpix_page_widths" src
+| grep -v test`, plus the four named candidates checked by hand since two of
+them don't literally contain those strings):
+
+  ROUTED (fixed, this task):
+    report_tex.render_crops           table/image/formula-host-line crops —
+                                       THE reported defect. Fixed.
+    refine.scan_crop / ink_gate       `pdfdrill refine`'s ink-gate crop,
+                                       same bug (single width factor, no
+                                       CropBox awareness) on the SOURCE pdf.
+                                       Fixed identically (page_width AND
+                                       page_height now both required;
+                                       `refine.mathpix_page_dims` added
+                                       alongside the pre-existing
+                                       `mathpix_page_widths`, which is kept,
+                                       unchanged, for width-only callers).
+
+  EXEMPT (checked, does not need routing):
+    regionink (`cmd_regionink`)       Rasterizes `report.pdf` directly, with
+                                       its own private `gs` call — never goes
+                                       through `pdf_reading`. report.pdf's
+                                       boxes are always equal (measured:
+                                       A3 landscape, CropBox==MediaBox).
+                                       Also never consumes MathPix pixel
+                                       geometry at all — driven by
+                                       inkdrill's own lattice detection
+                                       (`reportpages`), joined to the
+                                       manifest POSITIONALLY. Exempt for two
+                                       independent reasons.
+    imageserve / pyramid              `cmd_pyramid` only tiles the raw
+    (`pyramid.py`, `eqcrop.py`)       raster via `pdf_reading.rasterize`
+                                       (default MediaBox, `use_cropbox`
+                                       never passed — unaffected). The
+                                       MathPix-pixel-to-pyramid mapping
+                                       lives in `eqcrop.py`, which is a
+                                       standalone script (`python3
+                                       eqcrop.py ...`) — NOT wired into any
+                                       `pdfdrill` command; a human supplies
+                                       `--units`/`--src-dpi` by hand.
+    eqblobs (`eqblobs.py`)            Pure ink-blob geometry from its own
+                                       private raster (`_render_pgm`, its own
+                                       `gs` call). Never reads MathPix
+                                       page_width/page_height/regions at
+                                       all — nothing to route.
+
+  FLAGGED, NOT ROUTED (same defect class, real but out of this ticket's
+  scope — named rather than silently left; see "what is open" below):
+    inkcoverage (`ink_coverage.py`,   `mathpix_regions_pt`/`model_tables_pt`
+    `ink_tables.py`, `cmd_inkcoverage`,convert MathPix pixels into POINTS
+    `cmd_inktables`)                  using pdfplumber's `page.width/height`
+                                       — measured (gilmore p15) to report the
+                                       MediaBox, not the CropBox. Same
+                                       defect SHAPE. Whether it is actually
+                                       wrong depends on what box the
+                                       EXTERNALLY-SUPPLIED ink PNG (`--ink`,
+                                       rendered by the user via `python3 -m
+                                       inkdrill <page.png> ...`, never by
+                                       pdfdrill) was itself rendered from —
+                                       a convention pdfdrill does not
+                                       control and this ticket's scope
+                                       (render_crops's three draw-kinds)
+                                       does not cover. No measured instance
+                                       of it producing a wrong answer was
+                                       found (unlike render_crops/scan_crop,
+                                       proven wrong and now proven fixed).
+    image_model.attach_embedded_images `_mathpix_crop_boxes` normalizes
+    (wired: `pdfdrill embedimages`)   MathPix regions against MathPix's own
+                                       (CropBox-based) page dims;
+                                       `fetch_page_dims_pts` normalizes
+                                       embedded-image boxes against
+                                       pdfplumber's page.width/height (the
+                                       MediaBox). On the four affected
+                                       documents these are different
+                                       rectangles, so the `_contains()`
+                                       fusion test (4% slack) can silently
+                                       fail to link an embedded image to its
+                                       MathPix crop. Does not draw a wrong
+                                       RASTER crop (this ticket's literal
+                                       scope) — its failure mode is a
+                                       quietly lower `fused` count, not a
+                                       mispositioned picture. Not fixed here:
+                                       deciding which box wins for this
+                                       containment test is a real, separate
+                                       decision (rule 9/10) this task does
+                                       not have grounds to make unilaterally.
+    pdfimg_locate.extract_mathpix_figures / mathpix_only_figures — computes
+                                       a normalized MathPix bbox and applies
+                                       it to a raster rendered at a
+                                       back-derived dpi assuming MediaBox
+                                       width_pt; same defect shape again.
+                                       `cmd_locate` calls
+                                       `mathpix_only_figures` only to COUNT
+                                       candidates; `extract_mathpix_figures`
+                                       (the function that actually crops) is
+                                       defined but called by NO command —
+                                       dead code today. Flagged for whoever
+                                       wires it up.
+
+---
+
+STEP 4 — TESTS (failing-first, both a real success and a real failure per
+rule 11):
+
+  tests/test_pdf_reading.py
+    test_mathpix_to_raster_scales_axes_independently   — success: exact
+      FO0006 numbers (136,1599,1254,43 @ 1525x2301 -> 2439x3681 raster)
+      reproduce (217,2557,2223,2626).
+    test_mathpix_to_raster_a_single_factor_would_get_wrong — a raster 2x
+      MathPix's width but 3x its height; the pre-654 single-factor bug
+      would get y wrong. Passes with the per-axis fix.
+    test_mathpix_to_raster_refuses_without_mathpix_dims — failure: either
+      dimension falsy -> None, never a guess.
+    test_mathpix_to_raster_refuses_an_empty_result — failure: a region past
+      the raster's edge clamps to nothing -> None.
+    test_gs_base_use_cropbox_flag — the flag is opt-in (absent by default).
+    test_use_cropbox_renders_the_smaller_box — REAL Ghostscript: a
+      pypdf-built two-page fixture using gilmore p15's own CropBox numbers;
+      2439x3681 with the flag, 2739x3889 without.
+    test_use_cropbox_is_byte_identical_when_boxes_agree — REAL Ghostscript,
+      the "Before You Begin" gate, passing.
+
+  tests/test_refine.py
+    test_page_dims_are_read_per_page_not_once /
+    test_page_dims_need_both_axes_missing_height_is_absent /
+    test_no_lines_json_yields_no_dims — `mathpix_page_dims`, both axes
+      required (unlike the pre-existing width-only `mathpix_page_widths`,
+      kept as-is for its own callers).
+    test_scan_crop_refuses_without_a_page_width /
+    test_scan_crop_refuses_without_a_page_height — failure cases.
+    test_scan_crop_uses_the_cropbox_and_scales_axes_independently — REAL
+      Ghostscript + REAL pypdf-built fixture, gilmore p15's own numbers,
+      FO0006's own region; the resulting crop's pixel size matches the
+      independently-scaled prediction.
+
+  tests/test_render_crops.py
+    test_coordinates_are_scaled_by_that_pages_mathpix_dims — renamed/kept
+      (both axes scale the same here, so this alone could not have caught
+      the bug).
+    test_coordinates_scale_x_and_y_independently — NEW: raster 2x MathPix's
+      width, 3x its height; the pre-654 bug (one factor from the width)
+      would place y at the wrong pixel. Asserts the correct (20,30,30,45),
+      not what a width-only factor gives (20,20,30,30).
+
+Full suite: `PYTHONDONTWRITEBYTECODE=1 PYTHONPATH=src python3 -m pytest
+tests/ -q -p no:cacheprovider` -> 3362 passed, 0 failed (run after every
+code change in this task; the final run is the one reported in the commit).
+
+---
+
+STEP 5 — the four documents, before/after (rebuilt via `pdfdrill evidence
+<pdf> --all-kinds --pdf` after `rm -rf report-crops/`; PDFs derived from
+each folder's own name, never a `*.pdf` glob):
+
+  gilmore-lie-groups (THE USER'S OWN EXAMPLE, FO0006, p15):
+    before: five lines low — "to decide on the solvability of finite-degree
+            polynomial equations, then 'infinite / groups' (i.e., groups
+            depending continuously on one or more real or complex vari-"
+    after:  exactly the named line — "four standard operations of
+            arithmetic (+,-, x, /) as well as extraction of the nth"
+    evidence: --all-kinds --pdf -> 3507 crops rendered from the PDF (1087
+      CDN-fetched EQ crops untouched, as expected — 461/530 already route
+      those through the CDN, not render_crops).
+
+  cardona-qft-methods (FO0001, p8):
+    before: almost entirely blank — a single fragment ("...roductions vii")
+            at the far right edge, everything else white
+    after:  a complete, legible line — "then discusses the AdS/CFT duality
+            and its relation to integrability in a"
+    evidence: 3760 crops rendered from the PDF.
+
+  kohlhase-omdoc (FO0001, p10):
+    before: the correct line WAS present but with the tail of the PRECEDING
+            line bleeding in above it (a smaller, sub-line error — this
+            page's y is low, and the error is proportional to y)
+    after:  clean, single line — "tably the OMEGA group at Saarland
+            University, the MAYA and ActiveMath"
+    evidence: 748 crops rendered from the PDF.
+
+  voloshin-hypergraph (FO0001, p9):
+    before: entirely blank white — the crop landed in interline whitespace
+    after:  a clean section heading — "4.3. K5 and K3,3 Are not Planar
+            Graphs"
+    evidence: 2555 crops rendered from the PDF.
+
+Each document's `out/654/` (in the library, never the repo — deny-by-default
+git, per rule 19) holds `script.py` (derives the PDF from the folder name;
+prints the MediaBox/CropBox/MathPix-dpi proof for the crop's own page;
+re-renders the crop fresh into `after.jpg`), `before.jpg` (the pre-fix crop,
+captured before `report-crops/` was rebuilt), `result.txt`, and
+`INSPECT.txt` (`taskout.inspect_list`, `expect=<bibkey>` on `result.txt`;
+the document PDF and the rebuilt `evidence-formula.pdf` are also named,
+without `expect` — a PDF's first bytes are its header, not a document name,
+per the rule's own exception for a path that identifies its subject only by
+being that path).
+
+UNAFFECTED DOCUMENT, CONFIRMED NOT MOVED: 1605.05775 (12pp, CropBox ==
+MediaBox on every page). `report_tex.render_crops` re-run (fresh temp dir,
+live `report-crops/` on disk untouched) — 138 of 138 crops byte-identical
+to what the PRE-654 code had already written. Script + result:
+~/pdfdrill-library/1605.05775/out/654/{script.py,result.txt}.
+
+---
+
+WHAT IS OPEN:
+  * `ink_coverage`/`ink_tables` (the ink-comparison family) and
+    `image_model.attach_embedded_images` carry the same defect SHAPE,
+    flagged above, not routed — see the consumer table for exactly why
+    each is out of this ticket's scope rather than merely skipped.
+  * `pdfimg_locate.extract_mathpix_figures` is dead code with the same bug;
+    whoever wires it up should route it through `pdf_reading.rasterize(...,
+    use_cropbox=True)` + `mathpix_to_raster` rather than its own
+    dpi-back-derivation.
+  * `mathpix_page_widths` (width-only) is left in place, unchanged, for any
+    caller that only ever needed the width; `mathpix_page_dims` (both axes)
+    is the one the 654 crop path uses.

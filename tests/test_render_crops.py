@@ -60,8 +60,9 @@ def patched(monkeypatch, tmp_path):
         return sorted(made)
 
     monkeypatch.setattr(pdf_reading, "rasterize", fake_rasterize)
-    monkeypatch.setattr(refine, "mathpix_page_widths",
-                        lambda d: {3: 1700.0, 4: 1700.0})
+    # fake raster is 3400x4400; MathPix page 1700x2200 -> both axes double
+    monkeypatch.setattr(refine, "mathpix_page_dims",
+                        lambda d: {3: (1700.0, 2200.0), 4: (1700.0, 2200.0)})
     import PIL.Image
     monkeypatch.setattr(PIL.Image, "open", lambda p: _FakeImage())
     monkeypatch.setattr(PIL.Image, "LANCZOS", 1, raising=False)
@@ -75,8 +76,9 @@ def test_a_tab_row_with_a_region_is_rendered(patched, tmp_path):
     assert (tmp_path / "crops" / "d_TAB_001.jpg").is_file()
 
 
-def test_coordinates_are_scaled_by_that_pages_mathpix_width(patched, tmp_path):
-    # raster 3400 wide, MathPix page 1700 -> every coordinate doubles
+def test_coordinates_are_scaled_by_that_pages_mathpix_dims(patched, tmp_path):
+    # raster 3400x4400, MathPix page 1700x2200 -> every coordinate doubles
+    # on BOTH axes
     rt.render_crops([_tid("d_TAB_001", x=100, y=200, w=300, h=120)],
                     tmp_path / "crops", tmp_path / "d.pdf")
     call = _FakeImage.calls[0]
@@ -84,6 +86,34 @@ def test_coordinates_are_scaled_by_that_pages_mathpix_width(patched, tmp_path):
     # and the saved image is resized BACK to the MathPix region size, because
     # crop_cell sizes it as jpg_width x px2mm and px2mm is per MathPix pixel
     assert call["resize"] == (300, 120)
+
+
+def test_coordinates_scale_x_and_y_independently(monkeypatch, tmp_path):
+    """654 — a single width-derived factor is wrong once the raster and
+    MathPix's own page image disagree in aspect (a CropBox-inset page). Here
+    the raster is 2x MathPix's width but 3x its height; a single factor
+    (the pre-654 bug) would use 2x for y too and land the crop short."""
+    from pdfdrill import pdf_reading, refine
+    _FakeImage.calls = []
+
+    def fake_rasterize(pdf, out_dir, *, pages=None, dpi=400, **kw):
+        out_dir = pathlib.Path(out_dir)
+        out_dir.mkdir(parents=True, exist_ok=True)
+        f = out_dir / "page-0003.png"
+        f.write_bytes(b"")
+        return [f]
+
+    monkeypatch.setattr(pdf_reading, "rasterize", fake_rasterize)
+    monkeypatch.setattr(refine, "mathpix_page_dims", lambda d: {3: (100.0, 100.0)})
+    import PIL.Image
+    monkeypatch.setattr(PIL.Image, "open",
+                        lambda p: _FakeImage(size=(200, 300)))
+    monkeypatch.setattr(PIL.Image, "LANCZOS", 1, raising=False)
+
+    rt.render_crops([_tid("d_TAB_001", x=10, y=10, w=5, h=5)],
+                    tmp_path / "crops", tmp_path / "d.pdf")
+    call = _FakeImage.calls[0]
+    assert call["box"] == (20, 30, 30, 45)     # x2, y3 — not both x2
 
 
 def test_a_page_with_no_recorded_width_is_skipped_not_defaulted(patched, tmp_path):

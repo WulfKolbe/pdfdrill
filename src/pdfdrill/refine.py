@@ -309,42 +309,48 @@ def _tex_error(log: str) -> str:
 
 
 def scan_crop(pdf: Path, page: int, region: dict, out_png: Path,
-              *, page_width: float, dpi: int = DPI) -> Optional[Path]:
+              *, page_width: float, page_height: float = 0,
+              dpi: int = DPI) -> Optional[Path]:
     """The scan under `region`, cropped from a freshly rasterized page.
 
     MathPix regions are in ITS OWN page-image pixels (2125 px wide for a
-    612 pt page = 250 dpi), and `rasterize` will not go below 400 dpi. Cropping
-    with unscaled coordinates therefore lands on the wrong part of the page —
-    it did here, silently, and the crop looked plausible. Every coordinate is
-    scaled by (raster width / MathPix page width).
+    612 pt page = 250 dpi), and `rasterize` will not go below 400 dpi.
+    Cropping with unscaled coordinates therefore lands on the wrong part of
+    the page — it did here, silently, and the crop looked plausible.
+
+    654 — MathPix's page image is the PDF's CropBox, not its MediaBox (a
+    page whose CropBox is inset — 4 of 21 published documents — was cropped
+    five text lines low, at a proportional error that grows down the page).
+    So this now rasterizes the CropBox (`use_cropbox=True`, a byte-identical
+    no-op when the page declares none) and scales x and y INDEPENDENTLY by
+    (raster / MathPix) per axis — see `pdf_reading.mathpix_to_raster`, which
+    a single width-derived factor cannot replace once the two images'
+    aspects merely have to agree rather than being forced to.
     """
     from . import pdf_reading
     from PIL import Image
 
-    # Refuse BEFORE rasterizing. Without a page width the crop cannot be
-    # placed, so rendering the page first is a 400-dpi Ghostscript run whose
-    # only possible outcome is None.
-    if not page_width:
+    # Refuse BEFORE rasterizing. Without both page dimensions the crop
+    # cannot be placed, so rendering the page first is a 400-dpi Ghostscript
+    # run whose only possible outcome is None.
+    if not page_width or not page_height:
         return None
     out_png = Path(out_png)
     out_png.parent.mkdir(parents=True, exist_ok=True)
     imgs = pdf_reading.rasterize(pdf, out_png.parent / "_pages",
-                                 pages=[page], dpi=dpi)
+                                 pages=[page], dpi=dpi, use_cropbox=True)
     if not imgs:
         return None
     im = Image.open(imgs[0])
-    s = im.size[0] / float(page_width)
-    x0 = int(region["top_left_x"] * s)
-    y0 = int(region["top_left_y"] * s)
-    x1 = int((region["top_left_x"] + region["width"]) * s)
-    y1 = int((region["top_left_y"] + region["height"]) * s)
-    x0, y0 = max(0, x0), max(0, y0)
-    x1, y1 = min(im.size[0], x1), min(im.size[1], y1)
-    if x1 <= x0 or y1 <= y0:
+    box = pdf_reading.mathpix_to_raster(
+        region["top_left_x"], region["top_left_y"],
+        region["width"], region["height"],
+        raster_size=im.size, mathpix_size=(page_width, page_height))
+    if box is None:
         return None
     # RGB: inkdrill reads ghostscript png16m only — a greyscale PNG is refused
     # at the IHDR, which reads as "no ink" if the error is swallowed.
-    im.convert("RGB").crop((x0, y0, x1, y1)).save(out_png)
+    im.convert("RGB").crop(box).save(out_png)
     return out_png
 
 
@@ -384,13 +390,16 @@ class GateResult:
 
 
 def ink_gate(pdf: Path, doc, objs: list, work: Path, *,
-             page_widths: dict, dpi: int = DPI) -> GateResult:
+             page_dims: dict, dpi: int = DPI) -> GateResult:
     """Measure each candidate as it stands; drop the ones nothing can improve.
 
     A row whose CURRENT render already matches the scan topologically has
     nothing for a proposal to fix, and asking a model to rewrite it can only
     make it worse. A row we cannot measure is also dropped, with its reason —
     an unmeasurable row must not be silently treated as a clean one.
+
+    `page_dims`: {page: (mathpix_width, mathpix_height)} — see
+    `mathpix_page_dims` (654: the crop needs both axes, independently).
     """
     kept, skipped, baseline = [], [], {}
     for o in objs:
@@ -400,14 +409,15 @@ def ink_gate(pdf: Path, doc, objs: list, work: Path, *,
         if not region or not page:
             skipped.append((o, "no region on the object"))
             continue
-        pw = page_widths.get(int(page))
-        if not pw:
-            skipped.append((o, f"no MathPix page_width recorded for page {page}"))
+        dims = page_dims.get(int(page))
+        if not dims:
+            skipped.append((o, f"no MathPix page dimensions recorded for page {page}"))
             continue
+        pw, ph = dims
         stem = work / o.id
         try:
             crop = scan_crop(pdf, int(page), region, stem.with_suffix(".scan.png"),
-                             page_width=pw, dpi=dpi)
+                             page_width=pw, page_height=ph, dpi=dpi)
         except Exception as e:                      # noqa: BLE001 - reported
             skipped.append((o, f"scan crop failed: {e}"))
             continue
@@ -1051,19 +1061,42 @@ def parse_stages(spec: Optional[str]) -> list:
     return [s for s in STAGES if s in want]        # canonical order
 
 
-def mathpix_page_widths(blob_dir: Path) -> dict:
-    """{page number: MathPix page-image width in px}, from its lines.json.
+def mathpix_page_dims(blob_dir: Path) -> dict:
+    """{page number: (MathPix page-image width, height) in px}, from its
+    lines.json.
 
-    PER PAGE, not one width for the document. Reading page 1's width and
-    applying it everywhere is the same defect as not scaling at all, just
+    PER PAGE, not one size for the document. Reading page 1's dimensions and
+    applying them everywhere is the same defect as not scaling at all, just
     rarer: 11 of 305 documents in this corpus carry more than one page_width
     (e.g. 2066 and 2125 in the same file), and on those the crop for a page of
     the other size is scaled wrong and still looks like a plausible piece of a
     maths page.
 
-    A page with no recorded width is ABSENT from the mapping rather than
-    defaulted, so the caller refuses to crop it instead of cropping it wrongly.
+    A page missing EITHER dimension is ABSENT from the mapping rather than
+    defaulted (654 needs both axes — see `pdf_reading.mathpix_to_raster`), so
+    the caller refuses to crop it instead of cropping it wrongly.
     """
+    out: dict = {}
+    for p in sorted(Path(blob_dir).glob("*.lines.json")):
+        try:
+            d = json.loads(p.read_text(encoding="utf-8"))
+        except (ValueError, OSError):
+            continue
+        for page in d.get("pages", []) or []:
+            w, h, n = (page.get("page_width"), page.get("page_height"),
+                      page.get("page"))
+            if w and h and n is not None:
+                out.setdefault(int(n), (float(w), float(h)))
+    return out
+
+
+def mathpix_page_widths(blob_dir: Path) -> dict:
+    """{page number: MathPix page-image width in px}, from its lines.json.
+
+    Kept for callers that only ever needed the width — width alone, so a page
+    missing only `page_height` still resolves here (unlike
+    `mathpix_page_dims`, which 654 needs both axes for and refuses without
+    either)."""
     out: dict = {}
     for p in sorted(Path(blob_dir).glob("*.lines.json")):
         try:
