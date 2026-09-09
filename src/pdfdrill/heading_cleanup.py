@@ -319,11 +319,29 @@ def extract_footnote_paragraphs(doc) -> int:
                 if ext is None:
                     unlocated += 1
                 ext_rs = _extent_realizations(ext)
+                # 650 — a group with NO label at all (`refnum` empty here,
+                # `ext` unlocated) falls back below to the PARAGRAPH's OWN
+                # realization, copied onto the new Footnote whole. That
+                # extent is exactly what makes this non-idempotent: `clean`
+                # rewrites `props["text"]` from the paragraph's live
+                # realization every run (`materialize_transclusions`, which
+                # reads the SOURCE stream, not this pass's edit — 636-b), so
+                # a paragraph this pass already emptied still carries its
+                # OWN `\footnotetext{}` text again next time the projector
+                # rebuilds it, and the SAME body — refnum-less, so
+                # `adopt_target`'s ordinary (page, refnum, extent) probe
+                # never fires — mints a fresh duplicate every drill. Probe
+                # with the SAME extent the fallback below will use, so a
+                # second pass finds the Footnote it already made instead of
+                # building another one for the identical body.
+                probe_want = (_extent_anchors(ext) if ext is not None
+                             else (_fx.covered_anchors(doc, o) if not refnum
+                                   else set()))
                 # 637 — the SAME footnote may already be an object, built by
                 # `FootnoteProcessor` off MathPix's `footnote` PARENT line while
                 # this pass reads the Paragraph over its CHILD lines. Adopt it.
                 host = _fx.adopt_target(doc, o.props.get("page"), refnum,
-                                        _extent_anchors(ext), taken)
+                                        probe_want, taken)
                 if host is not None:
                     _fill_footnote(host, body, ext_rs,
                                    tail_unassigned=seg.tail_unassigned,
@@ -357,6 +375,25 @@ def extract_footnote_paragraphs(doc) -> int:
         remaining = re.sub(r"\s+", " ", "".join(new_parts)).strip()
         if remaining:
             o.props["text"] = remaining
+            # 650 — the SURFACE realization on `mathpix_lines` still spans the
+            # ORIGINAL range (footnotetext lines included): it was built once,
+            # by ParagraphProcessor, over the whole group, and nothing here
+            # shrinks it to match the now-shorter `text`. Left alone, the next
+            # `materialize_transclusions` reads THAT stale, wide realization
+            # (`_transclude_paragraph` renders from a Paragraph's `surface`
+            # realization, never from `props["text"]`) and puts the very
+            # `\footnotetext{...}` content just removed right back — now
+            # wrapped in `{{<fn>||FN}}` tokens instead of a `\({ }^{N}\)`
+            # label, so the NEXT `extract_footnote_paragraphs` can no longer
+            # recognise it as the footnote it already made and mints a fresh,
+            # refnum-less duplicate. `footnote_extracted` is the same "this
+            # field was edited, don't re-derive it" signal `text_source`/
+            # `is_translated` already give a translated paragraph — kept as
+            # its own flag (not `text_source`) so a footnote-shortened
+            # paragraph is never mistaken for a translated one by
+            # `classify.has_translation`/`docinspect.element_translations`,
+            # which key on that exact twin.
+            o.props["footnote_extracted"] = True
         else:
             drop.append(o.id)
     for fn in add:
@@ -386,7 +423,20 @@ def materialize_transclusions(doc) -> int:
 
     Run AFTER `extract_footnote_paragraphs` so footnote markers resolve to
     `{{||FN}}`. The original text is preserved under `text_source` on first
-    materialization. Returns the count of paragraphs changed."""
+    materialization. Returns the count of paragraphs changed.
+
+    650 — "the projector rebuilds transclusions from the immutable source
+    STREAM" is true and not enough: `_transclude_paragraph` renders from the
+    Paragraph's own `surface` REALIZATION (a span of anchors INTO that
+    stream), never from `props["text"]`. `extract_footnote_paragraphs`
+    shortens `text` when it lifts a `\\footnotetext{...}` out of a paragraph
+    that also carries surviving prose, but the realization it leaves behind
+    still spans the ORIGINAL (wider) range — so a naive re-materialization
+    here would render the footnote text right back (now missing its
+    `\\({ }^{N}\\)` label, replaced by the `{{||FN}}` token this same pass
+    just wrote), and the NEXT `extract_footnote_paragraphs` mints a fresh,
+    unrecognisable duplicate for it. `footnote_extracted` is that pass's own
+    "don't re-derive me" flag; skipped here exactly like a translation."""
     bib = doc.meta.get("bibkey", "DOC")
     by_title = _projected_paragraphs(doc)
     flow = lambda o: o.props.get("flow_index") or 0
@@ -401,6 +451,10 @@ def materialize_transclusions(doc) -> int:
         # the twin exists. A twin that DIFFERS is the evidence; its presence is
         # not. This destroyed 23 translated paragraphs before it was caught.
         if is_translated(p, "text"):
+            continue
+        # 650 — a footnote-shortened paragraph's `surface` realization is
+        # stale (see the docstring); never let this pass re-derive from it.
+        if p.props.get("footnote_extracted"):
             continue
         new = (by_title.get(title_for(bib, "Paragraph", i)) or "").strip()
         if new and new != (p.props.get("text") or "").strip():

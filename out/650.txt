@@ -1,0 +1,264 @@
+650 — the drill is idempotent: FN and REF counts settle
+=========================================================
+
+MEASURED FIRST (rule 14), on THIS tree, before touching code
+  penev_A: `model --force` (cached MathPix branch only — no `mathpix --force`
+  anywhere in this task), then three consecutive `bash tools/
+  drill_full_sandbox.sh` runs. With the in-flight `adopt_target`/empty-refnum
+  fix already applied (the working-tree state this task started from):
+
+      kind       run1  run2  run3
+      Footnote     48    50    51     <- MOVES, every run
+      Reference    52    52    52
+      cites        81    81    81
+      claimed_0   243   243   243
+      claimed_x    42    42    42
+      Formula     674   674   674     <- identical every run
+      Paragraph   222   222   222     <- identical every run
+      Equation    116   116   116     <- identical every run
+
+  So the in-flight fix (adopt_target accepting an empty refnum) is REAL but
+  NOT SUFFICIENT: Footnote still grows every run. Confirmed by re-running the
+  exact sequence twice; both times FN grew by 2 then 1 (48->50->51). Evidence:
+  ~/pdfdrill-library/penev_A/out/650/{run1_full.json,run2_full.json,
+  run3_full.json} (script.py, run at 2026-09-09 14:09-14:32, same code as
+  committed here before this task's own fix).
+
+THE MOVER, NAMED (rule 12 — diff the object sets, don't guess)
+  Diffing Footnote titles run1 -> run2: `penev_A_FN0049`, `penev_A_FN0050`
+  appear, nothing disappears (purely additive, matching the user's own
+  report of stable titles elsewhere). Both new objects: `refnum=""`,
+  `added_by`/`filled_by = footnote_cleanup`, `page=6`. Their content is NOT
+  a genuinely new footnote — one of them is the SAME "We wish to thank Prof.
+  M. J. Feigenbaum..." body already sitting in Footnote 9 (title
+  `penev_A_FN0011`, the 11th title SLOT, not printed number 11), now wrapped
+  in `{{penev_A_FN0011||FN}}` transclusion syntax instead of its original
+  `\({ }^{9}\)` label.
+
+  THE MECHANISM (found by tracing one object end to end, not by reading the
+  existing 650 comment and trusting it — that comment names the SHAPE but
+  the actual defect is one level deeper than it says):
+
+  1. `cmd_model` (src/pdfdrill/commands.py ~4900) already calls
+     `heading_cleanup.extract_footnote_paragraphs` once, unconditionally,
+     right after `docmodel.main.run()` returns — NOT only via `pdfdrill
+     clean`. On penev_A this lifts the labelled footnotes out of a
+     Paragraph that `ParagraphProcessor` had merged with unrelated trailing
+     prose (a `footnote`-typed line breaks paragraph grouping, but its
+     CHILD lines are typed `text` — an ordinary PROSE type — so nothing
+     stops the very next real paragraph's lines from riding along in the
+     same group). `extract_footnote_paragraphs` correctly shortens
+     `Paragraph.props["text"]` to just the surviving prose ("sensory
+     stimulus \(\phi\)...", 92 of the original 1183 chars) — but does
+     NOTHING to the Paragraph's `surface` Realization on `mathpix_lines`,
+     which still spans all 14 original anchors (footnote text included).
+  2. `pdfdrill clean` (the drill's own `clean` step) calls
+     `extract_footnote_paragraphs` again (no-op now — the footnotetext is
+     gone from `props["text"]`) and then `materialize_transclusions`.
+     `materialize_transclusions` rebuilds a paragraph's text from the
+     TiddlyWiki projector's OWN rendering (`_projected_paragraphs` ->
+     `TiddlyWikiProjector._transclude_paragraph`) — and THAT function reads
+     the Paragraph's `surface` Realization directly (`stream.slice_anchors
+     (surface.start, surface.end)`), never `props["text"]`. Confirmed live
+     (a controlled experiment against a fresh `model --force` build,
+     src/docmodel/modules/paragraph.py + heading_cleanup, no drill): the
+     module docstring's claim "the projector rebuilds transclusions from the
+     immutable source STREAM, so this is idempotent" is true of the stream
+     and false of the claim — the REALIZATION (an anchor SPAN into that
+     stream, recorded on the object) is what actually gets read, and it is
+     stale.
+  3. So `materialize_transclusions` re-renders the FULL original 14-anchor
+     span, including the already-extracted footnote content — now with its
+     `\({ }^{N}\)` label replaced by `{{<fn>||FN}}` (the projector's own
+     in-text footnote-marker substitution, since a real Footnote object now
+     exists for that number) — and overwrites `props["text"]` with it,
+     undoing step 1's extraction.
+  4. The NEXT `extract_footnote_paragraphs` (next drill's `clean`) finds
+     `\footnotetext` in this text again, but `fsplit.split_bodies` can no
+     longer find a `\({ }^{N}\)` label (it is now a `{{||FN}}` token), so the
+     WHOLE block is treated as one refnum-less body — `adopt_target`'s
+     (page, refnum, extent) match can never fire for a labelled Footnote
+     from a refnum-less probe (638's own rule, deliberately) — and a fresh,
+     unrecognisable duplicate is minted. Repeat every drill, unboundedly.
+
+  Reproduced at unit scale (tests/test_footnote_dedup.py,
+  `test_without_the_flag_materialize_would_have_reintroduced_it`): a
+  `footnote` block immediately followed by trailing prose in the same
+  ParagraphProcessor group, built through the REAL FootnoteProcessor +
+  ParagraphProcessor + TiddlyWikiProjector, produces exactly this cycle when
+  the fix's flag is stripped — 2 Footnotes for one printed body after one
+  extract + materialize + extract round trip.
+
+THE FIX (src/pdfdrill/heading_cleanup.py)
+  `extract_footnote_paragraphs`: when a Paragraph's text is SHORTENED
+  (its footnotetext span removed but prose survives), it now also sets
+  `props["footnote_extracted"] = True` — the same "this field was edited,
+  don't re-derive it" signal `text_source`/`is_translated` already give a
+  translated paragraph, kept as its OWN flag rather than reusing
+  `text_source` so a footnote-shortened paragraph is never mistaken for a
+  translated one by `classify.has_translation`/`docinspect.
+  element_translations` (both key on that exact twin; `merge_latex.py`
+  already reuses `text_source` for a third, unrelated purpose, so a FOURTH
+  meaning on the same key was judged one collision too many).
+
+  `materialize_transclusions`: skips a Paragraph carrying
+  `footnote_extracted`, exactly like it already skips a translated one —
+  never re-derives from the stale `surface` Realization. Tradeoff, stated
+  rather than hidden: such a paragraph's OWN surviving inline math (e.g.
+  `\(\phi\)`) no longer gets transcluded to `{{||FO}}` for llmtext/semantic/
+  markdown — a small, accepted quality cost against unbounded duplicate
+  Footnote creation.
+
+  `footnote_extent.adopt_target` (already in flight when this task started,
+  kept as-is): accepts an empty `refnum`, but only ever merges a refnum-less
+  body with ANOTHER refnum-less one — an empty refnum still never matches a
+  numbered Footnote by extent alone (638's rule). Genuinely needed for the
+  "a group with NO label at all" shape (docs/... penev_A page 6 has one);
+  orthogonal to the mover above, which is about a LABELLED footnote's own
+  paragraph residue, not an unlabelled body.
+
+  Tests added (tests/test_footnote_dedup.py, appended, each confirmed
+  failing first): `test_extract_shortens_text_and_flags_the_paragraph`,
+  `test_materialize_never_reintroduces_an_already_extracted_footnote_body`
+  (end-to-end, the REAL TiddlyWikiProjector, no mock), and
+  `test_without_the_flag_materialize_would_have_reintroduced_it` (the
+  regression pin — removing just the flag reproduces the duplicate).
+
+THE REFERENCE SIDE (task's item 2) — ALREADY FIXED, VERIFIED NOT REOPENED
+  Read first, per the brief: tasks/010.report.md (stub creation moved to one
+  `ensure_reference_stub` helper called by every Citation creator; round 3
+  made the `--force` cleanup gate decide by `added_by` provenance) and
+  out/648.txt (the BARE `bibliography` call: `_existing_citation_spans`
+  makes `detect_numeric_citations`/`detect_author_year_citations` skip a
+  span they already cover, and `add_reference_objects` skips a heuristic
+  entry whose citekey already names a FILLED Reference). Both are in the
+  same family the brief pointed at, and out/648.txt's own corpus check
+  already measured penev_A (81 citations/52 references, all stubs) and
+  Steerable (64 citations/29 heuristic-filled references) stable under
+  `bibliography` run TWICE in a row, byte-identical message and Citation
+  ids both times, on both documents.
+
+  This task's job was to verify that holds under the FULL drill (`bibsource`
+  -> `bibliography` -> `clean` -> ... in one pipeline, not `bibliography` in
+  isolation) — measured, not assumed. Result: Reference is 52/52/52 on
+  penev_A and 30/30/30 on Steerable across three consecutive full drills,
+  same citekey set every run (diffed by title, not just counted), `cites`
+  edges 81/81/81 and 64/64/64. NO mover found on either document. The
+  Reference side needed no new fix; 648 + 010 already cover the full-drill
+  path, and this task's own measurement is the confirmation that was still
+  missing.
+
+THREE CONSECUTIVE FULL DRILLS, AFTER THE FIX — THE REQUIRED TABLE
+  penev_A (`model --force` once, then three `drill_full_sandbox.sh` runs,
+  each verified "All 22 steps succeeded" before the next was started):
+
+      kind        run1   run2   run3
+      Abstract       1      1      1
+      Diagram       14     14     14
+      Equation     116    116    116
+      Footnote      48     48     48
+      Formula      674    674    674
+      ListItem       4      4      4
+      Page          22     22     22
+      Paragraph    222    222    222
+      Picture       11     11     11
+      Reference     52     52     52
+      Section       37     37     37
+      Sidenote      46     46     46
+      Table          1      1      1
+      cites edges   81     81     81
+      ledger claimed_0      243    243    243
+      ledger claimed_multi   42     42     42
+
+  Title SETS (by kind) identical run1==run2==run3 — diffed, not just
+  counted; zero gained, zero lost, every kind.
+
+  SteerableWaveletFramesBasedontheRieszTransform (same protocol; only ONE
+  PDF sits beside this document, so the folder-name rule was not even at
+  risk here, unlike penev_A's six):
+
+      kind        run1   run2   run3
+      Abstract       1      1      1
+      Diagram       16     16     16
+      Equation      70     70     70
+      Footnote       1      1      1
+      Formula      415    415    415
+      ListItem      48     48     48
+      Page          15     15     15
+      Paragraph    167    167    167
+      Picture        1      1      1
+      Reference     30     30     30
+      Section       17     17     17
+      Sidenote      30     30     30
+      Table          3      3      3
+      cites edges   64     64     64
+      ledger claimed_0      132    132    132
+      ledger claimed_multi  134    134    134
+
+  Title sets identical run1==run2==run3 on this document too.
+
+FINDING, NAMED NOT ROUNDED OFF: a cold-start `cmd_lists` discrepancy
+  A single ISOLATED first invocation of `pdfdrill lists` on a JUST-BUILT
+  (`model --force`, brand-new sidecar with no prior evidence) Steerable
+  model reported "17 nested Lists from 50 list items (2 merged bullets
+  recovered via y-position re-split)"; every subsequent call on the SAME
+  document (sidecar now carrying this session's accumulated evidence from
+  today's other runs) reported "7 nested Lists from 48 list items" —
+  consistently, repeatably, including two direct back-to-back `pdfdrill
+  lists` calls with no drill in between. This is NOT the class 650 was
+  chartered to fix (it is not Footnote/Reference, and it did not move
+  across the three CONSECUTIVE drills the task measures — A1/A2/A3 above
+  are byte-for-byte stable at 48 ListItems each). It is named here because
+  a count moved between "first ever run" and "every run after," and rule 12
+  says an unexplained delta is a finding, not something to round off by
+  silently re-measuring until the number looks stable. Root cause not
+  chased (outside this task's scope and budget): `cmd_lists`'s "y-position
+  re-split" recovery heuristic reads something from accumulated sidecar
+  state that a virgin sidecar does not yet have. Left OPEN.
+
+  (A separate, purely procedural incident during measurement, NOT a product
+  defect: two Steerable drills launched back-to-back in the BACKGROUND with
+  near-zero gap hit a transient `DocumentBusy` lock refusal — `doclock.hold`
+  behaved correctly, refusing to interleave — most likely a PID-reuse
+  collision in the staleness check rather than a real overlap, given the
+  wrapper process the run was waited on had already exited. Fixed the
+  measurement, not the code: every run reported in the table above was run
+  to completion in the FOREGROUND, one at a time, each checked for "All 22
+  steps succeeded" before the next was started. Also caught and corrected
+  mid-task: restoring a document's `model.docmodel.json` by hand without
+  also removing the stale `model.docpack.json` sidecar serves the packed
+  cache instead of the file just restored — the exact 648 incident,
+  repeated and caught the same way, by a sha/count mismatch against the
+  expected pristine baseline.)
+
+WHAT IS OPEN
+  - The `cmd_lists` cold-start finding above (not Footnote/Reference; not
+    reproduced across consecutive drills; root cause not chased).
+  - `heading_cleanup.clean_heading_residuals` shortens a Paragraph's text
+    (strips a leading LaTeX sectioning command) the same way
+    `extract_footnote_paragraphs` used to — without touching the `surface`
+    Realization either. It was not observed to duplicate anything on
+    penev_A/Steerable (no new Section/Paragraph objects appeared across
+    three drills on either document), but it was not given the same
+    `footnote_extracted`-style guard, and the mechanism that made
+    `extract_footnote_paragraphs` unsafe applies to it structurally. Named,
+    not fixed — outside this task's Footnote/Reference charter and the
+    corpus in hand does not exercise it.
+  - The cross-detector citekey case mismatch out/648.txt already named
+    (`detect_author_year_in_objects` folds to lowercase,
+    `detect_author_year_citations` preserves case) is still open and still
+    not reachable on penev_A/Steerable (neither carries `.bbl`/`.bib` gold).
+
+FULL SUITE: PYTHONDONTWRITEBYTECODE=1 PYTHONPATH=src python3 -m pytest
+tests/ -q -p no:cacheprovider -> 3370 passed, 0 failed.
+
+EVIDENCE
+  ~/pdfdrill-library/penev_A/out/650/{script.py,runs.json,messages.txt,
+  INSPECT.txt,run1_full.json,run2_full.json,run3_full.json (pre-fix, the
+  bug caught live),fresh/fix_r1.json,fresh/fix_r2.json,fresh/fix_r3.json
+  (post-fix, stable)}
+  ~/pdfdrill-library/SteerableWaveletFramesBasedontheRieszTransform/out/650/
+  {script.py,runs.json,messages.txt,INSPECT.txt,fresh/A1.json,fresh/A2.json,
+  fresh/A3.json}
+  src/pdfdrill/heading_cleanup.py, src/docmodel/footnote_extent.py,
+  tests/test_footnote_dedup.py — this repo, this commit.

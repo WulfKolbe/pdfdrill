@@ -89,25 +89,37 @@ def adopt_target(doc: Document, page: Any, refnum: Any, want: Iterable,
                  exclude: Iterable[str] = ()) -> Optional[DocObject]:
     """The Footnote already in `doc` that IS this footnote, or None.
 
-    THE RULE, in one sentence: same `page`, same non-empty `refnum`, and an
-    extent that overlaps `want` once a `footnote` line is grown to its own
-    children. All three conditions, never two — and `want` empty means the body
-    was not located, so nothing is adopted rather than something guessed.
+    THE RULE, in one sentence: same `page`, same `refnum`, and an extent that
+    overlaps `want` once a `footnote` line is grown to its own children. All
+    three conditions, never two — and `want` empty means the body was not
+    located, so nothing is adopted rather than something guessed.
+
+    650 — `refnum` MAY be empty, for exactly one shape: a group with no label
+    at all, whose body is the whole group and whose extent (computed by the
+    caller) is the PARAGRAPH's own realization, not a located line. Two such
+    bodies are the same footnote only when BOTH are refnum-less and their
+    extents overlap — an empty refnum never matches a NUMBERED footnote by
+    extent alone, which would be exactly the (page, refnum)-only guess 638
+    already refuses to make, in the other direction.
 
     `exclude` holds the ids already adopted in this pass: a paragraph carrying
     two `\\footnotetext{…}` groups can repeat a number, and one host must not
     be filled twice.
     """
     want = set(want or ())
-    rn = str(refnum or "").strip()
-    if not want or not rn:
+    if not want:
         return None
+    rn = str(refnum or "").strip()
     skip = set(exclude or ())
     for obj in doc.objects.values():
         if obj.type != "Footnote" or obj.id in skip:
             continue
-        if str(obj.props.get("refnum") or "").strip() != rn:
-            continue
+        obj_rn = str(obj.props.get("refnum") or "").strip()
+        if rn:
+            if obj_rn != rn:
+                continue
+        elif obj_rn:                    # rn == "": only ever merges with
+            continue                     # ANOTHER refnum-less object.
         if obj.props.get("page") != page:
             continue
         if covered_anchors(doc, obj) & want:

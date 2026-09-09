@@ -242,6 +242,116 @@ def test_adoption_is_still_idempotent():
     assert len(_fn(doc)) == n
 
 
+# ------------------------------------------ 650: the no-label residual group
+#
+# penev_A page 6 (an out/650 finding): a `\footnotetext{...}` group whose body
+# carries NO `{ }^{n}` label at all. `FootnoteProcessor._refnum` finds nothing
+# and skips the block entirely (`if not refnum: continue`), so only the
+# cleanup's Paragraph-based read ever makes an object for it, and only as a
+# single UNLOCATED body — `_footnote_extents` has no label to search for, so
+# `ext` is always None and the new Footnote falls back to the PARAGRAPH's OWN
+# realization (636's original "unlocated" behaviour).
+#
+# `clean` rewrites a Paragraph's `props["text"]` twice per run: once here
+# (stripped to whatever survives the footnotetext span), and again by
+# `materialize_transclusions`, which rebuilds it from the PROJECTOR's
+# rendering of the paragraph's own (untouched) realization — not from this
+# pass's edit (636-b). So a paragraph this pass already emptied can carry its
+# raw `\footnotetext{}` body again on the very next drill, and because the
+# body has no label, the ORDINARY (page, refnum, extent) adoption probe could
+# never recognise the Footnote already made for it — a fresh duplicate every
+# time the group happens to re-balance.
+
+def _mathpix_block_no_label(body="Prose with no printed number at all.",
+                            tail=" It just continues."):
+    r"""A `\footnotetext{...}` group with no `{ }^{n}` label anywhere."""
+    return [
+        {"id": "blk", "type": "footnote", "text": "",
+         "children_ids": ["c1", "c2"]},
+        {"id": "c1", "type": "text",
+         "text_display": "\\footnotetext{" + body},
+        {"id": "c2", "type": "text", "text_display": tail + "}"},
+    ]
+
+
+def test_a_no_label_group_mints_no_footnote_via_the_processor():
+    doc = _built(_mathpix_block_no_label())
+    assert _fn(doc) == []                     # FootnoteProcessor needs a refnum
+
+
+def test_the_cleanup_creates_one_refnum_less_footnote_for_an_unlabelled_group():
+    doc = _built(_mathpix_block_no_label())
+    n = hc.extract_footnote_paragraphs(doc)
+    fns = _fn(doc)
+    assert n == 1
+    assert len(fns) == 1
+    assert fns[0].props["refnum"] == ""
+    assert "Prose with no printed number" in fns[0].props["content"]
+
+
+def test_a_regenerated_unlabelled_paragraph_is_adopted_not_duplicated():
+    r"""650 — the creator that runs again over an unchanged model (its own
+    text regenerated exactly as `materialize_transclusions` regenerates it)
+    must find its own object and update it, never mint a second one. Confirmed
+    failing before the fix: the second call minted `obj_<new>` beside the
+    first, giving 2 Footnotes for one printed (unlabelled) body."""
+    doc = _built(_mathpix_block_no_label())
+    para = doc.objects_of_type("Paragraph")[0]
+    original_text = para.props["text"]
+
+    n1 = hc.extract_footnote_paragraphs(doc)
+    assert n1 == 1
+    ids_after_first = {o.id for o in _fn(doc)}
+    assert len(ids_after_first) == 1
+
+    # Simulate exactly what `materialize_transclusions` does: rebuild the
+    # paragraph's text from its own (untouched) source realization, which
+    # puts the raw `\footnotetext{}` body right back — regardless of whether
+    # the extraction above dropped the paragraph outright or merely shortened
+    # it (here it consumes the whole body, so the paragraph was dropped).
+    if doc.objects.get(para.id) is None:
+        para.props["text"] = original_text
+        doc.add(para)
+    else:
+        doc.objects[para.id].props["text"] = original_text
+
+    n2 = hc.extract_footnote_paragraphs(doc)
+    ids_after_second = {o.id for o in _fn(doc)}
+    assert ids_after_second == ids_after_first, (
+        "a second pass over the SAME regenerated body must adopt the "
+        f"existing Footnote, not mint a second one: {ids_after_second}")
+    assert len(_fn(doc)) == 1
+    assert n2 == 1                             # counted as an adoption, not 0
+    assert doc.meta["footnote_adopted"] >= 1
+
+
+def test_adopt_target_merges_two_refnum_less_extents_that_overlap():
+    doc = Document()
+    doc.meta["bibkey"] = "T"
+    from docmodel.core import Realization
+    st = doc.ensure_stream("mathpix_lines")
+    a1 = st.append(id="a1", type="text")
+    host = DocObject(type="Footnote", props={"refnum": "", "page": 4})
+    host.add_realization(Realization(stream="mathpix_lines",
+                                     start=a1, end=a1, role="surface"))
+    doc.add(host)
+    got = fx.adopt_target(doc, 4, "", {a1}, ())
+    assert got is host
+
+
+def test_adopt_target_never_merges_a_refnum_less_body_into_a_numbered_one():
+    doc = Document()
+    doc.meta["bibkey"] = "T"
+    from docmodel.core import Realization
+    st = doc.ensure_stream("mathpix_lines")
+    a1 = st.append(id="a1", type="text")
+    numbered = DocObject(type="Footnote", props={"refnum": "3", "page": 4})
+    numbered.add_realization(Realization(stream="mathpix_lines",
+                                         start=a1, end=a1, role="surface"))
+    doc.add(numbered)
+    assert fx.adopt_target(doc, 4, "", {a1}, ()) is None
+
+
 # ------------------------------------------------------------- the body text
 
 def test_body_text_prefers_the_cleaned_realization_and_never_both():
@@ -419,6 +529,91 @@ def test_an_equation_inside_a_footnote_body_is_left_alone():
     doc, fn, fo = _fn_doc_with_math()
     fo.type = "Equation"
     assert fo.id not in fnres.body_math_ids(doc)
+
+
+# ------------------------------------- 650: the surface-realization residual
+#
+# penev_A page 6 (out/650): a `footnote` block whose CHILD lines carry a
+# LABELLED `\footnotetext{\({ }^{9}\) ...}` immediately followed, in the same
+# ParagraphProcessor group (footnote children are typed `text`, a PROSE type
+# — nothing marks them as already belonging to a footnote), by real prose.
+# `extract_footnote_paragraphs` adopts/creates the labelled Footnote and
+# correctly shortens the Paragraph's `text` to just the surviving prose — but
+# the Paragraph's `surface` realization on `mathpix_lines` still spans the
+# ORIGINAL group (nothing here shrinks it). `_transclude_paragraph` (the real
+# TiddlyWiki projector) renders a Paragraph from THAT realization, never from
+# `props["text"]`, so the next `materialize_transclusions` reads the stale,
+# wide span and writes the footnotetext content right back — now missing its
+# `\({ }^{N}\)` label (replaced by the `{{||FN}}` token this same call just
+# wrote), so the FOLLOWING `extract_footnote_paragraphs` cannot recognise it
+# as the footnote already made and mints a fresh, refnum-less duplicate.
+# Confirmed failing before the fix (with the `footnote_extracted` flag
+# stripped, simulating the pre-fix code): materialize reintroduced the
+# footnotetext and a second extract pass minted a 2nd Footnote for the SAME
+# printed body.
+
+def _mathpix_block_with_trailing_prose(
+        refnum="9", body="Thanks Feigenbaum for help.",
+        tail=" End of footnote.", prose="Prose continues right after."):
+    return [
+        {"id": "blk", "type": "footnote", "text": "",
+         "children_ids": ["c1", "c2"]},
+        {"id": "c1", "type": "text",
+         "text_display": "\\footnotetext{\\({ }^{%s}\\) %s" % (refnum, body)},
+        {"id": "c2", "type": "text", "text_display": tail + "}"},
+        {"id": "p1", "type": "text", "text_display": prose},
+    ]
+
+
+def test_extract_shortens_text_and_flags_the_paragraph():
+    doc = _built(_mathpix_block_with_trailing_prose())
+    n = hc.extract_footnote_paragraphs(doc)
+    assert n == 1
+    paras = doc.objects_of_type("Paragraph")
+    assert len(paras) == 1
+    p = paras[0]
+    assert p.props["text"] == "Prose continues right after."
+    assert p.props["footnote_extracted"] is True
+    # the footnote was ADOPTED (FootnoteProcessor's own object), not doubled
+    assert len(_fn(doc)) == 1
+
+
+def test_materialize_never_reintroduces_an_already_extracted_footnote_body():
+    """End-to-end with the REAL TiddlyWiki projector (no mock): materialize
+    must leave the shortened paragraph alone, and a second extract pass must
+    find nothing new."""
+    doc = _built(_mathpix_block_with_trailing_prose())
+    hc.extract_footnote_paragraphs(doc)
+    before_fn_ids = {f.id for f in _fn(doc)}
+
+    changed = hc.materialize_transclusions(doc)
+    assert changed == 0, [p.props["text"] for p in doc.objects_of_type("Paragraph")]
+    paras = doc.objects_of_type("Paragraph")
+    assert paras[0].props["text"] == "Prose continues right after."
+
+    n2 = hc.extract_footnote_paragraphs(doc)
+    assert n2 == 0, [f.props for f in _fn(doc)]
+    assert {f.id for f in _fn(doc)} == before_fn_ids
+    assert len(_fn(doc)) == 1
+
+
+def test_without_the_flag_materialize_would_have_reintroduced_it():
+    """The regression this fixes, confirmed still reproducible by removing
+    JUST the flag — proof the flag (not something else) is what protects the
+    paragraph, and a faithful pin against the flag being dropped by accident."""
+    doc = _built(_mathpix_block_with_trailing_prose())
+    hc.extract_footnote_paragraphs(doc)
+    for p in doc.objects_of_type("Paragraph"):
+        p.props.pop("footnote_extracted", None)
+
+    changed = hc.materialize_transclusions(doc)
+    assert changed == 1
+    para = doc.objects_of_type("Paragraph")[0]
+    assert "\\footnotetext" in para.props["text"]
+
+    n2 = hc.extract_footnote_paragraphs(doc)
+    assert n2 == 1
+    assert len(_fn(doc)) == 2                     # the duplicate this fixes
 
 
 if __name__ == "__main__":
