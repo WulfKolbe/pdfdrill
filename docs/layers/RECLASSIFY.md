@@ -24,7 +24,7 @@ the basis it was derived from, its own confidence, and the ink verification
 that accepted it. It is a new object with a new id, not a mutation.
 
 **3. The transclusions move; the old object points at the successor.** The
-section body stops transcluding `{{key_EQ0001||EQBLOCK}}` and starts
+section body stops transcluding `{{key_EQ0001||EQ}}` and starts
 transcluding `{{key_DIA0007||DIA}}`. The Equation keeps a `successor` prop
 naming the new key.
 
@@ -56,8 +56,9 @@ handled without knowing anything about the change.
 ways:
 
 - `latex_pipeline` captures the TEMPLATE as well, so it will see `||DIA`
-  where it expected `||EQBLOCK` and must have a branch for it. A missing
-  branch here is a visible failure — the marker is matched and unhandled.
+  where it expected `||EQ` (649: renamed from `EQBLOCK`) and must have a
+  branch for it. A missing branch here is a visible failure — the marker is
+  matched and unhandled.
 - `commands.py:6152` and `report_tex.first_pages` match a FIXED SET of
   templates. A `||DIA` marker is not matched at all, so it is **invisible**:
   no error, no unhandled marker, just a row that stops being counted. That is

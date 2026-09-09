@@ -624,7 +624,7 @@ class LaTeXProjector(BaseProjector):
         block = lambda title: self._transcluded_block(title)      # noqa: E731
         return {
             "FO": self._math_token, "FREF": self._math_token,
-            "EQ": self._math_token, "EQBLOCK": self._math_token,
+            "EQ": self._math_token,  # 649: EQBLOCK -> EQ (display equation)
             "CIT": self._cite_token,
             "FN": self._footnote_token,
             "SN": self._sidenote_token,

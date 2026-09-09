@@ -178,6 +178,27 @@ def test_footnote_titles_are_unique_per_object():
 
 # ------------------------------------------------------------ the macro layer
 
+def test_649_eqblock_is_gone_and_eq_is_the_display_equation_widget():
+    """649 — EQBLOCK was the one template name that did not fit the
+    `{{title||TPL}}` macro layer; EQ is the shape every other template uses
+    (a bare kind-ish abbreviation) and the title prefix for Equation is
+    already `EQ` (644's table) — the two namespaces don't collide because a
+    title always precedes `||` and a template always follows it.
+
+    The dead `EQ` link template ("see Equation 1.1") is dropped outright: its
+    own comment said it was "not currently emitted by any substitution", and
+    FREF does the equation-reference job (188 uses on penev_A, 647b). What
+    survives under the name `EQ` is the display-equation WIDGET that used to
+    be `EQBLOCK` — distinguished here by its markup, so a future edit that
+    quietly puts the dead link text back under this key is caught too."""
+    assert "EQBLOCK" not in TEMPLATES, "EQBLOCK must be renamed away, not kept"
+    assert "EQ" in TEMPLATES
+    assert "displayMode=true" in TEMPLATES["EQ"], (
+        "TEMPLATES['EQ'] must be the display-equation widget (the old "
+        "EQBLOCK body), not the dead inline link template")
+    assert BLOCK_TEMPLATE["Equation"] == "EQ"
+
+
 def test_every_block_template_is_defined():
     assert set(BLOCK_TEMPLATE.values()) <= set(TEMPLATES)
 

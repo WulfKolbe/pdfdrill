@@ -301,14 +301,19 @@ TEMPLATES: dict[str, str] = {
     # PARA — paragraph body, wrapped in <p>.
     "PARA": "<p>{{!!text}}</p>",
 
-    # EQBLOCK — display equation: numbered, centered.
-    "EQBLOCK": ("<div class=\"equation\"><$latex text={{!!latex}} displayMode=true/>"
-                " <span class=\"refnum\">{{!!refnum}}</span></div>"),
-
-    # EQ — inline equation reference ("see Equation 1.1"). Defined but not
-    # currently emitted by any substitution: kept because published wikis
-    # transclude it by hand, and an undefined template renders nothing.
-    "EQ": "<$link to={{!!title}}>{{!!kind}} {{!!refnum}}</$link>",
+    # EQ — display equation: numbered, centered. Renamed from EQBLOCK (649):
+    # EQBLOCK was the one template name that did not fit this table's shape
+    # (every other key is a bare kind-ish abbreviation). The title prefix for
+    # an Equation OBJECT is also `EQ` (644's TITLE_SHAPES), but the two
+    # namespaces never collide — a title always sits before `||` and a
+    # template name always after it (`{{<bibkey>_EQ0001||EQ}}`).
+    #
+    # The dead inline-link template that used to occupy this key ("see
+    # Equation 1.1") is dropped outright: its own comment said it was "not
+    # currently emitted by any substitution", and FREF does the
+    # equation-reference job (188 uses on penev_A, 647b).
+    "EQ": ("<div class=\"equation\"><$latex text={{!!latex}} displayMode=true/>"
+           " <span class=\"refnum\">{{!!refnum}}</span></div>"),
 
     # FREF — equation reference: the displayed number, linked to the eq.
     "FREF": "<$link to={{!!title}}>{{!!equation_number}}</$link>",
@@ -347,7 +352,7 @@ TEMPLATES: dict[str, str] = {
 #: tests/test_title_scheme.py.
 BLOCK_TEMPLATE: dict[str, str] = {
     "Paragraph": "PARA",
-    "Equation":  "EQBLOCK",
+    "Equation":  "EQ",
     "Table":     "TAB",
     "Picture":   "PIC",
     "Diagram":   "DIA",
@@ -1375,7 +1380,7 @@ class TiddlyWikiProjector(BaseProjector):
             # 644 — `<bibkey>_TOC` is SCAFFOLDING, not an object title: it is
             # the rebuilt index, one per document, and `parse_title` correctly
             # returns None for it (a `Toc` OBJECT would be `_TOC01`). The root
-            # tiddler and the 16 template tiddlers are outside the scheme the
+            # tiddler and the 15 template tiddlers are outside the scheme the
             # same way.
             t = self._t(f"{bibkey}_TOC", toc_body, f"toc {_bibtag(bibkey)}")
             t["format"] = "fractal_xref"

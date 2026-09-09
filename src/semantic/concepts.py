@@ -206,7 +206,7 @@ _ROMAN = re.compile(r"^[IVXLCDM]+$")
 # ballast). Keep in sync with the projector template set.
 _MARKUP_TOKENS = frozenset({
     "FO", "FOX", "CIT", "LTX", "FREF", "PIC", "DIA", "FN", "TAB", "THM",
-    "PROOF", "TPL", "EQ", "PARA", "REF", "EQBLOCK", "H", "TOC", "AD", "BM",
+    "PROOF", "TPL", "EQ", "PARA", "REF", "H", "TOC", "AD", "BM",  # 649: EQBLOCK -> EQ
     "KI", "SEC",
 })
 # A transclusion span `{{ anything || TPL }}` (also matches a bare `||TPL`).

@@ -37,12 +37,12 @@ The paragraph stores *neither* the LaTeX nor the rendering. It stores a name.
 
 ## The template set
 
-pdfdrill emits 16 templates. Each renders one kind of object:
+pdfdrill emits 15 templates. Each renders one kind of object:
 
 | template | object | rendered as |
 |---|---|---|
 | `FO` | Formula (inline math) | `<$latex>` inline |
-| `EQBLOCK` | Equation (display math) | centred block + number |
+| `EQ` | Equation (display math) | centred block + number |
 | `FREF` | equation reference | a link to the equation |
 | `PARA` | Paragraph | `<p>` |
 | `TAB` | Table | the table (SVG or LaTeX) |
@@ -67,8 +67,9 @@ markers *inside a paragraph's text string*. It works on text and never touches
 the object tree.
 
 **2. Section-body emission (`PARA`, `TAB`, `PIC`, `DIA`, `LI`, `ABS`, `TOC`,
-`SN`, `EQBLOCK`).** The projector walks `section.children` and emits one
-transclusion per child. It depends entirely on the **object tree** being built.
+`SN`, `EQ` — renamed from `EQBLOCK` in 649).** The projector walks
+`section.children` and emits one transclusion per child. It depends entirely
+on the **object tree** being built.
 
 So if the tree is flat — if Sections have no `children` — mechanism 2 emits
 **nothing**, while mechanism 1 keeps working perfectly. The output looks
@@ -154,7 +155,7 @@ so a projector emitting *nothing at all* passed every check.
 Healthy output for a 16-page paper with 16 tables (2209.00445v3):
 
 ```
-transclusions by template: {FO: 126, PARA: 84, CIT: 60, TAB: 16, EQBLOCK: 1}
+transclusions by template: {FO: 126, PARA: 84, CIT: 60, TAB: 16, EQ: 1}
 ```
 
 Broken output for the same document:

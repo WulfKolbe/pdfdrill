@@ -80,8 +80,9 @@ def unknown_markers(tiddlers: list[dict]) -> dict:
     440. Two consumers match a FIXED SET of templates and skip everything
     else, which means an unrecognised marker produces no error, no unhandled
     token and no missing-content warning — just a row that stops being
-    counted. 434's type change turns an `||EQBLOCK` into a `||DIA`, so the
-    failure this makes visible is the one that change would otherwise cause.
+    counted. 434's type change turns an `||EQ` into a `||DIA` (649 renamed
+    the display-equation template EQBLOCK to EQ), so the failure this makes
+    visible is the one that change would otherwise cause.
     """
     seen: dict = {}
     for t in tiddlers:

@@ -24,7 +24,7 @@ from ..base import BaseProjector
 _TRANSCLUDE_RE = re.compile(r"\{\{([^{}]+?)\}\}")
 _RESERVED = {"index.md", "log.md"}
 # TiddlyWiki template name → a human link label (the relationship is prose, per OKF)
-_LABELS = {"FO": "formula", "FREF": "formula", "EQ": "equation", "EQBLOCK": "equation",
+_LABELS = {"FO": "formula", "FREF": "formula", "EQ": "equation",  # 649: EQBLOCK -> EQ
            "PIC": "picture", "DIA": "diagram", "CIT": "citation", "FN": "footnote",
            "PROOF": "proof", "TPL": "unit"}
 

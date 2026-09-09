@@ -1,0 +1,193 @@
+649 — EQBLOCK becomes EQ; the dead EQ template goes
+====================================================
+
+THE RENAME. `tiddlywiki.TEMPLATES["EQBLOCK"]` (the display-equation widget)
+is renamed to `TEMPLATES["EQ"]`. The dead inline-link template that used to
+occupy the key `"EQ"` ("see Equation 1.1", own comment: "not currently
+emitted by any substitution") is dropped outright — FREF already does the
+equation-reference job (188 uses on penev_A, 647b). `BLOCK_TEMPLATE["Equation"]`
+follows: `"EQBLOCK"` -> `"EQ"`. TEMPLATES goes from 16 keys to 15.
+
+No collision with 644's TITLE_SHAPES, which also uses the prefix `EQ` for an
+Equation object's TITLE: a title always sits before `||` in a transclusion
+marker and a template name always after it
+(`{{<bibkey>_EQ0001||EQ}}`) — the two namespaces are already disjoint by
+position, the same anchor 644's guard test relies on.
+
+THE ALIAS QUESTION, SETTLED BY MEASUREMENT. The brief's ruling was
+conditional: add `TEMPLATE_ALIASES = {"EQBLOCK": "EQ"}` (read wherever a
+transclusion's template is read, counted, and rewritten by the next `clean`)
+ONLY IF materialised `{{…||EQBLOCK}}` text already sits in `props["text"]`
+on disk. Measured BEFORE any change, both documents' `model.docmodel.json`,
+every object, every string-valued prop field:
+
+    penev_A                                           0 occurrences
+    SteerableWaveletFramesBasedontheRieszTransform     0 occurrences
+
+Read out of the mechanism, not just the count: `clean` ->
+`heading_cleanup.materialize_transclusions` only ever rewrites a PARAGRAPH's
+`props["text"]` from the TiddlyWiki projector's own re-projection of that
+paragraph. A display Equation is never inlined into a paragraph's text —
+it is a structural child of a Section, reached by `section.children` (the
+`BLOCK_TEMPLATE` mechanism), never by an inline marker inside prose. So
+`{{…||EQBLOCK}}` could not have been materialised into either document's
+model, in principle, not just in this sample. The alias is therefore dead
+code for a population of one: dropped. No `TEMPLATE_ALIASES`, no
+`template_alias_used` counter, no rewrite-on-`clean` step, and no test for
+any of it — there is nothing on disk for it to fix.
+
+CONSUMERS UPDATED (full grep of `EQBLOCK` across src/tests/tools/docs,
+re-run after the brief's own partial list):
+  src/docops/projectors/tiddlywiki.py   the widget + BLOCK_TEMPLATE + a
+                                        stale "16 template tiddlers" comment
+                                        (now 15)
+  src/docops/projectors/latex_pipeline.py  TEMPLATE_ACTIONS: EQBLOCK row
+                                        dropped, EQ stays ARRAY (guarded
+                                        automatically both ways — see below)
+  src/docops/projectors/latex.py        `_template_handlers`: EQBLOCK entry
+                                        dropped (EQ already pointed at
+                                        `_math_token`)
+  src/docops/projectors/okf.py          `_LABELS`: EQBLOCK entry dropped
+                                        (EQ already labelled "equation")
+  src/semantic/concepts.py              `_MARKUP_TOKENS`: EQBLOCK dropped
+  src/docops/conserve.py                docstring example updated
+  src/pdfdrill/report_tex.py            434's illustrative docstring example
+                                        updated (`KNOWN_TEMPLATES` itself
+                                        reads live from TEMPLATES, so no code
+                                        change was needed there)
+  tests/test_section_children_invariant.py:115   `required` set: EQ
+  docs/TRANSCLUSION.md, docs/layers/RECLASSIFY.md   updated for accuracy
+  docs/CLAUDE-FULL.md                   NOT touched — explicitly preserved
+                                        verbatim as historical guidance
+                                        (CLAUDE.md's own rule)
+  tools/*.py frozen census scripts      0 hits — none of the eight 644 named
+                                        as frozen shape-regex scripts touch
+                                        template names at all
+
+A LATENT NAMING RISK, NOTED AND NOT FIXED (out of scope; measured harmless
+on both documents). `pdfdrill/commands.py:_MARKER_RE` (`cmd_spoken`) matches
+only templates `(FO|EQ|FREF)` by design (comment: "renders FO/EQ/FREF into
+speech and leaves every other template's marker ALONE"). Before this task
+`EQ` there meant the dead inline-link template (0 uses anywhere); after the
+rename it means the display-equation widget. If a future `clean` ever DID
+materialise a display equation inline into a paragraph's text — it cannot
+today, per the mechanism above — `cmd_spoken` would now read its `spoken`
+field instead of leaving it as an uncounted literal marker. Not a regression
+on any document measured (0 occurrences before and after), but a naming
+coincidence worth a future reader's attention: this pattern was never a
+literal `"EQBLOCK"` and so was invisible to the grep this task ran from.
+
+TESTS — TDD, both confirmed failing against pre-rename code before the fix:
+  tests/test_title_scheme.py::test_649_eqblock_is_gone_and_eq_is_the_display_equation_widget
+      new — asserts EQBLOCK absent, EQ present, EQ's markup is the display
+      widget (not the dead link template's), BLOCK_TEMPLATE["Equation"]=="EQ"
+  tests/test_section_children_invariant.py::test_every_nontextual_type_is_transcluded
+      `required` set changed EQBLOCK -> EQ
+  tests/test_latex_templates.py::test_every_tiddlywiki_template_has_a_latex_branch
+  tests/test_latex_templates.py::test_no_latex_action_names_a_template_that_does_not_exist
+      unchanged, but exercised: TEMPLATE_ACTIONS is built from TEMPLATES both
+      ways (647b), so the rename could not land in tiddlywiki.py alone — it
+      forced the matching latex_pipeline.py edit, exactly as designed.
+
+FULL SUITE: PYTHONDONTWRITEBYTECODE=1 PYTHONPATH=src python3 -m pytest
+tests/ -q -p no:cacheprovider  ->  3349 passed, 0 failed (3348 before this
+task's one new test; verified again after a `git stash`/`stash pop`
+round-trip used twice to capture true before/after control artefacts).
+
+REBUILD AND RE-MEASUREMENT, BOTH DOCUMENTS — real CLI entry points
+(`cmd_tiddlers`, `cmd_latex --force --compile`, `cmd_conserve`), one
+document at a time (Steerable first — not in the coordinator's parallel
+corpus-wide `evidence --all-kinds` rebuild — then penev_A; penev_A was NOT
+locked when this task reached it, so no doclock retry was needed in
+practice). No `model --force` anywhere: `pdfdrill model <pdf>` reported
+"Already current" for both documents, unforced, both before and after this
+task's code change. No `bibfetch`, no `mathpix`.
+
+                                        penev_A          Steerable
+  EQBLOCK transclusions (before)          116               70
+  EQBLOCK transclusions (after)             0                0
+  EQ transclusions (after)                116               70
+  dead EQ template uses (before+after)      0                0
+  FREF transclusions (unchanged)          188               31
+  templates emitted                    16 -> 15          16 -> 15
+  tiddlers emitted                   1266 -> 1265      834 -> 833
+    (the -1 in both is the dropped dead-EQ TEMPLATE tiddler alone; every
+    object tiddler count is unchanged — verified by diffing marker_counts
+    for every OTHER template key, all identical before/after)
+  tiddler_integrity: dangling             0 -> 0            0 -> 0
+  tiddler_integrity: orphan_synthetic     0 -> 0            0 -> 0
+  tiddler_integrity: orphan_ref            4 -> 4            2 -> 2
+    (penev_A: Deco1996, Gonzalez1992, Mumford1991, Mumford1992 — unchanged
+     set, not just unchanged count; Steerable: Brackx1982, Grlebeck2007)
+  TEMPLATE_ACTIONS guard (both directions)              green, both docs
+  conserve unreachable / unclaimed / doubly-claimed
+    penev_A                          250 / 243 / 42   (identical before/after)
+    Steerable                        303 / 132 / 136  (identical before/after)
+  LaTeX .tex, byte-for-byte vs. a frozen pre-rename control
+    penev_A       255613 -> 255613 bytes, 0 bytes differ (BYTE-IDENTICAL)
+    Steerable     115467 -> 115467 bytes, 0 bytes differ (BYTE-IDENTICAL)
+
+WHY THE LaTeX OUTPUT IS BYTE-IDENTICAL, NOT JUST UNCHANGED IN COUNT. This
+was checked, not assumed (rule 14: re-measure against the current artefact).
+`latex.py`'s own `_render` for an Equation object does NOT go through the
+`{{…||EQ}}` transclusion-marker path at all: it renders directly,
+`self._title_index.get(obj.id)` -> `\EqExpr{i}`, wrapped in
+`\begin{equation}…\end{equation}`, exactly the way Table/Picture/Diagram
+render by direct type dispatch in the same method. The
+`_template_handlers()["EQ"] = self._math_token` entry (640-a's branch
+table) exists for the OTHER case — a `{{…||EQ}}` marker already baked
+literally into some paragraph's text by `clean` — and, per the alias
+measurement above, that case has zero instances in either document. So the
+rename touches a template name that the LaTeX projector's own compiled
+output never spells out for these two documents; the `.tex` files could not
+have differed. `latex/stages/05-templates.json`'s `counts` block confirms
+this independently: it shows `resolved:FO`, `resolved:CIT`, `resolved:FREF`
+on both documents and never `resolved:EQ` (nor, before, `resolved:EQBLOCK`)
+— the marker-resolution counter is never incremented for either template
+name because no such marker is ever substituted through that path on
+either document. The 116/70 EQ transclusions counted above live entirely in
+the TiddlyWiki JSON projection (`cmd_tiddlers`), not in the LaTeX one.
+
+The compiled PDFs were rebuilt (`xelatex`, 2 passes) as part of
+`cmd_latex --force --compile` and recompiled cleanly on both documents —
+this is a rebuild of an unchanged artefact, not a new one, and no page
+count or error count changed (penev_A 0 errors; Steerable's one
+pre-existing `\bibitem{Unser2008}` error, 640-f, unrelated to this task, is
+unaffected either way).
+
+EVIDENCE (library, deny-by-default git; never committed to this repo)
+  ~/pdfdrill-library/SteerableWaveletFramesBasedontheRieszTransform/out/649/
+  ~/pdfdrill-library/penev_A/out/649/
+      script.py                    the exact source that ran, through the
+                                   real CLI entry points (cmd_tiddlers,
+                                   cmd_latex, cmd_conserve), one document at
+                                   a time
+      result.json                  every number above, per document
+      measurements.txt             the same, human-readable, headed with
+                                   the task + bibkey
+      tiddlers_after.json          the rebuilt tiddler array
+      <bibkey>.after.tex           the rebuilt LaTeX, named copy
+      <bibkey>.before.named.tex    the frozen pre-rename control, named copy
+                                   (git-stashed working tree at 4d6b924,
+                                   same model, same commands)
+      conserve.before.txt          the frozen pre-rename conserve report
+      INSPECT.txt                  8-9 paths each, all checked (`expect=`
+                                   on every entry the file format allows a
+                                   first-line name for)
+  ~/pdfdrill-library/out/649/pair.json, INSPECT.txt   both documents side by
+                                   side
+
+CONCERNS
+  cmd_spoken's `_MARKER_RE` naming risk, above — real but measured harmless
+  on both documents (0 occurrences), and outside the literal-EQBLOCK grep
+  this task was scoped to. Left as a finding, not a fix.
+
+  The coordinator's parallel corpus-wide `evidence --all-kinds --pdf`
+  rebuild (log: ~/pdfdrill-library/out/633b/rebuild_evidence.log) was
+  running throughout this task, queued to reach penev_A last. It never
+  reached penev_A before this task's penev_A work completed (log shows it
+  still on `gilmore-lie-groups`, well before `penev_A` alphabetically-ish in
+  its own ordering, when this task's penev_A steps ran) — no `doclock`
+  refusal was encountered, so the documented retry-on-lock path was never
+  exercised. Steerable is not in that rebuild's published set and was done
+  first regardless, per the coordinator's own suggestion.

@@ -252,8 +252,7 @@ DROP = "drop"
 TEMPLATE_ACTIONS: dict[str, str] = {
     "FO":      ARRAY,      # inline formula   → \Expr{i}
     "FREF":    ARRAY,      # equation ref     → \Expr{i} (the number's own entry)
-    "EQ":      ARRAY,      # inline eq ref
-    "EQBLOCK": ARRAY,      # display equation
+    "EQ":      ARRAY,      # display equation (649: renamed from EQBLOCK)
     "CIT":     HANDLER,    # → \cite{key}          (642's resolver / title tail)
     "FN":      HANDLER,    # → \footnotemark[n] + \footnotetext[n]{…}  (638)
     "SN":      HANDLER,    # → \marginpar{\footnotesize …}

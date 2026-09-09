@@ -190,7 +190,7 @@ def reachability(doc: Document, tiddlers: list[dict],
       * the TOC INDEX `<bibkey>_TOC` — tagged `toc`, the rebuilt fractal
         xref, whose rows list EVERY captioned section the same way (262).
     From a section the walk continues through its body: one content
-    transclusion per child block (`{{P||PARA}}`, `{{E||EQBLOCK}}`, …) and
+    transclusion per child block (`{{P||PARA}}`, `{{E||EQ}}`, …) and
     `- <$link to="S">{{S!!caption}}` per subsection. From a paragraph it
     continues through the inline markers baked into its text
     (`{{F||FO}}`, `{{R||CIT}}`, `{{N||FN}}`).
