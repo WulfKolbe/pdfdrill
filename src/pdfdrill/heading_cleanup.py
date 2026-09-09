@@ -64,6 +64,67 @@ def _para_lines(doc, para):
     return out
 
 
+def _norm_ws(s: str) -> str:
+    return re.sub(r"\s+", " ", s or "").strip()
+
+
+def _narrow_surface_to_remaining(doc, para, remaining: str) -> bool:
+    r"""650 review round 2 — after extraction leaves `remaining` as the
+    paragraph's new `text`, narrow its own `surface` Realization on
+    `mathpix_lines` to just the anchors whose text COMPOSES `remaining`,
+    instead of routing around the stale wide span with a flag.
+
+    WHY: routing around it (the round-1 `footnote_extracted` fallback) stops
+    a footnote body leaking back in, but the fallback
+    (`latex_sectioning_to_wikitext(props["text"])`) skips the WHOLE
+    substitution pipeline — `_apply_line_substitutions`/`_substitute_
+    footnotes`/`_substitute_inline_pictures`/`_substitute_residual_inline_
+    math`/`_substitute_eq_refs` — so the surviving prose's OWN legitimate
+    transclusions (inline Formula/Citation/Picture objects anchored on
+    those very lines) are lost too. Confirmed live on penev_A: 2 of 3
+    `footnote_extracted` paragraphs lost `{{<formula>||FO}}` tokens for
+    their own surviving `\(...\)` math this way. Narrowing the realization
+    instead means `_transclude_paragraph`/`materialize_transclusions` walk
+    ONLY the surviving anchors through their ORDINARY path — transclusions
+    intact, footnote body gone, because it is no longer IN the span.
+
+    Tries the SUFFIX shape first (footnotetext consumes a leading run of
+    lines, prose survives at the end — every case measured on penev_A: a
+    `footnote`-typed line breaks paragraph grouping, but its `text`-typed
+    CHILD lines do not, so the group's own footnote content always leads),
+    then the PREFIX shape for symmetry. Returns False, touching nothing,
+    when neither matches the ORIGINAL line texts exactly — a case with
+    prose on both sides of the removed span cannot be represented by one
+    contiguous Realization, and guessing which side to keep would
+    misattribute anchors to the wrong owner, which is worse than the
+    caller's disclosed fallback.
+    """
+    lines = _para_lines(doc, para)
+    if not lines:
+        return False
+    target = _norm_ws(remaining)
+    if not target:
+        return False
+    start = end = None
+    for k in range(len(lines)):                        # suffix: lines[k:]
+        if _norm_ws(" ".join(t for _, t in lines[k:])) == target:
+            start, end = lines[k][0], lines[-1][0]
+            break
+    if start is None:
+        for k in range(len(lines), 0, -1):              # prefix: lines[:k]
+            if _norm_ws(" ".join(t for _, t in lines[:k])) == target:
+                start, end = lines[0][0], lines[k - 1][0]
+                break
+    if start is None:
+        return False
+    narrowed = False
+    for r in para.realizations:
+        if r.stream == "mathpix_lines" and r.role == "surface":
+            r.start, r.end = start, end
+            narrowed = True
+    return narrowed
+
+
 def _footnote_extents(doc, para, refnums: list[str], heads=(0,)):
     """Where each footnote of one group actually sits, line by line.
 
@@ -374,26 +435,53 @@ def extract_footnote_paragraphs(doc) -> int:
         new_parts.append(text[pos:])
         remaining = re.sub(r"\s+", " ", "".join(new_parts)).strip()
         if remaining:
+            # A malformed footnotetext span (an unbalanced brace deep in
+            # MathPix's LaTeX — `_balanced` returning -1 above) can leave
+            # `remaining` IDENTICAL to the original `text`: nothing was
+            # actually extracted, so there is nothing stale to guard
+            # against. Flagging/narrowing here anyway would misfire on an
+            # UNCHANGED paragraph whose (still fully accurate) realization
+            # needs no help.
+            if _norm_ws(remaining) != _norm_ws(text):
+                # 650 — the SURFACE realization on `mathpix_lines` still
+                # spans the ORIGINAL range (footnotetext lines included): it
+                # was built once, by ParagraphProcessor, over the whole
+                # group, and nothing here shrinks it to match the
+                # now-shorter `text`. Left un-narrowed, the next
+                # `materialize_transclusions`/`_transclude_paragraph` reads
+                # THAT stale, wide realization (both render from a
+                # Paragraph's `surface` Realization, never from
+                # `props["text"]`) and puts the very `\footnotetext{...}`
+                # content just removed right back — now wrapped in
+                # `{{<fn>||FN}}` tokens instead of a `\({ }^{N}\)` label, so
+                # the NEXT `extract_footnote_paragraphs` can no longer
+                # recognise it as the footnote it already made and mints a
+                # fresh, refnum-less duplicate.
+                #
+                # 650 review round 2 — the FIRST fix routed both readers
+                # around the stale span with a flag, which also silently
+                # dropped the surviving prose's OWN transclusions (its
+                # inline Formula/Citation/Picture objects), because the
+                # fallback both readers used skips the whole substitution
+                # pipeline. Narrowing the realization to just the
+                # surviving anchors is the actual fix: both readers keep
+                # using their ORDINARY path, which is now scoped
+                # correctly and renders transclusions intact.
+                if not _narrow_surface_to_remaining(doc, o, remaining):
+                    # Narrowing failed (prose on BOTH sides of the removed
+                    # span, or some other shape one contiguous Realization
+                    # cannot represent) — fall back to the flag, the same
+                    # "this field was edited, don't re-derive it" signal
+                    # `text_source`/`is_translated` already give a
+                    # translated paragraph. Kept as its own flag (not
+                    # `text_source`) so a footnote-shortened paragraph is
+                    # never mistaken for a translated one by
+                    # `classify.has_translation`/`docinspect.
+                    # element_translations`, which key on that exact twin.
+                    # `materialize_transclusions`/`_transclude_paragraph`
+                    # still check it, for exactly this fallback case.
+                    o.props["footnote_extracted"] = True
             o.props["text"] = remaining
-            # 650 — the SURFACE realization on `mathpix_lines` still spans the
-            # ORIGINAL range (footnotetext lines included): it was built once,
-            # by ParagraphProcessor, over the whole group, and nothing here
-            # shrinks it to match the now-shorter `text`. Left alone, the next
-            # `materialize_transclusions` reads THAT stale, wide realization
-            # (`_transclude_paragraph` renders from a Paragraph's `surface`
-            # realization, never from `props["text"]`) and puts the very
-            # `\footnotetext{...}` content just removed right back — now
-            # wrapped in `{{<fn>||FN}}` tokens instead of a `\({ }^{N}\)`
-            # label, so the NEXT `extract_footnote_paragraphs` can no longer
-            # recognise it as the footnote it already made and mints a fresh,
-            # refnum-less duplicate. `footnote_extracted` is the same "this
-            # field was edited, don't re-derive it" signal `text_source`/
-            # `is_translated` already give a translated paragraph — kept as
-            # its own flag (not `text_source`) so a footnote-shortened
-            # paragraph is never mistaken for a translated one by
-            # `classify.has_translation`/`docinspect.element_translations`,
-            # which key on that exact twin.
-            o.props["footnote_extracted"] = True
         else:
             drop.append(o.id)
     for fn in add:

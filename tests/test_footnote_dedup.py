@@ -590,17 +590,75 @@ def _mathpix_block_with_trailing_prose(
     ]
 
 
-def test_extract_shortens_text_and_flags_the_paragraph():
+def test_extract_shortens_text_and_narrows_the_realization():
+    r"""650 review round 2 — the SUFFIX shape (footnotetext leads, prose
+    trails, every case measured on penev_A) is narrowable: the paragraph's
+    `surface` Realization is rewritten to just the surviving anchor, and
+    `footnote_extracted` is NOT needed (the realization itself is now
+    accurate, so the ordinary render path is safe)."""
     doc = _built(_mathpix_block_with_trailing_prose())
+    para_before = doc.objects_of_type("Paragraph")[0]
+    st = doc.streams["mathpix_lines"]
+    p1_anchor = next(a for a in st.anchors if st.payload[a].get("id") == "p1")
+
     n = hc.extract_footnote_paragraphs(doc)
     assert n == 1
     paras = doc.objects_of_type("Paragraph")
     assert len(paras) == 1
     p = paras[0]
     assert p.props["text"] == "Prose continues right after."
-    assert p.props["footnote_extracted"] is True
+    assert "footnote_extracted" not in p.props            # narrowed, not flagged
+    surface = next(r for r in p.realizations
+                   if r.stream == "mathpix_lines" and r.role == "surface")
+    assert surface.start == p1_anchor and surface.end == p1_anchor
+    assert para_before.id == p.id                          # same object, in place
     # the footnote was ADOPTED (FootnoteProcessor's own object), not doubled
     assert len(_fn(doc)) == 1
+
+
+def test_narrow_surface_to_remaining_finds_the_suffix_and_the_prefix():
+    """Unit-level pin for the helper itself, both shapes, independent of the
+    surrounding extraction machinery."""
+    doc = Document()
+    doc.meta["bibkey"] = "T"
+    st = doc.ensure_stream("mathpix_lines")
+    a1 = st.append(id="a1", type="text")
+    a2 = st.append(id="a2", type="text")
+    para = DocObject(type="Paragraph", props={"text": "junk"})
+    para.add_realization(Realization(stream="mathpix_lines", start=a1,
+                                     end=a2, role="surface"))
+    doc.add(para)
+    st.payload[a1]["text_display"] = "gone"
+    st.payload[a2]["text_display"] = "kept"
+    assert hc._narrow_surface_to_remaining(doc, para, "kept")
+    surf = para.realizations[0]
+    assert (surf.start, surf.end) == (a2, a2)               # suffix: a2 only
+
+    para2 = DocObject(type="Paragraph", props={"text": "junk"})
+    para2.add_realization(Realization(stream="mathpix_lines", start=a1,
+                                      end=a2, role="surface"))
+    doc.add(para2)
+    assert hc._narrow_surface_to_remaining(doc, para2, "gone")
+    surf2 = para2.realizations[0]
+    assert (surf2.start, surf2.end) == (a1, a1)             # prefix: a1 only
+
+
+def test_narrow_surface_to_remaining_refuses_a_no_match():
+    """Prose that is not an exact suffix or prefix of the ORIGINAL lines
+    (the shape the fallback flag still exists for) must not be guessed at —
+    nothing is touched, and the caller falls back to the flag."""
+    doc = Document()
+    doc.meta["bibkey"] = "T"
+    st = doc.ensure_stream("mathpix_lines")
+    a1 = st.append(id="a1", type="text", text_display="one")
+    a2 = st.append(id="a2", type="text", text_display="two")
+    para = DocObject(type="Paragraph", props={"text": "junk"})
+    para.add_realization(Realization(stream="mathpix_lines", start=a1,
+                                     end=a2, role="surface"))
+    doc.add(para)
+    assert hc._narrow_surface_to_remaining(doc, para, "one and two") is False
+    surf = para.realizations[0]
+    assert (surf.start, surf.end) == (a1, a2)               # untouched
 
 
 def test_materialize_never_reintroduces_an_already_extracted_footnote_body():
@@ -622,6 +680,37 @@ def test_materialize_never_reintroduces_an_already_extracted_footnote_body():
     assert len(_fn(doc)) == 1
 
 
+def _mathpix_block_footnotetext_mid_line(
+        refnum="5", body="hidden body.",
+        lead="Leading prose before the note.",
+        trail="trailing prose after."):
+    r"""650 review round 2 — the shape `_narrow_surface_to_remaining` cannot
+    represent: no `footnote`-typed PARENT line at all (nothing here breaks
+    ParagraphProcessor's grouping), and the `\footnotetext{...}` sits
+    MID-STRING inside an ordinary `text`-typed line's own content, with
+    real prose surviving on BOTH sides in the same merged Paragraph.
+    "Prose, then a removed span, then more prose" cannot be one contiguous
+    Realization — this is the case the `footnote_extracted` flag fallback
+    still exists for."""
+    return [
+        {"id": "L1", "type": "text", "text_display": lead},
+        {"id": "L2", "type": "text",
+         "text_display": "Mid \\footnotetext{\\({ }^{%s}\\) %s} %s"
+                         % (refnum, body, trail)},
+    ]
+
+
+def test_narrowing_fails_on_the_mid_line_shape_and_the_flag_engages():
+    doc = _built(_mathpix_block_footnotetext_mid_line())
+    n = hc.extract_footnote_paragraphs(doc)
+    assert n == 1
+    para = doc.objects_of_type("Paragraph")[0]
+    assert para.props["footnote_extracted"] is True       # the fallback fired
+    assert "Leading prose before the note." in para.props["text"]
+    assert "trailing prose after." in para.props["text"]
+    assert "\\footnotetext" not in para.props["text"]
+
+
 def test_without_the_flag_materialize_would_have_reintroduced_it():
     """NOT a "confirmed failing first" test — it strips the flag itself
     (`p.props.pop("footnote_extracted", None)`), so it exercises the SAME
@@ -632,8 +721,15 @@ def test_without_the_flag_materialize_would_have_reintroduced_it():
     accidentally drops the flag (renames it, forgets to set it on some
     branch, etc.) fails this test even though `extract_footnote_paragraphs`
     and `materialize_transclusions` themselves are both otherwise
-    unchanged."""
-    doc = _built(_mathpix_block_with_trailing_prose())
+    unchanged.
+
+    650 review round 2 — uses the MID-LINE fixture, not the suffix one:
+    since round 2, a suffix-shaped paragraph is NARROWED, not flagged, so
+    it never carries `footnote_extracted` at all and popping a prop that
+    was never set would prove nothing. The mid-line shape is the one case
+    where the flag is still the ONLY defence, so it is the one that must
+    exercise this pin."""
+    doc = _built(_mathpix_block_footnotetext_mid_line())
     hc.extract_footnote_paragraphs(doc)
     for p in doc.objects_of_type("Paragraph"):
         p.props.pop("footnote_extracted", None)
@@ -653,17 +749,21 @@ def test_the_production_tiddler_is_also_gated_not_just_the_helper():
     helper into `props["text"]`; the REAL output a reader sees is
     `TiddlyWikiProjector._transclude_paragraph`, called from `_emit_tiddlers`
     for every Paragraph tiddler. It reads a Paragraph's `surface`
-    Realization directly and, before this fix, had NO knowledge of
+    Realization directly and, before round 1, had NO knowledge of
     `footnote_extracted` at all — so the flagged paragraph's OWN tiddler
     (not just its `props["text"]` copy) kept emitting the extracted
-    footnote body forever, deterministically, on every run. Confirmed live
-    on penev_A: all 3 `footnote_extracted` paragraphs mismatched between
-    `props["text"]` and the emitted tiddler before this round's gate, 0
-    after. Reproduced here with the REAL projector end to end, no mock."""
+    footnote body forever, deterministically, on every run.
+
+    650 review round 2 — the SUFFIX fixture used here is now NARROWED, not
+    flagged (`test_extract_shortens_text_and_narrows_the_realization`), so
+    this test no longer asserts the flag; it asserts the OUTCOME (correct,
+    footnote-free production output) that narrowing now provides for this
+    shape. The mid-line fixture's own production-tiddler safety is pinned
+    separately, next to this test."""
     doc = _built(_mathpix_block_with_trailing_prose())
     hc.extract_footnote_paragraphs(doc)
     para = doc.objects_of_type("Paragraph")[0]
-    assert para.props["footnote_extracted"] is True
+    assert "footnote_extracted" not in para.props          # narrowed instead
     assert para.props["text"] == "Prose continues right after."
 
     proj = TiddlyWikiProjector(
@@ -677,6 +777,75 @@ def test_the_production_tiddler_is_also_gated_not_just_the_helper():
     assert emitted == "Prose continues right after."
     assert "\\footnotetext" not in emitted
     assert "Thanks Feigenbaum" not in emitted
+
+
+def test_the_fallback_flag_still_gates_the_production_tiddler_when_narrowing_fails():
+    """The mid-line shape's own production-tiddler safety net: narrowing
+    fails (pinned above), so `footnote_extracted` is set, and
+    `_transclude_paragraph` must still refuse to leak the removed
+    footnotetext body into this paragraph's own tiddler — the same
+    protection round 1 gave every `footnote_extracted` paragraph, still
+    needed for the one shape round 2 cannot narrow."""
+    doc = _built(_mathpix_block_footnotetext_mid_line())
+    hc.extract_footnote_paragraphs(doc)
+    para = doc.objects_of_type("Paragraph")[0]
+    assert para.props["footnote_extracted"] is True
+
+    proj = TiddlyWikiProjector(
+        OperatorConfig(op="projector", classname="TiddlyWikiProjector"))
+    title, _inv = proj._assign_titles(doc, doc.meta.get("bibkey", "DOC"))
+    import json as _json
+    tiddlers = _json.loads(proj.project(doc))
+    by_title = {t["title"]: t.get("text", "") for t in tiddlers}
+    emitted = by_title.get(title[para.id])
+
+    assert emitted == para.props["text"]
+    assert "\\footnotetext" not in emitted
+    assert "hidden body" not in emitted
+
+
+def test_narrowing_preserves_a_surviving_formulas_transclusion():
+    r"""650 review round 2, finding 5 (blocking) — the actual regression the
+    round-1 fallback introduced and this round fixes: a Formula anchored
+    with a sub-line offset/length on the SURVIVING prose line must still be
+    substituted to `{{<formula>||FO}}` in the production tiddler.
+    Round-1's fallback (`latex_sectioning_to_wikitext(props["text"])`)
+    bypassed `_apply_line_substitutions` entirely and would render this
+    Formula's raw `\(\phi\)` verbatim — confirmed live on penev_A (2 of the
+    3 `footnote_extracted` paragraphs lost their own formula
+    transclusions this way). Narrowing the Realization instead means the
+    ordinary per-anchor substitution pipeline runs on the (now correctly
+    scoped) surviving line, and the transclusion survives."""
+    prose = "Prose with \\(\\phi\\) inline math right after."
+    doc = _built(_mathpix_block_with_trailing_prose(prose=prose))
+    st = doc.streams["mathpix_lines"]
+    p1_anchor = next(a for a in st.anchors if st.payload[a].get("id") == "p1")
+    off = prose.index("\\(\\phi\\)")
+    length = len("\\(\\phi\\)")
+    fo = DocObject(type="Formula", props={"latex": "\\phi", "page": 1,
+                                          "flow_index": 99})
+    fo.add_realization(Realization(stream="mathpix_lines", start=p1_anchor,
+                                   end=p1_anchor, role="surface",
+                                   props={"offset": off, "length": length}))
+    doc.add(fo)
+
+    n = hc.extract_footnote_paragraphs(doc)
+    assert n == 1
+    para = doc.objects_of_type("Paragraph")[0]
+    assert "footnote_extracted" not in para.props          # narrowed
+    assert para.props["text"] == prose
+
+    proj = TiddlyWikiProjector(
+        OperatorConfig(op="projector", classname="TiddlyWikiProjector"))
+    title, _inv = proj._assign_titles(doc, doc.meta.get("bibkey", "DOC"))
+    import json as _json
+    tiddlers = _json.loads(proj.project(doc))
+    by_title = {t["title"]: t.get("text", "") for t in tiddlers}
+    emitted = by_title.get(title[para.id])
+
+    assert "{{" + title[fo.id] + "||FO}}" in emitted, emitted
+    assert "\\(\\phi\\)" not in emitted                    # substituted, not raw
+    assert "\\footnotetext" not in emitted
 
 
 if __name__ == "__main__":

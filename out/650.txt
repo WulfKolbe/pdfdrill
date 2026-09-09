@@ -198,6 +198,173 @@ FIX ROUND 1 — three findings from review (task-650-review.md), all real
   refnum_less_footnotes`; finding 3 corrected an existing test's docstring
   and this file's own prose, adding nothing; no regressions).
 
+FIX ROUND 2 — re-review found finding 1 only partially closed, plus one
+NEW BLOCKING finding (finding 5)
+  Round 1's `_transclude_paragraph` gate stopped the footnote-body leak by
+  falling back to `latex_sectioning_to_wikitext(props["text"])` for any
+  `footnote_extracted` paragraph — the SAME bare fallback already used when
+  a paragraph has no `surface` Realization at all. That fallback skips the
+  ENTIRE substitution pipeline (`_apply_line_substitutions`/`_substitute_
+  footnotes`/`_substitute_inline_pictures`/`_substitute_residual_inline_
+  math`/`_substitute_eq_refs`). MEASURED before deciding, confirmed live on
+  penev_A: 2 of the 3 `footnote_extracted` paragraphs had their OWN
+  legitimate `{{<formula>||FO}}` transclusions replaced by raw `\(...\)`
+  math in the production tiddler — trading one leak for a different,
+  undisclosed loss, worse because it moved the tradeoff from
+  `props["text"]` (already disclosed as llmtext/semantic/markdown-only in
+  round 1) into the actual TiddlyWiki output.
+
+  ROOT FIX, per the coordinator/reviewer's agreed direction: stop routing
+  around the stale Realization and narrow it instead. New
+  `heading_cleanup._narrow_surface_to_remaining(doc, para, remaining)`:
+  when `extract_footnote_paragraphs` shortens a paragraph's text, it first
+  tries to find an EXACT suffix or prefix of the paragraph's ORIGINAL
+  per-line texts (`_para_lines`) matching `remaining` (whitespace-
+  normalized), and if found, rewrites the paragraph's own `surface`
+  Realization to span just those surviving anchors. `_transclude_paragraph`
+  and `materialize_transclusions` then read a Realization that is no
+  longer lying, through their ORDINARY path — full substitution pipeline,
+  transclusions intact — instead of any special-cased fallback.
+
+  WHAT HAPPENS TO THE FLAG. Per the coordinator: remove it if narrowing
+  makes it unnecessary, keep it only if it still buys something. It still
+  buys something: narrowing cannot represent "prose, then the removed
+  span, then more prose" as one contiguous Realization (disjoint surviving
+  ranges), so when the suffix/prefix search finds no exact match,
+  `footnote_extracted` is set as a SAFETY-NET fallback, exactly as round 1
+  left it — the disclosed tradeoff (losing that ONE paragraph's own
+  transclusions) is accepted ONLY for this narrower, now-rare shape, not
+  for every footnote-shortened paragraph. Confirmed on penev_A's own
+  corpus: of the ORIGINAL 3 `footnote_extracted` paragraphs, 1 is now
+  narrowed (flag removed, full transclusions restored) and 1 falls back to
+  the flag (its surviving text is literally `"}"` — nothing to transclude,
+  so the tradeoff costs nothing in practice). The THIRD is discussed below
+  — round 2 also fixed a second, incidental bug the coordinator's finding
+  did not name but the measurement surfaced.
+
+  A SECOND, INCIDENTAL BUG FOUND WHILE BUILDING THE FIX: a malformed
+  footnotetext span (an unbalanced brace deep in MathPix's own LaTeX —
+  `_balanced` returning -1) can leave `remaining` IDENTICAL to the
+  original `text`: nothing was actually extracted. Round 1 still set
+  `footnote_extracted = True` in this case (the condition was just
+  `if remaining:`, true whether or not anything changed) — meaning this
+  THIRD penev_A paragraph (page 6, a `\cos^2(...)` footnote block, 24
+  legitimate `{{...}}` tokens) was ALSO losing every one of its own
+  transclusions under round 1, a THIRD live regression the reviewer's
+  2-paragraph sample did not happen to cover. Round 2 gates flagging AND
+  narrowing on `_norm_ws(remaining) != _norm_ws(text)` — nothing changed,
+  nothing to guard against, so this paragraph is now left alone entirely
+  and renders through the ordinary, untouched path. Confirmed: its
+  production tiddler is now BYTE-IDENTICAL, all 24 tokens, to what
+  `TiddlyWikiProjector` (base commit 7bc6f63b, before 650 existed) would
+  have rendered for it — because nothing about it needed fixing in the
+  first place.
+
+  THE REQUIRED TRANSCLUSION CHECK — enumerated, for all 3 originally-
+  affected penev_A paragraphs, the production tiddler BEFORE 650 (base
+  7bc6f63b's `TiddlyWikiProjector`, run against a model whose Realization
+  was never touched) versus AFTER round 2 (current code):
+
+    A. "sensory stimulus ..." (page 6, lines 70-83) — NARROWED.
+       Before 650, the tail of the (leaking) render was:
+         "...vector spaces can be applied to {{penev_A_FO0087||FO}}.\n}
+         \nsensory stimulus {{penev_A_FO0088||FO}}, which we previously
+         denoted with {{penev_A_FO0028||FO}}. Therefore,"
+       After round 2, the WHOLE render is:
+         "\nsensory stimulus {{penev_A_FO0088||FO}}, which we previously
+         denoted with {{penev_A_FO0028||FO}}. Therefore,"
+       The surviving-prose tail is BYTE-IDENTICAL between the two —
+       `{{FO0088||FO}}` and `{{FO0028||FO}}` both present, in order, exact
+       text around them unchanged. The leaked footnote content
+       (`{{FN0011||FN}}`, `{{FN0012||FN}}`, `{{FO0086||FO}}`,
+       `{{FO0087||FO}}`) is gone.
+    B. "cos^2(...)" block (page 6, lines 115-128) — malformed brace,
+       UNCHANGED (the incidental bug above). Before-650 and after-round-2
+       renders are byte-identical: all 24 `{{...}}` tokens present in both,
+       same order, same content. Never part of the leak; not touched by
+       either fix.
+    C. `"}"`-only (page 6, lines 146-166) — FALLBACK (narrowing found no
+       exact suffix/prefix match). Before-650 rendered the full leaked
+       block (12 tokens, including `{{FN0015||FN}}`). After round 2:
+         `props["text"]` and the emitted tiddler are both exactly `"}"`  —
+       0 tokens, because there is nothing left to transclude. The
+       disclosed tradeoff (this ONE paragraph's own transclusions, if it
+       had any) costs nothing here in practice.
+    Every surviving-prose transclusion the 3 paragraphs carried survives.
+    Script: penev_A/out/650/round2_transclusion_check.py (below).
+
+  WATCHING THE LEDGER AND `docops.conserve`, BEFORE AND AFTER (as
+  instructed — an unexplained delta is a finding; these are explained):
+
+    penev_A (`model --force` + `clean` only, isolating the mechanism from
+    the rest of the drill — the SAME two builds used for the transclusion
+    check above):
+                        round1 (before)   round2 (after)   delta
+      ledger claimed_0        243               243          0
+      ledger claimed_1       2893              2906        +13
+      ledger claimed_multi     42                29         -13
+      ledger block_claims    2977              2964         -13
+      ledger inline_claims   1295              1295          0
+      conserve unreachable    181               171         -10
+      conserve unclaimed      243               243          0
+      conserve doubly_claimed  42                29         -13
+      INTENDED: narrowing the paragraph's Realization means the anchors it
+      used to claim TOGETHER WITH the Footnote's own realization (a page-6
+      block spanning ~13 lines) are now claimed by the Footnote ALONE —
+      claimed_multi/doubly_claimed drop by exactly 13, claimed_1 rises by
+      exactly 13, and claimed_0 (truly unclaimed) does not move: no anchor
+      became orphaned, 13 anchors moved from doubly- to singly-claimed.
+      This is the improvement the coordinator predicted. `unreachable`
+      dropping by 10 is a plausible knock-on (fewer objects whose OWN
+      claimed content routes to no tiddler) but was not traced further —
+      named as a side effect, not re-derived line by line.
+
+    SteerableWaveletFramesBasedontheRieszTransform (same protocol): ZERO
+    movement on every count, round1 vs round2, because this document has
+    ZERO `footnote_extracted` paragraphs (confirmed by direct query) — it
+    has exactly 1 Footnote total and no page where a footnote's raw
+    content ever merges into a following Paragraph the way penev_A's
+    page 6 does. Nothing for round 2's mechanism to act on; the flat
+    before/after IS the explained result, not an oversight.
+
+  RE-VERIFIED THE WHOLE 650 CLAIM UNDER ROUND 2 (mechanism changed, so the
+  claim is re-run, not assumed): three consecutive full drills, fresh
+  `model --force` first, both documents:
+
+    penev_A: Footnote 48/48/48, Reference 52/52/52, cites 81/81/81,
+      ledger claimed_0 243/243/243, claimed_multi 29/29/29 (the round-2
+      value, stable — down from round 1's 42/42/42, matching the isolated
+      measurement above). Title sets identical run-to-run, every kind.
+    Steerable: Footnote 1/1/1, Reference 30/30/30, cites 64/64/64, ledger
+      claimed_0 132/132/132, claimed_multi 136/136/136 (this full-drill
+      pipeline's own ledger baseline; NOT the same number as the
+      model+clean-only isolation above — the two measure different
+      pipelines, both internally stable). Title sets identical
+      run-to-run, every kind. `ListItem` landed at 50/50/50 this round (a
+      fresh sidecar, per the already-open `cmd_lists` cold-start finding
+      below — not a NEW instability, and stable 3-for-3 as required).
+
+  FULL SUITE (fix round 2): PYTHONDONTWRITEBYTECODE=1 PYTHONPATH=src
+  python3 -m pytest tests/ -q -p no:cacheprovider -> 3377 passed, 0 failed
+  (3372 before this round's 5 new tests: `test_narrow_surface_to_
+  remaining_finds_the_suffix_and_the_prefix`, `test_narrow_surface_to_
+  remaining_refuses_a_no_match`, `test_narrowing_fails_on_the_mid_line_
+  shape_and_the_flag_engages`, `test_the_fallback_flag_still_gates_the_
+  production_tiddler_when_narrowing_fails`, `test_narrowing_preserves_a_
+  surviving_formulas_transclusion` — the last one is finding 5's own
+  regression pin, confirmed failing against round 1 by reverting
+  `heading_cleanup.py` to d65233a7 and re-running it in isolation. Three
+  existing tests were also rewritten to match the new, correct behaviour
+  (a suffix-shaped paragraph is narrowed, not flagged) rather than
+  deleted: `test_extract_shortens_text_and_narrows_the_realization`
+  (renamed from `..._and_flags_the_paragraph`), `test_without_the_flag_
+  materialize_would_have_reintroduced_it` (now uses a mid-line fixture,
+  since a suffix-shaped one is no longer flagged at all and popping a
+  never-set flag would prove nothing), and `test_the_production_tiddler_
+  is_also_gated_not_just_the_helper` (asserts the outcome — correct,
+  footnote-free output — rather than the flag, since narrowing now
+  provides it). No regressions.
+
 THE REFERENCE SIDE (task's item 2) — ALREADY FIXED, VERIFIED NOT REOPENED
   Read first, per the brief: tasks/010.report.md (stub creation moved to one
   `ensure_reference_stub` helper called by every Citation creator; round 3
@@ -222,7 +389,11 @@ THE REFERENCE SIDE (task's item 2) — ALREADY FIXED, VERIFIED NOT REOPENED
   path, and this task's own measurement is the confirmation that was still
   missing.
 
-THREE CONSECUTIVE FULL DRILLS, AFTER THE FIX — THE REQUIRED TABLE
+THREE CONSECUTIVE FULL DRILLS, AFTER FIX ROUND 1 — SUPERSEDED BY THE
+ROUND-2 RE-VERIFICATION ABOVE (kept for the historical record; the
+mechanism changed between the two, so `ledger claimed_multi` legitimately
+differs: 42 here vs 29 after round 2's narrowing — explained in FIX ROUND
+2's ledger/conserve section, not a discrepancy)
   penev_A (`model --force` once, then three `drill_full_sandbox.sh` runs,
   each verified "All 22 steps succeeded" before the next was started):
 
@@ -288,7 +459,12 @@ FINDING, NAMED NOT ROUNDED OFF: a cold-start `cmd_lists` discrepancy
   silently re-measuring until the number looks stable. Root cause not
   chased (outside this task's scope and budget): `cmd_lists`'s "y-position
   re-split" recovery heuristic reads something from accumulated sidecar
-  state that a virgin sidecar does not yet have. Left OPEN.
+  state that a virgin sidecar does not yet have. Left OPEN. Fix round 2's
+  own fresh `model --force` produced YET A THIRD stable value (50/50/50,
+  a different sidecar history again) across its three consecutive drills —
+  consistent with this same open finding (a fresh sidecar's `cmd_lists`
+  baseline is history-dependent but stable once set), not a new or worse
+  instability, and not re-chased for the same reason.
 
   (A separate, purely procedural incident during measurement, NOT a product
   defect: two Steerable drills launched back-to-back in the BACKGROUND with
@@ -321,10 +497,18 @@ WHAT IS OPEN
     document, and neither corpus document's `clean_heading_residuals` path
     was checked tiddler-by-tiddler the way the footnote path now is).
     Named, not fixed — outside this task's Footnote/Reference charter and
-    the corpus in hand does not exercise the count-visible half of it, but
-    fix round 1's own measurement method (compare emitted tiddler text
-    against `props["text"]` for every object the shortener touched) is
-    exactly how to check it and was not run here.
+    the corpus in hand does not exercise the count-visible half of it. Fix
+    round 1's measurement method (compare emitted tiddler text against
+    `props["text"]`) was shown in round 2 to be BLIND to a lost
+    transclusion (both sides are raw, untranscluded text — finding 5's own
+    lesson) — the correct check, if this is ever picked up, is round 2's
+    own method: compare the emitted tiddler against a PRE-650 render of
+    the same (untouched) Realization, the way
+    `round2_transclusion_check.py` does for the footnote path. Round 2's
+    `_narrow_surface_to_remaining` helper is written generically enough
+    (paragraph + remaining text -> narrowed or untouched) that
+    `clean_heading_residuals` could call it directly rather than inventing
+    a second mechanism, if this is picked up later.
   - The cross-detector citekey case mismatch out/648.txt already named
     (`detect_author_year_in_objects` folds to lowercase,
     `detect_author_year_citations` preserves case) is still open and still
@@ -336,18 +520,24 @@ WHAT IS OPEN
     brief's premise for that file was wrong, not the files.
 
 FULL SUITE: PYTHONDONTWRITEBYTECODE=1 PYTHONPATH=src python3 -m pytest
-tests/ -q -p no:cacheprovider -> 3372 passed, 0 failed (fix round 1).
+tests/ -q -p no:cacheprovider -> 3377 passed, 0 failed (fix round 2).
 
 EVIDENCE
   ~/pdfdrill-library/penev_A/out/650/{script.py,runs.json,messages.txt,
   INSPECT.txt,run1_full.json,run2_full.json,run3_full.json (pre-fix, the
   bug caught live),fresh/fix_r1.json,fresh/fix_r2.json,fresh/fix_r3.json
-  (post-fix, stable)}
+  (post fix round 1),round2_transclusion_check.py + its captured
+  round2_transclusion_check_output.txt (the required before/after
+  transclusion enumeration),fresh/before650_results.json (the base-commit
+  7bc6f63b renders it compares against),fresh/model.round1_before_narrow.
+  docmodel.json + fresh/model.round2.pristine.docmodel.json (the two model
+  snapshots the check reads),fresh/round2_run{1,2,3}.json (fix round 2's
+  own three-drill re-verification)}
   ~/pdfdrill-library/SteerableWaveletFramesBasedontheRieszTransform/out/650/
   {script.py,runs.json,messages.txt,INSPECT.txt,fresh/A1.json,fresh/A2.json,
-  fresh/A3.json}
+  fresh/A3.json (fix round 1),fresh/round2_run{1,2,3}.json (fix round 2)}
   src/pdfdrill/heading_cleanup.py, src/docmodel/footnote_extent.py,
-  src/docops/projectors/tiddlywiki.py (fix round 1),
-  tests/test_footnote_dedup.py — this repo, this commit + fix round 1.
-  task-650-review.md (the review this round answers) — coordinator's
+  src/docops/projectors/tiddlywiki.py (fix round 1, unchanged by round 2),
+  tests/test_footnote_dedup.py — this repo, this commit + fix rounds 1-2.
+  task-650-review.md (the review both rounds answer) — coordinator's
   scratchpad, not this repo.
