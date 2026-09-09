@@ -12,6 +12,7 @@ import json as _json
 from pathlib import Path
 
 from .. import report_tex as rt
+from . import budget as _budget
 from . import html as H
 from . import tex as T
 from .rows import EquationRow
@@ -88,7 +89,20 @@ def select(rows_by_kind: dict, found: dict, *, conf: float = rt.CONF_THRESHOLD) 
             out.append(r)
         return _by_conf(out)
 
-    corrected = list(found.get("corrected") or [])
+    # 655 review round 1, finding 4 -- `corrected` pairs come from
+    # `corrected_pairs` (a JSON record keyed by identifier only, never a row
+    # object), so without this they would read their crop straight from the
+    # full-size `report-crops/` directory regardless of whatever rung
+    # `ensure_crops` already picked for that identifier's kind. Stamping the
+    # SAME row's `.crop`/`.px_width` onto the pair here is what lets
+    # `residuals.build` route the Corrected section through the budgeted
+    # copy exactly like every other section already does via `index`.
+    def _with_crop(rec):
+        r = index.get(rec.get("identifier"))
+        return dict(rec, _crop=(r.crop if r is not None else None),
+                   _px_width=(r.px_width if r is not None else ""))
+
+    corrected = [_with_crop(p) for p in (found.get("corrected") or [])]
     taken.update(p.get("identifier") for p in corrected if p.get("identifier"))
     unresolved = pick(found.get("unresolved") or [])
     shown, rest = rt.flagged_split(found.get("flagged") or [])
@@ -143,8 +157,23 @@ def _rest_line(rest: dict) -> str:
                rest["low"], rest["none"]))
 
 
+def _crop_for(corrected: list):
+    """`ident -> (Path, px_width) | None`, built from the crop/px_width
+    `select`'s `_with_crop` already stamped onto each corrected pair --
+    see `findings_tex`'s `crop_for` param (655 review round 1, finding 4)."""
+    by_ident = {p["identifier"]: p for p in corrected if p.get("identifier")}
+
+    def lookup(ident):
+        p = by_ident.get(ident)
+        if p is None or p.get("_crop") is None:
+            return None
+        return p["_crop"], p.get("_px_width", "")
+    return lookup
+
+
 def build(selected: dict, fmt: str, *, doc_dir, pdf, bibkey, history, px2mm,
-          paper, landscape, pages, compile_pdf) -> dict:
+          paper, landscape, pages, compile_pdf,
+          budget_mb: "float | None" = None) -> dict:
     doc_dir = Path(doc_dir)
     meta = header_lines(doc_dir)
     rest = _rest_line(selected.get("flagged_rest") or {})
@@ -185,7 +214,8 @@ def build(selected: dict, fmt: str, *, doc_dir, pdf, bibkey, history, px2mm,
              "flagged": [], "doubted": []},
             widths, crops=doc_dir / "report-crops", out_dir=doc_dir,
             px2mm=px2mm, bibkey=bibkey, history=history, form=True,
-            legend_on=True, bullets=True))
+            legend_on=True, bullets=True,
+            crop_for=_crop_for(selected["corrected"])))
     for k in SECTIONS[1:]:
         if not selected[k]:
             continue
@@ -209,4 +239,13 @@ def build(selected: dict, fmt: str, *, doc_dir, pdf, bibkey, history, px2mm,
         c = rt.compile_fixpoint(tex_path)
         if c is not None:
             res["pages"], res["errors"], res["demoted"] = c
+    # 655 review round 1, finding 3 -- checked against the real artefact,
+    # same as `evidence.build`; `residuals.pdf` draws a small subset of
+    # already-budgeted rows so this essentially never fires, but "essentially
+    # never" is not "never" once finding 4's Corrected-section fix means an
+    # unbudgeted-kind identifier could in principle still land here.
+    if budget_mb is not None:
+        res["bytes"], res["over_budget"] = _budget.check_artifact(
+            res["out"], budget_mb=budget_mb)
+        res["budget_mb"] = budget_mb
     return res

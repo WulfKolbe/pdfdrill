@@ -212,7 +212,12 @@ def test_physical_size_on_the_page_is_unchanged_by_scaling(tmp_path, monkeypatch
     assert before_w == after_w
 
 
-def test_floor_reached_is_reported_over_budget_in_the_note(tmp_path, monkeypatch):
+def test_floor_reached_is_reported_as_a_prediction_not_a_verdict(tmp_path, monkeypatch):
+    """655 review round 1, finding 3 -- `ensure_crops`'s note describes what
+    `choose_rung` PREDICTED from crop bytes, never the compiled PDF (that
+    verdict lives in `evidence.build`/`residuals.build`'s `over_budget`,
+    checked against the real artefact). So this note says "predicted", not
+    the bare "OVER BUDGET" a reader could mistake for a checked fact."""
     rows = _budget_setup(tmp_path, monkeypatch)
     out, note = C.ensure_crops(rows, tmp_path, tmp_path / "D.pdf", bibkey="D",
                                budget_mb=1e-9)     # unreachable by any rung
@@ -220,7 +225,8 @@ def test_floor_reached_is_reported_over_budget_in_the_note(tmp_path, monkeypatch
     assert fr.crop.parent == tmp_path / C.CROPS_DIR_B
     import pdfdrill.reports.budget as budget_mod
     assert fr.px_width == "400"
-    assert "OVER BUDGET" in note
+    assert "still over budget predicted" in note
+    assert "OVER BUDGET" not in note
     # never below the floor
     from PIL import Image
     with Image.open(tmp_path / C.CROPS_DIR / "D_FO0001.jpg") as im:

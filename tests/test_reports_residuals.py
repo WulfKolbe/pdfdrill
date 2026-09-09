@@ -1,3 +1,5 @@
+from pathlib import Path
+
 from pdfdrill.reports import residuals as R
 from pdfdrill.reports.rows import EquationRow, FormulaRow, HostLine
 
@@ -153,3 +155,82 @@ def test_cli_and_lock():
     fn = ast.parse(inspect.getsource(commands.cmd_residuals)).body[0]
     assert any(getattr(d.func, "id", "") == "_writes" for d in fn.decorator_list
                if isinstance(d, ast.Call))
+
+
+# ---------------------------------------------------------------------- #
+# 655 review round 1, finding 4 -- a corrected pair must route its crop
+# through the SAME (possibly budget-scaled) row object every other section
+# already uses, not a fresh full-size lookup keyed on identifier alone.
+# ---------------------------------------------------------------------- #
+
+def _real_jpg(path, w, h, color):
+    from PIL import Image
+    path.parent.mkdir(parents=True, exist_ok=True)
+    Image.new("RGB", (w, h), color=color).save(path, "JPEG", quality=90)
+
+
+def test_select_stamps_the_rows_own_crop_onto_a_corrected_pair(tmp_path):
+    scaled = tmp_path / "report-crops-b" / "D_EQ0009.jpg"
+    rows = {"equation": [EquationRow(identifier="D_EQ0009", latex="x",
+                                     crop=scaled, px_width="999")],
+            "formula": [], "table": [], "image": []}
+    found = {"corrected": [{"identifier": "D_EQ0009", "before": "a", "after": "b"}],
+            "unresolved": [], "flagged": [], "doubted": []}
+    s = R.select(rows, found, conf=0.1)
+    pair = s["corrected"][0]
+    assert pair["_crop"] == scaled
+    assert pair["_px_width"] == "999"
+
+
+def test_select_leaves_no_crop_when_the_identifier_has_no_row(tmp_path):
+    found = {"corrected": [{"identifier": "D_EQ0009", "before": "a", "after": "b"}],
+            "unresolved": [], "flagged": [], "doubted": []}
+    s = R.select({}, found, conf=0.1)
+    assert s["corrected"][0]["_crop"] is None
+    assert s["corrected"][0]["_px_width"] == ""
+
+
+def test_build_pdf_routes_the_corrected_crop_through_the_budgeted_copy(tmp_path):
+    """The decisive case the original corpus spot-check missed (it had zero
+    corrected pairs): a REAL full-size crop and a REAL, DIFFERENT scaled
+    crop both exist on disk; the row's `.crop` points at the scaled one, so
+    the compiled .tex must reference `report-crops-b/`, not `report-crops/`,
+    and the emitted width must come from the row's `px_width` (the
+    ORIGINAL pixel width), not the scaled file's own."""
+    full = tmp_path / "report-crops" / "D_EQ0009.jpg"
+    scaled = tmp_path / "report-crops-b" / "D_EQ0009.jpg"
+    _real_jpg(full, 1000, 800, (10, 10, 10))       # full size -- must NOT be read
+    _real_jpg(scaled, 420, 336, (200, 200, 200))   # what the row actually points at
+
+    rows = {"equation": [EquationRow(identifier="D_EQ0009", latex="x=y",
+                                     crop=scaled, px_width="1000")],
+            "formula": [], "table": [], "image": []}
+    found = {"corrected": [{"identifier": "D_EQ0009", "before": "x=z", "after": "x=y"}],
+            "unresolved": [], "flagged": [], "doubted": []}
+    s = R.select(rows, found, conf=0.1)
+    r = R.build(s, "pdf", doc_dir=tmp_path, pdf=tmp_path / "D.pdf", bibkey="D",
+               history=None, px2mm=0.1, paper="a3", landscape=True,
+               pages=10, compile_pdf=False)
+    tex = (tmp_path / "residuals.tex").read_text()
+    assert "report-crops-b/D_EQ0009.jpg" in tex
+    assert "report-crops/D_EQ0009.jpg" not in tex
+    assert tex.count("report-crops-b/D_EQ0009.jpg") == 2   # "(was)" and "(now)" rows
+    # width computed from px_width=1000 (the ORIGINAL), not the scaled
+    # file's own 420px -- 1000 * 0.1 = 100.0mm.
+    import re
+    width_m = re.search(r"width=([\d.]+)mm\]\{report-crops-b/D_EQ0009\.jpg\}", tex)
+    assert width_m is not None and float(width_m.group(1)) == 100.0
+
+
+def test_build_reports_over_budget_against_the_compiled_artefact(tmp_path, monkeypatch):
+    def fake_compile(tex_path):
+        tex_path.with_suffix(".pdf").write_bytes(b"0" * 21_000_000)
+        return (1, 0, 0)
+    monkeypatch.setattr(R.rt, "compile_fixpoint", fake_compile)
+    s = R.select(_rows(), _found(), conf=0.1)
+    r = R.build(s, "pdf", doc_dir=tmp_path, pdf=tmp_path / "D.pdf", bibkey="D",
+               history=None, px2mm=None, paper="a3", landscape=True,
+               pages=10, compile_pdf=True, budget_mb=20.0)
+    assert r["over_budget"] is True and r["bytes"] == 21_000_000
+
+

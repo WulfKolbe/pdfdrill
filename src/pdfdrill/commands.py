@@ -5281,16 +5281,30 @@ def _evidence_line(r: dict, pdf_out: bool, compile_pdf: bool) -> str:
     left uncompiled by choice or because xelatex is missing) are unit-testable
     without building a document. Mirrors the pattern `cmd_breport` uses:
     `compile_pdf` decides WHY it wasn't compiled, `r["pages"]` decides WHETHER
-    it was."""
+    it was.
+
+    655 review round 1, finding 3 — `r["over_budget"]`, when present, is the
+    ARTEFACT'S own compiled byte count checked against budget
+    (`reports.budget.check_artifact`, run after `compile_fixpoint`), never
+    the crop-byte prediction `ensure_crops`'s note describes; this is the
+    one place brief item 3's "reported OVER BUDGET, with its size" actually
+    fires."""
     line = "Wrote %s: %d rows" % (r["out"], r["rows"])
     if not pdf_out:
         return line
     if r["pages"] is not None:
-        return line + (" (%d pages, %d errors, %d demoted)"
-                       % (r["pages"], r["errors"], r["demoted"]))
-    if not compile_pdf:
+        line += (" (%d pages, %d errors, %d demoted)"
+                % (r["pages"], r["errors"], r["demoted"]))
+    elif not compile_pdf:
         return line + " (not compiled; .tex written)"
-    return line + " (xelatex not installed; .tex written)"
+    else:
+        return line + " (xelatex not installed; .tex written)"
+    if r.get("over_budget"):
+        from .reports.budget import _mb_for_bytes
+        line += (" -- OVER BUDGET: %.1fMB compiled > %.1fMB budget (floored "
+                "at scale 0.42/q70; see reports.budget)"
+                % (_mb_for_bytes(r["bytes"]), r["budget_mb"]))
+    return line
 
 
 def _keyless_math_steering(pdf_name: str, inline: int, eqs: int, bearing: bool,
@@ -5419,12 +5433,12 @@ def cmd_evidence(pdf: Path, kind: "str | None" = None, pdf_out: bool = False,
     lines_path = _lines_json_path(pdf)
     ink_path = doc_dir / "report.ink.json"
     ink = rt.load_ink(ink_path) if ink_path.is_file() else {}
+    budget_mb_final = budget_mb if budget_mb is not None else CROP_BUDGET_MB
     rows = build_rows(doc, bibkey, ink=ink,
                       lines_path=lines_path if lines_path.exists() else None)
     rows, crop_note = ensure_crops(
         rows, doc_dir, pdf, bibkey=bibkey, history=_bibkey_history(sc),
-        images=images,
-        budget_mb=budget_mb if budget_mb is not None else CROP_BUDGET_MB)
+        images=images, budget_mb=budget_mb_final)
     # counted from the FULL row dict, independent of which kind(s) this call
     # actually renders — the old cmd_report's FormulaReportProjector counted
     # every inline Formula / display Equation in the document the same way.
@@ -5436,7 +5450,8 @@ def cmd_evidence(pdf: Path, kind: "str | None" = None, pdf_out: bool = False,
         r = EV.build(rows, k, "pdf" if pdf_out else "html", doc_dir=doc_dir,
                      pdf=pdf, bibkey=bibkey, history=_bibkey_history(sc),
                      px2mm=px2mm, paper=paper, landscape=landscape,
-                     compile_pdf=compile_pdf)
+                     compile_pdf=compile_pdf,
+                     budget_mb=budget_mb_final if pdf_out else None)
         out.append(_evidence_line(r, pdf_out, compile_pdf))
     sc.set_evidence("evidence_kinds", list(KINDS if all_kinds else (kind,)))
     # spec 2026-09-06 (task 10 fix round) — `cmd_report`'s old body was the
@@ -5479,11 +5494,14 @@ def cmd_residuals(pdf: Path, pdf_out: bool = False, measure: bool = False,
     unchanged; the measure build is still report.pdf).
 
     655 — `residuals.pdf` draws its rows from the same equation/formula
-    population `evidence` budgets; it is always a small subset, so it needs
-    no budget check of its own and simply inherits whatever crop (full size
-    or already scaled) `ensure_crops` gave that row. `budget_mb` is
-    threaded through only so a caller building both from one script can
-    keep them consistent."""
+    population `evidence` budgets, always a small subset, so it needs no
+    independent RUNG SELECTION and inherits whatever crop (full size or
+    already scaled) `ensure_crops` gave that row — including the Corrected
+    section, which resolves its crop the same way as of the review-round-1
+    fix to finding 4. It still gets the same real-artefact OVER BUDGET
+    check `evidence` does (`budget_mb` threaded through), since inheriting
+    a budgeted rung is not itself a proof the compiled PDF stays under
+    budget."""
     from . import report_tex as rt
     from .reports import residuals as RS
     from .reports.budget import CROP_BUDGET_MB
@@ -5505,12 +5523,12 @@ def cmd_residuals(pdf: Path, pdf_out: bool = False, measure: bool = False,
     lines_path = _lines_json_path(pdf)
     ink_path = doc_dir / "report.ink.json"
     ink = rt.load_ink(ink_path) if ink_path.is_file() else {}
+    budget_mb_final = budget_mb if budget_mb is not None else CROP_BUDGET_MB
     rows = build_rows(doc, bibkey, ink=ink,
                       lines_path=lines_path if lines_path.exists() else None)
     rows, crop_note = ensure_crops(
         rows, doc_dir, pdf, bibkey=bibkey, history=_bibkey_history(sc),
-        images=images,
-        budget_mb=budget_mb if budget_mb is not None else CROP_BUDGET_MB)
+        images=images, budget_mb=budget_mb_final)
     found = RS.findings(rows, doc_dir)
     selected = RS.select(rows, found,
                          conf=conf if conf is not None else rt.CONF_THRESHOLD)
@@ -5518,7 +5536,8 @@ def cmd_residuals(pdf: Path, pdf_out: bool = False, measure: bool = False,
                  pdf=pdf, bibkey=bibkey, history=_bibkey_history(sc),
                  px2mm=rt.auto_px2mm(pdf), paper=paper, landscape=landscape,
                  pages=(rt.PAGES_DEFAULT if pages is None else pages),
-                 compile_pdf=compile_pdf)
+                 compile_pdf=compile_pdf,
+                 budget_mb=budget_mb_final if pdf_out else None)
     counts = ", ".join("%d %s" % (len(selected[k]), k) for k in RS.SECTIONS)
     out.append(crop_note)
     out.append("; ".join(RS.header_lines(doc_dir)))
@@ -5526,6 +5545,10 @@ def cmd_residuals(pdf: Path, pdf_out: bool = False, measure: bool = False,
     if pdf_out and r["pages"] is not None:
         line += " (%d pages, %d errors, %d demoted)" % (
             r["pages"], r["errors"], r["demoted"])
+    if r.get("over_budget"):
+        from .reports.budget import _mb_for_bytes
+        line += (" -- OVER BUDGET: %.1fMB compiled > %.1fMB budget"
+                % (_mb_for_bytes(r["bytes"]), r["budget_mb"]))
     out.append(line)
     sc.set_evidence("residuals_path", str(r["out"].relative_to(pdf.parent)))
     sc.save()

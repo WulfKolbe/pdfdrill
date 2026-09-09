@@ -6,6 +6,7 @@ from pathlib import Path
 
 from .. import report_tex as rt
 from . import KINDS
+from . import budget as _budget
 from . import html as H
 from . import tex as T
 
@@ -21,7 +22,8 @@ def ordered(rows: list, kind: str) -> list:
 
 
 def build(rows_by_kind: dict, kind: str, fmt: str, *, doc_dir, pdf, bibkey,
-          history, px2mm, paper, landscape, compile_pdf) -> dict:
+          history, px2mm, paper, landscape, compile_pdf,
+          budget_mb: "float | None" = None) -> dict:
     if kind not in KINDS:
         raise ValueError("kind must be one of %s, not %r" % (", ".join(KINDS), kind))
     if fmt not in FORMATS:
@@ -48,4 +50,13 @@ def build(rows_by_kind: dict, kind: str, fmt: str, *, doc_dir, pdf, bibkey,
         c = rt.compile_fixpoint(tex_path)
         if c is not None:
             res["pages"], res["errors"], res["demoted"] = c
+    # 655 review round 1, finding 3 -- the SELECTION of a rung is a
+    # prediction against crop bytes (`reports.budget.choose_rung`, run
+    # earlier in `ensure_crops`); this is the VERDICT, checked against the
+    # artefact `compile_fixpoint` just produced, which is the only "OVER
+    # BUDGET" a caller should ever act on or print.
+    if budget_mb is not None:
+        res["bytes"], res["over_budget"] = _budget.check_artifact(
+            res["out"], budget_mb=budget_mb)
+        res["budget_mb"] = budget_mb
     return res

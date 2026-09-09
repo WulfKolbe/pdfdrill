@@ -3432,7 +3432,7 @@ def _contradicted_identifiers(doc_dir) -> dict:
 
 def findings_tex(found: dict, widths, crops=None, out_dir=None,
                  px2mm=None, bibkey="", history=None, form=False,
-                 legend_on=True, bullets: bool = True) -> str:
+                 legend_on=True, bullets: bool = True, crop_for=None) -> str:
     r"""The four findings sections as LaTeX. Empty sections are not emitted.
 
     513. A pair is TWO ROWS sharing ONE SCAN: the failed reading above, the
@@ -3441,6 +3441,19 @@ def findings_tex(found: dict, widths, crops=None, out_dir=None,
     two pictures (437). The crop is emitted twice because it is the same
     file; `multirow` would spare the duplication and would also be a preamble
     change, and 484 measured what those cost.
+
+    `crop_for` (655 review round 1, finding 4) — an optional
+    `ident -> (Path, px_width) | None` lookup, checked BEFORE the plain
+    `crops`-directory lookup. `reports.residuals` passes one built from the
+    SAME (possibly budget-scaled) row objects `ensure_crops` already
+    resolved, because `found["corrected"]` comes from `corrected_pairs`
+    (a JSON record keyed only by identifier, never a row object) and would
+    otherwise always read the FULL-SIZE original from `crops` regardless of
+    which rung that identifier's kind was actually built at -- the one
+    scan-image path in this function that used to bypass the budget
+    entirely. Every other caller (the legacy `build_report`, which has no
+    budget-scaled rows to offer) passes nothing and keeps the old
+    directory-only behaviour exactly.
     """
     parts = []
 
@@ -3453,11 +3466,23 @@ def findings_tex(found: dict, widths, crops=None, out_dir=None,
             "\\emph{(not rendered)}" if lx else "---")
 
     def scan(ident):
+        if crop_for is not None:
+            hit = crop_for(ident)
+            if hit is not None:
+                path, px_width = hit
+                return crop_cell(path.parent, out_dir, path.stem,
+                                 px_width=px_width, px2mm=px2mm,
+                                 col_mm=widths[-1] if len(widths) > 5 else None,
+                                 bibkey=bibkey, history=history)
+            # no budgeted row for this identifier (e.g. a correction whose
+            # object no longer appears in the current rows) -- fall back to
+            # the plain directory lookup rather than silently dropping the
+            # crop; this identifier was never budget-scaled anyway.
         return crop_cell(crops, out_dir, ident, px2mm=px2mm,
                          col_mm=widths[-1] if len(widths) > 5 else None,
                          bibkey=bibkey, history=history) if crops else "---"
 
-    def row(ident, page, conf, lx, note="", code=""):
+    def row(ident, page, conf, lx, note="", code="", scan_ident=None):
         # 562 — THE RESIDUAL, ON THE ROW. The findings shape measured the ink,
         # adopted it in the reading build, and then showed it nowhere: the
         # only `\inkbullet` in a built findings report was the macro's own
@@ -3481,7 +3506,8 @@ def findings_tex(found: dict, widths, crops=None, out_dir=None,
                 % (breakable_ident(ident), "", bullet,
                    esc_text(str(page or "")),
                    conf_cell(conf), cell(lx), rendered(lx),
-                   (" & " + scan(ident)) if len(widths) > 5 else ""))
+                   (" & " + scan(scan_ident if scan_ident is not None else ident))
+                   if len(widths) > 5 else ""))
 
     if found.get("corrected"):
         parts.append("\\clearpage\n")
@@ -3491,10 +3517,19 @@ def findings_tex(found: dict, widths, crops=None, out_dir=None,
             ident = p_.get("identifier") or p_.get("obj") or "?"
             basis = "%s / %s" % (p_.get("basis") or "?",
                                  p_.get("verified_by") or "?")
+            # 655 review round 1, finding 4 (prerequisite fix) — `scan_ident`
+            # is the BARE identifier: appending " (was)"/" (now)" to the
+            # DISPLAYED ident is right (they are two distinct table rows),
+            # but a crop file is never named with that suffix, so passing
+            # the suffixed value to `scan()` here (as every prior version of
+            # this function did) meant the Corrected section's Scan column
+            # could never resolve to a real file — not just under the
+            # budgeted rung this task adds, but at ANY rung, ever. Both rows
+            # still show the SAME crop, which is the point (docstring above).
             parts.append(row(ident + " (was)", p_.get("page"), p_.get("conf"),
-                             p_.get("before")))
+                             p_.get("before"), scan_ident=ident))
             parts.append(row(ident + " (now)", p_.get("page"), None,
-                             p_.get("after"),))
+                             p_.get("after"), scan_ident=ident))
             parts.append("\\multicolumn{%d}{|p{%smm}|}{{\\scriptsize basis: %s}}"
                          " \\\\ \\hline\n"
                          % (len(widths), sum(widths) + 6, esc_text(basis)))

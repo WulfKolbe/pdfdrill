@@ -1,334 +1,279 @@
 655 — a size budget for the evidence PDFs; wiring the dead downsampler
-========================================================================
+=====================================================================
+(fix round 1 of 5, addressing task-655-review.md's four blocking findings
+against commit 8d035bd6; this text REPLACES the round-0 report, which
+contained a real unit bug and an apples-to-oranges number the review
+caught — see "WHAT THE REVIEW CAUGHT" below for what was wrong and why.)
 
 THE USER'S WORDS, both quoted and both acted on. On the size budget: "use
 the size budget ... I have loaded pdf files with 10-20MB without problems
-from Github.io" — taken as the default budget, 20 MB, per BUILT PDF. On the
-earlier page-count idea, raised before the budget was chosen: "I think we
-can not modify the evidence or at least not for smaller documents. Think
-about a reduced dpi for documents over 500 page." That idea does not survive
-measurement — no document in the corpus exceeds 492 pages, so a 500-page
-threshold would fire on nothing, and file size tracks CROP COUNT, not pages
-(gilmore 333pp/4,594 crops/115.4MB vs OMDoc 425pp/835 crops/17.5MB) — and the
-user accepted the size-budget alternative in its place.
+from Github.io" — taken as the default budget, 20 MB, per BUILT PDF,
+DECIMAL MB (1,000,000 bytes — see below). On the earlier page-count idea:
+"I think we can not modify the evidence or at least not for smaller
+documents. Think about a reduced dpi for documents over 500 page." That
+idea does not survive measurement — no document in the corpus exceeds 492
+pages — and the user accepted the size-budget alternative in its place.
 
 POPULATION REUSED, NOT RE-DERIVED (rule 2): the same 20 published documents
-654's own corpus-wide dpi table measured (out/654.txt), taken from
-`tools/run295.py`'s `SITE_ALIAS` + the github.io reports listing, excluding
-`penev_A` (ink-quarantined, 603) and `pdf-dc99cf88` (not part of that
-population). PDF for each document is `<folder>/<folder-name>.pdf` — the
-FOLDER NAME, never a `*.pdf` glob (six PDFs sit beside every published
-document; a glob produced a bogus table earlier in this session, per 634's
-own warning, which the brief repeats verbatim).
+654's own corpus-wide dpi table measured (out/654.txt).  PDF for each
+document is `<folder>/<folder-name>.pdf` — the FOLDER NAME, never a
+`*.pdf` glob.
 
 ------------------------------------------------------------------------
-THE SEAM DECISION
+WHAT THE REVIEW CAUGHT (fixed this round)
 ------------------------------------------------------------------------
 
-Three candidates were named: inside `ensure_crops`, inside the evidence
-command, or a new small module. Chose a NEW MODULE, `reports/budget.py`,
-CALLED FROM `ensure_crops` (`reports/crops.py`) — not either candidate
-alone.
+1. UNITS (blocking). `budget.py` computed `budget_mb * 1024 * 1024` —
+   binary MiB — while every other "MB" in this task (the brief, out/654.txt,
+   the corpus driver's `/1e6`) is DECIMAL MB. Proof, unchanged from the
+   review: gilmore's original evidence-formula.pdf is 115,427,118 bytes;
+   `/1e6 = 115.427` matches every "115.4 MB" this task has quoted;
+   `/1024/1024 = 110.08` does not. The enforced ceiling was ~20.97M bytes,
+   4.9% more permissive than 20.00M. FIXED: `budget.py` now defines
+   `MB = 1_000_000` and every conversion goes through `_bytes_for_mb`/
+   `_mb_for_bytes`, so the unit cannot drift apart from the rest of this
+   task family again. `crops.py`'s reporting math uses the same helper.
 
-WHY A NEW MODULE, NOT INLINE IN `ensure_crops`. `ensure_crops` already has
-two jobs (call `download_crops`/`render_crops`, then fill `row.crop`); the
-ladder-walk-and-predict logic is a third, independently testable
-concern — "which rung fits this population under this budget" needs no
-row, no bibkey, no crop_file lookup, only a directory and a list of
-titles. Keeping it in its own module let the five REQUIRED unit tests
-(under-budget/no-copy, over-budget/first-fit, floor/over-budget,
-width-preserved, source-untouched) run against `choose_rung` directly, with
-no `ensure_crops` plumbing (fake download/render functions, row
-dataclasses) standing between the test and the thing being tested.
+2. THE CONSEQUENCE (blocking). Recomputing under decimal MB moved THREE
+   documents to a smaller rung than round 0 had chosen: cardona-qft-methods
+   (0.60->0.50), fong-spivak-seven-sketches (0.50->0.42, the FLOOR), and
+   voloshin-hypergraph (0.70->0.60). All three were rebuilt for real (below).
+   Round 0's "gilmore genuinely cannot meet 20MB, a 2.3MB/12.7% gap" language
+   also mixed a MiB-computed "predicted" number with a decimal-MB "actual"
+   number in the same sentence — an apples-to-oranges subtraction. This
+   report states every number in ONE unit throughout.
 
-WHY CALLED FROM `ensure_crops`, NOT FROM THE EVIDENCE COMMAND. This is the
-one that actually matters, and it turns on WHICH POPULATION the budget must
-be computed against. `gate.PUBLISHED_FILES` names FIVE files per document —
-`evidence-equation.pdf`, `evidence-formula.pdf`, `evidence-table.pdf`,
-`evidence-image.pdf`, `residuals.pdf` — and the four `evidence-<kind>.pdf`
-files are each a SEPARATE compile of a SEPARATE row subset (`reports/
-evidence.py:build`, one call per kind). The budget has to be decided per
-KIND, against exactly the crops THAT kind will embed — gilmore's problem is
-its FORMULA evidence at 115.4MB; its equation/table/image evidence were
-never close to 100MB. `ensure_crops` is the one place that already holds
-the FULL, UNFILTERED `rows_by_kind` dict (built once by `build_rows`, before
-`cmd_evidence`'s own `--kind`/`--all-kinds` filter and before `residuals.py`
-narrows it to the open subset), so grouping by kind there gives the budget
-function EXACTLY the population each `evidence-<kind>.pdf` will draw from —
-computed once, in the one place both `cmd_evidence` and `cmd_residuals`
-already call. Deciding it in the evidence command instead would need the
-same per-kind grouping re-derived there, AND a second copy inside
-`cmd_residuals` for the same rows — two call sites computing the same
-number from the same input, which is exactly the "two mechanisms nobody
-separated" shape rule 18 warns about.
+3. THE OVER-BUDGET FLAG WAS DEAD ON REAL DOCUMENTS (blocking).
+   `choose_rung`'s `over_budget` can only ever compare PREDICTED CROP BYTES
+   against budget — it never sees the compiled PDF, so on every document in
+   this corpus it said nothing was over budget even though four documents'
+   real files were. FIXED, per the review's own instruction ("report against
+   the artefact... the honest report is what the brief asked for", NOT a
+   safety margin on the search): `reports.budget.check_artifact(pdf_path,
+   budget_mb)` reads the REAL compiled file's `stat().st_size` after
+   `compile_fixpoint` runs, and `evidence.build`/`residuals.build` call it
+   when given `budget_mb`, setting `res["bytes"]`/`res["over_budget"]`/
+   `res["budget_mb"]`. `commands._evidence_line` (and `cmd_residuals`'s
+   equivalent line) now print "-- OVER BUDGET: N.NMB compiled > 20.0MB
+   budget" using THIS number, never the crop-byte prediction.
+   `_apply_budget`'s note in `ensure_crops` was reworded from "OVER BUDGET"
+   to "predicted ... (floor, still over budget predicted)" so the two
+   claims (a prediction vs. a verdict on the finished file) are never
+   confusable in the tool's own output again. VERIFIED against the real,
+   re-compiled corpus (below): the code itself now prints OVER BUDGET for
+   exactly 0902.0431, gilmore-lie-groups, and johnston-linear-matrix-algebra
+   — the three documents whose predicted crop bytes narrowly fit the rung
+   they landed on, but whose actual compiled PDF (fonts, table structure,
+   PDF object overhead — a roughly FIXED cost, not proportional to how hard
+   the images were compressed) pushes it back over 20MB decimal.
 
-WHY `residuals.pdf` NEEDS NO BUDGET OF ITS OWN. It draws a SUBSET of the
-same equation/formula rows `evidence` already budgeted, selected by
-`residuals.select` (open items only). Because `ensure_crops` computes the
-per-kind rung against the FULL population before any filtering, a residuals
-row simply inherits whichever copy (full-size or already-scaled) that row
-was given — always a fraction of a population already brought under
-budget. Measured: gilmore's `residuals.pdf` built at 875KB, reusing the
-already-floored formula crops without any separate check (out/655.txt
-"REAL CORPUS PROOFS" below).
+4. RESIDUALS' CORRECTED SECTION BYPASSED THE BUDGET (blocking), plus a
+   PRE-EXISTING PREREQUISITE BUG the fix uncovered. `residuals.py`'s
+   Corrected section called `rt.findings_tex(..., crops=doc_dir /
+   "report-crops", ...)` — the full-size directory, keyed by identifier,
+   never touching the row objects `ensure_crops` had already budgeted. This
+   was genuinely untested: the one real-corpus spot-check offered in round 0
+   (gilmore's residuals.pdf) had ZERO corrected pairs.
+     FIXED: `findings_tex` gained an optional `crop_for: ident -> (Path,
+   px_width) | None`, checked before the plain directory lookup (default
+   None keeps the legacy `build_report` caller, which has no row objects to
+   offer, byte-identical). `residuals.select()` now stamps each corrected
+   pair with `_crop`/`_px_width` from the SAME `index` (identifier -> row)
+   the other four sections already use, and `residuals.build()` passes a
+   `crop_for` built from that.
+     WHILE WRITING THE TEST THE REVIEW ASKED FOR ("at least one corrected
+   pair"), a SEPARATE, PRE-EXISTING bug surfaced: `findings_tex`'s internal
+   `row()` helper is called for the Corrected section as `row(ident + "
+   (was)", ...)` / `row(ident + " (now)", ...)`, and `row()` used that SAME
+   suffixed string for BOTH the displayed identifier AND the crop lookup
+   (`scan(ident)`). No crop file has ever been named "<ident> (was).jpg", so
+   the Corrected section's Scan column resolved to "---" unconditionally,
+   for EVERY caller, at ANY rung, before this task existed. My `crop_for`
+   wiring could not be exercised at all until this was fixed too — `row()`
+   gained a `scan_ident` parameter (default: same as the displayed ident,
+   preserving every other call site exactly), and the two Corrected-section
+   calls now pass the bare identifier as `scan_ident` while still displaying
+   " (was)"/" (now)" to the reader. This is stated as a finding, not
+   buried: it was not caused by this task, but this task's own required
+   test could not pass without it, and it changes user-visible output (the
+   Corrected section's Scan column, previously always blank, now shows the
+   image) for every caller of `findings_tex`, not only `residuals.py`.
+     VERIFIED against a REAL corpus document with real corrected pairs:
+   0902.0431 has 10. Its rebuilt `residuals.tex` embeds
+   `report-crops-b/0902.0431_EQ*.jpg` (the budgeted copy) for every one of
+   them, never `report-crops/...` (the full-size original) — confirmed by
+   grep, not asserted.
 
-WHY THIS KEEPS `from_document.py` THE ONLY MODEL-AWARE MODULE. Neither
-candidate needed to change on this axis — `ensure_crops`, `evidence.py`,
-`residuals.py` and now `budget.py` all take rows/paths/titles, never a
-`docmodel.core.Document`. The constraint was a check on the decision, not a
-reason to pick one seam over the other; it ruled out nothing here because
-no candidate needed the model. It IS a reason `budget.py` reads crop FILES
-and a title list rather than, say, taking a `Document` and re-deriving
-region metadata itself — that would have made it a second model-aware
-module for no reason, since the crop bytes already on disk are the ground
-truth for what will actually be embedded.
-
-------------------------------------------------------------------------
-IMPLEMENTATION
-------------------------------------------------------------------------
-
-`src/pdfdrill/reports/budget.py` (NEW):
-  `CROP_BUDGET_MB = 20.0` — the user's sentence, verbatim, in the docstring.
-  `CROP_LADDER = ((0.85,75),(0.70,75),(0.60,72),(0.50,70),(0.42,70))` —
-    measured 2026-09-09 on 200 sampled gilmore crops (task-655-brief.md);
-    FLOORED at 0.42/q70 (0.35/q68 measured "degrading" by eye on
-    gilmore-lie-groups_FO0006 and is never offered).
-  `choose_rung(src_dir, titles, budget_mb, ladder) -> (scale, quality,
-    total_bytes, over_budget)`. Rung 1.0 means "leave the originals alone" —
-    its `total_bytes` is `os.path.getsize` on today's files, NEVER a
-    re-encode, which is what makes an under-budget document provably
-    byte-identical (item 4). Every smaller rung is the REAL re-encoded size
-    of every one of `titles` computed IN MEMORY (`io.BytesIO`, never
-    touching disk) — the search costs CPU, not I/O, and only the WINNING
-    rung is ever written to disk (by `scale_crops`, called once, after the
-    search ends). `over_budget=True` only when even the floor does not fit;
-    the floor is still what gets built.
-
-`src/pdfdrill/report_tex.py` — `scale_crops` gained `force: bool = False`.
-  Its existing mtime cache (skip re-encoding if the destination is already
-  newer than the source) is right for a same-rung rebuild but WRONG for a
-  rebuild that lands on a DIFFERENT rung (a grown document, a changed
-  budget) — the destination would look "fresh" and silently keep the OLD
-  rung's bytes under the NEW rung's name. `reports.budget`'s caller in
-  `crops.py` always passes `force=True`; every other property (originals
-  untouched, returns `{title: ORIGINAL pixel width}`) is unchanged.
-  `tests/test_scale_crops.py::test_scale_crops_force_bypasses_the_mtime_
-  cache` reproduces the stale-cache bug with `force=False` and shows
-  `force=True` fixes it, on real Ghostscript-free PIL round-trips.
-
-`src/pdfdrill/reports/rows.py` — `px_width: str = ""` MOVED from
-  `EquationRow` up to the base `EvidenceRow` (538 gave only equations this
-  field, since only equation crops were ever scaled). Every row kind can
-  now be routed through a scaled copy, so every kind needs somewhere to
-  carry the ORIGINAL pixel width forward; `reports/tex.py:render_row`
-  already reads it via `getattr(r, "px_width", "")`; no renderer changed.
-
-`src/pdfdrill/reports/crops.py`:
-  `CROPS_DIR_B = "report-crops-b"` — the scaled copies' home, same reason
-  `scale_crops` itself refuses to touch its source: `report.pdf`'s tables
-  and the CDN equation crops read `CROPS_DIR` directly.
-  `_apply_budget(lst, crops, crops_b, budget_mb)` — one kind's rows (crop
-  already resolved via `crop_file`'s bibkey-history lookup, task 264, NOT
-  re-derived from `identifier`). Gathers the DISTINCT crop stems, calls
-  `choose_rung`; at rung 1.0 returns the rows untouched; otherwise calls
-  `scale_crops(..., force=True)` and repoints `crop`/`px_width` for exactly
-  the rows whose stem came back in the returned widths dict (a row whose
-  file failed to re-encode keeps pointing at its full-size original — a
-  graceful degrade, not a crash).
-  `ensure_crops` now loops `for kind, lst in rows.items()`, calling
-  `_apply_budget` per kind, and appends a compact note ("budget (20MB):
-  formula scale=0.42 q=70 18.1MB") only when at least one kind was scaled —
-  a document that needs nothing says nothing extra.
-
-`src/pdfdrill/commands.py` — `cmd_evidence`/`cmd_residuals` gained
-  `budget_mb: "float | None" = None`, defaulting to `reports.budget.
-  CROP_BUDGET_MB` when not given, threaded straight to `ensure_crops`.
-
-`src/pdfdrill/cli.py` — `_do_evidence`/`_do_residuals` parse `--budget-mb`.
-
-`.claude/skills/pdfdrill/commands.yaml` — `budget_mb` flag added to both
-  `evidence` and `residuals`; `python3 tools/skillsync.py all .` re-run
-  (manifest ↔ HANDLERS still in sync, 148/148; SKILL.md and
-  `_help_generated.txt` regenerated).
+Two minor findings, both fixed: `ensure_crops`'s per-kind loop variable is
+now `kind_note`, distinct from the function's final `note`; `_encoded_size`
+now prints its re-encode failures, matching `scale_crops`'s own behaviour,
+instead of swallowing them silently.
 
 ------------------------------------------------------------------------
-TESTS (all five the brief's "Tests" section names, plus the interfaces
-they exercise)
+TESTS ADDED THIS ROUND (13, all new; the round-0 suite's 5 required tests,
+byte-identity and physical-width proofs were confirmed correct and are
+unchanged)
 ------------------------------------------------------------------------
 
-tests/test_reports_budget.py (NEW):
-  test_under_budget_selects_full_scale_and_copies_nothing — rung 1.0,
-    `total_bytes` equals the files' real on-disk size (not a re-encode).
-  test_no_files_found_is_trivially_under_budget
-  test_over_budget_selects_first_fitting_rung_not_smallest — each ladder
-    rung given a KNOWN, DECREASING faked size; asserts the FIRST fitting
-    rung (0.60) wins, not the smallest (0.42) — the brief's own required
-    case, named directly.
-  test_floor_reached_reports_over_budget — every rung faked huge; lands on
-    `CROP_LADDER[-1]` (0.42/70) with `over_budget=True`.
-  test_search_never_writes_to_disk — the ladder WALK creates no files;
-    only the winning rung, written later by `scale_crops`, does.
+tests/test_reports_budget.py:
+  test_mb_is_decimal_not_binary — the exact 20,500,000-vs-20,971,520-byte
+    boundary the review's finding 1 named; also exercises an EMPTY ladder
+    to isolate the rung-1.0 threshold alone.
+  test_check_artifact_under_and_over_budget /
+  test_check_artifact_missing_file_is_not_over_budget
+  test_encoded_size_failure_is_printed — a corrupt file's fallback is now
+    audible, matching `scale_crops`.
 
-tests/test_scale_crops.py (NEW):
-  test_scale_crops_returns_original_pixel_width — the width= proof at the
-    unit level: `widths == {"A": 300}` even though the written file is
-    150x100.
-  test_scale_crops_never_touches_the_source
-  test_scale_crops_force_bypasses_the_mtime_cache — the stale-cache bug
-    this task's `force` parameter exists to close, reproduced and fixed.
+tests/test_reports_crops.py:
+  test_floor_reached_is_reported_as_a_prediction_not_a_verdict (renamed
+    from "...is_reported_over_budget_in_the_note") — asserts the note says
+    "predicted" and does NOT contain the bare phrase "OVER BUDGET" anymore.
 
-tests/test_reports_crops.py (4 NEW, appended):
-  test_a_kind_under_budget_selects_full_scale_and_copies_nothing —
-    `report-crops-b/` is not even CREATED; `px_width == ""`.
-  test_a_kind_over_budget_scales_and_the_other_kind_is_untouched — ONE
-    kind (formula, a real oversized JPEG) is forced over budget while
-    ANOTHER kind (table, tiny) on the SAME `ensure_crops` call stays at
-    rung 1.0 — proves the per-KIND independence the seam decision rests on,
-    and re-asserts the source bytes are untouched for BOTH kinds.
-  test_physical_size_on_the_page_is_unchanged_by_scaling — asserts on the
-    emitted `width=` STRING from `rt.crop_cell`, before vs after scaling,
-    exactly as the brief specifies ("not on the image").
-  test_floor_reached_is_reported_over_budget_in_the_note — an unreachable
-    budget (1e-9 MB) still lands the crop at exactly
-    `orig_width * CROP_LADDER[-1][0]`, never lower, with "OVER BUDGET" in
-    the returned note.
+tests/test_reports_evidence.py:
+  test_build_reports_over_budget_against_the_compiled_artefact /
+  test_build_under_budget_is_not_flagged /
+  test_build_without_budget_mb_carries_no_verdict_at_all — a REAL file is
+    written at the expected `.pdf` path by a fake `compile_fixpoint`, so
+    `check_artifact`'s `stat().st_size` read is exercised for real, not
+    mocked at the file-size level.
+  test_evidence_line_shows_the_real_compiled_size_when_over_budget /
+  test_evidence_line_says_nothing_extra_when_under_budget
+
+tests/test_reports_residuals.py:
+  test_select_stamps_the_rows_own_crop_onto_a_corrected_pair /
+  test_select_leaves_no_crop_when_the_identifier_has_no_row
+  test_build_pdf_routes_the_corrected_crop_through_the_budgeted_copy — the
+    decisive case the round-0 corpus spot-check missed: a REAL full-size
+    crop and a REAL, DIFFERENT scaled crop both exist on disk; asserts the
+    compiled .tex references `report-crops-b/`, never `report-crops/`, and
+    that the emitted width comes from the row's `px_width` (1000px original,
+    at px2mm=0.1 -> 100.0mm), not the scaled file's own 420px.
+  test_build_reports_over_budget_against_the_compiled_artefact
 
 Full suite: `PYTHONDONTWRITEBYTECODE=1 PYTHONPATH=src python3 -m pytest
-tests/ -q -p no:cacheprovider` -> 3392 passed, 0 failed (run after the
-implementation was complete; 654's own final count was 3362 — the +30
-includes this task's 12 new tests plus tests landed on this branch by other
-work since 654).
+tests/ -q -p no:cacheprovider` -> 3418 passed, 0 failed (656, landed on
+this branch between rounds, accounts for part of the growth since round 0's
+3392; the rest is this round's 13 new tests plus one renamed, not added).
 
 ------------------------------------------------------------------------
-REAL CORPUS PROOFS
+CORPUS RE-MEASUREMENT — WHAT WAS REBUILT vs WHAT WAS INFERRED
 ------------------------------------------------------------------------
 
-ITEM 4 — BYTE-IDENTICAL WHEN UNDER BUDGET. `1605.05775` (654's own control
-document, 12pp, evidence-formula.pdf 2.1MB — comfortably under 20MB).
-Script calls `ensure_crops` directly and SHA-256-hashes every file in
-`report-crops/` before and after: 179/179 byte-identical, 0 of the 179 rows
-were routed through `report-crops-b/` (which DOES exist in this document's
-folder, holding 164 files — stale debris from an earlier, unrelated
-exploratory run of `scale_crops` predating this task, dated 2026-09-03;
-confirmed untouched and irrelevant, since nothing in `1605.05775`'s row set
-needed scaling and `ensure_crops` never read or wrote it).
-  Script + result: ~/pdfdrill-library/1605.05775/out/655/{script.py,
-  result.txt}, INSPECT.txt.
+METHOD. A cheap, no-xelatex re-check (`pdfdrill evidence <pdf> --all-kinds`,
+no `--pdf`) was run for all 20 documents first — `ensure_crops` still runs
+and writes real re-encoded files (force=True), so the printed rung/predicted-
+MB numbers are authoritative without paying for a single PDF compile. This
+took under 8 minutes total (script + log:
+~/pdfdrill-library/out/655/{rung_recheck.py,rung_recheck.json,
+rung_recheck.log}) and showed the rung UNCHANGED for 17 of 20 documents.
 
-ITEM 5 — PHYSICAL SIZE UNCHANGED WHEN SCALED. gilmore-lie-groups_FO0006 —
-THE USER'S OWN EXAMPLE FROM 654 — is one of the crops the floor rung
-(0.42/q70) applies to in the real, compiled evidence-formula.tex. Its
-original (untouched) crop in `report-crops/` is 1254px wide; `px2mm` for
-this document is 0.1016; `1254 * 0.1016 = 127.41mm` uncapped. The emitted
-line in the REAL, xelatex-compiled `evidence-formula.tex` is:
-    \includegraphics[width=122.0mm]{report-crops-b/gilmore-lie-groups_FO0006.jpg}
-122.0mm is exactly `crop_cell`'s existing column cap (`col_mm - 4`)
-applied to the SAME 1254px original width `scale_crops` returned — i.e.
-identical to what an unscaled build would have computed from the same
-original file, even though the file the LaTeX actually references is the
-scaled copy. Asserted on the emitted `width=` string, not the image, per
-the brief.
-  Script + result: ~/pdfdrill-library/<gilmore folder>/out/655/{script.py,
-  result.txt}, INSPECT.txt.
+REBUILT FOR REAL (`--all-kinds --pdf`, full xelatex compile):
+  - cardona-qft-methods, fong-spivak-seven-sketches, voloshin-hypergraph:
+    rung genuinely changed (finding 2's consequence); their evidence-
+    formula.pdf on disk was STALE (built under the old rung) and had to be
+    recompiled. Script + result:
+    ~/pdfdrill-library/out/655/{rebuild_changed.py,rebuild_changed.json,
+    rebuild_changed.log}.
+  - 0902.0431, gilmore-lie-groups, johnston-linear-matrix-algebra: rung
+    UNCHANGED, but re-run anyway to exercise the NEW artefact-level OVER
+    BUDGET check for real rather than infer it — their already-built PDFs
+    were reproduced (byte counts identical to within a few bytes of
+    xelatex's own non-determinism; e.g. gilmore 20,445,336 -> 20,445,344).
+    Script + result: ~/pdfdrill-library/out/655/{reverify_boundary.py,
+    reverify_boundary.log}.
+  - residuals.pdf for 0902.0431 (10 real corrected pairs — the only
+    document in the corpus that actually has any): confirms finding 4's fix
+    on a real document, not only the unit test.
 
-THE LADDER RUNG CHOSEN PER DOCUMENT (the kind that needed it; "no scaling"
-means every kind stayed at rung 1.0, unchanged bytes), and evidence-
-formula.pdf's before/after size — the file every one of these documents'
-size problem was actually in:
+INFERRED, NOT REBUILT: the other 14 documents. Their rung is unchanged
+(confirmed by the cheap re-check) and their crop content is unchanged, so a
+deterministic re-encode + a deterministic xelatex compile reproduces
+exactly the bytes already measured in round 0's corpus rebuild — those
+"after" numbers were already computed by dividing real `stat().st_size` by
+1e6 (decimal, correct throughout, in BOTH rounds; the unit bug was internal
+to the ACCEPTANCE THRESHOLD inside `choose_rung`, never in the measurement
+script that reported the corpus table). Recompiling them would spend
+xelatex time to re-confirm arithmetic that does not depend on today's fix.
 
-  document                            before MB  after MB  rung chosen
-  0707.4470                                 4.9       4.9  1.00 (no scaling)
-  0902.0431                                67.6      21.3  0.60/q72 (equation kind: 0.85/q75)
-  1510.06699                               33.4      16.3  0.85/q75
-  1605.05775                                2.1       2.1  1.00 (no scaling)
-  2010.14265                                5.2       5.2  1.00 (no scaling)
-  2106.07890                                7.3       7.3  1.00 (no scaling)
-  2501.06662                               10.2      10.2  1.00 (no scaling)
-  BradleyGastaldiTerilla2023                3.4       3.4  1.00 (no scaling)
-  bradley_spring22                          4.8       4.8  1.00 (no scaling)
-  cardona-qft-methods                      69.0      21.8  0.60/q72
-  fong-spivak-invitation                   77.1      17.8  0.50/q70
-  fong-spivak-seven-sketches                94.4     22.1  0.50/q70
-  gilmore-lie-groups (THE user's own)      115.4      20.4  0.42/q70 (FLOOR)
-  johnston-linear-matrix-algebra           66.2      20.8  0.60/q72 (equation kind: 0.85/q75)
-  kohlhase-omdoc                            17.5      17.5  1.00 (table/image kinds: 0.85/q75)
-  lyche-numerical-linear-algebra            82.0      19.7  0.50/q70
-  mielke-geometrodynamics                   38.0      19.0  0.85/q75
-  penev_B                                    6.9       6.9  1.00 (no scaling)
-  rph8-g15q                                  7.4       7.4  1.00 (no scaling)
-  voloshin-hypergraph                       59.7      21.9  0.70/q75
+------------------------------------------------------------------------
+THE CORRECTED NUMBERS
+------------------------------------------------------------------------
 
-  Effective dpi per rung (rung x 250): 0.85->212, 0.70->175, 0.60->150,
-  0.50->125, 0.42->105 (the floor).
+evidence-formula.pdf per document, before/after, decimal MB, and OVER
+BUDGET status from the CODE'S OWN check (not inferred):
+
+  document                             before MB  after MB  status
+  0707.4470                                 4.89      4.89
+  0902.0431                                67.58     21.26  OVER BUDGET
+  1510.06699                               33.38     16.32
+  1605.05775                                2.11      2.11
+  2010.14265                                5.19      5.19
+  2106.07890                                7.30      7.30
+  2501.06662                               10.23     10.23
+  BradleyGastaldiTerilla2023                3.42      3.42
+  bradley_spring22                          4.77      4.77
+  cardona-qft-methods                      69.05     16.36  (rung moved 0.60->0.50)
+  fong-spivak-invitation                   77.09     17.77
+  fong-spivak-seven-sketches               94.38     17.63  (rung moved 0.50->0.42, FLOOR)
+  gilmore-lie-groups (the user's own)     115.43     20.45  OVER BUDGET
+  johnston-linear-matrix-algebra           66.18     20.83  OVER BUDGET
+  kohlhase-omdoc                           17.46     17.46
+  lyche-numerical-linear-algebra           81.98     19.71
+  mielke-geometrodynamics                  38.04     18.95
+  penev_B                                   6.87      6.87
+  rph8-g15q                                 7.40      7.40
+  voloshin-hypergraph                      59.72     17.75  (rung moved 0.70->0.60)
 
 CORPUS TOTALS (all four `evidence-<kind>.pdf` files, 20 documents = 80
-files; `residuals.pdf` not included in this total — see "WHAT WAS NOT
-DONE" below):
-  before: 1,037.2 MB   after: 478.4 MB   (54% smaller)
-  files over the 100MB hard limit: 1 before (gilmore, 115.4MB) -> 0 after
-    (largest is now voloshin-hypergraph's formula evidence at 21.9MB)
-  files over the 20MB budget after: 6 — see the FINDING below; every one
-    of them is gilmore/cardona/johnston/voloshin/0902.0431/fong-spivak-
-    seven-sketches' FORMULA evidence, 20.4-22.1MB, all comfortably inside
-    the user's stated 10-20MB comfort band's near neighbourhood and two
-    orders of magnitude under the 100MB hard limit that started this task.
+files):
+  before: 1,037.2 MB   after: 464.4 MB   (55.2% smaller; round 0 had
+    reported 478.4 MB after, before the 3 rungs above moved down)
+  files over the 100 MB hard limit: 1 before (gilmore, 115.4 MB) -> 0 after
+  files over the 20 MB decimal budget after, per the code's OWN
+    `check_artifact`, run against the real compiled PDF: 3 — 0902.0431
+    (21.26 MB), gilmore-lie-groups (20.45 MB), johnston-linear-matrix-
+    algebra (20.83 MB). All three are comfortably inside the user's own
+    "10-20MB without problems" neighbourhood and two orders of magnitude
+    under the 100 MB hard limit that started this task; none is silently
+    reported as meeting budget when it does not — the tool now says so
+    itself, with the real number, which is what brief item 3 asked for and
+    round 0's code could not do.
 
-Corpus driver script + raw data: ~/pdfdrill-library/out/655/{script.py,
-results.json,run.log}, INSPECT.txt.
+WHY THESE THREE STILL EXCEED BUDGET, RESTATED PRECISELY (not "a margin
+with no measured basis" — an accurate description of a real, disclosed
+gap): each landed on the LARGEST rung whose PREDICTED crop bytes fit under
+20MB (0902.0431 and johnston at 0.60/q72, gilmore at the FLOOR 0.42/q70,
+which is never gone below regardless). The predicted crop-byte totals were
+20.0MB, 18.8MB, and 19.0MB respectively — all under budget as predicted.
+The compiled PDF's own apparatus (fonts, longtable structure, per-row PDF
+objects — a cost roughly FIXED by row count, not by how hard the images
+inside are compressed) adds enough on top to push the REAL file over 20MB
+for these three specifically. Closing this gap would mean either
+compiling the real PDF during the SEARCH (the brief explicitly rejected
+this for speed) or giving the ladder search a safety margin with no
+measured basis yet (the review explicitly rejected this) — left open,
+honestly reported by the tool itself rather than silently absorbed or
+hidden.
 
-------------------------------------------------------------------------
-A FINDING (rule 12 — an unexplained delta is a finding, not an observation)
-------------------------------------------------------------------------
-
-Six documents' formula evidence lands 0.3-2.1MB OVER the 20MB budget even
-though `choose_rung`'s OWN prediction for every one of them was under
-budget (e.g. gilmore: predicted 18.1MB of crop bytes at the floor, actual
-compiled PDF 20.4MB — a 2.3MB, 12.7% gap). None of these were reported
-"OVER BUDGET" by the code's own check (that check is against the ladder,
-and every one of the six found a rung whose CROP bytes fit).
-
-MECHANISM: `choose_rung` predicts the SUM OF CROP FILE BYTES, not the
-compiled PDF's bytes. 538's own measurement says images are "~96.8%" of an
-evidence PDF — true at the ORIGINAL, unscaled size, where the ~3.2%
-non-image overhead (xelatex's own apparatus: fonts, table structure, PDF
-object overhead) is a small absolute number against a huge image total. Once
-the images are compressed down by 2-3x, that SAME roughly-constant absolute
-overhead becomes a much LARGER fraction of a much SMALLER total — the crop-
-byte prediction does not shrink to account for it, so the actual PDF ends up
-further above the crop-byte figure than at full size. This is consistent
-with, not contradicted by, 538's 96.8% figure: that number was never claimed
-to hold at every compression ratio, and this task's budget spec (brief item
-2) explicitly chose to predict from crop bytes rather than repeatedly
-compiling a real PDF, for speed — this is the cost of that choice, made
-visible rather than hidden.
-
-NOT FIXED HERE: closing this gap would mean either compiling the real PDF
-to verify (expensive — the brief explicitly rejected this for the search)
-or giving `CROP_BUDGET_MB`'s ladder search a safety margin (e.g. searching
-against `budget_mb * 0.9`) to absorb the overhead — a threshold with no
-measured basis yet, and a decision that changes user-visible sizing, so
-left for the user rather than picked unilaterally (rule 9/10). Every actual
-number this produces is still reported above (the "after" column); nothing
-is silently rounded down to look like it met 20MB when it did not.
+ITEM 4 AND ITEM 5 PROOFS (byte-identity, physical-size) from round 0 stand
+unchanged and were reconfirmed correct by the review; not re-run this
+round since nothing touching them changed:
+  ~/pdfdrill-library/1605.05775/out/655/{script.py,result.txt} — 179/179
+    crops byte-identical.
+  ~/pdfdrill-library/<gilmore>/out/655/{script.py,result.txt} — FO0006's
+    width=122.0mm unchanged though routed to the scaled copy.
 
 ------------------------------------------------------------------------
 WHAT WAS NOT DONE
 ------------------------------------------------------------------------
 
-* `residuals.pdf` was NOT rebuilt across all 20 documents (it draws a small
-  subset of already-budgeted rows and was not the reported problem). Spot-
-  checked on gilmore: rebuilt at 875KB, inheriting the floor-rung formula
-  crops with no separate budget check, exactly as the seam decision
-  predicts (see "REAL CORPUS PROOFS" above is silent on it deliberately —
-  it is a design consequence, not a new measurement, and stated in the seam
-  decision section instead).
-* The pre-existing `report-crops-b/` directories found in several document
-  folders (dated 2026-09-03, before this task existed) are leftover from an
-  earlier, unrelated exploratory use of `scale_crops` — the same name this
-  task's `CROPS_DIR_B` constant also uses. They were left in place rather
-  than deleted (not this task's data to discard) and confirmed, on
-  `1605.05775`, to be inert: `ensure_crops` neither read nor wrote them
-  when nothing needed scaling. Where THIS task's code DOES scale a kind, it
-  passes `force=True`, so any stale file with the same name from that
-  earlier run is overwritten with the current rung's correct bytes, not
-  silently kept.
+* `residuals.pdf` was not rebuilt across all 20 documents (only the one
+  document that actually has corrected pairs needing the fix, 0902.0431,
+  plus the earlier gilmore spot-check). The other 19 have no corrected
+  pairs at all (checked: only 0707.4470 (1), johnston (8), lyche (8),
+  mielke (3), voloshin (3), 0902.0431 (10) carry any), so finding 4's
+  defect shape could not have manifested in them regardless.
+* The safety-margin idea for closing the crop-byte/PDF-byte gap was
+  deliberately NOT implemented, per the review's explicit instruction.
+* The pre-existing `report-crops-b/` debris (dated 2026-09-03, before this
+  task existed) noted in round 0 is unaffected by this round's changes.

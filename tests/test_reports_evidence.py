@@ -44,6 +44,73 @@ def test_pdf_format_writes_tex_without_a_page_bound(tmp_path, monkeypatch):
     assert r["pages"] == 2
 
 
+def _fake_compile(size_bytes):
+    """A `compile_fixpoint` stand-in that writes a REAL file of a chosen
+    size at the expected `.pdf` path, so `budget.check_artifact` (which
+    reads `stat().st_size`) has something real to measure -- 655 review
+    round 1, finding 3."""
+    def compile_fixpoint(tex_path):
+        tex_path.with_suffix(".pdf").write_bytes(b"0" * size_bytes)
+        return (1, 0, 0)
+    return compile_fixpoint
+
+
+def test_build_reports_over_budget_against_the_compiled_artefact(tmp_path, monkeypatch):
+    """The `over_budget` verdict is checked against the FILE `compile_
+    fixpoint` actually produced, not the crop-byte prediction from
+    `ensure_crops` (which `build` never even sees)."""
+    import pdfdrill.reports.evidence as mod
+    monkeypatch.setattr(mod.rt, "compile_fixpoint", _fake_compile(21_000_000))
+    r = E.build(_rows(), "equation", "pdf", doc_dir=tmp_path,
+                pdf=tmp_path / "D.pdf", bibkey="D", history=None,
+                px2mm=None, paper="a3", landscape=True, compile_pdf=True,
+                budget_mb=20.0)
+    assert r["bytes"] == 21_000_000
+    assert r["over_budget"] is True
+    assert r["budget_mb"] == 20.0
+
+
+def test_build_under_budget_is_not_flagged(tmp_path, monkeypatch):
+    import pdfdrill.reports.evidence as mod
+    monkeypatch.setattr(mod.rt, "compile_fixpoint", _fake_compile(19_000_000))
+    r = E.build(_rows(), "equation", "pdf", doc_dir=tmp_path,
+                pdf=tmp_path / "D.pdf", bibkey="D", history=None,
+                px2mm=None, paper="a3", landscape=True, compile_pdf=True,
+                budget_mb=20.0)
+    assert r["over_budget"] is False
+
+
+def test_build_without_budget_mb_carries_no_verdict_at_all(tmp_path, monkeypatch):
+    """A caller that never asks (`budget_mb=None`, e.g. an HTML build) gets
+    no `over_budget`/`bytes` keys rather than a silently-false verdict --
+    `_evidence_line`'s `.get("over_budget")` treats absence the same as
+    False, but the DATA should not claim to have checked when it did not."""
+    import pdfdrill.reports.evidence as mod
+    monkeypatch.setattr(mod.rt, "compile_fixpoint", _fake_compile(99_000_000))
+    r = E.build(_rows(), "equation", "pdf", doc_dir=tmp_path,
+                pdf=tmp_path / "D.pdf", bibkey="D", history=None,
+                px2mm=None, paper="a3", landscape=True, compile_pdf=True)
+    assert "over_budget" not in r and "bytes" not in r
+
+
+def test_evidence_line_shows_the_real_compiled_size_when_over_budget():
+    from pdfdrill.commands import _evidence_line
+    r = {"out": Path("evidence-formula.pdf"), "rows": 4594, "pages": 900,
+        "errors": 0, "demoted": 0, "bytes": 20_400_000, "over_budget": True,
+        "budget_mb": 20.0}
+    line = _evidence_line(r, pdf_out=True, compile_pdf=True)
+    assert "OVER BUDGET" in line
+    assert "20.4MB" in line and "20.0MB" in line
+
+
+def test_evidence_line_says_nothing_extra_when_under_budget():
+    from pdfdrill.commands import _evidence_line
+    r = {"out": Path("evidence-formula.pdf"), "rows": 4, "pages": 1,
+        "errors": 0, "demoted": 0, "bytes": 1_000_000, "over_budget": False,
+        "budget_mb": 20.0}
+    assert "OVER BUDGET" not in _evidence_line(r, pdf_out=True, compile_pdf=True)
+
+
 def test_unknown_kind_or_format_is_refused(tmp_path):
     with pytest.raises(ValueError):
         E.build(_rows(), "prose", "html", doc_dir=tmp_path, pdf=tmp_path / "D.pdf",

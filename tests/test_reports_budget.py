@@ -58,6 +58,48 @@ def test_floor_reached_reports_over_budget(tmp_path, monkeypatch):
     assert over is True
 
 
+def test_mb_is_decimal_not_binary(tmp_path):
+    """655 review round 1, finding 1 -- this codebase's "MB" is 1,000,000
+    bytes (gilmore's 115,427,118-byte evidence-formula.pdf reads as "115.4
+    MB" only under /1e6), never 1024*1024. A budget of 20MB must reject a
+    file at 20,500,000 bytes (over decimal, under binary MiB) and accept
+    one at 19,500,000 (under both)."""
+    assert B._bytes_for_mb(20.0) == 20_000_000
+    assert round(B._mb_for_bytes(20_000_000), 6) == 20.0
+    # 20,500,000 bytes: over the decimal 20MB budget, under the binary
+    # 20 MiB (20,971,520) one -- exactly the gap the review caught. With an
+    # EMPTY ladder, rung 1.0 is the only rung that could possibly be
+    # accepted; it must NOT be here.
+    (tmp_path / "A.jpg").write_bytes(b"0" * 20_500_000)
+    scale, quality, total, over = B.choose_rung(tmp_path, ["A"], budget_mb=20.0,
+                                                ladder=())
+    assert scale != 1.0                        # rung 1.0 correctly rejected
+    assert total == 20_500_000 and over is True   # no ladder rung to fall back to
+    (tmp_path / "B.jpg").write_bytes(b"0" * 19_500_000)
+    scale, quality, total, over = B.choose_rung(tmp_path, ["B"], budget_mb=20.0)
+    assert (scale, over) == (1.0, False)
+
+
+def test_check_artifact_under_and_over_budget(tmp_path):
+    (tmp_path / "small.pdf").write_bytes(b"0" * 19_000_000)
+    (tmp_path / "big.pdf").write_bytes(b"0" * 21_000_000)
+    assert B.check_artifact(tmp_path / "small.pdf", budget_mb=20.0) == (19_000_000, False)
+    size, over = B.check_artifact(tmp_path / "big.pdf", budget_mb=20.0)
+    assert size == 21_000_000 and over is True
+
+
+def test_check_artifact_missing_file_is_not_over_budget(tmp_path):
+    assert B.check_artifact(tmp_path / "nope.pdf", budget_mb=20.0) == (0, False)
+
+
+def test_encoded_size_failure_is_printed(tmp_path, capsys):
+    bad = tmp_path / "bad.jpg"
+    bad.write_bytes(b"not a jpeg")
+    size = B._encoded_size(bad, 0.5, 70)
+    assert size == bad.stat().st_size          # conservative fallback, unchanged
+    assert "could not be re-encoded" in capsys.readouterr().out
+
+
 def test_search_never_writes_to_disk(tmp_path, monkeypatch):
     """The ladder WALK must not touch the filesystem -- only the winning
     rung, written later by report_tex.scale_crops, does."""

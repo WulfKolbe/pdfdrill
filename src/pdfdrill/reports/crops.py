@@ -11,10 +11,17 @@ applied per KIND: each of `gate.PUBLISHED_FILES`'s `evidence-<kind>.pdf` is
 a separate file with its own crops, so the rung that keeps
 `evidence-formula.pdf` under budget is decided from formula rows' crops
 alone, not the whole document's. `residuals.pdf` draws a small SUBSET of
-the same equation/formula rows and simply inherits whichever copy (full or
-already-scaled) that row was given here — it is always a fraction of a
-population already brought under budget, so it needs no budget of its own.
-See `reports.budget` for the ladder and the rung choice.
+the same equation/formula rows and inherits whichever copy (full or
+already-scaled) that row was given here — including the Corrected section,
+which `reports.residuals` routes through the same row objects as of review
+round 1's finding-4 fix, rather than a bibkey-only lookup back into the
+full-size directory. This makes an independent RUNG SELECTION for
+`residuals.pdf` unnecessary, but not a real-artefact OVER BUDGET check —
+see `reports.budget.check_artifact`, run by `evidence.build`/
+`residuals.build` after the PDF is actually compiled, since a crop-byte
+PREDICTION (this module, `_apply_budget`) is not the same claim as a
+verdict on the finished file (review round 1, finding 3). See
+`reports.budget` for the ladder and the rung choice.
 """
 from __future__ import annotations
 
@@ -82,7 +89,7 @@ def _apply_budget(lst: list, crops: Path, crops_b: Path, budget_mb: float):
         return lst, ""
     scale, quality, total, over = _budget.choose_rung(crops, titles,
                                                        budget_mb=budget_mb)
-    mb = total / (1024 * 1024)
+    mb = _budget._mb_for_bytes(total)   # DECIMAL MB (655 review round 1, finding 1)
     if scale >= 1.0:
         return lst, ""
     widths = rt.scale_crops(crops, crops_b, titles, scale=scale,
@@ -91,8 +98,13 @@ def _apply_budget(lst: list, crops: Path, crops_b: Path, budget_mb: float):
                                px_width=str(widths[r.crop.stem]))
            if r.crop is not None and r.crop.stem in widths else r
            for r in lst]
-    note = "scale=%.2f q=%d %.1fMB%s" % (
-        scale, quality, mb, " OVER BUDGET" if over else "")
+    # 655 review round 1, finding 3 -- this is a PREDICTION (crop bytes,
+    # before xelatex adds its own apparatus), never the verdict: the actual
+    # "OVER BUDGET" the user sees comes from `reports.budget.check_artifact`
+    # against the COMPILED PDF, in `evidence.build`/`residuals.build`. Say
+    # so here rather than reusing that phrase for a different claim.
+    note = "scale=%.2f q=%d %.1fMB predicted%s" % (
+        scale, quality, mb, " (floor, still over budget predicted)" if over else "")
     return out, note
 
 
@@ -122,9 +134,11 @@ def ensure_crops(rows: dict, doc_dir: Path, pdf: Path, *, bibkey: str,
         lst = [dataclasses.replace(
             r, crop=rt.crop_file(crops, r.identifier, bibkey, history))
             for r in lst]
-        out[kind], note = _apply_budget(lst, crops, crops_b, budget_mb)
-        if note:
-            budget_notes.append("%s %s" % (kind, note))
+        # 655 review round 1, finding 5 -- a distinct name from the final
+        # `note` below: this one is per-KIND and never read after the loop.
+        out[kind], kind_note = _apply_budget(lst, crops, crops_b, budget_mb)
+        if kind_note:
+            budget_notes.append("%s %s" % (kind, kind_note))
     note = ("crops: %d fetched, %d cached, %d failed; %d rendered from the "
             "PDF, %d cached, %d skipped" % (ok, cached, failed, r_ok, r_cached,
                                             r_skip))
