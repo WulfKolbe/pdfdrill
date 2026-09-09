@@ -1,5 +1,16 @@
 656 — conserve becomes a gate
 ==============================
+(fix round 1 folded in: PASS on both review verdicts, no blocking findings.
+Four minor findings fixed — the percentage-as-discriminator passage rewritten
+[finding 1], the stale table.py line citation corrected [finding 2],
+OUT_OF_SCOPE's 13 types individually re-verified into five distinct
+mechanisms instead of one shared string [finding 3], the committed
+baseline's data given a test beyond parseability [finding 7] — plus the
+brief-item-3 deviation now stated plainly [finding 8] and a cheap CLI
+flag-parsing test added [finding 9]. Full review at
+task-656-review.md; everything it independently verified — all three
+ratchet directions, the CLI's real process exit codes, and all five
+BY_DESIGN routes — is taken as read and not redone here.)
 
 "make conserve a gate." The user stated an architectural invariant from
 memory — "all non-textual objects should be transcluded and all output
@@ -202,13 +213,36 @@ OUT_OF_SCOPE reason in full in corpus_type_table.txt)
   Algorithm                48     19          48  100.0%   VIOLATION
   List                     41      4          41  100.0%   VIOLATION
 
-  THE SPLIT IS CLEAN, MEASURED NOT ASSUMED. Every VIOLATION and every
-  BY_DESIGN type reads EXACTLY 100.0% unreachable, corpus-wide, with no
-  exception; every OUT_OF_SCOPE type reads between 20.2% and 89.5% — a
-  working path with real but partial gaps. Nothing sits in between. That
-  gap in the distribution (100% vs an 80-point-wide band well under it) is
-  what makes "this type has NO code path at all" a measured fact rather
-  than a judgment call for every VIOLATION/BY_DESIGN row above.
+  THE PROOF IS THE ROUTE, NOT THE PERCENTAGE (fix round 1 — a review
+  correctly flagged the first draft of this passage for making the
+  discriminator sound like a number). Each BY_DESIGN entry's classification
+  rests on a separately verified code route named in `conserve.py:149-187`
+  (`BY_DESIGN`; the review's own citation, `:197-235`, is off by the width
+  of the comment block above it, not a different claim):
+  Page has no `TEMPLATES`/`BLOCK_TEMPLATE` entry to render into at all;
+  TableCell/TableRow fold into the parent Table's `raw_text`
+  (`table.py:61`); Toc is deliberately never emitted, its outline REBUILT
+  as the `<bibkey>_TOC` index instead (262); Document's own fields are
+  corpus-confirmed unread and its structural role is independently
+  recomputed by the projector's own root tiddler, never by reading this
+  object. Each VIOLATION type's classification rests on the ABSENCE of any
+  such route — no `TITLE_SHAPES` row (Algorithm/AlgorithmStep/List/Link/
+  MathTail/Citation), or a row that gets a tiddler nothing ever transcludes
+  (Theorem/Proof) or that no code path ever calls (CodeListing) — verified
+  by reading `TITLE_SHAPES`, `_BLOCK_TYPES_IN_SECTION`, `BLOCK_TEMPLATE`
+  and `_build_inventory`, not by counting.
+
+  The percentage table above is CORROBORATION of that route-level
+  classification, not the standard itself: every BY_DESIGN and every
+  VIOLATION type happens to read EXACTLY 100.0% unreachable corpus-wide,
+  and every OUT_OF_SCOPE type happens to read between 20.2% and 89.5% (a
+  working path with real but partial gaps, per `conserve.py:189-311`'s
+  five verified mechanisms — see FIX ROUND 1 below). That the two bands
+  never overlap is a useful cross-check that no route was misjudged — a
+  route that were actually only 60% effective would show up as a number in
+  the gap between them — but a type is BY_DESIGN or a VIOLATION because a
+  route was named and verified or because none could be, not because its
+  number happened to land on 100.
 
   The eight/seven types the audit named — Theorem, Proof, CodeListing,
   Algorithm, AlgorithmStep, List, Link, MathTail — all matched the audit's
@@ -290,24 +324,57 @@ TIDDLER_INTEGRITY ON THE SAME TWO DOCUMENTS — THE DISAGREEMENT, ON RECORD
   described as "the projector reports 0 dangling, 0 orphan" while a real
   defect sat outside the five kinds the instrument watches.
 
+DEVIATION FROM THE BRIEF, STATED PLAINLY (fix round 1, finding 8)
+  To-do item 3 asked for "a corpus test that actually runs the gate over
+  real models, not only synthetic fixtures. If running 1,362 models is too
+  slow for CI, pick a fixed, named subset that contains at least one
+  document per violating type and say which, and why that subset cannot go
+  stale silently." Neither literal option is met: this repo has no test
+  that runs the gate over any real `model.docmodel.json`, and no fixed
+  named subset of REAL documents is committed. `tests/test_conserve_gate.py`
+  substitutes ONE synthetic Document assembled from the real object shapes
+  the transclusion-audit measured live on four real documents (1811.06102,
+  narcissus, 2602.12042v1, kolbe2018hubbard, each named in the fixture's own
+  docstring) — a fixture INFORMED by real models, not a real model or a
+  subset of them. The reason is rule 19, not a shortcut: those four
+  documents' `model.docmodel.json` files are private, license-bound content
+  in `~/pdfdrill-library`, which this repo's own `.gitignore` (`*.docmodel.
+  json`) and CI cannot see, so a literal "fixed, named subset" of real
+  models cannot be committed for this repo's tests to run against at all.
+  The substitute is reasonable under that constraint and carries its own
+  staleness argument (a future code change that starts reaching any of the
+  fixture's types makes `test_gate_passes_at_its_recorded_baseline` fail
+  loudly, per its own docstring), but it is a DEVIATION from what item 3
+  asked for and should have been named as one the first time, the way the
+  "line 2217" discrepancy against the brief was.
+
 TESTS (TDD; every case confirmed failing for its stated reason first)
-  tests/test_conserve_gate.py, 13 tests — PASS-at-baseline, FAIL-on-new,
+  tests/test_conserve_gate.py, 12 tests — PASS-at-baseline, FAIL-on-new,
     FAIL-on-increase, FAIL-on-decrease (both "FIXED, remove it" and
     "DROPPED, update it" messages), FAIL-with-zero-tolerance for an
     unaudited bibkey, PASS-with-no-effect for an OUT_OF_SCOPE gap,
-    classification partition, BY_DESIGN/OUT_OF_SCOPE substantiation.
-  tests/test_cmd_conserve_gate.py, 3 tests — the CLI wrapper's PASS/FAIL/
-    SystemExit(1)/--json contract, on a small real (synthetic, on-disk)
-    model.
+    classification partition, BY_DESIGN/OUT_OF_SCOPE substantiation,
+    PLUS (fix round 1, finding 7) every committed baseline row names only
+    a ratchet-eligible type with a positive int count, and one real
+    committed row gates a synthetic document at its exact count through
+    the real `gate()`.
+  tests/test_cmd_conserve_gate.py, 5 tests — the CLI wrapper's PASS/FAIL/
+    SystemExit(1)/--json contract on a small real (synthetic, on-disk)
+    model, PLUS (fix round 1, finding 9) `_do_conserve`'s own
+    `--gate`/`--json`/`--limit` flag-stripping, stubbed and checked across
+    five flag combinations, and its "no file" ValueError.
   tests/test_conserve.py — unchanged, all 11 still pass; `Citation`'s own
     fixture (test_b) is untouched and still asserts it "no tiddler",
     which is now understood as this task's ninth VIOLATION type rather
     than an unclassified oddity.
 
-  FULL SUITE: PYTHONDONTWRITEBYTECODE=1 PYTHONPATH=src python3 -m pytest
-  tests/ -q -p no:cacheprovider  ->  3405 passed, 0 failed
-  (13 new tests from this task: 10 in test_conserve_gate.py, 3 in
-  test_cmd_conserve_gate.py; test_skill_sync in sync).
+  FULL SUITE (at HEAD a82dcca7, "655 fix round 1", rebased onto after this
+  task's own commit): PYTHONDONTWRITEBYTECODE=1 PYTHONPATH=src python3 -m
+  pytest tests/ -q -p no:cacheprovider  ->  3422 passed, 0 failed
+  (17 tests from this task across its two rounds: 12 in
+  test_conserve_gate.py, 5 in test_cmd_conserve_gate.py — 4 new this fix
+  round; the rest of the delta from 3405 is task 655's own concurrent fix
+  round, untouched by this diff; test_skill_sync in sync).
 
 CONCERNS
   The committed `conserve_baseline.json` covers seven documents, not the
@@ -319,17 +386,31 @@ CONCERNS
   OTHER real document gets zero tolerance (an empty baseline row) until
   someone adds one — which is the same posture `type_contract` already
   takes with an unclaimed corpus type, not a new one invented here.
-  OUT_OF_SCOPE's 13 entries share ONE reason string rather than 13
-  individually-cited ones: each type's nonzero count IS the class named
-  (an orphan paragraph/section outside the reachable tree, a footnote/
-  sidenote/list-item body whose marker substitution never ran, a dark TOC
-  region, a lost citation-stub link — all four mechanisms are documented,
-  by name, in 645/646's own follow-up lists), but this task did not
-  re-verify, type by type, which specific mechanism accounts for which
-  document's count. That re-verification is exactly the "make the seven
-  types reachable" work the brief says is a separate task — extended here
-  to "diagnose the thirteen out-of-scope types' own gaps," which is a
-  different, larger task again.
+  FIX ROUND 1 (findings 1, 2, 3, 7, 8, 9 of the review at
+  task-656-review.md): OUT_OF_SCOPE's 13 types were re-verified
+  individually against source, not left as one templated string. Five
+  DISTINCT mechanisms, not one, each with its own line-cited proof
+  (`conserve.py:189-311`): (A) block-level Section children — Paragraph,
+  Equation, Table, Picture, Diagram, ListItem, Abstract, Sidenote, all
+  transcluded by the ONE `_section_body` loop (`tiddlywiki.py:1698-1730`)
+  gated on `_BLOCK_TYPES_IN_SECTION` (`:686-688`); (B) inline per-line
+  substitution via `subs_by_line` — Formula and Reference, built by
+  `_build_inline_subs` (`:860-950`) and applied at the SOLE
+  `subs_by_line.get(anchor, [])` call site inside `_transclude_paragraph`
+  (`:1558`, grepped for every use — there is exactly one); (C) footnote
+  marker regex-match — Footnote alone, `_substitute_footnotes`
+  (`:1614`) against `fn_by_refnum`, confirmed to never touch `subs_by_line`
+  at all; (D) build-time baked marker — LtxCommand alone, its
+  `{{title||LTX}}` written into the hosting text's OWN `props["text"]` at
+  LaTeX-ingestion time (`pdfdrill.latex_source._capture_ltx`), before the
+  model exists, never a `tiddlywiki.py` runtime substitution; (E) section
+  listing, not transclusion — Section alone, listed by the root/TOC or a
+  parent's "## Subsections" block (`:1736-1740`). Types sharing one literal
+  code path share one literal explanation (the same convention
+  `BY_DESIGN["TableRow"]` already used for `TableCell`); no type was left
+  unverified and none needed to move into the ratchet — all thirteen's
+  measured rate (20.2%-89.5%) is consistent with a working path, not a
+  missing one, for its own now-cited reason.
   `1511.08771` (4.96 GB model) was excluded from the corpus measurement
   entirely — the population is 1,362 of the 1,363 models this library
   currently holds, not 1,363. Its own reachability is unmeasured by this
@@ -340,7 +421,24 @@ CONCERNS
   CLI entry point on penev_A / SteerableWaveletFramesBasedontheRieszTransform:
   the CLI path calls `_stale_or_absent` first, and running it against
   live, valuable library documents risked triggering an unwanted
-  `cmd_model` rebuild pass. The CLI wrapper itself (the `--gate` flag
-  parsing, the SystemExit/print contract) is exercised in
-  `tests/test_cmd_conserve_gate.py` against a small synthetic model on
-  disk instead.
+  `cmd_model` rebuild pass. The review independently drove `pdfdrill.cli.
+  main()` end to end on a synthetic on-disk model and confirmed FAIL/PASS
+  give real shell exit codes 1/0. `_do_conserve`'s own flag-stripping
+  (`--gate`/`--json`/`--limit`, `cli.py:1539-1550`) — verified by the
+  review only by hand — now has its own automated test
+  (`test_do_conserve_parses_gate_json_and_limit_flags`,
+  `tests/test_cmd_conserve_gate.py`), stubbing `cmd_conserve` and asserting
+  exactly what five different flag combinations pass it.
+  The committed baseline's seven real-document rows still cannot be
+  exercised by running the gate against the real documents that produced
+  them (rule 19 — unchanged by this round). What CAN be and now is tested:
+  every row names only a type `classify_unreachable` would actually ratchet
+  (never a BY_DESIGN or OUT_OF_SCOPE type, which would make the row
+  silently inert) with a positive integer count
+  (`test_every_committed_baseline_row_names_only_ratchet_eligible_types`),
+  and one real row, replayed as a synthetic document carrying exactly that
+  many objects of that type, gates at exactly that baseline through the
+  SAME `gate()` a real invocation uses
+  (`test_a_committed_baseline_row_gates_a_document_at_that_exact_count`).
+  That is more than parseability; it is not the same as running `conserve
+  --gate` against 1811.06102 itself, which rule 19 still forbids in CI.

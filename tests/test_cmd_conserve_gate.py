@@ -84,3 +84,43 @@ def test_gate_json_mode_still_raises_on_fail(tmp_path, monkeypatch, capsys):
     parsed = json.loads(printed)
     assert parsed["passed"] is False
     assert parsed["new_types"] == {"Citation": 1}
+
+
+# --------------------------------------------------------- (review finding 9)
+# `_do_conserve` (cli.py) does its own flag stripping BEFORE cmd_conserve
+# ever sees the args -- `--limit N` consumed by `_opt`, `--gate` detected
+# then stripped, `--json` stripped, whatever remains is the file. The review
+# verified this manually end to end; this is the cheap automated version:
+# stub `cmd_conserve` itself and assert exactly what `_do_conserve` passed
+# it, for every flag combination, without touching a real Sidecar/model.
+
+def test_do_conserve_parses_gate_json_and_limit_flags(monkeypatch, tmp_path):
+    from pdfdrill import cli, commands
+
+    calls = []
+
+    def fake_cmd_conserve(pdf, json_out=False, limit=10, gate=False):
+        calls.append({"pdf": pdf, "json_out": json_out, "limit": limit,
+                      "gate": gate})
+        return "ok"
+
+    monkeypatch.setattr(commands, "cmd_conserve", fake_cmd_conserve)
+    fake_pdf = tmp_path / "x.pdf"
+    monkeypatch.setattr(cli, "_drilled", lambda args: fake_pdf)
+
+    cli._do_conserve(["x.pdf"])
+    cli._do_conserve(["x.pdf", "--gate"])
+    cli._do_conserve(["x.pdf", "--json"])
+    cli._do_conserve(["x.pdf", "--limit", "3"])
+    cli._do_conserve(["x.pdf", "--gate", "--json", "--limit", "7"])
+
+    assert [c["gate"] for c in calls] == [False, True, False, False, True]
+    assert [c["json_out"] for c in calls] == [False, False, True, False, True]
+    assert [c["limit"] for c in calls] == [10, 10, 10, 3, 7]
+    assert all(c["pdf"] == fake_pdf for c in calls)
+
+
+def test_do_conserve_requires_a_file_argument():
+    from pdfdrill import cli
+    with pytest.raises(ValueError):
+        cli._do_conserve(["--gate"])          # a flag alone is not a file

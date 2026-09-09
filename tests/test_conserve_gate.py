@@ -367,3 +367,66 @@ def test_load_baseline_reads_the_committed_file():
     assert BIBKEY not in baseline, (
         "the test fixture's bibkey must never collide with a real, "
         "committed baseline entry")
+
+
+# ------------------------------------------------------- (review finding 7)
+# The seven real-document rows in conserve_baseline.json cannot be exercised
+# by running the gate against them (rule 19: those models are private,
+# license-bound content this repo's CI cannot see) -- but "parses as a
+# dict" is not the same claim as "every row is well-formed", and a row
+# naming an EXEMPT type would be silently inert forever (classify_
+# unreachable never routes a BY_DESIGN/OUT_OF_SCOPE type into `violations`,
+# so gate() would never even look at such an entry). This is the more than
+# parseability check the review asked for.
+
+def test_every_committed_baseline_row_names_only_ratchet_eligible_types():
+    from docops.conserve import BY_DESIGN, OUT_OF_SCOPE, load_baseline
+    baseline = load_baseline()
+    assert baseline, "the committed baseline is empty -- nothing to check"
+    exempt = set(BY_DESIGN) | set(OUT_OF_SCOPE)
+    for bibkey, row in baseline.items():
+        assert row, f"{bibkey}: an empty row means the document has zero " \
+                     "recorded violations -- write it as {{}} deliberately " \
+                     "or drop the bibkey, not both"
+        for kind, count in row.items():
+            assert kind not in exempt, (
+                f"{bibkey}: {kind!r} is BY_DESIGN or OUT_OF_SCOPE -- a "
+                f"baseline row naming it is never read by classify_"
+                f"unreachable's 'violations' bucket and would be silently "
+                f"inert forever")
+            assert isinstance(count, int) and not isinstance(count, bool), (
+                f"{bibkey}: {kind!r} count {count!r} is not an int")
+            assert count > 0, (
+                f"{bibkey}: {kind!r} count is {count} -- a zero-or-negative "
+                f"entry belongs to `decreased`/removal, not the baseline")
+
+
+def test_a_committed_baseline_row_gates_a_document_at_that_exact_count():
+    """Not just well-formed data -- a row from the real file, replayed
+    through a synthetic document carrying exactly that many objects of that
+    type, passes the SAME gate() a real invocation would use. This is the
+    closest a CI-portable test can get to "run the gate over a real
+    baseline row" without committing the private model that produced it
+    (rule 19) -- see the DEVIATION note in out/656.txt for why that gap
+    exists at all."""
+    from docops.conserve import gate, load_baseline
+    baseline = load_baseline()
+    bibkey, row = next(iter(baseline.items()))
+    kind, n = next(iter(row.items()))
+
+    doc = Document()
+    doc.meta["bibkey"] = bibkey
+    _reachable_base(doc)
+    mp = doc.streams["mathpix_lines"]
+    for i in range(n):
+        a = mp.append(text=f"item {i}", _page=1, _line_index=100 + i,
+                     type="text")
+        o = DocObject(type=kind, props={})
+        o.add_realization(Realization(stream="mathpix_lines", start=a,
+                                      end=a, role="surface"))
+        doc.add(o)
+
+    g = gate(doc, baseline=baseline)
+    assert g["matched"] == {kind: n}, g
+    assert kind not in g["new_types"] and kind not in g["increased"] \
+        and kind not in g["decreased"]

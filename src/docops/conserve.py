@@ -153,7 +153,7 @@ BY_DESIGN: dict[str, str] = {
             "(docops/projectors/tiddlywiki.py) — there is no shape for a "
             "Page tiddler to take. Navigational addressing, not content.",
     "TableCell": "folded into the parent Table's `raw_text` "
-                 "(docmodel/modules/table.py:60-61 joins every child "
+                 "(docmodel/modules/table.py:61 joins every child "
                  "cell/row's own `text`); the Table's own tiddler carries "
                  "that text whenever no SVG/cdn image is rendered instead. "
                  "Verified corpus-wide (transclusion-audit.md Q2): 0 of "
@@ -186,32 +186,128 @@ BY_DESIGN: dict[str, str] = {
                 "already carries what this object would.",
 }
 
-#: 656 — types explicitly OUT OF SCOPE for the ratchet below: they have a
-#: WORKING transclusion path (most instances of the type DO reach the
-#: reader — measured corpus-wide well under 100%, unlike BY_DESIGN's and the
-#: baseline's own types, which sit at ~100% for a provable structural
-#: reason) and their nonzero counts are a long tail of INCIDENTAL,
-#: already-catalogued per-document gaps: a paragraph/section that fell
-#: outside the reachable tree (`test_conserve.py`'s own (g), 646-g/646-j),
-#: a footnote/sidenote/list-item body whose containing marker's inline
-#: substitution never ran (`_transclude_paragraph` is the ONLY place
-#: `subs_by_line` is applied — 645-a), a dark TOC region (646-d), an
-#: overlapping citation group that lost a stub link (646-c). Ratcheting
-#: these HERE would freeze a large, separately-owned, already-tracked defect
-#: population under a task whose brief is explicit: "Do not make the seven
-#: types reachable. That is a separate task." — these are not the seven (or
-#: the ninth, Citation) and this gate does not adjudicate them.
+#: 656 (fix round 1) — types explicitly OUT OF SCOPE for the ratchet below:
+#: each has a WORKING code path that reaches most instances (measured
+#: corpus-wide well under 100%, unlike BY_DESIGN's and the baseline's own
+#: types, which sit at ~100% for a provable structural reason), and its
+#: nonzero count is an INCIDENTAL, already-catalogued gap — not a missing
+#: path. Round 0 gave all 13 ONE shared reason string; a review correctly
+#: called that an unverified blanket exemption ("exactly how a real drop
+#: hides") and spot-checked 4 of 13. This round individually verified the
+#: remaining 9 against source and found FIVE distinct mechanisms, not one —
+#: grouped below by mechanism (types sharing one literal code path share one
+#: literal explanation, the same convention `BY_DESIGN["TableRow"]` already
+#: uses for `TableCell`), never by assumption.
+#:
+#: (A) BLOCK-LEVEL: a direct Section child, transcluded once per child by
+#: `_section_body` when the child's type is in `_BLOCK_TYPES_IN_SECTION`
+#: (`tiddlywiki.py:686-688`, the loop at `:1698-1730`). GAP: an ORPHAN
+#: SUBTREE — the parent Section itself unreached, or the object never
+#: placed in any Section's `children` at all — exactly what
+#: `test_conserve.py`'s own passing (g) proves
+#: (`test_g_a_paragraph_under_an_unreachable_section_is_unreachable`) and
+#: what 646-g/646-j found on real documents (kolbe2018hubbard's empty-
+#: caption subsections; penev_B's 15 page-1 paragraphs in no Section's
+#: children).
+_BLOCK_LEVEL_REASON = (
+    "a direct Section child, transcluded once per child by `_section_body` "
+    "when its type is in `_BLOCK_TYPES_IN_SECTION` (tiddlywiki.py:686-688, "
+    "the loop at :1698-1730) — VERIFIED by reading that loop. GAP: an "
+    "orphan subtree, either the parent Section itself unreached or the "
+    "object never placed in any Section's `children` — the exact shape "
+    "test_conserve.py's own passing (g) proves "
+    "(test_g_a_paragraph_under_an_unreachable_section_is_unreachable), and "
+    "646-g/646-j's real-document instances.")
+
+#: (B) INLINE PER-LINE SUBSTITUTION: a `{{title||FO}}` / `{{title||CIT}}`
+#: replacement built by `_build_inline_subs` (`tiddlywiki.py:860-950`) into
+#: `subs_by_line`, applied ONLY inside `_transclude_paragraph`
+#: (`:1518-1560`, the sole `subs_by_line.get(anchor, [])` call site,
+#: `:1558`) — VERIFIED: grepped for every use of `subs_by_line`, found one.
+#: GAP: the SAME orphan subtree as (A) one level down (the hosting
+#: Paragraph unreached); the anchor outside every Paragraph's `surface`
+#: range at all (646-d's dark Contents-page Formulas — the Toc object
+#: claims those lines, no Paragraph does); or the object's own body copied
+#: verbatim by a NON-Paragraph emitter that never calls
+#: `_transclude_paragraph` at all (a Footnote/Sidenote/Abstract's content —
+#: 645-a: "no formula and no citation inside a footnote... has EVER become
+#: a transclusion, on any document"). Reference ALSO loses a span outright
+#: when `bibliography.py`'s detectors cannot anchor a citation group on its
+#: own line (645's `spans_unrecorded` counter, `cmd_bibliography` prints
+#: it) — a citation with no span gets no stub and no substitution.
+_INLINE_SUBLINE_REASON = (
+    "a `{{title||FO}}`/`{{title||CIT}}` replacement built into "
+    "`subs_by_line` by `_build_inline_subs` (tiddlywiki.py:860-950), "
+    "applied ONLY inside `_transclude_paragraph` (:1518-1560, the sole "
+    "`subs_by_line.get(anchor, [])` call site, :1558 — VERIFIED, grepped "
+    "for every use). GAP: the same orphan-Paragraph subtree as the "
+    "block-level types, one level down; the anchor outside every "
+    "Paragraph's surface range (646-d's dark Contents-page Formulas, "
+    "claimed only by a Toc object); the body copied verbatim by a "
+    "non-Paragraph emitter that never calls `_transclude_paragraph` at all "
+    "(a Footnote/Sidenote/Abstract's own content — 645-a); or, for "
+    "Reference specifically, a citation group `bibliography.py` could not "
+    "anchor on its own line at all (645's `spans_unrecorded`) — no span, "
+    "no stub, no substitution.")
+
+#: (C) FOOTNOTE MARKER MATCH: `_substitute_footnotes` (`tiddlywiki.py:1614`,
+#: called from `_transclude_paragraph:1562`) is a REGEX match on the
+#: paragraph's joined text against `fn_by_refnum` — a DIFFERENT mechanism
+#: from (B)'s offset index (VERIFIED: `_substitute_footnotes` never touches
+#: `subs_by_line`). GAP: the marker pattern never matched in any paragraph
+#: — 645-a's own headline finding, and the largest single OUT_OF_SCOPE
+#: percentage measured here (Footnote 89.5%) is exactly this.
+_FOOTNOTE_MARKER_REASON = (
+    "`_substitute_footnotes` (tiddlywiki.py:1614, called from "
+    "_transclude_paragraph:1562) is a REGEX match on the paragraph's "
+    "joined text against `fn_by_refnum` — a DIFFERENT mechanism from "
+    "Formula/Reference's offset index (VERIFIED: `_substitute_footnotes` "
+    "never touches `subs_by_line`). GAP: the marker pattern never matched "
+    "in any paragraph — 645-a's own headline finding; measured here at "
+    "89.5% unreachable, the largest OUT_OF_SCOPE percentage of the "
+    "thirteen, which is exactly this failure mode dominating.")
+
+#: (D) BUILD-TIME BAKED MARKER: `{{title||LTX}}` is written straight into
+#: the hosting text's OWN `props["text"]` at LaTeX-ingestion time
+#: (`latex_source._capture_ltx`), before the model even exists — NOT a
+#: `tiddlywiki.py` runtime substitution (VERIFIED: grepped `tiddlywiki.py`
+#: for any `subs_by_line`/dedicated-loop entry for `ltx`; found none — only
+#: unconditional per-object TITLE assignment, `:851`, and unconditional
+#: tiddler emission, `:1298-1302`, both already the reviewer's own
+#: spot-check). GAP: the same orphan-subtree mechanism as (A)/(B), inherited
+#: transitively from wherever the leaked command landed.
+_LTX_BAKED_REASON = (
+    "`{{title||LTX}}` is written straight into the hosting text's OWN "
+    "`props[\"text\"]` at LaTeX-ingestion time "
+    "(pdfdrill.latex_source._capture_ltx), before the model even exists — "
+    "NOT a tiddlywiki.py runtime substitution at all (VERIFIED: grepped "
+    "tiddlywiki.py for any subs_by_line/dedicated-loop entry naming ltx; "
+    "found only the unconditional per-object title assignment, :851, and "
+    "unconditional tiddler emission, :1298-1302). GAP: the same "
+    "orphan-subtree mechanism as the block-level/inline types above, "
+    "inherited transitively from wherever the leaked command landed.")
+
+#: (E) SECTION LISTING: a Section is not content-transcluded at all — it is
+#: LISTED, either by the root/TOC (every top-level captioned section) or by
+#: a parent Section's own "## Subsections" list (`_section_body`,
+#: `tiddlywiki.py:1736-1740`). GAP: an orphan subtree, the exact shape
+#: `test_conserve.py`'s own passing (g) proves.
+_SECTION_LISTING_REASON = (
+    "not content-transcluded at all — it is LISTED, either by the root/TOC "
+    "(every top-level captioned section) or by a parent Section's own "
+    "\"## Subsections\" list (_section_body, tiddlywiki.py:1736-1740). GAP: "
+    "an orphan subtree, the exact shape test_conserve.py's own passing (g) "
+    "proves (test_g_a_paragraph_under_an_unreachable_section_is_unreachable"
+    ").")
+
 OUT_OF_SCOPE: dict[str, str] = {
-    t: ("has a working transclusion path (most instances reach the reader — "
-        "the transclusion-audit's own Type table marks it reachable in the "
-        "common case); its nonzero corpus-wide count is the incidental "
-        "class documented in 645-a/646-c/646-d/646-g/646-j (an orphan "
-        "paragraph/section, an un-substituted inline marker, a dark TOC "
-        "region, a lost citation-stub link) — a separately tracked defect "
-        "population, not a missing code path, and out of THIS gate's scope.")
-    for t in ("Formula", "Paragraph", "Equation", "ListItem", "Reference",
-             "Diagram", "Sidenote", "Footnote", "Section", "Table",
-             "Picture", "Abstract", "LtxCommand")
+    **{t: _BLOCK_LEVEL_REASON for t in
+       ("Paragraph", "Equation", "Table", "Picture", "Diagram", "ListItem",
+        "Abstract", "Sidenote")},
+    **{t: _INLINE_SUBLINE_REASON for t in ("Formula", "Reference")},
+    "Footnote": _FOOTNOTE_MARKER_REASON,
+    "LtxCommand": _LTX_BAKED_REASON,
+    "Section": _SECTION_LISTING_REASON,
 }
 
 #: 656 — the checked-in RATCHET. {bibkey: {type: count}}, the exact
